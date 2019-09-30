@@ -2,6 +2,27 @@
 
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
 
+## Installation
+
+Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
+There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
+
+To compile `xtb` from source install Intel Parallel Studio 17 or later.
+
+We are using [`meson`](https://mesonbuild.com/) as build system and require you to install a fairly new version like 0.49 or newer.
+To use the default backend of `meson` you have to install `ninja` version 1.5 or newer.
+
+```bash
+export FC=ifort CC=icc CXX=icpc
+meson setup build_intel --optimization=2
+ninja -C build_intel test
+```
+
+Make sure the testsuite is running without errors.
+`xtb` is routinely compiled with Intel Parallel Studio 17 on our clusters in Bonn,
+but we have not tried to compile it on either OSX or Windows so far.
+Also you currently cannot compile `xtb` with GCC and there is no plan to support it in the near future.
+
 ## Documentation
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
@@ -18,10 +39,10 @@ The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedoc
 - S. Ehrlich
 - F. März
 - H. Neugebauer
-- J. Pisarek,
+- J. Pisarek
 - P. Pracht
 - P. Shushkov
-- S. Spicher.
+- S. Spicher
 
 ## Citations
 
@@ -59,6 +80,6 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 `xtb` is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+but without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.  See the
 GNU Lesser General Public License for more details.
