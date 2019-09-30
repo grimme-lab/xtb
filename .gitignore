@@ -1,0 +1,61 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# directories
+bin
+build
+modules
+CODECHECK
+
+# files produces by the documentation
+man/*.pdf
+man/*.xml
+man/*.html
+
+# files produces by the program
+xtbrestart
+.EDISP
+energy
+wbo
+charges
+dftd4_gradient
+.tmpxtbmodef
+hessian
+molden.input
+tmpxx
+xtb_localmodes
+xtb_normalmodes
+xtbopt.xyz
+xtbopt.sdf
+xtbopt.coord
+xtbopt.log

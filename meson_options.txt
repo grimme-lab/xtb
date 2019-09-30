@@ -1,0 +1,3 @@
+
+option('la_backend', type : 'string', value : 'mkl',
+description : 'linear algebra backend')

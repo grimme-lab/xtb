@@ -1,0 +1,450 @@
+XTB(1)
+======
+:doctype: manpage
+
+NAME
+----
+xtb - performs semiempirical quantummechanical calculations,
+      for version 6.0 and newer
+
+SYNOPSIS
+--------
+*xtb* ['OPTIONS'] 'FILE' ['OPTIONS']
+
+DESCRIPTION
+-----------
+The `xtb(1)` program performs semiempirical quantummechanical calculations.
+The underlying effective Hamiltonian is derived from density functional
+tight binding (DFTB). This implementation of the xTB Hamiltonian is currently
+compatible with the zeroth (6.1 only), first and second level parametrisation for
+geometries, frequencies and non-covalent interactions (GFN)
+as well as with the ionisation potential and
+electron affinity (IPEA) parametrisation of the GFN1 Hamiltonian.
+The generalized born (GB) model with solvent accessable surface area (SASA)
+is also available available in this version.
+Ground state calculations for the simplified Tamm-Danceoff approximation (sTDA)
+with the vTB model are currently not implemented.
+
+GEOMETRY INPUT
+~~~~~~~~~~~~~~
+The input coordinates can be presented in XMOL format and
+in Turbomole format. For most calculations no specific changes
+to these formats have to be made.
+The file type is determined automatically and the file extension
+can be freely chosen. XMOL coordinates must be given in Ångström,
+while in Turbomole format they can be given in Ångström as well
+as in Bohr (default). The corresponding keyword is given in the
+first line as `ang` or `bohr` instead of the `$coord` keyword.
+
+NOTE: This implementation of `xtb(1)` can only identify and read coordinate
+      files in Turbomole, if the `$coord` is in the first line of the
+      file, valid Turbomole coordinate files with the `$coord` datagroup
+      elsewhere will not be read in correctly and lead to abnormal termination
+      of the program.
+
+`xtb(1)` reads additionally `.CHRG` and `.UHF` files if present.
+
+INPUT SOURCES
+-------------
+`xtb(1)` gets its information from different sources. The one with highest
+priority is the commandline with all allowed flags and arguments described below.
+The secondary source is the `xcontrol(7)` system, which can in principle
+use as many input files as wished. The `xcontrol(7)` system is the successor
+of the set-block as present in version 5.8.2 and earlier. This implementation
+of `xtb(1)` reads the `xcontrol(7)` from two of three possible sources,
+the local xcontrol file or the 'FILE' used to specify the geometry
+and the global configuration file found in the `XTBPATH`.
+
+OPTIONS
+-------
+*-c, --chrg* 'INT':: 
+    specify molecular charge as 'INT', overrides `.CHRG` file and `xcontrol` option
+
+*-u, --uhf* 'INT'::
+    specify Nalpha-Nbeta as 'INT', overrides `.UHF` file and `xcontrol` option
+
+*--gfn* 'INT'::
+    specify parametrisation of GFN-xTB (default = 2)
+
+*--etemp* 'REAL'::
+    electronic temperature (default = 300K)
+
+*--esp* ::
+    calculate electrostatic potential on VdW-grid
+
+*--stm* ::
+    calculate STM image
+
+*-a, --acc* 'REAL'::
+    accuracy for SCC calculation, lower is better (default = 1.0)
+
+*--vparam* 'FILE'::
+    Parameter file for vTB calculation
+
+*--xparam* 'FILE'::
+    Parameter file for xTB calculation (not used)
+
+*-g, --gbsa* ['SOLVENT' ['STATE']]::
+    generalized born (GB) model with solvent accessable surface (SASA) model,
+    available solvents are 'acetone', 'acetonitrile', 'benzene' (only GFN1-xTB),
+    'CH2Cl2', 'CHCl3', 'CS2', 'DMF' (only GFN2-xTB), 'DMSO', 'ether', 'H2O',
+    'methanol', 'n-hexane' (only GFN2-xTB), 'THF' and 'toluene'.
+    The solvent input is not case-sensitive.
+    The Gsolv reference state can be chosen as 'reference' or 'bar1M' (default).
+
+*--cma* ::
+    shifts molecule to center of mass and transforms cartesian coordinates
+    into the coordinate system of the principle axis (not affected by
+    `isotopes'-file).
+
+*--pop*::
+    requests printout of Mulliken population analysis
+
+*--molden*::
+    requests printout of molden file
+
+*--dipole*::
+    requests dipole printout
+
+*--wbo*::
+    requests Wiberg bond order printout
+
+*--lmo*::
+    requests localization of orbitals
+
+*--fod*::
+    requests FOD calculation
+
+RUNTYPS
+~~~~~~~
+NOTE: You can only select *one* runtyp, only the first runtyp will be used
+      from the program, use implemented composite runtyps to perform several
+      operations at once.
+
+*--scc, --sp*::
+    performs a single point calculation
+
+*--vip*::
+    performs calculation of ionisation potential.
+    This needs the .param_ipea.xtb parameters
+    and a GFN1 Hamiltonian.
+
+*--vea*::
+    performs calculation of electron affinity.
+    This needs the .param_ipea.xtb parameters
+    and a GFN1 Hamiltonian.
+
+*--vipea*::
+    performs calculation of electron affinity and ionisation potential.
+    This needs the .param_ipea.xtb parameters
+    and a GFN1 Hamiltonian.
+
+*--vfukui*::
+    performs calculation of Fukui indices.
+
+*--vomega*::
+    performs calculation of electrophilicity index.
+    This needs the .param_ipea.xtb parameters
+    and a GFN1 Hamiltonian.
+
+*--grad*::
+    performs a gradient calculation
+
+*-o, --opt* ['LEVEL']::
+    call `ancopt(3)` to perform a geometry optimization,
+    levels from crude, sloppy, loose, normal (default), tight, verytight
+    to extreme can be chosen
+
+*--optts* ['LEVEL'] ['ROOT']::
+    call `ancopt(3)` to perform a transition state optimization, may need to 
+    perform a hessian calculation first
+
+*--hess*::
+    perform a numerical hessian calculation on input geometry
+
+*--ohess* ['LEVEL']::
+    perform a numerical hessian calculation on an `ancopt(3)` optimized
+    geometry
+
+*--md*::
+    molecular dynamics simulation on start geometry
+
+*--metadyn* ['int']::
+    meta dynamics simulation on start geometry, saving 'int' snapshots
+    of the trajectory to bias the simulation (6.1 only)
+
+*--omd*::
+    molecular dynamics simulation on `ancopt(3)` optimized geometry,
+    a loose optimization level will be chosen
+
+*--metaopt* ['LEVEL']::
+    call `ancopt(3)` to perform a geometry optimization,
+    then try to find other minimas by meta dynamics (6.1 only)
+
+*--path* ['FILE']::
+    use meta dynamics to calculate a path from the input geometry
+    to the given product structure (6.1 only)
+
+*--reactor*::
+    experimental (6.1 only)
+
+////////////////////////////////////////////////////////////////////////////////
+*--gmd*::
+    performs a molecular dynamics simulation with separate equilibration
+    and production run
+////////////////////////////////////////////////////////////////////////////////
+
+*--siman*::
+    conformational search by simulated annealing based on molecular
+    dynamics. Conformers are optimized with `ancopt(3)`.
+
+//////////////
+*--screen*::
+    no idea
+//////////////
+
+*--modef* 'INT'::
+    modefollowing algorithm. 'INT' specifies the mode that should be
+    used for the modefollowing.
+    
+
+GENERAL
+~~~~~~~
+*-I, --input* 'FILE'::
+     use 'FILE' as input source for `xcontrol(7)` instructions
+
+*--namespace* 'STRING'::
+     give this `xtb(1)` run a namespace. All files, even temporary
+     ones, will be named according to 'STRING' (might not work everywhere).
+
+*--[no]copy*::
+     copies the `xcontrol` file at startup (default = true)
+
+*--[no]restart*::
+     restarts calculation from `xtbrestart` (default = true)
+
+*-P, --parallel* 'INT'::
+     number of parallel processes
+
+*--define*::
+     performs automatic check of input and terminate
+
+*--citation*::
+     print citation and terminate
+
+*--license*::
+     print license and terminate
+
+*-v, --verbose*::
+     be more verbose (not supported in every unit)
+
+*-s, --silent*::
+     clutter the screen less (not supported in every unit)
+
+*--strict*::
+     turns all warnings into hard errors
+
+*-h, --help*::
+     show help page
+
+ENVIRONMENT VARIABLES
+---------------------
+`xtb(1)` accesses a path-like variable to determine the location of its
+parameter files, you have to provide the `XTBPATH` variable in the same
+syntax as the system `PATH` variable. If this variable is not set, `xtb(1)`
+will try to generate the `XTBPATH` from the deprecated `XTBHOME` variable.
+In case the `XTBHOME` variable is not set it will be generated from the
+`HOME` variable. So in principle storing the parameter files in the users
+home directory is suffient but might lead to come cluttering.
+
+Since the `XTBHOME` variable is deprecated with version 6.0 and newer
+`xtb(1)` will issue a warning if `XTBHOME` is not part of the `XTBPATH`
+since the `XTBHOME` variable is not used in production runs.
+
+LOCAL FILES
+-----------
+
+`xtb(1)` accesses a number of local files in the current working directory
+and also writes some output in specific files. Note that not all input
+and output files allow the *--namespace* option.
+
+INPUT
+~~~~~
+
+*.CHRG*::
+   molecular charge as 'int'
+
+*.UHF*::
+   Nalpha-Nbeta as 'int'
+
+*mdrestart*::
+   contains restart information for MD, *--namespace* compatible.
+
+*pcharge*::
+   point charge input, format is 'real' 'real' 'real' 'real' ['int'].
+   The first real is used as partial charge, the next three entries
+   are the cartesian coordinates and the last is an optional atom type.
+   Note that the point charge input is not affected by a CMA transformation.
+   Also parallel Hessian calculations will fail due to I/O errors when using
+   point charge embedding.
+
+*solvent*::
+   `qmdff(1)` input file
+
+*xcontrol*::
+   default input file in *--copy* mode, see `xcontrol(7)` for details,
+   set by *--input*.
+
+*xtbrestart*::
+   contains restart information for SCC, *--namespace* compatible.
+
+OUTPUT
+~~~~~~
+
+*charges*::
+   contains Mulliken partial charges calculated in SCC
+
+*wbo*::
+   contains Wiberg bond order calculated in SCC, *--namespace* compatible.
+
+*energy*::
+   total energy in Turbomole format
+
+*gradient*::
+   geometry, energy and gradient in Turbomole format
+
+*hessian*::
+   contains the (not mass weighted) cartesian Hessian, *--namespace* compatible.
+
+*xtbopt.xyz*, *xtbopt.coord*::
+   optimized geometry in the same format as the input geometry.
+
+*xtbhess.coord*::
+   distorted geometry if imaginary frequency was found
+
+*xtbopt.log*::
+   contains all structures obtained in the geometry optimization
+   with the respective energy in the comment line in a XMOL formatted
+   trajectory
+
+*xtbsiman.log*,*xtb.trj.'int'*::
+   trajectories from MD
+
+*scoord.'int'*::
+   coordinate dump of MD
+
+*fod.cub*::
+   FOD on a cube-type grid
+
+*spindensity.cub*::
+   spindensity on a cube-type grid
+
+*density.cub*::
+   density on a cube-type grid
+
+*molden.input*::
+   MOs and occupation for visualisation and sTDA-xTB calculations
+
+*pcgrad*::
+   gradient of the point charges
+
+*xtb_esp.cosmo*::
+   ESP fake cosmo output
+
+*xtb_esp_profile.dat*::
+   ESP histogramm data
+
+*vibspectrum*::
+   Turbomole style vibrational spectrum data group
+
+*g98.out*, *g98l.out*, *g98_canmode.out*, *g98_locmode.out*::
+   g98 fake output with normal or local modes
+
+*.tmpxtbmodef*::
+   input for mode following
+
+*coordprot.0*::
+   protonated species
+
+*xtblmoinfo*::
+   centers of the localized molecular orbitals
+
+*lmocent.coord*::
+   centers of the localized molecular orbitals
+
+*tmpxx*::
+   number of recommended modes for mode following
+
+*xtb_normalmodes*, *xtb_localmodes*::
+   binary dump for mode following
+
+TOUCH
+~~~~~
+
+*xtbmdok*::
+   generated by successful MD
+
+*.xtbok*::
+   generated after each successful `xtb(1)` run
+
+*.sccnotconverged*::
+   generated after failed SCC with printlevel=2
+
+//////////////////
+NAMING CONVENTIONS
+------------------
+//////////////////
+
+WARNINGS
+--------
+`xtb(1)` can generate the two types of warnings, the first warning section
+is printed immediately after the normal banner at startup, summing up the
+evaluation of all input sources (commandline, xcontrol, xtbrc). To check
+this warnings exclusively before running an expensive calculation a
+input check is implemented via the *--define* flag. Please, study this
+warnings carefully!
+
+After `xtb(1)` has evaluated the all input sources it immediately enters
+the production mode. Severe errors will lead to an abnormal termination
+which is signalled by the printout to STDERR and a non-zero return value
+(usually 128). All non-fatal errors are summerized in the end of the calculation
+in one block, right bevor the timing analysis.
+
+To aid the user to fix the problems generating these warnings a brief
+summary of each warning with its respective string representation in the
+output will be shown here:
+
+*ANCopt failed to converge the optimization*::
+   geometry optimization has failed to converge in the given number
+   optimization cycles. This is not neccessary a problem if only a
+   small number of cycles was given for the optimization on purpose.
+   All further calculations are done on the last geometry of the
+   optimization.
+
+*Hessian on incompletely optimized geometry!*::
+   This warning will be issued twice, once before the Hessian,
+   calculations starts (it would otherwise take some time before
+   this this warning could be detected) and in the warning block
+   in the end. The warning will be generated if the gradient norm
+   on the given geometry is higher than a certain threshold.
+
+EXIT STATUS
+-----------
+*0*::
+   normal termination of `xtb(1)`
+
+*128*::
+   Failure (termination via error stop generates 128 as return value)
+
+BUGS
+----
+please report all bugs with an example input, `--copy` dump of internal settings
+and the used geometry, as well as the `--verbose` output to xtb@thch.uni-bonn.de
+
+RESOURCES
+---------
+Main web site: http://grimme.uni-bonn.de/software/xtb
+
+COPYING
+-------
+Copyright \(C) 2015-2018 S. Grimme. For non-commerical, academia use only.

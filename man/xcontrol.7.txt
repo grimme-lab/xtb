@@ -1,0 +1,657 @@
+XCONTROL(7)
+===========
+:doctype: manpage
+
+NAME
+----
+xcontrol - instruction file for `xtb(1)` version 6.0 and newer
+
+SYNOPSIS
+--------
+xtb -I,--input *xcontrol* 'FILE'
+
+DESCRIPTION
+-----------
+The `xcontrol(7)` instruction set is the successor of the set-block
+present in `xtb(1)` version 5.8 and earlier. The used instruction
+set is similar to the data groups in Turbomole or the detailed
+input structure of ORCA. Every instruction is started by a flag (`$`)
+and terminated by the next flag. A instruction is only valid if
+the flag is in the first column, the instruction name is the rest
+of the register. A valid instruction opens its blocks with its own
+options, every option is a key-value pair.
+
+There are two kind of instructions, logical and groups. Logical instructions
+toggle a specific operation and cannot contain a option block while
+group instructions only open the option block without any further actions.
+
+A special instruction is the end instruction which is optional, as EOF
+is a valid alternative in this implementation.
+
+It should be noted that `xtb(1)` is able to produce `xcontrol(7)` instructions
+by itself. You can tell `xtb(1)` by *--copy* to
+save you original instructions, note that this implementation will strip all
+comments while copying (print what you see, not what you read), to aid debugging.
+
+$fit
+~~~~
+logical instruction to  set `xtb(1)` in `mfit(1)` compatibility mode
+and prints out further informations.
+This is a pure development feature and therefore should
+be absent in every productive run.
+
+$samerand
+~~~~~~~~~
+logical instruction to initialize the random number generator
+with the same sequence
+
+$chrg 'int'
+~~~~~~~~~~~
+set the charge of the molecule
+
+$spin 'int'
+~~~~~~~~~~~
+set Nalpha-Nbeta of the molecule
+
+$cma
+~~~~
+shifts molecule to center of mass and transforms cartesian coordinates
+into the coordinate system of the principle axis (not affected by
+`isotopes'-file).
+
+$constrain
+~~~~~~~~~~
+NOTE: This data group refers to constraining the gradient by appling
+      potentials. Exact fixing is done with the fix data group.
+
+*force constant*='real'::
+    force constant for constraining potential
+*all bonds*='bool'::
+    generate potentials to constrain the length of all bonds
+*all angles*='bool'::
+    generate potentials to constrain all bond angles
+*all torsions*='bool'::
+    generate potentials to constrain the angles of all torsions
+*elements*: 'symbol'|'number',...::
+    constrains all elements of the same type, the atom type is determined
+    by the ordinal number or the element symbol
+*atoms*: 'list',...::
+     constrains the atom positions of all atoms in 'list'. Needs at
+     least two atoms since potential is applied on all atoms in 'list'.
+*distance*: 'i','j',auto|'real'::
+    constrain the distance between atom 'i' and 'j' to the actual 
+    length (auto) or the value 'real', which has to be given in
+    Ångström.
+*angle*: 'i','j','k',auto|'real'::
+    constrain the angle between atom 'i', 'j' and 'k' to the actual 
+    length (auto) or the value 'real', which has to be given in
+    degrees.
+*dihedral*: 'i','j','k','l',auto|'real'::
+    constrain the angle between atom 'i', 'j', 'k' and 'l' to the actual 
+    length (auto) or the value 'real', which has to be given in degrees.
+*center*: 'real','int'::
+    implemented and documented as in xtb 5.8,
+    might use fragment1 information from split instruction.
+*cma[ interface]*: auto|'real'::
+    implemented and documented as in xtb 5.8,
+    might use fragment1/fragment2 information from split instruction.
+*z*: 'real'::
+    implemented and documented as in xtb 5.8,
+    might use fragment1 information from split instruction.
+
+$cube
+~~~~~
+*step*='real'::
+    grid spacing for cube file
+*pthr*='real'::
+    density matrix neglect threshold
+*cal*='int'::
+    =1 switches on cube-file output (=0 means writing molden file
+    instead, -1=do nothing)
+
+$embedding
+~~~~~~~~~~
+
+*at*='int'::
+    default atom type for point charges
+
+*es*='bool'::
+    use isotropic electrostatic with point charges
+
+///////////////////////////////////////////////////////////////////////////
+*aes*='bool'::
+    use anisotropic (=multipole) electrostatics with point charges
+
+*disp*='bool'::
+    make dispersion dependent on external point charges (only D4)
+
+*dipm*='bool'::
+    use external dipole moments (requires aes=true)
+
+*qp*='bool'::
+    use external quadrupole moments (requires aes=true)
+
+*cn*='bool'::
+    use external coordination numbers for dispersion embedding
+
+*atm*='bool'::
+    calculate non-additive dispersion with external polarizibilties
+///////////////////////////////////////////////////////////////////////////
+
+*input*='file'::
+    point charges are read from 'file' (default: 'pcharge'), format is:
+    'q' 'x' 'y' 'z' ['iat'|'gam'], where 'q' is the partial charges, 'xyz' are
+    the position of the partial charge in bohr and 'iat' is the ordinal
+    number of the atom. The corresponding gam-Parameter of the element will
+    be used in the potential.
+    Alternatively the 'gam' value can be given directly as fifth argument,
+    to simulate point charges provide a huge value for 'gam'.
+
+*gradient*='file::
+    gradient of the point charges is written to 'file' (default: 'pcgrad')
+
+$external
+~~~~~~~~~
+
+*mopac bin*='STRING'::
+    path to `mopac(1)` binary, will search `PATH` variable for binary if not set
+*mopac input*='STRING'::
+    input string used for `mopac(1)` calculation, make sure it generates an
+    aux file for `xtb(1)` to read in.
+*mopac file*='STRING'::
+    name of the `mopac(1)` input file
+
+*orca bin*='STRING'::
+    path to `orca(1)` binary, will search `PATH` variable for binary if not set
+*orca input line*='STRING'::
+    input string used for `orca(1)` calculation, will use engrad runtyp
+    by default
+*orca input file*='STRING'::
+    name of the `orca(1)` input file
+
+*turbodir*='STRING'::
+    path to your Turbomole directory (usually found in `TURBODIR` or
+    `TURBOIMG` variable)
+
+$fix
+~~~~
+
+NOTE: the fix group refers to exact fixing. For geometry optimizations
+      the gradient is set to zero, while for Hessians no displacements
+      are calculated.
+      Constraining with external potentials
+      is done by the constrain data group.
+
+*elements*: 'symbol'|'number',...::
+    fixes all elements of the same type, the atom type is determined
+    by the ordinal number or the element symbol.
+    This is automatically deactivated for molecular dynamics since
+    it leads to instabilities.
+
+*atoms*: 'list',...::
+    fixes all atoms in 'list' by setting the gradient to zero.
+    This is automatically deactivated for molecular dynamics since
+    it leads to instabilities.
+
+*freeze frequency*='real'::
+    diagonal element used for freezing atoms in numerical Hessian calculation
+
+*freeze*: 'list',...::
+    freezes all atoms in 'list' for hessian calculation
+
+*shake*: 'i','j',...::
+    use SHAKE to constrain the atompair 'ij' in molecular dynamics.
+
+$gbsa
+~~~~~
+*solvent*='string'::
+    solvent for the generalized born (GB) model with solvent accessable
+    surface area (SASA), requires `.param_gbsa.solvent` in `XTBPATH`.
+    Does not activate GBSA (use commandline).
+
+*ion_st*='real'::
+    ion strength for salt screening in GBSA
+
+*ion_rad*='real'::
+    ion radius for salt screening in GBSA
+
+*grid*='level'::
+    changes the grid used for the surface accessable surface area
+    (normal, tight, vtight, extreme are available).
+
+$gfn
+~~~~
+*method*='int'::
+    version of the GFN Hamiltonian
+
+$hess
+~~~~~
+*sccacc*='real'::
+    SCC accuracy level in Hessian runs
+*step*='real'::
+    Cartesian displacement increment for numerical Hessian
+*isotope*: 'int','real',... (6.1 only)::
+    set mass of atom number 'int' to 'real'
+*modify mass*: 'int','real',... (6.1 only)::
+    set mass of atom number 'int' to 'real'
+*scale mass*: 'int','real',... (6.1 only)::
+    scale mass of atom number 'int' by 'real'
+
+$metadyn (6.1 only)
+~~~~~~~~~~~~~~~~~~~
+*save*='int'::
+    maximal number of structures for rmsd criteria
+*kpush*='real',...::
+    scaling factor for rmsd criteria can be positive and negative
+*modify factor*='int','real',...::
+    replace the factor 'int' with 'real'
+*scale factor*='int','real',...::
+    scales the factor 'int' with 'real'
+*alp*='real'::
+    width of the Gaussian potential used in the rmsd criteria
+*coord*='file'::
+    external structures to initialize the rmsd criteria (xmol format required)
+*atoms*: 'list',...::
+    atoms to include in rmsd calculation, if not present all atoms are
+    taken into account
+
+$md
+~~~
+*temp*='real'::
+    MD thermostat/initial siman/GBSA temperature
+*time*='real'::
+    MD run time in ps
+*dump*='real'::
+    dump (=optimize) structure in siman every mddump fs
+*velo*='int'::
+    set to 1 if dumps (trj file) should contain velocities
+*nvt*='int'::
+    use thermostat (=1, =0 for NVE)
+*skip*='int'::
+    skip interval in -mdav, -mdopt
+*step*='real'::
+    MD time step in fs (automatically determined if < 0),
+    could be 4-5 fs with shake =2, md_hmass=4
+*hmass*='int'::
+    increase hydrogen mass to this value in amu (at const. tot. mass)
+    allowing large time steps (=0 off)
+*shake*='int'::
+    shake on (=0: off which is default) for X-H bonds only (=1),
+*sccacc*='real'::
+    SCC accuracy level in MD. Every 10th step the SCC is properly converged
+    at sccconv=1.0. sccmd should be < 5 in critical cases, effects may show
+    up as bad thermostating
+
+$modef
+~~~~~~
+*n*='int'::
+    of points along normal mode path scan
+*step*='real'::
+    step lengths for scan (should be around 1 because its adjusted
+    internally to mode mass and FC)
+*updat*='real'::
+    update search mode with a fraction of the displacement at every step
+    (0.0 means no update, 0.1-0.2 is a good choice)
+*local*='int'::
+    use canonical normal modes (=0) or Pipek-Mezey localized ones (=1)
+*vthr*='real'::
+    threshold up to which frequency modes are used for mode based conformer
+    search (def. is 300)
+*prj*='int'::
+    number of second mode which should be projected out in mode following
+    (normally = 7 ie the TS mode which is fixed then)
+*mode*='int'::
+    can set by --modef via cmdline
+
+$opt
+~~~~
+*engine*='method'::
+    method can be 'rf' for ANCopt (default), 'lbfgs' for L-ANCopt or
+    'inertial' for FIRE.
+
+*output*='file'::
+    redirect output of optimization to 'file'
+
+*logfile*='file::
+    write optimization log to 'file' (default: xtbopt.log)
+
+*optlevel*='level'::
+    convergence thresholds for the `ancopt(3)`:
+    crude = -3,     sloppy = -2,      loose = -1,      normal = 0,
+    tight = 1,      verytight = 2,    extreme = 3
+
+*microcycle*='int'::
+    number of optimization cycles before new ANC are made (default=25)
+
+*maxcycle*='int'::
+    total number of opt. cycles, 0 means automatically determined
+
+*hlow*='real'::
+    lowest force constant in ANC generation (should be > 0.005)
+
+*maxdispl*='real'::
+    maximum coordinate displacement in `ancopt(3)`
+
+*s6*='real'::
+    dispersion scaling in ANC generation
+
+*ts*='bool'::
+    dummy
+
+*tsroot*='int'::
+    dummy
+
+*hessian*=lindh-d2|lindh|swart::
+    model hessian for generation of ANC used in optimization
+
+*kstretch*='real'::
+   stretch force constant in model hessian
+*kbend*='real'::
+   bend force constant in model hessian
+*ktorsion*='real'::
+   torsion force constant in model hessian
+*koutofp*='real'::
+   out-of-plain force constant to model hessian
+*kvdw*='real'::
+   additional vdW-contribution (lindh|swart only)
+*kes*='real'::
+   electrostatic contribution to model hessian by EEQ model
+*rcut*='real'::
+   distance cutoff for bonds in model hessian
+
+$path (6.1 only)
+~~~~~~~~~~~~~~~~
+*nrun*='int'::
+   number of runs for pathfinder
+*nopt*='int'::
+   number of points on the path to optimize
+*anopt*='int'::
+   number of steps to optimize the points on the path
+*kpush*='real'::
+   factor for RMSD criterium pushing away from the reactant structure
+*kpull*='real'::
+   factor for RMSD criterium pulling towards the product structure
+*alp*='real'::
+   width of the RMSD criterium
+*product*='file'::
+   file name of the product structure
+
+$scan
+~~~~~
+*mode*=sequential|concerted::
+    scans all constraints at once (concerted) or after each other (sequential).
+    in sequential mode the final value of the scanned constraint is kept in
+    place. in concerted mode all steps for the scans have to be the same.
+*int*: 'start','end','steps'::
+    where 'start' and 'end' are 'real' values and 'steps' is an integer value.
+    Defines a scan along constraint *int*
+    (which has to be defined before, of course),
+    from 'start' to 'end' in a certain number of 'steps'. There is no limitation
+    in the number of 'steps' as in 5.8.
+*name*: 'values'; 'start','end','steps'::
+    defines the constrain *name* on which the scan is performed. See above and the
+    the constrain group for more information, since *name* (e.g. *distance*) and
+    'values' (e.g. 'i','j','value') are handed internally to the constrain parser.
+
+NOTE: the scan parser will always terminate in error if the instruction could
+      not be parsed correctly, while the constrain parser is able to skip
+      instructions with wrong input by raising a warning.
+
+$scc
+~~~~
+*temp*='real'::
+    electronic temperature for the Fermi smearing
+
+*broydamp*='real'::
+    damping for the Broyden convergence accelerator
+
+*guess*=gasteiger|goedecker|sad::
+    different possible guess charges for GFN2-xTB SCC calculation
+
+*maxiteration*='int'::
+    adjusts the number of SCC iterations in the first/last SCC calculation
+
+$siman
+~~~~~~
+*dump*='real'::
+    dummy
+
+*n*='int'::
+    number of siman annealing blocks
+
+*ewin*='real'::
+    energy window (kcal) for considering conformers
+
+*temp*='real'::
+    highest siman annealing temperature (very system specific)
+
+*enan*='int'::
+    include enantiomers in siman (=1)
+
+*check*='int'::
+    compare molecules in ensemble for removing doubles by RMSD (=0)
+    or rot.const.(=1)
+
+$split
+~~~~~~
+*fragment1*: 'list',... ::
+    defines atoms belonging to fragment 1
+
+*fragment2*: 'list',... ::
+    defines atoms belonging to fragment 2
+
+*fragment*: 'i','list',... ::
+    defines atoms belonging to fragment 'i'
+
+$stm (6.1 only)
+~~~~~~~~~~~~~~~
+activate by $write/stm=true
+
+*broadening*='real' ::
+    width of tip DOS energy broadening (eV)
+
+*current*='real' ::
+    constant current value (arb.u.)
+
+*grid*='real' ::
+    grid width (Bohr), half that value along Z
+
+*thr*='real' ::
+    integral and density matrix neglect threshold
+
+*potential*='real' ::
+    potential of tip vs. molecule, negative values let e flow from mol to tip
+    i.e. occ space of mol is probed
+
+$symmetry
+~~~~~~~~~
+*desy*='real'::
+    point group symmetrization threshold
+
+*maxat*='int'::
+    point group determination skipped if # atoms > this value
+    (i.e. desymaxat 0 switches it off)
+
+$thermo
+~~~~~~~
+*temp*='real'::
+    temperature for thermostatistical calculation (default: 298.15 K)
+
+*sthr*='real'::
+    rotor cut-off (cm-1) in thermo  (default: 50.0)
+
+$wall
+~~~~~
+*potential*=logfermi|polynomial::
+    sets kind of wall potential used (default: polynomial)
+
+*alpha*='int'::
+    exponent of polynomial wall potential (default: 30)
+
+*beta*='real'::
+    exponent of logfermi bias potential (default: 6.0)
+
+*autoscale*='real'::
+    scales axis of automatic determined wall potentials by 'real'
+
+*axisshift*='real'::
+    constant offset used in automatic dermined wall potential axis
+    (default: 3.5)
+
+*temp*='real'::
+    temperature of the logfermi wall (default: 300.0 K),
+    wall energy of logfermi is multiplied with kT.
+
+*sphere*: auto|'real',all|'list',...::
+    set up a spherical wall potential for all or the atoms in 'list'
+    with the radius 'real' or an automatical determined sphere radius
+
+*ellipsoid*: auto|'real',auto|'real',auto|'real',all|'list',...::
+    set up a ellipsoid wall potential for all or the atoms in 'list'
+    with the radii 'real' or an automatical determined sphere radius
+
+
+$write
+~~~~~~
+*esp*='bool'::
+    calculate and print electrostatic potential, this will create
+    a data file and a cosmo file
+*grid file*='file'::
+    read gridpoints for ESP calculation from 'file'.
+*mos*='bool'::
+    print molden file
+*lmo*='bool'::
+    localize orbitals and print out LMO centers
+*density*='bool'::
+    calculate density on a cube grid
+*spin population*='bool'::
+    spin population analysis
+*spin density*='bool'::
+    calculate spin density on a cube grid
+*fod*='bool'::
+    calculate FOD on a cube grid (set electronic temperature to at least 12500 K)
+*wiberg*='bool'::
+    calculate and print Wiberg bond order
+*dipole*='bool'::
+    calculate and print dipole moment
+*charges*='bool'::
+    print charges file
+*mulliken*='bool'::
+    print mulliken population analysis
+*orbital energies*='bool'::
+    print orbital energies and occupation numbers
+*stm*='bool'::
+    creates an STM image of the molecule, see stm group (6.1 only)
+*geosum*='bool'::
+    old style geometry summary
+*inertia*='bool'::
+    geometry summary on moments on inertia and rotational constants
+    (available with `--define`)
+*distances*='bool'::
+    geometry summary on distances and bonds
+    (available with `--define`)
+*angles*='bool'::
+    geometry summary on angles
+    (available with `--define`)
+*torsions*='bool'::
+    geometry summary on dihedral angles and torsions
+    (available with `--define`)
+
+LEGACY
+~~~~~~
+To ensure compatibility with older versions of the `xtb(1)` prior to version 6.0
+a group instruction set is allowed which accepts the same syntax as the
+original set-block. Here we provide a list of set-block commands and their
+corresponding instructions in `xcontrol(7)`.
+
+NOTE: `xtb(1)` can read a set-block by itself and will print out a
+      equivalent instruction set. This feature will be deprecated
+      in future versions since the set-block is less flexible than
+      `xcontrol(7)` and might be deactived without prior announcement!
+
+*broydamp*::     use *broydamp* in *scc* group instead
+*check_equal*::  use *check* in *siman* group instead
+*chrg, charge*:: use *chrg* logical instead
+*constrainallbo, constralltbo*::
+                 currently not supported
+*constrainalltors, constralltors*::
+                 currently not supported
+*constrain*::    use *constrain* group instead
+*constrainel*::  currently not supported
+*constrfc*::     use *force constant* in *constrain* group instead
+*constrxyz*::    use *atoms* in *fix* group instead
+*cube_cal*::     use *cal* in *cube* group instead
+*cube_pthr*::    use *pthr* in *cube* group instead
+*cube_step*::    use *step* in *cube* group instead
+*desymaxat*::    use *maxat* in *symmetry* group instead
+*desy*::         use *desy* in *symmetry* group instead
+*ellips*::       use *ellipsoid* in *wall* group instead
+*enan*::         use *enan* in *siman* group instead
+*etemp*::        use *temp* in *scc* group instead
+*ewin_conf*::    use *ewin* in *siman* group instead
+*ex_open_HS*::   currently not supported
+*ex_open_LS*::   currently not supported
+*fit*::          use *fit* logical instead
+*fix*::          use *atoms* in *fix*/*constrain* group instead
+*fixfc*::        use *force constant* in *constrain* group instead
+*fragment1*::    use *fragment1* in *split* group instead
+*fragment2*::    use *fragment1* in *split* group instead
+*gbsa*::         use *solvent* in *gbsa* group instead
+*gfnver*::       use *version* in *gfn* group instead
+*hessa*::        currently not supported
+*hessf*::        use *freeze* in *fix* group instead
+*hlowopt*::      use *hlow* in *opt* group instead
+*ion_rad*::      use *ion_rad* in *gbas* group instead
+*ion_st*::       use *ion_st* in *gbsa* group instead
+*maxdispl*::     use *maxdipl* in *opt* group instead
+*maxopt*::       use *maxcycle* in *opt* group instead
+*mddump*::       use *dump* in *siman* group instead
+*mddumpxyz*::    use *dump* in *md* group instead
+*md_hmass*::     use *hmass* in *md* group instead
+*mdskip*::       use *skip* in *md* group instead
+*mdstep*::       use *step* in *md* group instead
+*mdtemp*::       use *temp* in *md* group instead
+*mdtime*::       use *time* in *md* group instead
+*microopt*::     use *mircocycle* in *opt* group instead
+*mode_local*::   use *local* in *modef* group instead
+*mode_n*::       use *n* in *modef* group instead
+*mode_prj*::     use *prj* in *modef group instead
+*mode_step*::    use *step* in *modef* group instead
+*mode_updat*::   use *updat* in *modef* group instead
+*mode_vthr*::    use *vthr* in *modef* group instead
+*nsiman*::       use *n* in *siman* group instead
+*nvt*::          use *nvt* in *md* group instead
+*optlev*::       use *optlevel* in *opt* group intead
+*orca_exe*::     currently not supported
+*orca_line*::    currently not supported
+*orca_mpi*::     currently not supported
+*restartmd, mdrestart*::
+                 use *restart* in *md* group
+*runtyp*::       please use the commandline instead, might still work
+*s6opt*::        use *s6* in *opt* group instead
+*samerand*::     use *samerand* logical instead
+*scan*::         use *scan* group instead
+*scchess*::      use *sccacc* in *hess* group instead
+*sccmd*::        use *sccacc* in *md* group instead
+*shake*::        use *shake* in *md* group instead
+*sphere*::       use *sphere* in *sphere* group instead
+*springexp*::    use *springexp* in *fix* group instead
+*stephess*::     use *step* in *hess group instead
+*tend*::         use *temp* in *siman* group instead
+*thermo_sthr*::  use *sthr* in *thermo* group instead
+*thermo*::       use *temp* in *thermo* group instead
+*uhf*::          use *uhf* logical instead
+*velodump*::     use *velo* in *md* group instead
+
+BUGS
+----
+Please report all bugs with an example input, `--copy` dump of internal settings
+and the used geometry, as well as the `--verbose` output to xtb@thch.uni-bonn.de
+
+RESOURCES
+---------
+Main web site: http://grimme.uni-bonn.de/software/xtb
+
+COPYING
+-------
+Copyright \(C) 2015-2018 S. Grimme. For non-commerical, academia use only.

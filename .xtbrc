@@ -1,0 +1,106 @@
+$cmd bin/xtb --define --copy --input .xtbrc test/coord
+$date 2019/02/21 at 18:42:07.355     
+$gfn
+   method=2
+   scc=true
+   periodic=false
+$scc
+   maxiterations=250
+   temp=300.0000000000000
+   broydamp=.4000000000000000
+$opt
+   optlevel=normal
+   microcycle=20
+   maxcycle=0
+   maxdispl=2.000000000000000
+   hlow=.5000000000000000E-02
+   s6=20.00000000000000
+   kstretch=.4000000000000000
+   kbend   =.1300000000000000
+   ktorsion=.7500000000000000E-02
+   ts=0
+   tsroot=0
+   exact rf=false
+$thermo
+   temp=298.1500000000000
+   sthr=50.00000000000000
+$md
+   temp=298.1500000000000
+   time=50.00000000000000
+   dump=100.00000000000000
+   velo=0
+   nvt=1
+   skip=500
+   step=5.000000000000000
+   hmass=2
+   shake=2
+   sccacc=1.000000000000000
+$reactor
+   kpush=0.1
+   density=1
+   alp=0.5
+   max=200
+$siman
+   dump=1000.000000000000
+   n=3
+   ewin=20.00000000000000
+   temp=1000.000000000000
+   enan=0
+   check=0
+$hess
+   sccacc=.3000000000000000
+   step=.5000000000000000E-02
+$modef
+   n=31
+   step=1.000000000000000
+   updat=.2000000000000000
+   local=0
+   vthr=.000000000000000
+   prj=0
+   mode=7
+$cube
+   step=.5000000000000000
+   pthr=.1000000000000000E-01
+$symmetry
+   desy=.1000000000000000
+   maxat=500
+$embedding
+   at=7
+   es=true
+$write
+   geosum=false
+   esp=false
+   mos=false
+   gbw=false
+   tm mos=false
+   tm basis=false
+   lmo=false
+   density=false
+   spin population=true 
+   spin density=false
+   fod=false
+   wiberg=true
+   dipole=true
+   charges=true
+   mulliken=true
+   orbital energies=true
+   geosum=false
+   distances=true
+   angles=false
+   torsions=false
+   modef=true
+$path
+   nrun=3
+   nopt=50
+   anopt=3
+   kpush=.5000000000000000E-01
+   kpull=-.4000000000000000E-01
+   alp=.7000000000000000
+$wall
+   potential=logfermi
+   alpha=30
+   beta=6.000000000000000
+   temp=300.0000000000000
+   autoscale=1.000000000000000
+   axisshift=3.500000000000000
+$end
