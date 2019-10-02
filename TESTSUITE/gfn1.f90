@@ -125,6 +125,8 @@ subroutine test_gfn1_api
    use tbdef_param
    use tbdef_pcem
 
+   use tb_calculators
+
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -187,6 +189,8 @@ subroutine test_gfn1gbsa_api
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
+
+   use tb_calculators
 
    implicit none
 
@@ -253,6 +257,8 @@ subroutine test_gfn1_pcem_api
    use tbdef_pcem
 
    use aoparam
+
+   use tb_calculators
 
    implicit none
 

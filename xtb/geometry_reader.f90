@@ -140,7 +140,7 @@ subroutine read_sdf(iunit,mol)
       call getline(iunit,line,err)
       if (err.ne.0) call raise('E',"Could not read geometry from SDF file",1)
       if (debug) print'(">",a)',line
-      read(line,*,iostat=err) chdum, xyz(1), xyz(2), xyz(3)
+      read(line,*,iostat=err) xyz(1), xyz(2), xyz(3), chdum
       if (debug) print'("->",a)',chdum
       if (debug) print'("->",3g0)',xyz
 

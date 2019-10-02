@@ -423,6 +423,7 @@ subroutine test_dftd4_api
    use tbdef_options
    use tbdef_param
    use dftd4
+   use tb_calculators
    implicit none
    type(tb_molecule)  :: mol
 
@@ -487,6 +488,7 @@ subroutine test_dftd4_pbc_api
    use tbdef_param
    use dftd4
    use pbc_tools
+   use tb_calculators
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp

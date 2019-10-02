@@ -254,7 +254,7 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
          select case(lowercase(trim(sname)))
          case default
             call raise('E','solvent : '//trim(sname)//&
-               ' not parametrized for GFN2-xTB Hamiltonian')
+               ' not parametrized for GFN2-xTB Hamiltonian',1)
          case('acetone');      gfn_solvent = gfn2_acetone
          case('acetonitrile'); gfn_solvent = gfn2_acetonitrile
 !        case('benzene');      gfn_solvent = gfn2_benzene
@@ -278,7 +278,7 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
          select case(lowercase(trim(sname)))
          case default
             call raise('E','solvent : '//trim(sname)//&
-               ' not parametrized for GFN-xTB Hamiltonian')
+               ' not parametrized for GFN-xTB Hamiltonian',1)
          case('acetone');      gfn_solvent = gfn1_acetone
          case('acetonitrile'); gfn_solvent = gfn1_acetonitrile
          case('benzene');      gfn_solvent = gfn1_benzene
@@ -489,7 +489,7 @@ subroutine new_gbsa(this,n,at)
    case(4802);   call ld4802(xang,yang,zang,wang,this%nang)
    case(5294);   call ld5294(xang,yang,zang,wang,this%nang)
    case(5810);   call ld5810(xang,yang,zang,wang,this%nang)
-   case default; call raise('E',"(gengrid) unknown grid size!")
+   case default; call raise('E',"(gengrid) unknown grid size!",1)
    end select
    this%grida(1,:) = xang
    this%grida(2,:) = yang

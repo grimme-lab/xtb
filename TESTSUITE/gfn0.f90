@@ -136,6 +136,8 @@ subroutine test_gfn0_api
 
    use pbc_tools
 
+   use tb_calculators
+
    implicit none
 
    real(wp),parameter :: thr = 1.0e-7_wp

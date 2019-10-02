@@ -132,6 +132,8 @@ subroutine test_gfn2_api
    use tbdef_param
    use tbdef_pcem
 
+   use tb_calculators
+
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -197,6 +199,8 @@ subroutine test_gfn2gbsa_api
    use tbdef_wavefunction
    use tbdef_param
    use tbdef_pcem
+
+   use tb_calculators
 
    implicit none
 
@@ -268,6 +272,8 @@ subroutine test_gfn2salt_api
    use tbdef_pcem
 
    use gbobc
+
+   use tb_calculators
 
    implicit none
 
@@ -341,6 +347,8 @@ subroutine test_gfn2_pcem_api
    use tbdef_pcem
 
    use aoparam
+
+   use tb_calculators
 
    implicit none
 

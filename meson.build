@@ -1,9 +1,35 @@
+# This file is part of xtb.
+#
+# Copyright (C) 2019 Sebastian Ehlert
+#
+# xtb is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# xtb is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 # extended tight binding program package
 project('xtb',
-  'fortran', 'c', 'cpp',
-  version: '6.2',
-  license: 'GPL',
-  meson_version: '>=0.49')
+        'fortran', 'c', 'cpp',
+        version: '6.2.1',
+        license: 'LGPL3',
+        meson_version: '>=0.49')
+
+conf = configuration_data()
+conf.set('version', meson.project_version())
+conf.set('commit', run_command(find_program('git'),'show','-s','--format=%h').stdout().strip())
+conf.set('date', run_command(find_program('date'),'-I').stdout().strip())
+conf.set('author', run_command(find_program('whoami')).stdout().strip())
+conf.set('origin', run_command(find_program('hostname')).stdout().strip())
+configure_file(input : 'xtb/version.f90', output : 'xtb_version.fh',
+  configuration : conf)
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
@@ -267,7 +293,7 @@ xtb_srcs += 'symmetry/symmetry_i.c'
 
 # API
 xtb_srcs += 'xtb/calculator.f90'
-xtb_srcs += 'xtb/api.f90'
+xtb_srcs += 'xtb/c_api.f90'
 
 xtb_test = ['TESTSUITE/tests_peeq.f90']
 xtb_test += 'TESTSUITE/assertion.f90'
@@ -289,30 +315,62 @@ xtb_srcs += mctc_srcs
 ## TARGETS
 ## ========================================== ##
 # create a static library from all sources
-xtb_lib_static = static_library(meson.project_name(), xtb_srcs,
-                 include_directories: incdir, pic: true)
+xtb_lib_static = static_library(meson.project_name(),
+                                xtb_srcs,
+                                include_directories: incdir,
+                                pic: true)
 
-xtb_exe = executable(meson.project_name(), xtb_main,
-                 dependencies: dependencies_exe,
-                 include_directories: incdir,
-                 link_with: xtb_lib_static,
-                 link_args: '-static' )
+xtb_exe = executable(meson.project_name(),
+                     xtb_main,
+                     dependencies: dependencies_exe,
+                     include_directories: incdir,
+                     link_with: xtb_lib_static,
+                     link_args: '-static',
+                     install: true)
 
 xtb_lib_shared = shared_library(meson.project_name(),
-                 version: meson.project_version(),
-                 dependencies: dependencies_sha,
-                 include_directories: incdir,
-                 link_whole: xtb_lib_static,
-                 link_args: '-fopenmp')
+                                version: meson.project_version(),
+                                dependencies: dependencies_sha,
+                                include_directories: incdir,
+                                link_whole: xtb_lib_static,
+                                link_args: '-fopenmp',
+                                install: true)
+
+## ========================================== ##
+## INSTALL
+## ========================================== ##
+install_headers('include/xtb.h')
+install_man(['man/man1/xtb.1', 'man/man7/xcontrol.7'])
+
+xtb_parameter_files = ['.param_gfn0.xtb',
+                       '.param_gfn2.xtb',
+                       '.param_gfn.xtb',
+                       '.param_ipea.xtb']
+
+gbsa_parameter_files = ['.param_gbsa_acetone',
+                        '.param_gbsa_acetonitrile',
+                        '.param_gbsa_benzene',
+                        '.param_gbsa_ch2cl2',
+                        '.param_gbsa_chcl3',
+                        '.param_gbsa_cs2',
+                        '.param_gbsa_dmso',
+                        '.param_gbsa_ether',
+                        '.param_gbsa_h2o',
+                        '.param_gbsa_methanol',
+                        '.param_gbsa_thf',
+                        '.param_gbsa_toluene']
+
+install_data(xtb_parameter_files, gbsa_parameter_files)
 
 ## ========================================== ##
 ## TESTSUITE
 ## ========================================== ##
-xtb_test = executable('xtb_test', xtb_test,
-                 dependencies: dependencies_exe,
-                 include_directories: incdir,
-                 link_with: xtb_lib_static,
-                 link_args: '-static' )
+xtb_test = executable('xtb_test',
+                      xtb_test,
+                      dependencies: dependencies_exe,
+                      include_directories: incdir,
+                      link_with: xtb_lib_static,
+                      link_args: '-static' )
 
 # some very basic checks to see if the executable reacts at all
 test('Argparser: print version',xtb_exe, args: '--version')

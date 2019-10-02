@@ -175,6 +175,8 @@ subroutine test_peeq_api
 
    use pbc_tools
 
+   use tb_calculators
+
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp

@@ -14,6 +14,9 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module tb_calculators
+   implicit none
+contains
 
 ! ========================================================================
 !> periodic GFN0-xTB (PEEQ) calculation
@@ -985,3 +988,4 @@ dispersion_gradient: if (opt%lgradient) then
 endif dispersion_gradient
 
 end subroutine d4_pbc_calculation
+end module tb_calculators
