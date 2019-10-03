@@ -41,6 +41,10 @@ if fc.get_id() == 'intel'
   add_project_arguments('-traceback', language: 'fortran')
 endif
 
+if cxx.get_id() == 'intel'
+  add_project_arguments('-std=c++11', language: 'cpp')
+endif
+
 ## ========================================== ##
 ## LIBRARIES
 ## ========================================== ##
