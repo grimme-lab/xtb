@@ -162,12 +162,14 @@ subroutine peeq_calculation &
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,lattice_gradient)
 
-   write(iunit,'(9x,53(":"))')
-   write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
-   write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
-   write(iunit,outfmt) "gradlatt norm     ", norm2(lattice_gradient),  "Eh/α"
-   write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
-   write(iunit,'(9x,53(":"))')
+   if (opt%prlevel > 0) then
+      write(iunit,'(9x,53(":"))')
+      write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
+      write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
+      write(iunit,outfmt) "gradlatt norm     ", norm2(lattice_gradient),  "Eh/α"
+      write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
+      write(iunit,'(9x,53(":"))')
+   endif
 
 end subroutine peeq_calculation
 
@@ -327,11 +329,13 @@ subroutine gfn2_calculation &
       call write_restart(wfn,'xtbrestart',gfn_method)
    endif 
 
-   write(iunit,'(9x,53(":"))')
-   write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
-   write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
-   write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
-   write(iunit,'(9x,53(":"))')
+   if (opt%prlevel > 0) then
+      write(iunit,'(9x,53(":"))')
+      write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
+      write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
+      write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
+      write(iunit,'(9x,53(":"))')
+   endif
 
 end subroutine gfn2_calculation
 
@@ -484,11 +488,13 @@ subroutine gfn1_calculation &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
 
-   write(iunit,'(9x,53(":"))')
-   write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
-   write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
-   write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
-   write(iunit,'(9x,53(":"))')
+   if (opt%prlevel > 0) then
+      write(iunit,'(9x,53(":"))')
+      write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
+      write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
+      write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
+      write(iunit,'(9x,53(":"))')
+   endif
 
 end subroutine gfn1_calculation
 
@@ -623,11 +629,13 @@ subroutine gfn0_calculation &
    call peeq(iunit,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      .false.,opt%acc,energy,gradient,sigma,res)
 
-   write(iunit,'(9x,53(":"))')
-   write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
-   write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
-   write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
-   write(iunit,'(9x,53(":"))')
+   if (opt%prlevel > 0) then
+      write(iunit,'(9x,53(":"))')
+      write(iunit,outfmt) "total energy      ", res%e_total,"Eh  "
+      write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/α"
+      write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV  "
+      write(iunit,'(9x,53(":"))')
+   endif
 
 end subroutine gfn0_calculation
 
