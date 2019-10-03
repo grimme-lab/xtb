@@ -34,11 +34,11 @@ main (int argc, char **argv)
                                     &energy, nullptr, dipole, q, nullptr, qp, wbo);
 
    assert(stat == 0);
-   assert(fabs(energy + 8.3824793818504) < thr);
-   assert(fabs(q[5] - 0.05184019996829) < thr);
-   assert(fabs(dipole[2] + 0.29832384492435) < thr);
-   assert(fabs(qp[14] - 0.56386138525354) < thr);
-   assert(fabs(wbo[9] - 2.89823984265213) < thr);
+   assert(fabs(energy + 8.3824793818504) < 1.0e-10);
+   assert(fabs(q[5] - 0.05184019996829) < 1.0e-8);
+   assert(fabs(dipole[2] + 0.29832384492435) < 1.0e-6);
+   assert(fabs(qp[14] - 0.56386138525354) < 1.0e-6);
+   assert(fabs(wbo[9] - 2.89823984265213) < 1.0e-8);
 
    return 0;
 }
