@@ -68,7 +68,7 @@ subroutine read_geometry(fname,mol,filetype)
    ! get first non-empty line
    do
       call getline(ifile,line,err)
-      if ((len(line) > 0).or.err) exit
+      if ((len(line) > 0).or.err.ne.0) exit
    enddo
    rewind(ifile)
 
