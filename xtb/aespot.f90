@@ -1050,7 +1050,7 @@ subroutine ovlp2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,cont,a
 !$omp&                 icao,naoi,iptyp,jshmax,jsh,jshtyp,jcao,naoj,ss,ip,iprim, &
 !$omp&                 alpi,jp,jprim,ab,est,s00,li,ci,stmp,lj,cc,ii,iao,jj,jao) &
 !$omp&         shared(s,cont,alp,saoshell,caoshell,thr2,primcount,nprim,ao_l, &
-!$omp&                llao,ao_n,itt,xyz,at,nat,llao2)
+!$omp&                ao_n,itt,xyz,at,nat)
 !$omp do schedule(dynamic)
    do iat=1,nat
       ra(1:3)=xyz(1:3,iat)

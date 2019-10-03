@@ -1574,7 +1574,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !  print'(" * Entering first OMP section")'
 !$OMP parallel default(none) &
 !$omp private(i,ii,iii,ia,iz,k,norm,dnorm,twf,tgw,dexpw,expw,gwk,dgwk)  &
-!$omp shared (nat,at,refn,refc,refcovcn,itbl,gam,zeff,refq,wf,cn,g_a,g_c,q) &
+!$omp shared (nat,at,refn,refc,refcovcn,itbl,refq,wf,cn,g_a,g_c,q) &
 !$omp shared (gw,dgw,zvec,dzvec,dzdq)
 !$omp do
    do i = 1, nat
@@ -1632,7 +1632,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !$OMP parallel default(none) &
 !$omp private(i,j,ia,ja,ij,k,l,c6ij,dic6ij,djc6ij,disp,dizij,djzij,  &
 !$omp         rij,r2,r,r4r2ij,r0,oor6,oor8,oor10,door6,door8,door10)  &
-!$omp shared(nat,at,xyz,refn,itbl,zvec,dzvec,c6abns,r4r2,par,dzdq) &
+!$omp shared(nat,at,xyz,refn,itbl,zvec,dzvec,c6abns,par,dzdq) &
 !$omp shared(r2ab) reduction(+:dc6dr,dc6dq,dc6dcn,ed)
 !$omp do schedule(dynamic)
    do i = 1, nat
@@ -1724,7 +1724,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !$OMP parallel default(none) &
 !$omp private(i,j,ia,ja,ij,rij,r2,r,drdx,den,rcovij,  &
 !$omp         expterm,dcndr,dtmp) reduction(+:g) &
-!$omp shared(nat,at,xyz,en,rcov,dc6dr,dc6dcn)
+!$omp shared(nat,at,xyz,dc6dr,dc6dcn)
 !$omp do schedule(dynamic)
    do i = 1, nat
       ia = at(i)
@@ -2126,7 +2126,7 @@ subroutine dabcappr(nat,ndim,at,xyz,par,  &
 !$omp         r2ij,cij,oorij,r2ik,r2jk,cik,cjk,r2ijk,rijk,cijk, &
 !$omp         dijatm,djkatm,dikatm,dtmp,dijfdmp,djkfdmp,dikfdmp,  &
 !$omp         c9ijk,oor9ijk,dic9ijk,djc9ijk,dkc9ijk) &
-!$omp shared(nat,at,r2ab,par,r4r2,c6ab,dc6ab) &
+!$omp shared(nat,at,r2ab,par,c6ab,dc6ab) &
 !$omp reduction(+:eabc,dc6dr) reduction(-:dc6dcn)
 !$omp do schedule(dynamic)
    do i = 1, nat
