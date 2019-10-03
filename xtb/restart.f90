@@ -68,8 +68,8 @@ subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
          call raise('S',"Dimension missmatch in restart file.",1)
          success = .false.
       endif
+      call close_file(ich)
    endif
-   call close_file(ich)
 
 end subroutine read_restart
 
