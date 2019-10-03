@@ -21,7 +21,7 @@ module c_api
 
    implicit none
 
-   !> some overloading for convience
+   !> some overloading for convenience
    interface c_return
       module procedure :: c_return_double_0d
       module procedure :: c_return_double_1d
@@ -35,15 +35,22 @@ module c_api
    end interface c_return_alloc
 
    interface c_get
+      module procedure :: c_get_double_0d_alloc
+      module procedure :: c_get_double_1d_alloc
+      module procedure :: c_get_double_2d_alloc
       module procedure :: c_get_double_0d
       module procedure :: c_get_double_1d
       module procedure :: c_get_double_2d
+      module procedure :: c_get_int_0d
+      module procedure :: c_get_int_1d
+      module procedure :: c_get_int_2d
    end interface c_get
 
 contains
 
 function peeq_api &
-      &   (natoms,attyp,charge,coord,lattice,pbc,opt_in,file_in,etot,grad,glat) &
+      &   (natoms,attyp,charge,uhf,coord,lattice,pbc,opt_in,file_in, &
+      &    etot,grad,stress,glat) &
       &    result(status) bind(C,name="GFN0_PBC_calculation")
 
    use tbdef_molecule
@@ -57,6 +64,7 @@ function peeq_api &
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
    real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
    real(c_double), intent(in) :: coord(3,natoms)
    real(c_double), intent(in) :: lattice(3,3)
    logical(c_bool),intent(in) :: pbc(3)
@@ -67,6 +75,7 @@ function peeq_api &
 
    real(c_double),intent(out) :: etot
    real(c_double),intent(out) :: grad(3,natoms)
+   real(c_double),intent(out) :: stress(3,3)
    real(c_double),intent(out) :: glat(3,3)
 
    type(tb_molecule)    :: mol
@@ -82,6 +91,7 @@ function peeq_api &
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp) :: lattice_gradient(3,3)
+   real(wp) :: stress_tensor(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! ====================================================================
@@ -94,7 +104,7 @@ function peeq_api &
    !  STEP 2: convert the options from C struct to actual Fortran type
    ! ====================================================================
    opt = opt_in
-   
+
    call c_string_convert(outfile, file_in)
 
    if (outfile.ne.'-'.and.opt%prlevel > 0) then
@@ -126,9 +136,12 @@ function peeq_api &
    ! get atomtypes, coordinates and total charge
    mol%at = attyp
    mol%xyz = coord
-   mol%chrg = charge
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
 
    ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
    call mol%update
 
    ! ====================================================================
@@ -144,16 +157,13 @@ function peeq_api &
    ! shut down fatal errors from the MCTC library, so it will not kill the caller
    call mctc_mute
 
-   call peeq_calculation &
-      (iunit,env,opt,mol,gfn,hl_gap,energy,gradient,lattice_gradient)
+   call gfn0_calculation &
+      (iunit,env,opt,mol,gfn,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then !! it's stark raving mad and on fire !!
-
-      ! at least try to destroy the molecule structure data
+   if (.not.sane) then
       call finalize
-
       status = 1
       return
    endif
@@ -164,6 +174,7 @@ function peeq_api &
    call c_return(etot, energy)
    call c_return(grad, gradient)
    call c_return(glat, lattice_gradient)
+   call c_return(stress, stress_tensor)
 
    call finalize
 
@@ -178,7 +189,7 @@ contains
 end function peeq_api
 
 function gfn2_api &
-      &   (natoms,attyp,charge,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    etot,grad,dipole,q,dipm,qp,wbo) &
       &    result(status) bind(C,name="GFN2_calculation")
 
@@ -195,6 +206,7 @@ function gfn2_api &
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
    real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_scc_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
@@ -235,7 +247,7 @@ function gfn2_api &
    !  STEP 2: convert the options from C struct to actual Fortran type
    ! ====================================================================
    opt = opt_in
-   
+
    call c_string_convert(outfile, file_in)
 
    if (outfile.ne.'-'.and.opt%prlevel > 0) then
@@ -263,8 +275,13 @@ function gfn2_api &
    ! get atomtypes, coordinates and total charge
    mol%at = attyp
    mol%xyz = coord
-   mol%chrg = charge
-   call mol%calculate_distances
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
+
+   ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
+   call mol%update
 
    ! ====================================================================
    !  STEP 4: reserve some memory
@@ -284,11 +301,8 @@ function gfn2_api &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then !! it's stark raving mad and on fire !!
-
-      ! at least try to destroy the molecule structure data
+   if (.not.sane) then
       call finalize
-
       status = 1
       return
    endif
@@ -318,13 +332,14 @@ contains
 end function gfn2_api
 
 function gfn1_api &
-      &   (natoms,attyp,charge,coord,opt_in,file_in,etot,grad) &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo) &
       &    result(status) bind(C,name="GFN1_calculation")
 
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
    use tbdef_pcem
+   use tbdef_wavefunction
 
    use tb_calculators
 
@@ -333,6 +348,7 @@ function gfn1_api &
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
    real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_scc_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
@@ -341,12 +357,16 @@ function gfn1_api &
 
    real(c_double),intent(out) :: etot
    real(c_double),intent(out) :: grad(3,natoms)
+   real(c_double),intent(out) :: q(natoms)
+   real(c_double),intent(out) :: wbo(natoms,natoms)
+   real(c_double),intent(out) :: dipole(3)
 
    type(tb_molecule)    :: mol
    type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
 
    character(len=:),allocatable :: outfile
 
@@ -395,8 +415,13 @@ function gfn1_api &
    ! get atomtypes, coordinates and total charge
    mol%at = attyp
    mol%xyz = coord
-   mol%chrg = charge
-   call mol%calculate_distances
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
+
+   ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
+   call mol%update
 
    ! ====================================================================
    !  STEP 4: reserve some memory
@@ -412,15 +437,12 @@ function gfn1_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then !! it's stark raving mad and on fire !!
-
-      ! at least try to destroy the molecule structure data
+   if (.not.sane) then
       call finalize
-
       status = 1
       return
    endif
@@ -430,6 +452,9 @@ function gfn1_api &
    ! ====================================================================
    call c_return(etot, energy)
    call c_return(grad, gradient)
+   call c_return(q, wfn%q)
+   call c_return(wbo, wfn%wbo)
+   call c_return(dipole, sum(wfn%dipm,dim=2) + matmul(mol%xyz,wfn%q))
 
    call finalize
 
@@ -438,13 +463,14 @@ function gfn1_api &
 contains
    subroutine finalize
       call mol%deallocate
+      call wfn%deallocate
       deallocate(gradient)
       if (iunit.ne.istdout) call close_file(iunit)
    end subroutine finalize
 end function gfn1_api
 
 function gfn0_api &
-      &   (natoms,attyp,charge,coord,opt_in,file_in,etot,grad) &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad) &
       &    result(status) bind(C,name="GFN0_calculation")
 
    use tbdef_molecule
@@ -458,6 +484,7 @@ function gfn0_api &
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
    real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_peeq_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
@@ -479,6 +506,7 @@ function gfn0_api &
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! ====================================================================
@@ -491,7 +519,7 @@ function gfn0_api &
    !  STEP 2: convert the options from C struct to actual Fortran type
    ! ====================================================================
    opt = opt_in
-   
+
    call c_string_convert(outfile, file_in)
 
    if (outfile.ne.'-'.and.opt%prlevel > 0) then
@@ -519,8 +547,13 @@ function gfn0_api &
    ! get atomtypes, coordinates and total charge
    mol%at = attyp
    mol%xyz = coord
-   mol%chrg = charge
-   call mol%calculate_distances
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
+
+   ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
+   call mol%update
 
    ! ====================================================================
    !  STEP 4: reserve some memory
@@ -536,15 +569,12 @@ function gfn0_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,gfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,gfn,hl_gap,energy,gradient,dum,dum)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then !! it's stark raving mad and on fire !!
-
-      ! at least try to destroy the molecule structure data
+   if (.not.sane) then
       call finalize
-
       status = 1
       return
    endif
@@ -568,7 +598,7 @@ contains
 end function gfn0_api
 
 function gfn2_pcem_api &
-      &   (natoms,attyp,charge,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN2_QMMM_calculation")
 
@@ -587,6 +617,7 @@ function gfn2_pcem_api &
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
    real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_scc_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
@@ -657,8 +688,13 @@ function gfn2_pcem_api &
    ! get atomtypes, coordinates and total charge
    mol%at = attyp
    mol%xyz = coord
-   mol%chrg = charge
-   call mol%calculate_distances
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
+
+   ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
+   call mol%update
 
    call pcem%allocate(npc)
    pcem%q   = pc_q
@@ -687,11 +723,8 @@ function gfn2_pcem_api &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then !! it's stark raving mad and on fire !!
-
-      ! at least try to destroy the molecule structure data
+   if (.not.sane) then
       call finalize
-
       status = 1
       return
    endif
@@ -711,13 +744,14 @@ contains
    subroutine finalize
       call mol%deallocate
       call pcem%deallocate
+      call wfn%deallocate
       deallocate(gradient)
       if (iunit.ne.istdout) call close_file(iunit)
    end subroutine finalize
 end function gfn2_pcem_api
 
 function gfn1_pcem_api &
-      &   (natoms,attyp,charge,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN1_QMMM_calculation")
 
@@ -725,6 +759,7 @@ function gfn1_pcem_api &
    use tbdef_param
    use tbdef_options
    use tbdef_pcem
+   use tbdef_wavefunction
 
    use aoparam
 
@@ -735,6 +770,7 @@ function gfn1_pcem_api &
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
    real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_scc_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
@@ -756,6 +792,7 @@ function gfn1_pcem_api &
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
 
    character(len=:),allocatable :: outfile
 
@@ -804,8 +841,13 @@ function gfn1_pcem_api &
    ! get atomtypes, coordinates and total charge
    mol%at = attyp
    mol%xyz = coord
-   mol%chrg = charge
-   call mol%calculate_distances
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
+
+   ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
+   call mol%update
 
    call pcem%allocate(npc)
    pcem%q   = pc_q
@@ -830,15 +872,12 @@ function gfn1_pcem_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then !! it's stark raving mad and on fire !!
-
-      ! at least try to destroy the molecule structure data
+   if (.not.sane) then
       call finalize
-
       status = 1
       return
    endif
@@ -858,6 +897,7 @@ contains
    subroutine finalize
       call mol%deallocate
       call pcem%deallocate
+      call wfn%deallocate
       deallocate(gradient)
       if (iunit.ne.istdout) call close_file(iunit)
    end subroutine finalize
@@ -874,9 +914,10 @@ function gbsa_model_preload_api &
    !> Dielectric data
    real(c_double), intent(in) :: epsv_in
    real(wp), allocatable :: epsv
-   !> Solvent density (g/cm^3) and molar mass (g/mol)
+   !> Molar mass (g/mol)
    real(c_double), intent(in) :: smass_in
    real(wp), allocatable :: smass
+   !> Solvent density (g/cm^3)
    real(c_double), intent(in) :: rhos_in
    real(wp), allocatable :: rhos
    !> Born radii
@@ -1102,28 +1143,94 @@ subroutine c_string_convert(f_string, c_string)
    enddo
 end subroutine c_string_convert
 
-subroutine c_get_double_0d(f_array, c_array)
+subroutine c_get_double_0d_alloc(f_array, c_array)
    real(c_double), intent(in), target :: c_array
    real(wp), allocatable, intent(out) :: f_array
    if (c_associated(c_loc(c_array))) then
       f_array = c_array
    endif
-end subroutine c_get_double_0d
+end subroutine c_get_double_0d_alloc
 
-subroutine c_get_double_1d(f_array, c_array)
+subroutine c_get_double_1d_alloc(f_array, c_array)
    real(c_double), intent(in), target :: c_array(:)
    real(wp), allocatable, intent(out) :: f_array(:)
    if (c_associated(c_loc(c_array))) then
       f_array = c_array
    endif
-end subroutine c_get_double_1d
+end subroutine c_get_double_1d_alloc
 
-subroutine c_get_double_2d(f_array, c_array)
+subroutine c_get_double_2d_alloc(f_array, c_array)
    real(c_double), intent(in), target :: c_array(:,:)
    real(wp), allocatable, intent(out) :: f_array(:,:)
    if (c_associated(c_loc(c_array))) then
       f_array = c_array
    endif
+end subroutine c_get_double_2d_alloc
+
+subroutine c_get_double_0d(f_array, c_array, default)
+   real(c_double), intent(in), target :: c_array
+   real(wp), intent(out) :: f_array
+   real(wp), intent(in) :: default
+   if (c_associated(c_loc(c_array))) then
+      f_array = c_array
+   else
+      f_array = default
+   endif
+end subroutine c_get_double_0d
+
+subroutine c_get_double_1d(f_array, c_array, default)
+   real(c_double), intent(in), target :: c_array(:)
+   real(wp), intent(out) :: f_array(:)
+   real(wp), intent(in) :: default
+   if (c_associated(c_loc(c_array))) then
+      f_array = c_array
+   else
+      f_array = default
+   endif
+end subroutine c_get_double_1d
+
+subroutine c_get_double_2d(f_array, c_array, default)
+   real(c_double), intent(in), target :: c_array(:,:)
+   real(wp), intent(out) :: f_array(:,:)
+   real(wp), intent(in) :: default
+   if (c_associated(c_loc(c_array))) then
+      f_array = c_array
+   else
+      f_array = default
+   endif
 end subroutine c_get_double_2d
+
+subroutine c_get_int_0d(f_array, c_array, default)
+   integer(c_int), intent(in), target :: c_array
+   integer, intent(out) :: f_array
+   integer, intent(in) :: default
+   if (c_associated(c_loc(c_array))) then
+      f_array = c_array
+   else
+      f_array = default
+   endif
+end subroutine c_get_int_0d
+
+subroutine c_get_int_1d(f_array, c_array, default)
+   integer(c_int), intent(in), target :: c_array(:)
+   integer, intent(out) :: f_array(:)
+   integer, intent(in) :: default
+   if (c_associated(c_loc(c_array))) then
+      f_array = c_array
+   else
+      f_array = default
+   endif
+end subroutine c_get_int_1d
+
+subroutine c_get_int_2d(f_array, c_array, default)
+   integer(c_int), intent(in), target :: c_array(:,:)
+   integer, intent(out) :: f_array(:,:)
+   integer, intent(in) :: default
+   if (c_associated(c_loc(c_array))) then
+      f_array = c_array
+   else
+      f_array = default
+   endif
+end subroutine c_get_int_2d
 
 end module c_api

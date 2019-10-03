@@ -437,18 +437,18 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
    if (profile) call timer%measure(2)
    if (profile) call timer%measure(3,"integral evaluation")
 
+   allocate(dpint(3,basis%nao*(basis%nao+1)/2), &
+      &     qpint(6,basis%nao*(basis%nao+1)/2), &
+      &     source = 0.0_wp)
+   ! compute integrals and prescreen to set up list arrays
+   call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+      &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
+      &        basis%alp,basis%cont,S,dpint,qpint)
+
    ! prepare aes stuff
    if(gfn_method.gt.1) then
 !     CN/dCN replaced by special smoother and faster decaying function
       call dncoord_gfn(mol%n,mol%at,mol%xyz,cn,dcn)
-      ii=basis%nao*(basis%nao+1)/2
-      allocate(dpint(3,ii),qpint(6,ii))
-      dpint=0.0_wp
-      qpint=0.0_wp
-!     compute integrals and prescreen to set up list arrays
-      call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
-         &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
-         &        basis%alp,basis%cont,S,dpint,qpint)
 
 !     allocate arrays for lists and fill (to exploit sparsity)
       allocate(mdlst(2,ndp),mqlst(2,nqp))
@@ -459,16 +459,6 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
       call get_radcn(mol%n,mol%at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,radcn)
       call mmomgabzero(mol%n,mol%at,mol%xyz,param%xbrad,param%xbdamp,radcn,gab3,gab5) ! zero damping, xbrad=kdmp3,xbdamp=kdmp5
 !     allocate CAMM arrays
-   else
-!     in GFN1 only AO overlap matrix needed
-      ii=basis%nao*(basis%nao+1)/2
-      allocate(dpint(3,ii),qpint(6,ii),source = 0.0_wp)
-!     compute integrals and prescreen to set up list arrays
-      call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
-         &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
-         &        basis%alp,basis%cont,S,dpint,qpint)
-      deallocate(qpint) ! keep dipole integrals for later
-
    endif
 
    if (profile) call timer%measure(3)
@@ -477,7 +467,8 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
    if(gfn_method.gt.1) then
 !     if no CAMMs were read, get them from P (e.g., in geometry opts., MD runs)
       if(.not.restart) &
-      &  call mmompop(mol%n,basis%nao,basis%aoat2,mol%xyz,wfn%p,s,dpint,qpint,wfn%dipm,wfn%qp)
+      &  call mmompop(mol%n,basis%nao,basis%aoat2,mol%xyz,wfn%p,s,dpint,qpint, &
+      &               wfn%dipm,wfn%qp)
 
 !     scale CAMMs before setting up the potential
 !     call scalecamm(mol%n,mol%at,dipm,qp)
@@ -629,9 +620,6 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
    ! free some memory (this stuff is not needed for gradients)
    deallocate(ves)
    if (allocated(vpc)) deallocate(vpc)
-   if(gfn_method.gt.1) then
-      deallocate(qpint) ! potential stuff not needed any more
-   endif
    if(allocated(wdispmat)) deallocate( wdispmat )
 
    9999  continue
@@ -727,9 +715,13 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
 
    endif printing
 
-
 ! ------------------------------------------------------------------------
 !  dipole calculation (always done because its free)
+   if (gfn_method.lt.2) then
+      call mmompop(mol%n,basis%nao,basis%aoat2,mol%xyz,wfn%p,s,dpint,qpint, &
+         &         wfn%dipm,wfn%qp)
+   endif
+
    call calc_dipole(mol%n,mol%at,mol%xyz,mol%z,basis%nao,wfn%P,dpint,dip,dipol)
 
    if (profile) call timer%measure(7)

@@ -59,3 +59,9 @@ xtbopt.xyz
 xtbopt.sdf
 xtbopt.coord
 xtbopt.log
+
+# python build artefacts
+__pycache__/
+python/dist
+python/build
+*.egg-info

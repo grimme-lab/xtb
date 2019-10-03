@@ -81,6 +81,7 @@ module tbdef_options
       real(wp) :: etemp = 0.0_wp
       logical  :: grad = .false.
       logical  :: restart = .false.
+      logical  :: ccm = .false.
       integer  :: maxiter = 0
       character(len=20) :: solvent = "none"
    end type scc_options
@@ -92,6 +93,7 @@ module tbdef_options
       real(c_double)  :: etemp = 0.0_c_double
       logical(c_bool) :: grad = .false._c_bool
       logical(c_bool) :: restart = .false._c_bool
+      logical(c_bool) :: ccm = .false._c_bool
       integer(c_int)  :: maxiter = 0_c_int
       character(c_char) :: solvent(20) = c_null_char
    end type c_scc_options
@@ -104,6 +106,7 @@ module tbdef_options
       real(wp) :: etemp = 0.0_wp
       logical  :: grad = .false.
       logical  :: ccm = .false.
+      character(len=20) :: solvent = "none"
    end type peeq_options
 
    type,bind(C) :: c_peeq_options
@@ -113,6 +116,7 @@ module tbdef_options
       real(c_double)  :: etemp = 0.0_c_double
       logical(c_bool) :: grad = .false._c_bool
       logical(c_bool) :: ccm = .false._c_bool
+      character(c_char) :: solvent(20) = c_null_char
    end type c_peeq_options
 
    type :: eeq_options
@@ -292,6 +296,7 @@ pure elemental subroutine convert_scc_options_c_to_f &
    f_opt%grad    = c_opt%grad
    f_opt%restart = c_opt%restart
    f_opt%parallel= c_opt%parallel
+   f_opt%ccm     = c_opt%ccm
 
    f_opt%solvent = ''
    do i = 1, 20
@@ -315,6 +320,7 @@ pure elemental subroutine convert_scc_options_f_to_c &
    c_opt%grad    = f_opt%grad
    c_opt%restart = f_opt%restart
    c_opt%parallel= f_opt%parallel
+   c_opt%ccm     = f_opt%ccm
 
    do i = 1, len_trim(f_opt%solvent)
       c_opt%solvent(i) = f_opt%solvent(i:i)
@@ -338,12 +344,19 @@ pure elemental subroutine convert_peeq_options_c_to_f &
    implicit none
    type(c_peeq_options), intent(in)  :: c_opt
    type(peeq_options),   intent(out) :: f_opt
+   integer :: i
    f_opt%prlevel = c_opt%prlevel
    f_opt%ccm     = c_opt%ccm
    f_opt%acc     = c_opt%acc
    f_opt%etemp   = c_opt%etemp
    f_opt%grad    = c_opt%grad
    f_opt%parallel= c_opt%parallel
+
+   f_opt%solvent = ''
+   do i = 1, 20
+      if (c_opt%solvent(i).eq.c_null_char) exit
+      f_opt%solvent(i:i) = c_opt%solvent(i)
+   enddo
 end subroutine convert_peeq_options_c_to_f
 
 pure elemental subroutine convert_peeq_options_f_to_c &
@@ -351,12 +364,18 @@ pure elemental subroutine convert_peeq_options_f_to_c &
    implicit none
    type(peeq_options),  intent(in)  :: f_opt
    type(c_peeq_options),intent(out) :: c_opt
+   integer :: i
    c_opt%prlevel = f_opt%prlevel
    c_opt%ccm     = f_opt%ccm
    c_opt%acc     = f_opt%acc
    c_opt%etemp   = f_opt%etemp
    c_opt%grad    = f_opt%grad
    c_opt%parallel= f_opt%parallel
+
+   do i = 1, len_trim(f_opt%solvent)
+      c_opt%solvent(i) = f_opt%solvent(i:i)
+   enddo
+   c_opt%solvent(len_trim(f_opt%solvent)+1) = c_null_char
 end subroutine convert_peeq_options_f_to_c
 
 pure elemental subroutine convert_eeq_options_c_to_f &

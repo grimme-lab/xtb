@@ -22,7 +22,7 @@ main (int argc, char **argv)
        1.92825631079613, 0.00000000000000,-2.53624948351102,
        0.00000000000000, 0.00000000000000, 5.23010455462158};
 
-   const xtb::SCC_options opt {2, 0, 1.0, 300.0, true, false, 30, "none"};
+   const xtb::SCC_options opt {2, 0, 1.0, 300.0, true, false, true, 30, "none"};
 
    double energy {0.0};
    double dipole[3] {0.0};
@@ -30,7 +30,7 @@ main (int argc, char **argv)
    double qp[6*natoms] {0.0};
    double wbo[natoms*natoms] {0.0};
 
-   int stat = xtb::GFN2_calculation(&natoms, attyp, &charge, coord, &opt, "-",
+   int stat = xtb::GFN2_calculation(&natoms, attyp, &charge, nullptr, coord, &opt, "-",
                                     &energy, nullptr, dipole, q, nullptr, qp, wbo);
 
    assert(stat == 0);

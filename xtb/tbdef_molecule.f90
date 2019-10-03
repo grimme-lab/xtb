@@ -34,6 +34,7 @@ module tbdef_molecule
    type :: tb_molecule
       integer  :: n = 0            !< number of atoms
       real(wp) :: chrg = 0.0_wp    !< total charge
+      integer  :: uhf = 0          !< number of unpaired electrons
       logical  :: pbc(3) = .false. !< periodic dimensions
       integer  :: npbc = 0         !< periodicity of system
       character(len=2),allocatable :: sym(:) !< element symbols
@@ -90,6 +91,7 @@ subroutine deallocate_molecule(self)
    self%n = 0
    self%pbc = .false.
    self%chrg = 0.0_wp
+   self%uhf = 0
    self%lattice = 0.0_wp
    if (allocated(self%at))     deallocate(self%at)
    if (allocated(self%sym))    deallocate(self%sym)
@@ -116,6 +118,7 @@ subroutine write_molecule(self,iunit,comment)
    write(iunit,'(1x,"*",1x,a)') "status of the fields"
    write(iunit,dfmt) "integer :: n           ",self%n
    write(iunit,dfmt) "real    :: chrg        ",self%chrg
+   write(iunit,dfmt) "integer :: uhf         ",self%uhf
    write(iunit,dfmt) "integer :: npbc        ",self%npbc
    write(iunit,dfmt) "logical :: pbc(1)      ",self%pbc(1)
    write(iunit,dfmt) "        &  pbc(2)      ",self%pbc(2)
