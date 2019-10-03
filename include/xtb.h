@@ -80,6 +80,18 @@ GFN0_calculation(const int* natoms, const int* attyp, const double* charge,
       const double* coord, const PEEQ_options* opt, const char* output,
       double* energy, double* grad);
 
+extern int
+GBSA_model_preload(const double* epsv, const double* smass, const double* rhos,
+      const double* c1, const double* rprobe, const double* gshift,
+      const double* soset, const double* dum, const double* gamscale,
+      const double* sx, const double tmp);
+
+extern int
+GBSA_calculation(const int* natoms, const int* attyp, const double* coord,
+      const char* solvent, const int* reference, const double* temperature,
+      const int* method, const int* grid_size, const char* file,
+      double* brad, double* sasa);
+
 #ifdef __cplusplus
 }
 }

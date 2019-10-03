@@ -336,6 +336,8 @@ xtb_lib_shared = shared_library(meson.project_name(),
                                 link_args: '-fopenmp',
                                 install: true)
 
+xtb_dep = [declare_dependency(link_with: xtb_lib_shared), dependencies_sha]
+
 ## ========================================== ##
 ## INSTALL
 ## ========================================== ##
@@ -424,6 +426,9 @@ test('GFN2-xTB: API',xtb_test,args: ['gfn2','api'])
 test('GFN2-xTB: API (GBSA)',xtb_test,args: ['gfn2','gbsa'])
 test('GFN2-xTB: API (GBSA+salt)',xtb_test,args: ['gfn2','salt'])
 test('GFN2-xTB: API (PCEM)',xtb_test,args: ['gfn2','pcem'])
+test('GFN2-xTB: C++', executable('xtb_cpp_test', 'TESTSUITE/cpp_api_example.cpp',
+                                 include_directories: incdir,
+                                 dependencies: xtb_dep))
 
 test('GFN1-xTB: SCC',xtb_test,args: ['gfn1','scc'])
 test('GFN1-xTB: API',xtb_test,args: ['gfn1','api'])
@@ -432,6 +437,5 @@ test('GFN1-xTB: API (PCEM)',xtb_test,args: ['gfn1','pcem'])
 
 test('GFN0-xTB: SP', xtb_test,args: ['gfn0','sp'])
 test('GFN0-xTB: API',xtb_test,args: ['gfn0','api'])
-
-test('PEEQ: SP', xtb_test,args: ['peeq','sp'])
-test('PEEQ: API',xtb_test,args: ['peeq','api'])
+test('GFN0-xTB: SP  (PBC)', xtb_test,args: ['peeq','sp'])
+test('GFN0-xTB: API (PBC)', xtb_test,args: ['peeq','api'])
