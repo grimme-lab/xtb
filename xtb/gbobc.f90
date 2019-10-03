@@ -35,6 +35,7 @@ module gbobc
    public :: compute_gb_damat
    public :: compute_hb
    public :: update_nnlist_gbsa
+   public :: load_custom_parameters
 
    private
 ! ========================================================================
@@ -48,10 +49,6 @@ module gbobc
 !  SASA = 2*(w+maxrasasa) + srcut_add
    real(wp),parameter :: srcut_add=2._wp
 ! ------------------------------------------------------------------------
-!  GBOBC PARAMETER
-!  offset parameter (fitted)
-!  real(wp) :: soset=0.09_wp*aatoau
-   real(wp) :: soset
 !  van der Waals to Lee-Richard's surface correction
    real(wp), parameter :: alp=1._wp
    real(wp), parameter :: bet=0.8_wp
@@ -64,89 +61,106 @@ module gbobc
    real(wp), parameter :: ah1=3._wp/(4._wp*w)
    real(wp), parameter :: ah3=-1._wp/(4._wp*w3)
 ! ------------------------------------------------------------------------
-!  Angular grid. 38 points lead rot.inv.errors for c60 of 2 kcal
-   integer :: nangsa=230
-!  real(wp) :: grida(4,nangsa)
-!  include 'grida230.inc'
-!  integer, parameter :: nangsa=86
-!  include 'grida86.inc'
-!  integer, parameter :: nangsa=110
-!  include 'grida110.inc'
-! ------------------------------------------------------------------------
 !  real space cut-offs
    real(wp), parameter :: tolsesp=1.d-6
 ! ------------------------------------------------------------------------
-!  Dielectric data
-   real(wp) :: epsv
-   real(wp) :: epsu
-   real(wp) :: keps
-! ------------------------------------------------------------------------
 !  Surface tension (mN/m=dyn/cm)
    real(wp), parameter :: mNmkcal=4.0305201015221386d-4
-   real(wp) :: gammas
-   real(wp) :: gamscale(94)
 ! ------------------------------------------------------------------------
 !  Solvent density (g/cm^3) and molar mass (g/mol)
    real(wp), parameter :: molcm3au=8.92388d-2
-   real(wp) :: smass
-   real(wp) :: rhos
-! ------------------------------------------------------------------------
-!  Born radii
-   real(wp) :: c1
 ! ------------------------------------------------------------------------
 !  Salt screening
-   logical :: lsalt=.false.
-   real(wp)  :: ionst=0._wp
-   real(wp)  :: kappa_const=0.7897d-3
-   real(wp)  :: ion_rad=0._wp
-   real(wp)  :: kappa=0._wp
-! ------------------------------------------------------------------------
-!  Atomic surfaces
-   real(wp) :: rprobe
-   real(wp) :: sasamol
+   logical  :: lsalt=.false.
+   real(wp) :: ionst=0._wp
+   real(wp) :: ion_rad=0._wp
+   real(wp), parameter :: kappa_const=0.7897d-3
 ! ------------------------------------------------------------------------
 !  Hydrogen bond contribution
    logical :: lhb=.true.
-
 ! ------------------------------------------------------------------------
-!  Parameters:
-! ------------------------------------------------------------------------
-!  van der Waals radii
-   real(wp) :: rvdw(94)
-!  dielectric descreening parameters
-   real(wp) :: sx(94)
-!  solvent accesible surface radii
-   real(wp) :: rasasa(94)
-!  HB correction present if zero no HB correction
-   integer :: at_hb(94)
-!  solvent HB donor or acceptor strength
-   real(wp) :: hb_mag(94)
 !  Gshift (gsolv=reference vs. gsolv)
    real(wp) :: gshift
 
-   type,private :: gbsa_parameter
+   real(wp), parameter :: d3_cutoff_radii(1:94) = [&
+      & 1.09155_wp, 0.86735_wp, 1.74780_wp, 1.54910_wp, &
+      & 1.60800_wp, 1.45515_wp, 1.31125_wp, 1.24085_wp, &
+      & 1.14980_wp, 1.06870_wp, 1.85410_wp, 1.74195_wp, &
+      & 2.00530_wp, 1.89585_wp, 1.75085_wp, 1.65535_wp, &
+      & 1.55230_wp, 1.45740_wp, 2.12055_wp, 2.05175_wp, &
+      & 1.94515_wp, 1.88210_wp, 1.86055_wp, 1.72070_wp, &
+      & 1.77310_wp, 1.72105_wp, 1.71635_wp, 1.67310_wp, &
+      & 1.65040_wp, 1.61545_wp, 1.97895_wp, 1.93095_wp, &
+      & 1.83125_wp, 1.76340_wp, 1.68310_wp, 1.60480_wp, &
+      & 2.30880_wp, 2.23820_wp, 2.10980_wp, 2.02985_wp, &
+      & 1.92980_wp, 1.87715_wp, 1.78450_wp, 1.73115_wp, &
+      & 1.69875_wp, 1.67625_wp, 1.66540_wp, 1.73100_wp, &
+      & 2.13115_wp, 2.09370_wp, 2.00750_wp, 1.94505_wp, &
+      & 1.86900_wp, 1.79445_wp, 2.52835_wp, 2.59070_wp, &
+      & 2.31305_wp, 2.31005_wp, 2.28510_wp, 2.26355_wp, &
+      & 2.24480_wp, 2.22575_wp, 2.21170_wp, 2.06215_wp, &
+      & 2.12135_wp, 2.07705_wp, 2.13970_wp, 2.12250_wp, &
+      & 2.11040_wp, 2.09930_wp, 2.00650_wp, 2.12250_wp, &
+      & 2.04900_wp, 1.99275_wp, 1.94775_wp, 1.87450_wp, &
+      & 1.72280_wp, 1.67625_wp, 1.62820_wp, 1.67995_wp, &
+      & 2.15635_wp, 2.13820_wp, 2.05875_wp, 2.00270_wp, &
+      & 1.93220_wp, 1.86080_wp, 2.53980_wp, 2.46470_wp, &
+      & 2.35215_wp, 2.21260_wp, 2.22970_wp, 2.19785_wp, &
+      & 2.17695_wp, 2.21705_wp]
+
+   type, private :: gbsa_parameter
 !     Dielectric data
-      real(wp) :: epsv
+      real(wp) :: epsv = 0.0_wp
 !     Solvent density (g/cm^3) and molar mass (g/mol)
-      real(wp) :: smass
-      real(wp) :: rhos
+      real(wp) :: smass = 0.0_wp
+      real(wp) :: rhos = 0.0_wp
 !     Born radii
-      real(wp) :: c1
+      real(wp) :: c1 = 0.0_wp
 !     Atomic surfaces
-      real(wp) :: rprobe
+      real(wp) :: rprobe = 0.0_wp
 !     Gshift (gsolv=reference vs. gsolv)
-      real(wp) :: gshift
+      real(wp) :: gshift = 0.0_wp
 !     offset parameter (fitted)
-!     real(wp) :: soset=0.09_wp*aatoau
-      real(wp) :: soset
-      real(wp) :: dum
+      real(wp) :: soset = 0.0_wp
+      real(wp) :: dum = 0.0_wp
 !     Surface tension (mN/m=dyn/cm)
-      real(wp) :: gamscale(94)
+      real(wp) :: gamscale(94) = 0.0_wp
 !     dielectric descreening parameters
-      real(wp) :: sx(94)
-      real(wp) :: tmp(94)
+      real(wp) :: sx(94) = 0.0_wp
+      real(wp) :: tmp(94) = 0.0_wp
    end type gbsa_parameter
 
+   type, extends(gbsa_parameter) :: gbsa_model
+      integer :: mode = -1
+      real(wp) :: temp = -1.0_wp
+      !> Dielectric data
+      real(wp) :: epsu = 1.0_wp
+      real(wp) :: keps = 0.0_wp
+      !> Surface tension (mN/m=dyn/cm)
+      real(wp) :: gammas = 1.0e-5_wp
+      !> Atomic surfaces
+      real(wp) :: sasamol = 0.0_wp
+      !> Hydrogen bond contribution
+      logical :: lhb = .false.
+      !> van der Waals radii
+      real(wp) :: rvdw(94) = 0.0_wp
+      !> solvent accesible surface radii
+      real(wp) :: rasasa(94) = 0.0_wp
+      !> HB correction present if zero no HB correction
+      integer :: at_hb(94) = 0
+      !> solvent HB donor or acceptor strength
+      real(wp) :: hb_mag(94) = 0.0_wp
+      !> Salt screening
+      logical :: lsalt = .false.
+      real(wp) :: ionst = 0._wp
+      real(wp) :: ion_rad = 0._wp
+      real(wp) :: kappa = 0._wp
+      !> SASA grid size
+      integer :: nangsa = 230
+   end type gbsa_model
+
+   type(gbsa_model), private :: gbm
+   type(gbsa_parameter), private :: custom_solvent
 
    include 'param_gbsa_acetone.inc'
    include 'param_gbsa_acetonitrile.inc'
@@ -165,14 +179,48 @@ module gbobc
 
 contains
 
-subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
-!  use setparam
+subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
+      &                           gamscale,sx,tmp)
+   implicit none
+   !> Dielectric data
+   real(wp), intent(in), optional :: epsv
+   !> Solvent density (g/cm^3) and molar mass (g/mol)
+   real(wp), intent(in), optional :: smass
+   real(wp), intent(in), optional :: rhos
+   !> Born radii
+   real(wp), intent(in), optional :: c1
+   !> Atomic surfaces
+   real(wp), intent(in), optional :: rprobe
+   !> Gshift (gsolv=reference vs. gsolv)
+   real(wp), intent(in), optional :: gshift
+   !> offset parameter (fitted)
+   real(wp), intent(in), optional :: soset
+   real(wp), intent(in), optional :: dum
+   !> Surface tension (mN/m=dyn/cm)
+   real(wp), intent(in), optional :: gamscale(94)
+   !> dielectric descreening parameters
+   real(wp), intent(in), optional :: sx(94)
+   real(wp), intent(in), optional :: tmp(94)
+
+   if (present(epsv))    custom_solvent%epsv     = epsv
+   if (present(smass))   custom_solvent%smass    = smass
+   if (present(rhos))    custom_solvent%rhos     = rhos
+   if (present(c1))      custom_solvent%c1       = c1
+   if (present(rprobe))  custom_solvent%rprobe   = rprobe
+   if (present(gshift))  custom_solvent%gshift   = gshift
+   if (present(soset))   custom_solvent%soset    = soset
+   if (present(dum))     custom_solvent%dum      = dum
+   if (present(gamscale))custom_solvent%gamscale = gamscale
+   if (present(sx))      custom_solvent%sx       = sx
+   if (present(tmp))     custom_solvent%tmp      = tmp
+
+end subroutine load_custom_parameters
+
+subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
    use mctc_strings
    use readin
    implicit none
    integer, intent(in) :: iunit
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
    character(len=*),intent(in) :: sname
    integer, intent(in) :: mode
    real(wp),intent(in) :: temp
@@ -181,44 +229,11 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
 
    integer :: i,fix,inum,ich
    real(wp) :: rad
-   real(wp) :: gamma_in, rvdwscal, tmp(94), gstate, dum
+   real(wp) :: gamma_in, tmp(94), gstate, dum
    character(len=:),allocatable :: fname
    logical ex
    character(len=80) a80
    type(gbsa_parameter) :: gfn_solvent
-
-   !     D3 cut-off radii
-   rvdw(1:94)= (/ &
-   &1.09155,0.86735,1.7478 ,1.5491 ,1.608  ,1.45515,1.31125,1.24085, &
-   &1.1498 ,1.0687 ,1.8541 ,1.74195,2.0053 ,1.89585,1.75085,1.65535, &
-   &1.5523 ,1.4574 ,2.12055,2.05175,1.94515,1.8821 ,1.86055,1.7207, &
-   &1.7731 ,1.72105,1.71635,1.6731 ,1.6504 ,1.61545,1.97895,1.93095, &
-   &1.83125,1.7634 ,1.6831 ,1.6048 ,2.3088 ,2.2382 ,2.1098 ,2.02985, &
-   &1.9298 ,1.87715,1.7845 ,1.73115,1.69875,1.67625,1.6654 ,1.731, &
-   &2.13115,2.0937 ,2.0075 ,1.94505,1.869  ,1.79445,2.52835,2.5907, &
-   &2.31305,2.31005,2.2851 ,2.26355,2.2448 ,2.22575,2.2117 ,2.06215, &
-   &2.12135,2.07705,2.1397 ,2.1225 ,2.1104 ,2.0993 ,2.0065 ,2.1225, &
-   &2.049  ,1.99275,1.94775,1.8745 ,1.7228 ,1.67625,1.6282 ,1.67995, &
-   &2.15635,2.1382 ,2.05875,2.0027 ,1.9322 ,1.8608 ,2.5398 ,2.4647, &
-   &2.35215,2.2126 ,2.2297 ,2.19785,2.17695,2.21705/)
-
-   !     hydrogen bonding parameters
-   lhb=.false.
-
-   at_hb=0
-   at_hb(1)=1
-   at_hb(6)=1
-   at_hb(7)=1
-   at_hb(8)=1
-   at_hb(9)=1
-   at_hb(15)=1
-   at_hb(16)=1
-   at_hb(17)=1
-   at_hb(34)=1
-   at_hb(35)=1
-   at_hb(53)=1
-
-   rvdwscal=1.0_wp
 
    if (gfn_method.gt.1) then
       fname = '.param_gbsa2_'//trim(sname)
@@ -234,18 +249,7 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
    if(ex)then
       write(iunit,*) 'GBSA parameter file : ', trim(fname)
       open(newunit=ich,file=fname)
-      read(ich,*)epsv
-      read(ich,*)smass
-      read(ich,*)rhos
-      read(ich,*)c1
-      read(ich,*)rprobe
-      read(ich,*)gshift
-      read(ich,*)soset
-      read(ich,*)dum
-      do i=1,94
-         read(ich,*)gamscale(i),sx(i),tmp(i)
-         if(abs(tmp(i)).gt.1.d-3) lhb=.true.
-      enddo
+      call read_gbsa_parameters(ich, gfn_solvent)
       close(ich)
    else
       !call raise('W','Could not find GBSA parameters in XTBPATH,'//&
@@ -254,7 +258,7 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
          select case(lowercase(trim(sname)))
          case default
             call raise('E','solvent : '//trim(sname)//&
-               ' not parametrized for GFN2-xTB Hamiltonian')
+               ' not parametrized for GFN2-xTB Hamiltonian',1)
          case('acetone');      gfn_solvent = gfn2_acetone
          case('acetonitrile'); gfn_solvent = gfn2_acetonitrile
 !        case('benzene');      gfn_solvent = gfn2_benzene
@@ -270,6 +274,7 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
          case('dmf');          gfn_solvent = gfn2_dmf
          case('nhexan','n-hexan','nhexane','n-hexane');
             gfn_solvent = gfn2_nhexan
+         case('custom'); gfn_solvent = custom_solvent
          end select
       !else if (gfn_method.eq.0) then
             !call raise('E','solvent : '//trim(sname)//&
@@ -278,7 +283,7 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
          select case(lowercase(trim(sname)))
          case default
             call raise('E','solvent : '//trim(sname)//&
-               ' not parametrized for GFN-xTB Hamiltonian')
+               ' not parametrized for GFN-xTB Hamiltonian',1)
          case('acetone');      gfn_solvent = gfn1_acetone
          case('acetonitrile'); gfn_solvent = gfn1_acetonitrile
          case('benzene');      gfn_solvent = gfn1_benzene
@@ -293,100 +298,167 @@ subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
          case('toluene');      gfn_solvent = gfn1_toluene
 !        case('dmf');          gfn_solvent = gfn1_dmf
 !        case('nhexan');       gfn_solvent = gfn1_nhexan
+         case('custom'); gfn_solvent = custom_solvent
          end select
       endif
       write(iunit,'(1x,"Using internal parameter file:",1x,a)') fname
-      epsv   = gfn_solvent % epsv
-      smass  = gfn_solvent % smass
-      rhos   = gfn_solvent % rhos
-      c1     = gfn_solvent % c1
-      rprobe = gfn_solvent % rprobe
-      gshift = gfn_solvent % gshift
-      soset  = gfn_solvent % soset
-      dum    = gfn_solvent % dum
-      do i = 1, 94
-         gamscale(i) = gfn_solvent % gamscale(i)
-         sx(i)       = gfn_solvent % sx(i)
-         tmp(i)      = gfn_solvent % tmp(i)
-         if(abs(tmp(i)).gt.1.d-3) lhb=.true.
-      enddo
    endif
+
+   call new_gbsa_model(gbm,gfn_solvent,mode,temp,ngrida)
+
+   lhb = gbm%lhb
+   gshift = gbm%gshift
+
+   call gbsa_info(iunit,gbm)
+
+end subroutine init_gbsa
+
+subroutine gbsa_info(iunit,gbm)
+   implicit none
+   integer, intent(in) :: iunit
+   type(gbsa_model), intent(in) :: gbm
+
+   write(iunit,'(1x,a,1x)',advance='no') 'Gsolv ref. state (COSMO-RS):'
+   select case(gbm%mode)
+   case(1)
+      write(iunit,'(a)') 'gsolv=reference [X=1]'
+   case(0)
+      write(iunit,'(a)') 'gsolv [1 M gas/solution]'
+   case(2)
+      write(iunit,'(a)') 'gsolv [1 bar gas/ 1 M solution]'
+   case default
+      write(iunit,'(i0)') gbm%mode
+   end select
+   write(iunit,*) 'temperature (mdtemp)       : ',gbm%temp
+   write(iunit,*) 'dielectric constant        : ',gbm%epsv
+   write(iunit,*) 'rho                        : ',gbm%rhos / (molcm3au/gbm%smass)
+   write(iunit,*) 'mass                       : ',gbm%smass
+   write(iunit,*) 'surface tension            : ',(1.0d-5)*autokcal/mNmkcal
+   write(iunit,*) 'probe radius               : ',gbm%rprobe
+   write(iunit,*) 'Gshift (Eh)                : ',gbm%gshift
+   write(iunit,*) 'c1                         : ',gbm%c1
+   write(iunit,*) 'soset                      : ',gbm%soset / (0.1_wp*aatoau)
+   write(iunit,*) 'HB correction              : ',gbm%lhb
+   if(gbm%lsalt) then
+      write(iunit,*) 'Debye screening length     : ',1.0_wp/gbm%kappa/aatoau
+   endif
+end subroutine gbsa_info
+
+subroutine new_gbsa_model(gbm,solvent,mode,temp,ngrida)
+   use mctc_strings
+   use readin
+   implicit none
+   type(gbsa_model), intent(inout) :: gbm
+   type(gbsa_parameter), intent(inout) :: solvent
+   integer, intent(in) :: mode
+   real(wp),intent(in) :: temp
+   integer, intent(in) :: ngrida
+
+   integer :: i,fix,inum,ich
+   real(wp) :: rad
+   real(wp) :: gamma_in, rvdwscal, tmp(94), gstate, dum
+   character(len=:),allocatable :: fname
+   logical ex
+   character(len=80) a80
+   type(gbsa_parameter) :: gfn_solvent
+
+   gbm%lsalt = lsalt
+
+   gbm%temp = temp
+   gbm%mode = mode
+
+   ! D3 cut-off radii
+   gbm%rvdw(1:94) = d3_cutoff_radii
+
+   ! hydrogen bonding parameters
+   gbm%lhb = .false.
+
+   gbm%at_hb = 0
+   gbm%at_hb([1,6,7,8,9,15,16,17,34,35,53]) = 1
+
+   rvdwscal=1.0_wp
+
+   gbm%epsv   = solvent%epsv
+   gbm%smass  = solvent%smass
+   gbm%rhos   = solvent%rhos*molcm3au/gbm%smass
+   gbm%c1     = solvent%c1
+   gbm%rprobe = solvent%rprobe
+   gbm%gshift = solvent%gshift
+   gbm%soset  = solvent%soset*0.1_wp*aatoau
+   gbm%dum    = solvent%dum
+   do i = 1, 94
+      gbm%gamscale(i) = solvent%gamscale(i)
+      gbm%sx(i)       = solvent%sx(i)
+      tmp(i)      = solvent%tmp(i)
+      if(abs(tmp(i)).gt.1.d-3) gbm%lhb=.true.
+   enddo
 
    if(mode.eq.1) then ! gsolv=reference option in COSMOTHERM
       !               RT*(ln(ideal gas mol volume)+ln(rho/M))
-      gstate=(temp*8.31451/1000./4.184)* &
-      &      (log(24.79_wp*temp/298.15)+ &
-      &       log(1000.0_wp*rhos/smass))
-      gshift=(gshift+gstate)/autokcal
-      write(iunit,*) 'Gsolv state corr. (kcal):',gstate
-      a80='gsolv=reference [X=1]'
+      gstate=(gbm%temp*8.31451/1000./4.184)* &
+      &      (log(24.79_wp*gbm%temp/298.15)+ &
+      &       log(1000.0_wp*gbm%rhos/gbm%smass))
+      gbm%gshift=(gbm%gshift+gstate)*kcaltoau
    elseif(mode.eq.0)then !gsolv option in COSMOTHERM to which it was fitted
-      gshift=gshift/autokcal
-      a80='gsolv [1 M gas/solution]'
+      gbm%gshift=gbm%gshift*kcaltoau
    elseif(mode.eq.2)then ! 1 bar gas/ 1 M solution is not implemented in COSMOTHERM although its the canonical choice
-      gstate=(temp*8.31451/1000./4.184)*log(24.79_wp*temp/298.15)
-      gshift=(gshift+gstate)/autokcal
-      write(iunit,*) 'Gsolv state corr. (kcal):',gstate
-      a80='gsolv [1 bar gas/ 1 M solution]'
+      gstate=(gbm%temp*8.31451/1000./4.184)*log(24.79_wp*gbm%temp/298.15)
+      gbm%gshift=(gbm%gshift+gstate)*kcaltoau
    endif
 
 !  if(fit)then !penalty to avoid small sx which lead to numerical instabs
 !  dum=0
 !  do i=1,n
-!     dum=dum+2.*(sx(at(i))-0.8)**4
+!     dum=dum+2.*(gbm%sx(at(i))-0.8)**4
 !  enddo
-!  gshift=gshift+dum/autokcal
+!  gbm%gshift=gbm%gshift+dum/autokcal
 !  endif
 
 !  hydrogen bonding magnitude
-   hb_mag = -(tmp**2)/autokcal
+   gbm%hb_mag = -(tmp**2)*kcaltoau
 
 !  scaling of the van der Waals radius
-   rvdw = rvdw * rvdwscal
+   gbm%rvdw = gbm%rvdw * rvdwscal
 
 !  add the probe radius to the molecular surface
-   rasasa=rvdw+rprobe
+   gbm%rasasa=gbm%rvdw+gbm%rprobe
 
 !  surface tension scaling
    gamma_in=(1.0d-5)*autokcal/mNmkcal
 
 !  dielectric scaling
-   epsu=1.0_wp
-   keps=((1.0_wp/epsv)-(1.0_wp/epsu))
+   gbm%epsu=1.0_wp
+   gbm%keps=((1.0_wp/gbm%epsv)-(1.0_wp/gbm%epsu))
 
 !  set the salt term
-   if(lsalt) then
+   if(gbm%lsalt) then
 !     convert to au
-      ion_rad=ion_rad*aatoau
+      gbm%ion_rad=ion_rad*aatoau
 !     inverse Debye screening length
-      kappa=sqrt(epsv*temp*kappa_const/ionst)*aatoau
-      kappa=1.0_wp/kappa
+      gbm%kappa=sqrt(gbm%epsv*gbm%temp*kappa_const/ionst)*aatoau
+      gbm%kappa=1.0_wp/gbm%kappa
    endif
 
-!  print parameters
-   write(iunit,*) 'Gsolv ref. state (COSMO-RS): ',trim(a80)
-   write(iunit,*) 'temperature (mdtemp)       : ',temp
-   write(iunit,*) 'dielectric constant        : ',epsv
-   write(iunit,*) 'rho                        : ',rhos
-   write(iunit,*) 'mass                       : ',smass
-   write(iunit,*) 'surface tension            : ',gamma_in
-   write(iunit,*) 'probe radius               : ',rprobe
-   write(iunit,*) 'vdW radii scaling          : ',rvdwscal
-   write(iunit,*) 'Gshift (Eh)                : ',gshift
-   write(iunit,*) 'c1                         : ',c1
-   write(iunit,*) 'soset                      : ',soset
-   write(iunit,*) 'HB correction              : ',lhb
-   if(lsalt) then
-      write(iunit,*) 'Debye screening length     : ',1.0_wp/kappa/aatoau
-   endif
+   gbm%nangsa = ngrida
 
-   soset=0.1*soset*aatoau
+end subroutine new_gbsa_model
 
-   rhos=rhos*molcm3au/smass
-
-   nangsa = ngrida
-
-end subroutine init_gbsa
+subroutine read_gbsa_parameters(ifile, param)
+   integer, intent(in) :: ifile
+   type(gbsa_parameter) :: param
+   integer :: i
+   read(ifile,*) param%epsv
+   read(ifile,*) param%smass
+   read(ifile,*) param%rhos
+   read(ifile,*) param%c1
+   read(ifile,*) param%rprobe
+   read(ifile,*) param%gshift
+   read(ifile,*) param%soset
+   read(ifile,*) param%dum
+   do i = 1, 94
+      read(ifile,*) param%gamscale(i), param%sx(i), param%tmp(i)
+   enddo
+end subroutine read_gbsa_parameters
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -406,16 +478,16 @@ subroutine new_gbsa(this,n,at)
    real(wp), allocatable :: xang(:),yang(:),zang(:),wang(:)
 
    ! get some space
-   call allocate_gbsa(this,n,nangsa)
+   call allocate_gbsa(this,n,gbm%nangsa)
 
    ! initialize the vdw radii array
    this%at = at
    this%maxvdwr=0.0_wp
    minvdwr=1000.0_wp
    do i=1,this%nat
-      this%vdwr(i)=rvdw(this%at(i))*aatoau
-      this%rho(i)=this%vdwr(i)*sx(this%at(i))
-      this%svdw(i)=this%vdwr(i)-soset
+      this%vdwr(i)=gbm%rvdw(this%at(i))*aatoau
+      this%rho(i)=this%vdwr(i)*gbm%sx(this%at(i))
+      this%svdw(i)=this%vdwr(i)-gbm%soset
       this%maxvdwr=max(this%maxvdwr,this%vdwr(i))
       minvdwr=min(minvdwr,this%vdwr(i))
    enddo
@@ -434,7 +506,7 @@ subroutine new_gbsa(this,n,at)
    ! initialize solvent-accessible atomic surface area computation (SASA)
    maxrasasa=0.0_wp
    do i = 1, this%nat
-      this%vdwsa(i) = rasasa(this%at(i))*aatoau
+      this%vdwsa(i) = gbm%rasasa(this%at(i))*aatoau
       maxrasasa=max(maxrasasa,this%vdwsa(i))
       this%trj2(1,i) = (this%vdwsa(i)-w)**2
       this%trj2(2,i) = (this%vdwsa(i)+w)**2
@@ -449,10 +521,9 @@ subroutine new_gbsa(this,n,at)
    enddo
 
    this%srcut = 2.0_wp*(w + maxrasasa) + srcut_add*aatoau
-   gammas=(1.0d-5)
-   this%sasagam=fourpi*gammas
+   this%sasagam=fourpi*gbm%gammas
    do i = 1, this%nat
-      this%gamsasa(i)=gamscale(this%at(i))*fourpi*gammas
+      this%gamsasa(i)=gbm%gamscale(this%at(i))*fourpi*gbm%gammas
    enddo
 
    allocate(xang(this%nang),yang(this%nang),zang(this%nang),wang(this%nang))
@@ -489,7 +560,7 @@ subroutine new_gbsa(this,n,at)
    case(4802);   call ld4802(xang,yang,zang,wang,this%nang)
    case(5294);   call ld5294(xang,yang,zang,wang,this%nang)
    case(5810);   call ld5810(xang,yang,zang,wang,this%nang)
-   case default; call raise('E',"(gengrid) unknown grid size!")
+   case default; call raise('E',"(gengrid) unknown grid size!",1)
    end select
    this%grida(1,:) = xang
    this%grida(2,:) = yang
@@ -515,7 +586,7 @@ pure subroutine compute_amat(this,Amat)
    real(wp) :: aa,r2,gg,iepsu,arg,bp
    real(wp) :: dd,expd,fgb,fgb2,dfgb
 
-   if(.not.lsalt) then
+   if(.not.gbm%lsalt) then
 
       ! compute energy and Amat direct and radii derivatives
       do kk = 1, this%ntpair
@@ -530,19 +601,19 @@ pure subroutine compute_amat(this,Amat)
          expd = exp(-dd)
          fgb2 = r2+aa*expd
          dfgb = 1.0_wp/sqrt(fgb2)
-         Amat(i,j) = keps*dfgb + Amat(i,j)
-         Amat(j,i) = keps*dfgb + Amat(j,i)
+         Amat(i,j) = gbm%keps*dfgb + Amat(i,j)
+         Amat(j,i) = gbm%keps*dfgb + Amat(j,i)
       enddo
 
       ! self-energy part
       do i = 1, this%nat
          bp = 1._wp/this%brad(i)
-         Amat(i,i) = Amat(i,i) + keps*bp
+         Amat(i,i) = Amat(i,i) + gbm%keps*bp
       enddo
 
    else
 
-      iepsu=1.0_wp/epsu
+      iepsu=1.0_wp/gbm%epsu
 
       ! compute energy and Amat direct and radii derivatives
       do kk = 1, this%ntpair
@@ -559,14 +630,14 @@ pure subroutine compute_amat(this,Amat)
          fgb=sqrt(r2+aa*expd)
          dfgb=1._wp/fgb
          gg=this%ionscr(i)+this%ionscr(j)
-         Amat(i,j)=(exp(-kappa*fgb)*gg-iepsu)*dfgb + Amat(i,j)
-         Amat(j,i)=(exp(-kappa*fgb)*gg-iepsu)*dfgb + Amat(j,i)
+         Amat(i,j)=(exp(-gbm%kappa*fgb)*gg-iepsu)*dfgb + Amat(i,j)
+         Amat(j,i)=(exp(-gbm%kappa*fgb)*gg-iepsu)*dfgb + Amat(j,i)
       enddo
 
       ! self-energy part
       do i = 1, this%nat
          gg=this%ionscr(i)*2.0_wp
-         Amat(i,i)= Amat(i,i) + (exp(-kappa*this%brad(i))*gg-iepsu)/this%brad(i)
+         Amat(i,i)= Amat(i,i) + (exp(-gbm%kappa*this%brad(i))*gg-iepsu)/this%brad(i)
       enddo
 
 
@@ -598,11 +669,11 @@ pure subroutine compute_fgb(this,fgb,fhb)
 !  initialize
    fgb=0.0_wp
 
-   hkeps=keps*autoeV
+   hkeps=gbm%keps*autoeV
 
-   if(lsalt) then
+   if(gbm%lsalt) then
 
-      iepsu=1.0_wp/epsu
+      iepsu=1.0_wp/gbm%epsu
 
 !     compute energy and fgb direct and radii derivatives
       do kk = 1, this%ntpair
@@ -617,14 +688,14 @@ pure subroutine compute_fgb(this,fgb,fhb)
          expd=exp(-dd)
          dfgb=sqrt(r2+aa*expd)
          gg=this%ionscr(i)+this%ionscr(j)
-         fgb(i,j)=autoeV*(exp(-kappa*dfgb)*gg-iepsu)/dfgb
+         fgb(i,j)=autoeV*(exp(-gbm%kappa*dfgb)*gg-iepsu)/dfgb
          fgb(j,i)=fgb(i,j)
       enddo
 
 !     self-energy part
       do i = 1, this%nat
          gg=this%ionscr(i)*2.0_wp
-         fgb(i,i)=autoeV*(exp(-kappa*this%brad(i))*gg-iepsu)/this%brad(i)
+         fgb(i,i)=autoeV*(exp(-gbm%kappa*this%brad(i))*gg-iepsu)/this%brad(i)
       enddo
 
    else
@@ -686,7 +757,7 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
 
    egb = 0._wp
 
-   if(.not.lsalt) then
+   if(.not.gbm%lsalt) then
       ! GB energy and gradient
 
       ! compute energy and fgb direct and radii derivatives
@@ -698,14 +769,14 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
          j = this%ppind(2,kk)
 
          ! dielectric scaling of the charges
-         qq = q(i)*q(j)*keps
+         qq = q(i)*q(j)*gbm%keps
          aa = this%brad(i)*this%brad(j)
          dd = a4*r2/aa
          expd = exp(-dd)
          fgb2 = r2+aa*expd
          dfgb2 = 1._wp/fgb2
          dfgb = sqrt(dfgb2)
-         dfgb3 = dfgb2*dfgb*keps
+         dfgb3 = dfgb2*dfgb*gbm%keps
 
          egb = egb + qq*dfgb
 
@@ -729,15 +800,15 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
       do i = 1, this%nat
          bp = 1._wp/this%brad(i)
          qq = q(i)*bp
-         egb = egb + 0.5_wp*q(i)*qq*keps
-         grddbi = -this%dbrdp(i)*keps*bp*bp*0.5_wp
+         egb = egb + 0.5_wp*q(i)*qq*gbm%keps
+         grddbi = -this%dbrdp(i)*gbm%keps*bp*bp*0.5_wp
          dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%brdr(:,:,i)*grddbi*q(i)
       enddo
 
    else
       ! GB-SE energy and dAmatdr
 
-      epu=1._wp/epsu
+      epu=1._wp/gbm%epsu
 
       ! compute energy and fgb direct and radii derivatives
       do kk = 1, this%ntpair
@@ -755,7 +826,7 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
          fgb = sqrt(fgb2)
          dfgb2 = 1._wp/fgb2
          dfgb = sqrt(dfgb2)
-         aa = kappa*fgb
+         aa = gbm%kappa*fgb
          expa = exp(-aa)
          gg = (this%ionscr(i)+this%ionscr(j))*expa
 
@@ -782,11 +853,11 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
 
       ! self-energy part
       do i = 1, this%nat
-         gg = exp(-kappa*this%brad(i))
+         gg = exp(-gbm%kappa*this%brad(i))
          aa = 2._wp*this%ionscr(i)*gg-epu
          qq = q(i)/this%brad(i)
          egb = egb + 0.5_wp*qq*q(i)*aa
-         ap = aa-this%brad(i)*2._wp*(this%discr(i)+this%ionscr(i)*kappa)*gg
+         ap = aa-this%brad(i)*2._wp*(this%discr(i)+this%ionscr(i)*gbm%kappa)*gg
          grddbi = -this%dbrdp(i)*0.5_wp*qq*ap/this%brad(i)
          dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%brdr(:,:,i)*grddbi
       enddo
@@ -842,7 +913,7 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
    egb = 0._wp
    grddb = 0._wp
 
-   if(.not.lsalt) then
+   if(.not.gbm%lsalt) then
       ! GB energy and gradient
 
       ! compute energy and fgb direct and radii derivatives
@@ -861,9 +932,9 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
          fgb2 = r2+aa*expd
          dfgb2 = 1._wp/fgb2
          dfgb = sqrt(dfgb2)
-         dfgb3 = dfgb2*dfgb*keps
+         dfgb3 = dfgb2*dfgb*gbm%keps
 
-         egb = egb + qq*keps*dfgb
+         egb = egb + qq*gbm%keps*dfgb
 
          ap = (1._wp-a4*expd)*dfgb3
          dr = ap*this%ddpair(2:4,kk)
@@ -884,8 +955,8 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
       do i = 1, this%nat
          bp = 1._wp/this%brad(i)
          qq = q(i)*bp
-         egb = egb + 0.5_wp*q(i)*qq*keps
-         grddbi = -this%dbrdp(i)*0.5_wp*keps*qq*bp
+         egb = egb + 0.5_wp*q(i)*qq*gbm%keps
+         grddbi = -this%dbrdp(i)*0.5_wp*gbm%keps*qq*bp
          grddb(i) = grddb(i) + grddbi*q(i)
          !gradient = gradient + this%brdr(:,:,i) * grddbi*q(i)
       enddo
@@ -893,7 +964,7 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
    else
       ! GB-SE energy and gradient
 
-      epu=1._wp/epsu
+      epu=1._wp/gbm%epsu
 
       ! compute energy and fgb direct and radii derivatives
       do kk = 1, this%ntpair
@@ -909,7 +980,7 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
          expd = exp(-dd)
          dfgb = r2+aa*expd
          fgb = sqrt(dfgb)
-         aa = kappa*fgb
+         aa = gbm%kappa*fgb
          expa = exp(-aa)
          gg = (this%ionscr(i)+this%ionscr(j))*expa
          qfg = qq/fgb
@@ -934,11 +1005,11 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
 
       ! self-energy part
       do i = 1, this%nat
-         gg = exp(-kappa*this%brad(i))
+         gg = exp(-gbm%kappa*this%brad(i))
          aa = 2._wp*this%ionscr(i)*gg-epu
          qq = q(i)/this%brad(i)
          egb = egb + 0.5_wp*qq*q(i)*aa
-         ap = aa-this%brad(i)*2._wp*(this%discr(i)+this%ionscr(i)*kappa)*gg
+         ap = aa-this%brad(i)*2._wp*(this%discr(i)+this%ionscr(i)*gbm%kappa)*gg
          grddbi = -this%dbrdp(i)*0.5_wp*qq*qq*ap
          grddb(i) = grddb(i) + grddbi
       enddo
@@ -994,13 +1065,13 @@ pure subroutine compute_fhb(this,xyz)
       ! atomic Z
       iz=this%at(i)
       ! number of HB
-      nhb=at_hb(iz)
+      nhb=gbm%at_hb(iz)
       if(nhb.le.0) cycle
       ! SASA-D for HB
       smaxd=1.0_wp/(this%vdwsa(i)*this%vdwsa(i)*this%gamsasa(i))
       sasad=this%sasa(i)*smaxd
-      this%hbw(i)=hb_mag(iz)*sasad
-      this%dhbdw(i)=hb_mag(iz)*smaxd
+      this%hbw(i)=gbm%hb_mag(iz)*sasad
+      this%dhbdw(i)=gbm%hb_mag(iz)*smaxd
    enddo
 
 end subroutine compute_fhb
@@ -1082,7 +1153,7 @@ subroutine compute_brad_sasa(this,xyz)
    call compute_numsa(this,xyz)
 
    ! compute the Debye-Hueckel ion exclusion term
-   if (lsalt) call compute_debye_hueckel(this)
+   if (gbm%lsalt) call compute_debye_hueckel(this)
 
    ! compute the HB term
    if (lhb) call compute_fhb(this,xyz)
@@ -1097,11 +1168,11 @@ pure subroutine compute_debye_hueckel(this)
    integer  :: i
    real(wp) :: aa,gg
 
-   aa=0.5_wp/epsv
+   aa=0.5_wp/gbm%epsv
    do i = 1, this%nat
-      gg=kappa*(this%brad(i)+ion_rad)
+      gg=gbm%kappa*(this%brad(i)+gbm%ion_rad)
       this%ionscr(i)=aa*exp(gg)/(1.0_wp+gg)
-      this%discr(i)=this%ionscr(i)*kappa*gg/(1.0_wp+gg)
+      this%discr(i)=this%ionscr(i)*gbm%kappa*gg/(1.0_wp+gg)
    enddo
 
 end subroutine compute_debye_hueckel
@@ -1139,11 +1210,11 @@ pure subroutine compute_bornr(this)
 
       br=1.0_wp/(s1-v1*th)
       ! Include GBMV2-like scaling
-      br=c1*br
+      br=gbm%c1*br
 
       dpsi=ch*(s1-v1*th)
       dpsi=s2*v1*arg2/(dpsi*dpsi)
-      dpsi=c1*dpsi
+      dpsi=gbm%c1*dpsi
 
       this%brad(iat) = br
       this%dbrdp(iat) = dpsi

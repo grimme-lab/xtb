@@ -26,11 +26,19 @@ write(iunit,'(a)') &
    "     |                         S. Grimme                         |     ",&
    "     |          Mulliken Center for Theoretical Chemistry        |     ",&
    "     |                    University of Bonn                     |     ",&
-   "     |                  Version 6.2 (SAW190826)                  |     ",&
    !     |  Version number by <major>.<minor>.<rev> (<author><date>) |     !
    "      -----------------------------------------------------------      ",""
    !< < < < < < < < < < < < < < < < < < > > > > > > > > > > > > > > > > > >!
+   call xtb_version(iunit)
 end subroutine xtb_header
+
+subroutine xtb_version(iunit)
+integer,intent(in) :: iunit
+include 'xtb_version.fh'
+write(iunit,'(3x,"*",*(1x,a))') &
+   & "xtb version", version, "compiled by", author, "on", date
+write(iunit,'(a)')
+end subroutine xtb_version
 
 subroutine disclamer(iunit)
 integer,intent(in) :: iunit

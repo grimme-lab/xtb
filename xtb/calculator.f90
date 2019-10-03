@@ -14,6 +14,9 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module tb_calculators
+   implicit none
+contains
 
 ! ========================================================================
 !> periodic GFN0-xTB (PEEQ) calculation
@@ -283,7 +286,7 @@ subroutine gfn2_calculation &
 
    if (len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none") then
       lgbsa = .true.
-      call init_gbsa(iunit,mol%n,mol%at,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
    endif
 
    ! ====================================================================
@@ -447,7 +450,7 @@ subroutine gfn1_calculation &
 
    if (len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none") then
       lgbsa = .true.
-      call init_gbsa(iunit,mol%n,mol%at,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
    endif
 
    ! ====================================================================
@@ -985,3 +988,4 @@ dispersion_gradient: if (opt%lgradient) then
 endif dispersion_gradient
 
 end subroutine d4_pbc_calculation
+end module tb_calculators

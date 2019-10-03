@@ -497,7 +497,7 @@ program XTBprog
 
 !  init GBSA part
    if(lgbsa) then
-      call init_gbsa(istdout,mol%n,mol%at,solvent,gsolvstate,temp_md,gfn_method,ngrida)
+      call init_gbsa(istdout,solvent,gsolvstate,temp_md,gfn_method,ngrida)
    endif
 !  initialize PC embedding (set default file names and stuff)
    call init_pcem
