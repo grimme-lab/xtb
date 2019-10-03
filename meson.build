@@ -342,27 +342,19 @@ xtb_dep = [declare_dependency(link_with: xtb_lib_shared), dependencies_sha]
 ## INSTALL
 ## ========================================== ##
 install_headers('include/xtb.h')
-install_man(['man/man1/xtb.1', 'man/man7/xcontrol.7'])
+
+asciidoc = find_program('a2x', required: false)
+if asciidoc.found()
+  run_command(asciidoc, 'man/man1/xtb.1.txt', '--format=manpage')
+  run_command(asciidoc, 'man/man7/xcontrol.7.txt', '--format=manpage')
+  install_man(['man/man1/xtb.1', 'man/man7/xcontrol.7'])
+endif
 
 xtb_parameter_files = ['.param_gfn0.xtb',
                        '.param_gfn2.xtb',
-                       '.param_gfn.xtb',
-                       '.param_ipea.xtb']
+                       '.param_gfn.xtb']
 
-gbsa_parameter_files = ['.param_gbsa_acetone',
-                        '.param_gbsa_acetonitrile',
-                        '.param_gbsa_benzene',
-                        '.param_gbsa_ch2cl2',
-                        '.param_gbsa_chcl3',
-                        '.param_gbsa_cs2',
-                        '.param_gbsa_dmso',
-                        '.param_gbsa_ether',
-                        '.param_gbsa_h2o',
-                        '.param_gbsa_methanol',
-                        '.param_gbsa_thf',
-                        '.param_gbsa_toluene']
-
-install_data(xtb_parameter_files, gbsa_parameter_files)
+install_data(xtb_parameter_files)
 
 ## ========================================== ##
 ## TESTSUITE
