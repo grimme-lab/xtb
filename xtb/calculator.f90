@@ -286,7 +286,7 @@ subroutine gfn2_calculation &
 
    if (len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none") then
       lgbsa = .true.
-      call init_gbsa(iunit,mol%n,mol%at,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
    endif
 
    ! ====================================================================
@@ -450,7 +450,7 @@ subroutine gfn1_calculation &
 
    if (len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none") then
       lgbsa = .true.
-      call init_gbsa(iunit,mol%n,mol%at,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
    endif
 
    ! ====================================================================

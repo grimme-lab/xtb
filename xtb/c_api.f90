@@ -367,7 +367,7 @@ function gfn1_api &
    !  STEP 2: convert the options from C struct to actual Fortran type
    ! ====================================================================
    opt = opt_in
-   
+
    call c_string_convert(outfile, file_in)
 
    if (outfile.ne.'-'.and.opt%prlevel > 0) then
@@ -629,7 +629,7 @@ function gfn2_pcem_api &
    !  STEP 2: convert the options from C struct to actual Fortran type
    ! ====================================================================
    opt = opt_in
-   
+
    call c_string_convert(outfile, file_in)
 
    if (outfile.ne.'-'.and.opt%prlevel > 0) then
@@ -776,7 +776,7 @@ function gfn1_pcem_api &
    !  STEP 2: convert the options from C struct to actual Fortran type
    ! ====================================================================
    opt = opt_in
-   
+
    call c_string_convert(outfile, file_in)
 
    if (outfile.ne.'-'.and.opt%prlevel > 0) then
@@ -846,9 +846,9 @@ function gfn1_pcem_api &
    ! ====================================================================
    !  STEP 6: finally return values to C
    ! ====================================================================
-   etot = energy
-   grad = gradient
-   pc_grad = pcem%grd
+   call c_return(etot, energy)
+   call c_return(grad, gradient)
+   call c_return(pc_grad, pcem%grd)
 
    call finalize
 
@@ -862,6 +862,171 @@ contains
       if (iunit.ne.istdout) call close_file(iunit)
    end subroutine finalize
 end function gfn1_pcem_api
+
+!> allows loading custom solvent parameters in the shared library
+function gbsa_model_preload_api &
+      &  (epsv_in,smass_in,rhos_in,c1_in,rprobe_in,gshift_in,soset_in,dum_in, &
+      &   gamscale_in,sx_in,tmp_in) &
+      &  result(status) bind(C,name='GBSA_model_preload')
+
+   use gbobc, only: load_custom_parameters
+
+   !> Dielectric data
+   real(c_double), intent(in) :: epsv_in
+   real(wp), allocatable :: epsv
+   !> Solvent density (g/cm^3) and molar mass (g/mol)
+   real(c_double), intent(in) :: smass_in
+   real(wp), allocatable :: smass
+   real(c_double), intent(in) :: rhos_in
+   real(wp), allocatable :: rhos
+   !> Born radii
+   real(c_double), intent(in) :: c1_in
+   real(wp), allocatable :: c1
+   !> Atomic surfaces
+   real(c_double), intent(in) :: rprobe_in
+   real(wp), allocatable :: rprobe
+   !> Gshift (gsolv=reference vs. gsolv)
+   real(c_double), intent(in) :: gshift_in
+   real(wp), allocatable :: gshift
+   !> offset parameter (fitted)
+   real(c_double), intent(in) :: soset_in
+   real(wp), allocatable :: soset
+   real(c_double), intent(in) :: dum_in
+   real(wp), allocatable :: dum
+   !> Surface tension (mN/m=dyn/cm)
+   real(c_double), intent(in) :: gamscale_in(94)
+   real(wp), allocatable :: gamscale(:)
+   !> dielectric descreening parameters
+   real(c_double), intent(in) :: sx_in(94)
+   real(wp), allocatable :: sx(:)
+   real(c_double), intent(in) :: tmp_in(94)
+   real(wp), allocatable :: tmp(:)
+   integer(c_int) :: status
+
+   call c_get(epsv,epsv_in)
+   call c_get(smass,smass_in)
+   call c_get(rhos,rhos_in)
+   call c_get(c1,c1_in)
+   call c_get(rprobe,rprobe_in)
+   call c_get(gshift,gshift_in)
+   call c_get(soset,soset_in)
+   call c_get(dum,dum_in)
+   call c_get(gamscale,gamscale_in)
+   call c_get(sx,sx_in)
+   call c_get(tmp,tmp_in)
+
+   call load_custom_parameters(epsv=epsv)
+   call load_custom_parameters(smass=smass)
+   call load_custom_parameters(rhos=rhos)
+   call load_custom_parameters(c1=c1)
+   call load_custom_parameters(rprobe=rprobe)
+   call load_custom_parameters(gshift=gshift)
+   call load_custom_parameters(soset=soset)
+   call load_custom_parameters(dum=dum)
+   call load_custom_parameters(gamscale=gamscale)
+   call load_custom_parameters(sx=sx)
+   call load_custom_parameters(tmp=tmp)
+
+   status = 0
+
+end function gbsa_model_preload_api
+
+function gbsa_calculation_api &
+      &  (natoms,attyp,coord, &
+      &   solvent_in,reference,temperature,method,grid_size,file_in, &
+      &   brad,sasa) &
+      &  result(status) bind(C,name='GBSA_calculation')
+
+   use mctc_constants
+
+   use tbdef_molecule
+   use tbdef_options
+
+   use gbobc
+
+   integer(c_int), intent(in) :: natoms
+   integer(c_int), intent(in) :: attyp(natoms)
+   real(c_double), intent(in) :: coord(3,natoms)
+
+   character(kind=c_char), intent(in) :: file_in(*)
+   character(kind=c_char), intent(in) :: solvent_in(*)
+   integer(c_int), intent(in) :: reference
+   real(c_double), intent(in) :: temperature
+   integer(c_int), intent(in) :: method
+   integer(c_int), intent(in) :: grid_size
+   integer(c_int) :: status
+
+   real(c_double), intent(out) :: brad(natoms)
+   real(c_double), intent(out) :: sasa(natoms)
+
+   integer :: iunit
+   logical :: sane
+   character(len=:), allocatable :: outfile
+   character(len=:), allocatable :: solvent
+
+   type(tb_molecule)    :: mol
+   type(tb_solvent)     :: gbsa
+   type(tb_environment) :: env
+
+   call mctc_init('gbobc',10,.true.)
+   call env%setup
+
+   call c_string_convert(solvent,solvent_in)
+   call c_string_convert(outfile,file_in)
+
+   if (outfile.ne.'-') then
+      call open_file(iunit,outfile,'w')
+      if (iunit.eq.-1) then
+         iunit = istdout
+      endif
+   else
+      iunit = istdout
+   endif
+
+   ! shut down fatal errors from the MCTC library, so it will not kill the caller
+   call mctc_mute
+
+   call init_gbsa(iunit,solvent,reference,temperature,method,grid_size)
+
+   call mctc_sanity(sane)
+   if (.not.sane) then
+      call finalize
+      status = 1
+      return
+   endif
+
+   call mol%allocate(natoms)
+   ! get atomtypes, coordinates and total charge
+   mol%at = attyp
+   mol%xyz = coord
+   call mol%update
+
+   call new_gbsa(gbsa,mol%n,mol%at)
+   ! initialize the neighbor list
+   call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
+   ! compute Born radii
+   call compute_brad_sasa(gbsa,mol%xyz)
+
+   call mctc_sanity(sane)
+   if (.not.sane) then
+      call finalize
+      status = 1
+      return
+   endif
+
+   call c_return(brad, gbsa%brad)
+   call c_return(sasa, gbsa%sasa*fourpi/gbsa%gamsasa)
+
+   call finalize
+   status = 0
+
+contains
+   subroutine finalize
+      call mol%deallocate
+      call deallocate_gbsa(gbsa)
+      if (iunit.ne.istdout) call close_file(iunit)
+   end subroutine finalize
+end function gbsa_calculation_api
 
 !> optional return to a c_ptr in case it is not a null pointer and the
 !  Fortran value has been calculated

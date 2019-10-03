@@ -35,6 +35,7 @@ module gbobc
    public :: compute_gb_damat
    public :: compute_hb
    public :: update_nnlist_gbsa
+   public :: load_custom_parameters
 
    private
 ! ========================================================================
@@ -215,13 +216,11 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
 
 end subroutine load_custom_parameters
 
-subroutine init_gbsa(iunit,n,at,sname,mode,temp,gfn_method,ngrida)
+subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
    use mctc_strings
    use readin
    implicit none
    integer, intent(in) :: iunit
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
    character(len=*),intent(in) :: sname
    integer, intent(in) :: mode
    real(wp),intent(in) :: temp
