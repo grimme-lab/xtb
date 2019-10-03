@@ -11,7 +11,7 @@ implicit none
 real(wp),intent(out) :: globpar(25)
 integer :: i,j
 type(tb_parameter),dimension(max_elem) :: atomparameter
-data atomparameter(1) / tb_parameter( & ! H 
+atomparameter(1) = tb_parameter( & ! H
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4700990000000001_wp, &
@@ -34,8 +34,8 @@ data atomparameter(1) / tb_parameter( & ! H
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')/
-data atomparameter(2) / tb_parameter( & ! He
+   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')
+atomparameter(2) = tb_parameter( & ! He
    en = 3.000000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = 1.441379000000000_wp, &
@@ -58,8 +58,8 @@ data atomparameter(2) / tb_parameter( & ! He
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Mon Aug 22 21:05:21 CEST 2016 ')/
-data atomparameter(3) / tb_parameter( & ! Li
+   timestp = 'Mon Aug 22 21:05:21 CEST 2016 ')
+atomparameter(3) = tb_parameter( & ! Li
    en = .9800000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2053420000000000_wp, &
@@ -82,8 +82,8 @@ data atomparameter(3) / tb_parameter( & ! Li
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 1, &
-   timestp = 'Mon Aug 22 20:58:33 CEST 2016 ')/
-data atomparameter(4) / tb_parameter( & ! Be
+   timestp = 'Mon Aug 22 20:58:33 CEST 2016 ')
+atomparameter(4) = tb_parameter( & ! Be
    en = 1.570000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2740220000000000_wp, &
@@ -106,8 +106,8 @@ data atomparameter(4) / tb_parameter( & ! Be
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Mon Aug 22 17:20:12 CEST 2016 ')/
-data atomparameter(5) / tb_parameter( & ! B 
+   timestp = 'Mon Aug 22 17:20:12 CEST 2016 ')
+atomparameter(5) = tb_parameter( & ! B
    en = 2.040000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3405300000000001_wp, &
@@ -130,8 +130,8 @@ data atomparameter(5) / tb_parameter( & ! B
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 3, &
-   timestp = 'Thu Sep 22 13:48:45 CEST 2016 ')/
-data atomparameter(6) / tb_parameter( & ! C 
+   timestp = 'Thu Sep 22 13:48:45 CEST 2016 ')
+atomparameter(6) = tb_parameter( & ! C
    en = 2.550000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4799880000000001_wp, &
@@ -154,8 +154,8 @@ data atomparameter(6) / tb_parameter( & ! C
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')/
-data atomparameter(7) / tb_parameter( & ! N 
+   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')
+atomparameter(7) = tb_parameter( & ! N
    en = 3.040000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4761060000000001_wp, &
@@ -178,8 +178,8 @@ data atomparameter(7) / tb_parameter( & ! N
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')/
-data atomparameter(8) / tb_parameter( & ! O 
+   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')
+atomparameter(8) = tb_parameter( & ! O
    en = 3.440000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .5833490000000001_wp, &
@@ -202,8 +202,8 @@ data atomparameter(8) / tb_parameter( & ! O
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 2, &
-   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')/
-data atomparameter(9) / tb_parameter( & ! F 
+   timestp = 'Sat Nov  4 20:25:57 CET 2017  ')
+atomparameter(9) = tb_parameter( & ! F
    en = 3.980000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7881940000000002_wp, &
@@ -226,8 +226,8 @@ data atomparameter(9) / tb_parameter( & ! F
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Mon Aug 22 08:05:34 CEST 2016 ')/
-data atomparameter(10) / tb_parameter( & ! Ne
+   timestp = 'Mon Aug 22 08:05:34 CEST 2016 ')
+atomparameter(10) = tb_parameter( & ! Ne
    en = 4.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .6128780000000001_wp, &
@@ -250,8 +250,8 @@ data atomparameter(10) / tb_parameter( & ! Ne
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Wed Aug 31 17:29:03 CEST 2016 ')/
-data atomparameter(11) / tb_parameter( & ! Na
+   timestp = 'Wed Aug 31 17:29:03 CEST 2016 ')
+atomparameter(11) = tb_parameter( & ! Na
    en = .9300000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1659080000000000_wp, &
@@ -274,8 +274,8 @@ data atomparameter(11) / tb_parameter( & ! Na
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 1, &
-   timestp = 'Fri Jun 16 11:28:14 CEST 2017 ')/
-data atomparameter(12) / tb_parameter( & ! Mg
+   timestp = 'Fri Jun 16 11:28:14 CEST 2017 ')
+atomparameter(12) = tb_parameter( & ! Mg
    en = 1.310000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3541510000000000_wp, &
@@ -298,8 +298,8 @@ data atomparameter(12) / tb_parameter( & ! Mg
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Fri Jun 16 09:56:36 CEST 2017 ')/
-data atomparameter(13) / tb_parameter( & ! Al
+   timestp = 'Fri Jun 16 09:56:36 CEST 2017 ')
+atomparameter(13) = tb_parameter( & ! Al
    en = 1.610000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2216580000000000_wp, &
@@ -322,8 +322,8 @@ data atomparameter(13) / tb_parameter( & ! Al
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 3, &
-   timestp = 'Mon Aug 22 15:20:00 CEST 2016 ')/
-data atomparameter(14) / tb_parameter( & ! Si
+   timestp = 'Mon Aug 22 15:20:00 CEST 2016 ')
+atomparameter(14) = tb_parameter( & ! Si
    en = 1.900000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4383310000000001_wp, &
@@ -346,8 +346,8 @@ data atomparameter(14) / tb_parameter( & ! Si
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Thu Aug 25 05:54:29 CEST 2016 ')/
-data atomparameter(15) / tb_parameter( & ! P 
+   timestp = 'Thu Aug 25 05:54:29 CEST 2016 ')
+atomparameter(15) = tb_parameter( & ! P
    en = 2.190000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7983190000000001_wp, &
@@ -370,8 +370,8 @@ data atomparameter(15) / tb_parameter( & ! P
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Mon Aug 22 14:05:50 CEST 2016 ')/
-data atomparameter(16) / tb_parameter( & ! S 
+   timestp = 'Mon Aug 22 14:05:50 CEST 2016 ')
+atomparameter(16) = tb_parameter( & ! S
    en = 2.580000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .6439590000000001_wp, &
@@ -394,8 +394,8 @@ data atomparameter(16) / tb_parameter( & ! S
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Mon Aug 22 10:47:45 CEST 2016 ')/
-data atomparameter(17) / tb_parameter( & ! Cl
+   timestp = 'Mon Aug 22 10:47:45 CEST 2016 ')
+atomparameter(17) = tb_parameter( & ! Cl
    en = 3.160000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .5197120000000001_wp, &
@@ -418,8 +418,8 @@ data atomparameter(17) / tb_parameter( & ! Cl
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Mon Aug 22 08:23:38 CEST 2016 ')/
-data atomparameter(18) / tb_parameter( & ! Ar
+   timestp = 'Mon Aug 22 08:23:38 CEST 2016 ')
+atomparameter(18) = tb_parameter( & ! Ar
    en = 3.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .5299060000000001_wp, &
@@ -442,8 +442,8 @@ data atomparameter(18) / tb_parameter( & ! Ar
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Wed Aug 31 18:08:34 CEST 2016 ')/
-data atomparameter(19) / tb_parameter( & ! K 
+   timestp = 'Wed Aug 31 18:08:34 CEST 2016 ')
+atomparameter(19) = tb_parameter( & ! K
    en = .8200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1143580000000000_wp, &
@@ -466,8 +466,8 @@ data atomparameter(19) / tb_parameter( & ! K
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 1, &
-   timestp = 'Wed Aug 31 18:13:39 CEST 2016 ')/
-data atomparameter(20) / tb_parameter( & ! Ca
+   timestp = 'Wed Aug 31 18:13:39 CEST 2016 ')
+atomparameter(20) = tb_parameter( & ! Ca
    en = 1.000000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1341870000000000_wp, &
@@ -490,8 +490,8 @@ data atomparameter(20) / tb_parameter( & ! Ca
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Wed Aug 31 18:20:07 CEST 2016 ')/
-data atomparameter(21) / tb_parameter( & ! Sc
+   timestp = 'Wed Aug 31 18:20:07 CEST 2016 ')
+atomparameter(21) = tb_parameter( & ! Sc
    en = 1.360000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7785450000000002_wp, &
@@ -514,8 +514,8 @@ data atomparameter(21) / tb_parameter( & ! Sc
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Fri Sep  2 10:30:12 CEST 2016 ')/
-data atomparameter(22) / tb_parameter( & ! Ti
+   timestp = 'Fri Sep  2 10:30:12 CEST 2016 ')
+atomparameter(22) = tb_parameter( & ! Ti
    en = 1.540000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = 1.044998000000000_wp, &
@@ -538,8 +538,8 @@ data atomparameter(22) / tb_parameter( & ! Ti
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Mon Aug 22 22:04:56 CEST 2016 ')/
-data atomparameter(23) / tb_parameter( & ! V 
+   timestp = 'Mon Aug 22 22:04:56 CEST 2016 ')
+atomparameter(23) = tb_parameter( & ! V
    en = 1.630000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .9851570000000002_wp, &
@@ -562,8 +562,8 @@ data atomparameter(23) / tb_parameter( & ! V
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 23 08:15:09 CEST 2016 ')/
-data atomparameter(24) / tb_parameter( & ! Cr
+   timestp = 'Tue Aug 23 08:15:09 CEST 2016 ')
+atomparameter(24) = tb_parameter( & ! Cr
    en = 1.660000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4681000000000001_wp, &
@@ -586,8 +586,8 @@ data atomparameter(24) / tb_parameter( & ! Cr
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Wed Aug 31 19:00:08 CEST 2016 ')/
-data atomparameter(25) / tb_parameter( & ! Mn
+   timestp = 'Wed Aug 31 19:00:08 CEST 2016 ')
+atomparameter(25) = tb_parameter( & ! Mn
    en = 1.550000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .6098680000000001_wp, &
@@ -610,8 +610,8 @@ data atomparameter(25) / tb_parameter( & ! Mn
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Wed Aug 31 20:33:25 CEST 2016 ')/
-data atomparameter(26) / tb_parameter( & ! Fe
+   timestp = 'Wed Aug 31 20:33:25 CEST 2016 ')
+atomparameter(26) = tb_parameter( & ! Fe
    en = 1.830000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .9000000000000001_wp, &
@@ -634,8 +634,8 @@ data atomparameter(26) / tb_parameter( & ! Fe
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Wed Aug 31 20:44:43 CEST 2016 ')/
-data atomparameter(27) / tb_parameter( & ! Co
+   timestp = 'Wed Aug 31 20:44:43 CEST 2016 ')
+atomparameter(27) = tb_parameter( & ! Co
    en = 1.879999995231628_wp, &
    mc = .000000000000000_wp, &
    gam = .4266800000000001_wp, &
@@ -658,8 +658,8 @@ data atomparameter(27) / tb_parameter( & ! Co
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Wed Aug 24 05:59:57 CEST 2016 ')/
-data atomparameter(28) / tb_parameter( & ! Ni
+   timestp = 'Wed Aug 24 05:59:57 CEST 2016 ')
+atomparameter(28) = tb_parameter( & ! Ni
    en = 1.910000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3670190000000000_wp, &
@@ -682,8 +682,8 @@ data atomparameter(28) / tb_parameter( & ! Ni
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Wed Aug 31 22:12:25 CEST 2016 ')/
-data atomparameter(29) / tb_parameter( & ! Cu
+   timestp = 'Wed Aug 31 22:12:25 CEST 2016 ')
+atomparameter(29) = tb_parameter( & ! Cu
    en = 1.900000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2601920000000000_wp, &
@@ -706,8 +706,8 @@ data atomparameter(29) / tb_parameter( & ! Cu
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Wed Aug 31 22:32:35 CEST 2016 ')/
-data atomparameter(30) / tb_parameter( & ! Zn
+   timestp = 'Wed Aug 31 22:32:35 CEST 2016 ')
+atomparameter(30) = tb_parameter( & ! Zn
    en = 1.650000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2094590000000000_wp, &
@@ -730,8 +730,8 @@ data atomparameter(30) / tb_parameter( & ! Zn
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Thu Sep  1 04:25:19 CEST 2016 ')/
-data atomparameter(31) / tb_parameter( & ! Ga
+   timestp = 'Thu Sep  1 04:25:19 CEST 2016 ')
+atomparameter(31) = tb_parameter( & ! Ga
    en = 1.810000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1933020000000000_wp, &
@@ -754,8 +754,8 @@ data atomparameter(31) / tb_parameter( & ! Ga
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 3, &
-   timestp = 'Fri Sep  2 10:14:46 CEST 2016 ')/
-data atomparameter(32) / tb_parameter( & ! Ge
+   timestp = 'Fri Sep  2 10:14:46 CEST 2016 ')
+atomparameter(32) = tb_parameter( & ! Ge
    en = 2.010000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .8000000000000002_wp, &
@@ -778,8 +778,8 @@ data atomparameter(32) / tb_parameter( & ! Ge
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Fri Sep  2 09:56:01 CEST 2016 ')/
-data atomparameter(33) / tb_parameter( & ! As
+   timestp = 'Fri Sep  2 09:56:01 CEST 2016 ')
+atomparameter(33) = tb_parameter( & ! As
    en = 2.180000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7323670000000001_wp, &
@@ -802,8 +802,8 @@ data atomparameter(33) / tb_parameter( & ! As
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Thu Sep  1 05:11:43 CEST 2016 ')/
-data atomparameter(34) / tb_parameter( & ! Se
+   timestp = 'Thu Sep  1 05:11:43 CEST 2016 ')
+atomparameter(34) = tb_parameter( & ! Se
    en = 2.550000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7145340000000001_wp, &
@@ -826,8 +826,8 @@ data atomparameter(34) / tb_parameter( & ! Se
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Thu Sep  1 15:12:08 CEST 2016 ')/
-data atomparameter(35) / tb_parameter( & ! Br
+   timestp = 'Thu Sep  1 15:12:08 CEST 2016 ')
+atomparameter(35) = tb_parameter( & ! Br
    en = 2.960000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7325300000000001_wp, &
@@ -850,8 +850,8 @@ data atomparameter(35) / tb_parameter( & ! Br
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Mon Aug 22 11:29:28 CEST 2016 ')/
-data atomparameter(36) / tb_parameter( & ! Kr
+   timestp = 'Mon Aug 22 11:29:28 CEST 2016 ')
+atomparameter(36) = tb_parameter( & ! Kr
    en = 3.000000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .8203120000000002_wp, &
@@ -874,8 +874,8 @@ data atomparameter(36) / tb_parameter( & ! Kr
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Thu Sep  1 15:19:47 CEST 2016 ')/
-data atomparameter(37) / tb_parameter( & ! Rb
+   timestp = 'Thu Sep  1 15:19:47 CEST 2016 ')
+atomparameter(37) = tb_parameter( & ! Rb
    en = .8200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7573500000000001E-01_wp, &
@@ -898,8 +898,8 @@ data atomparameter(37) / tb_parameter( & ! Rb
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 1, &
-   timestp = 'Sat Aug 27 04:24:34 CEST 2016 ')/
-data atomparameter(38) / tb_parameter( & ! Sr
+   timestp = 'Sat Aug 27 04:24:34 CEST 2016 ')
+atomparameter(38) = tb_parameter( & ! Sr
    en = .9500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1228610000000000_wp, &
@@ -922,8 +922,8 @@ data atomparameter(38) / tb_parameter( & ! Sr
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Thu Sep  1 17:15:37 CEST 2016 ')/
-data atomparameter(39) / tb_parameter( & ! Y 
+   timestp = 'Thu Sep  1 17:15:37 CEST 2016 ')
+atomparameter(39) = tb_parameter( & ! Y
    en = 1.220000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3512900000000000_wp, &
@@ -946,8 +946,8 @@ data atomparameter(39) / tb_parameter( & ! Y
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Thu Sep  1 17:20:03 CEST 2016 ')/
-data atomparameter(40) / tb_parameter( & ! Zr
+   timestp = 'Thu Sep  1 17:20:03 CEST 2016 ')
+atomparameter(40) = tb_parameter( & ! Zr
    en = 1.330000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1682190000000000_wp, &
@@ -970,8 +970,8 @@ data atomparameter(40) / tb_parameter( & ! Zr
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Sun Aug 28 01:57:32 CEST 2016 ')/
-data atomparameter(41) / tb_parameter( & ! Nb
+   timestp = 'Sun Aug 28 01:57:32 CEST 2016 ')
+atomparameter(41) = tb_parameter( & ! Nb
    en = 1.600000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1758750000000000_wp, &
@@ -994,8 +994,8 @@ data atomparameter(41) / tb_parameter( & ! Nb
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Thu Sep  1 17:28:28 CEST 2016 ')/
-data atomparameter(42) / tb_parameter( & ! Mo
+   timestp = 'Thu Sep  1 17:28:28 CEST 2016 ')
+atomparameter(42) = tb_parameter( & ! Mo
    en = 2.160000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3846770000000000_wp, &
@@ -1018,8 +1018,8 @@ data atomparameter(42) / tb_parameter( & ! Mo
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Thu Sep  1 17:33:17 CEST 2016 ')/
-data atomparameter(43) / tb_parameter( & ! Tc
+   timestp = 'Thu Sep  1 17:33:17 CEST 2016 ')
+atomparameter(43) = tb_parameter( & ! Tc
    en = 1.900000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4054740000000001_wp, &
@@ -1042,8 +1042,8 @@ data atomparameter(43) / tb_parameter( & ! Tc
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Sun Aug 28 04:51:04 CEST 2016 ')/
-data atomparameter(44) / tb_parameter( & ! Ru
+   timestp = 'Sun Aug 28 04:51:04 CEST 2016 ')
+atomparameter(44) = tb_parameter( & ! Ru
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3053940000000001_wp, &
@@ -1066,8 +1066,8 @@ data atomparameter(44) / tb_parameter( & ! Ru
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Thu Sep  1 17:52:27 CEST 2016 ')/
-data atomparameter(45) / tb_parameter( & ! Rh
+   timestp = 'Thu Sep  1 17:52:27 CEST 2016 ')
+atomparameter(45) = tb_parameter( & ! Rh
    en = 2.280000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2939730000000000_wp, &
@@ -1090,8 +1090,8 @@ data atomparameter(45) / tb_parameter( & ! Rh
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Thu Sep  1 17:58:03 CEST 2016 ')/
-data atomparameter(46) / tb_parameter( & ! Pd
+   timestp = 'Thu Sep  1 17:58:03 CEST 2016 ')
+atomparameter(46) = tb_parameter( & ! Pd
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2807660000000001_wp, &
@@ -1114,8 +1114,8 @@ data atomparameter(46) / tb_parameter( & ! Pd
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Mon Aug 29 14:49:51 CEST 2016 ')/
-data atomparameter(47) / tb_parameter( & ! Ag
+   timestp = 'Mon Aug 29 14:49:51 CEST 2016 ')
+atomparameter(47) = tb_parameter( & ! Ag
    en = 1.930000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4729780000000001_wp, &
@@ -1138,8 +1138,8 @@ data atomparameter(47) / tb_parameter( & ! Ag
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Thu Sep  1 18:14:42 CEST 2016 ')/
-data atomparameter(48) / tb_parameter( & ! Cd
+   timestp = 'Thu Sep  1 18:14:42 CEST 2016 ')
+atomparameter(48) = tb_parameter( & ! Cd
    en = 1.690000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1308280000000000_wp, &
@@ -1162,8 +1162,8 @@ data atomparameter(48) / tb_parameter( & ! Cd
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Thu Sep  1 18:24:25 CEST 2016 ')/
-data atomparameter(49) / tb_parameter( & ! In
+   timestp = 'Thu Sep  1 18:24:25 CEST 2016 ')
+atomparameter(49) = tb_parameter( & ! In
    en = 1.780000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1321200000000000_wp, &
@@ -1186,8 +1186,8 @@ data atomparameter(49) / tb_parameter( & ! In
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 3, &
-   timestp = 'Thu Sep  1 19:21:53 CEST 2016 ')/
-data atomparameter(50) / tb_parameter( & ! Sn
+   timestp = 'Thu Sep  1 19:21:53 CEST 2016 ')
+atomparameter(50) = tb_parameter( & ! Sn
    en = 1.960000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4806550000000001_wp, &
@@ -1210,8 +1210,8 @@ data atomparameter(50) / tb_parameter( & ! Sn
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Sun Sep  1 18:10:35 CEST 2016 ')/
-data atomparameter(51) / tb_parameter( & ! Sb
+   timestp = 'Sun Sep  1 18:10:35 CEST 2016 ')
+atomparameter(51) = tb_parameter( & ! Sb
    en = 2.050000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .5644060000000001_wp, &
@@ -1234,8 +1234,8 @@ data atomparameter(51) / tb_parameter( & ! Sb
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Thu Sep  1 22:28:28 CEST 2016 ')/
-data atomparameter(52) / tb_parameter( & ! Te
+   timestp = 'Thu Sep  1 22:28:28 CEST 2016 ')
+atomparameter(52) = tb_parameter( & ! Te
    en = 2.100000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4003010000000001_wp, &
@@ -1258,8 +1258,8 @@ data atomparameter(52) / tb_parameter( & ! Te
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Thu Sep  1 22:53:11 CEST 2016 ')/
-data atomparameter(53) / tb_parameter( & ! I 
+   timestp = 'Thu Sep  1 22:53:11 CEST 2016 ')
+atomparameter(53) = tb_parameter( & ! I
    en = 2.660000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .5204720000000000_wp, &
@@ -1282,8 +1282,8 @@ data atomparameter(53) / tb_parameter( & ! I
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Mon Aug 22 12:51:49 CEST 2016 ')/
-data atomparameter(54) / tb_parameter( & ! Xe
+   timestp = 'Mon Aug 22 12:51:49 CEST 2016 ')
+atomparameter(54) = tb_parameter( & ! Xe
    en = 2.600000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .9353940000000002_wp, &
@@ -1306,8 +1306,8 @@ data atomparameter(54) / tb_parameter( & ! Xe
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Mon Aug 29 22:22:12 CEST 2016 ')/
-data atomparameter(55) / tb_parameter( & ! Cs
+   timestp = 'Mon Aug 29 22:22:12 CEST 2016 ')
+atomparameter(55) = tb_parameter( & ! Cs
    en = .7900000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .8511000000000002E-01_wp, &
@@ -1330,8 +1330,8 @@ data atomparameter(55) / tb_parameter( & ! Cs
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 1, &
-   timestp = 'Thu Sep  1 23:00:45 CEST 2016 ')/
-data atomparameter(56) / tb_parameter( & ! Ba
+   timestp = 'Thu Sep  1 23:00:45 CEST 2016 ')
+atomparameter(56) = tb_parameter( & ! Ba
    en = .8900000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1378190000000000_wp, &
@@ -1354,8 +1354,8 @@ data atomparameter(56) / tb_parameter( & ! Ba
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Thu Sep  1 23:06:30 CEST 2016 ')/
-data atomparameter(57) / tb_parameter( & ! La
+   timestp = 'Thu Sep  1 23:06:30 CEST 2016 ')
+atomparameter(57) = tb_parameter( & ! La
    en = 1.100000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4959690000000001_wp, &
@@ -1378,8 +1378,8 @@ data atomparameter(57) / tb_parameter( & ! La
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Tue Aug 30 00:04:23 CEST 2016 ')/
-data atomparameter(58) / tb_parameter( & ! Ce
+   timestp = 'Tue Aug 30 00:04:23 CEST 2016 ')
+atomparameter(58) = tb_parameter( & ! Ce
    en = 1.120000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3500000000000000_wp, &
@@ -1402,8 +1402,8 @@ data atomparameter(58) / tb_parameter( & ! Ce
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 10:12:13 CEST 2016 ')/
-data atomparameter(59) / tb_parameter( & ! Pr
+   timestp = 'Tue Aug 30 10:12:13 CEST 2016 ')
+atomparameter(59) = tb_parameter( & ! Pr
    en = 1.130000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3423060000000001_wp, &
@@ -1426,8 +1426,8 @@ data atomparameter(59) / tb_parameter( & ! Pr
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(60) / tb_parameter( & ! Nd
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(60) = tb_parameter( & ! Nd
    en = 1.140000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3346120000000001_wp, &
@@ -1450,8 +1450,8 @@ data atomparameter(60) / tb_parameter( & ! Nd
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(61) / tb_parameter( & ! Pm
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(61) = tb_parameter( & ! Pm
    en = 1.150000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3269170000000001_wp, &
@@ -1474,8 +1474,8 @@ data atomparameter(61) / tb_parameter( & ! Pm
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(62) / tb_parameter( & ! Sm
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(62) = tb_parameter( & ! Sm
    en = 1.170000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3192230000000000_wp, &
@@ -1498,8 +1498,8 @@ data atomparameter(62) / tb_parameter( & ! Sm
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(63) / tb_parameter( & ! Eu
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(63) = tb_parameter( & ! Eu
    en = 1.180000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3115290000000001_wp, &
@@ -1522,8 +1522,8 @@ data atomparameter(63) / tb_parameter( & ! Eu
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(64) / tb_parameter( & ! Gd
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(64) = tb_parameter( & ! Gd
    en = 1.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3038350000000001_wp, &
@@ -1546,8 +1546,8 @@ data atomparameter(64) / tb_parameter( & ! Gd
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(65) / tb_parameter( & ! Tb
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(65) = tb_parameter( & ! Tb
    en = 1.210000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2961400000000001_wp, &
@@ -1570,8 +1570,8 @@ data atomparameter(65) / tb_parameter( & ! Tb
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(66) / tb_parameter( & ! Dy
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(66) = tb_parameter( & ! Dy
    en = 1.220000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2884460000000000_wp, &
@@ -1594,8 +1594,8 @@ data atomparameter(66) / tb_parameter( & ! Dy
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(67) / tb_parameter( & ! Ho
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(67) = tb_parameter( & ! Ho
    en = 1.230000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2807520000000001_wp, &
@@ -1618,8 +1618,8 @@ data atomparameter(67) / tb_parameter( & ! Ho
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(68) / tb_parameter( & ! Er
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(68) = tb_parameter( & ! Er
    en = 1.240000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2730580000000000_wp, &
@@ -1642,8 +1642,8 @@ data atomparameter(68) / tb_parameter( & ! Er
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(69) / tb_parameter( & ! Tm
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(69) = tb_parameter( & ! Tm
    en = 1.250000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2653640000000000_wp, &
@@ -1666,8 +1666,8 @@ data atomparameter(69) / tb_parameter( & ! Tm
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(70) / tb_parameter( & ! Yb
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(70) = tb_parameter( & ! Yb
    en = 1.260000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2576690000000000_wp, &
@@ -1690,8 +1690,8 @@ data atomparameter(70) / tb_parameter( & ! Yb
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')/
-data atomparameter(71) / tb_parameter( & ! Lu
+   timestp = 'Mon Aug  1 19:25:34 CEST 2016 ')
+atomparameter(71) = tb_parameter( & ! Lu
    en = 1.270000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2499750000000000_wp, &
@@ -1714,8 +1714,8 @@ data atomparameter(71) / tb_parameter( & ! Lu
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 10:12:13 CEST 2016 ')/
-data atomparameter(72) / tb_parameter( & ! Hf
+   timestp = 'Tue Aug 30 10:12:13 CEST 2016 ')
+atomparameter(72) = tb_parameter( & ! Hf
    en = 1.300000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2699770000000000_wp, &
@@ -1738,8 +1738,8 @@ data atomparameter(72) / tb_parameter( & ! Hf
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Tue Aug 30 04:10:19 CEST 2016 ')/
-data atomparameter(73) / tb_parameter( & ! Ta
+   timestp = 'Tue Aug 30 04:10:19 CEST 2016 ')
+atomparameter(73) = tb_parameter( & ! Ta
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2396960000000000_wp, &
@@ -1762,8 +1762,8 @@ data atomparameter(73) / tb_parameter( & ! Ta
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 16:41:19 CEST 2016 ')/
-data atomparameter(74) / tb_parameter( & ! W 
+   timestp = 'Tue Aug 30 16:41:19 CEST 2016 ')
+atomparameter(74) = tb_parameter( & ! W
    en = 2.360000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2436630000000000_wp, &
@@ -1786,8 +1786,8 @@ data atomparameter(74) / tb_parameter( & ! W
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 17:50:56 CEST 2016 ')/
-data atomparameter(75) / tb_parameter( & ! Re
+   timestp = 'Tue Aug 30 17:50:56 CEST 2016 ')
+atomparameter(75) = tb_parameter( & ! Re
    en = 1.900000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3625120000000001_wp, &
@@ -1810,8 +1810,8 @@ data atomparameter(75) / tb_parameter( & ! Re
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 17:58:56 CEST 2016 ')/
-data atomparameter(76) / tb_parameter( & ! Os
+   timestp = 'Tue Aug 30 17:58:56 CEST 2016 ')
+atomparameter(76) = tb_parameter( & ! Os
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3543180000000001_wp, &
@@ -1834,8 +1834,8 @@ data atomparameter(76) / tb_parameter( & ! Os
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 18:12:17 CEST 2016 ')/
-data atomparameter(77) / tb_parameter( & ! Ir
+   timestp = 'Tue Aug 30 18:12:17 CEST 2016 ')
+atomparameter(77) = tb_parameter( & ! Ir
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2908980000000000_wp, &
@@ -1858,8 +1858,8 @@ data atomparameter(77) / tb_parameter( & ! Ir
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 6, &
-   timestp = 'Tue Aug 30 19:00:14 CEST 2016 ')/
-data atomparameter(78) / tb_parameter( & ! Pt
+   timestp = 'Tue Aug 30 19:00:14 CEST 2016 ')
+atomparameter(78) = tb_parameter( & ! Pt
    en = 2.280000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3704470000000001_wp, &
@@ -1882,8 +1882,8 @@ data atomparameter(78) / tb_parameter( & ! Pt
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Wed Aug 31 01:41:36 CEST 2016 ')/
-data atomparameter(79) / tb_parameter( & ! Au
+   timestp = 'Wed Aug 31 01:41:36 CEST 2016 ')
+atomparameter(79) = tb_parameter( & ! Au
    en = 2.540000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .4963800000000001_wp, &
@@ -1906,8 +1906,8 @@ data atomparameter(79) / tb_parameter( & ! Au
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 4, &
-   timestp = 'Tue Aug 30 21:57:24 CEST 2016 ')/
-data atomparameter(80) / tb_parameter( & ! Hg
+   timestp = 'Tue Aug 30 21:57:24 CEST 2016 ')
+atomparameter(80) = tb_parameter( & ! Hg
    en = 2.000000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .3349970000000000_wp, &
@@ -1930,8 +1930,8 @@ data atomparameter(80) / tb_parameter( & ! Hg
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 2, &
-   timestp = 'Tue Aug 30 21:59:42 CEST 2016 ')/
-data atomparameter(81) / tb_parameter( & ! Tl
+   timestp = 'Tue Aug 30 21:59:42 CEST 2016 ')
+atomparameter(81) = tb_parameter( & ! Tl
    en = 1.620000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .6713160000000001_wp, &
@@ -1954,8 +1954,8 @@ data atomparameter(81) / tb_parameter( & ! Tl
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 3, &
-   timestp = 'Tue Aug 30 22:14:23 CEST 2016 ')/
-data atomparameter(82) / tb_parameter( & ! Pb
+   timestp = 'Tue Aug 30 22:14:23 CEST 2016 ')
+atomparameter(82) = tb_parameter( & ! Pb
    en = 2.330000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = 1.000000000000000_wp, &
@@ -1978,8 +1978,8 @@ data atomparameter(82) / tb_parameter( & ! Pb
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Wed Aug 31 00:32:19 CEST 2016 ')/
-data atomparameter(83) / tb_parameter( & ! Bi
+   timestp = 'Wed Aug 31 00:32:19 CEST 2016 ')
+atomparameter(83) = tb_parameter( & ! Bi
    en = 2.020000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .9448790000000001_wp, &
@@ -2002,8 +2002,8 @@ data atomparameter(83) / tb_parameter( & ! Bi
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Wed Aug 31 00:39:42 CEST 2016 ')/
-data atomparameter(84) / tb_parameter( & ! Po
+   timestp = 'Wed Aug 31 00:39:42 CEST 2016 ')
+atomparameter(84) = tb_parameter( & ! Po
    en = 2.000000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = 1.091248000000000_wp, &
@@ -2026,8 +2026,8 @@ data atomparameter(84) / tb_parameter( & ! Po
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 3, &
-   timestp = 'Wed Aug 31 00:47:41 CEST 2016 ')/
-data atomparameter(85) / tb_parameter( & ! At
+   timestp = 'Wed Aug 31 00:47:41 CEST 2016 ')
+atomparameter(85) = tb_parameter( & ! At
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = 1.264162000000000_wp, &
@@ -2050,8 +2050,8 @@ data atomparameter(85) / tb_parameter( & ! At
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Wed Aug 31 00:56:17 CEST 2016 ')/
-data atomparameter(86) / tb_parameter( & ! Rn
+   timestp = 'Wed Aug 31 00:56:17 CEST 2016 ')
+atomparameter(86) = tb_parameter( & ! Rn
    en = 2.200000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7981700000000002_wp, &
@@ -2074,8 +2074,8 @@ data atomparameter(86) / tb_parameter( & ! Rn
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 0, &
    cnval = 1, &
-   timestp = 'Wed Aug 31 00:56:17 CEST 2016 ')/
-data atomparameter(87) / tb_parameter( & ! Fr
+   timestp = 'Wed Aug 31 00:56:17 CEST 2016 ')
+atomparameter(87) = tb_parameter( & ! Fr
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .7263525000000000E-01_wp, &
@@ -2098,8 +2098,8 @@ data atomparameter(87) / tb_parameter( & ! Fr
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(88) / tb_parameter( & ! Ra
+   timestp = '------------------------------')
+atomparameter(88) = tb_parameter( & ! Ra
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .9422158000000000E-01_wp, &
@@ -2122,8 +2122,8 @@ data atomparameter(88) / tb_parameter( & ! Ra
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(89) / tb_parameter( & ! Ac
+   timestp = '------------------------------')
+atomparameter(89) = tb_parameter( & ! Ac
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .9920295000000000E-01_wp, &
@@ -2146,8 +2146,8 @@ data atomparameter(89) / tb_parameter( & ! Ac
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(90) / tb_parameter( & ! Th
+   timestp = '------------------------------')
+atomparameter(90) = tb_parameter( & ! Th
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1041862100000000_wp, &
@@ -2170,8 +2170,8 @@ data atomparameter(90) / tb_parameter( & ! Th
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(91) / tb_parameter( & ! Pa
+   timestp = '------------------------------')
+atomparameter(91) = tb_parameter( & ! Pa
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1423563300000000_wp, &
@@ -2194,8 +2194,8 @@ data atomparameter(91) / tb_parameter( & ! Pa
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(92) / tb_parameter( & ! U 
+   timestp = '------------------------------')
+atomparameter(92) = tb_parameter( & ! U
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1639429400000000_wp, &
@@ -2218,8 +2218,8 @@ data atomparameter(92) / tb_parameter( & ! U
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(93) / tb_parameter( & ! Np
+   timestp = '------------------------------')
+atomparameter(93) = tb_parameter( & ! Np
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .1855194100000000_wp, &
@@ -2242,8 +2242,8 @@ data atomparameter(93) / tb_parameter( & ! Np
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
-data atomparameter(94) / tb_parameter( & ! Pu
+   timestp = '------------------------------')
+atomparameter(94) = tb_parameter( & ! Pu
    en = 1.500000000000000_wp, &
    mc = .000000000000000_wp, &
    gam = .2237013876438141_wp, &
@@ -2266,7 +2266,7 @@ data atomparameter(94) / tb_parameter( & ! Pu
    ao_typ = (/0, 0, 0, 0, 0, 0, 0, 0, 0, 0/), &
    metal = 1, &
    cnval = 0, &
-   timestp = '------------------------------')/
+   timestp = '------------------------------')
 globpar = (/ &
    1.850000000000000_wp, 2.250000000000000_wp, 2.000000000000000_wp, .000000000000000_wp, 2.080000000000000_wp, &
    2.850000000000000_wp, .000000000000000_wp, 1.000000000000000_wp, .000000000000000_wp, .000000000000000_wp, &
@@ -2323,4 +2323,4 @@ cnval(1:94)       = atomparameter % cnval
 timestp(1:94)     = atomparameter % timestp
 end subroutine copy_gfn1_parameterset
 !! ========================================================================
-!! generated by prelemparam in printout.f90 from libxtb.a on 2018/10/07 at 13:29:41.746     
+!! generated by prelemparam in printout.f90 from libxtb.a on 2018/10/07 at 13:29:41.746
