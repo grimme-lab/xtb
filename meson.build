@@ -387,6 +387,10 @@ xtb_test = executable('xtb_test',
                       include_directories: incdir,
                       link_with: xtb_lib_static)
 
+# make sure the correct library is loaded
+libenv = environment()
+libenv.prepend('LD_LIBRARY_PATH', meson.current_build_dir())
+
 # some very basic checks to see if the executable reacts at all
 test('Argparser: print version',xtb_exe, args: '--version')
 test('Argparser: print help',   xtb_exe, args: '--help')
@@ -446,7 +450,8 @@ test('GFN2-xTB: API (GBSA+salt)',xtb_test,args: ['gfn2','salt'])
 test('GFN2-xTB: API (PCEM)',xtb_test,args: ['gfn2','pcem'])
 test('GFN2-xTB: C++', executable('xtb_cpp_test', 'TESTSUITE/cpp_api_example.cpp',
                                  include_directories: incdir,
-                                 dependencies: xtb_dep))
+                                 dependencies: xtb_dep),
+                                 env: libenv)
 
 test('GFN1-xTB: SCC',xtb_test,args: ['gfn1','scc'])
 test('GFN1-xTB: API',xtb_test,args: ['gfn1','api'])
