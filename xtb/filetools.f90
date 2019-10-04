@@ -59,9 +59,10 @@ subroutine delete_file(name)
    else if (exist) then
       inquire(file=file, opened=opened, number=iunit)
       open(newunit=iunit, file=file, iostat=err, status='old')
-      if (err.ne.0) return
-      close(iunit,status='delete')
-      call push_file(iunit,file,'d')
+      if (err.eq.0) then
+         close(iunit,status='delete')
+         call push_file(iunit,file,'d')
+      endif
    endif
    !$omp end critical (io)
 end subroutine delete_file
@@ -81,9 +82,10 @@ subroutine touch_file(name)
    inquire(file=file, exist=exist)
    if (.not.exist) then
       open(newunit=iunit, file=file, iostat=err, status='new')
-      if (err.ne.0) return
-      close(iunit)
-      call push_file(iunit,file,'t')
+      if (err.eq.0) then
+         close(iunit)
+         call push_file(iunit,file,'t')
+      endif
    endif
    !$omp end critical (io)
 end subroutine touch_file

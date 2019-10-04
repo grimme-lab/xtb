@@ -465,22 +465,20 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    parameter (r4dum=1.e-8)
    parameter (smallreal=1.d-14)
 
+   allocate( gold(anc%nvar), displ(anc%nvar), gint(anc%nvar), source = 0.0_wp )
+
    prlevel=0
    if(pr)prlevel=1
-   gint   =0
-   gnorm  =0
-   depred =0
-   echng  =0
+   gnorm  =0.0_wp
+   depred =0.0_wp
+   echng  =0.0_wp
    maxd   =maxdispl
    first  =.true.
    acc    =acc_in
    energy = etot
    e_in   = etot
-   alp    =1
+   alp    =1.0_wp
    converged = .false.
-
-   allocate(real(wp) :: gold(anc%nvar) )
-   allocate(real(wp) :: displ(anc%nvar), gint(anc%nvar) )
 
    nvar1  = anc%nvar+1         ! dimension of RF calculation
    npvar  = anc%nvar*(nvar1)/2 ! packed size of Hessian (note the abuse of nvar1!)

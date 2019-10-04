@@ -102,6 +102,13 @@ program peeq_tester
       case('mic');  call test_class_molecule_mic_distances
       case('axis'); call test_class_molecule_axis_trafo
       end select
+   case('symmetry')
+      select case(sec)
+      case('water');  call test_symmetry_water
+      case('li8'); call test_symmetry_li8
+      case('pcl3'); call test_symmetry_pcl3
+      case('c20'); call test_symmetry_c20
+      end select
    end select
 
    ! falling through the tester is always an error

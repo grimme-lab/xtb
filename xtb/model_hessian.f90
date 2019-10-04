@@ -1264,7 +1264,7 @@ subroutine mh_lindh_torsion(n,at,xyz,hess,kt,kd,aav,rav,dav,lcutoff)
 
                !call trsn2(txyz,tau,c)
                Call Trsn(txyz,4,Tau,C,.False.,.False.,'        ', &
-+     &                  Dum,.False.)
+      &                  Dum,.False.)
                si = c(:,1)
                sj = c(:,2)
                sk = c(:,3)

@@ -35,14 +35,27 @@ fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
 cxx= meson.get_compiler('cpp')
 
-if fc.get_id() == 'intel'
+if fc.get_id() == 'gcc'
+  add_project_arguments('-ffree-line-length-none', language: 'fortran')
+  add_project_arguments('-fbacktrace', language: 'fortran')
+elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
   add_project_arguments('-traceback', language: 'fortran')
+  add_project_link_arguments('-static', language: 'fortran')
+  add_project_link_arguments('-static', language: 'c') # icc will do linking
 endif
 
-if cxx.get_id() == 'intel'
+if cxx.get_id() == 'gcc'
   add_project_arguments('-std=c++11', language: 'cpp')
+elif cxx.get_id() == 'intel'
+  add_project_arguments('-std=c++11', language: 'cpp')
+endif
+
+if cc.get_id() == 'gcc'
+  add_project_arguments('-std=c11', language: 'c')
+elif cc.get_id() == 'intel'
+  add_project_arguments('-std=c11', language: 'c')
 endif
 
 ## ========================================== ##
@@ -56,8 +69,13 @@ if get_option('la_backend') == 'mkl'
   libmkl = [fc.find_library('pthread')]
   libmkl += fc.find_library('m')
   libmkl += fc.find_library('dl')
-  libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-  libmkl_exe += fc.find_library('mkl_intel_thread')
+  if fc.get_id() == 'gcc'
+    libmkl_exe = [fc.find_library('mkl_gf_lp64')]
+    libmkl_exe += fc.find_library('mkl_gnu_thread')
+  elif fc.get_id() == 'intel'
+    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+    libmkl_exe += fc.find_library('mkl_intel_thread')
+  endif
   libmkl_exe += fc.find_library('mkl_core')
   libmkl_exe += fc.find_library('iomp5')
   libmkl_sha = [fc.find_library('mkl_rt')]
@@ -69,12 +87,12 @@ else
   dependencies += fc.find_library('lapack', required: true)
 endif
 
-if fc.get_id() == 'intel'
-  add_project_arguments('-qopenmp', language: 'fortran')
-  add_project_link_arguments('-qopenmp', language: 'fortran')
-else
+if fc.get_id() == 'gcc'
   add_project_arguments('-fopenmp', language: 'fortran')
   add_project_link_arguments('-fopenmp', language: 'fortran')
+elif fc.get_id() == 'intel'
+  add_project_arguments('-qopenmp', language: 'fortran')
+  add_project_link_arguments('-qopenmp', language: 'fortran')
 endif
 dependencies += dependency('threads')
 
@@ -310,6 +328,7 @@ xtb_test += 'TESTSUITE/gfn2.f90'
 xtb_test += 'TESTSUITE/gfn1.f90'
 xtb_test += 'TESTSUITE/gfn0.f90'
 xtb_test += 'TESTSUITE/peeq.f90'
+xtb_test += 'TESTSUITE/symmetry.f90'
 
 incdir = include_directories('include')
 
@@ -329,7 +348,6 @@ xtb_exe = executable(meson.project_name(),
                      dependencies: dependencies_exe,
                      include_directories: incdir,
                      link_with: xtb_lib_static,
-                     link_args: '-static',
                      install: true)
 
 xtb_lib_shared = shared_library(meson.project_name(),
@@ -367,8 +385,11 @@ xtb_test = executable('xtb_test',
                       xtb_test,
                       dependencies: dependencies_exe,
                       include_directories: incdir,
-                      link_with: xtb_lib_static,
-                      link_args: '-static' )
+                      link_with: xtb_lib_static)
+
+# make sure the correct library is loaded
+libenv = environment()
+libenv.prepend('LD_LIBRARY_PATH', meson.current_build_dir())
 
 # some very basic checks to see if the executable reacts at all
 test('Argparser: print version',xtb_exe, args: '--version')
@@ -404,6 +425,11 @@ test('Geometry Reader: POSCAR',  xtb_test,args: ['geometry_reader','poscar_3d'])
 test('PBC tools: convert',xtb_test,args: ['pbc_tools','convert'])
 test('PBC tools: cutoff', xtb_test,args: ['pbc_tools','cutoff'])
 
+test('Symmetry: Water', xtb_test, args: ['symmetry','water'])
+test('Symmetry: Li8', xtb_test, args: ['symmetry','li8'])
+test('Symmetry: PCl3', xtb_test, args: ['symmetry','pcl3'])
+test('Symmetry: large', xtb_test, args: ['symmetry','c20'])
+
 test('EEQ model: water',   xtb_test,args: ['eeq_model','water'])
 test('EEQ model: 3D Ewald',xtb_test,args: ['eeq_model','ewald'])
 test('EEQ model: GBSA',    xtb_test,args: ['eeq_model','gbsa'])
@@ -424,7 +450,8 @@ test('GFN2-xTB: API (GBSA+salt)',xtb_test,args: ['gfn2','salt'])
 test('GFN2-xTB: API (PCEM)',xtb_test,args: ['gfn2','pcem'])
 test('GFN2-xTB: C++', executable('xtb_cpp_test', 'TESTSUITE/cpp_api_example.cpp',
                                  include_directories: incdir,
-                                 dependencies: xtb_dep))
+                                 dependencies: xtb_dep),
+                                 env: libenv)
 
 test('GFN1-xTB: SCC',xtb_test,args: ['gfn1','scc'])
 test('GFN1-xTB: API',xtb_test,args: ['gfn1','api'])
