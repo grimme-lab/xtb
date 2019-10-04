@@ -121,6 +121,7 @@ subroutine peeq_calculation &
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
          call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         return
       endif
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
@@ -276,6 +277,7 @@ subroutine gfn2_calculation &
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
          call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         return
       endif
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
@@ -442,6 +444,7 @@ subroutine gfn1_calculation &
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
          call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         return
       endif
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
@@ -595,6 +598,7 @@ subroutine gfn0_calculation &
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
          call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         return
       endif
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
@@ -745,8 +749,10 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
              c6ab(mol%n,mol%n),aw(23,mol%n),cn(mol%n), &
              dcndr(3,mol%n,mol%n),dqdr(3,mol%n,mol%n+1), &
              dcovcndr(3,mol%n,mol%n), stat = err )
-   if (err /= 0) &
+   if (err /= 0) then
       call raise('E','Memory allocation failed',1)
+      return
+   endif
 
    call get_d4_cn(mol,covcn,dcovcndr)
    call d4(mol%n,ndim,mol%at,opt%wf,opt%g_a,opt%g_c,covcn,gweights,refc6)
@@ -930,8 +936,10 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
              dqdr(3,mol%n,mol%n+1),dqdL(3,3,mol%n+1), &
              dcovcndr(3,mol%n,mol%n), dcovcndL(3,3,mol%n), &
              source = 0.0_wp, stat = err )
-   if (err /= 0) &
+   if (err /= 0) then
       call raise('E','Memory allocation failed',1)
+      return
+   endif
    sigma = 0.0_wp
 
    call get_d4_cn(mol,covcn,dcovcndr,dcovcndL,thr=rthr_cn)
