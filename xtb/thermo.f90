@@ -60,7 +60,7 @@ subroutine getsymmetry (pr, iunit, n, iat, xyz, symthr, maxatdesy, sfsym)
    !call flush(iunit)
 
    !TM stuff (trafo table)
-   sfsym(1:3)=atmp(2:4)
+   sfsym(1:3)=atmp(1:3)
    if(sfsym(1:1).eq.'D') sfsym(1:1)='d'
    if(sfsym(1:1).eq.'C') sfsym(1:1)='c'
    if(sfsym(1:1).eq.'T') sfsym(1:1)='t'

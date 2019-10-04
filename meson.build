@@ -328,6 +328,7 @@ xtb_test += 'TESTSUITE/gfn2.f90'
 xtb_test += 'TESTSUITE/gfn1.f90'
 xtb_test += 'TESTSUITE/gfn0.f90'
 xtb_test += 'TESTSUITE/peeq.f90'
+xtb_test += 'TESTSUITE/symmetry.f90'
 
 incdir = include_directories('include')
 
@@ -419,6 +420,11 @@ test('Geometry Reader: POSCAR',  xtb_test,args: ['geometry_reader','poscar_3d'])
 
 test('PBC tools: convert',xtb_test,args: ['pbc_tools','convert'])
 test('PBC tools: cutoff', xtb_test,args: ['pbc_tools','cutoff'])
+
+test('Symmetry: Water', xtb_test, args: ['symmetry','water'])
+test('Symmetry: Li8', xtb_test, args: ['symmetry','li8'])
+test('Symmetry: PCl3', xtb_test, args: ['symmetry','pcl3'])
+test('Symmetry: large', xtb_test, args: ['symmetry','c20'])
 
 test('EEQ model: water',   xtb_test,args: ['eeq_model','water'])
 test('EEQ model: 3D Ewald',xtb_test,args: ['eeq_model','ewald'])

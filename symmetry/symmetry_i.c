@@ -3,6 +3,7 @@
  *  This is actually C++ program, masquerading as a C one!
  *
  *  (C) 1996, 2003 S. Patchkovskii, Serguei.Patchkovskii@sympatico.ca
+ *  modifications by S. Dohm and S. Ehlert
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1759,7 +1760,7 @@ return 0 ;
 }
 
 
-void schoenflies(int *loc_natoms, int* attype, double* X, double* Y, double* Z, char *loc_symbol[], double* paramar)
+void schoenflies(int natoms, int* attype, double* coord, char* symbol, double* paramar)
     {
       int last_pg ;
       int i;
@@ -1786,7 +1787,7 @@ StatAccept            = 0 ;
       
       
       setbuf(stdout, NULL);      
-      AtomsCount = *loc_natoms;
+      AtomsCount = natoms;
     //Allocate space for ATOMS
       Atoms = calloc( AtomsCount, sizeof( ATOM ) ) ;
     // fill atoms array:
@@ -1796,9 +1797,9 @@ StatAccept            = 0 ;
     }
     for( i = 0 ; i < AtomsCount ; i++ ){
       Atoms[i].type = attype[i];
-      Atoms[i].x[0] = X[i];
-      Atoms[i].x[1] = Y[i];
-      Atoms[i].x[2] = Z[i];
+      Atoms[i].x[0] = coord[3*i];
+      Atoms[i].x[1] = coord[3*i+1];
+      Atoms[i].x[2] = coord[3*i+2];
     }     
           
 //    if( fscanf( in, "%d %lg %lg %lg\n", &Atoms[i].type, &Atoms[i].x[0], &Atoms[i].x[1], &Atoms[i].x[2] ) != 4 ){
@@ -1828,15 +1829,15 @@ StatAccept            = 0 ;
     report_symmetry_elements_brief() ;
     last_pg = identify_point_group() ;
     if(last_pg >= 0){
-      *loc_symbol = PointGroups[last_pg].group_name;    
+      strcpy(symbol,PointGroups[last_pg].group_name);
     }
     else {
       report_symmetry_elements_brief_Conly() ;
       if(MaxRotAxis[0] == '\0') {
-	*loc_symbol = "C1";
+         strcpy(symbol,"C1");
       }
       else {
-      *loc_symbol = MaxRotAxis;	
+         strcpy(symbol,MaxRotAxis);
       }
     }
     }
