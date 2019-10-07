@@ -27,22 +27,9 @@ Also you currently cannot compile `xtb` with GCC and there is no plan to support
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
 
-## Collaborators
+## Contributing
 
-- C. Bannwarth
-- F. Bohle
-- G. Brandenburg
-- E. Caldeweyher
-- M. Checinski
-- S. Dohm
-- S. Ehlert
-- S. Ehrlich
-- F. März
-- H. Neugebauer
-- J. Pisarek
-- P. Pracht
-- P. Shushkov
-- S. Spicher
+See our [contributing guidelines](CONTRIBUTING.md).
 
 ## Citations
 
