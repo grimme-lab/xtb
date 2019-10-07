@@ -423,7 +423,8 @@ subroutine peeq &
 ! ---------------------------------------
    if (mol%npbc > 0) then
       if (ccm) then
-         call ccm_build_SH0(mol%n,mol%at,basis,nbf,nao,mol%xyz,wfn%q,cn,intcut, &
+         call ccm_build_SH0(mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice, &
+            &               wfn%q,cn,intcut, &
             &               param%kmagic,ken,param%alphaj,param%kcnsh, &
             &               param%xbdamp,s,h0,mol%wsc)
       else
@@ -522,7 +523,8 @@ subroutine peeq &
    call dmat(nao,tmp,wfn%C,pew)
    if (mol%npbc > 0) then
       if (ccm) then
-         call ccm_build_dSH0(mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz,wfn%q,cn, &
+         call ccm_build_dSH0(mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
+            &                mol%lattice,wfn%q,cn, &
             &                wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
             &                param%alphaj,param%kcnsh,param%xbdamp,mol%wsc)
       else
@@ -1253,7 +1255,7 @@ end subroutine mol_build_SH0
 ! ------------------------------------------------------------------------
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
-subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
+subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
       &                  kmagic,ken,alphaj,kcn,xbdamp,sint,h0,wsc)
 
    use tbdef_basisset
@@ -1275,6 +1277,7 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    integer, intent(in)  :: nao
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
+   real(wp),intent(in)  :: lattice(3,3)
    real(wp),intent(in)  :: q(nat)
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
@@ -1302,7 +1305,7 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    real(wp) :: shpoly,km
    logical  :: valaoi,valaoj
 
-   real(wp)  ri(3),rj(3),f1,f2
+   real(wp)  ri(3),rj(3),t(3),f1,f2
    real(wp),parameter ::point(3) = 0.0_wp
    real(wp) dtmp(3),qtmp(6),ss(6,6),dd(3,6,6),qq(6,6,6),tmp(6,6)
    real(wp) sstmp(6,6) !TESTST
@@ -1323,9 +1326,9 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp, &
    !$omp&        ss,saw,est,alpi,alpj,ab,iprim,jprim,ip,jp,km,shpoly, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
-   !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav) &
+   !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,t) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,intcut,nat,kqat,kcnat,cn,q,en, &
+   !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,lattice,intcut,nat,kqat,kcnat,cn,q,en, &
    !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj)
    !$omp do schedule(runtime)
    do iat = 1, nat
@@ -1394,7 +1397,8 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
 
                wscAt: do kat = 1, wsc%itbl(jat,iat)
                   ss = 0.0_wp
-                  rj = wsc%xyz(:,kat,jat,iat)
+                  t = wsc%lattr(:,kat,jat,iat)
+                  rj = xyz(:,jat) + matmul(lattice,t)
 
                   ! distance dependent polynomial
                   shpoly = rfactor(il,jl,ati,atj,ri,rj)
@@ -2018,7 +2022,7 @@ end subroutine mol_build_dSH0
 ! ------------------------------------------------------------------------
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
-subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
+subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigma,&
       &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp,wsc)
    use mctc_constants, only : pi
    use mctc_econv
@@ -2042,6 +2046,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
    integer, intent(in)      :: nbf
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
+   real(wp),intent(in) :: lattice(3,3)
    real(wp),intent(in) :: q(nat)
    real(wp),intent(in) :: cn(nat)
    real(wp),intent(in) :: P(nao,nao)
@@ -2066,7 +2071,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
    real(wp) tmp1,tmp2,tmp3,step,step2,step3,s00r,s00l,s00,alpj
    real(wp) skj,r1,r2,tt,t1,t2,t3,t4
    real(wp) thr2,f,ci,cc,cj,alpi,rab2,ab,est
-   real(wp) f1,f2,tmp(6,6),rij(3),ri(3),rj(3),rij2
+   real(wp) f1,f2,tmp(6,6),rij(3),ri(3),rj(3),rij2,t(3)
    real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
@@ -2089,10 +2094,10 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
    !$omp private(iat,jat,ixyz,ati,cc,ci,rab2,atj,ish,ishtyp,valaoi,valaoj,g_xyz, &
    !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,rij2, &
    !$omp&        sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,km,shpoly,dshpoly, &
-   !$omp&        mli,mlj,dum,dumdum,tmp,stmp,rij,zi,zj,zetaij,enpoly,iao,jao, &
+   !$omp&        mli,mlj,dum,dumdum,tmp,stmp,rij,zi,zj,zetaij,enpoly,iao,jao,t, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
-   !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,thr,nat,kqat,kcnat,cn,q,en, &
+   !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,lattice,thr,nat,kqat,kcnat,cn,q,en, &
    !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
@@ -2160,7 +2165,8 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
                hav = 0.5_wp * km * (hii + hjj)
 
                wscAt: do kat = 1,wsc%itbl(jat,iat)
-                  rj = wsc%xyz(:,kat,jat,iat)
+                  t = wsc%lattr(:,kat,jat,iat)
+                  rj = xyz(:,jat) + matmul(lattice,t)
                   rij = ri - rj
                   rij2 = sum(rij**2)
 

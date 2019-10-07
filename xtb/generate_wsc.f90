@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> generate a Wigner--Seitz cell from a given structure
-subroutine generate_wsc(mol,wsc,rep)
+subroutine generate_wsc(mol,wsc)
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use tbdef_wsc
@@ -25,43 +25,48 @@ subroutine generate_wsc(mol,wsc,rep)
    type(tb_molecule),intent(inout) :: mol
    !> Wigner--Seitz cell data type (might be contained in mol)
    type(tb_wsc),     intent(inout) :: wsc
-   !> images of the unit cell to consider
-   integer,          intent(in)    :: rep(3)
 ! ------------------------------------------------------------------------
 !  Variables
 ! ------------------------------------------------------------------------
+   integer  :: rep(3)
    integer  :: ii,jj,ich
    integer  :: aa,bb,cc
    integer  :: c,wc
    integer  :: minpos
    integer  :: nminpos
-   real(wp) :: t(3)
+   real(wp) :: t(3),rw(3)
    real(wp) :: mindist
    real(wp) :: nmindist
    !> overall WSC tolerance to consider atoms as WSC-images
    real(wp),parameter :: tol = 0.01_wp
-   real(wp),allocatable,dimension(:,:,:) :: txyz
+   integer, allocatable,dimension(:,:)   :: lattr
    real(wp),allocatable,dimension(:)     :: dist
    logical, allocatable,dimension(:)     :: trans
 
+   where(mol%pbc)
+      rep = 1
+   elsewhere
+      rep = 0
+   endwhere
+
 ! ------------------------------------------------------------------------
 !  allocate space for the WSC first
-   call wsc%allocate(mol%n,rep,mol%lattice)
+   call wsc%allocate(mol%n,rep)
 
 ! ------------------------------------------------------------------------
 ! initialize
 ! ------------------------------------------------------------------------
-   allocate( txyz(3,wsc%cells,mol%n) ); txyz = 0.0_wp
-   allocate( dist(wsc%cells) );     dist = 0.0_wp
-   allocate( trans(wsc%cells) );    trans = .true.
+   allocate( lattr(3,wsc%cells),      source = 0 )
+   allocate( dist(wsc%cells),         source = 0.0_wp )
+   allocate( trans(wsc%cells),        source = .true. )
 ! ------------------------------------------------------------------------
 ! Create the Wigner-Seitz Cell (WSC)
 ! ------------------------------------------------------------------------
    wsc%at  = 0
    wsc%itbl= 0
 !$omp parallel default(none) &
-!$omp private(ii,jj,wc,c,dist,trans,t) &
-!$omp shared(mol,wsc,rep,txyz) &
+!$omp private(ii,jj,wc,c,dist,trans,t,lattr,rw) &
+!$omp shared(mol,wsc,rep) &
 !$omp shared(mindist,minpos,nmindist,nminpos)
 !$omp do schedule(dynamic)
    ! Each WSC of one atom consists of n atoms
@@ -71,14 +76,16 @@ subroutine generate_wsc(mol,wsc,rep)
          ! find according neighbours
          c=0
          dist = 0.0_wp
+         lattr = 0
          do aa=-rep(1),rep(1),1
             do bb=-rep(2),rep(2),1
                do cc=-rep(3),rep(3),1
                   if ((aa.eq.0 .and. bb.eq.0 .and. cc.eq.0).and.ii.eq.jj) cycle
                   t = [aa,bb,cc]
                   c=c+1
-                  txyz(:,c,ii) = mol%xyz(:,jj) + matmul(mol%lattice,t)
-                  dist(c)=norm2(mol%xyz(:,ii)-txyz(:,c,ii))
+                  lattr(:,c) = [aa,bb,cc]
+                  rw = mol%xyz(:,jj) + matmul(mol%lattice,t)
+                  dist(c)=norm2(mol%xyz(:,ii)-rw)
                end do
             end do
          end do
@@ -90,22 +97,28 @@ subroutine generate_wsc(mol,wsc,rep)
          mindist=dist(minpos)
          trans(minpos)=.false.
          wc=1
-         wsc%xyz(:,wc,jj,ii)=txyz(:,minpos,ii)
+         wsc%lattr(:,wc,jj,ii)=lattr(:,minpos)
          ! get other images with same distance
-         find_images : do
-            nminpos=minloc(dist(:c),dim=1,mask=trans(:c))
-            nmindist=dist(nminpos)
-            if(abs(mindist-nmindist).lt.tol)then
-               trans(nminpos)=.false.
-               wc=wc+1
-               wsc%xyz(:,wc,jj,ii)=txyz(:,nminpos,ii)
-            else
-               wsc%w(jj,ii)=1.0_wp/real(wc,wp)
-               wsc%itbl(jj,ii)=wc
-               wsc%at(jj,ii)=jj
-               exit find_images
-            end if
-         end do find_images
+         if (c > 1) then
+            find_images : do
+               nminpos=minloc(dist(:c),dim=1,mask=trans(:c))
+               nmindist=dist(nminpos)
+               if(abs(mindist-nmindist).lt.tol)then
+                  trans(nminpos)=.false.
+                  wc=wc+1
+                  wsc%lattr(:,wc,jj,ii)=lattr(:,nminpos)
+               else
+                  wsc%w(jj,ii)=1.0_wp/real(wc,wp)
+                  wsc%itbl(jj,ii)=wc
+                  wsc%at(jj,ii)=jj
+                  exit find_images
+               end if
+            end do find_images
+         else
+            wsc%w(jj,ii) = 1.0_wp
+            wsc%itbl(jj,ii) = 1
+            wsc%at(jj,ii)=jj
+         endif
       end do
    end do
 !$omp enddo

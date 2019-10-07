@@ -320,6 +320,7 @@ xtb_srcs += 'xtb/c_api.f90'
 xtb_test = ['TESTSUITE/tests_peeq.f90']
 xtb_test += 'TESTSUITE/assertion.f90'
 xtb_test += 'TESTSUITE/tbdef_molecule.f90'
+xtb_test += 'TESTSUITE/tbdef_wsc.f90'
 xtb_test += 'TESTSUITE/geometry_reader.f90'
 xtb_test += 'TESTSUITE/eeq_model.f90'
 xtb_test += 'TESTSUITE/pbc_tools.f90'
@@ -413,6 +414,9 @@ test('Method: GFN2-xTB/GBSA'            ,
 # more specific tests are implemented by the tester binary
 test('Molecule Class: axis',xtb_test,args: ['tbdef_molecule','axis'])
 test('Molecule Class: MIC', xtb_test,args: ['tbdef_molecule','mic'])
+
+test('Wigner-Seitz Cell (0D)', xtb_test,args: ['tbdef_wsc','0d'])
+test('Wigner-Seitz Cell (3D)', xtb_test,args: ['tbdef_wsc','3d'])
 
 test('Geometry Reader: coord 3D',xtb_test,args: ['geometry_reader','coord_3d_a'])
 test('Geometry Reader: coord 3D',xtb_test,args: ['geometry_reader','coord_3d_b'])
