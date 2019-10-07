@@ -2073,7 +2073,8 @@ subroutine eeq_chrgeq_core(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
       do j = 1, i-1
          gamij = 1.0_wp/sqrt(alpha2(i)+alpha2(j))
          do wscAt = 1, mol%wsc%itbl(j,i)
-            riw   = mol%xyz(:,i) - mol%wsc%xyz(:,wscAt,j,i)
+            riw = mol%xyz(:,i) - mol%xyz(:,j) &
+               &  - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,j,i))
             Amat(i,j) = Amat(i,j) + mol%wsc%w(j,i) * ( &
                ! reciprocal lattice sums
                + eeq_ewald_3d_rec(riw,ewaldCutR,mol%rec_lat,mol%volume,cf) &
@@ -2187,7 +2188,8 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
          ! over WSC partner
          gamij = 1.0_wp/sqrt(alpha2(i) + alpha2(j))
          do wscAt = 1, mol%wsc%itbl(j,i)
-            riw = mol%xyz(:,i) - mol%wsc%xyz(:,wscAt,j,i)
+            riw = mol%xyz(:,i) - mol%xyz(:,j) &
+               &  - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,j,i))
             call eeq_ewald_dx_3d_rec(riw,ewaldCutR,mol%rec_lat,mol%volume,cf, &
                &                     dAtmp,stmp)
             dAtmp = dAtmp*mol%wsc%w(j,i)
