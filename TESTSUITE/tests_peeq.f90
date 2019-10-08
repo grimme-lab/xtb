@@ -117,6 +117,8 @@ program peeq_tester
    case('thermo')
       select case(sec)
       case('axis'); call test_axis
+      case('calc'); call test_thermo_calc
+      case('print'); call test_print_thermo
       end select
    end select
 

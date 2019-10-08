@@ -436,7 +436,8 @@ test('Symmetry: PCl3', xtb_test, args: ['symmetry','pcl3'])
 test('Symmetry: large', xtb_test, args: ['symmetry','c20'])
 
 test('Thermo: axis', xtb_test, args: ['thermo','axis'])
-#test('Thermo: printing', xtb_test, args: ['thermo','print'])
+test('Thermo: calculation', xtb_test, args: ['thermo','calc'])
+test('Thermo: print', xtb_test, args: ['thermo','print'])
 
 test('EEQ model: water',   xtb_test,args: ['eeq_model','water'])
 test('EEQ model: 3D Ewald',xtb_test,args: ['eeq_model','ewald'])
