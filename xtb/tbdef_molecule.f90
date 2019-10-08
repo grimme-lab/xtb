@@ -389,6 +389,19 @@ pure function moments_of_inertia(self) result(moments)
 
 end function moments_of_inertia
 
+pure function rotational_constants(self)
+   use iso_fortran_env, wp => real64
+   use mctc_la
+   implicit none
+   class(tb_molecule),intent(in) :: self !< molecular structure information
+   real(wp) :: moments(3)
+   real(wp) :: rotational_constants(3)
+
+   moments = self%moments_of_inertia()
+   rotational_constants = 0.5_wp/[moments(3), moments(2), moments(1)]
+
+end function rotational_constants
+
 pure subroutine align_to_principal_axes(self,break_symmetry)
    use iso_fortran_env, wp => real64
    use mctc_la

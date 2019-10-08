@@ -21,7 +21,6 @@
 !****************************************** 
       subroutine pocketscan(n,at,xyz,nout) 
       use splitparam
-      use aoparam, only : ams
       use setparam
       use ncoord, only : ncoord_d3
       implicit none
@@ -234,7 +233,6 @@
       !*********************************************
       subroutine ifaceaxis(numat,nat,coord,cma1,trfm1,cma2,trfm2)    
       use splitparam
-      use aoparam, only : ams
       implicit none
       real*8 coord(3,numat)
       integer numat,nat(numat)

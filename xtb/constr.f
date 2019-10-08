@@ -156,7 +156,6 @@
       subroutine constrpot(nat,at,xyz,g,e)
       use iso_fortran_env, wp => real64
       use mctc_constants
-      use aoparam, only : ams
       use scanparam
       use splitparam
       implicit none

@@ -903,13 +903,13 @@
       pure subroutine cma(nat,at,xyz,sum3)
       use iso_fortran_env, wp => real64
 ! atomic masses
-      use aoparam, only : ams
+      use splitparam
       implicit none
       integer, intent(in)  :: nat
       real(wp),intent(in)  :: xyz(3,nat)
       integer, intent(in)  :: at(nat)
       real(wp),intent(out) :: sum3(3)
-      real(wp) :: sumw,sumwx,sumwy,sumwz,atmass
+      real(wp) :: sumw,sumwx,sumwy,sumwz
       integer  :: i
 
       sumw=0.0_wp
@@ -918,11 +918,10 @@
       sumwz=0.0_wp
 
       do i=1,nat
-         atmass=ams(at(i))
-         sumw=sumw+atmass
-         sumwx=sumwx+atmass*xyz(1,i)
-         sumwy=sumwy+atmass*xyz(2,i)
-         sumwz=sumwz+atmass*xyz(3,i)
+         sumw=sumw+atmass(i)
+         sumwx=sumwx+atmass(i)*xyz(1,i)
+         sumwy=sumwy+atmass(i)*xyz(2,i)
+         sumwz=sumwz+atmass(i)*xyz(3,i)
       enddo
 
       sum3(1)=sumwx/sumw

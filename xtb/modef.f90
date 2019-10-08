@@ -37,7 +37,6 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
    use tbdef_param
    use tbdef_data
 
-   use aoparam, only : ams
    use setparam
    use splitparam
 
@@ -197,7 +196,7 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
       do ia=1,mol%n
          do ic=1,3
             ii = (ia-1)*3+ic
-            u(ii,m)=u(ii,m)*sqrt(ams(mol%at(ia)))  ! this is correct !!!
+            u(ii,m)=u(ii,m)*sqrt(atmass(ia))  ! this is correct... now it is
             norm=norm+u(ii,m)**2
          enddo
       enddo

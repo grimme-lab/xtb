@@ -26,7 +26,6 @@ subroutine mdopt(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
    use tbdef_param
    use tbdef_data
 
-   use aoparam, only : ams
    use setparam
    use splitparam
 
