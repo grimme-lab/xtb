@@ -28,6 +28,7 @@ program XTBprog
    use mctc_timings
    use mctc_systools
    use mctc_econv
+   use mctc_param
 
 !! ========================================================================
 !  class and type definitions
@@ -300,12 +301,12 @@ program XTBprog
       mol%z(i) = mol%at(i) - ncore( mol%at(i) )
       ! lanthanides without f are treated as La
       if(mol%at(i).gt.57.and.mol%at(i).lt.72) mol%z(i)=3
-      atmass(i)=ams(mol%at(i)) ! from splitparam.f90
+      atmass(i)=atomic_mass(mol%at(i)) * autoamu ! from splitparam.f90
    enddo
 
    ! initialize time step for MD if requested autocomplete
    if (tstep_md.lt.0.0_wp) then
-      tstep_md=(minval(atmass)/ams(1))**(1.0_wp/3.0_wp)
+      tstep_md=(minval(atmass)/(atomic_mass(1)*autoamu))**(1.0_wp/3.0_wp)
    endif
 
    wfn%nel = idint(sum(mol%z)) - chrg

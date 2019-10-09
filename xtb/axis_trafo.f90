@@ -19,7 +19,7 @@ module axis_trafo
    use iso_fortran_env, wp => real64
 contains
   subroutine axis(numat,nat,xyz,aa,bb,cc)
-    use aoparam, only : ams
+    use splitparam
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -55,11 +55,10 @@ contains
     coord(1:3,1:numat)=xyz(1:3,1:numat)*bohr
 
     do i=1,numat
-       atmass=ams(nat(i))
-       sumw=sumw+atmass
-       sumwx=sumwx+atmass*coord(1,i)
-       sumwy=sumwy+atmass*coord(2,i)
-       sumwz=sumwz+atmass*coord(3,i)
+       sumw=sumw+atmass(i)
+       sumwx=sumwx+atmass(i)*coord(1,i)
+       sumwy=sumwy+atmass(i)*coord(2,i)
+       sumwz=sumwz+atmass(i)*coord(3,i)
     enddo
 
     sumwx=sumwx/sumw
@@ -84,13 +83,12 @@ contains
        t(i)=dble(i)*1.0d-10
     enddo
     do i=1,numat
-       atmass=ams(nat(i))
-       t(1)=t(1)+atmass*(y(i)**2+z(i)**2)
-       t(2)=t(2)-atmass*x(i)*y(i)
-       t(3)=t(3)+atmass*(z(i)**2+x(i)**2)
-       t(4)=t(4)-atmass*z(i)*x(i)
-       t(5)=t(5)-atmass*y(i)*z(i)
-       t(6)=t(6)+atmass*(x(i)**2+y(i)**2)
+       t(1)=t(1)+atmass(i)*(y(i)**2+z(i)**2)
+       t(2)=t(2)-atmass(i)*x(i)*y(i)
+       t(3)=t(3)+atmass(i)*(z(i)**2+x(i)**2)
+       t(4)=t(4)-atmass(i)*z(i)*x(i)
+       t(5)=t(5)-atmass(i)*y(i)*z(i)
+       t(6)=t(6)+atmass(i)*(x(i)**2+y(i)**2)
     enddo
     call rsp(t,3,3,eig,evec)
     !     xsum=evec(1,1)*(evec(2,2)*evec(3,3)-evec(3,2)*evec(2,3)) +
@@ -115,7 +113,7 @@ contains
   end subroutine axis
 
   subroutine axis2(numat,nat,xyz,aa,bb,cc,avmom,sumw)
-    use aoparam, only : ams
+    use splitparam
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -151,11 +149,10 @@ contains
     coord(1:3,1:numat)=xyz(1:3,1:numat)*bohr
 
     do i=1,numat
-       atmass=ams(nat(i))
-       sumw=sumw+atmass
-       sumwx=sumwx+atmass*coord(1,i)
-       sumwy=sumwy+atmass*coord(2,i)
-       sumwz=sumwz+atmass*coord(3,i)
+       sumw=sumw+atmass(i)
+       sumwx=sumwx+atmass(i)*coord(1,i)
+       sumwy=sumwy+atmass(i)*coord(2,i)
+       sumwz=sumwz+atmass(i)*coord(3,i)
     enddo
 
     sumwx=sumwx/sumw
@@ -180,13 +177,12 @@ contains
        t(i)=dble(i)*1.0d-10
     enddo
     do i=1,numat
-       atmass=ams(nat(i))
-       t(1)=t(1)+atmass*(y(i)**2+z(i)**2)
-       t(2)=t(2)-atmass*x(i)*y(i)
-       t(3)=t(3)+atmass*(z(i)**2+x(i)**2)
-       t(4)=t(4)-atmass*z(i)*x(i)
-       t(5)=t(5)-atmass*y(i)*z(i)
-       t(6)=t(6)+atmass*(x(i)**2+y(i)**2)
+       t(1)=t(1)+atmass(i)*(y(i)**2+z(i)**2)
+       t(2)=t(2)-atmass(i)*x(i)*y(i)
+       t(3)=t(3)+atmass(i)*(z(i)**2+x(i)**2)
+       t(4)=t(4)-atmass(i)*z(i)*x(i)
+       t(5)=t(5)-atmass(i)*y(i)*z(i)
+       t(6)=t(6)+atmass(i)*(x(i)**2+y(i)**2)
     enddo
     call rsp(t,3,3,eig,evec)
     do i=1,3
@@ -208,7 +204,7 @@ contains
   end subroutine axis2
 
   subroutine axisvec(numat,nat,xyz,aa,bb,cc,evec)
-    use aoparam, only : ams
+    use splitparam
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -244,11 +240,10 @@ contains
     coord(1:3,1:numat)=xyz(1:3,1:numat)*bohr
 
     do i=1,numat
-       atmass=ams(nat(i))
-       sumw=sumw+atmass
-       sumwx=sumwx+atmass*coord(1,i)
-       sumwy=sumwy+atmass*coord(2,i)
-       sumwz=sumwz+atmass*coord(3,i)
+       sumw=sumw+atmass(i)
+       sumwx=sumwx+atmass(i)*coord(1,i)
+       sumwy=sumwy+atmass(i)*coord(2,i)
+       sumwz=sumwz+atmass(i)*coord(3,i)
     enddo
 
     sumwx=sumwx/sumw
@@ -273,13 +268,12 @@ contains
        t(i)=dble(i)*1.0d-10
     enddo
     do i=1,numat
-       atmass=ams(nat(i))
-       t(1)=t(1)+atmass*(y(i)**2+z(i)**2)
-       t(2)=t(2)-atmass*x(i)*y(i)
-       t(3)=t(3)+atmass*(z(i)**2+x(i)**2)
-       t(4)=t(4)-atmass*z(i)*x(i)
-       t(5)=t(5)-atmass*y(i)*z(i)
-       t(6)=t(6)+atmass*(x(i)**2+y(i)**2)
+       t(1)=t(1)+atmass(i)*(y(i)**2+z(i)**2)
+       t(2)=t(2)-atmass(i)*x(i)*y(i)
+       t(3)=t(3)+atmass(i)*(z(i)**2+x(i)**2)
+       t(4)=t(4)-atmass(i)*z(i)*x(i)
+       t(5)=t(5)-atmass(i)*y(i)*z(i)
+       t(6)=t(6)+atmass(i)*(x(i)**2+y(i)**2)
     enddo
     call rsp(t,3,3,eig,evec)
     !     xsum=evec(1,1)*(evec(2,2)*evec(3,3)-evec(3,2)*evec(2,3)) +
@@ -309,13 +303,13 @@ contains
 !*****************************************************************
 
    subroutine axis3(mode,numat,nat,coord,coordout,eig)
-      use aoparam, only : ams
+      use splitparam
       implicit none
       integer, intent(in)  :: numat,nat(numat),mode
       real(wp),intent(in)  :: coord(3,numat)
       real(wp),intent(out) :: coordout(3,numat),eig(3)
 
-      real(wp) :: sumw,sumwx,sumwy,sumwz,atmass,xsum,eps
+      real(wp) :: sumw,sumwx,sumwy,sumwz,xsum,eps,ams
       real(wp) :: t(6), evec(3,3)
       real(wp) :: x(numat),y(numat),z(numat),coordtmp(3,numat)
       real(wp) :: coord1(3,numat)
@@ -328,14 +322,14 @@ contains
       sumwz=0.0_wp
       do i=1,numat
          if(mode.eq.0)then
-            atmass=ams(nat(i))
+            ams = atmass(i)
          else
-            atmass=1./ams(nat(i))
+            ams = 1._wp/atmass(i)
          endif
-         sumw=sumw+atmass
-         sumwx=sumwx+atmass*coord(1,i)
-         sumwy=sumwy+atmass*coord(2,i)
-         sumwz=sumwz+atmass*coord(3,i)
+         sumw=sumw+ams
+         sumwx=sumwx+ams*coord(1,i)
+         sumwy=sumwy+ams*coord(2,i)
+         sumwz=sumwz+ams*coord(3,i)
       enddo
 
       eps=1.e-3_wp
@@ -356,12 +350,12 @@ contains
       enddo
 
       do i=1,numat
-         atmass=ams(nat(i))
-         t(1)=t(1)+atmass*(y(i)**2+z(i)**2)+eps
-         t(2)=t(2)-atmass*x(i)*y(i)
-         t(3)=t(3)+atmass*(z(i)**2+x(i)**2)+eps
-         t(4)=t(4)-atmass*z(i)*x(i)
-         t(5)=t(5)-atmass*y(i)*z(i)
+         t(1)=t(1)+atmass(i)*(y(i)**2+z(i)**2)+eps
+         t(2)=t(2)-atmass(i)*x(i)*y(i)
+         t(3)=t(3)+atmass(i)*(z(i)**2+x(i)**2)+eps
+         t(4)=t(4)-atmass(i)*z(i)*x(i)
+         t(5)=t(5)-atmass(i)*y(i)*z(i)
+         t(6)=t(6)+atmass(i)*(x(i)**2+y(i)**2)+eps
       enddo
 
       call rsp(t,3,3,eig,evec)

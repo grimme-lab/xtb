@@ -330,6 +330,7 @@ xtb_test += 'TESTSUITE/gfn1.f90'
 xtb_test += 'TESTSUITE/gfn0.f90'
 xtb_test += 'TESTSUITE/peeq.f90'
 xtb_test += 'TESTSUITE/symmetry.f90'
+xtb_test += 'TESTSUITE/thermo.f90'
 
 incdir = include_directories('include')
 
@@ -433,6 +434,10 @@ test('Symmetry: Water', xtb_test, args: ['symmetry','water'])
 test('Symmetry: Li8', xtb_test, args: ['symmetry','li8'])
 test('Symmetry: PCl3', xtb_test, args: ['symmetry','pcl3'])
 test('Symmetry: large', xtb_test, args: ['symmetry','c20'])
+
+test('Thermo: axis', xtb_test, args: ['thermo','axis'])
+test('Thermo: calculation', xtb_test, args: ['thermo','calc'])
+test('Thermo: print', xtb_test, args: ['thermo','print'])
 
 test('EEQ model: water',   xtb_test,args: ['eeq_model','water'])
 test('EEQ model: 3D Ewald',xtb_test,args: ['eeq_model','ewald'])

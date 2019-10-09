@@ -114,6 +114,12 @@ program peeq_tester
       case('pcl3'); call test_symmetry_pcl3
       case('c20'); call test_symmetry_c20
       end select
+   case('thermo')
+      select case(sec)
+      case('axis'); call test_axis
+      case('calc'); call test_thermo_calc
+      case('print'); call test_print_thermo
+      end select
    end select
 
    ! falling through the tester is always an error
