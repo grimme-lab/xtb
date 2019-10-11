@@ -20,13 +20,10 @@
 
 def test_library():
     """check if we can find the library and it looks okay"""
-    from ctypes import cdll
-    from ctypes.util import find_library
+    from xtb.interface import load_library
 
-    name = find_library("xtb")
-    assert name is not None
     # check if we can load this one
-    lib = cdll.LoadLibrary(name)
+    lib = load_library("libxtb")
     # check if we find some functions
     assert lib.GFN0_calculation is not None
     assert lib.GFN1_calculation is not None

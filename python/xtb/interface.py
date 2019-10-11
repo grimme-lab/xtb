@@ -20,12 +20,31 @@ from typing import Optional
 
 from ctypes import Structure, c_int, c_double, c_bool, c_char_p, c_char, \
                    POINTER, cdll, CDLL
-from ctypes.util import find_library
 
+import os.path as op
 import numpy as np
 
-__all__ = ['SCCOptions', 'PEEQOptions', 'XTBLibrary']
-__XTB_LIBRARY_NAME__ = find_library('xtb') or 'libxtb.so'
+# seems like ctypeslib is not always available
+try:
+    as_ctype = np.ctypeslib.as_ctypes_type  # pylint:disable=invalid-name
+except AttributeError:
+    as_ctype = None  # pylint:disable=invalid-name
+
+__all__ = ['SCCOptions', 'PEEQOptions', 'XTBLibrary', 'load_library']
+
+
+def load_library(libname: str) -> CDLL:
+    """load library cross-platform compatible."""
+
+    if not op.splitext(libname)[1]:
+        # Try to load library with platform-specific name
+        from numpy.distutils.misc_util import get_shared_lib_extension
+        so_ext = get_shared_lib_extension()
+        libname_ext = libname + so_ext
+    else:
+        libname_ext = libname
+
+    return cdll.LoadLibrary(libname_ext)
 
 
 class _Structure_(Structure):  # pylint: disable=invalid-name,protected-access
@@ -74,9 +93,10 @@ def check_ndarray(array: np.ndarray, ctype, size: int, name="array") -> None:
     if array.size != size:
         raise ValueError("{} does not have the correct size of {}"
                          .format(name, size))
-    if np.ctypeslib.as_ctypes_type(array.dtype) != ctype:
-        raise ValueError("{} must be of {} compatible type"
-                         .format(name, ctype.__class__.__name__))
+    if as_ctype is not None:
+        if as_ctype(array.dtype) != ctype:
+            raise ValueError("{} must be of {} compatible type"
+                             .format(name, ctype))
 
 
 class XTBLibrary:
@@ -177,10 +197,11 @@ class XTBLibrary:
 
     def __init__(self, library: Optional[CDLL] = None):
         """construct library from CDLL object."""
-        if library is None:
-            library = cdll.LoadLibrary(__XTB_LIBRARY_NAME__)
+        if library is not None:
+            self.library = library
+        else:
+            self.library = load_library('libxtb')
 
-        self.library = library
         self._set_argtypes_()
 
     def _set_argtypes_(self) -> None:
@@ -203,7 +224,6 @@ class XTBLibrary:
         check_ndarray(positions, c_double, 3*natoms, "positions")
         if periodic:
             check_ndarray(cell, c_double, 9, "cell")
-        if periodic:
             check_ndarray(pbc, c_bool, 3, "pbc")
 
         energy = c_double(0.0)
