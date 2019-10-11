@@ -141,7 +141,8 @@ class GFN0(XTB):
         self.results['energy'] = results['energy']*Hartree
         self.results['free_energy'] = self.results['energy']
         self.results['forces'] = -results['gradient']*Hartree/Bohr
-        self.results['stress'] = results['stress tensor']*Hartree/Bohr**3
+        if 'stress tensor' in results:
+            self.results['stress'] = results['stress tensor']*Hartree/Bohr**3
 
 
 class GFN1(XTB):
