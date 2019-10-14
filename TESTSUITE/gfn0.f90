@@ -64,7 +64,7 @@ subroutine test_gfn0_sp
    mol%xyz = xyz
    mol%chrg = 0.0_wp
    call mol%set_nuclear_charge
-   call mol%calculate_distances
+   call mol%update
 
    wfn%nel = idint(sum(mol%z))
    wfn%nopen = 0
@@ -160,7 +160,7 @@ subroutine test_gfn0_api
 
    real(wp) :: energy
    real(wp) :: hl_gap
-   real(wp) :: gradlatt(3,3)
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -169,14 +169,15 @@ subroutine test_gfn0_api
    call mol%allocate(nat)
    mol%at   = at
    mol%xyz  = xyz
-   call mol%calculate_distances
+   call mol%set_nuclear_charge
+   call mol%update
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (istdout,env,opt,mol,gfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 5.5384029314207_wp,thr)
    call assert_close(energy,-8.6908532561691_wp,thr)

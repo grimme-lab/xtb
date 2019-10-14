@@ -471,3 +471,31 @@ test('GFN0-xTB: SP', xtb_test,args: ['gfn0','sp'])
 test('GFN0-xTB: API',xtb_test,args: ['gfn0','api'])
 test('GFN0-xTB: SP  (PBC)', xtb_test,args: ['peeq','sp'])
 test('GFN0-xTB: API (PBC)', xtb_test,args: ['peeq','api'])
+
+py_xtb = meson.current_source_dir() / 'python' / 'xtb'
+pypath = environment()
+pypath.prepend('LD_LIBRARY_PATH', meson.current_build_dir())
+pypath.prepend('PYTHONPATH', meson.current_source_dir() / 'python')
+
+pytest = find_program('pytest', required: false)
+if pytest.found()
+  test('pytest: xtb.py', pytest, args: ['--pyargs', 'xtb'], env: pypath)
+endif
+
+mypy = find_program('mypy', required: false)
+if mypy.found()
+  test('mypy: xtb.py', mypy, args: [py_xtb, '--ignore-missing-imports'],
+       env: pypath)
+endif
+
+pylint = find_program('pylint', required: false)
+if pylint.found()
+  test('pylint: xtb.py', pylint, args: [py_xtb, '--disable=invalid-names,duplicate-code'],
+       env: pypath)
+endif
+
+flake8 = find_program('flake8', required: false)
+if pylint.found()
+  test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'],
+       env: pypath)
+endif

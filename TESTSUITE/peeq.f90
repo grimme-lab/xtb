@@ -202,6 +202,7 @@ subroutine test_peeq_api
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp) :: gradlatt(3,3)
+   real(wp) :: stress(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -217,7 +218,8 @@ subroutine test_peeq_api
    call dlat_to_cell(lattice,mol%cellpar)
    call dlat_to_rlat(lattice,mol%rec_lat)
    call coord_trafo(nat,lattice,abc,mol%xyz)
-   call mol%calculate_distances
+   call mol%set_nuclear_charge
+   call mol%update
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -226,8 +228,8 @@ subroutine test_peeq_api
 
    call mctc_mute
 
-   call peeq_calculation &
-      (istdout,env,opt,mol,gfn,hl_gap,energy,gradient,gradlatt)
+   call gfn0_calculation &
+      (istdout,env,opt,mol,gfn,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 4.8620892163953_wp,thr)
    call assert_close(energy,-8.4930019025474_wp,thr)

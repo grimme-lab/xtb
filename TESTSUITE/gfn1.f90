@@ -54,12 +54,13 @@ subroutine test_gfn1_scc
    mol%xyz = xyz
    mol%chrg = 0.0_wp
    call mol%set_nuclear_charge
+   call mol%update
 
    wfn%nel = idint(sum(mol%z))
    wfn%nopen = 0
 
    allocate( g(3,mol%n), source = 0.0_wp )
- 
+
    call use_parameterset('.param_gfn.xtb',globpar,okpar)
    call assert(okpar)
 
@@ -124,6 +125,7 @@ subroutine test_gfn1_api
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
+   use tbdef_wavefunction
 
    use tb_calculators
 
@@ -147,6 +149,7 @@ subroutine test_gfn1_api
    type(tb_environment) :: env
    type(gfn_parameter)  :: gfn
    type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -158,14 +161,15 @@ subroutine test_gfn1_api
    call mol%allocate(nat)
    mol%at  = at
    mol%xyz = xyz
-   call mol%calculate_distances
+   call mol%set_nuclear_charge
+   call mol%update
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 5.6067613075402_wp,thr)
    call assert_close(energy,-8.4156335932985_wp,thr)
@@ -189,6 +193,7 @@ subroutine test_gfn1gbsa_api
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
+   use tbdef_wavefunction
 
    use tb_calculators
 
@@ -214,6 +219,7 @@ subroutine test_gfn1gbsa_api
    type(tb_environment) :: env
    type(gfn_parameter)  :: gfn
    type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -225,14 +231,15 @@ subroutine test_gfn1gbsa_api
    call mol%allocate(nat)
    mol%at  = at
    mol%xyz = xyz
-   call mol%calculate_distances
+   call mol%set_nuclear_charge
+   call mol%update
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 6.641641300724_wp,1e-4_wp)
    call assert_close(energy,-14.215790820910_wp,thr)
@@ -255,6 +262,7 @@ subroutine test_gfn1_pcem_api
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
+   use tbdef_wavefunction
 
    use aoparam
 
@@ -288,6 +296,7 @@ subroutine test_gfn1_pcem_api
    type(tb_environment) :: env
    type(gfn_parameter)  :: gfn
    type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -299,14 +308,15 @@ subroutine test_gfn1_pcem_api
    call mol%allocate(nat)
    mol%at  = at
    mol%xyz = xyz
-   call mol%calculate_distances
+   call mol%set_nuclear_charge
+   call mol%update
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
    call assert_close(energy,-23.113490916186_wp,thr)
@@ -325,7 +335,8 @@ subroutine test_gfn1_pcem_api
    call mol%allocate(nat2)
    mol%at  = at(:nat2)
    mol%xyz = xyz(:,:nat2)
-   call mol%calculate_distances
+   call mol%set_nuclear_charge
+   call mol%update
 
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)
@@ -335,7 +346,7 @@ subroutine test_gfn1_pcem_api
    pcem%grd = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 8.7253450666347_wp,thr)
    call assert_close(energy,-11.559896105984_wp,thr)
@@ -359,7 +370,7 @@ subroutine test_gfn1_pcem_api
    pcem%gam = 999.0_wp ! point charges
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 8.9183046297437_wp,thr)
    call assert_close(energy,-11.565012263827_wp,thr)
