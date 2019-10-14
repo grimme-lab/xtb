@@ -15,11 +15,12 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga)
+subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga,basis)
    use iso_fortran_env, wp => real64
    use mctc_econv, only : autoev,evtoau
-   use ehtparam
+   use tbdef_basisset
    implicit none
+   type(tb_basisset), intent(in) :: basis
    integer, intent(in)  :: nao,ihomo,nat,at(nat),nbf
    real(wp),intent(in)  :: cmo(nao,nao),eiga(nao),focc(nao),xyz(3,nat)
    real(wp),intent(in)  :: s(nao,nao)
@@ -50,10 +51,10 @@ subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga)
    !     dipole integrals
    allocate(dip2(nao*nao),dip(nbf*(nbf+1)/2,3))
 
-   call Dints(nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3))
-   call cao2saop(nbf,nao,dip(1,1))
-   call cao2saop(nbf,nao,dip(1,2))
-   call cao2saop(nbf,nao,dip(1,3))
+   call Dints(nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),basis)
+   call cao2saop(nbf,nao,dip(1,1),basis)
+   call cao2saop(nbf,nao,dip(1,2),basis)
+   call cao2saop(nbf,nao,dip(1,3),basis)
    i=1
    j=2
    do mo=1,3

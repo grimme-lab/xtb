@@ -17,7 +17,7 @@
 
 !cccccccccccccccccccccccccccccccc
 !    write out cube file        c
-!cccccccccccccccccccccccccccccccc           
+!cccccccccccccccccccccccccccccccc
 ! ncent  : # atoms
 ! nmo    : # MOs
 ! nbf    : # AOs
@@ -25,17 +25,18 @@
 ! xyz(4,ncent) : Cartesian coordinates & nuclear charge
 ! cxip(nprims) : contraction coefficients of primitives
 ! exip(nprims) : exponents of primitives
-! cmo(nbf,nmo) : LCAO-MO coefficients 
+! cmo(nbf,nmo) : LCAO-MO coefficients
 ! eval(nmo)    : orbital eigenvalues
 ! occ(nmo)     : occupation # of MO
 ! ipty(nprims) : angular momentum of primitive function
-! ipao(nbf)    : # primitives in contracted AO 
+! ipao(nbf)    : # primitives in contracted AO
 ! ibf(ncent)   : # of contracted AOs on atom
 
-subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
-   use ehtparam
+subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
+   use tbdef_basisset
    use setparam
    implicit none
+   type(tb_basisset), intent(in) :: basis
 
    real*8, intent ( in ) :: xyz(3,n)
    real*8, intent ( in ) :: eval(nmo)
@@ -68,7 +69,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
    thr = cube_pthr ! Dmat pre-screen
    step= cube_step ! grid step (Bohr)
    intcut=8.00d0   ! primitive cut
-   intcut2=2.0d0*intcut 
+   intcut2=2.0d0*intcut
 
    nexp=100*int(intcut2) ! size of exp array ie arguments 0:nexp
    allocate(array(0:nexp))
@@ -86,7 +87,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
 
    allocate(Ptmp(nbf,nbf),P(nbf,nbf),C(nbf,nbf),matlist(2,nbf*(nbf+1)/2))
    C(1:nbf,1:nmo) = cmo(1:nbf,1:nmo)
-   do m=1,nmo  
+   do m=1,nmo
       do i=1,nbf
          Ptmp(i,m)=cmo(i,m)*occ(m)
       enddo
@@ -102,7 +103,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
    npri=0
    do i=1,nbf
       primstart(i)=npri  ! start index for prims of AO i
-      npri=npri+nprim(i)
+      npri=npri+basis%nprim(i)
       do j=1,i
          if(abs(P(j,i)).gt.thr)then
             nm=nm+1
@@ -115,7 +116,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
    write(*,'('' cube_pthr     : '',f7.3)')cube_pthr
    write(*,'('' cube_step     : '',f7.3)')cube_step
    write(*,'('' non-zero P (%): '',f7.3,''   nmat:'',i8)') &
-   & 100.*float(nm)/float(nbf*(nbf+1)/2),nm      
+   & 100.*float(nm)/float(nbf*(nbf+1)/2),nm
 
    px=maxval(xyz(1,1:n))+3.0
    py=maxval(xyz(2,1:n))+3.0
@@ -134,7 +135,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
    yinc=(abs(py)+abs(ny))/yst
    zst=floor((abs(pz)+abs(nz))/step)
    zinc=(abs(pz)+abs(nz))/zst
-   write(*,*)'Total # of points', (xst+1)*(yst+1)*(zst+1) 
+   write(*,*)'Total # of points', (xst+1)*(yst+1)*(zst+1)
    dr3=xinc*yinc*zinc
 
    write(*,*)'writing ',trim(fname)
@@ -152,18 +153,18 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
    allocate(cb(0:zst,0:yst,0:xst))
 
    nfod=0
-   cb  =0 
+   cb  =0
 
    !     Dmat loop         -----------------------------------
    do m=1,nm
       ii=matlist(1,m)
       jj=matlist(2,m)
-      iat=aoat(ii)
-      jat=aoat(jj)
+      iat=basis%aoat(ii)
+      jat=basis%aoat(jj)
       xyza(1:3)=xyz(1:3,iat)
-      xyzb(1:3)=xyz(1:3,jat)         
-      npri=nprim(ii)
-      nprj=nprim(jj)
+      xyzb(1:3)=xyz(1:3,jat)
+      npri=basis%nprim(ii)
+      nprj=basis%nprim(jj)
       iprimcount=primstart(ii)
       jprimcount=primstart(jj)
       rab=(xyza(1)-xyzb(1))**2  &
@@ -172,13 +173,13 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
       !        prim loop
       do iiii=1,npri
          iii=iprimcount+iiii
-         ccc=P(jj,ii)*cont(iii)
-         dum=rab*alp(iii)
+         ccc=P(jj,ii)*basis%cont(iii)
+         dum=rab*basis%alp(iii)
          do jjjj=1,nprj
             jjj=jprimcount+jjjj
-            est=dum*alp(jjj)/(alp(iii)+alp(jjj))   
+            est=dum*basis%alp(jjj)/(basis%alp(iii)+basis%alp(jjj))
             if(est.lt.intcut)then
-               cc=ccc*cont(jjj)
+               cc=ccc*basis%cont(jjj)
                !                 grid loops
                gridp(1)=nx
                do i=0,xst
@@ -204,29 +205,29 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
                         dzz1=dz1*dz1
                         dzz2=dz2*dz2
                         r1=r1xy+dzz1
-                        !                    primitive function value                     
-                        ar1=alp(iii)*r1
+                        !                    primitive function value
+                        ar1=basis%alp(iii)*r1
                         if(ar1.lt.intcut2)then  ! exp(-16) < 1.d-7 i.e. zero
                            call primvalf(dx1,dy1,dz1,dxx1,dyy1,dzz1,ar1, &
-                              &             lao(ii),nexp,array,f1)
+                              &             basis%lao(ii),nexp,array,f1)
                            r2=r2xy+dzz2
-                           ar2=alp(jjj)*r2
+                           ar2=basis%alp(jjj)*r2
                            if(ar2.lt.intcut2)then
                               call primvalf(dx2,dy2,dz2,dxx2,dyy2,dzz2,ar2, &
-                                 &             lao(jj),nexp,array,f2)
+                                 &             basis%lao(jj),nexp,array,f2)
                               cb(k,j,i)=cb(k,j,i)+cc*f1*f2
                            endif
                         endif
                      enddo
                   enddo
-               enddo  
+               enddo
             endif
          enddo
       enddo
    enddo
    !     Dmat loop end     -----------------------------------
 
-   ! write      
+   ! write
    cou=1
    do i=0,xst
       do j=0,yst
@@ -237,11 +238,11 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname)
             else
                write(ifile,'(E14.8)')cb(k,j,i)
                cou=1
-            endif         
-            nfod=nfod+cb(k,j,i)*dr3             
+            endif
+            nfod=nfod+cb(k,j,i)*dr3
          enddo
       enddo
-   enddo  
+   enddo
    call close_file(ifile)
 
    101   format(I5,3F16.6)
@@ -259,7 +260,7 @@ subroutine primval(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,f)
    real*8 f,dx2,dy2,dz2
    real*8 dx,dy,dz,alpr2
 
-   goto (100,201,202,203,301,302,303,304,305,306) lao  
+   goto (100,201,202,203,301,302,303,304,305,306) lao
 
    100  f=exp(-alpr2)
    return
@@ -269,11 +270,11 @@ subroutine primval(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,f)
    return
    203  f=exp(-alpr2)*dz
    return
-   301  f=exp(-alpr2)*dx2  
+   301  f=exp(-alpr2)*dx2
    return
-   302  f=exp(-alpr2)*dy2  
+   302  f=exp(-alpr2)*dy2
    return
-   303  f=exp(-alpr2)*dz2  
+   303  f=exp(-alpr2)*dz2
    return
    304  f=exp(-alpr2)*dx*dy
    return
@@ -284,7 +285,7 @@ subroutine primval(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,f)
 
 end subroutine primval
 
-! routine with exp table lookup      
+! routine with exp table lookup
 subroutine primvalf(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,nexp,a,f)
    implicit none
    integer lao,nexp
@@ -293,7 +294,7 @@ subroutine primvalf(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,nexp,a,f)
    real*8 dx,dy,dz,alpr2
    real*8 fastexp
 
-   goto (100,201,202,203,301,302,303,304,305,306) lao  
+   goto (100,201,202,203,301,302,303,304,305,306) lao
 
    100  f=fastexp(nexp,a,alpr2)
    return
@@ -303,11 +304,11 @@ subroutine primvalf(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,nexp,a,f)
    return
    203  f=fastexp(nexp,a,alpr2)*dz
    return
-   301  f=fastexp(nexp,a,alpr2)*dx2  
+   301  f=fastexp(nexp,a,alpr2)*dx2
    return
-   302  f=fastexp(nexp,a,alpr2)*dy2  
+   302  f=fastexp(nexp,a,alpr2)*dy2
    return
-   303  f=fastexp(nexp,a,alpr2)*dz2  
+   303  f=fastexp(nexp,a,alpr2)*dz2
    return
    304  f=fastexp(nexp,a,alpr2)*dx*dy
    return

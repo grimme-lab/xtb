@@ -35,7 +35,6 @@ subroutine gfn0_calculation &
 
    use setparam, only : gfn_method, ngrida
    use aoparam,  only : use_parameterset
-   use ehtparam, only : import_basisset
 
    use pbc_tools
    use xbasis
@@ -147,8 +146,6 @@ subroutine gfn0_calculation &
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
    call xbasis_cao2sao(mol%n,mol%at,basis)
-   ! make the basis set available globally, this should be removed at some point
-   call import_basisset(basis)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
@@ -201,7 +198,6 @@ subroutine gfn2_calculation &
 
    use setparam, only : gfn_method, ngrida
    use aoparam,  only : use_parameterset
-   use ehtparam, only : import_basisset
 
    use xbasis
    use eeq_model
@@ -309,7 +305,6 @@ subroutine gfn2_calculation &
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn2(mol%n,mol%at,basis,okbas)
    call xbasis_cao2sao(mol%n,mol%at,basis)
-   call import_basisset(basis)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
@@ -368,7 +363,6 @@ subroutine gfn1_calculation &
 
    use setparam, only : gfn_method, ngrida
    use aoparam,  only : use_parameterset
-   use ehtparam, only : import_basisset
 
    use xbasis
    use eeq_model
@@ -476,7 +470,6 @@ subroutine gfn1_calculation &
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn1(mol%n,mol%at,basis,okbas,diff)
    call xbasis_cao2sao(mol%n,mol%at,basis)
-   call import_basisset(basis)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction

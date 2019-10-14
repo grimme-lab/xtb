@@ -34,10 +34,10 @@
 
 
       subroutine printmold(ncent,nmo,nbf,xyz,at,cmo,eval,
-     .                     occ,thr)
-
-         use ehtparam
-
+     &                     occ,thr,basis)
+      use tbdef_basisset
+      implicit none
+      type(tb_basisset), intent(in) :: basis
       real*8, intent ( in ) :: xyz(3,ncent)
       real*8, intent ( in ) :: eval(nmo)
       real*8, intent ( in ) :: occ (nmo)
@@ -51,6 +51,7 @@
       character*1 aang
       character*2 atyp
       logical skip
+      integer :: iwfn
  
       iwfn=29
       call open_file(iwfn,'molden.input','w')
@@ -87,16 +88,16 @@
       do i=1,ncent
          write(iwfn,*) i,'0' ! I don't know what the zero is needed for
 !  now go trough nbfs located on atom i
-         do j=fila(1,i),fila(2,i)
-           call ang2chr(lao(j),aang,skip)
+         do j=basis%fila(1,i),basis%fila(2,i)
+           call ang2chr(basis%lao(j),aang,skip)
            if(skip)then 
-            do k=1,nprim(j)        
+            do k=1,basis%nprim(j)        
               icount=icount+1
             enddo
            else
-            write(iwfn,*) aang,nprim(j),1.00
-            do k=1,nprim(j)        
-              write(iwfn,*) alp(icount),cont(icount) 
+            write(iwfn,*) aang,basis%nprim(j),1.00
+            do k=1,basis%nprim(j)        
+              write(iwfn,*) basis%alp(icount),basis%cont(icount) 
               icount=icount+1
             enddo
            endif
@@ -137,10 +138,10 @@
 
 ! true U version      
       subroutine printumold(ncent,nmo,nbf,xyz,at,cmoa,cmob,evala,
-     .                      evalb,occa,occb,thr)
-
-         use ehtparam
-
+     &                      evalb,occa,occb,thr,basis)
+      use tbdef_basisset
+      implicit none
+      type(tb_basisset), intent(in) :: basis
       real*8, intent ( in ) :: xyz(3,ncent)
       real*8, intent ( in ) :: evala(nmo)
       real*8, intent ( in ) :: evalb(nmo)
@@ -157,6 +158,7 @@
       character*1 aang
       character*2 atyp
       logical skip
+      integer :: iwfn
  
       iwfn=29
       call open_file(iwfn,'molden.input','w')
@@ -192,16 +194,16 @@
       do i=1,ncent
          write(iwfn,*) i,'0' ! I don't know what the zero is needed for
 !  now go trough nbfs located on atom i
-         do j=fila(1,i),fila(2,i)
-           call ang2chr(lao(j),aang,skip)
+         do j=basis%fila(1,i),basis%fila(2,i)
+           call ang2chr(basis%lao(j),aang,skip)
            if(skip)then 
-            do k=1,nprim(j)        
+            do k=1,basis%nprim(j)        
               icount=icount+1
             enddo
            else
-            write(iwfn,*) aang,nprim(j),1.00
-            do k=1,nprim(j)        
-              write(iwfn,*) alp(icount),cont(icount) 
+            write(iwfn,*) aang,basis%nprim(j),1.00
+            do k=1,basis%nprim(j)        
+              write(iwfn,*) basis%alp(icount),basis%cont(icount) 
               icount=icount+1
             enddo
            endif

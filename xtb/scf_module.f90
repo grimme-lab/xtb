@@ -689,25 +689,26 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
 
 ! ------------------------------------------------------------------------
 !     get Wiberg bond orders
-      call wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,.false.,.false.)
+      call wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,.false.,.false., &
+         &        basis%fila2)
 
 ! ------------------------------------------------------------------------
 !     HOMO-LUMO excitation properties if  UHF=2        
       if (wfn%nopen.eq.2) then
-         call hlex(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,wfn%emo)
+         call hlex(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,wfn%emo,basis)
       endif
 
 ! ------------------------------------------------------------------------
 !     LMO /xTB-IFF
       if (pr_lmo) then
          tmp=wfn%emo*evtoau
-         call local(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,mol%z,wfn%focc,S,wfn%P,wfn%C,tmp,wfn%q,eel,lgbsa)
+         call local(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,mol%z,wfn%focc,S,wfn%P,wfn%C,tmp,wfn%q,eel,lgbsa,basis)
       endif
 
 ! ------------------------------------------------------------------------
 !  exchange energy correction ala sTDA
       if (wfn%nopen.ge.2) then
-         call exch(mol%n,mol%at,basis%nao,wfn%nopen,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,exc)
+         call exch(mol%n,mol%at,basis%nao,wfn%nopen,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,exc,basis%aoat)
          write(iunit,'(''open-shell EX :'',F16.7)') -exc
          write(iunit,'(''corrected Etot:'',F16.7, &
          &   '' (not used further except for this printout!)'')') eel - exc

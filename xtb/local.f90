@@ -15,14 +15,15 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa)
+subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use iso_fortran_env, wp => real64, sp => real32
    use mctc_constants, only : pi
    use mctc_econv, only : autoev,autoaa
-   use ehtparam
+   use tbdef_basisset
    use setparam
    use scc_core, only : wiberg_nosort
    implicit none
+   type(tb_basisset), intent(in) :: basis
    integer, intent(in) :: nao,ihomo,nat,at(nat),nbf
    real(wp),intent(in) :: cmo(nao,nao),eig(nao),focc(nao)
    real(wp),intent(in) :: s(nao,nao),xyz(3,nat),z(nat),q(nat)
@@ -96,9 +97,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa)
          klev=klev+1
          ehomo=ehomo+eig(nlev)
          do i=1,nao
-            ii=aoat2(i)
+            ii=basis%aoat2(i)
             do j=1,i-1
-               jj=aoat2(j)
+               jj=basis%aoat2(j)
                ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
                qhl(ii,1)=qhl(ii,1)+ps
                qhl(jj,1)=qhl(jj,1)+ps
@@ -120,9 +121,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa)
       klev=klev+1
       elumo=elumo+eig(nlev)
       do i=1,nao
-         ii=aoat2(i)
+         ii=basis%aoat2(i)
          do j=1,i-1
-            jj=aoat2(j)
+            jj=basis%aoat2(j)
             ps=s(j,i)*cmo(j,nlev)*cmo(i,nlev)
             qhl(ii,2)=qhl(ii,2)+ps
             qhl(jj,2)=qhl(jj,2)+ps
@@ -158,12 +159,12 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa)
    !     dipole integrals
    allocate(dip2(nao*nao),dip(nbf*(nbf+1)/2,3),op(n*(n+1)/2,nop))
    !    .         qua (nbf*(nbf+1)/2,3))
-   call Dints  (nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3))
+   call Dints  (nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),basis)
    !     call DQ3ints(nat,nbf,xyz,dip(1,1),dip(1,2),dip(1,3),
    !    .                         qua(1,1),qua(1,2),qua(1,3))
-   call cao2saop(nbf,nao,dip(1,1))
-   call cao2saop(nbf,nao,dip(1,2))
-   call cao2saop(nbf,nao,dip(1,3))
+   call cao2saop(nbf,nao,dip(1,1),basis)
+   call cao2saop(nbf,nao,dip(1,2),basis)
+   call cao2saop(nbf,nao,dip(1,3),basis)
    !     call cao2saop(nbf,nao,qua(1,1))
    !     call cao2saop(nbf,nao,qua(1,2))
    !     call cao2saop(nbf,nao,qua(1,3))
@@ -255,7 +256,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa)
 
    ! number of centers for each mo
    allocate(qmo(nat,n))
-   call mocent(nat,nao,n,cmo,s,qmo,xcen)
+   call mocent(nat,nao,n,cmo,s,qmo,xcen,basis%aoat2)
 
    allocate(rklmo(5,2*n))
    write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
@@ -415,7 +416,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa)
 
       allocate(wbo(nat,nat))
       wbo=0.0d0
-      call wiberg_nosort(nat,nao,at,xyz,p,s,wbo,.false.)
+      call wiberg_nosort(nat,nao,at,xyz,p,s,wbo,.false.,basis%fila2)
 
       !     now create new LMO
       k=0
@@ -567,10 +568,10 @@ end subroutine lmotype
 
 !ccccccccccccccccccccccccccccccccccccccc
 
-subroutine mocent(n,ndim,ihomo,x,s,qmo,xcen)
-   use ehtparam
+subroutine mocent(n,ndim,ihomo,x,s,qmo,xcen,aoat2)
    implicit none
    integer n,ndim,ihomo
+   integer, intent(in) :: aoat2(ndim)
    real*8 xcen(ihomo),x(ndim,ndim),s(ndim,ndim)
    real*8 qmo(n,ihomo)
 

@@ -20,8 +20,6 @@ subroutine write_tm_mos(iunit,n,at,basis,wfn)
    use mctc_econv
    use tbdef_wavefunction
    use tbdef_basisset
-   use aoparam
-   use ehtparam
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n

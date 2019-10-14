@@ -20,12 +20,16 @@ c simple STM picture simulation routine using PT according to
 c Tersoff & Hamann, PRL 50 (1983), 1998.
 c assumes that the molecule is lying mainly in xy plane
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-      subroutine stmpic(n,nmo,nbf,at,xyz,C,efermi,emo)
+      module stm
+      contains
+      subroutine stmpic(n,nmo,nbf,at,xyz,C,efermi,emo,basis)
       use iso_fortran_env, wp => real64
+      use tbdef_basisset
       use setparam
       use scc_core, only : dmat
+      use esp
       implicit none
+      type(tb_basisset), intent(in) :: basis
       integer nproc,n,nbf,nmo,at(n)
       real(wp) xyz(3,n),emo(nmo),C(nbf,nmo),efermi
 
@@ -48,10 +52,10 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       write(*,*)'STM picture simulation routine'
       write(*,*)'in constant current mode'
       write(*,'('' tip DOS energy broadening (eV):'',f9.1)')stm_alp
-      write(*,'('' tip potential (V)             :'',f9.6)')stm_pot 
+      write(*,'('' tip potential (V)             :'',f9.6)')stm_pot
       write(*,'('' constant current value (a.u.) :'',f9.6)')stm_targ
       write(*,'('' grid width (Bohr)             :'',f9.6)')stm_grid
-      write(*,'('' int and Pmat neglect stm_thr  :'',f9.6)')stm_thr  
+      write(*,'('' int and Pmat neglect stm_thr  :'',f9.6)')stm_thr
 
 c prog parameters (should be made a user input)
       alp =stm_alp  !1.500 ! width of tip DOS energy broadening (eV)
@@ -63,8 +67,8 @@ c fix
       bord=4.5d0                    ! Z-limit (Bohr), max Z of molecule added
       intcut=20.-3.0*log10(stm_thr) ! primitive cut-off, =20 makes a factor of 2 compared to =10
       pthr=1.d-5*stm_thr            ! dmat neglect threshold
-      write(*,'('' incut                         :'',f9.6)')intcut   
-      write(*,'('' Pthr                          :'',e9.3)')pthr     
+      write(*,'('' incut                         :'',f9.6)')intcut
+      write(*,'('' Pthr                          :'',e9.3)')pthr
 
       allocate(P(nbf*(nbf+1)/2),ptmp(nbf,nbf),eocc(nmo))
 
@@ -89,18 +93,18 @@ c start calc
 
 c     compute primitive pair data
       write(*,*)'computing primitive pair data ...'
-      call preints(n,nbf,xyz,intcut,mprim,npp,pthr,P)
+      call preints(n,nbf,xyz,intcut,mprim,npp,pthr,P,basis)
       allocate(efact(npp),gama(npp),ee(3,npp),dd(35,npp),
      .         nnn(npp),indp(mprim,mprim))
-      rewind(103) 
+      rewind(103)
       indp = 0
       do i=1,npp
          read(103)ind1,ind2,nnn(i),efact(i),gama(i),ee(1:3,i),dd(1:35,i)
          indp(ind1,ind2)=i
       enddo
       close(103,status='delete')
-      
-c     R space limits      
+
+c     R space limits
       bordxy=6.0
       stepz=stepr*0.5 ! better resol in Z
       dx=maxval(xyz(1,1:n))-minval(xyz(1,1:n))+bordxy
@@ -117,9 +121,9 @@ c     R space limits
       write(*,'('' # points   :'',i8  )') np
       allocate(pa(3,np),espe(np))
 
-cccccccccccccc      
-c R grid 
-cccccccccccccc      
+cccccccccccccc
+c R grid
+cccccccccccccc
       l=0
       dx=xx1
       do i=1,m1
@@ -151,7 +155,7 @@ c     at point(3)
 c     if(mod(i,np/10).eq.0.and.nproc.eq.1) write(*,*) 100*i/np,' % done'
 c     ints and contraction with P
          call densints(n,nbf,xyz,intcut,point,pthr,P,
-     .                 mprim,npp,nnn,indp,efact,gama,ee,dd,cut,r)
+     .                 mprim,npp,nnn,indp,efact,gama,ee,dd,cut,r,basis)
          espe(i)=r ! prefacto
       enddo
 !$OMP END DO
@@ -162,7 +166,7 @@ c     av=0
 c     do i=1,np
 c        av=av+espe(i)
 c     enddo
-c     write(*,'('' maximum/minimum/av current value :'',2F12.6,F9.4)') 
+c     write(*,'('' maximum/minimum/av current value :'',2F12.6,F9.4)')
 c    .          maxval(espe),minval(espe),av/np
 
       write(*,*)
@@ -201,16 +205,19 @@ c density routine in analogy to esp plot
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine densints(n,nbf,xyz,intcut,point,pthr,P,
-     .                    mprim,npp,nnn,indp,efact,gama,ee,dd,cut,espe)
+     &                    mprim,npp,nnn,indp,efact,gama,ee,dd,cut,espe,
+     &                    basis)
       use iso_fortran_env, wp => real64
-      use ehtparam
+      use tbdef_basisset
       use intpack
-      implicit none 
+      use esp
+      implicit none
+      type(tb_basisset), intent(in) :: basis
       integer n,nbf
       integer mprim,npp,indp(mprim,mprim),nnn(npp)
       real(wp) P (nbf*(nbf+1)/2)
-      real(wp) xyz(3,n)          
-      real(wp) point(3)          
+      real(wp) xyz(3,n)
+      real(wp) point(3)
       real(wp) efact(npp),gama(npp),ee(3,npp),dd(35,npp)
       real(wp) espe,intcut,pthr,cut
 
@@ -234,18 +241,18 @@ c check if point is close to any atom and if yes dens is too high and exit
 
       k=0
       iprimcount=0
-      do i=1,nbf 
+      do i=1,nbf
 c aufpunkt i
-         xyza(1:3)=xyz(1:3,aoat(i))
+         xyza(1:3)=xyz(1:3,basis%aoat(i))
 c #prims
-         npri=nprim(i)
+         npri=basis%nprim(i)
          jprimcount=0
          do j=1,i
             k=k+1
-            nprj=nprim(j)
+            nprj=basis%nprim(j)
             if(abs(P(k)).lt.pthr) goto 42   ! loose P mat neglect threshold
 c aufpunkt j
-              xyzb(1:3)=xyz(1:3,aoat(j))
+              xyzb(1:3)=xyz(1:3,basis%aoat(j))
 c prim loop
               tt1=0.0d0
               do ii=1,npri
@@ -255,7 +262,7 @@ c prim loop
                     ppp=indp(iii,jjj)
 c cutoff
                     if(ppp.gt.0)then
-                    cce=cont(iii)*cont(jjj)*efact(ppp)*P(K)
+                    cce=basis%cont(iii)*basis%cont(jjj)*efact(ppp)*P(K)
                     if(abs(cce).gt.pthr2)then
                     call propa1(opac3,point,nnn(ppp),
      .                         gama(ppp),ee(1,ppp),dd(1,ppp),
@@ -276,3 +283,4 @@ c cutoff
       end
 
 
+      end module stm

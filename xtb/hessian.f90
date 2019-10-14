@@ -36,7 +36,6 @@ subroutine numhess( &
    use tbdef_param
    use tbdef_data
 
-   use ehtparam
    use aoparam
    use setparam
    use splitparam

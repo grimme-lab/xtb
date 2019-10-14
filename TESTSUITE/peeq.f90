@@ -13,7 +13,6 @@ subroutine test_peeq_sp
 
    use setparam, only : gfn_method
    use aoparam,  only : use_parameterset
-   use ehtparam, only : import_basisset
 
    use pbc_tools
    use xbasis

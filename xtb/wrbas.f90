@@ -15,11 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine write_tm_basis(iunit,nat,at)
+subroutine write_tm_basis(iunit,nat,at,basis,wfn)
    use iso_fortran_env, wp => real64
+   use tbdef_wavefunction
+   use tbdef_basisset
    use aoparam
-   use ehtparam
    implicit none
+   type(tb_basisset),    intent(in) :: basis
+   type(tb_wavefunction),intent(in) :: wfn
    character(2),external :: esym
    integer,intent(in)  :: iunit
    integer,intent(in)  :: nat
@@ -46,15 +49,15 @@ subroutine write_tm_basis(iunit,nat,at)
       write(iunit,'(a)') '*'
       do ish = 1, ao_n(iatyp)
          ishtyp = ao_l(ish,iatyp)
-         icao = caoshell(ish,iat)
+         icao = basis%caoshell(ish,iat)
          write(iunit,'(1x,i3,2x,a1,25x,a)') &
-            nprim(icao+1),lnam(ishtyp)
-         do ip = 1, nprim(icao+1)
-            iprim = ip + primcount(icao+1)
-            if (cont(iprim) < 0) then
-               write(iunit,'(2x,g16.11,1x,g17.11))') alp(iprim), cont(iprim)
+            basis%nprim(icao+1),lnam(ishtyp)
+         do ip = 1, basis%nprim(icao+1)
+            iprim = ip + basis%primcount(icao+1)
+            if (basis%cont(iprim) < 0) then
+               write(iunit,'(2x,g16.11,1x,g17.11)') basis%alp(iprim), basis%cont(iprim)
             else
-               write(iunit,'(2(2x,g16.11))') alp(iprim), cont(iprim)
+               write(iunit,'(2(2x,g16.11))') basis%alp(iprim), basis%cont(iprim)
             endif
          enddo
       enddo

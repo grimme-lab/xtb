@@ -19,14 +19,14 @@
 ! exchange integrals are computed ala sTDA but using Mulliken
 ! transition densities for convenience
 
-      subroutine exch(nat,at,nao,nopen,ihomo,xyz,focc,s,cmo,xint)
-      use ehtparam
+      subroutine exch(nat,at,nao,nopen,ihomo,xyz,focc,s,cmo,xint,aoat)
       use setparam
       use aoparam
       implicit none          
       integer nao,nat,at(nat),nopen,ihomo
       real*8  cmo(nao,nao),focc(nao),xyz(3,nat),s(nao,nao)
       real*8  xint
+      integer, intent(in) :: aoat(nao)
 
       real*8, allocatable ::q12(:),qint(:)
       real*8, allocatable ::gamk(:,:)
