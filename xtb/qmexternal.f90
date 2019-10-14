@@ -31,6 +31,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
 
    ! TM (RI)
    if(extcode.eq.1)then
+      !$omp critical (turbo_lock)
       call wrtm(n,at,xyz)
       if(extmode.eq.1)then
          call execute_command_line('ridft  >  job.last 2>> /dev/null')
@@ -38,11 +39,13 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
       endif
       call extcodeok(extcode) 
       call rdtm(n,grd,eel,g)
+      !$omp end critical (turbo_lock)
       return
    endif
 
    ! TM+d3+gcp
    if(extcode.eq.2)then
+      !$omp critical (turbo_lock)
       call wrtm(n,at,xyz)
       if(extmode.le.2)then
          call execute_command_line('ridft  >  job.last 2>> /dev/null')
@@ -52,11 +55,13 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
       endif
       call extcodeok(extcode) 
       call rdtm(n,.true.,eel,g)
+      !$omp end critical (turbo_lock)
       return
    endif
 
    ! TM (NORI)
    if(extcode.eq.3)then
+      !$omp critical (turbo_lock)
       call wrtm(n,at,xyz)
       if(extmode.eq.1)then
          call execute_command_line('dscf  > job.last 2>> /dev/null')
@@ -64,8 +69,10 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
       endif
       call extcodeok(extcode) 
       call rdtm(n,grd,eel,g)
+      !$omp end critical (turbo_lock)
       return
    endif
+
 
    call raise('E','This external code is not implemented',1)
 
