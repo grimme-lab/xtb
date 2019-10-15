@@ -146,6 +146,7 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
    integer :: num
    real(wp) :: dum(10),edum
 
+   !$omp critical(mopac_lock)
    call open_file(imopac,ext_mopac%input_file,'w')
    write(imopac,'(a,/,/)') ext_mopac%input_string
    do i = 1, nat
@@ -157,7 +158,7 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
    write(istdout,'(72("="))')
    write(istdout,'(1x,"*",1x,a)') &
       "handing control over to mopac..."
-   call execute_command_line('2>&1 '//ext_mopac%executable//' '// &
+   call execute_command_line('exec 2>&1 '//ext_mopac%executable//' '// &
                              ext_mopac%input_file,exitstat=err)
    if (err.ne.0) then
       call raise('E','mopac returned with non-zero exit status, following this',1)
@@ -198,6 +199,7 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
       endif
    enddo read_mopac_output
    call close_file(imopac)
+   !$omp end critical (mopac_lock)
    gradient = gradient * kcaltoau / aatoau
 end subroutine run_mopac_egrad
 
@@ -337,6 +339,7 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
    character(len=2),external :: asym
 !$ integer,external :: omp_get_num_threads
 
+   !$omp critical (orca_lock)
    if (ext_orca%exist) then
       ! we dump the name of the external xyz file to input_string... not cool
       call open_file(iorca,ext_orca%input_string,'w')
@@ -378,7 +381,7 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
    write(istdout,'(72("="))')
    write(istdout,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
-   call execute_command_line('2>&1 '//ext_orca%executable//' '// &
+   call execute_command_line('exec 2>&1 '//ext_orca%executable//' '// &
                              ext_orca%input_file,exitstat=err)
    if (err.ne.0) then
       call raise('E','orca returned with non-zero exit status, doing the same',1)
@@ -415,6 +418,7 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
       read(iorca,*)gradient(3,j)
    enddo
    call close_file(iorca)
+   !$omp end critical (orca_lock)
 
 end subroutine run_orca_egrad
 
