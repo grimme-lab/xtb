@@ -40,7 +40,6 @@ program XTBprog
 
 !! ========================================================================
 !  former common variable storage, used in the entire xtb code
-   use ehtparam
    use aoparam
    use setparam
    use sphereparam
@@ -532,8 +531,6 @@ program XTBprog
    end select
    if (.not.okbas) call raise('E','TB basis incomplete',1)
    call xbasis_cao2sao(mol%n,mol%at,basis)
-
-   call import_basisset(basis)
 
 ! ======================================================================
 !  initial guess, setup wavefunction

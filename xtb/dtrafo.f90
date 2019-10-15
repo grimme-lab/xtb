@@ -19,9 +19,10 @@
 !c transforms cao(6d) integrals to sao(5d) basis
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine cao2sao(nbf,nao,s)
-  use ehtparam
+subroutine cao2sao(nbf,nao,s,basis)
+  use tbdef_basisset
   implicit none
+  type(tb_basisset), intent(in) :: basis
   integer nbf,nao
   real(8)  s(nbf,nbf)
   real(8)  sspher
@@ -55,7 +56,7 @@ subroutine cao2sao(nbf,nao,s)
   nao=0
   firstd = 0
   i=1     
-42 if(lao(i).gt.4.and.lao(i).le.10)then
+42 if(basis%lao(i).gt.4.and.basis%lao(i).le.10)then
      nao=nao+1
      firstd(i:i+5)=i
      i=i+5
@@ -80,14 +81,14 @@ subroutine cao2sao(nbf,nao,s)
 
   k=0   
   do i=1,nbf
-     li=lll(lao(i))
+     li=lll(basis%lao(i))
      do j=1,i  
-        lj=lll(lao(j))
+        lj=lll(basis%lao(j))
         k=k+1            
         ! d-d
         if(li.eq.3.and.lj.eq.3)then
-           ii=lao(i)-4
-           jj=lao(j)-4
+           ii=basis%lao(i)-4
+           jj=basis%lao(j)-4
            sspher=0
            do m=1,6
               mm=firstd(i)-1+m
@@ -100,7 +101,7 @@ subroutine cao2sao(nbf,nao,s)
         endif
         ! d-sp
         if(li.eq.3.and.lj.le.2)then
-           ii=lao(i)-4
+           ii=basis%lao(i)-4
            sspher=0
            do m=1,6
               mm=firstd(i)-1+m
@@ -110,7 +111,7 @@ subroutine cao2sao(nbf,nao,s)
         endif
         ! sp-d
         if(li.le.2.and.lj.eq.3)then
-           jj=lao(j)-4
+           jj=basis%lao(j)-4
            sspher=0
            do n=1,6
               nn=firstd(j)-1+n
@@ -127,12 +128,12 @@ subroutine cao2sao(nbf,nao,s)
   k=0
   iii=0
   do i=1,nbf
-     if(lao(i).ne.5)iii=iii+1
+     if(basis%lao(i).ne.5)iii=iii+1
      jjj=0
      do j=1,i
-        if(lao(j).ne.5)jjj=jjj+1
+        if(basis%lao(j).ne.5)jjj=jjj+1
         k=k+1
-        if(lao(i).eq.5.or.lao(j).eq.5)cycle
+        if(basis%lao(i).eq.5.or.basis%lao(j).eq.5)cycle
         s(iii,jjj)=sneu(k)
         s(jjj,iii)=sneu(k)
      enddo
@@ -147,9 +148,10 @@ end subroutine cao2sao
 !c transforms sao(5d) integrals to cao(6d) basis 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine sao2cao(nbf,s,ncao,x)
-  use ehtparam
+subroutine sao2cao(nbf,s,ncao,x,basis)
+  use tbdef_basisset
   implicit none
+  type(tb_basisset), intent(in) :: basis
   integer nbf,new,ncao
   real(8)  s(nbf,nbf),x(ncao,nbf)
   real(8)  xcart
@@ -187,7 +189,7 @@ subroutine sao2cao(nbf,s,ncao,x)
   i=1    
   j=0 
   ! lao is still in old dimensions (i.e., ncao) while s comes with nsao
-42 if(lao(i).gt.4.and.lao(i).le.10)then
+42 if(basis%lao(i).gt.4.and.basis%lao(i).le.10)then
      firstd(i-j:i-j+4)=i-j
      j=j+1
      i=i+5
@@ -230,10 +232,11 @@ end subroutine sao2cao
 !c transforms cao(6d) integrals to sao(5d) basis, packed output
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine cao2saop(nbf,nao,s)
-  use ehtparam
+subroutine cao2saop(nbf,nao,s,basis)
+  use tbdef_basisset
   use lin_mod, only : lin
   implicit none
+  type(tb_basisset), intent(in) :: basis
   integer nbf,nao
   real(8)  s(nbf*(nbf+1)/2)
   real(8)  sspher
@@ -264,7 +267,7 @@ subroutine cao2saop(nbf,nao,s)
   nao=0
   firstd = 0
   i=1     
-42 if(lao(i).gt.4.and.lao(i).le.10)then
+42 if(basis%lao(i).gt.4.and.basis%lao(i).le.10)then
      nao=nao+1
      firstd(i:i+5)=i
      i=i+5
@@ -283,14 +286,14 @@ subroutine cao2saop(nbf,nao,s)
 
   k=0   
   do i=1,nbf
-     li=lll(lao(i))
+     li=lll(basis%lao(i))
      do j=1,i  
-        lj=lll(lao(j))
+        lj=lll(basis%lao(j))
         k=k+1            
         ! d-d
         if(li.eq.3.and.lj.eq.3)then
-           ii=lao(i)-4
-           jj=lao(j)-4
+           ii=basis%lao(i)-4
+           jj=basis%lao(j)-4
            sspher=0
            do m=1,6
               mm=firstd(i)-1+m
@@ -303,7 +306,7 @@ subroutine cao2saop(nbf,nao,s)
         endif
         ! d-sp
         if(li.eq.3.and.lj.le.2)then
-           ii=lao(i)-4
+           ii=basis%lao(i)-4
            sspher=0
            do m=1,6
               mm=firstd(i)-1+m
@@ -313,7 +316,7 @@ subroutine cao2saop(nbf,nao,s)
         endif
         ! sp-d
         if(li.le.2.and.lj.eq.3)then
-           jj=lao(j)-4
+           jj=basis%lao(j)-4
            sspher=0
            do n=1,6
               nn=firstd(j)-1+n
@@ -330,12 +333,12 @@ subroutine cao2saop(nbf,nao,s)
   k=0
   iii=0
   do i=1,nbf
-     if(lao(i).ne.5)iii=iii+1
+     if(basis%lao(i).ne.5)iii=iii+1
      jjj=0
      do j=1,i
-        if(lao(j).ne.5)jjj=jjj+1
+        if(basis%lao(j).ne.5)jjj=jjj+1
         k=k+1
-        if(lao(i).eq.5.or.lao(j).eq.5)cycle
+        if(basis%lao(i).eq.5.or.basis%lao(j).eq.5)cycle
         s(lin(iii,jjj))=sneu(k)
      enddo
   enddo

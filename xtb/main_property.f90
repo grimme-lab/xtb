@@ -55,7 +55,6 @@ subroutine main_property &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use setparam
-   use ehtparam
    use aoparam
    use gbobc
 
@@ -114,7 +113,7 @@ subroutine main_property &
 !! Mulliken and CM5 charges
    if (pr_mulliken.and.gfn_method.eq.1) then
       call open_file(ifile,'charges','w')
-      call print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,wfx%P)
+      call print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,wfx%P,basis%aoat2,basis%lao2)
       call close_file(ifile)
    else if (pr_charges) then
       call open_file(ifile,'charges','w')
@@ -138,19 +137,20 @@ subroutine main_property &
 
 !! Spin population
    if (pr_spin_population .and. wfx%nopen.ne.0) &
-   call print_spin_population(iunit,n,at,nao,wfx%focca,wfx%foccb,S,wfx%C)
+   call print_spin_population(iunit,n,at,nao,wfx%focca,wfx%foccb,S,wfx%C, &
+   &                          basis%aoat2,basis%lao2)
 
    if (pr_fod_pop) then
       call open_file(ifile,'fod','w')
       call print_fod_population(iunit,ifile,n,at,nao,S,wfx%C,etemp,wfx%emo, &
-                                wfx%ihomoa,wfx%ihomob)
+                                wfx%ihomoa,wfx%ihomob,basis%aoat2,basis%lao2)
       call close_file(ifile)
    endif
 
 
 !! wiberg bond orders
    if (pr_wiberg.and.gfn_method.eq.0) &
-   call wiberg(n,nao,at,xyz,wfx%P,S,wfx%wbo,.false.,.false.)
+   call wiberg(n,nao,at,xyz,wfx%P,S,wfx%wbo,.false.,.false.,basis%fila2)
    if (pr_wiberg) &
    call print_wiberg(iunit,n,at,wfx%wbo,0.1_wp)
 
@@ -167,7 +167,7 @@ subroutine main_property &
       endif
       emo  = wfx%emo * evtoau
       focc = wfx%focca + wfx%foccb
-      call printmold(n,nao,nbf,xyz,at,C,emo,focc,2.0_wp)
+      call printmold(n,nao,nbf,xyz,at,C,emo,focc,2.0_wp,basis)
       write(iunit,'(/,"MOs/occ written to file <molden.input>",/)')
       deallocate(C,focc,emo)
    endif
@@ -177,7 +177,7 @@ subroutine main_property &
 
    if (pr_tmbas .or. pr_tmmos) then
       call open_file(ifile,'basis','w')
-      call write_tm_basis(ifile,n,at)
+      call write_tm_basis(ifile,n,at,basis,wfx)
       close(ifile)
    endif
 
@@ -216,12 +216,13 @@ subroutine main_cube &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use setparam
-   use ehtparam
    use aoparam
 
 !! ------------------------------------------------------------------------
    use aespot
    use scc_core
+   use esp
+   use stm
 
    implicit none
 
@@ -270,7 +271,7 @@ subroutine main_cube &
       endif
       if (lverbose) &
       write(istdout,'(/,"FOD written to file: ''fod.cub''",/)')
-      call cube(n,nao,nbf,xyz,at,C,emo,focc,'fod.cub')
+      call cube(n,nao,nbf,xyz,at,C,emo,focc,'fod.cub',basis)
       deallocate(C, focca, foccb, focc, emo)
    endif
 
@@ -287,7 +288,7 @@ subroutine main_cube &
       write(istdout,'(/,"(R)spin-density written to file: ''spindensity.cub''",/)')
       emo = wfx%emo * evtoau
       focc = wfx%focca - wfx%foccb
-      call cube(n,nao,nbf,xyz,at,C,emo,focc,'spindensity.cub')
+      call cube(n,nao,nbf,xyz,at,C,emo,focc,'spindensity.cub',basis)
       deallocate(C, focc, emo)
    endif
 
@@ -303,7 +304,7 @@ subroutine main_cube &
       if (lverbose) &
       write(istdout,'(/,"density written to file: ''density.cub''",/)')
       emo = wfx%emo * evtoau
-      call cube(n,nao,nbf,xyz,at,C,emo,wfx%focc,'density.cub')
+      call cube(n,nao,nbf,xyz,at,C,emo,wfx%focc,'density.cub',basis)
       deallocate(C, emo)
    endif
 
@@ -316,7 +317,7 @@ subroutine main_cube &
       else
          call sao2cao(nao,wfx%C,nbf,C)
       endif
-      call espplot(n,nao,nbf,at,xyz,z,wfx%focc,C)
+      call espplot(n,nao,nbf,at,xyz,z,wfx%focc,C,basis)
       deallocate(C)
    endif
 
@@ -333,7 +334,7 @@ subroutine main_cube &
          call fermismear(.false.,nao,wfx%ihomoa,etemp,wfx%emo,focc,nfoda,efa,ga)
       if(wfx%ihomob+1.le.nao) &
          call fermismear(.false.,nao,wfx%ihomob,etemp,wfx%emo,focc,nfodb,efb,gb)
-      call stmpic(n,nao,nbf,at,xyz,C,0.5_wp*(efa+efb),wfx%emo)
+      call stmpic(n,nao,nbf,at,xyz,C,0.5_wp*(efa+efb),wfx%emo,basis)
       deallocate(C, focc)
    endif
 
@@ -356,7 +357,6 @@ subroutine main_freq &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use setparam
-   use ehtparam
    use aoparam
 
 !! ------------------------------------------------------------------------
@@ -459,7 +459,6 @@ end subroutine main_freq
 
 subroutine print_charges(ifile,n,q)
    use iso_fortran_env, wp => real64
-   use ehtparam
    implicit none
    integer, intent(in)  :: ifile
    integer, intent(in)  :: n
@@ -472,9 +471,8 @@ subroutine print_charges(ifile,n,q)
    endif
 end subroutine print_charges
 
-subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P)
+subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    use iso_fortran_env, wp => real64
-   use ehtparam
    use scc_core, only : mpop
    implicit none
    integer, intent(in)  :: iunit
@@ -486,6 +484,8 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P)
    integer, intent(in)  :: nao
    real(wp),intent(in)  :: S(nao,nao)
    real(wp),intent(in)  :: P(nao,nao)
+   integer, intent(in)  :: aoat2(nao)
+   integer, intent(in)  :: lao2(nao)
    real(wp),allocatable :: q(:)       ! Mulliken partial charges
    real(wp),allocatable :: qlmom(:,:) ! population per shell
    real(wp),allocatable :: cm5(:)     ! CM5 partial charges
@@ -795,9 +795,8 @@ subroutine print_dipole(iunit,n,at,xyz,z,nao,P,dpint)
 
 end subroutine print_dipole
 
-subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C)
+subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C,aoat2,lao2)
    use iso_fortran_env, wp => real64
-   use ehtparam
    use scc_core, only : dmat, mpop
    implicit none
    integer, intent(in) :: iunit       ! STDOUT
@@ -808,6 +807,8 @@ subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C)
    real(wp),intent(in) :: foccb(nao)  ! fractional occupation numbers (beta)
    real(wp),intent(in) :: S(nao,nao)  ! overlap matrix
    real(wp),intent(in) :: C(nao,nao)  ! eigenvector/orbitals
+   integer, intent(in)  :: aoat2(nao)
+   integer, intent(in)  :: lao2(nao)
 
    integer :: i
    character(len=2),external :: asym
@@ -831,10 +832,10 @@ subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C)
 
 end subroutine print_spin_population
 
-subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob)
+subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob, &
+      &                         aoat2,lao2)
    use iso_fortran_env, wp => real64
    use mctc_econv
-   use ehtparam
    use scc_core
    implicit none
    integer, intent(in) :: iunit       ! STDOUT
@@ -848,6 +849,8 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
    real(wp),intent(in) :: emo(nao)    ! orbital energies
    integer, intent(in) :: ihomoa      ! position of HOMO in alpha space
    integer, intent(in) :: ihomob      ! position of HOMO in beta space
+   integer, intent(in)  :: aoat2(nao)
+   integer, intent(in)  :: lao2(nao)
 
    integer :: i
    character(len=2),external :: asym

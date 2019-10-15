@@ -15,18 +15,19 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine Dints(n,nbf,xyz,S1,S2,S3)
+subroutine Dints(n,nbf,xyz,S1,S2,S3,basis)
    use iso_fortran_env, wp => real64
    use mctc_constants
-   use ehtparam
+   use tbdef_basisset
    use intpack, only : opab1,propa
-   implicit none 
+   implicit none
+   type(tb_basisset), intent(in) :: basis
    integer, intent(in)  :: n
    integer, intent(in)  :: nbf
    real(wp),intent(out) :: S1(nbf*(nbf+1)/2)
    real(wp),intent(out) :: S2(nbf*(nbf+1)/2)
    real(wp),intent(out) :: S3(nbf*(nbf+1)/2)
-   real(wp),intent(in)  :: xyz(3,n)          
+   real(wp),intent(in)  :: xyz(3,n)
 
    integer  :: i,j,k,l
    integer  :: iprimcount,jprimcount
@@ -44,17 +45,17 @@ subroutine Dints(n,nbf,xyz,S1,S2,S3)
 
    k=0
    iprimcount=0
-   do i=1,nbf 
+   do i=1,nbf
       ! aufpunkt i
-      xyza(1:3)=xyz(1:3,aoat(i))
+      xyza(1:3)=xyz(1:3,basis%aoat(i))
       ! #prims
-      npri=nprim(i)
+      npri=basis%nprim(i)
       jprimcount=0
       do j=1,i
          k=k+1
-         nprj=nprim(j)
+         nprj=basis%nprim(j)
          ! aufpunkt j
-         xyzb(1:3)=xyz(1:3,aoat(j))
+         xyzb(1:3)=xyz(1:3,basis%aoat(j))
          rab=sum((xyza-xyzb)**2)
          if(rab.gt.200) goto 42 ! cut-off gives crambin dipole accurate to 1d-3 Deb
          !prim loop
@@ -65,16 +66,16 @@ subroutine Dints(n,nbf,xyz,S1,S2,S3)
             iii=iprimcount+ii
             do jj=1,nprj
                jjj=jprimcount+jj
-               gama=1.0_wp/(alp(iii)+alp(jjj))
-               est=rab*alp(iii)*alp(jjj)*gama                  
+               gama=1.0_wp/(basis%alp(iii)+basis%alp(jjj))
+               est=rab*basis%alp(iii)*basis%alp(jjj)*gama
                ! cutoff
                if(est.lt.intcut)then
                   ttt=0
-                  call propa(opab1,xyza,xyzb,point, &
-                     & alp(iii),alp(jjj),lao(i),lao(j),ttt,3)
-                  tt1=tt1+ttt(1)*cont(iii)*cont(jjj)   
-                  tt2=tt2+ttt(2)*cont(iii)*cont(jjj)   
-                  tt3=tt3+ttt(3)*cont(iii)*cont(jjj)   
+                  call propa(opab1,xyza,xyzb,point,basis%alp(iii),basis%alp(jjj),&
+                     &       basis%lao(i),basis%lao(j),ttt,3)
+                  tt1=tt1+ttt(1)*basis%cont(iii)*basis%cont(jjj)
+                  tt2=tt2+ttt(2)*basis%cont(iii)*basis%cont(jjj)
+                  tt3=tt3+ttt(3)*basis%cont(iii)*basis%cont(jjj)
                endif
             enddo
          enddo

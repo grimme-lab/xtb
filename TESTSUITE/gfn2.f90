@@ -11,7 +11,6 @@ subroutine test_gfn2_scc
    use tbdef_pcem
 
    use setparam
-   use ehtparam ! FIXME
    use aoparam
    use xbasis
    use scf_module
@@ -71,7 +70,6 @@ subroutine test_gfn2_scc
    call assert(okbas)
 
    call xbasis_cao2sao(mol%n,mol%at,basis)
-   call import_basisset(basis) ! FIXME
 
    call assert_eq(basis%nshell,4)
    call assert_eq(basis%nbf,   6)

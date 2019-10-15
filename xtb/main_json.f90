@@ -68,7 +68,6 @@ subroutine main_json &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use setparam
-   use ehtparam
    use aoparam
 
    implicit none

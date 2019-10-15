@@ -1847,10 +1847,9 @@ end subroutine dmat
 !            Wiberg BOs
 !ccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine wiberg(n,ndim,at,xyz,P,S,wb,ex,pr)
+subroutine wiberg(n,ndim,at,xyz,P,S,wb,ex,pr,fila2)
    use iso_fortran_env, only : wp => real64
    use mctc_la, only : gemm
-   use ehtparam
    implicit none
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
@@ -1858,6 +1857,7 @@ subroutine wiberg(n,ndim,at,xyz,P,S,wb,ex,pr)
    real(wp),intent(in)  :: S(ndim,ndim)
    real(wp),intent(out) :: wb (n,n)
    logical, intent(in)  :: ex,pr
+   integer, intent(in)  :: fila2(:,:)
 
    real(wp),allocatable ::Ptmp(:,:)
    real(wp) xsum,rab
@@ -1925,10 +1925,9 @@ subroutine wiberg(n,ndim,at,xyz,P,S,wb,ex,pr)
 
 end subroutine wiberg
 
-subroutine wiberg_nosort(n,ndim,at,xyz,P,S,wb,ex)
+subroutine wiberg_nosort(n,ndim,at,xyz,P,S,wb,ex,fila2)
    use iso_fortran_env, only : wp => real64
    use mctc_la, only : gemm
-   use ehtparam
    implicit none
    integer n,ndim,at(n)
    real(wp) xyz(3,n)
@@ -1936,6 +1935,7 @@ subroutine wiberg_nosort(n,ndim,at,xyz,P,S,wb,ex)
    real(wp) S(ndim,ndim)
    real(wp) wb (n,n)
    logical ex
+   integer, intent(in) :: fila2(:,:)
 
    real(wp),allocatable ::Ptmp(:,:)
    real(wp) xsum,rab
@@ -2215,7 +2215,6 @@ end subroutine lpop
 
 subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    use iso_fortran_env, only : wp => real64
-   use ehtparam
    use aoparam
    implicit none
    integer, intent(in)  :: n
@@ -2310,7 +2309,6 @@ end subroutine iniqshell
 
 subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    use iso_fortran_env, only : wp => real64
-   use ehtparam
    use aoparam
    implicit none
    integer, intent(in)  :: n

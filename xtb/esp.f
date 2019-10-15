@@ -16,13 +16,16 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-      subroutine espplot(n,nmo,nbf,at,xyz,z,occ,C)
+      module esp
+      contains
+      subroutine espplot(n,nmo,nbf,at,xyz,z,occ,C,basis)
       use mctc_systools
+      use tbdef_basisset
       use intpack
       use printout, only : writecosmofile
       use setparam, only : esp_gridfile, get_namespace
       implicit none
+      type(tb_basisset), intent(in) :: basis
       integer nproc,n,nbf,nmo,at(n)
       real*8 xyz(3,n),z(n),occ(nmo),C(nbf,nmo)
       integer,external :: omp_get_num_threads
@@ -83,7 +86,7 @@
 
 !     compute primitive pair data
       write(*,*)'computing primitive pair data ...'
-      call preints(n,nbf,xyz,intcut,mprim,npp,pthr,P)
+      call preints(n,nbf,xyz,intcut,mprim,npp,pthr,P,basis)
       allocate(efact(npp),gama(npp),ee(3,npp),dd(35,npp),
      &         nnn(npp),indp(mprim,mprim))
       rewind(103)
@@ -121,13 +124,13 @@
       call timing(t0,w0)
       point=0
       call espints(n,nbf,xyz,intcut,point,pthr,P,
-     &             mprim,npp,nnn,indp,efact,gama,ee,dd,espe(i))
+     &             mprim,npp,nnn,indp,efact,gama,ee,dd,espe(i),basis)
       call timing(t1,w1)
       write(*,'('' estimated wall time (s) '',f6.1)') np*(w1-w0)/nproc
       write(*,*)'computing ESP ...'
 
 !$OMP  PARALLEL PRIVATE(i,rx,ry,rz,r,point)
-!$OMP& SHARED(espe,pa)
+!$OMP& SHARED(espe,pa,basis)
 !$OMP& DEFAULT(SHARED)
 !$OMP DO
       do i=1,np
@@ -144,7 +147,7 @@
       enddo
 !     ints and contraction with P
       call espints(n,nbf,xyz,intcut,point,pthr,P,
-     &             mprim,npp,nnn,indp,efact,gama,ee,dd,espe(i))
+     &             mprim,npp,nnn,indp,efact,gama,ee,dd,espe(i),basis)
       enddo
 !$OMP END DO
 !$OMP END PARALLEL
@@ -175,10 +178,11 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine espints(n,nbf,xyz,intcut,point,pthr,P,
-     &                   mprim,npp,nnn,indp,efact,gama,ee,dd,espe)
+     &                   mprim,npp,nnn,indp,efact,gama,ee,dd,espe,basis)
+      use tbdef_basisset
       use intpack
-      use ehtparam
       implicit none
+      type(tb_basisset), intent(in) :: basis
       integer n,nbf
       integer mprim,npp,indp(mprim,mprim),nnn(npp)
       real*8  P (nbf*(nbf+1)/2)
@@ -198,16 +202,16 @@
       iprimcount=0
       do i=1,nbf
 ! aufpunkt i
-         xyza(1:3)=xyz(1:3,aoat(i))
+         xyza(1:3)=xyz(1:3,basis%aoat(i))
 ! #prims
-         npri=nprim(i)
+         npri=basis%nprim(i)
          jprimcount=0
          do j=1,i
             k=k+1
-            nprj=nprim(j)
+            nprj=basis%nprim(j)
             if(abs(P(k)).lt.pthr) goto 42   ! loose P mat neglect threshold
 ! aufpunkt j
-              xyzb(1:3)=xyz(1:3,aoat(j))
+              xyzb(1:3)=xyz(1:3,basis%aoat(j))
 ! prim loop
               tt1=0.0d0
               do ii=1,npri
@@ -220,7 +224,7 @@
 !                   call propa(opaa0,xyza,xyzb,point,
 !    &                         alp(iii),alp(jjj),
 !    &                         lao(i),lao(j),ttt,1)
-                    cce=cont(iii)*cont(jjj)*efact(ppp)*P(K)
+                    cce=basis%cont(iii)*basis%cont(jjj)*efact(ppp)*P(K)
                     if(abs(cce).gt.pthr2)then
                     call propa1(opaa0,point,nnn(ppp),
      &                         gama(ppp),ee(1,ppp),dd(1,ppp),
@@ -240,10 +244,11 @@
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine preints(n,nbf,xyz,intcut,nprimp,ppair,pthr,P)
+      subroutine preints(n,nbf,xyz,intcut,nprimp,ppair,pthr,P,basis)
+      use tbdef_basisset
       use intpack
-      use ehtparam
       implicit none
+      type(tb_basisset), intent(in) :: basis
       integer n,nbf,nprimp,ppair
       real*8  P(nbf*(nbf+1)/2)
       real*8  xyz(3,n),intcut,pthr
@@ -259,16 +264,16 @@
       iprimcount=0
       do i=1,nbf
 ! aufpunkt i
-         xyza(1:3)=xyz(1:3,aoat(i))
+         xyza(1:3)=xyz(1:3,basis%aoat(i))
 ! #prims
-         npri=nprim(i)
+         npri=basis%nprim(i)
          jprimcount=0
          do j=1,i
             k=k+1
-            nprj=nprim(j)
+            nprj=basis%nprim(j)
             if(abs(P(k)).lt.pthr) goto 42   ! loose P mat neglect threshold
 ! aufpunkt j
-              xyzb(1:3)=xyz(1:3,aoat(j))
+              xyzb(1:3)=xyz(1:3,basis%aoat(j))
               rab=(xyza(1)-xyzb(1))**2
      &           +(xyza(2)-xyzb(2))**2
      &           +(xyza(3)-xyzb(3))**2
@@ -277,15 +282,15 @@
                  iii=iprimcount+ii
                  do jj=1,nprj
                     jjj=jprimcount+jj
-                    gama=1.0d0/(alp(iii)+alp(jjj))
-                    est=rab*alp(iii)*alp(jjj)*gama
-                    cc=cont(iii)*cont(jjj)
+                    gama=1.0d0/(basis%alp(iii)+basis%alp(jjj))
+                    est=rab*basis%alp(iii)*basis%alp(jjj)*gama
+                    cc=basis%cont(iii)*basis%cont(jjj)
 ! cutoff
                     if(est.lt.intcut.and.abs(cc*P(k)).gt.1.d-5)then
                     ppair=ppair+1
                     call propa0(xyza,xyzb,
-     &                         alp(iii),alp(jjj),
-     &                         lao(i),lao(j),iii,jjj)
+     &                         basis%alp(iii),basis%alp(jjj),
+     &                         basis%lao(i),basis%lao(j),iii,jjj)
                     endif
                  enddo
               enddo
@@ -474,3 +479,4 @@
       nnn=35
 
       end subroutine lprimprod
+      end module esp

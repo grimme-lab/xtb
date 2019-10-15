@@ -143,7 +143,6 @@ xtb_srcs += 'xtb/splitparam.f90'
 xtb_srcs += 'xtb/symparam.f90'
 xtb_srcs += 'xtb/fixparam.f90'
 xtb_srcs += 'xtb/d3param.f90'
-xtb_srcs += 'xtb/ehtparam.f90'
 xtb_srcs += 'xtb/aoparam.f90'
 xtb_srcs += 'xtb/setparam.f90'
 

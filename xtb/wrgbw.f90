@@ -20,7 +20,6 @@ subroutine wrgbw(n,iat,coord,z,basis,wfn)
    use iso_c_binding
    use tbdef_basisset
    use tbdef_wavefunction
-   use ehtparam
    use aoparam
    implicit none
 !! ------------------------------------------------------------------------
@@ -126,15 +125,15 @@ subroutine wrgbw(n,iat,coord,z,basis,wfn)
       nshell(i) = int(ao_n(ati),c_int)
       do ish = 1, ao_n(ati)
          ishtyp = ao_l(ish,ati)
-         icao = caoshell(ish,ati)
-         iao  = saoshell(ish,ati)
+         icao = basis%caoshell(ish,ati)
+         iao  = basis%saoshell(ish,ati)
          BG(ish,i)%lstart = int(iao,c_int)
          BG(ish,i)%l      = int(ishtyp,c_int)
-         BG(ish,i)%ng     = int(nprim(icao+1),c_int)
-         do ip = 1, nprim(icao+1)
-            iprim = ip + primcount(icao+1)
-            BG(ish,i)%a(ip) = real(alp(iprim),c_double)
-            BG(ish,i)%d(ip) = real(cont(iprim),c_double)
+         BG(ish,i)%ng     = int(basis%nprim(icao+1),c_int)
+         do ip = 1, basis%nprim(icao+1)
+            iprim = ip + basis%primcount(icao+1)
+            BG(ish,i)%a(ip) = real(basis%alp(iprim),c_double)
+            BG(ish,i)%d(ip) = real(basis%cont(iprim),c_double)
          enddo
       enddo
    enddo

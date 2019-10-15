@@ -143,7 +143,6 @@ subroutine md(mol,wfx,xbas,xpar, &
    use tbdef_param
    use tbdef_data
    use shake_module, only: do_shake,ncons,xhonly
-   use ehtparam
    use aoparam
    use setparam
    use fixparam
