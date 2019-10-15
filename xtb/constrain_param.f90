@@ -1098,6 +1098,19 @@ subroutine set_hess(key,val,nat,at,xyz)
    endif
    select case(key)
    case default ! ignore, don't even think about raising them
+   case('element mass')
+      if (mod(narg,2).ne.0) then
+         call raise('S',"Something went wrong in set_mass_ 'element'.",1)
+      endif
+      do i = 1, narg, 2
+         j = i+1
+         if (get_value(trim(argv(i)),idum).and.&
+            &get_value(trim(argv(j)),ddum)) then
+            where(at.eq.idum) atmass = ddum
+            write(output_unit,'(a,1x,i0,1x,a,1x,g0)') &
+               'mass of elements ',idum,' changed to', ddum
+         endif
+      enddo
    case('modify mass','isotope')
       if (mod(narg,2).ne.0) then
          call raise('S',"Something went wrong in set_mass_ 'modify'.",1)

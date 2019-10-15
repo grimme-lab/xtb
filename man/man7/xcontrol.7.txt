@@ -230,6 +230,8 @@ $hess
     SCC accuracy level in Hessian runs
 *step*='real'::
     Cartesian displacement increment for numerical Hessian
+*element mass*: 'int','real',...::
+    set mass of elements 'int' to 'real'
 *isotope*: 'int','real',... (6.1 only)::
     set mass of atom number 'int' to 'real'
 *modify mass*: 'int','real',... (6.1 only)::
