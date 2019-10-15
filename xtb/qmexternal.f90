@@ -34,10 +34,10 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
       !$omp critical (turbo_lock)
       call wrtm(n,at,xyz)
       if(extmode.eq.1)then
-         call execute_command_line('ridft  >  job.last 2>> /dev/null')
-         if(grd)call execute_command_line('rdgrad >> job.last 2>> /dev/null')
+         call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
+         if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
       endif
-      call extcodeok(extcode) 
+      call extcodeok(extcode)
       call rdtm(n,grd,eel,g)
       !$omp end critical (turbo_lock)
       return
@@ -48,12 +48,12 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
       !$omp critical (turbo_lock)
       call wrtm(n,at,xyz)
       if(extmode.le.2)then
-         call execute_command_line('ridft  >  job.last 2>> /dev/null')
-         call execute_command_line('rdgrad >> job.last 2>> /dev/null')
-         call execute_command_line('dftd3 coord -grad >> job.last 2>> /dev/null')
-         call execute_command_line('gcp coord -file -grad >>job.last 2>>/dev/null')
+         call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
+         call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
+         call execute_command_line('exec dftd3 coord -grad >> job.last 2>> /dev/null')
+         call execute_command_line('exec gcp coord -file -grad >>job.last 2>>/dev/null')
       endif
-      call extcodeok(extcode) 
+      call extcodeok(extcode)
       call rdtm(n,.true.,eel,g)
       !$omp end critical (turbo_lock)
       return
@@ -64,10 +64,10 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
       !$omp critical (turbo_lock)
       call wrtm(n,at,xyz)
       if(extmode.eq.1)then
-         call execute_command_line('dscf  > job.last 2>> /dev/null')
-         if(grd)call execute_command_line('grad >> job.last 2>> /dev/null')
+         call execute_command_line('exec dscf  > job.last 2>> /dev/null')
+         if(grd)call execute_command_line('exec grad >> job.last 2>> /dev/null')
       endif
-      call extcodeok(extcode) 
+      call extcodeok(extcode)
       call rdtm(n,grd,eel,g)
       !$omp end critical (turbo_lock)
       return
@@ -79,7 +79,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
 end subroutine external_turbomole
 
 !ccccccccccccccccccccccccccccccccc
-! TM      
+! TM
 !ccccccccccccccccccccccccccccccccc
 
 subroutine wrtm(n,at,xyz)
@@ -138,8 +138,7 @@ subroutine rdtm(n,grd,e,g)
    301   continue
 
    if(nl.lt.2)then
-      write(*,*) 'illegal gradient file!'
-      stop   
+      call raise('E','illegal gradient file!',1)
    endif
 
    rewind iunit
@@ -149,7 +148,7 @@ subroutine rdtm(n,grd,e,g)
    call readl(a1,xx,nn)
    e=xx(2)
    do i=1,n
-      read(iunit,*)x,y,z                
+      read(iunit,*)x,y,z
    enddo
    do i=1,n
       read(iunit,*)g(1,i),g(2,i),g(3,i)
@@ -159,29 +158,29 @@ subroutine rdtm(n,grd,e,g)
 
 end subroutine rdtm
 
-subroutine rijcheck(extcode) 
+subroutine rijcheck(extcode)
    implicit none
    integer, intent (inout) :: extcode
    integer icheck,ich
    icheck=1
-   call execute_command_line('sdg rij | wc -l > TmPfIlE')                  
+   call execute_command_line('exec sdg rij | wc -l > TmPfIlE')
    open(newunit=ich,file='TmPfIlE',status='old')
    read(ich,*)icheck
    close(ich,status='delete')
-   if(icheck.lt.1) extcode=3 
+   if(icheck.lt.1) extcode=3
    return
 end subroutine rijcheck
 
-subroutine extcodeok(extcode) 
+subroutine extcodeok(extcode)
    implicit none
    integer, intent (in) :: extcode
    integer :: ich
    character(len=80) atmp
-   ! TM      
+   ! TM
    if(extcode.le.3)then
-      call execute_command_line('grep "actual step" control > TmPfIlE') 
+      call execute_command_line('exec grep "actual step" control > TmPfIlE')
       open(newunit=ich,file='TmPfIlE',status='old')
-      read(ich,'(a)',end=100)atmp  
+      read(ich,'(a)',end=100)atmp
  100  close(ich,status='delete')
       if(index(atmp,'actual').ne.0) call raise('E','external code error: '//&
       &                                            trim(atmp),1)

@@ -158,7 +158,7 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
    write(istdout,'(72("="))')
    write(istdout,'(1x,"*",1x,a)') &
       "handing control over to mopac..."
-   call execute_command_line('2>&1 '//ext_mopac%executable//' '// &
+   call execute_command_line('exec 2>&1 '//ext_mopac%executable//' '// &
                              ext_mopac%input_file,exitstat=err)
    if (err.ne.0) then
       call raise('E','mopac returned with non-zero exit status, following this',1)
@@ -381,7 +381,7 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
    write(istdout,'(72("="))')
    write(istdout,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
-   call execute_command_line('2>&1 '//ext_orca%executable//' '// &
+   call execute_command_line('exec 2>&1 '//ext_orca%executable//' '// &
                              ext_orca%input_file,exitstat=err)
    if (err.ne.0) then
       call raise('E','orca returned with non-zero exit status, doing the same',1)
