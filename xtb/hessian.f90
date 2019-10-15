@@ -21,7 +21,7 @@ module hessian
 contains
 
 subroutine numhess( &
-      & mol,wf0,xbas,xpar, &
+      & mol,wf0,calc, &
       & egap,et,maxiter,etot,gr,sr,res)
    use iso_fortran_env, wp => real64, istdout => output_unit
 !$ use omp_lib
@@ -32,8 +32,7 @@ subroutine numhess( &
 !  type definitions
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
 
    use aoparam
@@ -48,8 +47,7 @@ subroutine numhess( &
    type(tb_molecule), intent(inout) :: mol
    integer, intent(in)    :: maxiter
    type(tb_wavefunction),intent(inout) :: wf0
-   type(tb_basisset),  intent(in) :: xbas
-   type(scc_parameter),intent(in) :: xpar
+   type(tb_calculator),intent(in) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -112,7 +110,7 @@ subroutine numhess( &
    acc=accu_hess
 
    call singlepoint &
-      & (istdout,mol,wf0,xbas,xpar, &
+      & (istdout,mol,wf0,calc, &
       &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
 
    write(istdout,'(''step length          :'',F10.5)') step
@@ -165,7 +163,7 @@ subroutine numhess( &
       ! now compute a subblock of the Hessian
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
-      !$omp&         firstprivate(mol,xbas,xpar,et,maxiter,acc,wf0) &
+      !$omp&         firstprivate(mol,calc,et,maxiter,acc,wf0) &
       !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,wfx,tmol) &
       !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh)
       !$ call omp_set_num_threads(1)
@@ -179,7 +177,7 @@ subroutine numhess( &
             wfx = wf0
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             call singlepoint &
-               & (istdout,tmol,wfx,xbas,xpar, &
+               & (istdout,tmol,wfx,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
             tmol = mol
             wfx = wf0
@@ -187,7 +185,7 @@ subroutine numhess( &
             pold(ii)=sccr%molpol
             mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
             call singlepoint &
-               & (istdout,tmol,wfx,xbas,xpar, &
+               & (istdout,tmol,wfx,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -220,7 +218,7 @@ subroutine numhess( &
 !! ------------------------------------------------------------------------
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
-      !$omp&         firstprivate(mol,xbas,xpar,et,maxiter,acc,wf0) &
+      !$omp&         firstprivate(mol,calc,et,maxiter,acc,wf0) &
       !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,wfx,tmol) &
       !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave)
       !$ call omp_set_num_threads(1)
@@ -237,7 +235,7 @@ subroutine numhess( &
             gr = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (istdout,tmol,wfx,xbas,xpar, &
+               & (istdout,tmol,wfx,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
             dipd(1:3,ii)=sccr%dipole(1:3)
             pold(ii)=sccr%molpol
@@ -250,7 +248,7 @@ subroutine numhess( &
             gl = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (istdout,tmol,wfx,xbas,xpar, &
+               & (istdout,tmol,wfx,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=xyzsave(ic,ia)
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2

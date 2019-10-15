@@ -122,15 +122,14 @@ contains
 
 !> frontend implementation of the fast inertial relaxation engine
 subroutine fire &
-      &   (iunit,ilog,mol,wfn,basis,param, &
+      &   (iunit,ilog,mol,wfn,calc, &
       &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail)
 
    use mctc_econv
 
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_timer
 
@@ -152,8 +151,7 @@ subroutine fire &
 
    type(tb_molecule), intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of steps
@@ -311,7 +309,7 @@ subroutine fire &
 
    call inertial_relax &
       &   (iunit,iter,thisstep,opt,molopt, &
-      &    wfn,basis,param,energy,egap,gradient,sigma,hessp,velocities, &
+      &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
    thisstep = min(ceiling(thisstep*opt%finc),2*opt%micro_cycle)
@@ -374,7 +372,7 @@ end subroutine fire
 !> frontend implementation of the low memory/linear scaling (by taste)
 !  approximate normal coordinate rational function optimizer (L-ANCopt)
 subroutine l_ancopt &
-      &   (iunit,ilog,mol,wfn,basis,param, &
+      &   (iunit,ilog,mol,wfn,calc, &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
    use iso_fortran_env, only : sp => real32
 
@@ -382,8 +380,7 @@ subroutine l_ancopt &
 
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_timer
 
@@ -404,8 +401,7 @@ subroutine l_ancopt &
 
    type(tb_molecule), intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of optimization cycles
@@ -620,7 +616,7 @@ subroutine l_ancopt &
 
    call lbfgs_relax &
       &   (iunit,iter,thiscycle,opt,molopt, &
-      &    wfn,basis,param,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
+      &    wfn,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
       &    converged,fail,timer)
 
    thiscycle = min(ceiling(thiscycle*opt%cycle_inc),2*opt%micro_cycle)
@@ -753,13 +749,12 @@ end subroutine lbfgs_step
 !  is augmented with a coordinate transformation in approximate normal coordinates
 subroutine lbfgs_relax &
       &   (iunit,iter,maxcycle,opt,mol, &
-      &    wfn,basis,param,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
+      &    wfn,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
       &    converged,fail,timer)
 
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_timer
 
@@ -774,8 +769,7 @@ subroutine lbfgs_relax &
    type(tb_molecule), intent(inout) :: mol
 
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
 
    !> settings for the low memory BFGS
    type(lbfgs_options), intent(in) :: opt
@@ -950,7 +944,7 @@ subroutine lbfgs_relax &
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
       call singlepoint &
-         &(iunit,mol,wfn,basis,param, &
+         &(iunit,mol,wfn,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
          & energy,g_xyz,sigma,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
@@ -1014,15 +1008,14 @@ end subroutine lbfgs_relax
 !> backend implementation of the fast inertial relaxation engine
 subroutine inertial_relax &
       &   (iunit,iter,maxstep,opt,mol, &
-      &    wfn,basis,param,energy,egap,gradient,sigma,hessp,velocities, &
+      &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
    use mctc_econv
 
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_timer
 
@@ -1036,8 +1029,7 @@ subroutine inertial_relax &
 
    type(tb_molecule), intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
 
    !> settings for the fast inertial relaxation engine
    type(fire_options), intent(in) :: opt
@@ -1261,7 +1253,7 @@ subroutine inertial_relax &
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
       call singlepoint &
-         &(iunit,mol,wfn,basis,param, &
+         &(iunit,mol,wfn,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
          & energy,gradient,sigma,res)
       if (profile) call timer%measure(4)

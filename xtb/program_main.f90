@@ -33,8 +33,8 @@ program XTBprog
 !! ========================================================================
 !  class and type definitions
    use tbdef_molecule
+   use tbdef_calculator
    use tbdef_wavefunction
-   use tbdef_basisset
    use tbdef_param
    use tbdef_data
 
@@ -99,10 +99,9 @@ program XTBprog
 !  use some wrapper types to bundle information together
    type(tb_molecule) :: mol
    type(scc_results) :: res
+   type(tb_calculator) :: calc
    type(freq_results) :: fres
-   type(tb_basisset) :: basis
    type(tb_wavefunction) :: wfn
-   type(scc_parameter) :: xpar
    type(chrg_parameter) :: chrgeq
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -448,52 +447,54 @@ program XTBprog
       call prelemparam(globpar)
    endif
 
+   allocate(calc%param)
+
    if (runtyp.gt.1) then
       select case(gfn_method)
       case default
          call raise('E','Internal error, wrong GFN method passed!',1)
       case(1)
-         call set_gfn1_parameter(xpar,globpar)
-         call gfn1_prparam(istdout,mol%n,mol%at,xpar)
+         call set_gfn1_parameter(calc%param,globpar)
+         call gfn1_prparam(istdout,mol%n,mol%at,calc%param)
       case(2)
-         call set_gfn2_parameter(xpar,globpar,mol%n,mol%at)
-         call gfn2_prparam(istdout,mol%n,mol%at,xpar)
+         call set_gfn2_parameter(calc%param,globpar,mol%n,mol%at)
+         call gfn2_prparam(istdout,mol%n,mol%at,calc%param)
       case(0)
-         call set_gfn0_parameter(xpar,globpar,mol%n,mol%at)
-         call gfn0_prparam(istdout,mol%n,mol%at,xpar)
+         call set_gfn0_parameter(calc%param,globpar,mol%n,mol%at)
+         call gfn0_prparam(istdout,mol%n,mol%at,calc%param)
       end select
    else
-      xpar%kspd(1:6)=globpar(1:6)
-      xpar%wllscal  =globpar(7)
-      xpar%gscal    =globpar(8)
-      xpar%zcnf     =globpar(9)
-      xpar%tfac     =globpar(10)
-      xpar%kcn      =globpar(11)
-      xpar%fpol     =globpar(12)
-      xpar%ken1     =globpar(13)
-      xpar%lshift   =globpar(14)
-      xpar%lshifta  =globpar(15)
-      xpar%split    =globpar(16)
-      xpar%zqf      =globpar(17)
+      calc%param%kspd(1:6)=globpar(1:6)
+      calc%param%wllscal  =globpar(7)
+      calc%param%gscal    =globpar(8)
+      calc%param%zcnf     =globpar(9)
+      calc%param%tfac     =globpar(10)
+      calc%param%kcn      =globpar(11)
+      calc%param%fpol     =globpar(12)
+      calc%param%ken1     =globpar(13)
+      calc%param%lshift   =globpar(14)
+      calc%param%lshifta  =globpar(15)
+      calc%param%split    =globpar(16)
+      calc%param%zqf      =globpar(17)
       write(istdout,'(5x,''method parameters'')')
-      write(istdout,'(1x,''k(s)        :'',F8.4)') xpar%kspd(1)
-      write(istdout,'(1x,''k(p)        :'',F8.4)') xpar%kspd(2)
-      write(istdout,'(1x,''k(d)        :'',F8.4)') xpar%kspd(3)
-      write(istdout,'(1x,''k(f)        :'',F8.4)') xpar%kspd(4)
-      write(istdout,'(1x,''Tscal       :'',F8.4)') xpar%tfac
-      write(istdout,'(1x,''Gscal       :'',F8.4)') xpar%gscal
-      write(istdout,'(1x,''fpol        :'',F8.4)') xpar%fpol
-      write(istdout,'(1x,''Zcnf        :'',F8.4)') xpar%zcnf
-      write(istdout,'(1x,''Zqf         :'',F8.4)') xpar%zqf
-      write(istdout,'(1x,''kcn         :'',F8.4)') xpar%kcn
-      write(istdout,'(1x,''kEN1        :'',F8.4)') xpar%ken1
-      write(istdout,'(1x,''wllscal     :'',F8.4)') xpar%wllscal
+      write(istdout,'(1x,''k(s)        :'',F8.4)') calc%param%kspd(1)
+      write(istdout,'(1x,''k(p)        :'',F8.4)') calc%param%kspd(2)
+      write(istdout,'(1x,''k(d)        :'',F8.4)') calc%param%kspd(3)
+      write(istdout,'(1x,''k(f)        :'',F8.4)') calc%param%kspd(4)
+      write(istdout,'(1x,''Tscal       :'',F8.4)') calc%param%tfac
+      write(istdout,'(1x,''Gscal       :'',F8.4)') calc%param%gscal
+      write(istdout,'(1x,''fpol        :'',F8.4)') calc%param%fpol
+      write(istdout,'(1x,''Zcnf        :'',F8.4)') calc%param%zcnf
+      write(istdout,'(1x,''Zqf         :'',F8.4)') calc%param%zqf
+      write(istdout,'(1x,''kcn         :'',F8.4)') calc%param%kcn
+      write(istdout,'(1x,''kEN1        :'',F8.4)') calc%param%ken1
+      write(istdout,'(1x,''wllscal     :'',F8.4)') calc%param%wllscal
    endif
    write(istdout,'(a)')
 
 !  unrestricted atomic spin constants
 !  optimized scale factor for Mulliken spin densities
-   call setwll_pbe (xpar%wllscal)
+   call setwll_pbe (calc%param%wllscal)
 
 !  init GBSA part
    if(lgbsa) then
@@ -518,24 +519,25 @@ program XTBprog
 ! ======================================================================
 !  set up the basis set for the tb-Hamiltonian
 ! ======================================================================
-   call xbasis0(mol%n,mol%at,basis)
+   allocate(calc%basis)
+   call xbasis0(mol%n,mol%at,calc%basis)
    select case(gfn_method)
    case default
       call raise('E','Internal error, wrong GFN method passed!',1)
    case(p_method_gfn1xtb)
-      call xbasis_gfn1(mol%n,mol%at,basis,okbas,diff)
+      call xbasis_gfn1(mol%n,mol%at,calc%basis,okbas,diff)
    case(p_method_gfn2xtb)
-      call xbasis_gfn2(mol%n,mol%at,basis,okbas)
+      call xbasis_gfn2(mol%n,mol%at,calc%basis,okbas)
    case(p_method_gfn0xtb)
-      call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+      call xbasis_gfn0(mol%n,mol%at,calc%basis,okbas,diff)
    end select
    if (.not.okbas) call raise('E','TB basis incomplete',1)
-   call xbasis_cao2sao(mol%n,mol%at,basis)
+   call xbasis_cao2sao(mol%n,mol%at,calc%basis)
 
 ! ======================================================================
 !  initial guess, setup wavefunction
 ! ======================================================================
-   call wfn%allocate(mol%n,basis%nshell,basis%nao)
+   call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
 !  EN charges and CN
    if (runtyp.gt.1 .and. gfn_method.gt.0) then
@@ -546,7 +548,7 @@ program XTBprog
          call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
       endif
       if (guess_charges.eq.p_guess_gasteiger) then
-         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,xpar%ken1,wfn%q,cn,gfn_method,.true.)
+         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,calc%param%ken1,wfn%q,cn,gfn_method,.true.)
       else if (guess_charges.eq.p_guess_goedecker) then
          call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
          call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
@@ -559,10 +561,10 @@ program XTBprog
       continue
    else
       ! vTB case
-      call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,xpar%ken1,wfn%q,cn,0,.true.)
+      call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,calc%param%ken1,wfn%q,cn,0,.true.)
    endif
 !  initialize shell charges from gasteiger charges
-   call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
 !! ========================================================================
 !                         S C C  section
@@ -595,7 +597,7 @@ program XTBprog
 !  the SP energy which is always done
    call start_timing(2)
    call singlepoint &
-   &       (istdout,mol,wfn,basis,xpar, &
+   &       (istdout,mol,wfn,calc, &
    &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
 
@@ -615,12 +617,12 @@ program XTBprog
          mol%xyz(j,i) = mol%xyz(j,i) + step
          wfn = wf0
          call singlepoint &
-         &       (istdout,mol,wfn,basis,xpar, &
+         &       (istdout,mol,wfn,calc, &
          &        egap,etemp,maxscciter,0,.true.,.true.,acc,er,gdum,sdum,res)
          mol%xyz(j,i) = mol%xyz(j,i) - 2*step
          wfn = wf0
          call singlepoint &
-         &       (istdout,mol,wfn,basis,xpar, &
+         &       (istdout,mol,wfn,calc, &
          &        egap,etemp,maxscciter,0,.true.,.true.,acc,el,gdum,sdum,res)
          mol%xyz(j,i) = mol%xyz(j,i) + step
          numg(j,i) = step2 * (er - el)
@@ -645,12 +647,12 @@ program XTBprog
       call ancopt_header(istdout,veryverbose)
       call start_timing(3)
       call geometry_optimization &
-      &     (mol,wfn,basis,xpar, &
+      &     (mol,wfn,calc, &
       &      egap,etemp,maxscciter,optset%maxoptcycle,etot,g,sigma,optset%optlev,.true.,.false.,murks)
       res%e_total = etot
       res%gnorm = norm2(g)
       if (nscan.gt.0) then
-         call relaxed_scan(mol,wfn,basis,xpar)
+         call relaxed_scan(mol,wfn,calc)
       endif
       call stop_timing(3)
    endif
@@ -664,12 +666,12 @@ program XTBprog
       wfn%nel = wfn%nel-1
       if (mod(wfn%nel,2).ne.0) wfn%nopen = 1
       call singlepoint &
-      &       (istdout,mol,wfn,basis,xpar, &
+      &       (istdout,mol,wfn,calc, &
       &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ip=etot2-etot-xpar%ipshift
+      ip=etot2-etot-calc%param%ipshift
       write(istdout,'(72("-"))')
       write(istdout,'("empirical IP shift (eV):",f10.4)') &
-      &                  autoev*xpar%ipshift
+      &                  autoev*calc%param%ipshift
       write(istdout,'("delta SCC IP (eV):",f10.4)') autoev*ip
       write(istdout,'(72("-"))')
       wfn%nel = wfn%nel+1
@@ -683,12 +685,12 @@ program XTBprog
       wfn%nel = wfn%nel+1
       if (mod(wfn%nel,2).ne.0) wfn%nopen = 1
       call singlepoint &
-      &       (istdout,mol,wfn,basis,xpar, &
+      &       (istdout,mol,wfn,calc, &
       &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ea=etot-etot2-xpar%eashift
+      ea=etot-etot2-calc%param%eashift
       write(istdout,'(72("-"))')
       write(istdout,'("empirical EA shift (eV):",f10.4)') &
-      &                  autoev*xpar%eashift
+      &                  autoev*calc%param%eashift
       write(istdout,'("delta SCC EA (eV):",f10.4)') autoev*ea
       write(istdout,'(72("-"))')
 
@@ -719,14 +721,14 @@ program XTBprog
      wf_p%nel = wf_p%nel+1
      if (mod(wf_p%nel,2).ne.0) wf_p%nopen = 1
      call singlepoint &
-     &       (istdout,mol,wf_p,basis,xpar, &
+     &       (istdout,mol,wf_p,calc, &
      &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
      f_plus=wf_p%q-wfn%q
 
      wf_m%nel = wf_m%nel-1
      if (mod(wf_m%nel,2).ne.0) wf_m%nopen = 1
      call singlepoint &
-     &       (istdout,mol,wf_m,basis,xpar, &
+     &       (istdout,mol,wf_m,calc, &
      &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
      f_minus=wfn%q-wf_m%q
      write(istdout,'(a)')
@@ -746,7 +748,7 @@ program XTBprog
       endif
       call start_timing(5)
       call numhess &
-      &       (mol,wfn,basis,xpar, &
+      &       (mol,wfn,calc, &
       &        egap,etemp,maxscciter,etot,g,sigma,fres)
       call stop_timing(5)
    endif
@@ -785,16 +787,19 @@ program XTBprog
       write(*,*)'Periodic properties'
    else
       call main_property(iprop, &
-           mol%n,mol%at,mol%xyz,mol%z,basis%nshell,basis%nbf,basis%nao,wfn,basis,xpar,res,acc)
+           mol%n,mol%at,mol%xyz,mol%z,calc%basis%nshell,calc%basis%nbf, &
+           calc%basis%nao,wfn,calc%basis,calc%param,res,acc)
       call main_cube(verbose, &
-           mol%n,mol%at,mol%xyz,mol%z,basis%nshell,basis%nbf,basis%nao,wfn,basis,xpar,res)
+           mol%n,mol%at,mol%xyz,mol%z,calc%basis%nshell,calc%basis%nbf, &
+           calc%basis%nao,wfn,calc%basis,calc%param,res)
    endif
 
 
    if (pr_json) then
       call open_file(ich,'xtbout.json','w')
       call main_json(ich, &
-         mol%n,mol%at,mol%xyz,mol%z,basis%nshell,basis%nbf,basis%nao,wfn,basis,xpar,res,fres)
+         mol%n,mol%at,mol%xyz,mol%z,calc%basis%nshell,calc%basis%nbf, &
+         calc%basis%nao,wfn,calc%basis,calc%param,res,fres)
       call close_file(ich)
    endif
 
@@ -862,7 +867,7 @@ program XTBprog
       idum = 0
       if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
       call md &
-      &     (mol,wfn,basis,xpar, &
+      &     (mol,wfn,calc, &
       &      egap,etemp,maxscciter,etot,g,sigma,0,temp_md,idum)
       call stop_timing(6)
    endif
@@ -894,7 +899,7 @@ program XTBprog
             enddo
          enddo
          call geometry_optimization &
-         &     (mol,wfn,basis,xpar, &
+         &     (mol,wfn,calc, &
          &      egap,etemp,maxscciter,optset%maxoptcycle,etot,g,sigma,optset%optlev,verbose,.true.,murks)
          if (.not.verbose) then
             write(istdout,'("current energy:",1x,f20.8)') etot
@@ -927,7 +932,7 @@ program XTBprog
          call raise('S',"Metadynamics under PBC are not implemented",1)
       endif
       call start_timing(4)
-      call bias_path(mol,wfn,basis,xpar,egap,etemp,maxscciter,etot,g,sigma)
+      call bias_path(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(4)
    endif
 
@@ -935,7 +940,7 @@ program XTBprog
 !  screen over input structures
    if (runtyp.eq.p_run_screen) then
       call start_timing(8)
-      call screen(mol,wfn,basis,xpar,egap,etemp,maxscciter,etot,g,sigma)
+      call screen(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(8)
    endif
 
@@ -952,7 +957,7 @@ program XTBprog
          call raise('S',"Modefollowing under PBC is not implemented",1)
       endif
       call start_timing(9)
-      call modefollow(mol,wfn,basis,xpar,egap,etemp,maxscciter,etot,g,sigma)
+      call modefollow(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(9)
    endif
 
@@ -960,7 +965,7 @@ program XTBprog
 !  optimize along MD from xtb.trj for conformer searches
    if (runtyp.eq.p_run_mdopt) then
       call start_timing(10)
-      call mdopt(mol,wfn,basis,xpar,egap,etemp,maxscciter,etot,g,sigma)
+      call mdopt(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(10)
    endif
 

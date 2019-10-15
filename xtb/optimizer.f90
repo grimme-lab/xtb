@@ -87,7 +87,7 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
 
 end subroutine get_optthr
 
-subroutine ancopt(iunit,ilog,mol,wfn,basis,param, &
+subroutine ancopt(iunit,ilog,mol,wfn,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
    use mctc_econv
    use mctc_la
@@ -95,8 +95,7 @@ subroutine ancopt(iunit,ilog,mol,wfn,basis,param, &
    use tbdef_molecule
    use tbdef_anc
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_timer
 
@@ -122,8 +121,7 @@ subroutine ancopt(iunit,ilog,mol,wfn,basis,param, &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -335,7 +333,7 @@ subroutine ancopt(iunit,ilog,mol,wfn,basis,param, &
 
 ! now everything is prepared for the optimization
    call relax(iunit,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
-              iii,wfn,basis,param, &
+              iii,wfn,calc, &
               egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged,timer,&
               optset%exact_rf)
 
@@ -407,7 +405,7 @@ end subroutine ancopt
 !! without going over the RESTART logical at the end of the subroutine.
 !* I have warned you, be careful not to break anything.
 subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
-      &          ii,wfn,basis,param, &
+      &          ii,wfn,calc, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
       &          timer,exact)
    use iso_fortran_env, wp => real64
@@ -415,8 +413,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use tbdef_molecule
    use tbdef_anc
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_timer
 
@@ -429,8 +426,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    type(tb_timer),       intent(inout) :: timer
    type(tb_anc),         intent(inout) :: anc
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
    integer, intent(in)    :: iunit
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: iupdat
@@ -504,7 +500,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
    call singlepoint &
-         (iunit,mol,wfn,basis,param, &
+         (iunit,mol,wfn,calc, &
           egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res)
    if (profile) call timer%measure(5)
 !  call timing(t0,w0)

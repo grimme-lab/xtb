@@ -19,15 +19,14 @@
 !  RMSD biased push/pull path finder (RMSD-BPP)
 !  SG 12/18
 !! ========================================================================
-subroutine bias_path(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
+subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use mctc_econv
 
    use tbdef_molecule
+   use tbdef_calculator
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
 
    use setparam
    use fixparam
@@ -39,8 +38,7 @@ subroutine bias_path(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
 
    type(tb_molecule),    intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfx
-   type(tb_basisset),    intent(in) :: xbas
-   type(scc_parameter),  intent(in) :: xpar
+   type(tb_calculator),  intent(in) :: calc
    integer, intent(in)    :: maxiter
    real(wp),intent(in)    :: epot
    real(wp),intent(in)    :: et
@@ -185,7 +183,7 @@ subroutine bias_path(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
 
       mol%xyz = xyz0
       call geometry_optimization &
-         &          (mol,wfx,xbas,xpar, &
+         &          (mol,wfx,calc, &
          &           egap,et,maxiter,maxoptiter,e,grd,sigma,optset%optlev, &
          &           .true.,.false.,fail)
       write(atmp,'("mv xtbopt.log xtbpath_biasopt_",i0,".xyz")') &
@@ -232,7 +230,7 @@ subroutine bias_path(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
          k=k+1
          mol%xyz=xyznew(:,:,i)
          call geometry_optimization &
-            &       (mol,wfx,xbas,xpar, &
+            &       (mol,wfx,calc, &
             &        egap,et,maxiter,maxoptiter,enew(k),grd,sigma,olev, &
             &        .false.,.true.,fail)
          if(k.gt.1.and.mod(k,10).eq.0)  &

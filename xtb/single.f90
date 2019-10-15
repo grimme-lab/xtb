@@ -34,7 +34,7 @@ module single
 contains
 
 subroutine singlepoint &
-&                 (iunit,mol,wfn,basis,param, &
+&                 (iunit,mol,wfn,calc, &
 &                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
    use iso_fortran_env, wp => real64
    use mctc_econv
@@ -43,8 +43,7 @@ subroutine singlepoint &
 !  type definitions
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
    use tbdef_pcem
 
@@ -69,8 +68,7 @@ subroutine singlepoint &
 !! ========================================================================
    type(tb_molecule), intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),intent(in) :: basis
-   type(scc_parameter),intent(in)  :: param
+   type(tb_calculator),intent(in) :: calc
    type(tb_pcem) :: pcem
    real(wp),intent(inout) :: egap
    real(wp),intent(in)    :: et
@@ -113,12 +111,12 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(iunit,mol,wfn,basis,param,pcem, &
+      call scf(iunit,mol,wfn,calc%basis,calc%param,pcem, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)
       call peeq &
-         & (iunit,mol,wfn,basis,param,egap,et,prlevel,lgrad,ccm,acc,etot,g,sigma,res)
+         & (iunit,mol,wfn,calc%basis,calc%param,egap,et,prlevel,lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)
       call ff_eg  (mol%n,mol%at,mol%xyz,etot,g)

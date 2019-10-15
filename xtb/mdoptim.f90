@@ -19,11 +19,10 @@ module mdoptim
    use iso_fortran_env, wp => real64
 contains
 
-subroutine mdopt(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
+subroutine mdopt(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    use tbdef_molecule
-   use tbdef_basisset
+   use tbdef_calculator
    use tbdef_wavefunction
-   use tbdef_param
    use tbdef_data
 
    use setparam
@@ -32,8 +31,7 @@ subroutine mdopt(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
    implicit none
    type(tb_molecule), intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfx
-   type(tb_basisset),  intent(in) :: xbas
-   type(scc_parameter),intent(in) :: xpar
+   type(tb_calculator),intent(in) :: calc
    integer  :: icall,maxiter
    real(wp) :: epot,et,egap
    real(wp), intent(inout) :: grd(3,mol%n)
@@ -76,7 +74,7 @@ subroutine mdopt(mol,wfx,xbas,xpar,egap,et,maxiter,epot,grd,sigma)
          mol%xyz=xyznew(:,:,i)*angtoau
 
          call geometry_optimization &
-            &      (mol,wfx,xbas,xpar, &
+            &      (mol,wfx,calc, &
             &       egap,etemp,maxscciter,optset%maxoptcycle,epot,grd,sigma, &
             &       optset%optlev,.false.,.true.,fail)
 

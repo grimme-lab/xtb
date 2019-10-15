@@ -16,14 +16,13 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine geometry_optimization &
-      &   (mol,wfn,basis,param,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
+      &   (mol,wfn,calc,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
       &    tight,pr,initial_sp,fail)
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
 
    use optimizer
@@ -40,8 +39,7 @@ subroutine geometry_optimization &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),  intent(in) :: calc
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
    real(wp),intent(inout) :: egap
@@ -93,24 +91,24 @@ subroutine geometry_optimization &
 
    if (initial_sp) then
       call singlepoint &
-         &(iunit,mol,wfn,basis,param, &
+         &(iunit,mol,wfn,calc, &
          & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res)
    endif
 
    select case(opt_engine)
    case(p_engine_rf)
       call ancopt &
-         &(iunit,ilog,mol,wfn,basis,param, &
+         &(iunit,ilog,mol,wfn,calc, &
          & egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
       ! required since ANCopt might perform an untracked displacement
       final_sp = .true.
    case(p_engine_lbfgs)
       call l_ancopt &
-         &(iunit,ilog,mol,wfn,basis,param, &
+         &(iunit,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
    case(p_engine_inertial)
       call fire &
-         &(iunit,ilog,mol,wfn,basis,param, &
+         &(iunit,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
    end select
 
@@ -131,7 +129,7 @@ subroutine geometry_optimization &
    if (final_sp) then
       if (pr) call generic_header(iunit,'Final Singlepoint',49,10)
       call singlepoint &
-         &(iunit,mol,wfn,basis,param, &
+         &(iunit,mol,wfn,calc, &
          & egap,et,maxiter,printlevel,.false.,.false.,1.0_wp,etot,g,sigma,res)
    endif
 

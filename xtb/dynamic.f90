@@ -132,15 +132,14 @@ subroutine boltz(n,t,e,p)
    p = p / sum(p)
 end subroutine boltz
 
-subroutine md(mol,wfx,xbas,xpar, &
+subroutine md(mol,wfx,calc, &
       &       egap,et,maxiter,epot,grd,sigma,icall,Tsoll,cdump2)
    use iso_fortran_env, only : wp => real64, istdout => output_unit
    use mctc_econv, only : autokcal, aatoau, amutokg, amutoau, fstoau
    use mctc_constants, only : pi, kB
    use tbdef_molecule
-   use tbdef_basisset
+   use tbdef_calculator
    use tbdef_wavefunction
-   use tbdef_param
    use tbdef_data
    use shake_module, only: do_shake,ncons,xhonly
    use aoparam
@@ -152,8 +151,7 @@ subroutine md(mol,wfx,xbas,xpar, &
    implicit none
    type(tb_molecule),intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfx
-   type(tb_basisset),  intent(in) :: xbas
-   type(scc_parameter),intent(in) :: xpar
+   type(tb_calculator),  intent(in) :: calc
    integer  :: icall
    integer, intent(in) :: maxiter
    integer, intent(inout) :: cdump2
@@ -346,7 +344,7 @@ subroutine md(mol,wfx,xbas,xpar, &
    grd=0.0_wp
    epot=0.0_wp
    call singlepoint &
-      &     (istdout,mol,wfx,xbas,xpar, &
+      &     (istdout,mol,wfx,calc, &
       &      egap,et,maxiter,0,.true.,.false.,1.0_wp,epot,grd,sigma,res)
 
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -387,7 +385,7 @@ subroutine md(mol,wfx,xbas,xpar, &
       epot=0.0_wp
       grd = 0.0_wp
       call singlepoint &
-         &     (istdout,mol,wfx,xbas,xpar, &
+         &     (istdout,mol,wfx,calc, &
          &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res)
 
       if (metaset%maxsave.ne.0) then

@@ -24,14 +24,13 @@ module screening
 
 contains
 
-subroutine screen(mol0,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
+subroutine screen(mol0,wfn,calc,egap,et,maxiter,epot,grd,sigma)
 
    use mctc_econv, only : autokcal, aatoau
 
    use tbdef_molecule
-   use tbdef_basisset
+   use tbdef_calculator
    use tbdef_wavefunction
-   use tbdef_param
    use tbdef_data
 
    use setparam
@@ -43,8 +42,7 @@ subroutine screen(mol0,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
 
    type(tb_molecule), intent(inout) :: mol0
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
    integer icall,maxiter
    real(wp) epot,et,egap
    real(wp), intent(inout) :: grd(3,mol0%n)
@@ -145,7 +143,7 @@ subroutine screen(mol0,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
          mol%xyz(1:3,1:mol%n)=xyznew(1:3,1:mol%n,i)
 
          call geometry_optimization &
-            &       (mol,wfn,basis,param, &
+            &       (mol,wfn,calc, &
             &        egap,et,maxiter,maxoptiter,ecnf(i),grd,sigma,optset%optlev, &
             &        .false.,.true.,fail)
 
