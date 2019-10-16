@@ -134,6 +134,7 @@ xtb_srcs += 'xtb/tbdef_timer.f90'
 xtb_srcs += 'xtb/tbdef_pcem.f90'
 xtb_srcs += 'xtb/tbdef_wsc.f90'
 xtb_srcs += 'xtb/tbdef_options.f90'
+xtb_srcs += 'xtb/tbdef_calculator.f90'
 
 # global data
 xtb_srcs += 'xtb/gfn0param.f90'

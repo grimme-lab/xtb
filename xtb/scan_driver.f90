@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine relaxed_scan(mol,wfx,xbas,xpar)
+subroutine relaxed_scan(mol,wfx,calc)
    use iso_fortran_env, wp => real64, id => output_unit
 
    use setparam
@@ -23,8 +23,7 @@ subroutine relaxed_scan(mol,wfx,xbas,xpar)
 
    use tbdef_molecule
    use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
+   use tbdef_calculator
    use tbdef_data
 
    use optimizer, only : wrlog2
@@ -32,9 +31,8 @@ subroutine relaxed_scan(mol,wfx,xbas,xpar)
    implicit none
 
    type(tb_molecule), intent(inout) :: mol
-   type(tb_basisset),  intent(in) :: xbas
+   type(tb_calculator),intent(in) :: calc
    type(tb_wavefunction),intent(inout) :: wfx
-   type(scc_parameter),intent(in) :: xpar
 
    integer  :: ilog ! file handle
    real(wp) :: egap
@@ -80,7 +78,7 @@ subroutine relaxed_scan(mol,wfx,xbas,xpar)
             if (.not.verbose) &
                write(id,'("... step",1x,i0,1x,"...")') k
             call geometry_optimization &
-               &(mol,wfx,xbas,xpar, &
+               &(mol,wfx,calc, &
                & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
             efix = 0.0_wp
             call constrpot(mol%n,mol%at,mol%xyz,g,efix)
@@ -111,7 +109,7 @@ subroutine relaxed_scan(mol,wfx,xbas,xpar)
          if (.not.verbose) &
             write(id,'("... step",1x,i0,1x,"...")')   j
          call geometry_optimization &
-            &(mol,wfx,xbas,xpar, &
+            &(mol,wfx,calc, &
             & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
          efix = 0.0_wp
          call constrpot(mol%n,mol%at,mol%xyz,g,efix)

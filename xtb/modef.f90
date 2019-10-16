@@ -25,16 +25,15 @@ contains
    ! mode_local = 1 : conformational PES scan based on localized normal coords
    ! mode_local =-1 : PES scan for anharmonic corrections (ie no minima opt.)
 
-subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
+subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    use iso_fortran_env, wp => real64, istdout => output_unit
    use iso_c_binding, only : c_null_char
 
    use mctc_econv, only : autokcal, aatoau, autorcm, amutoau
 
    use tbdef_molecule
-   use tbdef_basisset
+   use tbdef_calculator
    use tbdef_wavefunction
-   use tbdef_param
    use tbdef_data
 
    use setparam
@@ -44,8 +43,7 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
    intrinsic date_and_time
    type(tb_molecule), intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
-   type(tb_basisset),  intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
+   type(tb_calculator),intent(in) :: calc
    integer :: icall,maxiter
    real(wp) :: epot,et,egap
    real(wp), intent(inout) :: grd(3,mol%n)
@@ -154,7 +152,7 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
          k=k+1
          mol%xyz(1:3,1:mol%n)=xyza(1:3,1:mol%n,ii)/aatoau
          call geometry_optimization &
-         &          (mol,wfn,basis,param, &
+         &          (mol,wfn,calc, &
          &           egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
          &           .false.,.true.,fail)
          kk=k
@@ -249,7 +247,7 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
    allocate(e(np))
 
    !     check if input is ok
-   call singlepoint(istdout,mol,wfn,basis,param, &
+   call singlepoint(istdout,mol,wfn,calc, &
    &         egap,et,maxiter,0,.true.,.true.,1.0d0,e(nstep+1),grd,sigma,res)
    dum=sqrt(sum(grd**2))
    write(*,'(''RMS gradient         :'',F10.5)')dum
@@ -291,11 +289,11 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
       !        call intmodestep(n,bmat,uu,-step,geo,na,nb,nc,mol%xyz)
       coord0 = mol%xyz
       if(scfonly)then
-         call singlepoint(istdout,mol,wfn,basis,param, &
+         call singlepoint(istdout,mol,wfn,calc, &
          &         egap,et,maxiter,0,.true.,.false.,1.0d0,e(nstep-ss+1),grd,sigma,res)
       else
          call geometry_optimization &
-         &       (mol,wfn,basis,param, &
+         &       (mol,wfn,calc, &
          &        egap,et,maxiter,maxoptiter,e(nstep-ss+1),grd,sigma,optset%optlev, &
          &        .false.,.true.,fail)
       endif
@@ -334,11 +332,11 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
       !        call intmodestep(n,bmat,uu,step,geo,na,nb,nc,mol%xyz)
       coord0 = mol%xyz
       if(scfonly)then
-         call singlepoint(istdout,mol,wfn,basis,param, &
+         call singlepoint(istdout,mol,wfn,calc, &
          &         egap,et,maxiter,0,.true.,.false.,1.0d0,e(nstep+ss+1),grd,sigma,res)
       else
          call geometry_optimization &
-         &       (mol,wfn,basis,param, &
+         &       (mol,wfn,calc, &
          &        egap,et,maxiter,maxoptiter,e(nstep+ss+1),grd,sigma,optset%optlev, &
          &        .false.,.true.,fail)
       endif
@@ -452,7 +450,7 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
                &                 '' re-opt:'')') k,ii
                mol%xyz = xyza(:,:,map(ii))
                call geometry_optimization &
-               &          (mol,wfn,basis,param, &
+               &          (mol,wfn,calc, &
                &           egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
                &           .false.,.true.,fail)
                kk=k
@@ -488,7 +486,7 @@ subroutine modefollow(mol,wfn,basis,param,egap,et,maxiter,epot,grd,sigma)
          write(*,'(''re-opt at point '',i2)') k
          mol%xyz=xyza(:,:,k)
          call geometry_optimization &
-         &       (mol,wfn,basis,param, &
+         &       (mol,wfn,calc, &
          &        egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
          &        .false.,.true.,fail)
          kk=k
