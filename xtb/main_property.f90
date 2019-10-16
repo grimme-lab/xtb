@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module property_output
+
+contains
+
 subroutine write_energy(iunit,sccres,frqres,hess)
    use iso_fortran_env, wp => real64
    use tbdef_data
@@ -40,13 +44,14 @@ subroutine write_energy(iunit,sccres,frqres,hess)
 end subroutine write_energy
 
 subroutine main_property &
-      (iunit,n,at,xyz,z,nshell,nbf,nao,wfx,basis,xpar,res,acc)
+      (iunit,mol,wfx,basis,xpar,res,acc)
    use iso_fortran_env, wp => real64
 
    use mctc_econv
 
 !! ========================================================================
 !  load class definitions
+   use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
    use tbdef_data
@@ -61,19 +66,14 @@ subroutine main_property &
 !! ------------------------------------------------------------------------
    use scc_core, only : wiberg
    use aespot
+   use dtrafo
 
    implicit none
 
 !! ========================================================================
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
 !  molecule data
-   integer, intent(in) :: n        ! number of atoms
-   integer, intent(in) :: at(n)    ! atom types
-   real(wp),intent(in) :: xyz(3,n) ! cartesian coordinates
-   real(wp),intent(in) :: z(n)     ! nuclear charges
-   integer, intent(in) :: nshell   ! number of shells in basis
-   integer, intent(in) :: nbf      ! number of basis functions
-   integer, intent(in) :: nao      ! number of spherical atomic orbitals
+   type(tb_molecule), intent(in) :: mol
    real(wp),intent(in) :: acc      ! accuracy of integral calculation
    type(tb_wavefunction),intent(inout) :: wfx
    type(tb_basisset),    intent(in) :: basis
@@ -98,9 +98,9 @@ subroutine main_property &
    intcut=max(20.0_wp,intcut)
 !  integral neglect threshold
    neglect =10.0d-9*acc
-   ndim = nao*(nao+1)/2
-   allocate(S(nao,nao), dpint(3,ndim), qpint(6,ndim), source = 0.0_wp )
-   call sdqint(n,at,nbf,nao,xyz,neglect,ndp,nqp,intcut, &
+   ndim = basis%nao*(basis%nao+1)/2
+   allocate(S(basis%nao,basis%nao), dpint(3,ndim), qpint(6,ndim), source = 0.0_wp )
+   call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 
@@ -113,36 +113,36 @@ subroutine main_property &
 !! Mulliken and CM5 charges
    if (pr_mulliken.and.gfn_method.eq.1) then
       call open_file(ifile,'charges','w')
-      call print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,wfx%P,basis%aoat2,basis%lao2)
+      call print_mulliken(iunit,ifile,mol%n,mol%at,mol%xyz,mol%z,basis%nao,S,wfx%P,basis%aoat2,basis%lao2)
       call close_file(ifile)
    else if (pr_charges) then
       call open_file(ifile,'charges','w')
-      call print_charges(ifile,n,wfx%q)
+      call print_charges(ifile,mol%n,wfx%q)
       call close_file(ifile)
    endif
 
    ! GBSA information
    if (lgbsa.and.pr_gbsa) then
-      call new_gbsa(gbsa,n,at)
-      call update_nnlist_gbsa(gbsa,xyz,.false.)
-      call compute_brad_sasa(gbsa,xyz)
+      call new_gbsa(gbsa,mol%n,mol%at)
+      call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
+      call compute_brad_sasa(gbsa,mol%xyz)
       call print_gbsa_info(iunit,gbsa)
    endif
 
 !! D4 molecular dispersion printout
    if ((newdisp.and.gfn_method.eq.2).and.pr_mulliken) &
-   call print_molpol(iunit,n,at,xyz,wfx%q,xpar%wf,xpar%g_a,xpar%g_c)
+   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xpar%wf,xpar%g_a,xpar%g_c)
    if (gfn_method.eq.0.and.pr_mulliken) &
-   call print_molpol(iunit,n,at,xyz,wfx%q,xpar%wf,xpar%g_a,xpar%g_c)
+   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xpar%wf,xpar%g_a,xpar%g_c)
 
 !! Spin population
    if (pr_spin_population .and. wfx%nopen.ne.0) &
-   call print_spin_population(iunit,n,at,nao,wfx%focca,wfx%foccb,S,wfx%C, &
+   call print_spin_population(iunit,mol%n,mol%at,basis%nao,wfx%focca,wfx%foccb,S,wfx%C, &
    &                          basis%aoat2,basis%lao2)
 
    if (pr_fod_pop) then
       call open_file(ifile,'fod','w')
-      call print_fod_population(iunit,ifile,n,at,nao,S,wfx%C,etemp,wfx%emo, &
+      call print_fod_population(iunit,ifile,mol%n,mol%at,basis%nao,S,wfx%C,etemp,wfx%emo, &
                                 wfx%ihomoa,wfx%ihomob,basis%aoat2,basis%lao2)
       call close_file(ifile)
    endif
@@ -150,40 +150,40 @@ subroutine main_property &
 
 !! wiberg bond orders
    if (pr_wiberg.and.gfn_method.eq.0) &
-   call wiberg(n,nao,at,xyz,wfx%P,S,wfx%wbo,.false.,.false.,basis%fila2)
+   call wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfx%P,S,wfx%wbo,.false.,.false.,basis%fila2)
    if (pr_wiberg) &
-   call print_wiberg(iunit,n,at,wfx%wbo,0.1_wp)
+   call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
 
    if (pr_wbofrag) &
-   call print_wbo_fragment(iunit,n,at,wfx%wbo,0.1_wp)
+   call print_wbo_fragment(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
 
 !! molden file
    if (pr_molden_input) then
-      allocate(C(nbf,nao),focc(nao),emo(nao), source = 0.0_wp)
-      if (nbf.eq.nao) then
+      allocate(C(basis%nbf,basis%nao),focc(basis%nao),emo(basis%nao), source = 0.0_wp)
+      if (basis%nbf.eq.basis%nao) then
          C = wfx%C
       else
-         call sao2cao(nao,wfx%C,nbf,C)
+         call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
       emo  = wfx%emo * evtoau
       focc = wfx%focca + wfx%foccb
-      call printmold(n,nao,nbf,xyz,at,C,emo,focc,2.0_wp,basis)
+      call printmold(mol%n,basis%nao,basis%nbf,mol%xyz,mol%at,C,emo,focc,2.0_wp,basis)
       write(iunit,'(/,"MOs/occ written to file <molden.input>",/)')
       deallocate(C,focc,emo)
    endif
 
    if (pr_gbw) &
-   call wrgbw(n,at,xyz,z,basis,wfx)
+   call wrgbw(mol%n,mol%at,mol%xyz,mol%z,basis,wfx)
 
    if (pr_tmbas .or. pr_tmmos) then
       call open_file(ifile,'basis','w')
-      call write_tm_basis(ifile,n,at,basis,wfx)
+      call write_tm_basis(ifile,mol%n,mol%at,basis,wfx)
       close(ifile)
    endif
 
    if (pr_tmmos) then
       call open_file(ifile,'mos','w')
-      call write_tm_mos(ifile,n,at,basis,wfx)
+      call write_tm_mos(ifile,mol%n,mol%at,basis,wfx)
       close(ifile)
    endif
 
@@ -191,23 +191,24 @@ subroutine main_property &
    if (pr_dipole) then
       if (gfn_method.gt.1) then
          ! print overall multipole moment
-         call molmom(iunit,n,xyz,wfx%q,wfx%dipm,wfx%qp,dip,dipol)
+         call molmom(iunit,mol%n,mol%xyz,wfx%q,wfx%dipm,wfx%qp,dip,dipol)
          write(iunit,'(a)')
       else
-         call print_dipole(iunit,n,at,xyz,z,nao,wfx%P,dpint)
+         call print_dipole(iunit,mol%n,mol%at,mol%xyz,mol%z,wfx%nao,wfx%P,dpint)
       endif
    endif
 
 end subroutine main_property
 
 subroutine main_cube &
-      (lverbose,n,at,xyz,z,nshell,nbf,nao,wfx,basis,xpar,res)
+      (lverbose,mol,wfx,basis,xpar,res)
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use mctc_econv
 
 !! ========================================================================
 !  load class definitions
+   use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
    use tbdef_data
@@ -223,19 +224,14 @@ subroutine main_cube &
    use scc_core
    use esp
    use stm
+   use dtrafo
 
    implicit none
 
 !! ========================================================================
    logical, intent(in) :: lverbose
 !  molecule data
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: z(n)
-   integer, intent(in) :: nshell
-   integer, intent(in) :: nbf
-   integer, intent(in) :: nao
+   type(tb_molecule), intent(in) :: mol
    type(tb_wavefunction),intent(in) :: wfx
    type(tb_basisset),    intent(in) :: basis
    type(scc_parameter),  intent(in) :: xpar
@@ -254,87 +250,87 @@ subroutine main_cube &
 !! ------------------------------------------------------------------------
 !  FOD
    if (pr_fod) then
-      allocate( C(nbf,nao), focca(nao), foccb(nao), focc(nao), emo(nao), &
+      allocate( C(basis%nbf,basis%nao), focca(basis%nao), foccb(basis%nao), focc(basis%nao), emo(basis%nao), &
                 source = 0.0_wp )
-      if(wfx%ihomoa+1.le.nao) &
-         call fermismear(.false.,nao,wfx%ihomoa,etemp,wfx%emo,focca,nfoda,efa,ga)
-      if(wfx%ihomob+1.le.nao) &
-         call fermismear(.false.,nao,wfx%ihomob,etemp,wfx%emo,foccb,nfodb,efb,gb)
+      if(wfx%ihomoa+1.le.basis%nao) &
+         call fermismear(.false.,basis%nao,wfx%ihomoa,etemp,wfx%emo,focca,nfoda,efa,ga)
+      if(wfx%ihomob+1.le.basis%nao) &
+         call fermismear(.false.,basis%nao,wfx%ihomob,etemp,wfx%emo,foccb,nfodb,efb,gb)
       emo = wfx%emo * evtoau
-      call fodenmak(.true.,nao,emo,focca,efa)
-      call fodenmak(.true.,nao,emo,foccb,efb)
+      call fodenmak(.true.,basis%nao,emo,focca,efa)
+      call fodenmak(.true.,basis%nao,emo,foccb,efb)
       focc = focca+foccb
-      if(nbf.eq.nao) then
+      if(basis%nbf.eq.basis%nao) then
          C = wfx%C
       else
-         call sao2cao(nao,wfx%C,nbf,C)
+         call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
       if (lverbose) &
       write(istdout,'(/,"FOD written to file: ''fod.cub''",/)')
-      call cube(n,nao,nbf,xyz,at,C,emo,focc,'fod.cub',basis)
+      call cube(mol%n,basis%nao,basis%nbf,mol%xyz,mol%at,C,emo,focc,'fod.cub',basis)
       deallocate(C, focca, foccb, focc, emo)
    endif
 
 !! ------------------------------------------------------------------------
 !  print spin density to cube file
    if (pr_spin_density.and.wfx%nopen.ne.0) then
-      allocate( C(nbf,nao), focc(nao), emo(nao), source = 0.0_wp )
-      if(nbf.eq.nao) then
+      allocate( C(basis%nbf,basis%nao), focc(basis%nao), emo(basis%nao), source = 0.0_wp )
+      if(basis%nbf.eq.basis%nao) then
          C = wfx%C
       else
-         call sao2cao(nao,wfx%C,nbf,C)
+         call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
       if (lverbose) &
       write(istdout,'(/,"(R)spin-density written to file: ''spindensity.cub''",/)')
       emo = wfx%emo * evtoau
       focc = wfx%focca - wfx%foccb
-      call cube(n,nao,nbf,xyz,at,C,emo,focc,'spindensity.cub',basis)
+      call cube(mol%n,basis%nao,basis%nbf,mol%xyz,mol%at,C,emo,focc,'spindensity.cub',basis)
       deallocate(C, focc, emo)
    endif
 
 !! ------------------------------------------------------------------------
 !  print density to cube file
    if (pr_density) then
-      allocate( C(nbf,nao), emo(nao), source = 0.0_wp )
-      if(nbf.eq.nao) then
+      allocate( C(basis%nbf,basis%nao), emo(basis%nao), source = 0.0_wp )
+      if(basis%nbf.eq.basis%nao) then
          C = wfx%C
       else
-         call sao2cao(nao,wfx%C,nbf,C)
+         call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
       if (lverbose) &
       write(istdout,'(/,"density written to file: ''density.cub''",/)')
       emo = wfx%emo * evtoau
-      call cube(n,nao,nbf,xyz,at,C,emo,wfx%focc,'density.cub',basis)
+      call cube(mol%n,basis%nao,basis%nbf,mol%xyz,mol%at,C,emo,wfx%focc,'density.cub',basis)
       deallocate(C, emo)
    endif
 
 !! ------------------------------------------------------------------------
 !  make an ESP plot
    if (pr_esp) then
-      allocate( C(nbf,nao), source = 0.0_wp )
-      if(nbf.eq.nao) then
+      allocate( C(basis%nbf,basis%nao), source = 0.0_wp )
+      if(basis%nbf.eq.basis%nao) then
          C = wfx%C
       else
-         call sao2cao(nao,wfx%C,nbf,C)
+         call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
-      call espplot(n,nao,nbf,at,xyz,z,wfx%focc,C,basis)
+      call espplot(mol%n,basis%nao,basis%nbf,mol%at,mol%xyz,mol%z,wfx%focc,C,basis)
       deallocate(C)
    endif
 
 !! ------------------------------------------------------------------------
 !  make a STM image
    if (pr_stm) then
-      allocate( C(nbf,nao), focc(nao), source = 0.0_wp )
-      if(nbf.eq.nao) then
+      allocate( C(basis%nbf,basis%nao), focc(basis%nao), source = 0.0_wp )
+      if(basis%nbf.eq.basis%nao) then
          C = wfx%C
       else
-         call sao2cao(nao,wfx%C,nbf,C)
+         call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
-      if(wfx%ihomoa+1.le.nao) &
-         call fermismear(.false.,nao,wfx%ihomoa,etemp,wfx%emo,focc,nfoda,efa,ga)
-      if(wfx%ihomob+1.le.nao) &
-         call fermismear(.false.,nao,wfx%ihomob,etemp,wfx%emo,focc,nfodb,efb,gb)
-      call stmpic(n,nao,nbf,at,xyz,C,0.5_wp*(efa+efb),wfx%emo,basis)
+      if(wfx%ihomoa+1.le.wfx%nao) &
+         call fermismear(.false.,basis%nao,wfx%ihomoa,etemp,wfx%emo,focc,nfoda,efa,ga)
+      if(wfx%ihomob+1.le.wfx%nao) &
+         call fermismear(.false.,basis%nao,wfx%ihomob,etemp,wfx%emo,focc,nfodb,efb,gb)
+      call stmpic(mol%n,basis%nao,basis%nbf,mol%at,mol%xyz,C,0.5_wp*(efa+efb),wfx%emo,basis)
       deallocate(C, focc)
    endif
 
@@ -342,13 +338,14 @@ subroutine main_cube &
 end subroutine main_cube
 
 subroutine main_freq &
-      (iunit,n,at,xyz,z,wfx,res)
+      (iunit,mol,wfx,res)
    use iso_fortran_env, wp => real64
 
    use mctc_econv
 
 !! ========================================================================
 !  load class definitions
+   use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
    use tbdef_data
@@ -368,10 +365,7 @@ subroutine main_freq &
 !! ========================================================================
    integer, intent(in) :: iunit
 !  molecule data
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: z(n)
+   type(tb_molecule), intent(in) :: mol
    type(tb_wavefunction),intent(in) :: wfx
    type(freq_results),   intent(inout) :: res
 
@@ -386,8 +380,8 @@ subroutine main_freq &
    real(wp) :: etot,h298,dum
    integer  :: lowmode
 
-   allocate( molvec(n), bond(n,n), source = 0 )
-   allocate( xyz0(3,n), h(3*n,3*n), cn(n), source = 0.0_wp )
+   allocate( molvec(mol%n), bond(mol%n,mol%n), source = 0 )
+   allocate( xyz0(3,mol%n), h(3*mol%n,3*mol%n), cn(mol%n), source = 0.0_wp )
 
    if(res%linear)then
       write(iunit,'(1x,a)') 'vibrational frequencies (cm-1)'
@@ -411,10 +405,10 @@ subroutine main_freq &
    write(iunit,'(1x,a)') 'writing <g98.out> molden fake output.'
    write(iunit,'(1x,a)') &
       & 'recommended (thermochemical) frequency scaling factor: 1.0'
-   call g98fake2('g98.out',n,at,xyz,res%freq,res%rmass,res%dipt,res%hess)
+   call g98fake2('g98.out',mol%n,mol%at,mol%xyz,res%freq,res%rmass,res%dipt,res%hess)
 
    call generic_header(iunit,"Thermodynamic Functions",49,10)
-   call print_thermo(iunit,n,res%n3true,at,xyz,res%freq,res%etot,res%htot,res%gtot,res%nimag,.true.)
+   call print_thermo(iunit,mol%n,res%n3true,mol%at,mol%xyz,res%freq,res%etot,res%htot,res%gtot,res%nimag,.true.)
    res%pg = trim(pgroup)
    res%temp = thermotemp(nthermo)
    if (enso_mode) then
@@ -426,25 +420,25 @@ subroutine main_freq &
    endif
 
    ! distort along imags if present
-   xyz0 = xyz
-   call distort(n,at,xyz0,res%freq,res%hess)
+   xyz0 = mol%xyz
+   call distort(mol%n,mol%at,xyz0,res%freq,res%hess)
 
-   if(pr_modef .and. (n.gt.3)) then
+   if(pr_modef .and. (mol%n.gt.3)) then
 
       ! do analysis and write mode following file
-      call wrmodef(0,n,at,xyz,wfx%wbo,res%rmass,res%freq,res%hess,h,mode_vthr,res%linear)
+      call wrmodef(0,mol%n,mol%at,mol%xyz,wfx%wbo,res%rmass,res%freq,res%hess,h,mode_vthr,res%linear)
 
       ! localize the modes
       if(mode_vthr.gt.1.d-6)then
          ! determine molecular fragments
-         call ncoord_erf(n,at,xyz,cn)
-         call cutcov(n,at,xyz,cn,wfx%wbo,bond)
-         call mrec(i,xyz,cn,bond,n,at,molvec)
-         call locmode(n,res%n3,at,xyz,mode_vthr,res%freq,res%rmass,res%hess, &
+         call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+         call cutcov(mol%n,mol%at,mol%xyz,cn,wfx%wbo,bond)
+         call mrec(i,mol%xyz,cn,bond,mol%n,mol%at,molvec)
+         call locmode(mol%n,res%n3,mol%at,mol%xyz,mode_vthr,res%freq,res%rmass,res%hess, &
                       i,molvec)
          call PREIGF0(iunit,res%freq,res%n3true)
          write(iunit,'("written to xtb_localmodes and g98l.out")')
-         call wrmodef(1,n,at,xyz,wfx%wbo,res%rmass,res%freq,res%hess, &
+         call wrmodef(1,mol%n,mol%at,mol%xyz,wfx%wbo,res%rmass,res%freq,res%hess, &
                       h,mode_vthr+200.0_wp,res%linear)
       endif
 
@@ -892,69 +886,6 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
 
 end subroutine print_fod_population
 
-subroutine print_orbital_eigenvalues(iunit,wfn,range)
-   use iso_fortran_env, wp => real64
-   use mctc_econv
-   use tbdef_wavefunction
-   implicit none
-   integer, intent(in) :: iunit
-   integer, intent(in) :: range
-   type(tb_wavefunction),intent(in) :: wfn
-   character(len=*),parameter :: hlfmt = '(    a24,f21.7,1x,"Eh",f18.4,1x,"eV")'
-   integer :: maxorb,minorb,iorb
-   real(wp) :: gap
-
-   minorb = max(wfn%ihomoa - (range+1), 1)
-   maxorb = min(wfn%ihomoa +  range, wfn%nao)
-   gap = wfn%emo(wfn%ihomoa+1) - wfn%emo(wfn%ihomoa)
-
-   write(iunit,'(a)')
-   write(iunit,'(a10,a14,a21,a21)') "#","Occupation","Energy/Eh","Energy/eV"
-   write(iunit,'(6x,61("-"))')
-   if (minorb .gt. 1) then
-      call write_line(1,wfn%focc,wfn%emo,wfn%ihomo)
-      if (minorb .gt. 2) &
-         write(iunit,'(a10,a14,a21,a21)') "...","...","...","..."
-   endif
-   do iorb = minorb,maxorb
-      call write_line(iorb,wfn%focc,wfn%emo,wfn%ihomo)
-   enddo
-   if (maxorb .lt. wfn%nao) then
-      if (maxorb .lt. wfn%nao-1) then
-         if (wfn%focc(maxorb) > 1.0e-7_wp) then
-            write(iunit,'(a10,a14,a21,a21)') "...","...","...","..."
-         else
-            write(iunit,'(a10,a14,a21,a21)') "...",   "","...","..."
-         endif
-      endif
-      call write_line(wfn%nao,wfn%focc,wfn%emo,wfn%ihomo)
-   endif
-   write(iunit,'(6x,61("-"))')
-   write(iunit,hlfmt) "HL-Gap",gap*evtoau,gap
-   write(iunit,hlfmt) "Fermi-level",(wfn%efa+wfn%efb)/2*evtoau,(wfn%efa+wfn%efb)/2
-contains
-subroutine write_line(iorb,focc,emo,ihomo)
-   integer, intent(in) :: iorb
-   integer, intent(in) :: ihomo
-   real(wp),intent(in) :: focc(:)
-   real(wp),intent(in) :: emo (:)
-   character(len=*),parameter :: mofmt = '(i10,f14.4,f21.7,f21.4)'
-   character(len=*),parameter :: vofmt = '(i10,14x,  f21.7,f21.4)'
-   if (focc(iorb) < 1.0e-7_wp) then
-      write(iunit,vofmt,advance='no') iorb,             emo(iorb)*evtoau, emo(iorb)
-   else
-      write(iunit,mofmt,advance='no') iorb, focc(iorb), emo(iorb)*evtoau, emo(iorb)
-   endif
-   if (iorb == ihomo) then
-      write(iunit,'(1x,"(HOMO)")')
-   elseif (iorb == ihomo+1) then
-      write(iunit,'(1x,"(LUMO)")')
-   else
-      write(iunit,'(a)')
-   endif
-end subroutine write_line
-end subroutine print_orbital_eigenvalues
-
 subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr)
    use iso_fortran_env, only : wp => real64
    use mctc_econv
@@ -1255,3 +1186,68 @@ subroutine print_gbsa_info(iunit,gbsa)
       
 
 end subroutine print_gbsa_info
+
+end module property_output
+
+subroutine print_orbital_eigenvalues(iunit,wfn,range)
+   use iso_fortran_env, wp => real64
+   use mctc_econv
+   use tbdef_wavefunction
+   implicit none
+   integer, intent(in) :: iunit
+   integer, intent(in) :: range
+   type(tb_wavefunction),intent(in) :: wfn
+   character(len=*),parameter :: hlfmt = '(    a24,f21.7,1x,"Eh",f18.4,1x,"eV")'
+   integer :: maxorb,minorb,iorb
+   real(wp) :: gap
+
+   minorb = max(wfn%ihomoa - (range+1), 1)
+   maxorb = min(wfn%ihomoa +  range, wfn%nao)
+   gap = wfn%emo(wfn%ihomoa+1) - wfn%emo(wfn%ihomoa)
+
+   write(iunit,'(a)')
+   write(iunit,'(a10,a14,a21,a21)') "#","Occupation","Energy/Eh","Energy/eV"
+   write(iunit,'(6x,61("-"))')
+   if (minorb .gt. 1) then
+      call write_line(1,wfn%focc,wfn%emo,wfn%ihomo)
+      if (minorb .gt. 2) &
+         write(iunit,'(a10,a14,a21,a21)') "...","...","...","..."
+   endif
+   do iorb = minorb,maxorb
+      call write_line(iorb,wfn%focc,wfn%emo,wfn%ihomo)
+   enddo
+   if (maxorb .lt. wfn%nao) then
+      if (maxorb .lt. wfn%nao-1) then
+         if (wfn%focc(maxorb) > 1.0e-7_wp) then
+            write(iunit,'(a10,a14,a21,a21)') "...","...","...","..."
+         else
+            write(iunit,'(a10,a14,a21,a21)') "...",   "","...","..."
+         endif
+      endif
+      call write_line(wfn%nao,wfn%focc,wfn%emo,wfn%ihomo)
+   endif
+   write(iunit,'(6x,61("-"))')
+   write(iunit,hlfmt) "HL-Gap",gap*evtoau,gap
+   write(iunit,hlfmt) "Fermi-level",(wfn%efa+wfn%efb)/2*evtoau,(wfn%efa+wfn%efb)/2
+contains
+subroutine write_line(iorb,focc,emo,ihomo)
+   integer, intent(in) :: iorb
+   integer, intent(in) :: ihomo
+   real(wp),intent(in) :: focc(:)
+   real(wp),intent(in) :: emo (:)
+   character(len=*),parameter :: mofmt = '(i10,f14.4,f21.7,f21.4)'
+   character(len=*),parameter :: vofmt = '(i10,14x,  f21.7,f21.4)'
+   if (focc(iorb) < 1.0e-7_wp) then
+      write(iunit,vofmt,advance='no') iorb,             emo(iorb)*evtoau, emo(iorb)
+   else
+      write(iunit,mofmt,advance='no') iorb, focc(iorb), emo(iorb)*evtoau, emo(iorb)
+   endif
+   if (iorb == ihomo) then
+      write(iunit,'(1x,"(HOMO)")')
+   elseif (iorb == ihomo+1) then
+      write(iunit,'(1x,"(LUMO)")')
+   else
+      write(iunit,'(a)')
+   endif
+end subroutine write_line
+end subroutine print_orbital_eigenvalues

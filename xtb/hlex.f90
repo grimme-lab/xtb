@@ -19,6 +19,7 @@ subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga,basis)
    use iso_fortran_env, wp => real64
    use mctc_econv, only : autoev,evtoau
    use tbdef_basisset
+   use dtrafo
    implicit none
    type(tb_basisset), intent(in) :: basis
    integer, intent(in)  :: nao,ihomo,nat,at(nat),nbf

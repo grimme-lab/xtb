@@ -55,11 +55,12 @@
 !    "version": 6.1
 ! }
 subroutine main_json &
-      (ijson,n,at,xyz,z,nshell,nbf,nao,wfx,xbas,xpar,sccres,freqres)
+      (ijson,mol,wfx,xbas,xpar,sccres,freqres)
    use iso_fortran_env, wp => real64
 
 !! ========================================================================
 !  load class definitions
+   use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
    use tbdef_data
@@ -75,13 +76,7 @@ subroutine main_json &
 !! ========================================================================
    integer, intent(in) :: ijson ! file handle (usually json-file)
 !  molecule data
-   integer, intent(in) :: n        ! number of atoms
-   integer, intent(in) :: at(n)    ! atom types
-   real(wp),intent(in) :: xyz(3,n) ! cartesian coordinates
-   real(wp),intent(in) :: z(n)     ! nuclear charges
-   integer, intent(in) :: nshell   ! number of shells in basis
-   integer, intent(in) :: nbf      ! number of basis functions
-   integer, intent(in) :: nao      ! number of spherical atomic orbitals
+   type(tb_molecule), intent(in) :: mol
    type(tb_wavefunction),intent(in) :: wfx
    type(tb_basisset),    intent(in) :: xbas
    type(scc_parameter),  intent(in) :: xpar
