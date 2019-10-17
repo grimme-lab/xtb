@@ -135,6 +135,7 @@ xtb_srcs += 'xtb/tbdef_pcem.f90'
 xtb_srcs += 'xtb/tbdef_wsc.f90'
 xtb_srcs += 'xtb/tbdef_options.f90'
 xtb_srcs += 'xtb/tbdef_calculator.f90'
+xtb_srcs += 'xtb/tbdef_atomlist.f90'
 
 # global data
 xtb_srcs += 'xtb/gfn0param.f90'
@@ -331,6 +332,7 @@ xtb_test += 'TESTSUITE/gfn0.f90'
 xtb_test += 'TESTSUITE/peeq.f90'
 xtb_test += 'TESTSUITE/symmetry.f90'
 xtb_test += 'TESTSUITE/thermo.f90'
+xtb_test += 'TESTSUITE/tbdef_atomlist.f90'
 
 incdir = include_directories('include')
 
@@ -426,6 +428,8 @@ test('Geometry Reader: coord 1D',xtb_test,args: ['geometry_reader','coord_1d'])
 test('Geometry Reader: coord 0D',xtb_test,args: ['geometry_reader','coord_0d'])
 test('Geometry Reader: Xmol  0D',xtb_test,args: ['geometry_reader','xmol_0d'])
 test('Geometry Reader: POSCAR',  xtb_test,args: ['geometry_reader','poscar_3d'])
+
+test('IO: atom list', xtb_test, args: ['tbdef_atomlist', 'list'])
 
 test('PBC tools: convert',xtb_test,args: ['pbc_tools','convert'])
 test('PBC tools: cutoff', xtb_test,args: ['pbc_tools','cutoff'])

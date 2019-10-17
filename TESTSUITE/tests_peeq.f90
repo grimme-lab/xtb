@@ -107,6 +107,10 @@ program peeq_tester
       case('0d'); call test_wigner_seitz_0d
       case('3d'); call test_wigner_seitz_3d
       end select
+   case('tbdef_atomlist')
+      select case(sec)
+      case('list'); call test_atomlist
+      end select
    case('symmetry')
       select case(sec)
       case('water');  call test_symmetry_water
