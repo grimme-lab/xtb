@@ -171,6 +171,7 @@ subroutine test_print_thermo
    use splitparam
 
    use axis_trafo
+   use property_output
 
    implicit none
 

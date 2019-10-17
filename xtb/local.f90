@@ -22,6 +22,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use tbdef_basisset
    use setparam
    use scc_core, only : wiberg_nosort
+   use dtrafo
    implicit none
    type(tb_basisset), intent(in) :: basis
    integer, intent(in) :: nao,ihomo,nat,at(nat),nbf

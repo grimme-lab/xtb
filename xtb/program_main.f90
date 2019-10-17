@@ -64,6 +64,7 @@ program XTBprog
    use set_module
    use geometry_reader
    use write_geometry
+   use property_output
 
 !! ========================================================================
 !  get interfaces for methods used in this part
@@ -787,19 +788,16 @@ program XTBprog
       write(*,*)'Periodic properties'
    else
       call main_property(iprop, &
-           mol%n,mol%at,mol%xyz,mol%z,calc%basis%nshell,calc%basis%nbf, &
-           calc%basis%nao,wfn,calc%basis,calc%param,res,acc)
+           mol,wfn,calc%basis,calc%param,res,acc)
       call main_cube(verbose, &
-           mol%n,mol%at,mol%xyz,mol%z,calc%basis%nshell,calc%basis%nbf, &
-           calc%basis%nao,wfn,calc%basis,calc%param,res)
+           mol,wfn,calc%basis,calc%param,res)
    endif
 
 
    if (pr_json) then
       call open_file(ich,'xtbout.json','w')
       call main_json(ich, &
-         mol%n,mol%at,mol%xyz,mol%z,calc%basis%nshell,calc%basis%nbf, &
-         calc%basis%nao,wfn,calc%basis,calc%param,res,fres)
+         mol,wfn,calc%basis,calc%param,res,fres)
       call close_file(ich)
    endif
 
@@ -811,7 +809,7 @@ program XTBprog
 
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
       call generic_header(iprop,'Frequency Printout',49,10)
-      call main_freq(iprop,mol%n,mol%at,mol%xyz,mol%z,wfn,fres)
+      call main_freq(iprop,mol,wfn,fres)
    endif
 
    if (allocated(property_file)) then

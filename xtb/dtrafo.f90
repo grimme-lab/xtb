@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module dtrafo
+
+contains
+
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c transforms cao(6d) integrals to sao(5d) basis
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -347,4 +351,4 @@ subroutine cao2saop(nbf,nao,s,basis)
 
   deallocate(sneu)
 end subroutine cao2saop
-
+end module dtrafo
