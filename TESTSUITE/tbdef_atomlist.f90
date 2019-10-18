@@ -6,6 +6,7 @@ subroutine test_atomlist
    type(tb_atomlist) :: atl
    character(len=:), allocatable :: string
    integer, allocatable :: list(:)
+   integer, parameter :: atoms(*) = [3,1,1,5,8,1,1,2,5]
    logical, parameter :: lpar(*) = [.true., .false., .true., .true., .true., &
       &                             .false., .false., .true., .false.]
    integer, parameter :: ipar(*) = [1, 3, 4, 5, 8]
@@ -47,6 +48,9 @@ subroutine test_atomlist
    call atl%switch_truth
    call atl%to_string(string)
    call assert_eq(string, '2,6-7,9')
+   call atl%gather(atoms, list)
+   call assert_eq(list, [1,1,1,5])
+   call assert_eq(size(list), len(atl))
    call atl%new
 
    atl = tb_atomlist(list=lpar, truth=.false., delimiter=' ', skip=':')
