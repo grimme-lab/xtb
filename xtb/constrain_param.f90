@@ -1118,6 +1118,7 @@ subroutine set_hess(key,val,nat,at,xyz)
 end subroutine set_hess
 
 subroutine set_reactor(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use setparam
    implicit none
    character(len=*),intent(in) :: key
@@ -1126,10 +1127,13 @@ subroutine set_reactor(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    integer  :: i,j
 
    integer  :: narg
@@ -1144,28 +1148,21 @@ subroutine set_reactor(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (reactset%nat+nlist.gt.nat) then
-               call raise('S','something is wrong in the react list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted including atom not present in molecule.',1)
-               cycle
-            endif
-            reactset%atoms(reactset%nat+1:reactset%nat+nlist) = list
-            reactset%nat = reactset%nat+nlist
-         else
-            call raise('S',"Something went wrong in set_react_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the reactor atom list',1)
+         return
+      endif
+      if (reactset%nat > 0) call atl%add(reactset%atoms(:reactset%nat))
+      call atl%to_list(list)
+      reactset%atoms = list
+      reactset%nat = size(list)
    end select
  
 end subroutine set_reactor
 
 subroutine set_path(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use setparam
    implicit none
    character(len=*),intent(in) :: key
@@ -1174,10 +1171,13 @@ subroutine set_path(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    integer  :: i,j
 
    integer  :: narg
@@ -1192,28 +1192,21 @@ subroutine set_path(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (pathset%nat+nlist.gt.nat) then
-               call raise('S','something is wrong in the path list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted including atom not present in molecule.',1)
-               cycle
-            endif
-            pathset%atoms(pathset%nat+1:pathset%nat+nlist) = list
-            pathset%nat = pathset%nat+nlist
-         else
-            call raise('S',"Something went wrong in set_path_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the bias path atom list',1)
+         return
+      endif
+      if (pathset%nat > 0) call atl%add(pathset%atoms(:pathset%nat))
+      call atl%to_list(list)
+      pathset%atoms = list
+      pathset%nat = size(list)
    end select
  
 end subroutine set_path
 
 subroutine set_metadyn(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use fixparam
    implicit none
    character(len=*),intent(in) :: key
@@ -1222,10 +1215,13 @@ subroutine set_metadyn(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    integer  :: i,j
 
    integer  :: narg
@@ -1240,23 +1236,15 @@ subroutine set_metadyn(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (metaset%nat+nlist.gt.nat) then
-               call raise('S','something is wrong in the metadyn list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted including atom not present in molecule.',1)
-               cycle
-            endif
-            metaset%atoms(metaset%nat+1:metaset%nat+nlist) = list
-            metaset%nat = metaset%nat+nlist
-         else
-            call raise('S',"Something went wrong in set_metadyn_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the metadynamic atom list',1)
+         return
+      endif
+      if (metaset%nat > 0) call atl%add(metaset%atoms(:metaset%nat))
+      call atl%to_list(list)
+      metaset%atoms = list
+      metaset%nat = size(list)
    case('modify factor')
       if (mod(narg,2).ne.0) then
          call raise('S',"Something went wrong in set_metadyn_ 'modify'.",1)
