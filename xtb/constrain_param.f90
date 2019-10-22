@@ -251,6 +251,7 @@ subroutine rdblock(handler,line,id,nat,at,xyz,err)
 end subroutine rdblock
 
 subroutine set_fix(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use fixparam
    use setparam
    implicit none
@@ -260,15 +261,20 @@ subroutine set_fix(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: i
    integer  :: iat
    integer  :: idum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    real(wp) :: ddum
    logical  :: ldum
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
+
+   call atl%resize(nat)
 
    call parse(val,comma,argv,narg)
 !  some debug printout
@@ -280,6 +286,7 @@ subroutine set_fix(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('elements')
+      call atl%new
       do idum = 1, narg
          ! get element by symbol
          call elem(argv(idum),iat)
@@ -294,65 +301,39 @@ subroutine set_fix(key,val,nat,at,xyz)
             cycle
          endif
          ! now find the elements in the geometry
-         nlist = 0
-         do i = 1, nat
-            if (at(i).eq.iat) then
-               nlist = nlist+1
-               list(nlist) = i
-            endif
-         enddo
-         ! the user might already have fixed some parts of the molecule,
-         ! so we double check this and complain if necessary
-         if (fixset%n+nlist.gt.nat) then
-            call raise('S','something is wrong in the fixing list',1)
-            exit
-         endif
-         ! now we save the fixed element
-         fixset%atoms(fixset%n+1:fixset%n+nlist) = list(:nlist)
-         fixset%n = fixset%n+nlist
+         call atl%add(at.eq.iat)
       enddo
+      if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
+      call atl%to_list(list)
+      fixset%atoms = list
+      fixset%n = size(list)
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (fixset%n+nlist.gt.nat) then
-               call raise('S','something is wrong in the fixing list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted fixing atom not present in molecule.',1)
-               cycle
-            endif
-            fixset%atoms(fixset%n+1:fixset%n+nlist) = list(:nlist)
-            fixset%n = fixset%n+nlist
-         else
-            call raise('S',"Something went wrong in set_fix_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the fixing list',1)
+         return
+      endif
+      if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
+      call atl%to_list(list)
+      fixset%atoms = list
+      fixset%n = size(list)
    case('freeze')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (freezeset%n+nlist.gt.nat) then
-               call raise('S','something is wrong in the fixing list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted fixing atom not present in molecule.',1)
-               cycle
-            endif
-            freezeset%atoms(freezeset%n+1:freezeset%n+nlist) = list(:nlist)
-            freezeset%n = freezeset%n+nlist
-         else
-            call raise('S',"Something went wrong in set_fix_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the freezing list',1)
+         return
+      endif
+      if (freezeset%n > 0) call atl%add(freezeset%atoms(:freezeset%n))
+      call atl%to_list(list)
+      freezeset%atoms = list
+      freezeset%n = size(list)
    case('shake')
+      allocate(list(nat*(nat+1)/2), source=0)
       if (mod(narg,2).ne.0) then
          call raise('S',"could not read input for user defined shake!",1)
          return
       endif
-      if (narg+shakeset%n > nat*(nat+1)/2) then
+         if (narg+shakeset%n > nat*(nat+1)/2) then
          call raise('S',"too many SHAKE constraints!",1)
          return
       endif
@@ -377,6 +358,7 @@ end subroutine set_fix
 subroutine set_constr(key,val,nat,at,xyz)
    use mctc_constants
    use mctc_econv
+   use tbdef_atomlist
    use scanparam
    use splitparam
    implicit none
@@ -386,11 +368,14 @@ subroutine set_constr(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: iat
    integer  :: ioffset
    integer  :: idum
    real(wp) :: ddum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    logical  :: ldum
    integer  :: i,j,k,l
    real(wp) :: phi,dist,ra(3),rb(3)
@@ -398,6 +383,8 @@ subroutine set_constr(key,val,nat,at,xyz)
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
+
+   call atl%resize(nat)
 
    call parse(val,comma,argv,narg)
    if (verbose) then
@@ -409,6 +396,7 @@ subroutine set_constr(key,val,nat,at,xyz)
    case default ! ignore, don't even think about raising them
 
    case('elements')
+      call atl%new
       do idum = 1, narg
          ! get element by symbol
          call elem(argv(idum),iat)
@@ -423,42 +411,22 @@ subroutine set_constr(key,val,nat,at,xyz)
             cycle
          endif
          ! now find the elements in the geometry
-         nlist = 0
-         do i = 1, nat
-            if (at(i).eq.iat) then
-               nlist = nlist+1
-               list(nlist) = i
-            endif
-         enddo
-         ! the user might already have fixed some parts of the molecule,
-         ! so we double check this and complain if necessary
-         if (potset%pos%n+nlist.gt.nat) then
-            call raise('S','something is wrong in the constraint list',1)
-            exit
-         endif
-         ! now we save the fixed element
-         potset%pos%atoms(potset%pos%n+1:potset%pos%n+nlist) = list(:nlist)
-         potset%pos%n = potset%pos%n+nlist
-
+         call atl%add(at.eq.iat)
       enddo
+      if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
+      call atl%to_list(list)
+      potset%pos%atoms = list
+      potset%pos%n = size(list)
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (potset%pos%n+nlist.gt.nat) then
-               call raise('S','something is wrong in the constraint list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted constraining atom not present in molecule.',1)
-               cycle
-            endif
-            potset%pos%atoms(potset%pos%n+1:potset%pos%n+nlist) = list
-            potset%pos%n = potset%pos%n+nlist
-         else
-            call raise('S',"Something went wrong in set_constr_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the fixing list',1)
+         return
+      endif
+      if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
+      call atl%to_list(list)
+      potset%pos%atoms = list
+      potset%pos%n = size(list)
 
    case('DISTANCE')
       if (narg.ne.3) then
@@ -1150,6 +1118,7 @@ subroutine set_hess(key,val,nat,at,xyz)
 end subroutine set_hess
 
 subroutine set_reactor(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use setparam
    implicit none
    character(len=*),intent(in) :: key
@@ -1158,10 +1127,13 @@ subroutine set_reactor(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    integer  :: i,j
 
    integer  :: narg
@@ -1176,28 +1148,21 @@ subroutine set_reactor(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (reactset%nat+nlist.gt.nat) then
-               call raise('S','something is wrong in the react list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted including atom not present in molecule.',1)
-               cycle
-            endif
-            reactset%atoms(reactset%nat+1:reactset%nat+nlist) = list
-            reactset%nat = reactset%nat+nlist
-         else
-            call raise('S',"Something went wrong in set_react_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the reactor atom list',1)
+         return
+      endif
+      if (reactset%nat > 0) call atl%add(reactset%atoms(:reactset%nat))
+      call atl%to_list(list)
+      reactset%atoms = list
+      reactset%nat = size(list)
    end select
  
 end subroutine set_reactor
 
 subroutine set_path(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use setparam
    implicit none
    character(len=*),intent(in) :: key
@@ -1206,10 +1171,13 @@ subroutine set_path(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    integer  :: i,j
 
    integer  :: narg
@@ -1224,28 +1192,21 @@ subroutine set_path(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (pathset%nat+nlist.gt.nat) then
-               call raise('S','something is wrong in the path list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted including atom not present in molecule.',1)
-               cycle
-            endif
-            pathset%atoms(pathset%nat+1:pathset%nat+nlist) = list
-            pathset%nat = pathset%nat+nlist
-         else
-            call raise('S',"Something went wrong in set_path_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the bias path atom list',1)
+         return
+      endif
+      if (pathset%nat > 0) call atl%add(pathset%atoms(:pathset%nat))
+      call atl%to_list(list)
+      pathset%atoms = list
+      pathset%nat = size(list)
    end select
  
 end subroutine set_path
 
 subroutine set_metadyn(key,val,nat,at,xyz)
+   use tbdef_atomlist
    use fixparam
    implicit none
    character(len=*),intent(in) :: key
@@ -1254,10 +1215,13 @@ subroutine set_metadyn(key,val,nat,at,xyz)
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
 
+   type(tb_atomlist) :: atl
+
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
-   integer  :: list(nat),nlist
+   integer  :: nlist
+   integer, allocatable :: list(:)
    integer  :: i,j
 
    integer  :: narg
@@ -1272,23 +1236,15 @@ subroutine set_metadyn(key,val,nat,at,xyz)
    select case(key)
    case default ! ignore, don't even think about raising them
    case('atoms')
-      do idum = 1, narg
-         if (get_list_value(trim(argv(idum)),list,nlist)) then
-            if (metaset%nat+nlist.gt.nat) then
-               call raise('S','something is wrong in the metadyn list',1)
-               exit
-            endif
-            if (maxval(list(:nlist)).gt.nat) then
-               call raise('S','Attempted including atom not present in molecule.',1)
-               cycle
-            endif
-            metaset%atoms(metaset%nat+1:metaset%nat+nlist) = list
-            metaset%nat = metaset%nat+nlist
-         else
-            call raise('S',"Something went wrong in set_metadyn_ 'atoms'.",1)
-            return ! you screwed it, let's get out of here
-         endif
-      enddo
+      call atl%new(val)
+      if (atl%get_error()) then
+         call raise('S','something is wrong in the metadynamic atom list',1)
+         return
+      endif
+      if (metaset%nat > 0) call atl%add(metaset%atoms(:metaset%nat))
+      call atl%to_list(list)
+      metaset%atoms = list
+      metaset%nat = size(list)
    case('modify factor')
       if (mod(narg,2).ne.0) then
          call raise('S',"Something went wrong in set_metadyn_ 'modify'.",1)

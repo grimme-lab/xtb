@@ -552,6 +552,7 @@ end subroutine print_wiberg
 
 subroutine print_wbo_fragment(iunit,n,at,wbo,thr)
    use iso_fortran_env, wp => real64
+   use tbdef_atomlist
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -559,11 +560,14 @@ subroutine print_wbo_fragment(iunit,n,at,wbo,thr)
    real(wp),intent(in) :: wbo(n,n)
    real(wp),intent(in) :: thr
 
+   type(tb_atomlist) :: atl
+
    real(wp),allocatable :: bond(:,:)
    integer, allocatable :: cn(:)
    integer, allocatable :: fragment(:)
    integer, allocatable :: list(:)
    character(len=2),external :: asym
+   character(len=:),allocatable :: string
    integer  :: i,j,k,nfrag
    real(wp) :: xsum
 
@@ -589,51 +593,13 @@ subroutine print_wbo_fragment(iunit,n,at,wbo,thr)
    write(iunit,'(1x,"(WBO >",f5.2,")")') thr
    write(iunit,'(a)')
    do i = 1, nfrag
-      write(iunit,'(3x,a,"(",i0,"):",1x)',advance='no') "fragment", i
-      j = 0
-      list = 0
-      do k = 1, n
-         if (fragment(k).eq.i) then
-            j = j+1
-            list(j) = k
-         endif
-      enddo
-      call print_list(iunit,list(:j))
-      write(iunit,'(a)')
+      call atl%new
+      call atl%add(fragment.eq.i)
+      call atl%to_string(string)
+      write(iunit,'(3x,a,"(",i0,"):",1x,a)') "fragment", i, string
    enddo
 
 contains
-   subroutine print_list(iunit,list)
-      integer, intent(in) :: iunit
-      integer, intent(in) :: list(:)
-      integer :: i,j,k
-      logical :: continous
-      j = list(1)
-      k = j
-      do i = 2, size(list)
-         if (j+1.eq.list(i)) then
-            j = j+1
-         else
-            if (j-k .eq. 0) then
-               write(iunit,'(i0)',advance='no') j
-            else if (j-k .eq. 1) then
-               write(iunit,'(i0,", ",i0)',advance='no') k,j
-            else
-               write(iunit,'(i0,"-",i0)',advance='no') k,j
-            endif
-            write(iunit,'(", ")',advance='no')
-            j = list(i)
-            k = j
-         endif
-      enddo
-      if (j-k .eq. 0) then
-         write(iunit,'(i0)',advance='no') j
-      else if (j-k .eq. 1) then
-         write(iunit,'(i0,", ",i0)',advance='no') k,j
-      else
-         write(iunit,'(i0,"-",i0)',advance='no') k,j
-      endif
-   end subroutine print_list
    subroutine mrec(molcount,cn,bond,n,at,molvec)
       ! molcount: number of total fragments (increased during search)
       ! xyz: overall Cart. coordinates

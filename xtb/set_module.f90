@@ -398,8 +398,11 @@ subroutine write_set_stm(ictrl)
 end subroutine write_set_stm
 
 subroutine write_set_path(ictrl)
+   use tbdef_atomlist
    implicit none
    integer,intent(in) :: ictrl
+   type(tb_atomlist) :: atl
+   character(len=:), allocatable :: string
    integer :: i
    write(ictrl,'(a,"path")') flag
    write(ictrl,'(3x,"nrun=",i0)')  pathset%nrun
@@ -410,18 +413,20 @@ subroutine write_set_path(ictrl)
    write(ictrl,'(3x,"alp=",g0)')   pathset%alp
    if (allocated(pathset%fname)) &
       write(ictrl,'(3x,"product=",a)') pathset%fname
-   if (pathset%nat.eq.0) return
-   write(ictrl,'(3x,"atoms:",1x)',advance='no')
-   do i = 1, pathset%nat-1
-      write(ictrl,'(i0,",",1x)',advance='no') pathset%atoms(i)
-   enddo
-   write(ictrl,'(i0)') pathset%atoms(pathset%nat)
+   if (pathset%nat > 0) then
+      call atl%new(pathset%atoms(:pathset%nat))
+      call atl%to_string(string)
+      write(ictrl,'(3x,"atoms:",1x,a)') string
+   endif
 
 end subroutine write_set_path
 
 subroutine write_set_reactor(ictrl)
+   use tbdef_atomlist
    implicit none
    integer,intent(in) :: ictrl
+   type(tb_atomlist) :: atl
+   character(len=:), allocatable :: string
    integer :: i
    write(ictrl,'(a,"reactor")') flag
    write(ictrl,'(3x,"max=",i0)')     reactset%nmax
@@ -429,12 +434,11 @@ subroutine write_set_reactor(ictrl)
                                      reactset%dens
    write(ictrl,'(3x,"kpush=",g0)')   reactset%kpush
    write(ictrl,'(3x,"alp=",g0)')     reactset%alp
-   if (reactset%nat.eq.0) return
-   write(ictrl,'(3x,"atoms:",1x)',advance='no')
-   do i = 1, reactset%nat-1
-      write(ictrl,'(i0,",",1x)',advance='no') reactset%atoms(i)
-   enddo
-   write(ictrl,'(i0)') reactset%atoms(reactset%nat)
+   if (reactset%nat > 0) then
+      call atl%new(reactset%atoms(:reactset%nat))
+      call atl%to_string(string)
+      write(ictrl,'(3x,"atoms:",1x,a)') string
+   endif
 end subroutine write_set_reactor
 
 
@@ -527,37 +531,48 @@ subroutine write_set_scan(ictrl)
 end subroutine write_set_scan
 
 subroutine write_set_fix(ictrl)
+   use tbdef_atomlist
    use fixparam
    implicit none
    integer, intent(in) :: ictrl
+   type(tb_atomlist) :: atl
+   character(len=:), allocatable :: string
    integer :: i
-   if (fixset%n.eq.0) return
+   if (fixset%n.eq.0 .and. freezeset%n.eq.0) return
 
    write(ictrl,'(a,"fix")') flag
-   write(ictrl,'(3x,"atoms:",1x)',advance='no')
-   do i = 1, fixset%n-1
-      write(ictrl,'(i0,",",1x)',advance='no') fixset%atoms(i)
-   enddo
-   write(ictrl,'(i0)') fixset%atoms(fixset%n)
+   if (fixset%n > 0) then
+      call atl%new(fixset%atoms(:fixset%n))
+      call atl%to_string(string)
+      write(ictrl,'(3x,"atoms:",1x,a)') string
+   endif
 
    write(ictrl,'(3x,"freeze frequency=",g0,1x,"# in atomic units")') freezeset%fc
-   if (freezeset%n.eq.0) return
-   write(ictrl,'(3x,"freeze:",1x)',advance='no')
-   do i = 1, freezeset%n-1
-      write(ictrl,'(i0,",",1x)',advance='no') freezeset%atoms(i)
-   enddo
-   write(ictrl,'(i0)') freezeset%atoms(freezeset%n)
+   if (freezeset%n > 0) then
+      call atl%new(freezeset%atoms(:freezeset%n))
+      call atl%to_string(string)
+      write(ictrl,'(3x,"freeze:",1x,a)') string
+   endif
 
 end subroutine write_set_fix
 
 subroutine write_set_split(ictrl)
+   use tbdef_atomlist
    use splitparam
    implicit none
    integer, intent(in) :: ictrl
+   type(tb_atomlist) :: atl
+   character(len=:), allocatable :: string
+   integer :: i
    if ((iatf1.eq.0).and.(iatf2.eq.0)) return
 
-   write(ictrl,'(a,"split")') hash
-   write(ictrl,'("# --copy printout for split currently not implemented")')
+   write(ictrl,'(a,"split")') flag
+   do i = 1, maxval(splitlist)
+      call atl%new
+      call atl%add(splitlist.eq.i)
+      call atl%to_string(string)
+      write(ictrl,'(3x,"fragment:",1x,i0,",",a)') i, string
+   enddo
 
 end subroutine write_set_split
 
@@ -604,9 +619,12 @@ subroutine write_set_wall(ictrl)
 end subroutine write_set_wall
 
 subroutine write_set_metadyn(ictrl)
+   use tbdef_atomlist
    use fixparam
    implicit none
    integer, intent(in) :: ictrl
+   type(tb_atomlist) :: atl
+   character(len=:), allocatable :: string
    integer :: i
 
    if (metaset%maxsave.eq.0) return
@@ -623,12 +641,11 @@ subroutine write_set_metadyn(ictrl)
       enddo
    endif
    if (allocated(metaset%fname)) write(ictrl,'(3x,"coord=",a)') metaset%fname
-   if (metaset%nat.eq.0) return
-   write(ictrl,'(3x,"atoms:",1x)',advance='no')
-   do i = 1, metaset%nat-1
-      write(ictrl,'(i0,",",1x)',advance='no') metaset%atoms(i)
-   enddo
-   write(ictrl,'(i0)') metaset%atoms(metaset%nat)
+   if (metaset%nat > 0) then
+      call atl%new(metaset%atoms(:metaset%nat))
+      call atl%to_string(string)
+      write(ictrl,'(3x,"atoms:",1x,a)') string
+   endif
 
 end subroutine write_set_metadyn
 
