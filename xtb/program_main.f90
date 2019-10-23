@@ -62,9 +62,8 @@ program XTBprog
    use printout
    use argparser
    use set_module
-   use geometry_reader
-   use write_geometry
    use property_output
+   use tbmod_file_utils
 
 !! ========================================================================
 !  get interfaces for methods used in this part
@@ -112,6 +111,8 @@ program XTBprog
    character(len=:),allocatable :: fnx      ! NOT USED
    character(len=:),allocatable :: tmpname  ! temporary string
    character(len=:),allocatable :: cdum     ! temporary string
+   character(len=:),allocatable :: extension, basename, directory
+   integer :: ftype
 
    integer :: nargs
    type(string),    allocatable :: argument_list(:)
@@ -268,8 +269,11 @@ program XTBprog
       fname = 'caffeine'
       call get_coffee(mol)
    else
-      call read_geometry(fname,mol,cdum)
-      call set_geopref(cdum)
+      call file_generate_meta_info(fname, extension, basename, directory)
+      call file_figure_out_ftype(ftype, extension, basename)
+      call open_file(ich, fname, 'r')
+      call mol%read(ich, format=ftype)
+      call close_file(ich)
    endif
 
    if(mol%n.lt.1) call raise('E','no atoms!',1)
@@ -823,26 +827,11 @@ program XTBprog
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
        (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
        (runtyp.eq.p_run_metaopt)) then
-       if (mol%npbc == 0) then
-          select case(geometry_inputfile)
-          case(p_geo_xmol)
-             tmpname = 'xtbopt.xyz'
-          case(p_geo_sdf)
-             tmpname = 'xtbopt.sdf'
-          case default
-             tmpname = 'xtbopt.coord'
-          end select
-       else
-          tmpname = 'xtbopt.POSCAR'
-       endif
-       write(istdout,'(/,a,1x,a,/)') &
-          "optimized geometry written to:",tmpname
+      call file_generate_name(tmpname, 'xtbopt', extension, mol%ftype)
+      write(istdout,'(/,a,1x,a,/)') &
+         "optimized geometry written to:",tmpname
       call open_file(ich,tmpname,'w')
-      if (mol%npbc == 0) then
-         call wrcoord(ich,mol%n,mol%at,mol%xyz,res,fres)
-      else
-         call write_poscar(ich,mol%n,mol%at,mol%xyz,mol%lattice,res%e_total,res%gnorm)
-      endif
+      call mol%write(ich, energy=res%e_total, gnorm=res%gnorm)
       call close_file(ich)
    endif
 

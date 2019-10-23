@@ -172,6 +172,9 @@ xtb_srcs += 'xtb/gfn_prparam.f90'
 xtb_srcs += 'xtb/wrgbw.f90'
 xtb_srcs += 'xtb/enso_printout.f90'
 xtb_srcs += 'xtb/read_gfn_param.f90'
+xtb_srcs += 'xtb/molecule_reader.f90'
+xtb_srcs += 'xtb/molecule_writer.f90'
+xtb_srcs += 'xtb/tbmod_file_utils.f90'
 
 # parameters
 xtb_srcs += 'xtb/gfn_paramset.f90'

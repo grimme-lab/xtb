@@ -38,6 +38,8 @@ module relaxation_engine
       integer  :: logstep = 1
       !> unit for the optimization log
       integer  :: ilog = -1
+      !> file type for optimization log
+      integer  :: ftype = 1
       !> threshold for the converence of the energy change of the system
       real(wp) :: e_thr = 5.0e-6_wp
       !> threshold for the converence of the gradient norm of the system
@@ -135,12 +137,12 @@ subroutine fire &
 
    use setparam
 
+   use tbmod_file_utils
    use single
    use optimizer
    use axis_trafo
    use hessian
    use ls_rmsd
-   use write_geometry
    use pbc_tools
 
    implicit none
@@ -227,15 +229,15 @@ subroutine fire &
    ! open the logfile, the log is bound to unit 942, so we cannot use newunit
    ! and have to hope that nobody else is currently occupying this identifier
    opt%ilog = ilog
+   if (mol%npbc > 0) then
+      opt%ftype = p_ftype%vasp
+   else
+      opt%ftype = p_ftype%xyz
+   endif
    !call open_file(opt%ilog,'xtbopt.log','w')
    ! write starting structure to log
    if (opt%ilog.ne.-1) then
-      if (mol%npbc == 0) then
-         call write_xyzlog(opt%ilog,mol%n,mol%at,mol%xyz,energy,norm2(gradient))
-      else
-         call write_poscar(opt%ilog,mol%n,mol%at,mol%xyz,mol%lattice, &
-            & energy,norm2(gradient))
-      endif
+      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
    endif
 
    ! get memory
@@ -355,12 +357,7 @@ subroutine fire &
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter-1,opt%logstep).ne.0 .and. opt%ilog.ne.-1) then
-      if (mol%npbc == 0) then
-         call write_xyzlog(opt%ilog,mol%n,mol%at,mol%xyz,energy,norm2(gradient))
-      else
-         call write_poscar(opt%ilog,mol%n,mol%at,mol%xyz,mol%lattice, &
-            & energy,norm2(gradient))
-      endif
+      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
    endif
    !call close_file(opt%ilog)
 
@@ -386,12 +383,12 @@ subroutine l_ancopt &
 
    use setparam
 
+   use tbmod_file_utils
    use single
    use optimizer
    use axis_trafo
    use hessian
    use ls_rmsd
-   use write_geometry
 
    implicit none
 
@@ -484,9 +481,14 @@ subroutine l_ancopt &
    ! open the logfile, the log is bound to unit 942, so we cannot use newunit
    ! and have to hope that nobody else is currently occupying this identifier
    opt%ilog = ilog
+   if (mol%npbc > 0) then
+      opt%ftype = p_ftype%vasp
+   else
+      opt%ftype = p_ftype%xyz
+   endif
    !call open_file(opt%ilog,'xtbopt.log','w')
    if (opt%ilog.ne.-1) then
-      call write_xyzlog(opt%ilog,mol%n,mol%at,mol%xyz,energy,norm2(gradient))
+      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
    endif
 
    ! get memory, allocate single and double precision arrays separately
@@ -663,7 +665,7 @@ subroutine l_ancopt &
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter,opt%logstep).ne.1.and.opt%ilog.ne.-1) &
-      call write_xyzlog(opt%ilog,mol%n,mol%at,mol%xyz,energy,norm2(gradient))
+      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
       !call wrlog(mol%n,mol%xyz,mol%at,energy,norm2(gradient),.false.)
    !call close_file(opt%ilog)
    if (profile) call timer%measure(7)
@@ -762,7 +764,6 @@ subroutine lbfgs_relax &
 
    use single
    use optimizer
-   use write_geometry
 
    implicit none
 
@@ -963,7 +964,8 @@ subroutine lbfgs_relax &
       if (profile) call timer%measure(7,"optimization log")
       if (opt%ilog.ne.-1) then
          if (mod(icycle,opt%logstep).eq.1.or.opt%logstep.eq.1) &
-            call write_xyzlog(opt%ilog,mol%n,mol%at,mol%xyz,res%e_total,res%gnorm)
+            call mol%write(opt%ilog,format=opt%ftype,energy=res%e_total, &
+            &              gnorm=res%gnorm)
       endif
       !call wrlog(mol%n,xyz,attyp,energy,gnorm,.false.)
       if (profile) call timer%measure(7)
@@ -1022,7 +1024,6 @@ subroutine inertial_relax &
    use setparam
 
    use single
-   use write_geometry
    use pbc_tools
 
    implicit none
@@ -1267,12 +1268,8 @@ subroutine inertial_relax &
       ! check if we write to the optimization log this step
       logthis = opt%ilog.ne.-1 .and. mod(istep-1,opt%logstep).eq.0
       if (logthis) then
-         if (mol%npbc == 0) then
-            call write_xyzlog(opt%ilog,mol%n,mol%at,mol%xyz,res%e_total,res%gnorm)
-         else
-            call write_poscar(opt%ilog,mol%n,mol%at,mol%xyz,mol%lattice, &
-               & res%e_total,res%gnorm)
-         endif
+         call mol%write(opt%ilog,format=opt%ftype,energy=res%e_total, &
+            &           gnorm=res%gnorm)
       endif
 
       ! check for convergence of the energy change

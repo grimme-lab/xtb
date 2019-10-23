@@ -50,13 +50,15 @@ module tbdef_molecule
       real(wp) :: rec_lat(3,3) = 0.0_wp      !< reciprocal lattice parameters
       real(wp) :: volume = 0.0_wp            !< volume of unit cell
       type(tb_wsc) :: wsc                    !< Wigner--Seitz cell
+      integer  :: ftype = 0
    contains
    procedure :: allocate => allocate_molecule
    procedure :: deallocate => deallocate_molecule
    procedure :: calculate_distances
    procedure :: set_nuclear_charge
    procedure :: set_atomic_masses
-   procedure :: write => write_molecule
+   procedure :: write => write_molecule_generic
+   procedure :: read => read_molecule_generic
    procedure :: update
    procedure :: wrap_back
    procedure :: center_of_geometry,center_of_mass
@@ -64,6 +66,22 @@ module tbdef_molecule
    procedure :: moments_of_inertia
    procedure :: align_to_principal_axes
    end type tb_molecule
+
+   interface
+      module subroutine write_molecule_generic(self, unit, format, energy, gnorm)
+         class(tb_molecule), intent(in) :: self
+         integer, intent(in) :: unit
+         integer, intent(in), optional :: format
+         real(wp), intent(in), optional :: energy
+         real(wp), intent(in), optional :: gnorm
+      end subroutine write_molecule_generic
+
+      module subroutine read_molecule_generic(self, unit, format)
+         class(tb_molecule), intent(out) :: self
+         integer, intent(in) :: unit
+         integer, intent(in), optional :: format
+      end subroutine read_molecule_generic
+   end interface
 
 contains
 
