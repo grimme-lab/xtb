@@ -86,7 +86,7 @@ subroutine write_sdf(mol, unit, comment_line)
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
    integer, parameter :: list4(4) = 0, list12(12) = 0
-   integer :: iatom
+   integer :: iatom, ibond, iatoms(2)
 
    write(unit, '(a)')
    write(unit, '(a)') comment_line
@@ -97,6 +97,12 @@ subroutine write_sdf(mol, unit, comment_line)
    do iatom = 1, mol%n
       write(unit, '(3f10.4,1x,a3,i2,11i3)') &
          & mol%xyz(:, iatom)*autoaa, mol%sym(iatom), list12
+   enddo
+
+   do ibond = 1, len(mol%bonds)
+      call mol%bonds%get_item(ibond, iatoms)
+      write(unit, '(7i3)') &
+         & iatoms, 1, list4
    enddo
 
    write(unit, '(a,*(1x,i3))') "M  CHG", 1, 1, nint(mol%chrg)

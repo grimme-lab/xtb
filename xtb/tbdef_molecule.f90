@@ -24,9 +24,11 @@
 module tbdef_molecule
    use iso_fortran_env, only : wp => real64
    use tbdef_wsc
+   use tbdef_topology
    implicit none
 
    public :: tb_molecule
+   public :: len, size
 
    private
 
@@ -51,6 +53,7 @@ module tbdef_molecule
       real(wp) :: volume = 0.0_wp            !< volume of unit cell
       type(tb_wsc) :: wsc                    !< Wigner--Seitz cell
       integer  :: ftype = 0
+      type(tb_topology) :: bonds
    contains
    procedure :: allocate => allocate_molecule
    procedure :: deallocate => deallocate_molecule
@@ -82,6 +85,7 @@ module tbdef_molecule
          integer, intent(in), optional :: format
       end subroutine read_molecule_generic
    end interface
+
 
 contains
 

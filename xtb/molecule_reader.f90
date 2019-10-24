@@ -62,7 +62,7 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
 
    conv = aatoau
 
-   rewind(unit)
+   rewind(unit) ! FIXME
 
    read(unit,*,iostat=err) n
    if (err.ne.0) then
@@ -149,7 +149,7 @@ subroutine read_molecule_tmol(mol, unit, status, iomsg)
    natoms = -1
 
 !  we need to read this file twice, for a lot of reasons
-   rewind(unit)
+   rewind(unit) ! FIXME
 
 !  read first line before the readloop starts, I have to do this
 !  to avoid using backspace on unit (dammit Turbomole format)
@@ -204,7 +204,7 @@ subroutine read_molecule_tmol(mol, unit, status, iomsg)
          &                   0.0_wp,0.0_wp,1.0_wp],[3,3])
    endif
 
-   rewind(unit)
+   rewind(unit) ! FIXME
 
 !  read first line before the readloop starts, I have to do this
 !  to avoid using backspace on unit (dammit Turbomole format)
@@ -250,7 +250,7 @@ subroutine read_molecule_tmol(mol, unit, status, iomsg)
       if (index(line,flag_end).ne.0) exit readlat
    enddo readlat
 
-   rewind(unit)
+   rewind(unit) ! FIXME
    endif
 
 !  read first line before the readloop starts, I have to do this
@@ -543,18 +543,18 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
       call getline(unit, line, error)
       read(line, '(3f10.4,1x,a3,i2,11i3)', iostat=error) &
          & x, y, z, symbol, list12
-      print*, line
-      print*, x, y, z, symbol
       call elem(symbol, atomtype)
       mol%xyz(:, iatom) = [x, y, z] * aatoau
       mol%at(iatom) = atomtype
       mol%sym(iatom) = trim(symbol)
    enddo
 
+   call mol%bonds%allocate(size=number_of_bonds)
    do ibond = 1, number_of_bonds
       call getline(unit, line, error)
       read(line, '(7i3)', iostat=error) &
          & iatom, jatom, btype, list4
+      call mol%bonds%push_back([iatom, jatom])
    enddo
 
    do while(error /= 0)
@@ -633,7 +633,7 @@ subroutine get_coord(unit,lattice,n,xyz,at,sym)
 
    lattice=0
 
-   rewind(unit)
+   rewind(unit) ! FIXME
    ncheck=0
    ntype=0
    ! first line contains the symbols of different atom types
@@ -785,7 +785,7 @@ subroutine get_atomnumber(unit,n)
 
    integer :: iat, inum, idum, err
 
-   rewind(unit)
+   rewind(unit) ! FIXME
    ntype=0
    ! first line contains the symbols of different atom types
    call getline(unit,line,err)
