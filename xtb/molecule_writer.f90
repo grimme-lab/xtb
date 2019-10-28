@@ -4,7 +4,7 @@ submodule(tbdef_molecule) molecule_writer
 
 contains
 
-module subroutine write_molecule_generic(self, unit, format, energy, gnorm)
+module subroutine write_molecule_generic(self, unit, format, energy, gnorm, number)
    use tbmod_file_utils
    include 'xtb_version.fh'
    class(tb_molecule), intent(in) :: self
@@ -12,6 +12,7 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm)
    integer, intent(in), optional :: format
    real(wp), intent(in), optional :: energy
    real(wp), intent(in), optional :: gnorm
+   integer, intent(in), optional :: number
    character(len=:), allocatable :: comment_line
    character(len=20) :: energy_line
    character(len=20) :: gnorm_line
@@ -42,6 +43,12 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm)
       call write_sdf(self, unit, trim(comment_line))
    case(p_ftype%vasp)
       call write_vasp(self, unit, trim(comment_line))
+   case(p_ftype%pdb)
+      if (present(number)) then
+         call write_pdb(self, unit, number)
+      else
+         call write_pdb(self, unit)
+      endif
    end select
 
 end subroutine write_molecule_generic
@@ -161,5 +168,73 @@ subroutine write_vasp(mol, unit, comment_line)
    enddo
 
 end subroutine write_vasp
+
+subroutine write_pdb(mol, unit, number)
+   use mctc_econv
+   type(tb_molecule), intent(in) :: mol
+   integer, intent(in) :: unit
+   integer, intent(in), optional :: number
+   character(len=6) :: w1
+   character(len=2) :: a_charge
+   character(len=1) :: last_chain
+   logical :: last_het
+   integer :: offset
+   integer :: iatom, jatom, iresidue
+   real(wp) :: xyz(3)
+! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
+! TER    2462      GLY A 153
+! a6----i5---xa4--aa3-xai4--axxxf8.3----f8.3----f8.3----f6.2--f6.2--xxxxxxa4--a2a2
+! HETATM 2463  CHA HEM A 154       9.596 -13.100  10.368  1.00  0.00           C
+   character(len=*), parameter :: pdb_format = &
+      &  '(a6,i5,1x,a4,a1,a3,1x,a1,i4,a1,3x,3f8.3,2f6.2,6x,a4,a2,a2)'
+
+
+   offset = 0
+   last_chain = mol%pdb(1)%chains
+   last_het = mol%pdb(1)%het
+   if (present(number)) write(unit, '("MODEL ",4x,i4)') number
+   do iatom = 1, len(mol)
+
+      ! handle the terminator
+      if (mol%pdb(iatom)%het .neqv. last_het) then
+         write(unit, '("TER   ",i5,6x,a3,1x,a1,i4)') iatom + offset, &
+            &  mol%pdb(iatom-1)%residue, last_chain, iresidue
+         last_het = .not.last_het
+         offset = offset+1
+      else if (mol%pdb(iatom)%chains /= last_chain) then
+         write(unit, '("TER   ",i5,6x,a3,1x,a1,i4)') iatom + offset, &
+            &  mol%pdb(iatom-1)%residue, last_chain, iresidue
+         offset = offset+1
+      endif
+
+      jatom = iatom + offset
+      if (mol%pdb(iatom)%het) then
+         w1 = 'HETATM'
+      else
+         w1 = 'ATOM  '
+      endif
+
+      iresidue = mol%frag%list(iatom)
+
+      xyz = mol%xyz(:,iatom) * autoaa
+      if (mol%pdb(iatom)%charge /= 0) then
+         write(a_charge, '(i2)') mol%pdb(iatom)%charge
+      else
+         a_charge = '  '
+      endif
+
+      write(unit, pdb_format) &
+         &  w1, jatom, mol%pdb(iatom)%name, mol%pdb(iatom)%loc, &
+         &  mol%pdb(iatom)%residue, mol%pdb(iatom)%chains, iresidue, &
+         &  mol%pdb(iatom)%code, xyz, 1.0_wp, 0.0_wp, mol%pdb(iatom)%segid, &
+         &  mol%sym(iatom), a_charge
+   enddo
+   if (present(number)) then
+      write(unit, '("ENDMDL")')
+   else
+      write(unit, '("END")')
+   endif
+
+end subroutine write_pdb
 
 end submodule molecule_writer

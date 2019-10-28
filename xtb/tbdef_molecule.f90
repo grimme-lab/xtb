@@ -33,6 +33,22 @@ module tbdef_molecule
 
    private
 
+
+   type :: pdb_data
+! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
+! TER    2462      GLY A 153
+! a6----i5---xa4--aa3-xai4--axxxf8.3----f8.3----f8.3----f6.2--f6.2--xxxxxxa4--a2a2
+! HETATM 2463  CHA HEM A 154       9.596 -13.100  10.368  1.00  0.00           C
+      logical :: het = .false.
+      integer :: charge = 0
+      character(len=4) :: name = ' '
+      character(len=1) :: loc = ' '
+      character(len=3) :: residue = ' '
+      character(len=1) :: chains = ' '
+      character(len=1) :: code = ' '
+      character(len=4) :: segid = ' '
+   end type pdb_data
+
    !> molecular structure information
    type :: tb_molecule
       integer  :: n = 0            !< number of atoms
@@ -56,30 +72,35 @@ module tbdef_molecule
       integer  :: ftype = 0
       type(tb_topology) :: bonds
       type(tb_fragments) :: frag
+      type(pdb_data), allocatable :: pdb(:)
    contains
-   procedure :: allocate => allocate_molecule
-   procedure :: deallocate => deallocate_molecule
-   procedure :: calculate_distances
-   procedure :: set_nuclear_charge
-   procedure :: set_atomic_masses
-   procedure :: write => write_molecule_generic
-   procedure :: read => read_molecule_generic
-   procedure :: update
-   procedure :: wrap_back
-   procedure :: center_of_geometry,center_of_mass
-   procedure :: shift_to_center_of_geometry,shift_to_center_of_mass
-   procedure :: moments_of_inertia
-   procedure :: align_to_principal_axes
+      procedure :: allocate => allocate_molecule
+      procedure :: deallocate => deallocate_molecule
+      procedure :: calculate_distances => mol_calculate_distances
+      procedure :: set_nuclear_charge => mol_set_nuclear_charge
+      procedure :: set_atomic_masses => mol_set_atomic_masses
+      procedure :: write => write_molecule_generic
+      procedure :: read => read_molecule_generic
+      procedure :: update => mol_update
+      procedure :: wrap_back => mol_wrap_back
+      procedure :: center_of_geometry
+      procedure :: center_of_mass
+      procedure :: shift_to_center_of_geometry
+      procedure :: shift_to_center_of_mass
+      procedure :: moments_of_inertia
+      procedure :: align_to_principal_axes
    end type tb_molecule
 
 
    interface
-      module subroutine write_molecule_generic(self, unit, format, energy, gnorm)
+      module subroutine write_molecule_generic(self, unit, format, &
+            &                                  energy, gnorm, number)
          class(tb_molecule), intent(in) :: self
          integer, intent(in) :: unit
          integer, intent(in), optional :: format
          real(wp), intent(in), optional :: energy
          real(wp), intent(in), optional :: gnorm
+         integer, intent(in), optional :: number
       end subroutine write_molecule_generic
 
       module subroutine read_molecule_generic(self, unit, format)
@@ -143,9 +164,10 @@ subroutine deallocate_molecule(self)
    if (allocated(self%atmass)) deallocate(self%atmass)
    if (allocated(self%z))      deallocate(self%z)
    if (allocated(self%cn))     deallocate(self%cn)
+   if (allocated(self%pdb))    deallocate(self%pdb)
 end subroutine deallocate_molecule
 
-subroutine update(self)
+subroutine mol_update(self)
    use iso_fortran_env, wp => real64
    use pbc_tools
    implicit none
@@ -161,11 +183,11 @@ subroutine update(self)
 
    call self%calculate_distances
 
-end subroutine update
+end subroutine mol_update
 
 !> calculates all distances for molecular structures and minimum
 !  image distances for peridic structures
-subroutine calculate_distances(self)
+subroutine mol_calculate_distances(self)
    use iso_fortran_env, wp => real64
    use pbc_tools
    implicit none
@@ -190,10 +212,10 @@ subroutine calculate_distances(self)
          self%dist(i,i) = 0.0_wp
       enddo
    endif
-end subroutine calculate_distances
+end subroutine mol_calculate_distances
 
 !> get all nuclear charges
-subroutine set_nuclear_charge(self)
+subroutine mol_set_nuclear_charge(self)
    use iso_fortran_env, wp => real64
    implicit none
    class(tb_molecule),intent(inout) :: self  !< molecular structure information
@@ -228,29 +250,29 @@ pure elemental integer function ncore(at)
      ncore=78
   endif
 end function ncore
-end subroutine set_nuclear_charge
+end subroutine mol_set_nuclear_charge
 
 !> get all nuclear charges
-subroutine set_atomic_masses(self)
+subroutine mol_set_atomic_masses(self)
    use iso_fortran_env, wp => real64
    use mctc_param
    implicit none
    class(tb_molecule),intent(inout) :: self  !< molecular structure information
    self%atmass = atomic_mass(self%at)
-end subroutine set_atomic_masses
+end subroutine mol_set_atomic_masses
 
 !> wrap cartesian coordinates back into cell
 ! 
 !  This automatically done when calling @see xyz_to_abc, so we only have
 !  to perform the transformation there and back again
-subroutine wrap_back(self)
+subroutine mol_wrap_back(self)
    use iso_fortran_env, wp => real64
    use pbc_tools
    implicit none
    class(tb_molecule),intent(inout) :: self !< molecular structure information
    call xyz_to_abc(self%n,self%lattice,self%xyz,self%abc,self%pbc)
    call abc_to_xyz(self%n,self%lattice,self%abc,self%xyz)
-end subroutine wrap_back
+end subroutine mol_wrap_back
 
 pure function center_of_geometry(self) result(center)
    use iso_fortran_env, wp => real64

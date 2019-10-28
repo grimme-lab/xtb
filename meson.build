@@ -118,6 +118,7 @@ mctc_srcs += 'mctc/mctc_timings.f90'
 mctc_srcs += 'mctc/mctc_filetools.f90'
 mctc_srcs += 'mctc/mctc_la.f90'
 mctc_srcs += 'mctc/mctc_init.f90'
+mctc_srcs += 'mctc/mctc_resize_arrays.f90'
 mctc_srcs += 'mctc/error.f90'
 mctc_srcs += 'mctc/signal.c'
 

@@ -2,6 +2,10 @@ submodule(tbdef_molecule) molecule_reader
    use tbdef_molecule
    implicit none
 
+   interface assignment(=)
+      module procedure :: symbol_to_number
+   end interface assignment(=)
+
 contains
 
 module subroutine read_molecule_generic(self, unit, format)
@@ -27,6 +31,8 @@ module subroutine read_molecule_generic(self, unit, format)
       call read_molecule_sdf(self, unit, status, iomsg=message)
    case(p_ftype%vasp)
       call read_molecule_vasp(self, unit, status, iomsg=message)
+   case(p_ftype%pdb)
+      call read_molecule_pdb(self, unit, status, iomsg=message)
    case default
       status = .false.
       message = "coordinate format known"
@@ -862,5 +868,174 @@ end subroutine get_atomnumber
 
 end subroutine read_molecule_vasp
 
+
+subroutine read_molecule_pdb(mol, unit, status, iomsg)
+   use mctc_econv
+   use mctc_systools
+   use mctc_resize_arrays
+   interface resize  ! add to overloaded resize interface
+      module procedure :: resize_pdb_data
+   end interface resize
+   logical, parameter :: debug = .false.
+   type(tb_molecule),intent(out) :: mol
+   integer,intent(in) :: unit
+   logical, intent(out) :: status
+   character(len=:), allocatable, intent(out) :: iomsg
+   integer, allocatable :: list(:)
+   real(wp), allocatable :: xyz(:,:)
+   type(pdb_data), allocatable :: pdb(:)
+   character(len=2), allocatable :: sym(:)
+   character(len=:), allocatable :: line
+   character(len=2) :: a_charge
+   integer :: iatom, jatom, iresidue, try, error
+   integer :: this_residue, last_residue
+   real(wp) :: occ, temp, coords(3)
+! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
+! TER    2462      GLY A 153
+! a6----i5---xa4--aa3-xai4--axxxf8.3----f8.3----f8.3----f6.2--f6.2--xxxxxxa4--a2a2
+! HETATM 2463  CHA HEM A 154       9.596 -13.100  10.368  1.00  0.00           C
+   character(len=*), parameter :: pdb_format = &
+      &  '(6x,i5,1x,a4,a1,a3,1x,a1,i4,a1,3x,3f8.3,2f6.2,6x,a4,a2,a2)'
+   integer, parameter :: p_initial_size = 1000 ! this is going to be a proteine
+
+   status = .false.
+
+   allocate(list(p_initial_size), source=0)
+   allocate(sym(p_initial_size), source='  ')
+   allocate(xyz(3, p_initial_size), source=0.0_wp)
+   allocate(pdb(p_initial_size), source=pdb_data())
+
+   iatom = 0
+   iresidue = 0
+
+   error = 0
+   do while(error == 0)
+      call getline(unit, line, error)
+      if (index(line, 'END') == 1) exit
+      if (index(line, 'ATOM') == 1 .or. index(line, 'HETATM') == 1) then
+         if (iatom >= size(xyz, 2)) call resize(xyz)
+         if (iatom >= size(sym)) call resize(sym)
+         if (iatom >= size(list)) call resize(list)
+         if (iatom >= size(pdb)) call resize(pdb)
+         iatom = iatom + 1
+         pdb(iatom)%het = index(line, 'HETATM') == 1
+         read(line, pdb_format) &
+            & jatom, pdb(iatom)%name, pdb(iatom)%loc, pdb(iatom)%residue, &
+            & pdb(iatom)%chains, this_residue, pdb(iatom)%code, &
+            & coords, occ, temp, pdb(iatom)%segid, sym(iatom), a_charge
+         xyz(:,iatom) = coords * aatoau
+         if (this_residue /= last_residue) then
+            iresidue = iresidue + 1
+            last_residue = this_residue
+         endif
+         list(iatom) = iresidue
+         read(a_charge, *, iostat=try) pdb(iatom)%charge
+         if (try /= 0) pdb(iatom)%charge = 0
+      endif
+   enddo
+   if (error /= 0) then
+      iomsg = "could not read in coordinates, last line was: '"//line//"'"
+      return
+   endif
+
+   call mol%allocate(iatom)
+   mol%xyz = xyz(:,:iatom)
+   mol%at = sym(:iatom)
+   mol%sym = sym(:iatom)
+   call mol%frag%allocate(list(:iatom))
+   mol%pdb = pdb(:iatom)
+
+   if (.not.all(mol%at > 0)) then
+      iomsg = "invalid atom type found"
+      return
+   endif
+
+   ! since PDB is used for biomolecules, this is a sensible check (prevents GIGO)
+   if (.not.any(mol%at == 1)) then
+      iomsg = "You get no calculation today, please add hydrogen atoms first"
+      return
+   endif
+
+   status = .true.
+
+end subroutine read_molecule_pdb
+
+subroutine resize_pdb_data(var, n)
+   type(pdb_data), allocatable, intent(inout) :: var(:)
+   integer, intent(in), optional :: n
+   type(pdb_data), allocatable :: tmp(:)
+   integer :: length, current_length
+   current_length = size(var)
+   if (current_length > 0) then
+      if (present(n)) then
+         if (n <= current_length) return
+         length = n
+      else
+         length = current_length + current_length/2 + 1
+      endif
+      allocate(tmp(length), source=pdb_data())
+      tmp(:current_length) = var(:current_length)
+      deallocate(var)
+      call move_alloc(tmp, var)
+   else
+      if (present(n)) then
+         length = n
+      else
+         length = 64
+      endif
+      allocate(var(length), source=pdb_data())
+   endif
+end subroutine resize_pdb_data
+
+
+pure elemental subroutine symbol_to_number(number, symbol)
+   character(len=2), parameter :: pse(118) = [ &
+      & 'h ','he', &
+      & 'li','be','b ','c ','n ','o ','f ','ne', &
+      & 'na','mg','al','si','p ','s ','cl','ar', &
+      & 'k ','ca', &
+      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn', &
+      &           'ga','ge','as','se','br','kr', &
+      & 'rb','sr', &
+      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd', &
+      &           'in','sn','sb','te','i ','xe', &
+      & 'cs','ba','la', &
+      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb', &
+      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg', &
+      &           'tl','pb','bi','po','at','rn', &
+      & 'fr','ra','ac', &
+      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no', &
+      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn', &
+      &           'nh','fl','mc','lv','ts','og' ]
+   character(len=*), intent(in) :: symbol
+   integer, intent(out) :: number
+   character(len=2) :: lc_symbol
+   integer :: i, j, k, l
+   integer, parameter :: offset = iachar('a')-iachar('A')
+
+   number = 0
+   lc_symbol = '  '
+
+   k = 0
+   do j = 1, len_trim(symbol)
+      if (k > 2) exit
+      l = iachar(symbol(j:j))
+      if (k >= 1 .and. l == iachar(' ')) exit
+      if (k >= 1 .and. l == 9) exit
+      if (l >= iachar('A') .and. l <= iachar('Z')) l = l + offset
+      if (l >= iachar('a') .and. l <= iachar('z')) then
+         k = k+1
+         lc_symbol(k:k) = achar(l)
+      endif
+   enddo
+
+   do i = 1, size(pse)
+      if (lc_symbol == pse(i)) then
+         number = i
+         exit
+      endif
+   enddo
+
+end subroutine symbol_to_number
 
 end submodule molecule_reader
