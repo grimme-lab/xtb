@@ -25,6 +25,7 @@ module tbdef_molecule
    use iso_fortran_env, only : wp => real64
    use tbdef_wsc
    use tbdef_topology
+   use tbdef_fragments
    implicit none
 
    public :: tb_molecule
@@ -54,6 +55,7 @@ module tbdef_molecule
       type(tb_wsc) :: wsc                    !< Wigner--Seitz cell
       integer  :: ftype = 0
       type(tb_topology) :: bonds
+      type(tb_fragments) :: frag
    contains
    procedure :: allocate => allocate_molecule
    procedure :: deallocate => deallocate_molecule
@@ -69,6 +71,7 @@ module tbdef_molecule
    procedure :: moments_of_inertia
    procedure :: align_to_principal_axes
    end type tb_molecule
+
 
    interface
       module subroutine write_molecule_generic(self, unit, format, energy, gnorm)
@@ -87,7 +90,24 @@ module tbdef_molecule
    end interface
 
 
+   interface len
+      module procedure :: mol_length
+   end interface
+
+
 contains
+
+
+!> obtain number of atoms for molecular structure
+integer pure elemental function mol_length(self) result(length)
+   class(tb_molecule),intent(in) :: self !< molecular structure information
+   if (allocated(self%xyz) .and. allocated(self%at)) then
+      length = self%n
+   else
+      length = 0
+   endif
+end function mol_length
+
 
 !> constructor for molecular structure
 subroutine allocate_molecule(self,n)
@@ -124,91 +144,6 @@ subroutine deallocate_molecule(self)
    if (allocated(self%z))      deallocate(self%z)
    if (allocated(self%cn))     deallocate(self%cn)
 end subroutine deallocate_molecule
-
-!> print information about current molecular structure to unit
-subroutine write_molecule(self,iunit,comment)
-   implicit none
-   class(tb_molecule),intent(in) :: self    !< molecular structure information
-   integer,           intent(in) :: iunit   !< file handle
-   character(len=*),  intent(in) :: comment !< name of the variable
-   character(len=*),parameter :: dfmt = '(1x,a,1x,"=",1x,g0)'
-
-   write(iunit,'(72(">"))')
-   write(iunit,'(1x,"*",1x,a)') "Writing 'tb_molecule' class"
-   write(iunit,'(  "->",1x,a)') comment
-   write(iunit,'(72("-"))')
-   write(iunit,'(1x,"*",1x,a)') "status of the fields"
-   write(iunit,dfmt) "integer :: n           ",self%n
-   write(iunit,dfmt) "real    :: chrg        ",self%chrg
-   write(iunit,dfmt) "integer :: uhf         ",self%uhf
-   write(iunit,dfmt) "integer :: npbc        ",self%npbc
-   write(iunit,dfmt) "logical :: pbc(1)      ",self%pbc(1)
-   write(iunit,dfmt) "        &  pbc(2)      ",self%pbc(2)
-   write(iunit,dfmt) "        &  pbc(3)      ",self%pbc(3)
-   write(iunit,dfmt) "real    :: volume      ",self%volume
-   write(iunit,dfmt) "real    :: lattice(1,1)",self%lattice(1,1)
-   write(iunit,dfmt) "        &  lattice(2,1)",self%lattice(2,1)
-   write(iunit,dfmt) "        &  lattice(3,1)",self%lattice(3,1)
-   write(iunit,dfmt) "        &  lattice(1,2)",self%lattice(1,2)
-   write(iunit,dfmt) "        &  lattice(2,2)",self%lattice(2,2)
-   write(iunit,dfmt) "        &  lattice(3,2)",self%lattice(3,2)
-   write(iunit,dfmt) "        &  lattice(1,3)",self%lattice(1,3)
-   write(iunit,dfmt) "        &  lattice(2,3)",self%lattice(2,3)
-   write(iunit,dfmt) "        &  lattice(3,3)",self%lattice(3,3)
-   write(iunit,dfmt) "real    :: rec_lat(1,1)",self%rec_lat(1,1)
-   write(iunit,dfmt) "        &  rec_lat(2,1)",self%rec_lat(2,1)
-   write(iunit,dfmt) "        &  rec_lat(3,1)",self%rec_lat(3,1)
-   write(iunit,dfmt) "        &  rec_lat(1,2)",self%rec_lat(1,2)
-   write(iunit,dfmt) "        &  rec_lat(2,2)",self%rec_lat(2,2)
-   write(iunit,dfmt) "        &  rec_lat(3,2)",self%rec_lat(3,2)
-   write(iunit,dfmt) "        &  rec_lat(1,3)",self%rec_lat(1,3)
-   write(iunit,dfmt) "        &  rec_lat(2,3)",self%rec_lat(2,3)
-   write(iunit,dfmt) "        &  rec_lat(3,3)",self%rec_lat(3,3)
-   write(iunit,dfmt) "real    :: cellpar(1)  ",self%cellpar(1)
-   write(iunit,dfmt) "        &  cellpar(2)  ",self%cellpar(2)
-   write(iunit,dfmt) "        &  cellpar(3)  ",self%cellpar(3)
-   write(iunit,dfmt) "        &  cellpar(4)  ",self%cellpar(4)
-   write(iunit,dfmt) "        &  cellpar(5)  ",self%cellpar(5)
-   write(iunit,dfmt) "        &  cellpar(6)  ",self%cellpar(6)
-   write(iunit,'(72("-"))')
-   write(iunit,'(1x,"*",1x,a)') "allocation status"
-   write(iunit,dfmt) "allocated? sym(:)      ",allocated(self%sym)
-   write(iunit,dfmt) "allocated? at(:)       ",allocated(self%at)
-   write(iunit,dfmt) "allocated? xyz(:,:)    ",allocated(self%xyz)
-   write(iunit,dfmt) "allocated? abc(:,:)    ",allocated(self%abc)
-   write(iunit,dfmt) "allocated? dist(:,:)   ",allocated(self%dist)
-   write(iunit,dfmt) "allocated? atmass(:)   ",allocated(self%atmass)
-   write(iunit,dfmt) "allocated? z(:)        ",allocated(self%z)
-   write(iunit,dfmt) "allocated? cn(:)       ",allocated(self%cn)
-   write(iunit,'(72("-"))')
-   write(iunit,'(1x,"*",1x,a)') "size of memory allocation"
-   if (allocated(self%at)) then
-   write(iunit,dfmt) "size(1) :: at(*)       ",size(self%at,1)
-   endif
-   if (allocated(self%xyz)) then
-   write(iunit,dfmt) "size(1) :: xyz(*,:)    ",size(self%xyz,1)
-   write(iunit,dfmt) "size(2) :: xyz(:,*)    ",size(self%xyz,2)
-   endif
-   if (allocated(self%abc)) then
-   write(iunit,dfmt) "size(1) :: abc(*,:)    ",size(self%abc,1)
-   write(iunit,dfmt) "size(2) :: abc(:,*)    ",size(self%abc,2)
-   endif
-   if (allocated(self%dist)) then
-   write(iunit,dfmt) "size(1) :: dist(*,:)   ",size(self%dist,1)
-   write(iunit,dfmt) "size(2) :: dist(:,*)   ",size(self%dist,2)
-   endif
-   if (allocated(self%atmass)) then
-   write(iunit,dfmt) "size(1) :: atmass(*)   ",size(self%atmass,1)
-   endif
-   if (allocated(self%z)) then
-   write(iunit,dfmt) "size(1) :: z(*)        ",size(self%z,1)
-   endif
-   if (allocated(self%cn)) then
-   write(iunit,dfmt) "size(1) :: cn(*)       ",size(self%cn,1)
-   endif
-   call self%wsc%write(iunit,comment//"%wsc")
-   write(iunit,'(72("<"))')
-end subroutine write_molecule
 
 subroutine update(self)
    use iso_fortran_env, wp => real64
