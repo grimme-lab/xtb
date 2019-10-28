@@ -566,6 +566,9 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
          call fermismear(.false.,ndim,ihomob,et,emo,foccb,nfodb,efb,gb)
       endif
       focc = focca + foccb
+   else
+      ga = 0.0_wp
+      gb = 0.0_wp
    endif
 !! ------------------------------------------------------------------------
 
@@ -894,6 +897,9 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
          call fermismear(.false.,ndim,ihomob,et,emo,foccb,nfodb,efb,gb)
       endif
       focc = focca + foccb
+   else
+      ga = 0.0_wp
+      gb = 0.0_wp
    endif
 
 !  save q
