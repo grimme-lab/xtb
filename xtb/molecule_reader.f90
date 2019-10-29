@@ -68,8 +68,6 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
 
    conv = aatoau
 
-   rewind(unit) ! FIXME
-
    read(unit,*,iostat=err) n
    if (err.ne.0) then
       iomsg = "Could not read number of atoms, check format!"
@@ -105,12 +103,12 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
       if (debug) print'("->",a)',chdum
       if (debug) print'("->",3g0)',xyz
 
-      call elem(line,iat)
+      iat = chdum
       if (debug) print'("->",g0)',iat
       if (iat > 0) then
          n = n+1
          mol%at(n) = iat
-         mol%sym(n) = line(1:2)
+         mol%sym(n) = trim(chdum)
          mol%xyz(:,n) = xyz*conv
       else
          iomsg = "Unknown element symbol: '"//trim(chdum)//"'"
@@ -497,7 +495,7 @@ subroutine get_coord(unit,line,err,mol)
          iomsg = "not enough arguments in line in coord data group"
          return
       endif
-      call elem(chdum,iat)
+      iat = chdum
       if (iat.eq.0) then
          iomsg = "invalid element input in line in coord data group"
          return
@@ -549,7 +547,7 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
       call getline(unit, line, error)
       read(line, '(3f10.4,1x,a3,i2,11i3)', iostat=error) &
          & x, y, z, symbol, list12
-      call elem(symbol, atomtype)
+      atomtype = symbol
       mol%xyz(:, iatom) = [x, y, z] * aatoau
       mol%at(iatom) = atomtype
       mol%sym(iatom) = trim(symbol)
@@ -575,55 +573,18 @@ end subroutine read_molecule_sdf
 
 subroutine read_molecule_vasp(mol, unit, status, iomsg)
    use iso_fortran_env, wp => real64
+   use mctc_econv
+   use mctc_strings
+   use mctc_systools
    use tbdef_molecule
    use pbc_tools
-   logical, parameter :: debug = .false.
+   logical, parameter :: debug = .true.
    type(tb_molecule),intent(out) :: mol
    integer,intent(in) :: unit
    logical, intent(out) :: status
    character(len=:), allocatable, intent(out) :: iomsg
-   integer :: n
-
-   status = .false.
-
-   call get_atomnumber(unit,n)
-   if (allocated(iomsg)) return
-
-   if (n.lt.1) then
-      iomsg = 'Found no atoms, cannot work without atoms!'
-      return
-   endif
-
-   call mol%allocate(n)
-   mol%npbc = 3 ! VASP is always 3D
-   mol%pbc = .true.
-
-   call get_coord(unit,mol%lattice,mol%n,mol%xyz,mol%at,mol%sym)
-   if (allocated(iomsg)) return
-   call dlat_to_cell(mol%lattice,mol%cellpar)
-   call dlat_to_rlat(mol%lattice,mol%rec_lat)
-   mol%volume = dlat_to_dvol(mol%lattice)
-
-   call xyz_to_abc(mol%n,mol%lattice,mol%xyz,mol%abc,mol%pbc)
-
-   status = .true.
-
-contains
-
-!> read the coordinates from POSCAR
-subroutine get_coord(unit,lattice,n,xyz,at,sym)
-   use mctc_econv
-   use mctc_strings
-   use mctc_systools
-
-   implicit none
-
-   integer, intent(in)  :: n
-   real(wp),intent(out) :: xyz(3,n)
-   real(wp),intent(out) :: lattice(3,3)
-   integer, intent(out) :: at(n)
-   character(len=2),intent(out) :: sym(n)
-   integer, intent(in)  :: unit
+   real(wp) :: lattice(3,3)
+   integer, allocatable :: ncount(:)
    logical              :: selective=.false. ! Selective dynamics
    logical              :: cartesian=.true.  ! Cartesian or direct
 
@@ -633,13 +594,14 @@ subroutine get_coord(unit,lattice,n,xyz,at,sym)
    character(len=:),allocatable :: line
    character(len=80) :: args(90),args2(90)
 
-   integer i,j,nn,ntype,ntype2,atnum,i_dummy1,i_dummy2,ncheck
+   integer i,j,k,nn,ntype,ntype2,atnum,i_dummy1,i_dummy2,ncheck
 
-   integer :: iat, inum, idum, err
+   integer :: iat, idum, err
+
+   status = .false.
 
    lattice=0
 
-   rewind(unit) ! FIXME
    ncheck=0
    ntype=0
    ! first line contains the symbols of different atom types
@@ -706,24 +668,30 @@ subroutine get_coord(unit,lattice,n,xyz,at,sym)
       iomsg = 'Error reading number of atomtypes'
       return
    endif
+
+   allocate( ncount(nn), source = 0 )
    ncheck=0
    do i=1,nn
-      read(args2(i),*,iostat=err) inum
-      call elem(args(i),iat)
-      if (iat < 1 .or. inum < 1) then
+      read(args2(i),*,iostat=err) ncount(i)
+      iat = args(i)
+      if (iat < 1 .or. ncount(i) < 1) then
          iomsg = 'unknown element.'
          return
       endif
-      do j=1,inum
-         ncheck=ncheck+1
-         sym(ncheck) = args(i)(1:2)
-         at(ncheck)=iat
+   enddo
+
+   call mol%allocate(sum(ncount))
+   mol%pbc = .true.
+   mol%npbc = 3
+   k = 0
+   do i = 1, nn
+      iat = args(i)
+      do j = 1, ncount(i)
+         k = k+1
+         mol%at(k) = iat
+         mol%sym(k) = args(i)(1:2)
       enddo
    enddo
-   if (n.ne.ncheck) then
-      iomsg = 'Error reading Number of Atoms'
-      return
-   endif
 
    call getline(unit,line,err)
    if (err.ne.0) then
@@ -745,7 +713,7 @@ subroutine get_coord(unit,lattice,n,xyz,at,sym)
 
    cartesian=(line(:1).eq.'c' .or. line(:1).eq.'C' .or. &
       &       line(:1).eq.'k' .or. line(:1).eq.'K')
-   do i=1,n
+   do i = 1, len(mol)
       call getline(unit,line,err)
       if (err.ne.0) then
          iomsg = "Could not read geometry from POSCAR"
@@ -759,112 +727,24 @@ subroutine get_coord(unit,lattice,n,xyz,at,sym)
       endif
 
       if (cartesian) then
-         xyz(:,i)=coord*scalar
+         mol%xyz(:,i)=coord*scalar
       else
-         xyz(:,i)=matmul(lattice,coord)
+         mol%xyz(:,i)=matmul(lattice,coord)
       endif
 
    enddo
 
-end subroutine get_coord
+   mol%lattice = lattice
+   ! save information about this POSCAR for later
+   mol%vasp = vasp_data(scale=ddum, selective=selective, cartesian=cartesian)
 
-!> read the coordinates from POSCAR
-subroutine get_atomnumber(unit,n)
-   use mctc_econv
-   use mctc_strings
-   use mctc_systools
+   call dlat_to_cell(mol%lattice,mol%cellpar)
+   call dlat_to_rlat(mol%lattice,mol%rec_lat)
+   mol%volume = dlat_to_dvol(mol%lattice)
 
-   implicit none
+   call xyz_to_abc(mol%n,mol%lattice,mol%xyz,mol%abc,mol%pbc)
 
-   integer, intent(out) :: n
-   integer, intent(in)  :: unit
-   logical              :: selective=.false. ! Selective dynamics
-   logical              :: cartesian=.true.  ! Cartesian or direct
-
-   real(wp) :: ddum,latvec(3)
-   real(wp) xx(10),scalar
-   real(wp) :: coord(3)
-   character(len=:),allocatable :: line
-   character(len=80) :: args(90),args2(90)
-
-   integer i,j,nn,ntype,ntype2,atnum
-
-   integer :: iat, inum, idum, err
-
-   rewind(unit) ! FIXME
-   ntype=0
-   ! first line contains the symbols of different atom types
-   call getline(unit,line,err)
-   if (err.ne.0) then
-      iomsg = "Could not read POSCAR"
-      return
-   endif
-   if (debug) print'(">",a)',line
-   call parse(line,' ',args,ntype)
-
-   ! this line contains the global scaling factor,
-   call getline(unit,line,err)
-   if (err.ne.0) then
-      iomsg = "Could not read POSCAR"
-      return
-   endif
-   if (debug) print'(">",a)',line
-   read(line,*,iostat=err) ddum
-   if (err.ne.0) then
-      iomsg = "Could not read POSCAR"
-      return
-   endif
-   ! the Ang->au conversion is included in the scaling factor
-   scalar = ddum*aatoau
-
-   ! reading the lattice constants
-   do i=1,3
-      call getline(unit,line,err)
-      if (err.ne.0) then
-         iomsg = "Could not read lattice from POSCAR"
-         return
-      endif
-      if (debug) print'("->",a)',line
-   enddo
-   ! Either here are the numbers of each element,
-   ! or (>vasp.5.1) here are the element symbols
-   call getline(unit,line,err)
-   if (err.ne.0) then
-      iomsg = "Could not read POSCAR"
-      return
-   endif
-   if (debug) print'(">",a)',line
-   ! try to read first element
-   read(line,*,iostat=err) idum
-   ! CONTCAR files have additional Element line here since vasp.5.1
-   if (err.ne.0) then
-      call parse(line,' ',args,ntype)
-      call getline(unit,line,err)
-      if (debug) print'("->",a)',line
-      if (err.ne.0) then
-         iomsg = "Could not read POSCAR"
-         return
-      endif
-   endif
-   call parse(line,' ',args2,nn)
-   if (nn.ne.ntype) then
-      iomsg = 'Error reading number of atomtypes'
-      return
-   endif
-   n=0
-   do i=1,nn
-      read(args2(i),*,iostat=err) inum
-      call elem(args(i),iat)
-      if (iat < 1 .or. inum < 1) then
-         iomsg = 'unknown element'
-         return
-      endif
-      do j=1,inum
-         n=n+1
-      enddo
-   enddo
-
-end subroutine get_atomnumber
+   status = .true.
 
 end subroutine read_molecule_vasp
 

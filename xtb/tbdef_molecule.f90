@@ -21,6 +21,16 @@
 !  the nuclear and total charge, atomic masses and all interatomic distances
 !  In periodic calculations the lattice parameters, a Wigner--Seitz cell
 !  as well as fractional coordinates are attached to the data type
+!
+!  Additionally the molecular structure can keep a topology information
+!  usually containing the bonds of the system and a list of non-overlapping
+!  fragments. Both data containers are optional and need not to be filled
+!  by the provider of the structure data.
+!
+!  Vendor specific information can be stored along with the molecular structure
+!  in auxilary data objects. Data objects like PDB or SDF atomic data should
+!  be kept as light-weighted as possible and the user of the structure class
+!  is not required to care about it existence
 module tbdef_molecule
    use iso_fortran_env, only : wp => real64
    use tbdef_wsc
@@ -34,6 +44,11 @@ module tbdef_molecule
    private
 
 
+   !> atomic pdb data type
+   !
+   !  keeps information from PDB input that is currently not used by the
+   !  caller program (like residues or chains) but is needed to write
+   !  the PDB output eventually
    type :: pdb_data
 ! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
 ! TER    2462      GLY A 153
@@ -48,6 +63,16 @@ module tbdef_molecule
       character(len=1) :: code = ' '
       character(len=4) :: segid = ' '
    end type pdb_data
+
+   !> vasp input data
+   !
+   !  contains specific vasp keywords that modify the appearance of the
+   !  input file and can be used to reproduce it in the output
+   type :: vasp_data
+      real(wp) :: scale = 1.0_wp
+      logical :: selective = .false.
+      logical :: cartesian = .false.
+   end type
 
    !> molecular structure information
    type :: tb_molecule
@@ -69,10 +94,13 @@ module tbdef_molecule
       real(wp) :: rec_lat(3,3) = 0.0_wp      !< reciprocal lattice parameters
       real(wp) :: volume = 0.0_wp            !< volume of unit cell
       type(tb_wsc) :: wsc                    !< Wigner--Seitz cell
-      integer  :: ftype = 0
+      integer  :: ftype = 0                  !< file type of the input
       type(tb_topology) :: bonds
       type(tb_fragments) :: frag
+      !> PDB specific information about residues and chains
       type(pdb_data), allocatable :: pdb(:)
+      !> VASP specific information about input type
+      type(vasp_data) :: vasp = vasp_data()
    contains
       procedure :: allocate => allocate_molecule
       procedure :: deallocate => deallocate_molecule
@@ -120,13 +148,12 @@ contains
 
 
 !> obtain number of atoms for molecular structure
+!
+!  The molecular structure is assumed to be well-behaved in this respect
+!  so there is no sanity check on the allocation status.
 integer pure elemental function mol_length(self) result(length)
    class(tb_molecule),intent(in) :: self !< molecular structure information
-   if (allocated(self%xyz) .and. allocated(self%at)) then
-      length = self%n
-   else
-      length = 0
-   endif
+   length = self%n
 end function mol_length
 
 

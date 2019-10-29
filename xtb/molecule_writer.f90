@@ -125,7 +125,6 @@ subroutine write_vasp(mol, unit, comment_line)
    character(len=*), intent(in) :: comment_line
    integer :: i,j,iat
    integer,allocatable :: kinds(:)
-   character(len=2),external :: asym
 
    allocate(kinds(mol%n), source = 1)
 
@@ -133,15 +132,15 @@ subroutine write_vasp(mol, unit, comment_line)
    write(unit,'(a)') comment_line
 
    ! scaling factor for lattice parameters is always one
-   write(unit,'(f20.14)') 1.0_wp
+   write(unit,'(f20.14)') mol%vasp%scale
    ! write the lattice parameters
    do i = 1, 3
-      write(unit,'(3f20.14)') mol%lattice(:,i)*autoaa
+      write(unit,'(3f20.14)') mol%lattice(:,i)*autoaa/mol%vasp%scale
    enddo
 
    j = 0
    iat = 0
-   do i = 1, mol%n
+   do i = 1, len(mol)
       if (iat.eq.mol%at(i)) then
          kinds(j) = kinds(j)+1
       else
@@ -159,13 +158,24 @@ subroutine write_vasp(mol, unit, comment_line)
    write(unit,'(a)')
    deallocate(kinds)
 
-   ! we write cartesian coordinates
-   write(unit,'("Cartesian")')
+   if (mol%vasp%selective) write(unit,'("Selective")')
 
-   ! now write the cartesian coordinates
-   do i = 1, mol%n
-      write(unit,'(3f20.14)') mol%xyz(:,i)*autoaa
-   enddo
+   ! we write cartesian coordinates
+   if (mol%vasp%cartesian) then
+      write(unit,'("Cartesian")')
+
+      ! now write the cartesian coordinates
+      do i = 1, len(mol)
+         write(unit,'(3f20.14)') mol%xyz(:,i)*autoaa/mol%vasp%scale
+      enddo
+   else
+      write(unit,'("Direct")')
+
+      ! now write the fractional coordinates
+      do i = 1, len(mol)
+         write(unit,'(3f20.14)') mol%abc(:,i)
+      enddo
+   endif
 
 end subroutine write_vasp
 
