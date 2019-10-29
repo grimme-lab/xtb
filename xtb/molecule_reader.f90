@@ -530,6 +530,7 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
    real(wp) :: x, y, z
    character(len=3) :: symbol
    character(len=5) :: v2000
+   integer, parameter :: ccc_to_charge(0:7) = [0, +3, +2, +1, 0, -1, -2, -3]
 
    status = .false.
 
@@ -542,6 +543,7 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
       & chiral_flag, number_of_stext_entries, i999, v2000
 
    call mol%allocate(number_of_atoms)
+   allocate(mol%sdf(len(mol)), source=sdf_data())
 
    do iatom = 1, number_of_atoms
       call getline(unit, line, error)
@@ -551,6 +553,10 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
       mol%xyz(:, iatom) = [x, y, z] * aatoau
       mol%at(iatom) = atomtype
       mol%sym(iatom) = trim(symbol)
+      mol%sdf(iatom)%isotope = list12(1)
+      mol%sdf(iatom)%charge = ccc_to_charge(list12(2)) ! drop doublet radical
+      mol%sdf(iatom)%hydrogens = list12(4)
+      mol%sdf(iatom)%valence = list12(6)
    enddo
 
    call mol%bonds%allocate(size=number_of_bonds)
@@ -566,6 +572,11 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
       if (index(line, '$$$$') == 1) exit
    enddo
 
+   if (any(mol%sdf%hydrogens > 1)) then
+      iomsg = "explicit hydrogen atoms are required"
+      return
+   endif
+
    status = .true.
 
 end subroutine read_molecule_sdf
@@ -578,7 +589,7 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
    use mctc_systools
    use tbdef_molecule
    use pbc_tools
-   logical, parameter :: debug = .true.
+   logical, parameter :: debug = .false.
    type(tb_molecule),intent(out) :: mol
    integer,intent(in) :: unit
    logical, intent(out) :: status
@@ -626,6 +637,7 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
       return
    endif
    ! the Ang->au conversion is included in the scaling factor
+   if (debug) print'("->",g0)',ddum
    scalar = ddum*aatoau
 
    ! reading the lattice constants
@@ -767,7 +779,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
    character(len=2), allocatable :: sym(:)
    character(len=:), allocatable :: line
    character(len=2) :: a_charge
-   integer :: iatom, jatom, iresidue, try, error
+   integer :: iatom, jatom, iresidue, try, error, atom_type
    integer :: this_residue, last_residue
    real(wp) :: occ, temp, coords(3)
 ! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
@@ -804,6 +816,11 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
             & pdb(iatom)%chains, this_residue, pdb(iatom)%code, &
             & coords, occ, temp, pdb(iatom)%segid, sym(iatom), a_charge
          xyz(:,iatom) = coords * aatoau
+         atom_type = sym(iatom)
+         if (atom_type == 0) then
+            try = scan(pdb(iatom)%name, 'HCNOSPF')
+            if (try > 0) sym(iatom) = pdb(iatom)%name(try:try)//' '
+         endif
          if (this_residue /= last_residue) then
             iresidue = iresidue + 1
             last_residue = this_residue

@@ -13,6 +13,7 @@ module tbdef_fragments
       procedure, private :: new_default => frag_new_default
       procedure, private :: new_from_list => frag_new_from_list
       procedure :: get_list => frag_get_list
+      procedure :: deallocate => frag_destroy
    end type tb_fragments
 
 
@@ -57,6 +58,12 @@ subroutine frag_get_list(self, fragment, list)
    integer :: i
    list = pack([(i, i=1, size(self%list))], mask=self%list.eq.fragment)
 end subroutine frag_get_list
+
+
+subroutine frag_destroy(self)
+   class(tb_fragments), intent(inout) :: self
+   if (allocated(self%list)) deallocate(self%list)
+end subroutine frag_destroy
 
 
 end module tbdef_fragments

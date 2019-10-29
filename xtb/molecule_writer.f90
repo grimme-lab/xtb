@@ -92,16 +92,26 @@ subroutine write_sdf(mol, unit, comment_line)
    class(tb_molecule), intent(in) :: mol
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
-   integer, parameter :: list4(4) = 0, list12(12) = 0
-   integer :: iatom, ibond, iatoms(2)
+   integer, parameter :: list4(4) = 0
+   integer :: iatom, ibond, iatoms(2), list12(12)
+   logical :: has_sdf_data
+   integer, parameter :: charge_to_ccc(-3:3) = [7, 6, 5, 0, 3, 2, 1]
 
    write(unit, '(a)')
    write(unit, '(a)') comment_line
    write(unit, '(a)')
    write(unit, '(3i3,3x,2i3,12x,i3,1x,a5)') &
-      & mol%n, 0, 0, 0, 0, 999, 'V2000'
+      & len(mol), len(mol%bonds), 0, 0, 0, 999, 'V2000'
+
+   has_sdf_data = allocated(mol%sdf)
 
    do iatom = 1, mol%n
+      if (has_sdf_data) then
+         list12 = [mol%sdf(iatom)%isotope, charge_to_ccc(mol%sdf(iatom)%charge), &
+            &      0, 0, 0, mol%sdf(iatom)%valence, 0, 0, 0, 0, 0, 0]
+      else
+         list12 = 0
+      endif
       write(unit, '(3f10.4,1x,a3,i2,11i3)') &
          & mol%xyz(:, iatom)*autoaa, mol%sym(iatom), list12
    enddo

@@ -64,6 +64,17 @@ module tbdef_molecule
       character(len=4) :: segid = ' '
    end type pdb_data
 
+   !> sdf atomic data
+   !
+   !  we only support some entries, the rest is simply dropped.
+   !  the format is: ddcccssshhhbbbvvvHHHrrriiimmmnnneee
+   type :: sdf_data
+      integer :: isotope = 0   !< d field
+      integer :: charge = 0    !< c field
+      integer :: hydrogens = 0 !< h field
+      integer :: valence = 0   !< v field
+   end type sdf_data
+
    !> vasp input data
    !
    !  contains specific vasp keywords that modify the appearance of the
@@ -99,6 +110,8 @@ module tbdef_molecule
       type(tb_fragments) :: frag
       !> PDB specific information about residues and chains
       type(pdb_data), allocatable :: pdb(:)
+      !> SDF specific information about atom types
+      type(sdf_data), allocatable :: sdf(:)
       !> VASP specific information about input type
       type(vasp_data) :: vasp = vasp_data()
    contains
@@ -192,6 +205,9 @@ subroutine deallocate_molecule(self)
    if (allocated(self%z))      deallocate(self%z)
    if (allocated(self%cn))     deallocate(self%cn)
    if (allocated(self%pdb))    deallocate(self%pdb)
+   if (allocated(self%sdf))    deallocate(self%sdf)
+   call self%bonds%deallocate
+   call self%frag%deallocate
 end subroutine deallocate_molecule
 
 subroutine mol_update(self)
