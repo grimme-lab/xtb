@@ -79,11 +79,11 @@ module tbdef_molecule
    !
    !  contains specific vasp keywords that modify the appearance of the
    !  input file and can be used to reproduce it in the output
-   type :: vasp_data
+   type :: vasp_info
       real(wp) :: scale = 1.0_wp
       logical :: selective = .false.
       logical :: cartesian = .false.
-   end type
+   end type vasp_info
 
    !> molecular structure information
    type :: tb_molecule
@@ -106,6 +106,7 @@ module tbdef_molecule
       real(wp) :: volume = 0.0_wp            !< volume of unit cell
       type(tb_wsc) :: wsc                    !< Wigner--Seitz cell
       integer  :: ftype = 0                  !< file type of the input
+      character(len=:), allocatable :: name
       type(tb_topology) :: bonds
       type(tb_fragments) :: frag
       !> PDB specific information about residues and chains
@@ -113,7 +114,7 @@ module tbdef_molecule
       !> SDF specific information about atom types
       type(sdf_data), allocatable :: sdf(:)
       !> VASP specific information about input type
-      type(vasp_data) :: vasp = vasp_data()
+      type(vasp_info) :: vasp = vasp_info()
    contains
       procedure :: allocate => allocate_molecule
       procedure :: deallocate => deallocate_molecule
@@ -206,6 +207,7 @@ subroutine deallocate_molecule(self)
    if (allocated(self%cn))     deallocate(self%cn)
    if (allocated(self%pdb))    deallocate(self%pdb)
    if (allocated(self%sdf))    deallocate(self%sdf)
+   if (allocated(self%name))   deallocate(self%name)
    call self%bonds%deallocate
    call self%frag%deallocate
 end subroutine deallocate_molecule

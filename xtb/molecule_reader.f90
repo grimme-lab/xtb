@@ -27,8 +27,8 @@ module subroutine read_molecule_generic(self, unit, format)
       call read_molecule_xyz(self, unit, status, iomsg=message)
    case(p_ftype%tmol)
       call read_molecule_tmol(self, unit, status, iomsg=message)
-   case(p_ftype%sdf)
-      call read_molecule_sdf(self, unit, status, iomsg=message)
+   case(p_ftype%molfile)
+      call read_molecule_molfile(self, unit, status, iomsg=message)
    case(p_ftype%vasp)
       call read_molecule_vasp(self, unit, status, iomsg=message)
    case(p_ftype%pdb)
@@ -514,7 +514,7 @@ end subroutine get_coord
 end subroutine read_molecule_tmol
 
 
-subroutine read_molecule_sdf(mol, unit, status, iomsg)
+subroutine read_molecule_molfile(mol, unit, status, iomsg)
    use mctc_econv
    use mctc_systools
    class(tb_molecule), intent(out) :: mol
@@ -522,20 +522,27 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
    logical, intent(out) :: status
    character(len=:), allocatable, intent(out) :: iomsg
    character(len=:), allocatable :: line
-   integer :: iatom, jatom, ibond, btype, atomtype
-   integer :: error
+   character(len=:), allocatable :: name
+   integer :: i, iatom, jatom, ibond, btype, atomtype
+   integer :: error, length, charge(2,15)
    integer :: number_of_atoms, number_of_bonds, number_of_atom_lists, &
       &       chiral_flag, number_of_stext_entries, i999
    integer :: list4(4), list12(12)
    real(wp) :: x, y, z
+   character(len=2) :: sdf_dim
    character(len=3) :: symbol
    character(len=5) :: v2000
    integer, parameter :: ccc_to_charge(0:7) = [0, +3, +2, +1, 0, -1, -2, -3]
 
    status = .false.
 
+   call getline(unit, name, error)
    call getline(unit, line, error)
-   call getline(unit, line, error)
+   read(line, '(20x,a2)') sdf_dim
+   if (sdf_dim == '2D' .or. sdf_dim == '2d') then
+      iomsg = "two dimensional structures are not a valid input for this program"
+      return
+   endif
    call getline(unit, line, error)
    call getline(unit, line, error)
    read(line, '(3i3,3x,2i3,12x,i3,1x,a5)', iostat=error) &
@@ -544,6 +551,7 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
 
    call mol%allocate(number_of_atoms)
    allocate(mol%sdf(len(mol)), source=sdf_data())
+   if (len(name) > 0) mol%name = name
 
    do iatom = 1, number_of_atoms
       call getline(unit, line, error)
@@ -569,8 +577,17 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
 
    do while(error /= 0)
       call getline(unit, line, error)
-      if (index(line, '$$$$') == 1) exit
+      if (index(line, 'M  END') == 1) exit
+      if (index(line, 'M  CHG') == 1) then
+         read(line(7:10), *) length
+         read(line(11:), '(*(1x,i3,1x,i3))') (charge(:, i), i=1, length)
+         do i = 1, length
+            mol%sdf(charge(1, i))%charge = charge(2, i)
+         enddo
+      endif
    enddo
+
+   mol%chrg = sum(mol%sdf%charge)
 
    if (any(mol%sdf%hydrogens > 1)) then
       iomsg = "explicit hydrogen atoms are required"
@@ -579,7 +596,7 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
 
    status = .true.
 
-end subroutine read_molecule_sdf
+end subroutine read_molecule_molfile
 
 
 subroutine read_molecule_vasp(mol, unit, status, iomsg)
@@ -748,7 +765,7 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
 
    mol%lattice = lattice
    ! save information about this POSCAR for later
-   mol%vasp = vasp_data(scale=ddum, selective=selective, cartesian=cartesian)
+   mol%vasp = vasp_info(scale=ddum, selective=selective, cartesian=cartesian)
 
    call dlat_to_cell(mol%lattice,mol%cellpar)
    call dlat_to_rlat(mol%lattice,mol%rec_lat)

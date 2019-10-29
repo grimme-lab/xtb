@@ -5,7 +5,7 @@ module tbmod_file_utils
       integer :: default = 2  ! Turbomole format is default
       integer :: xyz  = 1
       integer :: tmol = 2
-      integer :: sdf  = 3
+      integer :: molfile = 3
       integer :: vasp = 4
       integer :: pdb  = 5
    end type tb_enum_molecule
@@ -51,8 +51,8 @@ subroutine file_generate_name(fname, basename, extension, ftype)
          fname = fname//'.xyz'
       case(p_ftype%tmol)
          fname = fname//'.coord'
-      case(p_ftype%sdf)
-         fname = fname//'.sdf'
+      case(p_ftype%molfile)
+         fname = fname//'.mol'
       case(p_ftype%vasp)
          fname = fname//'.poscar'
       case(p_ftype%pdb)
@@ -75,8 +75,8 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
          ftype = p_ftype%tmol
       case('xyz')
          ftype = p_ftype%xyz
-      case('sdf')
-         ftype = p_ftype%sdf
+      case('mol')
+         ftype = p_ftype%molfile
       case('poscar', 'contcar', 'vasp')
          ftype = p_ftype%vasp
       case('pdb')

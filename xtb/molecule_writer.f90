@@ -39,8 +39,8 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm, numb
       call write_xyz(self, unit, trim(comment_line))
    case(p_ftype%tmol)
       call write_tmol(self, unit, trim(comment_line))
-   case(p_ftype%sdf)
-      call write_sdf(self, unit, trim(comment_line))
+   case(p_ftype%molfile)
+      call write_molfile(self, unit, trim(comment_line))
    case(p_ftype%vasp)
       call write_vasp(self, unit, trim(comment_line))
    case(p_ftype%pdb)
@@ -87,7 +87,7 @@ subroutine write_tmol(mol, unit, comment_line)
 
 end subroutine write_tmol
 
-subroutine write_sdf(mol, unit, comment_line)
+subroutine write_molfile(mol, unit, comment_line)
    use mctc_econv
    class(tb_molecule), intent(in) :: mol
    integer, intent(in) :: unit
@@ -96,12 +96,17 @@ subroutine write_sdf(mol, unit, comment_line)
    integer :: iatom, ibond, iatoms(2), list12(12)
    logical :: has_sdf_data
    integer, parameter :: charge_to_ccc(-3:3) = [7, 6, 5, 0, 3, 2, 1]
+   character(len=8)  :: date
+   character(len=10) :: time
 
-   write(unit, '(a)')
+   call date_and_time(date, time)
+
+   write(unit, '(a)') mol%name
+   write(unit, '(2x,"xtb",5x,3a2,a4,"3D")') &
+      &  date(5:6), date(7:8), date(3:4), time(:4)
    write(unit, '(a)') comment_line
-   write(unit, '(a)')
    write(unit, '(3i3,3x,2i3,12x,i3,1x,a5)') &
-      & len(mol), len(mol%bonds), 0, 0, 0, 999, 'V2000'
+      &  len(mol), len(mol%bonds), 0, 0, 0, 999, 'V2000'
 
    has_sdf_data = allocated(mol%sdf)
 
@@ -122,11 +127,13 @@ subroutine write_sdf(mol, unit, comment_line)
          & iatoms, 1, list4
    enddo
 
-   write(unit, '(a,*(1x,i3))') "M  CHG", 1, 1, nint(mol%chrg)
-   write(unit, '(a)') "M  END"
-   write(unit, '(a)') "$$$$"
+   if (nint(mol%chrg) /= 0) then
+      write(unit, '(a,*(1x,i3))') "M  CHG", 1, 1, nint(mol%chrg)
+   endif
 
-end subroutine write_sdf
+   write(unit, '(a)') "M  END"
+
+end subroutine write_molfile
 
 subroutine write_vasp(mol, unit, comment_line)
    use mctc_econv
