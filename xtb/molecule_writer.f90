@@ -1,3 +1,20 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2017-2019 Stefan Grimme
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 submodule(tbdef_molecule) molecule_writer
    use tbdef_molecule
    implicit none
@@ -41,6 +58,8 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm, numb
       call write_tmol(self, unit, trim(comment_line))
    case(p_ftype%molfile)
       call write_molfile(self, unit, trim(comment_line))
+   case(p_ftype%sdf)
+      call write_sdf(self, unit, energy, gnorm)
    case(p_ftype%vasp)
       call write_vasp(self, unit, trim(comment_line))
    case(p_ftype%pdb)
@@ -86,6 +105,39 @@ subroutine write_tmol(mol, unit, comment_line)
    write(unit,'(a)') "$end"
 
 end subroutine write_tmol
+
+subroutine write_sdf(mol, unit, energy, gnorm)
+   use tbdef_buffer
+   include 'xtb_version.fh'
+   class(tb_molecule), intent(in) :: mol
+   integer, intent(in) :: unit
+   real(wp), intent(in), optional :: energy
+   real(wp), intent(in), optional :: gnorm
+   type(tb_buffer) :: sd_values
+   character(len=:), allocatable :: line
+   character(len=*), parameter :: sd_format = &
+      & '("> <",a,">",/,f20.12,/)'
+
+   call write_molfile(mol, unit, "xtb: "//version)
+
+   sd_values = mol%info
+   call sd_values%reset
+   do while(sd_values%next())
+      call sd_values%getline(line)
+      write(unit, '(a)') line
+   enddo
+
+   if (present(energy)) then
+      write(unit, sd_format) "total energy / Eh", energy
+   endif
+
+   if (present(gnorm)) then
+      write(unit, sd_format) "gradient norm / Eh/a0", gnorm
+   endif
+
+   write(unit, '("$$$$")')
+
+end subroutine write_sdf
 
 subroutine write_molfile(mol, unit, comment_line)
    use mctc_econv

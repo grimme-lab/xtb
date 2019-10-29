@@ -1,3 +1,20 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2017-2019 Stefan Grimme
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 submodule(tbdef_molecule) molecule_reader
    use tbdef_molecule
    implicit none
@@ -29,6 +46,8 @@ module subroutine read_molecule_generic(self, unit, format)
       call read_molecule_tmol(self, unit, status, iomsg=message)
    case(p_ftype%molfile)
       call read_molecule_molfile(self, unit, status, iomsg=message)
+   case(p_ftype%sdf)
+      call read_molecule_sdf(self, unit, status, iomsg=message)
    case(p_ftype%vasp)
       call read_molecule_vasp(self, unit, status, iomsg=message)
    case(p_ftype%pdb)
@@ -514,6 +533,31 @@ end subroutine get_coord
 end subroutine read_molecule_tmol
 
 
+subroutine read_molecule_sdf(mol, unit, status, iomsg)
+   use mctc_systools
+   class(tb_molecule), intent(out) :: mol
+   integer, intent(in) :: unit
+   logical, intent(out) :: status
+   character(len=:), allocatable, intent(out) :: iomsg
+   character(len=:), allocatable :: line
+   integer :: error
+
+   call read_molecule_molfile(mol, unit, status, iomsg)
+   if (.not.status) return
+   status = .false.
+
+   error = 0
+   do while(error == 0)
+      call getline(unit, line, error)
+      if (index(line, '$$$$') == 1) exit
+      call mol%info%push_back(line)
+   enddo
+
+   status = .true.
+
+end subroutine read_molecule_sdf
+
+
 subroutine read_molecule_molfile(mol, unit, status, iomsg)
    use mctc_econv
    use mctc_systools
@@ -574,8 +618,9 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
          & iatom, jatom, btype, list4
       call mol%bonds%push_back([iatom, jatom])
    enddo
+   print*,error
 
-   do while(error /= 0)
+   do while(error == 0)
       call getline(unit, line, error)
       if (index(line, 'M  END') == 1) exit
       if (index(line, 'M  CHG') == 1) then

@@ -139,6 +139,7 @@ xtb_srcs += 'xtb/tbdef_calculator.f90'
 xtb_srcs += 'xtb/tbdef_atomlist.f90'
 xtb_srcs += 'xtb/tbdef_topology.f90'
 xtb_srcs += 'xtb/tbdef_fragments.f90'
+xtb_srcs += 'xtb/tbdef_buffer.f90'
 
 # global data
 xtb_srcs += 'xtb/gfn0param.f90'

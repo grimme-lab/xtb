@@ -36,6 +36,7 @@ module tbdef_molecule
    use tbdef_wsc
    use tbdef_topology
    use tbdef_fragments
+   use tbdef_buffer
    implicit none
 
    public :: tb_molecule
@@ -115,6 +116,8 @@ module tbdef_molecule
       type(sdf_data), allocatable :: sdf(:)
       !> VASP specific information about input type
       type(vasp_info) :: vasp = vasp_info()
+      !> raw input buffer
+      type(tb_buffer) :: info
    contains
       procedure :: allocate => allocate_molecule
       procedure :: deallocate => deallocate_molecule
@@ -210,6 +213,7 @@ subroutine deallocate_molecule(self)
    if (allocated(self%name))   deallocate(self%name)
    call self%bonds%deallocate
    call self%frag%deallocate
+   call self%info%deallocate
 end subroutine deallocate_molecule
 
 subroutine mol_update(self)

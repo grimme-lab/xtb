@@ -1,13 +1,31 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2017-2019 Stefan Grimme
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 module tbmod_file_utils
    implicit none
 
    type, private :: tb_enum_molecule
       integer :: default = 2  ! Turbomole format is default
-      integer :: xyz  = 1
+      integer :: xyz = 1
       integer :: tmol = 2
       integer :: molfile = 3
       integer :: vasp = 4
-      integer :: pdb  = 5
+      integer :: pdb = 5
+      integer :: sdf = 6
    end type tb_enum_molecule
    type(tb_enum_molecule), public, parameter :: p_ftype = tb_enum_molecule()
 
@@ -53,6 +71,8 @@ subroutine file_generate_name(fname, basename, extension, ftype)
          fname = fname//'.coord'
       case(p_ftype%molfile)
          fname = fname//'.mol'
+      case(p_ftype%sdf)
+         fname = fname//'.sdf'
       case(p_ftype%vasp)
          fname = fname//'.poscar'
       case(p_ftype%pdb)
@@ -77,6 +97,8 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
          ftype = p_ftype%xyz
       case('mol')
          ftype = p_ftype%molfile
+      case('sdf')
+         ftype = p_ftype%sdf
       case('poscar', 'contcar', 'vasp')
          ftype = p_ftype%vasp
       case('pdb')
