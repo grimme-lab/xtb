@@ -94,6 +94,8 @@ class GBSA(Calculator):
 
     def create_arguments(self) -> dict:
         """create a list of arguments."""
+        if any(self.atoms.pbc):
+            raise NotImplementedError("GBSA is not available with PBC!")
         kwargs = {
             'natoms': len(self.atoms),
             'numbers': np.array(self.atoms.get_atomic_numbers(), dtype=c_int),

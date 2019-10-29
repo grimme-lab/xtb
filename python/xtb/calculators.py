@@ -179,6 +179,8 @@ class GFN1(XTB):
 
     def create_arguments(self) -> dict:
         """create a list of arguments."""
+        if any(self.atoms.pbc):
+            raise NotImplementedError("GFN1-xTB is not available with PBC!")
         kwargs = {
             'natoms': len(self.atoms),
             'numbers': np.array(self.atoms.get_atomic_numbers(), dtype=c_int),
@@ -237,6 +239,8 @@ class GFN2(XTB):
 
     def create_arguments(self) -> dict:
         """create a list of arguments."""
+        if any(self.atoms.pbc):
+            raise NotImplementedError("GFN2-xTB is not available with PBC!")
         kwargs = {
             'natoms': len(self.atoms),
             'numbers': np.array(self.atoms.get_atomic_numbers(), dtype=c_int),
