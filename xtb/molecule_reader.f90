@@ -552,6 +552,10 @@ subroutine read_molecule_sdf(mol, unit, status, iomsg)
       if (index(line, '$$$$') == 1) exit
       call mol%info%push_back(line)
    enddo
+   if (error /= 0) then
+      iomsg = "failed while reading SDF key-value pairs"
+      return
+   endif
 
    status = .true.
 
@@ -582,8 +586,8 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
 
    call getline(unit, name, error)
    call getline(unit, line, error)
-   read(line, '(20x,a2)') sdf_dim
-   if (sdf_dim == '2D' .or. sdf_dim == '2d') then
+   read(line, '(20x,a2)', iostat=error) sdf_dim
+   if (error == 0 .and. (sdf_dim == '2D' .or. sdf_dim == '2d')) then
       iomsg = "two dimensional structures are not a valid input for this program"
       return
    endif
@@ -592,6 +596,10 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
    read(line, '(3i3,3x,2i3,12x,i3,1x,a5)', iostat=error) &
       & number_of_atoms, number_of_bonds, number_of_atom_lists, &
       & chiral_flag, number_of_stext_entries, i999, v2000
+   if (error /= 0) then
+      iomsg = "could not read header of molfile"
+      return
+   endif
 
    call mol%allocate(number_of_atoms)
    allocate(mol%sdf(len(mol)), source=sdf_data())
@@ -601,6 +609,10 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
       call getline(unit, line, error)
       read(line, '(3f10.4,1x,a3,i2,11i3)', iostat=error) &
          & x, y, z, symbol, list12
+      if (error /= 0) then
+         iomsg = "could not coordinates from connection table"
+         return
+      endif
       atomtype = symbol
       mol%xyz(:, iatom) = [x, y, z] * aatoau
       mol%at(iatom) = atomtype
@@ -616,9 +628,12 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
       call getline(unit, line, error)
       read(line, '(7i3)', iostat=error) &
          & iatom, jatom, btype, list4
+      if (error /= 0) then
+         iomsg = "could not topology from connection table"
+         return
+      endif
       call mol%bonds%push_back([iatom, jatom])
    enddo
-   print*,error
 
    do while(error == 0)
       call getline(unit, line, error)
@@ -631,6 +646,10 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
          enddo
       endif
    enddo
+   if (error /= 0) then
+      iomsg = "could not read connection table"
+      return
+   endif
 
    mol%chrg = sum(mol%sdf%charge)
 
