@@ -43,7 +43,7 @@ module subroutine read_molecule_generic(self, unit, format)
    case(p_ftype%xyz)
       call read_molecule_xyz(self, unit, status, iomsg=message)
    case(p_ftype%tmol)
-      call read_molecule_tmol(self, unit, status, iomsg=message)
+      call read_molecule_turbomole(self, unit, status, iomsg=message)
    case(p_ftype%molfile)
       call read_molecule_molfile(self, unit, status, iomsg=message)
    case(p_ftype%sdf)
@@ -58,6 +58,8 @@ module subroutine read_molecule_generic(self, unit, format)
    end select
 
    if (.not.status) call raise('E', message, 1)
+
+   call self%update
 
    self%ftype = ftype
 
@@ -144,393 +146,211 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
 end subroutine read_molecule_xyz
 
 
-subroutine read_molecule_tmol(mol, unit, status, iomsg)
+subroutine read_molecule_turbomole(mol, unit, status, iomsg)
    use iso_fortran_env, wp => real64
+   use mctc_constants
+   use mctc_econv
+   use mctc_resize_arrays
    use readin, getline => strip_line
    use pbc_tools
-   implicit none
+   logical, parameter :: debug = .true.
    type(tb_molecule),intent(inout) :: mol
    integer,intent(in) :: unit !< file handle
    logical, intent(out) :: status
    character(len=:), allocatable, intent(out) :: iomsg
-   character(len=:),allocatable :: line
-   integer :: err
-   integer :: idum
-   logical,parameter :: debug = .false.
-   integer :: natoms
-   integer :: i
-   integer :: npbc
-   logical :: exist
-
-   character,parameter :: flag = '$'
-   character(len=*),parameter :: flag_end = flag//'end'
+   character(len=:), allocatable :: line
+   character(len=:), allocatable :: cell_string, lattice_string
+   character(len=1), parameter :: flag = '$'
+   character(len=2), allocatable :: sym(:)
+   real(wp), allocatable :: coord(:, :)
+   real(wp) :: latvec(9), conv
+   integer :: error
+   integer :: iatom, i, j
+   integer :: periodic, cell_vectors
+   integer, parameter :: p_initial_size = 100
+   integer, parameter :: p_nlv(3) = [1, 4, 9]
+   integer, parameter :: p_ncp(3) = [1, 3, 6]
+   logical :: has_coord, has_periodic, has_lattice, has_cell
+   logical :: cartesian, coord_in_bohr, lattice_in_bohr
 
    status = .false.
 
-   exist  = .false.
-   npbc   = -1
-   natoms = -1
+   allocate(sym(p_initial_size), source='  ')
+   allocate(coord(3, p_initial_size), source=0.0_wp)
 
-!  we need to read this file twice, for a lot of reasons
-   rewind(unit) ! FIXME
+   iatom = 0
+   periodic = 0
+   has_coord = .false.
+   has_periodic = .false.
+   has_lattice = .false.
+   has_cell = .false.
+   cartesian = .true.
+   coord_in_bohr = .true.
+   lattice_in_bohr = .true.
 
-!  read first line before the readloop starts, I have to do this
-!  to avoid using backspace on unit (dammit Turbomole format)
-   if (debug) print'("first scan")'
-   call getline(unit,line,err)
-   scanfile: do
-      !  check if there is a $ in the *first* column
-      if (index(line,flag).eq.1) then
-         if (index(line,'coord').eq.2) then
-            if (debug) print'("*>",a)',line
-            call get_atomnumber(natoms,unit,line,err)
-         elseif (index(line,'periodic').eq.2) then
-            if (debug) print'("*>",a)',line
-            call get_periodic(npbc,unit,line,err)
-         else
-!           get a new line
-            if (debug) print'(" >",a)',line
-            call getline(unit,line,err)
+   error = 0
+   do while(error == 0)
+      call getline(unit, line, error)
+      if (index(line, flag) == 1) then
+         if (index(line, 'end') == 2) then
+            exit
+
+         elseif (.not.has_coord .and. index(line, 'coord') == 2) then
+            has_coord = .true.
+            ! $coord angs / $coord bohr / $coord frac
+            call select_unit(line, coord_in_bohr, cartesian)
+            coord_group: do while(error == 0)
+               call getline(unit, line, error)
+               if (index(line, flag) == 1) then
+                  backspace(unit)
+                  exit coord_group
+               endif
+               if (iatom >= size(coord, 2)) call resize(coord)
+               if (iatom >= size(sym)) call resize(sym)
+               iatom = iatom + 1
+               read(line, *, iostat=error) coord(:, iatom), sym(iatom)
+            enddo coord_group
+
+         elseif (.not.has_periodic .and. index(line, 'periodic') == 2) then
+            has_periodic = .true.
+            ! $periodic 0/1/2/3
+            read(line(10:), *, iostat=error) periodic
+
+         elseif (.not.has_lattice .and. index(line, 'lattice') == 2) then
+            has_lattice = .true.
+            ! $lattice bohr / $lattice angs
+            call select_unit(line, lattice_in_bohr)
+            cell_vectors = 0
+            lattice_string = ''
+            lattice_group: do while(error == 0)
+               call getline(unit, line, error)
+               if (index(line, flag) == 1) then
+                  backspace(unit)
+                  exit lattice_group
+               endif
+               cell_vectors = cell_vectors + 1
+               lattice_string = lattice_string // ' ' // line
+            enddo lattice_group
+
+         elseif (.not.has_cell .and. index(line, 'cell') == 2) then
+            has_cell = .true.
+            ! $cell bohr / $cell angs
+            call select_unit(line, lattice_in_bohr)
+            call getline(unit, cell_string, error)
+            if (debug) print*, cell_string
+
          endif
-      else ! not a keyword -> ignore
-         if (debug) print'(" >",a)',line
-         call getline(unit,line,err)
       endif
-   !  check for end of file, which I will tolerate as alternative to $end
-      if (err.eq.iostat_end) exit scanfile
-      if (index(line,flag_end).ne.0) exit scanfile
-   enddo scanfile
-
-   if (natoms.eq.-1) then
-      iomsg = "coord keyword was not found"
-      return
-   endif
-   if (npbc.eq.-1) npbc = 0
-
-   if (natoms.lt.1) then ! this will catch an empty coord data group
-      iomsg = 'Found no atoms, cannot work without atoms!'
-      return
-   endif
-
-   call mol%allocate(natoms)
-   mol%npbc = npbc
-   do i = 1, npbc
-      mol%pbc(i) = .true.
    enddo
-   if (mol%npbc == 0) then
-      ! this might be wrong
-      mol%lattice = reshape([0.0_wp,0.0_wp,0.0_wp,&
-         &                   0.0_wp,0.0_wp,0.0_wp,&
-         &                   0.0_wp,0.0_wp,0.0_wp],[3,3])
-      mol%rec_lat = reshape([1.0_wp,0.0_wp,0.0_wp,&
-         &                   0.0_wp,1.0_wp,0.0_wp,&
-         &                   0.0_wp,0.0_wp,1.0_wp],[3,3])
-   endif
 
-   rewind(unit) ! FIXME
-
-!  read first line before the readloop starts, I have to do this
-!  to avoid using backspace on unit (dammit Turbomole format)
-   if (debug) print'("one''n''half read")'
-   if (npbc > 0) then
-   call getline(unit,line,err)
-   readlat: do
-      !  check if there is a $ in the *first* column
-      if (index(line,flag).eq.1) then
-         if (index(line,'lattice').eq.2) then
-            if (exist) then
-               iomsg = "Multiple definitions of lattice present!"
-               return
-            endif
-            exist = .true.
-            if (debug) print'("*>",a)',line
-            call get_lattice(unit,line,err,npbc,mol%lattice)
-            call dlat_to_cell(mol%lattice,mol%cellpar)
-            call dlat_to_rlat(mol%lattice,mol%rec_lat)
-            mol%volume = dlat_to_dvol(mol%lattice)
-         elseif (index(line,'cell').eq.2) then
-            if (exist) then
-               iomsg = "Multiple definitions of lattice present!"
-               return
-            endif
-            exist = .true.
-            if (debug) print'("*>",a)',line
-            call get_cell(unit,line,err,npbc,mol%cellpar)
-            call cell_to_dlat(mol%cellpar,mol%lattice)
-            call cell_to_rlat(mol%cellpar,mol%rec_lat)
-            mol%volume = cell_to_dvol(mol%cellpar)
-         else
-!           get a new line
-            if (debug) print'(" >",a)',line
-            call getline(unit,line,err)
-         endif
-      else ! not a keyword -> ignore
-         if (debug) print'(" >",a)',line
-         call getline(unit,line,err)
-      endif
-   !  check for end of file, which I will tolerate as alternative to $end
-      if (err.eq.iostat_end) exit readlat
-      if (index(line,flag_end).ne.0) exit readlat
-   enddo readlat
-
-   rewind(unit) ! FIXME
-   endif
-
-!  read first line before the readloop starts, I have to do this
-!  to avoid using backspace on unit (dammit Turbomole format)
-   if (debug) print'("second read")'
-   call getline(unit,line,err)
-   readfile: do
-      !  check if there is a $ in the *first* column
-      if (index(line,flag).eq.1) then
-         if (index(line,'coord').eq.2) then
-            if (debug) print'("*>",a)',line
-            call get_coord(unit,line,err,mol)
-         else
-!           get a new line
-            if (debug) print'(" >",a)',line
-            call getline(unit,line,err)
-         endif
-      else ! not a keyword -> ignore
-         if (debug) print'(" >",a)',line
-         call getline(unit,line,err)
-      endif
-   !  check for end of file, which I will tolerate as alternative to $end
-      if (err.eq.iostat_end) exit readfile
-      if (index(line,flag_end).ne.0) exit readfile
-   enddo readfile
-
-   if (.not.exist .and. npbc > 0) then
-      iomsg = "There is no definition of the lattice present!"
+   if (.not.has_coord .or. iatom == 0) then
+      iomsg = "coordinates not present, cannot work without coordinates"
       return
    endif
+
+   if (has_cell .and. has_lattice) then
+      iomsg = "both lattice and cell group are present"
+      return
+   endif
+
+   if (.not.has_periodic .and. (has_cell .or. has_lattice)) then
+      iomsg = "cell and lattice definition is present, but periodicity is not given"
+      return
+   endif
+
+   if (periodic > 0 .and. .not.(has_cell .or. has_lattice)) then
+      iomsg = "system is periodic but definition of lattice/cell is missing"
+      return
+   endif
+
+   if (.not.cartesian .and. periodic == 0) then
+      iomsg = "fractional coordinates do not work for molecular systems"
+      return
+   endif
+
+   call mol%allocate(iatom)
+
+   mol%sym = sym(:len(mol))
+   mol%at = sym(:len(mol))
+   if (any(mol%at == 0)) then
+      iomsg = "unknown element '"//sym(minval(mol%at))//"' present"
+      return
+   endif
+
+   mol%npbc = periodic
+   if (periodic > 0) mol%pbc(:periodic) = .true.
+
+   if (has_cell) then
+      read(cell_string, *, iostat=error) latvec(:p_ncp(periodic))
+      if (debug) print*, latvec(:p_ncp(periodic))
+      if (lattice_in_bohr) then
+         conv = 1.0_wp
+      else
+         conv = aatoau
+      endif
+      select case(periodic)
+      case(1)
+         mol%cellpar = [latvec(1)*conv, 1.0_wp, 1.0_wp, &
+            &           pi/2, pi/2, pi/2]
+      case(2)
+         mol%cellpar = [latvec(1)*conv, latvec(2)*conv, 1.0_wp, &
+            &           pi/2, pi/2, latvec(3)*pi/180.0_wp]
+      case(3)
+         mol%cellpar = [latvec(1:3)*conv, latvec(4:6)*pi/180.0_wp]
+      end select
+      call cell_to_dlat(mol%cellpar,mol%lattice)
+   endif
+
+   if (has_lattice) then
+      if (cell_vectors /= periodic) then
+         iomsg = "number of cell vectors does not match periodicity"
+         return
+      endif
+      read(lattice_string, *, iostat=error) latvec(:p_nlv(periodic))
+      if (lattice_in_bohr) then
+         conv = 1.0_wp
+      else
+         conv = aatoau
+      endif
+      j = 0
+      do i = 1, periodic
+         mol%lattice(:periodic,i) = latvec(j+1:j+periodic) * conv
+         j = j + periodic
+      enddo
+   endif
+
+   if (cartesian) then
+      if (coord_in_bohr) then
+         conv = 1.0_wp
+      else
+         conv = aatoau
+      endif
+      mol%xyz = coord(:, :len(mol)) * conv
+      if (periodic > 0) &
+         &call xyz_to_abc(len(mol),mol%lattice,mol%xyz,mol%abc,mol%pbc)
+   else
+      mol%abc = coord
+      call abc_to_xyz(len(mol),mol%lattice,coord,mol%xyz)
+   endif
+
+   ! save data on input format
+   mol%turbo = turbo_info(cartesian=cartesian, lattice=has_lattice, &
+      &                   angs_lattice=.not.lattice_in_bohr, &
+      &                   angs_coord=.not.coord_in_bohr)
 
    status = .true.
 
 contains
 
-!> count the number of lines in the coord block -> number of atoms
-subroutine get_atomnumber(ncount,unit,line,err)
-   implicit none
-   integer,intent(in) :: unit          !< file handle
-   character(len=:),allocatable :: line !< string buffer
-   integer,intent(out) :: ncount        !< number of readin lines
-   integer,intent(out) :: err           !< status of unit
-   ncount = 0
-   do
-      call getline(unit,line,err)
-      if (err.eq.iostat_end) return
-      if (index(line,flag).ne.0) return
-      if (debug) print'(" ->",a)',line
+   subroutine select_unit(line, in_bohr, cartesian)
+      character(len=*), intent(in) :: line
+      logical, intent(out) :: in_bohr
+      logical, intent(out), optional :: cartesian
+      in_bohr = index(line, ' angs') == 0
+      if (present(cartesian)) cartesian = index(line, ' frac') == 0
+   end subroutine select_unit
 
-      if (line.eq.'') cycle ! skip empty lines
-      ncount = ncount + 1   ! but count non-empty lines first
-   enddo
-end subroutine get_atomnumber
-
-!> get the dimensionality of the system
-subroutine get_periodic(npbc,unit,line,err)
-   implicit none
-   integer,intent(in) :: unit          !< file handle
-   character(len=:),allocatable :: line !< string buffer
-   integer,intent(out) :: npbc          !< number of periodic dimensions
-   integer,intent(out) :: err           !< status of unit
-   integer :: idum
-   if (get_value(line(10:),idum)) then
-      if (idum.eq.0 .or. idum.eq.3) then
-         npbc = idum
-      else
-         iomsg = "This kind of periodicity is not implemented"
-         return
-      endif
-   else
-      iomsg = "Could not read periodicity from '"//line//"'"
-      return
-   endif
-   call getline(unit,line,err)
-end subroutine get_periodic
-
-!> read the lattice vectors from the data group
-subroutine get_lattice(unit,line,err,npbc,lat)
-   use mctc_econv
-   implicit none
-   integer,intent(in) :: unit          !< file handle
-   character(len=:),allocatable :: line !< string buffer
-   integer,intent(out) :: err           !< status of unit
-   integer,intent(in)  :: npbc          !< number of periodic dimensions
-   real(wp),intent(out) :: lat(3,3)     !< lattice vectors
-   integer :: ncount
-   real(wp) :: lvec(3)
-   real(wp) :: conv
-   if (npbc == 0) then
-      iomsg = "lattice data group is present but not periodic?"
-      return
-   endif
-   if (len(line).le.8) then
-      conv = 1.0_wp ! default is bohr
-   elseif (index(line(9:),'bohr').gt.0) then
-      conv = 1.0_wp
-   elseif (index(line(9:),'angs').gt.0) then
-      conv = aatoau
-   else ! fall back to default
-      iomsg = "Could not make sense out of unit '"//line(7:)//"'"
-      conv = 1.0_wp
-   endif
-   lat = 0.0_wp
-   ncount = 0
-   do
-      call getline(unit,line,err)
-      if (err.eq.iostat_end) return
-      if (index(line,flag).ne.0) return
-      if (debug) print'(" ->",a)',line
-
-      if (line.eq.'') cycle ! skip empty lines
-      ncount = ncount + 1   ! but count non-empty lines first
-      if (ncount.gt.npbc) then
-         iomsg = "Input error in lattice data group"
-         return
-      endif
-      read(line,*,iostat=err) lvec(1:npbc)
-      if (err.ne.0) then
-         iomsg = "Input error in lattice data group"
-         return
-      endif
-      lat(1:npbc,ncount) = lvec(1:npbc)*conv
-   enddo
-end subroutine get_lattice
-
-!> read the cell parameters and transform to lattice
-subroutine get_cell(unit,line,err,npbc,cellpar)
-   use mctc_constants
-   use mctc_econv
-   implicit none
-   integer,intent(in)   :: unit        !< file handle
-   character(len=:),allocatable :: line !< string buffer
-   integer,intent(out)  :: err          !< status of unit
-   integer,intent(in)   :: npbc         !< number of periodic dimensions
-   real(wp),intent(out) :: cellpar(6)   !< cell parameter
-   real(wp) :: conv,vol
-   if (npbc == 0) then
-      iomsg = "cell data group is present but not periodic?"
-      return
-   endif
-
-   associate( alen => cellpar(1), blen => cellpar(2), clen => cellpar(3), &
-              alp  => cellpar(4), bet  => cellpar(5), gam  => cellpar(6) )
-
-   alen = 1.0_wp; blen = 1.0_wp; clen = 1.0_wp
-   alp = 90.0_wp; bet = 90.0_wp; gam = 90.0_wp
-
-   if (len(line).le.5) then
-      conv = 1.0_wp ! default is bohr
-   elseif (index(line(6:),'bohr').gt.0) then
-      conv = 1.0_wp
-   elseif (index(line(6:),'angs').gt.0) then
-      conv = aatoau
-   else ! fall back to default
-      iomsg = "Could not make sense out of unit '"//line(7:)//"'"
-      conv = 1.0_wp
-   endif
-   call getline(unit,line,err)
-   if (err.eq.iostat_end) return
-   if (index(line,flag).ne.0) return
-   if (debug) print'(" ->",a)',line
-   if (npbc == 3) &
-      read(line,*,iostat=err) alen,blen,clen,alp,bet,gam
-   if (npbc == 2) &
-      read(line,*,iostat=err) alen,blen,             gam
-   if (npbc == 1) &
-      read(line,*,iostat=err) alen
-   if (err.ne.0) then
-      iomsg = "Could not read cell from '"//line//"'"
-      return
-   endif
-
-   if(alen < 0.0d0 .or. blen < 0.0d0 .or. clen < 0.0d0 .or. &
-      alp < 0.0d0 .or. bet < 0.0d0 .or. gam < 0.0d0) then
-      iomsg = "Negative cell parameters make no sense!"
-      return
-   endif
-
-   alen = alen*conv
-   blen = blen*conv
-   clen = clen*conv
-   alp  = alp*pi/180.0_wp
-   bet  = bet*pi/180.0_wp
-   gam  = gam*pi/180.0_wp
-
-   end associate
-
-end subroutine get_cell
-
-!> read the coordinates from coord data group
-subroutine get_coord(unit,line,err,mol)
-   use mctc_econv
-   use mctc_strings
-   use tbdef_molecule
-   implicit none
-   integer,intent(in) :: unit            !< file handle
-   character(len=:),allocatable :: line   !< string buffer
-   integer,intent(out) :: err             !< status of unit
-   type(tb_molecule),intent(inout) :: mol !< molecular structure information
-   integer  :: narg
-   integer  :: ncount,iat,icoord
-   character(len=10) :: chdum
-   real(wp) :: conv,ddum,xyz(3)
-   logical  :: frac
-   if (len(line).le.6) then
-      frac = .false.
-      conv = 1.0_wp ! default is bohr
-   elseif (index(line(7:),'bohr').gt.0) then
-      frac = .false.
-      conv = 1.0_wp
-   elseif (index(line(7:),'angs').gt.0) then
-      frac = .false.
-      conv = aatoau
-   elseif (index(line(7:),'frac').gt.0) then
-      frac = .true.
-      conv = 1.0_wp
-   else ! fall back to default
-      iomsg = "Could not make sense out of unit '"//line(7:)//"'"
-      frac = .false.
-      conv = 1.0_wp
-   endif
-
-   ncount = 0
-   do
-      call getline(unit,line,err)
-      if (err.eq.iostat_end) return
-      if (index(line,flag).ne.0) return
-      if (debug) print'(" ->",a)',line
-
-      if (line.eq.'') cycle ! skip empty lines
-      ncount = ncount + 1   ! but count non-empty lines first
-      if (ncount.gt.mol%n) then
-         iomsg = "Internal error while reading coord data group"
-         return
-      endif
-      read(line,*,iostat=err) xyz(1), xyz(2), xyz(3), chdum
-      if (err.ne.0) then
-         iomsg = "not enough arguments in line in coord data group"
-         return
-      endif
-      iat = chdum
-      if (iat.eq.0) then
-         iomsg = "invalid element input in line in coord data group"
-         return
-      endif
-      mol%sym(ncount) = trim(chdum)
-      mol%at(ncount) = iat
-      ! in case of fractional coordinates we perform a gemv with the lattice
-      if (frac) then
-         mol%xyz(:,ncount) = matmul(mol%lattice,xyz)
-      else
-         mol%xyz(:,ncount) = conv*xyz
-      endif
-   enddo
-end subroutine get_coord
-
-end subroutine read_molecule_tmol
+end subroutine read_molecule_turbomole
 
 
 subroutine read_molecule_sdf(mol, unit, status, iomsg)

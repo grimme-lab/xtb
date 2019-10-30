@@ -86,6 +86,17 @@ module tbdef_molecule
       logical :: cartesian = .false.
    end type vasp_info
 
+   !> Turbomole input data
+   !
+   !  Saves preferences for cartesian vs. direct coordinates and lattice vs. cell.
+   !  Also saves units of input data groups.
+   type :: turbo_info
+      logical :: cartesian = .true.
+      logical :: lattice = .true.
+      logical :: angs_lattice = .false.
+      logical :: angs_coord = .false.
+   end type turbo_info
+
    !> molecular structure information
    type :: tb_molecule
       integer  :: n = 0            !< number of atoms
@@ -116,6 +127,8 @@ module tbdef_molecule
       type(sdf_data), allocatable :: sdf(:)
       !> VASP specific information about input type
       type(vasp_info) :: vasp = vasp_info()
+      !> Turbomole specific information about input type
+      type(turbo_info) :: turbo = turbo_info()
       !> raw input buffer
       type(tb_buffer) :: info
    contains
