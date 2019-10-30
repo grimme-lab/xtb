@@ -3,7 +3,7 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_poscar_sio2_3d = &
       & '("Si  O ",/,&
@@ -25,7 +25,7 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
    open(newunit=iunit,status='scratch')
    write(iunit,file_poscar_sio2_3d)
    rewind(iunit)
-   call read_poscar(iunit,mol)
+   call mol%read(iunit, format=p_ftype%vasp)
 
    call assert_close(mol%volume,       667.92680030347_wp,thr)
    call assert_close(mol%cellpar(1),8.7413053236641_wp,thr)
@@ -51,7 +51,7 @@ subroutine test_geometry_reader_file_xmol_water_0d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_xmol_water_0d = &
       & '("9",/,&
@@ -71,7 +71,7 @@ subroutine test_geometry_reader_file_xmol_water_0d
    open(newunit=iunit,status='scratch')
    write(iunit,file_xmol_water_0d)
    rewind(iunit)
-   call read_xmol(iunit,mol)
+   call mol%read(iunit, format=p_ftype%xyz)
 
    call assert_eq(mol%n,9)
 
@@ -91,7 +91,7 @@ subroutine test_geometry_reader_file_coord_general_0d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_general_0d_p1 = &
       & '("$coord",/,&
@@ -166,7 +166,7 @@ subroutine test_geometry_reader_file_coord_general_0d
    write(iunit,file_coord_general_0d_p3)
    rewind(iunit)
 
-   call read_coord(iunit,mol)
+   call mol%read(iunit, format=p_ftype%tmol)
 
    call assert(.not.any(mol%pbc))
    call assert_eq(mol%n, 59)
@@ -181,7 +181,7 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaF2_3d = &
       & '("$coord frac",/,&
@@ -202,7 +202,7 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
 
    write(iunit,file_coord_CaF2_3d); rewind(iunit)
    ! reads in from cell parameters in bohr and coordinates in bohr
-   call read_coord(iunit,mol)
+   call mol%read(iunit, format=p_ftype%tmol)
 
    call assert(all(mol%pbc))
    call assert_eq(mol%npbc,3)
@@ -233,7 +233,7 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaMgCO_3d = &
       & '("$cell",/,&
@@ -252,7 +252,7 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
 
    write(iunit,file_coord_CaMgCO_3d); rewind(iunit)
    ! reads in from cell parameters in bohr and coordinates in bohr
-   call read_coord(iunit,mol)
+   call mol%read(iunit, format=p_ftype%tmol)
 
    call assert(all(mol%pbc))
    call assert_eq(mol%npbc,3)
@@ -267,7 +267,7 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
    call assert_close(mol%rec_lat(3,3),0.206273246164110_wp,thr)
 
    ! this value should get's wrapped back from -7.51993484
-   call assert_close(mol%xyz(1,3),    -0.57949455800000_wp,thr)
+   call assert_close(mol%xyz(1,3),    8.5195367720000_wp,thr)
 
    call mol%deallocate; close(iunit,status='delete')
 
@@ -279,7 +279,7 @@ subroutine test_geometry_reader_file_coord_C_2d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_2d = &
@@ -304,7 +304,7 @@ subroutine test_geometry_reader_file_coord_C_1d
    use iso_fortran_env, wp => real64
    use tbdef_molecule
    use assertion
-   use geometry_reader
+   use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_1d = &

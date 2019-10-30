@@ -153,7 +153,7 @@ subroutine read_molecule_turbomole(mol, unit, status, iomsg)
    use mctc_resize_arrays
    use readin, getline => strip_line
    use pbc_tools
-   logical, parameter :: debug = .true.
+   logical, parameter :: debug = .false.
    type(tb_molecule),intent(inout) :: mol
    integer,intent(in) :: unit !< file handle
    logical, intent(out) :: status
