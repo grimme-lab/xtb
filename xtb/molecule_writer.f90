@@ -55,7 +55,7 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm, numb
    case(p_ftype%xyz)
       call write_xyz(self, unit, trim(comment_line))
    case(p_ftype%tmol)
-      call write_tmol(self, unit, trim(comment_line))
+      call write_tmol(self, unit)
    case(p_ftype%molfile)
       call write_molfile(self, unit, trim(comment_line))
    case(p_ftype%sdf)
@@ -87,13 +87,12 @@ subroutine write_xyz(mol, unit, comment_line)
 
 end subroutine write_xyz
 
-subroutine write_tmol(mol, unit, comment_line)
+subroutine write_tmol(mol, unit)
    class(tb_molecule), intent(in) :: mol
    integer, intent(in) :: unit
-   character(len=*), intent(in) :: comment_line
    integer :: i
 
-   write(unit,'(a,1x,"#",1x,a)') "$coord bohr", comment_line
+   write(unit,'(a)') "$coord"
    do i = 1, mol%n
       write(unit,'(3f20.14,6x,a2)') mol%xyz(:,i), mol%sym(i)
    enddo
