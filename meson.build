@@ -435,6 +435,17 @@ test('Geometry Reader: coord 1D',xtb_test,args: ['geometry_reader','coord_1d'])
 test('Geometry Reader: coord 0D',xtb_test,args: ['geometry_reader','coord_0d'])
 test('Geometry Reader: Xmol  0D',xtb_test,args: ['geometry_reader','xmol_0d'])
 test('Geometry Reader: POSCAR',  xtb_test,args: ['geometry_reader','poscar_3d'])
+test('Geometry Reader: molfile', xtb_test,args: ['geometry_reader','molfile'])
+test('Geometry Reader: molfile flat', xtb_test, should_fail: true,
+     args: ['geometry_reader','molfile_flat'])
+test('Geometry Reader: SDF', xtb_test, args: ['geometry_reader','sdfile'])
+test('Geometry Reader: SDF flat', xtb_test, should_fail: true,
+     args: ['geometry_reader','sdfile_flat'])
+test('Geometry Reader: SDF no H', xtb_test, should_fail: true,
+     args: ['geometry_reader','sdfile_noh'])
+test('Geometry Reader: PDB', xtb_test, args: ['geometry_reader','pdb'])
+test('Geometry Reader: PDB no H', xtb_test, should_fail: true,
+     args: ['geometry_reader','pdb_noh'])
 
 test('IO: atom list', xtb_test, args: ['tbdef_atomlist', 'list'])
 

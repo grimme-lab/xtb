@@ -91,6 +91,13 @@ program peeq_tester
       case('coord_0d');   call test_geometry_reader_file_coord_general_0d
       case('xmol_0d');    call test_geometry_reader_file_xmol_water_0d
       case('poscar_3d');  call test_geometry_reader_file_poscar_sio2_3d
+      case('molfile'); call test_geometry_reader_molfile_benzen
+      case('molfile_flat'); call test_geometry_reader_molfile_benzen_flat
+      case('sdfile'); call test_geometry_reader_file_sdf_h2o
+      case('sdfile_flat'); call test_geometry_reader_file_sdf_h2o_flat
+      case('sdfile_noh'); call test_geometry_reader_file_sdf_benzen_hquery
+      case('pdb'); call test_geometry_reader_file_pdb_4qxx
+      case('pdb_noh'); call test_geometry_reader_file_pdb_4qxx_noh
       end select
    case('pbc_tools')
       select case(sec)
