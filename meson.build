@@ -148,7 +148,6 @@ xtb_srcs += 'xtb/scanparam.f90'
 xtb_srcs += 'xtb/splitparam.f90'
 xtb_srcs += 'xtb/symparam.f90'
 xtb_srcs += 'xtb/fixparam.f90'
-xtb_srcs += 'xtb/d3param.f90'
 xtb_srcs += 'xtb/aoparam.f90'
 xtb_srcs += 'xtb/setparam.f90'
 
@@ -182,7 +181,7 @@ xtb_srcs += 'xtb/tbmod_file_utils.f90'
 
 # parameters
 xtb_srcs += 'xtb/gfn_paramset.f90'
-xtb_srcs += 'xtb/copyc6.f'
+xtb_srcs += 'xtb/dftd3_parameters.f90'
 xtb_srcs += 'xtb/setwll.f'
 xtb_srcs += 'xtb/charge_model.f90'
 

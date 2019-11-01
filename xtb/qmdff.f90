@@ -57,7 +57,7 @@ contains
 
 subroutine ff_ini(n,at,xyz,cn,s6)
    use aoparam
-   use d3param
+   use dftd4, only : r2r4 => r4r2, rcov
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -147,7 +147,7 @@ subroutine ff_ini(n,at,xyz,cn,s6)
       iz1=at(i1)
       do i2=1,i1
          iz2=at(i2)
-         call getc6(5,max_elem,c6ab,mxc,iz1,iz2,cn(i1),cn(i2),c6)
+         call getc6(iz1,iz2,cn(i1),cn(i2),c6)
          c6ff(i2,i1)=c6 * s6 ! simulates solvent for s6 < 1
          c6ff(i1,i2)=c6 * s6
       enddo

@@ -18,6 +18,7 @@
 subroutine set_gfn1_parameter(xpar,globpar)
    use iso_fortran_env, wp => real64
    use tbdef_param
+   use tbpar_dftd3
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    real(wp),intent(in) :: globpar(25)
@@ -59,7 +60,7 @@ subroutine set_gfn1_parameter(xpar,globpar)
    xpar%zcnf     =0
    xpar%fpol     =0
    xpar%wllscal  =1
-   call copyc6
+   if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
 
 end subroutine set_gfn1_parameter
 
@@ -116,7 +117,6 @@ subroutine set_gfn2_parameter(xpar,globpar,n,at)
    xpar%zcnf     =0
    xpar%fpol     =0
    xpar%wllscal  =1
-   call copyc6
    call d4init(n,at,xpar%g_a,xpar%g_c,p_refq_gfn2xtb,i)
 end subroutine set_gfn2_parameter
 
@@ -124,7 +124,6 @@ subroutine set_gfn0_parameter(xpar,globpar,n,at)
    use iso_fortran_env, wp => real64
    use tbdef_param
    !use gfn0_module
-   use d3param
    use aoparam
    use dftd4
    implicit none
@@ -176,6 +175,5 @@ subroutine set_gfn0_parameter(xpar,globpar,n,at)
    xpar%zcnf     =0
    xpar%fpol     =0
    xpar%wllscal  =1
-   call copyc6
    call d4init(n,at,xpar%g_a,xpar%g_c,p_refq_goedecker,i)
 end subroutine set_gfn0_parameter
