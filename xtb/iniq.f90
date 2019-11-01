@@ -330,7 +330,7 @@ end subroutine iniqcn_gfn2
 pure subroutine gasteiger_partition(nat,at,xyz,en,q)
 
 !  get data from parameter modules
-   use d3param, only : rcov
+   use dftd4, only : rcov
 
    implicit none
 

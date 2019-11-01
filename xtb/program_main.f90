@@ -48,7 +48,6 @@ program XTBprog
    use symparam
    use fixparam
    use constrain_param
-   use d3param, only: c6ab,mxc
 
 !! ========================================================================
 !  global modules with parametes used in the entire xtb code

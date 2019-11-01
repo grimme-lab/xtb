@@ -19,8 +19,9 @@
       subroutine gdisp(n,iz,xyz,a1,a2,s8,abcscal,disp,g,cn,dcnij)
       use iso_fortran_env, wp => real64
       use mctc_econv, only : autokcal, autoang => autoaa
-      use d3param
+      use dftd4, only : r2r4 => r4r2, rcov
       use ncoord, only : ncoord_d3
+      use tbpar_dftd3
       implicit none  
 
       integer max_elem,maxc
@@ -147,9 +148,9 @@ c Becke-Johnson finite damping
 !      get_dC6_dCNij calculates the derivative dC6(iat,jat)/dCN(iat) and
 !      dC6(iat,jat)/dCN(jat). 
 !
-          call get_dC6_dCNij(maxc,max_elem,c6ab,mxc(iz(iat)),
-     .          mxc(iz(jat)),cn(iat),cn(jat),iz(iat),iz(jat),iat,jat,
-     .          c6,dc6iji,dc6ijj)
+          call get_dC6_dCNij(number_of_references(iz(iat)),
+     &          number_of_references(iz(jat)),cn(iat),cn(jat),
+     &          iz(iat),iz(jat),iat,jat,c6,dc6iji,dc6ijj)
 
 
           r=dsqrt(r2)
@@ -358,16 +359,15 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 C      The   N E W   gradC6 routine    C
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !
-      subroutine get_dC6_dCNij(maxc,max_elem,c6ab,mxci,mxcj,cni,cnj,
+      subroutine get_dC6_dCNij(mxci,mxcj,cni,cnj,
      .           izi,izj,iat,jat,c6check,dc6i,dc6j)
          use iso_fortran_env, wp => real64
+         use tbpar_dftd3
 
       IMPLICIT NONE
       real(wp) k1,k3
       parameter (k1     =16)
       parameter (k3     =-4)
-      integer maxc,max_elem
-      real(wp) c6ab(max_elem,max_elem,maxc,maxc,3)
       integer mxci,mxcj   !mxc(iz(iat))
       real(wp) cni,cnj,term
       integer iat,jat,izi,izj
@@ -394,11 +394,11 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       DO a=1,mxci
         DO b=1,mxcj
-          c6ref=c6ab(izi,izj,a,b,1)
+          c6ref=get_c6(a,b,izi,izj)!c6ab(izi,izj,a,b,1)
           if (c6ref.gt.0) then
 !            c6mem=c6ref
-            cn_refi=c6ab(izi,izj,a,b,2)
-            cn_refj=c6ab(izi,izj,a,b,3)
+            cn_refi=reference_cn(a,izi) !c6ab(izi,izj,a,b,2)
+            cn_refj=reference_cn(b,izj) !c6ab(izi,izj,a,b,3)
             r=(cn_refi-cni)*(cn_refi-cni)+(cn_refj-cnj)*(cn_refj-cnj)
             if (r.lt.r_save) then
                r_save=r
@@ -437,8 +437,9 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       subroutine abcdisp(n,iz,xyz,eabc)
       use iso_fortran_env, wp => real64
       use mctc_econv, only : autokcal, autoang => autoaa
-      use d3param
+      use dftd4, only : r2r4 => r4r2, rcov
       use ncoord, only : ncoord_d3
+      use tbpar_dftd3
       implicit none  
 
       integer max_elem,maxc
@@ -536,9 +537,9 @@ c Becke-Johnson finite damping
 !      get_dC6_dCNij calculates the derivative dC6(iat,jat)/dCN(iat) and
 !      dC6(iat,jat)/dCN(jat). 
 !
-          call get_dC6_dCNij(maxc,max_elem,c6ab,mxc(iz(iat)),
-     .          mxc(iz(jat)),cn(iat),cn(jat),iz(iat),iz(jat),iat,jat,
-     .          c6,dc6iji,dc6ijj)
+          call get_dC6_dCNij(number_of_references(iz(iat)),
+     &          number_of_references(iz(jat)),cn(iat),cn(jat),
+     &          iz(iat),iz(jat),iat,jat,c6,dc6iji,dc6ijj)
 
           r=dsqrt(r2)
           if (r2.lt.abcthr) then
@@ -585,18 +586,12 @@ c               fdmp=1.d0/(1.d0+6.d0*(rav)**(101.d0))
       end 
 
 
-
-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-C interpolate c6  
-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-
-      subroutine getc6(maxc,max_elem,c6ab,mxc,iat,jat,nci,ncj,c6)
+      subroutine getc6(iat,jat,nci,ncj,c6)
          use iso_fortran_env, wp => real64
+         use tbpar_dftd3
       implicit none
-      integer maxc,max_elem
-      integer iat,jat,i,j,mxc(max_elem)
+      integer iat,jat,i,j
       real(wp)  nci,ncj,c6,c6mem
-      real(wp)  c6ab(max_elem,max_elem,maxc,maxc,3)
 c the exponential is sensitive to numerics
 c when nci or ncj is much larger than cn1/cn2
       real(wp)  cn1,cn2,r,rsum,csum,tmp,tmp1   
@@ -610,13 +605,13 @@ c when nci or ncj is much larger than cn1/cn2
       csum=0.0
       c6  =0.0
       r_save=1000.0
-      do i=1,mxc(iat)
-      do j=1,mxc(jat)
-         c6=c6ab(iat,jat,i,j,1)
+      do i=1,number_of_references(iat)
+      do j=1,number_of_references(jat)
+         c6=get_c6(i,j,iat,jat)
          if(c6.gt.0)then
 !            c6mem=c6
-            cn1=c6ab(iat,jat,i,j,2)
-            cn2=c6ab(iat,jat,i,j,3)
+            cn1=reference_cn(i,iat)
+            cn2=reference_cn(j,jat)
 c distance
             r=(cn1-nci)**2+(cn2-ncj)**2
             if (r.lt.r_save) then
@@ -638,29 +633,6 @@ c distance
 
       end subroutine getc6
 
-      pure elemental function esym(i)
-      integer,intent(in) :: i
-      character(len=2) :: esym
-      character(len=2),parameter :: elemnt(118) = (/
-     & 'h ','he',
-     & 'li','be','b ','c ','n ','o ','f ','ne',
-     & 'na','mg','al','si','p ','s ','cl','ar',
-     & 'k ','ca',
-     & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn',
-     &           'ga','ge','as','se','br','kr',
-     & 'rb','sr',
-     & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd',
-     &           'in','sn','sb','te','i ','xe',
-     & 'cs','ba','la',
-     & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb',
-     & 'lu','hf','ta','w ','re','os','ir','pt','au','hg',
-     &           'tl','pb','bi','po','at','rn',
-     & 'fr','ra','ac',
-     & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no',
-     & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn',
-     &           'nh','fl','mc','lv','ts','og' /)
-      esym=elemnt(i)
-      end function esym
 
 c     integer function lin(i1,i2)
 c     integer i1,i2
@@ -1479,4 +1451,3 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       close(142)
 
       end subroutine outg
-      
