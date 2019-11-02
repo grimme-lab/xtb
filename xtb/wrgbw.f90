@@ -20,7 +20,7 @@ subroutine wrgbw(n,iat,coord,z,basis,wfn)
    use iso_c_binding
    use tbdef_basisset
    use tbdef_wavefunction
-   use aoparam
+   use aoparam, only : gfn
    implicit none
 !! ------------------------------------------------------------------------
 !  xtb input
@@ -122,9 +122,9 @@ subroutine wrgbw(n,iat,coord,z,basis,wfn)
 !  but we don't use ragged pointer arrays, so we will fake is...
    do i = 1, nat
       ati = iat(i)
-      nshell(i) = int(ao_n(ati),c_int)
-      do ish = 1, ao_n(ati)
-         ishtyp = ao_l(ish,ati)
+      nshell(i) = int(gfn%ao_n(ati),c_int)
+      do ish = 1, gfn%ao_n(ati)
+         ishtyp = gfn%ao_l(ish,ati)
          icao = basis%caoshell(ish,ati)
          iao  = basis%saoshell(ish,ati)
          BG(ish,i)%lstart = int(iao,c_int)

@@ -317,7 +317,7 @@ end subroutine mol_set_nuclear_charge
 !> get all nuclear charges
 subroutine mol_set_atomic_masses(self)
    use iso_fortran_env, wp => real64
-   use mctc_param
+   use mctc_param, only : atomic_mass
    implicit none
    class(tb_molecule),intent(inout) :: self  !< molecular structure information
    self%atmass = atomic_mass(self%at)

@@ -125,7 +125,7 @@
 
       subroutine constrallbonds(nat,at,xyz)
       use iso_fortran_env, wp => real64
-      use aoparam
+      use mctc_param, only : rad => covalent_radius_2010
       use scanparam
       implicit none
       integer nat,at(nat)
@@ -139,7 +139,7 @@
             if(i.eq.j) cycle
             rij=norm2(xyz(:,i)-xyz(:,j))
             rco=rad(at(j))+rad(at(i))
-            if(0.52917726*rij.lt.1.2*rco)then
+            if(rij.lt.1.2*rco)then
                nconstr = nconstr + 1
                atconstr(1,nconstr) = i
                atconstr(2,nconstr) = j

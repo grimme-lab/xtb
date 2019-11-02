@@ -99,7 +99,6 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    use tbdef_data
    use tbdef_timer
 
-   use aoparam
    use setparam
    use fixparam
 

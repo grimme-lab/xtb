@@ -21,7 +21,7 @@
 
       subroutine exch(nat,at,nao,nopen,ihomo,xyz,focc,s,cmo,xint,aoat)
       use setparam
-      use aoparam
+      use aoparam, only : gfn
       implicit none          
       integer nao,nat,at(nat),nopen,ihomo
       real*8  cmo(nao,nao),focc(nao),xyz(3,nat),s(nao,nao)
@@ -42,7 +42,7 @@
          ii=at(i)
          do j=1,i      
             jj=at(j)
-            xk  =0.50d0*(gam(ii)+gam(jj)) 
+            xk  =0.50d0*(gfn%gam(ii)+gfn%gam(jj)) 
             rabx=sqrt((xyz(1,i)-xyz(1,j))**2
      .               +(xyz(2,i)-xyz(2,j))**2
      .               +(xyz(3,i)-xyz(3,j))**2)

@@ -122,7 +122,6 @@ subroutine hcn_grad_gfn1(g,n,at,ndim,nmat2,matlist2,xyz, &
    &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2)
    use mctc_econv, only : autoev,evtoau
-   use aoparam
    implicit none
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
@@ -217,7 +216,6 @@ subroutine hcn_grad_gfn2(g,n,at,ndim,nmat2,matlist2,xyz, &
    &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2,aoexp)
    use mctc_econv, only : autoev,evtoau
-   use aoparam
    implicit none
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
@@ -376,41 +374,37 @@ end subroutine cm5_grad_gfn1
 !  repulsion gradient of GFN1
 !! ========================================================================
 subroutine rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
-   use aoparam, only : rep
+   use aoparam, only : gfn
    implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(out)   :: ep
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
    real(wp),intent(in)    :: xyz(3,n)
    real(wp),intent(in)    :: sqrab(n*(n+1)/2)
    real(wp),intent(in)    :: kexp
    real(wp),intent(in)    :: rexp
+   real(wp),intent(inout) :: g(3,n)
+   real(wp),intent(out)   :: ep
 
    integer,external :: lin
    integer  :: iat,jat,ati,atj
    real(wp) :: t16,t19,t20,t22,t26,t27,t28,t39
    real(wp) :: dum
    real(wp) :: alpha,repab
-   real(wp) :: xa,ya,za,dx,dy,dz
+   real(wp) :: ri(3),rij(3)
    real(wp) :: r2,rab
 
    ep = 0.0_wp
    do iat=1,n-1
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
+      ri=xyz(:,iat)
       ati=at(iat)
       do jat=iat+1,n
          r2=sqrab(lin(jat,iat))
          if(r2.gt.5000.0d0) cycle
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
+         rij=ri-xyz(:,jat)
          rab=sqrt(r2)
          atj=at(jat)
-         alpha=sqrt(rep(1,ati)*rep(1,atj))
-         repab=rep(2,ati)*rep(2,atj)
+         alpha=sqrt(gfn%rep(1,ati)*gfn%rep(1,atj))
+         repab=gfn%rep(2,ati)*gfn%rep(2,atj)
          t16 = rab**kexp
          t19 = 1/r2
          t26 = dexp(-alpha*t16)
@@ -418,21 +412,10 @@ subroutine rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
          t28 = 1/t27
          ep  = ep + repab * t26 * t28 !energy
          t20 = 1/r2/rab
-         t22 = 2.D0*dx
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(1,iat)=g(1,iat)+t39
-         g(1,jat)=g(1,jat)-t39
-         t22 = 2.D0*dy
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(2,iat)=g(2,iat)+t39
-         g(2,jat)=g(2,jat)-t39
-         t22 = 2.D0*dz
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(3,iat)=g(3,iat)+t39
-         g(3,jat)=g(3,jat)-t39
+         t39 = -repab*alpha*t16*kexp*t19*t26*t28 &
+         &     -repab*t26*t28*rexp*t19
+         g(:,iat)=g(:,iat)+t39*rij
+         g(:,jat)=g(:,jat)-t39*rij
       enddo
    enddo
 
@@ -442,43 +425,36 @@ end subroutine rep_grad_gfn1
 !  repulsion gradient of GFN2
 !! ========================================================================
 subroutine rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
-   use aoparam, only : rep
+   use aoparam, only : gfn
    implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(out)   :: ep
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
    real(wp),intent(in)    :: xyz(3,n)
    real(wp),intent(in)    :: sqrab(n*(n+1)/2)
    real(wp),intent(in)    :: rexp
+   real(wp),intent(out)   :: ep
+   real(wp),intent(inout) :: g(3,n)
 
    integer,external :: lin
    integer  :: iat,jat,ati,atj
    real(wp) :: t16,t19,t20,t22,t26,t27,t28,t39
    real(wp) :: kexpe
    real(wp) :: alpha,repab
-   real(wp) :: xa,ya,za,xb,yb,zb,dx,dy,dz
+   real(wp) :: ri(3),rij(3)
    real(wp) :: r2,rab
 
    ep = 0.0_wp
    do iat=1,n-1
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
+      ri=xyz(:,iat)
       ati=at(iat)
       do jat=iat+1,n
          r2=sqrab(lin(jat,iat))
          if(r2.gt.5000.0d0) cycle
-         xb=xyz(1,jat)
-         yb=xyz(2,jat)
-         zb=xyz(3,jat)
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
+         rij=ri-xyz(:,jat)
          rab=sqrt(r2)
          atj=at(jat)
-         alpha=sqrt(rep(1,ati)*rep(1,atj))
-         repab=rep(2,ati)*rep(2,atj)
+         alpha=sqrt(gfn%rep(1,ati)*gfn%rep(1,atj))
+         repab=gfn%rep(2,ati)*gfn%rep(2,atj)
          if(ati.le.2.and.atj.le.2) then
             kexpe=1.0_wp
             t16 = rab
@@ -492,21 +468,10 @@ subroutine rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
          t28 = 1/t27
          ep  = ep + repab * t26 * t28 !energy
          t20 = 1/r2/rab
-         t22 = 2.D0*dx
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(1,iat)=g(1,iat)+t39
-         g(1,jat)=g(1,jat)-t39
-         t22 = 2.D0*dy
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(2,iat)=g(2,iat)+t39
-         g(2,jat)=g(2,jat)-t39
-         t22 = 2.D0*dz
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(3,iat)=g(3,iat)+t39
-         g(3,jat)=g(3,jat)-t39
+         t39 = -repab*alpha*t16*kexpe*t19*t26*t28 &
+         &     -repab*t26*t28*rexp*t19
+         g(:,iat)=g(:,iat)+t39*rij
+         g(:,jat)=g(:,jat)-t39*rij
       enddo
    enddo
 
@@ -516,7 +481,7 @@ end subroutine rep_grad_gfn2
 !  shellwise electrostatic gradient for GFN1
 !! ========================================================================
 subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
@@ -540,7 +505,7 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0d0+gfn%lpar(lsh(is),ati))
       do js=1,nshell
          jat=ash(js)
          if(jat.le.iat) cycle
@@ -549,7 +514,7 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
          dz=za-xyz(3,jat)
          atj=at(jat)
          r2=sqrab(lin(jat,iat))
-         gj=gam(atj)*(1.0d0+lpar(lsh(js),atj))
+         gj=gfn%gam(atj)*(1.0d0+gfn%lpar(lsh(js),atj))
          rr=2.0d0/(1./gi+1./gj)
          rr=1.0d0/rr**alphaj
          ff=r2**(alphaj/2.0d0-1.0d0)* &
@@ -570,7 +535,7 @@ end subroutine shelles_grad_gfn1
 !  shellwise electrostatic gradient for GFN2
 !! ========================================================================
 subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
@@ -593,7 +558,7 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0d0+gfn%lpar(lsh(is),ati))
       do js=1,nshell
          jat=ash(js)
          if(jat.le.iat) cycle
@@ -602,7 +567,7 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
          dz=za-xyz(3,jat)
          atj=at(jat)
          r2=sqrab(lin(jat,iat))
-         gj=gam(atj)*(1.0d0+lpar(lsh(js),atj))
+         gj=gfn%gam(atj)*(1.0d0+gfn%lpar(lsh(js),atj))
          rr=0.5d0*(gi+gj)
          rr=1.0d0/rr**2
 !        rr=1.0d0/(gi*gj) !NEWAV
@@ -652,44 +617,37 @@ end subroutine dhdr
 !  derivative of S(R) enhancement factor
 !! ========================================================================
 pure subroutine drfactor(ish,jsh,iat,ati,atj,rab2,xyz1,xyz2,rf,dxyz)
-   use mctc_econv
-   use aoparam, only : rad,polyr
+   use mctc_param, only : rad => covalent_radius_2010
+   use aoparam, only : gfn
    implicit none
    integer,intent(in)  :: ati,atj,ish,jsh,iat
    real(wp), intent(in)  :: rab2
    real(wp), intent(out) :: dxyz(3),rf
    real(wp), intent(in)  :: xyz1(3),xyz2(3)
+   real(wp) :: r12(3)
    real(wp) :: rab,k1,k2,rr,r,a,dum,rf1,rf2,dx,dy,dz
    real(wp) :: t14,t15,t17,t22,t20,t23,t10,t11,t35,t13
 
    a=0.5            ! R^a dependence 0.5 in GFN1
 
-   dx=xyz1(1)-xyz2(1)
-   dy=xyz1(2)-xyz2(2)
-   dz=xyz1(3)-xyz2(3)
+   r12=xyz1-xyz2
 
    rab=sqrt(rab2)
 
-   ! this sloppy conv. factor has been used in development, keep it
-   r=(rad(ati)+rad(atj))*aatoau
+   r=rad(ati)+rad(atj)
 
    rr=rab/r
 
-   k1=polyr(ish,ati)*0.01
-   k2=polyr(jsh,atj)*0.01
+   k1=gfn%polyr(ish,ati)*0.01
+   k2=gfn%polyr(jsh,atj)*0.01
 
    t14 = rr**a
    t15 = k1*t14
    t17 = 1/rab2
    t22 = rr**a
    t23 = k2*t22
-   rf=(1.0d0+t15)*(1.0d0+k2*t22)
-   t20 = 2.D0*dx
-   dxyz(1)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
-   t20 = 2.D0*dy
-   dxyz(2)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
-   t20 = 2.D0*dz
-   dxyz(3)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
+   rf=(1._wp+t15)*(1.0_wp+k2*t22)
+   dxyz=(t15*a*t17*(1._wp+t23)+(1._wp+t15)*k2*t22*a*t17)*r12
 
 end subroutine drfactor
 

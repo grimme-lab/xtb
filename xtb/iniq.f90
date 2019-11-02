@@ -120,7 +120,7 @@ end subroutine iniqcn
 pure subroutine iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
 
 !  get data from parameter modules
-   use aoparam, only : en,metal
+   use mctc_param, only : en => pauling_en, metal
 
 !  get interface to ncoord
    use ncoord, only : ncoord_d3
@@ -190,7 +190,7 @@ end subroutine iniqcn_vtb
 pure subroutine iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
 
 !  get data from parameter modules
-   use aoparam, only : en,metal
+   use mctc_param, only : en => pauling_en, metal
 
 !  get interface to ncoord
    use ncoord, only : ncoord_d3
@@ -262,7 +262,7 @@ end subroutine iniqcn_gfn1
 pure subroutine iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
 
 !  get data from parameter modules
-   use aoparam, only : en,metal
+   use mctc_param, only : en => pauling_en, metal
 
 !  get interface to ncoord
    use ncoord, only : ncoord_gfn

@@ -29,6 +29,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
 &              res)
 
    use mctc_econv, only : autoev,evtoau
+   use mctc_param, only : metal
 
 ! ========================================================================
 !  type definitions
@@ -42,7 +43,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
 
 ! ========================================================================
 !  global storage
-   use aoparam
+   use aoparam, only : gfn
    use setparam
 
 ! ========================================================================
@@ -374,7 +375,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
          ati=mol%at(iat)
          dum=param%gam3l(basis%lsh(is))  ! sp or d-pol
          if ((basis%lsh(is).eq.2).and.(tmmetal(ati).ge.1)) dum=param%gam3l(3) ! d-val
-         gam3sh(is)=gam3(ati)*dum
+         gam3sh(is)=gfn%gam3(ati)*dum
       enddo
    endif
 
@@ -528,7 +529,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
             if(ishell.eq.3) kcnao(ii)=param%kcnsh(4) ! fix problems with too low-coord CP rings
          endif
       else
-         kcnao(ii)=kcnat(ishell-1,mol%at(iat))  ! clean GFN2 version
+         kcnao(ii)=gfn%kcnat(ishell-1,mol%at(iat))  ! clean GFN2 version
       endif
    enddo
 
@@ -789,7 +790,6 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 ! ========================================================================
 !  global storage
-   use aoparam
    use setparam
 
 ! ========================================================================
@@ -983,7 +983,6 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 
 ! ========================================================================
 !  global storage
-   use aoparam
    use setparam
 
 ! ========================================================================

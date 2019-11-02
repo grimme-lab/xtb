@@ -169,6 +169,7 @@ subroutine test_peeq_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_param
 
@@ -196,7 +197,7 @@ subroutine test_peeq_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
 
    real(wp) :: energy
    real(wp) :: hl_gap

@@ -56,6 +56,7 @@ function peeq_api &
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
+   use tbdef_hamiltonian
 
    use tb_calculators
 
@@ -79,7 +80,7 @@ function peeq_api &
    real(c_double),intent(out) :: glat(3,3)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
    type(peeq_options)   :: opt
    type(tb_environment) :: env
 
@@ -197,6 +198,7 @@ function gfn2_api &
    use tbdef_wavefunction
    use tbdef_param
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_pcem
 
    use tb_calculators
@@ -223,7 +225,7 @@ function gfn2_api &
 
    type(tb_molecule)    :: mol
    type(tb_wavefunction):: wfn
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
@@ -338,6 +340,7 @@ function gfn1_api &
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_pcem
    use tbdef_wavefunction
 
@@ -362,7 +365,7 @@ function gfn1_api &
    real(c_double),intent(out) :: dipole(3)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
@@ -476,6 +479,7 @@ function gfn0_api &
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
+   use tbdef_hamiltonian
 
    use tb_calculators
 
@@ -495,7 +499,7 @@ function gfn0_api &
    real(c_double),intent(out) :: grad(3,natoms)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
    type(peeq_options)    :: opt
    type(tb_environment) :: env
 
@@ -605,10 +609,11 @@ function gfn2_pcem_api &
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_pcem
    use tbdef_wavefunction
 
-   use aoparam
+   use aoparam, only : gfn
 
    use tb_calculators
 
@@ -635,7 +640,6 @@ function gfn2_pcem_api &
    real(c_double),intent(out) :: pc_grad(3,npc)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
@@ -700,7 +704,7 @@ function gfn2_pcem_api &
    pcem%q   = pc_q
    pcem%xyz = pc_coord
    where(pc_at > 0)
-      pcem%gam = gam(pc_at)
+      pcem%gam = gfn%gam(pc_at)
    elsewhere
       pcem%gam = pc_gam
    endwhere
@@ -758,10 +762,11 @@ function gfn1_pcem_api &
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_pcem
    use tbdef_wavefunction
 
-   use aoparam
+   use aoparam, only : gfn
 
    use tb_calculators
 
@@ -788,7 +793,6 @@ function gfn1_pcem_api &
    real(c_double),intent(out) :: pc_grad(3,npc)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
@@ -853,7 +857,7 @@ function gfn1_pcem_api &
    pcem%q   = pc_q
    pcem%xyz = pc_coord
    where(pc_at > 0)
-      pcem%gam = gam(pc_at)
+      pcem%gam = gfn%gam(pc_at)
    elsewhere
       pcem%gam = pc_gam
    endwhere
@@ -982,6 +986,7 @@ function gbsa_calculation_api &
 
    use tbdef_molecule
    use tbdef_options
+   use tbdef_hamiltonian
 
    use gbobc
 

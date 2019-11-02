@@ -23,7 +23,7 @@ contains
 
 subroutine xbasis_gfn1(n,at,basis,ok,diff)
    use tbdef_basisset
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    type(tb_basisset),intent(inout) :: basis
    integer, intent(in)  :: n
@@ -54,17 +54,17 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
    do i=1,n
       !     AO=shell loop
       basis%fila(1,i)=ibf+1
-      do m=1,ao_n(at(i))
+      do m=1,gfn%ao_n(at(i))
          !        principle QN
-         npq=ao_pqn(m,at(i))
-         l=ao_l(m,at(i))
+         npq=gfn%ao_pqn(m,at(i))
+         l=gfn%ao_l(m,at(i))
 ! ========================================================================
 !        H-He
 ! ========================================================================
          if(l.eq.0.and.at(i).le.2.and.npq.eq.1)then
             ! s
             ibf =ibf+1
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto4(thisprim,npq,1,zeta,a,c)
             do p=1,thisprim
                ipr=ipr+1
@@ -74,14 +74,14 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
 
          if(l.eq.12.and.at(i).le.2)then
             ! diff sp
             ibf =ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprimR,npq,1,zeta,aR,cR)
             call atovlp(0,thisprim,thisprimR,a,aR,c,cR,ss)
             idum=ipr+1
@@ -107,8 +107,8 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             split1=0
             if(at(i).eq.2)split1=2.25  ! set to SCS-CC2 value
 
-            basis%hdiag(ibf)=ao_lev(m,at(i))-split1
-            zeta=ao_exp(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))-split1
+            zeta=gfn%ao_exp(m,at(i))
             call setsto4(thisprim,2,2,zeta,a,c)
             do j=2,4
                ibf=ibf+1
@@ -121,7 +121,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))+split1
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))+split1
             enddo
          endif
 
@@ -129,7 +129,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             ! diff s
             ibf =ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprimR,npq,1,zeta,aR,cR)
             call atovlp(0,thisprim,thisprimR,a,aR,c,cR,ss)
             idum=ipr+1
@@ -151,12 +151,12 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             do p=1,basis%nprim(ibf)
                basis%cont(idum-1+p)=basis%cont(idum-1+p)/sqrt(ss)
             enddo
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
 
          ! p polarization
          if(l.eq.1.and.at(i).le.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprim,npq,2,zeta,ap,cp)
             do j=2,4
                ibf=ibf+1
@@ -169,7 +169,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                basis%lao  (ibf)=j
                basis%valao(ibf)=-1
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 
@@ -179,7 +179,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
          if(l.eq.0.and.at(i).gt.2)then
             !   s
             ibf=ibf+1
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto6(thisprim,npq,1,zeta,as,cs)
             do p=1,thisprim
                ipr=ipr+1
@@ -189,11 +189,11 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
          !   p
          if(l.eq.1.and.at(i).gt.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto6(thisprim,npq,2,zeta,ap,cp)
             do j=2,4
                ibf=ibf+1
@@ -205,7 +205,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 
@@ -218,7 +218,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             !   s
             ibf=ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
                call setsto6(thisprimR,npq,1,zeta,aR,cR)
             else
@@ -239,14 +239,14 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprimR+thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             call atovlp(0,basis%nprim(ibf),basis%nprim(ibf),basis%alp(idum),basis%alp(idum), &
             &           basis%cont(idum),basis%cont(idum),ss)
             do p=1,basis%nprim(ibf)
                basis%cont(idum-1+p)=basis%cont(idum-1+p)/sqrt(ss)
             enddo
             !  p
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
                call setsto6(thisprimR,npq,2,zeta,aR,cR)
             else
@@ -275,11 +275,11 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                enddo
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
             !  d if its an spd Ryd shell
             if(l.eq.13)then
-               zeta=ao_exp(m,at(i))
+               zeta=gfn%ao_exp(m,at(i))
                if(npq.lt.5) then
                   call setsto3(thisprim,npq,3,zeta,a,c)
                else
@@ -297,7 +297,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                   basis%aoat (ibf)=i
                   basis%lao  (ibf)=j
                   basis%nprim(ibf)=thisprim
-                  basis%hdiag(ibf)=ao_lev(m,at(i))
+                  basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
                enddo
             endif
          endif
@@ -306,7 +306,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
          if(l.eq.11)then
             ibf=ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
                call setsto6(thisprimR,npq,1,zeta,aR,cR)
             else
@@ -327,7 +327,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprimR+thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             call atovlp(0,basis%nprim(ibf),basis%nprim(ibf),basis%alp(idum),basis%alp(idum), &
             &           basis%cont(idum),basis%cont(idum),ss)
             do p=1,basis%nprim(ibf)
@@ -339,9 +339,9 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 !  d
 ! ========================================================================
          if(l.eq.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             !           valence
-            if(ao_typ(m,at(i)).ne.-1)then
+            if(gfn%ao_typ(m,at(i)).ne.-1)then
                call setsto4(thisprim,npq,3,zeta,a,c)
             else
                !           polarization
@@ -349,7 +349,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             endif
             do j=5,10
                ibf=ibf+1
-               if(ao_typ(m,at(i)).eq.-1)basis%valao(ibf)=-1
+               if(gfn%ao_typ(m,at(i)).eq.-1)basis%valao(ibf)=-1
                do p=1,thisprim
                   ipr=ipr+1
                   basis%alp (ipr)=a(p)
@@ -359,7 +359,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 
@@ -367,7 +367,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 !  f
 ! ========================================================================
          if(l.eq.3)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             do j=11,20
                ibf=ibf+1
                !           valence
@@ -382,7 +382,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
          ! next shell
@@ -416,9 +416,9 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
    !     write(*,*) cont(1:ipr)
 
    do i=1,n
-      do j=1,ao_n(at(i))
-         l = ao_l(j,at(i))
-         if(l.eq.11)ao_l(j,at(i))=0
+      do j=1,gfn%ao_n(at(i))
+         l = gfn%ao_l(j,at(i))
+         if(l.eq.11)gfn%ao_l(j,at(i))=0
       enddo
    enddo
 
@@ -426,7 +426,7 @@ end subroutine xbasis_gfn1
 
 subroutine xbasis_gfn2(n,at,basis,ok)
    use tbdef_basisset
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    type(tb_basisset),intent(inout) :: basis
    integer, intent(in)  :: n
@@ -455,10 +455,10 @@ subroutine xbasis_gfn2(n,at,basis,ok)
    do i=1,n
       !     AO=shell loop
       basis%fila(1,i)=ibf+1
-      do m=1,ao_n(at(i))
+      do m=1,gfn%ao_n(at(i))
          !        principle QN
-         npq=ao_pqn(m,at(i))
-         l=ao_l(m,at(i))
+         npq=gfn%ao_pqn(m,at(i))
+         l=gfn%ao_l(m,at(i))
 
 ! ========================================================================
 !        H-He
@@ -466,7 +466,7 @@ subroutine xbasis_gfn2(n,at,basis,ok)
          if(l.eq.0.and.at(i).le.2.and.npq.eq.1)then
             !  s
             ibf =ibf+1
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprim,npq,1,zeta,a,c)
             do p=1,thisprim
                ipr=ipr+1
@@ -476,7 +476,7 @@ subroutine xbasis_gfn2(n,at,basis,ok)
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
 
 ! ========================================================================
@@ -485,7 +485,7 @@ subroutine xbasis_gfn2(n,at,basis,ok)
          if(l.eq.0.and.at(i).gt.2)then
             !   s
             ibf=ibf+1
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
                call setsto6(thisprim,npq,1,zeta,a,c)
             else
@@ -499,11 +499,11 @@ subroutine xbasis_gfn2(n,at,basis,ok)
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
          !   p
          if(l.eq.1)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
                call setsto6(thisprim,npq,2,zeta,a,c)
             else
@@ -519,16 +519,16 @@ subroutine xbasis_gfn2(n,at,basis,ok)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
          !   d
          if(l.eq.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprim,npq,3,zeta,a,c)
             do j=5,10
                ibf=ibf+1
-               if(ao_typ(m,at(i)).eq.-1)basis%valao(ibf)=-1
+               if(gfn%ao_typ(m,at(i)).eq.-1)basis%valao(ibf)=-1
                do p=1,thisprim
                   ipr=ipr+1
                   basis%alp (ipr)=a(p)
@@ -538,12 +538,12 @@ subroutine xbasis_gfn2(n,at,basis,ok)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
          !    f
          if(l.eq.3)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             do j=11,20
                ibf=ibf+1
                call setsto4(thisprim,npq,4,zeta,a,c)
@@ -557,7 +557,7 @@ subroutine xbasis_gfn2(n,at,basis,ok)
                basis%aoat (ibf)=i
                basis%lao  (ibf)=j
                basis%nprim(ibf)=thisprim
-               basis%hdiag(ibf)=ao_lev(m,at(i))
+               basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
          ! next shell
@@ -589,9 +589,9 @@ subroutine xbasis_gfn2(n,at,basis,ok)
 !  write(*,*) cont(1:ipr)
 
    do i=1,n
-      do j=1,ao_n(at(i))
-         l = ao_l(j,at(i))
-         if(l.eq.11)ao_l(j,at(i))=0
+      do j=1,gfn%ao_n(at(i))
+         l = gfn%ao_l(j,at(i))
+         if(l.eq.11)gfn%ao_l(j,at(i))=0
       enddo
    enddo
 
@@ -602,7 +602,7 @@ end subroutine xbasis_gfn2
 ! ========================================================================
 subroutine xbasis_cao2sao(n,at,basis)
    use tbdef_basisset
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    type(tb_basisset),intent(inout) :: basis
    integer,intent(in) :: n,at(n)
@@ -624,9 +624,9 @@ subroutine xbasis_cao2sao(n,at,basis)
    do i=1,n
       ia=at(i)
 !     aostart(i)=j+1
-      do mi=1,ao_n(ia)
+      do mi=1,gfn%ao_n(ia)
          kkk=kkk+1
-         ishell=ao_l(mi,ia)
+         ishell=gfn%ao_l(mi,ia)
          basis%lsh(kkk)=ishell
          basis%ash(kkk)=i
          basis%caoshell(mi,i)=k
@@ -634,7 +634,7 @@ subroutine xbasis_cao2sao(n,at,basis)
          do m=1,llao2(ishell)
             kk=kk+1
             basis%ao2sh(kk)=kkk
-            basis%aoexp(kk)=ao_exp(mi,ia)
+            basis%aoexp(kk)=gfn%ao_exp(mi,ia)
          enddo
          if(ishell.eq.0) k=k+1
          if(ishell.eq.1) k=k+3
@@ -709,7 +709,6 @@ end subroutine dtrafo2
 
 subroutine xbasis0(n,at,basis)
    use tbdef_basisset
-   use aoparam
    implicit none
    type(tb_basisset),intent(inout) :: basis
    integer,intent(in)  :: n
@@ -733,7 +732,7 @@ end subroutine xbasis0
 
 subroutine dim_basis(n,at,nshell,nao,nbf)
    use tbdef_basisset
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
@@ -749,8 +748,8 @@ subroutine dim_basis(n,at,nshell,nao,nbf)
 
    do i=1,n
       k=0
-      do j=1,ao_n(at(i))
-         l = ao_l(j,at(i))
+      do j=1,gfn%ao_n(at(i))
+         l = gfn%ao_l(j,at(i))
          k = k + 1
          nshell=nshell+1
 !        if(l.eq.0) nbf=nbf+1
@@ -832,17 +831,17 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
       do i=1,n
 !     AO=shell loop
       basis%fila(1,i)=ibf+1
-      do m=1,ao_n(at(i))
+      do m=1,gfn%ao_n(at(i))
 !        principle QN
-         npq=ao_pqn(m,at(i))
-         l=ao_l(m,at(i))
+         npq=gfn%ao_pqn(m,at(i))
+         l=gfn%ao_l(m,at(i))
 !=================================
 !        H-He
 !=================================
          if(l.eq.0.and.at(i).le.2.and.npq.eq.1)then
 !  s
             ibf =ibf+1
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprim,npq,1,zeta,a,c)  !GFN0
             do p=1,thisprim
                ipr=ipr+1
@@ -852,14 +851,14 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
 
          if(l.eq.12.and.at(i).le.2)then
 ! diff sp
             ibf =ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprimR,npq,1,zeta,aR,cR)
             call atovlp(0,thisprim,thisprimR,a,aR,c,cR,ss)
             idum=ipr+1
@@ -885,8 +884,8 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             split1=0
             if(at(i).eq.2)split1=2.25  ! set to SCS-CC2 value
 
-            basis%hdiag(ibf)=ao_lev(m,at(i))-split1
-            zeta=ao_exp(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))-split1
+            zeta=gfn%ao_exp(m,at(i))
             call setsto4(thisprim,2,2,zeta,a,c)
             do j=2,4
             ibf=ibf+1
@@ -899,7 +898,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=j
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))+split1
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))+split1
             enddo
          endif
 
@@ -907,7 +906,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 ! diff s
             ibf =ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             !call setsto3(thisprimR,npq,1,zeta,aR,cR)
             call setsto2(thisprimR,npq,1,zeta,aR,cR)
             call atovlp(0,thisprim,thisprimR,a,aR,c,cR,ss)
@@ -930,12 +929,12 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             do p=1,basis%nprim(ibf)
                basis%cont(idum-1+p)=basis%cont(idum-1+p)/sqrt(ss)
             enddo
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
 
 ! p polarization
          if(l.eq.1.and.at(i).le.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             call setsto3(thisprim,npq,2,zeta,ap,cp)
             do j=2,4
             ibf=ibf+1
@@ -948,7 +947,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%lao  (ibf)=j
             basis%valao(ibf)=-1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 
@@ -958,7 +957,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
          if(l.eq.0.and.at(i).gt.2)then
 !   s
             ibf=ibf+1
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
             call setsto6(thisprim,npq,1,zeta,as,cs)
             else
@@ -972,11 +971,11 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
          endif
 !   p
          if(l.eq.1.and.at(i).gt.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
             call setsto6(thisprim,npq,2,zeta,ap,cp)
             else
@@ -992,7 +991,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=j
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 
@@ -1005,7 +1004,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 !   s
             ibf=ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
             call setsto6(thisprimR,npq,1,zeta,aR,cR)
             else
@@ -1026,14 +1025,14 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprimR+thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             call atovlp(0,basis%nprim(ibf),basis%nprim(ibf),basis%alp(idum),basis%alp(idum),&
             &                                 basis%cont(idum),basis%cont(idum),ss)
             do p=1,basis%nprim(ibf)
                basis%cont(idum-1+p)=basis%cont(idum-1+p)/sqrt(ss)
             enddo
 !  p
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
             call setsto6(thisprimR,npq,2,zeta,aR,cR)
             else
@@ -1062,11 +1061,11 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             enddo
             basis%aoat (ibf)=i
             basis%lao  (ibf)=j
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
 !  d if its an spd Ryd shell
             if(l.eq.13)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.lt.5) then
             call setsto3(thisprim,npq,3,zeta,a,c)
             else
@@ -1084,7 +1083,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=j
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
             endif
          endif
@@ -1093,7 +1092,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
          if(l.eq.11)then
             ibf=ibf+1
             basis%valao(ibf)=0
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             if(npq.gt.5) then
             call setsto6(thisprimR,npq,1,zeta,aR,cR)
             else
@@ -1114,7 +1113,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=1
             basis%nprim(ibf)=thisprimR+thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             call atovlp(0,basis%nprim(ibf),basis%nprim(ibf),basis%alp(idum),basis%alp(idum),&
             &                                 basis%cont(idum),basis%cont(idum),ss)
             do p=1,basis%nprim(ibf)
@@ -1126,9 +1125,9 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 ! d
 !=================================
          if(l.eq.2)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
 !           valence
-            if(ao_typ(m,at(i)).ne.-1)then
+            if(gfn%ao_typ(m,at(i)).ne.-1)then
             call setsto4(thisprim,npq,3,zeta,a,c)
             else
 !           polarization
@@ -1136,7 +1135,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             endif
             do j=5,10
             ibf=ibf+1
-            if(ao_typ(m,at(i)).eq.-1)basis%valao(ibf)=-1
+            if(gfn%ao_typ(m,at(i)).eq.-1)basis%valao(ibf)=-1
             do p=1,thisprim
                ipr=ipr+1
                basis%alp (ipr)=a(p)
@@ -1146,7 +1145,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=j
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 
@@ -1154,7 +1153,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 ! f
 !=================================
          if(l.eq.3)then
-            zeta=ao_exp(m,at(i))
+            zeta=gfn%ao_exp(m,at(i))
             do j=11,20
             ibf=ibf+1
 !           valence
@@ -1169,7 +1168,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%aoat (ibf)=i
             basis%lao  (ibf)=j
             basis%nprim(ibf)=thisprim
-            basis%hdiag(ibf)=ao_lev(m,at(i))
+            basis%hdiag(ibf)=gfn%ao_lev(m,at(i))
             enddo
          endif
 ! next shell
@@ -1203,9 +1202,9 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 !     write(*,*) cont(1:ipr)
 
       do i=1,n
-         do j=1,ao_n(at(i))
-            l = ao_l(j,at(i))
-            if(l.eq.11)ao_l(j,at(i))=0
+         do j=1,gfn%ao_n(at(i))
+            l = gfn%ao_l(j,at(i))
+            if(l.eq.11)gfn%ao_l(j,at(i))=0
          enddo
       enddo
 

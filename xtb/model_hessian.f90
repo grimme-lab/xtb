@@ -98,7 +98,7 @@ contains
 subroutine mh_swart(xyz,n,hess,at,modh)
    use mctc_constants
    use mctc_econv
-   use mctc_param
+   use mctc_param, only : rad => covalent_radius_2009
 
    use tbdef_setvar
    use tbdef_param

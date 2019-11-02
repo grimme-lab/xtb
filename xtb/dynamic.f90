@@ -143,7 +143,6 @@ subroutine md(mol,wfx,calc, &
    use tbdef_data
    use tbmod_file_utils
    use shake_module, only: do_shake,ncons,xhonly
-   use aoparam
    use setparam
    use fixparam
    use scanparam

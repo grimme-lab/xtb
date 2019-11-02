@@ -45,37 +45,22 @@ subroutine read_gfn_param &
    if (initialize) then
       globpar = 0.0_wp
 
-      ao_pqn=0
-      ao_l  =0
-      ao_n  =0
-      ao_lev=0.0_wp
-      ao_exp=0.0_wp
-      ao_typ=0
-      polyr =0.0_wp
-      cxb   =0.0_wp
-      rep   =0.0_wp
-      mc    =0.0_wp
-      lpar  =0.0_wp
-      gam3  =0.0_wp
-      kcnat =0.0_wp
+      gfn = tb_hamiltonian()
+      gfn%radaes=5.0_wp ! default atom radius
+      gfn%radaes(1) =1.4_wp
+      gfn%radaes(2) =3.0_wp
+      gfn%radaes(6) =3.0_wp
+      gfn%radaes(7) =1.9_wp
+      gfn%radaes(8) =1.8_wp
+      gfn%radaes(9) =2.4_wp
+      gfn%radaes(14)=3.9_wp
+      gfn%radaes(15)=2.1_wp
+      gfn%radaes(16)=3.1_wp
+      gfn%radaes(17)=2.5_wp
+      gfn%radaes(34)=3.9_wp
+      gfn%radaes(35)=4.0_wp
 
-      dpolc =0.0_wp ! read values are scaled by 0.01
-      qpolc =0.0_wp !  "     "     "    "    "   "     
-      radaes=5.0_wp ! default atom radius
-      radaes(1) =1.4_wp
-      radaes(2) =3.0_wp
-      radaes(6) =3.0_wp
-      radaes(7) =1.9_wp
-      radaes(8) =1.8_wp
-      radaes(9) =2.4_wp
-      radaes(14)=3.9_wp
-      radaes(15)=2.1_wp
-      radaes(16)=3.1_wp
-      radaes(17)=2.5_wp
-      radaes(34)=3.9_wp
-      radaes(35)=4.0_wp
-
-      kpair =1.0_wp
+      gfn%kpair =1.0_wp
    endif
 
    call getline(iunit,line,err)
@@ -300,8 +285,8 @@ subroutine read_pairpar
       if (get_value(trim(argv(1)),iAt) .and. &
          &get_value(trim(argv(2)),jAt) .and. &
          &get_value(trim(argv(3)),ddum)) then
-            kpair(iAt,jAt) = ddum
-            kpair(jAt,iAt) = ddum
+            gfn%kpair(iAt,jAt) = ddum
+            gfn%kpair(jAt,iAt) = ddum
       endif
    enddo
 end subroutine read_pairpar
@@ -314,7 +299,7 @@ subroutine read_elempar
    character(len=:), allocatable :: key, val
    integer :: iz, ie
    if (get_value(line(4:5),iz)) then
-      timestp(iz) = line(7:35)
+      gfn%timestp(iz) = line(7:35)
       do
          call getline(iunit,line,err)
          if (debug) print'("->",a)',line
@@ -338,7 +323,7 @@ end subroutine read_elempar
 
 subroutine gfn_elempar(key,val,iz)
    use mctc_strings
-   use aoparam
+   use aoparam, only : gfn
    use readin
    implicit none
    character(len=*), intent(in) :: key, val
@@ -354,65 +339,65 @@ subroutine gfn_elempar(key,val,iz)
    case('ao')
       !print'(a,":",a)',key,val
       if (mod(len(val),2).eq.0) then
-         ao_n(iz) = len(val)/2
-         do i = 1, ao_n(iz)
+         gfn%ao_n(iz) = len(val)/2
+         do i = 1, gfn%ao_n(iz)
             ii = 2*i-1
             !print*,i,ii,val(ii:ii),val(ii+1:ii+1)
             if (get_value(val(ii:ii),idum)) then
-               ao_pqn(i,iz) = idum
+               gfn%ao_pqn(i,iz) = idum
                select case(val(ii+1:ii+1))
-               case('s'); ao_l(i,iz) = 0
-               case('p'); ao_l(i,iz) = 1
-               case('d'); ao_l(i,iz) = 2
-               case('f'); ao_l(i,iz) = 3
-               case('g'); ao_l(i,iz) = 4
-               case('S'); ao_l(i,iz) = 11
+               case('s'); gfn%ao_l(i,iz) = 0
+               case('p'); gfn%ao_l(i,iz) = 1
+               case('d'); gfn%ao_l(i,iz) = 2
+               case('f'); gfn%ao_l(i,iz) = 3
+               case('g'); gfn%ao_l(i,iz) = 4
+               case('S'); gfn%ao_l(i,iz) = 11
                end select
             endif
          enddo
       endif
    case('lev')
       call parse(val,space,argv,narg)
-      if (narg .eq. ao_n(iz)) then
-         do i = 1, ao_n(iz)
-            if (get_value(trim(argv(i)),ddum)) ao_lev(i,iz) = ddum
+      if (narg .eq. gfn%ao_n(iz)) then
+         do i = 1, gfn%ao_n(iz)
+            if (get_value(trim(argv(i)),ddum)) gfn%ao_lev(i,iz) = ddum
          enddo
       endif
    case('exp')
       call parse(val,space,argv,narg)
-      if (narg .eq. ao_n(iz)) then
-         do i = 1, ao_n(iz)
-            if (get_value(trim(argv(i)),ddum)) ao_exp(i,iz) = ddum
+      if (narg .eq. gfn%ao_n(iz)) then
+         do i = 1, gfn%ao_n(iz)
+            if (get_value(trim(argv(i)),ddum)) gfn%ao_exp(i,iz) = ddum
          enddo
       endif
-   case('en');  if (get_value(val,ddum)) en(iz)    = ddum
-   case('gam'); if (get_value(val,ddum)) gam(iz)   = ddum
-   case('epr'); if (get_value(val,ddum)) mc(iz)    = ddum
-   case('xi');  if (get_value(val,ddum)) dpolc(iz) = ddum
+   case('en');  if (get_value(val,ddum)) gfn%en(iz)    = ddum
+   case('gam'); if (get_value(val,ddum)) gfn%gam(iz)   = ddum
+   case('epr'); if (get_value(val,ddum)) gfn%mc(iz)    = ddum
+   case('xi');  if (get_value(val,ddum)) gfn%dpolc(iz) = ddum
    case('alpg')
       if (get_value(val,ddum)) then
-         radaes(iz) = ddum
-         alp0(iz)   = ddum
+         gfn%radaes(iz) = ddum
+         gfn%alp0(iz)   = ddum
       endif
-   case('gam3');  if (get_value(val,ddum)) gam3(iz)    = ddum * 0.1_wp
-   case('cxb');   if (get_value(val,ddum)) cxb(iz)     = ddum * 0.1_wp
-   case('dpol');  if (get_value(val,ddum)) dpolc(iz)   = ddum * 0.01_wp
-   case('qpol');  if (get_value(val,ddum)) qpolc(iz)   = ddum * 0.01_wp
-   case('repa');  if (get_value(val,ddum)) rep(1,iz)   = ddum
-   case('repb');  if (get_value(val,ddum)) rep(2,iz)   = ddum
-   case('polys'); if (get_value(val,ddum)) polyr(1,iz) = ddum
-   case('polyp'); if (get_value(val,ddum)) polyr(2,iz) = ddum
-   case('polyd'); if (get_value(val,ddum)) polyr(3,iz) = ddum
-   case('polyf'); if (get_value(val,ddum)) polyr(4,iz) = ddum
-   case('lpars'); if (get_value(val,ddum)) lpar(0,iz)  = ddum * 0.1_wp
-   case('lparp'); if (get_value(val,ddum)) lpar(1,iz)  = ddum * 0.1_wp
-   case('lpard'); if (get_value(val,ddum)) lpar(2,iz)  = ddum * 0.1_wp
-   case('kcns');  if (get_value(val,ddum)) kcnat(0,iz) = ddum * 0.1_wp
-   case('kcnp');  if (get_value(val,ddum)) kcnat(1,iz) = ddum * 0.1_wp
-   case('kcnd');  if (get_value(val,ddum)) kcnat(2,iz) = ddum * 0.1_wp
-   case('kqs');   if (get_value(val,ddum)) kqat(1,iz)  = ddum
-   case('kqp');   if (get_value(val,ddum)) kqat(2,iz)  = ddum
-   case('kqd');   if (get_value(val,ddum)) kqat(3,iz)  = ddum
+   case('gam3');  if (get_value(val,ddum)) gfn%gam3(iz)    = ddum * 0.1_wp
+   case('cxb');   if (get_value(val,ddum)) gfn%cxb(iz)     = ddum * 0.1_wp
+   case('dpol');  if (get_value(val,ddum)) gfn%dpolc(iz)   = ddum * 0.01_wp
+   case('qpol');  if (get_value(val,ddum)) gfn%qpolc(iz)   = ddum * 0.01_wp
+   case('repa');  if (get_value(val,ddum)) gfn%rep(1,iz)   = ddum
+   case('repb');  if (get_value(val,ddum)) gfn%rep(2,iz)   = ddum
+   case('polys'); if (get_value(val,ddum)) gfn%polyr(1,iz) = ddum
+   case('polyp'); if (get_value(val,ddum)) gfn%polyr(2,iz) = ddum
+   case('polyd'); if (get_value(val,ddum)) gfn%polyr(3,iz) = ddum
+   case('polyf'); if (get_value(val,ddum)) gfn%polyr(4,iz) = ddum
+   case('lpars'); if (get_value(val,ddum)) gfn%lpar(0,iz)  = ddum * 0.1_wp
+   case('lparp'); if (get_value(val,ddum)) gfn%lpar(1,iz)  = ddum * 0.1_wp
+   case('lpard'); if (get_value(val,ddum)) gfn%lpar(2,iz)  = ddum * 0.1_wp
+   case('kcns');  if (get_value(val,ddum)) gfn%kcnat(0,iz) = ddum * 0.1_wp
+   case('kcnp');  if (get_value(val,ddum)) gfn%kcnat(1,iz) = ddum * 0.1_wp
+   case('kcnd');  if (get_value(val,ddum)) gfn%kcnat(2,iz) = ddum * 0.1_wp
+   case('kqs');   if (get_value(val,ddum)) gfn%kqat(1,iz)  = ddum
+   case('kqp');   if (get_value(val,ddum)) gfn%kqat(2,iz)  = ddum
+   case('kqd');   if (get_value(val,ddum)) gfn%kqat(3,iz)  = ddum
    end select
 end subroutine gfn_elempar
    
@@ -461,8 +446,8 @@ end subroutine read_gfn_param
          do j=1,3
             ii=tmgroup(i)
             jj=tmgroup(j)
-            kpair(ii,jj)=kparam
-            kpair(jj,ii)=kparam
+            gfn%kpair(ii,jj)=kparam
+            gfn%kpair(jj,ii)=kparam
          enddo
       enddo
       elseif(gfn_method.gt.1)then
@@ -479,11 +464,11 @@ end subroutine read_gfn_param
             ii=tmmetal(i)
             jj=tmmetal(j)
 !           metal-metal interaction            
-            notset=abs(kpair(i,j)-1.0d0).lt.1.d-6 .and. &
-     &             abs(kpair(j,i)-1.0d0).lt.1.d-6
+            notset=abs(gfn%kpair(i,j)-1.0d0).lt.1.d-6 .and. &
+     &             abs(gfn%kpair(j,i)-1.0d0).lt.1.d-6
             if(ii.gt.0.and.jj.gt.0.and.notset) then  
-               kpair(i,j)=0.5*(kp(ii)+kp(jj))
-               kpair(j,i)=0.5*(kp(ii)+kp(jj))
+               gfn%kpair(i,j)=0.5*(kp(ii)+kp(jj))
+               gfn%kpair(j,i)=0.5*(kp(ii)+kp(jj))
             endif
          enddo
       enddo

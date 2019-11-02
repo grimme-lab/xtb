@@ -55,7 +55,7 @@ end subroutine clear_split
 
 subroutine splitm(nat,at,xyz,cn)
    use mctc_econv, only : autoaa
-   use aoparam
+   use mctc_param, only : rad => covalent_radius_2010
    implicit none
    integer, intent(in) :: nat
    real(wp),intent(in) :: xyz(3,nat)
@@ -72,7 +72,7 @@ subroutine splitm(nat,at,xyz,cn)
    do i=1,nat
       do j=1,nat
          r=norm2(xyz(:,i)-xyz(:,j))
-         rco=rad(at(i))+rad(at(j))
+         rco=(rad(at(i))+rad(at(j)))*autoaa ! convert to Angstrom, because...
          if(r.lt.2.5*rco) bond(j,i)=1
       enddo
       bond(i,i)=0
@@ -91,7 +91,6 @@ subroutine splitm(nat,at,xyz,cn)
 end subroutine splitm
 
 subroutine cmafrag(nat,at,xyz,r1,r2)
-   use aoparam
    implicit none
    real(wp) xyz(3,nat),r1(3),r2(3)
    integer nat,at(nat)

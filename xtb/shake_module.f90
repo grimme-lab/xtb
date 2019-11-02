@@ -34,7 +34,7 @@ module shake_module
 contains
 
 subroutine init_shake(nat,at,xyz,wbo)
-   use aoparam
+   use mctc_param, only : rad => covalent_radius_2010, metal
    use fixparam, only : shakeset
    implicit none
    integer :: nat,at(nat)
@@ -98,7 +98,7 @@ subroutine init_shake(nat,at,xyz,wbo)
          do j =1, nat
             if(i.eq.j) cycle
             rij=(xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
-            rco=rad(at(j))+rad(at(i))
+            rco=0.52917726*(rad(at(j))+rad(at(i)))
             ij=lin(i,j)
             rcut=0.52917726*sqrt(rij).lt.1.2*rco.and.list(ij).eq.0 ! to consider?
             metalbond=metal(at(i)).eq.1.or.metal(at(j)).eq.1       ! metal bond?

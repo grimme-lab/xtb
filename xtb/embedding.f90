@@ -133,7 +133,7 @@ subroutine read_pcem_orca(iunit,pcem)
    use tbdef_pcem
    use mctc_strings
    use mctc_econv
-   use aoparam
+   use aoparam, only : gfn
    use setparam
    use readin, only : getline => strip_line
    implicit none
@@ -216,7 +216,7 @@ subroutine read_pcem_orca(iunit,pcem)
             if (iat.eq.0) then ! so much for the well-behaved user
                call raise('E',"Invalid PC input: '"//trim(argv(5))//"'",1)
             endif
-            gami = gam(iat)
+            gami = gfn%gam(iat)
          endif
          ! GFN0-xTB has negative gam-values since they are internally combined
          ! with the atom radius for the full chemical hardness (overall > 0).
@@ -231,7 +231,7 @@ subroutine read_pcem_orca(iunit,pcem)
       else
          ! we trust the dummy atom from xcontrol, since xcontrol could already
          ! have handled potential errors, which is usually not the case...
-         gami = gam(pcem_dummyatom)
+         gami = gfn%gam(pcem_dummyatom)
       endif
       pcem%xyz(:,n) = xyz*conv
       pcem%q(n) = q
@@ -252,7 +252,7 @@ end subroutine read_pcem_orca
 subroutine jpot_pcem_gfn1_new(n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
    use mctc_econv, only : autoev
    use tbdef_pcem
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in)  :: n
    type(tb_pcem),intent(inout) :: pcem
@@ -269,7 +269,7 @@ subroutine jpot_pcem_gfn1_new(n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
    do is = 1, nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       eh1 = 0.0_wp
       do kk = 1, pcem%n
          gj = pcem%gam(kk)
@@ -289,7 +289,7 @@ end subroutine jpot_pcem_gfn1_new
 subroutine jpot_pcem_gfn2_new(n,pcem,nshell,at,xyz,ash,lsh,Vpc)
    use mctc_econv, only : autoev
    use tbdef_pcem
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in)  :: n
    type(tb_pcem),intent(in) :: pcem
@@ -305,7 +305,7 @@ subroutine jpot_pcem_gfn2_new(n,pcem,nshell,at,xyz,ash,lsh,Vpc)
    do is = 1, nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       eh1 = 0.0_wp
       do kk = 1, pcem%n
          gj = pcem%gam(kk)
@@ -325,7 +325,7 @@ end subroutine jpot_pcem_gfn2_new
 !! ========================================================================
 subroutine jpot_pcem_gfn1_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,alphaj,Vpc)
    use mctc_econv, only : autoev
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: npc
@@ -348,13 +348,13 @@ subroutine jpot_pcem_gfn1_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,alphaj,Vpc)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       xa=xyz(1,iat)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       eh1=0.0_wp
       do kk=1,npc
-         gj=gam(apc(kk))
+         gj=gfn%gam(apc(kk))
          r2=(pc(1,kk)-xa)**2+(pc(2,kk)-ya)**2+(pc(3,kk)-za)**2
          rab=sqrt(r2)
          xj=2.0_wp/(1./gi+1./gj)
@@ -371,7 +371,7 @@ end subroutine jpot_pcem_gfn1_old
 !! ========================================================================
 subroutine jpot_pcem_gfn2_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,Vpc)
    use mctc_econv, only : autoev
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: npc
@@ -393,13 +393,13 @@ subroutine jpot_pcem_gfn2_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,Vpc)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       xa=xyz(1,iat)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       eh1=0.0_wp
       do kk=1,npc
-         gj=gam(apc(kk))
+         gj=gfn%gam(apc(kk))
          r2=(pc(1,kk)-xa)**2+(pc(2,kk)-ya)**2+(pc(3,kk)-za)**2
          xj=0.5_wp*(gi+gj)
          dum=autoev/sqrt(r2+1._wp/xj**2)
@@ -442,7 +442,7 @@ end subroutine electro_pcem
 !  point charge embedding gradient for GFN1
 !! ========================================================================
 subroutine pcem_grad_gfn1_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    use tbdef_pcem
    implicit none
    integer, intent(in) :: n
@@ -465,7 +465,7 @@ subroutine pcem_grad_gfn1_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
    do is = 1, nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       do j = 1, pcem%n
          dr = xyz(:,iat) - pcem%xyz(:,j)
          r2 = sum(dr**2)
@@ -486,7 +486,7 @@ end subroutine pcem_grad_gfn1_new
 !  point charge embedding gradient for GFN2
 !! ========================================================================
 subroutine pcem_grad_gfn2_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    use tbdef_pcem
    implicit none
    integer, intent(in) :: n
@@ -507,7 +507,7 @@ subroutine pcem_grad_gfn2_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
    do is = 1,nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       do j = 1, pcem%n
          dr = xyz(:,iat) - pcem%xyz(:,j)
          r2 = sum(dr**2)
@@ -528,7 +528,7 @@ end subroutine pcem_grad_gfn2_new
 !! ========================================================================
 subroutine pcem_grad_gfn1_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh, &
    &                          alphaj,qsh,qpc)
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(inout) :: gpc(3,npc)
@@ -556,7 +556,7 @@ subroutine pcem_grad_gfn1_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh, &
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0d0+gfn%lpar(lsh(is),ati))
       do j=1,npc
          dx=xa-pc(1,j)
          dy=ya-pc(2,j)
@@ -565,7 +565,7 @@ subroutine pcem_grad_gfn1_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh, &
          r2=((pc(1,j)-xyz(1,iat))**2 &
          &  +(pc(2,j)-xyz(2,iat))**2 &
          &  +(pc(3,j)-xyz(3,iat))**2)
-         gj=gam(apc(j))
+         gj=gfn%gam(apc(j))
          rr=2.0d0/(1./gi+1./gj)
          rr=1.0d0/rr**alphaj
          ff=r2**(alphaj/2.0d0-1.0d0)*&
@@ -586,7 +586,7 @@ end subroutine pcem_grad_gfn1_old
 !  point charge embedding gradient for GFN2
 !! ========================================================================
 subroutine pcem_grad_gfn2_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh,qsh,qpc)
-   use aoparam, only : lpar,gam
+   use aoparam, only : gfn
    implicit none
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(inout) :: gpc(3,npc)
@@ -613,7 +613,7 @@ subroutine pcem_grad_gfn2_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh,qsh,qpc)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0d0+gfn%lpar(lsh(is),ati))
       do j=1,npc
          dx=xa-pc(1,j)
          dy=ya-pc(2,j)
@@ -622,7 +622,7 @@ subroutine pcem_grad_gfn2_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh,qsh,qpc)
          r2=((pc(1,j)-xyz(1,iat))**2 &
          &         +(pc(2,j)-xyz(2,iat))**2 &
          &         +(pc(3,j)-xyz(3,iat))**2)
-         gj=gam(apc(j))
+         gj=gfn%gam(apc(j))
          rr=0.5d0*(gi+gj)
          rr=1.0d0/rr**2
 !        rr=1.0d0/(gi*gj) !NEWAV

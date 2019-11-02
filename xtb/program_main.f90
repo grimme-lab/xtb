@@ -28,7 +28,7 @@ program XTBprog
    use mctc_timings
    use mctc_systools
    use mctc_econv
-   use mctc_param
+   use mctc_param, only : atomic_mass
 
 !! ========================================================================
 !  class and type definitions
@@ -40,7 +40,7 @@ program XTBprog
 
 !! ========================================================================
 !  former common variable storage, used in the entire xtb code
-   use aoparam
+   use aoparam, only : use_parameterset, gfn
    use setparam
    use sphereparam
    use scanparam
@@ -438,9 +438,9 @@ program XTBprog
    endif
    do i = 1, 86
       do j = 1, i
-         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
+         if (abs(gfn%kpair(j,i)-1.0_wp).gt.1e-5_wp) &
             write(istdout,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
-            asym(j),asym(i),kpair(j,i)
+            asym(j),asym(i),gfn%kpair(j,i)
       enddo
    enddo
 

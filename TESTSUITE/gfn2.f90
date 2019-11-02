@@ -126,6 +126,7 @@ subroutine test_gfn2_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_param
@@ -153,7 +154,7 @@ subroutine test_gfn2_api
    type(tb_molecule)    :: mol
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn_
    type(tb_pcem)        :: pcem
 
    real(wp) :: energy
@@ -174,7 +175,7 @@ subroutine test_gfn2_api
    gradient = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn_,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 7.0005867526665_wp,thr)
    call assert_close(energy,-8.3824793818504_wp,thr)
@@ -195,6 +196,7 @@ subroutine test_gfn2gbsa_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_param
@@ -226,7 +228,7 @@ subroutine test_gfn2gbsa_api
    type(tb_molecule)    :: mol
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn_
    type(tb_pcem)        :: pcem
 
    real(wp) :: energy
@@ -247,7 +249,7 @@ subroutine test_gfn2gbsa_api
    gradient = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn_,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 3.408607724814_wp,1e-5_wp)
    call assert_close(energy,-22.002501380096_wp,thr)
@@ -267,6 +269,7 @@ subroutine test_gfn2salt_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_param
@@ -297,7 +300,7 @@ subroutine test_gfn2salt_api
    type(tb_molecule)    :: mol
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn_
    type(tb_pcem)        :: pcem
 
    real(wp) :: energy
@@ -322,7 +325,7 @@ subroutine test_gfn2salt_api
    ionst = 1.0e-3_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn_,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 6.895830675032_wp,5e-5_wp)
    call assert_close(energy,-13.027106170796_wp,thr)
@@ -343,6 +346,7 @@ subroutine test_gfn2_pcem_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_param
@@ -379,7 +383,7 @@ subroutine test_gfn2_pcem_api
    type(tb_molecule)    :: mol
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn_
    type(tb_pcem)        :: pcem
 
    real(wp) :: energy
@@ -400,7 +404,7 @@ subroutine test_gfn2_pcem_api
    gradient = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn_,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 12.391144583778_wp,thr)
    call assert_close(energy,-20.323978513218_wp,thr)
@@ -425,12 +429,12 @@ subroutine test_gfn2_pcem_api
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)
    ! gam from aoparam is now filled with GFN2-xTB hardnesses
-   pcem%gam = gam(at(nat2+1:))
+   pcem%gam = gfn%gam(at(nat2+1:))
    pcem%q   = q
    pcem%grd = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn_,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 12.718203165741_wp,thr)
    call assert_close(energy,-10.160927752124_wp,thr)
@@ -454,7 +458,7 @@ subroutine test_gfn2_pcem_api
    pcem%gam = 999.0_wp ! point charges
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,gfn_,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 13.024345612330_wp,thr)
    call assert_close(energy,-10.168788269555_wp,thr)

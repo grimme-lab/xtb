@@ -21,11 +21,13 @@ c lower triangle of s,p,d * s,p,d
 cccccccccccccccccccccccccccccccccccccc
       subroutine setwll_pbe(f)    ! f=1.9
       use mctc_econv, only : autoev
-      use aoparam
+      use aoparam, only : gfn
       implicit none
 
       real*8 f   
       integer lin,ss,sp,sd,pp,pd,dd,ff
+
+      associate(wll => gfn%wll)
 
       wll(1:94,1:10)=0
 c index
@@ -406,5 +408,6 @@ c f-elements
 c convert to eV      
       wll = wll * autoev * f
 
+      end associate
       end
 

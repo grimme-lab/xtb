@@ -114,6 +114,12 @@ mctc_srcs += 'mctc/mctc_strings.f90'
 mctc_srcs += 'mctc/mctc_constants.f90'
 mctc_srcs += 'mctc/mctc_econv.f90'
 mctc_srcs += 'mctc/mctc_param.f90'
+mctc_srcs += 'mctc/param/pse.f90'
+mctc_srcs += 'mctc/param/electronegativities.f90'
+mctc_srcs += 'mctc/param/covalent_radii.f90'
+mctc_srcs += 'mctc/param/r4r2_expectation_values.f90'
+mctc_srcs += 'mctc/param/atomic_masses.f90'
+mctc_srcs += 'mctc/param/chemical_hardnesses.f90'
 mctc_srcs += 'mctc/mctc_timings.f90'
 mctc_srcs += 'mctc/mctc_filetools.f90'
 mctc_srcs += 'mctc/mctc_la.f90'
@@ -140,6 +146,7 @@ xtb_srcs += 'xtb/tbdef_atomlist.f90'
 xtb_srcs += 'xtb/tbdef_topology.f90'
 xtb_srcs += 'xtb/tbdef_fragments.f90'
 xtb_srcs += 'xtb/tbdef_buffer.f90'
+xtb_srcs += 'xtb/tbdef_hamiltonian.f90'
 
 # global data
 xtb_srcs += 'xtb/gfn0param.f90'
@@ -191,7 +198,6 @@ xtb_srcs += 'xtb/eeq_model.f90'
 
 # basis set
 xtb_srcs += 'xtb/xbasis.f90'
-xtb_srcs += 'xtb/printbas.f90'
 xtb_srcs += 'xtb/gauss.f90'
 
 # dispersion

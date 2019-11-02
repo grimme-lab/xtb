@@ -124,7 +124,7 @@ subroutine set_gfn0_parameter(xpar,globpar,n,at)
    use iso_fortran_env, wp => real64
    use tbdef_param
    !use gfn0_module
-   use aoparam
+   use aoparam, only : gfn
    use dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
@@ -160,8 +160,8 @@ subroutine set_gfn0_parameter(xpar,globpar,n,at)
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
-   gam3          =gam3*10.0_wp        ! *10 since gam3 is read with the factor 0.1 in readparam.f
-   cxb           =cxb*10.0_wp         ! *10 since cxb  is read with the factor 0.1 in readparam.f
+   gfn%gam3          =gfn%gam3*10.0_wp        ! *10 since gam3 is read with the factor 0.1 in readparam.f
+   gfn%cxb           =gfn%cxb*10.0_wp         ! *10 since cxb  is read with the factor 0.1 in readparam.f
    xpar%alphaj   =globpar(18)
    xpar%disp%a1  =globpar(20)
    xpar%disp%a2  =globpar(21)

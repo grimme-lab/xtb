@@ -18,7 +18,7 @@
 subroutine gfn1_prparam(iunit,n,at,par)
    use iso_fortran_env, wp => real64
    use tbdef_param
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -67,15 +67,15 @@ subroutine gfn1_prparam(iunit,n,at,par)
 
    write(iunit,*)' Z AO/shell   Hii/eV     exponent'
    do i=1,94
-      atmp=timestp(i)
+      atmp=gfn%timestp(i)
       if(nn(i).eq.0      ) cycle
       if(atmp(1:1).eq.'-') cycle
       write(iunit,'(i3,5x,A30,"  EN:",F6.3," GAM:",F6.3,"  GM3:",F7.4)') &
-         & i,timestp(i),en(i),gam(i),gam3(i)
-      do j=1,ao_n(i)
-         l=ao_l(j,i)
+         & i,gfn%timestp(i),gfn%en(i),gfn%gam(i),gfn%gam3(i)
+      do j=1,gfn%ao_n(i)
+         l=gfn%ao_l(j,i)
          write(iunit,'(3x,i3,a3,2F12.6)') &
-            & ao_pqn(j,i),lnam(l),ao_lev(j,i),ao_exp(j,i)
+            & gfn%ao_pqn(j,i),lnam(l),gfn%ao_lev(j,i),gfn%ao_exp(j,i)
       enddo
    enddo
 
@@ -84,7 +84,7 @@ end subroutine gfn1_prparam
 subroutine gfn2_prparam(iunit,n,at,par)
    use iso_fortran_env, kdp => real64
    use tbdef_param
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -124,16 +124,16 @@ subroutine gfn2_prparam(iunit,n,at,par)
 
    write(iunit,*)' Z AO/shell   Hii/eV     exponent'
    do i=1,94
-      atmp=timestp(i)
+      atmp=gfn%timestp(i)
       if(nn(i).eq.0      ) cycle
       if(atmp(1:1).eq.'-') cycle
       write(iunit,'(i3,5x,A30,''  EN:'',F6.3,'' GM2:'',F6.3, &
          & ''  GM3:'',F7.4,''  RAES:'',F5.2)') &
-         & i,timestp(i),en(i),gam(i),gam3(i),radaes(i)
-      do j=1,ao_n(i)
-         l=ao_l(j,i)
+         & i,gfn%timestp(i),gfn%en(i),gfn%gam(i),gfn%gam3(i),gfn%radaes(i)
+      do j=1,gfn%ao_n(i)
+         l=gfn%ao_l(j,i)
          write(iunit,'(3x,i3,a3,2F12.6)') &
-            & ao_pqn(j,i),lnam(l),ao_lev(j,i),ao_exp(j,i)
+            & gfn%ao_pqn(j,i),lnam(l),gfn%ao_lev(j,i),gfn%ao_exp(j,i)
       enddo
    enddo
 
@@ -142,7 +142,7 @@ end subroutine gfn2_prparam
 subroutine gfn0_prparam(iunit,n,at,par)
    use iso_fortran_env, kdp => real64
    use tbdef_param
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -193,15 +193,15 @@ subroutine gfn0_prparam(iunit,n,at,par)
 
    write(iunit,*)' Z AO/shell   Hii/eV     exponent'
    do i=1,94
-      atmp=timestp(i)
+      atmp=gfn%timestp(i)
       if(nn(i).eq.0      ) cycle
       if(atmp(1:1).eq.'-') cycle
       write(iunit,'(i3,5x,A30,''  EN:'',F6.3,'' GAM:'',F6.3,''  GM3:'',F7.4)') &
-         & i,timestp(i),en(i),gam(i),gam3(i)
-      do j=1,ao_n(i)
-         l=ao_l(j,i)
+         & i,gfn%timestp(i),gfn%en(i),gfn%gam(i),gfn%gam3(i)
+      do j=1,gfn%ao_n(i)
+         l=gfn%ao_l(j,i)
          write(iunit,'(3x,i3,a3,2F12.6)') &
-            & ao_pqn(j,i),lnam(l),ao_lev(j,i),ao_exp(j,i)
+            & gfn%ao_pqn(j,i),lnam(l),gfn%ao_lev(j,i),gfn%ao_exp(j,i)
       enddo
    enddo
 

@@ -32,6 +32,7 @@ subroutine gfn0_calculation &
    use tbdef_basisset
    use tbdef_param
    use tbdef_data
+   use tbdef_hamiltonian
 
    use setparam, only : gfn_method, ngrida
    use aoparam,  only : use_parameterset
@@ -46,7 +47,7 @@ subroutine gfn0_calculation &
    integer, intent(in) :: iunit
 
    type(tb_molecule),    intent(inout) :: mol
-   type(gfn_parameter),  intent(in)    :: gfn
+   type(tb_hamiltonian), intent(in)    :: gfn
    type(peeq_options),   intent(in)    :: opt
    type(tb_environment), intent(in)    :: env
 
@@ -195,6 +196,7 @@ subroutine gfn2_calculation &
    use tbdef_param
    use tbdef_data
    use tbdef_pcem
+   use tbdef_hamiltonian
 
    use setparam, only : gfn_method, ngrida
    use aoparam,  only : use_parameterset
@@ -213,7 +215,7 @@ subroutine gfn2_calculation &
 
    type(tb_molecule),    intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
-   type(gfn_parameter),  intent(in)    :: gfn
+   type(tb_hamiltonian), intent(in)    :: gfn
    type(scc_options),    intent(in)    :: opt
    type(tb_environment), intent(in)    :: env
    type(tb_pcem),        intent(inout) :: pcem
@@ -360,6 +362,7 @@ subroutine gfn1_calculation &
    use tbdef_param
    use tbdef_data
    use tbdef_pcem
+   use tbdef_hamiltonian
 
    use setparam, only : gfn_method, ngrida
    use aoparam,  only : use_parameterset
@@ -377,7 +380,7 @@ subroutine gfn1_calculation &
    integer, intent(in) :: iunit
 
    type(tb_molecule),    intent(inout) :: mol
-   type(gfn_parameter),  intent(in)    :: gfn
+   type(tb_hamiltonian), intent(in)    :: gfn
    type(scc_options),    intent(in)    :: opt
    type(tb_environment), intent(in)    :: env
    type(tb_pcem),        intent(inout) :: pcem

@@ -19,7 +19,7 @@ subroutine write_tm_basis(iunit,nat,at,basis,wfn)
    use iso_fortran_env, wp => real64
    use tbdef_wavefunction
    use tbdef_basisset
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    type(tb_basisset),    intent(in) :: basis
    type(tb_wavefunction),intent(in) :: wfn
@@ -47,8 +47,8 @@ subroutine write_tm_basis(iunit,nat,at,basis,wfn)
       if (iat.eq.0) cycle
       write(iunit,'(a,1x,a)') trim(esym(iatyp)),'tbbas'
       write(iunit,'(a)') '*'
-      do ish = 1, ao_n(iatyp)
-         ishtyp = ao_l(ish,iatyp)
+      do ish = 1, gfn%ao_n(iatyp)
+         ishtyp = gfn%ao_l(ish,iatyp)
          icao = basis%caoshell(ish,iat)
          write(iunit,'(1x,i3,2x,a1,25x,a)') &
             basis%nprim(icao+1),lnam(ishtyp)

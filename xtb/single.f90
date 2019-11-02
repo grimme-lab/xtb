@@ -48,7 +48,6 @@ subroutine singlepoint &
    use tbdef_pcem
 
 !! ========================================================================
-   use aoparam
    use setparam
    use fixparam
    use scanparam

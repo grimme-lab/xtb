@@ -120,6 +120,7 @@ subroutine test_gfn1_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
@@ -145,7 +146,7 @@ subroutine test_gfn1_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
 
@@ -188,6 +189,7 @@ subroutine test_gfn1gbsa_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
@@ -215,7 +217,7 @@ subroutine test_gfn1gbsa_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
 
@@ -257,6 +259,7 @@ subroutine test_gfn1_pcem_api
    use assertion
 
    use tbdef_options
+   use tbdef_hamiltonian
    use tbdef_molecule
    use tbdef_param
    use tbdef_pcem
@@ -292,7 +295,7 @@ subroutine test_gfn1_pcem_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
+   type(tb_hamiltonian) :: gfn_
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
 
@@ -339,7 +342,7 @@ subroutine test_gfn1_pcem_api
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)
    ! gam from aoparam is now filled with GFN1-xTB hardnesses
-   pcem%gam = gam(at(nat2+1:))
+   pcem%gam = gfn%gam(at(nat2+1:))
    pcem%q   = q
    pcem%grd = 0.0_wp
 

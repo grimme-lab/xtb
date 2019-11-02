@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
       subroutine geosum(n,ic,xyzin)
-      use aoparam
+      use mctc_param, only : rad => covalent_radius_2010
       use splitparam
       implicit none
       integer n,ic(n)
@@ -55,14 +55,13 @@ c first nsel atoms are considered in angle/dihedreal printout
             if(i.eq.j)cycle
             k=k+1
             r=sqrt((x(i)-x(j))**2+(y(i)-y(j))**2+(z(i)-z(j))**2)
-     .        *0.529177260d0
-c the max bond dist in angst
+c the max bond dist in bohr
             brad=rad(ic(i))+rad(ic(j))
             brad=brad+0.30*brad 
             if(r.le.brad) then
                nbond(i)=nbond(i)+1
                bondlist(i,nbond(i))=j
-               rlist   (i,nbond(i))=r
+               rlist   (i,nbond(i))=r*0.529177260d0 ! convert to Angstrom
             endif
          enddo
       enddo

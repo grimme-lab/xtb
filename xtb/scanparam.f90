@@ -324,7 +324,7 @@ end subroutine pot_info
 
 subroutine constrain_all_bonds(n,at,xyz)
    use iso_fortran_env, wp => real64
-   use mctc_param
+   use mctc_param, only : rad => covalent_radius_2009
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -354,7 +354,7 @@ end subroutine constrain_all_bonds
 subroutine constrain_all_angles(n,at,xyz)
    use iso_fortran_env, wp => real64
    use mctc_constants
-   use mctc_param
+   use mctc_param, only : rad => covalent_radius_2009
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -395,7 +395,7 @@ end subroutine constrain_all_angles
 subroutine constrain_all_torsions(n,at,xyz)
    use iso_fortran_env, wp => real64
    use mctc_constants
-   use mctc_param
+   use mctc_param, only : rad => covalent_radius_2009
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)

@@ -42,7 +42,8 @@ end function xbond
 
 subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
    use iso_fortran_env, only : wp => real64
-   use aoparam
+   use aoparam, only : gfn
+   use mctc_param, only : rad => covalent_radius_2010
    use lin_mod, only : lin
    implicit none
    integer n,at(n),nxb
@@ -72,9 +73,9 @@ subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       B=xblist(3,k)
       ati=at(X)
       atj=at(AA)
-      cc=cxb(ati)
+      cc=gfn%cxb(ati)
       ! this sloppy conv. factor has been used in development, keep it
-      r0ax=xbrad*(rad(ati)+rad(atj))/0.5291670d0
+      r0ax=xbrad*(rad(ati)+rad(atj))
       d2ax=sqrab(lin(AA,X))
       d2ab=sqrab(lin(AA,B))
       d2bx=sqrab(lin(X, B))

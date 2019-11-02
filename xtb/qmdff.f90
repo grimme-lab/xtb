@@ -56,7 +56,6 @@ module qmdff
 contains
 
 subroutine ff_ini(n,at,xyz,cn,s6)
-   use aoparam
    use dftd4, only : r2r4 => r4r2, rcov
    implicit none
    integer, intent(in) :: n
@@ -630,7 +629,8 @@ end subroutine ff_hb
 !cccccccccccccccccccccccccccccccccccccccccccccc
 
 pure subroutine abdamp(ati,atj,r2,damp,ddamp)
-   use aoparam, only : rad
+   use mctc_econv, only : autoaa
+   use mctc_param, only : rad => covalent_radius_2010
    implicit none
    integer, intent(in)  :: ati,atj
    real(wp),intent(in)  :: r2
@@ -638,7 +638,7 @@ pure subroutine abdamp(ati,atj,r2,damp,ddamp)
    real(wp) :: rr,rcut
 
    ! cut-off at about double of R_cov
-   rcut =3.0 * 3.5710642*(rad(ati)+rad(atj))**2
+   rcut =3.0 * 3.5710642*((rad(ati)+rad(atj))*autoaa)**2
    rr   =(r2/rcut)**2
    damp = 1.0d0/(1.0d0+rr)
    ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)

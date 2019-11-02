@@ -83,7 +83,7 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
 !  Global storage
 ! ------------------------------------------------------------------------
-   use aoparam
+   use aoparam, only : gfn
 
 ! ------------------------------------------------------------------------
 !  Get interfaces
@@ -396,7 +396,7 @@ subroutine peeq &
 
    if (profile) call timer%measure(3,"EEQ model density")
    ! names DO NOT corresponds to content of variables, obviously...
-   call gfn0_charge_model(chrgeq,mol%n,mol%at,dpolc,gam,cxb,alp0)
+   call gfn0_charge_model(chrgeq,mol%n,mol%at,gfn%dpolc,gfn%gam,gfn%cxb,gfn%alp0)
    ! initialize electrostatic energy
    if (lgbsa) then
       call eeq_chrgeq(mol,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
@@ -788,7 +788,7 @@ end subroutine ddisp_peeq
 
 ! repulsion
 pure subroutine drep_grad(mol,param,erep,g,sigma)
-   use aoparam,   only : rep,en
+   use aoparam, only : gfn
    use tbdef_molecule
    use tbdef_param
    use pbc_tools
@@ -834,11 +834,11 @@ pure subroutine drep_grad(mol,param,erep,g,sigma)
                if(r2.gt.rthr) cycle
                atj=mol%at(j)
                r = sqrt(r2)
-               den2 = (en(ati) - en(atj))**2
+               den2 = (gfn%en(ati) - gfn%en(atj))**2
                den4 = den2**2
-               alpha=sqrt(rep(1,ati)*rep(1,atj))&
+               alpha=sqrt(gfn%rep(1,ati)*gfn%rep(1,atj))&
                   *(1.0_wp+(0.01_wp*den2+0.01_wp*den4)*param%xbrad)
-               repab = rep(2,ati)*rep(2,atj)
+               repab=gfn%rep(2,ati)*gfn%rep(2,atj)
                r2top34 = r2**0.75_wp
                r2top34top2 = r2top34**2
                expterm = exp(-alpha*r2top34)*repab
@@ -861,11 +861,11 @@ pure subroutine drep_grad(mol,param,erep,g,sigma)
             if(r2.gt.rthr) cycle
             atj=mol%at(j)
             r = sqrt(r2)
-            den2 = (en(ati) - en(atj))**2
+            den2 = (gfn%en(ati) - gfn%en(atj))**2
             den4 = den2**2
-            alpha=sqrt(rep(1,ati)*rep(1,atj))&
+            alpha=sqrt(gfn%rep(1,ati)*gfn%rep(1,atj))&
                *(1.0_wp+(0.01_wp*den2+0.01_wp*den4)*param%xbrad)
-            repab = rep(2,ati)*rep(2,atj)
+            repab=gfn%rep(2,ati)*gfn%rep(2,atj)
             r2top34 = r2**0.75_wp
             r2top34top2 = r2top34**2
             expterm = exp(-alpha*r2top34)*repab
@@ -887,8 +887,6 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
 
    use tbdef_param
    use tbdef_molecule
-
-   use aoparam,   only : rep
 
    use approxrab
    use ncoord
@@ -1067,7 +1065,7 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
 
    use tbdef_basisset
 
-   use aoparam
+   use aoparam, only : gfn
 
    use lin_mod, only : lin
    use intgrad
@@ -1132,8 +1130,8 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(basis,at,ao_n,ao_l,xyz,intcut,nat,kqat,kcnat,cn,q,en, &
-   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj)
+   !$omp shared(basis,at,xyz,intcut,nat,cn,q,gfn, &
+   !$omp        ken,xbdamp,kcn,kmagic,alphaj)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1141,20 +1139,20 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
       do jat = 1, iat-1
          atj = at(jat)
 
-         den = en(ati) - en(atj)
+         den = gfn%en(ati) - gfn%en(atj)
          den2 =  den**2
          den4 = den2**2
 
-         ishells: do ish = 1, ao_n(ati)
-            ishtyp = ao_l(ish,ati)
+         ishells: do ish = 1, gfn%ao_n(ati)
+            ishtyp = gfn%ao_l(ish,ati)
             icao = basis%caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            jshmax = ao_n(atj)
+            jshmax = gfn%ao_n(atj)
             if (iat == jat) jshmax = ish
 
             jshells: do jsh = 1, jshmax
-               jshtyp = ao_l(jsh,atj)
+               jshtyp = gfn%ao_l(jsh,atj)
                jcao = basis%caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
@@ -1165,10 +1163,10 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                il = shell(basis%lao2(i)) 
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - kcnat(jl-1,atj)*cn(jat) &
-                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+                  &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - gfn%kcnat(jl-1,atj)*cn(jat) &
+                  &  - gfn%kqat(jl,atj)*q(jat) - gfn%gam3(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + ken(jl,il)*den2 &
@@ -1180,7 +1178,7 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+               km = kmagic(jl,il) * gfn%kpair(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1244,8 +1242,8 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
       il  = shell(basis%lao2(i))
 
       ! calculate environment dependent shift
-      hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-         &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
+      hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+         &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
       H0(ii) = hii
 
    end do
@@ -1261,7 +1259,7 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
    use tbdef_basisset
    use tbdef_wsc
 
-   use aoparam
+   use aoparam, only : gfn
 
    use lin_mod, only : lin
    use intgrad
@@ -1328,8 +1326,8 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,t) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,lattice,intcut,nat,kqat,kcnat,cn,q,en, &
-   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj)
+   !$omp shared(wsc,basis,at,xyz,lattice,intcut,nat,cn,q,gfn, &
+   !$omp        ken,xbdamp,kcn,kmagic,alphaj)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1337,20 +1335,20 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
       do jat = 1, iat-1
          atj = at(jat)
 
-         den = en(ati) - en(atj)
+         den = gfn%en(ati) - gfn%en(atj)
          den2 =  den**2
          den4 = den2**2
 
-         ishells: do ish = 1, ao_n(ati)
-            ishtyp = ao_l(ish,ati)
+         ishells: do ish = 1, gfn%ao_n(ati)
+            ishtyp = gfn%ao_l(ish,ati)
             icao = basis%caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            jshmax = ao_n(atj)
+            jshmax = gfn%ao_n(atj)
             if (iat == jat) jshmax = ish
 
             jshells: do jsh = 1, jshmax
-               jshtyp = ao_l(jsh,atj)
+               jshtyp = gfn%ao_l(jsh,atj)
                jcao = basis%caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
@@ -1361,10 +1359,10 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
                il = shell(basis%lao2(i)) 
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - kcnat(jl-1,atj)*cn(jat) &
-                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+                  &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - gfn%kcnat(jl-1,atj)*cn(jat) &
+                  &  - gfn%kqat(jl,atj)*q(jat) - gfn%gam3(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + ken(jl,il)*den2 &
@@ -1376,7 +1374,7 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+               km = kmagic(jl,il) * gfn%kpair(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1443,8 +1441,8 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
       il  = shell(basis%lao2(i))
 
       ! calculate environment dependent shift
-      hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-         &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
+      hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+         &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
       H0(ii) = hii
 
    end do
@@ -1459,7 +1457,7 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
 
    use tbdef_basisset
 
-   use aoparam
+   use aoparam, only : gfn
 
    use lin_mod, only : lin
    use intgrad
@@ -1530,8 +1528,8 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,tx,ty,tz,t) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(basis,at,ao_n,ao_l,xyz,intcut,nat,kqat,kcnat,cn,q,en, &
-   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,lat,latrep,w)
+   !$omp shared(basis,at,xyz,intcut,nat,cn,q,gfn, &
+   !$omp        ken,xbdamp,kcn,kmagic,alphaj,lat,latrep,w)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1539,20 +1537,20 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
       do jat = 1, iat-1
          atj = at(jat)
 
-         den = en(ati) - en(atj)
+         den = gfn%en(ati) - gfn%en(atj)
          den2 =  den**2
          den4 = den2**2
 
-         ishells: do ish = 1, ao_n(ati)
-            ishtyp = ao_l(ish,ati)
+         ishells: do ish = 1, gfn%ao_n(ati)
+            ishtyp = gfn%ao_l(ish,ati)
             icao = basis%caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            jshmax = ao_n(atj)
+            jshmax = gfn%ao_n(atj)
             if (iat == jat) jshmax = ish
 
             jshells: do jsh = 1, jshmax
-               jshtyp = ao_l(jsh,atj)
+               jshtyp = gfn%ao_l(jsh,atj)
                jcao = basis%caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
@@ -1563,10 +1561,10 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
                il = shell(basis%lao2(i)) 
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - kcnat(jl-1,atj)*cn(jat) &
-                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+                  &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - gfn%kcnat(jl-1,atj)*cn(jat) &
+                  &  - gfn%kqat(jl,atj)*q(jat) - gfn%gam3(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + ken(jl,il)*den2 &
@@ -1578,7 +1576,7 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+               km = kmagic(jl,il) * gfn%kpair(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1647,8 +1645,8 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
       il  = shell(basis%lao2(i))
 
       ! calculate environment dependent shift
-      hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-         &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
+      hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+         &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
       H0(ii) = hii
 
    end do
@@ -1796,7 +1794,7 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
    use tbdef_wsc
    use tbdef_basisset
 
-   use aoparam
+   use aoparam, only : gfn
 
    use intgrad
    use grad_core
@@ -1861,8 +1859,8 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
    !$omp&        mli,mlj,dum,dumdum,tmp,stmp,rij,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
-   !$omp shared(basis,at,ao_n,ao_l,xyz,thr,nat,kqat,kcnat,cn,q,en, &
-   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,P,Pew)
+   !$omp shared(basis,at,xyz,thr,nat,cn,q,gfn, &
+   !$omp        ken,xbdamp,kcn,kmagic,alphaj,P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1870,20 +1868,20 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
       do jat = 1, iat-1
          atj = at(jat)
 
-         den = en(ati) - en(atj)
+         den = gfn%en(ati) - gfn%en(atj)
          den2 =  den**2
          den4 = den2**2
 
-         ishells: do ish = 1, ao_n(ati)
-            ishtyp = ao_l(ish,ati)
+         ishells: do ish = 1, gfn%ao_n(ati)
+            ishtyp = gfn%ao_l(ish,ati)
             icao = basis%caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            jshmax = ao_n(atj)
+            jshmax = gfn%ao_n(atj)
             if(iat == jat) jshmax = ish
 
             jshells: do jsh = 1, jshmax
-               jshtyp = ao_l(jsh,atj)
+               jshtyp = gfn%ao_l(jsh,atj)
                jcao = basis%caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
@@ -1894,10 +1892,10 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
                il = shell(basis%lao2(i)) 
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - kcnat(jl-1,atj)*cn(jat) &
-                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+                  &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - gfn%kcnat(jl-1,atj)*cn(jat) &
+                  &  - gfn%kqat(jl,atj)*q(jat) - gfn%gam3(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + ken(jl,il)*den2 &
@@ -1909,7 +1907,7 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+               km = kmagic(jl,il) * gfn%kpair(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1980,16 +1978,16 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
                      ! Hamiltonian without Hav
                      HPij = km * shpoly * Pij * sdq(jj,ii)
                      ! save dE/dCN for CNi
-                     dhdcn(iat) = dhdcn(iat) - HPij*kcnat(il-1,ati)
+                     dhdcn(iat) = dhdcn(iat) - HPij*gfn%kcnat(il-1,ati)
                      ! save dE/dCN for CNj
-                     dhdcn(jat) = dhdcn(jat) - HPij*kcnat(jl-1,atj)
+                     dhdcn(jat) = dhdcn(jat) - HPij*gfn%kcnat(jl-1,atj)
 
                      ! save dE/dq for qi
-                     dhdq(iat) = dhdq(iat) - HPij*kqat(il,ati) &
-                        &                  - HPij*gam3(ati)*2*q(iat)
+                     dhdq(iat) = dhdq(iat) - HPij*gfn%kqat(il,ati) &
+                        &                  - HPij*gfn%gam3(ati)*2*q(iat)
                      ! save dE/dq for qj
-                     dhdq(jat) = dhdq(jat) - HPij*kqat(jl,atj) &
-                        &                  - HPij*gam3(atj)*2*q(jat)
+                     dhdq(jat) = dhdq(jat) - HPij*gfn%kqat(jl,atj) &
+                        &                  - HPij*gfn%gam3(atj)*2*q(jat)
 
                   enddo
                enddo
@@ -2012,9 +2010,9 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
       Pii = P(i,i)*evtoau
 
       ! save dE/dCN for CNi
-      dhdcn(iat) = dhdcn(iat) - Pii*kcnat(il-1,ati)
+      dhdcn(iat) = dhdcn(iat) - Pii*gfn%kcnat(il-1,ati)
       ! save dE/dq for qi
-      dhdq(iat) = dhdq(iat) - Pii*kqat(il,ati) - Pii*gam3(ati)*2*q(iat)
+      dhdq(iat) = dhdq(iat) - Pii*gfn%kqat(il,ati) - Pii*gfn%gam3(ati)*2*q(iat)
    enddo
 
 end subroutine mol_build_dSH0
@@ -2030,7 +2028,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
    use tbdef_wsc
    use tbdef_basisset
 
-   use aoparam
+   use aoparam, only : gfn
 
    use intgrad
    use grad_core
@@ -2097,8 +2095,8 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
    !$omp&        mli,mlj,dum,dumdum,tmp,stmp,rij,zi,zj,zetaij,enpoly,iao,jao,t, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
-   !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,lattice,thr,nat,kqat,kcnat,cn,q,en, &
-   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,P,Pew)
+   !$omp shared(wsc,basis,at,xyz,lattice,thr,nat,cn,q,gfn, &
+   !$omp        ken,xbdamp,kcn,kmagic,alphaj,P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -2106,20 +2104,20 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
       do jat = 1, iat-1
          atj = at(jat)
 
-         den = en(ati) - en(atj)
+         den = gfn%en(ati) - gfn%en(atj)
          den2 =  den**2
          den4 = den2**2
 
-         ishells: do ish = 1, ao_n(ati)
-            ishtyp = ao_l(ish,ati)
+         ishells: do ish = 1, gfn%ao_n(ati)
+            ishtyp = gfn%ao_l(ish,ati)
             icao = basis%caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            jshmax = ao_n(atj)
+            jshmax = gfn%ao_n(atj)
             if(iat == jat) jshmax = ish
 
             jshells: do jsh = 1, jshmax
-               jshtyp = ao_l(jsh,atj)
+               jshtyp = gfn%ao_l(jsh,atj)
                jcao = basis%caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
@@ -2130,10 +2128,10 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
                il = shell(basis%lao2(i)) 
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - kcnat(jl-1,atj)*cn(jat) &
-                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+                  &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - gfn%kcnat(jl-1,atj)*cn(jat) &
+                  &  - gfn%kqat(jl,atj)*q(jat) - gfn%gam3(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + ken(jl,il)*den2 &
@@ -2145,7 +2143,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+               km = kmagic(jl,il) * gfn%kpair(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -2218,16 +2216,16 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
                         ! Hamiltonian without Hav
                         HPij = km * shpoly * Pij * sdq(jj,ii) * wsc%w(jat,iat)
                         ! save dE/dCN for CNi
-                        dhdcn(iat) = dhdcn(iat) - HPij*kcnat(il-1,ati)
+                        dhdcn(iat) = dhdcn(iat) - HPij*gfn%kcnat(il-1,ati)
                         ! save dE/dCN for CNj
-                        dhdcn(jat) = dhdcn(jat) - HPij*kcnat(jl-1,atj)
+                        dhdcn(jat) = dhdcn(jat) - HPij*gfn%kcnat(jl-1,atj)
 
                         ! save dE/dq for qi
-                        dhdq(iat) = dhdq(iat) - HPij*kqat(il,ati) &
-                           &                  - HPij*gam3(ati)*2*q(iat)
+                        dhdq(iat) = dhdq(iat) - HPij*gfn%kqat(il,ati) &
+                           &                  - HPij*gfn%gam3(ati)*2*q(iat)
                         ! save dE/dq for qj
-                        dhdq(jat) = dhdq(jat) - HPij*kqat(jl,atj) &
-                           &                  - HPij*gam3(atj)*2*q(jat)
+                        dhdq(jat) = dhdq(jat) - HPij*gfn%kqat(jl,atj) &
+                           &                  - HPij*gfn%gam3(atj)*2*q(jat)
 
                      enddo
                   enddo
@@ -2252,9 +2250,9 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
       Pii = P(i,i)*evtoau
 
       ! save dE/dCN for CNi
-      dhdcn(iat) = dhdcn(iat) - Pii*kcnat(il-1,ati)
+      dhdcn(iat) = dhdcn(iat) - Pii*gfn%kcnat(il-1,ati)
       ! save dE/dq for qi
-      dhdq(iat) = dhdq(iat) - Pii*kqat(il,ati) - Pii*gam3(ati)*2*q(iat)
+      dhdq(iat) = dhdq(iat) - Pii*gfn%kqat(il,ati) - Pii*gfn%gam3(ati)*2*q(iat)
    enddo
 
 end subroutine ccm_build_dSH0
@@ -2270,7 +2268,7 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
    use tbdef_wsc
    use tbdef_basisset
 
-   use aoparam
+   use aoparam, only : gfn
 
    use intgrad
    use grad_core
@@ -2342,8 +2340,8 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr, &
    !$omp&        tx,ty,tz,t) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
-   !$omp shared(basis,at,ao_n,ao_l,xyz,thr,nat,kqat,kcnat,cn,q,en, &
-   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,P,Pew,w,lat,latrep)
+   !$omp shared(basis,at,xyz,thr,nat,cn,q,gfn, &
+   !$omp        ken,xbdamp,kcn,kmagic,alphaj,P,Pew,w,lat,latrep)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -2351,20 +2349,20 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
       do jat = 1, iat-1
          atj = at(jat)
 
-         den = en(ati) - en(atj)
+         den = gfn%en(ati) - gfn%en(atj)
          den2 =  den**2
          den4 = den2**2
 
-         ishells: do ish = 1, ao_n(ati)
-            ishtyp = ao_l(ish,ati)
+         ishells: do ish = 1, gfn%ao_n(ati)
+            ishtyp = gfn%ao_l(ish,ati)
             icao = basis%caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            jshmax = ao_n(atj)
+            jshmax = gfn%ao_n(atj)
             if(iat == jat) jshmax = ish
 
             jshells: do jsh = 1, jshmax
-               jshtyp = ao_l(jsh,atj)
+               jshtyp = gfn%ao_l(jsh,atj)
                jcao = basis%caoshell(jsh,jat)
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
@@ -2375,10 +2373,10 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
                il = shell(basis%lao2(i)) 
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
-                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - kcnat(jl-1,atj)*cn(jat) &
-                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - gfn%kcnat(il-1,ati)*cn(iat) &
+                  &  - gfn%kqat(il,ati)*q(iat) - gfn%gam3(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - gfn%kcnat(jl-1,atj)*cn(jat) &
+                  &  - gfn%kqat(jl,atj)*q(jat) - gfn%gam3(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + ken(jl,il)*den2 &
@@ -2390,7 +2388,7 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+               km = kmagic(jl,il) * gfn%kpair(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -2465,16 +2463,16 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
                         ! Hamiltonian without Hav
                         HPij = km * shpoly * Pij * sdq(jj,ii) * w
                         ! save dE/dCN for CNi
-                        dhdcn(iat) = dhdcn(iat) - HPij*kcnat(il-1,ati)
+                        dhdcn(iat) = dhdcn(iat) - HPij*gfn%kcnat(il-1,ati)
                         ! save dE/dCN for CNj
-                        dhdcn(jat) = dhdcn(jat) - HPij*kcnat(jl-1,atj)
+                        dhdcn(jat) = dhdcn(jat) - HPij*gfn%kcnat(jl-1,atj)
 
                         ! save dE/dq for qi
-                        dhdq(iat) = dhdq(iat) - HPij*kqat(il,ati) &
-                           &                  - HPij*gam3(ati)*2*q(iat)
+                        dhdq(iat) = dhdq(iat) - HPij*gfn%kqat(il,ati) &
+                           &                  - HPij*gfn%gam3(ati)*2*q(iat)
                         ! save dE/dq for qj
-                        dhdq(jat) = dhdq(jat) - HPij*kqat(jl,atj) &
-                           &                  - HPij*gam3(atj)*2*q(jat)
+                        dhdq(jat) = dhdq(jat) - HPij*gfn%kqat(jl,atj) &
+                           &                  - HPij*gfn%gam3(atj)*2*q(jat)
 
                      enddo
                   enddo
@@ -2499,9 +2497,9 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
       Pii = P(i,i)*evtoau
 
       ! save dE/dCN for CNi
-      dhdcn(iat) = dhdcn(iat) - Pii*kcnat(il-1,ati)
+      dhdcn(iat) = dhdcn(iat) - Pii*gfn%kcnat(il-1,ati)
       ! save dE/dq for qi
-      dhdq(iat) = dhdq(iat) - Pii*kqat(il,ati) - Pii*gam3(ati)*2*q(iat)
+      dhdq(iat) = dhdq(iat) - Pii*gfn%kqat(il,ati) - Pii*gfn%gam3(ati)*2*q(iat)
    enddo
 
 end subroutine pbc_build_dSH0

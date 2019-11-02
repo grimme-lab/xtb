@@ -160,7 +160,7 @@ end subroutine build_h0_gfn2
 subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                          cm5,fgb,fhb,aoat2,ao2sh)
    use mctc_econv, only : autoev,evtoau
-   use aoparam,  only : gam3
+   use aoparam,  only : gfn
    use gbobc, only : lgbsa
    implicit none
    integer, intent(in)  :: n
@@ -205,8 +205,8 @@ subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
       jj = aoat2(j)
       dum = S(j,i)
 !     third-order diagonal term, unscreened
-      t8 = q(ii)**2 * gam3(at(ii))
-      t9 = q(jj)**2 * gam3(at(jj))
+      t8 = q(ii)**2 * gfn%gam3(at(ii))
+      t9 = q(jj)**2 * gfn%gam3(at(jj))
       eh1 = eh1 + autoev*(t8+t9)
       H1(k) = -dum*eh1*0.5_wp
       H(j,i) = H0(k)+H1(k)
@@ -396,8 +396,6 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use mctc_econv, only : autoev,evtoau
-
-   use aoparam,  only : gam3
 
    use gbobc, only : lgbsa,lhb,tb_solvent
    use embedding, only : electro_pcem
@@ -692,8 +690,6 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use mctc_econv, only : autoev,evtoau
-
-   use aoparam,  only : gam3
 
    use gbobc,  only : lgbsa,lhb,tb_solvent
    use dftd4,  only : disppot,edisp_scc
@@ -1050,7 +1046,7 @@ end subroutine scc_gfn2
 !! ========================================================================
 subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    &              kenscal,km)
-   use aoparam,  only : kpair,en
+   use aoparam,  only : gfn
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -1075,8 +1071,8 @@ subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    if(valaoi.and.valaoj) then
       ii=at(iat)
       jj=at(jat)
-      den=(en(ii)-en(jj))**2
-      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*kpair(ii,jj)
+      den=(gfn%en(ii)-gfn%en(jj))**2
+      km=kmagic(jshell,ishell)*(1.0_wp-kenscal*0.01_wp*den)*gfn%kpair(ii,jj)
       return
    endif
 
@@ -1101,7 +1097,7 @@ end subroutine h0scal
 !! ========================================================================
 pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    use mctc_econv, only : evtoau
-   use aoparam, only : gam3
+   use aoparam, only : gfn
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -1137,7 +1133,7 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    t=0.0_wp
    do i=1,n
 !     third-order diagonal term
-      t = t + gam3(at(i))*dq(i)**3
+      t = t + gfn%gam3(at(i))*dq(i)**3
    enddo
 
 !  ES energy in Eh (gam3 in Eh)
@@ -1292,8 +1288,8 @@ end subroutine electro_gbsa
 !  S(R) enhancement factor
 !! ========================================================================
    pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
-   use aoparam, only : rad,polyr
-   use mctc_econv, only : aatoau
+   use mctc_param, only : rad => covalent_radius_2010
+   use aoparam, only : gfn
    implicit none
    integer,intent(in) :: ati,atj,ish,jsh
    real(wp), intent(in) :: xyz1(3),xyz2(3)
@@ -1308,14 +1304,13 @@ end subroutine electro_gbsa
 
    rab=sqrt(dx**2+dy**2+dz**2)
 
-   ! this sloppy conv. factor has been used in development, keep it
-   rr=(rad(ati)+rad(atj))*aatoau
+   rr=rad(ati)+rad(atj)
 
    r=rab/rr
 
-   k1=polyr(ish,ati)
+   k1=gfn%polyr(ish,ati)
    rf1=1.0d0+0.01*k1*r**a
-   k1=polyr(jsh,atj)
+   k1=gfn%polyr(jsh,atj)
    rf2=1.0d0+0.01*k1*r**a
 
    rfactor= rf1*rf2
@@ -1347,7 +1342,7 @@ end subroutine setespot
 
 pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    use mctc_econv
-   use aoparam
+   use aoparam, only : gfn
    use lin_mod
    implicit none
    integer, intent(in) :: nat
@@ -1365,12 +1360,12 @@ pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       do js=1,is
          jat=ash(js)
          atj=at(jat)
          k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
+         gj=gfn%gam(atj)*(1.0_wp+gfn%lpar(lsh(js),atj))
          xj=2.0_wp/(1./gi+1./gj)
          if(is.eq.js)then
             jab(is,js)=xj*autoev
@@ -1387,7 +1382,7 @@ end subroutine jpot_gfn1
 
 pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
    use mctc_econv
-   use aoparam
+   use aoparam, only : gfn
    use lin_mod
    implicit none
    integer, intent(in) :: nat
@@ -1404,12 +1399,12 @@ pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=gfn%gam(ati)*(1.0_wp+gfn%lpar(lsh(is),ati))
       do js=1,is-1
          jat=ash(js)
          atj=at(jat)
          k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
+         gj=gfn%gam(atj)*(1.0_wp+gfn%lpar(lsh(js),atj))
          xj=0.5_wp*(gi+gj)
          jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/xj**2)
          ! jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/(gi*gj))  ! NEWAV
@@ -1778,14 +1773,15 @@ end subroutine occu
 
 
 subroutine epart
-   use aoparam
+   use iso_fortran_env, only : output_unit
+   use aoparam, only : gfn
    use mctc_econv, only : evtoau
    implicit none
    real(wp) :: h,e,p
 
-   p=0.5*gam(1)+gam3(1)/3.0_wp
+   p=0.5*gfn%gam(1)+gfn%gam3(1)/3.0_wp
 
-   h=ao_lev(1,1)*evtoau
+   h=gfn%ao_lev(1,1)*evtoau
 
    e=h-p
 
@@ -1798,7 +1794,8 @@ subroutine epart
 end subroutine epart
 
 subroutine eself(n,at,z)
-   use aoparam
+   use iso_fortran_env, only : output_unit
+   use aoparam, only : gfn
    use mctc_econv, only : evtoau
    implicit none
    integer, intent(in) :: n,at(n)
@@ -1810,7 +1807,7 @@ subroutine eself(n,at,z)
    e=0.0_wp
    do i=1,n
       ii=at(i)
-      e=e+0.5_wp*z(i)**2*gam(ii)+z(i)**3*gam3(ii)/3.0_wp
+      e=e+0.5_wp*z(i)**2*gfn%gam(ii)+z(i)**3*gfn%gam3(ii)/3.0_wp
    enddo
 
    write(output_unit,'(''NO ELECTRONS!'')')
@@ -2164,7 +2161,7 @@ end subroutine mpopsh
 
 subroutine qsh2qat(n,at,nshell,qsh,q)
    use iso_fortran_env, only : wp => real64
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer,intent(in) :: n,nshell,at(n)
    real(wp),intent(in) :: qsh(nshell)
@@ -2175,7 +2172,7 @@ subroutine qsh2qat(n,at,nshell,qsh,q)
    k=0
    do i=1,n
       q(i)=0
-      do mi=1,ao_n(at(i))
+      do mi=1,gfn%ao_n(at(i))
          k=k+1
          q(i)=q(i)+qsh(k)
       enddo
@@ -2221,7 +2218,7 @@ end subroutine lpop
 
 subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    use iso_fortran_env, only : wp => real64
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -2298,8 +2295,8 @@ subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    do i=1,n
       iat=at(i)
       ntot=-1.d-6
-      do m=1,ao_n(iat)
-         l=ao_l(m,iat)
+      do m=1,gfn%ao_n(iat)
+         l=gfn%ao_l(m,iat)
          k=k+1
          zshell=iox(iat,l,iver)
          ntot=ntot+zshell
@@ -2315,7 +2312,7 @@ end subroutine iniqshell
 
 subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    use iso_fortran_env, only : wp => real64
-   use aoparam
+   use aoparam, only : gfn
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -2393,15 +2390,15 @@ subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    do i=1,n
       iat=at(i)
       ntot=-1.d-6
-      do m=1,ao_n(iat)
-         l=ao_l(m,iat)
+      do m=1,gfn%ao_n(iat)
+         l=gfn%ao_l(m,iat)
          k=k+1
          zsh(k)=iox(iat,l,iver)
 !         lsh(k)=l
 !         ash(k)=i
          ntot=ntot+zsh(k)
          if(ntot.gt.z(i)) zsh(k)=0
-         e=e+ao_lev(m,iat)*zsh(k)
+         e=e+gfn%ao_lev(m,iat)*zsh(k)
       enddo
    enddo
    if(abs(sum(z)-sum(zsh)).gt.1.d-4) then
