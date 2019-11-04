@@ -21,14 +21,81 @@
 !  the nuclear and total charge, atomic masses and all interatomic distances
 !  In periodic calculations the lattice parameters, a Wigner--Seitz cell
 !  as well as fractional coordinates are attached to the data type
+!
+!  Additionally the molecular structure can keep a topology information
+!  usually containing the bonds of the system and a list of non-overlapping
+!  fragments. Both data containers are optional and need not to be filled
+!  by the provider of the structure data.
+!
+!  Vendor specific information can be stored along with the molecular structure
+!  in auxilary data objects. Data objects like PDB or SDF atomic data should
+!  be kept as light-weighted as possible and the user of the structure class
+!  is not required to care about it existence
 module tbdef_molecule
    use iso_fortran_env, only : wp => real64
    use tbdef_wsc
+   use tbdef_topology
+   use tbdef_fragments
+   use tbdef_buffer
    implicit none
 
    public :: tb_molecule
+   public :: len, size
 
    private
+
+
+   !> atomic pdb data type
+   !
+   !  keeps information from PDB input that is currently not used by the
+   !  caller program (like residues or chains) but is needed to write
+   !  the PDB output eventually
+   type :: pdb_data
+! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
+! TER    2462      GLY A 153
+! a6----i5---xa4--aa3-xai4--axxxf8.3----f8.3----f8.3----f6.2--f6.2--xxxxxxa4--a2a2
+! HETATM 2463  CHA HEM A 154       9.596 -13.100  10.368  1.00  0.00           C
+      logical :: het = .false.
+      integer :: charge = 0
+      character(len=4) :: name = ' '
+      character(len=1) :: loc = ' '
+      character(len=3) :: residue = ' '
+      character(len=1) :: chains = ' '
+      character(len=1) :: code = ' '
+      character(len=4) :: segid = ' '
+   end type pdb_data
+
+   !> sdf atomic data
+   !
+   !  we only support some entries, the rest is simply dropped.
+   !  the format is: ddcccssshhhbbbvvvHHHrrriiimmmnnneee
+   type :: sdf_data
+      integer :: isotope = 0   !< d field
+      integer :: charge = 0    !< c field
+      integer :: hydrogens = 0 !< h field
+      integer :: valence = 0   !< v field
+   end type sdf_data
+
+   !> vasp input data
+   !
+   !  contains specific vasp keywords that modify the appearance of the
+   !  input file and can be used to reproduce it in the output
+   type :: vasp_info
+      real(wp) :: scale = 1.0_wp
+      logical :: selective = .false.
+      logical :: cartesian = .false.
+   end type vasp_info
+
+   !> Turbomole input data
+   !
+   !  Saves preferences for cartesian vs. direct coordinates and lattice vs. cell.
+   !  Also saves units of input data groups.
+   type :: turbo_info
+      logical :: cartesian = .true.
+      logical :: lattice = .true.
+      logical :: angs_lattice = .false.
+      logical :: angs_coord = .false.
+   end type turbo_info
 
    !> molecular structure information
    type :: tb_molecule
@@ -50,22 +117,75 @@ module tbdef_molecule
       real(wp) :: rec_lat(3,3) = 0.0_wp      !< reciprocal lattice parameters
       real(wp) :: volume = 0.0_wp            !< volume of unit cell
       type(tb_wsc) :: wsc                    !< Wigner--Seitz cell
+      integer  :: ftype = 0                  !< file type of the input
+      character(len=:), allocatable :: name
+      type(tb_topology) :: bonds
+      type(tb_fragments) :: frag
+      !> PDB specific information about residues and chains
+      type(pdb_data), allocatable :: pdb(:)
+      !> SDF specific information about atom types
+      type(sdf_data), allocatable :: sdf(:)
+      !> VASP specific information about input type
+      type(vasp_info) :: vasp = vasp_info()
+      !> Turbomole specific information about input type
+      type(turbo_info) :: turbo = turbo_info()
+      !> raw input buffer
+      type(tb_buffer) :: info
    contains
-   procedure :: allocate => allocate_molecule
-   procedure :: deallocate => deallocate_molecule
-   procedure :: calculate_distances
-   procedure :: set_nuclear_charge
-   procedure :: set_atomic_masses
-   procedure :: write => write_molecule
-   procedure :: update
-   procedure :: wrap_back
-   procedure :: center_of_geometry,center_of_mass
-   procedure :: shift_to_center_of_geometry,shift_to_center_of_mass
-   procedure :: moments_of_inertia
-   procedure :: align_to_principal_axes
+      procedure :: allocate => allocate_molecule
+      procedure :: deallocate => deallocate_molecule
+      procedure :: calculate_distances => mol_calculate_distances
+      procedure :: set_nuclear_charge => mol_set_nuclear_charge
+      procedure :: set_atomic_masses => mol_set_atomic_masses
+      procedure :: write => write_molecule_generic
+      procedure :: read => read_molecule_generic
+      procedure :: update => mol_update
+      procedure :: wrap_back => mol_wrap_back
+      procedure :: center_of_geometry
+      procedure :: center_of_mass
+      procedure :: shift_to_center_of_geometry
+      procedure :: shift_to_center_of_mass
+      procedure :: moments_of_inertia
+      procedure :: align_to_principal_axes
    end type tb_molecule
 
+
+   interface
+      module subroutine write_molecule_generic(self, unit, format, &
+            &                                  energy, gnorm, number)
+         class(tb_molecule), intent(in) :: self
+         integer, intent(in) :: unit
+         integer, intent(in), optional :: format
+         real(wp), intent(in), optional :: energy
+         real(wp), intent(in), optional :: gnorm
+         integer, intent(in), optional :: number
+      end subroutine write_molecule_generic
+
+      module subroutine read_molecule_generic(self, unit, format)
+         class(tb_molecule), intent(out) :: self
+         integer, intent(in) :: unit
+         integer, intent(in), optional :: format
+      end subroutine read_molecule_generic
+   end interface
+
+
+   interface len
+      module procedure :: mol_length
+   end interface
+
+
 contains
+
+
+!> obtain number of atoms for molecular structure
+!
+!  The molecular structure is assumed to be well-behaved in this respect
+!  so there is no sanity check on the allocation status.
+integer pure elemental function mol_length(self) result(length)
+   class(tb_molecule),intent(in) :: self !< molecular structure information
+   length = self%n
+end function mol_length
+
 
 !> constructor for molecular structure
 subroutine allocate_molecule(self,n)
@@ -101,94 +221,15 @@ subroutine deallocate_molecule(self)
    if (allocated(self%atmass)) deallocate(self%atmass)
    if (allocated(self%z))      deallocate(self%z)
    if (allocated(self%cn))     deallocate(self%cn)
+   if (allocated(self%pdb))    deallocate(self%pdb)
+   if (allocated(self%sdf))    deallocate(self%sdf)
+   if (allocated(self%name))   deallocate(self%name)
+   call self%bonds%deallocate
+   call self%frag%deallocate
+   call self%info%deallocate
 end subroutine deallocate_molecule
 
-!> print information about current molecular structure to unit
-subroutine write_molecule(self,iunit,comment)
-   implicit none
-   class(tb_molecule),intent(in) :: self    !< molecular structure information
-   integer,           intent(in) :: iunit   !< file handle
-   character(len=*),  intent(in) :: comment !< name of the variable
-   character(len=*),parameter :: dfmt = '(1x,a,1x,"=",1x,g0)'
-
-   write(iunit,'(72(">"))')
-   write(iunit,'(1x,"*",1x,a)') "Writing 'tb_molecule' class"
-   write(iunit,'(  "->",1x,a)') comment
-   write(iunit,'(72("-"))')
-   write(iunit,'(1x,"*",1x,a)') "status of the fields"
-   write(iunit,dfmt) "integer :: n           ",self%n
-   write(iunit,dfmt) "real    :: chrg        ",self%chrg
-   write(iunit,dfmt) "integer :: uhf         ",self%uhf
-   write(iunit,dfmt) "integer :: npbc        ",self%npbc
-   write(iunit,dfmt) "logical :: pbc(1)      ",self%pbc(1)
-   write(iunit,dfmt) "        &  pbc(2)      ",self%pbc(2)
-   write(iunit,dfmt) "        &  pbc(3)      ",self%pbc(3)
-   write(iunit,dfmt) "real    :: volume      ",self%volume
-   write(iunit,dfmt) "real    :: lattice(1,1)",self%lattice(1,1)
-   write(iunit,dfmt) "        &  lattice(2,1)",self%lattice(2,1)
-   write(iunit,dfmt) "        &  lattice(3,1)",self%lattice(3,1)
-   write(iunit,dfmt) "        &  lattice(1,2)",self%lattice(1,2)
-   write(iunit,dfmt) "        &  lattice(2,2)",self%lattice(2,2)
-   write(iunit,dfmt) "        &  lattice(3,2)",self%lattice(3,2)
-   write(iunit,dfmt) "        &  lattice(1,3)",self%lattice(1,3)
-   write(iunit,dfmt) "        &  lattice(2,3)",self%lattice(2,3)
-   write(iunit,dfmt) "        &  lattice(3,3)",self%lattice(3,3)
-   write(iunit,dfmt) "real    :: rec_lat(1,1)",self%rec_lat(1,1)
-   write(iunit,dfmt) "        &  rec_lat(2,1)",self%rec_lat(2,1)
-   write(iunit,dfmt) "        &  rec_lat(3,1)",self%rec_lat(3,1)
-   write(iunit,dfmt) "        &  rec_lat(1,2)",self%rec_lat(1,2)
-   write(iunit,dfmt) "        &  rec_lat(2,2)",self%rec_lat(2,2)
-   write(iunit,dfmt) "        &  rec_lat(3,2)",self%rec_lat(3,2)
-   write(iunit,dfmt) "        &  rec_lat(1,3)",self%rec_lat(1,3)
-   write(iunit,dfmt) "        &  rec_lat(2,3)",self%rec_lat(2,3)
-   write(iunit,dfmt) "        &  rec_lat(3,3)",self%rec_lat(3,3)
-   write(iunit,dfmt) "real    :: cellpar(1)  ",self%cellpar(1)
-   write(iunit,dfmt) "        &  cellpar(2)  ",self%cellpar(2)
-   write(iunit,dfmt) "        &  cellpar(3)  ",self%cellpar(3)
-   write(iunit,dfmt) "        &  cellpar(4)  ",self%cellpar(4)
-   write(iunit,dfmt) "        &  cellpar(5)  ",self%cellpar(5)
-   write(iunit,dfmt) "        &  cellpar(6)  ",self%cellpar(6)
-   write(iunit,'(72("-"))')
-   write(iunit,'(1x,"*",1x,a)') "allocation status"
-   write(iunit,dfmt) "allocated? sym(:)      ",allocated(self%sym)
-   write(iunit,dfmt) "allocated? at(:)       ",allocated(self%at)
-   write(iunit,dfmt) "allocated? xyz(:,:)    ",allocated(self%xyz)
-   write(iunit,dfmt) "allocated? abc(:,:)    ",allocated(self%abc)
-   write(iunit,dfmt) "allocated? dist(:,:)   ",allocated(self%dist)
-   write(iunit,dfmt) "allocated? atmass(:)   ",allocated(self%atmass)
-   write(iunit,dfmt) "allocated? z(:)        ",allocated(self%z)
-   write(iunit,dfmt) "allocated? cn(:)       ",allocated(self%cn)
-   write(iunit,'(72("-"))')
-   write(iunit,'(1x,"*",1x,a)') "size of memory allocation"
-   if (allocated(self%at)) then
-   write(iunit,dfmt) "size(1) :: at(*)       ",size(self%at,1)
-   endif
-   if (allocated(self%xyz)) then
-   write(iunit,dfmt) "size(1) :: xyz(*,:)    ",size(self%xyz,1)
-   write(iunit,dfmt) "size(2) :: xyz(:,*)    ",size(self%xyz,2)
-   endif
-   if (allocated(self%abc)) then
-   write(iunit,dfmt) "size(1) :: abc(*,:)    ",size(self%abc,1)
-   write(iunit,dfmt) "size(2) :: abc(:,*)    ",size(self%abc,2)
-   endif
-   if (allocated(self%dist)) then
-   write(iunit,dfmt) "size(1) :: dist(*,:)   ",size(self%dist,1)
-   write(iunit,dfmt) "size(2) :: dist(:,*)   ",size(self%dist,2)
-   endif
-   if (allocated(self%atmass)) then
-   write(iunit,dfmt) "size(1) :: atmass(*)   ",size(self%atmass,1)
-   endif
-   if (allocated(self%z)) then
-   write(iunit,dfmt) "size(1) :: z(*)        ",size(self%z,1)
-   endif
-   if (allocated(self%cn)) then
-   write(iunit,dfmt) "size(1) :: cn(*)       ",size(self%cn,1)
-   endif
-   call self%wsc%write(iunit,comment//"%wsc")
-   write(iunit,'(72("<"))')
-end subroutine write_molecule
-
-subroutine update(self)
+subroutine mol_update(self)
    use iso_fortran_env, wp => real64
    use pbc_tools
    implicit none
@@ -204,11 +245,11 @@ subroutine update(self)
 
    call self%calculate_distances
 
-end subroutine update
+end subroutine mol_update
 
 !> calculates all distances for molecular structures and minimum
 !  image distances for peridic structures
-subroutine calculate_distances(self)
+subroutine mol_calculate_distances(self)
    use iso_fortran_env, wp => real64
    use pbc_tools
    implicit none
@@ -233,10 +274,10 @@ subroutine calculate_distances(self)
          self%dist(i,i) = 0.0_wp
       enddo
    endif
-end subroutine calculate_distances
+end subroutine mol_calculate_distances
 
 !> get all nuclear charges
-subroutine set_nuclear_charge(self)
+subroutine mol_set_nuclear_charge(self)
    use iso_fortran_env, wp => real64
    implicit none
    class(tb_molecule),intent(inout) :: self  !< molecular structure information
@@ -271,29 +312,29 @@ pure elemental integer function ncore(at)
      ncore=78
   endif
 end function ncore
-end subroutine set_nuclear_charge
+end subroutine mol_set_nuclear_charge
 
 !> get all nuclear charges
-subroutine set_atomic_masses(self)
+subroutine mol_set_atomic_masses(self)
    use iso_fortran_env, wp => real64
    use mctc_param
    implicit none
    class(tb_molecule),intent(inout) :: self  !< molecular structure information
    self%atmass = atomic_mass(self%at)
-end subroutine set_atomic_masses
+end subroutine mol_set_atomic_masses
 
 !> wrap cartesian coordinates back into cell
 ! 
 !  This automatically done when calling @see xyz_to_abc, so we only have
 !  to perform the transformation there and back again
-subroutine wrap_back(self)
+subroutine mol_wrap_back(self)
    use iso_fortran_env, wp => real64
    use pbc_tools
    implicit none
    class(tb_molecule),intent(inout) :: self !< molecular structure information
    call xyz_to_abc(self%n,self%lattice,self%xyz,self%abc,self%pbc)
    call abc_to_xyz(self%n,self%lattice,self%abc,self%xyz)
-end subroutine wrap_back
+end subroutine mol_wrap_back
 
 pure function center_of_geometry(self) result(center)
    use iso_fortran_env, wp => real64

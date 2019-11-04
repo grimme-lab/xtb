@@ -118,6 +118,7 @@ mctc_srcs += 'mctc/mctc_timings.f90'
 mctc_srcs += 'mctc/mctc_filetools.f90'
 mctc_srcs += 'mctc/mctc_la.f90'
 mctc_srcs += 'mctc/mctc_init.f90'
+mctc_srcs += 'mctc/mctc_resize_arrays.f90'
 mctc_srcs += 'mctc/error.f90'
 mctc_srcs += 'mctc/signal.c'
 
@@ -136,6 +137,9 @@ xtb_srcs += 'xtb/tbdef_wsc.f90'
 xtb_srcs += 'xtb/tbdef_options.f90'
 xtb_srcs += 'xtb/tbdef_calculator.f90'
 xtb_srcs += 'xtb/tbdef_atomlist.f90'
+xtb_srcs += 'xtb/tbdef_topology.f90'
+xtb_srcs += 'xtb/tbdef_fragments.f90'
+xtb_srcs += 'xtb/tbdef_buffer.f90'
 
 # global data
 xtb_srcs += 'xtb/gfn0param.f90'
@@ -172,6 +176,9 @@ xtb_srcs += 'xtb/gfn_prparam.f90'
 xtb_srcs += 'xtb/wrgbw.f90'
 xtb_srcs += 'xtb/enso_printout.f90'
 xtb_srcs += 'xtb/read_gfn_param.f90'
+xtb_srcs += 'xtb/molecule_reader.f90'
+xtb_srcs += 'xtb/molecule_writer.f90'
+xtb_srcs += 'xtb/tbmod_file_utils.f90'
 
 # parameters
 xtb_srcs += 'xtb/gfn_paramset.f90'
@@ -428,6 +435,17 @@ test('Geometry Reader: coord 1D',xtb_test,args: ['geometry_reader','coord_1d'])
 test('Geometry Reader: coord 0D',xtb_test,args: ['geometry_reader','coord_0d'])
 test('Geometry Reader: Xmol  0D',xtb_test,args: ['geometry_reader','xmol_0d'])
 test('Geometry Reader: POSCAR',  xtb_test,args: ['geometry_reader','poscar_3d'])
+test('Geometry Reader: molfile', xtb_test,args: ['geometry_reader','molfile'])
+test('Geometry Reader: molfile flat', xtb_test, should_fail: true,
+     args: ['geometry_reader','molfile_flat'])
+test('Geometry Reader: SDF', xtb_test, args: ['geometry_reader','sdfile'])
+test('Geometry Reader: SDF flat', xtb_test, should_fail: true,
+     args: ['geometry_reader','sdfile_flat'])
+test('Geometry Reader: SDF no H', xtb_test, should_fail: true,
+     args: ['geometry_reader','sdfile_noh'])
+test('Geometry Reader: PDB', xtb_test, args: ['geometry_reader','pdb'])
+test('Geometry Reader: PDB no H', xtb_test, should_fail: true,
+     args: ['geometry_reader','pdb_noh'])
 
 test('IO: atom list', xtb_test, args: ['tbdef_atomlist', 'list'])
 

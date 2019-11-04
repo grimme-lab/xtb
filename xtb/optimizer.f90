@@ -418,7 +418,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use tbdef_timer
 
    use single, only : singlepoint
-   use write_geometry
+   use tbmod_file_utils
 
    implicit none
 
@@ -516,7 +516,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       return
    endif
    if (profile) call timer%measure(6,'optimization log')
-   call write_xyzlog(ilog,mol%n,mol%at,mol%xyz,res%e_total,res%gnorm)
+   call mol%write(ilog, format=p_ftype%xyz, energy=res%e_total, gnorm=res%gnorm)
    if (profile) call timer%measure(6)
 ! transform xyz to internal gradient
    if (profile) call timer%measure(4)

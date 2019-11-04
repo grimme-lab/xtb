@@ -141,13 +141,13 @@ subroutine md(mol,wfx,calc, &
    use tbdef_calculator
    use tbdef_wavefunction
    use tbdef_data
+   use tbmod_file_utils
    use shake_module, only: do_shake,ncons,xhonly
    use aoparam
    use setparam
    use fixparam
    use scanparam
    use splitparam
-   use write_geometry
    implicit none
    type(tb_molecule),intent(inout) :: mol
    type(tb_wavefunction),intent(inout) :: wfx
@@ -460,7 +460,7 @@ subroutine md(mol,wfx,calc, &
          cdump2=cdump2+1
          call getname1(cdump2,atmp)
          call open_file(ich,trim(atmp),'w')
-         call write_coord(ich,mol%n,mol%at,mol%xyz)
+         call mol%write(ich,format=p_ftype%tmol)
          call close_file(ich)
          cdump=0
       endif
@@ -479,7 +479,7 @@ subroutine md(mol,wfx,calc, &
       ! dump xyz (trj)
       if(ndump.gt.dumpstep-1)then
          ndump=0
-         call write_xyzlog(trj,mol%n,mol%at,mol%xyz,epot,res%gnorm)
+         call mol%write(trj, format=p_ftype%xyz, energy=epot, gnorm=res%gnorm)
          if(velodump)then
             do i=1,mol%n
                write(trj,'(3f20.14)')velo(1:3,i)
