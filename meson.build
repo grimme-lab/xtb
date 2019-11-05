@@ -20,7 +20,7 @@ project('xtb',
         'fortran', 'c',
         version: '6.2.2',
         license: 'LGPL3',
-        meson_version: '>=0.49',
+        meson_version: '>=0.51',
         default_options: ['includedir=include/xtb'])
 
 fc = meson.get_compiler('fortran')
@@ -59,8 +59,10 @@ elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
   add_project_arguments('-traceback', language: 'fortran')
-  add_project_link_arguments('-static', language: 'fortran')
-  add_project_link_arguments('-static', language: 'c') # icc will do linking
+  if get_option('static')
+    add_project_link_arguments('-static', language: 'fortran')
+    add_project_link_arguments('-static', language: 'c') # icc will do linking
+  endif
 endif
 
 if cc.get_id() == 'gcc'
@@ -89,7 +91,6 @@ if get_option('la_backend') == 'mkl'
     libmkl_exe += fc.find_library('mkl_intel_thread')
   endif
   libmkl_exe += fc.find_library('mkl_core')
-  libmkl_exe += fc.find_library('iomp5')
   libmkl_sha = [fc.find_library('mkl_rt')]
   dependencies_sha += libmkl_sha
   dependencies_exe += libmkl_exe
@@ -116,6 +117,7 @@ if get_option('openmp')
     add_project_link_arguments('-qopenmp', language: 'c')
   endif
 endif
+
 dependencies += dependency('threads')
 
 # distribute dependencies for shared object and static executable
@@ -382,6 +384,7 @@ xtb_exe = executable(meson.project_name(),
                      dependencies: dependencies_exe,
                      include_directories: incdir,
                      link_with: xtb_lib_static,
+                     link_language: 'fortran',
                      install: true)
 
 xtb_lib_shared = shared_library(meson.project_name(),
@@ -389,7 +392,6 @@ xtb_lib_shared = shared_library(meson.project_name(),
                                 dependencies: dependencies_sha,
                                 include_directories: incdir,
                                 link_whole: xtb_lib_static,
-                                link_args: '-fopenmp',
                                 install: true)
 
 xtb_dep_static = [declare_dependency(link_whole: xtb_lib_static), dependencies_exe]
