@@ -142,8 +142,9 @@ subroutine singlepoint &
    ! point charge embedding gradient file
    if (pcem%n > 0) then
       call open_file(ich,pcem_grad,'w')
+      write(ich, '(i0)') pcem%n
       do i=1,pcem%n
-         write(ich,'(3f12.8)')pcem%grd(1:3,i)
+         write(ich,'(3f17.12)')pcem%grd(1:3,i)
       enddo
       call close_file(ich)
    endif
