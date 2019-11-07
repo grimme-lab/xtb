@@ -91,7 +91,7 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
 
    read(unit,*,iostat=err) n
    if (err.ne.0) then
-      iomsg = "Could not read number of atoms, check format!"
+      iomsg = "Could not read number of atoms, check format!"100000000000000
       return
    endif
 
@@ -681,7 +681,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
    character(len=:), allocatable :: line
    character(len=2) :: a_charge
    integer :: iatom, jatom, iresidue, try, error, atom_type
-   integer :: this_residue, last_residue, i, j
+   integer :: i, j
    real(wp) :: occ, temp, coords(3)
 ! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
 ! TER    2462      GLY A 153
