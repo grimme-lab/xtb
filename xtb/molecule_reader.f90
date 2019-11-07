@@ -721,13 +721,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
          if (atom_type == 0) then
             try = scan(pdb(iatom)%name, 'HCNOSPF')
             if (try > 0) sym(iatom) = pdb(iatom)%name(try:try)//' '
-         endif
-!         if (this_residue /= last_residue) then
- !           iresidue = iresidue + 1
- !           last_residue = this_residue
- !        endif
-!         list(iatom) = iresidue
-         
+         endif         
          read(a_charge, *, iostat=try) pdb(iatom)%charge
          if (try /= 0) pdb(iatom)%charge = 0
       endif
