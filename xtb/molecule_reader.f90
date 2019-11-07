@@ -721,7 +721,6 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
          if (atom_type == 0) then
             try = scan(pdb(iatom)%name, 'HCNOSPF')
             if (try > 0) sym(iatom) = pdb(iatom)%name(try:try)//' '
-         endif         
          read(a_charge, *, iostat=try) pdb(iatom)%charge
          if (try /= 0) pdb(iatom)%charge = 0
       endif
@@ -731,12 +730,15 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
       return
    endif
    j=0
-   do i = minval(pdb(:iatom)%residue_number),maxval(pdb(:iatom)%residue_number)
-      if (any(i .eq. pdb(:iatom)%residue_number)) then
+   associate( rn => pdb(:iatom)%residue_number)
+   do i = minval(rn),maxval(rn)
+      if (any(i .eq. rn)) then
          j=j+1
-         where (i .eq. pdb(:iatom)%residue_number) list = j
+         where (i .eq. rn) list = j
       endif
    enddo
+   end associate
+
    call mol%allocate(iatom)
    mol%xyz = xyz(:,:iatom)
    mol%at = sym(:iatom)
