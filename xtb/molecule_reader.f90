@@ -91,7 +91,7 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
 
    read(unit,*,iostat=err) n
    if (err.ne.0) then
-      iomsg = "Could not read number of atoms, check format!"100000000000000
+      iomsg = "Could not read number of atoms, check format!"
       return
    endif
 
