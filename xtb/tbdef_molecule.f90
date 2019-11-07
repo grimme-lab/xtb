@@ -57,6 +57,7 @@ module tbdef_molecule
 ! HETATM 2463  CHA HEM A 154       9.596 -13.100  10.368  1.00  0.00           C
       logical :: het = .false.
       integer :: charge = 0
+      integer :: residue_number = 0
       character(len=4) :: name = ' '
       character(len=1) :: loc = ' '
       character(len=3) :: residue = ' '

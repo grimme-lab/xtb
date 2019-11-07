@@ -257,7 +257,7 @@ subroutine write_pdb(mol, unit, number)
    character(len=1) :: last_chain
    logical :: last_het
    integer :: offset
-   integer :: iatom, jatom, iresidue
+   integer :: iatom, jatom
    real(wp) :: xyz(3)
 ! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
 ! TER    2462      GLY A 153
@@ -276,12 +276,12 @@ subroutine write_pdb(mol, unit, number)
       ! handle the terminator
       if (mol%pdb(iatom)%het .neqv. last_het) then
          write(unit, '("TER   ",i5,6x,a3,1x,a1,i4)') iatom + offset, &
-            &  mol%pdb(iatom-1)%residue, last_chain, iresidue
+            &  mol%pdb(iatom-1)%residue, last_chain, mol%pdb(iatom)%residue_number
          last_het = .not.last_het
          offset = offset+1
       else if (mol%pdb(iatom)%chains /= last_chain) then
          write(unit, '("TER   ",i5,6x,a3,1x,a1,i4)') iatom + offset, &
-            &  mol%pdb(iatom-1)%residue, last_chain, iresidue
+            &  mol%pdb(iatom-1)%residue, last_chain, mol%pdb(iatom)%residue_number
          offset = offset+1
       endif
 
@@ -292,7 +292,6 @@ subroutine write_pdb(mol, unit, number)
          w1 = 'ATOM  '
       endif
 
-      iresidue = mol%frag%list(iatom)
 
       xyz = mol%xyz(:,iatom) * autoaa
       if (mol%pdb(iatom)%charge /= 0) then
@@ -303,7 +302,7 @@ subroutine write_pdb(mol, unit, number)
 
       write(unit, pdb_format) &
          &  w1, jatom, mol%pdb(iatom)%name, mol%pdb(iatom)%loc, &
-         &  mol%pdb(iatom)%residue, mol%pdb(iatom)%chains, iresidue, &
+         &  mol%pdb(iatom)%residue, mol%pdb(iatom)%chains, mol%pdb(iatom)%residue_number, &
          &  mol%pdb(iatom)%code, xyz, 1.0_wp, 0.0_wp, mol%pdb(iatom)%segid, &
          &  mol%sym(iatom), a_charge
    enddo
