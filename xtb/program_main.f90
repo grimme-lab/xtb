@@ -280,7 +280,16 @@ program XTBprog
 !  get some memory
    allocate(cn(mol%n),sat(mol%n),g(3,mol%n), source = 0.0_wp)
 
+!  initialize the global storage
+   call init_fix(mol%n)
+   call init_split(mol%n)
+   call init_constr(mol%n,mol%at)
+   call init_scan
+   call init_walls
+   call init_metadyn(mol%n,metaset%maxsave)
+
 !! ------------------------------------------------------------------------
+   atmass = atomic_mass(mol%at) * autoamu ! from splitparam.f90
    periodic = mol%npbc > 0
    if (mol%npbc == 0) then
       if (do_cma_trafo) then
@@ -291,19 +300,10 @@ program XTBprog
       endif
    endif
 
-!  initialize the global storage
-   call init_fix(mol%n)
-   call init_split(mol%n)
-   call init_constr(mol%n,mol%at)
-   call init_scan
-   call init_walls
-   call init_metadyn(mol%n,metaset%maxsave)
-
    do i=1,mol%n
       mol%z(i) = mol%at(i) - ncore( mol%at(i) )
       ! lanthanides without f are treated as La
       if(mol%at(i).gt.57.and.mol%at(i).lt.72) mol%z(i)=3
-      atmass(i)=atomic_mass(mol%at(i)) * autoamu ! from splitparam.f90
    enddo
 
    ! initialize time step for MD if requested autocomplete
