@@ -98,7 +98,8 @@ subroutine test_peeq_sp
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
-         call raise('E',"Parameter file '"//fnv//"' not found!")
+         call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         return
       endif
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
