@@ -62,6 +62,8 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm, numb
       call write_sdf(self, unit, energy, gnorm)
    case(p_ftype%vasp)
       call write_vasp(self, unit, trim(comment_line))
+   case(p_ftype%gen)
+      call write_gen(self, unit, trim(comment_line))
    case(p_ftype%pdb)
       if (present(number)) then
          call write_pdb(self, unit, number)
@@ -247,6 +249,64 @@ subroutine write_vasp(mol, unit, comment_line)
 
 end subroutine write_vasp
 
+subroutine write_gen(mol, unit, comment_line)
+   use mctc_econv
+   class(tb_molecule), intent(in) :: mol
+   integer, intent(in) :: unit
+   character(len=*), intent(in) :: comment_line
+   integer :: i,j,iat
+   real(wp), parameter :: zero3(3) = 0.0_wp
+   integer, allocatable :: species(:)
+
+   write(unit, '(i0,1x)', advance='no') len(mol)
+   if (mol%npbc == 0) then
+      write(unit, '("C")') ! cluster
+   else
+      if (mol%vasp%cartesian) then
+         write(unit, '("S")') ! supercell
+      else
+         write(unit, '("F")') ! fractional
+      endif
+   endif
+   write(unit, '("#",1x,a)') comment_line
+
+   allocate(species(len(mol)), source=0)
+   j = 0
+   do iat = minval(mol%at), maxval(mol%at)
+      if (any(mol%at == iat)) then
+         j = j+1
+         write(unit,'(1x,a)',advance='no') number_to_symbol(iat)
+         where(mol%at == iat)
+            species = j
+         endwhere
+      endif
+   enddo
+   write(unit,'(a)')
+
+   if (mol%npbc == 0 .or. mol%vasp%cartesian) then
+      ! now write the cartesian coordinates
+      do i = 1, len(mol)
+         write(unit,'(2i5,3f20.14)') i, species(i), mol%xyz(:,i)*autoaa
+      enddo
+   else
+      ! now write the fractional coordinates
+      do i = 1, len(mol)
+         write(unit,'(2i5,3f20.14)') i, species(i), mol%abc(:,i)
+      enddo
+   endif
+   deallocate(species)
+
+   if (mol%npbc > 0) then
+      ! scaling factor for lattice parameters is always one
+      write(unit,'(3f20.14)') zero3
+      ! write the lattice parameters
+      do i = 1, 3
+         write(unit,'(3f20.14)') mol%lattice(:,i)*autoaa
+      enddo
+   endif
+
+end subroutine write_gen
+
 subroutine write_pdb(mol, unit, number)
    use mctc_econv
    type(tb_molecule), intent(in) :: mol
@@ -313,5 +373,35 @@ subroutine write_pdb(mol, unit, number)
    endif
 
 end subroutine write_pdb
+
+pure function number_to_symbol(number) result(symbol)
+   character(len=2), parameter :: pse(118) = [ &
+      & 'H ','He', &
+      & 'Li','Be','B ','C ','N ','O ','F ','Ne', &
+      & 'Na','Mg','Al','Si','P ','S ','Cl','Ar', &
+      & 'K ','Ca', &
+      & 'Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu','Zn', &
+      &           'Ga','Ge','As','Se','Br','Kr', &
+      & 'Rb','Sr', &
+      & 'Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd', &
+      &           'In','Sn','Sb','Te','I ','Xe', &
+      & 'Cs','Ba','La', &
+      & 'Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb', &
+      & 'Lu','Hf','Ta','W ','Re','Os','Ir','Pt','Au','Hg', &
+      &           'Tl','Pb','Bi','Po','At','Rn', &
+      & 'Fr','Ra','Ac', &
+      & 'Th','Pa','U ','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No', &
+      & 'Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn', &
+      &           'Nh','Fl','Mc','Lv','Ts','Og' ]
+   integer, intent(in) :: number
+   character(len=:), allocatable :: symbol
+
+   if (number > 0 .and. number <= size(pse)) then
+      symbol = trim(pse(number))
+   else
+      symbol = '--'
+   endif
+
+end function number_to_symbol
 
 end submodule molecule_writer

@@ -98,6 +98,7 @@ program peeq_tester
       case('sdfile_noh'); call test_geometry_reader_file_sdf_benzen_hquery
       case('pdb'); call test_geometry_reader_file_pdb_4qxx
       case('pdb_noh'); call test_geometry_reader_file_pdb_4qxx_noh
+      case('gen'); call test_geometry_reader_file_gen
       end select
    case('pbc_tools')
       select case(sec)
