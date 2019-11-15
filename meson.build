@@ -437,6 +437,7 @@ test('Geometry Reader: SDF flat', xtb_test, should_fail: true, args: ['geometry_
 test('Geometry Reader: SDF no H', xtb_test, should_fail: true, args: ['geometry_reader', 'sdfile_noh'], env: xtbenv)
 test('Geometry Reader: PDB', xtb_test, args: ['geometry_reader', 'pdb'], env: xtbenv)
 test('Geometry Reader: PDB no H', xtb_test, should_fail: true, args: ['geometry_reader', 'pdb_noh'], env: xtbenv)
+test('Geometry Reader: genFormat', xtb_test, args: ['geometry_reader', 'gen'], env: xtbenv)
 
 test('IO: atom list', xtb_test, args: ['tbdef_atomlist', 'list'], env: xtbenv)
 

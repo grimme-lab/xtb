@@ -786,3 +786,113 @@ subroutine test_geometry_reader_file_pdb_4qxx
 
    call terminate(afail) ! should fail
 end subroutine
+
+subroutine test_geometry_reader_file_gen
+   use iso_fortran_env, wp => real64
+   use tbdef_molecule
+   use assertion
+   use tbmod_file_utils
+   real(wp),parameter :: thr = 1.0e-9_wp
+   character(len=*),parameter :: file_gen_3518_40 = '(&
+      & "11 C",/,&
+      & "H O C Cl",/,&
+      & "     1   1   1.4804284700E+00  -3.7841000000E-04  -4.5088412000E-01",/,&
+      & "     2   2   6.4956739000E-01  -1.0135000000E-04   4.1534770000E-02",/,&
+      & "     3   3   9.1395452000E-01   4.9320000000E-05   1.4221530400E+00",/,&
+      & "     4   1  -3.8501990000E-02   3.8080000000E-05   1.9594935600E+00",/,&
+      & "     5   1   1.4892451200E+00  -8.9307852000E-01   1.7238278300E+00",/,&
+      & "     6   1   1.4891347400E+00   8.9330130000E-01   1.7236710000E+00",/,&
+      & "     7   4   1.4127281600E+00   5.9150000000E-05  -3.7670094900E+00",/,&
+      & "     8   3  -2.4429871000E-01   2.9510000000E-05  -3.0588008100E+00",/,&
+      & "     9   1  -9.6106427000E-01   8.5360000000E-05  -3.8644299700E+00",/,&
+      & "    10   1  -3.6103071000E-01  -8.8388246000E-01  -2.4531570700E+00",/,&
+      & "    11   1  -3.6101555000E-01   8.8386685000E-01  -2.4530447400E+00")'
+   character(len=*),parameter :: file_gen_gaas = '(&
+      & "2  F",/,&
+      & "# example comment",/,&
+      & "Ga As",/,&
+      & "1 1 0.00 0.00 0.00",/,&
+      & "2 2 0.25 0.25 0.25",/,&
+      & "0.0000000E+00 0.0000000E+00 0.0000000E+00",/,&
+      & "# example comment",/,&
+      & "0.2713546E+01 0.2713546E+01 0.0000000E+00",/,&
+      & "0.0000000E+00 0.2713546E+01 0.2713546E+01",/,&
+      & "0.2713546E+01 0.0000000E+00 0.2713546E+01")'
+   character(len=*),parameter :: file_gen_diamond = '(&
+      & "8 S",/,&
+      & "C",/,&
+      & "     1   1   0.0000000000E+00   0.0000000000E+00   0.0000000000E+00",/,&
+      & "     2   1  -0.0000000000E+00   1.7833900000E+00   1.7834000000E+00",/,&
+      & "     3   1   1.7833900000E+00   1.7834000000E+00   0.0000000000E+00",/,/,&
+      & "     4   1   1.7833900000E+00  -0.0000000000E+00   1.7834000000E+00",/,&
+      & "     5   1   2.6750900000E+00   8.9170000000E-01   2.6750900000E+00",/,&
+      & "     6   1   8.9170000000E-01   8.9170000000E-01   8.9170000000E-01",/,&
+      & "     7   1   8.9170000000E-01   2.6750900000E+00   2.6750900000E+00",/,&
+      & "     8   1   2.6750900000E+00   2.6750900000E+00   8.9170000000E-01",/,&
+      & "0.0 0.0 0.0",/,&
+      & "3.567 0.0 0.0",/,/,&
+      & "0.0 3.567 0.0",/,&
+      & "0.0 0.0 3.567")'
+   integer :: iunit
+   type(tb_molecule) :: mol
+
+   open(newunit=iunit,status='scratch')
+   write(iunit, file_gen_3518_40)
+   rewind(iunit)
+   call mol%read(iunit, format=p_ftype%gen)
+
+   call assert_eq(len(mol), 11)
+   call assert_eq(count(mol%pbc), 0)
+   call assert_eq(mol%npbc, 0)
+
+   call assert_eq(mol%at(1), 1)
+   call assert_eq(mol%at(4), 1)
+   call assert_eq(mol%at(7), 17)
+
+   call assert_close(mol%xyz(1,3), 1.7271235729215_wp, thr)
+   call assert_close(mol%xyz(2,2),-0.0001915237250_wp, thr)
+   call assert_close(mol%xyz(3,5), 3.2575621824717_wp, thr)
+   call assert_close(mol%xyz(1,7), 2.6696690632549_wp, thr)
+
+   rewind(iunit)
+   write(iunit, file_gen_gaas)
+   rewind(iunit)
+   call mol%read(iunit, format=p_ftype%gen)
+
+   call assert_eq(len(mol), 2)
+   call assert_eq(count(mol%pbc), 3)
+   call assert_eq(mol%npbc, 3)
+
+   call assert_eq(mol%at(1), 31)
+   call assert_eq(mol%at(2), 33)
+
+   call assert_close(mol%xyz(1,3), 0.0000000000000_wp, thr)
+   call assert_close(mol%xyz(2,2), 2.5639291454058_wp, thr)
+
+   call assert_close(mol%lattice(1,3), 5.1278582908117_wp, thr)
+   call assert_close(mol%lattice(2,2), 5.1278582908117_wp, thr)
+
+   rewind(iunit)
+   write(iunit, file_gen_diamond)
+   rewind(iunit)
+   call mol%read(iunit, format=p_ftype%gen)
+
+   call assert_eq(len(mol), 8)
+   call assert_eq(count(mol%pbc), 3)
+   call assert_eq(mol%npbc, 3)
+
+   call assert_eq(mol%at(2), 6)
+   call assert_eq(mol%at(5), 6)
+
+   call assert_close(mol%xyz(1,3), 3.3701183607172_wp, thr)
+   call assert_close(mol%xyz(2,2), 3.3701183607172_wp, thr)
+   call assert_close(mol%xyz(3,5), 5.0551869897055_wp, thr)
+   call assert_close(mol%xyz(1,7), 1.6850686289883_wp, thr)
+
+   call assert_close(mol%lattice(1,3), 0.0000000000000_wp, thr)
+   call assert_close(mol%lattice(2,2), 6.7406524611432_wp, thr)
+
+   close(iunit)
+
+   call terminate(afail)
+end subroutine
