@@ -866,7 +866,6 @@ subroutine test_geometry_reader_file_gen
    call assert_eq(mol%at(1), 31)
    call assert_eq(mol%at(2), 33)
 
-   call assert_close(mol%xyz(1,3), 0.0000000000000_wp, thr)
    call assert_close(mol%xyz(2,2), 2.5639291454058_wp, thr)
 
    call assert_close(mol%lattice(1,3), 5.1278582908117_wp, thr)
