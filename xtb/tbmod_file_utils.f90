@@ -26,6 +26,7 @@ module tbmod_file_utils
       integer :: vasp = 4
       integer :: pdb = 5
       integer :: sdf = 6
+      integer :: gen = 7
    end type tb_enum_molecule
    type(tb_enum_molecule), public, parameter :: p_ftype = tb_enum_molecule()
 
@@ -77,6 +78,8 @@ subroutine file_generate_name(fname, basename, extension, ftype)
          fname = fname//'.poscar'
       case(p_ftype%pdb)
          fname = fname//'.pdb'
+      case(p_ftype%gen)
+         fname = fname//'.gen'
       end select
    endif
 end subroutine file_generate_name
@@ -103,6 +106,8 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
          ftype = p_ftype%vasp
       case('pdb')
          ftype = p_ftype%pdb
+      case('gen')
+         ftype = p_ftype%gen
       case default
          if (len(basename) > 0) then
             select case(lowercase(basename))

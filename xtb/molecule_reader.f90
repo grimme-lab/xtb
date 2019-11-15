@@ -52,6 +52,8 @@ module subroutine read_molecule_generic(self, unit, format)
       call read_molecule_vasp(self, unit, status, iomsg=message)
    case(p_ftype%pdb)
       call read_molecule_pdb(self, unit, status, iomsg=message)
+   case(p_ftype%gen)
+      call read_molecule_gen(self, unit, status, iomsg=message)
    case default
       status = .false.
       message = "coordinate format known"
@@ -660,6 +662,127 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
    status = .true.
 
 end subroutine read_molecule_vasp
+
+
+subroutine read_molecule_gen(mol, unit, status, iomsg)
+   use iso_fortran_env, wp => real64
+   use mctc_econv
+   use mctc_strings
+   use mctc_systools
+   use tbdef_molecule
+   use pbc_tools
+   logical, parameter :: debug = .false.
+   type(tb_molecule),intent(out) :: mol
+   integer,intent(in) :: unit
+   logical, intent(out) :: status
+   character(len=:), allocatable, intent(out) :: iomsg
+
+   character(len=:), allocatable :: line
+   integer :: natoms, nspecies, iatom, dummy, isp, ilat, error
+   logical :: cartesian
+   real(wp) :: coord(3)
+   integer, allocatable :: species(:)
+   character(len=1) :: variant
+   character(len=2), allocatable :: symbols(:)
+
+   status = .false.
+
+   call next_line(unit, line, error)
+   read(line, *, iostat=error) natoms, variant
+   if (any(species == 0)) then
+      iomsg = 'could not read number of atoms'
+      return
+   endif
+
+   call mol%allocate(natoms)
+   allocate(symbols(len(mol)), source='  ')
+
+   select case(variant)
+   case('c', 'C')
+      cartesian = .true.
+   case('s', 'S')
+      cartesian = .true.
+      mol%npbc = 3
+      mol%pbc = .true.
+   case('f', 'F')
+      cartesian = .false.
+      mol%npbc = 3
+      mol%pbc = .true.
+   case default
+      iomsg = 'invalid input version'
+      return
+   endselect
+
+   call next_line(unit, line, error)
+   call parse(line, ' ', symbols, nspecies)
+   allocate(species(nspecies), source=0)
+   species = symbols(:nspecies)
+   if (any(species == 0)) then
+      iomsg = 'unknown atom type present'
+      return
+   endif
+
+   do iatom = 1, len(mol)
+      call next_line(unit, line, error)
+      read(line, *, iostat=error) dummy, isp, coord
+      if (error /= 0) then
+         iomsg = 'could not read coordinates from file'
+         return
+      endif
+      mol%at(iatom) = species(isp)
+      mol%sym(iatom) = symbols(isp)
+      if (cartesian) then
+         mol%xyz(:, iatom) = coord * aatoau
+      else
+         mol%abc(:, iatom) = coord
+      endif
+   enddo
+
+   if (mol%npbc > 0) then
+      call next_line(unit, line, error)
+      if (error /= 0) then
+         iomsg = 'missing lattice information'
+         return
+      endif
+      do ilat = 1, 3
+         call next_line(unit, line, error)
+         read(line, *, iostat=error) coord
+         if (error /= 0) then
+            iomsg = 'could not read lattice from file'
+            return
+         endif
+         mol%lattice(:, ilat) = coord * aatoau
+      enddo
+      if (cartesian) then
+         call xyz_to_abc(len(mol), mol%lattice, mol%xyz, mol%abc, mol%pbc)
+      else
+         call abc_to_xyz(len(mol), mol%lattice, mol%abc, mol%xyz)
+      endif
+   endif
+
+   mol%vasp = vasp_info(cartesian=cartesian)
+
+   status = .true.
+
+contains
+
+subroutine next_line(unit, line, error)
+   integer,intent(in) :: unit
+   character(len=:), allocatable, intent(out) :: line
+   integer, intent(out) :: error
+   integer :: ihash
+
+   error = 0
+   do while(error == 0)
+      call getline(unit, line, error)
+      ihash = index(line, '#')
+      if (ihash > 0) line = line(:ihash-1)
+      if (len_trim(line) > 0) exit
+   enddo
+   line = trim(adjustl(line))
+end subroutine next_line
+
+end subroutine read_molecule_gen
 
 
 subroutine read_molecule_pdb(mol, unit, status, iomsg)
