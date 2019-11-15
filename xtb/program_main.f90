@@ -245,13 +245,6 @@ program XTBprog
 !  how to cite this program
    call citation(istdout)
 
-!! ------------------------------------------------------------------------
-!  lets show what we can do, because we can
-!  this clutters the screen quite a bit since we started actually
-!  documenting our options, so we will only do this if the user set
-!  the program in verbose mode
-   if (verbose) call help
-
 !! ========================================================================
 !  check if you are allowed to make a calculation today
    call prdate('S')
