@@ -3,7 +3,7 @@
 This is the Python-side of the wrapper around the `xtb` library.
 
 This wrapper provides access to the three Hamiltonians (GFN0-xTB, GFN1-xTB
-and GFN2-xTB) implemented in the `xtb` program, making accessable
+and GFN2-xTB) implemented in the `xtb` program, making accessible
 energies, gradients and related properties like dipole moments, partial charges
 and bond orders.
 
@@ -12,7 +12,7 @@ intended to supplement its functionality.
 
 ## Usage
 
-For the everyday usa we recommend to use `xtb` together with the
+For the everyday use we recommend to use `xtb` together with the
 Atomic Simulation Model (ASE) like
 
 ```python
@@ -40,11 +40,11 @@ following properties
 | bond order         |      | x    | x    |
 
 The atomic dipoles and quadrupoles as well as the bond orders are currently
-not accessable from the atoms object and must be taken directely from the
+not accessible from the atoms object and must be taken directly from the
 calculator object.
 
 Additionally there is a solvation model calculator based on a
-generalized Born model with a solvent accessable surface area, `GBSA`,
+generalized Born model with a solvent accessible surface area, `GBSA`,
 which can calculate Born radii and the surface area by itself
 and together with an extended tight-binding calculator also a
 solvation free energy. Use it as
@@ -83,7 +83,7 @@ feature-rich environment for computational chemistry.
 For more information on ASE I refer to their [detailed documentation](https://wiki.fysik.dtu.dk/ase/).
 
 I you want to interface your Python program with `xtb` and are afraid to add
-a such heavy module as ASE as your dependency, you can interface directely
+a such heavy module as ASE as your dependency, you can interface directly
 to the Python-API which lives in `xtb.interface` and does only require
 `numpy` and `ctypes`.
 
