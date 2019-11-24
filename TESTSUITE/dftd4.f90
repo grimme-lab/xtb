@@ -260,23 +260,23 @@ subroutine test_dftd4_pbc_energies
    call edisp_3d(mol,ndim,q,vdw_rep,atm_rep,rthr_vdw,rthr_atm,dparam_pbe, &
       &          g_a,g_c,gweights,refc6,lmbd,energy,e2,e3)
 
-   call assert_close(e2,    -0.42709214619586E-01_wp,thr)
+   call assert_close(e2,    -0.37164345120511E-01_wp,thr)
    call assert_close(e3,     0.19951867090604E-02_wp,thr)
-   call assert_close(energy,-0.40714027910526E-01_wp,thr)
+   call assert_close(energy,-0.35169158411451E-01_wp,thr)
 
    call edisp_3d(mol,ndim,q,vdw_rep,atm_rep,rthr_vdw,rthr_atm,dparam_tpss, &
       &          g_a,g_c,gweights,refc6,lmbd,energy,e2,e3)
 
-   call assert_close(e2,    -0.55857575773063E-01_wp,thr)
+   call assert_close(e2,    -0.48642371573216E-01_wp,thr)
    call assert_close(e3,     0.19786934360753E-02_wp,thr)
-   call assert_close(energy,-0.53878882336988E-01_wp,thr)
+   call assert_close(energy,-0.46663678137140E-01_wp,thr)
 
    call edisp_3d(mol,ndim,q,vdw_rep,atm_rep,rthr_vdw,rthr_atm,dparam_random, &
       &          g_a,g_c,gweights,refc6,lmbd,energy,e2,e3)
 
-   call assert_close(e2,    -0.32587667412892E-01_wp,thr)
+   call assert_close(e2,    -0.27778143076318E-01_wp,thr)
    call assert_close(e3,     0.16050327438669E-02_wp,thr)
-   call assert_close(energy,-0.30982634669025E-01_wp,thr)
+   call assert_close(energy,-0.26173110332451E-01_wp,thr)
 
    call mol%deallocate
 

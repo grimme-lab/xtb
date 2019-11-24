@@ -3117,7 +3117,7 @@ subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mb
          oor10 = 1._wp/(r2**5+r0**10)
          disp = par%s6*oor6 + par%s8*r4r2ij*oor8   &
             & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*oor10
-         ed = ed - c6ij*disp
+         ed = ed - c6ij*disp/2
       enddo ! tx
       ! over all j atoms
       do j = 1, i-1
@@ -3768,9 +3768,9 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
       r0 = par%a1*sqrt(r4r2ij) + par%a2
       do concurrent(tx = -rep(1):rep(1), &
             &       ty = -rep(2):rep(2), &
-            &       tz = -rep(3):rep(3))
+            &       tz = -rep(3):rep(3), &
+            &       tx.ne.0.or.ty.ne.0.or.tz.ne.0)
          ! cycle i with i interaction in same cell
-         if (tx.eq.0.and.ty.eq.0.and.tz.eq.0) cycle
          t = [tx,ty,tz]
          rij = matmul(mol%lattice,t)
          r2  = sum( rij**2 )
@@ -3786,13 +3786,13 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
             & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*oor10
          ddisp= par%s6*door6 + par%s8*r4r2ij*door8 &
             & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*door10
-         ed = ed - c6ij*disp
+         ed = ed - c6ij*disp/2
          ! save this
          dtmp = c6ij*ddisp
-         dc6dq(i)  = dc6dq(i)  + (dizij  + djzij )*disp
-         dc6dcn(i) = dc6dcn(i) + (dic6ij + djc6ij)*disp
+         dc6dq(i)  = dc6dq(i)  + (dizij  + djzij )*disp/2
+         dc6dcn(i) = dc6dcn(i) + (dic6ij + djc6ij)*disp/2
          drdx = rij/r
-         sigma = sigma - dtmp * outer_prod_3x3(drdx,rij)
+         sigma = sigma - dtmp * outer_prod_3x3(drdx,rij)/2
       enddo ! tx
       ! over all j atoms
       do j = 1, i-1
@@ -4027,10 +4027,10 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
    real(wp) :: rco,den,tmp,dtmp
 
    real(wp) rij(3),rik(3),rjk(3)
-   real(wp), allocatable,dimension(:,:,:,:) ::  dc6dr  !d(E)/d(r_ij) derivative wrt. dist. iat-jat
    !dCN(jat)/d(r_ij)
    real(wp) :: r9ijk
    real(wp) vec(3)
+   real(wp) :: r3,g3(3,3)
    integer ij,ik,jk
 
    real(wp),dimension(3) ::ijvec,ikvec,jkvec,t,s,dumvec
@@ -4040,15 +4040,19 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
    real(wp) time1,time2,rijk2,dc9,dfdmp,dang,ang
    integer,dimension(3) :: repmin,repmax
 
-   allocate(dc6dr(-rep(3):rep(3),-rep(2):rep(2), &
-      &           -rep(1):rep(1),nat*(nat+1)/2))
-   dc6dr = 0.0_wp
-
 
    !        write(*,*)'!!!!!!!!!!    THREEBODY  GRADIENT  !!!!!!!!!!'
    eabc=0.0_wp
    !        write(*,*)'thr:',sqrt(thr)
 
+!$omp parallel default(none) &
+!$omp shared(nat,xyz,c6ab,rep,par,at,dlat,dc6ab,thr) &
+!$omp private(iat,jat,ij,ijvec,c6ij,kat,ik,jk,ikvec,jkvec,c6ik,c6jk,c9, &
+!$omp&        cij,cik,cjk,cijk,tx,ty,tz,repmin,repmax,t,rij2,sx,sy,sz, &
+!$omp&        s,rik2,vec,rjk2,rijk2,rijk,fdmp,rijk3,ang,r9ijk,dfdmp, &
+!$omp&        r,dang,tmp1,dc9,rij,rik,rjk,r3,g3) &
+!$omp reduction(+:eabc,dc6dcn,sigma,g)
+!$omp do schedule(dynamic)
    iAt_ijk: do iat=3,nat
       jAt_ijk: do jat=2,iat-1
          ij=iat*(iat-1)/2+jat
@@ -4069,6 +4073,8 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
             cjk  = par%a1*sqrt(3._wp*r4r2(at(jat))*r4r2(at(kat)))+par%a2
             cijk = cij*cjk*cik
 
+            r3 = 0.0_wp
+            g3 = 0.0_wp
             do concurrent (tx=-rep(1):rep(1), &
                   &        ty=-rep(2):rep(2), &
                   &        tz=-rep(3):rep(3))
@@ -4079,29 +4085,25 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                repmin(3)=max(-rep(3),tz-rep(3))
                repmax(3)=min(+rep(3),tz+rep(3))
                t=tx*dlat(:,1)+ty*dlat(:,2)+tz*dlat(:,3)
-               rij2=SUM((ijvec+t)*(ijvec+t))
+               rij=ijvec+t
+               rij2=SUM(rij*rij)
                if(rij2.gt.thr)cycle
-
-               !rr0ij=sqrt(rij2)/r0ab(at(iat),at(jat))
 
 
                do concurrent (sx=repmin(1):repmax(1), &
                      &        sy=repmin(2):repmax(2), &
                      &        sz=repmin(3):repmax(3))
                   s=sx*dlat(:,1)+sy*dlat(:,2)+sz*dlat(:,3)
-                  rik2=SUM((ikvec+s)*(ikvec+s))
+                  rik = ikvec+s
+                  rik2=SUM(rik*rik)
                   if(rik2.gt.thr)cycle
 
-                  dumvec=jkvec+s-t
-                  rjk2=SUM(dumvec*dumvec)
+                  rjk = jkvec+s-t
+                  rjk2=SUM(rjk*rjk)
                   if(rjk2.gt.thr)cycle
-                  !rr0ik=sqrt(rik2)/r0ab(at(iat),at(kat))
-                  !rr0jk=sqrt(rjk2)/r0ab(at(jat),at(kat))
                   rijk2=(rij2*rjk2*rik2)
                   ! first calculate the three components for the energy calculation fdmp
                   ! and ang
-                  !r0av=(rr0ij*rr0ik*rr0jk)**(1.0_wp/3.0_wp)
-                  !damp9=1./(1.+6.*(sr9*r0av)**alp9)  !alp9 is already saved with "-"
 
                   rijk=sqrt(rijk2)
                   fdmp = 1.0_wp/(1.0_wp+six*((cijk/rijk)**oth)**par%alp)
@@ -4111,12 +4113,11 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                      +1.0_wp/(rijk3)
 
                   r9ijk=ang*fdmp
-                  eabc=eabc-r9ijk*c9
+                  r3 = r3 + r9ijk
                   !
                   !start calculating the gradient components dfdmp, dang and dc9
 
                   !dfdmp is the same for all three distances
-                  !dfdmp=2._wp*alp9*(0.75_wp*r0av)**(alp9)*fdmp*fdmp
                   dfdmp = -(oth*six*par%alp*((cijk/rijk)**oth)**par%alp)*fdmp**2
 
                   !start calculating the derivatives of each part w.r.t. r_ij
@@ -4128,8 +4129,10 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                      -5.0*(rjk2-rik2)**2*(rjk2+rik2)) &
                      /(r*rijk3*rijk2)
 
-                  tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-                  dc6dr(tz,ty,tx,ij) = dc6dr(tz,ty,tx,ij)-tmp1
+                  tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)/r
+                  g3(:,1) = g3(:,1) - tmp1*rij
+                  g3(:,2) = g3(:,2) + tmp1*rij
+                  sigma = sigma + outer_prod_3x3(rij,rij)*tmp1
 
                   !start calculating the derivatives of each part w.r.t. r_ik
 
@@ -4141,9 +4144,11 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                      -5.0*(rjk2-rij2)**2*(rjk2+rij2)) &
                      /(r*rijk3*rijk2)
 
-                  tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
+                  tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)/r
                   !                 tmp1=-dc9
-                  dc6dr(sz,sy,sx,ik) = dc6dr(sz,sy,sx,ik)-tmp1
+                  g3(:,1) = g3(:,1) - tmp1*rik
+                  g3(:,3) = g3(:,3) + tmp1*rik
+                  sigma = sigma + outer_prod_3x3(rik,rik)*tmp1
 
                   !
                   !start calculating the derivatives of each part w.r.t. r_jk
@@ -4155,27 +4160,30 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                      -5.0*(rik2-rij2)**2*(rik2+rij2)) &
                      /(r*rijk3*rijk2)
 
-                  tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-                  dc6dr(sz-tz,sy-ty,sx-tx,jk) = dc6dr(sz-tz,sy-ty,sx-tx,jk)-tmp1
-
-                  !calculating the CN derivative dE_disp(ijk)/dCN(i)
-
-                  dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
-                  dc6dcn(iat)=dc6dcn(iat)+r9ijk*dc9
-
-                  dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
-                  dc6dcn(jat)=dc6dcn(jat)+r9ijk*dc9
-
-                  dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
-                  dc6dcn(kat)=dc6dcn(kat)+r9ijk*dc9
-
+                  tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)/r
+                  g3(:,2) = g3(:,2) - tmp1*rjk
+                  g3(:,3) = g3(:,3) + tmp1*rjk
+                  sigma = sigma + outer_prod_3x3(rjk,rjk)*tmp1
 
                enddo !sz
             enddo !tx
+            eabc = eabc - r3*c9
+            g(:,iat) = g(:,iat) + g3(:,1)
+            g(:,jat) = g(:,jat) + g3(:,2)
+            g(:,kat) = g(:,kat) + g3(:,3)
+            !calculating the CN derivative dE_disp(ijk)/dCN(i)
+            dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
+            dc6dcn(iat) = dc6dcn(iat) + r3*dc9
+            dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
+            dc6dcn(jat) = dc6dcn(jat) + r3*dc9
+            dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
+            dc6dcn(kat) = dc6dcn(kat) + r3*dc9
          enddo kAt_ijk
       enddo jAt_ijk
    enddo iAt_ijk
+!$omp enddo
 
+!$omp do schedule(dynamic)
    ! Now the interaction with jat=iat of the triples iat,iat,kat
    iAt_iik: do iat=2,nat
       jat=iat
@@ -4196,6 +4204,9 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
          cik  = par%a1*sqrt(3._wp*r4r2(at(iat))*r4r2(at(kat)))+par%a2
          cjk  = par%a1*sqrt(3._wp*r4r2(at(jat))*r4r2(at(kat)))+par%a2
          cijk = cij*cjk*cik
+
+         g3 = 0.0_wp
+         r3 = 0.0_wp
          do concurrent (tx=-rep(1):rep(1), &
                &        ty=-rep(2):rep(2), &
                &        tz=-rep(3):rep(3))
@@ -4207,11 +4218,9 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
             repmax(3)=min(+rep(3),tz+rep(3))
             IF (tx.eq.0 .and. ty.eq.0 .and. tz.eq.0) cycle
             t=tx*dlat(:,1)+ty*dlat(:,2)+tz*dlat(:,3)
-            dumvec=t
-            rij2=SUM(dumvec*dumvec)
+            rij=t
+            rij2=SUM(rij*rij)
             if(rij2.gt.thr)cycle
-
-            !rr0ij=sqrt(rij2)/r0ab(at(iat),at(jat))
 
             do concurrent (sx=repmin(1):repmax(1), &
                   &        sy=repmin(2):repmax(2), &
@@ -4219,22 +4228,15 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                ! every result * 0.5
 
                s=sx*dlat(:,1)+sy*dlat(:,2)+sz*dlat(:,3)
-               dumvec=ikvec+s
-               dumvec=dumvec*dumvec
-               rik2=SUM(dumvec)
+               rik=ikvec+s
+               rik2=SUM(rik*rik)
                if(rik2.gt.thr)cycle
 
-               dumvec=jkvec+s-t
-               dumvec=dumvec*dumvec
-               rjk2=SUM(dumvec)
+               rjk=jkvec+s-t
+               rjk2=SUM(rjk*rjk)
                if(rjk2.gt.thr)cycle
-               !rr0ik=sqrt(rik2)/r0ab(at(iat),at(kat))
-               !rr0jk=sqrt(rjk2)/r0ab(at(jat),at(kat))
-
 
                rijk2=(rij2*rjk2*rik2)
-               !r0av=(rr0ij*rr0ik*rr0jk)**(1.0_wp/3.0_wp)
-               !damp9=1./(1.+6.*(sr9*r0av)**alp9)  !alp9 is already saved with "-"
 
                rijk=sqrt(rijk2)
                fdmp = 1.0_wp/(1.0_wp+six*((cijk/rijk)**oth)**par%alp)
@@ -4245,7 +4247,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
 
 
                r9ijk=ang*fdmp/2.0_wp   !factor 1/2 for doublecounting
-               eabc=eabc-r9ijk*c9
+               r3 = r3 + r9ijk
 
                !              iat=jat
                !dfdmp=2._wp*alp9*(0.75_wp*r0av)**(alp9)*fdmp*fdmp
@@ -4259,8 +4261,8 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   -5.0*(rjk2-rik2)**2*(rjk2+rik2)) &
                   /(r*rijk3*rijk2)
 
-               tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-               dc6dr(tz,ty,tx,ij) = dc6dr(tz,ty,tx,ij)-tmp1/2.0
+               tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)*0.5_wp/r
+               sigma = sigma + outer_prod_3x3(rij,rij)*tmp1
 
                !start calculating the derivatives of each part w.r.t. r_ik
                r=sqrt(rik2)
@@ -4271,8 +4273,10 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   -5.0*(rjk2-rij2)**2*(rjk2+rij2)) &
                   /(r*rijk3*rijk2)
 
-               tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-               dc6dr(sz,sy,sx,ik) = dc6dr(sz,sy,sx,ik)-tmp1/2.0
+               tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)*0.5_wp/r
+               g3(:,1) = g3(:,1) - tmp1*rik
+               g3(:,3) = g3(:,3) + tmp1*rik
+               sigma = sigma + outer_prod_3x3(rik,rik)*tmp1
                !
                !start calculating the derivatives of each part w.r.t. r_ik
                r=sqrt(rjk2)
@@ -4282,30 +4286,33 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   -5.0*(rik2-rij2)**2*(rik2+rij2)) &
                   /(r*rijk3*rijk2)
 
-               tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
+               tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)*0.5_wp/r
 
-               dc6dr(sz-tz,sy-ty,sx-tx,jk) = dc6dr(sz-tz,sy-ty,sx-tx,jk)-tmp1/2.0
-
-               dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
-               dc6dcn(iat)=dc6dcn(iat)+r9ijk*dc9
-
-               dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
-               dc6dcn(jat)=dc6dcn(jat)+r9ijk*dc9
-
-               dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
-               dc6dcn(kat)=dc6dcn(kat)+r9ijk*dc9
-
-
-
+               g3(:,2) = g3(:,2) - tmp1*rjk
+               g3(:,3) = g3(:,3) + tmp1*rjk
+               sigma = sigma + outer_prod_3x3(rjk,rjk)*tmp1
 
             enddo !sx
 
          enddo !tx
+         eabc = eabc - r3*c9
+         g(:,iat) = g(:,iat) + g3(:,1)
+         g(:,jat) = g(:,jat) + g3(:,2)
+         g(:,kat) = g(:,kat) + g3(:,3)
+         !calculating the CN derivative dE_disp(ijk)/dCN(i)
+         dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
+         dc6dcn(iat) = dc6dcn(iat) + r3*dc9
+         dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
+         dc6dcn(jat) = dc6dcn(jat) + r3*dc9
+         dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
+         dc6dcn(kat) = dc6dcn(kat) + r3*dc9
       enddo kAt_iik
    enddo iAt_iik
+!$omp enddo
    ! And now kat=jat, but cycling throug all imagecells without t=s. and jat>iat going though all cells    (iat,jat,jat)
    ! But this counts only 1/2
 
+!$omp do schedule(dynamic)
    iAt_ijj: do iat=2,nat
       jAt_ijj: do jat=1,iat-1
          kat=jat
@@ -4326,6 +4333,8 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
          cijk = cij*cjk*cik
 
          c9=-sqrt(c6ij*c6ik*c6jk)
+         g3 = 0.0_wp
+         r3 = 0.0_wp
          do concurrent(tx=-rep(1):rep(1), &
                &       ty=-rep(2):rep(2), &
                &       tz=-rep(3):rep(3))
@@ -4337,12 +4346,9 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
             repmax(3)=min(+rep(3),tz+rep(3))
 
             t=tx*dlat(:,1)+ty*dlat(:,2)+tz*dlat(:,3)
-            dumvec=ijvec+t
-            dumvec=dumvec*dumvec
-            rij2=SUM(dumvec)
+            rij=ijvec+t
+            rij2=SUM(rij*rij)
             if(rij2.gt.thr)cycle
-
-            !rr0ij=SQRT(rij2)/r0ab(at(iat),at(jat))
 
             do concurrent (sx=repmin(1):repmax(1), &
                   &        sy=repmin(2):repmax(2), &
@@ -4350,23 +4356,15 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                ! every result * 0.5
                if (tx.eq.sx .and. ty.eq.sy .and. tz.eq.sz) cycle
                s=sx*dlat(:,1)+sy*dlat(:,2)+sz*dlat(:,3)
-               dumvec=ikvec+s
-               dumvec=dumvec*dumvec
-               rik2=SUM(dumvec)
+               rik=ikvec+s
+               rik2=SUM(rik*rik)
                if(rik2.gt.thr)cycle
-               !rr0ik=SQRT(rik2)/r0ab(at(iat),at(kat))
 
-               dumvec=jkvec+s-t
-               dumvec=dumvec*dumvec
-               rjk2=SUM(dumvec)
+               rjk=jkvec+s-t
+               rjk2=SUM(rjk*rjk)
                if(rjk2.gt.thr)cycle
-               !rr0jk=SQRT(rjk2)/r0ab(at(jat),at(kat))
-
-               !              if (rij*rjk*rik.gt.thr)cycle
 
                rijk2=(rij2*rjk2*rik2)
-               !r0av=(rr0ij*rr0ik*rr0jk)**(1.0_wp/3.0_wp)
-               !damp9=1./(1.+6._wp*(sr9*r0av)**alp9)  !alp9 is already saved with "-"
 
                rijk=sqrt(rijk2)
                fdmp = 1.0_wp/(1.0_wp+six*((cijk/rijk)**oth)**par%alp)
@@ -4375,8 +4373,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   *(-rij2+rjk2+rik2)/(rijk2*rijk3) &
                   +1.0_wp/(rijk3)
                r9ijk=ang*fdmp/2.0_wp   !factor 1/2 for doublecounting
-               eabc=eabc-r9ijk*c9
-
+               r3 = r3 + r9ijk
 
                !              jat=kat
                !dfdmp=2._wp*alp9*(0.75_wp*r0av)**(alp9)*fdmp*fdmp
@@ -4389,8 +4386,10 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   -5.0_wp*(rjk2-rik2)**2*(rjk2+rik2)) &
                   /(r*rijk3*rijk2)
 
-               tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-               dc6dr(tz,ty,tx,ij) = dc6dr(tz,ty,tx,ij)-tmp1/2.0_wp
+               tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)*0.5_wp/r
+               g3(:,1) = g3(:,1) - tmp1*rij
+               g3(:,2) = g3(:,2) + tmp1*rij
+               sigma = sigma + outer_prod_3x3(rij,rij)*tmp1
 
                !start calculating the derivatives of each part w.r.t. r_ik
                r=sqrt(rik2)
@@ -4401,9 +4400,10 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   -5.0*(rjk2-rij2)**2*(rjk2+rij2)) &
                   /(r*rijk3*rijk2)
 
-               tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-               !                 tmp1=-dc9
-               dc6dr(sz,sy,sx,ik) = dc6dr(sz,sy,sx,ik)-tmp1/2.0_wp
+               tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)*0.5_wp/r
+               g3(:,1) = g3(:,1) - tmp1*rik
+               g3(:,3) = g3(:,3) + tmp1*rik
+               sigma = sigma + outer_prod_3x3(rik,rik)*tmp1
                !
                !start calculating the derivatives of each part w.r.t. r_jk
                r=sqrt(rjk2)
@@ -4413,31 +4413,29 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                   -5.0_wp*(rik2-rij2)**2*(rik2+rij2)) &
                   /(r*rijk3*rijk2)
 
-               tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-               dc6dr(sz-tz,sy-ty,sx-tx,jk) = dc6dr(sz-tz,sy-ty,sx-tx,jk)-tmp1/2.0_wp
-
-               !calculating the CN derivative dE_disp(ijk)/dCN(i)
-
-               dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
-               dc6dcn(iat)=dc6dcn(iat)+r9ijk*dc9
-
-               dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
-               dc6dcn(jat)=dc6dcn(jat)+r9ijk*dc9
-
-               dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
-               dc6dcn(kat)=dc6dcn(kat)+r9ijk*dc9
-
-
-
+               tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)*0.5_wp/r
+               sigma = sigma + outer_prod_3x3(rjk,rjk)*tmp1
 
             enddo !sx
-
          enddo !tx
+         eabc = eabc - r3*c9
+         g(:,iat) = g(:,iat) + g3(:,1)
+         g(:,jat) = g(:,jat) + g3(:,2)
+         g(:,kat) = g(:,kat) + g3(:,3)
+         !calculating the CN derivative dE_disp(ijk)/dCN(i)
+         dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
+         dc6dcn(iat) = dc6dcn(iat) + r3*dc9
+         dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
+         dc6dcn(jat) = dc6dcn(jat) + r3*dc9
+         dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
+         dc6dcn(kat) = dc6dcn(kat) + r3*dc9
       enddo jAt_ijj
    enddo iAt_ijj
+!$omp enddo
 
    ! And finally the self interaction iat=jat=kat all
 
+!$omp do schedule(dynamic)
    iAt_iii: do iat=1,nat
       jat=iat
       kat=iat
@@ -4456,6 +4454,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
       cjk  = par%a1*sqrt(3._wp*r4r2(at(jat))*r4r2(at(kat)))+par%a2
       cijk = cij*cjk*cik
 
+      r3 = 0.0_wp
       do concurrent ( tx=-rep(1):rep(1), &
             &         ty=-rep(2):rep(2), &
             &         tz=-rep(3):rep(3))
@@ -4468,11 +4467,9 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
          ! IF iat and jat are the same then cycle
          if ((tx.eq.0) .and.(ty.eq.0) .and.(tz.eq.0))cycle
          t=tx*dlat(:,1)+ty*dlat(:,2)+tz*dlat(:,3)
-         dumvec=t
-         dumvec=dumvec*dumvec
-         rij2=SUM(dumvec)
+         rij=t
+         rij2=SUM(rij*rij)
          if(rij2.gt.thr)cycle
-         !rr0ij=SQRT(rij2)/r0ab(at(iat),at(jat))
 
          do concurrent (sx=repmin(1):repmax(1), &
                &        sy=repmin(2):repmax(2), &
@@ -4487,21 +4484,15 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
             !
             !plus 1/3 becaues every triple is three times in each unitcell
             s=sx*dlat(:,1)+sy*dlat(:,2)+sz*dlat(:,3)
-            dumvec=s
-            dumvec=dumvec*dumvec
-            rik2=SUM(dumvec)
+            rik=s
+            rik2=SUM(rik*rik)
             if(rik2.gt.thr)cycle
-            !rr0ik=SQRT(rik2)/r0ab(at(iat),at(kat))
 
-            dumvec=jkvec+s-t
-            dumvec=dumvec*dumvec
-            rjk2=SUM(dumvec)
+            rjk=jkvec+s-t
+            rjk2=SUM(rjk*rjk)
             if(rjk2.gt.thr)cycle
-            !rr0jk=SQRT(rjk2)/r0ab(at(jat),at(kat))
 
             rijk2=(rij2*rjk2*rik2)
-            !r0av=(rr0ij*rr0ik*rr0jk)**(1.0_wp/3.0_wp)
-            !damp9=1./(1.+6.*(sr9*r0av)**alp9)  !alp9 is already saved with "-"
 
             rijk=sqrt(rijk2)
             fdmp = 1.0_wp/(1.0_wp+six*((cijk/rijk)**oth)**par%alp)
@@ -4510,10 +4501,9 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                *(-rij2+rjk2+rik2)/(rijk2*rijk3) &
                +1.0_wp/(rijk3)
             r9ijk=ang*fdmp/6.0_wp
-            eabc=eabc-c9*r9ijk
+            r3 = r3 + r9ijk
 
             !                          iat=jat=kat
-            !dfdmp=2._wp*alp9*(0.75_wp*r0av)**(alp9)*fdmp*fdmp
             dfdmp = -(oth*six*par%alp*((cijk/rijk)**oth)**par%alp)*fdmp**2
             !start calculating the derivatives of each part w.r.t. r_ij
 
@@ -4524,8 +4514,8 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                /(r*rijk3*rijk2)
 
 
-            tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-            dc6dr(tz,ty,tx,ij) = dc6dr(tz,ty,tx,ij)-tmp1/6.0_wp
+            tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)/(r*6.0_wp)
+            sigma = sigma + outer_prod_3x3(rij,rij)*tmp1
 
             !start calculating the derivatives of each part w.r.t. r_ik
 
@@ -4536,8 +4526,8 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                -5.0*(rjk2-rij2)**2*(rjk2+rij2)) &
                /(r*rijk3*rijk2)
 
-            tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-            dc6dr(sz,sy,sx,ik) = dc6dr(sz,sy,sx,ik)-tmp1/6.0_wp
+            tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)/(r*6.0_wp)
+            sigma = sigma + outer_prod_3x3(rik,rik)*tmp1
             !
             !start calculating the derivatives of each part w.r.t. r_jk
 
@@ -4547,87 +4537,23 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
                -5.0*(rik2-rij2)**2*(rik2+rij2)) &
                /(r*rijk3*rijk2)
 
-            tmp1=-dang*c9*fdmp+dfdmp/r*c9*ang
-            dc6dr(sz-tz,sy-ty,sx-tx,jk) = dc6dr(sz-tz,sy-ty,sx-tx,jk)-tmp1/6.0_wp
-
-
-            !calculating the CN derivative dE_disp(ijk)/dCN(i)
-
-            dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
-            dc6dcn(iat)=dc6dcn(iat)+r9ijk*dc9
-
-            dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
-            dc6dcn(jat)=dc6dcn(jat)+r9ijk*dc9
-
-            dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
-            dc6dcn(kat)=dc6dcn(kat)+r9ijk*dc9
+            tmp1=(-dang*c9*fdmp+dfdmp/r*c9*ang)/(r*6.0_wp)
+            sigma = sigma + outer_prod_3x3(rjk,rjk)*tmp1
 
          enddo !sx
       enddo !tx
-
-
+      eabc = eabc - r3*c9
+      !calculating the CN derivative dE_disp(ijk)/dCN(i)
+      dc9=0.5_wp*c9*(dc6ab(iat,jat)/c6ij+dc6ab(iat,kat)/c6ik)
+      dc6dcn(iat) = dc6dcn(iat) + r3*dc9
+      dc9=0.5_wp*c9*(dc6ab(jat,iat)/c6ij+dc6ab(jat,kat)/c6jk)
+      dc6dcn(jat) = dc6dcn(jat) + r3*dc9
+      dc9=0.5_wp*c9*(dc6ab(kat,iat)/c6ik+dc6ab(kat,jat)/c6jk)
+      dc6dcn(kat) = dc6dcn(kat) + r3*dc9
    enddo iAt_iii
-
-   ! After calculating all derivatives dE/dr_ij w.r.t. distances,
-   ! the grad w.r.t. the coordinates is calculated dE/dr_ij * dr_ij/dxyz_i
-!$omp parallel default(none) &
-!$omp shared(nat,rep,dlat,thr,xyz,dc6dr) &
-!$omp private(iat,jat,ij,t,rij,r2,r,x1,vec,tx,ty,tz) &
-!$omp reduction(+:g,sigma)
-!$omp do schedule(dynamic)
-   iAt_ij: do iat=2,nat
-      jAt_ij: do jat=1,iat-1
-         ij=iat*(iat-1)/2+jat
-         !       write(*,'(3E17.6,XX,2I2)'),dc6dr(0,0,-1:1,lin(iat,jat)),iat,jat
-         do concurrent(tx=-rep(1):rep(1),&
-               &       ty=-rep(2):rep(2),&
-               &       tz=-rep(3):rep(3))
-            t=[tx,ty,tz]
-
-            rij=xyz(:,jat)-xyz(:,iat)+matmul(dlat,t)
-            r2=sum(rij*rij)
-            if (r2.gt.thr) cycle
-            r=sqrt(r2)
-
-            x1=dc6dr(tz,ty,tx,ij)!+dtmp*(dc6dcn(iat)+dc6dcn(jat))
-
-            vec=x1*rij/r
-            g(:,iat)=g(:,iat)+vec
-            g(:,jat)=g(:,jat)-vec
-            sigma = sigma - outer_prod_3x3(vec,rij)
-
-         enddo !tx
-      enddo jAt_ij
-   enddo iAt_ij
-!$omp enddo
-
-!$omp do schedule(dynamic)
-   iAt_ii: do iat=1,nat
-      jat = iat
-      ij=iat*(iat-1)/2+iat
-      !       write(*,'(3E17.6,XX,2I2)'),dc6dr(0,0,-1:1,lin(iat,jat)),iat,jat
-      do concurrent(tx=-rep(1):rep(1),&
-            &       ty=-rep(2):rep(2),&
-            &       tz=-rep(3):rep(3))
-         if (tx==0 .and. ty==0 .and. tz==0) cycle
-         t=[tx,ty,tz]
-
-         rij=matmul(dlat,t)
-         r2=sum(rij*rij)
-         if (r2.gt.thr) cycle
-         r=sqrt(r2)
-
-         x1=dc6dr(tz,ty,tx,ij)!+dtmp*(dc6dcn(iat)+dc6dcn(jat))
-
-         vec=x1*rij/r
-         sigma = sigma - outer_prod_3x3(vec,rij)
-
-      enddo !tx
-   enddo iAt_ii
 !$omp enddo
 !$omp end parallel
 
 end subroutine dabcappr_3d_dftd3_like_style
-
 
 end module dftd4
