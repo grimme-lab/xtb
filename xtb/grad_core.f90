@@ -28,6 +28,7 @@ module grad_core
 
    implicit none
 
+   integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
 contains
 

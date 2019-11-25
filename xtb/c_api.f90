@@ -79,7 +79,6 @@ function peeq_api &
    real(c_double),intent(out) :: glat(3,3)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(peeq_options)   :: opt
    type(tb_environment) :: env
 
@@ -158,7 +157,7 @@ function peeq_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,gfn,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
@@ -223,7 +222,6 @@ function gfn2_api &
 
    type(tb_molecule)    :: mol
    type(tb_wavefunction):: wfn
-   type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
@@ -297,7 +295,7 @@ function gfn2_api &
    call mctc_mute
 
    call gfn2_calculation &
-      (iunit,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
@@ -362,7 +360,6 @@ function gfn1_api &
    real(c_double),intent(out) :: dipole(3)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
@@ -437,7 +434,7 @@ function gfn1_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
@@ -495,7 +492,6 @@ function gfn0_api &
    real(c_double),intent(out) :: grad(3,natoms)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(peeq_options)    :: opt
    type(tb_environment) :: env
 
@@ -569,7 +565,7 @@ function gfn0_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,gfn,hl_gap,energy,gradient,dum,dum)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
@@ -635,7 +631,6 @@ function gfn2_pcem_api &
    real(c_double),intent(out) :: pc_grad(3,npc)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
@@ -719,7 +714,7 @@ function gfn2_pcem_api &
    call mctc_mute
 
    call gfn2_calculation &
-      (iunit,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
@@ -788,7 +783,6 @@ function gfn1_pcem_api &
    real(c_double),intent(out) :: pc_grad(3,npc)
 
    type(tb_molecule)    :: mol
-   type(gfn_parameter)  :: gfn
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
@@ -872,7 +866,7 @@ function gfn1_pcem_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)

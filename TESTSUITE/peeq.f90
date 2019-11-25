@@ -42,7 +42,6 @@ subroutine test_peeq_sp
    real(wp),parameter :: acc = 1.0_wp
 
    type(tb_molecule)     :: mol
-   type(gfn_parameter)   :: gfn
    type(tb_environment)  :: env
    type(tb_wavefunction) :: wfn
    type(tb_basisset)     :: basis
@@ -197,7 +196,6 @@ subroutine test_peeq_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -229,7 +227,7 @@ subroutine test_peeq_api
    call mctc_mute
 
    call gfn0_calculation &
-      (istdout,env,opt,mol,gfn,hl_gap,energy,gradient,stress,gradlatt)
+      (istdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 4.8620892163953_wp,thr)
    call assert_close(energy,-8.4898922181241_wp,thr)

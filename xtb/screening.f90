@@ -270,13 +270,6 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
    integer  :: nall
    real(wp) :: xyzall(3,n,nall)
    real(wp) :: xyz   (3,n)
-   interface
-      function rename(oldpath, newpath) bind(c) result(stat)
-         use iso_c_binding
-         character(len=*,kind=c_char), intent(in) :: oldpath, newpath
-         integer(c_int) :: stat
-      end function rename
-   end interface
 
    character(80) :: atmp
    character(2)  :: a2
@@ -287,8 +280,6 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
    !call wrcoord(16,n,xyz,at,0.0d0,'coord')  ! qmdff needs a coord file
    call wrc('coord',n,xyz,at)
    write(*,*) 'moving hessian to hessian.save'
-   !call execute_command_line('mv hessian hessian.save')
-   i = rename('hessian'//c_null_char,'hessian.save'//c_null_char)
 
    temp  =Tend_siman
    tstart=temp_md

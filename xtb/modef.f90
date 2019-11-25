@@ -49,13 +49,6 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    real(wp), intent(inout) :: grd(3,mol%n)
    real(wp), intent(inout) :: sigma(3,3)
    type(scc_results) :: res
-   interface
-      function rename(oldpath, newpath) bind(c) result(stat)
-         use iso_c_binding
-         character(len=*,kind=c_char), intent(in) :: oldpath, newpath
-         integer(c_int) :: stat
-      end function rename
-   end interface
 
    real(wp),allocatable:: freq(:), u(:,:), uu(:,:)
    real(wp),allocatable:: xyza (:,:,:), rmass(:), e(:), e2(:), geo(:,:)
@@ -123,8 +116,6 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    if(mode.lt.6.and.(.not.intermol)) call raise('E','mode <7(6) makes no sense!',1)
    if(mode_follow.gt.3*mol%n) call raise('E','mode >3N makes no sense!',1)
 
-   !call system('mv hessian hessian.xtbtmp 2>/dev/null') ! don't use hessian in ancopt
-   i = rename('hessian'//c_null_char,'hessian.xtbtmp'//c_null_char)              ! don't use hessian in ancopt
 
    n3=3*mol%n
    allocate(freq(n3),u(n3,n3),uu(n3,nprj),xyzmin(3,mol%n), &
@@ -512,8 +503,6 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    endif
 
    999  continue
-   !call system('mv hessian.xtbtmp hessian 2>/dev/null') ! restore
-   i = rename('hessian.xtbtmp'//c_null_char,'hessian'//c_null_char)              ! restore
    !call system('touch xtbmodefok')                     ! for parallel runs
    call touch_file('xtbmodefok')                    ! for parallel runs
 

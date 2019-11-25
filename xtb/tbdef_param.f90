@@ -27,8 +27,6 @@ module tbdef_param
    public :: gfn2_param_from_globpar
 
    public :: chrg_parameter
-
-   public :: gfn_parameter
    private
 
    type :: dftd_parameter
@@ -73,38 +71,6 @@ module tbdef_param
       real(wp) :: g_c
       real(wp) :: wf
    end type scc_parameter
-
-   integer, private, parameter :: max_elem  = 94
-   integer, private, parameter :: max_shell = 10
-   type gfn_parameter(nelem,nshell)
-      integer, len :: nelem  = max_elem
-      integer, len :: nshell = max_shell
-      integer  :: method = -1
-      real(wp) :: en(nelem)
-      real(wp) :: mc(nelem)
-      real(wp) :: gam(nelem)
-      real(wp) :: gam3(nelem)
-      real(wp) :: rad(nelem)
-      real(wp) :: wll(nelem,nshell)
-      real(wp) :: rep(2,nelem)
-      real(wp) :: polyr(4,nelem)
-      real(wp) :: cxb(nelem)
-      real(wp) :: ao_exp(nshell,nelem)
-      real(wp) :: ao_lev(nshell,nelem)
-      real(wp) :: lpar(0:2,nelem)
-      real(wp) :: kpair(nelem,nelem)
-      real(wp) :: kcnat(0:2,nelem)
-      real(wp) :: radaes(nelem)
-      real(wp) :: dpolc(nelem)
-      real(wp) :: qpolc(nelem)
-      integer  :: ao_pqn(nshell,nelem)
-      integer  :: ao_l(nshell,nelem)
-      integer  :: ao_n(nelem)
-      integer  :: ao_typ(nshell,nelem)
-      integer  :: metal(nelem)
-      integer  :: cnval(nelem)
-      character(len=30) :: timestp(nelem)
-   end type gfn_parameter
 
    type chrg_parameter
       integer  :: n

@@ -18,7 +18,7 @@
 module tbdef_fragments
    implicit none
    public :: tb_fragments
-   public :: len, size
+   public :: len
    private
 
 
@@ -43,13 +43,13 @@ contains
 
 
 subroutine frag_new_default(self, number_of_atoms)
-   class(tb_fragments), intent(out) :: self
+   class(tb_fragments), intent(inout) :: self
    integer, intent(in) :: number_of_atoms
    allocate(self%list(number_of_atoms), source=0)
 end subroutine frag_new_default
 
 subroutine frag_new_from_list(self, list)
-   class(tb_fragments), intent(out) :: self
+   class(tb_fragments), intent(inout) :: self
    integer, intent(in) :: list(:)
    if (all(list > 0)) then
       self%list = list
@@ -73,7 +73,7 @@ subroutine frag_get_list(self, fragment, list)
    integer, intent(in) :: fragment
    integer, allocatable, intent(out) :: list(:)
    integer :: i
-   list = pack([(i, i=1, size(self%list))], mask=self%list.eq.fragment)
+   list = pack([(i, i=1, size(self%list, 1))], mask=self%list.eq.fragment)
 end subroutine frag_get_list
 
 

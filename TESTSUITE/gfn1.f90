@@ -145,7 +145,6 @@ subroutine test_gfn1_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
 
@@ -167,7 +166,7 @@ subroutine test_gfn1_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 5.6067613075402_wp,thr)
    call assert_close(energy,-8.4156335932985_wp,thr)
@@ -215,7 +214,6 @@ subroutine test_gfn1gbsa_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
 
@@ -237,7 +235,7 @@ subroutine test_gfn1gbsa_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 6.641641300724_wp,1e-4_wp)
    call assert_close(energy,-14.215790820910_wp,thr)
@@ -268,7 +266,7 @@ subroutine test_gfn1_pcem_api
 
    implicit none
 
-   real(wp),parameter :: thr = 1.0e-10_wp
+   real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 12, nat2 = nat/2
    integer, parameter :: at(nat) = [8,1,1, 8,1,1, 8,1,1, 8,1,1]
    real(wp),parameter :: xyz(3,nat) = reshape([&
@@ -292,7 +290,6 @@ subroutine test_gfn1_pcem_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
-   type(gfn_parameter)  :: gfn
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
 
@@ -314,7 +311,7 @@ subroutine test_gfn1_pcem_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
    call assert_close(energy,-23.113490916186_wp,thr)
@@ -344,7 +341,7 @@ subroutine test_gfn1_pcem_api
    pcem%grd = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 8.7253450666347_wp,thr)
    call assert_close(energy,-11.559896105984_wp,thr)
@@ -368,7 +365,7 @@ subroutine test_gfn1_pcem_api
    pcem%gam = 999.0_wp ! point charges
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,gfn,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 8.9183046297437_wp,thr)
    call assert_close(energy,-11.565012263827_wp,thr)
