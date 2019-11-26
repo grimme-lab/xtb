@@ -19,7 +19,8 @@
       subroutine gdisp(n,iz,xyz,a1,a2,s8,abcscal,disp,g,cn,dcnij)
       use iso_fortran_env, wp => real64
       use mctc_econv, only : autokcal, autoang => autoaa
-      use dftd4, only : r2r4 => r4r2, rcov
+      use mctc_param, only: r2r4 => sqrt_z_r4_over_r2,
+     &                      rcov => covalent_radius_d3
       use ncoord, only : ncoord_d3
       use tbpar_dftd3
       implicit none  

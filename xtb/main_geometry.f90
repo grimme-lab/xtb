@@ -506,7 +506,7 @@ end subroutine calc_torsions
 
 subroutine get_bonds(n,at,xyz,bond)
    use iso_fortran_env, only : wp => real64
-   use mctc_param
+   use mctc_param, only: rad => covalent_radius_2009
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
