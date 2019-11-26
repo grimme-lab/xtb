@@ -26,12 +26,13 @@ subroutine enso_printout(iunit,res)
 
    write(iunit,'("{")')
    write(iunit,'(3x,"""",a,""":",f21.12,",")') "temperature",res%temp
-   write(iunit,'(3x,"""",a,""": """,a,""",")')      "unit","hartree"
+   write(iunit,'(3x,"""",a,""": """,a,""",")') "unit","hartree"
    write(iunit,'(3x,"""",a,""":",f21.12,",")') "energy",res%etot
    write(iunit,'(3x,"""",a,""":",f21.12,",")') "free energy",res%gtot+res%etot
    write(iunit,'(3x,"""",a,""":",f21.12,",")') "G(T)",res%gtot
-   write(iunit,'(3x,"""",a,""":",i0,",")') "number of imags",res%nimag
-   write(iunit,'(3x,"""",a,""": """,a,""",")')      "point group",res%pg
+   write(iunit,'(3x,"""",a,""":",f21.12,",")') "ZPVE", res%zp
+   write(iunit,'(3x,"""",a,""":",i0,",")')     "number of imags",res%nimag
+   write(iunit,'(3x,"""",a,""": """,a,""",")') "point group",res%pg
    write(iunit,'(3x,"""",a,""":",f21.12)')     "gradient norm",res%gnorm
    write(iunit,'("}")')
 

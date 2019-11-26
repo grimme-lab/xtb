@@ -174,7 +174,8 @@ subroutine test_print_thermo
    use property_output
 
    implicit none
-
+   
+   real(wp) :: zp
    real(wp), parameter :: thr = 1.0e-8_wp
    real(wp), parameter :: thr2 = 1.0e-5_wp
    integer,  parameter :: nat = 6
@@ -213,7 +214,7 @@ subroutine test_print_thermo
    atmass = ams
 
    call print_thermo(output_unit,nat,nvibs,at,xyz,vibs,energy, &
-      &              htot,gtot,nimag,.true.)
+      &              htot,gtot,nimag,.true.,zp)
 
    call assert_eq(nimag, 0)
    call assert_close(htot, 0.50275771916811E-01_wp, thr)
@@ -222,7 +223,7 @@ subroutine test_print_thermo
    atmass = iso
 
    call print_thermo(output_unit,nat,nvibs,at,xyz,vibs_iso,energy, &
-      &              htot,gtot,nimag,.true.)
+      &              htot,gtot,nimag,.true.,zp)
 
    call assert_eq(nimag, 0)
    call assert_close(htot, 0.43308512037251E-01_wp, thr)

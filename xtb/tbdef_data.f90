@@ -56,6 +56,7 @@ module tbdef_data
       integer  :: nimag = 0
       logical  :: linear = .false.
       logical  :: mweighted = .false.
+      real(wp) :: zp = 0.0_wp
       real(wp) :: temp = 0.0_wp
       real(wp) :: etot = 0.0_wp
       real(wp) :: htot = 0.0_wp
