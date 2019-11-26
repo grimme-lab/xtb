@@ -158,6 +158,15 @@ subroutine write_set_gfn(ictrl)
       write(ictrl,'(3x,"d4=",a)') bool2string(newdisp)
    write(ictrl,'(3x,"scc=",a)') bool2string(solve_scc)
    write(ictrl,'(3x,"periodic=",a)') bool2string(periodic)
+   write(ictrl,'(3x,"ccm=",a)') &
+      &  bool2string(cyclic_cluster_model)
+   write(ictrl,'(3x,"ewald=",g0)') &
+      &  ewald_splitting_scale
+   write(ictrl,'(3x,"cutoff disp=",g0)') scf_cutoff_disp
+   write(ictrl,'(3x,"cutoff cn=",g0)') scf_cutoff_cn
+   write(ictrl,'(3x,"cutoff ham=",g0)') scf_cutoff_ham
+   write(ictrl,'(3x,"cutoff rep=",g0)') scf_cutoff_rep
+   write(ictrl,'(3x,"cutoff atm=",g0)') scf_cutoff_atm
 end subroutine write_set_gfn
 
 subroutine write_set_scc(ictrl)
@@ -1255,6 +1264,13 @@ subroutine set_gfn(key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
+   logical,save :: set6 = .true.
+   logical,save :: set7 = .true.
+   logical,save :: set8 = .true.
+   logical,save :: set9 = .true.
+   logical,save :: set10 = .true.
+   logical,save :: set11 = .true.
    select case(key)
    case default ! do nothing
       call raise('S',"the key '"//key//"' is not recognized by gfn",1)
@@ -1281,6 +1297,27 @@ subroutine set_gfn(key,val)
    case('periodic')
       if (get_value(val,ldum).and.set4) periodic = ldum
       set4 = .false.
+   case('ccm')
+      if (get_value(val,ldum).and.set5) cyclic_cluster_model = ldum
+      set5 = .false.
+   case('ewald', 'ewald split', 'ewald parameter')
+      if (get_value(val,ddum).and.set6) ewald_splitting_scale = ddum
+      set6 = .false.
+   case('cutoff disp', 'cutoff dispersion')
+      if (get_value(val,ddum).and.set7) scf_cutoff_disp = ddum
+      set7 = .false.
+   case('cutoff cn', 'cutoff count')
+      if (get_value(val,ddum).and.set8) scf_cutoff_cn = ddum
+      set8 = .false.
+   case('cutoff ham', 'cutoff ints', 'cutoff hamiltonian')
+      if (get_value(val,ddum).and.set9) scf_cutoff_ham = ddum
+      set9 = .false.
+   case('cutoff rep', 'cutoff repulsion')
+      if (get_value(val,ddum).and.set10) scf_cutoff_rep = ddum
+      set10 = .false.
+   case('cutoff atm')
+      if (get_value(val,ddum).and.set11) scf_cutoff_atm = ddum
+      set11 = .false.
    end select
 end subroutine set_gfn
 

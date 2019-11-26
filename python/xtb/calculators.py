@@ -179,14 +179,14 @@ class GFN1(XTB):
 
     def create_arguments(self) -> dict:
         """create a list of arguments."""
-        if any(self.atoms.pbc):
-            raise NotImplementedError("GFN1-xTB is not available with PBC!")
         kwargs = {
             'natoms': len(self.atoms),
             'numbers': np.array(self.atoms.get_atomic_numbers(), dtype=c_int),
             'charge': self.atoms.get_initial_charges().sum().round(),
             'magnetic_moment': int(self.atoms.get_initial_magnetic_moments()
                                    .sum().round()),
+            'cell': np.array(self.atoms.get_cell()/Bohr, dtype=c_double),
+            'pbc': np.array(self.atoms.get_pbc(), dtype=c_bool),
             'positions': np.array(self.atoms.get_positions()/Bohr, dtype=c_double),
             'options': self.parameters,
             'output': self.output_file_name(),
@@ -201,6 +201,8 @@ class GFN1(XTB):
         self.results['dipole'] = results['dipole moment']*Bohr
         self.results['charges'] = results['charges']
         self.results['wiberg'] = results['wiberg']
+        if 'stress tensor' in results:
+            self.results['stress'] = results['stress tensor']*Hartree/Bohr**3
 
 
 class GFN2(XTB):
@@ -240,7 +242,7 @@ class GFN2(XTB):
     def create_arguments(self) -> dict:
         """create a list of arguments."""
         if any(self.atoms.pbc):
-            raise NotImplementedError("GFN2-xTB is not available with PBC!")
+            raise NotImplementedError("GFN2-xTB is not available with PBC, yet")
         kwargs = {
             'natoms': len(self.atoms),
             'numbers': np.array(self.atoms.get_atomic_numbers(), dtype=c_int),

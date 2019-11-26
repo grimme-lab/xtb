@@ -865,4 +865,268 @@ pure subroutine build_ds_ints(a,b,alpi,alpj,la,lb,v,g)
 
 end subroutine build_ds_ints
 
+pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+      &                       nprim,primcount,alp,cont,ss,dd,qq)
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: iptyp
+   integer, intent(in)  :: jptyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: point(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: ss(:,:)
+   real(wp),intent(out) :: dd(:,:,:)
+   real(wp),intent(out) :: qq(:,:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   real(wp) :: ab,est,saw(10)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   ss = 0.0_wp
+   dd = 0.0_wp
+   qq = 0.0_wp
+
+   rij = rj - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   do ip=1,nprim(icao+1)
+      iprim=ip+primcount(icao+1)
+      alpi=alp(iprim) ! exponent the same for each l component
+      do jp=1,nprim(jcao+1)
+         jprim=jp+primcount(jcao+1)
+         alpj=alp(jprim) ! exponent the same for each l component
+         ab=1.0_wp/(alpi+alpj)
+         est=rij2*alpi*alpj*ab
+         if(est.gt.intcut) cycle
+         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         do mli=1,naoi
+            iprim=ip+primcount(icao+mli)
+            ci=cont(iprim) ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            do mlj=1,naoj
+               jprim=jp+primcount(jcao+mlj)
+               saw=0.0_wp
+               ! prim-prim quadrupole and dipole integrals
+               call build_sdq_ints(ri,rj,point,alpi,alpj, &
+                  & iptyp+mli,jptyp+mlj,saw)
+               cc=cont(jprim)*ci
+               ! from primitive integrals fill CAO-CAO matrix for ish-jsh block
+               !                             ! overlap
+               ss(mlj,mli)=ss(mlj,mli)+saw(1)*cc
+               ! dipole
+               dd(:,mlj,mli)=dd(:,mlj,mli)+saw(2:4)*cc
+               ! quadrupole
+               qq(:,mlj,mli)=qq(:,mlj,mli)+saw(5:10)*cc
+            enddo ! mlj
+         enddo ! mli
+      enddo ! jp
+   enddo ! ip
+
+end subroutine get_multiints
+
+pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+      &                           intcut,nprim,primcount,alp,cont,sdq,sdqg)
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: iptyp
+   integer, intent(in)  :: jptyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: sdq(:,:,:)
+   real(wp),intent(out) :: sdqg(:,:,:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   real(wp) :: ab,est,saw(10),sawg(3,10)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   sdqg = 0.0_wp
+   sdq  = 0.0_wp
+
+   rij = ri - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   ! we go through the primitives (because the screening is the same for all of them)
+   do ip=1,nprim(icao+1)
+      iprim=ip+primcount(icao+1)
+      ! exponent the same for each l component
+      alpi=alp(iprim)
+      do jp=1,nprim(jcao+1)
+         jprim=jp+primcount(jcao+1)
+         ! exponent the same for each l component
+         alpj=alp(jprim)
+         est=alpi*alpj*rij2/(alpi+alpj)
+         if(est.gt.intcut) cycle
+         !--------------- compute gradient ----------
+         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         do mli=1,naoi
+            iprim=ip+primcount(icao+mli)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci=cont(iprim)
+            do mlj=1,naoj
+               jprim=jp+primcount(jcao+mlj)
+               cc=cont(jprim)*ci
+               saw=0;sawg=0
+               call build_dsdq_ints(ri,rj,rj,alpi,alpj,iptyp+mli,jptyp+mlj,saw,sawg)
+               sdq(:,mlj,mli) = sdq(:,mlj,mli) + saw*cc
+               sdqg(:,:10,mlj,mli) = sdqg(:,:10,mlj,mli) + sawg*cc
+            enddo ! mlj : Cartesian component of j prims
+         enddo  ! mli : Cartesian component of i prims
+      enddo ! jp : loop over j prims
+   enddo  ! ip : loop over i prims
+   do mli=1,naoi
+      do mlj=1,naoj
+         call shiftintg(sdqg(:,:,mlj,mli),sdq(:,mlj,mli),rij)
+      enddo
+   enddo
+end subroutine get_grad_multiint
+
+pure subroutine get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+      &                nprim,primcount,alp,cont,sint)
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: iptyp
+   integer, intent(in)  :: jptyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: point(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: sint(:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   real(wp) :: ab,est,saw(10)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   sint = 0.0_wp
+
+   rij = ri - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   do ip = 1, nprim(icao+1)
+      iprim = ip + primcount(icao+1)
+      ! exponent the same for each l component
+      alpi = alp(iprim)
+      do jp = 1, nprim(jcao+1)
+         jprim=jp+primcount(jcao+1)
+         ! exponent the same for each l component
+         alpj=alp(jprim)
+         ab=1.0_wp/(alpi+alpj)
+         est=rij2*alpi*alpj*ab
+         if(est.gt.intcut) cycle
+         ! now compute integrals
+         do mli=1,naoi
+            iprim = ip + primcount(icao+mli)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci = cont(iprim)
+            do mlj=1,naoj
+               jprim = jp + primcount(jcao+mlj)
+               saw = 0.0_wp
+               ! prim-prim  integrals
+               call build_sdq_ints(ri,rj,point,alpi,alpj,iptyp+mli,jptyp+mlj,saw)
+               cc = cont(jprim)*ci
+               sint(mlj,mli) = sint(mlj,mli)+saw(1)*cc! pbc_w(jat,iat)
+            enddo ! mlj
+         enddo ! mli
+      enddo ! jp
+   enddo ! ip
+
+end subroutine get_overlap
+
+pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+      &                     nprim,primcount,alp,cont,sdq,sdqg)
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: iptyp
+   integer, intent(in)  :: jptyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: point(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: sdq(:,:)
+   real(wp),intent(out) :: sdqg(:,:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   real(wp) :: ab,est,saw,sawg(3)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   sdqg = 0.0_wp
+   sdq  = 0.0_wp
+
+   rij = ri - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   do ip=1,nprim(icao+1)
+      iprim=ip+primcount(icao+1)
+      ! exponent the same for each l component
+      alpi=alp(iprim)
+      do jp=1,nprim(jcao+1)
+         jprim=jp+primcount(jcao+1)
+         ! exponent the same for each l component
+         alpj=alp(jprim)
+         est=alpi*alpj*rij2/(alpi+alpj)
+         if(est.gt.intcut) cycle
+         !--------------- compute gradient ----------
+         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         do mli=1,naoi
+            iprim=ip+primcount(icao+mli)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci=cont(iprim)
+            do mlj=1,naoj
+               jprim=jp+primcount(jcao+mlj)
+               cc=cont(jprim)*ci
+               saw=0;sawg=0
+               call build_ds_ints(ri,rj,alpi,alpj,iptyp+mli,jptyp+mlj,saw,sawg)
+               sdq(mlj,mli) = sdq(mlj,mli)+saw*cc
+               sdqg(:,mlj,mli) = sdqg(:,mlj,mli) &
+                  & + sawg(:)*cc
+            enddo ! mlj : Cartesian component of j prims
+         enddo  ! mli : Cartesian component of i prims
+      enddo ! jp : loop over j prims
+   enddo  ! ip : loop over i prims
+end subroutine get_grad_overlap
+
 end module intgrad

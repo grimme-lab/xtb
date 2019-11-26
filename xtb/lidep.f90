@@ -469,7 +469,7 @@ end subroutine buildtrafoX
 !         - 
 !
 !----------------------------------------------------------------------------------------------
-subroutine orthgsolve(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
+subroutine orthgsolve(full,ndim,cutdim,ihomo,H,S,X,P,e,fail)
    implicit none
    integer, intent(in)   :: ndim
    integer, intent(in)   :: cutdim
@@ -480,7 +480,6 @@ subroutine orthgsolve(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(inout):: X(ndim,ndim)
    real(wp),intent(out)  :: P(ndim,ndim)
    real(wp),intent(out)  :: e(ndim)
-   real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
    integer :: i,j,info,lwork,liwork,nfound,iu
@@ -516,7 +515,7 @@ subroutine orthgsolve(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
 end subroutine orthgsolve
 
 
-subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
+subroutine orthgsolve2(full,ndim,cutdim,ihomo,H,S,X,P,e,fail)
    implicit none
    integer, intent(in)   :: ndim
    integer, intent(in)   :: cutdim
@@ -527,7 +526,6 @@ subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(inout):: X(ndim,ndim)
    real(wp),intent(out)  :: P(ndim,ndim)
    real(wp),intent(out)  :: e(ndim)
-   real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
    integer :: i,j,info,lwork,liwork,nfound,iu

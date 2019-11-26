@@ -119,20 +119,20 @@ subroutine test_peeq_sp
    call peeq(output_unit,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
-   call assert_close(energy,-7.3576550429483_wp,thr)
+   call assert_close(energy,-7.3577161377042_wp,thr)
    call assert_close(hl_gap, 2.0722850435118_wp,1.0e-4_wp)
    call assert_close(norm2(gradient),4.6530106590558_wp,thr)
    call assert_close(gradient(1,1),0.0204787285706_wp,thr)
    call assert_close(gradient(3,2),3.1001342337520_wp,thr)
 
-   call assert_close(sigma(1,1),-0.46949660136776_wp,thr)
+   call assert_close(sigma(1,1),-0.46822817727089_wp,thr)
    call assert_close(sigma(2,1),-0.34304476307923_wp,thr)
    call assert_close(sigma(2,3), -1.3504527773901_wp,thr)
 
    call assert_close(res%e_elec,-8.323348293826_wp,thr)
    call assert_close(res%e_es,  -0.106932060267_wp,thr)
    call assert_close(res%e_disp,-0.004089262287_wp,thr)
-   call assert_close(res%e_rep,  1.076714573432_wp,thr)
+   call assert_close(res%e_rep,  1.0766534786763_wp,thr)
    call assert_close(res%e_xb,   0.000000000000_wp,thr)
 
    ! reset for reevaluatuation without CCM
@@ -143,20 +143,20 @@ subroutine test_peeq_sp
    call peeq(output_unit,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
-   call assert_close(energy,-7.3514777045762_wp,thr)
+   call assert_close(energy,-7.3515387993321_wp,thr)
    call assert_close(hl_gap, 2.1721883949504_wp,1.0e-4_wp)
    call assert_close(norm2(gradient),4.6424961940410_wp,thr)
    call assert_close(gradient(1,1),0.0109632042166_wp,thr)
    call assert_close(gradient(3,2),3.0958397030189_wp,thr)
 
-   call assert_close(sigma(1,1),-0.49612812087251_wp,thr)
+   call assert_close(sigma(1,1),-0.49485969677564_wp,thr)
    call assert_close(sigma(2,1),-0.32463429156960_wp,thr)
    call assert_close(sigma(2,3), -1.3397723168730_wp,thr)
 
    call assert_close(res%e_elec,-8.317170955429_wp,thr)
    call assert_close(res%e_es,  -0.106932060267_wp,thr)
    call assert_close(res%e_disp,-0.004089262287_wp,thr)
-   call assert_close(res%e_rep,  1.076714573432_wp,thr)
+   call assert_close(res%e_rep,  1.076653478676_wp,thr)
    call assert_close(res%e_xb,   0.000000000000_wp,thr)
 
    call terminate(afail)
@@ -229,9 +229,9 @@ subroutine test_peeq_api
       (istdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 4.8620892163953_wp,thr)
-   call assert_close(energy,-8.4898922181241_wp,thr)
-   call assert_close(norm2(gradient),0.00000000000000E+00_wp,thr)
-   call assert_close(norm2(gradlatt),0.45059748320564E-02_wp,thr)
+   call assert_close(energy,-8.4899033553890_wp,thr)
+   call assert_close(norm2(gradient),0.13088515513577E-07_wp,thr)
+   call assert_close(norm2(gradlatt),0.45341979089965E-02_wp,thr)
 
    call terminate(afail)
 

@@ -39,9 +39,11 @@ subroutine test_gfn2_scc
    type(tb_wavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(scf_options)     :: scf_opt
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
+   real(wp) :: sigma(3,3)
 
    real(wp) :: globpar(25)
    logical  :: okpar,okbas
@@ -80,8 +82,13 @@ subroutine test_gfn2_scc
 
    g = 0.0_wp
 
-   call scf(output_unit,mol,wfn,basis,param,pcem, &
-      &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
+   scf_opt = scf_options(prlevel=prlevel, &
+      &                  maxiter=maxiter, &
+      &                  cf=ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp), &
+      &                  etemp=et, &
+      &                  accuracy=acc)
+   call scf(output_unit,mol,wfn,basis,param,pcem,scf_opt, &
+      &     egap,etot,g,sigma,res)
 
    call assert(res%converged)
 

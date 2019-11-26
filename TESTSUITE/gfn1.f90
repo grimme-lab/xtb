@@ -39,9 +39,11 @@ subroutine test_gfn1_scc
    type(tb_wavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(scf_options)     :: scf_opt
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
+   real(wp) :: sigma(3,3)
 
    real(wp) :: globpar(25)
    logical  :: okpar,okbas,diff
@@ -80,8 +82,13 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(output_unit,mol,wfn,basis,param,pcem, &
-      &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
+   scf_opt = scf_options(prlevel=prlevel, &
+      &                  maxiter=maxiter, &
+      &                  cf=ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp), &
+      &                  etemp=et, &
+      &                  accuracy=acc)
+   call scf(output_unit,mol,wfn,basis,param,pcem,scf_opt, &
+      &     egap,etot,g,sigma,res)
 
    call assert(res%converged)
 
@@ -148,6 +155,7 @@ subroutine test_gfn1_api
 
    real(wp) :: energy
    real(wp) :: hl_gap
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -164,7 +172,7 @@ subroutine test_gfn1_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 5.6067613075402_wp,thr)
    call assert_close(energy,-8.4156335932985_wp,thr)
@@ -217,6 +225,7 @@ subroutine test_gfn1gbsa_api
 
    real(wp) :: energy
    real(wp) :: hl_gap
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -233,7 +242,7 @@ subroutine test_gfn1gbsa_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 6.641641300724_wp,1e-4_wp)
    call assert_close(energy,-14.215790820910_wp,thr)
@@ -293,6 +302,7 @@ subroutine test_gfn1_pcem_api
 
    real(wp) :: energy
    real(wp) :: hl_gap
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -309,7 +319,7 @@ subroutine test_gfn1_pcem_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
    call assert_close(energy,-23.113490916186_wp,thr)
@@ -339,7 +349,7 @@ subroutine test_gfn1_pcem_api
    pcem%grd = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 8.7253450666347_wp,thr)
    call assert_close(energy,-11.559896105984_wp,thr)
@@ -363,7 +373,7 @@ subroutine test_gfn1_pcem_api
    pcem%gam = 999.0_wp ! point charges
 
    call gfn1_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 8.9183046297437_wp,thr)
    call assert_close(energy,-11.565012263827_wp,thr)
@@ -383,3 +393,71 @@ subroutine test_gfn1_pcem_api
    call terminate(afail)
 
 end subroutine test_gfn1_pcem_api
+
+subroutine test_gfn_coulomb
+   use iso_fortran_env, only: wp => real64
+   use assertion
+   use mctc_econv, only: aatoau
+   use mctc_param, only: chemical_hardness
+   use tbdef_molecule
+   use pbc_tools
+   use scc_core
+
+   implicit none
+
+   integer, parameter :: nat = 2
+   integer, parameter :: at(nat) = [12, 8]
+   real(wp), parameter :: abc(3, nat) = reshape([&
+      & 0.0000000_wp,     0.0000000_wp,     0.0000000_wp, &
+      & 0.5000000_wp,     0.5000000_wp,     0.5000000_wp], shape(abc))
+   real(wp), parameter :: lattice(3, 3) = aatoau * reshape([&
+      & 3.0683487_wp,     0.0000000_wp,     0.0000000_wp, &
+      & 1.5341744_wp,     2.6572680_wp,     0.0000000_wp, &
+      & 1.5341744_wp,     0.8857560_wp,     2.5052963_wp], shape(lattice))
+   real(wp), parameter :: xyz(3, nat) = matmul(lattice, abc)
+   real(wp), parameter :: gam2sh(2*nat) = &
+      &[0.354151_wp, 0.3780497823669_wp, 0.583349_wp, 0.6052017202192_wp]
+   real(wp), parameter :: charges(nat) = [+0.5_wp, -0.5_wp]
+
+   type(tb_molecule) :: mol
+   integer, allocatable :: ash(:)
+   real(wp), allocatable :: gam(:)
+   real(wp), allocatable :: cmat(:, :)
+   real(wp) :: convergence_factor
+   integer :: i
+
+   call mol%allocate(nat)
+   mol%at = at
+   mol%lattice = lattice
+   mol%xyz = xyz
+   call mol%update
+
+   call generate_wsc(mol, mol%wsc)
+   mol%npbc = 3
+   mol%pbc = .true.
+   call mol%update
+
+   allocate(ash(nat), gam(nat), cmat(nat, nat))
+   ash = [1, 2]
+   gam = chemical_hardness(at)
+
+   print*, gam
+
+   convergence_factor = minval(gam) / mol%volume**(1.0_wp/3.0_wp)
+   print*, convergence_factor
+
+!  molecular coulomb matrix:
+!
+!           1         2
+!
+!    1   0.22157   0.12900
+!    2   0.12900   0.58692
+
+   call get_gfn_coulomb_matrix(mol, nat, ash, gam, 1, convergence_factor, cmat)
+
+   print*,"Coulomb matrix"
+   print'(2e14.6)', cmat
+   print*, 0.5_wp*dot_product(charges, matmul(cmat, charges))
+
+   call terminate(afail+1)
+end subroutine test_gfn_coulomb

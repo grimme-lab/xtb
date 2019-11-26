@@ -224,6 +224,25 @@ $gfn
 *method*='int'::
     version of the GFN Hamiltonian
 
+*ewald*='real'::
+    Ewald splitting parameter for GFN1-xTB and GFN2-xTB (default: 1.0).
+
+*cutoff disp*='real'::
+    cutoff radius for dispersion interactions in Bohr (default: 64).
+
+*cutoff cn*='real'::
+    cutoff radius for coordination number counting in Bohr (default: 40).
+
+*cutoff ham*='real'::
+    cutoff radius for integral evaluation and hamiltonian construction in Bohr
+    (default: 30).
+
+*cutoff rep*='real'::
+    cutoff radius for classical repulsion polynomials in Bohr (default: 40).
+
+*cutoff atm*='real'::
+    cutoff radius for non-additive dispersion by ATM in Bohr (default: 40).
+
 $hess
 ~~~~~
 *sccacc*='real'::

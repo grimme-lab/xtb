@@ -55,6 +55,13 @@ module setparam
    logical  :: newdisp = .true.
    logical  :: solve_scc = .true.
    logical  :: periodic = .false.
+   logical  :: cyclic_cluster_model = .true.
+   real(wp) :: ewald_splitting_scale = 0.1_wp
+   real(wp) :: scf_cutoff_disp = 64.0_wp
+   real(wp) :: scf_cutoff_cn = 40.0_wp
+   real(wp) :: scf_cutoff_ham = 30.0_wp
+   real(wp) :: scf_cutoff_rep = 40.0_wp
+   real(wp) :: scf_cutoff_atm = 40.0_wp
 
 !  Geometry input type
    integer,parameter :: p_geo_coord  = 1

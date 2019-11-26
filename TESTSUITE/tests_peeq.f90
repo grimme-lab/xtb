@@ -58,6 +58,7 @@ program peeq_tester
       end select
    case('gfn1')
       select case(sec)
+      case('ewald'); call test_gfn_coulomb
       case('scc'); call test_gfn1_scc
       case('api'); call test_gfn1_api
       case('gbsa'); call test_gfn1gbsa_api

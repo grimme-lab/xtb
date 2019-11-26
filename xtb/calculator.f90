@@ -42,7 +42,7 @@ module tb_calculators
          real(wp), intent(out) :: lattice_gradient(3,3)
       end subroutine gfn0_calculation
       module subroutine gfn1_calculation &
-            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,stress,latgrad)
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -59,6 +59,8 @@ module tb_calculators
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
          real(wp), intent(out) :: gradient(3,mol%n)
+         real(wp), intent(out) :: stress(3,3)
+         real(wp), intent(out) :: latgrad(3,3)
       end subroutine gfn1_calculation
       module subroutine gfn2_calculation &
             (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
@@ -81,8 +83,6 @@ module tb_calculators
       end subroutine gfn2_calculation
    end interface
 contains
-
-
 
 !> interface to the DFT-D4 module
 subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)

@@ -59,17 +59,17 @@ end subroutine file_generate_meta_info
 subroutine file_generate_name(fname, basename, extension, ftype)
    use readin, only: find_new_name
    character(len=:), allocatable, intent(out) :: fname
-   character(len=*), intent(in) :: basename
-   character(len=*), intent(in) :: extension
+   character(len=:), allocatable, intent(in) :: basename
+   character(len=:), allocatable, intent(in) :: extension
    integer, intent(in) :: ftype
 
-   if (len(basename) > 0) then
+   if (allocated(basename)) then
       fname = basename
    else
       fname = find_new_name('xtb')
    endif
 
-   if (len(extension) > 0) then
+   if (allocated(extension)) then
       fname = fname//'.'//extension
    else
       select case(ftype)
@@ -94,12 +94,12 @@ end subroutine file_generate_name
 subroutine file_figure_out_ftype(ftype, extension, basename)
    use mctc_strings, only: lowercase
    integer, intent(out) :: ftype
-   character(len=*), intent(in) :: extension
-   character(len=*), intent(in) :: basename
+   character(len=:), allocatable, intent(in) :: extension
+   character(len=:), allocatable, intent(in) :: basename
 
    ftype = p_ftype%default
 
-   if (len(extension) > 0) then
+   if (allocated(extension)) then
       select case(lowercase(extension))
       case('coord', 'tmol')
          ftype = p_ftype%tmol
@@ -116,7 +116,7 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
       case('gen')
          ftype = p_ftype%gen
       case default
-         if (len(basename) > 0) then
+         if (allocated(basename)) then
             select case(lowercase(basename))
             case('coord')
                ftype = p_ftype%tmol
@@ -126,7 +126,7 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
          endif
       end select
    else
-      if (len(basename) > 0) then
+      if (allocated(basename)) then
          select case(lowercase(basename))
          case('coord')
             ftype = p_ftype%tmol

@@ -165,6 +165,29 @@ class XTBLibrary:
         c_char_p,  # output file name
         POINTER(c_double),  # energy
         POINTER(c_double),  # gradient, dimension(3*number of atoms)
+        POINTER(c_double),  # dipole moment, dimension(3)
+        POINTER(c_double),  # atomic charges, dimension(number of atoms)
+        POINTER(c_double),  # bond order, dimension(number of atoms**2)
+    )
+
+    # define periodic GFN1-xTB interface
+    _GFN1_PBC_calculation_ = (
+        POINTER(c_int),  # number of atoms
+        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
+        POINTER(c_double),  # molecular charge
+        POINTER(c_int),  # number of unpaired electrons
+        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
+        POINTER(c_double),  # lattice parameters, dimension(9)
+        POINTER(c_bool),  # periodicity of the system
+        POINTER(SCCOptions),
+        c_char_p,  # output file name
+        POINTER(c_double),  # energy
+        POINTER(c_double),  # gradient, dimension(3*number of atoms)
+        POINTER(c_double),  # stress tensor, dimension(9)
+        POINTER(c_double),  # lattice gradient, dimension(9)
+        POINTER(c_double),  # dipole moment, dimension(3)
+        POINTER(c_double),  # atomic charges, dimension(number of atoms)
+        POINTER(c_double),  # bond order, dimension(number of atoms**2)
     )
 
     # define GFN2-xTB interface
@@ -183,6 +206,28 @@ class XTBLibrary:
         POINTER(c_double),
         POINTER(c_double),
         POINTER(c_double),
+    )
+
+    # define periodic GFN2-xTB interface
+    _GFN2_PBC_calculation_ = (
+        POINTER(c_int),  # number of atoms
+        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
+        POINTER(c_double),  # molecular charge
+        POINTER(c_int),  # number of unpaired electrons
+        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
+        POINTER(c_double),  # lattice parameters, dimension(9)
+        POINTER(c_bool),  # periodicity of the system
+        POINTER(SCCOptions),
+        c_char_p,  # output file name
+        POINTER(c_double),  # energy
+        POINTER(c_double),  # gradient, dimension(3*number of atoms)
+        POINTER(c_double),  # stress tensor, dimension(9)
+        POINTER(c_double),  # lattice gradient, dimension(9)
+        POINTER(c_double),  # dipole moment
+        POINTER(c_double),  # atomic charges
+        POINTER(c_double),  # atomic dipoles
+        POINTER(c_double),  # atomic quadrupoles
+        POINTER(c_double),  # bond orders
     )
 
     _GBSA_model_preload_ = (
@@ -232,6 +277,8 @@ class XTBLibrary:
         self.library.GFN1_calculation.argtypes = self._GFN1_calculation_
         self.library.GFN2_calculation.argtypes = self._GFN2_calculation_
         self.library.GFN0_PBC_calculation.argtypes = self._GFN0_PBC_calculation_
+        self.library.GFN1_PBC_calculation.argtypes = self._GFN1_PBC_calculation_
+        # self.library.GFN2_PBC_calculation.argtypes = self._GFN2_PBC_calculation_
         self.library.GBSA_model_preload.argtypes = self._GBSA_model_preload_
         self.library.GBSA_calculation.argtypes = self._GBSA_calculation_
 
@@ -303,11 +350,15 @@ class XTBLibrary:
     # pylint: disable=invalid-name, too-many-arguments, too-many-locals
     def GFN1Calculation(self, natoms: int, numbers, positions, options: dict,
                         charge: float = 0.0, magnetic_moment: int = 0,
-                        output: str = "-") -> dict:
+                        output: str = "-", cell=None, pbc=None) -> dict:
         """wrapper for calling the GFN1 Calculator from the library."""
+        periodic = cell is not None and pbc is not None
 
         check_ndarray(numbers, c_int, natoms, "numbers")
         check_ndarray(positions, c_double, 3*natoms, "positions")
+        if periodic:
+            check_ndarray(cell, c_double, 9, "cell")
+            check_ndarray(pbc, c_bool, 3, "pbc")
 
         energy = c_double(0.0)
         gradient = np.zeros((natoms, 3), dtype=c_double)
@@ -319,41 +370,74 @@ class XTBLibrary:
         l_options = {key: val.encode('utf-8') if isinstance(val, str) else val
                      for key, val in options.items()}
 
-        args = [
-            c_int(natoms),
-            numbers.ctypes.data_as(POINTER(c_int)),
-            c_double(charge),
-            c_int(magnetic_moment),
-            positions.ctypes.data_as(POINTER(c_double)),
-            SCCOptions(**l_options),
-            output.encode('utf-8'),
-            energy,
-            gradient.ctypes.data_as(POINTER(c_double)),
-            dipole.ctypes.data_as(POINTER(c_double)),
-            charges.ctypes.data_as(POINTER(c_double)),
-            wiberg.ctypes.data_as(POINTER(c_double)),
-        ]
-        stat = self.library.GFN1_calculation(*args)
+        if periodic:
+            cell_gradient = np.zeros((3, 3), dtype=c_double)
+            stress_tensor = np.zeros((3, 3), dtype=c_double)
+            args = [
+                c_int(natoms),
+                numbers.ctypes.data_as(POINTER(c_int)),
+                c_double(charge),
+                c_int(magnetic_moment),
+                positions.ctypes.data_as(POINTER(c_double)),
+                cell.ctypes.data_as(POINTER(c_double)),
+                pbc.ctypes.data_as(POINTER(c_bool)),
+                SCCOptions(**l_options),
+                output.encode('utf-8'),
+                energy,
+                gradient.ctypes.data_as(POINTER(c_double)),
+                stress_tensor.ctypes.data_as(POINTER(c_double)),
+                cell_gradient.ctypes.data_as(POINTER(c_double)),
+                dipole.ctypes.data_as(POINTER(c_double)),
+                charges.ctypes.data_as(POINTER(c_double)),
+                wiberg.ctypes.data_as(POINTER(c_double)),
+            ]
+            stat = self.library.GFN1_PBC_calculation(*args)
+        else:
+            args = [
+                c_int(natoms),
+                numbers.ctypes.data_as(POINTER(c_int)),
+                c_double(charge),
+                c_int(magnetic_moment),
+                positions.ctypes.data_as(POINTER(c_double)),
+                SCCOptions(**l_options),
+                output.encode('utf-8'),
+                energy,
+                gradient.ctypes.data_as(POINTER(c_double)),
+                dipole.ctypes.data_as(POINTER(c_double)),
+                charges.ctypes.data_as(POINTER(c_double)),
+                wiberg.ctypes.data_as(POINTER(c_double)),
+            ]
+            stat = self.library.GFN1_calculation(*args)
 
         if stat != 0:
             raise RuntimeError("GFN1 calculation failed in xtb.")
 
-        return {
+        results = {
             'energy': energy.value,
             'gradient': gradient,
             'dipole moment': dipole,
             'charges': charges,
             'wiberg': wiberg,
         }
+        if periodic:
+            results['cell gradient'] = cell_gradient
+            results['stress tensor'] = stress_tensor
+        return results
 
     # pylint: disable=invalid-name, too-many-arguments, too-many-locals
     def GFN2Calculation(self, natoms: int, numbers, positions, options: dict,
                         charge: float = 0.0, magnetic_moment: int = 0,
-                        output: str = "-") -> dict:
+                        output: str = "-", cell=None, pbc=None) -> dict:
         """wrapper for calling the GFN2 Calculator from the library."""
+        periodic = cell is not None and pbc is not None
+        if periodic:
+            raise NotImplementedError("GFN2-xTB is not available under PBC, yet.")
 
         check_ndarray(numbers, c_int, natoms, "numbers")
         check_ndarray(positions, c_double, 3*natoms, "positions")
+        if periodic:
+            check_ndarray(cell, c_double, 9, "cell")
+            check_ndarray(pbc, c_bool, 3, "pbc")
 
         energy = c_double(0.0)
         gradient = np.zeros((natoms, 3), dtype=c_double)
@@ -367,28 +451,53 @@ class XTBLibrary:
         l_options = {key: val.encode('utf-8') if isinstance(val, str) else val
                      for key, val in options.items()}
 
-        args = [
-            c_int(natoms),
-            numbers.ctypes.data_as(POINTER(c_int)),
-            c_double(charge),
-            c_int(magnetic_moment),
-            positions.ctypes.data_as(POINTER(c_double)),
-            SCCOptions(**l_options),
-            output.encode('utf-8'),
-            energy,
-            gradient.ctypes.data_as(POINTER(c_double)),
-            dipole.ctypes.data_as(POINTER(c_double)),
-            charges.ctypes.data_as(POINTER(c_double)),
-            dipoles.ctypes.data_as(POINTER(c_double)),
-            quadrupoles.ctypes.data_as(POINTER(c_double)),
-            wiberg.ctypes.data_as(POINTER(c_double)),
-        ]
-        stat = self.library.GFN2_calculation(*args)
+        if periodic:
+            cell_gradient = np.zeros((3, 3), dtype=c_double)
+            stress_tensor = np.zeros((3, 3), dtype=c_double)
+            args = [
+                c_int(natoms),
+                numbers.ctypes.data_as(POINTER(c_int)),
+                c_double(charge),
+                c_int(magnetic_moment),
+                positions.ctypes.data_as(POINTER(c_double)),
+                cell.ctypes.data_as(POINTER(c_double)),
+                pbc.ctypes.data_as(POINTER(c_bool)),
+                SCCOptions(**l_options),
+                output.encode('utf-8'),
+                energy,
+                gradient.ctypes.data_as(POINTER(c_double)),
+                stress_tensor.ctypes.data_as(POINTER(c_double)),
+                cell_gradient.ctypes.data_as(POINTER(c_double)),
+                dipole.ctypes.data_as(POINTER(c_double)),
+                charges.ctypes.data_as(POINTER(c_double)),
+                dipoles.ctypes.data_as(POINTER(c_double)),
+                quadrupoles.ctypes.data_as(POINTER(c_double)),
+                wiberg.ctypes.data_as(POINTER(c_double)),
+            ]
+            stat = self.library.GFN2_PBC_calculation(*args)
+        else:
+            args = [
+                c_int(natoms),
+                numbers.ctypes.data_as(POINTER(c_int)),
+                c_double(charge),
+                c_int(magnetic_moment),
+                positions.ctypes.data_as(POINTER(c_double)),
+                SCCOptions(**l_options),
+                output.encode('utf-8'),
+                energy,
+                gradient.ctypes.data_as(POINTER(c_double)),
+                dipole.ctypes.data_as(POINTER(c_double)),
+                charges.ctypes.data_as(POINTER(c_double)),
+                dipoles.ctypes.data_as(POINTER(c_double)),
+                quadrupoles.ctypes.data_as(POINTER(c_double)),
+                wiberg.ctypes.data_as(POINTER(c_double)),
+            ]
+            stat = self.library.GFN2_calculation(*args)
 
         if stat != 0:
             raise RuntimeError("GFN2 calculation failed in xtb.")
 
-        return {
+        results = {
             'energy': energy.value,
             'gradient': gradient,
             'dipole moment': dipole,
@@ -397,6 +506,10 @@ class XTBLibrary:
             'quadrupoles': quadrupoles,
             'wiberg': wiberg,
         }
+        if periodic:
+            results['cell gradient'] = cell_gradient
+            results['stress tensor'] = stress_tensor
+        return results
 
     # pylint: disable=invalid-name, too-many-arguments, too-many-locals
     def GBSACalculation(self, natoms: int, numbers, positions,

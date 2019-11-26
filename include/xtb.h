@@ -49,22 +49,6 @@ extern "C" {
 #endif
 
 extern int
-GFN0_PBC_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const double* lattice,
-      const bool* pbc,
-      const PEEQ_options* opt,
-      const char* output,
-      double* energy,
-      double* grad,
-      double* stress,
-      double* glat);
-
-extern int
 GFN2_calculation(
       const int* natoms,
       const int* attyp,
@@ -80,6 +64,29 @@ GFN2_calculation(
       double* dipm,
       double* qp,
       double* wbo);
+
+/* // feature not implemented
+extern int
+GFN2_PBC_calculation(
+      const int* natoms,
+      const int* attyp,
+      const double* charge,
+      const int* uhf,
+      const double* coord,
+      const double* lattice,
+      const bool* pbc,
+      const SCC_options* opt,
+      const char* output,
+      double* energy,
+      double* grad,
+      double* stress,
+      double* glat,
+      double* dipole,
+      double* q,
+      double* dipm,
+      double* qp,
+      double* wbo);
+*/
 
 extern int
 GFN2_QMMM_calculation(
@@ -115,6 +122,25 @@ GFN1_calculation(
       double* wbo);
 
 extern int
+GFN1_PBC_calculation(
+      const int* natoms,
+      const int* attyp,
+      const double* charge,
+      const int* uhf,
+      const double* coord,
+      const double* lattice,
+      const bool* pbc,
+      const SCC_options* opt,
+      const char* output,
+      double* energy,
+      double* grad,
+      double* stress,
+      double* glat,
+      double* dipole,
+      double* q,
+      double* wbo);
+
+extern int
 GFN1_QMMM_calculation(
       const int* natoms,
       const int* attyp,
@@ -145,6 +171,22 @@ GFN0_calculation(
       double* grad);
 
 extern int
+GFN0_PBC_calculation(
+      const int* natoms,
+      const int* attyp,
+      const double* charge,
+      const int* uhf,
+      const double* coord,
+      const double* lattice,
+      const bool* pbc,
+      const PEEQ_options* opt,
+      const char* output,
+      double* energy,
+      double* grad,
+      double* stress,
+      double* glat);
+
+extern int
 GBSA_model_preload(
       const double* epsv,
       const double* smass,
@@ -156,7 +198,7 @@ GBSA_model_preload(
       const double* dum,
       const double* gamscale,
       const double* sx,
-      const double tmp);
+      const double* tmp);
 
 extern int
 GBSA_calculation(

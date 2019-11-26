@@ -63,6 +63,7 @@ program XTBprog
    use set_module
    use property_output
    use tbmod_file_utils
+   use pbc_tools
 
 !! ========================================================================
 !  get interfaces for methods used in this part
@@ -150,9 +151,9 @@ program XTBprog
    logical, parameter    :: debug = .false.
    type(tb_wavefunction) :: wf0
    real(wp),allocatable  :: coord(:,:),numg(:,:),gdum(:,:)
-   real(wp) :: sdum(3,3)
+   real(wp) :: sdum(3,3), invlat(3,3), latgrad(3,3)
    real(wp),parameter    :: step = 0.00001_wp, step2 = 0.5_wp/step
-   real(wp) :: er,el
+   real(wp) :: er,el,stmp(3,3),numsigma(3,3),numlatgrad(3,3)
    logical  :: coffee ! if debugging gets really though, get a coffee
 
 !! ------------------------------------------------------------------------
@@ -514,7 +515,7 @@ program XTBprog
 !! ------------------------------------------------------------------------
 
 !! ========================================================================
-   if(periodic.and.gfn_method.ne.0)then
+   if(periodic.and.gfn_method > 1)then
       call raise('E', 'Periodic implementation only available at zeroth-order (GFN0).',1)
    end if
 
@@ -543,19 +544,23 @@ program XTBprog
 !  EN charges and CN
    if (runtyp.gt.1 .and. gfn_method.gt.0) then
       ! GFN case, CN is just for printout and will be overwritten in SCC
-      if (gfn_method.lt.2) then
-         call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
+      if (mol%npbc == 0) then
+         if (gfn_method.lt.2) then
+            call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
+         else
+            call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+         endif
+         if (guess_charges.eq.p_guess_gasteiger) then
+            call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,calc%param%ken1,wfn%q,cn,gfn_method,.true.)
+         else if (guess_charges.eq.p_guess_goedecker) then
+            call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+            call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
+               &                  .false.,.false.,.false.)
+         else
+            call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+            wfn%q = real(chrg,wp)/real(mol%n,wp)
+         endif
       else
-         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-      endif
-      if (guess_charges.eq.p_guess_gasteiger) then
-         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,calc%param%ken1,wfn%q,cn,gfn_method,.true.)
-      else if (guess_charges.eq.p_guess_goedecker) then
-         call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-         call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
-                               .false.,.false.,.false.)
-      else
-         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
          wfn%q = real(chrg,wp)/real(mol%n,wp)
       endif
    else if (gfn_method.eq.0) then
@@ -633,6 +638,49 @@ program XTBprog
    print *, numg
    print'(/,"difference gradient")'
    print*,g-numg
+
+   if (mol%npbc > 0) then
+      invlat = mat_inv_3x3(mol%lattice)
+      call sigma_to_latgrad(sigma,invlat,latgrad)
+      print*
+      print'(/,"analytical lattice gradient")'
+      print *, latgrad
+      call xyz_to_abc(mol%n,mol%lattice,mol%xyz,coord,mol%pbc)
+      do i = 1, 3
+         do j = 1, 3
+            mol%lattice(j,i) = mol%lattice(j,i) + step
+            !mol%xyz = matmul(mol%lattice,coord)
+            call abc_to_xyz(mol%n,mol%lattice,coord,mol%xyz)
+            call singlepoint &
+               &       (istdout,mol,wfn,calc, &
+               &        egap,etemp,maxscciter,0,.true.,.true.,acc,er,gdum,sdum,res)
+            mol%lattice(j,i) = mol%lattice(j,i) - 2*step
+            call abc_to_xyz(mol%n,mol%lattice,coord,mol%xyz)
+            call singlepoint &
+               &       (istdout,mol,wfn,calc, &
+               &        egap,etemp,maxscciter,0,.true.,.true.,acc,el,gdum,sdum,res)
+            mol%lattice(j,i) = mol%lattice(j,i) + step
+            call abc_to_xyz(mol%n,mol%lattice,coord,mol%xyz)
+            numlatgrad(j,i) = step2 * (er - el)
+         enddo
+      enddo
+      !mol%xyz = matmul(mol%lattice,coord)
+      call abc_to_xyz(mol%n,mol%lattice,coord,mol%xyz)
+      call mol%update
+      call latgrad_to_sigma(numlatgrad,mol%lattice,numsigma)
+      print'(/,"numerical lattice gradient")'
+      print *, numlatgrad
+      print'(/,"difference lattice gradient")'
+      print*,latgrad-numlatgrad
+      print*
+      print'(/,"analytical sigma tensor")'
+      print *, sigma
+      print'(/,"numerical sigma tensor")'
+      print *, numsigma
+      print'(/,"difference sigma tensor")'
+      print*,sigma-numsigma
+   endif
+
    endif
 
 !! ========================================================================
@@ -784,15 +832,10 @@ program XTBprog
    call generic_header(iprop,'Property Printout',49,10)
    if (lgrad) call tmgrad(mol%n,mol%at,mol%xyz,g,etot)
 
-   if(periodic)then
-      write(*,*)'Periodic properties'
-   else
-      call main_property(iprop, &
-           mol,wfn,calc%basis,calc%param,res,acc)
-      call main_cube(verbose, &
-           mol,wfn,calc%basis,calc%param,res)
-   endif
-
+   call main_property(iprop, &
+      mol,wfn,calc%basis,calc%param,res,acc)
+   call main_cube(verbose, &
+      mol,wfn,calc%basis,calc%param,res)
 
    if (pr_json) then
       call open_file(ich,'xtbout.json','w')
@@ -823,7 +866,8 @@ program XTBprog
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
        (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
        (runtyp.eq.p_run_metaopt)) then
-      call file_generate_name(tmpname, 'xtbopt', extension, mol%ftype)
+      cdum = 'xtbopt'
+      call file_generate_name(tmpname, cdum, extension, mol%ftype)
       write(istdout,'(/,a,1x,a,/)') &
          "optimized geometry written to:",tmpname
       call open_file(ich,tmpname,'w')

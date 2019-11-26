@@ -99,7 +99,7 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
    real(wp),intent(in) :: z(n)
    integer, intent(in) :: nao
    real(wp),intent(in) :: P(nao,nao)
-   real(wp),intent(in) :: dpint(3,nao*(1+nao)/2)
+   real(wp),intent(in) :: dpint(3,nao,nao)
 
    integer  :: i,j,k
    real(wp),intent(out) :: d(3),dip
@@ -115,10 +115,10 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
    do i = 1, nao
       do j = 1, i-1
          k = k+1
-         d = d - 2.0_wp*P(j,i)*dpint(:,k)
+         d = d - 2.0_wp*P(j,i)*dpint(:,j,i)
       enddo
       k = k+1
-      d = d - P(i,i)*dpint(:,k)
+      d = d - P(i,i)*dpint(:,i,i)
    enddo
 
    dip = norm2(d)

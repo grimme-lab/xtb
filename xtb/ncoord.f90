@@ -43,6 +43,23 @@ module ncoord
    use iso_fortran_env, only : wp => real64
    implicit none
 
+   !> Implemented kinds of counting functions for the CN.
+   type :: enum_cn_type
+      integer :: exp = 1
+      integer :: erf = 2
+      integer :: cov = 3
+      integer :: gfn = 4
+   end type
+   !> Enumerator for the coordination number types.
+   type(enum_cn_type), parameter :: tb_cn_type = enum_cn_type()
+
+   abstract interface
+      real(wp) pure function counting_function(k, r, r0)
+         import wp
+         real(wp), intent(in) :: k, r, r0
+      end function counting_function
+   end interface
+
    real(wp),private,parameter :: cnthr = 1600.0_wp
 
    real(wp),parameter :: k1 = 16.0_wp
@@ -134,6 +151,127 @@ module ncoord
    end interface
 
 contains
+
+!> Geometric fractional coordination number, supports both error function
+!  and exponential counting functions.
+subroutine get_coordination_number(mol, neighs, neighlist, cf, cn, dcndr, dcndL)
+   use tbdef_molecule
+   use tbdef_neighbourlist
+   !> Molecular structure information.
+   type(tb_molecule), intent(in) :: mol
+   !> Number of interacting neighbours.
+   integer, intent(in) :: neighs(:)
+   !> Neighbourlist.
+   type(tb_neighbourlist), intent(in) :: neighlist
+   !> Coordination number type (by counting function).
+   integer, intent(in) :: cf
+   !> Error function coordination number.
+   real(wp), intent(out) :: cn(:)
+   !> Derivative of the CN with respect to the Cartesian coordinates.
+   real(wp), intent(out) :: dcndr(:, :, :)
+   !> Derivative of the CN with respect to strain deformations.
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   real(wp), parameter :: kcn_exp = 16.0_wp
+   real(wp), parameter :: kcn_erf = 7.5_wp
+   real(wp), parameter :: kcn_gfn = 10.0_wp
+
+   select case(cf)
+   case(tb_cn_type%exp)
+      call ncoord_impl(mol, neighs, neighlist, kcn_exp, exp_count, dexp_count, &
+         &             .false., cn, dcndr, dcndL)
+   case(tb_cn_type%erf)
+      call ncoord_impl(mol, neighs, neighlist, kcn_erf, erf_count, derf_count, &
+         &             .false., cn, dcndr, dcndL)
+   case(tb_cn_type%cov)
+      call ncoord_impl(mol, neighs, neighlist, kcn_erf, erf_count, derf_count, &
+         &             .true., cn, dcndr, dcndL)
+   case(tb_cn_type%gfn)
+      call ncoord_impl(mol, neighs, neighlist, kcn_gfn, gfn_count, dgfn_count, &
+         &             .false., cn, dcndr, dcndL)
+   end select
+
+end subroutine get_coordination_number
+
+!> Actual implementation of the coordination number, takes a generic counting
+!  function to return the respective CN.
+subroutine ncoord_impl(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
+      &                cn, dcndr, dcndL)
+   use tbdef_molecule
+   use tbdef_neighbourlist
+   !> Molecular structure information.
+   type(tb_molecule), intent(in) :: mol
+   !> Number of interacting neighbours.
+   integer, intent(in) :: neighs(:)
+   !> Neighbourlist.
+   type(tb_neighbourlist), target, intent(in) :: neighlist
+   !> Function implementing the counting function.
+   procedure(counting_function) :: cfunc
+   !> Function implementing the derivative of counting function w.r.t. distance.
+   procedure(counting_function) :: dfunc
+   !> Use a covalency criterium by Pauling EN's.
+   logical, intent(in) :: enscale
+   !> Steepness of counting function
+   real(wp), intent(in) :: kcn
+   !> Error function coordination number.
+   real(wp), intent(out) :: cn(:)
+   !> Derivative of the CN with respect to the Cartesian coordinates.
+   real(wp), intent(out) :: dcndr(:, :, :)
+   !> Derivative of the CN with respect to strain deformations.
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   integer :: iat, jat, ati, atj, ij, img
+   real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den
+
+   cn = 0.0_wp
+   dcndr = 0.0_wp
+   dcndL = 0.0_wp
+
+   !$omp parallel do default(none) schedule(runtime) private(den) shared(enscale)&
+   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, neighlist, neighs) &
+   !$omp private(ij, img, jat, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   do iat = 1, len(mol)
+      ati = mol%at(iat)
+      do ij = 1, neighs(iat)
+         img = neighlist%ineigh(ij, iat)
+         r2 = neighlist%dists2(ij, iat)
+         rij = -mol%xyz(:, iat) + neighlist%coords(:, img) ! FIXME
+         jat = neighlist%image(img)
+         atj = mol%at(jat)
+         r1 = sqrt(r2)
+
+         rc = rcov(ati) + rcov(atj)
+
+         if (enscale) then
+            den = k4*exp(-(abs(en(ati)-en(atj)) + k5)**2/k6)
+         else
+            den = 1.0_wp
+         endif
+
+         countf = den * cfunc(kcn, r1, rc)
+         countd = den * dfunc(kcn, r1, rc) * rij/r1
+
+         cn(iat) = cn(iat) + countf
+         if (iat /= jat) then
+            cn(jat) = cn(jat) + countf
+         endif
+
+         dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
+         dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
+         dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
+         dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+
+         stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+
+         dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+         if (iat /= jat) then
+            dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+         endif
+
+      enddo
+   enddo
+   !$omp end parallel do
+end subroutine ncoord_impl
 
 pure subroutine ncoord_d3_driver(mol,cn,dcndr,thr)
    use tbdef_molecule
@@ -1145,52 +1283,55 @@ subroutine dncoord_logcn(n,cn,dcndr,dcndL,cn_max)
 end subroutine dncoord_logcn
 
 pure elemental function log_cn_cut(cn,cnmax) result(cnp)
-   real(wp), intent(in) :: cn
-   real(wp), intent(in) :: cnmax
+   real(wp), intent(in) :: cn, cnmax
    real(wp) :: cnp
    cnp = log(1.0_wp + exp(cnmax)) - log(1.0_wp + exp(cnmax - cn))
 end function log_cn_cut
 
 pure elemental function dlog_cn_cut(cn,cnmax) result(dcnpdcn)
-   real(wp), intent(in) :: cn
-   real(wp), intent(in) :: cnmax
+   real(wp), intent(in) :: cn, cnmax
    real(wp) :: dcnpdcn
    dcnpdcn = exp(cnmax)/(exp(cnmax) + exp(cn))
 end function dlog_cn_cut
 
-pure elemental function erf_count(k,r,r0) result(count)
-   real(wp), intent(in) :: k
-   real(wp), intent(in) :: r
-   real(wp), intent(in) :: r0
+pure function erf_count(k,r,r0) result(count)
+   real(wp), intent(in) :: k, r, r0
    real(wp) :: count
    count = 0.5_wp * (1.0_wp + erf(-k*(r-r0)/r0))
 end function erf_count
 
-pure elemental function derf_count(k,r,r0) result(count)
+pure function derf_count(k,r,r0) result(count)
    use mctc_constants
-   real(wp), intent(in) :: k
-   real(wp), intent(in) :: r
-   real(wp), intent(in) :: r0
+   real(wp), intent(in) :: k, r, r0
    real(wp) :: count
    count = -k/sqrtpi/r0*exp(-k**2*(r-r0)**2/r0**2)
 end function derf_count
 
-pure elemental function exp_count(k,r,r0) result(count)
-   real(wp), intent(in) :: k
-   real(wp), intent(in) :: r
-   real(wp), intent(in) :: r0
+pure function exp_count(k,r,r0) result(count)
+   real(wp), intent(in) :: k, r, r0
    real(wp) :: count
    count =1.0_wp/(1.0_wp+exp(-k*(r0/r-1.0_wp)))
 end function exp_count
 
-pure elemental function dexp_count(k,r,r0) result(count)
-   real(wp), intent(in) :: k
-   real(wp), intent(in) :: r
-   real(wp), intent(in) :: r0
+pure function dexp_count(k,r,r0) result(count)
+   real(wp), intent(in) :: k, r, r0
    real(wp) :: count
    real(wp) :: expterm
    expterm=exp(-k*(r0/r-1._wp))
    count = (-k*r0*expterm)/(r**2*((expterm+1._wp)**2))
 end function dexp_count
+
+pure function gfn_count(k, r, r0) result(count)
+   real(wp), intent(in) :: k, r, r0
+   real(wp) :: count
+   count = exp_count(k, r, r0) * exp_count(2*k, r, r0+2)
+end function gfn_count
+
+pure function dgfn_count(k, r, r0) result(count)
+   real(wp), intent(in) :: k, r, r0
+   real(wp) :: count
+   count = dexp_count(k, r, r0) * exp_count(2*k, r, r0+2) &
+      &  + exp_count(k, r, r0) * dexp_count(2*k, r, r0+2)
+end function dgfn_count
 
 end module ncoord

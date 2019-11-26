@@ -15,49 +15,55 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!! ========================================================================
-!  GENERAL FUNCTIONS FOR CORE FUNCTIONALITIES OF THE SCC
-!! ------------------------------------------------------------------------
-!  GFN1:
-!  -> build_h0_gfn1
-!  GFN2:
-!  -> build_h0_gfn2
-!! ========================================================================
 module scc_core
-   use iso_fortran_env, only : wp => real64
-   use mctc_la, only : sygvd,gemm,symm
+   use iso_fortran_env, only: wp => real64
+   use mctc_la, only: sygvd,gemm,symm
    implicit none
 
-   integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+   integer, parameter :: mmm(*)=[1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4]
+
+   type :: enum_gam_average
+      integer :: gfn1 = 1
+      integer :: gfn2 = 2
+   end type enum_gam_average
+   type(enum_gam_average), parameter :: tb_gam_type = enum_gam_average()
+
+   abstract interface
+      real(wp) pure function gam_average(gi, gj) result(xij)
+         import wp
+         real(wp), intent(in) :: gi, gj
+      end function gam_average
+   end interface
  
 contains
 
 !! ========================================================================
 !  build GFN1 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
-   &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2)
-   implicit none
-   real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
+subroutine build_h0_gfn1(basis,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+      &                  xyz,cn,kcnsh,S,aoat2,lao2,valao2,hdiag2)
+   use tbdef_basisset
+   type(tb_basisset), intent(in) :: basis
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
    integer, intent(in)  :: nmat
-   integer, intent(in) :: matlist(2,nmat)
+   integer, intent(in)  :: matlist(2,nmat)
    real(wp),intent(in)  :: kspd(6)
    real(wp),intent(in)  :: kmagic(4,4)
    real(wp),intent(in)  :: kenscal
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: cn(n)
-   real(wp),intent(in)  :: kcnao(ndim)
+   real(wp),intent(in)  :: kcnsh(:)
    real(wp),intent(in)  :: S(ndim,ndim)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: lao2(ndim)
    integer, intent(in)  :: valao2(ndim)
    real(wp),intent(in)  :: hdiag2(ndim)
+   real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell
+   integer  :: iat,jat,ati,atj,ish,jsh,il,jl
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
 
@@ -66,27 +72,29 @@ subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       i=matlist(1,m)
       j=matlist(2,m)
       k=j+i*(i-1)/2
-      iat=aoat2(i)
-      jat=aoat2(j)
-      ishell=mmm(lao2(i))
-      jshell=mmm(lao2(j))
-      hdii=hdiag2(i)
-      hdii=hdii*(1.0d0+kcnao(i)*cn(iat))  ! CN dependent shift
-      hdjj=hdiag2(j)
-      hdjj=hdjj*(1.0d0+kcnao(j)*cn(jat))  ! CN dependent shift
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
-      &           kspd,kmagic,kenscal,km)
-      hav=0.5d0*(hdii+hdjj)* &
-      &      rfactor(ishell,jshell,at(iat),at(jat),xyz(:,iat),xyz(:,jat))
+      iat=basis%aoat2(i)
+      jat=basis%aoat2(j)
+      ati=at(iat)
+      atj=at(jat)
+      ish=basis%ao2sh(i)
+      jsh=basis%ao2sh(j)
+      il=basis%lsh(ish)+1
+      jl=basis%lsh(jsh)+1
+      hdii=basis%level(ish)+kcnsh(ish)*cn(iat)  ! CN dependent shift
+      hdjj=basis%level(jsh)+kcnsh(jsh)*cn(jat)  ! CN dependent shift
+      km = h0scal(il,jl,ati,atj,basis%valsh(ish).ne.0,basis%valsh(jsh).ne.0, &
+         &        kspd,kmagic,kenscal)
+      hav=0.5d0*(hdii+hdjj) * rfactor(il,jl,ati,atj,xyz(:,iat),xyz(:,jat))
       H0(k)=S(j,i)*km*hav
    enddo
 !  diagonal
    k=0
    do i=1,ndim
       k=k+i
-      iat=aoat2(i)
-      ishell=mmm(lao2(i))
-      H0(k)=hdiag2(i)*(1.0d0+kcnao(i)*cn(iat))  ! CN dependent shift
+      iat=basis%aoat2(i)
+      ish=basis%ao2sh(i)
+      il=basis%lsh(ish)
+      H0(k)=basis%level(ish)+kcnsh(ish)*cn(iat)  ! CN dependent shift
    enddo
 
 end subroutine build_h0_gfn1
@@ -96,8 +104,6 @@ end subroutine build_h0_gfn1
 !! ========================================================================
 subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2,aoexp)
-   implicit none
-   real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -115,9 +121,10 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    integer, intent(in)  :: valao2(ndim)
    real(wp),intent(in)  :: hdiag2(ndim)
    real(wp),intent(in)  :: aoexp(ndim)
+   real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell
+   integer  :: iat,jat,ati,atj,ishell,jshell
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
    real(wp),parameter :: aot = -0.5d0 ! AO exponent dep. H0 scal
@@ -130,15 +137,15 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       k=j+i*(i-1)/2
       iat=aoat2(i)
       jat=aoat2(j)
+      ati=at(iat)
+      atj=at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
-      hdii=hdiag2(i)
-      hdii=hdii-kcnao(i)*cn(iat)  ! CN dependent shift
-      hdjj=hdiag2(j)
-      hdjj=hdjj-kcnao(j)*cn(jat)  ! CN dependent shift
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
-      &           kspd,kmagic,kenscal,km)
-      km=km*(0.5*((aoexp(i)+aoexp(j))/(aoexp(i)*aoexp(j))**0.5))**aot
+      hdii=hdiag2(i)-kcnao(i)*cn(iat)  ! CN dependent shift
+      hdjj=hdiag2(j)-kcnao(j)*cn(jat)  ! CN dependent shift
+      km = h0scal(ishell,jshell,ati,atj,valao2(i).ne.0,valao2(j).ne.0, &
+         &        kspd,kmagic,kenscal)
+      km=km*(0.5*((aoexp(i)+aoexp(j))/sqrt(aoexp(i)*aoexp(j))))**aot
       hav=0.5d0*(hdii+hdjj)* &
       &      rfactor(ishell,jshell,at(iat),at(jat),xyz(:,iat),xyz(:,jat))
       H0(k)=S(j,i)*km*hav
@@ -157,34 +164,22 @@ end subroutine build_h0_gfn2
 !! ========================================================================
 !  build GFN1 Fockian
 !! ========================================================================
-subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
-                         cm5,fgb,fhb,aoat2,ao2sh)
-   use mctc_econv, only : autoev,evtoau
-   use aoparam,  only : gam3
-   use gbobc, only : lgbsa
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: nshell
-   integer, intent(in)  :: nmat
-   integer, intent(in)  :: matlist(2,nmat)
-   real(wp),intent(in)  :: H0(ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: S(ndim,ndim)
-   real(wp),intent(in)  :: ves(nshell)
-   real(wp),intent(in)  :: q(n)
-   real(wp),intent(in)  :: cm5(n)
-   real(wp),intent(in)  :: fgb(n,n)
-   real(wp),intent(in)  :: fhb(n)
-   integer, intent(in)  :: aoat2(ndim)
-   integer, intent(in)  :: ao2sh(ndim)
-   real(wp),intent(out) :: H(ndim,ndim)
-   real(wp),intent(out) :: H1(ndim*(1+ndim)/2)
+subroutine build_isotropic_h1(ndim,nshell,nmat,matlist,ao2sh,H,H1,H0,S,ves)
+   integer, intent(in) :: ndim
+   integer, intent(in) :: nshell
+   integer, intent(in) :: nmat
+   integer, intent(in) :: matlist(2,nmat)
+   integer, intent(in) :: ao2sh(ndim)
+   real(wp), intent(in) :: H0(ndim*(1+ndim)/2)
+   real(wp), intent(in) :: S(ndim,ndim)
+   real(wp), intent(in) :: ves(nshell)
+   real(wp), intent(out) :: H(ndim,ndim)
+   real(wp), intent(out) :: H1(ndim*(1+ndim)/2)
 
    integer  :: m,i,j,k
    integer  :: ishell,jshell
    integer  :: ii,jj,kk
-   real(wp) :: dum
+   real(wp) :: Sij
    real(wp) :: eh1,t8,t9,tgb
 
    H = 0.0_wp
@@ -196,93 +191,44 @@ subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
       k = j+i*(i-1)/2
       ishell = ao2sh(i)
       jshell = ao2sh(j)
-      dum = S(j,i)
-!     SCC terms
-!     2nd order ES term (optional: including point charge potential)
+      Sij = S(j,i)
       eh1 = ves(ishell) + ves(jshell)
-!     3rd order and set-up of H
-      ii = aoat2(i)
-      jj = aoat2(j)
-      dum = S(j,i)
-!     third-order diagonal term, unscreened
-      t8 = q(ii)**2 * gam3(at(ii))
-      t9 = q(jj)**2 * gam3(at(jj))
-      eh1 = eh1 + autoev*(t8+t9)
-      H1(k) = -dum*eh1*0.5_wp
+      H1(k) = -Sij*eh1*0.5_wp
       H(j,i) = H0(k)+H1(k)
       H(i,j) = H(j,i)
    enddo
-!  add the gbsa SCC term
-   if (lgbsa) then
-!     hbpow=2.d0*c3-1.d0
-      do m=1,nmat
-         i=matlist(1,m)
-         j=matlist(2,m)
-         k=j+i*(i-1)/2
-         ii=aoat2(i)
-         jj=aoat2(j)
-         dum=S(j,i)
-!        GBSA SCC terms
-         eh1=0.0_wp
-         do kk=1,n
-            eh1=eh1+cm5(kk)*(fgb(kk,ii)+fgb(kk,jj))
-         enddo
-         t8=fhb(ii)*cm5(ii)+fhb(jj)*cm5(jj)
-         tgb=-dum*(0.5_wp*eh1+t8)
-         H1(k)=H1(k)+tgb
-         H(j,i)=H(j,i)+tgb
-         H(i,j)=H(j,i)
-      enddo
-   endif
 
-end subroutine build_h1_gfn1
+end subroutine build_isotropic_h1
 
 !! ========================================================================
 !  build GFN1 Fockian
 !! ========================================================================
-subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-                         H,H1,H0,S,dpint,qpint,ves,vs,vd,vq,q,qsh,gam3sh, &
-                         hdisp,fgb,fhb,aoat2,ao2sh)
-   use mctc_econv, only : autoev,evtoau
-   use gbobc, only : lgbsa
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: nshell
-   integer, intent(in)  :: nmat
-   integer, intent(in)  :: ndp
-   integer, intent(in)  :: nqp
-   integer, intent(in)  :: matlist(2,nmat)
-   integer, intent(in)  :: mdlst(2,ndp)
-   integer, intent(in)  :: mqlst(2,nqp)
-   real(wp),intent(in)  :: H0(ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: S(ndim,ndim)
-   real(wp),intent(in)  :: dpint(3,ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: qpint(6,ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: ves(nshell)
-   real(wp),intent(in)  :: vs(n)
-   real(wp),intent(in)  :: vd(3,n)
-   real(wp),intent(in)  :: vq(6,n)
-   real(wp),intent(in)  :: q(n)
-   real(wp),intent(in)  :: qsh(nshell)
-   real(wp),intent(in)  :: gam3sh(nshell)
-   real(wp),intent(in)  :: hdisp(n)
-   real(wp),intent(in)  :: fgb(n,n)
-   real(wp),intent(in)  :: fhb(n)
-   integer, intent(in)  :: aoat2(ndim)
-   integer, intent(in)  :: ao2sh(ndim)
-   real(wp),intent(out) :: H(ndim,ndim)
-   real(wp),intent(out) :: H1(ndim*(1+ndim)/2)
+subroutine add_anisotropic_h1(n,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,aoat2,&
+      &                       H,S,dpint,qpint,vs,vd,vq)
+   use mctc_econv, only: autoev
+   use lin_mod
+   integer, intent(in) :: n
+   integer, intent(in) :: ndim
+   integer, intent(in) :: nshell
+   integer, intent(in) :: nmat
+   integer, intent(in) :: ndp
+   integer, intent(in) :: nqp
+   integer, intent(in) :: matlist(2,nmat)
+   integer, intent(in) :: mdlst(2,ndp)
+   integer, intent(in) :: mqlst(2,nqp)
+   integer, intent(in) :: aoat2(ndim)
+   real(wp), intent(in) :: S(ndim,ndim)
+   real(wp), intent(in) :: dpint(3,ndim,ndim)
+   real(wp), intent(in) :: qpint(6,ndim,ndim)
+   real(wp), intent(in) :: vs(n)
+   real(wp), intent(in) :: vd(3,n)
+   real(wp), intent(in) :: vq(6,n)
+   real(wp), intent(inout) :: H(ndim,ndim)
 
-   integer, external :: lin
    integer  :: m,i,j,k,l
    integer  :: ii,jj,kk
-   integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
 
-   H1=0.0_wp
-   H =0.0_wp
 ! --- set up of Fock matrix
 !  overlap dependent terms
 !  on purpose, vs is NOT added to H1 (gradient is calculated separately)
@@ -292,27 +238,8 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       k=j+i*(i-1)/2
       ii=aoat2(i)
       jj=aoat2(j)
-      ishell=ao2sh(i)
-      jshell=ao2sh(j)
       dum=S(j,i)
-!     SCC terms
-!     2nd order ES term (optional: including point charge potential)
-      eh1=ves(ishell)+ves(jshell)
-!     SIE term
-!     t6=gsie(at(ii))*pi*sin(2.0d0*pi*q(ii))
-!     t7=gsie(at(jj))*pi*sin(2.0d0*pi*q(jj))
-!     eh1=eh1+autoev*(t6+t7)*gscal
-!     third order term
-      t8=qsh(ishell)**2*gam3sh(ishell)
-      t9=qsh(jshell)**2*gam3sh(jshell)
-      eh1=eh1+autoev*(t8+t9)
-      H1(k)=-dum*eh1*0.5d0
-! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
-!     Dispersion contribution to Hamiltionian
-      H1(k)=H1(k) - 0.5d0*dum*autoev*(hdisp(ii)+hdisp(jj))
-! SAW end - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
-      H(j,i)=H0(k)+H1(k)
-!     CAMM potential
+      ! CAMM potential
       eh1=0.50d0*dum*(vs(ii)+vs(jj))*autoev
       H(j,i)=H(j,i)+eh1
       H(i,j)=H(j,i)
@@ -328,7 +255,7 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       ! note: these come in the following order
       ! xx, yy, zz, xy, xz, yz
       do l=1,6
-         eh1=eh1+qpint(l,k)*(vq(l,ii)+vq(l,jj))
+         eh1=eh1+qpint(l,j,i)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
 !     purposely, do NOT add dip/qpole-int terms onto H1
@@ -345,7 +272,7 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       jj=aoat2(j)
       eh1=0.0d0
       do l=1,3
-         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
+         eh1=eh1+dpint(l,j,i)*(vd(l,ii)+vd(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
 !     purposely, do NOT add dip/qpole-int terms onto H1
@@ -353,40 +280,16 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
-!                                          call timing(t2,w2)
-!                           call prtime(6,t2-t1,w2-w1,'Fmat')
-!  add the gbsa SCC term
-   if(lgbsa) then
-!     hbpow=2.d0*c3-1.d0
-      do m=1,nmat
-         i=matlist(1,m)
-         j=matlist(2,m)
-         k=j+i*(i-1)/2
-         ii=aoat2(i)
-         jj=aoat2(j)
-         dum=S(j,i)
-!        GBSA SCC terms
-         eh1=0.0d0
-         do kk=1,n
-            eh1=eh1+q(kk)*(fgb(kk,ii)+fgb(kk,jj))
-         enddo
-         t8=fhb(ii)*q(ii)+fhb(jj)*q(jj)
-         tgb=-dum*(0.5d0*eh1+t8)
-         H1(k)=H1(k)+tgb
-         H(j,i)=H(j,i)+tgb
-         H(i,j)=H(j,i)
-      enddo
-   endif
 
-end subroutine build_h1_gfn2
+end subroutine add_anisotropic_h1
 
 !! ========================================================================
 !  self consistent charge iterator for GFN1 Hamiltonian
 !! ========================================================================
 subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
-   &                at,matlist,aoat2,ao2sh, &
+   &                at,matlist,aoat2,ao2sh,ash, &
    &                q,qq,qlmom,qsh,zsh, &
-   &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
+   &                gbsa,fgb,fhb,cm5,cm5a,gborn,vborn, &
    &                broy,broydamp,damp0, &
    &                pcem,ves,vpc, &
    &                et,focc,focca,foccb,efa,efb, &
@@ -401,8 +304,6 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
 
    use gbobc, only : lgbsa,lhb,tb_solvent
    use embedding, only : electro_pcem
-
-   implicit none
 
    integer, intent(in)  :: iunit
 
@@ -427,6 +328,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    integer, intent(in)  :: matlist(2,nmat)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
+   integer, intent(in)  :: ash(nshell)
 !! ------------------------------------------------------------------------
 !  a bunch of charges
    real(wp),intent(inout) :: q(n)
@@ -442,6 +344,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    real(wp),intent(in)    :: cm5a(n)
    real(wp),intent(inout) :: cm5(n)
    real(wp),intent(inout) :: gborn
+   real(wp),intent(inout) :: vborn(n)
 !! ------------------------------------------------------------------------
 !  point charge embedding potentials
    logical, intent(in)    :: pcem
@@ -485,7 +388,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    real(wp),intent(inout) :: P(ndim,ndim)
    real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(inout) :: jab(nshell,nshell)
+   real(wp),intent(in)    :: jab(nshell,nshell)
 
    integer, intent(inout) :: jter
 !! ------------------------------------------------------------------------
@@ -507,6 +410,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    logical  :: converged
    logical  :: econverged
    logical  :: qconverged
+   real(wp) :: vthird(n)
 
    converged = .false.
    lastdiag = .false.
@@ -526,8 +430,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  build the Fockian from current ES potential and partial charges
 !  includes GBSA contribution to Fockian
-   call build_H1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
-                      cm5,fgb,fhb,aoat2,ao2sh)
+   call build_isotropic_h1(ndim,nshell,nmat,matlist,ao2sh,H,H1,H0,S,ves)
 
 !! ------------------------------------------------------------------------
 !  solve HC=SCemo(X,P are scratch/store)
@@ -536,7 +439,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    fulldiag=.false.
    if (iter.lt.startpdiag) fulldiag=.true.
    if (lastdiag )          fulldiag=.true.
-   call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
+   call solve(fulldiag,ndim,ihomo,H,S,X,P,emo,fail)
 
    if (fail) then
       eel = 1.e+99_wp
@@ -580,11 +483,13 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    call dmat(ndim,focc,H,P)
 
 !  new q
-   call mpopsh (n,ndim,nshell,ao2sh,S,P,qsh)
+   call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
    qsh = zsh - qsh
 
 !  qat from qsh
-   call qsh2qat(n,at,nshell,qsh,q)
+   q = 0.0_wp
+   q(ash) = q(ash) + qsh
+   !call qsh2qat(n,at,nshell,qsh,q)
 
    eold=eel
    call electro(n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
@@ -595,7 +500,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
 !  new cm5 charges and gborn energy
    if(lgbsa) then
       cm5=q+cm5a
-      call electro_gbsa(n,at,fgb,fhb,cm5,gborn,eel)
+      call electro_gbsa(n,fgb,fhb,cm5,gborn,eel)
    endif
 
 !  ad el. entropies*T
@@ -644,20 +549,13 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(n,at,nshell,qsh,q) !new qat
+   q = 0.0_wp
+   q(ash) = q(ash) + qsh
+   !call qsh2qat(n,at,nshell,qsh,q) !new qat
 
    if(minpr) write(iunit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &         iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
    qq=q
-
-   if(lgbsa) cm5=q+cm5a
-!  set up ES potential
-   if(pcem) then
-      ves(1:nshell)=Vpc(1:nshell)
-   else
-      ves=0.0_wp
-   endif
-   call setespot(nshell,qsh,jab,ves)
 
 !! ------------------------------------------------------------------------
    if (econverged.and.qconverged) then
@@ -666,6 +564,22 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
       lastdiag = .true.
    endif
 !! ------------------------------------------------------------------------
+
+   ! get new electrostatic potential (start with third order on-side)
+   vthird = q**2 * gam3(at) * autoev
+   ves = vthird(ash)
+   ! add Born shifts to potential
+   if (lgbsa) then
+      cm5 = q + cm5a
+      call get_born_shift(n, cm5, fgb, fhb, vborn)
+      ves = ves + vborn(ash)
+   endif
+   ! add external potential
+   if (pcem) then
+      ves = ves + vpc(1:nshell)
+   endif
+   ! get second order electrostatic potential
+   call get_charge_shift(nshell,qsh,jab,ves)
 
    enddo scc_iterator
 
@@ -678,10 +592,10 @@ end subroutine scc_gfn1
 !  self consistent charge iterator for GFN2 Hamiltonian
 !! ========================================================================
 subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
-   &                at,matlist,mdlst,mqlst,aoat2,ao2sh, &
+   &                at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
-   &                xyz,vs,vd,vq,gab3,gab5,gscal, &
-   &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
+   &                xyz,vs,vd,vq,gab3,gab5, &
+   &                gbsa,fgb,fhb,cm5,cm5a,gborn,vborn, &
    &                newdisp,dispdim,g_a,g_c,gw,wdispmat,hdisp, &
    &                broy,broydamp,damp0, &
    &                pcem,ves,vpc, &
@@ -696,12 +610,10 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    use aoparam,  only : gam3
 
    use gbobc,  only : lgbsa,lhb,tb_solvent
-   use tbmod_dftd4,  only: disppot,edisp_scc
+   use tbmod_dftd4, only: disppot,edisp_scc
    use aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
    use embedding, only : electro_pcem
-
-   implicit none
 
    integer, intent(in)  :: iunit
 
@@ -730,6 +642,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer, intent(in)  :: mqlst(2,nqp)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
+   integer, intent(in)  :: ash(nshell)
 !! ------------------------------------------------------------------------
 !  a bunch of charges and CAMMs
    real(wp),intent(inout) :: q(n)
@@ -747,7 +660,6 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: vq(6,n)
    real(wp),intent(inout) :: gab3(n*(n+1)/2)
    real(wp),intent(inout) :: gab5(n*(n+1)/2)
-   real(wp),intent(in)    :: gscal
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    type(tb_solvent),intent(inout) :: gbsa
@@ -764,6 +676,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(in)    :: gw(dispdim)
    real(wp),intent(in)    :: wdispmat(dispdim,dispdim)
    real(wp),intent(inout) :: hdisp(n)
+   real(wp),intent(inout) :: vborn(n)
 !! ------------------------------------------------------------------------
 !  point charge embedding potentials
    logical, intent(in)    :: pcem
@@ -813,8 +726,8 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: P(ndim,ndim)
    real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(in)    :: dpint(3,ndim*(ndim+1)/2)
-   real(wp),intent(in)    :: qpint(6,ndim*(ndim+1)/2)
+   real(wp),intent(in)    :: dpint(3,ndim,ndim)
+   real(wp),intent(in)    :: qpint(6,ndim,ndim)
    real(wp),intent(inout) :: jab(nshell,nshell)
    real(wp),intent(in)    :: gam3sh(nshell)
 
@@ -854,9 +767,9 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  Iteration entry point
    scc_iterator: do iter = 1, thisiter
 !! ------------------------------------------------------------------------
-   call build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-                      H,H1,H0,S,dpint,qpint,ves,vs,vd,vq,q,qsh,gam3sh, &
-                      hdisp,fgb,fhb,aoat2,ao2sh)
+   call build_isotropic_h1(ndim,nshell,nmat,matlist,ao2sh,H,H1,H0,S,ves)
+   call add_anisotropic_h1(n,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,aoat2,&
+      &                    H,S,dpint,qpint,vs,vd,vq)
 
 !! ------------------------------------------------------------------------
 !  solve HC=SCemo(X,P are scratch/store)
@@ -866,7 +779,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    if(iter.lt.startpdiag) fulldiag=.true.
    if(lastdiag )          fulldiag=.true.
 !                                            call timing(t1,w1)
-   call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
+   call solve(fulldiag,ndim,ihomo,H,S,X,P,emo,fail)
 !                                            call timing(t2,w2)
 !                            call prtime(6,t2-t1,w2-w1,'diag')
 
@@ -915,11 +828,12 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    qsh = zsh - qsh
 
 !  qat from qsh
-   call qsh2qat(n,at,nshell,qsh,q)
+   q = 0.0_wp
+   q(ash) = q(ash) + qsh
 
    eold=eel
    call electro2(n,at,ndim,nshell,jab,H0,P,q, &
-   &                gam3sh,qsh,gscal,ees,eel)
+   &                gam3sh,qsh,ees,eel)
 !  multipole electrostatic
    call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 !  call scalecamm(n,at,dipm,qp)
@@ -942,7 +856,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !!  new cm5 charges and gborn energy
    if(lgbsa) then
       cm5=q+cm5a
-      call electro_gbsa(n,at,fgb,fhb,cm5,gborn,eel)
+      call electro_gbsa(n,fgb,fhb,cm5,gborn,eel)
    endif
 
 !  ad el. entropies*T
@@ -1007,28 +921,14 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(n,at,nshell,qsh,q) !new qat
-
-! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
-   if(newdisp) call disppot(n,dispdim,at,q,g_a,g_c,wdispmat,gw,hdisp)
-! SAW end - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
+   ! new qat
+   q = 0.0_wp
+   q(ash) = q(ash) + qsh
+   !call qsh2qat(n,at,nshell,qsh,q)
 
    if(minpr)write(iunit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
    qq=q
-
-   if(lgbsa) cm5=q+cm5a
-!  set up ES potential
-   if(pcem) then
-      ves(1:nshell)=Vpc(1:nshell)
-   else
-      ves=0.0d0
-   endif
-   call setespot(nshell,qsh,jab,ves)
-!  compute potential intermediates
-   call setvsdq(n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
-
-!  end of SCC convergence part
 
 !! ------------------------------------------------------------------------
    if (econverged.and.qconverged) then
@@ -1037,6 +937,30 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       lastdiag = .true.
    endif
 !! ------------------------------------------------------------------------
+
+   ! get new electrostatic potential (start with third order on-side)
+   ves = gam3sh*qsh**2*autoev
+   ! add Born shifts to potential
+   if(lgbsa) then
+      cm5 = q + cm5a
+      call get_born_shift(n, cm5, fgb, fhb, vborn)
+      ves = ves + vborn(ash)
+   endif
+   ! add dispersion potential
+   if(newdisp) then
+      call disppot(n,dispdim,at,q,g_a,g_c,wdispmat,gw,hdisp)
+      ves = ves + hdisp(ash)*autoev
+   endif
+   ! add external potential
+   if(pcem) then
+      ves = ves + vpc
+   endif
+   ! get second order electrostatic potential
+   call get_charge_shift(nshell,qsh,jab,ves)
+   ! compute potential intermediates for anisotropic electrostatic
+   call setvsdq(n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
+
+!  end of SCC convergence part
 
    enddo scc_iterator
 
@@ -1048,61 +972,45 @@ end subroutine scc_gfn2
 !! ========================================================================
 !  H0 off-diag scaling
 !! ========================================================================
-subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
-   &              kenscal,km)
-   use aoparam,  only : kpair,en
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: i
-   integer, intent(in)  :: j
-   integer, intent(in)  :: ishell
-   integer, intent(in)  :: jshell
-   integer, intent(in)  :: iat
-   integer, intent(in)  :: jat
-   logical, intent(in)  :: valaoi
-   logical, intent(in)  :: valaoj
-   real(wp),intent(in)  :: kspd(6)
-   real(wp),intent(in)  :: kmagic(4,4)
-   real(wp),intent(in)  :: kenscal
-   real(wp),intent(out) :: km
-   integer  :: ii,jj
+function h0scal(ishell, jshell, ati, atj, valaoi, valaoj, kspd, kmagic, kenscal) &
+      &         result(km)
+   use aoparam, only : kpair, en
+   integer, intent(in) :: ishell
+   integer, intent(in) :: jshell
+   integer, intent(in) :: ati
+   integer, intent(in) :: atj
+   logical, intent(in) :: valaoi
+   logical, intent(in) :: valaoj
+   real(wp), intent(in) :: kspd(6)
+   real(wp), intent(in) :: kmagic(4,4)
+   real(wp), intent(in) :: kenscal
+   real(wp) :: km
    real(wp) :: den
 
    km = 0.0_wp
 
 !  valence
-   if(valaoi.and.valaoj) then
-      ii=at(iat)
-      jj=at(jat)
-      den=(en(ii)-en(jj))**2
-      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*kpair(ii,jj)
-      return
-   endif
-
+   if (valaoi.and.valaoj) then
+      den = (en(ati)-en(atj))**2
+      km = kmagic(jshell,ishell)*(1.0_wp-kenscal*0.01_wp*den)*kpair(ati,atj)
 !  "DZ" functions (on H for GFN or 3S for EA calc on all atoms)
-   if((.not.valaoi).and.(.not.valaoj)) then
-      km=kspd(6)
-      return
-   endif
-   if(.not.valaoi.and.valaoj) then
-      km=0.5*(kspd(jshell)+kspd(6))
-      return
-   endif
-   if(.not.valaoj.and.valaoi) then
-      km=0.5*(kspd(ishell)+kspd(6))
+   else if ((.not.valaoi).and.(.not.valaoj)) then
+      km = kspd(6)
+   else if (.not.valaoi.and.valaoj) then
+      km = 0.5_wp*(kspd(jshell)+kspd(6))
+   else if (.not.valaoj.and.valaoi) then
+      km = 0.5_wp*(kspd(ishell)+kspd(6))
    endif
 
-
-end subroutine h0scal
+end function h0scal
 
 !! ========================================================================
 !  total energy for GFN1
 !! ========================================================================
 pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
-   use mctc_econv, only : evtoau
-   use aoparam, only : gam3
-   implicit none
+   use mctc_econv, only: evtoau
+   use mctc_la
+   use aoparam, only: gam3
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
    integer, intent(in) :: nbf
@@ -1118,45 +1026,12 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
 
    integer  :: i,j,k
    real(wp) :: h,t
+   real(wp) :: energies(nshell)
 
-!  second order non-diagonal
-   es =0.0d0
-   do i=1,nshell-1
-      do j=i+1,nshell
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
+   es = get_electrostatic2(nshell, gab, dqsh) &
+      &+get_electrostatic3(n, gam3(at), dq)
 
-   es=es*2.0_wp
-
-!  second-order diagonal term
-   do i=1,nshell
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-   t=0.0_wp
-   do i=1,n
-!     third-order diagonal term
-      t = t + gam3(at(i))*dq(i)**3
-   enddo
-
-!  ES energy in Eh (gam3 in Eh)
-   es=0.50_wp*es*evtoau+t/3.0_wp
-
-!  H0 part
-   k=0
-   h=0.0_wp
-   do i=1,nbf
-      do j=1,i-1
-         k=k+1
-         h=h+P(j,i)*H0(k)
-      enddo
-      k=k+1
-      h=h+P(i,i)*H0(k)*0.5_wp
-   enddo
-
-!  Etotal in Eh
-   scc = es + 2.0_wp*h*evtoau
+   scc = es + get_core_energy(nbf, H0, P)
 
 end subroutine electro
 
@@ -1164,10 +1039,10 @@ end subroutine electro
 !  total energy for GFN2
 !! ========================================================================
 pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
-   &                     gam3sh,dqsh,gscal,es,scc)
-   use mctc_constants, only : pi
-   use mctc_econv, only : evtoau
-   implicit none
+   &                     gam3sh,dqsh,es,scc)
+   use mctc_constants, only: pi
+   use mctc_econv, only: evtoau
+   use mctc_la
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
    integer,intent(in)  :: nbf
@@ -1175,7 +1050,6 @@ pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
    real(wp), intent(in)  :: H0(nbf*(nbf+1)/2)
    real(wp), intent(in)  :: P (nbf,nbf)
    real(wp), intent(in)  :: q (n) ! not used
-   real(wp), intent(in)  :: gscal ! not used
    real(wp), intent(in)  :: gab(nshell,nshell)
    real(wp), intent(in)  :: gam3sh(nshell)
    real(wp), intent(in)  :: dqsh(nshell)
@@ -1184,106 +1058,85 @@ pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
    real(wp) :: ehb ! not used
 
    integer :: i,j,k
-   real(wp)  :: h,t,esie
+   real(wp) :: h,t,esie
+   real(wp) :: energies(nshell)
 
-!  second order non-diagonal
-   es =0.0d0
-   do i=1,nshell-1
-      do j=i+1,nshell
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
+   es = get_electrostatic2(nshell, gab, dqsh) &
+      &+get_electrostatic3(nshell, gam3sh, dqsh)
 
-   es=es*2.0d0
-
-!  second-order diagonal term
-   do i=1,nshell
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-   t=0.0d0
-   do i=1,nshell
-!     third-order diagonal term
-      t = t + gam3sh(i)*dqsh(i)**3
-   enddo
-
-!  SIE diagonal term
-!  esie=0
-!  do i=1,n
-!     esie=esie+gsie(at(i))*(sin(pi*q(i)))**2
-!  enddo
-
-!  ES energy in Eh (gam3 in Eh)
-   es=0.50d0*es*evtoau+t/3.0d0
-
-!  H0 part
-   k=0
-   h=0.0d0
-   do i=1,nbf
-      do j=1,i-1
-         k=k+1
-         h=h+P(j,i)*H0(k)
-      enddo
-      k=k+1
-      h=h+P(i,i)*H0(k)*0.5d0
-   enddo
-
-!  Etotal in Eh
-   scc = es + 2.0d0*h*evtoau
+   scc = es + get_core_energy(nbf, H0, P)
 
 end subroutine electro2
 
+pure function get_core_energy(ndim, H0, P) result(energy)
+   use mctc_econv, only : evtoau
+   integer, intent(in) :: ndim
+   real(wp), intent(in) :: H0(ndim*(ndim+1)/2)
+   real(wp), intent(in) :: P(ndim,ndim)
+   real(wp) :: energy
+   integer :: i, j, k
+!  H0 part
+   k = 0
+   energy = 0.0_wp
+   do i = 1, ndim
+      do j = 1, i-1
+         k = k+1
+         energy = energy + P(j,i)*H0(k)
+      enddo
+      k = k+1
+      energy = energy + P(i,i)*H0(k)*0.5_wp
+   enddo
+   energy = 2*energy*evtoau
+end function get_core_energy
+
+pure function get_electrostatic2(ndim, gab, dq) result(energy)
+   use mctc_la
+   integer, intent(in) :: ndim
+   real(wp), intent(in) :: gab(ndim, ndim)
+   real(wp), intent(in) :: dq(ndim)
+   real(wp) :: energies(ndim)
+   real(wp) :: energy
+   call symv('u', ndim, 0.5_wp, gab, ndim, dq, 1, 0.0_wp, energies, 1)
+   energy = dot(ndim, energies, 1, dq, 1)
+end function get_electrostatic2
+
+pure function get_electrostatic3(ndim, gam, dq) result(energy)
+   integer, intent(in) :: ndim
+   real(wp), intent(in) :: gam(ndim)
+   real(wp), intent(in) :: dq(ndim)
+   integer :: i
+   real(wp) :: energy
+   energy = sum(gam*dq**3)/3.0_wp
+end function get_electrostatic3
 
 !! ========================================================================
 !  GBSA related subroutine
 !! ========================================================================
-pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
-   use mctc_econv, only : evtoau
+pure subroutine electro_gbsa(n, gab, fhb, dqsh, es, scc)
+   use mctc_econv, only: evtoau
+   use mctc_la
    use gbobc, only: lhb
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: gab(n,n)
-   real(wp),intent(in)  :: fhb(n)
-   real(wp),intent(in)  :: dqsh(n)
-   real(wp),intent(out) :: es
-   real(wp),intent(inout) :: scc
+   integer, intent(in) :: n
+   real(wp), intent(in) :: gab(n,n)
+   real(wp), intent(in) :: fhb(n)
+   real(wp), intent(in) :: dqsh(n)
+   real(wp), intent(out) :: es
+   real(wp), intent(inout) :: scc
 
-   integer :: i,j,k
-   real(wp)  :: h,t
-   real(wp)  :: ehb
+   real(wp) :: ehb
+   real(wp) :: energies(n)
 
-!  second order non-diagonal
-   es =0
-   do i=1,n-1
-      do j=i+1,n
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
+   call symv('u', n, 0.5_wp, gab, n, dqsh, 1, 0.0_wp, energies, 1)
+   es = dot(n, energies, 1, dqsh, 1) * evtoau
 
-   es=es*2.0d0
-
-!  second-order diagonal term + HB contribution
-   do i=1,n
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-!  HB energy
-   ehb=0.d0
-   if(lhb)then
-      do i = 1, n
-!        ehb = ehb + fhb(i)*(dqsh(i)**2)**c3
-         ehb = ehb + fhb(i)*(dqsh(i)**2)
-      enddo
+   ! HB energy
+   if(lhb) then
+      ehb = sum(fhb * dqsh**2) * evtoau
+   else
+      ehb = 0.0_wp
    endif
 
-!  ES energy in Eh
-   es=0.5*es*evtoau
-
-!  HB energy in Eh
-   ehb=ehb*evtoau
-
-!  Etotal in Eh
+   ! Etotal in Eh
    scc = scc + es + ehb
 
 end subroutine electro_gbsa
@@ -1291,22 +1144,19 @@ end subroutine electro_gbsa
 !! ========================================================================
 !  S(R) enhancement factor
 !! ========================================================================
-   pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
+pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
    use aoparam, only : rad,polyr
    use mctc_econv, only : aatoau
-   implicit none
    integer,intent(in) :: ati,atj,ish,jsh
    real(wp), intent(in) :: xyz1(3),xyz2(3)
    real(wp) :: rfactor
-   real(wp) :: rab,k1,rr,r,rf1,rf2,dx,dy,dz,a
+   real(wp) :: rab,k1,rr,r,rf1,rf2,r12(3),a
 
    a=0.5           ! R^a dependence 0.5 in GFN1
 
-   dx=xyz1(1)-xyz2(1)
-   dy=xyz1(2)-xyz2(2)
-   dz=xyz1(3)-xyz2(3)
+   r12=xyz1-xyz2
 
-   rab=sqrt(dx**2+dy**2+dz**2)
+   rab=norm2(r12)
 
    ! this sloppy conv. factor has been used in development, keep it
    rr=(rad(ati)+rad(atj))*aatoau
@@ -1325,107 +1175,233 @@ end function rfactor
 !! ========================================================================
 !  set up Coulomb potential due to 2nd order fluctuation
 !! ========================================================================
-pure subroutine setespot(nshell,qsh,jab,ves)
-   implicit none
-   integer, intent(in) :: nshell
-   real(wp),intent(in) ::  qsh(nshell),jab(nshell,nshell)
-!  ves possibly already contains with PC-potential
-   real(wp),intent(inout) :: ves(nshell)
-   real(wp) :: qshi,vesi
-   integer  :: i,j,k
-   do i=1,nshell
-      qshi=qsh(i)
-      vesi=0.0_wp
-      do j=1,i-1
-         ves(j)=ves(j)+qshi*jab(j,i)
-         vesi=vesi+qsh(j)*jab(j,i)
-      enddo
-      vesi=vesi+qshi*jab(i,i)
-      ves(i)=ves(i)+vesi
-   enddo
-end subroutine setespot
-
-pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
+pure subroutine get_charge_shift(nshell,qsh,jab,ves)
+   use mctc_la
    use mctc_econv
-   use aoparam
-   use lin_mod
-   implicit none
-   integer, intent(in) :: nat
    integer, intent(in) :: nshell
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   integer, intent(in) :: at(nat)
-   real(wp),intent(in) :: sqrab(nat*(nat+1)/2)
-   real(wp),intent(in) :: alphaj
-   real(wp),intent(inout) :: jab(nshell,nshell)
+   real(wp), intent(in) :: qsh(nshell)
+   real(wp), intent(in) :: jab(nshell,nshell)
+   ! ves possibly already contains with PC-potential
+   real(wp), intent(inout) :: ves(nshell)
+   call symv('u', nshell, autoev, jab, nshell, qsh, 1, 1.0_wp, ves, 1)
+end subroutine get_charge_shift
 
-   integer  :: is,iat,ati,js,jat,atj,k
-   real(wp) :: gi,gj,xj,rab
+pure subroutine get_born_shift(n, qat, fgb, fhb, vborn)
+   use mctc_la
+   integer, intent(in) :: n
+   real(wp), intent(in) :: qat(n)
+   real(wp), intent(in) :: fgb(n, n)
+   real(wp), intent(in) :: fhb(n)
+   real(wp), intent(out) :: vborn(n)
+   vborn = fhb*qat
+   call symv('u', n, 1.0_wp, fgb, n, qat, 1, 2.0_wp, vborn, 1)
+end subroutine get_born_shift
 
-   do is=1,nshell
-      iat=ash(is)
-      ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
-      do js=1,is
-         jat=ash(js)
-         atj=at(jat)
-         k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
-         xj=2.0_wp/(1./gi+1./gj)
-         if(is.eq.js)then
-            jab(is,js)=xj*autoev
+!> Wrapper for GFN-xTB electrostatics using the Mataga--Nishimoto--Ohno--Klopman
+!  potential shape for the gamma-function.
+!
+!  This wrapper decides based on the systems periodicity which implementation
+!  of the electrostatics to choose (molecular or Ewald summation), based on
+!  the GFN-method the averaging function for the gamma-function is chosen.
+pure subroutine get_gfn_coulomb_matrix(mol, nshell, ash, gam, gtype, cf, jab)
+   use tbdef_molecule
+   !> Molecular structure information.
+   type(tb_molecule), intent(in) :: mol
+   !> Number of shells in the system.
+   integer, intent(in) :: nshell
+   !> Mapping from shells to atoms.
+   integer, intent(in) :: ash(:)
+   !> GFN-method identifying the averaging function.
+   integer, intent(in) :: gtype
+   !> Chemical hardness of every shell.
+   real(wp), intent(in) :: gam(:)
+   !> Convergence for the Ewald summation (only used under PBC).
+   real(wp), intent(in) :: cf
+   !> Final Coulomb matrix over all shells.
+   real(wp), intent(inout) :: jab(:, :)
+
+   select case(gtype)
+   case(tb_gam_type%gfn1)
+      if (mol%npbc > 0) then
+         call coulomb_matrix_3d_impl(mol, nshell, ash, gfn1_gam_average, gam, &
+            &                        cf, jab)
+      else
+         call coulomb_matrix_0d_impl(mol, nshell, ash, gfn1_gam_average, gam, jab)
+      endif
+   case(tb_gam_type%gfn2)
+      if (mol%npbc > 0) then
+         call coulomb_matrix_3d_impl(mol, nshell, ash, gfn2_gam_average, gam, &
+            &                        cf, jab)
+      else
+         call coulomb_matrix_0d_impl(mol, nshell, ash, gfn2_gam_average, gam, jab)
+      endif
+   end select
+
+end subroutine get_gfn_coulomb_matrix
+
+!> Average of chemical hardnesses used in GFN1-xTB gamma-function, returns 1/eta12.
+real(wp) pure function gfn1_gam_average(gi, gj) result(xij)
+   real(wp), intent(in) :: gi, gj
+   xij = 0.5_wp*(1.0_wp/gi+1.0_wp/gj)
+end function gfn1_gam_average
+
+!> Average of chemical hardnesses used in GFN2-xTB gamma-function, returns 1/eta12.
+real(wp) pure function gfn2_gam_average(gi, gj) result(xij)
+   real(wp), intent(in) :: gi, gj
+   xij = 2.0_wp/(gi+gj)
+end function gfn2_gam_average
+
+!> Implementation of Mataga--Nishimoto--Ohno--Klopman potential for molecular
+!  systems.
+pure subroutine coulomb_matrix_0d_impl(mol, nshell, ash, gav, gam, jab)
+   use tbdef_molecule
+   !> Molecular structure information.
+   type(tb_molecule), intent(in) :: mol
+   !> Number of shells in the system.
+   integer, intent(in) :: nshell
+   !> Mapping from shells to atoms.
+   integer, intent(in) :: ash(:)
+   !> Averaging function for chemical hardnesses.
+   procedure(gam_average) :: gav
+   !> Chemical hardness of every shell.
+   real(wp), intent(in) :: gam(:)
+   !> Final Coulomb matrix over all shells.
+   real(wp), intent(inout) :: jab(:, :)
+
+   integer :: is, iat, js, jat
+   real(wp) :: gi, gj, xij, rij(3), r2
+
+   do is = 1, nshell
+      iat = ash(is)
+      gi = gam(is)
+      do js = 1, is-1
+         jat = ash(js)
+         gj = gam(js)
+         xij = gav(gi, gj)
+         rij = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = sum(rij**2)
+         jab(js, is) = 1.0_wp/sqrt(r2 + xij**2)
+         jab(is, js) = jab(js, is)
+      enddo
+      jab(is, is) = gi
+   enddo
+
+end subroutine coulomb_matrix_0d_impl
+
+!> Implementation of Mataga--Nishimoto--Ohno--Klopman potential for systems
+!  under 3D periodic boundary conditions.
+pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, jab)
+   use mctc_constants
+   use tbdef_molecule
+   !> Molecular structure information.
+   type(tb_molecule), intent(in) :: mol
+   !> Number of shells in the system.
+   integer, intent(in) :: nshell
+   !> Mapping from shells to atoms.
+   integer, intent(in) :: ash(:)
+   !> Averaging function for chemical hardnesses.
+   procedure(gam_average) :: gav
+   !> Chemical hardness of every shell.
+   real(wp), intent(in) :: gam(:)
+   !> Convergence for the Ewald summation (only used under PBC).
+   real(wp), intent(in) :: cf
+   !> Final Coulomb matrix over all shells.
+   real(wp), intent(inout) :: jab(:, :)
+
+   integer, parameter :: ewaldCutD(3) = 2
+   integer, parameter :: ewaldCutR(3) = 2
+   real(wp), parameter :: zero(3) = 0.0_wp
+
+   integer :: is, iat, js, jat, img
+   real(wp) :: gi, gj, xij, jc, jself
+   real(wp) :: ri(3), rj(3), rw(3), riw(3)
+
+   jab = 0.0_wp
+   do is = 1, nshell
+      iat = ash(is)
+      ri = mol%xyz(:, iat)
+      gi = gam(is)
+      do js = 1, is
+         jat = ash(js)
+         rj = mol%xyz(:, jat)
+         gj = gam(js)
+         xij = gav(gi, gj)
+         jc = 0.0_wp
+         do img = 1, mol%wsc%itbl(jat, iat)
+            rw = rj + matmul(mol%lattice, mol%wsc%lattr(:, img, jat, iat))
+            riw = ri - rw
+            jc = jc + mol%wsc%w(jat, iat) * (&
+               & + gfn_ewald_3d_rec(riw,ewaldCutR,mol%rec_lat,mol%volume,cf) &
+               & + gfn_ewald_3d_dir(riw,ewaldCutD,mol%lattice,xij,cf))
+         enddo
+         if (iat == jat) then
+            jself = xij - 2.0_wp*cf/sqrtpi
+            jab(is, js) = jc + jself
+            jab(js, is) = jc + jself
          else
-            rab=sqrt(sqrab(k))
-            jab(js,is)=autoev/(rab**alphaj &
-               &  + 1._wp/xj**alphaj)**(1._wp/alphaj)
-            jab(is,js)=jab(js,is)
+            jab(is, js) = jc
+            jab(js, is) = jc
          endif
       enddo
    enddo
 
-end subroutine jpot_gfn1
+end subroutine coulomb_matrix_3d_impl
 
-pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
-   use mctc_econv
-   use aoparam
-   use lin_mod
-   implicit none
-   integer, intent(in) :: nat
-   integer, intent(in) :: nshell
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   integer, intent(in) :: at(nat)
-   real(wp),intent(in) :: sqrab(nat*(nat+1)/2)
-   real(wp),intent(inout) :: jab(nshell,nshell)
+pure function gfn_ewald_3d_dir(riw,rep,dlat,xij,cf) result(Amat)
+   use iso_fortran_env, wp => real64
+   use mctc_constants
+   real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
+   integer, intent(in) :: rep(3)    !< images to consider
+   real(wp),intent(in) :: dlat(3,3) !< direct lattice
+   real(wp),intent(in) :: xij       !< interaction radius
+   real(wp),intent(in) :: cf        !< convergence factor
+   real(wp) :: Amat                 !< element of interaction matrix
+   real(wp),parameter :: eps = 1.0e-9_wp
+   integer  :: dx,dy,dz
+   real(wp) :: r2,r1,rij(3)
+   real(wp) :: t(3),arg2,eij
+   Amat = 0.0_wp
+   do concurrent(dx = -rep(1):rep(1), dy = -rep(2):rep(2), dz = -rep(3):rep(3))
+      rij = riw + matmul(dlat, [dx,dy,dz])
+      r2 = sum(rij**2)
+      if(r2 < eps) cycle
+      r1 = sqrt(r2)
+      arg2 = cf**2*r2
+      eij = erf(cf*r1)
+      Amat = Amat + 1.0_wp/sqrt(r1**2 + xij**2) - eij/r1
+   end do
+end function gfn_ewald_3d_dir
 
-   integer  :: is,iat,ati,js,jat,atj,k
-   real(wp) :: gi,gj,xj,rab
-
-   do is=1,nshell
-      iat=ash(is)
-      ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
-      do js=1,is-1
-         jat=ash(js)
-         atj=at(jat)
-         k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
-         xj=0.5_wp*(gi+gj)
-         jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/xj**2)
-         ! jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/(gi*gj))  ! NEWAV
-         jab(is,js)=jab(js,is)
-      enddo
-      jab(is,is)=autoev*gi
-   enddo
-
-end subroutine jpot_gfn2
+pure function gfn_ewald_3d_rec(riw,rep,rlat,vol,cf) result(Amat)
+   use iso_fortran_env, wp => real64
+   use mctc_constants
+   real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
+   integer, intent(in) :: rep(3)    !< images to consider
+   real(wp),intent(in) :: rlat(3,3) !< reciprocal lattice
+   real(wp),intent(in) :: vol       !< direct cell volume
+   real(wp),intent(in) :: cf        !< convergence factor
+   real(wp) :: Amat                 !< element of interaction matrix
+   integer  :: dx,dy,dz
+   real(wp) :: rik2,rik(3)
+   real(wp) :: t(3)
+   real(wp) :: fpivol
+   Amat = 0.0_wp
+   fpivol = 4.0_wp*pi/vol
+   do concurrent(dx = -rep(1):rep(1), dy = -rep(2):rep(2), dz = -rep(3):rep(3), &
+         &       dx/=0 .or. dy/=0 .or. dz/=0)
+      rik = matmul(rlat, [dx,dy,dz])
+      rik2 = sum(rik**2)
+      Amat = Amat + cos(dot_product(rik,riw)) &
+         * exp(-rik2/(4.0_wp*cf**2))/rik2
+   end do
+   Amat = Amat * fpivol
+end function gfn_ewald_3d_rec
 
 !! ========================================================================
 !  eigenvalue solver single-precision
 !! ========================================================================
-subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
+subroutine solve4(full,ndim,ihomo,H,S,X,P,e,fail)
    use iso_fortran_env, sp => real32
-   implicit none
    integer, intent(in)   :: ndim
    logical, intent(in)   :: full
    integer, intent(in)   :: ihomo
@@ -1434,7 +1410,6 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(out)  :: X(ndim,ndim)
    real(wp),intent(out)  :: P(ndim,ndim)
    real(wp),intent(out)  :: e(ndim)
-   real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
    integer i,j,info,lwork,liwork,nfound,iu,nbf
@@ -1449,7 +1424,6 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    real(sp),allocatable :: e4(:)
    real(sp),allocatable :: aux4(:)
 
-
    allocate(H4(ndim,ndim),S4(ndim,ndim))
    allocate(X4(ndim,ndim),P4(ndim,ndim),e4(ndim))
  
@@ -1457,61 +1431,23 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    S4 = S
 
    fail =.false.
-!  standard first full diag call
-   if(full) then
-!                                                     call timing(t0,w0)
-!     if(ndim.gt.0)then
-!     USE DIAG IN NON-ORTHORGONAL BASIS
-      allocate (aux4(1),iwork(1),ifail(ndim))
-      P4 = s4
-      call sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &!workspace query
-     &           -1,iwork,liwork,info)
-      lwork=int(aux4(1))
-      liwork=iwork(1)
-      deallocate(aux4,iwork)
-      allocate (aux4(lwork),iwork(liwork))              !do it
-      call sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &
-     &           lwork,iwork,liwork,info)
-      if(info.ne.0) then
-         fail=.true.
-         return
-      endif
-      X4 = H4 ! save
-      deallocate(aux4,iwork,ifail)
-
-!     else
-!        USE DIAG IN ORTHOGONAL BASIS WITH X=S^-1/2 TRAFO
-!        nbf = ndim
-!        lwork  = 1 + 6*nbf + 2*nbf**2
-!        allocate (aux(lwork))
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
-!        call gemm('T','N',nbf,nbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,nbf)
-!        call SYEV('V','U',nbf,H,nbf,e,aux,lwork,info)
-!        if(info.ne.0) error stop 'diag error'
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,X,nbf,H,nbf,0.0d0,P,nbf)
-!        H = P
-!        deallocate(aux)
-!     endif
-!                                                     call timing(t1,w1)
-!                                    call prtime(6,t1-t0,w1-w0,'dsygvd')
-
-   else
-!                                                     call timing(t0,w0)
-!     go to MO basis using trafo(X) from first iteration (=full diag)
-!      call gemm('N','N',ndim,ndim,ndim,1.d0,H4,ndim,X4,ndim,0.d0,P4,ndim)
-!      call gemm('T','N',ndim,ndim,ndim,1.d0,X4,ndim,P4,ndim,0.d0,H4,ndim)
-!                                                     call timing(t1,w1)
-!                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
-!                                                     call timing(t0,w0)
-!      call pseudodiag(ndim,ihomo,H4,e4)
-!                                                     call timing(t1,w1)
-!                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
-
-!     C = X C', P=scratch
-!      call gemm('N','N',ndim,ndim,ndim,1.d0,X4,ndim,H4,ndim,0.d0,P4,ndim)
-!     save and output MO matrix in AO basis
-!      H4 = P4
-   endif
+   ! USE DIAG IN NON-ORTHORGONAL BASIS
+   allocate (aux4(1),iwork(1),ifail(ndim))
+   P4 = s4
+   call sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &!workspace query
+      &       -1,iwork,liwork,info)
+   lwork=int(aux4(1))
+   liwork=iwork(1)
+   deallocate(aux4,iwork)
+   allocate (aux4(lwork),iwork(liwork))              !do it
+   call sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &
+     &        lwork,iwork,liwork,info)
+  if(info.ne.0) then
+     fail=.true.
+     return
+  endif
+  X4 = H4 ! save
+  deallocate(aux4,iwork,ifail)
 
    H = H4
    P = P4
@@ -1525,8 +1461,7 @@ end subroutine solve4
 !! ========================================================================
 !  eigenvalue solver
 !! ========================================================================
-subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
-   implicit none
+subroutine solve(full,ndim,ihomo,H,S,X,P,e,fail)
    integer, intent(in)   :: ndim
    logical, intent(in)   :: full
    integer, intent(in)   :: ihomo
@@ -1535,70 +1470,43 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    real(wp),intent(out)  :: X(ndim,ndim)
    real(wp),intent(out)  :: P(ndim,ndim)
    real(wp),intent(out)  :: e(ndim)
-   real(wp),intent(in)   :: acc
    logical, intent(out)  :: fail
 
    integer i,j,info,lwork,liwork,nfound,iu,nbf
+   integer :: itest(1)
+   real(wp) :: test(1)
    integer, allocatable :: iwork(:),ifail(:)
    real(wp),allocatable :: aux  (:)
    real(wp) w0,w1,t0,t1
 
    fail =.false.
 
-!  standard first full diag call
+   ! standard first full diag call
    if(full) then
-!                                                     call timing(t0,w0)
-!     if(ndim.gt.0)then
-!     USE DIAG IN NON-ORTHORGONAL BASIS
-      allocate (aux(1),iwork(1),ifail(ndim))
+      ! USE DIAG IN NON-ORTHORGONAL BASIS
+      allocate(ifail(ndim))
       P = s
-      call sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
-     &           -1,iwork,liwork,info)
-      lwork=int(aux(1))
-      liwork=iwork(1)
-      deallocate(aux,iwork)
-      allocate (aux(lwork),iwork(liwork))              !do it
-      call sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &
-     &           lwork,iwork,liwork,info)
-      !write(*,*)'SYGVD INFO', info
-      if(info.ne.0) then
+      call sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,test, &!workspace query
+         &       -1,itest,liwork,info)
+      lwork=int(test(1))
+      liwork=itest(1)
+      allocate(aux(lwork),iwork(liwork))              !do it
+      call sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux,lwork,iwork,liwork,info)
+      if(info /= 0) then
          fail=.true.
          return
       endif
       X = H ! save
       deallocate(aux,iwork,ifail)
-
-!     else
-!        USE DIAG IN ORTHOGONAL BASIS WITH X=S^-1/2 TRAFO
-!        nbf = ndim
-!        lwork  = 1 + 6*nbf + 2*nbf**2
-!        allocate (aux(lwork))
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
-!        call gemm('T','N',nbf,nbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,nbf)
-!        call SYEV('V','U',nbf,H,nbf,e,aux,lwork,info)
-!        if(info.ne.0) error stop 'diag error'
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,X,nbf,H,nbf,0.0d0,P,nbf)
-!        H = P
-!        deallocate(aux)
-!     endif
-!                                                     call timing(t1,w1)
-!                                    call prtime(6,t1-t0,w1-w0,'dsygvd')
-
    else
-!                                                     call timing(t0,w0)
-!     go to MO basis using trafo(X) from first iteration (=full diag)
-      call gemm('N','N',ndim,ndim,ndim,1.d0,H,ndim,X,ndim,0.d0,P,ndim)
-      call gemm('T','N',ndim,ndim,ndim,1.d0,X,ndim,P,ndim,0.d0,H,ndim)
-!                                                     call timing(t1,w1)
-!                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
-!                                                     call timing(t0,w0)
+      ! go to MO basis using trafo(X) from first iteration (=full diag)
+      call gemm('N','N',ndim,ndim,ndim,1.0_wp,H,ndim,X,ndim,0.0_wp,P,ndim)
+      call gemm('T','N',ndim,ndim,ndim,1.0_wp,X,ndim,P,ndim,0.0_wp,H,ndim)
       call pseudodiag(ndim,ihomo,H,e)
-!                                                     call timing(t1,w1)
-!                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
 
-!     C = X C', P=scratch
-      call gemm('N','N',ndim,ndim,ndim,1.d0,X,ndim,H,ndim,0.d0,P,ndim)
-!     save and output MO matrix in AO basis
+      ! C = X C', P=scratch
+      call gemm('N','N',ndim,ndim,ndim,1.0_wp,X,ndim,H,ndim,0.0_wp,P,ndim)
+      ! save and output MO matrix in AO basis
       H = P
    endif
 
@@ -1607,7 +1515,6 @@ end subroutine solve
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use mctc_econv, only : autoev
    use mctc_constants, only : kB
-   implicit none
    integer, intent(in)  :: norbs
    integer, intent(in)  :: nel
    real(wp),intent(in)  :: eig(norbs)
@@ -1670,7 +1577,6 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 end subroutine fermismear
 
 subroutine occ(ndim,nel,nopen,ihomo,focc)
-   implicit none
    integer  :: nel
    integer  :: nopen
    integer  :: ndim
@@ -1715,7 +1621,6 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
 end subroutine occ
 
 subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
-   implicit none
    integer  :: nel
    integer  :: nopen
    integer  :: ndim
@@ -1776,50 +1681,6 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
    if(ihomoa.lt.1) call raise('E','internal error in occu',1)
 end subroutine occu
 
-
-subroutine epart
-   use iso_fortran_env, only: output_unit
-   use aoparam
-   use mctc_econv, only : evtoau
-   implicit none
-   real(wp) :: h,e,p
-
-   p=0.5*gam(1)+gam3(1)/3.0_wp
-
-   h=ao_lev(1,1)*evtoau
-
-   e=h-p
-
-   write(output_unit,'(a)')
-   write(output_unit,'(''H atom         energy :'',F10.6)') h
-   write(output_unit,'(''proton   (self)energy :'',F10.6)') p
-   write(output_unit,'(''electron (self)energy :'',F10.6)') e
-   write(output_unit,'(''these values must be considered in IP/EA/PA calc.!'')')
-
-end subroutine epart
-
-subroutine eself(n,at,z)
-   use iso_fortran_env, only: output_unit
-   use aoparam
-   use mctc_econv, only : evtoau
-   implicit none
-   integer, intent(in) :: n,at(n)
-   real(wp),intent(in) :: z(n)
-
-   real(wp) :: e
-   integer  :: i,ii
-
-   e=0.0_wp
-   do i=1,n
-      ii=at(i)
-      e=e+0.5_wp*z(i)**2*gam(ii)+z(i)**3*gam3(ii)/3.0_wp
-   enddo
-
-   write(output_unit,'(''NO ELECTRONS!'')')
-   write(output_unit,'(''molecular/atomic self energy :'',F10.6)') e
-
-end subroutine eself
-
 !ccccccccccccccccccccccccccccccccccccccccccccc
 ! density matrix
 ! C: MO coefficient
@@ -1830,7 +1691,6 @@ end subroutine eself
 subroutine dmat(ndim,focc,C,P)
    use iso_fortran_env, only : wp => real64
    use mctc_la, only : gemm
-   implicit none
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(*)
    real(wp),intent(in)  :: C(ndim,ndim)
@@ -1854,7 +1714,6 @@ end subroutine dmat
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    use iso_fortran_env, only : wp => real64
    use mctc_la, only : gemm
-   implicit none
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: P(ndim,ndim)
@@ -1894,7 +1753,6 @@ end subroutine get_wiberg
 
 subroutine mpopall(n,nao,aoat,S,P,qao,q)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1927,7 +1785,6 @@ end subroutine mpopall
 
 subroutine mpop0(n,nao,aoat,S,P,q)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1956,7 +1813,6 @@ end subroutine mpop0
 
 subroutine mpopao(n,nao,S,P,qao)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer nao,n
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1983,7 +1839,6 @@ end subroutine mpopao
 
 subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -2020,7 +1875,6 @@ end subroutine mpop
 
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -2046,7 +1900,6 @@ end subroutine mpopsh
 subroutine qsh2qat(n,at,nshell,qsh,q)
    use iso_fortran_env, only : wp => real64
    use aoparam
-   implicit none
    integer,intent(in) :: n,nshell,at(n)
    real(wp),intent(in) :: qsh(nshell)
    real(wp),intent(out) :: q(n)
@@ -2071,7 +1924,6 @@ end subroutine qsh2qat
 
 subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  C (nao,nao)
    real(wp)  occ(nao)
@@ -2103,7 +1955,6 @@ end subroutine lpop
 subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    use iso_fortran_env, only : wp => real64
    use aoparam
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: nshell
@@ -2197,15 +2048,12 @@ end subroutine iniqshell
 subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    use iso_fortran_env, only : wp => real64
    use aoparam
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: nshell
    integer, intent(in)  :: gfn_method
    real(wp),intent(in)  :: z(n)
    real(wp),intent(out) :: zsh(nshell)
-!   integer, intent(out) :: ash(nshell)
-!   integer, intent(out) :: lsh(nshell)
    real(wp),intent(out) :: e
 
    real(wp)  ntot,fracz
@@ -2291,7 +2139,5 @@ subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    endif
 
 end subroutine setzshell
-
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 end module scc_core

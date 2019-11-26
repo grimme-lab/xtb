@@ -137,7 +137,7 @@ class Testing:
         assert results
         gnorm = abs(results["gradient"].flatten()).mean()
         assert approx(results["energy"], thr) == -44.50970242016477
-        assert approx(gnorm, thr) == 0.004842110219908473
+        assert approx(gnorm, thr) == 0.0048421123402993885
 
     def test_gfn2_gbsa_interface(self):
         """check if the GFN2-xTB interface is working correctly."""

@@ -56,7 +56,7 @@ subroutine singlepoint &
 
 !! ========================================================================
    use gbobc, only : lgbsa
-   use scf_module, only : scf
+   use scf_module, only : scf, scf_options
    use qmdff,      only : ff_eg,ff_nonb,ff_hb
    use qcextern,   only : run_orca_egrad,run_mopac_egrad
    use peeq_module, only : peeq
@@ -81,11 +81,13 @@ subroutine singlepoint &
    real(wp),intent(out)   :: g(3,mol%n)
    type(scc_results),intent(out) :: res
    real(wp),intent(out)   :: sigma(3,3)
+   type(scf_options) :: scf_opt
    integer  :: i,ich
    integer  :: mode_sp_run = 1
    real(wp) :: efix
    logical  :: inmol
    logical, parameter :: ccm = .true.
+   real(wp) :: cf
 !  real(wp) :: efix1,efix2
 !  real(wp),dimension(3,n) :: gfix1,gfix2
 
@@ -96,6 +98,7 @@ subroutine singlepoint &
    efix = 0.0_wp
    g = 0.0_wp
    sigma = 0.0_wp
+   cf = ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp)
 
 !! ========================================================================
 !  external constrains which can be applied beforehand
@@ -111,8 +114,13 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(iunit,mol,wfn,calc%basis,calc%param,pcem, &
-         &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
+      scf_opt = scf_options(prlevel=prlevel, &
+         &                  maxiter=maxiter, &
+         &                  cf=cf, &
+         &                  etemp=et, &
+         &                  accuracy=acc)
+      call scf(iunit, mol, wfn, calc%basis, calc%param, pcem, scf_opt, &
+         &     egap, etot, g, sigma, res)
 
    case(p_ext_eht)
       call peeq &

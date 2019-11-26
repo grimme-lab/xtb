@@ -226,8 +226,6 @@ if __name__ == "__main__":
     if args.method == "gfn0":
         calc = GFN0(**parameters)
     elif args.method == "gfn1":
-        if mol.pbc.any():
-            raise Exception("GFN1-xTB is not available with PBC")
         calc = GFN1(**parameters)
     elif args.method == "gfn2":
         if mol.pbc.any():

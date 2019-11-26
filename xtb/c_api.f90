@@ -372,6 +372,7 @@ function gfn1_api &
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! ====================================================================
@@ -434,7 +435,7 @@ function gfn1_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
@@ -592,6 +593,156 @@ contains
       if (iunit.ne.istdout) call close_file(iunit)
    end subroutine finalize
 end function gfn0_api
+
+function gfn1_pbc_api &
+      &   (natoms,attyp,charge,uhf,coord,lattice,pbc,opt_in,file_in, &
+      &    etot,grad,stress,glat,dipole,q,wbo) &
+      &    result(status) bind(C,name="GFN1_PBC_calculation")
+
+   use tbdef_molecule
+   use tbdef_param
+   use tbdef_options
+   use tbdef_pcem
+   use tbdef_wavefunction
+
+   use tb_calculators
+
+   implicit none
+
+   integer(c_int), intent(in) :: natoms
+   integer(c_int), intent(in) :: attyp(natoms)
+   real(c_double), intent(in) :: charge
+   integer(c_int), intent(in) :: uhf
+   real(c_double), intent(in) :: coord(3,natoms)
+   real(c_double), intent(in) :: lattice(3,3)
+   logical(c_bool),intent(in) :: pbc(3)
+   type(c_scc_options), intent(in) :: opt_in
+   character(kind=c_char),intent(in) :: file_in(*)
+
+   integer(c_int) :: status
+
+   real(c_double),intent(out) :: etot
+   real(c_double),intent(out) :: grad(3,natoms)
+   real(c_double),intent(out) :: stress(3,3)
+   real(c_double),intent(out) :: glat(3,3)
+   real(c_double),intent(out) :: q(natoms)
+   real(c_double),intent(out) :: wbo(natoms,natoms)
+   real(c_double),intent(out) :: dipole(3)
+
+   type(tb_molecule)    :: mol
+   type(scc_options)    :: opt
+   type(tb_environment) :: env
+   type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
+
+   character(len=:),allocatable :: outfile
+
+   integer  :: iunit
+   logical  :: sane
+   integer  :: i
+   real(wp) :: energy
+   real(wp) :: hl_gap
+   real(wp) :: stress_tensor(3,3), lattice_gradient(3,3)
+   real(wp),allocatable :: gradient(:,:)
+
+   ! ====================================================================
+   !  STEP 1: setup the environment variables
+   ! ====================================================================
+   call mctc_init('peeq',10,.true.)
+   call env%setup
+
+   ! ====================================================================
+   !  STEP 2: convert the options from C struct to actual Fortran type
+   ! ====================================================================
+   opt = opt_in
+
+   call c_string_convert(outfile, file_in)
+
+   if (outfile.ne.'-'.and.opt%prlevel > 0) then
+      call open_file(iunit,outfile,'w')
+      if (iunit.eq.-1) then
+         iunit = istdout
+      endif
+   else
+      iunit = istdout
+   endif
+
+   if (opt%prlevel > 2) then
+      ! print the xtb banner with version number and compilation date
+      call xtb_header(iunit)
+      ! make sure you cannot blame us for destroying your computer
+      call disclamer(iunit)
+      ! how to cite this program
+      call citation(iunit)
+   endif
+
+   ! ====================================================================
+   !  STEP 3: aquire the molecular structure and fill with data from C
+   ! ====================================================================
+   call mol%allocate(natoms)
+   ! set periodicity of system
+   mol%lattice = lattice
+   mol%pbc = pbc
+   mol%npbc = count(pbc)
+   ! get atomtypes, coordinates and total charge
+   mol%at = attyp
+   mol%xyz = coord
+   call c_get(mol%chrg, charge, 0.0_wp)
+   call c_get(mol%uhf, uhf, 0)
+
+   ! update everything from xyz and lattice
+   call mol%set_nuclear_charge
+   call mol%set_atomic_masses
+   call mol%update
+
+   ! ====================================================================
+   !  STEP 4: reserve some memory
+   ! ====================================================================
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   ! ====================================================================
+   !  STEP 5: call the actual Fortran API to perform the calculation
+   ! ====================================================================
+   ! shut down fatal errors from the MCTC library, so it will not kill the caller
+   call mctc_mute
+
+   call gfn1_calculation &
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,stress_tensor, &
+      &lattice_gradient)
+
+   ! check if the MCTC environment is still sane, if not tell the caller
+   call mctc_sanity(sane)
+   if (.not.sane) then
+      call finalize
+      status = 1
+      return
+   endif
+
+   ! ====================================================================
+   !  STEP 6: finally return values to C
+   ! ====================================================================
+   call c_return(etot, energy)
+   call c_return(grad, gradient)
+   call c_return(glat, lattice_gradient)
+   call c_return(stress, stress_tensor)
+   call c_return(q, wfn%q)
+   call c_return(wbo, wfn%wbo)
+   call c_return(dipole, sum(wfn%dipm,dim=2) + matmul(mol%xyz,wfn%q))
+
+   call finalize
+
+   status = 0
+
+contains
+   subroutine finalize
+      call mol%deallocate
+      call wfn%deallocate
+      deallocate(gradient)
+      if (iunit.ne.istdout) call close_file(iunit)
+   end subroutine finalize
+end function gfn1_pbc_api
 
 function gfn2_pcem_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
@@ -795,6 +946,7 @@ function gfn1_pcem_api &
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
+   real(wp) :: dum(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! ====================================================================
@@ -866,7 +1018,7 @@ function gfn1_pcem_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,dum,dum)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)

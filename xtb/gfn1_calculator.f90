@@ -20,7 +20,7 @@ contains
 ! ========================================================================
 !> GFN1-xTB calculation
 module subroutine gfn1_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient,stress,latgrad)
    use iso_fortran_env, wp => real64
 
    use mctc_systools
@@ -33,7 +33,7 @@ module subroutine gfn1_calculation &
    use tbdef_data
    use tbdef_pcem
 
-   use setparam, only : gfn_method, ngrida
+   use setparam, only : gfn_method, ngrida, ewald_splitting_scale
    use aoparam,  only : use_parameterset
 
    use xbasis
@@ -43,6 +43,7 @@ module subroutine gfn1_calculation &
    use scf_module
    use gbobc
    use embedding
+   use pbc_tools
 
    implicit none
 
@@ -57,6 +58,10 @@ module subroutine gfn1_calculation &
    real(wp), intent(out) :: energy
    real(wp), intent(out) :: hl_gap
    real(wp), intent(out) :: gradient(3,mol%n)
+   real(wp), intent(out) :: stress(3,3)
+   real(wp), intent(out) :: latgrad(3,3)
+   real(wp) :: sigma(3,3)
+   real(wp) :: inv_lat(3,3)
 
    integer, parameter    :: wsc_rep(3) = [1,1,1] ! FIXME
 
@@ -64,6 +69,7 @@ module subroutine gfn1_calculation &
    type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(chrg_parameter)  :: chrgeq
+   type(scf_options)     :: scf_opt
 
    real(wp), allocatable :: cn(:)
 
@@ -92,6 +98,12 @@ module subroutine gfn1_calculation &
    ! systems and just fix it silently, the API is supposed catch this
    if (mod(wfn%nopen,2) == 0.and.mod(wfn%nel,2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen,2) /= 0.and.mod(wfn%nel,2) == 0) wfn%nopen = 0
+
+   if (mol%npbc > 0) then
+      ! get Wigner-Seitz cell if necessary
+      ! -> this modifies the molecule, since the WSC is bound to a molecule
+      call generate_wsc(mol,mol%wsc,wsc_rep)
+   endif
 
    ! give an optional summary on the geometry used
    if (opt%prlevel > 2) then
@@ -159,9 +171,19 @@ module subroutine gfn1_calculation &
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(iunit,mol,wfn,basis,param,pcem,hl_gap, &
-      &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
-      &     energy,gradient,res)
+   scf_opt = scf_options(prlevel=opt%prlevel, &
+      &                  maxiter=opt%maxiter, &
+      &                  cf=ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp), &
+      &                  etemp=opt%etemp, &
+      &                  accuracy=opt%acc)
+   call scf(iunit,mol,wfn,basis,param,pcem,scf_opt,hl_gap, &
+      &     energy,gradient,sigma,res)
+
+   if (mol%npbc > 0) then
+      inv_lat = mat_inv_3x3(mol%lattice)
+      call sigma_to_latgrad(sigma,inv_lat,latgrad)
+      stress = sigma/mol%volume
+   endif
 
    if (opt%prlevel > 0) then
       write(iunit,'(9x,53(":"))')
