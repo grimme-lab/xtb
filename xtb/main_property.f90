@@ -408,7 +408,8 @@ subroutine main_freq &
    call g98fake2('g98.out',mol%n,mol%at,mol%xyz,res%freq,res%rmass,res%dipt,res%hess)
 
    call generic_header(iunit,"Thermodynamic Functions",49,10)
-   call print_thermo(iunit,mol%n,res%n3true,mol%at,mol%xyz,res%freq,res%etot,res%htot,res%gtot,res%nimag,.true.)
+   call print_thermo(iunit,mol%n,res%n3true,mol%at,mol%xyz,res%freq,res%etot,res%htot,res%gtot, &
+                     res%nimag,.true.,res%zp)
    res%pg = trim(pgroup)
    res%temp = thermotemp(nthermo)
    if (enso_mode) then
@@ -852,7 +853,7 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
 
 end subroutine print_fod_population
 
-subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr)
+subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp)
    use iso_fortran_env, only : wp => real64
    use mctc_econv
    use readin
@@ -870,10 +871,11 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr)
    real(wp),intent(in) :: etot
    real(wp),intent(out) :: gtot
    real(wp),intent(out) :: htot
+   real(wp),intent(out) :: zp
 
    real(wp) xx(10),sthr,temp,scale_factor
    real(wp) aa,bb,cc,vibthr,ithr
-   real(wp) escf,symnum,wt,avmom,zp,diff
+   real(wp) escf,symnum,wt,avmom,diff
    real(wp) :: omega,maxfreq,fswitch,lnq_r,lnq_v
    real(wp),allocatable :: et(:),ht(:),gt(:),ts(:)
    integer nn,nvib,i,j,k,n,nvib_theo,isthr
