@@ -202,7 +202,7 @@ xtb_srcs += 'xtb/dispplot.f90'
 
 # continuum solvation
 xtb_srcs += 'xtb/gbobc.f90'
-xtb_srcs += 'xtb/cm5.f'
+xtb_srcs += 'xtb/cm5.f90'
 
 # SCC
 # integrals and electrostatics
