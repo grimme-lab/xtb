@@ -484,15 +484,13 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    real(wp),allocatable :: q(:)       ! Mulliken partial charges
    real(wp),allocatable :: qlmom(:,:) ! population per shell
    real(wp),allocatable :: cm5(:)     ! CM5 partial charges
-   real(wp),allocatable :: cm5a(:)     ! CM5 partial charges
-   real(wp),allocatable :: dcm5a(:,:,:)! CM5 partial charges
    character(len=2),external :: asym
    integer :: i
 
-   allocate( cm5(n), q(n), qlmom(3,n), cm5a(n), dcm5a(3,n,n), source = 0.0_wp )
+   allocate( cm5(n), q(n), qlmom(3,n), source = 0.0_wp )
    call mpop(n,nao,aoat2,lao2,S,P,q,qlmom)
    q = q - z
-   call calc_cm5(n,at,xyz,q,cm5,cm5a,dcm5a)
+   call docm5(n,at,.false.,xyz,q,cm5)
    write(iunit,'(a)')
    write(iunit,'(2x,"Mulliken/CM5 charges        n(s)   n(p)   n(d)")')
    do i=1,n
