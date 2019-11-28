@@ -1215,6 +1215,7 @@ end subroutine xbasis_gfn0
 !  Helper functions
 
 subroutine atovlp(l,npri,nprj,alpa,alpb,conta,contb,ss)
+  use mctc_constants, only: pi
   implicit none
   integer l,npri,nprj
   real(wp) alpa(*),alpb(*)
@@ -1222,8 +1223,7 @@ subroutine atovlp(l,npri,nprj,alpa,alpb,conta,contb,ss)
   real(wp) ss
 
   integer ii,jj
-  real(wp) ab,s00,sss,pi,ab05
-  data pi/3.1415926535897932384626433832795029_wp/
+  real(wp) ab,s00,sss,ab05
 
   SS=0.0_wp
   do ii=1,npri

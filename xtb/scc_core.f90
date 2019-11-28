@@ -1778,6 +1778,7 @@ end subroutine occu
 
 
 subroutine epart
+   use iso_fortran_env, only: output_unit
    use aoparam
    use mctc_econv, only : evtoau
    implicit none
@@ -1798,6 +1799,7 @@ subroutine epart
 end subroutine epart
 
 subroutine eself(n,at,z)
+   use iso_fortran_env, only: output_unit
    use aoparam
    use mctc_econv, only : evtoau
    implicit none

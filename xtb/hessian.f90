@@ -436,27 +436,28 @@ end subroutine numhess
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine rotmol(n,xyz,xrot,yrot,zrot)
+   use iso_fortran_env, only: wp => real64
+   use mctc_constants, only: pi
    implicit none
-   integer n,i
-   real(8) xrot,yrot,zrot,xyz(3,n)
-   real(8) ang,pi,xo,yo
-   data pi/3.1415926535897932384626433832795029d0/
+   integer :: n,i
+   real(wp) :: xrot,yrot,zrot,xyz(3,n)
+   real(wp) :: ang,xo,yo
 
-   ang=xrot*pi/180.0d0
+   ang=xrot*pi/180.0_wp
    do i=1,n
       xo=xyz(2,i)
       yo=xyz(3,i)
       xyz(2,i)= xo*cos(ang)+yo*sin(ang)
       xyz(3,i)=-xo*sin(ang)+yo*cos(ang)
    enddo
-   ang=yrot*pi/180.0d0
+   ang=yrot*pi/180.0_wp
    do i=1,n
       xo=xyz(1,i)
       yo=xyz(3,i)
       xyz(1,i)= xo*cos(ang)+yo*sin(ang)
       xyz(3,i)=-xo*sin(ang)+yo*cos(ang)
    enddo
-   ang=zrot*pi/180.0d0
+   ang=zrot*pi/180.0_wp
    do i=1,n
       xo=xyz(1,i)
       yo=xyz(2,i)
