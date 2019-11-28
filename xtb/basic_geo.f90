@@ -244,6 +244,7 @@ contains
 
       real(wp) Function valijkl(nat,xyz,i,j,k,l)
       use iso_fortran_env, wp => real64
+      use mctc_constants, only: pi
 
 !  .....................................................................
 
@@ -256,11 +257,10 @@ contains
       real(wp) xyz(3,nat)
       real(wp) eps,ra(3),rb(3),rc(3),na(3),nb(3)
       real(wp) rab,rbc,thab,thbc,valijk
-      real(wp) vecnorm,nan,nbn,rcn,snanb,deter,pi,test
+      real(wp) vecnorm,nan,nbn,rcn,snanb,deter,test
       real(wp) raabs,rbabs,rcabs
 
       parameter (eps=1.0d-14)
-      data pi/3.1415926535897932384626433832795029d0/
 
       raabs=0.0d0
       rbabs=0.0d0
