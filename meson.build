@@ -22,14 +22,25 @@ project('xtb',
         license: 'LGPL3',
         meson_version: '>=0.49')
 
-conf = configuration_data()
-conf.set('version', meson.project_version())
-conf.set('commit', run_command(find_program('git'),'show','-s','--format=%h').stdout().strip())
-conf.set('date', run_command(find_program('date'),'-I').stdout().strip())
-conf.set('author', run_command(find_program('whoami')).stdout().strip())
-conf.set('origin', run_command(find_program('hostname')).stdout().strip())
-configure_file(input : 'xtb/version.f90', output : 'xtb_version.fh',
-  configuration : conf)
+# build a configuration data containing all the important data to propagate
+# it to the automatically generated files
+config = configuration_data({
+  'name': meson.project_name(),
+  'description': 'Semiempirical Extended Tight-Binding Program Package',
+  'version': meson.project_version(),
+  'commit': run_command(find_program('git'),'show','-s','--format=%h').stdout().strip(),
+  'date': run_command(find_program('date'),'-I').stdout().strip(),
+  'author': run_command(find_program('whoami')).stdout().strip(),
+  'origin': run_command(find_program('hostname')).stdout().strip(),
+  'prefix': get_option('prefix'),
+  'mandir': get_option('mandir'),
+  'bindir': get_option('bindir'),
+  'libdir': get_option('libdir'),
+  'includedir': get_option('includedir'),
+  'datadir': get_option('datadir')/meson.project_name(),
+})
+configure_file(input : 'xtb'/'version.f90', output : 'xtb_version.fh',
+  configuration : config)
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
@@ -357,6 +368,7 @@ xtb_srcs += mctc_srcs
 xtb_lib_static = static_library(meson.project_name(),
                                 xtb_srcs,
                                 include_directories: incdir,
+                                install: true,
                                 pic: true)
 
 xtb_exe = executable(meson.project_name(),
@@ -374,6 +386,7 @@ xtb_lib_shared = shared_library(meson.project_name(),
                                 link_args: '-fopenmp',
                                 install: true)
 
+xtb_dep_static = [declare_dependency(link_whole: xtb_lib_static), dependencies_exe]
 xtb_dep = [declare_dependency(link_with: xtb_lib_shared), dependencies_sha]
 
 ## ========================================== ##
@@ -393,6 +406,28 @@ xtb_parameter_files = ['.param_gfn0.xtb',
                        '.param_gfn.xtb']
 
 install_data(xtb_parameter_files)
+
+setup_files = [
+  'config_env.bash',
+  'config_env.csh',
+  '@0@.pc'.format(meson.project_name()),
+]
+foreach file: setup_files
+  configure_file(input: meson.current_source_dir()/'.templates'/file,
+                 output: file, configuration: config)
+  install_data(meson.current_build_dir()/file)
+endforeach
+
+if get_option('install_modules')
+  xtb_objs = []
+  foreach file: xtb_srcs
+    xtb_objs += '@0@.o'.format('_'.join(file.split('/')))
+  endforeach
+  install_subdir(meson.current_build_dir()/'@0@@sta'.format(meson.project_name()),
+                 install_dir: 'include',
+                 strip_directory: true,
+                 exclude_files: xtb_objs)
+endif
 
 ## ========================================== ##
 ## TESTSUITE

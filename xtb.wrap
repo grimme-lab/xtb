@@ -1,0 +1,4 @@
+[wrap-git]
+directory = xtb
+url = https://github.com/grimme-lab/xtb.git
+revision = head

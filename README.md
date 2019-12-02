@@ -23,6 +23,25 @@ Make sure the testsuite is running without errors.
 but we have not tried to compile it on either OSX or Windows so far.
 Also you currently cannot compile `xtb` with GCC and there is no plan to support it in the near future.
 
+To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
+
+```bash
+ninja -C build_intel install
+```
+
+For a local installation (or if you want to pack a release), modify the
+configuration by using
+
+```bash
+meson configure build_intel --prefix=/
+DESTDIR=$HOME/.local ninja -C build_intel install
+```
+
+The build system will generate configuration files in `$DESTDIR/share/xtb` to
+be sourced in your `.bashrc` or `.cshrc` which will make `xtb` and the
+parameter files available. Also a pkg-config file is generated to make
+`xtb` available in other projects as dependency.
+
 ## Documentation
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
