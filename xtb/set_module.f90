@@ -1518,7 +1518,7 @@ subroutine set_thermo(key,val)
       do i = 1, narg
          if (get_value(trim(argv(i)),ddum)) then
             if (ddum.le.0.0_wp) then ! doesn't make sense, skip garbage input
-               call raise('S',"A temperature of "//trim(argv(i))//" K sounds strange to me",1)
+               call raise('S',"A temperature of "//trim(argv(i))//" K is invalid in this context",1)
                cycle
             endif
             idum = idum + 1 ! use only readable arguments
@@ -1528,6 +1528,10 @@ subroutine set_thermo(key,val)
       enddo
       nthermo = nthermo+idum
       set1 = .false.
+      if (nthermo == 0) then
+         call raise('E',"No valid temperatures found in input: '"//val//"'",1)
+         return
+      endif
    case('sthr')
       if (get_value(val,ddum).and.set2) thermo_sthr = ddum
       set2 = .false.
