@@ -18,7 +18,7 @@
 # extended tight binding program package
 project('xtb',
         'fortran', 'c', 'cpp',
-        version: '6.2.1',
+        version: '6.2.2',
         license: 'LGPL3',
         meson_version: '>=0.49')
 
