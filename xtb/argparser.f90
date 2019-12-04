@@ -499,9 +499,6 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
       endif
    endif
 
-!  make sure that we get a eht calculation instead of a scc for GFN0
-   if(gfn_method.eq.0)  call set_exttyp('eht')
-
    if (.not.allocated(xcontrol)) then
       if (.not.copycontrol) then
          xcontrol = fname

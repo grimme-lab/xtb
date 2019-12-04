@@ -235,6 +235,9 @@ program XTBprog
       call rdcontrol(xrc,copy_file=.false.)
    endif
 
+   ! make sure that we get a eht calculation instead of a scc for GFN0
+   if(gfn_method.eq.0)  call set_exttyp('eht')
+
 !! ========================================================================
 !  no user interaction up to now, time to show off!
 !  print the xtb banner with version number and compilation date
