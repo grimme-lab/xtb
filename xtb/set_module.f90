@@ -193,6 +193,7 @@ subroutine write_set_opt(ictrl)
    write(ictrl,'(3x,"hessian=")',advance='no')
    select case(mhset%model)
    case default;          write(ictrl,'("lindh-d2")')
+   case(p_modh_read);     write(ictrl,'("read")')
    case(p_modh_unit);     write(ictrl,'("unit")')
    case(p_modh_old);      write(ictrl,'("old")')
    case(p_modh_lindh);    write(ictrl,'("lindh")')
@@ -1407,6 +1408,7 @@ subroutine set_opt(key,val)
          case("swart");    mhset%model = p_modh_swart
          case("old");      mhset%model = p_modh_old
          case("unit");     mhset%model = p_modh_unit
+         case("read");     mhset%model = p_modh_read
          end select
       endif
       set14 = .false.
