@@ -139,7 +139,7 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
    integer  :: nvar,iter,nread,maxcycle,maxmicro,itry,maxopt,iupdat,iii
-   integer  :: id,ich
+   integer  :: id,ihess,error
    integer, intent(in)  :: ilog
    integer, external    :: lin
    real(wp),allocatable :: h (:,:)
@@ -197,8 +197,6 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    endif
    if(maxopt.lt.maxmicro) maxmicro=maxopt
 
-   inquire(file='hessian',exist=ex)
-
    call axis2(mol%n,mol%at,mol%xyz,aaa,bbb,ccc,dumi,dumj)
 
    !call open_file(ilog,'xtbopt.log','w')
@@ -243,7 +241,6 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
       else
       write(iunit,chrfmt) "RF solver         ","davidson"
       endif
-      write(iunit,chrfmt) "input Hessian     ",bool2string(ex)
       write(iunit,chrfmt) "write xtbopt.log  ",bool2string(ilog.ne.-1)
       if (linear) then
       write(iunit,chrfmt) "linear (good luck)",bool2string(linear)
@@ -264,17 +261,26 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
 
    allocate(h(nat3,nat3),fc(nat3*(nat3+1)/2),eig(nat3))
 
+   if (mhset%model == p_modh_read) then
+      call open_file(ihess, 'hessian', 'r')
+      if (ihess == -1) then
+         call raise('E', "Could not read in hessian as requested.", 1)
+         return
+      endif
+      call read_hessian(ihess, nat3, h, error)
+      if (error /= 0) then
+         call raise('E', "Could not read hessian from file.", 1)
+         return
+      endif
+      ! do not reset the hessian
+      maxmicro = maxopt
+      ex = .true.
+   endif
+
    call anc%allocate(mol%n,nvar,hlow,hmax)
 
    molopt = mol
 
-! special TS section
-   if(tsopt)then
-      if (.not.ex) call raise('E','TS search requires Hessian!',1)
-      maxdispl=min(maxdispl,0.05d0)
-      maxmicro=maxopt ! new ANC are never generated
-      write(*,*)'root to follow for TS :',tsroot
-   endif
    if (profile) call timer%measure(1)
 
 ! ======================================================================
@@ -282,14 +288,13 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
 ! ======================================================================
 
    if (profile) call timer%measure(2,'model hessian')
-   if(.not.ex)then ! normal case
+   if (.not.ex)then ! normal case
      if(pr)write(iunit,'(/,''generating ANC from model Hessian ...'')')
      call modhes(iunit, mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
      !call qpothess(molopt%n,fc,molopt%xyz)
      thr=1.d-11
    else
      if(pr)write(iunit,'(/,''generating ANC from read Hessian ...'')')
-     call rdhess(nat3,h,'hessian')
      k=0
      do i=1,nat3
         do j=1,i
@@ -297,7 +302,6 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
          fc(k)=h(j,i)
         enddo
      enddo
-     ex=.false.
      thr=1.d-10
    endif
 
@@ -1057,5 +1061,25 @@ subroutine itochess(nvar,nat3,b,hess,fc)
    enddo
 
 end subroutine itochess
+
+subroutine read_hessian(ihess, ndim, hessian, error)
+   use mctc_systools
+   implicit none
+   integer, intent(in) :: ihess
+   integer, intent(in) :: ndim
+   real(wp), intent(out) :: hessian(:, :)
+   character(len=:), allocatable :: line
+   integer, intent(out) :: error
+   integer :: i, j
+   error = 0
+   do while(error == 0)
+      call getline(ihess, line, error)
+      if (index(line, '$hessian') == 1) then
+         read(ihess, *, iostat=error) &
+            & ((hessian(j, i), j = 1, ndim), i = 1, ndim)
+         exit
+      endif
+   enddo
+end subroutine read_hessian
 end module optimizer
 
