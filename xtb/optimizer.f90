@@ -275,6 +275,8 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
       ! do not reset the hessian
       maxmicro = maxopt
       ex = .true.
+   else
+      ex = .false.
    endif
 
    call anc%allocate(mol%n,nvar,hlow,hmax)
