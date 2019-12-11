@@ -118,6 +118,15 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
             end select
          endif
       end select
+   else
+      if (len(basename) > 0) then
+         select case(lowercase(basename))
+         case('coord')
+            ftype = p_ftype%tmol
+         case('poscar', 'contcar')
+            ftype = p_ftype%vasp
+         end select
+      endif
    endif
 
 end subroutine file_figure_out_ftype
