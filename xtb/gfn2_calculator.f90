@@ -33,7 +33,8 @@ module subroutine gfn2_calculation &
    use tbdef_data
    use tbdef_pcem
 
-   use setparam, only : gfn_method, ngrida, ewald_splitting_scale
+   use setparam, only : gfn_method, ngrida, ewald_splitting_scale, &
+      &                 ewald_quadrupole_correction
    use aoparam,  only : use_parameterset
 
    use xbasis
@@ -178,6 +179,7 @@ module subroutine gfn2_calculation &
    ! ====================================================================
    scf_opt = scf_options(prlevel=opt%prlevel, &
       &                  maxiter=opt%maxiter, &
+      &                  lqpc=ewald_quadrupole_correction, &
       &                  cf=ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp), &
       &                  etemp=opt%etemp, &
       &                  accuracy=opt%acc)

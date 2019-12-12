@@ -116,6 +116,7 @@ subroutine singlepoint &
    case default
       scf_opt = scf_options(prlevel=prlevel, &
          &                  maxiter=maxiter, &
+         &                  lqpc=ewald_quadrupole_correction, &
          &                  cf=cf, &
          &                  etemp=et, &
          &                  accuracy=acc)

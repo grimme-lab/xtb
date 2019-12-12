@@ -84,6 +84,7 @@ subroutine test_gfn1_scc
 
    scf_opt = scf_options(prlevel=prlevel, &
       &                  maxiter=maxiter, &
+      &                  lqpc=ewald_quadrupole_correction, &
       &                  cf=ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp), &
       &                  etemp=et, &
       &                  accuracy=acc)
@@ -453,9 +454,17 @@ subroutine test_gfn_coulomb
 !    1   0.22157   0.12900
 !    2   0.12900   0.58692
 
-   call get_gfn_coulomb_matrix(mol, nat, ash, gam, 1, convergence_factor, cmat)
+   call get_gfn_coulomb_matrix(mol, nat, ash, gam, 1, convergence_factor, &
+      &                        .false., cmat)
 
-   print*,"Coulomb matrix"
+   print*,"Coulomb matrix (uncorrected)"
+   print'(2e14.6)', cmat
+   print*, 0.5_wp*dot_product(charges, matmul(cmat, charges))
+
+   call get_gfn_coulomb_matrix(mol, nat, ash, gam, 1, convergence_factor, &
+      &                        .true., cmat)
+
+   print*,"Coulomb matrix (uncorrected)"
    print'(2e14.6)', cmat
    print*, 0.5_wp*dot_product(charges, matmul(cmat, charges))
 

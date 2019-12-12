@@ -56,6 +56,7 @@ module setparam
    logical  :: solve_scc = .true.
    logical  :: periodic = .false.
    logical  :: cyclic_cluster_model = .true.
+   logical  :: ewald_quadrupole_correction = .false.
    real(wp) :: ewald_splitting_scale = 0.1_wp
    real(wp) :: scf_cutoff_disp = 64.0_wp
    real(wp) :: scf_cutoff_cn = 40.0_wp

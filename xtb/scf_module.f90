@@ -30,6 +30,8 @@ module scf_module
    type :: scf_options
       integer :: prlevel
       integer :: maxiter = 250
+      logical :: lqpc = .true.
+      logical :: ccm = .false.
       real(wp) :: cf
       real(wp) :: etemp = 300.0_wp
       real(wp) :: accuracy = 1.0_wp
@@ -482,7 +484,7 @@ subroutine scf1(iunit, mol, wfn, basis, param, pcem, opt, &
       gam2sh(ishell) = gam(ati)*(1.0_wp+lpar(basis%lsh(ishell),ati))
    enddo
    call get_gfn_coulomb_matrix(mol, basis%nshell, basis%ash, gam2sh, gfn_method, &
-      &                        opt%cf, jab)
+      &                        opt%cf, opt%lqpc, jab)
 
    ! J potentials including the point charge field
    if(lpcem)then
@@ -718,7 +720,7 @@ subroutine scf1(iunit, mol, wfn, basis, param, pcem, opt, &
 
    ! Calculating shell es gradient
    call get_gfn_coulomb_derivs(mol, basis%nshell, basis%ash, gam2sh, gfn_method, &
-      &                        opt%cf, wfn%qsh, g, sigma)
+      &                        opt%cf, opt%lqpc, wfn%qsh, g, sigma)
 
    ! --- ES point charge embedding
    if (lpcem) then
@@ -1113,7 +1115,7 @@ subroutine scf2(iunit, mol, wfn, basis, param, pcem, opt, &
       gam2sh(is) = gam(ati)*(1.0_wp+lpar(basis%lsh(is),ati))
    enddo
    call get_gfn_coulomb_matrix(mol, basis%nshell, basis%ash, gam2sh, gfn_method, &
-      &                        opt%cf, jab)
+      &                        opt%cf, opt%lqpc, jab)
 
 !  J potentials including the point charge stuff
    if(lpcem)then
@@ -1417,7 +1419,7 @@ subroutine scf2(iunit, mol, wfn, basis, param, pcem, opt, &
    endif
 
    call get_gfn_coulomb_derivs(mol, basis%nshell, basis%ash, gam2sh, gfn_method, &
-      &                        opt%cf, wfn%qsh, g, sigma)
+      &                        opt%cf, opt%lqpc, wfn%qsh, g, sigma)
 
    ! --- ES point charge embedding
    if (lpcem) then

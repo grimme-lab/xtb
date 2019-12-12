@@ -1203,7 +1203,7 @@ end subroutine get_born_shift
 !  This wrapper decides based on the systems periodicity which implementation
 !  of the electrostatics to choose (molecular or Ewald summation), based on
 !  the GFN-method the averaging function for the gamma-function is chosen.
-pure subroutine get_gfn_coulomb_matrix(mol, nshell, ash, gam, gtype, cf, jab)
+pure subroutine get_gfn_coulomb_matrix(mol, nshell, ash, gam, gtype, cf, lqpc, jab)
    use tbdef_molecule
    !> Molecular structure information.
    type(tb_molecule), intent(in) :: mol
@@ -1217,6 +1217,8 @@ pure subroutine get_gfn_coulomb_matrix(mol, nshell, ash, gam, gtype, cf, jab)
    real(wp), intent(in) :: gam(:)
    !> Convergence for the Ewald summation (only used under PBC).
    real(wp), intent(in) :: cf
+   !> Quadrupole correction for Ewald summation (only used under PBC).
+   logical, intent(in) :: lqpc
    !> Final Coulomb matrix over all shells.
    real(wp), intent(inout) :: jab(:, :)
 
@@ -1224,14 +1226,14 @@ pure subroutine get_gfn_coulomb_matrix(mol, nshell, ash, gam, gtype, cf, jab)
    case(tb_gam_type%gfn1)
       if (mol%npbc > 0) then
          call coulomb_matrix_3d_impl(mol, nshell, ash, gfn1_gam_average, gam, &
-            &                        cf, jab)
+            &                        cf, lqpc, jab)
       else
          call coulomb_matrix_0d_impl(mol, nshell, ash, gfn1_gam_average, gam, jab)
       endif
    case(tb_gam_type%gfn2)
       if (mol%npbc > 0) then
          call coulomb_matrix_3d_impl(mol, nshell, ash, gfn2_gam_average, gam, &
-            &                        cf, jab)
+            &                        cf, lqpc, jab)
       else
          call coulomb_matrix_0d_impl(mol, nshell, ash, gfn2_gam_average, gam, jab)
       endif
@@ -1289,8 +1291,9 @@ pure subroutine coulomb_matrix_0d_impl(mol, nshell, ash, gav, gam, jab)
 end subroutine coulomb_matrix_0d_impl
 
 !> Implementation of Mataga--Nishimoto--Ohno--Klopman potential for systems
-!  under 3D periodic boundary conditions.
-pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, jab)
+!  under 3D periodic boundary conditions. This Ewald summation explicitly
+!  compensates higher multipole moments arising from the chosen potential shape.
+pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, lqpc, jab)
    use mctc_constants
    use tbdef_molecule
    !> Molecular structure information.
@@ -1305,6 +1308,8 @@ pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, jab)
    real(wp), intent(in) :: gam(:)
    !> Convergence for the Ewald summation (only used under PBC).
    real(wp), intent(in) :: cf
+   !> Quadrupole correction for Ewald summation (only used under PBC).
+   logical, intent(in) :: lqpc
    !> Final Coulomb matrix over all shells.
    real(wp), intent(inout) :: jab(:, :)
 
@@ -1313,9 +1318,10 @@ pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, jab)
    real(wp), parameter :: zero(3) = 0.0_wp
 
    integer :: is, iat, js, jat, img
-   real(wp) :: gi, gj, xij, jc, jself
+   real(wp) :: qpc, gi, gj, xij, jc, jself
    real(wp) :: ri(3), rj(3), rw(3), riw(3)
 
+   qpc = 0.0_wp
    jab = 0.0_wp
    do is = 1, nshell
       iat = ash(is)
@@ -1326,16 +1332,17 @@ pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, jab)
          rj = mol%xyz(:, jat)
          gj = gam(js)
          xij = gav(gi, gj)
+         if (lqpc) qpc = xij
          jc = 0.0_wp
          do img = 1, mol%wsc%itbl(jat, iat)
             rw = rj + matmul(mol%lattice, mol%wsc%lattr(:, img, jat, iat))
             riw = ri - rw
             jc = jc + mol%wsc%w(jat, iat) * (&
-               & + gfn_ewald_3d_rec(riw,ewaldCutR,mol%rec_lat,mol%volume,cf) &
-               & + gfn_ewald_3d_dir(riw,ewaldCutD,mol%lattice,xij,cf))
+               & + gfn_ewald_3d_rec(riw,ewaldCutR,mol%rec_lat,qpc,mol%volume,cf) &
+               & + gfn_ewald_3d_dir(riw,ewaldCutD,mol%lattice,xij,qpc,cf))
          enddo
          if (iat == jat) then
-            jself = xij - 2.0_wp*cf/sqrtpi
+            jself = xij - 2.0_wp*cf/sqrtpi + 2.0_wp/3.0_wp*cf**3/sqrtpi*qpc**2
             jab(is, js) = jc + jself
             jab(js, is) = jc + jself
          else
@@ -1347,13 +1354,14 @@ pure subroutine coulomb_matrix_3d_impl(mol, nshell, ash, gav, gam, cf, jab)
 
 end subroutine coulomb_matrix_3d_impl
 
-pure function gfn_ewald_3d_dir(riw,rep,dlat,xij,cf) result(Amat)
+pure function gfn_ewald_3d_dir(riw,rep,dlat,xij,qpc,cf) result(Amat)
    use iso_fortran_env, wp => real64
    use mctc_constants
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
    real(wp),intent(in) :: dlat(3,3) !< direct lattice
    real(wp),intent(in) :: xij       !< interaction radius
+   real(wp),intent(in) :: qpc       !< pseudo-quadrupole charge
    real(wp),intent(in) :: cf        !< convergence factor
    real(wp) :: Amat                 !< element of interaction matrix
    real(wp),parameter :: eps = 1.0e-9_wp
@@ -1368,16 +1376,18 @@ pure function gfn_ewald_3d_dir(riw,rep,dlat,xij,cf) result(Amat)
       r1 = sqrt(r2)
       arg2 = cf**2*r2
       eij = erf(cf*r1)
-      Amat = Amat + 1.0_wp/sqrt(r1**2 + xij**2) - eij/r1
+      Amat = Amat + 1.0_wp/sqrt(r1**2 + xij**2) &
+         & - (eij/r1 + 0.5_wp*qpc**2*(2*cf/sqrtpi*exp(-arg2)/r2 - eij/(r2*r1)))
    end do
 end function gfn_ewald_3d_dir
 
-pure function gfn_ewald_3d_rec(riw,rep,rlat,vol,cf) result(Amat)
+pure function gfn_ewald_3d_rec(riw,rep,rlat,qpc,vol,cf) result(Amat)
    use iso_fortran_env, wp => real64
    use mctc_constants
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
    real(wp),intent(in) :: rlat(3,3) !< reciprocal lattice
+   real(wp),intent(in) :: qpc       !< pseudo-quadrupole charge
    real(wp),intent(in) :: vol       !< direct cell volume
    real(wp),intent(in) :: cf        !< convergence factor
    real(wp) :: Amat                 !< element of interaction matrix
@@ -1392,7 +1402,7 @@ pure function gfn_ewald_3d_rec(riw,rep,rlat,vol,cf) result(Amat)
       rik = matmul(rlat, [dx,dy,dz])
       rik2 = sum(rik**2)
       Amat = Amat + cos(dot_product(rik,riw)) &
-         * exp(-rik2/(4.0_wp*cf**2))/rik2
+         * exp(-rik2/(4.0_wp*cf**2))/rik2 * (1.0_wp + 2*rik2*qpc**2)
    end do
    Amat = Amat * fpivol
 end function gfn_ewald_3d_rec

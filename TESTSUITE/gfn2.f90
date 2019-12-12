@@ -84,6 +84,7 @@ subroutine test_gfn2_scc
 
    scf_opt = scf_options(prlevel=prlevel, &
       &                  maxiter=maxiter, &
+      &                  lqpc=ewald_quadrupole_correction, &
       &                  cf=ewald_splitting_scale/mol%volume**(1.0_wp/3.0_wp), &
       &                  etemp=et, &
       &                  accuracy=acc)

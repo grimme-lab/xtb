@@ -515,7 +515,7 @@ program XTBprog
 !! ------------------------------------------------------------------------
 
 !! ========================================================================
-   if(periodic.and.gfn_method > 1)then
+   if(mol%npbc > 0 .and. gfn_method > 1)then
       call raise('E', 'Periodic implementation only available at zeroth-order (GFN0).',1)
    end if
 

@@ -227,6 +227,10 @@ $gfn
 *ewald*='real'::
     Ewald splitting parameter for GFN1-xTB and GFN2-xTB (default: 1.0).
 
+*quadrupole correction*='bool'::
+    Explicitly correct for pseudo-quadrupolar charges arising in
+    the Ewald summation of GFN1-xTB and GFN2-xTB (default: true).
+
 *cutoff disp*='real'::
     cutoff radius for dispersion interactions in Bohr (default: 64).
 

@@ -225,7 +225,7 @@ end subroutine rep_grad_gfn2
 !! ========================================================================
 !  shellwise electrostatic gradient for GFN1
 !! ========================================================================
-subroutine get_gfn_coulomb_derivs(mol, nshell, ash, gam, gtype, cf, qsh, &
+subroutine get_gfn_coulomb_derivs(mol, nshell, ash, gam, gtype, cf, lqpc, qsh, &
       &                           gradient, sigma)
    use tbdef_molecule
    !> Molecular structure information.
@@ -240,6 +240,8 @@ subroutine get_gfn_coulomb_derivs(mol, nshell, ash, gam, gtype, cf, qsh, &
    real(wp), intent(in) :: gam(:)
    !> Convergence for the Ewald summation (only used under PBC).
    real(wp), intent(in) :: cf
+   !> Quadrupole correction for Ewald summation (only used under PBC).
+   logical, intent(in) :: lqpc
    real(wp), intent(in) :: qsh(:)
    real(wp), intent(inout) :: gradient(:, :)
    real(wp), intent(inout) :: sigma(:, :)
@@ -248,7 +250,7 @@ subroutine get_gfn_coulomb_derivs(mol, nshell, ash, gam, gtype, cf, qsh, &
    case(tb_gam_type%gfn1)
       if (mol%npbc > 0) then
          call coulomb_derivs_3d_impl(mol, nshell, ash, gam, gfn1_gam_average, &
-            &                        cf, qsh, gradient, sigma)
+            &                        cf, lqpc, qsh, gradient, sigma)
       else
          call coulomb_derivs_0d_impl(mol, nshell, ash, gam, gfn1_gam_average, &
             &                        qsh, gradient)
@@ -256,7 +258,7 @@ subroutine get_gfn_coulomb_derivs(mol, nshell, ash, gam, gtype, cf, qsh, &
    case(tb_gam_type%gfn2)
       if (mol%npbc > 0) then
          call coulomb_derivs_3d_impl(mol, nshell, ash, gam, gfn2_gam_average, &
-            &                        cf, qsh, gradient, sigma)
+            &                        cf, lqpc, qsh, gradient, sigma)
       else
          call coulomb_derivs_0d_impl(mol, nshell, ash, gam, gfn2_gam_average, &
             &                        qsh, gradient)
@@ -301,7 +303,7 @@ subroutine coulomb_derivs_0d_impl(mol, nshell, ash, gam, gav, qsh, gradient)
 
 end subroutine coulomb_derivs_0d_impl
 
-subroutine coulomb_derivs_3d_impl(mol, nshell, ash, gam, gav, cf, qsh, &
+subroutine coulomb_derivs_3d_impl(mol, nshell, ash, gam, gav, cf, lqpc, qsh, &
       &                           gradient, sigma)
    use tbdef_molecule
    !> Molecular structure information.
@@ -316,6 +318,8 @@ subroutine coulomb_derivs_3d_impl(mol, nshell, ash, gam, gav, cf, qsh, &
    real(wp),intent(in) :: gam(:)
    !> Convergence for the Ewald summation (only used under PBC).
    real(wp),intent(in) :: cf
+   !> Quadrupole correction for Ewald summation (only used under PBC).
+   logical, intent(in) :: lqpc
    real(wp),intent(in) :: qsh(:)
    real(wp),intent(inout) :: gradient(:, :)
    real(wp),intent(inout) :: sigma(:, :)
@@ -325,8 +329,10 @@ subroutine coulomb_derivs_3d_impl(mol, nshell, ash, gam, gav, cf, qsh, &
    real(wp), parameter :: zero(3) = 0.0_wp
 
    integer :: is, js, iat, jat, img
-   real(wp) :: gi, gj, r2, ri(3), rj(3), rw(3), riw(3), xij, wqq
+   real(wp) :: gi, gj, r2, ri(3), rj(3), rw(3), riw(3), qpc, xij, wqq
    real(wp) :: dG(3), dS(3, 3), tG(3), tS(3, 3)
+
+   qpc = 0.0_wp
 
    do is = 1, nshell
       iat = ash(is)
@@ -337,17 +343,18 @@ subroutine coulomb_derivs_3d_impl(mol, nshell, ash, gam, gav, cf, qsh, &
          rj = mol%xyz(:, jat)
          gj = gam(js)
          xij = gav(gi, gj)
+         if (lqpc) qpc = xij
          dG = 0.0_wp
          dS = 0.0_wp
          do img = 1, mol%wsc%itbl(jat, iat)
             rw = rj + matmul(mol%lattice, mol%wsc%lattr(:, img, jat, iat))
             riw = ri - rw
             wqq = mol%wsc%w(jat,iat)*qsh(is)*qsh(js)
-            call gfn_ewald_dx_3d_rec(riw, ewaldCutR, mol%rec_lat, mol%volume, cf, &
-               &                     tG, tS)
+            call gfn_ewald_dx_3d_rec(riw, ewaldCutR, mol%rec_lat, qpc, &
+               &                     mol%volume, cf, tG, tS)
             dG = dG + tG * wqq
             dS = dS + tS * wqq
-            call gfn_ewald_dx_3d_dir(riw, ewaldCutD, mol%lattice, xij, cf, &
+            call gfn_ewald_dx_3d_dir(riw, ewaldCutD, mol%lattice, xij, qpc, cf, &
                &                     tG, tS)
             dG = dG + tG * wqq
             dS = dS + tS * wqq
@@ -366,13 +373,14 @@ subroutine coulomb_derivs_3d_impl(mol, nshell, ash, gam, gav, cf, qsh, &
 
 end subroutine coulomb_derivs_3d_impl
 
-pure subroutine gfn_ewald_dx_3d_rec(riw,rep,rlat,vol,cf,dG,dS)
+pure subroutine gfn_ewald_dx_3d_rec(riw,rep,rlat,qpc,vol,cf,dG,dS)
    use mctc_constants
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
    real(wp),intent(in) :: rlat(3,3) !< reciprocal lattice
    real(wp),intent(in) :: vol       !< direct cell volume
    real(wp),intent(in) :: cf        !< convergence factor
+   real(wp),intent(in) :: qpc       !< pseudo-quadrupole charge
    real(wp),intent(out) :: dG(3) !< element of interaction matrix
    real(wp),intent(out) :: dS(3,3)
    integer  :: dx,dy,dz
@@ -394,19 +402,21 @@ pure subroutine gfn_ewald_dx_3d_rec(riw,rep,rlat,vol,cf,dG,dS)
       dtmp = -sin(arg)*expterm
       dG = dG + rik*dtmp
       dS = dS + cos(arg)*expterm * (spread(rik, 1, 3)*spread(rik, 2, 3) &
-         & * (-2.0_wp/rik2 - 0.5_wp/cf**2) - unity)
+         & * (-2.0_wp/rik2 - 0.5_wp/cf**2 + 4*qpc**2) &
+         & - unity*(1.0_wp + 2*rik2*qpc**2))
    end do
    fpivol = 4.0_wp*pi/vol
    dG = dG * fpivol
    dS = dS * fpivol
 end subroutine gfn_ewald_dx_3d_rec
 
-pure subroutine gfn_ewald_dx_3d_dir(riw,rep,dlat,xij,cf,dG,dS)
+pure subroutine gfn_ewald_dx_3d_dir(riw,rep,dlat,xij,qpc,cf,dG,dS)
    use mctc_constants
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
    real(wp),intent(in) :: dlat(3,3) !< direct lattice
    real(wp),intent(in) :: xij       !< interaction radius
+   real(wp),intent(in) :: qpc       !< pseudo-quadrupole charge
    real(wp),intent(in) :: cf        !< convergence factor
    real(wp),intent(out) :: dG(3) !< element of interaction matrix
    real(wp),intent(out) :: dS(3,3)
@@ -425,6 +435,8 @@ pure subroutine gfn_ewald_dx_3d_dir(riw,rep,dlat,xij,cf,dG,dS)
       if(r1 < eps) cycle ! self-interaction handled elsewhere
       arg2 = cf**2 * r2
       dtmp = - 2*cf*exp(-arg2)/(sqrtpi*r2) + erf(cf*r1)/(r2*r1) &
+         &   + 0.5_wp*qpc**2 * ((4*cf**3*r2 + 6*cf)*exp(-arg2)/(sqrtpi*r2*r2) &
+         &                      - 3*erf(cf*r1)/(r2*r2*r1)) &
          &   - 1.0_wp/sqrt(r1**2 + xij**2)**3
       dG = dG + dtmp*rij
       dS = dS + dtmp*spread(rij, 1, 3)*spread(rij, 2, 3)

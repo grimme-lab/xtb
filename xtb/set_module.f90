@@ -160,6 +160,8 @@ subroutine write_set_gfn(ictrl)
    write(ictrl,'(3x,"periodic=",a)') bool2string(periodic)
    write(ictrl,'(3x,"ccm=",a)') &
       &  bool2string(cyclic_cluster_model)
+   write(ictrl,'(3x,"quadrupole correction=",a)') &
+      &  bool2string(ewald_quadrupole_correction)
    write(ictrl,'(3x,"ewald=",g0)') &
       &  ewald_splitting_scale
    write(ictrl,'(3x,"cutoff disp=",g0)') scf_cutoff_disp
@@ -1271,6 +1273,7 @@ subroutine set_gfn(key,val)
    logical,save :: set9 = .true.
    logical,save :: set10 = .true.
    logical,save :: set11 = .true.
+   logical,save :: set12 = .true.
    select case(key)
    case default ! do nothing
       call raise('S',"the key '"//key//"' is not recognized by gfn",1)
@@ -1318,6 +1321,9 @@ subroutine set_gfn(key,val)
    case('cutoff atm')
       if (get_value(val,ddum).and.set11) scf_cutoff_atm = ddum
       set11 = .false.
+   case('quadrupole correction')
+      if (get_value(val,ldum).and.set12) ewald_quadrupole_correction = ldum
+      set12 = .false.
    end select
 end subroutine set_gfn
 
