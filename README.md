@@ -2,6 +2,8 @@
 
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
 
+<img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="120">
+
 ## Installation
 
 Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
