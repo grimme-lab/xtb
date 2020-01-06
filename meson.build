@@ -69,6 +69,9 @@ elif cc.get_id() == 'intel'
   add_project_arguments('-std=c11', language: 'c')
 endif
 
+# fix compiliation problems with of symmetry/symmetry_i.c
+add_project_arguments('-D_Float128=__float128', language: 'c')
+
 ## ========================================== ##
 ## LIBRARIES
 ## ========================================== ##
