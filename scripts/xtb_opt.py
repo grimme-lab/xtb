@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # This file is part of xtb.
 #
-# Copyright (C) 2019 Sebastian Ehlert
+# Copyright (C) 2019-2020 Sebastian Ehlert
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
