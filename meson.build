@@ -550,7 +550,7 @@ if pylint.found()
 endif
 
 flake8 = find_program('flake8', required: false)
-if pylint.found()
+if flake8.found()
   test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'],
        env: xtbenv)
 endif
