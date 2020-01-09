@@ -1,5 +1,9 @@
 # Semiempirical Extended Tight-Binding Program Package
 
+[![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/master/COPYING)
+[![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
+[![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
+
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
 
 <img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="120">
