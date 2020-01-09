@@ -9,8 +9,18 @@ jobs:
     - uses: actions/setup-python@v1
       with:
         python-version: '3.x'
-    - run: sudo apt install -yq --no-install-recommends gfortran ninja-build liblapack-dev libblas-dev
+    - run: sudo apt install -yq --no-install-recommends gfortran-8 ninja-build liblapack-dev libblas-dev
     - run: pip3 install meson
-    - run: meson setup build_gcc --buildtype release -Dla_backend=netlib --warnlevel 0
-    - run: ninja -C build_gcc
-    - run: cd build_gcc && meson test --suite basic
+    - run: FC=gfortran-8 CC=gcc-8 meson setup build_gcc --buildtype release -Dla_backend=netlib --warnlevel 0
+    - run: ninja -C build_gcc test
+
+  osx-build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - run: brew install gcc@8 ninja meson lapack
+    - run: FC=gfortran-8 CC=gcc-8 meson setup build_gcc --buildtype release -Dla_backend=netlib --warnlevel 0
+    - run: ninja -C build_gcc test
