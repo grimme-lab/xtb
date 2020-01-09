@@ -22,6 +22,8 @@ module scf_module
 
    logical,private,parameter :: profile = .true.
 
+   integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+
 contains
 
 subroutine scf(iunit,mol,wfn,basis,param,pcem, &

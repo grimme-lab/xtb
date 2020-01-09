@@ -1,5 +1,6 @@
 # Semiempirical Extended Tight-Binding Program Package
 
+[![Build Status](https://github.com/grimme-lab/xtb/workflows/CI/badge.svg)](https://github.com/grimme-lab/xtb/actions)
 [![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/master/COPYING)
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)

@@ -689,7 +689,7 @@ subroutine read_molecule_gen(mol, unit, status, iomsg)
 
    call next_line(unit, line, error)
    read(line, *, iostat=error) natoms, variant
-   if (any(species == 0)) then
+   if (error /= 0 .or. natoms < 1) then
       iomsg = 'could not read number of atoms'
       return
    endif

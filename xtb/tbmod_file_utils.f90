@@ -42,11 +42,18 @@ subroutine file_generate_meta_info(fname, extension, basename, directory)
       extension = fname(idot+1:)
    else ! means point is somewhere in the path or absent
       idot = len(fname)+1
+      extension = ''
    endif
    if (idot > islash .and. islash > 0) then
       basename = fname(islash+1:idot-1)
+   else
+      basename = ''
    endif
-   if (islash > 0) directory = fname(:islash)
+   if (islash > 0) then
+      directory = fname(:islash)
+   else
+      directory = ''
+   endif
 end subroutine file_generate_meta_info
 
 subroutine file_generate_name(fname, basename, extension, ftype)

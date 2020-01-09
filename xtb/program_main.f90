@@ -263,6 +263,7 @@ program XTBprog
    if (coffee) then ! it's coffee time
       fname = 'caffeine'
       call get_coffee(mol)
+      call file_generate_meta_info(fname, extension, basename, directory)
    else
       call file_generate_meta_info(fname, extension, basename, directory)
       call file_figure_out_ftype(ftype, extension, basename)

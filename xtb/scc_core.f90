@@ -28,7 +28,7 @@ module scc_core
    use mctc_la, only : sygvd,gemm,symm
    implicit none
 
-   integer, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+   integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
  
 contains
 

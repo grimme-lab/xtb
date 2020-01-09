@@ -136,7 +136,9 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
       !$       & call raise('S','Process number higher than OMP_NUM_THREADS, '//&
       !$       &                'I hope you know what you are doing.',1)
       !$       call omp_set_num_threads(idum)
+#ifdef WITH_MKL
       !$       call mkl_set_num_threads(idum)
+#endif
       !$    endif
          case(     '--restart')
             restart = .true.
@@ -500,7 +502,7 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
    endif
 
    if (.not.allocated(xcontrol)) then
-      if (.not.copycontrol) then
+      if (.not.copycontrol.and.allocated(fname)) then
          xcontrol = fname
       else
          xcontrol = 'xcontrol'

@@ -35,7 +35,7 @@ module tbdef_atomlist
       logical :: error = .false.
    contains
       generic :: new => from_integers, from_logicals, from_string, from_defaults
-      procedure, private :: from_defaults => atomlist_defaults
+      procedure, private, non_overridable :: from_defaults => atomlist_defaults
       procedure, private :: from_integers => atomlist_assign_integers
       procedure, private :: from_logicals => atomlist_assign_logicals
       procedure, private :: from_string => atomlist_assign_string
@@ -131,7 +131,7 @@ pure function atomlist_from_string(list, truth, delimiter, skip) result(self)
    call self%new(list)
 end function atomlist_from_string
 
-pure elemental subroutine atomlist_defaults(self)
+subroutine atomlist_defaults(self)
    class(tb_atomlist), intent(out) :: self
 end subroutine atomlist_defaults
 

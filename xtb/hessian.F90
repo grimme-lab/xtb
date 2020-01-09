@@ -167,7 +167,9 @@ subroutine numhess( &
       !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,wfx,tmol) &
       !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh)
       !$ call omp_set_num_threads(1)
+#ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
+#endif
       !$omp do schedule(dynamic)
       do a = 1, nonfrozh
          ia=indx(a)
@@ -210,7 +212,9 @@ subroutine numhess( &
       !$omp end do
       !$omp end parallel
       !$ call omp_set_num_threads(nproc)
+#ifdef WITH_MKL
       !$ call mkl_set_num_threads(nproc)
+#endif
 
    else
 !! ------------------------------------------------------------------------
@@ -222,7 +226,9 @@ subroutine numhess( &
       !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,wfx,tmol) &
       !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave)
       !$ call omp_set_num_threads(1)
+#ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
+#endif
       !$omp do schedule(dynamic)
       do ia = 1, mol%n
          do ic = 1, 3
@@ -276,7 +282,9 @@ subroutine numhess( &
       !$omp end do
       !$omp end parallel
       !$ call omp_set_num_threads(nproc)
+#ifdef WITH_MKL
       !$ call mkl_set_num_threads(nproc)
+#endif
 
    endif
 

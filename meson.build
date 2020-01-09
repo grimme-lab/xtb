@@ -17,10 +17,17 @@
 
 # extended tight binding program package
 project('xtb',
-        'fortran', 'c', 'cpp',
+        'fortran', 'c',
         version: '6.2.2',
         license: 'LGPL3',
         meson_version: '>=0.49')
+
+fc = meson.get_compiler('fortran')
+cc = meson.get_compiler('c')
+
+if fc.get_id() != cc.get_id()
+  warning('FC and CC are not from the same vendor')
+endif
 
 # build a configuration data containing all the important data to propagate
 # it to the automatically generated files
@@ -42,11 +49,9 @@ config = configuration_data({
 configure_file(input : 'xtb'/'version.f90', output : 'xtb_version.fh',
   configuration : config)
 
-fc = meson.get_compiler('fortran')
-cc = meson.get_compiler('c')
-cxx= meson.get_compiler('cpp')
-
 if fc.get_id() == 'gcc'
+  add_project_arguments('-fdefault-real-8', language: 'fortran')
+  add_project_arguments('-fdefault-double-8', language: 'fortran')
   add_project_arguments('-ffree-line-length-none', language: 'fortran')
   add_project_arguments('-fbacktrace', language: 'fortran')
 elif fc.get_id() == 'intel'
@@ -55,12 +60,6 @@ elif fc.get_id() == 'intel'
   add_project_arguments('-traceback', language: 'fortran')
   add_project_link_arguments('-static', language: 'fortran')
   add_project_link_arguments('-static', language: 'c') # icc will do linking
-endif
-
-if cxx.get_id() == 'gcc'
-  add_project_arguments('-std=c++11', language: 'cpp')
-elif cxx.get_id() == 'intel'
-  add_project_arguments('-std=c++11', language: 'cpp')
 endif
 
 if cc.get_id() == 'gcc'
@@ -80,9 +79,7 @@ dependencies_exe = []
 dependencies_sha = []
 
 if get_option('la_backend') == 'mkl'
-  libmkl = [fc.find_library('pthread')]
-  libmkl += fc.find_library('m')
-  libmkl += fc.find_library('dl')
+  add_project_arguments('-DWITH_MKL', language: 'fortran')
   if fc.get_id() == 'gcc'
     libmkl_exe = [fc.find_library('mkl_gf_lp64')]
     libmkl_exe += fc.find_library('mkl_gnu_thread')
@@ -93,20 +90,30 @@ if get_option('la_backend') == 'mkl'
   libmkl_exe += fc.find_library('mkl_core')
   libmkl_exe += fc.find_library('iomp5')
   libmkl_sha = [fc.find_library('mkl_rt')]
-  dependencies += libmkl
   dependencies_sha += libmkl_sha
   dependencies_exe += libmkl_exe
+elif get_option('la_backend') == 'openblas'
+  dependencies += fc.find_library('openblas', required: true)
+  dependencies += fc.find_library('lapack', required: true)
+elif get_option('la_backend') == 'custom'
+  foreach lib: get_option('custom_libraries')
+    dependencies += fc.find_library(lib)
+  endforeach
 else
   dependencies += fc.find_library('blas', required: true)
   dependencies += fc.find_library('lapack', required: true)
 endif
 
-if fc.get_id() == 'gcc'
-  add_project_arguments('-fopenmp', language: 'fortran')
-  add_project_link_arguments('-fopenmp', language: 'fortran')
-elif fc.get_id() == 'intel'
-  add_project_arguments('-qopenmp', language: 'fortran')
-  add_project_link_arguments('-qopenmp', language: 'fortran')
+if get_option('openmp')
+  if fc.get_id() == 'gcc'
+    add_project_arguments('-fopenmp', language: 'fortran')
+    add_project_link_arguments('-fopenmp', language: 'fortran')
+    add_project_link_arguments('-fopenmp', language: 'c')
+  elif fc.get_id() == 'intel'
+    add_project_arguments('-qopenmp', language: 'fortran')
+    add_project_link_arguments('-qopenmp', language: 'fortran')
+    add_project_link_arguments('-qopenmp', language: 'c')
+  endif
 endif
 dependencies += dependency('threads')
 
@@ -176,7 +183,7 @@ xtb_srcs += 'xtb/readin.f90'
 xtb_srcs += 'xtb/filetools.f90'
 xtb_srcs += 'xtb/set_module.f90'
 xtb_srcs += 'xtb/constrain_param.f90'
-xtb_srcs += 'xtb/argparser.f90'
+xtb_srcs += 'xtb/argparser.F90'
 xtb_srcs += 'xtb/header.f90'
 xtb_srcs += 'xtb/printout.f90'
 xtb_srcs += 'xtb/xhelp.f90'
@@ -293,7 +300,7 @@ xtb_srcs += 'xtb/qsort.f90'
 xtb_srcs += 'xtb/locmode.f'
 xtb_srcs += 'xtb/intmodes.f'
 xtb_srcs += 'xtb/wrmodef.f'
-xtb_srcs += 'xtb/hessian.f90'
+xtb_srcs += 'xtb/hessian.F90'
 xtb_srcs += 'xtb/xbond.f90'
 xtb_srcs += 'xtb/timing.f90'
 xtb_srcs += 'xtb/prmat.f'
@@ -342,23 +349,10 @@ xtb_srcs += 'symmetry/symmetry_i.c'
 
 # API
 xtb_srcs += 'xtb/calculator.f90'
+xtb_srcs += 'xtb/gfn0_calculator.f90'
+xtb_srcs += 'xtb/gfn1_calculator.f90'
+xtb_srcs += 'xtb/gfn2_calculator.f90'
 xtb_srcs += 'xtb/c_api.f90'
-
-xtb_test = ['TESTSUITE/tests_peeq.f90']
-xtb_test += 'TESTSUITE/assertion.f90'
-xtb_test += 'TESTSUITE/tbdef_molecule.f90'
-xtb_test += 'TESTSUITE/tbdef_wsc.f90'
-xtb_test += 'TESTSUITE/geometry_reader.f90'
-xtb_test += 'TESTSUITE/eeq_model.f90'
-xtb_test += 'TESTSUITE/pbc_tools.f90'
-xtb_test += 'TESTSUITE/dftd4.f90'
-xtb_test += 'TESTSUITE/gfn2.f90'
-xtb_test += 'TESTSUITE/gfn1.f90'
-xtb_test += 'TESTSUITE/gfn0.f90'
-xtb_test += 'TESTSUITE/peeq.f90'
-xtb_test += 'TESTSUITE/symmetry.f90'
-xtb_test += 'TESTSUITE/thermo.f90'
-xtb_test += 'TESTSUITE/tbdef_atomlist.f90'
 
 incdir = include_directories('include')
 
@@ -435,100 +429,14 @@ endif
 ## ========================================== ##
 ## TESTSUITE
 ## ========================================== ##
-xtb_test = executable('xtb_test',
-                      xtb_test,
-                      dependencies: dependencies_exe,
-                      include_directories: incdir,
-                      link_with: xtb_lib_static)
-
 # make sure the correct library is loaded
 xtbenv = environment()
 xtbenv.prepend('LD_LIBRARY_PATH', meson.current_build_dir())
 xtbenv.prepend('PYTHONPATH', meson.current_source_dir() / 'python')
 xtbenv.set('XTBPATH', meson.current_source_dir())
 
-# some very basic checks to see if the executable reacts at all
-test('Argparser: print version', xtb_exe, args: '--version', env: xtbenv)
-test('Argparser: print help', xtb_exe, args: '--help', env: xtbenv)
-test('Argparser: print license', xtb_exe, args: '--license', env: xtbenv)
-test('Argparser: no arguments', xtb_exe, should_fail: true, env: xtbenv)
-
-test('Runtyp: singlepoint', xtb_exe, args: ['--coffee', '--strict', '--norestart'], env: xtbenv)
-test('Runtyp: geometry opt.', xtb_exe, args: ['--coffee', '--opt', '--strict', '--norestart'], env: xtbenv)
-test('Runtyp: IP/EA', xtb_exe, args: ['--coffee', '--gfn', '2', '--vipea', '--strict', '--norestart'], env: xtbenv)
-test('Method: GFN0-xTB', xtb_exe, args: ['--coffee', '--gfn', '0', '--strict', '--norestart'], env: xtbenv)
-test('Method: GFN1-xTB', xtb_exe, args: ['--coffee', '--gfn', '1', '--strict', '--norestart'], env: xtbenv)
-test('Method: GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--gbsa', 'h2o', '--norestart'], env: xtbenv)
-
-# more specific tests are implemented by the tester binary
-test('Molecule Class: axis', xtb_test, args: ['tbdef_molecule', 'axis'], env: xtbenv)
-test('Molecule Class: MIC', xtb_test, args: ['tbdef_molecule', 'mic'], env: xtbenv)
-
-test('Wigner-Seitz Cell (0D)', xtb_test, args: ['tbdef_wsc', '0d'], env: xtbenv)
-test('Wigner-Seitz Cell (3D)', xtb_test, args: ['tbdef_wsc', '3d'], env: xtbenv)
-
-test('Geometry Reader: coord 3D', xtb_test, args: ['geometry_reader', 'coord_3d_a'], env: xtbenv)
-test('Geometry Reader: coord 3D', xtb_test, args: ['geometry_reader', 'coord_3d_b'], env: xtbenv)
-test('Geometry Reader: coord 2D', xtb_test, args: ['geometry_reader', 'coord_2d'], env: xtbenv)
-test('Geometry Reader: coord 1D', xtb_test, args: ['geometry_reader', 'coord_1d'], env: xtbenv)
-test('Geometry Reader: coord 0D', xtb_test, args: ['geometry_reader', 'coord_0d'], env: xtbenv)
-test('Geometry Reader: Xmol  0D', xtb_test, args: ['geometry_reader', 'xmol_0d'], env: xtbenv)
-test('Geometry Reader: POSCAR', xtb_test, args: ['geometry_reader', 'poscar_3d'], env: xtbenv)
-test('Geometry Reader: molfile', xtb_test, args: ['geometry_reader', 'molfile'], env: xtbenv)
-test('Geometry Reader: molfile flat', xtb_test, should_fail: true, args: ['geometry_reader', 'molfile_flat'], env: xtbenv)
-test('Geometry Reader: SDF', xtb_test, args: ['geometry_reader', 'sdfile'], env: xtbenv)
-test('Geometry Reader: SDF flat', xtb_test, should_fail: true, args: ['geometry_reader', 'sdfile_flat'], env: xtbenv)
-test('Geometry Reader: SDF no H', xtb_test, should_fail: true, args: ['geometry_reader', 'sdfile_noh'], env: xtbenv)
-test('Geometry Reader: PDB', xtb_test, args: ['geometry_reader', 'pdb'], env: xtbenv)
-test('Geometry Reader: PDB no H', xtb_test, should_fail: true, args: ['geometry_reader', 'pdb_noh'], env: xtbenv)
-test('Geometry Reader: genFormat', xtb_test, args: ['geometry_reader', 'gen'], env: xtbenv)
-
-test('IO: atom list', xtb_test, args: ['tbdef_atomlist', 'list'], env: xtbenv)
-
-test('PBC tools: convert',xtb_test, args: ['pbc_tools', 'convert'], env: xtbenv)
-test('PBC tools: cutoff', xtb_test, args: ['pbc_tools', 'cutoff'], env: xtbenv)
-
-test('Symmetry: Water', xtb_test, args: ['symmetry', 'water'], env: xtbenv)
-test('Symmetry: Li8', xtb_test, args: ['symmetry', 'li8'], env: xtbenv)
-test('Symmetry: PCl3', xtb_test, args: ['symmetry', 'pcl3'], env: xtbenv)
-test('Symmetry: large', xtb_test, args: ['symmetry', 'c20'], env: xtbenv)
-
-test('Thermo: axis', xtb_test, args: ['thermo', 'axis'], env: xtbenv)
-test('Thermo: calculation', xtb_test, args: ['thermo', 'calc'], env: xtbenv)
-test('Thermo: print', xtb_test, args: ['thermo', 'print'], env: xtbenv)
-
-test('EEQ model: water', xtb_test,args: ['eeq_model', 'water'], env: xtbenv)
-test('EEQ model: 3D Ewald', xtb_test,args: ['eeq_model', 'ewald'], env: xtbenv)
-test('EEQ model: GBSA', xtb_test,args: ['eeq_model', 'gbsa'], env: xtbenv)
-test('EEQ model: GBSA (salt)', xtb_test,args: ['eeq_model', 'salt'], env: xtbenv)
-test('EEQ model: GBSA (H-bond)', xtb_test,args: ['eeq_model', 'hbond'], env: xtbenv)
-
-test('Dispersion: properties', xtb_test,args: ['dftd4', 'properties'], env: xtbenv)
-test('Dispersion: energies', xtb_test,args: ['dftd4', 'energies'], env: xtbenv)
-test('Dispersion: energies (PBC)', xtb_test,args: ['dftd4', 'pbc_disp'], env: xtbenv)
-#test('Dispersion: cell gradients', xtb_test,args: ['dftd4', 'cell_gradient'] env: xtbenv)
-test('Dispersion: API', xtb_test,args: ['dftd4', 'api'], env: xtbenv)
-#test('Dispersion: API (PBC)', xtb_test,args: ['dftd4', 'pbc_api'] env: xtbenv)
-
-test('GFN2-xTB: SCC', xtb_test, args: ['gfn2', 'scc'], env: xtbenv)
-test('GFN2-xTB: API', xtb_test, args: ['gfn2', 'api'], env: xtbenv)
-test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv)
-test('GFN2-xTB: API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv)
-test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv)
-test('GFN2-xTB: C++', executable('xtb_cpp_test', 'TESTSUITE/cpp_api_example.cpp',
-                                 include_directories: incdir,
-                                 dependencies: xtb_dep),
-                                 env: xtbenv)
-
-test('GFN1-xTB: SCC', xtb_test, args: ['gfn1', 'scc'], env: xtbenv)
-test('GFN1-xTB: API', xtb_test, args: ['gfn1', 'api'], env: xtbenv)
-test('GFN1-xTB: API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv)
-test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv)
-
-test('GFN0-xTB: SP', xtb_test, args: ['gfn0', 'sp'], env: xtbenv)
-test('GFN0-xTB: API', xtb_test, args: ['gfn0', 'api'], env: xtbenv)
-test('GFN0-xTB: SP  (PBC)', xtb_test, args: ['peeq', 'sp'], env: xtbenv)
-test('GFN0-xTB: API (PBC)', xtb_test, args: ['peeq', 'api'], env: xtbenv)
+# all tests are defined in a separate meson.build
+subdir('TESTSUITE')
 
 py_xtb = meson.current_source_dir() / 'python' / 'xtb'
 
@@ -539,18 +447,15 @@ endif
 
 mypy = find_program('mypy', required: false)
 if mypy.found()
-  test('mypy: xtb.py', mypy, args: [py_xtb, '--ignore-missing-imports'],
-       env: xtbenv)
+  test('mypy: xtb.py', mypy, args: [py_xtb, '--ignore-missing-imports'], env: xtbenv)
 endif
 
 pylint = find_program('pylint', required: false)
 if pylint.found()
-  test('pylint: xtb.py', pylint, args: [py_xtb, '--disable=invalid-names,duplicate-code'],
-       env: xtbenv)
+  test('pylint: xtb.py', pylint, args: [py_xtb, '--disable=invalid-names,duplicate-code'], env: xtbenv)
 endif
 
 flake8 = find_program('flake8', required: false)
 if flake8.found()
-  test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'],
-       env: xtbenv)
+  test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'], env: xtbenv)
 endif
