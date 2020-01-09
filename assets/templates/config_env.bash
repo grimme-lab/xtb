@@ -15,6 +15,6 @@ MANPATH=${MANPATH}:${XTBHOME}/@mandir@
 PATH=${PATH}:${XTBHOME}/@bindir@
 
 # enable package config for xtb
-PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${XTBHOME}/@datadir@
+PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${XTBHOME}/@libdir@/pkgconfig
 
 export PATH XTBPATH MANPATH PKG_CONFIG_PATH
