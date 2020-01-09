@@ -12,8 +12,7 @@ makedepends=('git' 'meson' 'ninja')
 conflicts=("${_pkgname}")
 license=('LGPL3')
 pkgdesc="Semiempirical Extended Tight-Binding Program Package"
-#source=("git+https://github.com/grimme-lab/xtb.git#branch=master")
-source=("git+file:///home/awvwgk/projects/src/github.com/xtb#branch=master")
+source=("git+https://github.com/grimme-lab/xtb.git#branch=master")
 md5sums=('SKIP')
 
 pkgver() {
