@@ -17,18 +17,18 @@ There is also a version of the shared library, which requires the Math Kernel Li
 To compile `xtb` from source install Intel Parallel Studio 17 or later.
 
 We are using [`meson`](https://mesonbuild.com/) as build system and require you to install a fairly new version like 0.49 or newer.
-To use the default backend of `meson` you have to install `ninja` version 1.5 or newer.
+To use the default backend of `meson` you have to install [`ninja`](https://ninja-build.org/) version 1.5 or newer.
 
 ```bash
-export FC=ifort CC=icc CXX=icpc
-meson setup build_intel --optimization=2
+export FC=ifort CC=icc
+meson setup build_intel --buildtype release --optimization=2
 ninja -C build_intel test
 ```
 
 Make sure the testsuite is running without errors.
 `xtb` is routinely compiled with Intel Parallel Studio 17 on our clusters in Bonn,
 but we have not tried to compile it on either OSX or Windows so far.
-Also you currently cannot compile `xtb` with GCC and there is no plan to support it in the near future.
+It is also possible to compile `xtb` with GCC (version 8), but we recommend to use binaries compiled with Intel.
 
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
 

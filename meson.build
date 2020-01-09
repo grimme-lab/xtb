@@ -407,13 +407,15 @@ install_data(xtb_parameter_files)
 setup_files = [
   'config_env.bash',
   'config_env.csh',
-  '@0@.pc'.format(meson.project_name()),
 ]
 foreach file: setup_files
-  configure_file(input: meson.current_source_dir()/'.templates'/file,
-                 output: file, configuration: config)
-  install_data(meson.current_build_dir()/file)
+  install_data(configure_file(input: files('assets'/'templates'/file),
+               output: file, configuration: config))
 endforeach
+pkg_config = '@0@.pc'.format(meson.project_name())
+install_data(configure_file(input: files('assets'/'templates'/pkg_config),
+             output: pkg_config, configuration: config),
+             install_dir: get_option('libdir')/'pkgconfig')
 
 if get_option('install_modules')
   xtb_objs = []

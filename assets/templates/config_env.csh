@@ -15,4 +15,4 @@ setenv MANPATH ${MANPATH}:${XTBHOME}/@mandir@
 setenv PATH ${PATH}:${XTBHOME}/@bindir@
 
 # enable package config for xtb
-setenv PKG_CONFIG_PATH ${PKG_CONFIG_PATH}:${XTBHOME}/@datadir@
+setenv PKG_CONFIG_PATH ${PKG_CONFIG_PATH}:${XTBHOME}/@libdir@/pkgconfig
