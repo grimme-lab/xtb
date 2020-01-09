@@ -1,19 +1,17 @@
-#include <cmath>
-#include <cassert>
-#include <cstdio>
+#include <math.h>
+#include <assert.h>
+#include <stdio.h>
 
 #include "xtb.h"
-
-using namespace std;
 
 int
 main (int argc, char **argv)
 {
-   const double thr = 1.0e-10;
-   const int    natoms = 7;
-   const int    attyp[natoms] = {6,6,6,1,1,1,1};
-   const double charge = 0.0;
-   const double coord[3*natoms] =
+   double const thr = 1.0e-10;
+   int    const natoms = 7;
+   int    const attyp[7] = {6,6,6,1,1,1,1};
+   double const charge = 0.0;
+   double const coord[3*7] =
       {0.00000000000000, 0.00000000000000,-1.79755622305860,
        0.00000000000000, 0.00000000000000, 0.95338756106749,
        0.00000000000000, 0.00000000000000, 3.22281255790261,
@@ -22,16 +20,16 @@ main (int argc, char **argv)
        1.92825631079613, 0.00000000000000,-2.53624948351102,
        0.00000000000000, 0.00000000000000, 5.23010455462158};
 
-   const xtb::SCC_options opt {2, 0, 1.0, 300.0, true, false, true, 30, "none"};
+   SCC_options const opt = (SCC_options){2, 0, 1.0, 300.0, true, false, true, 30, "none"};
 
-   double energy {0.0};
-   double dipole[3] {0.0};
-   double q[natoms] {0.0};
-   double qp[6*natoms] {0.0};
-   double wbo[natoms*natoms] {0.0};
+   double energy;
+   double dipole[3];
+   double q[natoms];
+   double qp[6*natoms];
+   double wbo[natoms*natoms];
 
-   int stat = xtb::GFN2_calculation(&natoms, attyp, &charge, nullptr, coord, &opt, "-",
-                                    &energy, nullptr, dipole, q, nullptr, qp, wbo);
+   int stat = GFN2_calculation(&natoms, attyp, &charge, NULL, coord, &opt, "-",
+                               &energy, NULL, dipole, q, NULL, qp, wbo);
 
    assert(stat == 0);
    assert(fabs(energy + 8.3824793818504) < 1.0e-10);
