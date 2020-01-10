@@ -1,0 +1,3 @@
+[submodule "assets/aur/xtb-git"]
+	path = assets/aur/xtb-git
+	url = https://aur.archlinux.org/xtb-git.git
