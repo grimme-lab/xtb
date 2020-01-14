@@ -44,16 +44,15 @@ subroutine disclamer(iunit)
 integer,intent(in) :: iunit
 write(iunit,'(3x,a)') &
    !< < < < < < < < < < < < < < < > > > > > > > > > > > > > > > >!
-   "This program is distributed in the hope that it will be useful,",&
-   "but WITHOUT ANY WARRANTY; without even the implied warranty of",&
-   "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",&
-   "",&
-   "FOR NON-COMMERCIAL, ACADEMIA USE ONLY.",&
-!  "Test license to: Novartis Institutes",&
-!  "Licensed to Novartis Institues",&
-!  "for Biomedical Research (NIBR)",&
-!  "Test license to: R. Sure, BASF",&
-!  "Licensed to CreativeQuantum GmbH, Berlin",&
+   "xtb is free software: you can redistribute it and/or modify it under", &
+   "the terms of the GNU Lesser General Public License as published by", &
+   "the Free Software Foundation, either version 3 of the License, or", &
+   "(at your option) any later version.", &
+   "", &
+   "xtb is distributed in the hope that it will be useful,", &
+   "but WITHOUT ANY WARRANTY; without even the implied warranty of", &
+   "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the", &
+   "GNU Lesser General Public License for more details.", &
    ""
 end subroutine disclamer
 
