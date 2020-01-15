@@ -231,3 +231,25 @@ set(XTB_SOURCES
   "${XTB_ROOT}/xtb/gfn2_calculator.f90"
   "${XTB_ROOT}/xtb/c_api.f90"
 )
+
+set(XTB_F_TEST_SOURCES
+  "${XTB_ROOT}/TESTSUITE/assertion.f90"
+  "${XTB_ROOT}/TESTSUITE/dftd4.f90"
+  "${XTB_ROOT}/TESTSUITE/eeq_model.f90"
+  "${XTB_ROOT}/TESTSUITE/geometry_reader.f90"
+  "${XTB_ROOT}/TESTSUITE/gfn0.f90"
+  "${XTB_ROOT}/TESTSUITE/gfn1.f90"
+  "${XTB_ROOT}/TESTSUITE/gfn2.f90"
+  "${XTB_ROOT}/TESTSUITE/pbc_tools.f90"
+  "${XTB_ROOT}/TESTSUITE/peeq.f90"
+  "${XTB_ROOT}/TESTSUITE/symmetry.f90"
+  "${XTB_ROOT}/TESTSUITE/tbdef_atomlist.f90"
+  "${XTB_ROOT}/TESTSUITE/tbdef_molecule.f90"
+  "${XTB_ROOT}/TESTSUITE/tbdef_wsc.f90"
+  "${XTB_ROOT}/TESTSUITE/tests_peeq.f90"
+  "${XTB_ROOT}/TESTSUITE/thermo.f90"
+)
+
+set(XTB_C_TEST_SOURCES
+  "${XTB_ROOT}/TESTSUITE/c_api_example.c"
+)
