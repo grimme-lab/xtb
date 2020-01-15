@@ -16,7 +16,7 @@ There is also a version of the shared library, which requires the Math Kernel Li
 
 To compile `xtb` from source install Intel Parallel Studio 17 or later, or GCC version 8 or later.
 
-There are two ways of building XTB.
+There are two ways of building xtb.
 
 ### Meson
 Using [`meson`](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.49 or newer.
@@ -57,12 +57,12 @@ parameter files available. Also a pkg-config file is generated to make
 The CMake build system requires both `make` and `cmake` to be installed, the
 latter has to be version 3.9 or newer.
 
-Building XTB with CMake works with the following chain of commands:
+Building xtb with CMake works with the following chain of commands:
 
 ```bash
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/some/place/nice ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local ..
 make
 make install
 ```
@@ -70,9 +70,7 @@ make install
 The compiled tests can be executed using the following commands:
 
 ```bash
-export XTBHOME=$PWD
-cd build
-make test
+cd build && XTBPATH=$PWD/.. make test
 ```
 
 (This also works when not installing the program, but just building it.)
