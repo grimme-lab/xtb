@@ -151,6 +151,7 @@ class GFN1(XTB):
         'energy',
         'free_energy',
         'forces',
+        'stress',
         'dipole',
         'charges',
         'wiberg',
