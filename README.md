@@ -70,7 +70,7 @@ make install
 The compiled tests can be executed using the following commands:
 
 ```bash
-cd build && XTBPATH=$PWD/.. make test
+cd build && XTBPATH=$PWD/.. OMP_NUM_THREADS=1 make test
 ```
 
 (This also works when not installing the program, but just building it.)
