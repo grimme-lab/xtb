@@ -8,7 +8,7 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
 #    set(dialect "-ffree-line-length-none -fbacktrace")
     set(bounds "-fbounds-check")
-    if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8.0)
+    if(NOT CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0.0)
       set(DISABLE_OMP ON)
     endif()
 endif()
@@ -20,10 +20,14 @@ set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
 
 # TODO
-set(version "6.2.2")
-set(commit "dummy")
-set(date "dummy")
-set(author "author@origin")
+set(version ${PROJECT_VERSION})
+execute_process(COMMAND git rev-parse HEAD
+ RESULT_VARIABLE git_return
+ OUTPUT_VARIABLE commit)
+string(REGEX REPLACE "\n$" "" commit ${commit})
+string(TIMESTAMP date "%m/%d/%Y")
+set(author $ENV{USERNAME})
+set(origin $ENV{HOSTNAME})
 configure_file("${XTB_ROOT}/xtb/version.f90" "${XTB_ROOT}/xtb/xtb_version.fh" @ONLY)
 
 # Find dependencies
