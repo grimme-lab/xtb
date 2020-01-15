@@ -6,7 +6,6 @@ include(Files.cmake)
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
-#    set(dialect "-ffree-line-length-none -fbacktrace")
     set(bounds "-fbounds-check")
     if(NOT CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0.0)
       set(DISABLE_OMP ON)
@@ -19,7 +18,7 @@ endif()
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
 
-# TODO
+# Populate xtb_version.fh
 set(version ${PROJECT_VERSION})
 execute_process(COMMAND git rev-parse HEAD
  RESULT_VARIABLE git_return
@@ -118,6 +117,35 @@ install(TARGETS xtb_static xtb_shared xtb
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
 )
+# CMake package files
+include(CMakePackageConfigHelpers)
+# -- Config version file
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+# -- Config file
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/config.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfig.cmake"
+  INSTALL_DESTINATION share/cmake/xtb
+)
+# -- Install config and configVersion
+install(
+ FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfigVersion.cmake"
+ DESTINATION share/cmake/xtb
+)
+# -- Targets file
+# -- This makes the project importable from the build directory
+export(EXPORT xtbTargets FILE "${CMAKE_CURRENT_BINARY_DIR}/xtbTargets.cmake")
+# -- This makes the project importable from the install directory
+install(EXPORT xtbTargets FILE "xtbTargets.cmake"
+  DESTINATION share/cmake/xtb
+)
+
 
 # Build Tests
 add_executable(xtb_tests_static ${XTB_F_TEST_SOURCES})
