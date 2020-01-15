@@ -159,14 +159,21 @@ module subroutine gfn1_calculation &
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
 
-   ! do a EEQ guess
-   allocate( cn(mol%n), source = 0.0_wp )
-   call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,chrgeq,cn,wfn%q)
-   deallocate(cn)
+   if (mol%npbc > 0) then
+      wfn%q = mol%chrg / mol%n
+   else
+      allocate( cn(mol%n), source = 0.0_wp )
+      call new_charge_model_2019(chrgeq,mol%n,mol%at)
+      call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+      call eeq_chrgeq(mol,chrgeq,cn,wfn%q)
+      deallocate(cn)
+   endif
 
    call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+
+   if (opt%restart) then
+      call read_restart(wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)
+   endif
 
    ! ====================================================================
    !  STEP 5: do the calculation
@@ -178,6 +185,10 @@ module subroutine gfn1_calculation &
       &                  accuracy=opt%acc)
    call scf(iunit,mol,wfn,basis,param,pcem,scf_opt,hl_gap, &
       &     energy,gradient,sigma,res)
+
+   if (opt%restart) then
+      call write_restart(wfn,'xtbrestart',gfn_method)
+   endif
 
    if (mol%npbc > 0) then
       inv_lat = mat_inv_3x3(mol%lattice)

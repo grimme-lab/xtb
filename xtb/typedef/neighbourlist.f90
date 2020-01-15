@@ -65,7 +65,7 @@ module tbdef_neighbourlist
       !> Whether system is periodic
       logical :: periodic
       !> Lattice vectors, if system is periodic
-      real(wp), allocatable :: lattice(:, :)
+      real(wp) :: lattice(3, 3) = 0.0_wp
       !> Inverse lattice vectors, if system is periodic
       real(wp), allocatable :: inv_lat(:, :)
       !> Returns cell translation vectors in relative coordinates.
@@ -174,7 +174,6 @@ subroutine neighgen_new(self, cutoff, nAtom, coords, lattice, periodic)
    endif
 
    if (self%periodic) then
-      allocate(self%lattice(3, 3))
       allocate(self%inv_lat(3, 3))
       if (present(lattice)) then
          call self%set_lattice(lattice)

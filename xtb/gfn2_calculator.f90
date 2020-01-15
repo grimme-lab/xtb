@@ -157,17 +157,21 @@ module subroutine gfn2_calculation &
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
 
-   ! do an EEQ guess
-   allocate( cn(mol%n), source = 0.0_wp )
-   call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,chrgeq,cn,wfn%q)
-   deallocate(cn)
+   if (mol%npbc > 0) then
+      wfn%q = mol%chrg / mol%n
+   else
+      allocate( cn(mol%n), source = 0.0_wp )
+      call new_charge_model_2019(chrgeq,mol%n,mol%at)
+      call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+      call eeq_chrgeq(mol,chrgeq,cn,wfn%q)
+      deallocate(cn)
+   endif
 
    call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
-   if (opt%restart) &
+   if (opt%restart) then
       call read_restart(wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)
+   endif
 
    ! ====================================================================
    !  STEP 5: do the calculation
