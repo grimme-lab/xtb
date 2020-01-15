@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.9)
 set(XTB_ROOT ${PROJECT_SOURCE_DIR})
 set(XTB_SOURCES
+  "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh"
+
   # MCTC library
   "${XTB_ROOT}/mctc/mctc_global.f90"
   "${XTB_ROOT}/mctc/mctc_systools.f90"

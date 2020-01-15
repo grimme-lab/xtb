@@ -26,8 +26,8 @@ execute_process(COMMAND git rev-parse HEAD
 string(REGEX REPLACE "\n$" "" commit ${commit})
 string(TIMESTAMP date "%m/%d/%Y")
 set(author $ENV{USERNAME})
-set(origin $ENV{HOSTNAME})
-configure_file("${XTB_ROOT}/xtb/version.f90" "${XTB_ROOT}/xtb/xtb_version.fh" @ONLY)
+set(origin ${CMAKE_HOST_SYSTEM_NAME})
+configure_file("${XTB_ROOT}/xtb/version.f90" "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh" @ONLY)
 
 # Find dependencies
 if (NOT DISABLE_OMP)
@@ -48,6 +48,7 @@ set_target_properties(xtb_object PROPERTIES
 )
 target_include_directories(xtb_object
  PUBLIC
+  ${CMAKE_CURRENT_BINARY_DIR}
   $<BUILD_INTERFACE:${XTB_ROOT}/include>
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
 )

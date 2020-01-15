@@ -23,7 +23,7 @@ jobs:
     - run: cd build && FC=gfortran-8 CC=gcc-8 CXX=g++ cmake -DCMAKE_INSTALL_PREFIX=../install ..
     - run: cd build && make
     - run: cd build && make install
-    - run: export XTBHOME=$(pwd) && cd build && make test
+    - run: export XTBHOME=$PWD && cd build && make test
 
   osx-build:
     runs-on: macos-latest

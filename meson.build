@@ -20,7 +20,8 @@ project('xtb',
         'fortran', 'c',
         version: '6.2.2',
         license: 'LGPL3',
-        meson_version: '>=0.49')
+        meson_version: '>=0.49',
+        default_options: ['includedir=include/xtb'])
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
