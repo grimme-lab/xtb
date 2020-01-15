@@ -143,3 +143,4 @@ set_target_properties(xtb_tests_capi PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+include(Tests.cmake)

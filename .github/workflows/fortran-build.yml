@@ -20,9 +20,10 @@ jobs:
     - uses: actions/checkout@v1
     - run: sudo apt install -yq --no-install-recommends gfortran-8 liblapack-dev libblas-dev cmake make
     - run: mkdir build install
-    - run: cd build && cmake -DCMAKE_INSTALL_PREFIX=../install ..
+    - run: cd build && FC=gfortran-8 CC=gcc-8 cmake -DCMAKE_INSTALL_PREFIX=../install ..
     - run: cd build && make
     - run: cd build && make install
+    - run: cd build && make test
 
   osx-build:
     runs-on: macos-latest
