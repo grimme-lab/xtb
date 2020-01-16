@@ -14,9 +14,12 @@ This is the offical repository of the `xtb` program package developed by the Gri
 Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
 
-To compile `xtb` from source install Intel Parallel Studio 17 or later.
+To compile `xtb` from source install Intel Parallel Studio 17 or later, or GCC version 8 or later.
 
-We are using [`meson`](https://mesonbuild.com/) as build system and require you to install a fairly new version like 0.49 or newer.
+There are two ways of building xtb.
+
+### Meson
+Using [`meson`](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.49 or newer.
 To use the default backend of `meson` you have to install [`ninja`](https://ninja-build.org/) version 1.5 or newer.
 
 ```bash
@@ -48,6 +51,29 @@ The build system will generate configuration files in `$DESTDIR/share/xtb` to
 be sourced in your `.bashrc` or `.cshrc` which will make `xtb` and the
 parameter files available. Also a pkg-config file is generated to make
 `xtb` available in other projects as dependency.
+
+### CMake
+
+The CMake build system requires both `make` and `cmake` to be installed, the
+latter has to be version 3.9 or newer.
+
+Building xtb with CMake works with the following chain of commands:
+
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local ..
+make
+make install
+```
+
+The compiled tests can be executed using the following commands:
+
+```bash
+cd build && XTBPATH=$PWD/.. OMP_NUM_THREADS=1 make test
+```
+
+(This also works when not installing the program, but just building it.)
 
 ## Documentation
 
