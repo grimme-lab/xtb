@@ -21,7 +21,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use mctc_econv, only : autoev,autoaa
    use tbdef_basisset
    use setparam
-   use scc_core, only : wiberg_nosort
+   use scc_core, only : get_wiberg
    use dtrafo
    implicit none
    type(tb_basisset), intent(in) :: basis
@@ -417,7 +417,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
 
       allocate(wbo(nat,nat))
       wbo=0.0d0
-      call wiberg_nosort(nat,nao,at,xyz,p,s,wbo,.false.,basis%fila2)
+      call get_wiberg(nat,nao,at,xyz,p,s,wbo,basis%fila2)
 
       !     now create new LMO
       k=0

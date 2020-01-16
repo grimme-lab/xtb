@@ -64,7 +64,6 @@ subroutine main_property &
    use gbobc
 
 !! ------------------------------------------------------------------------
-   use scc_core, only : wiberg
    use aespot
    use dtrafo
 
@@ -149,10 +148,12 @@ subroutine main_property &
 
 
 !! wiberg bond orders
-   if (pr_wiberg.and.gfn_method.eq.0) &
-   call wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfx%P,S,wfx%wbo,.false.,.false.,basis%fila2)
-   if (pr_wiberg) &
-   call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
+   if (pr_wiberg) then
+      call open_file(ifile,'wbo','w')
+      call print_wbofile(ifile,mol%n,wfx%wbo,0.1_wp)
+      call close_file(ifile)
+      call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
+   endif
 
    if (pr_wbofrag) &
    call print_wbo_fragment(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
@@ -506,9 +507,23 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    endif
 end subroutine print_mulliken
 
+subroutine print_wbofile(iunit,n,wbo,thr)
+   use iso_fortran_env, wp => real64
+   implicit none
+   integer, intent(in) :: iunit
+   integer, intent(in) :: n
+   real(wp),intent(in) :: wbo(n,n)
+   real(wp),intent(in) :: thr
+   integer :: i, j
+   do i = 1, n
+      do j = 1, i-1
+         if (wbo(j, i) > thr) write(iunit, *) j, i, wbo(j, i)
+      end do
+   end do
+end subroutine print_wbofile
+
 subroutine print_wiberg(iunit,n,at,wbo,thr)
    use iso_fortran_env, wp => real64
-   use scc_core, only : wibsort
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -550,6 +565,38 @@ subroutine print_wiberg(iunit,n,at,wbo,thr)
    enddo
 
    deallocate(wbr,imem)
+
+contains
+
+SUBROUTINE wibsort(ncent,imo,imem,qmo)
+   use iso_fortran_env, only : wp => real64
+   implicit none
+   integer  :: ncent
+   integer  :: imo
+   real(wp) :: qmo(ncent,ncent)
+   integer  :: imem(ncent)
+   integer  :: ii,i,j,k,ihilf
+   real(wp) :: pp
+
+   do ii = 2,ncent
+      i = ii - 1
+      k = i
+      pp= qmo(imo,i)
+      do j = ii, ncent
+         if (qmo(imo,j) .lt. pp) cycle
+         k = j
+         pp=qmo(imo,j)
+      enddo
+      if (k .eq. i) cycle
+      qmo(imo,k) = qmo(imo,i)
+      qmo(imo,i) = pp
+
+      ihilf=imem(i)
+      imem(i)=imem(k)
+      imem(k)=ihilf
+   enddo
+
+end SUBROUTINE wibsort
 
 end subroutine print_wiberg
 

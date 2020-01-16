@@ -690,11 +690,6 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
       endif
 
 ! ------------------------------------------------------------------------
-!     get Wiberg bond orders
-      call wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,.false.,.false., &
-         &        basis%fila2)
-
-! ------------------------------------------------------------------------
 !     HOMO-LUMO excitation properties if  UHF=2        
       if (wfn%nopen.eq.2) then
          call hlex(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,wfn%emo,basis)
@@ -717,6 +712,10 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
       endif
 
    endif printing
+
+! ------------------------------------------------------------------------
+!  get Wiberg bond orders
+   call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
 
 ! ------------------------------------------------------------------------
 !  dipole calculation (always done because its free)

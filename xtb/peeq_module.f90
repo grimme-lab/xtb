@@ -574,6 +574,10 @@ subroutine peeq &
 
    endif printing
 
+! ------------------------------------------------------------------------
+!  get Wiberg bond orders
+   call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
+
    sigma = sigma + sum(sigma_tmp, dim=3)
    if (debug) then
       write(iunit,'("ij",2x,6a12)') "total", "EEQ", "D4", "rep", "SRB", "H0"
