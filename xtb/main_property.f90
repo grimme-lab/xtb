@@ -148,8 +148,12 @@ subroutine main_property &
 
 
 !! wiberg bond orders
-   if (pr_wiberg) &
-   call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
+   if (pr_wiberg) then
+      call open_file(ifile,'wbo','w')
+      call print_wbofile(ifile,mol%n,wfx%wbo,0.1_wp)
+      call close_file(ifile)
+      call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
+   endif
 
    if (pr_wbofrag) &
    call print_wbo_fragment(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
@@ -502,6 +506,21 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
       enddo
    endif
 end subroutine print_mulliken
+
+subroutine print_wbofile(iunit,n,wbo,thr)
+   use iso_fortran_env, wp => real64
+   implicit none
+   integer, intent(in) :: iunit
+   integer, intent(in) :: n
+   real(wp),intent(in) :: wbo(n,n)
+   real(wp),intent(in) :: thr
+   integer :: i, j
+   do i = 1, n
+      do j = 1, i-1
+         if (wbo(j, i) > thr) write(iunit, *) j, i, wbo(j, i)
+      end do
+   end do
+end subroutine print_wbofile
 
 subroutine print_wiberg(iunit,n,at,wbo,thr)
    use iso_fortran_env, wp => real64
