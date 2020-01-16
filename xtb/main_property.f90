@@ -64,7 +64,6 @@ subroutine main_property &
    use gbobc
 
 !! ------------------------------------------------------------------------
-   use scc_core, only : wiberg
    use aespot
    use dtrafo
 
@@ -149,8 +148,6 @@ subroutine main_property &
 
 
 !! wiberg bond orders
-   if (pr_wiberg.and.gfn_method.eq.0) &
-   call wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfx%P,S,wfx%wbo,.false.,.false.,basis%fila2)
    if (pr_wiberg) &
    call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
 
@@ -508,7 +505,6 @@ end subroutine print_mulliken
 
 subroutine print_wiberg(iunit,n,at,wbo,thr)
    use iso_fortran_env, wp => real64
-   use scc_core, only : wibsort
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -550,6 +546,38 @@ subroutine print_wiberg(iunit,n,at,wbo,thr)
    enddo
 
    deallocate(wbr,imem)
+
+contains
+
+SUBROUTINE wibsort(ncent,imo,imem,qmo)
+   use iso_fortran_env, only : wp => real64
+   implicit none
+   integer  :: ncent
+   integer  :: imo
+   real(wp) :: qmo(ncent,ncent)
+   integer  :: imem(ncent)
+   integer  :: ii,i,j,k,ihilf
+   real(wp) :: pp
+
+   do ii = 2,ncent
+      i = ii - 1
+      k = i
+      pp= qmo(imo,i)
+      do j = ii, ncent
+         if (qmo(imo,j) .lt. pp) cycle
+         k = j
+         pp=qmo(imo,j)
+      enddo
+      if (k .eq. i) cycle
+      qmo(imo,k) = qmo(imo,i)
+      qmo(imo,i) = pp
+
+      ihilf=imem(i)
+      imem(i)=imem(k)
+      imem(k)=ihilf
+   enddo
+
+end SUBROUTINE wibsort
 
 end subroutine print_wiberg
 

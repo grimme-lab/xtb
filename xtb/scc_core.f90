@@ -1851,11 +1851,7 @@ subroutine dmat(ndim,focc,C,P)
 
 end subroutine dmat
 
-!ccccccccccccccccccccccccccccccccccccccccccccc
-!            Wiberg BOs
-!ccccccccccccccccccccccccccccccccccccccccccccc
-
-subroutine wiberg(n,ndim,at,xyz,P,S,wb,ex,pr,fila2)
+subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    use iso_fortran_env, only : wp => real64
    use mctc_la, only : gemm
    implicit none
@@ -1864,150 +1860,33 @@ subroutine wiberg(n,ndim,at,xyz,P,S,wb,ex,pr,fila2)
    real(wp),intent(in)  :: P(ndim,ndim)
    real(wp),intent(in)  :: S(ndim,ndim)
    real(wp),intent(out) :: wb (n,n)
-   logical, intent(in)  :: ex,pr
    integer, intent(in)  :: fila2(:,:)
 
-   real(wp),allocatable ::Ptmp(:,:)
+   real(wp),allocatable :: Ptmp(:,:)
    real(wp) xsum,rab
-!  real(wp) wbr(n,n)
-!  real(wp) ddum(3,n,n),cdum(n)
-   real(wp),allocatable :: wbr(:,:)
-   real(wp),allocatable :: ddum(:,:,:),cdum(:)
-!  integer i,j,k,m,ibmax,imem(n)
-   integer i,j,k,m,ibmax
-   integer, allocatable :: imem(:)
-   character(2) asym
-   integer :: ich
+   integer i,j,k,m
 
    allocate(Ptmp(ndim,ndim))
-   call GEMM('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
-   call open_file(ich,'wbo','w')
-   wb=0
-   do i=1,n
-      do j=1,i-1
-         xsum=0.0
-         rab=(xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
-         if(rab.lt.100.0)then
-            do k=fila2(1,i),fila2(2,i)   ! AOs on atom i
-               do m=fila2(1,j),fila2(2,j) ! AOs on atom j
-                  xsum=xsum+Ptmp(k,m)*Ptmp(m,k)
+   call gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
+   wb = 0
+   do i = 1, n
+      do j = 1, i-1
+         xsum = 0.0_wp
+         rab = sum((xyz(:,i) - xyz(:,j))**2)
+         if(rab < 100.0_wp)then
+            do k = fila2(1,i), fila2(2,i) ! AOs on atom i
+               do m = fila2(1,j), fila2(2,j) ! AOs on atom j
+                  xsum = xsum + Ptmp(k,m)*Ptmp(m,k)
                enddo
             enddo
          endif
-         wb(i,j)=xsum
-         wb(j,i)=xsum
-         if(abs(xsum).gt.0.3) write(ich,*)i,j,xsum
+         wb(i,j) = xsum
+         wb(j,i) = xsum
       enddo
    enddo
-   call close_file(ich)
    deallocate(Ptmp)
 
-   if (pr) then
-      allocate( wbr(n,n), source = 0.0_wp )
-      allocate( imem(n),  source = 0 )
-      wbr = wb
-
-      write(*,*)
-      write(*,*)'Wiberg/Mayer (AO) data. WBOs > 0.1 written file <wbo>'
-      write(*,*)'largest (>0.05) Wiberg bond orders for each atom'
-      write(*,*)'          total WBO             WBO to atom ...'
-      do i=1,n
-         do j=1,n
-            imem(j)=j
-         enddo
-         call wibsort(n,i,imem,wbr)
-         ibmax=0
-         xsum =0.0_wp
-         do j=1,n
-            if(wbr(i,j).gt.0.05_wp)ibmax=j
-            xsum=xsum+wbr(i,j)
-         enddo
-         write(*,'(i6,a4,1x,f6.3,9(4x,a2,i4,f6.3))') &
-            & i,asym(at(i)),xsum, &
-            & (asym(at(imem(j))),imem(j),wbr(i,j),j=1,ibmax) 
-         !        if(fit) write(112,'(2F22.12)') xsum,cdum(i)
-      enddo
-
-      deallocate(wbr,imem)
-   endif
-
-end subroutine wiberg
-
-subroutine wiberg_nosort(n,ndim,at,xyz,P,S,wb,ex,fila2)
-   use iso_fortran_env, only : wp => real64
-   use mctc_la, only : gemm
-   implicit none
-   integer n,ndim,at(n)
-   real(wp) xyz(3,n)
-   real(wp) P(ndim,ndim)
-   real(wp) S(ndim,ndim)
-   real(wp) wb (n,n)
-   logical ex
-   integer, intent(in) :: fila2(:,:)
-
-   real(wp),allocatable ::Ptmp(:,:)
-   real(wp) xsum,rab
-   real(wp) wbr(n,n)
-   integer i,j,k,m,ibmax,imem(n)
-   character(2) asym
-   integer :: ich
-
-   allocate(Ptmp(ndim,ndim))
-   call GEMM('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
-   call open_file(ich,'wbo','w')
-   wb=0
-   do i=1,n
-      do j=1,i-1
-         xsum=0.0
-         rab=(xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
-         if(rab.lt.100.0)then
-            do k=fila2(1,i),fila2(2,i)
-               do m=fila2(1,j),fila2(2,j)
-                  xsum=xsum+Ptmp(k,m)*Ptmp(m,k)
-               enddo
-            enddo
-         endif
-         wb(i,j)=xsum
-         wb(j,i)=xsum
-         if(abs(xsum).gt.0.3) write(ich,*)i,j,xsum
-      enddo
-   enddo
-   call close_file(ich)
-   deallocate(Ptmp)
-
-end subroutine wiberg_nosort
-
-!cccccccccccccccccccccccccccccccccccccccc
-
-SUBROUTINE wibsort(ncent,imo,imem,qmo)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer  :: ncent
-   integer  :: imo
-   real(wp) :: qmo(ncent,ncent)
-   integer  :: imem(ncent)
-   integer  :: ii,i,j,k,ihilf
-   real(wp) :: pp
-
-   do ii = 2,ncent
-      i = ii - 1
-      k = i
-      pp= qmo(imo,i)
-      do j = ii, ncent
-         if (qmo(imo,j) .lt. pp) cycle
-         k = j
-         pp=qmo(imo,j)
-      enddo
-      if (k .eq. i) cycle
-      qmo(imo,k) = qmo(imo,i)
-      qmo(imo,i) = pp
-
-      ihilf=imem(i)
-      imem(i)=imem(k)
-      imem(k)=ihilf
-   enddo
-
-end SUBROUTINE wibsort
+end subroutine get_wiberg
 
 !cccccccccccccccccccccccccccccccccccccccc
 !c Mulliken pop + AO pop
