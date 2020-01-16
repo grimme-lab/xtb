@@ -61,6 +61,7 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
 
    logical  :: getopts
 
+   gfn_method = 2
    coffee = .false.
    strict = .false.
    restart = .true.
