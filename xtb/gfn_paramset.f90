@@ -65,14 +65,13 @@ subroutine set_gfn1_parameter(xpar,globpar)
 end subroutine set_gfn1_parameter
 
 
-subroutine set_gfn2_parameter(xpar,globpar,n,at)
+subroutine set_gfn2_parameter(xpar,globpar)
    use iso_fortran_env, wp => real64
    use tbdef_param
-   use dftd4
+   use tbmod_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    real(wp),intent(in) :: globpar(25)
-   integer, intent(in) :: n,at(n)
    integer :: i,j
    call setpair(2)
    xpar%kspd(1:6)=globpar(1:6)
@@ -117,19 +116,18 @@ subroutine set_gfn2_parameter(xpar,globpar,n,at)
    xpar%zcnf     =0
    xpar%fpol     =0
    xpar%wllscal  =1
-   call d4init(n,at,xpar%g_a,xpar%g_c,p_refq_gfn2xtb,i)
+   call d4init(xpar%g_a,xpar%g_c,p_refq_gfn2xtb)
 end subroutine set_gfn2_parameter
 
-subroutine set_gfn0_parameter(xpar,globpar,n,at)
+subroutine set_gfn0_parameter(xpar,globpar)
    use iso_fortran_env, wp => real64
    use tbdef_param
    !use gfn0_module
    use aoparam
-   use dftd4
+   use tbmod_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    real(wp),intent(in) :: globpar(25)
-   integer, intent(in) :: n,at(n)
    integer :: i,j
 
    call setpair(0)
@@ -175,5 +173,5 @@ subroutine set_gfn0_parameter(xpar,globpar,n,at)
    xpar%zcnf     =0
    xpar%fpol     =0
    xpar%wllscal  =1
-   call d4init(n,at,xpar%g_a,xpar%g_c,p_refq_goedecker,i)
+   call d4init(xpar%g_a,xpar%g_c,p_refq_goedecker)
 end subroutine set_gfn0_parameter

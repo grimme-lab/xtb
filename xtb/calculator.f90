@@ -101,7 +101,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
    use ncoord
    use eeq_model
-   use dftd4
+   use tbmod_dftd4
    !use dfuncpar
 
    implicit none
@@ -160,7 +160,8 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
 !  Output: Initialization and Parameter setup
 ! ------------------------------------------------------------------------
-   call d4init(mol%n,mol%at,opt%g_a,opt%g_c,p_refq_goedecker,ndim)
+   call d4init(opt%g_a,opt%g_c,p_refq_goedecker)
+   call d4dim(mol%n,mol%at,ndim)
    memory = ((mol%n)+(mol%n)+(ndim)+(ndim*ndim) &
             +(mol%n*mol%n)+(23*mol%n)+(mol%n)+(3*mol%n) &
             +(3*mol%n*mol%n)+(3*mol%n*(mol%n+1)) &
@@ -169,8 +170,6 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    call generic_header(iunit,'Calculation Setup',49,10)
    write(iunit,'(3x,a," : ",i6)')   'number of atoms     ', mol%n
    write(iunit,'(3x,a," : ",i6)')   'charge              ', nint(mol%chrg)
-   write(iunit,'(3x,a," : ",a)')    'non-additivity corr.', lmbd2string(opt%lmbd)
-   write(iunit,'(3x,a," : ",a)')    'charge model        ', refq2string(p_refq_goedecker)
 !$ write(iunit,'(3x,a," : ",i6)')   'omp threads         ',omp_get_num_threads()
    write(iunit,'(3x,a," : ",f6.1,1x,a)') &
       "memory needed (est.)",memory,"Mb"
@@ -272,7 +271,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
    use ncoord
    use eeq_model
-   use dftd4
+   use tbmod_dftd4
    use pbc_tools
    use pbc, only : get_realspace_cutoff
 
@@ -337,7 +336,8 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  Output: Initialization and Parameter setup
 ! ------------------------------------------------------------------------
-   call d4init(mol%n,mol%at,opt%g_a,opt%g_c,p_refq_goedecker,ndim)
+   call d4init(opt%g_a,opt%g_c,p_refq_goedecker)
+   call d4dim(mol%n,mol%at,ndim)
    memory = ((mol%n)+(mol%n)+(ndim)+(ndim*ndim) &
             +(mol%n*mol%n)+(23*mol%n)+(mol%n)+(3*mol%n) &
             +(3*mol%n*mol%n)+(3*mol%n*(mol%n+1)) &
@@ -351,8 +351,6 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
    call generic_header(iunit,'Calculation Setup',49,10)
    write(iunit,'(3x,a," : ",i6)')   'number of atoms     ', mol%n
    write(iunit,'(3x,a," : ",i6)')   'charge              ', nint(mol%chrg)
-   write(iunit,'(3x,a," : ",a)')    'non-additivity corr.', lmbd2string(opt%lmbd)
-   write(iunit,'(3x,a," : ",a)')    'charge model        ', refq2string(p_refq_goedecker)
 !$ write(iunit,'(3x,a," : ",i6)')   'omp threads         ',omp_get_num_threads()
    write(iunit,'(3x,a," : ",f6.1,1x,a)') &
       "memory needed (est.)",memory,"Mb"

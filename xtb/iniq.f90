@@ -330,7 +330,7 @@ end subroutine iniqcn_gfn2
 pure subroutine gasteiger_partition(nat,at,xyz,en,q)
 
 !  get data from parameter modules
-   use dftd4, only : rcov
+   use mctc_param, only : rcov => covalent_radius_d3
 
    implicit none
 

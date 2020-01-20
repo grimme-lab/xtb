@@ -69,8 +69,6 @@ subroutine test_gfn2_scc
    call xbasis_gfn2(mol%n,mol%at,basis,okbas)
    call assert(okbas)
 
-   call xbasis_cao2sao(mol%n,mol%at,basis)
-
    call assert_eq(basis%nshell,4)
    call assert_eq(basis%nbf,   6)
    call assert_eq(basis%nao,   6)

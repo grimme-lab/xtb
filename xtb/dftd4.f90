@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-   module dftd4
+module tbmod_dftd4
    use iso_fortran_env, only : wp => real64
    use mctc_constants, only : pi
    use mctc_param, only: gam => chemical_hardness, &
@@ -27,67 +27,133 @@
    !  also get the CN-Parameters to inline the CN-derivative in the gradient
    use ncoord, only : covncoord => ncoord_d4, kn,k1,k4,k5,k6
    use tbdef_param, only : dftd_parameter
+   use tbpar_dftd4, only: zeff, thopi, ootpi, p_mbd_none, p_mbd_rpalike, &
+      &                   p_mbd_exact_atm, p_mbd_approx_atm, p_refq_goedecker, &
+      &                   p_refq_gfn2xtb
+   use tbdef_dispersion_model
    implicit none
 
-      real(wp) :: thopi,ootpi
-      parameter ( thopi = 3._wp/pi )
-      parameter ( ootpi = 0.5_wp/pi )
-
-      integer,parameter :: p_refq_gfn2xtb          = 0
-      integer,parameter :: p_refq_gasteiger        = 1
-      integer,parameter :: p_refq_hirshfeld        = 2
-      integer,parameter :: p_refq_periodic         = 3
-      integer,parameter :: p_refq_gfn2xtb_gbsa_h2o = 4
-      integer,parameter :: p_refq_goedecker        = 5
-
-      integer,parameter :: p_mbd_none       = 0
-      integer,parameter :: p_mbd_rpalike    = 1
-      integer,parameter :: p_mbd_exact_atm  = 2
-      integer,parameter :: p_mbd_approx_atm = 3
-
-      integer,private,parameter :: max_elem = 118
-      real(wp),parameter :: zeff(max_elem) = (/ &
-      &   1,                                                 2,  & ! H-He
-      &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
-      &  11,12,                              13,14,15,16,17,18,  & ! Na-Ar
-      &  19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,  & ! K-Kr
-      &   9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,  & ! Rb-Xe
-      &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43,  & ! Cs-Lu
-      &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26, & ! Hf-Rn
-      !  just copy & paste from above
-      &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43,  & ! Fr-Lr
-      &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26 /) ! Rf-Og
-
-      integer, dimension(max_elem)      :: refn ! for D4
-      integer, dimension(max_elem)      :: refs ! for D3 (generated on-the-fly)
-      integer, dimension(7,max_elem)    :: refc
-      real(wp),dimension(7,max_elem)    :: refq
-      real(wp),dimension(7,max_elem)    :: refh
-      real(wp),dimension(7,max_elem)    :: dftq,pbcq,gffq,solq,clsq
-      real(wp),dimension(7,max_elem)    :: dfth,pbch,gffh,solh,clsh
-      real(wp),dimension(7,max_elem)    :: hcount 
-      real(wp),dimension(7,max_elem)    :: ascale
-      real(wp),dimension(7,max_elem)    :: refcovcn
-      real(wp),dimension(7,max_elem)    :: refcn
-      integer, dimension(7,max_elem)    :: refsys 
-      real(wp),dimension(23,7,max_elem) :: alphaiw
-      real(wp),dimension(23,7,max_elem) :: refal
-      real(wp),dimension(8)       :: secq
-      real(wp),dimension(8)       :: dfts,pbcs,gffs,sols,clss
-      real(wp),dimension(8)       :: sscale
-      real(wp),dimension(8)       :: seccn
-      real(wp),dimension(8)       :: seccnd3
-      real(wp),dimension(23,8)    :: secaiw
-
-      include 'param_ref.inc'
+   type(tb_dispersion_model) :: dispm
 
 contains
 
+subroutine d4init(g_a,g_c,mode)
+   use tbpar_dftd4
+   real(wp),intent(in)  :: g_a,g_c
+   integer, intent(in)  :: mode
+
+   integer  :: i,ia,is,icn,j,ii,jj
+   integer  :: cncount(0:15)
+   real(wp) :: sec_al(23),iz,c6,alpha(23)
+   real(wp) :: tmp_hq(7,118)
+
+   intrinsic :: nint
+
+   dispm = tb_dispersion_model()
+
+   secq = 0.0_wp
+   select case(mode)
+   case(p_refq_hirshfeld,p_refq_periodic)
+!     print'(1x,''* using PBE0/def2-TZVP Hirshfeld charges'')'
+      refq = dftq
+      refh = dfth
+      secq = dfts
+!  case(2)
+!     refq = pbcq
+!     refh = pbch
+!     secq = pbcs
+   case(p_refq_gasteiger)
+!     print'(1x,''* using classical Gasteiger charges'')'
+      refq = gffq
+      refh = gffh
+      secq = gffs
+   case(p_refq_goedecker)
+      refq = clsq
+      refh = clsh
+      secq = clss
+   case(p_refq_gfn2xtb_gbsa_h2o)
+!     print'(1x,''* using GFN2-xTB//GBSA(H2O) charges'')'
+      refq = solq
+      refh = solh
+      secq = sols
+   end select
+
+   select case(mode)
+   case(p_refq_hirshfeld,p_refq_periodic)
+      dispm%q = dftq
+      tmp_hq = dfth
+   case(p_refq_gasteiger)
+      dispm%q = gffq
+      tmp_hq = gffh
+   case(p_refq_goedecker)
+      dispm%q = clsq
+      tmp_hq = clsh
+   case(p_refq_gfn2xtb_gbsa_h2o)
+      dispm%q = solq
+      tmp_hq = solh
+   case default
+      dispm%q = refq
+      tmp_hq = refh
+   end select
+
+   dispm%atoms = 0
+   dispm%nref = 0
+
+   do ia = 1, 118
+      cncount = 0
+      cncount(0) = 1
+      dispm%nref(ia) = refn(ia)
+      do j = 1, refn(ia)
+         is = refsys(j,ia)
+         iz = zeff(is)
+         sec_al = sscale(is)*secaiw(:,is) &
+            &  * zeta(g_a,gam(is)*g_c,secq(is)+iz,tmp_hq(j,ia)+iz)
+         dispm%cn(j,ia) = refcovcn(j,ia)
+         icn =nint(refcn(j,ia))
+         cncount(icn) = cncount(icn) + 1
+         dispm%alpha(:,j,ia) = max(ascale(j,ia)*(alphaiw(:,j,ia)-hcount(j,ia)*sec_al),0.0_wp)
+      enddo
+      do j = 1, refn(ia)
+         icn = cncount(nint(refcn(j,ia)))
+         dispm%ncount(j,ia) = icn*(icn+1)/2
+      enddo
+   end do
+
+   ! integrate C6 coefficients
+   do i = 1, 118
+      do j = 1, i
+         do ii = 1, dispm%nref(i)
+            do jj = 1, dispm%nref(j)
+               alpha = dispm%alpha(:,ii,i)*dispm%alpha(:,jj,j)
+               c6 = thopi * trapzd(alpha)
+               dispm%c6(jj,ii,j,i) = c6
+               dispm%c6(ii,jj,i,j) = c6
+            enddo
+         enddo
+      enddo
+   enddo
+
+end subroutine d4init
+
+subroutine d4dim(nat,at,ndim)
+   integer, intent(in)  :: nat
+   integer, intent(in)  :: at(nat)
+   integer, intent(out) :: ndim
+
+   integer :: i
+
+   ndim = 0
+
+   do i = 1, nat
+      ndim = ndim + dispm%nref(at(i))
+   enddo
+
+end subroutine d4dim
+
 subroutine prmolc6(molc6,molc8,molpol,nat,at,  &
            &       cn,covcn,q,qlmom,c6ab,alpha,rvdw,hvol)
-   use iso_fortran_env, only : id => output_unit, wp => real64
+   use iso_fortran_env, only : id => output_unit
    use mctc_econv, only : autoaa
-   implicit none
    real(wp),intent(in)  :: molc6
    real(wp),intent(in)  :: molc8
    real(wp),intent(in)  :: molpol
@@ -140,81 +206,8 @@ subroutine prmolc6(molc6,molc8,molpol,nat,at,  &
    &          molc6,molc8,molpol
 end subroutine prmolc6
 
-subroutine mdisp_old(nat,ndim,at,xyz, &
-           &         gw,c6abns,molc6,molc8,molpol,aout,cout,rout,vout)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: xyz(3,nat) 
-   real(wp),intent(in)  :: gw(ndim)
-   real(wp),intent(in)  :: c6abns(ndim,ndim)
-   real(wp),intent(out) :: molc6
-   real(wp),intent(out) :: molc8
-   real(wp),intent(out) :: molpol
-   real(wp),intent(out),optional :: aout(23,nat)
-   real(wp),intent(out),optional :: cout(nat,nat)
-   real(wp),intent(out),optional :: rout(nat)
-   real(wp),intent(out),optional :: vout(nat)
-
-   integer  :: i,ii,ia,j,jj,ja,k,l
-   integer, allocatable :: itbl(:,:)
-   real(wp) :: qmod,oth,iz
-   real(wp),allocatable :: rvdw(:)
-   real(wp),allocatable :: phv(:)
-   real(wp),allocatable :: c6ab(:,:)
-   real(wp),allocatable :: aw(:,:)
-   parameter (oth=1._wp/3._wp)
-   
-   allocate( rvdw(nat),phv(nat),c6ab(nat,nat),aw(23,nat), &
-   &         source = 0.0_wp )
-   allocate( itbl(7,nat), source = 0 )
-
-   molc6  = 0._wp
-   molc8  = 0._wp
-   molpol = 0._wp
-
-   k = 0
-   do i = 1, nat
-      ia = at(i)
-      iz = zeff(ia)
-      do ii = 1, refs(ia)
-         k = k+1
-         itbl(ii,i) = k
-         aw(:,i) = aw(:,i) + gw(k) * refal(:,ii,ia)
-      enddo
-!     van-der-Waals radius, alpha = 4/3 pi r**3 <=> r = (3/(4pi) alpha)**(1/3)
-      rvdw(i) = (0.25_wp*thopi*aw(1,i))**oth
-!     pseudo-hirshfeld volume
-      phv(i) = aw(1,i)/refal(1,1,ia)
-      c6ab(i,i) = thopi * trapzd(aw(:,i)**2)
-      molpol = molpol + aw(1,i)
-      molc6  = molc6  + c6ab(i,i)
-      molc8 = molc8 + 3*r4r2(ia)**2*c6ab(i,i)
-      do j = 1, i-1
-         ja = at(j)
-         c6ab(j,i) = thopi * trapzd(aw(:,i)*aw(:,j))
-         c6ab(i,j) = c6ab(j,i)
-         molc6 = molc6 + 2*c6ab(j,i)
-         molc8 = molc8 + 6*r4r2(ia)*r4r2(ja)*c6ab(j,i)
-      enddo
-   enddo
-
-   if (present(aout)) aout = aw
-   if (present(vout)) vout = phv
-   if (present(rout)) rout = rvdw
-   if (present(cout)) cout = c6ab
-
-end subroutine mdisp_old
-
 subroutine mdisp(nat,ndim,at,q,xyz,g_a,g_c, &
            &     gw,c6abns,molc6,molc8,molpol,aout,cout,rout,vout)
-   use iso_fortran_env, only : wp => real64
-!  use dftd4, only : thopi,gam, &
-!  &  trapzd,zeta,r4r2, &
-!  &  refn,refq,refal
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -253,16 +246,16 @@ subroutine mdisp(nat,ndim,at,q,xyz,g_a,g_c, &
    do i = 1, nat
       ia = at(i)
       iz = zeff(ia)
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = k+1
          itbl(ii,i) = k
-         zetvec(k) = gw(k) * zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz)
-         aw(:,i) = aw(:,i) + zetvec(k) * refal(:,ii,ia)
+         zetvec(k) = gw(k) * zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
+         aw(:,i) = aw(:,i) + zetvec(k) * dispm%alpha(:,ii,ia)
       enddo
 !     van-der-Waals radius, alpha = 4/3 pi r**3 <=> r = (3/(4pi) alpha)**(1/3)
       rvdw(i) = (0.25_wp*thopi*aw(1,i))**oth
 !     pseudo-hirshfeld volume
-      phv(i) = aw(1,i)/refal(1,1,ia)
+      phv(i) = aw(1,i)/dispm%alpha(1,1,ia)
       c6ab(i,i) = thopi * trapzd(aw(:,i)**2)
       molpol = molpol + aw(1,i)
       molc6  = molc6  + c6ab(i,i)
@@ -283,56 +276,7 @@ subroutine mdisp(nat,ndim,at,q,xyz,g_a,g_c, &
 
 end subroutine mdisp
 
-!pure subroutine dist_r2(nat,xyz,r2)
-!   use iso_fortran_env, only : wp => real64
-!   implicit none
-!   integer, intent(in)  :: nat
-!   real(wp),intent(in)  :: xyz(3,nat)
-!   real(wp),intent(out) :: r2(nat,nat)
-!
-!   integer :: i,j
-!
-!   r2 = 0._wp
-!
-!   do i=1,nat
-!      do j=1,i-1
-!         r2(i,j) = sum( (xyz(:,i)-xyz(:,j))**2 )
-!         r2(j,i) = r2(i,j)
-!      enddo
-!   enddo
-!
-!end subroutine dist_r2
-!
-!pure subroutine dist_bj(oor6ab,oor8ab,r2,nat,at,par)
-!   use iso_fortran_env, only : wp => real64
-!!  use dftd4, only : r4r2
-!   implicit none
-!   integer, intent(in)  :: nat,at(nat)
-!   type(dftd_parameter),intent(in) :: par
-!   real(wp),intent(in)  :: r2(nat,nat)
-!   real(wp),intent(out) :: oor6ab(nat,nat),oor8ab(nat,nat)
-!
-!   integer  :: i,j
-!   real(wp) :: cutoff
-!
-!   oor6ab = 0._wp
-!   oor8ab = 0._wp
-!
-!   do i=1,nat
-!      do j=1,i-1
-!         cutoff      = par%a1*sqrt(3._wp*r4r2(at(i))*r4r2(at(j)))+par%a2
-!         oor6ab(i,j) = 1._wp/(r2(i,j)**3 + cutoff**6)
-!         oor6ab(j,i) = oor6ab(i,j)
-!         oor8ab(i,j) = 1._wp/(r2(i,j)**4 + cutoff**8)
-!         oor8ab(j,i) = oor8ab(i,j)
-!      enddo
-!   enddo
-!
-!end subroutine dist_bj
-
 pure elemental function zeta(a,c,qref,qmod)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    real(wp),intent(in) :: qmod,qref
    real(wp),intent(in) :: a,c
    real(wp)            :: zeta
@@ -348,9 +292,6 @@ pure elemental function zeta(a,c,qref,qmod)
 end function zeta
 
 pure elemental function dzeta(a,c,qref,qmod)
-   use iso_fortran_env, only : wp => real64
-!  use dftd4, only : zeta
-   implicit none
    real(wp),intent(in) :: qmod,qref
    real(wp),intent(in) :: a,c
    real(wp)            :: dzeta
@@ -367,8 +308,6 @@ pure elemental function dzeta(a,c,qref,qmod)
 end function dzeta
 
 pure function trapzd(pol)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    real(wp),intent(in) :: pol(23)
    real(wp)            :: trapzd
 
@@ -439,8 +378,6 @@ pure function trapzd(pol)
 end function trapzd
 
 pure elemental function cngw(wf,cn,cnref)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    real(wp),intent(in) :: wf,cn,cnref
    real(wp)            :: cngw ! CN-gaussian-weight
 
@@ -451,9 +388,6 @@ pure elemental function cngw(wf,cn,cnref)
 end function cngw
 
 pure elemental function dcngw(wf,cn,cnref)
-   use iso_fortran_env, only : wp => real64
-!  use dftd4, only : cngw
-   implicit none
    real(wp),intent(in) :: wf,cn,cnref
    real(wp) :: dcngw
 
@@ -465,7 +399,6 @@ end function dcngw
 !  f(n,rab) = sn*rab**n/(rab**n + R0**n)  w/ R0 = a1*sqrt(C6/C8)+a2
 !  see: https://doi.org/10.1002/jcc.21759
 pure elemental function fdmpr_bj(n,r,c) result(fdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -473,7 +406,6 @@ pure elemental function fdmpr_bj(n,r,c) result(fdmp)
    fdmp = 1.0_wp / ( r**n + c**n )
 end function fdmpr_bj
 pure elemental function fdmprdr_bj(n,r,c) result(dfdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -484,7 +416,6 @@ end function fdmprdr_bj
 !* original DFT-D3(0) damping
 !  f(n,rab) = sn/(1+6*(4/3*R0/rab)**alp)  w/ R0 of unknown origin
 pure elemental function fdmpr_zero(n,r,c,alp) result(fdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -494,7 +425,6 @@ pure elemental function fdmpr_zero(n,r,c,alp) result(fdmp)
    fdmp = 1.0_wp / (r**n*(1 + six * (c/r)**(n+alp)))
 end function fdmpr_zero
 pure elemental function fdmprdr_zero(n,r,c,alp) result(dfdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -510,7 +440,6 @@ end function fdmprdr_zero
 !* fermi damping function from TS and MBD methods
 !  f(n,rab) = sn/(1+exp[-alp*(rab/R0-1)]) w/ R0 as experimenal vdW-Radii
 pure elemental function fdmpr_fermi(n,r,c,alp) result(fdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -519,7 +448,6 @@ pure elemental function fdmpr_fermi(n,r,c,alp) result(fdmp)
    fdmp = 1.0_wp / (r**n*(1.0_wp+exp(-alp*(r/c - 1.0))))
 end function fdmpr_fermi
 pure elemental function fdmprdr_fermi(n,r,c,alp) result(dfdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -534,7 +462,6 @@ end function fdmprdr_fermi
 !  f(n,rab) = sn*rab**(n+alp)/(rab**(n+alp) + R0**(n+alp))
 !  see: https://dx.doi.org/10.1021/acs.jpclett.7b00176
 pure elemental function fdmpr_op(n,r,c,alp) result(fdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -543,7 +470,6 @@ pure elemental function fdmpr_op(n,r,c,alp) result(fdmp)
    fdmp = r**alp / (r**(n+alp)*c**(n+alp))
 end function fdmpr_op
 pure elemental function fdmprdr_op(n,r,c,alp) result(dfdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -558,7 +484,6 @@ end function fdmprdr_op
 !  f(n,rab) = sn/(1+6*(4/3*R0/rab+a2*R0)**(-alp))
 !  see: https://dx.doi.org/10.1021/acs.jpclett.6b00780
 pure elemental function fdmpr_zerom(n,r,c,rsn,alp) result(fdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -569,7 +494,6 @@ pure elemental function fdmpr_zerom(n,r,c,rsn,alp) result(fdmp)
    fdmp = 1.0_wp / (r**n*(1 + six * (r/c+rsn*c)**(-alp)))
 end function fdmpr_zerom
 pure elemental function fdmprdr_zerom(n,r,c,rsn,alp) result(dfdmp)
-   implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: r
    real(wp),intent(in)  :: c
@@ -582,210 +506,8 @@ pure elemental function fdmprdr_zerom(n,r,c,rsn,alp) result(dfdmp)
            * fdmpr_zerom(n,r,c,rsn,alp)**2
 end function fdmprdr_zerom
 
-subroutine d3init(nat,at,ndim)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: at(nat)
-   integer, intent(out) :: ndim
-
-   integer  :: i,ia,is,icn,j
-   integer  :: cncount(0:15)
-   real(wp) :: sec_al(23)
-
-   intrinsic :: nint
-
-   ndim = 0
-   refal = 0.0_wp
-
-!* set up refc und refal, also obtain the dimension of the dispmat
-   do i = 1, nat
-      cncount = 0
-      ia = at(i)
-      refs(ia) = 0
-      do j = 1, refn(ia)
-         is = refsys(j,ia)
-         sec_al = sscale(is)*secaiw(:,is)
-         icn =nint(refcn(j,ia))
-!        print*,i,j,ia,refs(ia),icn,cncount(icn)
-         if (cncount(icn).gt.0) exit
-         refs(ia) = refs(ia) + 1
-         cncount(icn) = cncount(icn) + 1
-         refal(:,j,ia) = max(ascale(j,ia)*(alphaiw(:,j,ia)-hcount(j,ia)*sec_al),0.0_wp)
-      enddo
-      ndim = ndim + refs(ia)
-   enddo
-
-end subroutine d3init
-
-subroutine d4init(nat,at,g_a,g_c,mode,ndim)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: g_a,g_c
-   integer, intent(in)  :: mode
-   integer, intent(out) :: ndim
-
-   integer  :: i,ia,is,icn,j
-   integer  :: cncount(0:15)
-   real(wp) :: sec_al(23),iz
-
-   intrinsic :: nint
-
-   select case(mode)
-   case(p_refq_hirshfeld,p_refq_periodic)
-!     print'(1x,''* using PBE0/def2-TZVP Hirshfeld charges'')'
-      refq = dftq
-      refh = dfth
-      secq = dfts
-!  case(2)
-!     refq = pbcq
-!     refh = pbch
-!     secq = pbcs
-   case(p_refq_gasteiger)
-!     print'(1x,''* using classical Gasteiger charges'')'
-      refq = gffq
-      refh = gffh
-      secq = gffs
-   case(p_refq_goedecker)
-      refq = clsq
-      refh = clsh
-      secq = clss
-   case(p_refq_gfn2xtb_gbsa_h2o)
-!     print'(1x,''* using GFN2-xTB//GBSA(H2O) charges'')'
-      refq = solq
-      refh = solh
-      secq = sols
-   end select
-
-   ndim = 0
-   refal = 0.0_wp
-
-!* set up refc und refal, also obtain the dimension of the dispmat
-   do i = 1, nat
-      cncount = 0
-      cncount(0) = 1
-      ia = at(i)
-      do j = 1, refn(ia)
-         is = refsys(j,ia)
-         iz = zeff(is)
-         sec_al = sscale(is)*secaiw(:,is) &
-         &  * zeta(g_a,gam(is)*g_c,secq(is)+iz,refh(j,ia)+iz)
-         icn =nint(refcn(j,ia))
-         cncount(icn) = cncount(icn) + 1
-         refal(:,j,ia) = max(ascale(j,ia)*(alphaiw(:,j,ia)-hcount(j,ia)*sec_al),0.0_wp)
-      enddo
-      do j = 1, refn(ia)
-         icn = cncount(nint(refcn(j,ia)))
-         refc(j,ia) = icn*(icn+1)/2
-      enddo
-      ndim = ndim + refn(ia)
-   enddo
-
-end subroutine d4init
-
-subroutine d3dim(nat,at,ndim)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: at(nat)
-   integer, intent(out) :: ndim
-
-   integer :: i
-
-   ndim = 0
-
-   do i = 1, nat
-      ndim = ndim + refs(at(i))
-   enddo
-
-end subroutine d3dim
-
-subroutine d4dim(nat,at,ndim)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: at(nat)
-   integer, intent(out) :: ndim
-
-   integer :: i
-
-   ndim = 0
-
-   do i = 1, nat
-      ndim = ndim + refn(at(i))
-   enddo
-
-end subroutine d4dim
-
-subroutine d3(nat,ndim,at,wf,cn,gw,c6abns)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: wf
-   real(wp),intent(in)  :: cn(nat)
-   real(wp),intent(out) :: gw(ndim)
-   real(wp),intent(out) :: c6abns(ndim,ndim)
-
-   integer  :: i,ia,is,icn,ii,iii,j,jj,ja,k,l
-   integer,allocatable :: itbl(:,:)
-   real(wp) :: twf,norm,aiw(23)
-
-   intrinsic :: maxval
-
-   allocate( itbl(7,nat), source = 0 )
-
-   gw = 0._wp
-   c6abns = 0._wp
-
-   k = 0
-   do i = 1, nat
-      do ii = 1, refs(at(i))
-         k = k+1
-         itbl(ii,i) = k
-      enddo
-   enddo
-
-   do i = 1, nat
-      ia = at(i)
-      norm = 0.0_wp
-      do ii = 1, refs(ia)
-         norm = norm + cngw(wf,cn(i),refcn(ii,ia))
-      enddo
-      norm = 1._wp / norm
-      do ii = 1, refs(ia)
-         k = itbl(ii,i)
-         gw(k) = cngw(wf,cn(i),refcn(ii,ia)) * norm
-!    --- okay, if we run out of numerical iso_fortran_env, gw(k) will be NaN.
-!        In case it is NaN, it will not match itself! So we can rescue
-!        this exception. This can only happen for very high CNs.
-         if (gw(k).ne.gw(k)) then
-            if (maxval(refcn(:refs(ia),ia)).eq.refcn(ii,ia)) then
-               gw(k) = 1.0_wp
-            else
-               gw(k) = 0.0_wp
-            endif
-         endif
-         do j = 1, i-1
-            ja = at(j)
-            do jj = 1, refs(ja)
-               l = itbl(jj,j)
-               aiw = refal(:,ii,ia)*refal(:,jj,ja)
-               c6abns(l,k) = thopi * trapzd(aiw)
-               c6abns(k,l) = c6abns(l,k)
-            enddo
-         enddo
-      enddo
-   enddo
-
-end subroutine d3
-
 subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
    use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -807,7 +529,7 @@ subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
 
    k = 0
    do i = 1, nat
-      do ii = 1, refn(at(i))
+      do ii = 1, dispm%nref(at(i))
          k = k+1
          itbl(ii,i) = k
       enddo
@@ -816,24 +538,24 @@ subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
    do i = 1, nat
       ia = at(i)
       norm = 0.0_wp
-      do ii = 1, refn(ia)
-         do iii = 1, refc(ii,ia)
+      do ii = 1, dispm%nref(ia)
+         do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
-            norm = norm + cngw(twf,covcn(i),refcovcn(ii,ia))
+            norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
       norm = 1._wp / norm
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         do iii = 1, refc(ii,ia)
+         do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
-            gw(k) = gw(k) + cngw(twf,covcn(i),refcovcn(ii,ia)) * norm
+            gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
-!    --- okay, if we run out of numerical iso_fortran_env, gw(k) will be NaN.
+!    --- okay, if we run out of numerical precision, gw(k) will be NaN.
 !        In case it is NaN, it will not match itself! So we can rescue
 !        this exception. This can only happen for very high CNs.
          if (gw(k).ne.gw(k)) then
-            if (maxval(refcovcn(:refn(ia),ia)).eq.refcovcn(ii,ia)) then
+            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
                gw(k) = 1.0_wp
             else
                gw(k) = 0.0_wp
@@ -841,10 +563,9 @@ subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
          endif
          do j = 1, i-1
             ja = at(j)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
-               aiw = refal(:,ii,ia)*refal(:,jj,ja)
-               c6abns(l,k) = thopi * trapzd(aiw)
+               c6abns(l,k) = dispm%c6(ii,jj,ia,ja)
                c6abns(k,l) = c6abns(l,k)
             enddo
          enddo
@@ -854,8 +575,6 @@ subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
 end subroutine d4
 
 pure subroutine build_dispmat(nat,ndim,at,xyz,par,c6abns,dispmat)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -875,7 +594,7 @@ pure subroutine build_dispmat(nat,ndim,at,xyz,par,c6abns,dispmat)
 
    k = 0
    do i = 1, nat
-      do ii = 1, refn(at(i))
+      do ii = 1, dispm%nref(at(i))
          k = k + 1
          itbl(ii,i) = k
       enddo
@@ -894,9 +613,9 @@ pure subroutine build_dispmat(nat,ndim,at,xyz,par,c6abns,dispmat)
          oor6  = fdmpr_bj( 6,r,cutoff)
          oor8  = fdmpr_bj( 8,r,cutoff)
          oor10 = fdmpr_bj(10,r,cutoff)
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c8abns = 3.0_wp * r4r2(ia)*r4r2(ja) * c6abns(k,l)
                c10abns = 49.0_wp/40.0_wp * c8abns**2/c6abns(k,l)
@@ -913,8 +632,6 @@ pure subroutine build_dispmat(nat,ndim,at,xyz,par,c6abns,dispmat)
 end subroutine build_dispmat
 
 subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -936,7 +653,7 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 
    k = 0
    do i = 1, nat
-      do ii = 1, refn(at(i))
+      do ii = 1, dispm%nref(at(i))
          k = k + 1
          itbl(ii,i) = k
       enddo
@@ -957,9 +674,9 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
          oor6  = fdmpr_bj( 6,r,cutoff)
          oor8  = fdmpr_bj( 8,r,cutoff)
          oor10 = fdmpr_bj(10,r,cutoff)
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                gwgw = gw(k)*gw(l)
                if (gwgw.lt.gwcut) cycle
@@ -978,9 +695,7 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 end subroutine build_wdispmat
 
 subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
-   use iso_fortran_env, only : wp => real64
    use mctc_la, only : symv
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1010,11 +725,11 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
    do i = 1, nat
        ia = at(i)
        iz = zeff(ia)
-       do ii = 1, refn(ia)
+       do ii = 1, dispm%nref(ia)
           k = k + 1
           if (gw(k).lt.gw_cut) cycle
-          zerovec(k) = dzeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz)
-          zetavec(k) =  zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz)
+          zerovec(k) = dzeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
+          zetavec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
       enddo
    enddo
 !  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
@@ -1025,8 +740,8 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
    k = 0
    do i = 1, nat
       ia = at(i)
-      hdisp(i) = sum(dumvec(k+1:k+refn(ia))*zerovec(k+1:k+refn(ia)))
-      k = k + refn(ia)
+      hdisp(i) = sum(dumvec(k+1:k+dispm%nref(ia))*zerovec(k+1:k+dispm%nref(ia)))
+      k = k + dispm%nref(ia)
    enddo
 
    deallocate(zetavec,zerovec,dumvec)
@@ -1034,9 +749,7 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
 end subroutine disppot
 
 function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
-   use iso_fortran_env, only : wp => real64
    use mctc_la, only : symv
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1062,10 +775,10 @@ function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
    do i = 1, nat
        ia = at(i)
        iz = zeff(ia)
-       do ii = 1, refn(ia)
+       do ii = 1, dispm%nref(ia)
           k = k + 1
           if (gw(k).lt.gw_cut) cycle
-          zetavec(k) =  zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz)
+          zetavec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
       enddo
    enddo
 !  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
@@ -1078,120 +791,8 @@ function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
 
 end function edisp_scc
 
-subroutine edisp_old(nat,ndim,at,xyz,par,gw,c6abns,mbd,E,aout,etwo,emany)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: xyz(3,nat)
-   type(dftd_parameter),intent(in) :: par
-   real(wp),intent(in)  :: gw(ndim)
-   real(wp),intent(in)  :: c6abns(ndim,ndim)
-   integer, intent(in)  :: mbd
-   real(wp),intent(out) :: E
-   real(wp),intent(out),optional :: aout(23,nat)
-   real(wp),intent(out),optional :: etwo
-   real(wp),intent(out),optional :: emany
-
-   integer  :: i,ii,ia,k,ij,l,j,jj,ja
-   integer, allocatable :: itbl(:,:)
-   real(wp) :: Embd,c6ij,c6ij_ns,oor6,oor8,oor10,r2,cutoff,r
-   real(wp),allocatable :: dispmat(:,:)
-   real(wp),allocatable :: c6ab(:)
-   real(wp),allocatable :: aw(:,:)
-   real(wp),allocatable :: oor6ab(:,:)
-
-   intrinsic :: present,sqrt,sum
-   
-   allocate( aw(23,nat),oor6ab(nat,nat),c6ab(nat*(nat+1)/2), &
-   &         source = 0.0_wp )
-   allocate( itbl(7,nat), source = 0 )
-
-   e = 0.0_wp
-
-   k = 0
-   do i = 1, nat
-      do ii = 1, refs(at(i))
-         k = k + 1
-         itbl(ii,i) = k
-         aw(:,i) = aw(:,i) + gw(k) * refal(:,ii,at(i))
-      enddo
-   enddo
-
-!$OMP parallel private(i,j,ia,ja,ij,k,l,r,oor6,oor8,oor10,cutoff,c6ij,c6ij_ns) &
-!$omp&         shared(c6ab) reduction(+:E)
-!$omp do schedule(dynamic)
-   do i = 1, nat
-      ia = at(i)
-      do j = 1, i-1
-         ja = at(j)
-         ij = i*(i-1)/2 + j
-!        r = norm2(xyz(:,i)-xyz(:,j))
-         r2 = sum( (xyz(:,i)-xyz(:,j))**2 )
-         cutoff = par%a1*sqrt(3._wp*r4r2(ia)*r4r2(ja))+par%a2
-         oor6 = 1._wp/(r2**3 + cutoff**6)
-!        oor6 = fdmpr_bj( 6,r,cutoff)
-         oor6ab(i,j) = oor6
-         oor6ab(j,i) = oor6
-         oor8  = 1._wp/(r2**4 + cutoff**8)
-         oor10 = 1._wp/(r2**5 + cutoff**10)
-!        oor8  = fdmpr_bj( 8,r,cutoff)
-!        oor10 = fdmpr_bj(10,r,cutoff)
-         c6ij = 0.0_wp
-         do ii = 1, refs(ia)
-            k = itbl(ii,i)
-            do jj = 1, refs(ja)
-               l = itbl(jj,j)
-               c6ij = c6ij + gw(k)*gw(l)*c6abns(k,l)
-            enddo
-         enddo
-         c6ab(ij) = c6ij
-         E = E - c6ij*(par%s6*oor6 + par%s8*3._wp*r4r2(ia)*r4r2(ja)*oor8 &
-         &      + par%s10*49.0_wp/40._wp*(3.0_wp*r4r2(ia)*r4r2(ja))**2*oor10 )
-      enddo
-   enddo
-!$omp enddo
-!$omp end parallel
-
-   if (present(Etwo)) Etwo = E
-
-   select case(mbd)
-   case(p_mbd_rpalike) ! full RPA-like MBD
-!     print'(1x,''* MBD effects calculated by RPA like scheme'')'
-      call dispmb(Embd,aw,xyz,oor6ab,nat)
-      Embd = par%s9*Embd
-      E = E + Embd
-   case(p_mbd_exact_atm) ! Axilrod-Teller-Muto three-body term
-!     print'(1x,''* MBD effects calculated by ATM formula'')'
-      call dispabc(nat,at,xyz,aw,par,Embd)
-      E = E + Embd
-   case(p_mbd_approx_atm) ! D3-like approximated ATM term
-!     print'(1x,''* MBD effects approximated by ATM formula'')'
-      call apprabc(nat,at,xyz,c6ab,par,Embd)
-      E = E + Embd
-   case default
-      Embd = 0.0_wp
-   end select
-
-   if (present(Emany)) Emany = Embd
-
-   if (present(aout)) then
-      aout = 0._wp
-      do i = 1, nat
-         ia = at(i)
-         do ii = 1, refs(ia)
-            aout(:,i) = aout(:,i) + gw(k) * refal(:,ii,ia)
-         enddo
-      enddo
-   endif
-
-end subroutine edisp_old
-
 subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
            &     gw,c6abns,mbd,E,aout,etwo,emany)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1229,7 +830,7 @@ subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
 
    k = 0
    do i = 1, nat
-      do ii = 1, refn(at(i))
+      do ii = 1, dispm%nref(at(i))
          k = k + 1
          itbl(ii,i) = k
       enddo
@@ -1238,17 +839,17 @@ subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
    do i = 1, nat
       ia = at(i)
       iz = zeff(ia)
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         zetvec(k) = gw(k) * zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz)
-         zerovec(k) = gw(k) * zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz)
-         aw(:,i) = aw(:,i) + zerovec(k) * refal(:,ii,ia)
+         zetvec(k) = gw(k) * zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
+         zerovec(k) = gw(k) * zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,iz)
+         aw(:,i) = aw(:,i) + zerovec(k) * dispm%alpha(:,ii,ia)
       enddo
    enddo
 
 !$OMP parallel private(i,j,ia,ja,ij,k,l,r,oor6,oor8,oor10,cutoff,c6ij,c6ij_ns) &
 !$omp&         shared(c6ab) reduction(+:E)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1267,9 +868,9 @@ subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
          oor10 = fdmpr_bj(10,r,cutoff)
          c6ij_ns = 0.0_wp
          c6ij = 0.0_wp
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c6ij_ns = c6ij_ns + zerovec(k)*zerovec(l)*c6abns(k,l)
                c6ij = c6ij + zetvec(k)*zetvec(l)*c6abns(k,l)
@@ -1309,8 +910,8 @@ subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
       aout = 0._wp
       do i = 1, nat
          ia = at(i)
-         do ii = 1, refn(ia)
-            aout(:,i) = aout(:,i) + zetvec(k) * refal(:,ii,ia)
+         do ii = 1, dispm%nref(ia)
+            aout(:,i) = aout(:,i) + zetvec(k) * dispm%alpha(:,ii,ia)
          enddo
       enddo
    endif
@@ -1326,8 +927,6 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
            &        par,wf,g_a,g_c, &
            &        c6abns,mbd, &
            &        g,eout,dq,aout)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1399,7 +998,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !  print'(" * Setting up index table")'
    k = 0
    do i = 1, nat
-      do ii = 1, refn(at(i))
+      do ii = 1, dispm%nref(at(i))
          k = k+1
          itbl(ii,i) = k
       enddo
@@ -1408,7 +1007,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !  print'(" * Entering first OMP section")'
 !$OMP parallel default(none) &
 !$omp private(i,ii,iii,ia,iz,k,norm,dnorm,twf,tgw,dexpw,expw,gwk,dgwk)  &
-!$omp shared (nat,at,refn,refc,refcovcn,itbl,refq,wf,cn,g_a,g_c,q) &
+!$omp shared (nat,at,dispm,itbl,wf,cn,g_a,g_c,q) &
 !$omp shared (gw,dgw,zvec,dzvec,dzdq)
 !$omp do
    do i = 1, nat
@@ -1416,47 +1015,47 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
       iz = zeff(ia)
       norm  = 0.0_wp
       dnorm = 0.0_wp
-      do ii=1,refn(ia)
-         do iii = 1, refc(ii,ia)
+      do ii=1,dispm%nref(ia)
+         do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
-            tgw = cngw(twf,cn(i),refcovcn(ii,ia))
+            tgw = cngw(twf,cn(i),dispm%cn(ii,ia))
             norm  =  norm + tgw
-            dnorm = dnorm + 2*twf*(refcovcn(ii,ia)-cn(i))*tgw
+            dnorm = dnorm + 2*twf*(dispm%cn(ii,ia)-cn(i))*tgw
          enddo
       enddo
       norm = 1._wp/norm
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
          dexpw=0.0_wp
          expw=0.0_wp
-         do iii = 1, refc(ii,ia)
+         do iii = 1, dispm%ncount(ii,ia)
             twf = wf*iii
-            tgw = cngw(twf,cn(i),refcovcn(ii,ia))
+            tgw = cngw(twf,cn(i),dispm%cn(ii,ia))
             expw  =  expw + tgw
-            dexpw = dexpw + 2*twf*(refcovcn(ii,ia)-cn(i))*tgw
+            dexpw = dexpw + 2*twf*(dispm%cn(ii,ia)-cn(i))*tgw
          enddo
 
          ! save
          gwk = expw*norm
          if (gwk.ne.gwk) then
-            if (maxval(refcovcn(:refn(ia),ia)).eq.refcovcn(ii,ia)) then
+            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
             endif
          endif
-         zvec(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * gwk
+         zvec(k) = zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz) * gwk
          ! NEW: q=0 for ATM
-         gw(k) =  zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz) * gwk
+         gw(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,iz) * gwk
 
          dgwk = dexpw*norm-expw*dnorm*norm**2
          if (dgwk.ne.dgwk) then
             dgwk = 0.0_wp
          endif
-         dzvec(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * dgwk
-         dzdq(k) = dzeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * gwk
+         dzvec(k) = zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz) * dgwk
+         dzdq(k) = dzeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz) * gwk
          ! NEW: q=0 for ATM
-         dgw(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz) * dgwk
+         dgw(k) = zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,iz) * dgwk
       enddo
    enddo
 !$omp end do
@@ -1466,9 +1065,9 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !$OMP parallel default(none) &
 !$omp private(i,j,ia,ja,ij,k,l,c6ij,dic6ij,djc6ij,disp,dizij,djzij,  &
 !$omp         rij,r2,r,r4r2ij,r0,oor6,oor8,oor10,door6,door8,door10)  &
-!$omp shared(nat,at,xyz,refn,itbl,zvec,dzvec,c6abns,par,dzdq) &
+!$omp shared(nat,at,xyz,dispm,itbl,zvec,dzvec,c6abns,par,dzdq) &
 !$omp shared(r2ab) reduction(+:dc6dr,dc6dq,dc6dcn,ed)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1485,9 +1084,9 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
          dizij = 0.0_wp
          djzij = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c6ij = c6ij + zvec(k)*zvec(l)*c6abns(k,l)
                dic6ij = dic6ij + dzvec(k)*zvec(l)*c6abns(k,l)
@@ -1559,7 +1158,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !$omp private(i,j,ia,ja,ij,rij,r2,r,drdx,den,rcovij,  &
 !$omp         expterm,dcndr,dtmp) reduction(+:g) &
 !$omp shared(nat,at,xyz,dc6dr,dc6dcn)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1603,8 +1202,8 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
       aout = 0._wp
       do i = 1, nat
          ia = at(i)
-         do ii = 1, refn(ia)
-            aout(:,i) = aout(:,i) + zvec(k) * refal(:,ii,ia)
+         do ii = 1, dispm%nref(ia)
+            aout(:,i) = aout(:,i) + zvec(k) * dispm%alpha(:,ii,ia)
          enddo
       enddo
    endif
@@ -1613,8 +1212,6 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 end subroutine dispgrad
 
 subroutine apprabc(nat,at,xyz,c6ab,par,E)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
@@ -1670,8 +1267,6 @@ subroutine apprabc(nat,at,xyz,c6ab,par,E)
 end subroutine apprabc
 
 subroutine dispabc(nat,at,xyz,aw,par,E)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
@@ -1724,8 +1319,6 @@ subroutine dispabc(nat,at,xyz,aw,par,E)
 end subroutine dispabc
 
 subroutine abcappr(nat,ndim,at,xyz,g_a,g_c,par,gw,r2ab,c6abns,eabc)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1776,17 +1369,17 @@ subroutine abcappr(nat,ndim,at,xyz,g_a,g_c,par,gw,r2ab,c6abns,eabc)
    do i = 1, nat
       ia = at(i)
       iz = zeff(ia)
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = k+1
          itbl(ii,i) = k
          ! NEW: q=0 for ATM
-         zvec(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz) * gw(k)
+         zvec(k) = zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,iz) * gw(k)
       enddo
    enddo
 
 !$OMP parallel private(i,ia,j,ja,ij,r2ij,c6ij)  &
 !$omp&         shared (c6ab,c)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1802,9 +1395,9 @@ subroutine abcappr(nat,ndim,at,xyz,g_a,g_c,par,gw,r2ab,c6abns,eabc)
          ! temps
          c6ij = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c6ij = c6ij + zvec(k)*zvec(l)*c6abns(k,l)
             enddo
@@ -1820,7 +1413,7 @@ subroutine abcappr(nat,ndim,at,xyz,g_a,g_c,par,gw,r2ab,c6abns,eabc)
 !$omp&                 r2ij,cij,r2ik,r2jk,cik,cjk,r2ijk,rijk,cijk, &
 !$omp&                 c9ijk,oor9ijk) &
 !$omp&         reduction(+:eabc)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1867,8 +1460,6 @@ end subroutine abcappr
 
 subroutine dabcappr(nat,ndim,at,xyz,par,  &
                 &        r2ab,zvec,dzvec,c6abns,itbl,dc6dr,dc6dcn,eout)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1918,9 +1509,9 @@ subroutine dabcappr(nat,ndim,at,xyz,par,  &
 
 !$OMP parallel default(none) &
 !$omp private(i,ia,j,ja,ij,r2ij,c6ij,dic6ij,djc6ij,k,l)  &
-!$omp shared (nat,at,r2ab,refn,itbl,c6abns,zvec,dzvec) &
+!$omp shared (nat,at,r2ab,dispm,itbl,c6abns,zvec,dzvec) &
 !$omp shared (c6ab,dc6ab)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1937,9 +1528,9 @@ subroutine dabcappr(nat,ndim,at,xyz,par,  &
          dic6ij = 0.0_wp
          djc6ij = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c6ij = c6ij + zvec(k)*zvec(l)*c6abns(k,l)
                dic6ij = dic6ij + dzvec(k)*zvec(l)*c6abns(k,l)
@@ -1962,7 +1553,7 @@ subroutine dabcappr(nat,ndim,at,xyz,par,  &
 !$omp         c9ijk,oor9ijk,dic9ijk,djc9ijk,dkc9ijk) &
 !$omp shared(nat,at,r2ab,par,c6ab,dc6ab) &
 !$omp reduction(+:eabc,dc6dr) reduction(-:dc6dcn)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -2069,8 +1660,6 @@ end subroutine dabcappr
 ! ∂(f/(r³AB·r³BC·r³CA)/∂rAB = 
 !   ⅓·((6·(16-9)·(¾·∛[RAB·RBC·RCA/(rAB·rBC·rCA)])¹⁶-9)·f²/(r⁴AB·r³BC·r³CA)
 subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -2121,7 +1710,7 @@ subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
 !$omp&         dijoor9ijk,djkoor9ijk,dikoor9ijk, &
 !$omp&         x1,x2,x3,x4,x5,x6,x7,x8,x9) &
 !$omp&         reduction(+:g,eabc)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -2156,15 +1745,15 @@ subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
             c9ijk = 0._wp
 
 !       --- sum up all references ---
-            do ii = 1, refn(ia) ! refs of A
+            do ii = 1, dispm%nref(ia) ! refs of A
                l = itbl(ii,i)
-               do jj = 1, refn(ja) ! refs of B
+               do jj = 1, dispm%nref(ja) ! refs of B
                   m = itbl(jj,j)
-                  do kk = 1, refn(ka) ! refs of C
+                  do kk = 1, dispm%nref(ka) ! refs of C
                      n = itbl(kk,k)
                      if ((zvec(l)*zvec(m)*zvec(n)).lt.gw_thr) cycle
-                     c9tmp = par%s9*thopi*trapzd(refal(:,ii,ia)*refal(:,jj,ja) &
-                     &                      *refal(:,kk,ka))
+                     c9tmp = par%s9*thopi*trapzd(dispm%alpha(:,ii,ia)*dispm%alpha(:,jj,ja) &
+                     &                      *dispm%alpha(:,kk,ka))
 
                      c9ijk = c9ijk + c9tmp*zvec(n)*zvec(m)*zvec(l)
 !                --- intermediates ---
@@ -2272,68 +1861,8 @@ subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
 
 end subroutine dabcgrad
 
-
-subroutine d4_numgrad(nat,ndim,at,q,xyz, &
-           &          par,wf,g_a,g_c,mbd,numg)
-   use iso_fortran_env, only : wp => real64
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: q(nat) 
-   real(wp),intent(in)  :: xyz(3,nat) 
-   type(dftd_parameter),intent(in) :: par
-   real(wp),intent(in)  :: wf,g_a,g_c
-   integer, intent(in)  :: mbd
-   real(wp),intent(inout) :: numg(3,nat)
-
-   integer  :: k,l
-   real(wp) :: er,el,step,cn_thr
-   real(wp),allocatable :: xyzl(:,:)
-   real(wp),allocatable :: xyzr(:,:)
-   real(wp),allocatable :: xyzdup(:,:)
-   real(wp),allocatable :: c6abns(:,:)
-   real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: gw(:)
-   parameter(step=1e-4_wp)
-   parameter(cn_thr=1600._wp)
-
-   allocate( xyzr(3,nat),xyzl(3,nat), source=xyz )
-   allocate( c6abns(ndim,ndim),cn(nat),gw(ndim), &
-   &         source = 0._wp )
-
-   do l = 1, 3
-      do k = 1, nat
-         er = 0._wp
-         el = 0._wp
-         cn=0._wp
-         gw=0._wp
-         c6abns=0._wp
-         xyzr = xyz
-         xyzr(l,k) = xyz(l,k) + step
-         call covncoord(nat,at,xyzr,cn,cn_thr)
-         call d4(nat,ndim,at,wf,g_a,g_c,cn,gw,c6abns)
-         call edisp(nat,ndim,at,q,xyzr,par,g_a,g_c, &
-         &          gw,c6abns,mbd,er)
-         cn=0._wp
-         gw=0._wp
-         c6abns=0._wp
-         xyzl = xyz
-         xyzl(l,k) = xyz(l,k) - step
-         call covncoord(nat,at,xyzl,cn,cn_thr)
-         call d4(nat,ndim,at,wf,g_a,g_c,cn,gw,c6abns)
-         call edisp(nat,ndim,at,q,xyzl,par,g_a,g_c, &
-         &          gw,c6abns,mbd,el)
-         numg(l,k) = numg(l,k) + (er-el)/(2*step)
-      enddo
-   enddo
-
-end subroutine d4_numgrad
-
 subroutine dispmb(E,aw,xyz,oor6ab,nat)
-   use iso_fortran_env, only : wp => real64
    use mctc_la, only : syev,gemm
-   implicit none
    integer, intent(in)  :: nat
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: aw(23,nat)
@@ -2447,9 +1976,7 @@ end subroutine dispmb
 !! !WARNING!WARNING!WARNING!WARNING!WARNING!WARNING!WARNING!WARNING! !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
-   use iso_fortran_env, only : wp => real64
    use mctc_la, only : syev,gemm
-   implicit none
    integer, intent(in)  :: nat
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: aw(23,nat)
@@ -2722,38 +2249,8 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
 
 end subroutine mbdgrad
 
-function refq2string(refq) result(string)
-   implicit none
-   integer,intent(in) :: refq
-   character(len=:),allocatable :: string
-   select case(refq)
-   case default;                  string = 'unknown'
-   case(p_refq_gfn2xtb);          string = 'GFN2'
-   case(p_refq_gasteiger);        string = 'EEQ'
-   case(p_refq_hirshfeld);        string = 'extern'
-   case(p_refq_periodic);         string = 'EEQ'
-   case(p_refq_gfn2xtb_gbsa_h2o); string = 'GFN2/GBSA'
-   case(p_refq_goedecker);        string = 'EEQ'
-   end select
-end function refq2string
-
-function lmbd2string(lmbd) result(string)
-   implicit none
-   integer,intent(in) :: lmbd
-   character(len=:),allocatable :: string
-   select case(lmbd)
-   case default;           string = 'unknown'
-   case(p_mbd_none);       string = 'none'
-   case(p_mbd_rpalike);    string = 'RPA like'
-   case(p_mbd_exact_atm);  string = 'ATM'
-   case(p_mbd_approx_atm); string = 'ATM'
-   end select
-end function lmbd2string
-
 ! --- PBC
 subroutine pbc_d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
-   use iso_fortran_env, only : wp => real64
-   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -2775,7 +2272,7 @@ subroutine pbc_d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
 
    k = 0
    do i = 1, nat
-      do ii = 1, refn(at(i))
+      do ii = 1, dispm%nref(at(i))
          k = k+1
          itbl(ii,i) = k
       enddo
@@ -2784,24 +2281,24 @@ subroutine pbc_d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
    do i = 1, nat
       ia = at(i)
       norm = 0.0_wp
-      do ii = 1, refn(ia)
-         do iii = 1, refc(ii,ia)
+      do ii = 1, dispm%nref(ia)
+         do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
-            norm = norm + cngw(twf,covcn(i),refcovcn(ii,ia))
+            norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
       norm = 1._wp / norm
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         do iii = 1, refc(ii,ia)
+         do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
-            gw(k) = gw(k) + cngw(twf,covcn(i),refcovcn(ii,ia)) * norm
+            gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
-!    --- okay, if we run out of numerical iso_fortran_env, gw(k) will be NaN.
+!    --- okay, if we run out of numerical precision, gw(k) will be NaN.
 !        In case it is NaN, it will not match itself! So we can rescue
 !        this exception. This can only happen for very high CNs.
          if (gw(k).ne.gw(k)) then
-            if (maxval(refcovcn(:refn(ia),ia)).eq.refcovcn(ii,ia)) then
+            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
                gw(k) = 1.0_wp
             else
                gw(k) = 0.0_wp
@@ -2810,17 +2307,15 @@ subroutine pbc_d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
          ! diagonal terms
          do jj = 1, ii
             l = itbl(jj,i)
-            aiw = refal(:,ii,ia)*refal(:,jj,ia)
-            refc6(l,k) = thopi * trapzd(aiw)
+            refc6(l,k) = dispm%c6(ii,jj,ia,ia)
             refc6(k,l) = refc6(l,k)
          enddo
          ! offdiagonal terms
          do j = 1, i-1
             ja = at(j)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
-               aiw = refal(:,ii,ia)*refal(:,jj,ja)
-               refc6(l,k) = thopi * trapzd(aiw)
+               refc6(l,k) = dispm%c6(ii,jj,ia,ja)
                refc6(k,l) = refc6(l,k)
             enddo
          enddo
@@ -2832,10 +2327,8 @@ end subroutine pbc_d4
 ! compute D4 gradient under pbc
 subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mbd, &
       &             ed,etwo,embd)
-   use iso_fortran_env, only : wp => real64
    use mctc_constants
    use tbdef_molecule
-   implicit none
    type(tb_molecule),intent(in) :: mol
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: q(mol%n)
@@ -2889,7 +2382,7 @@ subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mb
 
    k = 0
    do i = 1, mol%n
-      do ii = 1, refn(mol%at(i))
+      do ii = 1, dispm%nref(mol%at(i))
          k = k+1
          itbl(ii,i) = k
       enddo
@@ -2898,17 +2391,17 @@ subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mb
 !  print'(" * Entering first OMP section")'
 !$OMP parallel default(none) &
 !$omp private(i,ii,iii,ia,iz,k)  &
-!$omp shared (mol,refn,refc,refcovcn,itbl,refq,g_a,g_c,q) &
+!$omp shared (mol,dispm,itbl,g_a,g_c,q) &
 !$omp shared (gw,zetavec,zerovec,r_thr)
 !$omp do
    do i = 1, mol%n
       ia = mol%at(i)
       iz = zeff(ia)
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         zetavec(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * gw(k)
+         zetavec(k) = zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz) * gw(k)
          ! NEW: q=0 for ATM
-         zerovec(k) =  zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz) * gw(k)
+         zerovec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,iz) * gw(k)
 
       enddo
    enddo
@@ -2919,17 +2412,17 @@ subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mb
 !$omp private(i,j,ia,ja,ij,k,l,c6ii,c6ij,disp,  &
 !$omp         rij,r2,r,r4r2ij,r0,oor6,oor8,oor10, &
 !$omp         t,tx,ty,tz)  &
-!$omp shared(mol,refn,itbl,zetavec,refc6,par,rep,r_Thr) &
+!$omp shared(mol,dispm,itbl,zetavec,refc6,par,rep,r_Thr) &
 !$omp shared(r2ab) reduction(+:ed)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, mol%n
       ia = mol%at(i)
       ! temps
       c6ij   = 0.0_wp
       ! all refs
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         do jj = 1, refn(ia)
+         do jj = 1, dispm%nref(ia)
             l = itbl(jj,i)
             c6ij   = c6ij   +  zetavec(k) *  zetavec(l) * refc6(k,l)
          enddo
@@ -2959,9 +2452,9 @@ subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mb
          ! temps
          c6ij   = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c6ij   = c6ij   +  zetavec(k) *  zetavec(l) * refc6(k,l)
             enddo
@@ -3004,7 +2497,6 @@ end subroutine edisp_3d
 subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
    use tbdef_molecule
    use pbc_tools
-   implicit none
    type(tb_molecule),intent(in) :: mol !< molecular structure information
    integer, intent(in)  :: ndim
    type(dftd_parameter),intent(in) :: par
@@ -3031,9 +2523,9 @@ subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
 
    !$OMP parallel default(none) &
    !$omp private(i,ia,j,ja,ij,r2ij,c6ij,k,l,r)  &
-   !$omp shared (mol,refn,itbl,refc6,zvec) &
+   !$omp shared (mol,dispm,itbl,refc6,zvec) &
    !$omp shared (c6ab)
-   !$omp do schedule(dynamic)
+   !$omp do schedule(runtime)
    do i = 1, mol%n
       ia = mol%at(i)
       ij = i*(i-1)/2+i
@@ -3041,9 +2533,9 @@ subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
       ! temps
       c6ij = 0.0_wp
       ! all refs
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         do jj = 1, refn(ia)
+         do jj = 1, dispm%nref(ia)
             l = itbl(jj,i)
             c6ij = c6ij + zvec(k)*zvec(l)*refc6(k,l)
          enddo
@@ -3062,9 +2554,9 @@ subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
          ! temps
          c6ij = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
                c6ij = c6ij + zvec(k)*zvec(l)*refc6(k,l)
             enddo
@@ -3084,7 +2576,6 @@ subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
 end subroutine abcappr_3d
 
 subroutine abcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,eabc)
-   implicit none
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
@@ -3439,11 +2930,9 @@ end subroutine abcappr_3d_dftd3_like_style
 ! compute D4 gradient under pbc
 subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, &
       &                wf,g_a,g_c,refc6,mbd,g,sigma,eout,dqdr,dqdL,aout)
-   use iso_fortran_env, only : wp => real64
    use mctc_constants
    use tbdef_molecule
    use pbc_tools
-   implicit none
    type(tb_molecule),intent(in) :: mol
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: q(mol%n)
@@ -3483,12 +2972,12 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
    real(wp) :: drdx(3),dtmp,gwk,dgwk
    real(wp),allocatable :: r2ab(:)
    real(wp),allocatable :: dc6dcn(:)
-   real(wp),allocatable :: zvec(:)
-   real(wp),allocatable :: dzvec(:)
-   real(wp),allocatable :: gw(:)
-   real(wp),allocatable :: dgw(:)
+   real(wp),allocatable :: zvec(:,:)
+   real(wp),allocatable :: dzvec(:,:)
+   real(wp),allocatable :: gw(:,:)
+   real(wp),allocatable :: dgw(:,:)
    real(wp),allocatable :: dc6dq(:)
-   real(wp),allocatable :: dzdq(:)
+   real(wp),allocatable :: dzdq(:,:)
    real(wp) :: cn_thr,gw_thr
 
    parameter(cn_thr = 1600.0_wp)
@@ -3497,8 +2986,8 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
    intrinsic :: present,sqrt,sum,maxval,exp,abs
 
    !  print'(" * Allocating local memory")'
-   allocate( dc6dcn(mol%n),r2ab(mol%n*(mol%n+1)/2),dc6dq(mol%n),dzdq(ndim), &
-      &      zvec(ndim),dzvec(ndim),gw(ndim),dgw(ndim), &
+   allocate( dc6dcn(mol%n),r2ab(mol%n*(mol%n+1)/2),dc6dq(mol%n),dzdq(7,mol%n), &
+      &      zvec(7,mol%n),dzvec(7,mol%n),gw(7,mol%n),dgw(7,mol%n), &
       &      source = 0.0_wp )
    allocate( itbl(7,mol%n), source = 0 )
 
@@ -3507,76 +2996,22 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
 
    k = 0
    do i = 1, mol%n
-      do ii = 1, refn(mol%at(i))
+      do ii = 1, dispm%nref(mol%at(i))
          k = k+1
          itbl(ii,i) = k
       enddo
    enddo
 
-!  print'(" * Entering first OMP section")'
-!$OMP parallel default(none) &
-!$omp private(i,ii,iii,ia,iz,k,norm,dnorm,twf,tgw,dexpw,expw,gwk,dgwk)  &
-!$omp shared (mol,refn,refc,refcovcn,itbl,refq,wf,cn,g_a,g_c,q) &
-!$omp shared (gw,dgw,zvec,dzvec,dzdq,r_thr)
-!$omp do
-   do i = 1, mol%n
-      ia = mol%at(i)
-      iz = zeff(ia)
-      norm  = 0.0_wp
-      dnorm = 0.0_wp
-      do ii=1,refn(ia)
-         do iii = 1, refc(ii,ia)
-            twf = iii*wf
-            tgw = cngw(twf,cn(i),refcovcn(ii,ia))
-            norm  =  norm + tgw
-            dnorm = dnorm + 2*twf*(refcovcn(ii,ia)-cn(i))*tgw
-         enddo
-      enddo
-      norm = 1._wp/norm
-      do ii = 1, refn(ia)
-         k = itbl(ii,i)
-         dexpw=0.0_wp
-         expw=0.0_wp
-         do iii = 1, refc(ii,ia)
-            twf = wf*iii
-            tgw = cngw(twf,cn(i),refcovcn(ii,ia))
-            expw  =  expw + tgw
-            dexpw = dexpw + 2*twf*(refcovcn(ii,ia)-cn(i))*tgw
-         enddo
-
-         ! save
-         gwk = expw*norm
-         if (gwk.ne.gwk) then
-            if (maxval(refcovcn(:refn(ia),ia)).eq.refcovcn(ii,ia)) then
-               gwk = 1.0_wp
-            else
-               gwk = 0.0_wp
-            endif
-         endif
-         zvec(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * gwk
-         ! NEW: q=0 for ATM
-         gw(k) =  zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz) * gwk
-
-         dgwk = dexpw*norm-expw*dnorm*norm**2
-         if (dgwk.ne.dgwk) then
-            dgwk = 0.0_wp
-         endif
-         dzvec(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * dgwk
-         dzdq(k) = dzeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,q(i)+iz) * gwk
-         ! NEW: q=0 for ATM
-         dgw(k) = zeta(g_a,gam(ia)*g_c,refq(ii,ia)+iz,iz) * dgwk
-      enddo
-   enddo
-!$omp end do
-!$omp end parallel
+   call weight_references(mol%n, mol%at, g_a, g_c, wf, q, cn, &
+      &                   zvec, gw, dzvec, dgw, dzdq)
 
 !$OMP parallel default(none) &
 !$omp private(i,j,ia,ja,ij,k,l,c6ii,c6ij,dic6ii,dic6ij,djc6ij,disp,ddisp,dizii,dizij,djzij,  &
 !$omp         rij,r2,r,r4r2ij,r0,oor6,oor8,oor10,door6,door8,door10, &
 !$omp         t,tx,ty,tz,dtmp,drdx)  &
-!$omp shared(mol,refn,itbl,zvec,dzvec,refc6,par,dzdq,rep,r_Thr) &
+!$omp shared(mol,dispm,itbl,zvec,dzvec,refc6,par,dzdq,rep,r_Thr) &
 !$omp shared(r2ab) reduction(+:dc6dq,dc6dcn,ed,g,sigma)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, mol%n
       ia = mol%at(i)
       ! temps
@@ -3586,15 +3021,15 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
       dizij  = 0.0_wp
       djzij  = 0.0_wp
       ! all refs
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         do jj = 1, refn(ia)
+         do jj = 1, dispm%nref(ia)
             l = itbl(jj,i)
-            c6ij   = c6ij   +  zvec(k) *  zvec(l) * refc6(k,l)
-            dic6ij = dic6ij + dzvec(k) *  zvec(l) * refc6(k,l)
-            djc6ij = djc6ij +  zvec(k) * dzvec(l) * refc6(k,l)
-            dizij  = dizij  +  dzdq(k) *  zvec(l) * refc6(k,l)
-            djzij  = djzij  +  zvec(k) *  dzdq(l) * refc6(k,l)
+            c6ij   = c6ij   +  zvec(ii,i) *  zvec(jj,i) * refc6(k,l)
+            dic6ij = dic6ij + dzvec(ii,i) *  zvec(jj,i) * refc6(k,l)
+            djc6ij = djc6ij +  zvec(ii,i) * dzvec(jj,i) * refc6(k,l)
+            dizij  = dizij  +  dzdq(ii,i) *  zvec(jj,i) * refc6(k,l)
+            djzij  = djzij  +  zvec(ii,i) *  dzdq(jj,i) * refc6(k,l)
          enddo
       enddo
       ! i in primitive cell with i in images
@@ -3638,15 +3073,15 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
          dizij  = 0.0_wp
          djzij  = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
-               c6ij   = c6ij   +  zvec(k) *  zvec(l) * refc6(k,l)
-               dic6ij = dic6ij + dzvec(k) *  zvec(l) * refc6(k,l)
-               djc6ij = djc6ij +  zvec(k) * dzvec(l) * refc6(k,l)
-               dizij  = dizij  +  dzdq(k) *  zvec(l) * refc6(k,l)
-               djzij  = djzij  +  zvec(k) *  dzdq(l) * refc6(k,l)
+               c6ij   = c6ij   +  zvec(ii,i) *  zvec(jj,j) * refc6(k,l)
+               dic6ij = dic6ij + dzvec(ii,i) *  zvec(jj,j) * refc6(k,l)
+               djc6ij = djc6ij +  zvec(ii,i) * dzvec(jj,j) * refc6(k,l)
+               dizij  = dizij  +  dzdq(ii,i) *  zvec(jj,j) * refc6(k,l)
+               djzij  = djzij  +  zvec(ii,i) *  dzdq(jj,j) * refc6(k,l)
             enddo
          enddo
          r4r2ij = 3*r4r2(ia)*r4r2(ja)
@@ -3718,8 +3153,8 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
       aout = 0._wp
       do i = 1, mol%n
          ia = mol%at(i)
-         do ii = 1, refn(ia)
-            aout(:,i) = aout(:,i) + zvec(k) * refal(:,ii,ia)
+         do ii = 1, dispm%nref(ia)
+            aout(:,i) = aout(:,i) + zvec(ii,i) * dispm%alpha(:,ii,ia)
          enddo
       enddo
    endif
@@ -3730,12 +3165,11 @@ subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
       &                g,sigma,dc6dcn,eabc)
    use tbdef_molecule
    use pbc_tools
-   implicit none
    type(tb_molecule),intent(in) :: mol !< molecular structure information
    integer, intent(in)  :: ndim
    type(dftd_parameter),intent(in) :: par
-   real(wp),intent(in)  :: zvec(ndim)
-   real(wp),intent(in)  :: dzvec(ndim)
+   real(wp),intent(in)  :: zvec(:,:)
+   real(wp),intent(in)  :: dzvec(:,:)
    real(wp),intent(in)  :: refc6(ndim,ndim)
    integer, intent(in)  :: itbl(7,mol%n)
    integer, intent(in)  :: rep(3)
@@ -3747,7 +3181,7 @@ subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
 
    integer  :: i,ii,ia,j,jj,ja,k,kk,ka,l,m,n
    integer  :: ij,jk,ik
-   real(wp),allocatable :: c6ab(:),dc6ab(:,:)
+   real(wp),allocatable :: c6ab(:,:),dc6ab(:,:)
    real(wp) :: r2ij,r2jk,r2ik,r
    real(wp) :: cii,cij,cjk,cik,ciii,ciij,cijk
    real(wp) :: c9iii,c9iij,c9ijk,oor9ijk,rijk
@@ -3763,15 +3197,15 @@ subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
 
    intrinsic :: present,sqrt
 
-   allocate( c6ab(mol%n*(mol%n+1)/2),dc6ab(mol%n,mol%n), source = 0.0_wp )
+   allocate( c6ab(mol%n,mol%n),dc6ab(mol%n,mol%n), source = 0.0_wp )
 
    eabc = 0.0_wp
 
 !$OMP parallel default(none) &
 !$omp private(i,ia,j,ja,ij,r2ij,c6ij,dic6ij,djc6ij,k,l,r)  &
-!$omp shared (mol,refn,itbl,refc6,zvec,dzvec) &
+!$omp shared (mol,dispm,itbl,refc6,zvec,dzvec) &
 !$omp shared (c6ab,dc6ab)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    do i = 1, mol%n
       ia = mol%at(i)
       ij = i*(i-1)/2+i
@@ -3781,17 +3215,17 @@ subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
       dic6ij = 0.0_wp
       djc6ij = 0.0_wp
       ! all refs
-      do ii = 1, refn(ia)
+      do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
-         do jj = 1, refn(ia)
+         do jj = 1, dispm%nref(ia)
             l = itbl(jj,i)
-            c6ij = c6ij + zvec(k)*zvec(l)*refc6(k,l)
-            dic6ij = dic6ij + dzvec(k)*zvec(l)*refc6(k,l)
-            djc6ij = djc6ij + zvec(k)*dzvec(l)*refc6(k,l)
+            c6ij = c6ij + zvec(ii,i)*zvec(jj,i)*refc6(k,l)
+            dic6ij = dic6ij + dzvec(ii,i)*zvec(jj,i)*refc6(k,l)
+            djc6ij = djc6ij + zvec(ii,i)*dzvec(jj,i)*refc6(k,l)
          enddo
       enddo
       ! save
-      c6ab(ij) = c6ij
+      c6ab(i,i) = c6ij
       dc6ab(i,i) = dic6ij! + djc6ij
 
       do j = 1, i-1
@@ -3807,17 +3241,18 @@ subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
          dic6ij = 0.0_wp
          djc6ij = 0.0_wp
          ! all refs
-         do ii = 1, refn(ia)
+         do ii = 1, dispm%nref(ia)
             k = itbl(ii,i)
-            do jj = 1, refn(ja)
+            do jj = 1, dispm%nref(ja)
                l = itbl(jj,j)
-               c6ij = c6ij + zvec(k)*zvec(l)*refc6(k,l)
-               dic6ij = dic6ij + dzvec(k)*zvec(l)*refc6(k,l)
-               djc6ij = djc6ij + zvec(k)*dzvec(l)*refc6(k,l)
+               c6ij = c6ij + zvec(ii,i)*zvec(jj,j)*refc6(k,l)
+               dic6ij = dic6ij + dzvec(ii,i)*zvec(jj,j)*refc6(k,l)
+               djc6ij = djc6ij + zvec(ii,i)*dzvec(jj,j)*refc6(k,l)
             enddo
          enddo
          ! save
-         c6ab(ij) = c6ij
+         c6ab(i,j) = c6ij
+         c6ab(j,i) = c6ij
          dc6ab(i,j) = dic6ij
          dc6ab(j,i) = djc6ij
       enddo
@@ -3836,14 +3271,13 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
       &    eabc,dc6dcn,g,sigma)
    use mctc_constants
    use pbc_tools
-   implicit none
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
    type(dftd_parameter),intent(in) :: par
    real(wp),intent(in) :: thr
    integer, intent(in) :: rep(3)
-   real(wp),intent(in) :: c6ab(nat*(nat+1)/2)
+   real(wp),intent(in) :: c6ab(nat,nat)
    real(wp),intent(in) :: dc6ab(nat,nat)    !dC6(iat,jat)/cCN(iat) in dc6ab(i,j) for ABC-grad
    real(wp),intent(in) :: dlat(3,3)
 
@@ -3886,21 +3320,21 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
 !$omp&        s,rik2,vec,rjk2,rijk2,rijk,fdmp,rijk3,ang,r9ijk,dfdmp, &
 !$omp&        r,dang,tmp1,dc9,rij,rik,rjk,r3,g3) &
 !$omp reduction(+:eabc,dc6dcn,sigma,g)
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    iAt_ijk: do iat=3,nat
       jAt_ijk: do jat=2,iat-1
          ij=iat*(iat-1)/2+jat
          ijvec=xyz(:,jat)-xyz(:,iat)
 
-         c6ij=c6ab(ij)
+         c6ij=c6ab(iat,jat)
          kAt_ijk: do kat=1,jat-1
             ik=iat*(iat-1)/2+kat
             jk=jat*(jat-1)/2+kat
             ikvec=xyz(:,kat)-xyz(:,iat)
             jkvec=xyz(:,kat)-xyz(:,jat)
 
-            c6ik=c6ab(ik)
-            c6jk=c6ab(jk)
+            c6ik=c6ab(iat,kat)
+            c6jk=c6ab(jat,kat)
             c9=-sqrt(c6ij*c6ik*c6jk)
             cij  = par%a1*sqrt(3._wp*r4r2(at(iat))*r4r2(at(jat)))+par%a2
             cik  = par%a1*sqrt(3._wp*r4r2(at(iat))*r4r2(at(kat)))+par%a2
@@ -4017,19 +3451,19 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
    enddo iAt_ijk
 !$omp enddo
 
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    ! Now the interaction with jat=iat of the triples iat,iat,kat
    iAt_iik: do iat=2,nat
       jat=iat
       ij=iat*(iat-1)/2+jat
       ijvec=0.0_wp
 
-      c6ij=c6ab(ij)
+      c6ij=c6ab(iat,jat)
       kAt_iik: do kat=1,iat-1
          jk=jat*(jat-1)/2+kat
          ik=jk
 
-         c6ik=c6ab(ik)
+         c6ik=c6ab(iat,kat)
          c6jk=c6ik
          ikvec=xyz(:,kat)-xyz(:,iat)
          jkvec=ikvec
@@ -4146,7 +3580,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
    ! And now kat=jat, but cycling throug all imagecells without t=s. and jat>iat going though all cells    (iat,jat,jat)
    ! But this counts only 1/2
 
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    iAt_ijj: do iat=2,nat
       jAt_ijj: do jat=1,iat-1
          kat=jat
@@ -4154,10 +3588,10 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
          jk=jat*(jat-1)/2+kat
          ik=ij
 
-         c6ij=c6ab(ij)
+         c6ij=c6ab(iat,jat)
          c6ik=c6ij
 
-         c6jk=c6ab(jk)
+         c6jk=c6ab(jat,kat)
          ikvec=xyz(:,kat)-xyz(:,iat)
          ijvec=ikvec
          jkvec=0.0_wp
@@ -4269,7 +3703,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
 
    ! And finally the self interaction iat=jat=kat all
 
-!$omp do schedule(dynamic)
+!$omp do schedule(runtime)
    iAt_iii: do iat=1,nat
       jat=iat
       kat=iat
@@ -4279,7 +3713,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
       jk=jat*(jat-1)/2+kat
       ikvec=ijvec
       jkvec=ikvec
-      c6ij=c6ab(ij)
+      c6ij=c6ab(iat,jat)
       c6ik=c6ij
       c6jk=c6ij
       c9=-sqrt(c6ij*c6ij*c6ij)
@@ -4390,4 +3824,151 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
 
 end subroutine dabcappr_3d_dftd3_like_style
 
-end module dftd4
+!> Calculate the weights of the reference system and the derivatives w.r.t.
+!  coordination number for later use.
+subroutine weight_references(nat, atoms, g_a, g_c, wf, q, cn, &
+      &                      zetavec, zerovec, zetadcn, zerodcn, zetadq)
+   !> Nr. of atoms (without periodic images)
+   integer, intent(in) :: nat
+   !> Atomic numbers of every atom.
+   integer, intent(in) :: atoms(:)
+   !> Charge scaling height.
+   real(wp), intent(in) :: g_a
+   !> Charge scaling steepness.
+   real(wp), intent(in) :: g_c
+   !> Exponent for the Gaussian weighting.
+   real(wp), intent(in) :: wf
+   !> Coordination number of every atom.
+   real(wp), intent(in) :: cn(:)
+   !> Partial charge of every atom.
+   real(wp), intent(in) :: q(:)
+   !> weighting and scaling function for the atomic reference systems
+   real(wp), intent(out) :: zetaVec(:, :)
+   !> weighting and scaling function for the atomic reference systems for q=0
+   real(wp), intent(out) :: zeroVec(:, :)
+   !> derivative of the weight'n'scale function w.r.t. the partial charges
+   real(wp), intent(out) :: zetadq(:, :)
+   !> derivative of the weight'n'scale function w.r.t. the coordination number
+   real(wp), intent(out) :: zetadcn(:, :)
+   !> derivative of the weight'n'scale function w.r.t. the CN for q=0
+   real(wp), intent(out) :: zerodcn(:, :)
+
+   integer :: iat, ati, iref, icount
+   real(wp) :: norm, dnorm, twf, gw, expw, expd, gwk, dgwk
+   real(wp) :: gi, zi
+
+   zetavec = 0.0_wp
+   zerovec = 0.0_wp
+   zetadcn = 0.0_wp
+   zerodcn = 0.0_wp
+   zetadq  = 0.0_wp
+
+   do iat = 1, nat
+      ati = atoms(iat)
+
+      zi = zeff(ati)
+      gi = g_c * gam(ati)
+
+      norm = 0.0_wp
+      dnorm = 0.0_wp
+      do iref = 1, dispm%nref(ati)
+         do icount = 1, dispm%ncount(iref, ati)
+            twf = icount * wf
+            gw = cngw(twf, cn(iat), dispm%cn(iref, ati))
+            norm = norm + gw
+            dnorm = dnorm + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
+         enddo
+      end do
+      norm = 1.0_wp / norm
+      do iref = 1, dispm%nref(ati)
+         expw = 0.0_wp
+         expd = 0.0_wp
+         do icount = 1, dispm%ncount(iref, ati)
+            twf = icount * wf
+            gw = cngw(twf, cn(iat), dispm%cn(iref, ati))
+            expw = expw + gw
+            expd = expd + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
+         enddo
+
+         gwk = expw * norm
+         if (gwk /= gwk) then
+            if (maxval(dispm%cn(:dispm%nref(ati), ati)) &
+               & == dispm%cn(iref, ati)) then
+               gwk = 1.0_wp
+            else
+               gwk = 0.0_wp
+            endif
+         endif
+         zetavec(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * gwk
+         zerovec(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,zi) * gwk
+
+         dgwk = expd*norm-expw*dnorm*norm**2
+         if (dgwk /= dgwk) then
+            dgwk = 0.0_wp
+         endif
+         zetadcn(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * dgwk
+         zetadq(iref, iat) = dzeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * gwk
+         zerodcn(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,zi) * dgwk
+
+      end do
+   end do
+
+end subroutine weight_references
+
+!> calculate atomic dispersion coefficients and their derivatives w.r.t.
+!  the coordination number.
+subroutine get_atomic_c6(nat, atoms, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+   !> Nr. of atoms (without periodic images)
+   integer, intent(in) :: nat
+   !> numbers of every atom.
+   integer, intent(in) :: atoms(:)
+   !> weighting and scaling function for the atomic reference systems
+   real(wp), intent(in) :: zetaVec(:, :)
+   !> derivative of the weight'n'scale function w.r.t. the partial charges
+   real(wp), intent(in) :: zetadq(:, :)
+   !> derivative of the weight'n'scale function w.r.t. the coordination number
+   real(wp), intent(in) :: zetadcn(:, :)
+   !> C6 coefficients for all atom pairs.
+   real(wp), intent(out) :: c6(:, :)
+   !> derivative of the C6 w.r.t. the coordination number
+   real(wp), intent(out) :: dc6dcn(:, :)
+   !> derivative of the C6 w.r.t. the partial charge
+   real(wp), intent(out) :: dc6dq(:, :)
+
+   integer :: iat, jat, ati, atj, iref, jref
+   real(wp) :: refc6, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj
+
+   c6 = 0.0_wp
+   dc6dcn = 0.0_wp
+   dc6dq = 0.0_wp
+
+   do iat = 1, nat
+      ati = atoms(iat)
+      do jat = 1, iat
+         atj = atoms(jat)
+         dc6 = 0.0_wp
+         dc6dcni = 0.0_wp
+         dc6dcnj = 0.0_wp
+         dc6dqi = 0.0_wp
+         dc6dqj = 0.0_wp
+         do iref = 1, dispm%nref(ati)
+            do jref = 1, dispm%nref(atj)
+               refc6 = dispm%c6(iref, jref, ati, atj)
+               dc6 = dc6 + zetavec(iref, iat) * zetavec(jref, jat) * refc6
+               dc6dcni = dc6dcni + zetadcn(iref, iat) * zetavec(jref, jat) * refc6
+               dc6dcnj = dc6dcnj + zetavec(iref, iat) * zetadcn(jref, jat) * refc6
+               dc6dqi = dc6dqi + zetadq(iref, iat) * zetavec(jref, jat) * refc6
+               dc6dqj = dc6dqj + zetavec(iref, iat) * zetadq(jref, jat) * refc6
+            end do
+         end do
+         c6(iat, jat) = dc6
+         c6(jat, iat) = dc6
+         dc6dcn(iat, jat) = dc6dcni
+         dc6dcn(jat, iat) = dc6dcnj
+         dc6dq(iat, jat) = dc6dqi
+         dc6dq(jat, iat) = dc6dqj
+      end do
+   end do
+end subroutine get_atomic_c6
+
+end module tbmod_dftd4

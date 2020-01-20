@@ -20,7 +20,7 @@ subroutine dispersion_surfaceplot(nat,at,xyz,q,wf,g_a,g_c,lmbd,dfparam,surface)
    use setparam
    use tbdef_param
    use grid_module
-   use dftd4
+   use tbmod_dftd4
    use printout
    implicit none
    integer, intent(in)  :: nat

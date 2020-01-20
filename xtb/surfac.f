@@ -119,7 +119,7 @@
       subroutine surfac2(surface,n,xyz,at)
       use iso_fortran_env, wp => real64   
       use grid_module
-      use dftd4
+      use tbmod_dftd4
       implicit none
       integer, intent(in)        :: n,at(n) !number of atoms,Ordnunszahlen
       real(wp), intent(in)       :: xyz(3,n)

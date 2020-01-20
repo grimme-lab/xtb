@@ -97,7 +97,7 @@ module subroutine gfn0_calculation &
 
    ! give an optional summary on the geometry used
    if (opt%prlevel > 2) then
-      call print_pbcsum(iunit,mol)
+      call main_geometry(iunit,mol)
    endif
 
    ! ====================================================================
@@ -125,7 +125,7 @@ module subroutine gfn0_calculation &
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn0_parameter(param,globpar)
    if (opt%prlevel > 1) then
       call gfn0_header(iunit)
       call gfn0_prparam(iunit,mol%n,mol%at,param)
@@ -143,7 +143,6 @@ module subroutine gfn0_calculation &
 
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
-   call xbasis_cao2sao(mol%n,mol%at,basis)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction

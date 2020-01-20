@@ -23,7 +23,7 @@ subroutine test_eeq_model_water
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
 
-   allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat+1),ges(3,nat) )
+   allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat),ges(3,nat) )
    es  = 0.0_wp
    ges = 0.0_wp
 
@@ -125,7 +125,7 @@ subroutine test_eeq_model_ewald
    call mol%wrap_back
 
    allocate( cn(nat), dcndr(3,nat,nat), dcndL(3,3,nat), &
-      &      q(nat), dqdr(3,nat,nat+1), dqdL(3,3,nat+1), &
+      &      q(nat), dqdr(3,nat,nat), dqdL(3,3,nat), &
       &      gradient(3,nat), source = 0.0_wp )
    cn    = 0.0_wp
    dcndr = 0.0_wp
@@ -177,12 +177,10 @@ subroutine test_eeq_model_ewald
    call assert_close(q(4),-0.19939812633388_wp,thr)
 
    call assert_close(dqdr(1,4,2),-0.16619680140869E-01_wp,thr)
-   call assert_close(dqdr(2,5,7),-0.71528076609028E-04_wp,thr)
    call assert_close(dqdr(1,2,2), 0.36177437391610E-01_wp,thr)
    call assert_close(dqdr(3,1,4),-0.39909176876716E-01_wp,thr)
 
    call assert_close(dqdL(2,3,2),-0.66131872796832E-02_wp,thr)
-   call assert_close(dqdL(2,1,7), 0.66206886462644E-02_wp,thr)
    call assert_close(dqdL(3,2,1), 0.51752004657789E-01_wp,thr)
    call assert_close(dqdL(1,1,5),-0.29765138003366E-01_wp,thr)
 
@@ -226,12 +224,10 @@ subroutine test_eeq_model_ewald
    call assert_close(q(4),-0.19955653474773_wp,thr)
 
    call assert_close(dqdr(1,4,2),-0.16414391687062E-01_wp,thr)
-   call assert_close(dqdr(2,5,7),-0.72381798942512E-04_wp,thr)
    call assert_close(dqdr(1,2,2), 0.35974299411392E-01_wp,thr)
    call assert_close(dqdr(3,1,4),-0.39939521246564E-01_wp,thr)
 
    call assert_close(dqdL(2,3,2),-0.65259046811329E-02_wp,thr)
-   call assert_close(dqdL(2,1,7), 0.66316093331740E-02_wp,thr)
    call assert_close(dqdL(3,2,1), 0.51675870143073E-01_wp,thr)
    call assert_close(dqdL(1,1,5),-0.29605046716685E-01_wp,thr)
 
@@ -275,7 +271,7 @@ subroutine test_eeq_model_gbsa
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
    real(wp),allocatable :: fgb(:,:),fhb(:)
 
-   allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat+1),ges(3,nat), &
+   allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat),ges(3,nat), &
       &      fgb(nat,nat),fhb(nat) )
    es  = 0.0_wp
    ges = 0.0_wp
@@ -407,7 +403,7 @@ subroutine test_eeq_model_salt
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
    real(wp),allocatable :: fgb(:,:),fhb(:)
 
-   allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat+1),ges(3,nat), &
+   allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat),ges(3,nat), &
       &      fgb(nat,nat),fhb(nat) )
    es  = 0.0_wp
    ges = 0.0_wp

@@ -707,7 +707,7 @@ end subroutine print_wbo_fragment
 
 subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    use iso_fortran_env, wp => real64
-   use dftd4
+   use tbmod_dftd4
    use eeq_model
    implicit none
    integer, intent(in) :: iunit

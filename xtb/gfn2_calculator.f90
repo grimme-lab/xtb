@@ -123,7 +123,7 @@ module subroutine gfn2_calculation &
       call read_gfn_param(ipar,globpar,.true.)
       call close_file(ipar)
    endif
-   call set_gfn2_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn2_parameter(param,globpar)
    if (opt%prlevel > 1) then
       call gfn2_header(iunit)
       call gfn2_prparam(iunit,mol%n,mol%at,param)
@@ -140,7 +140,6 @@ module subroutine gfn2_calculation &
 
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn2(mol%n,mol%at,basis,okbas)
-   call xbasis_cao2sao(mol%n,mol%at,basis)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
