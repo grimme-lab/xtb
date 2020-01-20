@@ -61,7 +61,8 @@ subroutine dispersion_surfaceplot(nat,at,xyz,q,wf,g_a,g_c,lmbd,dfparam,surface)
    q_probe(1:nat) = q
    q_probe(nat+1) = 0.0_wp
 
-   call d4init(nat+1,at_probe,g_a,g_c,p_refq_gfn2xtb,ndim)
+   call d4init(g_a,g_c,p_refq_gfn2xtb)
+   call d4dim(nat+1,at_probe,ndim)
    allocate( c6abns(ndim,ndim),gw(ndim),dummy(ndim,ndim), source = 0.0_wp )
    call covncoord(nat,at,xyz,covcn,1600.0_wp)
    covcn(nat+1) = 0.0_wp
