@@ -41,6 +41,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/xtb/tbdef_atomlist.f90"
   "${XTB_ROOT}/xtb/tbdef_topology.f90"
   "${XTB_ROOT}/xtb/tbdef_fragments.f90"
+  "${XTB_ROOT}/xtb/typedef/dispersion_model.f90"
   "${XTB_ROOT}/xtb/tbdef_buffer.f90"
 
   # Global data
@@ -84,6 +85,7 @@ set(XTB_SOURCES
   # Parameters
   "${XTB_ROOT}/xtb/gfn_paramset.f90"
   "${XTB_ROOT}/xtb/dftd3_parameters.f90"
+  "${XTB_ROOT}/xtb/dftd4_parameters.f90"
   "${XTB_ROOT}/xtb/setwll.f"
   "${XTB_ROOT}/xtb/charge_model.f90"
 

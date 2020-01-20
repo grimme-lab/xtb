@@ -108,7 +108,6 @@ subroutine test_peeq_sp
 
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
-   call xbasis_cao2sao(mol%n,mol%at,basis)
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%nel = idint(sum(mol%z)) - mol%chrg

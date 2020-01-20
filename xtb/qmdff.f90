@@ -57,7 +57,8 @@ contains
 
 subroutine ff_ini(n,at,xyz,cn,s6)
    use aoparam
-   use dftd4, only : r2r4 => r4r2, rcov
+   use mctc_param, only : r2r4 => sqrt_z_r4_over_r2, &
+      &                   rcov => covalent_radius_d3
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)

@@ -696,7 +696,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    use aoparam,  only : gam3
 
    use gbobc,  only : lgbsa,lhb,tb_solvent
-   use dftd4,  only : disppot,edisp_scc
+   use tbmod_dftd4,  only: disppot,edisp_scc
    use aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
    use embedding, only : electro_pcem

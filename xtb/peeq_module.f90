@@ -665,7 +665,7 @@ subroutine ddisp_peeq(mol,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
 ! -----------------------------------------------------------------------
 !  DFT-D4 definitions and PBC definitions
 ! -----------------------------------------------------------------------
-   use dftd4
+   use tbmod_dftd4
    use eeq_model
    use pbc,    only : get_realspace_cutoff
    use ncoord

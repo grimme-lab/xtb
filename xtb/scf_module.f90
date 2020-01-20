@@ -56,7 +56,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
    use gbobc,     only : lgbsa,lhb,tb_solvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
    &                     update_nnlist_gbsa,compute_fgb,compute_brad_sasa
-   use dftd4,     only : build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
+   use tbmod_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
    &                     mdisp,prmolc6,edisp_scc,edisp,abcappr
    use ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
@@ -800,7 +800,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
    use aespot,    only : ddqint,dradcn,aniso_grad,setdvsdq,dsint
    use gbobc,     only : lgbsa,lhb,tb_solvent,gshift,compute_gb_egrad
-   use dftd4,     only : dispgrad,d4_numgrad
+   use tbmod_dftd4, only: dispgrad
    use ncoord,    only : dncoord_gfn,dncoord_d3
    use embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 

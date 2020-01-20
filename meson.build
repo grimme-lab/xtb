@@ -209,7 +209,6 @@ xtb_srcs += 'xtb/tbmod_file_utils.f90'
 
 # parameters
 xtb_srcs += 'xtb/gfn_paramset.f90'
-xtb_srcs += 'xtb/dftd3_parameters.f90'
 xtb_srcs += 'xtb/setwll.f'
 xtb_srcs += 'xtb/charge_model.f90'
 
@@ -225,7 +224,10 @@ xtb_srcs += 'xtb/gauss.f90'
 # dispersion
 xtb_srcs += 'xtb/ncoord.f90'
 xtb_srcs += 'xtb/dftd3.f'
+xtb_srcs += 'xtb/dftd3_parameters.f90'
 xtb_srcs += 'xtb/dftd4.f90'
+xtb_srcs += 'xtb/dftd4_parameters.f90'
+xtb_srcs += 'xtb/typedef/dispersion_model.f90'
 xtb_srcs += 'xtb/dispplot.f90'
 
 # continuum solvation

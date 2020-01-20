@@ -74,7 +74,6 @@ program XTBprog
    use eeq_model
    use ncoord,      only : ncoord_gfn,dncoord_erf,dncoord_d3,ncoord_erf,ncoord_d3
    use xbasis
-   use dftd4,       only : d4init,p_refq_gfn2xtb
    use axis_trafo,  only : axis3
    use qmdff,       only : ff_ini
 !! ------------------------------------------------------------------------
@@ -460,10 +459,10 @@ program XTBprog
          call set_gfn1_parameter(calc%param,globpar)
          call gfn1_prparam(istdout,mol%n,mol%at,calc%param)
       case(2)
-         call set_gfn2_parameter(calc%param,globpar,mol%n,mol%at)
+         call set_gfn2_parameter(calc%param,globpar)
          call gfn2_prparam(istdout,mol%n,mol%at,calc%param)
       case(0)
-         call set_gfn0_parameter(calc%param,globpar,mol%n,mol%at)
+         call set_gfn0_parameter(calc%param,globpar)
          call gfn0_prparam(istdout,mol%n,mol%at,calc%param)
       end select
    else
@@ -535,7 +534,6 @@ program XTBprog
       call xbasis_gfn0(mol%n,mol%at,calc%basis,okbas,diff)
    end select
    if (.not.okbas) call raise('E','TB basis incomplete',1)
-   call xbasis_cao2sao(mol%n,mol%at,calc%basis)
 
 ! ======================================================================
 !  initial guess, setup wavefunction

@@ -21,6 +21,8 @@ from typing import Optional
 from ctypes import Structure, c_int, c_double, c_bool, c_char_p, c_char, \
                    POINTER, cdll, CDLL
 
+from distutils.sysconfig import get_config_vars
+import sys
 import os.path as op
 import numpy as np
 
@@ -33,12 +35,32 @@ except AttributeError:
 __all__ = ['SCCOptions', 'PEEQOptions', 'XTBLibrary', 'load_library']
 
 
+def get_shared_lib_extension():
+    """Try to figure out which extension a shared library should have on the
+    given platform. This code is borrowed from numpy and slightly modified."""
+    if (sys.platform.startswith('linux') or
+            sys.platform.startswith('gnukfreebsd')):
+        return '.so'
+    if sys.platform.startswith('darwin'):
+        return '.dylib'
+    if sys.platform.startswith('win'):
+        return '.dll'
+    confvars = get_config_vars()
+    # SO is deprecated in 3.3.1, use EXT_SUFFIX instead
+    so_ext = confvars.get('EXT_SUFFIX', None)
+    if so_ext is None:
+        so_ext = confvars.get('SO', '')
+    if 'SOABI' in confvars:
+        # Does nothing unless SOABI config var exists
+        so_ext = so_ext.replace('.' + confvars.get('SOABI'), '', 1)
+    return so_ext
+
+
 def load_library(libname: str) -> CDLL:
     """load library cross-platform compatible."""
 
     if not op.splitext(libname)[1]:
         # Try to load library with platform-specific name
-        from numpy.distutils.misc_util import get_shared_lib_extension
         so_ext = get_shared_lib_extension()
         libname_ext = libname + so_ext
     else:

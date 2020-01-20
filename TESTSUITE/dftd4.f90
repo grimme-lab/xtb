@@ -3,7 +3,7 @@ subroutine test_dftd4_properties
    use iso_fortran_env, wp => real64
    use assertion
    use tbdef_molecule
-   use dftd4
+   use tbmod_dftd4
    implicit none
    type(tb_molecule)       :: mol
    integer              :: ndim
@@ -36,7 +36,8 @@ subroutine test_dftd4_properties
    mol%xyz = xyz
    mol%chrg = 0.0_wp
 
-   call d4init(mol%n,mol%at,g_a,g_c,refqmode,ndim)
+   call d4init(g_a,g_c,refqmode)
+   call d4dim(mol%n,mol%at,ndim)
 
    call assert_eq(ndim,8)
 
@@ -79,7 +80,7 @@ subroutine test_dftd4_energies
    use assertion
    use tbdef_molecule
    use tbdef_param
-   use dftd4
+   use tbmod_dftd4
    implicit none
    type(tb_molecule)       :: mol
    integer  :: idum
@@ -142,7 +143,8 @@ subroutine test_dftd4_energies
    mol%xyz = xyz
    mol%chrg = 0.0_wp
 
-   call d4init(mol%n,mol%at,g_a,g_c,refqmode,idum)
+   call d4init(g_a,g_c,refqmode)
+   call d4dim(mol%n,mol%at,idum)
 
    call assert_eq(idum,ndim)
 
@@ -172,7 +174,7 @@ subroutine test_dftd4_pbc_energies
    use assertion
    use tbdef_molecule
    use tbdef_param
-   use dftd4
+   use tbmod_dftd4
    use eeq_model
    use ncoord
    use pbc_tools
@@ -238,7 +240,8 @@ subroutine test_dftd4_pbc_energies
    call mol%calculate_distances
 
    call generate_wsc(mol,mol%wsc,wsc_rep)
-   call d4init(mol%n,mol%at,g_a,g_c,refqmode,ndim)
+   call d4init(g_a,g_c,refqmode)
+   call d4dim(mol%n,mol%at,ndim)
    call assert_eq(ndim,26)
 
    allocate( gweights(ndim),refc6(ndim,ndim) )
@@ -289,7 +292,7 @@ subroutine test_dftd4_cell_gradient
    use assertion
    use tbdef_molecule
    use tbdef_param
-   use dftd4
+   use tbmod_dftd4
    use eeq_model
    use ncoord
    use pbc_tools
@@ -373,7 +376,8 @@ subroutine test_dftd4_cell_gradient
    call mol%calculate_distances
 
    call generate_wsc(mol,mol%wsc,wsc_rep)
-   call d4init(mol%n,mol%at,g_a,g_c,refqmode,ndim)
+   call d4init(g_a,g_c,refqmode)
+   call d4dim(mol%n,mol%at,ndim)
 
    allocate( gweights(ndim),refc6(ndim,ndim) )
 
@@ -422,7 +426,7 @@ subroutine test_dftd4_api
    use tbdef_molecule
    use tbdef_options
    use tbdef_param
-   use dftd4
+   use tbmod_dftd4
    use tb_calculators
    implicit none
    type(tb_molecule)  :: mol
@@ -486,7 +490,7 @@ subroutine test_dftd4_pbc_api
    use tbdef_molecule
    use tbdef_options
    use tbdef_param
-   use dftd4
+   use tbmod_dftd4
    use pbc_tools
    use tb_calculators
    implicit none
