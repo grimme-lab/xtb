@@ -3,6 +3,7 @@ subroutine test_peeq_sp
    use assertion
 
    use mctc_systools
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -47,6 +48,7 @@ subroutine test_peeq_sp
    type(tb_basisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(mctc_error), allocatable :: err
 
    real(wp)              :: energy
    real(wp)              :: hl_gap
@@ -116,7 +118,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(output_unit,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(output_unit,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
@@ -140,7 +142,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(output_unit,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(output_unit,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)

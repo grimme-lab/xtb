@@ -2,6 +2,7 @@
 subroutine test_eeq_model_water
    use iso_fortran_env, wp => real64
    use assertion
+   use mctc_logging
    use tbdef_molecule
    use tbdef_param
    use ncoord
@@ -20,6 +21,7 @@ subroutine test_eeq_model_water
       & ],shape(xyz))
 
    real(wp) :: es,sigma(3,3)
+   type(mctc_error), allocatable :: err
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
 
@@ -44,7 +46,7 @@ subroutine test_eeq_model_water
    call assert_close(dcndr(3,1,3),-0.40486599284501E-01_wp,thr)
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -74,6 +76,7 @@ end subroutine test_eeq_model_water
 subroutine test_eeq_model_ewald
    use iso_fortran_env, wp => real64
    use assertion
+   use mctc_logging
    use tbdef_molecule
    use tbdef_param
    use eeq_model
@@ -101,6 +104,7 @@ subroutine test_eeq_model_ewald
 
    type(tb_molecule)    :: mol
    type(chrg_parameter) :: chrgeq
+   type(mctc_error), allocatable :: err
    real(wp)             :: energy
    real(wp)             :: sigma(3,3)
    real(wp),allocatable :: cn(:)
@@ -157,7 +161,7 @@ subroutine test_eeq_model_ewald
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
 
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
       &            .false.,.true.,.true.)
 
    call assert_close(energy,-0.90576568382295E-01_wp,thr)
@@ -204,7 +208,7 @@ subroutine test_eeq_model_ewald
    call assert_close(dcndL(2,1,3),-0.44767072306065_wp,thr)
 
 
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
       &            .false.,.true.,.true.)
 
    call assert_close(energy,-0.90708295779596E-01_wp,thr)
@@ -241,6 +245,7 @@ end subroutine test_eeq_model_ewald
 subroutine test_eeq_model_gbsa
    use iso_fortran_env, wp => real64, istderr => error_unit
    use assertion
+   use mctc_logging
    use tbdef_molecule
    use tbdef_param
    use gbobc
@@ -266,6 +271,7 @@ subroutine test_eeq_model_gbsa
    type(tb_molecule)    :: mol
    type(chrg_parameter) :: chrgeq
    type(tb_solvent)     :: gbsa
+   type(mctc_error), allocatable :: err
    real(wp) :: es,gsolv,sigma(3,3)
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
@@ -291,7 +297,7 @@ subroutine test_eeq_model_gbsa
    call assert_close(dcndr(2,1,6),-0.24290126624329E-05_wp,thr)
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -325,7 +331,7 @@ subroutine test_eeq_model_gbsa
 
    es = gbsa%gsasa
    ges = gbsa%dsdr
-   call eeq_chrgeq(mol,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
+   call eeq_chrgeq(mol,err,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -369,6 +375,7 @@ end subroutine test_eeq_model_hbond
 subroutine test_eeq_model_salt
    use iso_fortran_env, wp => real64, istderr => error_unit
    use assertion
+   use mctc_logging
    use tbdef_molecule
    use tbdef_param
    use gbobc
@@ -398,6 +405,7 @@ subroutine test_eeq_model_salt
    type(tb_molecule)    :: mol
    type(chrg_parameter) :: chrgeq
    type(tb_solvent)     :: gbsa
+   type(mctc_error), allocatable :: err
    real(wp) :: es,gsolv,sigma(3,3)
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
@@ -416,7 +424,7 @@ subroutine test_eeq_model_salt
    call dncoord_erf(mol%n,mol%at,mol%xyz,cn,dcndr)
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -454,7 +462,7 @@ subroutine test_eeq_model_salt
 
    es = gbsa%gsasa
    ges = gbsa%dsdr
-   call eeq_chrgeq(mol,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
+   call eeq_chrgeq(mol,err,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy

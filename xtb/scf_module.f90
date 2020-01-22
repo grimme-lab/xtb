@@ -26,11 +26,12 @@ module scf_module
 
 contains
 
-subroutine scf(iunit,mol,wfn,basis,param,pcem, &
+subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 &              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
 &              res)
 
    use mctc_econv, only : autoev,evtoau
+   use mctc_logging
 
 ! ========================================================================
 !  type definitions
@@ -67,6 +68,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
 
 ! ========================================================================
    integer, intent(in)    :: iunit
+   type(mctc_error), allocatable, intent(inout) :: err
    type(tb_molecule), intent(in) :: mol
    type(tb_wavefunction),intent(inout) :: wfn
    type(tb_basisset),intent(in) :: basis
@@ -589,7 +591,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
 ! ========================================================================
    if (profile) call timer%measure(5,"iterations")
    if (gfn_method.eq.1) then
-      call scc_gfn1(iunit,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
+      call scc_gfn1(iunit,err,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
       &             mol%at,matlist,basis%aoat2,basis%ao2sh, &
       &             wfn%q,qq,qlmom,wfn%qsh,zsh, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -602,7 +604,7 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
       &             minpr,pr, &
       &             fail,jter)
    else
-      call scc_gfn2(iunit,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
+      call scc_gfn2(iunit,err,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh, &
       &             wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &             mol%xyz,vs,vd,vq,gab3,gab5,param%gscal, &
@@ -624,15 +626,18 @@ subroutine scf(iunit,mol,wfn,basis,param,pcem, &
    if (allocated(vpc)) deallocate(vpc)
    if(allocated(wdispmat)) deallocate( wdispmat )
 
+   ! check if something terrible happend in the SCC
+   if (allocated(err)) return
+
    9999  continue
 
 ! ------------------------------------------------------------------------
 !  check for convergence, only do this if printlevel is maximal (WHY?)
    res % converged = .not. fail
+   if (fail) err = mctc_error("SCC did not converge", fatal=.false.)
    if (pr) then
       if (fail) then
          call touch_file('.sccnotconverged')
-         call raise('S',"SCC is not converged properly!",1)
          write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***")') &
             "convergence criteria cannot be satisfied within",jter,"iterations"
       else

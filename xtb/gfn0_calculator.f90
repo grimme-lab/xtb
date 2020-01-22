@@ -24,6 +24,7 @@ module subroutine gfn0_calculation &
    use iso_fortran_env, wp => real64
 
    use mctc_systools
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -62,6 +63,7 @@ module subroutine gfn0_calculation &
    type(tb_basisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(mctc_error), allocatable :: err
 
    character(len=*),parameter :: outfmt = &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
@@ -156,7 +158,7 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(iunit,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(iunit,err,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
 
    if (mol%npbc > 0) then

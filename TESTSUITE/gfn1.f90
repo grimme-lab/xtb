@@ -3,6 +3,8 @@ subroutine test_gfn1_scc
 
    use assertion
 
+   use mctc_logging
+
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
@@ -39,6 +41,7 @@ subroutine test_gfn1_scc
    type(tb_wavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(mctc_error), allocatable :: err
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -80,8 +83,10 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(output_unit,mol,wfn,basis,param,pcem, &
+   call scf(output_unit,err,mol,wfn,basis,param,pcem, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
+
+   call assert(.not.allocated(err))
 
    call assert(res%converged)
 

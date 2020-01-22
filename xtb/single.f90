@@ -38,6 +38,7 @@ subroutine singlepoint &
 &                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
    use iso_fortran_env, wp => real64
    use mctc_econv
+   use mctc_logging
 
 !! ========================================================================
 !  type definitions
@@ -81,6 +82,7 @@ subroutine singlepoint &
    real(wp),intent(out)   :: g(3,mol%n)
    type(scc_results),intent(out) :: res
    real(wp),intent(out)   :: sigma(3,3)
+   type(mctc_error), allocatable :: err
    integer  :: i,ich
    integer  :: mode_sp_run = 1
    real(wp) :: efix
@@ -111,12 +113,12 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(iunit,mol,wfn,calc%basis,calc%param,pcem, &
+      call scf(iunit,err,mol,wfn,calc%basis,calc%param,pcem, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)
       call peeq &
-         & (iunit,mol,wfn,calc%basis,calc%param,egap,et,prlevel,lgrad,ccm,acc,etot,g,sigma,res)
+         & (iunit,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel,lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)
       call ff_eg  (mol%n,mol%at,mol%xyz,etot,g)
@@ -135,6 +137,14 @@ subroutine singlepoint &
       call run_mopac_egrad(mol%n,mol%at,mol%xyz,etot,g)
 
    end select
+
+   if (allocated(err)) then
+      if (err%fatal) then
+         call raise('E', err%msg, 1)
+      else
+         call raise('S', err%msg, 1)
+      end if
+   end if
 
 !! ========================================================================
 !  post processing of gradient and energy

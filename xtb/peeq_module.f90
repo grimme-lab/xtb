@@ -68,11 +68,12 @@ module peeq_module
 contains
 
 subroutine peeq &
-      (iunit,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
+      (iunit,err,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
 ! ------------------------------------------------------------------------
+   use mctc_logging
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
@@ -104,6 +105,7 @@ subroutine peeq &
 !  INPUT
 ! ------------------------------------------------------------------------
    integer, intent(in)            :: iunit
+   type(mctc_error), allocatable, intent(inout) :: err
    type(tb_molecule),  intent(in) :: mol     !< molecular structure infomation
    type(tb_basisset),  intent(in) :: basis   !< basis set
    type(scc_parameter),intent(in) :: param   !< method parameters
@@ -399,13 +401,14 @@ subroutine peeq &
    call gfn0_charge_model(chrgeq,mol%n,mol%at,dpolc,gam,cxb,alp0)
    ! initialize electrostatic energy
    if (lgbsa) then
-      call eeq_chrgeq(mol,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
+      call eeq_chrgeq(mol,err,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
          &            ees,gsolv,g,.false.,.true.,.true.)
    else
-      call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,qeeq,dqdr,dqdL, &
+      call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,qeeq,dqdr,dqdL, &
          &            ees,g,sigma_tmp(:,:,1),&
          &            .false.,.true.,.true.)
    endif
+   if (allocated(err)) return
 
    wfn%q = qeeq
 
@@ -414,7 +417,8 @@ subroutine peeq &
 ! ----------------------------------------
 !  D4 dispersion energy + gradient (2B) under pbc
 ! ----------------------------------------
-   call ddisp_peeq(mol,param,cn,dcndr,dcndL,grd,ed,g,sigma_tmp(:,:,2))
+   call ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,g,sigma_tmp(:,:,2))
+   if (allocated(err)) return
 
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,"Integral evaluation")
@@ -478,7 +482,10 @@ subroutine peeq &
    ! save eigenvectors
    wfn%C = H
 
-   if (pr.and.fail) call raise('E',"Diagonalization failed!",1)
+   if (fail) then
+      err = mctc_error("Diagonalization of Hamiltonian failed")
+      return
+   end if
 
 ! ---------------------------------------
 !  Fermi smearing
@@ -652,11 +659,12 @@ end subroutine peeq
 ! -----------------------------------------------------------------------
 !  Calculate D4 dispersion gradient
 ! -----------------------------------------------------------------------
-subroutine ddisp_peeq(mol,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
+subroutine ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
   use iso_fortran_env, only : wp => real64
 ! -----------------------------------------------------------------------
 !  Type definitions
 ! -----------------------------------------------------------------------
+   use mctc_logging
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
@@ -678,6 +686,7 @@ subroutine ddisp_peeq(mol,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    type(scc_parameter),         intent(in)     :: param
    type(dftd_parameter)                        :: par
    type(chrg_parameter)                        :: chrgeq
+   type(mctc_error), allocatable, intent(inout) :: err
    ! EEQ partial charges and derivatives
    real(wp), dimension(mol%n),        intent(in) :: cn
    real(wp), dimension(3,mol%n,mol%n),intent(in) :: dcndr
@@ -751,8 +760,9 @@ subroutine ddisp_peeq(mol,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
   call new_charge_model_2019(chrgeq,mol%n,mol%at)
   ! neither sdum nor gdum need to be dummy allocated, since lgrad = .false. is set
   ! eeq_chrgeq must not reference sdum/gdum and we can avoid the dummy allocate
-  call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,edum,gdum,sdum, &
+  call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,edum,gdum,sdum, &
      &            .false.,.false.,.true.)
+  if (allocated(err)) return
 
   if (mol%npbc > 0) then
      call get_d4_cn(mol,covcn,dcovcndr,dcovcndL,thr=cn_thr)

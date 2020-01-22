@@ -24,6 +24,7 @@ module subroutine gfn2_calculation &
    use iso_fortran_env, wp => real64
 
    use mctc_systools
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -64,6 +65,7 @@ module subroutine gfn2_calculation &
    type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(chrg_parameter)  :: chrgeq
+   type(mctc_error), allocatable :: err
 
    real(wp), allocatable :: cn(:)
 
@@ -151,7 +153,7 @@ module subroutine gfn2_calculation &
    allocate( cn(mol%n), source = 0.0_wp )
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
    call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,chrgeq,cn,wfn%q)
+   call eeq_chrgeq(mol,err,chrgeq,cn,wfn%q)
    deallocate(cn)
 
    call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
@@ -162,7 +164,7 @@ module subroutine gfn2_calculation &
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(iunit,mol,wfn,basis,param,pcem,hl_gap, &
+   call scf(iunit,err,mol,wfn,basis,param,pcem,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
 

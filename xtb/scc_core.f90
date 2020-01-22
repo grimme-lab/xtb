@@ -383,7 +383,7 @@ end subroutine build_h1_gfn2
 !! ========================================================================
 !  self consistent charge iterator for GFN1 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
+subroutine scc_gfn1(iunit,err,n,nel,nopen,ndim,nmat,nshell, &
    &                at,matlist,aoat2,ao2sh, &
    &                q,qq,qlmom,qsh,zsh, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -396,6 +396,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use mctc_econv, only : autoev,evtoau
+   use mctc_logging
 
    use aoparam,  only : gam3
 
@@ -405,6 +406,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    implicit none
 
    integer, intent(in)  :: iunit
+   type(mctc_error), allocatable :: err
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -539,6 +541,7 @@ subroutine scc_gfn1(iunit,n,nel,nopen,ndim,nmat,nshell, &
    call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
    if (fail) then
+      err = mctc_error("diagonalization error in SCC")
       eel = 1.e+99_wp
       return
    endif
@@ -677,7 +680,7 @@ end subroutine scc_gfn1
 !! ========================================================================
 !  self consistent charge iterator for GFN2 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+subroutine scc_gfn2(iunit,err,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                at,matlist,mdlst,mqlst,aoat2,ao2sh, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
    &                xyz,vs,vd,vq,gab3,gab5,gscal, &
@@ -692,6 +695,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use mctc_econv, only : autoev,evtoau
+   use mctc_logging
 
    use aoparam,  only : gam3
 
@@ -704,6 +708,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    implicit none
 
    integer, intent(in)  :: iunit
+   type(mctc_error), allocatable :: err
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -871,6 +876,7 @@ subroutine scc_gfn2(iunit,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !                            call prtime(6,t2-t1,w2-w1,'diag')
 
    if(fail)then
+      err = mctc_error("diagonalization error in SCC")
       eel=1.d+99
       return
    endif
@@ -1773,7 +1779,6 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
       if(foccb(i).gt.0.99) ihomob=i
    enddo
 
-   if(ihomoa.lt.1) call raise('E','internal error in occu',1)
 end subroutine occu
 
 

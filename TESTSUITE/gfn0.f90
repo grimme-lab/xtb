@@ -4,6 +4,7 @@ subroutine test_gfn0_sp
    use assertion
 
    use mctc_systools
+   use mctc_logging
    use tbdef_options
 
    use tbdef_molecule
@@ -45,6 +46,7 @@ subroutine test_gfn0_sp
    type(tb_basisset)     :: basis
    type(tb_wavefunction) :: wfn
    type(scc_parameter)   :: param
+   type(mctc_error), allocatable :: err
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)
@@ -101,7 +103,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(output_unit,mol,wfn,basis,param, &
+   call peeq(output_unit,err,mol,wfn,basis,param, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)
