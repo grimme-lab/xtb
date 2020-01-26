@@ -112,7 +112,7 @@ module subroutine build_SDH0(mol, neighs, neighlist, basis, param, intcut, &
          rj = neighlist%coords(:, img)
          jat = neighlist%image(img)
          atj = mol%at(jat)
-         !if (ij > 0 .and. iat == jat) cycle
+         if (ij > 0 .and. iat == jat) cycle
          jo = basis%shells(1, jat)-1
          ishells: do ish = 1, ao_n(ati)
             il = basis%lsh(ish+io)+1
@@ -389,7 +389,7 @@ module subroutine build_dSDH0(mol, neighs, neighlist, basis, param, intcut, &
          jat = neighlist%image(img)
          atj = mol%at(jat)
          rij = ri - rj
-         !if (iat == jat) cycle
+         if (iat == jat) cycle
          jo = basis%shells(1, jat)-1
          do ish = 1, ao_n(ati)
             il = basis%lsh(ish+io)+1
