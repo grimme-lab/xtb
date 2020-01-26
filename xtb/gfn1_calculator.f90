@@ -85,6 +85,7 @@ module subroutine gfn1_calculation &
 
    gfn_method = 1
    call init_pcem
+   sigma = 0.0_wp
 
    ! ====================================================================
    !  STEP 1: prepare geometry input
