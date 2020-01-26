@@ -701,6 +701,7 @@ function gfn1_pbc_api &
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
+   stress_tensor = 0.0_wp
 
    ! ====================================================================
    !  STEP 5: call the actual Fortran API to perform the calculation
