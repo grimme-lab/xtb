@@ -96,7 +96,7 @@ module subroutine build_SDH0(mol, neighs, neighlist, basis, param, intcut, &
       H(iao,iao) = hii
    end do
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:sint, dpint, H) shared(mol, neighs, neighlist, intcut) &
    !$omp shared(basis, param, ao_n, ao_l, cn, kcnsh) &
    !$omp private(ri, rj, r2, jat, ish, jsh, ati, atj, icao, jcao, ij, img, &
@@ -236,7 +236,7 @@ module subroutine build_SDQH0(mol, neighs, neighlist, basis, param, intcut, cn, 
       H(iao,iao) = hii
    end do
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:sint, dpint, qpint, H) shared(mol, neighs, neighlist) &
    !$omp shared(basis, param, ao_n, ao_l, cn, kcnat, intcut) &
    !$omp private(ri, rj, r2, jat, ish, jsh, ati, atj, icao, jcao, ij, img, &
@@ -367,17 +367,18 @@ module subroutine build_dSDH0(mol, neighs, neighlist, basis, param, intcut, &
    real(wp) :: tmp(6,6), dumdum(3), dum, sdq(6,6), sdqg(3,6,6)
    real(wp) :: dG(3), dS(3,3)
    real(wp) :: hii, hjj, km, hav, Pij, HPij, vij, rfc, dfc(3)
+   real(wp) :: Gij(3), Sij(3, 3), dhdcni, dhdcnj
 
    dhdcn = 0.0_wp
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:gradient, sigma, dhdcn) &
    !$omp shared(mol, neighs, neighlist, basis, param, cn, kcnsh, P, Pew, ves, &
    !$omp&       ao_n, ao_l, intcut) &
    !$omp private(jat, ij, img, ati, atj, ishtyp, jshtyp, icao, jcao, naoi, naoj, &
    !$omp&        jshmax, iptyp, jptyp, iao, jao, ii, jj, io, jo, il, jl, &
    !$omp&        ixyz, ri, rj, r2, rij, hii, hjj, km, hav, vij, rfc, dfc, &
-   !$omp&        Pij, HPij, sdq, sdqg, tmp, dG, dS)
+   !$omp&        Pij, HPij, sdq, sdqg, tmp, dG, dS, Gij, Sij, dhdcni, dhdcnj)
    do iat = 1, len(mol)
       ati = mol%at(iat)
       ri = mol%xyz(:, iat)
@@ -391,6 +392,10 @@ module subroutine build_dSDH0(mol, neighs, neighlist, basis, param, intcut, &
          rij = ri - rj
          if (iat == jat) cycle
          jo = basis%shells(1, jat)-1
+         Gij = 0.0_wp
+         Sij = 0.0_wp
+         dhdcni = 0.0_wp
+         dhdcnj = 0.0_wp
          do ish = 1, ao_n(ati)
             il = basis%lsh(ish+io)+1
             icao = basis%caoshell(ish,iat)
@@ -443,19 +448,23 @@ module subroutine build_dSDH0(mol, neighs, neighlist, basis, param, intcut, &
                      ! reset for CN derivative
                      HPij = km*rfc*Pij*sdq(jj,ii)
                      if (iat /= jat) then
-                        sigma = sigma + dS
-                        gradient(:, iat) = gradient(:, iat) + dG
-                        gradient(:, jat) = gradient(:, jat) - dG
-                        dhdcn(iat) = dhdcn(iat) + HPij*kcnsh(ish+io)
-                        dhdcn(jat) = dhdcn(jat) + HPij*kcnsh(jsh+jo)
+                        Sij = Sij + dS
+                        Gij = Gij + dG
+                        dhdcni = dhdcni + HPij*kcnsh(ish+io)
+                        dhdcnj = dhdcnj + HPij*kcnsh(jsh+jo)
                      else
-                        dhdcn(iat) = dhdcn(iat) + HPij*(kcnsh(ish+io)+kcnsh(jsh+jo))
-                        sigma = sigma + 0.5_wp * dS
+                        dhdcni = dhdcni + HPij*(kcnsh(ish+io)+kcnsh(jsh+jo))
+                        Sij = Sij + 0.5_wp * dS
                      endif
                   enddo
                enddo
             enddo ! jsh : loop over shells on jat
          enddo ! ish : loop over shells on iat
+         gradient(:, iat) = gradient(:, iat) + Gij
+         gradient(:, jat) = gradient(:, jat) - Gij
+         sigma = sigma + Sij
+         dhdcn(iat) = dhdcn(iat) + dhdcni
+         dhdcn(jat) = dhdcn(jat) + dhdcnj
       enddo ! jat
    enddo ! iat
    !$omp end parallel do
@@ -513,17 +522,19 @@ module subroutine build_dSDQH0(mol, neighs, neighlist, basis, param, intcut, cn,
    real(wp) :: r2, rij(3), ri(3), rj(3), rfc, dfc(3)
    real(wp) :: tmp(6,6), sdq(10,6,6), sdqg(3,19,6,6), hii, hjj, zi, zj, km, hav
    real(wp) :: vspd(19), vij, Pij, HPij, dG(3), dS(3,3)
+   real(wp) :: Gij(3), Sij(3, 3), dhdcni, dhdcnj
 
    dhdcn = 0.0_wp
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:gradient, sigma, dhdcn) &
    !$omp shared(mol, neighs, neighlist, basis, param, P, Pew, ves, vs, vd, vq, &
    !$omp&       ao_n, ao_l, intcut, kcnat, cn) &
    !$omp private(jat, ij, img, ati, atj, il, jl, icao, jcao, naoi, naoj, &
    !$omp&        jshmax, iptyp, jptyp, iao, jao, ii, jj, io, jo, k, ixyz, &
    !$omp&        ri, rj, r2, rij, sdq, sdqg, tmp, zi, zj, hii, hjj, hav, &
-   !$omp&        km, rfc, dfc, vspd, vij, Pij, HPij, dG, dS)
+   !$omp&        km, rfc, dfc, vspd, vij, Pij, HPij, dG, dS, &
+   !$omp&        Sij, Gij, dhdcni, dhdcnj)
    do iat = 1, len(mol)
       ati = mol%at(iat)
       ri = mol%xyz(:, iat)
@@ -545,6 +556,11 @@ module subroutine build_dSDQH0(mol, neighs, neighlist, basis, param, intcut, cn,
             &    vd(1, iat), vd(2, iat), vd(3, iat), &
             &    vq(1, iat), vq(2, iat), vq(3, iat), &
             &    vq(4, iat), vq(5, iat), vq(6, iat)]
+
+         Gij = 0.0_wp
+         Sij = 0.0_wp
+         dhdcni = 0.0_wp
+         dhdcnj = 0.0_wp
 
          do ish = 1, ao_n(ati)
             il = basis%lsh(ish+io)+1
@@ -605,18 +621,22 @@ module subroutine build_dSDQH0(mol, neighs, neighlist, basis, param, intcut, cn,
                      ! reset for CN derivative
                      HPij = km*rfc*Pij*sdq(1,jj,ii)*evtoau
                      if (iat /= jat) then
-                        sigma = sigma + dS
-                        gradient(:, iat) = gradient(:, iat) + dG
-                        gradient(:, jat) = gradient(:, jat) - dG
-                        dhdcn(iat) = dhdcn(iat) - HPij*kcnat(il-1, ati)
-                        dhdcn(jat) = dhdcn(jat) - HPij*kcnat(jl-1, atj)
+                        Sij = Sij + dS
+                        Gij = Gij + dG
+                        dhdcni = dhdcni - HPij*kcnat(il-1, ati)
+                        dhdcnj = dhdcnj - HPij*kcnat(jl-1, atj)
                      else
-                        sigma = sigma + 0.5_wp * dS
+                        Sij = Sij + 0.5_wp * dS
                      endif
                   enddo
                enddo
             enddo ! jsh : loop over shells on jat
          enddo ! ish : loop over shells on iat
+         gradient(:, iat) = gradient(:, iat) + Gij
+         gradient(:, jat) = gradient(:, jat) - Gij
+         sigma = sigma + Sij
+         dhdcn(iat) = dhdcn(iat) + dhdcni
+         dhdcn(jat) = dhdcn(jat) + dhdcnj
       enddo ! jat
    enddo ! iat
    !$omp end parallel do

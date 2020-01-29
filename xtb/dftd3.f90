@@ -169,7 +169,7 @@ subroutine d3_gradient(mol, neighs, neighlist, par, weighting_factor, &
 
    call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn) &
    !$omp shared(mol, neighs, neighlist, par, c6, dc6dcn) &
    !$omp private(ij, img, jat, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &

@@ -1255,7 +1255,7 @@ subroutine get_sdqint(mol, neighs, neighlist, nbf,nao,thr,intcut, &
    qpint=0.0_wp
 
    kj=0
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:sint, dpint, qpint) shared(mol, neighs, neighlist, intcut) &
    !$omp shared(ao_n, ao_l, caoshell, saoshell, nprim, primcount, cont, alp) &
    !$omp private(ri, rj, r2, jat, ish, jsh, ati, atj, icao, jcao, ij, img, &
@@ -1403,7 +1403,7 @@ subroutine sdqint(nat,at,nbf,nao,xyz,thr,ndp,nqp,intcut,caoshell,saoshell, &
    dpint=0.0_wp
    qpint=0.0_wp
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:sint, dpint, qpint) shared(nat, at, xyz, intcut) &
    !$omp shared(ao_n, ao_l, caoshell, saoshell, nprim, primcount, cont, alp) &
    !$omp private(ri, rj, r2, jat, ish, jsh, ati, atj, icao, jcao, &
@@ -1540,7 +1540,7 @@ subroutine dsint(mol, neighs, neighlist, thr, caoshell, saoshell, &
    real(wp) :: tmp(6,6), dumdum(3), dum, sdq(6,6), sdqg(3,6,6)
    real(wp) :: dG(3), dS(3,3)
 
-   !$omp parallel do default(none) schedule(runtime) reduction(+:gradient, sigma) &
+   !$omp parallel do default(none) reduction(+:gradient, sigma) &
    !$omp shared(mol, neighs, neighlist, H, caoshell, saoshell, nprim, primcount, &
    !$omp&       alp, cont, ao_n, ao_l, thr) &
    !$omp private(jat, ij, img, ati, atj, ishtyp, jshtyp, icao, jcao, naoi, naoj, &
@@ -1656,7 +1656,7 @@ subroutine ddqint(mol, neighs, neighlist, thr, caoshell, saoshell, &
    real(wp) :: stmp(3), dtmp(3), qtmp(3)
    real(wp) :: dG(3), dS(3,3)
 
-   !$omp parallel do default(none) schedule(runtime) reduction(+:gradient, sigma) &
+   !$omp parallel do default(none) reduction(+:gradient, sigma) &
    !$omp shared(mol, neighs, neighlist, H, P, vs, vd, vq, caoshell, saoshell, &
    !$omp&       nprim, primcount, alp, cont, ao_n, ao_l, thr) &
    !$omp private(jat, ij, img, ati, atj, ishtyp, jshtyp, icao, jcao, naoi, naoj, &

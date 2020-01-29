@@ -227,7 +227,7 @@ subroutine ncoord_impl(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
    dcndr = 0.0_wp
    dcndL = 0.0_wp
 
-   !$omp parallel do default(none) schedule(runtime) private(den) shared(enscale)&
+   !$omp parallel do default(none) private(den) shared(enscale)&
    !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, neighlist, neighs) &
    !$omp private(ij, img, jat, ati, atj, r2, rij, r1, rc, countf, countd, stress)
    do iat = 1, len(mol)

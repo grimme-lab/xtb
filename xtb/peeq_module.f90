@@ -706,7 +706,7 @@ subroutine drep_grad(mol, neighs, neighlist, param, energy, gradient, sigma)
    ! initialize
    energy = 0.0_wp
    allocate(energies(len(mol)), source=0.0_wp)
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma) &
    !$omp shared(mol, neighlist, neighs, param, en, rep) &
    !$omp private(r2, rij, r1, den2, den4, alpha, repab, r2top34, r2top34top2, &
@@ -1010,7 +1010,7 @@ subroutine build_SH0(mol, neighs, neighlist, basis,q,cn,intcut, &
 
    end do
 
-   !$omp parallel do default(none) schedule(runtime) reduction (+:sint,h0) &
+   !$omp parallel do default(none) reduction (+:sint,h0) &
    !$omp shared(basis,mol,neighlist,neighs,ao_n,ao_l,intcut,kqat,kcnat,cn,q,en, &
    !$omp&       ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj) &
    !$omp private(iat,jat,ij,ijao,img,ati,cc,ci,rab2,atj,ish,valaoi,valaoj, &
@@ -1214,7 +1214,7 @@ subroutine ccm_build_SH0(nat,at,basis,xyz,lattice,q,cn,intcut, &
    !$omp reduction (+:sint,h0) &
    !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,lattice,intcut,nat,kqat,kcnat,cn,q,en, &
    !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj)
-   !$omp do schedule(runtime)
+   !$omp do
    do iat = 1, nat
       ri  = xyz(:,iat)
       ati = at(iat)
@@ -1385,7 +1385,7 @@ subroutine build_dSH0(mol,basis,neighs,neighlist,thr,q,cn,P,Pew,g,sigma, &
    logical  :: valaoi,valaoj
    real(wp) :: g_xyz(3)
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:g,sigma,dhdcn,dhdq) &
    !$omp private(iat,jat,ixyz,ati,cc,ci,rab2,atj,ish,ishtyp,valaoi,valaoj,g_xyz, &
    !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,rij2, &
@@ -1624,7 +1624,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,at,xyz,lattice,q,cn,P,Pew,g,sigma,&
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(wsc,basis,at,ao_n,ao_l,xyz,lattice,thr,nat,kqat,kcnat,cn,q,en, &
    !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,P,Pew)
-   !$omp do schedule(runtime)
+   !$omp do
    do iat = 1, nat
       ri  = xyz(:,iat)
       ati = at(iat)

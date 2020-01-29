@@ -109,7 +109,7 @@ subroutine rep_grad_gfn1(mol, neighs, neighlist, kexp, rexp, &
    energy = 0.0_wp
    allocate(energies(len(mol)), source=0.0_wp)
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma) &
    !$omp shared(mol, neighs, neighlist, rep, kexp, rexp)&
    !$omp private(ij, img, jat, ati, atj, r2, rij, r1, alpha, repab, &
@@ -172,7 +172,7 @@ subroutine rep_grad_gfn2(mol, neighs, neighlist, rexp, energy, gradient, sigma)
    energy = 0.0_wp
    allocate(energies(len(mol)), source=0.0_wp)
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma) &
    !$omp shared(mol, neighs, neighlist, rep, rexp)&
    !$omp private(ij, img, jat, ati, atj, r2, rij, r1, alpha, repab, &

@@ -55,7 +55,7 @@ subroutine get_coulomb_matrix_0d(mol, chrgeq, amat)
    integer :: iat, jat
    real(wp) :: r1, gamij
    Amat = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) shared(mol,chrgeq, amat) &
+   !$omp parallel do default(none) shared(mol,chrgeq, amat) &
    !$omp private(jat, r1, gamij)
    do iat = 1, len(mol)
       ! EN of atom i
@@ -83,7 +83,7 @@ subroutine get_coulomb_matrix_3d(mol, chrgeq, cf, amat)
    integer :: iat, jat, wscAt
    real(wp) :: gamii, gamij, riw(3)
    amat = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) reduction(+:amat) &
+   !$omp parallel do default(none) reduction(+:amat) &
    !$omp shared(mol, chrgeq, cf) private(jat, wscAt, gamii, gamij, riw)
    do iat = 1, len(mol)
       gamii = 1.0_wp/(sqrt(2.0_wp)*chrgeq%alpha(iat))
@@ -122,7 +122,7 @@ subroutine get_coulomb_derivs_0d(mol, chrgeq, qvec, amatdr, atrace)
    real(wp) :: dE, dG(3)
    amatdr = 0.0_wp
    atrace = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) reduction(+:atrace, amatdr) &
+   !$omp parallel do default(none) reduction(+:atrace, amatdr) &
    !$omp shared(mol,chrgeq, qvec) private(jat, rij, r2, gamij2, arg2, dE, dG)
    do iat = 1, len(mol)
       ! EN of atom i
@@ -160,7 +160,7 @@ subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, cf, amatdr, amatdL, atrace)
    amatdr = 0.0_wp
    amatdL = 0.0_wp
    atrace = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:atrace,amatdr,amatdL) shared(mol, chrgeq, qvec, cf) &
    !$omp private(iat, jat, ii, wscAt, riw, gamij, dG, dS)
    do iat = 1, len(mol)
@@ -401,7 +401,7 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
 !$omp shared(n,at,cn,xi,cnfak,alp,gamm) &
 !$omp private(i,tmp) &
 !$omp shared(Xvec,Xfac,alpha)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, n
       tmp = cnfak(at(i))/(sqrt(cn(i))+1e-14_wp)
       Xvec(i) = -xi(at(i)) + tmp*cn(i)
@@ -415,7 +415,7 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
 !$omp shared(n,at,xyz,gamm,alpha) &
 !$omp private(i,j,r,gamij) &
 !$omp shared(Xvec,Xfac,Amat)
-!$omp do schedule(runtime)
+!$omp do
    ! prepare A matrix
    do i = 1, n
       ! EN of atom i
@@ -500,7 +500,7 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
 !$omp private(i,j,rij,r2,gamij,arg,dtmp) &
 !$omp shared(dXvec,dAmat) &
 !$omp reduction(+:Afac)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, n
       dXvec(:,i,i) = +dcndr(:,i,i)*Xfac(i) ! merge dX and dA for speedup
       do j = 1, i-1
@@ -754,7 +754,7 @@ subroutine eeq_chrgeq_core(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
       "Setup of the A matrix and the RHS X vector"
 
    ! prepare some arrays
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp shared(mol,cn,chrgeq) private(i,tmp) shared(Xvec,Xfac)
    do i = 1, mol%n
       tmp = chrgeq%kappa(i)/(sqrt(cn(i))+1e-14_wp)
@@ -1203,7 +1203,7 @@ subroutine eeq_chrgeq_gbsa(mol,chrgeq,gbsa,cn,dcndr,q,dqdr, &
       "Setup of the A matrix and the RHS X vector"
 
    ! prepare some arrays
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp shared(mol,cn,chrgeq) private(i,tmp) shared(Xvec,Xfac)
    do i = 1, mol%n
       tmp = chrgeq%kappa(i)/(sqrt(cn(i))+1e-14_wp)

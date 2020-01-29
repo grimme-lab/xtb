@@ -849,7 +849,7 @@ subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
 
 !$OMP parallel private(i,j,ia,ja,ij,k,l,r,oor6,oor8,oor10,cutoff,c6ij,c6ij_ns) &
 !$omp&         shared(c6ab) reduction(+:E)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1067,7 +1067,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !$omp         rij,r2,r,r4r2ij,r0,oor6,oor8,oor10,door6,door8,door10)  &
 !$omp shared(nat,at,xyz,dispm,itbl,zvec,dzvec,c6abns,par,dzdq) &
 !$omp shared(r2ab) reduction(+:dc6dr,dc6dq,dc6dcn,ed)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1158,7 +1158,7 @@ subroutine dispgrad(nat,ndim,at,q,xyz, &
 !$omp private(i,j,ia,ja,ij,rij,r2,r,drdx,den,rcovij,  &
 !$omp         expterm,dcndr,dtmp) reduction(+:g) &
 !$omp shared(nat,at,xyz,dc6dr,dc6dcn)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1379,7 +1379,7 @@ subroutine abcappr(nat,ndim,at,xyz,g_a,g_c,par,gw,r2ab,c6abns,eabc)
 
 !$OMP parallel private(i,ia,j,ja,ij,r2ij,c6ij)  &
 !$omp&         shared (c6ab,c)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1413,7 +1413,7 @@ subroutine abcappr(nat,ndim,at,xyz,g_a,g_c,par,gw,r2ab,c6abns,eabc)
 !$omp&                 r2ij,cij,r2ik,r2jk,cik,cjk,r2ijk,rijk,cijk, &
 !$omp&                 c9ijk,oor9ijk) &
 !$omp&         reduction(+:eabc)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1511,7 +1511,7 @@ subroutine dabcappr(nat,ndim,at,xyz,par,  &
 !$omp private(i,ia,j,ja,ij,r2ij,c6ij,dic6ij,djc6ij,k,l)  &
 !$omp shared (nat,at,r2ab,dispm,itbl,c6abns,zvec,dzvec) &
 !$omp shared (c6ab,dc6ab)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1553,7 +1553,7 @@ subroutine dabcappr(nat,ndim,at,xyz,par,  &
 !$omp         c9ijk,oor9ijk,dic9ijk,djc9ijk,dkc9ijk) &
 !$omp shared(nat,at,r2ab,par,c6ab,dc6ab) &
 !$omp reduction(+:eabc,dc6dr) reduction(-:dc6dcn)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -1710,7 +1710,7 @@ subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
 !$omp&         dijoor9ijk,djkoor9ijk,dikoor9ijk, &
 !$omp&         x1,x2,x3,x4,x5,x6,x7,x8,x9) &
 !$omp&         reduction(+:g,eabc)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, nat
       ia = at(i)
       do j = 1, i-1
@@ -2414,7 +2414,7 @@ subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mb
 !$omp         t,tx,ty,tz)  &
 !$omp shared(mol,dispm,itbl,zetavec,refc6,par,rep,r_Thr) &
 !$omp shared(r2ab) reduction(+:ed)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, mol%n
       ia = mol%at(i)
       ! temps
@@ -2525,7 +2525,7 @@ subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
    !$omp private(i,ia,j,ja,ij,r2ij,c6ij,k,l,r)  &
    !$omp shared (mol,dispm,itbl,refc6,zvec) &
    !$omp shared (c6ab)
-   !$omp do schedule(runtime)
+   !$omp do
    do i = 1, mol%n
       ia = mol%at(i)
       ij = i*(i-1)/2+i
@@ -3011,7 +3011,7 @@ subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, 
 !$omp         t,tx,ty,tz,dtmp,drdx)  &
 !$omp shared(mol,dispm,itbl,zvec,dzvec,refc6,par,dzdq,rep,r_Thr) &
 !$omp shared(r2ab) reduction(+:dc6dq,dc6dcn,ed,g,sigma)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, mol%n
       ia = mol%at(i)
       ! temps
@@ -3205,7 +3205,7 @@ subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
 !$omp private(i,ia,j,ja,ij,r2ij,c6ij,dic6ij,djc6ij,k,l,r)  &
 !$omp shared (mol,dispm,itbl,refc6,zvec,dzvec) &
 !$omp shared (c6ab,dc6ab)
-!$omp do schedule(runtime)
+!$omp do
    do i = 1, mol%n
       ia = mol%at(i)
       ij = i*(i-1)/2+i
@@ -3320,7 +3320,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
 !$omp&        s,rik2,vec,rjk2,rijk2,rijk,fdmp,rijk3,ang,r9ijk,dfdmp, &
 !$omp&        r,dang,tmp1,dc9,rij,rik,rjk,r3,g3) &
 !$omp reduction(+:eabc,dc6dcn,sigma,g)
-!$omp do schedule(runtime)
+!$omp do
    iAt_ijk: do iat=3,nat
       jAt_ijk: do jat=2,iat-1
          ij=iat*(iat-1)/2+jat
@@ -3451,7 +3451,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
    enddo iAt_ijk
 !$omp enddo
 
-!$omp do schedule(runtime)
+!$omp do
    ! Now the interaction with jat=iat of the triples iat,iat,kat
    iAt_iik: do iat=2,nat
       jat=iat
@@ -3580,7 +3580,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
    ! And now kat=jat, but cycling throug all imagecells without t=s. and jat>iat going though all cells    (iat,jat,jat)
    ! But this counts only 1/2
 
-!$omp do schedule(runtime)
+!$omp do
    iAt_ijj: do iat=2,nat
       jAt_ijj: do jat=1,iat-1
          kat=jat
@@ -3703,7 +3703,7 @@ subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, 
 
    ! And finally the self interaction iat=jat=kat all
 
-!$omp do schedule(runtime)
+!$omp do
    iAt_iii: do iat=1,nat
       jat=iat
       kat=iat
@@ -4041,7 +4041,7 @@ subroutine d4_gradient(mol, neighs, neighs3, neighlist, par, g_a, g_c, wf, &
 
    call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
 
-   !$omp parallel do default(none) schedule(runtime) &
+   !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
    !$omp shared(mol, neighs, neighlist, par, c6, dc6dcn, dc6dq) &
    !$omp private(ij, img, jat, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
