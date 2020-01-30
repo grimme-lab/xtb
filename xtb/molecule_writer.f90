@@ -64,6 +64,8 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm, numb
       call write_vasp(self, unit, trim(comment_line))
    case(p_ftype%gen)
       call write_gen(self, unit, trim(comment_line))
+   case(p_ftype%gaussian)
+      call write_gaussian(self, unit)
    case(p_ftype%pdb)
       if (present(number)) then
          call write_pdb(self, unit, number)
@@ -257,6 +259,7 @@ subroutine write_gen(mol, unit, comment_line)
    integer :: i,j,iat
    real(wp), parameter :: zero3(3) = 0.0_wp
    integer, allocatable :: species(:)
+   character(len=2) :: sym
 
    write(unit, '(i0,1x)', advance='no') len(mol)
    if (mol%npbc == 0) then
@@ -275,7 +278,8 @@ subroutine write_gen(mol, unit, comment_line)
    do iat = minval(mol%at), maxval(mol%at)
       if (any(mol%at == iat)) then
          j = j+1
-         write(unit,'(1x,a)',advance='no') number_to_symbol(iat)
+         sym = iat
+         write(unit,'(1x,a)',advance='no') sym
          where(mol%at == iat)
             species = j
          endwhere
@@ -374,34 +378,16 @@ subroutine write_pdb(mol, unit, number)
 
 end subroutine write_pdb
 
-pure function number_to_symbol(number) result(symbol)
-   character(len=2), parameter :: pse(118) = [ &
-      & 'H ','He', &
-      & 'Li','Be','B ','C ','N ','O ','F ','Ne', &
-      & 'Na','Mg','Al','Si','P ','S ','Cl','Ar', &
-      & 'K ','Ca', &
-      & 'Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu','Zn', &
-      &           'Ga','Ge','As','Se','Br','Kr', &
-      & 'Rb','Sr', &
-      & 'Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd', &
-      &           'In','Sn','Sb','Te','I ','Xe', &
-      & 'Cs','Ba','La', &
-      & 'Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb', &
-      & 'Lu','Hf','Ta','W ','Re','Os','Ir','Pt','Au','Hg', &
-      &           'Tl','Pb','Bi','Po','At','Rn', &
-      & 'Fr','Ra','Ac', &
-      & 'Th','Pa','U ','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No', &
-      & 'Lr','Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn', &
-      &           'Nh','Fl','Mc','Lv','Ts','Og' ]
-   integer, intent(in) :: number
-   character(len=:), allocatable :: symbol
+subroutine write_gaussian(mol, unit)
+   type(tb_molecule), intent(in) :: mol
+   integer, intent(in) :: unit
+   integer :: iat
 
-   if (number > 0 .and. number <= size(pse)) then
-      symbol = trim(pse(number))
-   else
-      symbol = '--'
-   endif
+   write(unit, '(4i10)') mol%n, 1, nint(mol%chrg), mol%uhf
+   do iat = 1, mol%n
+      write(unit, '(i10,4f20.12)') mol%at(iat), mol%xyz(:, iat), 0.0_wp
+   end do
 
-end function number_to_symbol
+end subroutine write_gaussian
 
 end submodule molecule_writer

@@ -27,6 +27,7 @@ module tbmod_file_utils
       integer :: pdb = 5
       integer :: sdf = 6
       integer :: gen = 7
+      integer :: gaussian = 8
    end type tb_enum_molecule
    type(tb_enum_molecule), public, parameter :: p_ftype = tb_enum_molecule()
 

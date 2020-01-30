@@ -19,10 +19,6 @@ submodule(tbdef_molecule) molecule_reader
    use tbdef_molecule
    implicit none
 
-   interface assignment(=)
-      module procedure :: symbol_to_number
-   end interface assignment(=)
-
 contains
 
 module subroutine read_molecule_generic(self, unit, format)
@@ -54,6 +50,8 @@ module subroutine read_molecule_generic(self, unit, format)
       call read_molecule_pdb(self, unit, status, iomsg=message)
    case(p_ftype%gen)
       call read_molecule_gen(self, unit, status, iomsg=message)
+   case(p_ftype%gaussian)
+      call read_molecule_gaussian(self, unit, status, iomsg=message)
    case default
       status = .false.
       message = "coordinate format known"
@@ -912,54 +910,65 @@ subroutine resize_pdb_data(var, n)
 end subroutine resize_pdb_data
 
 
-pure elemental subroutine symbol_to_number(number, symbol)
-   character(len=2), parameter :: pse(118) = [ &
-      & 'h ','he', &
-      & 'li','be','b ','c ','n ','o ','f ','ne', &
-      & 'na','mg','al','si','p ','s ','cl','ar', &
-      & 'k ','ca', &
-      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn', &
-      &           'ga','ge','as','se','br','kr', &
-      & 'rb','sr', &
-      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd', &
-      &           'in','sn','sb','te','i ','xe', &
-      & 'cs','ba','la', &
-      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb', &
-      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg', &
-      &           'tl','pb','bi','po','at','rn', &
-      & 'fr','ra','ac', &
-      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no', &
-      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn', &
-      &           'nh','fl','mc','lv','ts','og' ]
-   character(len=*), intent(in) :: symbol
-   integer, intent(out) :: number
-   character(len=2) :: lc_symbol
-   integer :: i, j, k, l
-   integer, parameter :: offset = iachar('a')-iachar('A')
+subroutine read_molecule_gaussian(mol, unit, status, iomsg)
+   use iso_fortran_env, wp => real64
+   logical, parameter :: debug = .false.
+   class(tb_molecule), intent(out) :: mol
+   integer, intent(in) :: unit
+   logical, intent(out) :: status
+   character(len=:), allocatable, intent(out) :: iomsg
+   integer :: err
+   integer :: n, mode, chrg, spin, iat
+   real(wp) :: xyz(3)
+   real(wp) :: q
+   real(wp) :: conv
 
-   number = 0
-   lc_symbol = '  '
+   status = .false.
 
-   k = 0
-   do j = 1, len_trim(symbol)
-      if (k > 2) exit
-      l = iachar(symbol(j:j))
-      if (k >= 1 .and. l == iachar(' ')) exit
-      if (k >= 1 .and. l == 9) exit
-      if (l >= iachar('A') .and. l <= iachar('Z')) l = l + offset
-      if (l >= iachar('a') .and. l <= iachar('z')) then
-         k = k+1
-         lc_symbol(k:k) = achar(l)
+   read(unit, '(4i10)', iostat=err) n, mode, chrg, spin
+   if (err.ne.0) then
+      iomsg = "Could not read number of atoms, check format!"
+      return
+   endif
+
+   if (n <= 0) then
+      iomsg = "Found no atoms, cannot work without atoms!"
+      return
+   end if
+
+   call mol%allocate(n)
+   mol%npbc = 0
+   mol%pbc = .false.
+   mol%chrg = chrg
+   mol%uhf = spin
+
+   n = 0
+   do while (n < mol%n)
+      read(unit, '(i10, 4f20.12)', iostat=err) iat, xyz, q
+      if (is_iostat_end(err)) exit
+      if (err.ne.0) then
+         iomsg = "Could not read geometry from Gaussian file"
+         return
       endif
-   enddo
+      if (iat > 0) then
+         mol%at(n) = iat
+         mol%sym(n) = iat
+         mol%xyz(:, n) = xyz
+      else
+         iomsg = "Invalid atomic number"
+         return
+      end if
+   end do
 
-   do i = 1, size(pse)
-      if (lc_symbol == pse(i)) then
-         number = i
-         exit
-      endif
-   enddo
+   if (n /= mol%n) then
+      iomsg = "Atom number missmatch in Gaussian file"
+      return
+   endif
 
-end subroutine symbol_to_number
+   status = .true.
+
+end subroutine read_molecule_gaussian
+
+
 
 end submodule molecule_reader
