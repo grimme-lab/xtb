@@ -977,5 +977,4 @@ subroutine read_molecule_gaussian(mol, unit, status, iomsg)
 end subroutine read_molecule_gaussian
 
 
-
 end submodule molecule_reader

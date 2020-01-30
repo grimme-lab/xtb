@@ -21,6 +21,27 @@ module tbmod_output_writer
 
 contains
 
+subroutine write_orca_engrad(unit, mol, energy, gradient)
+   use tbdef_molecule
+   type(tb_molecule), intent(in) :: mol
+   integer, intent(in) :: unit
+   real(wp), intent(in) :: energy
+   real(wp), intent(in) :: gradient(:, :)
+   integer :: i
+
+   write(unit, '(a)') "#", "# Number of atoms", "#"
+   write(unit, '(i10)') mol%n
+   write(unit, '(a)') "#", "# The current total energy in Eh", "#"
+   write(unit, '(f20.12)') energy
+   write(unit, '(a)') "#", "# The current gradient in Eh/bohr", "#"
+   write(unit, '(1x,f20.12)') gradient
+   write(unit, '(a)') "#", "# The atomic numbers and current coordinates in Bohr", "#"
+   do i = 1, mol%n
+      write(unit, '(1x,i3,1x,3(1x,f12.7))') mol%at(i), mol%xyz(:, i)
+   end do
+
+end subroutine write_orca_engrad
+
 subroutine write_gaussian_eou(unit, energy, dipole, gradient)
    integer, intent(in) :: unit
    real(wp), intent(in) :: energy
