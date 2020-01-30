@@ -17,7 +17,13 @@
 
 submodule(tbdef_molecule) molecule_reader
    use tbdef_molecule
+   use tbmod_symbols
    implicit none
+
+   interface assignment(=)
+      module procedure :: symbol_to_number
+      module procedure :: number_to_symbol
+   end interface assignment(=)
 
 contains
 
