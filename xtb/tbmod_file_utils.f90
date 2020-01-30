@@ -88,6 +88,8 @@ subroutine file_generate_name(fname, basename, extension, ftype)
          fname = fname//'.pdb'
       case(p_ftype%gen)
          fname = fname//'.gen'
+      case(p_ftype%gaussian)
+         fname = fname//'.ein'
       end select
    endif
 end subroutine file_generate_name
@@ -116,6 +118,8 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
          ftype = p_ftype%pdb
       case('gen')
          ftype = p_ftype%gen
+      case('ein')
+         ftype = p_ftype%gaussian
       case default
          if (len(basename) > 0) then
             select case(lowercase(basename))
