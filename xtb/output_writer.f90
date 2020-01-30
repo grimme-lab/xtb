@@ -21,6 +21,17 @@ module tbmod_output_writer
 
 contains
 
+subroutine write_gaussian_eou(unit, energy, dipole, gradient)
+   integer, intent(in) :: unit
+   real(wp), intent(in) :: energy
+   real(wp), intent(in) :: dipole(:)
+   real(wp), intent(in) :: gradient(:, :)
+
+   write(unit, '(4D20.12)') energy, dipole
+   write(unit, '(3D20.12)') gradient
+
+end subroutine write_gaussian_eou
+
 subroutine write_turbomole(mol, unit, energy, gradient, sigma)
    use tbdef_molecule
    type(tb_molecule), intent(in) :: mol

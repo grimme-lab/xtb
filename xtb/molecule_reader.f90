@@ -957,6 +957,7 @@ subroutine read_molecule_gaussian(mol, unit, status, iomsg)
          return
       endif
       if (iat > 0) then
+         n = n+1
          mol%at(n) = iat
          mol%sym(n) = iat
          mol%xyz(:, n) = xyz

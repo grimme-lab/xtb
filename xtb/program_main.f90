@@ -786,6 +786,16 @@ program XTBprog
    if (lgrad) then
       call write_turbomole(mol, energy=etot, gradient=g, sigma=sigma)
    end if
+   if (mol%ftype .eq. p_ftype%gaussian) then
+      if (allocated(basename)) then
+         cdum = basename // '.EOu'
+      else
+         cdum = 'xtb-gaussian.EOu'
+      end if
+      call open_file(ich, cdum, 'w')
+      call write_gaussian_eou(ich, etot, res%dipole, g)
+      call close_file(ich)
+   end if
 
    if(periodic)then
       write(*,*)'Periodic properties'
