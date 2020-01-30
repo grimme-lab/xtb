@@ -63,6 +63,7 @@ program XTBprog
    use set_module
    use property_output
    use tbmod_file_utils
+   use tbmod_output_writer
 
 !! ========================================================================
 !  get interfaces for methods used in this part
@@ -782,7 +783,9 @@ program XTBprog
    endif
 
    call generic_header(iprop,'Property Printout',49,10)
-   if (lgrad) call tmgrad(mol%n,mol%at,mol%xyz,g,etot)
+   if (lgrad) then
+      call write_turbomole(mol, energy=etot, gradient=g, sigma=sigma)
+   end if
 
    if(periodic)then
       write(*,*)'Periodic properties'
