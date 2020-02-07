@@ -63,6 +63,7 @@ program XTBprog
    use set_module
    use property_output
    use tbmod_file_utils
+   use tbmod_output_writer
 
 !! ========================================================================
 !  get interfaces for methods used in this part
@@ -782,7 +783,19 @@ program XTBprog
    endif
 
    call generic_header(iprop,'Property Printout',49,10)
-   if (lgrad) call tmgrad(mol%n,mol%at,mol%xyz,g,etot)
+   if (lgrad) then
+      call write_turbomole(mol, energy=etot, gradient=g, sigma=sigma)
+   end if
+   if (mol%ftype .eq. p_ftype%gaussian) then
+      if (allocated(basename)) then
+         cdum = basename // '.EOu'
+      else
+         cdum = 'xtb-gaussian.EOu'
+      end if
+      call open_file(ich, cdum, 'w')
+      call write_gaussian_eou(ich, etot, res%dipole, g)
+      call close_file(ich)
+   end if
 
    if(periodic)then
       write(*,*)'Periodic properties'

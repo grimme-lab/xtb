@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+2>&1 exec xtb $2 --grad > $4

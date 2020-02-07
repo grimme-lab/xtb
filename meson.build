@@ -180,6 +180,8 @@ xtb_srcs += 'xtb/aoparam.f90'
 xtb_srcs += 'xtb/setparam.f90'
 
 # header and I/O
+xtb_srcs += 'xtb/symbols.f90'
+xtb_srcs += 'xtb/output_writer.f90'
 xtb_srcs += 'xtb/readin.f90'
 xtb_srcs += 'xtb/filetools.f90'
 xtb_srcs += 'xtb/set_module.f90'

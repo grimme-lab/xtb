@@ -55,6 +55,8 @@ set(XTB_SOURCES
   "${XTB_ROOT}/xtb/setparam.f90"
 
   # Header and I/O
+  "${XTB_ROOT}/xtb/symbols.f90"
+  "${XTB_ROOT}/xtb/output_writer.f90"
   "${XTB_ROOT}/xtb/readin.f90"
   "${XTB_ROOT}/xtb/filetools.f90"
   "${XTB_ROOT}/xtb/set_module.f90"
