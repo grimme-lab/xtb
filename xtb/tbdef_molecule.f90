@@ -249,10 +249,10 @@ type(tb_molecule) function new_molecule_api &
    integer(c_int), intent(in) :: n
    integer(c_int), intent(in) :: at(n)
    real(c_double), intent(in) :: xyz(3, n)
-   real(c_double), intent(in), optional :: chrg
-   integer(c_int), intent(in), optional :: uhf
-   real(c_double), intent(in), optional :: lattice(3, 3)
-   logical(c_bool), intent(in), optional :: pbc(3)
+   real(c_double), intent(in), target, optional :: chrg
+   integer(c_int), intent(in), target, optional :: uhf
+   real(c_double), intent(in), target, optional :: lattice(3, 3)
+   logical(c_bool), intent(in), target, optional :: pbc(3)
 
    integer :: i
    character(len=2), external :: asym
