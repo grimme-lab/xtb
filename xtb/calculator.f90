@@ -24,7 +24,8 @@ module tb_calculators
 
    interface
       module subroutine gfn0_calculation &
-            (iunit,env,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
+            (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
+         use mctc_logging
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -35,6 +36,7 @@ module tb_calculators
          type(tb_molecule),    intent(inout) :: mol
          type(peeq_options),   intent(in)    :: opt
          type(tb_environment), intent(in)    :: env
+         type(mctc_error), allocatable, intent(inout) :: err
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
          real(wp), intent(out) :: gradient(3,mol%n)
@@ -42,7 +44,8 @@ module tb_calculators
          real(wp), intent(out) :: lattice_gradient(3,3)
       end subroutine gfn0_calculation
       module subroutine gfn1_calculation &
-            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+            (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+         use mctc_logging
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -54,6 +57,7 @@ module tb_calculators
          type(tb_molecule),    intent(inout) :: mol
          type(scc_options),    intent(in)    :: opt
          type(tb_environment), intent(in)    :: env
+         type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          type(tb_wavefunction),intent(inout) :: wfn
          real(wp), intent(out) :: energy
@@ -61,7 +65,8 @@ module tb_calculators
          real(wp), intent(out) :: gradient(3,mol%n)
       end subroutine gfn1_calculation
       module subroutine gfn2_calculation &
-            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+            (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+         use mctc_logging
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -74,6 +79,7 @@ module tb_calculators
          type(tb_wavefunction),intent(inout) :: wfn
          type(scc_options),    intent(in)    :: opt
          type(tb_environment), intent(in)    :: env
+         type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap

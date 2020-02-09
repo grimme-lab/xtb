@@ -130,6 +130,7 @@ subroutine test_gfn0_api
    use iso_fortran_env, wp => real64, istdout => output_unit
    use assertion
 
+   use mctc_logging
    use tbdef_options
    use tbdef_molecule
    use tbdef_param
@@ -156,6 +157,7 @@ subroutine test_gfn0_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
+   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -176,7 +178,8 @@ subroutine test_gfn0_api
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (istdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (istdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 5.5384029314207_wp,thr)
    call assert_close(energy,-8.6908532561691_wp,thr)

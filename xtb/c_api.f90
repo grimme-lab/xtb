@@ -53,6 +53,8 @@ function peeq_api &
       &    etot,grad,stress,glat) &
       &    result(status) bind(C,name="GFN0_PBC_calculation")
 
+   use mctc_logging
+
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
@@ -81,6 +83,7 @@ function peeq_api &
    type(tb_molecule)    :: mol
    type(peeq_options)   :: opt
    type(tb_environment) :: env
+   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -157,11 +160,11 @@ function peeq_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
+      (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then
+   if (.not.sane .or. allocated(err)) then
       call finalize
       status = 1
       return
@@ -191,6 +194,8 @@ function gfn2_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    etot,grad,dipole,q,dipm,qp,wbo) &
       &    result(status) bind(C,name="GFN2_calculation")
+
+   use mctc_logging
 
    use tbdef_molecule
    use tbdef_wavefunction
@@ -225,6 +230,7 @@ function gfn2_api &
    type(scc_options)    :: opt
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -295,11 +301,11 @@ function gfn2_api &
    call mctc_mute
 
    call gfn2_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then
+   if (.not.sane .or. allocated(err)) then
       call finalize
       status = 1
       return
@@ -333,6 +339,8 @@ function gfn1_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo) &
       &    result(status) bind(C,name="GFN1_calculation")
 
+   use mctc_logging
+
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
@@ -364,6 +372,7 @@ function gfn1_api &
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
+   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -434,11 +443,11 @@ function gfn1_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then
+   if (.not.sane .or. allocated(err)) then
       call finalize
       status = 1
       return
@@ -470,6 +479,8 @@ function gfn0_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad) &
       &    result(status) bind(C,name="GFN0_calculation")
 
+   use mctc_logging
+
    use tbdef_molecule
    use tbdef_param
    use tbdef_options
@@ -494,6 +505,7 @@ function gfn0_api &
    type(tb_molecule)    :: mol
    type(peeq_options)    :: opt
    type(tb_environment) :: env
+   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -565,11 +577,11 @@ function gfn0_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (iunit,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then
+   if (.not.sane .or. allocated(err)) then
       call finalize
       status = 1
       return
@@ -597,6 +609,8 @@ function gfn2_pcem_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN2_QMMM_calculation")
+
+   use mctc_logging
 
    use tbdef_molecule
    use tbdef_param
@@ -635,6 +649,7 @@ function gfn2_pcem_api &
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -714,11 +729,11 @@ function gfn2_pcem_api &
    call mctc_mute
 
    call gfn2_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then
+   if (.not.sane .or. allocated(err)) then
       call finalize
       status = 1
       return
@@ -749,6 +764,8 @@ function gfn1_pcem_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN1_QMMM_calculation")
+
+   use mctc_logging
 
    use tbdef_molecule
    use tbdef_param
@@ -787,6 +804,7 @@ function gfn1_pcem_api &
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
    type(tb_wavefunction):: wfn
+   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -866,11 +884,11 @@ function gfn1_pcem_api &
    call mctc_mute
 
    call gfn1_calculation &
-      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane) then
+   if (.not.sane .or. allocated(err)) then
       call finalize
       status = 1
       return

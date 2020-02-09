@@ -169,6 +169,7 @@ subroutine test_peeq_api
    use iso_fortran_env, wp => real64, istdout => output_unit
    use assertion
 
+   use mctc_logging
    use tbdef_options
    use tbdef_molecule
    use tbdef_param
@@ -197,6 +198,7 @@ subroutine test_peeq_api
 
    type(tb_molecule)    :: mol
    type(tb_environment) :: env
+   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -228,7 +230,7 @@ subroutine test_peeq_api
    call mctc_mute
 
    call gfn0_calculation &
-      (istdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+      (istdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 4.8620892163953_wp,thr)
    call assert_close(energy,-8.4898922181241_wp,thr)
