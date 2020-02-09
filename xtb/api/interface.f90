@@ -116,8 +116,7 @@ integer(c_int) function xtb_calculation_api &
    ! handle basisset
    if (c_associated(c_basis)) then
       call c_f_pointer(c_basis, basis)
-      if (basis%n <= 0 .or. basis%nbf <= 0 .or. basis%nao <= 0 .or. &
-         &basis%nshell <= 0) return
+      if (.not.verify_xtb_basisset(mol, basis)) return
    else
       allocate(basis)
       call new_xtb_basisset(mol, basis, stat_basis)
@@ -132,7 +131,7 @@ integer(c_int) function xtb_calculation_api &
    ! handle wavefunction
    if (c_associated(c_wfn)) then
       call c_f_pointer(c_wfn, wfn)
-      if (basis%n <= 0 .or. basis%nao <= 0 .or. basis%nshell <= 0) then
+      if (.not.verify_xtb_wavefunction(basis, wfn)) then
          call finalize
          return
       end if

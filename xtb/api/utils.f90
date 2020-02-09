@@ -98,6 +98,42 @@ subroutine eeq_guess_wavefunction(mol, wfn, err)
    call iniqshell(mol%n,mol%at,mol%z,wfn%nshell,wfn%q,wfn%qsh,gfn_method)
 end subroutine eeq_guess_wavefunction
 
+!> Cold fusion check
+integer function verify_xtb_molecule(mol) result(status)
+   use tbdef_molecule
+   type(tb_molecule), intent(in) :: mol
+   integer :: iat, jat
+   status = 0
+   do iat = 1, mol%n
+      do jat = 1, iat - 1
+         if (mol%dist(jat, iat) < 1.0e-9_wp) status = status + 1
+      end do
+   end do
+end function verify_xtb_molecule
+
+logical function verify_xtb_basisset(mol, basis) result(status)
+   use tbdef_molecule
+   use tbdef_basisset
+   use xbasis, only: dim_basis
+   type(tb_molecule), intent(in) :: mol
+   type(tb_basisset), intent(in) :: basis
+   integer :: nshell, nao, nbf
+   call dim_basis(mol%n, mol%at, nshell, nao, nbf)
+   status = basis%n > 0 .and. basis%nbf > 0 .and. basis%nao > 0 &
+      & .and. basis%nshell > 0 .and. mol%n == basis%n &
+      & .and. nshell == basis%nshell .and. nao == basis%nao .and. nbf == basis%nbf
+end function verify_xtb_basisset
+
+logical function verify_xtb_wavefunction(basis, wfn) result(status)
+   use tbdef_basisset
+   use tbdef_wavefunction
+   type(tb_basisset), intent(in) :: basis
+   type(tb_wavefunction), intent(in) :: wfn
+   status = wfn%n > 0 .and. wfn%nao > 0 .and. wfn%nshell > 0 &
+      & .and. wfn%n == basis%n .and. wfn%nshell == basis%nshell &
+      & .and. wfn%nao == basis%nao
+end function verify_xtb_wavefunction
+
 !> optional return to a c_ptr in case it is not a null pointer and the
 !  Fortran value has been calculated
 subroutine c_return_int_0d(c_array, f_array)

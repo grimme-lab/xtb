@@ -89,19 +89,6 @@ integer(c_int) function update_xtb_molecule_api &
 
 end function update_xtb_molecule_api
 
-!> Cold fusion check
-integer function verify_xtb_molecule(mol) result(status)
-   use tbdef_molecule
-   type(tb_molecule), intent(in) :: mol
-   integer :: iat, jat
-   status = 0
-   do iat = 1, mol%n
-      do jat = 1, iat - 1
-         if (mol%dist(jat, iat) < 1.0e-9_wp) status = status + 1
-      end do
-   end do
-end function verify_xtb_molecule
-
 !> Deconstructor for the molecular structure type.
 subroutine delete_xtb_molecule_api(c_mol) &
       & bind(C, name="delete_xTB_molecule")
