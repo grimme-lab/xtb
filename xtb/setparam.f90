@@ -50,7 +50,7 @@ module setparam
    integer,parameter :: p_method_gfn0xtb = 0
    integer,parameter :: p_method_gfn1xtb = 1
    integer,parameter :: p_method_gfn2xtb = 2
-   integer  :: gfn_method = p_method_gfn2xtb
+   integer  :: gfn_method = -1
    integer  :: maxscciter = 250
    logical  :: newdisp = .true.
    logical  :: solve_scc = .true.

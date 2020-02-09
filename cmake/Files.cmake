@@ -236,7 +236,10 @@ set(XTB_SOURCES
   "${XTB_ROOT}/xtb/gfn0_calculator.f90"
   "${XTB_ROOT}/xtb/gfn1_calculator.f90"
   "${XTB_ROOT}/xtb/gfn2_calculator.f90"
-  "${XTB_ROOT}/xtb/c_api.f90"
+  "${XTB_ROOT}/xtb/api/interface.f90"
+  "${XTB_ROOT}/xtb/api/structs.f90"
+  "${XTB_ROOT}/xtb/api/preload.f90"
+  "${XTB_ROOT}/xtb/api/utils.f90"
 )
 
 set(XTB_F_TEST_SOURCES

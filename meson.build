@@ -358,7 +358,10 @@ xtb_srcs += 'xtb/calculator.f90'
 xtb_srcs += 'xtb/gfn0_calculator.f90'
 xtb_srcs += 'xtb/gfn1_calculator.f90'
 xtb_srcs += 'xtb/gfn2_calculator.f90'
-xtb_srcs += 'xtb/c_api.f90'
+xtb_srcs += 'xtb/api/interface.f90'
+xtb_srcs += 'xtb/api/preload.f90'
+xtb_srcs += 'xtb/api/utils.f90'
+xtb_srcs += 'xtb/api/structs.f90'
 
 incdir = include_directories('include')
 
