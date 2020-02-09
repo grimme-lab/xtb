@@ -20,10 +20,11 @@ contains
 ! ========================================================================
 !> periodic GFN0-xTB (PEEQ) calculation
 module subroutine gfn0_calculation &
-      (iunit,env,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
+      (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
    use iso_fortran_env, wp => real64
 
    use mctc_systools
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -47,6 +48,7 @@ module subroutine gfn0_calculation &
    type(tb_molecule),    intent(inout) :: mol
    type(peeq_options),   intent(in)    :: opt
    type(tb_environment), intent(in)    :: env
+   type(mctc_error), allocatable, intent(inout) :: err
 
    real(wp), intent(out) :: energy
    real(wp), intent(out) :: hl_gap
@@ -118,8 +120,7 @@ module subroutine gfn0_calculation &
       call open_file(ipar,fnv,'r')
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
-         ! THEREFORE, we have to kill the program
-         call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         err = mctc_error("Parameter file '"//fnv//"' not found")
          return
       endif
       call read_gfn_param(ipar,globpar,.true.)
@@ -156,8 +157,9 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(iunit,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(iunit,err,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
+   if (allocated(err)) return
 
    if (mol%npbc > 0) then
       inv_lat = mat_inv_3x3(mol%lattice)

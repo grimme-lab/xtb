@@ -24,7 +24,8 @@ module tb_calculators
 
    interface
       module subroutine gfn0_calculation &
-            (iunit,env,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
+            (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
+         use mctc_logging
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -35,6 +36,7 @@ module tb_calculators
          type(tb_molecule),    intent(inout) :: mol
          type(peeq_options),   intent(in)    :: opt
          type(tb_environment), intent(in)    :: env
+         type(mctc_error), allocatable, intent(inout) :: err
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
          real(wp), intent(out) :: gradient(3,mol%n)
@@ -42,7 +44,8 @@ module tb_calculators
          real(wp), intent(out) :: lattice_gradient(3,3)
       end subroutine gfn0_calculation
       module subroutine gfn1_calculation &
-            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+            (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+         use mctc_logging
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -54,6 +57,7 @@ module tb_calculators
          type(tb_molecule),    intent(inout) :: mol
          type(scc_options),    intent(in)    :: opt
          type(tb_environment), intent(in)    :: env
+         type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          type(tb_wavefunction),intent(inout) :: wfn
          real(wp), intent(out) :: energy
@@ -61,7 +65,8 @@ module tb_calculators
          real(wp), intent(out) :: gradient(3,mol%n)
       end subroutine gfn1_calculation
       module subroutine gfn2_calculation &
-            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+            (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+         use mctc_logging
          use tbdef_options
          use tbdef_molecule
          use tbdef_wavefunction
@@ -74,6 +79,7 @@ module tb_calculators
          type(tb_wavefunction),intent(inout) :: wfn
          type(scc_options),    intent(in)    :: opt
          type(tb_environment), intent(in)    :: env
+         type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
@@ -92,6 +98,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
 !  class definitions
 ! ------------------------------------------------------------------------
+   use mctc_logging
    use tbdef_options
    use tbdef_param
    use tbdef_molecule
@@ -134,11 +141,12 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
    integer  :: ndim                      ! matrix dimension
    integer  :: i,j,k,l,ii,jj
-   integer  :: err
+   integer  :: stat
    real(wp) :: memory
    real(wp) :: etmp,etwo,emany,er,el,es
    real(wp) :: molpol,molc6,molc8        ! molecular Polarizibility
    real(wp) :: sigma(3,3)
+   type(mctc_error), allocatable :: err
    real(wp),allocatable :: q(:)          ! partial charges
    real(wp),allocatable :: dqdr(:,:,:)   ! partial charges
    real(wp),allocatable :: dqdL(:,:,:)   ! partial charges
@@ -188,8 +196,8 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    allocate( q(mol%n),covcn(mol%n),gweights(ndim),refc6(ndim,ndim),&
              c6ab(mol%n,mol%n),aw(23,mol%n),cn(mol%n), &
              dcndr(3,mol%n,mol%n),dqdr(3,mol%n,mol%n+1), &
-             dcovcndr(3,mol%n,mol%n), stat = err )
-   if (err /= 0) then
+             dcovcndr(3,mol%n,mol%n), stat = stat )
+   if (stat /= 0) then
       call raise('E','Memory allocation failed',1)
       return
    endif
@@ -205,7 +213,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    !if (opt%verbose) &
    !call eeq_header
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
                    .false.,.false.,.true.)
    !if (opt%verbose) &
    !call print_chrgeq(iunit,chrgeq,mol,q,cn)
@@ -262,6 +270,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  class definitions
 ! ------------------------------------------------------------------------
+   use mctc_logging
    use tbdef_options
    use tbdef_param
    use tbdef_molecule
@@ -305,9 +314,10 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  local variables
 ! ------------------------------------------------------------------------
+   type(mctc_error), allocatable :: err
    integer  :: ndim                      ! matrix dimension
    integer  :: i,j,k,l,ii,jj
-   integer  :: err
+   integer  :: stat
    integer  :: rep_cn(3),rep_vdw(3),rep_mbd(3)
    real(wp) :: memory
    real(wp) :: etmp,etwo,emany,er,el,es
@@ -374,8 +384,8 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
              dcndr(3,mol%n,mol%n),dcndL(3,3,mol%n), &
              dqdr(3,mol%n,mol%n+1),dqdL(3,3,mol%n+1), &
              dcovcndr(3,mol%n,mol%n), dcovcndL(3,3,mol%n), &
-             source = 0.0_wp, stat = err )
-   if (err /= 0) then
+             source = 0.0_wp, stat = stat )
+   if (stat /= 0) then
       call raise('E','Memory allocation failed',1)
       return
    endif
@@ -392,7 +402,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
    !if (opt%verbose) &
    !call eeq_header
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,gtmp,stmp, &
+   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,gtmp,stmp, &
                    .false.,.false.,.true.)
    !if (opt%verbose) &
    !call print_chrgeq(iunit,chrgeq,mol,q,cn)

@@ -21,6 +21,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/mctc/mctc_la.f90"
   "${XTB_ROOT}/mctc/mctc_init.f90"
   "${XTB_ROOT}/mctc/mctc_resize_arrays.f90"
+  "${XTB_ROOT}/mctc/mctc_logging.f90"
   "${XTB_ROOT}/mctc/error.f90"
   "${XTB_ROOT}/mctc/signal.c"
 

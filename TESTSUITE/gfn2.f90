@@ -3,6 +3,8 @@ subroutine test_gfn2_scc
 
    use assertion
 
+   use mctc_logging
+
    use tbdef_molecule
    use tbdef_wavefunction
    use tbdef_basisset
@@ -39,6 +41,7 @@ subroutine test_gfn2_scc
    type(tb_wavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(mctc_error), allocatable :: err
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -80,8 +83,10 @@ subroutine test_gfn2_scc
 
    g = 0.0_wp
 
-   call scf(output_unit,mol,wfn,basis,param,pcem, &
+   call scf(output_unit,err,mol,wfn,basis,param,pcem, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
+
+   call assert(.not.allocated(err))
 
    call assert(res%converged)
 
@@ -123,6 +128,8 @@ subroutine test_gfn2_api
 
    use assertion
 
+   use mctc_logging
+
    use tbdef_options
    use tbdef_molecule
    use tbdef_wavefunction
@@ -152,6 +159,7 @@ subroutine test_gfn2_api
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -171,7 +179,8 @@ subroutine test_gfn2_api
    gradient = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 7.0005867526665_wp,thr)
    call assert_close(energy,-8.3824793818504_wp,thr)
@@ -190,6 +199,8 @@ subroutine test_gfn2gbsa_api
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use assertion
+
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -224,6 +235,7 @@ subroutine test_gfn2gbsa_api
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -243,7 +255,8 @@ subroutine test_gfn2gbsa_api
    gradient = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 3.408607724814_wp,1e-5_wp)
    call assert_close(energy,-22.002501380096_wp,thr)
@@ -261,6 +274,8 @@ subroutine test_gfn2salt_api
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use assertion
+
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -294,6 +309,7 @@ subroutine test_gfn2salt_api
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -317,7 +333,8 @@ subroutine test_gfn2salt_api
    ionst = 1.0e-3_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 6.895830675032_wp,5e-5_wp)
    call assert_close(energy,-13.027106170796_wp,thr)
@@ -336,6 +353,8 @@ subroutine test_gfn2_pcem_api
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use assertion
+
+   use mctc_logging
 
    use tbdef_options
    use tbdef_molecule
@@ -375,6 +394,7 @@ subroutine test_gfn2_pcem_api
    type(tb_wavefunction):: wfn
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
+   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -394,7 +414,8 @@ subroutine test_gfn2_pcem_api
    gradient = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 12.391144583778_wp,thr)
    call assert_close(energy,-20.323978513218_wp,thr)
@@ -424,7 +445,8 @@ subroutine test_gfn2_pcem_api
    pcem%grd = 0.0_wp
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 12.718203165741_wp,thr)
    call assert_close(energy,-10.160927752124_wp,thr)
@@ -448,7 +470,8 @@ subroutine test_gfn2_pcem_api
    pcem%gam = 999.0_wp ! point charges
 
    call gfn2_calculation &
-      (istdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 13.024345612330_wp,thr)
    call assert_close(energy,-10.168788269555_wp,thr)

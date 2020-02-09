@@ -598,8 +598,10 @@ endif do_partial_charge_derivative
 
 end subroutine goedecker_chrgeq
 
-subroutine eeq_chrgeq_qonly(mol,chrgeq,cn,q,lverbose)
+subroutine eeq_chrgeq_qonly(mol,err,chrgeq,cn,q,lverbose)
    use iso_fortran_env, wp => real64, istdout => output_unit
+
+   use mctc_logging
 
    use tbdef_molecule
    use tbdef_param
@@ -616,6 +618,7 @@ subroutine eeq_chrgeq_qonly(mol,chrgeq,cn,q,lverbose)
    real(wp),allocatable   :: dcndL(:,:,:)
    logical, intent(in), optional :: lverbose
    logical :: verbose
+   type(mctc_error), allocatable, intent(inout) :: err
 
 ! ------------------------------------------------------------------------
 !  Output
@@ -633,7 +636,7 @@ subroutine eeq_chrgeq_qonly(mol,chrgeq,cn,q,lverbose)
       verbose = .false.
    endif
 
-   call eeq_chrgeq_core(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
+   call eeq_chrgeq_core(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
       &                 energy,gradient,sigma,verbose,.false.,.false.)
 
 end subroutine eeq_chrgeq_qonly
@@ -641,11 +644,12 @@ end subroutine eeq_chrgeq_qonly
 ! ======================================================================
 !  Modified Version of eeq_chrgeq routine that reads also the chrgeq construct
 ! ======================================================================
-subroutine eeq_chrgeq_core(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
+subroutine eeq_chrgeq_core(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
       &                    energy,gradient,sigma,lverbose,lgrad,lcpq)
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use mctc_econv
+   use mctc_logging
 
    use tbdef_molecule
    use tbdef_param
@@ -667,6 +671,7 @@ subroutine eeq_chrgeq_core(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    logical, intent(in)    :: lgrad         ! flag for gradient calculation
    logical, intent(in)    :: lcpq          ! do partial charge derivative
    type(chrg_parameter),intent(in) :: chrgeq
+   type(mctc_error), allocatable, intent(inout) :: err
 
 ! ------------------------------------------------------------------------
 !  Output
@@ -790,11 +795,16 @@ subroutine eeq_chrgeq_core(mol,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    allocate( work(lwork), source = 0.0_wp )
 
    call dsysv('u',m,1,Atmp,m,ipiv,Xtmp,m,work,lwork,info)
-   if(info > 0) call raise('E','(eeq_solve) DSYSV failed',1)
+   if(info > 0) then
+      err = mctc_error("Coulomb matrix is singular, cannot solve lin. eq.")
+      return
+   end if
 
    q = Xtmp(:mol%n)
-   if(abs(sum(q)-mol%chrg) > 1.e-6_wp) &
-      call raise('E','(eeq_solve) charge constrain error',1)
+   if(abs(sum(q)-mol%chrg) > 1.e-6_wp) then
+      err = mctc_error("Charge constraint is not satisfied")
+      return
+   end if
    !print'(3f20.14)',Xtmp
 
    lambda = Xtmp(m)
@@ -879,14 +889,16 @@ do_partial_charge_derivative: if (lcpq) then
    ! Bunch-Kaufman factorization A = L*D*L**T
    call dsytrf('L',m,Ainv,m,ipiv,work,lwork,info)
    if(info > 0)then
-      call raise('E', '(eeq_inversion) DSYTRF failed',1)
+      err = mctc_error("Could not factorize Coulomb matrix")
+      return
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
    call dsytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
-      call raise('E', '(eeq_inversion) DSYTRI failed',1)
+      err = mctc_error("Coulomb Matrix is singular, cannot invert")
+      return
    endif
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix
@@ -1081,11 +1093,12 @@ end subroutine eeq_ewald_dx_3d_rec
 ! ======================================================================
 !  Modified Version of eeq_chrgeq routine that reads also the chrgeq construct
 ! ======================================================================
-subroutine eeq_chrgeq_gbsa(mol,chrgeq,gbsa,cn,dcndr,q,dqdr, &
+subroutine eeq_chrgeq_gbsa(mol,err,chrgeq,gbsa,cn,dcndr,q,dqdr, &
       &                    energy,gsolv,gradient,lverbose,lgrad,lcpq)
    use iso_fortran_env, wp => real64, istdout => output_unit
 
    use mctc_econv
+   use mctc_logging
 
    use tbdef_molecule
    use tbdef_param
@@ -1108,6 +1121,7 @@ subroutine eeq_chrgeq_gbsa(mol,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    logical, intent(in)    :: lgrad         ! flag for gradient calculation
    logical, intent(in)    :: lcpq          ! do partial charge derivative
    type(chrg_parameter),intent(in) :: chrgeq
+   type(mctc_error), allocatable, intent(inout) :: err
 
 ! ------------------------------------------------------------------------
 !  Output
@@ -1235,11 +1249,16 @@ subroutine eeq_chrgeq_gbsa(mol,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    allocate( work(lwork), source = 0.0_wp )
 
    call dsysv('u',m,1,Atmp,m,ipiv,Xtmp,m,work,lwork,info)
-   if(info > 0) call raise('E','(eeq_solve) DSYSV failed',1)
+   if(info > 0) then
+      err = mctc_error("Coulomb matrix is singular, cannot solve lin. eq.")
+      return
+   end if
 
    q = Xtmp(:mol%n)
-   if(abs(sum(q)-mol%chrg) > 1.e-6_wp) &
-      call raise('E','(eeq_solve) charge constrain error',1)
+   if(abs(sum(q)-mol%chrg) > 1.e-6_wp) then
+      err = mctc_error("Charge constraint is not satisfied")
+      return
+   end if
    !print'(3f20.14)',Xtmp
 
    lambda = Xtmp(m)
@@ -1313,14 +1332,16 @@ do_partial_charge_derivative: if (lcpq) then
    ! Bunch-Kaufman factorization A = L*D*L**T
    call dsytrf('L',m,Ainv,m,ipiv,work,lwork,info)
    if(info > 0)then
-      call raise('E', '(eeq_inversion) DSYTRF failed',1)
+      err = mctc_error("Could not factorize Coulomb matrix")
+      return
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
    call dsytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
-      call raise('E', '(eeq_inversion) DSYTRI failed',1)
+      err = mctc_error("Coulomb Matrix is singular, cannot invert")
+      return
    endif
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix

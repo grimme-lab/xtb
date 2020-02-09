@@ -19,6 +19,7 @@
 module tbdef_options
    use iso_fortran_env, wp => real64
    use iso_c_binding
+   use mctc_logging
    implicit none
 
    public :: tb_environment
