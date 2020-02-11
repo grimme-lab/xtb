@@ -24,7 +24,7 @@ execute_process(COMMAND git rev-parse HEAD
  RESULT_VARIABLE git_return
  OUTPUT_VARIABLE commit)
 if(git_return)
-  set(commit "unknown-commit"
+  set(commit "unknown-commit")
 else()
   string(REGEX REPLACE "\n$" "" commit ${commit})
 endif()
