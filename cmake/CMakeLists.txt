@@ -42,10 +42,6 @@ find_package(BLAS REQUIRED)
 
 # Object library
 add_library(xtb_object OBJECT ${XTB_SOURCES})
-target_link_libraries(xtb_object
- PUBLIC
-  $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
-)
 set_target_properties(xtb_object PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
   POSITION_INDEPENDENT_CODE ON
