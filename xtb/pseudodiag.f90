@@ -39,7 +39,7 @@ subroutine pseudodiag(n,nocc,fmo,eig)
     integer:: j
     integer:: m
     integer:: aux_occ,aux_virt, loop_count
-    integer:: blocksize, batch, dest,omp_get_max_threads
+    integer:: blocksize, batch, dest, nthreads
     integer:: i_virt
     integer:: nvirt
     integer:: i_occ
@@ -96,7 +96,9 @@ subroutine pseudodiag(n,nocc,fmo,eig)
 
     !blocksize = 28
     !blocksize = 30 * omp_get_max_threads() !for cluster
-    blocksize = 6 * omp_get_max_threads() !for Desktop
+    nthreads = 1
+    !$ nthreads = omp_get_max_threads()
+    blocksize = 6 * nthreads !for Desktop
 
     !Batched Loop
     do batch = 0, nvirt/blocksize-1
