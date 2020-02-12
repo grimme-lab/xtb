@@ -72,6 +72,9 @@ target_include_directories(xtb_static
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
 )
 
+message("BLAS_LIBRARIES ${BLAS_LIBRARIES}")
+message("LAPACK_LIBRARIES ${LAPACK_LIBRARIES}")
+
 # Shared Library
 add_library(xtb_shared SHARED $<TARGET_OBJECTS:xtb_object> )
 target_link_libraries(xtb_shared
@@ -155,6 +158,8 @@ add_executable(xtb_tests_static ${XTB_F_TEST_SOURCES})
 target_link_libraries(xtb_tests_static
  PUBLIC
   xtb_static
+  ${BLAS_LIBRARIES}
+  ${LAPACK_LIBRARIES}
 )
 set_target_properties(xtb_tests_static PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
