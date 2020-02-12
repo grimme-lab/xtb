@@ -95,6 +95,8 @@ add_executable(xtb "${XTB_ROOT}/xtb/program_main.f90")
 target_link_libraries(xtb
  PRIVATE
   xtb_static
+  ${BLAS_LIBRARIES}
+  ${LAPACK_LIBRARIES}
 )
 set_target_properties(xtb PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
