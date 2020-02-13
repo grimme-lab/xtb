@@ -28,6 +28,7 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine pseudodiag(n,nocc,fmo,eig)
+!$  use omp_lib
     implicit none
     !Dummy Arguments
     integer, intent(in)  :: n
