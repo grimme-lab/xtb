@@ -42,7 +42,8 @@
       integer i,j,k,l,m,done,mprim,npp,ind1,ind2,np
       logical ex
 
-      nproc = omp_get_num_threads()
+      nproc = 1
+      !$ nproc = omp_get_num_threads()
       intcut=10. ! loose primitive cut-off, =20 makes a factor of 2 compared to =10
                  ! errors are around 1e-4 Eh for Etoposid
       pthr=1.d-4 ! -4 def

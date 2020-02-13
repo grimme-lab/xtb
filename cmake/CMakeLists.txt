@@ -23,7 +23,11 @@ set(version ${PROJECT_VERSION})
 execute_process(COMMAND git rev-parse HEAD
  RESULT_VARIABLE git_return
  OUTPUT_VARIABLE commit)
-string(REGEX REPLACE "\n$" "" commit ${commit})
+if(git_return)
+  set(commit "unknown-commit")
+else()
+  string(REGEX REPLACE "\n$" "" commit ${commit})
+endif()
 string(TIMESTAMP date "%m/%d/%Y")
 set(author $ENV{USERNAME})
 set(origin ${CMAKE_HOST_SYSTEM_NAME})
@@ -38,10 +42,6 @@ find_package(BLAS REQUIRED)
 
 # Object library
 add_library(xtb_object OBJECT ${XTB_SOURCES})
-target_link_libraries(xtb_object
- PUBLIC
-  $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
-)
 set_target_properties(xtb_object PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
   POSITION_INDEPENDENT_CODE ON
@@ -71,6 +71,9 @@ target_include_directories(xtb_static
   $<BUILD_INTERFACE:${XTB_ROOT}/include>
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
 )
+
+message("BLAS_LIBRARIES ${BLAS_LIBRARIES}")
+message("LAPACK_LIBRARIES ${LAPACK_LIBRARIES}")
 
 # Shared Library
 add_library(xtb_shared SHARED $<TARGET_OBJECTS:xtb_object> )

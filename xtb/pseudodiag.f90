@@ -28,6 +28,7 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine pseudodiag(n,nocc,fmo,eig)
+!$  use omp_lib
     implicit none
     !Dummy Arguments
     integer, intent(in)  :: n
@@ -39,7 +40,7 @@ subroutine pseudodiag(n,nocc,fmo,eig)
     integer:: j
     integer:: m
     integer:: aux_occ,aux_virt, loop_count
-    integer:: blocksize, batch, dest,omp_get_max_threads
+    integer:: blocksize, batch, dest, nproc
     integer:: i_virt
     integer:: nvirt
     integer:: i_occ
@@ -95,8 +96,10 @@ subroutine pseudodiag(n,nocc,fmo,eig)
 
 
     !blocksize = 28
-    !blocksize = 30 * omp_get_max_threads() !for cluster
-    blocksize = 6 * omp_get_max_threads() !for Desktop
+    nproc = 1
+    !$ nproc = omp_get_max_threads()
+    !blocksize = 30 * nproc !for cluster
+    blocksize = 6 * nproc !for Desktop
 
     !Batched Loop
     do batch = 0, nvirt/blocksize-1
