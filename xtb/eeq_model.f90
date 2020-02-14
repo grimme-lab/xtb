@@ -730,14 +730,6 @@ subroutine eeq_chrgeq_core(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    integer  :: info
    real(wp) :: test(1)
 
-   ! quick return if possible
-   if (mol%n.eq.1) then
-      q = mol%chrg
-      ! should always hold, even for extendend systems
-      es = 0.0_wp
-      return
-   endif
-
 ! ------------------------------------------------------------------------
 !  initizialization
 ! ------------------------------------------------------------------------
