@@ -193,7 +193,7 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
                endif
             endif
 
-         case('-c','--chrg')
+         case('-c','--chrg','--charge')
             skip = 1
             call rdarg(iarg+1,sec)
             call set_chrg(sec)
