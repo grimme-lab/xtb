@@ -402,3 +402,73 @@ subroutine test_gfn1_pcem_api
    call terminate(afail)
 
 end subroutine test_gfn1_pcem_api
+
+subroutine test_gfn1_xb
+   use iso_fortran_env, wp => real64, istdout => output_unit
+
+   use assertion
+
+   use mctc_logging
+
+   use tbdef_options
+   use tbdef_molecule
+   use tbdef_param
+   use tbdef_pcem
+   use tbdef_wavefunction
+
+   use tb_calculators
+
+   implicit none
+
+   real(wp),parameter :: thr = 1.0e-10_wp
+   integer, parameter :: nat = 6
+   integer, parameter :: at(nat) = [35,35,8,6,1,1]
+   real(wp),parameter :: xyz(3,nat) = reshape([&
+      &-1.785333747_wp,    -3.126082999_wp,     0.000000000_wp, &
+      & 0.000000000_wp,     0.816042264_wp,     0.000000000_wp, &
+      & 2.658286999_wp,     5.297075806_wp,     0.000000000_wp, &
+      & 4.885971586_wp,     4.861161373_wp,     0.000000000_wp, &
+      & 5.615509753_wp,     2.908222159_wp,     0.000000000_wp, &
+      & 6.289076126_wp,     6.399636435_wp,     0.000000000_wp], shape(xyz))
+   type(scc_options),parameter :: opt = scc_options( &
+      &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+
+   type(tb_molecule)    :: mol
+   type(tb_environment) :: env
+   type(tb_pcem)        :: pcem
+   type(tb_wavefunction):: wfn
+   type(mctc_error), allocatable :: err
+
+   real(wp) :: energy
+   real(wp) :: hl_gap
+   real(wp),allocatable :: gradient(:,:)
+
+   ! setup the environment variables
+   call env%setup
+
+   call mol%allocate(nat)
+   mol%at  = at
+   mol%xyz = xyz
+   call mol%set_nuclear_charge
+   call mol%update
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call gfn1_calculation &
+      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call assert(.not.allocated(err))
+
+   call assert_close(hl_gap, 2.4991963560983_wp,thr)
+   call assert_close(energy,-15.606235084362_wp,thr)
+   call assert_close(norm2(gradient),0.23014355263560E-01_wp,thr)
+
+   call assert_close(gradient(1,5),-0.39000047348209E-02_wp,thr)
+   call assert_close(gradient(2,2),-0.49295215644179E-02_wp,thr)
+   call assert_close(gradient(1,4), 0.17228152301357E-01_wp,thr)
+   call assert_close(gradient(3,6), 0.00000000000000E+00_wp,thr)
+
+   call terminate(afail)
+
+end subroutine test_gfn1_xb
