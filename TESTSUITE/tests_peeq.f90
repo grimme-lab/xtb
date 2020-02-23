@@ -62,6 +62,7 @@ program peeq_tester
       case('api'); call test_gfn1_api
       case('gbsa'); call test_gfn1gbsa_api
       case('pcem'); call test_gfn1_pcem_api
+      case('xb'); call test_gfn1_xb
       end select
    case('gfn0')
       select case(sec)

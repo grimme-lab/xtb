@@ -756,6 +756,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
    res%e_total = eel
    res%hl_gap  = egap
    res%dipole  = dipol
+   if(gfn_method.eq.1) res%e_xb   = exb
    if (lgbsa) then
       res%g_solv  = gsolv
       res%g_born  = gborn
