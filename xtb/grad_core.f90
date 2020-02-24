@@ -328,48 +328,13 @@ subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
    real(wp), allocatable  :: dcm5(:,:)
    integer :: iat,jat
 
-   allocate( fgba(n),dcm5(3,n), source = 0.0_wp )
-
-   fgb = fgb * evtoau
-   fhb = fhb * evtoau
-
-   do iat = 1, n
-      do jat = 1, n
-         fgba(iat)=fgba(iat)+q(jat)*fgb(jat,iat)
-      enddo
-   enddo
-   do iat = 1, n
-      do jat = 1, n
-         g(1,iat)=g(1,iat)+fgba(jat)*dcm5a(1,jat,iat)
-         g(2,iat)=g(2,iat)+fgba(jat)*dcm5a(2,jat,iat)
-         g(3,iat)=g(3,iat)+fgba(jat)*dcm5a(3,jat,iat)
-         dcm5(1,jat)=dcm5(1,jat)+dcm5a(1,jat,iat)
-         dcm5(2,jat)=dcm5(2,jat)+dcm5a(2,jat,iat)
-         dcm5(3,jat)=dcm5(3,jat)+dcm5a(3,jat,iat)
-      enddo
-   enddo
-   do iat = 1, n
-      g(1,iat)=g(1,iat)-fgba(iat)*dcm5(1,iat)
-      g(2,iat)=g(2,iat)-fgba(iat)*dcm5(2,iat)
-      g(3,iat)=g(3,iat)-fgba(iat)*dcm5(3,iat)
-   enddo
-   if(lhb) then
-      do iat = 1, n
-         fgba(iat)=fhb(iat)*2.0_wp*q(iat)
-      enddo
-      do iat = 1, n
-         do jat = 1, n
-            g(1,iat)=g(1,iat)+fgba(jat)*dcm5a(1,jat,iat)
-            g(2,iat)=g(2,iat)+fgba(jat)*dcm5a(2,jat,iat)
-            g(3,iat)=g(3,iat)+fgba(jat)*dcm5a(3,jat,iat)
-         enddo
-      enddo
-      do iat = 1, n
-         g(1,iat)=g(1,iat)-fgba(iat)*dcm5(1,iat)
-         g(2,iat)=g(2,iat)-fgba(iat)*dcm5(2,iat)
-         g(3,iat)=g(3,iat)-fgba(iat)*dcm5(3,iat)
-      enddo
-   endif
+   allocate( fgba(n), source = 0.0_wp )
+   call dsymv('u',n,evtoau,fgb,n,q,1,0.0_wp,fgba,1)
+   call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
+   if (lhb) then
+      fgba = evtoau * fhb * 2.0_wp * q
+      call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
+   end if
 
 end subroutine cm5_grad_gfn1
 

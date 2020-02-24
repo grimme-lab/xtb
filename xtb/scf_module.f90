@@ -274,7 +274,8 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
         cm5a=0.d0
         dcm5a=0.d0
       else
-        call calc_cm5(mol%n,mol%at,mol%xyz,qq,cm5,cm5a,dcm5a)
+        call calc_cm5(mol%n,mol%at,mol%xyz,cm5a,dcm5a)
+        cm5 = wfn%q + cm5a
       endif
    endif
 

@@ -18,7 +18,7 @@
 !! ------------------------------------------------------------------------
 !  reimplementation of the CM5 charges
 !! ------------------------------------------------------------------------
-subroutine calc_cm5(nat,at,xyz,q,cm5,cm5a,dcm5)
+subroutine calc_cm5(nat,at,xyz,cm5,dcm5dr)
 use iso_fortran_env, wp => real64
 use mctc_econv
 implicit none
@@ -26,14 +26,12 @@ integer, intent(in)  :: nat
 integer, parameter   :: mz=118
 real(wp),intent(in)  :: xyz(3,nat)
 integer, intent(in)  :: at(nat)
-real(wp),intent(in)  :: q(nat)
 real(wp),intent(out) :: cm5(nat)
-real(wp),intent(out) :: cm5a(nat)
-real(wp),intent(out) :: dcm5(3,nat,nat)
+real(wp),intent(out) :: dcm5dr(3,nat,nat)
 real(wp) :: d(mz,mz)
 real(wp) :: dist,bkk,bkkd,bkkda
-integer  :: i,j,k
-real(wp) :: alp,rab(3)
+integer  :: iat, jat
+real(wp) :: alp,rab(3),pij,pji
 !
 ! COVALENT RADII
 !
@@ -85,9 +83,9 @@ real(wp),parameter :: a0(mz) = (/ &
    &-0.0187_wp,-0.0140_wp,-0.0110_wp,-0.0189_wp /)
 !
 d = 0.0_wp
-do i=1,mz
-   do j=i+1,mz
-      d(i,j)=a0(i)-a0(j)
+do iat=1,mz
+   do jat=iat+1,mz
+      d(iat,jat)=a0(iat)-a0(jat)
    enddo
 enddo
 ! pairwise parameters
@@ -98,32 +96,33 @@ d( 6, 7)= 0.0556_wp
 d( 6, 8)= 0.0234_wp
 d( 7, 8)=-0.0346_wp
 !
-do i=1,mz
-   do j=i+1,mz
-      d(j,i)=-d(i,j)
+do iat=1,mz
+   do jat=iat+1,mz
+      d(jat,iat)=-d(iat,jat)
    enddo
 enddo
 ! alpha
 alp=2.4740_wp/aatoau
 ! c-coefficient: 0.7050   ! already included in a0
-dcm5 = 0.0_wp
-cm5a = 0.0_wp
+dcm5dr = 0.0_wp
+cm5 = 0.0_wp
 
-do k=1,nat
-   do i=1,nat
-      if (at(k).ne.at(i)) then
-         rab=(xyz(:,k)-xyz(:,i))
-         dist=norm2(rab)
-         bkk=exp(-alp*(dist-rad(at(k))-rad(at(i))))
-         bkkd=bkk*d(at(k),at(i))
-         cm5a(k)=cm5a(k)+bkkd
-         bkkda=bkkd*alp/dist
-         dcm5(:,i,k)=bkkda*rab
-      endif
+do iat=1,nat
+   do jat=1,iat-1
+      if (at(iat) == at(jat)) cycle
+      pij = d(at(iat),at(jat))
+      pji = d(at(jat),at(iat))
+      rab = xyz(:,iat) - xyz(:,jat)
+      dist = norm2(rab)
+      bkk = exp(-alp*(dist-rad(at(iat))-rad(at(jat))))
+      bkkda = bkk*alp/dist
+      cm5(iat) = cm5(iat) + bkk * pij
+      cm5(jat) = cm5(jat) + bkk * pji
+      dcm5dr(:,iat,iat) = dcm5dr(:,iat,iat) - bkkda * rab * pij
+      dcm5dr(:,jat,jat) = dcm5dr(:,jat,jat) + bkkda * rab * pji
+      dcm5dr(:,iat,jat) = dcm5dr(:,iat,jat) - bkkda * rab * pji
+      dcm5dr(:,jat,iat) = dcm5dr(:,jat,iat) + bkkda * rab * pij
    enddo
-enddo
-do k = 1, nat
-   cm5(k)=q(k)+cm5a(k)
 enddo
 
 end subroutine calc_cm5
