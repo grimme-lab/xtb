@@ -493,7 +493,8 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    allocate( cm5(n), q(n), qlmom(3,n), cm5a(n), dcm5a(3,n,n), source = 0.0_wp )
    call mpop(n,nao,aoat2,lao2,S,P,q,qlmom)
    q = q - z
-   call calc_cm5(n,at,xyz,q,cm5,cm5a,dcm5a)
+   call calc_cm5(n,at,xyz,cm5a,dcm5a)
+   cm5 = q + cm5a
    write(iunit,'(a)')
    write(iunit,'(2x,"Mulliken/CM5 charges        n(s)   n(p)   n(d)")')
    do i=1,n
