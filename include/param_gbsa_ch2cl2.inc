@@ -1,7 +1,7 @@
 type(gbsa_parameter),parameter :: gfn1_ch2cl2 = gbsa_parameter ( &
      7.00000000_wp, &
-   119.38000000_wp, &
-     1.49000000_wp, &
+    84.93000000_wp, &
+     1.33000000_wp, &
      1.49289571_wp, &
      0.52215757_wp, &
      2.22507118_wp, &

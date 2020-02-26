@@ -261,7 +261,7 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
                ' not parametrized for GFN2-xTB Hamiltonian',1)
          case('acetone');      gfn_solvent = gfn2_acetone
          case('acetonitrile'); gfn_solvent = gfn2_acetonitrile
-!        case('benzene');      gfn_solvent = gfn2_benzene
+         case('benzene');      gfn_solvent = gfn2_benzene
          case('ch2cl2','dichlormethane'); gfn_solvent = gfn2_ch2cl2
          case('chcl3','chloroform');      gfn_solvent = gfn2_chcl3
          case('cs2');          gfn_solvent = gfn2_cs2
@@ -342,6 +342,7 @@ subroutine gbsa_info(iunit,gbm)
    if(gbm%lsalt) then
       write(iunit,*) 'Debye screening length     : ',1.0_wp/gbm%kappa/aatoau
    endif
+
 end subroutine gbsa_info
 
 subroutine new_gbsa_model(gbm,solvent,mode,temp,ngrida)
