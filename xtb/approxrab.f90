@@ -121,6 +121,7 @@ pure subroutine pbc_approx_rab(n,at,xyz,cn,dcndr,dcndL,nsrb,srblist,shift, &
 
    rab  = 0.0_wp
    drabdr = 0.0_wp
+   drabdL = 0.0_wp
 
    do concurrent(k = 1:nsrb)
       ! enroll srblist
@@ -139,12 +140,8 @@ pure subroutine pbc_approx_rab(n,at,xyz,cn,dcndr,dcndL,nsrb,srblist,shift, &
       ! save distances => rab
       rab(k) = (ra + rb)*ff
       ! save gradient => drabdr
-      do m = 1, n
-         drabdr(:,m,k)=ff*(cnfak(ati)*dcndr(:,m,i)&
-            &            + cnfak(atj)*dcndr(:,m,j))
-      enddo ! m
-      drabdL(:,:,k) = ff*(cnfak(ati)*dcndL(:,:,i)&
-         &              + cnfak(atj)*dcndL(:,:,j))
+      drabdr(:,:,k) = ff*(cnfak(ati)*dcndr(:,:,i) + cnfak(atj)*dcndr(:,:,j))
+      drabdL(:,:,k) = ff*(cnfak(ati)*dcndL(:,:,i) + cnfak(atj)*dcndL(:,:,j))
    enddo ! k
 
 end subroutine pbc_approx_rab

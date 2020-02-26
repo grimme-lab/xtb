@@ -127,5 +127,7 @@ test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv)
 
 test('GFN0-xTB: SP', xtb_test, args: ['gfn0', 'sp'], env: xtbenv)
 test('GFN0-xTB: API', xtb_test, args: ['gfn0', 'api'], env: xtbenv)
+test('GFN0-xTB: SRB', xtb_test, args: ['gfn0', 'srb'], env: xtbenv)
 test('GFN0-xTB: SP  (PBC)', xtb_test, args: ['peeq', 'sp'], env: xtbenv)
 test('GFN0-xTB: API (PBC)', xtb_test, args: ['peeq', 'api'], env: xtbenv)
+test('GFN0-xTB: SRB (PBC)', xtb_test, args: ['peeq', 'srb'], env: xtbenv)
