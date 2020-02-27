@@ -920,7 +920,7 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    gscal=param%gscal
    esrb = 0.0_wp
 
-   if (mol%npbc > 0) call get_realspace_cutoff(mol%lattice,800.0_wp,latrep)
+   if (mol%npbc > 0) call get_realspace_cutoff(mol%lattice,200.0_wp,latrep)
    w = 1.0_wp
 
    call build_srblist(mol,nsrb,srblist)
@@ -1007,7 +1007,7 @@ pure subroutine build_srblist(mol,nsrb,srblist)
    integer  :: i,j,k
    real(wp) :: r2
    ! cutoff
-   real(wp), parameter    :: srb_cut = 800.0_wp
+   real(wp), parameter    :: srb_cut = 200.0_wp
    nsrb = 0
    do i = 1, mol%n-1
       if (srbatom(mol%at(i))) cycle    ! i i case
