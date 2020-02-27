@@ -260,11 +260,11 @@ $metadyn (6.1 only)
 $md
 ~~~
 *temp*='real'::
-    MD thermostat/initial siman/GBSA temperature
+    MD thermostat/GBSA temperature
 *time*='real'::
     MD run time in ps
 *dump*='real'::
-    dump (=optimize) structure in siman every mddump fs
+    dump structure in every mddump fs
 *velo*='int'::
     set to 1 if dumps (trj file) should contain velocities
 *nvt*='int'::
@@ -413,27 +413,6 @@ $scc
 *maxiteration*='int'::
     adjusts the number of SCC iterations in the first/last SCC calculation
 
-$siman
-~~~~~~
-*dump*='real'::
-    dummy
-
-*n*='int'::
-    number of siman annealing blocks
-
-*ewin*='real'::
-    energy window (kcal) for considering conformers
-
-*temp*='real'::
-    highest siman annealing temperature (very system specific)
-
-*enan*='int'::
-    include enantiomers in siman (=1)
-
-*check*='int'::
-    compare molecules in ensemble for removing doubles by RMSD (=0)
-    or rot.const.(=1)
-
 $split
 ~~~~~~
 *fragment1*: 'list',... ::
@@ -572,7 +551,6 @@ NOTE: `xtb(1)` can read a set-block by itself and will print out a
       `xcontrol(7)` and might be deactived without prior announcement!
 
 *broydamp*::     use *broydamp* in *scc* group instead
-*check_equal*::  use *check* in *siman* group instead
 *chrg, charge*:: use *chrg* logical instead
 *constrainallbo, constralltbo*::
                  currently not supported
@@ -588,9 +566,7 @@ NOTE: `xtb(1)` can read a set-block by itself and will print out a
 *desymaxat*::    use *maxat* in *symmetry* group instead
 *desy*::         use *desy* in *symmetry* group instead
 *ellips*::       use *ellipsoid* in *wall* group instead
-*enan*::         use *enan* in *siman* group instead
 *etemp*::        use *temp* in *scc* group instead
-*ewin_conf*::    use *ewin* in *siman* group instead
 *ex_open_HS*::   currently not supported
 *ex_open_LS*::   currently not supported
 *fit*::          use *fit* logical instead
@@ -607,7 +583,6 @@ NOTE: `xtb(1)` can read a set-block by itself and will print out a
 *ion_st*::       use *ion_st* in *gbsa* group instead
 *maxdispl*::     use *maxdipl* in *opt* group instead
 *maxopt*::       use *maxcycle* in *opt* group instead
-*mddump*::       use *dump* in *siman* group instead
 *mddumpxyz*::    use *dump* in *md* group instead
 *md_hmass*::     use *hmass* in *md* group instead
 *mdskip*::       use *skip* in *md* group instead
@@ -621,7 +596,6 @@ NOTE: `xtb(1)` can read a set-block by itself and will print out a
 *mode_step*::    use *step* in *modef* group instead
 *mode_updat*::   use *updat* in *modef* group instead
 *mode_vthr*::    use *vthr* in *modef* group instead
-*nsiman*::       use *n* in *siman* group instead
 *nvt*::          use *nvt* in *md* group instead
 *optlev*::       use *optlevel* in *opt* group intead
 *orca_exe*::     currently not supported
@@ -639,7 +613,6 @@ NOTE: `xtb(1)` can read a set-block by itself and will print out a
 *sphere*::       use *sphere* in *sphere* group instead
 *springexp*::    use *springexp* in *fix* group instead
 *stephess*::     use *step* in *hess group instead
-*tend*::         use *temp* in *siman* group instead
 *thermo_sthr*::  use *sthr* in *thermo* group instead
 *thermo*::       use *temp* in *thermo* group instead
 *uhf*::          use *uhf* logical instead
@@ -656,4 +629,4 @@ Main web site: http://grimme.uni-bonn.de/software/xtb
 
 COPYING
 -------
-Copyright \(C) 2015-2018 S. Grimme. For non-commerical, academia use only.
+Copyright \(C) 2015-2020 S. Grimme. This work is licensed under the Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
