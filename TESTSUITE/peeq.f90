@@ -240,3 +240,116 @@ subroutine test_peeq_api
    call terminate(afail)
 
 end subroutine test_peeq_api
+
+subroutine test_peeq_api_srb
+   use iso_fortran_env, wp => real64, istdout => output_unit
+   use assertion
+
+   use mctc_logging
+   use mctc_econv
+   use tbdef_options
+   use tbdef_molecule
+   use tbdef_param
+
+   use pbc_tools
+
+   use tb_calculators
+
+   implicit none
+
+   real(wp),parameter :: thr = 1.0e-10_wp
+   ! CaF2
+   integer, parameter :: nat = 32
+   integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
+   real(wp),parameter :: xyz(3,nat) = reshape(&
+      &[4.5853168464880421_wp,  4.9392326929575878_wp,  4.1894081210748118_wp,  &
+      & 5.8862267152491423_wp,  1.1425258978245871_wp,  6.5015058204768126_wp,  &
+      & 1.4284279616220412_wp,  4.6017511285540875_wp,  3.1465884436348119_wp,  &
+      & 2.3323404704521411_wp,  1.4471801154820869_wp,  0.7121932185858125_wp,  &
+      & 4.7333543155561415_wp,  2.7747291872305868_wp,  3.1951352976178122_wp,  &
+      & 5.6617754419101418_wp,  2.2133191164485870_wp,  2.1235404838618126_wp,  &
+      & 5.3107598618381422_wp,  2.6902988056185868_wp,  0.7384466319968125_wp,  &
+      & 4.4947071071761426_wp,  3.9530790692635867_wp,  0.6801776747598124_wp,  &
+      & 4.8005171923760424_wp,  4.9185102874975870_wp,  1.8186363449528122_wp,  &
+      & 4.6951362687070421_wp,  4.2781752812835867_wp,  3.1816411821728123_wp,  &
+      & 1.3838574419160412_wp,  5.2817805008910863_wp,  4.1482702947948136_wp,  &
+      & 1.0268974195990415_wp,  4.7234752637800881_wp,  5.4989995400388123_wp,  &
+      & 2.0852659694760409_wp,  5.0956317453800875_wp,  6.5351699846458127_wp,  &
+      & 2.3344644666691412_wp, -0.0736561690909131_wp,  6.4245628001158135_wp,  &
+      & 2.4894017448231409_wp,  0.6213510313930869_wp,  5.0967297417158131_wp,  &
+      & 1.5745272273791413_wp,  0.1243470825760870_wp,  3.9731040773988129_wp,  &
+      & 5.8221065925130420_wp,  5.3013563342055878_wp,  1.7264876737078123_wp,  &
+      & 3.4487807319551416_wp,  3.6355832152975864_wp,  0.7429568016758125_wp,  &
+      & 4.8499393376520423_wp,  3.4713855169305874_wp,  6.4691872586348129_wp,  &
+      & 0.2495364434351412_wp,  2.4795455690160870_wp,  2.1043557230378123_wp,  &
+      & 5.6691068338331423_wp,  1.1234174220755870_wp,  2.1414388326468128_wp,  &
+      & 3.7072009289431418_wp,  2.4357632918535872_wp,  3.0094700999208119_wp,  &
+      & 4.1414520030430415_wp,  5.7877262477775879_wp,  1.7803680119358125_wp,  &
+      & 5.0142851411171421_wp,  2.4165926460955873_wp,  4.1857610486448129_wp,  &
+      & 3.0280930003030413_wp,  4.6201081184690871_wp,  6.2533190952188136_wp,  &
+      & 0.5863628696651412_wp,  0.5757236365910867_wp,  4.1021714214668128_wp,  &
+      & 2.3776130524831411_wp,  1.6969724987740866_wp,  5.2327688986668139_wp,  &
+      & 1.9486148363011413_wp,  0.4390675147070869_wp,  2.9999022491838123_wp,  &
+      & 3.5312997625581413_wp,  0.4467415528495868_wp,  4.8114121395028135_wp,  &
+      & 6.5089895990100421_wp,  5.2100409408535882_wp,  6.0066553789008132_wp,  &
+      & 0.9001165013630412_wp,  3.6420787128610868_wp,  5.4413106648508132_wp,  &
+      & 1.6012116650460413_wp,  5.6845471271780879_wp,  0.7675566847298124_wp], &
+      & shape(xyz)) * aatoau
+   real(wp),parameter :: lattice(3,3) = reshape(&
+      &[6.4411018522600_wp,    0.0492571261505_wp,    0.2192046129910_wp,  &
+      & 0.0462076831749_wp,    6.6435057067500_wp,    0.1670513770770_wp,  &
+      & 0.2262248220170_wp,   -0.9573234940220_wp,    6.7608039126200_wp], &
+      & shape(lattice)) * aatoau
+   type(peeq_options),parameter :: opt = peeq_options( &
+      &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+
+   type(tb_molecule)    :: mol
+   type(tb_environment) :: env
+   type(mctc_error), allocatable :: err
+
+   real(wp) :: energy
+   real(wp) :: hl_gap
+   real(wp) :: gradlatt(3,3)
+   real(wp) :: stress(3,3)
+   real(wp),allocatable :: gradient(:,:)
+
+   ! setup the environment variables
+   call env%setup
+
+   call mol%allocate(nat)
+   mol%at   = at
+   mol%xyz  = xyz
+   mol%npbc = 3
+   mol%pbc  = .true.
+   mol%lattice = lattice
+   call mol%set_nuclear_charge
+   call mol%update
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+   gradlatt = 0.0_wp
+
+   call mctc_mute
+
+   call gfn0_calculation &
+      (istdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+
+   call assert_close(hl_gap, 3.3073195156202_wp,thr)
+   call assert_close(energy,-47.310985782789_wp,thr)
+   call assert_close(norm2(gradient),0.35661228276887E-01_wp,thr)
+   call assert_close(norm2(gradlatt),0.19204614066516E-01_wp,thr)
+
+   call assert_close(gradient(1, 3), 0.71669969919753E-03_wp,thr)
+   call assert_close(gradient(2,11), 0.86141903688108E-02_wp,thr)
+   call assert_close(gradient(1, 6),-0.23307620462240E-02_wp,thr)
+   call assert_close(gradient(3, 5), 0.90733350522692E-03_wp,thr)
+   call assert_close(gradient(1, 8), 0.30461459040208E-02_wp,thr)
+
+   call assert_close(gradlatt(1,3),0.49893356364686E-03_wp,thr)
+   call assert_close(gradlatt(2,2),0.94665150568032E-02_wp,thr)
+   call assert_close(gradlatt(1,2),0.85097891190246E-03_wp,thr)
+
+   call terminate(afail)
+
+end subroutine test_peeq_api_srb

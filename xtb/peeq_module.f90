@@ -209,7 +209,6 @@ subroutine peeq &
 !  PEEQ WSC information
 ! ---------------------------------------
    real(wp),dimension(3,3),intent(inout)     :: sigma
-   real(wp),dimension(3,3,5)                 :: sigma_tmp
 
 ! For eigenvalues of S via dsyev routine
    real(wp),allocatable,dimension(:,:)       :: Stmp
@@ -262,7 +261,6 @@ subroutine peeq &
    esrb  = 0.0_wp
    ed    = 0.0_wp
    ees   = 0.0_wp
-   sigma_tmp = 0.0_wp
    g = 0.0_wp
 
    !debug = prlevel.gt.2
@@ -405,8 +403,7 @@ subroutine peeq &
          &            ees,gsolv,g,.false.,.true.,.true.)
    else
       call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,qeeq,dqdr,dqdL, &
-         &            ees,g,sigma_tmp(:,:,1),&
-         &            .false.,.true.,.true.)
+         &            ees,g,sigma,.false.,.true.,.true.)
    endif
    if (allocated(err)) return
 
@@ -417,8 +414,7 @@ subroutine peeq &
 ! ----------------------------------------
 !  D4 dispersion energy + gradient (2B) under pbc
 ! ----------------------------------------
-   call ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,g,sigma_tmp(:,:,2))
-   if (allocated(err)) return
+   call ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,g,sigma)
 
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,"Integral evaluation")
@@ -518,9 +514,9 @@ subroutine peeq &
 ! ======================================================================
    ! repulsion energy + gradient
    !g = 0.0_wp; sigma = 0.0_wp
-   call drep_grad(mol,param,ep,g,sigma_tmp(:,:,3))
+   call drep_grad(mol,param,ep,g,sigma)
    ! short ranged bond energy + gradient
-   call dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma_tmp(:,:,4)) ! WRONG
+   call dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma) ! WRONG
    !etot = ep + esrb; return
    ! h0 gradient
    allocate( dHdcn(mol%n), dHdq(mol%n), pew(nao,nao), tmp(nao), &
@@ -584,29 +580,6 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
 !  get Wiberg bond orders
    call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
-
-   sigma = sigma + sum(sigma_tmp, dim=3)
-   if (debug) then
-      write(iunit,'("ij",2x,6a12)') "total", "EEQ", "D4", "rep", "SRB", "H0"
-      write(iunit,'("xx:",1x,6f12.7)') &
-         sigma(1,1), sigma_tmp(1,1,1), sigma_tmp(1,1,2), sigma_tmp(1,1,3), sigma_tmp(1,1,4), sigma_tmp(1,1,5)
-      write(iunit,'("xy:",1x,6f12.7)') &                                                                  
-         sigma(1,2), sigma_tmp(1,2,1), sigma_tmp(1,2,2), sigma_tmp(1,2,3), sigma_tmp(1,2,4), sigma_tmp(1,2,5)
-      write(iunit,'("xz:",1x,6f12.7)') &                                                                  
-         sigma(1,3), sigma_tmp(1,3,1), sigma_tmp(1,3,2), sigma_tmp(1,3,3), sigma_tmp(1,3,4), sigma_tmp(1,3,5)
-      write(iunit,'("yx:",1x,6f12.7)') &                                                                  
-         sigma(2,1), sigma_tmp(2,1,1), sigma_tmp(2,1,2), sigma_tmp(2,1,3), sigma_tmp(2,1,4), sigma_tmp(2,1,5)
-      write(iunit,'("yy:",1x,6f12.7)') &                                                                  
-         sigma(2,2), sigma_tmp(2,2,1), sigma_tmp(2,2,2), sigma_tmp(2,2,3), sigma_tmp(2,2,4), sigma_tmp(2,2,5)
-      write(iunit,'("yz:",1x,6f12.7)') &                                                                  
-         sigma(2,3), sigma_tmp(2,3,1), sigma_tmp(2,3,2), sigma_tmp(2,3,3), sigma_tmp(2,3,4), sigma_tmp(2,3,5)
-      write(iunit,'("zx:",1x,6f12.7)') &                                                                  
-         sigma(3,1), sigma_tmp(3,1,1), sigma_tmp(3,1,2), sigma_tmp(3,1,3), sigma_tmp(3,1,4), sigma_tmp(3,1,5)
-      write(iunit,'("zy:",1x,6f12.7)') &                                                                  
-         sigma(3,2), sigma_tmp(3,2,1), sigma_tmp(3,2,2), sigma_tmp(3,2,3), sigma_tmp(3,2,4), sigma_tmp(3,2,5)
-      write(iunit,'("zz:",1x,6f12.7)') &                                                                  
-         sigma(3,3), sigma_tmp(3,3,1), sigma_tmp(3,3,2), sigma_tmp(3,3,3), sigma_tmp(3,3,4), sigma_tmp(3,3,5)
-   endif
 
 ! ---------------------------------------
 !  Save all the energy contributions
@@ -911,38 +884,36 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
 
    implicit none
 
-   ! intent in
-   type(tb_molecule),                intent(in) :: mol
-   type(scc_parameter),              intent(in) :: param
-   ! intent inout
-   real(wp),     dimension(3,mol%n), intent(inout) :: g
-   real(wp),     dimension(3,3),     intent(inout) :: sigma
-   ! intent out
+   type(tb_molecule), intent(in) :: mol
+   type(scc_parameter), intent(in) :: param
+   real(wp), intent(inout) :: g(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(out) :: esrb
-   ! local variables
-   real(wp), dimension(:),     intent(in) :: cn
-   real(wp), dimension(:,:,:), intent(in) :: dcndr
-   real(wp), dimension(:,:,:), intent(in) :: dcndL
+   real(wp), intent(in) :: cn(:)
+   real(wp), intent(in) :: dcndr(:,:,:)
+   real(wp), intent(in) :: dcndL(:,:,:)
+
    integer :: i,j,k,wsAt
    integer :: iat,jat,ati,atj
    integer :: nsrb,lin
    integer :: dx,dy,dz
-   real(wp), dimension(4) :: kcn
+   real(wp) :: kcn(4)
    real(wp) :: xbrad
    real(wp) :: gscal
    real(wp) :: den
    real(wp) :: expterm
    ! distances
-   real(wp), dimension(3) :: rij
-   real(wp)               :: r2,r,dr,rab
-   real(wp)               :: dtmp,pre
-   integer                :: tx,ty,tz,latrep(3)
-   real(wp)               :: w,t(3)
+   real(wp) :: rij(3)
+   real(wp) :: r2,r,dr,rab
+   real(wp) :: dtmp,pre
+   integer :: tx,ty,tz,latrep(3)
+   real(wp) :: w,t(3)
    ! allocatables
-   real(wp), allocatable, dimension(:,:,:) :: drab0dr
-   real(wp), allocatable, dimension(:,:,:) :: drab0dL
-   real(wp), allocatable, dimension(:)     :: rab0
-   integer,  allocatable, dimension(:,:)   :: srblist
+   real(wp), allocatable :: dEdr0(:)
+   real(wp), allocatable :: drab0dr(:,:,:)
+   real(wp), allocatable :: drab0dL(:,:,:)
+   real(wp), allocatable :: rab0(:)
+   integer,  allocatable :: srblist(:,:)
    ! initialize
    kcn=param%kcnsh
    xbrad=param%xbrad
@@ -956,13 +927,14 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    if (nsrb.eq.0) return
 
    ! get memory
+   allocate( dEdr0(nsrb), source = 0.0_wp )
    allocate( drab0dr(3,mol%n,nsrb), source = 0.0_wp )
    allocate( drab0dL(3,3,nsrb),     source = 0.0_wp )
    allocate( rab0(nsrb),            source = 0.0_wp )
    ! get approximated distances rab and gradients
    periodic: if (mol%npbc > 0) then
       call pbc_approx_rab(mol%n,mol%at,mol%xyz,cn,dcndr,dcndL,nsrb,srblist,kcn(2), &
-         &            rab0,drab0dr,drab0dL)
+         &                rab0,drab0dr,drab0dL)
       do i = 1, nsrb
          iat = srblist(1,i)
          jat = srblist(2,i)
@@ -984,10 +956,13 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
             g(:,iat) = g(:,iat) - dtmp*rij/rab
             g(:,jat) = g(:,jat) + dtmp*rij/rab
             ! three body gradient
-            g(:,:) = g(:,:) - dtmp*drab0dr(:,:,i)
-            sigma = sigma + dtmp*(drab0dL(:,:,i) - outer_prod_3x3(rij,rij)/rab)
+            dEdr0(i) = dEdr0(i) - dtmp
+            sigma = sigma - dtmp*spread(rij, 1, 3)*spread(rij, 2, 3)/rab
          enddo ! rep
       enddo ! i
+
+      call dgemv('n',3*mol%n,nsrb,+1.0_wp,drab0dr,3*mol%n,dEdr0,1,1.0_wp,g,1)
+      call dgemv('n',9,nsrb,-1.0_wp,drab0dL,9,dEdr0,1,1.0_wp,sigma,1)
 
    else
       call approx_rab(mol%n,mol%at,mol%xyz,cn,dcndr,nsrb,srblist,kcn(2),rab0,drab0dr)
@@ -1008,8 +983,10 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
          g(:,iat) = g(:,iat) - dtmp*rij/rab
          g(:,jat) = g(:,jat) + dtmp*rij/rab
          ! three body gradient
-         g(:,:) = g(:,:) - dtmp*drab0dr(:,:,i)
+         dEdr0(i) = dEdr0(i) - dtmp
       enddo ! i
+
+      call dgemv('n',3*mol%n,nsrb,+1.0_wp,drab0dr,3*mol%n,dEdr0,1,1.0_wp,g,1)
 
    endif periodic
 

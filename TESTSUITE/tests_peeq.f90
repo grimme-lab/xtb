@@ -68,11 +68,13 @@ program peeq_tester
       select case(sec)
       case('sp');  call test_gfn0_sp
       case('api'); call test_gfn0_api
+      case('srb'); call test_gfn0_api_srb
       end select
    case('peeq')
       select case(sec)
       case('sp');  call test_peeq_sp
       case('api'); call test_peeq_api
+      case('srb'); call test_peeq_api_srb
       end select
    case('dftd4')
       select case(sec)
