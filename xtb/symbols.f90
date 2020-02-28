@@ -69,6 +69,13 @@ elemental subroutine symbol_to_number(number, symbol)
       endif
    enddo
 
+   if (number == 0) then
+      select case(lc_symbol)
+      case('d ', 't ')
+         number = 1
+      end select
+   end if
+
 end subroutine symbol_to_number
 
 elemental subroutine number_to_symbol(symbol, number)

@@ -167,7 +167,7 @@ subroutine read_molecule_turbomole(mol, unit, status, iomsg)
    character(len=:), allocatable :: line
    character(len=:), allocatable :: cell_string, lattice_string
    character(len=1), parameter :: flag = '$'
-   character(len=2), allocatable :: sym(:)
+   character(len=4), allocatable :: sym(:)
    real(wp), allocatable :: coord(:, :)
    real(wp) :: latvec(9), conv
    integer :: error
@@ -181,7 +181,7 @@ subroutine read_molecule_turbomole(mol, unit, status, iomsg)
 
    status = .false.
 
-   allocate(sym(p_initial_size), source='  ')
+   allocate(sym(p_initial_size), source='    ')
    allocate(coord(3, p_initial_size), source=0.0_wp)
 
    iatom = 0
@@ -608,7 +608,7 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
       do j = 1, ncount(i)
          k = k+1
          mol%at(k) = iat
-         mol%sym(k) = args(i)(1:2)
+         mol%sym(k) = args(i)(1:4)
       enddo
    enddo
 
@@ -687,7 +687,7 @@ subroutine read_molecule_gen(mol, unit, status, iomsg)
    real(wp) :: coord(3)
    integer, allocatable :: species(:)
    character(len=1) :: variant
-   character(len=2), allocatable :: symbols(:)
+   character(len=4), allocatable :: symbols(:)
 
    status = .false.
 
@@ -699,7 +699,7 @@ subroutine read_molecule_gen(mol, unit, status, iomsg)
    endif
 
    call mol%allocate(natoms)
-   allocate(symbols(len(mol)), source='  ')
+   allocate(symbols(len(mol)), source='    ')
 
    select case(variant)
    case('c', 'C')
@@ -804,7 +804,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
    integer, allocatable :: list(:)
    real(wp), allocatable :: xyz(:,:)
    type(pdb_data), allocatable :: pdb(:)
-   character(len=2), allocatable :: sym(:)
+   character(len=4), allocatable :: sym(:)
    character(len=:), allocatable :: line
    character(len=2) :: a_charge
    integer :: iatom, jatom, iresidue, try, error, atom_type
@@ -821,7 +821,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
    status = .false.
 
    allocate(list(p_initial_size), source=0)
-   allocate(sym(p_initial_size), source='  ')
+   allocate(sym(p_initial_size), source='    ')
    allocate(xyz(3, p_initial_size), source=0.0_wp)
    allocate(pdb(p_initial_size), source=pdb_data())
 
