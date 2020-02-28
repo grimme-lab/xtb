@@ -365,9 +365,9 @@ subroutine write_pdb(mol, unit, number)
 
       xyz = mol%xyz(:,iatom) * autoaa
       if (mol%pdb(iatom)%charge < 0) then
-         write(a_charge, '(i1,"-")') mol%pdb(iatom)%charge
+         write(a_charge, '(i1,"-")') abs(mol%pdb(iatom)%charge)
       else if (mol%pdb(iatom)%charge > 0) then
-         write(a_charge, '(i1,"+")') mol%pdb(iatom)%charge
+         write(a_charge, '(i1,"+")') abs(mol%pdb(iatom)%charge)
       else
          a_charge = '  '
       endif
