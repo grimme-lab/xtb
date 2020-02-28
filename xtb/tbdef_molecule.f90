@@ -105,7 +105,7 @@ module tbdef_molecule
       integer  :: uhf = 0          !< number of unpaired electrons
       logical  :: pbc(3) = .false. !< periodic dimensions
       integer  :: npbc = 0         !< periodicity of system
-      character(len=2),allocatable :: sym(:) !< element symbols
+      character(len=4),allocatable :: sym(:) !< element symbols
       integer, allocatable :: at(:)          !< ordinal numbers
       real(wp),allocatable :: xyz(:,:)       !< cartesian coordinates in bohr
       real(wp),allocatable :: abc(:,:)       !< fractional coordinates
@@ -322,7 +322,7 @@ subroutine allocate_molecule(self,n)
    call self%deallocate
    self%n = n
    allocate( self%at(n),          source = 0 )
-   allocate( self%sym(n),         source = '  ' )
+   allocate( self%sym(n),         source = '    ' )
    allocate( self%xyz(3,n),       source = 0.0_wp )
    allocate( self%abc(3,n),       source = 0.0_wp )
    allocate( self%dist(n,n),      source = 0.0_wp )

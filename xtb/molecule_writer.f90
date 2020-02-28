@@ -92,7 +92,7 @@ subroutine write_xyz(mol, unit, comment_line)
    write(unit, '(i0)') mol%n
    write(unit, '(a)') comment_line
    do i = 1, mol%n
-      write(unit, '(a2,6x,3f20.14)') mol%sym(i), mol%xyz(:,i)*autoaa
+      write(unit, '(a4,2x,3f20.14)') mol%sym(i), mol%xyz(:,i)*autoaa
    enddo
 
 end subroutine write_xyz
@@ -104,7 +104,7 @@ subroutine write_tmol(mol, unit)
 
    write(unit,'(a)') "$coord"
    do i = 1, mol%n
-      write(unit,'(3f20.14,6x,a2)') mol%xyz(:,i), mol%sym(i)
+      write(unit,'(3f20.14,6x,a)') mol%xyz(:,i), trim(mol%sym(i))
    enddo
    write(unit,'(a,1x,i0)') "$periodic", mol%npbc
    if (mol%npbc > 0) then
@@ -265,7 +265,7 @@ subroutine write_gen(mol, unit, comment_line)
    integer :: i,j,iat
    real(wp), parameter :: zero3(3) = 0.0_wp
    integer, allocatable :: species(:)
-   character(len=2) :: sym
+   character(len=4) :: sym
 
    write(unit, '(i0,1x)', advance='no') len(mol)
    if (mol%npbc == 0) then
@@ -285,7 +285,7 @@ subroutine write_gen(mol, unit, comment_line)
       if (any(mol%at == iat)) then
          j = j+1
          sym = iat
-         write(unit,'(1x,a)',advance='no') sym
+         write(unit,'(1x,a)',advance='no') trim(sym)
          where(mol%at == iat)
             species = j
          endwhere
@@ -296,12 +296,12 @@ subroutine write_gen(mol, unit, comment_line)
    if (mol%npbc == 0 .or. mol%vasp%cartesian) then
       ! now write the cartesian coordinates
       do i = 1, len(mol)
-         write(unit,'(2i5,3f20.14)') i, species(i), mol%xyz(:,i)*autoaa
+         write(unit,'(2i5,3es24.15)') i, species(i), mol%xyz(:,i)*autoaa
       enddo
    else
       ! now write the fractional coordinates
       do i = 1, len(mol)
-         write(unit,'(2i5,3f20.14)') i, species(i), mol%abc(:,i)
+         write(unit,'(2i5,3es24.15)') i, species(i), mol%abc(:,i)
       enddo
    endif
    deallocate(species)
