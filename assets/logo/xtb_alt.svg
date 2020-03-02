@@ -15,7 +15,7 @@
    viewBox="0 0 90.358327 60.790386"
    version="1.1"
    id="svg8"
-   sodipodi:docname="logo_xtb_plain.svg"
+   sodipodi:docname="xtb_alt.svg"
    inkscape:version="0.92.4 5da689c313, 2019-01-14"
    inkscape:export-filename="/home/awvwgk/projects/talks/group1905/Figures/logo_xtb_var3.png"
    inkscape:export-xdpi="96"
@@ -145,11 +145,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.98994949"
-     inkscape:cx="73.56212"
-     inkscape:cy="140.06764"
+     inkscape:zoom="1.979899"
+     inkscape:cx="157.56229"
+     inkscape:cy="83.641143"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="text12-5-7"
      showgrid="false"
      showguides="false"
      inkscape:snap-bbox="true"
@@ -248,71 +248,59 @@
        sodipodi:cy="115.95873"
        sodipodi:cx="65.699791"
        sodipodi:open="true" />
-    <text
-       xml:space="preserve"
+    <g
+       aria-label="B"
        style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:14.58553505px;line-height:1.25;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Semi-Bold';letter-spacing:0px;word-spacing:0px;fill:#909085;fill-opacity:1;stroke:#ffffff;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="103.01149"
-       y="119.5914"
-       id="text12-2"><tspan
-         sodipodi:role="line"
-         x="103.01149"
-         y="119.5914"
+       id="text12-2">
+      <path
+         d="m 106.02194,119.5914 h 7.70117 c 5.04076,0 8.71631,-2.13532 8.71631,-6.72101 0,-3.11547 -1.85528,-4.86574 -5.14577,-5.42582 v -0.14002 c 2.6954,-0.70011 3.95559,-2.80043 3.95559,-4.97075 0,-4.200639 -3.39551,-5.635855 -8.12122,-5.635855 h -7.10608 z m 4.06062,-13.47703 v -6.160934 h 2.76541 c 2.97545,0 4.41067,0.770114 4.41067,2.870434 0,2.13532 -1.2952,3.2905 -4.48068,3.2905 z m 0,10.22154 v -7.14108 h 3.22048 c 3.43052,0 5.14578,0.98015 5.14578,3.39551 0,2.59039 -1.78527,3.74557 -5.14578,3.74557 z"
          style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:35.00528336px;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Semi-Bold';fill:#909085;fill-opacity:1;stroke:#ffffff;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         id="tspan60">B</tspan></text>
-    <text
-       xml:space="preserve"
+         id="path862" />
+    </g>
+    <g
+       aria-label="T"
        style="font-style:normal;font-weight:normal;font-size:14.58553505px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;opacity:1;fill:#909085;fill-opacity:1;stroke:#ffffff;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="82.591743"
-       y="119.5914"
-       id="text12-5"><tspan
-         sodipodi:role="line"
-         x="82.591743"
-         y="119.5914"
+       id="text12-5">
+      <path
+         d="m 91.063022,119.5914 h 4.060613 v -19.46294 h 7.211085 V 96.697945 H 83.851934 v 3.430515 h 7.211088 z"
          style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:35.00528336px;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Semi-Bold';fill:#909085;fill-opacity:1;stroke:#ffffff;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         id="tspan56">T</tspan></text>
-    <text
-       xml:space="preserve"
+         id="path865" />
+    </g>
+    <g
+       aria-label="x"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15.73999023px;line-height:1.25;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';letter-spacing:0px;word-spacing:0px;fill:#909085;fill-opacity:1;stroke:#ffffff;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="53.954998"
-       y="125.47789"
-       id="text12-9"><tspan
-         sodipodi:role="line"
-         x="53.954998"
-         y="125.47789"
+       id="text12-9">
+      <path
+         d="m 56.372661,125.47789 h 3.324286 l 3.022078,-4.23091 c 0.755519,-1.17105 1.511039,-2.22878 2.266559,-3.32429 h 0.151104 c 0.793295,1.05773 1.662143,2.26656 2.417662,3.32429 l 3.210958,4.23091 h 3.399838 l -7.026332,-9.25511 6.535245,-9.10402 h -3.286511 l -2.757646,3.96648 c -0.642192,1.01995 -1.397711,2.15323 -2.077679,3.17318 h -0.151104 c -0.755519,-1.01995 -1.511039,-2.11545 -2.15323,-3.09763 l -2.908751,-4.04203 h -3.437614 l 6.459693,8.83958 z"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.77597809px;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';fill:#909085;fill-opacity:1;stroke:#ffffff;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         id="tspan52">x</tspan></text>
-    <text
-       xml:space="preserve"
+         id="path859" />
+    </g>
+    <g
+       aria-label="x"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15.73999023px;line-height:1.25;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';letter-spacing:0px;word-spacing:0px;fill:#909085;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="53.954998"
-       y="125.47789"
-       id="text12-9-3"><tspan
-         sodipodi:role="line"
-         x="53.954998"
-         y="125.47789"
+       id="text12-9-3">
+      <path
+         d="m 56.372661,125.47789 h 3.324286 l 3.022078,-4.23091 c 0.755519,-1.17105 1.511039,-2.22878 2.266559,-3.32429 h 0.151104 c 0.793295,1.05773 1.662143,2.26656 2.417662,3.32429 l 3.210958,4.23091 h 3.399838 l -7.026332,-9.25511 6.535245,-9.10402 h -3.286511 l -2.757646,3.96648 c -0.642192,1.01995 -1.397711,2.15323 -2.077679,3.17318 h -0.151104 c -0.755519,-1.01995 -1.511039,-2.11545 -2.15323,-3.09763 l -2.908751,-4.04203 h -3.437614 l 6.459693,8.83958 z"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:37.77597809px;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro';fill:#909085;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         id="tspan52-6">x</tspan></text>
-    <text
-       xml:space="preserve"
+         id="path856" />
+    </g>
+    <g
+       aria-label="T"
        style="font-style:normal;font-weight:normal;font-size:14.58553505px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;opacity:1;fill:#909085;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="82.591743"
-       y="119.5914"
-       id="text12-5-7"><tspan
-         sodipodi:role="line"
-         x="82.591743"
-         y="119.5914"
+       id="text12-5-7">
+      <path
+         d="m 91.063022,119.5914 h 4.060613 v -19.46294 h 7.211085 V 96.697945 H 83.851934 v 3.430515 h 7.211088 z"
          style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:35.00528336px;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Semi-Bold';fill:#909085;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         id="tspan56-5">T</tspan></text>
-    <text
-       xml:space="preserve"
+         id="path850" />
+    </g>
+    <g
+       aria-label="B"
        style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:14.58553505px;line-height:1.25;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Semi-Bold';letter-spacing:0px;word-spacing:0px;fill:#909085;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="103.01149"
-       y="119.5914"
-       id="text12-2-3"><tspan
-         sodipodi:role="line"
-         x="103.01149"
-         y="119.5914"
+       id="text12-2-3">
+      <path
+         d="m 106.02194,119.5914 h 7.70117 c 5.04076,0 8.71631,-2.13532 8.71631,-6.72101 0,-3.11547 -1.85528,-4.86574 -5.14577,-5.42582 v -0.14002 c 2.6954,-0.70011 3.95559,-2.80043 3.95559,-4.97075 0,-4.200639 -3.39551,-5.635855 -8.12122,-5.635855 h -7.10608 z m 4.06062,-13.47703 v -6.160934 h 2.76541 c 2.97545,0 4.41067,0.770114 4.41067,2.870434 0,2.13532 -1.2952,3.2905 -4.48068,3.2905 z m 0,10.22154 v -7.14108 h 3.22048 c 3.43052,0 5.14578,0.98015 5.14578,3.39551 0,2.59039 -1.78527,3.74557 -5.14578,3.74557 z"
          style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:35.00528336px;font-family:'Source Code Pro';-inkscape-font-specification:'Source Code Pro Semi-Bold';fill:#909085;fill-opacity:1;stroke:none;stroke-width:2.5;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         id="tspan60-5">B</tspan></text>
+         id="path853" />
+    </g>
   </g>
 </svg>
