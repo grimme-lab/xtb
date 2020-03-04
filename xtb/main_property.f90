@@ -492,7 +492,7 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
 
    allocate( cm5(n), q(n), qlmom(3,n), cm5a(n), dcm5a(3,n,n), source = 0.0_wp )
    call mpop(n,nao,aoat2,lao2,S,P,q,qlmom)
-   q = q - z
+   q = z - q
    call calc_cm5(n,at,xyz,cm5a,dcm5a)
    cm5 = q + cm5a
    write(iunit,'(a)')
