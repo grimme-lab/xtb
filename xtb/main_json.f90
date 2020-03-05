@@ -110,6 +110,7 @@ end subroutine write_json_header
 
 subroutine write_json_footer(ijson)
    use setparam
+   include 'xtb_version.fh'
    integer,intent(in) :: ijson
    character(len=:),allocatable :: cmdline
    integer :: l
@@ -118,7 +119,7 @@ subroutine write_json_footer(ijson)
    call get_command(cmdline)
    write(ijson,'(3x,''"program call":'',1x,''"'',a,''",'')') cmdline
    write(ijson,'(3x,''"method": "GFN'',i0,''-xTB",'')') gfn_method
-   write(ijson,'(3x,a)') '"xtb version": 6.1'
+   write(ijson,'(3x,a)') '"xtb version": "'//version//'"'
    write(ijson,'("}")')
 end subroutine write_json_footer
 
