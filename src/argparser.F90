@@ -19,6 +19,10 @@ module xtb_argparser
    use, intrinsic :: iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_systools
+   use xtb_setmod
+   use xtb_readin, only : xfind,get_value
+   use xtb_solv_gbobc,  only : lgbsa
+   use xtb_type_environment, only : TEnvironment
    implicit none
 
    type :: string
@@ -27,12 +31,15 @@ module xtb_argparser
 
 contains
 
-subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  &
+subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  &
            &       copycontrol,argument_list,nargs,coffee)
-   use xtb_setmod
-   use xtb_readin, only : xfind,get_value
-   use xtb_solv_gbobc,  only : lgbsa
-   implicit none
+
+   !> Name of error producer
+   character(len=*), parameter :: source = "argparser_rdxargs"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    character(len=:),allocatable,intent(out) :: fname
    character(len=:),allocatable,intent(out) :: xcontrol
    character(len=:),allocatable,intent(out) :: fnv
@@ -92,10 +99,10 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
       if (getopts) then
 !        write(output_unit,'(i0,'':'',x,a)') iarg,arg ! debugging stuff
 
-         if ((len(arg).gt.2).and. &
-         &  (index(arg,'--').eq.0).and.(index(arg,'-').eq.1)) then
-            call raise('S',"the use of '"//arg//"' is discouraged, "// &
-            &              "please use '-"//arg//"' next time",1)
+         if ((len(arg) > 2) .and. (index(arg,'--') == 0) .and. &
+            &(index(arg,'-') == 1)) then
+            call env%warning("the use of '"//arg//"' is discouraged, "// &
+               & "please use '-"//arg//"' next time", source)
             arg = '-'//arg
          endif
          select case(arg)
@@ -134,9 +141,10 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
       !$    call rdarg(iarg+1,sec)
       !$    if (get_value(sec,idum)) then
       !$       nproc = omp_get_num_threads()
-      !$       if (idum.gt.nproc) &
-      !$       & call raise('S','Process number higher than OMP_NUM_THREADS, '//&
-      !$       &                'I hope you know what you are doing.',1)
+      !$       if (idum.gt.nproc) then
+      !$          call env%warning('Process number higher than OMP_NUM_THREADS, '//&
+      !$             & 'I hope you know what you are doing.', source)
+      !$       end if
       !$       call omp_set_num_threads(idum)
 #ifdef WITH_MKL
       !$       call mkl_set_num_threads(idum)
@@ -182,12 +190,12 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
             call rdarg(iarg+1,sec)
             if (get_value(sec,ddum)) then
                if (ddum.lt.1.e-4_wp) then
-                  call raise('S',"We cannot provide this level of accuracy, "//&
-                                 "resetted accuracy to 0.0001",1)
+                  call env%warning("We cannot provide this level of accuracy, "//&
+                     & "resetted accuracy to 0.0001", source)
                   acc = 1.e-4_wp
                else if (ddum.gt.1.e+3_wp) then
-                  call raise('S',"We cannot provide this level of accuracy, "//&
-                                 "resetted accuracy to 1000",1)
+                  call env%warning("We cannot provide this level of accuracy, "//&
+                     & "resetted accuracy to 1000", source)
                   acc = 1.e+3_wp
                else
                   acc = ddum
@@ -212,8 +220,8 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
             if(sec=='0')call set_exttyp('eht')    !ppracht 10/2018 GFN0
          case(     '--gfn1')
             call set_gfn('method','1')
-            call raise('S',"The use of '"//arg//"' is discouraged, " //&
-                           "please use '--gfn 1' next time",1)
+            call env%warning("The use of '"//arg//"' is discouraged, " //&
+               & "please use '--gfn 1' next time", source)
          case(     '--gfn2')
             call set_gfn('method','2')
             call set_gfn('d4','true')
@@ -221,8 +229,8 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
          case(     '--gfn0')
             call set_gfn('method','0')
             call set_exttyp('eht')    !ppracht 10/2018 GFN0
-            call raise('S',"The use of '"//arg//"' is discouraged, " //&
-                           "please use '--gfn 0' next time",1)
+            call env%warning("The use of '"//arg//"' is discouraged, " //&
+               & "please use '--gfn 0' next time", source)
 
          case(     '--etemp')
             skip = 1
@@ -416,7 +424,7 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
 
          case(     '--gmd')
             call set_runtyp('gmd')
-            call raise('E',"This feature has been deprecated, I'm sorry.",1)
+            call env%error("This feature has been deprecated, I'm sorry.", source)
 
          case(     '--modef')
             call set_runtyp('modef')
@@ -449,7 +457,7 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
             endif
 
          case(     '--reactor')
-            call raise('E','The nano-reactor has been moved to CREST',1)
+            call env%error('The nano-reactor has been moved to CREST', source)
             call set_runtyp('reactor')
 
 !! ------------------------------------------------------------------------
@@ -458,17 +466,17 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
          case default
             inquire(file=arg,exist=exist)
             if (exist) then
-               if (allocated(fname)) call raise('S',  &
+               if (allocated(fname)) call env%warning( &
                &  "There are multiple files provided. '"//fname//  &
-               &  "' will be ignored in this run.",1)
+               &  "' will be ignored in this run.", source)
                fname = arg
             else
                if (index(arg,'-').eq.1) then
-                  call raise('S',"Unfortunately, '"//arg// &
-                  &    "' is not supported in this program. Check with --help.",1)
+                  call env%warning("Unfortunately, '"//arg// &
+                  &    "' is not supported in this program. Check with --help.", source)
                else
-                  call raise('E',"You don't have a file named '"//arg// &
-                  &    "' here",1)
+                  call env%error("You don't have a file named '"//arg// &
+                  &    "' here", source)
                endif
             endif
 
@@ -477,12 +485,12 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
       else ! getopts?
          inquire(file=arg,exist=exist)
          if (exist) then
-            if (allocated(fname)) call raise('S',  &
+            if (allocated(fname)) call env%warning(&
             &  "There are multiple files provided. '"//fname//  &
-            &  "' will be ignored in this run.",1)
+            &  "' will be ignored in this run.", source)
             fname = arg
          else
-            call raise('E',"You don't have a file named '"//arg//"' here.",1)
+            call env%error("You don't have a file named '"//arg//"' here.", source)
          endif
       endif ! getopts?
       icount = icount+1
@@ -499,7 +507,7 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
       if (periodic) then
          fname = 'POSCAR'
       else
-         call raise('E',"No geometry given, so there is nothing to do.",1)
+         call env%error("No geometry given, so there is nothing to do.", source)
       endif
    endif
 

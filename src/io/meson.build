@@ -15,9 +15,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+subdir('reader')
+subdir('writer')
+
 srcs += files(
-  'interface.f90',
-  'preload.f90',
-  'structs.f90',
-  'utils.f90',
+  'reader.f90',
+  'writer.f90',
 )

@@ -15,193 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module xtb_qcextern
-   use, intrinsic :: iso_fortran_env, only : istdout => output_unit
+module xtb_extern_orca
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    implicit none
+
+
 contains
 
-subroutine mopac_chk()
-   use xtb_mctc_systools
-   use xtb_setparam
-   use xtb_readin
-   implicit none
-   character(len=:),allocatable :: homedir,syspath
-   character(len=5) :: chdum
-   integer :: i
-   logical :: exist
-
-   ! check for MOPAC executable
-   if (allocated(ext_mopac%executable)) then ! user input
-      if (ext_mopac%executable(1:1).eq.'~') then
-         ! this is relative to the users home, expand it
-         call rdvar('HOME',homedir)
-         ext_mopac%executable = homedir // ext_mopac%executable(2:)
-         if (verbose) then
-            write(istdout,'(a,1x,a)') &
-               "user home directory        :",homedir
-         endif
-      endif
-      inquire(file=ext_mopac%executable,exist=exist)
-      if (.not.exist) then
-         call raise('E',"'"//ext_mopac%executable//"' was not found, please check",1)
-      endif
-   else ! no executable provided, lets find it
-      call rdvar('PATH',syspath)
-      if (verbose) then
-         write(istdout,'(a,1x,a)') &
-            "system path                :",syspath
-      endif
-      call rdpath(syspath,'mopac',ext_mopac%executable,exist)
-      if (.not.exist) then
-         call raise('E','Could not locate mopac executable',1)
-      endif
-   endif
-   if (verbose) then
-      write(istdout,'(a,1x,a)') &
-         "mopac executable           :",ext_mopac%executable
-   endif
-
-   ! see if there is a preference for an input file
-   if (allocated(ext_mopac%input_file)) then
-      inquire(file=ext_mopac%input_file,exist=exist)
-      ext_mopac%exist = exist
-   else
-      ext_mopac%input_file = 'GCOORD'
-      inquire(file=ext_mopac%input_file,exist=exist)
-   endif
-   if (verbose) then
-      write(istdout,'(a,1x,a)') &
-         "mopac input file           :",ext_mopac%input_file,&
-         "mopac input present        :",bool2string(exist)
-         !"mopac input override       :",bool2string(.not.ext_mopac%exist)
-   endif
-
-   ! check for the input line
-   if (allocated(ext_mopac%input_string)) then
-      if (index(ext_mopac%input_string,'charge=') == 0) then
-         write(chdum,'(i5)') ichrg
-         ! add total charge
-         ext_mopac%input_string = ext_mopac%input_string //' charge='//trim(adjustl(chdum))
-      endif
-      if (nalphabeta > 0) then
-         if (index(ext_mopac%input_string,'uhf') == 0) then
-            ! write spin state if necessary
-            select case(nalphabeta)
-            case default ! skip
-            case(1); ext_mopac%input_string = ext_mopac%input_string // ' uhf doublet'
-            case(2); ext_mopac%input_string = ext_mopac%input_string // ' uhf triplet'
-            case(3); ext_mopac%input_string = ext_mopac%input_string // ' uhf quartet'
-            case(4); ext_mopac%input_string = ext_mopac%input_string // ' uhf quintet'
-            case(5); ext_mopac%input_string = ext_mopac%input_string // ' uhf sextet'
-            case(6); ext_mopac%input_string = ext_mopac%input_string // ' uhf septet'
-            case(7); ext_mopac%input_string = ext_mopac%input_string // ' uhf octet'
-            end select
-         endif
-      endif
-   else
-      ! general input
-      ext_mopac%input_string = '1scf pm6-d3h4 aux(42,PRECISION=12,MOS=-99999,COMP)'
-      ! write spin state if necessary
-      select case(nalphabeta)
-      case default ! skip
-      case(1); ext_mopac%input_string = ext_mopac%input_string // ' uhf doublet'
-      case(2); ext_mopac%input_string = ext_mopac%input_string // ' uhf triplet'
-      case(3); ext_mopac%input_string = ext_mopac%input_string // ' uhf quartet'
-      case(4); ext_mopac%input_string = ext_mopac%input_string // ' uhf quintet'
-      case(5); ext_mopac%input_string = ext_mopac%input_string // ' uhf sextet'
-      case(6); ext_mopac%input_string = ext_mopac%input_string // ' uhf septet'
-      case(7); ext_mopac%input_string = ext_mopac%input_string // ' uhf octet'
-      end select
-      ! convergence criterium in kcal/mol
-      ext_mopac%input_string = ext_mopac%input_string // &
-         ' scfcrt=6.d-5 geo-ok mmok grad xyz charge='
-      write(chdum,'(i5)') ichrg
-      ! add total charge
-      ext_mopac%input_string = ext_mopac%input_string // trim(adjustl(chdum))
-   endif
-   if (verbose) then
-      write(istdout,'(a,1x,a)') &
-         "mopac input line           :",ext_mopac%input_string
-   endif
-
-end subroutine mopac_chk
-
-subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
-   use xtb_mctc_convert
-   use xtb_mctc_systools
-   use xtb_setparam
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: xyz(3,nat)
-   real(wp),intent(out) :: energy
-   real(wp),intent(out) :: gradient(3,nat)
-
-   integer :: i,j,err
-   integer :: imopac ! file handle
-   logical :: exist
-   character(len=:),allocatable :: line
-   character(len=2),external :: asym
-   integer :: num
-   real(wp) :: dum(10),edum
-
-   !$omp critical(mopac_lock)
-   call open_file(imopac,ext_mopac%input_file,'w')
-   write(imopac,'(a,/,/)') ext_mopac%input_string
-   do i = 1, nat
-      write(imopac,'(3x,a2,3(f20.14,i5))') &
-         asym(at(i)),autoaa*xyz(1,i),1,autoaa*xyz(2,i),1,autoaa*xyz(3,i),1
-   enddo
-   call close_file(imopac)
-
-   write(istdout,'(72("="))')
-   write(istdout,'(1x,"*",1x,a)') &
-      "handing control over to mopac..."
-   call execute_command_line('exec 2>&1 '//ext_mopac%executable//' '// &
-                             ext_mopac%input_file,exitstat=err)
-   if (err.ne.0) then
-      call raise('E','mopac returned with non-zero exit status, following this',1)
-   endif
-   if (verbose) then
-      inquire(file=ext_mopac%input_file//'.arc',exist=exist)
-      if (exist) then
-         call open_file(imopac,ext_mopac%input_file//'.arc','r')
-         print_mopac_output: do
-            call getline(imopac,line,iostat=err)
-            if (is_iostat_end(err)) exit print_mopac_output
-         enddo print_mopac_output
-         call close_file(imopac)
-      endif
-   endif
-
-   write(istdout,'(1x,"*",1x,a)') &
-      "regaining control after successful mopac run..."
-   write(istdout,'(72("="))')
-
-   call open_file(imopac,ext_mopac%input_file//'.aux','r')
-   if (imopac.eq.-1) then
-      call raise('E',"Could not find '"//ext_mopac%input_file//".aux'",1)
-   endif
-   read_mopac_output: do
-      call getline(imopac,line,iostat=err)
-      if (is_iostat_end(err)) then
-         call raise('E','Could not find gradient in mopac output',1)
-      endif
-      if (index(line,'TOTAL_ENERGY:EV') > 0) then
-         call readl(line,dum,num)
-         energy = dum(num)*evtoau
-         cycle read_mopac_output
-      endif
-      if (index(line,'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then
-         read(imopac,*)((gradient(j,i),j=1,3),i=1,nat)
-         exit read_mopac_output
-      endif
-   enddo read_mopac_output
-   call close_file(imopac)
-   !$omp end critical (mopac_lock)
-   gradient = gradient * kcaltoau / aatoau
-end subroutine run_mopac_egrad
 
 subroutine orca_chk()
    use xtb_mctc_systools
@@ -227,7 +48,7 @@ subroutine orca_chk()
          call rdvar('HOME',homedir)
          ext_orca%executable = homedir // ext_orca%executable(2:)
          if (verbose) then
-            write(istdout,'(a,1x,a)') &
+            write(stdout,'(a,1x,a)') &
                "user home directory        :",homedir
          endif
       endif
@@ -238,7 +59,7 @@ subroutine orca_chk()
    else ! no executable provided, lets find it
       call rdvar('PATH',syspath)
       if (verbose) then
-         write(istdout,'(a,1x,a)') &
+         write(stdout,'(a,1x,a)') &
             "system path                :",syspath
       endif
       call rdpath(syspath,'orca',ext_orca%executable,exist)
@@ -247,10 +68,10 @@ subroutine orca_chk()
       endif
    endif
    if (verbose) then
-      write(istdout,'(a,1x,a)') &
+      write(stdout,'(a,1x,a)') &
          "orca executable           :",ext_orca%executable
       if (index(ext_orca%executable,'/usr') == 1) then
-         write(istdout,'(a)') &
+         write(stdout,'(a)') &
             "are you attempting to perform a calculation with the GNOME screen reader?"
       endif
    endif
@@ -264,7 +85,7 @@ subroutine orca_chk()
          inquire(file=ext_orca%input_file,exist=exist)
    endif
    if (verbose) then
-      write(istdout,'(a,1x,a)') &
+      write(stdout,'(a,1x,a)') &
          "orca input file           :",ext_orca%input_file,&
          "orca input present        :",bool2string(exist),&
          "orca input override       :",bool2string(.not.ext_orca%exist)
@@ -312,13 +133,14 @@ subroutine orca_chk()
       endif
    endif
    if (verbose) then
-      write(istdout,'(a,1x,a)') &
+      write(stdout,'(a,1x,a)') &
       !$ "orca parallel             :",bool2string(omp_get_num_threads() > 1),&
       !$ "orca number of threads    :",omp_get_num_threads(),&
          "orca input line           :",ext_orca%input_string
    endif
 
 end subroutine orca_chk
+
 
 subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
    use xtb_mctc_convert
@@ -378,17 +200,17 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
       call close_file(iorca)
    endif
 
-   write(istdout,'(72("="))')
-   write(istdout,'(1x,"*",1x,a)') &
+   write(stdout,'(72("="))')
+   write(stdout,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
    call execute_command_line('exec 2>&1 '//ext_orca%executable//' '// &
                              ext_orca%input_file,exitstat=err)
    if (err.ne.0) then
       call raise('E','orca returned with non-zero exit status, doing the same',1)
    endif
-   write(istdout,'(1x,"*",1x,a)') &
+   write(stdout,'(1x,"*",1x,a)') &
       "successful orca run, taking over control again..."
-   write(istdout,'(72("="))')
+   write(stdout,'(72("="))')
 
    i = index(ext_orca%input_file,'.inp')
    if (i > 0) then
@@ -422,4 +244,5 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
 
 end subroutine run_orca_egrad
 
-end module xtb_qcextern
+
+end module xtb_extern_orca

@@ -27,6 +27,7 @@ srcs += files(
   'resize.f90',
   'runtypes.f90',
   'symbols.f90',
+  'version.f90',
   'mctc_global.f90',
   'mctc_systools.f90',
   'mctc_strings.f90',

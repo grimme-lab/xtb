@@ -58,10 +58,11 @@ subroutine singlepoint &
 !! ========================================================================
    use xtb_solv_gbobc, only : lgbsa
    use xtb_scf, only : scf
-   use xtb_qmdff,      only : ff_eg,ff_nonb,ff_hb
-   use xtb_qcextern,   only : run_orca_egrad,run_mopac_egrad
+   use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
+   use xtb_extern_mopac, only : run_mopac_egrad
+   use xtb_extern_orca, only : run_orca_egrad
    use xtb_peeq, only : peeq
-   use xtb_embedding,  only : read_pcem
+   use xtb_embedding, only : read_pcem
    implicit none
 
    integer, intent(in) :: iunit

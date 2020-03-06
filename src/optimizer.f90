@@ -16,7 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_optimizer
+   use xtb_io_writer, only : writeMolecule
    use xtb_mctc_accuracy, only : wp, sp
+   use xtb_mctc_fileTypes, only : fileType
 
    logical,private,parameter :: profile = .true.
 
@@ -520,7 +522,8 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       return
    endif
    if (profile) call timer%measure(6,'optimization log')
-   call mol%write(ilog, format=p_ftype%xyz, energy=res%e_total, gnorm=res%gnorm)
+   call writeMolecule(mol, ilog, format=fileType%xyz, energy=res%e_total, &
+      & gnorm=res%gnorm)
    if (profile) call timer%measure(6)
 ! transform xyz to internal gradient
    if (profile) call timer%measure(4)

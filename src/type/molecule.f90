@@ -37,6 +37,7 @@ module xtb_type_molecule
    use xtb_type_topology
    use xtb_type_fragments
    use xtb_type_buffer
+   use xtb_type_vendordata
    implicit none
 
    public :: TMolecule, new_molecule_api
@@ -45,58 +46,6 @@ module xtb_type_molecule
    private
 
 
-   !> atomic pdb data type
-   !
-   !  keeps information from PDB input that is currently not used by the
-   !  caller program (like residues or chains) but is needed to write
-   !  the PDB output eventually
-   type :: pdb_data
-! ATOM   2461  HA3 GLY A 153     -10.977  -7.661   2.011  1.00  0.00           H
-! TER    2462      GLY A 153
-! a6----i5---xa4--aa3-xai4--axxxf8.3----f8.3----f8.3----f6.2--f6.2--xxxxxxa4--a2a2
-! HETATM 2463  CHA HEM A 154       9.596 -13.100  10.368  1.00  0.00           C
-      logical :: het = .false.
-      integer :: charge = 0
-      integer :: residue_number = 0
-      character(len=4) :: name = ' '
-      character(len=1) :: loc = ' '
-      character(len=3) :: residue = ' '
-      character(len=1) :: chains = ' '
-      character(len=1) :: code = ' '
-      character(len=4) :: segid = ' '
-   end type pdb_data
-
-   !> sdf atomic data
-   !
-   !  we only support some entries, the rest is simply dropped.
-   !  the format is: ddcccssshhhbbbvvvHHHrrriiimmmnnneee
-   type :: sdf_data
-      integer :: isotope = 0   !< d field
-      integer :: charge = 0    !< c field
-      integer :: hydrogens = 0 !< h field
-      integer :: valence = 0   !< v field
-   end type sdf_data
-
-   !> vasp input data
-   !
-   !  contains specific vasp keywords that modify the appearance of the
-   !  input file and can be used to reproduce it in the output
-   type :: vasp_info
-      real(wp) :: scale = 1.0_wp
-      logical :: selective = .false.
-      logical :: cartesian = .false.
-   end type vasp_info
-
-   !> Turbomole input data
-   !
-   !  Saves preferences for cartesian vs. direct coordinates and lattice vs. cell.
-   !  Also saves units of input data groups.
-   type :: turbo_info
-      logical :: cartesian = .true.
-      logical :: lattice = .true.
-      logical :: angs_lattice = .false.
-      logical :: angs_coord = .false.
-   end type turbo_info
 
    !> molecular structure information
    type :: TMolecule
@@ -138,8 +87,6 @@ module xtb_type_molecule
       procedure :: calculate_distances => mol_calculate_distances
       procedure :: set_nuclear_charge => mol_set_nuclear_charge
       procedure :: set_atomic_masses => mol_set_atomic_masses
-      procedure :: write => write_molecule_generic
-      procedure :: read => read_molecule_generic
       procedure :: update => mol_update
       procedure :: wrap_back => mol_wrap_back
       procedure :: center_of_geometry
@@ -150,24 +97,6 @@ module xtb_type_molecule
       procedure :: align_to_principal_axes
    end type TMolecule
 
-
-   interface
-      module subroutine write_molecule_generic(self, unit, format, &
-            &                                  energy, gnorm, number)
-         class(TMolecule), intent(in) :: self
-         integer, intent(in) :: unit
-         integer, intent(in), optional :: format
-         real(wp), intent(in), optional :: energy
-         real(wp), intent(in), optional :: gnorm
-         integer, intent(in), optional :: number
-      end subroutine write_molecule_generic
-
-      module subroutine read_molecule_generic(self, unit, format)
-         class(TMolecule), intent(out) :: self
-         integer, intent(in) :: unit
-         integer, intent(in), optional :: format
-      end subroutine read_molecule_generic
-   end interface
 
    interface TMolecule
       module procedure :: new_molecule

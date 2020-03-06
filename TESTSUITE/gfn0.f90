@@ -13,6 +13,7 @@ subroutine test_gfn0_sp
    use xtb_type_basisset
    use xtb_type_param
    use xtb_type_data
+   use xtb_type_environment
 
    use xtb_setparam
    use xtb_aoparam
@@ -41,7 +42,7 @@ subroutine test_gfn0_sp
    logical, parameter :: restart = .false.
    real(wp),parameter :: acc = 1.0_wp
 
-   type(tb_environment)  :: env
+   type(TEnvironment)  :: env
    type(TMolecule)     :: mol
    type(scc_results)     :: res
    type(TBasisset)     :: basis
@@ -57,7 +58,7 @@ subroutine test_gfn0_sp
    real(wp) :: globpar(25)
    logical  :: okpar,okbas,exist,diff
 
-   call env%setup
+   call init(env)
 
    gfn_method = 0
 
@@ -136,6 +137,7 @@ subroutine test_gfn0_api
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -158,7 +160,7 @@ subroutine test_gfn0_api
       &  prlevel = 2, ccm = .false., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -167,7 +169,7 @@ subroutine test_gfn0_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -205,6 +207,7 @@ subroutine test_gfn0_api_srb
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -246,7 +249,7 @@ subroutine test_gfn0_api_srb
       &  prlevel = 2, ccm = .false., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -255,7 +258,7 @@ subroutine test_gfn0_api_srb
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at

@@ -18,8 +18,10 @@
 !> implementation of different relaxation procedures, every relax algorithm
 !  comes with its own parameter class (most are general parameters like thresholds)
 module xtb_relaxation_engine
+   use xtb_io_writer, only : writeMolecule
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_convert, only : fstoau, amutoau
+   use xtb_mctc_fileTypes, only : fileType
    implicit none
    private :: wp
    !> precision of the rational function step (usually single instead of double)
@@ -229,14 +231,15 @@ subroutine fire &
    ! and have to hope that nobody else is currently occupying this identifier
    opt%ilog = ilog
    if (mol%npbc > 0) then
-      opt%ftype = p_ftype%vasp
+      opt%ftype = fileType%vasp
    else
-      opt%ftype = p_ftype%xyz
+      opt%ftype = fileType%xyz
    endif
    !call open_file(opt%ilog,'xtbopt.log','w')
    ! write starting structure to log
    if (opt%ilog.ne.-1) then
-      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
+      call writeMolecule(mol, opt%ilog,format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient))
    endif
 
    ! get memory
@@ -356,7 +359,8 @@ subroutine fire &
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
    if (mod(iter-1,opt%logstep).ne.0 .and. opt%ilog.ne.-1) then
-      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
+      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient))
    endif
    !call close_file(opt%ilog)
 
@@ -480,13 +484,14 @@ subroutine l_ancopt &
    ! and have to hope that nobody else is currently occupying this identifier
    opt%ilog = ilog
    if (mol%npbc > 0) then
-      opt%ftype = p_ftype%vasp
+      opt%ftype = fileType%vasp
    else
-      opt%ftype = p_ftype%xyz
+      opt%ftype = fileType%xyz
    endif
    !call open_file(opt%ilog,'xtbopt.log','w')
    if (opt%ilog.ne.-1) then
-      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
+      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient))
    endif
 
    ! get memory, allocate single and double precision arrays separately
@@ -662,9 +667,10 @@ subroutine l_ancopt &
    if (profile) call timer%measure(7,"optimization log")
    ! we cannot be sure that the geometry was written in the last optimization
    ! step due to the logstep > 1, so we append the last structure to the optlog
-   if (mod(iter,opt%logstep).ne.1.and.opt%ilog.ne.-1) &
-      call mol%write(opt%ilog,format=opt%ftype,energy=energy,gnorm=norm2(gradient))
-      !call wrlog(mol%n,mol%xyz,mol%at,energy,norm2(gradient),.false.)
+   if (mod(iter,opt%logstep).ne.1.and.opt%ilog.ne.-1) then
+      call writeMolecule(mol, opt%ilog, format=opt%ftype, energy=energy, &
+         & gnorm=norm2(gradient))
+   end if
    !call close_file(opt%ilog)
    if (profile) call timer%measure(7)
 
@@ -961,9 +967,10 @@ subroutine lbfgs_relax &
 
       if (profile) call timer%measure(7,"optimization log")
       if (opt%ilog.ne.-1) then
-         if (mod(icycle,opt%logstep).eq.1.or.opt%logstep.eq.1) &
-            call mol%write(opt%ilog,format=opt%ftype,energy=res%e_total, &
-            &              gnorm=res%gnorm)
+         if (mod(icycle,opt%logstep).eq.1.or.opt%logstep.eq.1) then
+            call writeMolecule(mol, opt%ilog,format=opt%ftype,energy=res%e_total, &
+               & gnorm=res%gnorm)
+         end if
       endif
       !call wrlog(mol%n,xyz,attyp,energy,gnorm,.false.)
       if (profile) call timer%measure(7)
@@ -1266,8 +1273,8 @@ subroutine inertial_relax &
       ! check if we write to the optimization log this step
       logthis = opt%ilog.ne.-1 .and. mod(istep-1,opt%logstep).eq.0
       if (logthis) then
-         call mol%write(opt%ilog,format=opt%ftype,energy=res%e_total, &
-            &           gnorm=res%gnorm)
+         call writeMolecule(mol, opt%ilog,format=opt%ftype,energy=res%e_total, &
+            & gnorm=res%gnorm)
       endif
 
       ! check for convergence of the energy change

@@ -12,6 +12,7 @@ subroutine test_peeq_sp
    use xtb_type_basisset
    use xtb_type_param
    use xtb_type_data
+   use xtb_type_environment
 
    use xtb_setparam, only : gfn_method
    use xtb_aoparam,  only : use_parameterset
@@ -44,7 +45,7 @@ subroutine test_peeq_sp
    real(wp),parameter :: acc = 1.0_wp
 
    type(TMolecule)     :: mol
-   type(tb_environment)  :: env
+   type(TEnvironment)  :: env
    type(TWavefunction) :: wfn
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
@@ -67,7 +68,7 @@ subroutine test_peeq_sp
    logical  :: okbas,diff
 
    gfn_method = 0
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -175,6 +176,7 @@ subroutine test_peeq_api
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -199,7 +201,7 @@ subroutine test_peeq_api
       &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -209,7 +211,7 @@ subroutine test_peeq_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -253,6 +255,7 @@ subroutine test_peeq_api_srb
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -307,7 +310,7 @@ subroutine test_peeq_api_srb
       &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -317,7 +320,7 @@ subroutine test_peeq_api_srb
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at

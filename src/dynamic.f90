@@ -16,9 +16,12 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_dynamic
-   use xtb_mctc_io, only : stdout
+   use xtb_io_writer, only : writeMolecule
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_filetypes, only : fileType
+   use xtb_mctc_io, only : stdout
    use xtb_single, only : singlepoint
+
 contains
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
@@ -461,7 +464,7 @@ subroutine md(mol,wfx,calc, &
          cdump2=cdump2+1
          call getname1(cdump2,atmp)
          call open_file(ich,trim(atmp),'w')
-         call mol%write(ich,format=p_ftype%tmol)
+         call writeMolecule(mol, ich, fileType%tmol)
          call close_file(ich)
          cdump=0
       endif
@@ -480,7 +483,7 @@ subroutine md(mol,wfx,calc, &
       ! dump xyz (trj)
       if(ndump.gt.dumpstep-1)then
          ndump=0
-         call mol%write(trj, format=p_ftype%xyz, energy=epot, gnorm=res%gnorm)
+         call writeMolecule(mol, trj, fileType%xyz, energy=epot, gnorm=res%gnorm)
          if(velodump)then
             do i=1,mol%n
                write(trj,'(3f20.14)')velo(1:3,i)

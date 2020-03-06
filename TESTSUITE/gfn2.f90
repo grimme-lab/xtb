@@ -12,6 +12,7 @@ subroutine test_gfn2_scc
    use xtb_type_param
    use xtb_type_data
    use xtb_type_pcem
+   use xtb_type_environment
 
    use xtb_setparam
    use xtb_aoparam
@@ -137,6 +138,7 @@ subroutine test_gfn2_api
    use xtb_type_wavefunction
    use xtb_type_param
    use xtb_type_pcem
+   use xtb_type_environment
 
    use xtb_calculators
 
@@ -159,7 +161,7 @@ subroutine test_gfn2_api
 
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem)        :: pcem
    type(mctc_error), allocatable :: err
 
@@ -168,7 +170,7 @@ subroutine test_gfn2_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at  = at
@@ -210,6 +212,7 @@ subroutine test_gfn2gbsa_api
    use xtb_type_wavefunction
    use xtb_type_param
    use xtb_type_pcem
+   use xtb_type_environment
 
    use xtb_calculators
 
@@ -236,7 +239,7 @@ subroutine test_gfn2gbsa_api
 
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem)        :: pcem
    type(mctc_error), allocatable :: err
 
@@ -245,7 +248,7 @@ subroutine test_gfn2gbsa_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at  = at
@@ -286,6 +289,7 @@ subroutine test_gfn2salt_api
    use xtb_type_wavefunction
    use xtb_type_param
    use xtb_type_pcem
+   use xtb_type_environment
 
    use xtb_solv_gbobc
 
@@ -311,7 +315,7 @@ subroutine test_gfn2salt_api
 
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem)        :: pcem
    type(mctc_error), allocatable :: err
 
@@ -320,7 +324,7 @@ subroutine test_gfn2salt_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at  = at
@@ -366,6 +370,7 @@ subroutine test_gfn2_pcem_api
    use xtb_type_wavefunction
    use xtb_type_param
    use xtb_type_pcem
+   use xtb_type_environment
 
    use xtb_aoparam
 
@@ -397,7 +402,7 @@ subroutine test_gfn2_pcem_api
 
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem)        :: pcem
    type(mctc_error), allocatable :: err
 
@@ -406,7 +411,7 @@ subroutine test_gfn2_pcem_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at  = at

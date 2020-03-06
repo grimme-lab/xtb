@@ -19,11 +19,12 @@
 !  convenient interface to commonly used xtb methods.
 module xtb_api_interface
    use iso_c_binding
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_io, only : stdout
    use xtb_api_structs
    use xtb_api_utils
    use xtb_api_preload
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
+   use xtb_type_environment, only : TEnvironment, init
 
    implicit none
 
@@ -235,7 +236,7 @@ function peeq_api &
 
    type(TMolecule)    :: mol
    type(peeq_options)   :: opt
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
@@ -252,7 +253,7 @@ function peeq_api &
    status = load_xtb_parameters_api(0_c_int)
    if (status /= 0) return
 
-   call env%setup
+   call init(env)
 
    ! ====================================================================
    !  STEP 2: convert the options from C struct to actual Fortran type
@@ -431,7 +432,7 @@ function gfn12_calc_impl &
 
    type(TMolecule) :: mol
    type(scc_options) :: opt
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem) :: pcem
    type(TWavefunction) :: wfn
    type(TBasisset) :: basis
@@ -448,7 +449,7 @@ function gfn12_calc_impl &
    real(wp),allocatable :: gradient(:,:)
    integer(c_int) :: stat_basis
 
-   call env%setup
+   call init(env)
 
    ! convert the options from C struct to actual Fortran type
    opt = opt_in
@@ -560,7 +561,7 @@ function gfn0_api &
 
    type(TMolecule)    :: mol
    type(peeq_options)    :: opt
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
@@ -578,7 +579,7 @@ function gfn0_api &
 
    call mctc_init('peeq',10,.true.)
 
-   call env%setup
+   call init(env)
 
    ! ====================================================================
    !  STEP 2: convert the options from C struct to actual Fortran type
@@ -782,7 +783,7 @@ function gfn12_pcem_impl &
    type(scc_options) :: opt
    type(TWavefunction) :: wfn
    type(TBasisset) :: basis
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem) :: pcem
    type(mctc_error), allocatable :: err
 
@@ -797,7 +798,7 @@ function gfn12_pcem_impl &
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
-   call env%setup
+   call init(env)
 
    ! convert the options from C struct to actual Fortran type
    opt = opt_in
@@ -920,10 +921,10 @@ function gbsa_calculation_api &
 
    type(TMolecule)    :: mol
    type(TSolvent)     :: gbsa
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
 
    call mctc_init('gbobc',10,.true.)
-   call env%setup
+   call init(env)
 
    call c_string_convert(solvent,solvent_in)
    call c_string_convert(outfile,file_in)

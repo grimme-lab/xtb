@@ -16,8 +16,11 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'interface.f90',
-  'preload.f90',
-  'structs.f90',
-  'utils.f90',
+  'ctfile.f90',
+  'gaussian.f90',
+  'genformat.f90',
+  'pdb.f90',
+  'turbomole.f90',
+  'vasp.f90',
+  'xyz.f90',
 )

@@ -14,6 +14,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/mctc/resize.f90"
   "${XTB_ROOT}/src/mctc/runtypes.f90"
   "${XTB_ROOT}/src/mctc/symbols.f90"
+  "${XTB_ROOT}/src/mctc/version.f90"
   "${XTB_ROOT}/src/mctc/mctc_global.f90"
   "${XTB_ROOT}/src/mctc/mctc_systools.f90"
   "${XTB_ROOT}/src/mctc/mctc_strings.f90"
@@ -51,6 +52,9 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/type/topology.f90"
   "${XTB_ROOT}/src/type/fragments.f90"
   "${XTB_ROOT}/src/type/dispersion_model.f90"
+  "${XTB_ROOT}/src/type/environment.f90"
+  "${XTB_ROOT}/src/type/vendordata.f90"
+  "${XTB_ROOT}/src/type/reader.f90"
   "${XTB_ROOT}/src/type/buffer.f90"
 
   # Global data
@@ -87,9 +91,23 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/wrgbw.f90"
   "${XTB_ROOT}/src/enso_printout.f90"
   "${XTB_ROOT}/src/read_gfn_param.f90"
-  "${XTB_ROOT}/src/molecule_reader.f90"
-  "${XTB_ROOT}/src/molecule_writer.f90"
-  "${XTB_ROOT}/src/tbmod_file_utils.f90"
+
+  "${XTB_ROOT}/src/io/reader.f90"
+  "${XTB_ROOT}/src/io/reader/ctfile.f90"
+  "${XTB_ROOT}/src/io/reader/gaussian.f90"
+  "${XTB_ROOT}/src/io/reader/genformat.f90"
+  "${XTB_ROOT}/src/io/reader/pdb.f90"
+  "${XTB_ROOT}/src/io/reader/turbomole.f90"
+  "${XTB_ROOT}/src/io/reader/vasp.f90"
+  "${XTB_ROOT}/src/io/reader/xyz.f90"
+  "${XTB_ROOT}/src/io/writer.f90"
+  "${XTB_ROOT}/src/io/writer/ctfile.f90"
+  "${XTB_ROOT}/src/io/writer/gaussian.f90"
+  "${XTB_ROOT}/src/io/writer/genformat.f90"
+  "${XTB_ROOT}/src/io/writer/pdb.f90"
+  "${XTB_ROOT}/src/io/writer/turbomole.f90"
+  "${XTB_ROOT}/src/io/writer/vasp.f90"
+  "${XTB_ROOT}/src/io/writer/xyz.f90"
 
   # Parameters
   "${XTB_ROOT}/src/gfn_paramset.f90"
@@ -184,8 +202,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/getsymnum.f90"
   "${XTB_ROOT}/src/solv/grid_module.f90"
   "${XTB_ROOT}/src/qmdff.f90"
-  "${XTB_ROOT}/src/qmexternal.f90"
-  "${XTB_ROOT}/src/qcextern.f90"
   "${XTB_ROOT}/src/neighbor.f"
   "${XTB_ROOT}/src/zmatpr.f"
   "${XTB_ROOT}/src/fragment.f"
@@ -251,6 +267,10 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/api/structs.f90"
   "${XTB_ROOT}/src/api/preload.f90"
   "${XTB_ROOT}/src/api/utils.f90"
+
+  "${XTB_ROOT}/src/extern/mopac.f90"
+  "${XTB_ROOT}/src/extern/orca.f90"
+  "${XTB_ROOT}/src/extern/turbomole.f90"
 )
 
 set(XTB_F_TEST_SOURCES

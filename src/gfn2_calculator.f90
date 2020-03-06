@@ -52,7 +52,7 @@ module subroutine gfn2_calculation &
    type(TMolecule),    intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(scc_options),    intent(in)    :: opt
-   type(tb_environment), intent(in)    :: env
+   type(TEnvironment), intent(in)    :: env
    type(mctc_error), allocatable, intent(inout) :: err
    type(tb_pcem),        intent(inout) :: pcem
 

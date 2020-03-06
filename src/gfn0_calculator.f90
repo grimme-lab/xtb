@@ -47,7 +47,7 @@ module subroutine gfn0_calculation &
 
    type(TMolecule),    intent(inout) :: mol
    type(peeq_options),   intent(in)    :: opt
-   type(tb_environment), intent(in)    :: env
+   type(TEnvironment), intent(in)    :: env
    type(mctc_error), allocatable, intent(inout) :: err
 
    real(wp), intent(out) :: energy
