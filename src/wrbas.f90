@@ -19,7 +19,7 @@ subroutine write_tm_basis(iunit,nat,at,basis,wfn)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_wavefunction
    use xtb_type_basisset
-   use aoparam
+   use xtb_aoparam
    implicit none
    type(TBasisset),    intent(in) :: basis
    type(TWavefunction),intent(in) :: wfn

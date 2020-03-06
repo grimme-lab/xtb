@@ -21,7 +21,7 @@ subroutine wrgbw(n,iat,coord,z,basis,wfn)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_basisset
    use xtb_type_wavefunction
-   use aoparam
+   use xtb_aoparam
    implicit none
 !! ------------------------------------------------------------------------
 !  xtb input

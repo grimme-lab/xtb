@@ -16,10 +16,10 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Preloading module of xtb to change the global state of the library.
-module tbapi_preload
+module xtb_api_preload
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
-   use tbapi_utils
+   use xtb_api_utils
    use xtb_type_param, only: scc_parameter
    implicit none
 
@@ -31,7 +31,7 @@ contains
 !  The lock (gfn_method) is maintained by the shared libary.
 integer(c_int) function load_xtb_parameters_api(gfn, filename) &
       &  result(status) bind(C, name='load_xTB_parameters')
-   use setparam, only: gfn_method
+   use xtb_setparam, only: gfn_method
    !> GFN level to be loaded
    integer(c_int), intent(in) :: gfn
    !> File name for the parametrisation
@@ -92,8 +92,8 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
 end function load_xtb_parameters_api
 
 subroutine load_xtb_parameters(p_fnv, globpar, status)
-   use mctc_systools
-   use aoparam, only: use_parameterset
+   use xtb_mctc_systools
+   use xtb_aoparam, only: use_parameterset
    character(len=*), intent(in) :: p_fnv
    integer, intent(out) :: status
    character(len=:), allocatable :: xtbpath
@@ -133,7 +133,7 @@ function gbsa_model_preload_api &
       &   gamscale_in,sx_in,tmp_in) &
       &  result(status) bind(C,name='GBSA_model_preload')
 
-   use gbobc, only: load_custom_parameters
+   use xtb_solv_gbobc, only: load_custom_parameters
 
    !> Dielectric data
    real(c_double), intent(in) :: epsv_in
@@ -197,4 +197,4 @@ function gbsa_model_preload_api &
 end function gbsa_model_preload_api
 
 
-end module tbapi_preload
+end module xtb_api_preload

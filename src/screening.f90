@@ -15,10 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module screening
+module xtb_screening
    use xtb_mctc_accuracy, only : wp
 
-   use dynamic, only : wrc,boltz,xyzsort2
+   use xtb_dynamic, only : wrc,boltz,xyzsort2
 
    implicit none
 
@@ -26,17 +26,17 @@ contains
 
 subroutine screen(mol0,wfn,calc,egap,et,maxiter,epot,grd,sigma)
 
-   use mctc_econv, only : autokcal, aatoau
+   use xtb_mctc_convert, only : autokcal, aatoau
 
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
    use xtb_type_data
 
-   use setparam
+   use xtb_setparam
 
-   use axis_trafo, only : axis
-   use optimizer, only : wrlog2
+   use xtb_axis, only : axis
+   use xtb_optimizer, only : wrlog2
 
    implicit none
 
@@ -262,8 +262,8 @@ end subroutine screen
 ! call QMDFF MD to generate conformer ensemble
 subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
    use iso_c_binding, only : c_null_char
-   use gbobc, only: lgbsa
-   use setparam
+   use xtb_solv_gbobc, only: lgbsa
+   use xtb_setparam
    implicit none
    integer  :: n
    integer  :: at(n)
@@ -317,5 +317,5 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
 
 end subroutine qmdfftoscreen
 
-end module screening
+end module xtb_screening
 

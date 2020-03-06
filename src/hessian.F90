@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module hessian
+module xtb_hessian
    use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
 
@@ -27,7 +27,7 @@ subroutine numhess( &
    use xtb_mctc_accuracy, only : wp
 !$ use omp_lib
 
-   use mctc_econv
+   use xtb_mctc_convert
 
 !! ========================================================================
 !  type definitions
@@ -36,13 +36,13 @@ subroutine numhess( &
    use xtb_type_calculator
    use xtb_type_data
 
-   use aoparam
-   use setparam
-   use splitparam
-   use fixparam
+   use xtb_aoparam
+   use xtb_setparam
+   use xtb_splitparam
+   use xtb_fixparam
 
-   use single, only : singlepoint
-   use axis_trafo, only : axis
+   use xtb_single, only : singlepoint
+   use xtb_axis, only : axis
 
    implicit none
    type(TMolecule), intent(inout) :: mol
@@ -446,7 +446,7 @@ end subroutine numhess
 
 subroutine rotmol(n,xyz,xrot,yrot,zrot)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants, only: pi
+   use xtb_mctc_constants, only: pi
    implicit none
    integer :: n,i
    real(wp) :: xrot,yrot,zrot,xyz(3,n)
@@ -480,7 +480,7 @@ end subroutine rotmol
 
 subroutine distort(n,at,xyz,freq,u)
    use xtb_mctc_accuracy, only : wp
-   use write_geometry
+   use xtb_writegeometry
    implicit none
    integer n,at(n)
    real(wp) u(3*n,3*n),freq(3*n),xyz(3,n)
@@ -857,8 +857,8 @@ subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
    !       pmat        = projection matrix P = (1-FFt)
    !   hess    = projected hessian
    !----------------------------------------------------------------------
-   use fixparam
-   use mctc_la, only : blckmgs,syprj
+   use xtb_fixparam
+   use xtb_mctc_la, only : blckmgs,syprj
 
    implicit none
 
@@ -947,7 +947,7 @@ end subroutine gtrprojm
 
 
 subroutine wrhess(nat3,h,fname)
-   use lin_mod, only : lin
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in) :: nat3
    real(wp),intent(in) :: h(nat3*(nat3+1)/2)
@@ -1025,4 +1025,4 @@ pure subroutine sortind(nvar,edum)
 end subroutine sortind
 
 
-end module hessian
+end module xtb_hessian

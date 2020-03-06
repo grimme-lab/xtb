@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module thermo
+module xtb_thermo
    use xtb_mctc_accuracy, only : wp
    implicit none
 
@@ -79,8 +79,8 @@ End subroutine getsymmetry
 subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
       &              vibs,nvibs,escf,T,sthr_rcm,et,ht,g,ts,zp,pr)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: iunit       !< output_unit
    integer, intent(in)  :: nvibs       !< number of vibrational frequencies
@@ -247,8 +247,8 @@ end subroutine thermodyn
 subroutine oldthermo(a,b,c,avmom,linear,atom,sym,molmass,vibs,nvibs,escf, &
       & T,sthr,et,ht,g,ts,zp,pr)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: nvibs       !< number of vibrational frequencies
    real(wp),intent(in)  :: escf        !< total energy from electronic structure
@@ -437,8 +437,8 @@ subroutine oldthermo(a,b,c,avmom,linear,atom,sym,molmass,vibs,nvibs,escf, &
 end subroutine oldthermo
 
 pure elemental function lnqrot(temp,f,avmom) result(lnq_r)
-   use mctc_constants, only : pi
-   use mctc_econv
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert
    implicit none
    real(wp), parameter :: rcmtoj = rcmtoau*autokj*1000.0_wp
    real(wp), parameter :: avogadro = 6.0221413e23_wp ! 1/mol
@@ -526,4 +526,4 @@ pure elemental function chg_inverted(f,sthr) result(omega)
 
 end function chg_inverted
 
-end module thermo
+end module xtb_thermo

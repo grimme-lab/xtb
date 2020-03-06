@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module tbpar_dftd4
+module xtb_disp_dftd4param
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants, only : pi
+   use xtb_mctc_constants, only : pi
    implicit none
    public
 
@@ -70,4 +70,4 @@ module tbpar_dftd4
 
    include 'param_ref.inc'
 
-end module tbpar_dftd4
+end module xtb_disp_dftd4param

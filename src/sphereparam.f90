@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module sphereparam
+module xtb_sphereparam
    use xtb_mctc_accuracy, only : wp
    implicit none
    private :: wp
@@ -187,7 +187,7 @@ end subroutine getsphererad
 !! --------------------------------------------------------------[SAW1809]-
 !  new version
 subroutine get_sphere_radius_list(nat,at,xyz,nlist,list,center,radius,do_trafo)
-   use axis_trafo, only : axis3
+   use xtb_axis, only : axis3
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -237,8 +237,8 @@ subroutine get_sphere_radius_list(nat,at,xyz,nlist,list,center,radius,do_trafo)
 end subroutine get_sphere_radius_list
 
 subroutine get_sphere_radius_fragment(nat,at,xyz,center,fragment,radius,do_trafo)
-   use axis_trafo, only : axis3
-   use splitparam
+   use xtb_axis, only : axis3
+   use xtb_splitparam
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -288,7 +288,7 @@ subroutine get_sphere_radius_fragment(nat,at,xyz,center,fragment,radius,do_trafo
 end subroutine get_sphere_radius_fragment
 
 subroutine get_sphere_radius_all(nat,at,xyz,center,radius,do_trafo)
-   use axis_trafo, only : axis3
+   use xtb_axis, only : axis3
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -338,7 +338,7 @@ end subroutine get_sphere_radius_all
 !! ========================================================================
 subroutine logfermi_cavity_list(nat,at,xyz,nlist,list,temp,alpha,center,radius,&
    &                            efix,gfix)
-   use mctc_constants, only : kB
+   use xtb_mctc_constants, only : kB
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -374,8 +374,8 @@ end subroutine logfermi_cavity_list
 
 subroutine logfermi_cavity_frag(nat,at,xyz,fragment,temp,alpha,center,radius,&
    &                            efix,gfix)
-   use mctc_constants, only : kB
-   use splitparam
+   use xtb_mctc_constants, only : kB
+   use xtb_splitparam
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -410,7 +410,7 @@ end subroutine logfermi_cavity_frag
 
 subroutine logfermi_cavity_all(nat,at,xyz,temp,alpha,center,radius,&
    &                           efix,gfix)
-   use mctc_constants, only : kB
+   use xtb_mctc_constants, only : kB
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -444,7 +444,7 @@ end subroutine logfermi_cavity_all
 !! ========================================================================
 subroutine polynomial_cavity_list(nat,at,xyz,nlist,list,alpha,center,radius,&
    &                              efix,gfix)
-   use mctc_constants, only : kB
+   use xtb_mctc_constants, only : kB
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -478,8 +478,8 @@ end subroutine polynomial_cavity_list
 
 subroutine polynomial_cavity_frag(nat,at,xyz,fragment,alpha,center,radius,&
    &                              efix,gfix)
-   use mctc_constants, only : kB
-   use splitparam
+   use xtb_mctc_constants, only : kB
+   use xtb_splitparam
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -512,7 +512,7 @@ end subroutine polynomial_cavity_frag
 
 subroutine polynomial_cavity_all(nat,at,xyz,alpha,center,radius,&
    &                             efix,gfix)
-   use mctc_constants, only : kB
+   use xtb_mctc_constants, only : kB
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -544,7 +544,7 @@ end subroutine polynomial_cavity_all
 !! ========================================================================
 !  energy and gradient of the wall potentials
 subroutine cavity_egrad(nat,at,xyz,efix,gfix)
-   use mctc_constants, only : kB
+   use xtb_mctc_constants, only : kB
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -682,4 +682,4 @@ subroutine cavitye(n,xyz,e)
    endif
 
 end subroutine cavitye
-end module sphereparam
+end module xtb_sphereparam

@@ -15,16 +15,16 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module grad_core
+module xtb_grad_core
    use xtb_mctc_accuracy, only : wp
 
-   use mctc_la
+   use xtb_mctc_la
 
 !! ========================================================================
-!  we use the complete scc_core, so we inherit all interfaces and all
+!  we use the complete xtb_scc_core, so we inherit all interfaces and all
 !  parameters. Therefore, we don't need to declare them again, note that
-!  by including the grad_core you also inherit the scc_core!
-   use scc_core
+!  by including the xtb_grad_core you also inherit the xtb_scc_core!
+   use xtb_scc_core
 
    implicit none
 
@@ -37,7 +37,7 @@ contains
 !  matrix
 !! ========================================================================
 subroutine prep_grad_conv(ndim,H0,H1,C,focc,emo,X)
-   use mctc_econv, only : autoev,evtoau
+   use xtb_mctc_convert, only : autoev,evtoau
    implicit none
    integer, intent(in)    :: ndim
    real(wp),intent(inout) :: H0(ndim*(ndim+1)/2)
@@ -122,8 +122,8 @@ end subroutine poly_grad
 subroutine hcn_grad_gfn1(g,n,at,ndim,nmat2,matlist2,xyz, &
    &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2)
-   use mctc_econv, only : autoev,evtoau
-   use aoparam
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_aoparam
    implicit none
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
@@ -217,8 +217,8 @@ end subroutine hcn_grad_gfn1
 subroutine hcn_grad_gfn2(g,n,at,ndim,nmat2,matlist2,xyz, &
    &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2,aoexp)
-   use mctc_econv, only : autoev,evtoau
-   use aoparam
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_aoparam
    implicit none
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
@@ -314,7 +314,7 @@ end subroutine hcn_grad_gfn2
 !  derivative of the CM5 additional term for GBSA in GFN1
 !! ========================================================================
 subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
-   use mctc_econv, only : autoev,evtoau
+   use xtb_mctc_convert, only : autoev,evtoau
    implicit none
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in)    :: n
@@ -342,7 +342,7 @@ end subroutine cm5_grad_gfn1
 !  repulsion gradient of GFN1
 !! ========================================================================
 subroutine rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
-   use aoparam, only : rep
+   use xtb_aoparam, only : rep
    implicit none
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(out)   :: ep
@@ -408,7 +408,7 @@ end subroutine rep_grad_gfn1
 !  repulsion gradient of GFN2
 !! ========================================================================
 subroutine rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
-   use aoparam, only : rep
+   use xtb_aoparam, only : rep
    implicit none
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(out)   :: ep
@@ -482,7 +482,7 @@ end subroutine rep_grad_gfn2
 !  shellwise electrostatic gradient for GFN1
 !! ========================================================================
 subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    implicit none
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
@@ -536,7 +536,7 @@ end subroutine shelles_grad_gfn1
 !  shellwise electrostatic gradient for GFN2
 !! ========================================================================
 subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    implicit none
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
@@ -618,8 +618,8 @@ end subroutine dhdr
 !  derivative of S(R) enhancement factor
 !! ========================================================================
 pure subroutine drfactor(ish,jsh,iat,ati,atj,rab2,xyz1,xyz2,rf,dxyz)
-   use mctc_econv
-   use aoparam, only : rad,polyr
+   use xtb_mctc_convert
+   use xtb_aoparam, only : rad,polyr
    implicit none
    integer,intent(in)  :: ati,atj,ish,jsh,iat
    real(wp), intent(in)  :: rab2
@@ -659,4 +659,4 @@ pure subroutine drfactor(ish,jsh,iat,ati,atj,rab2,xyz1,xyz2,rf,dxyz)
 
 end subroutine drfactor
 
-end module grad_core
+end module xtb_grad_core

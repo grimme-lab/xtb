@@ -24,9 +24,9 @@
 subroutine rdcoord(fname,n,xyz,iat)
    use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use mctc_systools
-   use set_module
+   use xtb_mctc_convert
+   use xtb_mctc_systools
+   use xtb_setmod
    implicit none
 
    character(len=*),intent(in) :: fname
@@ -103,7 +103,7 @@ end subroutine rdcoord
 
 subroutine rdatomnumber(fname,n)
    use iso_fortran_env, only : wp => real64
-   use mctc_econv, only : aatoau
+   use xtb_mctc_convert, only : aatoau
    implicit none
    character(len=*) :: fname
    integer,intent(out) :: n
@@ -229,7 +229,7 @@ end subroutine readline
 
 subroutine rdxyz(fname,n,xyz)
    use iso_fortran_env, only : wp => real64
-   use mctc_econv, only : aatoau
+   use xtb_mctc_convert, only : aatoau
    implicit real(wp) (a-h,o-z)
    integer, intent(in)  :: n
    real(wp),intent(out) :: xyz(3,n)
@@ -266,9 +266,9 @@ end subroutine rdxyz
 
 subroutine rdsdf(fname,n,xyz,iat)
    use iso_fortran_env, only : wp => real64
-   use mctc_econv
-   use mctc_systools
-   use set_module
+   use xtb_mctc_convert
+   use xtb_mctc_systools
+   use xtb_setmod
    implicit none
    integer, intent(inout) :: n
    real(wp),intent(out) :: xyz(3,n)
@@ -321,9 +321,9 @@ subroutine rdsdf(fname,n,xyz,iat)
 end subroutine rdsdf
 
 subroutine pbcrdcoord(fname,lattice,n,xyz,iat)
-  use mctc_strings
-  use mctc_systools
-  use set_module
+  use xtb_mctc_strings
+  use xtb_mctc_systools
+  use xtb_setmod
   implicit none             
 
   real*8                :: xyz(3,*)
@@ -433,8 +433,8 @@ subroutine pbcrdcoord(fname,lattice,n,xyz,iat)
 end subroutine pbcrdcoord
 
 subroutine pbcrdatomnumber(fname,n)
-  use mctc_strings
-  use mctc_systools
+  use xtb_mctc_strings
+  use xtb_mctc_systools
   implicit none
 
   integer, INTENT(out)               :: n 

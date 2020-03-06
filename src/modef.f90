@@ -15,10 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module modef
+module xtb_modef
    use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
-   use single, only : singlepoint
+   use xtb_single, only : singlepoint
 contains
    ! mode following routine for conformational searches or 1D-anharmonic calc
    ! thres types of operation:
@@ -30,15 +30,15 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    use xtb_mctc_accuracy, only : wp
    use iso_c_binding, only : c_null_char
 
-   use mctc_econv, only : autokcal, aatoau, autorcm, amutoau
+   use xtb_mctc_convert, only : autokcal, aatoau, autorcm, amutoau
 
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
    use xtb_type_data
 
-   use setparam
-   use splitparam
+   use xtb_setparam
+   use xtb_splitparam
 
    implicit none
    intrinsic date_and_time
@@ -563,5 +563,5 @@ subroutine writeuu(wr,n3,d,uu,nprj)
 
 end subroutine writeuu
 
-end module modef
+end module xtb_modef
 

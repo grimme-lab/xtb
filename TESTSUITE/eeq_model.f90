@@ -3,11 +3,11 @@ subroutine test_eeq_model_water
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_param
-   use ncoord
-   use eeq_model
+   use xtb_disp_ncoord
+   use xtb_eeq
    implicit none
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
@@ -78,12 +78,12 @@ subroutine test_eeq_model_ewald
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_param
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 6
@@ -248,12 +248,12 @@ subroutine test_eeq_model_gbsa
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_param
-   use gbobc
-   use ncoord
-   use eeq_model
+   use xtb_solv_gbobc
+   use xtb_disp_ncoord
+   use xtb_eeq
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -380,12 +380,12 @@ subroutine test_eeq_model_salt
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_param
-   use gbobc
-   use ncoord
-   use eeq_model
+   use xtb_solv_gbobc
+   use xtb_disp_ncoord
+   use xtb_eeq
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp

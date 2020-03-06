@@ -16,9 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> @brief helper tools for periodic boundary conditions
-module pbc_tools
+module xtb_pbc_tools
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants,  only : pi
+   use xtb_mctc_constants,  only : pi
 ! ---------------------------> IMPORTANT <--------------------------- !
 !  DO NOT INCLUDE ANY DERIVED TYPES FROM THE TBDEFS INTO THIS MODULE  !
 !   features that need to work on the tbdefs should go into pbc.f90   !
@@ -435,4 +435,4 @@ pure subroutine sigma_to_latgrad(sigma,inv_lat,latgrad)
 
 end subroutine sigma_to_latgrad
 
-end module pbc_tools
+end module xtb_pbc_tools

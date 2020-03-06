@@ -4,7 +4,7 @@ subroutine test_gfn1_scc
 
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -13,11 +13,11 @@ subroutine test_gfn1_scc
    use xtb_type_data
    use xtb_type_pcem
 
-   use setparam
-   use aoparam
-   use xbasis
-   use scf_module
-   use scc_core
+   use xtb_setparam
+   use xtb_aoparam
+   use xtb_basis
+   use xtb_scf
+   use xtb_scc_core
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -124,7 +124,7 @@ subroutine test_gfn1_api
 
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -132,7 +132,7 @@ subroutine test_gfn1_api
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -196,7 +196,7 @@ subroutine test_gfn1gbsa_api
 
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -204,7 +204,7 @@ subroutine test_gfn1gbsa_api
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -269,7 +269,7 @@ subroutine test_gfn1_pcem_api
 
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -277,9 +277,9 @@ subroutine test_gfn1_pcem_api
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use aoparam
+   use xtb_aoparam
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -354,7 +354,7 @@ subroutine test_gfn1_pcem_api
 
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)
-   ! gam from aoparam is now filled with GFN1-xTB hardnesses
+   ! gam from xtb_aoparam is now filled with GFN1-xTB hardnesses
    pcem%gam = gam(at(nat2+1:))
    pcem%q   = q
    pcem%grd = 0.0_wp
@@ -413,7 +413,7 @@ subroutine test_gfn1_xb
 
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -421,7 +421,7 @@ subroutine test_gfn1_xb
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 

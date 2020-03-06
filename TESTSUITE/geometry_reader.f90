@@ -3,7 +3,7 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_poscar_sio2_3d = &
       & '("Si  O ",/,&
@@ -51,7 +51,7 @@ subroutine test_geometry_reader_file_xmol_water_0d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_xmol_water_0d = &
       & '("9",/,&
@@ -91,7 +91,7 @@ subroutine test_geometry_reader_file_coord_general_0d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_general_0d_p1 = &
       & '("$coord",/,&
@@ -181,7 +181,7 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaF2_3d = &
       & '("$coord frac",/,&
@@ -233,7 +233,7 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaMgCO_3d = &
       & '("$cell",/,&
@@ -279,7 +279,7 @@ subroutine test_geometry_reader_file_coord_C_2d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_2d = &
@@ -304,7 +304,7 @@ subroutine test_geometry_reader_file_coord_C_1d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_1d = &
@@ -363,7 +363,7 @@ subroutine test_geometry_reader_molfile_benzen_flat
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_mol_benzen_2d = '(/,&
       & "  Mrv1823 10191918342D          ",/,/,&
@@ -408,7 +408,7 @@ subroutine test_geometry_reader_molfile_benzen
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_mol_benzen = '(/,&
       & "  Mrv1823 10191918163D          ",/,/,&
@@ -460,7 +460,7 @@ subroutine test_geometry_reader_file_sdf_h2o
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_h2o = '(&
       & "962",/,&
@@ -517,7 +517,7 @@ subroutine test_geometry_reader_file_sdf_benzen_hquery
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_benzen = '(&
       & "benzen",/,&
@@ -553,7 +553,7 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_h2o = '(&
       & "water",/,&
@@ -585,7 +585,7 @@ subroutine test_geometry_reader_file_pdb_4qxx_noh
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_pdb_4qxx_p1 = '(&
       & "HEADER    PROTEIN FIBRIL                          22-JUL-14   4QXX",/,&
@@ -660,7 +660,7 @@ subroutine test_geometry_reader_file_pdb_4qxx
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_pdb_4qxx_p1 = '(&
       & "HEADER    PROTEIN FIBRIL                          22-JUL-14   4QXX",/,&
@@ -791,7 +791,7 @@ subroutine test_geometry_reader_file_gen
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use assertion
-   use tbmod_file_utils
+   use xtb_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_gen_3518_40 = '(&
       & "11 C",/,&

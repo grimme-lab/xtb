@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !! ------------------------------------------------------------------------
-module intpack
+module xtb_intpack
    use xtb_mctc_accuracy, only : wp
 
 contains
@@ -1517,4 +1517,4 @@ end subroutine fmc
       end
 
 
-end module intpack
+end module xtb_intpack

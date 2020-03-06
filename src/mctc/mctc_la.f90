@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_la
+module xtb_mctc_la
    implicit none
 
 interface syev
@@ -794,4 +794,4 @@ function dsyluinv(Amat,m) result(info)
 
 end function dsyluinv
 
-end module mctc_la
+end module xtb_mctc_la

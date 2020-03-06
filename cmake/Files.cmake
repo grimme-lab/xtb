@@ -5,12 +5,19 @@ set(XTB_SOURCES
 
   # MCTC library
   "${XTB_ROOT}/src/mctc/accuracy.f90"
+  "${XTB_ROOT}/src/mctc/boundaryconditions.f90"
+  "${XTB_ROOT}/src/mctc/chartools.f90"
+  "${XTB_ROOT}/src/mctc/convert.f90"
+  "${XTB_ROOT}/src/mctc/filetypes.f90"
   "${XTB_ROOT}/src/mctc/io.f90"
+  "${XTB_ROOT}/src/mctc/math.f90"
+  "${XTB_ROOT}/src/mctc/resize.f90"
+  "${XTB_ROOT}/src/mctc/runtypes.f90"
+  "${XTB_ROOT}/src/mctc/symbols.f90"
   "${XTB_ROOT}/src/mctc/mctc_global.f90"
   "${XTB_ROOT}/src/mctc/mctc_systools.f90"
   "${XTB_ROOT}/src/mctc/mctc_strings.f90"
   "${XTB_ROOT}/src/mctc/mctc_constants.f90"
-  "${XTB_ROOT}/src/mctc/mctc_econv.f90"
   "${XTB_ROOT}/src/mctc/mctc_param.f90"
   "${XTB_ROOT}/src/mctc/param/atomic_masses.f90"
   "${XTB_ROOT}/src/mctc/param/chemical_hardnesses.f90"
@@ -22,7 +29,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/mctc/mctc_filetools.f90"
   "${XTB_ROOT}/src/mctc/mctc_la.f90"
   "${XTB_ROOT}/src/mctc/mctc_init.f90"
-  "${XTB_ROOT}/src/mctc/mctc_resize_arrays.f90"
   "${XTB_ROOT}/src/mctc/mctc_logging.f90"
   "${XTB_ROOT}/src/mctc/error.f90"
   "${XTB_ROOT}/src/mctc/signal.c"
@@ -58,7 +64,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/setparam.f90"
 
   # Header and I/O
-  "${XTB_ROOT}/src/symbols.f90"
   "${XTB_ROOT}/src/output_writer.f90"
   "${XTB_ROOT}/src/readin.f90"
   "${XTB_ROOT}/src/filetools.f90"
@@ -88,10 +93,15 @@ set(XTB_SOURCES
 
   # Parameters
   "${XTB_ROOT}/src/gfn_paramset.f90"
-  "${XTB_ROOT}/src/dftd3_parameters.f90"
-  "${XTB_ROOT}/src/dftd4_parameters.f90"
+  "${XTB_ROOT}/src/disp/dftd3_parameters.f90"
+  "${XTB_ROOT}/src/disp/dftd4_parameters.f90"
   "${XTB_ROOT}/src/setwll.f"
   "${XTB_ROOT}/src/charge_model.f90"
+  "${XTB_ROOT}/src/param/atomicmass.f90"
+  "${XTB_ROOT}/src/param/atomicrad.f90"
+  "${XTB_ROOT}/src/param/covalentradd3.f90"
+  "${XTB_ROOT}/src/param/paulingen.f90"
+  "${XTB_ROOT}/src/param/vdwradd3.f90"
 
   # Initial guess
   "${XTB_ROOT}/src/iniq.f90"
@@ -103,14 +113,14 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/gauss.f90"
 
   # Dispersion
-  "${XTB_ROOT}/src/ncoord.f90"
-  "${XTB_ROOT}/src/dftd3.f"
-  "${XTB_ROOT}/src/dftd4.f90"
+  "${XTB_ROOT}/src/disp/ncoord.f90"
+  "${XTB_ROOT}/src/disp/dftd3.f"
+  "${XTB_ROOT}/src/disp/dftd4.f90"
   "${XTB_ROOT}/src/dispplot.f90"
 
   # Continuum solvation
-  "${XTB_ROOT}/src/gbobc.f90"
-  "${XTB_ROOT}/src/cm5.f90"
+  "${XTB_ROOT}/src/solv/gbobc.f90"
+  "${XTB_ROOT}/src/solv/cm5.f90"
 
   # SCC
   # integrals and electrostatics
@@ -172,7 +182,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/thermo.f90"
   "${XTB_ROOT}/src/constr.f"
   "${XTB_ROOT}/src/getsymnum.f90"
-  "${XTB_ROOT}/src/grid_module.f90"
+  "${XTB_ROOT}/src/solv/grid_module.f90"
   "${XTB_ROOT}/src/qmdff.f90"
   "${XTB_ROOT}/src/qmexternal.f90"
   "${XTB_ROOT}/src/qcextern.f90"

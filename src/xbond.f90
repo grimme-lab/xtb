@@ -43,9 +43,9 @@ end function xbond
 
 subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv, only : aatoau
-   use aoparam
-   use lin_mod, only : lin
+   use xtb_mctc_convert, only : aatoau
+   use xtb_aoparam
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)

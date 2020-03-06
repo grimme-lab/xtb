@@ -68,8 +68,8 @@ subroutine main_json &
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
-   use setparam
-   use aoparam
+   use xtb_setparam
+   use xtb_aoparam
 
    implicit none
 
@@ -109,7 +109,7 @@ subroutine write_json_header(ijson)
 end subroutine write_json_header
 
 subroutine write_json_footer(ijson)
-   use setparam
+   use xtb_setparam
    include 'xtb_version.fh'
    integer,intent(in) :: ijson
    character(len=:),allocatable :: cmdline

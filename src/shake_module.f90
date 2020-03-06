@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module shake_module
+module xtb_shake
    use xtb_mctc_accuracy, only : wp
-   use setparam, only: xhonly,shake_mode
+   use xtb_setparam, only: xhonly,shake_mode
    implicit none
    integer, parameter :: ndim = 100000
    !integer :: shake_mode
@@ -34,8 +34,8 @@ module shake_module
 contains
 
 subroutine init_shake(nat,at,xyz,wbo)
-   use aoparam
-   use fixparam, only : shakeset
+   use xtb_aoparam
+   use xtb_fixparam, only : shakeset
    implicit none
    integer :: nat,at(nat)
    integer :: nbond
@@ -233,4 +233,4 @@ subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep)
    return
 end subroutine do_shake
 
-end module shake_module
+end module xtb_shake

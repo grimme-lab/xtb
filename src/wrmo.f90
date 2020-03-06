@@ -17,7 +17,7 @@
 
 subroutine write_tm_mos(iunit,n,at,basis,wfn)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    use xtb_type_wavefunction
    use xtb_type_basisset
    implicit none

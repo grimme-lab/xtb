@@ -17,9 +17,9 @@
 
 !> implementation of different relaxation procedures, every relax algorithm
 !  comes with its own parameter class (most are general parameters like thresholds)
-module relaxation_engine
+module xtb_relaxation_engine
    use xtb_mctc_accuracy, only : wp, sp
-   use mctc_econv, only : fstoau, amutoau
+   use xtb_mctc_convert, only : fstoau, amutoau
    implicit none
    private :: wp
    !> precision of the rational function step (usually single instead of double)
@@ -126,7 +126,7 @@ subroutine fire &
       &   (iunit,ilog,mol,wfn,calc, &
       &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail)
 
-   use mctc_econv
+   use xtb_mctc_convert
 
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -134,15 +134,15 @@ subroutine fire &
    use xtb_type_data
    use xtb_type_timer
 
-   use setparam
+   use xtb_setparam
 
-   use tbmod_file_utils
-   use single
-   use optimizer
-   use axis_trafo
-   use hessian
-   use ls_rmsd
-   use pbc_tools
+   use xtb_file_utils
+   use xtb_single
+   use xtb_optimizer
+   use xtb_axis
+   use xtb_hessian
+   use xtb_lsrmsd
+   use xtb_pbc_tools
 
    implicit none
 
@@ -371,7 +371,7 @@ subroutine l_ancopt &
       &   (iunit,ilog,mol,wfn,calc, &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
 
-   use mctc_econv
+   use xtb_mctc_convert
 
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -379,14 +379,14 @@ subroutine l_ancopt &
    use xtb_type_data
    use xtb_type_timer
 
-   use setparam
+   use xtb_setparam
 
-   use tbmod_file_utils
-   use single
-   use optimizer
-   use axis_trafo
-   use hessian
-   use ls_rmsd
+   use xtb_file_utils
+   use xtb_single
+   use xtb_optimizer
+   use xtb_axis
+   use xtb_hessian
+   use xtb_lsrmsd
 
    implicit none
 
@@ -758,10 +758,10 @@ subroutine lbfgs_relax &
    use xtb_type_data
    use xtb_type_timer
 
-   use setparam
+   use xtb_setparam
 
-   use single
-   use optimizer
+   use xtb_single
+   use xtb_optimizer
 
    implicit none
 
@@ -1011,7 +1011,7 @@ subroutine inertial_relax &
       &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
-   use mctc_econv
+   use xtb_mctc_convert
 
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -1019,10 +1019,10 @@ subroutine inertial_relax &
    use xtb_type_data
    use xtb_type_timer
 
-   use setparam
+   use xtb_setparam
 
-   use single
-   use pbc_tools
+   use xtb_single
+   use xtb_pbc_tools
 
    implicit none
 
@@ -1427,4 +1427,4 @@ pure function bool2string(bool) result(string)
    endif
 end function bool2string
 
-end module relaxation_engine
+end module xtb_relaxation_engine

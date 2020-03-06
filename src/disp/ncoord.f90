@@ -39,7 +39,7 @@
 !     real(wp),intent(in),optional :: thr
 !  end interface
 !! ========================================================================
-module ncoord
+module xtb_disp_ncoord
    use xtb_mctc_accuracy, only : wp
    implicit none
 
@@ -377,9 +377,9 @@ end subroutine dncoord_d3
 
 ! gradients for pbc coordination number with exp function
 pure subroutine pbc_dncoord_d3(nat,at,xyz,lat,cn,dcndr,dcndL,thr)
-   use mctc_constants
-   use pbc_tools
-   use pbc, only : get_realspace_cutoff
+   use xtb_mctc_constants
+   use xtb_pbc_tools
+   use xtb_pbc, only : get_realspace_cutoff
 
    implicit none
 
@@ -629,7 +629,7 @@ end subroutine ncoord_d4
 !  PARAMETERS: k1,k2,k4,k5,k6
 !  NOTE: k2 is already included in rcov
 pure subroutine dncoord_d4(nat,at,xyz,cn,dcndr,thr)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -680,9 +680,9 @@ end subroutine dncoord_d4
 
 ! same for the pbc case
 pure subroutine pbc_ncoord_d4(nat,at,xyz,lat,cn,thr)
-   use mctc_constants
-   use pbc_tools
-   use pbc, only : get_realspace_cutoff
+   use xtb_mctc_constants
+   use xtb_pbc_tools
+   use xtb_pbc, only : get_realspace_cutoff
    implicit none
 
    integer, intent(in)  :: nat
@@ -748,9 +748,9 @@ end subroutine pbc_ncoord_d4
 
 ! same for the pbc case
 pure subroutine pbc_dncoord_d4(nat,at,xyz,lat,cn,dcndr,dcndL,thr)
-   use mctc_constants
-   use pbc_tools
-   use pbc, only : get_realspace_cutoff
+   use xtb_mctc_constants
+   use xtb_pbc_tools
+   use xtb_pbc, only : get_realspace_cutoff
    implicit none
 
    integer, intent(in)  :: nat
@@ -953,7 +953,7 @@ end subroutine dncoord_gfn
 
 ! pbc coordination number with error function
 pure subroutine pbc_erfcoord(nat,at,xyz,lat,cn,thr)
-   use pbc, only : get_realspace_cutoff
+   use xtb_pbc, only : get_realspace_cutoff
 
    implicit none
 
@@ -1021,9 +1021,9 @@ end subroutine pbc_erfcoord
 
 ! gradients for pbc coordination number with error function
 pure subroutine pbc_derfcoord(nat,at,xyz,lat,cn,dcndr,dcndL,thr)
-   use mctc_constants
-   use pbc_tools
-   use pbc, only : get_realspace_cutoff
+   use xtb_mctc_constants
+   use xtb_pbc_tools
+   use xtb_pbc, only : get_realspace_cutoff
 
    implicit none
 
@@ -1167,7 +1167,7 @@ pure elemental function erf_count(k,r,r0) result(count)
 end function erf_count
 
 pure elemental function derf_count(k,r,r0) result(count)
-   use mctc_constants
+   use xtb_mctc_constants
    real(wp), intent(in) :: k
    real(wp), intent(in) :: r
    real(wp), intent(in) :: r0
@@ -1193,4 +1193,4 @@ pure elemental function dexp_count(k,r,r0) result(count)
    count = (-k*r0*expterm)/(r**2*((expterm+1._wp)**2))
 end function dexp_count
 
-end module ncoord
+end module xtb_disp_ncoord

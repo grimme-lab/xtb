@@ -32,8 +32,8 @@ end subroutine main_geometry
 
 subroutine print_pbcsum(iunit,mol)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    use xtb_type_molecule
    implicit none
    integer, intent(in)  :: iunit
@@ -115,12 +115,12 @@ end subroutine print_pbcsum
 
 subroutine print_geosum(iunit,n,at,xyz)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use mctc_econv
-   use setparam
-   use splitparam
-   use ncoord
-   use approxrab
+   use xtb_mctc_constants
+   use xtb_mctc_convert
+   use xtb_setparam
+   use xtb_splitparam
+   use xtb_disp_ncoord
+   use xtb_approxrab
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -206,7 +206,7 @@ end subroutine print_geosum
 
 subroutine print_elem_dist(iunit,n,nbond,bond,dist,maxd,mind)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -236,7 +236,7 @@ end subroutine print_elem_dist
  
 subroutine print_distances(iunit,n,at,ndist,dist,id)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -276,7 +276,7 @@ end subroutine print_distances
 
 subroutine print_angles(iunit,n,at,nbend,bend,ib)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -309,7 +309,7 @@ end subroutine print_angles
 
 subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -506,7 +506,7 @@ end subroutine calc_torsions
 
 subroutine get_bonds(n,at,xyz,bond)
    use xtb_mctc_accuracy, only : wp
-   use mctc_param, only: rad => covalent_radius_2009
+   use xtb_mctc_param, only: rad => covalent_radius_2009
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -540,7 +540,7 @@ end subroutine get_bonds
 
 subroutine print_moments(iunit,n,atmass,xyz)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -564,8 +564,8 @@ contains
 
 pure function moments_of_inertia(n,atmass,xyz) result(moments)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
-   use mctc_econv
+   use xtb_mctc_la
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: atmass(n)
@@ -614,7 +614,7 @@ end function center_of_mass
 
 pure function molecular_mass(n,atmass) result(molmass)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in) :: n
    real(wp),intent(in) :: atmass(n)

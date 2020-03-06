@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !----------------------------------------------------------------------------------------------
-! module lidep
+! module xtb_lineardep
 !
 ! Contains some routines related to problems that can arise due to
 ! linear dependencies in the basis set, i.e., if any of the eigenvalues
@@ -30,10 +30,10 @@
 !
 ! P.Pracht, May 2019
 !----------------------------------------------------------------------------------------------
-module lidep
+module xtb_lineardep
    use xtb_mctc_accuracy, only : wp
-   use mctc_la, only : sygvd,gemm,symm
-   use setparam , only: lidethr
+   use xtb_mctc_la, only : sygvd,gemm,symm
+   use xtb_setparam , only: lidethr
    implicit none
 
    !real(wp) :: lidethr    ! cut-off threshold for small overlap eigenvalues
@@ -571,4 +571,4 @@ end subroutine orthgsolve2
 
 !----------------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------------
-end module lidep
+end module xtb_lineardep

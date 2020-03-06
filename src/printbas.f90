@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine printbas(n,at)
-  use aoparam
+  use xtb_aoparam
   implicit none
 
   integer n,at(n),nn(94),i,j,l
@@ -53,7 +53,7 @@ end subroutine printbas
 
 
 subroutine printbas2(n,at)
-  use aoparam
+  use xtb_aoparam
   implicit none
 
   integer n,at(n),nn(94),i,j,l

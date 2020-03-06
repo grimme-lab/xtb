@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module tbpar_dftd3
+module xtb_disp_dftd3param
    use xtb_mctc_accuracy, only : wp
    implicit none
    public
@@ -22650,4 +22650,4 @@ pure subroutine copy_c6(c6ab)
 
 end subroutine copy_c6
 
-end module tbpar_dftd3
+end module xtb_disp_dftd3param

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module optimizer
+module xtb_optimizer
    use xtb_mctc_accuracy, only : wp, sp
 
    logical,private,parameter :: profile = .true.
@@ -23,7 +23,7 @@ module optimizer
 contains
 
 subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
-   use setparam
+   use xtb_setparam
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: olev
@@ -88,8 +88,8 @@ end subroutine get_optthr
 
 subroutine ancopt(iunit,ilog,mol,wfn,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
-   use mctc_econv
-   use mctc_la
+   use xtb_mctc_convert
+   use xtb_mctc_la
 
    use xtb_type_molecule
    use xtb_type_anc
@@ -98,18 +98,18 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    use xtb_type_data
    use xtb_type_timer
 
-   use aoparam
-   use setparam
-   use fixparam
+   use xtb_aoparam
+   use xtb_setparam
+   use xtb_fixparam
 
-   use set_module, only : int2optlevel
+   use xtb_setmod, only : int2optlevel
 
-   use single, only : singlepoint
-   use axis_trafo, only : axis2
-   use hessian, only : trproj,rdhess
-   use readin
-   use ls_rmsd
-   use write_geometry
+   use xtb_single, only : singlepoint
+   use xtb_axis, only : axis2
+   use xtb_hessian, only : trproj,rdhess
+   use xtb_readin
+   use xtb_lsrmsd
+   use xtb_writegeometry
 
    implicit none
 
@@ -421,8 +421,8 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_data
    use xtb_type_timer
 
-   use single, only : singlepoint
-   use tbmod_file_utils
+   use xtb_single, only : singlepoint
+   use xtb_file_utils
 
    implicit none
 
@@ -678,7 +678,7 @@ end subroutine relax
 
 pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
    use iso_fortran_env, wp => real32
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    integer, intent(in)    :: n
    real(wp),intent(in)    :: thr
@@ -707,7 +707,7 @@ end subroutine solver_ssyevx
 
 pure subroutine solver_sspevx(n,thr,A,U,e,fail)
    use iso_fortran_env, wp => real32
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    integer, intent(in)    :: n
    real(wp),intent(in)    :: thr
@@ -838,7 +838,7 @@ end subroutine prdechng
 
 
 subroutine trfp2xyz(nvar,nat3,p,xyz0,h,dspl)
-   use symparam
+   use xtb_symparam
    implicit none
    integer, intent(in)  :: nat3
    integer, intent(in)  :: nvar
@@ -922,7 +922,7 @@ subroutine prdispl(nvar,displ)
 end subroutine prdispl
 
 subroutine wrlog(ilog,n,xyz,iat,e,g,first)
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: iat(n)
@@ -946,7 +946,7 @@ subroutine wrlog(ilog,n,xyz,iat,e,g,first)
 end subroutine wrlog
 
 subroutine wrlog2(io,n,xyz,iat,e)
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: io
    integer, intent(in)  :: n
@@ -968,8 +968,8 @@ end subroutine wrlog2
 
 subroutine modhes(iunit, modh, natoms, xyz, chg, Hess, pr)
    use xtb_type_setvar
-   use model_hessian
-   use setparam
+   use xtb_modelhessian
+   use xtb_setparam
 !
 !       generates a Lindh Model Hessian
 !       Chem. Phys. Let. 241(1995) 423-428
@@ -1019,7 +1019,7 @@ end subroutine modhes
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine itochess(nvar,nat3,b,hess,fc)
-   use mctc_la, only : gemm
+   use xtb_mctc_la, only : gemm
    implicit none
    integer, intent(in)  :: nvar
    integer, intent(in)  :: nat3
@@ -1063,7 +1063,7 @@ subroutine itochess(nvar,nat3,b,hess,fc)
 end subroutine itochess
 
 subroutine read_hessian(ihess, ndim, hessian, error)
-   use mctc_systools
+   use xtb_mctc_systools
    implicit none
    integer, intent(in) :: ihess
    integer, intent(in) :: ndim
@@ -1081,5 +1081,5 @@ subroutine read_hessian(ihess, ndim, hessian, error)
       endif
    enddo
 end subroutine read_hessian
-end module optimizer
+end module xtb_optimizer
 

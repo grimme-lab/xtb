@@ -15,11 +15,11 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module axis_trafo
+module xtb_axis
    use xtb_mctc_accuracy, only : wp
 contains
   subroutine axis(numat,nat,xyz,aa,bb,cc)
-    use splitparam
+    use xtb_splitparam
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -113,7 +113,7 @@ contains
   end subroutine axis
 
   subroutine axis2(numat,nat,xyz,aa,bb,cc,avmom,sumw)
-    use splitparam
+    use xtb_splitparam
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -204,7 +204,7 @@ contains
   end subroutine axis2
 
   subroutine axisvec(numat,nat,xyz,aa,bb,cc,evec)
-    use splitparam
+    use xtb_splitparam
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -303,7 +303,7 @@ contains
 !*****************************************************************
 
    subroutine axis3(mode,numat,nat,coord,coordout,eig)
-      use splitparam
+      use xtb_splitparam
       implicit none
       integer, intent(in)  :: numat,nat(numat),mode
       real(wp),intent(in)  :: coord(3,numat)
@@ -390,4 +390,4 @@ contains
       return
    end subroutine axis3
 
-end module axis_trafo
+end module xtb_axis

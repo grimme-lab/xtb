@@ -4,10 +4,10 @@ program peeq_tester
 ! ------------------------------------------------------------------------
 !  general purpose library
 ! ------------------------------------------------------------------------
-   use mctc_global
-   use mctc_timings
-   use mctc_systools
-   use mctc_econv
+   use xtb_mctc_global
+   use xtb_mctc_timings
+   use xtb_mctc_systools
+   use xtb_mctc_convert
 
    implicit none
 

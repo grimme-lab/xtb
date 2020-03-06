@@ -17,8 +17,8 @@
 
 subroutine qpotini(natoms,iat,xyz)
    use xtb_mctc_accuracy, only : wp
-   use setparam
-   use fixparam
+   use xtb_setparam
+   use xtb_fixparam
    implicit none
    integer natoms,iat(natoms)
    real(wp) xyz(3,natoms)
@@ -51,7 +51,7 @@ end subroutine qpotini
 
 subroutine countfix(nat,nfix,fname)
    use iso_fortran_env, only : wp => real64
-   use mctc_strings, only : lowercase
+   use xtb_mctc_strings, only : lowercase
    implicit none
    real(wp) xx(10)
    integer n,nn,j,nat,k,nfix
@@ -87,7 +87,7 @@ end subroutine countfix
 
 subroutine rdfix(nat,n,xyz,iat,fname,fixed)
    use iso_fortran_env, only : wp => real64
-   use mctc_strings, only : lowercase
+   use xtb_mctc_strings, only : lowercase
    implicit none
    real(wp) xyz(3,*), xx(10)
    integer nat,iat(nat),n,nn,j,k,fixed(*)
@@ -161,7 +161,7 @@ end subroutine getf
 ! special routine for the Ln fit for Xrays
 subroutine fixmetal(n,iat,xyz)
    use iso_fortran_env, only : wp => real64
-   use fixparam
+   use xtb_fixparam
    implicit none
    integer n,iat(n),nb(0:20,n),nn,ifix(n)
    real(wp) xyz(3,n)

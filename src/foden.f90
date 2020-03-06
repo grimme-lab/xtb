@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine fodenmak(uhf,nmo,eps,occ,efermi)
-   use mctc_econv, only : autoev
+   use xtb_mctc_convert, only : autoev
    implicit none
    integer nmo
    logical uhf

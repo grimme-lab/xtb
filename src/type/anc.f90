@@ -127,7 +127,7 @@ end subroutine write_anc
 
 subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    class(tb_anc),intent(inout) :: self
    integer,      intent(in)    :: iunit
@@ -217,7 +217,7 @@ end subroutine generate_anc_blowup
 subroutine generate_anc_packed(self,xyz,hess,pr)
    use, intrinsic :: iso_fortran_env, only : iunit => output_unit
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    class(tb_anc),intent(inout) :: self
    real(wp),     intent(in)    :: xyz(3,self%n)
@@ -346,7 +346,7 @@ end subroutine sort
 
 pure subroutine get_cartesian(self,xyz)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    class(tb_anc),intent(in) :: self
    integer :: m,i,j,k

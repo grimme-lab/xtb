@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module xbasis
+module xtb_basis
    use xtb_mctc_accuracy, only : wp
    implicit none
 
@@ -23,7 +23,7 @@ contains
 
 subroutine xbasis_gfn1(n,at,basis,ok,diff)
    use xtb_type_basisset
-   use aoparam
+   use xtb_aoparam
    implicit none
    type(TBasisset),intent(inout) :: basis
    integer, intent(in)  :: n
@@ -339,7 +339,7 @@ end subroutine xbasis_gfn1
 
 subroutine xbasis_gfn2(n,at,basis,ok)
    use xtb_type_basisset
-   use aoparam
+   use xtb_aoparam
    implicit none
    type(TBasisset),intent(inout) :: basis
    integer, intent(in)  :: n
@@ -466,7 +466,7 @@ end subroutine xbasis_gfn2
 !> determine basisset limits
 subroutine xbasis0(n,at,basis)
    use xtb_type_basisset
-   use aoparam
+   use xtb_aoparam
    implicit none
    type(TBasisset),intent(inout) :: basis
    integer,intent(in)  :: n
@@ -485,7 +485,7 @@ end subroutine xbasis0
 
 subroutine dim_basis(n,at,nshell,nao,nbf)
    use xtb_type_basisset
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
@@ -538,7 +538,7 @@ end subroutine dim_basis
 
 subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
    use xtb_type_basisset
-   use aoparam
+   use xtb_aoparam
    implicit none
    type(TBasisset),intent(inout) :: basis
 
@@ -817,7 +817,7 @@ end subroutine xbasis_gfn0
 !  Helper functions
 
 subroutine atovlp(l,npri,nprj,alpa,alpb,conta,contb,ss)
-  use mctc_constants, only: pi
+  use xtb_mctc_constants, only: pi
   implicit none
   integer l,npri,nprj
   real(wp) alpa(*),alpb(*)
@@ -1061,4 +1061,4 @@ subroutine expand_sto(nprim,npq,l,zeta,alp,cont)
 
 end subroutine expand_sto
 
-end module xbasis
+end module xtb_basis

@@ -16,9 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine mctc_init(progname,ntimer,verbose)
-   use mctc_global
-   use mctc_timings
-   use mctc_filetools
+   use xtb_mctc_global
+   use xtb_mctc_timings
+   use xtb_mctc_filetools
    implicit none
    character(len=*),intent(in) :: progname
    integer,         intent(in) :: ntimer
@@ -49,23 +49,23 @@ subroutine mctc_init(progname,ntimer,verbose)
 !  initialize the filelist
    call init_filelist(20)
 
-!  set this for mctc_global
+!  set this for xtb_mctc_global
    name = progname
 
 end subroutine mctc_init
 
 subroutine mctc_sanity(sane)
-   use mctc_global
+   use xtb_mctc_global
    logical,intent(out) :: sane
    sane = good
 end subroutine mctc_sanity
 
 subroutine mctc_strict
-   use mctc_global
+   use xtb_mctc_global
    strict = .true.
 end subroutine mctc_strict
 
 subroutine mctc_mute
-   use mctc_global
+   use xtb_mctc_global
    mute = .true.
 end subroutine mctc_mute

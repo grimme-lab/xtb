@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module iniq
+module xtb_iniq
    use xtb_mctc_accuracy, only : wp
 implicit none
 
@@ -120,10 +120,10 @@ end subroutine iniqcn
 pure subroutine iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
 
 !  get data from parameter modules
-   use aoparam, only : en,metal
+   use xtb_aoparam, only : en,metal
 
 !  get interface to ncoord
-   use ncoord, only : ncoord_d3
+   use xtb_disp_ncoord, only : ncoord_d3
 
    implicit none
 
@@ -190,10 +190,10 @@ end subroutine iniqcn_vtb
 pure subroutine iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
 
 !  get data from parameter modules
-   use aoparam, only : en,metal
+   use xtb_aoparam, only : en,metal
 
 !  get interface to ncoord
-   use ncoord, only : ncoord_d3
+   use xtb_disp_ncoord, only : ncoord_d3
 
    implicit none
 
@@ -262,10 +262,10 @@ end subroutine iniqcn_gfn1
 pure subroutine iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
 
 !  get data from parameter modules
-   use aoparam, only : en,metal
+   use xtb_aoparam, only : en,metal
 
 !  get interface to ncoord
-   use ncoord, only : ncoord_gfn
+   use xtb_disp_ncoord, only : ncoord_gfn
 
    implicit none
 
@@ -330,7 +330,7 @@ end subroutine iniqcn_gfn2
 pure subroutine gasteiger_partition(nat,at,xyz,en,q)
 
 !  get data from parameter modules
-   use mctc_param, only : rcov => covalent_radius_d3
+   use xtb_mctc_param, only : rcov => covalent_radius_d3
 
    implicit none
 
@@ -357,4 +357,4 @@ pure subroutine gasteiger_partition(nat,at,xyz,en,q)
    enddo
 
 end subroutine gasteiger_partition
-end module iniq
+end module xtb_iniq

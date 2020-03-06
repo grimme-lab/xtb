@@ -14,7 +14,7 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
-submodule(tb_calculators) gfn0_calc_implementation
+submodule(xtb_calculators) gfn0_calc_implementation
    implicit none
 contains
 ! ========================================================================
@@ -23,8 +23,8 @@ module subroutine gfn0_calculation &
       (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
    use xtb_mctc_accuracy, only : wp
 
-   use mctc_systools
-   use mctc_logging
+   use xtb_mctc_systools
+   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -33,13 +33,13 @@ module subroutine gfn0_calculation &
    use xtb_type_param
    use xtb_type_data
 
-   use setparam, only : gfn_method, ngrida
-   use aoparam,  only : use_parameterset
+   use xtb_setparam, only : gfn_method, ngrida
+   use xtb_aoparam,  only : use_parameterset
 
-   use pbc_tools
-   use xbasis
-   use peeq_module
-   use gbobc
+   use xtb_pbc_tools
+   use xtb_basis
+   use xtb_peeq
+   use xtb_solv_gbobc
 
    implicit none
 

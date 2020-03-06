@@ -3,8 +3,8 @@ subroutine test_peeq_sp
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_systools
-   use mctc_logging
+   use xtb_mctc_systools
+   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -13,12 +13,12 @@ subroutine test_peeq_sp
    use xtb_type_param
    use xtb_type_data
 
-   use setparam, only : gfn_method
-   use aoparam,  only : use_parameterset
+   use xtb_setparam, only : gfn_method
+   use xtb_aoparam,  only : use_parameterset
 
-   use pbc_tools
-   use xbasis
-   use peeq_module
+   use xtb_pbc_tools
+   use xtb_basis
+   use xtb_peeq
 
    implicit none
 
@@ -171,14 +171,14 @@ subroutine test_peeq_api
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -248,15 +248,15 @@ subroutine test_peeq_api_srb
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
-   use mctc_econv
+   use xtb_mctc_logging
+   use xtb_mctc_convert
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 

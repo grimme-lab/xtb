@@ -25,8 +25,8 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine stmpic(n,nmo,nbf,at,xyz,C,efermi,emo,basis)
          use xtb_mctc_accuracy, only : wp
       use xtb_type_basisset
-      use setparam
-      use scc_core, only : dmat
+      use xtb_setparam
+      use xtb_scc_core, only : dmat
       use esp
       implicit none
       type(TBasisset), intent(in) :: basis
@@ -209,7 +209,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &                    basis)
          use xtb_mctc_accuracy, only : wp
       use xtb_type_basisset
-      use intpack
+      use xtb_intpack
       use esp
       implicit none
       type(TBasisset), intent(in) :: basis

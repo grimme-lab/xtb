@@ -17,9 +17,9 @@
 
 subroutine Dints(n,nbf,xyz,S1,S2,S3,basis)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
+   use xtb_mctc_constants
    use xtb_type_basisset
-   use intpack, only : opab1,propa
+   use xtb_intpack, only : opab1,propa
    implicit none
    type(TBasisset), intent(in) :: basis
    integer, intent(in)  :: n
@@ -91,7 +91,7 @@ end subroutine Dints
 
 subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
    use iso_fortran_env, wp => real64
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)

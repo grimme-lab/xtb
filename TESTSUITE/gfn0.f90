@@ -4,8 +4,8 @@ subroutine test_gfn0_sp
 
    use assertion
 
-   use mctc_systools
-   use mctc_logging
+   use xtb_mctc_systools
+   use xtb_mctc_logging
    use xtb_type_options
 
    use xtb_type_molecule
@@ -14,10 +14,10 @@ subroutine test_gfn0_sp
    use xtb_type_param
    use xtb_type_data
 
-   use setparam
-   use aoparam
-   use xbasis
-   use peeq_module
+   use xtb_setparam
+   use xtb_aoparam
+   use xtb_basis
+   use xtb_peeq
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -132,14 +132,14 @@ subroutine test_gfn0_api
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -201,14 +201,14 @@ subroutine test_gfn0_api_srb
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 

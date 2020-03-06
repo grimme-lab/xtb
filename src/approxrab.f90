@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module approxrab
+module xtb_approxrab
    use xtb_mctc_accuracy, only : wp
   implicit none
 
@@ -264,5 +264,5 @@ pure elemental integer function itr(i)
    return
 end function itr
 
-end module approxrab
+end module xtb_approxrab
 

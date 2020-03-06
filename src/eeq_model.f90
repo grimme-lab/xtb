@@ -15,11 +15,11 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module eeq_model
+module xtb_eeq
    use, intrinsic :: iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use gfn0param, alp => alpg
+   use xtb_mctc_constants
+   use xtb_gfn0param, alp => alpg
    implicit none
 
    public :: eeq_chrgeq
@@ -209,7 +209,7 @@ subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, cf, amatdr, amatdL, atrace)
 end subroutine get_coulomb_derivs_3d
 
 subroutine print_chrgeq(iunit,n,at,xyz,q,cn,dipm)
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -600,7 +600,7 @@ end subroutine goedecker_chrgeq
 
 subroutine eeq_chrgeq_qonly(mol,err,chrgeq,cn,q,lverbose)
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
@@ -646,15 +646,15 @@ end subroutine eeq_chrgeq_qonly
 subroutine eeq_chrgeq_core(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
       &                    energy,gradient,sigma,lverbose,lgrad,lcpq)
 
-   use mctc_econv
-   use mctc_logging
+   use xtb_mctc_convert
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
 
-   use ncoord
+   use xtb_disp_ncoord
 
-   use pbc_tools
+   use xtb_pbc_tools
 
    implicit none
 
@@ -941,7 +941,7 @@ endif do_partial_charge_derivative
 end subroutine eeq_chrgeq_core
 
 pure function eeq_ewald_3d_dir(riw,rep,dlat,gamij,cf) result(Amat)
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
@@ -971,8 +971,8 @@ pure function eeq_ewald_3d_dir(riw,rep,dlat,gamij,cf) result(Amat)
 end function eeq_ewald_3d_dir
 
 pure subroutine eeq_ewald_dx_3d_dir(riw,rep,dlat,gamij,cf,dAmat,sigma)
-   use mctc_constants
-   use pbc_tools
+   use xtb_mctc_constants
+   use xtb_pbc_tools
    implicit none
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
@@ -1012,7 +1012,7 @@ pure subroutine eeq_ewald_dx_3d_dir(riw,rep,dlat,gamij,cf,dAmat,sigma)
 end subroutine eeq_ewald_dx_3d_dir
 
 pure function eeq_ewald_3d_rec(riw,rep,rlat,vol,cf) result(Amat)
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
@@ -1037,8 +1037,8 @@ pure function eeq_ewald_3d_rec(riw,rep,rlat,vol,cf) result(Amat)
 end function eeq_ewald_3d_rec
 
 pure subroutine eeq_ewald_dx_3d_rec(riw,rep,rlat,vol,cf,dAmat,sigma)
-   use mctc_constants
-   use pbc_tools
+   use xtb_mctc_constants
+   use xtb_pbc_tools
    implicit none
    real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
    integer, intent(in) :: rep(3)    !< images to consider
@@ -1082,16 +1082,16 @@ end subroutine eeq_ewald_dx_3d_rec
 subroutine eeq_chrgeq_gbsa(mol,err,chrgeq,gbsa,cn,dcndr,q,dqdr, &
       &                    energy,gsolv,gradient,lverbose,lgrad,lcpq)
 
-   use mctc_econv
-   use mctc_logging
+   use xtb_mctc_convert
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
 
-   use ncoord
-   use gbobc
+   use xtb_disp_ncoord
+   use xtb_solv_gbobc
 
-   use pbc_tools
+   use xtb_pbc_tools
 
    implicit none
 
@@ -1369,4 +1369,4 @@ endif do_partial_charge_derivative
 
 end subroutine eeq_chrgeq_gbsa
 
-end module eeq_model
+end module xtb_eeq

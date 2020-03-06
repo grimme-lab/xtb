@@ -53,13 +53,13 @@
 !>    ...
 !> $end
 !! ========================================================================
-module constrain_param
+module xtb_constrain_param
    use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
 
-   use mctc_strings, only : parse
-   use readin, only : getline => strip_line,get_value,get_list_value
-   use setparam, only : verbose
+   use xtb_mctc_strings, only : parse
+   use xtb_readin, only : getline => strip_line,get_value,get_list_value
+   use xtb_setparam, only : verbose
 
    implicit none
 
@@ -88,8 +88,8 @@ contains
 
 subroutine read_userdata(fname,nat,at,xyz)
    use iso_fortran_env, only : output_unit,iostat_end
-   use readin, only : find_new_name
-   use scanparam
+   use xtb_readin, only : find_new_name
+   use xtb_scanparam
    implicit none
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
@@ -253,8 +253,8 @@ end subroutine rdblock
 
 subroutine set_fix(key,val,nat,at,xyz)
    use xtb_type_atomlist
-   use fixparam
-   use setparam
+   use xtb_fixparam
+   use xtb_setparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -278,7 +278,7 @@ subroutine set_fix(key,val,nat,at,xyz)
    call atl%resize(nat)
 
    call parse(val,comma,argv,narg)
-!  some debug printout
+!  some debug xtb_printout
    if (verbose) then
       do idum = 1, narg
          write(output_unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
@@ -357,11 +357,11 @@ subroutine set_fix(key,val,nat,at,xyz)
 end subroutine set_fix
 
 subroutine set_constr(key,val,nat,at,xyz)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    use xtb_type_atomlist
-   use scanparam
-   use splitparam
+   use xtb_scanparam
+   use xtb_splitparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -739,9 +739,9 @@ end subroutine set_constr
 !! --------------------------------------------------------------[SAW1809]-
 !  this is the new version of the scan routine exploiting all features
 subroutine set_scan(key,val,nat,at,xyz)
-   use scanparam
-   use mctc_econv, only : aatoau
-   use mctc_constants, only : pi
+   use xtb_scanparam
+   use xtb_mctc_convert, only : aatoau
+   use xtb_mctc_constants, only : pi
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -833,8 +833,8 @@ subroutine set_scan(key,val,nat,at,xyz)
 end subroutine set_scan
 
 subroutine set_wall(key,val,nat,at,xyz)
-   use mctc_econv, only : autoaa
-   use sphereparam
+   use xtb_mctc_convert, only : autoaa
+   use xtb_sphereparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -968,7 +968,7 @@ subroutine set_wall(key,val,nat,at,xyz)
 end subroutine set_wall
 
 subroutine set_split(key,val,nat,at,xyz)
-   use splitparam
+   use xtb_splitparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1043,7 +1043,7 @@ subroutine set_split(key,val,nat,at,xyz)
 end subroutine set_split
 
 subroutine set_hess(key,val,nat,at,xyz)
-   use splitparam
+   use xtb_splitparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1120,7 +1120,7 @@ end subroutine set_hess
 
 subroutine set_reactor(key,val,nat,at,xyz)
    use xtb_type_atomlist
-   use setparam
+   use xtb_setparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1164,7 +1164,7 @@ end subroutine set_reactor
 
 subroutine set_path(key,val,nat,at,xyz)
    use xtb_type_atomlist
-   use setparam
+   use xtb_setparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1208,7 +1208,7 @@ end subroutine set_path
 
 subroutine set_metadyn(key,val,nat,at,xyz)
    use xtb_type_atomlist
-   use fixparam
+   use xtb_fixparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1341,4 +1341,4 @@ subroutine set_legacy(key,val,nat,at,xyz)
 
 end subroutine set_legacy
 
-end module constrain_param
+end module xtb_constrain_param

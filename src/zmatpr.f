@@ -18,7 +18,7 @@
       subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
       use, intrinsic :: iso_fortran_env, only : output_unit
       use xtb_mctc_accuracy, only : wp
-      use mctc_constants
+      use xtb_mctc_constants
       implicit none
       integer, intent(in) :: nat
       integer, intent(in) :: at(nat)

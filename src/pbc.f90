@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module pbc
+module xtb_pbc
    use xtb_mctc_accuracy, only : wp
    implicit none
 !! ========================================================================
@@ -218,4 +218,4 @@ pure logical function sametest(v)
   l=sqrt(dot_product(v,v))
   if (l<=s) sametest=.true.
 end function sametest
-end module pbc
+end module xtb_pbc

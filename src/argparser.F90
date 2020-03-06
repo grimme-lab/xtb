@@ -15,10 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module argparser
+module xtb_argparser
    use, intrinsic :: iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
-   use mctc_systools
+   use xtb_mctc_systools
    implicit none
 
    type :: string
@@ -29,9 +29,9 @@ contains
 
 subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  &
            &       copycontrol,argument_list,nargs,coffee)
-   use set_module
-   use readin, only : xfind,get_value
-   use gbobc,  only : lgbsa
+   use xtb_setmod
+   use xtb_readin, only : xfind,get_value
+   use xtb_solv_gbobc,  only : lgbsa
    implicit none
    character(len=:),allocatable,intent(out) :: fname
    character(len=:),allocatable,intent(out) :: xcontrol
@@ -514,4 +514,4 @@ subroutine rdxargs(fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict,  
 
 end subroutine rdxargs
 
-end module argparser
+end module xtb_argparser

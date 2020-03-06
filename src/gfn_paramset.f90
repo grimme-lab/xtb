@@ -18,7 +18,7 @@
 subroutine set_gfn1_parameter(xpar,globpar)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
-   use tbpar_dftd3
+   use xtb_disp_dftd3param
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    real(wp),intent(in) :: globpar(25)
@@ -68,7 +68,7 @@ end subroutine set_gfn1_parameter
 subroutine set_gfn2_parameter(xpar,globpar)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
-   use tbmod_dftd4
+   use xtb_disp_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    real(wp),intent(in) :: globpar(25)
@@ -123,8 +123,8 @@ subroutine set_gfn0_parameter(xpar,globpar)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
    !use gfn0_module
-   use aoparam
-   use tbmod_dftd4
+   use xtb_aoparam
+   use xtb_disp_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    real(wp),intent(in) :: globpar(25)

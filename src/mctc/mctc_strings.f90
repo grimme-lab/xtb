@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_strings
+module xtb_mctc_strings
 !use iso_fortran_env, only : kr4 => real32, kr8 => real64, &
 !&                           ki4 => int32,  ki8 => int64
 implicit none
@@ -907,5 +907,5 @@ end subroutine removebksl
 
 !**********************************************************************
 
-end module mctc_strings
+end module xtb_mctc_strings
 

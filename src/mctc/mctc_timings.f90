@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_timings
+module xtb_mctc_timings
    use, intrinsic :: iso_fortran_env, only : int64, output_unit
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -201,4 +201,4 @@ subroutine timing(time_cpu,time_wall)
    time_wall = real(time_count,wp)/real(time_rate,wp)
 end subroutine timing
 
-end module mctc_timings
+end module xtb_mctc_timings

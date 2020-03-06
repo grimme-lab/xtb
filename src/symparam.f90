@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module symparam
+module xtb_symparam
    use xtb_mctc_accuracy, only : wp
    implicit none
    private :: wp
@@ -25,4 +25,4 @@ module symparam
    real(wp) :: trans
    parameter (ndi14=120)
    dimension :: ict(100000,120),trans(9,120)
-end module symparam
+end module xtb_symparam

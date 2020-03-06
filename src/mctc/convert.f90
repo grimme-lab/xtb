@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_econv
+module xtb_mctc_convert
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    private
 !  convert bohr (a.u.) to Ångström and back
@@ -59,4 +59,4 @@ module mctc_econv
 !  Debye to atomic units
    real(wp),public,parameter :: autod = autoc * lightspeed * autoaa**2 * fstoau * 1.0e+16_wp
    real(wp),public,parameter :: dtoau = 1.0_wp/autod
-end module mctc_econv
+end module xtb_mctc_convert

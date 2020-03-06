@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mdoptim
+module xtb_mdoptim
    use xtb_mctc_accuracy, only : wp
 contains
 
@@ -25,8 +25,8 @@ subroutine mdopt(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    use xtb_type_wavefunction
    use xtb_type_data
 
-   use setparam
-   use splitparam
+   use xtb_setparam
+   use xtb_splitparam
 
    implicit none
    type(TMolecule), intent(inout) :: mol
@@ -116,4 +116,4 @@ subroutine wrxyz(iu,n,at,xyz,e,e2)
 end subroutine wrxyz
 
 
-end module mdoptim
+end module xtb_mdoptim

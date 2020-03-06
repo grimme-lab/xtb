@@ -120,8 +120,8 @@
       subroutine surfac2(surface,n,xyz,at)
       use, intrinsic :: iso_fortran_env, only : output_unit
       use xtb_mctc_accuracy, only : wp
-      use grid_module
-      use tbmod_dftd4
+      use xtb_grid_module
+      use xtb_disp_dftd4
       implicit none
       integer, intent(in)        :: n,at(n) !number of atoms,Ordnunszahlen
       real(wp), intent(in)       :: xyz(3,n)

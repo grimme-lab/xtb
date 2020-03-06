@@ -17,7 +17,7 @@
 
 module mctcpar_atomic_masses
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
 
    integer, private, parameter :: max_elem = 118

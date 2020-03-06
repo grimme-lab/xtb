@@ -19,7 +19,7 @@
 module xtb_type_options
    use xtb_mctc_accuracy, only : wp
    use iso_c_binding
-   use mctc_logging
+   use xtb_mctc_logging
    implicit none
 
    public :: tb_environment
@@ -178,7 +178,7 @@ module xtb_type_options
 contains
 
 subroutine setup_environment(self)
-   use mctc_systools
+   use xtb_mctc_systools
    implicit none
    class(tb_environment), intent(inout) :: self
    integer :: err

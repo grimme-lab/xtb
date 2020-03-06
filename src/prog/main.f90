@@ -25,10 +25,10 @@ program XTBprog
    use xtb_mctc_accuracy, only : wp
 !! ========================================================================
 !  this is part of the Grimme group's MCTC general purpose FORTRAN libs
-   use mctc_timings
-   use mctc_systools
-   use mctc_econv
-   use mctc_param
+   use xtb_mctc_timings
+   use xtb_mctc_systools
+   use xtb_mctc_convert
+   use xtb_mctc_param
 
 !! ========================================================================
 !  class and type definitions
@@ -40,55 +40,55 @@ program XTBprog
 
 !! ========================================================================
 !  former common variable storage, used in the entire xtb code
-   use aoparam
-   use setparam
-   use sphereparam
-   use scanparam
-   use splitparam
-   use symparam
-   use fixparam
-   use constrain_param
+   use xtb_aoparam
+   use xtb_setparam
+   use xtb_sphereparam
+   use xtb_scanparam
+   use xtb_splitparam
+   use xtb_symparam
+   use xtb_fixparam
+   use xtb_constrain_param
 
 !! ========================================================================
 !  global modules with parametes used in the entire xtb code
-   use gbobc, only: lgbsa,init_gbsa
-   use shake_module, only: init_shake
-   use embedding, only : init_pcem
+   use xtb_solv_gbobc, only: lgbsa,init_gbsa
+   use xtb_shake, only: init_shake
+   use xtb_embedding, only : init_pcem
 
 !! ========================================================================
 !  input/output modules
-   use readin
-   use printout
-   use argparser
-   use set_module
-   use property_output
-   use tbmod_file_utils
+   use xtb_readin
+   use xtb_printout
+   use xtb_argparser
+   use xtb_setmod
+   use xtb_propertyoutput
+   use xtb_file_utils
    use tbmod_output_writer
 
 !! ========================================================================
 !  get interfaces for methods used in this part
-   use scc_core,    only : iniqshell
-   use qcextern,    only : orca_chk,mopac_chk
-   use single,      only : singlepoint
-   use aespot,      only : get_radcn
-   use iniq,        only : iniqcn
-   use eeq_model
-   use ncoord,      only : ncoord_gfn,dncoord_erf,dncoord_d3,ncoord_erf,ncoord_d3
-   use xbasis
-   use axis_trafo,  only : axis3
-   use qmdff,       only : ff_ini
+   use xtb_scc_core,    only : iniqshell
+   use xtb_qcextern,    only : orca_chk,mopac_chk
+   use xtb_single,      only : singlepoint
+   use xtb_aespot,      only : get_radcn
+   use xtb_iniq,        only : iniqcn
+   use xtb_eeq
+   use xtb_disp_ncoord,      only : ncoord_gfn,dncoord_erf,dncoord_d3,ncoord_erf,ncoord_d3
+   use xtb_basis
+   use xtb_axis,  only : axis3
+   use xtb_qmdff,       only : ff_ini
 !! ------------------------------------------------------------------------
 !  interfaces from internal libraries
-   use optimizer, only : wrlog
-   use hessian, only : numhess
-   use dynamic, only : md
-   use modef,   only : modefollow
-   use mdoptim, only : mdopt
-   use screening, only : screen
+   use xtb_optimizer, only : wrlog
+   use xtb_hessian, only : numhess
+   use xtb_dynamic, only : md
+   use xtb_modef,   only : modefollow
+   use xtb_mdoptim, only : mdopt
+   use xtb_screening, only : screen
 
 !! ------------------------------------------------------------------------
 !  periodic boundary conditions
-!   use pbc, only : get_realspace_cutoff
+!   use xtb_pbc, only : get_realspace_cutoff
 
    implicit none
 

@@ -17,11 +17,11 @@
 
       subroutine gdisp(n,iz,xyz,a1,a2,s8,abcscal,disp,g,cn,dcnij)
       use xtb_mctc_accuracy, only : wp
-      use mctc_econv, only : autokcal, autoang => autoaa
-      use mctc_param, only: r2r4 => sqrt_z_r4_over_r2,
+      use xtb_mctc_convert, only : autokcal, autoang => autoaa
+      use xtb_mctc_param, only: r2r4 => sqrt_z_r4_over_r2,
      &                      rcov => covalent_radius_d3
-      use ncoord, only : ncoord_d3
-      use tbpar_dftd3
+      use xtb_disp_ncoord, only : ncoord_d3
+      use xtb_disp_dftd3param
       implicit none  
 
       integer max_elem,maxc
@@ -362,7 +362,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       subroutine get_dC6_dCNij(mxci,mxcj,cni,cnj,
      .           izi,izj,iat,jat,c6check,dc6i,dc6j)
       use xtb_mctc_accuracy, only : wp
-      use tbpar_dftd3
+      use xtb_disp_dftd3param
 
       IMPLICIT NONE
       real(wp) k1,k3
@@ -436,11 +436,11 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       subroutine abcdisp(n,iz,xyz,eabc)
       use xtb_mctc_accuracy, only : wp
-      use mctc_econv, only : autokcal, autoang => autoaa
-      use mctc_param, only : r2r4 => sqrt_z_r4_over_r2,
+      use xtb_mctc_convert, only : autokcal, autoang => autoaa
+      use xtb_mctc_param, only : r2r4 => sqrt_z_r4_over_r2,
      &                       rcov => covalent_radius_d3
-      use ncoord, only : ncoord_d3
-      use tbpar_dftd3
+      use xtb_disp_ncoord, only : ncoord_d3
+      use xtb_disp_dftd3param
       implicit none  
 
       integer max_elem,maxc
@@ -589,7 +589,7 @@ c               fdmp=1.d0/(1.d0+6.d0*(rav)**(101.d0))
 
       subroutine getc6(iat,jat,nci,ncj,c6)
       use xtb_mctc_accuracy, only : wp
-      use tbpar_dftd3
+      use xtb_disp_dftd3param
       implicit none
       integer iat,jat,i,j
       real(wp)  nci,ncj,c6,c6mem

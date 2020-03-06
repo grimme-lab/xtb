@@ -15,41 +15,38 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module printout
+module xtb_printout
    use xtb_mctc_accuracy, only : wp, sp
    implicit none
 
    interface prelemdata_inc
-   module procedure prelemdata_inc_real
-   module procedure prelemdata_inc_int
-   module procedure prelemdata_inc_real_array
-   module procedure prelemdata_inc_int_array
-   module procedure prelemdata_inc_string
+      module procedure prelemdata_inc_real
+      module procedure prelemdata_inc_int
+      module procedure prelemdata_inc_real_array
+      module procedure prelemdata_inc_int_array
+      module procedure prelemdata_inc_string
    end interface prelemdata_inc
 
    interface prelemdata
-   module procedure prelemdata_real
-   module procedure prelemdata_int
-   module procedure prelemdata_real_array
-   module procedure prelemdata_int_array
-   module procedure prelemdata_string
+      module procedure prelemdata_real
+      module procedure prelemdata_int
+      module procedure prelemdata_real_array
+      module procedure prelemdata_int_array
+      module procedure prelemdata_string
    end interface prelemdata
 
 contains
 
-subroutine prmoldata
-end subroutine prmoldata
-
 subroutine prelemparam(globpar)
    !  use iso_fortran_env, only : id => output_unit
-   use mctc_timings, only : prtimestring
-   use aoparam
+   use xtb_mctc_timings, only : prtimestring
+   use xtb_mctc_symbols, only : toSymbol
+   use xtb_aoparam
    implicit none
    real(wp),intent(in) :: globpar(25)
    integer :: id
    integer :: i,j
    integer,parameter :: max_elem = 94
-   character(len=2),external :: asym
 
    call open_file(id,'param','w')
    write(id,'("!!",1x,72("="))') ! print a warning, to keep folk from editing
@@ -58,7 +55,7 @@ subroutine prelemparam(globpar)
 
    write(id,'("subroutine copy_NAME_parameterset(globpar)")')
    write(id,'("use iso_fortran_env, wp => real64")')
-   write(id,'("!use aoparam, only: tb_parameter, &")')
+   write(id,'("!use xtb_aoparam, only: tb_parameter, &")')
    write(id,'("!                   kpair,en,mc,gam,gam3,rad,wll,rep,polyr,cxb, &")')
    write(id,'("!                   ao_exp,ao_lev,ao_pqn,ao_l,ao_typ,lpar,kcnat,&")')
    write(id,'("!                   radaes,dpolc,qpolc,ao_n,metal,cnval,timestp")')
@@ -68,7 +65,7 @@ subroutine prelemparam(globpar)
    write(id,'("type(tb_parameter),dimension(max_elem) :: atomparameter")')
    do i = 1, max_elem
       write(id,'("data atomparameter(",i0,") / tb_parameter( & !",1x,a)') &
-         &  i,asym(i)
+         &  i,toSymbol(i)
       call prelemdata_inc(id,'en',en(i))
       call prelemdata_inc(id,'mc',mc(i))
       call prelemdata_inc(id,'gam',gam(i))
@@ -213,8 +210,8 @@ end subroutine prelemdata_real_array
 
 subroutine prelemparam_inc(globpar)
    !  use iso_fortran_env, only : id => output_unit
-   use mctc_timings, only : prtimestring
-   use aoparam
+   use xtb_mctc_timings, only : prtimestring
+   use xtb_aoparam
    implicit none
    real(wp),intent(in) :: globpar(25)
    integer :: id
@@ -340,45 +337,45 @@ end subroutine prelemdata_inc_real_array
 !! ---------------------------------------------------------------[FB1808]-
 subroutine writecosmofile(np,pa,espe,fname,nat,at,xyz,atom_weight)
    use xtb_mctc_accuracy, only : wp
-    use mctc_econv, only : autoaa
-    implicit none
-    integer, intent(in)             :: np
-    real(wp), intent(in)            :: pa(3,np)
-    real(wp), intent(in)            :: espe(np)
-    integer, intent(in)             :: at(nat)
-    real(wp), intent(in)            :: xyz(3,nat)
-    integer, intent(in)             :: nat
-    character(len=*),intent(in)     :: fname
-    real(wp),intent(in)             :: atom_weight(2,np)
-    logical                         :: exist
-    integer                         :: id, i
-    character(len=2),external       :: esym, asym
+   use xtb_mctc_convert, only : autoaa
+   implicit none
+   integer, intent(in)             :: np
+   real(wp), intent(in)            :: pa(3,np)
+   real(wp), intent(in)            :: espe(np)
+   integer, intent(in)             :: at(nat)
+   real(wp), intent(in)            :: xyz(3,nat)
+   integer, intent(in)             :: nat
+   character(len=*),intent(in)     :: fname
+   real(wp),intent(in)             :: atom_weight(2,np)
+   logical                         :: exist
+   integer                         :: id, i
+   character(len=2),external       :: esym, asym
 
-    call open_file(id,fname,'w')
-    write(id,'(a)') '$coord_car'
-    write(id,'(a,/,a)') '!BIOSYM archive 3','coordinates from COSMO calculation'
-    do i=1,nat
-        write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
-        xyz(:,i)*autoaa,esym(at(i)),asym(at(i))
-    enddo 
-    write(id,'(a)') 'end'
-    write(id,'(a)') '$segment_information'
-    do i=1,np
-        write(id,'(2x,i5,2x,i0,4f22.14,1x,f22.14,1x,f22.14,1x,"0.000")')&
-        i,int(atom_weight(1,i)), pa(:,i)*autoaa,espe(i)/10, &
-        atom_weight(2,i)*100,espe(i)/10
-    enddo
-    call close_file(id)
+   call open_file(id,fname,'w')
+   write(id,'(a)') '$coord_car'
+   write(id,'(a,/,a)') '!BIOSYM archive 3','coordinates from COSMO calculation'
+   do i=1,nat
+      write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
+         xyz(:,i)*autoaa,esym(at(i)),asym(at(i))
+   enddo 
+   write(id,'(a)') 'end'
+   write(id,'(a)') '$segment_information'
+   do i=1,np
+      write(id,'(2x,i5,2x,i0,4f22.14,1x,f22.14,1x,f22.14,1x,"0.000")')&
+         i,int(atom_weight(1,i)), pa(:,i)*autoaa,espe(i)/10, &
+         atom_weight(2,i)*100,espe(i)/10
+   enddo
+   call close_file(id)
 
 end subroutine writecosmofile
 
 subroutine setup_summary(iunit,n,fname,xcontrol,nargs,argument_list,wfx,xrc,exist)
    use xtb_mctc_accuracy, only : wp
-   use mctc_systools
+   use xtb_mctc_systools
    use xtb_type_wavefunction
-   use argparser
-   use setparam
-!$ use omp_lib
+   use xtb_argparser
+   use xtb_setparam
+   !$ use omp_lib
    implicit none
    type(TWavefunction),intent(in) :: wfx
    integer, intent(in) :: iunit
@@ -410,28 +407,28 @@ subroutine setup_summary(iunit,n,fname,xcontrol,nargs,argument_list,wfx,xrc,exis
    endif
    call rdvar('HOSTNAME',cdum,err)
    if (err.eq.0) &
-   write(iunit,'(10x,a,":",1x,a)') 'hostname                   ',cdum
+      write(iunit,'(10x,a,":",1x,a)') 'hostname                   ',cdum
    if (allocated(xenv%namespace)) &
-   write(iunit,'(10x,a,":",1x,a)') 'calculation namespace      ',xenv%namespace
-! ----------------------------------------------------------------------
-!  print the home and path to check if there are set correctly
+      write(iunit,'(10x,a,":",1x,a)') 'calculation namespace      ',xenv%namespace
+   ! ----------------------------------------------------------------------
+   !  print the home and path to check if there are set correctly
    write(iunit,'(10x,a,":",1x,a)') 'coordinate file            ',fname
    if (verbose) then
       write(iunit,'(10x,a,":",1x,a)') 'xtbhome directory          ',xenv%home
       write(iunit,'(10x,a,":",1x,a)') 'path for xtb               ',xenv%path
       write(iunit,'(10x,a,":",1x,a)') 'xcontrol input file        ',xcontrol
       if (exist) &
-      write(iunit,'(10x,a,":",1x,a)') 'global configurations file ',xrc
+         write(iunit,'(10x,a,":",1x,a)') 'global configurations file ',xrc
    endif
-! ----------------------------------------------------------------------
-!  technical data
-!$omp parallel
-!$omp master
-!$ write(iunit,'(10x,a,":",6x,i16)') 'omp threads                ',omp_get_num_threads()
-!$omp end master
-!$omp end parallel
-! ----------------------------------------------------------------------
-!  print more specific calculation data
+   ! ----------------------------------------------------------------------
+   !  technical data
+   !$omp parallel
+   !$omp master
+   !$ write(iunit,'(10x,a,":",6x,i16)') 'omp threads                ',omp_get_num_threads()
+   !$omp end master
+   !$omp end parallel
+   ! ----------------------------------------------------------------------
+   !  print more specific calculation data
    write(iunit,'(10x,a,":",6x,i16)')   'number of atoms            ',n
    write(iunit,'(10x,a,":",6x,i16)')   'number of electrons        ',wfx%nel
    write(iunit,'(10x,a,":",6x,i16)')   'charge                     ',ichrg
@@ -439,12 +436,12 @@ subroutine setup_summary(iunit,n,fname,xcontrol,nargs,argument_list,wfx,xrc,exis
    call random_number(dum5)
    write(iunit,'(10x,a,":",6x,f16.14)') 'first test random number   ',dum5
    if (verbose) then
-   write(iunit,'(10x,a,":",12x,"0x",z8)') 'a pointer address          ',real(dum5,sp)
-   write(iunit,'(10x,a,":",6x,z16)') 'random memory content      ',dum5
+      write(iunit,'(10x,a,":",12x,"0x",z8)') 'a pointer address          ',real(dum5,sp)
+      write(iunit,'(10x,a,":",6x,z16)') 'random memory content      ',dum5
    endif
    if (veryverbose) then
-   write(iunit,'(10x,a,":",20x,a)') 'is this your card?         ',"🃓"
-   write(iunit,'(10x,a,":",15x,"so true")')'this was released?         '
+      write(iunit,'(10x,a,":",20x,a)') 'is this your card?         ',"🃓"
+      write(iunit,'(10x,a,":",15x,"so true")')'this was released?         '
    endif
    write(iunit,'(a)')
 
@@ -453,8 +450,9 @@ end subroutine
 !! --------------------------------------------------------------[SAW1809]-
 subroutine writecosmofile2(surface,fname,nat,at,xyz,itype)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv, only : autoaa
-   use grid_module
+   use xtb_mctc_symbols, only : toSymbol
+   use xtb_mctc_convert, only : autoaa
+   use xtb_grid_module
    implicit none
    type(tb_grid),intent(in)        :: surface
    integer, intent(in)             :: at(nat)
@@ -464,7 +462,6 @@ subroutine writecosmofile2(surface,fname,nat,at,xyz,itype)
    character(len=*),intent(in)     :: fname
    logical                         :: exist
    integer                         :: id, i
-   character(len=2),external       :: esym, asym
    real(wp) :: maxv,minv,rang,scal,mval
 
    call open_file(id,fname,'w')
@@ -473,7 +470,7 @@ subroutine writecosmofile2(surface,fname,nat,at,xyz,itype)
    write(id,'(a)') 'coordinates from DFT-D4 calculation'
    do i=1,nat
       write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
-         xyz(:,i)*autoaa,esym(at(i)),asym(at(i))
+         xyz(:,i)*autoaa,toSymbol(at(i)),toSymbol(at(i))
    enddo 
    write(id,'(a)') 'end'
    write(id,'(a)') '$segment_information'
@@ -492,4 +489,4 @@ subroutine writecosmofile2(surface,fname,nat,at,xyz,itype)
 
 end subroutine writecosmofile2
 
-end module printout
+end module xtb_printout

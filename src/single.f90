@@ -24,7 +24,7 @@
 !  use the singlepoint function to get the appropiate call on the necessary
 !  functions
 !! ========================================================================
-module single
+module xtb_single
    use xtb_mctc_accuracy, only : wp
    implicit none
 
@@ -37,8 +37,8 @@ subroutine singlepoint &
 &                 (iunit,mol,wfn,calc, &
 &                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
    use iso_fortran_env, wp => real64
-   use mctc_econv
-   use mctc_logging
+   use xtb_mctc_convert
+   use xtb_mctc_logging
 
 !! ========================================================================
 !  type definitions
@@ -49,19 +49,19 @@ subroutine singlepoint &
    use xtb_type_pcem
 
 !! ========================================================================
-   use aoparam
-   use setparam
-   use fixparam
-   use scanparam
-   use sphereparam
+   use xtb_aoparam
+   use xtb_setparam
+   use xtb_fixparam
+   use xtb_scanparam
+   use xtb_sphereparam
 
 !! ========================================================================
-   use gbobc, only : lgbsa
-   use scf_module, only : scf
-   use qmdff,      only : ff_eg,ff_nonb,ff_hb
-   use qcextern,   only : run_orca_egrad,run_mopac_egrad
-   use peeq_module, only : peeq
-   use embedding,  only : read_pcem
+   use xtb_solv_gbobc, only : lgbsa
+   use xtb_scf, only : scf
+   use xtb_qmdff,      only : ff_eg,ff_nonb,ff_hb
+   use xtb_qcextern,   only : run_orca_egrad,run_mopac_egrad
+   use xtb_peeq, only : peeq
+   use xtb_embedding,  only : read_pcem
    implicit none
 
    integer, intent(in) :: iunit
@@ -271,4 +271,4 @@ subroutine print_gfn2_results(iunit,res,verbose,lgbsa)
 end subroutine print_gfn2_results
 
 
-end module single
+end module xtb_single

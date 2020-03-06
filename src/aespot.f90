@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module aespot
+module xtb_aespot
    use xtb_mctc_accuracy, only : wp
-   use intpack, only : olap,divpt,rhftce,prod,opab1,opab4,propa
+   use xtb_intpack, only : olap,divpt,rhftce,prod,opab1,opab4,propa
    integer,private, parameter :: llao (0:3) = (/ 1, 3, 6,10/)
    integer,private, parameter :: llao2(0:3) = (/ 1, 3, 5, 7/)
 
@@ -42,10 +42,10 @@ contains
 
 subroutine sdqint(nat,at,nbf,nao,xyz,thr,ndp,nqp,intcut,caoshell,saoshell, &
       &           nprim,primcount,alp,cont,sint,dpint,qpint)
-   use mctc_constants, only : pi
-   use aoparam
-   use intgrad
-   use lin_mod, only : lin
+   use xtb_mctc_constants, only : pi
+   use xtb_aoparam
+   use xtb_intgrad
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: nao
@@ -175,7 +175,7 @@ end subroutine sdqint
 
 pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
       &                       nprim,primcount,alp,cont,ss,dd,qq)
-   use intgrad
+   use xtb_intgrad
    implicit none
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
@@ -461,8 +461,8 @@ end subroutine mmompop
 !               multiplication with numerator then leads to R**-2 and R**-3 decay, respectively
 ! e           : E_AES
 subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
-   use aoparam
-   use lin_mod, only : lin
+   use xtb_aoparam
+   use xtb_lin, only : lin
    implicit none          
    integer nat,at(nat)
    real(wp) xyz(3,nat),q(nat)
@@ -544,7 +544,7 @@ end subroutine aniso_electro
 ! vd(3,nat)        : dipint proportional potential
 ! vq(6,nat)        : quadrupole proportional potential
 subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
-   use lin_mod, only : lin
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in) :: nat,nao,aoat2(nao)   
    real(wp), intent(in) :: dpint(3,nao*(nao+1)/2),s(nao,nao)
@@ -595,8 +595,8 @@ end subroutine fockelectro
 ! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i 
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
-   use aoparam
-   use lin_mod, only : lin
+   use xtb_aoparam
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
@@ -725,8 +725,8 @@ end subroutine setvsdq
 ! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i 
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
-   use aoparam
-   use lin_mod, only : lin
+   use xtb_aoparam
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
@@ -826,8 +826,8 @@ end subroutine setdvsdq
 ! dipm(3,n)   : cumulative atomic dipole moments (x,y,z)
 ! qp(6,n)     : traceless(!) cumulative atomic quadrupole moments (xx,xy,yy,xz,yz,zz)
 subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
-   use mctc_econv
-   use lin_mod, only : lin
+   use xtb_mctc_convert
+   use xtb_lin, only : lin
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -909,8 +909,8 @@ end subroutine molmom
 ! g           : nuclear gradient (3)
 subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
       & radcn,dcn,gab3,gab5,g) 
-   use aoparam
-   use lin_mod, only : lin
+   use xtb_aoparam
+   use xtb_lin, only : lin
    !gab3 Hellmann-Feynman terms correct, shift terms to be tested yet
    implicit none          
    integer, intent(in)   :: nat,at(nat)
@@ -1010,9 +1010,9 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
 end subroutine aniso_grad
 
 subroutine ovlp2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,cont,alp,s)
-   use mctc_constants, only : pi
-   use aoparam
-   use intgrad, only : dtrf2
+   use xtb_mctc_constants, only : pi
+   use xtb_aoparam
+   use xtb_intgrad, only : dtrf2
    implicit none          
    integer, intent(in)  :: nat
    integer, intent(in)  :: nao
@@ -1385,7 +1385,7 @@ end subroutine sspd2
 ! check and print sparsity w.r.t. individual contribution 
 ! to get an idea
 subroutine checkspars(nao,ndp,nqp,nmat,matlist,mqlst,mdlst)
-   use lin_mod, only : lin
+   use xtb_lin, only : lin
    implicit none
    integer,intent(in) :: ndp,nqp,nmat,nao
    integer,intent(in) :: matlist(2,nao*(nao+1)/2)
@@ -1490,7 +1490,7 @@ end subroutine mmomgabzero
 ! rmax  : maximum radius               (parameter)  
 ! radcn : CN-dependent radius 
 subroutine get_radcn(n,at,cn,shift,expo,rmax,radcn)
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
@@ -1515,7 +1515,7 @@ end subroutine get_radcn
 ! dcn   : on input  : derivatives of CN(i) w.r.t. Cart. directions of j
 !       : on output : derivatives of RADCN(j) w.r.t. Cart. directions of i, so we flip indices!!!
 subroutine dradcn(n,at,cn,shift,expo,rmax,dcn)
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
@@ -1595,7 +1595,7 @@ end function dgab
 
 ! this prints gnuplot scripts 
 subroutine printspars(nat,at,nao,nmat,ndp,nqp,xyz,s,dpint,qpint)
-   use lin_mod, only : lin
+   use xtb_lin, only : lin
    implicit none          
    integer, intent(in)    :: nao,nat,at(nat)
    integer, intent(in) :: ndp,nqp,nmat
@@ -1772,9 +1772,9 @@ end subroutine printspars
 ! primcount   : index of first primitive (over entire system) of given CAO, dimension: nbf
 ! p(nao,nao)  : density matrix
 subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,cont,p,q,dipm,qp)
-   use mctc_constants, only : pi
-   use aoparam
-   use intgrad, only : dtrf2
+   use xtb_mctc_constants, only : pi
+   use xtb_aoparam
+   use xtb_intgrad, only : dtrf2
    implicit none          
    integer, intent(in)  :: nat
    integer, intent(in)  :: nao
@@ -2053,9 +2053,9 @@ end subroutine gfn2broyden_out
 ! primcount   : index of first primitive (over entire system) of given CAO, dimension: nbf
 ! p(nao,nao)  : density matrix
 subroutine ddqint(intcut,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,cont,p,vs,vd,vq,H,g)
-   use mctc_constants, only : pi
-   use aoparam
-   use intgrad
+   use xtb_mctc_constants, only : pi
+   use xtb_aoparam
+   use xtb_intgrad
    implicit none
    integer, intent(in)    :: nat
    integer, intent(in)    :: nao
@@ -2167,7 +2167,7 @@ end subroutine ddqint
 
 pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
       &                           intcut,nprim,primcount,alp,cont,sdq,sdqg)
-   use intgrad
+   use xtb_intgrad
    implicit none
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
@@ -2247,9 +2247,9 @@ end subroutine get_grad_multiint
 ! primcount   : index of first primitive (over entire system) of given CAO, dimension: nbf
 subroutine dsint(thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,nprim,primcount, &
       &          alp,cont,H,g)
-   use mctc_constants, only : pi
-   use aoparam
-   use intgrad
+   use xtb_mctc_constants, only : pi
+   use xtb_aoparam
+   use xtb_intgrad
    implicit none
    real(wp),intent(in)    :: thr
    integer, intent(in)    :: nat
@@ -2375,4 +2375,4 @@ subroutine dsint(thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,nprim,primcount,
    !                                     call prtime(6,t2-t1,t4-t3,'dqint5')
 end subroutine dsint
 
-end module aespot
+end module xtb_aespot

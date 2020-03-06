@@ -17,11 +17,11 @@
 
 subroutine dispersion_surfaceplot(nat,at,xyz,q,wf,g_a,g_c,lmbd,dfparam,surface)
    use xtb_mctc_accuracy, only : wp
-   use setparam
+   use xtb_setparam
    use xtb_type_param
-   use grid_module
-   use tbmod_dftd4
-   use printout
+   use xtb_grid_module
+   use xtb_disp_dftd4
+   use xtb_printout
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -95,8 +95,8 @@ subroutine dispersion_surfaceplot(nat,at,xyz,q,wf,g_a,g_c,lmbd,dfparam,surface)
 end subroutine dispersion_surfaceplot
 !subroutine dispersion_surfaceplot
 !   use iso_fortran_env, wp => real64
-!   use grid_module
-!   use printout, only : writecosmofile
+!   use xtb_grid_module
+!   use xtb_printout, only : writecosmofile
 !   implicit none
 !   type(tb_grid) :: surface
 !   integer  :: nat

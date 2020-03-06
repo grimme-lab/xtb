@@ -99,7 +99,7 @@
 !                                              or a CLOSE statement is executed on
 !                                              that unit (file must be unnamed)
 !! ------------------------------------------------------------------------
-module mctc_filetools
+module xtb_mctc_filetools
 implicit none
 
 type :: filelog
@@ -170,4 +170,4 @@ subroutine pop_file(unit,status)
    enddo
 end subroutine pop_file
 
-end module mctc_filetools
+end module xtb_mctc_filetools

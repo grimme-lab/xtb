@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module scanparam
+module xtb_scanparam
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
@@ -143,8 +143,8 @@ subroutine setup_constrain_pot(n,at,xyz)
 end subroutine setup_constrain_pot
 
 subroutine pot_info(iunit,n,at,xyz)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -323,7 +323,7 @@ subroutine pot_info(iunit,n,at,xyz)
 end subroutine pot_info
 
 subroutine constrain_all_bonds(n,at,xyz)
-   use mctc_param, only: rad => covalent_radius_2009
+   use xtb_mctc_param, only: rad => covalent_radius_2009
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -351,8 +351,8 @@ subroutine constrain_all_bonds(n,at,xyz)
 end subroutine constrain_all_bonds
 
 subroutine constrain_all_angles(n,at,xyz)
-   use mctc_constants
-   use mctc_param
+   use xtb_mctc_constants
+   use xtb_mctc_param
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -391,8 +391,8 @@ subroutine constrain_all_angles(n,at,xyz)
 end subroutine constrain_all_angles
 
 subroutine constrain_all_torsions(n,at,xyz)
-   use mctc_constants
-   use mctc_param
+   use xtb_mctc_constants
+   use xtb_mctc_param
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -437,4 +437,4 @@ subroutine constrain_all_torsions(n,at,xyz)
 
 end subroutine constrain_all_torsions
 
-end module scanparam
+end module xtb_scanparam

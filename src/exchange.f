@@ -20,8 +20,8 @@
 ! transition densities for convenience
 
       subroutine exch(nat,at,nao,nopen,ihomo,xyz,focc,s,cmo,xint,aoat)
-      use setparam
-      use aoparam
+      use xtb_setparam
+      use xtb_aoparam
       implicit none          
       integer nao,nat,at(nat),nopen,ihomo
       real*8  cmo(nao,nao),focc(nao),xyz(3,nat),s(nao,nao)

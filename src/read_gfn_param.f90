@@ -19,9 +19,9 @@ subroutine read_gfn_param &
       (iunit,globpar,initialize)
    use xtb_mctc_accuracy, only : wp
 
-   use aoparam
+   use xtb_aoparam
 
-   use readin, only : getline => strip_line
+   use xtb_readin, only : getline => strip_line
 
    implicit none
 
@@ -129,7 +129,7 @@ end subroutine read_globpar
 
 subroutine gfn0_globpar(key,val,param)
    use xtb_type_param
-   use readin, only : get_value
+   use xtb_readin, only : get_value
    implicit none
    character(len=*), intent(in) :: key, val
    type(scc_parameter), intent(inout) :: param
@@ -166,7 +166,7 @@ end subroutine gfn0_globpar
 
 subroutine gfn1_globpar(key,val,param)
    use xtb_type_param
-   use readin, only : get_value
+   use xtb_readin, only : get_value
    implicit none
    character(len=*), intent(in) :: key, val
    type(scc_parameter), intent(inout) :: param
@@ -207,7 +207,7 @@ end subroutine gfn1_globpar
 
 subroutine gfn2_globpar(key,val,param)
    use xtb_type_param
-   use readin, only : get_value
+   use xtb_readin, only : get_value
    implicit none
    character(len=*), intent(in) :: key, val
    type(scc_parameter), intent(inout) :: param
@@ -244,7 +244,7 @@ subroutine gfn2_globpar(key,val,param)
 end subroutine gfn2_globpar
 
 subroutine gfn_globpar(key,val,globpar)
-   use readin, only : get_value
+   use xtb_readin, only : get_value
    implicit none
    character(len=*), intent(in) :: key, val
    real(wp), intent(inout) :: globpar(25)
@@ -281,9 +281,9 @@ subroutine gfn_globpar(key,val,globpar)
 end subroutine gfn_globpar
 
 subroutine read_pairpar
-   use mctc_strings
-   use aoparam
-   use readin, only : get_value
+   use xtb_mctc_strings
+   use xtb_aoparam
+   use xtb_readin, only : get_value
    implicit none
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -307,9 +307,9 @@ subroutine read_pairpar
 end subroutine read_pairpar
 
 subroutine read_elempar
-   use mctc_strings
-   use aoparam
-   use readin
+   use xtb_mctc_strings
+   use xtb_aoparam
+   use xtb_readin
    implicit none
    character(len=:), allocatable :: key, val
    integer :: iz, ie
@@ -337,9 +337,9 @@ subroutine read_elempar
 end subroutine read_elempar
 
 subroutine gfn_elempar(key,val,iz)
-   use mctc_strings
-   use aoparam
-   use readin
+   use xtb_mctc_strings
+   use xtb_aoparam
+   use xtb_readin
    implicit none
    character(len=*), intent(in) :: key, val
    integer, intent(in) :: iz
@@ -437,7 +437,7 @@ end subroutine read_gfn_param
 
 ! global, predefined pair parameters
       subroutine setpair(gfn_method)
-      use aoparam
+      use xtb_aoparam
       implicit none 
       integer gfn_method
       integer i,j,ii,jj

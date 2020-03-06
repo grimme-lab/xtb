@@ -16,19 +16,15 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 submodule(xtb_type_molecule) molecule_reader
+   use xtb_mctc_symbols, only : toNumber, toSymbol
    use xtb_type_molecule
-   use tbmod_symbols
    implicit none
 
-   interface assignment(=)
-      module procedure :: symbol_to_number
-      module procedure :: number_to_symbol
-   end interface assignment(=)
 
 contains
 
 module subroutine read_molecule_generic(self, unit, format)
-   use tbmod_file_utils
+   use xtb_file_utils
    class(TMolecule), intent(out) :: self
    integer, intent(in) :: unit
    integer, intent(in), optional :: format
@@ -74,9 +70,9 @@ end subroutine read_molecule_generic
 
 subroutine read_molecule_xyz(mol, unit, status, iomsg)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use pbc_tools
-   use readin, only : getline => strip_line
+   use xtb_mctc_convert
+   use xtb_pbc_tools
+   use xtb_readin, only : getline => strip_line
    logical, parameter :: debug = .false.
    class(TMolecule), intent(out) :: mol
    integer, intent(in) :: unit
@@ -130,7 +126,7 @@ subroutine read_molecule_xyz(mol, unit, status, iomsg)
       if (debug) print'("->",a)',chdum
       if (debug) print'("->",3g0)',xyz
 
-      iat = chdum
+      iat = toNumber(chdum)
       if (debug) print'("->",g0)',iat
       if (iat > 0) then
          n = n+1
@@ -154,11 +150,11 @@ end subroutine read_molecule_xyz
 
 subroutine read_molecule_turbomole(mol, unit, status, iomsg)
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use mctc_econv
-   use mctc_resize_arrays
-   use readin, getline => strip_line
-   use pbc_tools
+   use xtb_mctc_constants
+   use xtb_mctc_convert
+   use xtb_mctc_resize
+   use xtb_readin, getline => strip_line
+   use xtb_pbc_tools
    logical, parameter :: debug = .false.
    type(TMolecule),intent(inout) :: mol
    integer,intent(in) :: unit !< file handle
@@ -277,7 +273,7 @@ subroutine read_molecule_turbomole(mol, unit, status, iomsg)
    call mol%allocate(iatom)
 
    mol%sym = sym(:len(mol))
-   mol%at = sym(:len(mol))
+   mol%at = toNumber(sym(:len(mol)))
    if (any(mol%at == 0)) then
       iomsg = "unknown element '"//sym(minval(mol%at))//"' present"
       return
@@ -360,7 +356,7 @@ end subroutine read_molecule_turbomole
 
 
 subroutine read_molecule_sdf(mol, unit, status, iomsg)
-   use mctc_systools
+   use xtb_mctc_systools
    class(TMolecule), intent(out) :: mol
    integer, intent(in) :: unit
    logical, intent(out) :: status
@@ -389,8 +385,8 @@ end subroutine read_molecule_sdf
 
 
 subroutine read_molecule_molfile(mol, unit, status, iomsg)
-   use mctc_econv
-   use mctc_systools
+   use xtb_mctc_convert
+   use xtb_mctc_systools
    class(TMolecule), intent(out) :: mol
    integer, intent(in) :: unit
    logical, intent(out) :: status
@@ -439,7 +435,7 @@ subroutine read_molecule_molfile(mol, unit, status, iomsg)
          iomsg = "could not coordinates from connection table"
          return
       endif
-      atomtype = symbol
+      atomtype = toNumber(symbol)
       mol%xyz(:, iatom) = [x, y, z] * aatoau
       mol%at(iatom) = atomtype
       mol%sym(iatom) = trim(symbol)
@@ -491,11 +487,11 @@ end subroutine read_molecule_molfile
 
 subroutine read_molecule_vasp(mol, unit, status, iomsg)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use mctc_strings
-   use mctc_systools
+   use xtb_mctc_convert
+   use xtb_mctc_strings
+   use xtb_mctc_systools
    use xtb_type_molecule
-   use pbc_tools
+   use xtb_pbc_tools
    logical, parameter :: debug = .false.
    type(TMolecule),intent(out) :: mol
    integer,intent(in) :: unit
@@ -592,7 +588,7 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
    ncheck=0
    do i=1,nn
       read(args2(i),*,iostat=err) ncount(i)
-      iat = args(i)
+      iat = toNumber(args(i))
       if (iat < 1 .or. ncount(i) < 1) then
          iomsg = 'unknown element.'
          return
@@ -604,7 +600,7 @@ subroutine read_molecule_vasp(mol, unit, status, iomsg)
    mol%npbc = 3
    k = 0
    do i = 1, nn
-      iat = args(i)
+      iat = toNumber(args(i))
       do j = 1, ncount(i)
          k = k+1
          mol%at(k) = iat
@@ -670,11 +666,11 @@ end subroutine read_molecule_vasp
 
 subroutine read_molecule_gen(mol, unit, status, iomsg)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use mctc_strings
-   use mctc_systools
+   use xtb_mctc_convert
+   use xtb_mctc_strings
+   use xtb_mctc_systools
    use xtb_type_molecule
-   use pbc_tools
+   use xtb_pbc_tools
    logical, parameter :: debug = .false.
    type(TMolecule),intent(out) :: mol
    integer,intent(in) :: unit
@@ -720,7 +716,7 @@ subroutine read_molecule_gen(mol, unit, status, iomsg)
    call next_line(unit, line, error)
    call parse(line, ' ', symbols, nspecies)
    allocate(species(nspecies), source=0)
-   species = symbols(:nspecies)
+   species = toNumber(symbols(:nspecies))
    if (any(species == 0)) then
       iomsg = 'unknown atom type present'
       return
@@ -790,9 +786,9 @@ end subroutine read_molecule_gen
 
 
 subroutine read_molecule_pdb(mol, unit, status, iomsg)
-   use mctc_econv
-   use mctc_systools
-   use mctc_resize_arrays
+   use xtb_mctc_convert
+   use xtb_mctc_systools
+   use xtb_mctc_resize
    interface resize  ! add to overloaded resize interface
       module procedure :: resize_pdb_data
    end interface resize
@@ -844,7 +840,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
             & pdb(iatom)%chains, pdb(iatom)%residue_number, pdb(iatom)%code, &
             & coords, occ, temp, pdb(iatom)%segid, sym(iatom), a_charge
          xyz(:,iatom) = coords * aatoau
-         atom_type = sym(iatom)
+         atom_type = toNumber(sym(iatom))
          if (atom_type == 0) then
             try = scan(pdb(iatom)%name, 'HCNOSPF')
             if (try > 0) sym(iatom) = pdb(iatom)%name(try:try)//' '
@@ -868,7 +864,7 @@ subroutine read_molecule_pdb(mol, unit, status, iomsg)
    end associate
    call mol%allocate(iatom)
    mol%xyz = xyz(:,:iatom)
-   mol%at = sym(:iatom)
+   mol%at = toNumber(sym(:iatom))
    mol%sym = sym(:iatom)
    call mol%frag%allocate(list(:iatom))
    mol%pdb = pdb(:iatom)
@@ -959,7 +955,7 @@ subroutine read_molecule_gaussian(mol, unit, status, iomsg)
       if (iat > 0) then
          n = n+1
          mol%at(n) = iat
-         mol%sym(n) = iat
+         mol%sym(n) = toSymbol(iat)
          mol%xyz(:, n) = xyz
       else
          iomsg = "Invalid atomic number"

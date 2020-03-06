@@ -144,7 +144,7 @@ subroutine write_turbomole_gradient(unit, xyz, sym, energy, gradient)
 end subroutine write_turbomole_gradient
 
 subroutine write_turbomole_gradlatt(unit, lattice, energy, sigma)
-   use pbc_tools
+   use xtb_pbc_tools
    integer, intent(in) :: unit
    real(wp), intent(in) :: lattice(:, :)
    real(wp), intent(in) :: energy

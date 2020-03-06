@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_global
+module xtb_mctc_global
    character(len=:),allocatable :: name  !< name of the currently running program
    character(len=:),allocatable,target :: msgbuffer !< error message buffer
    integer :: msgid !< number of generated errors
@@ -45,5 +45,5 @@ subroutine init_errorbuffer
    msgbuffer = ' '
 end subroutine init_errorbuffer
 
-end module mctc_global
+end module xtb_mctc_global
 

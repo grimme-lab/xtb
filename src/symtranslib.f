@@ -661,7 +661,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine grdsym(grd,natoms)
          use xtb_mctc_accuracy, only : wp
-      use symparam
+      use xtb_symparam
 c,ntrans,ict,trans)
 
       implicit real(wp) (a-h,o-z)

@@ -18,10 +18,10 @@
 !> Defines the interface to xtb datatypes and allows exporting them to C.
 !  Mostly those will be carried around as opaque void* pointer and can
 !  be manipulated with methods provided by the API.
-module tbapi_structs
+module xtb_api_structs
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
-   use tbapi_utils
+   use xtb_api_utils
    implicit none
 
 contains
@@ -136,10 +136,10 @@ end function new_xtb_basisset_api
 
 !> Actual implementation of the constructor.
 subroutine new_xtb_basisset(mol, basis, status)
-   use setparam, only: gfn_method
+   use xtb_setparam, only: gfn_method
    use xtb_type_molecule
    use xtb_type_basisset
-   use xbasis
+   use xtb_basis
    type(TMolecule), intent(in) :: mol
    type(TBasisset), intent(inout) :: basis
    integer(c_int), intent(out) :: status
@@ -273,7 +273,7 @@ subroutine query_xtb_wavefunction_api &
       & (c_wfn, charges, dipoles, quadrupoles, bond_orders, &
       &  hl_gap, orbital_energies) &
       & bind(C, name="query_xTB_wavefunction")
-   use mctc_econv, only: evtoau
+   use xtb_mctc_convert, only: evtoau
    use xtb_type_wavefunction
    type(c_ptr), value, intent(in) :: c_wfn
    type(TWavefunction), pointer :: wfn
@@ -320,4 +320,4 @@ subroutine delete_xtb_wavefunction_api(c_wfn) &
 
 end subroutine delete_xtb_wavefunction_api
 
-end module tbapi_structs
+end module xtb_api_structs

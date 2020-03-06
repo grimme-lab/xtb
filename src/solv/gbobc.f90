@@ -15,10 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module gbobc
+module xtb_solv_gbobc
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    use xtb_type_solvent
    implicit none
 
@@ -217,8 +217,8 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
 end subroutine load_custom_parameters
 
 subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
-   use mctc_strings
-   use readin
+   use xtb_mctc_strings
+   use xtb_readin
    implicit none
    integer, intent(in) :: iunit
    character(len=*),intent(in) :: sname
@@ -346,8 +346,8 @@ subroutine gbsa_info(iunit,gbm)
 end subroutine gbsa_info
 
 subroutine new_gbsa_model(gbm,solvent,mode,temp,ngrida)
-   use mctc_strings
-   use readin
+   use xtb_mctc_strings
+   use xtb_readin
    implicit none
    type(gbsa_model), intent(inout) :: gbm
    type(gbsa_parameter), intent(inout) :: solvent
@@ -464,7 +464,7 @@ end subroutine read_gbsa_parameters
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine new_gbsa(this,n,at)
-   use grid_module
+   use xtb_grid_module
    implicit none
    type(TSolvent), intent(inout) :: this
 
@@ -1798,4 +1798,4 @@ end subroutine update_dist_gbsa
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-end module gbobc
+end module xtb_solv_gbobc

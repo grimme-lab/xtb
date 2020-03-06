@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module tbdef_dispersion_model
+module xtb_type_dispersionmodel
    use xtb_mctc_accuracy, only : wp
    implicit none
    public :: tb_dispersion_model
@@ -35,4 +35,4 @@ module tbdef_dispersion_model
       real(wp),dimension(7,7,max_elem,max_elem) :: c6 = 0.0_wp
    end type tb_dispersion_model
 
-end module tbdef_dispersion_model
+end module xtb_type_dispersionmodel

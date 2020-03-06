@@ -20,7 +20,7 @@
 !! ------------------------------------------------------------------------
 subroutine calc_cm5(nat,at,xyz,cm5,dcm5dr)
    use xtb_mctc_accuracy, only : wp
-use mctc_econv
+use xtb_mctc_convert
 implicit none
 integer, intent(in)  :: nat
 integer, parameter   :: mz=118

@@ -18,7 +18,7 @@
 subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
    use iso_fortran_env, wp => real64, istdout => output_unit
    use xtb_type_wavefunction
-   use scc_core, only : qsh2qat
+   use xtb_scc_core, only : qsh2qat
    implicit none
    type(TWavefunction),intent(inout) :: wfx
    character(len=*),intent(in) :: fname

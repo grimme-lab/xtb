@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module splitparam
+module xtb_splitparam
    use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -55,8 +55,8 @@ subroutine clear_split
 end subroutine clear_split
 
 subroutine splitm(nat,at,xyz,cn)
-   use mctc_econv, only : autoaa
-   use aoparam
+   use xtb_mctc_convert, only : autoaa
+   use xtb_aoparam
    implicit none
    integer, intent(in) :: nat
    real(wp),intent(in) :: xyz(3,nat)
@@ -92,7 +92,7 @@ subroutine splitm(nat,at,xyz,cn)
 end subroutine splitm
 
 subroutine cmafrag(nat,at,xyz,r1,r2)
-   use aoparam
+   use xtb_aoparam
    implicit none
    real(wp) xyz(3,nat),r1(3),r2(3)
    integer nat,at(nat)
@@ -133,7 +133,7 @@ subroutine cmafrag(nat,at,xyz,r1,r2)
 end subroutine cmafrag
 
 subroutine splitprint(nat,at,xyz)
-   use scanparam
+   use xtb_scanparam
    implicit none
    real(wp) xyz(3,nat)
    integer nat,at(nat)
@@ -238,4 +238,4 @@ subroutine cmaiface(nat,at,xyz)
 
 end subroutine cmaiface
 
-end module splitparam
+end module xtb_splitparam

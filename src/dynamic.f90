@@ -15,10 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module dynamic
+module xtb_dynamic
    use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
-   use single, only : singlepoint
+   use xtb_single, only : singlepoint
 contains
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
@@ -97,7 +97,7 @@ end subroutine xyzsort2
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 subroutine wrc(fname,n,xyz,at)
-   use setparam
+   use xtb_setparam
    implicit none
    character*(*) fname
    character*2 asym
@@ -136,19 +136,19 @@ end subroutine boltz
 subroutine md(mol,wfx,calc, &
       &       egap,et,maxiter,epot,grd,sigma,icall,Tsoll,cdump2)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv, only : autokcal, aatoau, amutokg, amutoau, fstoau
-   use mctc_constants, only : pi, kB
+   use xtb_mctc_convert, only : autokcal, aatoau, amutokg, amutoau, fstoau
+   use xtb_mctc_constants, only : pi, kB
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
    use xtb_type_data
-   use tbmod_file_utils
-   use shake_module, only: do_shake,ncons,xhonly
-   use aoparam
-   use setparam
-   use fixparam
-   use scanparam
-   use splitparam
+   use xtb_file_utils
+   use xtb_shake, only: do_shake,ncons,xhonly
+   use xtb_aoparam
+   use xtb_setparam
+   use xtb_fixparam
+   use xtb_scanparam
+   use xtb_splitparam
    implicit none
    type(TMolecule),intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
@@ -759,7 +759,7 @@ subroutine wrmdrestart(n,xyz,velo)
 end subroutine wrmdrestart
 
 subroutine rdmdrestart(n,xyz,velo)
-   use setparam, only : get_namespace
+   use xtb_setparam, only : get_namespace
    implicit none
    integer n,i
    real(wp) xyz(3,n),velo(3,n),dum
@@ -780,7 +780,7 @@ end subroutine rdmdrestart
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine mdinitu(n,iat,velo,mass,Ekin)
-   use setparam
+   use xtb_setparam
    implicit none
    integer n
    real(wp) velo(3,n)
@@ -836,8 +836,8 @@ end function irand
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine zeroz(n,array)
-   use splitparam
-   use scanparam
+   use xtb_splitparam
+   use xtb_scanparam
    implicit none
    integer n
    real(wp) array(3,*)
@@ -853,7 +853,7 @@ subroutine zeroz(n,array)
 end subroutine zeroz
 
 subroutine zero3n6(n,v,a)
-   use setparam
+   use xtb_setparam
    implicit none
    integer n
    real(wp) a(3,n),v(3,n)
@@ -870,4 +870,4 @@ subroutine zero3n6(n,v,a)
    return
 end subroutine zero3n6
 
-end module dynamic
+end module xtb_dynamic

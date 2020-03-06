@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module gfn0param
+module xtb_gfn0param
    use xtb_mctc_accuracy, only : wp
    implicit none
    integer,private,parameter :: max_elem = 86
@@ -121,5 +121,5 @@ module gfn0param
     1.78160840_wp, 2.47588882_wp, 2.37670734_wp, 1.76613217_wp, 2.66172302_wp, &
     2.82773085_wp /
 
-end module gfn0param
+end module xtb_gfn0param
 

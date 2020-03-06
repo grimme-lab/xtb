@@ -2,11 +2,11 @@ subroutine test_axis
    use xtb_mctc_accuracy, only : wp
    use assertion
 
-   use mctc_econv
+   use xtb_mctc_convert
    use xtb_type_molecule
-   use splitparam
+   use xtb_splitparam
 
-   use axis_trafo
+   use xtb_axis
 
    implicit none
 
@@ -114,8 +114,8 @@ subroutine test_thermo_calc
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_econv
-   use thermo
+   use xtb_mctc_convert
+   use xtb_thermo
 
    implicit none
 
@@ -169,11 +169,11 @@ subroutine test_print_thermo
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_econv
-   use splitparam
+   use xtb_mctc_convert
+   use xtb_splitparam
 
-   use axis_trafo
-   use property_output
+   use xtb_axis
+   use xtb_propertyoutput
 
    implicit none
    

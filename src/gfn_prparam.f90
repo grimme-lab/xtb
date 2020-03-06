@@ -18,7 +18,7 @@
 subroutine gfn1_prparam(iunit,n,at,par)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -84,7 +84,7 @@ end subroutine gfn1_prparam
 subroutine gfn2_prparam(iunit,n,at,par)
    use iso_fortran_env, kdp => real64
    use xtb_type_param
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -142,7 +142,7 @@ end subroutine gfn2_prparam
 subroutine gfn0_prparam(iunit,n,at,par)
    use iso_fortran_env, kdp => real64
    use xtb_type_param
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n

@@ -18,17 +18,17 @@
                                                                                 
 ! You should have received a copy of the GNU Lesser General Public
 ! License along with this library; if not, write to the Free Software
-! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA!----------------------------------------------------------------------------
+! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 !-----------------------------------------------------------------------
 !-----------------------------------------------------------------------
-MODULE ls_rmsd
+module xtb_lsrmsd
 !-----------------------------------------------------------------------
 
   implicit none
   integer, parameter :: dp = kind(1.d0)
 
 !-----------------------------------------------------------------------
-CONTAINS
+contains
 !-----------------------------------------------------------------------
 subroutine rmsd(n, coord1, coord2, option, U, x_center, y_center, & 
      error, calc_g, g)
@@ -176,7 +176,7 @@ subroutine rotation_matrix(q, U)
 
 end subroutine rotation_matrix
 !-----------------------------------------------------------------------
-subroutine DSTMEV(A,lambda,evec)
+subroutine dstmev(A,lambda,evec)
 !-----------------------------------------------------------------------
 ! a simple subroutine to compute the leading eigenvalue and eigenvector
 ! of a symmetric, traceless 4x4 matrix A by an inverse power iteration:
@@ -302,7 +302,7 @@ subroutine givens4(S,T,V)
   !write(*,*) (V(1:4,i) - W(1:4,i),i=1,4)
 end subroutine givens4
 !-----------------------------------------------------------------------
-SUBROUTINE svdcmp(mmax,a,m,n,w,v,rv1)
+subroutine svdcmp(mmax,a,m,n,w,v,rv1)
 !-----------------------------------------------------------------------
   integer :: mmax
   INTEGER :: m,n
@@ -533,9 +533,9 @@ SUBROUTINE svdcmp(mmax,a,m,n,w,v,rv1)
   end do
 !-----------------------------------------------------------------------
 
-END subroutine svdcmp
+end subroutine svdcmp
 !-----------------------------------------------------------------------
-FUNCTION pythag(a,b)
+function pythag(a,b)
 !-----------------------------------------------------------------------
 
   real(dp) :: pythag, a, b
@@ -553,8 +553,8 @@ FUNCTION pythag(a,b)
      endif
   endif
 
-END function pythag
+end function pythag
 !-----------------------------------------------------------------------
-END MODULE ls_rmsd
+end module xtb_lsrmsd
 !-----------------------------------------------------------------------
 

@@ -16,9 +16,12 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subdir('api')
+subdir('disp')
 subdir('mctc')
+subdir('param')
 subdir('prog')
 subdir('type')
+subdir('solv')
 
 srcs += files(
   'gfn0param.f90',
@@ -29,7 +32,6 @@ srcs += files(
   'fixparam.f90',
   'aoparam.f90',
   'setparam.f90',
-  'symbols.f90',
   'output_writer.f90',
   'readin.f90',
   'filetools.f90',
@@ -64,14 +66,7 @@ srcs += files(
   'xbasis.f90',
   'printbas.f90',
   'gauss.f90',
-  'ncoord.f90',
-  'dftd3.f',
-  'dftd3_parameters.f90',
-  'dftd4.f90',
-  'dftd4_parameters.f90',
   'dispplot.f90',
-  'gbobc.f90',
-  'cm5.f90',
   'intpack.f90',
   'intgrad.f90',
   'aespot.f90',
@@ -116,7 +111,6 @@ srcs += files(
   'thermo.f90',
   'constr.f',
   'getsymnum.f90',
-  'grid_module.f90',
   'qmdff.f90',
   'qmexternal.f90',
   'qcextern.f90',

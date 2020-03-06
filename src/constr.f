@@ -17,8 +17,8 @@
 
       subroutine constralltors(n,at,xyz)
          use xtb_mctc_accuracy, only : wp
-      use mctc_constants
-      use scanparam
+      use xtb_mctc_constants
+      use xtb_scanparam
       implicit none
       integer, intent(in) :: n
       integer, intent(in) :: at(n)
@@ -77,8 +77,8 @@
 
       subroutine constrallangles(n,at,xyz)
          use xtb_mctc_accuracy, only : wp
-      use mctc_constants
-      use scanparam
+      use xtb_mctc_constants
+      use xtb_scanparam
       implicit none
       integer n, at(n)
       real(wp) xyz(3,n)
@@ -125,8 +125,8 @@
 
       subroutine constrallbonds(nat,at,xyz)
          use xtb_mctc_accuracy, only : wp
-      use aoparam
-      use scanparam
+      use xtb_aoparam
+      use xtb_scanparam
       implicit none
       integer nat,at(nat)
       real(wp) xyz(3,nat)
@@ -155,9 +155,9 @@
 
       subroutine constrpot(nat,at,xyz,g,e)
          use xtb_mctc_accuracy, only : wp
-      use mctc_constants
-      use scanparam
-      use splitparam
+      use xtb_mctc_constants
+      use xtb_scanparam
+      use xtb_splitparam
       implicit none
       integer nat,at(nat)
       real(wp) e
@@ -334,7 +334,7 @@
 
       subroutine constrhess(nat,at,xyz0,Hess)
          use xtb_mctc_accuracy, only : wp
-      use scanparam
+      use xtb_scanparam
       implicit none
       integer, intent(in)    :: nat
       integer, intent(in)    :: at(nat)

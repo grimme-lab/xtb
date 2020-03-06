@@ -23,17 +23,17 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    use iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
 
-   use mctc_econv
+   use xtb_mctc_convert
 
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
 
-   use setparam
-   use fixparam
+   use xtb_setparam
+   use xtb_fixparam
 
-   use optimizer
-   use ls_rmsd
+   use xtb_optimizer
+   use xtb_lsrmsd
 
    implicit none
 

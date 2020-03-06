@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !---------------------------------------------------------------------
-module lin_mod
+module xtb_lin
 !---------------------------------------------------------------------
 
 
@@ -45,4 +45,4 @@ contains
   end function lina
 
 
-end module lin_mod
+end module xtb_lin

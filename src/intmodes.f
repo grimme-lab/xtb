@@ -420,7 +420,7 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !     subroutine int2cart(nall,s1,s2,xyzref,xyz,n,nmol,fragind)
-!     use ls_rmsd
+!     use xtb_lsrmsd
 !     implicit none
 !     integer n,nall,s1,s2,fragind(100),nmol
 !     real(wp) xyzref(3,n,nall),xyz(3,n)
@@ -903,7 +903,7 @@
       pure subroutine cma(nat,at,xyz,sum3)
       use iso_fortran_env, wp => real64
 ! atomic masses
-      use splitparam
+      use xtb_splitparam
       implicit none
       integer, intent(in)  :: nat
       real(wp),intent(in)  :: xyz(3,nat)

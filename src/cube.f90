@@ -34,7 +34,7 @@
 
 subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    use xtb_type_basisset
-   use setparam
+   use xtb_setparam
    implicit none
    type(TBasisset), intent(in) :: basis
 

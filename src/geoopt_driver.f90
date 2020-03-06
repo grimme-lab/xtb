@@ -26,12 +26,12 @@ subroutine geometry_optimization &
    use xtb_type_calculator
    use xtb_type_data
 
-   use optimizer
-   use relaxation_engine
-   use single
-   use write_geometry
+   use xtb_optimizer
+   use xtb_relaxation_engine
+   use xtb_single
+   use xtb_writegeometry
 
-   use setparam
+   use xtb_setparam
 
    implicit none
 

@@ -14,7 +14,7 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
-module tb_calculators
+module xtb_calculators
    use xtb_mctc_accuracy, only : wp
    implicit none
    private
@@ -25,7 +25,7 @@ module tb_calculators
    interface
       module subroutine gfn0_calculation &
             (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
-         use mctc_logging
+         use xtb_mctc_logging
          use xtb_type_options
          use xtb_type_molecule
          use xtb_type_wavefunction
@@ -45,7 +45,7 @@ module tb_calculators
       end subroutine gfn0_calculation
       module subroutine gfn1_calculation &
             (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
-         use mctc_logging
+         use xtb_mctc_logging
          use xtb_type_options
          use xtb_type_molecule
          use xtb_type_wavefunction
@@ -66,7 +66,7 @@ module tb_calculators
       end subroutine gfn1_calculation
       module subroutine gfn2_calculation &
             (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
-         use mctc_logging
+         use xtb_mctc_logging
          use xtb_type_options
          use xtb_type_molecule
          use xtb_type_wavefunction
@@ -98,7 +98,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
 !  class definitions
 ! ------------------------------------------------------------------------
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_param
    use xtb_type_molecule
@@ -106,9 +106,9 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
 !  interfaces
 ! ------------------------------------------------------------------------
-   use ncoord
-   use eeq_model
-   use tbmod_dftd4
+   use xtb_disp_ncoord
+   use xtb_eeq
+   use xtb_disp_dftd4
    !use dfuncpar
 
    implicit none
@@ -270,7 +270,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  class definitions
 ! ------------------------------------------------------------------------
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_param
    use xtb_type_molecule
@@ -278,11 +278,11 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  interfaces
 ! ------------------------------------------------------------------------
-   use ncoord
-   use eeq_model
-   use tbmod_dftd4
-   use pbc_tools
-   use pbc, only : get_realspace_cutoff
+   use xtb_disp_ncoord
+   use xtb_eeq
+   use xtb_disp_dftd4
+   use xtb_pbc_tools
+   use xtb_pbc, only : get_realspace_cutoff
 
    implicit none
 
@@ -453,4 +453,4 @@ dispersion_gradient: if (opt%lgradient) then
 endif dispersion_gradient
 
 end subroutine d4_pbc_calculation
-end module tb_calculators
+end module xtb_calculators

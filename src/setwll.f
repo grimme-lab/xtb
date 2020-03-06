@@ -20,8 +20,8 @@ c set atomic spin constants in Eh
 c lower triangle of s,p,d * s,p,d
 cccccccccccccccccccccccccccccccccccccc
       subroutine setwll_pbe(f)    ! f=1.9
-      use mctc_econv, only : autoev
-      use aoparam
+      use xtb_mctc_convert, only : autoev
+      use xtb_aoparam
       implicit none
 
       real*8 f   

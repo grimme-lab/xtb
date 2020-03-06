@@ -20,9 +20,9 @@
 ! of other fragment
 !****************************************** 
       subroutine pocketscan(n,at,xyz,nout) 
-      use splitparam
-      use setparam
-      use ncoord, only : ncoord_d3
+      use xtb_splitparam
+      use xtb_setparam
+      use xtb_disp_ncoord, only : ncoord_d3
       implicit none
       integer n,at(n),i,j,k,ios,ierr,npath,nout
       real*8 xyz(3,n),cn0(n),cn(n),coord(3,n),f,dum,cthr
@@ -117,7 +117,7 @@
       end
 
       subroutine pocketrotation(n,at,xyz,cma,trfm,ifrag,npath,xyzpath)  
-      use splitparam
+      use xtb_splitparam
       implicit none
       real*8 xyz(3,n),coord(3,n),turncrd(3,n),addcrd(3,n),turncrd0(3,n)
       integer n,at(n),ifrag,npath
@@ -232,7 +232,7 @@
       ! principal rotation axes for pocket rotation
       !*********************************************
       subroutine ifaceaxis(numat,nat,coord,cma1,trfm1,cma2,trfm2)    
-      use splitparam
+      use xtb_splitparam
       implicit none
       real*8 coord(3,numat)
       integer numat,nat(numat)

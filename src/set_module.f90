@@ -71,12 +71,12 @@
 !  If you have any questions on this module, feel free to ask me or another dev
 !  SAW: ehlert@thch.uni-bonn.de
 !
-module set_module
+module xtb_setmod
    use xtb_mctc_accuracy, only : wp
 
-   use readin, only : mirror_line,get_value
+   use xtb_readin, only : mirror_line,get_value
 
-   use setparam
+   use xtb_setparam
 
    implicit none
 
@@ -144,7 +144,7 @@ end subroutine write_set
 
 !  write *all* informations contained in the setcommon to xcontrol
 subroutine write_set_gfn(ictrl)
-   use readin, only : bool2int,bool2string
+   use xtb_readin, only : bool2int,bool2string
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"gfn")') flag
@@ -170,7 +170,7 @@ subroutine write_set_scc(ictrl)
 end subroutine write_set_scc
 
 subroutine write_set_opt(ictrl)
-   use readin, only : bool2int,bool2string
+   use xtb_readin, only : bool2int,bool2string
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"opt")') flag
@@ -229,7 +229,7 @@ subroutine write_set_thermo(ictrl)
 end subroutine write_set_thermo
 
 subroutine write_set_md(ictrl)
-   use readin, only : bool2int,bool2string
+   use xtb_readin, only : bool2int,bool2string
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"md")') flag
@@ -246,7 +246,7 @@ subroutine write_set_md(ictrl)
 end subroutine write_set_md
 
 subroutine write_set_siman(ictrl)
-   use readin, only : bool2int,bool2string
+   use xtb_readin, only : bool2int,bool2string
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"siman")') flag
@@ -267,7 +267,7 @@ subroutine write_set_hess(ictrl)
 end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
-   use gbobc, only: lgbsa,ionst,ion_rad
+   use xtb_solv_gbobc, only: lgbsa,ionst,ion_rad
    implicit none
    integer,intent(in) :: ictrl
    if (lgbsa) then
@@ -316,7 +316,7 @@ subroutine write_set_symmetry(ictrl)
 end subroutine write_set_symmetry
 
 subroutine write_set_embedding(ictrl)
-   use readin, only : bool2int,bool2string
+   use xtb_readin, only : bool2int,bool2string
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"embedding")') flag
@@ -331,7 +331,7 @@ subroutine write_set_embedding(ictrl)
 end subroutine write_set_embedding
 
 subroutine write_set_write(ictrl)
-   use readin, only : bool2int,bool2string
+   use xtb_readin, only : bool2int,bool2string
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"write")') flag
@@ -444,10 +444,10 @@ end subroutine write_set_reactor
 
 
 subroutine write_set_constrain(ictrl)
-   use scanparam
-   use splitparam
-   use mctc_econv, only : autoaa
-   use mctc_constants, only : pi
+   use xtb_scanparam
+   use xtb_splitparam
+   use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_constants, only : pi
    implicit none
    integer, intent(in) :: ictrl
    integer :: i,idum
@@ -492,9 +492,9 @@ subroutine write_set_constrain(ictrl)
 end subroutine write_set_constrain
 
 subroutine write_set_scan(ictrl)
-   use scanparam
-   use mctc_econv, only : autoaa
-   use mctc_constants, only : pi
+   use xtb_scanparam
+   use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_constants, only : pi
    implicit none
    integer, intent(in) :: ictrl
    integer :: i,idum
@@ -533,7 +533,7 @@ end subroutine write_set_scan
 
 subroutine write_set_fix(ictrl)
    use xtb_type_atomlist
-   use fixparam
+   use xtb_fixparam
    implicit none
    integer, intent(in) :: ictrl
    type(TAtomList) :: atl
@@ -559,7 +559,7 @@ end subroutine write_set_fix
 
 subroutine write_set_split(ictrl)
    use xtb_type_atomlist
-   use splitparam
+   use xtb_splitparam
    implicit none
    integer, intent(in) :: ictrl
    type(TAtomList) :: atl
@@ -578,7 +578,7 @@ subroutine write_set_split(ictrl)
 end subroutine write_set_split
 
 subroutine write_set_wall(ictrl)
-   use sphereparam
+   use xtb_sphereparam
    implicit none
    integer, intent(in) :: ictrl
    integer :: i,j,nlist
@@ -621,7 +621,7 @@ end subroutine write_set_wall
 
 subroutine write_set_metadyn(ictrl)
    use xtb_type_atomlist
-   use fixparam
+   use xtb_fixparam
    implicit none
    integer, intent(in) :: ictrl
    type(TAtomList) :: atl
@@ -651,7 +651,7 @@ subroutine write_set_metadyn(ictrl)
 end subroutine write_set_metadyn
 
 subroutine open_set(ictrl,fname)
-   use mctc_timings, only : prtimestring
+   use xtb_mctc_timings, only : prtimestring
    implicit none
    integer,intent(out) :: ictrl
    character(len=*),intent(in) :: fname
@@ -680,10 +680,10 @@ end subroutine close_set
 
 subroutine rdcontrol(fname,copy_file)
    use iso_fortran_env, only : output_unit,iostat_end
-   use readin, only : find_new_name
-   use splitparam,  only : maxfrag
-   use scanparam,   only : maxconstr,maxscan
-   use sphereparam, only : maxwalls
+   use xtb_readin, only : find_new_name
+   use xtb_splitparam,  only : maxfrag
+   use xtb_scanparam,   only : maxconstr,maxscan
+   use xtb_sphereparam, only : maxwalls
    implicit none
    character(len=*),intent(in)  :: fname
    character(len=:),allocatable :: line
@@ -1243,7 +1243,7 @@ subroutine set_pcem(key,val)
 end subroutine set_pcem
 
 subroutine set_gfn(key,val)
-   use mctc_strings, only : lowercase
+   use xtb_mctc_strings, only : lowercase
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1330,7 +1330,7 @@ subroutine set_scc(key,val)
 end subroutine set_scc
 
 subroutine set_opt(key,val)
-   use mctc_strings
+   use xtb_mctc_strings
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1495,7 +1495,7 @@ function int2optlevel(ilvl) result(level)
 end function int2optlevel
 
 subroutine set_thermo(key,val)
-   use mctc_strings, only : parse
+   use xtb_mctc_strings, only : parse
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1734,7 +1734,7 @@ end subroutine set_reactor
 
 
 subroutine set_gbsa(key,val)
-   use gbobc, only: lsalt,ionst,ion_rad,lgbsa
+   use xtb_solv_gbobc, only: lsalt,ionst,ion_rad,lgbsa
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1956,7 +1956,7 @@ subroutine set_external(key,val)
 end subroutine set_external
 
 subroutine set_fix(key,val)
-   use fixparam
+   use xtb_fixparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -1976,7 +1976,7 @@ subroutine set_fix(key,val)
 end subroutine set_fix
 
 subroutine set_constr(key,val)
-   use scanparam
+   use xtb_scanparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -2015,7 +2015,7 @@ subroutine set_constr(key,val)
 end subroutine set_constr
 
 subroutine set_metadyn(key,val)
-   use fixparam
+   use xtb_fixparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -2106,7 +2106,7 @@ end subroutine set_path
 
 ! this is a dummy routine
 subroutine set_scan(key,val)
-   use scanparam
+   use xtb_scanparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -2130,7 +2130,7 @@ subroutine set_scan(key,val)
 end subroutine set_scan
 
 subroutine set_wall(key,val)
-   use sphereparam
+   use xtb_sphereparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -2200,15 +2200,15 @@ end subroutine set_wall
 
 ! this is a dummy routine
 subroutine set_split(key,val)
-   use splitparam
+   use xtb_splitparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
 end subroutine set_split
 
 subroutine set_legacy(key,val)
-   use mctc_strings, only : parse
-   use sphereparam
+   use xtb_mctc_strings, only : parse
+   use xtb_sphereparam
    implicit none
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
@@ -2322,4 +2322,4 @@ subroutine set_legacy(key,val)
 
 end subroutine set_legacy
 
-end module set_module
+end module xtb_setmod

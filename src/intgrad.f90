@@ -19,7 +19,7 @@
 !> Backend implementation for all overlap distribution based integrals,
 !  we use a hardcoded horizontal Obara--Saika recursion relation to get
 !  the job done, this is working code, so think twice before modifying it!
-module intgrad
+module xtb_intgrad
    use xtb_mctc_accuracy, only : wp
    implicit none
 
@@ -95,7 +95,7 @@ end function gpcenter
 
 ! --------------------------------------------------------------[SAW1907]-
 pure subroutine build_kab(ra,alp,rb,bet,gama,kab)
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    !     this computes the center, exponent, and multiplying factor of
    !     a single gaussian which can replace the product of two gaussian
@@ -217,7 +217,7 @@ end subroutine rhftce2
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine dtrf2(s,li,lj)
-   use mctc_la, only : gemm
+   use xtb_mctc_la, only : gemm
    implicit none
    real(wp),intent(inout) :: s(6,6)
    integer, intent(in)    :: li,lj
@@ -865,4 +865,4 @@ pure subroutine build_ds_ints(a,b,alpi,alpj,la,lb,v,g)
 
 end subroutine build_ds_ints
 
-end module intgrad
+end module xtb_intgrad

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module scf_module
+module xtb_scf
 ! ========================================================================
 use xtb_mctc_accuracy, only : wp
    implicit none
@@ -30,8 +30,8 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 &              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
 &              res)
 
-   use mctc_econv, only : autoev,evtoau
-   use mctc_logging
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_mctc_logging
 
 ! ========================================================================
 !  type definitions
@@ -45,24 +45,24 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 
 ! ========================================================================
 !  global storage
-   use aoparam
-   use setparam
+   use xtb_aoparam
+   use xtb_setparam
 
 ! ========================================================================
-   use scc_core
+   use xtb_scc_core
 
 ! ========================================================================
-   use aespot,    only : ovlp2,sdqint,setdqlist,get_radcn,setvsdq, &
+   use xtb_aespot,    only : ovlp2,sdqint,setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
-   use gbobc,     only : lgbsa,lhb,TSolvent,gshift, &
+   use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
    &                     update_nnlist_gbsa,compute_fgb,compute_brad_sasa
-   use tbmod_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
+   use xtb_disp_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
    &                     mdisp,prmolc6,edisp_scc,edisp,abcappr
-   use ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
-   use embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
+   use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
+   use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
 
-   use readin
+   use xtb_readin
 
    implicit none
 
@@ -797,19 +797,19 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 ! ========================================================================
 !  global storage
-   use aoparam
-   use setparam
+   use xtb_aoparam
+   use xtb_setparam
 
 ! ========================================================================
 !  interfaces
-   use scc_core
-   use grad_core
+   use xtb_scc_core
+   use xtb_grad_core
 
-   use aespot,    only : ddqint,dradcn,aniso_grad,setdvsdq,dsint
-   use gbobc,     only : lgbsa,lhb,TSolvent,gshift,compute_gb_egrad
-   use tbmod_dftd4, only: dispgrad
-   use ncoord,    only : dncoord_gfn,dncoord_d3
-   use embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
+   use xtb_aespot,    only : ddqint,dradcn,aniso_grad,setdvsdq,dsint
+   use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift,compute_gb_egrad
+   use xtb_disp_dftd4, only: dispgrad
+   use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
+   use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 
    implicit none
 
@@ -991,13 +991,13 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 
 ! ========================================================================
 !  global storage
-   use aoparam
-   use setparam
+   use xtb_aoparam
+   use xtb_setparam
 
 ! ========================================================================
 !  interfaces
-   use scc_core
-   use grad_core
+   use xtb_scc_core
+   use xtb_grad_core
 
    implicit none
 
@@ -1053,4 +1053,4 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 
 end subroutine cls_grad
 
-end module scf_module
+end module xtb_scf

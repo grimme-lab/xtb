@@ -1,7 +1,7 @@
 subroutine test_pbc_tools_convert
    use xtb_mctc_accuracy, only : wp
    use assertion
-   use pbc_tools
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    real(wp),parameter :: cellpar(6) = &
@@ -50,8 +50,8 @@ end subroutine test_pbc_tools_convert
 subroutine test_pbc_tools_cutoff
    use xtb_mctc_accuracy, only : wp
    use assertion
-   use pbc_tools
-   use pbc
+   use xtb_pbc_tools
+   use xtb_pbc
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    real(wp),parameter :: lattice_1(3,3) = reshape(&

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module fixparam
+module xtb_fixparam
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
@@ -64,8 +64,8 @@ subroutine clear_metadyn
 end subroutine clear_metadyn
 
 subroutine fix_info(iunit,n,at,xyz)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -125,4 +125,4 @@ subroutine fix_info(iunit,n,at,xyz)
 
 end subroutine fix_info
 
-end module fixparam
+end module xtb_fixparam

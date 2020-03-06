@@ -16,19 +16,14 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 submodule(xtb_type_molecule) molecule_writer
+   use xtb_mctc_symbols, only : toNumber, toSymbol
    use xtb_type_molecule
-   use tbmod_symbols
    implicit none
-
-   interface assignment(=)
-      module procedure :: symbol_to_number
-      module procedure :: number_to_symbol
-   end interface assignment(=)
 
 contains
 
 module subroutine write_molecule_generic(self, unit, format, energy, gnorm, number)
-   use tbmod_file_utils
+   use xtb_file_utils
    include 'xtb_version.fh'
    class(TMolecule), intent(in) :: self
    integer, intent(in) :: unit
@@ -83,7 +78,7 @@ module subroutine write_molecule_generic(self, unit, format, energy, gnorm, numb
 end subroutine write_molecule_generic
 
 subroutine write_xyz(mol, unit, comment_line)
-   use mctc_econv
+   use xtb_mctc_convert
    class(TMolecule), intent(in) :: mol
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
@@ -149,7 +144,7 @@ subroutine write_sdf(mol, unit, energy, gnorm)
 end subroutine write_sdf
 
 subroutine write_molfile(mol, unit, comment_line)
-   use mctc_econv
+   use xtb_mctc_convert
    class(TMolecule), intent(in) :: mol
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
@@ -197,7 +192,7 @@ subroutine write_molfile(mol, unit, comment_line)
 end subroutine write_molfile
 
 subroutine write_vasp(mol, unit, comment_line)
-   use mctc_econv
+   use xtb_mctc_convert
    class(TMolecule), intent(in) :: mol
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
@@ -258,7 +253,7 @@ subroutine write_vasp(mol, unit, comment_line)
 end subroutine write_vasp
 
 subroutine write_gen(mol, unit, comment_line)
-   use mctc_econv
+   use xtb_mctc_convert
    class(TMolecule), intent(in) :: mol
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
@@ -284,7 +279,7 @@ subroutine write_gen(mol, unit, comment_line)
    do iat = minval(mol%at), maxval(mol%at)
       if (any(mol%at == iat)) then
          j = j+1
-         sym = iat
+         sym = toSymbol(iat)
          write(unit,'(1x,a)',advance='no') trim(sym)
          where(mol%at == iat)
             species = j
@@ -318,7 +313,7 @@ subroutine write_gen(mol, unit, comment_line)
 end subroutine write_gen
 
 subroutine write_pdb(mol, unit, number)
-   use mctc_econv
+   use xtb_mctc_convert
    type(TMolecule), intent(in) :: mol
    integer, intent(in) :: unit
    integer, intent(in), optional :: number

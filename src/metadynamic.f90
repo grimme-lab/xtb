@@ -18,7 +18,7 @@
 subroutine metadynamic(metavar,nat,at,xyz,ebias,g)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
-   use ls_rmsd
+   use xtb_lsrmsd
    implicit none
    type(metadyn_setvar),intent(in) :: metavar
    integer, intent(in)    :: nat
@@ -86,8 +86,8 @@ end subroutine metadynamic
 subroutine load_metadynamic(metavar,nat,at,xyz)
    use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
-   use fixparam
-   use readin
+   use xtb_fixparam
+   use xtb_readin
    implicit none
    type(metadyn_setvar),intent(inout) :: metavar
    integer, intent(in)    :: nat

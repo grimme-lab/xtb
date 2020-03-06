@@ -17,13 +17,13 @@
 
 !> Enduser bindings for the xtb API. This module tries to provide the most
 !  convenient interface to commonly used xtb methods.
-module tbapi_interface
+module xtb_api_interface
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use tbapi_structs
-   use tbapi_utils
-   use tbapi_preload
+   use xtb_api_structs
+   use xtb_api_utils
+   use xtb_api_preload
 
    implicit none
 
@@ -40,16 +40,16 @@ integer(c_int) function xtb_calculation_api &
       & (c_mol, c_param, c_basis, c_wfn, c_pcem, c_opt, c_output, &
       &  c_energy, c_gradient, c_stress) &
       & result(status) bind(C, name="xTB_calculation")
-   use setparam, only: gfn_method
-   use mctc_logging
+   use xtb_setparam, only: gfn_method
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_basisset
    use xtb_type_wavefunction
    use xtb_type_options
    use xtb_type_data
    use xtb_type_pcem
-   use scf_module
-   use peeq_module
+   use xtb_scf
+   use xtb_peeq
    !> Opaque pointer to the molecular structure data
    type(c_ptr), value, intent(in) :: c_mol
    !> Actual molecular structure data
@@ -206,13 +206,13 @@ function peeq_api &
       &    etot,grad,stress,glat) &
       &    result(status) bind(C,name="GFN0_PBC_calculation")
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -395,7 +395,7 @@ function gfn12_calc_impl &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo,dipm,qp) &
       &    result(status)
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
@@ -405,9 +405,9 @@ function gfn12_calc_impl &
    use xtb_type_basisset
    use xtb_type_data
 
-   use setparam, only: ngrida, gfn_method
-   use scf_module
-   use gbobc
+   use xtb_setparam, only: ngrida, gfn_method
+   use xtb_scf
+   use xtb_solv_gbobc
 
    implicit none
 
@@ -535,13 +535,13 @@ function gfn0_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad) &
       &    result(status) bind(C,name="GFN0_calculation")
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -649,7 +649,7 @@ function gfn2_pcem_api &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN2_QMMM_calculation")
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
@@ -657,9 +657,9 @@ function gfn2_pcem_api &
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use aoparam
+   use xtb_aoparam
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -739,7 +739,7 @@ function gfn12_pcem_impl &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status)
 
-   use mctc_logging
+   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
@@ -749,12 +749,12 @@ function gfn12_pcem_impl &
    use xtb_type_basisset
    use xtb_type_data
 
-   use aoparam
-   use setparam, only: gfn_method, ngrida
-   use scf_module
-   use gbobc
+   use xtb_aoparam
+   use xtb_setparam, only: gfn_method, ngrida
+   use xtb_scf
+   use xtb_solv_gbobc
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -891,12 +891,12 @@ function gbsa_calculation_api &
       &   brad,sasa) &
       &  result(status) bind(C,name='GBSA_calculation')
 
-   use mctc_constants
+   use xtb_mctc_constants
 
    use xtb_type_molecule
    use xtb_type_options
 
-   use gbobc
+   use xtb_solv_gbobc
 
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: attyp(natoms)
@@ -982,4 +982,4 @@ contains
    end subroutine finalize
 end function gbsa_calculation_api
 
-end module tbapi_interface
+end module xtb_api_interface

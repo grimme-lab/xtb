@@ -15,16 +15,16 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module qcextern
+module xtb_qcextern
    use, intrinsic :: iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
    implicit none
 contains
 
 subroutine mopac_chk()
-   use mctc_systools
-   use setparam
-   use readin
+   use xtb_mctc_systools
+   use xtb_setparam
+   use xtb_readin
    implicit none
    character(len=:),allocatable :: homedir,syspath
    character(len=5) :: chdum
@@ -128,9 +128,9 @@ subroutine mopac_chk()
 end subroutine mopac_chk
 
 subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
-   use mctc_econv
-   use mctc_systools
-   use setparam
+   use xtb_mctc_convert
+   use xtb_mctc_systools
+   use xtb_setparam
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -204,10 +204,10 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
 end subroutine run_mopac_egrad
 
 subroutine orca_chk()
-   use mctc_systools
-   use mctc_strings
-   use setparam
-   use readin
+   use xtb_mctc_systools
+   use xtb_mctc_strings
+   use xtb_setparam
+   use xtb_readin
    implicit none
    character(len=:),allocatable :: homedir,syspath
    character(len=:),allocatable :: line
@@ -321,9 +321,9 @@ subroutine orca_chk()
 end subroutine orca_chk
 
 subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
-   use mctc_econv
-   use setparam
-   use write_geometry
+   use xtb_mctc_convert
+   use xtb_setparam
+   use xtb_writegeometry
    implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
@@ -422,4 +422,4 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
 
 end subroutine run_orca_egrad
 
-end module qcextern
+end module xtb_qcextern

@@ -15,22 +15,22 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module tbmod_dftd4
+module xtb_disp_dftd4
    use xtb_mctc_accuracy, only : wp
-   use mctc_constants, only : pi
-   use mctc_param, only: gam => chemical_hardness, &
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_param, only: gam => chemical_hardness, &
       &                  en => pauling_en, &
       &                  rcov => covalent_radius_d3, &
       &                  r4r2 => sqrt_z_r4_over_r2
    !! ========================================================================
    !  mix in the covalent coordination number from the ncoord module
    !  also get the CN-Parameters to inline the CN-derivative in the gradient
-   use ncoord, only : covncoord => ncoord_d4, kn,k1,k4,k5,k6
+   use xtb_disp_ncoord, only : covncoord => ncoord_d4, kn,k1,k4,k5,k6
    use xtb_type_param, only : dftd_parameter
-   use tbpar_dftd4, only: zeff, thopi, ootpi, p_mbd_none, p_mbd_rpalike, &
+   use xtb_disp_dftd4param, only: zeff, thopi, ootpi, p_mbd_none, p_mbd_rpalike, &
       &                   p_mbd_exact_atm, p_mbd_approx_atm, p_refq_goedecker, &
       &                   p_refq_gfn2xtb
-   use tbdef_dispersion_model
+   use xtb_type_dispersionmodel
    implicit none
 
    type(tb_dispersion_model) :: dispm
@@ -38,7 +38,7 @@ module tbmod_dftd4
 contains
 
 subroutine d4init(g_a,g_c,mode)
-   use tbpar_dftd4
+   use xtb_disp_dftd4param
    real(wp),intent(in)  :: g_a,g_c
    integer, intent(in)  :: mode
 
@@ -153,7 +153,7 @@ end subroutine d4dim
 subroutine prmolc6(molc6,molc8,molpol,nat,at,  &
            &       cn,covcn,q,qlmom,c6ab,alpha,rvdw,hvol)
    use iso_fortran_env, only : id => output_unit
-   use mctc_econv, only : autoaa
+   use xtb_mctc_convert, only : autoaa
    real(wp),intent(in)  :: molc6
    real(wp),intent(in)  :: molc8
    real(wp),intent(in)  :: molpol
@@ -695,7 +695,7 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 end subroutine build_wdispmat
 
 subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
-   use mctc_la, only : symv
+   use xtb_mctc_la, only : symv
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -749,7 +749,7 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
 end subroutine disppot
 
 function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
-   use mctc_la, only : symv
+   use xtb_mctc_la, only : symv
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -1862,7 +1862,7 @@ subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
 end subroutine dabcgrad
 
 subroutine dispmb(E,aw,xyz,oor6ab,nat)
-   use mctc_la, only : syev,gemm
+   use xtb_mctc_la, only : syev,gemm
    integer, intent(in)  :: nat
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: aw(23,nat)
@@ -1976,7 +1976,7 @@ end subroutine dispmb
 !! !WARNING!WARNING!WARNING!WARNING!WARNING!WARNING!WARNING!WARNING! !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
-   use mctc_la, only : syev,gemm
+   use xtb_mctc_la, only : syev,gemm
    integer, intent(in)  :: nat
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: aw(23,nat)
@@ -2327,7 +2327,7 @@ end subroutine pbc_d4
 ! compute D4 gradient under pbc
 subroutine edisp_3d(mol,ndim,q,rep,atm_rep,r_thr,atm_thr,par,g_a,g_c,gw,refc6,mbd, &
       &             ed,etwo,embd)
-   use mctc_constants
+   use xtb_mctc_constants
    use xtb_type_molecule
    type(TMolecule),intent(in) :: mol
    integer, intent(in)  :: ndim
@@ -2496,7 +2496,7 @@ end subroutine edisp_3d
 !> @brief calculates threebody dispersion gradient from C6 coefficients
 subroutine abcappr_3d(mol,ndim,par,zvec,refc6,itbl,rep,r_thr,eabc)
    use xtb_type_molecule
-   use pbc_tools
+   use xtb_pbc_tools
    type(TMolecule),intent(in) :: mol !< molecular structure information
    integer, intent(in)  :: ndim
    type(dftd_parameter),intent(in) :: par
@@ -2930,9 +2930,9 @@ end subroutine abcappr_3d_dftd3_like_style
 ! compute D4 gradient under pbc
 subroutine dispgrad_3d(mol,ndim,q,cn,dcndr,dcndL,rep,atm_rep,r_thr,atm_thr,par, &
       &                wf,g_a,g_c,refc6,mbd,g,sigma,eout,dqdr,dqdL,aout)
-   use mctc_constants
+   use xtb_mctc_constants
    use xtb_type_molecule
-   use pbc_tools
+   use xtb_pbc_tools
    type(TMolecule),intent(in) :: mol
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: q(mol%n)
@@ -3164,7 +3164,7 @@ end subroutine dispgrad_3d
 subroutine dabcappr_3d(mol,ndim,par,zvec,dzvec,refc6,itbl,rep,r_thr, &
       &                g,sigma,dc6dcn,eabc)
    use xtb_type_molecule
-   use pbc_tools
+   use xtb_pbc_tools
    type(TMolecule),intent(in) :: mol !< molecular structure information
    integer, intent(in)  :: ndim
    type(dftd_parameter),intent(in) :: par
@@ -3269,8 +3269,8 @@ end subroutine dabcappr_3d
 
 subroutine dabcappr_3d_dftd3_like_style(nat,at,xyz,par,thr,rep,dlat,c6ab,dc6ab, &
       &    eabc,dc6dcn,g,sigma)
-   use mctc_constants
-   use pbc_tools
+   use xtb_mctc_constants
+   use xtb_pbc_tools
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
@@ -3971,4 +3971,4 @@ subroutine get_atomic_c6(nat, atoms, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq
    end do
 end subroutine get_atomic_c6
 
-end module tbmod_dftd4
+end module xtb_disp_dftd4

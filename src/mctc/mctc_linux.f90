@@ -20,7 +20,7 @@
 !  the Linux kernel, *not* call system()!) in a Fortran accessable way.
 !  All system calls can be looked up by `man 2 <name>'.
 !! ------------------------------------------------------------------------
-module mctc_linux
+module xtb_mctc_linux
    !  sys/types.h
    !  > typedef unsigned short mode_t; /* file type and permissions bits */
    !    Note: rwxr-xr-x -> o'0755' -> b'0000000111101101'
@@ -155,4 +155,4 @@ function sys_chdir(pathname) result(err)
    err = c_chdir(c_name)
 end function sys_chdir
 
-end module mctc_linux
+end module xtb_mctc_linux

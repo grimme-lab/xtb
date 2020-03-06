@@ -23,9 +23,9 @@
 !  Cartesian coordinates which are then used in any imaginable fashion
 !  later on in the actual optimization.                        - SAW190131
 !! ========================================================================
-module model_hessian
+module xtb_modelhessian
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
 
    public :: mh_lindh
@@ -96,9 +96,9 @@ contains
 !  factor somewhere hidden in the implementation below.
 !! ------------------------------------------------------------------------
 subroutine mh_swart(xyz,n,hess,at,modh)
-   use mctc_constants
-   use mctc_econv
-   use mctc_param, only: rad => covalent_radius_2009
+   use xtb_mctc_constants
+   use xtb_mctc_convert
+   use xtb_mctc_param, only: rad => covalent_radius_2009
 
    use xtb_type_setvar
    use xtb_type_param
@@ -140,8 +140,8 @@ subroutine mh_swart(xyz,n,hess,at,modh)
 end subroutine mh_swart
 
 pure subroutine mh_swart_stretch(n,at,xyz,hess,kr,kd,s6,rcov,rvdw,lcutoff,rcut)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
 
    implicit none
 
@@ -239,7 +239,7 @@ pure subroutine mh_swart_stretch(n,at,xyz,hess,kr,kd,s6,rcov,rvdw,lcutoff,rcut)
 end subroutine mh_swart_stretch
 
 pure subroutine mh_swart_bend(n,at,xyz,hess,kf,kd,rcov,rvdw,lcutoff)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -446,7 +446,7 @@ pure subroutine mh_swart_bend(n,at,xyz,hess,kf,kd,rcov,rvdw,lcutoff)
 end subroutine mh_swart_bend
 
 pure subroutine mh_swart_torsion(n,at,xyz,hess,kt,kd,rcov,rvdw,lcutoff)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -569,7 +569,7 @@ pure subroutine mh_swart_torsion(n,at,xyz,hess,kt,kd,rcov,rvdw,lcutoff)
 end subroutine mh_swart_torsion
 
 pure subroutine mh_swart_outofp(n,at,xyz,hess,ko,kd,rcov,rvdw,lcutoff)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -714,8 +714,8 @@ end subroutine mh_swart_outofp
 !  factor somewhere hidden in the implementation below.
 !! ------------------------------------------------------------------------
 subroutine mh_lindh_d2(xyz,n,hess,at,modh)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
 
    use xtb_type_setvar
    use xtb_type_param
@@ -795,8 +795,8 @@ end subroutine mh_lindh_d2
 !
 !! ------------------------------------------------------------------------
 subroutine mh_lindh(xyz,n,hess,at,modh)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
 
    use xtb_type_setvar
    use xtb_type_param
@@ -850,8 +850,8 @@ subroutine mh_lindh(xyz,n,hess,at,modh)
 end subroutine mh_lindh
 
 pure subroutine mh_lindh_stretch(n,at,xyz,hess,kr,kd,s6,aav,rav,dav,lcutoff,rcut)
-   use mctc_constants
-   use mctc_econv
+   use xtb_mctc_constants
+   use xtb_mctc_convert
 
    implicit none
 
@@ -953,7 +953,7 @@ pure subroutine mh_lindh_stretch(n,at,xyz,hess,kr,kd,s6,aav,rav,dav,lcutoff,rcut
 end subroutine mh_lindh_stretch
 
 pure subroutine mh_lindh_bend(n,at,xyz,hess,kf,kd,aav,rav,dav,lcutoff)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -1166,7 +1166,7 @@ pure subroutine mh_lindh_bend(n,at,xyz,hess,kf,kd,aav,rav,dav,lcutoff)
 end subroutine mh_lindh_bend
 
 subroutine mh_lindh_torsion(n,at,xyz,hess,kt,kd,aav,rav,dav,lcutoff)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -1300,7 +1300,7 @@ subroutine mh_lindh_torsion(n,at,xyz,hess,kt,kd,aav,rav,dav,lcutoff)
 end subroutine mh_lindh_torsion
 
 pure subroutine mh_lindh_outofp(n,at,xyz,hess,ko,kd,aav,rav,dav,lcutoff)
-   use mctc_constants
+   use xtb_mctc_constants
 
    implicit none
 
@@ -1481,7 +1481,7 @@ end function itabrow
 
 pure subroutine outofp2(xyz,teta,bt)
    use iso_fortran_env, wp => real64
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    real(wp),intent(out) :: teta
    real(wp),intent(out) :: bt(3,4)
@@ -1581,7 +1581,7 @@ pure subroutine outofp2(xyz,teta,bt)
 end subroutine outofp2
 
 pure subroutine trsn2(xyz,tau,bt)
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    real(wp),intent(out) :: bt(3,4)
    real(wp),intent(out) :: tau
@@ -1643,7 +1643,7 @@ pure subroutine strtch2(xyz,avst,b)
    b(:,2)=-b(:,1)
 end subroutine strtch2
 pure subroutine bend2(xyz,fir,bf)
-   use mctc_constants
+   use xtb_mctc_constants
    implicit none
    real(wp),intent(out) :: bf(3,3)
    real(wp),intent(in)  :: xyz(3,3)
@@ -2080,7 +2080,7 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
 
 end subroutine mh_eeq
 
-end module model_hessian
+end module xtb_modelhessian
 
       subroutine ddvopt(Cart,nAtoms,Hess,iANr,s6)
       Implicit Integer(i-n)

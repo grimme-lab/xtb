@@ -206,7 +206,7 @@ end subroutine constrain_dist
 subroutine constrain_angle(fix,n,at,xyz,g,e)
    use iso_fortran_env, wp => real64
    use xtb_type_setvar
-   use basic_geo
+   use xtb_basic_geo
    implicit none
    type(fix_setvar),intent(in) :: fix
    integer, intent(in)    :: n
@@ -262,9 +262,9 @@ end subroutine constrain_angle
 
 subroutine constrain_dihedral(fix,n,at,xyz,g,e)
    use iso_fortran_env, wp => real64
-   use mctc_constants
+   use xtb_mctc_constants
    use xtb_type_setvar
-   use basic_geo
+   use xtb_basic_geo
    implicit none
    type(fix_setvar),intent(in) :: fix
    integer, intent(in)    :: n

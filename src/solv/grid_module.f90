@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module grid_module
+module xtb_grid_module
    use xtb_mctc_accuracy, only : wp
 
    private
@@ -7506,4 +7506,4 @@ pure SUBROUTINE LD5810(X,Y,Z,W,N)
    RETURN
 END subroutine
 
-end module grid_module
+end module xtb_grid_module

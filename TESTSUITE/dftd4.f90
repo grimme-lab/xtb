@@ -4,7 +4,7 @@ subroutine test_dftd4_properties
    use xtb_mctc_io, only : stdout
    use assertion
    use xtb_type_molecule
-   use tbmod_dftd4
+   use xtb_disp_dftd4
    implicit none
    type(TMolecule)       :: mol
    integer              :: ndim
@@ -82,7 +82,7 @@ subroutine test_dftd4_energies
    use assertion
    use xtb_type_molecule
    use xtb_type_param
-   use tbmod_dftd4
+   use xtb_disp_dftd4
    implicit none
    type(TMolecule)       :: mol
    integer  :: idum
@@ -177,10 +177,10 @@ subroutine test_dftd4_pbc_energies
    use assertion
    use xtb_type_molecule
    use xtb_type_param
-   use tbmod_dftd4
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_disp_dftd4
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 6
@@ -294,13 +294,13 @@ subroutine test_dftd4_cell_gradient
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_param
-   use tbmod_dftd4
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_disp_dftd4
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 6
@@ -433,8 +433,8 @@ subroutine test_dftd4_api
    use xtb_type_molecule
    use xtb_type_options
    use xtb_type_param
-   use tbmod_dftd4
-   use tb_calculators
+   use xtb_disp_dftd4
+   use xtb_calculators
    implicit none
    type(TMolecule)  :: mol
 
@@ -498,9 +498,9 @@ subroutine test_dftd4_pbc_api
    use xtb_type_molecule
    use xtb_type_options
    use xtb_type_param
-   use tbmod_dftd4
-   use pbc_tools
-   use tb_calculators
+   use xtb_disp_dftd4
+   use xtb_pbc_tools
+   use xtb_calculators
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp

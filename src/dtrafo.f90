@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module dtrafo
+module xtb_dtrafo
 
 contains
 
@@ -238,7 +238,7 @@ end subroutine sao2cao
 
 subroutine cao2saop(nbf,nao,s,basis)
   use xtb_type_basisset
-  use lin_mod, only : lin
+  use xtb_lin, only : lin
   implicit none
   type(TBasisset), intent(in) :: basis
   integer nbf,nao
@@ -351,4 +351,4 @@ subroutine cao2saop(nbf,nao,s,basis)
 
   deallocate(sneu)
 end subroutine cao2saop
-end module dtrafo
+end module xtb_dtrafo

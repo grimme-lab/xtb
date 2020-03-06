@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module peeq_module
+module xtb_peeq
 ! ------------------------------------------------------------------------
 !  PEEQ method developed and implemented by E. Caldeweyher
 !   01/19
@@ -23,8 +23,8 @@ module peeq_module
 !  S. Ehlert, S. Grimme, P. Pracht
 ! ------------------------------------------------------------------------
 use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use mctc_la
+   use xtb_mctc_convert
+   use xtb_mctc_la
    implicit none
 
    !> print the different gradient contributions (for debugging)
@@ -73,7 +73,7 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
 !  Class definitions
 ! ------------------------------------------------------------------------
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_basisset
@@ -84,20 +84,20 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
 !  Global storage
 ! ------------------------------------------------------------------------
-   use aoparam
+   use xtb_aoparam
 
 ! ------------------------------------------------------------------------
 !  Get interfaces
 ! ------------------------------------------------------------------------
-   use readin
-   use aespot
-   use scc_core
-   use grad_core
-   use eeq_model
-   use ncoord
-   use lidep
-   use gbobc
-   use pbc
+   use xtb_readin
+   use xtb_aespot
+   use xtb_scc_core
+   use xtb_grad_core
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_lineardep
+   use xtb_solv_gbobc
+   use xtb_pbc
 
    implicit none
 
@@ -635,7 +635,7 @@ subroutine ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
 ! -----------------------------------------------------------------------
 !  Type definitions
 ! -----------------------------------------------------------------------
-   use mctc_logging
+   use xtb_mctc_logging
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_basisset
@@ -644,10 +644,10 @@ subroutine ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
 ! -----------------------------------------------------------------------
 !  DFT-D4 definitions and PBC definitions
 ! -----------------------------------------------------------------------
-   use tbmod_dftd4
-   use eeq_model
-   use pbc,    only : get_realspace_cutoff
-   use ncoord
+   use xtb_disp_dftd4
+   use xtb_eeq
+   use xtb_pbc,    only : get_realspace_cutoff
+   use xtb_disp_ncoord
    implicit none
 
 ! -----------------------------------------------------------------------
@@ -773,11 +773,11 @@ end subroutine ddisp_peeq
 
 ! repulsion
 pure subroutine drep_grad(mol,param,erep,g,sigma)
-   use aoparam,   only : rep,en
+   use xtb_aoparam,   only : rep,en
    use xtb_type_molecule
    use xtb_type_param
-   use pbc_tools
-   use pbc
+   use xtb_pbc_tools
+   use xtb_pbc
    implicit none
    ! intent in
    type(scc_parameter), intent(in) :: param
@@ -873,12 +873,12 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    use xtb_type_param
    use xtb_type_molecule
 
-   use aoparam,   only : rep
+   use xtb_aoparam,   only : rep
 
-   use approxrab
-   use ncoord
-   use pbc_tools
-   use pbc
+   use xtb_approxrab
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
+   use xtb_pbc
 
    implicit none
 
@@ -1056,11 +1056,11 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
 
    use xtb_type_basisset
 
-   use aoparam
+   use xtb_aoparam
 
-   use lin_mod, only : lin
-   use intgrad
-   use scc_core
+   use xtb_lin, only : lin
+   use xtb_intgrad
+   use xtb_scc_core
 
    implicit none
 
@@ -1250,11 +1250,11 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
    use xtb_type_basisset
    use xtb_type_wsc
 
-   use aoparam
+   use xtb_aoparam
 
-   use lin_mod, only : lin
-   use intgrad
-   use scc_core
+   use xtb_lin, only : lin
+   use xtb_intgrad
+   use xtb_scc_core
 
    implicit none
 
@@ -1448,11 +1448,11 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
 
    use xtb_type_basisset
 
-   use aoparam
+   use xtb_aoparam
 
-   use lin_mod, only : lin
-   use intgrad
-   use scc_core
+   use xtb_lin, only : lin
+   use xtb_intgrad
+   use xtb_scc_core
 
    implicit none
 
@@ -1646,7 +1646,7 @@ end subroutine pbc_build_SH0
 
 pure subroutine get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
       &                nprim,primcount,alp,cont,sint)
-   use intgrad
+   use xtb_intgrad
    implicit none
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
@@ -1710,7 +1710,7 @@ end subroutine get_overlap
 
 pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
       &                     nprim,primcount,alp,cont,sdq,sdqg)
-   use intgrad
+   use xtb_intgrad
    implicit none
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
@@ -1779,16 +1779,16 @@ end subroutine get_grad_overlap
 ! ------------------------------------------------------------------------
 subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
       &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp)
-   use mctc_constants, only : pi
-   use mctc_econv
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert
 
    use xtb_type_wsc
    use xtb_type_basisset
 
-   use aoparam
+   use xtb_aoparam
 
-   use intgrad
-   use grad_core
+   use xtb_intgrad
+   use xtb_grad_core
 
    implicit none
 
@@ -2013,16 +2013,16 @@ end subroutine mol_build_dSH0
 ! ------------------------------------------------------------------------
 subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigma,&
       &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp,wsc)
-   use mctc_constants, only : pi
-   use mctc_econv
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert
 
    use xtb_type_wsc
    use xtb_type_basisset
 
-   use aoparam
+   use xtb_aoparam
 
-   use intgrad
-   use grad_core
+   use xtb_intgrad
+   use xtb_grad_core
 
    implicit none
 
@@ -2253,16 +2253,16 @@ end subroutine ccm_build_dSH0
 ! ------------------------------------------------------------------------
 subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,sigma, &
       &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp)
-   use mctc_constants, only : pi
-   use mctc_econv
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert
 
    use xtb_type_wsc
    use xtb_type_basisset
 
-   use aoparam
+   use xtb_aoparam
 
-   use intgrad
-   use grad_core
+   use xtb_intgrad
+   use xtb_grad_core
 
    implicit none
 
@@ -2495,5 +2495,5 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
 
 end subroutine pbc_build_dSH0
 
-end module peeq_module
+end module xtb_peeq
 

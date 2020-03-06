@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2019-2020 Sebastian Ehlert
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -15,36 +15,49 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_resize_arrays
+!> Reallocation implementation for resizing arrays
+module xtb_mctc_resize
    use xtb_mctc_accuracy, only : wp
    implicit none
-   public :: resize
    private
 
+   public :: resize
+
+
+   !> Overloaded resize interface
    interface resize
-      module procedure :: resize_char
-      module procedure :: resize_int
-      module procedure :: resize_real
-      module procedure :: resize_real_2d
+      module procedure :: resizeChar
+      module procedure :: resizeInt
+      module procedure :: resizeReal
+      module procedure :: resizeReal2d
    end interface resize
+
 
 contains
 
-subroutine resize_int(var, n)
+
+!> Reallocate list of integers
+pure subroutine resizeInt(var, n)
+
+   !> TODO
    integer, allocatable, intent(inout) :: var(:)
+
+   !> TODO
    integer, intent(in), optional :: n
+
    integer, allocatable :: tmp(:)
-   integer :: length, current_length
-   current_length = size(var)
-   if (current_length > 0) then
+   integer :: length, currentLength
+
+   currentLength = size(var)
+   if (currentLength > 0) then
       if (present(n)) then
-         if (n <= current_length) return
+         if (n <= currentLength) return
          length = n
       else
-         length = current_length + current_length/2 + 1
+         length = currentLength + currentLength/2 + 1
       endif
       allocate(tmp(length), source=0)
-      tmp(:current_length) = var(:current_length)
+      tmp(:currentLength) = var(:currentLength)
       deallocate(var)
       call move_alloc(tmp, var)
    else
@@ -55,23 +68,32 @@ subroutine resize_int(var, n)
       endif
       allocate(var(length), source=0)
    endif
-end subroutine resize_int
 
-subroutine resize_char(var, n)
+end subroutine resizeInt
+
+
+!> Reallocate list of characters
+pure subroutine resizeChar(var, n)
+
+   !> TODO
    character(len=*), allocatable, intent(inout) :: var(:)
+
+   !> TODO
    integer, intent(in), optional :: n
+
    character(len=:), allocatable :: tmp(:)
-   integer :: length, current_length
-   current_length = size(var)
-   if (current_length > 0) then
+   integer :: length, currentLength
+
+   currentLength = size(var)
+   if (currentLength > 0) then
       if (present(n)) then
-         if (n <= current_length) return
+         if (n <= currentLength) return
          length = n
       else
-         length = current_length + current_length/2 + 1
+         length = currentLength + currentLength/2 + 1
       endif
       allocate(tmp(length), mold=var)
-      tmp(:current_length) = var(:current_length)
+      tmp(:currentLength) = var(:currentLength)
       deallocate(var)
       call move_alloc(tmp, var)
    else
@@ -82,23 +104,32 @@ subroutine resize_char(var, n)
       endif
       allocate(var(length), source=' ')
    endif
-end subroutine resize_char
 
-subroutine resize_real(var, n)
+end subroutine resizeChar
+
+
+!> Reallocate list of reals
+pure subroutine resizeReal(var, n)
+
+   !> TODO
    real(wp), allocatable, intent(inout) :: var(:)
+
+   !> TODO
    integer, intent(in), optional :: n
+
    real(wp), allocatable :: tmp(:)
-   integer :: length, order, current_length
-   current_length = size(var)
-   if (current_length > 0) then
+   integer :: length, order, currentLength
+
+   currentLength = size(var)
+   if (currentLength > 0) then
       if (present(n)) then
-         if (n <= current_length) return
+         if (n <= currentLength) return
          length = n
       else
-         length = current_length + current_length/2 + 1
+         length = currentLength + currentLength/2 + 1
       endif
       allocate(tmp(length), source=0.0_wp)
-      tmp(:current_length) = var(:current_length)
+      tmp(:currentLength) = var(:currentLength)
       deallocate(var)
       call move_alloc(tmp, var)
    else
@@ -109,25 +140,34 @@ subroutine resize_real(var, n)
       endif
       allocate(var(length), source=0.0_wp)
    endif
-end subroutine resize_real
 
-subroutine resize_real_2d(var, n)
+end subroutine resizeReal
+
+
+!> Reallocate list of reals
+pure subroutine resizeReal2d(var, n)
+
+   !> TODO
    real(wp), allocatable, intent(inout) :: var(:,:)
+
+   !> TODO
    integer, intent(in), optional :: n(2)
+
    real(wp), allocatable :: tmp(:,:)
-   integer :: length, order, current_length
-   current_length = size(var, 2)
-   if (current_length > 0) then
+   integer :: length, order, currentLength
+
+   currentLength = size(var, 2)
+   if (currentLength > 0) then
       if (present(n)) then
-         if (n(2) <= current_length) return
+         if (n(2) <= currentLength) return
          order = n(1)
          length = n(2)
       else
-         length = current_length + current_length/2 + 1
+         length = currentLength + currentLength/2 + 1
          order = size(var, 1)
       endif
       allocate(tmp(order, length), source=0.0_wp)
-      tmp(:, :current_length) = var(:, :current_length)
+      tmp(:, :currentLength) = var(:, :currentLength)
       deallocate(var)
       call move_alloc(tmp, var)
    else
@@ -140,6 +180,8 @@ subroutine resize_real_2d(var, n)
       endif
       allocate(var(order,length), source=0.0_wp)
    endif
-end subroutine resize_real_2d
 
-end module mctc_resize_arrays
+end subroutine resizeReal2d
+
+
+end module xtb_mctc_resize

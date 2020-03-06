@@ -23,9 +23,9 @@
 !  GFN2:
 !  -> build_h0_gfn2
 !! ========================================================================
-module scc_core
+module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
-   use mctc_la, only : sygvd,gemm,symm
+   use xtb_mctc_la, only : sygvd,gemm,symm
    implicit none
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
@@ -159,9 +159,9 @@ end subroutine build_h0_gfn2
 !! ========================================================================
 subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                          cm5,fgb,fhb,aoat2,ao2sh)
-   use mctc_econv, only : autoev,evtoau
-   use aoparam,  only : gam3
-   use gbobc, only : lgbsa
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_aoparam,  only : gam3
+   use xtb_solv_gbobc, only : lgbsa
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -243,8 +243,8 @@ end subroutine build_h1_gfn1
 subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          H,H1,H0,S,dpint,qpint,ves,vs,vd,vq,q,qsh,gam3sh, &
                          hdisp,fgb,fhb,aoat2,ao2sh)
-   use mctc_econv, only : autoev,evtoau
-   use gbobc, only : lgbsa
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_solv_gbobc, only : lgbsa
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -395,13 +395,13 @@ subroutine scc_gfn1(iunit,err,n,nel,nopen,ndim,nmat,nshell, &
    &                maxiter,startpdiag,scfconv,qconv, &
    &                minpr,pr, &
    &                fail,jter)
-   use mctc_econv, only : autoev,evtoau
-   use mctc_logging
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_mctc_logging
 
-   use aoparam,  only : gam3
+   use xtb_aoparam,  only : gam3
 
-   use gbobc, only : lgbsa,lhb,TSolvent
-   use embedding, only : electro_pcem
+   use xtb_solv_gbobc, only : lgbsa,lhb,TSolvent
+   use xtb_embedding, only : electro_pcem
 
    implicit none
 
@@ -694,16 +694,16 @@ subroutine scc_gfn2(iunit,err,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                maxiter,startpdiag,scfconv,qconv, &
    &                minpr,pr, &
    &                fail,jter)
-   use mctc_econv, only : autoev,evtoau
-   use mctc_logging
+   use xtb_mctc_convert, only : autoev,evtoau
+   use xtb_mctc_logging
 
-   use aoparam,  only : gam3
+   use xtb_aoparam,  only : gam3
 
-   use gbobc,  only : lgbsa,lhb,TSolvent
-   use tbmod_dftd4,  only: disppot,edisp_scc
-   use aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
+   use xtb_solv_gbobc,  only : lgbsa,lhb,TSolvent
+   use xtb_disp_dftd4,  only: disppot,edisp_scc
+   use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
-   use embedding, only : electro_pcem
+   use xtb_embedding, only : electro_pcem
 
    implicit none
 
@@ -1056,7 +1056,7 @@ end subroutine scc_gfn2
 !! ========================================================================
 subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    &              kenscal,km)
-   use aoparam,  only : kpair,en
+   use xtb_aoparam,  only : kpair,en
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -1106,8 +1106,8 @@ end subroutine h0scal
 !  total energy for GFN1
 !! ========================================================================
 pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
-   use mctc_econv, only : evtoau
-   use aoparam, only : gam3
+   use xtb_mctc_convert, only : evtoau
+   use xtb_aoparam, only : gam3
    implicit none
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -1171,8 +1171,8 @@ end subroutine electro
 !! ========================================================================
 pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
    &                     gam3sh,dqsh,gscal,es,scc)
-   use mctc_constants, only : pi
-   use mctc_econv, only : evtoau
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert, only : evtoau
    implicit none
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
@@ -1244,8 +1244,8 @@ end subroutine electro2
 !  GBSA related subroutine
 !! ========================================================================
 pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
-   use mctc_econv, only : evtoau
-   use gbobc, only: lhb
+   use xtb_mctc_convert, only : evtoau
+   use xtb_solv_gbobc, only: lhb
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -1298,8 +1298,8 @@ end subroutine electro_gbsa
 !  S(R) enhancement factor
 !! ========================================================================
    pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
-   use aoparam, only : rad,polyr
-   use mctc_econv, only : aatoau
+   use xtb_aoparam, only : rad,polyr
+   use xtb_mctc_convert, only : aatoau
    implicit none
    integer,intent(in) :: ati,atj,ish,jsh
    real(wp), intent(in) :: xyz1(3),xyz2(3)
@@ -1352,9 +1352,9 @@ pure subroutine setespot(nshell,qsh,jab,ves)
 end subroutine setespot
 
 pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
-   use mctc_econv
-   use aoparam
-   use lin_mod
+   use xtb_mctc_convert
+   use xtb_aoparam
+   use xtb_lin
    implicit none
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
@@ -1392,9 +1392,9 @@ pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
 end subroutine jpot_gfn1
 
 pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
-   use mctc_econv
-   use aoparam
-   use lin_mod
+   use xtb_mctc_convert
+   use xtb_aoparam
+   use xtb_lin
    implicit none
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
@@ -1611,8 +1611,8 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 end subroutine solve
 
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
-   use mctc_econv, only : autoev
-   use mctc_constants, only : kB
+   use xtb_mctc_convert, only : autoev
+   use xtb_mctc_constants, only : kB
    implicit none
    integer, intent(in)  :: norbs
    integer, intent(in)  :: nel
@@ -1784,8 +1784,8 @@ end subroutine occu
 
 subroutine epart
    use iso_fortran_env, only: output_unit
-   use aoparam
-   use mctc_econv, only : evtoau
+   use xtb_aoparam
+   use xtb_mctc_convert, only : evtoau
    implicit none
    real(wp) :: h,e,p
 
@@ -1805,8 +1805,8 @@ end subroutine epart
 
 subroutine eself(n,at,z)
    use iso_fortran_env, only: output_unit
-   use aoparam
-   use mctc_econv, only : evtoau
+   use xtb_aoparam
+   use xtb_mctc_convert, only : evtoau
    implicit none
    integer, intent(in) :: n,at(n)
    real(wp),intent(in) :: z(n)
@@ -1834,7 +1834,7 @@ end subroutine eself
 
 subroutine dmat(ndim,focc,C,P)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la, only : gemm
+   use xtb_mctc_la, only : gemm
    implicit none
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(*)
@@ -1858,7 +1858,7 @@ end subroutine dmat
 
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la, only : gemm
+   use xtb_mctc_la, only : gemm
    implicit none
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
@@ -2050,7 +2050,7 @@ end subroutine mpopsh
 
 subroutine qsh2qat(n,at,nshell,qsh,q)
    use xtb_mctc_accuracy, only : wp
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer,intent(in) :: n,nshell,at(n)
    real(wp),intent(in) :: qsh(nshell)
@@ -2107,7 +2107,7 @@ end subroutine lpop
 
 subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    use xtb_mctc_accuracy, only : wp
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -2201,7 +2201,7 @@ end subroutine iniqshell
 
 subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    use xtb_mctc_accuracy, only : wp
-   use aoparam
+   use xtb_aoparam
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -2299,4 +2299,4 @@ end subroutine setzshell
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-end module scc_core
+end module xtb_scc_core

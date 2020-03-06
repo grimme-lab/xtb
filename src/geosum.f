@@ -16,8 +16,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
       subroutine geosum(n,ic,xyzin)
-      use aoparam
-      use splitparam
+      use xtb_aoparam
+      use xtb_splitparam
       implicit none
       integer n,ic(n)
       real*8 xyzin(3,n)

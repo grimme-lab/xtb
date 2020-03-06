@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module tbmod_file_utils
+module xtb_file_utils
    implicit none
 
    type, private :: tb_enum_molecule
@@ -58,7 +58,7 @@ subroutine file_generate_meta_info(fname, extension, basename, directory)
 end subroutine file_generate_meta_info
 
 subroutine file_generate_name(fname, basename, extension, ftype)
-   use readin, only: find_new_name
+   use xtb_readin, only: find_new_name
    character(len=:), allocatable, intent(out) :: fname
    character(len=*), intent(in) :: basename
    character(len=*), intent(in) :: extension
@@ -95,7 +95,7 @@ subroutine file_generate_name(fname, basename, extension, ftype)
 end subroutine file_generate_name
 
 subroutine file_figure_out_ftype(ftype, extension, basename)
-   use mctc_strings, only: lowercase
+   use xtb_mctc_strings, only: lowercase
    integer, intent(out) :: ftype
    character(len=*), intent(in) :: extension
    character(len=*), intent(in) :: basename
@@ -143,4 +143,4 @@ subroutine file_figure_out_ftype(ftype, extension, basename)
 
 end subroutine file_figure_out_ftype
 
-end module tbmod_file_utils
+end module xtb_file_utils

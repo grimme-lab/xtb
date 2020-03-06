@@ -17,9 +17,9 @@
 
 subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga,basis)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv, only : autoev,evtoau
+   use xtb_mctc_convert, only : autoev,evtoau
    use xtb_type_basisset
-   use dtrafo
+   use xtb_dtrafo
    implicit none
    type(TBasisset), intent(in) :: basis
    integer, intent(in)  :: nao,ihomo,nat,at(nat),nbf

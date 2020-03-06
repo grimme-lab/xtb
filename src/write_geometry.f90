@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module write_geometry
+module xtb_writegeometry
 
 interface wrcoord
    module procedure :: wrcoord_res
@@ -23,13 +23,13 @@ end interface wrcoord
 
 contains
 ! ------------------------------------------------------------------------
-!> general driver for printout for geometry to any unit
+!> general driver for xtb_printout for geometry to any unit
 !  this driver respects the geometry preference set in the input section
 !  for specific geometry formats use the respective implementations below
 subroutine wrcoord_res(iunit,n,at,xyz,sccres,frqres)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_data
-   use setparam
+   use xtb_setparam
    implicit none              
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -52,7 +52,7 @@ end subroutine wrcoord_res
 ! ------------------------------------------------------------------------
 subroutine write_poscar(iunit,n,at,xyz,lat,e_total,gnorm)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -132,9 +132,9 @@ end subroutine write_poscar
 !  of the MDL Molfile V2000 (this sounds so awkward...) below
 subroutine write_sdf(iunit,n,at,xyz,sccres,frqres)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    use xtb_type_data
-   use gbobc
+   use xtb_solv_gbobc
    integer, intent(in) :: iunit
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -168,8 +168,8 @@ end subroutine write_sdf
 !> implementation of the MDL molfile V2000 printing the CT (connection table)
 subroutine write_mdl2000(iunit,n,at,xyz,nb,bond)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use setparam
+   use xtb_mctc_convert
+   use xtb_setparam
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -218,8 +218,8 @@ end subroutine write_mdl2000
 !> implementation of the MDL molfile V3000 printing the CT (connection table)
 subroutine write_mdl3000(iunit,n,at,xyz,nb,bond)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use setparam
+   use xtb_mctc_convert
+   use xtb_setparam
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -297,7 +297,7 @@ end subroutine write_coord
 !  the commentline obtained from an SCC calculation
 subroutine write_xyzlog(iunit,n,at,xyz,e_total,gnorm)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    use xtb_type_data
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -320,8 +320,8 @@ end subroutine write_xyzlog
 !> plain xyz-printout, retains commentline from input file
 subroutine write_xyz(iunit,n,at,xyz)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use setparam
+   use xtb_mctc_convert
+   use xtb_setparam
    integer, intent(in) :: iunit
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -375,4 +375,4 @@ subroutine mdl_bond(n,at,nb,bond)
    call close_file(ich)
 end subroutine mdl_bond
 
-end module write_geometry
+end module xtb_writegeometry

@@ -17,7 +17,7 @@
 
 subroutine eval_define(verbose)
    use iso_fortran_env, only : id => output_unit
-   use mctc_global, only : msgid, name
+   use xtb_mctc_global, only : msgid, name
    implicit none
    logical,intent(in) :: verbose
    integer :: save_i

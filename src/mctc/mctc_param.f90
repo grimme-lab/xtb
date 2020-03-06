@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_param
+module xtb_mctc_param
    use mctcpar_atomic_masses
    use mctcpar_chemical_hardnesses
    use mctcpar_covalent_radii
@@ -24,4 +24,4 @@ module mctc_param
    use mctcpar_r4r2
    implicit none
    public
-end module mctc_param
+end module xtb_mctc_param

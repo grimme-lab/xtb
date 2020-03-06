@@ -17,12 +17,12 @@
 
 subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use xtb_mctc_accuracy, only : wp, sp
-   use mctc_constants, only : pi
-   use mctc_econv, only : autoev,autoaa
+   use xtb_mctc_constants, only : pi
+   use xtb_mctc_convert, only : autoev,autoaa
    use xtb_type_basisset
-   use setparam
-   use scc_core, only : get_wiberg
-   use dtrafo
+   use xtb_setparam
+   use xtb_scc_core, only : get_wiberg
+   use xtb_dtrafo
    implicit none
    type(TBasisset), intent(in) :: basis
    integer, intent(in) :: nao,ihomo,nat,at(nat),nbf

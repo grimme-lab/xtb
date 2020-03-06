@@ -2,7 +2,7 @@ subroutine test_symmetry_water
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -33,7 +33,7 @@ subroutine test_symmetry_li8
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -69,7 +69,7 @@ subroutine test_symmetry_pcl3
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -101,7 +101,7 @@ subroutine test_symmetry_c20
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 

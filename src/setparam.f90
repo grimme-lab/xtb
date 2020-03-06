@@ -19,7 +19,7 @@
 !  The set documentation has been moved to set_module.f90
 !  here you can define all global variables but no more I/O-stuff
 !! ------------------------------------------------------------------------
-module setparam
+module xtb_setparam
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
 
@@ -449,4 +449,4 @@ function get_namespace(string) result(name)
    endif
 end function get_namespace
 
-end module setparam
+end module xtb_setparam

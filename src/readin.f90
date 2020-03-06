@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module readin
+module xtb_readin
    use xtb_mctc_accuracy, only : wp
-   use mctc_strings, only : value
+   use xtb_mctc_strings, only : value
    implicit none
 
    character,private,parameter :: flag = '$'
@@ -50,8 +50,8 @@ contains
 !  for fname in case of failure, you might hit a local file, which you
 !  than can read. This is intended as a feature (just saying).
 function xfind(name) result(fname)
-   use mctc_systools, only : rdpath
-   use setparam, only : xenv
+   use xtb_mctc_systools, only : rdpath
+   use xtb_setparam, only : xenv
    character(len=*),intent(in)  :: name
    character(len=:),allocatable :: fname
    character(len=:),allocatable :: dum
@@ -70,7 +70,7 @@ end function xfind
 !  wrapper around getline from the MCTC lib that strips comments
 !  automatically und removes all leading and trailing whitespace
 subroutine strip_line(in,line,err)
-   use mctc_systools, only : getline
+   use xtb_mctc_systools, only : getline
    implicit none
    integer,intent(in)  :: in
    character(len=:),allocatable,intent(out) :: line
@@ -97,7 +97,7 @@ end subroutine strip_line
 !  files you plan to replace in the next step of you program.
 !  Funnily this subroutine exist way before strip_line...
 subroutine mirror_line(in,out,line,err)
-   use mctc_systools, only : getline
+   use xtb_mctc_systools, only : getline
    implicit none
    integer,intent(in)  :: in
    integer,intent(in)  :: out
@@ -310,8 +310,8 @@ function get_list_value(val,dum,n) result(status)
 end function get_list_value
 
 subroutine readlog(fname,nat,at,xyz,nstruc)
-   use mctc_econv
-   use mctc_systools
+   use xtb_mctc_convert
+   use xtb_mctc_systools
    implicit none
    character(len=*),intent(in) :: fname
    integer, intent(in)    :: nat
@@ -356,4 +356,4 @@ subroutine readlog(fname,nat,at,xyz,nstruc)
 end subroutine readlog
 
 
-end module readin
+end module xtb_readin

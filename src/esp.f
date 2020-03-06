@@ -19,11 +19,11 @@
       module esp
       contains
       subroutine espplot(n,nmo,nbf,at,xyz,z,occ,C,basis)
-      use mctc_systools
+      use xtb_mctc_systools
       use xtb_type_basisset
-      use intpack
-      use printout, only : writecosmofile
-      use setparam, only : esp_gridfile, get_namespace
+      use xtb_intpack
+      use xtb_printout, only : writecosmofile
+      use xtb_setparam, only : esp_gridfile, get_namespace
       implicit none
       type(TBasisset), intent(in) :: basis
       integer nproc,n,nbf,nmo,at(n)
@@ -181,7 +181,7 @@
       subroutine espints(n,nbf,xyz,intcut,point,pthr,P,
      &                   mprim,npp,nnn,indp,efact,gama,ee,dd,espe,basis)
       use xtb_type_basisset
-      use intpack
+      use xtb_intpack
       implicit none
       type(TBasisset), intent(in) :: basis
       integer n,nbf
@@ -247,7 +247,7 @@
 
       subroutine preints(n,nbf,xyz,intcut,nprimp,ppair,pthr,P,basis)
       use xtb_type_basisset
-      use intpack
+      use xtb_intpack
       implicit none
       type(TBasisset), intent(in) :: basis
       integer n,nbf,nprimp,ppair
@@ -308,7 +308,7 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine propa0(a,b,etaij4,etakl4,iff1,iff2,ind1,ind2)
-      use intpack
+      use xtb_intpack
       implicit real*8(a-h,o-z)
 ! aufpunkte
       real*8 a(3),b(3)
@@ -362,7 +362,7 @@
 ! no f-functions !
 
       subroutine propa1(aname,c,nnn,gama,e,dd,va)
-      use intpack
+      use xtb_intpack
       implicit real*8(a-h,o-z)
       external aname
 ! aufpunkte,ref point,intarray

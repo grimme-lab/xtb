@@ -18,15 +18,15 @@
 subroutine relaxed_scan(mol,wfx,calc)
    use iso_fortran_env, only : id => output_unit
    use xtb_mctc_accuracy, only : wp
-   use setparam
-   use scanparam
+   use xtb_setparam
+   use xtb_scanparam
 
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
    use xtb_type_data
 
-   use optimizer, only : wrlog2
+   use xtb_optimizer, only : wrlog2
 
    implicit none
 

@@ -17,7 +17,7 @@
 
 subroutine raise(mode,message,code)
    use iso_fortran_env
-   use mctc_global
+   use xtb_mctc_global
    character,       intent(in) :: mode
    character(len=*),intent(in) :: message
    integer,         intent(in) :: code
@@ -71,7 +71,7 @@ end subroutine raise
 
 subroutine terminate(signal)
    use iso_fortran_env, only : error_unit
-   use mctc_global, only : name
+   use xtb_mctc_global, only : name
    integer,intent(in) :: signal
    integer,parameter  :: p_exit_success = 0
    integer,parameter  :: p_exit_failure = 1

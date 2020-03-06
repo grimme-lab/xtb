@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module property_output
+module xtb_propertyoutput
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
 
@@ -47,7 +47,7 @@ end subroutine write_energy
 subroutine main_property &
       (iunit,mol,wfx,basis,xpar,res,acc)
 
-   use mctc_econv
+   use xtb_mctc_convert
 
 !! ========================================================================
 !  load class definitions
@@ -59,13 +59,13 @@ subroutine main_property &
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
-   use setparam
-   use aoparam
-   use gbobc
+   use xtb_setparam
+   use xtb_aoparam
+   use xtb_solv_gbobc
 
 !! ------------------------------------------------------------------------
-   use aespot
-   use dtrafo
+   use xtb_aespot
+   use xtb_dtrafo
 
    implicit none
 
@@ -204,7 +204,7 @@ end subroutine main_property
 subroutine main_cube &
       (lverbose,mol,wfx,basis,xpar,res)
 
-   use mctc_econv
+   use xtb_mctc_convert
 
 !! ========================================================================
 !  load class definitions
@@ -216,15 +216,15 @@ subroutine main_cube &
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
-   use setparam
-   use aoparam
+   use xtb_setparam
+   use xtb_aoparam
 
 !! ------------------------------------------------------------------------
-   use aespot
-   use scc_core
+   use xtb_aespot
+   use xtb_scc_core
    use esp
    use stm
-   use dtrafo
+   use xtb_dtrafo
 
    implicit none
 
@@ -340,7 +340,7 @@ end subroutine main_cube
 subroutine main_freq &
       (iunit,mol,wfx,res)
 
-   use mctc_econv
+   use xtb_mctc_convert
 
 !! ========================================================================
 !  load class definitions
@@ -352,12 +352,12 @@ subroutine main_freq &
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
-   use setparam
-   use aoparam
+   use xtb_setparam
+   use xtb_aoparam
 
 !! ------------------------------------------------------------------------
-   use hessian
-   use ncoord
+   use xtb_hessian
+   use xtb_disp_ncoord
 
    implicit none
 
@@ -465,7 +465,7 @@ subroutine print_charges(ifile,n,q)
 end subroutine print_charges
 
 subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
-   use scc_core, only : mpop
+   use xtb_scc_core, only : mpop
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: ifile
@@ -697,8 +697,8 @@ contains
 end subroutine print_wbo_fragment
 
 subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
-   use tbmod_dftd4
-   use eeq_model
+   use xtb_disp_dftd4
+   use xtb_eeq
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -752,7 +752,7 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
 end subroutine print_molpol
 
 subroutine print_dipole(iunit,n,at,xyz,z,nao,P,dpint)
-   use mctc_econv
+   use xtb_mctc_convert
   implicit none
   integer, intent(in) :: iunit
   integer, intent(in) :: n
@@ -795,7 +795,7 @@ subroutine print_dipole(iunit,n,at,xyz,z,nao,P,dpint)
 end subroutine print_dipole
 
 subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C,aoat2,lao2)
-   use scc_core, only : dmat, mpop
+   use xtb_scc_core, only : dmat, mpop
    implicit none
    integer, intent(in) :: iunit       ! STDOUT
    integer, intent(in) :: n           ! number of atoms
@@ -832,8 +832,8 @@ end subroutine print_spin_population
 
 subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob, &
       &                         aoat2,lao2)
-   use mctc_econv
-   use scc_core
+   use xtb_mctc_convert
+   use xtb_scc_core
    implicit none
    integer, intent(in) :: iunit       ! STDOUT
    integer, intent(in) :: ifile       ! file handle for printout of FOD population
@@ -890,11 +890,11 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
 end subroutine print_fod_population
 
 subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp)
-   use mctc_econv
-   use readin
-   use setparam
-   use axis_trafo, only : axis2
-   use thermo
+   use xtb_mctc_convert
+   use xtb_readin
+   use xtb_setparam
+   use xtb_axis, only : axis2
+   use xtb_thermo
    implicit none
    integer, intent(in) :: iunit
    logical, intent(in) :: pr
@@ -1066,8 +1066,8 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
 end subroutine print_thermo
 
 subroutine print_thermo_sthr_lnq(iunit,nvib,vibs,avmom,sthr,temp)
-   use mctc_econv
-   use thermo
+   use xtb_mctc_convert
+   use xtb_thermo
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: nvib
@@ -1099,9 +1099,9 @@ subroutine print_thermo_sthr_lnq(iunit,nvib,vibs,avmom,sthr,temp)
 end subroutine print_thermo_sthr_lnq
 
 subroutine print_thermo_sthr_ts(iunit,nvib,vibs,avmom_si,sthr_rcm,temp)
-   use mctc_constants
-   use mctc_econv
-   use thermo
+   use xtb_mctc_constants
+   use xtb_mctc_convert
+   use xtb_thermo
    implicit none
  
    integer, intent(in) :: iunit      !< output unit, usually STDOUT
@@ -1160,9 +1160,9 @@ subroutine print_thermo_sthr_ts(iunit,nvib,vibs,avmom_si,sthr_rcm,temp)
 end subroutine print_thermo_sthr_ts
 
 subroutine print_gbsa_info(iunit,gbsa)
-   use mctc_constants
-   use mctc_econv
-   use gbobc
+   use xtb_mctc_constants
+   use xtb_mctc_convert
+   use xtb_solv_gbobc
    implicit none
    integer, intent(in) :: iunit
    type(TSolvent), intent(in) :: gbsa
@@ -1187,11 +1187,11 @@ subroutine print_gbsa_info(iunit,gbsa)
 
 end subroutine print_gbsa_info
 
-end module property_output
+end module xtb_propertyoutput
 
 subroutine print_orbital_eigenvalues(iunit,wfn,range)
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
+   use xtb_mctc_convert
    use xtb_type_wavefunction
    implicit none
    integer, intent(in) :: iunit

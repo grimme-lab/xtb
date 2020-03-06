@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module qmdff
+module xtb_qmdff
    use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -57,8 +57,8 @@ module qmdff
 contains
 
 subroutine ff_ini(n,at,xyz,cn,s6)
-   use aoparam
-   use mctc_param, only : r2r4 => sqrt_z_r4_over_r2, &
+   use xtb_aoparam
+   use xtb_mctc_param, only : r2r4 => sqrt_z_r4_over_r2, &
       &                   rcov => covalent_radius_d3
    implicit none
    integer, intent(in) :: n
@@ -632,7 +632,7 @@ end subroutine ff_hb
 !cccccccccccccccccccccccccccccccccccccccccccccc
 
 pure subroutine abdamp(ati,atj,r2,damp,ddamp)
-   use aoparam, only : rad
+   use xtb_aoparam, only : rad
    implicit none
    integer, intent(in)  :: ati,atj
    real(wp),intent(in)  :: r2
@@ -1156,4 +1156,4 @@ subroutine valelff(z)
    z(88)=2.4
 
 end subroutine valelff
-end module qmdff
+end module xtb_qmdff

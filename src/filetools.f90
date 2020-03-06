@@ -16,8 +16,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine print_filelist(iunit)
-   use mctc_filetools
-   use readin
+   use xtb_mctc_filetools
+   use xtb_readin
    implicit none
    integer,intent(in) :: iunit
    character(len=8) :: status
@@ -41,8 +41,8 @@ subroutine print_filelist(iunit)
 end subroutine print_filelist
 
 subroutine delete_file(name)
-   use mctc_filetools
-   use setparam
+   use xtb_mctc_filetools
+   use xtb_setparam
    implicit none
    character(len=*),intent(in)  :: name
    character(len=:),allocatable :: file
@@ -68,8 +68,8 @@ subroutine delete_file(name)
 end subroutine delete_file
 
 subroutine touch_file(name)
-   use mctc_filetools
-   use setparam
+   use xtb_mctc_filetools
+   use xtb_setparam
    implicit none
    character(len=*),intent(in)  :: name
    character(len=:),allocatable :: file
@@ -91,8 +91,8 @@ subroutine touch_file(name)
 end subroutine touch_file
 
 subroutine open_binary(iunit,name,status)
-   use mctc_filetools
-   use setparam
+   use xtb_mctc_filetools
+   use xtb_setparam
    implicit none
    character(len=*),intent(in)  :: name
    character(len=1),intent(in)  :: status
@@ -151,8 +151,8 @@ subroutine open_binary(iunit,name,status)
 end subroutine open_binary
 
 subroutine open_file(iunit,name,status)
-   use mctc_filetools
-   use setparam
+   use xtb_mctc_filetools
+   use xtb_setparam
    implicit none
    character(len=*),intent(in)  :: name
    character(len=1),intent(in)  :: status
@@ -207,7 +207,7 @@ subroutine open_file(iunit,name,status)
 end subroutine open_file
 
 subroutine close_file(unit)
-   use mctc_filetools
+   use xtb_mctc_filetools
    implicit none
    integer,intent(in) :: unit
    logical :: opened
@@ -221,7 +221,7 @@ subroutine close_file(unit)
 end subroutine close_file
 
 subroutine remove_file(unit)
-   use mctc_filetools
+   use xtb_mctc_filetools
    implicit none
    integer,intent(in) :: unit
    logical :: opened

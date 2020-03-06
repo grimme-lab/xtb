@@ -40,7 +40,7 @@ subroutine test_wigner_seitz_3D
    use xtb_type_molecule
    use xtb_type_wsc
 
-   use pbc_tools
+   use xtb_pbc_tools
 
    implicit none
 

@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Error handling module.
-module mctc_logging
+module xtb_mctc_logging
    use, intrinsic :: iso_fortran_env
    implicit none
    private
@@ -36,4 +36,4 @@ module mctc_logging
 
 contains
 
-end module mctc_logging
+end module xtb_mctc_logging

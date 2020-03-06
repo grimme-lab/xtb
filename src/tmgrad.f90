@@ -17,7 +17,7 @@
 
 subroutine tmgrad(nat,iat,xyz,g,edum)
    use xtb_mctc_accuracy, only : wp
-   use setparam, only : get_namespace
+   use xtb_setparam, only : get_namespace
    implicit none
    integer  :: nat
    integer  :: iat(nat)

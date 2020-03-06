@@ -358,7 +358,7 @@ end subroutine deallocate_molecule
 
 subroutine mol_update(self)
    use xtb_mctc_accuracy, only : wp
-   use pbc_tools
+   use xtb_pbc_tools
    implicit none
    class(TMolecule),intent(inout) :: self  !< molecular structure information
 
@@ -378,7 +378,7 @@ end subroutine mol_update
 !  image distances for peridic structures
 subroutine mol_calculate_distances(self)
    use xtb_mctc_accuracy, only : wp
-   use pbc_tools
+   use xtb_pbc_tools
    implicit none
    class(TMolecule),intent(inout) :: self !< molecular structure information
    integer :: i,j
@@ -444,7 +444,7 @@ end subroutine mol_set_nuclear_charge
 !> get all nuclear charges
 subroutine mol_set_atomic_masses(self)
    use xtb_mctc_accuracy, only : wp
-   use mctc_param
+   use xtb_mctc_param
    implicit none
    class(TMolecule),intent(inout) :: self  !< molecular structure information
    self%atmass = atomic_mass(self%at)
@@ -456,7 +456,7 @@ end subroutine mol_set_atomic_masses
 !  to perform the transformation there and back again
 subroutine mol_wrap_back(self)
    use xtb_mctc_accuracy, only : wp
-   use pbc_tools
+   use xtb_pbc_tools
    implicit none
    class(TMolecule),intent(inout) :: self !< molecular structure information
    call xyz_to_abc(self%n,self%lattice,self%xyz,self%abc,self%pbc)
@@ -526,7 +526,7 @@ end subroutine shift_to_center_of_mass
 
 pure function moments_of_inertia(self) result(moments)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    class(TMolecule),intent(in) :: self !< molecular structure information
    real(wp) :: moments(3)
@@ -562,7 +562,7 @@ end function moments_of_inertia
 
 pure function rotational_constants(self)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
+   use xtb_mctc_la
    implicit none
    class(TMolecule),intent(in) :: self !< molecular structure information
    real(wp) :: moments(3)
@@ -575,8 +575,8 @@ end function rotational_constants
 
 pure subroutine align_to_principal_axes(self,break_symmetry)
    use xtb_mctc_accuracy, only : wp
-   use mctc_la
-   use pbc_tools
+   use xtb_mctc_la
+   use xtb_pbc_tools
    implicit none
    class(TMolecule),intent(inout) :: self !< molecular structure information
    logical, optional, intent(in)    :: break_symmetry

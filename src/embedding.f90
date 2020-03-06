@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module embedding
+module xtb_embedding
    use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -78,7 +78,7 @@ module embedding
 contains
 
 subroutine init_pcem
-   use setparam
+   use xtb_setparam
    implicit none
    select case(pcem_interface)
    case default
@@ -132,11 +132,11 @@ end subroutine read_pcem_legacy
 
 subroutine read_pcem_orca(iunit,pcem)
    use xtb_type_pcem
-   use mctc_strings
-   use mctc_econv
-   use aoparam
-   use setparam
-   use readin, only : getline => strip_line
+   use xtb_mctc_strings
+   use xtb_mctc_convert
+   use xtb_aoparam
+   use xtb_setparam
+   use xtb_readin, only : getline => strip_line
    implicit none
    integer,      intent(in)    :: iunit
    type(tb_pcem),intent(inout) :: pcem
@@ -251,9 +251,9 @@ end subroutine read_pcem_orca
 !  J potentials for GFN1 including the point charge stuff
 !! ========================================================================
 subroutine jpot_pcem_gfn1_new(n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
-   use mctc_econv, only : autoev
+   use xtb_mctc_convert, only : autoev
    use xtb_type_pcem
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    implicit none
    integer, intent(in)  :: n
    type(tb_pcem),intent(inout) :: pcem
@@ -288,9 +288,9 @@ end subroutine jpot_pcem_gfn1_new
 !  J potentials for GFN2 including the point charge stuff
 !! ========================================================================
 subroutine jpot_pcem_gfn2_new(n,pcem,nshell,at,xyz,ash,lsh,Vpc)
-   use mctc_econv, only : autoev
+   use xtb_mctc_convert, only : autoev
    use xtb_type_pcem
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    implicit none
    integer, intent(in)  :: n
    type(tb_pcem),intent(in) :: pcem
@@ -325,8 +325,8 @@ end subroutine jpot_pcem_gfn2_new
 !  J potentials for GFN1 including the point charge stuff
 !! ========================================================================
 subroutine jpot_pcem_gfn1_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,alphaj,Vpc)
-   use mctc_econv, only : autoev
-   use aoparam, only : lpar,gam
+   use xtb_mctc_convert, only : autoev
+   use xtb_aoparam, only : lpar,gam
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: npc
@@ -371,8 +371,8 @@ end subroutine jpot_pcem_gfn1_old
 !  J potentials for GFN2 including the point charge stuff
 !! ========================================================================
 subroutine jpot_pcem_gfn2_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,Vpc)
-   use mctc_econv, only : autoev
-   use aoparam, only : lpar,gam
+   use xtb_mctc_convert, only : autoev
+   use xtb_aoparam, only : lpar,gam
    implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: npc
@@ -416,7 +416,7 @@ end subroutine jpot_pcem_gfn2_old
 !  point charge embedding ES subroutine for SCC
 !! ========================================================================
 pure subroutine electro_pcem(nshell,dqsh,Vpc,es,scc)
-   use mctc_econv, only : evtoau
+   use xtb_mctc_convert, only : evtoau
    implicit none
    integer, intent(in)    :: nshell
    real(wp),intent(in)    :: Vpc(nshell),dqsh(nshell)
@@ -443,7 +443,7 @@ end subroutine electro_pcem
 !  point charge embedding gradient for GFN1
 !! ========================================================================
 subroutine pcem_grad_gfn1_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    use xtb_type_pcem
    implicit none
    integer, intent(in) :: n
@@ -487,7 +487,7 @@ end subroutine pcem_grad_gfn1_new
 !  point charge embedding gradient for GFN2
 !! ========================================================================
 subroutine pcem_grad_gfn2_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    use xtb_type_pcem
    implicit none
    integer, intent(in) :: n
@@ -529,7 +529,7 @@ end subroutine pcem_grad_gfn2_new
 !! ========================================================================
 subroutine pcem_grad_gfn1_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh, &
    &                          alphaj,qsh,qpc)
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    implicit none
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(inout) :: gpc(3,npc)
@@ -587,7 +587,7 @@ end subroutine pcem_grad_gfn1_old
 !  point charge embedding gradient for GFN2
 !! ========================================================================
 subroutine pcem_grad_gfn2_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh,qsh,qpc)
-   use aoparam, only : lpar,gam
+   use xtb_aoparam, only : lpar,gam
    implicit none
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(inout) :: gpc(3,npc)
@@ -639,4 +639,4 @@ subroutine pcem_grad_gfn2_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh,qsh,qpc)
 
 end subroutine pcem_grad_gfn2_old
 
-end module embedding
+end module xtb_embedding

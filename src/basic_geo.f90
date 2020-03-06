@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module basic_geo
+module xtb_basic_geo
 contains
 !  .....................................................................
 
@@ -244,7 +244,7 @@ contains
 
       real(wp) Function valijkl(nat,xyz,i,j,k,l)
          use xtb_mctc_accuracy, only : wp
-      use mctc_constants, only: pi
+      use xtb_mctc_constants, only: pi
 
 !  .....................................................................
 
@@ -517,4 +517,4 @@ contains
       angle = acos( temp )
 
       end subroutine bangl
-end module basic_geo
+end module xtb_basic_geo

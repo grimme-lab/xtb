@@ -17,7 +17,7 @@
 
 subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
    use xtb_mctc_accuracy, only : wp
-   use setparam
+   use xtb_setparam
    implicit none
    integer n, at(n), nel, nopen
    logical grd,lgbsa

@@ -18,7 +18,7 @@
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       subroutine getname1(i,atmp)
-      use setparam, only : get_namespace
+      use xtb_setparam, only : get_namespace
       integer,intent(in) :: i
       character(len=*),intent(out) :: atmp
 

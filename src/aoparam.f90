@@ -15,10 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module aoparam
+module xtb_aoparam
    use xtb_mctc_accuracy, only : wp
-   use mctc_econv
-   use mctc_param, only: pauling_en, covalent_radius_2010, chemical_hardness, &
+   use xtb_mctc_convert
+   use xtb_mctc_param, only: pauling_en, covalent_radius_2010, chemical_hardness, &
       &                  covalent_radius_d3
    implicit none
    private
@@ -136,4 +136,4 @@ include 'paramcopy_ipea.inc'
 include 'paramcopy_gfn2.inc'
 end subroutine use_parameterset
 
-end module aoparam
+end module xtb_aoparam

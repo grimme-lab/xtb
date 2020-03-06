@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module mctc_constants
+module xtb_mctc_constants
    use xtb_mctc_accuracy, only : wp
    implicit none
    private
@@ -33,4 +33,4 @@ module mctc_constants
    real(wp),public,parameter :: kB = 3.166808578545117e-06_wp
 !  speed of light c in vacuum in a.u.
    real(wp),public,parameter :: lightspeed = 137.0359990740_wp
-end module mctc_constants
+end module xtb_mctc_constants

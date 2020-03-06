@@ -3,9 +3,9 @@ subroutine test_class_molecule_mic_distances
    use assertion
    use xtb_type_molecule
    use xtb_type_param
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    ! SiO2 (random, no symmetry)
@@ -57,8 +57,8 @@ subroutine test_class_molecule_axis_trafo
    use assertion
    use xtb_type_molecule
    use xtb_type_param
-   use ncoord
-   use eeq_model
+   use xtb_disp_ncoord
+   use xtb_eeq
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
