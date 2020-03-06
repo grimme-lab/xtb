@@ -1,14 +1,15 @@
 !> test calculation of EEQ charges
 subroutine test_eeq_model_water
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
    use mctc_logging
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_type_molecule
+   use xtb_type_param
    use ncoord
    use eeq_model
    implicit none
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -74,11 +75,12 @@ subroutine test_eeq_model_water
 end subroutine test_eeq_model_water
 
 subroutine test_eeq_model_ewald
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
    use mctc_logging
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_type_molecule
+   use xtb_type_param
    use eeq_model
    use ncoord
    use pbc_tools
@@ -102,7 +104,7 @@ subroutine test_eeq_model_ewald
    integer, parameter :: wsc_rep(3) = [1,1,1]
    real(wp),parameter :: beta = 7.5_wp
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
    type(mctc_error), allocatable :: err
    real(wp)             :: energy
@@ -243,11 +245,12 @@ subroutine test_eeq_model_ewald
 end subroutine test_eeq_model_ewald
 
 subroutine test_eeq_model_gbsa
-   use iso_fortran_env, wp => real64, istderr => error_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
    use mctc_logging
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_type_molecule
+   use xtb_type_param
    use gbobc
    use ncoord
    use eeq_model
@@ -265,12 +268,12 @@ subroutine test_eeq_model_gbsa
       & 0.00607452450000_wp, 5.31621802187500_wp, 0.00000000000000_wp, &
       & 2.16097631450000_wp, 7.52891897087500_wp, 0.00000000000000_wp, &
       &-2.20210431050000_wp, 7.47552665287500_wp, 0.00000000000000_wp], shape(xyz))
-   integer, parameter :: iunit = output_unit
+   integer, parameter :: iunit = stdout
    real(wp),parameter :: temp = 298.15_wp
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
-   type(tb_solvent)     :: gbsa
+   type(TSolvent)     :: gbsa
    type(mctc_error), allocatable :: err
    real(wp) :: es,gsolv,sigma(3,3)
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
@@ -366,18 +369,20 @@ subroutine test_eeq_model_gbsa
 end subroutine test_eeq_model_gbsa
 
 subroutine test_eeq_model_hbond
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
    stop 77
    call terminate(afail)
 end subroutine test_eeq_model_hbond
 
 subroutine test_eeq_model_salt
-   use iso_fortran_env, wp => real64, istderr => error_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
    use mctc_logging
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_type_molecule
+   use xtb_type_param
    use gbobc
    use ncoord
    use eeq_model
@@ -399,12 +404,12 @@ subroutine test_eeq_model_salt
       & 3.78023043231610_wp, 4.20058933929303_wp, 0.35763959771486_wp, &
       & 1.05737533649814_wp,-3.45504988937755_wp, 0.68084171455529_wp, &
       & 4.98699896397970_wp,-0.51782531551223_wp, 1.02289296328971_wp], shape(xyz))
-   integer, parameter :: iunit = output_unit
+   integer, parameter :: iunit = stdout
    real(wp),parameter :: temp = 298.15_wp
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
-   type(tb_solvent)     :: gbsa
+   type(TSolvent)     :: gbsa
    type(mctc_error), allocatable :: err
    real(wp) :: es,gsolv,sigma(3,3)
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)

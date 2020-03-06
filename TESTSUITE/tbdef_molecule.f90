@@ -1,8 +1,8 @@
 subroutine test_class_molecule_mic_distances
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
    use assertion
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_type_molecule
+   use xtb_type_param
    use eeq_model
    use ncoord
    use pbc_tools
@@ -26,7 +26,7 @@ subroutine test_class_molecule_mic_distances
       & shape(lattice))
    integer, parameter :: wsc_rep(3) = [1,1,1]
 
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
 
    call mol%allocate(nat)
    mol%at   = at
@@ -53,10 +53,10 @@ subroutine test_class_molecule_mic_distances
 end subroutine test_class_molecule_mic_distances
 
 subroutine test_class_molecule_axis_trafo
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use assertion
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_type_molecule
+   use xtb_type_param
    use ncoord
    use eeq_model
    implicit none
@@ -73,7 +73,7 @@ subroutine test_class_molecule_axis_trafo
       &-3.405901173_wp,     0.355579335_wp,    -1.660010899_wp   &
       & ],shape(xyz))
 
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
    real(wp) :: molmass
    real(wp) :: center(3)
    real(wp) :: moments(3)

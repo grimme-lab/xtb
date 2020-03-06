@@ -1,10 +1,10 @@
 subroutine test_wigner_seitz_0d
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use assertion
-   use tbdef_molecule
-   use tbdef_wsc
+   use xtb_type_molecule
+   use xtb_type_wsc
    implicit none
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
    type(tb_wsc) :: wsc
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -34,11 +34,11 @@ subroutine test_wigner_seitz_0d
 end subroutine test_wigner_seitz_0D
 
 subroutine test_wigner_seitz_3D
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
    use assertion
 
-   use tbdef_molecule
-   use tbdef_wsc
+   use xtb_type_molecule
+   use xtb_type_wsc
 
    use pbc_tools
 
@@ -58,7 +58,7 @@ subroutine test_wigner_seitz_3D
       & 0.0000000000000_wp,      0.0000000000000_wp,      7.2993338808807_wp],   &
       & shape(lattice))
 
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
    type(tb_wsc) :: wsc
 
    call mol%allocate(nat)

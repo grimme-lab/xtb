@@ -1,5 +1,5 @@
 subroutine test_pbc_tools_convert
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use assertion
    use pbc_tools
    implicit none
@@ -48,7 +48,7 @@ subroutine test_pbc_tools_convert
 end subroutine test_pbc_tools_convert
 
 subroutine test_pbc_tools_cutoff
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use assertion
    use pbc_tools
    use pbc

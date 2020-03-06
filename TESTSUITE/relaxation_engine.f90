@@ -1,8 +1,8 @@
 subroutine test_pbc_lancopt
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use assertion
 
-   use tbdef_molecule
+   use xtb_type_molecule
 
    use model_phonons
 
@@ -24,7 +24,7 @@ subroutine test_pbc_lancopt
       & 0.00000000_wp, 0.00000000_wp, 0.10953503_wp], shape(lattice))
    integer, parameter :: wsc_rep(3) = [1,1,1]
 
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
    type(mp_options)  :: opt = mp_options(k_stretch = 0.04_wp, coupled = .true.)
 
    integer :: i,j,ij

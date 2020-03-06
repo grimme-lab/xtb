@@ -1,16 +1,17 @@
 subroutine test_gfn1_scc
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
 
    use assertion
 
    use mctc_logging
 
-   use tbdef_molecule
-   use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
-   use tbdef_data
-   use tbdef_pcem
+   use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_basisset
+   use xtb_type_param
+   use xtb_type_data
+   use xtb_type_pcem
 
    use setparam
    use aoparam
@@ -35,10 +36,10 @@ subroutine test_gfn1_scc
    logical, parameter :: restart = .false.
    real(wp),parameter :: acc = 1.0_wp
 
-   type(tb_molecule)     :: mol
+   type(TMolecule)     :: mol
    type(scc_results)     :: res
-   type(tb_basisset)     :: basis
-   type(tb_wavefunction) :: wfn
+   type(TBasisset)     :: basis
+   type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
    type(mctc_error), allocatable :: err
@@ -83,7 +84,7 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(output_unit,err,mol,wfn,basis,param,pcem, &
+   call scf(stdout,err,mol,wfn,basis,param,pcem, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call assert(.not.allocated(err))
@@ -118,17 +119,18 @@ subroutine test_gfn1_scc
 end subroutine test_gfn1_scc
 
 subroutine test_gfn1_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
 
    use assertion
 
    use mctc_logging
 
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
-   use tbdef_pcem
-   use tbdef_wavefunction
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_wavefunction
 
    use tb_calculators
 
@@ -148,10 +150,10 @@ subroutine test_gfn1_api
    type(scc_options),parameter :: opt = scc_options( &
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
-   type(tb_wavefunction):: wfn
+   type(TWavefunction):: wfn
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -172,7 +174,7 @@ subroutine test_gfn1_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (stdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 5.6067613075402_wp,thr)
@@ -189,17 +191,18 @@ subroutine test_gfn1_api
 end subroutine test_gfn1_api
 
 subroutine test_gfn1gbsa_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
 
    use assertion
 
    use mctc_logging
 
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
-   use tbdef_pcem
-   use tbdef_wavefunction
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_wavefunction
 
    use tb_calculators
 
@@ -221,10 +224,10 @@ subroutine test_gfn1gbsa_api
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true.,&
       &  solvent = 'ch2cl2' )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
-   type(tb_wavefunction):: wfn
+   type(TWavefunction):: wfn
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -245,7 +248,7 @@ subroutine test_gfn1gbsa_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (stdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 6.641641300724_wp,1e-4_wp)
@@ -261,17 +264,18 @@ subroutine test_gfn1gbsa_api
 end subroutine test_gfn1gbsa_api
 
 subroutine test_gfn1_pcem_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
 
    use assertion
 
    use mctc_logging
 
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
-   use tbdef_pcem
-   use tbdef_wavefunction
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_wavefunction
 
    use aoparam
 
@@ -301,10 +305,10 @@ subroutine test_gfn1_pcem_api
    type(scc_options),parameter :: opt = scc_options( &
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
-   type(tb_wavefunction):: wfn
+   type(TWavefunction):: wfn
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -325,7 +329,7 @@ subroutine test_gfn1_pcem_api
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (stdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
@@ -356,7 +360,7 @@ subroutine test_gfn1_pcem_api
    pcem%grd = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (stdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 8.7253450666347_wp,thr)
@@ -381,7 +385,7 @@ subroutine test_gfn1_pcem_api
    pcem%gam = 999.0_wp ! point charges
 
    call gfn1_calculation &
-      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (stdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 8.9183046297437_wp,thr)
@@ -404,17 +408,18 @@ subroutine test_gfn1_pcem_api
 end subroutine test_gfn1_pcem_api
 
 subroutine test_gfn1_xb
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
 
    use assertion
 
    use mctc_logging
 
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
-   use tbdef_pcem
-   use tbdef_wavefunction
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_wavefunction
 
    use tb_calculators
 
@@ -433,10 +438,10 @@ subroutine test_gfn1_xb
    type(scc_options),parameter :: opt = scc_options( &
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(tb_pcem)        :: pcem
-   type(tb_wavefunction):: wfn
+   type(TWavefunction):: wfn
    type(mctc_error), allocatable :: err
 
    real(wp) :: energy
@@ -457,7 +462,7 @@ subroutine test_gfn1_xb
    gradient = 0.0_wp
 
    call gfn1_calculation &
-      (istdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (stdout,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 2.4991963560983_wp,thr)

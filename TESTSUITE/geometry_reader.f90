@@ -1,7 +1,7 @@
 !> @brief test disperion under 3D periodic boundary conditions
 subroutine test_geometry_reader_file_poscar_sio2_3d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -20,7 +20,7 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
       & "  3.34207900299999999  3.03207900299999999   0.260000000000000000",/,&
       & "  3.26177599700000003  1.310079400299999999  1.684903000000000000")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit,file_poscar_sio2_3d)
@@ -48,8 +48,8 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
 end subroutine test_geometry_reader_file_poscar_sio2_3d
 
 subroutine test_geometry_reader_file_xmol_water_0d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -66,7 +66,7 @@ subroutine test_geometry_reader_file_xmol_water_0d
       & "H     0.4914771   -0.3248733   -1.0784838 ",/,&
       & "H    -0.5400907   -0.8496512   -2.1052499 ")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit,file_xmol_water_0d)
@@ -88,8 +88,8 @@ subroutine test_geometry_reader_file_xmol_water_0d
 end subroutine test_geometry_reader_file_xmol_water_0d
 
 subroutine test_geometry_reader_file_coord_general_0d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -158,7 +158,7 @@ subroutine test_geometry_reader_file_coord_general_0d
       & "    7.94931938543849  -11.87978475199051   -0.16550598493729      h ",/,&
       & "$end")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit,file_coord_general_0d_p1)
@@ -178,8 +178,8 @@ subroutine test_geometry_reader_file_coord_general_0d
 end subroutine test_geometry_reader_file_coord_general_0d
 
 subroutine test_geometry_reader_file_coord_CaF2_3d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -196,7 +196,7 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
       & "$periodic 3",/,&
       & "$end")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
 
@@ -230,8 +230,8 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
 end subroutine test_geometry_reader_file_coord_CaF2_3d
 
 subroutine test_geometry_reader_file_coord_CaMgCO_3d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -246,7 +246,7 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
       & "$periodic 3",/,&
       & "$end")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,file='coord')
 
@@ -276,8 +276,8 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
 end subroutine test_geometry_reader_file_coord_CaMgCO_3d
 
 subroutine test_geometry_reader_file_coord_C_2d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -294,15 +294,15 @@ subroutine test_geometry_reader_file_coord_C_2d
       & "$end")'
 
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    stop 77
 
 end subroutine test_geometry_reader_file_coord_C_2d
 
 subroutine test_geometry_reader_file_coord_C_1d
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -347,7 +347,7 @@ subroutine test_geometry_reader_file_coord_C_1d
       & "$end")'
 
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 !
 
    stop 77
@@ -360,8 +360,8 @@ subroutine test_geometry_reader_file_coord_C_1d
 end subroutine test_geometry_reader_file_coord_C_1D
 
 subroutine test_geometry_reader_molfile_benzen_flat
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -394,7 +394,7 @@ subroutine test_geometry_reader_molfile_benzen_flat
       & "  6 12  1  0  0  0  0",/,&
       & "M  END")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_mol_benzen_2d)
@@ -405,8 +405,8 @@ subroutine test_geometry_reader_molfile_benzen_flat
 end subroutine
 
 subroutine test_geometry_reader_molfile_benzen
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -439,7 +439,7 @@ subroutine test_geometry_reader_molfile_benzen
       & "  6 12  1  0  0  0  0",/,&
       & "M  END")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_mol_benzen)
@@ -457,8 +457,8 @@ subroutine test_geometry_reader_molfile_benzen
 end subroutine
 
 subroutine test_geometry_reader_file_sdf_h2o
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -497,7 +497,7 @@ subroutine test_geometry_reader_file_sdf_h2o
       & "",/,&
       & "$$$$")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_sdf_h2o)
@@ -514,8 +514,8 @@ subroutine test_geometry_reader_file_sdf_h2o
 end subroutine
 
 subroutine test_geometry_reader_file_sdf_benzen_hquery
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -539,7 +539,7 @@ subroutine test_geometry_reader_file_sdf_benzen_hquery
       & "M  END",/,&
       & "$$$$")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_sdf_benzen)
@@ -550,8 +550,8 @@ subroutine test_geometry_reader_file_sdf_benzen_hquery
 end subroutine
 
 subroutine test_geometry_reader_file_sdf_h2o_flat
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -571,7 +571,7 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
       & "",/,&
       & "$$$$")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_sdf_h2o)
@@ -582,8 +582,8 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
 end subroutine
 
 subroutine test_geometry_reader_file_pdb_4qxx_noh
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -643,7 +643,7 @@ subroutine test_geometry_reader_file_pdb_4qxx_noh
       & "HETATM   38  O  BHOH Z 102      -0.788  -9.006  16.641  0.09 38.95           O",/,&
       & "END")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_pdb_4qxx_p1)
@@ -657,8 +657,8 @@ end subroutine
 
 
 subroutine test_geometry_reader_file_pdb_4qxx
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -761,7 +761,7 @@ subroutine test_geometry_reader_file_pdb_4qxx
       & "HETATM   80  H2 BHOH Z 102      -0.927  -8.594  17.494  0.09  0.00           H",/,&
       & "END")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_pdb_4qxx_p1)
@@ -788,8 +788,8 @@ subroutine test_geometry_reader_file_pdb_4qxx
 end subroutine
 
 subroutine test_geometry_reader_file_gen
-   use iso_fortran_env, wp => real64
-   use tbdef_molecule
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule
    use assertion
    use tbmod_file_utils
    real(wp),parameter :: thr = 1.0e-9_wp
@@ -834,7 +834,7 @@ subroutine test_geometry_reader_file_gen
       & "0.0 3.567 0.0",/,&
       & "0.0 0.0 3.567")'
    integer :: iunit
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_gen_3518_40)
