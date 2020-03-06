@@ -22,7 +22,8 @@ module xtb_mctc_symbols
    private
 
    public :: symbolLength
-   public :: symbolToNumber, numberToSymbol, toNumber, toSymbol
+   public :: symbolToNumber, numberToSymbol, numberToLcSymbol
+   public :: toNumber, toSymbol, toLcSymbol
    public :: findSymbol, findNumber, appendSymbol, appendNumber
 
 
@@ -142,6 +143,24 @@ elemental subroutine numberToSymbol(symbol, number)
 end subroutine numberToSymbol
 
 
+!> Convert atomic number to element symbol
+elemental subroutine numberToLcSymbol(symbol, number)
+
+   !> Atomic number
+   integer, intent(in) :: number
+
+   !> Element symbol
+   character(len=2), intent(out) :: symbol
+
+   if (number <= 0 .or. number > size(lcPse)) then
+      symbol = '--'
+   else
+      symbol = lcPse(number)
+   endif
+
+end subroutine numberToLcSymbol
+
+
 !> Convert element symbol to atomic number
 elemental function toNumber(symbol) result(number)
 
@@ -168,6 +187,20 @@ elemental function toSymbol(number) result(symbol)
    call numberToSymbol(symbol, number)
 
 end function toSymbol
+
+
+!> Convert atomic number to element symbol
+elemental function toLcSymbol(number) result(symbol)
+
+   !> Atomic number
+   integer,intent(in) :: number
+
+   !> Element symbol
+   character(len=2) :: symbol
+
+   call numberToLcSymbol(symbol, number)
+
+end function toLcSymbol
 
 
 !> Find element symbol in an unordered list, all entries are required to be unique

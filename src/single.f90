@@ -34,14 +34,14 @@ module xtb_single
 contains
 
 subroutine singlepoint &
-&                 (iunit,mol,wfn,calc, &
+&                 (env,mol,wfn,calc, &
 &                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
-   use iso_fortran_env, wp => real64
    use xtb_mctc_convert
    use xtb_mctc_logging
 
 !! ========================================================================
 !  type definitions
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
@@ -65,9 +65,9 @@ subroutine singlepoint &
    use xtb_embedding, only : read_pcem
    implicit none
 
-   integer, intent(in) :: iunit
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
-!! ========================================================================
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(tb_calculator),intent(in) :: calc
@@ -114,12 +114,13 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(iunit,err,mol,wfn,calc%basis,calc%param,pcem, &
+      call scf(env%unit,err,mol,wfn,calc%basis,calc%param,pcem, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)
       call peeq &
-         & (iunit,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel,lgrad,ccm,acc,etot,g,sigma,res)
+         & (env%unit,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
+         &  lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)
       call ff_eg  (mol%n,mol%at,mol%xyz,etot,g)
@@ -182,35 +183,35 @@ subroutine singlepoint &
    if (prlevel.ge.2) then
       ! start with summary header
       if (.not.silent) then
-         write(iunit,'(9x,53(":"))')
-         write(iunit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
+         write(env%unit,'(9x,53(":"))')
+         write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
       endif
-      write(iunit,'(9x,53(":"))')
-      write(iunit,outfmt) "total energy      ", res%e_total,"Eh   "
+      write(env%unit,'(9x,53(":"))')
+      write(env%unit,outfmt) "total energy      ", res%e_total,"Eh   "
       if (.not.silent.and.lgbsa) then
-         write(iunit,outfmt) "total w/o Gsasa/hb", &
+         write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  res%e_total-res%g_sasa-res%g_hb-res%g_shift, "Eh   "
       endif
-      write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/a0"
-      write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV   "
+      write(env%unit,outfmt) "gradient norm     ", res%gnorm,  "Eh/a0"
+      write(env%unit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV   "
       if (.not.silent) then
          if (verbose) then
-            write(iunit,'(9x,"::",49("."),"::")')
-            write(iunit,outfmt) "HOMO orbital eigv.", wfn%emo(wfn%ihomo),  "eV   "
-            write(iunit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
+            write(env%unit,'(9x,"::",49("."),"::")')
+            write(env%unit,outfmt) "HOMO orbital eigv.", wfn%emo(wfn%ihomo),  "eV   "
+            write(env%unit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
          endif
-         write(iunit,'(9x,"::",49("."),"::")')
-         if (gfn_method.eq.2) call print_gfn2_results(iunit,res,verbose,lgbsa)
-         if (gfn_method.eq.1) call print_gfn1_results(iunit,res,verbose,lgbsa)
-         if (gfn_method.eq.0) call print_gfn0_results(iunit,res,verbose,lgbsa)
-         write(iunit,outfmt) "add. restraining  ", efix,       "Eh   "
+         write(env%unit,'(9x,"::",49("."),"::")')
+         if (gfn_method.eq.2) call print_gfn2_results(env%unit,res,verbose,lgbsa)
+         if (gfn_method.eq.1) call print_gfn1_results(env%unit,res,verbose,lgbsa)
+         if (gfn_method.eq.0) call print_gfn0_results(env%unit,res,verbose,lgbsa)
+         write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
-            write(iunit,'(9x,"::",49("."),"::")')
-            write(iunit,outfmt) "atomisation energy", res%e_atom, "Eh   "
+            write(env%unit,'(9x,"::",49("."),"::")')
+            write(env%unit,outfmt) "atomisation energy", res%e_atom, "Eh   "
          endif
       endif
-      write(iunit,'(9x,53(":"))')
-      write(iunit,'(a)')
+      write(env%unit,'(9x,53(":"))')
+      write(env%unit,'(a)')
    endif
 
 end subroutine singlepoint

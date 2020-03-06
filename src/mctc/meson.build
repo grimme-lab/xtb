@@ -24,6 +24,7 @@ srcs += files(
   'filetypes.f90',
   'io.f90',
   'math.f90',
+  'namegen.f90',
   'resize.f90',
   'runtypes.f90',
   'symbols.f90',

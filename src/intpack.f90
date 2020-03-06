@@ -24,7 +24,7 @@ contains
 !! --------------------------------------------------------------[SAW1710]-
 !     this chunk used to have 138 goto marks and 68 goto statements,
 !     I replaced all of them with normal do loops and got rid of most
-!     spaceship operaters, if I could figure out what they were 
+!     spaceship operaters, if I could figure out what they were
 !     supposed to do.
 !     Now down to 30 goto's and 75 goto marks
 
@@ -535,7 +535,7 @@ pure subroutine rhftce(cfs,a,e,iff)
    integer,intent(in)  :: iff
    real(wp), intent(in)  :: a(*),e(*)
    real(wp), intent(inout) :: cfs(*)
-   real(wp), parameter   :: c2 = 2.0d0 
+   real(wp), parameter   :: c2 = 2.0d0
    real(wp), parameter   :: c3 = 3.0d0
    real(wp)  :: aex,aey,aez
    ! ---- e = center of product function, a = center of single gaussian
@@ -544,7 +544,7 @@ pure subroutine rhftce(cfs,a,e,iff)
    aez = e(3)-a(3)
 
    select case(iff)
-   case(1)          
+   case(1)
       continue
    case(2)
       cfs(1)=aex*cfs(2)
@@ -1247,14 +1247,14 @@ end subroutine opap4
 !                  goto 10
 !               else
 !                  goto 11
-!               endif                
+!               endif
 !               !!!10           if(ilru-1) 12,12, 3
 !               10              ival=ilru-1
 !               if(ival.le.0) then
 !                  goto 12
 !               else
 !                  goto 3
-!               endif                
+!               endif
 !               11              fu=fu*d(1)**(ilru-1)
 !               12              last5 = jmsh+1
 !               do iv=1,last5
@@ -1274,7 +1274,7 @@ end subroutine opap4
 !                     goto 22
 !                  else
 !                     goto 2
-!                  endif                     
+!                  endif
 !                  21                 fuv=fuv*d(2)**(jmsv-1)
 !                  22                 last6 = knth+1
 !                  do iw=1,last6
@@ -1349,7 +1349,7 @@ subroutine fmc(mvar,xvar,expmx,fmch)
       term=term*x/a
       ptlsum=ptlsum+term
       !!!if (term/ptlsum- 1.d-8    ) 12, 11, 11
-      dval=term/ptlsum-1.d-8       
+      dval=term/ptlsum-1.d-8
       if(dval.lt.0d0) then
          goto 12
       else

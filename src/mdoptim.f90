@@ -19,7 +19,8 @@ module xtb_mdoptim
    use xtb_mctc_accuracy, only : wp
 contains
 
-subroutine mdopt(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
+subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
@@ -29,6 +30,10 @@ subroutine mdopt(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    use xtb_splitparam
 
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
    type(tb_calculator),intent(in) :: calc
@@ -74,7 +79,7 @@ subroutine mdopt(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
          mol%xyz=xyznew(:,:,i)*angtoau
 
          call geometry_optimization &
-            &      (mol,wfx,calc, &
+            &      (env, mol,wfx,calc, &
             &       egap,etemp,maxscciter,optset%maxoptcycle,epot,grd,sigma, &
             &       optset%optlev,.false.,.true.,fail)
 

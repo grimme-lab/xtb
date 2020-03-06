@@ -16,8 +16,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_splitparam
-   use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    implicit none
    private :: wp
    public
@@ -154,13 +154,13 @@ subroutine splitprint(nat,at,xyz)
    enddo
    call cmafrag(nat,at,xyz,ra,rb)
 
-   write(output_unit,'(a)')
-   write(output_unit,'(''molecular fragmentation (1/2 indicates fragments):'')')
-   write(output_unit,'(72i1)') splitlist(1:nat)
-   write(output_unit,'(''# atoms in fragment 1/2:'',2i6)')iatf1,iatf2
-   write(output_unit,'('' fragment masses (1/2) :'',2f12.2)')massf1,massf2
-   write(output_unit,'(''CMA distance (Bohr)    :'',f8.3)')rcma
-   write(output_unit,'(''constraining FC (au)   :'',f8.4)')fcconstr
+   write(stdout,'(a)')
+   write(stdout,'(''molecular fragmentation (1/2 indicates fragments):'')')
+   write(stdout,'(72i1)') splitlist(1:nat)
+   write(stdout,'(''# atoms in fragment 1/2:'',2i6)')iatf1,iatf2
+   write(stdout,'('' fragment masses (1/2) :'',2f12.2)')massf1,massf2
+   write(stdout,'(''CMA distance (Bohr)    :'',f8.3)')rcma
+   write(stdout,'(''constraining FC (au)   :'',f8.4)')fcconstr
 
 end subroutine splitprint
 

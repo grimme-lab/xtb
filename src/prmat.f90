@@ -12,7 +12,7 @@
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
 !
-! You should have received a copy of the GNU Lesser General Public License
+! You should have received a copy of the GNU Lesser General Public Licen
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
       subroutine preig(io,occ,f,e,istart,norbs)
@@ -27,7 +27,7 @@
       integer :: n,ntimes,nrest,j,n2,k,i
 
       write(io,'(/,10x,''eigenvalues'')')
-      n=8 
+      n=8
       ntimes=(norbs-istart+1)/n
       nrest=mod(norbs-istart+1,n)
       if(ntimes.eq.0) nrest=norbs-istart+1
@@ -104,7 +104,7 @@
       J=1
       N2=N
       DO K=1,NTIMES
-c     WRITE(IO,100)(I,I=J,N2)
+!     WRITE(IO,100)(I,I=J,N2)
       WRITE(IO,300)J,N2,(E(i),I=J,N2)
       J =J +N
       N2=N2+N
@@ -121,14 +121,14 @@ c     WRITE(IO,100)(I,I=J,N2)
       REAL*8 R
       CHARACTER*(*) HEAD
       DIMENSION R(*)
-C     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
-C     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
-C     ((N+1)*N)/2 WHEN M IS ZERO
+!     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
+!     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
+!     ((N+1)*N)/2 WHEN M IS ZERO
 
       WRITE(IUOUT,1001) HEAD
       NKPB=6
       IF(M)10,10,80
-C
+!
    10 CONTINUE
       IBL=N/NKPB
       IR=N-IBL*NKPB
@@ -212,14 +212,14 @@ C
       REAL*4 R
       CHARACTER*(*) HEAD
       DIMENSION R(*)
-C     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
-C     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
-C     ((N+1)*N)/2 WHEN M IS ZERO
+!     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
+!     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
+!     ((N+1)*N)/2 WHEN M IS ZERO
 
       WRITE(IUOUT,1001) HEAD
       NKPB=6
       IF(M)10,10,80
-C
+!
    10 CONTINUE
       IBL=N/NKPB
       IR=N-IBL*NKPB
@@ -303,15 +303,15 @@ C
       CHARACTER*(*) HEAD
       integer RR(*)
       DIMENSION R(n*n)
-C     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
-C     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
-C     ((N+1)*N)/2 WHEN M IS ZERO
+!     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
+!     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
+!     ((N+1)*N)/2 WHEN M IS ZERO
 
       R(1:n*n)=float(RR(1:n*n))
       WRITE(IUOUT,1001) HEAD
       NKPB=6
       IF(M)10,10,80
-C
+!
    10 CONTINUE
       IBL=N/NKPB
       IR=N-IBL*NKPB
@@ -395,14 +395,14 @@ C
       REAL*8 R
       CHARACTER*(*) HEAD
       DIMENSION R(*)
-C     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
-C     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
-C     ((N+1)*N)/2 WHEN M IS ZERO
+!     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
+!     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
+!     ((N+1)*N)/2 WHEN M IS ZERO
 
       WRITE(IUOUT,1001) HEAD
       NKPB=12
       IF(M)10,10,80
-C
+!
    10 CONTINUE
       IBL=N/NKPB
       IR=N-IBL*NKPB

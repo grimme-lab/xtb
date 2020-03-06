@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!     *****************************************************************         
+!     *****************************************************************
 
 pure elemental function asym(i)
    implicit none

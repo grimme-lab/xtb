@@ -20,7 +20,7 @@ subroutine fodenmak(uhf,nmo,eps,occ,efermi)
    implicit none
    integer nmo
    logical uhf
-   real*8 efermi                      
+   real*8 efermi
    real*8 occ(*)
    real*8 eps(*)
 

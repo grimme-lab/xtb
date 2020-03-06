@@ -696,7 +696,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
       endif
 
 ! ------------------------------------------------------------------------
-!     HOMO-LUMO excitation properties if  UHF=2        
+!     HOMO-LUMO excitation properties if  UHF=2
       if (wfn%nopen.eq.2) then
          call hlex(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,wfn%emo,basis)
       endif
@@ -914,7 +914,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
          &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
          &        basis%alp,basis%cont,wfn%p,vs,vd,vq,H,g)
 
-! WARNING: dcn is overwritten on output and now dR0A/dXC, 
+! WARNING: dcn is overwritten on output and now dR0A/dXC,
 !          and index i & j are flipped
       call dradcn(n,at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,dcn)
       call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,param%xbrad,param%xbdamp, &

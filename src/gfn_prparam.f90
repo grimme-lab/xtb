@@ -27,7 +27,7 @@ subroutine gfn1_prparam(iunit,n,at,par)
 
    integer nn(94),i,j,l
    character(30) atmp
-   character(3) lnam(0:13)          
+   character(3) lnam(0:13)
 
    write(iunit,'(13x,''KAB for M(3d)-M(3d) :'',f22.4)') 1.1
    write(iunit,'(13x,''KAB for M(4d)-M(4d) :'',f22.4)') 1.2
@@ -93,7 +93,7 @@ subroutine gfn2_prparam(iunit,n,at,par)
 
    integer nn(94),i,j,l
    character(30) atmp
-   character(3) lnam(0:13)          
+   character(3) lnam(0:13)
 
    write(iunit,'(13x,a,":",10x,F12.4)') &
     "k(s)              ",par%kspd(1),&
@@ -151,7 +151,7 @@ subroutine gfn0_prparam(iunit,n,at,par)
 
    integer nn(94),i,j,l
    character(30) atmp
-   character(3) lnam(0:13)          
+   character(3) lnam(0:13)
 
    write(iunit,'(13x,''KAB for M(3d)-M(3d)    :'',f8.4)') 1.1
    write(iunit,'(13x,''KAB for M(4d)-M(4d)    :'',f8.4)') 1.1

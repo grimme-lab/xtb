@@ -26,11 +26,11 @@ pure elemental integer function pqn(at)
   elseif(at.le.18)then
      pqn=3
   elseif(at.le.36)then
-     pqn=4 
+     pqn=4
   elseif(at.le.54)then
-     pqn=5 
-  else 
-     pqn=6 
+     pqn=5
+  else
+     pqn=6
   endif
 end function pqn
 

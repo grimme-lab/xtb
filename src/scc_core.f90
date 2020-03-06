@@ -29,7 +29,7 @@ module xtb_scc_core
    implicit none
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
- 
+
 contains
 
 !! ========================================================================
@@ -1458,7 +1458,7 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 
    allocate(H4(ndim,ndim),S4(ndim,ndim))
    allocate(X4(ndim,ndim),P4(ndim,ndim),e4(ndim))
- 
+
    H4 = H
    S4 = S
 
@@ -1685,10 +1685,10 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
    integer  :: i,na,nb
 
    focc=0
-!  even nel      
+!  even nel
    if(mod(nel,2).eq.0)then
       ihomo=nel/2
-      do i=1,ihomo 
+      do i=1,ihomo
          focc(i)=2.0d0
       enddo
       if(2*ihomo.ne.nel) then
@@ -1702,14 +1702,14 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
             focc(ihomo+i)=focc(ihomo+i)+1.0
          enddo
       endif
-!  odd nel      
+!  odd nel
    else
       na=nel/2+(nopen-1)/2+1
       nb=nel/2-(nopen-1)/2
-      do i=1,na             
+      do i=1,na
          focc(i)=focc(i)+1.
       enddo
-      do i=1,nb             
+      do i=1,nb
          focc(i)=focc(i)+1.
       enddo
    endif
@@ -1735,10 +1735,10 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
    focc=0
    focca=0
    foccb=0
-!  even nel      
+!  even nel
    if(mod(nel,2).eq.0)then
       ihomo=nel/2
-      do i=1,ihomo 
+      do i=1,ihomo
          focc(i)=2
       enddo
       if(2*ihomo.ne.nel) then
@@ -1752,14 +1752,14 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
             focc(ihomo+i)=focc(ihomo+i)+1
          enddo
       endif
-!  odd nel      
+!  odd nel
    else
       na=nel/2+(nopen-1)/2+1
       nb=nel/2-(nopen-1)/2
-      do i=1,na             
+      do i=1,na
          focc(i)=focc(i)+1
       enddo
-      do i=1,nb             
+      do i=1,nb
          focc(i)=focc(i)+1
       enddo
    endif

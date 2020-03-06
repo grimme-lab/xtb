@@ -45,7 +45,7 @@ module xtb_type_environment
       !> Message log
       type(TMessage), allocatable :: log(:)
 
-      !> User name
+      !> Actual executable name
       character(len=:),allocatable :: whoami
 
       !> Name of hosting machine
@@ -158,9 +158,9 @@ subroutine checkpoint(self, message, terminate)
 
    if (self%nLog > 0) then
       if (terminate) then
-         write(self%unit, '("[ERROR]", 1x, a)') message
+         write(self%unit, '(/, "[ERROR]", 1x, a)') message
       else
-         write(self%unit, '("[WARNING]", 1x, a)') message
+         write(self%unit, '(/, "[WARNING]", 1x, a)') message
       end if
       do iLog = self%nLog, 1, -1
          write(self%unit, '("-", i0, "-", 1x, a)') iLog, self%log(iLog)%message

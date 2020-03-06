@@ -24,7 +24,7 @@ pure elemental integer function lin(i1,i2)
    integer :: idum1,idum2
    idum1=max(i1,i2)
    idum2=min(i1,i2)
-   lin=idum2+idum1*(idum1-1)/2        
+   lin=idum2+idum1*(idum1-1)/2
    return
 end
 
@@ -33,7 +33,7 @@ pure elemental integer function lina(i1,i2)
    integer :: idum1,idum2
    idum1=max(i1,i2)
    idum2=min(i1,i2)
-   lina=idum2+idum1*(idum1-1)/2        
+   lina=idum2+idum1*(idum1-1)/2
    return
 end
 

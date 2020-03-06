@@ -22,7 +22,7 @@ implicit none
 contains
 
 !! ========================================================================
-!  driver for calculation of Grimme-Gasteiger charges, which come in 
+!  driver for calculation of Grimme-Gasteiger charges, which come in
 !  three flavors: GG(vTB), GG(GFN1) and GG(GFN2). They differ in the way
 !  the coordination number is taken into account.
 !  INPUT
@@ -84,7 +84,7 @@ subroutine iniqcn(nat,nel,at,z,xyz,chrg,kchrg1,q,cn,version,verbose)
       call iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
    endif
 
- 
+
 !  calculate the dipole moment of the guess charges if requested
    if (pr) then
       dipole = 0.0_wp

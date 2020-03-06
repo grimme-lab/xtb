@@ -215,7 +215,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
 end subroutine generate_anc_blowup
 
 subroutine generate_anc_packed(self,xyz,hess,pr)
-   use, intrinsic :: iso_fortran_env, only : iunit => output_unit
+   use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la
    implicit none
@@ -264,12 +264,12 @@ subroutine generate_anc_packed(self,xyz,hess,pr)
 !   enddo
 
    if(pr)then
-      write(iunit,*) 'Shifting diagonal of input Hessian by ', damp
-      write(iunit,*) 'Lowest  eigenvalues of input Hessian'
-      write(iunit,'(6F12.6)')(self%eigv(i),i=1,min(18,self%n3))
-      write(iunit,*) 'Highest eigenvalues'
-      write(iunit,'(6F12.6)')(self%eigv(i),i=self%n3-5,self%n3)
-      write(iunit,*)
+      write(stdout,*) 'Shifting diagonal of input Hessian by ', damp
+      write(stdout,*) 'Lowest  eigenvalues of input Hessian'
+      write(stdout,'(6F12.6)')(self%eigv(i),i=1,min(18,self%n3))
+      write(stdout,*) 'Highest eigenvalues'
+      write(stdout,'(6F12.6)')(self%eigv(i),i=self%n3-5,self%n3)
+      write(stdout,*)
    endif
 
    fail = .true.

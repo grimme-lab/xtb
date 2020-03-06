@@ -19,12 +19,13 @@
 !  RMSD biased push/pull path finder (RMSD-BPP)
 !  SG 12/18
 !! ========================================================================
-subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
+subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    use iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
 
    use xtb_mctc_convert
 
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
@@ -36,6 +37,9 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    use xtb_lsrmsd
 
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule),    intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
@@ -49,10 +53,10 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
 
    real(wp),allocatable :: xyz0(:,:)
    real(wp),allocatable :: xyz1(:,:)
-   real(wp),allocatable :: g0(:,:),g1(:,:) 
+   real(wp),allocatable :: g0(:,:),g1(:,:)
    real(wp),allocatable :: xyznew(:,:,:)
    real(wp),allocatable :: enew(:)
-   real(wp),allocatable :: dat(:,:,:)         
+   real(wp),allocatable :: dat(:,:,:)
    integer, allocatable :: at1(:)
 
    integer maxpath
@@ -94,8 +98,8 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    write(istdout,'("initial k push/pull              :",2f9.3)') &
       &        pathset%kpush,pathset%kpull
    write(istdout,'("Gaussian width (1/Bohr)          :",f9.3)')metaset%width
-   write(istdout,'("# random initial distor incr +/- :",f9.3)')distort  
-   write(istdout,'("# optlevel                       :",i4)')optset%optlev   
+   write(istdout,'("# random initial distor incr +/- :",f9.3)')distort
+   write(istdout,'("# optlevel                       :",i4)')optset%optlev
    write(istdout,'("# of runs                        :",i4)')pathset%nrun
    write(istdout,'("approx # structures opt on path  :",i4)')pathset%nopt
    write(istdout,'("# of ''an''-optimization steps     :",i4)')pathset%anopt
@@ -105,7 +109,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    metaset%xyz(:,:,2) = xyz1
 
    metaset%width =1.0 ! start value
-   write(istdout,*) 
+   write(istdout,*)
    write(istdout,*) ' k_push/k_pull internally multiplied by Natoms!'
    write(istdout,*) ' user info on effect of push/pull parameters'
    write(istdout,*) ' ang. ed-prod G should be small, Govlp large'
@@ -154,7 +158,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
 !! ------------------------------------------------------------------------
 !  loop over runs with increasing Vbias
 !! ------------------------------------------------------------------------
-   metaset%width = pathset%alp 
+   metaset%width = pathset%alp
    factor = 1
    do irun=1,pathset%nrun
       ! distort slightly to avoid trapping
@@ -163,15 +167,15 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
          do j=1,3
             call random_number(dum)
             if(mod(i,2).eq.0)then
-               xyz0(j,i)=xyz0(j,i)+distort*dum 
+               xyz0(j,i)=xyz0(j,i)+distort*dum
             else
-               xyz0(j,i)=xyz0(j,i)-distort*dum 
+               xyz0(j,i)=xyz0(j,i)-distort*dum
             endif
          enddo
       enddo
       ! set for metadyn routine (common)
-      metaset%factor(1) = pathset%kpush * factor * fnat 
-      metaset%factor(2) = pathset%kpull * factor * fnat 
+      metaset%factor(1) = pathset%kpush * factor * fnat
+      metaset%factor(2) = pathset%kpull * factor * fnat
 
 !! ------------------------------------------------------------------------
       ! make path
@@ -179,30 +183,30 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
       write(istdout,*)
       write(istdout,*)'optimizing inital path with Vbias ...'
       write(istdout,'("actual k push/pull :",2f8.3)')  &
-         &          metaset%factor(1:2)/fnat           
-      maxoptiter=0         
+         &          metaset%factor(1:2)/fnat
+      maxoptiter=0
 
       mol%xyz = xyz0
       call geometry_optimization &
-         &          (mol,wfx,calc, &
+         &          (env, mol,wfx,calc, &
          &           egap,et,maxiter,maxoptiter,e,grd,sigma,optset%optlev, &
          &           .true.,.false.,fail)
       write(atmp,'("mv xtbopt.log xtbpath_biasopt_",i0,".xyz")') &
-         &      irun 
-      call execute_command_line(atmp)                    
+         &      irun
+      call execute_command_line(atmp)
 
 !! ------------------------------------------------------------------------
       ! read opt history file (kept)
 !! ------------------------------------------------------------------------
-      write(atmp,'("xtbpath_biasopt_",i0,".xyz")') irun 
-      write(btmp,'("xtbpath_",i0,".xyz")') irun 
+      write(atmp,'("xtbpath_biasopt_",i0,".xyz")') irun
+      write(btmp,'("xtbpath_",i0,".xyz")') irun
       open(newunit=ilog,file=atmp)
-      j=1 
+      j=1
  10   continue
       read(ilog,'(a)',end=100) atmp
       read(ilog,'(a)')         atmp
       call readl(atmp,xx,nn)
-      gnew=xx(2) ! gradient 
+      gnew=xx(2) ! gradient
       do i=1,mol%n
          read(ilog,'(a)') atmp
          call readl(atmp,xx,nn)
@@ -213,7 +217,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
 100   continue
       if(j-1.gt.maxpath) call raise('E','internal error in path.f',1)
       close(ilog,status='delete')
-      npath(irun) = j-1 
+      npath(irun) = j-1
 
       skip = max(1,npath(irun) / pathset%nopt) ! this leads approx to the requested # points
 
@@ -231,7 +235,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
          k=k+1
          mol%xyz=xyznew(:,:,i)
          call geometry_optimization &
-            &       (mol,wfx,calc, &
+            &       (env, mol,wfx,calc, &
             &        egap,et,maxiter,maxoptiter,enew(k),grd,sigma,olev, &
             &        .false.,.true.,fail)
          if(k.gt.1.and.mod(k,10).eq.0)  &
@@ -254,7 +258,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
       open(newunit=ilog,file=btmp)
       barr=-1.d+42
       rms =0
-      do i=1,npath(irun) 
+      do i=1,npath(irun)
          if(i.gt.1)then
             call rmsd(mol%n,xyznew(:,:,i-1),xyznew(:,:,i),0,U,x,y,drms, &
                       .false.,g0)
@@ -262,12 +266,12 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
          dum=autokcal*(enew(i)-enew(1))
          if(dum.gt.barr) barr=dum
          call wrlog2(ilog,mol%n,xyznew(1,1,i),mol%at,dum)
-         dat(1,i,irun) = rms 
-         dat(2,i,irun) = dum 
+         dat(1,i,irun) = rms
+         dat(2,i,irun) = dum
          rms=rms+drms ! the plot coordinate in dat file is the sum of dRMSD with previous structure
       enddo
       close(ilog)
-      write(istdout,*) 'final path written to ',trim(btmp)  
+      write(istdout,*) 'final path written to ',trim(btmp)
       mem(1,irun)=barr
       mem(2,irun)=autokcal*(enew(npath(irun))-enew(1))
       call rmsd(mol%n,metaset%xyz(:,:,1),xyznew(:,:,1),0,U,x,y,rms,.false.,g0)
@@ -287,7 +291,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    ! final output
 !! ------------------------------------------------------------------------
    open(unit=idat,file='xtbpath.dat') ! for comparison all pot curves
-   write(istdout,*) 
+   write(istdout,*)
    write(istdout,*) 'energies in kcal/mol, RMSD in Bohr'
    do irun=1,pathset%nrun
       if(mem(3,irun).lt.0.5.or.abs(mem(1,irun)).lt.1) &
@@ -309,7 +313,7 @@ subroutine bias_path(mol,wfx,calc,egap,et,maxiter,epot,grd,sigma)
    write(istdout,*)  &
       'check potential xtbpath.dat (cummu. dRMSD in Bohr vs. E in kcal)'
 
-   call execute_command_line('rm -rf xtbopt.log xtbopt.coord') ! just crab from last short opt 
+   call execute_command_line('rm -rf xtbopt.log xtbopt.coord') ! just crab from last short opt
 
 end subroutine bias_path
 

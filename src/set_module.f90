@@ -848,7 +848,7 @@ subroutine rdblock(handler,line,id,copy,err,ncount)
       ie = index(line,equal)
       if (line.eq.'') cycle ! skip empty lines
       ncount = ncount + 1   ! but count non-empty lines first
-      if (ie.eq.0) cycle 
+      if (ie.eq.0) cycle
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
       call handler(key,val)
@@ -910,7 +910,7 @@ subroutine set_geopref(typ)
    end select
    set = .false.
 end subroutine set_geopref
- 
+
 subroutine set_runtyp(typ)
    implicit none
    character(len=*),intent(in) :: typ

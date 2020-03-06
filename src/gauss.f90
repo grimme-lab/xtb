@@ -15,12 +15,12 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-! STO-nG BY R.F. STEWART, J. CHEM. PHYS., 52 431-438, 1970 
+! STO-nG BY R.F. STEWART, J. CHEM. PHYS., 52 431-438, 1970
 
 ! nprim: returned # of primitives
 ! n: principal QN, input
 ! l: angular QN (1=s, 2=p, ...), input
-! zeta: Slater exponent, input      
+! zeta: Slater exponent, input
 ! expo: Gaussian exponents (out)
 ! cont: Gaussian contraction coefficients (out)
 
@@ -171,7 +171,7 @@ SUBROUTINE SETSTO3(nprim,n,l,zeta,expo,cont)
      expo(J)=ALLZ(J,N,L)*zeta**2
      XNORM=(2.D0*EXPO(J)/PI)**0.75D0*(4.D0*EXPO(J))**(IAM/2.D0)/ &
           & SQRT(DEX(2*IAM-1))
-     cont(j)=cont(j)*xnorm                
+     cont(j)=cont(j)*xnorm
   ENDDO
 
 END SUBROUTINE SETSTO3
@@ -315,9 +315,9 @@ SUBROUTINE SETSTO4(nprim,n,l,zeta,expo,cont)
   ! 4f (the add. factors are required because the normal. function
   !     below is not correct for f)
   ALLZ(1,4,4) =0.05691670217
-  ALLZ(2,4,4) =0.2074585819  
-  ALLZ(3,4,4) =0.09298346885 
-  ALLZ(4,4,4) =0.04473508853 
+  ALLZ(2,4,4) =0.2074585819
+  ALLZ(3,4,4) =0.09298346885
+  ALLZ(4,4,4) =0.04473508853
   ALLC(1,4,4) =0.05902730589/1.063832358490576**0.5
   ALLC(2,4,4) =0.3191828952 /1.063832358490576**0.5
   ALLC(3,4,4) =0.5639423893 /1.063832358490576**0.5
@@ -329,7 +329,7 @@ SUBROUTINE SETSTO4(nprim,n,l,zeta,expo,cont)
      expo(J)=ALLZ(J,N,L)*zeta**2
      XNORM=(2.D0*EXPO(J)/PI)**0.75D0*(4.D0*EXPO(J))**(IAM/2.D0)/ &
           & SQRT(DEX(2*IAM-1))
-     cont(j)=cont(j)*xnorm                
+     cont(j)=cont(j)*xnorm
   ENDDO
 
 END SUBROUTINE SETSTO4
@@ -348,7 +348,7 @@ SUBROUTINE SETgauss(nprim,n,l,zeta,expo,cont)
   ENDDO
 
   iam=l-1
-  expo(1)=zeta                 
+  expo(1)=zeta
   cont(1)=(2.D0*EXPO(1)/PI)**0.75D0*(4.D0*EXPO(1))**(IAM/2.D0)/ &
        & SQRT(DEX(2*IAM-1))
 
@@ -434,12 +434,12 @@ SUBROUTINE SETSTO6(nprim,n,l,zeta,expo,cont)
   ALLC(5,3,2) =3.908813050D-01
   ALLC(6,3,2) =7.411456232D-02
   !                                     3d
-  ALLZ(1,3,3) =2.488296923    
-  ALLZ(2,3,3) =7.981487853D-1 
-  ALLZ(3,3,3) =3.311327490D-1 
-  ALLZ(4,3,3) =1.559114463D-1  
-  ALLZ(5,3,3) =7.817734732D-2 
-  ALLZ(6,3,3) =4.058484363D-2 
+  ALLZ(1,3,3) =2.488296923
+  ALLZ(2,3,3) =7.981487853D-1
+  ALLZ(3,3,3) =3.311327490D-1
+  ALLZ(4,3,3) =1.559114463D-1
+  ALLZ(5,3,3) =7.817734732D-2
+  ALLZ(6,3,3) =4.058484363D-2
   ALLC(1,3,3) =7.283828112D-3
   ALLC(2,3,3) =5.386799363D-2
   ALLC(3,3,3) =2.072139149D-1
@@ -531,7 +531,7 @@ SUBROUTINE SETSTO6(nprim,n,l,zeta,expo,cont)
      expo(J)=ALLZ(J,N,L)*zeta**2
      XNORM=(2.D0*EXPO(J)/PI)**0.75D0*(4.D0*EXPO(J))**(IAM/2.D0)/ &
           & SQRT(DEX(2*IAM-1))
-     cont(j)=cont(j)*xnorm                
+     cont(j)=cont(j)*xnorm
   ENDDO
 
   RETURN

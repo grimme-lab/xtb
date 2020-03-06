@@ -21,7 +21,7 @@ subroutine printbas(n,at)
 
   integer n,at(n),nn(94),i,j,l
   character(30) atmp
-  character(3) lnam(0:13)          
+  character(3) lnam(0:13)
 
   lnam(0)='s'
   lnam(1)='p'
@@ -58,7 +58,7 @@ subroutine printbas2(n,at)
 
   integer n,at(n),nn(94),i,j,l
   character(30) atmp
-  character(3) lnam(0:13)          
+  character(3) lnam(0:13)
 
   lnam(0)='s'
   lnam(1)='p'

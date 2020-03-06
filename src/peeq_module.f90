@@ -439,7 +439,7 @@ subroutine peeq &
 
    if (profile) call timer%measure(5)
    if (profile) call timer%measure(6,"Cholesky factorization")
-  
+
 ! ---------------------------------------
 !  Check for near linear dependencies via Cholesky decomposition
 ! ---------------------------------------
@@ -571,7 +571,7 @@ subroutine peeq &
            egap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
         wfn%nao = nao
       endif
-     
+
 
    endif printing
 
@@ -1151,7 +1151,7 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -1347,7 +1347,7 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -1549,7 +1549,7 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -1880,7 +1880,7 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -2116,7 +2116,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -2361,7 +2361,7 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &

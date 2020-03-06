@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine geometry_optimization &
-      &   (mol,wfn,calc,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
+      &   (env,mol,wfn,calc,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
       &    tight,pr,initial_sp,fail)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
@@ -34,6 +34,9 @@ subroutine geometry_optimization &
    use xtb_setparam
 
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: tight
@@ -53,7 +56,7 @@ subroutine geometry_optimization &
    type(scc_results) :: res
    logical :: final_sp
    integer :: printlevel
-   integer :: iunit, ilog
+   integer :: ilog
 
    final_sp = pr
    if (pr) then
@@ -62,18 +65,6 @@ subroutine geometry_optimization &
       printlevel = 2
    else
       printlevel = 0
-   endif
-
-   if (.not.allocated(opt_outfile)) then
-      iunit = stdout
-   else
-      if (opt_outfile == '-') then
-         iunit = stdout
-      else
-         call open_file(iunit,opt_outfile,'w')
-         if (pr) write(stdout,'(/,a)') &
-            "Optimizer printout bound to '"//opt_outfile//"'"
-      endif
    endif
 
    if (.not.allocated(opt_logfile)) then
@@ -92,24 +83,24 @@ subroutine geometry_optimization &
 
    if (initial_sp) then
       call singlepoint &
-         &(iunit,mol,wfn,calc, &
+         &(env,mol,wfn,calc, &
          & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res)
    endif
 
    select case(opt_engine)
    case(p_engine_rf)
       call ancopt &
-         &(iunit,ilog,mol,wfn,calc, &
+         &(env,ilog,mol,wfn,calc, &
          & egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
       ! required since ANCopt might perform an untracked displacement
       final_sp = .true.
    case(p_engine_lbfgs)
       call l_ancopt &
-         &(iunit,ilog,mol,wfn,calc, &
+         &(env,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
    case(p_engine_inertial)
       call fire &
-         &(iunit,ilog,mol,wfn,calc, &
+         &(env,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
    end select
 
@@ -120,21 +111,20 @@ subroutine geometry_optimization &
    endif
 
    if (pr.and.pr_finalstruct) then
-      write(iunit,'(''================'')')
-      write(iunit,*) 'final structure:'
-      write(iunit,'(''================'')')
-      call write_coord(iunit,mol%n,mol%at,mol%xyz)
+      write(env%unit,'(''================'')')
+      write(env%unit,*) 'final structure:'
+      write(env%unit,'(''================'')')
+      call write_coord(env%unit,mol%n,mol%at,mol%xyz)
    endif
    if (pr.and.pr_geosum) call geosum(mol%n,mol%at,mol%xyz)
 
    if (final_sp) then
-      if (pr) call generic_header(iunit,'Final Singlepoint',49,10)
+      if (pr) call generic_header(env%unit,'Final Singlepoint',49,10)
       call singlepoint &
-         &(iunit,mol,wfn,calc, &
+         &(env,mol,wfn,calc, &
          & egap,et,maxiter,printlevel,.false.,.false.,1.0_wp,etot,g,sigma,res)
    endif
 
-   if (iunit.ne.stdout) call close_file(iunit)
    if (ilog .ne.stdout) call close_file(ilog)
 
 end subroutine geometry_optimization

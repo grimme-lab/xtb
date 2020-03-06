@@ -91,9 +91,9 @@ pure subroutine slater(ng,n,l,zeta,alpha,coeff,info)
       return
    endif
 
-   ! we have to use a little hack here, 
+   ! we have to use a little hack here,
    ! if you pass n and l correctly, everything is fine
-   ! ityp: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 
+   ! ityp: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
    !    n: 1 2 3 4 5 2 3 4 5  3  4  5  4  5  5
    !    l: 0 0 0 0 0 1 1 1 1  2  2  2  3  3  4
    select case(l) ! integer hack:
@@ -166,7 +166,7 @@ pure subroutine sto1g(ityp,zeta,alpha,coeff)
    6.952785407e-2_dp, &
 !* 5g
    8.565417784e-2_dp /),shape(palpha))
-   
+
 !* <φ|φ> = (2i-1)!!(2j-1)!!(2k-1)!!/(4α)^(i+j+k) · sqrt(π/2α)³
 !  N² = (4α)^(i+j+k)/((2i-1)!!(2j-1)!!(2k-1)!!)  · sqrt(2α/π)³
 !  N = (4α)^((i+j+k)/2) / sqrt((2i-1)!!(2j-1)!!(2k-1)!!) · (2α/π)^(3/4)
@@ -250,7 +250,7 @@ pure subroutine sto2g(ityp,zeta,alpha,coeff)
    4.856637346e-1_dp,6.125980914e-1_dp, &
 !* 5g
    4.848298074e-1_dp,6.539381621e-1_dp /),shape(pcoeff))
-   
+
 !* <φ|φ> = (2i-1)!!(2j-1)!!(2k-1)!!/(4α)^(i+j+k) · sqrt(π/2α)³
 !  N² = (4α)^(i+j+k)/((2i-1)!!(2j-1)!!(2k-1)!!)  · sqrt(2α/π)³
 !  N = (4α)^((i+j+k)/2) / sqrt((2i-1)!!(2j-1)!!(2k-1)!!) · (2α/π)^(3/4)
@@ -334,7 +334,7 @@ pure subroutine sto3g(ityp,zeta,alpha,coeff)
    1.909729355e-1_dp, 6.146060459e-1_dp, 3.059611271e-1_dp, &
 !* 5g
    1.780980905e-1_dp, 6.063757846e-1_dp, 3.828552923e-1_dp /),shape(pcoeff))
-   
+
 !* <φ|φ> = (2i-1)!!(2j-1)!!(2k-1)!!/(4α)^(i+j+k) · sqrt(π/2α)³
 !  N² = (4α)^(i+j+k)/((2i-1)!!(2j-1)!!(2k-1)!!)  · sqrt(2α/π)³
 !  N = (4α)^((i+j+k)/2) / sqrt((2i-1)!!(2j-1)!!(2k-1)!!) · (2α/π)^(3/4)
@@ -448,7 +448,7 @@ pure subroutine sto4g(ityp,zeta,alpha,coeff)
 !* 5g
    6.010484250e-2_dp, 3.309738329e-1_dp, &
    5.655207585e-1_dp, 2.171122608e-1_dp /),shape(pcoeff))
-   
+
 !* <φ|φ> = (2i-1)!!(2j-1)!!(2k-1)!!/(4α)^(i+j+k) · sqrt(π/2α)³
 !  N² = (4α)^(i+j+k)/((2i-1)!!(2j-1)!!(2k-1)!!)  · sqrt(2α/π)³
 !  N = (4α)^((i+j+k)/2) / sqrt((2i-1)!!(2j-1)!!(2k-1)!!) · (2α/π)^(3/4)
@@ -562,7 +562,7 @@ pure subroutine sto5g(ityp,zeta,alpha,coeff)
 !* 5g
    1.998085812e-2_dp, 1.460384050e-1_dp, 4.230565459e-1_dp, &
    4.635699665e-1_dp, 1.226411691e-1_dp /),shape(pcoeff))
-   
+
 !* <φ|φ> = (2i-1)!!(2j-1)!!(2k-1)!!/(4α)^(i+j+k) · sqrt(π/2α)³
 !  N² = (4α)^(i+j+k)/((2i-1)!!(2j-1)!!(2k-1)!!)  · sqrt(2α/π)³
 !  N = (4α)^((i+j+k)/2) / sqrt((2i-1)!!(2j-1)!!(2k-1)!!) · (2α/π)^(3/4)
@@ -676,7 +676,7 @@ pure subroutine sto6g(ityp,zeta,alpha,coeff)
 !* 5g
    6.729778096e-3_dp, 5.874145170e-2_dp, 2.339955227e-1_dp, &
    4.512983737e-1_dp, 3.552053926e-1_dp, 6.974153145e-2_dp /),shape(pcoeff))
-   
+
 !* <φ|φ> = (2i-1)!!(2j-1)!!(2k-1)!!/(4α)^(i+j+k) · sqrt(π/2α)³
 !  N² = (4α)^(i+j+k)/((2i-1)!!(2j-1)!!(2k-1)!!)  · sqrt(2α/π)³
 !  N = (4α)^((i+j+k)/2) / sqrt((2i-1)!!(2j-1)!!(2k-1)!!) · (2α/π)^(3/4)

@@ -25,7 +25,7 @@
 !   m_spline
 !       1 - cubischer spline
 !       2 - gedämpfter cubischer spline (constrained cubic spline)
-!   
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine cqpath_spline_repos(nat,sn,m_repos,m_spline,xyz,e,g)
     implicit none
@@ -86,10 +86,10 @@ subroutine cqpath_spline_repos(nat,sn,m_repos,m_spline,xyz,e,g)
             x(l) = strecke_X(l)
             y(l) = sp_atom(k,l)
         end do
-        
+
 ! Repositionieren auf x
         call cqpath_repos(sn,m_repos,x,e,g,x2)
-        
+
 ! y2-Werte auf dem spline an den repositionierten Punkten x2 bestimmen.
         if (m_spline == 1) then
             call cqpath_cube_spline(sn,x,y,x2,y2)
@@ -97,7 +97,7 @@ subroutine cqpath_spline_repos(nat,sn,m_repos,m_spline,xyz,e,g)
         if (m_spline == 2) then
             call cqpath_damped_cube_spline(sn,x,y,x2,y2)
         end if
-        
+
         do l=1,sn
             sp_atom(k,l) = y2(l)
         end do
@@ -144,19 +144,19 @@ subroutine cqpath_repos(n,m_repos,x,e,g,x2)
     real(8), intent(in) :: e(n)
     real(8), intent(in) :: g(n)
     real(8), intent(out) :: x2(n)
-    
+
     real(8), allocatable :: e2(:)
     real(8) x_wert, x_anfang, x_ende, x_schritt
     real(8) emin,e2sum,temp_wert
     integer :: i
-    
+
     ! Symmetrisch verteilen
     ! dx(i) = strecke/punkte
     if (m_repos == 1) then
         x_anfang = x(1)
         x_ende = x(n)
         x_schritt = (x_ende-x_anfang)/(REAL(n,8)-1.0)
-        
+
         x_wert = x_anfang
         x2(1) = x_anfang
         do i=2,n-1
@@ -165,14 +165,14 @@ subroutine cqpath_repos(n,m_repos,x,e,g,x2)
         end do
         x2(n) = x_ende
     end if
-    
+
     ! Asymmetrisch verteilen, in Abh. von e
     ! 1. e -> e' = -1.0*e                       ! umkehren
     ! 2. e' -> e'' = e' - e_min * 0.99          ! verschieben damit e_ts nicht = 0 ergibt
     ! 3. dx(i) = e''(i)/e''_summe               ! normieren
     if (m_repos == 2) then
         allocate(e2(n))
-    
+
         x_anfang = x(1)
         x_ende = x(n)
         x2(1) = x_anfang
@@ -187,24 +187,24 @@ subroutine cqpath_repos(n,m_repos,x,e,g,x2)
         do i=1,n
             e2(i) = e2(i)/e2sum
         end do
-        
-        
+
+
         do i=2,n-1
 !             x2(i) = x_anfang+x_schritt*e2(i)
             x_wert = x_wert + x_schritt*e2(i)
             x2(i) = x_wert
         end do
-        
+
         deallocate(e2)
     end if
-    
+
     ! Asymmetrisch verteilen, in Abh. von e
     ! 1. e -> e' = e*e                          ! umkehren
     ! 2. e' -> e'' = e' - e_min * 0.99          ! verschieben damit e_ts nicht = 0 ergibt
     ! 3. dx(i) = e''(i)/e''_summe               ! normieren
     if (m_repos == 3) then
         allocate(e2(n))
-    
+
         x_anfang = x(1)
         x_ende = x(n)
         x2(1) = x_anfang
@@ -219,24 +219,24 @@ subroutine cqpath_repos(n,m_repos,x,e,g,x2)
         do i=1,n
             e2(i) = e2(i)/e2sum
         end do
-        
-        
+
+
         do i=2,n-1
 !             x2(i) = x_anfang+x_schritt*e2(i)
             x_wert = x_wert + x_schritt*e2(i)
             x2(i) = x_wert
         end do
-        
+
         deallocate(e2)
     end if
-    
+
     ! Asymmetrisch verteilen, in Abh. von e
     ! 1. e -> e' = -1.0*e                       ! umkehren
     ! 2. e' -> e'' = (e' - e_min * 0.99)**2     ! verschieben damit e_ts nicht = 0 ergibt
     ! 3. dx(i) = e''(i)/e''_summe               ! normieren
     if (m_repos == 4) then
         allocate(e2(n))
-    
+
         x_anfang = x(1)
         x_ende = x(n)
         x2(1) = x_anfang
@@ -252,14 +252,14 @@ subroutine cqpath_repos(n,m_repos,x,e,g,x2)
         do i=1,n
             e2(i) = e2(i)/e2sum
         end do
-        
-        
+
+
         do i=2,n-1
 !             x2(i) = x_anfang+x_schritt*e2(i)
             x_wert = x_wert + x_schritt*e2(i)
             x2(i) = x_wert
         end do
-        
+
         deallocate(e2)
     end if
 end
@@ -275,7 +275,7 @@ subroutine cqpath_cube_spline(n,x,y,x2,y2)
     integer, intent(in) :: n
     real(8), intent(in) :: x(n),y(n),x2(n)
     real(8), intent(out) :: y2(n)
-    
+
     real(8), dimension(:), allocatable :: ypp
     real(8) y_wert, y_wert_ypval, y_wert_yppval
     integer :: i
@@ -302,21 +302,21 @@ subroutine cqpath_damped_cube_spline(n,x,y,x2,y2)
     integer, intent(in) :: n
     real(8), intent(in) :: x(n),y(n),x2(n)
     real(8), intent(out) :: y2(n)
-    
+
     real(8), dimension(:,:), allocatable :: abcd
     real(8) y_wert
     integer :: i
-    
-    allocate (abcd(n,4))    
+
+    allocate (abcd(n,4))
     call cqpath_damped_cube_spline_set(n,x,y,abcd)
-    
+
     y2(1) = y(1)
     do i=2,n-1
         call cqpath_damped_cube_spline_val(n,abcd,x,x2(i),y_wert)
         y2(i) = y_wert
     end do
     y2(n) = y(n)
-    
+
     deallocate (abcd)
     return
 end
@@ -344,19 +344,19 @@ subroutine cqpath_damped_cube_spline_set(n,x,y,abcd)
     real(8) x1_x0,y1_y0,x0_2,x0_3,x1_x0_2,x1_2
     real(8) steigung
     real(8), dimension(:), allocatable :: dx,dy,f1
-    
+
     integer :: i,j,nf
-    
+
     nf = n-1
     allocate (dx(nf))
     allocate (dy(nf))
     allocate (f1(n))
-    
+
     do i=1,nf
         dx(i) = x(i+1)-x(i)
         dy(i) = y(i+1)-y(i)
     end do
-    
+
     do i=2,nf
         steigung = dy(i-1)*dy(i)
         if (steigung > 0.0) then
@@ -365,10 +365,10 @@ subroutine cqpath_damped_cube_spline_set(n,x,y,abcd)
             f1(i) = 0.0
         end if
     end do
-    
+
     f1(1) = 3.0*dy(1)/(2.0*dx(1)) - f1(2)/2.0
     f1(n) = 3.0*dy(n-1)/(2.0*dx(n-1)) - f1(n-1)/2.0
-    
+
     do i=2,n
         x1_x0 = dx(i-1)
         y1_y0 = dy(i-1)
@@ -376,10 +376,10 @@ subroutine cqpath_damped_cube_spline_set(n,x,y,abcd)
         x0_3 = x0_2*x(i-1)
         x1_x0_2 = x1_x0*x1_x0
         x1_2 = x(i)*x(i)
-        
+
         fss_x0 = -2.0*(f1(i) + 2.0*f1(i-1))/(x1_x0)+6.0*(y1_y0)/x1_x0_2
         fss_x1 = 2.0*(2.0*f1(i) + f1(i-1))/(x1_x0)-6.0*(y1_y0)/x1_x0_2
-        
+
         abcd(i,4) = (fss_x1 - fss_x0)/(6.0*(x1_x0))
         abcd(i,3) = (x(i)*fss_x0-x(i-1)*fss_x1)/(2.0*x1_x0)
         abcd(i,2) = ((y1_y0)-abcd(i,3)*(x1_2-x0_2)-abcd(i,4)*(x1_2*x(i)-x0_3))/(x1_x0)
@@ -410,7 +410,7 @@ subroutine cqpath_damped_cube_spline_val(n,abcd,x,x1,y1)
 
     integer :: j
     real(8) :: xx
-    
+
     do j=2,n
         if (x1 < x(j)) then
             if (x1 >= x(j-1)) then
@@ -438,7 +438,7 @@ subroutine cqpath_interpolate_nm(k,von,bis,nat,nstr,file_xyz,pn,xyz)
     allocate (xyz_temp(3,nat))
     allocate (xyz_start(3,nat))
     allocate (xyz_ziel(3,nat))
-    
+
     do j=1,nat
         xyz_start(1,j) = file_xyz(1,j,k-1)
         xyz_start(2,j) = file_xyz(2,j,k-1)
@@ -447,10 +447,10 @@ subroutine cqpath_interpolate_nm(k,von,bis,nat,nstr,file_xyz,pn,xyz)
         xyz_ziel(2,j) = file_xyz(2,j,k)
         xyz_ziel(3,j) = file_xyz(3,j,k)
     end do
-    
+
     xyz_diff = xyz_ziel - xyz_start
     xyz_diff = xyz_diff / (bis-von)
-    
+
     xyz_temp = xyz_start
     do j=1,nat
         xyz(1,j,von) = xyz_start(1,j)
@@ -470,7 +470,7 @@ subroutine cqpath_interpolate_nm(k,von,bis,nat,nstr,file_xyz,pn,xyz)
         xyz(2,j,bis) = xyz_ziel(2,j)
         xyz(3,j,bis) = xyz_ziel(3,j)
     end do
-    
+
     deallocate (xyz_diff)
     deallocate (xyz_temp)
     deallocate (xyz_start)
@@ -486,7 +486,7 @@ subroutine cqpath_read_pathfile_parameter(fn,nl,nat,nstr)
     character*100 :: a
     character*20 :: fn2
     real(8) :: b,c,d
-    
+
     fn2 = TRIM(adjustl(fn))
 !     print *,'#',TRIM(fn2),'#'
     call open_file(u,trim(fn2),'r')
@@ -496,13 +496,13 @@ subroutine cqpath_read_pathfile_parameter(fn,nl,nat,nstr)
     do
       read (u,fmt='(A)',iostat=sr) a
       if (sr<0) exit
-      if (sr>0) stop 'error in cqpath_read_pathfile_parameter'   
+      if (sr>0) stop 'error in cqpath_read_pathfile_parameter'
       i = i + 1
     end do
-    
+
     nl = i
     nstr = nl/(nat+2)
-    
+
     call close_file (u)
     return
 end
@@ -514,7 +514,7 @@ subroutine cqpath_read_pathfile(fn,nl,nat,nstr,file_xyz,iat,energy)
     real(8), dimension(:,:,:), intent(inout) :: file_xyz(3,nat,nstr)
     real(8), dimension(:,:,:), intent(inout) :: energy(nstr)
     integer, dimension(:), intent(out) :: iat(nat)
-    
+
     integer :: u
     integer :: i,j,k,sr,so,x,nn
     integer :: cqpathe2i
@@ -559,7 +559,7 @@ character(2) function cqpathtohigher( s )
     integer :: ic, i
     character(26), Parameter :: high = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     character(26), Parameter :: low = 'abcdefghijklmnopqrstuvwxyz'
-    
+
     sout = s
     do i = 1, LEN_TRIM(s)
         ic = INDEX(low, s(i:i))
@@ -584,7 +584,7 @@ integer function cqpathe2i( cin )
     if (c == 'N') iout = 7
     if (c == 'O') iout = 8
     if (c == 'F') iout = 9
-    if (c == 'NE') iout = 10  
+    if (c == 'NE') iout = 10
     if (c == 'NA') iout = 11
     if (c == 'MG') iout = 12
     if (c == 'AL') iout = 13

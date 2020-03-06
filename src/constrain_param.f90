@@ -353,7 +353,7 @@ subroutine set_fix(key,val,nat,at,xyz)
          endif
       enddo
    end select
- 
+
 end subroutine set_fix
 
 subroutine set_constr(key,val,nat,at,xyz)
@@ -447,7 +447,7 @@ subroutine set_constr(key,val,nat,at,xyz)
          endif
       enddo
    !  part 2: get the distance between those atoms
-      i = potset%dist%atoms(ioffset+1) 
+      i = potset%dist%atoms(ioffset+1)
       j = potset%dist%atoms(ioffset+2)
       dist = norm2(xyz(:,i)-xyz(:,j))
       if (trim(argv(narg)).eq.'auto') then
@@ -552,7 +552,7 @@ subroutine set_constr(key,val,nat,at,xyz)
          endif
       enddo
    !  part 2: get the distance between those atoms
-      i = atconstr(1,nconstr) 
+      i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
       dist = norm2(xyz(:,i)-xyz(:,j))
       if (trim(argv(narg)).eq.'auto') then
@@ -964,7 +964,7 @@ subroutine set_wall(key,val,nat,at,xyz)
          '3(1x,f12.7,1x,"Å"))') radii*autoaa
 
    end select
- 
+
 end subroutine set_wall
 
 subroutine set_split(key,val,nat,at,xyz)
@@ -1115,7 +1115,7 @@ subroutine set_hess(key,val,nat,at,xyz)
          endif
       enddo
    end select
- 
+
 end subroutine set_hess
 
 subroutine set_reactor(key,val,nat,at,xyz)
@@ -1159,7 +1159,7 @@ subroutine set_reactor(key,val,nat,at,xyz)
       reactset%atoms = list
       reactset%nat = size(list)
    end select
- 
+
 end subroutine set_reactor
 
 subroutine set_path(key,val,nat,at,xyz)
@@ -1203,7 +1203,7 @@ subroutine set_path(key,val,nat,at,xyz)
       pathset%atoms = list
       pathset%nat = size(list)
    end select
- 
+
 end subroutine set_path
 
 subroutine set_metadyn(key,val,nat,at,xyz)
@@ -1277,7 +1277,7 @@ subroutine set_metadyn(key,val,nat,at,xyz)
          endif
       enddo
    end select
- 
+
 end subroutine set_metadyn
 
 subroutine set_freeze(key,val,nat,at,xyz)
@@ -1308,7 +1308,7 @@ subroutine set_freeze(key,val,nat,at,xyz)
    case('hessf')
    case('hessa')
    end select
- 
+
 end subroutine set_freeze
 
 subroutine set_legacy(key,val,nat,at,xyz)

@@ -31,7 +31,7 @@ subroutine getsymmetry (pr, iunit, n, iat, xyz, symthr, maxatdesy, sfsym)
    real(wp) symthr
    Character(len=*) sfsym
    logical pr
-   Character(len=4) atmp    
+   Character(len=4) atmp
    integer,allocatable :: ictdum(:,:)
 
    Real(wp) :: paramar (11)  !parameter array for get_schoenflies_
@@ -178,7 +178,7 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    enddo
    !   ***   FINISH CALCULATION OF VIBRATIONAL PARTS   ***
    ! now unit conversion again...
-   ! h_vib in Eh, beta is in 1/Eh, T is in K, R is in cal/mol/K, 
+   ! h_vib in Eh, beta is in 1/Eh, T is in K, R is in cal/mol/K,
    h_vib=h_vib*R*beta*T
    ! same here
    ! cpvib is in Eh², beta in 1/Eh, R in cal/mol/K

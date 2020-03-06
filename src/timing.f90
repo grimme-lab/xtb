@@ -24,7 +24,7 @@ subroutine timing(t,w)
    w = real(time_count,wp)/real(time_rate,wp)
 end subroutine timing
 
- 
+
 subroutine prtime(io,tt,ww,string)
    use xtb_mctc_accuracy, only : wp
    integer  :: io
@@ -80,4 +80,4 @@ subroutine prtime(io,tt,ww,string)
  50   format('wall time for ',a,2x,f6.2,' s')
 
 end subroutine prtime
- 
+

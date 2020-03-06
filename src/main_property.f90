@@ -1103,7 +1103,7 @@ subroutine print_thermo_sthr_ts(iunit,nvib,vibs,avmom_si,sthr_rcm,temp)
    use xtb_mctc_convert
    use xtb_thermo
    implicit none
- 
+
    integer, intent(in) :: iunit      !< output unit, usually STDOUT
    integer, intent(in) :: nvib       !< number of frequencies
    real(wp),intent(in) :: vibs(nvib) !< frequencies in Eh
@@ -1183,7 +1183,7 @@ subroutine print_gbsa_info(iunit,gbsa)
    enddo
    write(iunit,'(/,1x,"total SASA / Å² :",f13.3)') &
       &  sum(gbsa%sasa/gbsa%gamsasa)*fourpi*autoaa**2
-      
+
 
 end subroutine print_gbsa_info
 

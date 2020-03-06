@@ -87,7 +87,7 @@ subroutine dispersion_surfaceplot(nat,at,xyz,q,wf,g_a,g_c,lmbd,dfparam,surface)
       surface%rho(k,2) = embd-save_mbd
 !      call dispgrad(nat+1,ndim,at_probe,q,xyz_probe,dfparam,wf,g_a,g_c, &
 !      &             c6abns,3,g,etmp)
-      
+
    enddo
    !$omp enddo
    !$omp end parallel

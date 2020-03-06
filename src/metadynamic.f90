@@ -84,7 +84,7 @@ subroutine metadynamic(metavar,nat,at,xyz,ebias,g)
 end subroutine metadynamic
 
 subroutine load_metadynamic(metavar,nat,at,xyz)
-   use, intrinsic :: iso_fortran_env, only : output_unit
+   use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
    use xtb_fixparam
    use xtb_readin
@@ -101,7 +101,7 @@ subroutine load_metadynamic(metavar,nat,at,xyz)
    nstruc = metavar%maxsave
    call readlog(metavar%fname,nat,at,metavar%xyz,nstruc)
    metavar%nstruc = nstruc
-   write(output_unit,'(a,1x,i0,1x,a)') &
+   write(stdout,'(a,1x,i0,1x,a)') &
       "metadynamics with", nstruc, "initial structures loaded"
 
 end subroutine load_metadynamic

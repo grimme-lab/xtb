@@ -37,7 +37,7 @@ subroutine cao2sao(nbf,nao,s,basis)
   real(8) trafo(6,6)
   real(8),allocatable :: sneu(:)
 
-  trafo = 0.0d0 
+  trafo = 0.0d0
   ! dS
   trafo(1,1)=1.d0/sqrt(3.d0)*sqrt(3.d0/5.d0)
   trafo(2,1)=1.d0/sqrt(3.d0)*sqrt(3.d0/5.d0)
@@ -45,8 +45,8 @@ subroutine cao2sao(nbf,nao,s,basis)
   ! dx2-y2
   trafo(1,2)= 1.d0/sqrt(2.d0)*sqrt(3.d0/2.d0)
   trafo(2,2)=-1.d0/sqrt(2.d0)*sqrt(3.d0/2.d0)
-  ! dz2    
-  trafo(1,3)= 0.50d0 
+  ! dz2
+  trafo(1,3)= 0.50d0
   trafo(2,3)= 0.50d0
   trafo(3,3)=-1.0d0
   !      trafo(1,3)= 0.408248290464D+00*sqrt(3./2.)
@@ -59,7 +59,7 @@ subroutine cao2sao(nbf,nao,s,basis)
 
   nao=0
   firstd = 0
-  i=1     
+  i=1
 42 if(basis%lao(i).gt.4.and.basis%lao(i).le.10)then
      nao=nao+1
      firstd(i:i+5)=i
@@ -69,26 +69,26 @@ subroutine cao2sao(nbf,nao,s,basis)
   if(i.lt.nbf)goto 42
 
   if(nao.eq.0) then
-     nao=nbf 
+     nao=nbf
      return
   endif
 
   allocate(sneu(nbf*(nbf+1)/2))
 
-  k=0   
+  k=0
   do i=1,nbf
-     do j=1,i  
+     do j=1,i
         k=K+1
         sneu(k)=s(j,i)
      enddo
   enddo
 
-  k=0   
+  k=0
   do i=1,nbf
      li=lll(basis%lao(i))
-     do j=1,i  
+     do j=1,i
         lj=lll(basis%lao(j))
-        k=k+1            
+        k=k+1
         ! d-d
         if(li.eq.3.and.lj.eq.3)then
            ii=basis%lao(i)-4
@@ -149,7 +149,7 @@ subroutine cao2sao(nbf,nao,s,basis)
 end subroutine cao2sao
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c transforms sao(5d) integrals to cao(6d) basis 
+!c transforms sao(5d) integrals to cao(6d) basis
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine sao2cao(nbf,s,ncao,x,basis)
@@ -165,12 +165,12 @@ subroutine sao2cao(nbf,s,ncao,x,basis)
 
   real(8) trafo(5,6)
 
-  trafo = 0.0d0 
-  ! x2 
+  trafo = 0.0d0
+  ! x2
   trafo(1,1)=1./sqrt(2.)*sqrt(3./2.)
   !      trafo(2,1)=0.408248290464D+00*sqrt(3./2.)
   trafo(2,1)=0.50d0
-  ! y2 
+  ! y2
   trafo(1,2)=-1./sqrt(2.)*sqrt(3./2.)
   !      trafo(2,2)=0.408248290464D+00*sqrt(3./2.)
   trafo(2,2)=0.50d0
@@ -190,8 +190,8 @@ subroutine sao2cao(nbf,s,ncao,x,basis)
   endif
 
   firstd = 0
-  i=1    
-  j=0 
+  i=1
+  j=0
   ! lao is still in old dimensions (i.e., ncao) while s comes with nsao
 42 if(basis%lao(i).gt.4.and.basis%lao(i).le.10)then
      firstd(i-j:i-j+4)=i-j
@@ -209,8 +209,8 @@ subroutine sao2cao(nbf,s,ncao,x,basis)
      k = 0
      idprev=0
      do j=1,nbf ! go through LCAO-MO coefficients
-        if(idprev.gt.0.and.firstd(j).eq.idprev) cycle 
-        if(firstd(j).gt.idprev)then ! if a set of d functions is found, do trafo for all six d orbitals 
+        if(idprev.gt.0.and.firstd(j).eq.idprev) cycle
+        if(firstd(j).gt.idprev)then ! if a set of d functions is found, do trafo for all six d orbitals
            do jj=1,6
               k=k+1
               xcart=0.0d0
@@ -220,7 +220,7 @@ subroutine sao2cao(nbf,s,ncao,x,basis)
               enddo
               x(k,i)=xcart
            enddo
-           idprev=firstd(j) ! setting idprev to new value guarantees that the following 4 
+           idprev=firstd(j) ! setting idprev to new value guarantees that the following 4
                             ! spherical d functions will be skipped (we already did the trafo)
            cycle
         endif
@@ -251,7 +251,7 @@ subroutine cao2saop(nbf,nao,s,basis)
   real(8) trafo(6,6)
   real(8),allocatable :: sneu(:)
 
-  trafo = 0.0d0 
+  trafo = 0.0d0
   ! dS
   trafo(1,1)=1.d0/sqrt(3.d0)*sqrt(3.d0/5.d0)
   trafo(2,1)=1.d0/sqrt(3.d0)*sqrt(3.d0/5.d0)
@@ -259,8 +259,8 @@ subroutine cao2saop(nbf,nao,s,basis)
   ! dx2-y2
   trafo(1,2)= 1.d0/sqrt(2.d0)*sqrt(3.d0/2.d0)
   trafo(2,2)=-1.d0/sqrt(2.d0)*sqrt(3.d0/2.d0)
-  ! dz2    
-  trafo(1,3)= 0.50d0 
+  ! dz2
+  trafo(1,3)= 0.50d0
   trafo(2,3)= 0.50d0
   trafo(3,3)=-1.0d0
   ! rest
@@ -270,7 +270,7 @@ subroutine cao2saop(nbf,nao,s,basis)
 
   nao=0
   firstd = 0
-  i=1     
+  i=1
 42 if(basis%lao(i).gt.4.and.basis%lao(i).le.10)then
      nao=nao+1
      firstd(i:i+5)=i
@@ -280,7 +280,7 @@ subroutine cao2saop(nbf,nao,s,basis)
   if(i.lt.nbf)goto 42
 
   if(nao.eq.0) then
-     nao=nbf 
+     nao=nbf
      return
   endif
 
@@ -288,12 +288,12 @@ subroutine cao2saop(nbf,nao,s,basis)
 
   sneu = s
 
-  k=0   
+  k=0
   do i=1,nbf
      li=lll(basis%lao(i))
-     do j=1,i  
+     do j=1,i
         lj=lll(basis%lao(j))
-        k=k+1            
+        k=k+1
         ! d-d
         if(li.eq.3.and.lj.eq.3)then
            ii=basis%lao(i)-4

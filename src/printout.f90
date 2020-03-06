@@ -357,7 +357,7 @@ subroutine writecosmofile(np,pa,espe,fname,nat,at,xyz,atom_weight)
    do i=1,nat
       write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
          xyz(:,i)*autoaa,esym(at(i)),asym(at(i))
-   enddo 
+   enddo
    write(id,'(a)') 'end'
    write(id,'(a)') '$segment_information'
    do i=1,np
@@ -471,7 +471,7 @@ subroutine writecosmofile2(surface,fname,nat,at,xyz,itype)
    do i=1,nat
       write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
          xyz(:,i)*autoaa,toSymbol(at(i)),toSymbol(at(i))
-   enddo 
+   enddo
    write(id,'(a)') 'end'
    write(id,'(a)') '$segment_information'
    maxv = maxval(surface%rho(:,itype))

@@ -233,7 +233,7 @@ subroutine print_elem_dist(iunit,n,nbond,bond,dist,maxd,mind)
    write(iunit,'(a)')
 
 end subroutine print_elem_dist
- 
+
 subroutine print_distances(iunit,n,at,ndist,dist,id)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert

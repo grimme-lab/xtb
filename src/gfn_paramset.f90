@@ -47,7 +47,7 @@ subroutine set_gfn1_parameter(xpar,globpar)
    xpar%kenscal  =globpar(23) ! kenscal in scf.f
    xpar%xbdamp   =globpar(24)
    xpar%xbrad    =globpar(25)
-   xpar%disp%s9  =0.0_wp! d3atm 
+   xpar%disp%s9  =0.0_wp! d3atm
    xpar%alphaj   =globpar(18)
    xpar%disp%a1  =globpar(20)
    xpar%disp%a2  =globpar(21)
@@ -147,11 +147,11 @@ subroutine set_gfn0_parameter(xpar,globpar)
    xpar%gam3l(1) =globpar(9) !p
    xpar%gam3l(2) =globpar(10)!d-pol
    xpar%gam3l(3) =globpar(11)!d-val
-   xpar%kcnsh(1) =globpar(17)         ! K 2s - 2s 
+   xpar%kcnsh(1) =globpar(17)         ! K 2s - 2s
    xpar%kcnsh(2) =globpar( 9)         ! SRB shift
    xpar%kcnsh(3) =globpar(10)         ! SRB prefactor
-   xpar%kcnsh(4) =globpar(11)         ! SRB steepnes 
-   xpar%gscal    =globpar(12)         ! EN dep  
+   xpar%kcnsh(4) =globpar(11)         ! SRB steepnes
+   xpar%gscal    =globpar(12)         ! EN dep
    xpar%kenscal  =globpar(19)         ! ken² (d3atm in old main.f)
    xpar%xbdamp   =globpar(24)         ! ken⁴
    xpar%xbrad    =globpar(25)         ! rep dEN

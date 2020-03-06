@@ -19,6 +19,7 @@ module xtb_optimizer
    use xtb_io_writer, only : writeMolecule
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_fileTypes, only : fileType
+   use xtb_type_environment, only : TEnvironment
 
    logical,private,parameter :: profile = .true.
 
@@ -88,7 +89,7 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
 
 end subroutine get_optthr
 
-subroutine ancopt(iunit,ilog,mol,wfn,calc, &
+subroutine ancopt(env,ilog,mol,wfn,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
    use xtb_mctc_convert
    use xtb_mctc_la
@@ -115,7 +116,11 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
 
    implicit none
 
-   integer, intent(in) :: iunit
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "optimizer_ancopt"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: tight
@@ -226,35 +231,35 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    endif
 
    if(pr)then
-      write(iunit,'(/,10x,51("."))')
-      write(iunit,'(10x,":",22x,a,22x,":")') "SETUP"
-      write(iunit,'(10x,":",49("."),":")')
-      write(iunit,chrfmt) "optimization level",int2optlevel(tight)
-      write(iunit,intfmt) "max. optcycles    ",maxopt
-      write(iunit,intfmt) "ANC micro-cycles  ",maxmicro
-      write(iunit,intfmt) "degrees of freedom",nvar
+      write(env%unit,'(/,10x,51("."))')
+      write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
+      write(env%unit,'(10x,":",49("."),":")')
+      write(env%unit,chrfmt) "optimization level",int2optlevel(tight)
+      write(env%unit,intfmt) "max. optcycles    ",maxopt
+      write(env%unit,intfmt) "ANC micro-cycles  ",maxmicro
+      write(env%unit,intfmt) "degrees of freedom",nvar
       if (modef>0) then
-      write(iunit,intfmt) "# mode follow     ",modef
+      write(env%unit,intfmt) "# mode follow     ",modef
       endif
-      write(iunit,'(10x,":",49("."),":")')
+      write(env%unit,'(10x,":",49("."),":")')
       if (optset%exact_rf) then
-      write(iunit,chrfmt) "RF solver         ","spevx"
+      write(env%unit,chrfmt) "RF solver         ","spevx"
       else
-      write(iunit,chrfmt) "RF solver         ","davidson"
+      write(env%unit,chrfmt) "RF solver         ","davidson"
       endif
-      write(iunit,chrfmt) "write xtbopt.log  ",bool2string(ilog.ne.-1)
+      write(env%unit,chrfmt) "write xtbopt.log  ",bool2string(ilog.ne.-1)
       if (linear) then
-      write(iunit,chrfmt) "linear (good luck)",bool2string(linear)
+      write(env%unit,chrfmt) "linear (good luck)",bool2string(linear)
       else
-      write(iunit,chrfmt) "linear?           ",bool2string(linear)
+      write(env%unit,chrfmt) "linear?           ",bool2string(linear)
       endif
-      write(iunit,scifmt) "energy convergence",ethr,    "Eh  "
-      write(iunit,scifmt) "grad. convergence ",gthr,    "Eh/α"
-      write(iunit,dblfmt) "maximium RF displ.",maxdispl,"    "
-      write(iunit,scifmt) "Hlow (freq-cutoff)",hlow,    "    "
-      write(iunit,dblfmt) "Hmax (freq-cutoff)",hmax,    "    "
-      write(iunit,dblfmt) "S6 in model hess. ",s6,      "    "
-      write(iunit,'(10x,51("."))')
+      write(env%unit,scifmt) "energy convergence",ethr,    "Eh  "
+      write(env%unit,scifmt) "grad. convergence ",gthr,    "Eh/α"
+      write(env%unit,dblfmt) "maximium RF displ.",maxdispl,"    "
+      write(env%unit,scifmt) "Hlow (freq-cutoff)",hlow,    "    "
+      write(env%unit,dblfmt) "Hmax (freq-cutoff)",hmax,    "    "
+      write(env%unit,dblfmt) "S6 in model hess. ",s6,      "    "
+      write(env%unit,'(10x,51("."))')
    endif
 
    lwork  = 1 + 6*nat3 + 2*nat3**2
@@ -265,12 +270,12 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    if (mhset%model == p_modh_read) then
       call open_file(ihess, 'hessian', 'r')
       if (ihess == -1) then
-         call raise('E', "Could not read in hessian as requested.", 1)
+         call env%error("Could not read in hessian as requested.", source)
          return
       endif
       call read_hessian(ihess, nat3, h, error)
       if (error /= 0) then
-         call raise('E', "Could not read hessian from file.", 1)
+         call env%error("Could not read hessian from file.", source)
          return
       endif
       ! do not reset the hessian
@@ -292,12 +297,17 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
 
    if (profile) call timer%measure(2,'model hessian')
    if (.not.ex)then ! normal case
-     if(pr)write(iunit,'(/,''generating ANC from model Hessian ...'')')
-     call modhes(iunit, mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
+     if(pr)write(env%unit,'(/,''generating ANC from model Hessian ...'')')
+     call modhes(env, mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
+     call env%check(fail)
+     if (fail) then
+        call env%error("Calculation of model hessian failed", source)
+        return
+     end if
      !call qpothess(molopt%n,fc,molopt%xyz)
      thr=1.d-11
    else
-     if(pr)write(iunit,'(/,''generating ANC from read Hessian ...'')')
+     if(pr)write(env%unit,'(/,''generating ANC from read Hessian ...'')')
      k=0
      do i=1,nat3
         do j=1,i
@@ -332,20 +342,20 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    enddo
 
 !  initialize hessian for opt.
-   call anc%new(iunit,molopt%xyz,h,pr)
+   call anc%new(env%unit,molopt%xyz,h,pr)
 
    if (profile) call timer%measure(3)
 
    esave = etot
 
 ! now everything is prepared for the optimization
-   call relax(iunit,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
-              iii,wfn,calc, &
-              egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged,timer,&
-              optset%exact_rf)
+   call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
+      & iii,wfn,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
+      & converged,timer,optset%exact_rf)
 
-   if(fail) then
-      call raise('S',"GEOMETRY OPTIMIZATION FAILED!",1)
+   call env%check(fail)
+   if (fail) then
+      call env%error("GEOMETRY OPTIMIZATION FAILED!", source)
       return
    endif
 
@@ -355,8 +365,8 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
 
    ! this comes close to a goto, but it's not a goto ... it's even worse
    if (restart.and.iter.lt.maxopt) then
-      write(iunit,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
-      write(iunit,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
+      write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
+      write(env%unit,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
       cycle ANC_microiter
    endif
    exit  ANC_microiter
@@ -367,33 +377,34 @@ subroutine ancopt(iunit,ilog,mol,wfn,calc, &
    if (converged) then
       if(pr) then
          call rmsd(mol%n,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "GEOMETRY OPTIMIZATION CONVERGED AFTER",iter,"ITERATIONS"
-         write(iunit,'(72("-"))')
-         write(iunit,'(1x,"total energy gain   :",F18.7,1x,"Eh",F14.4,1x,"kcal/mol")') &
+         write(env%unit,'(72("-"))')
+         write(env%unit,'(1x,"total energy gain   :",F18.7,1x,"Eh",F14.4,1x,"kcal/mol")') &
             etot-estart, (etot-estart)*autokcal
-         write(iunit,'(1x,"total RMSD          :",F18.7,1x,"a0",F14.4,1x,"Å")') &
+         write(env%unit,'(1x,"total RMSD          :",F18.7,1x,"a0",F14.4,1x,"Å")') &
             rmsdval, rmsdval*autoaa
          if (profile) then
-            write(iunit,'(1x,"total power (kW/mol):",F18.7,1x,"(step)",F10.4,1x,"(real)")') &
+            write(env%unit,'(1x,"total power (kW/mol):",F18.7,1x,"(step)",F10.4,1x,"(real)")') &
                & (etot-estart)*autokJ/iter, (etot-estart)*autokJ/timer%get()
          endif
-         write(iunit,'(72("-"))')
+         write(env%unit,'(72("-"))')
       endif
    else
 !  not converging in the given cycles is a FAILURE, we should make this clearer
-!  This is still no ERROR, since we want the geometry written afterwards 
+!  This is still no ERROR, since we want the geometry written afterwards
       if(pr) then
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "FAILED TO CONVERGE GEOMETRY OPTIMIZATION IN",iter,"ITERATIONS"
       endif
+      call env%warning("Geometry optimization did not converge", source)
    endif
 
    mol = molopt
 
    !call close_file(ilog)
 
-   if (pr.and.profile) call timer%write(iunit,'ANCopt')
+   if (pr.and.profile) call timer%write(env%unit,'ANCopt')
 
    if (profile) call timer%deallocate
    if (allocated(pmode))  deallocate(pmode)
@@ -411,7 +422,7 @@ end subroutine ancopt
 !! routine, the only way to leave this subroutine is by an EARLY return,
 !! without going over the RESTART logical at the end of the subroutine.
 !* I have warned you, be careful not to break anything.
-subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
+subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       &          ii,wfn,calc, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
       &          timer,exact)
@@ -424,16 +435,20 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_timer
 
    use xtb_single, only : singlepoint
-   use xtb_file_utils
 
    implicit none
+
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "optimizer_relax"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule),    intent(inout) :: mol
    type(tb_timer),       intent(inout) :: timer
    type(tb_anc),         intent(inout) :: anc
    type(TWavefunction),intent(inout) :: wfn
    type(tb_calculator),intent(in) :: calc
-   integer, intent(in)    :: iunit
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: iupdat
    integer, intent(in)    :: ilog
@@ -491,7 +506,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 !! ========================================================================
    iter=iter+1
    if(pr) &
-   write(iunit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')iter
+   write(env%unit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')iter
 
    gold = gint
    gnold= gnorm
@@ -506,18 +521,18 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
    call singlepoint &
-         (iunit,mol,wfn,calc, &
+         (env,mol,wfn,calc, &
           egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res)
    if (profile) call timer%measure(5)
-!  call timing(t0,w0)
-! something went wrong in SCC or diag
-   if(.not.res%converged) then
-      call raise('W','SCF not converged, aborting...',1)
-      fail = .true.
+
+   ! something went wrong in SCC or diag
+   call env%check(fail)
+   if (fail) then
+      call env%error('SCF not converged, aborting...', source)
       return
    endif
-   if(energy.gt.1.d42) then
-      call raise('W','ANCopt: energy is bogus! aborting...',1)
+   if (energy.gt.1.d42) then
+      call env%error('energy is bogus! aborting...', source)
       fail=.true.
       return
    endif
@@ -532,7 +547,7 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    gnorm = norm2(gint)
 
    if(gnorm.gt.500.) then
-      call raise('W','|grad| > 500, something is totally wrong!',1)
+      call env%error('|grad| > 500, something is totally wrong!', source)
       fail=.true.
       return
    endif
@@ -557,25 +572,28 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    lowered    = echng.lt.0.0_wp
 
    if(pr) then
-      !write(iunit,'(" E :",F16.8,2x,"G :",F10.6,4x,"pred/act E change:",2D11.3)')&
+      !write(env%unit,'(" E :",F16.8,2x,"G :",F10.6,4x,"pred/act E change:",2D11.3)')&
       !energy,gnorm,depred,echng
-      write(iunit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no')   energy
-      write(iunit,'(5x,"change   ",e18.7,1x,"Eh")')                      echng
-      write(iunit,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
-      write(iunit,'(3x,"predicted",e18.7)',advance='no')                 depred
-      write(iunit,'(1x,"("f7.2"%)")')         (depred-echng)/echng*100
+      write(env%unit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no')   energy
+      write(env%unit,'(5x,"change   ",e18.7,1x,"Eh")')                      echng
+      write(env%unit,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
+      write(env%unit,'(3x,"predicted",e18.7)',advance='no')                 depred
+      write(env%unit,'(1x,"("f7.2"%)")')         (depred-echng)/echng*100
    endif
-   if ( energy .eq. 0 ) call raise('E','external program error',1)
+   if ( energy .eq. 0 ) then
+      call env%error('external program error', source)
+      return
+   end if
 
    if(ii.eq.1) estart=energy
 
    if(gnorm.lt.0.002)then  ! 0.002
       alp = 1.5d0       ! 1.5
    elseif(gnorm.lt.0.0006)then
-      alp = 2.0d0       ! 2  
+      alp = 2.0d0       ! 2
    elseif(gnorm.lt.0.0003)then
-      alp = 3.0d0       ! 3  
-   else 
+      alp = 3.0d0       ! 3
+   else
       alp = 1.0d0
    endif
 
@@ -622,7 +640,10 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
    endif
 !  divide by last element to get the displacement vector
-   if (fail .or. abs(Uaug(nvar1,1)).lt.1.e-10) call raise('E',"internal RF error",1)
+   if (fail .or. abs(Uaug(nvar1,1)).lt.1.e-10) then
+      call env%error("internal rational function error", source)
+      return
+   end if
    displ(1:anc%nvar) = Uaug(1:anc%nvar,1)/Uaug(nvar1,1)
 !  check if step is too large, just cut off everything thats to large
    do j=1,anc%nvar
@@ -639,12 +660,12 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       imax(1) = maxloc(gold,1); gold(imax(1)) = 0.0_wp
       imax(2) = maxloc(gold,1); gold(imax(2)) = 0.0_wp
       imax(3) = maxloc(gold,1)
-      write(iunit,'(3x,"displ. norm   :",f14.7,1x,"α")',advance='no') &
+      write(env%unit,'(3x,"displ. norm   :",f14.7,1x,"α")',advance='no') &
          dsnrm*alp
-      write(iunit,'(6x,"lambda   ",e18.7)') eaug(1)
-      write(iunit,'(3x,"maximum displ.:",f14.7,1x,"α")',advance='no') &
+      write(env%unit,'(6x,"lambda   ",e18.7)') eaug(1)
+      write(env%unit,'(3x,"maximum displ.:",f14.7,1x,"α")',advance='no') &
          abs(displ(imax(1)))*alp
-      write(iunit,'(6x,"in ANC''s ",3("#",i0,", "),"...")') imax
+      write(env%unit,'(6x,"in ANC''s ",3("#",i0,", "),"...")') imax
       !call prdispl(anc%nvar,displ)
    endif
    if (profile) call timer%measure(8)
@@ -680,22 +701,21 @@ subroutine relax(iunit,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 end subroutine relax
 
 pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
-   use iso_fortran_env, wp => real32
    use xtb_mctc_la
    implicit none
    integer, intent(in)    :: n
-   real(wp),intent(in)    :: thr
-   real(wp),intent(inout) :: A(:,:)
-   real(wp),intent(inout) :: U(:,:)
-   real(wp),intent(inout) :: e(:)
+   real(sp),intent(in)    :: thr
+   real(sp),intent(inout) :: A(:,:)
+   real(sp),intent(inout) :: U(:,:)
+   real(sp),intent(inout) :: e(:)
    logical, intent(out)   :: fail
 
    integer :: i,j,k
    integer :: lwork,info
-   real(wp),allocatable :: work(:)
+   real(sp),allocatable :: work(:)
    integer, allocatable :: iwork(:)
    integer, allocatable :: ifail(:)
-   real(wp) :: dum
+   real(sp) :: dum
 
    lwork = 1+8*n+n**2
    allocate(iwork(5*n),work(lwork),ifail(n))
@@ -709,22 +729,21 @@ pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
 end subroutine solver_ssyevx
 
 pure subroutine solver_sspevx(n,thr,A,U,e,fail)
-   use iso_fortran_env, wp => real32
    use xtb_mctc_la
    implicit none
    integer, intent(in)    :: n
-   real(wp),intent(in)    :: thr
-   real(wp),intent(inout) :: A(:)
-   real(wp),intent(inout) :: U(:,:)
-   real(wp),intent(inout) :: e(:)
+   real(sp),intent(in)    :: thr
+   real(sp),intent(inout) :: A(:)
+   real(sp),intent(inout) :: U(:,:)
+   real(sp),intent(inout) :: e(:)
    logical, intent(out)   :: fail
 
    integer :: i,j,k
    integer :: info
-   real(wp),allocatable :: work(:)
+   real(sp),allocatable :: work(:)
    integer, allocatable :: iwork(:)
    integer, allocatable :: ifail(:)
-   real(wp) :: dum
+   real(sp) :: dum
 
    allocate(iwork(5*n),work(8*n),ifail(n))
 
@@ -969,7 +988,7 @@ subroutine wrlog2(io,n,xyz,iat,e)
 
 end subroutine wrlog2
 
-subroutine modhes(iunit, modh, natoms, xyz, chg, Hess, pr)
+subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
    use xtb_type_setvar
    use xtb_modelhessian
    use xtb_setparam
@@ -980,7 +999,11 @@ subroutine modhes(iunit, modh, natoms, xyz, chg, Hess, pr)
 !
    implicit none
 
-   integer, intent(in)  :: iunit
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "optimizer_modhes"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(modhess_setvar),intent(in) :: modh
    logical, intent(in)  :: pr
@@ -998,18 +1021,20 @@ subroutine modhes(iunit, modh, natoms, xyz, chg, Hess, pr)
    Hess=0.d0
 
    select case(modh%model)
-   case default; call raise('E',"internal error in model hessian!",1)
+   case default
+      call env%error("internal error in model hessian!", source)
+      return
    case(p_modh_old)
-     if (pr) write(iunit,'(a)') "Using Lindh-Hessian (1995)"
+     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (1995)"
      call ddvopt(xyz, natoms, Hess, chg, modh%s6)
    case(p_modh_lindh_d2)
-     if (pr) write(iunit,'(a)') "Using Lindh-Hessian"
+     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
      call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
    case(p_modh_lindh)
-     if (pr) write(iunit,'(a)') "Using Lindh-Hessian (2007)"
+     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
      call mh_lindh(xyz, natoms, Hess, chg, modh)
    case(p_modh_swart)
-     if (pr) write(iunit,'(a)') "Using Swart-Hessian"
+     if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
      call mh_swart(xyz, natoms, Hess, chg, modh)
    end select
 !  constraints

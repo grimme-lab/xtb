@@ -24,10 +24,11 @@ module xtb_screening
 
 contains
 
-subroutine screen(mol0,wfn,calc,egap,et,maxiter,epot,grd,sigma)
+subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
 
    use xtb_mctc_convert, only : autokcal, aatoau
 
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
@@ -39,6 +40,9 @@ subroutine screen(mol0,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    use xtb_optimizer, only : wrlog2
 
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol0
    type(TWavefunction),intent(inout) :: wfn
@@ -143,7 +147,7 @@ subroutine screen(mol0,wfn,calc,egap,et,maxiter,epot,grd,sigma)
          mol%xyz(1:3,1:mol%n)=xyznew(1:3,1:mol%n,i)
 
          call geometry_optimization &
-            &       (mol,wfn,calc, &
+            &       (env, mol,wfn,calc, &
             &        egap,et,maxiter,maxoptiter,ecnf(i),grd,sigma,optset%optlev, &
             &        .false.,.true.,fail)
 

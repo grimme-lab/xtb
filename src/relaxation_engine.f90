@@ -22,6 +22,7 @@ module xtb_relaxation_engine
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_convert, only : fstoau, amutoau
    use xtb_mctc_fileTypes, only : fileType
+   use xtb_type_environment, only : TEnvironment
    implicit none
    private :: wp
    !> precision of the rational function step (usually single instead of double)
@@ -125,7 +126,7 @@ contains
 
 !> frontend implementation of the fast inertial relaxation engine
 subroutine fire &
-      &   (iunit,ilog,mol,wfn,calc, &
+      &   (env,ilog,mol,wfn,calc, &
       &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail)
 
    use xtb_mctc_convert
@@ -138,7 +139,6 @@ subroutine fire &
 
    use xtb_setparam
 
-   use xtb_file_utils
    use xtb_single
    use xtb_optimizer
    use xtb_axis
@@ -148,8 +148,12 @@ subroutine fire &
 
    implicit none
 
-   !> output unit, usually STDOUT=6
-   integer, intent(in) :: iunit
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "relaxation_engine_fire"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    integer, intent(in) :: ilog
 
    type(TMolecule), intent(inout) :: mol
@@ -267,27 +271,27 @@ subroutine fire &
 
    ! print a nice summary with all settings and thresholds of FIRE
    if(pr)then
-      write(iunit,'(a)') &
+      write(env%unit,'(a)') &
          "      ----------------------------------------------------------- ",&
          "     |              Fast Inertial Relaxation Engine              |",&
          "      ----------------------------------------------------------- "
-      write(iunit,'(/,10x,51("."))')
-      write(iunit,'(10x,":",22x,a,22x,":")') "SETUP"
-      write(iunit,'(10x,":",49("."),":")')
-      write(iunit,scifmt) "energy convergence",opt%e_thr,           "Eh   "
-      write(iunit,scifmt) "grad. convergence ",opt%g_thr,           "Eh/a0"
-      write(iunit,chrfmt) "optimization log  ",bool2string(opt%ilog.ne.-1)
-      write(iunit,intfmt) "writing optlog all",opt%logstep,         "steps"
-      write(iunit,intfmt) "Hessian reset     ",opt%micro_cycle,     "steps"
-      write(iunit,intfmt) "time step scaling ",opt%nmin,            "steps"
-      write(iunit,dblfmt) "maximium step len.",opt%max_displacement,"a0   "
-      write(iunit,dblfmt) "initial time step ",opt%time_step*autofs,"fs   "
-      write(iunit,dblfmt) "maximum time step ",opt%dtmax*autofs,    "fs   "
-      write(iunit,dblfmt) "power reset thr   ",opt%pcut,            "au   "
-      write(iunit,dblfmt) "alpha parameter   ",opt%astart,          "     "
-      write(iunit,chrfmt) "BFGS update       ",bool2string(opt%update)
-      write(iunit,chrfmt) "preconditioning   ",bool2string(opt%precon)
-      write(iunit,'(10x,51("."))')
+      write(env%unit,'(/,10x,51("."))')
+      write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
+      write(env%unit,'(10x,":",49("."),":")')
+      write(env%unit,scifmt) "energy convergence",opt%e_thr,           "Eh   "
+      write(env%unit,scifmt) "grad. convergence ",opt%g_thr,           "Eh/a0"
+      write(env%unit,chrfmt) "optimization log  ",bool2string(opt%ilog.ne.-1)
+      write(env%unit,intfmt) "writing optlog all",opt%logstep,         "steps"
+      write(env%unit,intfmt) "Hessian reset     ",opt%micro_cycle,     "steps"
+      write(env%unit,intfmt) "time step scaling ",opt%nmin,            "steps"
+      write(env%unit,dblfmt) "maximium step len.",opt%max_displacement,"a0   "
+      write(env%unit,dblfmt) "initial time step ",opt%time_step*autofs,"fs   "
+      write(env%unit,dblfmt) "maximum time step ",opt%dtmax*autofs,    "fs   "
+      write(env%unit,dblfmt) "power reset thr   ",opt%pcut,            "au   "
+      write(env%unit,dblfmt) "alpha parameter   ",opt%astart,          "     "
+      write(env%unit,chrfmt) "BFGS update       ",bool2string(opt%update)
+      write(env%unit,chrfmt) "preconditioning   ",bool2string(opt%precon)
+      write(env%unit,'(10x,51("."))')
    endif
 
    if (profile) call timer%measure(1)
@@ -296,15 +300,15 @@ subroutine fire &
    thisstep = opt%micro_cycle
    molopt = mol
 
-   if (.not.pr.and.minpr) write(iunit,'(a6,a14,a16,a16,a15,a6)') &
+   if (.not.pr.and.minpr) write(env%unit,'(a6,a14,a16,a16,a15,a6)') &
       &          "cycle", "energy", "change", "gnorm", "step", "conv?"
 ! ======================================================================
    Precon_microiter: do while (.not.converged .and. iter.lt.maxcycle)
 ! ======================================================================
    if (profile) call timer%measure(7,"model hessian")
    if (opt%precon) then
-      if (minpr) write(iunit,'(" * calculating model hessian...")')
-      call modhes(iunit,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
+      if (minpr) write(env%unit,'(" * calculating model hessian...")')
+      call modhes(env,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
       if (.not.linear) call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1)
    endif
    if (profile) call timer%measure(7)
@@ -312,7 +316,7 @@ subroutine fire &
    xyz0 = molopt%xyz
 
    call inertial_relax &
-      &   (iunit,iter,thisstep,opt,molopt, &
+      &   (env,iter,thisstep,opt,molopt, &
       &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
@@ -321,8 +325,8 @@ subroutine fire &
    call rmsd(molopt%n,xyz0,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
 
    if (.not.converged.and.pr) then
-      write(iunit,'(" * RMSD in coord.:",f14.7,1x,"a0")',advance='no') rmsdval
-      write(iunit,'(5x,"energy gain",e16.7,1x,"Eh")') energy-esave
+      write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"a0")',advance='no') rmsdval
+      write(env%unit,'(5x,"energy gain",e16.7,1x,"Eh")') energy-esave
    endif
 ! ======================================================================
    enddo Precon_microiter
@@ -331,26 +335,27 @@ subroutine fire &
    if (converged) then
       if(pr) then
          call rmsd(mol%n,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "GEOMETRY OPTIMIZATION CONVERGED AFTER",iter,"CYCLES"
-         write(iunit,'(72("-"))')
-         write(iunit,'(1x,"total energy gain   :",F18.7,1x,"Eh",F14.4,1x,"kcal/mol")') &
+         write(env%unit,'(72("-"))')
+         write(env%unit,'(1x,"total energy gain   :",F18.7,1x,"Eh",F14.4,1x,"kcal/mol")') &
             energy-estart, (energy-estart)*autokcal
-         write(iunit,'(1x,"total RMSD          :",F18.7,1x,"a0",F14.4,1x,"Å")') &
+         write(env%unit,'(1x,"total RMSD          :",F18.7,1x,"a0",F14.4,1x,"Å")') &
             rmsdval, rmsdval*autoaa
          if (profile) then
-            write(iunit,'(1x,"total power (kW/mol):",F18.7,1x,"(step)",F10.4,1x,"(real)")') &
+            write(env%unit,'(1x,"total power (kW/mol):",F18.7,1x,"(step)",F10.4,1x,"(real)")') &
                & (energy-estart)*autokJ/iter, (energy-estart)*autokJ/timer%get()
          endif
-         write(iunit,'(72("-"))')
+         write(env%unit,'(72("-"))')
       endif
    else
       ! not converging in the given cycles is a FAILURE, we should make this clearer
       ! This is still no ERROR, since we want the geometry written afterwards
       if(pr) then
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "FAILED TO CONVERGE GEOMETRY OPTIMIZATION IN",iter,"CYCLES"
       endif
+      call env%warning("Geometry optimization did not converge", source)
    endif
 
    ! save optimized geometry
@@ -365,14 +370,14 @@ subroutine fire &
    !call close_file(opt%ilog)
 
    ! finally flush the timer to the output unit
-   if (minpr.and.profile) call timer%write(iunit,'FIRE')
+   if (minpr.and.profile) call timer%write(env%unit,'FIRE')
 
 end subroutine fire
 
 !> frontend implementation of the low memory/linear scaling (by taste)
 !  approximate normal coordinate rational function optimizer (L-ANCopt)
 subroutine l_ancopt &
-      &   (iunit,ilog,mol,wfn,calc, &
+      &   (env,ilog,mol,wfn,calc, &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
 
    use xtb_mctc_convert
@@ -385,7 +390,6 @@ subroutine l_ancopt &
 
    use xtb_setparam
 
-   use xtb_file_utils
    use xtb_single
    use xtb_optimizer
    use xtb_axis
@@ -394,8 +398,12 @@ subroutine l_ancopt &
 
    implicit none
 
-   !> output unit, usually STDOUT=6
-   integer, intent(in) :: iunit
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "relaxation_engine_l_ancopt"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    integer, intent(in) :: ilog
 
    type(TMolecule), intent(inout) :: mol
@@ -516,23 +524,23 @@ subroutine l_ancopt &
 
    ! print a nice summary with all settings and thresholds of ANCopt
    if(pr)then
-      write(iunit,'(a)') &
+      write(env%unit,'(a)') &
          "      ----------------------------------------------------------- ",&
          "     |                       L-ANC optimizer                     |",&
          "      ----------------------------------------------------------- "
-      write(iunit,'(10x,a)') &
+      write(env%unit,'(10x,a)') &
          "low memory version by Sebastian Ehlert"
-      write(iunit,'(/,10x,51("."))')
-      write(iunit,'(10x,":",22x,a,22x,":")') "SETUP"
-      write(iunit,'(10x,":",49("."),":")')
-      write(iunit,scifmt) "energy convergence",opt%e_thr,           "Eh   "
-      write(iunit,scifmt) "grad. convergence ",opt%g_thr,           "Eh/a0"
-      write(iunit,chrfmt) "optimization log  ",bool2string(opt%ilog.ne.-1)
-      write(iunit,intfmt) "writing optlog all",opt%logstep,         "steps"
-      write(iunit,intfmt) "Hessian reset     ",opt%micro_cycle,     "steps"
-      write(iunit,dblfmt) "maximium step len.",opt%max_displacement,"a0   "
-      write(iunit,intfmt) "LBFGS images      ",opt%memory,          "     "
-      write(iunit,'(10x,51("."))')
+      write(env%unit,'(/,10x,51("."))')
+      write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
+      write(env%unit,'(10x,":",49("."),":")')
+      write(env%unit,scifmt) "energy convergence",opt%e_thr,           "Eh   "
+      write(env%unit,scifmt) "grad. convergence ",opt%g_thr,           "Eh/a0"
+      write(env%unit,chrfmt) "optimization log  ",bool2string(opt%ilog.ne.-1)
+      write(env%unit,intfmt) "writing optlog all",opt%logstep,         "steps"
+      write(env%unit,intfmt) "Hessian reset     ",opt%micro_cycle,     "steps"
+      write(env%unit,dblfmt) "maximium step len.",opt%max_displacement,"a0   "
+      write(env%unit,intfmt) "LBFGS images      ",opt%memory,          "     "
+      write(env%unit,'(10x,51("."))')
    endif
 
    if (profile) call timer%measure(1)
@@ -541,14 +549,14 @@ subroutine l_ancopt &
    thiscycle = opt%micro_cycle
    molopt = mol
 
-   if (.not.pr.and.minpr) write(iunit,'(a6,a14,a16,a16,a15,a6)') &
+   if (.not.pr.and.minpr) write(env%unit,'(a6,a14,a16,a16,a15,a6)') &
       &          "cycle", "energy", "change", "gnorm", "step", "conv?"
 ! ======================================================================
    ANC_microiter: do while (.not.converged .and. iter.lt.maxcycle)
 ! ======================================================================
    if (profile) call timer%measure(2,"model hessian")
-   if (minpr) write(iunit,'(" * calculating model hessian...")')
-   call modhes(iunit,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
+   if (minpr) write(env%unit,'(" * calculating model hessian...")')
+   call modhes(env,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
    if (.not.linear) call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1)
    if (profile) call timer%measure(2)
    if (profile) call timer%measure(3,"ANC generation")
@@ -573,12 +581,12 @@ subroutine l_ancopt &
    where(abs(eig).gt.thr) eig = eig+damp
 
    if(pr)then
-      write(iunit,*) 'Shifting diagonal of input Hessian by ', damp
-      write(iunit,*) 'Lowest  eigenvalues of input Hessian'
-      write(iunit,'(6F12.6)')(eig(i),i=1,min(18,nat3))
-      write(iunit,*) 'Highest eigenvalues'
-      write(iunit,'(6F12.6)')(eig(i),i=nat3-5,nat3)
-      write(iunit,*)
+      write(env%unit,*) 'Shifting diagonal of input Hessian by ', damp
+      write(env%unit,*) 'Lowest  eigenvalues of input Hessian'
+      write(env%unit,'(6F12.6)')(eig(i),i=1,min(18,nat3))
+      write(env%unit,*) 'Highest eigenvalues'
+      write(env%unit,'(6F12.6)')(eig(i),i=nat3-5,nat3)
+      write(env%unit,*)
    endif
 
 ! initialize hessian for opt.
@@ -599,8 +607,8 @@ subroutine l_ancopt &
       if (k.ne.nvar) thr=thr*0.1_wp
    enddo
    if(k.ne.nvar) then
-      write(iunit,*)'k=',k,'  nvar=',nvar
-      write(iunit,*) 'ANC generation failed'
+      write(env%unit,*)'k=',k,'  nvar=',nvar
+      write(env%unit,*) 'ANC generation failed'
       fail=.true.
       return
    endif
@@ -620,7 +628,7 @@ subroutine l_ancopt &
    if (profile) call timer%measure(3)
 
    call lbfgs_relax &
-      &   (iunit,iter,thiscycle,opt,molopt, &
+      &   (env,iter,thiscycle,opt,molopt, &
       &    wfn,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
       &    converged,fail,timer)
 
@@ -629,8 +637,8 @@ subroutine l_ancopt &
    call rmsd(molopt%n,xyz0,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
 
    if (.not.converged.and.pr) then
-      write(iunit,'(" * RMSD in coord.:",f14.7,1x,"a0")',advance='no') rmsdval
-      write(iunit,'(5x,"energy gain",e16.7,1x,"Eh")') energy-esave
+      write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"a0")',advance='no') rmsdval
+      write(env%unit,'(5x,"energy gain",e16.7,1x,"Eh")') energy-esave
    endif
 ! ======================================================================
    enddo ANC_microiter
@@ -639,26 +647,27 @@ subroutine l_ancopt &
    if (converged) then
       if(minpr) then
          call rmsd(mol%n,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "GEOMETRY OPTIMIZATION CONVERGED AFTER",iter,"CYCLES"
-         write(iunit,'(72("-"))')
-         write(iunit,'(1x,"total energy gain   :",F18.7,1x,"Eh",F14.4,1x,"kcal/mol")') &
+         write(env%unit,'(72("-"))')
+         write(env%unit,'(1x,"total energy gain   :",F18.7,1x,"Eh",F14.4,1x,"kcal/mol")') &
             energy-estart, (energy-estart)*autokcal
-         write(iunit,'(1x,"total RMSD          :",F18.7,1x,"a0",F14.4,1x,"Å")') &
+         write(env%unit,'(1x,"total RMSD          :",F18.7,1x,"a0",F14.4,1x,"Å")') &
             rmsdval, rmsdval*autoaa
          if (profile) then
-            write(iunit,'(1x,"total power (kW/mol):",F18.7,1x,"(step)",F10.4,1x,"(real)")') &
+            write(env%unit,'(1x,"total power (kW/mol):",F18.7,1x,"(step)",F10.4,1x,"(real)")') &
                & (energy-estart)*autokJ/iter, (energy-estart)*autokJ/timer%get()
          endif
-         write(iunit,'(72("-"))')
+         write(env%unit,'(72("-"))')
       endif
    else
       ! not converging in the given cycles is a FAILURE, we should make this clearer
       ! This is still no ERROR, since we want the geometry written afterwards
       if(minpr) then
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "FAILED TO CONVERGE GEOMETRY OPTIMIZATION IN",iter,"CYCLES"
       endif
+      call env%warning("Geometry optimization did not converge", source)
    endif
 
    ! save optimized geometry
@@ -675,7 +684,7 @@ subroutine l_ancopt &
    if (profile) call timer%measure(7)
 
    ! finally flush the timer to the output unit
-   if (minpr.and.profile) call timer%write(iunit,'L-ANCopt')
+   if (minpr.and.profile) call timer%write(env%unit,'L-ANCopt')
 
 end subroutine l_ancopt
 
@@ -754,7 +763,7 @@ end subroutine lbfgs_step
 !> backend implementation of the low memory BFGS algorithm, this implementation
 !  is augmented with a coordinate transformation in approximate normal coordinates
 subroutine lbfgs_relax &
-      &   (iunit,iter,maxcycle,opt,mol, &
+      &   (env,iter,maxcycle,opt,mol, &
       &    wfn,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
       &    converged,fail,timer)
 
@@ -771,6 +780,12 @@ subroutine lbfgs_relax &
 
    implicit none
 
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "relaxation_engine_lbfgs_relax"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    type(TMolecule), intent(inout) :: mol
 
    type(TWavefunction),intent(inout) :: wfn
@@ -778,8 +793,6 @@ subroutine lbfgs_relax &
 
    !> settings for the low memory BFGS
    type(lbfgs_options), intent(in) :: opt
-   !> output unit, usually STDOUT=6
-   integer, intent(in) :: iunit
    !> current iteration
    integer, intent(inout) :: iter
    !> maximum number of steps to be performed by this optimizer
@@ -909,7 +922,7 @@ subroutine lbfgs_relax &
    opt_cycle: do icycle = 1, maxcycle
       iter = iter+1
 
-      if (pr) write(iunit,cyclefmt) iter
+      if (pr) write(env%unit,cyclefmt) iter
 
       ! rescale the steplength based on the gradient norm
       if (gnorm.lt.0.002_wp) then
@@ -927,7 +940,7 @@ subroutine lbfgs_relax &
       ! the old ANCopt used to cut of the displacement, which will immediately
       ! destroy the LBFGS procedure, therefore we *have* to rescale
       if (step_length > opt%max_displacement) then
-         if (debug) write(iunit,'(" * rescaling step by",f14.7)') &
+         if (debug) write(env%unit,'(" * rescaling step by",f14.7)') &
             &             opt%max_displacement / step_length
          displacement = opt%max_displacement * displacement / step_length
       endif
@@ -949,14 +962,14 @@ subroutine lbfgs_relax &
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
       call singlepoint &
-         &(iunit,mol,wfn,calc, &
+         &(env,mol,wfn,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
          & energy,g_xyz,sigma,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
       if (profile) call timer%measure(6)
-      if(.not.res%converged) then
-         call raise('W','SCF not converged, aborting...',1)
-         fail = .true.
+      call env%check(fail)
+      if (fail) then
+         call env%error('SCF not converged, aborting...', source)
          return
       endif
 
@@ -984,14 +997,14 @@ subroutine lbfgs_relax &
       gconverged = gnorm < opt%g_thr
 
       if (pr) then
-         write(iunit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no') energy
-         write(iunit,'(5x,"change   ",e18.7,1x,"Eh")')                    ediff
-         write(iunit,'(3x,"gradient norm :",f14.7,1x,"Eh/a0")',advance='no') gnorm
-         write(iunit,'(2x,"converged?",3x,3(1x,a,"=",l1))') &
+         write(env%unit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no') energy
+         write(env%unit,'(5x,"change   ",e18.7,1x,"Eh")')                    ediff
+         write(env%unit,'(3x,"gradient norm :",f14.7,1x,"Eh/a0")',advance='no') gnorm
+         write(env%unit,'(2x,"converged?",3x,3(1x,a,"=",l1))') &
             "E",econverged,"G",gconverged,"D",dconverged
-         write(iunit,'(3x,"step length   :",f14.7,1x,"a0")') step_length
+         write(env%unit,'(3x,"step length   :",f14.7,1x,"a0")') step_length
       else if (minpr) then
-         write(iunit,'(i6,f14.7,1x,"(",e14.7,")",2(1x,f14.7),1x,"(",3l1,")")') &
+         write(env%unit,'(i6,f14.7,1x,"(",e14.7,")",2(1x,f14.7),1x,"(",3l1,")")') &
             & iter, energy, ediff, gnorm, step_length, &
             & econverged, gconverged, dconverged
       endif
@@ -1014,7 +1027,7 @@ end subroutine lbfgs_relax
 
 !> backend implementation of the fast inertial relaxation engine
 subroutine inertial_relax &
-      &   (iunit,iter,maxstep,opt,mol, &
+      &   (env,iter,maxstep,opt,mol, &
       &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
@@ -1033,14 +1046,18 @@ subroutine inertial_relax &
 
    implicit none
 
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "relaxation_engine_inertial_relax"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(tb_calculator),intent(in) :: calc
 
    !> settings for the fast inertial relaxation engine
    type(fire_options), intent(in) :: opt
-   !> output unit, usually STDOUT=6
-   integer, intent(in) :: iunit
    !> current iteration
    integer, intent(inout) :: iter
    !> maximum number of steps to be performed by this relaxation engine
@@ -1151,7 +1168,7 @@ subroutine inertial_relax &
       jstep = jstep+1
       lstep = lstep+1
 
-      if (pr) write(iunit,cyclefmt) iter
+      if (pr) write(env%unit,cyclefmt) iter
 
       if (profile) call timer%measure(6,"preconditioner")
       if (opt%precon) &
@@ -1175,7 +1192,7 @@ subroutine inertial_relax &
             apar = apar*opt%fa
          endif
       else
-         write(iunit,'(" * reset velocities")')
+         write(env%unit,'(" * reset velocities")')
          ! internal reset of current velocities (TODO: return to driver?)
          velocities = 0.0_wp
          apar = opt%astart
@@ -1197,7 +1214,7 @@ subroutine inertial_relax &
                lat_apar = lat_apar*opt%fa
             endif
          else
-            write(iunit,'(" * reset lattice velocities")')
+            write(env%unit,'(" * reset lattice velocities")')
             ! internal reset of current velocities (TODO: return to driver?)
             lat_velocities = 0.0_wp
             lat_apar = opt%astart
@@ -1226,7 +1243,7 @@ subroutine inertial_relax &
       ! renormalize if step taken is to large
       step_length = sqrt(ddot(3*mol%n,displacement,1,displacement,1))
       if (step_length > opt%max_displacement) then
-         write(iunit,'(" * rescaling displacement step")')
+         write(env%unit,'(" * rescaling displacement step")')
          displacement = opt%max_displacement * displacement / step_length
          !velocities = opt%max_displacement * velocities / step_length
       endif
@@ -1236,7 +1253,7 @@ subroutine inertial_relax &
       if (optcell) then
          lat_step_length = sqrt(ddot(9,lat_displacement,1,lat_displacement,1))
          if (lat_step_length > opt%max_displacement) then
-            write(iunit,'(" * rescaling lattice displacement")')
+            write(env%unit,'(" * rescaling lattice displacement")')
             lat_displacement = opt%max_displacement*lat_displacement/lat_step_length
          endif
       endif
@@ -1259,13 +1276,13 @@ subroutine inertial_relax &
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
       call singlepoint &
-         &(iunit,mol,wfn,calc, &
+         &(env,mol,wfn,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
          & energy,gradient,sigma,res)
       if (profile) call timer%measure(4)
-      if(.not.res%converged) then
-         call raise('W','SCF not converged, aborting...',1)
-         fail = .true.
+      call env%check(fail)
+      if (fail) then
+         call env%error('SCF not converged, aborting...', source)
          return
       endif
       if (profile) call timer%measure(5,"log and printout")
@@ -1291,32 +1308,32 @@ subroutine inertial_relax &
          lat_power = -ddot(9,lat_velocities,1,lat_gradient,1)/opt%lat_mass
          lat_gnorm = sqrt(ddot(9,lat_gradient,1,lat_gradient,1))
       endif
-         
+
       gconverged = gnorm < opt%g_thr .and. &
          & (.not.optcell .or. lat_gnorm < opt%g_thr)
 
       if (pr) then
-         write(iunit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no')   energy
-         write(iunit,'(5x,"change    :",e16.7,1x,"Eh")')                    ediff
-         write(iunit,'(3x,"gradient norm :",f14.7,1x,"Eh/a0")',advance='no')gnorm
-         write(iunit,'(2x,"converged?",3x,3(1x,a,"=",l1))') &
+         write(env%unit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no')   energy
+         write(env%unit,'(5x,"change    :",e16.7,1x,"Eh")')                    ediff
+         write(env%unit,'(3x,"gradient norm :",f14.7,1x,"Eh/a0")',advance='no')gnorm
+         write(env%unit,'(2x,"converged?",3x,3(1x,a,"=",l1))') &
             "E",econverged,"G",gconverged,"D",dconverged
-         write(iunit,'(3x,"time step     :",f14.7,1x,"fs")',advance='no') &
+         write(env%unit,'(3x,"time step     :",f14.7,1x,"fs")',advance='no') &
             time_step * autofs
-         write(iunit,'(5x,"power     :",e16.7)') power
-         write(iunit,'(3x,"step length   :",f14.7,1x,"a0")',advance='no') &
+         write(env%unit,'(5x,"power     :",e16.7)') power
+         write(env%unit,'(3x,"step length   :",f14.7,1x,"a0")',advance='no') &
             step_length
-         write(iunit,'(5x,"speed     :",e16.7)') speed
+         write(env%unit,'(5x,"speed     :",e16.7)') speed
          if (optcell) then
-            write(iunit,'(3x,"time step     :",f14.7,1x,"fs")',advance='no') &
+            write(env%unit,'(3x,"time step     :",f14.7,1x,"fs")',advance='no') &
                lat_time_step * autofs
-            write(iunit,'(5x,"cell power:",e16.7)') lat_power
-            write(iunit,'(3x,"step length   :",f14.7,1x,"a0")',advance='no') &
+            write(env%unit,'(5x,"cell power:",e16.7)') lat_power
+            write(env%unit,'(3x,"step length   :",f14.7,1x,"a0")',advance='no') &
                lat_step_length
-            write(iunit,'(5x,"cell speed:",e16.7)') lat_speed
+            write(env%unit,'(5x,"cell speed:",e16.7)') lat_speed
          endif
       else if (minpr) then
-         write(iunit,'(i6,f14.7,1x,"(",e14.7,")",2(1x,f14.7),1x,"(",3l1,")")') &
+         write(env%unit,'(i6,f14.7,1x,"(",e14.7,")",2(1x,f14.7),1x,"(",3l1,")")') &
             & iter, energy, ediff, gnorm, step_length, &
             & econverged, gconverged, dconverged
       endif

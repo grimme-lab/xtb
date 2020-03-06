@@ -60,7 +60,7 @@ subroutine read_gfn_param &
       kcnat =0.0_wp
 
       dpolc =0.0_wp ! read values are scaled by 0.01
-      qpolc =0.0_wp !  "     "     "    "    "   "     
+      qpolc =0.0_wp !  "     "     "    "    "   "
       radaes=5.0_wp ! default atom radius
       radaes(1) =1.4_wp
       radaes(2) =3.0_wp
@@ -123,7 +123,7 @@ subroutine read_globpar
       val = trim(adjustl(line(ie+1:)))
 
       call gfn_globpar(key,val,globpar)
-      
+
    enddo
 end subroutine read_globpar
 
@@ -415,14 +415,14 @@ subroutine gfn_elempar(key,val,iz)
    case('kqd');   if (get_value(val,ddum)) kqat(3,iz)  = ddum
    end select
 end subroutine gfn_elempar
-   
+
 end subroutine read_gfn_param
 
 
       logical function maingroup(i)
       integer i
       logical main_group(107)
-      data main_group /& 
+      data main_group /&
      &  2*.true.,&                              ! H  - He
      &  8*.true.,&                              ! Li - Ne
      &  8*.true.,&                              ! Na - Ar
@@ -438,7 +438,7 @@ end subroutine read_gfn_param
 ! global, predefined pair parameters
       subroutine setpair(gfn_method)
       use xtb_aoparam
-      implicit none 
+      implicit none
       integer gfn_method
       integer i,j,ii,jj
       integer tmmetal
@@ -457,7 +457,7 @@ end subroutine read_gfn_param
       kp(3)=1.10
       kparam=0.9
       tmgroup=(/29,47,79/)
-      do i=1,3      
+      do i=1,3
          do j=1,3
             ii=tmgroup(i)
             jj=tmgroup(j)
@@ -478,10 +478,10 @@ end subroutine read_gfn_param
          do j=21,i
             ii=tmmetal(i)
             jj=tmmetal(j)
-!           metal-metal interaction            
+!           metal-metal interaction
             notset=abs(kpair(i,j)-1.0d0).lt.1.d-6 .and. &
      &             abs(kpair(j,i)-1.0d0).lt.1.d-6
-            if(ii.gt.0.and.jj.gt.0.and.notset) then  
+            if(ii.gt.0.and.jj.gt.0.and.notset) then
                kpair(i,j)=0.5*(kp(ii)+kp(jj))
                kpair(j,i)=0.5*(kp(ii)+kp(jj))
             endif

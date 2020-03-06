@@ -16,7 +16,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp, i8
+   use xtb_mctc_io, only : stdout
    use xtb_type_wavefunction
    use xtb_scc_core, only : qsh2qat
    implicit none
@@ -28,7 +29,7 @@ subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
    logical,intent(out) :: success
    logical,intent(in)  :: verbose
 
-   integer(int64) :: iver8,idum8,n8,nshell8,nel8,nopen8
+   integer(i8) :: iver8,idum8,n8,nshell8,nel8,nopen8
    integer :: ich ! file handle
    integer :: err
    logical :: exist
@@ -39,24 +40,24 @@ subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
       ! read the first 48 byte, which identify the calculation specs
       read(ich,iostat=err) iver8,idum8,n8,nshell8,nel8,nopen8
       if(err.eq.0) then
-         if (iver8.ne.int(gfn_method,int64).and.verbose) &
+         if (iver8.ne.int(gfn_method,i8).and.verbose) &
             &  call raise('S','Version number missmatch in restart file.',1)
-         if (nel8.ne.int(wfx%nel,int64).and.verbose) &
+         if (nel8.ne.int(wfx%nel,i8).and.verbose) &
             &  call raise('S','Number of electron missmatch in restart file.',1)
-         if (nopen8.ne.int(wfx%nopen,int64).and.verbose) &
+         if (nopen8.ne.int(wfx%nopen,i8).and.verbose) &
             &  call raise('S','Multiplicity missmatch in restart file.',1)
-         if ((n8.eq.int(wfx%n,int64)).and.(nshell8.eq.int(wfx%nshell,int64))) then
+         if ((n8.eq.int(wfx%n,i8)).and.(nshell8.eq.int(wfx%nshell,i8))) then
             success = .true.
             read(ich) wfx%qsh
             if (verbose) &
-            write(istdout,'("q/qsh data taken from xtbrestart")')
+            write(stdout,'("q/qsh data taken from xtbrestart")')
             call qsh2qat(n,at,wfx%nshell,wfx%qsh,wfx%q)
             if ((gfn_method.gt.1).and.(iver8.gt.1)) then
 !              read dipole and qpole CAMM
                read(ich) wfx%dipm
                read(ich) wfx%qp
                if (verbose) &
-               write(istdout,'("CAMM data taken from xtbrestart")')
+               write(stdout,'("CAMM data taken from xtbrestart")')
             endif
          else
             if (verbose) &
@@ -74,7 +75,8 @@ subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
 end subroutine read_restart
 
 subroutine write_restart(wfx,fname,gfn_method)
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp, i8
+   use xtb_mctc_io, only : stdout
    use xtb_type_wavefunction
    implicit none
    type(TWavefunction),intent(inout) :: wfx
@@ -83,9 +85,9 @@ subroutine write_restart(wfx,fname,gfn_method)
    integer :: ich ! file handle
 
    call open_binary(ich,fname,'w')
-   write(ich) int(gfn_method,int64),int(gfn_method,int64), &
-              int(wfx%n,int64),int(wfx%nshell,int64), &
-              int(wfx%nel,int64),int(wfx%nopen,int64)
+   write(ich) int(gfn_method,i8),int(gfn_method,i8), &
+              int(wfx%n,i8),int(wfx%nshell,i8), &
+              int(wfx%nel,i8),int(wfx%nopen,i8)
    write(ich) wfx%qsh
    if (gfn_method.gt.1) then
       write(ich) wfx%dipm

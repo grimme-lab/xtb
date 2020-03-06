@@ -310,7 +310,7 @@ end subroutine c_get_int_2d
 
 ! open a unit for IO
 subroutine c_open_file(unit, c_output, prlevel)
-   use iso_fortran_env, only: output_unit
+   use xtb_mctc_io, only : stdout
    integer, intent(out) :: unit
    character(kind=c_char), intent(in) :: c_output(*)
    integer, intent(in) :: prlevel
@@ -319,13 +319,13 @@ subroutine c_open_file(unit, c_output, prlevel)
 
    call c_string_convert(output, c_output)
 
-   unit = output_unit
+   unit = stdout
    if (output /= '-' .and. prlevel > 0) then
       inquire(file=output, exist=exist)
       if (exist) then
          open(file=output, newunit=unit)
       end if
    endif
-end subroutine
+end subroutine c_open_file
 
 end module xtb_api_utils

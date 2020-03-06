@@ -16,13 +16,12 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_hessian
-   use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
 
 contains
 
 subroutine numhess( &
-      & mol,wf0,calc, &
+      & env,mol,wf0,calc, &
       & egap,et,maxiter,etot,gr,sr,res)
    use xtb_mctc_accuracy, only : wp
 !$ use omp_lib
@@ -31,6 +30,7 @@ subroutine numhess( &
 
 !! ========================================================================
 !  type definitions
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
@@ -45,6 +45,12 @@ subroutine numhess( &
    use xtb_axis, only : axis
 
    implicit none
+
+   !> Source of errors in the main program unit
+   character(len=*), parameter :: source = "hessian_numhess"
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: maxiter
    type(TWavefunction),intent(inout) :: wf0
@@ -87,6 +93,8 @@ subroutine numhess( &
    integer :: ich ! file handle
    integer :: err
    character(len=:),allocatable :: hname,fname
+   logical :: exitRun
+   character(len=128) :: errStr
 
    parameter (scalh =1.00d0)
 
@@ -111,20 +119,21 @@ subroutine numhess( &
    acc=accu_hess
 
    call singlepoint &
-      & (stdout,mol,wf0,calc, &
+      & (env,mol,wf0,calc, &
       &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
 
-   write(stdout,'(''step length          :'',F10.5)') step
-   write(stdout,'(''SCC accuracy         :'',F10.5)') acc
-   write(stdout,'(''Hessian scale factor :'',F10.5)') scalh
-   write(stdout,'(''frozen atoms in %    :'',F10.5,i5)') &
+   write(env%unit,'(''step length          :'',F10.5)') step
+   write(env%unit,'(''SCC accuracy         :'',F10.5)') acc
+   write(env%unit,'(''Hessian scale factor :'',F10.5)') scalh
+   write(env%unit,'(''frozen atoms in %    :'',F10.5,i5)') &
       & real(freezeset%n,wp)/real(mol%n,wp)*100,freezeset%n
 
    res%gnorm = norm2(res%grad)
-   write(stdout,'(''RMS gradient         :'',F10.5)') res%gnorm
+   write(env%unit,'(''RMS gradient         :'',F10.5)') res%gnorm
    if(res%gnorm.gt.0.002_wp) then
-      call raise('W','Hessian on incompletely optimized geometry!',1)
-      call raise('S','Hessian on incompletely optimized geometry!',1)
+      call env%warning('Hessian on incompletely optimized geometry!', source)
+      call env%checkpoint("Not a stationary point", exitRun)
+      if (exitRun) return
    endif
 
    res%linear=.false.
@@ -166,7 +175,7 @@ subroutine numhess( &
       !$omp parallel default(shared) &
       !$omp&         firstprivate(mol,calc,et,maxiter,acc,wf0) &
       !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,wfx,tmol) &
-      !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh)
+      !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh,env)
       !$ call omp_set_num_threads(1)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
@@ -180,7 +189,7 @@ subroutine numhess( &
             wfx = wf0
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             call singlepoint &
-               & (stdout,tmol,wfx,calc, &
+               & (env,tmol,wfx,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
             tmol = mol
             wfx = wf0
@@ -188,7 +197,7 @@ subroutine numhess( &
             pold(ii)=sccr%molpol
             mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
             call singlepoint &
-               & (stdout,tmol,wfx,calc, &
+               & (env,tmol,wfx,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -225,7 +234,7 @@ subroutine numhess( &
       !$omp parallel default(shared) &
       !$omp&         firstprivate(mol,calc,et,maxiter,acc,wf0) &
       !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,wfx,tmol) &
-      !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave)
+      !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env)
       !$ call omp_set_num_threads(1)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
@@ -242,7 +251,7 @@ subroutine numhess( &
             gr = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (stdout,tmol,wfx,calc, &
+               & (env,tmol,wfx,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
             dipd(1:3,ii)=sccr%dipole(1:3)
             pold(ii)=sccr%molpol
@@ -255,7 +264,7 @@ subroutine numhess( &
             gl = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (stdout,tmol,wfx,calc, &
+               & (env,tmol,wfx,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=xyzsave(ic,ia)
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -316,8 +325,9 @@ subroutine numhess( &
          do j=1,n3
             res%hess(j,i)=(h(i,j)+h(j,i))*0.5
             if(abs(h(i,j)-h(j,i)).gt.1.d-2) then
-               write(*,*) 'Hess ',i,j,' not sym. ',h(i,j),h(j,i)
-               call raise('S',"Hessian is not symmetric",1)
+               write(errStr,'(a,1x,i0,1x,i0,1x,a,1x,es14.6,1x,es14.6)') &
+                  & 'Hessian element ',i,j,' is not symmetric:',h(i,j),h(j,i)
+               call env%warning(trim(errStr), source)
             endif
          enddo
       enddo
@@ -345,8 +355,8 @@ subroutine numhess( &
    endif
    ! non mass weigthed Hessian in hss
    hname = 'hessian'
-   write(stdout,'(a)')
-   write(stdout,'("writing file <",a,">.")') hname
+   write(env%unit,'(a)')
+   write(env%unit,'("writing file <",a,">.")') hname
    call wrhess(n3,hss,hname)
 
    ! include masses
@@ -362,13 +372,16 @@ subroutine numhess( &
    lwork  = 1 + 6*n3 + 2*n3**2
    allocate(aux(lwork))
    call dsyev ('V','U',n3,res%hess,n3,res%freq,aux,lwork,info)
-   if(info.ne.0) call raise('E','diag error in hess.f',1)
+   if(info.ne.0) then
+      call env%error('Diagonalization of hessian failed', source)
+      return
+   end if
 
-   write(stdout,'(a)')
+   write(env%unit,'(a)')
    if(res%linear)then
-      write(stdout,'(1x,a)') 'vibrational frequencies (cm-1)'
+      write(env%unit,'(1x,a)') 'vibrational frequencies (cm-1)'
    else
-      write(stdout,'(1x,a)') 'projected vibrational frequencies (cm-1)'
+      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm-1)'
    endif
    k=0
    do i=1,n3
@@ -396,14 +409,17 @@ subroutine numhess( &
    do k=1,n3
       if(abs(res%freq(k)).gt.0.01_wp)then
          j=j+1
-         if(j.gt.n3) call raise('E','internal error in hess sort',1)
+         if(j.gt.n3) then
+            call env%error('internal error while sorting hessian', source)
+            return
+         end if
          h(1:n3,j)=res%hess(1:n3,k)
          isqm(  j)=res%freq(   k)
       endif
    enddo
    res%hess = h
    res%freq = isqm
-   call PREIGF(stdout,res%freq,res%n3true)
+   call PREIGF(env%unit,res%freq,res%n3true)
 
    ! reduced mass
    res%lowmode=1

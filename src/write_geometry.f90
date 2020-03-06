@@ -30,7 +30,7 @@ subroutine wrcoord_res(iunit,n,at,xyz,sccres,frqres)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_data
    use xtb_setparam
-   implicit none              
+   implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -210,7 +210,7 @@ subroutine write_mdl2000(iunit,n,at,xyz,nb,bond)
    enddo
    if (ichrg .ne. 0) &
    write(iunit,'("M  CRG",1x,i0)') ichrg
-   write(iunit,'("M  END")') 
+   write(iunit,'("M  END")')
 
 end subroutine write_mdl2000
 
@@ -268,7 +268,7 @@ subroutine write_mdl3000(iunit,n,at,xyz,nb,bond)
    write(iunit,'(a,1x,"END BOND")') v30
    endif
    write(iunit,'(a,1x,"END CTAB")') v30
-   write(iunit,'("M  END")') 
+   write(iunit,'("M  END")')
 
 end subroutine write_mdl3000
 
@@ -360,7 +360,7 @@ subroutine mdl_bond(n,at,nb,bond)
    call open_file(ich,'wbo','r')
    if (ich.eq.-1) return
    do
-      read(ich,*,iostat=err) i,j,w 
+      read(ich,*,iostat=err) i,j,w
       if (err.ne.0) exit
       if (w.lt.0.1_wp) cycle
       nb = nb + 1

@@ -171,7 +171,7 @@ module subroutine gfn2_calculation &
 
    if (opt%restart) then
       call write_restart(wfn,'xtbrestart',gfn_method)
-   endif 
+   endif
 
    if (opt%prlevel > 0) then
       write(iunit,'(9x,53(":"))')

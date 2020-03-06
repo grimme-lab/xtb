@@ -15,12 +15,13 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine relaxed_scan(mol,wfx,calc)
+subroutine relaxed_scan(env, mol, wfx, calc)
    use iso_fortran_env, only : id => output_unit
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam
    use xtb_scanparam
 
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
@@ -29,6 +30,9 @@ subroutine relaxed_scan(mol,wfx,calc)
    use xtb_optimizer, only : wrlog2
 
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
    type(tb_calculator),intent(in) :: calc
@@ -78,7 +82,7 @@ subroutine relaxed_scan(mol,wfx,calc)
             if (.not.verbose) &
                write(id,'("... step",1x,i0,1x,"...")') k
             call geometry_optimization &
-               &(mol,wfx,calc, &
+               &(env, mol,wfx,calc, &
                & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
             efix = 0.0_wp
             call constrpot(mol%n,mol%at,mol%xyz,g,efix)
@@ -109,7 +113,7 @@ subroutine relaxed_scan(mol,wfx,calc)
          if (.not.verbose) &
             write(id,'("... step",1x,i0,1x,"...")')   j
          call geometry_optimization &
-            &(mol,wfx,calc, &
+            &(env, mol,wfx,calc, &
             & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
          efix = 0.0_wp
          call constrpot(mol%n,mol%at,mol%xyz,g,efix)
@@ -128,5 +132,5 @@ subroutine relaxed_scan(mol,wfx,calc)
    endif
 
    call close_file(ilog)
-   
+
 end subroutine relaxed_scan

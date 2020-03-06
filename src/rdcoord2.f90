@@ -102,7 +102,7 @@ subroutine rdcoord(fname,n,xyz,iat)
 end subroutine rdcoord
 
 subroutine rdatomnumber(fname,n)
-   use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
    implicit none
    character(len=*) :: fname
@@ -228,7 +228,7 @@ end subroutine readline
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 subroutine rdxyz(fname,n,xyz)
-   use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
    implicit real(wp) (a-h,o-z)
    integer, intent(in)  :: n
@@ -265,7 +265,7 @@ end subroutine rdxyz
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 subroutine rdsdf(fname,n,xyz,iat)
-   use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_systools
    use xtb_setmod

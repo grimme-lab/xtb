@@ -70,8 +70,8 @@ end do
 dx = u - x(i)
 isp = y(i) + dx*(b(i) + dx*(c(i) + dx*d(i)))
 isp1=           (b(i) + dx*(c(i)*2. + 3.*dx*d(i)))
-isp2=                 +    (c(i)*2. + 6.*dx*d(i)) 
-end 
+isp2=                 +    (c(i)*2. + 6.*dx*d(i))
+end
 
 subroutine spline2(x, y, b, c, d, n)
 !======================================================================
@@ -120,7 +120,7 @@ c(i+1) = (y(i+1) - y(i))/d(i)
 c(i) = c(i+1) - c(i)
 end do
 !
-! step 2: end conditions 
+! step 2: end conditions
 !
 b(1) = -d(1)
 b(n) = -d(n-1)
@@ -133,7 +133,7 @@ c(1) = c(1)*d(1)**2/(x(4)-x(1))
 c(n) = -c(n)*d(n-1)**2/(x(n)-x(n-3))
 end if
 !
-! step 3: forward elimination 
+! step 3: forward elimination
 !
 do i = 2, n
 h = d(i-1)/b(i-1)

@@ -12,22 +12,16 @@
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
 !
-! You should have received a copy of the GNU Lesser General Public License
+! You should have received a copy of the GNU Lesser General Public Licen
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-      integer function ifind(x,n,xx)
-      implicit none 
-      integer n
-      real*8 x,xx(n),mind
-      integer i,mem
 
-      mind=1.d+42
-      do i=1,n
-         if(abs(x-xx(i)).lt.mind)then
-            mind=abs(x-xx(i))
-            mem=i
-         endif
-      enddo
-      ifind = mem
+subroutine getname1(i,atmp)
+   use xtb_setparam, only : get_namespace
+   integer,intent(in) :: i
+   character(len=*),intent(out) :: atmp
 
-      end
+   write(atmp,'(''scoord.'',i0)')i
+   !atmp = get_namespace(trim(atmp))
+
+end subroutine getname1

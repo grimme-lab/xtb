@@ -22,7 +22,7 @@ program XTBprog
 !  since FORTRAN2008 there are also kindparameters available.
 !  remember: output_unit = 6, input_unit = 5, error_unit = 0
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_io, only : stdout, stderr
+   use xtb_mctc_io, only : stderr
 !! ========================================================================
 !  this is part of the Grimme group's MCTC general purpose FORTRAN libs
    use xtb_mctc_timings
@@ -67,7 +67,6 @@ program XTBprog
    use xtb_argparser
    use xtb_setmod
    use xtb_propertyoutput
-   use xtb_file_utils
    use tbmod_output_writer
 
 !! ========================================================================
@@ -258,11 +257,11 @@ program XTBprog
 !  no user interaction up to now, time to show off!
 !  print the xtb banner with version number and compilation date
 !  making a fancy version of this is hard, x is difficult in ASCII art
-   call xtb_header(stdout)
+   call xtb_header(env%unit)
 !  make sure you cannot blame us for destroying your computer
-   call disclamer(stdout)
+   call disclamer(env%unit)
 !  how to cite this program
-   call citation(stdout)
+   call citation(env%unit)
 
 !! ========================================================================
 !  check if you are allowed to make a calculation today
@@ -332,7 +331,7 @@ program XTBprog
    if(wfn%nopen.eq.0.and.mod(wfn%nel,2).ne.0) wfn%nopen=1
    call initrand
 
-   call setup_summary(stdout,mol%n,fname,xcontrol,nargs,argument_list,wfn,xrc,exist)
+   call setup_summary(env%unit,mol%n,fname,xcontrol,nargs,argument_list,wfn,xrc,exist)
 
    if(fit) acc=0.2 ! higher SCF accuracy during fit
 
@@ -370,8 +369,8 @@ program XTBprog
    call splitprint(mol%n,mol%at,mol%xyz)
 
    if (verbose) then
-      call fix_info(stdout,mol%n,mol%at,mol%xyz)
-      call pot_info(stdout,mol%n,mol%at,mol%xyz)
+      call fix_info(env%unit,mol%n,mol%at,mol%xyz)
+      call pot_info(env%unit,mol%n,mol%at,mol%xyz)
    endif
 
 !! ------------------------------------------------------------------------
@@ -385,7 +384,7 @@ program XTBprog
 !! ------------------------------------------------------------------------
 !  if you have requested a define we stop here...
    if (define) then
-      if (verbose) call main_geometry(stdout,mol)
+      if (verbose) call main_geometry(env%unit,mol)
       call eval_define(veryverbose)
    endif
 !  in case you want to be productive instead of meddling around with
@@ -409,38 +408,38 @@ program XTBprog
          call raise('E','This is an internal error, please define your runtypes!',1)
       case(p_run_nox,p_run_stda)
          fnv=xfind(p_fname_param_stda1)
-         call stda_header(stdout)
+         call stda_header(env%unit)
       case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess, &
            p_run_md,p_run_omd,p_run_siman,p_run_path,p_run_screen, &
            p_run_gmd,p_run_modef,p_run_mdopt,p_run_metaopt,p_run_reactor)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
             if(periodic)then
-               call peeq_header(stdout)
+               call peeq_header(env%unit)
             else
-               call gfn0_header(stdout)
+               call gfn0_header(env%unit)
             endif
          endif
          if(gfn_method.eq.1) then
             fnv=xfind(p_fname_param_gfn1)
-            call gfn1_header(stdout)
+            call gfn1_header(env%unit)
          endif
          if(gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
-            call gfn2_header(stdout)
+            call gfn2_header(env%unit)
          endif
       case(p_run_vip,p_run_vea,p_run_vipea,p_run_vfukui,p_run_vomega)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
-            call gfn0_header(stdout)
+            call gfn0_header(env%unit)
          endif
          if(gfn_method.eq.1) then
             fnv=xfind(p_fname_param_ipea)
-            call ipea_header(stdout)
+            call ipea_header(env%unit)
          endif
          if(gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
-            call gfn2_header(stdout)
+            call gfn2_header(env%unit)
          endif
       end select
    endif
@@ -457,7 +456,7 @@ program XTBprog
    do i = 1, 86
       do j = 1, i
          if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
-            write(stdout,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
+            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
             asym(j),asym(i),kpair(j,i)
       enddo
    enddo
@@ -477,13 +476,13 @@ program XTBprog
          call raise('E','Internal error, wrong GFN method passed!',1)
       case(1)
          call set_gfn1_parameter(calc%param,globpar)
-         call gfn1_prparam(stdout,mol%n,mol%at,calc%param)
+         call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
       case(2)
          call set_gfn2_parameter(calc%param,globpar)
-         call gfn2_prparam(stdout,mol%n,mol%at,calc%param)
+         call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
       case(0)
          call set_gfn0_parameter(calc%param,globpar)
-         call gfn0_prparam(stdout,mol%n,mol%at,calc%param)
+         call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
       end select
    else
       calc%param%kspd(1:6)=globpar(1:6)
@@ -498,21 +497,21 @@ program XTBprog
       calc%param%lshifta  =globpar(15)
       calc%param%split    =globpar(16)
       calc%param%zqf      =globpar(17)
-      write(stdout,'(5x,''method parameters'')')
-      write(stdout,'(1x,''k(s)        :'',F8.4)') calc%param%kspd(1)
-      write(stdout,'(1x,''k(p)        :'',F8.4)') calc%param%kspd(2)
-      write(stdout,'(1x,''k(d)        :'',F8.4)') calc%param%kspd(3)
-      write(stdout,'(1x,''k(f)        :'',F8.4)') calc%param%kspd(4)
-      write(stdout,'(1x,''Tscal       :'',F8.4)') calc%param%tfac
-      write(stdout,'(1x,''Gscal       :'',F8.4)') calc%param%gscal
-      write(stdout,'(1x,''fpol        :'',F8.4)') calc%param%fpol
-      write(stdout,'(1x,''Zcnf        :'',F8.4)') calc%param%zcnf
-      write(stdout,'(1x,''Zqf         :'',F8.4)') calc%param%zqf
-      write(stdout,'(1x,''kcn         :'',F8.4)') calc%param%kcn
-      write(stdout,'(1x,''kEN1        :'',F8.4)') calc%param%ken1
-      write(stdout,'(1x,''wllscal     :'',F8.4)') calc%param%wllscal
+      write(env%unit,'(5x,''method parameters'')')
+      write(env%unit,'(1x,''k(s)        :'',F8.4)') calc%param%kspd(1)
+      write(env%unit,'(1x,''k(p)        :'',F8.4)') calc%param%kspd(2)
+      write(env%unit,'(1x,''k(d)        :'',F8.4)') calc%param%kspd(3)
+      write(env%unit,'(1x,''k(f)        :'',F8.4)') calc%param%kspd(4)
+      write(env%unit,'(1x,''Tscal       :'',F8.4)') calc%param%tfac
+      write(env%unit,'(1x,''Gscal       :'',F8.4)') calc%param%gscal
+      write(env%unit,'(1x,''fpol        :'',F8.4)') calc%param%fpol
+      write(env%unit,'(1x,''Zcnf        :'',F8.4)') calc%param%zcnf
+      write(env%unit,'(1x,''Zqf         :'',F8.4)') calc%param%zqf
+      write(env%unit,'(1x,''kcn         :'',F8.4)') calc%param%kcn
+      write(env%unit,'(1x,''kEN1        :'',F8.4)') calc%param%ken1
+      write(env%unit,'(1x,''wllscal     :'',F8.4)') calc%param%wllscal
    endif
-   write(stdout,'(a)')
+   write(env%unit,'(a)')
 
 !  unrestricted atomic spin constants
 !  optimized scale factor for Mulliken spin densities
@@ -520,7 +519,7 @@ program XTBprog
 
 !  init GBSA part
    if(lgbsa) then
-      call init_gbsa(stdout,solvent,gsolvstate,temp_md,gfn_method,ngrida)
+      call init_gbsa(env%unit,solvent,gsolvstate,temp_md,gfn_method,ngrida)
    endif
 !  initialize PC embedding (set default file names and stuff)
    call init_pcem
@@ -592,20 +591,20 @@ program XTBprog
 !! ========================================================================
    select case(mode_extrun)
    case default
-      call scc_header(stdout)
+      call scc_header(env%unit)
    case(p_ext_eht)
-      call eht_header(stdout)
+      call eht_header(env%unit)
    case(p_ext_qmdff)
-      call qmdff_header(stdout)
+      call qmdff_header(env%unit)
       call ff_ini(mol%n,mol%at,mol%xyz,cn,qmdff_s6)
    case(p_ext_orca)
-      call driver_header(stdout)
+      call driver_header(env%unit)
       call orca_chk
    case(p_ext_mopac)
-      call driver_header(stdout)
+      call driver_header(env%unit)
       call mopac_chk
    case(p_ext_turbomole)
-      call driver_header(stdout)
+      call driver_header(env%unit)
       write(*,*) 'Running Turbomole Calculation!'
    end select
 
@@ -618,7 +617,7 @@ program XTBprog
 !  the SP energy which is always done
    call start_timing(2)
    call singlepoint &
-   &       (stdout,mol,wfn,calc, &
+   &       (env,mol,wfn,calc, &
    &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
 
@@ -638,12 +637,12 @@ program XTBprog
          mol%xyz(j,i) = mol%xyz(j,i) + step
          wfn = wf0
          call singlepoint &
-         &       (stdout,mol,wfn,calc, &
+         &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,0,.true.,.true.,acc,er,gdum,sdum,res)
          mol%xyz(j,i) = mol%xyz(j,i) - 2*step
          wfn = wf0
          call singlepoint &
-         &       (stdout,mol,wfn,calc, &
+         &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,0,.true.,.true.,acc,el,gdum,sdum,res)
          mol%xyz(j,i) = mol%xyz(j,i) + step
          numg(j,i) = step2 * (er - el)
@@ -665,15 +664,15 @@ program XTBprog
    &   (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
    &   (runtyp.eq.p_run_metaopt)) then
       if (opt_engine.eq.p_engine_rf) &
-      call ancopt_header(stdout,veryverbose)
+      call ancopt_header(env%unit,veryverbose)
       call start_timing(3)
       call geometry_optimization &
-      &     (mol,wfn,calc, &
+      &     (env, mol,wfn,calc, &
       &      egap,etemp,maxscciter,optset%maxoptcycle,etot,g,sigma,optset%optlev,.true.,.false.,murks)
       res%e_total = etot
       res%gnorm = norm2(g)
       if (nscan.gt.0) then
-         call relaxed_scan(mol,wfn,calc)
+         call relaxed_scan(env,mol,wfn,calc)
       endif
       call stop_timing(3)
    endif
@@ -683,18 +682,18 @@ program XTBprog
    if (runtyp.eq.p_run_vip.or.runtyp.eq.p_run_vipea &
       & .or.runtyp.eq.p_run_vomega) then
       call start_timing(2)
-      call vip_header(stdout)
+      call vip_header(env%unit)
       wfn%nel = wfn%nel-1
       if (mod(wfn%nel,2).ne.0) wfn%nopen = 1
       call singlepoint &
-      &       (stdout,mol,wfn,calc, &
+      &       (env,mol,wfn,calc, &
       &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
       ip=etot2-etot-calc%param%ipshift
-      write(stdout,'(72("-"))')
-      write(stdout,'("empirical IP shift (eV):",f10.4)') &
+      write(env%unit,'(72("-"))')
+      write(env%unit,'("empirical IP shift (eV):",f10.4)') &
       &                  autoev*calc%param%ipshift
-      write(stdout,'("delta SCC IP (eV):",f10.4)') autoev*ip
-      write(stdout,'(72("-"))')
+      write(env%unit,'("delta SCC IP (eV):",f10.4)') autoev*ip
+      write(env%unit,'(72("-"))')
       wfn%nel = wfn%nel+1
       call stop_timing(2)
    endif
@@ -702,18 +701,18 @@ program XTBprog
    if (runtyp.eq.p_run_vea.or.runtyp.eq.p_run_vipea &
       & .or.runtyp.eq.p_run_vomega) then
       call start_timing(2)
-      call vea_header(stdout)
+      call vea_header(env%unit)
       wfn%nel = wfn%nel+1
       if (mod(wfn%nel,2).ne.0) wfn%nopen = 1
       call singlepoint &
-      &       (stdout,mol,wfn,calc, &
+      &       (env,mol,wfn,calc, &
       &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
       ea=etot-etot2-calc%param%eashift
-      write(stdout,'(72("-"))')
-      write(stdout,'("empirical EA shift (eV):",f10.4)') &
+      write(env%unit,'(72("-"))')
+      write(env%unit,'("empirical EA shift (eV):",f10.4)') &
       &                  autoev*calc%param%eashift
-      write(stdout,'("delta SCC EA (eV):",f10.4)') autoev*ea
-      write(stdout,'(72("-"))')
+      write(env%unit,'("delta SCC EA (eV):",f10.4)') autoev*ea
+      write(env%unit,'(72("-"))')
 
       wfn%nel = wfn%nel-1
       call stop_timing(2)
@@ -721,41 +720,41 @@ program XTBprog
 
 !  vomega (electrophilicity) index
    if (runtyp.eq.p_run_vomega) then
-      write(stdout,'(a)')
-      write(stdout,'(72("-"))')
-      write(stdout,'(a,1x,a)') &
+      write(env%unit,'(a)')
+      write(env%unit,'(72("-"))')
+      write(env%unit,'(a,1x,a)') &
          "Calculation of global electrophilicity index",&
          "(IP+EA)²/(8·(IP-EA))"
       vomega=(ip+ea)**2/(8*(ip-ea))
-      write(stdout,'("Global electrophilicity index (eV):",f10.4)') &
+      write(env%unit,'("Global electrophilicity index (eV):",f10.4)') &
         autoev*vomega
-      write(stdout,'(72("-"))')
+      write(env%unit,'(72("-"))')
    endif
 
 !  Fukui Index from Mulliken population analysis
    if (runtyp.eq.p_run_vfukui) then
      allocate(f_plus(mol%n),f_minus(mol%n))
-     write(stdout,'(a)')
-     write(stdout,'("Fukui index Calculation")')
+     write(env%unit,'(a)')
+     write(env%unit,'("Fukui index Calculation")')
      wf_p=wfn
      wf_m=wfn
      wf_p%nel = wf_p%nel+1
      if (mod(wf_p%nel,2).ne.0) wf_p%nopen = 1
      call singlepoint &
-     &       (stdout,mol,wf_p,calc, &
+     &       (env,mol,wf_p,calc, &
      &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
      f_plus=wf_p%q-wfn%q
 
      wf_m%nel = wf_m%nel-1
      if (mod(wf_m%nel,2).ne.0) wf_m%nopen = 1
      call singlepoint &
-     &       (stdout,mol,wf_m,calc, &
+     &       (env,mol,wf_m,calc, &
      &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
      f_minus=wfn%q-wf_m%q
-     write(stdout,'(a)')
-     write(stdout, '(1x,"    #       f(+)     f(-)     f(0)")')
+     write(env%unit,'(a)')
+     write(env%unit, '(1x,"    #       f(+)     f(-)     f(0)")')
      do i=1,mol%n
-       write(stdout,'(i6,a3,2f9.3,2f9.3,2f9.3)') i, asym(mol%at(i)), f_plus(i), f_minus(i), 0.5d0*(wf_p%q(i)-wf_m%q(i))
+       write(env%unit,'(i6,a3,2f9.3,2f9.3,2f9.3)') i, asym(mol%at(i)), f_plus(i), f_minus(i), 0.5d0*(wf_p%q(i)-wf_m%q(i))
      enddo
      deallocate(f_plus,f_minus)
    endif
@@ -763,13 +762,13 @@ program XTBprog
 !! ------------------------------------------------------------------------
 !  numerical hessian calculation
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
-      call numhess_header(stdout)
+      call numhess_header(env%unit)
       if (mol%npbc > 0) then
          call raise('E',"Phonon calculations under PBC are not implemented",1)
       endif
       call start_timing(5)
       call numhess &
-      &       (mol,wfn,calc, &
+      &       (env,mol,wfn,calc, &
       &        egap,etemp,maxscciter,etot,g,sigma,fres)
       call stop_timing(5)
    endif
@@ -783,10 +782,10 @@ program XTBprog
    if (allocated(property_file)) then
       call open_file(iprop,property_file,'w')
       if (iprop.eq.-1) then
-         iprop = stdout
+         iprop = env%unit
          deallocate(property_file)
       else
-         write(stdout,'(/,a)') "Property printout bound to '"//property_file//"'"
+         write(env%unit,'(/,a)') "Property printout bound to '"//property_file//"'"
          if (allocated(cdum)) deallocate(cdum)
          call get_command(length=l)
          allocate( character(len=l) :: cdum )
@@ -798,14 +797,14 @@ program XTBprog
          write(iprop,'("date:     ",a)') prtimestring('S')
       endif
    else
-      iprop = stdout
+      iprop = env%unit
    endif
 
    call generic_header(iprop,'Property Printout',49,10)
    if (lgrad) then
       call write_turbomole(mol, energy=etot, gradient=g, sigma=sigma)
    end if
-   if (mol%ftype .eq. p_ftype%gaussian) then
+   if (mol%ftype .eq. fileType%gaussian) then
       if (allocated(basename)) then
          cdum = basename // '.EOu'
       else
@@ -845,7 +844,7 @@ program XTBprog
    endif
 
    if (allocated(property_file)) then
-      if (iprop.ne.-1 .and. iprop.ne.stdout) then
+      if (iprop.ne.-1 .and. iprop.ne.env%unit) then
          call write_energy(iprop,res,fres, &
             & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
          call close_file(iprop)
@@ -856,14 +855,14 @@ program XTBprog
        (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
        (runtyp.eq.p_run_metaopt)) then
       call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
-      write(stdout,'(/,a,1x,a,/)') &
+      write(env%unit,'(/,a,1x,a,/)') &
          "optimized geometry written to:",tmpname
       call open_file(ich,tmpname,'w')
       call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
       call close_file(ich)
    endif
 
-   call write_energy(stdout,res,fres, &
+   call write_energy(env%unit,res,fres, &
       & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
 
 !! ------------------------------------------------------------------------
@@ -873,16 +872,16 @@ program XTBprog
          if (mol%npbc > 0) then
             call raise('E',"Metadynamic under PBC is not implemented",1)
          endif
-         call metadyn_header(stdout)
+         call metadyn_header(env%unit)
       else
-         call md_header(stdout)
+         call md_header(env%unit)
       endif
       fixset%n = 0 ! no fixing for MD runs
       call start_timing(6)
       idum = 0
       if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
       call md &
-      &     (mol,wfn,calc, &
+      &     (env,mol,wfn,calc, &
       &      egap,etemp,maxscciter,etot,g,sigma,0,temp_md,idum)
       call stop_timing(6)
    endif
@@ -893,12 +892,12 @@ program XTBprog
       if (mol%npbc > 0) then
          call raise('S',"Metadynamic under PBC is not implemented",1)
       endif
-      call metadyn_header(stdout)
+      call metadyn_header(env%unit)
       ! check if ANCOPT already convered
       if (murks) then
          call raise('E','Optimization did not converge, aborting',1)
       endif
-      write(stdout,'(1x,"output written to xtbmeta.log")')
+      write(env%unit,'(1x,"output written to xtbmeta.log")')
       call open_file(ich,'xtbmeta.log','w')
       call wrlog(ich,mol%n,mol%xyz,mol%at,etot,norm2(g),.true.)
       k = metaset%nstruc+1
@@ -914,14 +913,14 @@ program XTBprog
             enddo
          enddo
          call geometry_optimization &
-         &     (mol,wfn,calc, &
+         &     (env, mol,wfn,calc, &
          &      egap,etemp,maxscciter,optset%maxoptcycle,etot,g,sigma,optset%optlev,verbose,.true.,murks)
          if (.not.verbose) then
-            write(stdout,'("current energy:",1x,f20.8)') etot
+            write(env%unit,'("current energy:",1x,f20.8)') etot
          endif
          if (murks) then
             call close_file(ich)
-            write(stdout,'(/,3x,"***",1x,a,1x,"***",/)') &
+            write(env%unit,'(/,3x,"***",1x,a,1x,"***",/)') &
                "FAILED TO CONVERGE GEOMETRY OPTIMIZATION"
             call touch_file('NOT_CONVERGED')
          endif
@@ -935,19 +934,19 @@ program XTBprog
 !! ------------------------------------------------------------------------
 !  simulated annealing
    if (runtyp.eq.p_run_siman) then
-      call siman_header(stdout)
+      call siman_header(env%unit)
       call raise('E',"SIMAN has been deprecated in favor of CREST")
    endif
 
 !! ------------------------------------------------------------------------
 !  path finder
    if (runtyp.eq.p_run_path) then
-      call rmsdpath_header(stdout)
+      call rmsdpath_header(env%unit)
       if (mol%npbc > 0) then
          call raise('S',"Metadynamics under PBC are not implemented",1)
       endif
       call start_timing(4)
-      call bias_path(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call bias_path(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(4)
    endif
 
@@ -955,7 +954,7 @@ program XTBprog
 !  screen over input structures
    if (runtyp.eq.p_run_screen) then
       call start_timing(8)
-      call screen(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call screen(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(8)
    endif
 
@@ -972,7 +971,7 @@ program XTBprog
          call raise('S',"Modefollowing under PBC is not implemented",1)
       endif
       call start_timing(9)
-      call modefollow(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call modefollow(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(9)
    endif
 
@@ -980,13 +979,13 @@ program XTBprog
 !  optimize along MD from xtb.trj for conformer searches
    if (runtyp.eq.p_run_mdopt) then
       call start_timing(10)
-      call mdopt(mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call mdopt(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(10)
    endif
 
 !! ------------------------------------------------------------------------
    if (runtyp.eq.p_run_reactor) then
-      call reactor_header(stdout)
+      call reactor_header(env%unit)
       call raise('E','The nano-reactor has been moved!',1)
    endif
 
@@ -1006,25 +1005,26 @@ program XTBprog
 !! ========================================================================
 !  we may have generated some non-fatal errors, which have been saved,
 !  so we should tell the user, (s)he may want to know what went wrong
+   call env%checkpoint("Runtime exception occurred", exitRun)
    call raise('F','Some non-fatal runtime exceptions were caught,'// &
    &              ' please check:',1)
 
 !! ========================================================================
 !  print all files xtb interacted with while running (for debugging mainly)
    if (verbose) then
-   write(stdout,'(a)')
-   write(stdout,'(72("-"))')
-   call print_filelist(stdout)
+   write(env%unit,'(a)')
+   write(env%unit,'(72("-"))')
+   call print_filelist(env%unit)
    endif
 
 !! ========================================================================
 !  make some post processing afterward, show some timings and stuff
-   write(stdout,'(a)')
-   write(stdout,'(72("-"))')
+   write(env%unit,'(a)')
+   write(env%unit,'(72("-"))')
    call stop_timing_run
    call stop_timing(1)
    call prdate('E')
-   write(stdout,'(72("-"))')
+   write(env%unit,'(72("-"))')
    call prtiming(1,'total')
    call prtiming(2,'SCF')
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
@@ -1051,13 +1051,12 @@ program XTBprog
       call prtiming(10,'MD opt.')
    endif
 
-   write(stdout,'(a)')
-   if (coffee) then
-      write(stderr,'(a)') "nicely done, now get yourself a"
-      call get_cup(stderr,'(5x,a)')
+   write(env%unit,'(a)')
+   if (exitRun) then
+      call terminate(1)
    else
       call terminate(0)
-   endif
+   end if
 
 contains
 subroutine check_cold_fusion(mol)
