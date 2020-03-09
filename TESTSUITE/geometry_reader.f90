@@ -32,7 +32,7 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
    call init(env)
    call readMolecule(env, mol, iunit, fileType%vasp)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -87,7 +87,7 @@ subroutine test_geometry_reader_file_xmol_water_0d
    call init(env)
    call readMolecule(env, mol, iunit, fileType%xyz)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -191,7 +191,7 @@ subroutine test_geometry_reader_file_coord_general_0d
    call init(env)
    call readMolecule(env, mol, iunit, fileType%tmol)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -236,7 +236,7 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
    call init(env)
    call readMolecule(env, mol, iunit, fileType%tmol)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -295,7 +295,7 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
    call init(env)
    call readMolecule(env, mol, iunit, fileType%tmol)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -459,7 +459,7 @@ subroutine test_geometry_reader_molfile_benzen_flat
    call init(env)
    call readMolecule(env, mol, iunit, fileType%molfile)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -513,7 +513,7 @@ subroutine test_geometry_reader_molfile_benzen
    call init(env)
    call readMolecule(env, mol, iunit, fileType%molfile)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -580,7 +580,7 @@ subroutine test_geometry_reader_file_sdf_h2o
    call init(env)
    call readMolecule(env, mol, iunit, fileType%sdf)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -631,7 +631,7 @@ subroutine test_geometry_reader_file_sdf_benzen_hquery
    call init(env)
    call readMolecule(env, mol, iunit, fileType%sdf)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -672,7 +672,7 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
    call init(env)
    call readMolecule(env, mol, iunit, fileType%sdf)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -755,7 +755,7 @@ subroutine test_geometry_reader_file_pdb_4qxx_noh
    call init(env)
    call readMolecule(env, mol, iunit, fileType%pdb)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -883,7 +883,7 @@ subroutine test_geometry_reader_file_pdb_4qxx
    call init(env)
    call readMolecule(env, mol, iunit, fileType%pdb)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -962,7 +962,7 @@ subroutine test_geometry_reader_file_gen
    call init(env)
    call readMolecule(env, mol, iunit, fileType%gen)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -985,7 +985,7 @@ subroutine test_geometry_reader_file_gen
    call init(env)
    call readMolecule(env, mol, iunit, fileType%gen)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 
@@ -1007,7 +1007,7 @@ subroutine test_geometry_reader_file_gen
    call init(env)
    call readMolecule(env, mol, iunit, fileType%gen)
 
-   call env%checkpoint("testing", fail)
+   call env%check(fail)
    if (fail) call terminate(1)
    call assert(.not.fail)
 

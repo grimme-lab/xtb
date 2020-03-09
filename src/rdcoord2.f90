@@ -22,6 +22,7 @@
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 subroutine rdcoord(fname,n,xyz,iat)
+   use xtb_mctc_global, only : persistentEnv
    use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
@@ -68,7 +69,8 @@ subroutine rdcoord(fname,n,xyz,iat)
       f=1.0_wp
    endif
    if(f.lt.1.0_wp) then
-      call raise('E','Coordinate format not recognized!',1)
+      call persistentEnv%error('Coordinate format not recognized!')
+      return
    endif
    do
       read(ich,'(a)',end=200)line
@@ -94,7 +96,7 @@ subroutine rdcoord(fname,n,xyz,iat)
 
    if (n.ne.ncheck) then
       write(stdout,'(i0,1x,''/='',1x,i0)') n,ncheck
-      call raise('E','reading coord file failed',1)
+      call persistentEnv%error('reading coord file failed')
    endif
    call close_file(ich)
 
@@ -265,6 +267,7 @@ end subroutine rdxyz
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 subroutine rdsdf(fname,n,xyz,iat)
+   use xtb_mctc_global, only : persistentEnv
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_systools
@@ -310,186 +313,13 @@ subroutine rdsdf(fname,n,xyz,iat)
    200 continue
    if (idum.ne.0) then
       write(chdum,'(i0)') idum
-      call set_chrg(trim(chdum))
+      call set_chrg(persistentEnv, trim(chdum))
       if (idum.ne.ichrg) then
-         call raise('S','sdf input attempted to set charge, but variables is already locked',1)
+         call persistentEnv%warning('sdf input attempted to set charge, '//&
+            &'but variables is already locked')
       endif
    endif
 
    call close_file(ich)
 
 end subroutine rdsdf
-
-subroutine pbcrdcoord(fname,lattice,n,xyz,iat)
-  use xtb_mctc_strings
-  use xtb_mctc_systools
-  use xtb_setmod
-  implicit none             
-
-  real*8                :: xyz(3,*)
-  real*8, INTENT(OUT)   ::lattice(3,3)
-  integer, INTENT(out)               :: iat(*) 
-  integer, INTENT(in)               :: n 
-  character*(*), INTENT(IN)          :: fname
-  logical              :: selective=.FALSE. ! Selective dynamics
-  logical              :: cartesian=.TRUE.  ! Cartesian or direct
-  real*8, parameter :: autoang = 0.52917726d0
-
-  real*8 xx(10),scalar
-  character*200 line
-  character*80 args(90),args2(90)
-
-  integer i,j,ich,nn,ntype,ntype2,atnum,i_dummy1,i_dummy2,ncheck
-
-  call set_geopref('poscar')
-
-  lattice=0
-
-  ich=142
-  call open_file(ich,fname,'r')
-  rewind(ich)
-  ncheck=0
-  ntype=0
-  read(ich,'(a)',end=200)line !first line must contain Element Info
-  call parse(line,' ',args,ntype)
-  read(ich,'(a)',end=200)line !second line contains global scaling factor
-  call readl(line,xx,nn)
-  scalar=xx(1)/autoang        !the Ang->au conversion is included in the scaling factor
-  !c      write(*,'(F8.6)')scalar
-  DO i=1,3            ! reading the lattice constants
-     read(ich,'(a)',end=200)line
-     call readl(line,xx,nn)
-     IF (nn < 3) call raise('E', 'Error reading unit cell vectors' ,1)
-     lattice(1,i)=xx(1)*scalar
-     lattice(2,i)=xx(2)*scalar
-     lattice(3,i)=xx(3)*scalar
-     !  write(*,'(3F6.2)')lattice(1,i),lattice(2,i),lattice(3,i)
-  ENDDO  
-  read(ich,'(a)',end=200)line !Ether here are the numbers of each element, or (>vasp.5.1) here are the element symbols
-  line=adjustl(line)
-  call readl(line,xx,nn)
-  IF (nn.eq.0) then      ! CONTCAR files have additional Element line here since vasp.5.1
-     call parse(line,' ',args,ntype)
-     read(ich,'(a)',end=200)line
-     line=adjustl(line)
-     call readl(line,xx,nn)
-  ENDIF
-  !       call elem(args(1),i_dummy2)
-  !       IF (i_dummy2<1 .OR. i_dummy2>94) THEN
-  !          args=args2
-  !       ENDIF
-  IF (nn.NE.ntype ) THEN
-     call raise('E', 'Error reading number of atomtypes',1)
-  ENDIF
-  ncheck=0
-  DO i=1,nn
-     i_dummy1=INT(xx(i))
-     call elem(args(i),i_dummy2)
-     IF (i_dummy2<1 .OR. i_dummy2>94) call raise('E', 'Error: unknown element.',1)
-     DO j=1,i_dummy1
-        ncheck=ncheck+1
-        iat(ncheck)=i_dummy2
-     ENDDO
-  ENDDO
-  if (n.ne.ncheck) call raise('E','Error reading Number of Atoms',1)
-
-  read(ich,'(a)',end=200)line
-  line=adjustl(line)
-  IF (line(:1).EQ.'s' .OR. line(:1).EQ.'S') THEN
-     selective=.TRUE.
-     read(ich,'(a)',end=200)line
-     line=adjustl(line)
-  ENDIF
-
-  !c      write(*,*)line(:1)
-  cartesian=(line(:1).EQ.'c' .OR. line(:1).EQ.'C' .OR. &
-       &line(:1).EQ.'k' .OR. line(:1).EQ.'K')
-  DO i=1,n
-     read(ich,'(a)',end=200)line
-     call readl(line,xx,nn)
-     IF (nn.NE.3) call raise('E', 'Error reading coordinates.',1)
-
-     IF (cartesian) THEN
-        xyz(1,i)=xx(1)*scalar
-        xyz(2,i)=xx(2)*scalar
-        xyz(3,i)=xx(3)*scalar
-     ELSE
-        xyz(1,i)=lattice(1,1)*xx(1)+lattice(1,2)*&
-             &    xx(2)+lattice(1,3)*xx(3)
-        xyz(2,i)=lattice(2,1)*xx(1)+lattice(2,2)*xx(2)+lattice(2,3)*&
-             &    xx(3)
-        xyz(3,i)=lattice(3,1)*xx(1)+lattice(3,2)*xx(2)+lattice(3,3)*&
-             &    xx(3)
-     ENDIF
-
-     !c      write(*,'(3F20.10,1X,I3)')xyz(:,i),iat(i)   !debug printout
-
-  ENDDO
-
-
-200 continue
-
-  call close_file(ich)
-end subroutine pbcrdcoord
-
-subroutine pbcrdatomnumber(fname,n)
-  use xtb_mctc_strings
-  use xtb_mctc_systools
-  implicit none
-
-  integer, INTENT(out)               :: n 
-  character*(*), INTENT(IN)          :: fname
-  logical              :: selective=.FALSE. ! Selective dynamics
-  logical              :: cartesian=.TRUE.  ! Cartesian or direct
-
-  real*8 xx(10),scalar,fdum
-  character*80 line,args(90),args2(90)
-
-  integer i,j,ich,nn,ntype,ntype2,atnum,i_dummy1,i_dummy2
-
-  ich=142
-  call open_file(ich,fname,'r')
-  n=0
-  ntype=0
-  read(ich,'(a)',end=200)line !first line must contain Element Info
-  call parse(line,' ',args,ntype)
-  read(ich,'(a)',end=200)line !second line contains global scaling factor
-  call readl(line,xx,nn)
-  !c      write(*,'(F8.6)')scalar
-  DO i=1,3            ! reading the lattice constants
-     read(ich,'(a)',end=200)line
-     call readl(line,xx,nn)
-     IF (nn < 3) call raise('E', 'Error reading unit cell vectors' ,1)
-     !  write(*,'(3F6.2)')lattice(1,i),lattice(2,i),lattice(3,i)
-  ENDDO
-  read(ich,'(a)',end=200)line !Ether here are the numbers of each element, or (>vasp.5.1) here are the element symbols
-  line=adjustl(line)
-  call readl(line,xx,nn)
-  IF (nn.eq.0) then      ! CONTCAR files have additional Element line here since vasp.5.1
-     call parse(line,' ',args,ntype)
-     read(ich,'(a)',end=200)line
-     line=adjustl(line)
-     call readl(line,xx,nn)
-  ENDIF
-  !       call elem(args(1),i_dummy2)
-  !       IF (i_dummy2<1 .OR. i_dummy2>94) THEN
-  !          args=args2
-  !       ENDIF
-  IF (nn.NE.ntype ) THEN
-     !         IF(nn.NE.ntype2) THEN
-     call raise('E', 'Error reading number of atomtypes',1)
-     !         ELSE
-     !           ntype=ntype2
-     !         ENDIF
-  ENDIF
-  n=0
-  DO i=1,nn
-     i_dummy1=INT(xx(i))
-     n=n+i_dummy1
-  ENDDO
-
-200 continue
-
-  call close_file(ich)
-end subroutine pbcrdatomnumber
-

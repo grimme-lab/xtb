@@ -19,7 +19,6 @@
 module xtb_type_options
    use xtb_mctc_accuracy, only : wp
    use iso_c_binding
-   use xtb_mctc_logging
    implicit none
 
    public :: tb_options

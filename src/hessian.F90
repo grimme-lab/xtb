@@ -129,12 +129,15 @@ subroutine numhess( &
       & real(freezeset%n,wp)/real(mol%n,wp)*100,freezeset%n
 
    res%gnorm = norm2(res%grad)
-   write(env%unit,'(''RMS gradient         :'',F10.5)') res%gnorm
+   write(env%unit,'(''RMS gradient         :'',F10.5)', advance='no') res%gnorm
    if(res%gnorm.gt.0.002_wp) then
+      write(env%unit, '(1x,"!! INCOMPLETELY OPTIMIZED GEOMETRY !!")')
       call env%warning('Hessian on incompletely optimized geometry!', source)
-      call env%checkpoint("Not a stationary point", exitRun)
+      call env%check(exitRun)
       if (exitRun) return
-   endif
+   else
+      write(env%unit, '(a)')
+   end if
 
    res%linear=.false.
    call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)

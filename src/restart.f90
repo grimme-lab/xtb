@@ -30,6 +30,7 @@ contains
 
 
 subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
+   character(len=*), parameter :: source = 'restart_readRestart'
    type(TEnvironment), intent(inout) :: env
    type(TWavefunction),intent(inout) :: wfx
    character(len=*),intent(in) :: fname
@@ -51,11 +52,11 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
       read(ich,iostat=err) iver8,idum8,n8,nshell8,nel8,nopen8
       if(err.eq.0) then
          if (iver8.ne.int(gfn_method,i8).and.verbose) &
-            &  call raise('S','Version number missmatch in restart file.',1)
+            &  call env%warning('Version number missmatch in restart file.', source)
          if (nel8.ne.int(wfx%nel,i8).and.verbose) &
-            &  call raise('S','Number of electron missmatch in restart file.',1)
+            &  call env%warning('Number of electron missmatch in restart file.', source)
          if (nopen8.ne.int(wfx%nopen,i8).and.verbose) &
-            &  call raise('S','Multiplicity missmatch in restart file.',1)
+            &  call env%warning('Multiplicity missmatch in restart file.', source)
          if ((n8.eq.int(wfx%n,i8)).and.(nshell8.eq.int(wfx%nshell,i8))) then
             success = .true.
             read(ich) wfx%qsh
@@ -71,12 +72,12 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
             endif
          else
             if (verbose) &
-            call raise('S','Dimension missmatch in restart file.',1)
+            call env%warning('Dimension missmatch in restart file.', source)
             success = .false.
          endif
       else
          if (verbose) &
-         call raise('S',"Dimension missmatch in restart file.",1)
+         call env%warning("Dimension missmatch in restart file.", source)
          success = .false.
       endif
       call close_file(ich)

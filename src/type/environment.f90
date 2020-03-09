@@ -77,6 +77,12 @@ module xtb_type_environment
       !> Check status of environment
       procedure :: checkpoint
 
+      !> Show and clear error log
+      procedure :: show
+
+      !> Forceful terminate the current run, use only in main drivers!
+      procedure :: terminate => terminateRun
+
    end type TEnvironment
 
 
@@ -141,7 +147,7 @@ end subroutine check
 
 
 !> Check status of calculation environment
-subroutine checkpoint(self, message, terminate)
+subroutine checkpoint(self, message)
 
    !> Calculation environment
    class(TEnvironment), intent(inout) :: self
@@ -150,24 +156,76 @@ subroutine checkpoint(self, message, terminate)
    character(len=*), intent(in) :: message
 
    !> Recommendation for terminating run
-   logical, intent(out) :: terminate
+   logical :: terminate
 
    integer :: iLog
 
    call self%check(terminate)
 
-   if (self%nLog > 0) then
-      if (terminate) then
-         write(self%unit, '(/, "[ERROR]", 1x, a)') message
-      else
-         write(self%unit, '(/, "[WARNING]", 1x, a)') message
-      end if
-      do iLog = self%nLog, 1, -1
-         write(self%unit, '("-", i0, "-", 1x, a)') iLog, self%log(iLog)%message
-      end do
+   if (terminate) then
+      call self%terminate(message)
    end if
 
 end subroutine checkpoint
+
+
+!> Check status of calculation environment
+subroutine show(self, message, isError)
+
+   !> Calculation environment
+   class(TEnvironment), intent(inout) :: self
+
+   !> Message in case of error
+   character(len=*), intent(in) :: message
+
+   !> Recommendation for terminating run
+   logical, intent(in), optional :: isError
+
+   integer :: iLog
+   logical :: isError0
+
+   if (self%nLog > 0) then
+      if (present(isError)) then
+         isError0 = isError
+      else
+         call self%check(isError0)
+      end if
+      if (isError0) then
+         write(self%unit, '(72("#"), /, "[ERROR]", 1x, a)') message
+      else
+         write(self%unit, '(72("#"), /, "[WARNING]", 1x, a)') message
+      end if
+      do iLog = self%nLog, 1, -1
+         write(self%unit, '("-", i0, "-", 1x, a)') iLog, self%log(iLog)%message
+         deallocate(self%log(iLog)%message)
+      end do
+      write(self%unit, '(72("#"))')
+      self%nLog = 0
+   end if
+
+end subroutine show
+
+
+subroutine terminateRun(self, message, code)
+
+   !> Calculation environment
+   class(TEnvironment), intent(inout) :: self
+
+   !> Message in case of error
+   character(len=*), intent(in) :: message
+
+   !> Exit code for termination
+   integer, intent(in), optional :: code
+
+   call self%show(message, .true.)
+
+   if (present(code)) then
+      call terminate(code)
+   else
+      call terminate(1)
+   end if
+
+end subroutine terminateRun
 
 
 !> Create and push back a new error to the message log

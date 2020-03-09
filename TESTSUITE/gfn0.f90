@@ -5,7 +5,6 @@ subroutine test_gfn0_sp
    use assertion
 
    use xtb_mctc_systools
-   use xtb_mctc_logging
    use xtb_type_options
 
    use xtb_type_molecule
@@ -48,7 +47,6 @@ subroutine test_gfn0_sp
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
-   type(mctc_error), allocatable :: err
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)
@@ -84,7 +82,8 @@ subroutine test_gfn0_sp
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
-         call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         call env%error("Parameter file '"//fnv//"' not found!")
+         call terminate(1)
          return
       endif
       call read_gfn_param(ipar,globpar,.true.)
@@ -105,7 +104,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(env,err,mol,wfn,basis,param, &
+   call peeq(env,mol,wfn,basis,param, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)
@@ -133,7 +132,6 @@ subroutine test_gfn0_api
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
@@ -161,7 +159,6 @@ subroutine test_gfn0_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -182,8 +179,7 @@ subroutine test_gfn0_api
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (stdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
-   call assert(.not.allocated(err))
+      (stdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 5.5384029314207_wp,thr)
    call assert_close(energy,-8.6908532561691_wp,thr)
@@ -203,7 +199,6 @@ subroutine test_gfn0_api_srb
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
@@ -250,7 +245,6 @@ subroutine test_gfn0_api_srb
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(mctc_error), allocatable :: err
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -271,8 +265,7 @@ subroutine test_gfn0_api_srb
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (stdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
-   call assert(.not.allocated(err))
+      (stdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 3.1192454818777_wp,thr)
    call assert_close(energy,-40.908850360158_wp,thr)

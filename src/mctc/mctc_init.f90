@@ -19,6 +19,7 @@ subroutine mctc_init(progname,ntimer,verbose)
    use xtb_mctc_global
    use xtb_mctc_timings
    use xtb_mctc_filetools
+   use xtb_type_environment, only : init
    implicit none
    character(len=*),intent(in) :: progname
    integer,         intent(in) :: ntimer
@@ -51,6 +52,8 @@ subroutine mctc_init(progname,ntimer,verbose)
 
 !  set this for xtb_mctc_global
    name = progname
+
+   call init(persistentEnv)
 
 end subroutine mctc_init
 

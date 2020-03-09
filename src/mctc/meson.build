@@ -44,7 +44,6 @@ srcs += files(
   'mctc_filetools.f90',
   'mctc_la.f90',
   'mctc_init.f90',
-  'mctc_logging.f90',
   'error.f90',
   'signal.c',
 )

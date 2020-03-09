@@ -42,7 +42,6 @@ integer(c_int) function xtb_calculation_api &
       &  c_energy, c_gradient, c_stress) &
       & result(status) bind(C, name="xTB_calculation")
    use xtb_setparam, only: gfn_method
-   use xtb_mctc_logging
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule
    use xtb_type_basisset
@@ -88,7 +87,6 @@ integer(c_int) function xtb_calculation_api &
    real(wp), allocatable :: gradient(:, :)
    type(scc_results) :: res
    type(tb_pcem) :: pcem
-   type(mctc_error), allocatable :: err
    integer(c_int) :: stat_basis
    integer :: iunit
    logical :: exist, sane, exitRun
@@ -153,7 +151,7 @@ integer(c_int) function xtb_calculation_api &
    select case(gfn_method)
    case(0)
       call peeq &
-         & (env, err, mol, wfn, basis, global_parameter, &
+         & (env, mol, wfn, basis, global_parameter, &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
@@ -172,8 +170,9 @@ integer(c_int) function xtb_calculation_api &
       return
    end select
 
-   call env%checkpoint("Single point calculator terminated", exitRun)
+   call env%check(exitRun)
    if (exitRun) then
+      call env%show("Single point calculator terminated")
       call finalize
       status = 4
       return
@@ -181,7 +180,7 @@ integer(c_int) function xtb_calculation_api &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       status = 4
       call finalize
       return
@@ -217,8 +216,6 @@ function peeq_api &
       &    etot,grad,stress,glat) &
       &    result(status) bind(C,name="GFN0_PBC_calculation")
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -247,7 +244,6 @@ function peeq_api &
    type(TMolecule)    :: mol
    type(peeq_options)   :: opt
    type(TEnvironment) :: env
-   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -301,10 +297,11 @@ function peeq_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
 
-   call env%checkpoint("Single point calculator terminated", exitRun)
+   call env%check(exitRun)
    if (exitRun) then
+      call env%show("Single point calculator terminated")
       call finalize
       status = 1
       return
@@ -312,7 +309,7 @@ function peeq_api &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -413,8 +410,6 @@ function gfn12_calc_impl &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo,dipm,qp) &
       &    result(status)
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -454,7 +449,6 @@ function gfn12_calc_impl &
    type(TWavefunction) :: wfn
    type(TBasisset) :: basis
    type(scc_results) :: res
-   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -511,15 +505,16 @@ function gfn12_calc_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(mol, wfn, err)
+   call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
       & (env, mol, wfn, basis, global_parameter, pcem, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
-   call env%checkpoint("Single point calculator terminated", exitRun)
+   call env%check(exitRun)
    if (exitRun) then
+      call env%show("Single point calculator terminated")
       call finalize
       status = 1
       return
@@ -527,7 +522,7 @@ function gfn12_calc_impl &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -560,8 +555,6 @@ function gfn0_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad) &
       &    result(status) bind(C,name="GFN0_calculation")
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -586,7 +579,6 @@ function gfn0_api &
    type(TMolecule)    :: mol
    type(peeq_options)    :: opt
    type(TEnvironment) :: env
-   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -641,10 +633,11 @@ function gfn0_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
-   call env%checkpoint("Single point calculator terminated", exitRun)
+   call env%check(exitRun)
    if (exitRun) then
+      call env%show("Single point calculator terminated")
       call finalize
       status = 1
       return
@@ -652,7 +645,7 @@ function gfn0_api &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -680,8 +673,6 @@ function gfn2_pcem_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN2_QMMM_calculation")
-
-   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
@@ -771,8 +762,6 @@ function gfn12_pcem_impl &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status)
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -816,7 +805,6 @@ function gfn12_pcem_impl &
    type(TBasisset) :: basis
    type(TEnvironment) :: env
    type(tb_pcem) :: pcem
-   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
@@ -883,15 +871,16 @@ function gfn12_pcem_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(mol, wfn, err)
+   call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
       & (env, mol, wfn, basis, global_parameter, pcem, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
-   call env%checkpoint("Single point calculator terminated", exitRun)
+   call env%check(exitRun)
    if (exitRun) then
+      call env%show("Single point calculator terminated")
       call finalize
       status = 1
       return
@@ -899,7 +888,7 @@ function gfn12_pcem_impl &
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return

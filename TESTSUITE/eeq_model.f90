@@ -3,7 +3,7 @@ subroutine test_eeq_model_water
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
    use xtb_disp_ncoord
@@ -22,9 +22,11 @@ subroutine test_eeq_model_water
       & ],shape(xyz))
 
    real(wp) :: es,sigma(3,3)
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
+
+   call init(env)
 
    allocate( cn(nat),dcndr(3,nat,nat),q(nat),dqdr(3,nat,nat),ges(3,nat) )
    es  = 0.0_wp
@@ -47,7 +49,7 @@ subroutine test_eeq_model_water
    call assert_close(dcndr(3,1,3),-0.40486599284501E-01_wp,thr)
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -78,7 +80,7 @@ subroutine test_eeq_model_ewald
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
    use xtb_eeq
@@ -106,7 +108,7 @@ subroutine test_eeq_model_ewald
 
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
    real(wp)             :: energy
    real(wp)             :: sigma(3,3)
    real(wp),allocatable :: cn(:)
@@ -117,6 +119,8 @@ subroutine test_eeq_model_ewald
    real(wp),allocatable :: dqdL(:,:,:)
    real(wp),allocatable :: gradient(:,:)
    integer              :: rep_cn(3)
+
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -163,7 +167,7 @@ subroutine test_eeq_model_ewald
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
 
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
       &            .false.,.true.,.true.)
 
    call assert_close(energy,-0.90576568382295E-01_wp,thr)
@@ -210,7 +214,7 @@ subroutine test_eeq_model_ewald
    call assert_close(dcndL(2,1,3),-0.44767072306065_wp,thr)
 
 
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
       &            .false.,.true.,.true.)
 
    call assert_close(energy,-0.90708295779596E-01_wp,thr)
@@ -248,7 +252,7 @@ subroutine test_eeq_model_gbsa
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
    use xtb_solv_gbobc
@@ -274,7 +278,7 @@ subroutine test_eeq_model_gbsa
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
    type(TSolvent)     :: gbsa
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
    real(wp) :: es,gsolv,sigma(3,3)
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
@@ -300,7 +304,7 @@ subroutine test_eeq_model_gbsa
    call assert_close(dcndr(2,1,6),-0.24290126624329E-05_wp,thr)
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -334,7 +338,7 @@ subroutine test_eeq_model_gbsa
 
    es = gbsa%gsasa
    ges = gbsa%dsdr
-   call eeq_chrgeq(mol,err,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
+   call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -380,7 +384,7 @@ subroutine test_eeq_model_salt
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
    use xtb_solv_gbobc
@@ -410,7 +414,7 @@ subroutine test_eeq_model_salt
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
    type(TSolvent)     :: gbsa
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
    real(wp) :: es,gsolv,sigma(3,3)
    real(wp),allocatable :: cn(:),dcndr(:,:,:),dcndL(:,:,:)
    real(wp),allocatable :: q(:),dqdr(:,:,:),dqdL(:,:,:),ges(:,:)
@@ -429,7 +433,7 @@ subroutine test_eeq_model_salt
    call dncoord_erf(mol%n,mol%at,mol%xyz,cn,dcndr)
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy
@@ -467,7 +471,7 @@ subroutine test_eeq_model_salt
 
    es = gbsa%gsasa
    ges = gbsa%dsdr
-   call eeq_chrgeq(mol,err,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
+   call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
       &            .false.,.true.,.true.)
 
    ! test electrostatic energy

@@ -25,8 +25,7 @@ module xtb_calculators
 
    interface
       module subroutine gfn0_calculation &
-            (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
-         use xtb_mctc_logging
+            (iunit,env,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
          use xtb_type_options
          use xtb_type_molecule
          use xtb_type_wavefunction
@@ -37,7 +36,6 @@ module xtb_calculators
          type(TMolecule),    intent(inout) :: mol
          type(peeq_options),   intent(in)    :: opt
          type(TEnvironment), intent(inout)    :: env
-         type(mctc_error), allocatable, intent(inout) :: err
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
          real(wp), intent(out) :: gradient(3,mol%n)
@@ -45,8 +43,7 @@ module xtb_calculators
          real(wp), intent(out) :: lattice_gradient(3,3)
       end subroutine gfn0_calculation
       module subroutine gfn1_calculation &
-            (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
-         use xtb_mctc_logging
+            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
          use xtb_type_options
          use xtb_type_molecule
          use xtb_type_wavefunction
@@ -58,7 +55,6 @@ module xtb_calculators
          type(TMolecule),    intent(inout) :: mol
          type(scc_options),    intent(in)    :: opt
          type(TEnvironment), intent(inout)    :: env
-         type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          type(TWavefunction),intent(inout) :: wfn
          real(wp), intent(out) :: energy
@@ -66,8 +62,7 @@ module xtb_calculators
          real(wp), intent(out) :: gradient(3,mol%n)
       end subroutine gfn1_calculation
       module subroutine gfn2_calculation &
-            (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
-         use xtb_mctc_logging
+            (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
          use xtb_type_options
          use xtb_type_molecule
          use xtb_type_wavefunction
@@ -80,7 +75,6 @@ module xtb_calculators
          type(TWavefunction),intent(inout) :: wfn
          type(scc_options),    intent(in)    :: opt
          type(TEnvironment), intent(inout)    :: env
-         type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
@@ -99,7 +93,6 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
 !  class definitions
 ! ------------------------------------------------------------------------
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_param
    use xtb_type_molecule
@@ -117,6 +110,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    !> output unit, usually bound to STDOUT
    !  not used if opt%silent is set (maybe for fatal errors)
    integer, intent(in) :: iunit
+   type(TEnvironment) :: env
 
 ! ------------------------------------------------------------------------
 !  class declarations
@@ -147,7 +141,6 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    real(wp) :: etmp,etwo,emany,er,el,es
    real(wp) :: molpol,molc6,molc8        ! molecular Polarizibility
    real(wp) :: sigma(3,3)
-   type(mctc_error), allocatable :: err
    real(wp),allocatable :: q(:)          ! partial charges
    real(wp),allocatable :: dqdr(:,:,:)   ! partial charges
    real(wp),allocatable :: dqdL(:,:,:)   ! partial charges
@@ -165,6 +158,8 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    real(wp),allocatable :: gr(:,:)
    real(wp),allocatable :: gl(:,:)
    real(wp),parameter   :: step = 1.0e-5_wp, step2 = 0.5_wp/step
+
+   call init(env)
 
 ! ------------------------------------------------------------------------
 !  Output: Initialization and Parameter setup
@@ -214,7 +209,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    !if (opt%verbose) &
    !call eeq_header
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,ges,sigma, &
                    .false.,.false.,.true.)
    !if (opt%verbose) &
    !call print_chrgeq(iunit,chrgeq,mol,q,cn)
@@ -271,7 +266,6 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  class definitions
 ! ------------------------------------------------------------------------
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_param
    use xtb_type_molecule
@@ -290,6 +284,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
    !> output unit, usually bound to STDOUT
    !  not used if opt%silent is set (maybe for fatal errors)
    integer, intent(in) :: iunit
+   type(TEnvironment) :: env
 
 ! ------------------------------------------------------------------------
 !  class declarations
@@ -315,7 +310,6 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
 !  local variables
 ! ------------------------------------------------------------------------
-   type(mctc_error), allocatable :: err
    integer  :: ndim                      ! matrix dimension
    integer  :: i,j,k,l,ii,jj
    integer  :: stat
@@ -343,6 +337,8 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
    real(wp),parameter   :: rthr_cn  =  900.0_wp
    real(wp),parameter   :: rthr_mbd = 1600.0_wp
    real(wp),parameter   :: rthr_vdw = 4000.0_wp
+
+   call init(env)
 
 ! ------------------------------------------------------------------------
 !  Output: Initialization and Parameter setup
@@ -403,7 +399,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
    !if (opt%verbose) &
    !call eeq_header
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,gtmp,stmp, &
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,es,gtmp,stmp, &
                    .false.,.false.,.true.)
    !if (opt%verbose) &
    !call print_chrgeq(iunit,chrgeq,mol,q,cn)

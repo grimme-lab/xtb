@@ -31,7 +31,6 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 &              res)
 
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_mctc_logging
 
 ! ========================================================================
 !  type definitions

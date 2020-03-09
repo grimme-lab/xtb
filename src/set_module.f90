@@ -74,13 +74,15 @@
 module xtb_setmod
    use xtb_mctc_accuracy, only : wp
 
-   use xtb_readin, only : mirror_line,get_value
+   use xtb_readin, only : mirror_line,getValue
 
    use xtb_setparam
 
+   use xtb_type_environment, only : TEnvironment
+
    implicit none
 
-   private :: wp,mirror_line,get_value
+   private :: wp,mirror_line,getValue
 
    character,private,parameter :: flag = '$'
    character,private,parameter :: colon = ':'
@@ -99,6 +101,15 @@ module xtb_setmod
    integer,private,parameter :: p_arg_length = 24
 
    public
+
+   abstract interface
+      subroutine handlerInterface(env, key, val)
+         import TEnvironment
+         type(TEnvironment), intent(inout) :: env
+         character(len=*), intent(in) :: key
+         character(len=*), intent(in) :: val
+      end subroutine handlerInterface
+   end interface
 
 contains
 
@@ -678,14 +689,15 @@ subroutine close_set(ictrl)
    call close_file(ictrl)
 end subroutine close_set
 
-subroutine rdcontrol(fname,copy_file)
-   use iso_fortran_env, only : output_unit,iostat_end
+subroutine rdcontrol(fname,env,copy_file)
    use xtb_readin, only : find_new_name
    use xtb_splitparam,  only : maxfrag
    use xtb_scanparam,   only : maxconstr,maxscan
    use xtb_sphereparam, only : maxwalls
    implicit none
+   character(len=*), parameter :: source = 'set_rdcontrol'
    character(len=*),intent(in)  :: fname
+   type(TEnvironment), intent(inout) :: env
    character(len=:),allocatable :: line
    character(len=:),allocatable :: key
    character(len=:),allocatable :: val
@@ -700,6 +712,7 @@ subroutine rdcontrol(fname,copy_file)
    integer :: err
    logical :: exist
    logical :: do_copy
+   logical :: exitRun
 
    if (present(copy_file)) then
       do_copy=copy_file
@@ -709,7 +722,7 @@ subroutine rdcontrol(fname,copy_file)
 
    call open_file(id,fname,'r')
    if (id.eq.-1) then
-      call raise('S',"could not find '"//fname//"'",1)
+      call env%warning("could not find '"//fname//"'", source)
       return
    endif
 
@@ -736,42 +749,42 @@ subroutine rdcontrol(fname,copy_file)
          case('samerand'); call set_samerand; call mirror_line(id,copy,line,err)
          case('cma'     ); call set_cma;      call mirror_line(id,copy,line,err)
          ! data
-         case('cube'     ); call rdblock(set_cube,    line,id,copy,err,ncount)
-         case('write'    ); call rdblock(set_write,   line,id,copy,err,ncount)
-         case('gfn'      ); call rdblock(set_gfn,     line,id,copy,err,ncount)
-         case('scc'      ); call rdblock(set_scc,     line,id,copy,err,ncount)
-         case('opt'      ); call rdblock(set_opt,     line,id,copy,err,ncount)
-         case('hess'     ); call rdblock(set_hess,    line,id,copy,err,ncount)
-         case('md'       ); call rdblock(set_md,      line,id,copy,err,ncount)
-         case('siman'    ); call rdblock(set_siman,   line,id,copy,err,ncount)
-         case('modef'    ); call rdblock(set_modef,   line,id,copy,err,ncount)
-         case('gbsa'     ); call rdblock(set_gbsa,    line,id,copy,err,ncount)
-         case('embedding'); call rdblock(set_pcem,    line,id,copy,err,ncount)
-         case('thermo'   ); call rdblock(set_thermo,  line,id,copy,err,ncount)
-         case('external' ); call rdblock(set_external,line,id,copy,err,ncount)
-         case('symmetry' ); call rdblock(set_symmetry,line,id,copy,err,ncount)
-         case('metadyn'  ); call rdblock(set_metadyn, line,id,copy,err,ncount)
-         case('path'     ); call rdblock(set_path,    line,id,copy,err,ncount)
-         case('reactor'  ); call rdblock(set_reactor, line,id,copy,err,ncount)
-         case('stm'      ); call rdblock(set_stm,     line,id,copy,err,ncount)
+         case('cube'     ); call rdblock(env,set_cube,    line,id,copy,err,ncount)
+         case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
+         case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
+         case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
+         case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
+         case('hess'     ); call rdblock(env,set_hess,    line,id,copy,err,ncount)
+         case('md'       ); call rdblock(env,set_md,      line,id,copy,err,ncount)
+         case('siman'    ); call rdblock(env,set_siman,   line,id,copy,err,ncount)
+         case('modef'    ); call rdblock(env,set_modef,   line,id,copy,err,ncount)
+         case('gbsa'     ); call rdblock(env,set_gbsa,    line,id,copy,err,ncount)
+         case('embedding'); call rdblock(env,set_pcem,    line,id,copy,err,ncount)
+         case('thermo'   ); call rdblock(env,set_thermo,  line,id,copy,err,ncount)
+         case('external' ); call rdblock(env,set_external,line,id,copy,err,ncount)
+         case('symmetry' ); call rdblock(env,set_symmetry,line,id,copy,err,ncount)
+         case('metadyn'  ); call rdblock(env,set_metadyn, line,id,copy,err,ncount)
+         case('path'     ); call rdblock(env,set_path,    line,id,copy,err,ncount)
+         case('reactor'  ); call rdblock(env,set_reactor, line,id,copy,err,ncount)
+         case('stm'      ); call rdblock(env,set_stm,     line,id,copy,err,ncount)
          ! data + user data which is read later, but we start counting here
-         case('fix'      ); call rdblock(set_fix,     line,id,copy,err,ncount)
-         case('wall'     ); call rdblock(set_wall,    line,id,copy,err,ncount)
+         case('fix'      ); call rdblock(env,set_fix,     line,id,copy,err,ncount)
+         case('wall'     ); call rdblock(env,set_wall,    line,id,copy,err,ncount)
                             maxwalls = maxwalls + ncount
-         case('scan'     ); call rdblock(set_scan,    line,id,copy,err,ncount)
+         case('scan'     ); call rdblock(env,set_scan,    line,id,copy,err,ncount)
                             maxscan = maxscan + ncount
                             maxconstr = maxconstr + ncount ! better save than sorry
-         case('constrain'); call rdblock(set_constr,  line,id,copy,err,ncount)
+         case('constrain'); call rdblock(env,set_constr,  line,id,copy,err,ncount)
                             maxconstr = maxconstr + ncount
-         case('split'    ); call rdblock(set_split,   line,id,copy,err,ncount)
+         case('split'    ); call rdblock(env,set_split,   line,id,copy,err,ncount)
                             maxfrag = maxfrag + ncount
          ! legacy
-         case('set'      ); call rdsetbl(set_legacy,line,id,copy,err)
+         case('set'      ); call rdsetbl(env,set_legacy,line,id,copy,err)
          case default ! unknown keyword -> ignore, we don't raise them
          !  except for chrg and spin which you actually can set here
          !  read them here because select case might not catch them that easy
-            if (index(line(2:),'chrg').eq.1) call set_chrg(line(7:))
-            if (index(line(2:),'spin').eq.1) call set_spin(line(7:))
+            if (index(line(2:),'chrg').eq.1) call set_chrg(env,line(7:))
+            if (index(line(2:),'spin').eq.1) call set_spin(env,line(7:))
 !           get a new line
             call mirror_line(id,copy,line,err)
          end select
@@ -779,35 +792,36 @@ subroutine rdcontrol(fname,copy_file)
          call mirror_line(id,copy,line,err)
       endif
    !  check for end of file, which I will tolerate as alternative to $end
-      if (err.eq.iostat_end) exit readflags
+      if (is_iostat_end(err)) exit readflags
 !     if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("processing of data group failed", source)
+         exit
+      end if
    enddo readflags
 
    if (do_copy) call close_file(copy)
    call close_file(id)
 end subroutine rdcontrol
 
-subroutine rdsetbl(handler,line,id,copy,err)
-   use iso_fortran_env, only : iostat_end
+subroutine rdsetbl(env,handler,line,id,copy,err)
    implicit none
-   interface
-      subroutine handler(key,val)
-      character(len=*),intent(in) :: key
-      character(len=*),intent(in) :: val
-      end subroutine handler
-   end interface
+   character(len=*), parameter :: source = 'set_rdsetbl'
+   type(TEnvironment), intent(inout) :: env
    integer,intent(in) :: id
    integer,intent(in) :: copy
-   external :: handler
+   procedure(handlerInterface) :: handler
    integer,intent(out) :: err
    character(len=:),allocatable,intent(out) :: line
    character(len=:),allocatable :: key
    character(len=:),allocatable :: val
    integer :: ie
-   call raise('S','set-blocks will become obsolete in xtb 6.0 and newer',1)
+   logical :: exitRun
+   call env%warning('Set-blocks will become obsolete in xtb 6.0 and newer', source)
    do
       call mirror_line(id,copy,line,err)
-      if (err.eq.iostat_end) exit
+      if (is_iostat_end(err)) exit
       if (index(line,flag).ne.0) exit
 
       ! find the first space
@@ -815,33 +829,34 @@ subroutine rdsetbl(handler,line,id,copy,err)
       if ((line.eq.'').or.(ie.eq.0)) cycle
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
-      call handler(key,val)
+      call handler(env,key,val)
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("handler could not process input", source)
+         return
+      end if
    enddo
 
 end subroutine rdsetbl
 
-subroutine rdblock(handler,line,id,copy,err,ncount)
-   use iso_fortran_env, only : iostat_end
+subroutine rdblock(env,handler,line,id,copy,err,ncount)
    implicit none
-   interface
-      subroutine handler(key,val)
-      character(len=*),intent(in) :: key
-      character(len=*),intent(in) :: val
-      end subroutine handler
-   end interface
+   character(len=*), parameter :: source = 'set_rdblock'
+   type(TEnvironment), intent(inout) :: env
+   procedure(handlerInterface) :: handler
    integer,intent(in) :: id
    integer,intent(in) :: copy
-   external :: handler
    integer,intent(out) :: err
    integer,intent(out) :: ncount
    character(len=:),allocatable,intent(out) :: line
    character(len=:),allocatable :: key
    character(len=:),allocatable :: val
    integer :: ie
+   logical :: exitRun
    ncount = 0
    do
       call mirror_line(id,copy,line,err)
-      if (err.eq.iostat_end) return
+      if (is_iostat_end(err)) return
       if (index(line,flag).ne.0) return
 
       ! find the equal sign
@@ -851,7 +866,12 @@ subroutine rdblock(handler,line,id,copy,err,ncount)
       if (ie.eq.0) cycle
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
-      call handler(key,val)
+      call handler(env,key,val)
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("handler could not process input", source)
+         return
+      end if
    enddo
 
 end subroutine rdblock
@@ -1008,41 +1028,47 @@ subroutine set_define
    define = .true.
 end subroutine set_define
 
-subroutine set_chrg(val)
+subroutine set_chrg(env,val)
    implicit none
+   character(len=*), parameter :: source = 'set_chrg'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    integer  :: err
    integer  :: idum
    logical,save :: set1 = .true.
    if (set1) then
-      if (get_value(val,idum)) then
+      if (getValue(env,val,idum)) then
          ichrg = idum
       else
-         call raise('E','Charge could not be read from your argument',1)
+         call env%error('Charge could not be read from your argument',source)
       endif
    endif
    set1 = .false.
 end subroutine set_chrg
 
-subroutine set_spin(val)
+subroutine set_spin(env,val)
    implicit none
+   character(len=*), parameter :: source = 'set_spin'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    integer  :: err
    integer  :: idum
    logical,save :: set1 = .true.
    if (set1) then
-      if (get_value(val,idum)) then
+      if (getValue(env,val,idum)) then
          nalphabeta = idum
       else
-         call raise('E','Spin could not be read from your argument',1)
+         call env%error('Spin could not be read from your argument',source)
       endif
    endif
    set1 = .false.
 end subroutine set_spin
 
-subroutine set_write(key,val)
+subroutine set_write(env,key,val)
    !Purpose: set global parameter for writeouts
    implicit none
+   character(len=*), parameter :: source = 'set_write'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1080,102 +1106,104 @@ subroutine set_write(key,val)
    logical,save :: set29 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by write",1)
+      call env%warning("the key '"//key//"' is not recognized by write",source)
    case('esp')
-      if (get_value(val,ldum).and.set1)  pr_esp = ldum
+      if (getValue(env,val,ldum).and.set1)  pr_esp = ldum
       set1 = .false.
    case('mos')
-      if (get_value(val,ldum).and.set2)  pr_molden_input = ldum
+      if (getValue(env,val,ldum).and.set2)  pr_molden_input = ldum
       set2 = .false.
    case('lmo')
-      if (get_value(val,ldum).and.set3)  pr_lmo = ldum
+      if (getValue(env,val,ldum).and.set3)  pr_lmo = ldum
       set3 = .false.
    case('density')
-      if (get_value(val,ldum).and.set4)  pr_density = ldum
+      if (getValue(env,val,ldum).and.set4)  pr_density = ldum
       set4 = .false.
    case('spin population')
-      if (get_value(val,ldum).and.set5)  pr_spin_population = ldum
+      if (getValue(env,val,ldum).and.set5)  pr_spin_population = ldum
       set5 = .false.
    case('spin density')
-      if (get_value(val,ldum).and.set6)  pr_spin_density = ldum
+      if (getValue(env,val,ldum).and.set6)  pr_spin_density = ldum
       set6 = .false.
    case('fod')
-      if (get_value(val,ldum).and.set7) then
+      if (getValue(env,val,ldum).and.set7) then
          pr_fod = ldum
          pr_fod_pop = ldum
       endif
       set7 = .false.
    case('wiberg')
-      if (get_value(val,ldum).and.set8)  pr_wiberg = ldum
+      if (getValue(env,val,ldum).and.set8)  pr_wiberg = ldum
       set8 = .false.
    case('dipole')
-      if (get_value(val,ldum).and.set9)  pr_dipole = ldum
+      if (getValue(env,val,ldum).and.set9)  pr_dipole = ldum
       set9 = .false.
    case('charges')
-      if (get_value(val,ldum).and.set10) pr_charges = ldum
+      if (getValue(env,val,ldum).and.set10) pr_charges = ldum
       set10 = .false.
    case('mulliken')
-      if (get_value(val,ldum).and.set11) pr_mulliken = ldum
+      if (getValue(env,val,ldum).and.set11) pr_mulliken = ldum
       set11 = .false.
    case('orbital energies')
-      if (get_value(val,ldum).and.set12) pr_eig = ldum
+      if (getValue(env,val,ldum).and.set12) pr_eig = ldum
       set12 = .false.
    case('gridfile')
        if (set13) esp_gridfile = val
       set13 = .false.
    case('stm')
-      if (get_value(val,ldum).and.set14) pr_stm = ldum
+      if (getValue(env,val,ldum).and.set14) pr_stm = ldum
       set14 = .false.
    case('gbw')
-      if (get_value(val,ldum).and.set15) pr_gbw = ldum
+      if (getValue(env,val,ldum).and.set15) pr_gbw = ldum
       set15 = .false.
    case('tm mos')
-      if (get_value(val,ldum).and.set16) pr_tmmos = ldum
+      if (getValue(env,val,ldum).and.set16) pr_tmmos = ldum
       set16 = .false.
    case('tm basis')
-      if (get_value(val,ldum).and.set17) pr_tmbas = ldum
+      if (getValue(env,val,ldum).and.set17) pr_tmbas = ldum
       set17 = .false.
    case('json')
-      if (get_value(val,ldum).and.set18) pr_json = ldum
+      if (getValue(env,val,ldum).and.set18) pr_json = ldum
       set18 = .false.
    case('distances')
-      if (get_value(val,ldum).and.set19) pr_distances = ldum
+      if (getValue(env,val,ldum).and.set19) pr_distances = ldum
       set19 = .false.
    case('angles')
-      if (get_value(val,ldum).and.set20) pr_angles = ldum
+      if (getValue(env,val,ldum).and.set20) pr_angles = ldum
       set20 = .false.
    case('torsions')
-      if (get_value(val,ldum).and.set21) pr_torsions = ldum
+      if (getValue(env,val,ldum).and.set21) pr_torsions = ldum
       set21 = .false.
    case('final struct')
-      if (get_value(val,ldum).and.set22) pr_finalstruct = ldum
+      if (getValue(env,val,ldum).and.set22) pr_finalstruct = ldum
       set22 = .false.
    case('geosum')
-      if (get_value(val,ldum).and.set23) pr_geosum = ldum
+      if (getValue(env,val,ldum).and.set23) pr_geosum = ldum
       set23 = .false.
    case('moments','inertia')
-      if (get_value(val,ldum).and.set24) pr_moments = ldum
+      if (getValue(env,val,ldum).and.set24) pr_moments = ldum
       set24 = .false.
    case('modef')
-      if (get_value(val,ldum).and.set25) pr_modef = ldum
+      if (getValue(env,val,ldum).and.set25) pr_modef = ldum
       set25 = .false.
    case('wbo fragments')
-      if (get_value(val,ldum).and.set26) pr_wbofrag = ldum
+      if (getValue(env,val,ldum).and.set26) pr_wbofrag = ldum
       set26 = .false.
    case('output file')
       if (set27) property_file = val
       set27 = .false.
    case('fod population')
-      if (get_value(val,ldum).and.set28) pr_fod_pop = ldum
+      if (getValue(env,val,ldum).and.set28) pr_fod_pop = ldum
       set28 = .false.
    case('gbsa')
-      if (get_value(val,ldum).and.set29) pr_gbsa = ldum
+      if (getValue(env,val,ldum).and.set29) pr_gbsa = ldum
       set29 = .false.
    end select
 end subroutine set_write
 
-subroutine set_pcem(key,val)
+subroutine set_pcem(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_pcem'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1195,36 +1223,36 @@ subroutine set_pcem(key,val)
    logical,save :: set11 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by embedding",1)
+      call env%warning("the key '"//key//"' is not recognized by embedding",source)
    case('at')
-      if (get_value(val,idum).and.set1) pcem_dummyatom = idum
+      if (getValue(env,val,idum).and.set1) pcem_dummyatom = idum
       set1 = .false.
    case('es')
-      if (get_value(val,ldum).and.set2) pcem_l_es = ldum
+      if (getValue(env,val,ldum).and.set2) pcem_l_es = ldum
       set2 = .false.
    case('aes')
-      if (get_value(val,ldum).and.set3) pcem_l_aes = ldum
+      if (getValue(env,val,ldum).and.set3) pcem_l_aes = ldum
       set3 = .false.
    case('disp')
-      if (get_value(val,ldum).and.set4) pcem_l_disp = ldum
+      if (getValue(env,val,ldum).and.set4) pcem_l_disp = ldum
       set4 = .false.
    case('dipm')
-      if (get_value(val,ldum).and.set5) pcem_l_dipm = ldum
+      if (getValue(env,val,ldum).and.set5) pcem_l_dipm = ldum
       set5 = .false.
    case('qp')
-      if (get_value(val,ldum).and.set6) pcem_l_qp = ldum
+      if (getValue(env,val,ldum).and.set6) pcem_l_qp = ldum
       set6 = .false.
    case('cn')
-      if (get_value(val,ldum).and.set7) pcem_l_cn = ldum
+      if (getValue(env,val,ldum).and.set7) pcem_l_cn = ldum
       set7 = .false.
    case('atm')
-      if (get_value(val,ldum).and.set8) pcem_l_atm = ldum
+      if (getValue(env,val,ldum).and.set8) pcem_l_atm = ldum
       set8 = .false.
    case('interface')
       if (set9) then
       select case(val)
       case default
-         call raise('S',"Unknown interface value '"//val//"' is ignored",1)
+         call env%warning("Unknown interface value '"//val//"' is ignored",source)
       case('legacy')
          pcem_interface = p_pcem_legacy
       case('orca')
@@ -1242,9 +1270,11 @@ subroutine set_pcem(key,val)
    end select
 end subroutine set_pcem
 
-subroutine set_gfn(key,val)
+subroutine set_gfn(env,key,val)
    use xtb_mctc_strings, only : lowercase
    implicit none
+   character(len=*), parameter :: source = 'set_gfn'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1257,35 +1287,37 @@ subroutine set_gfn(key,val)
    logical,save :: set4 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by gfn",1)
+      call env%warning("the key '"//key//"' is not recognized by gfn",source)
    case('version','method')
       if (key.eq.'version') &
-         call raise('S',"Don't use the 'version' key, since it is confusing",1)
-      if (get_value(val,idum).and.set1) then
+         call env%warning("Don't use the 'version' key, since it is confusing",source)
+      if (getValue(env,val,idum).and.set1) then
          if ((idum.ge.0).and.(idum.le.2)) then ! actually, this looks stupid...
             gfn_method = idum
          elseif (idum.eq.3) then
             gfn_method = 2
-            call raise('S','Please, request GFN2-xTB with method=2!',1)
+            call env%warning('Please, request GFN2-xTB with method=2!',source)
          else
-            call raise('S','We have not yet made a GFN'//val//'-xTB method',1)
+            call env%warning('We have not yet made a GFN'//val//'-xTB method',source)
          endif
       endif
       set1 = .false.
    case('d4')
-      if (get_value(val,ldum).and.set2) newdisp = ldum
+      if (getValue(env,val,ldum).and.set2) newdisp = ldum
       set2 = .false.
    case('scc')
-      if (get_value(val,ldum).and.set3) solve_scc = ldum
+      if (getValue(env,val,ldum).and.set3) solve_scc = ldum
       set3 = .false.
    case('periodic')
-      if (get_value(val,ldum).and.set4) periodic = ldum
+      if (getValue(env,val,ldum).and.set4) periodic = ldum
       set4 = .false.
    end select
 end subroutine set_gfn
 
-subroutine set_scc(key,val)
+subroutine set_scc(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_scc'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1298,12 +1330,12 @@ subroutine set_scc(key,val)
    logical,save :: set4 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by scc",1)
+      call env%warning("the key '"//key//"' is not recognized by scc",source)
    case('temp')
-      if (get_value(val,ddum).and.set1) eTemp = ddum
+      if (getValue(env,val,ddum).and.set1) eTemp = ddum
       set1 = .false.
    case('broydamp')
-      if (get_value(val,ddum).and.set2) broydamp = ddum
+      if (getValue(env,val,ddum).and.set2) broydamp = ddum
       set2 = .false.
    case('guess')
       if (.not.set3) return
@@ -1318,9 +1350,9 @@ subroutine set_scc(key,val)
       endif
       set3 = .false.
    case('maxiterations')
-      if (get_value(val,idum).and.set4) then
+      if (getValue(env,val,idum).and.set4) then
          if (idum.le.0) then
-            call raise('S','negative SCC-Iterations make no sense',1)
+            call env%warning('negative SCC-Iterations make no sense',source)
          else
             maxscciter = idum
          endif
@@ -1329,9 +1361,11 @@ subroutine set_scc(key,val)
    end select
 end subroutine set_scc
 
-subroutine set_opt(key,val)
+subroutine set_opt(env,key,val)
    use xtb_mctc_strings
    implicit none
+   character(len=*), parameter :: source = 'set_opt'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1358,47 +1392,47 @@ subroutine set_opt(key,val)
    logical,save :: set18 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by opt",1)
+      call env%warning("the key '"//key//"' is not recognized by opt",source)
    case('optlevel')
       if (set1) then
          optset%optlev = optlevel2int(val)
       endif
       set1 = .false.
    case('microcycle')
-      if (get_value(val,idum).and.set2) optset%micro_opt = idum
+      if (getValue(env,val,idum).and.set2) optset%micro_opt = idum
       set2 = .false.
    case('maxcycle')
-      if (get_value(val,idum).and.set3) optset%maxoptcycle = idum
+      if (getValue(env,val,idum).and.set3) optset%maxoptcycle = idum
       set3 = .false.
    case('maxdispl')
-      if (get_value(val,ddum).and.set4) optset%maxdispl_opt = ddum
+      if (getValue(env,val,ddum).and.set4) optset%maxdispl_opt = ddum
       set4 = .false.
    case('hlow')
-      if (get_value(val,ddum).and.set5) optset%hlow_opt = ddum
+      if (getValue(env,val,ddum).and.set5) optset%hlow_opt = ddum
       set5 = .false.
    case('s6','s6opt')
-      if (get_value(val,ddum).and.set6) mhset%s6 = ddum
+      if (getValue(env,val,ddum).and.set6) mhset%s6 = ddum
       set6 = .false.
    case('ts')
-      if (get_value(val,ldum).and.set7) tsopt = ldum
+      if (getValue(env,val,ldum).and.set7) tsopt = ldum
       set7 = .false.
    case('tsroot')
-      if (get_value(val,idum).and.set8) tsroot = idum
+      if (getValue(env,val,idum).and.set8) tsroot = idum
       set8 = .false.
    case('kstretch','kr')
-      if (get_value(val,ddum).and.set9)  mhset%kr = ddum
+      if (getValue(env,val,ddum).and.set9)  mhset%kr = ddum
       set9 = .false.
    case('kbend',   'kf')
-      if (get_value(val,ddum).and.set10) mhset%kf = ddum
+      if (getValue(env,val,ddum).and.set10) mhset%kf = ddum
       set10 = .false.
    case('ktorsion','kt')
-      if (get_value(val,ddum).and.set11) mhset%kt = ddum
+      if (getValue(env,val,ddum).and.set11) mhset%kt = ddum
       set11 = .false.
    case('koutofp','ko')
-      if (get_value(val,ddum).and.set12) mhset%ko = ddum
+      if (getValue(env,val,ddum).and.set12) mhset%ko = ddum
       set12 = .false.
    case('kvdw','kd')
-      if (get_value(val,ddum).and.set13) mhset%kd = ddum
+      if (getValue(env,val,ddum).and.set13) mhset%kd = ddum
       set13 = .false.
    case('hessian')
       if (set14) then
@@ -1413,18 +1447,18 @@ subroutine set_opt(key,val)
       endif
       set14 = .false.
    case('kes','kq')
-      if (get_value(val,ddum).and.set15) mhset%kq = ddum
+      if (getValue(env,val,ddum).and.set15) mhset%kq = ddum
       set15 = .false.
    case('rcut')
-      if (get_value(val,ddum).and.set16) mhset%rcut = ddum*ddum
+      if (getValue(env,val,ddum).and.set16) mhset%rcut = ddum*ddum
       set16 = .false.
    case('exact rf')
-      if (get_value(val,ldum).and.set17) optset%exact_rf = ldum
+      if (getValue(env,val,ldum).and.set17) optset%exact_rf = ldum
       set17 = .false.
    case('engine')
       if (set18) then
          select case(lowercase(val))
-         case default; call raise('S',"engine '"//val//"' is not implemented",1)
+         case default; call env%warning("engine '"//val//"' is not implemented",source)
          case('rf','ancopt');      opt_engine = p_engine_rf
          case('lbfgs','l-ancopt'); opt_engine = p_engine_lbfgs
          case('inertial','fire');  opt_engine = p_engine_inertial
@@ -1494,9 +1528,11 @@ function int2optlevel(ilvl) result(level)
 
 end function int2optlevel
 
-subroutine set_thermo(key,val)
+subroutine set_thermo(env,key,val)
    use xtb_mctc_strings, only : parse
    implicit none
+   character(len=*), parameter :: source = 'set_thermo'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1510,7 +1546,7 @@ subroutine set_thermo(key,val)
    logical,save :: set2 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by thermo",1)
+      call env%warning("the key '"//key//"' is not recognized by thermo",source)
    case('temp')
       if (.not.set1) return ! we could read this twice... but we don't do
       thermotemp = 0.0
@@ -1518,9 +1554,9 @@ subroutine set_thermo(key,val)
       call parse(val,comma,argv,narg)
       idum = 0
       do i = 1, narg
-         if (get_value(trim(argv(i)),ddum)) then
+         if (getValue(env,trim(argv(i)),ddum)) then
             if (ddum.le.0.0_wp) then ! doesn't make sense, skip garbage input
-               call raise('S',"A temperature of "//trim(argv(i))//" K is invalid in this context",1)
+               call env%warning("A temperature of "//trim(argv(i))//" K is invalid in this context",source)
                cycle
             endif
             idum = idum + 1 ! use only readable arguments
@@ -1531,17 +1567,19 @@ subroutine set_thermo(key,val)
       nthermo = nthermo+idum
       set1 = .false.
       if (nthermo == 0) then
-         call raise('E',"No valid temperatures found in input: '"//val//"'",1)
+         call env%warning("No valid temperatures found in input: '"//val//"'",source)
          return
       endif
    case('sthr')
-      if (get_value(val,ddum).and.set2) thermo_sthr = ddum
+      if (getValue(env,val,ddum).and.set2) thermo_sthr = ddum
       set2 = .false.
    end select
 end subroutine set_thermo
 
-subroutine set_md(key,val)
+subroutine set_md(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_md'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1561,47 +1599,47 @@ subroutine set_md(key,val)
    logical,save :: set11= .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by md",1)
+      call env%warning("the key '"//key//"' is not recognized by md",source)
    case('temp')
-      if (get_value(val,ddum).and.set1) temp_md = ddum
+      if (getValue(env,val,ddum).and.set1) temp_md = ddum
       set1 = .false.
    case('time')
-      if (get_value(val,ddum).and.set2) time_md = ddum
+      if (getValue(env,val,ddum).and.set2) time_md = ddum
       set2 = .false.
    case('dump')
-      if (get_value(val,ddum).and.set3) dump_md2 = ddum
+      if (getValue(env,val,ddum).and.set3) dump_md2 = ddum
       set3 = .false.
    case('velo')
-!      if (get_value(val,idum).and.set4) then
+!      if (getValue(env,val,idum).and.set4) then
 !         if (idum.eq.1) then
 !            velodump = .true.
 !         else if (idum.eq.0) then
 !            velodump = .false.
 !         endif
 !      endif
-      if (get_value(val,ldum).and.set4) velodump = ldum
+      if (getValue(env,val,ldum).and.set4) velodump = ldum
       set4 = .false.
    case('nvt')
-!      if (get_value(val,idum).and.set5) then
+!      if (getValue(env,val,idum).and.set5) then
 !         if (idum.eq.1) then
 !            nvt_md = .true.
 !         else if (idum.eq.0) then
 !            nvt_md = .false.
 !         endif
 !      endif
-      if (get_value(val,ldum).and.set5) nvt_md = ldum
+      if (getValue(env,val,ldum).and.set5) nvt_md = ldum
       set5 = .false.
    case('skip')
-      if (get_value(val,idum).and.set6) skip_md = idum
+      if (getValue(env,val,idum).and.set6) skip_md = idum
       set6 = .false.
    case('step')
-      if (get_value(val,ddum).and.set7) tstep_md = ddum
+      if (getValue(env,val,ddum).and.set7) tstep_md = ddum
       set7 = .false.
    case('hmass')
-      if (get_value(val,idum).and.set8) md_hmass = idum
+      if (getValue(env,val,idum).and.set8) md_hmass = idum
       set8 = .false.
    case('shake')
-      if (get_value(val,idum).and.set9) then
+      if (getValue(env,val,idum).and.set9) then
          if (idum.eq.2) then
             shake_md = .true.
             xhonly = .false.
@@ -1621,16 +1659,18 @@ subroutine set_md(key,val)
       endif
       set9 = .false.
    case('sccacc')
-      if (get_value(val,ddum).and.set10) accu_md = ddum
+      if (getValue(env,val,ddum).and.set10) accu_md = ddum
       set10 = .false.
    case('restart')
-      if (get_value(val,ldum).and.set11) restart_md = ldum
+      if (getValue(env,val,ldum).and.set11) restart_md = ldum
       set11 = .false.
    end select
 end subroutine set_md
 
-subroutine set_siman(key,val)
+subroutine set_siman(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_siman'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1645,31 +1685,31 @@ subroutine set_siman(key,val)
    logical,save :: set6 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by siman",1)
+      call env%warning("the key '"//key//"' is not recognized by siman",source)
    case('dump')
-      if (get_value(val,ddum).and.set1) dump_md = ddum
+      if (getValue(env,val,ddum).and.set1) dump_md = ddum
       set1 = .false.
    case('n')
-      if (get_value(val,idum).and.set2) ntemp_siman = idum
+      if (getValue(env,val,idum).and.set2) ntemp_siman = idum
       set2 = .false.
    case('ewin')
-      if (get_value(val,ddum).and.set3) ewin_conf = ddum
+      if (getValue(env,val,ddum).and.set3) ewin_conf = ddum
       set3 = .false.
    case('temp')
-      if (get_value(val,ddum).and.set4) Tend_siman = ddum
+      if (getValue(env,val,ddum).and.set4) Tend_siman = ddum
       set4 = .false.
    case('enan')
-!      if (get_value(val,idum).and.set5) then
+!      if (getValue(env,val,idum).and.set5) then
 !         if (idum.eq.1) then
 !            enan_siman = .true.
 !         else if (idum.eq.0) then
 !            enan_siman = .false.
 !         endif
 !      endif
-      if (get_value(val,ldum).and.set5) enan_siman = ldum
+      if (getValue(env,val,ldum).and.set5) enan_siman = ldum
       set5 = .false.
    case('check')
-      if (get_value(val,idum).and.set6) then
+      if (getValue(env,val,idum).and.set6) then
          if (idum.eq.1) then
             check_rmsd = .false.
          else if (idum.eq.0) then
@@ -1680,8 +1720,10 @@ subroutine set_siman(key,val)
    end select
 end subroutine set_siman
 
-subroutine set_hess(key,val)
+subroutine set_hess(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_hess'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1692,18 +1734,20 @@ subroutine set_hess(key,val)
    logical,save :: set2 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by hess",1)
+      call env%warning("the key '"//key//"' is not recognized by hess",source)
    case('sccacc')
-      if (get_value(val,ddum).and.set1) accu_hess = ddum
+      if (getValue(env,val,ddum).and.set1) accu_hess = ddum
       set1 = .false.
    case('step')
-      if (get_value(val,ddum).and.set2) step_hess = ddum
+      if (getValue(env,val,ddum).and.set2) step_hess = ddum
       set2 = .false.
    end select
 end subroutine set_hess
 
-subroutine set_reactor(key,val)
+subroutine set_reactor(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_reactor'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1716,26 +1760,28 @@ subroutine set_reactor(key,val)
    logical,save :: set4 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by reactor",1)
+      call env%warning("the key '"//key//"' is not recognized by reactor",source)
    case('kpush')
-      if (get_value(val,ddum).and.set1) reactset%kpush = ddum
+      if (getValue(env,val,ddum).and.set1) reactset%kpush = ddum
       set1 = .false.
    case('alp')
-      if (get_value(val,ddum).and.set2) reactset%alp   = ddum
+      if (getValue(env,val,ddum).and.set2) reactset%alp   = ddum
       set2 = .false.
    case('max')
-      if (get_value(val,idum).and.set3) reactset%nmax  = idum
+      if (getValue(env,val,idum).and.set3) reactset%nmax  = idum
       set3 = .false.
    case('density')
-      if (get_value(val,ddum).and.set4) reactset%dens  = ddum
+      if (getValue(env,val,ddum).and.set4) reactset%dens  = ddum
       set4 = .false.
    end select
 end subroutine set_reactor
 
 
-subroutine set_gbsa(key,val)
+subroutine set_gbsa(env,key,val)
    use xtb_solv_gbobc, only: lsalt,ionst,ion_rad,lgbsa
    implicit none
+   character(len=*), parameter :: source = 'set_gbsa'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1748,7 +1794,7 @@ subroutine set_gbsa(key,val)
    logical,save :: set4 = .true.
       select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by gbsa",1)
+      call env%warning("the key '"//key//"' is not recognized by gbsa",source)
    case('solvent')
       if (set1 .and. val.ne.'none') then
          solvent = val
@@ -1756,25 +1802,25 @@ subroutine set_gbsa(key,val)
       endif
       set1 = .false.
    case('ion_st')
-      if (get_value(val,ddum).and.set2) then
+      if (getValue(env,val,ddum).and.set2) then
          ionst = ddum
          if (ionst.gt.0.0_wp) lsalt = .true.
       endif
       set2 = .false.
    case('ion_rad')
-      if (get_value(val,ddum).and.set3) ion_rad = ddum
+      if (getValue(env,val,ddum).and.set3) ion_rad = ddum
       set3 = .false.
    case('gbsagrid')
       if (set4) then
          select case(val)
          case default
-            if (get_value(val,idum)) then
+            if (getValue(env,val,idum)) then
                if (any(idum.eq.ldgrids)) then
                   if (idum < p_angsa_normal) &
-                     call raise('S',"Small SASA grids can lead to numerical instabilities",1)
+                     call env%warning("Small SASA grids can lead to numerical instabilities",source)
                   ngrida = idum
                else
-                  call raise('S',"There is no "//val//" Lebedev grid",1)
+                  call env%warning("There is no "//val//" Lebedev grid",source)
                endif
             endif
          case('normal');    ngrida = p_angsa_normal
@@ -1787,8 +1833,10 @@ subroutine set_gbsa(key,val)
    end select
 end subroutine set_gbsa
 
-subroutine set_modef(key,val)
+subroutine set_modef(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_modef'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1804,33 +1852,35 @@ subroutine set_modef(key,val)
    logical,save :: set7 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by modef",1)
+      call env%warning("the key '"//key//"' is not recognized by modef",source)
    case('n')
-      if (get_value(val,idum).and.set1) mode_nscan = idum
+      if (getValue(env,val,idum).and.set1) mode_nscan = idum
       set1 = .false.
    case('step')
-      if (get_value(val,ddum).and.set2) mode_step = ddum
+      if (getValue(env,val,ddum).and.set2) mode_step = ddum
       set2 = .false.
    case('updat')
-      if (get_value(val,ddum).and.set3) mode_updat = ddum
+      if (getValue(env,val,ddum).and.set3) mode_updat = ddum
       set3 = .false.
    case('local')
-      if (get_value(val,idum).and.set4) mode_local = idum
+      if (getValue(env,val,idum).and.set4) mode_local = idum
       set4 = .false.
    case('vthr')
-      if (get_value(val,ddum).and.set5) mode_vthr = ddum
+      if (getValue(env,val,ddum).and.set5) mode_vthr = ddum
       set5 = .false.
    case('prj')
-      if (get_value(val,idum).and.set6) mode_prj = idum
+      if (getValue(env,val,idum).and.set6) mode_prj = idum
       set6 = .false.
    case('mode')
-      if (get_value(val,idum).and.set7) mode_follow = idum
+      if (getValue(env,val,idum).and.set7) mode_follow = idum
       set7 = .false.
    end select
 end subroutine set_modef
 
-subroutine set_cube(key,val)
+subroutine set_cube(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_cube'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1842,22 +1892,24 @@ subroutine set_cube(key,val)
    logical,save :: set3 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by cube",1)
+      call env%warning("the key '"//key//"' is not recognized by cube",source)
    case('step')
-      if (get_value(val,ddum).and.set1) cube_step = ddum
+      if (getValue(env,val,ddum).and.set1) cube_step = ddum
       set1 = .false.
    case('pthr')
-      if (get_value(val,ddum).and.set2) cube_pthr = ddum
+      if (getValue(env,val,ddum).and.set2) cube_pthr = ddum
       set2 = .false.
    case('cal')
-      call raise('S',"the key 'cal' has been removed",1)
-!      if (get_value(val,idum).and.set3) cube_cal = idum
+      call env%warning("the key 'cal' has been removed",source)
+!      if (getValue(env,val,idum).and.set3) cube_cal = idum
 !      set3 = .false.
    end select
 end subroutine set_cube
 
-subroutine set_stm(key,val)
+subroutine set_stm(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_stm'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1871,27 +1923,29 @@ subroutine set_stm(key,val)
    logical,save :: set5 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by stm",1)
+      call env%warning("the key '"//key//"' is not recognized by stm",source)
    case('broadening')
-      if (get_value(val,ddum).and.set1) stm_alp = ddum
+      if (getValue(env,val,ddum).and.set1) stm_alp = ddum
       set1 = .false.
    case('current')
-      if (get_value(val,ddum).and.set2) stm_targ = ddum
+      if (getValue(env,val,ddum).and.set2) stm_targ = ddum
       set2 = .false.
    case('grid')
-      if (get_value(val,ddum).and.set3) stm_grid = ddum
+      if (getValue(env,val,ddum).and.set3) stm_grid = ddum
       set3 = .false.
    case('thr')
-      if (get_value(val,ddum).and.set4) stm_thr = ddum
+      if (getValue(env,val,ddum).and.set4) stm_thr = ddum
       set4 = .false.
    case('potential')
-      if (get_value(val,ddum).and.set5) stm_pot = ddum
+      if (getValue(env,val,ddum).and.set5) stm_pot = ddum
       set5 = .false.
    end select
 end subroutine set_stm
 
-subroutine set_symmetry(key,val)
+subroutine set_symmetry(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_symmetry'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1902,18 +1956,20 @@ subroutine set_symmetry(key,val)
    logical,save :: set2 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by symmetry",1)
+      call env%warning("the key '"//key//"' is not recognized by symmetry",source)
    case('desy')
-      if (get_value(val,ddum).and.set1) desy = ddum
+      if (getValue(env,val,ddum).and.set1) desy = ddum
       set1 = .false.
    case('maxat')
-      if (get_value(val,idum).and.set2) maxatdesy = idum
+      if (getValue(env,val,idum).and.set2) maxatdesy = idum
       set2 = .false.
    end select
 end subroutine set_symmetry
 
-subroutine set_external(key,val)
+subroutine set_external(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_external'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1930,7 +1986,7 @@ subroutine set_external(key,val)
    logical,save :: set8 = .true.
    select case(key)
    case default
-      call raise('S',"the key '"//key//"' is not recognized by external",1)
+      call env%warning("the key '"//key//"' is not recognized by external",source)
    case('orca bin')
       if (set1) ext_orca%executable = val
       set1 = .false.
@@ -1955,9 +2011,11 @@ subroutine set_external(key,val)
    end select
 end subroutine set_external
 
-subroutine set_fix(key,val)
+subroutine set_fix(env,key,val)
    use xtb_fixparam
    implicit none
+   character(len=*), parameter :: source = 'set_fix'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1967,17 +2025,19 @@ subroutine set_fix(key,val)
    logical,save :: set1 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by fix",1)
+      call env%warning("the key '"//key//"' is not recognized by fix",source)
    case('freeze frequency')
-      if (get_value(val,ddum).and.set1) freezeset%fc = ddum
+      if (getValue(env,val,ddum).and.set1) freezeset%fc = ddum
       set1 = .false.
    end select
 
 end subroutine set_fix
 
-subroutine set_constr(key,val)
+subroutine set_constr(env,key,val)
    use xtb_scanparam
    implicit none
+   character(len=*), parameter :: source = 'set_constr'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -1991,21 +2051,21 @@ subroutine set_constr(key,val)
    logical,save :: set5 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by constrain",1)
+      call env%warning("the key '"//key//"' is not recognized by constrain",source)
    case('force constant')
-      if (get_value(val,ddum).and.set1) fcconstr = ddum
+      if (getValue(env,val,ddum).and.set1) fcconstr = ddum
       set1 = .false.
    !  this are global constrains, you should only chose one, I think, everything
    !  else doesn't really make sense, but as user it is your own responsibility
    !  so you can set all logicals for whatever reason
    case('all bonds')
-      if (get_value(val,ldum).and.set2) lconstr_all_bonds = ldum
+      if (getValue(env,val,ldum).and.set2) lconstr_all_bonds = ldum
       set2 = .false.
    case('all angles')
-      if (get_value(val,ldum).and.set3) lconstr_all_angles = ldum
+      if (getValue(env,val,ldum).and.set3) lconstr_all_angles = ldum
       set3 = .false.
    case('all torsions')
-      if (get_value(val,ldum).and.set4) lconstr_all_torsions = ldum
+      if (getValue(env,val,ldum).and.set4) lconstr_all_torsions = ldum
       set4 = .false.
    case('reference')
       if (set5) potset%fname = val
@@ -2014,9 +2074,11 @@ subroutine set_constr(key,val)
 
 end subroutine set_constr
 
-subroutine set_metadyn(key,val)
+subroutine set_metadyn(env,key,val)
    use xtb_fixparam
    implicit none
+   character(len=*), parameter :: source = 'set_metadyn'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -2035,15 +2097,15 @@ subroutine set_metadyn(key,val)
 
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by metadyn",1)
+      call env%warning("the key '"//key//"' is not recognized by metadyn",source)
    case('save')
-      if (get_value(val,idum).and.set1) metaset%maxsave = idum
+      if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
    case('width','alp')
-      if (get_value(val,ddum).and.set2) metaset%width = ddum
+      if (getValue(env,val,ddum).and.set2) metaset%width = ddum
       set2 = .false.
    case('factor','kpush')
-      if (get_value(val,ddum).and.set3) metaset%global_factor = ddum
+      if (getValue(env,val,ddum).and.set3) metaset%global_factor = ddum
       set3 = .false.
    case('coord')
       if (set4) metaset%fname = val
@@ -2052,8 +2114,10 @@ subroutine set_metadyn(key,val)
 
 end subroutine set_metadyn
 
-subroutine set_path(key,val)
+subroutine set_path(env,key,val)
    implicit none
+   character(len=*), parameter :: source = 'set_path'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -2071,30 +2135,30 @@ subroutine set_path(key,val)
 
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by path",1)
+      call env%warning("the key '"//key//"' is not recognized by path",source)
    case('nrun')
-      if (get_value(val,idum).and.set1) pathset%nrun = idum
+      if (getValue(env,val,idum).and.set1) pathset%nrun = idum
       set1 = .false.
    case('nopt')
-      if (get_value(val,idum).and.set2) pathset%nopt = idum
+      if (getValue(env,val,idum).and.set2) pathset%nopt = idum
       set2 = .false.
    case('anopt')
-      if (get_value(val,idum).and.set3) pathset%anopt = idum
+      if (getValue(env,val,idum).and.set3) pathset%anopt = idum
       set3 = .false.
    case('kpush')
-      if (get_value(val,ddum).and.set4) pathset%kpush = ddum
+      if (getValue(env,val,ddum).and.set4) pathset%kpush = ddum
       set4 = .false.
    case('kpull')
-      if (get_value(val,ddum).and.set5) pathset%kpull = ddum
+      if (getValue(env,val,ddum).and.set5) pathset%kpull = ddum
       set5 = .false.
    case('alp')
-      if (get_value(val,ddum).and.set6) pathset%alp = ddum
+      if (getValue(env,val,ddum).and.set6) pathset%alp = ddum
       set6 = .false.
    case('product')
       if (set7) then
          inquire(file=val,exist=ldum)
          if (.not.ldum) then
-            call raise('E',"Could not find: '"//val//"' in $path/product",1)
+            call env%error("Could not find: '"//val//"' in $path/product",source)
          endif
          pathset%fname = val
       endif
@@ -2105,9 +2169,11 @@ end subroutine set_path
 
 
 ! this is a dummy routine
-subroutine set_scan(key,val)
+subroutine set_scan(env,key,val)
    use xtb_scanparam
    implicit none
+   character(len=*), parameter :: source = 'set_scan'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -2117,7 +2183,7 @@ subroutine set_scan(key,val)
    logical,save :: set1 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by scan",1)
+      call env%warning("the key '"//key//"' is not recognized by scan",source)
    case('mode')
       if (val.eq.'sequential') then
          scan_mode = p_scan_sequential
@@ -2129,9 +2195,11 @@ subroutine set_scan(key,val)
 
 end subroutine set_scan
 
-subroutine set_wall(key,val)
+subroutine set_wall(env,key,val)
    use xtb_sphereparam
    implicit none
+   character(len=*), parameter :: source = 'set_wall'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -2148,7 +2216,7 @@ subroutine set_wall(key,val)
    logical,save :: set8 = .true.
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by fix",1)
+      call env%warning("the key '"//key//"' is not recognized by fix",source)
    case('potential')
       if (.not.set1) return
       if (val.eq.'polynomial') then
@@ -2158,19 +2226,19 @@ subroutine set_wall(key,val)
       endif
       set1 = .false.
    case('alpha')
-      if (get_value(val,idum).and.set2) sphere_alpha = idum
+      if (getValue(env,val,idum).and.set2) sphere_alpha = idum
       set2 = .false.
    case('beta')
-      if (get_value(val,ddum).and.set3) sphere_beta = ddum
+      if (getValue(env,val,ddum).and.set3) sphere_beta = ddum
       set3 = .false.
    case('temp')
-      if (get_value(val,ddum).and.set4) sphere_temp = ddum
+      if (getValue(env,val,ddum).and.set4) sphere_temp = ddum
       set4 = .false.
    case('autoscale')
-      if (get_value(val,ddum).and.set5) sphere_autoscale = ddum
+      if (getValue(env,val,ddum).and.set5) sphere_autoscale = ddum
       set5 = .false.
    case('axisshift')
-      if (get_value(val,ddum).and.set6) sphere_shift = ddum
+      if (getValue(env,val,ddum).and.set6) sphere_shift = ddum
       set6 = .false.
    case('auto')
       if (.not.set7) return
@@ -2199,17 +2267,21 @@ subroutine set_wall(key,val)
 end subroutine set_wall
 
 ! this is a dummy routine
-subroutine set_split(key,val)
+subroutine set_split(env,key,val)
    use xtb_splitparam
    implicit none
+   character(len=*), parameter :: source = 'set_split'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
 end subroutine set_split
 
-subroutine set_legacy(key,val)
+subroutine set_legacy(env,key,val)
    use xtb_mctc_strings, only : parse
    use xtb_sphereparam
    implicit none
+   character(len=*), parameter :: source = 'set_legacy'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: key
    character(len=*),intent(in) :: val
    integer  :: err
@@ -2220,11 +2292,11 @@ subroutine set_legacy(key,val)
    character(len=p_str_length),dimension(p_arg_length) :: argv
    select case(key)
    case default ! do nothing
-      call raise('S',"the key '"//key//"' is not recognized by set",1)
+      call env%warning("the key '"//key//"' is not recognized by set",source)
    case('runtyp');      call set_runtyp(val)
-   case('chrg','charge'); call set_chrg(val)
-   case('uhf');           call set_spin(val)
-   case('restartmd','mdrestart'); call set_md('restart','1')
+   case('chrg','charge'); call set_chrg(env,val)
+   case('uhf');           call set_spin(env,val)
+   case('restartmd','mdrestart'); call set_md(env,'restart','1')
    case('samerand');    call set_samerand
    case('hessf');       continue ! used later in read_userdata
 !   case('atomlist-');
@@ -2232,92 +2304,92 @@ subroutine set_legacy(key,val)
    case('fragment2');   continue ! used later in read_userdata
    case('constrxyz');   continue ! used later in read_userdata
 !   case('constrainel');
-   case('constrainalltors','constralltors'); call set_constr('all torsions','true')
-   case('constrainallbo','constralltbo'); call set_constr('all bonds','true')
+   case('constrainalltors','constralltors'); call set_constr(env,'all torsions','true')
+   case('constrainallbo','constralltbo'); call set_constr(env,'all bonds','true')
 !   case('constrain');
 !   case('scan');
    case('fit');         call set_fit
-   case('optlev');      call set_opt('optlevel',val)
-   case('gfnver');      call set_gfn('method',val)
+   case('optlev');      call set_opt(env,'optlevel',val)
+   case('gfnver');      call set_gfn(env,'method',val)
    case('ellips');      continue ! used later in read_userdata
                         maxwalls = maxwalls + 1
 !   case('ellipsoi');
    case('sphere');      continue ! used later in read_userdata
                         maxwalls = maxwalls + 1
    case('fix');         continue ! used later in read_userdata
-   case('fixfc');       call set_fix('force constant',val)
-   case('springexp');   call set_fix('spring exponent',val)
-   case('constrfc');    call set_constr('force constant',val)
-   case('hlowopt');     call set_opt('hlow',val)
-   case('s6opt');       call set_opt('s6',val)
-   case('microopt');    call set_opt('microcycle',val)
-   case('maxopt');      call set_opt('maxcycle',val)
-   case('maxdispl');    call set_opt('maxdispl',val)
-   case('mdtime');      call set_md('time',val)
-   case('mdtemp');      call set_md('temp',val)
-   case('etemp');       call set_scc('temp',val)
-   case('broydamp');    call set_scc('broydamp',val)
-   case('nsiman');      call set_siman('n',val)
-   case('mddump');      call set_siman('dump',val)
-   case('mddumpxyz');   call set_md('dump',val)
-   case('mdskip');      call set_md('skip',val)
-   case('shake');       call set_md('shake',val)
-   case('md_hmass');    call set_md('hmass',val)
-   case('tend');        call set_siman('temp',val)
-   case('mdstep');      call set_md('step',val)
-   case('velodump');    call set_md('velo',val)
-   case('sccmd');       call set_md('sccacc',val)
-   case('scchess');     call set_hess('sccacc',val)
-   case('stephess');    call set_hess('step',val)
-   case('nvt');         call set_md('nvt',val)
-   case('enan');        call set_siman('enan',val)
-   case('mode_n');      call set_modef('n',val)
-   case('mode_step');   call set_modef('step',val)
-   case('mode_vthr');   call set_modef('vthr',val)
-   case('mode_updat');  call set_modef('updat',val)
-   case('mode_local');  call set_modef('local',val)
-   case('mode_prj');    call set_modef('prj',val)
-   case('path_kpush');  call set_path('kpush',val)
-   case('path_kpull');  call set_path('kpull',val)
-   case('path_alp');    call set_path('alp',val)
-   case('path_nopt');   call set_path('nopt',val)
-   case('path_anopt');  call set_path('anopt',val)
-   case('path_nrun');   call set_path('nrun',val)
+   case('fixfc');       call set_fix(env,'force constant',val)
+   case('springexp');   call set_fix(env,'spring exponent',val)
+   case('constrfc');    call set_constr(env,'force constant',val)
+   case('hlowopt');     call set_opt(env,'hlow',val)
+   case('s6opt');       call set_opt(env,'s6',val)
+   case('microopt');    call set_opt(env,'microcycle',val)
+   case('maxopt');      call set_opt(env,'maxcycle',val)
+   case('maxdispl');    call set_opt(env,'maxdispl',val)
+   case('mdtime');      call set_md(env,'time',val)
+   case('mdtemp');      call set_md(env,'temp',val)
+   case('etemp');       call set_scc(env,'temp',val)
+   case('broydamp');    call set_scc(env,'broydamp',val)
+   case('nsiman');      call set_siman(env,'n',val)
+   case('mddump');      call set_siman(env,'dump',val)
+   case('mddumpxyz');   call set_md(env,'dump',val)
+   case('mdskip');      call set_md(env,'skip',val)
+   case('shake');       call set_md(env,'shake',val)
+   case('md_hmass');    call set_md(env,'hmass',val)
+   case('tend');        call set_siman(env,'temp',val)
+   case('mdstep');      call set_md(env,'step',val)
+   case('velodump');    call set_md(env,'velo',val)
+   case('sccmd');       call set_md(env,'sccacc',val)
+   case('scchess');     call set_hess(env,'sccacc',val)
+   case('stephess');    call set_hess(env,'step',val)
+   case('nvt');         call set_md(env,'nvt',val)
+   case('enan');        call set_siman(env,'enan',val)
+   case('mode_n');      call set_modef(env,'n',val)
+   case('mode_step');   call set_modef(env,'step',val)
+   case('mode_vthr');   call set_modef(env,'vthr',val)
+   case('mode_updat');  call set_modef(env,'updat',val)
+   case('mode_local');  call set_modef(env,'local',val)
+   case('mode_prj');    call set_modef(env,'prj',val)
+   case('path_kpush');  call set_path(env,'kpush',val)
+   case('path_kpull');  call set_path(env,'kpull',val)
+   case('path_alp');    call set_path(env,'alp',val)
+   case('path_nopt');   call set_path(env,'nopt',val)
+   case('path_anopt');  call set_path(env,'anopt',val)
+   case('path_nrun');   call set_path(env,'nrun',val)
    case('metadyn') ! just for the records, I was against implementing it that way
       call parse(val,space,argv,narg) ! need to parse for spaces...
       if (narg <3) then
-         call raise('S','deprecated $set/metadyn keyword broken by user input',1)
+         call env%warning('deprecated $set/metadyn keyword broken by user input',source)
          return ! okay, you screwed up, let's get outta here
       endif
-      call set_metadyn('factor',trim(argv(1)))
-      call set_metadyn('width', trim(argv(2)))
-      call set_metadyn('save',  trim(argv(3)))
+      call set_metadyn(env,'factor',trim(argv(1)))
+      call set_metadyn(env,'width', trim(argv(2)))
+      call set_metadyn(env,'save',  trim(argv(3)))
 
    case('atomlist+'); continue ! use later in constrain_param
-   case('atomlist-'); call raise('S',"$set/atomlist- is not implemented",1)
-   case('cube_pthr');   call set_cube('pthr',val)
-   case('cube_step');   call set_cube('step',val)
-   case('cube_cal'); call raise('S',"The key 'cube_cal' has been removed from $set",1)
-   case('gbsa');        call set_gbsa('solvent',val)
-   case('ion_st');      call set_gbsa('ion_st',val)
-   case('ion_rad');     call set_gbsa('ion_rad',val)
-   case('gbsagrid');    call set_gbsa('gbsagrid',val)
-   case('ewin_conf');   call set_siman('ewin',val)
-   case('desy');        call set_symmetry('desy',val)
-   case('thermo');      call set_thermo('temp',val)
-   case('thermo_sthr'); call set_thermo('sthr',val)
-   case('desymaxat');   call set_symmetry('maxat',val)
+   case('atomlist-'); call env%warning("$set/atomlist- is not implemented", source)
+   case('cube_pthr');   call set_cube(env,'pthr',val)
+   case('cube_step');   call set_cube(env,'step',val)
+   case('cube_cal'); call env%warning("The key 'cube_cal' has been removed from $set",source)
+   case('gbsa');        call set_gbsa(env,'solvent',val)
+   case('ion_st');      call set_gbsa(env,'ion_st',val)
+   case('ion_rad');     call set_gbsa(env,'ion_rad',val)
+   case('gbsagrid');    call set_gbsa(env,'gbsagrid',val)
+   case('ewin_conf');   call set_siman(env,'ewin',val)
+   case('desy');        call set_symmetry(env,'desy',val)
+   case('thermo');      call set_thermo(env,'temp',val)
+   case('thermo_sthr'); call set_thermo(env,'sthr',val)
+   case('desymaxat');   call set_symmetry(env,'maxat',val)
 !   case('ex_open_HS');
 !   case('ex_open_LS');
 !   case('orca_mpi');
 !   case('orca_exe');
 !   case('orca_line');
-   case('check_equal'); call set_siman('check',val)
-   case('stm_alp');     call set_stm('broadening',val)
-   case('stm_targ');    call set_stm('current',val)
-   case('stm_grid');    call set_stm('grid',val)
-   case('stm_thr');     call set_stm('thr',val)
-   case('stm_pot');     call set_stm('potential',val)
+   case('check_equal'); call set_siman(env,'check',val)
+   case('stm_alp');     call set_stm(env,'broadening',val)
+   case('stm_targ');    call set_stm(env,'current',val)
+   case('stm_grid');    call set_stm(env,'grid',val)
+   case('stm_thr');     call set_stm(env,'thr',val)
+   case('stm_pot');     call set_stm(env,'potential',val)
    end select
 
 end subroutine set_legacy

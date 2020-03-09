@@ -397,7 +397,6 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_mctc_logging
 
    use xtb_aoparam,  only : gam3
 
@@ -696,7 +695,6 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_mctc_logging
 
    use xtb_aoparam,  only : gam3
 

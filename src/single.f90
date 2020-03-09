@@ -37,7 +37,6 @@ subroutine singlepoint &
 &                 (env,mol,wfn,calc, &
 &                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
    use xtb_mctc_convert
-   use xtb_mctc_logging
 
 !! ========================================================================
 !  type definitions
@@ -85,7 +84,6 @@ subroutine singlepoint &
    real(wp),intent(out)   :: g(3,mol%n)
    type(scc_results),intent(out) :: res
    real(wp),intent(out)   :: sigma(3,3)
-   type(mctc_error), allocatable :: err
    integer  :: i,ich
    integer  :: mode_sp_run = 1
    real(wp) :: efix
@@ -122,7 +120,7 @@ subroutine singlepoint &
 
    case(p_ext_eht)
       call peeq &
-         & (env,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
+         & (env,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
          &  lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)
@@ -142,14 +140,6 @@ subroutine singlepoint &
       call run_mopac_egrad(mol%n,mol%at,mol%xyz,etot,g)
 
    end select
-
-   if (allocated(err)) then
-      if (err%fatal) then
-         call env%error(err%msg)
-      else
-         call env%warning(err%msg)
-      end if
-   end if
 
    call env%check(exitRun)
    if (exitRun) then

@@ -20,7 +20,7 @@ module xtb_argparser
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_systools
    use xtb_setmod
-   use xtb_readin, only : xfind,get_value
+   use xtb_readin, only : xfind,getValue
    use xtb_solv_gbobc,  only : lgbsa
    use xtb_type_environment, only : TEnvironment
    implicit none
@@ -139,7 +139,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
       !$ case('-P','--parallel')
       !$    skip = 1
       !$    call rdarg(iarg+1,sec)
-      !$    if (get_value(sec,idum)) then
+      !$    if (getValue(env,sec,idum)) then
       !$       nproc = omp_get_num_threads()
       !$       if (idum.gt.nproc) then
       !$          call env%warning('Process number higher than OMP_NUM_THREADS, '//&
@@ -188,7 +188,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
          case('-a','--acc')
             skip = 1
             call rdarg(iarg+1,sec)
-            if (get_value(sec,ddum)) then
+            if (getValue(env,sec,ddum)) then
                if (ddum.lt.1.e-4_wp) then
                   call env%warning("We cannot provide this level of accuracy, "//&
                      & "resetted accuracy to 0.0001", source)
@@ -205,29 +205,29 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
          case('-c','--chrg','--charge')
             skip = 1
             call rdarg(iarg+1,sec)
-            call set_chrg(sec)
+            call set_chrg(env,sec)
 
          case('-u','--uhf')
             skip = 1
             call rdarg(iarg+1,sec)
-            call set_spin(sec)
+            call set_spin(env,sec)
 
          case(     '--gfn')
             skip = 1
             call rdarg(iarg+1,sec)
-            call set_gfn('method',sec)
+            call set_gfn(env,'method',sec)
          !  legacy stuff
             if(sec=='0')call set_exttyp('eht')    !ppracht 10/2018 GFN0
          case(     '--gfn1')
-            call set_gfn('method','1')
+            call set_gfn(env,'method','1')
             call env%warning("The use of '"//arg//"' is discouraged, " //&
                & "please use '--gfn 1' next time", source)
          case(     '--gfn2')
-            call set_gfn('method','2')
-            call set_gfn('d4','true')
+            call set_gfn(env,'method','2')
+            call set_gfn(env,'d4','true')
 
          case(     '--gfn0')
-            call set_gfn('method','0')
+            call set_gfn(env,'method','0')
             call set_exttyp('eht')    !ppracht 10/2018 GFN0
             call env%warning("The use of '"//arg//"' is discouraged, " //&
                & "please use '--gfn 0' next time", source)
@@ -235,19 +235,19 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
          case(     '--etemp')
             skip = 1
             call rdarg(iarg+1,sec)
-            call set_scc('temp',sec)
+            call set_scc(env,'temp',sec)
 
          case(     '--esp')
             call set_runtyp('scc')
-            call set_write('esp','true')
+            call set_write(env,'esp','true')
 
          case(     '--stm')
             call set_runtyp('scc')
-            call set_write('stm','true')
+            call set_write(env,'stm','true')
 
          case(     '--periodic','--pbc')
-            call set_gfn('periodic','true')
-            call set_gfn('method','0')
+            call set_gfn(env,'periodic','true')
+            call set_gfn(env,'method','0')
          case(     '--cma')
             call set_cma
 
@@ -267,41 +267,41 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
             call set_exttyp('mopac')
 
          case(     '--pop')
-            call set_write('mulliken','true')
+            call set_write(env,'mulliken','true')
 
          case(     '--molden')
-            call set_write('mos','true')
+            call set_write(env,'mos','true')
 
          case(     '--dipole')
-            call set_write('dipole','true')
+            call set_write(env,'dipole','true')
 
          case(     '--wbo')
-            call set_write('wiberg','true')
+            call set_write(env,'wiberg','true')
 
          case(     '--lmo')
-            call set_write('mulliken','true')
-            call set_write('lmo','true')
+            call set_write(env,'mulliken','true')
+            call set_write(env,'lmo','true')
 
          case(     '--ewin')
             call rdarg(iarg+1,sec)
             if (index(sec,'-').ne.1) then
                  skip = 1
-                 call set_siman('ewin',sec)
+                 call set_siman(env,'ewin',sec)
             endif
 
          case(     '--fod')
-            call set_write('fod','true')
-            call set_scc('etemp','12500.0')
+            call set_write(env,'fod','true')
+            call set_scc(env,'etemp','12500.0')
 
          case(     '--iterations')
             skip = 1
             call rdarg(iarg+1,sec)
-            call set_scc('maxiterations',sec)
+            call set_scc(env,'maxiterations',sec)
 
          case(     '--cycles')
             skip = 1
             call rdarg(iarg+1,sec)
-            call set_opt('maxcycle',sec)
+            call set_opt(env,'maxcycle',sec)
 
          case('-g','--gbsa')
             lgbsa = .true.
@@ -309,7 +309,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                call rdarg(iarg+1,sec)
                if (index(sec,'-').ne.1) then
                   skip = 1
-                  call set_gbsa('solvent',sec)
+                  call set_gbsa(env,'solvent',sec)
 
                   if (iarg+skip.lt.argc) then
                      call rdarg(iarg+skip+1,sec)
@@ -330,7 +330,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                         if (sec == 'normal'.OR.sec == 'tight'.OR.&
                            &sec == 'verytight'.OR.sec == 'extreme') then
                            skip = skip + 1
-                           call set_gbsa('gbsagrid',sec)
+                           call set_gbsa(env,'gbsagrid',sec)
                         endif
                      endif
                   endif
@@ -352,19 +352,19 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
             call set_runtyp('scc')
 
          case(     '--vip')
-            call set_gfn('method','1')
+            call set_gfn(env,'method','1')
             call set_runtyp('vip')
 
          case(     '--vea')
-            call set_gfn('method','1')
+            call set_gfn(env,'method','1')
             call set_runtyp('vea')
 
          case(     '--vipea')
-            call set_gfn('method','1')
+            call set_gfn(env,'method','1')
             call set_runtyp('vipea')
 
           case(     '--vomega')
-            call set_gfn('method','1')
+            call set_gfn(env,'method','1')
             call set_runtyp('vomega')
         
           case(     '--vfukui')
@@ -380,7 +380,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                call rdarg(iarg+1,sec)
                if (index(sec,'-').ne.1) then
                   skip = 1
-                  call set_opt('optlevel',sec)
+                  call set_opt(env,'optlevel',sec)
                endif
             endif
 
@@ -397,17 +397,17 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                call rdarg(iarg+1,sec)
                if (index(sec,'-').ne.1) then
                   skip = 1
-                  call set_opt('optlevel',sec)
+                  call set_opt(env,'optlevel',sec)
                endif
             endif
 
          case(     '--omd')
             call set_runtyp('omd')
-            call set_opt('optlevel','-1')
+            call set_opt(env,'optlevel','-1')
 
          case(     '--siman')
             call set_runtyp('siman')
-            call set_md('nvt','true')
+            call set_md(env,'nvt','true')
 
          case(     '--path')
             call set_runtyp('path')
@@ -415,7 +415,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                call rdarg(iarg+1,sec)
                if (index(sec,'-').ne.1) then
                   skip = 1
-                  call set_path('product',sec)
+                  call set_path(env,'product',sec)
                endif
             endif
 
@@ -431,7 +431,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
             call rdarg(iarg+1,sec)
             if (index(sec,'-').ne.1) then
                skip = 1
-               call set_modef('mode',sec)
+               call set_modef(env,'mode',sec)
             endif
 
          case(     '--mdopt')
@@ -443,7 +443,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                call rdarg(iarg+1,sec)
                if (index(sec,'-').ne.1) then
                   skip = 1
-                  call set_metadyn('save',sec)
+                  call set_metadyn(env,'save',sec)
                endif
             endif
          case(     '--metaopt')
@@ -452,7 +452,7 @@ subroutine rdxargs(env,fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,stric
                call rdarg(iarg+1,sec)
                if (index(sec,'-').ne.1) then
                   skip = 1
-                  call set_opt('optlevel',sec)
+                  call set_opt(env,'optlevel',sec)
                endif
             endif
 

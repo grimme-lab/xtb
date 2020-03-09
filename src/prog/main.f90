@@ -197,9 +197,6 @@ program XTBprog
    call mctc_init('xtb',10,.true.)
    call init(env)
 
-!  we are over this already, comment back in if you plan to break stuff
-!  call raise('S','program not (yet) intended for productive runs!',1)
-
 !! ========================================================================
 !  get the XTBPATH/XTBHOME variables
    call rdvar('XTBHOME',xenv%home,iostat=err)
@@ -219,37 +216,50 @@ program XTBprog
    call rdxargs(env, fname,xcontrol,fnv,fnx,acc,lgrad,restart,gsolvstate,strict, &
       & copycontrol,argument_list,nargs,coffee)
 
-   call env%checkpoint("Command line argument parsing failed", exitRun)
-   if (exitRun) call terminate(1)
+   call env%checkpoint("Command line argument parsing failed")
    
 
 !! ========================================================================
 !  read the xcontrol file
-   call rdcontrol(xcontrol,copy_file=copycontrol)
+   call rdcontrol(xcontrol,env,copy_file=copycontrol)
+
+   call env%checkpoint("Reading '"//xcontrol//"' failed")
 
 !! ------------------------------------------------------------------------
 !  read dot-Files before reading the rc and after reading the xcontrol
    call open_file(ich,'.CHRG','r')
    if (ich.ne.-1) then
       call getline(ich,cdum,iostat=err)
-      if (err.ne.0) call raise('E','.CHRG is empty!',1)
-      call set_chrg(cdum)
-      call close_file(ich)
-   endif
+      if (err /= 0) then
+         call env%error('.CHRG is empty!', source)
+      else
+         call set_chrg(env,cdum)
+         call close_file(ich)
+      end if
+   end if
+
+   call env%checkpoint("Reading charge from file failed")
 
    call open_file(ich,'.UHF','r')
    if (ich.ne.-1) then
       call getline(ich,cdum,iostat=err)
-      if (err.ne.0) call raise('E','.UHF is empty!',1)
-      call set_spin(cdum)
-      call close_file(ich)
+      if (err /= 0) then
+         call env%error('.UHF is empty!', source)
+      else
+         call set_spin(env,cdum)
+         call close_file(ich)
+      end if
    endif
+
+   call env%checkpoint("Reading multiplicity from file failed")
 
 !! ------------------------------------------------------------------------
 !  read the xtbrc if you can find it (use rdpath directly instead of xfind)
    call rdpath(xenv%path,p_fname_rc,xrc,exist)
    if (exist) then
-      call rdcontrol(xrc,copy_file=.false.)
+      call rdcontrol(xrc,env,copy_file=.false.)
+
+      call env%checkpoint("Reading '"//xrc//"' failed")
    endif
 
    ! make sure that we get a eht calculation instead of a scc for GFN0
@@ -288,11 +298,10 @@ program XTBprog
       call readMolecule(env, mol, ich, ftype)
       call close_file(ich)
 
-      call env%checkpoint("reading geometry input '"//fname//"' failed", exitRun)
-      if (exitRun) call terminate(1)
+      call env%checkpoint("reading geometry input '"//fname//"' failed")
    endif
 
-   if(mol%n.lt.1) call raise('E','no atoms!',1)
+   if(mol%n.lt.1) call env%terminate('System has no atoms')
 
 !  get some memory
    allocate(cn(mol%n),sat(mol%n),g(3,mol%n), source = 0.0_wp)
@@ -346,7 +355,7 @@ program XTBprog
 !  file exist (not quite true) were we could get a geometry from, which
 !  is problematic in the aspect that geometry constraints tend to be
 !  geometry dependent.
-   call read_userdata(xcontrol,mol%n,mol%at,mol%xyz)
+   call read_userdata(xcontrol,env,mol)
 
 !  initialize metadynamics
    call load_metadynamic(metaset,mol%n,mol%at,mol%xyz)
@@ -391,8 +400,8 @@ program XTBprog
    endif
 !  in case you want to be productive instead of meddling around with
 !  define, you wish to know if there is something gone wrong anyway
-   call raise('F','Please study the warnings concerning your '// &
-   &              'input carefully',1)
+   call env%show('Please study the warnings concerning your input carefully')
+   call raise('F', 'Please study the warnings concerning your input carefully', 1)
 
 !  You had it coming!
    if (strict) call mctc_strict
@@ -403,11 +412,11 @@ program XTBprog
 !  PARAMETER
 !! ------------------------------------------------------------------------
    if (gfn_method.eq.3) & ! lets set one thing straight:
-   &  call raise('E','This is an internal error, please use gfn_method=2!',1)
+   &  call env%terminate('This is an internal error, please use gfn_method=2!')
    if (.not.allocated(fnv)) then
       select case(runtyp)
       case default
-         call raise('E','This is an internal error, please define your runtypes!',1)
+         call env%terminate('This is an internal error, please define your runtypes!')
       case(p_run_nox,p_run_stda)
          fnv=xfind(p_fname_param_stda1)
          call stda_header(env%unit)
@@ -453,8 +462,13 @@ program XTBprog
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
       call use_parameterset(fnv,globpar,exist)
-      if (.not.exist) call raise('E','parameter file '//fnv//' not found!',1)
+      if (.not.exist) then
+         call env%error('Parameter file '//fnv//' not found!', source)
+      end if
    endif
+
+   call env%checkpoint("Could not setup parameterisation")
+
    do i = 1, 86
       do j = 1, i
          if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
@@ -466,7 +480,7 @@ program XTBprog
 
    if (gen_param) then
    !  generate a warning to keep release versions from generating huge files
-      call raise('S','XTB IS DUMPING PARAMETERFILES, RESET GEN_PARAM FOR RELEASE!',1)
+      call env%warning('XTB IS DUMPING PARAMETERFILES, RESET GEN_PARAM FOR RELEASE!')
       call prelemparam(globpar)
    endif
 
@@ -475,7 +489,7 @@ program XTBprog
    if (runtyp.gt.1) then
       select case(gfn_method)
       case default
-         call raise('E','Internal error, wrong GFN method passed!',1)
+         call env%terminate('Internal error, wrong GFN method passed!')
       case(1)
          call set_gfn1_parameter(calc%param,globpar)
          call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
@@ -536,7 +550,7 @@ program XTBprog
 
 !! ========================================================================
    if(periodic.and.gfn_method.ne.0)then
-      call raise('E', 'Periodic implementation only available at zeroth-order (GFN0).',1)
+      call env%terminate('Periodic implementation only available at zeroth-order.')
    end if
 
 ! ======================================================================
@@ -546,7 +560,7 @@ program XTBprog
    call xbasis0(mol%n,mol%at,calc%basis)
    select case(gfn_method)
    case default
-      call raise('E','Internal error, wrong GFN method passed!',1)
+      call env%terminate('Internal error, wrong GFN method passed!')
    case(p_method_gfn1xtb)
       call xbasis_gfn1(mol%n,mol%at,calc%basis,okbas,diff)
    case(p_method_gfn2xtb)
@@ -554,7 +568,7 @@ program XTBprog
    case(p_method_gfn0xtb)
       call xbasis_gfn0(mol%n,mol%at,calc%basis,okbas,diff)
    end select
-   if (.not.okbas) call raise('E','TB basis incomplete',1)
+   if (.not.okbas) call env%terminate('basis set could not be setup completely')
 
 ! ======================================================================
 !  initial guess, setup wavefunction
@@ -623,17 +637,14 @@ program XTBprog
    &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
 
-   call env%checkpoint("Single point calculation terminated", exitRun)
-   if (exitRun) then
-      call terminate(1)
-   end if
+   call env%checkpoint("Single point calculation terminated")
 
 !! ========================================================================
 !  numerical gradient for debugging purposes
 !! ========================================================================
    if (debug) then
 !  generate a warning to keep release versions from calculating numerical gradients
-   call raise('S','XTB IS CALCULATING NUMERICAL GRADIENTS, RESET DEBUG FOR RELEASE!',1)
+   call env%warning('XTB IS CALCULATING NUMERICAL GRADIENTS, RESET DEBUG FOR RELEASE!')
    print'(/,"analytical gradient")'
    print *, g
    allocate( coord(3,mol%n), source = mol%xyz )
@@ -771,17 +782,22 @@ program XTBprog
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
       call numhess_header(env%unit)
       if (mol%npbc > 0) then
-         call raise('E',"Phonon calculations under PBC are not implemented",1)
+         call env%error("Phonon calculations under PBC are not implemented", source)
       endif
       call start_timing(5)
       call numhess &
       &       (env,mol,wfn,calc, &
       &        egap,etemp,maxscciter,etot,g,sigma,fres)
       call stop_timing(5)
+
+      call env%checkpoint("Hessian calculation terminated")
    endif
 
    ! reset the gap, since it is currently not updated in ancopt and numhess
    res%hl_gap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
+
+
+   call env%checkpoint("Calculation terminated")
 
 !! ========================================================================
 !  PRINTOUT SECTION
@@ -877,7 +893,7 @@ program XTBprog
    if ((runtyp.eq.p_run_md).or.(runtyp.eq.p_run_omd)) then
       if (metaset%maxsave .gt. 0) then
          if (mol%npbc > 0) then
-            call raise('E',"Metadynamic under PBC is not implemented",1)
+            call env%error("Metadynamic under PBC is not implemented", source)
          endif
          call metadyn_header(env%unit)
       else
@@ -897,12 +913,12 @@ program XTBprog
 !  metadynamics
    if (runtyp.eq.p_run_metaopt) then
       if (mol%npbc > 0) then
-         call raise('S',"Metadynamic under PBC is not implemented",1)
+         call env%warning("Metadynamic under PBC is not implemented", source)
       endif
       call metadyn_header(env%unit)
       ! check if ANCOPT already convered
       if (murks) then
-         call raise('E','Optimization did not converge, aborting',1)
+         call env%error('Optimization did not converge, aborting', source)
       endif
       write(env%unit,'(1x,"output written to xtbmeta.log")')
       call open_file(ich,'xtbmeta.log','w')
@@ -942,7 +958,7 @@ program XTBprog
 !  simulated annealing
    if (runtyp.eq.p_run_siman) then
       call siman_header(env%unit)
-      call raise('E',"SIMAN has been deprecated in favor of CREST")
+      call env%error("SIMAN has been deprecated in favor of CREST", source)
    endif
 
 !! ------------------------------------------------------------------------
@@ -950,7 +966,7 @@ program XTBprog
    if (runtyp.eq.p_run_path) then
       call rmsdpath_header(env%unit)
       if (mol%npbc > 0) then
-         call raise('S',"Metadynamics under PBC are not implemented",1)
+         call env%warning("Metadynamics under PBC are not implemented", source)
       endif
       call start_timing(4)
       call bias_path(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
@@ -968,14 +984,14 @@ program XTBprog
 !! ------------------------------------------------------------------------
 !  gmd for averaged interaction energies
    if (runtyp.eq.p_run_gmd) then
-      call raise('E','GMD option is not supported anymore',1)
+      call env%error('GMD option is not supported anymore', source)
    endif
 
 !! ------------------------------------------------------------------------
 !  mode following for conformer search
    if (runtyp.eq.p_run_modef) then
       if (mol%npbc > 0) then
-         call raise('S',"Modefollowing under PBC is not implemented",1)
+         call env%warning("Modefollowing under PBC is not implemented", source)
       endif
       call start_timing(9)
       call modefollow(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
@@ -993,7 +1009,7 @@ program XTBprog
 !! ------------------------------------------------------------------------
    if (runtyp.eq.p_run_reactor) then
       call reactor_header(env%unit)
-      call raise('E','The nano-reactor has been moved!',1)
+      call env%error('The nano-reactor has been moved!', source)
    endif
 
 !! ========================================================================
@@ -1012,7 +1028,7 @@ program XTBprog
 !! ========================================================================
 !  we may have generated some non-fatal errors, which have been saved,
 !  so we should tell the user, (s)he may want to know what went wrong
-   call env%checkpoint("Runtime exception occurred", exitRun)
+   call env%show("Runtime exception occurred")
    call raise('F','Some non-fatal runtime exceptions were caught,'// &
    &              ' please check:',1)
 
@@ -1059,11 +1075,7 @@ program XTBprog
    endif
 
    write(env%unit,'(a)')
-   if (exitRun) then
-      call terminate(1)
-   else
-      call terminate(0)
-   end if
+   call terminate(0)
 
 contains
 subroutine check_cold_fusion(mol)
@@ -1080,14 +1092,14 @@ subroutine check_cold_fusion(mol)
             write(a20, '(a,i0,"-",a,i0)') &
                &  trim(mol%sym(jat)), jat, trim(mol%sym(iat)), iat
             write(a10, '(es10.3)') mol%dist(jat, iat)
-            call raise('S', "Found *very* short distance of "//a10//" for "//&
-               &            trim(a20), 1)
+            call env%error("Found *very* short distance of "//a10//" for "//&
+               &           trim(a20))
          endif
       enddo
    enddo
    if (cold_fusion) then
-      call raise('F', "Some atoms in the start geometry are *very* close", 1)
-      call raise('E', "XTB REFUSES TO CONTINUE WITH THIS CALCULATION!", 1)
+      call env%error("XTB REFUSES TO CONTINUE WITH THIS CALCULATION!")
+      call env%terminate("Some atoms in the start geometry are *very* close")
    endif
 end subroutine check_cold_fusion
 end program XTBprog

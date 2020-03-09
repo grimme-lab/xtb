@@ -20,11 +20,10 @@ contains
 ! ========================================================================
 !> periodic GFN0-xTB (PEEQ) calculation
 module subroutine gfn0_calculation &
-      (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,stress,lattice_gradient)
    use xtb_mctc_accuracy, only : wp
 
    use xtb_mctc_systools
-   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -50,7 +49,6 @@ module subroutine gfn0_calculation &
    type(TMolecule),    intent(inout) :: mol
    type(peeq_options),   intent(in)    :: opt
    type(TEnvironment), intent(inout)    :: env
-   type(mctc_error), allocatable, intent(inout) :: err
 
    real(wp), intent(out) :: energy
    real(wp), intent(out) :: hl_gap
@@ -123,7 +121,7 @@ module subroutine gfn0_calculation &
       call open_file(ipar,fnv,'r')
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
-         err = mctc_error("Parameter file '"//fnv//"' not found")
+         call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
       call read_gfn_param(ipar,globpar,.true.)
@@ -160,14 +158,13 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(env,err,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(env,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Single point calculation terminated", source)
       return
    end if
-   if (allocated(err)) return
 
    if (mol%npbc > 0) then
       inv_lat = mat_inv_3x3(mol%lattice)

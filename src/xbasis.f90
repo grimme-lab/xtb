@@ -17,6 +17,7 @@
 
 module xtb_basis
    use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment, only : TEnvironment
    implicit none
 
 contains
@@ -319,12 +320,11 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
    enddo
 
    if(basis%nbf.ne.ibf) then
-      write(*,*) ibf,basis%nbf
-      error stop 'internal error'
+      ok = .false.
    endif
 
    if(basis%nao.ne.iao) then
-      call raise('E','Internal error',1)
+      ok = .false.
    endif
 
    do iat=1,n
@@ -452,12 +452,11 @@ subroutine xbasis_gfn2(n,at,basis,ok)
    enddo
 
    if(basis%nbf.ne.ibf) then
-      write(*,*) ibf,basis%nbf
-      error stop 'internal error'
+      ok = .false.
    endif
 
    if(basis%nao.ne.iao) then
-      call raise('E','Internal error',1)
+      ok = .false.
    endif
 
 end subroutine xbasis_gfn2
@@ -518,11 +517,9 @@ subroutine dim_basis(n,at,nshell,nao,nbf)
          case(3) ! f
             nbf = nbf+10
             nao = nao+7
-            call raise('E','f-functions not implemented',1)
          case(4) ! g
             nbf = nbf+15
             nao = nao+9
-            call raise('E','g-functions not implemented',1)
          case(11) ! diffuse s
             nbf = nbf+1
             nao = nao+1
@@ -795,12 +792,11 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
    enddo
 
    if(basis%nbf.ne.ibf) then
-      write(*,*) ibf,basis%nbf
-      error stop 'internal error'
+      ok = .false.
    endif
 
    if(basis%nao.ne.iao) then
-      call raise('E','Internal error',1)
+      ok = .false.
    endif
 
    do iat=1,n

@@ -294,7 +294,7 @@ subroutine test_dftd4_cell_gradient
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use assertion
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
    use xtb_disp_dftd4
@@ -328,7 +328,7 @@ subroutine test_dftd4_cell_gradient
    real(wp),parameter :: rthr_vdw = 4000.0_wp
    integer, parameter :: vdw_rep(3) = [8,8,8]
    integer            :: cn_rep(3)  = [5,5,5]
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
    type(dftd_parameter),parameter :: dparam_pbe    = dftd_parameter ( &
    &  s6=1.0000_wp, s8=0.95948085_wp, a1=0.38574991_wp, a2=4.80688534_wp )
    real(wp),parameter :: step = 1.0e-4_wp, step2 = 0.5_wp/step
@@ -393,7 +393,7 @@ subroutine test_dftd4_cell_gradient
 
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
 
-   call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,energy,gradient,sigma,&
       &            .false.,.false.,.true.)
 
    call pbc_dncoord_d4(mol%n,mol%at,mol%xyz,mol%lattice, &

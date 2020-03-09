@@ -73,9 +73,9 @@ subroutine reset_xtb_lock() bind(C, name="reset_xTB_lock")
    !$omp end critical(xtb_load_api)
 end subroutine
 
-subroutine eeq_guess_wavefunction(mol, wfn, err)
+subroutine eeq_guess_wavefunction(env, mol, wfn)
    use xtb_setparam, only: gfn_method
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_param
@@ -84,7 +84,7 @@ subroutine eeq_guess_wavefunction(mol, wfn, err)
    use xtb_scc_core
    type(TMolecule), intent(in) :: mol
    type(TWavefunction), intent(inout) :: wfn
-   type(mctc_error), allocatable :: err
+   type(TEnvironment), intent(inout) :: env
    type(chrg_parameter) :: chrgeq
    real(wp), allocatable :: cn(:)
 
@@ -92,7 +92,7 @@ subroutine eeq_guess_wavefunction(mol, wfn, err)
    allocate( cn(mol%n), source = 0.0_wp )
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
    call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,err,chrgeq,cn,wfn%q)
+   call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
    deallocate(cn)
 
    call iniqshell(mol%n,mol%at,mol%z,wfn%nshell,wfn%q,wfn%qsh,gfn_method)

@@ -20,11 +20,10 @@ contains
 ! ========================================================================
 !> GFN1-xTB calculation
 module subroutine gfn1_calculation &
-      (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    use xtb_mctc_accuracy, only : wp
 
    use xtb_mctc_systools
-   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -55,7 +54,6 @@ module subroutine gfn1_calculation &
    type(TMolecule),    intent(inout) :: mol
    type(scc_options),    intent(in)    :: opt
    type(TEnvironment), intent(inout)    :: env
-   type(mctc_error), allocatable, intent(inout) :: err
    type(tb_pcem),        intent(inout) :: pcem
    type(TWavefunction),intent(inout) :: wfn
 
@@ -156,9 +154,12 @@ module subroutine gfn1_calculation &
    allocate( cn(mol%n), source = 0.0_wp )
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
    call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,err,chrgeq,cn,wfn%q)
+   call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
    deallocate(cn)
-   if (allocated(err)) return
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("EEQ quess failed", source)
+   end if
 
    call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
