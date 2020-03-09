@@ -20,6 +20,7 @@
 ! of other fragment
 !******************************************
 subroutine pocketscan(n,at,xyz,nout)
+   use xtb_mctc_symbols, only : toSymbol
    use xtb_splitparam
    use xtb_setparam
    use xtb_disp_ncoord, only : ncoord_d3
@@ -28,7 +29,7 @@ subroutine pocketscan(n,at,xyz,nout)
    real*8 xyz(3,n),cn0(n),cn(n),coord(3,n),f,dum,cthr
    real*8 cma1(3),cma2(3),trfm1(3,3),trfm2(3,3)
    real*8, allocatable :: xyzpath(:,:,:)
-   character*2 dummy,asym
+   character*2 dummy
    integer :: ich
 
    npath=mode_nscan
@@ -70,7 +71,7 @@ subroutine pocketscan(n,at,xyz,nout)
       write(ich,*)
       do i=1,n
          write(ich,'(1x,a2,1x,3f18.8)')&
-            &     asym(at(i)),xyzpath(1:3,i,k)*f
+            &     toSymbol(at(i)),xyzpath(1:3,i,k)*f
       enddo
    enddo
 
@@ -103,7 +104,7 @@ subroutine pocketscan(n,at,xyz,nout)
       write(ich,*)
       do i=1,n
          write(ich,'(1x,a2,1x,3f18.8)')&
-            &     asym(at(i)),xyzpath(1:3,i,k)*f
+            &     toSymbol(at(i)),xyzpath(1:3,i,k)*f
       enddo
    enddo
    call close_file(ich)
@@ -124,7 +125,6 @@ subroutine pocketrotation(n,at,xyz,cma,trfm,ifrag,npath,xyzpath)
    real*8 cma(3),trfm(3,3),rotm(3,3),dblepi,step,f
    real*8 xyzpath(3,n,3*npath)
    integer i,j,k
-   character*2 asym
 
    f=0.5291770d0
    dblepi =2.0d0*3.14159265358979D0

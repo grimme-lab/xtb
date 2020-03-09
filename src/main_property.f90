@@ -18,6 +18,7 @@
 module xtb_propertyoutput
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
+   use xtb_mctc_symbols, only : toSymbol
 
 contains
 
@@ -364,7 +365,7 @@ subroutine main_freq &
 !! ========================================================================
    integer, intent(in) :: iunit
 !  molecule data
-   type(TMolecule), intent(in) :: mol
+   type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(in) :: wfx
    type(freq_results),   intent(inout) :: res
 
@@ -420,8 +421,7 @@ subroutine main_freq &
    endif
 
    ! distort along imags if present
-   xyz0 = mol%xyz
-   call distort(mol%n,mol%at,xyz0,res%freq,res%hess)
+   call distort(mol,res%freq,res%hess)
 
    if(pr_modef .and. (mol%n.gt.3)) then
 
@@ -483,7 +483,6 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    real(wp),allocatable :: cm5(:)     ! CM5 partial charges
    real(wp),allocatable :: cm5a(:)     ! CM5 partial charges
    real(wp),allocatable :: dcm5a(:,:,:)! CM5 partial charges
-   character(len=2),external :: asym
    integer :: i
 
    allocate( cm5(n), q(n), qlmom(3,n), cm5a(n), dcm5a(3,n,n), source = 0.0_wp )
@@ -495,7 +494,7 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    write(iunit,'(2x,"Mulliken/CM5 charges        n(s)   n(p)   n(d)")')
    do i=1,n
       write(iunit,'(i6,a3,2f9.5,1x,4f7.3)') &
-         i,asym(at(i)),q(i),cm5(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
+         i,toSymbol(at(i)),q(i),cm5(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
    enddo
    if (ifile.ne.-1) then
       do i = 1, n
@@ -528,7 +527,6 @@ subroutine print_wiberg(iunit,n,at,wbo,thr)
 
    real(wp),allocatable :: wbr(:,:)
    integer, allocatable :: imem(:)
-   character(len=2),external :: asym
    integer  :: i,j,ibmax
    real(wp) :: xsum
 
@@ -551,10 +549,10 @@ subroutine print_wiberg(iunit,n,at,wbo,thr)
          xsum=xsum+wbr(i,j)
       enddo
       write(iunit,'(i6,a4,1x,f6.3,9(4x,a2,i4,f6.3))',advance='no') &
-         & i,asym(at(i)),xsum
+         & i,toSymbol(at(i)),xsum
       do j = 1, ibmax
          write(iunit,'(4x,a2,i4,f6.3)',advance='no') &
-         & asym(at(imem(j))),imem(j),wbr(i,j)
+         & toSymbol(at(imem(j))),imem(j),wbr(i,j)
       enddo
       write(iunit,'(a)')
    enddo
@@ -609,7 +607,6 @@ subroutine print_wbo_fragment(iunit,n,at,wbo,thr)
    integer, allocatable :: cn(:)
    integer, allocatable :: fragment(:)
    integer, allocatable :: list(:)
-   character(len=2),external :: asym
    character(len=:),allocatable :: string
    integer  :: i,j,k,nfrag
    real(wp) :: xsum
@@ -717,7 +714,6 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    real(wp),allocatable :: c6ref(:,:) ! unscaled reference C6
    real(wp),allocatable :: aw(:,:)    ! frequency dependent polarizibilities
    real(wp),allocatable :: c6ab(:,:)  ! actual C6 coeffients
-   character(len=2),external :: asym
 
    call d4dim(n,at,dispdim)
    allocate( covcn(n), aw(23,n), c6ab(n,n), gw(dispdim), &
@@ -737,7 +733,7 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    write(iunit,'(a)')
    do i=1,n
       write(iunit,'(i6,1x,i3,1x,a2)',advance='no') &
-      &     i,at(i),asym(at(i))
+      &     i,at(i),toSymbol(at(i))
       write(iunit,'(f10.3)',advance='no')covcn(i)
       write(iunit,'(f10.3)',advance='no')q(i)
       write(iunit,'(f10.3)',advance='no')c6ab(i,i)
@@ -809,7 +805,6 @@ subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C,aoat2,lao2)
    integer, intent(in)  :: lao2(nao)
 
    integer :: i
-   character(len=2),external :: asym
    real(wp),allocatable :: tmp(:)
    real(wp),allocatable :: q(:)
    real(wp),allocatable :: qlmom(:,:)
@@ -825,7 +820,7 @@ subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C,aoat2,lao2)
    write(iunit,'(1x,"Mulliken population n(s)   n(p)   n(d)")')
    do i=1,n
       write(iunit,'(i6,a3,1f8.4,1x,4f7.3)') &
-         &  i,asym(at(i)),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
+         &  i,toSymbol(at(i)),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
    enddo
 
 end subroutine print_spin_population
@@ -850,7 +845,6 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
    integer, intent(in)  :: lao2(nao)
 
    integer :: i
-   character(len=2),external :: asym
    real(wp),allocatable :: focc(:)    ! fractional occupation numbers
    real(wp),allocatable :: q(:)       ! FOD populations
    real(wp),allocatable :: qlmom(:,:) ! FOD populations per shell
@@ -879,7 +873,7 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
    write(iunit,'(" Loewdin FODpop     n(s)   n(p)   n(d)")')
    do i = 1, n
       write(iunit,'(i6,a3,f8.4,1x,4f7.3)') &
-         i,asym(at(i)),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
+         i,toSymbol(at(i)),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
    enddo
    if (ifile.ne.-1) then
       do i = 1, n
@@ -1168,7 +1162,6 @@ subroutine print_gbsa_info(iunit,gbsa)
    type(TSolvent), intent(in) :: gbsa
 
    integer :: i
-   character(len=2),external :: asym
 
    write(iunit,'(a)')
    write(iunit,'(1x,"*",1x,a)') &
@@ -1177,7 +1170,7 @@ subroutine print_gbsa_info(iunit,gbsa)
    write(iunit,'(2x,2a4,3x,3a)') "#","Z","Born rad/Å","   SASA/Å²","    H-bond"
    do i = 1, gbsa%nat
       write(iunit,'(i6,1x,i3,1x,a2,3f10.3)') &
-         &  i,gbsa%at(i),asym(gbsa%at(i)), &
+         &  i,gbsa%at(i),toSymbol(gbsa%at(i)), &
          &  gbsa%brad(i)*autoaa,gbsa%sasa(i)*fourpi/gbsa%gamsasa(i)*autoaa**2, &
          &  gbsa%hbw(i)
    enddo

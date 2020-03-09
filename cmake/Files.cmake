@@ -170,7 +170,6 @@ set(XTB_SOURCES
 
   # Misc/unsorted
   "${XTB_ROOT}/src/elem.f90"
-  "${XTB_ROOT}/src/asym.f90"
   "${XTB_ROOT}/src/pqn.f90"
   "${XTB_ROOT}/src/lin_mod.f90"
   "${XTB_ROOT}/src/lin.f90"
@@ -194,7 +193,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/stm.f"
   "${XTB_ROOT}/src/axis_trafo.f90"
   "${XTB_ROOT}/src/coffee.f90"
-  "${XTB_ROOT}/src/write_geometry.f90"
   "${XTB_ROOT}/src/tmgrad.f90"
   "${XTB_ROOT}/src/thermo.f90"
   "${XTB_ROOT}/src/constr.f90"

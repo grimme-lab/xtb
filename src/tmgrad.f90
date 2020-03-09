@@ -17,6 +17,7 @@
 
 subroutine tmgrad(nat,iat,xyz,g,edum)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_symbols, only : toLcSymbol
    use xtb_setparam, only : get_namespace
    implicit none
    integer  :: nat
@@ -29,7 +30,6 @@ subroutine tmgrad(nat,iat,xyz,g,edum)
    character(len=:),allocatable :: efile,etemp,gfile,gtemp
    character(len=80) :: a
    character(len=80) :: a1
-   character(len=2),external :: esym
 
    ! write file energy
    a1='$energy'
@@ -79,7 +79,7 @@ subroutine tmgrad(nat,iat,xyz,g,edum)
       &           ''|dE/dxyz| ='',F10.6)')j+1,edum,gsum     
       do i=1,nat
          write(jgr,'(3(F20.14,2x),4x,a2)')xyz(1,i),xyz(2,i),xyz(3,i), &
-         &                                esym(iat(i))
+         &                                toLcSymbol(iat(i))
       enddo
       do i=1,nat
          write(jgr,'(3D22.13)')g(1,i),g(2,i),g(3,i)

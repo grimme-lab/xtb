@@ -112,7 +112,6 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    use xtb_hessian, only : trproj,rdhess
    use xtb_readin
    use xtb_lsrmsd
-   use xtb_writegeometry
 
    implicit none
 
@@ -942,51 +941,6 @@ subroutine prdispl(nvar,displ)
       (er(i),merk(i),i=1,min(3,nvar))
 
 end subroutine prdispl
-
-subroutine wrlog(ilog,n,xyz,iat,e,g,first)
-   use xtb_mctc_convert
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: iat(n)
-   integer, intent(in)  :: ilog
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: e
-   real(wp),intent(in)  :: g
-   logical, intent(in)  :: first
-   character(len=2),external :: asym
-   real(wp) :: f
-   integer  :: i,j
-
-   f=autoaa
-   write(ilog,'(i5)') n
-   write(ilog,'('' SCF done '',2F16.8,10x)')e,g
-   do i=1,n
-   write(ilog,'(a2,5x,3F18.12)')asym(iat(i)), &
-     &xyz(1,i)*f,xyz(2,i)*f,xyz(3,i)*f
-   enddo
-
-end subroutine wrlog
-
-subroutine wrlog2(io,n,xyz,iat,e)
-   use xtb_mctc_convert
-   implicit none
-   integer, intent(in)  :: io
-   integer, intent(in)  :: n
-   integer, intent(in)  :: iat(n)
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: e
-   character(len=2),external :: asym
-   integer  :: i,j
-   real(wp) :: f
-
-   f=autoaa
-   write(io,'(i5)') n
-   write(io,'('' SCF done '',2F16.8,10x)')e
-   do i=1,n
-      write(io,'(a2,5x,3F18.12)')asym(iat(i)),xyz(1,i)*f,xyz(2,i)*f,xyz(3,i)*f
-   enddo
-
-end subroutine wrlog2
 
 subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
    use xtb_type_setvar

@@ -31,6 +31,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
    use iso_c_binding, only : c_null_char
 
    use xtb_mctc_convert, only : autokcal, aatoau, autorcm, amutoau
+   use xtb_mctc_symbols, only : toSymbol
 
    use xtb_type_environment
    use xtb_type_molecule
@@ -68,7 +69,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
    !integer :: map(1000),stplist(100),stptyp(100),na(n),nb(n),nc(n)
    integer,allocatable :: map(:),stplist(:),stptyp(:)
    integer,allocatable :: na(:),nb(:),nc(:)
-   character(len=2) :: asym,adum
+   character(len=2) :: adum
    character(len=30) :: ctmp,fname
    logical :: ex,fail,vecupdate,scfonly,ldum,intermol
    integer :: ich,val(8)
@@ -167,7 +168,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
          write(ich,'(F16.8,1x,i9)')ee,tag
          do j=1,mol%n
             write(ich,'(1x,a2,1x,3f18.8)') &
-            &          asym(mol%at(j)),mol%xyz(1:3,j)/aatoau
+            &          toSymbol(mol%at(j)),mol%xyz(1:3,j)/aatoau
          enddo
          call close_file(ich)
       enddo
@@ -393,7 +394,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
          write(143,*)step2,627.51*e(k)
          do i=1,mol%n
             write(ich,'(1x,a2,1x,3f18.8)') &
-            &      asym(mol%at(i)),xyza(1:3,i,k)/aatoau
+            &      toSymbol(mol%at(i)),xyza(1:3,i,k)/aatoau
          enddo
       endif
       step2=step2+step
@@ -465,7 +466,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
                write(ich,'(F16.8,1x,i9)')ee,tag
                do j=1,mol%n
                   write(ich,'(1x,a2,1x,3f18.8)') &
-                  &          asym(mol%at(j)),mol%xyz(1:3,j)/aatoau
+                  &          toSymbol(mol%at(j)),mol%xyz(1:3,j)/aatoau
                enddo
                call close_file(ich)
             endif
@@ -501,7 +502,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
          write(ich,'(F16.8,1x,i9)')ee,tag
          do j=1,mol%n
             write(ich,'(1x,a2,1x,3f18.8)') &
-            &         asym(mol%at(j)),mol%xyz(1:3,j)/aatoau
+            &         toSymbol(mol%at(j)),mol%xyz(1:3,j)/aatoau
          enddo
          call close_file(ich)
       enddo

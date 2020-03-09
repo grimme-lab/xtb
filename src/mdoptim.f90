@@ -17,19 +17,25 @@
 
 module xtb_mdoptim
    use xtb_mctc_accuracy, only : wp
-contains
-
-subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
+   use xtb_mctc_filetypes, only : fileType
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
    use xtb_type_data
-
+   use xtb_io_writer, only : writeMolecule
    use xtb_setparam
    use xtb_splitparam
-
    implicit none
+   private
+
+   public :: mdopt
+
+
+contains
+
+
+subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
@@ -62,7 +68,7 @@ subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    atmp='xtb.trj'
    call cqpath_read_pathfile_parameter(atmp,iz1,iz2,nall)
-   if(iz2.ne.mol%n) stop 'read error in mdopt'
+   if(iz2.ne.mol%n) call env%terminate('read error in mdopt')
    allocate(xyznew(3,mol%n,nall),eread(nall))
    call cqpath_read_pathfile(atmp,iz1,iz2,nall,xyznew,mol%at,eread)
    write(*,*)'total number of points on trj:',nall
@@ -83,42 +89,16 @@ subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
             &       egap,etemp,maxscciter,optset%maxoptcycle,epot,grd,sigma, &
             &       optset%optlev,.false.,.true.,fail)
 
-
          if(.not.fail)then
-            call wrxyz(ich,mol%n,mol%at,mol%xyz,epot,0.0d0)    ! write ensemble file
+            call writeMolecule(mol, ich, fileType%xyz, energy=epot)
          endif
       endif
 
    enddo
 
-!     include the input (may be lower than those on trj)
-!     call ancopt(n,at,xyz,q,qsh,nshell,z,cn,nel,nopen,nbf,nao,P,wb, &
-!    &        kspd,gscal,kcn,xbrad,xbdamp,alphaj,d3a1,d3a2,d3s8, &
-!    &        d3atm,egap,etemp,maxscciter,maxoptcycle,epot,grd,ol,   &
-!    &        .false.,fail)
-!     if(.not.fail)then
-!        call wrxyz(ich,n,at,xyz,epot,0.0d0)    ! write ensemble file
-!     endif
-
    call close_file(ich)
 
 end subroutine mdopt
-
-subroutine wrxyz(iu,n,at,xyz,e,e2)
-   implicit none
-   integer n,at(n),iu
-   real*8 xyz(3,n),e,e2
-   integer i,j
-   character*2 asym
-   real*8, parameter ::autoang=0.52917726d0
-
-   write(iu,*) n
-   write(iu,'('' SCF done '',2F16.8)') e,e2
-   do j=1,n
-      write(iu,'(a2,3F24.10)')asym(at(j)),xyz(1:3,j)*autoang
-   enddo
-
-end subroutine wrxyz
 
 
 end module xtb_mdoptim

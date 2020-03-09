@@ -35,7 +35,6 @@
       real(wp)                          :: grida(4,nangsa)
       include 'grida86.inc'
 !     include 'grida230.inc'
-      character(len=2), external        :: asym
       integer                           :: i,j,k,np,ip
 
       ! D3 radii in Bohr
@@ -101,16 +100,6 @@
      & int(atom_weight(1,i)), atom_weight(2,i)
       enddo
       close(83)
-
-! surface debug output
-!     write(13,'(''$coord'')')
-!     do i=1,n
-!        write(13,'(3F14.6,5x,a2)') xyz(1:3,i),asym(at(i))
-!     enddo
-!     do i=1,np
-!        write(13,'(3F14.6,5x,''XX'')') s(1:3,i)
-!     enddo
-!     write(13,'(''$end'')')
 
       deallocate(s)
       end

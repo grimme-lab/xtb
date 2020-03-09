@@ -17,29 +17,26 @@
 
 module xtb_screening
    use xtb_mctc_accuracy, only : wp
-
-   use xtb_dynamic, only : wrc,boltz,xyzsort2
-
-   implicit none
-
-contains
-
-subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
-
    use xtb_mctc_convert, only : autokcal, aatoau
-
+   use xtb_mctc_filetypes, only : fileType
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
    use xtb_type_data
-
+   use xtb_io_writer, only : writeMolecule
+   use xtb_axis, only : axis
+   use xtb_dynamic, only : wrc,boltz,xyzsort2
    use xtb_setparam
 
-   use xtb_axis, only : axis
-   use xtb_optimizer, only : wrlog2
-
    implicit none
+   private
+
+   public :: screen
+
+contains
+
+subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
 
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
@@ -68,7 +65,6 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
    integer :: nall,ntemp,ncnf1,icyc,maxoptiter
    character(len=80) :: atmp,line
-   character(len=2) :: asym
    logical :: fail,equalrot2,ohbonded,include_enan,enan,ex
    logical :: checkrmsd
    integer :: ich,ilog
@@ -230,7 +226,7 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
 
    allocate(er(ncnf+1),pp(ncnf+1))
    call open_file(ilog,'xtbscreen.log','w')
-   call wrlog2(ilog,mol0%n,mol0%xyz,mol0%at,ecnf(0))
+   call writeMolecule(mol0, ilog, fileType%xyz, energy=ecnf(0))
    j=0
    emin=1.0d+42
    do i=0,ncnf
@@ -238,8 +234,9 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
       !call getname1(i,atmp)
       write(atmp,'(''scoord.'',i0)')i
       if(i.gt.0) then
+         mol%xyz(:, :) = xyznew(:, :, i)
          call wrc(atmp,mol%n,xyznew(1,1,i),mol%at)
-         call wrlog2(ilog,mol%n,xyznew(1,1,i),mol%at,ecnf(i))
+         call writeMolecule(mol, ilog, fileType%xyz, energy=ecnf(i))
       endif
       write(*,'(i4,'' dE (kcal):'',F10.2,F14.6)') i, er(i+1), ecnf(i)
    enddo

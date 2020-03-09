@@ -16,12 +16,12 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine geosum(n,ic,xyzin)
+   use xtb_mctc_symbols, only : toSymbol
    use xtb_aoparam
    use xtb_splitparam
    implicit none
    integer n,ic(n)
    real*8 xyzin(3,n)
-   character*2 asym
 
    real*8 ,allocatable :: x(:),y(:),z(:),rmin(:),rmax(:),dev(:)
    real*8 ,allocatable :: rlist(:,:),av(:)
@@ -80,7 +80,7 @@ subroutine geosum(n,ic,xyzin)
       do a=1,nbond(i)
          nt=nt+1
          write(lab21,'(a2,i3,''-'',a2,i3)')&
-            &      asym(ic(i)),i,asym(ic(bondlist(i,a))),bondlist(i,a)
+            &      toSymbol(ic(i)),i,toSymbol(ic(bondlist(i,a))),bondlist(i,a)
          call rmblank(lab21,lab4)
          write(angsum1(nt),'(a,''='',f6.4)')&
             &      trim(lab4),rlist(i,a)
@@ -109,7 +109,7 @@ subroutine geosum(n,ic,xyzin)
          if(nty(lin(i,j)).gt.0)then
             write(*,'(2A3,'' Rav='',f6.4,'' sigma='',f6.4,&
                &      ''  Rmin='',f6.4,''  Rmax='',f6.4,i6)')&
-               &      asym(i),asym(j),&
+               &      toSymbol(i),toSymbol(j),&
                &      av(lin(i,j))/nty(lin(i,j)),&
                &      sqrt(dev(lin(i,j))/float(nty(lin(i,j)))),&
                &      rmin(lin(i,j)),rmax(lin(i,j)),int(0.5*nty(lin(i,j))+0.0001)
@@ -133,7 +133,7 @@ subroutine geosum(n,ic,xyzin)
                ib=bondlist(i,b)
                nt=nt+1
                write(lab,'(a2,i5,''-'',a2,i5,''-'',a2,i5)')&
-                  &asym(ic(ia)),ia,asym(ic(i)),i,asym(ic(ib)),ib
+                  &toSymbol(ic(ia)),ia,toSymbol(ic(i)),i,toSymbol(ic(ib)),ib
                call rmblank(lab,lab2)
                xyz(1,1)=x(ia)
                xyz(2,1)=y(ia)
@@ -177,8 +177,8 @@ subroutine geosum(n,ic,xyzin)
                      nt=nt+1
                      write(lab3,'(a2,i5,''-'',a2,i5,''-'',&
                         &                               a2,i5,''-'',a2,i5)')&
-                        &                  asym(ic(ib)),ib,asym(ic(i)),i,&
-                        &                  asym(ic(j)),j,  asym(ic(jb)),jb
+                        &                  toSymbol(ic(ib)),ib,toSymbol(ic(i)),i,&
+                        &                  toSymbol(ic(j)),j,  toSymbol(ic(jb)),jb
                      call rmblank(lab3,lab4)
                      xyz4(1,1)=x(ib)
                      xyz4(2,1)=y(ib)

@@ -156,7 +156,6 @@ subroutine peeq &
    real(wp) :: eatoms,eat
    real(wp) :: dum
 
-   character(len=2), external :: asym
    logical :: ex
    logical :: minpr
    logical :: pr

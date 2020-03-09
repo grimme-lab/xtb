@@ -211,13 +211,13 @@ end subroutine prelemdata_real_array
 subroutine prelemparam_inc(globpar)
    !  use iso_fortran_env, only : id => output_unit
    use xtb_mctc_timings, only : prtimestring
+   use xtb_mctc_symbols, only : toSymbol
    use xtb_aoparam
    implicit none
    real(wp),intent(in) :: globpar(25)
    integer :: id
    integer :: i,j
    integer,parameter :: max_elem = 94
-   character(len=2),external :: asym
 
    call open_file(id,'param','w')
    write(id,'("!!",1x,72("="))') ! print a warning, to keep folk from editing
@@ -242,7 +242,7 @@ subroutine prelemparam_inc(globpar)
 
    do i = 1, max_elem
       write(id,'("data NAME_atomparameter(",i0,") / tb_parameter( & !",1x,a)') &
-         &  i,asym(i)
+         &  i,toSymbol(i)
       call prelemdata_inc(id,'en',en(i))
       call prelemdata_inc(id,'mc',mc(i))
       call prelemdata_inc(id,'gam',gam(i))
@@ -338,6 +338,7 @@ end subroutine prelemdata_inc_real_array
 subroutine writecosmofile(np,pa,espe,fname,nat,at,xyz,atom_weight)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_symbols, only : toLcSymbol, toSymbol
    implicit none
    integer, intent(in)             :: np
    real(wp), intent(in)            :: pa(3,np)
@@ -349,14 +350,13 @@ subroutine writecosmofile(np,pa,espe,fname,nat,at,xyz,atom_weight)
    real(wp),intent(in)             :: atom_weight(2,np)
    logical                         :: exist
    integer                         :: id, i
-   character(len=2),external       :: esym, asym
 
    call open_file(id,fname,'w')
    write(id,'(a)') '$coord_car'
    write(id,'(a,/,a)') '!BIOSYM archive 3','coordinates from COSMO calculation'
    do i=1,nat
       write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
-         xyz(:,i)*autoaa,esym(at(i)),asym(at(i))
+         xyz(:,i)*autoaa,toLcSymbol(at(i)),toSymbol(at(i))
    enddo
    write(id,'(a)') 'end'
    write(id,'(a)') '$segment_information'

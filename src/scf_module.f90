@@ -162,7 +162,6 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    data    lladr  /1,3,6,10/
    data    lladr2 /1,3,5,7/
 
-   character(len=2),external :: asym
    character(len=128) :: atmp,ftmp
    logical :: ex,minpr,pr,fulldiag,xbond,lastdiag,iniqsh,fail,early3d
 

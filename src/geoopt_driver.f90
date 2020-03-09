@@ -29,7 +29,6 @@ subroutine geometry_optimization &
    use xtb_optimizer
    use xtb_relaxation_engine
    use xtb_single
-   use xtb_writegeometry
 
    use xtb_setparam
 
@@ -114,7 +113,7 @@ subroutine geometry_optimization &
       write(env%unit,'(''================'')')
       write(env%unit,*) 'final structure:'
       write(env%unit,'(''================'')')
-      call write_coord(env%unit,mol%n,mol%at,mol%xyz)
+      call writeMolecule(mol, env%unit)
    endif
    if (pr.and.pr_geosum) call geosum(mol%n,mol%at,mol%xyz)
 

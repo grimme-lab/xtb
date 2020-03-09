@@ -20,15 +20,16 @@
 !  SG 12/18
 !! ========================================================================
 subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
-   use iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
-
+   use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_convert
 
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
+
+   use xtb_io_writer, only : writeMolecule
 
    use xtb_setparam
    use xtb_fixparam
@@ -78,7 +79,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    if (.not.allocated(pathset%fname)) then
       call raise('E','No product structure given!',1)
    endif
-   write(istdout,*) 'reading reference structures from '//pathset%fname//' ...'
+   write(env%unit,*) 'reading reference structures from '//pathset%fname//' ...'
    call rdcoord(pathset%fname,mol%n,xyz1,at1)
    if (any(at1.ne.mol%at)) then
       call raise('E','Atom type missmatch between reactant and product!',1)
@@ -95,25 +96,25 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    metaset%width=pathset%alp   ! copy width to metadyn common block
    metaset%nstruc = 2
 
-   write(istdout,'("initial k push/pull              :",2f9.3)') &
+   write(env%unit,'("initial k push/pull              :",2f9.3)') &
       &        pathset%kpush,pathset%kpull
-   write(istdout,'("Gaussian width (1/Bohr)          :",f9.3)')metaset%width
-   write(istdout,'("# random initial distor incr +/- :",f9.3)')distort
-   write(istdout,'("# optlevel                       :",i4)')optset%optlev
-   write(istdout,'("# of runs                        :",i4)')pathset%nrun
-   write(istdout,'("approx # structures opt on path  :",i4)')pathset%nopt
-   write(istdout,'("# of ''an''-optimization steps     :",i4)')pathset%anopt
+   write(env%unit,'("Gaussian width (1/Bohr)          :",f9.3)')metaset%width
+   write(env%unit,'("# random initial distor incr +/- :",f9.3)')distort
+   write(env%unit,'("# optlevel                       :",i4)')optset%optlev
+   write(env%unit,'("# of runs                        :",i4)')pathset%nrun
+   write(env%unit,'("approx # structures opt on path  :",i4)')pathset%nopt
+   write(env%unit,'("# of ''an''-optimization steps     :",i4)')pathset%anopt
    factor = 1.0
    xyz0 = mol%xyz
    metaset%xyz(:,:,1) = xyz0
    metaset%xyz(:,:,2) = xyz1
 
    metaset%width =1.0 ! start value
-   write(istdout,*)
-   write(istdout,*) ' k_push/k_pull internally multiplied by Natoms!'
-   write(istdout,*) ' user info on effect of push/pull parameters'
-   write(istdout,*) ' ang. ed-prod G should be small, Govlp large'
-   write(istdout,*)  &
+   write(env%unit,*)
+   write(env%unit,*) ' k_push/k_pull internally multiplied by Natoms!'
+   write(env%unit,*) ' user info on effect of push/pull parameters'
+   write(env%unit,*) ' ang. ed-prod G should be small, Govlp large'
+   write(env%unit,*)  &
       &         '  width   k_push  k_pull  |Gbias| ang. ed-prod G  Govlp'
    do i=1,9
       ! forward
@@ -139,7 +140,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
       enddo
       ang =acos(-dum/(sqrt(dum0*dum1)))*360./3.14159
       dum1=0.5*(sum(abs(g0))+sum(abs(g1)))
-      write(istdout,'(3f8.3,f12.6,f8.1,f12.5)')metaset%width, &
+      write(env%unit,'(3f8.3,f12.6,f8.1,f12.5)')metaset%width, &
          &   metaset%factor(2)/fnat, &
          &   metaset%factor(1)/fnat, &
          &   dum1,ang,-dum
@@ -148,12 +149,12 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    enddo
 
    call rmsd(mol%n,xyz0,xyz1,0,U,x,y,rms,.false.,g0)
-   write(istdout,'("input reactant/product RMSD (Bohr)  :",f9.3,/)')rms
+   write(env%unit,'("input reactant/product RMSD (Bohr)  :",f9.3,/)')rms
    if(rms.gt.4)  &
-      & write(istdout,*) 'WARNING: for large reactant/product RMSD,', &
+      & write(env%unit,*) 'WARNING: for large reactant/product RMSD,', &
    &            ' small $path/alp values (width) should be tested.'
    if(optset%optlev.lt.1) &
-      &  write(istdout,*) 'WARNING: $opt/level=tight or vtight recommended!'
+      &  write(env%unit,*) 'WARNING: $opt/level=tight or vtight recommended!'
 
 !! ------------------------------------------------------------------------
 !  loop over runs with increasing Vbias
@@ -180,9 +181,9 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 !! ------------------------------------------------------------------------
       ! make path
 !! ------------------------------------------------------------------------
-      write(istdout,*)
-      write(istdout,*)'optimizing inital path with Vbias ...'
-      write(istdout,'("actual k push/pull :",2f8.3)')  &
+      write(env%unit,*)
+      write(env%unit,*)'optimizing inital path with Vbias ...'
+      write(env%unit,'("actual k push/pull :",2f8.3)')  &
          &          metaset%factor(1:2)/fnat
       maxoptiter=0
 
@@ -227,8 +228,8 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
       metaset%nstruc = 0   ! no constraint
       olev=p_olev_crude    ! just steps
       maxoptiter=pathset%anopt! max steps for opt
-      write(istdout,*) ' # of points on xtbopt.log: ',npath(irun)
-      write(istdout,*) ' doing short optimizations without Vbias ... '
+      write(env%unit,*) ' # of points on xtbopt.log: ',npath(irun)
+      write(env%unit,*) ' doing short optimizations without Vbias ... '
       k=0
       do i=1,npath(irun)
          if(mod(i,skip).ne.0) cycle
@@ -239,7 +240,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
             &        egap,et,maxiter,maxoptiter,enew(k),grd,sigma,olev, &
             &        .false.,.true.,fail)
          if(k.gt.1.and.mod(k,10).eq.0)  &
-            &      write(istdout,'(i5,"  unconstrained dE :",f14.6)')k, &
+            &      write(env%unit,'(i5,"  unconstrained dE :",f14.6)')k, &
             &      enew(k)-enew(1)
          xyznew(:,:,k)=mol%xyz
       enddo
@@ -265,13 +266,14 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
          endif
          dum=autokcal*(enew(i)-enew(1))
          if(dum.gt.barr) barr=dum
-         call wrlog2(ilog,mol%n,xyznew(1,1,i),mol%at,dum)
+         mol%xyz(:, :) = xyznew(:, :, i)
+         call writeMolecule(mol, ilog, fileType%xyz, energy=dum)
          dat(1,i,irun) = rms
          dat(2,i,irun) = dum
          rms=rms+drms ! the plot coordinate in dat file is the sum of dRMSD with previous structure
       enddo
       close(ilog)
-      write(istdout,*) 'final path written to ',trim(btmp)
+      write(env%unit,*) 'final path written to ',trim(btmp)
       mem(1,irun)=barr
       mem(2,irun)=autokcal*(enew(npath(irun))-enew(1))
       call rmsd(mol%n,metaset%xyz(:,:,1),xyznew(:,:,1),0,U,x,y,rms,.false.,g0)
@@ -291,13 +293,13 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    ! final output
 !! ------------------------------------------------------------------------
    open(unit=idat,file='xtbpath.dat') ! for comparison all pot curves
-   write(istdout,*)
-   write(istdout,*) 'energies in kcal/mol, RMSD in Bohr'
+   write(env%unit,*)
+   write(env%unit,*) 'energies in kcal/mol, RMSD in Bohr'
    do irun=1,pathset%nrun
       if(mem(3,irun).lt.0.5.or.abs(mem(1,irun)).lt.1) &
-         & write(istdout,*) 'WARNING: may be no reaction so increase |kpush/pull|' &
+         & write(env%unit,*) 'WARNING: may be no reaction so increase |kpush/pull|' &
          &           ,' or decrease kpath_alp'
-      write(istdout,'("run",i2,"  barrier:", &
+      write(env%unit,'("run",i2,"  barrier:", &
          &       f7.2,"  dE:",f7.2, &
          &   "  ed-prod RMSD:",f6.2, &
          &   "  ed-startpath RMSD:",f6.2, &
@@ -310,7 +312,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
       write(idat,*)
    enddo
    close(idat)
-   write(istdout,*)  &
+   write(env%unit,*)  &
       'check potential xtbpath.dat (cummu. dRMSD in Bohr vs. E in kcal)'
 
    call execute_command_line('rm -rf xtbopt.log xtbopt.coord') ! just crab from last short opt

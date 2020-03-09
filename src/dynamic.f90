@@ -101,9 +101,9 @@ end subroutine xyzsort2
 
 subroutine wrc(fname,n,xyz,at)
    use xtb_setparam
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    character*(*) fname
-   character*2 asym
    integer n,at(n),j
    real(wp) xyz(3,n)
    integer :: ich ! file handle
@@ -111,7 +111,7 @@ subroutine wrc(fname,n,xyz,at)
    call open_file(ich,fname,'w')
    write(ich,'(''$coord'')')
    do j=1,n
-      write(ich,'(3F24.10,5x,a2)') xyz(1:3,j),asym(at(j))
+      write(ich,'(3F24.10,5x,a2)') xyz(1:3,j),toSymbol(at(j))
    enddo
    write(ich,'(''$end'')')
    write(ich,'(''$set'')')
@@ -194,7 +194,6 @@ subroutine md(env,mol,wfx,calc, &
    real(wp),allocatable :: intgeo(:,:),intgeo0(:,:)
    real(wp),allocatable :: intgeoav(:,:),tmpg(:,:)
    integer, allocatable :: na(:),nb(:),nc(:)
-   character(len=2),external :: asym
    character(len=80) :: atmp
    character(len=:),allocatable :: fname
    integer :: ich,trj

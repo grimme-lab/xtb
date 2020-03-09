@@ -209,64 +209,6 @@ subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, cf, amatdr, amatdL, atrace)
    !$omp end parallel do
 end subroutine get_coulomb_derivs_3d
 
-subroutine print_chrgeq(iunit,n,at,xyz,q,cn,dipm)
-   use xtb_mctc_constants
-   implicit none
-   integer, intent(in) :: iunit
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: q(n)
-   real(wp),intent(in) :: cn(n)
-   real(wp),intent(in),optional :: dipm(3,n)
-   character(len=2),external :: asym
-   real(wp) :: mmom(3),dmom(3)
-   integer  :: i
-!  √(2/π)
-   real(wp),parameter :: sqrt2pi = sqrt(2.0_wp/pi)
-   write(iunit,'(a)')
-   write(iunit,'(7x,"   #   Z   ")',advance='no')
-   write(iunit,'("         q")',advance='no')
-   if (present(dipm)) &
-   write(iunit,'("      mux      muy      muz")',advance='no')
-   write(iunit,'("        CN")',advance='no')
-   write(iunit,'("        EN")',advance='no')
-   write(iunit,'("       Aii")',advance='no')
-   write(iunit,'(a)')
-   do i=1,n
-      write(iunit,'(i11,1x,i3,1x,a2)',advance='no') &
-      &     i,at(i),asym(at(i))
-      write(iunit,'(f10.3)',advance='no')q(i)
-      if (present(dipm)) &
-      write(iunit,'(3f9.3)',advance='no')dipm(:,i)
-      write(iunit,'(f10.3)',advance='no')cn(i)
-      write(iunit,'(f10.3)',advance='no')xi(at(i)) - cnfak(at(i))*sqrt(cn(i))
-      write(iunit,'(f10.3)',advance='no')gamm(at(i))+sqrt2pi/alp(at(i))
-      write(iunit,'(a)')
-   enddo
-   mmom = 0.0_wp
-   do i = 1, n
-      mmom = mmom + q(i)*xyz(:,i)
-   enddo
-   if (present(dipm)) then
-      dmom = 0.0_wp
-      do i = 1, n
-         dmom = dmom + dipm(:,i)
-      enddo
-   endif
-   write(iunit,'(a)')
-   write(iunit,'(7x,a)')'dipole moment:'
-   write(iunit,'(18x,a)')'x           y           z       tot (au)'
-   if (.not.present(dipm)) then
-      write(iunit,'(7x,4f12.3)')  mmom,norm2(mmom)
-   else
-      write(iunit,'(1x,"q only",3f12.3)')  mmom
-      write(iunit,'(3x,  "full",4f12.3)')  mmom+dmom,norm2(mmom+dmom)
-   endif
-   write(iunit,'(a)')
-
-end subroutine print_chrgeq
-
 !! ========================================================================
 !  Purpose:
 !! ------------------------------------------------------------------------

@@ -131,8 +131,6 @@ subroutine print_geosum(iunit,n,at,xyz)
    integer  :: iat,jat
    integer  :: imax,imin
 
-   character(len=2),external :: asym
-
    integer  :: maxdist,maxbend,maxtrsn,maxelem
    integer  :: ndist,nbend,ntrsn,nelem
    integer, allocatable :: bond(:,:)
@@ -207,6 +205,7 @@ end subroutine print_geosum
 subroutine print_elem_dist(iunit,n,nbond,bond,dist,maxd,mind)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -217,7 +216,6 @@ subroutine print_elem_dist(iunit,n,nbond,bond,dist,maxd,mind)
    real(wp),intent(in)  :: mind(n,n)
 
    integer :: iat,jat
-   character(len=2),external :: asym
 
    write(iunit,'(1x,"*",1x,i0,1x,a)') nbond,"distinct bonds (by element types)"
    write(iunit,'(a)')
@@ -226,7 +224,7 @@ subroutine print_elem_dist(iunit,n,nbond,bond,dist,maxd,mind)
       do jat = 1, iat
          if (bond(jat,iat).lt.1) cycle
          write(iunit,'(2(1x,i3,1x,a2),i11,3f14.7)') &
-            jat,asym(jat),iat,asym(iat),bond(jat,iat),dist(jat,iat)*autoaa, &
+            jat,toSymbol(jat),iat,toSymbol(iat),bond(jat,iat),dist(jat,iat)*autoaa, &
             maxd(jat,iat)*autoaa,mind(jat,iat)*autoaa
       enddo
    enddo
@@ -237,6 +235,7 @@ end subroutine print_elem_dist
 subroutine print_distances(iunit,n,at,ndist,dist,id)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -248,8 +247,6 @@ subroutine print_distances(iunit,n,at,ndist,dist,id)
    integer :: i,j,m
    integer :: imax,imin
 
-   character(len=2),external :: asym
-
    write(iunit,'(1x,"*",1x,i0,1x,a)') ndist,"selected distances"
    write(iunit,'(a)')
    write(iunit,'(2(5x,"#",3x,"Z",3x),26x,8x,"value/Å")')
@@ -259,8 +256,8 @@ subroutine print_distances(iunit,n,at,ndist,dist,id)
       i = id(1,m)
       j = id(2,m)
       write(iunit,'(2(i6,1x,i3,1x,a2),26x,1x,f14.7)',advance='no') &
-         i,at(i),asym(at(i)), &
-         j,at(j),asym(at(j)), &
+         i,at(i),toSymbol(at(i)), &
+         j,at(j),toSymbol(at(j)), &
          dist(m)*autoaa
       if (imax.eq.m) then
          write(iunit,'(1x,"(max)")')
@@ -277,6 +274,7 @@ end subroutine print_distances
 subroutine print_angles(iunit,n,at,nbend,bend,ib)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -288,8 +286,6 @@ subroutine print_angles(iunit,n,at,nbend,bend,ib)
    integer :: i,j,k,m
    integer :: imax,imin
 
-   character(len=2),external :: asym
-
    write(iunit,'(1x,"*",1x,i0,1x,a)') nbend,"selected angles"
    write(iunit,'(a)')
    write(iunit,'(3(5x,"#",3x,"Z",3x),13x,8x,"value/°")')
@@ -298,9 +294,9 @@ subroutine print_angles(iunit,n,at,nbend,bend,ib)
       j = ib(2,m)
       k = ib(3,m)
       write(iunit,'(3(i6,1x,i3,1x,a2),13x,1x,f14.7)') &
-         i,at(i),asym(at(i)), &
-         j,at(j),asym(at(j)), &
-         k,at(k),asym(at(k)), &
+         i,at(i),toSymbol(at(i)), &
+         j,at(j),toSymbol(at(j)), &
+         k,at(k),toSymbol(at(k)), &
          bend(m)*180.0_wp/pi
    enddo
    write(iunit,'(a)')
@@ -310,6 +306,7 @@ end subroutine print_angles
 subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -321,8 +318,6 @@ subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
    integer :: i,j,k,l,m
    integer :: imax,imin
 
-   character(len=2),external :: asym
-
    write(iunit,'(1x,"*",1x,i0,1x,a)') ntrsn, "selected dihedral angles"
    write(iunit,'(a)')
    write(iunit,'(4(5x,"#",3x,"Z",3x),8x,"value/°")')
@@ -332,10 +327,10 @@ subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
       k = it(3,m)
       l = it(4,m)
       write(iunit,'(4(i6,1x,i3,1x,a2),1x,f14.7)') &
-         i,at(i),asym(at(i)), &
-         j,at(j),asym(at(j)), &
-         k,at(k),asym(at(k)), &
-         l,at(l),asym(at(l)), &
+         i,at(i),toSymbol(at(i)), &
+         j,at(j),toSymbol(at(j)), &
+         k,at(k),toSymbol(at(k)), &
+         l,at(l),toSymbol(at(l)), &
          trsn(m)*180.0_wp/pi
    enddo
    write(iunit,'(a)')

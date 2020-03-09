@@ -116,7 +116,6 @@ subroutine bzmat(n,at,xyzin,bmat)
    integer, allocatable :: na(:),nb(:),nc(:)
    integer :: i,k,n3,ia,ii,ic,n36,j,kl
    integer lend,l,ij
-   character(len=2),external :: asym
 
    allocate(xyz(3,n),geo(3,n),br(3*n-6),bl(3*n-6))
    allocate(na(n),nb(n),nc(n))
@@ -129,10 +128,6 @@ subroutine bzmat(n,at,xyzin,bmat)
    ! eq. zmat
    geo = 0
    call xyzint(xyz,n,na,nb,nc,one,geo)
-   !     do i=1,n
-   !        write(*,'(2x,a2,f14.8,f14.8,f14.8,3i5)')
-   !    .   asym(at(i)),geo(1,i),180.*geo(2:3,i)/3.14159,na(i),nb(i),nc(i)
-   !     enddo
 
    ! make bmat
    ij=0

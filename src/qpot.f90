@@ -93,7 +93,6 @@ subroutine rdfix(nat,n,xyz,iat,fname,fixed)
    integer nat,iat(nat),n,nn,j,k,fixed(*)
    character(128) line
    character(40) fname
-   character(2) asym
    logical f
    integer :: ich
 

@@ -87,7 +87,6 @@ program XTBprog
    use xtb_qmdff, only : ff_ini
 !! ------------------------------------------------------------------------
 !  interfaces from internal libraries
-   use xtb_optimizer, only : wrlog
    use xtb_hessian, only : numhess
    use xtb_dynamic, only : md
    use xtb_modef, only : modefollow
@@ -154,7 +153,6 @@ program XTBprog
    real(wp),allocatable :: qr  (:)
 
 !! ------------------------------------------------------------------------
-   character(len=2),external :: asym
    integer,external :: ncore
 
 !! ========================================================================
@@ -474,7 +472,7 @@ program XTBprog
       do j = 1, i
          if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
             write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
-            asym(j),asym(i),kpair(j,i)
+            toSymbol(j),toSymbol(i),kpair(j,i)
       enddo
    enddo
 
@@ -773,9 +771,9 @@ program XTBprog
      &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
      f_minus=wfn%q-wf_m%q
      write(env%unit,'(a)')
-     write(env%unit, '(1x,"    #       f(+)     f(-)     f(0)")')
+     write(env%unit, '(1x,"    #        f(+)     f(-)     f(0)")')
      do i=1,mol%n
-       write(env%unit,'(i6,a3,2f9.3,2f9.3,2f9.3)') i, asym(mol%at(i)), f_plus(i), f_minus(i), 0.5d0*(wf_p%q(i)-wf_m%q(i))
+       write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), f_plus(i), f_minus(i), 0.5d0*(wf_p%q(i)-wf_m%q(i))
      enddo
      deallocate(f_plus,f_minus)
    endif
@@ -925,7 +923,7 @@ program XTBprog
       endif
       write(env%unit,'(1x,"output written to xtbmeta.log")')
       call open_file(ich,'xtbmeta.log','w')
-      call wrlog(ich,mol%n,mol%xyz,mol%at,etot,norm2(g),.true.)
+      call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
       k = metaset%nstruc+1
       call start_timing(6)
       do l = k, metaset%maxsave
@@ -950,7 +948,7 @@ program XTBprog
                "FAILED TO CONVERGE GEOMETRY OPTIMIZATION"
             call touch_file('NOT_CONVERGED')
          endif
-         call wrlog(ich,mol%n,mol%xyz,mol%at,etot,norm2(g),.false.)
+         call writeMolecule(mol, ich, fileType%xyz, energy=etot, gnorm=norm2(g))
       enddo
       call close_file(ich)
       call stop_timing(6)

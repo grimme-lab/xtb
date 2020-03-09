@@ -83,11 +83,11 @@ end subroutine external_turbomole
 !ccccccccccccccccccccccccccccccccc
 
 subroutine wrtm(n,at,xyz)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer n, at(n), iunit, i
    real(wp) xyz(3,n)
-   character(len=2),external :: asym
 
    iunit=33
    open(newunit=iunit,file='coord')
@@ -95,7 +95,7 @@ subroutine wrtm(n,at,xyz)
    write(iunit,'(a)')'$coord'
    do i=1,n
       write(iunit,'(3F24.14,6x,a2)') &
-      &   xyz(1,i),xyz(2,i),xyz(3,i),asym(at(i))
+      &   xyz(1,i),xyz(2,i),xyz(3,i),toSymbol(at(i))
    enddo
    write(iunit,'(a)')'$end'
 

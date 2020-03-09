@@ -17,13 +17,13 @@
 
 subroutine write_tm_basis(iunit,nat,at,basis,wfn)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_symbols, only : toLcSymbol
    use xtb_type_wavefunction
    use xtb_type_basisset
    use xtb_aoparam
    implicit none
    type(TBasisset),    intent(in) :: basis
    type(TWavefunction),intent(in) :: wfn
-   character(2),external :: esym
    integer,intent(in)  :: iunit
    integer,intent(in)  :: nat
    integer,intent(in)  :: at(nat)
@@ -45,7 +45,7 @@ subroutine write_tm_basis(iunit,nat,at,basis,wfn)
    do iatyp = 1, 94
       iat = nn(iatyp)
       if (iat.eq.0) cycle
-      write(iunit,'(a,1x,a)') trim(esym(iatyp)),'tbbas'
+      write(iunit,'(a,1x,a)') trim(toLcSymbol(iatyp)),'tbbas'
       write(iunit,'(a)') '*'
       do ish = 1, ao_n(iatyp)
          ishtyp = ao_l(ish,iatyp)
@@ -65,4 +65,3 @@ subroutine write_tm_basis(iunit,nat,at,basis,wfn)
    enddo
    write(iunit,'(a)') '$end'
 end subroutine write_tm_basis
-

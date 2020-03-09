@@ -112,6 +112,7 @@ contains
 !> Constructor for the molecular structure type
 type(TMolecule) function new_molecule &
       & (at, xyz, chrg, uhf, lattice, pbc) result(mol)
+   use xtb_mctc_symbols, only : toSymbol
    integer, intent(in) :: at(:)
    real(wp), intent(in) :: xyz(:, :)
    real(wp), intent(in), optional :: chrg
@@ -120,7 +121,6 @@ type(TMolecule) function new_molecule &
    logical, intent(in), optional :: pbc(3)
 
    integer :: n, i
-   character(len=2), external :: asym
 
    n = min(size(at, dim=1), size(xyz, dim=2))
 
@@ -147,7 +147,7 @@ type(TMolecule) function new_molecule &
 
    mol%at = at(:n)
    do i = 1, n
-      mol%sym(i) = asym(at(i))
+      mol%sym(i) = toSymbol(at(i))
    end do
 
    mol%xyz = xyz(:, :n)
@@ -175,6 +175,7 @@ end function new_molecule
 type(TMolecule) function new_molecule_api &
       & (n, at, xyz, chrg, uhf, lattice, pbc) result(mol)
    use iso_c_binding
+   use xtb_mctc_symbols, only : toSymbol
    integer(c_int), intent(in) :: n
    integer(c_int), intent(in) :: at(n)
    real(c_double), intent(in) :: xyz(3, n)
@@ -184,7 +185,6 @@ type(TMolecule) function new_molecule_api &
    logical(c_bool), intent(in), target, optional :: pbc(3)
 
    integer :: i
-   character(len=2), external :: asym
 
    call mol%allocate(n)
 
@@ -209,7 +209,7 @@ type(TMolecule) function new_molecule_api &
 
    mol%at = at
    do i = 1, n
-      mol%sym(i) = asym(at(i))
+      mol%sym(i) = toSymbol(at(i))
    end do
 
    mol%xyz = xyz

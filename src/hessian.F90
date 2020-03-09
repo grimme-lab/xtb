@@ -497,17 +497,23 @@ end subroutine rotmol
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine distort(n,at,xyz,freq,u)
+subroutine distort(mol,freq,u)
    use xtb_mctc_accuracy, only : wp
-   use xtb_writegeometry
+   use xtb_mctc_filetypes, only : generateFileName
+   use xtb_type_molecule
+   use xtb_io_writer, only : writeMolecule
    implicit none
-   integer n,at(n)
-   real(wp) u(3*n,3*n),freq(3*n),xyz(3,n)
+   type(TMolecule), intent(inout) :: mol
+   real(wp) u(:,:),freq(:)
 
    integer n3,i,imag,jj,ja,jc,ich
-   real(wp) xyz2(3,n),f,thr
+   real(wp) f,thr
+   real(wp), allocatable :: xyz2(:,:)
+   character(len=:), allocatable :: fname
 
-   n3=3*n
+   xyz2 = mol%xyz
+
+   n3=3*len(mol)
    ! cut-off for what is considered to be imag
    thr=5.0
 
@@ -527,23 +533,25 @@ subroutine distort(n,at,xyz,freq,u)
    ! magnitude of distortion
    f=0.5/float(imag)
 
-   xyz2 = xyz
    do i=1,n3
       if(freq(i).lt.0.and.abs(freq(i)).gt.thr)then
-         do ja=1,n
+         do ja=1,len(mol)
             do jc=1,3
                jj = (ja-1)*3 + jc
-               xyz2(jc,ja)=xyz2(jc,ja)+f*u(jj,i)
+               mol%xyz(jc,ja)=mol%xyz(jc,ja)+f*u(jj,i)
             enddo
          enddo
       endif
    enddo
 
-   write(*,*) 'writing imag mode distorted coords to <xtbhess.coord>'
+   call generateFileName(fname, 'xtbhess', '', mol%ftype)
+   write(*,*) 'writing imag mode distorted coords to '//fname
    write(*,*) 'for further optimization.'
-   call open_file(ich,'xtbhess.coord','w')
-   call write_coord(ich,n,at,xyz2)
+   call open_file(ich, fname, 'w')
+   call writeMolecule(mol, ich)
    call close_file(ich)
+
+   mol%xyz = xyz2
 
 end subroutine distort
 
