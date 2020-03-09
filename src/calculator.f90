@@ -36,7 +36,7 @@ module xtb_calculators
          integer, intent(in) :: iunit
          type(TMolecule),    intent(inout) :: mol
          type(peeq_options),   intent(in)    :: opt
-         type(TEnvironment), intent(in)    :: env
+         type(TEnvironment), intent(inout)    :: env
          type(mctc_error), allocatable, intent(inout) :: err
          real(wp), intent(out) :: energy
          real(wp), intent(out) :: hl_gap
@@ -57,7 +57,7 @@ module xtb_calculators
          integer, intent(in) :: iunit
          type(TMolecule),    intent(inout) :: mol
          type(scc_options),    intent(in)    :: opt
-         type(TEnvironment), intent(in)    :: env
+         type(TEnvironment), intent(inout)    :: env
          type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          type(TWavefunction),intent(inout) :: wfn
@@ -79,7 +79,7 @@ module xtb_calculators
          type(TMolecule),    intent(inout) :: mol
          type(TWavefunction),intent(inout) :: wfn
          type(scc_options),    intent(in)    :: opt
-         type(TEnvironment), intent(in)    :: env
+         type(TEnvironment), intent(inout)    :: env
          type(mctc_error), allocatable, intent(inout) :: err
          type(tb_pcem),        intent(inout) :: pcem
          real(wp), intent(out) :: energy

@@ -26,6 +26,7 @@
 module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : sygvd,gemm,symm
+   use xtb_type_environment, only : TEnvironment
    implicit none
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
@@ -383,7 +384,7 @@ end subroutine build_h1_gfn2
 !! ========================================================================
 !  self consistent charge iterator for GFN1 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn1(iunit,err,n,nel,nopen,ndim,nmat,nshell, &
+subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
    &                at,matlist,aoat2,ao2sh, &
    &                q,qq,qlmom,qsh,zsh, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -405,8 +406,9 @@ subroutine scc_gfn1(iunit,err,n,nel,nopen,ndim,nmat,nshell, &
 
    implicit none
 
-   integer, intent(in)  :: iunit
-   type(mctc_error), allocatable :: err
+   character(len=*), parameter :: source = 'scc_gfn1'
+
+   type(TEnvironment), intent(inout) :: env
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -541,8 +543,7 @@ subroutine scc_gfn1(iunit,err,n,nel,nopen,ndim,nmat,nshell, &
    call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
    if (fail) then
-      err = mctc_error("diagonalization error in SCC")
-      eel = 1.e+99_wp
+      call env%error("Diagonalization of Hamiltonian failed", source)
       return
    endif
 
@@ -649,7 +650,7 @@ subroutine scc_gfn1(iunit,err,n,nel,nopen,ndim,nmat,nshell, &
 
    call qsh2qat(n,at,nshell,qsh,q) !new qat
 
-   if(minpr) write(iunit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
+   if(minpr) write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &         iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
    qq=q
 
@@ -680,7 +681,7 @@ end subroutine scc_gfn1
 !! ========================================================================
 !  self consistent charge iterator for GFN2 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn2(iunit,err,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                at,matlist,mdlst,mqlst,aoat2,ao2sh, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
    &                xyz,vs,vd,vq,gab3,gab5,gscal, &
@@ -707,8 +708,9 @@ subroutine scc_gfn2(iunit,err,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    implicit none
 
-   integer, intent(in)  :: iunit
-   type(mctc_error), allocatable :: err
+   character(len=*), parameter :: source = 'scc_gfn2'
+
+   type(TEnvironment), intent(inout) :: env
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -876,8 +878,7 @@ subroutine scc_gfn2(iunit,err,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !                            call prtime(6,t2-t1,w2-w1,'diag')
 
    if(fail)then
-      err = mctc_error("diagonalization error in SCC")
-      eel=1.d+99
+      call env%error("Diagonalization of Hamiltonian failed", source)
       return
    endif
 
@@ -1019,7 +1020,7 @@ subroutine scc_gfn2(iunit,err,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    if(newdisp) call disppot(n,dispdim,at,q,g_a,g_c,wdispmat,gw,hdisp)
 ! SAW end - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
 
-   if(minpr)write(iunit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
+   if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
    qq=q
 

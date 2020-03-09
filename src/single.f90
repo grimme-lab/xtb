@@ -65,6 +65,8 @@ subroutine singlepoint &
    use xtb_embedding, only : read_pcem
    implicit none
 
+   character(len=*), parameter :: source = 'single'
+
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
 
@@ -89,6 +91,7 @@ subroutine singlepoint &
    real(wp) :: efix
    logical  :: inmol
    logical, parameter :: ccm = .true.
+   logical :: exitRun
 !  real(wp) :: efix1,efix2
 !  real(wp),dimension(3,n) :: gfix1,gfix2
 
@@ -114,12 +117,12 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(env%unit,err,mol,wfn,calc%basis,calc%param,pcem, &
+      call scf(env,mol,wfn,calc%basis,calc%param,pcem, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)
       call peeq &
-         & (env%unit,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
+         & (env,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
          &  lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)
@@ -142,10 +145,16 @@ subroutine singlepoint &
 
    if (allocated(err)) then
       if (err%fatal) then
-         call raise('E', err%msg, 1)
+         call env%error(err%msg)
       else
-         call raise('S', err%msg, 1)
+         call env%warning(err%msg)
       end if
+   end if
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Electronic structure method terminated", source)
+      return
    end if
 
 !! ========================================================================

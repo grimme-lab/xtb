@@ -68,12 +68,13 @@ use xtb_mctc_accuracy, only : wp
 contains
 
 subroutine peeq &
-      (iunit,err,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
+      (env,err,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
 ! ------------------------------------------------------------------------
    use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_basisset
@@ -101,10 +102,12 @@ subroutine peeq &
 
    implicit none
 
+   character(len=*), parameter :: source = 'peeq'
+
 ! ------------------------------------------------------------------------
 !  INPUT
 ! ------------------------------------------------------------------------
-   integer, intent(in)            :: iunit
+   type(TEnvironment), intent(inout)    :: env
    type(mctc_error), allocatable, intent(inout) :: err
    type(TMolecule),  intent(in) :: mol     !< molecular structure infomation
    type(TBasisset),  intent(in) :: basis   !< basis set
@@ -329,23 +332,23 @@ subroutine peeq &
    enddo
 
    if (prlevel > 1) then
-      write(iunit,'(/,10x,51("."))')
-      write(iunit,'(10x,":",22x,a,22x,":")') "SETUP"
-      write(iunit,'(10x,":",49("."),":")')
-      write(iunit,intfmt) "# basis functions  ",basis%nbf
-      write(iunit,intfmt) "# atomic orbitals  ",basis%nao
-      write(iunit,intfmt) "# shells           ",basis%nshell
-      write(iunit,intfmt) "# electrons        ",wfn%nel
+      write(env%unit,'(/,10x,51("."))')
+      write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
+      write(env%unit,'(10x,":",49("."),":")')
+      write(env%unit,intfmt) "# basis functions  ",basis%nbf
+      write(env%unit,intfmt) "# atomic orbitals  ",basis%nao
+      write(env%unit,intfmt) "# shells           ",basis%nshell
+      write(env%unit,intfmt) "# electrons        ",wfn%nel
       if (mol%npbc > 0) &
-      write(iunit,chrfmt) "PBC by CCM         ",bool2string(ccm)
-      write(iunit,dblfmt) "electronic temp.   ",et,      "K   "
-      write(iunit,dblfmt) "accuracy           ",acc,     "    "
-      write(iunit,scifmt) "-> integral cutoff ",intcut,  "    "
-      write(iunit,scifmt) "-> integral neglect",neglect, "    "
+      write(env%unit,chrfmt) "PBC by CCM         ",bool2string(ccm)
+      write(env%unit,dblfmt) "electronic temp.   ",et,      "K   "
+      write(env%unit,dblfmt) "accuracy           ",acc,     "    "
+      write(env%unit,scifmt) "-> integral cutoff ",intcut,  "    "
+      write(env%unit,scifmt) "-> integral neglect",neglect, "    "
       if (mol%npbc > 0 .and. .not.ccm) then
-      write(iunit,intfmt) "# images for ints. ",product(2*intrep+1)
+      write(env%unit,intfmt) "# images for ints. ",product(2*intrep+1)
       endif
-      write(iunit,'(10x,51("."))')
+      write(env%unit,'(10x,51("."))')
    endif
 
 ! ---------------------------------------
@@ -443,11 +446,11 @@ subroutine peeq &
 ! ---------------------------------------
 !  Check for near linear dependencies via Cholesky decomposition
 ! ---------------------------------------
-   call cholesky(iunit,pr,nao,S,orthog) ! S is not modified
+   call cholesky(env%unit,pr,nao,S,orthog) ! S is not modified
    if(orthog)then
       !if (profile) call timer%measure(7,"Canonical orthogonalization")
       call renorm(nao,S) ! S is renormalized
-      call canorthog(iunit,nao,S,X,xdim,pr,fail)
+      call canorthog(env%unit,nao,S,X,xdim,pr,fail)
       !if (profile) call timer%measure(7)
    endif
 
@@ -505,7 +508,7 @@ subroutine peeq &
 
    if (profile) call timer%measure(7)
    if (.not.pr.and.profile.and.minpr) &
-      call timer%write_timing(iunit,7,"Diagonalization")
+      call timer%write_timing(env%unit,7,"Diagonalization")
    if (profile) call timer%measure(8,"Gradient calculation")
 ! ======================================================================
 !  GRADIENT (100% analytical)
@@ -561,12 +564,12 @@ subroutine peeq &
       !call preig(6,wfn%focc,1.0_wp,wfn%emo, &
       !     max(wfn%ihomoa-12,1),min(wfn%ihomoa+11,nao))
       if(.not.orthog)then
-        call print_orbital_eigenvalues(iunit,wfn,5)
+        call print_orbital_eigenvalues(env%unit,wfn,5)
         if ((wfn%ihomo+1.le.nao).and.(wfn%ihomo.ge.1)) &
            egap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
       else
         wfn%nao = xdim
-        call print_orbital_eigenvalues(iunit,wfn,5)
+        call print_orbital_eigenvalues(env%unit,wfn,5)
         if ((wfn%ihomo+1.le.xdim).and.(wfn%ihomo.ge.1)) &
            egap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
         wfn%nao = nao
@@ -608,7 +611,7 @@ subroutine peeq &
    res%dipole  = matmul(mol%xyz,wfn%q)
    res%g_solv  = 0.0_wp
 
-   if (profile.and.pr) call timer%write(iunit,'EHT')
+   if (profile.and.pr) call timer%write(env%unit,'EHT')
 
 end associate
 

@@ -15,12 +15,22 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
+module xtb_restart
    use xtb_mctc_accuracy, only : wp, i8
    use xtb_mctc_io, only : stdout
-   use xtb_type_wavefunction
+   use xtb_type_environment, only : TEnvironment
+   use xtb_type_wavefunction, only : TWavefunction
    use xtb_scc_core, only : qsh2qat
    implicit none
+
+   public :: readRestart, writeRestart
+
+
+contains
+
+
+subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
+   type(TEnvironment), intent(inout) :: env
    type(TWavefunction),intent(inout) :: wfx
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: n
@@ -72,13 +82,11 @@ subroutine read_restart(wfx,fname,n,at,gfn_method,success,verbose)
       call close_file(ich)
    endif
 
-end subroutine read_restart
+end subroutine readRestart
 
-subroutine write_restart(wfx,fname,gfn_method)
-   use xtb_mctc_accuracy, only : wp, i8
-   use xtb_mctc_io, only : stdout
-   use xtb_type_wavefunction
-   implicit none
+
+subroutine writeRestart(env,wfx,fname,gfn_method)
+   type(TEnvironment), intent(inout) :: env
    type(TWavefunction),intent(inout) :: wfx
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: gfn_method
@@ -95,4 +103,7 @@ subroutine write_restart(wfx,fname,gfn_method)
    endif
    call close_file(ich)
 
-end subroutine write_restart
+end subroutine writeRestart
+
+
+end module xtb_restart

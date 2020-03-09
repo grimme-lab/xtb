@@ -44,14 +44,17 @@ module subroutine gfn1_calculation &
    use xtb_scf
    use xtb_solv_gbobc
    use xtb_embedding
+   use xtb_restart
 
    implicit none
+
+   character(len=*), parameter :: source = 'calculator_gfn1'
 
    integer, intent(in) :: iunit
 
    type(TMolecule),    intent(inout) :: mol
    type(scc_options),    intent(in)    :: opt
-   type(TEnvironment), intent(in)    :: env
+   type(TEnvironment), intent(inout)    :: env
    type(mctc_error), allocatable, intent(inout) :: err
    type(tb_pcem),        intent(inout) :: pcem
    type(TWavefunction),intent(inout) :: wfn
@@ -76,6 +79,7 @@ module subroutine gfn1_calculation &
    real(wp) :: globpar(25)
    integer  :: ipar
    logical  :: exist
+   logical :: exitRun
 
    logical  :: okbas,diff
 
@@ -118,7 +122,7 @@ module subroutine gfn1_calculation &
       call open_file(ipar,fnv,'r')
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
-         err = mctc_error("Parameter file '"//fnv//"' not found")
+         call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
       call read_gfn_param(ipar,globpar,.true.)
@@ -158,13 +162,24 @@ module subroutine gfn1_calculation &
 
    call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
+   if (opt%restart) &
+      call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)
+
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(iunit,err,mol,wfn,basis,param,pcem,hl_gap, &
+   call scf(env,mol,wfn,basis,param,pcem,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
-   if (allocated(err)) return
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("SCF calculation terminated", source)
+   end if
+
+   if (opt%restart) then
+      call writeRestart(env,wfn,'xtbrestart',gfn_method)
+   endif
 
    if (opt%prlevel > 0) then
       write(iunit,'(9x,53(":"))')

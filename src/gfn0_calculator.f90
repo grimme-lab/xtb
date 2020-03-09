@@ -43,11 +43,13 @@ module subroutine gfn0_calculation &
 
    implicit none
 
+   character(len=*), parameter :: source = 'calculator_gfn0'
+
    integer, intent(in) :: iunit
 
    type(TMolecule),    intent(inout) :: mol
    type(peeq_options),   intent(in)    :: opt
-   type(TEnvironment), intent(in)    :: env
+   type(TEnvironment), intent(inout)    :: env
    type(mctc_error), allocatable, intent(inout) :: err
 
    real(wp), intent(out) :: energy
@@ -72,6 +74,7 @@ module subroutine gfn0_calculation &
    real(wp) :: globpar(25)
    integer  :: ipar,i
    logical  :: exist
+   logical :: exitRun
 
    logical  :: okbas,diff
 
@@ -157,8 +160,13 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(iunit,err,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(env,err,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Single point calculation terminated", source)
+      return
+   end if
    if (allocated(err)) return
 
    if (mol%npbc > 0) then

@@ -68,26 +68,28 @@ program XTBprog
    use xtb_setmod
    use xtb_propertyoutput
    use tbmod_output_writer
+   use xtb_restart
 
 !! ========================================================================
 !  get interfaces for methods used in this part
-   use xtb_scc_core,    only : iniqshell
+   use xtb_scc_core, only : iniqshell
    use xtb_extern_orca, only : orca_chk
    use xtb_extern_mopac, only : mopac_chk
-   use xtb_single,      only : singlepoint
-   use xtb_aespot,      only : get_radcn
-   use xtb_iniq,        only : iniqcn
+   use xtb_single, only : singlepoint
+   use xtb_aespot, only : get_radcn
+   use xtb_iniq, only : iniqcn
    use xtb_eeq
-   use xtb_disp_ncoord,      only : ncoord_gfn,dncoord_erf,dncoord_d3,ncoord_erf,ncoord_d3
+   use xtb_disp_ncoord, only : ncoord_gfn, dncoord_erf, dncoord_d3, ncoord_erf, &
+      & ncoord_d3
    use xtb_basis
-   use xtb_axis,  only : axis3
-   use xtb_qmdff,       only : ff_ini
+   use xtb_axis, only : axis3
+   use xtb_qmdff, only : ff_ini
 !! ------------------------------------------------------------------------
 !  interfaces from internal libraries
    use xtb_optimizer, only : wrlog
    use xtb_hessian, only : numhess
    use xtb_dynamic, only : md
-   use xtb_modef,   only : modefollow
+   use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
 
@@ -611,7 +613,7 @@ program XTBprog
    call delete_file('.sccnotconverged')
 
    if (restart.and.mode_extrun.eq.p_ext_xtb) then ! only in first run
-      call read_restart(wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
+      call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
    endif
 
 !  the SP energy which is always done
@@ -620,6 +622,11 @@ program XTBprog
    &       (env,mol,wfn,calc, &
    &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
+
+   call env%checkpoint("Single point calculation terminated", exitRun)
+   if (exitRun) then
+      call terminate(1)
+   end if
 
 !! ========================================================================
 !  numerical gradient for debugging purposes
@@ -993,7 +1000,7 @@ program XTBprog
 !  to further speed up xtb calculations we dump our most important
 !  quantities in a restart file, so we can save some precious seconds
    if (restart) then
-      call write_restart(wfn,'xtbrestart',gfn_method)
+      call writeRestart(env,wfn,'xtbrestart',gfn_method)
    endif
    call wfn%deallocate
 

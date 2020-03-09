@@ -6,6 +6,7 @@ subroutine test_gfn2_scc
 
    use xtb_mctc_logging
 
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_basisset
@@ -37,21 +38,23 @@ subroutine test_gfn2_scc
    logical, parameter :: restart = .false.
    real(wp),parameter :: acc = 1.0_wp
 
+   type(TEnvironment) :: env
    type(TMolecule)     :: mol
    type(scc_results)     :: res
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
-   type(mctc_error), allocatable :: err
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
 
    real(wp) :: globpar(25)
    logical  :: okpar,okbas
+   logical :: exitRun
 
    gfn_method = 2
+   call init(env)
 
    call mol%allocate(nat)
    mol%at  = at
@@ -85,10 +88,11 @@ subroutine test_gfn2_scc
 
    g = 0.0_wp
 
-   call scf(stdout,err,mol,wfn,basis,param,pcem, &
+   call scf(env,mol,wfn,basis,param,pcem, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
-   call assert(.not.allocated(err))
+   call env%check(exitRun)
+   call assert(.not.exitRun)
 
    call assert(res%converged)
 
