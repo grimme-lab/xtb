@@ -52,14 +52,14 @@ contains
 !> Check if xTB was correctly initialized.
 logical(c_bool) function check_xtb_init() &
       & result(status) bind(C, name="check_xTB_init")
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
    status = gfn_method >= 0 .and. gfn_method <= 2
 end function check_xtb_init
 
 !> Check if xTB was locked on the correct parametrisation.
 logical(c_bool) function check_xtb_lock(gfn) &
       & result(status) bind(C, name="check_xTB_lock")
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
    !> Requested GFN level
    integer(c_int), intent(in) :: gfn
    status = gfn == gfn_method
@@ -67,14 +67,14 @@ end function check_xtb_lock
 
 !> Release the lock on the xTB parametrisation.
 subroutine reset_xtb_lock() bind(C, name="reset_xTB_lock")
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
    !$omp critical(xtb_load_api)
    gfn_method = -1
    !$omp end critical(xtb_load_api)
 end subroutine
 
 subroutine eeq_guess_wavefunction(env, mol, wfn)
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -114,7 +114,7 @@ end function verify_xtb_molecule
 logical function verify_xtb_basisset(mol, basis) result(status)
    use xtb_type_molecule
    use xtb_type_basisset
-   use xtb_basis, only: dim_basis
+   use xtb_basis, only : dim_basis
    type(TMolecule), intent(in) :: mol
    type(TBasisset), intent(in) :: basis
    integer :: nshell, nao, nbf

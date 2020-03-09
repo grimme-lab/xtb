@@ -39,6 +39,7 @@ module subroutine gfn0_calculation &
    use xtb_basis
    use xtb_peeq
    use xtb_solv_gbobc
+   use xtb_readparam
 
    implicit none
 
@@ -124,7 +125,7 @@ module subroutine gfn0_calculation &
          call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
-      call read_gfn_param(ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
    endif
    call set_gfn0_parameter(param,globpar)

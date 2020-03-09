@@ -19,6 +19,7 @@ subroutine test_peeq_sp
    use xtb_pbc_tools
    use xtb_basis
    use xtb_peeq
+   use xtb_readparam
 
    implicit none
 
@@ -103,7 +104,7 @@ subroutine test_peeq_sp
          call terminate(1)
          return
       endif
-      call read_gfn_param(ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
    endif
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)

@@ -18,6 +18,7 @@ subroutine test_gfn0_sp
    use xtb_aoparam
    use xtb_basis
    use xtb_peeq
+   use xtb_readparam
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -86,7 +87,7 @@ subroutine test_gfn0_sp
          call terminate(1)
          return
       endif
-      call read_gfn_param(ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
 
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)

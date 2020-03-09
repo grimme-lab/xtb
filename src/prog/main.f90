@@ -69,6 +69,7 @@ program XTBprog
    use xtb_propertyoutput
    use tbmod_output_writer
    use xtb_restart
+   use xtb_readparam
 
 !! ========================================================================
 !  get interfaces for methods used in this part
@@ -458,7 +459,7 @@ program XTBprog
    call open_file(ich,fnv,'r')
    exist = ich .ne. -1
    if (exist) then
-      call read_gfn_param(ich,globpar,.true.)
+      call readParam(env,ich,globpar,.true.)
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
       call use_parameterset(fnv,globpar,exist)

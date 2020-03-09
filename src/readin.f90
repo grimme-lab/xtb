@@ -33,14 +33,6 @@ module xtb_readin
 !! ------------------------------------------------------------------[SAW]-
 !  this function returns a logical and is always evaluated for its
 !  side effect (parsing the given string for its real/int/bool value)
-   interface get_value
-   module procedure get_int_value
-   module procedure get_int_array_value
-   module procedure get_real_value
-   module procedure get_real_array_value
-   module procedure get_bool_value
-   end interface get_value
-
    interface getValue
    module procedure getIntValue
    module procedure getIntArray
@@ -258,106 +250,6 @@ function getRealArray(env,val,dum) result(status)
 
 end function getRealArray
 
-function get_int_value(val,dum) result(status)
-   use xtb_mctc_global, only : env => persistentEnv
-   implicit none
-   character(len=*), parameter :: source = 'readin_getIntValue'
-   character(len=*),intent(in) :: val
-   integer,intent(out) :: dum
-   integer :: err
-   logical :: status
-   
-!  call value(val,dum,ios=err)
-   read(val,*,iostat=err) dum
-   if (err.eq.0) then
-      status = .true.
-   else
-      call env%warning('could not parse '''//val//'''',source)
-      status = .false.
-   endif
-end function get_int_value
-
-function get_real_value(val,dum) result(status)
-   use xtb_mctc_global, only : env => persistentEnv
-   implicit none
-   character(len=*), parameter :: source = 'readin_getRealValue'
-   character(len=*),intent(in) :: val
-   real(wp),intent(out) :: dum
-   integer :: err
-   logical :: status
-   
-!  call value(val,dum,ios=err)
-   read(val,*,iostat=err) dum
-   if (err.eq.0) then
-      status = .true.
-   else
-      call env%warning('could not parse '''//val//'''',source)
-      status = .false.
-   endif
-end function get_real_value
-
-function get_bool_value(val,dum) result(status)
-   use xtb_mctc_global, only : env => persistentEnv
-   implicit none
-   character(len=*), parameter :: source = 'readin_getBoolValue'
-   character(len=*),intent(in) :: val
-   logical,intent(out) :: dum
-   logical :: status
-   
-   select case(val)
-   case('Y','y','Yes','yes','T','t','true','True','1')
-      status = .true.
-      dum = .true.
-   case('N','n','No','no','F','f','false','False','0')
-      status = .true.
-      dum = .false.
-   case default
-      call env%warning('could not parse '''//val//'''',source)
-      status = .false.
-   end select
-
-end function get_bool_value
-
-function get_int_array_value(val,dum) result(status)
-   use xtb_mctc_global, only : env => persistentEnv
-   implicit none
-   character(len=*), parameter :: source = 'readin_getIntArray'
-   character(len=*),intent(in) :: val
-   integer,intent(out) :: dum(:)
-   integer :: i,err
-   logical :: status
-  
-!  call value(val,dum,ios=err)
-   read(val,*,iostat=err) (dum(i),i=1,size(dum,1))
-   if (err.eq.0) then
-      status = .true.
-   else
-      call env%warning('could not parse '''//val//'''',source)
-      status = .false.
-   endif
-
-end function get_int_array_value
-
-function get_real_array_value(val,dum) result(status)
-   use xtb_mctc_global, only : env => persistentEnv
-   implicit none
-   character(len=*), parameter :: source = 'readin_getRealArray'
-   character(len=*),intent(in) :: val
-   real(wp),intent(out) :: dum(:)
-   integer :: i,err
-   logical :: status
-  
-!  call value(val,dum,ios=err)
-   read(val,*,iostat=err) (dum(i),i=1,size(dum,1))
-   if (err.eq.0) then
-      status = .true.
-   else
-      call env%warning('could not parse '''//val//'''',source)
-      status = .false.
-   endif
-
-end function get_real_array_value
-
 pure elemental function bool2int(bool) result(int)
    logical,intent(in) :: bool
    integer :: int
@@ -429,58 +321,6 @@ function getListValue(env,val,dum,n) result(status)
       status = .true.
    endif
 end function getListValue
-
-function get_list_value(val,dum,n) result(status)
-   use xtb_mctc_global, only : env => persistentEnv
-   implicit none
-   character(len=*), parameter :: source = 'readin_getListValue'
-   character(len=*),intent(in) :: val
-   integer,intent(out) :: dum(:)
-   integer,intent(out) :: n
-   integer :: i,j,k,l,err
-   logical :: status
-  
-   i = index(val,minus)
-   if (i.eq.0) then
-      read(val,*,iostat=err) dum(1)
-      if (err.ne.0) then
-         call env%warning('could not parse '''//val//'''',source)
-         status = .false.
-         return
-      endif
-      n = 1
-      status = .true.
-   else
-      read(val(:i-1),*,iostat=err) j
-      if (err.ne.0) then
-         call env%warning('could not parse '''//val(:i-1)//''' in '''//val//'''',source)
-         status = .false.
-         return
-      endif
-      read(val(i+1:),*,iostat=err) k
-      if (err.ne.0) then
-         call env%warning('could not parse '''//val(i+1:)//''' in '''//val//'''',source)
-         status = .false.
-         return
-      endif
-      if (k.lt.j) then
-         call env%warning('end is lower than start in list '''//val//'''',source)
-         status = .false.
-         return
-      endif
-      if ((k-j).gt.size(dum,1)) then
-         call env%warning('too many list items in '''//val//'''',source)
-         status = .false.
-         return
-      endif
-      n = 0
-      do i = j, k
-         n = n+1
-         dum(n) = i
-      enddo
-      status = .true.
-   endif
-end function get_list_value
 
 subroutine readlog(fname,nat,at,xyz,nstruc)
    use xtb_mctc_convert

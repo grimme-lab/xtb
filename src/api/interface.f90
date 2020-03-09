@@ -41,7 +41,7 @@ integer(c_int) function xtb_calculation_api &
       & (c_mol, c_param, c_basis, c_wfn, c_pcem, c_opt, c_output, &
       &  c_energy, c_gradient, c_stress) &
       & result(status) bind(C, name="xTB_calculation")
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule
    use xtb_type_basisset
@@ -418,7 +418,7 @@ function gfn12_calc_impl &
    use xtb_type_basisset
    use xtb_type_data
 
-   use xtb_setparam, only: ngrida, gfn_method
+   use xtb_setparam, only : ngrida, gfn_method
    use xtb_scf
    use xtb_solv_gbobc
 
@@ -771,7 +771,7 @@ function gfn12_pcem_impl &
    use xtb_type_data
 
    use xtb_aoparam
-   use xtb_setparam, only: gfn_method, ngrida
+   use xtb_setparam, only : gfn_method, ngrida
    use xtb_scf
    use xtb_solv_gbobc
 
