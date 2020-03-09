@@ -1,11 +1,12 @@
 !> test calculation of dispersion related properties
 subroutine test_dftd4_properties
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use tbdef_molecule
-   use tbmod_dftd4
+   use xtb_type_molecule
+   use xtb_disp_dftd4
    implicit none
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
    integer              :: ndim
    real(wp) :: molpol,molc6,molc8        ! molecular Polarizibility
    real(wp),allocatable :: gweights(:)   ! gaussian weights
@@ -76,13 +77,14 @@ end subroutine test_dftd4_properties
 
 !> @brief test calculation of dispersion energies
 subroutine test_dftd4_energies
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use tbdef_molecule
-   use tbdef_param
-   use tbmod_dftd4
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_disp_dftd4
    implicit none
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
    integer  :: idum
    real(wp) :: energy
 
@@ -170,14 +172,15 @@ subroutine test_dftd4_energies
 end subroutine test_dftd4_energies
 
 subroutine test_dftd4_pbc_energies
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use tbdef_molecule
-   use tbdef_param
-   use tbmod_dftd4
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_disp_dftd4
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 6
@@ -220,7 +223,7 @@ subroutine test_dftd4_pbc_energies
    real(wp),parameter :: step = 1.0e-4_wp, step2 = 0.5_wp/step
 
    integer              :: i,j
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
    integer              :: ndim
    real(wp),allocatable :: gweights(:)   ! gaussian weights
    real(wp),allocatable :: refc6(:,:)    ! reference C6 coeffients
@@ -288,15 +291,16 @@ subroutine test_dftd4_pbc_energies
 end subroutine test_dftd4_pbc_energies
 
 subroutine test_dftd4_cell_gradient
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use mctc_logging
-   use tbdef_molecule
-   use tbdef_param
-   use tbmod_dftd4
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_mctc_logging
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_disp_dftd4
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 6
@@ -330,7 +334,7 @@ subroutine test_dftd4_cell_gradient
    real(wp),parameter :: step = 1.0e-4_wp, step2 = 0.5_wp/step
 
    integer              :: i,j
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    integer              :: ndim
    real(wp) :: molpol,molc6,molc8        ! molecular Polarizibility
    real(wp),allocatable :: gweights(:)   ! gaussian weights
@@ -383,7 +387,7 @@ subroutine test_dftd4_cell_gradient
 
    allocate( gweights(ndim),refc6(ndim,ndim) )
 
-   call print_pbcsum(istdout,mol)
+   call print_pbcsum(stdout,mol)
 
    call pbc_derfcoord(mol%n,mol%at,mol%xyz,mol%lattice,cn,dcndr,dcndL,900.0_wp)
 
@@ -423,15 +427,16 @@ end subroutine test_dftd4_cell_gradient
 
 !> @brief test the general wrapper for DFT-D4 calculations
 subroutine test_dftd4_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use tbdef_molecule
-   use tbdef_options
-   use tbdef_param
-   use tbmod_dftd4
-   use tb_calculators
+   use xtb_type_molecule
+   use xtb_type_options
+   use xtb_type_param
+   use xtb_disp_dftd4
+   use xtb_calculators
    implicit none
-   type(tb_molecule)  :: mol
+   type(TMolecule)  :: mol
 
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 3
@@ -468,10 +473,10 @@ subroutine test_dftd4_api
    mol%xyz = xyz
    mol%chrg = 0.0_wp
    
-   call d4_calculation(istdout,opt_1,mol,dparam_tpss,energy,gradient)
+   call d4_calculation(stdout,opt_1,mol,dparam_tpss,energy,gradient)
    call assert_close(energy,-0.26682682254336E-03_wp,thr)
 
-   call d4_calculation(istdout,opt_2,mol,dparam_b2plyp,energy,gradient)
+   call d4_calculation(stdout,opt_2,mol,dparam_b2plyp,energy,gradient)
    call assert_close(energy,-0.13368190339570E-03_wp,thr)
 
    call assert_close(gradient(1,1), 0.00000000000000E+00_wp,thr)
@@ -487,14 +492,15 @@ end subroutine test_dftd4_api
 
 !> @brief test the general wrapper for DFT-D4 calculations
 subroutine test_dftd4_pbc_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use tbdef_molecule
-   use tbdef_options
-   use tbdef_param
-   use tbmod_dftd4
-   use pbc_tools
-   use tb_calculators
+   use xtb_type_molecule
+   use xtb_type_options
+   use xtb_type_param
+   use xtb_disp_dftd4
+   use xtb_pbc_tools
+   use xtb_calculators
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -523,7 +529,7 @@ subroutine test_dftd4_pbc_api
       &  verbose = .false., veryverbose = .false., silent = .true. )
 
    integer              :: i,j
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    integer              :: ndim
    real(wp) :: energy
    real(wp) :: lattice_grad(3,3)
@@ -549,7 +555,7 @@ subroutine test_dftd4_pbc_api
    gradient = 0.0_wp
    lattice_grad = 0.0_wp
 
-   call d4_pbc_calculation(istdout,opt,mol,dparam_pbe,energy,gradient,lattice_grad)
+   call d4_pbc_calculation(stdout,opt,mol,dparam_pbe,energy,gradient,lattice_grad)
    call assert_close(energy,-0.40714027910526E-01_wp,thr)
 
    call assert_close(norm2(gradient),0.16753166250887E-02_wp,thr)

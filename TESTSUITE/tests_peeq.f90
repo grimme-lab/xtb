@@ -1,13 +1,13 @@
 program peeq_tester
-   use iso_fortran_env, istdout => output_unit, kdp => real64
+   use xtb_mctc_accuracy, only : wp
 !$ use omp_lib
 ! ------------------------------------------------------------------------
 !  general purpose library
 ! ------------------------------------------------------------------------
-   use mctc_global
-   use mctc_timings
-   use mctc_systools
-   use mctc_econv
+   use xtb_mctc_global
+   use xtb_mctc_timings
+   use xtb_mctc_systools
+   use xtb_mctc_convert
 
    implicit none
 
@@ -108,17 +108,17 @@ program peeq_tester
       case('convert'); call test_pbc_tools_convert
       case('cutoff');  call test_pbc_tools_cutoff
       end select
-   case('tbdef_molecule')
+   case('xtb_type_molecule')
       select case(sec)
       case('mic');  call test_class_molecule_mic_distances
       case('axis'); call test_class_molecule_axis_trafo
       end select
-   case('tbdef_wsc')
+   case('xtb_type_wsc')
       select case(sec)
       case('0d'); call test_wigner_seitz_0d
       case('3d'); call test_wigner_seitz_3d
       end select
-   case('tbdef_atomlist')
+   case('xtb_type_atomlist')
       select case(sec)
       case('list'); call test_atomlist
       end select

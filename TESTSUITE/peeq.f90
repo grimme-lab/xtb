@@ -1,23 +1,24 @@
 subroutine test_peeq_sp
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_systools
-   use mctc_logging
+   use xtb_mctc_systools
+   use xtb_mctc_logging
 
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
-   use tbdef_data
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_basisset
+   use xtb_type_param
+   use xtb_type_data
 
-   use setparam, only : gfn_method
-   use aoparam,  only : use_parameterset
+   use xtb_setparam, only : gfn_method
+   use xtb_aoparam,  only : use_parameterset
 
-   use pbc_tools
-   use xbasis
-   use peeq_module
+   use xtb_pbc_tools
+   use xtb_basis
+   use xtb_peeq
 
    implicit none
 
@@ -42,10 +43,10 @@ subroutine test_peeq_sp
    logical, parameter :: restart = .false.
    real(wp),parameter :: acc = 1.0_wp
 
-   type(tb_molecule)     :: mol
+   type(TMolecule)     :: mol
    type(tb_environment)  :: env
-   type(tb_wavefunction) :: wfn
-   type(tb_basisset)     :: basis
+   type(TWavefunction) :: wfn
+   type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(mctc_error), allocatable :: err
@@ -84,7 +85,7 @@ subroutine test_peeq_sp
    sigma = 0.0_wp
 
    ! give an optional summary on the geometry used
-   call print_pbcsum(istdout,mol)
+   call print_pbcsum(stdout,mol)
 
    ! we will try an internal parameter file first to avoid IO
    call use_parameterset(p_fnv_gfn0,globpar,exist)
@@ -106,7 +107,7 @@ subroutine test_peeq_sp
       call close_file(ipar)
    endif
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)
-   call gfn0_prparam(istdout,mol%n,mol%at,param)
+   call gfn0_prparam(stdout,mol%n,mol%at,param)
 
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
@@ -118,7 +119,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(output_unit,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(stdout,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
@@ -142,7 +143,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(output_unit,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(stdout,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)
@@ -166,17 +167,18 @@ subroutine test_peeq_sp
 end subroutine test_peeq_sp
 
 subroutine test_peeq_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_mctc_logging
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -196,7 +198,7 @@ subroutine test_peeq_api
    type(peeq_options),parameter :: opt = peeq_options( &
       &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(mctc_error), allocatable :: err
 
@@ -230,7 +232,7 @@ subroutine test_peeq_api
    call mctc_mute
 
    call gfn0_calculation &
-      (istdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+      (stdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 4.8620892163953_wp,thr)
    call assert_close(energy,-8.4898922181241_wp,thr)
@@ -242,18 +244,19 @@ subroutine test_peeq_api
 end subroutine test_peeq_api
 
 subroutine test_peeq_api_srb
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
-   use mctc_econv
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_mctc_logging
+   use xtb_mctc_convert
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -303,7 +306,7 @@ subroutine test_peeq_api_srb
    type(peeq_options),parameter :: opt = peeq_options( &
       &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(mctc_error), allocatable :: err
 
@@ -333,7 +336,7 @@ subroutine test_peeq_api_srb
    call mctc_mute
 
    call gfn0_calculation &
-      (istdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+      (stdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 3.3073195156202_wp,thr)
    call assert_close(energy,-47.310985782789_wp,thr)

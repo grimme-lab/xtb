@@ -31,7 +31,7 @@ endif()
 string(TIMESTAMP date "%m/%d/%Y")
 set(author $ENV{USERNAME})
 set(origin ${CMAKE_HOST_SYSTEM_NAME})
-configure_file("${XTB_ROOT}/xtb/version.f90" "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh" @ONLY)
+configure_file("${XTB_ROOT}/assets/templates/version.f90" "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh" @ONLY)
 
 # Find dependencies
 if (NOT DISABLE_OMP)
@@ -94,7 +94,7 @@ target_include_directories(xtb_shared
 )
 
 # Executables
-add_executable(xtb "${XTB_ROOT}/xtb/program_main.f90")
+add_executable(xtb "${XTB_ROOT}/src/prog/main.f90")
 target_link_libraries(xtb
  PRIVATE
   xtb_static

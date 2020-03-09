@@ -53,16 +53,16 @@ test('GFN1-xTB', xtb_exe, args: ['--coffee', '--gfn', '1', '--strict', '--norest
 test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--gbsa', 'h2o', '--norestart'], env: xtbenv)
 
 # more specific tests are implemented by the tester binary
-test('Molecule: axis', xtb_test, args: ['tbdef_molecule', 'axis'], env: xtbenv)
-test('Molecule: MIC', xtb_test, args: ['tbdef_molecule', 'mic'], env: xtbenv)
+test('Molecule: axis', xtb_test, args: ['xtb_type_molecule', 'axis'], env: xtbenv)
+test('Molecule: MIC', xtb_test, args: ['xtb_type_molecule', 'mic'], env: xtbenv)
 
 if fc.get_id() == 'intel'
-  test('Wigner-Seitz Cell (0D)', xtb_test, args: ['tbdef_wsc', '0d'], env: xtbenv)
+  test('Wigner-Seitz Cell (0D)', xtb_test, args: ['xtb_type_wsc', '0d'], env: xtbenv)
 endif
-test('Wigner-Seitz Cell (3D)', xtb_test, args: ['tbdef_wsc', '3d'], env: xtbenv)
+test('Wigner-Seitz Cell (3D)', xtb_test, args: ['xtb_type_wsc', '3d'], env: xtbenv)
 
 if fc.get_id() == 'intel'
-  test('IO: atom list', xtb_test, args: ['tbdef_atomlist', 'list'], env: xtbenv)
+  test('IO: atom list', xtb_test, args: ['xtb_type_atomlist', 'list'], env: xtbenv)
 endif
 
 test('coord 3D', xtb_test, args: ['geometry_reader', 'coord_3d_a'], env: xtbenv)

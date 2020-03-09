@@ -1,7 +1,8 @@
 subroutine test_symmetry_water
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -15,7 +16,7 @@ subroutine test_symmetry_water
    real(wp),parameter :: desy = 0.1_wp
    integer, parameter :: maxatdesy = 200
    character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = output_unit
+   integer, parameter :: iunit = stdout
    logical, parameter :: pr = .true.
 
    call rattle(nat,xyz,0.025_wp)
@@ -29,9 +30,10 @@ subroutine test_symmetry_water
 end subroutine test_symmetry_water
 
 subroutine test_symmetry_li8
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -50,7 +52,7 @@ subroutine test_symmetry_li8
    real(wp),parameter :: desy = 0.1_wp
    integer, parameter :: maxatdesy = 200
    character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = output_unit
+   integer, parameter :: iunit = stdout
    logical, parameter :: pr = .true.
 
    call rattle(nat,xyz,0.025_wp)
@@ -64,9 +66,10 @@ subroutine test_symmetry_li8
 end subroutine test_symmetry_li8
 
 subroutine test_symmetry_pcl3
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -81,7 +84,7 @@ subroutine test_symmetry_pcl3
    real(wp),parameter :: desy = 0.1_wp
    integer, parameter :: maxatdesy = 200
    character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = output_unit
+   integer, parameter :: iunit = stdout
    logical, parameter :: pr = .true.
 
    call rattle(nat,xyz,0.025_wp)
@@ -95,9 +98,10 @@ subroutine test_symmetry_pcl3
 end subroutine test_symmetry_pcl3
 
 subroutine test_symmetry_c20
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
-   use thermo
+   use xtb_thermo
 
    implicit none
 
@@ -170,7 +174,7 @@ subroutine test_symmetry_c20
    real(wp),parameter :: desy = 0.25_wp
    integer, parameter :: maxatdesy = 200
    character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = output_unit
+   integer, parameter :: iunit = stdout
    logical, parameter :: pr = .true.
 
    call rattle(nat,xyz,0.025_wp)
@@ -188,7 +192,7 @@ subroutine test_symmetry_c20
 end subroutine test_symmetry_c20
 
 subroutine rattle(nat,xyz,magnitude)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
 
    implicit none
    integer, intent(in) :: nat

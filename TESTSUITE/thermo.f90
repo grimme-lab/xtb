@@ -1,12 +1,12 @@
 subroutine test_axis
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
    use assertion
 
-   use mctc_econv
-   use tbdef_molecule
-   use splitparam
+   use xtb_mctc_convert
+   use xtb_type_molecule
+   use xtb_splitparam
 
-   use axis_trafo
+   use xtb_axis
 
    implicit none
 
@@ -26,7 +26,7 @@ subroutine test_axis
       & 2.83883868349296_wp,-0.73499856747260_wp,-1.46075352362473_wp, &
       & 2.83885706381384_wp,-0.73498070976087_wp, 1.46074229244211_wp],&
       & shape(xyz))
-   type(tb_molecule) :: mol
+   type(TMolecule) :: mol
    real(wp) :: moments(3), rot(3)
    real(wp) :: rot1(3)
    real(wp) :: rot2(3), avmom2, mass2
@@ -110,11 +110,12 @@ subroutine test_axis
 end subroutine test_axis
 
 subroutine test_thermo_calc
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_econv
-   use thermo
+   use xtb_mctc_convert
+   use xtb_thermo
 
    implicit none
 
@@ -150,7 +151,7 @@ subroutine test_thermo_calc
    real(wp), parameter :: zero_point_energy = 0.5_wp * sum(vibs)
    real(wp) :: et, ht, g, ts
 
-   call thermodyn(output_unit,rotational_constants(1),rotational_constants(2), &
+   call thermodyn(stdout,rotational_constants(1),rotational_constants(2), &
       &           rotational_constants(3),averaged_moment,linear,atom, &
       &           symmetry_number,molecular_mass,vibs,nvibs,energy,temperature, &
       &           rotor_cutoff,et,ht,g,ts,zero_point_energy,pr)
@@ -164,14 +165,15 @@ subroutine test_thermo_calc
 end subroutine test_thermo_calc
 
 subroutine test_print_thermo
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_econv
-   use splitparam
+   use xtb_mctc_convert
+   use xtb_splitparam
 
-   use axis_trafo
-   use property_output
+   use xtb_axis
+   use xtb_propertyoutput
 
    implicit none
    
@@ -213,7 +215,7 @@ subroutine test_print_thermo
 
    atmass = ams
 
-   call print_thermo(output_unit,nat,nvibs,at,xyz,vibs,energy, &
+   call print_thermo(stdout,nat,nvibs,at,xyz,vibs,energy, &
       &              htot,gtot,nimag,.true.,zp)
 
    call assert_eq(nimag, 0)
@@ -222,7 +224,7 @@ subroutine test_print_thermo
 
    atmass = iso
 
-   call print_thermo(output_unit,nat,nvibs,at,xyz,vibs_iso,energy, &
+   call print_thermo(stdout,nat,nvibs,at,xyz,vibs_iso,energy, &
       &              htot,gtot,nimag,.true.,zp)
 
    call assert_eq(nimag, 0)

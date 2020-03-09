@@ -1,11 +1,11 @@
 subroutine test_class_molecule_mic_distances
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
    use assertion
-   use tbdef_molecule
-   use tbdef_param
-   use eeq_model
-   use ncoord
-   use pbc_tools
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_eeq
+   use xtb_disp_ncoord
+   use xtb_pbc_tools
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    ! SiO2 (random, no symmetry)
@@ -26,7 +26,7 @@ subroutine test_class_molecule_mic_distances
       & shape(lattice))
    integer, parameter :: wsc_rep(3) = [1,1,1]
 
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
 
    call mol%allocate(nat)
    mol%at   = at
@@ -53,12 +53,12 @@ subroutine test_class_molecule_mic_distances
 end subroutine test_class_molecule_mic_distances
 
 subroutine test_class_molecule_axis_trafo
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use assertion
-   use tbdef_molecule
-   use tbdef_param
-   use ncoord
-   use eeq_model
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_disp_ncoord
+   use xtb_eeq
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
@@ -73,7 +73,7 @@ subroutine test_class_molecule_axis_trafo
       &-3.405901173_wp,     0.355579335_wp,    -1.660010899_wp   &
       & ],shape(xyz))
 
-   type(tb_molecule)       :: mol
+   type(TMolecule)       :: mol
    real(wp) :: molmass
    real(wp) :: center(3)
    real(wp) :: moments(3)

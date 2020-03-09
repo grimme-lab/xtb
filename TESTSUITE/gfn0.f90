@@ -1,22 +1,23 @@
 subroutine test_gfn0_sp
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
 
    use assertion
 
-   use mctc_systools
-   use mctc_logging
-   use tbdef_options
+   use xtb_mctc_systools
+   use xtb_mctc_logging
+   use xtb_type_options
 
-   use tbdef_molecule
-   use tbdef_wavefunction
-   use tbdef_basisset
-   use tbdef_param
-   use tbdef_data
+   use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_basisset
+   use xtb_type_param
+   use xtb_type_data
 
-   use setparam
-   use aoparam
-   use xbasis
-   use peeq_module
+   use xtb_setparam
+   use xtb_aoparam
+   use xtb_basis
+   use xtb_peeq
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -41,10 +42,10 @@ subroutine test_gfn0_sp
    real(wp),parameter :: acc = 1.0_wp
 
    type(tb_environment)  :: env
-   type(tb_molecule)     :: mol
+   type(TMolecule)     :: mol
    type(scc_results)     :: res
-   type(tb_basisset)     :: basis
-   type(tb_wavefunction) :: wfn
+   type(TBasisset)     :: basis
+   type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
    type(mctc_error), allocatable :: err
 
@@ -103,7 +104,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(output_unit,err,mol,wfn,basis,param, &
+   call peeq(stdout,err,mol,wfn,basis,param, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)
@@ -127,17 +128,18 @@ subroutine test_gfn0_sp
 end subroutine test_gfn0_sp
 
 subroutine test_gfn0_api
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_mctc_logging
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -155,7 +157,7 @@ subroutine test_gfn0_api
    type(peeq_options),parameter :: opt = peeq_options( &
       &  prlevel = 2, ccm = .false., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(mctc_error), allocatable :: err
 
@@ -178,7 +180,7 @@ subroutine test_gfn0_api
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (istdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (stdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 5.5384029314207_wp,thr)
@@ -195,17 +197,18 @@ subroutine test_gfn0_api
 end subroutine test_gfn0_api
 
 subroutine test_gfn0_api_srb
-   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
    use assertion
 
-   use mctc_logging
-   use tbdef_options
-   use tbdef_molecule
-   use tbdef_param
+   use xtb_mctc_logging
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
 
-   use pbc_tools
+   use xtb_pbc_tools
 
-   use tb_calculators
+   use xtb_calculators
 
    implicit none
 
@@ -242,7 +245,7 @@ subroutine test_gfn0_api_srb
    type(peeq_options),parameter :: opt = peeq_options( &
       &  prlevel = 2, ccm = .false., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
-   type(tb_molecule)    :: mol
+   type(TMolecule)    :: mol
    type(tb_environment) :: env
    type(mctc_error), allocatable :: err
 
@@ -265,7 +268,7 @@ subroutine test_gfn0_api_srb
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (istdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (stdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
    call assert(.not.allocated(err))
 
    call assert_close(hl_gap, 3.1192454818777_wp,thr)
