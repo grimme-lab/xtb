@@ -18,18 +18,28 @@
 module xtb_extern_orca
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
+   use xtb_mctc_filetypes, only : fileType
+   use xtb_mctc_symbols, only : toSymbol
+   use xtb_type_environment, only : TEnvironment
+   use xtb_type_molecule, only : TMolecule, len
+   use xtb_io_writer, only : writeMolecule
+   use xtb_mctc_systools
+   use xtb_mctc_strings
+   use xtb_setparam
+   use xtb_readin
+   use xtb_mctc_convert
    implicit none
+   private
+
+   public :: checkOrca, runOrca
 
 
 contains
 
 
-subroutine orca_chk()
-   use xtb_mctc_systools
-   use xtb_mctc_strings
-   use xtb_setparam
-   use xtb_readin
-   implicit none
+subroutine checkOrca(env)
+   character(len=*), parameter :: source = 'extern_orca_checkOrca'
+   type(TEnvironment), intent(inout) :: env
    character(len=:),allocatable :: homedir,syspath
    character(len=:),allocatable :: line
    character(len=5) :: chdum
@@ -54,7 +64,8 @@ subroutine orca_chk()
       endif
       inquire(file=ext_orca%executable,exist=exist)
       if (.not.exist) then
-         call raise('E',"'"//ext_orca%executable//"' was not found, please check",1)
+         call env%error("'"//ext_orca%executable//"' was not found, please check",source)
+         return
       endif
    else ! no executable provided, lets find it
       call rdvar('PATH',syspath)
@@ -64,7 +75,8 @@ subroutine orca_chk()
       endif
       call rdpath(syspath,'orca',ext_orca%executable,exist)
       if (.not.exist) then
-         call raise('E','Could not locate orca executable',1)
+         call env%error('Could not locate orca executable',source)
+         return
       endif
    endif
    if (verbose) then
@@ -94,7 +106,8 @@ subroutine orca_chk()
    if (ext_orca%exist) then
       call open_file(iorca,ext_orca%input_file,'r')
       if (iorca.eq.-1) then
-         call raise('E',"ORCA input file '"//ext_orca%input_file//"' just vanished!",1)
+         call env%error("ORCA input file '"//ext_orca%input_file//"' just vanished!",source)
+         return
       endif
       chk_engrad = .false.
       chk_xyzfile = .false.
@@ -117,8 +130,9 @@ subroutine orca_chk()
       enddo
       call close_file(iorca)
       if (.not.(chk_engrad.and.chk_xyzfile)) then
-         call raise('E',"Please add '! ENGRAD' and/or '* xyzfile' to '"//&
-         & ext_orca%input_file //"'!",1)
+         call env%error("Please add '! ENGRAD' and/or '* xyzfile' to '"//&
+         & ext_orca%input_file //"'!",source)
+         return
       endif
 
    else
@@ -139,33 +153,28 @@ subroutine orca_chk()
          "orca input line           :",ext_orca%input_string
    endif
 
-end subroutine orca_chk
+end subroutine checkOrca
 
 
-subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
-   use xtb_mctc_convert
-   use xtb_setparam
-   use xtb_writegeometry
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: xyz(3,nat)
+subroutine runOrca(env,mol,energy,gradient)
+   character(len=*), parameter :: source = 'extern_orca_runOrca'
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol
    real(wp),intent(out) :: energy
-   real(wp),intent(out) :: gradient(3,nat)
+   real(wp),intent(out) :: gradient(:, :)
 
    integer :: i,j,err
    integer :: iorca ! file handle
    logical :: exist
    character(len=:),allocatable :: line
    character(len=:),allocatable :: outfile
-   character(len=2),external :: asym
 !$ integer,external :: omp_get_num_threads
 
    !$omp critical (orca_lock)
    if (ext_orca%exist) then
       ! we dump the name of the external xyz file to input_string... not cool
       call open_file(iorca,ext_orca%input_string,'w')
-      call write_xyz(iorca,nat,at,xyz)
+      call writeMolecule(mol, iorca, format=fileType%xyz)
       call close_file(iorca)
    else
       call open_file(iorca,ext_orca%input_file,'w')
@@ -192,9 +201,9 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
          "method","runtyp","gradient","end"
       write(iorca,'("*",1x,a,1x,i0,1x,i0)') &
          "xyz",ichrg,nalphabeta+1
-      do i = 1, nat
-         write(iorca,'(3x,a2,3(2x,F20.14))') &
-            asym(at(i)),xyz(1,i)*autoaa,xyz(2,i)*autoaa,xyz(3,i)*autoaa
+      do i = 1, len(mol)
+         write(iorca,'(3x,a2,3(2x,F20.14))') toSymbol(mol%at(i)), &
+            & mol%xyz(1,i)*autoaa,mol%xyz(2,i)*autoaa,mol%xyz(3,i)*autoaa
       enddo
       write(iorca,'("*",/)')
       call close_file(iorca)
@@ -206,10 +215,11 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
    call execute_command_line('exec 2>&1 '//ext_orca%executable//' '// &
                              ext_orca%input_file,exitstat=err)
    if (err.ne.0) then
-      call raise('E','orca returned with non-zero exit status, doing the same',1)
+      call env%error('orca returned with non-zero exit status, doing the same',source)
+   else
+      write(stdout,'(1x,"*",1x,a)') &
+         "successful orca run, taking over control again..."
    endif
-   write(stdout,'(1x,"*",1x,a)') &
-      "successful orca run, taking over control again..."
    write(stdout,'(72("="))')
 
    i = index(ext_orca%input_file,'.inp')
@@ -220,29 +230,30 @@ subroutine run_orca_egrad(nat,at,xyz,energy,gradient)
    endif
    inquire(file=outfile,exist=exist)
    if (.not.exist) then
-      call raise('E',"Could not find '"//outfile//"', aborting driver run",1)
+      call env%error("Could not find '"//outfile//"', aborting driver run",source)
+   else
+      call open_file(iorca,outfile,'r')
+      read(iorca,'(a)')
+      read(iorca,'(a)')
+      read(iorca,'(a)')
+      read(iorca,*) i
+      read(iorca,'(a)')
+      read(iorca,'(a)')
+      read(iorca,'(a)')
+      read(iorca,*) energy
+      read(iorca,'(a)')
+      read(iorca,'(a)')
+      read(iorca,'(a)')
+      do j=1,len(mol)
+         read(iorca,*)gradient(1,j)
+         read(iorca,*)gradient(2,j)
+         read(iorca,*)gradient(3,j)
+      enddo
+      call close_file(iorca)
    endif
-   call open_file(iorca,outfile,'r')
-   read(iorca,'(a)')
-   read(iorca,'(a)')
-   read(iorca,'(a)')
-   read(iorca,*) i
-   read(iorca,'(a)')
-   read(iorca,'(a)')
-   read(iorca,'(a)')
-   read(iorca,*) energy
-   read(iorca,'(a)')
-   read(iorca,'(a)')
-   read(iorca,'(a)')
-   do j=1,nat
-      read(iorca,*)gradient(1,j)
-      read(iorca,*)gradient(2,j)
-      read(iorca,*)gradient(3,j)
-   enddo
-   call close_file(iorca)
    !$omp end critical (orca_lock)
 
-end subroutine run_orca_egrad
+end subroutine runOrca
 
 
 end module xtb_extern_orca

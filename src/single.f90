@@ -58,8 +58,8 @@ subroutine singlepoint &
    use xtb_solv_gbobc, only : lgbsa
    use xtb_scf, only : scf
    use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
-   use xtb_extern_mopac, only : run_mopac_egrad
-   use xtb_extern_orca, only : run_orca_egrad
+   use xtb_extern_mopac, only : runMopac
+   use xtb_extern_orca, only : runOrca
    use xtb_peeq, only : peeq
    use xtb_embedding, only : read_pcem
    implicit none
@@ -129,15 +129,14 @@ subroutine singlepoint &
       call ff_hb  (mol%n,mol%at,mol%xyz,etot,g)
 
    case(p_ext_orca)
-      call run_orca_egrad(mol%n,mol%at,mol%xyz,etot,g)
+      call runOrca(env,mol,etot,g)
 
    case(p_ext_turbomole)
       call external_turbomole(mol%n,mol%at,mol%xyz,wfn%nel,wfn%nopen, &
          &                    lgrad,etot,g,res%dipole,lgbsa)
 
    case(p_ext_mopac)
-      !call getmopacgrad(n,at,xyz,wfn%nopen,g,etot)
-      call run_mopac_egrad(mol%n,mol%at,mol%xyz,etot,g)
+      call runMopac(env,mol%n,mol%at,mol%xyz,etot,g)
 
    end select
 

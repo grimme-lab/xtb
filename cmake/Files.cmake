@@ -134,7 +134,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/disp/ncoord.f90"
   "${XTB_ROOT}/src/disp/dftd3.f"
   "${XTB_ROOT}/src/disp/dftd4.f90"
-  "${XTB_ROOT}/src/dispplot.f90"
 
   # Continuum solvation
   "${XTB_ROOT}/src/solv/gbobc.f90"
@@ -200,7 +199,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/thermo.f90"
   "${XTB_ROOT}/src/constr.f90"
   "${XTB_ROOT}/src/getsymnum.f90"
-  "${XTB_ROOT}/src/solv/grid_module.f90"
+  "${XTB_ROOT}/src/solv/lebedev.f90"
   "${XTB_ROOT}/src/qmdff.f90"
   "${XTB_ROOT}/src/neighbor.f90"
   "${XTB_ROOT}/src/zmatpr.f90"

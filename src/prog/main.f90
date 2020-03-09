@@ -74,8 +74,8 @@ program XTBprog
 !! ========================================================================
 !  get interfaces for methods used in this part
    use xtb_scc_core, only : iniqshell
-   use xtb_extern_orca, only : orca_chk
-   use xtb_extern_mopac, only : mopac_chk
+   use xtb_extern_orca, only : checkOrca
+   use xtb_extern_mopac, only : checkMopac
    use xtb_single, only : singlepoint
    use xtb_aespot, only : get_radcn
    use xtb_iniq, only : iniqcn
@@ -616,10 +616,10 @@ program XTBprog
       call ff_ini(mol%n,mol%at,mol%xyz,cn,qmdff_s6)
    case(p_ext_orca)
       call driver_header(env%unit)
-      call orca_chk
+      call checkOrca(env)
    case(p_ext_mopac)
       call driver_header(env%unit)
-      call mopac_chk
+      call checkMopac(env)
    case(p_ext_turbomole)
       call driver_header(env%unit)
       write(*,*) 'Running Turbomole Calculation!'
@@ -630,6 +630,8 @@ program XTBprog
    if (restart.and.mode_extrun.eq.p_ext_xtb) then ! only in first run
       call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
    endif
+
+   call env%checkpoint("Setup for calculation failed")
 
 !  the SP energy which is always done
    call start_timing(2)

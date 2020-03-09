@@ -18,17 +18,26 @@
 module xtb_extern_mopac
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
+   use xtb_mctc_symbols, only : toSymbol
+   use xtb_type_environment, only : TEnvironment
+   use xtb_mctc_systools
+   use xtb_setparam
+   use xtb_readin
+   use xtb_mctc_convert
+   use xtb_mctc_systools
+   use xtb_setparam
    implicit none
+   private
+
+   public :: checkMopac, runMopac
 
 
 contains
 
 
-subroutine mopac_chk()
-   use xtb_mctc_systools
-   use xtb_setparam
-   use xtb_readin
-   implicit none
+subroutine checkMopac(env)
+   character(len=*), parameter :: source = 'extern_mopac_checkMopac'
+   type(TEnvironment), intent(inout) :: env
    character(len=:),allocatable :: homedir,syspath
    character(len=5) :: chdum
    integer :: i
@@ -47,7 +56,8 @@ subroutine mopac_chk()
       endif
       inquire(file=ext_mopac%executable,exist=exist)
       if (.not.exist) then
-         call raise('E',"'"//ext_mopac%executable//"' was not found, please check",1)
+         call env%error("'"//ext_mopac%executable//"' was not found, please check",source)
+         return
       endif
    else ! no executable provided, lets find it
       call rdvar('PATH',syspath)
@@ -57,7 +67,8 @@ subroutine mopac_chk()
       endif
       call rdpath(syspath,'mopac',ext_mopac%executable,exist)
       if (.not.exist) then
-         call raise('E','Could not locate mopac executable',1)
+         call env%error('Could not locate mopac executable',source)
+         return
       endif
    endif
    if (verbose) then
@@ -128,14 +139,12 @@ subroutine mopac_chk()
          "mopac input line           :",ext_mopac%input_string
    endif
 
-end subroutine mopac_chk
+end subroutine checkMopac
 
 
-subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
-   use xtb_mctc_convert
-   use xtb_mctc_systools
-   use xtb_setparam
-   implicit none
+subroutine runMopac(env,nat,at,xyz,energy,gradient)
+   character(len=*), parameter :: source = 'extern_mopac_checkMopac'
+   type(TEnvironment), intent(inout) :: env
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
@@ -146,7 +155,6 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
    integer :: imopac ! file handle
    logical :: exist
    character(len=:),allocatable :: line
-   character(len=2),external :: asym
    integer :: num
    real(wp) :: dum(10),edum
 
@@ -155,7 +163,7 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
    write(imopac,'(a,/,/)') ext_mopac%input_string
    do i = 1, nat
       write(imopac,'(3x,a2,3(f20.14,i5))') &
-         asym(at(i)),autoaa*xyz(1,i),1,autoaa*xyz(2,i),1,autoaa*xyz(3,i),1
+         toSymbol(at(i)),autoaa*xyz(1,i),1,autoaa*xyz(2,i),1,autoaa*xyz(3,i),1
    enddo
    call close_file(imopac)
 
@@ -165,47 +173,50 @@ subroutine run_mopac_egrad(nat,at,xyz,energy,gradient)
    call execute_command_line('exec 2>&1 '//ext_mopac%executable//' '// &
                              ext_mopac%input_file,exitstat=err)
    if (err.ne.0) then
-      call raise('E','mopac returned with non-zero exit status, following this',1)
-   endif
-   if (verbose) then
-      inquire(file=ext_mopac%input_file//'.arc',exist=exist)
-      if (exist) then
-         call open_file(imopac,ext_mopac%input_file//'.arc','r')
-         print_mopac_output: do
-            call getline(imopac,line,iostat=err)
-            if (is_iostat_end(err)) exit print_mopac_output
-         enddo print_mopac_output
-         call close_file(imopac)
+      call env%error('mopac returned with non-zero exit status, following this',source)
+   else
+      if (verbose) then
+         inquire(file=ext_mopac%input_file//'.arc',exist=exist)
+         if (exist) then
+            call open_file(imopac,ext_mopac%input_file//'.arc','r')
+            print_mopac_output: do
+               call getline(imopac,line,iostat=err)
+               if (is_iostat_end(err)) exit print_mopac_output
+            enddo print_mopac_output
+            call close_file(imopac)
+         endif
       endif
-   endif
 
-   write(stdout,'(1x,"*",1x,a)') &
-      "regaining control after successful mopac run..."
+      write(stdout,'(1x,"*",1x,a)') &
+         "regaining control after successful mopac run..."
+   endif
    write(stdout,'(72("="))')
 
    call open_file(imopac,ext_mopac%input_file//'.aux','r')
    if (imopac.eq.-1) then
-      call raise('E',"Could not find '"//ext_mopac%input_file//".aux'",1)
+      call env%error("Could not find '"//ext_mopac%input_file//".aux'",source)
+   else
+      read_mopac_output: do
+         call getline(imopac,line,iostat=err)
+         if (is_iostat_end(err)) then
+            call env%error('Could not find gradient in mopac output',source)
+         endif
+         if (index(line,'TOTAL_ENERGY:EV') > 0) then
+            call readl(line,dum,num)
+            energy = dum(num)*evtoau
+            cycle read_mopac_output
+         endif
+         if (index(line,'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then
+            read(imopac,*)((gradient(j,i),j=1,3),i=1,nat)
+            exit read_mopac_output
+         endif
+      enddo read_mopac_output
+      call close_file(imopac)
+      gradient = gradient * kcaltoau / aatoau
    endif
-   read_mopac_output: do
-      call getline(imopac,line,iostat=err)
-      if (is_iostat_end(err)) then
-         call raise('E','Could not find gradient in mopac output',1)
-      endif
-      if (index(line,'TOTAL_ENERGY:EV') > 0) then
-         call readl(line,dum,num)
-         energy = dum(num)*evtoau
-         cycle read_mopac_output
-      endif
-      if (index(line,'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then
-         read(imopac,*)((gradient(j,i),j=1,3),i=1,nat)
-         exit read_mopac_output
-      endif
-   enddo read_mopac_output
-   call close_file(imopac)
    !$omp end critical (mopac_lock)
-   gradient = gradient * kcaltoau / aatoau
-end subroutine run_mopac_egrad
+
+end subroutine runMopac
 
 
 end module xtb_extern_mopac

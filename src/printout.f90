@@ -447,46 +447,4 @@ subroutine setup_summary(iunit,n,fname,xcontrol,nargs,argument_list,wfx,xrc,exis
 
 end subroutine
 
-!! --------------------------------------------------------------[SAW1809]-
-subroutine writecosmofile2(surface,fname,nat,at,xyz,itype)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_symbols, only : toSymbol
-   use xtb_mctc_convert, only : autoaa
-   use xtb_grid_module
-   implicit none
-   type(tb_grid),intent(in)        :: surface
-   integer, intent(in)             :: at(nat)
-   real(wp), intent(in)            :: xyz(3,nat)
-   integer, intent(in)             :: nat
-   integer, intent(in)             :: itype
-   character(len=*),intent(in)     :: fname
-   logical                         :: exist
-   integer                         :: id, i
-   real(wp) :: maxv,minv,rang,scal,mval
-
-   call open_file(id,fname,'w')
-   write(id,'(a)') '$coord_car'
-   write(id,'(a)') '!BIOSYM archive 3'
-   write(id,'(a)') 'coordinates from DFT-D4 calculation'
-   do i=1,nat
-      write(id,'("X1",1x,3f22.14,1x,"COSM 1",1x,a,1x,a,1x,"0.000")')&
-         xyz(:,i)*autoaa,toSymbol(at(i)),toSymbol(at(i))
-   enddo
-   write(id,'(a)') 'end'
-   write(id,'(a)') '$segment_information'
-   maxv = maxval(surface%rho(:,itype))
-   minv = minval(surface%rho(:,itype))
-   mval = max(abs(maxv),abs(minv))
-   scal = 0.05_wp/mval
-   do i=1,surface%n
-      write(id,'(2x,i5,2x,i0,4f22.14,1x,f22.14,1x,f22.14,1x,"0.000")')&
-         i,surface%at(i),surface%x(1:3,i)*autoaa, &
-         (surface%rho(i,itype)-0.5_wp*minv)*scal, &
-         surface%w(i), &
-         (surface%rho(i,itype)-0.5_wp*minv)*scal*surface%w(i)
-   enddo
-   call close_file(id)
-
-end subroutine writecosmofile2
-
 end module xtb_printout
