@@ -217,7 +217,9 @@ subroutine terminateRun(self, message, code)
    !> Exit code for termination
    integer, intent(in), optional :: code
 
-   call self%show(message, .true.)
+   call self%error(message)
+
+   call self%show("Program stopped due to fatal error", .true.)
 
    if (present(code)) then
       call terminate(code)
