@@ -12,6 +12,9 @@ subroutine test_gfn1_scc
    use xtb_type_data
    use xtb_type_pcem
    use xtb_type_environment
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
    use xtb_setparam
    use xtb_aoparam
@@ -43,6 +46,10 @@ subroutine test_gfn1_scc
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -54,6 +61,13 @@ subroutine test_gfn1_scc
    call init(env)
 
    call init(mol, at, xyz)
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    wfn%nel = idint(sum(mol%z))
    wfn%nopen = 0
@@ -80,7 +94,7 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,param,pcem, &
+   call scf(env,mol,wfn,basis,param,pcem,neighList,wsCell, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)

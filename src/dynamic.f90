@@ -159,7 +159,7 @@ subroutine md(env,mol,wfx,calc, &
 
    type(TMolecule),intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   type(tb_calculator),  intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    integer  :: icall
    integer, intent(in) :: maxiter
    integer, intent(inout) :: cdump2
@@ -198,6 +198,7 @@ subroutine md(env,mol,wfx,calc, &
    character(len=:),allocatable :: fname
    integer :: ich,trj
    logical :: exist
+   logical :: update
 
    real(wp) :: metatime
    metatime = 0.0_wp
@@ -384,16 +385,18 @@ subroutine md(env,mol,wfx,calc, &
       !ccccccccccccccccccc
       accu=accu_md
       if(acount.eq.10)then  ! accurate SCC
+         update = .true.
          accu=1.0d0
          acount=0
       else
+         update = .false.
          acount=acount+1
       endif
       epot=0.0_wp
       grd = 0.0_wp
       call singlepoint &
          &     (env,mol,wfx,calc, &
-         &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res)
+         &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res,update)
 
       if (metaset%maxsave.ne.0) then
          metatime = metatime + 1.0_wp

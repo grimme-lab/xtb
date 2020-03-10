@@ -42,7 +42,7 @@ subroutine geometry_optimization &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),  intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
    real(wp),intent(inout) :: egap

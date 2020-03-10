@@ -32,6 +32,9 @@ module subroutine gfn1_calculation &
    use xtb_type_param
    use xtb_type_data
    use xtb_type_pcem
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
    use xtb_setparam, only : gfn_method, ngrida
    use xtb_aoparam,  only : use_parameterset
@@ -68,6 +71,10 @@ module subroutine gfn1_calculation &
    type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(chrg_parameter)  :: chrgeq
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    real(wp), allocatable :: cn(:)
 
@@ -90,6 +97,13 @@ module subroutine gfn1_calculation &
    ! ====================================================================
    ! we assume that the user provides a resonable molecule input
    ! -> all atoms are inside the unit cell, all data is set and consistent
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    wfn%nel = nint(sum(mol%z) - mol%chrg)
    wfn%nopen = mol%uhf
@@ -170,7 +184,7 @@ module subroutine gfn1_calculation &
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(env,mol,wfn,basis,param,pcem,hl_gap, &
+   call scf(env,mol,wfn,basis,param,pcem,neighList,wsCell,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
 

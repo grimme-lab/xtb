@@ -32,10 +32,7 @@ subroutine test_latticepoint_pbc3d
 
    call init(env)
 
-   call init(latp, lattice_SiO2, boundaryCondition%pbc3d, 40.0_wp)
-   call assert_eq(latp%nTrans, 0)
-
-   call latp%update(env, lattice_SiO2)
+   call init(latp, env, lattice_SiO2, boundaryCondition%pbc3d, 40.0_wp)
    call env%check(fail)
    call assert(.not.fail)
    call assert(allocated(latp%trans))
@@ -60,10 +57,7 @@ subroutine test_latticepoint_pbc3d
    call assert_eq(size(latticePoint, dim=2), 959)
 
    !> Reinitialize with new lattice and new cutoff
-   call init(latp, lattice_ammonia, boundaryCondition%pbc3d, 60.0_wp)
-   call assert_eq(latp%nTrans, 0)
-
-   call latp%update(env, lattice_ammonia)
+   call init(latp, env, lattice_ammonia, boundaryCondition%pbc3d, 60.0_wp)
    call env%check(fail)
    call assert(.not.fail)
    call assert(allocated(latp%trans))
@@ -77,11 +71,8 @@ subroutine test_latticepoint_pbc3d
    call assert_eq(size(latticePoint, dim=2), 143)
 
    !> Reinitialize generator to exclude inversion symmetry
-   call init(latp, lattice_ammonia, boundaryCondition%pbc3d, 50.0_wp, &
+   call init(latp, env, lattice_ammonia, boundaryCondition%pbc3d, 50.0_wp, &
       & excludeInversion=.true.)
-   call assert_eq(latp%nTrans, 0)
-
-   call latp%update(env, lattice_ammonia)
    call env%check(fail)
    call assert(.not.fail)
    call assert(allocated(latp%trans))

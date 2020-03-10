@@ -33,9 +33,9 @@ module xtb_single
 
 contains
 
-subroutine singlepoint &
-&                 (env,mol,wfn,calc, &
-&                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
+subroutine singlepoint&
+      & (env, mol, wfn, calc, egap, et, maxiter, prlevel, restart, lgrad, &
+      &  acc, etot, g, sigma, res, forceUpdate)
    use xtb_mctc_convert
 
 !! ========================================================================
@@ -46,6 +46,7 @@ subroutine singlepoint &
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_pcem
+   use xtb_type_latticepoint
 
 !! ========================================================================
    use xtb_aoparam
@@ -71,7 +72,7 @@ subroutine singlepoint &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    type(tb_pcem) :: pcem
    real(wp),intent(inout) :: egap
    real(wp),intent(in)    :: et
@@ -80,21 +81,49 @@ subroutine singlepoint &
    logical, intent(in)    :: restart
    logical, intent(in)    :: lgrad
    real(wp),intent(in)    :: acc
+   logical, intent(in), optional :: forceUpdate
    real(wp),intent(out)   :: etot
    real(wp),intent(out)   :: g(3,mol%n)
    type(scc_results),intent(out) :: res
    real(wp),intent(out)   :: sigma(3,3)
+   real(wp), allocatable :: latticePoint(:, :)
    integer  :: i,ich
    integer  :: mode_sp_run = 1
    real(wp) :: efix
    logical  :: inmol
    logical, parameter :: ccm = .true.
-   logical :: exitRun
+   logical :: exitRun, update
 !  real(wp) :: efix1,efix2
 !  real(wp),dimension(3,n) :: gfix1,gfix2
 
    call mol%update
    if (mol%npbc > 0) call generate_wsc(mol,mol%wsc,[1,1,1])
+
+   call calc%latp%update(env, mol%lattice, update)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Generation of lattice points failed", source)
+      return
+   end if
+
+   if (present(forceUpdate)) then
+      update = update .or. forceUpdate
+   end if
+   call calc%latp%getLatticePoints(latticePoint, 40.0_wp)
+
+   if (update) then
+      call calc%neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+      call calc%wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Generation of neighbour lists failed", source)
+         return
+      end if
+   else
+      call calc%neighList%update(mol%xyz, latticePoint)
+      call calc%wsCell%update(mol%xyz, latticePoint)
+   end if
 
    etot = 0.0_wp
    efix = 0.0_wp
@@ -115,13 +144,15 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(env,mol,wfn,calc%basis,calc%param,pcem, &
-         &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
+      call scf &
+         & (env, mol, wfn, calc%basis, calc%param, pcem, calc%neighList, &
+         &  calc%wsCell, egap, et, maxiter, prlevel, restart, lgrad, acc, &
+         &  etot, g, res)
 
    case(p_ext_eht)
       call peeq &
-         & (env,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
-         &  lgrad,ccm,acc,etot,g,sigma,res)
+         & (env, mol, wfn, calc%basis, calc%param, calc%neighList, calc%wsCell, &
+         &  egap, et, prlevel, lgrad, ccm, acc, etot, g, sigma, res)
 
    case(p_ext_qmdff)
       call ff_eg  (mol%n,mol%at,mol%xyz,etot,g)

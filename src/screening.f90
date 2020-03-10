@@ -43,7 +43,7 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
 
    type(TMolecule), intent(inout) :: mol0
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator),intent(inout) :: calc
    integer icall,maxiter
    real(wp) epot,et,egap
    real(wp), intent(inout) :: grd(3,mol0%n)

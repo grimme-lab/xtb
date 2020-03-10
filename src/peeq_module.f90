@@ -22,10 +22,32 @@ module xtb_peeq
 !  with help of (alphabetically sorted):
 !  S. Ehlert, S. Grimme, P. Pracht
 ! ------------------------------------------------------------------------
-use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_la
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_basisset
+   use xtb_type_param
+   use xtb_type_data
+   use xtb_type_timer
+   use xtb_type_neighbourlist, only : TNeighbourList
+   use xtb_aoparam
+   use xtb_readin
+   use xtb_aespot
+   use xtb_scc_core
+   use xtb_grad_core
+   use xtb_eeq
+   use xtb_intgrad
+   use xtb_lineardep
+   use xtb_solv_gbobc
+   use xtb_pbc
+   use xtb_lin, only : lin
    implicit none
+   private
+
+   public :: peeq
 
    !> print the different gradient contributions (for debugging)
    logical,parameter,private :: gpr =.false.
@@ -67,39 +89,9 @@ use xtb_mctc_accuracy, only : wp
 
 contains
 
-subroutine peeq &
-      (env,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
-
-! ------------------------------------------------------------------------
-!  Class definitions
-! ------------------------------------------------------------------------
-   use xtb_type_environment
-   use xtb_type_molecule
-   use xtb_type_wavefunction
-   use xtb_type_basisset
-   use xtb_type_param
-   use xtb_type_data
-   use xtb_type_timer
-
-! ------------------------------------------------------------------------
-!  Global storage
-! ------------------------------------------------------------------------
-   use xtb_aoparam
-
-! ------------------------------------------------------------------------
-!  Get interfaces
-! ------------------------------------------------------------------------
-   use xtb_readin
-   use xtb_aespot
-   use xtb_scc_core
-   use xtb_grad_core
-   use xtb_eeq
+subroutine peeq(env, mol, wfn, basis, param, neighList, wsCell, &
+      & egap, et, prlevel, grd, ccm, acc, etot, g, sigma, res)
    use xtb_disp_ncoord
-   use xtb_lineardep
-   use xtb_solv_gbobc
-   use xtb_pbc
-
-   implicit none
 
    character(len=*), parameter :: source = 'peeq'
 
@@ -110,6 +102,8 @@ subroutine peeq &
    type(TMolecule),  intent(in) :: mol     !< molecular structure infomation
    type(TBasisset),  intent(in) :: basis   !< basis set
    type(scc_parameter),intent(in) :: param   !< method parameters
+   class(TNeighbourList), intent(in) :: neighList
+   class(TNeighbourList), intent(in) :: wsCell
    real(wp),intent(in)            :: et      !< electronic temperature
    integer, intent(in)            :: prlevel !< amount of printout
    logical, intent(in)            :: grd     !< toggles gradient calculation
@@ -216,6 +210,7 @@ subroutine peeq &
    integer                                   :: lwork
    real(wp),allocatable,dimension(:)         :: aux
    real(wp) :: test(1)
+   integer, allocatable :: neighs(:)
 
    integer :: xdim ! new dimension of the cut Overlap (lin.depend.)
 
@@ -300,6 +295,7 @@ subroutine peeq &
    allocate(qeeq(mol%n));           qeeq = 0.0_wp
    allocate(dqdr(3,mol%n,mol%n+1)); dqdr = 0.0_wp
    allocate(dqdL(3,3,mol%n+1));     dqdL = 0.0_wp
+   allocate(neighs(mol%n))
 
 ! ---------------------------------------
 !  Fill levels
@@ -433,20 +429,40 @@ subroutine peeq &
 ! ---------------------------------------
    if (mol%npbc > 0) then
       if (ccm) then
+         call wsCell%getNeighs(neighs, sqrt(800.0_wp))
+         call build_SH0(mol,wsCell%neighs,wsCell,basis,wfn%q,cn,intcut, &
+            &           param%kmagic,ken,param%alphaj,param%kcnsh, &
+            &           param%xbdamp,s,h)
+         call prmat(env%unit, h, nao, nao, 'H0 (new)')
          call ccm_build_SH0(mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice, &
             &               wfn%q,cn,intcut, &
             &               param%kmagic,ken,param%alphaj,param%kcnsh, &
             &               param%xbdamp,s,h0,mol%wsc)
+         call prmat(env%unit, h0, nao, 0, 'H0 (old)')
       else
+         call neighlist%getNeighs(neighs, sqrt(800.0_wp))
+         call build_SH0(mol,neighs,neighlist,basis,wfn%q,cn,intcut, &
+            &           param%kmagic,ken,param%alphaj,param%kcnsh, &
+            &           param%xbdamp,s,h)
+         call prmat(env%unit, h, nao, nao, 'H0 (new)')
          call pbc_build_SH0(mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice,intrep,&
             &               wfn%q,cn,intcut, &
             &               param%kmagic,ken,param%alphaj,param%kcnsh, &
             &               param%xbdamp,s,h0)
+         call prmat(env%unit, h0, nao, 0, 'H0 (old)')
       endif
+      do i = 1, nao
+         do j = 1, i
+            k = j+i*(i-1)/2
+            H(j,i) = H0(k)
+            H(i,j) = H(j,i)
+         enddo
+      enddo
    else
-      call mol_build_SH0(mol%n,mol%at,basis,nbf,nao,mol%xyz,wfn%q,cn,intcut, &
-         &               param%kmagic,ken,param%alphaj,param%kcnsh, &
-         &               param%xbdamp,s,h0)
+      call neighlist%getNeighs(neighs, sqrt(800.0_wp))
+      call build_SH0(mol,neighs,neighlist,basis,wfn%q,cn,intcut, &
+         &           param%kmagic,ken,param%alphaj,param%kcnsh, &
+         &           param%xbdamp,s,h)
    endif
 
    if (profile) call timer%measure(5)
@@ -469,13 +485,6 @@ subroutine peeq &
 !  Setup H0 under pbc
 ! ---------------------------------------
 !  H0 already initialized
-   do i = 1, nao
-      do j = 1, i
-         k = j+i*(i-1)/2
-         H(j,i) = H0(k)
-         H(i,j) = H(j,i)
-      enddo
-   enddo
 
    if(.not.orthog)then
       call solve(.true.,nao,wfn%ihomo,scfconv,H,S,X,wfn%P,wfn%emo,fail)
@@ -551,9 +560,12 @@ subroutine peeq &
       ! setup  q sigma
       call dgemv('n',9,mol%n,1.0_wp,dqdL, 9, dhdq,1,1.0_wp,sigma,1)
    else
-      call mol_build_dSH0(mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz,wfn%q,cn, &
-         &                wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
-         &                param%alphaj,param%kcnsh,param%xbdamp)
+      call build_dSH0(mol,basis,neighs,neighlist,intcut,wfn%q,cn, &
+         &            wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
+         &            param%alphaj,param%kcnsh,param%xbdamp)
+!      call mol_build_dSH0(mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz,wfn%q,cn, &
+!         &                wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
+!         &                param%alphaj,param%kcnsh,param%xbdamp)
    endif
    ! setup CN gradient
    call dgemv('n',3*mol%n,mol%n,-1.0_wp,dcndr,3*mol%n,dhdcn,1,1.0_wp,g,1)
@@ -1612,6 +1624,7 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
                   t = [tx,ty,tz]
                   rj = xyz(:,jat) + matmul(lat,t)
                   ss = 0.0_wp
+                  if (sum((ri - rj)**2) > 800.0_wp) cycle
 
                   ! distance dependent polynomial
                   shpoly = rfactor(il,jl,ati,atj,ri,rj)
@@ -2514,6 +2527,411 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
    enddo
 
 end subroutine pbc_build_dSH0
+
+! ------------------------------------------------------------------------
+!  Calculate the periodic AO overlap matrix
+! ------------------------------------------------------------------------
+subroutine build_SH0(mol, neighs, neighlist, basis, q, cn, intcut, &
+      &              kmagic, ken, alphaj, kcn, xbdamp, sint, h0)
+
+   use xtb_aoparam
+
+   implicit none
+
+   type(TMolecule), intent(in) :: mol
+   type(TBasisset), intent(in) :: basis
+   class(TNeighbourList), intent(in) :: neighList
+   integer, intent(in) :: neighs(:)
+
+   real(wp),intent(in)  :: q(:)
+   real(wp),intent(in)  :: cn(:)
+   real(wp),intent(in)  :: intcut
+
+   real(wp),intent(in)  :: kmagic(:, :)
+   real(wp),intent(in)  :: ken(:, :)
+   real(wp),intent(in)  :: kcn(:)
+   real(wp),intent(in)  :: alphaj
+   real(wp),intent(in)  :: xbdamp
+
+   real(wp),intent(out) :: sint(:, :)  ! overlap matrix S
+   real(wp),intent(out) :: h0(:, :)
+
+   integer, parameter :: llao (0:3) = (/ 1, 3, 6,10/)
+   integer, parameter :: llao2(0:3) = (/ 1, 3, 5, 7/)
+
+   integer k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,ijao,img,io,jo
+   real(wp) tmp1,tmp2,tmp3,tmp4,step,step2
+   real(wp) dx,dy,dz,s00r,s00l,s00,alpj
+   real(wp) skj,r1,r2,tt,t1,t2,t3,t4,f,ci,cc,cj,alpi,rab2,ab,est
+
+   real(wp) :: den,den2,den4,enpoly
+   real(wp) :: zi,zj,zetaij
+   real(wp) :: hii,hjj,hav
+   real(wp) :: shpoly,km
+   logical  :: valaoi,valaoj
+
+   real(wp)  ri(3),rj(3),f1,f2,weight
+   real(wp), parameter :: point(3) = 0.0_wp
+   real(wp) dtmp(3),qtmp(6),ss(6,6),dd(3,6,6),qq(6,6,6),tmp(6,6)
+   real(wp) sstmp(6,6) !TESTST
+   integer ip,jp,iat,jat,ati,atj,ish,jsh,icao,jcao,iao,jao,jshmax,il,jl
+   integer iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
+   integer itt(0:3)
+
+   integer kat
+
+   parameter(itt  =(/0,1,4,10/))
+   real(wp) :: saw(10)
+
+   sint = 0.0_wp
+   h0   = 0.0_wp
+
+   ! diagonal elements
+   do iao = 1, basis%nao
+      sint(iao,iao)=1.0_wp+sint(iao,iao)
+
+      ii  = iao*(1+iao)/2 ! H0 is packed, note iao*(iao-1)/2+iao = iao*(1+iao)/2
+      iat = basis%aoat2(iao)
+      ati = mol%at(iat)
+      ish = basis%ao2sh(iao)
+      il  = basis%lsh(ish)+1
+
+      ! calculate environment dependent shift
+      hii = basis%level(ish) - kcnat(il-1,ati)*cn(iat) &
+         &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
+      H0(iao,iao) = hii
+
+   end do
+
+   !$omp parallel do default(none) reduction (+:sint,h0) &
+   !$omp shared(basis,mol,neighlist,neighs,ao_n,ao_l,intcut,kqat,kcnat,cn,q,en, &
+   !$omp&       ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj) &
+   !$omp private(iat,jat,ij,ijao,img,ati,cc,ci,rab2,atj,ish,valaoi,valaoj, &
+   !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jcao,naoj,jptyp, &
+   !$omp&        ss,saw,est,alpi,alpj,ab,iprim,jprim,ip,jp,km,shpoly,io,jo, &
+   !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao,weight, &
+   !$omp&        ii,jj,k,den,den2,den4,il,jl,hii,hjj,hav)
+   do iat = 1, len(mol)
+      ri = mol%xyz(:, iat)
+      ati = mol%at(iat)
+      io = basis%shells(1, iat)-1
+      do ij = 1, neighs(iat)
+         img = neighlist%ineigh(ij, iat)
+         !r2 = neighlist%dists2(ij, iat)
+         weight = neighlist%weight(ij, iat)
+         rj = neighlist%coords(:, img)
+         jat = neighlist%image(img)
+         atj = mol%at(jat)
+         !r1 = sqrt(r2)
+
+         if (iat == jat) cycle ! FIXME
+
+         den = en(ati) - en(atj)
+         den2 =  den**2
+         den4 = den2**2
+
+         jo = basis%shells(1, jat)-1
+         ishells: do ish = 1, ao_n(ati)
+            il = basis%lsh(ish+io)+1
+            icao = basis%caoshell(ish,iat)
+            naoi = llao(il-1)
+            iptyp = itt(il-1)
+            jshmax = ao_n(atj)
+            if(iat == jat) jshmax = ish
+
+            jshells: do jsh = 1, jshmax
+               jl = basis%lsh(jsh+jo)+1
+               jcao = basis%caoshell(jsh,jat)
+               naoj = llao(jl-1)
+               jptyp = itt(jl-1)
+
+               ! diagonals are the same for all H0 elements
+               hii = basis%level(ish+io) - kcnat(il-1,ati)*cn(iat) &
+                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
+               hjj = basis%level(jsh+jo) - kcnat(jl-1,atj)*cn(jat) &
+                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+
+               ! evaluate the EN polynom for this shells
+               enpoly = (1.0_wp + ken(jl,il)*den2 &
+                  &      + xbdamp*ken(jl,il)*den4)
+
+               ! we scale the two shells depending on their exponent
+               zi = basis%zeta(ish+io)
+               zj = basis%zeta(jsh+jo)
+               zetaij = 2 * sqrt(zi*zj)/(zi+zj)
+
+               ! now do the real magic (called EHT enhancement factor)
+               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+
+               ! check for valence orbitals
+               valaoi = basis%valsh(ish+io).eq.0
+               valaoj = basis%valsh(jsh+jo).eq.0
+               ! and scale appropiately
+               if (valaoi) then
+                  if (valaoj) then
+                     km = km * kcn(1)
+                  else
+                     km = km * alphaj
+                  endif
+               else
+                  if (valaoj) km = km * alphaj
+               endif
+
+               ! averaged H0 element (without overlap contribution!)
+               hav = 0.5_wp * km * (hii + hjj)
+
+               ss = 0.0_wp
+
+               ! distance dependent polynomial
+               shpoly = rfactor(il,jl,ati,atj,ri,rj)
+
+               ! get overlap integral
+               call get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point, &
+                  &             intcut,basis%nprim,basis%primcount, &
+                  &             basis%alp,basis%cont,ss)
+
+               !transform from CAO to SAO
+               call dtrf2(ss,il-1,jl-1)
+
+               do ii = 1, llao2(il-1)
+                  iao = ii+basis%saoshell(ish,iat)
+                  do jj = 1, llao2(jl-1)
+                     jao = jj+basis%saoshell(jsh,jat)
+                     ijao = lin(iao,jao)
+                     ! add all WSC images
+                     sint(iao,jao) = sint(iao,jao) + ss(jj,ii)*weight
+                     sint(jao,iao) = sint(jao,iao) + ss(jj,ii)*weight
+                     ! Hamiltonian
+                     H0(iao,jao) = H0(iao,jao) + hav * shpoly * ss(jj,ii)*weight
+                     H0(jao,iao) = H0(jao,iao) + hav * shpoly * ss(jj,ii)*weight
+                  enddo
+               enddo
+
+            enddo jshells
+         enddo ishells
+      enddo
+   enddo
+   !$omp end parallel do
+
+end subroutine build_SH0
+
+! ------------------------------------------------------------------------
+!  Calculate the gradient resulting from a periodic AO overlap matrix
+! ------------------------------------------------------------------------
+subroutine build_dSH0(mol,basis,neighs,neighlist,thr,q,cn,P,Pew,g,sigma, &
+      &               dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp)
+
+   implicit none
+
+   ! intent in
+   type(TMolecule), intent(in) :: mol
+   type(TBasisset), intent(in) :: basis
+   type(TNeighbourList), intent(in) :: neighlist
+   integer, intent(in) :: neighs(:)
+   real(wp),intent(in) :: thr
+   real(wp),intent(in) :: q(:)
+   real(wp),intent(in) :: cn(:)
+   real(wp),intent(in) :: P(:, :)
+   real(wp),intent(in) :: Pew(:, :)
+
+   real(wp),intent(in)  :: kmagic(:, :)
+   real(wp),intent(in)  :: ken(:, :)
+   real(wp),intent(in)  :: kcn(:)
+   real(wp),intent(in)  :: alphaj
+   real(wp),intent(in)  :: xbdamp
+   ! intent inout
+   real(wp),intent(inout) :: dHdq(:)
+   real(wp),intent(inout) :: dHdcn(:)
+   real(wp),intent(inout) :: g(:, :)
+   real(wp),intent(inout) :: sigma(:, :)
+
+   integer, parameter :: llao (0:3) = (/ 1, 3, 6,10/)
+   integer, parameter :: llao2(0:3) = (/ 1, 3, 5, 7/)
+
+   integer itt(0:3)
+   parameter (itt=(/0,1,4,10/))
+   real(wp) tmp1,tmp2,tmp3,step,step2,step3,s00r,s00l,s00,alpj
+   real(wp) skj,r1,r2,tt,t1,t2,t3,t4
+   real(wp) thr2,f,ci,cc,cj,alpi,rab2,ab,est
+   real(wp) f1,f2,tmp(6,6),rij(3),ri(3),rj(3),rij2
+   real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
+   real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
+   real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
+   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,lin,jshmax,io,jo
+   integer ip,jp,iat,jat,kat,ati,atj,ish,jsh,icao,jcao,iao,jao,ixyz,jxyz
+   integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
+   real(wp) :: dumdum(3),dum,sdq(6,6),sdqg(3,6,6)
+   real(wp),parameter :: point(3) = 0.0_wp
+
+   integer  :: il,jl, ij, img
+   real(wp) :: Hij,Pii,Pij,HPij,H0sr
+   real(wp) :: den,den2,den4,enpoly
+   real(wp) :: zi,zj,zetaij
+   real(wp) :: hii,hjj,hav
+   real(wp) :: shpoly,dshpoly(3),km
+   logical  :: valaoi,valaoj
+   real(wp) :: g_xyz(3)
+
+   !$omp parallel do default(none) &
+   !$omp reduction(+:g,sigma,dhdcn,dhdq) &
+   !$omp private(iat,jat,ixyz,ati,cc,ci,rab2,atj,ish,ishtyp,valaoi,valaoj,g_xyz, &
+   !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,rij2, &
+   !$omp&        sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,km,shpoly,dshpoly, &
+   !$omp&        mli,mlj,dum,dumdum,tmp,stmp,rij,zi,zj,zetaij,enpoly,iao,jao,img, &
+   !$omp&        ii,jj,k,den,den2,den4,io,jo,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
+   !$omp shared(mol,neighs,neighlist,basis,ao_n,ao_l,thr,kqat,kcnat,cn,q,en, &
+   !$omp        ken,gam3,xbdamp,kcn,kmagic,kpair,alphaj,P,Pew)
+   do iat = 1, len(mol)
+      ri  = mol%xyz(:,iat)
+      ati = mol%at(iat)
+      io = basis%shells(1, iat)-1
+      do ij = 1, neighs(iat)
+         img = neighlist%ineigh(ij, iat)
+         rij2 = neighlist%dist2(ij, iat)
+         rj = neighlist%coords(:, img)
+         jat = neighlist%image(img)
+         atj = mol%at(jat)
+         rij = ri - rj
+
+         if (iat == jat) cycle ! FIXME
+
+         den = en(ati) - en(atj)
+         den2 =  den**2
+         den4 = den2**2
+
+         jo = basis%shells(1, jat)-1
+         ishells: do ish = 1, ao_n(ati)
+            il = basis%lsh(ish+io)+1
+            icao = basis%caoshell(ish,iat)
+            naoi = llao(il-1)
+            iptyp = itt(il-1)
+            jshmax = ao_n(atj)
+            if(iat == jat) jshmax = ish
+
+            jshells: do jsh = 1, jshmax
+               jl = basis%lsh(jsh+jo)+1
+               jcao = basis%caoshell(jsh,jat)
+               naoj = llao(jl-1)
+               jptyp = itt(jl-1)
+
+               ! diagonals are the same for all H0 elements
+               hii = basis%level(ish+io) - kcnat(il-1,ati)*cn(iat) &
+                  &  - kqat(il,ati)*q(iat) - gam3(ati)*q(iat)**2
+               hjj = basis%level(jsh+jo) - kcnat(jl-1,atj)*cn(jat) &
+                  &  - kqat(jl,atj)*q(jat) - gam3(atj)*q(jat)**2
+
+               ! evaluate the EN polynom for this shells
+               enpoly = (1.0_wp + ken(jl,il)*den2 &
+                  &      + xbdamp*ken(jl,il)*den4)
+
+               ! we scale the two shells depending on their exponent
+               zi = basis%zeta(ish+io)
+               zj = basis%zeta(jsh+jo)
+               zetaij = 2 * sqrt(zi*zj)/(zi+zj)
+
+               ! now do the real magic (called EHT enhancement factor)
+               km = kmagic(jl,il) * kpair(ati,atj) * zetaij * enpoly
+
+               ! check for valence orbitals
+               valaoi = basis%valsh(ish+io).eq.0
+               valaoj = basis%valsh(jsh+jo).eq.0
+               ! and scale appropiately
+               if (valaoi) then
+                  if (valaoj) then
+                     km = km * kcn(1)
+                  else
+                     km = km * alphaj
+                  endif
+               else
+                  if (valaoj) km = km * alphaj
+               endif
+
+               ! averaged H0 element (without overlap contribution!)
+               hav = 0.5_wp * km * (hii + hjj)
+
+               ! distance dependent polynomial
+               !shpoly = rfactor(il,jl,ati,atj,ri,rj)
+               call drfactor(il,jl,0,ati,atj,rij2,ri,rj,shpoly,dshpoly)
+
+               call get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+                  &                  point,thr,basis%nprim,basis%primcount, &
+                  &                  basis%alp,basis%cont,sdq,sdqg)
+
+               call dtrf2(sdq,il-1,jl-1)
+               do ixyz = 1, 3
+                  ! transform from CAO to SAO, only transform the gradient
+                  tmp = sdqg(ixyz,:,:)
+                  call dtrf2(tmp,il-1,jl-1)
+                  sdqg(ixyz,:,:) = tmp
+               enddo
+
+               do ii = 1, llao2(il-1)
+                  iao = ii+basis%saoshell(ish,iat)
+                  do jj = 1, llao2(jl-1)
+                     jao = jj+basis%saoshell(jsh,jat)
+
+                     Pij = P(jao,iao) * evtoau
+
+                     ! Hamiltonian element without overlap
+                     Hij  = hav * shpoly
+                     HPij = Hij * Pij
+
+                     ! overlap contribution
+                     stmp = 2*(HPij - Pew(jao,iao))
+
+                     ! distance dependent polynomial contribution
+                     H0sr = 2*HPij*sdq(jj,ii)
+                     g_xyz = stmp*sdqg(:,jj,ii) + H0sr*dshpoly/shpoly
+
+                     ! distribute to atom i
+                     g(:,iat) = g(:,iat) + g_xyz
+                     ! distribute to atom j
+                     g(:,jat) = g(:,jat) - g_xyz
+
+                     ! reduce to strain
+                     sigma = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
+
+                     ! Hamiltonian without Hav
+                     HPij = km * shpoly * Pij * sdq(jj,ii)
+                     ! save dE/dCN for CNi
+                     dhdcn(iat) = dhdcn(iat) - HPij*kcnat(il-1,ati)
+                     ! save dE/dCN for CNj
+                     dhdcn(jat) = dhdcn(jat) - HPij*kcnat(jl-1,atj)
+
+                     ! save dE/dq for qi
+                     dhdq(iat) = dhdq(iat) - HPij*kqat(il,ati) &
+                        &                  - HPij*gam3(ati)*2*q(iat)
+                     ! save dE/dq for qj
+                     dhdq(jat) = dhdq(jat) - HPij*kqat(jl,atj) &
+                        &                  - HPij*gam3(atj)*2*q(jat)
+
+                  enddo
+               enddo
+
+            enddo jshells
+         enddo  ishells
+
+      enddo ! jat
+   enddo  ! iat
+   !$omp end parallel do
+
+   ! diagonal contributions
+   do iao = 1, basis%nao
+      ii  = iao*(1+iao)/2 ! H0 is packed, note iao*(iao-1)/2+iao = iao*(1+iao)/2
+      iat = basis%aoat2(iao)
+      ati = mol%at(iat)
+      ish = basis%ao2sh(iao)
+      il  = basis%lsh(ish)+1
+
+      Pii = P(iao,iao)*evtoau
+
+      ! save dE/dCN for CNi
+      dhdcn(iat) = dhdcn(iat) - Pii*kcnat(il-1,ati)
+      ! save dE/dq for qi
+      dhdq(iat) = dhdq(iat) - Pii*kqat(il,ati) - Pii*gam3(ati)*2*q(iat)
+   enddo
+
+end subroutine build_dSH0
 
 end module xtb_peeq
 

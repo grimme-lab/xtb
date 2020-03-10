@@ -149,6 +149,8 @@ subroutine generate(self, env, coords0, cutoff, latPoint, symmetric)
       self%iNeigh(0, iAt) = iAt
       self%weight(0, iAt) = 1.0_wp
       self%coords(:, iAt) = coords0(:, iAt)
+      self%image(iAt) = iAt
+      self%trans(iAt) = 1
    end do
 
    !> Allocate scratch space for Wigner-Seitz neighbours
@@ -212,11 +214,12 @@ subroutine generate(self, env, coords0, cutoff, latPoint, symmetric)
 
          !> Store the Wigner-Seitz cell
          do iWs = 1, nWs
+            iTr = wsTrans(iWs)
             if (iTr /= 1) then
                nImage = nImage + 1
                self%coords(:, nImage) = coords0(:, iAt) + latPoint(:, wsTrans(iWs))
                self%image(nImage) = iAt
-               self%trans(nImage) = wsTrans(iWs)
+               self%trans(nImage) = iTr
                self%iNeigh(self%neighs(jAt)+iWs, jAt) = nImage
             else
                self%iNeigh(self%neighs(jAt)+iWs, jAt) = iAt
@@ -228,6 +231,8 @@ subroutine generate(self, env, coords0, cutoff, latPoint, symmetric)
 
       end do lpJAt
    end do lpIAt
+
+   call resizeImage(nImage, self%image, self%trans, self%coords)
 
    call self%sort
 

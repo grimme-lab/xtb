@@ -17,6 +17,8 @@
 
 subroutine get_COFFEE(mol)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
+   use xtb_mctc_symbols, only : toSymbol
    use xtb_type_molecule
    type(TMolecule), intent(inout) :: mol
    integer, parameter :: nat = 24

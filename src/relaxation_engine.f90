@@ -158,7 +158,7 @@ subroutine fire &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of steps
@@ -408,7 +408,7 @@ subroutine l_ancopt &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of optimization cycles
@@ -789,7 +789,7 @@ subroutine lbfgs_relax &
    type(TMolecule), intent(inout) :: mol
 
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
 
    !> settings for the low memory BFGS
    type(lbfgs_options), intent(in) :: opt
@@ -964,7 +964,7 @@ subroutine lbfgs_relax &
       call singlepoint &
          &(env,mol,wfn,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
-         & energy,g_xyz,sigma,res)
+         & energy,g_xyz,sigma,res,icycle==1)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
       if (profile) call timer%measure(6)
       call env%check(fail)
@@ -1054,7 +1054,7 @@ subroutine inertial_relax &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
 
    !> settings for the fast inertial relaxation engine
    type(fire_options), intent(in) :: opt
@@ -1278,7 +1278,7 @@ subroutine inertial_relax &
       call singlepoint &
          &(env,mol,wfn,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
-         & energy,gradient,sigma,res)
+         & energy,gradient,sigma,res,istep==1)
       if (profile) call timer%measure(4)
       call env%check(fail)
       if (fail) then

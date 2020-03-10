@@ -31,6 +31,9 @@ module subroutine gfn0_calculation &
    use xtb_type_basisset
    use xtb_type_param
    use xtb_type_data
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
    use xtb_setparam, only : gfn_method, ngrida
    use xtb_aoparam,  only : use_parameterset
@@ -65,6 +68,10 @@ module subroutine gfn0_calculation &
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    character(len=*),parameter :: outfmt = &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
@@ -85,6 +92,13 @@ module subroutine gfn0_calculation &
    ! ====================================================================
    ! we assume that the user provides a resonable molecule input
    ! -> all atoms are inside the unit cell, all data is set and consistent
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    wfn%nel = nint(sum(mol%z) - mol%chrg)
    wfn%nopen = mol%uhf
@@ -159,8 +173,8 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
-      &      opt%ccm,opt%acc,energy,gradient,sigma,res)
+   call peeq(env,mol,wfn,basis,param,neighList,wsCell,hl_gap, &
+      & opt%etemp,opt%prlevel,opt%grad,opt%ccm,opt%acc,energy,gradient,sigma,res)
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Single point calculation terminated", source)

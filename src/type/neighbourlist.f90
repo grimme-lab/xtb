@@ -63,6 +63,9 @@ module xtb_type_neighbourlist
       !> Generate neighbour list
       procedure :: generate
 
+      !> Update neighbour list
+      procedure :: update
+
       !> Get number of neighbours
       generic :: getNeighs => getNeighsAll, getNeighsOne
 

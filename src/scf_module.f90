@@ -26,9 +26,8 @@ use xtb_mctc_accuracy, only : wp
 
 contains
 
-subroutine scf(env,mol,wfn,basis,param,pcem, &
-&              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
-&              res)
+subroutine scf(env, mol, wfn, basis, param, pcem, neighList, wsCell, &
+      & egap, et, maxiter, prlevel, restart, grd, acc, eel, g, res)
 
    use xtb_mctc_convert, only : autoev,evtoau
 
@@ -42,6 +41,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    use xtb_type_data
    use xtb_type_timer
    use xtb_type_pcem
+   use xtb_type_neighbourlist, only : TNeighbourList
 
 ! ========================================================================
 !  global storage
@@ -75,6 +75,8 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    type(TBasisset),intent(in) :: basis
    type(scc_parameter),intent(in) :: param
    type(tb_pcem),intent(inout) :: pcem
+   class(TNeighbourList), intent(in) :: neighList
+   class(TNeighbourList), intent(in) :: wsCell
    real(wp),intent(inout) :: egap
    real(wp),intent(in)    :: et
    integer, intent(in)    :: maxiter

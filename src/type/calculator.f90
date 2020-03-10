@@ -27,14 +27,14 @@ module xtb_type_calculator
    implicit none
    private
 
-   public :: tb_calculator
+   public :: TCalculator
 
-   type :: tb_calculator
+   type :: TCalculator
       type(TBasisset), allocatable :: basis
       type(scc_parameter), allocatable :: param
       type(TNeighbourlist), allocatable :: neighList
       type(TWignerSeitzCell), allocatable :: wsCell
       type(TLatticePoint), allocatable :: latp
-   end type tb_calculator
+   end type TCalculator
 
 end module xtb_type_calculator

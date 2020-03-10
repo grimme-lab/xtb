@@ -25,6 +25,9 @@ module xtb_api_interface
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
    implicit none
 
@@ -83,6 +86,10 @@ integer(c_int) function xtb_calculation_api &
    real(c_double), intent(out), optional :: c_stress(3, 3)
 
    type(TEnvironment) :: env
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
    real(wp) :: energy, sigma(3, 3), egap
    real(wp), allocatable :: gradient(:, :)
    type(scc_results) :: res
@@ -115,6 +122,13 @@ integer(c_int) function xtb_calculation_api &
       call disclamer(iunit)
       call citation(iunit)
    endif
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    ! handle basisset
    if (c_associated(c_basis)) then
@@ -151,17 +165,17 @@ integer(c_int) function xtb_calculation_api &
    select case(gfn_method)
    case(0)
       call peeq &
-         & (env, mol, wfn, basis, global_parameter, &
+         & (env, mol, wfn, basis, global_parameter, neighList, wsCell, &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, neighList, wsCell, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case(2)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, neighList, wsCell, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case default
@@ -449,6 +463,10 @@ function gfn12_calc_impl &
    type(TWavefunction) :: wfn
    type(TBasisset) :: basis
    type(scc_results) :: res
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    character(len=:),allocatable :: outfile
 
@@ -480,6 +498,13 @@ function gfn12_calc_impl &
    ! aquire the molecular structure and fill with data from C
    mol = TMolecule(natoms, attyp, coord, charge, uhf)
 
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+
    ! reserve some memory
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -508,7 +533,7 @@ function gfn12_calc_impl &
    call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, neighList, wsCell, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
@@ -579,6 +604,10 @@ function gfn0_api &
    type(TMolecule)    :: mol
    type(peeq_options)    :: opt
    type(TEnvironment) :: env
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    character(len=:),allocatable :: outfile
 
@@ -618,6 +647,13 @@ function gfn0_api &
    !  STEP 3: aquire the molecular structure and fill with data from C
    ! ====================================================================
    mol = TMolecule(natoms, attyp, coord, charge, uhf)
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    ! ====================================================================
    !  STEP 4: reserve some memory
@@ -805,6 +841,10 @@ function gfn12_pcem_impl &
    type(TBasisset) :: basis
    type(TEnvironment) :: env
    type(tb_pcem) :: pcem
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    character(len=:),allocatable :: outfile
 
@@ -836,6 +876,13 @@ function gfn12_pcem_impl &
 
    ! aquire the molecular structure and fill with data from C
    mol = TMolecule(natoms, attyp, coord, charge, uhf)
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    call pcem%allocate(npc)
    pcem%q   = pc_q
@@ -874,7 +921,7 @@ function gfn12_pcem_impl &
    call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, neighList, wsCell, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 

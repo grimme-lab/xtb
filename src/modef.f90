@@ -49,7 +49,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
    type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    integer :: icall,maxiter
    real(wp) :: epot,et,egap
    real(wp), intent(inout) :: grd(3,mol%n)

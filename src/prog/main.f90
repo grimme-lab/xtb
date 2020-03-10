@@ -38,6 +38,9 @@ program XTBprog
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
 !! ========================================================================
 !  former common variable storage, used in the entire xtb code
@@ -108,7 +111,7 @@ program XTBprog
 !  use some wrapper types to bundle information together
    type(TMolecule) :: mol
    type(scc_results) :: res
-   type(tb_calculator) :: calc
+   type(TCalculator) :: calc
    type(freq_results) :: fres
    type(TWavefunction) :: wfn
    type(chrg_parameter) :: chrgeq
@@ -151,6 +154,7 @@ program XTBprog
    real(wp),allocatable :: q  (:)
    real(wp),allocatable :: ql  (:)
    real(wp),allocatable :: qr  (:)
+   real(wp),allocatable :: latticePoint(:,:)
 
 !! ------------------------------------------------------------------------
    integer,external :: ncore
@@ -406,6 +410,38 @@ program XTBprog
    if (strict) call mctc_strict
 
    call check_cold_fusion(mol)
+
+   !> Finalize geometry setup
+   allocate(calc%latp)
+   allocate(calc%neighList)
+   allocate(calc%wsCell)
+
+   !> Setup lattice points
+   write(env%unit, '(" * Setup lattice points",t40,"...")', advance='no')
+   call init(calc%latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call calc%latp%getLatticePoints(latticePoint, 40.0_wp)
+
+   write(env%unit, '(i10,1x,"points")') calc%latp%nTrans
+
+   call env%checkpoint("Generation of lattice points failed")
+
+   !> Setup neighbour list
+   write(env%unit, '(" * Setup neighbour list",t40,"...")', advance='no')
+   call init(calc%neighList, len(mol))
+   call calc%neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+
+   write(env%unit, '(i10,1x,"images")') size(calc%neighList%image)
+
+   call env%checkpoint("Generation of neighbour list failed")
+
+   !> Setup Wigner-Seitz cell
+   write(env%unit, '(" * Setup Wigner-Seitz cell",t40,"...")', advance='no')
+   call init(calc%wsCell, len(mol))
+   call calc%wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+
+   write(env%unit, '(i10,1x,"images")') size(calc%wsCell%image)
+
+   call env%checkpoint("Generation of Wigner-Seitz cell failed")
 
 !! ------------------------------------------------------------------------
 !  PARAMETER

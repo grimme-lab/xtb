@@ -1,5 +1,6 @@
 subroutine test_peeq_sp
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_io, only : stdout
    use assertion
 
@@ -12,6 +13,9 @@ subroutine test_peeq_sp
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
    use xtb_setparam, only : gfn_method
    use xtb_aoparam,  only : use_parameterset
@@ -50,6 +54,10 @@ subroutine test_peeq_sp
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    real(wp)              :: energy
    real(wp)              :: hl_gap
@@ -70,6 +78,13 @@ subroutine test_peeq_sp
    call init(env)
 
    call init(mol, at, xyz, lattice=lattice)
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    allocate( gradient(3,mol%n) )
    energy = 0.0_wp
@@ -112,8 +127,8 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
-      &      energy,gradient,sigma,res)
+   call peeq(env, mol, wfn, basis, param, neighList, wsCell, hl_gap, et, prlevel, &
+      & lgrad, .true., acc, energy, gradient, sigma, res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
    call assert_close(hl_gap, 2.0722850435118_wp,1.0e-4_wp)
@@ -136,8 +151,8 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
-      &      energy,gradient,sigma,res)
+   call peeq(env, mol, wfn, basis, param, neighList, wsCell, hl_gap, et, prlevel, &
+      & lgrad, .false., acc, energy, gradient, sigma, res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)
    call assert_close(hl_gap, 2.1721883949504_wp,1.0e-4_wp)
@@ -161,6 +176,7 @@ end subroutine test_peeq_sp
 
 subroutine test_peeq_api
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_io, only : stdout
    use assertion
 
@@ -229,6 +245,7 @@ end subroutine test_peeq_api
 
 subroutine test_peeq_api_srb
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_io, only : stdout
    use assertion
 

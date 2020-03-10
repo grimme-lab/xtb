@@ -13,6 +13,9 @@ subroutine test_gfn0_sp
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
+   use xtb_type_neighbourlist, only : TNeighbourList, init
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
 
    use xtb_setparam
    use xtb_aoparam
@@ -48,6 +51,10 @@ subroutine test_gfn0_sp
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
+   type(TNeighbourlist) :: neighList
+   type(TWignerSeitzCell) :: wsCell
+   type(TLatticePoint) :: latp
+   real(wp), allocatable :: latticePoint(:, :)
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)
@@ -62,6 +69,13 @@ subroutine test_gfn0_sp
    gfn_method = 0
 
    call init(mol, at, xyz)
+
+   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(latticePoint, 40.0_wp)
+   call init(neighList, len(mol))
+   call neighList%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
+   call init(wsCell, len(mol))
+   call wsCell%generate(env, mol%xyz, 40.0_wp, latticePoint, .false.)
 
    wfn%nel = idint(sum(mol%z))
    wfn%nopen = 0
@@ -100,7 +114,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param, &
+   call peeq(env,mol,wfn,basis,param,neighList,wsCell, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)

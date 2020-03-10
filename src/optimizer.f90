@@ -126,7 +126,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -447,7 +447,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    type(tb_timer),       intent(inout) :: timer
    type(tb_anc),         intent(inout) :: anc
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: iupdat
    integer, intent(in)    :: ilog
@@ -521,7 +521,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    g = 0.0_wp
    call singlepoint &
          (env,mol,wfn,calc, &
-          egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res)
+          egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res,ii==1)
    if (profile) call timer%measure(5)
 
    ! something went wrong in SCC or diag

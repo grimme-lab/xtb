@@ -54,7 +54,7 @@ subroutine numhess( &
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: maxiter
    type(TWavefunction),intent(inout) :: wf0
-   type(tb_calculator),intent(in) :: calc
+   type(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -120,7 +120,7 @@ subroutine numhess( &
 
    call singlepoint &
       & (env,mol,wf0,calc, &
-      &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
+      &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr,.true.)
 
    write(env%unit,'(''step length          :'',F10.5)') step
    write(env%unit,'(''SCC accuracy         :'',F10.5)') acc

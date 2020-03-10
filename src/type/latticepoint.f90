@@ -83,10 +83,13 @@ contains
 
 
 !> Initializes lattice point generator
-subroutine initLatticePointMolecule(self, mol, cutoff, excludeInversion)
+subroutine initLatticePointMolecule(self, env, mol, cutoff, excludeInversion)
 
    !> Instance of the lattice point generator
    type(TLatticePoint), intent(out) :: self
+
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -97,16 +100,21 @@ subroutine initLatticePointMolecule(self, mol, cutoff, excludeInversion)
    !> Exclude inversion symmetry in the lattice points
    logical, intent(in), optional :: excludeInversion
 
-   call init(self, mol%lattice, mol%boundaryCondition, cutoff, excludeInversion)
+   call init(self, env, mol%lattice, mol%boundaryCondition, cutoff, &
+      & excludeInversion)
 
 end subroutine initLatticePointMolecule
 
 
 !> Initializes lattice point generator
-subroutine initLatticePoint(self, lattice, boundaryCond, cutoff, excludeInversion)
+subroutine initLatticePoint(self, env, lattice, boundaryCond, cutoff, &
+      & excludeInversion)
 
    !> Instance of the lattice point generator
    type(TLatticePoint), intent(out) :: self
+
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
 
    !> Boundary condition
    integer, intent(in) :: boundaryCond
@@ -140,11 +148,13 @@ subroutine initLatticePoint(self, lattice, boundaryCond, cutoff, excludeInversio
 
    end select
 
+   call self%update(env, lattice)
+
 end subroutine initLatticePoint
 
 
 !> Update lattice point generator
-subroutine update(self, env, lattice)
+subroutine update(self, env, lattice, updated)
 
    !> Source of the generated error
    character(len=*), parameter :: source = 'type_latticepoint_update'
@@ -157,6 +167,9 @@ subroutine update(self, env, lattice)
 
    !> Lattice parameters
    real(wp), intent(in) :: lattice(:, :)
+
+   !> New lattice points generated
+   logical, intent(out), optional :: updated
 
    logical :: exitRun
    integer :: ranges(2, 3)
@@ -172,6 +185,8 @@ subroutine update(self, env, lattice)
       end if
 
    end select
+
+   if (present(updated)) updated = self%nTrans == 0
 
    if (self%nTrans == 0) then
       call self%generate(env)
