@@ -17,6 +17,7 @@
 
 module xtb_io_reader_xyz
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_convert
    use xtb_mctc_symbols, only : toNumber, symbolLength
    use xtb_type_molecule

@@ -17,6 +17,7 @@
 
 module xtb_io_reader_ctfile
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_convert
    use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength
    use xtb_mctc_systools

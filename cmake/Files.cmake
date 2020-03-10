@@ -59,6 +59,8 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/type/vendordata.f90"
   "${XTB_ROOT}/src/type/reader.f90"
   "${XTB_ROOT}/src/type/buffer.f90"
+  "${XTB_ROOT}/src/type/neighbourlist.f90"
+  "${XTB_ROOT}/src/type/wignerseitzcell.f90"
   "${XTB_ROOT}/src/type/latticepoint.f90"
 
   # Global data

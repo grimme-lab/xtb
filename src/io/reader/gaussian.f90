@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_io_reader_gaussian
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_symbols, only : toNumber, toSymbol
    use xtb_type_molecule
    implicit none

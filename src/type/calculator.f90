@@ -21,14 +21,20 @@ module xtb_type_calculator
    use xtb_mctc_accuracy, only : wp
    use xtb_type_basisset
    use xtb_type_param
+   use xtb_type_neighbourlist
+   use xtb_type_wignerseitzcell
+   use xtb_type_latticepoint
    implicit none
+   private
 
    public :: tb_calculator
-   private
 
    type :: tb_calculator
       type(TBasisset), allocatable :: basis
       type(scc_parameter), allocatable :: param
+      type(TNeighbourlist), allocatable :: neighList
+      type(TWignerSeitzCell), allocatable :: wsCell
+      type(TLatticePoint), allocatable :: latp
    end type tb_calculator
 
 end module xtb_type_calculator

@@ -17,6 +17,7 @@
 
 module xtb_io_reader_vasp
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_convert
    use xtb_mctc_strings
    use xtb_mctc_systools
@@ -143,6 +144,7 @@ subroutine readMoleculeVasp(mol, unit, status, iomsg)
    call mol%allocate(sum(ncount))
    mol%pbc = .true.
    mol%npbc = 3
+   mol%boundaryCondition = boundaryCondition%pbc3d
    k = 0
    do i = 1, nn
       iat = toNumber(args(i))

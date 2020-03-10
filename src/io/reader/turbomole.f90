@@ -17,6 +17,7 @@
 
 module xtb_io_reader_turbomole
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_mctc_resize
@@ -162,7 +163,12 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
    endif
 
    mol%npbc = periodic
-   if (periodic > 0) mol%pbc(:periodic) = .true.
+   if (periodic > 0) then
+      mol%pbc(:periodic) = .true.
+      mol%boundaryCondition = boundaryCondition%pbc3d
+   else
+      mol%boundaryCondition = boundaryCondition%cluster
+   end if
 
    if (has_cell) then
       read(cell_string, *, iostat=error) latvec(:p_ncp(periodic))

@@ -17,6 +17,7 @@
 
 module xtb_io_reader_genformat
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_convert
    use xtb_mctc_strings
    use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength
@@ -63,14 +64,17 @@ subroutine readMoleculeGenFormat(mol, unit, status, iomsg)
    select case(variant)
    case('c', 'C')
       cartesian = .true.
+      mol%boundaryCondition = boundaryCondition%cluster
    case('s', 'S')
       cartesian = .true.
       mol%npbc = 3
       mol%pbc = .true.
+      mol%boundaryCondition = boundaryCondition%pbc3d
    case('f', 'F')
       cartesian = .false.
       mol%npbc = 3
       mol%pbc = .true.
+      mol%boundaryCondition = boundaryCondition%pbc3d
    case default
       iomsg = 'invalid input version'
       return
