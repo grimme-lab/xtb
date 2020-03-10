@@ -19,6 +19,7 @@ subdir('api')
 subdir('extern')
 subdir('disp')
 subdir('io')
+subdir('main')
 subdir('mctc')
 subdir('param')
 subdir('prog')
@@ -93,9 +94,6 @@ srcs += files(
   'locmode.f90',
   'lopt.f90',
   'ls_rmsd.f90',
-  'main_geometry.f90',
-  'main_json.f90',
-  'main_property.f90',
   'makel.f90',
   'matinv.f90',
   'mdoptim.f90',
