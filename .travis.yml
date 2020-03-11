@@ -1,0 +1,31 @@
+language: python
+
+os: linux
+dist: bionic
+python: 3.8
+addons:
+   apt:
+      packages:
+         - libblas-dev
+         - liblapack-dev
+         - ninja-build
+         - gfortran-8
+         - python-pip
+
+env: FC=gfortran-8 CC=gcc-8
+
+jobs:
+   include:
+      - name: meson-build
+        script:
+        - meson build --buildtype release --prefix $PWD/install --warnlevel 0 -Dla_backend=netlib
+        - OMP_NUM_THREADS=2 ninja -C build test install
+      - name: CMake-build
+        script:
+        - mkdir _build
+        - cd _build
+        - cmake -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
+        - XTBPATH=$PWD/.. OMP_NUM_THREADS=2 make -j all test install
+
+install:
+   - pip3 install meson ase pytest

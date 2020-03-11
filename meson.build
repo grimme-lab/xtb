@@ -167,8 +167,8 @@ subdir('TESTSUITE')
 if get_option('python')
   py_xtb = meson.current_source_dir() / 'python' / 'xtb'
 
-  has_numpy = run_command('python3', '-c', '"import numpy"')
-  has_ase = run_command('python3', '-c', '"import ase"')
+  has_numpy = run_command('python3', '-c', '"import numpy"').returncode() == 0
+  has_ase = run_command('python3', '-c', '"import ase"').returncode() == 0
   pytest = find_program('pytest', required: false)
   if pytest.found() and has_numpy and has_ase
     test('pytest: xtb.py', pytest, args: ['--pyargs', 'xtb'], env: xtbenv)
