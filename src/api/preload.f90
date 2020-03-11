@@ -20,7 +20,8 @@ module xtb_api_preload
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
    use xtb_api_utils
-   use xtb_type_param, only: scc_parameter
+   use xtb_type_param, only : scc_parameter
+   use xtb_type_environment, only : TEnvironment, init
    implicit none
 
    type(scc_parameter) :: global_parameter
@@ -31,16 +32,20 @@ contains
 !  The lock (gfn_method) is maintained by the shared libary.
 integer(c_int) function load_xtb_parameters_api(gfn, filename) &
       &  result(status) bind(C, name='load_xTB_parameters')
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
+   use xtb_readparam, only : readParam
    !> GFN level to be loaded
    integer(c_int), intent(in) :: gfn
    !> File name for the parametrisation
    character(kind=c_char), intent(in), optional :: filename(*)
 
+   type(TEnvironment) :: env
    character(len=:), allocatable :: fnv
    real(wp) :: globpar(25)
    integer :: ipar
    logical :: exist
+
+   call init(env)
 
    !$omp critical(xtb_load_api)
    status = 1
@@ -54,18 +59,18 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
       inquire(file=fnv, exist=exist)
       if (exist) then
          open(file=fnv, newunit=ipar)
-         call read_gfn_param(ipar, globpar, .true.)
+         call readParam(env, ipar, globpar, .true.)
          close(ipar)
          status = 0
       end if
    else
       select case(gfn)
       case(0_c_int)
-         call load_xtb_parameters('.param_gfn0.xtb', globpar, status)
+         call load_xtb_parameters(env, '.param_gfn0.xtb', globpar, status)
       case(1_c_int)
-         call load_xtb_parameters('.param_gfn.xtb', globpar, status)
+         call load_xtb_parameters(env, '.param_gfn.xtb', globpar, status)
       case(2_c_int)
-         call load_xtb_parameters('.param_gfn2.xtb', globpar, status)
+         call load_xtb_parameters(env, '.param_gfn2.xtb', globpar, status)
       case default
          status = 2
       end select
@@ -91,9 +96,11 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
 
 end function load_xtb_parameters_api
 
-subroutine load_xtb_parameters(p_fnv, globpar, status)
+subroutine load_xtb_parameters(env, p_fnv, globpar, status)
    use xtb_mctc_systools
-   use xtb_aoparam, only: use_parameterset
+   use xtb_aoparam, only : use_parameterset
+   use xtb_readparam, only : readParam
+   type(TEnvironment), intent(inout) :: env
    character(len=*), intent(in) :: p_fnv
    integer, intent(out) :: status
    character(len=:), allocatable :: xtbpath
@@ -119,7 +126,7 @@ subroutine load_xtb_parameters(p_fnv, globpar, status)
       inquire(file=fnv, exist=exist)
       if (exist) then
          open(file=fnv, newunit=ipar)
-         call read_gfn_param(ipar, globpar, .true.)
+         call readParam(env, ipar, globpar, .true.)
          close(ipar)
          status = 0
       end if
@@ -133,7 +140,7 @@ function gbsa_model_preload_api &
       &   gamscale_in,sx_in,tmp_in) &
       &  result(status) bind(C,name='GBSA_model_preload')
 
-   use xtb_solv_gbobc, only: load_custom_parameters
+   use xtb_solv_gbobc, only : load_custom_parameters
 
    !> Dielectric data
    real(c_double), intent(in) :: epsv_in

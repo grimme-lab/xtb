@@ -26,15 +26,15 @@ use xtb_mctc_accuracy, only : wp
 
 contains
 
-subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
+subroutine scf(env,mol,wfn,basis,param,pcem, &
 &              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
 &              res)
 
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_mctc_logging
 
 ! ========================================================================
 !  type definitions
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_basisset
@@ -66,9 +66,10 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 
    implicit none
 
+   character(len=*), parameter :: source = 'scf'
+
 ! ========================================================================
-   integer, intent(in)    :: iunit
-   type(mctc_error), allocatable, intent(inout) :: err
+   type(TEnvironment), intent(inout)    :: env
    type(TMolecule), intent(in) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(TBasisset),intent(in) :: basis
@@ -161,7 +162,6 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
    data    lladr  /1,3,6,10/
    data    lladr2 /1,3,5,7/
 
-   character(len=2),external :: asym
    character(len=128) :: atmp,ftmp
    logical :: ex,minpr,pr,fulldiag,xbond,lastdiag,iniqsh,fail,early3d
 
@@ -192,6 +192,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
       '(10x,":",2x,a,a18,      10x,":")'
 
 
+   logical :: exitRun
 
 !  broyden stuff
    logical  :: broy
@@ -384,35 +385,35 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
    endif
 
    if (prlevel > 1) then
-      write(iunit,'(/,10x,51("."))')
-      write(iunit,'(10x,":",22x,a,22x,":")') "SETUP"
-      write(iunit,'(10x,":",49("."),":")')
-      write(iunit,intfmt) "# basis functions  ",basis%nbf
-      write(iunit,intfmt) "# atomic orbitals  ",basis%nao
-      write(iunit,intfmt) "# shells           ",basis%nshell
-      write(iunit,intfmt) "# electrons        ",wfn%nel
+      write(env%unit,'(/,10x,51("."))')
+      write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
+      write(env%unit,'(10x,":",49("."),":")')
+      write(env%unit,intfmt) "# basis functions  ",basis%nbf
+      write(env%unit,intfmt) "# atomic orbitals  ",basis%nao
+      write(env%unit,intfmt) "# shells           ",basis%nshell
+      write(env%unit,intfmt) "# electrons        ",wfn%nel
       if (gfn_method.eq.1) &
-      write(iunit,intfmt) "# halogen bonds    ",nxb
-      write(iunit,intfmt) "max. iterations    ",maxiter
+      write(env%unit,intfmt) "# halogen bonds    ",nxb
+      write(env%unit,intfmt) "max. iterations    ",maxiter
       if (gfn_method.eq.2) &
-      write(iunit,chrfmt) "Hamiltonian        ","GFN2-xTB"
+      write(env%unit,chrfmt) "Hamiltonian        ","GFN2-xTB"
       if (gfn_method.eq.1) &
-      write(iunit,chrfmt) "Hamiltonian        ","GFN1-xTB"
-      write(iunit,chrfmt) "restarted?         ",bool2string(restart)
-      write(iunit,chrfmt) "GBSA solvation     ",bool2string(lgbsa)
-      write(iunit,chrfmt) "PC potential       ",bool2string(lpcem)
+      write(env%unit,chrfmt) "Hamiltonian        ","GFN1-xTB"
+      write(env%unit,chrfmt) "restarted?         ",bool2string(restart)
+      write(env%unit,chrfmt) "GBSA solvation     ",bool2string(lgbsa)
+      write(env%unit,chrfmt) "PC potential       ",bool2string(lpcem)
       if (lpcem) then
-         write(iunit,intfmt) "-> # point charges ",pcem%n
-         write(iunit,dblfmt) "-> sum of PC       ",sum(pcem%q),"e   "
+         write(env%unit,intfmt) "-> # point charges ",pcem%n
+         write(env%unit,dblfmt) "-> sum of PC       ",sum(pcem%q),"e   "
       endif
-      write(iunit,dblfmt) "electronic temp.   ",et,      "K   "
-      write(iunit,dblfmt) "accuracy           ",acc,     "    "
-      write(iunit,scifmt) "-> integral cutoff ",intcut,  "    "
-      write(iunit,scifmt) "-> integral neglect",neglect, "    "
-      write(iunit,scifmt) "-> SCF convergence ",scfconv, "Eh  "
-      write(iunit,scifmt) "-> wf. convergence ",qconv,   "e   "
-      write(iunit,dblfmt) "Broyden damping    ",broydamp,"    "
-      write(iunit,'(10x,51("."))')
+      write(env%unit,dblfmt) "electronic temp.   ",et,      "K   "
+      write(env%unit,dblfmt) "accuracy           ",acc,     "    "
+      write(env%unit,scifmt) "-> integral cutoff ",intcut,  "    "
+      write(env%unit,scifmt) "-> integral neglect",neglect, "    "
+      write(env%unit,scifmt) "-> SCF convergence ",scfconv, "Eh  "
+      write(env%unit,scifmt) "-> wf. convergence ",qconv,   "e   "
+      write(env%unit,dblfmt) "Broyden damping    ",broydamp,"    "
+      write(env%unit,'(10x,51("."))')
    endif
 
    qq    =wfn%q
@@ -550,8 +551,8 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
    if (profile) call timer%measure(4,"zeroth order Hamiltonian")
 
    if(pr)then
-      write(iunit,'(a)')
-      write(iunit,*) 'iter      E             dE          RMSdq', &
+      write(env%unit,'(a)')
+      write(env%unit,*) 'iter      E             dE          RMSdq', &
       &'      gap      omega  full diag'
    endif
 
@@ -592,7 +593,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 ! ========================================================================
    if (profile) call timer%measure(5,"iterations")
    if (gfn_method.eq.1) then
-      call scc_gfn1(iunit,err,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
+      call scc_gfn1(env,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
       &             mol%at,matlist,basis%aoat2,basis%ao2sh, &
       &             wfn%q,qq,qlmom,wfn%qsh,zsh, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -605,7 +606,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
       &             minpr,pr, &
       &             fail,jter)
    else
-      call scc_gfn2(iunit,err,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
+      call scc_gfn2(env,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh, &
       &             wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &             mol%xyz,vs,vd,vq,gab3,gab5,param%gscal, &
@@ -628,28 +629,34 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
    if(allocated(wdispmat)) deallocate( wdispmat )
 
    ! check if something terrible happend in the SCC
-   if (allocated(err)) return
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Self consistent charge iterator terminated", source)
+      return
+   end if
 
    9999  continue
 
 ! ------------------------------------------------------------------------
 !  check for convergence, only do this if printlevel is maximal (WHY?)
    res % converged = .not. fail
-   if (fail) err = mctc_error("SCC did not converge", fatal=.false.)
+   if (fail) then
+      call env%warning("Self consistent charge iterator did not converge", source)
+   end if
    if (pr) then
       if (fail) then
          call touch_file('.sccnotconverged')
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***")') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***")') &
             "convergence criteria cannot be satisfied within",jter,"iterations"
       else
-         write(iunit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***")') &
+         write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***")') &
             "convergence criteria satisfied after",jter,"iterations"
       endif
    endif
 
    if (profile) call timer%measure(5)
    if (.not.pr.and.profile.and.minpr) &
-      call timer%write_timing(iunit,5,'SCC iter.')
+      call timer%write_timing(env%unit,5,'SCC iter.')
    if (profile) call timer%measure(6,"molecular gradient")
 
 !  print'("Entering gradient calculation")'
@@ -680,7 +687,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 
    if (profile) call timer%measure(6)
    if (.not.pr.and.profile.and.minpr) &
-      call timer%write_timing(iunit,6,'gradient')
+      call timer%write_timing(env%unit,6,'gradient')
    if (profile) call timer%measure(7,"printout")
 
 ! ========================================================================
@@ -690,13 +697,13 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 ! ------------------------------------------------------------------------
 !     print orbital energies and occupation numbers
       if (pr_eig) then
-         !call preig(iunit,wfn%focc,1.0_wp,wfn%emo, &
+         !call preig(env%unit,wfn%focc,1.0_wp,wfn%emo, &
                     !max(wfn%ihomoa-12,1),min(wfn%ihomoa+11,basis%nao))
-         call print_orbital_eigenvalues(iunit,wfn,5)
+         call print_orbital_eigenvalues(env%unit,wfn,5)
       endif
 
 ! ------------------------------------------------------------------------
-!     HOMO-LUMO excitation properties if  UHF=2        
+!     HOMO-LUMO excitation properties if  UHF=2
       if (wfn%nopen.eq.2) then
          call hlex(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,wfn%emo,basis)
       endif
@@ -712,8 +719,8 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
 !  exchange energy correction ala sTDA
       if (wfn%nopen.ge.2) then
          call exch(mol%n,mol%at,basis%nao,wfn%nopen,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,exc,basis%aoat)
-         write(iunit,'(''open-shell EX :'',F16.7)') -exc
-         write(iunit,'(''corrected Etot:'',F16.7, &
+         write(env%unit,'(''open-shell EX :'',F16.7)') -exc
+         write(env%unit,'(''corrected Etot:'',F16.7, &
          &   '' (not used further except for this printout!)'')') eel - exc
       endif
 
@@ -767,7 +774,7 @@ subroutine scf(iunit,err,mol,wfn,basis,param,pcem, &
    endif
    res%gnorm = norm2(g)
 
-   if (profile.and.pr) call timer%write(iunit,'SCC')
+   if (profile.and.pr) call timer%write(env%unit,'SCC')
 
 ! ========================================================================
    if (profile) call timer%deallocate
@@ -914,7 +921,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
          &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
          &        basis%alp,basis%cont,wfn%p,vs,vd,vq,H,g)
 
-! WARNING: dcn is overwritten on output and now dR0A/dXC, 
+! WARNING: dcn is overwritten on output and now dR0A/dXC,
 !          and index i & j are flipped
       call dradcn(n,at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,dcn)
       call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,param%xbrad,param%xbdamp, &

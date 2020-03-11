@@ -30,7 +30,7 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    !--------------------------------------------------------------------
    implicit none
 
-   ! Input:    
+   ! Input:
    integer, intent(in) :: nat3
    real(wp),intent(in) :: grad(nat3)
    real(wp),intent(in) :: grado(nat3)
@@ -44,7 +44,7 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    real(wp) :: ddtd, dds, temp
    real(wp) :: ddot, thrs, scal, damp, dampO,dampD,thr
    real(wp) :: ooddtd, oodds, sdds, tddtd
-   !---------------------------------------------------------------------  
+   !---------------------------------------------------------------------
    allocate( svec(nat3),tvec(nat3), source = 0.0_wp )
 
    ! damping of H update
@@ -52,7 +52,7 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
 
    thrs=1.d-12
    ! calculate dg = grad(k+1) - grad(k)
-   svec(1:nat3) = grad(1:nat3) - grado(1:nat3) 
+   svec(1:nat3) = grad(1:nat3) - grado(1:nat3)
 
    ! calculate tvec = h*dx
    call dspmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,tvec,1)
@@ -79,14 +79,14 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
 !           if(i.ne.j)scal=dampo
             !temp= (svec(i)*svec(j))/dds - (tvec(i)*tvec(j))/ddtd
             temp = svec(j)*sdds - tvec(j)*tddtd
-            hess(ij) = hess(ij) + temp 
+            hess(ij) = hess(ij) + temp
          end do
       end do
    !$omp end do
    !$omp end parallel
 !  else
 !     write(*,'(a)') ' ******* Hesse update not performed ******* '
-!     write(*,*    ) dds,ddtd,thrs                                   
+!     write(*,*    ) dds,ddtd,thrs
    endif
 
    ! limit diagonal to (0.01 slightly better than 0.001)
@@ -94,7 +94,7 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    ij=0
    do i=1,nat3
       ij=ij+i
-      if(abs(hess(ij)).lt.thr)hess(ij)=thr   
+      if(abs(hess(ij)).lt.thr)hess(ij)=thr
    enddo
 
 end subroutine bfgs
@@ -116,7 +116,7 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    !--------------------------------------------------------------------
    implicit none
 
-   ! Input:    
+   ! Input:
    integer, intent(in) :: nat3
    real(wp),intent(in) :: grad(nat3),grado(nat3),dx(nat3),gnorm
    ! Output:
@@ -126,7 +126,7 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    real(wp) :: dds,ddtd,temp
    real(wp), dimension(nat3) :: tvec
    real(wp) :: ddot, thrs, scal, damp, dampO,dampD
-   !---------------------------------------------------------------------  
+   !---------------------------------------------------------------------
 
    ! damping of H update
 !  call hdamp(gnorm,dampD,dampO)
@@ -171,8 +171,8 @@ subroutine hdamp(gnorm,dampO,dampD)
       dampO = 0.0
    endif
    if(gnorm < 0.5 .and. gnorm > 0.2)then
-      dampD = 1.0 
-      dampO = 0.2 
+      dampD = 1.0
+      dampO = 0.2
    endif
    if(gnorm < 0.2 .and. gnorm > 0.05) then
       dampD = 1.0

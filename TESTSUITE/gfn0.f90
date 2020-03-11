@@ -5,7 +5,6 @@ subroutine test_gfn0_sp
    use assertion
 
    use xtb_mctc_systools
-   use xtb_mctc_logging
    use xtb_type_options
 
    use xtb_type_molecule
@@ -13,11 +12,13 @@ subroutine test_gfn0_sp
    use xtb_type_basisset
    use xtb_type_param
    use xtb_type_data
+   use xtb_type_environment
 
    use xtb_setparam
    use xtb_aoparam
    use xtb_basis
    use xtb_peeq
+   use xtb_readparam
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -41,13 +42,12 @@ subroutine test_gfn0_sp
    logical, parameter :: restart = .false.
    real(wp),parameter :: acc = 1.0_wp
 
-   type(tb_environment)  :: env
+   type(TEnvironment)  :: env
    type(TMolecule)     :: mol
    type(scc_results)     :: res
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
-   type(mctc_error), allocatable :: err
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)
@@ -57,7 +57,7 @@ subroutine test_gfn0_sp
    real(wp) :: globpar(25)
    logical  :: okpar,okbas,exist,diff
 
-   call env%setup
+   call init(env)
 
    gfn_method = 0
 
@@ -83,10 +83,11 @@ subroutine test_gfn0_sp
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
-         call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         call env%error("Parameter file '"//fnv//"' not found!")
+         call terminate(1)
          return
       endif
-      call read_gfn_param(ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
 
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)
@@ -104,7 +105,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(stdout,err,mol,wfn,basis,param, &
+   call peeq(env,mol,wfn,basis,param, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)
@@ -132,10 +133,10 @@ subroutine test_gfn0_api
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -158,8 +159,7 @@ subroutine test_gfn0_api
       &  prlevel = 2, ccm = .false., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -167,7 +167,7 @@ subroutine test_gfn0_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -180,8 +180,7 @@ subroutine test_gfn0_api
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (stdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
-   call assert(.not.allocated(err))
+      (stdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 5.5384029314207_wp,thr)
    call assert_close(energy,-8.6908532561691_wp,thr)
@@ -201,10 +200,10 @@ subroutine test_gfn0_api_srb
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -246,8 +245,7 @@ subroutine test_gfn0_api_srb
       &  prlevel = 2, ccm = .false., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -255,7 +253,7 @@ subroutine test_gfn0_api_srb
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -268,8 +266,7 @@ subroutine test_gfn0_api_srb
    gradient = 0.0_wp
 
    call gfn0_calculation &
-      (stdout,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
-   call assert(.not.allocated(err))
+      (stdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    call assert_close(hl_gap, 3.1192454818777_wp,thr)
    call assert_close(energy,-40.908850360158_wp,thr)

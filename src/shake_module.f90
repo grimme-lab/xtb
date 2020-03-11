@@ -29,7 +29,7 @@ module xtb_shake
    real(wp),  allocatable :: dro(:,:)
    real(wp),  allocatable :: dr (:,:)
    integer, parameter :: maxcyc = 250
-   real(wp), parameter :: tolshake = 1.d-7 
+   real(wp), parameter :: tolshake = 1.d-7
 
 contains
 
@@ -87,13 +87,13 @@ subroutine init_shake(nat,at,xyz,wbo)
                nconsu = nconsu + 1
                conslistu(1,nconsu) = i
                conslistu(2,nconsu) = jmin
-            endif 
+            endif
          endif
       enddo
    endif
    ! all bonds
    if(shake_mode.eq.2)then
-      list=0      
+      list=0
       do i = 1, nat
          do j =1, nat
             if(i.eq.j) cycle
@@ -104,10 +104,10 @@ subroutine init_shake(nat,at,xyz,wbo)
             metalbond=metal(at(i)).eq.1.or.metal(at(j)).eq.1       ! metal bond?
             wthr=0.5  ! WBO threshold. if WBO > thr, the bond is constrained
             if(metalbond) wthr=0.1 ! e.g. K...O in phosphates have WBO around 0.15
-            !           write(*,'(2i3,3f10.4)') 
+            !           write(*,'(2i3,3f10.4)')
             !    .      at(i),at(j),0.52917726*sqrt(rij),rco,wbo(i,j)
             !           if(wbo(i,j).lt.wthr.and.wbo(i,j).gt.0.3.and.rcut)       ! warning
-            !    .      write(*,*) 'bond slightly below threshold ', i,j, 
+            !    .      write(*,*) 'bond slightly below threshold ', i,j,
             !    .                 'not constrained'
             if(rcut.and.wbo(i,j).gt.wthr)then                       ! its relevant
                metalbond=metal(at(i)).eq.1.or.metal(at(j)).eq.1    ! do not constrain M bonds except Li/Be
@@ -225,9 +225,9 @@ subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep)
       velo = velo + (xyzt-xyz)*tau1
       acc  = acc  + (xyzt-xyz)*tau2
       xyz  = xyzt
-   else 
+   else
       write(*,*)'SHAKE did not converge! maxdev=',maxdev
-      !        if(maxdev.gt.1.d-3) stop 'SHAKE error too large'        
+      !        if(maxdev.gt.1.d-3) stop 'SHAKE error too large'
    endif
 
    return

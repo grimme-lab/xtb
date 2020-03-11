@@ -464,14 +464,14 @@ end subroutine read_gbsa_parameters
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine new_gbsa(this,n,at)
-   use xtb_grid_module
+   use xtb_solv_lebedev
    implicit none
    type(TSolvent), intent(inout) :: this
 
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
 
-   integer i,j,k
+   integer i,j,k,iAng
    integer ierr
    real(wp) minvdwr
    real(wp) maxrasasa
@@ -527,48 +527,11 @@ subroutine new_gbsa(this,n,at)
       this%gamsasa(i)=gbm%gamscale(this%at(i))*fourpi*gbm%gammas
    enddo
 
-   allocate(xang(this%nang),yang(this%nang),zang(this%nang),wang(this%nang))
-   select case(this%nang)
-   case(   6);   call ld0006(xang,yang,zang,wang,this%nang)
-   case(  14);   call ld0014(xang,yang,zang,wang,this%nang)
-   case(  26);   call ld0026(xang,yang,zang,wang,this%nang)
-   case(  38);   call ld0038(xang,yang,zang,wang,this%nang)
-   case(  50);   call ld0050(xang,yang,zang,wang,this%nang)
-   case(  74);   call ld0074(xang,yang,zang,wang,this%nang)
-   case(  86);   call ld0086(xang,yang,zang,wang,this%nang)
-   case( 110);   call ld0110(xang,yang,zang,wang,this%nang)
-   case( 146);   call ld0146(xang,yang,zang,wang,this%nang)
-   case( 170);   call ld0170(xang,yang,zang,wang,this%nang)
-   case( 194);   call ld0194(xang,yang,zang,wang,this%nang)
-   case( 230);   call ld0230(xang,yang,zang,wang,this%nang)
-   case( 266);   call ld0266(xang,yang,zang,wang,this%nang)
-   case( 302);   call ld0302(xang,yang,zang,wang,this%nang)
-   case( 350);   call ld0350(xang,yang,zang,wang,this%nang)
-   case( 434);   call ld0434(xang,yang,zang,wang,this%nang)
-   case( 590);   call ld0590(xang,yang,zang,wang,this%nang)
-   case( 770);   call ld0770(xang,yang,zang,wang,this%nang)
-   case( 974);   call ld0974(xang,yang,zang,wang,this%nang)
-   case(1202);   call ld1202(xang,yang,zang,wang,this%nang)
-   case(1454);   call ld1454(xang,yang,zang,wang,this%nang)
-   case(1730);   call ld1730(xang,yang,zang,wang,this%nang)
-   case(2030);   call ld2030(xang,yang,zang,wang,this%nang)
-   case(2354);   call ld2354(xang,yang,zang,wang,this%nang)
-   case(2702);   call ld2702(xang,yang,zang,wang,this%nang)
-   case(3074);   call ld3074(xang,yang,zang,wang,this%nang)
-   case(3470);   call ld3470(xang,yang,zang,wang,this%nang)
-   case(3890);   call ld3890(xang,yang,zang,wang,this%nang)
-   case(4334);   call ld4334(xang,yang,zang,wang,this%nang)
-   case(4802);   call ld4802(xang,yang,zang,wang,this%nang)
-   case(5294);   call ld5294(xang,yang,zang,wang,this%nang)
-   case(5810);   call ld5810(xang,yang,zang,wang,this%nang)
-   case default; call raise('E',"(gengrid) unknown grid size!",1)
-   end select
-   this%grida(1,:) = xang
-   this%grida(2,:) = yang
-   this%grida(3,:) = zang
-   this%grida(4,:) = wang
-   deallocate(xang,yang,zang,wang)
-
+   iAng = 0
+   do i = 1, size(gridSize)
+      if (this%nang == gridSize(i)) iAng = i
+   end do
+   call getAngGrid(iAng, this%angGrid, this%angWeight, ierr)
 
 end subroutine new_gbsa
 
@@ -1516,14 +1479,14 @@ pure subroutine compute_numsa(this,xyz)
       ! loop over grid points
       do ip=1,this%nang
          ! grid point position
-         xyzp(:) = xyza(:) + rsas*this%grida(1:3,ip)
+         xyzp(:) = xyza(:) + rsas*this%angGrid(1:3,ip)
          ! atomic surface function at the grid point
          call compute_w_sp(this%nat,this%nnlists,this%trj2,this%vdwsa, &
             &              xyz,iat,nno,xyzp,sasap,grds,nni,grdi)
 
          if(sasap.gt.tolsesp) then
             ! numerical quadrature weight
-            wsa = this%grida(4,ip)*wr*sasap
+            wsa = this%angWeight(ip)*wr*sasap
             ! accumulate the surface area
             sasai = sasai + wsa
             ! accumulate the surface gradient

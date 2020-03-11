@@ -66,13 +66,12 @@ end subroutine clear_metadyn
 subroutine fix_info(iunit,n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_convert
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: xyz(3,n)
-
-   character(len=2),external :: asym
 
    integer  :: i,ii,j,k,l,m,mm
    real(wp) :: val
@@ -89,7 +88,7 @@ subroutine fix_info(iunit,n,at,xyz)
       do i = 1, fixset%n
          ii = fixset%atoms(i)
          write(iunit,'(i6,1x,i3,1x,a2,3f14.7)') &
-            ii,at(ii),asym(at(ii)),xyz(:,ii)*autoaa
+            ii,at(ii),toSymbol(at(ii)),xyz(:,ii)*autoaa
       enddo
       write(iunit,'(a)')
    endif
@@ -101,7 +100,7 @@ subroutine fix_info(iunit,n,at,xyz)
       do i = 1, freezeset%n
          ii = freezeset%atoms(i)
          write(iunit,'(i6,1x,i3,1x,a2,3f14.7)') &
-            ii,at(ii),asym(at(ii)),xyz(:,ii)*autoaa
+            ii,at(ii),toSymbol(at(ii)),xyz(:,ii)*autoaa
       enddo
       write(iunit,'(a)')
    endif
@@ -115,8 +114,8 @@ subroutine fix_info(iunit,n,at,xyz)
          j = shakeset%atoms(m+1)
          val = norm2(xyz(:,i)-xyz(:,j))
          write(iunit,'(2(i6,1x,i3,1x,a2),1x,f14.7)') &
-            i,at(i),asym(at(i)), &
-            j,at(j),asym(at(j)), &
+            i,at(i),toSymbol(at(i)), &
+            j,at(j),toSymbol(at(j)), &
             val*autoaa
       enddo
       write(iunit,'(a)')

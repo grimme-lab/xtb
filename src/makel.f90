@@ -43,7 +43,7 @@ subroutine makel(nao, s, can, clo )
       e(i)=dsqrt(e(i))
    enddo
 
-   do m=1,nao 
+   do m=1,nao
       do i=1,nao
          x (i,m)=     vecs(i,m)
          cc(i,m)=e(m)*vecs(i,m)
@@ -63,7 +63,7 @@ subroutine makel(nao, s, can, clo )
 end subroutine makel
 
 
-! unrestricted version      
+! unrestricted version
 subroutine umakel(nao, s, cana, canb, cloa, clob )
    implicit real*8 (a-h,o-z)
    dimension s(nao,nao)
@@ -86,7 +86,7 @@ subroutine umakel(nao, s, cana, canb, cloa, clob )
       e(i)=dsqrt(e(i))
    enddo
 
-   do m=1,nao 
+   do m=1,nao
       do i=1,nao
          x (i,m)=     vecs(i,m)
          cc(i,m)=e(m)*vecs(i,m)

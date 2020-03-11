@@ -136,7 +136,7 @@ end function new_xtb_basisset_api
 
 !> Actual implementation of the constructor.
 subroutine new_xtb_basisset(mol, basis, status)
-   use xtb_setparam, only: gfn_method
+   use xtb_setparam, only : gfn_method
    use xtb_type_molecule
    use xtb_type_basisset
    use xtb_basis
@@ -273,7 +273,7 @@ subroutine query_xtb_wavefunction_api &
       & (c_wfn, charges, dipoles, quadrupoles, bond_orders, &
       &  hl_gap, orbital_energies) &
       & bind(C, name="query_xTB_wavefunction")
-   use xtb_mctc_convert, only: evtoau
+   use xtb_mctc_convert, only : evtoau
    use xtb_type_wavefunction
    type(c_ptr), value, intent(in) :: c_wfn
    type(TWavefunction), pointer :: wfn

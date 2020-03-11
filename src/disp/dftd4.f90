@@ -151,9 +151,10 @@ subroutine d4dim(nat,at,ndim)
 end subroutine d4dim
 
 subroutine prmolc6(molc6,molc8,molpol,nat,at,  &
-           &       cn,covcn,q,qlmom,c6ab,alpha,rvdw,hvol)
-   use iso_fortran_env, only : id => output_unit
+      & cn,covcn,q,qlmom,c6ab,alpha,rvdw,hvol)
    use xtb_mctc_convert, only : autoaa
+   use xtb_mctc_io, only : stdout
+   use xtb_mctc_symbols, only : toSymbol
    real(wp),intent(in)  :: molc6
    real(wp),intent(in)  :: molc8
    real(wp),intent(in)  :: molpol
@@ -167,40 +168,39 @@ subroutine prmolc6(molc6,molc8,molpol,nat,at,  &
    real(wp),intent(in),optional :: alpha(nat)
    real(wp),intent(in),optional :: rvdw(nat)
    real(wp),intent(in),optional :: hvol(nat)
-   character(len=2),   external :: asym
    integer :: i
    if(present(cn).or.present(covcn).or.present(q).or.present(c6ab) &
    &   .or.present(alpha).or.present(rvdw).or.present(hvol)) then
-   write(id,'(a)')
-   write(id,'(''   #   Z   '')',advance='no')
-   if(present(cn))   write(id,'(''        CN'')',advance='no')
-   if(present(covcn))write(id,'(''     covCN'')',advance='no')
-   if(present(q))    write(id,'(''         q'')',advance='no')
-   if(present(qlmom))write(id,   '(''   n(s)'')',advance='no')
-   if(present(qlmom))write(id,   '(''   n(p)'')',advance='no')
-   if(present(qlmom))write(id,   '(''   n(d)'')',advance='no')
-   if(present(c6ab)) write(id,'(''      C6AA'')',advance='no')
-   if(present(alpha))write(id,'(''      α(0)'')',advance='no')
-   if(present(rvdw)) write(id,'(''    RvdW/Å'')',advance='no')
-   if(present(hvol)) write(id,'(''    relVol'')',advance='no')
+   write(stdout,'(a)')
+   write(stdout,'(''   #   Z   '')',advance='no')
+   if(present(cn))   write(stdout,'(''        CN'')',advance='no')
+   if(present(covcn))write(stdout,'(''     covCN'')',advance='no')
+   if(present(q))    write(stdout,'(''         q'')',advance='no')
+   if(present(qlmom))write(stdout,   '(''   n(s)'')',advance='no')
+   if(present(qlmom))write(stdout,   '(''   n(p)'')',advance='no')
+   if(present(qlmom))write(stdout,   '(''   n(d)'')',advance='no')
+   if(present(c6ab)) write(stdout,'(''      C6AA'')',advance='no')
+   if(present(alpha))write(stdout,'(''      α(0)'')',advance='no')
+   if(present(rvdw)) write(stdout,'(''    RvdW/Å'')',advance='no')
+   if(present(hvol)) write(stdout,'(''    relVol'')',advance='no')
    write(*,'(a)')
    do i=1,nat
       write(*,'(i4,1x,i3,1x,a2)',advance='no') &
-      &     i,at(i),asym(at(i))
-      if(present(cn))   write(id,'(f10.3)',advance='no')cn(i)
-      if(present(covcn))write(id,'(f10.3)',advance='no')covcn(i)
-      if(present(q))    write(id,'(f10.3)',advance='no')q(i)
-      if(present(qlmom))write(id, '(f7.3)',advance='no')qlmom(1,i)
-      if(present(qlmom))write(id, '(f7.3)',advance='no')qlmom(2,i)
-      if(present(qlmom))write(id, '(f7.3)',advance='no')qlmom(3,i)
-      if(present(c6ab)) write(id,'(f10.3)',advance='no')c6ab(i,i)
-      if(present(alpha))write(id,'(f10.3)',advance='no')alpha(i)
-      if(present(rvdw)) write(id,'(f10.3)',advance='no')rvdw(i)*autoaa
-      if(present(hvol)) write(id,'(f10.3)',advance='no')hvol(i)
+      &     i,at(i),toSymbol(at(i))
+      if(present(cn))   write(stdout,'(f10.3)',advance='no')cn(i)
+      if(present(covcn))write(stdout,'(f10.3)',advance='no')covcn(i)
+      if(present(q))    write(stdout,'(f10.3)',advance='no')q(i)
+      if(present(qlmom))write(stdout, '(f7.3)',advance='no')qlmom(1,i)
+      if(present(qlmom))write(stdout, '(f7.3)',advance='no')qlmom(2,i)
+      if(present(qlmom))write(stdout, '(f7.3)',advance='no')qlmom(3,i)
+      if(present(c6ab)) write(stdout,'(f10.3)',advance='no')c6ab(i,i)
+      if(present(alpha))write(stdout,'(f10.3)',advance='no')alpha(i)
+      if(present(rvdw)) write(stdout,'(f10.3)',advance='no')rvdw(i)*autoaa
+      if(present(hvol)) write(stdout,'(f10.3)',advance='no')hvol(i)
       write(*,'(a)')
    enddo
    endif
-   write(id,'(/,1x,''Mol. C6AA /au·bohr⁶  :'',f18.6,'// &
+   write(stdout,'(/,1x,''Mol. C6AA /au·bohr⁶  :'',f18.6,'// &
    &         '/,1x,''Mol. C8AA /au·bohr⁸  :'',f18.6,'// &
    &         '/,1x,''Mol. α(0) /au        :'',f18.6,/)') &
    &          molc6,molc8,molpol

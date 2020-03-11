@@ -3,19 +3,19 @@
 ! Copyright (C) 2004, 2005 Chaok Seok, Evangelos Coutsias and Ken Dill
 !      UCSF, Univeristy of New Mexico, Seoul National University
 ! Witten by Chaok Seok and Evangelos Coutsias 2004.
-                                                                                
+
 ! This library is free software; you can redistribute it and/or
 ! modify it under the terms of the GNU Lesser General Public
 ! License as published by the Free Software Foundation; either
 ! version 2.1 of the License, or (at your option) any later version.
 !
-                                                                                
+
 ! This library is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 ! Lesser General Public License for more details.
 !
-                                                                                
+
 ! You should have received a copy of the GNU Lesser General Public
 ! License along with this library; if not, write to the Free Software
 ! Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -30,12 +30,12 @@ module xtb_lsrmsd
 !-----------------------------------------------------------------------
 contains
 !-----------------------------------------------------------------------
-subroutine rmsd(n, coord1, coord2, option, U, x_center, y_center, & 
+subroutine rmsd(n, coord1, coord2, option, U, x_center, y_center, &
      error, calc_g, g)
 !-----------------------------------------------------------------------
 !  This subroutine calculates the least square rmsd of two coordinate
 !  sets coord1(3,n) and coord2(3,n) using a method based on quaternion.
-!  If option=1, then the rotation matrix U and the centers of coord are 
+!  If option=1, then the rotation matrix U and the centers of coord are
 !  returned.
 !-----------------------------------------------------------------------
 ! if calc_g == .true., derivative of RMSD with respect to coord1
@@ -104,9 +104,9 @@ subroutine rmsd(n, coord1, coord2, option, U, x_center, y_center, &
   S(1, 4) = S(4, 1)
   S(2, 4) = S(4, 2)
   S(3, 4) = S(4, 3)
-  S(4, 4) =-Rmatrix(1, 1) - Rmatrix(2, 2) + Rmatrix(3, 3) 
+  S(4, 4) =-Rmatrix(1, 1) - Rmatrix(2, 2) + Rmatrix(3, 3)
 
-  ! Calculate eigenvalues and eigenvectors, and 
+  ! Calculate eigenvalues and eigenvectors, and
   ! take the maximum eigenvalue lambda and the corresponding eigenvector q.
   call dstmev(S, lambda, q)
 
@@ -116,7 +116,7 @@ subroutine rmsd(n, coord1, coord2, option, U, x_center, y_center, &
   end if
 
   ! RMS Deviation, small number added to avoid NAN in gradient, SG 12/18
-  error = sqrt(max(0.0d0,((x_norm+y_norm)-2.0d0*lambda))/dble(n))+1.d-9 
+  error = sqrt(max(0.0d0,((x_norm+y_norm)-2.0d0*lambda))/dble(n))+1.d-9
 
   if (calc_g) then
      do i = 1, n
@@ -155,12 +155,12 @@ subroutine rotation_matrix(q, U)
 
   q11 = b1*q1
   q12 = b1*q2
-  q13 = b1*q3  
+  q13 = b1*q3
 
   q22 = b2*q2
   q23 = b2*q3
 
-  q33 = b3*q3 
+  q33 = b3*q3
 
   U(1,1) = q00+q11
   U(1,2) = q12-q03
@@ -187,14 +187,14 @@ subroutine dstmev(A,lambda,evec)
 ! lambda_1 > g=min(T11-t12,-t21+T22-t23,-t32+T33-t34,-t43+T44)
 !          =
 ! where tij=abs(Tij)
-! (3) Form the positive definite matrix 
+! (3) Form the positive definite matrix
 !     B = T-gI
 ! (4) Use svd (algorithm svdcmp from "Numerical Recipes")
 !     to compute eigenvalues and eigenvectors for SPD matrix B
 ! (5) Shift spectrum back and keep leading singular vector
 !     and largest eigenvalue.
-! (6) Convert eigenvector to original matrix A, through 
-!     multiplication by V'.  
+! (6) Convert eigenvector to original matrix A, through
+!     multiplication by V'.
 !-----------------------------------------------------------------------
   real(dp), dimension(4,4) :: A, T, V, SV
   integer :: i
@@ -222,7 +222,7 @@ subroutine dstmev(A,lambda,evec)
   call svdcmp(4,T,4,4,SW,SV,rv1)
   !-----------------------------------------------------------------------
   !(V). Shift spectrum back
-  max_loc = maxloc(SW) 
+  max_loc = maxloc(SW)
   lambda = SW(max_loc(1)) + lambda
   !lambda = SW(1) + lambda
   !-----------------------------------------------------------------------
@@ -332,7 +332,7 @@ subroutine svdcmp(mmax,a,m,n,w,v,rv1)
            g=-sign(sqrt(s),f)
            h=f*g-s
            a(i,i)=f-g
-           do j=l,n 
+           do j=l,n
               s=0.0d0
               do k=i,m
                  s=s+a(k,i)*a(k,j)
@@ -458,7 +458,7 @@ subroutine svdcmp(mmax,a,m,n,w,v,rv1)
            h=1.0d0/h
            c= (g*h)
            s=-(f*h)
-           do j=1,m     
+           do j=1,m
               y=a(j,nm)
               z=a(j,i)
               a(j,nm)=(y*c)+(z*s)
@@ -494,7 +494,7 @@ subroutine svdcmp(mmax,a,m,n,w,v,rv1)
            g=rv1(i)
            y=w(i)
            h=s*g
-           g=c*g    
+           g=c*g
            z=pythag(f,h)
            rv1(j)=z
            c=f/z
@@ -526,7 +526,7 @@ subroutine svdcmp(mmax,a,m,n,w,v,rv1)
            end do
         end do
         rv1(l)=0.0d0
-        rv1(k)=f       
+        rv1(k)=f
         w(k)=x
      end do
 3    continue

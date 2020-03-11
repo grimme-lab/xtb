@@ -45,7 +45,7 @@ subroutine elem(key1, nat)
       if(key1(i:i).ne.' ') L=i
    enddo
    k=1
-   do j=1,l           
+   do j=1,l
       if (k.gt.2)exit
       n=ichar(key1(J:J))
       if(len_trim(e).ge.1 .and. n.eq.ichar(' '))exit!break if space after elem. symbol

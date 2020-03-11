@@ -68,12 +68,12 @@ use xtb_mctc_accuracy, only : wp
 contains
 
 subroutine peeq &
-      (iunit,err,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
+      (env,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
 ! ------------------------------------------------------------------------
-   use xtb_mctc_logging
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_basisset
@@ -101,11 +101,12 @@ subroutine peeq &
 
    implicit none
 
+   character(len=*), parameter :: source = 'peeq'
+
 ! ------------------------------------------------------------------------
 !  INPUT
 ! ------------------------------------------------------------------------
-   integer, intent(in)            :: iunit
-   type(mctc_error), allocatable, intent(inout) :: err
+   type(TEnvironment), intent(inout)    :: env
    type(TMolecule),  intent(in) :: mol     !< molecular structure infomation
    type(TBasisset),  intent(in) :: basis   !< basis set
    type(scc_parameter),intent(in) :: param   !< method parameters
@@ -155,7 +156,6 @@ subroutine peeq &
    real(wp) :: eatoms,eat
    real(wp) :: dum
 
-   character(len=2), external :: asym
    logical :: ex
    logical :: minpr
    logical :: pr
@@ -191,6 +191,7 @@ subroutine peeq &
    integer  :: nh
    integer  :: ich
    logical :: debug
+   logical :: exitRun
 
 ! ---------------------------------------
 !  PEEQ q dependent H0
@@ -329,23 +330,23 @@ subroutine peeq &
    enddo
 
    if (prlevel > 1) then
-      write(iunit,'(/,10x,51("."))')
-      write(iunit,'(10x,":",22x,a,22x,":")') "SETUP"
-      write(iunit,'(10x,":",49("."),":")')
-      write(iunit,intfmt) "# basis functions  ",basis%nbf
-      write(iunit,intfmt) "# atomic orbitals  ",basis%nao
-      write(iunit,intfmt) "# shells           ",basis%nshell
-      write(iunit,intfmt) "# electrons        ",wfn%nel
+      write(env%unit,'(/,10x,51("."))')
+      write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
+      write(env%unit,'(10x,":",49("."),":")')
+      write(env%unit,intfmt) "# basis functions  ",basis%nbf
+      write(env%unit,intfmt) "# atomic orbitals  ",basis%nao
+      write(env%unit,intfmt) "# shells           ",basis%nshell
+      write(env%unit,intfmt) "# electrons        ",wfn%nel
       if (mol%npbc > 0) &
-      write(iunit,chrfmt) "PBC by CCM         ",bool2string(ccm)
-      write(iunit,dblfmt) "electronic temp.   ",et,      "K   "
-      write(iunit,dblfmt) "accuracy           ",acc,     "    "
-      write(iunit,scifmt) "-> integral cutoff ",intcut,  "    "
-      write(iunit,scifmt) "-> integral neglect",neglect, "    "
+      write(env%unit,chrfmt) "PBC by CCM         ",bool2string(ccm)
+      write(env%unit,dblfmt) "electronic temp.   ",et,      "K   "
+      write(env%unit,dblfmt) "accuracy           ",acc,     "    "
+      write(env%unit,scifmt) "-> integral cutoff ",intcut,  "    "
+      write(env%unit,scifmt) "-> integral neglect",neglect, "    "
       if (mol%npbc > 0 .and. .not.ccm) then
-      write(iunit,intfmt) "# images for ints. ",product(2*intrep+1)
+      write(env%unit,intfmt) "# images for ints. ",product(2*intrep+1)
       endif
-      write(iunit,'(10x,51("."))')
+      write(env%unit,'(10x,51("."))')
    endif
 
 ! ---------------------------------------
@@ -397,13 +398,18 @@ subroutine peeq &
    call gfn0_charge_model(chrgeq,mol%n,mol%at,dpolc,gam,cxb,alp0)
    ! initialize electrostatic energy
    if (lgbsa) then
-      call eeq_chrgeq(mol,err,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
+      call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
          &            ees,gsolv,g,.false.,.true.,.true.)
    else
-      call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,qeeq,dqdr,dqdL, &
+      call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,qeeq,dqdr,dqdL, &
          &            ees,g,sigma,.false.,.true.,.true.)
    endif
-   if (allocated(err)) return
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Electronegativity equilibration failed", source)
+      return
+   end if
 
    wfn%q = qeeq
 
@@ -412,7 +418,13 @@ subroutine peeq &
 ! ----------------------------------------
 !  D4 dispersion energy + gradient (2B) under pbc
 ! ----------------------------------------
-   call ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,g,sigma)
+   call ddisp_peeq(mol,env,param,cn,dcndr,dcndL,grd,ed,g,sigma)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Evaluation of dispersion energy failed", source)
+      return
+   end if
 
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,"Integral evaluation")
@@ -439,15 +451,15 @@ subroutine peeq &
 
    if (profile) call timer%measure(5)
    if (profile) call timer%measure(6,"Cholesky factorization")
-  
+
 ! ---------------------------------------
 !  Check for near linear dependencies via Cholesky decomposition
 ! ---------------------------------------
-   call cholesky(iunit,pr,nao,S,orthog) ! S is not modified
+   call cholesky(env%unit,pr,nao,S,orthog) ! S is not modified
    if(orthog)then
       !if (profile) call timer%measure(7,"Canonical orthogonalization")
       call renorm(nao,S) ! S is renormalized
-      call canorthog(iunit,nao,S,X,xdim,pr,fail)
+      call canorthog(env%unit,nao,S,X,xdim,pr,fail)
       !if (profile) call timer%measure(7)
    endif
 
@@ -477,7 +489,7 @@ subroutine peeq &
    wfn%C = H
 
    if (fail) then
-      err = mctc_error("Diagonalization of Hamiltonian failed")
+      call env%error("Diagonalization of Hamiltonian failed", source)
       return
    end if
 
@@ -505,7 +517,7 @@ subroutine peeq &
 
    if (profile) call timer%measure(7)
    if (.not.pr.and.profile.and.minpr) &
-      call timer%write_timing(iunit,7,"Diagonalization")
+      call timer%write_timing(env%unit,7,"Diagonalization")
    if (profile) call timer%measure(8,"Gradient calculation")
 ! ======================================================================
 !  GRADIENT (100% analytical)
@@ -561,17 +573,17 @@ subroutine peeq &
       !call preig(6,wfn%focc,1.0_wp,wfn%emo, &
       !     max(wfn%ihomoa-12,1),min(wfn%ihomoa+11,nao))
       if(.not.orthog)then
-        call print_orbital_eigenvalues(iunit,wfn,5)
+        call print_orbital_eigenvalues(env%unit,wfn,5)
         if ((wfn%ihomo+1.le.nao).and.(wfn%ihomo.ge.1)) &
            egap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
       else
         wfn%nao = xdim
-        call print_orbital_eigenvalues(iunit,wfn,5)
+        call print_orbital_eigenvalues(env%unit,wfn,5)
         if ((wfn%ihomo+1.le.xdim).and.(wfn%ihomo.ge.1)) &
            egap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
         wfn%nao = nao
       endif
-     
+
 
    endif printing
 
@@ -608,7 +620,7 @@ subroutine peeq &
    res%dipole  = matmul(mol%xyz,wfn%q)
    res%g_solv  = 0.0_wp
 
-   if (profile.and.pr) call timer%write(iunit,'EHT')
+   if (profile.and.pr) call timer%write(env%unit,'EHT')
 
 end associate
 
@@ -630,48 +642,50 @@ end subroutine peeq
 ! -----------------------------------------------------------------------
 !  Calculate D4 dispersion gradient
 ! -----------------------------------------------------------------------
-subroutine ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
+subroutine ddisp_peeq(mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    use xtb_mctc_accuracy, only : wp
-! -----------------------------------------------------------------------
-!  Type definitions
-! -----------------------------------------------------------------------
-   use xtb_mctc_logging
+   ! -----------------------------------------------------------------------
+   !  Type definitions
+   ! -----------------------------------------------------------------------
    use xtb_type_molecule
+   use xtb_type_environment
    use xtb_type_wavefunction
    use xtb_type_basisset
    use xtb_type_param
    use xtb_type_data
-! -----------------------------------------------------------------------
-!  DFT-D4 definitions and PBC definitions
-! -----------------------------------------------------------------------
+   ! -----------------------------------------------------------------------
+   !  DFT-D4 definitions and PBC definitions
+   ! -----------------------------------------------------------------------
    use xtb_disp_dftd4
    use xtb_eeq
    use xtb_pbc,    only : get_realspace_cutoff
    use xtb_disp_ncoord
    implicit none
 
-! -----------------------------------------------------------------------
-!  Intent IN
-! -----------------------------------------------------------------------
+   character(len=*), parameter :: source = 'peeq_ddisp'
+
+   ! -----------------------------------------------------------------------
+   !  Intent IN
+   ! -----------------------------------------------------------------------
    type(TMolecule),           intent(in)     :: mol
    type(scc_parameter),         intent(in)     :: param
    type(dftd_parameter)                        :: par
    type(chrg_parameter)                        :: chrgeq
-   type(mctc_error), allocatable, intent(inout) :: err
+   type(TEnvironment), intent(inout) :: env
    ! EEQ partial charges and derivatives
    real(wp), dimension(mol%n),        intent(in) :: cn
    real(wp), dimension(3,mol%n,mol%n),intent(in) :: dcndr
    real(wp), dimension(3,3,mol%n),    intent(in) :: dcndL
 
-! -----------------------------------------------------------------------
-!  Intent INOUT
-! -----------------------------------------------------------------------
-! dispersion energy and derivative
+   ! -----------------------------------------------------------------------
+   !  Intent INOUT
+   ! -----------------------------------------------------------------------
+   ! dispersion energy and derivative
    real(wp),                     intent(inout) :: ed
    real(wp), dimension(3,mol%n), intent(inout) :: gd
    real(wp), dimension(3,3),     intent(inout) :: sigma
 
-!--- allocatables
+   !--- allocatables
    real(wp),allocatable, dimension(:,:)   :: sdum
    real(wp),allocatable, dimension(:,:)   :: gdum
    real(wp),allocatable, dimension(:)     :: q
@@ -684,69 +698,75 @@ subroutine ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    real(wp),allocatable, dimension(:)     :: gw
    real(wp),allocatable, dimension(:,:)   :: gdummy
 
-! -----------------------------------------------------------------------
-!  Variables
-! -----------------------------------------------------------------------
+   ! -----------------------------------------------------------------------
+   !  Variables
+   ! -----------------------------------------------------------------------
    integer               :: i,j,k,l,m
    integer               :: ndim
    integer               :: mbd
    logical, intent(in)   :: grd
    integer, dimension(3) :: rep_vdw,rep_cn
- ! real space cutoffs
+   ! real space cutoffs
    real(wp), parameter   :: cn_thr = 1600.0_wp
    real(wp), parameter   :: crit_vdw         = 4000.0_wp
 
- ! damping variable
+   ! damping variable
    real(wp) :: edum
    real(wp) :: t6
    real(wp) :: t8
    real(wp) :: expterm
+   logical :: exitRun
 
-! -----------------------------------------------------------------------
-!  Initialization
-! -----------------------------------------------------------------------
+   ! -----------------------------------------------------------------------
+   !  Initialization
+   ! -----------------------------------------------------------------------
    ed  = 0.0_wp
    mbd = 0
 
-! -----------------------------------------------------------------------
-!  Get ndim
-! -----------------------------------------------------------------------
+   ! -----------------------------------------------------------------------
+   !  Get ndim
+   ! -----------------------------------------------------------------------
    call d4dim(mol%n,mol%at,ndim)
    if (mol%npbc > 0) &
-   call get_realspace_cutoff(mol%lattice,crit_vdw,rep_vdw)
+      call get_realspace_cutoff(mol%lattice,crit_vdw,rep_vdw)
 
-! -----------------------------------------------------------------------
-!  Get memory
-! -----------------------------------------------------------------------
-  allocate(c6abns(ndim,ndim));   c6abns = 0.0_wp
-  allocate(gw(ndim));                gw = 0.0_wp
-  allocate(q(mol%n));                 q = 0.0_wp
-  allocate(dqdr(3,mol%n,mol%n+1)); dqdr = 0.0_wp
-  allocate(dqdL(3,3,mol%n+1));     dqdL = 0.0_wp
-  allocate(covcn(mol%n));               covcn = 0.0_wp
-  allocate(dcovcndr(3,mol%n,mol%n)); dcovcndr = 0.0_wp
-  allocate(dcovcndL(3,3,mol%n));     dcovcndL = 0.0_wp
+   ! -----------------------------------------------------------------------
+   !  Get memory
+   ! -----------------------------------------------------------------------
+   allocate(c6abns(ndim,ndim));   c6abns = 0.0_wp
+   allocate(gw(ndim));                gw = 0.0_wp
+   allocate(q(mol%n));                 q = 0.0_wp
+   allocate(dqdr(3,mol%n,mol%n+1)); dqdr = 0.0_wp
+   allocate(dqdL(3,3,mol%n+1));     dqdL = 0.0_wp
+   allocate(covcn(mol%n));               covcn = 0.0_wp
+   allocate(dcovcndr(3,mol%n,mol%n)); dcovcndr = 0.0_wp
+   allocate(dcovcndL(3,3,mol%n));     dcovcndL = 0.0_wp
 
-  ! get D4(EEQ) charges
-  call new_charge_model_2019(chrgeq,mol%n,mol%at)
-  ! neither sdum nor gdum need to be dummy allocated, since lgrad = .false. is set
-  ! eeq_chrgeq must not reference sdum/gdum and we can avoid the dummy allocate
-  call eeq_chrgeq(mol,err,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,edum,gdum,sdum, &
-     &            .false.,.false.,.true.)
-  if (allocated(err)) return
+   ! get D4(EEQ) charges
+   call new_charge_model_2019(chrgeq,mol%n,mol%at)
+   ! neither sdum nor gdum need to be dummy allocated, since lgrad = .false. is set
+   ! eeq_chrgeq must not reference sdum/gdum and we can avoid the dummy allocate
+   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,edum,gdum,sdum, &
+      &            .false.,.false.,.true.)
 
-  if (mol%npbc > 0) then
-     call get_d4_cn(mol,covcn,dcovcndr,dcovcndL,thr=cn_thr)
-  !else
-     !call dncoord_d4(mol%n,mol%at,mol%xyz,covcn,dcovcndr,cn_thr)
-  endif
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Electronegativity equilibration failed", source)
+      return
+   end if
 
-  ! setup c6abns with diagonal terms: i interaction with its images
-  call pbc_d4(mol%n,ndim,mol%at,param%wf,param%g_a,param%g_c,covcn,gw,c6abns)
+   if (mol%npbc > 0) then
+      call get_d4_cn(mol,covcn,dcovcndr,dcovcndL,thr=cn_thr)
+      !else
+      !call dncoord_d4(mol%n,mol%at,mol%xyz,covcn,dcovcndr,cn_thr)
+   endif
 
-! -----------------------------------------------------------------------
-!  Set dispersion parameters and calculate Edisp or Gradient
-! -----------------------------------------------------------------------
+   ! setup c6abns with diagonal terms: i interaction with its images
+   call pbc_d4(mol%n,ndim,mol%at,param%wf,param%g_a,param%g_c,covcn,gw,c6abns)
+
+   ! -----------------------------------------------------------------------
+   !  Set dispersion parameters and calculate Edisp or Gradient
+   ! -----------------------------------------------------------------------
    if (mol%npbc > 0) then
       call dispgrad_3d(mol,ndim,q,covcn,dcovcndr,dcovcndL,rep_vdw,rep_vdw,crit_vdw,crit_vdw, &
          &             param%disp,param%wf,param%g_a,param%g_c,c6abns,mbd, &
@@ -758,17 +778,17 @@ subroutine ddisp_peeq(mol,err,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
          &          gd,ed,dqdr)
    endif
 
-! -----------------------------------------------------------------------
-!  Free willy (no this is not ORCA)
-! -----------------------------------------------------------------------
-  if(allocated(c6abns))  deallocate(c6abns)
-  if(allocated(gw))      deallocate(gw)
-  if(allocated(covcn))    deallocate(covcn)
-  if(allocated(dcovcndr)) deallocate(dcovcndr)
-  if(allocated(dcovcndL)) deallocate(dcovcndL)
-  if(allocated(q))       deallocate(q)
-  if(allocated(dqdr))    deallocate(dqdr)
-  if(allocated(dqdL))    deallocate(dqdL)
+   ! -----------------------------------------------------------------------
+   !  Free willy (no this is not ORCA)
+   ! -----------------------------------------------------------------------
+   if(allocated(c6abns))  deallocate(c6abns)
+   if(allocated(gw))      deallocate(gw)
+   if(allocated(covcn))    deallocate(covcn)
+   if(allocated(dcovcndr)) deallocate(dcovcndr)
+   if(allocated(dcovcndL)) deallocate(dcovcndL)
+   if(allocated(q))       deallocate(q)
+   if(allocated(dqdr))    deallocate(dqdr)
+   if(allocated(dqdL))    deallocate(dqdL)
 end subroutine ddisp_peeq
 
 ! repulsion
@@ -1151,7 +1171,7 @@ subroutine mol_build_SH0(nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -1347,7 +1367,7 @@ subroutine ccm_build_SH0(nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -1549,7 +1569,7 @@ subroutine pbc_build_SH0(nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -1880,7 +1900,7 @@ subroutine mol_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -2116,7 +2136,7 @@ subroutine ccm_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigm
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &
@@ -2361,7 +2381,7 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
                ! get indices
                i = 1+basis%saoshell(ish,iat)
                j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i)) 
+               il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
                hii = basis%hdiag2(i) - kcnat(il-1,ati)*cn(iat) &

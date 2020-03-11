@@ -16,9 +16,12 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_dynamic
-   use xtb_mctc_io, only : stdout
+   use xtb_io_writer, only : writeMolecule
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_filetypes, only : fileType
    use xtb_single, only : singlepoint
+   use xtb_intmodes, only : xyzgeo
+
 contains
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
@@ -98,9 +101,9 @@ end subroutine xyzsort2
 
 subroutine wrc(fname,n,xyz,at)
    use xtb_setparam
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    character*(*) fname
-   character*2 asym
    integer n,at(n),j
    real(wp) xyz(3,n)
    integer :: ich ! file handle
@@ -108,7 +111,7 @@ subroutine wrc(fname,n,xyz,at)
    call open_file(ich,fname,'w')
    write(ich,'(''$coord'')')
    do j=1,n
-      write(ich,'(3F24.10,5x,a2)') xyz(1:3,j),asym(at(j))
+      write(ich,'(3F24.10,5x,a2)') xyz(1:3,j),toSymbol(at(j))
    enddo
    write(ich,'(''$end'')')
    write(ich,'(''$set'')')
@@ -133,16 +136,16 @@ subroutine boltz(n,t,e,p)
    p = p / sum(p)
 end subroutine boltz
 
-subroutine md(mol,wfx,calc, &
+subroutine md(env,mol,wfx,calc, &
       &       egap,et,maxiter,epot,grd,sigma,icall,Tsoll,cdump2)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autokcal, aatoau, amutokg, amutoau, fstoau
    use xtb_mctc_constants, only : pi, kB
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
    use xtb_type_data
-   use xtb_file_utils
    use xtb_shake, only: do_shake,ncons,xhonly
    use xtb_aoparam
    use xtb_setparam
@@ -150,6 +153,10 @@ subroutine md(mol,wfx,calc, &
    use xtb_scanparam
    use xtb_splitparam
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    type(TMolecule),intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
    type(tb_calculator),  intent(in) :: calc
@@ -187,7 +194,6 @@ subroutine md(mol,wfx,calc, &
    real(wp),allocatable :: intgeo(:,:),intgeo0(:,:)
    real(wp),allocatable :: intgeoav(:,:),tmpg(:,:)
    integer, allocatable :: na(:),nb(:),nc(:)
-   character(len=2),external :: asym
    character(len=80) :: atmp
    character(len=:),allocatable :: fname
    integer :: ich,trj
@@ -307,9 +313,9 @@ subroutine md(mol,wfx,calc, &
    if(restart)    write(*,*) 'RESTART'
 
    if (metaset%maxsave.gt.0) then
-      write(stdout,'("kpush  :",f9.3)') metaset%global_factor
-      write(stdout,'("alpha  :",f9.3)') metaset%width
-      write(stdout,'("update :",i4)')   metaset%maxsave
+      write(env%unit,'("kpush  :",f9.3)') metaset%global_factor
+      write(env%unit,'("alpha  :",f9.3)') metaset%width
+      write(env%unit,'("update :",i4)')   metaset%maxsave
       if (metaset%nstruc.eq.0) then
          do i = 1, mol%n
             do j = 1, 3
@@ -345,7 +351,7 @@ subroutine md(mol,wfx,calc, &
    grd=0.0_wp
    epot=0.0_wp
    call singlepoint &
-      &     (stdout,mol,wfx,calc, &
+      &     (env,mol,wfx,calc, &
       &      egap,et,maxiter,0,.true.,.false.,1.0_wp,epot,grd,sigma,res)
 
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -386,7 +392,7 @@ subroutine md(mol,wfx,calc, &
       epot=0.0_wp
       grd = 0.0_wp
       call singlepoint &
-         &     (stdout,mol,wfx,calc, &
+         &     (env,mol,wfx,calc, &
          &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res)
 
       if (metaset%maxsave.ne.0) then
@@ -461,7 +467,7 @@ subroutine md(mol,wfx,calc, &
          cdump2=cdump2+1
          call getname1(cdump2,atmp)
          call open_file(ich,trim(atmp),'w')
-         call mol%write(ich,format=p_ftype%tmol)
+         call writeMolecule(mol, ich, fileType%tmol)
          call close_file(ich)
          cdump=0
       endif
@@ -480,7 +486,7 @@ subroutine md(mol,wfx,calc, &
       ! dump xyz (trj)
       if(ndump.gt.dumpstep-1)then
          ndump=0
-         call mol%write(trj, format=p_ftype%xyz, energy=epot, gnorm=res%gnorm)
+         call writeMolecule(mol, trj, fileType%xyz, energy=epot, gnorm=res%gnorm)
          if(velodump)then
             do i=1,mol%n
                write(trj,'(3f20.14)')velo(1:3,i)

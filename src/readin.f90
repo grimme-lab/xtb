@@ -18,6 +18,7 @@
 module xtb_readin
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_strings, only : value
+   use xtb_type_environment, only : TEnvironment
    implicit none
 
    character,private,parameter :: flag = '$'
@@ -32,13 +33,13 @@ module xtb_readin
 !! ------------------------------------------------------------------[SAW]-
 !  this function returns a logical and is always evaluated for its
 !  side effect (parsing the given string for its real/int/bool value)
-   interface get_value
-   module procedure get_int_value
-   module procedure get_int_array_value
-   module procedure get_real_value
-   module procedure get_real_array_value
-   module procedure get_bool_value
-   end interface get_value
+   interface getValue
+   module procedure getIntValue
+   module procedure getIntArray
+   module procedure getRealValue
+   module procedure getRealArray
+   module procedure getBoolValue
+   end interface getValue
 
 contains
 
@@ -149,8 +150,10 @@ function find_new_name(fname) result(newname)
 
 end function find_new_name
 
-function get_int_value(val,dum) result(status)
+function getIntValue(env,val,dum) result(status)
    implicit none
+   character(len=*), parameter :: source = 'readin_getIntValue'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    integer,intent(out) :: dum
    integer :: err
@@ -161,13 +164,15 @@ function get_int_value(val,dum) result(status)
    if (err.eq.0) then
       status = .true.
    else
-      call raise('S','could not parse '''//val//'''',1)
+      call env%warning('could not parse '''//val//'''',source)
       status = .false.
    endif
-end function get_int_value
+end function getIntValue
 
-function get_real_value(val,dum) result(status)
+function getRealValue(env,val,dum) result(status)
    implicit none
+   character(len=*), parameter :: source = 'readin_getRealValue'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    real(wp),intent(out) :: dum
    integer :: err
@@ -178,13 +183,15 @@ function get_real_value(val,dum) result(status)
    if (err.eq.0) then
       status = .true.
    else
-      call raise('S','could not parse '''//val//'''',1)
+      call env%warning('could not parse '''//val//'''',source)
       status = .false.
    endif
-end function get_real_value
+end function getRealValue
 
-function get_bool_value(val,dum) result(status)
+function getBoolValue(env,val,dum) result(status)
    implicit none
+   character(len=*), parameter :: source = 'readin_getBoolValue'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    logical,intent(out) :: dum
    logical :: status
@@ -197,14 +204,16 @@ function get_bool_value(val,dum) result(status)
       status = .true.
       dum = .false.
    case default
-      call raise('S','could not parse '''//val//'''',1)
+      call env%warning('could not parse '''//val//'''',source)
       status = .false.
    end select
 
-end function get_bool_value
+end function getBoolValue
 
-function get_int_array_value(val,dum) result(status)
+function getIntArray(env,val,dum) result(status)
    implicit none
+   character(len=*), parameter :: source = 'readin_getIntArray'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    integer,intent(out) :: dum(:)
    integer :: i,err
@@ -215,14 +224,16 @@ function get_int_array_value(val,dum) result(status)
    if (err.eq.0) then
       status = .true.
    else
-      call raise('S','could not parse '''//val//'''',1)
+      call env%warning('could not parse '''//val//'''',source)
       status = .false.
    endif
 
-end function get_int_array_value
+end function getIntArray
 
-function get_real_array_value(val,dum) result(status)
+function getRealArray(env,val,dum) result(status)
    implicit none
+   character(len=*), parameter :: source = 'readin_getRealArray'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    real(wp),intent(out) :: dum(:)
    integer :: i,err
@@ -233,11 +244,11 @@ function get_real_array_value(val,dum) result(status)
    if (err.eq.0) then
       status = .true.
    else
-      call raise('S','could not parse '''//val//'''',1)
+      call env%warning('could not parse '''//val//'''',source)
       status = .false.
    endif
 
-end function get_real_array_value
+end function getRealArray
 
 pure elemental function bool2int(bool) result(int)
    logical,intent(in) :: bool
@@ -259,8 +270,10 @@ pure function bool2string(bool) result(string)
    endif
 end function bool2string
 
-function get_list_value(val,dum,n) result(status)
+function getListValue(env,val,dum,n) result(status)
    implicit none
+   character(len=*), parameter :: source = 'readin_getListValue'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: val
    integer,intent(out) :: dum(:)
    integer,intent(out) :: n
@@ -271,7 +284,7 @@ function get_list_value(val,dum,n) result(status)
    if (i.eq.0) then
       read(val,*,iostat=err) dum(1)
       if (err.ne.0) then
-         call raise('S','could not parse '''//val//'''',1)
+         call env%warning('could not parse '''//val//'''',source)
          status = .false.
          return
       endif
@@ -280,23 +293,23 @@ function get_list_value(val,dum,n) result(status)
    else
       read(val(:i-1),*,iostat=err) j
       if (err.ne.0) then
-         call raise('S','could not parse '''//val(:i-1)//''' in '''//val//'''',1)
+         call env%warning('could not parse '''//val(:i-1)//''' in '''//val//'''',source)
          status = .false.
          return
       endif
       read(val(i+1:),*,iostat=err) k
       if (err.ne.0) then
-         call raise('S','could not parse '''//val(i+1:)//''' in '''//val//'''',1)
+         call env%warning('could not parse '''//val(i+1:)//''' in '''//val//'''',source)
          status = .false.
          return
       endif
       if (k.lt.j) then
-         call raise('S','end is lower than start in list '''//val//'''',1)
+         call env%warning('end is lower than start in list '''//val//'''',source)
          status = .false.
          return
       endif
       if ((k-j).gt.size(dum,1)) then
-         call raise('S','too many list items in '''//val//'''',1)
+         call env%warning('too many list items in '''//val//'''',source)
          status = .false.
          return
       endif
@@ -307,7 +320,7 @@ function get_list_value(val,dum,n) result(status)
       enddo
       status = .true.
    endif
-end function get_list_value
+end function getListValue
 
 subroutine readlog(fname,nat,at,xyz,nstruc)
    use xtb_mctc_convert

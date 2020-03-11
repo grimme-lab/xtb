@@ -23,8 +23,8 @@ module xtb_gfn0param
 
 !--- Parameter for the hydrogen bond correction
    !-- cut-offs tested on 1000 atom system riva+H2O yielding sub mEh accuracy for EHB
-   real(wp),public,parameter :: hbthr  = 400.0_wp ! save R^2 ABH triangle cut-off 
-   real(wp),public,parameter :: hbthr3 = 800.0_wp ! hbthr*2 
+   real(wp),public,parameter :: hbthr  = 400.0_wp ! save R^2 ABH triangle cut-off
+   real(wp),public,parameter :: hbthr3 = 800.0_wp ! hbthr*2
    real(wp),public,parameter :: hbthr2 = 150.0_wp ! neighbor list R^2 cut-off for LP grad part
 
    real(wp),public,parameter :: longcut=56.0_wp   ! about 8 Bohr smooth cut-off in rAB

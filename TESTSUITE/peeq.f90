@@ -4,7 +4,6 @@ subroutine test_peeq_sp
    use assertion
 
    use xtb_mctc_systools
-   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -12,6 +11,7 @@ subroutine test_peeq_sp
    use xtb_type_basisset
    use xtb_type_param
    use xtb_type_data
+   use xtb_type_environment
 
    use xtb_setparam, only : gfn_method
    use xtb_aoparam,  only : use_parameterset
@@ -19,6 +19,7 @@ subroutine test_peeq_sp
    use xtb_pbc_tools
    use xtb_basis
    use xtb_peeq
+   use xtb_readparam
 
    implicit none
 
@@ -44,12 +45,11 @@ subroutine test_peeq_sp
    real(wp),parameter :: acc = 1.0_wp
 
    type(TMolecule)     :: mol
-   type(tb_environment)  :: env
+   type(TEnvironment)  :: env
    type(TWavefunction) :: wfn
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
-   type(mctc_error), allocatable :: err
 
    real(wp)              :: energy
    real(wp)              :: hl_gap
@@ -67,7 +67,7 @@ subroutine test_peeq_sp
    logical  :: okbas,diff
 
    gfn_method = 0
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -100,10 +100,11 @@ subroutine test_peeq_sp
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
          ! THEREFORE, we have to kill the program
-         call raise('E',"Parameter file '"//fnv//"' not found!",1)
+         call env%error("Parameter file '"//fnv//"' not found!")
+         call terminate(1)
          return
       endif
-      call read_gfn_param(ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
    endif
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)
@@ -119,7 +120,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(stdout,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
@@ -143,7 +144,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(stdout,err,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)
@@ -171,10 +172,10 @@ subroutine test_peeq_api
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use xtb_mctc_logging
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -199,8 +200,7 @@ subroutine test_peeq_api
       &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -209,7 +209,7 @@ subroutine test_peeq_api
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -232,7 +232,7 @@ subroutine test_peeq_api
    call mctc_mute
 
    call gfn0_calculation &
-      (stdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+      (stdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 4.8620892163953_wp,thr)
    call assert_close(energy,-8.4898922181241_wp,thr)
@@ -248,11 +248,11 @@ subroutine test_peeq_api_srb
    use xtb_mctc_io, only : stdout
    use assertion
 
-   use xtb_mctc_logging
    use xtb_mctc_convert
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
+   use xtb_type_environment
 
    use xtb_pbc_tools
 
@@ -307,8 +307,7 @@ subroutine test_peeq_api_srb
       &  prlevel = 2, ccm = .true., acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(tb_environment) :: env
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
 
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -317,7 +316,7 @@ subroutine test_peeq_api_srb
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
-   call env%setup
+   call init(env)
 
    call mol%allocate(nat)
    mol%at   = at
@@ -336,7 +335,7 @@ subroutine test_peeq_api_srb
    call mctc_mute
 
    call gfn0_calculation &
-      (stdout,env,err,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+      (stdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
    call assert_close(hl_gap, 3.3073195156202_wp,thr)
    call assert_close(energy,-47.310985782789_wp,thr)

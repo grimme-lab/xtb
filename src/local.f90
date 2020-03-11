@@ -19,6 +19,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : autoev,autoaa
+   use xtb_mctc_symbols, only : toSymbol
    use xtb_type_basisset
    use xtb_setparam
    use xtb_scc_core, only : get_wiberg
@@ -61,7 +62,6 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    real(wp) :: elumo,ehomo,qhl(nat,2),ps,efh,efl,r1,r2,pithr,vec2(3)
    real(wp) :: praxis(3,3),aa,bb,cc
    character(len=80) :: atmp
-   character(len=2),external :: asym
    character(len=5) :: lmostring(4)
    data lmostring/'sigma','LP   ','pi   ','delpi'/
    logical l1,l2,l3,bndcheck,flip
@@ -310,7 +310,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
       endif
       write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,a2,'':'',f6.2))')  &
       &   i,lmostring(jdum),autoev*f(i),xcen(i),ecent(i,1:3), &
-      &   (imem(j),asym(at(imem(j))),qmo(j,i),j=1,idum)
+      &   (imem(j),toSymbol(at(imem(j))),qmo(j,i),j=1,idum)
 
       !        write + LP/pi as H for protonation search
       if(jdum.gt.1) then
@@ -318,9 +318,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             call open_file(icoord,'coordprot.0','w')
             write(icoord,'(''$coord'')')
             do ii=1,nat
-               write(icoord,'(3F24.10,5x,a2)') xyz(1:3,ii),asym(at(ii))
+               write(icoord,'(3F24.10,5x,a2)') xyz(1:3,ii),toSymbol(at(ii))
             enddo
-            write(icoord,'(3F24.10,5x,a2)') ecent(i,1:3),asym(1)
+            write(icoord,'(3F24.10,5x,a2)') ecent(i,1:3),toSymbol(1)
             write(icoord,'(''$end'')')
             write(icoord,'(''$set'')')
             write(icoord,'('' chrg '',i2)')ichrg+1
@@ -331,9 +331,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             write(iscreen,*) nat+1
             write(iscreen,*)
             do ii=1,nat
-               write(iscreen,'(a2,3F24.10)')asym(at(ii)),xyz(1:3,ii)*autoaa
+               write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
             enddo
-            write(iscreen,'(a2,3F24.10)') asym(1),ecent(i,1:3)*autoaa
+            write(iscreen,'(a2,3F24.10)') toSymbol(1),ecent(i,1:3)*autoaa
          endif
       endif
 
@@ -452,9 +452,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             write(iscreen,*) nat+1
             write(iscreen,*)
             do ii=1,nat
-               write(iscreen,'(a2,3F24.10)')asym(at(ii)),xyz(1:3,ii)*autoaa
+               write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
             enddo
-            write(iscreen,'(a2,3F24.10)') asym(1),dtot(1:3)*autoaa
+            write(iscreen,'(a2,3F24.10)') toSymbol(1),dtot(1:3)*autoaa
             imo=lneigh(1,pmo)
             vec1(1:3)=xyz(1:3,nm)
             vec2(1:3)=(xyz(1:3,nl)+xyz(1:3,nr))*0.5
@@ -468,9 +468,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             write(iscreen,*) nat+1
             write(iscreen,*)
             do ii=1,nat
-               write(iscreen,'(a2,3F24.10)')asym(at(ii)),xyz(1:3,ii)*autoaa
+               write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
             enddo
-            write(iscreen,'(a2,3F24.10)') asym(1),dtot(1:3)*autoaa
+            write(iscreen,'(a2,3F24.10)') toSymbol(1),dtot(1:3)*autoaa
             m=m+1
          enddo
       enddo
@@ -491,7 +491,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    write(ilmoi,*) nat
    do i=1,nat
       write(ilmoi,'(i2,3F20.10,E18.10)') at(i),xyz(1:3,i),q(i)
-      write(icent,'(3F24.10,5x,a2)') xyz(1:3,i),asym(at(i))
+      write(icent,'(3F24.10,5x,a2)') xyz(1:3,i),toSymbol(at(i))
    enddo
    k=0
    do i=1,n+new
@@ -503,7 +503,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    do i=1,n+new
       if(int(rklmo(5,i)).gt.0)then
          write(ilmoi,'(i2,3F20.10,f14.8)')int(rklmo(5,i)),rklmo(1:3,i)
-         write(icent,'(3F24.10,5x,a2)') rklmo(1:3,i),asym(2)
+         write(icent,'(3F24.10,5x,a2)') rklmo(1:3,i),toSymbol(2)
       endif
    enddo
    write(ilmoi,'(10(F10.6))') (qhl(i,1),i=1,nat)  ! HOMO atom pop

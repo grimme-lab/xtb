@@ -18,6 +18,6 @@
 srcs += files(
   'interface.f90',
   'preload.f90',
-  'utils.f90',
   'structs.f90',
+  'utils.f90',
 )

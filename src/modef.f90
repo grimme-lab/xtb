@@ -26,12 +26,14 @@ contains
    ! mode_local = 1 : conformational PES scan based on localized normal coords
    ! mode_local =-1 : PES scan for anharmonic corrections (ie no minima opt.)
 
-subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
+subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
    use xtb_mctc_accuracy, only : wp
    use iso_c_binding, only : c_null_char
 
    use xtb_mctc_convert, only : autokcal, aatoau, autorcm, amutoau
+   use xtb_mctc_symbols, only : toSymbol
 
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
@@ -42,6 +44,9 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
 
    implicit none
    intrinsic date_and_time
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(tb_calculator),intent(in) :: calc
@@ -64,7 +69,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    !integer :: map(1000),stplist(100),stptyp(100),na(n),nb(n),nc(n)
    integer,allocatable :: map(:),stplist(:),stptyp(:)
    integer,allocatable :: na(:),nb(:),nc(:)
-   character(len=2) :: asym,adum
+   character(len=2) :: adum
    character(len=30) :: ctmp,fname
    logical :: ex,fail,vecupdate,scfonly,ldum,intermol
    integer :: ich,val(8)
@@ -144,7 +149,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
          k=k+1
          mol%xyz(1:3,1:mol%n)=xyza(1:3,1:mol%n,ii)/aatoau
          call geometry_optimization &
-         &          (mol,wfn,calc, &
+         &          (env, mol,wfn,calc, &
          &           egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
          &           .false.,.true.,fail)
          kk=k
@@ -163,7 +168,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
          write(ich,'(F16.8,1x,i9)')ee,tag
          do j=1,mol%n
             write(ich,'(1x,a2,1x,3f18.8)') &
-            &          asym(mol%at(j)),mol%xyz(1:3,j)/aatoau
+            &          toSymbol(mol%at(j)),mol%xyz(1:3,j)/aatoau
          enddo
          call close_file(ich)
       enddo
@@ -239,7 +244,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
    allocate(e(np))
 
    !     check if input is ok
-   call singlepoint(stdout,mol,wfn,calc, &
+   call singlepoint(env,mol,wfn,calc, &
    &         egap,et,maxiter,0,.true.,.true.,1.0d0,e(nstep+1),grd,sigma,res)
    dum=sqrt(sum(grd**2))
    write(*,'(''RMS gradient         :'',F10.5)')dum
@@ -281,11 +286,11 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
       !        call intmodestep(n,bmat,uu,-step,geo,na,nb,nc,mol%xyz)
       coord0 = mol%xyz
       if(scfonly)then
-         call singlepoint(stdout,mol,wfn,calc, &
+         call singlepoint(env,mol,wfn,calc, &
          &         egap,et,maxiter,0,.true.,.false.,1.0d0,e(nstep-ss+1),grd,sigma,res)
       else
          call geometry_optimization &
-         &       (mol,wfn,calc, &
+         &       (env, mol,wfn,calc, &
          &        egap,et,maxiter,maxoptiter,e(nstep-ss+1),grd,sigma,optset%optlev, &
          &        .false.,.true.,fail)
       endif
@@ -324,11 +329,11 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
       !        call intmodestep(n,bmat,uu,step,geo,na,nb,nc,mol%xyz)
       coord0 = mol%xyz
       if(scfonly)then
-         call singlepoint(stdout,mol,wfn,calc, &
+         call singlepoint(env,mol,wfn,calc, &
          &         egap,et,maxiter,0,.true.,.false.,1.0d0,e(nstep+ss+1),grd,sigma,res)
       else
          call geometry_optimization &
-         &       (mol,wfn,calc, &
+         &       (env, mol,wfn,calc, &
          &        egap,et,maxiter,maxoptiter,e(nstep+ss+1),grd,sigma,optset%optlev, &
          &        .false.,.true.,fail)
       endif
@@ -389,7 +394,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
          write(143,*)step2,627.51*e(k)
          do i=1,mol%n
             write(ich,'(1x,a2,1x,3f18.8)') &
-            &      asym(mol%at(i)),xyza(1:3,i,k)/aatoau
+            &      toSymbol(mol%at(i)),xyza(1:3,i,k)/aatoau
          enddo
       endif
       step2=step2+step
@@ -442,7 +447,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
                &                 '' re-opt:'')') k,ii
                mol%xyz = xyza(:,:,map(ii))
                call geometry_optimization &
-               &          (mol,wfn,calc, &
+               &          (env, mol,wfn,calc, &
                &           egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
                &           .false.,.true.,fail)
                kk=k
@@ -461,7 +466,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
                write(ich,'(F16.8,1x,i9)')ee,tag
                do j=1,mol%n
                   write(ich,'(1x,a2,1x,3f18.8)') &
-                  &          asym(mol%at(j)),mol%xyz(1:3,j)/aatoau
+                  &          toSymbol(mol%at(j)),mol%xyz(1:3,j)/aatoau
                enddo
                call close_file(ich)
             endif
@@ -478,7 +483,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
          write(*,'(''re-opt at point '',i2)') k
          mol%xyz=xyza(:,:,k)
          call geometry_optimization &
-         &       (mol,wfn,calc, &
+         &       (env, mol,wfn,calc, &
          &        egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
          &        .false.,.true.,fail)
          kk=k
@@ -497,7 +502,7 @@ subroutine modefollow(mol,wfn,calc,egap,et,maxiter,epot,grd,sigma)
          write(ich,'(F16.8,1x,i9)')ee,tag
          do j=1,mol%n
             write(ich,'(1x,a2,1x,3f18.8)') &
-            &         asym(mol%at(j)),mol%xyz(1:3,j)/aatoau
+            &         toSymbol(mol%at(j)),mol%xyz(1:3,j)/aatoau
          enddo
          call close_file(ich)
       enddo

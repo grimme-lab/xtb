@@ -19,7 +19,7 @@
 project(
   'xtb',
   'fortran', 'c',
-  version: '6.2.2',
+  version: '6.2.3',
   license: 'LGPL3',
   meson_version: '>=0.51',
   default_options: [
@@ -65,6 +65,7 @@ subdir('meson')
 ## ========================================== ##
 srcs = []
 prog = []
+main = []
 
 subdir('src')
 

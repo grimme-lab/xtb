@@ -19,11 +19,12 @@
 !  convenient interface to commonly used xtb methods.
 module xtb_api_interface
    use iso_c_binding
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_io, only : stdout
    use xtb_api_structs
    use xtb_api_utils
    use xtb_api_preload
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
+   use xtb_type_environment, only : TEnvironment, init
 
    implicit none
 
@@ -40,8 +41,8 @@ integer(c_int) function xtb_calculation_api &
       & (c_mol, c_param, c_basis, c_wfn, c_pcem, c_opt, c_output, &
       &  c_energy, c_gradient, c_stress) &
       & result(status) bind(C, name="xTB_calculation")
-   use xtb_setparam, only: gfn_method
-   use xtb_mctc_logging
+   use xtb_setparam, only : gfn_method
+   use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule
    use xtb_type_basisset
    use xtb_type_wavefunction
@@ -81,15 +82,16 @@ integer(c_int) function xtb_calculation_api &
    !> Pointer to store the stress tensor (in Hartree/Bohr³)
    real(c_double), intent(out), optional :: c_stress(3, 3)
 
+   type(TEnvironment) :: env
    real(wp) :: energy, sigma(3, 3), egap
    real(wp), allocatable :: gradient(:, :)
    type(scc_results) :: res
    type(tb_pcem) :: pcem
-   type(mctc_error), allocatable :: err
    integer(c_int) :: stat_basis
    integer :: iunit
-   logical :: exist, sane
+   logical :: exist, sane, exitRun
 
+   call init(env)
    status = 1
 
    ! perform some sanity checks first, if they fail, quickly return
@@ -149,17 +151,17 @@ integer(c_int) function xtb_calculation_api &
    select case(gfn_method)
    case(0)
       call peeq &
-         & (iunit, err, mol, wfn, basis, global_parameter, &
+         & (env, mol, wfn, basis, global_parameter, &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
       call scf &
-         & (iunit, err, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case(2)
       call scf &
-         & (iunit, err, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case default
@@ -168,9 +170,17 @@ integer(c_int) function xtb_calculation_api &
       return
    end select
 
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%show("Single point calculator terminated")
+      call finalize
+      status = 4
+      return
+   end if
+
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       status = 4
       call finalize
       return
@@ -206,8 +216,6 @@ function peeq_api &
       &    etot,grad,stress,glat) &
       &    result(status) bind(C,name="GFN0_PBC_calculation")
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -235,13 +243,12 @@ function peeq_api &
 
    type(TMolecule)    :: mol
    type(peeq_options)   :: opt
-   type(tb_environment) :: env
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
 
    character(len=:),allocatable :: outfile
 
    integer  :: iunit
-   logical  :: sane
+   logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -252,7 +259,7 @@ function peeq_api &
    status = load_xtb_parameters_api(0_c_int)
    if (status /= 0) return
 
-   call env%setup
+   call init(env)
 
    ! ====================================================================
    !  STEP 2: convert the options from C struct to actual Fortran type
@@ -290,11 +297,19 @@ function peeq_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,err,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%show("Single point calculator terminated")
+      call finalize
+      status = 1
+      return
+   end if
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -395,8 +410,6 @@ function gfn12_calc_impl &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo,dipm,qp) &
       &    result(status)
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -405,7 +418,7 @@ function gfn12_calc_impl &
    use xtb_type_basisset
    use xtb_type_data
 
-   use xtb_setparam, only: ngrida, gfn_method
+   use xtb_setparam, only : ngrida, gfn_method
    use xtb_scf
    use xtb_solv_gbobc
 
@@ -431,24 +444,23 @@ function gfn12_calc_impl &
 
    type(TMolecule) :: mol
    type(scc_options) :: opt
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem) :: pcem
    type(TWavefunction) :: wfn
    type(TBasisset) :: basis
    type(scc_results) :: res
-   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
    integer  :: iunit
-   logical  :: sane
+   logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
    integer(c_int) :: stat_basis
 
-   call env%setup
+   call init(env)
 
    ! convert the options from C struct to actual Fortran type
    opt = opt_in
@@ -493,16 +505,24 @@ function gfn12_calc_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(mol, wfn, err)
+   call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
-      & (iunit, err, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%show("Single point calculator terminated")
+      call finalize
+      status = 1
+      return
+   end if
+
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -535,8 +555,6 @@ function gfn0_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad) &
       &    result(status) bind(C,name="GFN0_calculation")
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -560,13 +578,12 @@ function gfn0_api &
 
    type(TMolecule)    :: mol
    type(peeq_options)    :: opt
-   type(tb_environment) :: env
-   type(mctc_error), allocatable :: err
+   type(TEnvironment) :: env
 
    character(len=:),allocatable :: outfile
 
    integer  :: iunit
-   logical  :: sane
+   logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
@@ -578,7 +595,7 @@ function gfn0_api &
 
    call mctc_init('peeq',10,.true.)
 
-   call env%setup
+   call init(env)
 
    ! ====================================================================
    !  STEP 2: convert the options from C struct to actual Fortran type
@@ -616,11 +633,19 @@ function gfn0_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,err,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (iunit,env,opt,mol,hl_gap,energy,gradient,dum,dum)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%show("Single point calculator terminated")
+      call finalize
+      status = 1
+      return
+   end if
 
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -648,8 +673,6 @@ function gfn2_pcem_api &
       &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN2_QMMM_calculation")
-
-   use xtb_mctc_logging
 
    use xtb_type_molecule
    use xtb_type_param
@@ -739,8 +762,6 @@ function gfn12_pcem_impl &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status)
 
-   use xtb_mctc_logging
-
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_options
@@ -750,7 +771,7 @@ function gfn12_pcem_impl &
    use xtb_type_data
 
    use xtb_aoparam
-   use xtb_setparam, only: gfn_method, ngrida
+   use xtb_setparam, only : gfn_method, ngrida
    use xtb_scf
    use xtb_solv_gbobc
 
@@ -782,22 +803,21 @@ function gfn12_pcem_impl &
    type(scc_options) :: opt
    type(TWavefunction) :: wfn
    type(TBasisset) :: basis
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
    type(tb_pcem) :: pcem
-   type(mctc_error), allocatable :: err
 
    character(len=:),allocatable :: outfile
 
    integer(c_int) :: stat_basis
    type(scc_results) :: res
    integer  :: iunit
-   logical  :: sane
+   logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
-   call env%setup
+   call init(env)
 
    ! convert the options from C struct to actual Fortran type
    opt = opt_in
@@ -851,16 +871,24 @@ function gfn12_pcem_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(mol, wfn, err)
+   call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
-      & (iunit, err, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%show("Single point calculator terminated")
+      call finalize
+      status = 1
+      return
+   end if
+
    ! check if the MCTC environment is still sane, if not tell the caller
    call mctc_sanity(sane)
-   if (.not.sane .or. allocated(err)) then
+   if (.not.sane) then
       call finalize
       status = 1
       return
@@ -914,16 +942,16 @@ function gbsa_calculation_api &
    real(c_double), intent(out) :: sasa(natoms)
 
    integer :: iunit
-   logical :: sane
+   logical :: sane, exitRun
    character(len=:), allocatable :: outfile
    character(len=:), allocatable :: solvent
 
    type(TMolecule)    :: mol
    type(TSolvent)     :: gbsa
-   type(tb_environment) :: env
+   type(TEnvironment) :: env
 
    call mctc_init('gbobc',10,.true.)
-   call env%setup
+   call init(env)
 
    call c_string_convert(solvent,solvent_in)
    call c_string_convert(outfile,file_in)

@@ -42,7 +42,7 @@ module xtb_qmdff
    real(wp),private :: scalexb(max_elem) = 0.0_wp
    real(wp),private :: morsethr = 99.0_wp
    real(wp),private,allocatable :: qff(:)
-   real(wp),private,allocatable :: c6ff(:,:)                    
+   real(wp),private,allocatable :: c6ff(:,:)
    real(wp),private :: eps1(6)=(/0.00_wp,0.00_wp,0.85_wp,1.00_wp,1.00_wp,0.00_wp/)
    real(wp),private :: eps2(6)=(/0.00_wp,0.00_wp,0.50_wp,0.50_wp,1.00_wp,1.00_wp/)
    real(wp),private :: zabff (max_elem,max_elem) = 0.0_wp

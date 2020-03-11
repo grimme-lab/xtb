@@ -2,8 +2,10 @@
 subroutine test_geometry_reader_file_poscar_sio2_3d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_poscar_sio2_3d = &
       & '("Si  O ",/,&
@@ -21,11 +23,18 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
       & "  3.26177599700000003  1.310079400299999999  1.684903000000000000")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit,file_poscar_sio2_3d)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%vasp)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%vasp)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_close(mol%volume,       667.92680030347_wp,thr)
    call assert_close(mol%cellpar(1),8.7413053236641_wp,thr)
@@ -50,8 +59,10 @@ end subroutine test_geometry_reader_file_poscar_sio2_3d
 subroutine test_geometry_reader_file_xmol_water_0d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_xmol_water_0d = &
       & '("9",/,&
@@ -67,11 +78,18 @@ subroutine test_geometry_reader_file_xmol_water_0d
       & "H    -0.5400907   -0.8496512   -2.1052499 ")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit,file_xmol_water_0d)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%xyz)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%xyz)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_eq(mol%n,9)
 
@@ -90,8 +108,10 @@ end subroutine test_geometry_reader_file_xmol_water_0d
 subroutine test_geometry_reader_file_coord_general_0d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_general_0d_p1 = &
       & '("$coord",/,&
@@ -159,6 +179,8 @@ subroutine test_geometry_reader_file_coord_general_0d
       & "$end")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit,file_coord_general_0d_p1)
@@ -166,7 +188,12 @@ subroutine test_geometry_reader_file_coord_general_0d
    write(iunit,file_coord_general_0d_p3)
    rewind(iunit)
 
-   call mol%read(iunit, format=p_ftype%tmol)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%tmol)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert(.not.any(mol%pbc))
    call assert_eq(mol%n, 59)
@@ -180,8 +207,10 @@ end subroutine test_geometry_reader_file_coord_general_0d
 subroutine test_geometry_reader_file_coord_CaF2_3d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaF2_3d = &
       & '("$coord frac",/,&
@@ -197,12 +226,19 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
       & "$end")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
 
    write(iunit,file_coord_CaF2_3d); rewind(iunit)
    ! reads in from cell parameters in bohr and coordinates in bohr
-   call mol%read(iunit, format=p_ftype%tmol)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%tmol)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert(all(mol%pbc))
    call assert_eq(mol%npbc,3)
@@ -232,8 +268,10 @@ end subroutine test_geometry_reader_file_coord_CaF2_3d
 subroutine test_geometry_reader_file_coord_CaMgCO_3d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaMgCO_3d = &
       & '("$cell",/,&
@@ -247,12 +285,19 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
       & "$end")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,file='coord')
 
    write(iunit,file_coord_CaMgCO_3d); rewind(iunit)
    ! reads in from cell parameters in bohr and coordinates in bohr
-   call mol%read(iunit, format=p_ftype%tmol)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%tmol)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert(all(mol%pbc))
    call assert_eq(mol%npbc,3)
@@ -278,8 +323,10 @@ end subroutine test_geometry_reader_file_coord_CaMgCO_3d
 subroutine test_geometry_reader_file_coord_C_2d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_2d = &
@@ -295,6 +342,8 @@ subroutine test_geometry_reader_file_coord_C_2d
 
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    stop 77
 
@@ -303,8 +352,10 @@ end subroutine test_geometry_reader_file_coord_C_2d
 subroutine test_geometry_reader_file_coord_C_1d
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_1d = &
@@ -348,6 +399,8 @@ subroutine test_geometry_reader_file_coord_C_1d
 
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 !
 
    stop 77
@@ -362,8 +415,10 @@ end subroutine test_geometry_reader_file_coord_C_1D
 subroutine test_geometry_reader_molfile_benzen_flat
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_mol_benzen_2d = '(/,&
       & "  Mrv1823 10191918342D          ",/,/,&
@@ -395,11 +450,18 @@ subroutine test_geometry_reader_molfile_benzen_flat
       & "M  END")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_mol_benzen_2d)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%molfile)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%molfile)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call terminate(0) ! should fail
 end subroutine
@@ -407,8 +469,10 @@ end subroutine
 subroutine test_geometry_reader_molfile_benzen
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_mol_benzen = '(/,&
       & "  Mrv1823 10191918163D          ",/,/,&
@@ -440,11 +504,18 @@ subroutine test_geometry_reader_molfile_benzen
       & "M  END")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_mol_benzen)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%molfile)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%molfile)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_eq(len(mol), 12)
    call assert_eq(len(mol%bonds), 12)
@@ -459,8 +530,10 @@ end subroutine
 subroutine test_geometry_reader_file_sdf_h2o
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_h2o = '(&
       & "962",/,&
@@ -498,11 +571,18 @@ subroutine test_geometry_reader_file_sdf_h2o
       & "$$$$")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_sdf_h2o)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%sdf)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%sdf)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_eq(len(mol), 3)
    call assert_eq(len(mol%bonds), 2)
@@ -516,8 +596,10 @@ end subroutine
 subroutine test_geometry_reader_file_sdf_benzen_hquery
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_benzen = '(&
       & "benzen",/,&
@@ -540,11 +622,18 @@ subroutine test_geometry_reader_file_sdf_benzen_hquery
       & "$$$$")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_sdf_benzen)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%sdf)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%sdf)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call terminate(0) ! should fail
 end subroutine
@@ -552,8 +641,10 @@ end subroutine
 subroutine test_geometry_reader_file_sdf_h2o_flat
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_h2o = '(&
       & "water",/,&
@@ -572,11 +663,18 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
       & "$$$$")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_sdf_h2o)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%sdf)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%sdf)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call terminate(0) ! should fail
 end subroutine
@@ -584,8 +682,10 @@ end subroutine
 subroutine test_geometry_reader_file_pdb_4qxx_noh
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_pdb_4qxx_p1 = '(&
       & "HEADER    PROTEIN FIBRIL                          22-JUL-14   4QXX",/,&
@@ -644,13 +744,20 @@ subroutine test_geometry_reader_file_pdb_4qxx_noh
       & "END")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_pdb_4qxx_p1)
    write(iunit, file_pdb_4qxx_p2)
    write(iunit, file_pdb_4qxx_p3)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%pdb)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%pdb)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call terminate(0) ! should fail
 end subroutine
@@ -659,8 +766,10 @@ end subroutine
 subroutine test_geometry_reader_file_pdb_4qxx
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_pdb_4qxx_p1 = '(&
       & "HEADER    PROTEIN FIBRIL                          22-JUL-14   4QXX",/,&
@@ -762,6 +871,8 @@ subroutine test_geometry_reader_file_pdb_4qxx
       & "END")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_pdb_4qxx_p1)
@@ -769,7 +880,12 @@ subroutine test_geometry_reader_file_pdb_4qxx
    write(iunit, file_pdb_4qxx_p3)
    write(iunit, file_pdb_4qxx_p4)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%pdb)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%pdb)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert(allocated(mol%pdb))
 
@@ -790,8 +906,10 @@ end subroutine
 subroutine test_geometry_reader_file_gen
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
+   use xtb_type_environment
+   use xtb_io_reader
    use assertion
-   use xtb_file_utils
+   use xtb_mctc_filetypes
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_gen_3518_40 = '(&
       & "11 C",/,&
@@ -835,11 +953,18 @@ subroutine test_geometry_reader_file_gen
       & "0.0 0.0 3.567")'
    integer :: iunit
    type(TMolecule) :: mol
+   type(TEnvironment) :: env
+   logical :: fail
 
    open(newunit=iunit,status='scratch')
    write(iunit, file_gen_3518_40)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%gen)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%gen)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_eq(len(mol), 11)
    call assert_eq(count(mol%pbc), 0)
@@ -857,7 +982,12 @@ subroutine test_geometry_reader_file_gen
    rewind(iunit)
    write(iunit, file_gen_gaas)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%gen)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%gen)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_eq(len(mol), 2)
    call assert_eq(count(mol%pbc), 3)
@@ -874,7 +1004,12 @@ subroutine test_geometry_reader_file_gen
    rewind(iunit)
    write(iunit, file_gen_diamond)
    rewind(iunit)
-   call mol%read(iunit, format=p_ftype%gen)
+   call init(env)
+   call readMolecule(env, mol, iunit, fileType%gen)
+
+   call env%check(fail)
+   if (fail) call terminate(1)
+   call assert(.not.fail)
 
    call assert_eq(len(mol), 8)
    call assert_eq(count(mol%pbc), 3)

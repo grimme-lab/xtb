@@ -35,7 +35,6 @@
       real(wp)                          :: grida(4,nangsa)
       include 'grida86.inc'
 !     include 'grida230.inc'
-      character(len=2), external        :: asym
       integer                           :: i,j,k,np,ip
 
       ! D3 radii in Bohr
@@ -102,86 +101,5 @@
       enddo
       close(83)
 
-! surface debug output
-!     write(13,'(''$coord'')')
-!     do i=1,n
-!        write(13,'(3F14.6,5x,a2)') xyz(1:3,i),asym(at(i))
-!     enddo
-!     do i=1,np
-!        write(13,'(3F14.6,5x,''XX'')') s(1:3,i)
-!     enddo
-!     write(13,'(''$end'')')
-
       deallocate(s)
       end
-
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-      subroutine surfac2(surface,n,xyz,at)
-      use, intrinsic :: iso_fortran_env, only : output_unit
-      use xtb_mctc_accuracy, only : wp
-      use xtb_grid_module
-      use xtb_disp_dftd4
-      implicit none
-      integer, intent(in)        :: n,at(n) !number of atoms,Ordnunszahlen
-      real(wp), intent(in)       :: xyz(3,n)
-      type(tb_grid),intent(out)  :: surface
-
-      real(wp),allocatable       :: s(:,:) !surface 
-      real(wp),allocatable       :: atom_weight(:,:)!atom and weight
-      real(wp)                   :: point(3),rx,ry,rz,r,r2,rsas
-      real(wp)                   :: rad(n),rad2(n),d3rad(94)
-
-      integer, parameter         :: nangsa=38
-!     integer, parameter         :: nangsa=230
-      real(wp)                   :: grida(4,nangsa)
-      include 'grida38.inc'
-!     include 'grida230.inc'
-      character(len=2), external :: asym
-      integer                    :: i,j,k,np,ip
-
-
-      do i=1,n
-         rad (i) =sqrt(3.0_wp)*r4r2(at(i)) ! scale factor adjusted to get vdW contacts right
-         rad2(i) =3.0_wp*r4r2(at(i))**2
-      enddo
-
-      np=n*nangsa
-      allocate(s(3,np))
-      allocate(atom_weight(2,np)) ! point belonging to atom and atomweight
-
-      k=0 ! number of necessary gridpoints
-      do i=1,n
-        rsas=rad(i)
-        grid_point: do ip=1,nangsa
-!          grid point position
-           rx = xyz(1,i) + rsas*grida(1,ip)
-           ry = xyz(2,i) + rsas*grida(2,ip)
-           rz = xyz(3,i) + rsas*grida(3,ip)
-           do j=1,n
-              if(i.eq.j) cycle
-              r2=(xyz(1,j)-rx)**2+(xyz(2,j)-ry)**2+(xyz(3,j)-rz)**2
-              if(r2.le.rad2(j)) cycle grid_point  ! closer to another atom, skip grid point
-           enddo
-           k=k+1
-           s(1,k)=rx
-           s(2,k)=ry
-           s(3,k)=rz
-           atom_weight(1,k) = i            ! point belonging to atom i
-           atom_weight(2,k) = grida(4,ip)   ! weight belonging to point ip
-         enddo grid_point
-      enddo
-
-      np=k
-      surface%n = np
-      allocate(surface%x(3,np),surface%w(np),surface%at(np))
-      write(output_unit,'("generated",1x,i0,1x,"surface points")') np
-
-      do i=1,np
-         surface%x(:,i) = s(:,i)
-         surface%w(i) = atom_weight(2,i)
-         surface%at(i) = nint(atom_weight(1,i))
-      enddo
-
-      deallocate(s,atom_weight)
-      end subroutine surfac2

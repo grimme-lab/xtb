@@ -23,11 +23,11 @@ module xtb_aespot
 
 contains
 
-! aesdqint: computes the dipole and quadrupole integrals 
-!           and performs screening to determine, which contribute to 
+! aesdqint: computes the dipole and quadrupole integrals
+!           and performs screening to determine, which contribute to
 !           potential
 ! thr         : neglect matrix elements in potential
-! intcut      : integral cutoff according to prefactor from Gaussian product theorem 
+! intcut      : integral cutoff according to prefactor from Gaussian product theorem
 ! nat         : # of atoms
 ! nao         : # of spherical AOs (SAOs)
 ! nbf         : # of Cartesian AOs (CAOs)
@@ -94,13 +94,13 @@ subroutine sdqint(nat,at,nbf,nao,xyz,thr,ndp,nqp,intcut,caoshell,saoshell, &
    ndp=0
    nqp=0
    kj=0
-   !$OMP PARALLEL PRIVATE (iat,jat,iatyp,cc,ci,ra,rb,saw, &  
+   !$OMP PARALLEL PRIVATE (iat,jat,iatyp,cc,ci,ra,rb,saw, &
    !$omp&               rab2,jatyp,ish,ishtyp,icao,naoi,iptyp, &
    !$omp&               jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq, &
    !$omp&               est,alpi,alpj,ab,iprim,jprim,ip,jp, &
    !$omp&               mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij) &
    !$omp&               reduction (+:ndp,nqp) shared (sint,dpint,qpint)
-   !$OMP DO schedule(dynamic) 
+   !$OMP DO schedule(dynamic)
    do iat=1,nat
       ra(1:3)=xyz(1:3,iat)
       iatyp=at(iat)
@@ -241,11 +241,11 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
             enddo ! mlj
          enddo ! mli
       enddo ! jp
-   enddo ! ip 
+   enddo ! ip
 
 end subroutine get_multiints
 
-! setdqlist:  precomputes the dipole and quadrupole potential terms for Fock matrix 
+! setdqlist:  precomputes the dipole and quadrupole potential terms for Fock matrix
 ! thr              : neglect matrix elements in potential
 ! nao              : # of spherical AOs (SAOs)
 ! dpint            : dipole integral matrix, dimension 3,nao*(nao+1)/2
@@ -267,9 +267,9 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
 
    integer i,j,k,l,m,ii,jj,ll,mm,kk,mq,md,ij
 
-   ! INFO: this threshold must be slightly larger than max(0,thr2), 
+   ! INFO: this threshold must be slightly larger than max(0,thr2),
    !       where thr2 is the one used in screening in routine aesdqint
-   thr2=thr*1.0d-2 ! we compare squared int-elements                   
+   thr2=thr*1.0d-2 ! we compare squared int-elements
    !      thr2=1.0d-20 ! conservative, keep all terms
 
    md=0
@@ -278,7 +278,7 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
    ij=0
    do i=1,nao
       do j=1,i
-         ij=ij+1 
+         ij=ij+1
          tmp1=0.0_wp
          tmp2=0.0_wp
          kk=0
@@ -290,7 +290,7 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
             tmp2=tmp2+2.0_wp*qpint(k,ij)*qpint(k,ij)
          enddo
          if(tmp1.gt.thr2)then
-            md=md+1 
+            md=md+1
             matdlst(1,md)=int(i,2)
             matdlst(2,md)=int(j,2)
          endif
@@ -316,8 +316,8 @@ subroutine scalecamm(nat,at,dipm,qp)
    real(wp), intent(inout):: dipm(3,nat),qp(6,nat)
    integer i,iat
 
-   ! CAMM  scaling    
-   do i=1,nat 
+   ! CAMM  scaling
+   do i=1,nat
       qp(1:6,i)=qp(1:6,i)*(3./3.)
    enddo
 end subroutine scalecamm
@@ -334,9 +334,9 @@ subroutine unscalecamm(nat,at,dipm,qp)
    real(wp) aesi
    integer i,iat
 
-   ! CAMM  scaling    
-   do i=1,nat 
-      qp(1:6,i)=qp(1:6,i)*(3./3.)         
+   ! CAMM  scaling
+   do i=1,nat
+      qp(1:6,i)=qp(1:6,i)*(3./3.)
    enddo
 end subroutine unscalecamm
 
@@ -366,7 +366,7 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    real(wp) pqm,pdmk,pdml,ps,ra(3)
 
    integer i,j,k,l,ii,jj,ij,kl,kj,lin
-   ! CAMM       
+   ! CAMM
    dipm=0.0_wp
    qp=0.0_wp
    ij=0
@@ -384,24 +384,24 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
          !  i,e. xx,xy,yy,xz,yz,zz
          do k=1,3
             xk1=ra(k)
-            xk2=xyz(k,jj)   
+            xk2=xyz(k,jj)
             pdmk=pij*dpint(k,ij)
             dipm(k,jj)=dipm(k,jj)+xk2*ps-pdmk
             dipm(k,ii)=dipm(k,ii)+xk1*ps-pdmk
-            ! off-diagonal 
+            ! off-diagonal
             do l=1,k-1
                kl=kl+1
-               kj=k+l+1 
+               kj=k+l+1
                xl1=ra(l)
                xl2=xyz(l,jj)
-               pdml=pij*dpint(l,ij) 
+               pdml=pij*dpint(l,ij)
                pqm=pij*qpint(kj,ij)
                tii=pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
                tjj=pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
                qp(kl,jj)=qp(kl,jj)+tjj
                qp(kl,ii)=qp(kl,ii)+tii
             enddo
-            ! diagonal 
+            ! diagonal
             kl=kl+1
             pqm=pij*qpint(k,ij)
             tii=2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
@@ -416,12 +416,12 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       kl=0
       !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
       !  when doing the Mulliken population, we switch to lin-compatible sorting
-      !  i,e. xx,xy,yy,xz,yz,zz 
+      !  i,e. xx,xy,yy,xz,yz,zz
       do k=1,3
          xk1=ra(k)
          pdmk=pij*dpint(k,ij)
          dipm(k,ii)=dipm(k,ii)+xk1*ps-pdmk
-         ! off-diagonal 
+         ! off-diagonal
          do l=1,k-1
             kl=kl+1
             kj=k+l+1 ! the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
@@ -431,7 +431,7 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
             tii=pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
             qp(kl,ii)=qp(kl,ii)+tii
          enddo
-         !diagonal 
+         !diagonal
          kl=kl+1
          pqm=pij*qpint(k,ij)
          tii=2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
@@ -463,10 +463,10 @@ end subroutine mmompop
 subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_aoparam
    use xtb_lin, only : lin
-   implicit none          
+   implicit none
    integer nat,at(nat)
    real(wp) xyz(3,nat),q(nat)
-   real(wp) e           
+   real(wp) e
    real(wp) qp1(6),rr(3),dp1(3),rij(3)
    real(wp) edd,e01,e02,e11,r2,tt,tt3,q1,qs2
    real(wp) ed,eq,epol
@@ -481,13 +481,13 @@ subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    e01=0.0_wp
    e02=0.0_wp
    e11=0.0_wp
-   do i=1,nat 
+   do i=1,nat
       q1=q(i)
       rr(1:3)=xyz(1:3,i)
-      dp1(1:3)=dipm(1:3,i) 
-      qp1(1:6)=qp(1:6,i)   
-      ! test: semilocal CT correction 
-      ! dipole 
+      dp1(1:3)=dipm(1:3,i)
+      qp1(1:6)=qp(1:6,i)
+      ! test: semilocal CT correction
+      ! dipole
       tt=dp1(1)*dp1(1)+dp1(2)*dp1(2)+dp1(3)*dp1(3)
       ! qpole
       tt3=0.0_wp
@@ -497,7 +497,7 @@ subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
             tt3=tt3+qp1(kl)*qp1(kl)
          enddo
       enddo
-      epol=epol+dpolc(at(i))*tt+tt3*qpolc(at(i))         
+      epol=epol+dpolc(at(i))*tt+tt3*qpolc(at(i))
       ! ---
       do j=1,i-1             ! loop over all atoms
          kj=lin(j,i)
@@ -517,7 +517,7 @@ subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
                tt3=3.0_wp*tt
                eq=eq+q(j)*qp1(kl)*tt
                eq=eq+qp(kl,j)*q1*tt
-               edd=edd-dipm(k,j)*dp1(l)*tt3 
+               edd=edd-dipm(k,j)*dp1(l)*tt3
             enddo
             !              diagonal dip-dip term
             edd=edd+dipm(k,j)*dp1(k)*r2
@@ -527,7 +527,7 @@ subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
          e11=e11+edd*gab5(kj)
       enddo
    enddo
-   e = e01 + e02 + e11 
+   e = e01 + e02 + e11
    !     write(*,'(''d,q,dd'',3f9.5)')  e01,e02,e11
    !      write(*,*) ' semilocal CT corr.: ',epol
 
@@ -546,14 +546,14 @@ end subroutine aniso_electro
 subroutine fockelectro(nat,nao,aoat2,p,s,dpint,qpint,vs,vd,vq,e)
    use xtb_lin, only : lin
    implicit none
-   integer, intent(in) :: nat,nao,aoat2(nao)   
+   integer, intent(in) :: nat,nao,aoat2(nao)
    real(wp), intent(in) :: dpint(3,nao*(nao+1)/2),s(nao,nao)
    real(wp), intent(in) :: qpint(6,nao*(nao+1)/2),p(nao,nao)
    real(wp), intent(in) :: vs(nat),vd(3,nat),vq(6,nat)
    real(wp), intent(out) :: e
    real(wp) eaes,pji,fji
    integer i,j,k,l,ii,jj,ij,kl,kj
-   ! CAMM       
+   ! CAMM
    eaes=0.0_wp
    ij=0
    do i=1,nao
@@ -582,7 +582,7 @@ end subroutine fockelectro
 ! set-up potential terms v, which are proportional to s, d, or q-integrals
 ! it is to be multiplied with Sji when stting up Fji (hence, termed vs)
 ! comes essentially at no cost, once cumulative atomic quadrupole moments are available.
-! NEW: the CAMMs were already scaled by scalecamm, but the corresponding potential terms 
+! NEW: the CAMMs were already scaled by scalecamm, but the corresponding potential terms
 !      including shift terms need to be scaled
 ! nat         : # of atoms
 ! at(nat)     : atom-to-element identifier
@@ -591,8 +591,8 @@ end subroutine fockelectro
 ! dipm(3,nat) : atomic dipole moments
 ! qp(6,nat)   : traceless(!) cumulative atomic quadrupole moments (xx,xy,yy,xz,yz,zz)
 ! gab3,gab5   : damped Coulomb laws, dimension: nat*(nat+1)/2
-! vs(nat)     : s-proportional potential from all atoms acting on atom i  
-! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i 
+! vs(nat)     : s-proportional potential from all atoms acting on atom i
+! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_aoparam
@@ -612,8 +612,8 @@ subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    vs=0.0_wp
    vd=0.0_wp
    vq=0.0_wp
-   ! set up overlap proportional potential 
-   do i=1,nat 
+   ! set up overlap proportional potential
+   do i=1,nat
       ra(1:3)=xyz(1:3,i)
       stmp=0.0_wp
       dtmp=0.0_wp
@@ -635,29 +635,29 @@ subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
          ll=0
          do l1=1,3
             ! potential from dipoles
-            r2a=r2a+ra(l1)*ra(l1)      ! R_C * R_C   
+            r2a=r2a+ra(l1)*ra(l1)      ! R_C * R_C
             r2ab=r2ab+dra(l1)*dra(l1)  ! R_AC * R_AC
             t1a=t1a+ra(l1)*dra(l1)     ! R_C * R_AC  : for dip-q (q-shift) and dip-dip (q-shift)
             t2a=t2a+dipm(l1,j)*dra(l1) ! mu_A * R_AC : for q-dip and dip-dip (q-shift)
             t3a=t3a+ra(l1)*dipm(l1,j)  ! R_C * mu_A  : for diag. dip-dip (q-shift)
-            t4a=t4a+dra(l1)*dra(l1)*ra(l1)*ra(l1) ! (R_C o R_AC)**"2(square of Hadamard product) : 
+            t4a=t4a+dra(l1)*dra(l1)*ra(l1)*ra(l1) ! (R_C o R_AC)**"2(square of Hadamard product) :
             ! results from trace remove from q-pole (q-shift)
             do l2=1,3
                ll=lin(l1,l2)
                ! potential from quadrupoles
                dum5a=dum5a-qp(ll,j)*dra(l1)*dra(l2) &
-                  & -1.50_wp*q(j)*dra(l1)*dra(l2)*ra(l1)*ra(l2)  
+                  & -1.50_wp*q(j)*dra(l1)*dra(l2)*ra(l1)*ra(l2)
                if(l2.ge.l1) cycle
                ki=l1+l2+1
                qtmp(ki)=qtmp(ki)-3.0_wp*q(j)*g5*dra(l2)*dra(l1)
             enddo
             qtmp(l1)=qtmp(l1)-1.50_wp*q(j)*g5*dra(l1)*dra(l1)
          enddo
-         ! 
+         !
          ! set up S-dependent potential
-         dum3a=-t1a*q(j)-t2a ! dip-q (q-shift) and q-dip 
+         dum3a=-t1a*q(j)-t2a ! dip-q (q-shift) and q-dip
          dum5a=dum5a+t3a*r2ab-3.0_wp*t1a*t2a & !dip-dip (q-shift terms)
-            & +0.50_wp*q(j)*r2a*r2ab !qpole-q (q-shift, trace removal) 
+            & +0.50_wp*q(j)*r2a*r2ab !qpole-q (q-shift, trace removal)
          stmp=stmp+dum5a*g5+dum3a*g3
          do l1=1,3
             dum3a=dra(l1)*q(j)
@@ -666,14 +666,14 @@ subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
                & -q(j)*r2ab*ra(l1) &           ! qpole-q (dipint-shift, trace removal)
                & +3.0_wp*q(j)*dra(l1)*t1a   ! qpole-q (dipint-shift)
             dtmp(l1)=dtmp(l1)+dum3a*g3+dum5a*g5
-            qtmp(l1)=qtmp(l1)+0.50_wp*r2ab*q(j)*g5 !remove trace term                    
+            qtmp(l1)=qtmp(l1)+0.50_wp*r2ab*q(j)*g5 !remove trace term
          enddo
       enddo
-      vs(i)=stmp                       ! q terms 
+      vs(i)=stmp                       ! q terms
       vd(1:3,i)=dtmp(1:3)              ! dipints from atom i
       vq(1:6,i)=qtmp(1:6)              ! qpints from atom i
       ! --- CT correction terms
-      qs1=dpolc(at(i))*2.0_wp 
+      qs1=dpolc(at(i))*2.0_wp
       qs2=qpolc(at(i))*6.0_wp ! qpole pot prefactors
       t3a=0.0_wp
       t2a=0.0_wp
@@ -714,15 +714,15 @@ subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
 end subroutine setvsdq
 
 ! set-up potential terms v used for nuclear gradients
-! here, the shift terms are removed, since we use multipole derivatives w/ origin at the atoms 
+! here, the shift terms are removed, since we use multipole derivatives w/ origin at the atoms
 ! nat         : # of atoms
 ! xyz(3,nat)  : cartesian coordinates
 ! q(nat)      : atomic partial charges
 ! dipm(3,nat) : atomic dipole moments
 ! qp(6,nat)   : traceless(!) cumulative atomic quadrupole moments (xx,xy,yy,xz,yz,zz)
 ! gab3,gab5   : damped Coulomb laws, dimension: nat*(nat+1)/2
-! vs(nat)     : s-proportional potential from all atoms acting on atom i  
-! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i 
+! vs(nat)     : s-proportional potential from all atoms acting on atom i
+! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
 subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_aoparam
@@ -736,14 +736,14 @@ subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    real(wp), intent(out) :: vs(nat),vd(3,nat),vq(6,nat)
    real(wp) ra(3),dra(3),rb(3),stmp,dum3a,dum5a,t1a,t2a,t3a,t4a,r2a
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
-   real(wp) qs1,qs2   
+   real(wp) qs1,qs2
    integer i,j,k,l1,l2,ll,m,mx,ki,kj,mm
    mm=0
    vs=0.0_wp
    vd=0.0_wp
    vq=0.0_wp
-   ! set up overlap proportional potential 
-   do i=1,nat 
+   ! set up overlap proportional potential
+   do i=1,nat
       ra(1:3)=xyz(1:3,i)
       stmp=0.0_wp
       dtmp=0.0_wp
@@ -781,12 +781,12 @@ subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
             dum5a=3.0_wp*dra(l1)*t2a & ! dipint-dip
                & -r2ab*dipm(l1,j)  ! dipint-dip (diagonal)
             dtmp(l1)=dtmp(l1)+dum3a*g3+dum5a*g5
-            qtmp(l1)=qtmp(l1)+0.50_wp*r2ab*q(j)*g5 !remove trace term                    
+            qtmp(l1)=qtmp(l1)+0.50_wp*r2ab*q(j)*g5 !remove trace term
          enddo
       enddo
       vs(i)=stmp
       vd(1:3,i)=dtmp(1:3)
-      vq(1:6,i)=qtmp(1:6) 
+      vq(1:6,i)=qtmp(1:6)
       ! --- CT correction terms
       qs1=dpolc(at(i))*2.0_wp
       qs2=qpolc(at(i))*6.0_wp ! qpole pot prefactors
@@ -805,7 +805,7 @@ subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
          ! collect trace removal terms
          t2a=t2a+qp(ll,i)
       enddo
-      ! trace removal 
+      ! trace removal
       t2a=t2a*qpolc(at(i))
       do l1=1,3
          vq(l1,i)=vq(l1,i)+t2a
@@ -819,7 +819,7 @@ subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
 
 end subroutine setdvsdq
 
-! molmom: computes molecular multipole moments from CAMM 
+! molmom: computes molecular multipole moments from CAMM
 ! n           : # of atoms
 ! xyz(3,n)    : cartesian coordinates
 ! q(n)        : atomic partial charges
@@ -847,7 +847,7 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    d3(1:3)=rr1(1:3)+rr2(1:3)
    dip=sqrt(d3(1)**2+d3(2)**2+d3(3)**2)
    write(iunit,'(a)',advance='yes')'molecular dipole:'
-   write(iunit,'(a)',advance='no')'                 ' 
+   write(iunit,'(a)',advance='no')'                 '
    write(iunit,'(a)',advance='yes') &
       & 'x           y           z       tot (Debye)'
    write(iunit,'(a,3f12.3)') ' q only: ',rr1(1:3)
@@ -885,7 +885,7 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
       tmb(l)=tmb(l)-dum
    enddo
    write(iunit,'(a)',advance='yes')'molecular quadrupole (traceless):'
-   write(iunit,'(a)',advance='no')'                ' 
+   write(iunit,'(a)',advance='no')'                '
    write(iunit,'(a)',advance='no')'xx          xy          yy          '
    write(iunit,'(a)',advance='yes')'xz          yz          zz'
    write(iunit,'(a,6f12.3)') ' q only: ',tma(1:6)
@@ -894,7 +894,7 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
 
 end subroutine molmom
 
-! gradient evaluation from 
+! gradient evaluation from
 ! cumulative atomic multipole moment interactions: all interactions up to r**-3
 ! nat         : # of atoms
 ! xyz(3,nat)  : cartesian coordinates
@@ -904,19 +904,19 @@ end subroutine molmom
 ! gab3,gab5   : damped R**-3 and R**-5 Coulomb laws, dimension: nat*(nat+1)/2
 !               multiplication with numerator then leads to R**-2 and R**-3 decay, respectively
 ! radcn(nat)  : CN-depentent atomic radii
-! dcn(3,i,j)  : derivative of radcn(j) w.r.t. cartesian directions of i 
+! dcn(3,i,j)  : derivative of radcn(j) w.r.t. cartesian directions of i
 ! exj         : exponent in gab, gab3, and gab5 - determines interpolation
 ! g           : nuclear gradient (3)
 subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
-      & radcn,dcn,gab3,gab5,g) 
+      & radcn,dcn,gab3,gab5,g)
    use xtb_aoparam
    use xtb_lin, only : lin
    !gab3 Hellmann-Feynman terms correct, shift terms to be tested yet
-   implicit none          
+   implicit none
    integer, intent(in)   :: nat,at(nat)
    real(wp), intent(in)    :: xyz(3,nat),q(nat),dipm(3,nat),qp(6,nat)
    real(wp), intent(in)    :: gab3(nat*(nat+1)/2),gab5(nat*(nat+1)/2)
-   real(wp), intent(in)    :: kdmp3,kdmp5,radcn(nat),dcn(3,nat,nat)    
+   real(wp), intent(in)    :: kdmp3,kdmp5,radcn(nat),dcn(3,nat,nat)
    real(wp), intent(inout) :: g(3,nat)
    real(wp) qp1(6),rr(3),dip(3),rij(3)
    real(wp) ed,eq,edd,e01,e02,e11,r2,tt,tt3,q1,dxi
@@ -924,16 +924,16 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
    real(wp) dgab3,dgab5,damp1,damp2,ddamp,qs2
 
    integer i,j,k,l,m,ki,kj,kl,mm
-   do i=1,nat 
+   do i=1,nat
       q1=q(i)
       rr(1:3)=xyz(1:3,i)
       dip(1:3)=dipm(1:3,i)
       qp1(1:6)=qp(1:6,i)
       tmp2=0.0_wp ! cumulate terms propto CN gradient -  to scale only quadratically
-      do j=1,nat            ! loop over other atoms            
+      do j=1,nat            ! loop over other atoms
          if(i.eq.j) cycle
          kj=lin(j,i)
-         rij(1:3)=xyz(1:3,j)-rr(1:3)            
+         rij(1:3)=xyz(1:3,j)-rr(1:3)
          r2=sum(rij*rij)
          rabi=1.0_wp/sqrt(r2)
          !           call dzero(2.0_wp,rabi,at(i),at(j),damp,ddamp)
@@ -944,7 +944,7 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
          dgab5=dgab(5.0_wp,rabi,damp2,ddamp)
          !!!         DEBUG
          !            dgab3=0.0_wp
-         !            dgab5=0.0_wp 
+         !            dgab5=0.0_wp
          !            dgab3=dgab3*100.0_wp
          !            dgab5=dgab5*100.0_wp
          !!!
@@ -957,7 +957,7 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
             ed=ed-dipm(k,j)*q1*rij(k)
             tt=q1*dipm(k,j)-q(j)*dip(k)
             ! part of dip-q derivative
-            g(k,i)=g(k,i)+gab3(kj)*tt 
+            g(k,i)=g(k,i)+gab3(kj)*tt
             !              dip-dip & charge-qpole
             ddm2=0.0_wp
             ddm3a=0.0_wp
@@ -965,7 +965,7 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
             qqa=0.0_wp
             qqb=0.0_wp
             do l=1,3
-               kl=lin(l,k)                  
+               kl=lin(l,k)
                tt=rij(l)*rij(k)
                tt3=3.0_wp*tt
                eq=eq+q(j)*qp1(kl)*tt
@@ -987,19 +987,19 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
             g(k,i)=g(k,i)-2.0_wp*gab5(kj)*qqb*q(j)
          enddo
          do k=1,3
-            dxi=rij(k)*rabi 
+            dxi=rij(k)*rabi
             g(k,i)=g(k,i)-ed*dgab3*dxi
             g(k,i)=g(k,i)-(eq+edd)*dgab5*dxi
          enddo
          ! collect terms for CN-dependent part
-         rab=0.50_wp*(radcn(i)+radcn(j)) 
+         rab=0.50_wp*(radcn(i)+radcn(j))
          tmp3=ed*kdmp3*gab3(kj)*(damp1/rab)*(rab*rabi)**kdmp3
          tmp2=tmp2+tmp3
          tmp3=(eq+edd)*kdmp5*gab5(kj)*(damp2/rab)*(rab*rabi)**kdmp5
          tmp2=tmp2+tmp3
       enddo
-      ! CN-dependent part  - O(N^2) 
-      tmp2=3.0_wp*tmp2 
+      ! CN-dependent part  - O(N^2)
+      tmp2=3.0_wp*tmp2
       do j=1,nat
          do k=1,3
             g(k,j)=g(k,j)-tmp2*dcn(k,j,i)
@@ -1013,7 +1013,7 @@ subroutine ovlp2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,cont,a
    use xtb_mctc_constants, only : pi
    use xtb_aoparam
    use xtb_intgrad, only : dtrf2
-   implicit none          
+   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: nao
    integer, intent(in)  :: nbf
@@ -1062,8 +1062,8 @@ subroutine ovlp2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,cont,a
          dx=ra(1)-rb(1)
          dy=ra(2)-rb(2)
          dz=ra(3)-rb(3)
-         rab2=dx*dx+dy*dy+dz*dz           
-         !c          ints < 1.d-9 for RAB > 40 Bohr            
+         rab2=dx*dx+dy*dy+dz*dz
+         !c          ints < 1.d-9 for RAB > 40 Bohr
          if(rab2.gt.2000) cycle
          !            write(*,*) 'j',jat,jatyp,ao_n(jatyp)
          do ish=1,ao_n(iatyp)
@@ -1076,28 +1076,28 @@ subroutine ovlp2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,cont,a
             if(iat.eq.jat) jshmax=ish
             !              jshells
             do jsh=1,jshmax
-               jshtyp=ao_l(jsh,jatyp)             
+               jshtyp=ao_l(jsh,jatyp)
                jcao=caoshell(jsh,jat)+1
                naoj=llao(jshtyp)
 !              write(*,*) 'j',jat,jatyp,jsh,jshtyp,jcao,naoj
-               ! we go through the primitives (beacause the screening is the same for all of them) 
-               ss=0.0_wp       
+               ! we go through the primitives (beacause the screening is the same for all of them)
+               ss=0.0_wp
                do ip=1,nprim(icao)
-                  iprim=ip+primcount(icao) 
-                  alpi=alp(iprim)          ! exponent the same for each l component 
+                  iprim=ip+primcount(icao)
+                  alpi=alp(iprim)          ! exponent the same for each l component
                   do jp=1,nprim(jcao)
                      jprim=jp+primcount(jcao)
                      ab=1.0_wp/(alpi+alp(jprim))
                      est=rab2*alpi*alp(jprim)*ab
-                     if(est.gt.thr2) cycle  
-                     s00=(pi*ab)**1.50_wp*exp(-est) 
+                     if(est.gt.thr2) cycle
+                     s00=(pi*ab)**1.50_wp*exp(-est)
                      ! now compute overlap for different components of i(e.g., px,py,pz)
                      do li=1,naoi
 !                       iprim=ip+primcount(icao+li-1)
                         ci=cont(ip+primcount(icao+li-1))
 !                       print*,allocated(alp),jprim,alp(jprim)
                         call sspd2(ra,rb,iptyp+li,jshtyp+1,alpi, &
-                           & alp(jprim),ab,s00,stmp)         
+                           & alp(jprim),ab,s00,stmp)
                         do lj=1,naoj
 !                          jprim=jp+primcount(jcao+lj-1)
                            cc=cont(jp+primcount(jcao+lj-1))*ci
@@ -1161,9 +1161,9 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
    real(wp) :: dp1
    real(wp) :: dp2
    real(wp) :: dp3
-   real(wp) :: sp1 
-   real(wp) :: sp2 
-   real(wp) :: sp3 
+   real(wp) :: sp1
+   real(wp) :: sp2
+   real(wp) :: sp3
    real(wp) :: ab05
    integer :: id
    real(wp) :: xps
@@ -1219,12 +1219,12 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
       dp1=p(1)-xyzb(1)
       dp2=p(2)-xyzb(2)
       dp3=p(3)-xyzb(3)
-      sp1 =s00*dp1            
-      sp2 =s00*dp2           
-      sp3 =s00*dp3           
-      d(1)=    dp1       *sp1+dum       
-      d(2)=    dp2       *sp2+dum        
-      d(3)=    dp3       *sp3+dum       
+      sp1 =s00*dp1
+      sp2 =s00*dp2
+      sp3 =s00*dp3
+      d(1)=    dp1       *sp1+dum
+      d(2)=    dp2       *sp2+dum
+      d(3)=    dp3       *sp3+dum
       d(4)=    dp2       *sp1
       d(5)=    dp3       *sp1
       d(6)=    dp3       *sp2
@@ -1247,7 +1247,7 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
       d(1)=(p(id)-xyza(id))*s00
    case(2)
       ! p-p
-      xps=(p(id)-xyza(id))*s00         
+      xps=(p(id)-xyza(id))*s00
       d(1)=(p(1)-xyzb(1))*xps
       d(2)=(p(2)-xyzb(2))*xps
       d(3)=(p(3)-xyzb(3))*xps
@@ -1261,9 +1261,9 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
       sp1=s00*dp1
       sp2=s00*dp2
       sp3=s00*dp3
-      sdxx=    dp1       *sp1+dum       
-      sdyy=    dp2       *sp2+dum        
-      sdzz=    dp3       *sp3+dum       
+      sdxx=    dp1       *sp1+dum
+      sdyy=    dp2       *sp2+dum
+      sdzz=    dp3       *sp3+dum
       sdxy=    dp2       *sp1
       sdxz=    dp3       *sp1
       sdyz=    dp3       *sp2
@@ -1274,7 +1274,7 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
       return!stop 'programing error in sspd 2'
    case(2)
       dp1=p(1)-xyza(1)
-      d(1)=dp1*sdxx+  ab*sp1 
+      d(1)=dp1*sdxx+  ab*sp1
       d(2)=dp1*sdyy
       d(3)=dp1*sdzz
       d(4)=dp1*sdxy+ab05*sp2
@@ -1308,7 +1308,7 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
    p(3)=ab*(alpi*xyza(3)+alpj*xyzb(3))
    ab05=ab*0.5
    iii=ii(iptyi)
-   jjj=jj(iptyi)   
+   jjj=jj(iptyi)
 
    select case(iptyj)
    case(1)
@@ -1328,8 +1328,8 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
          fik=0.0_wp
          fjk=0.0_wp
          if(iii.eq.m) fik=ab05
-         if(jjj.eq.m) fjk=ab05  
-         d(m)=(p(m)-xyzb(m))*ds+fik*ps(jjj)+fjk*ps(iii)  
+         if(jjj.eq.m) fjk=ab05
+         d(m)=(p(m)-xyzb(m))*ds+fik*ps(jjj)+fjk*ps(iii)
       enddo
    case(3)
       ! d-d
@@ -1346,8 +1346,8 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
          fik=0.0_wp
          fjk=0.0_wp
          if(iii.eq.m) fik=ab05
-         if(jjj.eq.m) fjk=ab05  
-         dp(m)=deltapb(m)*ds+fik*ps(jjj)+fjk*ps(iii)  
+         if(jjj.eq.m) fjk=ab05
+         dp(m)=deltapb(m)*ds+fik*ps(jjj)+fjk*ps(iii)
       enddo
       do m=1,3
          pip(m)=deltapb(m)*ps(iii)
@@ -1364,12 +1364,12 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
          pjp(3)=pip(3)
       endif
       ab05ds=ab05*ds
-      d(1)=deltapb(1)    *dp(1)+ab05ds 
-      d(2)=deltapb(2)    *dp(2)+ab05ds 
+      d(1)=deltapb(1)    *dp(1)+ab05ds
+      d(2)=deltapb(2)    *dp(2)+ab05ds
       d(3)=deltapb(3)    *dp(3)+ab05ds
-      d(4)=deltapb(2)    *dp(1) 
-      d(5)=deltapb(3)    *dp(1) 
-      d(6)=deltapb(3)    *dp(2) 
+      d(4)=deltapb(2)    *dp(1)
+      d(5)=deltapb(3)    *dp(1)
+      d(6)=deltapb(3)    *dp(2)
       do m=1,6
          kkk=ii(m+4)
          lll=jj(m+4)
@@ -1382,7 +1382,7 @@ pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
 end subroutine sspd2
 
 
-! check and print sparsity w.r.t. individual contribution 
+! check and print sparsity w.r.t. individual contribution
 ! to get an idea
 subroutine checkspars(nao,ndp,nqp,nmat,matlist,mqlst,mdlst)
    use xtb_lin, only : lin
@@ -1395,19 +1395,19 @@ subroutine checkspars(nao,ndp,nqp,nmat,matlist,mqlst,mdlst)
    ! check overall sparsity
    allocate(nzero(nao*(nao+1)/2))
    nzero=.false.
-   do k=1,ndp 
+   do k=1,ndp
       ki=mdlst(1,k)
       kj=mdlst(2,k)
       kk=lin(ki,kj)
       nzero(kk)=.true.
    enddo
-   do k=1,nqp 
+   do k=1,nqp
       ki=mqlst(1,k)
       kj=mqlst(2,k)
       kk=lin(ki,kj)
       nzero(kk)=.true.
    enddo
-   do k=1,nmat 
+   do k=1,nmat
       ki=matlist(1,k)
       kj=matlist(2,k)
       kk=lin(ki,kj)
@@ -1428,7 +1428,7 @@ subroutine checkspars(nao,ndp,nqp,nmat,matlist,mqlst,mdlst)
       & 100.*float(nqp)/float(mm)
    write(*,'(''                total:'',f6.2)') &
       & 100.*float(ntot)/float(mm)
-   write(*,'(a)',advance='yes') ' ' 
+   write(*,'(a)',advance='yes') ' '
    deallocate(nzero)
 end subroutine checkspars
 
@@ -1445,13 +1445,13 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
    integer i,j,k,l,lin
 
    !!!!!!! set up damped Coulomb operators for multipole interactions
-   gab3=0.0_wp ! for r**-2 decaying q-dip term 
+   gab3=0.0_wp ! for r**-2 decaying q-dip term
    gab5=0.0_wp ! for r**-3 decaying terms (q-qpol,dip-dip)
    l=1
    gab3(1)=0.0_wp
    gab5(1)=0.0_wp
-   do i=2,nat 
-      rr(1:3)=xyz(1:3,i)      
+   do i=2,nat
+      rr(1:3)=xyz(1:3,i)
       do j=1,i-1
          l=l+1
          tmp2=0.0_wp
@@ -1468,34 +1468,34 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
          gab5(l)=gab(5.0_wp,tmp1,damp)
       enddo
       l=l+1
-      gab3(l)=0.0_wp 
-      gab5(l)=0.0_wp 
+      gab3(l)=0.0_wp
+      gab5(l)=0.0_wp
    enddo
 
    !!!!!!! DEBUG
    !      gab3=0.0_wp
-   !      gab5=0.0_wp       
+   !      gab5=0.0_wp
    !      gab3=100.0_wp*gab3
-   !      gab5=100.0_wp*gab5 
+   !      gab5=100.0_wp*gab5
 end subroutine mmomgabzero
 
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!     setup CN-dependet atomic radii 
+!     setup CN-dependet atomic radii
 !     n : # of atoms
 ! at(n) : atomic number array
 ! cn(n) : coordination number of atoms
-! shift : global offset from cnval     (parameter) 
-! expo  : exponent scaling/ steepness  (parameter) 
-! rmax  : maximum radius               (parameter)  
-! radcn : CN-dependent radius 
+! shift : global offset from cnval     (parameter)
+! expo  : exponent scaling/ steepness  (parameter)
+! rmax  : maximum radius               (parameter)
+! radcn : CN-dependent radius
 subroutine get_radcn(n,at,cn,shift,expo,rmax,radcn)
    use xtb_aoparam
    implicit none
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (out) :: radcn(n)
-   real(wp) rco,t1,t2 
+   real(wp) rco,t1,t2
    integer i,j
    do i=1,n
       rco=radaes(at(i))             ! base radius of element
@@ -1509,9 +1509,9 @@ end subroutine get_radcn
 !     n : # of atoms
 ! at(n) : atomic number array
 ! cn(n) : coordination number of atoms
-! shift : global offset from cnval     (parameter) 
-! expo  : exponent scaling/ steepness  (parameter) 
-! rmax  : maximum radius               (parameter)  
+! shift : global offset from cnval     (parameter)
+! expo  : exponent scaling/ steepness  (parameter)
+! rmax  : maximum radius               (parameter)
 ! dcn   : on input  : derivatives of CN(i) w.r.t. Cart. directions of j
 !       : on output : derivatives of RADCN(j) w.r.t. Cart. directions of i, so we flip indices!!!
 subroutine dradcn(n,at,cn,shift,expo,rmax,dcn)
@@ -1543,13 +1543,13 @@ subroutine dradcn(n,at,cn,shift,expo,rmax,dcn)
 end subroutine dradcn
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!     zero-damping function and derivative 
+!     zero-damping function and derivative
 !     rscal         : scaling of radii
 !     dex           : exponent in zero-damping function
 !     rabinv        : inverse distance, i.e., 1/Rab
 !     aradi,radj    : CN-dependent atomic number radii
 !     damp          : zero damping function
-!     ddamp         : derivative w.r.t. Rab 
+!     ddamp         : derivative w.r.t. Rab
 subroutine dzero(dex,rabinv,radi,radj,damp,ddamp)
    implicit none
    real(wp), intent (in) :: radi,radj
@@ -1560,7 +1560,7 @@ subroutine dzero(dex,rabinv,radi,radj,damp,ddamp)
    !     rco=sqrt(radaes(ati)*radaes(atj))        ! unstable
    rco=0.5*(radi+radj)
    ! zero-damping function and gradient w.r.t. Rab
-   damp=1.0_wp/(1.0_wp+6.0_wp*(rco*rabinv)**dex)  
+   damp=1.0_wp/(1.0_wp+6.0_wp*(rco*rabinv)**dex)
    ddamp=-dex*rabinv*(damp*damp-damp)
 end subroutine dzero
 
@@ -1573,7 +1573,7 @@ real(wp) function gab(dex,rabinv,damp)
    implicit none
    real(wp) dex,rabinv,damp
    ! compute r**dex decaying intermediate
-   gab=damp*(rabinv**dex) ! LR-decay * damping 
+   gab=damp*(rabinv**dex) ! LR-decay * damping
 end function gab
 
 
@@ -1593,10 +1593,10 @@ end function dgab
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-! this prints gnuplot scripts 
+! this prints gnuplot scripts
 subroutine printspars(nat,at,nao,nmat,ndp,nqp,xyz,s,dpint,qpint)
    use xtb_lin, only : lin
-   implicit none          
+   implicit none
    integer, intent(in)    :: nao,nat,at(nat)
    integer, intent(in) :: ndp,nqp,nmat
    real(wp), intent(in)  ::  s(nao,nao),xyz(3,nat)
@@ -1620,7 +1620,7 @@ subroutine printspars(nat,at,nao,nmat,ndp,nqp,xyz,s,dpint,qpint)
    kk=0
    imat=0
 
-   !!! print gnuplot script for matrix sparsity 
+   !!! print gnuplot script for matrix sparsity
    frmt=''
    write(frmt,'(a,i0,a)') '(,',nao,'(f0.8,x))'
    mm=nao*(nao+1)/2
@@ -1754,14 +1754,14 @@ subroutine printspars(nat,at,nao,nmat,ndp,nqp,xyz,s,dpint,qpint)
    close(46)
 
 
-   deallocate(x) 
+   deallocate(x)
 end subroutine printspars
 
 
 
-! not used at the moment (maybe for GPUs?)  
+! not used at the moment (maybe for GPUs?)
 ! camm2: computes the CAMM directly from integrals (w/ density matrix as input)
-! thr         : integral cutoff according to prefactor from Gaussian product theorem 
+! thr         : integral cutoff according to prefactor from Gaussian product theorem
 ! nat         : # of atoms
 ! nao         : # of spherical AOs (SAOs)
 ! nbf         : # of Cartesian AOs (CAOs)
@@ -1775,7 +1775,7 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
    use xtb_mctc_constants, only : pi
    use xtb_aoparam
    use xtb_intgrad, only : dtrf2
-   implicit none          
+   implicit none
    integer, intent(in)  :: nat
    integer, intent(in)  :: nao
    integer, intent(in)  :: nbf
@@ -1797,7 +1797,7 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
    real(wp) dx,dy,dz,s00r,s00l,s00,alpj
    real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cc,cj,alpi,rab2,ab,est
    real(wp), parameter :: bohr=1.0_wp/0.52917726_wp
-   real(wp)  ra(3),rb(3),f1,f2,point(3) 
+   real(wp)  ra(3),rb(3),f1,f2,point(3)
    real(wp) ss(6,6),stmp(6)
    real(wp) dtmp(3),qtmp(6),dd(3,6,6),qq(6,6,6)
    integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,km,mi,mj,ij,lin,jshmax
@@ -1826,9 +1826,9 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
          dx=rb(1)-ra(1)
          dy=rb(2)-ra(2)
          dz=rb(3)-ra(3)
-         rab2=dx*dx+dy*dy+dz*dz           
-         !c          ints < 1.d-9 for RAB > 40 Bohr            
-         if(rab2.gt.2000) cycle            
+         rab2=dx*dx+dy*dy+dz*dz
+         !c          ints < 1.d-9 for RAB > 40 Bohr
+         if(rab2.gt.2000) cycle
          do ish=1,ao_n(iatyp)
             ishtyp=ao_l(ish,iatyp)
             icao=caoshell(ish,iat)
@@ -1838,31 +1838,31 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
             if(iat.eq.jat) jshmax=ish
             !              jshells
             do jsh=1,jshmax
-               jshtyp=ao_l(jsh,jatyp)             
+               jshtyp=ao_l(jsh,jatyp)
                jcao=caoshell(jsh,jat)
                naoj=llao(jshtyp)
                print*,naoj
                jptyp=itt(jshtyp)
-               ! we go through the primitives (beacause the screening is the same for all of them) 
-               ss=0.0_wp      
+               ! we go through the primitives (beacause the screening is the same for all of them)
+               ss=0.0_wp
                dd=0.0_wp
-               qq=0.0_wp 
+               qq=0.0_wp
                do ip=1,nprim(icao+1)
-                  iprim=ip+primcount(icao+1) 
-                  alpi=alp(iprim)          ! exponent the same for each l component 
+                  iprim=ip+primcount(icao+1)
+                  alpi=alp(iprim)          ! exponent the same for each l component
                   do jp=1,nprim(jcao+1)
                      jprim=jp+primcount(jcao+1)
                      alpj=alp(jprim) ! exponent the same for each l component
                      ab=1.0_wp/(alpi+alpj)
                      est=rab2*alpi*alpj*ab
-                     if(est.gt.thr2) cycle  
-                     s00=(pi*ab)**1.50_wp*exp(-est) 
+                     if(est.gt.thr2) cycle
+                     s00=(pi*ab)**1.50_wp*exp(-est)
                      ! now compute integrals  for different components of i(e.g., px,py,pz)
                      do mli=1,naoi
                         iprim=ip+primcount(icao+mli)
                         ci=cont(iprim) ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
                         call sspd2(ra,rb,iptyp+mli,jshtyp+1,alpi, &
-                           & alpj,ab,s00,stmp)        
+                           & alpj,ab,s00,stmp)
                         do mlj=1,naoj
                            jprim=jp+primcount(jcao+mlj)
                            qtmp=0.0_wp
@@ -1876,11 +1876,11 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
                            cc=cont(jprim)*ci
                            ! from primitive integrals fill CAO-CAO  matrix for ish-jsh block
                            ss(mlj,mli)=ss(mlj,mli)+stmp(mlj)*cc
-                           ! dipole 
-                           do k=1,3 
+                           ! dipole
+                           do k=1,3
                               dd(k,mlj,mli)=dd(k,mlj,mli)-dtmp(k)*cc
                            enddo
-                           ! quadrupole 
+                           ! quadrupole
                            do k=1,6
                               qq(k,mlj,mli)=qq(k,mlj,mli)-qtmp(k)*cc
                            enddo
@@ -1902,7 +1902,7 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
                !   w/o "shift terms" from lower moments (is done later atom-wise)
 
                ! special diagonal block case
-               if(icao.eq.jcao) then 
+               if(icao.eq.jcao) then
                   do ii=1,llao2(ishtyp)
                      iao=ii+saoshell(ish,iat)
                      do jj=1,ii-1
@@ -1940,7 +1940,7 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
    enddo    ! iat
 
    ! now add "shift terms" from lower moments
-   do i=1,nat  
+   do i=1,nat
       dipm(1:3,i)=dipm(1:3,i)-xyz(1:3,i)*q(i)
       do k=1,3
          do l=1,k-1
@@ -1959,21 +1959,21 @@ subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,co
       qtmp(4)=qp(5,i)
       qtmp(5)=qp(6,i)
       qtmp(6)=qp(3,i)
-      tmp1=qtmp(1)+qtmp(3)+qtmp(6) 
+      tmp1=qtmp(1)+qtmp(3)+qtmp(6)
       tmp1=tmp1*0.50_wp
       qtmp(1:6)=qtmp(1:6)*1.50_wp
-      qp(1,i)=qtmp(1)-tmp1 
+      qp(1,i)=qtmp(1)-tmp1
       qp(2,i)=qtmp(2)
       qp(3,i)=qtmp(3)-tmp1
       qp(4,i)=qtmp(4)
       qp(5,i)=qtmp(5)
-      qp(6,i)=qtmp(6)-tmp1 
+      qp(6,i)=qtmp(6)-tmp1
    enddo
 end subroutine camm2
 
 
-subroutine gfn2broyden_diff(n,istart,nbr,dipm,qp,q_in,dq) 
-   implicit none 
+subroutine gfn2broyden_diff(n,istart,nbr,dipm,qp,q_in,dq)
+   implicit none
    integer, intent (in) :: n,nbr
    integer, intent (inout) ::  istart
    real(wp), intent (in)  :: dipm(3,n),qp(6,n),q_in(nbr)
@@ -1994,8 +1994,8 @@ subroutine gfn2broyden_diff(n,istart,nbr,dipm,qp,q_in,dq)
 
 end subroutine gfn2broyden_diff
 
-subroutine gfn2broyden_save(n,istart,nbr,dipm,qp,q_in) 
-   implicit none 
+subroutine gfn2broyden_save(n,istart,nbr,dipm,qp,q_in)
+   implicit none
    integer, intent (in) :: n,nbr
    integer, intent (inout) ::  istart
    real(wp), intent (in)  :: dipm(3,n),qp(6,n)
@@ -2020,7 +2020,7 @@ end subroutine gfn2broyden_save
 
 subroutine gfn2broyden_out(n,istart,nbr,q_in,dipm,qp)
    implicit none
-   integer, intent (in) :: n,nbr         
+   integer, intent (in) :: n,nbr
    integer, intent (inout) ::  istart
    real(wp), intent (in)  :: q_in(nbr)
    real(wp), intent (out) :: dipm(3,n),qp(6,n)
@@ -2039,10 +2039,10 @@ subroutine gfn2broyden_out(n,istart,nbr,q_in,dipm,qp)
    istart=k
 end subroutine gfn2broyden_out
 
-! ddqint: computes the gradient of the dipole/qpole integral contribution 
+! ddqint: computes the gradient of the dipole/qpole integral contribution
 ! it starts with a numerical derivation of the multipole integrals w.r.t. nuclear displacements
-! and collecting their contribution (w/ density matrix as input) 
-! thr         : integral cutoff according to prefactor from Gaussian product theorem 
+! and collecting their contribution (w/ density matrix as input)
+! thr         : integral cutoff according to prefactor from Gaussian product theorem
 ! nat         : # of atoms
 ! nao         : # of spherical AOs (SAOs)
 ! nbf         : # of Cartesian AOs (CAOs)
@@ -2235,8 +2235,8 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
    enddo
 end subroutine get_grad_multiint
 
-! dsint: computes the gradient of the dipole/qpole integral contribution 
-! thr         : integral cutoff according to prefactor from Gaussian product theorem 
+! dsint: computes the gradient of the dipole/qpole integral contribution
+! thr         : integral cutoff according to prefactor from Gaussian product theorem
 ! nat         : # of atoms
 ! nao         : # of spherical AOs (SAOs)
 ! nbf         : # of Cartesian AOs (CAOs)

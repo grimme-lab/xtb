@@ -34,14 +34,13 @@ module xtb_single
 contains
 
 subroutine singlepoint &
-&                 (iunit,mol,wfn,calc, &
+&                 (env,mol,wfn,calc, &
 &                  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
-   use iso_fortran_env, wp => real64
    use xtb_mctc_convert
-   use xtb_mctc_logging
 
 !! ========================================================================
 !  type definitions
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
@@ -58,15 +57,18 @@ subroutine singlepoint &
 !! ========================================================================
    use xtb_solv_gbobc, only : lgbsa
    use xtb_scf, only : scf
-   use xtb_qmdff,      only : ff_eg,ff_nonb,ff_hb
-   use xtb_qcextern,   only : run_orca_egrad,run_mopac_egrad
+   use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
+   use xtb_extern_mopac, only : runMopac
+   use xtb_extern_orca, only : runOrca
    use xtb_peeq, only : peeq
-   use xtb_embedding,  only : read_pcem
+   use xtb_embedding, only : read_pcem
    implicit none
 
-   integer, intent(in) :: iunit
+   character(len=*), parameter :: source = 'single'
 
-!! ========================================================================
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(tb_calculator),intent(in) :: calc
@@ -82,12 +84,12 @@ subroutine singlepoint &
    real(wp),intent(out)   :: g(3,mol%n)
    type(scc_results),intent(out) :: res
    real(wp),intent(out)   :: sigma(3,3)
-   type(mctc_error), allocatable :: err
    integer  :: i,ich
    integer  :: mode_sp_run = 1
    real(wp) :: efix
    logical  :: inmol
    logical, parameter :: ccm = .true.
+   logical :: exitRun
 !  real(wp) :: efix1,efix2
 !  real(wp),dimension(3,n) :: gfix1,gfix2
 
@@ -113,12 +115,13 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(iunit,err,mol,wfn,calc%basis,calc%param,pcem, &
+      call scf(env,mol,wfn,calc%basis,calc%param,pcem, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)
       call peeq &
-         & (iunit,err,mol,wfn,calc%basis,calc%param,egap,et,prlevel,lgrad,ccm,acc,etot,g,sigma,res)
+         & (env,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
+         &  lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)
       call ff_eg  (mol%n,mol%at,mol%xyz,etot,g)
@@ -126,24 +129,21 @@ subroutine singlepoint &
       call ff_hb  (mol%n,mol%at,mol%xyz,etot,g)
 
    case(p_ext_orca)
-      call run_orca_egrad(mol%n,mol%at,mol%xyz,etot,g)
+      call runOrca(env,mol,etot,g)
 
    case(p_ext_turbomole)
       call external_turbomole(mol%n,mol%at,mol%xyz,wfn%nel,wfn%nopen, &
          &                    lgrad,etot,g,res%dipole,lgbsa)
 
    case(p_ext_mopac)
-      !call getmopacgrad(n,at,xyz,wfn%nopen,g,etot)
-      call run_mopac_egrad(mol%n,mol%at,mol%xyz,etot,g)
+      call runMopac(env,mol%n,mol%at,mol%xyz,etot,g)
 
    end select
 
-   if (allocated(err)) then
-      if (err%fatal) then
-         call raise('E', err%msg, 1)
-      else
-         call raise('S', err%msg, 1)
-      end if
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Electronic structure method terminated", source)
+      return
    end if
 
 !! ========================================================================
@@ -181,35 +181,35 @@ subroutine singlepoint &
    if (prlevel.ge.2) then
       ! start with summary header
       if (.not.silent) then
-         write(iunit,'(9x,53(":"))')
-         write(iunit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
+         write(env%unit,'(9x,53(":"))')
+         write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
       endif
-      write(iunit,'(9x,53(":"))')
-      write(iunit,outfmt) "total energy      ", res%e_total,"Eh   "
+      write(env%unit,'(9x,53(":"))')
+      write(env%unit,outfmt) "total energy      ", res%e_total,"Eh   "
       if (.not.silent.and.lgbsa) then
-         write(iunit,outfmt) "total w/o Gsasa/hb", &
+         write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  res%e_total-res%g_sasa-res%g_hb-res%g_shift, "Eh   "
       endif
-      write(iunit,outfmt) "gradient norm     ", res%gnorm,  "Eh/a0"
-      write(iunit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV   "
+      write(env%unit,outfmt) "gradient norm     ", res%gnorm,  "Eh/a0"
+      write(env%unit,outfmt) "HOMO-LUMO gap     ", res%hl_gap, "eV   "
       if (.not.silent) then
          if (verbose) then
-            write(iunit,'(9x,"::",49("."),"::")')
-            write(iunit,outfmt) "HOMO orbital eigv.", wfn%emo(wfn%ihomo),  "eV   "
-            write(iunit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
+            write(env%unit,'(9x,"::",49("."),"::")')
+            write(env%unit,outfmt) "HOMO orbital eigv.", wfn%emo(wfn%ihomo),  "eV   "
+            write(env%unit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
          endif
-         write(iunit,'(9x,"::",49("."),"::")')
-         if (gfn_method.eq.2) call print_gfn2_results(iunit,res,verbose,lgbsa)
-         if (gfn_method.eq.1) call print_gfn1_results(iunit,res,verbose,lgbsa)
-         if (gfn_method.eq.0) call print_gfn0_results(iunit,res,verbose,lgbsa)
-         write(iunit,outfmt) "add. restraining  ", efix,       "Eh   "
+         write(env%unit,'(9x,"::",49("."),"::")')
+         if (gfn_method.eq.2) call print_gfn2_results(env%unit,res,verbose,lgbsa)
+         if (gfn_method.eq.1) call print_gfn1_results(env%unit,res,verbose,lgbsa)
+         if (gfn_method.eq.0) call print_gfn0_results(env%unit,res,verbose,lgbsa)
+         write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
-            write(iunit,'(9x,"::",49("."),"::")')
-            write(iunit,outfmt) "atomisation energy", res%e_atom, "Eh   "
+            write(env%unit,'(9x,"::",49("."),"::")')
+            write(env%unit,outfmt) "atomisation energy", res%e_atom, "Eh   "
          endif
       endif
-      write(iunit,'(9x,53(":"))')
-      write(iunit,'(a)')
+      write(env%unit,'(9x,53(":"))')
+      write(env%unit,'(a)')
    endif
 
 end subroutine singlepoint

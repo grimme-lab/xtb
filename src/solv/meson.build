@@ -18,5 +18,5 @@
 srcs += files(
   'cm5.f90',
   'gbobc.f90',
-  'grid_module.f90',
+  'lebedev.f90',
 )

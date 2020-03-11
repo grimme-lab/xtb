@@ -784,9 +784,9 @@ end subroutine mh_lindh_d2
 !
 !  the reference distances are divided by rows in the PSE:
 !  rAv:        1        2        3       aAv:        1        2        3
-!    1    1.3500   2.1000   2.5300         1    1.0000   0.3949   0.3949   
-!    2    2.1000   2.8700   3.8000         2    0.3949   0.2800   0.1200   
-!    3    2.5300   3.8000   4.5000         3    0.3949   0.1200   0.0600   
+!    1    1.3500   2.1000   2.5300         1    1.0000   0.3949   0.3949
+!    2    2.1000   2.8700   3.8000         2    0.3949   0.2800   0.1200
+!    3    2.5300   3.8000   4.5000         3    0.3949   0.1200   0.0600
 !
 !  dAv:        1        2        3
 !    1    0.0000   3.6000   3.6000
@@ -1714,7 +1714,7 @@ pure elemental subroutine getvdwxy(rx,ry,rz, c66, s6,r0, vdw)
 end subroutine getvdwxy
 
 pure elemental subroutine getvdwxx(rx, ry, rz, c66, s6, r0, vdw)
-   !cc Ableitung nach rx und rx 
+   !cc Ableitung nach rx und rx
    implicit none
    real(wp),intent(in)  :: rx,ry,rz,c66,s6,r0
    real(wp),intent(out) :: vdw
@@ -1969,7 +1969,7 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
-   ! Ainv matrix is overwritten with lower triangular part of A⁻¹   
+   ! Ainv matrix is overwritten with lower triangular part of A⁻¹
    call dsytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
       call raise('E', '(goedecker_inversion) DSYTRI failed',1)
@@ -2006,13 +2006,13 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
          expterm = Xtmp(i)*Xtmp(j)*2*gamij*exp(-arg2)/sqrtpi
          ! ∂²(qAq)/(∂Ri∂Rj):
          ! ∂²(qAq)/(∂Xi∂Xi) = (1-3X²ij/R²ij-2γ²ijX²ij) 2γij/√π exp[-γ²ij·R²ij]/R²ij
-         !                  - (R²ij-3X²ij) erf[γij·Rij]/R⁵ij 
-         ! ∂²(qAq)/(∂Xi∂Xj) = (R²ij-3X²ij) erf[γij·Rij]/R⁵ij 
+         !                  - (R²ij-3X²ij) erf[γij·Rij]/R⁵ij
+         ! ∂²(qAq)/(∂Xi∂Xj) = (R²ij-3X²ij) erf[γij·Rij]/R⁵ij
          !                  - (1-3X²ij/R²ij-2γ²ijX²ij) 2γij/√π exp[-γ²ij·R²ij]/R²ij
          ! ∂²(qAq)/(∂Xi∂Yi) = 3X²ij erf[γij·Rij]/R⁵ij
          !                  - (3X²ij/R²ij+2γ²ijX²ij) 2γij/√π exp[-γ²ij·R²ij]/R²ij
          ! ∂²(qAq)/(∂Xi∂Yj) = (3X²ij/R²ij+2γ²ijX²ij) 2γij/√π exp[-γ²ij·R²ij]/R²ij
-         !                  - 3X²ij erf[γij·Rij]/R⁵ij 
+         !                  - 3X²ij erf[γij·Rij]/R⁵ij
          rxr(1,1) = erfterm * ( 3*rij(1)**2/r2**2 - 1.0_wp/r2 ) &
                   - expterm * ( 3*rij(1)**2/r2**2 + 2*gamij2*rij(1)**2/r2 - 1/r2 )
          rxr(2,2) = erfterm * ( 3*rij(2)**2/r2**2 - 1.0_wp/r2 ) &
@@ -2111,7 +2111,7 @@ end module xtb_modelhessian
       Real*8 rAV(3,3), aAV(3,3), &
      &       B_Str(6), A_Bend(2), A_Trsn(2), A_StrH(2), &
      &       rkr, rkf, A_Str, RF_Const, &
-     &       wthr                       
+     &       wthr
 
       Data rAv/1.3500d+00,2.1000d+00,2.5300d+00, &
      &         2.1000d+00,2.8700d+00,3.4000d+00, &
@@ -2128,9 +2128,9 @@ end module xtb_modelhessian
       Data A_StrH/0.3601d0,1.944d0/
       Data RF_Const/1.0D-2/
       Data wthr/0.2/
-! end: "common/ddvdt.inc"      
+! end: "common/ddvdt.inc"
 
-!cc VDWx-Parameters (Grimme) used for vdw-correction of model hessian 
+!cc VDWx-Parameters (Grimme) used for vdw-correction of model hessian
       real*8 alphavdw, damp, c6(100), c6k, c6l, c66, vander(100), &
      &   vdw(3,3), dr(3)
       integer kxyz, lxyz
@@ -2159,8 +2159,8 @@ end module xtb_modelhessian
 !cc End: VDWx ccccccccccccccccc
 
 !
-!------- Statement functions 
-!   
+!------- Statement functions
+!
       ixyz(i,iAtom) = (iAtom-1)*3 + i
       Jnd(i,j) = i*(i-1)/2 +j
       Ind(i,iAtom,j,jAtom)=Jnd(Max(ixyz(i,iAtom),ixyz(j,jAtom)), &
@@ -2232,7 +2232,7 @@ end module xtb_modelhessian
             c6l=c6(iANr(latom))
             c66=sqrt(c6k*c6l)
             Rv=(vander(iANr(katom))+vander(iANr(latom)))/0.52917721
-         
+
             call getvdwxx(xkl, ykl, zkl, c66, s6, Rv, vdw(1,1))
             call getvdwxy(xkl, ykl, zkl, c66, s6, Rv, vdw(1,2))
             call getvdwxy(xkl, zkl, ykl, c66, s6, Rv, vdw(1,3))
@@ -2304,7 +2304,7 @@ end module xtb_modelhessian
             if(rcutoff(cart,jatom,matom)) cycle
 !           if(wb(jatom,iatom).lt.wthr) cycle
 !           if(wb(jatom,matom).lt.wthr) cycle
- 
+
             xmi=(Cart(1,iAtom)-Cart(1,mAtom))
             ymi=(Cart(2,iAtom)-Cart(2,mAtom))
             zmi=(Cart(3,iAtom)-Cart(3,mAtom))

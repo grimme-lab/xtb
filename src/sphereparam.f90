@@ -159,7 +159,6 @@ subroutine getsphererad(n,at,xyz)
 
    real(wp) :: dum(3),rx,ry,rz
    real(wp) :: x,y,z,f,rr,r
-   character(len=2),external :: asym
    integer  :: i,j
 
 !  call axis3(0,n,at,xyz,xyz2,dum)

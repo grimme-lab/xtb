@@ -38,7 +38,6 @@ contains
 
 !> @brief convert cell parameters to direct lattice
 pure subroutine cell_to_dlat(cellpar,lattice)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in)  :: cellpar(6)   !< cell parameters
    real(wp),intent(out) :: lattice(3,3) !< direct lattice
@@ -65,7 +64,6 @@ end subroutine cell_to_dlat
 
 !> @brief convert cell parameters to reciprocal lattice
 pure subroutine cell_to_rlat(cellpar,rec_lat)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in)  :: cellpar(6)   !< cell parameters
    real(wp),intent(out) :: rec_lat(3,3) !< reciprocal lattice
@@ -92,7 +90,6 @@ end subroutine cell_to_rlat
 
 !> @brief convert direct lattice to cell parameters
 pure subroutine dlat_to_cell(lattice,cellpar)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in)  :: lattice(3,3) !< direct lattice
    real(wp),intent(out) :: cellpar(6)   !< cell parameters
@@ -114,7 +111,6 @@ end subroutine dlat_to_cell
 
 !> @brief convert direct lattice to cell parameters
 pure subroutine dlat_to_rlat(lattice,rec_lat)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in)  :: lattice(3,3) !< direct lattice
    real(wp),intent(out) :: rec_lat(3,3) !< reciprocal lattice
@@ -131,7 +127,6 @@ end subroutine dlat_to_rlat
 
 !> @brief implements the cross/vector product between two 3D vectors
 pure function cross(a,b) result(c)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: a(3)
    real(wp),intent(in) :: b(3)
@@ -143,7 +138,6 @@ end function cross
 
 !> @brief determinat of 3×3 matrix
 pure function mat_det_3x3(a) result (det)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: a(3,3)
    real(wp)            :: det
@@ -161,7 +155,6 @@ end function mat_det_3x3
 !
 !  reference: http://fortranwiki.org/fortran/show/Matrix+inversion
 pure function mat_inv_3x3(a) result(b)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: a(3,3)   !< Matrix
    real(wp)            :: b(3,3)   !< Inverse matrix
@@ -184,7 +177,6 @@ end function mat_inv_3x3
 
 !> @brief calculate the cell volume from the cell parameters
 pure function cell_to_dvol(cellpar) result(dvol)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: cellpar(6) !< cell parameters
    real(wp)            :: vol2
@@ -205,7 +197,6 @@ end function cell_to_dvol
 
 !> @brief calculate the cell volume from the direct lattice
 pure function dlat_to_dvol(lattice) result(dvol)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: lattice(3,3) !< direct lattice
    real(wp)            :: dvol
@@ -216,7 +207,6 @@ end function dlat_to_dvol
 
 !> @brief inverts volume of direct unit cell
 pure function dvol_to_rvol(dvol) result(rvol)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: dvol !< direct volume
    real(wp)            :: rvol !< reciprocal volume
@@ -225,7 +215,6 @@ end function dvol_to_rvol
 
 !> @brief transform from fractional coordinates into cartesian coordinates
 pure subroutine abc_to_xyz(n,dlat,abc,xyz)
-   use iso_fortran_env, wp => real64
    implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: dlat(3,3)
@@ -238,7 +227,6 @@ end subroutine abc_to_xyz
 
 !> @brief transform from cartesian coordinates into fractional coordinates
 pure subroutine xyz_to_abc(n,dlat,xyz,abc,pbc)
-   use iso_fortran_env, wp => real64
    implicit none
    integer, intent(in)  :: n
    real(wp),intent(in)  :: dlat(3,3)
@@ -264,7 +252,6 @@ end subroutine xyz_to_abc
 
 !> @brief shift back fractional coordinates into the range [0,1)
 pure elemental function shift_back_abc(in) result(out)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: in   !< fractional coordinate in (-∞,+∞)
    real(wp)            :: out  !< fractional coordinate in [0,1)
@@ -280,7 +267,6 @@ end function shift_back_abc
 
 !> @brief transform from one coordinate system into another
 pure subroutine coord_trafo_12(dim,trafo,coord1,coord2)
-   use iso_fortran_env, wp => real64
    implicit none
    integer, intent(in)  :: dim
    real(wp),intent(in)  :: trafo(3,3)
@@ -298,7 +284,6 @@ end subroutine coord_trafo_12
 
 !> @brief transform from one coordinate system into another
 pure subroutine coord_trafo_inplace(dim,trafo,coord)
-   use iso_fortran_env, wp => real64
    implicit none
    integer, intent(in)    :: dim
    real(wp),intent(in)    :: trafo(3,3)
@@ -316,7 +301,6 @@ end subroutine coord_trafo_inplace
 
 !> @brief calculate distance between to atoms under minimum image convention
 pure function minimum_image_distance(lsame,fi,fj,dlat,lpbc) result(dist)
-   use iso_fortran_env, wp => real64
    implicit none
    logical, intent(in) :: lsame
    real(wp),intent(in) :: fi(3)
@@ -376,7 +360,6 @@ end function minimum_image_distance
 
 !> @brief calculate center of unit cell
 pure function get_center_dlat(dlat) result(center)
-   use iso_fortran_env, wp => real64
    implicit none
    real(wp),intent(in) :: dlat(3,3)
    real(wp) :: center(3)

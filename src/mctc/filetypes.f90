@@ -22,7 +22,14 @@ module xtb_mctc_filetypes
    implicit none
    private
 
-   public :: fileType, getFileType, generateFileMetaInfo
+   public :: fileType, getFileType, generateFileMetaInfo, generateFileName
+
+
+   !> Generate file type from file name
+   interface getFileType
+      module procedure :: getFileTypeFromName
+      module procedure :: getFileTypeFromMetaInfo
+   end interface getFileType
 
 
    !> Possible file types
@@ -65,7 +72,7 @@ contains
 
 
 !> Generate file type from file name
-function getFileType(name) result(ftype)
+function getFileTypeFromName(name) result(ftype)
 
    !> File name
    character(len=*), intent(in) :: name
@@ -76,6 +83,23 @@ function getFileType(name) result(ftype)
    character(len=:), allocatable :: basename, extension, path
 
    call generateFileMetaInfo(name, path, basename, extension)
+
+   ftype = getFileType(basename, extension)
+
+end function getFileTypeFromName
+
+
+!> Generate file type from file name
+function getFileTypeFromMetaInfo(basename, extension) result(ftype)
+
+   !> File name
+   character(len=*), intent(in) :: basename
+
+   !> File extension
+   character(len=*), intent(in) :: extension
+
+   !> File type
+   integer :: ftype
 
    ftype = defaultfileType
 
@@ -109,7 +133,7 @@ function getFileType(name) result(ftype)
       end select
    end if
 
-end function getFileType
+end function getFileTypeFromMetaInfo
 
 
 !> Split file name into path, basename and extension
@@ -152,6 +176,43 @@ subroutine generateFileMetaInfo(Name, path, basename, extension)
    endif
 
 end subroutine generateFileMetaInfo
+
+
+subroutine generateFileName(fname, basename, extension, ftype)
+   character(len=:), allocatable, intent(out) :: fname
+   character(len=*), intent(in) :: basename
+   character(len=*), intent(in) :: extension
+   integer, intent(in) :: ftype
+
+   if (len(basename) > 0) then
+      fname = basename
+   else
+      fname = 'xtb'
+   endif
+
+   if (len(extension) > 0) then
+      fname = fname//'.'//extension
+   else
+      select case(ftype)
+      case(fileType%xyz)
+         fname = fname//'.xyz'
+      case(fileType%tmol)
+         fname = fname//'.coord'
+      case(fileType%molfile)
+         fname = fname//'.mol'
+      case(fileType%sdf)
+         fname = fname//'.sdf'
+      case(fileType%vasp)
+         fname = fname//'.poscar'
+      case(fileType%pdb)
+         fname = fname//'.pdb'
+      case(fileType%gen)
+         fname = fname//'.gen'
+      case(fileType%gaussian)
+         fname = fname//'.ein'
+      end select
+   endif
+end subroutine generateFileName
 
 
 end module xtb_mctc_filetypes

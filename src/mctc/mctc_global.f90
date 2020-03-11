@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_mctc_global
+   use xtb_type_environment, only : TEnvironment
    character(len=:),allocatable :: name  !< name of the currently running program
    character(len=:),allocatable,target :: msgbuffer !< error message buffer
    integer :: msgid !< number of generated errors
@@ -27,6 +28,8 @@ module xtb_mctc_global
    logical :: mute = .false.
    ! sanity status of the mctc environment, beware if it goes insane
    logical :: good = .true.
+
+   type(TEnvironment) :: persistentEnv
 
    type :: errormsg
       character(len=:),allocatable :: msg

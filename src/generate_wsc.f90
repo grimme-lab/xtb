@@ -17,7 +17,7 @@
 
 !> generate a Wigner--Seitz cell from a given structure
 subroutine generate_wsc(mol,wsc)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_wsc
    implicit none

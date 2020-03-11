@@ -19,10 +19,7 @@
 module xtb_type_options
    use xtb_mctc_accuracy, only : wp
    use iso_c_binding
-   use xtb_mctc_logging
    implicit none
-
-   public :: tb_environment
 
    public :: tb_options
 
@@ -63,16 +60,6 @@ module xtb_type_options
    procedure :: export_scc  => export_scc_options
    end type tb_options
 
-   type :: tb_environment
-      character(len=:),allocatable :: whoami
-      character(len=:),allocatable :: hostname
-      character(len=:),allocatable :: home
-      character(len=:),allocatable :: path
-      character(len=:),allocatable :: xtbpath
-      character(len=:),allocatable :: xtbhome
-   contains
-      procedure :: setup => setup_environment
-   end type tb_environment
 
    type :: scc_options
       sequence
@@ -177,20 +164,6 @@ module xtb_type_options
 
 contains
 
-subroutine setup_environment(self)
-   use xtb_mctc_systools
-   implicit none
-   class(tb_environment), intent(inout) :: self
-   integer :: err
-   call rdarg(0,self%whoami,err)
-   call rdvar('HOSTNAME',self%hostname,err)
-   call rdvar('HOME',self%home,err)
-   call rdvar('PATH',self%path,err)
-   call rdvar('XTBHOME',self%xtbhome,err)
-   if (err.ne.0) self%xtbhome = self%home
-   call rdvar('XTBPATH',self%xtbpath,err)
-   if (err.ne.0) self%xtbpath = self%xtbhome
-end subroutine setup_environment
 
 subroutine default_options(self)
    implicit none

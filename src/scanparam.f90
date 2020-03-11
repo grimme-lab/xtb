@@ -145,13 +145,13 @@ end subroutine setup_constrain_pot
 subroutine pot_info(iunit,n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_convert
+   use xtb_mctc_symbols, only : toSymbol
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: xyz(3,n)
 
-   character(len=2),external :: asym
    real(wp),external :: valijkl
 
    integer :: i,ii,j,k,l,m,mm
@@ -182,7 +182,7 @@ subroutine pot_info(iunit,n,at,xyz)
       write(iunit,'(5x,"#",3x,"Z",3x,32x,"position/Å",6x,"displ./Å")')
       do i = 1, potset%pos%n
          ii = potset%pos%atoms(i)
-         write(iunit,'(i6,1x,i3,1x,a2)',advance='no') ii,at(ii),asym(at(ii))
+         write(iunit,'(i6,1x,i3,1x,a2)',advance='no') ii,at(ii),toSymbol(at(ii))
          if (allocated(potset%xyz)) then
             write(iunit,'(4f14.7)') &
                potset%xyz(:,ii)*autoaa, norm2(potset%xyz(:,ii)-xyz(:,ii))*autoaa
@@ -221,8 +221,8 @@ subroutine pot_info(iunit,n,at,xyz)
          val0 = potset%dist%val(m)
          val = norm2(xyz(:,i)-xyz(:,j))
          write(iunit,'(2(i6,1x,i3,1x,a2),26x,1x,2f14.7)') &
-            i,at(i),asym(at(i)), &
-            j,at(j),asym(at(j)), &
+            i,at(i),toSymbol(at(i)), &
+            j,at(j),toSymbol(at(j)), &
             val0*autoaa, val*autoaa
       enddo
       write(iunit,'(a)')
@@ -256,9 +256,9 @@ subroutine pot_info(iunit,n,at,xyz)
          val0 = potset%angle%val(m)
          call bangl(xyz,i,j,k,val)
          write(iunit,'(3(i6,1x,i3,1x,a2),13x,1x,2f14.7)') &
-            i,at(i),asym(at(i)), &
-            j,at(j),asym(at(j)), &
-            k,at(k),asym(at(k)), &
+            i,at(i),toSymbol(at(i)), &
+            j,at(j),toSymbol(at(j)), &
+            k,at(k),toSymbol(at(k)), &
             val0*180.0_wp/pi, val*180.0_wp/pi
       enddo
       write(iunit,'(a)')
@@ -292,10 +292,10 @@ subroutine pot_info(iunit,n,at,xyz)
          val0 = potset%dihedral%val(m)
          val = valijkl(n,xyz,i,j,k,l)
          write(iunit,'(4(i6,1x,i3,1x,a2),1x,2f14.7)') &
-            i,at(i),asym(at(i)), &
-            j,at(j),asym(at(j)), &
-            k,at(k),asym(at(k)), &
-            l,at(l),asym(at(l)), &
+            i,at(i),toSymbol(at(i)), &
+            j,at(j),toSymbol(at(j)), &
+            k,at(k),toSymbol(at(k)), &
+            l,at(l),toSymbol(at(l)), &
             val0*180.0_wp/pi, val*180.0_wp/pi
       enddo
       write(iunit,'(a)')

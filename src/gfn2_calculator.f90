@@ -20,11 +20,10 @@ contains
 ! ========================================================================
 !> GFN2-xTB calculation
 module subroutine gfn2_calculation &
-      (iunit,env,err,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+      (iunit,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
    use xtb_mctc_accuracy, only : wp
 
    use xtb_mctc_systools
-   use xtb_mctc_logging
 
    use xtb_type_options
    use xtb_type_molecule
@@ -44,16 +43,19 @@ module subroutine gfn2_calculation &
    use xtb_scf
    use xtb_solv_gbobc
    use xtb_embedding
+   use xtb_restart
+   use xtb_readparam
 
    implicit none
+
+   character(len=*), parameter :: source = 'calculator_gfn2'
 
    integer, intent(in) :: iunit
 
    type(TMolecule),    intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(scc_options),    intent(in)    :: opt
-   type(tb_environment), intent(in)    :: env
-   type(mctc_error), allocatable, intent(inout) :: err
+   type(TEnvironment), intent(inout)    :: env
    type(tb_pcem),        intent(inout) :: pcem
 
    real(wp), intent(out) :: energy
@@ -76,6 +78,7 @@ module subroutine gfn2_calculation &
    real(wp) :: globpar(25)
    integer  :: ipar
    logical  :: exist
+   logical :: exitRun
 
    logical  :: okbas
 
@@ -118,10 +121,10 @@ module subroutine gfn2_calculation &
       call open_file(ipar,fnv,'r')
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
-         err = mctc_error("Parameter file '"//fnv//"' not found")
+         call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
-      call read_gfn_param(ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
    endif
    call set_gfn2_parameter(param,globpar)
@@ -152,26 +155,33 @@ module subroutine gfn2_calculation &
    allocate( cn(mol%n), source = 0.0_wp )
    call new_charge_model_2019(chrgeq,mol%n,mol%at)
    call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,err,chrgeq,cn,wfn%q)
+   call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
    deallocate(cn)
-   if (allocated(err)) return
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("EEQ quess failed", source)
+   end if
 
    call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
    if (opt%restart) &
-      call read_restart(wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)
+      call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)
 
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(iunit,err,mol,wfn,basis,param,pcem,hl_gap, &
+   call scf(env,mol,wfn,basis,param,pcem,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
-   if (allocated(err)) return
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("SCF calculation terminated", source)
+   end if
 
    if (opt%restart) then
-      call write_restart(wfn,'xtbrestart',gfn_method)
-   endif 
+      call writeRestart(env,wfn,'xtbrestart',gfn_method)
+   endif
 
    if (opt%prlevel > 0) then
       write(iunit,'(9x,53(":"))')

@@ -15,20 +15,24 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine relaxed_scan(mol,wfx,calc)
-   use iso_fortran_env, only : id => output_unit
+subroutine relaxed_scan(env, mol, wfx, calc)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_filetypes, only : fileType
    use xtb_setparam
    use xtb_scanparam
 
+   use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
    use xtb_type_data
 
-   use xtb_optimizer, only : wrlog2
+   use xtb_io_writer, only : writeMolecule
 
    implicit none
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
    type(tb_calculator),intent(in) :: calc
@@ -56,10 +60,10 @@ subroutine relaxed_scan(mol,wfx,calc)
    allocate ( g(3,mol%n), source = 0.0_wp )
    allocate ( xyzsave(3,mol%n), source = mol%xyz )
 
-   write(id,'(72("="))')
-   write(id,'(1x,"RELAXED SCAN")')
-   write(id,'(72("-"))')
-   write(id,'(1x,"output written to",1x,a)') get_namespace('xtbscan.log')
+   write(env%unit,'(72("="))')
+   write(env%unit,'(1x,"RELAXED SCAN")')
+   write(env%unit,'(72("-"))')
+   write(env%unit,'(1x,"output written to",1x,a)') get_namespace('xtbscan.log')
    call open_file(ilog,'xtbscan.log','w')
 
 !! ========================================================================
@@ -69,25 +73,25 @@ subroutine relaxed_scan(mol,wfx,calc)
    if (scan_mode.eq.p_scan_sequential) then
       k = 0
       do i = 1, nscan
-         write(id,'(1x,"scaning constraint",1x,i0,1x,i0)') scan_list(i)%iconstr
+         write(env%unit,'(1x,"scaning constraint",1x,i0,1x,i0)') scan_list(i)%iconstr
          do j = 1, scan_list(i)%nscan
             k = k+1
-!           write(id,'(1x,"valconstr:",1x,f12.8)') scan_list%valscan(j)
+!           write(env%unit,'(1x,"valconstr:",1x,f12.8)') scan_list%valscan(j)
             valconstr(scan_list(i)%iconstr) = scan_list(i)%valscan(j)
-!           write(id,'(i0,1x,i0)') i,j
+!           write(env%unit,'(i0,1x,i0)') i,j
             if (.not.verbose) &
-               write(id,'("... step",1x,i0,1x,"...")') k
+               write(env%unit,'("... step",1x,i0,1x,"...")') k
             call geometry_optimization &
-               &(mol,wfx,calc, &
+               &(env, mol,wfx,calc, &
                & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
             efix = 0.0_wp
             call constrpot(mol%n,mol%at,mol%xyz,g,efix)
             if (.not.verbose) then
-               write(id,'(" current energy:",1x,f20.8)') etot
-               write(id,'("    bias energy:",1x,f20.8)') efix
-               write(id,'("unbiased energy:",1x,f20.8)') etot-efix
+               write(env%unit,'(" current energy:",1x,f20.8)') etot
+               write(env%unit,'("    bias energy:",1x,f20.8)') efix
+               write(env%unit,'("unbiased energy:",1x,f20.8)') etot-efix
             endif
-            call wrlog2(ilog,mol%n,mol%xyz,mol%at,etot-efix)
+            call writeMolecule(mol, ilog, fileType%xyz, energy=etot-efix)
          enddo
          if (reset) valconstr(scan_list(i)%iconstr) = scan_list(i)%valconstr
       enddo
@@ -107,18 +111,18 @@ subroutine relaxed_scan(mol,wfx,calc)
             valconstr(scan_list(i)%iconstr) = scan_list(i)%valscan(j)
          enddo
          if (.not.verbose) &
-            write(id,'("... step",1x,i0,1x,"...")')   j
+            write(env%unit,'("... step",1x,i0,1x,"...")')   j
          call geometry_optimization &
-            &(mol,wfx,calc, &
+            &(env, mol,wfx,calc, &
             & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
          efix = 0.0_wp
          call constrpot(mol%n,mol%at,mol%xyz,g,efix)
          if (.not.verbose) then
-            write(id,'(" current energy:",1x,f20.8)') etot
-            write(id,'("    bias energy:",1x,f20.8)') efix
-            write(id,'("unbiased energy:",1x,f20.8)') etot-efix
+            write(env%unit,'(" current energy:",1x,f20.8)') etot
+            write(env%unit,'("    bias energy:",1x,f20.8)') efix
+            write(env%unit,'("unbiased energy:",1x,f20.8)') etot-efix
          endif
-         call wrlog2(ilog,mol%n,mol%xyz,mol%at,etot-efix)
+         call writeMolecule(mol, ilog, fileType%xyz, energy=etot-efix)
       enddo
 !! ========================================================================
 !  BUGGY SCAN
@@ -128,5 +132,5 @@ subroutine relaxed_scan(mol,wfx,calc)
    endif
 
    call close_file(ilog)
-   
+
 end subroutine relaxed_scan

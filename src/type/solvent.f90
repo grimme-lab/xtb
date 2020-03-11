@@ -35,7 +35,8 @@ module xtb_type_solvent
 !     number of angular grid points
       integer :: nang 
 !     angular grid
-      real(wp), allocatable :: grida(:,:)
+      real(wp), allocatable :: angGrid(:,:)
+      real(wp), allocatable :: angWeight(:)
 ! ------------------------------------------------------------------------
 !     van der Waals radii of the particles
       real(wp),allocatable :: vdwr(:)
@@ -124,7 +125,8 @@ subroutine deallocate_gbsa(this)
    this%srcut=0.0_wp
    this%maxvdwr=0.0_wp
 
-   if (allocated(this%grida))   deallocate(this%grida)
+   if (allocated(this%angGrid)) deallocate(this%angGrid)
+   if (allocated(this%angWeight)) deallocate(this%angWeight)
    if (allocated(this%vdwr))    deallocate(this%vdwr)
    if (allocated(this%rho))     deallocate(this%rho)
    if (allocated(this%svdw))    deallocate(this%svdw)
@@ -182,7 +184,8 @@ subroutine allocate_gbsa(this,n,nang)
    allocate(this%gamsasa(this%nat), source = 0.0_wp)
    allocate(this%dsdr(3,this%nat), source = 0.0_wp)
    allocate(this%dsdrt(3,this%nat,this%nat), source = 0.0_wp)
-   allocate(this%grida(4,this%nang), source = 0.0_wp)
+   allocate(this%angGrid(3, this%nAng), source = 0.0_wp)
+   allocate(this%angWeight(this%nAng), source = 0.0_wp)
    ! initialize the hydrogen bonding contribution
    allocate(this%hbw(this%nat), source = 0.0_wp)
    allocate(this%dhbdw(this%nat), source = 0.0_wp)
