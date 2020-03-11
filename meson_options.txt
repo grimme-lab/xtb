@@ -26,3 +26,5 @@ option('install_modules', type: 'boolean', value: false,
        description: 'Install Fortran module files to include directory.')
 option('static', type: 'boolean', value: true,
        description: 'Produce statically linked executables.')
+option('python', type: 'boolean', value: true,
+       description: 'Enable the python wrapper.')

@@ -164,24 +164,28 @@ xtbenv.set('XTBPATH', meson.current_source_dir())
 # all tests are defined in a separate meson.build
 subdir('TESTSUITE')
 
-py_xtb = meson.current_source_dir() / 'python' / 'xtb'
+if get_option('python')
+  py_xtb = meson.current_source_dir() / 'python' / 'xtb'
 
-pytest = find_program('pytest', required: false)
-if pytest.found()
-  test('pytest: xtb.py', pytest, args: ['--pyargs', 'xtb'], env: xtbenv)
-endif
+  has_numpy = run_command('python3', '-c', '"import numpy"')
+  has_ase = run_command('python3', '-c', '"import ase"')
+  pytest = find_program('pytest', required: false)
+  if pytest.found() and has_numpy and has_ase
+    test('pytest: xtb.py', pytest, args: ['--pyargs', 'xtb'], env: xtbenv)
+  endif
 
-mypy = find_program('mypy', required: false)
-if mypy.found()
-  test('mypy: xtb.py', mypy, args: [py_xtb, '--ignore-missing-imports'], env: xtbenv)
-endif
+  mypy = find_program('mypy', required: false)
+  if mypy.found()
+    test('mypy: xtb.py', mypy, args: [py_xtb, '--ignore-missing-imports'], env: xtbenv)
+  endif
 
-pylint = find_program('pylint', required: false)
-if pylint.found()
-  test('pylint: xtb.py', pylint, args: [py_xtb, '--disable=invalid-names,duplicate-code'], env: xtbenv)
-endif
+  pylint = find_program('pylint', required: false)
+  if pylint.found()
+    test('pylint: xtb.py', pylint, args: [py_xtb, '--disable=invalid-names,duplicate-code'], env: xtbenv)
+  endif
 
-flake8 = find_program('flake8', required: false)
-if flake8.found()
-  test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'], env: xtbenv)
+  flake8 = find_program('flake8', required: false)
+  if flake8.found()
+    test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'], env: xtbenv)
+  endif
 endif
