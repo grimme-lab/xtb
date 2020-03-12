@@ -28,3 +28,5 @@ option('static', type: 'boolean', value: true,
        description: 'Produce statically linked executables.')
 option('python', type: 'boolean', value: true,
        description: 'Enable the python wrapper.')
+option('build_name', type: 'string', value: 'unknown',
+       description: 'Name of the build, will be overwritten automatically by git')

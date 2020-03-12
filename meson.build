@@ -27,13 +27,22 @@ project(
   ],
 )
 
+commit = get_option('build_name')
+git = find_program('git', required: false)
+if git.found()
+  git_commit = run_command(git, 'show', '-s', '--format=%h')
+  if git_commit.returncode() == 0
+    commit = git_commit.stdout().strip()
+  endif
+endif
+
 # build a configuration data containing all the important data to propagate
 # it to the automatically generated files
 config = configuration_data({
   'name': meson.project_name(),
   'description': 'Semiempirical Extended Tight-Binding Program Package',
   'version': meson.project_version(),
-  'commit': run_command(find_program('git'),'show','-s','--format=%h').stdout().strip(),
+  'commit': commit,
   'date': run_command(find_program('date'),'-I').stdout().strip(),
   'author': run_command(find_program('whoami')).stdout().strip(),
   'origin': run_command(find_program('hostname')).stdout().strip(),
