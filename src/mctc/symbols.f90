@@ -23,8 +23,14 @@ module xtb_mctc_symbols
 
    public :: symbolLength
    public :: symbolToNumber, numberToSymbol, numberToLcSymbol
-   public :: toNumber, toSymbol, toLcSymbol
-   public :: findSymbol, findNumber, appendSymbol, appendNumber
+   public :: toNumber, toSymbol, toLcSymbol, getIdentity
+
+
+   !> Get chemical identity
+   interface getIdentity
+      module procedure :: getIdentityNumber
+      module procedure :: getIdentitySymbol
+   end interface getIdentity
 
 
    !> Maximum allowed length of element symbols
@@ -201,6 +207,66 @@ elemental function toLcSymbol(number) result(symbol)
    call numberToLcSymbol(symbol, number)
 
 end function toLcSymbol
+
+
+!> Get chemical identity from a list of atomic numbers
+subroutine getIdentityNumber(nId, identity, number)
+
+   !> Number of unique species
+   integer, intent(out) :: nId
+
+   !> Ordinal numbers
+   integer, intent(in) :: number(:)
+
+   !> Chemical identity
+   integer, intent(out) :: identity(:)
+
+   integer, allocatable :: iTmp(:)
+   integer :: nAt, iAt, iId
+
+   nAt = size(identity)
+   allocate(iTmp(nAt))
+   nId = 0
+   do iAt = 1, nAt
+      iId = findNumber(iTmp(:nId), number(iAt))
+      if (iId == 0) then
+         call appendNumber(iTmp, nId, number(iAt))
+         iId = nId
+      end if
+      identity(iAt) = iId
+   end do
+
+end subroutine getIdentityNumber
+
+
+!> Get chemical identity from a list of element symbols
+subroutine getIdentitySymbol(nId, identity, symbol)
+
+   !> Number of unique species
+   integer, intent(out) :: nId
+
+   !> Element symbols
+   character(len=symbolLength), intent(in) :: symbol(:)
+
+   !> Chemical identity
+   integer, intent(out) :: identity(:)
+
+   character(len=symbolLength), allocatable :: sTmp(:)
+   integer :: nAt, iAt, iId
+
+   nAt = size(identity)
+   allocate(sTmp(nAt))
+   nId = 0
+   do iAt = 1, nAt
+      iId = findSymbol(sTmp(:nId), symbol(iAt))
+      if (iId == 0) then
+         call appendSymbol(sTmp, nId, symbol(iAt))
+         iId = nId
+      end if
+      identity(iAt) = iId
+   end do
+
+end subroutine getIdentitySymbol
 
 
 !> Find element symbol in an unordered list, all entries are required to be unique
