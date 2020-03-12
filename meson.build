@@ -27,11 +27,13 @@ project(
   ],
 )
 
-git_commit = run_command(find_program('git'),'show','-s','--format=%h')
-if git_commit.returncode() == 0
-  commit = git_commit.stdout().strip()
-else
-  commit = get_option('build_name')
+commit = get_option('build_name')
+git = find_program('git', required: false)
+if git.found()
+  git_commit = run_command(git, 'show', '-s', '--format=%h')
+  if git_commit.returncode() == 0
+    commit = git_commit.stdout().strip()
+  endif
 endif
 
 # build a configuration data containing all the important data to propagate
