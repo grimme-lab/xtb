@@ -307,19 +307,25 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
       call atl%new
       do idum = 1, narg
          ! get element by symbol
-         call elem(argv(idum),iat)
-         ! alternatively, try ordinal number
-         if (iat.eq.0) then
+         if (idMap%has(argv(idum))) then
+            call idMap%get(list, argv(idum))
+            if (allocated(list)) then
+               call atl%add(list)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            end if
+         else
             ldum = getValue(env,trim(argv(idum)),iat)
             if (.not.ldum) cycle ! skip garbage input
+            ! check for unreasonable input
+            if (iat > 0) then
+               call atl%add(at.eq.iat)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            endif
          endif
-         ! check for unreasonable input
-         if (iat.le.0) then
-            call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
-            cycle
-         endif
-         ! now find the elements in the geometry
-         call atl%add(at.eq.iat)
       enddo
       if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
       call atl%to_list(list)
@@ -420,19 +426,25 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       call atl%new
       do idum = 1, narg
          ! get element by symbol
-         call elem(argv(idum),iat)
-         ! alternatively, try ordinal number
-         if (iat.eq.0) then
+         if (idMap%has(argv(idum))) then
+            call idMap%get(list, argv(idum))
+            if (allocated(list)) then
+               call atl%add(list)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            end if
+         else
             ldum = getValue(env,trim(argv(idum)),iat)
             if (.not.ldum) cycle ! skip garbage input
+            ! check for unreasonable input
+            if (iat > 0) then
+               call atl%add(at.eq.iat)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            endif
          endif
-         ! check for unreasonable input
-         if (iat.le.0) then
-            call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
-            cycle
-         endif
-         ! now find the elements in the geometry
-         call atl%add(at.eq.iat)
       enddo
       if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
       call atl%to_list(list)
@@ -1103,6 +1115,7 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    real(wp) :: ddum
    logical  :: ldum
    integer  :: i,j
+   integer, allocatable :: list(:)
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -1121,12 +1134,17 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
       endif
       do i = 1, narg, 2
          j = i+1
-         if (getValue(env,trim(argv(i)),idum).and.&
-            &getValue(env,trim(argv(j)),ddum)) then
-            where(at.eq.idum) atmass = ddum
-            write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-               'mass of elements ',idum,' changed to', ddum
-         endif
+         if (getValue(env,trim(argv(j)),ddum)) then
+            if (idMap%has(argv(i))) then
+               call idMap%set(atmass, argv(i), ddum)
+               write(env%unit,'(a,a,a,1x,g0)') &
+                  "mass of elements '",trim(argv(i)),"' changed to", ddum
+            else if (getValue(env,trim(argv(i)),idum)) then
+               where(at.eq.idum) atmass = ddum
+               write(env%unit,'(a,i0,a,1x,g0)') &
+                  "mass of elements with Z=",idum," changed to", ddum
+            end if
+         end if
       enddo
    case('modify mass','isotope')
       if (mod(narg,2).ne.0) then

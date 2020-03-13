@@ -64,13 +64,13 @@ module xtb_type_identitymap
       procedure, private :: hasNumber
 
       !> Get indices
-      generic :: get => getSymbol, getNumber
+      generic :: get => getIndexSymbol, getIndexNumber
 
       !> Get indices for an unique element symbol
-      procedure, private :: getSymbol
+      procedure, private :: getIndexSymbol
 
       !> Get indices for a certain atomic number
-      procedure, private :: getNumber
+      procedure, private :: getIndexNumber
 
       !> Setter functions in atomic arrays
       generic :: set => setRealWithSymbol, setRealWithNumber
@@ -178,13 +178,14 @@ subroutine writeInfo(self, unit)
       call serializeAtomicMap(self%map(iId)%pos, list, '-', ', ')
       iStart = 1
       iEnd = min(60, len(list))
-      do while(iStart < len(list))
+      do while(iStart <= len(list))
          if (iEnd >= len(list)) then
             iDel = iEnd
          else
             iDel = index(list(iStart:iEnd), ' ', back=.true.) + iStart - 2
             if (iDel < iStart) then
                iDel = index(list(iEnd:), ' ') + iEnd - 2
+               if (iDel == iEnd - 2) iDel = len(list)
             end if
          end if
          write(unit, '(a)') list(iStart:iDel)
@@ -295,7 +296,7 @@ end function hasNumber
 
 
 !> Get indices for an unique element symbol
-subroutine getSymbol(self, indx, sym)
+subroutine getIndexSymbol(self, indx, sym)
 
    !> Instance of the map
    class(TIdentityMap), intent(in) :: self
@@ -315,11 +316,11 @@ subroutine getSymbol(self, indx, sym)
       end if
    end do
 
-end subroutine getSymbol
+end subroutine getIndexSymbol
 
 
 !> Get indices for a certain atomic number
-subroutine getNumber(self, indx, num)
+subroutine getIndexNumber(self, indx, num)
 
    !> Instance of the map
    class(TIdentityMap), intent(in) :: self
@@ -348,7 +349,7 @@ subroutine getNumber(self, indx, num)
       call move_alloc(pos, indx)
    end if
 
-end subroutine getNumber
+end subroutine getIndexNumber
 
 
 !> Set value in an array using an unique element symbol
