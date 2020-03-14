@@ -18,6 +18,12 @@
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
 
+if get_option('static') and fc.get_id() == 'intel'
+  if get_option('la_backend') != 'mkl'
+    error('Static linked binaries are only supported with Intel MKL')
+  endif
+endif
+
 if fc.get_id() != cc.get_id()
   warning('FC and CC are not from the same vendor')
 endif
@@ -52,27 +58,65 @@ add_project_arguments('-D_Float128=__float128', language: 'c')
 
 if get_option('la_backend') == 'mkl'
   add_project_arguments('-DWITH_MKL', language: 'fortran')
-  if fc.get_id() == 'gcc'
-    libmkl_exe = [fc.find_library('mkl_gf_lp64')]
-    libmkl_exe += fc.find_library('mkl_gnu_thread')
-  elif fc.get_id() == 'intel'
-    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_intel_thread')
+
+  mkl_rt_dep = fc.find_library('mkl_rt', required: true)
+
+  if get_option('static')
+    if fc.get_id() == 'gcc'
+      libmkl_exe = [fc.find_library('mkl_gf_lp64')]
+      libmkl_exe += fc.find_library('mkl_gnu_thread')
+    elif fc.get_id() == 'intel'
+      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      libmkl_exe += fc.find_library('mkl_intel_thread')
+    endif
+    libmkl_exe += fc.find_library('mkl_core')
+    libmkl_sha = [fc.find_library('mkl_rt')]
+    dependencies_sha += mkl_rt_dep
+    dependencies_exe += libmkl_exe
+  else
+    dependencies += mkl_rt_dep
   endif
-  libmkl_exe += fc.find_library('mkl_core')
-  libmkl_sha = [fc.find_library('mkl_rt')]
-  dependencies_sha += libmkl_sha
-  dependencies_exe += libmkl_exe
+
 elif get_option('la_backend') == 'openblas'
-  dependencies += fc.find_library('openblas', required: true)
-  dependencies += fc.find_library('lapack', required: true)
+  # search for OpenBLAS
+  blas_dep = dependency('openblas', required: false)
+  if not blas_dep.found()
+    blas_dep = fc.find_library('openblas', required: true)
+  endif
+  dependencies += blas_dep
+  # some OpenBLAS versions can provide lapack, check if we can find dsygvd
+  openblas_provides_lapack = fc.links(
+    files('openblas_lapack_test.f90'),
+    dependencies: blas_dep,
+  )
+  # otherwise we fall back to LAPACK
+  if not openblas_provides_lapack
+    lapack_dep = dependency('lapack', required: false)
+    if not lapack_dep.found()
+      lapack_dep = fc.find_library('lapack', required: true)
+    endif
+    dependencies += lapack_dep
+  endif
+
 elif get_option('la_backend') == 'custom'
   foreach lib: get_option('custom_libraries')
     dependencies += fc.find_library(lib)
   endforeach
+
 else
-  dependencies += fc.find_library('blas', required: true)
-  dependencies += fc.find_library('lapack', required: true)
+  # Find BLAS (usually netlib, but in conda also OpenBLAS/MKL)
+  blas_dep = dependency('blas', required: false)
+  if not blas_dep.found()
+    blas_dep = fc.find_library('blas', required: true)
+  endif
+  dependencies += blas_dep
+  # Find LAPACK (usually netlib, but in conda also MKL)
+  lapack_dep = dependency('lapack', required: false)
+  if not lapack_dep.found()
+    lapack_dep = fc.find_library('lapack', required: true)
+  endif
+  dependencies += lapack_dep
+
 endif
 
 if get_option('openmp')
