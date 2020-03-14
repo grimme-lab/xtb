@@ -19,7 +19,7 @@ module xtb_io_reader_genformat
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_strings
-   use xtb_mctc_symbols, only : toNumber, toSymbol
+   use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength
    use xtb_mctc_systools
    use xtb_pbc_tools
    use xtb_type_molecule
@@ -46,7 +46,7 @@ subroutine readMoleculeGenFormat(mol, unit, status, iomsg)
    real(wp) :: coord(3)
    integer, allocatable :: species(:)
    character(len=1) :: variant
-   character(len=4), allocatable :: symbols(:)
+   character(len=symbolLength), allocatable :: symbols(:)
 
    status = .false.
 

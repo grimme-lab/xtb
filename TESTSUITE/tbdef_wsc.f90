@@ -16,11 +16,7 @@ subroutine test_wigner_seitz_0d
       &-1.44183152868459_wp,  0.00000000000000_wp,  0.36789293054775_wp  &
       & ],shape(xyz))
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
-   call mol%update
+   call init(mol, at, xyz)
 
    call generate_wsc(mol,wsc)
 
@@ -60,14 +56,11 @@ subroutine test_wigner_seitz_3D
 
    type(TMolecule) :: mol
    type(tb_wsc) :: wsc
+   real(wp), allocatable :: xyz(:, :)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%lattice = lattice
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   mol%npbc = 3
-   mol%pbc  = .true.
-   call mol%update
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
    call generate_wsc(mol,wsc)
 

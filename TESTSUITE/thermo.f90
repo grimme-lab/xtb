@@ -33,11 +33,8 @@ subroutine test_axis
    real(wp) :: eval3(3), coord3(3,nat)
    real(wp) :: rot4(3), evec4(3,3)
 
-   call mol%allocate(nat)
-   mol%at = at
-   mol%xyz = xyz
+   call init(mol, at, xyz)
    mol%atmass = ams * amutoau
-   call mol%update
 
    moments = mol%moments_of_inertia()
 

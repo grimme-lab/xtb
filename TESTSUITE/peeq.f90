@@ -69,15 +69,7 @@ subroutine test_peeq_sp
    gfn_method = 0
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%xyz  = xyz
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   call mol%update
-   call mol%set_nuclear_charge
-   call generate_wsc(mol,mol%wsc,wsc_rep)
+   call init(mol, at, xyz, lattice=lattice)
 
    allocate( gradient(3,mol%n) )
    energy = 0.0_wp
@@ -207,22 +199,14 @@ subroutine test_peeq_api
    real(wp) :: gradlatt(3,3)
    real(wp) :: stress(3,3)
    real(wp),allocatable :: gradient(:,:)
+   real(wp),allocatable :: xyz(:,:)
 
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%abc  = abc
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   mol%volume = dlat_to_dvol(lattice)
-   call dlat_to_cell(lattice,mol%cellpar)
-   call dlat_to_rlat(lattice,mol%rec_lat)
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   call mol%set_nuclear_charge
-   call mol%update
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -318,14 +302,7 @@ subroutine test_peeq_api_srb
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%xyz  = xyz
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz, lattice=lattice)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp

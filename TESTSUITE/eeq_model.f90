@@ -32,10 +32,7 @@ subroutine test_eeq_model_water
    es  = 0.0_wp
    ges = 0.0_wp
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
+   call init(mol, at, xyz)
 
    call dncoord_erf(mol%n,mol%at,mol%xyz,cn,dcndr)
    ! test for correct CN and correct symmetry in CN
@@ -105,6 +102,7 @@ subroutine test_eeq_model_ewald
       & shape(lattice))
    integer, parameter :: wsc_rep(3) = [1,1,1]
    real(wp),parameter :: beta = 7.5_wp
+   real(wp),allocatable :: xyz(:,:)
 
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
@@ -122,17 +120,9 @@ subroutine test_eeq_model_ewald
 
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%abc  = abc
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   mol%volume = dlat_to_dvol(lattice)
-   call dlat_to_cell(lattice,mol%cellpar)
-   call dlat_to_rlat(lattice,mol%rec_lat)
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   call mol%wrap_back
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
    allocate( cn(nat), dcndr(3,nat,nat), dcndL(3,3,nat), &
       &      q(nat), dqdr(3,nat,nat), dqdL(3,3,nat), &
@@ -289,10 +279,7 @@ subroutine test_eeq_model_gbsa
    es  = 0.0_wp
    ges = 0.0_wp
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
+   call init(mol, at, xyz)
 
    call dncoord_erf(mol%n,mol%at,mol%xyz,cn,dcndr)
    call assert_close(cn(1),3.9364408722599_wp,thr)
@@ -425,10 +412,7 @@ subroutine test_eeq_model_salt
    es  = 0.0_wp
    ges = 0.0_wp
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
+   call init(mol, at, xyz)
 
    call dncoord_erf(mol%n,mol%at,mol%xyz,cn,dcndr)
 

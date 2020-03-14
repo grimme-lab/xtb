@@ -32,10 +32,7 @@ subroutine test_dftd4_properties
    integer, parameter :: lmbd = p_mbd_approx_atm
    integer, parameter :: refqmode = p_refq_goedecker
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
+   call init(mol, at, xyz)
 
    call d4init(g_a,g_c,refqmode)
    call d4dim(mol%n,mol%at,ndim)
@@ -140,10 +137,7 @@ subroutine test_dftd4_energies
    type(dftd_parameter),parameter :: dparam_random = dftd_parameter ( &
       &  s6=0.95_wp, s8=0.45_wp, s10=0.65_wp, s9=1.10_wp, a1=0.43_wp, a2=5.10_wp )
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
+   call init(mol, at, xyz)
 
    call d4init(g_a,g_c,refqmode)
    call d4dim(mol%n,mol%at,idum)
@@ -222,6 +216,7 @@ subroutine test_dftd4_pbc_energies
       &  s6=0.95_wp, s8=0.45_wp, s10=0.65_wp, s9=1.10_wp, a1=0.43_wp, a2=5.10_wp )
    real(wp),parameter :: step = 1.0e-4_wp, step2 = 0.5_wp/step
 
+   real(wp),allocatable :: xyz(:,:)
    integer              :: i,j
    type(TMolecule)       :: mol
    integer              :: ndim
@@ -229,20 +224,10 @@ subroutine test_dftd4_pbc_energies
    real(wp),allocatable :: refc6(:,:)    ! reference C6 coeffients
    real(wp)             :: energy,e2,e3
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%abc  = abc
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   mol%volume = dlat_to_dvol(mol%lattice)
-   call dlat_to_cell(mol%lattice,mol%cellpar)
-   call dlat_to_rlat(mol%lattice,mol%rec_lat)
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   call mol%wrap_back
-   call mol%calculate_distances
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
-   call generate_wsc(mol,mol%wsc,wsc_rep)
    call d4init(g_a,g_c,refqmode)
    call d4dim(mol%n,mol%at,ndim)
    call assert_eq(ndim,26)
@@ -346,6 +331,7 @@ subroutine test_dftd4_cell_gradient
    real(wp)             :: stmp(3,3)
    real(wp)             :: sigma(3,3)
    real(wp)             :: er,el,ees
+   real(wp),allocatable :: xyz(:,:)
    real(wp),allocatable :: cn(:)
    real(wp),allocatable :: dcndr(:,:,:)
    real(wp),allocatable :: dcndL(:,:,:)
@@ -368,20 +354,10 @@ subroutine test_dftd4_cell_gradient
       &      gradient(3,nat), ges(3,nat), numg(3,nat), ql(nat), qr(nat), &
       &      numq(3,nat,nat), covcn(nat), dcovcndr(3,nat,nat), source = 0.0_wp )
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%abc  = abc
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   mol%volume = dlat_to_dvol(mol%lattice)
-   call dlat_to_cell(mol%lattice,mol%cellpar)
-   call dlat_to_rlat(mol%lattice,mol%rec_lat)
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   call mol%wrap_back
-   call mol%calculate_distances
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
-   call generate_wsc(mol,mol%wsc,wsc_rep)
    call d4init(g_a,g_c,refqmode)
    call d4dim(mol%n,mol%at,ndim)
 
@@ -468,10 +444,7 @@ subroutine test_dftd4_api
    energy   = 0.0_wp
    gradient = 0.0_wp
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
+   call init(mol, at, xyz)
    
    call d4_calculation(stdout,opt_1,mol,dparam_tpss,energy,gradient)
    call assert_close(energy,-0.26682682254336E-03_wp,thr)
@@ -533,22 +506,12 @@ subroutine test_dftd4_pbc_api
    integer              :: ndim
    real(wp) :: energy
    real(wp) :: lattice_grad(3,3)
+   real(wp),allocatable :: xyz(:,:)
    real(wp),allocatable :: gradient(:,:)
 
-   call mol%allocate(nat)
-   mol%at = at
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   mol%chrg = 0.0_wp
-   mol%npbc = 3
-   mol%pbc = .true.
-   mol%lattice = lattice
-   mol%volume = dlat_to_dvol(mol%lattice)
-   call dlat_to_cell(mol%lattice,mol%cellpar)
-   call dlat_to_rlat(mol%lattice,mol%rec_lat)
-   call mol%wrap_back
-   call mol%calculate_distances
-
-   call generate_wsc(mol,mol%wsc,wsc_rep)
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
    allocate( gradient(3,nat) )
    energy   = 0.0_wp

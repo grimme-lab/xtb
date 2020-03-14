@@ -35,8 +35,10 @@ subroutine readMoleculeGaussianExternal(mol, unit, status, iomsg)
    logical, intent(out) :: status
    character(len=:), allocatable, intent(out) :: iomsg
    integer :: err
-   integer :: n, mode, chrg, spin, iat
-   real(wp) :: xyz(3)
+   integer :: n, mode, chrg, spin, iat, ii
+   integer, allocatable :: at(:)
+   real(wp), allocatable :: xyz(:,:)
+   real(wp) :: coord(3)
    real(wp) :: q
    real(wp) :: conv
 
@@ -53,32 +55,30 @@ subroutine readMoleculeGaussianExternal(mol, unit, status, iomsg)
       return
    end if
 
-   call mol%allocate(n)
-   mol%npbc = 0
-   mol%pbc = .false.
-   mol%chrg = chrg
-   mol%uhf = spin
+   allocate(xyz(3, n))
+   allocate(at(n))
 
-   n = 0
-   do while (n < mol%n)
-      read(unit, '(i10, 4f20.12)', iostat=err) iat, xyz, q
+   ii = 0
+   do while (ii < n)
+      read(unit, '(i10, 4f20.12)', iostat=err) iat, coord, q
       if (is_iostat_end(err)) exit
       if (err.ne.0) then
          iomsg = "Could not read geometry from Gaussian file"
          return
       endif
       if (iat > 0) then
-         n = n+1
-         mol%at(n) = iat
-         mol%sym(n) = toSymbol(iat)
-         mol%xyz(:, n) = xyz
+         ii = ii+1
+         at(ii) = iat
+         xyz(:, ii) = coord
       else
          iomsg = "Invalid atomic number"
          return
       end if
    end do
 
-   if (n /= mol%n) then
+   call init(mol, at, xyz, real(chrg, wp), spin)
+
+   if (ii /= n) then
       iomsg = "Atom number missmatch in Gaussian file"
       return
    endif

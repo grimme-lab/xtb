@@ -18,7 +18,7 @@
 module xtb_io_reader_ctfile
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
-   use xtb_mctc_symbols, only : toNumber, toSymbol
+   use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength
    use xtb_mctc_systools
    use xtb_type_molecule
    use xtb_type_vendordata, only : sdf_data
@@ -77,6 +77,15 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    character(len=5) :: v2000
    integer, parameter :: ccc_to_charge(0:7) = [0, +3, +2, +1, 0, -1, -2, -3]
 
+   !> Element symbols
+   character(len=symbolLength),allocatable :: sym(:)
+
+   !> SDF specific information about atom types
+   type(sdf_data), allocatable :: sdf(:)
+
+   !> Cartesian coordinates in bohr
+   real(wp),allocatable :: xyz(:,:)
+
    status = .false.
 
    call getline(unit, name, error)
@@ -96,9 +105,9 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
       return
    endif
 
-   call mol%allocate(number_of_atoms)
-   allocate(mol%sdf(len(mol)), source=sdf_data())
-   if (len(name) > 0) mol%name = name
+   allocate(sdf(number_of_atoms), source=sdf_data())
+   allocate(xyz(3, number_of_atoms))
+   allocate(sym(number_of_atoms))
 
    do iatom = 1, number_of_atoms
       call getline(unit, line, error)
@@ -109,14 +118,21 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
          return
       endif
       atomtype = toNumber(symbol)
-      mol%xyz(:, iatom) = [x, y, z] * aatoau
-      mol%at(iatom) = atomtype
-      mol%sym(iatom) = trim(symbol)
-      mol%sdf(iatom)%isotope = list12(1)
-      mol%sdf(iatom)%charge = ccc_to_charge(list12(2)) ! drop doublet radical
-      mol%sdf(iatom)%hydrogens = list12(4)
-      mol%sdf(iatom)%valence = list12(6)
+      if (atomtype == 0) then
+         iomsg = "unknown atom type '"//trim(symbol)//"' in connection table"
+         return
+      end if
+      xyz(:, iatom) = [x, y, z] * aatoau
+      sym(iatom) = trim(symbol)
+      sdf(iatom)%isotope = list12(1)
+      sdf(iatom)%charge = ccc_to_charge(list12(2)) ! drop doublet radical
+      sdf(iatom)%hydrogens = list12(4)
+      sdf(iatom)%valence = list12(6)
    enddo
+
+   call init(mol, sym, xyz)
+   call move_alloc(sdf, mol%sdf)
+   if (len(name) > 0) mol%name = name
 
    call mol%bonds%allocate(size=number_of_bonds)
    do ibond = 1, number_of_bonds

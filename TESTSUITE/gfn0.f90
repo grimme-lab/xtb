@@ -61,12 +61,7 @@ subroutine test_gfn0_sp
 
    gfn_method = 0
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    wfn%nel = idint(sum(mol%z))
    wfn%nopen = 0
@@ -169,11 +164,7 @@ subroutine test_gfn0_api
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%xyz  = xyz
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -255,11 +246,7 @@ subroutine test_gfn0_api_srb
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%xyz  = xyz
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp

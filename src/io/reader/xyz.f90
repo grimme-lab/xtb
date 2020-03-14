@@ -18,7 +18,7 @@
 module xtb_io_reader_xyz
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
-   use xtb_mctc_symbols, only : toNumber, toSymbol
+   use xtb_mctc_symbols, only : toNumber, symbolLength
    use xtb_type_molecule
    use xtb_pbc_tools
    use xtb_readin, only : getline => strip_line
@@ -39,13 +39,15 @@ subroutine readMoleculeXYZ(mol, unit, status, iomsg)
    integer, intent(in) :: unit
    logical, intent(out) :: status
    character(len=:), allocatable, intent(out) :: iomsg
-   integer  :: n, iat
-   real(wp) :: xyz(3)
+   integer  :: ii, n, iat
+   character(len=symbolLength), allocatable :: sym(:)
+   real(wp), allocatable :: xyz(:, :)
+   real(wp) :: x, y, z
    real(wp) :: conv
 
    character(len=:),allocatable :: message
    character(len=:),allocatable :: line
-   character(len=10) :: chdum
+   character(len=symbolLength) :: chdum
    integer  :: err
 
    status = .false.
@@ -63,15 +65,14 @@ subroutine readMoleculeXYZ(mol, unit, status, iomsg)
       return
    endif
 
-   call mol%allocate(n)
-   mol%npbc = 0 ! Xmol is always molecular (there are extensions to this...)
-   mol%pbc = .false.
+   allocate(sym(n))
+   allocate(xyz(3, n))
 
    ! drop next record
    read(unit,'(a)')
 
-   n = 0
-   do while (n < mol%n)
+   ii = 0
+   do while (ii < n)
       call getline(unit,line,err)
       if (is_iostat_end(err)) exit
       if (err.ne.0) then
@@ -79,31 +80,32 @@ subroutine readMoleculeXYZ(mol, unit, status, iomsg)
          return
       endif
       if (debug) print'(">",a)',line
-      read(line,*,iostat=err) chdum, xyz(1), xyz(2), xyz(3)
+      read(line,*,iostat=err) chdum, x, y, z
       if (err.ne.0) then
          iomsg = "Could not parse coordinates from Xmol file"
          return
       endif
       if (debug) print'("->",a)',chdum
-      if (debug) print'("->",3g0)',xyz
+      if (debug) print'("->",3g0)',x, y, z
 
       iat = toNumber(chdum)
       if (debug) print'("->",g0)',iat
       if (iat > 0) then
-         n = n+1
-         mol%at(n) = iat
-         mol%sym(n) = trim(chdum)
-         mol%xyz(:,n) = xyz*conv
+         ii = ii+1
+         sym(ii) = trim(chdum)
+         xyz(:,ii) = [x, y, z]*conv
       else
          iomsg = "Unknown element symbol: '"//trim(chdum)//"'"
          return
       endif
    enddo
 
-   if (n.ne.mol%n) then
+   if (ii.ne.n) then
       iomsg = "Atom number missmatch in Xmol file"
       return
    endif
+
+   call init(mol, sym, xyz)
 
    status = .true.
 
