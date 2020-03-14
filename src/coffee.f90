@@ -49,12 +49,7 @@ subroutine get_COFFEE(mol)
       &  8.31511620712388_wp, -9.76854236502758_wp, -1.79108242206824_wp],&
       &  shape(xyz))
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%xyz  = xyz
-   mol%chrg = -1
-
-   call mol%update
+   call init(mol, at, xyz)
 
 end subroutine get_COFFEE
 

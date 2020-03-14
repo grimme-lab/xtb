@@ -54,12 +54,7 @@ subroutine test_gfn2_scc
    gfn_method = 2
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    wfn%nel = idint(sum(mol%z))
    wfn%nopen = 0
@@ -171,11 +166,7 @@ subroutine test_gfn2_api
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -245,11 +236,7 @@ subroutine test_gfn2gbsa_api
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -317,11 +304,7 @@ subroutine test_gfn2salt_api
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -400,11 +383,7 @@ subroutine test_gfn2_pcem_api
    ! setup the environment variables
    call init(env)
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at, xyz)
 
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
@@ -427,11 +406,7 @@ subroutine test_gfn2_pcem_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call mol%allocate(nat2)
-   mol%at  = at(:nat2)
-   mol%xyz = xyz(:,:nat2)
-   call mol%set_nuclear_charge
-   call mol%update
+   call init(mol, at(:nat2), xyz(:, :nat2))
 
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)

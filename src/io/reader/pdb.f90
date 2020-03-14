@@ -105,10 +105,8 @@ subroutine readMoleculePDB(mol, unit, status, iomsg)
       endif
    enddo
    end associate
-   call mol%allocate(iatom)
-   mol%xyz = xyz(:,:iatom)
-   mol%at = toNumber(sym(:iatom))
-   mol%sym = sym(:iatom)
+
+   call init(mol, sym(:iatom), xyz(:, :iatom))
    call mol%frag%allocate(list(:iatom))
    mol%pdb = pdb(:iatom)
 

@@ -25,21 +25,13 @@ subroutine test_class_molecule_mic_distances
       &  0.0000000000000_wp,      0.0000000000000_wp,      8.7413053236641_wp],  &
       & shape(lattice))
    integer, parameter :: wsc_rep(3) = [1,1,1]
+   real(wp),allocatable :: xyz(:,:)
 
    type(TMolecule)       :: mol
 
-   call mol%allocate(nat)
-   mol%at   = at
-   mol%abc  = abc
-   mol%npbc = 3
-   mol%pbc  = .true.
-   mol%lattice = lattice
-   mol%volume = dlat_to_dvol(lattice)
-   call dlat_to_cell(lattice,mol%cellpar)
-   call dlat_to_rlat(lattice,mol%rec_lat)
-   call coord_trafo(nat,lattice,abc,mol%xyz)
-   call mol%wrap_back
-   call mol%calculate_distances
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
 
    call assert_close(mol%dist(1,1),8.7413053236641_wp,thr)
    call assert_close(mol%dist(3,6),3.9480992656526_wp,thr)
@@ -78,11 +70,7 @@ subroutine test_class_molecule_axis_trafo
    real(wp) :: center(3)
    real(wp) :: moments(3)
 
-   call mol%allocate(nat)
-   mol%at  = at
-   mol%xyz = xyz
-   mol%chrg = 0.0_wp
-   call mol%set_atomic_masses
+   call init(mol, at, xyz)
 
    center = mol%center_of_geometry()
    call assert_close(center(1),-1.2501984620000_wp,thr)
