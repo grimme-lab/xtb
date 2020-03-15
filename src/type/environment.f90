@@ -44,6 +44,9 @@ module xtb_type_environment
 
       !> Message log
       type(TMessage), allocatable :: log(:)
+      
+      !> Handle warnings as errors
+      logical :: strict
 
       !> Actual executable name
       character(len=:),allocatable :: whoami
@@ -106,10 +109,13 @@ contains
 
 
 !> Construct the calculation environment
-subroutine initEnvironment(self)
+subroutine initEnvironment(self, strict)
 
    !> Calculation environment
    type(TEnvironment), intent(out) :: self
+   
+   !> Handle warnings as errors
+   logical, intent(in), optional :: strict
 
    integer :: err
 
@@ -128,6 +134,12 @@ subroutine initEnvironment(self)
    call rdvar('XTBPATH', self%xtbpath, err)
    if (err /= 0 .or. len(self%xtbpath) <= 0) then
       self%xtbpath = self%xtbhome
+   end if
+   
+   if (present(strict)) then
+      self%strict = strict
+   else
+      self%strict = .false.
    end if
 
 end subroutine initEnvironment
@@ -274,9 +286,9 @@ subroutine warning(self, message, source)
 
    self%nLog = self%nLog + 1
    if (present(source)) then
-      self%log(self%nLog) = TMessage(.false., source // ": " // message)
+      self%log(self%nLog) = TMessage(self%strict, source // ": " // message)
    else
-      self%log(self%nLog) = TMessage(.false., message)
+      self%log(self%nLog) = TMessage(self%strict, message)
    end if
 
 end subroutine warning
