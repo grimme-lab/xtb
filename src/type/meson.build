@@ -26,6 +26,7 @@ srcs += files(
   'environment.f90',
   'fragments.f90',
   'molecule.f90',
+  'latticepoint.f90',
   'options.f90',
   'param.f90',
   'pcem.f90',

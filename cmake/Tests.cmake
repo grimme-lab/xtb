@@ -14,6 +14,7 @@ add_test(EXE_GFN2-xTB/GBSA ${TEST_EXE_LOCATION} --coffee --gfn 2 --strict --gbsa
 
 add_test(STATIC_Molecule_axis ${TEST_STATIC_LOCATION} xtb_type_molecule axis)
 add_test(STATIC_Molecule_MIC ${TEST_STATIC_LOCATION} xtb_type_molecule mic)
+add_test(STATIC_LatticePoint ${TEST_STATIC_LOCATION} latticepoint pbc3d)
 add_test(STATIC_coord_3D ${TEST_STATIC_LOCATION} geometry_reader coord_3d_a)
 add_test(STATIC_coord_3D ${TEST_STATIC_LOCATION} geometry_reader coord_3d_b)
 #add_test(STATIC_coord_2D ${TEST_STATIC_LOCATION} geometry_reader coord_2d)
@@ -61,6 +62,7 @@ add_test(STATIC_GFN0-xTB_SRB_PBC ${TEST_STATIC_LOCATION} peeq srb)
 
 add_test(SHARED_Molecule_axis ${TEST_SHARED_LOCATION} xtb_type_molecule axis)
 add_test(SHARED_Molecule_MIC ${TEST_SHARED_LOCATION} xtb_type_molecule mic)
+add_test(SHARED_LatticePoint ${TEST_SHARED_LOCATION} latticepoint pbc3d)
 add_test(SHARED_coord_3D ${TEST_SHARED_LOCATION} geometry_reader coord_3d_a)
 add_test(SHARED_coord_3D ${TEST_SHARED_LOCATION} geometry_reader coord_3d_b)
 #add_test(SHARED_coord_2D ${TEST_SHARED_LOCATION} geometry_reader coord_2d)

@@ -14,7 +14,10 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/mctc/namegen.f90"
   "${XTB_ROOT}/src/mctc/resize.f90"
   "${XTB_ROOT}/src/mctc/runtypes.f90"
+  "${XTB_ROOT}/src/mctc/search.f90"
+  "${XTB_ROOT}/src/mctc/sort.f90"
   "${XTB_ROOT}/src/mctc/symbols.f90"
+  "${XTB_ROOT}/src/mctc/thresholds.f90"
   "${XTB_ROOT}/src/mctc/version.f90"
   "${XTB_ROOT}/src/mctc/mctc_global.f90"
   "${XTB_ROOT}/src/mctc/mctc_systools.f90"
@@ -56,6 +59,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/type/vendordata.f90"
   "${XTB_ROOT}/src/type/reader.f90"
   "${XTB_ROOT}/src/type/buffer.f90"
+  "${XTB_ROOT}/src/type/latticepoint.f90"
 
   # Global data
   "${XTB_ROOT}/src/gfn0param.f90"
@@ -278,6 +282,7 @@ set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/gfn0.f90"
   "${XTB_ROOT}/TESTSUITE/gfn1.f90"
   "${XTB_ROOT}/TESTSUITE/gfn2.f90"
+  "${XTB_ROOT}/TESTSUITE/latticepoint.f90"
   "${XTB_ROOT}/TESTSUITE/pbc_tools.f90"
   "${XTB_ROOT}/TESTSUITE/peeq.f90"
   "${XTB_ROOT}/TESTSUITE/symmetry.f90"

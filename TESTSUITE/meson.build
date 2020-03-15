@@ -18,6 +18,7 @@
 xtb_test = [files('tests_peeq.f90')]
 xtb_test += files('assertion.f90')
 xtb_test += files('tbdef_molecule.f90')
+xtb_test += files('latticepoint.f90')
 xtb_test += files('tbdef_wsc.f90')
 xtb_test += files('geometry_reader.f90')
 xtb_test += files('eeq_model.f90')
@@ -55,6 +56,7 @@ test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--g
 # more specific tests are implemented by the tester binary
 test('Molecule: axis', xtb_test, args: ['xtb_type_molecule', 'axis'], env: xtbenv)
 test('Molecule: MIC', xtb_test, args: ['xtb_type_molecule', 'mic'], env: xtbenv)
+test('Lattice points: PBC-3D', xtb_test, args: ['latticepoint', 'pbc3d'], env: xtbenv)
 
 if fc.get_id() == 'intel'
   test('Wigner-Seitz Cell (0D)', xtb_test, args: ['xtb_type_wsc', '0d'], env: xtbenv)
