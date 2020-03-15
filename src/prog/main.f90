@@ -404,6 +404,7 @@ program XTBprog
 
 !  You had it coming!
    if (strict) call mctc_strict
+   env%strict = strict
 
    call check_cold_fusion(mol)
 
