@@ -4,6 +4,7 @@
 [![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI?logo=apple&logoColor=white)](https://github.com/grimme-lab/xtb/actions)
 [![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/master/COPYING)
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
+[![DOI](https://zenodo.org/badge/211856832.svg)](https://zenodo.org/badge/latestdoi/211856832)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
 
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
@@ -75,6 +76,28 @@ cd build && XTBPATH=$PWD/.. OMP_NUM_THREADS=1 make test
 ```
 
 (This also works when not installing the program, but just building it.)
+
+### Conda
+
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/xtb.svg)](https://anaconda.org/conda-forge/xtb)
+
+Installing `xtb` from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
+
+```
+conda config --add channels conda-forge
+```
+
+Once the `conda-forge` channel has been enabled, `xtb` can be installed with:
+
+```
+conda install xtb
+```
+
+It is possible to list all of the versions of `xtb` available on your platform with:
+
+```
+conda search xtb --channel conda-forge
+```
 
 ## Documentation
 
