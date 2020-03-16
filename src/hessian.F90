@@ -235,9 +235,9 @@ subroutine numhess( &
 !! ------------------------------------------------------------------------
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
-      !$omp&         firstprivate(mol,calc,et,maxiter,acc,wf0) &
-      !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,wfx,tmol) &
-      !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env)
+      !$omp firstprivate(mol,calc,et,maxiter,acc,wf0) &
+      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,wfx,tmol) &
+      !$omp shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env)
       !$ call omp_set_num_threads(1)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
