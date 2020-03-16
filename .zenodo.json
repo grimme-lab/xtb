@@ -1,0 +1,39 @@
+{
+    "license": "LGPL-3.0-or-later", 
+    "version": "v6.2.3", 
+    "references": [
+        "S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017, 13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118", 
+        "C. Bannwarth, S. Ehlert and S. Grimme., J. Chem. Theory Comput., 2019, 15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176", 
+        "P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint. DOI: 10.26434/chemrxiv.8326202.v1", 
+        "E. Caldeweyher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2017, 147, 034112. DOI: 10.1063/1.4993215", 
+        "E. Caldeweyher, S. Ehlert, A. Hansen, H. Neugebauer, S. Spicher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2019, 150, 154122. DOI: 10.1063/1.5090222", 
+        "S. Grimme and C. Bannwarth, J. Chem. Phys., 2016, 145, 054103. DOI: 10.1063/1.4959605", 
+        "V. Asgeirsson, C. Bauer and S. Grimme, Chem. Sci., 2017, 8, 4879. DOI: 10.1039/c7sc00601b", 
+        "S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862. DOI: 10.1021/acs.jctc.9b00143"
+    ], 
+    "upload_type": "software", 
+    "keywords": [
+        "quantum-chemistry", 
+        "tight-binding", 
+        "computational-chemistry", 
+        "atomistic-simulations"
+    ], 
+    "creators": [
+        {
+            "orcid": "0000-0002-5844-4371", 
+            "affiliation": "Mulliken Center for Theoretical Chemistry, Universit\u00e4t Bonn, Beringstr. 4, 53115 Bonn, Germany", 
+            "name": "Stefan Grimme"
+        }, 
+        {
+            "orcid": "0000-0003-3242-496X", 
+            "affiliation": "Department of Chemistry, Stanford University, Stanford, California 94305, United States", 
+            "name": "Christoph Bannwarth"
+        }, 
+        {
+            "orcid": "0000-0001-7809-771X", 
+            "affiliation": "Mulliken Center for Theoretical Chemistry, Universit\u00e4t Bonn, Beringstr. 4, 53115 Bonn, Germany", 
+            "name": "Sebastian Ehlert"
+        }
+    ], 
+    "access_right": "open"
+}
