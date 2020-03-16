@@ -77,6 +77,28 @@ cd build && XTBPATH=$PWD/.. OMP_NUM_THREADS=1 make test
 
 (This also works when not installing the program, but just building it.)
 
+### Conda
+
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/xtb.svg)](https://anaconda.org/conda-forge/xtb)
+
+Installing `xtb` from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
+
+```
+conda config --add channels conda-forge
+```
+
+Once the `conda-forge` channel has been enabled, `xtb` can be installed with:
+
+```
+conda install xtb
+```
+
+It is possible to list all of the versions of `xtb` available on your platform with:
+
+```
+conda search xtb --channel conda-forge
+```
+
 ## Documentation
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
