@@ -93,6 +93,10 @@ subroutine checkMopac(env)
 
    ! check for the input line
    if (allocated(ext_mopac%input_string)) then
+      if (index(ext_mopac%input_string,'grad') == 0) then
+         call env%warning('added grad keyword to mopac input', source)
+         ext_mopac%input_string = ext_mopac%input_string //' grad'
+      end if
       if (index(ext_mopac%input_string,'charge=') == 0) then
          write(chdum,'(i5)') ichrg
          ! add total charge
