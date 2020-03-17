@@ -3,6 +3,9 @@ set(XTB_ROOT ${PROJECT_SOURCE_DIR})
 set(XTB_SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh"
 
+  "${XTB_ROOT}/src/prog/argparser.f90"
+  "${XTB_ROOT}/src/prog/main.F90"
+
   # MCTC library
   "${XTB_ROOT}/src/mctc/accuracy.f90"
   "${XTB_ROOT}/src/mctc/boundaryconditions.f90"
@@ -74,7 +77,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/filetools.f90"
   "${XTB_ROOT}/src/set_module.f90"
   "${XTB_ROOT}/src/constrain_param.f90"
-  "${XTB_ROOT}/src/argparser.F90"
   "${XTB_ROOT}/src/header.f90"
   "${XTB_ROOT}/src/printout.f90"
   "${XTB_ROOT}/src/xhelp.f90"

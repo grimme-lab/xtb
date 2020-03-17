@@ -369,18 +369,15 @@ subroutine writecosmofile(np,pa,espe,fname,nat,at,xyz,atom_weight)
 
 end subroutine writecosmofile
 
-subroutine setup_summary(iunit,n,fname,xcontrol,nargs,argument_list,wfx,xrc,exist)
+subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_systools
    use xtb_type_wavefunction
-   use xtb_argparser
    use xtb_setparam
    !$ use omp_lib
    implicit none
    type(TWavefunction),intent(in) :: wfx
    integer, intent(in) :: iunit
-   integer, intent(in) :: nargs
-   type(string),intent(in) :: argument_list(nargs)
    character(len=*),intent(in) :: xrc
    character(len=*),intent(in) :: xcontrol
    character(len=*),intent(in) :: fname
@@ -396,15 +393,7 @@ subroutine setup_summary(iunit,n,fname,xcontrol,nargs,argument_list,wfx,xrc,exis
    call get_command(length=l)
    allocate( character(len=l) :: cdum )
    call get_command(cdum)
-   if (verbose) then
-      i = index(cdum,' ')
-      write(iunit,'(10x,a,":",1x,a)') 'command line arguments for ',cdum(:i-1)
-      do i = 1, nargs
-         write(iunit,'(12x,"->",i4,1x,"is",1x,a)') i,argument_list(i)%val
-      enddo
-   else
-      write(iunit,'(10x,a,":",1x,a)') 'program call               ',cdum
-   endif
+   write(iunit,'(10x,a,":",1x,a)') 'program call               ',cdum
    call rdvar('HOSTNAME',cdum,err)
    if (err.eq.0) &
       write(iunit,'(10x,a,":",1x,a)') 'hostname                   ',cdum
