@@ -25,6 +25,7 @@ srcs += files(
   'dispersion_model.f90',
   'environment.f90',
   'fragments.f90',
+  'identitymap.f90',
   'molecule.f90',
   'options.f90',
   'param.f90',

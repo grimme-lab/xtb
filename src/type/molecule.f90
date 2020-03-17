@@ -34,7 +34,7 @@
 module xtb_type_molecule
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
-   use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength
+   use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength, getIdentity
    use xtb_type_wsc
    use xtb_type_topology
    use xtb_type_fragments
@@ -53,6 +53,9 @@ module xtb_type_molecule
 
       !> Number of atoms
       integer  :: n = 0
+
+      !> Number of unique species
+      integer  :: nId = 0
 
       !> Total charge
       real(wp) :: chrg = 0.0_wp
@@ -74,6 +77,9 @@ module xtb_type_molecule
 
       !> Ordinal numbers
       integer, allocatable :: at(:)
+
+      !> Chemical identity
+      integer, allocatable :: id(:)
 
       !> Cartesian coordinates in bohr
       real(wp),allocatable :: xyz(:,:)
@@ -195,8 +201,9 @@ subroutine initMolecule &
    real(wp), intent(in), optional :: lattice(3, 3)
    logical, intent(in), optional :: pbc(3)
 
+   integer, allocatable :: id(:)
    character(len=symbolLength), allocatable :: sTmp(:)
-   integer :: nAt, iAt
+   integer :: nAt, nId, iAt, iId
 
    nAt = min(size(at, dim=1), size(xyz, dim=2), size(sym, dim=1))
 
@@ -228,6 +235,7 @@ subroutine initMolecule &
       end if
    end if
 
+   call getIdentity(mol%nId, mol%id, sym)
    mol%at(:) = at(:nAt)
    mol%sym(:) = sym(:nAt)
 
@@ -386,6 +394,7 @@ subroutine allocate_molecule(self,n)
    integer,intent(in) :: n
    call self%deallocate
    self%n = n
+   allocate( self%id(n),          source = 0 )
    allocate( self%at(n),          source = 0 )
    allocate( self%sym(n),         source = '    ' )
    allocate( self%xyz(3,n),       source = 0.0_wp )
@@ -401,10 +410,12 @@ subroutine deallocate_molecule(self)
    implicit none
    class(TMolecule),intent(inout) :: self !< molecular structure information
    self%n = 0
+   self%nId = 0
    self%pbc = .false.
    self%chrg = 0.0_wp
    self%uhf = 0
    self%lattice = 0.0_wp
+   if (allocated(self%id))     deallocate(self%id)
    if (allocated(self%at))     deallocate(self%at)
    if (allocated(self%sym))    deallocate(self%sym)
    if (allocated(self%xyz))    deallocate(self%xyz)

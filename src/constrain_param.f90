@@ -55,11 +55,11 @@
 !! ========================================================================
 module xtb_constrain_param
    use xtb_mctc_accuracy, only : wp
-
    use xtb_mctc_strings, only : parse
    use xtb_readin, only : getline => strip_line,getValue,getListValue
    use xtb_setparam, only : verbose
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_identitymap, only : TIdentityMap, init
    use xtb_type_molecule, only : TMolecule
 
    implicit none
@@ -86,12 +86,13 @@ module xtb_constrain_param
    public
 
    abstract interface
-      subroutine handlerInterface(env,key,val,nat,at,xyz)
-         import :: wp, TEnvironment
+      subroutine handlerInterface(env,key,val,nat,at,idMap,xyz)
+         import :: wp, TEnvironment, TIdentityMap
          type(TEnvironment), intent(inout) :: env
          character(len=*),intent(in) :: key
          character(len=*),intent(in) :: val
          integer, intent(in) :: nat
+         type(TIdentityMap), intent(in) :: idMap
          integer, intent(in) :: at(nat)
          real(wp),intent(in) :: xyz(3,nat)
       end subroutine handlerInterface
@@ -111,6 +112,7 @@ subroutine read_userdata(fname,env,mol)
    character(len=:),allocatable :: key
    character(len=:),allocatable :: val
    character(len=:),allocatable :: newname
+   type(TIdentityMap) :: idMap
    integer :: i
    integer :: id
    integer :: ic
@@ -131,6 +133,10 @@ subroutine read_userdata(fname,env,mol)
    endif
    rewind(id) ! not sure if this is necessary
 
+   call init(idMap, mol)
+
+   call idMap%writeInfo(env%unit)
+
 !  read first line before the readloop starts, I have to do this
 !  to avoid using backspace on id (dammit Turbomole format)
    call getline(id,line,err)
@@ -140,36 +146,36 @@ subroutine read_userdata(fname,env,mol)
          select case(line(2:))
          case('fix'      )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_fix,    line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_fix,    line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('split'    )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_split,  line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_split,  line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('constrain')
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
             if (allocated(potset%xyz)) then
-               call rdblock(env,set_constr, line,id,mol%n,mol%at,potset%xyz,err)
+               call rdblock(env,set_constr, line,id,mol%n,mol%at,idMap,potset%xyz,err)
             else
-               call rdblock(env,set_constr, line,id,mol%n,mol%at,mol%xyz,err)
+               call rdblock(env,set_constr, line,id,mol%n,mol%at,idMap,mol%xyz,err)
             endif
          case('scan'     )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_scan,   line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_scan,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('wall'     )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_wall,   line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_wall,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('metadyn'  )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_metadyn,line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_metadyn,line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('hess'     )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_hess,   line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_hess,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('path'     )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_path,   line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_path,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('reactor'  )
             if (verbose) write(env%unit,'(">",1x,a)') line(2:)
-            call rdblock(env,set_reactor,line,id,mol%n,mol%at,mol%xyz,err)
-         case('set'      ); call rdsetbl(env,set_legacy,line,id,mol%n,mol%at,mol%xyz,err)
+            call rdblock(env,set_reactor,line,id,mol%n,mol%at,idMap,mol%xyz,err)
+         case('set'      ); call rdsetbl(env,set_legacy,line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case default ! unknown keyword -> ignore, we don't raise them
             call getline(id,line,err)
          end select
@@ -185,7 +191,7 @@ subroutine read_userdata(fname,env,mol)
    call close_file(id)
 end subroutine read_userdata
 
-subroutine rdsetbl(env,handler,line,id,nat,at,xyz,err)
+subroutine rdsetbl(env,handler,line,id,nat,at,idMap,xyz,err)
    implicit none
    character(len=*), parameter :: source = 'userdata_rdsetbl'
    type(TEnvironment), intent(inout) :: env
@@ -193,6 +199,7 @@ subroutine rdsetbl(env,handler,line,id,nat,at,xyz,err)
    procedure(handlerInterface) :: handler
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
    integer,intent(out) :: err
    character(len=:),allocatable,intent(out) :: line
@@ -211,7 +218,7 @@ subroutine rdsetbl(env,handler,line,id,nat,at,xyz,err)
       if ((line.eq.'').or.(ie.eq.0)) cycle
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
-      call handler(env,key,val,nat,at,xyz)
+      call handler(env,key,val,nat,at,idMap,xyz)
       call env%check(exitRun)
       if (exitRun) then
          call env%error("handler could not process input", source)
@@ -221,7 +228,7 @@ subroutine rdsetbl(env,handler,line,id,nat,at,xyz,err)
 
 end subroutine rdsetbl
 
-subroutine rdblock(env,handler,line,id,nat,at,xyz,err)
+subroutine rdblock(env,handler,line,id,nat,at,idMap,xyz,err)
    implicit none
    character(len=*), parameter :: source = 'userdata_rdblock'
    type(TEnvironment), intent(inout) :: env
@@ -229,6 +236,7 @@ subroutine rdblock(env,handler,line,id,nat,at,xyz,err)
    procedure(handlerInterface) :: handler
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
    integer,intent(out) :: err
    character(len=:),allocatable,intent(out) :: line
@@ -247,7 +255,7 @@ subroutine rdblock(env,handler,line,id,nat,at,xyz,err)
       if ((line.eq.'').or.(ie.eq.0)) cycle
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
-      call handler(env,key,val,nat,at,xyz)
+      call handler(env,key,val,nat,at,idMap,xyz)
       call env%check(exitRun)
       if (exitRun) then
          call env%error("handler could not process input", source)
@@ -257,7 +265,7 @@ subroutine rdblock(env,handler,line,id,nat,at,xyz,err)
 
 end subroutine rdblock
 
-subroutine set_fix(env,key,val,nat,at,xyz)
+subroutine set_fix(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_fixparam
    use xtb_setparam
@@ -268,6 +276,7 @@ subroutine set_fix(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    type(TAtomList) :: atl
@@ -298,19 +307,25 @@ subroutine set_fix(env,key,val,nat,at,xyz)
       call atl%new
       do idum = 1, narg
          ! get element by symbol
-         call elem(argv(idum),iat)
-         ! alternatively, try ordinal number
-         if (iat.eq.0) then
+         if (idMap%has(argv(idum))) then
+            call idMap%get(list, argv(idum))
+            if (allocated(list)) then
+               call atl%add(list)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            end if
+         else
             ldum = getValue(env,trim(argv(idum)),iat)
             if (.not.ldum) cycle ! skip garbage input
+            ! check for unreasonable input
+            if (iat > 0) then
+               call atl%add(at.eq.iat)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            endif
          endif
-         ! check for unreasonable input
-         if (iat.le.0) then
-            call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
-            cycle
-         endif
-         ! now find the elements in the geometry
-         call atl%add(at.eq.iat)
       enddo
       if (fixset%n > 0) call atl%add(fixset%atoms(:fixset%n))
       call atl%to_list(list)
@@ -364,7 +379,7 @@ subroutine set_fix(env,key,val,nat,at,xyz)
 
 end subroutine set_fix
 
-subroutine set_constr(env,key,val,nat,at,xyz)
+subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_type_atomlist
@@ -377,6 +392,7 @@ subroutine set_constr(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    type(TAtomList) :: atl
@@ -410,19 +426,25 @@ subroutine set_constr(env,key,val,nat,at,xyz)
       call atl%new
       do idum = 1, narg
          ! get element by symbol
-         call elem(argv(idum),iat)
-         ! alternatively, try ordinal number
-         if (iat.eq.0) then
+         if (idMap%has(argv(idum))) then
+            call idMap%get(list, argv(idum))
+            if (allocated(list)) then
+               call atl%add(list)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            end if
+         else
             ldum = getValue(env,trim(argv(idum)),iat)
             if (.not.ldum) cycle ! skip garbage input
+            ! check for unreasonable input
+            if (iat > 0) then
+               call atl%add(at.eq.iat)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            endif
          endif
-         ! check for unreasonable input
-         if (iat.le.0) then
-            call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
-            cycle
-         endif
-         ! now find the elements in the geometry
-         call atl%add(at.eq.iat)
       enddo
       if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
       call atl%to_list(list)
@@ -756,7 +778,7 @@ end subroutine set_constr
 
 !! --------------------------------------------------------------[SAW1809]-
 !  this is the new version of the scan routine exploiting all features
-subroutine set_scan(env,key,val,nat,at,xyz)
+subroutine set_scan(env,key,val,nat,at,idMap,xyz)
    use xtb_scanparam
    use xtb_mctc_convert, only : aatoau
    use xtb_mctc_constants, only : pi
@@ -767,6 +789,7 @@ subroutine set_scan(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    integer  :: idum
@@ -785,7 +808,7 @@ subroutine set_scan(env,key,val,nat,at,xyz)
    if (ie.ne.0) then
       temp = val(:ie-1)
       idum = nconstr
-      call set_constr(env,key,temp,nat,at,xyz) ! generate a new constraint
+      call set_constr(env,key,temp,nat,at,idMap,xyz) ! generate a new constraint
       scan_list(nscan)%iconstr = nconstr ! new generated
       if (idum.eq.nconstr) then
          call env%error('Failed to generate constraint',source)
@@ -860,7 +883,7 @@ subroutine set_scan(env,key,val,nat,at,xyz)
 
 end subroutine set_scan
 
-subroutine set_wall(env,key,val,nat,at,xyz)
+subroutine set_wall(env,key,val,nat,at,idMap,xyz)
    use xtb_mctc_convert, only : autoaa
    use xtb_sphereparam
    implicit none
@@ -870,6 +893,7 @@ subroutine set_wall(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    integer  :: idum
@@ -997,7 +1021,7 @@ subroutine set_wall(env,key,val,nat,at,xyz)
 
 end subroutine set_wall
 
-subroutine set_split(env,key,val,nat,at,xyz)
+subroutine set_split(env,key,val,nat,at,idMap,xyz)
    use xtb_splitparam
    implicit none
    character(len=*), parameter :: source = 'userdata_split'
@@ -1006,6 +1030,7 @@ subroutine set_split(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    integer  :: idum
@@ -1074,7 +1099,7 @@ subroutine set_split(env,key,val,nat,at,xyz)
    end select
 end subroutine set_split
 
-subroutine set_hess(env,key,val,nat,at,xyz)
+subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    use xtb_splitparam
    implicit none
    character(len=*), parameter :: source = 'userdata_hess'
@@ -1083,12 +1108,14 @@ subroutine set_hess(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    integer  :: idum
    real(wp) :: ddum
    logical  :: ldum
    integer  :: i,j
+   integer, allocatable :: list(:)
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -1107,12 +1134,17 @@ subroutine set_hess(env,key,val,nat,at,xyz)
       endif
       do i = 1, narg, 2
          j = i+1
-         if (getValue(env,trim(argv(i)),idum).and.&
-            &getValue(env,trim(argv(j)),ddum)) then
-            where(at.eq.idum) atmass = ddum
-            write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-               'mass of elements ',idum,' changed to', ddum
-         endif
+         if (getValue(env,trim(argv(j)),ddum)) then
+            if (idMap%has(argv(i))) then
+               call idMap%set(atmass, argv(i), ddum)
+               write(env%unit,'(a,a,a,1x,g0)') &
+                  "mass of elements '",trim(argv(i)),"' changed to", ddum
+            else if (getValue(env,trim(argv(i)),idum)) then
+               where(at.eq.idum) atmass = ddum
+               write(env%unit,'(a,i0,a,1x,g0)') &
+                  "mass of elements with Z=",idum," changed to", ddum
+            end if
+         end if
       enddo
    case('modify mass','isotope')
       if (mod(narg,2).ne.0) then
@@ -1152,7 +1184,7 @@ subroutine set_hess(env,key,val,nat,at,xyz)
 
 end subroutine set_hess
 
-subroutine set_reactor(env,key,val,nat,at,xyz)
+subroutine set_reactor(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_setparam
    implicit none
@@ -1162,6 +1194,7 @@ subroutine set_reactor(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    type(TAtomList) :: atl
@@ -1198,7 +1231,7 @@ subroutine set_reactor(env,key,val,nat,at,xyz)
 
 end subroutine set_reactor
 
-subroutine set_path(env,key,val,nat,at,xyz)
+subroutine set_path(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_setparam
    implicit none
@@ -1208,6 +1241,7 @@ subroutine set_path(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    type(TAtomList) :: atl
@@ -1244,7 +1278,7 @@ subroutine set_path(env,key,val,nat,at,xyz)
 
 end subroutine set_path
 
-subroutine set_metadyn(env,key,val,nat,at,xyz)
+subroutine set_metadyn(env,key,val,nat,at,idMap,xyz)
    use xtb_type_atomlist
    use xtb_fixparam
    implicit none
@@ -1254,6 +1288,7 @@ subroutine set_metadyn(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    type(TAtomList) :: atl
@@ -1320,7 +1355,7 @@ subroutine set_metadyn(env,key,val,nat,at,xyz)
 
 end subroutine set_metadyn
 
-subroutine set_freeze(env,key,val,nat,at,xyz)
+subroutine set_freeze(env,key,val,nat,at,idMap,xyz)
    implicit none
    character(len=*), parameter :: source = 'userdata_freeze'
    type(TEnvironment), intent(inout) :: env
@@ -1328,6 +1363,7 @@ subroutine set_freeze(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
    integer  :: idum
@@ -1353,7 +1389,7 @@ subroutine set_freeze(env,key,val,nat,at,xyz)
 
 end subroutine set_freeze
 
-subroutine set_legacy(env,key,val,nat,at,xyz)
+subroutine set_legacy(env,key,val,nat,at,idMap,xyz)
    implicit none
    character(len=*), parameter :: source = 'userdata_legacy'
    type(TEnvironment), intent(inout) :: env
@@ -1361,6 +1397,7 @@ subroutine set_legacy(env,key,val,nat,at,xyz)
    character(len=*),intent(in) :: val
    integer, intent(in) :: nat
    integer, intent(in) :: at(nat)
+   type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
    integer  :: err
    integer  :: idum
@@ -1369,18 +1406,18 @@ subroutine set_legacy(env,key,val,nat,at,xyz)
    select case(key)
    case default ! complaining about unknown keywords should already be done
       continue  ! so we do nothing here
-   case('hessf');       call set_fix(env,'freeze',val,nat,at,xyz)
+   case('hessf');       call set_fix(env,'freeze',val,nat,at,idMap,xyz)
 !   case('hessa');       call set_frozh('hessa',val)
-   case('fragment1'); call set_split(env,'fragment1',val,nat,at,xyz)
-   case('fragment2'); call set_split(env,'fragment1',val,nat,at,xyz)
-   case('constrxyz'); call set_fix(env,'atoms',val,nat,at,xyz)
+   case('fragment1'); call set_split(env,'fragment1',val,nat,at,idMap,xyz)
+   case('fragment2'); call set_split(env,'fragment1',val,nat,at,idMap,xyz)
+   case('constrxyz'); call set_fix(env,'atoms',val,nat,at,idMap,xyz)
 !   case('constrainel')
 !   case('constrain')
 !   case('scan')
-   case('ellips'); call set_wall(env,'ellipsoid',val,nat,at,xyz)
-   case('sphere'); call set_wall(env,'sphere',val,nat,at,xyz)
-   case('fix'); call set_fix(env,'atoms',val,nat,at,xyz)
-   case('atomlist+'); call set_metadyn(env,'atoms',val,nat,at,xyz)
+   case('ellips'); call set_wall(env,'ellipsoid',val,nat,at,idMap,xyz)
+   case('sphere'); call set_wall(env,'sphere',val,nat,at,idMap,xyz)
+   case('fix'); call set_fix(env,'atoms',val,nat,at,idMap,xyz)
+   case('atomlist+'); call set_metadyn(env,'atoms',val,nat,at,idMap,xyz)
    end select
 
 end subroutine set_legacy
