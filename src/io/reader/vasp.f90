@@ -22,7 +22,7 @@ module xtb_io_reader_vasp
    use xtb_mctc_systools
    use xtb_type_molecule
    use xtb_pbc_tools
-   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity
+   use xtb_mctc_symbols, only : toNumber, symbolLength
    use xtb_type_molecule
    use xtb_type_vendordata, only : vasp_info
    implicit none
@@ -47,11 +47,14 @@ subroutine readMoleculeVasp(mol, unit, status, iomsg)
    logical              :: selective=.false. ! Selective dynamics
    logical              :: cartesian=.true.  ! Cartesian or direct
 
+   integer :: natoms
    real(wp) :: ddum,latvec(3)
    real(wp) xx(10),scalar
    real(wp) :: coord(3)
    character(len=:),allocatable :: line
-   character(len=80) :: args(90),args2(90)
+   character(len=2*symbolLength) :: args(256),args2(256)
+   real(wp), allocatable :: xyz(:, :)
+   character(len=symbolLength), allocatable :: sym(:)
 
    integer i,j,k,nn,ntype,ntype2,atnum,i_dummy1,i_dummy2,ncheck
 
@@ -129,10 +132,10 @@ subroutine readMoleculeVasp(mol, unit, status, iomsg)
       return
    endif
 
-   allocate( ncount(nn), source = 0 )
-   ncheck=0
-   do i=1,nn
-      read(args2(i),*,iostat=err) ncount(i)
+   allocate(ncount(nn), source = 0)
+   ncheck = 0
+   do i = 1, nn
+      read(args2(i), *, iostat=err) ncount(i)
       iat = toNumber(args(i))
       if (iat < 1 .or. ncount(i) < 1) then
          iomsg = 'unknown element.'
@@ -140,71 +143,62 @@ subroutine readMoleculeVasp(mol, unit, status, iomsg)
       endif
    enddo
 
-   call mol%allocate(sum(ncount))
-   mol%pbc = .true.
-   mol%npbc = 3
+   natoms = sum(ncount)
+   allocate(sym(natoms))
+   allocate(xyz(3, natoms))
+
    k = 0
    do i = 1, nn
-      iat = toNumber(args(i))
       do j = 1, ncount(i)
          k = k+1
-         mol%at(k) = iat
-         mol%sym(k) = args(i)(1:4)
+         sym(k) = trim(args(i))
       enddo
    enddo
 
-   call getline(unit,line,err)
+   call getline(unit, line, err)
    if (err.ne.0) then
       iomsg = "Could not read POSCAR"
       return
    endif
-   if (debug) print'(">",a)',line
+   if (debug) print'(">",a)', line
    line=adjustl(line)
    if (line(:1).eq.'s' .or. line(:1).eq.'S') then
-      selective=.true.
+      selective = .true.
       call getline(unit,line,err)
-      if (debug) print'("->",a)',line
+      if (debug) print'("->",a)', line
       if (err.ne.0) then
          iomsg = "Could not read POSCAR"
          return
       endif
-      line=adjustl(line)
+      line = adjustl(line)
    endif
 
    cartesian=(line(:1).eq.'c' .or. line(:1).eq.'C' .or. &
       &       line(:1).eq.'k' .or. line(:1).eq.'K')
-   do i = 1, len(mol)
-      call getline(unit,line,err)
+   do i = 1, natoms
+      call getline(unit, line, err)
       if (err.ne.0) then
          iomsg = "Could not read geometry from POSCAR"
          return
       endif
       if (debug) print'("-->",a)',line
-      read(line,*,iostat=err) coord
+      read(line, *, iostat=err) coord
       if (err.ne.0) then
          iomsg = "Could not read geometry from POSCAR"
          return
       endif
 
       if (cartesian) then
-         mol%xyz(:,i)=coord*scalar
+         xyz(:,i) = coord*scalar
       else
-         mol%xyz(:,i)=matmul(lattice,coord)
+         xyz(:,i) = matmul(lattice, coord)
       endif
 
    enddo
 
-   mol%lattice = lattice
+   call init(mol, sym, xyz, lattice=lattice)
    ! save information about this POSCAR for later
    mol%vasp = vasp_info(scale=ddum, selective=selective, cartesian=cartesian)
-
-   call dlat_to_cell(mol%lattice,mol%cellpar)
-   call dlat_to_rlat(mol%lattice,mol%rec_lat)
-   mol%volume = dlat_to_dvol(mol%lattice)
-
-   call xyz_to_abc(mol%n,mol%lattice,mol%xyz,mol%abc,mol%pbc)
-
-   call getIdentity(mol%nId, mol%id, mol%sym)
 
    status = .true.
 

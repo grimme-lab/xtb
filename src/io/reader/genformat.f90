@@ -19,7 +19,7 @@ module xtb_io_reader_genformat
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_strings
-   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity, symbolLength
+   use xtb_mctc_symbols, only : toNumber, symbolLength
    use xtb_mctc_systools
    use xtb_pbc_tools
    use xtb_type_molecule
@@ -42,11 +42,11 @@ subroutine readMoleculeGenFormat(mol, unit, status, iomsg)
 
    character(len=:), allocatable :: line
    integer :: natoms, nspecies, iatom, dummy, isp, ilat, error
-   logical :: cartesian
-   real(wp) :: coord(3)
-   integer, allocatable :: species(:)
+   logical :: cartesian, periodic
+   real(wp) :: coord(3), lattice(3, 3)
    character(len=1) :: variant
-   character(len=symbolLength), allocatable :: symbols(:)
+   character(len=symbolLength), allocatable :: species(:), sym(:)
+   real(wp), allocatable :: xyz(:, :), abc(:, :)
 
    status = .false.
 
@@ -57,51 +57,49 @@ subroutine readMoleculeGenFormat(mol, unit, status, iomsg)
       return
    endif
 
-   call mol%allocate(natoms)
-   allocate(symbols(len(mol)), source='    ')
+   allocate(species(natoms))
+   allocate(sym(natoms))
+   allocate(xyz(3, natoms))
+   allocate(abc(3, natoms))
 
    select case(variant)
    case('c', 'C')
       cartesian = .true.
+      periodic = .false.
    case('s', 'S')
       cartesian = .true.
-      mol%npbc = 3
-      mol%pbc = .true.
+      periodic = .true.
    case('f', 'F')
       cartesian = .false.
-      mol%npbc = 3
-      mol%pbc = .true.
+      periodic = .true.
    case default
       iomsg = 'invalid input version'
       return
    endselect
 
    call next_line(unit, line, error)
-   call parse(line, ' ', symbols, nspecies)
-   allocate(species(nspecies), source=0)
-   species = toNumber(symbols(:nspecies))
-   if (any(species == 0)) then
+   call parse(line, ' ', species, nspecies)
+   if (any(toNumber(species(:nspecies)) == 0)) then
       iomsg = 'unknown atom type present'
       return
    endif
 
-   do iatom = 1, len(mol)
+   do iatom = 1, natoms
       call next_line(unit, line, error)
       read(line, *, iostat=error) dummy, isp, coord
       if (error /= 0) then
          iomsg = 'could not read coordinates from file'
          return
       endif
-      mol%at(iatom) = species(isp)
-      mol%sym(iatom) = symbols(isp)
+      sym(iatom) = species(isp)
       if (cartesian) then
-         mol%xyz(:, iatom) = coord * aatoau
+         xyz(:, iatom) = coord * aatoau
       else
-         mol%abc(:, iatom) = coord
+         abc(:, iatom) = coord
       endif
    enddo
 
-   if (mol%npbc > 0) then
+   if (periodic) then
       call next_line(unit, line, error)
       if (error /= 0) then
          iomsg = 'missing lattice information'
@@ -114,16 +112,15 @@ subroutine readMoleculeGenFormat(mol, unit, status, iomsg)
             iomsg = 'could not read lattice from file'
             return
          endif
-         mol%lattice(:, ilat) = coord * aatoau
+         lattice(:, ilat) = coord * aatoau
       enddo
-      if (cartesian) then
-         call xyz_to_abc(len(mol), mol%lattice, mol%xyz, mol%abc, mol%pbc)
-      else
-         call abc_to_xyz(len(mol), mol%lattice, mol%abc, mol%xyz)
+      if (.not.cartesian) then
+         call abc_to_xyz(natoms, lattice, abc, xyz)
       endif
+      call init(mol, sym, xyz, lattice=lattice)
+   else
+      call init(mol, sym, xyz)
    endif
-
-   call getIdentity(mol%nId, mol%id, mol%sym)
 
    mol%vasp = vasp_info(cartesian=cartesian)
 

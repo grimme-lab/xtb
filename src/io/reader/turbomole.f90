@@ -20,7 +20,7 @@ module xtb_io_reader_turbomole
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_mctc_resize
-   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity
+   use xtb_mctc_symbols, only : toNumber, symbolLength
    use xtb_pbc_tools
    use xtb_readin, getline => strip_line
    use xtb_type_molecule
@@ -45,17 +45,19 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
    character(len=:), allocatable :: line
    character(len=:), allocatable :: cell_string, lattice_string
    character(len=1), parameter :: flag = '$'
-   character(len=4), allocatable :: sym(:)
-   real(wp), allocatable :: coord(:, :)
+   character(len=symbolLength), allocatable :: sym(:)
+   real(wp), allocatable :: coord(:, :), xyz(:, :)
    real(wp) :: latvec(9), conv
    integer :: error
-   integer :: iatom, i, j
+   integer :: iatom, i, j, natoms
    integer :: periodic, cell_vectors
    integer, parameter :: p_initial_size = 100
    integer, parameter :: p_nlv(3) = [1, 4, 9]
    integer, parameter :: p_ncp(3) = [1, 3, 6]
+   real(wp) :: cellpar(6), lattice(3, 3)
    logical :: has_coord, has_periodic, has_lattice, has_cell
    logical :: cartesian, coord_in_bohr, lattice_in_bohr
+   logical :: pbc(3)
 
    status = .false.
 
@@ -71,6 +73,8 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
    cartesian = .true.
    coord_in_bohr = .true.
    lattice_in_bohr = .true.
+   lattice = 0.0_wp
+   pbc = .false.
 
    error = 0
    do while(error == 0)
@@ -152,17 +156,15 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
       return
    endif
 
-   call mol%allocate(iatom)
+   natoms = iatom
+   allocate(xyz(3, natoms))
 
-   mol%sym = sym(:len(mol))
-   mol%at = toNumber(sym(:len(mol)))
-   if (any(mol%at == 0)) then
-      iomsg = "unknown element '"//sym(minval(mol%at))//"' present"
+   if (any(toNumber(sym(:natoms)) == 0)) then
+      iomsg = "unknown element present"
       return
    endif
 
-   mol%npbc = periodic
-   if (periodic > 0) mol%pbc(:periodic) = .true.
+   if (periodic > 0) pbc(:periodic) = .true.
 
    if (has_cell) then
       read(cell_string, *, iostat=error) latvec(:p_ncp(periodic))
@@ -174,15 +176,15 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
       endif
       select case(periodic)
       case(1)
-         mol%cellpar = [latvec(1)*conv, 1.0_wp, 1.0_wp, &
-            &           pi/2, pi/2, pi/2]
+         cellpar = [latvec(1)*conv, 1.0_wp, 1.0_wp, &
+            &       pi/2, pi/2, pi/2]
       case(2)
-         mol%cellpar = [latvec(1)*conv, latvec(2)*conv, 1.0_wp, &
-            &           pi/2, pi/2, latvec(3)*pi/180.0_wp]
+         cellpar = [latvec(1)*conv, latvec(2)*conv, 1.0_wp, &
+            &       pi/2, pi/2, latvec(3)*pi/180.0_wp]
       case(3)
-         mol%cellpar = [latvec(1:3)*conv, latvec(4:6)*pi/180.0_wp]
+         cellpar = [latvec(1:3)*conv, latvec(4:6)*pi/180.0_wp]
       end select
-      call cell_to_dlat(mol%cellpar,mol%lattice)
+      call cell_to_dlat(cellpar, lattice)
    endif
 
    if (has_lattice) then
@@ -198,7 +200,7 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
       endif
       j = 0
       do i = 1, periodic
-         mol%lattice(:periodic,i) = latvec(j+1:j+periodic) * conv
+         lattice(:periodic,i) = latvec(j+1:j+periodic) * conv
          j = j + periodic
       enddo
    endif
@@ -209,16 +211,12 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
       else
          conv = aatoau
       endif
-      mol%xyz = coord(:, :len(mol)) * conv
-      if (periodic > 0) &
-         &call xyz_to_abc(len(mol),mol%lattice,mol%xyz,mol%abc,mol%pbc)
+      xyz(:, :) = coord(:, :natoms) * conv
    else
-      mol%abc = coord
-      call abc_to_xyz(len(mol),mol%lattice,coord,mol%xyz)
+      call abc_to_xyz(natoms, lattice, coord, xyz)
    endif
 
-   call getIdentity(mol%nId, mol%id, mol%sym)
-
+   call init(mol, sym(:natoms), xyz, lattice=lattice, pbc=pbc)
    ! save data on input format
    mol%turbo = turbo_info(cartesian=cartesian, lattice=has_lattice, &
       &                   angs_lattice=.not.lattice_in_bohr, &
