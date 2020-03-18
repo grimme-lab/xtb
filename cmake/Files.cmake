@@ -4,7 +4,9 @@ set(XTB_SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh"
 
   "${XTB_ROOT}/src/prog/argparser.f90"
+  "${XTB_ROOT}/src/prog/info.f90"
   "${XTB_ROOT}/src/prog/main.F90"
+  "${XTB_ROOT}/src/prog/submodules.f90"
 
   # MCTC library
   "${XTB_ROOT}/src/mctc/accuracy.f90"

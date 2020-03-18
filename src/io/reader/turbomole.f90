@@ -20,7 +20,7 @@ module xtb_io_reader_turbomole
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_mctc_resize
-   use xtb_mctc_symbols, only : toNumber, toSymbol
+   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity
    use xtb_pbc_tools
    use xtb_readin, getline => strip_line
    use xtb_type_molecule
@@ -216,6 +216,8 @@ subroutine readMoleculeCoord(mol, unit, status, iomsg)
       mol%abc = coord
       call abc_to_xyz(len(mol),mol%lattice,coord,mol%xyz)
    endif
+
+   call getIdentity(mol%nId, mol%id, mol%sym)
 
    ! save data on input format
    mol%turbo = turbo_info(cartesian=cartesian, lattice=has_lattice, &

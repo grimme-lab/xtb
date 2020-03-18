@@ -77,6 +77,8 @@ module xtb_prog_argparser
 
       procedure :: nextArg
 
+      procedure :: reset
+
    end type TArgParser
 
 
@@ -139,6 +141,18 @@ subroutine initArgParser(self)
    self%flagPos = 0
 
 end subroutine initArgParser
+
+
+!> Reset the command line argument parser
+subroutine reset(self)
+
+   !> Instance of the parser
+   class(TArgParser), intent(inout) :: self
+
+   self%arg%unused = .true.
+   self%flagPos = 0
+
+end subroutine reset
 
 
 !> Count number of unprocessed flags

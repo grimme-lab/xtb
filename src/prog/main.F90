@@ -165,6 +165,7 @@ subroutine xtbMain(env, argParser)
    logical :: newreader
    logical :: strict
    logical :: exitRun
+   logical :: cold_fusion
 
 !  OMP stuff
    integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
@@ -386,7 +387,11 @@ subroutine xtbMain(env, argParser)
    env%strict = strict
 
    !> one last check on the input geometry
-   call check_cold_fusion(mol)
+   call check_cold_fusion(env, mol, cold_fusion)
+   if (cold_fusion) then
+      call env%error("XTB REFUSES TO CONTINUE WITH THIS CALCULATION!")
+      call env%terminate("Some atoms in the start geometry are *very* close")
+   endif
 
    !> check if someone is still using GFN3...
    if (gfn_method.eq.3) then
@@ -998,33 +1003,6 @@ subroutine xtbMain(env, argParser)
    write(env%unit,'(a)')
    call terminate(0)
 
-
-contains
-
-subroutine check_cold_fusion(mol)
-   type(TMolecule), intent(in) :: mol
-   integer :: iat, jat
-   character(len=10) :: a10
-   character(len=20) :: a20
-   logical :: cold_fusion
-   cold_fusion = .false.
-   do iat = 1, len(mol)
-      do jat = 1, iat-1
-         if (mol%dist(jat, iat) < 1.0e-9_wp) then
-            cold_fusion = .true.
-            write(a20, '(a,i0,"-",a,i0)') &
-               &  trim(mol%sym(jat)), jat, trim(mol%sym(iat)), iat
-            write(a10, '(es10.3)') mol%dist(jat, iat)
-            call env%error("Found *very* short distance of "//a10//" for "//&
-               &           trim(a20))
-         endif
-      enddo
-   enddo
-   if (cold_fusion) then
-      call env%error("XTB REFUSES TO CONTINUE WITH THIS CALCULATION!")
-      call env%terminate("Some atoms in the start geometry are *very* close")
-   endif
-end subroutine check_cold_fusion
 
 end subroutine xtbMain
 

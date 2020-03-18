@@ -17,6 +17,8 @@
 
 prog += files(
   'argparser.f90',
+  'info.f90',
   'main.F90',
   'primary.f90',
+  'submodules.f90',
 )

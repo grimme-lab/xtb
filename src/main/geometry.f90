@@ -618,3 +618,29 @@ pure function molecular_mass(n,atmass) result(molmass)
 end function molecular_mass
 
 end subroutine print_moments
+
+
+subroutine check_cold_fusion(env, mol, cold_fusion)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_environment
+   use xtb_type_molecule
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol
+   logical, intent(out) :: cold_fusion
+   integer :: iat, jat
+   character(len=10) :: a10
+   character(len=20) :: a20
+   cold_fusion = .false.
+   do iat = 1, len(mol)
+      do jat = 1, iat-1
+         if (mol%dist(jat, iat) < 1.0e-9_wp) then
+            cold_fusion = .true.
+            write(a20, '(a,i0,"-",a,i0)') &
+               &  trim(mol%sym(jat)), jat, trim(mol%sym(iat)), iat
+            write(a10, '(es10.3)') mol%dist(jat, iat)
+            call env%error("Found *very* short distance of "//a10//" for "//&
+               &           trim(a20))
+         endif
+      enddo
+   enddo
+end subroutine check_cold_fusion

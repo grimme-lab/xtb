@@ -18,7 +18,9 @@
 !> The primary driver for the xtb program package
 program xtb_prog_primary
    use xtb_prog_argparser
+   use xtb_prog_info, only : xtbInfo
    use xtb_prog_main, only : xtbMain
+   use xtb_prog_submodules
    use xtb_type_environment
 
    implicit none
@@ -29,6 +31,9 @@ program xtb_prog_primary
    !> Calculation environment
    type(TEnvironment) :: env
 
+   !> Requested run mode
+   integer :: runMode
+
    !> start by initializing the MCTC library
    call mctc_init('xtb',10,.true.)
 
@@ -38,7 +43,54 @@ program xtb_prog_primary
    !> Initialize argument parser from command line
    call init(argParser)
 
-   !> Run the main program
-   call xtbMain(env, argParser)
+   !> Get the requested run mode
+   call getRunmode(argParser, runMode)
+
+   !> Select the correct submodule to run
+   select case(runMode)
+   case(xtbSubmodule%main)
+      !> Run the main program
+      call xtbMain(env, argParser)
+
+   case(xtbSubmodule%info)
+      !> Run the info submodule
+      call xtbInfo(env, argParser)
+
+   end select
+
+contains
+
+subroutine getRunmode(argParser, runMode)
+
+   !> Command line argument parser
+   type(TArgParser), intent(inout) :: argParser
+
+   !> Requested run mode
+   integer, intent(out) :: runMode
+
+   !> First command line argument
+   character(len=:), allocatable :: argument
+
+   !> Initialize run mode with default submodule
+   runMode = xtbSubmodule%main
+
+   !> Get first argument
+   call argParser%nextArg(argument)
+
+   !> Check if we have a command line argument
+   if (allocated(argument)) then
+
+      !> Get the identifier of the submodule
+      runMode = getSubmodule(argument)
+
+      !> In case of an invalid identifier, we reset the parser and use the default
+      if (runMode == xtbSubmodule%invalid) then
+         call argParser%reset
+         runMode = xtbSubmodule%main
+      end if
+
+   end if
+
+end subroutine getRunmode
 
 end program xtb_prog_primary

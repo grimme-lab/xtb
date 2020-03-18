@@ -22,7 +22,7 @@ module xtb_io_reader_vasp
    use xtb_mctc_systools
    use xtb_type_molecule
    use xtb_pbc_tools
-   use xtb_mctc_symbols, only : toNumber, toSymbol
+   use xtb_mctc_symbols, only : toNumber, toSymbol, getIdentity
    use xtb_type_molecule
    use xtb_type_vendordata, only : vasp_info
    implicit none
@@ -203,6 +203,8 @@ subroutine readMoleculeVasp(mol, unit, status, iomsg)
    mol%volume = dlat_to_dvol(mol%lattice)
 
    call xyz_to_abc(mol%n,mol%lattice,mol%xyz,mol%abc,mol%pbc)
+
+   call getIdentity(mol%nId, mol%id, mol%sym)
 
    status = .true.
 
