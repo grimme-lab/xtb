@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2019-2020 Sebastian Ehlert
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -15,42 +15,38 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module xtb_io_writer_gaussian
+!> Implementation of orca output formats
+module xtb_io_writer_orca
    use xtb_mctc_accuracy, only : wp
-   use xtb_type_molecule, only : TMolecule, len
+   use xtb_type_molecule
    implicit none
    private
 
-   public :: writeMoleculeGaussianExternal
-   public :: writeResultsGaussianExternal
+   public :: writeResultsOrca
 
 
 contains
 
 
-subroutine writeMoleculeGaussianExternal(mol, unit)
+subroutine writeResultsOrca(unit, mol, energy, gradient)
    type(TMolecule), intent(in) :: mol
    integer, intent(in) :: unit
-   integer :: iat
+   real(wp), intent(in) :: energy
+   real(wp), intent(in) :: gradient(:, :)
+   integer :: i
 
-   write(unit, '(4i10)') len(mol), 1, nint(mol%chrg), mol%uhf
-   do iat = 1, len(mol)
-      write(unit, '(i10,4f20.12)') mol%at(iat), mol%xyz(:, iat), 0.0_wp
+   write(unit, '(a)') "#", "# Number of atoms", "#"
+   write(unit, '(i10)') mol%n
+   write(unit, '(a)') "#", "# The current total energy in Eh", "#"
+   write(unit, '(f20.12)') energy
+   write(unit, '(a)') "#", "# The current gradient in Eh/bohr", "#"
+   write(unit, '(1x,f20.12)') gradient
+   write(unit, '(a)') "#", "# The atomic numbers and current coordinates in Bohr", "#"
+   do i = 1, mol%n
+      write(unit, '(1x,i3,1x,3(1x,f12.7))') mol%at(i), mol%xyz(:, i)
    end do
 
-end subroutine writeMoleculeGaussianExternal
+end subroutine writeResultsOrca
 
 
-subroutine writeResultsGaussianExternal(unit, energy, dipole, gradient)
-   integer, intent(in) :: unit
-   real(wp), intent(in) :: energy
-   real(wp), intent(in) :: dipole(:)
-   real(wp), intent(in) :: gradient(:, :)
-
-   write(unit, '(4D20.12)') energy, dipole
-   write(unit, '(3D20.12)') gradient
-
-end subroutine writeResultsGaussianExternal
-
-
-end module xtb_io_writer_gaussian
+end module xtb_io_writer_orca

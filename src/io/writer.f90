@@ -21,7 +21,7 @@ module xtb_io_writer
    use xtb_io_writer_gaussian, only : writeMoleculeGaussianExternal
    use xtb_io_writer_genformat, only : writeMoleculeGenFormat
    use xtb_io_writer_pdb, only : writeMoleculePDB
-   use xtb_io_writer_turbomole, only : writeMoleculeCoord
+   use xtb_io_writer_turbomole, only : writeMoleculeCoord, writeResultsTurbomole
    use xtb_io_writer_vasp, only : writeMoleculeVasp
    use xtb_io_writer_xyz, only : writeMoleculeXYZ
    use xtb_mctc_accuracy, only : wp
