@@ -48,7 +48,9 @@ module xtb_prog_main
    use xtb_printout
    use xtb_setmod
    use xtb_propertyoutput
-   use tbmod_output_writer
+   use xtb_io_writer_turbomole, only : writeResultsTurbomole
+   use xtb_io_writer_orca, only : writeResultsOrca
+   use xtb_io_writer_gaussian, only : writeResultsGaussianExternal
    use xtb_restart
    use xtb_readparam
    use xtb_scc_core, only : iniqshell
@@ -770,7 +772,15 @@ subroutine xtbMain(env, argParser)
 
    call generic_header(iprop,'Property Printout',49,10)
    if (lgrad) then
-      call write_turbomole(mol, energy=etot, gradient=g, sigma=sigma)
+      call writeResultsTurbomole(mol, energy=etot, gradient=g, sigma=sigma)
+      if (allocated(basename)) then
+         cdum = basename // '.engrad'
+      else
+         cdum = 'xtb-orca.engrad'
+      end if
+      call open_file(ich, cdum, 'w')
+      call writeResultsOrca(ich, mol, etot, g)
+      call close_file(ich)
    end if
    if (mol%ftype .eq. fileType%gaussian) then
       if (allocated(basename)) then
@@ -779,7 +789,7 @@ subroutine xtbMain(env, argParser)
          cdum = 'xtb-gaussian.EOu'
       end if
       call open_file(ich, cdum, 'w')
-      call write_gaussian_eou(ich, etot, res%dipole, g)
+      call writeResultsGaussianExternal(ich, etot, res%dipole, g)
       call close_file(ich)
    end if
 

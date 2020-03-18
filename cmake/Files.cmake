@@ -74,7 +74,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/setparam.f90"
 
   # Header and I/O
-  "${XTB_ROOT}/src/output_writer.f90"
   "${XTB_ROOT}/src/readin.f90"
   "${XTB_ROOT}/src/filetools.f90"
   "${XTB_ROOT}/src/set_module.f90"
@@ -109,6 +108,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/io/writer/ctfile.f90"
   "${XTB_ROOT}/src/io/writer/gaussian.f90"
   "${XTB_ROOT}/src/io/writer/genformat.f90"
+  "${XTB_ROOT}/src/io/writer/orca.f90"
   "${XTB_ROOT}/src/io/writer/pdb.f90"
   "${XTB_ROOT}/src/io/writer/turbomole.f90"
   "${XTB_ROOT}/src/io/writer/vasp.f90"
