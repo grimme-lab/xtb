@@ -17,8 +17,14 @@
 
 module xtb_scf
 ! ========================================================================
-use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule, only : TMolecule
+   use xtb_xtb_data
+   use xtb_xtb_repulsion
    implicit none
+   private
+
+   public :: scf
 
    logical,private,parameter :: profile = .true.
 
@@ -26,7 +32,7 @@ use xtb_mctc_accuracy, only : wp
 
 contains
 
-subroutine scf(env,mol,wfn,basis,param,pcem, &
+subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 &              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
 &              res)
 
@@ -85,6 +91,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    real(wp),intent(inout) :: eel
    real(wp),intent(inout) :: g(3,mol%n)
    type(scc_results),intent(out) :: res
+   type(TxTBData), intent(in) :: xtbData
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)
@@ -544,7 +551,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    ! this is the classical part of the energy/gradient
    ! dispersion/XB/repulsion for GFN1-xTB
    ! only repulsion for GFN2-xTB
-   call cls_grad(mol%n,mol%at,mol%xyz,sqrab,param,rexp,kexp,nxb,ljexp,xblist, &
+   call cls_grad(mol,sqrab,xtbData,param,rexp,kexp,nxb,ljexp,xblist, &
       &          ed,exb,ep,g,prlevel)
 
    if (profile) call timer%measure(6)
@@ -665,7 +672,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 ! ========================================================================
 
    call scf_grad(mol%n,mol%at,nmat2,matlist2, &
-        &        H0,H1,S, &
+        &        H0,H1,S,xtbData, &
         &        mol%xyz,sqrab,wfn,basis, &
         &        param,kcnao, &
         &        dispdim,c6abns,mbd, &
@@ -784,7 +791,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 end subroutine scf
 
 subroutine scf_grad(n,at,nmat2,matlist2, &
-      &             H0,H1,S, &
+      &             H0,H1,S,xtbData, &
       &             xyz,sqrab,wfn,basis, &
       &             param,kcnao, &
       &             dispdim,c6abns,mbd, &
@@ -823,6 +830,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
    type(TWavefunction),intent(in) :: wfn
    type(TBasisset),    intent(in) :: basis
    type(scc_parameter),  intent(in) :: param
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
    integer, intent(in)    :: nmat2
@@ -986,7 +994,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 end subroutine scf_grad
 
-subroutine cls_grad(n,at,xyz,sqrab, &
+subroutine cls_grad(mol,sqrab,xtbData, &
       &             param,rexp,kexp, &
       &             nxb,ljexp,xblist, &
       &             ed,exb,ep, &
@@ -1008,21 +1016,21 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 
    implicit none
 
+   type(TMolecule), intent(in) :: mol
    type(scc_parameter),  intent(in) :: param
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(inout) :: g(3,n)
+   type(TxTBData), intent(in) :: xtbData
+   real(wp),intent(in)    :: sqrab(:)
+   real(wp),intent(inout) :: g(:,:)
    real(wp),intent(inout) :: ed
    integer, intent(in)    :: nxb
-   integer, intent(in)    :: xblist(3,nxb+1)
+   integer, intent(in)    :: xblist(:,:)
    real(wp),intent(in)    :: ljexp
    real(wp),intent(inout) :: exb
    real(wp),intent(inout) :: ep
    real(wp),intent(inout) :: rexp
    real(wp),intent(inout) :: kexp
    integer, intent(in)    :: printlvl
+   real(wp) :: sigma(3,3)
 
    real(wp),allocatable :: cn(:)
    real(wp),allocatable :: dcn(:,:,:)
@@ -1034,13 +1042,13 @@ subroutine cls_grad(n,at,xyz,sqrab, &
    pr = printlvl.gt.1
 
 !  print'("Allocating local memory")'
-   allocate( cn(n), source = 0.0_wp )
-   allocate( dcn(3,n,n), source = 0.0_wp )
+   allocate( cn(mol%n), source = 0.0_wp )
+   allocate( dcn(3,mol%n,mol%n), source = 0.0_wp )
 
 !  dispersion (DFT-D type correction)
 !  print'("Calculating dispersion gradient")'
    if (gfn_method.eq.1) then
-      call gdisp(n,at,xyz,param%disp%a1,param%disp%a2,param%disp%s8,param%disp%s9, &
+      call gdisp(mol%n,mol%at,mol%xyz,param%disp%a1,param%disp%a2,param%disp%s8,param%disp%s9, &
       &   ed,g,cn,dcn)
    endif
 
@@ -1048,15 +1056,17 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 !  print'("Calculating xbond gradient")'
    exb=0.0_wp
    if(gfn_method.lt.2) then
-      call xbpot(n,at,xyz,sqrab,xblist,nxb,param%xbdamp,param%xbrad,ljexp,exb,g)
+      call xbpot(mol%n,mol%at,mol%xyz,sqrab,xblist,nxb,param%xbdamp,param%xbrad,ljexp,exb,g)
    endif
 
 !  print'("Calculating shell es and repulsion gradient")'
-   if(gfn_method.eq.1)then
-      call rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
-   else ! GFN2
-      call rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
-   endif
+   ep = 0.0_wp
+   call repulsionEnGrad(mol, xtbData%repulsion, ep, g, sigma)
+!   if(gfn_method.eq.1)then
+!      call rep_grad_gfn1(g,ep,mol%n,mol%at,mol%xyz,sqrab,kexp,rexp)
+!   else ! GFN2
+!      call rep_grad_gfn2(g,ep,mol%n,mol%at,mol%xyz,sqrab,rexp)
+!   endif
 
 end subroutine cls_grad
 

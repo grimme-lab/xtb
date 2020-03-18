@@ -25,6 +25,7 @@ subdir('param')
 subdir('prog')
 subdir('type')
 subdir('solv')
+subdir('xtb')
 
 srcs += files(
   'aespot.f90',

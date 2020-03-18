@@ -19,6 +19,9 @@ subroutine test_gfn2_scc
    use xtb_scf
    use xtb_scc_core
 
+   use xtb_xtb_data
+   use xtb_xtb_gfn2
+
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
    real(wp),parameter :: thr2 = 1.0e-5_wp
@@ -43,6 +46,7 @@ subroutine test_gfn2_scc
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(TxTBData) :: xtbData
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -65,6 +69,7 @@ subroutine test_gfn2_scc
    call assert(okpar)
 
    call set_gfn2_parameter(param,globpar,mol%n,mol%at)
+   call initGFN2(xtbData)
 
    call xbasis0(mol%n,mol%at,basis)
    call xbasis_gfn2(mol%n,mol%at,basis,okbas)
@@ -81,7 +86,7 @@ subroutine test_gfn2_scc
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,param,pcem, &
+   call scf(env,mol,wfn,basis,param,pcem,xtbData, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)

@@ -115,7 +115,7 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(env,mol,wfn,calc%basis,calc%param,pcem, &
+      call scf(env,mol,wfn,calc%basis,calc%param,pcem,calc%xtb, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)

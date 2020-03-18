@@ -21,6 +21,7 @@ module xtb_type_calculator
    use xtb_mctc_accuracy, only : wp
    use xtb_type_basisset
    use xtb_type_param
+   use xtb_xtb_data, only : TxTBData
    implicit none
 
    public :: tb_calculator
@@ -29,6 +30,7 @@ module xtb_type_calculator
    type :: tb_calculator
       type(TBasisset), allocatable :: basis
       type(scc_parameter), allocatable :: param
+      type(TxTBData), allocatable :: xtb
    end type tb_calculator
 
 end module xtb_type_calculator

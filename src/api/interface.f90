@@ -25,6 +25,9 @@ module xtb_api_interface
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_type_environment, only : TEnvironment, init
+   use xtb_xtb_data
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
 
    implicit none
 
@@ -83,6 +86,7 @@ integer(c_int) function xtb_calculation_api &
    real(c_double), intent(out), optional :: c_stress(3, 3)
 
    type(TEnvironment) :: env
+   type(TxTBData) :: xtbData
    real(wp) :: energy, sigma(3, 3), egap
    real(wp), allocatable :: gradient(:, :)
    type(scc_results) :: res
@@ -155,13 +159,15 @@ integer(c_int) function xtb_calculation_api &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
+      call initGFN1(xtbData)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case(2)
+      call initGFN2(xtbData)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case default
@@ -361,14 +367,16 @@ function gfn2_api &
    real(c_double),intent(out) :: etot
    real(c_double),intent(out) :: grad(3,natoms)
    real(c_double),intent(out) :: dipole(3)
+   type(TxTBData) :: xtbData
 
    status = load_xtb_parameters_api(2_c_int)
    if (status /= 0) return
 
    call mctc_init('peeq',10,.true.)
 
+   call initGFN2(xtbData)
    status = gfn12_calc_impl &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo,dipm,qp)
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData,etot,grad,dipole,q,wbo,dipm,qp)
 
 end function gfn2_api
 
@@ -395,19 +403,21 @@ function gfn1_api &
    real(c_double),intent(out) :: q(natoms)
    real(c_double),intent(out) :: wbo(natoms,natoms)
    real(c_double),intent(out) :: dipole(3)
+   type(TxTBData) :: xtbData
 
    status = load_xtb_parameters_api(1_c_int)
    if (status /= 0) return
 
    call mctc_init('peeq',10,.true.)
 
+   call initGFN1(xtbData)
    status = gfn12_calc_impl &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo)
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData,etot,grad,dipole,q,wbo)
 
 end function gfn1_api
 
 function gfn12_calc_impl &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,etot,grad,dipole,q,wbo,dipm,qp) &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData,etot,grad,dipole,q,wbo,dipm,qp) &
       &    result(status)
 
    use xtb_type_molecule
@@ -431,6 +441,7 @@ function gfn12_calc_impl &
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_scc_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
+   type(TxTBData), intent(in) :: xtbData
 
    integer(c_int) :: status
 
@@ -508,7 +519,7 @@ function gfn12_calc_impl &
    call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
@@ -705,20 +716,22 @@ function gfn2_pcem_api &
    real(c_double),intent(out) :: etot
    real(c_double),intent(out) :: grad(3,natoms)
    real(c_double),intent(out) :: pc_grad(3,npc)
+   type(TxTBData) :: xtbData
 
    status = load_xtb_parameters_api(2_c_int)
    if (status /= 0) return
 
    call mctc_init('peeq',10,.true.)
 
+   call initGFN2(xtbData)
    status = gfn12_pcem_impl &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad)
 
 end function gfn2_pcem_api
 
 function gfn1_pcem_api &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN1_QMMM_calculation")
 
@@ -745,20 +758,22 @@ function gfn1_pcem_api &
    real(c_double),intent(out) :: etot
    real(c_double),intent(out) :: grad(3,natoms)
    real(c_double),intent(out) :: pc_grad(3,npc)
+   type(TxTBData) :: xtbData
 
    status = load_xtb_parameters_api(1_c_int)
    if (status /= 0) return
 
    call mctc_init('peeq',10,.true.)
 
+   call initGFN1(xtbData)
    status = gfn12_pcem_impl &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad)
 
 end function gfn1_pcem_api
 
 function gfn12_pcem_impl &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status)
 
@@ -786,6 +801,7 @@ function gfn12_pcem_impl &
    real(c_double), intent(in) :: coord(3,natoms)
    type(c_scc_options), intent(in) :: opt_in
    character(kind=c_char),intent(in) :: file_in(*)
+   type(TxTBData), intent(in) :: xtbData
 
    integer(c_int), intent(in) :: npc
    real(c_double), intent(in) :: pc_q(npc)
@@ -874,7 +890,7 @@ function gfn12_pcem_impl &
    call eeq_guess_wavefunction(env, mol, wfn)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 

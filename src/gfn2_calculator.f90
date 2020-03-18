@@ -46,6 +46,9 @@ module subroutine gfn2_calculation &
    use xtb_restart
    use xtb_readparam
 
+   use xtb_xtb_data
+   use xtb_xtb_gfn2
+
    implicit none
 
    character(len=*), parameter :: source = 'calculator_gfn2'
@@ -57,6 +60,7 @@ module subroutine gfn2_calculation &
    type(scc_options),    intent(in)    :: opt
    type(TEnvironment), intent(inout)    :: env
    type(tb_pcem),        intent(inout) :: pcem
+   type(TxTBData) :: xtbData
 
    real(wp), intent(out) :: energy
    real(wp), intent(out) :: hl_gap
@@ -132,6 +136,7 @@ module subroutine gfn2_calculation &
       call gfn2_header(iunit)
       call gfn2_prparam(iunit,mol%n,mol%at,param)
    endif
+   call initGFN2(xtbData)
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none"
    if (lgbsa) then
@@ -170,7 +175,7 @@ module subroutine gfn2_calculation &
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(env,mol,wfn,basis,param,pcem,hl_gap, &
+   call scf(env,mol,wfn,basis,param,pcem,xtbData,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
 

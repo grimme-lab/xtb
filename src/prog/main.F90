@@ -70,6 +70,8 @@ module xtb_prog_main
    use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
    implicit none
    private
 
@@ -479,6 +481,7 @@ subroutine xtbMain(env, argParser)
    endif
 
    allocate(calc%param)
+   allocate(calc%xtb)
 
    select case(gfn_method)
    case default
@@ -486,9 +489,11 @@ subroutine xtbMain(env, argParser)
    case(1)
       call set_gfn1_parameter(calc%param,globpar)
       call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
+      call initGFN1(calc%xtb)
    case(2)
       call set_gfn2_parameter(calc%param,globpar)
       call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
+      call initGFN2(calc%xtb)
    case(0)
       call set_gfn0_parameter(calc%param,globpar)
       call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
