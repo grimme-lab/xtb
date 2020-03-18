@@ -24,7 +24,7 @@ module xtb_prog_info
    use xtb_io_reader, only : readMolecule
    use xtb_type_environment, only : TEnvironment
    use xtb_type_identitymap, only : TIdentityMap, init
-   use xtb_type_molecule, only : TMolecule
+   use xtb_type_molecule, only : TMolecule, len
    use xtb_type_reader, only : TReader
    use xtb_param_atomicmass, only : getAtomicMass
    use xtb_prog_argparser, only : TArgParser
@@ -105,7 +105,7 @@ subroutine xtbInfo(env, argParser)
       call reader%close
 
       !> Print an informative header for this run
-      call runHeader(env%unit, file, iRun, nRun)
+      call runHeader(env%unit, file, iRun, nRun, len(mol))
 
       call env%check(exitRun(iRun))
       if (exitRun(iRun)) then
@@ -151,7 +151,7 @@ end subroutine xtbInfo
 
 
 !> Print a header for each new run
-subroutine runHeader(unit, file, iRun, nRun)
+subroutine runHeader(unit, file, iRun, nRun, nAtom)
 
    !> IO unit
    integer, intent(in) :: unit
@@ -165,11 +165,15 @@ subroutine runHeader(unit, file, iRun, nRun)
    !> Number of total runs
    integer, intent(in) :: nRun
 
+   !> Number of atoms in this structure
+   integer, intent(in) :: nAtom
+
    if (nRun > 1) then
       write(unit, '(72("-"))')
       write(unit, '(1x, "Run:", 1x, i0, "/", i0)') iRun, nRun
    end if
-   write(unit, '(1x, "Input:", 1x, a, /)') file
+   write(unit, '(1x, "Input:", 1x, a)') file
+   write(unit, '(1x, "Number of atoms:", 1x, i0, /)') nAtom
 
 end subroutine runHeader
 
