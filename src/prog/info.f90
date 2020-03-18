@@ -137,10 +137,17 @@ subroutine xtbInfo(env, argParser)
 
    end do
 
+   if (nRun > 1) then
+      write(env%unit, '(72("~"))')
+      write(env%unit, '(1x, a, 1x, i0, 1x, a)') "Processed", nRun, "individual inputs"
+      if (count(exitRun) > 0) then
+         write(env%unit, '(1x, i0, "/", i0, 1x, a, "(", f5.1, "%)")') &
+            & count(exitRun), nRun, "inputs failed info check", &
+            & real(count(exitRun)*100, wp)/real(nRun, wp)
+      end if
+      write(env%unit, '(72("~"), /)')
+   end if
    if (any(exitRun)) then
-      write(env%unit, '(72("="))')
-      write(env%unit, '(i0, "/", i0, 1x, a, /)') count(exitRun), nRun, &
-         & "geometries failed info check"
       call terminate(1)
    else
       call terminate(0)
@@ -169,8 +176,9 @@ subroutine runHeader(unit, file, iRun, nRun, nAtom)
    integer, intent(in) :: nAtom
 
    if (nRun > 1) then
-      write(unit, '(72("-"))')
-      write(unit, '(1x, "Run:", 1x, i0, "/", i0)') iRun, nRun
+      write(unit, '(72("~"))')
+      write(unit, '(1x, "Run:", t66, i0, "/", i0)') iRun, nRun
+      write(unit, '(72("~"))')
    end if
    write(unit, '(1x, "Input:", 1x, a)') file
    write(unit, '(1x, "Number of atoms:", 1x, i0, /)') nAtom
