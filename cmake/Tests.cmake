@@ -6,6 +6,12 @@ set(TEST_CAPI_LOCATION ../xtb_tests_capi)
 add_test(EXE_Argparser_print_version ${TEST_EXE_LOCATION} --version)
 add_test(EXE_Argparser_print_help ${TEST_EXE_LOCATION} --help)
 add_test(EXE_Argparser_print_license ${TEST_EXE_LOCATION} --license)
+add_test(EXE_Info ${TEST_EXE_LOCATION} info
+   "${XTB_ROOT}/assets/inputs/coord/caffeine.coord"
+   "${XTB_ROOT}/assets/inputs/coord/quartz.3d.coord"
+   "${XTB_ROOT}/assets/inputs/vasp/ammonia.vasp"
+   "${XTB_ROOT}/assets/inputs/xyz/taxol.xyz"
+)
 add_test(EXE_Singlepoint ${TEST_EXE_LOCATION} --coffee --strict --norestart)
 add_test(EXE_IP/EA ${TEST_EXE_LOCATION} --coffee --gfn 2 --vipea --strict --norestart)
 add_test(EXE_GFN0-xTB ${TEST_EXE_LOCATION} --coffee --gfn 0 --strict --norestart)

@@ -943,17 +943,12 @@ subroutine set_runtyp(typ)
    case default ! do nothing
       call raise('E',typ//' is no valid runtyp (internal error)',1)
 
-   case('nox')
-      runtyp = p_run_nox
-   case('stda')
-      runtyp = p_run_stda
-
    case('scc')
       runtyp = p_run_scc
 
    case('grad')
       runtyp = p_run_grad
-   case('opt','optts')
+   case('opt')
       runtyp = p_run_opt
 
    case('hess')
@@ -966,17 +961,11 @@ subroutine set_runtyp(typ)
    case('omd')
       runtyp = p_run_omd
 
-   case('siman')
-      runtyp = p_run_siman
-
    case('path')
       runtyp = p_run_path
 
    case('screen')
       runtyp = p_run_screen
-
-   case('gmd')
-      runtyp = p_run_gmd
 
    case('modef')
       runtyp = p_run_modef
@@ -986,8 +975,6 @@ subroutine set_runtyp(typ)
 
    case('metaopt')
       runtyp = p_run_metaopt
-   case('reactor')
-      runtyp = p_run_reactor
 
    case('vip')
       runtyp = p_run_vip

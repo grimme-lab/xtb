@@ -31,7 +31,6 @@ srcs += files(
   'anharmlib.f90',
   'aoparam.f90',
   'approxrab.f90',
-  'argparser.F90',
   'axis_trafo.f90',
   'basic_geo.f90',
   'bfgs.f90',

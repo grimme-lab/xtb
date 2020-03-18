@@ -16,5 +16,9 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 prog += files(
-  'main.f90',
+  'argparser.f90',
+  'info.f90',
+  'main.F90',
+  'primary.f90',
+  'submodules.f90',
 )

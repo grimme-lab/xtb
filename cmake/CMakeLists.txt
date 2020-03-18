@@ -94,7 +94,7 @@ target_include_directories(xtb_shared
 )
 
 # Executables
-add_executable(xtb "${XTB_ROOT}/src/prog/main.f90")
+add_executable(xtb "${XTB_ROOT}/src/prog/primary.f90")
 target_link_libraries(xtb
  PRIVATE
   xtb_static

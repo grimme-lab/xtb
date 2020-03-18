@@ -362,8 +362,6 @@ module xtb_setparam
    integer, parameter :: p_ext_mopac     = 12
 !  integer  :: dummyint ! not used
    integer  :: runtyp = 2 ! SCC by default
-   integer, parameter :: p_run_nox    =   0
-   integer, parameter :: p_run_stda   =   1
    integer, parameter :: p_run_scc    =   2
    integer, parameter :: p_run_grad   =   3
    integer, parameter :: p_run_opt    =   4
@@ -371,14 +369,11 @@ module xtb_setparam
    integer, parameter :: p_run_ohess  =   7
    integer, parameter :: p_run_md     =   6
    integer, parameter :: p_run_omd    =   8
-   integer, parameter :: p_run_siman  =   9
    integer, parameter :: p_run_path   =  10
    integer, parameter :: p_run_screen =  11
-   integer, parameter :: p_run_gmd    =  12
    integer, parameter :: p_run_modef  =  13
    integer, parameter :: p_run_mdopt  =  14
    integer, parameter :: p_run_metaopt=  15
-   integer, parameter :: p_run_reactor=  16
    integer, parameter :: p_run_vip    = 100
    integer, parameter :: p_run_vea    = 101
    integer, parameter :: p_run_vipea  = 102
