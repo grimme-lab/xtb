@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 args=("$@")
 namespace=$(printf '%s\n' "${args[@]}" | awk 'namespace {print $0; namespace=0}; /--namespace/ {namespace=1}')
-./build_refactor/xtb "$@"
+xtb "$@"
 if [ -f "$namespace.energy" ]
 then
    energy=$(cat "$namespace.energy")
