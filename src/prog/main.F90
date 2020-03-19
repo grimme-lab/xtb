@@ -70,6 +70,7 @@ module xtb_prog_main
    use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
+   use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
    implicit none
@@ -497,6 +498,7 @@ subroutine xtbMain(env, argParser)
    case(0)
       call set_gfn0_parameter(calc%param,globpar)
       call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
+      call initGFN0(calc%xtb)
    end select
 
    !  init GBSA part
@@ -802,7 +804,7 @@ subroutine xtbMain(env, argParser)
       write(*,*)'Periodic properties'
    else
       call main_property(iprop, &
-         mol,wfn,calc%basis,calc%param,res,acc)
+         mol,wfn,calc%basis,calc%param,calc%xtb,res,acc)
       call main_cube(verbose, &
          mol,wfn,calc%basis,calc%param,res)
    endif

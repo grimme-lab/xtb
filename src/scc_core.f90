@@ -27,6 +27,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : sygvd,gemm,symm
    use xtb_type_environment, only : TEnvironment
+   use xtb_xtb_data
    implicit none
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
@@ -158,12 +159,12 @@ end subroutine build_h0_gfn2
 !! ========================================================================
 !  build GFN1 Fockian
 !! ========================================================================
-subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
+subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                          cm5,fgb,fhb,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_aoparam,  only : gam3
    use xtb_solv_gbobc, only : lgbsa
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -206,8 +207,8 @@ subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
       jj = aoat2(j)
       dum = S(j,i)
 !     third-order diagonal term, unscreened
-      t8 = q(ii)**2 * gam3(at(ii))
-      t9 = q(jj)**2 * gam3(at(jj))
+      t8 = q(ii)**2 * jData%thirdOrderAtom(at(ii))
+      t9 = q(jj)**2 * jData%thirdOrderAtom(at(jj))
       eh1 = eh1 + autoev*(t8+t9)
       H1(k) = -dum*eh1*0.5_wp
       H(j,i) = H0(k)+H1(k)
@@ -384,7 +385,7 @@ end subroutine build_h1_gfn2
 !! ========================================================================
 !  self consistent charge iterator for GFN1 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
+subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    &                at,matlist,aoat2,ao2sh, &
    &                q,qq,qlmom,qsh,zsh, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -408,6 +409,8 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
    character(len=*), parameter :: source = 'scc_gfn1'
 
    type(TEnvironment), intent(inout) :: env
+
+   type(TxTBData), intent(in) :: xtbData
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -529,7 +532,7 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  build the Fockian from current ES potential and partial charges
 !  includes GBSA contribution to Fockian
-   call build_H1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
+   call build_H1_gfn1(xtbData%coulomb,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                       cm5,fgb,fhb,aoat2,ao2sh)
 
 !! ------------------------------------------------------------------------
@@ -680,7 +683,7 @@ end subroutine scc_gfn1
 !! ========================================================================
 !  self consistent charge iterator for GFN2 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                at,matlist,mdlst,mqlst,aoat2,ao2sh, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
    &                xyz,vs,vd,vq,gab3,gab5,gscal, &
@@ -709,6 +712,8 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    character(len=*), parameter :: source = 'scc_gfn2'
 
    type(TEnvironment), intent(inout) :: env
+
+   type(TxTBData), intent(in) :: xtbData
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -932,7 +937,7 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !                w/ energy routine
 !  include 'cammcheck.inc'
 !  evaluate energy
-   call aniso_electro(n,at,xyz,q,dipm,qp,gab3,gab5,eaes,epol)
+   call aniso_electro(xtbData%multipole,n,at,xyz,q,dipm,qp,gab3,gab5,eaes,epol)
    eel=eel+eaes+epol
 ! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1804
    if (newdisp) then
@@ -1031,7 +1036,7 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    endif
    call setespot(nshell,qsh,jab,ves)
 !  compute potential intermediates
-   call setvsdq(n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
+   call setvsdq(xtbData%multipole,n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
 
 !  end of SCC convergence part
 
@@ -1350,11 +1355,11 @@ pure subroutine setespot(nshell,qsh,jab,ves)
    enddo
 end subroutine setespot
 
-pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
+pure subroutine jpot_gfn1(jData,nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    use xtb_mctc_convert
-   use xtb_aoparam
    use xtb_lin
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
    integer, intent(in) :: ash(nshell)
@@ -1370,12 +1375,12 @@ pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       do js=1,is
          jat=ash(js)
          atj=at(jat)
          k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0_wp+jData%shellHardness(1+lsh(js),atj))
          xj=2.0_wp/(1./gi+1./gj)
          if(is.eq.js)then
             jab(is,js)=xj*autoev
@@ -1390,11 +1395,11 @@ pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
 
 end subroutine jpot_gfn1
 
-pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
+pure subroutine jpot_gfn2(jData,nat,nshell,ash,lsh,at,sqrab,jab)
    use xtb_mctc_convert
-   use xtb_aoparam
    use xtb_lin
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
    integer, intent(in) :: ash(nshell)
@@ -1409,12 +1414,12 @@ pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       do js=1,is-1
          jat=ash(js)
          atj=at(jat)
          k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0_wp+jData%shellHardness(1+lsh(js),atj))
          xj=0.5_wp*(gi+gj)
          jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/xj**2)
          ! jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/(gi*gj))  ! NEWAV
@@ -1780,49 +1785,6 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
 
 end subroutine occu
 
-
-subroutine epart
-   use iso_fortran_env, only: output_unit
-   use xtb_aoparam
-   use xtb_mctc_convert, only : evtoau
-   implicit none
-   real(wp) :: h,e,p
-
-   p=0.5*gam(1)+gam3(1)/3.0_wp
-
-   h=ao_lev(1,1)*evtoau
-
-   e=h-p
-
-   write(output_unit,'(a)')
-   write(output_unit,'(''H atom         energy :'',F10.6)') h
-   write(output_unit,'(''proton   (self)energy :'',F10.6)') p
-   write(output_unit,'(''electron (self)energy :'',F10.6)') e
-   write(output_unit,'(''these values must be considered in IP/EA/PA calc.!'')')
-
-end subroutine epart
-
-subroutine eself(n,at,z)
-   use iso_fortran_env, only: output_unit
-   use xtb_aoparam
-   use xtb_mctc_convert, only : evtoau
-   implicit none
-   integer, intent(in) :: n,at(n)
-   real(wp),intent(in) :: z(n)
-
-   real(wp) :: e
-   integer  :: i,ii
-
-   e=0.0_wp
-   do i=1,n
-      ii=at(i)
-      e=e+0.5_wp*z(i)**2*gam(ii)+z(i)**3*gam3(ii)/3.0_wp
-   enddo
-
-   write(output_unit,'(''NO ELECTRONS!'')')
-   write(output_unit,'(''molecular/atomic self energy :'',F10.6)') e
-
-end subroutine eself
 
 !ccccccccccccccccccccccccccccccccccccccccccccc
 ! density matrix

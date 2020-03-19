@@ -17,6 +17,7 @@
 
 srcs += files(
   'data.f90',
+  'gfn0.f90',
   'gfn1.f90',
   'gfn2.f90',
   'repulsion.f90',

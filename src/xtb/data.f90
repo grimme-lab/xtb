@@ -22,7 +22,8 @@ module xtb_xtb_data
    private
 
    public :: TxTBData
-   public :: TRepulsionData, TCoulombData, TMultipoleData, THamiltonianData
+   public :: TRepulsionData, TCoulombData, THamiltonianData
+   public :: THalogenData, TMultipoleData
 
 
    !>
@@ -82,6 +83,9 @@ module xtb_xtb_data
       !>
       real(wp), allocatable :: shellPoly(:, :)
 
+      !>
+      real(wp), allocatable :: pairParam(:, :)
+
    end type THamiltonianData
 
 
@@ -104,6 +108,21 @@ module xtb_xtb_data
    type :: TMultipoleData
 
       !>
+      real(wp) :: cnShift
+
+      !>
+      real(wp) :: cnExp
+
+      !>
+      real(wp) :: cnRMax
+
+      !>
+      real(wp) :: dipDamp
+
+      !>
+      real(wp) :: quadDamp
+
+      !>
       real(wp), allocatable :: valenceCN(:)
 
       !>
@@ -116,6 +135,24 @@ module xtb_xtb_data
       real(wp), allocatable :: quadKernel(:)
 
    end type TMultipoleData
+
+
+   !>
+   type :: THalogenData
+
+      !>
+      real(wp) :: radScale
+
+      !>
+      real(wp) :: dampingPar
+
+      !>
+      real(wp), allocatable :: bondStrength(:)
+
+      !>
+      real(wp), allocatable :: atomicRad(:)
+
+   end type THalogenData
 
 
    !>
@@ -134,7 +171,10 @@ module xtb_xtb_data
       type(TCoulombData) :: coulomb
 
       !>
-      type(TMultipoleData) :: multipole
+      type(TMultipoleData), allocatable :: multipole
+
+      !>
+      type(THalogenData), allocatable :: halogen
 
    end type TxTBData
 

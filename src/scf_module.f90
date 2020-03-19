@@ -30,6 +30,13 @@ module xtb_scf
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
+   integer, parameter :: metal(1:86) = [&
+      & 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, &
+      &-1,-1,-1,-1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, &
+      & 1, 0, 0, 0, 0, 0]
+
 contains
 
 subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
@@ -51,14 +58,13 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 
 ! ========================================================================
 !  global storage
-   use xtb_aoparam
    use xtb_setparam
 
 ! ========================================================================
    use xtb_scc_core
 
 ! ========================================================================
-   use xtb_aespot,    only : ovlp2,sdqint,setdqlist,get_radcn,setvsdq, &
+   use xtb_aespot,    only : sdqint,setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
    use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
@@ -364,9 +370,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    endif
    ! ldep J potentials (in eV) for SCC
    if(gfn_method.eq.1)then
-      call jpot_gfn1(mol%n,basis%nshell,basis%ash,basis%lsh,mol%at,sqrab,param%alphaj,jab)
+      call jpot_gfn1(xtbData%coulomb,mol%n,basis%nshell,basis%ash,basis%lsh, &
+         & mol%at,sqrab,param%alphaj,jab)
    else !GFN2
-      call jpot_gfn2(mol%n,basis%nshell,basis%ash,basis%lsh,mol%at,sqrab,jab)
+      call jpot_gfn2(xtbData%coulomb,mol%n,basis%nshell,basis%ash,basis%lsh, &
+         & mol%at,sqrab,jab)
    endif
 
 !  J potentials including the point charge stuff
@@ -387,7 +395,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
          ati=mol%at(iat)
          dum=param%gam3l(basis%lsh(is))  ! sp or d-pol
          if ((basis%lsh(is).eq.2).and.(tmmetal(ati).ge.1)) dum=param%gam3l(3) ! d-val
-         gam3sh(is)=gam3(ati)*dum
+         gam3sh(is)=xtbData%coulomb%thirdOrderAtom(ati)*dum
       enddo
    endif
 
@@ -454,7 +462,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       &     qpint(6,basis%nao*(basis%nao+1)/2), &
       &     source = 0.0_wp)
    ! compute integrals and prescreen to set up list arrays
-   call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 
@@ -469,7 +477,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 !     set up 1/R^n * damping function terms
       ii=mol%n*(mol%n+1)/2
       allocate(gab3(ii),gab5(ii),radcn(mol%n))
-      call get_radcn(mol%n,mol%at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,radcn)
+      call get_radcn(xtbData%multipole,mol%n,mol%at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,radcn)
       call mmomgabzero(mol%n,mol%at,mol%xyz,param%xbrad,param%xbdamp,radcn,gab3,gab5) ! zero damping, xbrad=kdmp3,xbdamp=kdmp5
 !     allocate CAMM arrays
    endif
@@ -490,7 +498,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       vs=0.0_wp
       vd=0.0_wp
       vq=0.0_wp
-      call setvsdq(mol%n,mol%at,mol%xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
+      call setvsdq(xtbData%multipole,mol%n,mol%at,mol%xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
    endif
 
    if (gfn_method.gt.1) &
@@ -541,7 +549,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
             if(ishell.eq.3) kcnao(ii)=param%kcnsh(4) ! fix problems with too low-coord CP rings
          endif
       else
-         kcnao(ii)=kcnat(ishell-1,mol%at(iat))  ! clean GFN2 version
+         kcnao(ii)=xtbData%hamiltonian%kCN(ishell,mol%at(iat)) ! clean GFN2 version
       endif
    enddo
 
@@ -600,7 +608,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 ! ========================================================================
    if (profile) call timer%measure(5,"iterations")
    if (gfn_method.eq.1) then
-      call scc_gfn1(env,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
+      call scc_gfn1(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
       &             mol%at,matlist,basis%aoat2,basis%ao2sh, &
       &             wfn%q,qq,qlmom,wfn%qsh,zsh, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -613,7 +621,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       &             minpr,pr, &
       &             fail,jter)
    else
-      call scc_gfn2(env,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
+      call scc_gfn2(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh, &
       &             wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &             mol%xyz,vs,vd,vq,gab3,gab5,param%gscal, &
@@ -811,7 +819,6 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 ! ========================================================================
 !  global storage
-   use xtb_aoparam
    use xtb_setparam
 
 ! ========================================================================
@@ -924,20 +931,20 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 !     VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
 !     since moment integrals are now computed with origin at
 !     respective atoms
-      call setdvsdq(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
-      call ddqint(intcut,n,basis%nao,basis%nbf,at,xyz, &
+      call setdvsdq(xtbData%multipole,n,at,xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
+      call ddqint(xtbData%nShell,xtbData%hamiltonian,intcut,n,basis%nao,basis%nbf,at,xyz, &
          &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
          &        basis%alp,basis%cont,wfn%p,vs,vd,vq,H,g)
 
 ! WARNING: dcn is overwritten on output and now dR0A/dXC,
 !          and index i & j are flipped
-      call dradcn(n,at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,dcn)
+      call dradcn(xtbData%multipole,n,at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,dcn)
       call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,param%xbrad,param%xbdamp, &
            &          radcn,dcn,gab3,gab5,g)
 
    else
 !     wave function terms 2/overlap dependent parts of H
-      call dsint(intcut,n,basis%nao,basis%nbf,at,xyz,sqrab, &
+      call dsint(xtbData%nShell,xtbData%hamiltonian,intcut,n,basis%nao,basis%nbf,at,xyz,sqrab, &
          &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
          &        basis%alp,basis%cont,H,g)
    endif
@@ -972,10 +979,11 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 !  print'("Calculating shell es and repulsion gradient")'
    if(gfn_method.eq.1)then
-      call shelles_grad_gfn1(g,n,at,basis%nshell,xyz,sqrab, &
-         &                 basis%ash,basis%lsh,param%alphaj,wfn%qsh)
+      call shelles_grad_gfn1(g,xtbData%coulomb,n,at,basis%nshell,xyz,sqrab, &
+         & basis%ash,basis%lsh,param%alphaj,wfn%qsh)
    else ! GFN2
-      call shelles_grad_gfn2(g,n,at,basis%nshell,xyz,sqrab,basis%ash,basis%lsh,wfn%qsh)
+      call shelles_grad_gfn2(g,xtbData%coulomb,n,at,basis%nshell,xyz,sqrab, &
+         & basis%ash,basis%lsh,wfn%qsh)
    endif
 
 ! --- ES point charge embedding
@@ -1006,7 +1014,6 @@ subroutine cls_grad(mol,sqrab,xtbData, &
 
 ! ========================================================================
 !  global storage
-   use xtb_aoparam
    use xtb_setparam
 
 ! ========================================================================

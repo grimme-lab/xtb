@@ -17,6 +17,7 @@
 
 module xtb_grad_core
    use xtb_mctc_accuracy, only : wp
+   use xtb_xtb_data
 
    use xtb_mctc_la
 
@@ -338,152 +339,13 @@ subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
 
 end subroutine cm5_grad_gfn1
 
-!! ========================================================================
-!  repulsion gradient of GFN1
-!! ========================================================================
-subroutine rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
-   use xtb_aoparam, only : rep
-   implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(out)   :: ep
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(in)    :: kexp
-   real(wp),intent(in)    :: rexp
-
-   integer,external :: lin
-   integer  :: iat,jat,ati,atj
-   real(wp) :: t16,t19,t20,t22,t26,t27,t28,t39
-   real(wp) :: dum
-   real(wp) :: alpha,repab
-   real(wp) :: xa,ya,za,dx,dy,dz
-   real(wp) :: r2,rab
-
-   ep = 0.0_wp
-   do iat=1,n-1
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      do jat=iat+1,n
-         r2=sqrab(lin(jat,iat))
-         if(r2.gt.5000.0d0) cycle
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
-         rab=sqrt(r2)
-         atj=at(jat)
-         alpha=sqrt(rep(1,ati)*rep(1,atj))
-         repab=rep(2,ati)*rep(2,atj)
-         t16 = rab**kexp
-         t19 = 1/r2
-         t26 = dexp(-alpha*t16)
-         t27 = rab**rexp
-         t28 = 1/t27
-         ep  = ep + repab * t26 * t28 !energy
-         t20 = 1/r2/rab
-         t22 = 2.D0*dx
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(1,iat)=g(1,iat)+t39
-         g(1,jat)=g(1,jat)-t39
-         t22 = 2.D0*dy
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(2,iat)=g(2,iat)+t39
-         g(2,jat)=g(2,jat)-t39
-         t22 = 2.D0*dz
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(3,iat)=g(3,iat)+t39
-         g(3,jat)=g(3,jat)-t39
-      enddo
-   enddo
-
-end subroutine rep_grad_gfn1
-
-!! ========================================================================
-!  repulsion gradient of GFN2
-!! ========================================================================
-subroutine rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
-   use xtb_aoparam, only : rep
-   implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(out)   :: ep
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(in)    :: rexp
-
-   integer,external :: lin
-   integer  :: iat,jat,ati,atj
-   real(wp) :: t16,t19,t20,t22,t26,t27,t28,t39
-   real(wp) :: kexpe
-   real(wp) :: alpha,repab
-   real(wp) :: xa,ya,za,xb,yb,zb,dx,dy,dz
-   real(wp) :: r2,rab
-
-   ep = 0.0_wp
-   do iat=1,n-1
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      do jat=iat+1,n
-         r2=sqrab(lin(jat,iat))
-         if(r2.gt.5000.0d0) cycle
-         xb=xyz(1,jat)
-         yb=xyz(2,jat)
-         zb=xyz(3,jat)
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
-         rab=sqrt(r2)
-         atj=at(jat)
-         alpha=sqrt(rep(1,ati)*rep(1,atj))
-         repab=rep(2,ati)*rep(2,atj)
-         if(ati.le.2.and.atj.le.2) then
-            kexpe=1.0_wp
-            t16 = rab
-         else
-            kexpe=1.5_wp
-            t16 = rab**kexpe
-         endif
-         t19 = 1/r2
-         t26 = dexp(-alpha*t16)
-         t27 = rab**rexp
-         t28 = 1/t27
-         ep  = ep + repab * t26 * t28 !energy
-         t20 = 1/r2/rab
-         t22 = 2.D0*dx
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(1,iat)=g(1,iat)+t39
-         g(1,jat)=g(1,jat)-t39
-         t22 = 2.D0*dy
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(2,iat)=g(2,iat)+t39
-         g(2,jat)=g(2,jat)-t39
-         t22 = 2.D0*dz
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(3,iat)=g(3,iat)+t39
-         g(3,jat)=g(3,jat)-t39
-      enddo
-   enddo
-
-end subroutine rep_grad_gfn2
 
 !! ========================================================================
 !  shellwise electrostatic gradient for GFN1
 !! ========================================================================
-subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
-   use xtb_aoparam, only : lpar,gam
+subroutine shelles_grad_gfn1(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
    implicit none
+   type(TCoulombData), intent(in) :: jData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -506,7 +368,7 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0d0+jData%shellHardness(lsh(is)+1,ati))
       do js=1,nshell
          jat=ash(js)
          if(jat.le.iat) cycle
@@ -515,7 +377,7 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
          dz=za-xyz(3,jat)
          atj=at(jat)
          r2=sqrab(lin(jat,iat))
-         gj=gam(atj)*(1.0d0+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0d0+jData%shellHardness(lsh(js)+1,atj))
          rr=2.0d0/(1./gi+1./gj)
          rr=1.0d0/rr**alphaj
          ff=r2**(alphaj/2.0d0-1.0d0)* &
@@ -535,9 +397,9 @@ end subroutine shelles_grad_gfn1
 !! ========================================================================
 !  shellwise electrostatic gradient for GFN2
 !! ========================================================================
-subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
-   use xtb_aoparam, only : lpar,gam
+subroutine shelles_grad_gfn2(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
    implicit none
+   type(TCoulombData), intent(in) :: jData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -559,7 +421,7 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0d0+jData%shellHardness(1+lsh(is),ati))
       do js=1,nshell
          jat=ash(js)
          if(jat.le.iat) cycle
@@ -568,7 +430,7 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
          dz=za-xyz(3,jat)
          atj=at(jat)
          r2=sqrab(lin(jat,iat))
-         gj=gam(atj)*(1.0d0+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0d0+jData%shellHardness(1+lsh(js),atj))
          rr=0.5d0*(gi+gj)
          rr=1.0d0/rr**2
 !        rr=1.0d0/(gi*gj) !NEWAV

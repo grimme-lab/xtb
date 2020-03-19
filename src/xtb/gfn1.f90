@@ -18,6 +18,8 @@
 !> TODO
 module xtb_xtb_gfn1
    use xtb_mctc_accuracy, only : wp
+   use xtb_param_atomicrad, only : atomicRad
+   use xtb_param_paulingen, only : paulingEN
    use xtb_xtb_data
    use xtb_aoparam
    implicit none
@@ -29,11 +31,14 @@ module xtb_xtb_gfn1
    interface initGFN1
       module procedure :: initData
       module procedure :: initRepulsion
+      module procedure :: initCoulomb
+      module procedure :: initHamiltonian
+      module procedure :: initHalogen
    end interface initGFN1
 
 
    !> Maximum number of elements supported by GFN1-xTB
-   integer, parameter :: gfn1Elem = 86
+   integer, parameter :: maxElem = 86
 
 
    !>
@@ -46,7 +51,7 @@ module xtb_xtb_gfn1
    real(wp), parameter :: rExp = 1.0_wp
 
    !>
-   real(wp), parameter :: repAlpha(1:gfn1Elem) = [&
+   real(wp), parameter :: repAlpha(1:maxElem) = [&
       & 2.209700_wp, 1.382907_wp, 0.671797_wp, 0.865377_wp, 1.093544_wp, &
       & 1.281954_wp, 1.727773_wp, 2.004253_wp, 2.507078_wp, 3.038727_wp, &
       & 0.704472_wp, 0.862629_wp, 0.929219_wp, 0.948165_wp, 1.067197_wp, &
@@ -67,7 +72,7 @@ module xtb_xtb_gfn1
       & 0.998641_wp]
 
    !>
-   real(wp), parameter :: repZeff(1:gfn1Elem) = [&
+   real(wp), parameter :: repZeff(1:maxElem) = [&
       &  1.116244_wp,  0.440231_wp,  2.747587_wp,  4.076830_wp,  4.458376_wp, &
       &  4.428763_wp,  5.498808_wp,  5.171786_wp,  6.931741_wp,  9.102523_wp, &
       & 10.591259_wp, 15.238107_wp, 16.283595_wp, 16.898359_wp, 15.249559_wp, &
@@ -87,6 +92,51 @@ module xtb_xtb_gfn1
       & 81.000000_wp, 79.578302_wp, 83.000000_wp, 84.000000_wp, 85.000000_wp, &
       & 86.000000_wp]
 
+   !>
+   real(wp), parameter :: chemicalHardness(1:maxElem) = [&
+      & 0.470099_wp, 1.441379_wp, 0.205342_wp, 0.274022_wp, 0.340530_wp, &
+      & 0.479988_wp, 0.476106_wp, 0.583349_wp, 0.788194_wp, 0.612878_wp, &
+      & 0.165908_wp, 0.354151_wp, 0.221658_wp, 0.438331_wp, 0.798319_wp, &
+      & 0.643959_wp, 0.519712_wp, 0.529906_wp, 0.114358_wp, 0.134187_wp, &
+      & 0.778545_wp, 1.044998_wp, 0.985157_wp, 0.468100_wp, 0.609868_wp, &
+      & 0.900000_wp, 0.426680_wp, 0.367019_wp, 0.260192_wp, 0.209459_wp, &
+      & 0.193302_wp, 0.800000_wp, 0.732367_wp, 0.714534_wp, 0.732530_wp, &
+      & 0.820312_wp, 0.075735_wp, 0.122861_wp, 0.351290_wp, 0.168219_wp, &
+      & 0.175875_wp, 0.384677_wp, 0.405474_wp, 0.305394_wp, 0.293973_wp, &
+      & 0.280766_wp, 0.472978_wp, 0.130828_wp, 0.132120_wp, 0.480655_wp, &
+      & 0.564406_wp, 0.400301_wp, 0.520472_wp, 0.935394_wp, 0.085110_wp, &
+      & 0.137819_wp, 0.495969_wp, 0.350000_wp, 0.342306_wp, 0.334612_wp, &
+      & 0.326917_wp, 0.319223_wp, 0.311529_wp, 0.303835_wp, 0.296140_wp, &
+      & 0.288446_wp, 0.280752_wp, 0.273058_wp, 0.265364_wp, 0.257669_wp, &
+      & 0.249975_wp, 0.269977_wp, 0.239696_wp, 0.243663_wp, 0.362512_wp, &
+      & 0.354318_wp, 0.290898_wp, 0.370447_wp, 0.496380_wp, 0.334997_wp, &
+      & 0.671316_wp, 1.000000_wp, 0.944879_wp, 1.091248_wp, 1.264162_wp, &
+      & 0.798170_wp]
+
+   !>
+   logical, parameter :: thirdOrderShellResolved = .false.
+
+   !>
+   real(wp), parameter :: thirdOrderAtom(1:maxElem) = [&
+      & 0.000000_wp, 1.500000_wp, 1.027370_wp, 0.900554_wp, 1.300000_wp, &
+      & 1.053856_wp, 0.042507_wp,-0.005102_wp, 1.615037_wp, 1.600000_wp, &
+      & 1.200000_wp, 1.100000_wp, 1.200000_wp, 1.500000_wp, 1.500000_wp, &
+      & 1.500000_wp, 1.000000_wp, 0.829312_wp, 0.732923_wp, 1.116963_wp, &
+      & 1.000000_wp, 0.739203_wp, 0.800000_wp, 0.800000_wp, 0.300000_wp, &
+      & 0.500000_wp, 0.300000_wp, 1.000000_wp, 0.237602_wp, 1.400000_wp, &
+      & 1.400000_wp, 1.400000_wp, 1.300000_wp, 1.300000_wp,-0.500000_wp, &
+      & 1.000000_wp, 1.500000_wp, 1.300000_wp, 1.400000_wp, 0.581478_wp, &
+      & 0.280147_wp, 0.041052_wp, 0.500000_wp, 0.001205_wp, 0.622690_wp, &
+      & 0.500000_wp,-0.445675_wp, 1.362587_wp, 1.063557_wp,-0.321283_wp, &
+      &-0.341503_wp, 0.894388_wp,-0.500000_wp,-0.800000_wp, 1.500000_wp, &
+      & 1.500000_wp, 1.500000_wp, 1.200000_wp, 1.200000_wp, 1.200000_wp, &
+      & 1.200000_wp, 1.200000_wp, 1.200000_wp, 1.200000_wp, 1.200000_wp, &
+      & 1.200000_wp, 1.200000_wp, 1.200000_wp, 1.200000_wp, 1.200000_wp, &
+      & 1.200000_wp, 0.847011_wp, 0.064592_wp,-0.014599_wp, 0.300000_wp, &
+      &-0.170295_wp, 0.965726_wp, 1.092759_wp, 0.123512_wp,-0.267745_wp, &
+      & 0.936157_wp, 1.500000_wp, 0.877488_wp,-0.035874_wp,-0.860502_wp, &
+      &-0.838429_wp] * 0.1_wp
+
 
 contains
 
@@ -96,7 +146,13 @@ subroutine initData(self)
    !>
    type(TxTBData), intent(out) :: self
 
+   self%nShell = ao_n(:maxElem)
+
    call initGFN1(self%repulsion)
+   call initGFN1(self%coulomb, self%nShell)
+   call initGFN1(self%hamiltonian, self%nShell)
+   allocate(self%halogen)
+   call initGFN1(self%halogen)
 
 end subroutine initData
 
@@ -110,10 +166,56 @@ subroutine initRepulsion(self)
    self%kExp = kExp
    self%kExpLight = kExpLight
    self%rExp = rExp
-   self%alpha = rep(1, :gfn1Elem) ! repAlpha
-   self%zeff = rep(2, :gfn1Elem) ! repZeff
+   self%alpha = rep(1, :maxElem) ! repAlpha
+   self%zeff = rep(2, :maxElem) ! repZeff
 
 end subroutine initRepulsion
+
+
+subroutine initCoulomb(self, nShell)
+
+   !>
+   type(TCoulombData), intent(out) :: self
+
+   !>
+   integer, intent(in) :: nShell(:)
+
+   self%chemicalHardness = gam(:maxElem) ! chemcialHardness
+   self%thirdOrderAtom = gam3(:maxElem) ! thirdOrderAtom
+   self%shellHardness = lpar(0:2, :maxElem)
+
+end subroutine initCoulomb
+
+
+subroutine initHamiltonian(self, nShell)
+
+   !>
+   type(THamiltonianData), intent(out) :: self
+
+   !>
+   integer, intent(in) :: nShell(:)
+
+   integer :: mShell
+
+   mShell = maxval(nShell)
+   self%angShell = ao_l(:mShell, :maxElem)
+
+   self%electronegativity = paulingEN(:maxElem)
+   self%atomicRad = atomicRad(:maxElem)
+   self%shellPoly = polyr(:, :maxElem)
+   self%pairParam = kpair(:maxElem, :maxElem)
+
+end subroutine initHamiltonian
+
+
+subroutine initHalogen(self)
+
+   !>
+   type(THalogenData), intent(out) :: self
+
+   self%atomicRad = atomicRad(:maxElem)
+
+end subroutine initHalogen
 
 
 end module xtb_xtb_gfn1

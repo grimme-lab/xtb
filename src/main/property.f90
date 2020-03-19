@@ -46,7 +46,7 @@ subroutine write_energy(iunit,sccres,frqres,hess)
 end subroutine write_energy
 
 subroutine main_property &
-      (iunit,mol,wfx,basis,xpar,res,acc)
+      (iunit,mol,wfx,basis,xpar,xtbData,res,acc)
 
    use xtb_mctc_convert
 
@@ -57,6 +57,7 @@ subroutine main_property &
    use xtb_type_basisset
    use xtb_type_data
    use xtb_type_param
+   use xtb_xtb_data
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
@@ -74,6 +75,7 @@ subroutine main_property &
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
 !  molecule data
    type(TMolecule), intent(in) :: mol
+   type(TxTBData), intent(in) :: xtbData
    real(wp),intent(in) :: acc      ! accuracy of integral calculation
    type(TWavefunction),intent(inout) :: wfx
    type(TBasisset),    intent(in) :: basis
@@ -100,7 +102,8 @@ subroutine main_property &
    neglect =10.0d-9*acc
    ndim = basis%nao*(basis%nao+1)/2
    allocate(S(basis%nao,basis%nao), dpint(3,ndim), qpint(6,ndim), source = 0.0_wp )
-   call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at, &
+      &        basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 

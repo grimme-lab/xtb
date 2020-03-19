@@ -22,7 +22,7 @@ module xtb_param_paulingen
    implicit none
    private
 
-   public :: getPaulingEN
+   public :: getPaulingEN, paulingEN
 
 
    !> Get electronegativity for a species
