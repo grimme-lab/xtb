@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+args=("$@")
+namespace=$(printf '%s\n' "${args[@]}" | awk 'namespace {print $0; namespace=0}; /--namespace/ {namespace=1}')
+xtb "$@"
+if [ -f "$namespace.energy" ]
+then
+   energy=$(cat "$namespace.energy")
+   echo "$energy" | awk 'BEGIN {print "$energy"}; END {print "$end"}; NF == 2 {print $1, $2, $2, $2}; NF == 4 {print $0}' > "$namespace.energy"
+fi

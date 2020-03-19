@@ -115,7 +115,7 @@ subroutine writeEnergyTurbomole(unit, energy)
    integer, intent(in) :: unit
    real(wp), intent(in) :: energy
    write(unit, '("$energy")')
-   write(unit, '(i6,F18.11)') 1, energy
+   write(unit, '(i6,3F18.11)') 1, spread(energy, 1, 3)
 end subroutine writeEnergyTurbomole
 
 
