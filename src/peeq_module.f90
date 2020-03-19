@@ -25,7 +25,11 @@ module xtb_peeq
 use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_la
+   use xtb_xtb_data
    implicit none
+   private
+
+   public :: peeq
 
    !> print the different gradient contributions (for debugging)
    logical,parameter,private :: gpr =.false.
@@ -68,7 +72,7 @@ use xtb_mctc_accuracy, only : wp
 contains
 
 subroutine peeq &
-      (env,mol,wfn,basis,param,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
+      (env,mol,wfn,basis,param,xtbData,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
@@ -109,6 +113,7 @@ subroutine peeq &
    type(TEnvironment), intent(inout)    :: env
    type(TMolecule),  intent(in) :: mol     !< molecular structure infomation
    type(TBasisset),  intent(in) :: basis   !< basis set
+   type(TxTBData), intent(in) :: xtbData
    type(scc_parameter),intent(in) :: param   !< method parameters
    real(wp),intent(in)            :: et      !< electronic temperature
    integer, intent(in)            :: prlevel !< amount of printout
@@ -304,7 +309,7 @@ subroutine peeq &
 ! ---------------------------------------
 !  Fill levels
 ! ---------------------------------------
-   call setzshell(mol%n,mol%at,nshell,mol%z,zsh,eatoms,0)
+   call setzshell(xtbData,mol%n,mol%at,nshell,mol%z,zsh,eatoms,0)
    if(wfn%nel.ne.0) then
       call occu(nao,wfn%nel,wfn%nopen,wfn%ihomoa,wfn%ihomob,wfn%focca,wfn%foccb)
       wfn%focc = wfn%focca + wfn%foccb

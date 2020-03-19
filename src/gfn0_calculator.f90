@@ -41,6 +41,9 @@ module subroutine gfn0_calculation &
    use xtb_solv_gbobc
    use xtb_readparam
 
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+
    implicit none
 
    character(len=*), parameter :: source = 'calculator_gfn0'
@@ -65,6 +68,7 @@ module subroutine gfn0_calculation &
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(TxTBData) :: xtbData
 
    character(len=*),parameter :: outfmt = &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
@@ -133,6 +137,7 @@ module subroutine gfn0_calculation &
       call gfn0_header(iunit)
       call gfn0_prparam(iunit,mol%n,mol%at,param)
    endif
+   call initGFN0(xtbData)
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none" &
       &    .and. mol%npbc == 0 ! GBSA is not yet periodic
@@ -144,8 +149,8 @@ module subroutine gfn0_calculation &
    !  STEP 3: expand our Slater basis set in contracted Gaussians
    ! ====================================================================
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+   call xbasis0(xtbData,mol%n,mol%at,basis)
+   call xbasis_gfn0(xtbData,mol%n,mol%at,basis,okbas,diff)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
@@ -159,7 +164,7 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
    call env%check(exitRun)
    if (exitRun) then

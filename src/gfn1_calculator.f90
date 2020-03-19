@@ -147,8 +147,8 @@ module subroutine gfn1_calculation &
    !  STEP 3: expand our Slater basis set in contracted Gaussians
    ! ====================================================================
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn1(mol%n,mol%at,basis,okbas,diff)
+   call xbasis0(xtbData,mol%n,mol%at,basis)
+   call xbasis_gfn1(xtbData,mol%n,mol%at,basis,okbas,diff)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
@@ -167,7 +167,7 @@ module subroutine gfn1_calculation &
       call env%error("EEQ quess failed", source)
    end if
 
-   call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(xtbData,mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
    if (opt%restart) &
       call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)

@@ -21,6 +21,9 @@ subroutine test_peeq_sp
    use xtb_peeq
    use xtb_readparam
 
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+
    implicit none
 
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -50,6 +53,7 @@ subroutine test_peeq_sp
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(TxTBData) :: xtbData
 
    real(wp)              :: energy
    real(wp)              :: hl_gap
@@ -101,9 +105,10 @@ subroutine test_peeq_sp
    endif
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)
    call gfn0_prparam(stdout,mol%n,mol%at,param)
+   call initGFN0(xtbData)
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+   call xbasis0(xtbData,mol%n,mol%at,basis)
+   call xbasis_gfn0(xtbData,mol%n,mol%at,basis,okbas,diff)
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%nel = idint(sum(mol%z)) - mol%chrg
@@ -112,7 +117,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
@@ -136,7 +141,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)

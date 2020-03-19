@@ -69,8 +69,8 @@ subroutine test_gfn1_scc
    call set_gfn1_parameter(param,globpar,mol%n,mol%at)
    call initGFN1(xtbData)
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn1(mol%n,mol%at,basis,okbas,diff)
+   call xbasis0(xtbData,mol%n,mol%at,basis)
+   call xbasis_gfn1(xtbData,mol%n,mol%at,basis,okbas,diff)
    call assert(okbas)
 
    call assert_eq(basis%nshell,6)
@@ -80,7 +80,7 @@ subroutine test_gfn1_scc
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%q = mol%chrg/real(mol%n,wp)
 
-   call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(xtbData,mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
    g = 0.0_wp
 

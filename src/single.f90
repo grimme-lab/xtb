@@ -120,7 +120,7 @@ subroutine singlepoint &
 
    case(p_ext_eht)
       call peeq &
-         & (env,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
+         & (env,mol,wfn,calc%basis,calc%param,calc%xtb,egap,et,prlevel, &
          &  lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)

@@ -136,6 +136,7 @@ srcs += files(
   'shake_module.f90',
   'shiftlp.f90',
   'single.f90',
+  'slater.f90',
   'sphereparam.f90',
   'spline2.f90',
   'spline3.f90',

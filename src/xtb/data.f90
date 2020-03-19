@@ -72,6 +72,9 @@ module xtb_xtb_data
       real(wp), allocatable :: selfEnergy(:, :)
 
       !>
+      real(wp), allocatable :: referenceOcc(:, :)
+
+      !>
       real(wp), allocatable :: kCN(:, :)
 
       !>

@@ -512,16 +512,16 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> set up the basis set for the tb-Hamiltonian
    allocate(calc%basis)
-   call xbasis0(mol%n,mol%at,calc%basis)
+   call xbasis0(calc%xtb,mol%n,mol%at,calc%basis)
    select case(gfn_method)
    case default
       call env%terminate('Internal error, wrong GFN method passed!')
    case(p_method_gfn1xtb)
-      call xbasis_gfn1(mol%n,mol%at,calc%basis,okbas,diff)
+      call xbasis_gfn1(calc%xtb,mol%n,mol%at,calc%basis,okbas,diff)
    case(p_method_gfn2xtb)
-      call xbasis_gfn2(mol%n,mol%at,calc%basis,okbas)
+      call xbasis_gfn2(calc%xtb,mol%n,mol%at,calc%basis,okbas)
    case(p_method_gfn0xtb)
-      call xbasis_gfn0(mol%n,mol%at,calc%basis,okbas,diff)
+      call xbasis_gfn0(calc%xtb,mol%n,mol%at,calc%basis,okbas,diff)
    end select
    if (.not.okbas) call env%terminate('basis set could not be setup completely')
 
@@ -547,7 +547,7 @@ subroutine xtbMain(env, argParser)
       wfn%q = real(chrg,wp)/real(mol%n,wp)
    endif
    !> initialize shell charges from gasteiger charges
-   call iniqshell(mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(calc%xtb,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
 
    ! ------------------------------------------------------------------------

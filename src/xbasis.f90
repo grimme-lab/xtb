@@ -18,14 +18,17 @@
 module xtb_basis
    use xtb_mctc_accuracy, only : wp
    use xtb_type_environment, only : TEnvironment
+   use xtb_xtb_data
+   use xtb_slater
    implicit none
 
 contains
 
-subroutine xbasis_gfn1(n,at,basis,ok,diff)
+subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
    use xtb_type_basisset
    use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    type(TBasisset),intent(inout) :: basis
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -52,14 +55,15 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
       basis%shells(1,iat)=ish+1
       basis%fila  (1,iat)=ibf+1
       basis%fila2 (1,iat)=iao+1
-      shells: do m=1,ao_n(ati)
+      shells: do m=1,xtbData%nShell(ati)
          ish = ish+1
          ! principle QN
-         npq=ao_pqn(m,ati)
-         l=ao_l(m,ati)
+         npq=xtbData%hamiltonian%principalQuantumNumber(m,ati)
+         l=xtbData%hamiltonian%angShell(m,ati)
 
-         level = ao_lev(m,ati)
-         zeta  = ao_exp(m,ati)
+         level = xtbData%hamiltonian%selfEnergy(m,ati)
+         zeta  = xtbData%hamiltonian%slaterExponent(m,ati)
+         valao = xtbData%hamiltonian%valenceShell(m,ati)
 
          basis%lsh(ish) = l
          if (l.eq.11) basis%lsh(ish) = 0
@@ -72,12 +76,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
          ! add new shellwise information, for easier reference
          basis%level(ish) = level
          basis%zeta (ish) = zeta
-
-         if (ao_typ(m,ati).eq.-1) then
-            valao = -1
-         else
-            valao = 1
-         endif
+         basis%valsh(ish) = valao
 
          ! H-He
          if(l.eq.0.and.ati.le.2.and.npq.eq.1)then
@@ -87,7 +86,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 
             ibf =ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 1
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = nprim
@@ -100,7 +99,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 1
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -116,7 +115,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 
             ibf =ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 0
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = thisprimR+nprim
@@ -141,7 +140,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 0
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -158,7 +157,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                basis%primcount(ibf) = ipr
                basis%aoat     (ibf) = iat
                basis%lao      (ibf) = j
-               basis%valao    (ibf) = -1
+               basis%valao    (ibf) = -valao
                basis%nprim    (ibf) = nprim
                basis%hdiag    (ibf) = level
 
@@ -169,7 +168,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                enddo
 
                iao = iao+1
-               basis%valao2(iao) = -1
+               basis%valao2(iao) = -valao
                basis%aoat2 (iao) = iat
                basis%lao2  (iao) = j
                basis%hdiag2(iao) = level
@@ -186,7 +185,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 
             ibf=ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 1
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = nprim
@@ -199,7 +198,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 1
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -213,7 +212,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             do j=2,4
                ibf=ibf+1
                basis%primcount(ibf) = ipr
-               basis%valao    (ibf) = 1
+               basis%valao    (ibf) = valao
                basis%aoat     (ibf) = iat
                basis%lao      (ibf) = j
                basis%nprim    (ibf) = nprim
@@ -226,7 +225,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
                enddo
 
                iao = iao+1
-               basis%valao2(iao) = 1
+               basis%valao2(iao) = valao
                basis%aoat2 (iao) = iat
                basis%lao2  (iao) = j
                basis%hdiag2(iao) = level
@@ -247,7 +246,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 
             ibf=ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 0
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = thisprimR+nprim
@@ -272,7 +271,7 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 0
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -291,8 +290,6 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
             call set_f_function(basis,iat,ish,iao,ibf,ipr, &
                &                npq,l,4,zeta,level,1)
          endif
-
-         basis%valsh(ish) = basis%valao2(iao)
 
          basis%sh2bf(2,ish) = ibf-basis%sh2bf(1,ish)
          basis%sh2ao(2,ish) = iao-basis%sh2ao(1,ish)
@@ -329,18 +326,19 @@ subroutine xbasis_gfn1(n,at,basis,ok,diff)
 
    do iat=1,n
       ati = at(iat)
-      do j=1,ao_n(ati)
-         l = ao_l(j,ati)
+      do j=1,xtbData%nShell(ati)
+         l = xtbData%hamiltonian%angShell(j,ati)
          if(l.eq.11)ao_l(j,ati)=0
       enddo
    enddo
 
 end subroutine xbasis_gfn1
 
-subroutine xbasis_gfn2(n,at,basis,ok)
+subroutine xbasis_gfn2(xtbData,n,at,basis,ok)
    use xtb_type_basisset
    use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    type(TBasisset),intent(inout) :: basis
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -367,14 +365,15 @@ subroutine xbasis_gfn2(n,at,basis,ok)
       basis%shells(1,iat)=ish+1
       basis%fila  (1,iat)=ibf+1
       basis%fila2 (1,iat)=iao+1
-      shells: do m=1,ao_n(ati)
+      shells: do m=1,xtbData%nShell(ati)
          ish = ish+1
          ! principle QN
-         npq=ao_pqn(m,ati)
-         l=ao_l(m,ati)
+         npq=xtbData%hamiltonian%principalQuantumNumber(m,ati)
+         l=xtbData%hamiltonian%angShell(m,ati)
 
-         level = ao_lev(m,ati)
-         zeta  = ao_exp(m,ati)
+         level = xtbData%hamiltonian%selfEnergy(m,ati)
+         zeta  = xtbData%hamiltonian%slaterExponent(m,ati)
+         valao = xtbData%hamiltonian%valenceShell(m,ati)
 
          basis%lsh(ish) = l
          if (l.eq.11) basis%lsh(ish) = 0
@@ -387,12 +386,7 @@ subroutine xbasis_gfn2(n,at,basis,ok)
          ! add new shellwise information, for easier reference
          basis%level(ish) = level
          basis%zeta (ish) = zeta
-
-         if (ao_typ(m,ati).eq.-1) then
-            valao = -1
-         else
-            valao = 1
-         endif
+         basis%valsh(ish) = valao
 
          ! H-He
          if(l.eq.0.and.ati.le.2.and.npq.eq.1)then
@@ -426,8 +420,6 @@ subroutine xbasis_gfn2(n,at,basis,ok)
             call set_f_function(basis,iat,ish,iao,ibf,ipr, &
                &                npq,l,4,zeta,level,valao)
          endif
-
-         basis%valsh(ish) = basis%valao2(iao)
 
          basis%sh2bf(2,ish) = ibf-basis%sh2bf(1,ish)
          basis%sh2ao(2,ish) = iao-basis%sh2ao(1,ish)
@@ -463,10 +455,11 @@ end subroutine xbasis_gfn2
 
 ! ========================================================================
 !> determine basisset limits
-subroutine xbasis0(n,at,basis)
+subroutine xbasis0(xtbData,n,at,basis)
    use xtb_type_basisset
    use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    type(TBasisset),intent(inout) :: basis
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
@@ -476,16 +469,17 @@ subroutine xbasis0(n,at,basis)
 
    integer i,j,k,l
 
-   call dim_basis(n,at,nshell,nao,nbf)
+   call dim_basis(xtbData,n,at,nshell,nao,nbf)
 
    call basis%allocate(n,nbf,nao,nshell)
 
 end subroutine xbasis0
 
-subroutine dim_basis(n,at,nshell,nao,nbf)
+subroutine dim_basis(xtbData,n,at,nshell,nao,nbf)
    use xtb_type_basisset
    use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
    integer,intent(out) :: nshell
@@ -500,8 +494,8 @@ subroutine dim_basis(n,at,nshell,nao,nbf)
 
    do i=1,n
       k=0
-      do j=1,ao_n(at(i))
-         l = ao_l(j,at(i))
+      do j=1,xtbData%nShell(at(i))
+         l = xtbData%hamiltonian%angShell(j,at(i))
          k = k + 1
          nshell=nshell+1
          select case(l)
@@ -533,10 +527,11 @@ subroutine dim_basis(n,at,nshell,nao,nbf)
 
 end subroutine dim_basis
 
-subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
+subroutine xbasis_gfn0(xtbData,n,at,basis,ok,diff)    !ppracht 10/2018
    use xtb_type_basisset
    use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    type(TBasisset),intent(inout) :: basis
 
    integer elem,n
@@ -564,14 +559,15 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
       basis%shells(1,iat)=ish+1
       basis%fila  (1,iat)=ibf+1
       basis%fila2 (1,iat)=iao+1
-      shells: do m=1,ao_n(ati)
+      shells: do m=1,xtbData%nShell(ati)
          ish = ish+1
          ! principle QN
-         npq=ao_pqn(m,ati)
-         l=ao_l(m,ati)
+         npq=xtbData%hamiltonian%principalQuantumNumber(m,ati)
+         l=xtbData%hamiltonian%angShell(m,ati)
 
-         level = ao_lev(m,ati)
-         zeta  = ao_exp(m,ati)
+         level = xtbData%hamiltonian%selfEnergy(m,ati)
+         zeta  = xtbData%hamiltonian%slaterExponent(m,ati)
+         valao = xtbData%hamiltonian%valenceShell(m,ati)
 
          basis%lsh(ish) = l
          if (l.eq.11) basis%lsh(ish) = 0
@@ -584,12 +580,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
          ! add new shellwise information, for easier reference
          basis%level(ish) = level
          basis%zeta (ish) = zeta
-
-         if (ao_typ(m,ati).eq.-1) then
-            valao = -1
-         else
-            valao = 1
-         endif
+         basis%valsh(ish) = valao
 
          ! H-He
          if(l.eq.0.and.ati.le.2.and.npq.eq.1)then
@@ -599,7 +590,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 
             ibf =ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 1
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = nprim
@@ -612,7 +603,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 1
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -627,7 +618,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             basis%minalp(ish) = min(minval(a(:nprim)),minval(aR(:thisprimR)))
             ibf =ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 0
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = thisprimR+nprim
@@ -652,7 +643,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 0
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -678,7 +669,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 
             ibf=ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 1
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = nprim
@@ -691,7 +682,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 1
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -721,7 +712,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 
             ibf=ibf+1
             basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = 0
+            basis%valao    (ibf) = valao
             basis%aoat     (ibf) = iat
             basis%lao      (ibf) = 1
             basis%nprim    (ibf) = thisprimR+nprim
@@ -746,7 +737,7 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             enddo
 
             iao = iao+1
-            basis%valao2(iao) = 0
+            basis%valao2(iao) = valao
             basis%aoat2 (iao) = iat
             basis%lao2  (iao) = 1
             basis%hdiag2(iao) = level
@@ -765,8 +756,6 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
             call set_f_function(basis,iat,ish,iao,ibf,ipr, &
                &                npq,l,4,zeta,level,1)
          endif
-
-         basis%valsh(ish) = basis%valao2(iao)
 
          basis%sh2bf(2,ish) = ibf-basis%sh2bf(1,ish)
          basis%sh2ao(2,ish) = iao-basis%sh2ao(1,ish)
@@ -801,8 +790,8 @@ subroutine xbasis_gfn0(n,at,basis,ok,diff)    !ppracht 10/2018
 
    do iat=1,n
       ati = at(iat)
-      do j=1,ao_n(ati)
-         l = ao_l(j,ati)
+      do j=1,xtbData%nShell(ati)
+         l = xtbData%hamiltonian%angShell(j,ati)
          if(l.eq.11)ao_l(j,ati)=0
       enddo
    enddo
@@ -858,8 +847,9 @@ subroutine set_s_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
    real(wp),intent(in)    :: level
    integer  :: p
    real(wp) :: alp(10),cont(10)
+   integer :: info
 
-   call expand_sto(nprim,npq,l,zeta,alp,cont)
+   call slaterToGauss(nprim, npq, l, zeta, alp, cont, .true., info)
    basis%minalp(ish) = minval(alp(:nprim))
 
    ibf = ibf+1
@@ -902,8 +892,9 @@ subroutine set_p_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
    real(wp),intent(in)    :: level
    integer  :: j,p
    real(wp) :: alp(10),cont(10)
+   integer :: info
 
-   call expand_sto(nprim,npq,l,zeta,alp,cont)
+   call slaterToGauss(nprim, npq, l, zeta, alp, cont, .true., info)
    basis%minalp(ish) = minval(alp(:nprim))
 
    do j = 2, 4
@@ -952,8 +943,9 @@ subroutine set_d_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
    real(wp) :: alp(10),cont(10)
    real(wp) :: trafo(5:10) = &
       & [1.0_wp, 1.0_wp, 1.0_wp, sqrt(3.0_wp), sqrt(3.0_wp), sqrt(3.0_wp)]
+   integer :: info
 
-   call expand_sto(nprim,npq,l,zeta,alp,cont)
+   call slaterToGauss(nprim, npq, l, zeta, alp, cont, .true., info)
    basis%minalp(ish) = minval(alp(:nprim))
 
    do j = 5, 10
@@ -1005,8 +997,9 @@ subroutine set_f_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
    real(wp) :: trafo(11:20) = &
       & [1.0_wp, 1.0_wp, 1.0_wp, sqrt(5.0_wp), sqrt(5.0_wp), &
       &  sqrt(5.0_wp), sqrt(5.0_wp), sqrt(5.0_wp), sqrt(5.0_wp), sqrt(15.0_wp)]
+   integer :: info
 
-   call expand_sto(nprim,npq,l,zeta,alp,cont)
+   call slaterToGauss(nprim, npq, l, zeta, alp, cont, .true., info)
    basis%minalp(ish) = minval(alp(:nprim))
 
    do j = 11, 20
@@ -1038,23 +1031,5 @@ subroutine set_f_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
    enddo
 end subroutine set_f_function
 
-subroutine expand_sto(nprim,npq,l,zeta,alp,cont)
-   implicit none
-   integer, intent(in)  :: nprim
-   integer, intent(in)  :: npq
-   integer, intent(in)  :: l
-   real(wp),intent(in)  :: zeta
-   real(wp),intent(out) :: alp(10)
-   real(wp),intent(out) :: cont(10)
-   integer  :: dum
-
-   select case(nprim)
-   case(2); call setsto2(dum,npq,l+1,zeta,alp,cont)
-   case(3); call setsto3(dum,npq,l+1,zeta,alp,cont)
-   case(4); call setsto4(dum,npq,l+1,zeta,alp,cont)
-   case(6); call setsto6(dum,npq,l+1,zeta,alp,cont)
-   end select
-
-end subroutine expand_sto
 
 end module xtb_basis

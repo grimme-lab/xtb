@@ -264,6 +264,8 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 !ccccccccccccccccccc
 ! note: H is in eV!
 !ccccccccccccccccccc
+   !> update atomic Mulliken charges
+   call qsh2qat(basis%ash,wfn%qsh,wfn%q)
 
 !  # atom arrays
    allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2),dcn(3,mol%n,mol%n),cn(mol%n))
@@ -302,7 +304,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    &        matlist (2,basis%nao*(basis%nao+1)/2), &
    &        matlist2(2,basis%nao*(basis%nao+1)/2-basis%nao))
 
-   call setzshell(mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,gfn_method)
+   call setzshell(xtbData,mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,gfn_method)
 
    ! fill levels
    if(wfn%nel.ne.0) then
@@ -588,7 +590,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 
    ! first order energy for given geom. and density, i.e. skip SCC and grad
    if(maxiter.eq.0) then
-      call qsh2qat(mol%n,mol%at,basis%nshell,wfn%qsh,wfn%q)
+      call qsh2qat(basis%ash,wfn%qsh,wfn%q)
       if(gfn_method.gt.1) then
          call electro2(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P, &
          &             wfn%q,gam3sh,wfn%qsh,param%gscal,ees,eel)
@@ -609,7 +611,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    if (profile) call timer%measure(5,"iterations")
    if (gfn_method.eq.1) then
       call scc_gfn1(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
-      &             mol%at,matlist,basis%aoat2,basis%ao2sh, &
+      &             mol%at,matlist,basis%aoat2,basis%ao2sh,basis%ash, &
       &             wfn%q,qq,qlmom,wfn%qsh,zsh, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
       &             broy,broydamp,damp0, &
@@ -622,7 +624,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       &             fail,jter)
    else
       call scc_gfn2(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
-      &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh, &
+      &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &             wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &             mol%xyz,vs,vd,vq,gab3,gab5,param%gscal, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &

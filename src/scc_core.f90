@@ -386,7 +386,7 @@ end subroutine build_h1_gfn2
 !  self consistent charge iterator for GFN1 Hamiltonian
 !! ========================================================================
 subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
-   &                at,matlist,aoat2,ao2sh, &
+   &                at,matlist,aoat2,ao2sh,ash, &
    &                q,qq,qlmom,qsh,zsh, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
    &                broy,broydamp,damp0, &
@@ -398,8 +398,6 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
-
-   use xtb_aoparam,  only : gam3
 
    use xtb_solv_gbobc, only : lgbsa,lhb,TSolvent
    use xtb_embedding, only : electro_pcem
@@ -433,6 +431,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    integer, intent(in)  :: matlist(2,nmat)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
+   integer, intent(in)  :: ash(:)
 !! ------------------------------------------------------------------------
 !  a bunch of charges
    real(wp),intent(inout) :: q(n)
@@ -590,7 +589,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    qsh = zsh - qsh
 
 !  qat from qsh
-   call qsh2qat(n,at,nshell,qsh,q)
+   call qsh2qat(ash,qsh,q)
 
    eold=eel
    call electro(n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
@@ -650,7 +649,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(n,at,nshell,qsh,q) !new qat
+   call qsh2qat(ash,qsh,q) !new qat
 
    if(minpr) write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &         iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
@@ -684,7 +683,7 @@ end subroutine scc_gfn1
 !  self consistent charge iterator for GFN2 Hamiltonian
 !! ========================================================================
 subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
-   &                at,matlist,mdlst,mqlst,aoat2,ao2sh, &
+   &                at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
    &                xyz,vs,vd,vq,gab3,gab5,gscal, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
@@ -698,8 +697,6 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                minpr,pr, &
    &                fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
-
-   use xtb_aoparam,  only : gam3
 
    use xtb_solv_gbobc,  only : lgbsa,lhb,TSolvent
    use xtb_disp_dftd4,  only: disppot,edisp_scc
@@ -740,6 +737,7 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer, intent(in)  :: mqlst(2,nqp)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
+   integer, intent(in)  :: ash(:)
 !! ------------------------------------------------------------------------
 !  a bunch of charges and CAMMs
    real(wp),intent(inout) :: q(n)
@@ -925,7 +923,7 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    qsh = zsh - qsh
 
 !  qat from qsh
-   call qsh2qat(n,at,nshell,qsh,q)
+   call qsh2qat(ash,qsh,q)
 
    eold=eel
    call electro2(n,at,ndim,nshell,jab,H0,P,q, &
@@ -1017,7 +1015,7 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(n,at,nshell,qsh,q) !new qat
+   call qsh2qat(ash,qsh,q) !new qat
 
 ! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
    if(newdisp) call disppot(n,dispdim,at,q,g_a,g_c,wdispmat,gw,hdisp)
@@ -2009,23 +2007,16 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
 
 end subroutine mpopsh
 
-subroutine qsh2qat(n,at,nshell,qsh,q)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
-   implicit none
-   integer,intent(in) :: n,nshell,at(n)
-   real(wp),intent(in) :: qsh(nshell)
-   real(wp),intent(out) :: q(n)
+subroutine qsh2qat(ash,qsh,qat)
+   integer, intent(in) :: ash(:)
+   real(wp), intent(in) :: qsh(:)
+   real(wp), intent(out) :: qat(:)
 
-   integer i,mi,k
+   integer :: iSh
 
-   k=0
-   do i=1,n
-      q(i)=0
-      do mi=1,ao_n(at(i))
-         k=k+1
-         q(i)=q(i)+qsh(k)
-      enddo
+   qat(:) = 0.0_wp
+   do iSh = 1, size(qsh)
+      qat(ash(iSh)) = qat(ash(iSh)) + qsh(iSh)
    enddo
 
 end subroutine qsh2qat
@@ -2066,10 +2057,10 @@ end subroutine lpop
 !c atomic valence shell pops and total atomic energy
 !cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
+subroutine iniqshell(xtbData,n,at,z,nshell,q,qsh,gfn_method)
    use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: nshell
@@ -2079,91 +2070,34 @@ subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    real(wp),intent(out) :: qsh(nshell)
    real(wp) :: zshell
    real(wp) :: ntot,fracz
-   real(wp) :: iox(86,0:2,2) ! GFN1 on 1
    integer  :: i,j,k,m,l,ll(0:3),iat,lll,iver
    data ll /1,3,5,7/
 
-   !     H           Initial     Orbital Occupancies                     He
-   !     Li Be                                            B  C  N  O  F  Ne
-   !     Na Mg                                            Al Si P  S  Cl Ar
-   !     K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-   !     Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-   !     Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-   !                                      spd shell
-
-   ! GFN1
-   data iox / &
-      &1,                                                          2, & !He
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ne
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ar
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Kr
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Xe
-      &1,2,2, 14*2       ,2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Rn
-      !
-      &0,                                                          0, & !He
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ne
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ar
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Kr
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Xe
-      &0,0,0,  14*0,   0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Rn
-      !
-      & 0,                                                         0, & !He
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Rn
-      ! GFN2
-      &1,                                                            2, & !He
-      &1,2,                                        2  ,1  ,1.5,  2,2,2, & !Ne
-      &1,2,                                        2  ,1.5,1.5,  2,2,2, & !Ar
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  1.5,1.5,  2,2,2, & !Kr
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Xe
-      &1,2,1, 14*1       ,1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Rn
-      !
-      &0,                                                            0, & !He
-      &0,0,                                        1  , 3  ,3.5, 4,5,6, & !Ne
-      &0,0,                                        1  , 2.5,3.5, 4,5,6, & !Ar
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2.5,3.5, 4,5,6, & !Kr
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Xe
-      &0,0,1,  14*1,     1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Rn
-      !
-      & 0,                                                          0, & !He
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0  & !Rn
-      & /
-
    qsh = 0.0_wp
-
-   iver=1
-   if(gfn_method.gt.1) iver = 2
 
    k=0
    do i=1,n
       iat=at(i)
       ntot=-1.d-6
-      do m=1,ao_n(iat)
-         l=ao_l(m,iat)
+      do m=1,xtbData%nShell(iat)
+         l=xtbData%hamiltonian%angShell(m,iat)
          k=k+1
-         zshell=iox(iat,l,iver)
+         zshell=xtbData%hamiltonian%referenceOcc(m,iat)
          ntot=ntot+zshell
          if(ntot.gt.z(i)) zshell=0
          fracz=zshell/z(i)
          qsh(k)=fracz*q(i)
       enddo
    enddo
-   if(k.ne.nshell) error stop 'internal setzshell error 1'
 
 end subroutine iniqshell
 
 
-subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
+subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
    use xtb_mctc_accuracy, only : wp
    use xtb_aoparam
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: nshell
@@ -2175,75 +2109,18 @@ subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    real(wp),intent(out) :: e
 
    real(wp)  ntot,fracz
-   real(wp)  iox(86,0:2,2) ! GFN1 on 1
    integer i,j,k,m,l,ll(0:3),iat,lll,iver
    data ll /1,3,5,7/
-
-   !     H           Initial     Orbital Occupancies                     He
-   !     Li Be                                            B  C  N  O  F  Ne
-   !     Na Mg                                            Al Si P  S  Cl Ar
-   !     K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-   !     Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-   !     Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-   !                                      spd shell
-
-   ! GFN1
-   data iox / &
-      &1,                                                          2, & !He
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ne
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ar
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Kr
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Xe
-      &1,2,2, 14*2       ,2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Rn
-      !
-      &0,                                                          0, & !He
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ne
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ar
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Kr
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Xe
-      &0,0,0,  14*0,   0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Rn
-      !
-      & 0,                                                         0, & !He
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Rn
-      ! GFN2
-      &1,                                                            2, & !He
-      &1,2,                                        2  ,1  ,1.5,  2,2,2, & !Ne
-      &1,2,                                        2  ,1.5,1.5,  2,2,2, & !Ar
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  1.5,1.5,  2,2,2, & !Kr
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Xe
-      &1,2,1, 14*1       ,1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Rn
-      !
-      &0,                                                            0, & !He
-      &0,0,                                        1  , 3  ,3.5, 4,5,6, & !Ne
-      &0,0,                                        1  , 2.5,3.5, 4,5,6, & !Ar
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2.5,3.5, 4,5,6, & !Kr
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Xe
-      &0,0,1,  14*1,     1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Rn
-      !
-      & 0,                                                          0, & !He
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0  & !Rn
-      & /
-
-   iver=1
-   if(gfn_method.gt.1) iver = 2
 
    k=0
    e=0.0_wp
    do i=1,n
       iat=at(i)
       ntot=-1.d-6
-      do m=1,ao_n(iat)
-         l=ao_l(m,iat)
+      do m=1,xtbData%nShell(iat)
+         l=xtbData%hamiltonian%angShell(m,iat)
          k=k+1
-         zsh(k)=iox(iat,l,iver)
+         zsh(k)=xtbData%hamiltonian%referenceOcc(m,iat)
 !         lsh(k)=l
 !         ash(k)=i
          ntot=ntot+zsh(k)
@@ -2251,10 +2128,6 @@ subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
          e=e+ao_lev(m,iat)*zsh(k)
       enddo
    enddo
-   if(abs(sum(z)-sum(zsh)).gt.1.d-4) then
-      write(*,*) i,sum(z),sum(zsh)
-      error stop 'internal setzshell error 2'
-   endif
 
 end subroutine setzshell
 

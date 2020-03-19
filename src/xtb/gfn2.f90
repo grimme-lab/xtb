@@ -39,6 +39,8 @@ module xtb_xtb_gfn2
    !> Maximum number of elements supported by GFN2-xTB
    integer, parameter :: maxElem = 86
 
+   ! ========================================================================
+   ! REPULSION DATA
    !>
    real(wp), parameter :: kExp = 1.5_wp
 
@@ -90,6 +92,8 @@ module xtb_xtb_gfn2
       & 58.801614_wp,102.368258_wp,132.896832_wp, 52.301232_wp, 81.771063_wp, &
       &128.133580_wp]
 
+   ! ========================================================================
+   ! COULOMB DATA
    !>
    real(wp), parameter :: chemicalHardness(1:maxElem) = [&
       & 0.405771_wp, 0.642029_wp, 0.245006_wp, 0.684789_wp, 0.513556_wp, &
@@ -135,6 +139,8 @@ module xtb_xtb_gfn2
       &-0.533933_wp, 0.200000_wp,-0.337508_wp, 1.877978_wp, 1.846485_wp, &
       & 0.097834_wp] * 0.1_wp
 
+   ! ========================================================================
+   ! MULTIPOLE DATA
    !>
    real(wp), parameter :: dipKernel(1:maxElem) = [&
       & 5.563889_wp,-1.000000_wp,-0.500000_wp,-0.613341_wp,-0.481186_wp, &
@@ -203,6 +209,55 @@ module xtb_xtb_gfn2
       & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
       & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp]
 
+   ! ========================================================================
+   ! HAMILTONIAN DATA
+   !>
+   integer, parameter :: valenceShell(3, 1:maxElem) = reshape([&
+      & 1, 0, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0, &
+      & 1, 1, 0,  1, 1, 0,  1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
+      & 1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0, &
+      & 1, 1, 1,  1, 1, 1], shape(valenceShell))
+
+   !>
+   real(wp), parameter :: referenceOcc(3, 1:maxElem) = reshape([&
+      & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  1.0_wp, 0.0_wp, 0.0_wp, &
+      & 2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 1.0_wp, 0.0_wp,  1.0_wp, 3.0_wp, 0.0_wp, &
+      & 1.5_wp, 3.5_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp,  2.0_wp, 5.0_wp, 0.0_wp, &
+      & 2.0_wp, 6.0_wp, 0.0_wp,  1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp, &
+      & 2.0_wp, 1.0_wp, 0.0_wp,  1.5_wp, 2.5_wp, 0.0_wp,  1.5_wp, 3.5_wp, 0.0_wp, &
+      & 2.0_wp, 4.0_wp, 0.0_wp,  2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp, &
+      & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 2.0_wp,  2.0_wp, 0.0_wp, 3.0_wp,  2.0_wp, 0.0_wp, 4.0_wp, &
+      & 2.0_wp, 0.0_wp, 5.0_wp,  2.0_wp, 0.0_wp, 6.0_wp,  2.0_wp, 0.0_wp, 7.0_wp, &
+      & 2.0_wp, 0.0_wp, 8.0_wp,  1.0_wp, 0.0_wp,10.0_wp,  2.0_wp, 0.0_wp, 0.0_wp, &
+      & 2.0_wp, 1.0_wp, 0.0_wp,  1.5_wp, 2.5_wp, 0.0_wp,  1.5_wp, 3.5_wp, 0.0_wp, &
+      & 2.0_wp, 4.0_wp, 0.0_wp,  2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp, &
+      & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 2.0_wp,  2.0_wp, 0.0_wp, 3.0_wp,  2.0_wp, 0.0_wp, 4.0_wp, &
+      & 2.0_wp, 0.0_wp, 5.0_wp,  2.0_wp, 0.0_wp, 6.0_wp,  2.0_wp, 0.0_wp, 7.0_wp, &
+      & 2.0_wp, 0.0_wp, 8.0_wp,  1.0_wp, 0.0_wp,10.0_wp,  2.0_wp, 0.0_wp, 0.0_wp, &
+      & 2.0_wp, 1.0_wp, 0.0_wp,  2.0_wp, 2.0_wp, 0.0_wp,  2.0_wp, 3.0_wp, 0.0_wp, &
+      & 2.0_wp, 4.0_wp, 0.0_wp,  2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp, &
+      & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp, &
+      & 2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 1.0_wp,  2.0_wp, 0.0_wp, 2.0_wp, &
+      & 2.0_wp, 0.0_wp, 3.0_wp,  2.0_wp, 0.0_wp, 4.0_wp,  2.0_wp, 0.0_wp, 5.0_wp, &
+      & 2.0_wp, 0.0_wp, 6.0_wp,  2.0_wp, 0.0_wp, 7.0_wp,  2.0_wp, 0.0_wp, 8.0_wp, &
+      & 1.0_wp, 0.0_wp,10.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 1.0_wp, 0.0_wp, &
+      & 2.0_wp, 2.0_wp, 0.0_wp,  2.0_wp, 3.0_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp, &
+      & 2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp], shape(referenceOcc))
 
 contains
 
@@ -283,7 +338,12 @@ subroutine initHamiltonian(self, nShell)
    self%atomicRad = atomicRad(:maxElem)
    self%shellPoly = polyr(:, :maxElem)
    self%pairParam = kpair(:maxElem, :maxElem)
+   self%referenceOcc = referenceOcc(:mShell, :maxElem)
    self%kCN = kcnat(:, :maxElem)
+   self%selfEnergy = ao_lev(:mShell, :maxElem)
+   self%slaterExponent = ao_exp(:mShell, :maxElem)
+   self%valenceShell = valenceShell(:mShell, :maxElem)
+   self%principalQuantumNumber = ao_pqn(:mShell, :maxElem)
 
 end subroutine initHamiltonian
 

@@ -26,6 +26,7 @@ module xtb_api_interface
    use xtb_mctc_io, only : stdout
    use xtb_type_environment, only : TEnvironment, init
    use xtb_xtb_data
+   use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
 
@@ -103,6 +104,15 @@ integer(c_int) function xtb_calculation_api &
    call c_f_pointer(c_mol, mol)
    if (mol%n <= 0) return
 
+   select case(gfn_method)
+   case(0)
+      call initGFN0(xtbData)
+   case(1)
+      call initGFN1(xtbData)
+   case(2)
+      call initGFN2(xtbData)
+   end select
+
    energy = 0.0_wp
    sigma = 0.0_wp
    allocate(gradient(3, mol%n), source=0.0_wp)
@@ -123,7 +133,6 @@ integer(c_int) function xtb_calculation_api &
    ! handle basisset
    if (c_associated(c_basis)) then
       call c_f_pointer(c_basis, basis)
-      if (.not.verify_xtb_basisset(mol, basis)) return
    else
       allocate(basis)
       call new_xtb_basisset(mol, basis, stat_basis)
@@ -155,17 +164,15 @@ integer(c_int) function xtb_calculation_api &
    select case(gfn_method)
    case(0)
       call peeq &
-         & (env, mol, wfn, basis, global_parameter, &
+         & (env, mol, wfn, basis, global_parameter, xtbData, &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
-      call initGFN1(xtbData)
       call scf &
          & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case(2)
-      call initGFN2(xtbData)
       call scf &
          & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
@@ -516,7 +523,7 @@ function gfn12_calc_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(env, mol, wfn)
+   call eeq_guess_wavefunction(env, mol, wfn, xtbData)
 
    call scf &
       & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &
@@ -887,7 +894,7 @@ function gfn12_pcem_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(env, mol, wfn)
+   call eeq_guess_wavefunction(env, mol, wfn, xtbData)
 
    call scf &
       & (env, mol, wfn, basis, global_parameter, pcem, xtbData, &

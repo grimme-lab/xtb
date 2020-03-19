@@ -20,6 +20,9 @@ subroutine test_gfn0_sp
    use xtb_peeq
    use xtb_readparam
 
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
    real(wp),parameter :: thr2 = 1.0e-5_wp
@@ -48,6 +51,7 @@ subroutine test_gfn0_sp
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
+   type(TxTBData) :: xtbData
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)
@@ -86,9 +90,10 @@ subroutine test_gfn0_sp
       call close_file(ipar)
 
    call set_gfn0_parameter(param,globpar,mol%n,mol%at)
+   call initGFN0(xtbData)
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+   call xbasis0(xtbData,mol%n,mol%at,basis)
+   call xbasis_gfn0(xtbData,mol%n,mol%at,basis,okbas,diff)
    call assert(okbas)
 
    call assert_eq(basis%nshell,17)
@@ -100,7 +105,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param, &
+   call peeq(env,mol,wfn,basis,param,xtbData, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)
