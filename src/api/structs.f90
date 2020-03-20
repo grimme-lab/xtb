@@ -155,17 +155,12 @@ subroutine new_xtb_basisset(mol, basis, status)
       okbas = .false.
    case(0)
       call initGFN0(xtbData)
-      call xbasis0(xtbData, mol%n, mol%at, basis)
-      call xbasis_gfn0(xtbData, mol%n, mol%at, basis, okbas, diff)
    case(1)
       call initGFN1(xtbData)
-      call xbasis0(xtbData, mol%n, mol%at, basis)
-      call xbasis_gfn1(xtbData, mol%n, mol%at, basis, okbas, diff)
    case(2)
       call initGFN2(xtbData)
-      call xbasis0(xtbData, mol%n, mol%at, basis)
-      call xbasis_gfn2(xtbData, mol%n, mol%at, basis, okbas)
    end select
+   call newBasisset(xtbData, mol%n, mol%at, basis, okbas)
    if (okbas) then
       status = 0
    else

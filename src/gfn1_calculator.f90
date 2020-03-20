@@ -147,8 +147,7 @@ module subroutine gfn1_calculation &
    !  STEP 3: expand our Slater basis set in contracted Gaussians
    ! ====================================================================
 
-   call xbasis0(xtbData,mol%n,mol%at,basis)
-   call xbasis_gfn1(xtbData,mol%n,mol%at,basis,okbas,diff)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction

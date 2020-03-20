@@ -36,7 +36,6 @@ subroutine numhess( &
    use xtb_type_calculator
    use xtb_type_data
 
-   use xtb_aoparam
    use xtb_setparam
    use xtb_splitparam
    use xtb_fixparam

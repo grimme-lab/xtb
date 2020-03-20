@@ -17,30 +17,34 @@
 
 module xtb_basis
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_constants, only: pi
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_basisset
    use xtb_xtb_data
    use xtb_slater
    implicit none
+   private
+
+   public :: newBasisset
+
 
 contains
 
-subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
-   use xtb_type_basisset
-   use xtb_aoparam
-   implicit none
+subroutine newBasisset(xtbData,n,at,basis,ok)
    type(TxTBData), intent(in) :: xtbData
    type(TBasisset),intent(inout) :: basis
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    logical, intent(out) :: ok
-   logical, intent(out) :: diff
 
    integer  :: elem,valao
    integer  :: i,j,m,l,iat,ati,ish,ibf,iao,ipr,p,nprim,thisprimR,idum,npq,npqR,pqn
    real(wp) :: a(10),c(10),zeta,k1,k2,split1,pp,zqfR,zcnfR,qi,level
    real(wp) :: aR(10),cR(10),ss
    real(wp) :: as(10),cs(10)
-   real(wp) :: ap(10),cp(10)
+   integer :: info
+
+   call xbasis0(xtbData,n,at,basis)
 
    basis%hdiag(1:basis%nbf)=1.d+42
 
@@ -64,9 +68,13 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
          level = xtbData%hamiltonian%selfEnergy(m,ati)
          zeta  = xtbData%hamiltonian%slaterExponent(m,ati)
          valao = xtbData%hamiltonian%valenceShell(m,ati)
+         if (valao /= 0) then
+            nprim = xtbData%hamiltonian%numberOfPrimitives(m,ati)
+         else
+            thisprimR = xtbData%hamiltonian%numberOfPrimitives(m,ati)
+         end if
 
          basis%lsh(ish) = l
-         if (l.eq.11) basis%lsh(ish) = 0
          basis%ash(ish) = iat
          basis%sh2bf(1,ish) = ibf
          basis%sh2ao(1,ish) = iao
@@ -79,9 +87,9 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
          basis%valsh(ish) = valao
 
          ! H-He
-         if(l.eq.0.and.ati.le.2.and.npq.eq.1)then
+         if(l.eq.0.and.ati.le.2.and.valao/=0)then
             ! s
-            call setsto4(nprim,npq,1,zeta,a,c)
+            call slaterToGauss(nprim, npq, l, zeta, a, c, .true., info)
             basis%minalp(ish) = minval(a(:nprim))
 
             ibf =ibf+1
@@ -107,9 +115,9 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
             basis%ao2sh (iao) = ish
          endif
 
-         if(l.eq.0.and.ati.le.2.and.npq.eq.2)then
+         if(l.eq.0.and.ati.le.2.and.valao==0)then
             ! diff s
-            call setsto3(thisprimR,npq,1,zeta,aR,cR)
+            call slaterToGauss(thisprimR, npq, l, zeta, aR, cR, .true., info)
             call atovlp(0,nprim,thisprimR,a,aR,c,cR,ss)
             basis%minalp(ish) = min(minval(a(:nprim)),minval(aR(:thisprimR)))
 
@@ -150,8 +158,8 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
 
          ! p polarization
          if(l.eq.1.and.ati.le.2)then
-            call setsto3(nprim,npq,2,zeta,ap,cp)
-            basis%minalp(ish) = minval(ap(:nprim))
+            call slaterToGauss(nprim, npq, l, zeta, a, c, .true., info)
+            basis%minalp(ish) = minval(a(:nprim))
             do j=2,4
                ibf=ibf+1
                basis%primcount(ibf) = ipr
@@ -163,8 +171,8 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
 
                do p=1,nprim
                   ipr=ipr+1
-                  basis%alp (ipr)=ap(p)
-                  basis%cont(ipr)=cp(p)
+                  basis%alp (ipr)=a(p)
+                  basis%cont(ipr)=c(p)
                enddo
 
                iao = iao+1
@@ -178,9 +186,9 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
          endif
 
          ! general sp
-         if(l.eq.0.and.ati.gt.2)then
+         if(l.eq.0.and.ati.gt.2 .and. valao/=0)then
             ! s
-            call setsto6(nprim,npq,1,zeta,as,cs)
+            call slaterToGauss(nprim, npq, l, zeta, as, cs, .true., info)
             basis%minalp(ish) = minval(as(:nprim))
 
             ibf=ibf+1
@@ -207,8 +215,8 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
          endif
          ! p
          if(l.eq.1.and.ati.gt.2)then
-            call setsto6(nprim,npq,2,zeta,ap,cp)
-            basis%minalp(ish) = minval(ap(:nprim))
+            call slaterToGauss(nprim, npq, l, zeta, a, c, .true., info)
+            basis%minalp(ish) = minval(a(:nprim))
             do j=2,4
                ibf=ibf+1
                basis%primcount(ibf) = ipr
@@ -220,8 +228,8 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
 
                do p=1,nprim
                   ipr=ipr+1
-                  basis%alp (ipr)=ap(p)
-                  basis%cont(ipr)=cp(p)
+                  basis%alp (ipr)=a(p)
+                  basis%cont(ipr)=c(p)
                enddo
 
                iao = iao+1
@@ -235,12 +243,8 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
          endif
 
          ! DZ s
-         if(l.eq.11)then
-            if(npq.gt.5) then
-               call setsto6(thisprimR,npq,1,zeta,aR,cR)
-            else
-               call setsto3(thisprimR,npq,1,zeta,aR,cR)
-            endif
+         if(l.eq.0 .and. ati > 2 .and. valao==0)then
+            call slaterToGauss(thisprimR, npq, l, zeta, aR, cR, .true., info)
             call atovlp(0,nprim,thisprimR,as,aR,cs,cR,ss)
             basis%minalp(ish) = min(minval(as(:nprim)),minval(aR(:thisprimR)))
 
@@ -282,13 +286,13 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
          ! d
          if(l.eq.2)then
             call set_d_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,4,zeta,level,valao)
+               &                npq,l,nprim,zeta,level,valao)
          endif
 
          ! f
          if(l.eq.3)then
             call set_f_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,4,zeta,level,1)
+               &                npq,l,nprim,zeta,level,1)
          endif
 
          basis%sh2bf(2,ish) = ibf-basis%sh2bf(1,ish)
@@ -299,166 +303,14 @@ subroutine xbasis_gfn1(xtbData,n,at,basis,ok,diff)
       basis%fila2 (2,iat)=iao
    enddo atoms
 
-   ! note: Rydbergs are identified by valao(*)=0
-   !       polarization by            valao(*)=-1
-   diff=.false.
-   do i=1,ibf
-      if(basis%valao(i).eq.0) diff=.true.
-      if(basis%hdiag(i).gt.1.d+10)then
-         write(*,*)'Hii not defined for',i,basis%aoat(i)
-         ok=.false.
-      endif
-   enddo
-   do i=1,ipr
-      if(basis%alp(i).eq.0) then
-         ok=.false.
-         write(*,*)'alp=0 for',i
-      endif
-   enddo
+   ok = all(basis%alp(:ipr) > 0.0_wp) .and. basis%nbf == ibf .and. basis%nao == iao
 
-   if(basis%nbf.ne.ibf) then
-      ok = .false.
-   endif
+end subroutine newBasisset
 
-   if(basis%nao.ne.iao) then
-      ok = .false.
-   endif
-
-   do iat=1,n
-      ati = at(iat)
-      do j=1,xtbData%nShell(ati)
-         l = xtbData%hamiltonian%angShell(j,ati)
-         if(l.eq.11)ao_l(j,ati)=0
-      enddo
-   enddo
-
-end subroutine xbasis_gfn1
-
-subroutine xbasis_gfn2(xtbData,n,at,basis,ok)
-   use xtb_type_basisset
-   use xtb_aoparam
-   implicit none
-   type(TxTBData), intent(in) :: xtbData
-   type(TBasisset),intent(inout) :: basis
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   logical, intent(out) :: ok
-
-   integer  :: elem,valao
-   integer  :: i,iat,ati,j,m,l,ish,ibf,iao,ipr,p
-   integer  :: nprim,thisprimR,idum,npq,npqR,pqn
-   integer  :: info
-   real(wp) :: a(10),c(10),zeta,level
-
-   basis%hdiag(1:basis%nbf)=1.d+42
-
-   iao=0
-   ibf=0
-   ipr=0
-   ish=0
-   ok=.true.
-
-! ========================================================================
-   atoms: do iat=1,n
-      ati = at(iat)
-! ========================================================================
-      basis%shells(1,iat)=ish+1
-      basis%fila  (1,iat)=ibf+1
-      basis%fila2 (1,iat)=iao+1
-      shells: do m=1,xtbData%nShell(ati)
-         ish = ish+1
-         ! principle QN
-         npq=xtbData%hamiltonian%principalQuantumNumber(m,ati)
-         l=xtbData%hamiltonian%angShell(m,ati)
-
-         level = xtbData%hamiltonian%selfEnergy(m,ati)
-         zeta  = xtbData%hamiltonian%slaterExponent(m,ati)
-         valao = xtbData%hamiltonian%valenceShell(m,ati)
-
-         basis%lsh(ish) = l
-         if (l.eq.11) basis%lsh(ish) = 0
-         basis%ash(ish) = iat
-         basis%sh2bf(1,ish) = ibf
-         basis%sh2ao(1,ish) = iao
-         basis%caoshell(m,iat) = ibf
-         basis%saoshell(m,iat) = iao
-
-         ! add new shellwise information, for easier reference
-         basis%level(ish) = level
-         basis%zeta (ish) = zeta
-         basis%valsh(ish) = valao
-
-         ! H-He
-         if(l.eq.0.and.ati.le.2.and.npq.eq.1)then
-            call set_s_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,3,zeta,level,valao)
-         endif
-         ! general spdf
-         if(l.eq.0.and.ati.gt.2)then
-            if(npq.gt.5) then
-               call set_s_function(basis,iat,ish,iao,ibf,ipr, &
-                  &                npq,l,6,zeta,level,valao)
-            else
-               call set_s_function(basis,iat,ish,iao,ibf,ipr, &
-                  &                npq,l,4,zeta,level,valao)
-            endif
-         endif
-         if(l.eq.1)then
-            if(npq.gt.5) then
-               call set_p_function(basis,iat,ish,iao,ibf,ipr, &
-                  &                npq,l,6,zeta,level,valao)
-            else
-               call set_p_function(basis,iat,ish,iao,ibf,ipr, &
-                  &                npq,l,4,zeta,level,valao)
-            endif
-         endif
-         if(l.eq.2)then
-            call set_d_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,3,zeta,level,valao)
-         endif
-         if(l.eq.3)then
-            call set_f_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,4,zeta,level,valao)
-         endif
-
-         basis%sh2bf(2,ish) = ibf-basis%sh2bf(1,ish)
-         basis%sh2ao(2,ish) = iao-basis%sh2ao(1,ish)
-      enddo shells
-      basis%shells(2,iat)=ish
-      basis%fila  (2,iat)=ibf
-      basis%fila2 (2,iat)=iao
-   enddo atoms
-! ========================================================================
-
-   do i=1,ibf
-      if(basis%hdiag(i).gt.1.d+10)then
-         write(*,*)'Hii not defined for',i,basis%aoat(i)
-         ok=.false.
-      endif
-   enddo
-   do i=1,ipr
-      if(basis%alp(i).eq.0) then
-         ok=.false.
-         write(*,*)'alp=0 for',i
-      endif
-   enddo
-
-   if(basis%nbf.ne.ibf) then
-      ok = .false.
-   endif
-
-   if(basis%nao.ne.iao) then
-      ok = .false.
-   endif
-
-end subroutine xbasis_gfn2
 
 ! ========================================================================
 !> determine basisset limits
 subroutine xbasis0(xtbData,n,at,basis)
-   use xtb_type_basisset
-   use xtb_aoparam
-   implicit none
    type(TxTBData), intent(in) :: xtbData
    type(TBasisset),intent(inout) :: basis
    integer,intent(in)  :: n
@@ -476,9 +328,6 @@ subroutine xbasis0(xtbData,n,at,basis)
 end subroutine xbasis0
 
 subroutine dim_basis(xtbData,n,at,nshell,nao,nbf)
-   use xtb_type_basisset
-   use xtb_aoparam
-   implicit none
    type(TxTBData), intent(in) :: xtbData
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
@@ -514,9 +363,6 @@ subroutine dim_basis(xtbData,n,at,nshell,nao,nbf)
          case(4) ! g
             nbf = nbf+15
             nao = nao+9
-         case(11) ! diffuse s
-            nbf = nbf+1
-            nao = nao+1
          end select
       enddo
       if(k.eq.0) then
@@ -527,312 +373,38 @@ subroutine dim_basis(xtbData,n,at,nshell,nao,nbf)
 
 end subroutine dim_basis
 
-subroutine xbasis_gfn0(xtbData,n,at,basis,ok,diff)    !ppracht 10/2018
-   use xtb_type_basisset
-   use xtb_aoparam
-   implicit none
-   type(TxTBData), intent(in) :: xtbData
-   type(TBasisset),intent(inout) :: basis
-
-   integer elem,n
-   integer at(n)
-   logical ok,diff
-
-   integer i,j,m,l,iat,ati,ish,ibf,iao,ipr,p,nprim,thisprimR,idum,npq,npqR,pqn,valao
-   real(wp)  a(10),c(10),zeta,k1,k2,split1,pp,zqfR,zcnfR,qi,level
-   real(wp)  aR(10),cR(10),ss
-   real(wp)  as(10),cs(10)
-   real(wp)  ap(10),cp(10)
-
-   basis%hdiag(1:basis%nbf)=1.d+42
-   ! note: Rydbergs are identified by valao(*)=0
-   !       polarization by            valao(*)=-1
-
-   ibf=0
-   iao=0
-   ipr=0
-   ish=0
-   ok=.true.
-
-   atoms: do iat=1,n
-      ati = at(iat)
-      basis%shells(1,iat)=ish+1
-      basis%fila  (1,iat)=ibf+1
-      basis%fila2 (1,iat)=iao+1
-      shells: do m=1,xtbData%nShell(ati)
-         ish = ish+1
-         ! principle QN
-         npq=xtbData%hamiltonian%principalQuantumNumber(m,ati)
-         l=xtbData%hamiltonian%angShell(m,ati)
-
-         level = xtbData%hamiltonian%selfEnergy(m,ati)
-         zeta  = xtbData%hamiltonian%slaterExponent(m,ati)
-         valao = xtbData%hamiltonian%valenceShell(m,ati)
-
-         basis%lsh(ish) = l
-         if (l.eq.11) basis%lsh(ish) = 0
-         basis%ash(ish) = iat
-         basis%sh2bf(1,ish) = ibf
-         basis%sh2ao(1,ish) = iao
-         basis%caoshell(m,iat)=ibf
-         basis%saoshell(m,iat)=iao
-
-         ! add new shellwise information, for easier reference
-         basis%level(ish) = level
-         basis%zeta (ish) = zeta
-         basis%valsh(ish) = valao
-
-         ! H-He
-         if(l.eq.0.and.ati.le.2.and.npq.eq.1)then
-            !  s
-            call setsto3(nprim,npq,1,zeta,a,c)  !GFN0
-            basis%minalp(ish) = minval(a(:nprim))
-
-            ibf =ibf+1
-            basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = valao
-            basis%aoat     (ibf) = iat
-            basis%lao      (ibf) = 1
-            basis%nprim    (ibf) = nprim
-            basis%hdiag    (ibf) = level
-
-            do p=1,nprim
-               ipr=ipr+1
-               basis%alp (ipr)=a(p)
-               basis%cont(ipr)=c(p)
-            enddo
-
-            iao = iao+1
-            basis%valao2(iao) = valao
-            basis%aoat2 (iao) = iat
-            basis%lao2  (iao) = 1
-            basis%hdiag2(iao) = level
-            basis%aoexp (iao) = zeta
-            basis%ao2sh (iao) = ish
-         endif
-
-         if(l.eq.0.and.ati.le.2.and.npq.eq.2)then
-            ! diff s
-            call setsto2(thisprimR,npq,1,zeta,aR,cR)
-            call atovlp(0,nprim,thisprimR,a,aR,c,cR,ss)
-            basis%minalp(ish) = min(minval(a(:nprim)),minval(aR(:thisprimR)))
-            ibf =ibf+1
-            basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = valao
-            basis%aoat     (ibf) = iat
-            basis%lao      (ibf) = 1
-            basis%nprim    (ibf) = thisprimR+nprim
-            basis%hdiag    (ibf) = level
-
-            idum=ipr+1
-            do p=1,thisprimR
-               ipr=ipr+1
-               basis%alp (ipr)=aR(p)
-               basis%cont(ipr)=cR(p)
-            enddo
-            do p=1,nprim
-               ipr=ipr+1
-               basis%alp (ipr)=a(p)
-               basis%cont(ipr)=-ss*c(p)
-            enddo
-            call atovlp(0,basis%nprim(ibf),basis%nprim(ibf), &
-               &        basis%alp(idum),basis%alp(idum),&
-               &        basis%cont(idum),basis%cont(idum),ss)
-            do p=1,basis%nprim(ibf)
-               basis%cont(idum-1+p)=basis%cont(idum-1+p)/sqrt(ss)
-            enddo
-
-            iao = iao+1
-            basis%valao2(iao) = valao
-            basis%aoat2 (iao) = iat
-            basis%lao2  (iao) = 1
-            basis%hdiag2(iao) = level
-            basis%aoexp (iao) = zeta
-            basis%ao2sh (iao) = ish
-         endif
-
-         ! p polarization
-         if(l.eq.1.and.ati.le.2)then
-            call set_p_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,3,zeta,level,-1)
-         endif
-
-         ! general sp
-         if(l.eq.0.and.ati.gt.2)then
-            ! s
-            if(npq.gt.5) then
-               call setsto6(nprim,npq,1,zeta,as,cs)
-            else
-               call setsto4(nprim,npq,1,zeta,as,cs) !GFN0
-            endif
-            basis%minalp(ish) = minval(as(:nprim))
-
-            ibf=ibf+1
-            basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = valao
-            basis%aoat     (ibf) = iat
-            basis%lao      (ibf) = 1
-            basis%nprim    (ibf) = nprim
-            basis%hdiag    (ibf) = level
-
-            do p=1,nprim
-               ipr=ipr+1
-               basis%alp (ipr)=as(p)
-               basis%cont(ipr)=cs(p)
-            enddo
-
-            iao = iao+1
-            basis%valao2(iao) = valao
-            basis%aoat2 (iao) = iat
-            basis%lao2  (iao) = 1
-            basis%hdiag2(iao) = level
-            basis%aoexp (iao) = zeta
-            basis%ao2sh (iao) = ish
-         endif
-         ! p
-         if(l.eq.1.and.ati.gt.2)then
-            if(npq.gt.5) then
-               call set_p_function(basis,iat,ish,iao,ibf,ipr, &
-                  &                npq,l,6,zeta,level,1)
-            else
-               call set_p_function(basis,iat,ish,iao,ibf,ipr, &
-                  &                npq,l,3,zeta,level,1)
-            endif
-         endif
-
-         ! DZ s
-         if(l.eq.11)then
-            if(npq.gt.5) then
-               call setsto6(thisprimR,npq,1,zeta,aR,cR)
-            else
-               call setsto3(thisprimR,npq,1,zeta,aR,cR)
-            endif
-            call atovlp(0,nprim,thisprimR,as,aR,cs,cR,ss)
-            basis%minalp(ish) = min(minval(as(:nprim)),minval(aR(:thisprimR)))
-
-            ibf=ibf+1
-            basis%primcount(ibf) = ipr
-            basis%valao    (ibf) = valao
-            basis%aoat     (ibf) = iat
-            basis%lao      (ibf) = 1
-            basis%nprim    (ibf) = thisprimR+nprim
-            basis%hdiag    (ibf) = level
-
-            idum=ipr+1
-            do p=1,thisprimR
-               ipr=ipr+1
-               basis%alp (ipr)=aR(p)
-               basis%cont(ipr)=cR(p)
-            enddo
-            do p=1,nprim
-               ipr=ipr+1
-               basis%alp (ipr)=as(p)
-               basis%cont(ipr)=-ss*cs(p)
-            enddo
-            call atovlp(0,basis%nprim(ibf),basis%nprim(ibf), &
-               &        basis%alp(idum),basis%alp(idum),&
-               &        basis%cont(idum),basis%cont(idum),ss)
-            do p=1,basis%nprim(ibf)
-               basis%cont(idum-1+p)=basis%cont(idum-1+p)/sqrt(ss)
-            enddo
-
-            iao = iao+1
-            basis%valao2(iao) = valao
-            basis%aoat2 (iao) = iat
-            basis%lao2  (iao) = 1
-            basis%hdiag2(iao) = level
-            basis%aoexp (iao) = zeta
-            basis%ao2sh (iao) = ish
-         endif
-
-         ! d
-         if(l.eq.2)then
-            call set_d_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,4,zeta,level,valao)
-         endif
-
-         ! f
-         if(l.eq.3)then
-            call set_f_function(basis,iat,ish,iao,ibf,ipr, &
-               &                npq,l,4,zeta,level,1)
-         endif
-
-         basis%sh2bf(2,ish) = ibf-basis%sh2bf(1,ish)
-         basis%sh2ao(2,ish) = iao-basis%sh2ao(1,ish)
-      enddo shells
-      basis%shells(2,iat)=ish
-      basis%fila  (2,iat)=ibf
-      basis%fila2 (2,iat)=iao
-   enddo atoms
-
-   diff=.false.
-   do i=1,ibf
-      if(basis%valao(i).eq.0) diff=.true.
-      if(basis%hdiag(i).gt.1.d+10)then
-         write(*,*)'Hii not defined for',i,basis%aoat(i)
-         ok=.false.
-      endif
-   enddo
-   do i=1,ipr
-      if(basis%alp(i).eq.0) then
-         ok=.false.
-         write(*,*)'alp=0 for',i
-      endif
-   enddo
-
-   if(basis%nbf.ne.ibf) then
-      ok = .false.
-   endif
-
-   if(basis%nao.ne.iao) then
-      ok = .false.
-   endif
-
-   do iat=1,n
-      ati = at(iat)
-      do j=1,xtbData%nShell(ati)
-         l = xtbData%hamiltonian%angShell(j,ati)
-         if(l.eq.11)ao_l(j,ati)=0
-      enddo
-   enddo
-
-end subroutine xbasis_gfn0
 
 ! ------------------------------------------------------------------------
 !  Helper functions
 
 subroutine atovlp(l,npri,nprj,alpa,alpb,conta,contb,ss)
-  use xtb_mctc_constants, only: pi
-  implicit none
-  integer l,npri,nprj
-  real(wp) alpa(*),alpb(*)
-  real(wp) conta(*),contb(*)
-  real(wp) ss
+   integer l,npri,nprj
+   real(wp) alpa(*),alpb(*)
+   real(wp) conta(*),contb(*)
+   real(wp) ss
 
-  integer ii,jj
-  real(wp) ab,s00,sss,ab05
+   integer ii,jj
+   real(wp) ab,s00,sss,ab05
 
-  SS=0.0_wp
-  do ii=1,npri
-     do jj=1,nprj
-        ab =1./(alpa(ii)+alpb(jj))
-        s00=(pi*ab)**1.50_wp
-        if(l.eq.0)then
-           sss=s00
-        endif
-        if(l.eq.1)then
-           ab05=ab*0.5_wp
-           sss=s00*ab05
-        endif
-        SS=SS+SSS*conta(ii)*contb(jj)
-     enddo
-  enddo
+   SS=0.0_wp
+   do ii=1,npri
+      do jj=1,nprj
+         ab =1./(alpa(ii)+alpb(jj))
+         s00=(pi*ab)**1.50_wp
+         if(l.eq.0)then
+            sss=s00
+         endif
+         if(l.eq.1)then
+            ab05=ab*0.5_wp
+            sss=s00*ab05
+         endif
+         SS=SS+SSS*conta(ii)*contb(jj)
+      enddo
+   enddo
 
 end subroutine atovlp
 
 subroutine set_s_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao)
-   use xtb_type_basisset
-   implicit none
    type(TBasisset), intent(inout) :: basis
    integer, intent(in)    :: iat
    integer, intent(in)    :: ish
@@ -876,8 +448,6 @@ subroutine set_s_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
 end subroutine set_s_function
 
 subroutine set_p_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao)
-   use xtb_type_basisset
-   implicit none
    type(TBasisset), intent(inout) :: basis
    integer, intent(in)    :: iat
    integer, intent(in)    :: ish
@@ -925,8 +495,6 @@ subroutine set_p_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
 end subroutine set_p_function
 
 subroutine set_d_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao)
-   use xtb_type_basisset
-   implicit none
    type(TBasisset), intent(inout) :: basis
    integer, intent(in)    :: iat
    integer, intent(in)    :: ish
@@ -978,8 +546,6 @@ subroutine set_d_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao
 end subroutine set_d_function
 
 subroutine set_f_function(basis,iat,ish,iao,ibf,ipr,npq,l,nprim,zeta,level,valao)
-   use xtb_type_basisset
-   implicit none
    type(TBasisset), intent(inout) :: basis
    integer, intent(in)    :: iat
    integer, intent(in)    :: ish

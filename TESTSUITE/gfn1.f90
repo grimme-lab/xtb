@@ -69,8 +69,7 @@ subroutine test_gfn1_scc
    call set_gfn1_parameter(param,globpar,mol%n,mol%at)
    call initGFN1(xtbData)
 
-   call xbasis0(xtbData,mol%n,mol%at,basis)
-   call xbasis_gfn1(xtbData,mol%n,mol%at,basis,okbas,diff)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)
 
    call assert_eq(basis%nshell,6)

@@ -107,8 +107,7 @@ subroutine test_peeq_sp
    call gfn0_prparam(stdout,mol%n,mol%at,param)
    call initGFN0(xtbData)
 
-   call xbasis0(xtbData,mol%n,mol%at,basis)
-   call xbasis_gfn0(xtbData,mol%n,mol%at,basis,okbas,diff)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%nel = idint(sum(mol%z)) - mol%chrg

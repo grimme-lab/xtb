@@ -372,7 +372,7 @@ subroutine gfn_elempar(key,val,iz)
                case('d'); ao_l(i,iz) = 2
                case('f'); ao_l(i,iz) = 3
                case('g'); ao_l(i,iz) = 4
-               case('S'); ao_l(i,iz) = 11
+               case('S'); ao_l(i,iz) = 0
                end select
             endif
          enddo

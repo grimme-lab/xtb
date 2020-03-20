@@ -133,7 +133,8 @@ subroutine initHamiltonian(self, nShell)
    !>
    integer, intent(in) :: nShell(:)
 
-   integer :: mShell
+   integer :: mShell, nPrim
+   integer :: iZp, iSh
 
    mShell = maxval(nShell)
    self%angShell = ao_l(:mShell, :maxElem)
@@ -147,6 +148,43 @@ subroutine initHamiltonian(self, nShell)
    self%slaterExponent = ao_exp(:mShell, :maxElem)
    self%valenceShell = valenceShell(:mShell, :maxElem)
    self%principalQuantumNumber = ao_pqn(:mShell, :maxElem)
+
+   allocate(self%numberOfPrimitives(mShell, maxElem))
+   do iZp = 1, maxElem
+      do iSh = 1, nShell(iZp)
+         nPrim = 0
+         if (iZp <= 2) then
+            select case(self%angShell(iSh, iZp))
+            case(0)
+               if (self%valenceShell(iSh, iZp) /= 0) then
+                  nPrim = 3
+               else
+                  nPrim = 2
+               end if
+            case(1)
+               nPrim = 3
+            end select
+         else
+            select case(self%angShell(iSh, iZp))
+            case(0)
+               if (self%principalQuantumNumber(iSh, iZp) > 5) then
+                  nPrim = 6
+               else
+                  nPrim = 4
+               end if
+            case(1)
+               if (self%principalQuantumNumber(iSh, iZp) > 5) then
+                  nPrim = 6
+               else
+                  nPrim = 3
+               end if
+            case(2, 3)
+               nPrim = 4
+            end select
+         end if
+         self%numberOfPrimitives(iSh, iZp) = nPrim
+      end do
+   end do
 
 end subroutine initHamiltonian
 

@@ -16,6 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+  'basisset.f90',
   'data.f90',
   'gfn0.f90',
   'gfn1.f90',

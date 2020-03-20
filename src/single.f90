@@ -48,7 +48,6 @@ subroutine singlepoint &
    use xtb_type_pcem
 
 !! ========================================================================
-   use xtb_aoparam
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam

@@ -81,7 +81,7 @@ module subroutine gfn2_calculation &
    character(len=:), allocatable :: fnv
    real(wp) :: globpar(25)
    integer  :: ipar
-   logical  :: exist
+   logical  :: exist,diff
    logical :: exitRun
 
    logical  :: okbas
@@ -147,8 +147,7 @@ module subroutine gfn2_calculation &
    !  STEP 3: expand our Slater basis set in contracted Gaussians
    ! ====================================================================
 
-   call xbasis0(xtbData,mol%n,mol%at,basis)
-   call xbasis_gfn2(xtbData,mol%n,mol%at,basis,okbas)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
