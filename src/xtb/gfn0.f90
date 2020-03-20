@@ -133,8 +133,9 @@ subroutine initHamiltonian(self, nShell)
    !>
    integer, intent(in) :: nShell(:)
 
-   integer :: mShell, nPrim
+   integer :: mShell, nPrim, lAng
    integer :: iZp, iSh
+   logical :: valShell(0:3)
 
    mShell = maxval(nShell)
    self%angShell = ao_l(:mShell, :maxElem)
@@ -143,11 +144,23 @@ subroutine initHamiltonian(self, nShell)
    self%atomicRad = atomicRad(:maxElem)
    self%shellPoly = polyr(:, :maxElem)
    self%pairParam = kpair(:maxElem, :maxElem)
-   self%referenceOcc = referenceOcc
    self%selfEnergy = ao_lev(:mShell, :maxElem)
    self%slaterExponent = ao_exp(:mShell, :maxElem)
-   self%valenceShell = valenceShell(:mShell, :maxElem)
    self%principalQuantumNumber = ao_pqn(:mShell, :maxElem)
+
+   allocate(self%valenceShell(mShell, maxElem))
+   call generateValenceShellData(self%valenceShell, nShell, self%angShell)
+
+   allocate(self%referenceOcc(mShell, maxElem))
+   self%referenceOcc(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      do iSh = 1, nShell(iZp)
+         lAng = self%angShell(iSh, iZp)
+         if (self%valenceShell(iSh, iZp) /= 0) then
+            self%referenceOcc(iSh, iZp) = referenceOcc(lAng, iZp)
+         end if
+      end do
+   end do
 
    allocate(self%numberOfPrimitives(mShell, maxElem))
    do iZp = 1, maxElem

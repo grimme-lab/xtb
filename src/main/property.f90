@@ -62,7 +62,6 @@ subroutine main_property &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
    use xtb_solv_gbobc
 
 !! ------------------------------------------------------------------------
@@ -178,7 +177,7 @@ subroutine main_property &
    endif
 
    if (pr_gbw) &
-   call wrgbw(mol%n,mol%at,mol%xyz,mol%z,basis,wfx)
+   call wrgbw(xtbData,mol%n,mol%at,mol%xyz,mol%z,basis,wfx)
 
    if (pr_tmbas .or. pr_tmmos) then
       call open_file(ifile,'basis','w')
@@ -221,7 +220,6 @@ subroutine main_cube &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
 
 !! ------------------------------------------------------------------------
    use xtb_aespot
@@ -357,7 +355,6 @@ subroutine main_freq &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
 
 !! ------------------------------------------------------------------------
    use xtb_hessian

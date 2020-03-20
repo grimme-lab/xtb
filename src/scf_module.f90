@@ -384,9 +384,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    if(lpcem)then
       allocate( Vpc(basis%nshell), source = 0.0_wp )
       if (gfn_method.eq.1)then
-         call jpot_pcem_gfn1(mol%n,pcem,basis%nshell,mol%at,mol%xyz,basis%ash,basis%lsh,param%alphaj,Vpc)
+         call jpot_pcem_gfn1(xtbData%coulomb,mol%n,pcem,basis%nshell,mol%at, &
+            & mol%xyz,basis%ash,basis%lsh,param%alphaj,Vpc)
       else ! GFN2
-         call jpot_pcem_gfn2(mol%n,pcem,basis%nshell,mol%at,mol%xyz,basis%ash,basis%lsh,Vpc)
+         call jpot_pcem_gfn2(xtbData%coulomb,mol%n,pcem,basis%nshell,mol%at, &
+            & mol%xyz,basis%ash,basis%lsh,Vpc)
       endif
    endif
 
@@ -733,15 +735,6 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
          call local(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,mol%z,wfn%focc,S,wfn%P,wfn%C,tmp,wfn%q,eel,lgbsa,basis)
       endif
 
-! ------------------------------------------------------------------------
-!  exchange energy correction ala sTDA
-      if (wfn%nopen.ge.2) then
-         call exch(mol%n,mol%at,basis%nao,wfn%nopen,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,exc,basis%aoat)
-         write(env%unit,'(''open-shell EX :'',F16.7)') -exc
-         write(env%unit,'(''corrected Etot:'',F16.7, &
-         &   '' (not used further except for this printout!)'')') eel - exc
-      endif
-
    endif printing
 
 ! ------------------------------------------------------------------------
@@ -994,11 +987,11 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 !  print'("Calculating embedding gradient")'
    if (lpcem) then
       if (gfn_method.eq.1) then
-         call pcem_grad_gfn1(g,pcem%grd,n,pcem,at,basis%nshell,xyz, &
-            &                basis%ash,basis%lsh,param%alphaj,wfn%qsh)
+         call pcem_grad_gfn1(xtbData%coulomb,g,pcem%grd,n,pcem,at,basis%nshell, &
+            & xyz,basis%ash,basis%lsh,param%alphaj,wfn%qsh)
       else
-         call pcem_grad_gfn2(g,pcem%grd,n,pcem,at,basis%nshell,xyz, &
-            &                basis%ash,basis%lsh,wfn%qsh)
+         call pcem_grad_gfn2(xtbData%coulomb,g,pcem%grd,n,pcem,at,basis%nshell, &
+            & xyz,basis%ash,basis%lsh,wfn%qsh)
       endif
    endif
 

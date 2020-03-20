@@ -213,7 +213,7 @@ module xtb_xtb_gfn1
       & 1, 1, 1,  1, 1, 1], shape(valenceShell))
 
    !>
-   real(wp), parameter :: referenceOcc(3, 1:maxElem) = reshape([&
+   real(wp), parameter :: referenceOcc(0:2, 1:maxElem) = reshape([&
       & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  1.0_wp, 0.0_wp, 0.0_wp, &
       & 2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 1.0_wp, 0.0_wp,  2.0_wp, 2.0_wp, 0.0_wp, &
       & 2.0_wp, 3.0_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp,  2.0_wp, 5.0_wp, 0.0_wp, &
@@ -243,7 +243,6 @@ module xtb_xtb_gfn1
       & 2.0_wp, 0.0_wp, 9.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 1.0_wp, 0.0_wp, &
       & 2.0_wp, 2.0_wp, 0.0_wp,  2.0_wp, 3.0_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp, &
       & 2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp], shape(referenceOcc))
-
 
 
 contains
@@ -303,21 +302,34 @@ subroutine initHamiltonian(self, nShell)
    !>
    integer, intent(in) :: nShell(:)
 
-   integer :: mShell, nPrim
+   integer :: mShell, nPrim, lAng
    integer :: iZp, iSh
+   logical :: valShell(0:3)
 
    mShell = maxval(nShell)
    self%angShell = ao_l(:mShell, :maxElem)
 
-   self%electronegativity = paulingEN(:maxElem)
+   self%electronegativity = en(:maxElem)
    self%atomicRad = atomicRad(:maxElem)
    self%shellPoly = polyr(:, :maxElem)
    self%pairParam = kpair(:maxElem, :maxElem)
-   self%referenceOcc = referenceOcc(:mShell, :maxElem)
    self%selfEnergy = ao_lev(:mShell, :maxElem)
    self%slaterExponent = ao_exp(:mShell, :maxElem)
-   self%valenceShell = valenceShell(:mShell, :maxElem)
    self%principalQuantumNumber = ao_pqn(:mShell, :maxElem)
+
+   allocate(self%valenceShell(mShell, maxElem))
+   call generateValenceShellData(self%valenceShell, nShell, self%angShell)
+
+   allocate(self%referenceOcc(mShell, maxElem))
+   self%referenceOcc(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      do iSh = 1, nShell(iZp)
+         lAng = self%angShell(iSh, iZp)
+         if (self%valenceShell(iSh, iZp) /= 0) then
+            self%referenceOcc(iSh, iZp) = referenceOcc(lAng, iZp)
+         end if
+      end do
+   end do
 
    allocate(self%numberOfPrimitives(mShell, maxElem))
    do iZp = 1, maxElem

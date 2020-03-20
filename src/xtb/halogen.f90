@@ -19,7 +19,6 @@
 module xtb_xtb_halogen
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
-   use xtb_aoparam
    use xtb_lin, only : lin
    use xtb_xtb_data
    implicit none

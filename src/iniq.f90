@@ -17,7 +17,15 @@
 
 module xtb_iniq
    use xtb_mctc_accuracy, only : wp
-implicit none
+   use xtb_param_paulingen, only : paulingEN
+   implicit none
+
+   integer, private, parameter :: metal(1:86) = [&
+      & 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, &
+      & 1, 0, 0, 0, 0, 0]
 
 contains
 
@@ -119,9 +127,6 @@ end subroutine iniqcn
 !  cn   :: coordination number
 pure subroutine iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
 
-!  get data from parameter modules
-   use xtb_aoparam, only : en,metal
-
 !  get interface to ncoord
    use xtb_disp_ncoord, only : ncoord_d3
 
@@ -153,7 +158,7 @@ pure subroutine iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
 
 !  uncorrected electronegativites
    do i = 1, nat
-      ena(i) = en(at(i))
+      ena(i) = paulingEN(at(i))
       if (metal(at(i)).gt.0) cn(i) = 0.0_wp
    enddo
 
@@ -188,9 +193,6 @@ end subroutine iniqcn_vtb
 !  PARAMETER:
 !  kchrg1 (via INPUT)
 pure subroutine iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
-
-!  get data from parameter modules
-   use xtb_aoparam, only : en,metal
 
 !  get interface to ncoord
    use xtb_disp_ncoord, only : ncoord_d3
@@ -227,7 +229,7 @@ pure subroutine iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
       if (metal(at(i)).gt.0) then
          ena(i) = 0.0_wp
       else
-         ena(i) = en(at(i)) - kchrg1*sqrt(cn(i))
+         ena(i) = paulingEN(at(i)) - kchrg1*sqrt(cn(i))
       endif
    enddo
 
@@ -260,9 +262,6 @@ end subroutine iniqcn_gfn1
 !  q    :: partial charges
 !  cn   :: coordination number
 pure subroutine iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
-
-!  get data from parameter modules
-   use xtb_aoparam, only : en,metal
 
 !  get interface to ncoord
    use xtb_disp_ncoord, only : ncoord_gfn
@@ -300,7 +299,7 @@ pure subroutine iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
       if (metal(at(i)).gt.0) then
          ena(i) = kchrg2*sqrt(cn(i)) ! avoid to big q for metals
       else
-         ena(i) = en(at(i)) + kchrg2*sqrt(cn(i))
+         ena(i) = paulingEN(at(i)) + kchrg2*sqrt(cn(i))
       endif
    enddo
 

@@ -24,6 +24,7 @@ module xtb_xtb_data
    public :: TxTBData
    public :: TRepulsionData, TCoulombData, THamiltonianData
    public :: THalogenData, TMultipoleData
+   public :: generateValenceShellData
 
 
    !>
@@ -183,6 +184,32 @@ module xtb_xtb_data
 
 
 contains
+
+
+subroutine generateValenceShellData(valenceShell, nShell, angShell)
+
+   integer, intent(out) :: valenceShell(:, :)
+
+   integer, intent(in) :: nShell(:)
+
+   integer, intent(in) :: angShell(:, :)
+
+   integer :: lAng, iZp, iSh
+   logical :: valShell(0:3)
+
+   valenceShell(:, :) = 0
+   do iZp = 1, size(nShell, dim=1)
+      valShell(:) = .true.
+      do iSh = 1, nShell(iZp)
+         lAng = angShell(iSh, iZp)
+         if (valShell(lAng)) then
+            valShell(lAng) = .false.
+            valenceShell(iSh, iZp) = 1
+         end if
+      end do
+   end do
+
+end subroutine generateValenceShellData
 
 
 end module xtb_xtb_data

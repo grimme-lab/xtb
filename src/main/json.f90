@@ -69,7 +69,6 @@ subroutine main_json &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
 
    implicit none
 

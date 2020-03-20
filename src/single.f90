@@ -106,7 +106,7 @@ subroutine singlepoint &
    ! check for external point charge field
    call open_file(ich,pcem_file,'r')
    if (ich.ne.-1) then
-      call read_pcem(ich,pcem)
+      call read_pcem(ich,env,pcem,calc%xtb%coulomb)
       call close_file(ich)
    endif
 

@@ -126,7 +126,8 @@ end subroutine constrallangles
 
 subroutine constrallbonds(nat,at,xyz)
    use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
+   use xtb_mctc_convert, only : autoaa
+   use xtb_param_atomicrad, only : atomicRad
    use xtb_scanparam
    implicit none
    integer nat,at(nat)
@@ -139,7 +140,7 @@ subroutine constrallbonds(nat,at,xyz)
       do j =1, i
          if(i.eq.j) cycle
          rij=norm2(xyz(:,i)-xyz(:,j))
-         rco=rad(at(j))+rad(at(i))
+         rco=(atomicRad(at(j))+atomicRad(at(i)))*autoaa
          if(0.52917726*rij.lt.1.2*rco)then
             nconstr = nconstr + 1
             atconstr(1,nconstr) = i

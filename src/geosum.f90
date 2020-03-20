@@ -16,8 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine geosum(n,ic,xyzin)
+   use xtb_mctc_convert, only : autoaa
    use xtb_mctc_symbols, only : toSymbol
-   use xtb_aoparam
+   use xtb_param_atomicrad, only : atomicRad
    use xtb_splitparam
    implicit none
    integer n,ic(n)
@@ -57,7 +58,7 @@ subroutine geosum(n,ic,xyzin)
          r=sqrt((x(i)-x(j))**2+(y(i)-y(j))**2+(z(i)-z(j))**2)&
             &        *0.529177260d0
          ! the max bond dist in angst
-         brad=rad(ic(i))+rad(ic(j))
+         brad=(atomicRad(ic(i))+atomicRad(ic(j)))*autoaa
          brad=brad+0.30*brad
          if(r.le.brad) then
             nbond(i)=nbond(i)+1
@@ -166,7 +167,7 @@ subroutine geosum(n,ic,xyzin)
          r=sqrt((x(i)-x(j))**2+(y(i)-y(j))**2+(z(i)-z(j))**2)&
             &        *0.529177260d0
          ! the max bond dist in angst
-         brad=rad(ic(i))+rad(ic(j))
+         brad=(atomicRad(ic(i))+atomicRad(ic(j)))*autoaa
          brad=brad+0.25*brad
          if(r.le.brad) then
             do ii=1,nbond(i)

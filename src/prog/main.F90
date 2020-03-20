@@ -29,7 +29,7 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
    use xtb_prog_argparser
-   use xtb_aoparam
+   use xtb_aoparam, only : kpair, use_parameterset
    use xtb_setparam
    use xtb_sphereparam
    use xtb_scanparam
