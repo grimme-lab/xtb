@@ -578,11 +578,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 ! ========================================================================
    H0=0
    if(gfn_method.eq.1)then
-      call build_h0_gfn1(H0,mol%n,mol%at,basis%nao,nmat,matlist, &
+      call build_h0_gfn1(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
       &                  param%kspd,param%kmagic,param%kenscal, &
       &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    else
-      call build_h0_gfn2(H0,mol%n,mol%at,basis%nao,nmat,matlist, &
+      call build_h0_gfn2(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
       &                  param%kspd,param%kmagic,param%kenscal, &
       &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    endif
@@ -595,7 +595,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
          call electro2(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P, &
          &             wfn%q,gam3sh,wfn%qsh,param%gscal,ees,eel)
       else
-         call electro(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P,wfn%q,wfn%qsh,ees,eel)
+         call electro(xtbData,mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P,wfn%q,wfn%qsh,ees,eel)
       endif
       if(lgbsa) then
          cm5=wfn%q+cm5a
@@ -900,18 +900,19 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 !  wave function terms
 !  print'("Calculating polynomial derivatives")'
-   call poly_grad(g,n,at,basis%nao,nmat2,matlist2,xyz,sqrab,wfn%P,S,basis%aoat2,basis%lao2,H0)
+   call poly_grad(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz,sqrab, &
+      & wfn%P,S,basis%aoat2,basis%lao2,H0)
 
 !  CN dependent part
 !  print'("Calculating CN dependent derivatives")'
    if (gfn_method.gt.1) then
       call dncoord_gfn(n,at,xyz,cn,dcn)
-      call hcn_grad_gfn2(g,n,at,basis%nao,nmat2,matlist2,xyz, &
+      call hcn_grad_gfn2(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
            &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcn, &
            &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    else
       call dncoord_d3(n,at,xyz,cn,dcn)
-      call hcn_grad_gfn1(g,n,at,basis%nao,nmat2,matlist2,xyz, &
+      call hcn_grad_gfn1(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
            &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcn, &
            &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    endif

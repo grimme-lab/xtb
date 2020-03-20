@@ -2520,5 +2520,83 @@ subroutine pbc_build_dSH0(nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,s
 
 end subroutine pbc_build_dSH0
 
-end module xtb_peeq
+!! ========================================================================
+!  S(R) enhancement factor
+!! ========================================================================
+pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
+   use xtb_aoparam, only : rad,polyr
+   use xtb_mctc_convert, only : aatoau
+   implicit none
+   integer,intent(in) :: ati,atj,ish,jsh
+   real(wp), intent(in) :: xyz1(3),xyz2(3)
+   real(wp) :: rfactor
+   real(wp) :: rab,k1,rr,r,rf1,rf2,dx,dy,dz,a
 
+   a=0.5           ! R^a dependence 0.5 in GFN1
+
+   dx=xyz1(1)-xyz2(1)
+   dy=xyz1(2)-xyz2(2)
+   dz=xyz1(3)-xyz2(3)
+
+   rab=sqrt(dx**2+dy**2+dz**2)
+
+   ! this sloppy conv. factor has been used in development, keep it
+   rr=(rad(ati)+rad(atj))*aatoau
+
+   r=rab/rr
+
+   k1=polyr(ish,ati)
+   rf1=1.0d0+0.01*k1*r**a
+   k1=polyr(jsh,atj)
+   rf2=1.0d0+0.01*k1*r**a
+
+   rfactor= rf1*rf2
+
+end function rfactor
+
+!! ========================================================================
+!  derivative of S(R) enhancement factor
+!! ========================================================================
+pure subroutine drfactor(ish,jsh,iat,ati,atj,rab2,xyz1,xyz2,rf,dxyz)
+   use xtb_mctc_convert
+   use xtb_aoparam, only : rad,polyr
+   implicit none
+   integer,intent(in)  :: ati,atj,ish,jsh,iat
+   real(wp), intent(in)  :: rab2
+   real(wp), intent(out) :: dxyz(3),rf
+   real(wp), intent(in)  :: xyz1(3),xyz2(3)
+   real(wp) :: rab,k1,k2,rr,r,a,dum,rf1,rf2,dx,dy,dz
+   real(wp) :: t14,t15,t17,t22,t20,t23,t10,t11,t35,t13
+
+   a=0.5            ! R^a dependence 0.5 in GFN1
+
+   dx=xyz1(1)-xyz2(1)
+   dy=xyz1(2)-xyz2(2)
+   dz=xyz1(3)-xyz2(3)
+
+   rab=sqrt(rab2)
+
+   ! this sloppy conv. factor has been used in development, keep it
+   r=(rad(ati)+rad(atj))*aatoau
+
+   rr=rab/r
+
+   k1=polyr(ish,ati)*0.01
+   k2=polyr(jsh,atj)*0.01
+
+   t14 = rr**a
+   t15 = k1*t14
+   t17 = 1/rab2
+   t22 = rr**a
+   t23 = k2*t22
+   rf=(1.0d0+t15)*(1.0d0+k2*t22)
+   t20 = 2.D0*dx
+   dxyz(1)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
+   t20 = 2.D0*dy
+   dxyz(2)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
+   t20 = 2.D0*dz
+   dxyz(3)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
+
+end subroutine drfactor
+
+end module xtb_peeq

@@ -37,9 +37,9 @@ contains
 !! ========================================================================
 !  build GFN1 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2)
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -59,7 +59,7 @@ subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    real(wp),intent(in)  :: hdiag2(ndim)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell
+   integer  :: iat,jat,ishell,jshell,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
 
@@ -70,6 +70,8 @@ subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       k=j+i*(i-1)/2
       iat=aoat2(i)
       jat=aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
       hdii=hdiag2(i)
@@ -79,7 +81,8 @@ subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
       &           kspd,kmagic,kenscal,km)
       hav=0.5d0*(hdii+hdjj)* &
-      &      rfactor(ishell,jshell,at(iat),at(jat),xyz(:,iat),xyz(:,jat))
+      &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+      &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       H0(k)=S(j,i)*km*hav
    enddo
 !  diagonal
@@ -96,9 +99,9 @@ end subroutine build_h0_gfn1
 !! ========================================================================
 !  build GFN2 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2,aoexp)
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -119,7 +122,7 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    real(wp),intent(in)  :: aoexp(ndim)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell
+   integer  :: iat,jat,ishell,jshell,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
    real(wp),parameter :: aot = -0.5d0 ! AO exponent dep. H0 scal
@@ -132,6 +135,8 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       k=j+i*(i-1)/2
       iat=aoat2(i)
       jat=aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
       hdii=hdiag2(i)
@@ -142,7 +147,8 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       &           kspd,kmagic,kenscal,km)
       km=km*(0.5*((aoexp(i)+aoexp(j))/(aoexp(i)*aoexp(j))**0.5))**aot
       hav=0.5d0*(hdii+hdjj)* &
-      &      rfactor(ishell,jshell,at(iat),at(jat),xyz(:,iat),xyz(:,jat))
+      &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+      &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       H0(k)=S(j,i)*km*hav
    enddo
 !  diagonal
@@ -163,7 +169,6 @@ subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                          cm5,fgb,fhb,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_solv_gbobc, only : lgbsa
-   implicit none
    type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -247,7 +252,6 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          hdisp,fgb,fhb,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_solv_gbobc, only : lgbsa
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -401,8 +405,6 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
 
    use xtb_solv_gbobc, only : lgbsa,lhb,TSolvent
    use xtb_embedding, only : electro_pcem
-
-   implicit none
 
    character(len=*), parameter :: source = 'scc_gfn1'
 
@@ -592,7 +594,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    call qsh2qat(ash,qsh,q)
 
    eold=eel
-   call electro(n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
+   call electro(xtbData,n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
 
 !  point charge contribution
    if (pcem) call electro_pcem(nshell,qsh,Vpc,epcem,eel)
@@ -703,8 +705,6 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
-
-   implicit none
 
    character(len=*), parameter :: source = 'scc_gfn2'
 
@@ -1059,7 +1059,6 @@ end subroutine scc_gfn2
 subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    &              kenscal,km)
    use xtb_aoparam,  only : kpair,en
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: i
@@ -1107,10 +1106,9 @@ end subroutine h0scal
 !! ========================================================================
 !  total energy for GFN1
 !! ========================================================================
-pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
+pure subroutine electro(xtbData,n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
-   use xtb_aoparam, only : gam3
-   implicit none
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
    integer, intent(in) :: nbf
@@ -1145,7 +1143,7 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    t=0.0_wp
    do i=1,n
 !     third-order diagonal term
-      t = t + gam3(at(i))*dq(i)**3
+      t = t + xtbData%coulomb%thirdOrderAtom(at(i))*dq(i)**3
    enddo
 
 !  ES energy in Eh (gam3 in Eh)
@@ -1175,7 +1173,6 @@ pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
    &                     gam3sh,dqsh,gscal,es,scc)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : evtoau
-   implicit none
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
    integer,intent(in)  :: nbf
@@ -1248,7 +1245,6 @@ end subroutine electro2
 pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
    use xtb_solv_gbobc, only: lhb
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: gab(n,n)
@@ -1299,13 +1295,12 @@ end subroutine electro_gbsa
 !! ========================================================================
 !  S(R) enhancement factor
 !! ========================================================================
-   pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
-   use xtb_aoparam, only : rad,polyr
+pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
    use xtb_mctc_convert, only : aatoau
-   implicit none
-   integer,intent(in) :: ati,atj,ish,jsh
+   real(wp), intent(in) :: iPoly,jPoly
+   real(wp), intent(in) :: iRad,jRad
    real(wp), intent(in) :: xyz1(3),xyz2(3)
-   real(wp) :: rfactor
+   real(wp) :: shellPoly
    real(wp) :: rab,k1,rr,r,rf1,rf2,dx,dy,dz,a
 
    a=0.5           ! R^a dependence 0.5 in GFN1
@@ -1317,24 +1312,21 @@ end subroutine electro_gbsa
    rab=sqrt(dx**2+dy**2+dz**2)
 
    ! this sloppy conv. factor has been used in development, keep it
-   rr=(rad(ati)+rad(atj))*aatoau
+   rr=jRad+iRad
 
    r=rab/rr
 
-   k1=polyr(ish,ati)
-   rf1=1.0d0+0.01*k1*r**a
-   k1=polyr(jsh,atj)
-   rf2=1.0d0+0.01*k1*r**a
+   rf1=1.0d0+0.01*iPoly*r**a
+   rf2=1.0d0+0.01*jPoly*r**a
 
-   rfactor= rf1*rf2
+   shellPoly= rf1*rf2
 
-end function rfactor
+end function shellPoly
 
 !! ========================================================================
 !  set up Coulomb potential due to 2nd order fluctuation
 !! ========================================================================
 pure subroutine setespot(nshell,qsh,jab,ves)
-   implicit none
    integer, intent(in) :: nshell
    real(wp),intent(in) ::  qsh(nshell),jab(nshell,nshell)
 !  ves possibly already contains with PC-potential
@@ -1356,7 +1348,6 @@ end subroutine setespot
 pure subroutine jpot_gfn1(jData,nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    use xtb_mctc_convert
    use xtb_lin
-   implicit none
    type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
@@ -1396,7 +1387,6 @@ end subroutine jpot_gfn1
 pure subroutine jpot_gfn2(jData,nat,nshell,ash,lsh,at,sqrab,jab)
    use xtb_mctc_convert
    use xtb_lin
-   implicit none
    type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
@@ -1432,8 +1422,7 @@ end subroutine jpot_gfn2
 !  eigenvalue solver single-precision
 !! ========================================================================
 subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
-   use iso_fortran_env, sp => real32
-   implicit none
+   use xtb_mctc_accuracy, only : sp
    integer, intent(in)   :: ndim
    logical, intent(in)   :: full
    integer, intent(in)   :: ihomo
@@ -1534,7 +1523,6 @@ end subroutine solve4
 !  eigenvalue solver
 !! ========================================================================
 subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
-   implicit none
    integer, intent(in)   :: ndim
    logical, intent(in)   :: full
    integer, intent(in)   :: ihomo
@@ -1615,7 +1603,6 @@ end subroutine solve
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use xtb_mctc_convert, only : autoev
    use xtb_mctc_constants, only : kB
-   implicit none
    integer, intent(in)  :: norbs
    integer, intent(in)  :: nel
    real(wp),intent(in)  :: eig(norbs)
@@ -1678,7 +1665,6 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 end subroutine fermismear
 
 subroutine occ(ndim,nel,nopen,ihomo,focc)
-   implicit none
    integer  :: nel
    integer  :: nopen
    integer  :: ndim
@@ -1723,7 +1709,6 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
 end subroutine occ
 
 subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
-   implicit none
    integer  :: nel
    integer  :: nopen
    integer  :: ndim
@@ -1792,9 +1777,7 @@ end subroutine occu
 !ccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine dmat(ndim,focc,C,P)
-   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : gemm
-   implicit none
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(*)
    real(wp),intent(in)  :: C(ndim,ndim)
@@ -1816,9 +1799,7 @@ subroutine dmat(ndim,focc,C,P)
 end subroutine dmat
 
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
-   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : gemm
-   implicit none
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: P(ndim,ndim)
@@ -1857,8 +1838,6 @@ end subroutine get_wiberg
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpopall(n,nao,aoat,S,P,qao,q)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1890,8 +1869,6 @@ end subroutine mpopall
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpop0(n,nao,aoat,S,P,q)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1919,8 +1896,6 @@ end subroutine mpop0
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpopao(n,nao,S,P,qao)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1946,8 +1921,6 @@ end subroutine mpopao
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1983,8 +1956,6 @@ end subroutine mpop
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -2027,8 +1998,6 @@ end subroutine qsh2qat
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  C (nao,nao)
    real(wp)  occ(nao)
@@ -2058,8 +2027,6 @@ end subroutine lpop
 !cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine iniqshell(xtbData,n,at,z,nshell,q,qsh,gfn_method)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -2094,9 +2061,6 @@ end subroutine iniqshell
 
 
 subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
-   implicit none
    type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -2125,7 +2089,7 @@ subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
 !         ash(k)=i
          ntot=ntot+zsh(k)
          if(ntot.gt.z(i)) zsh(k)=0
-         e=e+ao_lev(m,iat)*zsh(k)
+         e=e+xtbData%hamiltonian%selfEnergy(m,iat)*zsh(k)
       enddo
    enddo
 
