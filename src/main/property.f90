@@ -182,14 +182,14 @@ subroutine main_property &
 
    if (pr_tmbas .or. pr_tmmos) then
       call open_file(ifile,'basis','w')
-      call write_tm_basis(ifile,mol%n,mol%at,basis,wfx)
-      close(ifile)
+      call write_tm_basis(ifile,xtbData,mol%n,mol%at,basis,wfx)
+      call close_file(ifile)
    endif
 
    if (pr_tmmos) then
       call open_file(ifile,'mos','w')
       call write_tm_mos(ifile,mol%n,mol%at,basis,wfx)
-      close(ifile)
+      call close_file(ifile)
    endif
 
 !! multipole moment prinout

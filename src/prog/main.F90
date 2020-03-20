@@ -475,12 +475,6 @@ subroutine xtbMain(env, argParser)
    enddo
 
 
-   if (gen_param) then
-      !  generate a warning to keep release versions from generating huge files
-      call env%warning('XTB IS DUMPING PARAMETERFILES, RESET GEN_PARAM FOR RELEASE!')
-      call prelemparam(globpar)
-   endif
-
    allocate(calc%param)
    allocate(calc%xtb)
 

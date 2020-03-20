@@ -698,8 +698,6 @@ function gfn2_pcem_api &
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use xtb_aoparam
-
    use xtb_calculators
 
    implicit none
@@ -792,7 +790,6 @@ function gfn12_pcem_impl &
    use xtb_type_basisset
    use xtb_type_data
 
-   use xtb_aoparam
    use xtb_setparam, only : gfn_method, ngrida
    use xtb_scf
    use xtb_solv_gbobc
@@ -864,7 +861,7 @@ function gfn12_pcem_impl &
    pcem%q   = pc_q
    pcem%xyz = pc_coord
    where(pc_at > 0)
-      pcem%gam = gam(pc_at)
+      pcem%gam = xtbData%coulomb%chemicalHardness(pc_at)
    elsewhere
       pcem%gam = pc_gam
    endwhere

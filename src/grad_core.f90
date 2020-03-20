@@ -66,6 +66,7 @@ end subroutine prep_grad_conv
 !  wave function terms
 !! ========================================================================
 subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H0)
+   use xtb_lin
    type(THamiltonianData), intent(in) :: hData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in)    :: n
@@ -80,8 +81,6 @@ subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H
    integer, intent(in)    :: aoat2(ndim)
    integer, intent(in)    :: lao2(ndim)
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
-
-   integer,external :: lin
 
    integer  :: i,j,kk,m
    integer  :: iat,jat,ishell,jshell,iZp,jZp
@@ -348,6 +347,7 @@ end subroutine cm5_grad_gfn1
 !  shellwise electrostatic gradient for GFN1
 !! ========================================================================
 subroutine shelles_grad_gfn1(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
+   use xtb_lin
    type(TCoulombData), intent(in) :: jData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
@@ -360,7 +360,6 @@ subroutine shelles_grad_gfn1(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
    real(wp),intent(in) :: alphaj
    real(wp),intent(in) :: qsh(nshell)
 
-   integer,external :: lin
    integer  :: is,js,iat,jat,ati,atj
    real(wp) :: xa,ya,za,dx,dy,dz
    real(wp) :: gi,gj,r2,rr,yy,ff
@@ -401,6 +400,7 @@ end subroutine shelles_grad_gfn1
 !  shellwise electrostatic gradient for GFN2
 !! ========================================================================
 subroutine shelles_grad_gfn2(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
+   use xtb_lin
    type(TCoulombData), intent(in) :: jData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
@@ -412,7 +412,6 @@ subroutine shelles_grad_gfn2(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
    integer, intent(in) :: lsh(nshell)
    real(wp),intent(in) :: qsh(nshell)
 
-   integer,external :: lin
    integer  :: is,js,iat,jat,ati,atj
    real(wp) :: xa,ya,za,dx,dy,dz
    real(wp) :: gi,gj,r2,rr,yy

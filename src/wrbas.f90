@@ -15,13 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine write_tm_basis(iunit,nat,at,basis,wfn)
+subroutine write_tm_basis(iunit,xtbData,nat,at,basis,wfn)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_symbols, only : toLcSymbol
    use xtb_type_wavefunction
    use xtb_type_basisset
-   use xtb_aoparam
+   use xtb_xtb_data
    implicit none
+   type(TxTBData), intent(in) :: xtbData
    type(TBasisset),    intent(in) :: basis
    type(TWavefunction),intent(in) :: wfn
    integer,intent(in)  :: iunit
@@ -42,13 +43,13 @@ subroutine write_tm_basis(iunit,nat,at,basis,wfn)
       nn(at(iat)) = iat
    enddo
    write(iunit,'(a)') '*'
-   do iatyp = 1, 94
+   do iatyp = 1, 86
       iat = nn(iatyp)
       if (iat.eq.0) cycle
       write(iunit,'(a,1x,a)') trim(toLcSymbol(iatyp)),'tbbas'
       write(iunit,'(a)') '*'
-      do ish = 1, ao_n(iatyp)
-         ishtyp = ao_l(ish,iatyp)
+      do ish = 1, xtbData%nShell(iatyp)
+         ishtyp = xtbData%hamiltonian%angShell(ish,iatyp)
          icao = basis%caoshell(ish,iat)
          write(iunit,'(1x,i3,2x,a1,25x,a)') &
             basis%nprim(icao+1),lnam(ishtyp)

@@ -57,7 +57,6 @@ module xtb_qmdff
 contains
 
 subroutine ff_ini(n,at,xyz,cn,s6)
-   use xtb_aoparam
    use xtb_mctc_param, only : r2r4 => sqrt_z_r4_over_r2, &
       &                   rcov => covalent_radius_d3
    implicit none
@@ -632,7 +631,8 @@ end subroutine ff_hb
 !cccccccccccccccccccccccccccccccccccccccccccccc
 
 pure subroutine abdamp(ati,atj,r2,damp,ddamp)
-   use xtb_aoparam, only : rad
+   use xtb_mctc_convert, only : autoaa
+   use xtb_param_atomicrad, only : atomicRad
    implicit none
    integer, intent(in)  :: ati,atj
    real(wp),intent(in)  :: r2
@@ -640,7 +640,7 @@ pure subroutine abdamp(ati,atj,r2,damp,ddamp)
    real(wp) :: rr,rcut
 
    ! cut-off at about double of R_cov
-   rcut =3.0 * 3.5710642*(rad(ati)+rad(atj))**2
+   rcut =3.0 * 3.5710642*((atomicRad(ati)+atomicRad(atj))*autoaa)**2
    rr   =(r2/rcut)**2
    damp = 1.0d0/(1.0d0+rr)
    ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)

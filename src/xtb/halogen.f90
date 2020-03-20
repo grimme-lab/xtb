@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2019-2020 Sebastian Ehlert
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -15,45 +15,31 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! X..Y bond? (X=halogen but not F, Y=N,O,P,S) !CB: Cl is formally included, but
-! has a parater of zero in GFN1-xTB
-
-pure elemental function xbond(ati,atj) result(bool)
-   integer,intent(in) :: ati,atj
-   logical :: bool
-   logical :: lx1,lx2,ly1,ly2
-
-   bool=.false.
-   lx1=.false.
-   lx2=.false.
-   ly1=.false.
-   ly2=.false.
-
-   if(ati.eq.17.or.ati.eq.35.or.ati.eq.53.or.ati.eq.85) lx1=.true.
-   if(atj.eq.17.or.atj.eq.35.or.atj.eq.53.or.atj.eq.85) lx2=.true.
-   if(ati.eq. 7.or.ati.eq. 8.or.ati.eq.15.or.ati.eq.16) ly1=.true.
-   if(atj.eq. 7.or.atj.eq. 8.or.atj.eq.15.or.atj.eq.16) ly2=.true.
-
-   if(lx1.and.ly2) bool=.true.
-   if(lx2.and.ly1) bool=.true.
-
-end function xbond
-
-subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
+!> TODO
+module xtb_xtb_halogen
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
    use xtb_aoparam
    use xtb_lin, only : lin
+   use xtb_xtb_data
    implicit none
+   private
+
+   public :: xbpot
+
+
+contains
+
+
+subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
+   type(THalogenData), intent(in) :: halData
    integer, intent(in) :: n
-   integer, intent(in) :: at(n)
+   integer, intent(in) :: at(:)
    integer, intent(in) :: nxb
-   integer, intent(in) :: xblist(3,nxb+1)
-   real(wp), intent(in) :: xyz(3,n)
-   real(wp), intent(inout) :: g(3,n)
-   real(wp), intent(in) :: sqrab(n*(n+1)/2)
+   integer, intent(in) :: xblist(:,:)
+   real(wp), intent(in) :: xyz(:,:)
+   real(wp), intent(inout) :: g(:,:)
+   real(wp), intent(in) :: sqrab(:)
    real(wp), intent(inout) :: exb
    real(wp), intent(in) :: a
    real(wp), intent(in) :: xbrad
@@ -77,9 +63,9 @@ subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       B=xblist(3,k)
       ati=at(X)
       atj=at(AA)
-      cc=cxb(ati)
+      cc=halData%bondStrength(ati)
       ! this sloppy conv. factor has been used in development, keep it
-      r0ax=xbrad*(rad(ati)+rad(atj)) * aatoau
+      r0ax=xbrad*(halData%atomicRad(ati)+halData%atomicRad(atj))
       d2ax=sqrab(lin(AA,X))
       d2ab=sqrab(lin(AA,B))
       d2bx=sqrab(lin(X, B))
@@ -100,9 +86,9 @@ subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       B=xblist(3,k)
       ati=at(X)
       atj=at(AA)
-      cc=cxb(ati)
+      cc=halData%bondStrength(ati)
       ! this sloppy conv. factor has been used in development, keep it
-      r0ax=xbrad*(rad(ati)+rad(atj)) * aatoau
+      r0ax=xbrad*(halData%atomicRad(ati)+halData%atomicRad(atj))
 
       dxa=xyz(:,AA)-xyz(:,X)   ! acceptor - halogen
       dxb=xyz(:, B)-xyz(:,X)   ! neighbor - halogen 
@@ -165,11 +151,5 @@ subroutine xbpot(n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
    enddo
 end subroutine xbpot
 
-pure elemental function early3d(i) result(bool)
-   implicit none
-   integer,intent(in) :: i
-   logical :: bool
-   bool = .false.
-   if ((i.ge.21).and.(i.le.24)) bool = .true.
-end function early3d
 
+end module xtb_xtb_halogen

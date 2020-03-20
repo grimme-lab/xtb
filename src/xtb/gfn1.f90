@@ -365,6 +365,7 @@ subroutine initHalogen(self)
    type(THalogenData), intent(out) :: self
 
    self%atomicRad = atomicRad(:maxElem)
+   self%bondStrength = cxb(:maxElem)
 
 end subroutine initHalogen
 

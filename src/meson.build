@@ -151,7 +151,6 @@ srcs += files(
   'wrgbw.f90',
   'wrmodef.f90',
   'wrmo.f90',
-  'xbond.f90',
   'xhelp.f90',
   'zmatpr.f90',
 )
