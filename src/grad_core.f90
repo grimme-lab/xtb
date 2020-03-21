@@ -179,7 +179,7 @@ subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
       jat=aoat2(j)
       dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
          & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
       &           kspd,kmagic,kenscal,km)
       dum1=hji*km*dum*hdiag2(i)*kcnao(i)*evtoau ! h independent part in H0
       dum2=hji*km*dum*hdiag2(j)*kcnao(j)*evtoau ! h independent part in H0
@@ -276,7 +276,7 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
       hji=P(j,i)*S(j,i)
       dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
          & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
       &               kspd,kmagic,kenscal,km)
       fact = 0.5_wp*(aoexp(i)+aoexp(j))/sqrt(aoexp(i)*aoexp(j))
       km = km*fact**aot

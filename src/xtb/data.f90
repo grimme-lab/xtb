@@ -40,10 +40,16 @@ module xtb_xtb_data
       real(wp) :: rExp
 
       !>
+      real(wp) :: enScale
+
+      !>
       real(wp), allocatable :: alpha(:)
 
       !>
       real(wp), allocatable :: zeff(:)
+
+      !>
+      real(wp), allocatable :: electronegativity(:)
 
       !>
       real(wp) :: cutoff
@@ -90,11 +96,29 @@ module xtb_xtb_data
       !>
       real(wp), allocatable :: pairParam(:, :)
 
+      !>
+      real(wp), allocatable :: kQShell(:, :)
+
+      !>
+      real(wp), allocatable :: kQAtom(:)
+
    end type THamiltonianData
 
 
    !>
    type :: TCoulombData
+
+      !>
+      logical :: enEquilibration
+
+      !>
+      logical :: secondOrder
+
+      !>
+      logical :: thirdOrder
+
+      !>
+      logical :: shellResolved
 
       !>
       real(wp), allocatable :: chemicalHardness(:)
@@ -104,6 +128,15 @@ module xtb_xtb_data
 
       !>
       real(wp), allocatable :: thirdOrderAtom(:)
+
+      !>
+      real(wp), allocatable :: chargeWidth(:)
+
+      !>
+      real(wp), allocatable :: electronegativity(:)
+
+      !>
+      real(wp), allocatable :: kCN(:)
 
    end type TCoulombData
 

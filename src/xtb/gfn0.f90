@@ -39,6 +39,17 @@ module xtb_xtb_gfn0
    integer, parameter :: maxElem = 86
 
    ! ========================================================================
+   ! REPULSION DATA
+   !>
+   real(wp), parameter :: kExp = 1.5_wp
+
+   !>
+   real(wp), parameter :: kExpLight = kExp
+
+   !>
+   real(wp), parameter :: rExp = 1.0_wp
+
+   ! ========================================================================
    ! HAMILTONIAN DATA
    !>
    integer, parameter :: valenceShell(3, 1:maxElem) = reshape([&
@@ -111,6 +122,14 @@ subroutine initRepulsion(self)
    !>
    type(TRepulsionData), intent(out) :: self
 
+   self%cutoff = 40.0_wp
+   self%kExp = kExp
+   self%kExpLight = kExpLight
+   self%rExp = rExp
+   self%electronegativity = en(:maxElem)
+   self%alpha = rep(1, :maxElem) ! repAlpha
+   self%zeff = rep(2, :maxElem) ! repZeff
+
 end subroutine initRepulsion
 
 
@@ -121,6 +140,11 @@ subroutine initCoulomb(self, nShell)
 
    !>
    integer, intent(in) :: nShell(:)
+
+   self%electronegativity = dpolc(1:maxElem)
+   self%chemicalHardness = gam(1:maxElem)
+   self%kCN = cxb(1:maxElem)
+   self%chargeWidth = alp0(1:maxElem)
 
 end subroutine initCoulomb
 
@@ -144,9 +168,12 @@ subroutine initHamiltonian(self, nShell)
    self%atomicRad = atomicRad(:maxElem)
    self%shellPoly = polyr(:, :maxElem)
    self%pairParam = kpair(:maxElem, :maxElem)
+   self%kCN = kcnat(:, :maxElem)
    self%selfEnergy = ao_lev(:mShell, :maxElem)
    self%slaterExponent = ao_exp(:mShell, :maxElem)
    self%principalQuantumNumber = ao_pqn(:mShell, :maxElem)
+   self%kQShell = kqat(:, :maxElem)
+   self%kQAtom = gam3(:maxElem)
 
    allocate(self%valenceShell(mShell, maxElem))
    call generateValenceShellData(self%valenceShell, nShell, self%angShell)

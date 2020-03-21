@@ -287,6 +287,7 @@ subroutine initRepulsion(self)
    self%kExp = kExp
    self%kExpLight = kExpLight
    self%rExp = rExp
+   self%electronegativity = spread(1.0_wp, 1, maxElem)
    self%alpha = rep(1, :maxElem) ! repAlpha
    self%zeff = rep(2, :maxElem) ! repZeff
 

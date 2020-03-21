@@ -78,7 +78,7 @@ subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       hdii=hdii*(1.0d0+kcnao(i)*cn(iat))  ! CN dependent shift
       hdjj=hdiag2(j)
       hdjj=hdjj*(1.0d0+kcnao(j)*cn(jat))  ! CN dependent shift
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
       &           kspd,kmagic,kenscal,km)
       hav=0.5d0*(hdii+hdjj)* &
       &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
@@ -143,7 +143,7 @@ subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       hdii=hdii-kcnao(i)*cn(iat)  ! CN dependent shift
       hdjj=hdiag2(j)
       hdjj=hdjj-kcnao(j)*cn(jat)  ! CN dependent shift
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
       &           kspd,kmagic,kenscal,km)
       km=km*(0.5*((aoexp(i)+aoexp(j))/(aoexp(i)*aoexp(j))**0.5))**aot
       hav=0.5d0*(hdii+hdjj)* &
@@ -1056,9 +1056,9 @@ end subroutine scc_gfn2
 !! ========================================================================
 !  H0 off-diag scaling
 !! ========================================================================
-subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
+subroutine h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    &              kenscal,km)
-   use xtb_aoparam,  only : kpair,en
+   type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: i
@@ -1082,8 +1082,8 @@ subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    if(valaoi.and.valaoj) then
       ii=at(iat)
       jj=at(jat)
-      den=(en(ii)-en(jj))**2
-      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*kpair(ii,jj)
+      den=(hData%electronegativity(ii)-hData%electronegativity(jj))**2
+      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*hData%pairParam(ii,jj)
       return
    endif
 
