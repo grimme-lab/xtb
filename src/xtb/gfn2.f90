@@ -142,6 +142,21 @@ module xtb_xtb_gfn2
    ! ========================================================================
    ! MULTIPOLE DATA
    !>
+   real(wp), parameter :: dipDamp = 3.0_wp
+
+   !>
+   real(wp), parameter :: quadDamp = 4.0_wp
+
+   !>
+   real(wp), parameter :: cnShift = 1.2_wp
+
+   !>
+   real(wp), parameter :: cnExp = 4.0_wp
+
+   !>
+   real(wp), parameter :: cnRMax = 5.0_wp
+
+   !>
    real(wp), parameter :: dipKernel(1:maxElem) = [&
       & 5.563889_wp,-1.000000_wp,-0.500000_wp,-0.613341_wp,-0.481186_wp, &
       &-0.411674_wp, 3.521273_wp,-4.935670_wp,-8.339183_wp,10.000000_wp, &
@@ -314,6 +329,11 @@ subroutine initMultipole(self)
    !>
    type(TMultipoleData), intent(out) :: self
 
+   self%cnShift = cnShift
+   self%cnExp = cnExp
+   self%cnRMax = cnRMax
+   self%dipDamp = dipDamp
+   self%quadDamp = quadDamp
    self%dipKernel = dpolc(:maxElem) ! dipKernel
    self%quadKernel = qpolc(:maxElem) ! quadKernel
    self%valenceCN = valenceCN

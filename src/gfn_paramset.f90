@@ -16,17 +16,22 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_paramset
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
+   use xtb_type_param
+
 contains
 
-subroutine set_gfn1_parameter(xpar,globpar)
+subroutine set_gfn1_parameter(xpar,globpar,xtbData)
    use xtb_mctc_accuracy, only : wp
-   use xtb_type_param
    use xtb_disp_dftd3param
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    type(TxTBParameter), intent(in) :: globpar
+   type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
-   call setpair(1)
    xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
       & globpar%kdiffa, globpar%kdiffb]
    ! ini prop factors for Hav(l1,l2), NO f-AO !
@@ -39,11 +44,6 @@ subroutine set_gfn1_parameter(xpar,globpar)
       xpar%kmagic(1,2)=xpar%kspd(5)
       xpar%kmagic(2,1)=xpar%kspd(5)
    endif
-   xpar%gscal    =globpar%gscal*0.1      ! purpose changed in scf.f !
-   xpar%gam3l(0) =1.00_wp     !s
-   xpar%gam3l(1) =globpar%zcnf !p
-   xpar%gam3l(2) =globpar%tscal!d-pol
-   xpar%gam3l(3) =globpar%kcn!d-val
    xpar%kcnsh(1) =globpar%kcn*0.01_wp
    xpar%kcnsh(2) =globpar%fpol*0.01_wp
    xpar%kcnsh(3) =globpar%ken*0.01_wp
@@ -57,27 +57,22 @@ subroutine set_gfn1_parameter(xpar,globpar)
    xpar%disp%a2  =globpar%dispb
    xpar%disp%s6  =1.0_wp
    xpar%disp%s8  =globpar%dispc
-   xpar%ipshift  =globpar%wllscal*0.1
+   xpar%ipshift  =globpar%ipeashift*0.1
    xpar%eashift  =xpar%ipshift
-   xpar%ken1     =1.0
-   xpar%zqf      =0
-   xpar%zcnf     =0
-   xpar%fpol     =0
-   xpar%wllscal  =1
    if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
 
 end subroutine set_gfn1_parameter
 
 
-subroutine set_gfn2_parameter(xpar,globpar)
+subroutine set_gfn2_parameter(xpar,globpar,xtbData)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
    use xtb_disp_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    type(TxTBParameter), intent(in) :: globpar
+   type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
-   call setpair(2)
    xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
       & globpar%kdiffa, globpar%kdiffb]
    ! ini prop factors for Hav(l1,l2), NO f-AO !
@@ -94,37 +89,30 @@ subroutine set_gfn2_parameter(xpar,globpar)
    xpar%kmagic(3,1)=xpar%kspd(4)
    xpar%kmagic(2,3)=xpar%kspd(6)
    xpar%kmagic(3,2)=xpar%kspd(6)
-   xpar%gscal    =globpar%gscal*0.1      ! purpose changed in scf.f !
    xpar%gam3l(0) =1.00_wp     !s
    xpar%gam3l(1) =globpar%zcnf !p
    xpar%gam3l(2) =globpar%tscal!d-pol
    xpar%gam3l(3) =globpar%kcn!d-val
-   xpar%cn_shift =globpar%lshift ! R AES CN val offset
-   xpar%cn_expo  =globpar%lshifta ! R AES CN steepness
-   xpar%cn_rmax  =globpar%split ! R AES CN Rmax
+   xpar%cn_shift =globpar%aesshift ! R AES CN val offset
+   xpar%cn_expo  =globpar%aesexp ! R AES CN steepness
+   xpar%cn_rmax  =globpar%aesrmax ! R AES CN Rmax
+   xpar%xbrad    =globpar%aesdmp3
+   xpar%xbdamp   =globpar%aesdmp5
    xpar%kenscal  =globpar%ken ! kenscal in scf.f
-   xpar%disp%s9  =globpar%dispatm ! d3atm
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
-   xpar%xbrad    =globpar%xbdamp
-   xpar%xbdamp   =globpar%xbrad
-   xpar%alphaj   =globpar%alphaj
    xpar%disp%a1  =globpar%dispa
    xpar%disp%a2  =globpar%dispb
    xpar%disp%s6  =1.0_wp
    xpar%disp%s8  =globpar%dispc
-   xpar%ipshift  =globpar%wllscal*0.1
+   xpar%disp%s9  =globpar%dispatm ! d3atm
+   xpar%ipshift  =globpar%ipeashift*0.1
    xpar%eashift  =xpar%ipshift
-   xpar%ken1     =1.0
-   xpar%zqf      =0
-   xpar%zcnf     =0
-   xpar%fpol     =0
-   xpar%wllscal  =1
    call d4init(xpar%g_a,xpar%g_c,p_refq_gfn2xtb)
 end subroutine set_gfn2_parameter
 
-subroutine set_gfn0_parameter(xpar,globpar)
+subroutine set_gfn0_parameter(xpar,globpar,xtbData)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
    !use gfn0_module
@@ -133,9 +121,9 @@ subroutine set_gfn0_parameter(xpar,globpar)
    implicit none
    type(scc_parameter),intent(inout) :: xpar
    type(TxTBParameter), intent(in) :: globpar
+   type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
 
-   call setpair(0)
    xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
       & globpar%kdiffa, globpar%kdiffb]
    ! ini prop factors for Hav(l1,l2), NO f-AO !
@@ -148,7 +136,6 @@ subroutine set_gfn0_parameter(xpar,globpar)
       xpar%kmagic(1,2)=xpar%kspd(5)
       xpar%kmagic(2,1)=xpar%kspd(5)
    endif
-   xpar%gscal    =globpar%gscal*0.1      ! purpose changed in scf.f !
    xpar%gam3l(0) =1.00_wp     !s
    xpar%gam3l(1) =globpar%zcnf !p
    xpar%gam3l(2) =globpar%tscal!d-pol
@@ -170,14 +157,35 @@ subroutine set_gfn0_parameter(xpar,globpar)
    xpar%disp%s6  =1.0_wp
    xpar%disp%s9  =0.0_wp
    xpar%disp%s8  =globpar%dispc
-   xpar%ipshift  =globpar%wllscal*0.1
+   xpar%ipshift  =globpar%ipeashift*0.1
    xpar%eashift  =xpar%ipshift
-   xpar%ken1     =1.0
-   xpar%zqf      =0
-   xpar%zcnf     =0
-   xpar%fpol     =0
-   xpar%wllscal  =1
    call d4init(xpar%g_a,xpar%g_c,p_refq_goedecker)
 end subroutine set_gfn0_parameter
+
+subroutine use_parameterset(name,globpar,xtbData,exist)
+   implicit none
+   character(len=*),intent(in) :: name
+   logical,intent(out)  :: exist
+   type(TxTBParameter), intent(out) :: globpar
+   type(TxTBData), intent(out) :: xtbData
+   exist = .false.
+   select case(name)
+   case('.param_gfn.xtb')
+      call copy_gfn1_parameterset(globpar)
+      call setpair(1)
+      call initGFN1(xtbData)
+   case('.param_ipea.xtb')
+      call copy_ipea_parameterset(globpar)
+      call setpair(1)
+      call initGFN1(xtbData)
+   case('.param_gfn2.xtb')
+      call copy_gfn2_parameterset(globpar)
+      call setpair(2)
+      call initGFN2(xtbData)
+   case default
+      return
+   end select
+   exist = .true.
+end subroutine use_parameterset
 
 end module xtb_paramset

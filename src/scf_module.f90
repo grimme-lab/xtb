@@ -482,9 +482,10 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 !     set up 1/R^n * damping function terms
       ii=mol%n*(mol%n+1)/2
       allocate(gab3(ii),gab5(ii),radcn(mol%n))
-      call get_radcn(xtbData%multipole,mol%n,mol%at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,radcn)
-      call mmomgabzero(mol%n,mol%at,mol%xyz,param%xbrad,param%xbdamp,radcn,gab3,gab5) ! zero damping, xbrad=kdmp3,xbdamp=kdmp5
-!     allocate CAMM arrays
+      call get_radcn(xtbData%multipole,mol%n,mol%at,cn,xtbData%multipole%cnShift, &
+         & xtbData%multipole%cnExp,xtbData%multipole%cnRMax,radcn)
+      call mmomgabzero(mol%n,mol%at,mol%xyz,xtbData%multipole%dipDamp, &
+         & xtbData%multipole%quadDamp,radcn,gab3,gab5) ! zero damping
    endif
 
    if (profile) call timer%measure(3)
@@ -596,7 +597,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       call qsh2qat(basis%ash,wfn%qsh,wfn%q)
       if(gfn_method.gt.1) then
          call electro2(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P, &
-         &             wfn%q,gam3sh,wfn%qsh,param%gscal,ees,eel)
+         &             wfn%q,gam3sh,wfn%qsh,ees,eel)
       else
          call electro(xtbData,mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P,wfn%q,wfn%qsh,ees,eel)
       endif
@@ -629,7 +630,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       call scc_gfn2(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &             wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
-      &             mol%xyz,vs,vd,vq,gab3,gab5,param%gscal, &
+      &             mol%xyz,vs,vd,vq,gab3,gab5, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
       &             newdisp,dispdim,param%g_a,param%g_c,gw,wdispmat,hdisp, &
       &             broy,broydamp,damp0, &
@@ -935,9 +936,10 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 ! WARNING: dcndr is overwritten on output and now dR0A/dXC,
 !          and index i & j are flipped
-      call dradcn(xtbData%multipole,n,at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,dcndr)
-      call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,param%xbrad,param%xbdamp, &
-           &          radcn,dcndr,gab3,gab5,g)
+      call dradcn(xtbData%multipole,n,at,cn,xtbData%multipole%cnShift, &
+         & xtbData%multipole%cnExp,xtbData%multipole%cnRMax,dcndr)
+      call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,xtbData%multipole%dipDamp, &
+         & xtbData%multipole%quadDamp,radcn,dcndr,gab3,gab5,g)
 
    else
 !     wave function terms 2/overlap dependent parts of H
@@ -1060,7 +1062,8 @@ subroutine cls_grad(mol,sqrab,xtbData, &
 !  print'("Calculating xbond gradient")'
    exb=0.0_wp
    if (allocated(xtbData%halogen)) then
-      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,sqrab,xblist,nxb,param%xbdamp,param%xbrad,ljexp,exb,g)
+      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,sqrab,xblist,nxb,&
+         & ljexp,exb,g)
    end if
 
 !  print'("Calculating shell es and repulsion gradient")'

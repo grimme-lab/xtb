@@ -23,9 +23,11 @@ module xtb_api_preload
    use xtb_type_param, only : scc_parameter, TxTBParameter
    use xtb_type_environment, only : TEnvironment, init
    use xtb_paramset
+   use xtb_xtb_data
    implicit none
 
    type(scc_parameter) :: global_parameter
+   type(TxTBData) :: global_data
 
 contains
 
@@ -60,7 +62,7 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
       inquire(file=fnv, exist=exist)
       if (exist) then
          open(file=fnv, newunit=ipar)
-         call readParam(env, ipar, globpar, .true.)
+         call readParam(env, ipar, globpar, global_data, .true.)
          close(ipar)
          status = 0
       end if
@@ -80,11 +82,11 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
    if (status == 0) then
       select case(gfn)
       case(0_c_int)
-         call set_gfn0_parameter(global_parameter, globpar)
+         call set_gfn0_parameter(global_parameter, globpar, global_data)
       case(1_c_int)
-         call set_gfn1_parameter(global_parameter, globpar)
+         call set_gfn1_parameter(global_parameter, globpar, global_data)
       case(2_c_int)
-         call set_gfn2_parameter(global_parameter, globpar)
+         call set_gfn2_parameter(global_parameter, globpar, global_data)
       case default
          status = 2
       end select
@@ -99,7 +101,7 @@ end function load_xtb_parameters_api
 
 subroutine load_xtb_parameters(env, p_fnv, globpar, status)
    use xtb_mctc_systools
-   use xtb_aoparam, only : use_parameterset
+   use xtb_paramset, only : use_parameterset
    use xtb_readparam, only : readParam
    type(TEnvironment), intent(inout) :: env
    character(len=*), intent(in) :: p_fnv
@@ -112,7 +114,7 @@ subroutine load_xtb_parameters(env, p_fnv, globpar, status)
    status = 1
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv, globpar, exist)
+   call use_parameterset(p_fnv, globpar, global_data, exist)
    if (exist) then
       status = 0
    else ! no luck, we have to fire up some IO to get our parameters
@@ -127,7 +129,7 @@ subroutine load_xtb_parameters(env, p_fnv, globpar, status)
       inquire(file=fnv, exist=exist)
       if (exist) then
          open(file=fnv, newunit=ipar)
-         call readParam(env, ipar, globpar, .true.)
+         call readParam(env, ipar, globpar, global_data, .true.)
          close(ipar)
          status = 0
       end if

@@ -687,7 +687,7 @@ end subroutine scc_gfn1
 subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
-   &                xyz,vs,vd,vq,gab3,gab5,gscal, &
+   &                xyz,vs,vd,vq,gab3,gab5, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
    &                newdisp,dispdim,g_a,g_c,gw,wdispmat,hdisp, &
    &                broy,broydamp,damp0, &
@@ -755,7 +755,6 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: vq(6,n)
    real(wp),intent(inout) :: gab3(n*(n+1)/2)
    real(wp),intent(inout) :: gab5(n*(n+1)/2)
-   real(wp),intent(in)    :: gscal
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    type(TSolvent),intent(inout) :: gbsa
@@ -927,7 +926,7 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    eold=eel
    call electro2(n,at,ndim,nshell,jab,H0,P,q, &
-   &                gam3sh,qsh,gscal,ees,eel)
+   &                gam3sh,qsh,ees,eel)
 !  multipole electrostatic
    call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 !  call scalecamm(n,at,dipm,qp)
@@ -1170,7 +1169,7 @@ end subroutine electro
 !  total energy for GFN2
 !! ========================================================================
 pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
-   &                     gam3sh,dqsh,gscal,es,scc)
+   &                     gam3sh,dqsh,es,scc)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : evtoau
    integer,intent(in)  :: n
@@ -1180,7 +1179,6 @@ pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
    real(wp), intent(in)  :: H0(nbf*(nbf+1)/2)
    real(wp), intent(in)  :: P (nbf,nbf)
    real(wp), intent(in)  :: q (n) ! not used
-   real(wp), intent(in)  :: gscal ! not used
    real(wp), intent(in)  :: gab(nshell,nshell)
    real(wp), intent(in)  :: gam3sh(nshell)
    real(wp), intent(in)  :: dqsh(nshell)

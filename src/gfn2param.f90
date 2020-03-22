@@ -4,10 +4,7 @@
 subroutine copy_gfn2_parameterset(globpar)
 use xtb_mctc_accuracy, only : wp
 use xtb_type_param, only : TxTBParameter
-!use aoparam, only : tb_parameter, &
-!                    kpair,en,mc,gam,gam3,rad,wll,rep,polyr,cxb, &
-!                    ao_exp,ao_lev,ao_pqn,ao_l,ao_typ,lpar,kcnat,&
-!                    radaes,dpolc,qpolc,ao_n,metal,cnval,timestp
+use xtb_aoparam
 implicit none
 type(TxTBParameter),intent(out) :: globpar
 integer :: i,j
@@ -2269,11 +2266,26 @@ atomparameter(94) = tb_parameter( & ! Pu
    cnval = 0, &
    timestp = '------------------------------')
 globpar = TxTBParameter( &
-   1.850000000000000_wp, 2.230000000000000_wp, 2.230000000000000_wp, 2.000000000000000_wp, .000000000000000_wp, &
-   2.000000000000000_wp, .000000000000000_wp, .000000000000000_wp, .5000000000000000_wp, .2500000000000000_wp, &
-   .2500000000000000_wp, .000000000000000_wp, -2.000000000000000_wp, 1.200000000000000_wp, 4.000000000000000_wp, &
-   5.000000000000000_wp, .000000000000000_wp, .000000000000000_wp, .000000000000000_wp, .5200000000000000_wp, &
-   5.000000000000000_wp, 2.700000000000000_wp, 5.000000000000000_wp, 3.000000000000000_wp, 4.000000000000000_wp )
+   ks =      1.850000000000000_wp, &
+   kp =      2.230000000000000_wp, &
+   kd =      2.230000000000000_wp, &
+   kf =      2.000000000000000_wp, &
+   kdiffa =  .000000000000000_wp, &
+   kdiffb =  2.000000000000000_wp, &
+   ipeashift = 1.780690000000000_wp, &
+   zcnf =    .5000000000000000_wp, &
+   tscal =   .2500000000000000_wp, &
+   kcn =     .2500000000000000_wp, &
+   ken =     -2.000000000000000_wp, &
+   aesshift =1.200000000000000_wp, &
+   aesexp =  4.000000000000000_wp, &
+   aesrmax = 5.000000000000000_wp, &
+   dispa =   .5200000000000000_wp, &
+   dispb =   5.000000000000000_wp, &
+   dispc =   2.700000000000000_wp, &
+   dispatm = 5.000000000000000_wp, &
+   aesdmp3 = 3.000000000000000_wp, &
+   aesdmp5 = 4.000000000000000_wp )
 kpair = 1.0_wp
 en(:)          = atomparameter % en
 mc(:)          = atomparameter % mc

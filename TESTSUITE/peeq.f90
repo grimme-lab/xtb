@@ -14,7 +14,6 @@ subroutine test_peeq_sp
    use xtb_type_environment
 
    use xtb_setparam, only : gfn_method
-   use xtb_aoparam,  only : use_parameterset
 
    use xtb_pbc_tools
    use xtb_basis
@@ -85,7 +84,7 @@ subroutine test_peeq_sp
    call print_pbcsum(stdout,mol)
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn0,globpar,exist)
+   call use_parameterset(p_fnv_gfn0,globpar,xtbData,exist)
    ! no luck, we have to fire up some IO to get our parameters
    if (.not.exist) then
       ! let's check if we can find the parameter file
@@ -101,12 +100,11 @@ subroutine test_peeq_sp
          call terminate(1)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar)
+   call set_gfn0_parameter(param,globpar,xtbData)
    call gfn0_prparam(stdout,mol%n,mol%at,param)
-   call initGFN0(xtbData)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 

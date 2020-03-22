@@ -33,7 +33,6 @@ module subroutine gfn0_calculation &
    use xtb_type_data
 
    use xtb_setparam, only : gfn_method, ngrida
-   use xtb_aoparam,  only : use_parameterset
 
    use xtb_pbc_tools
    use xtb_basis
@@ -116,7 +115,7 @@ module subroutine gfn0_calculation &
    ! to be sure about getting the correct parameters, we should do it here
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn0,globpar,exist)
+   call use_parameterset(p_fnv_gfn0,globpar,xtbData,exist)
    ! no luck, we have to fire up some IO to get our parameters
    if (.not.exist) then
       ! let's check if we can find the parameter file
@@ -130,15 +129,14 @@ module subroutine gfn0_calculation &
          call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar)
+   call set_gfn0_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn0_header(iunit)
       call gfn0_prparam(iunit,mol%n,mol%at,param)
    endif
-   call initGFN0(xtbData)
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none" &
       &    .and. mol%npbc == 0 ! GBSA is not yet periodic

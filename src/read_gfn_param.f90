@@ -16,11 +16,15 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_readparam
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
 
 contains
 
 subroutine readParam &
-      (env, iunit,globpar,initialize)
+      (env, iunit,globpar,xtbData,initialize)
    use xtb_mctc_accuracy, only : wp
 
    use xtb_aoparam
@@ -36,6 +40,7 @@ subroutine readParam &
    type(TEnvironment), intent(inout) :: env
    integer, intent(in) :: iunit
    type(TxTBParameter), intent(inout) :: globpar
+   type(TxTBData), intent(out) :: xtbData
    logical, intent(in) :: initialize
 
    character(len=1), parameter :: equal = '='
@@ -47,7 +52,9 @@ subroutine readParam &
 
    character(len=:), allocatable :: line
 
+   integer :: version
    integer :: err
+   logical :: newFormat
 
    if (initialize) then
       globpar = TxTBParameter()
@@ -88,11 +95,25 @@ subroutine readParam &
       kpair =1.0_wp
    endif
 
+   version = -1
+   newFormat = .false.
    call getline(iunit,line,err)
    if (debug) print'(">",a)',line
    readgroups: do
       if (index(line,flag).eq.1) then
          select case(line(2:))
+         case('level 0')
+            newFormat = .true.
+            version = 0
+            call getline(iunit,line,err)
+         case('level 1')
+            newFormat = .true.
+            version = 1
+            call getline(iunit,line,err)
+         case('level 2')
+            newFormat = .true.
+            version = 2
+            call getline(iunit,line,err)
          case('globpar')
             call read_globpar
          case('pairpar')
@@ -112,6 +133,21 @@ subroutine readParam &
       if (err.ne.0) exit readgroups
       !if (index(line,flag_end).gt.0) exit readgroups
    enddo readgroups
+
+   if (.not.newFormat) then
+      call env%error("Old format parameter file is not supported anymore")
+   end if
+
+   call setpair(version)
+
+   select case(version)
+   case(0)
+      call initGFN0(xtbData)
+   case(1)
+      call initGFN1(xtbData)
+   case(2)
+      call initGFN2(xtbData)
+   end select
 
 contains
 
@@ -137,122 +173,6 @@ subroutine read_globpar
    enddo
 end subroutine read_globpar
 
-subroutine gfn0_globpar(key,val,param)
-   use xtb_type_param
-   use xtb_readin, only : getValue
-   implicit none
-   character(len=*), intent(in) :: key, val
-   type(scc_parameter), intent(inout) :: param
-   real(wp) :: ddum
-   select case(key)
-   case default
-      call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) param%kspd(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) param%kspd(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) param%kspd(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) param%kspd(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) param%kspd(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) param%kspd(6) = ddum
-   case('wllscal')
-      if (getValue(env,val,ddum)) then
-         param%ipshift = ddum * 0.1_wp
-         param%eashift = ddum * 0.1_wp
-      endif
-   case('gscal'); if (getValue(env,val,ddum)) param%gscal = ddum * 0.1_wp
-   case('zcnf'); if (getValue(env,val,ddum)) param%gam3l(1) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) param%gam3l(2) = ddum
-   case('kcn'); if (getValue(env,val,ddum)) param%gam3l(3) = ddum
-   case('fpol'); if (getValue(env,val,ddum)) param%gscal = ddum
-   case('zqf'); if (getValue(env,val,ddum)) param%kcnsh(1) = ddum
-   case('alphaj'); if (getValue(env,val,ddum)) param%alphaj = ddum
-   case('kexpo'); if (getValue(env,val,ddum)) param%kenscal = ddum
-   case('dispa'); if (getValue(env,val,ddum)) param%disp%a1 = ddum
-   case('dispb'); if (getValue(env,val,ddum)) param%disp%a2 = ddum
-   case('dispc'); if (getValue(env,val,ddum)) param%disp%s8 = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) param%xbdamp = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) param%xbrad = ddum
-   end select
-end subroutine gfn0_globpar
-
-subroutine gfn1_globpar(key,val,param)
-   use xtb_type_param
-   use xtb_readin, only : getValue
-   implicit none
-   character(len=*), intent(in) :: key, val
-   type(scc_parameter), intent(inout) :: param
-   real(wp) :: ddum
-   select case(key)
-   case default
-      call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) param%kspd(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) param%kspd(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) param%kspd(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) param%kspd(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) param%kspd(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) param%kspd(6) = ddum
-   case('wllscal')
-      if (getValue(env,val,ddum)) then
-         param%ipshift = ddum * 0.1_wp
-         param%eashift = ddum * 0.1_wp
-      endif
-   case('gscal'); if (getValue(env,val,ddum)) param%gscal = ddum * 0.1_wp
-   case('zcnf'); if (getValue(env,val,ddum)) param%gam3l(1) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) param%gam3l(2) = ddum
-   case('kcn')
-      if (getValue(env,val,ddum)) then
-         param%gam3l(3) = ddum
-         param%kcnsh(1) = ddum * 0.01_wp
-      endif
-   case('fpol'); if (getValue(env,val,ddum)) param%kcnsh(2) = ddum * 0.01_wp
-   case('ken'); if (getValue(env,val,ddum)) param%kcnsh(3) = ddum * 0.01_wp
-   case('alphaj'); if (getValue(env,val,ddum)) param%alphaj = ddum
-   case('dispa'); if (getValue(env,val,ddum)) param%disp%a1 = ddum
-   case('dispb'); if (getValue(env,val,ddum)) param%disp%a2 = ddum
-   case('dispc'); if (getValue(env,val,ddum)) param%disp%s8 = ddum
-   case('dispatm'); if (getValue(env,val,ddum)) param%kenscal = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) param%xbdamp = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) param%xbrad = ddum
-   end select
-end subroutine gfn1_globpar
-
-subroutine gfn2_globpar(key,val,param)
-   use xtb_type_param
-   use xtb_readin, only : getValue
-   implicit none
-   character(len=*), intent(in) :: key, val
-   type(scc_parameter), intent(inout) :: param
-   real(wp) :: ddum
-   select case(key)
-   case default
-      call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) param%kspd(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) param%kspd(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) param%kspd(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) param%kspd(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) param%kspd(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) param%kspd(6) = ddum
-   case('wllscal')
-      if (getValue(env,val,ddum)) then
-         param%ipshift = ddum * 0.1_wp
-         param%eashift = ddum * 0.1_wp
-      endif
-   case('gscal'); if (getValue(env,val,ddum)) param%gscal = ddum * 0.1_wp
-   case('zcnf'); if (getValue(env,val,ddum)) param%gam3l(1) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) param%gam3l(2) = ddum
-   case('kcn'); if (getValue(env,val,ddum)) param%gam3l(3) = ddum
-   case('lshift'); if (getValue(env,val,ddum)) param%cn_shift = ddum
-   case('lshifta'); if (getValue(env,val,ddum)) param%cn_expo = ddum
-   case('split'); if (getValue(env,val,ddum)) param%cn_rmax = ddum
-   case('alphaj'); if (getValue(env,val,ddum)) param%alphaj = ddum
-   case('dispa'); if (getValue(env,val,ddum)) param%disp%a1 = ddum
-   case('dispb'); if (getValue(env,val,ddum)) param%disp%a2 = ddum
-   case('dispc'); if (getValue(env,val,ddum)) param%disp%s8 = ddum
-   case('dispatm'); if (getValue(env,val,ddum)) param%disp%s9 = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) param%xbdamp = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) param%xbrad = ddum
-   end select
-end subroutine gfn2_globpar
-
 subroutine gfn_globpar(key,val,globpar)
    use xtb_readin, only : getValue
    implicit none
@@ -269,6 +189,7 @@ subroutine gfn_globpar(key,val,globpar)
    case('kdiffa'); if (getValue(env,val,ddum)) globpar%kdiffa = ddum
    case('kdiffb'); if (getValue(env,val,ddum)) globpar%kdiffb = ddum
    case('wllscal'); if (getValue(env,val,ddum)) globpar%wllscal = ddum
+   case('ipeashift'); if (getValue(env,val,ddum)) globpar%ipeashift = ddum
    case('gscal'); if (getValue(env,val,ddum)) globpar%gscal = ddum
    case('zcnf'); if (getValue(env,val,ddum)) globpar%zcnf = ddum
    case('tscal'); if (getValue(env,val,ddum)) globpar%tscal = ddum
@@ -287,6 +208,11 @@ subroutine gfn_globpar(key,val,globpar)
    case('dispatm'); if (getValue(env,val,ddum)) globpar%dispatm = ddum
    case('xbdamp'); if (getValue(env,val,ddum)) globpar%xbdamp = ddum
    case('xbrad'); if (getValue(env,val,ddum)) globpar%xbrad = ddum
+   case('aesdmp3'); if (getValue(env,val,ddum)) globpar%aesdmp3 = ddum
+   case('aesdmp5'); if (getValue(env,val,ddum)) globpar%aesdmp5 = ddum
+   case('aesshift'); if (getValue(env,val,ddum)) globpar%aesshift = ddum
+   case('aesexp'); if (getValue(env,val,ddum)) globpar%aesexp = ddum
+   case('aesrmax'); if (getValue(env,val,ddum)) globpar%aesrmax = ddum
    end select
 end subroutine gfn_globpar
 

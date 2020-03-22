@@ -29,7 +29,7 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
    use xtb_prog_argparser
-   use xtb_aoparam, only : kpair, use_parameterset
+   use xtb_aoparam, only : kpair
    use xtb_setparam
    use xtb_sphereparam
    use xtb_scanparam
@@ -454,13 +454,14 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter file
+   allocate(calc%xtb)
    call open_file(ich,fnv,'r')
    exist = ich .ne. -1
    if (exist) then
-      call readParam(env,ich,globpar,.true.)
+      call readParam(env,ich,globpar,calc%xtb,.true.)
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fnv,globpar,exist)
+      call use_parameterset(fnv,globpar,calc%xtb,exist)
       if (.not.exist) then
          call env%error('Parameter file '//fnv//' not found!', source)
       end if
@@ -478,23 +479,19 @@ subroutine xtbMain(env, argParser)
 
 
    allocate(calc%param)
-   allocate(calc%xtb)
 
    select case(gfn_method)
    case default
       call env%terminate('Internal error, wrong GFN method passed!')
    case(1)
-      call set_gfn1_parameter(calc%param,globpar)
+      call set_gfn1_parameter(calc%param,globpar,calc%xtb)
       call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
-      call initGFN1(calc%xtb)
    case(2)
-      call set_gfn2_parameter(calc%param,globpar)
+      call set_gfn2_parameter(calc%param,globpar,calc%xtb)
       call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
-      call initGFN2(calc%xtb)
    case(0)
-      call set_gfn0_parameter(calc%param,globpar)
+      call set_gfn0_parameter(calc%param,globpar,calc%xtb)
       call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
-      call initGFN0(calc%xtb)
    end select
 
    !  init GBSA part

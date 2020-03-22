@@ -244,6 +244,14 @@ module xtb_xtb_gfn1
       & 2.0_wp, 2.0_wp, 0.0_wp,  2.0_wp, 3.0_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp, &
       & 2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp], shape(referenceOcc))
 
+   ! ========================================================================
+   ! HALOGEN DATA
+   !>
+   real(wp), parameter :: halogenRadScale = 1.3_wp
+
+   !>
+   real(wp), parameter :: halogenDamping = 0.44_wp
+
 
 contains
 
@@ -377,6 +385,8 @@ subroutine initHalogen(self)
    !>
    type(THalogenData), intent(out) :: self
 
+   self%radScale = halogenRadScale
+   self%dampingPar = halogenDamping
    self%atomicRad = atomicRad(:maxElem)
    self%bondStrength = cxb(:maxElem)
 

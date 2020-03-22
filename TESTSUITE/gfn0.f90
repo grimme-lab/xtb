@@ -15,7 +15,6 @@ subroutine test_gfn0_sp
    use xtb_type_environment
 
    use xtb_setparam
-   use xtb_aoparam
    use xtb_basis
    use xtb_peeq
    use xtb_readparam
@@ -73,7 +72,7 @@ subroutine test_gfn0_sp
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call use_parameterset('.param_gfn0.xtb',globpar,okpar)
+   call use_parameterset('.param_gfn0.xtb',globpar,xtbData,okpar)
    !call assert(okpar)
       call rdpath(env%xtbpath,'.param_gfn0.xtb',fnv,exist)
       ! maybe the user provides a local parameter file, this was always
@@ -87,11 +86,10 @@ subroutine test_gfn0_sp
          call terminate(1)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
 
-   call set_gfn0_parameter(param,globpar)
-   call initGFN0(xtbData)
+   call set_gfn0_parameter(param,globpar,xtbData)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)

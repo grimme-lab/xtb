@@ -30,7 +30,7 @@ module xtb_xtb_halogen
 contains
 
 
-subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
+subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,a,exb,g)
    type(THalogenData), intent(in) :: halData
    integer, intent(in) :: n
    integer, intent(in) :: at(:)
@@ -41,8 +41,6 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
    real(wp), intent(in) :: sqrab(:)
    real(wp), intent(inout) :: exb
    real(wp), intent(in) :: a
-   real(wp), intent(in) :: xbrad
-   real(wp), intent(in) :: kk
 
    integer :: m,k,AA,B,X,ati,atj
    real(wp) :: cc,r0ax,t13,t14,t16
@@ -63,8 +61,7 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       ati=at(X)
       atj=at(AA)
       cc=halData%bondStrength(ati)
-      ! this sloppy conv. factor has been used in development, keep it
-      r0ax=xbrad*(halData%atomicRad(ati)+halData%atomicRad(atj))
+      r0ax=halData%radScale*(halData%atomicRad(ati)+halData%atomicRad(atj))
       d2ax=sqrab(lin(AA,X))
       d2ab=sqrab(lin(AA,B))
       d2bx=sqrab(lin(X, B))
@@ -75,10 +72,10 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       aterm = (0.5_wp-0.25_wp*term)**alp
       t13 = r0ax/rax
       t14 = t13**a
-      exb = exb +  aterm*cc*(t14-kk*t13**lj2) / (1.0_wp+t14)
+      exb = exb +  aterm*cc*(t14-halData%dampingPar*t13**lj2) / (1.0_wp+t14)
    enddo
 
-   ! analytic gradient 
+   ! analytic gradient
    do k=1,nxb
       X =xblist(1,k)
       AA=xblist(2,k)
@@ -86,11 +83,10 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       ati=at(X)
       atj=at(AA)
       cc=halData%bondStrength(ati)
-      ! this sloppy conv. factor has been used in development, keep it
-      r0ax=xbrad*(halData%atomicRad(ati)+halData%atomicRad(atj))
+      r0ax=halData%radScale*(halData%atomicRad(ati)+halData%atomicRad(atj))
 
       dxa=xyz(:,AA)-xyz(:,X)   ! acceptor - halogen
-      dxb=xyz(:, B)-xyz(:,X)   ! neighbor - halogen 
+      dxb=xyz(:, B)-xyz(:,X)   ! neighbor - halogen
       dba=xyz(:,AA)-xyz(:, B)  ! acceptor - neighbor
 
       d2ax=sum(dxa*dxa)
@@ -98,7 +94,7 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       d2ab=sum(dba*dba)
       rax=sqrt(d2ax)+1.0e-18_wp
       rbx=sqrt(d2bx)+1.0e-18_wp
-      
+
       XY = SQRT(D2BX*D2AX)
       TERM = (D2BX+D2AX-D2AB) / XY
       ! now compute angular damping function
@@ -106,7 +102,7 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
 
       ! set up weighted inverted distance and compute the modified Lennard-Jones potential
       t14 = (r0ax/rax)**lj2 ! (rov/r)^lj2 ; lj2 = 6 in GFN1
-      numerator = (t14*t14 - kk*t14)
+      numerator = (t14*t14 - halData%dampingPar*t14)
       denominator = (1.0_wp + t14*t14)
       termLJ= numerator/denominator
 
@@ -115,34 +111,34 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,kk,xbrad,a,exb,g)
       ! denominator part
       dtermlj=2.0_wp*lj2*numerator*t14*t14/(rax*denominator*denominator)
       ! numerator part
-      dtermlj=dtermlj+lj2*t14*(kk - 2.0_wp*t14)/(rax*denominator) 
+      dtermlj=dtermlj+lj2*t14*(halData%dampingPar - 2.0_wp*t14)/(rax*denominator)
       ! scale w/ angular damping term
       dtermlj=dtermlj*aterm*cc/rax
-      ! gradient for the acceptor 
+      ! gradient for the acceptor
       g(:,AA)=g(:,AA)+dtermlj*dxa(:)
       ! halogen gradient
       g(:,X)=g(:,X)-dtermlj*dxa(:)
-      ! ---- 
+      ! ----
       ! cosine term derivative
       prefactor=-0.250_wp*alp*(0.5_wp-0.25_wp*term)**(alp-1.0_wp)
       prefactor=prefactor*cc*termlj
       ! AX part
       dcosterm=2.0_wp/rbx - term/rax
       dcosterm=dcosterm*prefactor/rax
-      ! gradient for the acceptor 
+      ! gradient for the acceptor
       g(:,AA)=g(:,AA)+dcosterm*dxa(:)
       ! halogen gradient
       g(:,X)=g(:,X)-dcosterm*dxa(:)
       ! BX part
       dcosterm=2.0_wp/rax - term/rbx
       dcosterm=dcosterm*prefactor/rbx
-      ! gradient for the acceptor 
+      ! gradient for the acceptor
       g(:,B)=g(:,B)+dcosterm*dxb(:)
       ! halogen gradient
       g(:,X)=g(:,X)-dcosterm*dxb(:)
       ! AB part
       t13=2.0_wp*prefactor/xy
-      ! acceptor 
+      ! acceptor
       g(:,AA)=g(:,AA)-t13*dba(:)
       ! neighbor
       g(:,B)=g(:,B)+t13*dba(:)

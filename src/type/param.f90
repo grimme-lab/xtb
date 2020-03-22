@@ -55,6 +55,12 @@ module xtb_type_param
       real(wp) :: dispatm = 0.0_wp
       real(wp) :: xbdamp = 0.0_wp
       real(wp) :: xbrad = 0.0_wp
+      real(wp) :: aesshift = 0.0_wp
+      real(wp) :: aesexp = 0.0_wp
+      real(wp) :: aesrmax = 0.0_wp
+      real(wp) :: aesdmp3 = 0.0_wp
+      real(wp) :: aesdmp5 = 0.0_wp
+      real(wp) :: ipeashift = 0.0_wp
    end type TxTBParameter
 
    type :: dftd_parameter

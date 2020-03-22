@@ -66,11 +66,10 @@ subroutine test_gfn2_scc
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call use_parameterset('.param_gfn2.xtb',globpar,okpar)
+   call use_parameterset('.param_gfn2.xtb',globpar,xtbData,okpar)
    call assert(okpar)
 
-   call set_gfn2_parameter(param,globpar)
-   call initGFN2(xtbData)
+   call set_gfn2_parameter(param,globpar,xtbData)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)

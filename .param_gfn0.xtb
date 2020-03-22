@@ -6,8 +6,7 @@ kd        2.2700000
 kf        0.6000000
 kdiffa    0.0000000
 kdiffb   -0.1000000
-wllscal   0.0000000
-gscal     0.0000000
+ipeashift 1.7806900
 zcnf      0.0537000
 tscal    -0.0129000
 kcn       3.4847000

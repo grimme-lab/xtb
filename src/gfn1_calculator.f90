@@ -34,7 +34,6 @@ module subroutine gfn1_calculation &
    use xtb_type_pcem
 
    use xtb_setparam, only : gfn_method, ngrida
-   use xtb_aoparam,  only : use_parameterset
 
    use xtb_basis
    use xtb_eeq
@@ -115,7 +114,7 @@ module subroutine gfn1_calculation &
    ! to be sure about getting the correct parameters, we should do it here
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn1,globpar,exist)
+   call use_parameterset(p_fnv_gfn1,globpar,xtbData,exist)
    ! no luck, we have to fire up some IO to get our parameters
    if (.not.exist) then
       ! let's check if we can find the parameter file
@@ -129,14 +128,13 @@ module subroutine gfn1_calculation &
          call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn1_parameter(param,globpar)
+   call set_gfn1_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn1_header(iunit)
       call gfn1_prparam(iunit,mol%n,mol%at,param)
-      call initGFN1(xtbData)
    endif
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none"
