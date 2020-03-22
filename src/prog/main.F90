@@ -70,6 +70,7 @@ module xtb_prog_main
    use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
+   use xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
@@ -126,7 +127,8 @@ subroutine xtbMain(env, argParser)
    real(wp),allocatable :: cn  (:)
    real(wp),allocatable :: sat (:)
    real(wp),allocatable :: g   (:,:)
-   real(wp) :: globpar(25),vec3(3)
+   real(wp) :: vec3(3)
+   type(TxTBParameter) :: globpar
    real(wp),allocatable :: dcn (:,:,:)
    real(wp),allocatable :: dq  (:,:,:)
    real(wp),allocatable :: dumdumdum  (:,:,:)

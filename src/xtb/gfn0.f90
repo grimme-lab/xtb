@@ -141,9 +141,9 @@ subroutine initCoulomb(self, nShell)
    !>
    integer, intent(in) :: nShell(:)
 
-   self%electronegativity = dpolc(1:maxElem)
+   self%electronegativity = eeqEN(1:maxElem)
    self%chemicalHardness = gam(1:maxElem)
-   self%kCN = cxb(1:maxElem)
+   self%kCN = eeqkCN(1:maxElem)
    self%chargeWidth = alp0(1:maxElem)
 
 end subroutine initCoulomb
@@ -173,7 +173,7 @@ subroutine initHamiltonian(self, nShell)
    self%slaterExponent = ao_exp(:mShell, :maxElem)
    self%principalQuantumNumber = ao_pqn(:mShell, :maxElem)
    self%kQShell = kqat(:, :maxElem)
-   self%kQAtom = gam3(:maxElem)
+   self%kQAtom = kqat2(:maxElem)
 
    allocate(self%valenceShell(mShell, maxElem))
    call generateValenceShellData(self%valenceShell, nShell, self%angShell)

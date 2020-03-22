@@ -18,6 +18,7 @@ subroutine test_gfn1_scc
    use xtb_basis
    use xtb_scf
    use xtb_scc_core
+   use xtb_paramset
    use xtb_xtb_data
    use xtb_xtb_gfn1
 
@@ -50,7 +51,7 @@ subroutine test_gfn1_scc
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
 
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    logical  :: okpar,okbas,diff,exitRun
 
    gfn_method = 1
@@ -66,7 +67,7 @@ subroutine test_gfn1_scc
    call use_parameterset('.param_gfn.xtb',globpar,okpar)
    call assert(okpar)
 
-   call set_gfn1_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn1_parameter(param,globpar)
    call initGFN1(xtbData)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)

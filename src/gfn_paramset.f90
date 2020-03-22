@@ -15,16 +15,20 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_paramset
+contains
+
 subroutine set_gfn1_parameter(xpar,globpar)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
    use xtb_disp_dftd3param
    implicit none
    type(scc_parameter),intent(inout) :: xpar
-   real(wp),intent(in) :: globpar(25)
+   type(TxTBParameter), intent(in) :: globpar
    integer :: i,j
    call setpair(1)
-   xpar%kspd(1:6)=globpar(1:6)
+   xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
+      & globpar%kdiffa, globpar%kdiffb]
    ! ini prop factors for Hav(l1,l2), NO f-AO !
    do i=1,3
       do j=1,3
@@ -35,25 +39,25 @@ subroutine set_gfn1_parameter(xpar,globpar)
       xpar%kmagic(1,2)=xpar%kspd(5)
       xpar%kmagic(2,1)=xpar%kspd(5)
    endif
-   xpar%gscal    =globpar(8)*0.1      ! purpose changed in scf.f !
+   xpar%gscal    =globpar%gscal*0.1      ! purpose changed in scf.f !
    xpar%gam3l(0) =1.00_wp     !s
-   xpar%gam3l(1) =globpar(9) !p
-   xpar%gam3l(2) =globpar(10)!d-pol
-   xpar%gam3l(3) =globpar(11)!d-val
-   xpar%kcnsh(1) =globpar(11)*0.01_wp
-   xpar%kcnsh(2) =globpar(12)*0.01_wp
-   xpar%kcnsh(3) =globpar(13)*0.01_wp
+   xpar%gam3l(1) =globpar%zcnf !p
+   xpar%gam3l(2) =globpar%tscal!d-pol
+   xpar%gam3l(3) =globpar%kcn!d-val
+   xpar%kcnsh(1) =globpar%kcn*0.01_wp
+   xpar%kcnsh(2) =globpar%fpol*0.01_wp
+   xpar%kcnsh(3) =globpar%ken*0.01_wp
    xpar%kcnsh(4) = 0.005_wp
-   xpar%kenscal  =globpar(23) ! kenscal in scf.f
-   xpar%xbdamp   =globpar(24)
-   xpar%xbrad    =globpar(25)
+   xpar%kenscal  =globpar%dispatm ! kenscal in scf.f
+   xpar%xbdamp   =globpar%xbdamp
+   xpar%xbrad    =globpar%xbrad
    xpar%disp%s9  =0.0_wp! d3atm
-   xpar%alphaj   =globpar(18)
-   xpar%disp%a1  =globpar(20)
-   xpar%disp%a2  =globpar(21)
+   xpar%alphaj   =globpar%alphaj
+   xpar%disp%a1  =globpar%dispa
+   xpar%disp%a2  =globpar%dispb
    xpar%disp%s6  =1.0_wp
-   xpar%disp%s8  =globpar(22)
-   xpar%ipshift  =globpar(7)*0.1
+   xpar%disp%s8  =globpar%dispc
+   xpar%ipshift  =globpar%wllscal*0.1
    xpar%eashift  =xpar%ipshift
    xpar%ken1     =1.0
    xpar%zqf      =0
@@ -71,10 +75,11 @@ subroutine set_gfn2_parameter(xpar,globpar)
    use xtb_disp_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
-   real(wp),intent(in) :: globpar(25)
+   type(TxTBParameter), intent(in) :: globpar
    integer :: i,j
    call setpair(2)
-   xpar%kspd(1:6)=globpar(1:6)
+   xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
+      & globpar%kdiffa, globpar%kdiffb]
    ! ini prop factors for Hav(l1,l2), NO f-AO !
    do i=1,3
       do j=1,3
@@ -89,27 +94,27 @@ subroutine set_gfn2_parameter(xpar,globpar)
    xpar%kmagic(3,1)=xpar%kspd(4)
    xpar%kmagic(2,3)=xpar%kspd(6)
    xpar%kmagic(3,2)=xpar%kspd(6)
-   xpar%gscal    =globpar(8)*0.1      ! purpose changed in scf.f !
+   xpar%gscal    =globpar%gscal*0.1      ! purpose changed in scf.f !
    xpar%gam3l(0) =1.00_wp     !s
-   xpar%gam3l(1) =globpar(9) !p
-   xpar%gam3l(2) =globpar(10)!d-pol
-   xpar%gam3l(3) =globpar(11)!d-val
-   xpar%cn_shift =globpar(14) ! R AES CN val offset
-   xpar%cn_expo  =globpar(15) ! R AES CN steepness
-   xpar%cn_rmax  =globpar(16) ! R AES CN Rmax
-   xpar%kenscal  =globpar(13) ! kenscal in scf.f
-   xpar%disp%s9  =globpar(23) ! d3atm
+   xpar%gam3l(1) =globpar%zcnf !p
+   xpar%gam3l(2) =globpar%tscal!d-pol
+   xpar%gam3l(3) =globpar%kcn!d-val
+   xpar%cn_shift =globpar%lshift ! R AES CN val offset
+   xpar%cn_expo  =globpar%lshifta ! R AES CN steepness
+   xpar%cn_rmax  =globpar%split ! R AES CN Rmax
+   xpar%kenscal  =globpar%ken ! kenscal in scf.f
+   xpar%disp%s9  =globpar%dispatm ! d3atm
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
-   xpar%xbrad    =globpar(24)
-   xpar%xbdamp   =globpar(25)
-   xpar%alphaj   =globpar(18)
-   xpar%disp%a1  =globpar(20)
-   xpar%disp%a2  =globpar(21)
+   xpar%xbrad    =globpar%xbdamp
+   xpar%xbdamp   =globpar%xbrad
+   xpar%alphaj   =globpar%alphaj
+   xpar%disp%a1  =globpar%dispa
+   xpar%disp%a2  =globpar%dispb
    xpar%disp%s6  =1.0_wp
-   xpar%disp%s8  =globpar(22)
-   xpar%ipshift  =globpar(7)*0.1
+   xpar%disp%s8  =globpar%dispc
+   xpar%ipshift  =globpar%wllscal*0.1
    xpar%eashift  =xpar%ipshift
    xpar%ken1     =1.0
    xpar%zqf      =0
@@ -127,11 +132,12 @@ subroutine set_gfn0_parameter(xpar,globpar)
    use xtb_disp_dftd4
    implicit none
    type(scc_parameter),intent(inout) :: xpar
-   real(wp),intent(in) :: globpar(25)
+   type(TxTBParameter), intent(in) :: globpar
    integer :: i,j
 
    call setpair(0)
-   xpar%kspd(1:6)=globpar(1:6)
+   xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
+      & globpar%kdiffa, globpar%kdiffb]
    ! ini prop factors for Hav(l1,l2), NO f-AO !
    do i=1,3
       do j=1,3
@@ -142,31 +148,29 @@ subroutine set_gfn0_parameter(xpar,globpar)
       xpar%kmagic(1,2)=xpar%kspd(5)
       xpar%kmagic(2,1)=xpar%kspd(5)
    endif
-   xpar%gscal    =globpar(8)*0.1      ! purpose changed in scf.f !
+   xpar%gscal    =globpar%gscal*0.1      ! purpose changed in scf.f !
    xpar%gam3l(0) =1.00_wp     !s
-   xpar%gam3l(1) =globpar(9) !p
-   xpar%gam3l(2) =globpar(10)!d-pol
-   xpar%gam3l(3) =globpar(11)!d-val
-   xpar%kcnsh(1) =globpar(17)         ! K 2s - 2s
-   xpar%kcnsh(2) =globpar( 9)         ! SRB shift
-   xpar%kcnsh(3) =globpar(10)         ! SRB prefactor
-   xpar%kcnsh(4) =globpar(11)         ! SRB steepnes
-   xpar%gscal    =globpar(12)         ! EN dep
-   xpar%kenscal  =globpar(19)         ! ken² (d3atm in old main.f)
-   xpar%xbdamp   =globpar(24)         ! ken⁴
-   xpar%xbrad    =globpar(25)         ! rep dEN
+   xpar%gam3l(1) =globpar%zcnf !p
+   xpar%gam3l(2) =globpar%tscal!d-pol
+   xpar%gam3l(3) =globpar%kcn!d-val
+   xpar%kcnsh(1) =globpar%zqf         ! K 2s - 2s
+   xpar%kcnsh(2) =globpar%zcnf         ! SRB shift
+   xpar%kcnsh(3) =globpar%tscal         ! SRB prefactor
+   xpar%kcnsh(4) =globpar%kcn         ! SRB steepnes
+   xpar%gscal    =globpar%fpol         ! EN dep
+   xpar%kenscal  =globpar%kexpo         ! ken² (d3atm in old main.f)
+   xpar%xbdamp   =globpar%xbdamp         ! ken⁴
+   xpar%xbrad    =globpar%xbrad         ! rep dEN
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
-   gam3          =gam3*10.0_wp        ! *10 since gam3 is read with the factor 0.1 in readparam.f
-   cxb           =cxb*10.0_wp         ! *10 since cxb  is read with the factor 0.1 in readparam.f
-   xpar%alphaj   =globpar(18)
-   xpar%disp%a1  =globpar(20)
-   xpar%disp%a2  =globpar(21)
+   xpar%alphaj   =globpar%alphaj
+   xpar%disp%a1  =globpar%dispa
+   xpar%disp%a2  =globpar%dispb
    xpar%disp%s6  =1.0_wp
    xpar%disp%s9  =0.0_wp
-   xpar%disp%s8  =globpar(22)
-   xpar%ipshift  =globpar(7)*0.1
+   xpar%disp%s8  =globpar%dispc
+   xpar%ipshift  =globpar%wllscal*0.1
    xpar%eashift  =xpar%ipshift
    xpar%ken1     =1.0
    xpar%zqf      =0
@@ -175,3 +179,5 @@ subroutine set_gfn0_parameter(xpar,globpar)
    xpar%wllscal  =1
    call d4init(xpar%g_a,xpar%g_c,p_refq_goedecker)
 end subroutine set_gfn0_parameter
+
+end module xtb_paramset

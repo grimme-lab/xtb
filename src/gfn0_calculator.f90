@@ -40,6 +40,7 @@ module subroutine gfn0_calculation &
    use xtb_peeq
    use xtb_solv_gbobc
    use xtb_readparam
+   use xtb_paramset
 
    use xtb_xtb_data
    use xtb_xtb_gfn0
@@ -74,7 +75,7 @@ module subroutine gfn0_calculation &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
    character(len=*), parameter   :: p_fnv_gfn0 = '.param_gfn0.xtb'
    character(len=:), allocatable :: fnv
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    integer  :: ipar,i
    logical  :: exist
    logical :: exitRun

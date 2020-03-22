@@ -20,8 +20,9 @@ module xtb_api_preload
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
    use xtb_api_utils
-   use xtb_type_param, only : scc_parameter
+   use xtb_type_param, only : scc_parameter, TxTBParameter
    use xtb_type_environment, only : TEnvironment, init
+   use xtb_paramset
    implicit none
 
    type(scc_parameter) :: global_parameter
@@ -41,7 +42,7 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
 
    type(TEnvironment) :: env
    character(len=:), allocatable :: fnv
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    integer :: ipar
    logical :: exist
 
@@ -105,7 +106,7 @@ subroutine load_xtb_parameters(env, p_fnv, globpar, status)
    integer, intent(out) :: status
    character(len=:), allocatable :: xtbpath
    character(len=:), allocatable :: fnv
-   real(wp), intent(out) :: globpar(25)
+   type(TxTBParameter), intent(out) :: globpar
    integer :: ipar
    logical :: exist
    status = 1

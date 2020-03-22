@@ -27,6 +27,7 @@ subroutine readParam &
 
    use xtb_readin, only : getline => strip_line
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_param, only : TxTBParameter
 
    implicit none
 
@@ -34,7 +35,7 @@ subroutine readParam &
 
    type(TEnvironment), intent(inout) :: env
    integer, intent(in) :: iunit
-   real(wp), intent(inout) :: globpar(25)
+   type(TxTBParameter), intent(inout) :: globpar
    logical, intent(in) :: initialize
 
    character(len=1), parameter :: equal = '='
@@ -49,7 +50,7 @@ subroutine readParam &
    integer :: err
 
    if (initialize) then
-      globpar = 0.0_wp
+      globpar = TxTBParameter()
 
       ao_pqn=0
       ao_l  =0
@@ -63,6 +64,9 @@ subroutine readParam &
       mc    =0.0_wp
       lpar  =0.0_wp
       gam3  =0.0_wp
+      kqat2 =0.0_wp
+      eeqkcn=0.0_wp
+      eeqen =0.0_wp
       kcnat =0.0_wp
 
       dpolc =0.0_wp ! read values are scaled by 0.01
@@ -253,36 +257,36 @@ subroutine gfn_globpar(key,val,globpar)
    use xtb_readin, only : getValue
    implicit none
    character(len=*), intent(in) :: key, val
-   real(wp), intent(inout) :: globpar(25)
+   type(TxTBParameter), intent(inout) :: globpar
    real(wp) :: ddum
    select case(key)
    case default
       call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) globpar(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) globpar(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) globpar(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) globpar(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) globpar(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) globpar(6) = ddum
-   case('wllscal'); if (getValue(env,val,ddum)) globpar(7) = ddum
-   case('gscal'); if (getValue(env,val,ddum)) globpar(8) = ddum
-   case('zcnf'); if (getValue(env,val,ddum)) globpar(9) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) globpar(10) = ddum
-   case('kcn'); if (getValue(env,val,ddum)) globpar(11) = ddum
-   case('fpol'); if (getValue(env,val,ddum)) globpar(12) = ddum
-   case('ken'); if (getValue(env,val,ddum)) globpar(13) = ddum
-   case('lshift'); if (getValue(env,val,ddum)) globpar(14) = ddum
-   case('lshifta'); if (getValue(env,val,ddum)) globpar(15) = ddum
-   case('split'); if (getValue(env,val,ddum)) globpar(16) = ddum
-   case('zqf'); if (getValue(env,val,ddum)) globpar(17) = ddum
-   case('alphaj'); if (getValue(env,val,ddum)) globpar(18) = ddum
-   case('kexpo'); if (getValue(env,val,ddum)) globpar(19) = ddum
-   case('dispa'); if (getValue(env,val,ddum)) globpar(20) = ddum
-   case('dispb'); if (getValue(env,val,ddum)) globpar(21) = ddum
-   case('dispc'); if (getValue(env,val,ddum)) globpar(22) = ddum
-   case('dispatm'); if (getValue(env,val,ddum)) globpar(23) = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) globpar(24) = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) globpar(25) = ddum
+   case('ks'); if (getValue(env,val,ddum)) globpar%ks = ddum
+   case('kp'); if (getValue(env,val,ddum)) globpar%kp = ddum
+   case('kd'); if (getValue(env,val,ddum)) globpar%kd = ddum
+   case('kf'); if (getValue(env,val,ddum)) globpar%kf = ddum
+   case('kdiffa'); if (getValue(env,val,ddum)) globpar%kdiffa = ddum
+   case('kdiffb'); if (getValue(env,val,ddum)) globpar%kdiffb = ddum
+   case('wllscal'); if (getValue(env,val,ddum)) globpar%wllscal = ddum
+   case('gscal'); if (getValue(env,val,ddum)) globpar%gscal = ddum
+   case('zcnf'); if (getValue(env,val,ddum)) globpar%zcnf = ddum
+   case('tscal'); if (getValue(env,val,ddum)) globpar%tscal = ddum
+   case('kcn'); if (getValue(env,val,ddum)) globpar%kcn = ddum
+   case('fpol'); if (getValue(env,val,ddum)) globpar%fpol = ddum
+   case('ken'); if (getValue(env,val,ddum)) globpar%ken = ddum
+   case('lshift'); if (getValue(env,val,ddum)) globpar%lshift = ddum
+   case('lshifta'); if (getValue(env,val,ddum)) globpar%lshifta = ddum
+   case('split'); if (getValue(env,val,ddum)) globpar%split = ddum
+   case('zqf'); if (getValue(env,val,ddum)) globpar%zqf = ddum
+   case('alphaj'); if (getValue(env,val,ddum)) globpar%alphaj = ddum
+   case('kexpo'); if (getValue(env,val,ddum)) globpar%kexpo = ddum
+   case('dispa'); if (getValue(env,val,ddum)) globpar%dispa = ddum
+   case('dispb'); if (getValue(env,val,ddum)) globpar%dispb = ddum
+   case('dispc'); if (getValue(env,val,ddum)) globpar%dispc = ddum
+   case('dispatm'); if (getValue(env,val,ddum)) globpar%dispatm = ddum
+   case('xbdamp'); if (getValue(env,val,ddum)) globpar%xbdamp = ddum
+   case('xbrad'); if (getValue(env,val,ddum)) globpar%xbrad = ddum
    end select
 end subroutine gfn_globpar
 
@@ -394,14 +398,16 @@ subroutine gfn_elempar(key,val,iz)
    case('en');  if (getValue(env,val,ddum)) en(iz)    = ddum
    case('gam'); if (getValue(env,val,ddum)) gam(iz)   = ddum
    case('epr'); if (getValue(env,val,ddum)) mc(iz)    = ddum
-   case('xi');  if (getValue(env,val,ddum)) dpolc(iz) = ddum
+   case('xi');  if (getValue(env,val,ddum)) eeqEN(iz) = ddum
    case('alpg')
       if (getValue(env,val,ddum)) then
          radaes(iz) = ddum
          alp0(iz)   = ddum
       endif
    case('gam3');  if (getValue(env,val,ddum)) gam3(iz)    = ddum * 0.1_wp
+   case('kappa'); if (getValue(env,val,ddum)) eeqkCN(iz)  = ddum
    case('cxb');   if (getValue(env,val,ddum)) cxb(iz)     = ddum * 0.1_wp
+   case('kqat2'); if (getValue(env,val,ddum)) kqat2(iz)   = ddum
    case('dpol');  if (getValue(env,val,ddum)) dpolc(iz)   = ddum * 0.01_wp
    case('qpol');  if (getValue(env,val,ddum)) qpolc(iz)   = ddum * 0.01_wp
    case('repa');  if (getValue(env,val,ddum)) rep(1,iz)   = ddum

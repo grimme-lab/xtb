@@ -19,6 +19,7 @@ subroutine test_gfn0_sp
    use xtb_basis
    use xtb_peeq
    use xtb_readparam
+   use xtb_paramset
 
    use xtb_xtb_data
    use xtb_xtb_gfn0
@@ -58,7 +59,7 @@ subroutine test_gfn0_sp
    character(len=:),allocatable :: fnv
    integer  :: ipar
 
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    logical  :: okpar,okbas,exist,diff
 
    call init(env)
@@ -89,7 +90,7 @@ subroutine test_gfn0_sp
       call readParam(env,ipar,globpar,.true.)
       call close_file(ipar)
 
-   call set_gfn0_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn0_parameter(param,globpar)
    call initGFN0(xtbData)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)

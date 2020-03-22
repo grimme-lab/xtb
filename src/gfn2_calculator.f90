@@ -45,6 +45,7 @@ module subroutine gfn2_calculation &
    use xtb_embedding
    use xtb_restart
    use xtb_readparam
+   use xtb_paramset
 
    use xtb_xtb_data
    use xtb_xtb_gfn2
@@ -79,7 +80,7 @@ module subroutine gfn2_calculation &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
    character(len=*), parameter   :: p_fnv_gfn2 = '.param_gfn2.xtb'
    character(len=:), allocatable :: fnv
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    integer  :: ipar
    logical  :: exist,diff
    logical :: exitRun
