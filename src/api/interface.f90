@@ -736,7 +736,7 @@ function gfn2_pcem_api &
 end function gfn2_pcem_api
 
 function gfn1_pcem_api &
-      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in,xtbData, &
+      &   (natoms,attyp,charge,uhf,coord,opt_in,file_in, &
       &    npc,pc_q,pc_at,pc_gam,pc_coord,etot,grad,pc_grad) &
       &    result(status) bind(C,name="GFN1_QMMM_calculation")
 

@@ -118,7 +118,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/gfn_paramset.f90"
   "${XTB_ROOT}/src/disp/dftd3_parameters.f90"
   "${XTB_ROOT}/src/disp/dftd4_parameters.f90"
-  "${XTB_ROOT}/src/setwll.f90"
   "${XTB_ROOT}/src/charge_model.f90"
   "${XTB_ROOT}/src/param/atomicmass.f90"
   "${XTB_ROOT}/src/param/atomicrad.f90"
@@ -131,9 +130,14 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/eeq_model.f90"
 
   # Basis set
-  "${XTB_ROOT}/src/xbasis.f90"
-  "${XTB_ROOT}/src/printbas.f90"
-  "${XTB_ROOT}/src/gauss.f90"
+  "${XTB_ROOT}/src/xtb/basisset.f90"
+  "${XTB_ROOT}/src/xtb/data.f90"
+  "${XTB_ROOT}/src/xtb/gfn0.f90"
+  "${XTB_ROOT}/src/xtb/gfn1.f90"
+  "${XTB_ROOT}/src/xtb/gfn2.f90"
+  "${XTB_ROOT}/src/xtb/halogen.f90"
+  "${XTB_ROOT}/src/xtb/repulsion.f90"
+  "${XTB_ROOT}/src/slater.f90"
 
   # Dispersion
   "${XTB_ROOT}/src/disp/ncoord.f90"
@@ -184,7 +188,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/shiftlp.f90"
   "${XTB_ROOT}/src/blowsy.f90"
   "${XTB_ROOT}/src/onetri.f90"
-  "${XTB_ROOT}/src/exchange.f90"
   "${XTB_ROOT}/src/local.f90"
   "${XTB_ROOT}/src/makel.f90"
   "${XTB_ROOT}/src/foden.f90"
@@ -214,7 +217,6 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/intmodes.f90"
   "${XTB_ROOT}/src/wrmodef.f90"
   "${XTB_ROOT}/src/hessian.F90"
-  "${XTB_ROOT}/src/xbond.f90"
   "${XTB_ROOT}/src/timing.f90"
   "${XTB_ROOT}/src/prmat.f90"
   "${XTB_ROOT}/src/dipole.f90"
