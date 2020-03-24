@@ -29,7 +29,6 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
    use xtb_prog_argparser
-   use xtb_aoparam, only : kpair
    use xtb_setparam
    use xtb_sphereparam
    use xtb_scanparam
@@ -469,13 +468,13 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Could not setup parameterisation")
 
-   do i = 1, 86
-      do j = 1, i
-         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
-            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
-            toSymbol(j),toSymbol(i),kpair(j,i)
-      enddo
-   enddo
+!   do i = 1, 86
+!      do j = 1, i
+!         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
+!            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
+!            toSymbol(j),toSymbol(i),kpair(j,i)
+!      enddo
+!   enddo
 
 
    allocate(calc%param)
