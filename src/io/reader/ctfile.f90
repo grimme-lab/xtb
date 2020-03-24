@@ -134,7 +134,7 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    call move_alloc(sdf, mol%sdf)
    if (len(name) > 0) mol%name = name
 
-   call mol%bonds%allocate(size=number_of_bonds)
+   call mol%bonds%allocate(size=number_of_bonds, order=3)
    do ibond = 1, number_of_bonds
       call getline(unit, line, error)
       read(line, '(7i3)', iostat=error) &
@@ -143,7 +143,7 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
          iomsg = "could not topology from connection table"
          return
       endif
-      call mol%bonds%push_back([iatom, jatom])
+      call mol%bonds%push_back([iatom, jatom, btype])
    enddo
 
    do while(error == 0)

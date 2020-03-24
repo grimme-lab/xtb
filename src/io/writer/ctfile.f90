@@ -68,7 +68,7 @@ subroutine writeMoleculeMolfile(mol, unit, comment_line)
    integer, intent(in) :: unit
    character(len=*), intent(in) :: comment_line
    integer, parameter :: list4(4) = 0
-   integer :: iatom, ibond, iatoms(2), list12(12)
+   integer :: iatom, ibond, iatoms(3), list12(12)
    logical :: has_sdf_data
    integer, parameter :: charge_to_ccc(-3:3) = [7, 6, 5, 0, 3, 2, 1]
    character(len=8)  :: date
@@ -99,7 +99,7 @@ subroutine writeMoleculeMolfile(mol, unit, comment_line)
    do ibond = 1, len(mol%bonds)
       call mol%bonds%get_item(ibond, iatoms)
       write(unit, '(7i3)') &
-         & iatoms, 1, list4
+         & iatoms, list4
    enddo
 
    if (nint(mol%chrg) /= 0) then
