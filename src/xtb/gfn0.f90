@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> TODO: GFN0-xTB parametrisation data
 module xtb_xtb_gfn0
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
@@ -171,7 +171,7 @@ contains
 
 subroutine initData(self)
 
-   !>
+   !> Data instance
    type(TxTBData), intent(out) :: self
 
    self%nShell = ao_n(:maxElem)
@@ -185,7 +185,7 @@ end subroutine initData
 
 subroutine initRepulsion(self)
 
-   !>
+   !> Data instance
    type(TRepulsionData), intent(out) :: self
 
    call init(self, kExp, kExpLight, rExp, 0.0_wp, repAlpha, repZeff, &
@@ -203,7 +203,7 @@ end subroutine initRepulsion
 
 subroutine initCoulomb(self, nShell)
 
-   !>
+   !> Data instance
    type(TCoulombData), intent(out) :: self
 
    !>
@@ -219,7 +219,7 @@ end subroutine initCoulomb
 
 subroutine initHamiltonian(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(out) :: self
 
    !>
@@ -258,7 +258,7 @@ end subroutine initHamiltonian
 !>
 subroutine setGFN0NumberOfPrimitives(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(inout) :: self
 
    !>

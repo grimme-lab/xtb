@@ -22,6 +22,5 @@ srcs += files(
   'gfn1.f90',
   'gfn2.f90',
   'halogen.f90',
-  'ipea.f90',
   'repulsion.f90',
 )

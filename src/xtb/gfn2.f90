@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> GFN2-xTB parametrisation data
 module xtb_xtb_gfn2
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
@@ -60,21 +60,22 @@ module xtb_xtb_gfn2
       aesdmp3 = 3.000000000000000_wp, &
       aesdmp5 = 4.000000000000000_wp )
 
+
    !> Maximum number of elements supported by GFN2-xTB
    integer, parameter :: maxElem = 86
 
    ! ========================================================================
    ! REPULSION DATA
-   !>
+   !> Repulsion exponent for heavy elements
    real(wp), parameter :: kExp = 1.5_wp
 
-   !>
+   !> Repulsion exponent for light elements
    real(wp), parameter :: kExpLight = 1.0_wp
 
-   !>
+   !> Repulsion exponent
    real(wp), parameter :: rExp = 1.0_wp
 
-   !>
+   !> Exponents of repulsion term
    real(wp), parameter :: repAlpha(1:maxElem) = [&
       & 2.213717_wp, 3.604670_wp, 0.475307_wp, 0.939696_wp, 1.373856_wp, &
       & 1.247655_wp, 1.682689_wp, 2.165712_wp, 2.421394_wp, 3.318479_wp, &
@@ -95,7 +96,7 @@ module xtb_xtb_gfn2
       & 1.399312_wp, 1.179922_wp, 1.130860_wp, 0.957939_wp, 0.963878_wp, &
       & 0.965577_wp]
 
-   !>
+   !> Effective nuclear charge
    real(wp), parameter :: repZeff(1:maxElem) = [&
       &  1.105388_wp,  1.094283_wp,  1.289367_wp,  4.221216_wp,  7.192431_wp, &
       &  4.231078_wp,  5.242592_wp,  5.784415_wp,  7.021486_wp, 11.041068_wp, &
@@ -118,7 +119,7 @@ module xtb_xtb_gfn2
 
    ! ========================================================================
    ! COULOMB DATA
-   !>
+   !> Atomic hardnesses used in second order electrostatics
    real(wp), parameter :: chemicalHardness(1:maxElem) = [&
       & 0.405771_wp, 0.642029_wp, 0.245006_wp, 0.684789_wp, 0.513556_wp, &
       & 0.538015_wp, 0.461493_wp, 0.451896_wp, 0.531518_wp, 0.850000_wp, &
@@ -139,10 +140,10 @@ module xtb_xtb_gfn2
       & 0.418841_wp, 0.168152_wp, 0.900000_wp, 1.023267_wp, 0.288848_wp, &
       & 0.303400_wp]
 
-   !>
+   !> Third order electrostatics is shell resolved
    logical, parameter :: thirdOrderShellResolved = .true.
 
-   !>
+   !> Third order Hubbard derivatives
    real(wp), parameter :: thirdOrderAtom(1:maxElem) = [&
       & 0.800000_wp, 2.000000_wp, 1.303821_wp, 0.574239_wp, 0.946104_wp, &
       & 1.500000_wp,-0.639780_wp,-0.517134_wp, 1.426212_wp, 0.500000_wp, &
@@ -163,7 +164,7 @@ module xtb_xtb_gfn2
       &-0.533933_wp, 0.200000_wp,-0.337508_wp, 1.877978_wp, 1.846485_wp, &
       & 0.097834_wp] * 0.1_wp
 
-   !>
+   !> Scaling factors for shell electrostatics
    real(wp), parameter :: shellHardness(1:3, 1:maxElem) = reshape([&
       & 0.0_wp, 0.0000000_wp, 0.0000000_wp, 0.0_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.0_wp, 0.1972612_wp, 0.0000000_wp, 0.0_wp, 0.9658467_wp, 0.0000000_wp, &
@@ -213,22 +214,22 @@ module xtb_xtb_gfn2
 
    ! ========================================================================
    ! MULTIPOLE DATA
-   !>
+   !> Damping parameter for charge-dipole interactions
    real(wp), parameter :: dipDamp = 3.0_wp
 
-   !>
+   !> Damping parameter for dipole-dipole, charge-quadrupole interactions
    real(wp), parameter :: quadDamp = 4.0_wp
 
-   !>
+   !> Coordination number shift
    real(wp), parameter :: cnShift = 1.2_wp
 
-   !>
+   !> Coordination number exponent for radii
    real(wp), parameter :: cnExp = 4.0_wp
 
-   !>
+   !> Maximum radius
    real(wp), parameter :: cnRMax = 5.0_wp
 
-   !>
+   !> Dipole exchange-correlation kernel
    real(wp), parameter :: dipKernel(1:maxElem) = [&
       & 5.563889_wp,-1.000000_wp,-0.500000_wp,-0.613341_wp,-0.481186_wp, &
       &-0.411674_wp, 3.521273_wp,-4.935670_wp,-8.339183_wp,10.000000_wp, &
@@ -249,7 +250,7 @@ module xtb_xtb_gfn2
       & 0.374018_wp, 1.007016_wp,-0.737252_wp,-1.344854_wp,-0.348123_wp, &
       &-0.167597_wp] * 0.01_wp
 
-   !>
+   !> Quadrupole exchange-correlation kernel
    real(wp), parameter :: quadKernel(1:maxElem) = [&
       & 0.027431_wp,-0.337528_wp, 0.020000_wp,-0.058586_wp,-0.058228_wp, &
       & 0.213583_wp, 2.026786_wp,-0.310828_wp,-0.245955_wp,-0.500000_wp, &
@@ -270,35 +271,9 @@ module xtb_xtb_gfn2
       &-0.008506_wp,-0.001670_wp, 0.162529_wp, 0.013818_wp, 0.021624_wp, &
       &-0.111556_wp] * 0.01_wp
 
-   !>
-   real(wp), parameter :: valenceCN(1:maxElem) = [&
-      & 1.0_wp, 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 2.0_wp, 1.0_wp, &
-      & 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
-      & 1.0_wp, 2.0_wp, 4.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
-      & 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
-      & 1.0_wp, 2.0_wp, 4.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
-      & 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
-      & 1.0_wp, 2.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
-      & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, &
-      & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, &
-      & 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp]
-
-   !>
-   real(wp), parameter :: multiRad(1:maxElem) = [&
-      & 1.4_wp, 3.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.0_wp, 1.9_wp, 1.8_wp, 2.4_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 2.1_wp, 3.1_wp, 2.5_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 4.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp]
-
    ! ========================================================================
    ! HAMILTONIAN DATA
-   !>
+   !> Number of shells
    integer, parameter :: nShell(1:maxElem) = [&
       & 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 2, 3, 3, 3, 3, 3, 3, 3, 2, 3, &
       & 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 3, 3, 3, 3, 3, 3, 2, 3, 3, 3, &
@@ -306,7 +281,7 @@ module xtb_xtb_gfn2
       & 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, &
       & 2, 2, 2, 2, 3, 3]
 
-   !>
+   !> Angular momentum of each shell
    integer, parameter :: angShell(3, 1:maxElem) = reshape([&
       & 0, 0, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0, &
       & 0, 1, 0,  0, 1, 0,  0, 1, 2,  0, 1, 0,  0, 1, 2,  0, 1, 2,  0, 1, 2, &
@@ -322,7 +297,7 @@ module xtb_xtb_gfn2
       & 2, 0, 1,  2, 0, 1,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0, &
       & 0, 1, 2,  0, 1, 2], shape(angShell))
 
-   !>
+   !> Principal quantum number of each shell
    integer, parameter :: principalQuantumNumber(3, 1:maxElem) = reshape([&
       & 1, 0, 0,  1, 2, 0,  2, 2, 0,  2, 2, 0,  2, 2, 0,  2, 2, 0,  2, 2, 0, &
       & 2, 2, 0,  2, 2, 0,  2, 2, 3,  3, 3, 0,  3, 3, 3,  3, 3, 3,  3, 3, 3, &
@@ -338,23 +313,7 @@ module xtb_xtb_gfn2
       & 5, 6, 6,  5, 6, 6,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0, &
       & 6, 6, 5,  6, 6, 5], shape(principalQuantumNumber))
 
-   !>
-   integer, parameter :: valenceShell(3, 1:maxElem) = reshape([&
-      & 1, 0, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0, &
-      & 1, 1, 0,  1, 1, 0,  1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0, &
-      & 1, 1, 1,  1, 1, 1], shape(valenceShell))
-
-   !>
+   !> Reference occupation of the atom
    real(wp), parameter :: referenceOcc(0:2, 1:maxElem) = reshape([&
       & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  1.0_wp, 0.0_wp, 0.0_wp, &
       & 2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 1.0_wp, 0.0_wp,  1.0_wp, 3.0_wp, 0.0_wp, &
@@ -386,7 +345,7 @@ module xtb_xtb_gfn2
       & 2.0_wp, 2.0_wp, 0.0_wp,  2.0_wp, 3.0_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp, &
       & 2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp], shape(referenceOcc))
 
-   !>
+   !> Shell polynomials to scale Hamiltonian elements
    real(wp), parameter :: shellPoly(1:4, 1:maxElem) = reshape([&
       & -0.953618_wp,  0.000000_wp,  0.000000_wp,  0.000000_wp, &
       & -4.386816_wp,  0.710647_wp,  0.000000_wp,  0.000000_wp, &
@@ -476,7 +435,7 @@ module xtb_xtb_gfn2
       &-35.245372_wp,-11.989735_wp, 21.167024_wp,  0.000000_wp],&
       & shape(shellPoly))
 
-   !>
+   !> Coordination number dependence of the atomic levels
    real(wp), parameter :: kCN(1:4, 1:maxElem) = reshape([&
       &-0.0500000_wp, 0.0000000_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.2074275_wp, 0.0000000_wp, 0.0000000_wp, 0.0000000_wp, &
@@ -566,7 +525,7 @@ module xtb_xtb_gfn2
       &-0.0001712_wp,-0.0005280_wp,-0.3206020_wp, 0.0000000_wp],&
       & shape(kCN))
 
-   !>
+   !> Atomic level information
    real(wp), parameter :: selfEnergy(3, 1:maxElem) = reshape([&
       &-10.707211_wp,  0.000000_wp,  0.000000_wp, &
       &-23.716445_wp, -1.822307_wp,  0.000000_wp, &
@@ -656,7 +615,7 @@ module xtb_xtb_gfn2
       &-21.000000_wp,-10.496406_wp, -1.415056_wp],&
       & shape(selfEnergy))
 
-   !>
+   !> Exponent of the Slater function
    real(wp), parameter :: slaterExponent(3, 1:maxElem) = reshape([&
       &  1.230000_wp,  0.000000_wp,  0.000000_wp, &
       &  1.669667_wp,  1.500000_wp,  0.000000_wp, &
@@ -752,7 +711,7 @@ contains
 
 subroutine initData(self)
 
-   !>
+   !> Data instance
    type(TxTBData), intent(out) :: self
 
    self%nShell = nShell(:maxElem)
@@ -768,7 +727,7 @@ end subroutine initData
 
 subroutine initRepulsion(self)
 
-   !>
+   !> Data instance
    type(TRepulsionData), intent(out) :: self
 
    call init(self, kExp, kExpLight, rExp, 0.0_wp, repAlpha, repZeff)
@@ -778,10 +737,10 @@ end subroutine initRepulsion
 
 subroutine initCoulomb(self, nShell)
 
-   !>
+   !> Data instance
    type(TCoulombData), intent(out) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    self%chemicalHardness = chemicalHardness
@@ -793,7 +752,7 @@ end subroutine initCoulomb
 
 subroutine initMultipole(self)
 
-   !>
+   !> Data instance
    type(TMultipoleData), intent(out) :: self
 
    call init(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
@@ -804,10 +763,10 @@ end subroutine initMultipole
 
 subroutine initHamiltonian(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(out) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    integer :: mShell, nPrim, lAng
@@ -842,10 +801,10 @@ end subroutine initHamiltonian
 
 subroutine setGFN2ReferenceOcc(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(inout) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    integer :: lAng, iZp, iSh
@@ -866,10 +825,10 @@ end subroutine setGFN2ReferenceOcc
 
 subroutine setGFN2NumberOfPrimitives(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(inout) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    integer :: nPrim, iZp, iSh

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Parametrisation data for xTB methods
 module xtb_xtb_data
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
@@ -29,195 +29,196 @@ module xtb_xtb_data
    public :: generateValenceShellData
 
 
-   !>
+   !> Data for the repulsion contribution
    type :: TRepulsionData
 
-      !>
+      !> Repulsion exponent for heavy elements
       real(wp) :: kExp
 
-      !>
+      !> Repulsion exponent for light elements
       real(wp) :: kExpLight
 
-      !>
+      !> Repulsion exponent
       real(wp) :: rExp
 
-      !>
+      !> Electronegativity scaling of repulsion
       real(wp) :: enScale
 
-      !>
+      !> Exponents of repulsion term
       real(wp), allocatable :: alpha(:)
 
-      !>
+      !> Effective nuclear charge
       real(wp), allocatable :: zeff(:)
 
-      !>
+      !> Electronegativitity for scaling of repulsion
       real(wp), allocatable :: electronegativity(:)
 
-      !>
+      !> FIXME: real space cutoff should not be part of data
       real(wp) :: cutoff
 
    end type TRepulsionData
 
 
-   !>
+   !> Data for the evaluation of the xTB core Hamiltonian
    type :: THamiltonianData
 
-      !>
+      !> Principal quantum number of each shell
       integer, allocatable :: principalQuantumNumber(:, :)
 
-      !>
+      !> Angular momentum of each shell
       integer, allocatable :: angShell(:, :)
 
-      !>
+      !> Valence character of each shell
       integer, allocatable :: valenceShell(:, :)
 
-      !>
+      !> Number of primitives for expansion of Slater functions
       integer, allocatable :: numberOfPrimitives(:, :)
 
-      !>
+      !> Exponent of the Slater function
       real(wp), allocatable :: slaterExponent(:, :)
 
-      !>
+      !> Atomic level information
       real(wp), allocatable :: selfEnergy(:, :)
 
-      !>
+      !> Reference occupation of the atom
       real(wp), allocatable :: referenceOcc(:, :)
 
-      !>
+      !> Coordination number dependence of the atomic levels
       real(wp), allocatable :: kCN(:, :)
 
-      !>
+      !> Electronegativity used in the shell polynomials
       real(wp), allocatable :: electronegativity(:)
 
-      !>
+      !> Atomic radii used in the shell polynomials
       real(wp), allocatable :: atomicRad(:)
 
-      !>
+      !> Shell polynomials to scale Hamiltonian elements
       real(wp), allocatable :: shellPoly(:, :)
 
-      !>
+      !> Pair parameters to scale Hamiltonian elements
       real(wp), allocatable :: pairParam(:, :)
 
-      !>
+      !> Charge dependence of the atomic levels
       real(wp), allocatable :: kQShell(:, :)
 
-      !>
+      !> Charge dependence of the atomic levels
       real(wp), allocatable :: kQAtom(:)
 
    end type THamiltonianData
 
 
-   !>
+   !> Data for the evalutation of the Coulomb interactions
    type :: TCoulombData
 
-      !>
+      !> Use electronegativity equlibration for reference density
       logical :: enEquilibration
 
-      !>
+      !> Include second order electrostatics
       logical :: secondOrder
 
-      !>
+      !> Include third order electrostatics
       logical :: thirdOrder
 
-      !>
+      !> Third order electrostatics is shell resolved
       logical :: shellResolved
 
-      !>
+      !> Atomic hardnesses used in second order electrostatics
       real(wp), allocatable :: chemicalHardness(:)
 
-      !>
+      !> Scaling factors for shell electrostatics
       real(wp), allocatable :: shellHardness(:, :)
 
-      !>
+      !> Third order Hubbard derivatives
       real(wp), allocatable :: thirdOrderAtom(:)
 
-      !>
+      !> Charge widths for EEQ model
       real(wp), allocatable :: chargeWidth(:)
 
-      !>
+      !> Electronegativity for EEQ model
       real(wp), allocatable :: electronegativity(:)
 
-      !>
+      !> Coordination number dependence of the EN
       real(wp), allocatable :: kCN(:)
 
    end type TCoulombData
 
 
-   !>
+   !> Data for the evaluation of the multipole electrostatics
    type :: TMultipoleData
 
-      !>
+      !> Coordination number shift
       real(wp) :: cnShift
 
-      !>
+      !> Coordination number exponent for radii
       real(wp) :: cnExp
 
-      !>
+      !> Maximum radius
       real(wp) :: cnRMax
 
-      !>
+      !> Damping parameter for charge-dipole interactions
       real(wp) :: dipDamp
 
-      !>
+      !> Damping parameter for dipole-dipole, charge-quadrupole interactions
       real(wp) :: quadDamp
 
-      !>
+      !> Valence coordination number for radii
       real(wp), allocatable :: valenceCN(:)
 
-      !>
+      !> Cutoff radii for multipole electrostatics
       real(wp), allocatable :: multiRad(:)
 
-      !>
+      !> Dipole exchange-correlation kernel
       real(wp), allocatable :: dipKernel(:)
 
-      !>
+      !> Quadrupole exchange-correlation kernel
       real(wp), allocatable :: quadKernel(:)
 
    end type TMultipoleData
 
 
-   !>
+   !> Data for halogen bond correction
    type :: THalogenData
 
-      !>
+      !> Scaling factor of the atomic radii
       real(wp) :: radScale
 
-      !>
+      !> Damping parameter for the halogen bond interactions
       real(wp) :: dampingPar
 
-      !>
+      !> Strength of the halogen bond
       real(wp), allocatable :: bondStrength(:)
 
-      !>
+      !> Atomic radii
       real(wp), allocatable :: atomicRad(:)
 
    end type THalogenData
 
 
-   !>
+   !> Parametrisation data for the xTB method
    type :: TxTBData
 
-      !>
+      !> Number of shells
       integer, allocatable :: nShell(:)
 
-      !>
+      !> Parametrisation data for repulsive interactions
       type(TRepulsionData) :: repulsion
 
-      !>
+      !> Parametrisation data for core Hamiltonian
       type(THamiltonianData) :: hamiltonian
 
-      !>
+      !> Parametrisation data for Coulombic interactions
       type(TCoulombData) :: coulomb
 
-      !>
+      !> Parametrisation data for multipole electrostatics (optional)
       type(TMultipoleData), allocatable :: multipole
 
-      !>
+      !> Parametrisation data for halogen bond correction (optional)
       type(THalogenData), allocatable :: halogen
 
    end type TxTBData
 
 
+   !> Default constructor for the data types
    interface init
       module procedure :: initRepulsion
       module procedure :: initHalogen
@@ -228,7 +229,7 @@ module xtb_xtb_data
 
    ! ========================================================================
    ! MULTIPOLE DATA
-   !>
+   !> Valence coordination number for radii
    real(wp), parameter :: valenceCN(1:86) = [&
       & 1.0_wp, 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 2.0_wp, 1.0_wp, &
       & 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
@@ -241,7 +242,7 @@ module xtb_xtb_data
       & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, &
       & 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp]
 
-   !>
+   !> Cutoff radii for multipole electrostatics
    real(wp), parameter :: multiRad(1:86) = [&
       & 1.4_wp, 3.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.0_wp, 1.9_wp, 1.8_wp, 2.4_wp, &
       & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 2.1_wp, 3.1_wp, 2.5_wp, 5.0_wp, &
@@ -258,12 +259,16 @@ module xtb_xtb_data
 contains
 
 
+!> Generator for valence shell data from the angular momenta of the shells
 subroutine generateValenceShellData(valenceShell, nShell, angShell)
 
+   !> Valency character of each shell
    integer, intent(out) :: valenceShell(:, :)
 
+   !> Number of shells for each atom
    integer, intent(in) :: nShell(:)
 
+   !> Angular momenta of each shell
    integer, intent(in) :: angShell(:, :)
 
    integer :: lAng, iZp, iSh
@@ -284,18 +289,19 @@ subroutine generateValenceShellData(valenceShell, nShell, angShell)
 end subroutine generateValenceShellData
 
 
+!> Initialize halogen bond data
 subroutine initHalogen(self, radScale, dampingPar, halogenBond)
 
-   !>
+   !> Data instance
    type(THalogenData), intent(out) :: self
 
-   !>
+   !> Scaling parameter for the atomic radii
    real(wp), intent(in) :: radScale
 
-   !>
+   !> Damping parameter
    real(wp), intent(in) :: dampingPar
 
-   !>
+   !> Halogen bond strength
    real(wp), intent(in) :: halogenBond(:)
 
    integer :: maxElem
@@ -313,7 +319,7 @@ end subroutine initHalogen
 subroutine initMultipole(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
       & dipKernel, quadKernel)
 
-   !>
+   !> Data instance
    type(TMultipoleData), intent(out) :: self
 
    !>
@@ -357,7 +363,7 @@ end subroutine initMultipole
 subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
       & electronegativity)
 
-   !>
+   !> Data instance
    type(TRepulsionData), intent(out) :: self
 
    !>
@@ -407,7 +413,7 @@ end subroutine initRepulsion
 subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
       & thirdOrderAtom, electronegativity, kCN, chargeWidth)
 
-   !>
+   !> Data instance
    type(TCoulombData), intent(out) :: self
 
    !>

@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> GFN1-xTB parametrisation data
 module xtb_xtb_gfn1
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
@@ -71,16 +71,16 @@ module xtb_xtb_gfn1
 
    ! ========================================================================
    ! REPULSION DATA
-   !>
+   !> Repulsion exponent for heavy elements
    real(wp), parameter :: kExp = 1.5_wp
 
-   !>
+   !> Repulsion exponent for light elements
    real(wp), parameter :: kExpLight = kExp
 
-   !>
+   !> Repulsion exponent
    real(wp), parameter :: rExp = 1.0_wp
 
-   !>
+   !> Exponents of repulsion term
    real(wp), parameter :: repAlpha(1:maxElem) = [&
       & 2.209700_wp, 1.382907_wp, 0.671797_wp, 0.865377_wp, 1.093544_wp, &
       & 1.281954_wp, 1.727773_wp, 2.004253_wp, 2.507078_wp, 3.038727_wp, &
@@ -101,7 +101,7 @@ module xtb_xtb_gfn1
       & 0.976397_wp, 0.988859_wp, 1.047194_wp, 1.013118_wp, 0.964652_wp, &
       & 0.998641_wp]
 
-   !>
+   !> Effective nuclear charge
    real(wp), parameter :: repZeff(1:maxElem) = [&
       &  1.116244_wp,  0.440231_wp,  2.747587_wp,  4.076830_wp,  4.458376_wp, &
       &  4.428763_wp,  5.498808_wp,  5.171786_wp,  6.931741_wp,  9.102523_wp, &
@@ -124,7 +124,7 @@ module xtb_xtb_gfn1
 
    ! ========================================================================
    ! COULOMB DATA
-   !>
+   !> Atomic hardnesses used in second order electrostatics
    real(wp), parameter :: chemicalHardness(1:maxElem) = [&
       & 0.470099_wp, 1.441379_wp, 0.205342_wp, 0.274022_wp, 0.340530_wp, &
       & 0.479988_wp, 0.476106_wp, 0.583349_wp, 0.788194_wp, 0.612878_wp, &
@@ -145,10 +145,10 @@ module xtb_xtb_gfn1
       & 0.671316_wp, 1.000000_wp, 0.944879_wp, 1.091248_wp, 1.264162_wp, &
       & 0.798170_wp]
 
-   !>
+   !> Third order electrostatics is shell resolved
    logical, parameter :: thirdOrderShellResolved = .false.
 
-   !>
+   !> Third order Hubbard derivatives
    real(wp), parameter :: thirdOrderAtom(1:maxElem) = [&
       & 0.000000_wp, 1.500000_wp, 1.027370_wp, 0.900554_wp, 1.300000_wp, &
       & 1.053856_wp, 0.042507_wp,-0.005102_wp, 1.615037_wp, 1.600000_wp, &
@@ -169,7 +169,7 @@ module xtb_xtb_gfn1
       & 0.936157_wp, 1.500000_wp, 0.877488_wp,-0.035874_wp,-0.860502_wp, &
       &-0.838429_wp] * 0.1_wp
 
-   !>
+   !> Scaling factors for shell electrostatics
    real(wp), parameter :: shellHardness(0:2, 1:maxElem) = reshape([&
       & 0.0_wp, 0.0000000_wp, 0.0000000_wp,  0.0_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.0_wp,-0.0772012_wp, 0.0000000_wp,  0.0_wp, 0.1113005_wp, 0.0000000_wp, &
@@ -218,7 +218,7 @@ module xtb_xtb_gfn1
 
    ! ========================================================================
    ! HAMILTONIAN DATA
-   !>
+   !> Number of shells
    integer, parameter :: nShell(1:maxElem) = [&
       & 2, 1, 2, 2, 2, 2, 2, 2, 2, 3, 2, 2, 3, 3, 3, 3, 3, 3, 2, 3, &
       & 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 3, 3, 3, 3, 3, 3, 2, 3, 3, 3, &
@@ -226,6 +226,7 @@ module xtb_xtb_gfn1
       & 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, &
       & 2, 2, 2, 3, 3, 3]
 
+   !> Angular momentum of each shell
    integer, parameter :: angularMomentum(3, 1:maxElem) = reshape([&
       & 0, 0, 0,  0, 0, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0, &
       & 0, 1, 0,  0, 1, 0,  0, 1, 2,  0, 1, 0,  0, 1, 0,  0, 1, 2,  0, 1, 2, &
@@ -241,6 +242,7 @@ module xtb_xtb_gfn1
       & 2, 0, 1,  2, 0, 1,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 2, &
       & 0, 1, 2,  0, 1, 2], shape(angularMomentum))
 
+   !> Principal quantum number of each shell
    integer, parameter :: principalQuantumNumber(3, 1:maxElem) = reshape([&
       & 1, 2, 0,  1, 0, 0,  2, 2, 0,  2, 2, 0,  2, 2, 0,  2, 2, 0,  2, 2, 0, &
       & 2, 2, 0,  2, 2, 0,  2, 2, 3,  3, 3, 0,  3, 3, 0,  3, 3, 3,  3, 3, 3, &
@@ -256,38 +258,7 @@ module xtb_xtb_gfn1
       & 5, 6, 6,  5, 6, 6,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 5, &
       & 6, 6, 5,  6, 6, 5], shape(principalQuantumNumber))
 
-   integer, parameter :: numberOfPrimitives(1, 1:maxElem) = reshape([&
-      & 4, 3, 0,  4, 0, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0, &
-      & 6, 6, 0,  6, 6, 0,  6, 6, 4,  6, 6, 0,  6, 6, 0,  6, 6, 4,  6, 6, 4, &
-      & 6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 0,  6, 6, 4,  4, 6, 6, &
-      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
-      & 4, 6, 6,  6, 6, 0,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4, &
-      & 6, 6, 4,  6, 6, 0,  6, 6, 4,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
-      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  6, 6, 0,  6, 6, 4, &
-      & 6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 4,  6, 6, 0,  6, 6, 4, &
-      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
-      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
-      & 4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6,  4, 6, 6, &
-      & 4, 6, 6,  4, 6, 6,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 0,  6, 6, 4, &
-      & 6, 6, 4,  6, 6, 4], shape(numberOfPrimitives))
-
-   !>
-   integer, parameter :: valenceShell(3, 1:maxElem) = reshape([&
-      & 1, 0, 0,  1, 0, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0, &
-      & 1, 1, 0,  1, 1, 0,  1, 1, 1,  1, 1, 0,  1, 1, 0,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 0,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 0,  1, 1, 1, &
-      & 1, 1, 1,  1, 1, 1], shape(valenceShell))
-
-   !>
+   !> Reference occupation of the atom
    real(wp), parameter :: referenceOcc(0:2, 1:maxElem) = reshape([&
       & 1.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 0.0_wp, 0.0_wp,  1.0_wp, 0.0_wp, 0.0_wp, &
       & 2.0_wp, 0.0_wp, 0.0_wp,  2.0_wp, 1.0_wp, 0.0_wp,  2.0_wp, 2.0_wp, 0.0_wp, &
@@ -319,7 +290,7 @@ module xtb_xtb_gfn1
       & 2.0_wp, 2.0_wp, 0.0_wp,  2.0_wp, 3.0_wp, 0.0_wp,  2.0_wp, 4.0_wp, 0.0_wp, &
       & 2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp], shape(referenceOcc))
 
-   !>
+   !> Shell polynomials to scale Hamiltonian elements
    real(wp), parameter :: shellPoly(0:3, 1:maxElem) = reshape([&
       &  0.000000_wp,  0.000000_wp,  0.000000_wp,  0.000000_wp, &
       &  8.084149_wp,  0.000000_wp,  0.000000_wp,  0.000000_wp, &
@@ -409,7 +380,7 @@ module xtb_xtb_gfn1
       &-22.139701_wp,-20.539955_wp, 17.249637_wp,  0.000000_wp],&
       & shape(shellPoly))
 
-   !>
+   !> Atomic level information
    real(wp), parameter :: selfEnergy(3, 1:maxElem) = reshape([&
       &-10.923452_wp, -2.171902_wp,  0.000000_wp, &
       &-22.121015_wp,  0.000000_wp,  0.000000_wp, &
@@ -499,7 +470,7 @@ module xtb_xtb_gfn1
       &-18.381647_wp,-10.236606_wp, -0.973687_wp],&
       & shape(selfEnergy))
 
-   !>
+   !> Exponent of the Slater function
    real(wp), parameter :: slaterExponent(3, 1:maxElem) = reshape([&
       & 1.207940_wp,1.993207_wp,0.000000_wp, 2.133698_wp,0.000000_wp,0.000000_wp, &
       & 0.743881_wp,0.541917_wp,0.000000_wp, 0.876888_wp,1.104598_wp,0.000000_wp, &
@@ -548,13 +519,13 @@ module xtb_xtb_gfn1
 
    ! ========================================================================
    ! HALOGEN DATA
-   !>
+   !> Scaling factor of the atomic radii
    real(wp), parameter :: halogenRadScale = 1.3_wp
 
-   !>
+   !> Damping parameter for the halogen bond interactions
    real(wp), parameter :: halogenDamping = 0.44_wp
 
-   !>
+   !> Strength of the halogen bond
    real(wp), parameter :: halogenBond(1:maxElem) = [ &
       & 0.000000_wp, 0.000000_wp, 0.000000_wp, 0.000000_wp, 0.000000_wp, &
       & 0.000000_wp, 0.000000_wp, 0.000000_wp, 0.000000_wp, 0.000000_wp, &
@@ -581,7 +552,7 @@ contains
 
 subroutine initData(self)
 
-   !>
+   !> Data instance
    type(TxTBData), intent(out) :: self
 
    self%nShell = nShell(:maxElem)
@@ -597,7 +568,7 @@ end subroutine initData
 
 subroutine initRepulsion(self)
 
-   !>
+   !> Data instance
    type(TRepulsionData), intent(out) :: self
 
    call init(self, kExp, kExpLight, rExp, 0.0_wp, repAlpha, repZeff)
@@ -607,10 +578,10 @@ end subroutine initRepulsion
 
 subroutine initCoulomb(self, nShell)
 
-   !>
+   !> Data instance
    type(TCoulombData), intent(out) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    self%chemicalHardness = chemicalHardness
@@ -622,10 +593,10 @@ end subroutine initCoulomb
 
 subroutine initHamiltonian(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(out) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    integer :: mShell, nPrim, lAng
@@ -672,13 +643,12 @@ subroutine initHamiltonian(self, nShell)
 end subroutine initHamiltonian
 
 
-!>
 subroutine setGFN1ReferenceOcc(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(inout) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    integer :: lAng, iZp, iSh
@@ -697,13 +667,12 @@ subroutine setGFN1ReferenceOcc(self, nShell)
 end subroutine setGFN1ReferenceOcc
 
 
-!>
 subroutine setGFN1NumberOfPrimitives(self, nShell)
 
-   !>
+   !> Data instance
    type(THamiltonianData), intent(inout) :: self
 
-   !>
+   !> Number of shells
    integer, intent(in) :: nShell(:)
 
    integer :: nPrim, iZp, iSh
@@ -788,7 +757,7 @@ end subroutine setGFN1PairParam
 
 subroutine initHalogen(self)
 
-   !>
+   !> Data instance
    type(THalogenData), intent(out) :: self
 
    call init(self, halogenRadScale, halogenDamping, halogenBond)
