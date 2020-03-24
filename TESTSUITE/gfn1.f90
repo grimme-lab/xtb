@@ -14,7 +14,6 @@ subroutine test_gfn1_scc
    use xtb_type_environment
 
    use xtb_setparam
-   use xtb_aoparam
    use xtb_basis
    use xtb_scf
    use xtb_scc_core
@@ -262,8 +261,6 @@ subroutine test_gfn1_pcem_api
    use xtb_type_wavefunction
    use xtb_type_environment
 
-   use xtb_aoparam
-
    use xtb_calculators
 
    implicit none
@@ -289,6 +286,8 @@ subroutine test_gfn1_pcem_api
       &-0.69645733_wp,       0.36031084_wp,       0.33614649_wp]
    type(scc_options),parameter :: opt = scc_options( &
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+   real(wp),parameter :: gam(nat2) = [&
+      & 0.583349_wp,0.470099_wp,0.470099_wp, 0.583349_wp,0.470099_wp,0.470099_wp]
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
@@ -330,7 +329,7 @@ subroutine test_gfn1_pcem_api
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)
    ! gam from xtb_aoparam is now filled with GFN1-xTB hardnesses
-   pcem%gam = gam(at(nat2+1:))
+   pcem%gam = gam
    pcem%q   = q
    pcem%grd = 0.0_wp
 

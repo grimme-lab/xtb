@@ -16,8 +16,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_paramset
+   use xtb_mctc_accuracy, only : wp
    use xtb_xtb_data
-   use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
    use xtb_type_param
@@ -25,7 +25,6 @@ module xtb_paramset
 contains
 
 subroutine set_gfn1_parameter(xpar,globpar,xtbData)
-   use xtb_mctc_accuracy, only : wp
    use xtb_disp_dftd3param
    implicit none
    type(scc_parameter),intent(inout) :: xpar
@@ -163,6 +162,7 @@ subroutine set_gfn0_parameter(xpar,globpar,xtbData)
 end subroutine set_gfn0_parameter
 
 subroutine use_parameterset(name,globpar,xtbData,exist)
+   use xtb_aoparam, only : kpair
    implicit none
    character(len=*),intent(in) :: name
    logical,intent(out)  :: exist
@@ -171,21 +171,80 @@ subroutine use_parameterset(name,globpar,xtbData,exist)
    exist = .false.
    select case(name)
    case('.param_gfn.xtb')
-      call copy_gfn1_parameterset(globpar)
-      call setpair(1)
-      call initGFN1(xtbData)
-   case('.param_ipea.xtb')
-      call copy_ipea_parameterset(globpar)
-      call setpair(1)
+      globpar = gfn1Globals
       call initGFN1(xtbData)
    case('.param_gfn2.xtb')
-      call copy_gfn2_parameterset(globpar)
-      call setpair(2)
+      globpar = gfn2Globals
       call initGFN2(xtbData)
    case default
       return
    end select
    exist = .true.
 end subroutine use_parameterset
+
+! global, predefined pair parameters
+subroutine setpair(gfn_method, pairParam)
+   real(wp), intent(inout) :: pairParam(:, :)
+   integer gfn_method
+   integer i,j,ii,jj
+   real*8  kp(3)
+   real*8  kparam
+   integer tmgroup(3)
+   logical notset
+
+   if(gfn_method.eq.1)then
+      kp(1)=1.1    ! 3d
+      kp(2)=1.2    ! 4d
+      kp(3)=1.2    ! 5d or 4f
+   elseif(gfn_method.eq.0)then
+      kp(1)=1.10
+      kp(2)=1.10
+      kp(3)=1.10
+      kparam=0.9
+      tmgroup=(/29,47,79/)
+      do i=1,3
+         do j=1,3
+            ii=tmgroup(i)
+            jj=tmgroup(j)
+            pairParam(ii,jj)=kparam
+            pairParam(jj,ii)=kparam
+         enddo
+      enddo
+   elseif(gfn_method.gt.1)then
+      kp(1)=1.   ! 3d
+      kp(2)=1.   ! 4d
+      kp(3)=1.   ! 5d or 4f
+      !     write(*,'(''KAB for pair M(3d)-M(3d) :'',f8.4)')kp(1)
+      !     write(*,'(''KAB for pair M(4d)-M(4d) :'',f8.4)')kp(2)
+      !     write(*,'(''KAB for pair M(5d)-M(5d) :'',f8.4)')kp(3)
+   endif
+
+   do i=21,79
+      do j=21,i
+         ii=tmmetal(i)
+         jj=tmmetal(j)
+         !           metal-metal interaction
+         notset=abs(pairParam(i,j)-1.0d0).lt.1.d-6 .and. &
+            &             abs(pairParam(j,i)-1.0d0).lt.1.d-6
+         if(ii.gt.0.and.jj.gt.0.and.notset) then
+            pairParam(i,j)=0.5*(kp(ii)+kp(jj))
+            pairParam(j,i)=0.5*(kp(ii)+kp(jj))
+         endif
+      enddo
+   enddo
+
+end subroutine setpair
+
+integer function tmmetal(i)
+   integer i,j
+
+   j=0
+   if(i.gt.20.and.i.lt.30) j=1
+   if(i.gt.38.and.i.lt.48) j=2
+   if(i.gt.56.and.i.lt.80) j=3
+
+   tmmetal=j
+
+end function tmmetal
 
 end module xtb_paramset

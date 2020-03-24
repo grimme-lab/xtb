@@ -18,10 +18,12 @@
 !> TODO
 module xtb_xtb_data
    use xtb_mctc_accuracy, only : wp
+   use xtb_param_atomicrad, only : atomicRad
+   use xtb_param_paulingen, only : paulingEN
    implicit none
    private
 
-   public :: TxTBData
+   public :: TxTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData
    public :: THalogenData, TMultipoleData
    public :: generateValenceShellData
@@ -216,6 +218,43 @@ module xtb_xtb_data
    end type TxTBData
 
 
+   interface init
+      module procedure :: initRepulsion
+      module procedure :: initHalogen
+      module procedure :: initMultipole
+      module procedure :: initCoulomb
+   end interface init
+
+
+   ! ========================================================================
+   ! MULTIPOLE DATA
+   !>
+   real(wp), parameter :: valenceCN(1:86) = [&
+      & 1.0_wp, 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 2.0_wp, 1.0_wp, &
+      & 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
+      & 1.0_wp, 2.0_wp, 4.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
+      & 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
+      & 1.0_wp, 2.0_wp, 4.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
+      & 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
+      & 1.0_wp, 2.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
+      & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, &
+      & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, &
+      & 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp]
+
+   !>
+   real(wp), parameter :: multiRad(1:86) = [&
+      & 1.4_wp, 3.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.0_wp, 1.9_wp, 1.8_wp, 2.4_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 2.1_wp, 3.1_wp, 2.5_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 4.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
+      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp]
+
+
 contains
 
 
@@ -243,6 +282,182 @@ subroutine generateValenceShellData(valenceShell, nShell, angShell)
    end do
 
 end subroutine generateValenceShellData
+
+
+subroutine initHalogen(self, radScale, dampingPar, halogenBond)
+
+   !>
+   type(THalogenData), intent(out) :: self
+
+   !>
+   real(wp), intent(in) :: radScale
+
+   !>
+   real(wp), intent(in) :: dampingPar
+
+   !>
+   real(wp), intent(in) :: halogenBond(:)
+
+   integer :: maxElem
+
+   maxElem = size(halogenBond)
+
+   self%radScale = radScale
+   self%dampingPar = dampingPar
+   self%atomicRad = atomicRad(:maxElem)
+   self%bondStrength = halogenBond(:maxElem)
+
+end subroutine initHalogen
+
+
+subroutine initMultipole(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
+      & dipKernel, quadKernel)
+
+   !>
+   type(TMultipoleData), intent(out) :: self
+
+   !>
+   real(wp), intent(in) :: cnShift
+
+   !>
+   real(wp), intent(in) :: cnExp
+
+   !>
+   real(wp), intent(in) :: cnRMax
+
+   !>
+   real(wp), intent(in) :: dipDamp
+
+   !>
+   real(wp), intent(in) :: quadDamp
+
+   !>
+   real(wp), intent(in) :: dipKernel(:)
+
+   !>
+   real(wp), intent(in) :: quadKernel(:)
+
+   integer :: maxElem
+
+   maxElem = min(size(dipKernel), size(quadKernel))
+
+   self%cnShift = cnShift
+   self%cnExp = cnExp
+   self%cnRMax = cnRMax
+   self%dipDamp = dipDamp
+   self%quadDamp = quadDamp
+   self%dipKernel = dipKernel(:maxElem)
+   self%quadKernel = quadKernel(:maxElem)
+   self%valenceCN = valenceCN(:maxElem)
+   self%multiRad = multiRad(:maxElem)
+
+end subroutine initMultipole
+
+
+subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
+      & electronegativity)
+
+   !>
+   type(TRepulsionData), intent(out) :: self
+
+   !>
+   real(wp), intent(in) :: kExp
+
+   !>
+   real(wp), intent(in) :: kExpLight
+
+   !>
+   real(wp), intent(in) :: rExp
+
+   !>
+   real(wp), intent(in) :: enScale
+
+   !>
+   real(wp), intent(in) :: alpha(:)
+
+   !>
+   real(wp), intent(in) :: zeff(:)
+
+   !>
+   real(wp), intent(in), optional :: electronegativity(:)
+
+   integer :: maxElem
+
+   maxElem = min(size(alpha), size(zeff))
+   if (present(electronegativity)) then
+      maxElem = min(maxElem, size(electronegativity))
+   end if
+
+   self%cutoff = 40.0_wp
+   self%kExp = kExp
+   self%kExpLight = kExpLight
+   self%rExp = rExp
+   self%enScale = enScale
+   self%alpha = alpha(:maxElem)
+   self%zeff = zeff(:maxElem)
+   if (present(electronegativity)) then
+      self%electronegativity = electronegativity(:maxElem)
+   else
+      self%electronegativity = paulingEN(:maxElem)
+   end if
+
+end subroutine initRepulsion
+
+
+subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
+      & thirdOrderAtom, electronegativity, kCN, chargeWidth)
+
+   !>
+   type(TCoulombData), intent(out) :: self
+
+   !>
+   integer, intent(in) :: nShell(:)
+
+   !>
+   real(wp), intent(in) :: chemicalHardness(:)
+
+   !>
+   real(wp), intent(in), optional :: shellHardness(:, :)
+
+   !>
+   real(wp), intent(in), optional :: thirdOrderAtom(:)
+
+   !>
+   real(wp), intent(in), optional :: electronegativity(:)
+
+   !>
+   real(wp), intent(in), optional :: kCN(:)
+
+   !>
+   real(wp), intent(in), optional :: chargeWidth(:)
+
+   integer :: maxElem
+
+   maxElem = size(chemicalHardness)
+   if (present(shellHardness)) then
+      maxElem = min(maxElem, size(shellHardness, dim=2))
+   end if
+   if (present(thirdOrderAtom)) then
+      maxElem = min(maxElem, size(thirdOrderAtom))
+   end if
+   if (present(electronegativity).and.present(kCN).and.present(chargeWidth)) then
+      maxElem = min(maxElem, size(electronegativity), size(kCN), size(chargeWidth))
+   end if
+
+   self%chemicalHardness = chemicalHardness(:maxElem)
+   if (present(shellHardness)) then
+      self%shellHardness = shellHardness(:, :maxElem)
+   end if
+   if (present(thirdOrderAtom)) then
+      self%thirdOrderAtom = thirdOrderAtom(:maxElem)
+   end if
+   if (present(electronegativity).and.present(kCN).and.present(chargeWidth)) then
+      self%electronegativity = electronegativity(:maxElem)
+      self%kCN = kCN(:maxElem)
+      self%chargeWidth = chargeWidth(:maxElem)
+   end if
+
+end subroutine initCoulomb
 
 
 end module xtb_xtb_data

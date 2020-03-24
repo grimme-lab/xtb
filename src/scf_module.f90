@@ -22,6 +22,7 @@ module xtb_scf
    use xtb_xtb_data
    use xtb_xtb_halogen
    use xtb_xtb_repulsion
+   use xtb_paramset, only : tmmetal
    implicit none
    private
 
@@ -172,7 +173,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    integer :: npr,ii,jj,kk,i,j,k,m,iat,jat,mi,jter,atj,kkk,mj,mm
    integer :: ishell,jshell,np,ia,ndimv,l,nmat,nmat2
    integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag,lladr(4)
-   integer :: is,js,lladr2(0:3),tmmetal
+   integer :: is,js,lladr2(0:3)
    data    lladr  /1,3,6,10/
    data    lladr2 /1,3,5,7/
 
