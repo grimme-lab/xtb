@@ -48,7 +48,6 @@ subroutine singlepoint &
    use xtb_type_pcem
 
 !! ========================================================================
-   use xtb_aoparam
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -107,7 +106,7 @@ subroutine singlepoint &
    ! check for external point charge field
    call open_file(ich,pcem_file,'r')
    if (ich.ne.-1) then
-      call read_pcem(ich,pcem)
+      call read_pcem(ich,env,pcem,calc%xtb%coulomb)
       call close_file(ich)
    endif
 
@@ -115,12 +114,12 @@ subroutine singlepoint &
 !  actual calculation
    select case(mode_extrun)
    case default
-      call scf(env,mol,wfn,calc%basis,calc%param,pcem, &
+      call scf(env,mol,wfn,calc%basis,calc%param,pcem,calc%xtb, &
          &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    case(p_ext_eht)
       call peeq &
-         & (env,mol,wfn,calc%basis,calc%param,egap,et,prlevel, &
+         & (env,mol,wfn,calc%basis,calc%param,calc%xtb,egap,et,prlevel, &
          &  lgrad,ccm,acc,etot,g,sigma,res)
 
    case(p_ext_qmdff)

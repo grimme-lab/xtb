@@ -25,6 +25,7 @@ subdir('param')
 subdir('prog')
 subdir('type')
 subdir('solv')
+subdir('xtb')
 
 srcs += files(
   'aespot.f90',
@@ -58,13 +59,11 @@ srcs += files(
   'enso_printout.f90',
   'eqrot.f90',
   'esp.f',
-  'exchange.f90',
   'expire.f90',
   'filetools.f90',
   'fixparam.f90',
   'foden.f90',
   'fragment.f90',
-  'gauss.f90',
   'generate_wsc.f90',
   'geoopt_driver.f90',
   'geosum.f90',
@@ -107,7 +106,6 @@ srcs += files(
   'peeq_module.f90',
   'pocketscan.f90',
   'pqn.f90',
-  'printbas.f90',
   'printmold.f90',
   'printout.f90',
   'prmat.f90',
@@ -131,10 +129,10 @@ srcs += files(
   'screening.f90',
   'set_module.f90',
   'setparam.f90',
-  'setwll.f90',
   'shake_module.f90',
   'shiftlp.f90',
   'single.f90',
+  'slater.f90',
   'sphereparam.f90',
   'spline2.f90',
   'spline3.f90',
@@ -150,8 +148,6 @@ srcs += files(
   'wrgbw.f90',
   'wrmodef.f90',
   'wrmo.f90',
-  'xbasis.f90',
-  'xbond.f90',
   'xhelp.f90',
   'zmatpr.f90',
 )

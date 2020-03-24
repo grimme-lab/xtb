@@ -16,17 +16,24 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_readparam
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
+   use xtb_paramset
 
 contains
 
 subroutine readParam &
-      (env, iunit,globpar,initialize)
+      (env, iunit,globpar,xtbData,initialize)
    use xtb_mctc_accuracy, only : wp
-
-   use xtb_aoparam
 
    use xtb_readin, only : getline => strip_line
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_param, only : TxTBParameter
+   use xtb_param_paulingen, only : paulingEN
+   use xtb_param_atomicrad, only : atomicRad
+   use xtb_mctc_param, only: chemical_hardness
 
    implicit none
 
@@ -34,7 +41,8 @@ subroutine readParam &
 
    type(TEnvironment), intent(inout) :: env
    integer, intent(in) :: iunit
-   real(wp), intent(inout) :: globpar(25)
+   type(TxTBParameter), intent(inout) :: globpar
+   type(TxTBData), intent(out) :: xtbData
    logical, intent(in) :: initialize
 
    character(len=1), parameter :: equal = '='
@@ -44,51 +52,90 @@ subroutine readParam &
    integer, parameter :: p_str_length = 48
    integer, parameter :: p_arg_length = 24
 
+   integer, parameter :: max_elem = 118
+   integer :: nShell(max_elem)
+   integer :: principalQuantumNumber(10,max_elem)
+   integer :: angShell(10,max_elem)
+   real(wp) :: shellPoly(1:4,max_elem)
+   real(wp) :: selfEnergy(10,max_elem)
+   real(wp) :: slaterExponent(10,max_elem)
+   real(wp) :: thirdOrderAtom(max_elem)
+   real(wp) :: atomicHardness(max_elem)
+   real(wp) :: shellHardness(1:4,max_elem)
+   real(wp) :: electronegativity(max_elem)
+   real(wp) :: repAlpha(max_elem)
+   real(wp) :: repZeff(max_elem)
+   real(wp) :: halogenBond(max_elem)
+   real(wp) :: dipKernel(max_elem)
+   real(wp) :: quadKernel(max_elem)
+   real(wp) :: eeqkcn(max_elem)
+   real(wp) :: chargeWidth(max_elem)
+   real(wp) :: kqat2(max_elem)
+   real(wp) :: kqat(3,max_elem)
+   real(wp) :: kpair(max_elem,max_elem)
+   real(wp) :: kcnat(0:2,max_elem)
+   real(wp) :: eeqEN(max_elem)
+   real(wp) :: kExpLight
+   character(len=30) :: timestp(max_elem)
+
    character(len=:), allocatable :: line
 
+   integer :: mShell
+   integer :: version
    integer :: err
+   logical :: newFormat
 
    if (initialize) then
-      globpar = 0.0_wp
+      globpar = TxTBParameter()
 
-      ao_pqn=0
-      ao_l  =0
-      ao_n  =0
-      ao_lev=0.0_wp
-      ao_exp=0.0_wp
-      ao_typ=0
-      polyr =0.0_wp
-      cxb   =0.0_wp
-      rep   =0.0_wp
-      mc    =0.0_wp
-      lpar  =0.0_wp
-      gam3  =0.0_wp
+      principalQuantumNumber=0
+      angShell  =0
+      nShell  =0
+      selfEnergy=0.0_wp
+      slaterExponent=0.0_wp
+      shellPoly =0.0_wp
+      halogenBond = 0.0_wp
+      atomicHardness = chemical_hardness(:max_elem)
+      shellHardness  =0.0_wp
+      thirdOrderAtom  =0.0_wp
+      kqat2 =0.0_wp
+      eeqkcn=0.0_wp
+      eeqen =0.0_wp
       kcnat =0.0_wp
 
-      dpolc =0.0_wp ! read values are scaled by 0.01
-      qpolc =0.0_wp !  "     "     "    "    "   "
-      radaes=5.0_wp ! default atom radius
-      radaes(1) =1.4_wp
-      radaes(2) =3.0_wp
-      radaes(6) =3.0_wp
-      radaes(7) =1.9_wp
-      radaes(8) =1.8_wp
-      radaes(9) =2.4_wp
-      radaes(14)=3.9_wp
-      radaes(15)=2.1_wp
-      radaes(16)=3.1_wp
-      radaes(17)=2.5_wp
-      radaes(34)=3.9_wp
-      radaes(35)=4.0_wp
+      electronegativity = paulingEN(:max_elem)
+      repAlpha = 0.0_wp
+      repZeff = 0.0_wp
+
+      dipKernel = 0.0_wp ! read values are scaled by 0.01
+      quadKernel = 0.0_wp !  "     "     "    "    "   "
 
       kpair =1.0_wp
    endif
 
+   kExpLight = 0.0_wp
+   version = -1
+   newFormat = .false.
    call getline(iunit,line,err)
    if (debug) print'(">",a)',line
    readgroups: do
       if (index(line,flag).eq.1) then
          select case(line(2:))
+         case('level 0')
+            newFormat = .true.
+            version = 0
+            kExpLight = 1.5_wp
+            call getline(iunit,line,err)
+         case('level 1')
+            newFormat = .true.
+            version = 1
+            kExpLight = 1.5_wp
+            call getline(iunit,line,err)
+         case('level 2')
+            newFormat = .true.
+            version = 2
+            kExpLight = 1.0_wp
+            call getline(iunit,line,err)
          case('globpar')
             call read_globpar
          case('pairpar')
@@ -108,6 +155,67 @@ subroutine readParam &
       if (err.ne.0) exit readgroups
       !if (index(line,flag_end).gt.0) exit readgroups
    enddo readgroups
+
+   if (.not.newFormat) then
+      call env%error("Old format parameter file is not supported anymore")
+   end if
+
+   call setpair(version, kpair)
+
+   xtbData%nShell = nShell
+   ! Repulsion
+   call init(xtbData%repulsion, 1.5_wp, kExpLight, 1.0_wp, 0.0_wp, &
+      & repAlpha, repZeff, electronegativity)
+   ! Coulomb
+   call init(xtbData%coulomb, nShell, atomicHardness, shellHardness, &
+      & thirdOrderAtom, eeqen, eeqkcn, chargeWidth)
+   ! Hamiltonian
+   mShell = maxval(xtbData%nShell)
+   xtbData%hamiltonian%angShell = angShell(:mShell, :)
+   xtbData%hamiltonian%electronegativity = electronegativity(:)
+   xtbData%hamiltonian%atomicRad = atomicRad(:)
+   xtbData%hamiltonian%shellPoly = shellPoly(:, :)
+   xtbData%hamiltonian%pairParam = kpair(:, :)
+   xtbData%hamiltonian%kCN = kcnat(:, :)
+   xtbData%hamiltonian%selfEnergy = selfEnergy(:mShell, :)
+   xtbData%hamiltonian%slaterExponent = slaterExponent(:mShell, :)
+   xtbData%hamiltonian%principalQuantumNumber = principalQuantumNumber(:mShell, :)
+   xtbData%hamiltonian%kQShell = kqat(:, :)
+   xtbData%hamiltonian%kQAtom = kqat2(:)
+   allocate(xtbData%hamiltonian%valenceShell(mShell, max_elem))
+   call generateValenceShellData(xtbData%hamiltonian%valenceShell, &
+      & xtbData%nShell, xtbData%hamiltonian%angShell)
+   select case(version)
+   case(0)
+      ! Hamiltonian
+      allocate(xtbData%hamiltonian%referenceOcc(mShell, max_elem))
+      call setGFN2ReferenceOcc(xtbData%hamiltonian, xtbData%nShell)
+      allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
+      call setGFN0NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
+
+   case(1)
+      ! Halogen
+      allocate(xtbData%halogen)
+      call init(xtbData%halogen, globpar%xbrad, globpar%xbdamp, halogenBond)
+      ! Hamiltonian
+      allocate(xtbData%hamiltonian%referenceOcc(mShell, max_elem))
+      call setGFN1ReferenceOcc(xtbData%hamiltonian, xtbData%nShell)
+      allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
+      call setGFN1NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
+
+   case(2)
+      ! Multipole
+      allocate(xtbData%multipole)
+      call init(xtbData%multipole, globpar%aesshift, globpar%aesexp, &
+         & globpar%aesrmax, globpar%aesdmp3, globpar%aesdmp5, &
+         & dipKernel, quadKernel)
+      ! Hamiltonian
+      allocate(xtbData%hamiltonian%referenceOcc(mShell, max_elem))
+      call setGFN2ReferenceOcc(xtbData%hamiltonian, xtbData%nShell)
+      allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
+      call setGFN2NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
+
+   end select
 
 contains
 
@@ -133,162 +241,51 @@ subroutine read_globpar
    enddo
 end subroutine read_globpar
 
-subroutine gfn0_globpar(key,val,param)
-   use xtb_type_param
-   use xtb_readin, only : getValue
-   implicit none
-   character(len=*), intent(in) :: key, val
-   type(scc_parameter), intent(inout) :: param
-   real(wp) :: ddum
-   select case(key)
-   case default
-      call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) param%kspd(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) param%kspd(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) param%kspd(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) param%kspd(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) param%kspd(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) param%kspd(6) = ddum
-   case('wllscal')
-      if (getValue(env,val,ddum)) then
-         param%ipshift = ddum * 0.1_wp
-         param%eashift = ddum * 0.1_wp
-      endif
-   case('gscal'); if (getValue(env,val,ddum)) param%gscal = ddum * 0.1_wp
-   case('zcnf'); if (getValue(env,val,ddum)) param%gam3l(1) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) param%gam3l(2) = ddum
-   case('kcn'); if (getValue(env,val,ddum)) param%gam3l(3) = ddum
-   case('fpol'); if (getValue(env,val,ddum)) param%gscal = ddum
-   case('zqf'); if (getValue(env,val,ddum)) param%kcnsh(1) = ddum
-   case('alphaj'); if (getValue(env,val,ddum)) param%alphaj = ddum
-   case('kexpo'); if (getValue(env,val,ddum)) param%kenscal = ddum
-   case('dispa'); if (getValue(env,val,ddum)) param%disp%a1 = ddum
-   case('dispb'); if (getValue(env,val,ddum)) param%disp%a2 = ddum
-   case('dispc'); if (getValue(env,val,ddum)) param%disp%s8 = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) param%xbdamp = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) param%xbrad = ddum
-   end select
-end subroutine gfn0_globpar
-
-subroutine gfn1_globpar(key,val,param)
-   use xtb_type_param
-   use xtb_readin, only : getValue
-   implicit none
-   character(len=*), intent(in) :: key, val
-   type(scc_parameter), intent(inout) :: param
-   real(wp) :: ddum
-   select case(key)
-   case default
-      call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) param%kspd(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) param%kspd(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) param%kspd(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) param%kspd(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) param%kspd(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) param%kspd(6) = ddum
-   case('wllscal')
-      if (getValue(env,val,ddum)) then
-         param%ipshift = ddum * 0.1_wp
-         param%eashift = ddum * 0.1_wp
-      endif
-   case('gscal'); if (getValue(env,val,ddum)) param%gscal = ddum * 0.1_wp
-   case('zcnf'); if (getValue(env,val,ddum)) param%gam3l(1) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) param%gam3l(2) = ddum
-   case('kcn')
-      if (getValue(env,val,ddum)) then
-         param%gam3l(3) = ddum
-         param%kcnsh(1) = ddum * 0.01_wp
-      endif
-   case('fpol'); if (getValue(env,val,ddum)) param%kcnsh(2) = ddum * 0.01_wp
-   case('ken'); if (getValue(env,val,ddum)) param%kcnsh(3) = ddum * 0.01_wp
-   case('alphaj'); if (getValue(env,val,ddum)) param%alphaj = ddum
-   case('dispa'); if (getValue(env,val,ddum)) param%disp%a1 = ddum
-   case('dispb'); if (getValue(env,val,ddum)) param%disp%a2 = ddum
-   case('dispc'); if (getValue(env,val,ddum)) param%disp%s8 = ddum
-   case('dispatm'); if (getValue(env,val,ddum)) param%kenscal = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) param%xbdamp = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) param%xbrad = ddum
-   end select
-end subroutine gfn1_globpar
-
-subroutine gfn2_globpar(key,val,param)
-   use xtb_type_param
-   use xtb_readin, only : getValue
-   implicit none
-   character(len=*), intent(in) :: key, val
-   type(scc_parameter), intent(inout) :: param
-   real(wp) :: ddum
-   select case(key)
-   case default
-      call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) param%kspd(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) param%kspd(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) param%kspd(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) param%kspd(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) param%kspd(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) param%kspd(6) = ddum
-   case('wllscal')
-      if (getValue(env,val,ddum)) then
-         param%ipshift = ddum * 0.1_wp
-         param%eashift = ddum * 0.1_wp
-      endif
-   case('gscal'); if (getValue(env,val,ddum)) param%gscal = ddum * 0.1_wp
-   case('zcnf'); if (getValue(env,val,ddum)) param%gam3l(1) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) param%gam3l(2) = ddum
-   case('kcn'); if (getValue(env,val,ddum)) param%gam3l(3) = ddum
-   case('lshift'); if (getValue(env,val,ddum)) param%cn_shift = ddum
-   case('lshifta'); if (getValue(env,val,ddum)) param%cn_expo = ddum
-   case('split'); if (getValue(env,val,ddum)) param%cn_rmax = ddum
-   case('alphaj'); if (getValue(env,val,ddum)) param%alphaj = ddum
-   case('dispa'); if (getValue(env,val,ddum)) param%disp%a1 = ddum
-   case('dispb'); if (getValue(env,val,ddum)) param%disp%a2 = ddum
-   case('dispc'); if (getValue(env,val,ddum)) param%disp%s8 = ddum
-   case('dispatm'); if (getValue(env,val,ddum)) param%disp%s9 = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) param%xbdamp = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) param%xbrad = ddum
-   end select
-end subroutine gfn2_globpar
-
 subroutine gfn_globpar(key,val,globpar)
    use xtb_readin, only : getValue
    implicit none
    character(len=*), intent(in) :: key, val
-   real(wp), intent(inout) :: globpar(25)
+   type(TxTBParameter), intent(inout) :: globpar
    real(wp) :: ddum
    select case(key)
    case default
       call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) globpar(1) = ddum
-   case('kp'); if (getValue(env,val,ddum)) globpar(2) = ddum
-   case('kd'); if (getValue(env,val,ddum)) globpar(3) = ddum
-   case('kf'); if (getValue(env,val,ddum)) globpar(4) = ddum
-   case('kdiffa'); if (getValue(env,val,ddum)) globpar(5) = ddum
-   case('kdiffb'); if (getValue(env,val,ddum)) globpar(6) = ddum
-   case('wllscal'); if (getValue(env,val,ddum)) globpar(7) = ddum
-   case('gscal'); if (getValue(env,val,ddum)) globpar(8) = ddum
-   case('zcnf'); if (getValue(env,val,ddum)) globpar(9) = ddum
-   case('tscal'); if (getValue(env,val,ddum)) globpar(10) = ddum
-   case('kcn'); if (getValue(env,val,ddum)) globpar(11) = ddum
-   case('fpol'); if (getValue(env,val,ddum)) globpar(12) = ddum
-   case('ken'); if (getValue(env,val,ddum)) globpar(13) = ddum
-   case('lshift'); if (getValue(env,val,ddum)) globpar(14) = ddum
-   case('lshifta'); if (getValue(env,val,ddum)) globpar(15) = ddum
-   case('split'); if (getValue(env,val,ddum)) globpar(16) = ddum
-   case('zqf'); if (getValue(env,val,ddum)) globpar(17) = ddum
-   case('alphaj'); if (getValue(env,val,ddum)) globpar(18) = ddum
-   case('kexpo'); if (getValue(env,val,ddum)) globpar(19) = ddum
-   case('dispa'); if (getValue(env,val,ddum)) globpar(20) = ddum
-   case('dispb'); if (getValue(env,val,ddum)) globpar(21) = ddum
-   case('dispc'); if (getValue(env,val,ddum)) globpar(22) = ddum
-   case('dispatm'); if (getValue(env,val,ddum)) globpar(23) = ddum
-   case('xbdamp'); if (getValue(env,val,ddum)) globpar(24) = ddum
-   case('xbrad'); if (getValue(env,val,ddum)) globpar(25) = ddum
+   case('ks'); if (getValue(env,val,ddum)) globpar%ks = ddum
+   case('kp'); if (getValue(env,val,ddum)) globpar%kp = ddum
+   case('kd'); if (getValue(env,val,ddum)) globpar%kd = ddum
+   case('kf'); if (getValue(env,val,ddum)) globpar%kf = ddum
+   case('kdiffa'); if (getValue(env,val,ddum)) globpar%kdiffa = ddum
+   case('kdiffb'); if (getValue(env,val,ddum)) globpar%kdiffb = ddum
+   case('wllscal'); if (getValue(env,val,ddum)) globpar%wllscal = ddum
+   case('ipeashift'); if (getValue(env,val,ddum)) globpar%ipeashift = ddum
+   case('gscal'); if (getValue(env,val,ddum)) globpar%gscal = ddum
+   case('zcnf'); if (getValue(env,val,ddum)) globpar%zcnf = ddum
+   case('tscal'); if (getValue(env,val,ddum)) globpar%tscal = ddum
+   case('kcn'); if (getValue(env,val,ddum)) globpar%kcn = ddum
+   case('fpol'); if (getValue(env,val,ddum)) globpar%fpol = ddum
+   case('ken'); if (getValue(env,val,ddum)) globpar%ken = ddum
+   case('lshift'); if (getValue(env,val,ddum)) globpar%lshift = ddum
+   case('lshifta'); if (getValue(env,val,ddum)) globpar%lshifta = ddum
+   case('split'); if (getValue(env,val,ddum)) globpar%split = ddum
+   case('zqf'); if (getValue(env,val,ddum)) globpar%zqf = ddum
+   case('alphaj'); if (getValue(env,val,ddum)) globpar%alphaj = ddum
+   case('kexpo'); if (getValue(env,val,ddum)) globpar%kexpo = ddum
+   case('dispa'); if (getValue(env,val,ddum)) globpar%dispa = ddum
+   case('dispb'); if (getValue(env,val,ddum)) globpar%dispb = ddum
+   case('dispc'); if (getValue(env,val,ddum)) globpar%dispc = ddum
+   case('dispatm'); if (getValue(env,val,ddum)) globpar%dispatm = ddum
+   case('xbdamp'); if (getValue(env,val,ddum)) globpar%xbdamp = ddum
+   case('xbrad'); if (getValue(env,val,ddum)) globpar%xbrad = ddum
+   case('aesdmp3'); if (getValue(env,val,ddum)) globpar%aesdmp3 = ddum
+   case('aesdmp5'); if (getValue(env,val,ddum)) globpar%aesdmp5 = ddum
+   case('aesshift'); if (getValue(env,val,ddum)) globpar%aesshift = ddum
+   case('aesexp'); if (getValue(env,val,ddum)) globpar%aesexp = ddum
+   case('aesrmax'); if (getValue(env,val,ddum)) globpar%aesrmax = ddum
    end select
 end subroutine gfn_globpar
 
 subroutine read_pairpar
    use xtb_mctc_strings
-   use xtb_aoparam
    use xtb_readin, only : getValue
    implicit none
    integer  :: narg
@@ -314,7 +311,6 @@ end subroutine read_pairpar
 
 subroutine read_elempar
    use xtb_mctc_strings
-   use xtb_aoparam
    use xtb_readin
    implicit none
    character(len=:), allocatable :: key, val
@@ -344,7 +340,6 @@ end subroutine read_elempar
 
 subroutine gfn_elempar(key,val,iz)
    use xtb_mctc_strings
-   use xtb_aoparam
    use xtb_readin
    implicit none
    character(len=*), intent(in) :: key, val
@@ -360,59 +355,57 @@ subroutine gfn_elempar(key,val,iz)
    case('ao')
       !print'(a,":",a)',key,val
       if (mod(len(val),2).eq.0) then
-         ao_n(iz) = len(val)/2
-         do i = 1, ao_n(iz)
+         nShell(iz) = len(val)/2
+         do i = 1, nShell(iz)
             ii = 2*i-1
             !print*,i,ii,val(ii:ii),val(ii+1:ii+1)
             if (getValue(env,val(ii:ii),idum)) then
-               ao_pqn(i,iz) = idum
+               principalQuantumNumber(i,iz) = idum
                select case(val(ii+1:ii+1))
-               case('s'); ao_l(i,iz) = 0
-               case('p'); ao_l(i,iz) = 1
-               case('d'); ao_l(i,iz) = 2
-               case('f'); ao_l(i,iz) = 3
-               case('g'); ao_l(i,iz) = 4
-               case('S'); ao_l(i,iz) = 11
+               case('s'); angShell(i,iz) = 0
+               case('p'); angShell(i,iz) = 1
+               case('d'); angShell(i,iz) = 2
+               case('f'); angShell(i,iz) = 3
+               case('g'); angShell(i,iz) = 4
+               case('S'); angShell(i,iz) = 0
                end select
             endif
          enddo
       endif
    case('lev')
       call parse(val,space,argv,narg)
-      if (narg .eq. ao_n(iz)) then
-         do i = 1, ao_n(iz)
-            if (getValue(env,trim(argv(i)),ddum)) ao_lev(i,iz) = ddum
+      if (narg .eq. nShell(iz)) then
+         do i = 1, nShell(iz)
+            if (getValue(env,trim(argv(i)),ddum)) selfEnergy(i,iz) = ddum
          enddo
       endif
    case('exp')
       call parse(val,space,argv,narg)
-      if (narg .eq. ao_n(iz)) then
-         do i = 1, ao_n(iz)
-            if (getValue(env,trim(argv(i)),ddum)) ao_exp(i,iz) = ddum
+      if (narg .eq. nShell(iz)) then
+         do i = 1, nShell(iz)
+            if (getValue(env,trim(argv(i)),ddum)) slaterExponent(i,iz) = ddum
          enddo
       endif
-   case('en');  if (getValue(env,val,ddum)) en(iz)    = ddum
-   case('gam'); if (getValue(env,val,ddum)) gam(iz)   = ddum
-   case('epr'); if (getValue(env,val,ddum)) mc(iz)    = ddum
-   case('xi');  if (getValue(env,val,ddum)) dpolc(iz) = ddum
-   case('alpg')
-      if (getValue(env,val,ddum)) then
-         radaes(iz) = ddum
-         alp0(iz)   = ddum
-      endif
-   case('gam3');  if (getValue(env,val,ddum)) gam3(iz)    = ddum * 0.1_wp
-   case('cxb');   if (getValue(env,val,ddum)) cxb(iz)     = ddum * 0.1_wp
-   case('dpol');  if (getValue(env,val,ddum)) dpolc(iz)   = ddum * 0.01_wp
-   case('qpol');  if (getValue(env,val,ddum)) qpolc(iz)   = ddum * 0.01_wp
-   case('repa');  if (getValue(env,val,ddum)) rep(1,iz)   = ddum
-   case('repb');  if (getValue(env,val,ddum)) rep(2,iz)   = ddum
-   case('polys'); if (getValue(env,val,ddum)) polyr(1,iz) = ddum
-   case('polyp'); if (getValue(env,val,ddum)) polyr(2,iz) = ddum
-   case('polyd'); if (getValue(env,val,ddum)) polyr(3,iz) = ddum
-   case('polyf'); if (getValue(env,val,ddum)) polyr(4,iz) = ddum
-   case('lpars'); if (getValue(env,val,ddum)) lpar(0,iz)  = ddum * 0.1_wp
-   case('lparp'); if (getValue(env,val,ddum)) lpar(1,iz)  = ddum * 0.1_wp
-   case('lpard'); if (getValue(env,val,ddum)) lpar(2,iz)  = ddum * 0.1_wp
+   case('en');  if (getValue(env,val,ddum)) electronegativity(iz)    = ddum
+   case('gam'); if (getValue(env,val,ddum)) atomicHardness(iz)   = ddum
+   case('xi');  if (getValue(env,val,ddum)) eeqEN(iz) = ddum
+   case('alpg'); if (getValue(env,val,ddum)) chargeWidth(iz)   = ddum
+   case('gam3');  if (getValue(env,val,ddum)) thirdOrderAtom(iz)    = ddum * 0.1_wp
+   case('kappa'); if (getValue(env,val,ddum)) eeqkCN(iz)  = ddum
+   case('cxb');   if (getValue(env,val,ddum)) halogenBond(iz) = ddum * 0.1_wp
+   case('kqat2'); if (getValue(env,val,ddum)) kqat2(iz)   = ddum
+   case('dpol');  if (getValue(env,val,ddum)) dipKernel(iz)   = ddum * 0.01_wp
+   case('qpol');  if (getValue(env,val,ddum)) quadKernel(iz)   = ddum * 0.01_wp
+   case('repa');  if (getValue(env,val,ddum)) repAlpha(iz)   = ddum
+   case('repb');  if (getValue(env,val,ddum)) repZeff(iz)   = ddum
+   case('polys'); if (getValue(env,val,ddum)) shellPoly(1,iz) = ddum
+   case('polyp'); if (getValue(env,val,ddum)) shellPoly(2,iz) = ddum
+   case('polyd'); if (getValue(env,val,ddum)) shellPoly(3,iz) = ddum
+   case('polyf'); if (getValue(env,val,ddum)) shellPoly(4,iz) = ddum
+   case('lpars'); if (getValue(env,val,ddum)) shellHardness(1,iz)  = ddum * 0.1_wp
+   case('lparp'); if (getValue(env,val,ddum)) shellHardness(2,iz)  = ddum * 0.1_wp
+   case('lpard'); if (getValue(env,val,ddum)) shellHardness(3,iz)  = ddum * 0.1_wp
+   case('lparf'); if (getValue(env,val,ddum)) shellHardness(4,iz)  = ddum * 0.1_wp
    case('kcns');  if (getValue(env,val,ddum)) kcnat(0,iz) = ddum * 0.1_wp
    case('kcnp');  if (getValue(env,val,ddum)) kcnat(1,iz) = ddum * 0.1_wp
    case('kcnd');  if (getValue(env,val,ddum)) kcnat(2,iz) = ddum * 0.1_wp
@@ -442,70 +435,3 @@ end module xtb_readparam
       maingroup = main_group(i)
 
       end function maingroup
-
-! global, predefined pair parameters
-      subroutine setpair(gfn_method)
-      use xtb_aoparam
-      implicit none
-      integer gfn_method
-      integer i,j,ii,jj
-      integer tmmetal
-      real*8  kp(3)
-      real*8  kparam
-      integer tmgroup(3)
-      logical notset
-
-      if(gfn_method.eq.1)then
-      kp(1)=1.1    ! 3d
-      kp(2)=1.2    ! 4d
-      kp(3)=1.2    ! 5d or 4f
-      elseif(gfn_method.eq.0)then
-      kp(1)=1.10
-      kp(2)=1.10
-      kp(3)=1.10
-      kparam=0.9
-      tmgroup=(/29,47,79/)
-      do i=1,3
-         do j=1,3
-            ii=tmgroup(i)
-            jj=tmgroup(j)
-            kpair(ii,jj)=kparam
-            kpair(jj,ii)=kparam
-         enddo
-      enddo
-      elseif(gfn_method.gt.1)then
-      kp(1)=1.   ! 3d
-      kp(2)=1.   ! 4d
-      kp(3)=1.   ! 5d or 4f
-!     write(*,'(''KAB for pair M(3d)-M(3d) :'',f8.4)')kp(1)
-!     write(*,'(''KAB for pair M(4d)-M(4d) :'',f8.4)')kp(2)
-!     write(*,'(''KAB for pair M(5d)-M(5d) :'',f8.4)')kp(3)
-      endif
-
-      do i=21,79
-         do j=21,i
-            ii=tmmetal(i)
-            jj=tmmetal(j)
-!           metal-metal interaction
-            notset=abs(kpair(i,j)-1.0d0).lt.1.d-6 .and. &
-     &             abs(kpair(j,i)-1.0d0).lt.1.d-6
-            if(ii.gt.0.and.jj.gt.0.and.notset) then
-               kpair(i,j)=0.5*(kp(ii)+kp(jj))
-               kpair(j,i)=0.5*(kp(ii)+kp(jj))
-            endif
-         enddo
-      enddo
-
-      end subroutine setpair
-
-      integer function tmmetal(i)
-      integer i,j
-
-      j=0
-      if(i.gt.20.and.i.lt.30) j=1
-      if(i.gt.38.and.i.lt.48) j=2
-      if(i.gt.56.and.i.lt.80) j=3
-
-      tmmetal=j
-
-      end function tmmetal

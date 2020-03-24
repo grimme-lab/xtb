@@ -18,7 +18,9 @@
 module xtb_shake
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam, only: xhonly,shake_mode
+   use xtb_param_atomicrad, only : atomicRad
    implicit none
+   private :: atomicRad
    integer, parameter :: ndim = 100000
    !integer :: shake_mode
    integer :: ncons = 0
@@ -31,10 +33,17 @@ module xtb_shake
    integer, parameter :: maxcyc = 250
    real(wp), parameter :: tolshake = 1.d-7
 
+   integer, private, parameter :: metal(1:86) = [&
+      & 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, &
+      & 1, 0, 0, 0, 0, 0]
+
 contains
 
 subroutine init_shake(nat,at,xyz,wbo)
-   use xtb_aoparam
+   use xtb_mctc_convert, only : autoaa
    use xtb_fixparam, only : shakeset
    implicit none
    integer :: nat,at(nat)
@@ -98,7 +107,7 @@ subroutine init_shake(nat,at,xyz,wbo)
          do j =1, nat
             if(i.eq.j) cycle
             rij=(xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
-            rco=rad(at(j))+rad(at(i))
+            rco=(atomicRad(at(j))+atomicRad(at(i)))*autoaa
             ij=lin(i,j)
             rcut=0.52917726*sqrt(rij).lt.1.2*rco.and.list(ij).eq.0 ! to consider?
             metalbond=metal(at(i)).eq.1.or.metal(at(j)).eq.1       ! metal bond?

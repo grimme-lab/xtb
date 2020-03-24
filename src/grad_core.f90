@@ -17,6 +17,7 @@
 
 module xtb_grad_core
    use xtb_mctc_accuracy, only : wp
+   use xtb_xtb_data
 
    use xtb_mctc_la
 
@@ -38,7 +39,6 @@ contains
 !! ========================================================================
 subroutine prep_grad_conv(ndim,H0,H1,C,focc,emo,X)
    use xtb_mctc_convert, only : autoev,evtoau
-   implicit none
    integer, intent(in)    :: ndim
    real(wp),intent(inout) :: H0(ndim*(ndim+1)/2)
    real(wp),intent(inout) :: H1(ndim*(ndim+1)/2)
@@ -65,8 +65,9 @@ end subroutine prep_grad_conv
 !! ========================================================================
 !  wave function terms
 !! ========================================================================
-subroutine poly_grad(g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H0)
-   implicit none
+subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H0)
+   use xtb_lin
+   type(THamiltonianData), intent(in) :: hData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
@@ -81,10 +82,8 @@ subroutine poly_grad(g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H0)
    integer, intent(in)    :: lao2(ndim)
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
 
-   integer,external :: lin
-
    integer  :: i,j,kk,m
-   integer  :: ati,atj,ishell,jshell
+   integer  :: iat,jat,ishell,jshell,iZp,jZp
    real(wp) :: hji,rab2
    real(wp) :: h0s,h0sr
    real(wp) :: dum
@@ -95,23 +94,27 @@ subroutine poly_grad(g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H0)
       i = matlist2(1,m)
       j = matlist2(2,m)
       kk = j+i*(i-1)/2
-      ati = aoat2(i)
-      atj = aoat2(j)
+      iat = aoat2(i)
+      jat = aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
-      rab2 = sqrab(lin(atj,ati))
+      rab2 = sqrab(lin(jat,iat))
       hji = 2.0_wp*P(j,i)*S(j,i)
 !     H0=S H (1+b x)
 !     dH0/dx = H(1+bx)dS/dx + S H (b)
-      call dhdr(n,at,xyz,ati,i,j,ati,atj,ishell,jshell,rab2,dum,drfdxyz)
+      call dshellPoly(hData%shellPoly(iShell,iZp),hData%shellPoly(jShell,jZp),&
+         & hData%atomicRad(iZp),hData%atomicRad(jZp),rab2,xyz(:,iat),xyz(:,jat),&
+         & dum,drfdxyz)
       h0s = H0(kk)/S(j,i) !H(1+bx)
       h0sr = h0s/dum      !H
-      g(1,ati) = g(1,ati) + Hji*h0sr*drfdxyz(1)
-      g(2,ati) = g(2,ati) + Hji*h0sr*drfdxyz(2)
-      g(3,ati) = g(3,ati) + Hji*h0sr*drfdxyz(3)
-      g(1,atj) = g(1,atj) - Hji*h0sr*drfdxyz(1)
-      g(2,atj) = g(2,atj) - Hji*h0sr*drfdxyz(2)
-      g(3,atj) = g(3,atj) - Hji*h0sr*drfdxyz(3)
+      g(1,iat) = g(1,iat) + Hji*h0sr*drfdxyz(1)
+      g(2,iat) = g(2,iat) + Hji*h0sr*drfdxyz(2)
+      g(3,iat) = g(3,iat) + Hji*h0sr*drfdxyz(3)
+      g(1,jat) = g(1,jat) - Hji*h0sr*drfdxyz(1)
+      g(2,jat) = g(2,jat) - Hji*h0sr*drfdxyz(2)
+      g(3,jat) = g(3,jat) - Hji*h0sr*drfdxyz(3)
    enddo
 
 end subroutine poly_grad
@@ -119,12 +122,11 @@ end subroutine poly_grad
 !! ========================================================================
 !  CN dependent part of GFN1 hamiltonian
 !! ========================================================================
-subroutine hcn_grad_gfn1(g,n,at,ndim,nmat2,matlist2,xyz, &
+subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_aoparam
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
    integer, intent(in)    :: ndim
@@ -147,7 +149,7 @@ subroutine hcn_grad_gfn1(g,n,at,ndim,nmat2,matlist2,xyz, &
    real(wp),allocatable :: hcn(:)
 
    integer  :: i,j,m
-   integer  :: ati,atj
+   integer  :: iat,jat,iZp,jZp
    integer  :: ishell,jshell
    real(wp) :: hji
    real(wp) :: gtmp(3)
@@ -159,40 +161,42 @@ subroutine hcn_grad_gfn1(g,n,at,ndim,nmat2,matlist2,xyz, &
 !  CN dependent part of H0
    hcn=0.0_wp
 !$omp parallel default(none) &
-!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hdiag2) &
+!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hdiag2,hData) &
 !$omp shared(kspd,kmagic,kenscal,kcnao) &
-!$omp private(i,m,j,atj,ati,dum1,dum2,km,dum,ishell,jshell,hji) &
+!$omp private(i,m,j,jat,iat,dum1,dum2,km,dum,ishell,jshell,hji,iZp,jZp) &
 !$omp reduction (+:hcn)
 !$omp do
    do m=1,nmat2
       i=matlist2(1,m)
       j=matlist2(2,m)
-      ati=aoat2(i)
-      atj=aoat2(j)
+      iat=aoat2(i)
+      jat=aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
       hji=P(j,i)*S(j,i)
-      atj=aoat2(j)
-      dum=rfactor(ishell,jshell,at(ati),at(atj),  &
-      &           xyz(:,ati),xyz(:,atj))
-      call h0scal(n,at,i,j,ishell,jshell,ati,atj,valao2(i).ne.0,valao2(j).ne.0,  &
+      jat=aoat2(j)
+      dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+         & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
       &           kspd,kmagic,kenscal,km)
       dum1=hji*km*dum*hdiag2(i)*kcnao(i)*evtoau ! h independent part in H0
       dum2=hji*km*dum*hdiag2(j)*kcnao(j)*evtoau ! h independent part in H0
-      hcn(atj)=hcn(atj)+dum2
-      hcn(ati)=hcn(ati)+dum1
+      hcn(jat)=hcn(jat)+dum2
+      hcn(iat)=hcn(iat)+dum1
    enddo
 !$omp end do
 !$omp end parallel
 !$omp parallel default(none) &
 !$omp shared(ndim,aoat2,P,hdiag2,kcnao) &
-!$omp private(i,ati,dum1) &
+!$omp private(i,iat,dum1) &
 !$omp reduction (+:hcn)
 !$omp do
    do i=1,ndim
-      ati=aoat2(i)
+      iat=aoat2(i)
       dum1=P(i,i)*hdiag2(i)*kcnao(i)*evtoau ! diagonal contribution
-      hcn(ati)=hcn(ati)+dum1
+      hcn(iat)=hcn(iat)+dum1
    enddo
 !$omp end do
 !$omp end parallel
@@ -214,12 +218,11 @@ end subroutine hcn_grad_gfn1
 !! ========================================================================
 !  CN dependent part of GFN2 hamiltonian
 !! ========================================================================
-subroutine hcn_grad_gfn2(g,n,at,ndim,nmat2,matlist2,xyz, &
+subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2,aoexp)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_aoparam
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
    integer, intent(in)    :: ndim
@@ -243,7 +246,7 @@ subroutine hcn_grad_gfn2(g,n,at,ndim,nmat2,matlist2,xyz, &
    real(wp),allocatable :: hcn(:)
 
    integer  :: i,j,m
-   integer  :: ati,atj
+   integer  :: iat,jat,iZp,jZp
    integer  :: ishell,jshell
    real(wp) :: hji
    real(wp) :: gtmp(3)
@@ -256,41 +259,43 @@ subroutine hcn_grad_gfn2(g,n,at,ndim,nmat2,matlist2,xyz, &
 !  CN dependent part of H0
    hcn=0.0_wp
 !$omp parallel default(none) &
-!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz) &
+!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hData) &
 !$omp shared(kspd,kmagic,kenscal,aoexp,kcnao) &
-!$omp private(i,m,j,atj,ati,dum1,dum2,km,dum,ishell,jshell,hji,fact) &
+!$omp private(i,m,j,jat,iat,dum1,dum2,km,dum,ishell,jshell,hji,fact,iZp,jZp) &
 !$omp reduction (+:hcn)
 !$omp do
    do m=1,nmat2
       i=matlist2(1,m)
       j=matlist2(2,m)
-      ati=aoat2(i)
-      atj=aoat2(j)
+      iat=aoat2(i)
+      jat=aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
       hji=P(j,i)*S(j,i)
-      dum=rfactor(ishell,jshell,at(ati),at(atj),  &
-      &            xyz(:,ati),xyz(:,atj))
-      call h0scal(n,at,i,j,ishell,jshell,ati,atj,valao2(i).ne.0,valao2(j).ne.0,  &
+      dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+         & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
       &               kspd,kmagic,kenscal,km)
       fact = 0.5_wp*(aoexp(i)+aoexp(j))/sqrt(aoexp(i)*aoexp(j))
       km = km*fact**aot
       dum1=hji*km*dum*kcnao(i)*evtoau ! h independent part in H0
       dum2=hji*km*dum*kcnao(j)*evtoau ! h independent part in H0
-      hcn(atj)=hcn(atj)-dum2
-      hcn(ati)=hcn(ati)-dum1
+      hcn(jat)=hcn(jat)-dum2
+      hcn(iat)=hcn(iat)-dum1
    enddo
 !$omp end do
 !$omp end parallel
 !$omp parallel default(none) &
 !$omp shared(ndim,aoat2,P,kcnao) &
-!$omp private(i,ati,dum1) &
+!$omp private(i,iat,dum1) &
 !$omp reduction (+:hcn)
 !$omp do
    do i=1,ndim
-      ati=aoat2(i)
+      iat=aoat2(i)
       dum1=P(i,i)*kcnao(i)*evtoau ! diagonal contribution
-      hcn(ati)=hcn(ati)-dum1
+      hcn(iat)=hcn(iat)-dum1
    enddo
 !$omp end do
 !$omp end parallel
@@ -315,7 +320,6 @@ end subroutine hcn_grad_gfn2
 !! ========================================================================
 subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
    use xtb_mctc_convert, only : autoev,evtoau
-   implicit none
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in)    :: n
    real(wp),intent(in)    :: q(n)
@@ -338,152 +342,13 @@ subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
 
 end subroutine cm5_grad_gfn1
 
-!! ========================================================================
-!  repulsion gradient of GFN1
-!! ========================================================================
-subroutine rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
-   use xtb_aoparam, only : rep
-   implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(out)   :: ep
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(in)    :: kexp
-   real(wp),intent(in)    :: rexp
-
-   integer,external :: lin
-   integer  :: iat,jat,ati,atj
-   real(wp) :: t16,t19,t20,t22,t26,t27,t28,t39
-   real(wp) :: dum
-   real(wp) :: alpha,repab
-   real(wp) :: xa,ya,za,dx,dy,dz
-   real(wp) :: r2,rab
-
-   ep = 0.0_wp
-   do iat=1,n-1
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      do jat=iat+1,n
-         r2=sqrab(lin(jat,iat))
-         if(r2.gt.5000.0d0) cycle
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
-         rab=sqrt(r2)
-         atj=at(jat)
-         alpha=sqrt(rep(1,ati)*rep(1,atj))
-         repab=rep(2,ati)*rep(2,atj)
-         t16 = rab**kexp
-         t19 = 1/r2
-         t26 = dexp(-alpha*t16)
-         t27 = rab**rexp
-         t28 = 1/t27
-         ep  = ep + repab * t26 * t28 !energy
-         t20 = 1/r2/rab
-         t22 = 2.D0*dx
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(1,iat)=g(1,iat)+t39
-         g(1,jat)=g(1,jat)-t39
-         t22 = 2.D0*dy
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(2,iat)=g(2,iat)+t39
-         g(2,jat)=g(2,jat)-t39
-         t22 = 2.D0*dz
-         t39 = -0.5D0*repab*alpha*t16*kexp*t19*t22*t26*t28 &
-         &     -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(3,iat)=g(3,iat)+t39
-         g(3,jat)=g(3,jat)-t39
-      enddo
-   enddo
-
-end subroutine rep_grad_gfn1
-
-!! ========================================================================
-!  repulsion gradient of GFN2
-!! ========================================================================
-subroutine rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
-   use xtb_aoparam, only : rep
-   implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(out)   :: ep
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(in)    :: rexp
-
-   integer,external :: lin
-   integer  :: iat,jat,ati,atj
-   real(wp) :: t16,t19,t20,t22,t26,t27,t28,t39
-   real(wp) :: kexpe
-   real(wp) :: alpha,repab
-   real(wp) :: xa,ya,za,xb,yb,zb,dx,dy,dz
-   real(wp) :: r2,rab
-
-   ep = 0.0_wp
-   do iat=1,n-1
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      do jat=iat+1,n
-         r2=sqrab(lin(jat,iat))
-         if(r2.gt.5000.0d0) cycle
-         xb=xyz(1,jat)
-         yb=xyz(2,jat)
-         zb=xyz(3,jat)
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
-         rab=sqrt(r2)
-         atj=at(jat)
-         alpha=sqrt(rep(1,ati)*rep(1,atj))
-         repab=rep(2,ati)*rep(2,atj)
-         if(ati.le.2.and.atj.le.2) then
-            kexpe=1.0_wp
-            t16 = rab
-         else
-            kexpe=1.5_wp
-            t16 = rab**kexpe
-         endif
-         t19 = 1/r2
-         t26 = dexp(-alpha*t16)
-         t27 = rab**rexp
-         t28 = 1/t27
-         ep  = ep + repab * t26 * t28 !energy
-         t20 = 1/r2/rab
-         t22 = 2.D0*dx
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(1,iat)=g(1,iat)+t39
-         g(1,jat)=g(1,jat)-t39
-         t22 = 2.D0*dy
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(2,iat)=g(2,iat)+t39
-         g(2,jat)=g(2,jat)-t39
-         t22 = 2.D0*dz
-         t39 = -0.5D0*repab*alpha*t16*kexpe*t19*t22*t26*t28 &
-         &            -0.5D0*repab*t26*t28*rexp*t19*t22
-         g(3,iat)=g(3,iat)+t39
-         g(3,jat)=g(3,jat)-t39
-      enddo
-   enddo
-
-end subroutine rep_grad_gfn2
 
 !! ========================================================================
 !  shellwise electrostatic gradient for GFN1
 !! ========================================================================
-subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
-   use xtb_aoparam, only : lpar,gam
-   implicit none
+subroutine shelles_grad_gfn1(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
+   use xtb_lin
+   type(TCoulombData), intent(in) :: jData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -495,7 +360,6 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
    real(wp),intent(in) :: alphaj
    real(wp),intent(in) :: qsh(nshell)
 
-   integer,external :: lin
    integer  :: is,js,iat,jat,ati,atj
    real(wp) :: xa,ya,za,dx,dy,dz
    real(wp) :: gi,gj,r2,rr,yy,ff
@@ -506,7 +370,7 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0d0+jData%shellHardness(lsh(is)+1,ati))
       do js=1,nshell
          jat=ash(js)
          if(jat.le.iat) cycle
@@ -515,7 +379,7 @@ subroutine shelles_grad_gfn1(g,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
          dz=za-xyz(3,jat)
          atj=at(jat)
          r2=sqrab(lin(jat,iat))
-         gj=gam(atj)*(1.0d0+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0d0+jData%shellHardness(lsh(js)+1,atj))
          rr=2.0d0/(1./gi+1./gj)
          rr=1.0d0/rr**alphaj
          ff=r2**(alphaj/2.0d0-1.0d0)* &
@@ -535,9 +399,9 @@ end subroutine shelles_grad_gfn1
 !! ========================================================================
 !  shellwise electrostatic gradient for GFN2
 !! ========================================================================
-subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
-   use xtb_aoparam, only : lpar,gam
-   implicit none
+subroutine shelles_grad_gfn2(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
+   use xtb_lin
+   type(TCoulombData), intent(in) :: jData
    real(wp),intent(inout) :: g(3,n)
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -548,7 +412,6 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
    integer, intent(in) :: lsh(nshell)
    real(wp),intent(in) :: qsh(nshell)
 
-   integer,external :: lin
    integer  :: is,js,iat,jat,ati,atj
    real(wp) :: xa,ya,za,dx,dy,dz
    real(wp) :: gi,gj,r2,rr,yy
@@ -559,7 +422,7 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
       ya=xyz(2,iat)
       za=xyz(3,iat)
       ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0d0+jData%shellHardness(1+lsh(is),ati))
       do js=1,nshell
          jat=ash(js)
          if(jat.le.iat) cycle
@@ -568,7 +431,7 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
          dz=za-xyz(3,jat)
          atj=at(jat)
          r2=sqrab(lin(jat,iat))
-         gj=gam(atj)*(1.0d0+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0d0+jData%shellHardness(1+lsh(js),atj))
          rr=0.5d0*(gi+gj)
          rr=1.0d0/rr**2
 !        rr=1.0d0/(gi*gj) !NEWAV
@@ -584,44 +447,13 @@ subroutine shelles_grad_gfn2(g,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
 
 end subroutine shelles_grad_gfn2
 
-!! ========================================================================
-!  dH0/dxyz part from S(R) enhancement
-!! ========================================================================
-pure subroutine dhdr(n,at,xyz,iat,i,j,ati,atj,ishell,jshell,rab2,rf,dHdxyz)
-   implicit none
-   integer,intent(in)  :: n
-   integer,intent(in)  :: at(n)
-   real(wp), intent(in)  :: xyz(3,n)
-   integer,intent(in)  :: iat
-   integer,intent(in)  :: i
-   integer,intent(in)  :: j
-   integer,intent(in)  :: ishell
-   integer,intent(in)  :: jshell
-   integer,intent(in)  :: ati
-   integer,intent(in)  :: atj
-   real(wp), intent(in)  :: rab2
-   real(wp), intent(out) :: rf
-   real(wp), intent(out) :: dHdxyz(3)
-
-!  real(wp)  :: rfactor,r1,r2
-!  real(wp)  :: xyzi(3),xyzj(3)
-
-!  dHdxyz=0
-
-   call drfactor(ishell,jshell,iat,at(ati),at(atj),rab2, &
-   &              xyz(1,ati),xyz(1,atj),rf,dHdxyz)
-   if(atj.eq.iat) dHdxyz=-dHdxyz
-
-end subroutine dhdr
 
 !! ========================================================================
 !  derivative of S(R) enhancement factor
 !! ========================================================================
-pure subroutine drfactor(ish,jsh,iat,ati,atj,rab2,xyz1,xyz2,rf,dxyz)
-   use xtb_mctc_convert
-   use xtb_aoparam, only : rad,polyr
-   implicit none
-   integer,intent(in)  :: ati,atj,ish,jsh,iat
+pure subroutine dshellPoly(iPoly,jPoly,iRad,jRad,rab2,xyz1,xyz2,rf,dxyz)
+   real(wp), intent(in)  :: iPoly,jPoly
+   real(wp), intent(in)  :: iRad,jRad
    real(wp), intent(in)  :: rab2
    real(wp), intent(out) :: dxyz(3),rf
    real(wp), intent(in)  :: xyz1(3),xyz2(3)
@@ -637,26 +469,21 @@ pure subroutine drfactor(ish,jsh,iat,ati,atj,rab2,xyz1,xyz2,rf,dxyz)
    rab=sqrt(rab2)
 
    ! this sloppy conv. factor has been used in development, keep it
-   r=(rad(ati)+rad(atj))*aatoau
+   r=iRad+jRad
 
    rr=rab/r
 
-   k1=polyr(ish,ati)*0.01
-   k2=polyr(jsh,atj)*0.01
+   k1=iPoly*0.01_wp
+   k2=jPoly*0.01_wp
 
    t14 = rr**a
    t15 = k1*t14
-   t17 = 1/rab2
+   t17 = 1.0_wp/rab2
    t22 = rr**a
    t23 = k2*t22
-   rf=(1.0d0+t15)*(1.0d0+k2*t22)
-   t20 = 2.D0*dx
-   dxyz(1)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
-   t20 = 2.D0*dy
-   dxyz(2)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
-   t20 = 2.D0*dz
-   dxyz(3)=.5*t15*a*t17*t20*(1.+t23)+.5*(1.+t15)*k2*t22*a*t17*t20
+   rf=(1.0_wp+t15)*(1.0_wp+k2*t22)
+   dxyz(:)=(t15*(1.0_wp+t23)+(1.0_wp+t15)*k2*t22)*a*t17*[dx,dy,dz]
 
-end subroutine drfactor
+end subroutine dshellPoly
 
 end module xtb_grad_core

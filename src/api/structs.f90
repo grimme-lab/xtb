@@ -140,22 +140,27 @@ subroutine new_xtb_basisset(mol, basis, status)
    use xtb_type_molecule
    use xtb_type_basisset
    use xtb_basis
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
    type(TMolecule), intent(in) :: mol
    type(TBasisset), intent(inout) :: basis
    integer(c_int), intent(out) :: status
+   type(TxTBData) :: xtbData
    logical :: diff, okbas
    status = 2
-   call xbasis0(mol%n, mol%at, basis)
    select case(gfn_method)
    case default
       okbas = .false.
    case(0)
-      call xbasis_gfn0(mol%n, mol%at, basis, okbas, diff)
+      call initGFN0(xtbData)
    case(1)
-      call xbasis_gfn1(mol%n, mol%at, basis, okbas, diff)
+      call initGFN1(xtbData)
    case(2)
-      call xbasis_gfn2(mol%n, mol%at, basis, okbas)
+      call initGFN2(xtbData)
    end select
+   call newBasisset(xtbData, mol%n, mol%at, basis, okbas)
    if (okbas) then
       status = 0
    else

@@ -29,7 +29,6 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
    use xtb_prog_argparser
-   use xtb_aoparam
    use xtb_setparam
    use xtb_sphereparam
    use xtb_scanparam
@@ -70,6 +69,10 @@ module xtb_prog_main
    use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
+   use xtb_paramset
+   use xtb_xtb_gfn0
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
    implicit none
    private
 
@@ -123,7 +126,8 @@ subroutine xtbMain(env, argParser)
    real(wp),allocatable :: cn  (:)
    real(wp),allocatable :: sat (:)
    real(wp),allocatable :: g   (:,:)
-   real(wp) :: globpar(25),vec3(3)
+   real(wp) :: vec3(3)
+   type(TxTBParameter) :: globpar
    real(wp),allocatable :: dcn (:,:,:)
    real(wp),allocatable :: dq  (:,:,:)
    real(wp),allocatable :: dumdumdum  (:,:,:)
@@ -449,13 +453,14 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter file
+   allocate(calc%xtb)
    call open_file(ich,fnv,'r')
    exist = ich .ne. -1
    if (exist) then
-      call readParam(env,ich,globpar,.true.)
+      call readParam(env,ich,globpar,calc%xtb,.true.)
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fnv,globpar,exist)
+      call use_parameterset(fnv,globpar,calc%xtb,exist)
       if (.not.exist) then
          call env%error('Parameter file '//fnv//' not found!', source)
       end if
@@ -463,20 +468,14 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Could not setup parameterisation")
 
-   do i = 1, 86
-      do j = 1, i
-         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
-            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
-            toSymbol(j),toSymbol(i),kpair(j,i)
-      enddo
-   enddo
+!   do i = 1, 86
+!      do j = 1, i
+!         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
+!            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
+!            toSymbol(j),toSymbol(i),kpair(j,i)
+!      enddo
+!   enddo
 
-
-   if (gen_param) then
-      !  generate a warning to keep release versions from generating huge files
-      call env%warning('XTB IS DUMPING PARAMETERFILES, RESET GEN_PARAM FOR RELEASE!')
-      call prelemparam(globpar)
-   endif
 
    allocate(calc%param)
 
@@ -484,13 +483,13 @@ subroutine xtbMain(env, argParser)
    case default
       call env%terminate('Internal error, wrong GFN method passed!')
    case(1)
-      call set_gfn1_parameter(calc%param,globpar)
+      call set_gfn1_parameter(calc%param,globpar,calc%xtb)
       call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
    case(2)
-      call set_gfn2_parameter(calc%param,globpar)
+      call set_gfn2_parameter(calc%param,globpar,calc%xtb)
       call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
    case(0)
-      call set_gfn0_parameter(calc%param,globpar)
+      call set_gfn0_parameter(calc%param,globpar,calc%xtb)
       call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
    end select
 
@@ -505,17 +504,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> set up the basis set for the tb-Hamiltonian
    allocate(calc%basis)
-   call xbasis0(mol%n,mol%at,calc%basis)
-   select case(gfn_method)
-   case default
-      call env%terminate('Internal error, wrong GFN method passed!')
-   case(p_method_gfn1xtb)
-      call xbasis_gfn1(mol%n,mol%at,calc%basis,okbas,diff)
-   case(p_method_gfn2xtb)
-      call xbasis_gfn2(mol%n,mol%at,calc%basis,okbas)
-   case(p_method_gfn0xtb)
-      call xbasis_gfn0(mol%n,mol%at,calc%basis,okbas,diff)
-   end select
+   call newBasisset(calc%xtb,mol%n,mol%at,calc%basis,okbas)
    if (.not.okbas) call env%terminate('basis set could not be setup completely')
 
 
@@ -540,7 +529,7 @@ subroutine xtbMain(env, argParser)
       wfn%q = real(chrg,wp)/real(mol%n,wp)
    endif
    !> initialize shell charges from gasteiger charges
-   call iniqshell(mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(calc%xtb,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
 
    ! ------------------------------------------------------------------------
@@ -797,7 +786,7 @@ subroutine xtbMain(env, argParser)
       write(*,*)'Periodic properties'
    else
       call main_property(iprop, &
-         mol,wfn,calc%basis,calc%param,res,acc)
+         mol,wfn,calc%basis,calc%param,calc%xtb,res,acc)
       call main_cube(verbose, &
          mol,wfn,calc%basis,calc%param,res)
    endif

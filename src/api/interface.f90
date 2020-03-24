@@ -25,6 +25,10 @@ module xtb_api_interface
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_type_environment, only : TEnvironment, init
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
+   use xtb_xtb_gfn1
+   use xtb_xtb_gfn2
 
    implicit none
 
@@ -119,7 +123,6 @@ integer(c_int) function xtb_calculation_api &
    ! handle basisset
    if (c_associated(c_basis)) then
       call c_f_pointer(c_basis, basis)
-      if (.not.verify_xtb_basisset(mol, basis)) return
    else
       allocate(basis)
       call new_xtb_basisset(mol, basis, stat_basis)
@@ -151,17 +154,17 @@ integer(c_int) function xtb_calculation_api &
    select case(gfn_method)
    case(0)
       call peeq &
-         & (env, mol, wfn, basis, global_parameter, &
+         & (env, mol, wfn, basis, global_parameter, global_data, &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case(2)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, &
+         & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case default
@@ -505,10 +508,10 @@ function gfn12_calc_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(env, mol, wfn)
+   call eeq_guess_wavefunction(env, mol, wfn, global_data)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
@@ -680,8 +683,6 @@ function gfn2_pcem_api &
    use xtb_type_pcem
    use xtb_type_wavefunction
 
-   use xtb_aoparam
-
    use xtb_calculators
 
    implicit none
@@ -770,7 +771,6 @@ function gfn12_pcem_impl &
    use xtb_type_basisset
    use xtb_type_data
 
-   use xtb_aoparam
    use xtb_setparam, only : gfn_method, ngrida
    use xtb_scf
    use xtb_solv_gbobc
@@ -841,7 +841,7 @@ function gfn12_pcem_impl &
    pcem%q   = pc_q
    pcem%xyz = pc_coord
    where(pc_at > 0)
-      pcem%gam = gam(pc_at)
+      pcem%gam = global_data%coulomb%chemicalHardness(pc_at)
    elsewhere
       pcem%gam = pc_gam
    endwhere
@@ -871,10 +871,10 @@ function gfn12_pcem_impl &
    if (mod(wfn%nopen, 2) == 0 .and. mod(wfn%nel, 2) /= 0) wfn%nopen = 1
    if (mod(wfn%nopen, 2) /= 0 .and. mod(wfn%nel, 2) == 0) wfn%nopen = 0
 
-   call eeq_guess_wavefunction(env, mol, wfn)
+   call eeq_guess_wavefunction(env, mol, wfn, global_data)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, &
+      & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 

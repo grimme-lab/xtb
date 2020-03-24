@@ -15,16 +15,17 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine wrgbw(n,iat,coord,z,basis,wfn)
+subroutine wrgbw(xtbData,n,iat,coord,z,basis,wfn)
    use, intrinsic :: iso_fortran_env
    use, intrinsic :: iso_c_binding
    use xtb_mctc_accuracy, only : wp
    use xtb_type_basisset
    use xtb_type_wavefunction
-   use xtb_aoparam
+   use xtb_xtb_data
    implicit none
 !! ------------------------------------------------------------------------
 !  xtb input
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in) :: n
    integer, intent(in) :: iat(n)
    real(wp),intent(in) :: coord(3,n)
@@ -123,9 +124,9 @@ subroutine wrgbw(n,iat,coord,z,basis,wfn)
 !  but we don't use ragged pointer arrays, so we will fake is...
    do i = 1, nat
       ati = iat(i)
-      nshell(i) = int(ao_n(ati),c_int)
-      do ish = 1, ao_n(ati)
-         ishtyp = ao_l(ish,ati)
+      nshell(i) = int(xtbData%nShell(ati),c_int)
+      do ish = 1, xtbData%nShell(ati)
+         ishtyp = xtbData%hamiltonian%angShell(ish,ati)
          icao = basis%caoshell(ish,ati)
          iao  = basis%saoshell(ish,ati)
          BG(ish,i)%lstart = int(iao,c_int)

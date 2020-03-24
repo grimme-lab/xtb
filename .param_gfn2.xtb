@@ -1,3 +1,4 @@
+$level 2
 $globpar
 ks          1.85000
 kp          2.23000
@@ -5,25 +6,20 @@ kd          2.23000
 kf          2.00000
 kdiffa      0.00000
 kdiffb      2.00000
-wllscal     0.00000
-gscal       0.00000
+ipeashift   1.78069
 zcnf        0.50000
 tscal       0.25000
 kcn         0.25000
-fpol        0.00000
 ken        -2.00000
-lshift      1.20000
-lshifta     4.00000
-split       5.00000
-zqf         0.00000
-alphaj      0.00000
-kexpo       0.00000
+aesshift    1.20000
+aesexp      4.00000
+aesrmax     5.00000
 dispa       0.52000
 dispb       5.00000
 dispc       2.70000
 dispatm     5.00000
-xbdamp      3.00000
-xbrad       4.00000
+aesdmp3     3.00000
+aesdmp5     4.00000
 $end
 $pairpar
 $end
@@ -193,6 +189,7 @@ $Z=11 Tue Apr 24 16:34:09 CEST 2018
  GAM3=    1.798727
  KCNS=   -0.042211
  KCNP=   -0.144323
+ DPOL=    0.000000
  QPOL=    0.020000
  REPA=    0.572728
  REPB=    5.244917

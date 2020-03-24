@@ -14,12 +14,15 @@ subroutine test_peeq_sp
    use xtb_type_environment
 
    use xtb_setparam, only : gfn_method
-   use xtb_aoparam,  only : use_parameterset
 
    use xtb_pbc_tools
    use xtb_basis
    use xtb_peeq
    use xtb_readparam
+   use xtb_paramset
+
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
 
    implicit none
 
@@ -50,6 +53,7 @@ subroutine test_peeq_sp
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(TxTBData) :: xtbData
 
    real(wp)              :: energy
    real(wp)              :: hl_gap
@@ -60,7 +64,7 @@ subroutine test_peeq_sp
 
    character(len=*), parameter   :: p_fnv_gfn0 = '.param_gfn0.xtb'
    character(len=:), allocatable :: fnv
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    integer  :: ipar
    logical  :: exist
 
@@ -80,7 +84,7 @@ subroutine test_peeq_sp
    call print_pbcsum(stdout,mol)
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn0,globpar,exist)
+   call use_parameterset(p_fnv_gfn0,globpar,xtbData,exist)
    ! no luck, we have to fire up some IO to get our parameters
    if (.not.exist) then
       ! let's check if we can find the parameter file
@@ -96,14 +100,13 @@ subroutine test_peeq_sp
          call terminate(1)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn0_parameter(param,globpar,xtbData)
    call gfn0_prparam(stdout,mol%n,mol%at,param)
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%nel = idint(sum(mol%z)) - mol%chrg
@@ -112,7 +115,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
@@ -136,7 +139,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)

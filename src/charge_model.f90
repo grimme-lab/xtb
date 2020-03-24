@@ -342,27 +342,24 @@ subroutine new_charge_model_2018(chrgeq,n,at)
 
 end subroutine new_charge_model_2018
 
-subroutine gfn0_charge_model(chrgeq,n,at,en,gam,kappa,alpha)
+subroutine gfn0_charge_model(chrgeq,n,at,jData)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_param
+   use xtb_xtb_data
    implicit none
+   type(TCoulombData), intent(in) :: jData
    type(chrg_parameter) :: chrgeq
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
-   integer, parameter   :: max_elem = 86
-   real(wp),intent(in)  :: en(max_elem)
-   real(wp),intent(in)  :: gam(max_elem)
-   real(wp),intent(in)  :: kappa(max_elem)
-   real(wp),intent(in)  :: alpha(max_elem)
    integer :: i
 
    call chrgeq%allocate(n)
 
    do i = 1, n
-      chrgeq%en   (i) = en   (at(i))
-      chrgeq%gam  (i) = gam  (at(i))
-      chrgeq%kappa(i) = kappa(at(i))
-      chrgeq%alpha(i) = alpha(at(i))
+      chrgeq%en   (i) = jData%electronegativity(at(i))
+      chrgeq%gam  (i) = jData%chemicalHardness(at(i))
+      chrgeq%kappa(i) = jData%kCN(at(i))
+      chrgeq%alpha(i) = jData%chargeWidth(at(i))
    enddo
 
 end subroutine gfn0_charge_model

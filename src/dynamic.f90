@@ -147,7 +147,6 @@ subroutine md(env,mol,wfx,calc, &
    use xtb_type_wavefunction
    use xtb_type_data
    use xtb_shake, only: do_shake,ncons,xhonly
-   use xtb_aoparam
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam

@@ -34,7 +34,6 @@ module subroutine gfn2_calculation &
    use xtb_type_pcem
 
    use xtb_setparam, only : gfn_method, ngrida
-   use xtb_aoparam,  only : use_parameterset
 
    use xtb_basis
    use xtb_eeq
@@ -45,6 +44,10 @@ module subroutine gfn2_calculation &
    use xtb_embedding
    use xtb_restart
    use xtb_readparam
+   use xtb_paramset
+
+   use xtb_xtb_data
+   use xtb_xtb_gfn2
 
    implicit none
 
@@ -57,6 +60,7 @@ module subroutine gfn2_calculation &
    type(scc_options),    intent(in)    :: opt
    type(TEnvironment), intent(inout)    :: env
    type(tb_pcem),        intent(inout) :: pcem
+   type(TxTBData) :: xtbData
 
    real(wp), intent(out) :: energy
    real(wp), intent(out) :: hl_gap
@@ -75,9 +79,9 @@ module subroutine gfn2_calculation &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
    character(len=*), parameter   :: p_fnv_gfn2 = '.param_gfn2.xtb'
    character(len=:), allocatable :: fnv
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    integer  :: ipar
-   logical  :: exist
+   logical  :: exist,diff
    logical :: exitRun
 
    logical  :: okbas
@@ -110,7 +114,7 @@ module subroutine gfn2_calculation &
    ! to be sure about getting the correct parameters, we should do it here
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn2,globpar,exist)
+   call use_parameterset(p_fnv_gfn2,globpar,xtbData,exist)
    ! no luck, we have to fire up some IO to get our parameters
    if (.not.exist) then
       ! let's check if we can find the parameter file
@@ -124,10 +128,10 @@ module subroutine gfn2_calculation &
          call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn2_parameter(param,globpar)
+   call set_gfn2_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn2_header(iunit)
       call gfn2_prparam(iunit,mol%n,mol%at,param)
@@ -142,8 +146,7 @@ module subroutine gfn2_calculation &
    !  STEP 3: expand our Slater basis set in contracted Gaussians
    ! ====================================================================
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn2(mol%n,mol%at,basis,okbas)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
@@ -162,7 +165,7 @@ module subroutine gfn2_calculation &
       call env%error("EEQ quess failed", source)
    end if
 
-   call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(xtbData,mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
    if (opt%restart) &
       call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.false.)
@@ -170,7 +173,7 @@ module subroutine gfn2_calculation &
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(env,mol,wfn,basis,param,pcem,hl_gap, &
+   call scf(env,mol,wfn,basis,param,pcem,xtbData,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
 

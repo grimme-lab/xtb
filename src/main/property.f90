@@ -46,7 +46,7 @@ subroutine write_energy(iunit,sccres,frqres,hess)
 end subroutine write_energy
 
 subroutine main_property &
-      (iunit,mol,wfx,basis,xpar,res,acc)
+      (iunit,mol,wfx,basis,xpar,xtbData,res,acc)
 
    use xtb_mctc_convert
 
@@ -57,11 +57,11 @@ subroutine main_property &
    use xtb_type_basisset
    use xtb_type_data
    use xtb_type_param
+   use xtb_xtb_data
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
    use xtb_solv_gbobc
 
 !! ------------------------------------------------------------------------
@@ -74,6 +74,7 @@ subroutine main_property &
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
 !  molecule data
    type(TMolecule), intent(in) :: mol
+   type(TxTBData), intent(in) :: xtbData
    real(wp),intent(in) :: acc      ! accuracy of integral calculation
    type(TWavefunction),intent(inout) :: wfx
    type(TBasisset),    intent(in) :: basis
@@ -100,7 +101,8 @@ subroutine main_property &
    neglect =10.0d-9*acc
    ndim = basis%nao*(basis%nao+1)/2
    allocate(S(basis%nao,basis%nao), dpint(3,ndim), qpint(6,ndim), source = 0.0_wp )
-   call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at, &
+      &        basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 
@@ -175,18 +177,18 @@ subroutine main_property &
    endif
 
    if (pr_gbw) &
-   call wrgbw(mol%n,mol%at,mol%xyz,mol%z,basis,wfx)
+   call wrgbw(xtbData,mol%n,mol%at,mol%xyz,mol%z,basis,wfx)
 
    if (pr_tmbas .or. pr_tmmos) then
       call open_file(ifile,'basis','w')
-      call write_tm_basis(ifile,mol%n,mol%at,basis,wfx)
-      close(ifile)
+      call write_tm_basis(ifile,xtbData,mol%n,mol%at,basis,wfx)
+      call close_file(ifile)
    endif
 
    if (pr_tmmos) then
       call open_file(ifile,'mos','w')
       call write_tm_mos(ifile,mol%n,mol%at,basis,wfx)
-      close(ifile)
+      call close_file(ifile)
    endif
 
 !! multipole moment prinout
@@ -218,7 +220,6 @@ subroutine main_cube &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
 
 !! ------------------------------------------------------------------------
    use xtb_aespot
@@ -354,7 +355,6 @@ subroutine main_freq &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_aoparam
 
 !! ------------------------------------------------------------------------
    use xtb_hessian

@@ -28,7 +28,7 @@ module xtb_param_atomicrad
    implicit none
    private
 
-   public :: getAtomicRad
+   public :: getAtomicRad, atomicRad
 
 
    !> Get atomic radius for a species
@@ -39,7 +39,7 @@ module xtb_param_atomicrad
 
 
    !> Atomic radii
-   real(wp), parameter :: atomicRadii(1:118) = aatoau * [ &
+   real(wp), parameter :: atomicRad(1:118) = aatoau * [ &
       & 0.32_wp, 0.37_wp, 1.30_wp, 0.99_wp, 0.84_wp, 0.75_wp, 0.71_wp, 0.64_wp, &
       & 0.60_wp, 0.62_wp, 1.60_wp, 1.40_wp, 1.24_wp, 1.14_wp, 1.09_wp, 1.04_wp, &
       & 1.00_wp, 1.01_wp, 2.00_wp, 1.74_wp, 1.59_wp, 1.48_wp, 1.44_wp, 1.30_wp, &
@@ -83,8 +83,8 @@ elemental function getAtomicRadNumber(number) result(radius)
    !> atomic radius
    real(wp) :: radius
 
-   if (number > 0 .and. number <= size(atomicRadii, dim=1)) then
-      radius = AtomicRadii(number)
+   if (number > 0 .and. number <= size(atomicRad, dim=1)) then
+      radius = atomicRad(number)
    else
       radius = -1.0_wp
    end if

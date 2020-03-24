@@ -20,7 +20,6 @@ module xtb_restart
    use xtb_mctc_io, only : stdout
    use xtb_type_environment, only : TEnvironment
    use xtb_type_wavefunction, only : TWavefunction
-   use xtb_scc_core, only : qsh2qat
    implicit none
 
    public :: readRestart, writeRestart
@@ -62,7 +61,6 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
             read(ich) wfx%qsh
             if (verbose) &
             write(stdout,'("q/qsh data taken from xtbrestart")')
-            call qsh2qat(n,at,wfx%nshell,wfx%qsh,wfx%q)
             if ((gfn_method.gt.1).and.(iver8.gt.1)) then
 !              read dipole and qpole CAMM
                read(ich) wfx%dipm

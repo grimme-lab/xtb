@@ -101,7 +101,6 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    use xtb_type_data
    use xtb_type_timer
 
-   use xtb_aoparam
    use xtb_setparam
    use xtb_fixparam
 

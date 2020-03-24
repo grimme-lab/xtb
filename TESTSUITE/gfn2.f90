@@ -14,10 +14,13 @@ subroutine test_gfn2_scc
    use xtb_type_environment
 
    use xtb_setparam
-   use xtb_aoparam
    use xtb_basis
    use xtb_scf
    use xtb_scc_core
+   use xtb_paramset
+
+   use xtb_xtb_data
+   use xtb_xtb_gfn2
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -43,11 +46,12 @@ subroutine test_gfn2_scc
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
+   type(TxTBData) :: xtbData
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
 
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    logical  :: okpar,okbas
    logical :: exitRun
 
@@ -61,13 +65,12 @@ subroutine test_gfn2_scc
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call use_parameterset('.param_gfn2.xtb',globpar,okpar)
+   call use_parameterset('.param_gfn2.xtb',globpar,xtbData,okpar)
    call assert(okpar)
 
-   call set_gfn2_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn2_parameter(param,globpar,xtbData)
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn2(mol%n,mol%at,basis,okbas)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)
 
    call assert_eq(basis%nshell,4)
@@ -77,11 +80,11 @@ subroutine test_gfn2_scc
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%q = mol%chrg/real(mol%n,wp)
 
-   call iniqshell(mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(xtbData,mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,param,pcem, &
+   call scf(env,mol,wfn,basis,param,pcem,xtbData, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)
@@ -343,8 +346,6 @@ subroutine test_gfn2_pcem_api
    use xtb_type_pcem
    use xtb_type_environment
 
-   use xtb_aoparam
-
    use xtb_calculators
 
    implicit none
@@ -368,6 +369,9 @@ subroutine test_gfn2_pcem_api
    real(wp),parameter :: q(nat2) = [&
       &-0.69645733_wp,       0.36031084_wp,       0.33614649_wp, &
       &-0.69645733_wp,       0.36031084_wp,       0.33614649_wp]
+   real(wp),parameter :: gam(nat2) = [&
+      & 0.451896_wp,       0.405771_wp,       0.405771_wp, &
+      & 0.451896_wp,       0.405771_wp,       0.405771_wp]
    type(scc_options),parameter :: opt = scc_options( &
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
@@ -411,7 +415,7 @@ subroutine test_gfn2_pcem_api
    call pcem%allocate(nat2)
    pcem%xyz = xyz(:,nat2+1:)
    ! gam from xtb_aoparam is now filled with GFN2-xTB hardnesses
-   pcem%gam = gam(at(nat2+1:))
+   pcem%gam = gam
    pcem%q   = q
    pcem%grd = 0.0_wp
 

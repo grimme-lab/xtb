@@ -73,7 +73,7 @@ subroutine reset_xtb_lock() bind(C, name="reset_xTB_lock")
    !$omp end critical(xtb_load_api)
 end subroutine
 
-subroutine eeq_guess_wavefunction(env, mol, wfn)
+subroutine eeq_guess_wavefunction(env, mol, wfn, xtbData)
    use xtb_setparam, only : gfn_method
    use xtb_type_environment
    use xtb_type_molecule
@@ -85,6 +85,7 @@ subroutine eeq_guess_wavefunction(env, mol, wfn)
    type(TMolecule), intent(in) :: mol
    type(TWavefunction), intent(inout) :: wfn
    type(TEnvironment), intent(inout) :: env
+   type(TxTBData), intent(in) :: xtbData
    type(chrg_parameter) :: chrgeq
    real(wp), allocatable :: cn(:)
 
@@ -95,7 +96,7 @@ subroutine eeq_guess_wavefunction(env, mol, wfn)
    call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
    deallocate(cn)
 
-   call iniqshell(mol%n,mol%at,mol%z,wfn%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(xtbData,mol%n,mol%at,mol%z,wfn%nshell,wfn%q,wfn%qsh,gfn_method)
 end subroutine eeq_guess_wavefunction
 
 !> Cold fusion check
@@ -110,19 +111,6 @@ integer function verify_xtb_molecule(mol) result(status)
       end do
    end do
 end function verify_xtb_molecule
-
-logical function verify_xtb_basisset(mol, basis) result(status)
-   use xtb_type_molecule
-   use xtb_type_basisset
-   use xtb_basis, only : dim_basis
-   type(TMolecule), intent(in) :: mol
-   type(TBasisset), intent(in) :: basis
-   integer :: nshell, nao, nbf
-   call dim_basis(mol%n, mol%at, nshell, nao, nbf)
-   status = basis%n > 0 .and. basis%nbf > 0 .and. basis%nao > 0 &
-      & .and. basis%nshell > 0 .and. mol%n == basis%n &
-      & .and. nshell == basis%nshell .and. nao == basis%nao .and. nbf == basis%nbf
-end function verify_xtb_basisset
 
 logical function verify_xtb_wavefunction(basis, wfn) result(status)
    use xtb_type_basisset

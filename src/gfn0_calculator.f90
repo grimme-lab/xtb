@@ -33,13 +33,16 @@ module subroutine gfn0_calculation &
    use xtb_type_data
 
    use xtb_setparam, only : gfn_method, ngrida
-   use xtb_aoparam,  only : use_parameterset
 
    use xtb_pbc_tools
    use xtb_basis
    use xtb_peeq
    use xtb_solv_gbobc
    use xtb_readparam
+   use xtb_paramset
+
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
 
    implicit none
 
@@ -65,12 +68,13 @@ module subroutine gfn0_calculation &
    type(TBasisset)     :: basis
    type(scc_parameter)   :: param
    type(scc_results)     :: res
+   type(TxTBData) :: xtbData
 
    character(len=*),parameter :: outfmt = &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
    character(len=*), parameter   :: p_fnv_gfn0 = '.param_gfn0.xtb'
    character(len=:), allocatable :: fnv
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    integer  :: ipar,i
    logical  :: exist
    logical :: exitRun
@@ -111,7 +115,7 @@ module subroutine gfn0_calculation &
    ! to be sure about getting the correct parameters, we should do it here
 
    ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn0,globpar,exist)
+   call use_parameterset(p_fnv_gfn0,globpar,xtbData,exist)
    ! no luck, we have to fire up some IO to get our parameters
    if (.not.exist) then
       ! let's check if we can find the parameter file
@@ -125,10 +129,10 @@ module subroutine gfn0_calculation &
          call env%error("Parameter file '"//fnv//"' not found", source)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar)
+   call set_gfn0_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn0_header(iunit)
       call gfn0_prparam(iunit,mol%n,mol%at,param)
@@ -144,8 +148,7 @@ module subroutine gfn0_calculation &
    !  STEP 3: expand our Slater basis set in contracted Gaussians
    ! ====================================================================
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
    ! ====================================================================
    !  STEP 4: setup the initial wavefunction
@@ -159,7 +162,7 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(env,mol,wfn,basis,param,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
    call env%check(exitRun)
    if (exitRun) then

@@ -15,10 +15,13 @@ subroutine test_gfn0_sp
    use xtb_type_environment
 
    use xtb_setparam
-   use xtb_aoparam
    use xtb_basis
    use xtb_peeq
    use xtb_readparam
+   use xtb_paramset
+
+   use xtb_xtb_data
+   use xtb_xtb_gfn0
 
    implicit none
    real(wp),parameter :: thr = 1.0e-7_wp
@@ -48,13 +51,14 @@ subroutine test_gfn0_sp
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(scc_parameter)   :: param
+   type(TxTBData) :: xtbData
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)
    character(len=:),allocatable :: fnv
    integer  :: ipar
 
-   real(wp) :: globpar(25)
+   type(TxTBParameter) :: globpar
    logical  :: okpar,okbas,exist,diff
 
    call init(env)
@@ -68,7 +72,7 @@ subroutine test_gfn0_sp
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call use_parameterset('.param_gfn0.xtb',globpar,okpar)
+   call use_parameterset('.param_gfn0.xtb',globpar,xtbData,okpar)
    !call assert(okpar)
       call rdpath(env%xtbpath,'.param_gfn0.xtb',fnv,exist)
       ! maybe the user provides a local parameter file, this was always
@@ -82,13 +86,12 @@ subroutine test_gfn0_sp
          call terminate(1)
          return
       endif
-      call readParam(env,ipar,globpar,.true.)
+      call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
 
-   call set_gfn0_parameter(param,globpar,mol%n,mol%at)
+   call set_gfn0_parameter(param,globpar,xtbData)
 
-   call xbasis0(mol%n,mol%at,basis)
-   call xbasis_gfn0(mol%n,mol%at,basis,okbas,diff)
+   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)
 
    call assert_eq(basis%nshell,17)
@@ -100,7 +103,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param, &
+   call peeq(env,mol,wfn,basis,param,xtbData, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)

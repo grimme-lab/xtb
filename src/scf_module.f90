@@ -17,16 +17,31 @@
 
 module xtb_scf
 ! ========================================================================
-use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule, only : TMolecule
+   use xtb_xtb_data
+   use xtb_xtb_halogen
+   use xtb_xtb_repulsion
+   use xtb_paramset, only : tmmetal
    implicit none
+   private
+
+   public :: scf
 
    logical,private,parameter :: profile = .true.
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
+   integer, parameter :: metal(1:86) = [&
+      & 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, &
+      & 1, 0, 0, 0, 0, 0]
+
 contains
 
-subroutine scf(env,mol,wfn,basis,param,pcem, &
+subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 &              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
 &              res)
 
@@ -45,14 +60,13 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 
 ! ========================================================================
 !  global storage
-   use xtb_aoparam
    use xtb_setparam
 
 ! ========================================================================
    use xtb_scc_core
 
 ! ========================================================================
-   use xtb_aespot,    only : ovlp2,sdqint,setdqlist,get_radcn,setvsdq, &
+   use xtb_aespot,    only : sdqint,setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
    use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
@@ -85,6 +99,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    real(wp),intent(inout) :: eel
    real(wp),intent(inout) :: g(3,mol%n)
    type(scc_results),intent(out) :: res
+   type(TxTBData), intent(in) :: xtbData
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)
@@ -132,7 +147,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    integer,allocatable :: matlist2(:,:)
    integer,allocatable :: xblist(:,:)
    real(wp),allocatable :: sqrab(:)
-   real(wp),allocatable :: dcn(:,:,:)
+   real(wp),allocatable :: dcndr(:,:,:)
 
    real(wp) :: dipol(3),dip,gsolv,eat,hlgap,efix
    real(wp) :: temp,xsum,eh1,rab,eold,dum,xx,r2
@@ -158,12 +173,12 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    integer :: npr,ii,jj,kk,i,j,k,m,iat,jat,mi,jter,atj,kkk,mj,mm
    integer :: ishell,jshell,np,ia,ndimv,l,nmat,nmat2
    integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag,lladr(4)
-   integer :: is,js,lladr2(0:3),tmmetal
+   integer :: is,js,lladr2(0:3)
    data    lladr  /1,3,6,10/
    data    lladr2 /1,3,5,7/
 
    character(len=128) :: atmp,ftmp
-   logical :: ex,minpr,pr,fulldiag,xbond,lastdiag,iniqsh,fail,early3d
+   logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
 
 !  GBSA stuff
    type(TSolvent) :: gbsa
@@ -251,9 +266,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 !ccccccccccccccccccc
 ! note: H is in eV!
 !ccccccccccccccccccc
+   !> update atomic Mulliken charges
+   call qsh2qat(basis%ash,wfn%qsh,wfn%q)
 
 !  # atom arrays
-   allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2),dcn(3,mol%n,mol%n),cn(mol%n))
+   allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2),dcndr(3,mol%n,mol%n),cn(mol%n))
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
    if(lgbsa) then
@@ -289,7 +306,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    &        matlist (2,basis%nao*(basis%nao+1)/2), &
    &        matlist2(2,basis%nao*(basis%nao+1)/2-basis%nao))
 
-   call setzshell(mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,gfn_method)
+   call setzshell(xtbData,mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,gfn_method)
 
    ! fill levels
    if(wfn%nel.ne.0) then
@@ -357,18 +374,22 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    endif
    ! ldep J potentials (in eV) for SCC
    if(gfn_method.eq.1)then
-      call jpot_gfn1(mol%n,basis%nshell,basis%ash,basis%lsh,mol%at,sqrab,param%alphaj,jab)
+      call jpot_gfn1(xtbData%coulomb,mol%n,basis%nshell,basis%ash,basis%lsh, &
+         & mol%at,sqrab,param%alphaj,jab)
    else !GFN2
-      call jpot_gfn2(mol%n,basis%nshell,basis%ash,basis%lsh,mol%at,sqrab,jab)
+      call jpot_gfn2(xtbData%coulomb,mol%n,basis%nshell,basis%ash,basis%lsh, &
+         & mol%at,sqrab,jab)
    endif
 
 !  J potentials including the point charge stuff
    if(lpcem)then
       allocate( Vpc(basis%nshell), source = 0.0_wp )
       if (gfn_method.eq.1)then
-         call jpot_pcem_gfn1(mol%n,pcem,basis%nshell,mol%at,mol%xyz,basis%ash,basis%lsh,param%alphaj,Vpc)
+         call jpot_pcem_gfn1(xtbData%coulomb,mol%n,pcem,basis%nshell,mol%at, &
+            & mol%xyz,basis%ash,basis%lsh,param%alphaj,Vpc)
       else ! GFN2
-         call jpot_pcem_gfn2(mol%n,pcem,basis%nshell,mol%at,mol%xyz,basis%ash,basis%lsh,Vpc)
+         call jpot_pcem_gfn2(xtbData%coulomb,mol%n,pcem,basis%nshell,mol%at, &
+            & mol%xyz,basis%ash,basis%lsh,Vpc)
       endif
    endif
 
@@ -380,7 +401,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
          ati=mol%at(iat)
          dum=param%gam3l(basis%lsh(is))  ! sp or d-pol
          if ((basis%lsh(is).eq.2).and.(tmmetal(ati).ge.1)) dum=param%gam3l(3) ! d-val
-         gam3sh(is)=gam3(ati)*dum
+         gam3sh(is)=xtbData%coulomb%thirdOrderAtom(ati)*dum
       enddo
    endif
 
@@ -437,7 +458,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    else
       allocate( hdisp(mol%n), source=0.0_wp )
       ! D3 part first because we need CN
-      call dncoord_d3(mol%n,mol%at,mol%xyz,cn,dcn)
+      call dncoord_d3(mol%n,mol%at,mol%xyz,cn,dcndr)
    endif
 
    if (profile) call timer%measure(2)
@@ -447,14 +468,14 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
       &     qpint(6,basis%nao*(basis%nao+1)/2), &
       &     source = 0.0_wp)
    ! compute integrals and prescreen to set up list arrays
-   call sdqint(mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at,basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 
    ! prepare aes stuff
    if(gfn_method.gt.1) then
 !     CN/dCN replaced by special smoother and faster decaying function
-      call dncoord_gfn(mol%n,mol%at,mol%xyz,cn,dcn)
+      call dncoord_gfn(mol%n,mol%at,mol%xyz,cn,dcndr)
 
 !     allocate arrays for lists and fill (to exploit sparsity)
       allocate(mdlst(2,ndp),mqlst(2,nqp))
@@ -462,9 +483,10 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 !     set up 1/R^n * damping function terms
       ii=mol%n*(mol%n+1)/2
       allocate(gab3(ii),gab5(ii),radcn(mol%n))
-      call get_radcn(mol%n,mol%at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,radcn)
-      call mmomgabzero(mol%n,mol%at,mol%xyz,param%xbrad,param%xbdamp,radcn,gab3,gab5) ! zero damping, xbrad=kdmp3,xbdamp=kdmp5
-!     allocate CAMM arrays
+      call get_radcn(xtbData%multipole,mol%n,mol%at,cn,xtbData%multipole%cnShift, &
+         & xtbData%multipole%cnExp,xtbData%multipole%cnRMax,radcn)
+      call mmomgabzero(mol%n,mol%at,mol%xyz,xtbData%multipole%dipDamp, &
+         & xtbData%multipole%quadDamp,radcn,gab3,gab5) ! zero damping
    endif
 
    if (profile) call timer%measure(3)
@@ -483,7 +505,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
       vs=0.0_wp
       vd=0.0_wp
       vq=0.0_wp
-      call setvsdq(mol%n,mol%at,mol%xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
+      call setvsdq(xtbData%multipole,mol%n,mol%at,mol%xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
    endif
 
    if (gfn_method.gt.1) &
@@ -534,7 +556,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
             if(ishell.eq.3) kcnao(ii)=param%kcnsh(4) ! fix problems with too low-coord CP rings
          endif
       else
-         kcnao(ii)=kcnat(ishell-1,mol%at(iat))  ! clean GFN2 version
+         kcnao(ii)=xtbData%hamiltonian%kCN(ishell,mol%at(iat)) ! clean GFN2 version
       endif
    enddo
 
@@ -544,7 +566,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
    ! this is the classical part of the energy/gradient
    ! dispersion/XB/repulsion for GFN1-xTB
    ! only repulsion for GFN2-xTB
-   call cls_grad(mol%n,mol%at,mol%xyz,sqrab,param,rexp,kexp,nxb,ljexp,xblist, &
+   call cls_grad(mol,sqrab,xtbData,param,rexp,kexp,nxb,ljexp,xblist, &
       &          ed,exb,ep,g,prlevel)
 
    if (profile) call timer%measure(6)
@@ -561,11 +583,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 ! ========================================================================
    H0=0
    if(gfn_method.eq.1)then
-      call build_h0_gfn1(H0,mol%n,mol%at,basis%nao,nmat,matlist, &
+      call build_h0_gfn1(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
       &                  param%kspd,param%kmagic,param%kenscal, &
       &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    else
-      call build_h0_gfn2(H0,mol%n,mol%at,basis%nao,nmat,matlist, &
+      call build_h0_gfn2(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
       &                  param%kspd,param%kmagic,param%kenscal, &
       &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    endif
@@ -573,12 +595,12 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 
    ! first order energy for given geom. and density, i.e. skip SCC and grad
    if(maxiter.eq.0) then
-      call qsh2qat(mol%n,mol%at,basis%nshell,wfn%qsh,wfn%q)
+      call qsh2qat(basis%ash,wfn%qsh,wfn%q)
       if(gfn_method.gt.1) then
          call electro2(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P, &
-         &             wfn%q,gam3sh,wfn%qsh,param%gscal,ees,eel)
+         &             wfn%q,gam3sh,wfn%qsh,ees,eel)
       else
-         call electro(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P,wfn%q,wfn%qsh,ees,eel)
+         call electro(xtbData,mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P,wfn%q,wfn%qsh,ees,eel)
       endif
       if(lgbsa) then
          cm5=wfn%q+cm5a
@@ -593,8 +615,8 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 ! ========================================================================
    if (profile) call timer%measure(5,"iterations")
    if (gfn_method.eq.1) then
-      call scc_gfn1(env,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
-      &             mol%at,matlist,basis%aoat2,basis%ao2sh, &
+      call scc_gfn1(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,nmat,basis%nshell, &
+      &             mol%at,matlist,basis%aoat2,basis%ao2sh,basis%ash, &
       &             wfn%q,qq,qlmom,wfn%qsh,zsh, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
       &             broy,broydamp,damp0, &
@@ -606,10 +628,10 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
       &             minpr,pr, &
       &             fail,jter)
    else
-      call scc_gfn2(env,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
-      &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh, &
+      call scc_gfn2(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
+      &             mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &             wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
-      &             mol%xyz,vs,vd,vq,gab3,gab5,param%gscal, &
+      &             mol%xyz,vs,vd,vq,gab3,gab5, &
       &             gbsa,fgb,fhb,cm5,cm5a,gborn, &
       &             newdisp,dispdim,param%g_a,param%g_c,gw,wdispmat,hdisp, &
       &             broy,broydamp,damp0, &
@@ -665,7 +687,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 ! ========================================================================
 
    call scf_grad(mol%n,mol%at,nmat2,matlist2, &
-        &        H0,H1,S, &
+        &        H0,H1,S,xtbData, &
         &        mol%xyz,sqrab,wfn,basis, &
         &        param,kcnao, &
         &        dispdim,c6abns,mbd, &
@@ -713,15 +735,6 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
       if (pr_lmo) then
          tmp=wfn%emo*evtoau
          call local(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,mol%z,wfn%focc,S,wfn%P,wfn%C,tmp,wfn%q,eel,lgbsa,basis)
-      endif
-
-! ------------------------------------------------------------------------
-!  exchange energy correction ala sTDA
-      if (wfn%nopen.ge.2) then
-         call exch(mol%n,mol%at,basis%nao,wfn%nopen,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,exc,basis%aoat)
-         write(env%unit,'(''open-shell EX :'',F16.7)') -exc
-         write(env%unit,'(''corrected Etot:'',F16.7, &
-         &   '' (not used further except for this printout!)'')') eel - exc
       endif
 
    endif printing
@@ -784,7 +797,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem, &
 end subroutine scf
 
 subroutine scf_grad(n,at,nmat2,matlist2, &
-      &             H0,H1,S, &
+      &             H0,H1,S,xtbData, &
       &             xyz,sqrab,wfn,basis, &
       &             param,kcnao, &
       &             dispdim,c6abns,mbd, &
@@ -804,7 +817,6 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 ! ========================================================================
 !  global storage
-   use xtb_aoparam
    use xtb_setparam
 
 ! ========================================================================
@@ -823,6 +835,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
    type(TWavefunction),intent(in) :: wfn
    type(TBasisset),    intent(in) :: basis
    type(scc_parameter),  intent(in) :: param
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
    integer, intent(in)    :: nmat2
@@ -859,7 +872,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
    integer :: m,i,j,kk
    real(wp),allocatable :: qq(:)
    real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: dcn(:,:,:)
+   real(wp),allocatable :: dcndr(:,:,:)
    real(wp),allocatable :: X(:,:)
    real(wp),allocatable :: H(:,:)
    real(wp),allocatable :: vs(:),vd(:,:),vq(:,:)
@@ -872,7 +885,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 !  print'("Allocating local memory")'
    allocate( cn(n), source = 0.0_wp )
-   allocate( dcn(3,n,n), source = 0.0_wp )
+   allocate( dcndr(3,n,n), source = 0.0_wp )
    allocate( H(basis%nao,basis%nao), source = 0.0_wp )
    allocate( X(basis%nao,basis%nao), source = 0.0_wp )
 !  print'("Allocated local memory")'
@@ -883,19 +896,20 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 !  wave function terms
 !  print'("Calculating polynomial derivatives")'
-   call poly_grad(g,n,at,basis%nao,nmat2,matlist2,xyz,sqrab,wfn%P,S,basis%aoat2,basis%lao2,H0)
+   call poly_grad(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz,sqrab, &
+      & wfn%P,S,basis%aoat2,basis%lao2,H0)
 
 !  CN dependent part
 !  print'("Calculating CN dependent derivatives")'
    if (gfn_method.gt.1) then
-      call dncoord_gfn(n,at,xyz,cn,dcn)
-      call hcn_grad_gfn2(g,n,at,basis%nao,nmat2,matlist2,xyz, &
-           &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcn, &
+      call dncoord_gfn(n,at,xyz,cn,dcndr)
+      call hcn_grad_gfn2(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
+           &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcndr, &
            &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    else
-      call dncoord_d3(n,at,xyz,cn,dcn)
-      call hcn_grad_gfn1(g,n,at,basis%nao,nmat2,matlist2,xyz, &
-           &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcn, &
+      call dncoord_d3(n,at,xyz,cn,dcndr)
+      call hcn_grad_gfn1(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
+           &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcndr, &
            &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    endif
 
@@ -916,20 +930,21 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 !     VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
 !     since moment integrals are now computed with origin at
 !     respective atoms
-      call setdvsdq(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
-      call ddqint(intcut,n,basis%nao,basis%nbf,at,xyz, &
+      call setdvsdq(xtbData%multipole,n,at,xyz,wfn%q,wfn%dipm,wfn%qp,gab3,gab5,vs,vd,vq)
+      call ddqint(xtbData%nShell,xtbData%hamiltonian,intcut,n,basis%nao,basis%nbf,at,xyz, &
          &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
          &        basis%alp,basis%cont,wfn%p,vs,vd,vq,H,g)
 
-! WARNING: dcn is overwritten on output and now dR0A/dXC,
+! WARNING: dcndr is overwritten on output and now dR0A/dXC,
 !          and index i & j are flipped
-      call dradcn(n,at,cn,param%cn_shift,param%cn_expo,param%cn_rmax,dcn)
-      call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,param%xbrad,param%xbdamp, &
-           &          radcn,dcn,gab3,gab5,g)
+      call dradcn(xtbData%multipole,n,at,cn,xtbData%multipole%cnShift, &
+         & xtbData%multipole%cnExp,xtbData%multipole%cnRMax,dcndr)
+      call aniso_grad(n,at,xyz,wfn%q,wfn%dipm,wfn%qp,xtbData%multipole%dipDamp, &
+         & xtbData%multipole%quadDamp,radcn,dcndr,gab3,gab5,g)
 
    else
 !     wave function terms 2/overlap dependent parts of H
-      call dsint(intcut,n,basis%nao,basis%nbf,at,xyz,sqrab, &
+      call dsint(xtbData%nShell,xtbData%hamiltonian,intcut,n,basis%nao,basis%nbf,at,xyz,sqrab, &
          &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
          &        basis%alp,basis%cont,H,g)
    endif
@@ -964,21 +979,22 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 !  print'("Calculating shell es and repulsion gradient")'
    if(gfn_method.eq.1)then
-      call shelles_grad_gfn1(g,n,at,basis%nshell,xyz,sqrab, &
-         &                 basis%ash,basis%lsh,param%alphaj,wfn%qsh)
+      call shelles_grad_gfn1(g,xtbData%coulomb,n,at,basis%nshell,xyz,sqrab, &
+         & basis%ash,basis%lsh,param%alphaj,wfn%qsh)
    else ! GFN2
-      call shelles_grad_gfn2(g,n,at,basis%nshell,xyz,sqrab,basis%ash,basis%lsh,wfn%qsh)
+      call shelles_grad_gfn2(g,xtbData%coulomb,n,at,basis%nshell,xyz,sqrab, &
+         & basis%ash,basis%lsh,wfn%qsh)
    endif
 
 ! --- ES point charge embedding
 !  print'("Calculating embedding gradient")'
    if (lpcem) then
       if (gfn_method.eq.1) then
-         call pcem_grad_gfn1(g,pcem%grd,n,pcem,at,basis%nshell,xyz, &
-            &                basis%ash,basis%lsh,param%alphaj,wfn%qsh)
+         call pcem_grad_gfn1(xtbData%coulomb,g,pcem%grd,n,pcem,at,basis%nshell, &
+            & xyz,basis%ash,basis%lsh,param%alphaj,wfn%qsh)
       else
-         call pcem_grad_gfn2(g,pcem%grd,n,pcem,at,basis%nshell,xyz, &
-            &                basis%ash,basis%lsh,wfn%qsh)
+         call pcem_grad_gfn2(xtbData%coulomb,g,pcem%grd,n,pcem,at,basis%nshell, &
+            & xyz,basis%ash,basis%lsh,wfn%qsh)
       endif
    endif
 
@@ -986,7 +1002,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 end subroutine scf_grad
 
-subroutine cls_grad(n,at,xyz,sqrab, &
+subroutine cls_grad(mol,sqrab,xtbData, &
       &             param,rexp,kexp, &
       &             nxb,ljexp,xblist, &
       &             ed,exb,ep, &
@@ -998,7 +1014,6 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 
 ! ========================================================================
 !  global storage
-   use xtb_aoparam
    use xtb_setparam
 
 ! ========================================================================
@@ -1008,24 +1023,24 @@ subroutine cls_grad(n,at,xyz,sqrab, &
 
    implicit none
 
+   type(TMolecule), intent(in) :: mol
    type(scc_parameter),  intent(in) :: param
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(inout) :: g(3,n)
+   type(TxTBData), intent(in) :: xtbData
+   real(wp),intent(in)    :: sqrab(:)
+   real(wp),intent(inout) :: g(:,:)
    real(wp),intent(inout) :: ed
    integer, intent(in)    :: nxb
-   integer, intent(in)    :: xblist(3,nxb+1)
+   integer, intent(in)    :: xblist(:,:)
    real(wp),intent(in)    :: ljexp
    real(wp),intent(inout) :: exb
    real(wp),intent(inout) :: ep
    real(wp),intent(inout) :: rexp
    real(wp),intent(inout) :: kexp
    integer, intent(in)    :: printlvl
+   real(wp) :: sigma(3,3)
 
    real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: dcn(:,:,:)
+   real(wp),allocatable :: dcndr(:,:,:)
    logical :: pr,minpr
 
 !  print'("Entered gradient calculation")'
@@ -1034,30 +1049,66 @@ subroutine cls_grad(n,at,xyz,sqrab, &
    pr = printlvl.gt.1
 
 !  print'("Allocating local memory")'
-   allocate( cn(n), source = 0.0_wp )
-   allocate( dcn(3,n,n), source = 0.0_wp )
+   allocate( cn(mol%n), source = 0.0_wp )
+   allocate( dcndr(3,mol%n,mol%n), source = 0.0_wp )
 
 !  dispersion (DFT-D type correction)
 !  print'("Calculating dispersion gradient")'
    if (gfn_method.eq.1) then
-      call gdisp(n,at,xyz,param%disp%a1,param%disp%a2,param%disp%s8,param%disp%s9, &
-      &   ed,g,cn,dcn)
+      call gdisp(mol%n,mol%at,mol%xyz,param%disp%a1,param%disp%a2,param%disp%s8,param%disp%s9, &
+      &   ed,g,cn,dcndr)
    endif
 
 ! XB or gCP ----------------------------------------------------
 !  print'("Calculating xbond gradient")'
    exb=0.0_wp
-   if(gfn_method.lt.2) then
-      call xbpot(n,at,xyz,sqrab,xblist,nxb,param%xbdamp,param%xbrad,ljexp,exb,g)
-   endif
+   if (allocated(xtbData%halogen)) then
+      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,sqrab,xblist,nxb,&
+         & ljexp,exb,g)
+   end if
 
 !  print'("Calculating shell es and repulsion gradient")'
-   if(gfn_method.eq.1)then
-      call rep_grad_gfn1(g,ep,n,at,xyz,sqrab,kexp,rexp)
-   else ! GFN2
-      call rep_grad_gfn2(g,ep,n,at,xyz,sqrab,rexp)
-   endif
+   ep = 0.0_wp
+   call repulsionEnGrad(mol, xtbData%repulsion, ep, g, sigma)
+!   if(gfn_method.eq.1)then
+!      call rep_grad_gfn1(g,ep,mol%n,mol%at,mol%xyz,sqrab,kexp,rexp)
+!   else ! GFN2
+!      call rep_grad_gfn2(g,ep,mol%n,mol%at,mol%xyz,sqrab,rexp)
+!   endif
 
 end subroutine cls_grad
+
+pure elemental function early3d(i) result(bool)
+   implicit none
+   integer,intent(in) :: i
+   logical :: bool
+   bool = .false.
+   if ((i.ge.21).and.(i.le.24)) bool = .true.
+end function early3d
+
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+! X..Y bond? (X=halogen but not F, Y=N,O,P,S) !CB: Cl is formally included, but
+! has a parater of zero in GFN1-xTB
+
+pure elemental function xbond(ati,atj) result(bool)
+   integer,intent(in) :: ati,atj
+   logical :: bool
+   logical :: lx1,lx2,ly1,ly2
+
+   bool=.false.
+   lx1=.false.
+   lx2=.false.
+   ly1=.false.
+   ly2=.false.
+
+   if(ati.eq.17.or.ati.eq.35.or.ati.eq.53.or.ati.eq.85) lx1=.true.
+   if(atj.eq.17.or.atj.eq.35.or.atj.eq.53.or.atj.eq.85) lx2=.true.
+   if(ati.eq. 7.or.ati.eq. 8.or.ati.eq.15.or.ati.eq.16) ly1=.true.
+   if(atj.eq. 7.or.atj.eq. 8.or.atj.eq.15.or.atj.eq.16) ly2=.true.
+
+   if(lx1.and.ly2) bool=.true.
+   if(lx2.and.ly1) bool=.true.
+
+end function xbond
 
 end module xtb_scf

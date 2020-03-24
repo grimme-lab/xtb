@@ -18,6 +18,7 @@
 module xtb_embedding
    use, intrinsic :: iso_fortran_env, only : output_unit
    use xtb_mctc_accuracy, only : wp
+   use xtb_xtb_data, only : TCoulombData
    implicit none
 !! ========================================================================
 !  Embedding Stuff -- for QM/MM and subsystem-DFTB
@@ -50,31 +51,6 @@ module xtb_embedding
    integer,private,parameter :: p_str_length = 48
    integer,private,parameter :: p_arg_length = 24
 
-   interface read_pcem
-      module procedure read_pcem_legacy
-      module procedure read_pcem_orca
-   end interface
-
-   interface jpot_pcem_gfn1
-      module procedure jpot_pcem_gfn1_new
-      module procedure jpot_pcem_gfn1_old
-   end interface
-
-   interface jpot_pcem_gfn2
-      module procedure jpot_pcem_gfn2_new
-      module procedure jpot_pcem_gfn2_old
-   end interface
-
-   interface pcem_grad_gfn1
-      module procedure pcem_grad_gfn1_new
-      module procedure pcem_grad_gfn1_old
-   end interface
-
-   interface pcem_grad_gfn2
-      module procedure pcem_grad_gfn2_new
-      module procedure pcem_grad_gfn2_old
-   end interface
-
 contains
 
 subroutine init_pcem
@@ -87,59 +63,18 @@ subroutine init_pcem
    end select
 end subroutine init_pcem
 
-!! ========================================================================
-!  initialize point charges
-!! ========================================================================
-subroutine read_pcem_legacy(fname,pcem,npc,pc,qpc,apc,pr)
-   implicit none
-   character(len=*),intent(in) :: fname
-   logical, intent(out) :: pcem
-   integer, intent(out) :: npc
-   real(wp),allocatable,intent(out) :: pc(:,:)
-   real(wp),allocatable,intent(out) :: qpc(:)
-   integer, allocatable,intent(out) :: apc(:)
-   logical, intent(in)  :: pr
-   real(wp) :: pcxx(10),xsum
-   integer  :: i,pcio,pcnn
-   character(len=80) :: atmp
-   npc=0
-   call open_file(pcio,fname,'r')
-   pcem = pcio.ne.-1
-   if (pcem) then
-      !write(*,*)'reading point charges ...'
-      read(pcio,*) npc
-      allocate(pc(3,npc),qpc(npc),apc(npc))
-      do i=1,npc
-         read(pcio,'(a)')atmp
-         call readl(atmp,pcxx,pcnn)
-         qpc(i)=pcxx(1)
-         pc(1:3,i)=pcxx(2:4)
-         if(pcnn.le.4)then
-            apc(i)=7
-         else
-            apc(i)=int(pcxx(5))
-         endif
-      enddo
-      call close_file(pcio)
-      xsum=sum(qpc)
-      if(pr) then
-         write(output_unit,'('' # of PC   : '',i6   )')npc
-         write(output_unit,'('' sum of qPC: '',f10.5)')xsum
-      endif
-   endif
-
-end subroutine read_pcem_legacy
-
-subroutine read_pcem_orca(iunit,pcem)
-   use xtb_type_pcem
+subroutine read_pcem(iunit,env,pcem,jData)
    use xtb_mctc_strings
    use xtb_mctc_convert
-   use xtb_aoparam
+   use xtb_type_pcem
+   use xtb_type_environment, only : TEnvironment
    use xtb_setparam
    use xtb_readin, only : getline => strip_line
    implicit none
    integer,      intent(in)    :: iunit
+   type(TEnvironment), intent(inout) :: env
    type(tb_pcem),intent(inout) :: pcem
+   type(TCoulombData), intent(in) :: jData
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -217,7 +152,7 @@ subroutine read_pcem_orca(iunit,pcem)
             if (iat.eq.0) then ! so much for the well-behaved user
                call raise('E',"Invalid PC input: '"//trim(argv(5))//"'",1)
             endif
-            gami = gam(iat)
+            gami = jData%chemicalHardness(iat)
          endif
          ! GFN0-xTB has negative gam-values since they are internally combined
          ! with the atom radius for the full chemical hardness (overall > 0).
@@ -232,7 +167,7 @@ subroutine read_pcem_orca(iunit,pcem)
       else
          ! we trust the dummy atom from xcontrol, since xcontrol could already
          ! have handled potential errors, which is usually not the case...
-         gami = gam(pcem_dummyatom)
+         gami = jData%chemicalHardness(pcem_dummyatom)
       endif
       pcem%xyz(:,n) = xyz*conv
       pcem%q(n) = q
@@ -245,16 +180,16 @@ subroutine read_pcem_orca(iunit,pcem)
       call raise('E',"Wrong dimension input for PC, too few lines provided",1)
    endif
 
-end subroutine read_pcem_orca
+end subroutine read_pcem
 
 !! ========================================================================
 !  J potentials for GFN1 including the point charge stuff
 !! ========================================================================
-subroutine jpot_pcem_gfn1_new(n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
+subroutine jpot_pcem_gfn1(jData,n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
    use xtb_mctc_convert, only : autoev
    use xtb_type_pcem
-   use xtb_aoparam, only : lpar,gam
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    type(tb_pcem),intent(inout) :: pcem
    integer, intent(in)  :: nshell
@@ -270,7 +205,7 @@ subroutine jpot_pcem_gfn1_new(n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
    do is = 1, nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       eh1 = 0.0_wp
       do kk = 1, pcem%n
          gj = pcem%gam(kk)
@@ -282,16 +217,16 @@ subroutine jpot_pcem_gfn1_new(n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
       Vpc(is) = eh1
    enddo
 
-end subroutine jpot_pcem_gfn1_new
+end subroutine jpot_pcem_gfn1
 
 !! ========================================================================
 !  J potentials for GFN2 including the point charge stuff
 !! ========================================================================
-subroutine jpot_pcem_gfn2_new(n,pcem,nshell,at,xyz,ash,lsh,Vpc)
+subroutine jpot_pcem_gfn2(jData,n,pcem,nshell,at,xyz,ash,lsh,Vpc)
    use xtb_mctc_convert, only : autoev
    use xtb_type_pcem
-   use xtb_aoparam, only : lpar,gam
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    type(tb_pcem),intent(in) :: pcem
    integer, intent(in)  :: nshell
@@ -306,7 +241,7 @@ subroutine jpot_pcem_gfn2_new(n,pcem,nshell,at,xyz,ash,lsh,Vpc)
    do is = 1, nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       eh1 = 0.0_wp
       do kk = 1, pcem%n
          gj = pcem%gam(kk)
@@ -319,98 +254,7 @@ subroutine jpot_pcem_gfn2_new(n,pcem,nshell,at,xyz,ash,lsh,Vpc)
       Vpc(is) = eh1
    enddo
 
-end subroutine jpot_pcem_gfn2_new
-
-!! ========================================================================
-!  J potentials for GFN1 including the point charge stuff
-!! ========================================================================
-subroutine jpot_pcem_gfn1_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,alphaj,Vpc)
-   use xtb_mctc_convert, only : autoev
-   use xtb_aoparam, only : lpar,gam
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: npc
-   integer, intent(in)  :: nshell
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: apc(npc)
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: pc(3,npc)
-   real(wp),intent(in)  :: qpc(npc)
-   integer, intent(in)  :: ash(nshell)
-   integer, intent(in)  :: lsh(nshell)
-   real(wp),intent(in)  :: alphaj
-   real(wp),allocatable,intent(out) :: Vpc(:)
-   integer  :: is,iat,ati,kk
-   real(wp) :: eh1,dum,gi,gj,xj,r2,rab,xa,ya,za
-
-   if (allocated(Vpc)) deallocate(Vpc)
-   allocate( Vpc(nshell), source = 0.0_wp )
-
-   do is=1,nshell
-      iat=ash(is)
-      ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      eh1=0.0_wp
-      do kk=1,npc
-         gj=gam(apc(kk))
-         r2=(pc(1,kk)-xa)**2+(pc(2,kk)-ya)**2+(pc(3,kk)-za)**2
-         rab=sqrt(r2)
-         xj=2.0_wp/(1./gi+1./gj)
-         dum=autoev/(rab**alphaj+1._wp/xj**alphaj)**(1._wp/alphaj)
-         eh1=eh1+qpc(kk)*dum
-      enddo
-      Vpc(is)=eh1
-   enddo
-
-end subroutine jpot_pcem_gfn1_old
-
-!! ========================================================================
-!  J potentials for GFN2 including the point charge stuff
-!! ========================================================================
-subroutine jpot_pcem_gfn2_old(n,npc,nshell,at,apc,xyz,pc,qpc,ash,lsh,Vpc)
-   use xtb_mctc_convert, only : autoev
-   use xtb_aoparam, only : lpar,gam
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: npc
-   integer, intent(in)  :: nshell
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: apc(npc)
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: pc(3,npc)
-   real(wp),intent(in)  :: qpc(npc)
-   integer, intent(in)  :: ash(nshell)
-   integer, intent(in)  :: lsh(nshell)
-   real(wp),allocatable,intent(out) :: Vpc(:)
-   integer  :: is,iat,ati,kk
-   real(wp) :: eh1,dum,gi,gj,xj,r2,rab,xa,ya,za
-
-   if (allocated(Vpc)) deallocate(Vpc)
-   allocate( Vpc(nshell), source = 0.0_wp )
-
-   do is=1,nshell
-      iat=ash(is)
-      ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      eh1=0.0_wp
-      do kk=1,npc
-         gj=gam(apc(kk))
-         r2=(pc(1,kk)-xa)**2+(pc(2,kk)-ya)**2+(pc(3,kk)-za)**2
-         xj=0.5_wp*(gi+gj)
-         dum=autoev/sqrt(r2+1._wp/xj**2)
-!        dum=autoev/sqrt(r2+1._wp/(gi*gj)) !NEWAV
-         eh1=eh1+qpc(kk)*dum
-      enddo
-      Vpc(is)=eh1
-   enddo
-
-end subroutine jpot_pcem_gfn2_old
+end subroutine jpot_pcem_gfn2
 
 !! ========================================================================
 !  point charge embedding ES subroutine for SCC
@@ -442,10 +286,10 @@ end subroutine electro_pcem
 !! ========================================================================
 !  point charge embedding gradient for GFN1
 !! ========================================================================
-subroutine pcem_grad_gfn1_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
-   use xtb_aoparam, only : lpar,gam
+subroutine pcem_grad_gfn1(jData,g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
    use xtb_type_pcem
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: n
    type(tb_pcem),intent(in) :: pcem
    real(wp),intent(inout) :: g(3,n)
@@ -466,7 +310,7 @@ subroutine pcem_grad_gfn1_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
    do is = 1, nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       do j = 1, pcem%n
          dr = xyz(:,iat) - pcem%xyz(:,j)
          r2 = sum(dr**2)
@@ -481,15 +325,15 @@ subroutine pcem_grad_gfn1_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
       enddo
    enddo
 
-end subroutine pcem_grad_gfn1_new
+end subroutine pcem_grad_gfn1
 
 !! ========================================================================
 !  point charge embedding gradient for GFN2
 !! ========================================================================
-subroutine pcem_grad_gfn2_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
-   use xtb_aoparam, only : lpar,gam
+subroutine pcem_grad_gfn2(jData,g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
    use xtb_type_pcem
    implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: n
    type(tb_pcem),intent(in) :: pcem
    real(wp),intent(inout) :: g(3,n)
@@ -508,7 +352,7 @@ subroutine pcem_grad_gfn2_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
    do is = 1,nshell
       iat = ash(is)
       ati = at(iat)
-      gi  = gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       do j = 1, pcem%n
          dr = xyz(:,iat) - pcem%xyz(:,j)
          r2 = sum(dr**2)
@@ -522,121 +366,7 @@ subroutine pcem_grad_gfn2_new(g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
       enddo
    enddo
 
-end subroutine pcem_grad_gfn2_new
+end subroutine pcem_grad_gfn2
 
-!! ========================================================================
-!  point charge embedding gradient for GFN1
-!! ========================================================================
-subroutine pcem_grad_gfn1_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh, &
-   &                          alphaj,qsh,qpc)
-   use xtb_aoparam, only : lpar,gam
-   implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(inout) :: gpc(3,npc)
-   integer, intent(in) :: n
-   integer, intent(in) :: npc
-   integer, intent(in) :: at(n)
-   integer, intent(in) :: apc(npc)
-   integer, intent(in) :: nshell
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: pc(3,npc)
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   real(wp),intent(in) :: alphaj
-   real(wp),intent(in) :: qsh(nshell)
-   real(wp),intent(in) :: qpc(npc)
-
-   integer  :: is,j,iat,jat,ati,atj
-   real(wp) :: xa,ya,za,dx,dy,dz
-   real(wp) :: gi,gj,r2,rr,yy,ff
-
-
-   do is=1,nshell
-      iat=ash(is)
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
-      do j=1,npc
-         dx=xa-pc(1,j)
-         dy=ya-pc(2,j)
-         dz=za-pc(3,j)
-         !atj=at(jat) ! out of bounds
-         r2=((pc(1,j)-xyz(1,iat))**2 &
-         &  +(pc(2,j)-xyz(2,iat))**2 &
-         &  +(pc(3,j)-xyz(3,iat))**2)
-         gj=gam(apc(j))
-         rr=2.0d0/(1./gi+1./gj)
-         rr=1.0d0/rr**alphaj
-         ff=r2**(alphaj/2.0d0-1.0d0)*&
-         & (r2**(alphaj*0.5d0)+rr)**(-1.0d0/alphaj-1.0d0)
-         yy=ff*qsh(is)*qpc(j)
-         g(1,iat)=g(1,iat)-dx*yy
-         g(2,iat)=g(2,iat)-dy*yy
-         g(3,iat)=g(3,iat)-dz*yy
-         gpc(1,j)=gpc(1,j)+dx*yy
-         gpc(2,j)=gpc(2,j)+dy*yy
-         gpc(3,j)=gpc(3,j)+dz*yy
-      enddo
-   enddo
-
-end subroutine pcem_grad_gfn1_old
-
-!! ========================================================================
-!  point charge embedding gradient for GFN2
-!! ========================================================================
-subroutine pcem_grad_gfn2_old(g,gpc,n,npc,at,apc,nshell,xyz,pc,ash,lsh,qsh,qpc)
-   use xtb_aoparam, only : lpar,gam
-   implicit none
-   real(wp),intent(inout) :: g(3,n)
-   real(wp),intent(inout) :: gpc(3,npc)
-   integer, intent(in) :: n
-   integer, intent(in) :: npc
-   integer, intent(in) :: at(n)
-   integer, intent(in) :: apc(npc)
-   integer, intent(in) :: nshell
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: pc(3,npc)
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   real(wp),intent(in) :: qsh(nshell)
-   real(wp),intent(in) :: qpc(npc)
-
-   integer  :: is,j,iat,jat,ati,atj
-   real(wp) :: xa,ya,za,dx,dy,dz
-   real(wp) :: gi,gj,r2,rr,yy
-
-
-   do is=1,nshell
-      iat=ash(is)
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      gi=gam(ati)*(1.0d0+lpar(lsh(is),ati))
-      do j=1,npc
-         dx=xa-pc(1,j)
-         dy=ya-pc(2,j)
-         dz=za-pc(3,j)
-         !atj=at(jat) ! out of bounds
-         r2=((pc(1,j)-xyz(1,iat))**2 &
-         &         +(pc(2,j)-xyz(2,iat))**2 &
-         &         +(pc(3,j)-xyz(3,iat))**2)
-         gj=gam(apc(j))
-         rr=0.5d0*(gi+gj)
-         rr=1.0d0/rr**2
-!        rr=1.0d0/(gi*gj) !NEWAV
-         yy=qsh(is)*qpc(j)*(r2+rr)**(-1.5d0)
-         g(1,iat)=g(1,iat)-dx*yy
-         g(2,iat)=g(2,iat)-dy*yy
-         g(3,iat)=g(3,iat)-dz*yy
-         gpc(1,j)=gpc(1,j)+dx*yy
-         gpc(2,j)=gpc(2,j)+dy*yy
-         gpc(3,j)=gpc(3,j)+dz*yy
-      enddo
-   enddo
-
-end subroutine pcem_grad_gfn2_old
 
 end module xtb_embedding

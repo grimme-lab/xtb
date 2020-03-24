@@ -27,6 +27,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : sygvd,gemm,symm
    use xtb_type_environment, only : TEnvironment
+   use xtb_xtb_data
    implicit none
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
@@ -36,9 +37,9 @@ contains
 !! ========================================================================
 !  build GFN1 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2)
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -58,7 +59,7 @@ subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    real(wp),intent(in)  :: hdiag2(ndim)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell
+   integer  :: iat,jat,ishell,jshell,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
 
@@ -69,16 +70,19 @@ subroutine build_h0_gfn1(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       k=j+i*(i-1)/2
       iat=aoat2(i)
       jat=aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
       hdii=hdiag2(i)
       hdii=hdii*(1.0d0+kcnao(i)*cn(iat))  ! CN dependent shift
       hdjj=hdiag2(j)
       hdjj=hdjj*(1.0d0+kcnao(j)*cn(jat))  ! CN dependent shift
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
       &           kspd,kmagic,kenscal,km)
       hav=0.5d0*(hdii+hdjj)* &
-      &      rfactor(ishell,jshell,at(iat),at(jat),xyz(:,iat),xyz(:,jat))
+      &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+      &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       H0(k)=S(j,i)*km*hav
    enddo
 !  diagonal
@@ -95,9 +99,9 @@ end subroutine build_h0_gfn1
 !! ========================================================================
 !  build GFN2 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2,aoexp)
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -118,7 +122,7 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    real(wp),intent(in)  :: aoexp(ndim)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell
+   integer  :: iat,jat,ishell,jshell,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
    real(wp),parameter :: aot = -0.5d0 ! AO exponent dep. H0 scal
@@ -131,17 +135,20 @@ subroutine build_h0_gfn2(H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       k=j+i*(i-1)/2
       iat=aoat2(i)
       jat=aoat2(j)
+      iZp = at(iat)
+      jZp = at(jat)
       ishell=mmm(lao2(i))
       jshell=mmm(lao2(j))
       hdii=hdiag2(i)
       hdii=hdii-kcnao(i)*cn(iat)  ! CN dependent shift
       hdjj=hdiag2(j)
       hdjj=hdjj-kcnao(j)*cn(jat)  ! CN dependent shift
-      call h0scal(n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
       &           kspd,kmagic,kenscal,km)
       km=km*(0.5*((aoexp(i)+aoexp(j))/(aoexp(i)*aoexp(j))**0.5))**aot
       hav=0.5d0*(hdii+hdjj)* &
-      &      rfactor(ishell,jshell,at(iat),at(jat),xyz(:,iat),xyz(:,jat))
+      &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+      &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       H0(k)=S(j,i)*km*hav
    enddo
 !  diagonal
@@ -158,12 +165,11 @@ end subroutine build_h0_gfn2
 !! ========================================================================
 !  build GFN1 Fockian
 !! ========================================================================
-subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
+subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                          cm5,fgb,fhb,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_aoparam,  only : gam3
    use xtb_solv_gbobc, only : lgbsa
-   implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -206,8 +212,8 @@ subroutine build_h1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
       jj = aoat2(j)
       dum = S(j,i)
 !     third-order diagonal term, unscreened
-      t8 = q(ii)**2 * gam3(at(ii))
-      t9 = q(jj)**2 * gam3(at(jj))
+      t8 = q(ii)**2 * jData%thirdOrderAtom(at(ii))
+      t9 = q(jj)**2 * jData%thirdOrderAtom(at(jj))
       eh1 = eh1 + autoev*(t8+t9)
       H1(k) = -dum*eh1*0.5_wp
       H(j,i) = H0(k)+H1(k)
@@ -246,7 +252,6 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          hdisp,fgb,fhb,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_solv_gbobc, only : lgbsa
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -384,8 +389,8 @@ end subroutine build_h1_gfn2
 !! ========================================================================
 !  self consistent charge iterator for GFN1 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
-   &                at,matlist,aoat2,ao2sh, &
+subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
+   &                at,matlist,aoat2,ao2sh,ash, &
    &                q,qq,qlmom,qsh,zsh, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
    &                broy,broydamp,damp0, &
@@ -398,16 +403,14 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
    &                fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
 
-   use xtb_aoparam,  only : gam3
-
    use xtb_solv_gbobc, only : lgbsa,lhb,TSolvent
    use xtb_embedding, only : electro_pcem
-
-   implicit none
 
    character(len=*), parameter :: source = 'scc_gfn1'
 
    type(TEnvironment), intent(inout) :: env
+
+   type(TxTBData), intent(in) :: xtbData
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -430,6 +433,7 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
    integer, intent(in)  :: matlist(2,nmat)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
+   integer, intent(in)  :: ash(:)
 !! ------------------------------------------------------------------------
 !  a bunch of charges
    real(wp),intent(inout) :: q(n)
@@ -529,7 +533,7 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  build the Fockian from current ES potential and partial charges
 !  includes GBSA contribution to Fockian
-   call build_H1_gfn1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
+   call build_H1_gfn1(xtbData%coulomb,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
                       cm5,fgb,fhb,aoat2,ao2sh)
 
 !! ------------------------------------------------------------------------
@@ -587,10 +591,10 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
    qsh = zsh - qsh
 
 !  qat from qsh
-   call qsh2qat(n,at,nshell,qsh,q)
+   call qsh2qat(ash,qsh,q)
 
    eold=eel
-   call electro(n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
+   call electro(xtbData,n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
 
 !  point charge contribution
    if (pcem) call electro_pcem(nshell,qsh,Vpc,epcem,eel)
@@ -647,7 +651,7 @@ subroutine scc_gfn1(env,n,nel,nopen,ndim,nmat,nshell, &
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(n,at,nshell,qsh,q) !new qat
+   call qsh2qat(ash,qsh,q) !new qat
 
    if(minpr) write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &         iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
@@ -680,10 +684,10 @@ end subroutine scc_gfn1
 !! ========================================================================
 !  self consistent charge iterator for GFN2 Hamiltonian
 !! ========================================================================
-subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
-   &                at,matlist,mdlst,mqlst,aoat2,ao2sh, &
+subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+   &                at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
    &                q,dipm,qp,qq,qlmom,qsh,zsh, &
-   &                xyz,vs,vd,vq,gab3,gab5,gscal, &
+   &                xyz,vs,vd,vq,gab3,gab5, &
    &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
    &                newdisp,dispdim,g_a,g_c,gw,wdispmat,hdisp, &
    &                broy,broydamp,damp0, &
@@ -696,19 +700,17 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
 
-   use xtb_aoparam,  only : gam3
-
    use xtb_solv_gbobc,  only : lgbsa,lhb,TSolvent
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
 
-   implicit none
-
    character(len=*), parameter :: source = 'scc_gfn2'
 
    type(TEnvironment), intent(inout) :: env
+
+   type(TxTBData), intent(in) :: xtbData
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -735,6 +737,7 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer, intent(in)  :: mqlst(2,nqp)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
+   integer, intent(in)  :: ash(:)
 !! ------------------------------------------------------------------------
 !  a bunch of charges and CAMMs
    real(wp),intent(inout) :: q(n)
@@ -752,7 +755,6 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: vq(6,n)
    real(wp),intent(inout) :: gab3(n*(n+1)/2)
    real(wp),intent(inout) :: gab5(n*(n+1)/2)
-   real(wp),intent(in)    :: gscal
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    type(TSolvent),intent(inout) :: gbsa
@@ -920,11 +922,11 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    qsh = zsh - qsh
 
 !  qat from qsh
-   call qsh2qat(n,at,nshell,qsh,q)
+   call qsh2qat(ash,qsh,q)
 
    eold=eel
    call electro2(n,at,ndim,nshell,jab,H0,P,q, &
-   &                gam3sh,qsh,gscal,ees,eel)
+   &                gam3sh,qsh,ees,eel)
 !  multipole electrostatic
    call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
 !  call scalecamm(n,at,dipm,qp)
@@ -932,7 +934,7 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !                w/ energy routine
 !  include 'cammcheck.inc'
 !  evaluate energy
-   call aniso_electro(n,at,xyz,q,dipm,qp,gab3,gab5,eaes,epol)
+   call aniso_electro(xtbData%multipole,n,at,xyz,q,dipm,qp,gab3,gab5,eaes,epol)
    eel=eel+eaes+epol
 ! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1804
    if (newdisp) then
@@ -1012,7 +1014,7 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(n,at,nshell,qsh,q) !new qat
+   call qsh2qat(ash,qsh,q) !new qat
 
 ! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
    if(newdisp) call disppot(n,dispdim,at,q,g_a,g_c,wdispmat,gw,hdisp)
@@ -1031,7 +1033,7 @@ subroutine scc_gfn2(env,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    endif
    call setespot(nshell,qsh,jab,ves)
 !  compute potential intermediates
-   call setvsdq(n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
+   call setvsdq(xtbData%multipole,n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
 
 !  end of SCC convergence part
 
@@ -1053,10 +1055,9 @@ end subroutine scc_gfn2
 !! ========================================================================
 !  H0 off-diag scaling
 !! ========================================================================
-subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
+subroutine h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    &              kenscal,km)
-   use xtb_aoparam,  only : kpair,en
-   implicit none
+   type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: i
@@ -1080,8 +1081,8 @@ subroutine h0scal(n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
    if(valaoi.and.valaoj) then
       ii=at(iat)
       jj=at(jat)
-      den=(en(ii)-en(jj))**2
-      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*kpair(ii,jj)
+      den=(hData%electronegativity(ii)-hData%electronegativity(jj))**2
+      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*hData%pairParam(ii,jj)
       return
    endif
 
@@ -1104,10 +1105,9 @@ end subroutine h0scal
 !! ========================================================================
 !  total energy for GFN1
 !! ========================================================================
-pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
+pure subroutine electro(xtbData,n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
-   use xtb_aoparam, only : gam3
-   implicit none
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
    integer, intent(in) :: nbf
@@ -1142,7 +1142,7 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    t=0.0_wp
    do i=1,n
 !     third-order diagonal term
-      t = t + gam3(at(i))*dq(i)**3
+      t = t + xtbData%coulomb%thirdOrderAtom(at(i))*dq(i)**3
    enddo
 
 !  ES energy in Eh (gam3 in Eh)
@@ -1169,10 +1169,9 @@ end subroutine electro
 !  total energy for GFN2
 !! ========================================================================
 pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
-   &                     gam3sh,dqsh,gscal,es,scc)
+   &                     gam3sh,dqsh,es,scc)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : evtoau
-   implicit none
    integer,intent(in)  :: n
    integer,intent(in)  :: at(n)
    integer,intent(in)  :: nbf
@@ -1180,7 +1179,6 @@ pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
    real(wp), intent(in)  :: H0(nbf*(nbf+1)/2)
    real(wp), intent(in)  :: P (nbf,nbf)
    real(wp), intent(in)  :: q (n) ! not used
-   real(wp), intent(in)  :: gscal ! not used
    real(wp), intent(in)  :: gab(nshell,nshell)
    real(wp), intent(in)  :: gam3sh(nshell)
    real(wp), intent(in)  :: dqsh(nshell)
@@ -1245,7 +1243,6 @@ end subroutine electro2
 pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
    use xtb_solv_gbobc, only: lhb
-   implicit none
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: gab(n,n)
@@ -1296,13 +1293,12 @@ end subroutine electro_gbsa
 !! ========================================================================
 !  S(R) enhancement factor
 !! ========================================================================
-   pure function rfactor(ish,jsh,ati,atj,xyz1,xyz2)
-   use xtb_aoparam, only : rad,polyr
+pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
    use xtb_mctc_convert, only : aatoau
-   implicit none
-   integer,intent(in) :: ati,atj,ish,jsh
+   real(wp), intent(in) :: iPoly,jPoly
+   real(wp), intent(in) :: iRad,jRad
    real(wp), intent(in) :: xyz1(3),xyz2(3)
-   real(wp) :: rfactor
+   real(wp) :: shellPoly
    real(wp) :: rab,k1,rr,r,rf1,rf2,dx,dy,dz,a
 
    a=0.5           ! R^a dependence 0.5 in GFN1
@@ -1314,24 +1310,21 @@ end subroutine electro_gbsa
    rab=sqrt(dx**2+dy**2+dz**2)
 
    ! this sloppy conv. factor has been used in development, keep it
-   rr=(rad(ati)+rad(atj))*aatoau
+   rr=jRad+iRad
 
    r=rab/rr
 
-   k1=polyr(ish,ati)
-   rf1=1.0d0+0.01*k1*r**a
-   k1=polyr(jsh,atj)
-   rf2=1.0d0+0.01*k1*r**a
+   rf1=1.0d0+0.01*iPoly*r**a
+   rf2=1.0d0+0.01*jPoly*r**a
 
-   rfactor= rf1*rf2
+   shellPoly= rf1*rf2
 
-end function rfactor
+end function shellPoly
 
 !! ========================================================================
 !  set up Coulomb potential due to 2nd order fluctuation
 !! ========================================================================
 pure subroutine setespot(nshell,qsh,jab,ves)
-   implicit none
    integer, intent(in) :: nshell
    real(wp),intent(in) ::  qsh(nshell),jab(nshell,nshell)
 !  ves possibly already contains with PC-potential
@@ -1350,11 +1343,10 @@ pure subroutine setespot(nshell,qsh,jab,ves)
    enddo
 end subroutine setespot
 
-pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
+pure subroutine jpot_gfn1(jData,nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    use xtb_mctc_convert
-   use xtb_aoparam
    use xtb_lin
-   implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
    integer, intent(in) :: ash(nshell)
@@ -1370,12 +1362,12 @@ pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       do js=1,is
          jat=ash(js)
          atj=at(jat)
          k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0_wp+jData%shellHardness(1+lsh(js),atj))
          xj=2.0_wp/(1./gi+1./gj)
          if(is.eq.js)then
             jab(is,js)=xj*autoev
@@ -1390,11 +1382,10 @@ pure subroutine jpot_gfn1(nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
 
 end subroutine jpot_gfn1
 
-pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
+pure subroutine jpot_gfn2(jData,nat,nshell,ash,lsh,at,sqrab,jab)
    use xtb_mctc_convert
-   use xtb_aoparam
    use xtb_lin
-   implicit none
+   type(TCoulombData), intent(in) :: jData
    integer, intent(in) :: nat
    integer, intent(in) :: nshell
    integer, intent(in) :: ash(nshell)
@@ -1409,12 +1400,12 @@ pure subroutine jpot_gfn2(nat,nshell,ash,lsh,at,sqrab,jab)
    do is=1,nshell
       iat=ash(is)
       ati=at(iat)
-      gi=gam(ati)*(1.0_wp+lpar(lsh(is),ati))
+      gi=jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
       do js=1,is-1
          jat=ash(js)
          atj=at(jat)
          k=lin(jat,iat)
-         gj=gam(atj)*(1.0_wp+lpar(lsh(js),atj))
+         gj=jData%chemicalHardness(atj)*(1.0_wp+jData%shellHardness(1+lsh(js),atj))
          xj=0.5_wp*(gi+gj)
          jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/xj**2)
          ! jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/(gi*gj))  ! NEWAV
@@ -1429,8 +1420,7 @@ end subroutine jpot_gfn2
 !  eigenvalue solver single-precision
 !! ========================================================================
 subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
-   use iso_fortran_env, sp => real32
-   implicit none
+   use xtb_mctc_accuracy, only : sp
    integer, intent(in)   :: ndim
    logical, intent(in)   :: full
    integer, intent(in)   :: ihomo
@@ -1531,7 +1521,6 @@ end subroutine solve4
 !  eigenvalue solver
 !! ========================================================================
 subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
-   implicit none
    integer, intent(in)   :: ndim
    logical, intent(in)   :: full
    integer, intent(in)   :: ihomo
@@ -1612,7 +1601,6 @@ end subroutine solve
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use xtb_mctc_convert, only : autoev
    use xtb_mctc_constants, only : kB
-   implicit none
    integer, intent(in)  :: norbs
    integer, intent(in)  :: nel
    real(wp),intent(in)  :: eig(norbs)
@@ -1675,7 +1663,6 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 end subroutine fermismear
 
 subroutine occ(ndim,nel,nopen,ihomo,focc)
-   implicit none
    integer  :: nel
    integer  :: nopen
    integer  :: ndim
@@ -1720,7 +1707,6 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
 end subroutine occ
 
 subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
-   implicit none
    integer  :: nel
    integer  :: nopen
    integer  :: ndim
@@ -1781,49 +1767,6 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
 end subroutine occu
 
 
-subroutine epart
-   use iso_fortran_env, only: output_unit
-   use xtb_aoparam
-   use xtb_mctc_convert, only : evtoau
-   implicit none
-   real(wp) :: h,e,p
-
-   p=0.5*gam(1)+gam3(1)/3.0_wp
-
-   h=ao_lev(1,1)*evtoau
-
-   e=h-p
-
-   write(output_unit,'(a)')
-   write(output_unit,'(''H atom         energy :'',F10.6)') h
-   write(output_unit,'(''proton   (self)energy :'',F10.6)') p
-   write(output_unit,'(''electron (self)energy :'',F10.6)') e
-   write(output_unit,'(''these values must be considered in IP/EA/PA calc.!'')')
-
-end subroutine epart
-
-subroutine eself(n,at,z)
-   use iso_fortran_env, only: output_unit
-   use xtb_aoparam
-   use xtb_mctc_convert, only : evtoau
-   implicit none
-   integer, intent(in) :: n,at(n)
-   real(wp),intent(in) :: z(n)
-
-   real(wp) :: e
-   integer  :: i,ii
-
-   e=0.0_wp
-   do i=1,n
-      ii=at(i)
-      e=e+0.5_wp*z(i)**2*gam(ii)+z(i)**3*gam3(ii)/3.0_wp
-   enddo
-
-   write(output_unit,'(''NO ELECTRONS!'')')
-   write(output_unit,'(''molecular/atomic self energy :'',F10.6)') e
-
-end subroutine eself
-
 !ccccccccccccccccccccccccccccccccccccccccccccc
 ! density matrix
 ! C: MO coefficient
@@ -1832,9 +1775,7 @@ end subroutine eself
 !ccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine dmat(ndim,focc,C,P)
-   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : gemm
-   implicit none
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(*)
    real(wp),intent(in)  :: C(ndim,ndim)
@@ -1856,9 +1797,7 @@ subroutine dmat(ndim,focc,C,P)
 end subroutine dmat
 
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
-   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : gemm
-   implicit none
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: P(ndim,ndim)
@@ -1897,8 +1836,6 @@ end subroutine get_wiberg
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpopall(n,nao,aoat,S,P,qao,q)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1930,8 +1867,6 @@ end subroutine mpopall
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpop0(n,nao,aoat,S,P,q)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1959,8 +1894,6 @@ end subroutine mpop0
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpopao(n,nao,S,P,qao)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -1986,8 +1919,6 @@ end subroutine mpopao
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -2023,8 +1954,6 @@ end subroutine mpop
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
    real(wp)  P (nao,nao)
@@ -2047,23 +1976,16 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
 
 end subroutine mpopsh
 
-subroutine qsh2qat(n,at,nshell,qsh,q)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
-   implicit none
-   integer,intent(in) :: n,nshell,at(n)
-   real(wp),intent(in) :: qsh(nshell)
-   real(wp),intent(out) :: q(n)
+subroutine qsh2qat(ash,qsh,qat)
+   integer, intent(in) :: ash(:)
+   real(wp), intent(in) :: qsh(:)
+   real(wp), intent(out) :: qat(:)
 
-   integer i,mi,k
+   integer :: iSh
 
-   k=0
-   do i=1,n
-      q(i)=0
-      do mi=1,ao_n(at(i))
-         k=k+1
-         q(i)=q(i)+qsh(k)
-      enddo
+   qat(:) = 0.0_wp
+   do iSh = 1, size(qsh)
+      qat(ash(iSh)) = qat(ash(iSh)) + qsh(iSh)
    enddo
 
 end subroutine qsh2qat
@@ -2074,8 +1996,6 @@ end subroutine qsh2qat
 !cccccccccccccccccccccccccccccccccccccccc
 
 subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  C (nao,nao)
    real(wp)  occ(nao)
@@ -2104,10 +2024,8 @@ end subroutine lpop
 !c atomic valence shell pops and total atomic energy
 !cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
-   implicit none
+subroutine iniqshell(xtbData,n,at,z,nshell,q,qsh,gfn_method)
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: nshell
@@ -2117,91 +2035,31 @@ subroutine iniqshell(n,at,z,nshell,q,qsh,gfn_method)
    real(wp),intent(out) :: qsh(nshell)
    real(wp) :: zshell
    real(wp) :: ntot,fracz
-   real(wp) :: iox(86,0:2,2) ! GFN1 on 1
    integer  :: i,j,k,m,l,ll(0:3),iat,lll,iver
    data ll /1,3,5,7/
 
-   !     H           Initial     Orbital Occupancies                     He
-   !     Li Be                                            B  C  N  O  F  Ne
-   !     Na Mg                                            Al Si P  S  Cl Ar
-   !     K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-   !     Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-   !     Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-   !                                      spd shell
-
-   ! GFN1
-   data iox / &
-      &1,                                                          2, & !He
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ne
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ar
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Kr
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Xe
-      &1,2,2, 14*2       ,2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Rn
-      !
-      &0,                                                          0, & !He
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ne
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ar
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Kr
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Xe
-      &0,0,0,  14*0,   0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Rn
-      !
-      & 0,                                                         0, & !He
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Rn
-      ! GFN2
-      &1,                                                            2, & !He
-      &1,2,                                        2  ,1  ,1.5,  2,2,2, & !Ne
-      &1,2,                                        2  ,1.5,1.5,  2,2,2, & !Ar
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  1.5,1.5,  2,2,2, & !Kr
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Xe
-      &1,2,1, 14*1       ,1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Rn
-      !
-      &0,                                                            0, & !He
-      &0,0,                                        1  , 3  ,3.5, 4,5,6, & !Ne
-      &0,0,                                        1  , 2.5,3.5, 4,5,6, & !Ar
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2.5,3.5, 4,5,6, & !Kr
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Xe
-      &0,0,1,  14*1,     1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Rn
-      !
-      & 0,                                                          0, & !He
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0  & !Rn
-      & /
-
    qsh = 0.0_wp
-
-   iver=1
-   if(gfn_method.gt.1) iver = 2
 
    k=0
    do i=1,n
       iat=at(i)
       ntot=-1.d-6
-      do m=1,ao_n(iat)
-         l=ao_l(m,iat)
+      do m=1,xtbData%nShell(iat)
+         l=xtbData%hamiltonian%angShell(m,iat)
          k=k+1
-         zshell=iox(iat,l,iver)
+         zshell=xtbData%hamiltonian%referenceOcc(m,iat)
          ntot=ntot+zshell
          if(ntot.gt.z(i)) zshell=0
          fracz=zshell/z(i)
          qsh(k)=fracz*q(i)
       enddo
    enddo
-   if(k.ne.nshell) error stop 'internal setzshell error 1'
 
 end subroutine iniqshell
 
 
-subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
-   use xtb_mctc_accuracy, only : wp
-   use xtb_aoparam
-   implicit none
+subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
+   type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: nshell
@@ -2213,86 +2071,25 @@ subroutine setzshell(n,at,nshell,z,zsh,e,gfn_method)
    real(wp),intent(out) :: e
 
    real(wp)  ntot,fracz
-   real(wp)  iox(86,0:2,2) ! GFN1 on 1
    integer i,j,k,m,l,ll(0:3),iat,lll,iver
    data ll /1,3,5,7/
-
-   !     H           Initial     Orbital Occupancies                     He
-   !     Li Be                                            B  C  N  O  F  Ne
-   !     Na Mg                                            Al Si P  S  Cl Ar
-   !     K  Ca Sc            Ti V  Cr Mn Fe Co Ni Cu Zn   Ga Ge As Se Br Kr
-   !     Rb Sr Y             Zr Nb Mo Tc Ru Rh Pd Ag Cd   In Sn Sb Te I  Xe
-   !     Cs Ba La Ce-Lu      Hf Ta W  Re Os Ir Pt Au Hg   Tl Pb Bi Po At Rn
-   !                                      spd shell
-
-   ! GFN1
-   data iox / &
-      &1,                                                          2, & !He
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ne
-      &1,2,                                         2, 2, 2, 2, 2, 2, & !Ar
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Kr
-      &1,2,2,             2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Xe
-      &1,2,2, 14*2       ,2, 2, 2, 2, 2, 2, 2, 2, 2,2, 2, 2, 2, 2, 2, & !Rn
-      !
-      &0,                                                          0, & !He
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ne
-      &0,0,                                         1, 2, 3, 4, 5, 6, & !Ar
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Kr
-      &0,0,0,          0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Xe
-      &0,0,0,  14*0,   0, 0, 0, 0, 0, 0, 0, 0, 0,   1, 2, 3, 4, 5, 6, & !Rn
-      !
-      & 0,                                                         0, & !He
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0, 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8,  9,10, 0, 0, 0, 0, 0, 0, & !Rn
-      ! GFN2
-      &1,                                                            2, & !He
-      &1,2,                                        2  ,1  ,1.5,  2,2,2, & !Ne
-      &1,2,                                        2  ,1.5,1.5,  2,2,2, & !Ar
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  1.5,1.5,  2,2,2, & !Kr
-      &1,2,1,             1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Xe
-      &1,2,1, 14*1       ,1, 1, 1, 1, 1, 1, 1,1,2, 2,  2,  2 ,   2,2,2, & !Rn
-      !
-      &0,                                                            0, & !He
-      &0,0,                                        1  , 3  ,3.5, 4,5,6, & !Ne
-      &0,0,                                        1  , 2.5,3.5, 4,5,6, & !Ar
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2.5,3.5, 4,5,6, & !Kr
-      &0,0,1,            1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Xe
-      &0,0,1,  14*1,     1, 1, 1, 1, 1, 1, 1, 0,0, 1,   2,  3,   4,5,6, & !Rn
-      !
-      & 0,                                                          0, & !He
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ne
-      & 0,0,                                        0, 0 , 0, 0, 0, 0, & !Ar
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Kr
-      & 0,0,1,          2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0, & !Xe
-      & 0,0,1, 14*1,    2, 3, 4, 5, 6, 7, 8, 10,10, 0, 0 , 0, 0, 0, 0  & !Rn
-      & /
-
-   iver=1
-   if(gfn_method.gt.1) iver = 2
 
    k=0
    e=0.0_wp
    do i=1,n
       iat=at(i)
       ntot=-1.d-6
-      do m=1,ao_n(iat)
-         l=ao_l(m,iat)
+      do m=1,xtbData%nShell(iat)
+         l=xtbData%hamiltonian%angShell(m,iat)
          k=k+1
-         zsh(k)=iox(iat,l,iver)
+         zsh(k)=xtbData%hamiltonian%referenceOcc(m,iat)
 !         lsh(k)=l
 !         ash(k)=i
          ntot=ntot+zsh(k)
          if(ntot.gt.z(i)) zsh(k)=0
-         e=e+ao_lev(m,iat)*zsh(k)
+         e=e+xtbData%hamiltonian%selfEnergy(m,iat)*zsh(k)
       enddo
    enddo
-   if(abs(sum(z)-sum(zsh)).gt.1.d-4) then
-      write(*,*) i,sum(z),sum(zsh)
-      error stop 'internal setzshell error 2'
-   endif
 
 end subroutine setzshell
 

@@ -18,6 +18,7 @@
 module xtb_aespot
    use xtb_mctc_accuracy, only : wp
    use xtb_intpack, only : olap,divpt,rhftce,prod,opab1,opab4,propa
+   use xtb_xtb_data
    integer,private, parameter :: llao (0:3) = (/ 1, 3, 6,10/)
    integer,private, parameter :: llao2(0:3) = (/ 1, 3, 5, 7/)
 
@@ -40,13 +41,14 @@ contains
 ! qpint       : quadrupole integral matrix, dimension 6,nao*(nao+1)/2
 ! ndp,nqp     : number of elements to be computed in Fock matrix, i.e., with X-dip and X-qpole potential terms
 
-subroutine sdqint(nat,at,nbf,nao,xyz,thr,ndp,nqp,intcut,caoshell,saoshell, &
+subroutine sdqint(nShell,hData,nat,at,nbf,nao,xyz,thr,ndp,nqp,intcut,caoshell,saoshell, &
       &           nprim,primcount,alp,cont,sint,dpint,qpint)
    use xtb_mctc_constants, only : pi
-   use xtb_aoparam
    use xtb_intgrad
    use xtb_lin, only : lin
    implicit none
+   integer, intent(in) :: nShell(:)
+   type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: nat
    integer, intent(in)  :: nao
    integer, intent(in)  :: nbf
@@ -110,16 +112,16 @@ subroutine sdqint(nat,at,nbf,nao,xyz,thr,ndp,nqp,intcut,caoshell,saoshell, &
          rab2=sum( (rb-ra)**2 )
          !           ints < 1.d-9 for RAB > 40 Bohr
          if(rab2.gt.2000) cycle
-         do ish=1,ao_n(iatyp)
-            ishtyp=ao_l(ish,iatyp)
+         do ish=1,nShell(iatyp)
+            ishtyp=hData%angShell(ish,iatyp)
             icao=caoshell(ish,iat)
             naoi=llao(ishtyp)
             iptyp=itt(ishtyp)
-            jshmax=ao_n(jatyp)
+            jshmax=nShell(jatyp)
             if(iat.eq.jat) jshmax=ish
             !              jshells
             do jsh=1,jshmax
-               jshtyp=ao_l(jsh,jatyp)
+               jshtyp=hData%angShell(jsh,jatyp)
                jcao=caoshell(jsh,jat)
                naoj=llao(jshtyp)
                jptyp=itt(jshtyp)
@@ -460,10 +462,10 @@ end subroutine mmompop
 ! gab3,gab5   : damped R**-3 and R**-5 Coulomb laws, dimension: nat*(nat+1)/2
 !               multiplication with numerator then leads to R**-2 and R**-3 decay, respectively
 ! e           : E_AES
-subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
-   use xtb_aoparam
+subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
    implicit none
+   type(TMultipoleData), intent(in) :: aesData
    integer nat,at(nat)
    real(wp) xyz(3,nat),q(nat)
    real(wp) e
@@ -497,7 +499,7 @@ subroutine aniso_electro(nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
             tt3=tt3+qp1(kl)*qp1(kl)
          enddo
       enddo
-      epol=epol+dpolc(at(i))*tt+tt3*qpolc(at(i))
+      epol=epol+aesData%dipKernel(at(i))*tt+tt3*aesData%quadKernel(at(i))
       ! ---
       do j=1,i-1             ! loop over all atoms
          kj=lin(j,i)
@@ -594,10 +596,10 @@ end subroutine fockelectro
 ! vs(nat)     : s-proportional potential from all atoms acting on atom i
 ! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
-subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
-   use xtb_aoparam
+subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
+   type(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
    real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
@@ -673,8 +675,8 @@ subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
       vd(1:3,i)=dtmp(1:3)              ! dipints from atom i
       vq(1:6,i)=qtmp(1:6)              ! qpints from atom i
       ! --- CT correction terms
-      qs1=dpolc(at(i))*2.0_wp
-      qs2=qpolc(at(i))*6.0_wp ! qpole pot prefactors
+      qs1=aesData%dipKernel(at(i))*2.0_wp
+      qs2=aesData%quadKernel(at(i))*6.0_wp ! qpole pot prefactors
       t3a=0.0_wp
       t2a=0.0_wp
       do l1=1,3
@@ -700,7 +702,7 @@ subroutine setvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
       enddo
       vs(i)=vs(i)+t3a
       ! trace removal
-      t2a=t2a*qpolc(at(i))
+      t2a=t2a*aesData%quadKernel(at(i))
       do l1=1,3
          vq(l1,i)=vq(l1,i)+t2a
          vd(l1,i)=vd(l1,i)-2.0_wp*ra(l1)*t2a
@@ -724,10 +726,10 @@ end subroutine setvsdq
 ! vs(nat)     : s-proportional potential from all atoms acting on atom i
 ! vd(3,nat)   : dipint-proportional potential from all atoms acting on atom i
 ! vq(6,nat)   : qpole-int proportional potential from all atoms acting on atom i
-subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
-   use xtb_aoparam
+subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
+   type(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
    real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
@@ -788,8 +790,8 @@ subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
       vd(1:3,i)=dtmp(1:3)
       vq(1:6,i)=qtmp(1:6)
       ! --- CT correction terms
-      qs1=dpolc(at(i))*2.0_wp
-      qs2=qpolc(at(i))*6.0_wp ! qpole pot prefactors
+      qs1=aesData%dipKernel(at(i))*2.0_wp
+      qs2=aesData%quadKernel(at(i))*6.0_wp ! qpole pot prefactors
       t2a=0.0_wp
       do l1=1,3
          ! potential from dipoles
@@ -806,7 +808,7 @@ subroutine setdvsdq(nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
          t2a=t2a+qp(ll,i)
       enddo
       ! trace removal
-      t2a=t2a*qpolc(at(i))
+      t2a=t2a*aesData%quadKernel(at(i))
       do l1=1,3
          vq(l1,i)=vq(l1,i)+t2a
       enddo
@@ -909,7 +911,6 @@ end subroutine molmom
 ! g           : nuclear gradient (3)
 subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
       & radcn,dcn,gab3,gab5,g)
-   use xtb_aoparam
    use xtb_lin, only : lin
    !gab3 Hellmann-Feynman terms correct, shift terms to be tested yet
    implicit none
@@ -1008,378 +1009,6 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
 
    enddo
 end subroutine aniso_grad
-
-subroutine ovlp2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,cont,alp,s)
-   use xtb_mctc_constants, only : pi
-   use xtb_aoparam
-   use xtb_intgrad, only : dtrf2
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: nao
-   integer, intent(in)  :: nbf
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: thr
-   real(wp),intent(in)  :: xyz(3,nat)
-   integer, intent(in)  :: caoshell(:,:)
-   integer, intent(in)  :: saoshell(:,:)
-   integer, intent(in)  :: nprim(:)
-   integer, intent(in)  :: primcount(:)
-   real(wp),intent(in)  :: alp(:)
-   real(wp),intent(in)  :: cont(:)
-   real(wp),intent(out) :: s(nao,nao)
-
-   real(wp) tmp1,tmp2,tmp3,tmp4,step,step2,dx,dy,dz,s00r,s00l,s00
-   real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cc,cj,alpi,rab2,ab,est
-   real(wp)  ra(3),rb(3),f1,f2,dpl(3),dpr(3),qpl(6),qpr(6)
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,km,mi,mj,ij,lin,jshmax
-   integer ip,jp,iat,jat,iatyp,jatyp,ish,jsh,icao,jcao,iao,jao
-   integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,li,lj,iprim,jprim
-   integer itt(0:3)
-   data itt  /0,1,4,10/
-   real(wp) ss (6,6),stmp (6)
-
-   thr2=thr
-
-   s=0.0_wp
-   kj=0
-   mm=nbf*(nbf+1)/2
-   step=1.0d-4
-   step2=0.50_wp/step
-!$OMP parallel default(none) &
-!$omp&         private(iat,ra,iatyp,jat,rb,jatyp,dx,dy,dz,rab2,ish,ishtyp, &
-!$omp&                 icao,naoi,iptyp,jshmax,jsh,jshtyp,jcao,naoj,ss,ip,iprim, &
-!$omp&                 alpi,jp,jprim,ab,est,s00,li,ci,stmp,lj,cc,ii,iao,jj,jao) &
-!$omp&         shared(s,cont,alp,saoshell,caoshell,thr2,primcount,nprim,ao_l, &
-!$omp&                ao_n,itt,xyz,at,nat)
-!$omp do schedule(dynamic)
-   do iat=1,nat
-      ra(1:3)=xyz(1:3,iat)
-      iatyp=at(iat)
-      !         write (*,*), 'i',iat, iatyp, ao_n(iatyp)
-      do jat=1,iat
-         rb(1:3)=xyz(1:3,jat)
-         jatyp=at(jat)
-         dx=ra(1)-rb(1)
-         dy=ra(2)-rb(2)
-         dz=ra(3)-rb(3)
-         rab2=dx*dx+dy*dy+dz*dz
-         !c          ints < 1.d-9 for RAB > 40 Bohr
-         if(rab2.gt.2000) cycle
-         !            write(*,*) 'j',jat,jatyp,ao_n(jatyp)
-         do ish=1,ao_n(iatyp)
-            ishtyp=ao_l(ish,iatyp)
-            icao=caoshell(ish,iat)+1
-            naoi=llao(ishtyp)
-!           write(*,*) 'i',iat,iatyp,ish,ishtyp,icao,naoi
-            iptyp=itt(ishtyp)
-            jshmax=ao_n(jatyp)
-            if(iat.eq.jat) jshmax=ish
-            !              jshells
-            do jsh=1,jshmax
-               jshtyp=ao_l(jsh,jatyp)
-               jcao=caoshell(jsh,jat)+1
-               naoj=llao(jshtyp)
-!              write(*,*) 'j',jat,jatyp,jsh,jshtyp,jcao,naoj
-               ! we go through the primitives (beacause the screening is the same for all of them)
-               ss=0.0_wp
-               do ip=1,nprim(icao)
-                  iprim=ip+primcount(icao)
-                  alpi=alp(iprim)          ! exponent the same for each l component
-                  do jp=1,nprim(jcao)
-                     jprim=jp+primcount(jcao)
-                     ab=1.0_wp/(alpi+alp(jprim))
-                     est=rab2*alpi*alp(jprim)*ab
-                     if(est.gt.thr2) cycle
-                     s00=(pi*ab)**1.50_wp*exp(-est)
-                     ! now compute overlap for different components of i(e.g., px,py,pz)
-                     do li=1,naoi
-!                       iprim=ip+primcount(icao+li-1)
-                        ci=cont(ip+primcount(icao+li-1))
-!                       print*,allocated(alp),jprim,alp(jprim)
-                        call sspd2(ra,rb,iptyp+li,jshtyp+1,alpi, &
-                           & alp(jprim),ab,s00,stmp)
-                        do lj=1,naoj
-!                          jprim=jp+primcount(jcao+lj-1)
-                           cc=cont(jp+primcount(jcao+lj-1))*ci
-                           ! fill CAO-CAO overlap matrix for ish-jsh pair
-                           ss(lj,li)=ss(lj,li)+stmp(lj)*cc
-                        enddo
-                     enddo
-                  enddo
-               enddo
-               !transform from CAO to SAO
-               call dtrf2(ss,ishtyp,jshtyp)
-               do ii=1,llao2(ishtyp)
-                  iao=ii+saoshell(ish,iat)
-                  do jj=1,llao2(jshtyp)
-                     jao=jj+saoshell(jsh,jat)
-                     s(jao,iao)=ss(jj,ii)
-                     s(iao,jao)=ss(jj,ii)
-                  enddo
-               enddo
-            enddo
-         enddo
-      enddo
-   enddo
-!$omp enddo
-!$omp end parallel
-end subroutine ovlp2
-
-
-
-
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-! calc. overlap integrals betweeen unormalized C
-! cartesian gaussians centered at xyza and     C
-! xyzb with alpha_a=alpi and beta_b=alpj C
-! est is r_AB^2*alpha*beta/(alpha+beta)        C
-! D is the result                              C
-! S,P,D only !!!!!!!!!!!!!!!!!!!               C
-! special task is to obtain all components of jC
-! e.g. i=s,j=d gives 6 overlap integrals       C
-! s.grimme, june 1998                          C
-! recursion formulas from Obara and Saika,     C
-! JCP 84 (1986) 3963                           C
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-
-pure subroutine sspd2(xyza,xyzb,iptyi,iptyj,alpi,alpj,ab,s00,d)
-   implicit none
-   real(wp),intent(in)  :: xyza(3)
-   real(wp),intent(in)  :: xyzb(3)
-   integer, intent(in)  :: iptyi
-   integer, intent(in)  :: iptyj
-   real(wp),intent(in)  :: alpi
-   real(wp),intent(in)  :: alpj
-   real(wp),intent(in)  :: ab
-   real(wp),intent(in)  :: s00
-   real(wp),intent(out) :: d(6)
-   real(wp) :: p(3),ps(3),dp(3)
-   real(wp) :: pip(3),pjp(3),deltapb(3)
-   integer,parameter :: ii(5:10) = (/1,2,3,1,1,2/)
-   integer,parameter :: jj(5:10) = (/1,2,3,2,3,3/)
-   real(wp) :: dum
-   real(wp) :: dp1
-   real(wp) :: dp2
-   real(wp) :: dp3
-   real(wp) :: sp1
-   real(wp) :: sp2
-   real(wp) :: sp3
-   real(wp) :: ab05
-   integer :: id
-   real(wp) :: xps
-   real(wp) :: sdxx
-   real(wp) :: sdyy
-   real(wp) :: sdzz
-   real(wp) :: sdxy
-   real(wp) :: sdxz
-   real(wp) :: sdyz
-   integer :: iii
-   integer :: jjj
-   integer :: kkk
-   integer :: lll
-   real(wp) :: fij
-   real(wp) :: ds
-   real(wp) :: fik
-   real(wp) :: fjk
-   integer :: m
-   real(wp) :: ab05ds
-
-   d=0
-
-   if(iptyi.eq.1) then
-      goto 100
-   elseif(iptyi.ge.2.and.iptyi.le.4) then
-      goto 200
-   elseif(iptyi.ge.5.and.iptyi.le.10) then
-      goto 200
-   else
-      return!stop 'programing error in sspd 1'
-   endif
-
-   !CCCCCCCCCCCCCCCCCCCCCCC
-   !     S  --- S,P,D     C
-   !CCCCCCCCCCCCCCCCCCCCCCC
-
-   100 select case(iptyj)
-   case(1)
-      ! s-s
-      d(1)=s00
-   case(2)
-      ! s-p
-      dum=alpi*ab*s00
-      d(1)=dum*(xyza(1)-xyzb(1))
-      d(2)=dum*(xyza(2)-xyzb(2))
-      d(3)=dum*(xyza(3)-xyzb(3))
-   case(3)
-      ! s-d
-      p(1)=ab*(alpi*xyza(1)+alpj*xyzb(1))
-      p(2)=ab*(alpi*xyza(2)+alpj*xyzb(2))
-      p(3)=ab*(alpi*xyza(3)+alpj*xyzb(3))
-      dum=0.5*ab*s00
-      dp1=p(1)-xyzb(1)
-      dp2=p(2)-xyzb(2)
-      dp3=p(3)-xyzb(3)
-      sp1 =s00*dp1
-      sp2 =s00*dp2
-      sp3 =s00*dp3
-      d(1)=    dp1       *sp1+dum
-      d(2)=    dp2       *sp2+dum
-      d(3)=    dp3       *sp3+dum
-      d(4)=    dp2       *sp1
-      d(5)=    dp3       *sp1
-      d(6)=    dp3       *sp2
-   end select
-   return
-
-   !CCCCCCCCCCCCCCCCCCCCCCC
-   !     P  --- S,P,D     C
-   !CCCCCCCCCCCCCCCCCCCCCCC
-
-   200 p(1)=ab*(alpi*xyza(1)+alpj*xyzb(1))
-   p(2)=ab*(alpi*xyza(2)+alpj*xyzb(2))
-   p(3)=ab*(alpi*xyza(3)+alpj*xyzb(3))
-   ab05=ab*0.5
-
-   id=iptyi-1
-   select case(iptyj)
-   case(1)
-      ! p-s
-      d(1)=(p(id)-xyza(id))*s00
-   case(2)
-      ! p-p
-      xps=(p(id)-xyza(id))*s00
-      d(1)=(p(1)-xyzb(1))*xps
-      d(2)=(p(2)-xyzb(2))*xps
-      d(3)=(p(3)-xyzb(3))*xps
-      d(id)=d(id)+ab05*s00
-   case(3)
-      ! p-d
-      dum=ab05*s00
-      dp1=p(1)-xyzb(1)
-      dp2=p(2)-xyzb(2)
-      dp3=p(3)-xyzb(3)
-      sp1=s00*dp1
-      sp2=s00*dp2
-      sp3=s00*dp3
-      sdxx=    dp1       *sp1+dum
-      sdyy=    dp2       *sp2+dum
-      sdzz=    dp3       *sp3+dum
-      sdxy=    dp2       *sp1
-      sdxz=    dp3       *sp1
-      sdyz=    dp3       *sp2
-   end select
-
-   select case(iptyi)
-   case(1)
-      return!stop 'programing error in sspd 2'
-   case(2)
-      dp1=p(1)-xyza(1)
-      d(1)=dp1*sdxx+  ab*sp1
-      d(2)=dp1*sdyy
-      d(3)=dp1*sdzz
-      d(4)=dp1*sdxy+ab05*sp2
-      d(5)=dp1*sdxz+ab05*sp3
-      d(6)=dp1*sdyz
-   case(3)
-      dp1=p(2)-xyza(2)
-      d(1)=dp1*sdxx
-      d(2)=dp1*sdyy+  ab*sp2
-      d(3)=dp1*sdzz
-      d(4)=dp1*sdxy+ab05*sp1
-      d(5)=dp1*sdxz
-      d(6)=dp1*sdyz+ab05*sp3
-   case(4)
-      dp1=p(3)-xyza(3)
-      d(1)=dp1*sdxx
-      d(2)=dp1*sdyy
-      d(3)=dp1*sdzz+  ab*sp3
-      d(4)=dp1*sdxy
-      d(5)=dp1*sdxz+ab05*sp1
-      d(6)=dp1*sdyz+ab05*sp2
-   end select
-   return
-
-   !CCCCCCCCCCCCCCCCCCCCCCC
-   !     D  --- S,P,D     C
-   !CCCCCCCCCCCCCCCCCCCCCCC
-
-   300 p(1)=ab*(alpi*xyza(1)+alpj*xyzb(1))
-   p(2)=ab*(alpi*xyza(2)+alpj*xyzb(2))
-   p(3)=ab*(alpi*xyza(3)+alpj*xyzb(3))
-   ab05=ab*0.5
-   iii=ii(iptyi)
-   jjj=jj(iptyi)
-
-   select case(iptyj)
-   case(1)
-      ! d-s
-      fij=0.0_wp
-      if(iii.eq.jjj) fij=ab05
-      d(1)=(p(jjj)-xyza(jjj))*(p(iii)-xyza(iii))*s00+fij*s00
-   case(2)
-      ! d-p
-      fij=0.0_wp
-      if(iii.eq.jjj) fij=ab05
-      ds=(p(jjj)-xyza(jjj))*(p(iii)-xyza(iii))*s00+fij*s00
-      ps(1)=(p(1)-xyza(1))*s00
-      ps(2)=(p(2)-xyza(2))*s00
-      ps(3)=(p(3)-xyza(3))*s00
-      do m=1,3
-         fik=0.0_wp
-         fjk=0.0_wp
-         if(iii.eq.m) fik=ab05
-         if(jjj.eq.m) fjk=ab05
-         d(m)=(p(m)-xyzb(m))*ds+fik*ps(jjj)+fjk*ps(iii)
-      enddo
-   case(3)
-      ! d-d
-      fij=0.0_wp
-      if(iii.eq.jjj) fij=ab05
-      ds=(p(jjj)-xyza(jjj))*(p(iii)-xyza(iii))*s00+fij*s00
-      ps(1)=(p(1)-xyza(1))*s00
-      ps(2)=(p(2)-xyza(2))*s00
-      ps(3)=(p(3)-xyza(3))*s00
-      deltapb(1)=(p(1)-xyzb(1))
-      deltapb(2)=(p(2)-xyzb(2))
-      deltapb(3)=(p(3)-xyzb(3))
-      do m=1,3
-         fik=0.0_wp
-         fjk=0.0_wp
-         if(iii.eq.m) fik=ab05
-         if(jjj.eq.m) fjk=ab05
-         dp(m)=deltapb(m)*ds+fik*ps(jjj)+fjk*ps(iii)
-      enddo
-      do m=1,3
-         pip(m)=deltapb(m)*ps(iii)
-         if(iii.eq.m) pip(m)=pip(m)+ab05*s00
-      enddo
-      if(iii.ne.jjj) then
-         do m=1,3
-            pjp(m)=deltapb(m)*ps(jjj)
-            if(jjj.eq.m) pjp(m)=pjp(m)+ab05*s00
-         enddo
-      else
-         pjp(1)=pip(1)
-         pjp(2)=pip(2)
-         pjp(3)=pip(3)
-      endif
-      ab05ds=ab05*ds
-      d(1)=deltapb(1)    *dp(1)+ab05ds
-      d(2)=deltapb(2)    *dp(2)+ab05ds
-      d(3)=deltapb(3)    *dp(3)+ab05ds
-      d(4)=deltapb(2)    *dp(1)
-      d(5)=deltapb(3)    *dp(1)
-      d(6)=deltapb(3)    *dp(2)
-      do m=1,6
-         kkk=ii(m+4)
-         lll=jj(m+4)
-         if(iii.eq.lll) d(m)=d(m)+ab05*pjp(kkk)
-         if(jjj.eq.lll) d(m)=d(m)+ab05*pip(kkk)
-      enddo
-   end select
-
-   return
-end subroutine sspd2
 
 
 ! check and print sparsity w.r.t. individual contribution
@@ -1489,17 +1118,17 @@ end subroutine mmomgabzero
 ! expo  : exponent scaling/ steepness  (parameter)
 ! rmax  : maximum radius               (parameter)
 ! radcn : CN-dependent radius
-subroutine get_radcn(n,at,cn,shift,expo,rmax,radcn)
-   use xtb_aoparam
+subroutine get_radcn(aesData,n,at,cn,shift,expo,rmax,radcn)
    implicit none
+   type(TMultipoleData), intent(in) :: aesData
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (out) :: radcn(n)
    real(wp) rco,t1,t2
    integer i,j
    do i=1,n
-      rco=radaes(at(i))             ! base radius of element
-      t1 =cn(i)-cnval(at(i))-shift  ! CN - VALCN - SHIFT
+      rco=aesData%multiRad(at(i))             ! base radius of element
+      t1 =cn(i)-aesData%valenceCN(at(i))-shift  ! CN - VALCN - SHIFT
       t2 =rco +(rmax-rco)/(1.0_wp+exp(-expo*t1))
       radcn(i)=t2
    enddo
@@ -1514,22 +1143,22 @@ end subroutine get_radcn
 ! rmax  : maximum radius               (parameter)
 ! dcn   : on input  : derivatives of CN(i) w.r.t. Cart. directions of j
 !       : on output : derivatives of RADCN(j) w.r.t. Cart. directions of i, so we flip indices!!!
-subroutine dradcn(n,at,cn,shift,expo,rmax,dcn)
-   use xtb_aoparam
+subroutine dradcn(aesData,n,at,cn,shift,expo,rmax,dcn)
    implicit none
+   type(TMultipoleData), intent(in) :: aesData
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (inout) :: dcn(3,n,n)
    real(wp) rco,t1,t2,t3,t4,tmp1,tmp2
    integer i,j,k
    do i=1,n
-      rco=radaes(at(i))             ! base radius of element
-      t1 =exp(-expo*(cn(i)-cnval(at(i))-shift))  ! CN - VALCN - SHIFT
+      rco=aesData%multiRad(at(i))             ! base radius of element
+      t1 =exp(-expo*(cn(i)-aesData%valenceCN(at(i))-shift))  ! CN - VALCN - SHIFT
       t2 =(rmax-rco)/(1.0_wp+2.0_wp*t1+t1*t1)
       t2 = t2*expo*t1
       do j=1,i
-         rco=radaes(at(j))             ! base radius of element
-         t3 =exp(-expo*(cn(j)-cnval(at(j))-shift))  ! CN - VALCN - SHIFT
+         rco=aesData%multiRad(at(j))             ! base radius of element
+         t3 =exp(-expo*(cn(j)-aesData%valenceCN(at(j))-shift))  ! CN - VALCN - SHIFT
          t4 =(rmax-rco)/(1.0_wp+2.0_wp*t3+t3*t3)
          t4 = t4*expo*t3
          do k=1,3
@@ -1556,8 +1185,8 @@ subroutine dzero(dex,rabinv,radi,radj,damp,ddamp)
    real(wp), intent (in)  :: rabinv,dex
    real(wp), intent (out) :: damp,ddamp
    real(wp) rco,f1,f2
-   !     rco=2.0/(1./radaes(ati)+1./radaes(atj))  ! unstable
-   !     rco=sqrt(radaes(ati)*radaes(atj))        ! unstable
+   !     rco=2.0/(1./aesData%multiRad(ati)+1./aesData%multiRad(atj))  ! unstable
+   !     rco=sqrt(aesData%multiRad(ati)*aesData%multiRad(atj))        ! unstable
    rco=0.5*(radi+radj)
    ! zero-damping function and gradient w.r.t. Rab
    damp=1.0_wp/(1.0_wp+6.0_wp*(rco*rabinv)**dex)
@@ -1592,385 +1221,6 @@ real(wp) function dgab(dex,rabinv,damp,ddamp)
 end function dgab
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-! this prints gnuplot scripts
-subroutine printspars(nat,at,nao,nmat,ndp,nqp,xyz,s,dpint,qpint)
-   use xtb_lin, only : lin
-   implicit none
-   integer, intent(in)    :: nao,nat,at(nat)
-   integer, intent(in) :: ndp,nqp,nmat
-   real(wp), intent(in)  ::  s(nao,nao),xyz(3,nat)
-   real(wp), intent(in)  :: dpint(3,nao*(nao+1)/2)
-   real(wp), intent(in)  :: qpint(6,nao*(nao+1)/2)
-
-   real(wp) tmp1,tmp2,tmp3,tmp4,imat
-   real(wp) dd1(3),dd2(3),qq1(6),qq2(6)
-   real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f
-   ! stuff for potential
-   real(wp)  rr(3),f1,f2,rco
-   real(wp), allocatable :: x(:)
-
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mq,md,mi,mj,ij
-   character(80) frmt
-
-   allocate(x(nao))
-   md=0
-   mq=0
-   x=0.0_wp
-   kk=0
-   imat=0
-
-   !!! print gnuplot script for matrix sparsity
-   frmt=''
-   write(frmt,'(a,i0,a)') '(,',nao,'(f0.8,x))'
-   mm=nao*(nao+1)/2
-   ! dipole pot
-   tmp4=100.0_wp*dble(ndp)/dble(mm)
-   open(unit=46,file='dipplot',status='replace')
-   write(46,'(a)',advance='no') 'set title "{/Symbol m}-int'
-   write(46,'(a)',advance='yes') 'matrix potential" font ",18"'
-   !      write(46,'(a,i0,a)') 'roportional potential (# of SAOs: ',nao,')"'
-   write(46,'(a)') 'unset key'
-   write(46,'(a)') 'set tic scale 0'
-   write(46,'(a)') ' '
-   write(46,'(a)') 'set size ratio 1'
-   write(46,'(a)') 'set palette model RGB'
-   write(46,'(a)') 'set palette defined (0 "white", 1 "blue")'
-   write(46,'(a)') 'set format cb "10^{%L}"'
-   write(46,'(a)') 'set cbrange [0.00000001:1]'
-   write(46,'(a)') 'set logscale cb'
-   write(46,'(a)') 'set cbtics offset 0.5'
-   write(46,'(a)',advance='no') 'set cblabel "{/Symbol \263}" offset'
-   write(46,'(a)',advance='yes') '-3.6,17.1 rotate by 0'
-   write(46,'(a)') ' '
-   write(46,'(a,i0,a)') 'set xrange [-0.5:',nao-1,'.5]'
-   write(46,'(a,i0,a)') 'set yrange [-0.5:',nao-1,'.5]'
-   write(46,'(a)') 'unset xtics'
-   write(46,'(a)') 'unset ytics'
-   write(46,'(a)',advance='no') 'set xlabel offset 0,2 "# of SAOs: '
-   write(46,'(i0,a,f5.1,a)') nao,', non-zero: ',tmp4,'%" font ",16"'
-   write(46,'(a)') 'unset ylabel'
-   write(46,'(a)') 'set terminal postscript enhanced eps size 5,5'
-   write(46,'(a)') 'set output "dipplot.eps"'
-   !      write(46,'(a)') 'set terminal pdf size 5,5'
-   !      write(46,'(a)') 'set output "dipplot.pdf"'
-   write(46,'(a)') ' '
-   write(46,'(a)') 'set view map'
-   write(46,'(a)') "splot '-' matrix with image"
-   do i=1,nao
-      do j=1,nao
-         k=lin(j,nao-i+1)
-         x(j)=dpint(1,k)*dpint(1,k)+dpint(2,k)*dpint(2,k) &
-            & +dpint(3,k)*dpint(3,k)
-         x(j)=sqrt(x(j))
-      enddo
-      write(46,frmt) x(1:nao)
-   enddo
-   write(46,'(a)') 'e'
-   write(46,'(a)') 'e'
-   close(46)
-   ! quadrupole pot
-   tmp4=100.0_wp*dble(nqp)/dble(mm)
-   open(unit=46,file='qplot',status='replace')
-   write(46,'(a)',advance='no') 'set title "{/Symbol q}-int'
-   write(46,'(a,i0,a)') ' matrix potential" font ",18"'
-   write(46,'(a)') 'unset key'
-   write(46,'(a)') 'set tic scale 0'
-   write(46,'(a)') ' '
-   write(46,'(a)') 'set size ratio 1'
-   write(46,'(a)') 'set palette model RGB'
-   write(46,'(a)') 'set palette defined (0 "white", 1 "blue")'
-   write(46,'(a)') 'set format cb "10^{%L}"'
-   write(46,'(a)') 'set cbrange [0.00000001:1]'
-   write(46,'(a)') 'set logscale cb'
-   write(46,'(a)') 'set cbtics offset 0.5'
-   write(46,'(a)',advance='no') 'set cblabel "{/Symbol \263}" offset'
-   write(46,'(a)',advance='yes') '-3.6,17.1 rotate by 0'
-   write(46,'(a)') ' '
-   write(46,'(a,i0,a)') 'set xrange [-0.5:',nao-1,'.5]'
-   write(46,'(a,i0,a)') 'set yrange [-0.5:',nao-1,'.5]'
-   write(46,'(a)') 'unset xtics'
-   write(46,'(a)') 'unset ytics'
-   write(46,'(a)',advance='no') 'set xlabel offset 0,2 "# of SAOs: '
-   write(46,'(i0,a,f5.1,a)') nao,', non-zero: ',tmp4,'%" font ",16"'
-   write(46,'(a)') 'unset ylabel'
-   !      write(46,'(a)') 'set terminal pdf size 5,5'
-   !      write(46,'(a)') 'set output "qplot.pdf"'
-   write(46,'(a)') 'set terminal postscript enhanced eps size 5,5'
-   write(46,'(a)') 'set output "qplot.eps"'
-   write(46,'(a)') ' '
-   write(46,'(a)') 'set view map'
-   write(46,'(a)') "splot '-' matrix with image"
-   do i=1,nao
-      do j=1,nao
-         k=lin(j,nao-i+1)
-         x(j)=qpint(1,k)*qpint(1,k)+qpint(2,k)*qpint(2,k) &
-            & +qpint(3,k)*qpint(3,k)+2.0_wp*qpint(4,k)*qpint(4,k) &
-            & +2.0_wp*qpint(5,k)*qpint(5,k)+2.0_wp*qpint(6,k)*qpint(6,k)
-         x(j)=sqrt(x(j))
-      enddo
-      write(46,frmt) x(1:nao)
-   enddo
-   write(46,'(a)') 'e'
-   write(46,'(a)') 'e'
-   close(46)
-   ! total
-   tmp4=100.0_wp*dble(nmat)/dble(mm)
-   open(unit=46,file='splot',status='replace')
-   write(46,'(a)',advance='no') 'set title "overlap matrix"'
-   write(46,'(a,i0,a)') ' font ",18"'
-   write(46,'(a)') 'unset key'
-   write(46,'(a)') 'set tic scale 0'
-   write(46,'(a)') ' '
-   write(46,'(a)') 'set size ratio 1'
-   write(46,'(a)') 'set palette model RGB'
-   write(46,'(a)') 'set palette defined (0 "white", 1 "blue")'
-   write(46,'(a)') 'set format cb "10^{%L}"'
-   write(46,'(a)') 'set cbrange [0.00000001:1]'
-   write(46,'(a)') 'set logscale cb'
-   write(46,'(a)') 'set cbtics offset 0.5'
-   write(46,'(a)',advance='no') 'set cblabel "{/Symbol \263}" offset'
-   write(46,'(a)',advance='yes') '-3.6,17.1 rotate by 0'
-   write(46,'(a)') ' '
-   write(46,'(a,i0,a)') 'set xrange [-0.5:',nao-1,'.5]'
-   write(46,'(a,i0,a)') 'set yrange [-0.5:',nao-1,'.5]'
-   write(46,'(a)') 'unset xtics'
-   write(46,'(a)') 'unset ytics'
-   write(46,'(a)',advance='no') 'set xlabel offset 0,2 "# of SAOs: '
-   write(46,'(i0,a,f5.1,a)') nao,', non-zero: ',tmp4,'%" font ",16"'
-   write(46,'(a)') 'unset ylabel'
-   !      write(46,'(a)') 'set terminal pdf size 5,5'
-   !      write(46,'(a)') 'set output "splot.pdf"'
-   write(46,'(a)') 'set terminal postscript enhanced eps size 5,5'
-   write(46,'(a)') 'set output "splot.eps"'
-   write(46,'(a)') ' '
-   write(46,'(a)') 'set view map'
-   write(46,'(a)') "splot '-' matrix with image"
-   do i=1,nao
-      write(46,frmt) abs(s(1:nao,nao-i+1))
-   enddo
-   write(46,'(a)') 'e'
-   write(46,'(a)') 'e'
-   close(46)
-
-
-   deallocate(x)
-end subroutine printspars
-
-
-
-! not used at the moment (maybe for GPUs?)
-! camm2: computes the CAMM directly from integrals (w/ density matrix as input)
-! thr         : integral cutoff according to prefactor from Gaussian product theorem
-! nat         : # of atoms
-! nao         : # of spherical AOs (SAOs)
-! nbf         : # of Cartesian AOs (CAOs)
-! at(nat)     : atomic numbers of atoms
-! xyz(3,nat)  : cartesian coordinates
-! caoshell    : map shell of atom to index in CAO space (lowest Cart. component is taken), dimension: (5,nat)
-! saoshell     : map shell of atom to index in SAO space (lowest m_l component is taken), dimension: (5,nat)
-! primcount   : index of first primitive (over entire system) of given CAO, dimension: nbf
-! p(nao,nao)  : density matrix
-subroutine camm2(thr,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,cont,p,q,dipm,qp)
-   use xtb_mctc_constants, only : pi
-   use xtb_aoparam
-   use xtb_intgrad, only : dtrf2
-   implicit none
-   integer, intent(in)  :: nat
-   integer, intent(in)  :: nao
-   integer, intent(in)  :: nbf
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: thr
-   real(wp),intent(in)  :: xyz(3,nat)
-   integer, intent(in)  :: caoshell(:,:)
-   integer, intent(in)  :: saoshell(:,:)
-   integer, intent(in)  :: nprim(:)
-   integer, intent(in)  :: primcount(:)
-   real(wp),intent(in)  :: alp(:)
-   real(wp),intent(in)  :: cont(:)
-   real(wp),intent(in)  :: p(nao,nao)
-   real(wp),intent(out) :: q(nat)
-   real(wp),intent(out) :: dipm(3,nat)
-   real(wp),intent(out) :: qp(6,nat)
-
-   real(wp) tmp1,tmp2,tmp3,tmp4,step,step2
-   real(wp) dx,dy,dz,s00r,s00l,s00,alpj
-   real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cc,cj,alpi,rab2,ab,est
-   real(wp), parameter :: bohr=1.0_wp/0.52917726_wp
-   real(wp)  ra(3),rb(3),f1,f2,point(3)
-   real(wp) ss(6,6),stmp(6)
-   real(wp) dtmp(3),qtmp(6),dd(3,6,6),qq(6,6,6)
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,km,mi,mj,ij,lin,jshmax
-   integer ip,jp,iat,jat,iatyp,jatyp,ish,jsh,icao,jcao,iao,jao,ixyz
-   integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
-   integer itt(0:3)
-   data itt  /0,1,4,10/
-
-   q=0.0_wp
-   dipm=0.0_wp
-   qp=0.0_wp
-   thr2=thr!*1.0d4-thr*1.0d-6
-   !      thr2=-1.0_wp ! conservative, keep all terms
-   point=0.0_wp
-
-   kj=0
-   mm=nbf*(nbf+1)/2
-   step=1.0d-4
-   step2=0.50_wp/step
-   do iat=1,nat
-      ra(1:3)=xyz(1:3,iat)
-      iatyp=at(iat)
-      do jat=1,iat
-         rb(1:3)=xyz(1:3,jat)
-         jatyp=at(jat)
-         dx=rb(1)-ra(1)
-         dy=rb(2)-ra(2)
-         dz=rb(3)-ra(3)
-         rab2=dx*dx+dy*dy+dz*dz
-         !c          ints < 1.d-9 for RAB > 40 Bohr
-         if(rab2.gt.2000) cycle
-         do ish=1,ao_n(iatyp)
-            ishtyp=ao_l(ish,iatyp)
-            icao=caoshell(ish,iat)
-            naoi=llao(ishtyp)
-            iptyp=itt(ishtyp)
-            jshmax=ao_n(jatyp)
-            if(iat.eq.jat) jshmax=ish
-            !              jshells
-            do jsh=1,jshmax
-               jshtyp=ao_l(jsh,jatyp)
-               jcao=caoshell(jsh,jat)
-               naoj=llao(jshtyp)
-               print*,naoj
-               jptyp=itt(jshtyp)
-               ! we go through the primitives (beacause the screening is the same for all of them)
-               ss=0.0_wp
-               dd=0.0_wp
-               qq=0.0_wp
-               do ip=1,nprim(icao+1)
-                  iprim=ip+primcount(icao+1)
-                  alpi=alp(iprim)          ! exponent the same for each l component
-                  do jp=1,nprim(jcao+1)
-                     jprim=jp+primcount(jcao+1)
-                     alpj=alp(jprim) ! exponent the same for each l component
-                     ab=1.0_wp/(alpi+alpj)
-                     est=rab2*alpi*alpj*ab
-                     if(est.gt.thr2) cycle
-                     s00=(pi*ab)**1.50_wp*exp(-est)
-                     ! now compute integrals  for different components of i(e.g., px,py,pz)
-                     do mli=1,naoi
-                        iprim=ip+primcount(icao+mli)
-                        ci=cont(iprim) ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
-                        call sspd2(ra,rb,iptyp+mli,jshtyp+1,alpi, &
-                           & alpj,ab,s00,stmp)
-                        do mlj=1,naoj
-                           jprim=jp+primcount(jcao+mlj)
-                           qtmp=0.0_wp
-                           dtmp=0.0_wp
-                           ! prim-prim qpole and dipole integrals
-                           call propa(opab4,ra,rb,point,alpi, &
-                              & alpj,iptyp+mli,jptyp+mlj,qtmp,6)
-                           call propa(opab1,ra,rb,point,alpi, &
-                              & alpj,iptyp+mli,jptyp+mlj,dtmp,3)
-
-                           cc=cont(jprim)*ci
-                           ! from primitive integrals fill CAO-CAO  matrix for ish-jsh block
-                           ss(mlj,mli)=ss(mlj,mli)+stmp(mlj)*cc
-                           ! dipole
-                           do k=1,3
-                              dd(k,mlj,mli)=dd(k,mlj,mli)-dtmp(k)*cc
-                           enddo
-                           ! quadrupole
-                           do k=1,6
-                              qq(k,mlj,mli)=qq(k,mlj,mli)-qtmp(k)*cc
-                           enddo
-                        enddo ! mlj : Cartesian component of j prims
-                     enddo    ! mli : Cartesian component of i prims
-                  enddo ! jp : loop over j prims
-               enddo    ! ip : loop over i prims
-
-               !transform from CAO to SAO
-               call dtrf2(ss,ishtyp,jshtyp)
-               do k=1,3
-                  call dtrf2(dd(k,:,:),ishtyp,jshtyp)
-               enddo
-               do k=1,6
-                  call dtrf2(qq(k,:,:),ishtyp,jshtyp)
-               enddo
-
-               !!! directly contract w/ density matrix to compute atomic moments,
-               !   w/o "shift terms" from lower moments (is done later atom-wise)
-
-               ! special diagonal block case
-               if(icao.eq.jcao) then
-                  do ii=1,llao2(ishtyp)
-                     iao=ii+saoshell(ish,iat)
-                     do jj=1,ii-1
-                        jao=jj+saoshell(jsh,jat)
-                        cc=2.0_wp*p(jao,iao)
-                        q(jat)=q(jat)-cc*ss(jj,ii)
-                        dipm(1:3,jat)=dipm(1:3,jat)-cc*dd(1:3,jj,ii)
-                        qp(1:6,jat)=qp(1:6,jat)-cc*qq(1:6,jj,ii)
-                     enddo
-                     cc=p(iao,iao)
-                     q(iat)=q(iat)-cc*ss(ii,ii)
-                     dipm(1:3,iat)=dipm(1:3,iat)-cc*dd(1:3,ii,ii)
-                     qp(1:6,iat)=qp(1:6,iat)-cc*qq(1:6,ii,ii)
-                  enddo
-               else
-                  ! off-diagonal blocks
-                  do ii=1,llao2(ishtyp)
-                     iao=ii+saoshell(ish,iat)
-                     do jj=1,llao2(jshtyp)
-                        jao=jj+saoshell(jsh,jat)
-                        cc=p(jao,iao)
-                        q(jat)=q(jat)-cc*ss(jj,ii)
-                        q(iat)=q(iat)-cc*ss(jj,ii)
-                        dipm(1:3,jat)=dipm(1:3,jat)-cc*dd(1:3,jj,ii)
-                        dipm(1:3,iat)=dipm(1:3,iat)-cc*dd(1:3,jj,ii)
-                        qp(1:6,jat)=qp(1:6,jat)-cc*qq(1:6,jj,ii)
-                        qp(1:6,iat)=qp(1:6,iat)-cc*qq(1:6,jj,ii)
-                     enddo
-                  enddo
-               endif ! off-diag/dig?
-
-            enddo ! jsh : loop over shells on jat
-         enddo    ! ish : loop over shells on iat
-      enddo ! jat
-   enddo    ! iat
-
-   ! now add "shift terms" from lower moments
-   do i=1,nat
-      dipm(1:3,i)=dipm(1:3,i)-xyz(1:3,i)*q(i)
-      do k=1,3
-         do l=1,k-1
-            kl=k+l+1 ! the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
-            qp(kl,i)=qp(kl,i)-xyz(k,i)*dipm(l,i)
-            qp(kl,i)=qp(kl,i)-xyz(l,i)*dipm(k,i)
-            qp(kl,i)=qp(kl,i)-xyz(k,i)*xyz(l,i)*q(i)
-         enddo
-         qp(k,i)=qp(k,i)-2.0_wp*xyz(k,i)*dipm(k,i)
-         qp(k,i)=qp(k,i)-xyz(k,i)*xyz(k,i)*q(i)
-      enddo
-      ! now resort quadrupole moments, scale, and remove trace
-      qtmp(1)=qp(1,i)
-      qtmp(2)=qp(4,i)
-      qtmp(3)=qp(2,i)
-      qtmp(4)=qp(5,i)
-      qtmp(5)=qp(6,i)
-      qtmp(6)=qp(3,i)
-      tmp1=qtmp(1)+qtmp(3)+qtmp(6)
-      tmp1=tmp1*0.50_wp
-      qtmp(1:6)=qtmp(1:6)*1.50_wp
-      qp(1,i)=qtmp(1)-tmp1
-      qp(2,i)=qtmp(2)
-      qp(3,i)=qtmp(3)-tmp1
-      qp(4,i)=qtmp(4)
-      qp(5,i)=qtmp(5)
-      qp(6,i)=qtmp(6)-tmp1
-   enddo
-end subroutine camm2
-
 
 subroutine gfn2broyden_diff(n,istart,nbr,dipm,qp,q_in,dq)
    implicit none
@@ -2052,11 +1302,12 @@ end subroutine gfn2broyden_out
 ! saoshell     : map shell of atom to index in SAO space (lowest m_l component is taken), dimension: (5,nat)
 ! primcount   : index of first primitive (over entire system) of given CAO, dimension: nbf
 ! p(nao,nao)  : density matrix
-subroutine ddqint(intcut,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,cont,p,vs,vd,vq,H,g)
+subroutine ddqint(nShell,hData,intcut,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,alp,cont,p,vs,vd,vq,H,g)
    use xtb_mctc_constants, only : pi
-   use xtb_aoparam
    use xtb_intgrad
    implicit none
+   integer, intent(in) :: nShell(:)
+   type(THamiltonianData), intent(in) :: hData
    integer, intent(in)    :: nat
    integer, intent(in)    :: nao
    integer, intent(in)    :: nbf
@@ -2075,11 +1326,6 @@ subroutine ddqint(intcut,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,al
    real(wp),intent(in)    :: cont(:)
    real(wp),intent(in)    :: p(nao,nao)
    real(wp),intent(inout) :: g(3,nat)
-
-   ! OMP
-   common /proc/ nproc
-   integer nproc
-   integer OMP_GET_THREAD_NUM
 
    integer itt(0:3)
    parameter (itt=(/0,1,4,10/))
@@ -2114,15 +1360,15 @@ subroutine ddqint(intcut,nat,nao,nbf,at,xyz,caoshell,saoshell,nprim,primcount,al
          rij2= sum( rij**2 )
          !           ints < 1.d-9 for RAB > 40 Bohr
          if (rij2.gt.2000) cycle
-         do ish=1,ao_n(iatyp)
-            ishtyp=ao_l(ish,iatyp)
+         do ish=1,nShell(iatyp)
+            ishtyp=hData%angShell(ish,iatyp)
             icao=caoshell(ish,iat)
             naoi=llao(ishtyp)
             iptyp=itt(ishtyp)
-            jshmax=ao_n(jatyp)
+            jshmax=nShell(jatyp)
             !              if(iat.eq.jat) jshmax=ish
             do jsh=1,jshmax ! jshells
-               jshtyp=ao_l(jsh,jatyp)
+               jshtyp=hData%angShell(jsh,jatyp)
                jcao=caoshell(jsh,jat)
                naoj=llao(jshtyp)
                jptyp=itt(jshtyp)
@@ -2245,12 +1491,13 @@ end subroutine get_grad_multiint
 ! caoshell    : map shell of atom to index in CAO space (lowest Cart. component is taken), dimension: (5,nat)
 ! saoshell     : map shell of atom to index in SAO space (lowest m_l component is taken), dimension: (5,nat)
 ! primcount   : index of first primitive (over entire system) of given CAO, dimension: nbf
-subroutine dsint(thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,nprim,primcount, &
+subroutine dsint(nShell,hData,thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,nprim,primcount, &
       &          alp,cont,H,g)
    use xtb_mctc_constants, only : pi
-   use xtb_aoparam
    use xtb_intgrad
    implicit none
+   integer, intent(in) :: nShell(:)
+   type(THamiltonianData), intent(in) :: hData
    real(wp),intent(in)    :: thr
    integer, intent(in)    :: nat
    integer, intent(in)    :: nao
@@ -2266,11 +1513,6 @@ subroutine dsint(thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,nprim,primcount,
    real(wp),intent(in)    :: cont(:)
    real(wp),intent(in)    :: H(nao,nao)
    real(wp),intent(inout) :: g(3,nat)
-
-   ! OMP
-   common /proc/ nproc
-   integer nproc
-   integer OMP_GET_THREAD_NUM
 
    integer itt(0:3)
    parameter (itt=(/0,1,4,10/))
@@ -2302,15 +1544,15 @@ subroutine dsint(thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,nprim,primcount,
          rab2= sum( r**2 )
          !           ints < 1.d-9 for RAB > 40 Bohr
          if (rab2.gt.2000) cycle
-         do ish=1,ao_n(iatyp)
-            ishtyp=ao_l(ish,iatyp)
+         do ish=1,nShell(iatyp)
+            ishtyp=hData%angShell(ish,iatyp)
             icao=caoshell(ish,iat)
             naoi=llao(ishtyp)
             iptyp=itt(ishtyp)
-            jshmax=ao_n(jatyp)
+            jshmax=nShell(jatyp)
             !              if(iat.eq.jat) jshmax=ish
             do jsh=1,jshmax ! jshells
-               jshtyp=ao_l(jsh,jatyp)
+               jshtyp=hData%angShell(jsh,jatyp)
                jcao=caoshell(jsh,jat)
                naoj=llao(jshtyp)
                jptyp=itt(jshtyp)

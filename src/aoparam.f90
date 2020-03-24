@@ -20,14 +20,13 @@ module xtb_aoparam
    use xtb_mctc_convert
    use xtb_mctc_param, only: pauling_en, covalent_radius_2010, chemical_hardness, &
       &                  covalent_radius_d3
+   use xtb_type_param, only : TxTBParameter
    implicit none
    private
 
-   public :: use_parameterset
-
-   integer, parameter :: max_elem = 118
-   integer, parameter :: max_sh = 10
-   type :: tb_parameter
+   integer, public, parameter :: max_elem = 118
+   integer, public, parameter :: max_sh = 10
+   type, public :: tb_parameter
       real(wp) :: en = 1.50_wp
       real(wp) :: mc = 0.0_wp
       real(wp) :: rad = 0.0_wp
@@ -72,6 +71,8 @@ module xtb_aoparam
    real(wp), public :: rep(2,max_elem)
    real(wp), public :: polyr(4,max_elem)
    real(wp), public :: cxb(max_elem)
+   real(wp), public :: eeqkcn(max_elem)
+   real(wp), public :: kqat2(max_elem)
    real(wp), public :: ao_exp(10,max_elem)
    real(wp), public :: ao_lev(10,max_elem)
    real(wp), public :: lpar(0:2,max_elem)
@@ -79,6 +80,7 @@ module xtb_aoparam
    real(wp), public :: kcnat(0:2,max_elem)
    real(wp), public :: kqat(3,max_elem)
    real(wp), public :: radaes(max_elem) = covalent_radius_d3
+   real(wp), public :: eeqEN(max_elem)
    real(wp), public :: dpolc(max_elem)
    real(wp), public :: qpolc(max_elem)
    integer, public  :: ao_pqn(10,max_elem)
@@ -113,27 +115,5 @@ module xtb_aoparam
 
 contains
 
-subroutine use_parameterset(name,globpar,exist)
-   implicit none
-   character(len=*),intent(in) :: name
-   logical,intent(out)  :: exist
-   real(wp),intent(out) :: globpar(25)
-   exist = .false.
-   select case(name)
-   case('.param_gfn.xtb')
-      call copy_gfn1_parameterset(globpar)
-   case('.param_ipea.xtb')
-      call copy_ipea_parameterset(globpar)
-   case('.param_gfn2.xtb')
-      call copy_gfn2_parameterset(globpar)
-   case default
-      return
-   end select
-   exist = .true.
-contains
-include 'paramcopy_gfn1.inc'
-include 'paramcopy_ipea.inc'
-include 'paramcopy_gfn2.inc'
-end subroutine use_parameterset
 
 end module xtb_aoparam
