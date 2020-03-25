@@ -18,6 +18,7 @@
 module xtb_paramset
    use xtb_mctc_accuracy, only : wp
    use xtb_xtb_data
+   use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
    use xtb_type_param
@@ -170,6 +171,10 @@ subroutine use_parameterset(name,globpar,xtbData,exist)
    type(TxTBData), intent(out) :: xtbData
    exist = .false.
    select case(name)
+   case('.param_gfn0.xtb')
+      return
+      globpar = gfn0Globals
+      call initGFN0(xtbData)
    case('.param_gfn.xtb')
       globpar = gfn1Globals
       call initGFN1(xtbData)

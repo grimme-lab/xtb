@@ -156,26 +156,20 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    real(wp) :: x1,x2,ed,intcut,neglect,ga,gb,ehb,h0s,hmat,rab2
    real(wp) :: h0sr,scfconv,rmsq,dum2,drfdxyz(3),yy,tex,rav,tab,ljexp
    real(wp) :: ees,xa,xb,ya,yb,za,zb,repab,jmpol,kdampxb,vvxb,exb
-   real(wp) :: w2,xj,gi,gj,rexp,eatoms,kexp,neglect2,gnorm
+   real(wp) :: w2,xj,gi,gj,eatoms,neglect2,gnorm
    real(wp) :: w0,w1,damp,damp0,gtmp(3),exc
-   real(wp) :: d3atm,esave
-   real(wp) :: eaes,t6,t7,pi,epol,aot,kexpe
+   real(wp) :: esave
+   real(wp) :: eaes,t6,t7,pi,epol,kexpe
    parameter (pi =  3.14159265358979_wp)
 
 !  some parameter defaults which are not fitted
-   data kexp /1.50_wp/ ! rep exp for exp(-R**kexp)
-   data rexp /1.00_wp/ ! rep exp in 1/R**rexp
-   data d3atm/0.00_wp/ ! ATM scal, zero in GFN1
    data ljexp/12.0_wp/ ! XB parameter for damped LJ in GFN1
-   data aot  /-0.5_wp/ ! AO exponent dep. H0 scal
 
    integer :: ich ! file handle
    integer :: npr,ii,jj,kk,i,j,k,m,iat,jat,mi,jter,atj,kkk,mj,mm
    integer :: ishell,jshell,np,ia,ndimv,l,nmat,nmat2
-   integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag,lladr(4)
-   integer :: is,js,lladr2(0:3)
-   data    lladr  /1,3,6,10/
-   data    lladr2 /1,3,5,7/
+   integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag
+   integer :: is,js
 
    character(len=128) :: atmp,ftmp
    logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
@@ -566,7 +560,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    ! this is the classical part of the energy/gradient
    ! dispersion/XB/repulsion for GFN1-xTB
    ! only repulsion for GFN2-xTB
-   call cls_grad(mol,sqrab,xtbData,param,rexp,kexp,nxb,ljexp,xblist, &
+   call cls_grad(mol,xtbData,param,nxb,ljexp,xblist, &
       &          ed,exb,ep,g,prlevel)
 
    if (profile) call timer%measure(6)
@@ -1002,11 +996,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 end subroutine scf_grad
 
-subroutine cls_grad(mol,sqrab,xtbData, &
-      &             param,rexp,kexp, &
-      &             nxb,ljexp,xblist, &
-      &             ed,exb,ep, &
-      &             g,printlvl)
+subroutine cls_grad(mol,xtbData,param,nxb,ljexp,xblist,ed,exb,ep,g,printlvl)
 
 ! ========================================================================
 !  type definitions
@@ -1026,7 +1016,6 @@ subroutine cls_grad(mol,sqrab,xtbData, &
    type(TMolecule), intent(in) :: mol
    type(scc_parameter),  intent(in) :: param
    type(TxTBData), intent(in) :: xtbData
-   real(wp),intent(in)    :: sqrab(:)
    real(wp),intent(inout) :: g(:,:)
    real(wp),intent(inout) :: ed
    integer, intent(in)    :: nxb
@@ -1034,8 +1023,6 @@ subroutine cls_grad(mol,sqrab,xtbData, &
    real(wp),intent(in)    :: ljexp
    real(wp),intent(inout) :: exb
    real(wp),intent(inout) :: ep
-   real(wp),intent(inout) :: rexp
-   real(wp),intent(inout) :: kexp
    integer, intent(in)    :: printlvl
    real(wp) :: sigma(3,3)
 
@@ -1063,18 +1050,13 @@ subroutine cls_grad(mol,sqrab,xtbData, &
 !  print'("Calculating xbond gradient")'
    exb=0.0_wp
    if (allocated(xtbData%halogen)) then
-      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,sqrab,xblist,nxb,&
+      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,xblist,nxb,&
          & ljexp,exb,g)
    end if
 
 !  print'("Calculating shell es and repulsion gradient")'
    ep = 0.0_wp
    call repulsionEnGrad(mol, xtbData%repulsion, ep, g, sigma)
-!   if(gfn_method.eq.1)then
-!      call rep_grad_gfn1(g,ep,mol%n,mol%at,mol%xyz,sqrab,kexp,rexp)
-!   else ! GFN2
-!      call rep_grad_gfn2(g,ep,mol%n,mol%at,mol%xyz,sqrab,rexp)
-!   endif
 
 end subroutine cls_grad
 

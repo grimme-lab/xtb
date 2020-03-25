@@ -721,7 +721,7 @@ subroutine setGFN1PairParam(pairParam)
    real(wp), allocatable :: pairParam(:, :)
 
    integer :: iZp, jZp, iTr, jTr
-   real(wp), parameter :: kp(2) = [1.1_wp, 1.2_wp]
+   real(wp), parameter :: kp(3) = [1.1_wp, 1.2_wp, 1.2_wp]
 
    pairParam(:, :) = 1.0_wp
 
@@ -732,9 +732,9 @@ subroutine setGFN1PairParam(pairParam)
          if (iTr > 0 .and. jTr > 0) then
             pairParam(iZp, jZp) = 0.5_wp*(kp(iTr)+kp(jTr))
             pairParam(jZp, iZp) = 0.5_wp*(kp(iTr)+kp(jTr))
-         endif
-      enddo
-   enddo
+         end if
+      end do
+   end do
 
 contains
 
@@ -744,8 +744,10 @@ elemental function dBlockRow(zp) result(tr)
 
    if (zp > 20 .and. zp < 30) then
       tr = 1
-   else if (zp > 38 .and. zp < 48 .or. zp > 56 .and. zp < 80) then
+   else if (zp > 38 .and. zp < 48) then
       tr = 2
+   else if (zp > 56 .and. zp < 80) then
+      tr = 3
    else
       tr = 0
    end if

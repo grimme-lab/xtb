@@ -30,7 +30,7 @@ module xtb_xtb_halogen
 contains
 
 
-subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,a,exb,g)
+subroutine xbpot(halData,n,at,xyz,xblist,nxb,a,exb,g)
    type(THalogenData), intent(in) :: halData
    integer, intent(in) :: n
    integer, intent(in) :: at(:)
@@ -38,7 +38,6 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,a,exb,g)
    integer, intent(in) :: xblist(:,:)
    real(wp), intent(in) :: xyz(:,:)
    real(wp), intent(inout) :: g(:,:)
-   real(wp), intent(in) :: sqrab(:)
    real(wp), intent(inout) :: exb
    real(wp), intent(in) :: a
 
@@ -62,9 +61,12 @@ subroutine xbpot(halData,n,at,xyz,sqrab,xblist,nxb,a,exb,g)
       atj=at(AA)
       cc=halData%bondStrength(ati)
       r0ax=halData%radScale*(halData%atomicRad(ati)+halData%atomicRad(atj))
-      d2ax=sqrab(lin(AA,X))
-      d2ab=sqrab(lin(AA,B))
-      d2bx=sqrab(lin(X, B))
+      dxa=xyz(:,AA)-xyz(:,X)   ! acceptor - halogen
+      dxb=xyz(:, B)-xyz(:,X)   ! neighbor - halogen
+      dba=xyz(:,AA)-xyz(:, B)  ! acceptor - neighbor
+      d2ax=sum(dxa*dxa)
+      d2bx=sum(dxb*dxb)
+      d2ab=sum(dba*dba)
       rax=sqrt(d2ax)
       ! angle part. term = cos angle B-X-A
       XY = SQRT(D2BX*D2AX)
