@@ -20,7 +20,7 @@ module xtb_xtb_gfn2
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
-   use xtb_type_param, only : TxTBParameter
+   use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
    implicit none
    private
@@ -32,6 +32,7 @@ module xtb_xtb_gfn2
    interface initGFN2
       module procedure :: initData
       module procedure :: initRepulsion
+      module procedure :: initDispersion
       module procedure :: initCoulomb
       module procedure :: initMultipole
       module procedure :: initHamiltonian
@@ -39,27 +40,25 @@ module xtb_xtb_gfn2
 
 
    type(TxTBParameter), parameter :: gfn2Globals = TxTBParameter( &
-      kshell = [1.85_wp, 2.23_wp, 2.23_wp, 2.0_wp], &
-      enshell = 2.000000000000000_wp, &
+      kshell = [1.85_wp, 2.23_wp, 2.23_wp, 2.23_wp], &
+      enshell = 2.0_wp, &
       ksd = 2.0_wp, &
       kpd = 2.0_wp, &
       kdiff = 2.0_wp, &
-      kdiffa =  .000000000000000_wp, &
-      kdiffb =  2.000000000000000_wp, &
-      ipeashift = 1.780690000000000_wp, &
+      ipeashift = 1.78069_wp, &
       zcnf =    .5000000000000000_wp, &
       tscal =   .2500000000000000_wp, &
       kcn =     .2500000000000000_wp, &
       ken =     -2.000000000000000_wp, &
-      aesshift =1.200000000000000_wp, &
-      aesexp =  4.000000000000000_wp, &
-      aesrmax = 5.000000000000000_wp, &
-      dispa =   .5200000000000000_wp, &
-      dispb =   5.000000000000000_wp, &
-      dispc =   2.700000000000000_wp, &
-      dispatm = 5.000000000000000_wp, &
-      aesdmp3 = 3.000000000000000_wp, &
-      aesdmp5 = 4.000000000000000_wp )
+      aesshift =1.2_wp, &
+      aesexp =  4.0_wp, &
+      aesrmax = 5.0_wp, &
+      alphaj = 2.0_wp, &
+      aesdmp3 = 3.0_wp, &
+      aesdmp5 = 4.0_wp )
+
+   type(dftd_parameter) :: gfn2Disp = dftd_parameter(&
+      s6=1.0_wp, s8=2.7_wp, a1=0.52_wp, a2=5.0_wp, s9=5.0_wp)
 
 
    !> Maximum number of elements supported by GFN2-xTB
@@ -718,6 +717,7 @@ subroutine initData(self)
    self%nShell = nShell(:maxElem)
 
    call initGFN2(self%repulsion)
+   call initGFN2(self%dispersion)
    call initGFN2(self%coulomb, self%nShell)
    allocate(self%multipole)
    call initGFN2(self%multipole)
@@ -736,6 +736,19 @@ subroutine initRepulsion(self)
 end subroutine initRepulsion
 
 
+subroutine initDispersion(self)
+
+   !> Data instance
+   type(TDispersionData), intent(out) :: self
+
+   self%dpar = gfn2Disp
+   self%g_a = 3.0_wp
+   self%g_c = 2.0_wp
+   self%wf  = 6.0_wp
+
+end subroutine initDispersion
+
+
 subroutine initCoulomb(self, nShell)
 
    !> Data instance
@@ -744,6 +757,7 @@ subroutine initCoulomb(self, nShell)
    !> Number of shells
    integer, intent(in) :: nShell(:)
 
+   self%gExp = gfn2Globals%alphaj
    self%chemicalHardness = chemicalHardness
    self%thirdOrderAtom = thirdOrderAtom
    self%shellHardness = shellHardness

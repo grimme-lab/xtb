@@ -20,7 +20,7 @@ module xtb_xtb_gfn1
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
-   use xtb_type_param, only : TxTBParameter
+   use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
    implicit none
    private
@@ -33,6 +33,7 @@ module xtb_xtb_gfn1
    interface initGFN1
       module procedure :: initData
       module procedure :: initRepulsion
+      module procedure :: initDispersion
       module procedure :: initCoulomb
       module procedure :: initHamiltonian
       module procedure :: initHalogen
@@ -43,31 +44,18 @@ module xtb_xtb_gfn1
       & shape(cnshell))
 
    type(TxTBParameter), parameter :: gfn1Globals = TxTBParameter( &
-      kshell = [1.85_wp, 2.25_wp, 2.0_wp, 0.0_wp], &
+      kshell = [1.85_wp, 2.25_wp, 2.0_wp, 2.0_wp], &
       enshell = -0.7_wp, &
       ksp = 2.08_wp, &
       kdiff = 2.85_wp, &
-      kdiffa =  2.080000000000000_wp, &
-      kdiffb =  2.850000000000000_wp, &
       cnshell = cnshell, &
-      ipeashift = 1.780690000000000_wp, &
-      zcnf =    0.000000000000000_wp, &
-      tscal =   0.000000000000000_wp, &
-      kcn =     0.6000000000000001_wp, &
-      fpol =    -0.3000000000000000_wp, &
-      ken =     -0.5000000000000000_wp, &
-      lshift =  0.000000000000000_wp, &
-      lshifta = 0.000000000000000_wp, &
-      split =   0.000000000000000_wp, &
-      zqf =     0.000000000000000_wp, &
-      alphaj =  2.000000000000000_wp, &
-      kexpo =   1.500000000000000_wp, &
-      dispa =   0.6300000000000000_wp, &
-      dispb =   5.000000000000000_wp, &
-      dispc =   2.400000000000000_wp, &
-      dispatm = 0.7000000000000001_wp, &
-      xbdamp =  0.4400000000000001_wp, &
-      xbrad =   1.300000000000000_wp )
+      ipeashift = 1.78069_wp, &
+      alphaj =  2.0_wp, &
+      xbdamp =  0.44_wp, &
+      xbrad =   1.3_wp)
+
+   type(dftd_parameter) :: gfn1Disp = dftd_parameter(&
+      s6=1.0_wp, s8=2.4_wp, a1=0.63_wp, a2=5.0_wp, s9=0.0_wp)
 
 
    !> Maximum number of elements supported by GFN1-xTB
@@ -577,6 +565,7 @@ subroutine initData(self)
    self%nShell = nShell(:maxElem)
 
    call initGFN1(self%repulsion)
+   call initGFN1(self%dispersion)
    call initGFN1(self%coulomb, self%nShell)
    call initGFN1(self%hamiltonian, self%nShell)
    allocate(self%halogen)
@@ -595,6 +584,19 @@ subroutine initRepulsion(self)
 end subroutine initRepulsion
 
 
+subroutine initDispersion(self)
+
+   !> Data instance
+   type(TDispersionData), intent(out) :: self
+
+   self%dpar = gfn1Disp
+   self%g_a = 0.0_wp
+   self%g_c = 0.0_wp
+   self%wf  = 4.0_wp
+
+end subroutine initDispersion
+
+
 subroutine initCoulomb(self, nShell)
 
    !> Data instance
@@ -603,6 +605,7 @@ subroutine initCoulomb(self, nShell)
    !> Number of shells
    integer, intent(in) :: nShell(:)
 
+   self%gExp = gfn1Globals%alphaj
    self%chemicalHardness = chemicalHardness
    self%thirdOrderAtom = thirdOrderAtom
    self%shellHardness = shellHardness(0:2, :maxElem)

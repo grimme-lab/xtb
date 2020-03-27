@@ -32,16 +32,6 @@ subroutine set_gfn1_parameter(xpar,globpar,xtbData)
    type(TxTBParameter), intent(in) :: globpar
    type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
-   xpar%kcnsh(1) =globpar%kcn*0.01_wp
-   xpar%kcnsh(2) =globpar%fpol*0.01_wp
-   xpar%kcnsh(3) =globpar%ken*0.01_wp
-   xpar%kcnsh(4) = 0.005_wp
-   xpar%disp%s9  =0.0_wp! d3atm
-   xpar%alphaj   =globpar%alphaj
-   xpar%disp%a1  =globpar%dispa
-   xpar%disp%a2  =globpar%dispb
-   xpar%disp%s6  =1.0_wp
-   xpar%disp%s8  =globpar%dispc
    xpar%ipshift  =globpar%ipeashift*0.1
    xpar%eashift  =xpar%ipshift
    if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
@@ -65,11 +55,6 @@ subroutine set_gfn2_parameter(xpar,globpar,xtbData)
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
-   xpar%disp%a1  =globpar%dispa
-   xpar%disp%a2  =globpar%dispb
-   xpar%disp%s6  =1.0_wp
-   xpar%disp%s8  =globpar%dispc
-   xpar%disp%s9  =globpar%dispatm ! d3atm
    xpar%ipshift  =globpar%ipeashift*0.1
    xpar%eashift  =xpar%ipshift
    call d4init(xpar%g_a,xpar%g_c,p_refq_gfn2xtb)
@@ -86,21 +71,9 @@ subroutine set_gfn0_parameter(xpar,globpar,xtbData)
    type(TxTBParameter), intent(in) :: globpar
    type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
-
-   xpar%kcnsh(1) =globpar%zqf         ! K 2s - 2s
-   xpar%kcnsh(2) =globpar%zcnf         ! SRB shift
-   xpar%kcnsh(3) =globpar%tscal         ! SRB prefactor
-   xpar%kcnsh(4) =globpar%kcn         ! SRB steepnes
-   xpar%gscal    =globpar%fpol         ! EN dep
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
-   xpar%alphaj   =globpar%alphaj
-   xpar%disp%a1  =globpar%dispa
-   xpar%disp%a2  =globpar%dispb
-   xpar%disp%s6  =1.0_wp
-   xpar%disp%s9  =0.0_wp
-   xpar%disp%s8  =globpar%dispc
    xpar%ipshift  =globpar%ipeashift*0.1
    xpar%eashift  =xpar%ipshift
    call d4init(xpar%g_a,xpar%g_c,p_refq_goedecker)

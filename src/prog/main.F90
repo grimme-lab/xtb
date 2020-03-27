@@ -520,7 +520,7 @@ subroutine xtbMain(env, argParser)
       call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
    endif
    if (guess_charges.eq.p_guess_gasteiger) then
-      call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,calc%param%ken1,wfn%q,cn,gfn_method,.true.)
+      call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
    else if (guess_charges.eq.p_guess_goedecker) then
       call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
       call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&

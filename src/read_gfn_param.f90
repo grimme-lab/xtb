@@ -77,6 +77,7 @@ subroutine readParam &
    real(wp) :: eeqEN(max_elem)
    real(wp) :: kExpLight
    character(len=30) :: timestp(max_elem)
+   type(dftd_parameter) :: disp
 
    character(len=:), allocatable :: line
 
@@ -85,33 +86,32 @@ subroutine readParam &
    integer :: err
    logical :: newFormat
 
-   if (initialize) then
-      globpar = TxTBParameter()
+   disp = dftd_parameter(s6=1.0_wp, s8=0.0_wp, a1=0.0_wp, a2=0.0_wp, s9=0.0_wp)
+   globpar = TxTBParameter()
 
-      principalQuantumNumber=0
-      angShell  =0
-      nShell  =0
-      selfEnergy=0.0_wp
-      slaterExponent=0.0_wp
-      shellPoly =0.0_wp
-      halogenBond = 0.0_wp
-      atomicHardness = chemical_hardness(:max_elem)
-      shellHardness  =0.0_wp
-      thirdOrderAtom  =0.0_wp
-      kqat2 =0.0_wp
-      eeqkcn=0.0_wp
-      eeqen =0.0_wp
-      kcnat =0.0_wp
+   principalQuantumNumber=0
+   angShell  =0
+   nShell  =0
+   selfEnergy=0.0_wp
+   slaterExponent=0.0_wp
+   shellPoly =0.0_wp
+   halogenBond = 0.0_wp
+   atomicHardness = chemical_hardness(:max_elem)
+   shellHardness  =0.0_wp
+   thirdOrderAtom  =0.0_wp
+   kqat2 =0.0_wp
+   eeqkcn=0.0_wp
+   eeqen =0.0_wp
+   kcnat =0.0_wp
 
-      electronegativity = paulingEN(:max_elem)
-      repAlpha = 0.0_wp
-      repZeff = 0.0_wp
+   electronegativity = paulingEN(:max_elem)
+   repAlpha = 0.0_wp
+   repZeff = 0.0_wp
 
-      dipKernel = 0.0_wp ! read values are scaled by 0.01
-      quadKernel = 0.0_wp !  "     "     "    "    "   "
+   dipKernel = 0.0_wp ! read values are scaled by 0.01
+   quadKernel = 0.0_wp !  "     "     "    "    "   "
 
-      kpair =1.0_wp
-   endif
+   kpair =1.0_wp
 
    kExpLight = 0.0_wp
    version = -1
@@ -169,12 +169,19 @@ subroutine readParam &
       & repAlpha, repZeff, electronegativity)
 
    ! Coulomb
+   xtbData%coulomb%gExp = globpar%alphaj
    xtbData%coulomb%chemicalHardness = atomicHardness(:max_elem)
    xtbData%coulomb%shellHardness = shellHardness(:, :max_elem)
    xtbData%coulomb%thirdOrderAtom = thirdOrderAtom(:max_elem)
    xtbData%coulomb%electronegativity = eeqEN(:max_elem)
    xtbData%coulomb%kCN = eeqkCN(:max_elem)
    xtbData%coulomb%chargeWidth = chargeWidth(:max_elem)
+
+   ! Dispersion
+   xtbData%dispersion%dpar = disp
+   xtbData%dispersion%g_a = 3.0_wp
+   xtbData%dispersion%g_c = 2.0_wp
+   xtbData%dispersion%wf  = 6.0_wp
 
    ! Hamiltonian
    mShell = maxval(xtbData%nShell)
@@ -231,6 +238,12 @@ subroutine readParam &
 
       allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
       call setGFN0NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
+
+      allocate(xtbData%srb)
+      xtbData%srb%shift = globpar%srbshift
+      xtbData%srb%prefactor = globpar%srbpre
+      xtbData%srb%steepness = globpar%srbexp
+      xtbData%srb%enScale = globpar%srbken
 
    case(1)
       ! Halogen
@@ -335,6 +348,10 @@ subroutine gfn_globpar(key,val,globpar)
    case('gam3f'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 3) = ddum
    case('gam3dpol'); if (getValue(env,val,ddum)) globpar%gam3shell(1, 2) = ddum
    case('gam3dval'); if (getValue(env,val,ddum)) globpar%gam3shell(2, 2) = ddum
+   case('srbshift'); if (getValue(env,val,ddum)) globpar%srbshift = ddum
+   case('srbpre'); if (getValue(env,val,ddum)) globpar%srbpre = ddum
+   case('srbexp'); if (getValue(env,val,ddum)) globpar%srbexp = ddum
+   case('srbken'); if (getValue(env,val,ddum)) globpar%srbken = ddum
    case('wllscal'); if (getValue(env,val,ddum)) globpar%wllscal = ddum
    case('ipeashift'); if (getValue(env,val,ddum)) globpar%ipeashift = ddum
    case('gscal'); if (getValue(env,val,ddum)) globpar%gscal = ddum
@@ -353,6 +370,11 @@ subroutine gfn_globpar(key,val,globpar)
    case('dispb'); if (getValue(env,val,ddum)) globpar%dispb = ddum
    case('dispc'); if (getValue(env,val,ddum)) globpar%dispc = ddum
    case('dispatm'); if (getValue(env,val,ddum)) globpar%dispatm = ddum
+   case('a1'); if (getValue(env,val,ddum)) disp%a1 = ddum
+   case('a2'); if (getValue(env,val,ddum)) disp%a2 = ddum
+   case('s6'); if (getValue(env,val,ddum)) disp%s6 = ddum
+   case('s8'); if (getValue(env,val,ddum)) disp%s8 = ddum
+   case('s9'); if (getValue(env,val,ddum)) disp%s9 = ddum
    case('xbdamp'); if (getValue(env,val,ddum)) globpar%xbdamp = ddum
    case('xbrad'); if (getValue(env,val,ddum)) globpar%xbrad = ddum
    case('aesdmp3'); if (getValue(env,val,ddum)) globpar%aesdmp3 = ddum

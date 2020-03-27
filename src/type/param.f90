@@ -38,6 +38,10 @@ module xtb_type_param
       real(wp) :: enscale4 = 0.0_wp
       real(wp) :: cnshell(2, 0:3) = 0.0_wp
       real(wp) :: gam3shell(2, 0:3) = 0.0_wp
+      real(wp) :: srbshift = 0.0_wp
+      real(wp) :: srbpre = 0.0_wp
+      real(wp) :: srbexp = 0.0_wp
+      real(wp) :: srbken = 0.0_wp
       real(wp) :: wllscal = 0.0_wp
       real(wp) :: gscal = 0.0_wp
       real(wp) :: zcnf = 0.0_wp
@@ -79,24 +83,9 @@ module xtb_type_param
    end type dftd_parameter
 
    type :: scc_parameter
-      real(wp) :: gscal
       real(wp) :: gam3l(0:3)
-      real(wp) :: kcnsh(4)
-      type(dftd_parameter) :: disp
       real(wp) :: ipshift
       real(wp) :: eashift
-      real(wp) :: ken1
-      real(wp) :: zqf
-      real(wp) :: zcnf
-      real(wp) :: fpol
-      real(wp) :: wllscal
-      real(wp) :: tfac
-      real(wp) :: kcn
-      real(wp) :: alphaj
-      real(wp) :: lshift
-      real(wp) :: lshifta
-      real(wp) :: split
-      real(wp) :: kenscal
       real(wp) :: g_a
       real(wp) :: g_c
       real(wp) :: wf

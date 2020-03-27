@@ -382,7 +382,7 @@ subroutine peeq &
 ! ----------------------------------------
 !  D4 dispersion energy + gradient (2B) under pbc
 ! ----------------------------------------
-   call ddisp_peeq(mol,env,param,cn,dcndr,dcndL,grd,ed,g,sigma)
+   call ddisp_peeq(xtbData%dispersion,mol,env,param,cn,dcndr,dcndL,grd,ed,g,sigma)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -400,19 +400,16 @@ subroutine peeq &
          call ccm_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice, &
             & wfn%q,cn,intcut, &
-            & param%alphaj,param%kcnsh, &
             & s,h0,mol%wsc)
       else
          call pbc_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice,intrep,&
             & wfn%q,cn,intcut, &
-            & param%alphaj,param%kcnsh, &
             & s,h0)
       endif
    else
       call mol_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
          & mol%n,mol%at,basis,nbf,nao,mol%xyz,wfn%q,cn,intcut, &
-         & param%alphaj,param%kcnsh, &
          & s,h0)
    endif
 
@@ -493,7 +490,9 @@ subroutine peeq &
    !g = 0.0_wp; sigma = 0.0_wp
    call drep_grad(xtbData%repulsion,mol,param,ep,g,sigma)
    ! short ranged bond energy + gradient
-   call dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma) ! WRONG
+   if (allocated(xtbData%srb)) then
+      call dsrb_grad(mol,xtbData%srb,cn,dcndr,dcndL,esrb,g,sigma) ! WRONG
+   end if
    !etot = ep + esrb; return
    ! h0 gradient
    allocate( dHdcn(mol%n), dHdq(mol%n), pew(nao,nao), tmp(nao), &
@@ -506,14 +505,12 @@ subroutine peeq &
          call ccm_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
             & mol%lattice,wfn%q,cn, &
-            & wfn%P,Pew,g,sigma,dhdcn,dhdq, &
-            & param%alphaj,param%kcnsh,mol%wsc)
+            & wfn%P,Pew,g,sigma,dhdcn,dhdq,mol%wsc)
       else
          call pbc_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
             & mol%lattice,intrep,wfn%q,cn, &
-            & wfn%P,Pew,g,sigma,dhdcn,dhdq, &
-            & param%alphaj,param%kcnsh)
+            & wfn%P,Pew,g,sigma,dhdcn,dhdq)
       endif
       ! setup CN sigma
       call dgemv('n',9,mol%n,1.0_wp,dcndL,9,dhdcn,1,1.0_wp,sigma,1)
@@ -522,8 +519,7 @@ subroutine peeq &
    else
       call mol_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
          & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz,wfn%q,cn, &
-         & wfn%P,Pew,g,sigma,dhdcn,dhdq, &
-         & param%alphaj,param%kcnsh)
+         & wfn%P,Pew,g,sigma,dhdcn,dhdq)
    endif
    ! setup CN gradient
    call dgemv('n',3*mol%n,mol%n,-1.0_wp,dcndr,3*mol%n,dhdcn,1,1.0_wp,g,1)
@@ -612,7 +608,7 @@ end subroutine peeq
 ! -----------------------------------------------------------------------
 !  Calculate D4 dispersion gradient
 ! -----------------------------------------------------------------------
-subroutine ddisp_peeq(mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
+subroutine ddisp_peeq(disp,mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    use xtb_mctc_accuracy, only : wp
    ! -----------------------------------------------------------------------
    !  Type definitions
@@ -637,6 +633,7 @@ subroutine ddisp_peeq(mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    ! -----------------------------------------------------------------------
    !  Intent IN
    ! -----------------------------------------------------------------------
+   type(TDispersionData), intent(in) :: disp
    type(TMolecule),           intent(in)     :: mol
    type(scc_parameter),         intent(in)     :: param
    type(dftd_parameter)                        :: par
@@ -732,18 +729,18 @@ subroutine ddisp_peeq(mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    endif
 
    ! setup c6abns with diagonal terms: i interaction with its images
-   call pbc_d4(mol%n,ndim,mol%at,param%wf,param%g_a,param%g_c,covcn,gw,c6abns)
+   call pbc_d4(mol%n,ndim,mol%at,disp%wf,disp%g_a,disp%g_c,covcn,gw,c6abns)
 
    ! -----------------------------------------------------------------------
    !  Set dispersion parameters and calculate Edisp or Gradient
    ! -----------------------------------------------------------------------
    if (mol%npbc > 0) then
       call dispgrad_3d(mol,ndim,q,covcn,dcovcndr,dcovcndL,rep_vdw,rep_vdw,crit_vdw,crit_vdw, &
-         &             param%disp,param%wf,param%g_a,param%g_c,c6abns,mbd, &
+         &             disp%dpar,disp%wf,disp%g_a,disp%g_c,c6abns,mbd, &
          &             gd,sigma,ed,dqdr,dqdL)
    else
       call dispgrad(mol%n,ndim,mol%at,q,mol%xyz, &
-         &          param%disp,param%wf,param%g_a,param%g_c, &
+         &          disp%dpar,disp%wf,disp%g_a,disp%g_c, &
          &          c6abns,mbd, &
          &          gd,ed,dqdr)
    endif
@@ -854,7 +851,7 @@ pure subroutine drep_grad(repData,mol,param,erep,g,sigma)
 end subroutine drep_grad
 
 ! short-ranged bond correction
-pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
+pure subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,esrb,g,sigma)
 
    use xtb_type_param
    use xtb_type_molecule
@@ -867,7 +864,7 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    implicit none
 
    type(TMolecule), intent(in) :: mol
-   type(scc_parameter), intent(in) :: param
+   type(TShortRangeData), intent(in) :: srb
    real(wp), intent(inout) :: g(:, :)
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(out) :: esrb
@@ -879,8 +876,6 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    integer :: iat,jat,ati,atj
    integer :: nsrb,lin
    integer :: dx,dy,dz
-   real(wp) :: kcn(4)
-   real(wp) :: gscal
    real(wp) :: den
    real(wp) :: expterm
    ! distances
@@ -895,9 +890,8 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    real(wp), allocatable :: drab0dL(:,:,:)
    real(wp), allocatable :: rab0(:)
    integer,  allocatable :: srblist(:,:)
+
    ! initialize
-   kcn=param%kcnsh
-   gscal=param%gscal
    esrb = 0.0_wp
 
    if (mol%npbc > 0) call get_realspace_cutoff(mol%lattice,200.0_wp,latrep)
@@ -913,7 +907,7 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    allocate( rab0(nsrb),            source = 0.0_wp )
    ! get approximated distances rab and gradients
    periodic: if (mol%npbc > 0) then
-      call pbc_approx_rab(mol%n,mol%at,mol%xyz,cn,dcndr,dcndL,nsrb,srblist,kcn(2), &
+      call pbc_approx_rab(mol%n,mol%at,mol%xyz,cn,dcndr,dcndL,nsrb,srblist,srb%shift, &
          &                rab0,drab0dr,drab0dL)
       do i = 1, nsrb
          iat = srblist(1,i)
@@ -921,7 +915,7 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
          ati = mol%at(iat)
          atj = mol%at(jat)
          den = en(ati) - en(atj)
-         pre = kcn(4)*(1.0_wp + gscal*den**2)
+         pre = srb%steepness*(1.0_wp + srb%enScale*den**2)
          do concurrent(tx = -latrep(1):latrep(1), &
                &       ty = -latrep(2):latrep(2), &
                &       tz = -latrep(3):latrep(3))
@@ -929,7 +923,7 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
             rij = mol%xyz(:,iat) - (mol%xyz(:,jat) + matmul(mol%lattice,t))
             rab = norm2(rij)
             dr = rab - rab0(i)
-            expterm = kcn(3)*exp(-pre*dr**2)
+            expterm = srb%prefactor*exp(-pre*dr**2)
             ! save SRB energy
             esrb = esrb + expterm * w
             dtmp = 2.0_wp*pre*dr*expterm * w
@@ -945,18 +939,18 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
       call dgemv('n',9,nsrb,-1.0_wp,drab0dL,9,dEdr0,1,1.0_wp,sigma,1)
 
    else
-      call approx_rab(mol%n,mol%at,mol%xyz,cn,dcndr,nsrb,srblist,kcn(2),rab0,drab0dr)
+      call approx_rab(mol%n,mol%at,mol%xyz,cn,dcndr,nsrb,srblist,srb%shift,rab0,drab0dr)
       do i = 1, nsrb
          iat = srblist(1,i)
          jat = srblist(2,i)
          ati = mol%at(iat)
          atj = mol%at(jat)
          den = en(ati) - en(atj)
-         pre = kcn(4)*(1.0_wp + gscal*den**2)
+         pre = srb%steepness*(1.0_wp + srb%enScale*den**2)
          rij = mol%xyz(:,iat) - mol%xyz(:,jat)
          rab = norm2(rij)
          dr = rab - rab0(i)
-         expterm = kcn(3)*exp(-pre*dr**2)
+         expterm = srb%prefactor*exp(-pre*dr**2)
          ! save SRB energy
          esrb = esrb + expterm
          dtmp = 2.0_wp*pre*dr*expterm
@@ -1034,7 +1028,7 @@ end subroutine build_srblist
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
-      &                  alphaj,kcn,sint,h0)
+      &                  sint,h0)
 
    use xtb_type_basisset
 
@@ -1056,9 +1050,6 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    real(wp),intent(in)  :: q(nat)
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
-
-   real(wp),intent(in)  :: kcn(:)
-   real(wp),intent(in)  :: alphaj
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
    real(wp),intent(out) :: h0(nao*(1+nao)/2)
@@ -1100,8 +1091,7 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,cn,q, &
-   !$omp        kcn,alphaj)
+   !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,cn,q)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1156,12 +1146,12 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
-                     km = km * kcn(1)
+                     km = 0.0_wp
                   else
-                     km = km * alphaj
+                     km = km * hData%kDiff
                   endif
                else
-                  if (valaoj) km = km * alphaj
+                  if (valaoj) km = km * hData%kDiff
                endif
 
                ! averaged H0 element (without overlap contribution!)
@@ -1230,7 +1220,7 @@ end subroutine mol_build_SH0
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
-      &                  alphaj,kcn,sint,h0,wsc)
+      &                  sint,h0,wsc)
 
    use xtb_type_basisset
    use xtb_type_wsc
@@ -1255,9 +1245,6 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    real(wp),intent(in)  :: q(nat)
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
-
-   real(wp),intent(in)  :: kcn(:)
-   real(wp),intent(in)  :: alphaj
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
    real(wp),intent(out) :: h0(nao*(1+nao)/2)
@@ -1299,8 +1286,7 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,t) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,intcut,nat,cn,q, &
-   !$omp        kcn,alphaj)
+   !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,intcut,nat,cn,q)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1355,12 +1341,12 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
-                     km = km * kcn(1)
+                     km = 0.0_wp
                   else
-                     km = km * alphaj
+                     km = km * hData%kDiff
                   endif
                else
-                  if (valaoj) km = km * alphaj
+                  if (valaoj) km = km * hData%kDiff
                endif
 
                ! averaged H0 element (without overlap contribution!)
@@ -1432,7 +1418,7 @@ end subroutine ccm_build_SH0
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
-      &                  alphaj,kcn,sint,h0)
+      &                  sint,h0)
 
    use xtb_type_basisset
 
@@ -1456,9 +1442,6 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
    real(wp),intent(in)  :: q(nat)
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
-
-   real(wp),intent(in)  :: kcn(:)
-   real(wp),intent(in)  :: alphaj
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
    real(wp),intent(out) :: h0(nao*(1+nao)/2)
@@ -1505,7 +1488,7 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,tx,ty,tz,t) &
    !$omp reduction (+:sint,h0) &
    !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,cn,q, &
-   !$omp        kcn,alphaj,lat,latrep,w)
+   !$omp        lat,latrep,w)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1560,12 +1543,12 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
-                     km = km * kcn(1)
+                     km = 0.0_wp
                   else
-                     km = km * alphaj
+                     km = km * hData%kDiff
                   endif
                else
-                  if (valaoj) km = km * alphaj
+                  if (valaoj) km = km * hData%kDiff
                endif
 
                ! averaged H0 element (without overlap contribution!)
@@ -1769,7 +1752,7 @@ end subroutine get_grad_overlap
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
-      &                   dHdcn,dHdq,alphaj,kcn)
+      &                   dHdcn,dHdq)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -1795,9 +1778,6 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
    real(wp),intent(in) :: cn(nat)
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
-
-   real(wp),intent(in)  :: kcn(:)
-   real(wp),intent(in)  :: alphaj
    ! intent inout
    real(wp),intent(inout) :: dHdq(nat)
    real(wp),intent(inout) :: dHdcn(nat)
@@ -1839,7 +1819,7 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(basis,at,nShell,hData,xyz,thr,nat,cn,q, &
-   !$omp        kcn,alphaj,P,Pew)
+   !$omp        P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1894,12 +1874,12 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
-                     km = km * kcn(1)
+                     km = 0.0_wp
                   else
-                     km = km * alphaj
+                     km = km * hData%kDiff
                   endif
                else
-                  if (valaoj) km = km * alphaj
+                  if (valaoj) km = km * hData%kDiff
                endif
 
                ! averaged H0 element (without overlap contribution!)
@@ -2007,7 +1987,7 @@ end subroutine mol_build_dSH0
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigma,&
-      &                   dHdcn,dHdq,alphaj,kcn,wsc)
+      &                   dHdcn,dHdq,wsc)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -2035,9 +2015,6 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    real(wp),intent(in) :: cn(nat)
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
-
-   real(wp),intent(in)  :: kcn(:)
-   real(wp),intent(in)  :: alphaj
    ! intent inout
    real(wp),intent(inout) :: dHdq(nat)
    real(wp),intent(inout) :: dHdcn(nat)
@@ -2079,7 +2056,7 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,thr,nat,cn,q, &
-   !$omp        kcn,alphaj,P,Pew)
+   !$omp        P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -2134,12 +2111,12 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
-                     km = km * kcn(1)
+                     km = 0.0_wp
                   else
-                     km = km * alphaj
+                     km = km * hData%kDiff
                   endif
                else
-                  if (valaoj) km = km * alphaj
+                  if (valaoj) km = km * hData%kDiff
                endif
 
                ! averaged H0 element (without overlap contribution!)
@@ -2251,7 +2228,7 @@ end subroutine ccm_build_dSH0
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,sigma, &
-      &                   dHdcn,dHdq,alphaj,kcn)
+      &                   dHdcn,dHdq)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -2279,9 +2256,6 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
    real(wp),intent(in) :: cn(nat)
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
-
-   real(wp),intent(in)  :: kcn(:)
-   real(wp),intent(in)  :: alphaj
    ! intent inout
    real(wp),intent(inout) :: dHdq(nat)
    real(wp),intent(inout) :: dHdcn(nat)
@@ -2328,7 +2302,7 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
    !$omp&        tx,ty,tz,t) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(basis,at,nShell,hData,xyz,thr,nat,cn,q, &
-   !$omp        kcn,alphaj,P,Pew,w,lat,latrep)
+   !$omp        P,Pew,w,lat,latrep)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -2383,12 +2357,12 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
-                     km = km * kcn(1)
+                     km = 0.0_wp
                   else
-                     km = km * alphaj
+                     km = km * hData%kDiff
                   endif
                else
-                  if (valaoj) km = km * alphaj
+                  if (valaoj) km = km * hData%kDiff
                endif
 
                ! averaged H0 element (without overlap contribution!)

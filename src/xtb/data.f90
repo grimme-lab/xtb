@@ -20,17 +20,31 @@ module xtb_xtb_data
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
+   use xtb_type_param, only : dftd_parameter
    implicit none
    private
 
    public :: TxTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
-   public :: THalogenData, TMultipoleData
+   public :: THalogenData, TMultipoleData, TShortRangeData
    public :: generateValenceShellData, angToShellData
 
 
    !> Data for the dispersion contribution
    type :: TDispersionData
+
+      !> Damping parameters
+      type(dftd_parameter) :: dpar
+
+      !> Weighting factor for Gaussian interpolation
+      real(wp) :: wf
+
+      !> Charge steepness
+      real(wp) :: g_a
+
+      !> Charge height
+      real(wp) :: g_c
+
    end type TDispersionData
 
 
@@ -142,6 +156,9 @@ module xtb_xtb_data
       !> Third order electrostatics is shell resolved
       logical :: shellResolved
 
+      !> Exponent of the generalized gamma function
+      real(wp) :: gExp
+
       !> Atomic hardnesses used in second order electrostatics
       real(wp), allocatable :: chemicalHardness(:)
 
@@ -217,6 +234,24 @@ module xtb_xtb_data
    end type THalogenData
 
 
+   !> Short range basis correction
+   type TShortRangeData
+
+      !> Additional offset for the reference bond lengths
+      real(wp) :: shift
+
+      !> Scaling factor for the energy contribution
+      real(wp) :: prefactor
+
+      !> Steepness of the EN dependence
+      real(wp) :: steepness
+
+      !> Scaling factor for electronegativity differences
+      real(wp) :: enScale
+
+   end type TShortRangeData
+
+
    !> Parametrisation data for the xTB method
    type :: TxTBData
 
@@ -240,6 +275,9 @@ module xtb_xtb_data
 
       !> Parametrisation data for halogen bond correction (optional)
       type(THalogenData), allocatable :: halogen
+
+      !> Parametrisation data for the short range basis correction (optional)
+      type(TShortRangeData), allocatable :: srb
 
    end type TxTBData
 
@@ -513,7 +551,7 @@ subroutine angToShellData(kDat, nShell, angShell, angDat)
       & size(angDat, dim=2))
 
    kDat(:, :) = 0.0_wp
-   do iZp = 1, maxElem
+   do iZp = 1, nElem
       do iSh = 1, nShell(iZp)
          lAng = angShell(iSh, iZp)
          kDat(iSh, iZp) = angDat(lAng, iZp)
