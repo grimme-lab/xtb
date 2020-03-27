@@ -36,7 +36,6 @@ subroutine set_gfn1_parameter(xpar,globpar,xtbData)
    xpar%kcnsh(2) =globpar%fpol*0.01_wp
    xpar%kcnsh(3) =globpar%ken*0.01_wp
    xpar%kcnsh(4) = 0.005_wp
-   xpar%kenscal  =globpar%dispatm ! kenscal in scf.f
    xpar%disp%s9  =0.0_wp! d3atm
    xpar%alphaj   =globpar%alphaj
    xpar%disp%a1  =globpar%dispa
@@ -63,7 +62,6 @@ subroutine set_gfn2_parameter(xpar,globpar,xtbData)
    xpar%gam3l(1) =globpar%zcnf !p
    xpar%gam3l(2) =globpar%tscal!d-pol
    xpar%gam3l(3) =globpar%kcn!d-val
-   xpar%kenscal  =globpar%ken ! kenscal in scf.f
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp
@@ -89,16 +87,11 @@ subroutine set_gfn0_parameter(xpar,globpar,xtbData)
    type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
 
-   xpar%gam3l(0) =1.00_wp     !s
-   xpar%gam3l(1) =globpar%zcnf !p
-   xpar%gam3l(2) =globpar%tscal!d-pol
-   xpar%gam3l(3) =globpar%kcn!d-val
    xpar%kcnsh(1) =globpar%zqf         ! K 2s - 2s
    xpar%kcnsh(2) =globpar%zcnf         ! SRB shift
    xpar%kcnsh(3) =globpar%tscal         ! SRB prefactor
    xpar%kcnsh(4) =globpar%kcn         ! SRB steepnes
    xpar%gscal    =globpar%fpol         ! EN dep
-   xpar%kenscal  =globpar%kexpo         ! ken² (d3atm in old main.f)
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp

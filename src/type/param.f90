@@ -36,6 +36,8 @@ module xtb_type_param
       real(wp) :: kdiffb = 0.0_wp
       real(wp) :: enshell(0:3) = 0.0_wp
       real(wp) :: enscale4 = 0.0_wp
+      real(wp) :: cnshell(2, 0:3) = 0.0_wp
+      real(wp) :: gam3shell(2, 0:3) = 0.0_wp
       real(wp) :: wllscal = 0.0_wp
       real(wp) :: gscal = 0.0_wp
       real(wp) :: zcnf = 0.0_wp

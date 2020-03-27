@@ -12,6 +12,10 @@ enscale    -0.70000
 ipeashift   1.78069
 zcnf        0.00000
 tscal       0.00000
+cns         0.60000
+cnp        -0.30000
+cnd1       -0.50000
+cnd2        0.50000
 kcn         0.60000
 fpol       -0.30000
 ken        -0.50000

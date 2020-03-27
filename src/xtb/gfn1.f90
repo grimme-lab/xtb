@@ -27,6 +27,7 @@ module xtb_xtb_gfn1
 
    public :: initGFN1, gfn1Globals
    public :: setGFN1ReferenceOcc, setGFN1NumberOfPrimitives, setGFN1PairParam
+   public :: setGFN1kCN
 
 
    interface initGFN1
@@ -37,6 +38,9 @@ module xtb_xtb_gfn1
       module procedure :: initHalogen
    end interface initGFN1
 
+   real(wp), parameter :: cnshell(2, 0:3) = reshape(&
+      &[0.6_wp, 0.6_wp,-0.3_wp,-0.3_wp,-0.5_wp, 0.5_wp,-0.5_wp, 0.5_wp], &
+      & shape(cnshell))
 
    type(TxTBParameter), parameter :: gfn1Globals = TxTBParameter( &
       kshell = [1.85_wp, 2.25_wp, 2.0_wp, 0.0_wp], &
@@ -45,6 +49,7 @@ module xtb_xtb_gfn1
       kdiff = 2.85_wp, &
       kdiffa =  2.080000000000000_wp, &
       kdiffb =  2.850000000000000_wp, &
+      cnshell = cnshell, &
       ipeashift = 1.780690000000000_wp, &
       zcnf =    0.000000000000000_wp, &
       tscal =   0.000000000000000_wp, &
@@ -67,6 +72,20 @@ module xtb_xtb_gfn1
 
    !> Maximum number of elements supported by GFN1-xTB
    integer, parameter :: maxElem = 86
+
+
+   integer, parameter :: gfn1Kinds(118) = [&
+   &  1,                                                 1, &! H-He
+   &  0, 0,                               0, 1, 1, 1, 1, 1, &! Li-Ne
+   &  0, 0,                               0, 1, 1, 1, 1, 1, &! Na-Ar
+   &  0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, &! K-Kr
+   &  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, &! Rb-Xe
+   &  0, 0, &! Cs/Ba
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &!La-Lu
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, &! Lu-Rn
+   &  0, 0, &
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &!Fr-
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1 ]! -Og
 
 
    ! ========================================================================
@@ -613,6 +632,7 @@ subroutine initHamiltonian(self, nShell)
    self%enScale = 0.005_wp * (spread(gfn1Globals%enshell, 1, 4) &
       & + spread(gfn1Globals%enshell, 2, 4))
    self%enScale4 = gfn1Globals%enscale4
+   self%wExp = 0.0_wp
 
    self%electronegativity = paulingEN(:maxElem)
    self%atomicRad = atomicRad(:maxElem)
@@ -620,6 +640,10 @@ subroutine initHamiltonian(self, nShell)
    self%selfEnergy = selfEnergy(:mShell, :maxElem)
    self%slaterExponent = slaterExponent(:mShell, :maxElem)
    self%principalQuantumNumber = principalQuantumNumber(:mShell, :maxElem)
+
+   allocate(self%kCN(mShell, maxElem))
+   call setGFN1kCN(self%kCN, nShell, self%angShell, self%selfEnergy, &
+      & gfn1Globals%cnshell)
 
    allocate(self%valenceShell(mShell, maxElem))
    call generateValenceShellData(self%valenceShell, nShell, self%angShell)
@@ -763,6 +787,36 @@ elemental function dBlockRow(zp) result(tr)
 end function dBlockRow
 
 end subroutine setGFN1PairParam
+
+
+subroutine setGFN1kCN(kCN, nShell, angShell, selfEnergy, cnShell)
+
+   real(wp), intent(out) :: kCN(:, :)
+
+   integer, intent(in) :: nShell(:)
+
+   integer, intent(in) :: angShell(:, :)
+
+   real(wp), intent(in) :: selfEnergy(:, :)
+
+   real(wp), intent(in) :: cnShell(:, 0:)
+
+   integer :: nElem, iZp, iSh, lAng, iKind
+
+   nElem = min(size(kCN, dim=2), size(nShell), size(angShell, dim=2))
+
+   kCN(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      iKind = gfn1Kinds(iZp)
+      if (iKind > 0) then
+         do iSh = 1, nShell(iZp)
+            lAng = angShell(iSh, iZp)
+            kCN(iSh, iZp) = -selfEnergy(iSh, iZp) * cnShell(iKind, lAng) * 0.01_wp
+         end do
+      end if
+   end do
+
+end subroutine setGFN1kCN
 
 
 subroutine initHalogen(self)

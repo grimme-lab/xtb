@@ -83,7 +83,7 @@ subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
 
    integer  :: i,j,kk,m
-   integer  :: iat,jat,ishell,jshell,iZp,jZp
+   integer  :: iat,jat,il,jl,iZp,jZp
    real(wp) :: hji,rab2
    real(wp) :: h0s,h0sr
    real(wp) :: dum
@@ -98,13 +98,13 @@ subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H
       jat = aoat2(j)
       iZp = at(iat)
       jZp = at(jat)
-      ishell=mmm(lao2(i))
-      jshell=mmm(lao2(j))
+      il=mmm(lao2(i))
+      jl=mmm(lao2(j))
       rab2 = sqrab(lin(jat,iat))
       hji = 2.0_wp*P(j,i)*S(j,i)
 !     H0=S H (1+b x)
 !     dH0/dx = H(1+bx)dS/dx + S H (b)
-      call dshellPoly(hData%shellPoly(iShell,iZp),hData%shellPoly(jShell,jZp),&
+      call dshellPoly(hData%shellPoly(il,iZp),hData%shellPoly(jl,jZp),&
          & hData%atomicRad(iZp),hData%atomicRad(jZp),rab2,xyz(:,iat),xyz(:,jat),&
          & dum,drfdxyz)
       h0s = H0(kk)/S(j,i) !H(1+bx)
@@ -120,11 +120,11 @@ subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H
 end subroutine poly_grad
 
 !! ========================================================================
-!  CN dependent part of GFN1 hamiltonian
+!  CN dependent part of the xTB Hamiltonian
 !! ========================================================================
-subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
-   &                     kenscal,kcnao,P,S,dcn, &
-   &                     aoat2,lao2,valao2,hdiag2)
+subroutine hcn_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
+   &                P,S,dcndr,selfEnergy,dSEdcn, &
+   &                aoat2,lao2,valao2,aoexp,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)    :: n
@@ -133,109 +133,15 @@ subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    integer, intent(in)    :: nmat2
    integer, intent(in)    :: matlist2(2,nmat2)
    real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: kenscal
-   real(wp),intent(in)    :: kcnao(ndim)
    real(wp),intent(in)    :: P(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(in)    :: dcn(3,n,n)
+   real(wp),intent(in)    :: dcndr(3,n,n)
+   real(wp),intent(in)    :: selfEnergy(:)
+   real(wp),intent(in)    :: dSEdcn(:)
    integer, intent(in)    :: aoat2(ndim)
    integer, intent(in)    :: lao2(ndim)
    integer, intent(in)    :: valao2(ndim)
-   real(wp),intent(in)    :: hdiag2(ndim)
-   real(wp),intent(inout) :: g(3,n)
-
-   real(wp),allocatable :: hcn(:)
-
-   integer  :: i,j,m
-   integer  :: iat,jat,iZp,jZp
-   integer  :: ishell,jshell
-   real(wp) :: hji
-   real(wp) :: gtmp(3)
-   real(wp) :: km
-   real(wp) :: dum,dum1,dum2
-
-   allocate( hcn(n), source = 0.0_wp )
-
-!  CN dependent part of H0
-   hcn=0.0_wp
-!$omp parallel default(none) &
-!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hdiag2,hData) &
-!$omp shared(kenscal,kcnao) &
-!$omp private(i,m,j,jat,iat,dum1,dum2,km,dum,ishell,jshell,hji,iZp,jZp) &
-!$omp reduction (+:hcn)
-!$omp do
-   do m=1,nmat2
-      i=matlist2(1,m)
-      j=matlist2(2,m)
-      iat=aoat2(i)
-      jat=aoat2(j)
-      iZp = at(iat)
-      jZp = at(jat)
-      ishell=mmm(lao2(i))
-      jshell=mmm(lao2(j))
-      hji=P(j,i)*S(j,i)
-      jat=aoat2(j)
-      dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
-         & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
-      &           kenscal,km)
-      dum1=hji*km*dum*hdiag2(i)*kcnao(i)*evtoau ! h independent part in H0
-      dum2=hji*km*dum*hdiag2(j)*kcnao(j)*evtoau ! h independent part in H0
-      hcn(jat)=hcn(jat)+dum2
-      hcn(iat)=hcn(iat)+dum1
-   enddo
-!$omp end do
-!$omp end parallel
-!$omp parallel default(none) &
-!$omp shared(ndim,aoat2,P,hdiag2,kcnao) &
-!$omp private(i,iat,dum1) &
-!$omp reduction (+:hcn)
-!$omp do
-   do i=1,ndim
-      iat=aoat2(i)
-      dum1=P(i,i)*hdiag2(i)*kcnao(i)*evtoau ! diagonal contribution
-      hcn(iat)=hcn(iat)+dum1
-   enddo
-!$omp end do
-!$omp end parallel
-
-!  CN-level shift gradient
-!$omp parallel default(none) &
-!$omp shared(n,dcn,hcn) &
-!$omp private(i,gtmp) shared ( g )
-!$omp do
-   do i=1,n
-      call gemv('n',3,n,1.0d0,dcn(:,:,i),3,hcn,1,0.0d0,gtmp,1)
-      g(1:3,i)=g(1:3,i)+gtmp(1:3)
-   enddo
-!$omp end do
-!$omp end parallel
-
-end subroutine hcn_grad_gfn1
-
-!! ========================================================================
-!  CN dependent part of GFN2 hamiltonian
-!! ========================================================================
-subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
-   &                     kenscal,kcnao,P,S,dcn, &
-   &                     aoat2,lao2,valao2,hdiag2,aoexp)
-   use xtb_mctc_convert, only : autoev,evtoau
-   type(THamiltonianData), intent(in) :: hData
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   integer, intent(in)    :: ndim
-   integer, intent(in)    :: nmat2
-   integer, intent(in)    :: matlist2(2,nmat2)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: kenscal
-   real(wp),intent(in)    :: kcnao(ndim)
-   real(wp),intent(in)    :: P(ndim,ndim)
-   real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(in)    :: dcn(3,n,n)
-   integer, intent(in)    :: aoat2(ndim)
-   integer, intent(in)    :: lao2(ndim)
-   integer, intent(in)    :: valao2(ndim)
-   real(wp),intent(in)    :: hdiag2(ndim)
+   integer, intent(in)    :: ao2sh(ndim)
    real(wp),intent(in)    :: aoexp(ndim)
    real(wp),intent(inout) :: g(3,n)
 
@@ -243,11 +149,11 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
 
    integer  :: i,j,m
    integer  :: iat,jat,iZp,jZp
-   integer  :: ishell,jshell
-   real(wp) :: hji
+   integer  :: il,jl,ish,jsh
+   real(wp) :: psij,dHdSE
    real(wp) :: gtmp(3)
    real(wp) :: km,fact
-   real(wp) :: dum,dum1,dum2
+   real(wp) :: shPoly,dum1,dum2
    real(wp),parameter :: aot = -0.5_wp ! AO exponent dep. H0 scal
 
    allocate( hcn(n), source = 0.0_wp )
@@ -255,43 +161,39 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
 !  CN dependent part of H0
    hcn=0.0_wp
 !$omp parallel default(none) &
-!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hData) &
-!$omp shared(kenscal,aoexp,kcnao) &
-!$omp private(i,m,j,jat,iat,dum1,dum2,km,dum,ishell,jshell,hji,fact,iZp,jZp) &
-!$omp reduction (+:hcn)
+!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hData,ndim) &
+!$omp shared(aoexp,ao2sh,dSEdcn) &
+!$omp private(i,m,j,jat,iat,ish,jsh,dum1,dum2,km,shPoly,il,jl,psij,dHdSe,iZp,jZp) &
+!$omp reduction(+:hcn)
 !$omp do
-   do m=1,nmat2
-      i=matlist2(1,m)
-      j=matlist2(2,m)
-      iat=aoat2(i)
-      jat=aoat2(j)
+   do m = 1, nmat2
+      i = matlist2(1,m)
+      j = matlist2(2,m)
+      iat = aoat2(i)
+      jat = aoat2(j)
+      ish = ao2sh(i)
+      jsh = ao2sh(j)
       iZp = at(iat)
       jZp = at(jat)
-      ishell=mmm(lao2(i))
-      jshell=mmm(lao2(j))
-      hji=P(j,i)*S(j,i)
-      dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+      il = mmm(lao2(i))
+      jl = mmm(lao2(j))
+      psij = P(j,i)*S(j,i)
+      shPoly = shellPoly(hData%shellPoly(il, iZp), hData%shellPoly(jl, jZp), &
          & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
-      &               kenscal,km)
-      fact = 0.5_wp*(aoexp(i)+aoexp(j))/sqrt(aoexp(i)*aoexp(j))
-      km = km*fact**aot
-      dum1=hji*km*dum*kcnao(i)*evtoau ! h independent part in H0
-      dum2=hji*km*dum*kcnao(j)*evtoau ! h independent part in H0
-      hcn(jat)=hcn(jat)-dum2
-      hcn(iat)=hcn(iat)-dum1
-   enddo
+      call h0scal(hData,n,at,i,j,il,jl,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
+      &               km)
+      km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
+      dHdSE = psij*km*shPoly*evtoau
+      hcn(jat)=hcn(jat) + dHdSE*dSEdcn(jsh) ! h independent part in H0
+      hcn(iat)=hcn(iat) + dHdSE*dSEdcn(ish) ! h independent part in H0
+   end do
 !$omp end do
-!$omp end parallel
-!$omp parallel default(none) &
-!$omp shared(ndim,aoat2,P,kcnao) &
-!$omp private(i,iat,dum1) &
-!$omp reduction (+:hcn)
 !$omp do
    do i=1,ndim
-      iat=aoat2(i)
-      dum1=P(i,i)*kcnao(i)*evtoau ! diagonal contribution
-      hcn(iat)=hcn(iat)-dum1
+      iat = aoat2(i)
+      ish = ao2sh(i)
+      dHdSE = P(i,i)*evtoau ! diagonal contribution
+      hcn(iat)=hcn(iat) + dHdSE*dSEdcn(ish)
    enddo
 !$omp end do
 !$omp end parallel
@@ -299,17 +201,17 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
 
 !  CN-level shift gradient
 !$omp parallel default(none) &
-!$omp shared(n,dcn,hcn) &
+!$omp shared(n,dcndr,hcn) &
 !$omp private(i,gtmp) shared ( g )
 !$omp do
    do i=1,n
-      call gemv('n',3,n,1.0d0,dcn(:,:,i),3,hcn,1,0.0d0,gtmp,1)
+      call gemv('n',3,n,1.0d0,dcndr(:,:,i),3,hcn,1,0.0d0,gtmp,1)
       g(1:3,i)=g(1:3,i)+gtmp(1:3)
    enddo
 !$omp end do
 !$omp end parallel
 
-end subroutine hcn_grad_gfn2
+end subroutine hcn_grad
 
 !! ========================================================================
 !  derivative of the CM5 additional term for GBSA in GFN1

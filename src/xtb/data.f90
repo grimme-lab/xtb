@@ -26,7 +26,7 @@ module xtb_xtb_data
    public :: TxTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
    public :: THalogenData, TMultipoleData
-   public :: generateValenceShellData
+   public :: generateValenceShellData, angToShellData
 
 
    !> Data for the dispersion contribution
@@ -78,6 +78,9 @@ module xtb_xtb_data
 
       !> Quartic contribution to EN polynom
       real(wp) :: enscale4
+
+      !> Exponent for shell exponent weighting
+      real(wp) :: wExp
 
       !> Principal quantum number of each shell
       integer, allocatable :: principalQuantumNumber(:, :)
@@ -147,6 +150,9 @@ module xtb_xtb_data
 
       !> Third order Hubbard derivatives
       real(wp), allocatable :: thirdOrderAtom(:)
+
+      !> Shell resolved third order Hubbard derivatives
+      real(wp), allocatable :: thirdOrderShell(:, :)
 
       !> Charge widths for EEQ model
       real(wp), allocatable :: chargeWidth(:)
@@ -484,6 +490,37 @@ subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
    end if
 
 end subroutine initCoulomb
+
+
+!> Transform a data array from angular momenta to shell number references
+subroutine angToShellData(kDat, nShell, angShell, angDat)
+
+   !> Data in terms of shell number of each species
+   real(wp), intent(out) :: kDat(:, :)
+
+   !> Number of shells for each species
+   integer, intent(in) :: nShell(:)
+
+   !> Angular momenta of each shell
+   integer, intent(in) :: angShell(:, :)
+
+   !> Data in terms of angular momenta of each shell
+   real(wp), intent(in) :: angDat(0:, :)
+
+   integer :: nElem, iZp, iSh, lAng, iKind
+
+   nElem = min(size(kDat, dim=2), size(nShell), size(angShell, dim=2), &
+      & size(angDat, dim=2))
+
+   kDat(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      do iSh = 1, nShell(iZp)
+         lAng = angShell(iSh, iZp)
+         kDat(iSh, iZp) = angDat(lAng, iZp)
+      end do
+   end do
+
+end subroutine angToShellData
 
 
 end module xtb_xtb_data

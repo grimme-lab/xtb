@@ -101,18 +101,21 @@ subroutine peeq &
 
 ! ------------------------------------------------------------------------
    type(chrg_parameter) :: chrgeq
-   real(wp),allocatable,dimension(:)     :: cn
-   real(wp),allocatable,dimension(:)     :: sqrab
-   real(wp),allocatable,dimension(:,:,:) :: dcndr
-   real(wp),allocatable,dimension(:,:,:) :: dcndL
-   real(wp),allocatable,dimension(:,:)   :: X
-   real(wp),allocatable,dimension(:,:)   :: S
-   real(wp),allocatable,dimension(:,:)   :: H
-   real(wp),allocatable,dimension(:)     :: H0
-   real(wp),allocatable,dimension(:)     :: H1
-   real(wp),allocatable,dimension(:)     :: zsh
-   real(wp),allocatable,dimension(:)     :: kcnao
-   real(wp),allocatable,dimension(:)     :: kqao
+   real(wp), allocatable :: cn   (:)
+   real(wp), allocatable :: sqrab(:)
+   real(wp), allocatable :: dcndr(:,:,:)
+   real(wp), allocatable :: dcndL(:,:,:)
+   real(wp), allocatable :: X    (:,:)
+   real(wp), allocatable :: S    (:,:)
+   real(wp), allocatable :: H    (:,:)
+   real(wp), allocatable :: H0   (:)
+   real(wp), allocatable :: H1   (:)
+   real(wp), allocatable :: zsh  (:)
+   real(wp), allocatable :: kcnao(:)
+   real(wp), allocatable :: kqao (:)
+   real(wp), allocatable :: selfEnergy(:)
+   real(wp), allocatable :: dSEdcn(:)
+   real(wp), allocatable :: dSEdq(:)
    integer :: rep_cn(3)
 
 ! ------------------------------------------------------------------------
@@ -267,6 +270,9 @@ subroutine peeq &
    allocate(kcnao(nao));                 kcnao = 0.0_wp
    allocate(kqao(nao));                   kqao = 0.0_wp
    allocate(zsh(nshell));                  zsh = 0.0_wp
+   allocate(selfEnergy(nshell))
+   allocate(dSEdcn(nshell))
+   allocate(dSEdq(nshell))
    allocate(qeeq(mol%n));           qeeq = 0.0_wp
    allocate(dqdr(3,mol%n,mol%n+1)); dqdr = 0.0_wp
    allocate(dqdL(3,3,mol%n+1));     dqdL = 0.0_wp
@@ -1127,10 +1133,10 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-                  &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(1+jl-1,atj)*cn(jat) &
-                  &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
+                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1198,19 +1204,24 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    !$OMP END PARALLEL
 
    ! diagonal elements
-   do i = 1, nao
-      sint(i,i)=1.0_wp+sint(i,i)
-
-      ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
-      iat = basis%aoat2(i)
+   do iat = 1, nat
       ati = at(iat)
-      il  = shell(basis%lao2(i))
+      do ish = 1, nShell(ati)
+         iao = 1+basis%saoshell(ish,iat)
+         ishtyp = hData%angShell(ish,ati)
+         il = ishtyp + 1
+         do iao = 1, llao2(ishtyp)
+            i = iao+basis%saoshell(ish,iat)
+            sint(i,i)=1.0_wp+sint(i,i)
 
-      ! calculate environment dependent shift
-      hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-         &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-      H0(ii) = hii
+            ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
+            ! calculate environment dependent shift
+            hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+               &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+            H0(ii) = hii
+         end do
+      end do
    end do
 
 end subroutine mol_build_SH0
@@ -1321,10 +1332,10 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-                  &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(1+jl-1,atj)*cn(jat) &
-                  &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
+                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1395,19 +1406,24 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    !$OMP END PARALLEL
 
    ! diagonal elements
-   do i = 1, nao
-      sint(i,i)=1.0_wp+sint(i,i)
-
-      ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
-      iat = basis%aoat2(i)
+   do iat = 1, nat
       ati = at(iat)
-      il  = shell(basis%lao2(i))
+      do ish = 1, nShell(ati)
+         iao = 1+basis%saoshell(ish,iat)
+         ishtyp = hData%angShell(ish,ati)
+         il = ishtyp + 1
+         do iao = 1, llao2(ishtyp)
+            i = iao+basis%saoshell(ish,iat)
+            sint(i,i)=1.0_wp+sint(i,i)
 
-      ! calculate environment dependent shift
-      hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-         &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-      H0(ii) = hii
+            ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
+            ! calculate environment dependent shift
+            hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+               &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+            H0(ii) = hii
+         end do
+      end do
    end do
 
 end subroutine ccm_build_SH0
@@ -1521,10 +1537,10 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-                  &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(1+jl-1,atj)*cn(jat) &
-                  &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
+                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1597,19 +1613,24 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
    !$OMP END PARALLEL
 
    ! diagonal elements
-   do i = 1, nao
-      sint(i,i)=1.0_wp+sint(i,i)
-
-      ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
-      iat = basis%aoat2(i)
+   do iat = 1, nat
       ati = at(iat)
-      il  = shell(basis%lao2(i))
+      do ish = 1, nShell(ati)
+         iao = 1+basis%saoshell(ish,iat)
+         ishtyp = hData%angShell(ish,ati)
+         il = ishtyp + 1
+         do iao = 1, llao2(ishtyp)
+            i = iao+basis%saoshell(ish,iat)
+            sint(i,i)=1.0_wp+sint(i,i)
 
-      ! calculate environment dependent shift
-      hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-         &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-      H0(ii) = hii
+            ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
+            ! calculate environment dependent shift
+            hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+               &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+            H0(ii) = hii
+         end do
+      end do
    end do
 
 end subroutine pbc_build_SH0
@@ -1850,10 +1871,10 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-                  &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(1+jl-1,atj)*cn(jat) &
-                  &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
+                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1937,15 +1958,15 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
                      ! Hamiltonian without Hav
                      HPij = km * shpoly * Pij * sdq(jj,ii)
                      ! save dE/dCN for CNi
-                     dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(1+il-1,ati)
+                     dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(ish,ati)
                      ! save dE/dCN for CNj
-                     dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(1+jl-1,atj)
+                     dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(jsh,atj)
 
                      ! save dE/dq for qi
-                     dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(il,ati) &
+                     dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(ish,ati) &
                         &                  - HPij*hData%kQAtom(ati)*2*q(iat)
                      ! save dE/dq for qj
-                     dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jl,atj) &
+                     dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jsh,atj) &
                         &                  - HPij*hData%kQAtom(atj)*2*q(jat)
 
                   enddo
@@ -1960,19 +1981,25 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
    !$omp end parallel
 
    ! diagonal contributions
-   do i = 1, nao
-      ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
-      iat = basis%aoat2(i)
+   do iat = 1, nat
       ati = at(iat)
-      il  = shell(basis%lao2(i))
+      do ish = 1, nShell(ati)
+         iao = 1+basis%saoshell(ish,iat)
+         ishtyp = hData%angShell(ish,ati)
+         il = ishtyp + 1
+         do iao = 1, llao2(ishtyp)
+            i = iao+basis%saoshell(ish,iat)
+            ii = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
-      Pii = P(i,i)*evtoau
+            Pii = P(i,i)*evtoau
 
-      ! save dE/dCN for CNi
-      dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(1+il-1,ati)
-      ! save dE/dq for qi
-      dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(il,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
-   enddo
+            ! save dE/dCN for CNi
+            dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(ish,ati)
+            ! save dE/dq for qi
+            dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(ish,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
+         end do
+      end do
+   end do
 
 end subroutine mol_build_dSH0
 
@@ -2084,10 +2111,10 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
-                  &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(1+jl-1,atj)*cn(jat) &
-                  &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
+                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -2173,15 +2200,15 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                         ! Hamiltonian without Hav
                         HPij = km * shpoly * Pij * sdq(jj,ii) * wsc%w(jat,iat)
                         ! save dE/dCN for CNi
-                        dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(1+il-1,ati)
+                        dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(ish,ati)
                         ! save dE/dCN for CNj
-                        dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(1+jl-1,atj)
+                        dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(jsh,atj)
 
                         ! save dE/dq for qi
-                        dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(il,ati) &
+                        dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(ish,ati) &
                            &                  - HPij*hData%kQAtom(ati)*2*q(iat)
                         ! save dE/dq for qj
-                        dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jl,atj) &
+                        dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jsh,atj) &
                            &                  - HPij*hData%kQAtom(atj)*2*q(jat)
 
                      enddo
@@ -2198,19 +2225,25 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    !$omp end parallel
 
    ! diagonal contributions
-   do i = 1, nao
-      ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
-      iat = basis%aoat2(i)
+   do iat = 1, nat
       ati = at(iat)
-      il  = shell(basis%lao2(i))
+      do ish = 1, nShell(ati)
+         iao = 1+basis%saoshell(ish,iat)
+         ishtyp = hData%angShell(ish,ati)
+         il = ishtyp + 1
+         do iao = 1, llao2(ishtyp)
+            i = iao+basis%saoshell(ish,iat)
+            ii = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
-      Pii = P(i,i)*evtoau
+            Pii = P(i,i)*evtoau
 
-      ! save dE/dCN for CNi
-      dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(1+il-1,ati)
-      ! save dE/dq for qi
-      dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(il,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
-   enddo
+            ! save dE/dCN for CNi
+            dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(ish,ati)
+            ! save dE/dq for qi
+            dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(ish,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
+         end do
+      end do
+   end do
 
 end subroutine ccm_build_dSH0
 
@@ -2327,10 +2360,10 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(il,ati)*cn(iat) &
-                  &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(jl,atj)*cn(jat) &
-                  &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
+                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
+                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -2418,15 +2451,15 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
                         ! Hamiltonian without Hav
                         HPij = km * shpoly * Pij * sdq(jj,ii) * w
                         ! save dE/dCN for CNi
-                        dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(1+il-1,ati)
+                        dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(ish,ati)
                         ! save dE/dCN for CNj
-                        dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(1+jl-1,atj)
+                        dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(jsh,atj)
 
                         ! save dE/dq for qi
-                        dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(il,ati) &
+                        dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(ish,ati) &
                            &                  - HPij*hData%kQAtom(ati)*2*q(iat)
                         ! save dE/dq for qj
-                        dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jl,atj) &
+                        dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jsh,atj) &
                            &                  - HPij*hData%kQAtom(atj)*2*q(jat)
 
                      enddo
@@ -2443,19 +2476,25 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
    !$omp end parallel
 
    ! diagonal contributions
-   do i = 1, nao
-      ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
-      iat = basis%aoat2(i)
+   do iat = 1, nat
       ati = at(iat)
-      il  = shell(basis%lao2(i))
+      do ish = 1, nShell(ati)
+         iao = 1+basis%saoshell(ish,iat)
+         ishtyp = hData%angShell(ish,ati)
+         il = ishtyp + 1
+         do iao = 1, llao2(ishtyp)
+            i = iao+basis%saoshell(ish,iat)
+            ii = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
-      Pii = P(i,i)*evtoau
+            Pii = P(i,i)*evtoau
 
-      ! save dE/dCN for CNi
-      dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(1+il-1,ati)
-      ! save dE/dq for qi
-      dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(il,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
-   enddo
+            ! save dE/dCN for CNi
+            dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(ish,ati)
+            ! save dE/dq for qi
+            dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(ish,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
+         end do
+      end do
+   end do
 
 end subroutine pbc_build_dSH0
 

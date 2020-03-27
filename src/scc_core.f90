@@ -34,71 +34,77 @@ module xtb_scc_core
 
 contains
 
-!! ========================================================================
-!  build GFN1 core Hamiltonian
-!! ========================================================================
-subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kenscal, &
-   &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2)
+subroutine getSelfEnergy(hData, nShell, at, cn, qat, selfEnergy, dSEdcn, dSEdq)
    type(THamiltonianData), intent(in) :: hData
-   real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: nmat
-   integer, intent(in) :: matlist(2,nmat)
-   real(wp),intent(in)  :: kenscal
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: cn(n)
-   real(wp),intent(in)  :: kcnao(ndim)
-   real(wp),intent(in)  :: S(ndim,ndim)
-   integer, intent(in)  :: aoat2(ndim)
-   integer, intent(in)  :: lao2(ndim)
-   integer, intent(in)  :: valao2(ndim)
-   real(wp),intent(in)  :: hdiag2(ndim)
+   integer, intent(in) :: nShell(:)
+   integer, intent(in) :: at(:)
+   real(wp), intent(in), optional :: cn(:)
+   real(wp), intent(in), optional :: qat(:)
+   real(wp), intent(out) :: selfEnergy(:)
+   real(wp), intent(out), optional :: dSEdcn(:)
+   real(wp), intent(out), optional :: dSEdq(:)
 
-   integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell,iZp,jZp
-   real(wp) :: hdii,hdjj,hav
-   real(wp) :: km
+   integer :: ind, iAt, iZp, iSh, lang
 
-   H0=0.0_wp
-   do m=1,nmat
-      i=matlist(1,m)
-      j=matlist(2,m)
-      k=j+i*(i-1)/2
-      iat=aoat2(i)
-      jat=aoat2(j)
-      iZp = at(iat)
-      jZp = at(jat)
-      ishell=mmm(lao2(i))
-      jshell=mmm(lao2(j))
-      hdii=hdiag2(i)
-      hdii=hdii*(1.0d0+kcnao(i)*cn(iat))  ! CN dependent shift
-      hdjj=hdiag2(j)
-      hdjj=hdjj*(1.0d0+kcnao(j)*cn(jat))  ! CN dependent shift
-      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
-      &           kenscal,km)
-      hav=0.5d0*(hdii+hdjj)* &
-      &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
-      &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      H0(k)=S(j,i)*km*hav
-   enddo
-!  diagonal
-   k=0
-   do i=1,ndim
-      k=k+i
-      iat=aoat2(i)
-      ishell=mmm(lao2(i))
-      H0(k)=hdiag2(i)*(1.0d0+kcnao(i)*cn(iat))  ! CN dependent shift
-   enddo
+   selfEnergy(:) = 0.0_wp
+   if (present(dSEdcn)) dSEdcn(:) = 0.0_wp
+   if (present(dSEdq)) dSEdq(:) = 0.0_wp
+   ind = 0
+   do iAt = 1, size(cn)
+      iZp = at(iAt)
+      do iSh = 1, nShell(iZp)
+         selfEnergy(ind+iSh) = hData%selfEnergy(iSh, iZp)
+      end do
+      ind = ind + nShell(iZp)
+   end do
+   if (present(dSEdq) .and. present(qat)) then
+      ind = 0
+      do iAt = 1, size(cn)
+         iZp = at(iAt)
+         do iSh = 1, nShell(iZp)
+            lAng = hData%angShell(iSh, iZp)+1
+            selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
+               & - hData%kQShell(lAng,iZp)*qat(iAt) - hData%kQAtom(iZp)*qat(iAt)**2
+            dSEdq(ind+iSh) = -hData%kQShell(lAng,iZp) - hData%kQAtom(iZp)*2*qat(iAt)
+         end do
+         ind = ind + nShell(iZp)
+      end do
+      if (present(dSEdcn) .and. present(cn)) then
+         ind = 0
+         do iAt = 1, size(cn)
+            iZp = at(iAt)
+            do iSh = 1, nShell(iZp)
+               lAng = hData%angShell(iSh, iZp)+1
+               selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
+                  & - hData%kCN(lAng+1, iZp) * cn(iAt)
+               dSEdcn(ind+iSh) = -hData%kCN(iSh, iZp)
+            end do
+            ind = ind + nShell(iZp)
+         end do
+      end if
+   else
+      if (present(dSEdcn) .and. present(cn)) then
+         ind = 0
+         do iAt = 1, size(cn)
+            iZp = at(iAt)
+            do iSh = 1, nShell(iZp)
+               lAng = hData%angShell(iSh, iZp)+1
+               selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
+                  & - hData%kCN(iSh, iZp) * cn(iAt)
+               dSEdcn(ind+iSh) = -hData%kCN(iSh, iZp)
+            end do
+            ind = ind + nShell(iZp)
+         end do
+      end if
+   end if
 
-end subroutine build_h0_gfn1
+end subroutine getSelfEnergy
 
 !! ========================================================================
 !  build GFN2 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kenscal, &
-   &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2,aoexp)
+subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
+   &                xyz,selfEnergy,S,aoat2,lao2,valao2,aoexp,ao2sh)
    type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
    integer, intent(in)  :: n
@@ -106,57 +112,56 @@ subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kenscal, &
    integer, intent(in)  :: ndim
    integer, intent(in)  :: nmat
    integer, intent(in)  :: matlist(2,nmat)
-   real(wp),intent(in)  :: kenscal
    real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: cn(n)
-   real(wp),intent(in)  :: kcnao(ndim)
+   real(wp),intent(in)  :: selfEnergy(:)
    real(wp),intent(in)  :: S(ndim,ndim)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: lao2(ndim)
    integer, intent(in)  :: valao2(ndim)
-   real(wp),intent(in)  :: hdiag2(ndim)
+   integer, intent(in)  :: ao2sh(ndim)
    real(wp),intent(in)  :: aoexp(ndim)
 
    integer  :: i,j,k,m
-   integer  :: iat,jat,ishell,jshell,iZp,jZp
+   integer  :: iat,jat,ish,jsh,il,jl,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
    real(wp),parameter :: aot = -0.5d0 ! AO exponent dep. H0 scal
 
    H0=0.0_wp
 
-   do m=1,nmat
-      i=matlist(1,m)
-      j=matlist(2,m)
-      k=j+i*(i-1)/2
-      iat=aoat2(i)
-      jat=aoat2(j)
+   do m = 1, nmat
+      i = matlist(1,m)
+      j = matlist(2,m)
+      k = j+i*(i-1)/2
+      iat = aoat2(i)
+      jat = aoat2(j)
+      ish = ao2sh(i)
+      jsh = ao2sh(j)
       iZp = at(iat)
       jZp = at(jat)
-      ishell=mmm(lao2(i))
-      jshell=mmm(lao2(j))
-      hdii=hdiag2(i)
-      hdii=hdii-kcnao(i)*cn(iat)  ! CN dependent shift
-      hdjj=hdiag2(j)
-      hdjj=hdjj-kcnao(j)*cn(jat)  ! CN dependent shift
-      call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
-      &           kenscal,km)
-      km=km*(0.5*((aoexp(i)+aoexp(j))/(aoexp(i)*aoexp(j))**0.5))**aot
-      hav=0.5d0*(hdii+hdjj)* &
-      &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
+      il = mmm(lao2(i))
+      jl = mmm(lao2(j))
+      hdii = selfEnergy(ish)
+      hdjj = selfEnergy(jsh)
+      call h0scal(hData,n,at,i,j,il,jl,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      &           km)
+      km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
+      hav = 0.5d0*(hdii+hdjj)* &
+      &      shellPoly(hData%shellPoly(il, iZp), hData%shellPoly(jl, jZp), &
       &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      H0(k)=S(j,i)*km*hav
+      H0(k) = S(j,i)*km*hav
    enddo
 !  diagonal
    k=0
    do i=1,ndim
       k=k+i
-      iat=aoat2(i)
-      ishell=mmm(lao2(i))
-      H0(k)=hdiag2(i)-kcnao(i)*cn(iat)  ! CN dependent shift
+      iat = aoat2(i)
+      ish = ao2sh(i)
+      il = mmm(lao2(i))
+      H0(k) = selfEnergy(ish)
    enddo
 
-end subroutine build_h0_gfn2
+end subroutine build_h0
 
 !! ========================================================================
 !  build GFN1 Fockian
@@ -1052,7 +1057,7 @@ end subroutine scc_gfn2
 !  H0 off-diag scaling
 !! ========================================================================
 subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj, &
-   &              kenscal,km)
+   &              km)
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -1064,7 +1069,6 @@ subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj, &
    integer, intent(in)  :: jat
    logical, intent(in)  :: valaoi
    logical, intent(in)  :: valaoj
-   real(wp),intent(in)  :: kenscal
    real(wp),intent(out) :: km
    integer  :: ii,jj
    real(wp) :: den, enpoly

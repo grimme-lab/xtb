@@ -117,6 +117,8 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    real(wp),allocatable :: cm5(:)
    real(wp),allocatable :: kcnao(:)
    real(wp),allocatable :: Xcao(:,:)
+   real(wp),allocatable :: selfEnergy(:)
+   real(wp),allocatable :: dSEdcn(:)
 !  AES stuff
    real(wp),allocatable  :: dpint(:,:),qpint(:,:)
    real(wp),allocatable  :: gab3(:),gab5(:)
@@ -295,6 +297,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    &        S(basis%nao,basis%nao),tmp(basis%nao), &
    &        X(basis%nao,basis%nao),H1(basis%nao*(basis%nao+1)/2), &
    &        kcnao(basis%nao),ves(basis%nshell), &
+   &        selfEnergy(basis%nshell),dSEdcn(basis%nshell), &
    &        zsh(basis%nshell),&
    &        jab(basis%nshell,basis%nshell), &
    &        matlist (2,basis%nao*(basis%nao+1)/2), &
@@ -549,6 +552,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
             kcnao(ii)=param%kcnsh(ishell)
             if(ishell.eq.3) kcnao(ii)=param%kcnsh(4) ! fix problems with too low-coord CP rings
          endif
+         kcnao(ii)=-kcnao(ii)*basis%hdiag2(ii)
       else
          kcnao(ii)=xtbData%hamiltonian%kCN(ishell,mol%at(iat)) ! clean GFN2 version
       endif
@@ -576,15 +580,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 !  do H0 once
 ! ========================================================================
    H0=0
-   if(gfn_method.eq.1)then
-      call build_h0_gfn1(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
-      &                  param%kenscal, &
-      &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
-   else
-      call build_h0_gfn2(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
-      &                  param%kenscal, &
-      &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
-   endif
+   call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
+      & selfEnergy=selfEnergy, dSEdcn=dSEdcn)
+   call build_h0(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
+      &  mol%xyz,selfEnergy,S,basis%aoat2,basis%lao2,basis%valao2, &
+      &  basis%aoexp,basis%ao2sh)
 ! ========================================================================
 
    ! first order energy for given geom. and density, i.e. skip SCC and grad
@@ -681,7 +681,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 ! ========================================================================
 
    call scf_grad(mol%n,mol%at,nmat2,matlist2, &
-        &        H0,H1,S,xtbData, &
+        &        H0,H1,S,xtbData,selfEnergy,dSEdcn, &
         &        mol%xyz,sqrab,wfn,basis, &
         &        param,kcnao, &
         &        dispdim,c6abns,mbd, &
@@ -791,7 +791,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
 end subroutine scf
 
 subroutine scf_grad(n,at,nmat2,matlist2, &
-      &             H0,H1,S,xtbData, &
+      &             H0,H1,S,xtbData,selfEnergy,dSEdcn, &
       &             xyz,sqrab,wfn,basis, &
       &             param,kcnao, &
       &             dispdim,c6abns,mbd, &
@@ -834,6 +834,8 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
    integer, intent(in)    :: at(n)
    integer, intent(in)    :: nmat2
    integer,intent(in) :: matlist2(2,nmat2)
+   real(wp),intent(in)    :: selfEnergy(:)
+   real(wp),intent(in)    :: dSEdcn(:)
    real(wp),intent(in)    :: xyz(3,n)
    real(wp),intent(in)    :: sqrab(n*(n+1)/2)
    real(wp),intent(inout) :: H0(basis%nao*(basis%nao+1)/2)
@@ -897,15 +899,12 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 !  print'("Calculating CN dependent derivatives")'
    if (gfn_method.gt.1) then
       call dncoord_gfn(n,at,xyz,cn,dcndr)
-      call hcn_grad_gfn2(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
-           &             param%kenscal,kcnao,wfn%P,S,dcndr, &
-           &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    else
       call dncoord_d3(n,at,xyz,cn,dcndr)
-      call hcn_grad_gfn1(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
-           &             param%kenscal,kcnao,wfn%P,S,dcndr, &
-           &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    endif
+   call hcn_grad(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
+      &          wfn%P,S,dcndr,selfEnergy,dSEdcn, &
+      &          basis%aoat2,basis%lao2,basis%valao2,basis%aoexp,basis%ao2sh)
 
 !  preccalc
 !  print'("Resetting the Hamiltonian")'

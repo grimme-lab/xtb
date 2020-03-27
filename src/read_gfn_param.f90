@@ -71,7 +71,7 @@ subroutine readParam &
    real(wp) :: eeqkcn(max_elem)
    real(wp) :: chargeWidth(max_elem)
    real(wp) :: kqat2(max_elem)
-   real(wp) :: kqat(3,max_elem)
+   real(wp) :: kqat(0:2,max_elem)
    real(wp) :: kpair(max_elem,max_elem)
    real(wp) :: kcnat(0:2,max_elem)
    real(wp) :: eeqEN(max_elem)
@@ -163,15 +163,23 @@ subroutine readParam &
    call setpair(version, kpair)
 
    xtbData%nShell = nShell
+
    ! Repulsion
    call init(xtbData%repulsion, 1.5_wp, kExpLight, 1.0_wp, globpar%renscale, &
       & repAlpha, repZeff, electronegativity)
+
    ! Coulomb
-   call init(xtbData%coulomb, nShell, atomicHardness, shellHardness, &
-      & thirdOrderAtom, eeqen, eeqkcn, chargeWidth)
+   xtbData%coulomb%chemicalHardness = atomicHardness(:max_elem)
+   xtbData%coulomb%shellHardness = shellHardness(:, :max_elem)
+   xtbData%coulomb%thirdOrderAtom = thirdOrderAtom(:max_elem)
+   xtbData%coulomb%electronegativity = eeqEN(:max_elem)
+   xtbData%coulomb%kCN = eeqkCN(:max_elem)
+   xtbData%coulomb%chargeWidth = chargeWidth(:max_elem)
+
    ! Hamiltonian
    mShell = maxval(xtbData%nShell)
    xtbData%hamiltonian%angShell = angShell(:mShell, :)
+
    xtbData%hamiltonian%kScale = 0.5_wp * (spread(globpar%kshell, 1, 4) &
       & + spread(globpar%kshell, 2, 4))
    if (globpar%ksp > 0.0_wp) then
@@ -186,28 +194,41 @@ subroutine readParam &
       xtbData%hamiltonian%kScale(1,2) = globpar%kpd
       xtbData%hamiltonian%kScale(2,1) = globpar%kpd
    end if
+   xtbData%hamiltonian%kDiff = globpar%kDiff
+
    xtbData%hamiltonian%enScale = 0.005_wp * (spread(globpar%enshell, 1, 4) &
       & + spread(globpar%enshell, 2, 4))
    xtbData%hamiltonian%enScale4 = globpar%enscale4
-   xtbData%hamiltonian%kDiff = globpar%kDiff
+
    xtbData%hamiltonian%electronegativity = electronegativity(:)
    xtbData%hamiltonian%atomicRad = atomicRad(:)
    xtbData%hamiltonian%shellPoly = shellPoly(:, :)
    xtbData%hamiltonian%pairParam = kpair(:, :)
-   xtbData%hamiltonian%kCN = kcnat(:, :)
    xtbData%hamiltonian%selfEnergy = selfEnergy(:mShell, :)
    xtbData%hamiltonian%slaterExponent = slaterExponent(:mShell, :)
    xtbData%hamiltonian%principalQuantumNumber = principalQuantumNumber(:mShell, :)
-   xtbData%hamiltonian%kQShell = kqat(:, :)
-   xtbData%hamiltonian%kQAtom = kqat2(:)
+
    allocate(xtbData%hamiltonian%valenceShell(mShell, max_elem))
    call generateValenceShellData(xtbData%hamiltonian%valenceShell, &
       & xtbData%nShell, xtbData%hamiltonian%angShell)
+
    select case(version)
    case(0)
       ! Hamiltonian
+      xtbData%hamiltonian%wExp = 1.0_wp
+
+      allocate(xtbData%hamiltonian%kCN(mShell, max_elem))
+      call angToShellData(xtbData%hamiltonian%kCN, xtbData%nShell, &
+         & xtbData%hamiltonian%angShell, kcnat)
+
+      allocate(xtbData%hamiltonian%kQShell(mShell, max_elem))
+      call angToShellData(xtbData%hamiltonian%kQShell, xtbData%nShell, &
+         & xtbData%hamiltonian%angShell, kqat)
+      xtbData%hamiltonian%kQAtom = kqat2(:)
+
       allocate(xtbData%hamiltonian%referenceOcc(mShell, max_elem))
       call setGFN2ReferenceOcc(xtbData%hamiltonian, xtbData%nShell)
+
       allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
       call setGFN0NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
 
@@ -215,9 +236,18 @@ subroutine readParam &
       ! Halogen
       allocate(xtbData%halogen)
       call init(xtbData%halogen, globpar%xbrad, globpar%xbdamp, halogenBond)
+
       ! Hamiltonian
+      xtbData%hamiltonian%wExp = 0.0_wp
+
+      allocate(xtbData%hamiltonian%kCN(mShell, max_elem))
+      call setGFN1kCN(xtbData%hamiltonian%kCN, xtbData%nShell, &
+         & xtbData%hamiltonian%angShell, xtbData%hamiltonian%selfEnergy, &
+         & globpar%cnshell)
+
       allocate(xtbData%hamiltonian%referenceOcc(mShell, max_elem))
       call setGFN1ReferenceOcc(xtbData%hamiltonian, xtbData%nShell)
+
       allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
       call setGFN1NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
 
@@ -227,9 +257,17 @@ subroutine readParam &
       call init(xtbData%multipole, globpar%aesshift, globpar%aesexp, &
          & globpar%aesrmax, globpar%aesdmp3, globpar%aesdmp5, &
          & dipKernel, quadKernel)
+
       ! Hamiltonian
+      xtbData%hamiltonian%wExp = 0.5_wp
+
+      allocate(xtbData%hamiltonian%kCN(mShell, max_elem))
+      call angToShellData(xtbData%hamiltonian%kCN, xtbData%nShell, &
+         & xtbData%hamiltonian%angShell, kcnat)
+
       allocate(xtbData%hamiltonian%referenceOcc(mShell, max_elem))
       call setGFN2ReferenceOcc(xtbData%hamiltonian, xtbData%nShell)
+
       allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
       call setGFN2NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
 
@@ -285,6 +323,18 @@ subroutine gfn_globpar(key,val,globpar)
    case('enscale'); if (getValue(env,val,ddum)) globpar%enshell = ddum
    case('enscale4'); if (getValue(env,val,ddum)) globpar%enscale4 = ddum
    case('renscale'); if (getValue(env,val,ddum)) globpar%renscale = ddum
+   case('cns'); if (getValue(env,val,ddum)) globpar%cnshell(:, 0) = ddum
+   case('cnp'); if (getValue(env,val,ddum)) globpar%cnshell(:, 1) = ddum
+   case('cnd'); if (getValue(env,val,ddum)) globpar%cnshell(:, 2) = ddum
+   case('cnf'); if (getValue(env,val,ddum)) globpar%cnshell(:, 3) = ddum
+   case('cnd1'); if (getValue(env,val,ddum)) globpar%cnshell(1, 2) = ddum
+   case('cnd2'); if (getValue(env,val,ddum)) globpar%cnshell(2, 2) = ddum
+   case('gam3s'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 0) = ddum
+   case('gam3p'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 1) = ddum
+   case('gam3d'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 2) = ddum
+   case('gam3f'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 3) = ddum
+   case('gam3dpol'); if (getValue(env,val,ddum)) globpar%gam3shell(1, 2) = ddum
+   case('gam3dval'); if (getValue(env,val,ddum)) globpar%gam3shell(2, 2) = ddum
    case('wllscal'); if (getValue(env,val,ddum)) globpar%wllscal = ddum
    case('ipeashift'); if (getValue(env,val,ddum)) globpar%ipeashift = ddum
    case('gscal'); if (getValue(env,val,ddum)) globpar%gscal = ddum
@@ -438,9 +488,9 @@ subroutine gfn_elempar(key,val,iz)
    case('kcns');  if (getValue(env,val,ddum)) kcnat(0,iz) = ddum * 0.1_wp
    case('kcnp');  if (getValue(env,val,ddum)) kcnat(1,iz) = ddum * 0.1_wp
    case('kcnd');  if (getValue(env,val,ddum)) kcnat(2,iz) = ddum * 0.1_wp
-   case('kqs');   if (getValue(env,val,ddum)) kqat(1,iz)  = ddum
-   case('kqp');   if (getValue(env,val,ddum)) kqat(2,iz)  = ddum
-   case('kqd');   if (getValue(env,val,ddum)) kqat(3,iz)  = ddum
+   case('kqs');   if (getValue(env,val,ddum)) kqat(0,iz)  = ddum
+   case('kqp');   if (getValue(env,val,ddum)) kqat(1,iz)  = ddum
+   case('kqd');   if (getValue(env,val,ddum)) kqat(2,iz)  = ddum
    end select
 end subroutine gfn_elempar
 

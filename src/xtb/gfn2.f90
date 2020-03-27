@@ -786,14 +786,17 @@ subroutine initHamiltonian(self, nShell)
    self%enScale = 0.005_wp * (spread(gfn2Globals%enshell, 1, 4) &
       & + spread(gfn2Globals%enshell, 2, 4))
    self%enScale4 = gfn2Globals%enscale4
+   self%wExp = 0.5_wp
 
    self%electronegativity = paulingEN(:maxElem)
    self%atomicRad = atomicRad(:maxElem)
    self%shellPoly = shellPoly(:, :maxElem)
-   self%kCN = kCN(:, :maxElem)
    self%selfEnergy = selfEnergy(:mShell, :maxElem)
    self%slaterExponent = slaterExponent(:mShell, :maxElem)
    self%principalQuantumNumber = principalQuantumNumber(:mShell, :maxElem)
+
+   allocate(self%kCN(mShell, maxElem))
+   call angToShellData(self%kCN, nShell, self%angShell, kCN)
 
    allocate(self%pairParam(maxElem, maxElem))
    self%pairParam = 1.0_wp
@@ -879,6 +882,32 @@ subroutine setGFN2NumberOfPrimitives(self, nShell)
    end do
 
 end subroutine setGFN2NumberOfPrimitives
+
+
+subroutine setGFN2kCN(kCN, nShell, angShell, angCN)
+
+   real(wp), intent(out) :: kCN(:, :)
+
+   integer, intent(in) :: nShell(:)
+
+   integer, intent(in) :: angShell(:, :)
+
+   real(wp), intent(in) :: angCN(0:, :)
+
+   integer :: nElem, iZp, iSh, lAng, iKind
+
+   nElem = min(size(kCN, dim=2), size(nShell), size(angShell, dim=2), &
+      & size(angCN, dim=2))
+
+   kCN(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      do iSh = 1, nShell(iZp)
+         lAng = angShell(iSh, iZp)
+         kCN(iSh, iZp) = angCN(lAng, iZp)
+      end do
+   end do
+
+end subroutine setGFN2kCN
 
 
 end module xtb_xtb_gfn2

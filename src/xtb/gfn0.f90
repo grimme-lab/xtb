@@ -800,12 +800,16 @@ subroutine initHamiltonian(self, nShell)
    self%electronegativity = electronegativity(:maxElem)
    self%atomicRad = atomicRad(:maxElem)
    self%shellPoly = shellPoly(:, :maxElem)
-   self%kCN = kCN(:, :maxElem)
    self%selfEnergy = selfEnergy(:mShell, :maxElem)
    self%slaterExponent = slaterExponent(:mShell, :maxElem)
    self%principalQuantumNumber = principalQuantumNumber(:mShell, :maxElem)
-   self%kQShell = kQShell(:, :maxElem)
    self%kQAtom = kQAtom(:maxElem)
+
+   allocate(self%kCN(mShell, maxElem))
+   call angToShellData(self%kCN, nShell, self%angShell, kCN)
+
+   allocate(self%kQShell(mShell, maxElem))
+   call angToShellData(self%kQShell, nShell, self%angShell, kQShell)
 
    allocate(self%pairParam(maxElem, maxElem))
    call setGFN0PairParam(self%pairParam)
