@@ -81,7 +81,7 @@ subroutine readParam &
 
    character(len=:), allocatable :: line
 
-   integer :: mShell
+   integer :: mShell, iSh, jSh
    integer :: version
    integer :: err
    logical :: newFormat
@@ -187,8 +187,12 @@ subroutine readParam &
    mShell = maxval(xtbData%nShell)
    xtbData%hamiltonian%angShell = angShell(:mShell, :)
 
-   xtbData%hamiltonian%kScale = 0.5_wp * (spread(globpar%kshell, 1, 4) &
-      & + spread(globpar%kshell, 2, 4))
+   do iSh = 0, 3
+      do jSh = 0, 3
+         xtbData%hamiltonian%kScale(jSh, iSh) = 0.5_wp * (globpar%kShell(iSh) &
+            & + globpar%kShell(jSh))
+      end do
+   end do
    if (globpar%ksp > 0.0_wp) then
       xtbData%hamiltonian%kScale(0,1) = globpar%ksp
       xtbData%hamiltonian%kScale(1,0) = globpar%ksp
@@ -203,8 +207,12 @@ subroutine readParam &
    end if
    xtbData%hamiltonian%kDiff = globpar%kDiff
 
-   xtbData%hamiltonian%enScale = 0.005_wp * (spread(globpar%enshell, 1, 4) &
-      & + spread(globpar%enshell, 2, 4))
+   do iSh = 0, 3
+      do jSh = 0, 3
+         xtbData%hamiltonian%enScale(jSh, iSh) = 0.005_wp * (globpar%enShell(iSh) &
+            & + globpar%enShell(jSh))
+      end do
+   end do
    xtbData%hamiltonian%enScale4 = globpar%enscale4
 
    xtbData%hamiltonian%electronegativity = electronegativity(:)

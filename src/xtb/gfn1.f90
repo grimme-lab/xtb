@@ -622,18 +622,27 @@ subroutine initHamiltonian(self, nShell)
    integer, intent(in) :: nShell(:)
 
    integer :: mShell, nPrim, lAng
-   integer :: iZp, iSh
+   integer :: iZp, iSh, jSh
    logical :: valShell(0:3)
 
    mShell = maxval(nShell)
    self%angShell = angularMomentum(:mShell, :maxElem)
 
-   self%kScale = 0.5_wp*(spread(gfn1Globals%kShell,1,4)+spread(gfn1Globals%kShell,2,4))
+   do iSh = 0, 3
+      do jSh = 0, 3
+         self%kScale(jSh, iSh) = 0.5_wp * (gfn1Globals%kShell(iSh) &
+            & + gfn1Globals%kShell(jSh))
+      end do
+   end do
    self%kScale(0,1) = gfn1Globals%ksp
    self%kScale(1,0) = gfn1Globals%ksp
    self%kDiff = gfn1Globals%kDiff
-   self%enScale = 0.005_wp * (spread(gfn1Globals%enshell, 1, 4) &
-      & + spread(gfn1Globals%enshell, 2, 4))
+   do iSh = 0, 3
+      do jSh = 0, 3
+         self%enScale(jSh, iSh) = 0.005_wp * (gfn1Globals%enshell(iSh) &
+            & + gfn1Globals%enshell(jSh))
+      end do
+   end do
    self%enScale4 = gfn1Globals%enscale4
    self%wExp = 0.0_wp
 

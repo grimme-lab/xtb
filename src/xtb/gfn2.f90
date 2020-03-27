@@ -785,20 +785,29 @@ subroutine initHamiltonian(self, nShell)
    integer, intent(in) :: nShell(:)
 
    integer :: mShell, nPrim, lAng
-   integer :: iZp, iSh
+   integer :: iZp, iSh, jSh
    logical :: valShell(0:3)
 
    mShell = maxval(nShell)
    self%angShell = angShell(:mShell, :maxElem)
 
-   self%kScale = 0.5_wp*(spread(gfn2Globals%kShell,1,4)+spread(gfn2Globals%kShell,2,4))
+   do iSh = 0, 3
+      do jSh = 0, 3
+         self%kScale(jSh, iSh) = 0.5_wp * (gfn2Globals%kShell(iSh) &
+            & + gfn2Globals%kShell(jSh))
+      end do
+   end do
    self%kScale(0,2) = gfn2Globals%ksd
    self%kScale(2,0) = gfn2Globals%ksd
    self%kScale(1,2) = gfn2Globals%kpd
    self%kScale(2,1) = gfn2Globals%kpd
    self%kDiff = gfn2Globals%kDiff
-   self%enScale = 0.005_wp * (spread(gfn2Globals%enshell, 1, 4) &
-      & + spread(gfn2Globals%enshell, 2, 4))
+   do iSh = 0, 3
+      do jSh = 0, 3
+         self%enScale(jSh, iSh) = 0.005_wp * (gfn2Globals%enshell(iSh) &
+            & + gfn2Globals%enshell(jSh))
+      end do
+   end do
    self%enScale4 = gfn2Globals%enscale4
    self%wExp = 0.5_wp
 
