@@ -164,7 +164,7 @@ subroutine readParam &
 
    xtbData%nShell = nShell
    ! Repulsion
-   call init(xtbData%repulsion, 1.5_wp, kExpLight, 1.0_wp, 0.0_wp, &
+   call init(xtbData%repulsion, 1.5_wp, kExpLight, 1.0_wp, globpar%renscale, &
       & repAlpha, repZeff, electronegativity)
    ! Coulomb
    call init(xtbData%coulomb, nShell, atomicHardness, shellHardness, &
@@ -172,6 +172,24 @@ subroutine readParam &
    ! Hamiltonian
    mShell = maxval(xtbData%nShell)
    xtbData%hamiltonian%angShell = angShell(:mShell, :)
+   xtbData%hamiltonian%kScale = 0.5_wp * (spread(globpar%kshell, 1, 4) &
+      & + spread(globpar%kshell, 2, 4))
+   if (globpar%ksp > 0.0_wp) then
+      xtbData%hamiltonian%kScale(0,1) = globpar%ksp
+      xtbData%hamiltonian%kScale(1,0) = globpar%ksp
+   end if
+   if (globpar%ksd > 0.0_wp) then
+      xtbData%hamiltonian%kScale(0,2) = globpar%ksd
+      xtbData%hamiltonian%kScale(2,0) = globpar%ksd
+   end if
+   if (globpar%kpd > 0.0_wp) then
+      xtbData%hamiltonian%kScale(1,2) = globpar%kpd
+      xtbData%hamiltonian%kScale(2,1) = globpar%kpd
+   end if
+   xtbData%hamiltonian%enScale = 0.005_wp * (spread(globpar%enshell, 1, 4) &
+      & + spread(globpar%enshell, 2, 4))
+   xtbData%hamiltonian%enScale4 = globpar%enscale4
+   xtbData%hamiltonian%kDiff = globpar%kDiff
    xtbData%hamiltonian%electronegativity = electronegativity(:)
    xtbData%hamiltonian%atomicRad = atomicRad(:)
    xtbData%hamiltonian%shellPoly = shellPoly(:, :)
@@ -250,12 +268,23 @@ subroutine gfn_globpar(key,val,globpar)
    select case(key)
    case default
       call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
-   case('ks'); if (getValue(env,val,ddum)) globpar%ks = ddum
-   case('kp'); if (getValue(env,val,ddum)) globpar%kp = ddum
-   case('kd'); if (getValue(env,val,ddum)) globpar%kd = ddum
-   case('kf'); if (getValue(env,val,ddum)) globpar%kf = ddum
+   case('ks'); if (getValue(env,val,ddum)) globpar%kshell(0) = ddum
+   case('kp'); if (getValue(env,val,ddum)) globpar%kshell(1) = ddum
+   case('kd'); if (getValue(env,val,ddum)) globpar%kshell(2) = ddum
+   case('kf'); if (getValue(env,val,ddum)) globpar%kshell(3) = ddum
+   case('ksp'); if (getValue(env,val,ddum)) globpar%ksp = ddum
+   case('ksd'); if (getValue(env,val,ddum)) globpar%ksd = ddum
+   case('kpd'); if (getValue(env,val,ddum)) globpar%kpd = ddum
+   case('kdiff'); if (getValue(env,val,ddum)) globpar%kdiff = ddum
    case('kdiffa'); if (getValue(env,val,ddum)) globpar%kdiffa = ddum
    case('kdiffb'); if (getValue(env,val,ddum)) globpar%kdiffb = ddum
+   case('ens'); if (getValue(env,val,ddum)) globpar%enshell(0) = ddum
+   case('enp'); if (getValue(env,val,ddum)) globpar%enshell(1) = ddum
+   case('end'); if (getValue(env,val,ddum)) globpar%enshell(2) = ddum
+   case('enf'); if (getValue(env,val,ddum)) globpar%enshell(3) = ddum
+   case('enscale'); if (getValue(env,val,ddum)) globpar%enshell = ddum
+   case('enscale4'); if (getValue(env,val,ddum)) globpar%enscale4 = ddum
+   case('renscale'); if (getValue(env,val,ddum)) globpar%renscale = ddum
    case('wllscal'); if (getValue(env,val,ddum)) globpar%wllscal = ddum
    case('ipeashift'); if (getValue(env,val,ddum)) globpar%ipeashift = ddum
    case('gscal'); if (getValue(env,val,ddum)) globpar%gscal = ddum

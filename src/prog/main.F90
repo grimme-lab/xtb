@@ -73,6 +73,7 @@ module xtb_prog_main
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
+   use xtb_geoopt
    implicit none
    private
 
@@ -95,7 +96,7 @@ subroutine xtbMain(env, argParser)
 !  use some wrapper types to bundle information together
    type(TMolecule) :: mol
    type(scc_results) :: res
-   type(tb_calculator) :: calc
+   type(TCalculator) :: calc
    type(freq_results) :: fres
    type(TWavefunction) :: wfn
    type(chrg_parameter) :: chrgeq
@@ -453,14 +454,14 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter file
-   allocate(calc%xtb)
+   allocate(calc%xtbData)
    call open_file(ich,fnv,'r')
    exist = ich .ne. -1
    if (exist) then
-      call readParam(env,ich,globpar,calc%xtb,.true.)
+      call readParam(env,ich,globpar,calc%xtbData,.true.)
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fnv,globpar,calc%xtb,exist)
+      call use_parameterset(fnv,globpar,calc%xtbData,exist)
       if (.not.exist) then
          call env%error('Parameter file '//fnv//' not found!', source)
       end if
@@ -483,13 +484,13 @@ subroutine xtbMain(env, argParser)
    case default
       call env%terminate('Internal error, wrong GFN method passed!')
    case(1)
-      call set_gfn1_parameter(calc%param,globpar,calc%xtb)
+      call set_gfn1_parameter(calc%param,globpar,calc%xtbData)
       call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
    case(2)
-      call set_gfn2_parameter(calc%param,globpar,calc%xtb)
+      call set_gfn2_parameter(calc%param,globpar,calc%xtbData)
       call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
    case(0)
-      call set_gfn0_parameter(calc%param,globpar,calc%xtb)
+      call set_gfn0_parameter(calc%param,globpar,calc%xtbData)
       call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
    end select
 
@@ -504,7 +505,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> set up the basis set for the tb-Hamiltonian
    allocate(calc%basis)
-   call newBasisset(calc%xtb,mol%n,mol%at,calc%basis,okbas)
+   call newBasisset(calc%xtbData,mol%n,mol%at,calc%basis,okbas)
    if (.not.okbas) call env%terminate('basis set could not be setup completely')
 
 
@@ -529,7 +530,7 @@ subroutine xtbMain(env, argParser)
       wfn%q = real(chrg,wp)/real(mol%n,wp)
    endif
    !> initialize shell charges from gasteiger charges
-   call iniqshell(calc%xtb,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
 
 
    ! ------------------------------------------------------------------------
@@ -561,6 +562,9 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Setup for calculation failed")
 
+   calc%etemp = etemp
+   calc%maxiter = maxscciter
+   calc%accuracy = acc
 
    ! ========================================================================
    !> the SP energy which is always done
@@ -786,7 +790,7 @@ subroutine xtbMain(env, argParser)
       write(*,*)'Periodic properties'
    else
       call main_property(iprop, &
-         mol,wfn,calc%basis,calc%param,calc%xtb,res,acc)
+         mol,wfn,calc%basis,calc%param,calc%xtbData,res,acc)
       call main_cube(verbose, &
          mol,wfn,calc%basis,calc%param,res)
    endif

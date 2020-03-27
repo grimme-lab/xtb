@@ -24,9 +24,14 @@ module xtb_xtb_data
    private
 
    public :: TxTBData, init
-   public :: TRepulsionData, TCoulombData, THamiltonianData
+   public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
    public :: THalogenData, TMultipoleData
    public :: generateValenceShellData
+
+
+   !> Data for the dispersion contribution
+   type :: TDispersionData
+   end type TDispersionData
 
 
    !> Data for the repulsion contribution
@@ -61,6 +66,18 @@ module xtb_xtb_data
 
    !> Data for the evaluation of the xTB core Hamiltonian
    type :: THamiltonianData
+
+      !> Scaling factors for different interacting shells
+      real(wp) :: kScale(0:3, 0:3)
+
+      !> Scaling factor for diffuse or polarisation function
+      real(wp) :: kDiff
+
+      !> Shell dependence of the EN polynom
+      real(wp) :: enScale(0:3, 0:3)
+
+      !> Quartic contribution to EN polynom
+      real(wp) :: enscale4
 
       !> Principal quantum number of each shell
       integer, allocatable :: principalQuantumNumber(:, :)
@@ -208,6 +225,9 @@ module xtb_xtb_data
 
       !> Parametrisation data for Coulombic interactions
       type(TCoulombData) :: coulomb
+
+      !> Parametrisation data for dispersion interactions
+      type(TDispersionData) :: dispersion
 
       !> Parametrisation data for multipole electrostatics (optional)
       type(TMultipoleData), allocatable :: multipole

@@ -34,6 +34,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    use xtb_setparam
    use xtb_fixparam
 
+   use xtb_geoopt
    use xtb_optimizer
    use xtb_lsrmsd
 
@@ -44,7 +45,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    type(TMolecule),    intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   type(tb_calculator),  intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer, intent(in)    :: maxiter
    real(wp),intent(in)    :: epot
    real(wp),intent(in)    :: et

@@ -22,20 +22,20 @@ module xtb_type_param
    public :: dftd_parameter
    public :: TxTBParameter
    public ::  scc_parameter
-   public :: gfn0_param_from_globpar
-   public :: gfn1_param_from_globpar
-   public :: gfn2_param_from_globpar
 
    public :: chrg_parameter
    private
 
    type :: TxTBParameter
-      real(wp) :: ks = 0.0_wp
-      real(wp) :: kp = 0.0_wp
-      real(wp) :: kd = 0.0_wp
-      real(wp) :: kf = 0.0_wp
+      real(wp) :: kshell(0:3) = 0.0_wp
+      real(wp) :: ksp = 0.0_wp
+      real(wp) :: ksd = 0.0_wp
+      real(wp) :: kpd = 0.0_wp
+      real(wp) :: kdiff = 0.0_wp
       real(wp) :: kdiffa = 0.0_wp
       real(wp) :: kdiffb = 0.0_wp
+      real(wp) :: enshell(0:3) = 0.0_wp
+      real(wp) :: enscale4 = 0.0_wp
       real(wp) :: wllscal = 0.0_wp
       real(wp) :: gscal = 0.0_wp
       real(wp) :: zcnf = 0.0_wp
@@ -61,6 +61,7 @@ module xtb_type_param
       real(wp) :: aesdmp3 = 0.0_wp
       real(wp) :: aesdmp5 = 0.0_wp
       real(wp) :: ipeashift = 0.0_wp
+      real(wp) :: renscale = 0.0_wp
    end type TxTBParameter
 
    type :: dftd_parameter
@@ -76,17 +77,10 @@ module xtb_type_param
    end type dftd_parameter
 
    type :: scc_parameter
-      real(wp) :: kspd(6)
       real(wp) :: gscal
       real(wp) :: gam3l(0:3)
       real(wp) :: kcnsh(4)
-      real(wp) :: kmagic(4,4)
       type(dftd_parameter) :: disp
-      real(wp) :: cn_shift
-      real(wp) :: cn_expo
-      real(wp) :: cn_rmax
-      real(wp) :: xbdamp
-      real(wp) :: xbrad
       real(wp) :: ipshift
       real(wp) :: eashift
       real(wp) :: ken1
@@ -153,177 +147,5 @@ subroutine deallocate_chrgeq(self)
    if (allocated(self%dpol))  deallocate(self%dpol)
    if (allocated(self%beta))  deallocate(self%beta)
 end subroutine deallocate_chrgeq
-
-subroutine gfn0_param_defaults(param)
-   implicit none
-   type(scc_parameter)  :: param
-   integer :: i,j
-   param%kspd(1:6) = [2.0_wp, 2.4868_wp, 2.27_wp, 0.6_wp, 0.0_wp, -0.1_wp]
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         param%kmagic(i,j)=(param%kspd(i)+param%kspd(j))*0.50_wp
-      enddo
-   enddo
-   param%gscal    = 0.0_wp   ! purpose changed in scf.f !
-   param%kcnsh    =[0.0_wp, 0.0537_wp, -0.0129_wp, 3.4847_wp ]
-   param%gscal    = 0.5097_wp         ! EN dep
-   param%kenscal  =-0.2_wp         ! ken² (d3atm in old main.f)
-   param%xbdamp   = 4.0_wp         ! ken⁴
-   param%xbrad    =-0.09_wp         ! rep dEN
-   param%g_a      = 3.0_wp
-   param%g_c      = 2.0_wp
-   param%wf       = 6.0_wp
-   param%alphaj   = 1.1241_wp
-   param%disp = dftd_parameter( s6 = 1.0_wp, s8 = 2.85_wp, s9 = 0.0_wp, &
-      &                         a1 = 0.8_wp, a2 = 4.6_wp )
-   param%ipshift  =0.0_wp
-   param%eashift  =0.0_wp
-   param%ken1     =1.0_wp
-   param%zqf      =0.0_wp
-   param%zcnf     =0.0_wp
-   param%fpol     =0.0_wp
-   param%wllscal  =1.0_wp
-
-end subroutine gfn0_param_defaults
-
-subroutine gfn0_param_from_globpar(param,globpar)
-   implicit none
-   type(scc_parameter)  :: param
-   real(wp), intent(in) :: globpar(25)
-   integer :: i,j
-   param%kspd(1:6)=globpar(1:6)
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         param%kmagic(i,j)=(param%kspd(i)+param%kspd(j))*0.50_wp
-      enddo
-   enddo
-   if(param%kspd(5).gt.0.1)then   ! s - p
-      param%kmagic(1,2)=param%kspd(5)
-      param%kmagic(2,1)=param%kspd(5)
-   endif
-   param%gscal    =globpar(8)*0.1_wp   ! purpose changed in scf.f !
-   param%gam3l(0) =1.00_wp     !s
-   param%gam3l(1) =globpar(9) !p
-   param%gam3l(2) =globpar(10)!d-pol
-   param%gam3l(3) =globpar(11)!d-val
-   param%kcnsh(1) =globpar(17)         ! K 2s - 2s
-   param%kcnsh(2) =globpar( 9)         ! SRB shift
-   param%kcnsh(3) =globpar(10)         ! SRB prefactor
-   param%kcnsh(4) =globpar(11)         ! SRB steepnes
-   param%gscal    =globpar(12)         ! EN dep
-   param%kenscal  =globpar(19)         ! ken² (d3atm in old main.f)
-   param%xbdamp   =globpar(24)         ! ken⁴
-   param%xbrad    =globpar(25)         ! rep dEN
-   param%g_a      =3.0_wp
-   param%g_c      =2.0_wp
-   param%wf       =6.0_wp
-   param%alphaj   =globpar(18)
-   param%disp%a1  =globpar(20)
-   param%disp%a2  =globpar(21)
-   param%disp%s6  =1.0_wp
-   param%disp%s9  =0.0_wp
-   param%disp%s8  =globpar(22)
-   param%ipshift  =globpar(7)*0.1_wp
-   param%eashift  =param%ipshift
-   param%ken1     =1.0_wp
-   param%zqf      =0.0_wp
-   param%zcnf     =0.0_wp
-   param%fpol     =0.0_wp
-   param%wllscal  =1.0_wp
-end subroutine gfn0_param_from_globpar
-
-subroutine gfn1_param_from_globpar(param,globpar)
-   implicit none
-   type(scc_parameter)  :: param
-   real(wp), intent(in) :: globpar(25)
-   integer :: i,j
-   param%kspd(1:6)=globpar(1:6)
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         param%kmagic(i,j)=(param%kspd(i)+param%kspd(j))*0.50_wp
-      enddo
-   enddo
-   if(param%kspd(5).gt.0.1_wp)then   ! s - p
-      param%kmagic(1,2)=param%kspd(5)
-      param%kmagic(2,1)=param%kspd(5)
-   endif
-   param%gscal    =globpar(8)*0.1_wp    ! purpose changed in scf.f !
-   param%gam3l(0) =1.00_wp     !s
-   param%gam3l(1) =globpar(9) !p
-   param%gam3l(2) =globpar(10)!d-pol
-   param%gam3l(3) =globpar(11)!d-val
-   param%kcnsh(1) =globpar(11)*0.01_wp
-   param%kcnsh(2) =globpar(12)*0.01_wp
-   param%kcnsh(3) =globpar(13)*0.01_wp
-   param%kcnsh(4) = 0.005_wp
-   param%kenscal  =globpar(23) ! kenscal in scf.f
-   param%xbdamp   =globpar(24)
-   param%xbrad    =globpar(25)
-   param%disp%s9  =0.0_wp! d3atm
-   param%alphaj   =globpar(18)
-   param%disp%a1  =globpar(20)
-   param%disp%a2  =globpar(21)
-   param%disp%s6  =1.0_wp
-   param%disp%s8  =globpar(22)
-   param%ipshift  =globpar(7)*0.1
-   param%eashift  =param%ipshift
-   param%ken1     =1.0_wp
-   param%zqf      =0.0_wp
-   param%zcnf     =0.0_wp
-   param%fpol     =0.0_wp
-   param%wllscal  =1.0_wp
-end subroutine gfn1_param_from_globpar
-
-subroutine gfn2_param_from_globpar(param,globpar)
-   implicit none
-   type(scc_parameter)  :: param
-   real(wp), intent(in) :: globpar(25)
-   integer :: i,j
-   param%kspd(1:6)=globpar(1:6)
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         param%kmagic(i,j)=(param%kspd(i)+param%kspd(j))*0.50_wp
-      enddo
-   enddo
-   if(param%kspd(5).gt.0.1)then   ! s - p
-      param%kmagic(1,2)=param%kspd(5)
-      param%kmagic(2,1)=param%kspd(5)
-   endif
-   param%kmagic(1,3)=param%kspd(4)
-   param%kmagic(3,1)=param%kspd(4)
-   param%kmagic(2,3)=param%kspd(6)
-   param%kmagic(3,2)=param%kspd(6)
-   param%gscal    =globpar(8)*0.1_wp   ! purpose changed in scf.f !
-   param%gam3l(0) =1.00_wp     !s
-   param%gam3l(1) =globpar(9) !p
-   param%gam3l(2) =globpar(10)!d-pol
-   param%gam3l(3) =globpar(11)!d-val
-   param%cn_shift =globpar(14) ! R AES CN val offset
-   param%cn_expo  =globpar(15) ! R AES CN steepness
-   param%cn_rmax  =globpar(16) ! R AES CN Rmax
-   param%kenscal  =globpar(13) ! kenscal in scf.f
-   param%disp%s9  =globpar(23) ! d3atm
-   param%g_a      =3.0_wp
-   param%g_c      =2.0_wp
-   param%wf       =6.0_wp
-   param%xbrad    =globpar(24)
-   param%xbdamp   =globpar(25)
-   param%alphaj   =globpar(18)
-   param%disp%a1  =globpar(20)
-   param%disp%a2  =globpar(21)
-   param%disp%s6  =1.0_wp
-   param%disp%s8  =globpar(22)
-   param%ipshift  =globpar(7)*0.1_wp
-   param%eashift  =param%ipshift
-   param%ken1     =1.0_wp
-   param%zqf      =0.0_wp
-   param%zcnf     =0.0_wp
-   param%fpol     =0.0_wp
-   param%wllscal  =1.0_wp
-end subroutine gfn2_param_from_globpar
 
 end module xtb_type_param

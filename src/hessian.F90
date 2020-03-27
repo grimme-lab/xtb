@@ -53,7 +53,7 @@ subroutine numhess( &
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: maxiter
    type(TWavefunction),intent(inout) :: wf0
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et

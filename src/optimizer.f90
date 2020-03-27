@@ -125,7 +125,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -446,7 +446,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    type(tb_timer),       intent(inout) :: timer
    type(tb_anc),         intent(inout) :: anc
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: iupdat
    integer, intent(in)    :: ilog

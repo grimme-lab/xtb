@@ -39,10 +39,10 @@ module xtb_xtb_gfn1
 
 
    type(TxTBParameter), parameter :: gfn1Globals = TxTBParameter( &
-      ks =      1.850000000000000_wp, &
-      kp =      2.250000000000000_wp, &
-      kd =      2.000000000000000_wp, &
-      kf =      0.000000000000000_wp, &
+      kshell = [1.85_wp, 2.25_wp, 2.0_wp, 0.0_wp], &
+      enshell = -0.7_wp, &
+      ksp = 2.08_wp, &
+      kdiff = 2.85_wp, &
       kdiffa =  2.080000000000000_wp, &
       kdiffb =  2.850000000000000_wp, &
       ipeashift = 1.780690000000000_wp, &
@@ -605,6 +605,14 @@ subroutine initHamiltonian(self, nShell)
 
    mShell = maxval(nShell)
    self%angShell = angularMomentum(:mShell, :maxElem)
+
+   self%kScale = 0.5_wp*(spread(gfn1Globals%kShell,1,4)+spread(gfn1Globals%kShell,2,4))
+   self%kScale(0,1) = gfn1Globals%ksp
+   self%kScale(1,0) = gfn1Globals%ksp
+   self%kDiff = gfn1Globals%kDiff
+   self%enScale = 0.005_wp * (spread(gfn1Globals%enshell, 1, 4) &
+      & + spread(gfn1Globals%enshell, 2, 4))
+   self%enScale4 = gfn1Globals%enscale4
 
    self%electronegativity = paulingEN(:maxElem)
    self%atomicRad = atomicRad(:maxElem)

@@ -41,6 +41,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
 
    use xtb_setparam
    use xtb_splitparam
+   use xtb_geoopt
 
    implicit none
    intrinsic date_and_time
@@ -49,7 +50,7 @@ subroutine modefollow(env, mol, wfn, calc, egap, et, maxiter, epot, grd, sigma)
    type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer :: icall,maxiter
    real(wp) :: epot,et,egap
    real(wp), intent(inout) :: grd(3,mol%n)

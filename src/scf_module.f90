@@ -578,11 +578,11 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    H0=0
    if(gfn_method.eq.1)then
       call build_h0_gfn1(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
-      &                  param%kspd,param%kmagic,param%kenscal, &
+      &                  param%kenscal, &
       &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    else
       call build_h0_gfn2(xtbData%hamiltonian,H0,mol%n,mol%at,basis%nao,nmat,matlist, &
-      &                  param%kspd,param%kmagic,param%kenscal, &
+      &                  param%kenscal, &
       &                  mol%xyz,cn,kcnao,S,basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    endif
 ! ========================================================================
@@ -898,12 +898,12 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
    if (gfn_method.gt.1) then
       call dncoord_gfn(n,at,xyz,cn,dcndr)
       call hcn_grad_gfn2(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
-           &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcndr, &
+           &             param%kenscal,kcnao,wfn%P,S,dcndr, &
            &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2,basis%aoexp)
    else
       call dncoord_d3(n,at,xyz,cn,dcndr)
       call hcn_grad_gfn1(xtbData%hamiltonian,g,n,at,basis%nao,nmat2,matlist2,xyz, &
-           &             param%kspd,param%kmagic,param%kenscal,kcnao,wfn%P,S,dcndr, &
+           &             param%kenscal,kcnao,wfn%P,S,dcndr, &
            &             basis%aoat2,basis%lao2,basis%valao2,basis%hdiag2)
    endif
 

@@ -32,25 +32,11 @@ subroutine set_gfn1_parameter(xpar,globpar,xtbData)
    type(TxTBParameter), intent(in) :: globpar
    type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
-   xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
-      & globpar%kdiffa, globpar%kdiffb]
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         xpar%kmagic(i,j)=(xpar%kspd(i)+xpar%kspd(j))*0.50_wp
-      enddo
-   enddo
-   if(xpar%kspd(5).gt.0.1)then   ! s - p
-      xpar%kmagic(1,2)=xpar%kspd(5)
-      xpar%kmagic(2,1)=xpar%kspd(5)
-   endif
    xpar%kcnsh(1) =globpar%kcn*0.01_wp
    xpar%kcnsh(2) =globpar%fpol*0.01_wp
    xpar%kcnsh(3) =globpar%ken*0.01_wp
    xpar%kcnsh(4) = 0.005_wp
    xpar%kenscal  =globpar%dispatm ! kenscal in scf.f
-   xpar%xbdamp   =globpar%xbdamp
-   xpar%xbrad    =globpar%xbrad
    xpar%disp%s9  =0.0_wp! d3atm
    xpar%alphaj   =globpar%alphaj
    xpar%disp%a1  =globpar%dispa
@@ -73,31 +59,10 @@ subroutine set_gfn2_parameter(xpar,globpar,xtbData)
    type(TxTBParameter), intent(in) :: globpar
    type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
-   xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
-      & globpar%kdiffa, globpar%kdiffb]
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         xpar%kmagic(i,j)=(xpar%kspd(i)+xpar%kspd(j))*0.50_wp
-      enddo
-   enddo
-   if(xpar%kspd(5).gt.0.1)then   ! s - p
-      xpar%kmagic(1,2)=xpar%kspd(5)
-      xpar%kmagic(2,1)=xpar%kspd(5)
-   endif
-   xpar%kmagic(1,3)=xpar%kspd(4)
-   xpar%kmagic(3,1)=xpar%kspd(4)
-   xpar%kmagic(2,3)=xpar%kspd(6)
-   xpar%kmagic(3,2)=xpar%kspd(6)
    xpar%gam3l(0) =1.00_wp     !s
    xpar%gam3l(1) =globpar%zcnf !p
    xpar%gam3l(2) =globpar%tscal!d-pol
    xpar%gam3l(3) =globpar%kcn!d-val
-   xpar%cn_shift =globpar%aesshift ! R AES CN val offset
-   xpar%cn_expo  =globpar%aesexp ! R AES CN steepness
-   xpar%cn_rmax  =globpar%aesrmax ! R AES CN Rmax
-   xpar%xbrad    =globpar%aesdmp3
-   xpar%xbdamp   =globpar%aesdmp5
    xpar%kenscal  =globpar%ken ! kenscal in scf.f
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
@@ -124,18 +89,6 @@ subroutine set_gfn0_parameter(xpar,globpar,xtbData)
    type(TxTBData), intent(inout) :: xtbData
    integer :: i,j
 
-   xpar%kspd(1:6)=[globpar%ks, globpar%kp, globpar%kd, globpar%kf, &
-      & globpar%kdiffa, globpar%kdiffb]
-   ! ini prop factors for Hav(l1,l2), NO f-AO !
-   do i=1,3
-      do j=1,3
-         xpar%kmagic(i,j)=(xpar%kspd(i)+xpar%kspd(j))*0.50_wp
-      enddo
-   enddo
-   if(xpar%kspd(5).gt.0.1)then   ! s - p
-      xpar%kmagic(1,2)=xpar%kspd(5)
-      xpar%kmagic(2,1)=xpar%kspd(5)
-   endif
    xpar%gam3l(0) =1.00_wp     !s
    xpar%gam3l(1) =globpar%zcnf !p
    xpar%gam3l(2) =globpar%tscal!d-pol
@@ -146,8 +99,6 @@ subroutine set_gfn0_parameter(xpar,globpar,xtbData)
    xpar%kcnsh(4) =globpar%kcn         ! SRB steepnes
    xpar%gscal    =globpar%fpol         ! EN dep
    xpar%kenscal  =globpar%kexpo         ! ken² (d3atm in old main.f)
-   xpar%xbdamp   =globpar%xbdamp         ! ken⁴
-   xpar%xbrad    =globpar%xbrad         ! rep dEN
    xpar%g_a      =3.0_wp
    xpar%g_c      =2.0_wp
    xpar%wf       =6.0_wp

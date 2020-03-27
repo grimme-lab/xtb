@@ -151,7 +151,6 @@ subroutine peeq &
    real(wp) , allocatable, dimension(:,:,:) :: dlcn
    real(wp),               dimension(2)     :: hbpi
    real(wp),               dimension(2)     :: hbpj
-   real(wp),               dimension(4,4)   :: ken
    real(wp) :: esrb
    real(wp) :: ehb
    real(wp) :: den2
@@ -320,18 +319,6 @@ subroutine peeq &
       write(env%unit,'(10x,51("."))')
    endif
 
-! ---------------------------------------
-!  set up parameters (TODO - move to gfn_paramset.f90)
-! ---------------------------------------
-   ken(1,1)=0.01_wp*param%kspd(4)
-   ken(2,2)=0.01_wp*param%kspd(6)
-   ken(3,3)=0.01_wp*param%kenscal
-   do i=1,3
-     do j=1,3
-     ken(i,j)=(ken(i,i)+ken(j,j))*0.5_wp
-     enddo
-   enddo
-
    if (profile) call timer%measure(1)
    if (profile) call timer%measure(2,"Coordination number")
 ! ---------------------------------------
@@ -407,20 +394,20 @@ subroutine peeq &
          call ccm_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice, &
             & wfn%q,cn,intcut, &
-            & param%kmagic,ken,param%alphaj,param%kcnsh, &
-            & param%xbdamp,s,h0,mol%wsc)
+            & param%alphaj,param%kcnsh, &
+            & s,h0,mol%wsc)
       else
          call pbc_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice,intrep,&
             & wfn%q,cn,intcut, &
-            & param%kmagic,ken,param%alphaj,param%kcnsh, &
-            & param%xbdamp,s,h0)
+            & param%alphaj,param%kcnsh, &
+            & s,h0)
       endif
    else
       call mol_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
          & mol%n,mol%at,basis,nbf,nao,mol%xyz,wfn%q,cn,intcut, &
-         & param%kmagic,ken,param%alphaj,param%kcnsh, &
-         & param%xbdamp,s,h0)
+         & param%alphaj,param%kcnsh, &
+         & s,h0)
    endif
 
    if (profile) call timer%measure(5)
@@ -513,14 +500,14 @@ subroutine peeq &
          call ccm_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
             & mol%lattice,wfn%q,cn, &
-            & wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
-            & param%alphaj,param%kcnsh,param%xbdamp,mol%wsc)
+            & wfn%P,Pew,g,sigma,dhdcn,dhdq, &
+            & param%alphaj,param%kcnsh,mol%wsc)
       else
          call pbc_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
             & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
             & mol%lattice,intrep,wfn%q,cn, &
-            & wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
-            & param%alphaj,param%kcnsh,param%xbdamp)
+            & wfn%P,Pew,g,sigma,dhdcn,dhdq, &
+            & param%alphaj,param%kcnsh)
       endif
       ! setup CN sigma
       call dgemv('n',9,mol%n,1.0_wp,dcndL,9,dhdcn,1,1.0_wp,sigma,1)
@@ -529,8 +516,8 @@ subroutine peeq &
    else
       call mol_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
          & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz,wfn%q,cn, &
-         & wfn%P,Pew,g,sigma,dhdcn,dhdq,param%kmagic,ken, &
-         & param%alphaj,param%kcnsh,param%xbdamp)
+         & wfn%P,Pew,g,sigma,dhdcn,dhdq, &
+         & param%alphaj,param%kcnsh)
    endif
    ! setup CN gradient
    call dgemv('n',3*mol%n,mol%n,-1.0_wp,dcndr,3*mol%n,dhdcn,1,1.0_wp,g,1)
@@ -815,7 +802,7 @@ pure subroutine drep_grad(repData,mol,param,erep,g,sigma)
                den2 = (repData%electronegativity(ati) - repData%electronegativity(atj))**2
                den4 = den2**2
                alpha=sqrt(repData%alpha(ati)*repData%alpha(atj))&
-                  *(1.0_wp+(0.01_wp*den2+0.01_wp*den4)*param%xbrad)
+                  *(1.0_wp+(0.01_wp*den2+0.01_wp*den4)*repData%enScale)
                repab = repData%zeff(ati)*repData%zeff(atj)
                r2top34 = r2**0.75_wp
                r2top34top2 = r2top34**2
@@ -842,7 +829,7 @@ pure subroutine drep_grad(repData,mol,param,erep,g,sigma)
             den2 = (repData%electronegativity(ati) - repData%electronegativity(atj))**2
             den4 = den2**2
             alpha=sqrt(repData%alpha(ati)*repData%alpha(atj))&
-               *(1.0_wp+(0.01_wp*den2+0.01_wp*den4)*param%xbrad)
+               *(1.0_wp+(0.01_wp*den2+0.01_wp*den4)*repData%enScale)
             repab = repData%zeff(ati)*repData%zeff(atj)
             r2top34 = r2**0.75_wp
             r2top34top2 = r2top34**2
@@ -887,7 +874,6 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    integer :: nsrb,lin
    integer :: dx,dy,dz
    real(wp) :: kcn(4)
-   real(wp) :: xbrad
    real(wp) :: gscal
    real(wp) :: den
    real(wp) :: expterm
@@ -905,7 +891,6 @@ pure subroutine dsrb_grad(mol,param,cn,dcndr,dcndL,esrb,g,sigma)
    integer,  allocatable :: srblist(:,:)
    ! initialize
    kcn=param%kcnsh
-   xbrad=param%xbrad
    gscal=param%gscal
    esrb = 0.0_wp
 
@@ -1043,7 +1028,7 @@ end subroutine build_srblist
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
-      &                  kmagic,ken,alphaj,kcn,xbdamp,sint,h0)
+      &                  alphaj,kcn,sint,h0)
 
    use xtb_type_basisset
 
@@ -1066,11 +1051,8 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
 
-   real(wp),intent(in)  :: kmagic(:,:)
-   real(wp),intent(in)  :: ken(:,:)
    real(wp),intent(in)  :: kcn(:)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(in)  :: xbdamp
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
    real(wp),intent(out) :: h0(nao*(1+nao)/2)
@@ -1113,7 +1095,7 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav) &
    !$omp reduction (+:sint,h0) &
    !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,cn,q, &
-   !$omp        ken,xbdamp,kcn,kmagic,alphaj)
+   !$omp        kcn,alphaj)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1151,8 +1133,8 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                   &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
-               enpoly = (1.0_wp + ken(jl,il)*den2 &
-                  &      + xbdamp*ken(jl,il)*den4)
+               enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
+                  & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
                zi = basis%aoexp(i)
@@ -1160,7 +1142,7 @@ subroutine mol_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,q,cn,intcut, &
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * hData%pairParam(ati,atj) * zetaij * enpoly
+               km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1237,7 +1219,7 @@ end subroutine mol_build_SH0
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
-      &                  kmagic,ken,alphaj,kcn,xbdamp,sint,h0,wsc)
+      &                  alphaj,kcn,sint,h0,wsc)
 
    use xtb_type_basisset
    use xtb_type_wsc
@@ -1263,11 +1245,8 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
 
-   real(wp),intent(in)  :: kmagic(:,:)
-   real(wp),intent(in)  :: ken(:,:)
    real(wp),intent(in)  :: kcn(:)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(in)  :: xbdamp
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
    real(wp),intent(out) :: h0(nao*(1+nao)/2)
@@ -1310,7 +1289,7 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,t) &
    !$omp reduction (+:sint,h0) &
    !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,intcut,nat,cn,q, &
-   !$omp        ken,xbdamp,kcn,kmagic,alphaj)
+   !$omp        kcn,alphaj)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1348,8 +1327,8 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
                   &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
-               enpoly = (1.0_wp + ken(jl,il)*den2 &
-                  &      + xbdamp*ken(jl,il)*den4)
+               enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
+                  & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
                zi = basis%aoexp(i)
@@ -1357,7 +1336,7 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * hData%pairParam(ati,atj) * zetaij * enpoly
+               km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1437,7 +1416,7 @@ end subroutine ccm_build_SH0
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,intcut, &
-      &                  kmagic,ken,alphaj,kcn,xbdamp,sint,h0)
+      &                  alphaj,kcn,sint,h0)
 
    use xtb_type_basisset
 
@@ -1462,11 +1441,8 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
    real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
 
-   real(wp),intent(in)  :: kmagic(:,:)
-   real(wp),intent(in)  :: ken(:,:)
    real(wp),intent(in)  :: kcn(:)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(in)  :: xbdamp
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
    real(wp),intent(out) :: h0(nao*(1+nao)/2)
@@ -1513,7 +1489,7 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,tx,ty,tz,t) &
    !$omp reduction (+:sint,h0) &
    !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,cn,q, &
-   !$omp        ken,xbdamp,kcn,kmagic,alphaj,lat,latrep,w)
+   !$omp        kcn,alphaj,lat,latrep,w)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1551,8 +1527,8 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
                   &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
-               enpoly = (1.0_wp + ken(jl,il)*den2 &
-                  &      + xbdamp*ken(jl,il)*den4)
+               enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
+                  & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
                zi = basis%aoexp(i)
@@ -1560,7 +1536,7 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lat,latrep,q,cn,i
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * hData%pairParam(ati,atj) * zetaij * enpoly
+               km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -1772,7 +1748,7 @@ end subroutine get_grad_overlap
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g,sigma, &
-      &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp)
+      &                   dHdcn,dHdq,alphaj,kcn)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -1799,11 +1775,8 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
 
-   real(wp),intent(in)  :: kmagic(:,:)
-   real(wp),intent(in)  :: ken(:,:)
    real(wp),intent(in)  :: kcn(:)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(in)  :: xbdamp
    ! intent inout
    real(wp),intent(inout) :: dHdq(nat)
    real(wp),intent(inout) :: dHdcn(nat)
@@ -1845,7 +1818,7 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(basis,at,nShell,hData,xyz,thr,nat,cn,q, &
-   !$omp        ken,xbdamp,kcn,kmagic,alphaj,P,Pew)
+   !$omp        kcn,alphaj,P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1883,8 +1856,8 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
                   &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
-               enpoly = (1.0_wp + ken(jl,il)*den2 &
-                  &      + xbdamp*ken(jl,il)*den4)
+               enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
+                  & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
                zi = basis%aoexp(i)
@@ -1892,7 +1865,7 @@ subroutine mol_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,q,cn,P,Pew,g
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * hData%pairParam(ati,atj) * zetaij * enpoly
+               km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -2007,7 +1980,7 @@ end subroutine mol_build_dSH0
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigma,&
-      &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp,wsc)
+      &                   dHdcn,dHdq,alphaj,kcn,wsc)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -2036,11 +2009,8 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
 
-   real(wp),intent(in)  :: kmagic(:,:)
-   real(wp),intent(in)  :: ken(:,:)
    real(wp),intent(in)  :: kcn(:)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(in)  :: xbdamp
    ! intent inout
    real(wp),intent(inout) :: dHdq(nat)
    real(wp),intent(inout) :: dHdcn(nat)
@@ -2082,7 +2052,7 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,thr,nat,cn,q, &
-   !$omp        ken,xbdamp,kcn,kmagic,alphaj,P,Pew)
+   !$omp        kcn,alphaj,P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -2120,8 +2090,8 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                   &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
-               enpoly = (1.0_wp + ken(jl,il)*den2 &
-                  &      + xbdamp*ken(jl,il)*den4)
+               enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
+                  & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
                zi = basis%aoexp(i)
@@ -2129,7 +2099,7 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * hData%pairParam(ati,atj) * zetaij * enpoly
+               km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0
@@ -2248,7 +2218,7 @@ end subroutine ccm_build_dSH0
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
 subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q,cn,P,Pew,g,sigma, &
-      &                   dHdcn,dHdq,kmagic,ken,alphaj,kcn,xbdamp)
+      &                   dHdcn,dHdq,alphaj,kcn)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -2277,11 +2247,8 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
 
-   real(wp),intent(in)  :: kmagic(:,:)
-   real(wp),intent(in)  :: ken(:,:)
    real(wp),intent(in)  :: kcn(:)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(in)  :: xbdamp
    ! intent inout
    real(wp),intent(inout) :: dHdq(nat)
    real(wp),intent(inout) :: dHdcn(nat)
@@ -2328,7 +2295,7 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
    !$omp&        tx,ty,tz,t) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
    !$omp shared(basis,at,nShell,hData,xyz,thr,nat,cn,q, &
-   !$omp        ken,xbdamp,kcn,kmagic,alphaj,P,Pew,w,lat,latrep)
+   !$omp        kcn,alphaj,P,Pew,w,lat,latrep)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -2360,14 +2327,14 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(1+il-1,ati)*cn(iat) &
+               hii = basis%hdiag2(i) - hData%kCN(il,ati)*cn(iat) &
                   &  - hData%kQShell(il,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(1+jl-1,atj)*cn(jat) &
+               hjj = basis%hdiag2(j) - hData%kCN(jl,atj)*cn(jat) &
                   &  - hData%kQShell(jl,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
 
                ! evaluate the EN polynom for this shells
-               enpoly = (1.0_wp + ken(jl,il)*den2 &
-                  &      + xbdamp*ken(jl,il)*den4)
+               enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
+                  & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
                zi = basis%aoexp(i)
@@ -2375,7 +2342,7 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lat,latrep,q
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
-               km = kmagic(jl,il) * hData%pairParam(ati,atj) * zetaij * enpoly
+               km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
                valaoi = basis%valao2(i).eq.0

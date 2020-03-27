@@ -4,8 +4,11 @@ ks          1.85000
 kp          2.25000
 kd          2.00000
 kf          0.00000
+ksp         2.08000
+kdiff       2.85000
 kdiffa      2.08000
 kdiffb      2.85000
+enscale    -0.70000
 ipeashift   1.78069
 zcnf        0.00000
 tscal       0.00000

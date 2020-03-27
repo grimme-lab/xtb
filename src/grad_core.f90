@@ -123,7 +123,7 @@ end subroutine poly_grad
 !  CN dependent part of GFN1 hamiltonian
 !! ========================================================================
 subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
-   &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
+   &                     kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2)
    use xtb_mctc_convert, only : autoev,evtoau
    type(THamiltonianData), intent(in) :: hData
@@ -133,8 +133,6 @@ subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    integer, intent(in)    :: nmat2
    integer, intent(in)    :: matlist2(2,nmat2)
    real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: kspd(6)
-   real(wp),intent(in)    :: kmagic(4,4)
    real(wp),intent(in)    :: kenscal
    real(wp),intent(in)    :: kcnao(ndim)
    real(wp),intent(in)    :: P(ndim,ndim)
@@ -162,7 +160,7 @@ subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    hcn=0.0_wp
 !$omp parallel default(none) &
 !$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hdiag2,hData) &
-!$omp shared(kspd,kmagic,kenscal,kcnao) &
+!$omp shared(kenscal,kcnao) &
 !$omp private(i,m,j,jat,iat,dum1,dum2,km,dum,ishell,jshell,hji,iZp,jZp) &
 !$omp reduction (+:hcn)
 !$omp do
@@ -180,7 +178,7 @@ subroutine hcn_grad_gfn1(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
       dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
          & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
-      &           kspd,kmagic,kenscal,km)
+      &           kenscal,km)
       dum1=hji*km*dum*hdiag2(i)*kcnao(i)*evtoau ! h independent part in H0
       dum2=hji*km*dum*hdiag2(j)*kcnao(j)*evtoau ! h independent part in H0
       hcn(jat)=hcn(jat)+dum2
@@ -219,7 +217,7 @@ end subroutine hcn_grad_gfn1
 !  CN dependent part of GFN2 hamiltonian
 !! ========================================================================
 subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
-   &                     kspd,kmagic,kenscal,kcnao,P,S,dcn, &
+   &                     kenscal,kcnao,P,S,dcn, &
    &                     aoat2,lao2,valao2,hdiag2,aoexp)
    use xtb_mctc_convert, only : autoev,evtoau
    type(THamiltonianData), intent(in) :: hData
@@ -229,8 +227,6 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    integer, intent(in)    :: nmat2
    integer, intent(in)    :: matlist2(2,nmat2)
    real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: kspd(6)
-   real(wp),intent(in)    :: kmagic(4,4)
    real(wp),intent(in)    :: kenscal
    real(wp),intent(in)    :: kcnao(ndim)
    real(wp),intent(in)    :: P(ndim,ndim)
@@ -260,7 +256,7 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
    hcn=0.0_wp
 !$omp parallel default(none) &
 !$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hData) &
-!$omp shared(kspd,kmagic,kenscal,aoexp,kcnao) &
+!$omp shared(kenscal,aoexp,kcnao) &
 !$omp private(i,m,j,jat,iat,dum1,dum2,km,dum,ishell,jshell,hji,fact,iZp,jZp) &
 !$omp reduction (+:hcn)
 !$omp do
@@ -277,7 +273,7 @@ subroutine hcn_grad_gfn2(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
       dum = shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
          & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
       call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
-      &               kspd,kmagic,kenscal,km)
+      &               kenscal,km)
       fact = 0.5_wp*(aoexp(i)+aoexp(j))/sqrt(aoexp(i)*aoexp(j))
       km = km*fact**aot
       dum1=hji*km*dum*kcnao(i)*evtoau ! h independent part in H0

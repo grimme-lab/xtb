@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_geoopt
+contains
+
 subroutine geometry_optimization &
       &   (env,mol,wfn,calc,egap,et,maxiter,maxcycle_in,etot,g,sigma, &
       &    tight,pr,initial_sp,fail)
@@ -42,7 +45,7 @@ subroutine geometry_optimization &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),  intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
    real(wp),intent(inout) :: egap
@@ -127,3 +130,5 @@ subroutine geometry_optimization &
    if (ilog .ne.stdout) call close_file(ilog)
 
 end subroutine geometry_optimization
+
+end module

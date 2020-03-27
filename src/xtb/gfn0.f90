@@ -38,12 +38,11 @@ module xtb_xtb_gfn0
 
 
    type(TxTBParameter), parameter :: gfn0Globals = TxTBParameter( &
-      ks       = 2.0000000_wp, &
-      kp       = 2.4868000_wp, &
-      kd       = 2.2700000_wp, &
-      kf       = 0.6000000_wp, &
+      kshell = [2.0000000_wp, 2.4868000_wp, 2.2700000_wp, 0.6000000_wp], &
       kdiffa   = 0.0000000_wp, &
       kdiffb   =-0.1000000_wp, &
+      enshell = [0.6_wp, -0.1_wp, -0.2_wp, -0.2_wp], &
+      enscale4 = 4.0000000_wp, &
       ipeashift= 1.7806900_wp, &
       zcnf     = 0.0537000_wp, &
       tscal    =-0.0129000_wp, &
@@ -60,8 +59,7 @@ module xtb_xtb_gfn0
       dispb    = 4.6000000_wp, &
       dispc    = 2.8500000_wp, &
       dispatm  = 0.0000000_wp, &
-      xbdamp   = 4.0000000_wp, &
-      xbrad    =-0.0900000_wp)
+      renscale =-0.0900000_wp)
 
    !> Maximum number of elements supported by GFN0-xTB
    integer, parameter :: maxElem = 86
@@ -792,6 +790,12 @@ subroutine initHamiltonian(self, nShell)
 
    mShell = maxval(nShell)
    self%angShell = angShell(:mShell, :maxElem)
+
+   self%kScale = 0.5_wp*(spread(gfn0Globals%kShell,1,4)+spread(gfn0Globals%kShell,2,4))
+   self%kDiff = gfn0Globals%kDiff
+   self%enScale = 0.005_wp * (spread(gfn0Globals%enshell, 1, 4) &
+      & + spread(gfn0Globals%enshell, 2, 4))
+   self%enScale4 = gfn0Globals%enscale4
 
    self%electronegativity = electronegativity(:maxElem)
    self%atomicRad = atomicRad(:maxElem)

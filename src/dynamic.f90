@@ -158,7 +158,7 @@ subroutine md(env,mol,wfx,calc, &
 
    type(TMolecule),intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   type(tb_calculator),  intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer  :: icall
    integer, intent(in) :: maxiter
    integer, intent(inout) :: cdump2

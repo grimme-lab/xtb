@@ -4,6 +4,10 @@ ks        2.0000000
 kp        2.4868000
 kd        2.2700000
 kf        0.6000000
+ens       0.6000000
+enp      -0.1000000
+end      -0.2000000
+enscale4  4.0000000
 kdiffa    0.0000000
 kdiffb   -0.1000000
 ipeashift 1.7806900
@@ -24,6 +28,7 @@ dispc     2.8500000
 dispatm   0.0000000
 xbdamp    4.0000000
 xbrad    -0.0900000
+renscale -0.0900000
 $end
 $pairpar
 $end

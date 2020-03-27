@@ -37,7 +37,7 @@ contains
 !! ========================================================================
 !  build GFN1 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2)
    type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
@@ -46,8 +46,6 @@ subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    integer, intent(in)  :: ndim
    integer, intent(in)  :: nmat
    integer, intent(in) :: matlist(2,nmat)
-   real(wp),intent(in)  :: kspd(6)
-   real(wp),intent(in)  :: kmagic(4,4)
    real(wp),intent(in)  :: kenscal
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: cn(n)
@@ -79,7 +77,7 @@ subroutine build_h0_gfn1(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       hdjj=hdiag2(j)
       hdjj=hdjj*(1.0d0+kcnao(j)*cn(jat))  ! CN dependent shift
       call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
-      &           kspd,kmagic,kenscal,km)
+      &           kenscal,km)
       hav=0.5d0*(hdii+hdjj)* &
       &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
       &                hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
@@ -99,7 +97,7 @@ end subroutine build_h0_gfn1
 !! ========================================================================
 !  build GFN2 core Hamiltonian
 !! ========================================================================
-subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
+subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kenscal, &
    &                     xyz,cn,kcnao,S,aoat2,lao2,valao2,hdiag2,aoexp)
    type(THamiltonianData), intent(in) :: hData
    real(wp),intent(out) :: H0(ndim*(ndim+1)/2)
@@ -108,8 +106,6 @@ subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
    integer, intent(in)  :: ndim
    integer, intent(in)  :: nmat
    integer, intent(in)  :: matlist(2,nmat)
-   real(wp),intent(in)  :: kspd(6)
-   real(wp),intent(in)  :: kmagic(4,4)
    real(wp),intent(in)  :: kenscal
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: cn(n)
@@ -144,7 +140,7 @@ subroutine build_h0_gfn2(hData,H0,n,at,ndim,nmat,matlist,kspd,kmagic,kenscal, &
       hdjj=hdiag2(j)
       hdjj=hdjj-kcnao(j)*cn(jat)  ! CN dependent shift
       call h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
-      &           kspd,kmagic,kenscal,km)
+      &           kenscal,km)
       km=km*(0.5*((aoexp(i)+aoexp(j))/(aoexp(i)*aoexp(j))**0.5))**aot
       hav=0.5d0*(hdii+hdjj)* &
       &      shellPoly(hData%shellPoly(iShell, iZp), hData%shellPoly(jShell, jZp), &
@@ -1055,25 +1051,23 @@ end subroutine scc_gfn2
 !! ========================================================================
 !  H0 off-diag scaling
 !! ========================================================================
-subroutine h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic, &
+subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj, &
    &              kenscal,km)
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: i
    integer, intent(in)  :: j
-   integer, intent(in)  :: ishell
-   integer, intent(in)  :: jshell
+   integer, intent(in)  :: il
+   integer, intent(in)  :: jl
    integer, intent(in)  :: iat
    integer, intent(in)  :: jat
    logical, intent(in)  :: valaoi
    logical, intent(in)  :: valaoj
-   real(wp),intent(in)  :: kspd(6)
-   real(wp),intent(in)  :: kmagic(4,4)
    real(wp),intent(in)  :: kenscal
    real(wp),intent(out) :: km
    integer  :: ii,jj
-   real(wp) :: den
+   real(wp) :: den, enpoly
 
    km = 0.0_wp
 
@@ -1082,21 +1076,22 @@ subroutine h0scal(hData,n,at,i,j,ishell,jshell,iat,jat,valaoi,valaoj,kspd,kmagic
       ii=at(iat)
       jj=at(jat)
       den=(hData%electronegativity(ii)-hData%electronegativity(jj))**2
-      km=kmagic(jshell,ishell)*(1.0d0-kenscal*0.01*den)*hData%pairParam(ii,jj)
+      enpoly = (1.0_wp+hData%enScale(jl-1,il-1)*den*(1.0_wp+hData%enScale4*den))
+      km=hData%kScale(jl-1,il-1)*enpoly*hData%pairParam(ii,jj)
       return
    endif
 
 !  "DZ" functions (on H for GFN or 3S for EA calc on all atoms)
    if((.not.valaoi).and.(.not.valaoj)) then
-      km=kspd(6)
+      km=hData%kDiff
       return
    endif
    if(.not.valaoi.and.valaoj) then
-      km=0.5*(kspd(jshell)+kspd(6))
+      km=0.5*(hData%kScale(jl-1,jl-1)+hData%kDiff)
       return
    endif
    if(.not.valaoj.and.valaoi) then
-      km=0.5*(kspd(ishell)+kspd(6))
+      km=0.5*(hData%kScale(il-1,il-1)+hData%kDiff)
    endif
 
 
