@@ -167,7 +167,7 @@ end subroutine build_h0
 !  build GFN1 Fockian
 !! ========================================================================
 subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
-                         cm5,fgb,fhb,aoat2,ao2sh)
+      & gam3at,cm5,fgb,fhb,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_solv_gbobc, only : lgbsa
    type(TCoulombData), intent(in) :: jData
@@ -181,6 +181,7 @@ subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
    real(wp),intent(in)  :: S(ndim,ndim)
    real(wp),intent(in)  :: ves(nshell)
    real(wp),intent(in)  :: q(n)
+   real(wp),intent(in)  :: gam3at(n)
    real(wp),intent(in)  :: cm5(n)
    real(wp),intent(in)  :: fgb(n,n)
    real(wp),intent(in)  :: fhb(n)
@@ -213,8 +214,8 @@ subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
       jj = aoat2(j)
       dum = S(j,i)
 !     third-order diagonal term, unscreened
-      t8 = q(ii)**2 * jData%thirdOrderAtom(at(ii))
-      t9 = q(jj)**2 * jData%thirdOrderAtom(at(jj))
+      t8 = q(ii)**2 * gam3at(ii)
+      t9 = q(jj)**2 * gam3at(jj)
       eh1 = eh1 + autoev*(t8+t9)
       H1(k) = -dum*eh1*0.5_wp
       H(j,i) = H0(k)+H1(k)
@@ -398,7 +399,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    &                pcem,ves,vpc, &
    &                et,focc,focca,foccb,efa,efb, &
    &                eel,ees,epcem,egap,emo,ihomo,ihomoa,ihomob, &
-   &                H0,H1,H,S,X,P,jab, &
+   &                H0,H1,H,S,X,P,jab,gam3at, &
    &                maxiter,startpdiag,scfconv,qconv, &
    &                minpr,pr, &
    &                fail,jter)
@@ -435,6 +436,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
    integer, intent(in)  :: ash(:)
+   real(wp),intent(in) :: gam3at(n)
 !! ------------------------------------------------------------------------
 !  a bunch of charges
    real(wp),intent(inout) :: q(n)
@@ -534,8 +536,8 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  build the Fockian from current ES potential and partial charges
 !  includes GBSA contribution to Fockian
-   call build_H1_gfn1(xtbData%coulomb,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
-                      cm5,fgb,fhb,aoat2,ao2sh)
+   call build_H1_gfn1(xtbData%coulomb,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves, &
+      & q,gam3at,cm5,fgb,fhb,aoat2,ao2sh)
 
 !! ------------------------------------------------------------------------
 !  solve HC=SCemo(X,P are scratch/store)
@@ -595,7 +597,7 @@ subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
    call qsh2qat(ash,qsh,q)
 
    eold=eel
-   call electro(xtbData,n,at,ndim,nshell,jab,H0,P,q,qsh,ees,eel)
+   call electro(n,at,ndim,nshell,jab,H0,P,q,gam3at,qsh,ees,eel)
 
 !  point charge contribution
    if (pcem) call electro_pcem(nshell,qsh,Vpc,epcem,eel)
@@ -1104,9 +1106,8 @@ end subroutine h0scal
 !! ========================================================================
 !  total energy for GFN1
 !! ========================================================================
-pure subroutine electro(xtbData,n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
+pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,gam3at,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
-   type(TxTBData), intent(in) :: xtbData
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
    integer, intent(in) :: nbf
@@ -1115,6 +1116,7 @@ pure subroutine electro(xtbData,n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    real(wp),intent(in)  :: P (nbf,nbf)
    real(wp),intent(in)  :: gab(nshell,nshell)
    real(wp),intent(in)  :: dq(n)
+   real(wp),intent(in)  :: gam3at(n)
    real(wp),intent(in)  :: dqsh(nshell)
    real(wp),intent(out) :: es
    real(wp),intent(out) :: scc
@@ -1141,7 +1143,7 @@ pure subroutine electro(xtbData,n,at,nbf,nshell,gab,H0,P,dq,dqsh,es,scc)
    t=0.0_wp
    do i=1,n
 !     third-order diagonal term
-      t = t + xtbData%coulomb%thirdOrderAtom(at(i))*dq(i)**3
+      t = t + gam3at(i)*dq(i)**3
    enddo
 
 !  ES energy in Eh (gam3 in Eh)

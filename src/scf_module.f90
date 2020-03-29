@@ -122,7 +122,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    real(wp),allocatable  :: dpint(:,:),qpint(:,:)
    real(wp),allocatable  :: gab3(:),gab5(:)
    real(wp),allocatable  :: vs(:),vq(:,:),vd(:,:)
-   real(wp),allocatable  :: gam3sh(:)
+   real(wp),allocatable  :: gam3sh(:), gam3at(:)
    real(wp),allocatable  :: radcn(:) ! CBNEW
 
 ! ========================================================================
@@ -390,16 +390,23 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    endif
 
    ! set 3rd order shell gammas
-   if(gfn_method.gt.1) then
-      allocate(gam3sh(basis%nshell),source = 0.0_wp)
-      do is=1,basis%nshell
-         iat=basis%ash(is)
-         ati=mol%at(iat)
-         dum=param%gam3l(basis%lsh(is))  ! sp or d-pol
-         if ((basis%lsh(is).eq.2).and.(tmmetal(ati).ge.1)) dum=param%gam3l(3) ! d-val
-         gam3sh(is)=xtbData%coulomb%thirdOrderAtom(ati)*dum
-      enddo
-   endif
+   if (allocated(xtbData%coulomb%thirdOrderShell)) then
+      allocate(gam3sh(basis%nshell))
+      ii = 0
+      do iat = 1, mol%n
+         ati = mol%at(iat)
+         do is = 1, xtbData%nShell(ati)
+            gam3sh(ii+is) = xtbData%coulomb%thirdOrderShell(is, ati)
+         end do
+         ii = ii + xtbData%nShell(ati)
+      end do
+   else
+      allocate(gam3at(mol%n))
+      do iat = 1, mol%n
+         ati = mol%at(iat)
+         gam3at(iat) = xtbData%coulomb%thirdOrderAtom(ati)
+      end do
+   end if
 
    if (prlevel > 1) then
       write(env%unit,'(/,10x,51("."))')
@@ -583,9 +590,10 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       call qsh2qat(basis%ash,wfn%qsh,wfn%q)
       if(gfn_method.gt.1) then
          call electro2(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P, &
-         &             wfn%q,gam3sh,wfn%qsh,ees,eel)
+            & wfn%q,gam3sh,wfn%qsh,ees,eel)
       else
-         call electro(xtbData,mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P,wfn%q,wfn%qsh,ees,eel)
+         call electro(mol%n,mol%at,basis%nao,basis%nshell,jab,H0,wfn%P, &
+            & wfn%q,gam3at,wfn%qsh,ees,eel)
       endif
       if(lgbsa) then
          cm5=wfn%q+cm5a
@@ -608,7 +616,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
       &             lpcem,ves,vpc, &
       &             et,wfn%focc,wfn%focca,wfn%foccb,wfn%efa,wfn%efb, &
       &             eel,ees,epcem,egap,wfn%emo,wfn%ihomo,wfn%ihomoa,wfn%ihomob, &
-      &             H0,H1,wfn%C,S,X,wfn%P,jab, &
+      &             H0,H1,wfn%C,S,X,wfn%P,jab,gam3at, &
       &             maxiter,startpdiag,scfconv,qconv, &
       &             minpr,pr, &
       &             fail,jter)

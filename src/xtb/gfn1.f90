@@ -22,6 +22,7 @@ module xtb_xtb_gfn1
    use xtb_param_paulingen, only : paulingEN
    use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
+   use xtb_disp_dftd3param, only : copy_c6, reference_c6
    implicit none
    private
 
@@ -562,7 +563,9 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%level = 1
    self%nShell = nShell(:maxElem)
+   self%ipeashift = gfn1Globals%ipeashift * 0.1_wp
 
    call initGFN1(self%repulsion)
    call initGFN1(self%dispersion)
@@ -593,6 +596,8 @@ subroutine initDispersion(self)
    self%g_a = 0.0_wp
    self%g_c = 0.0_wp
    self%wf  = 4.0_wp
+
+   if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
 
 end subroutine initDispersion
 

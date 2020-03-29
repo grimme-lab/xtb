@@ -21,6 +21,8 @@ module xtb_readparam
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
    use xtb_paramset
+   use xtb_disp_dftd3param, only : copy_c6, reference_c6
+   use xtb_disp_dftd4, only : d4init, p_refq_gfn2xtb, p_refq_goedecker
 
 contains
 
@@ -82,7 +84,7 @@ subroutine readParam &
    character(len=:), allocatable :: line
 
    integer :: mShell, iSh, jSh
-   integer :: version
+   integer :: level
    integer :: err
    logical :: newFormat
 
@@ -114,7 +116,7 @@ subroutine readParam &
    kpair =1.0_wp
 
    kExpLight = 0.0_wp
-   version = -1
+   level = -1
    newFormat = .false.
    call getline(iunit,line,err)
    if (debug) print'(">",a)',line
@@ -123,17 +125,17 @@ subroutine readParam &
          select case(line(2:))
          case('level 0')
             newFormat = .true.
-            version = 0
+            level = 0
             kExpLight = 1.5_wp
             call getline(iunit,line,err)
          case('level 1')
             newFormat = .true.
-            version = 1
+            level = 1
             kExpLight = 1.5_wp
             call getline(iunit,line,err)
          case('level 2')
             newFormat = .true.
-            version = 2
+            level = 2
             kExpLight = 1.0_wp
             call getline(iunit,line,err)
          case('globpar')
@@ -160,9 +162,11 @@ subroutine readParam &
       call env%error("Old format parameter file is not supported anymore")
    end if
 
-   call setpair(version, kpair)
+   call setpair(level, kpair)
 
+   xtbData%level = level
    xtbData%nShell = nShell
+   xtbData%ipeashift = globpar%ipeashift * 0.1_wp
 
    ! Repulsion
    call init(xtbData%repulsion, 1.5_wp, kExpLight, 1.0_wp, globpar%renscale, &
@@ -227,7 +231,7 @@ subroutine readParam &
    call generateValenceShellData(xtbData%hamiltonian%valenceShell, &
       & xtbData%nShell, xtbData%hamiltonian%angShell)
 
-   select case(version)
+   select case(level)
    case(0)
       ! Hamiltonian
       xtbData%hamiltonian%wExp = 1.0_wp
@@ -253,6 +257,9 @@ subroutine readParam &
       xtbData%srb%steepness = globpar%srbexp
       xtbData%srb%enScale = globpar%srbken
 
+      ! Dispersion
+      call d4init(xtbData%dispersion%g_a, xtbData%dispersion%g_c, p_refq_goedecker)
+
    case(1)
       ! Halogen
       allocate(xtbData%halogen)
@@ -272,7 +279,18 @@ subroutine readParam &
       allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
       call setGFN1NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
 
+      ! Dispersion
+      if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
+
    case(2)
+      ! Coulomb
+      if (any(globpar%gam3shell > 0.0_wp)) then
+         allocate(xtbData%Coulomb%thirdOrderShell(mShell, max_elem))
+         call setGFN2ThirdOrderShell(xtbData%Coulomb%thirdOrderShell, &
+            & xtbData%nShell, xtbData%hamiltonian%angShell, thirdOrderAtom, &
+            & globpar%gam3shell)
+      end if
+
       ! Multipole
       allocate(xtbData%multipole)
       call init(xtbData%multipole, globpar%aesshift, globpar%aesexp, &
@@ -291,6 +309,9 @@ subroutine readParam &
 
       allocate(xtbData%hamiltonian%numberOfPrimitives(mShell, max_elem))
       call setGFN2NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
+
+      ! Dispersion
+      call d4init(xtbData%dispersion%g_a, xtbData%dispersion%g_c, p_refq_gfn2xtb)
 
    end select
 
@@ -354,8 +375,8 @@ subroutine gfn_globpar(key,val,globpar)
    case('gam3p'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 1) = ddum
    case('gam3d'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 2) = ddum
    case('gam3f'); if (getValue(env,val,ddum)) globpar%gam3shell(:, 3) = ddum
-   case('gam3dpol'); if (getValue(env,val,ddum)) globpar%gam3shell(1, 2) = ddum
-   case('gam3dval'); if (getValue(env,val,ddum)) globpar%gam3shell(2, 2) = ddum
+   case('gam3d1'); if (getValue(env,val,ddum)) globpar%gam3shell(1, 2) = ddum
+   case('gam3d2'); if (getValue(env,val,ddum)) globpar%gam3shell(2, 2) = ddum
    case('srbshift'); if (getValue(env,val,ddum)) globpar%srbshift = ddum
    case('srbpre'); if (getValue(env,val,ddum)) globpar%srbpre = ddum
    case('srbexp'); if (getValue(env,val,ddum)) globpar%srbexp = ddum

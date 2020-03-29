@@ -740,6 +740,7 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%level = 0
    self%nShell = nShell(:maxElem)
 
    call initGFN0(self%repulsion)

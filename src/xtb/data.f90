@@ -255,6 +255,9 @@ module xtb_xtb_data
    !> Parametrisation data for the xTB method
    type :: TxTBData
 
+      !> Internal version number
+      integer :: level
+
       !> Number of shells
       integer, allocatable :: nShell(:)
 
@@ -278,6 +281,9 @@ module xtb_xtb_data
 
       !> Parametrisation data for the short range basis correction (optional)
       type(TShortRangeData), allocatable :: srb
+
+      !> Shift for IP/EA calculations
+      real(wp) :: ipeashift
 
    end type TxTBData
 

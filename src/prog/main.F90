@@ -641,10 +641,10 @@ subroutine xtbMain(env, argParser)
       call singlepoint &
          &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ip=etot2-etot-calc%param%ipshift
+      ip=etot2-etot-calc%xtbData%ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical IP shift (eV):",f10.4)') &
-         &                  autoev*calc%param%ipshift
+         &                  autoev*calc%xtbData%ipeashift
       write(env%unit,'("delta SCC IP (eV):",f10.4)') autoev*ip
       write(env%unit,'(72("-"))')
       wfn%nel = wfn%nel+1
@@ -660,10 +660,10 @@ subroutine xtbMain(env, argParser)
       call singlepoint &
          &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ea=etot-etot2-calc%param%eashift
+      ea=etot-etot2-calc%xtbData%ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical EA shift (eV):",f10.4)') &
-         &                  autoev*calc%param%eashift
+         &                  autoev*calc%xtbData%ipeashift
       write(env%unit,'("delta SCC EA (eV):",f10.4)') autoev*ea
       write(env%unit,'(72("-"))')
 

@@ -22,11 +22,12 @@ module xtb_xtb_gfn2
    use xtb_param_paulingen, only : paulingEN
    use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
+   use xtb_disp_dftd4, only : d4init, p_refq_gfn2xtb
    implicit none
    private
 
    public :: initGFN2, gfn2Globals
-   public :: setGFN2ReferenceOcc, setGFN2NumberOfPrimitives
+   public :: setGFN2ReferenceOcc, setGFN2NumberOfPrimitives, setGFN2ThirdOrderShell
 
 
    interface initGFN2
@@ -39,6 +40,10 @@ module xtb_xtb_gfn2
    end interface initGFN2
 
 
+   real(wp), parameter :: gam3shell(2, 0:3) = reshape(&
+      &[1.0_wp, 1.0_wp, 0.5_wp, 0.5_wp, 0.25_wp, 0.25_wp, 0.25_wp, 0.25_wp], &
+      & shape(gam3shell))
+
    type(TxTBParameter), parameter :: gfn2Globals = TxTBParameter( &
       kshell = [1.85_wp, 2.23_wp, 2.23_wp, 2.23_wp], &
       enshell = 2.0_wp, &
@@ -46,6 +51,7 @@ module xtb_xtb_gfn2
       kpd = 2.0_wp, &
       kdiff = 2.0_wp, &
       ipeashift = 1.78069_wp, &
+      gam3shell = gam3shell, &
       zcnf =    .5000000000000000_wp, &
       tscal =   .2500000000000000_wp, &
       kcn =     .2500000000000000_wp, &
@@ -63,6 +69,20 @@ module xtb_xtb_gfn2
 
    !> Maximum number of elements supported by GFN2-xTB
    integer, parameter :: maxElem = 86
+
+
+   integer, parameter :: gfn2Kinds(118) = [&
+   &  1,                                                 1, &! H-He
+   &  1, 1,                               1, 1, 1, 1, 1, 1, &! Li-Ne
+   &  1, 1,                               1, 1, 1, 1, 1, 1, &! Na-Ar
+   &  1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, &! K-Kr
+   &  1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, &! Rb-Xe
+   &  1, 1, &! Cs/Ba
+   &        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, &!La-Lu
+   &        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, &! Lu-Rn
+   &  1, 1, &
+   &        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, &!Fr-
+   &        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1 ]! -Og
 
    ! ========================================================================
    ! REPULSION DATA
@@ -714,7 +734,9 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%level = 2
    self%nShell = nShell(:maxElem)
+   self%ipeashift = gfn2Globals%ipeashift * 0.1_wp
 
    call initGFN2(self%repulsion)
    call initGFN2(self%dispersion)
@@ -746,6 +768,8 @@ subroutine initDispersion(self)
    self%g_c = 2.0_wp
    self%wf  = 6.0_wp
 
+   call d4init(self%g_a, self%g_c, p_refq_gfn2xtb)
+
 end subroutine initDispersion
 
 
@@ -760,6 +784,9 @@ subroutine initCoulomb(self, nShell)
    self%gExp = gfn2Globals%alphaj
    self%chemicalHardness = chemicalHardness
    self%thirdOrderAtom = thirdOrderAtom
+   allocate(self%thirdOrderShell(maxval(nShell), size(nShell)))
+   call setGFN2ThirdOrderShell(self%thirdOrderShell, nShell, angShell, &
+      & thirdOrderAtom, gfn2Globals%gam3shell)
    self%shellHardness = shellHardness
 
 end subroutine initCoulomb
@@ -907,30 +934,34 @@ subroutine setGFN2NumberOfPrimitives(self, nShell)
 end subroutine setGFN2NumberOfPrimitives
 
 
-subroutine setGFN2kCN(kCN, nShell, angShell, angCN)
+subroutine setGFN2ThirdOrderShell(thirdOrderShell, nShell, angShell, &
+      & thirdOrderAtom, gam3Shell)
 
-   real(wp), intent(out) :: kCN(:, :)
+   real(wp), intent(out) :: thirdOrderShell(:, :)
 
    integer, intent(in) :: nShell(:)
 
    integer, intent(in) :: angShell(:, :)
 
-   real(wp), intent(in) :: angCN(0:, :)
+   real(wp), intent(in) :: thirdOrderAtom(:)
+
+   real(wp), intent(in) :: gam3Shell(:, 0:)
 
    integer :: nElem, iZp, iSh, lAng, iKind
 
-   nElem = min(size(kCN, dim=2), size(nShell), size(angShell, dim=2), &
-      & size(angCN, dim=2))
+   nElem = min(size(thirdOrderShell, dim=2), size(nShell), size(angShell, dim=2), &
+      & size(thirdOrderAtom))
 
-   kCN(:, :) = 0.0_wp
+   thirdOrderShell(:, :) = 0.0_wp
    do iZp = 1, maxElem
+      iKind = gfn2Kinds(iZp)
       do iSh = 1, nShell(iZp)
          lAng = angShell(iSh, iZp)
-         kCN(iSh, iZp) = angCN(lAng, iZp)
+         thirdOrderShell(iSh, iZp) = thirdOrderAtom(iZp) * gam3Shell(iKind, lAng)
       end do
    end do
 
-end subroutine setGFN2kCN
+end subroutine setGFN2ThirdOrderShell
 
 
 end module xtb_xtb_gfn2

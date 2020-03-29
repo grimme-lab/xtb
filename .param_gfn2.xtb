@@ -8,10 +8,10 @@ kpd         2.00000
 kdiff       2.00000
 enscale     2.00000
 ipeashift   1.78069
-zcnf        0.50000
-tscal       0.25000
-kcn         0.25000
-ken        -2.00000
+gam3s       1.00000
+gam3p       0.50000
+gam3d1      0.25000
+gam3d2      0.25000
 aesshift    1.20000
 aesexp      4.00000
 aesrmax     5.00000
