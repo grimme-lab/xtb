@@ -18,7 +18,6 @@
 srcs += files(
   'basisset.f90',
   'data.f90',
-  'calculator.f90',
   'gfn0.f90',
   'gfn1.f90',
   'gfn2.f90',

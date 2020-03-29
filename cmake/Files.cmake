@@ -131,7 +131,6 @@ set(XTB_SOURCES
 
   # Basis set
   "${XTB_ROOT}/src/xtb/basisset.f90"
-  "${XTB_ROOT}/src/xtb/calculator.f90"
   "${XTB_ROOT}/src/xtb/data.f90"
   "${XTB_ROOT}/src/xtb/gfn0.f90"
   "${XTB_ROOT}/src/xtb/gfn1.f90"
