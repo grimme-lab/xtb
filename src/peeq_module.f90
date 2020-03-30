@@ -43,7 +43,7 @@ use xtb_mctc_accuracy, only : wp
 contains
 
 subroutine peeq &
-      (env,mol,wfn,basis,param,xtbData,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
+      (env,mol,wfn,basis,xtbData,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
@@ -80,7 +80,6 @@ subroutine peeq &
    type(TMolecule),  intent(in) :: mol     !< molecular structure infomation
    type(TBasisset),  intent(in) :: basis   !< basis set
    type(TxTBData), intent(in) :: xtbData
-   type(scc_parameter),intent(in) :: param   !< method parameters
    real(wp),intent(in)            :: et      !< electronic temperature
    integer, intent(in)            :: prlevel !< amount of printout
    logical, intent(in)            :: grd     !< toggles gradient calculation
@@ -382,7 +381,7 @@ subroutine peeq &
 ! ----------------------------------------
 !  D4 dispersion energy + gradient (2B) under pbc
 ! ----------------------------------------
-   call ddisp_peeq(xtbData%dispersion,mol,env,param,cn,dcndr,dcndL,grd,ed,g,sigma)
+   call ddisp_peeq(xtbData%dispersion,mol,env,cn,dcndr,dcndL,grd,ed,g,sigma)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -488,7 +487,7 @@ subroutine peeq &
 ! ======================================================================
    ! repulsion energy + gradient
    !g = 0.0_wp; sigma = 0.0_wp
-   call drep_grad(xtbData%repulsion,mol,param,ep,g,sigma)
+   call drep_grad(xtbData%repulsion,mol,ep,g,sigma)
    ! short ranged bond energy + gradient
    if (allocated(xtbData%srb)) then
       call dsrb_grad(mol,xtbData%srb,cn,dcndr,dcndL,esrb,g,sigma) ! WRONG
@@ -608,7 +607,7 @@ end subroutine peeq
 ! -----------------------------------------------------------------------
 !  Calculate D4 dispersion gradient
 ! -----------------------------------------------------------------------
-subroutine ddisp_peeq(disp,mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
+subroutine ddisp_peeq(disp,mol,env,cn,dcndr,dcndL,grd,ed,gd,sigma)
    use xtb_mctc_accuracy, only : wp
    ! -----------------------------------------------------------------------
    !  Type definitions
@@ -635,7 +634,6 @@ subroutine ddisp_peeq(disp,mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
    ! -----------------------------------------------------------------------
    type(TDispersionData), intent(in) :: disp
    type(TMolecule),           intent(in)     :: mol
-   type(scc_parameter),         intent(in)     :: param
    type(dftd_parameter)                        :: par
    type(chrg_parameter)                        :: chrgeq
    type(TEnvironment), intent(inout) :: env
@@ -759,14 +757,13 @@ subroutine ddisp_peeq(disp,mol,env,param,cn,dcndr,dcndL,grd,ed,gd,sigma)
 end subroutine ddisp_peeq
 
 ! repulsion
-pure subroutine drep_grad(repData,mol,param,erep,g,sigma)
+pure subroutine drep_grad(repData,mol,erep,g,sigma)
    use xtb_type_molecule
    use xtb_type_param
    use xtb_pbc_tools
    use xtb_pbc
    implicit none
    type(TRepulsionData), intent(in) :: repData
-   type(scc_parameter), intent(in) :: param
    type(TMolecule), intent(in) :: mol
    real(wp), intent(inout) :: g(:, :)
    real(wp), intent(inout) :: sigma(:, :)

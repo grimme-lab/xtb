@@ -66,7 +66,6 @@ module subroutine gfn0_calculation &
 
    type(TWavefunction) :: wfn
    type(TBasisset)     :: basis
-   type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(TxTBData) :: xtbData
 
@@ -132,10 +131,8 @@ module subroutine gfn0_calculation &
       call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn0_header(iunit)
-      call gfn0_prparam(iunit,mol%n,mol%at,param)
    endif
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none" &
@@ -162,7 +159,7 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
+   call peeq(env,mol,wfn,basis,xtbData,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
       &      opt%ccm,opt%acc,energy,gradient,sigma,res)
    call env%check(exitRun)
    if (exitRun) then

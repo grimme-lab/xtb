@@ -20,13 +20,12 @@ module xtb_api_preload
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
    use xtb_api_utils
-   use xtb_type_param, only : scc_parameter, TxTBParameter
+   use xtb_type_param, only : TxTBParameter
    use xtb_type_environment, only : TEnvironment, init
    use xtb_paramset
    use xtb_xtb_data
    implicit none
 
-   type(scc_parameter) :: global_parameter
    type(TxTBData) :: global_data
 
 contains
@@ -74,19 +73,6 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
          call load_xtb_parameters(env, '.param_gfn.xtb', globpar, status)
       case(2_c_int)
          call load_xtb_parameters(env, '.param_gfn2.xtb', globpar, status)
-      case default
-         status = 2
-      end select
-   end if
-
-   if (status == 0) then
-      select case(gfn)
-      case(0_c_int)
-         call set_gfn0_parameter(global_parameter, globpar, global_data)
-      case(1_c_int)
-         call set_gfn1_parameter(global_parameter, globpar, global_data)
-      case(2_c_int)
-         call set_gfn2_parameter(global_parameter, globpar, global_data)
       case default
          status = 2
       end select

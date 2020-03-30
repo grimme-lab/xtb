@@ -41,7 +41,7 @@ module xtb_scf
 
 contains
 
-subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
+subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
 &              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
 &              res)
 
@@ -87,7 +87,6 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    type(TMolecule), intent(in) :: mol
    type(TWavefunction),intent(inout) :: wfn
    type(TBasisset),intent(in) :: basis
-   type(scc_parameter),intent(in) :: param
    type(tb_pcem),intent(inout) :: pcem
    real(wp),intent(inout) :: egap
    real(wp),intent(in)    :: et
@@ -562,7 +561,7 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    ! this is the classical part of the energy/gradient
    ! dispersion/XB/repulsion for GFN1-xTB
    ! only repulsion for GFN2-xTB
-   call cls_grad(mol,xtbData,param,nxb,ljexp,xblist, &
+   call cls_grad(mol,xtbData,nxb,ljexp,xblist, &
       &          ed,exb,ep,g,prlevel)
 
    if (profile) call timer%measure(6)
@@ -682,7 +681,6 @@ subroutine scf(env,mol,wfn,basis,param,pcem,xtbData, &
    call scf_grad(mol%n,mol%at,nmat2,matlist2, &
         &        H0,H1,S,xtbData,selfEnergy,dSEdcn, &
         &        mol%xyz,sqrab,wfn,basis, &
-        &        param, &
         &        dispdim,c6abns,mbd, &
         &        intcut, &
         &        gab3,gab5,radcn, &
@@ -792,7 +790,6 @@ end subroutine scf
 subroutine scf_grad(n,at,nmat2,matlist2, &
       &             H0,H1,S,xtbData,selfEnergy,dSEdcn, &
       &             xyz,sqrab,wfn,basis, &
-      &             param, &
       &             dispdim,c6abns,mbd, &
       &             intcut, &
       &             gab3,gab5,radcn, &
@@ -827,7 +824,6 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
    type(TWavefunction),intent(in) :: wfn
    type(TBasisset),    intent(in) :: basis
-   type(scc_parameter),  intent(in) :: param
    type(TxTBData), intent(in) :: xtbData
    integer, intent(in)    :: n
    integer, intent(in)    :: at(n)
@@ -994,7 +990,7 @@ subroutine scf_grad(n,at,nmat2,matlist2, &
 
 end subroutine scf_grad
 
-subroutine cls_grad(mol,xtbData,param,nxb,ljexp,xblist,ed,exb,ep,g,printlvl)
+subroutine cls_grad(mol,xtbData,nxb,ljexp,xblist,ed,exb,ep,g,printlvl)
 
 ! ========================================================================
 !  type definitions
@@ -1012,7 +1008,6 @@ subroutine cls_grad(mol,xtbData,param,nxb,ljexp,xblist,ed,exb,ep,g,printlvl)
    implicit none
 
    type(TMolecule), intent(in) :: mol
-   type(scc_parameter),  intent(in) :: param
    type(TxTBData), intent(in) :: xtbData
    real(wp),intent(inout) :: g(:,:)
    real(wp),intent(inout) :: ed

@@ -69,10 +69,12 @@ module xtb_prog_main
    use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
+   use xtb_xtb_calculator
    use xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
+   use xtb_main_setup
    use xtb_geoopt
    implicit none
    private
@@ -96,7 +98,7 @@ subroutine xtbMain(env, argParser)
 !  use some wrapper types to bundle information together
    type(TMolecule) :: mol
    type(scc_results) :: res
-   type(TCalculator) :: calc
+   class(TCalculator), allocatable :: calc
    type(freq_results) :: fres
    type(TWavefunction) :: wfn
    type(chrg_parameter) :: chrgeq
@@ -154,7 +156,7 @@ subroutine xtbMain(env, argParser)
 !  undocumented and unexplainable variables go here
    integer  :: nFiles, iFile
    integer  :: rohf,err
-   real(wp) :: dum5,egap,etot
+   real(wp) :: dum5,egap,etot,ipeashift
    real(wp) :: zero,t0,t1,w0,w1,acc,etot2,g298
    real(wp) :: qmdff_s6,one,two
    real(wp) :: ea,ip
@@ -262,6 +264,7 @@ subroutine xtbMain(env, argParser)
    chrg = ichrg
    rohf = 1 ! HS default
    egap = 0.0_wp
+   ipeashift = 0.0_wp
 
 
    ! ========================================================================
@@ -453,85 +456,45 @@ subroutine xtbMain(env, argParser)
 
 
    ! ------------------------------------------------------------------------
-   !> Obtain the parameter file
-   allocate(calc%xtbData)
-   call open_file(ich,fnv,'r')
-   exist = ich .ne. -1
-   if (exist) then
-      call readParam(env,ich,globpar,calc%xtbData,.true.)
-      call close_file(ich)
-   else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fnv,globpar,calc%xtbData,exist)
-      if (.not.exist) then
-         call env%error('Parameter file '//fnv//' not found!', source)
-      end if
-   endif
-
+   !> Obtain the parameter data
+   call newCalculator(env, mol, calc, fnv)
    call env%checkpoint("Could not setup parameterisation")
 
-!   do i = 1, 86
-!      do j = 1, i
-!         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
-!            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
-!            toSymbol(j),toSymbol(i),kpair(j,i)
-!      enddo
-!   enddo
 
-
-   allocate(calc%param)
-
-   select case(gfn_method)
-   case default
-      call env%terminate('Internal error, wrong GFN method passed!')
-   case(1)
-      call set_gfn1_parameter(calc%param,globpar,calc%xtbData)
-      call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
-   case(2)
-      call set_gfn2_parameter(calc%param,globpar,calc%xtbData)
-      call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
-   case(0)
-      call set_gfn0_parameter(calc%param,globpar,calc%xtbData)
-      call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
-   end select
-
-   !  init GBSA part
+   ! ------------------------------------------------------------------------
+   !> init GBSA part
    if(lgbsa) then
       call init_gbsa(env%unit,solvent,gsolvstate,temp_md,gfn_method,ngrida)
    endif
-   !  initialize PC embedding (set default file names and stuff)
+   !> initialize PC embedding (set default file names and stuff)
    call init_pcem
 
 
    ! ------------------------------------------------------------------------
-   !> set up the basis set for the tb-Hamiltonian
-   allocate(calc%basis)
-   call newBasisset(calc%xtbData,mol%n,mol%at,calc%basis,okbas)
-   if (.not.okbas) call env%terminate('basis set could not be setup completely')
-
-
-   ! ------------------------------------------------------------------------
    !> initial guess, setup wavefunction
-   call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
+   select type(calc)
+   type is(TxTBCalculator)
+      call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
-   !> EN charges and CN
-   if (gfn_method.lt.2) then
-      call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
-   else
-      call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-   endif
-   if (guess_charges.eq.p_guess_gasteiger) then
-      call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
-   else if (guess_charges.eq.p_guess_goedecker) then
-      call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-      call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
-         .false.,.false.,.false.)
-   else
-      call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-      wfn%q = real(chrg,wp)/real(mol%n,wp)
-   endif
-   !> initialize shell charges from gasteiger charges
-   call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
-
+      !> EN charges and CN
+      if (gfn_method.lt.2) then
+         call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
+      else
+         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+      endif
+      if (guess_charges.eq.p_guess_gasteiger) then
+         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
+      else if (guess_charges.eq.p_guess_goedecker) then
+         call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+         call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
+            .false.,.false.,.false.)
+      else
+         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+         wfn%q = real(chrg,wp)/real(mol%n,wp)
+      endif
+      !> initialize shell charges from gasteiger charges
+      call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   end select
 
    ! ------------------------------------------------------------------------
    !> printout a header for the exttyp
@@ -562,8 +525,12 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Setup for calculation failed")
 
-   calc%etemp = etemp
-   calc%maxiter = maxscciter
+   select type(calc)
+   type is(TxTBCalculator)
+      calc%etemp = etemp
+      calc%maxiter = maxscciter
+      ipeashift = calc%xtbData%ipeashift
+   end select
    calc%accuracy = acc
 
    ! ========================================================================
@@ -641,10 +608,10 @@ subroutine xtbMain(env, argParser)
       call singlepoint &
          &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ip=etot2-etot-calc%xtbData%ipeashift
+      ip=etot2-etot-ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical IP shift (eV):",f10.4)') &
-         &                  autoev*calc%xtbData%ipeashift
+         &                  autoev*ipeashift
       write(env%unit,'("delta SCC IP (eV):",f10.4)') autoev*ip
       write(env%unit,'(72("-"))')
       wfn%nel = wfn%nel+1
@@ -660,10 +627,10 @@ subroutine xtbMain(env, argParser)
       call singlepoint &
          &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ea=etot-etot2-calc%xtbData%ipeashift
+      ea=etot-etot2-ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical EA shift (eV):",f10.4)') &
-         &                  autoev*calc%xtbData%ipeashift
+         &                  autoev*ipeashift
       write(env%unit,'("delta SCC EA (eV):",f10.4)') autoev*ea
       write(env%unit,'(72("-"))')
 
@@ -789,18 +756,22 @@ subroutine xtbMain(env, argParser)
    if(periodic)then
       write(*,*)'Periodic properties'
    else
-      call main_property(iprop, &
-         mol,wfn,calc%basis,calc%param,calc%xtbData,res,acc)
-      call main_cube(verbose, &
-         mol,wfn,calc%basis,calc%param,res)
+      select type(calc)
+      type is(TxTBCalculator)
+         call main_property(iprop,mol,wfn,calc%basis,calc%xtbData,res,acc)
+         call main_cube(verbose,mol,wfn,calc%basis,res)
+      end select
    endif
 
 
    if (pr_json) then
-      call open_file(ich,'xtbout.json','w')
-      call main_json(ich, &
-         mol,wfn,calc%basis,calc%param,res,fres)
-      call close_file(ich)
+      select type(calc)
+      type is(TxTBCalculator)
+         call open_file(ich,'xtbout.json','w')
+         call main_json(ich, &
+            mol,wfn,calc%basis,res,fres)
+         call close_file(ich)
+      end select
    endif
 
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &

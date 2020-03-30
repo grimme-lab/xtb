@@ -91,6 +91,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/main/property.f90"
   "${XTB_ROOT}/src/main/json.f90"
   "${XTB_ROOT}/src/main/geometry.f90"
+  "${XTB_ROOT}/src/main/setup.f90"
   "${XTB_ROOT}/src/gfn_prparam.f90"
   "${XTB_ROOT}/src/wrgbw.f90"
   "${XTB_ROOT}/src/enso_printout.f90"
@@ -131,6 +132,7 @@ set(XTB_SOURCES
 
   # Basis set
   "${XTB_ROOT}/src/xtb/basisset.f90"
+  "${XTB_ROOT}/src/xtb/calculator.f90"
   "${XTB_ROOT}/src/xtb/data.f90"
   "${XTB_ROOT}/src/xtb/gfn0.f90"
   "${XTB_ROOT}/src/xtb/gfn1.f90"

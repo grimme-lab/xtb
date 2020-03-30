@@ -43,7 +43,6 @@ subroutine test_gfn1_scc
    type(scc_results)     :: res
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
-   type(scc_parameter)   :: param
    type(tb_pcem)         :: pcem
    type(TxTBData) :: xtbData
 
@@ -66,8 +65,6 @@ subroutine test_gfn1_scc
    call use_parameterset('.param_gfn.xtb',globpar,xtbData,okpar)
    call assert(okpar)
 
-   call set_gfn1_parameter(param,globpar,xtbData)
-
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)
 
@@ -82,7 +79,7 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,param,pcem,xtbData, &
+   call scf(env,mol,wfn,basis,pcem,xtbData, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)

@@ -69,7 +69,6 @@ module subroutine gfn1_calculation &
    integer, parameter    :: wsc_rep(3) = [1,1,1] ! FIXME
 
    type(TBasisset)     :: basis
-   type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(chrg_parameter)  :: chrgeq
 
@@ -131,10 +130,8 @@ module subroutine gfn1_calculation &
       call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn1_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn1_header(iunit)
-      call gfn1_prparam(iunit,mol%n,mol%at,param)
    endif
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none"
@@ -173,7 +170,7 @@ module subroutine gfn1_calculation &
    ! ====================================================================
    !  STEP 5: do the calculation
    ! ====================================================================
-   call scf(env,mol,wfn,basis,param,pcem,xtbData,hl_gap, &
+   call scf(env,mol,wfn,basis,pcem,xtbData,hl_gap, &
       &     opt%etemp,opt%maxiter,opt%prlevel,.false.,opt%grad,opt%acc, &
       &     energy,gradient,res)
 
