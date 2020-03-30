@@ -109,6 +109,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    gradient(:, :) = 0.0_wp
    sigma(:, :) = 0.0_wp
    hlgap = 0.0_wp
+   efix = 0.0_wp
 
    ! ------------------------------------------------------------------------
    !  actual calculation
