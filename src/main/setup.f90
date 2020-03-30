@@ -94,6 +94,7 @@ subroutine newXTBCalculator(env, mol, calc, fname)
    type(TxTBParameter) :: globpar
    integer :: ich
    logical :: exist, okbas
+   logical :: exitRun
 
    !> Obtain the parameter file
    allocate(calc%xtbData)
@@ -110,9 +111,15 @@ subroutine newXTBCalculator(env, mol, calc, fname)
       end if
    endif
 
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not load parameters", source)
+      return
+   end if
+
    !> set up the basis set for the tb-Hamiltonian
    allocate(calc%basis)
-   call newBasisset(calc%xtbData,mol%n,mol%at,calc%basis,okbas)
+   call newBasisset(calc%xtbData, mol%n, mol%at, calc%basis, okbas)
    if (.not.okbas) then
       call env%error('basis set could not be setup completely', source)
       return

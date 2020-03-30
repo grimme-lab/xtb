@@ -8,6 +8,7 @@ subroutine test_eeq_model_water
    use xtb_type_param
    use xtb_disp_ncoord
    use xtb_eeq
+   use xtb_chargemodel
    implicit none
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
@@ -81,6 +82,7 @@ subroutine test_eeq_model_ewald
    use xtb_type_molecule
    use xtb_type_param
    use xtb_eeq
+   use xtb_chargemodel
    use xtb_disp_ncoord
    use xtb_pbc_tools
    implicit none
@@ -248,6 +250,7 @@ subroutine test_eeq_model_gbsa
    use xtb_solv_gbobc
    use xtb_disp_ncoord
    use xtb_eeq
+   use xtb_chargemodel
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -377,6 +380,7 @@ subroutine test_eeq_model_salt
    use xtb_solv_gbobc
    use xtb_disp_ncoord
    use xtb_eeq
+   use xtb_chargemodel
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp

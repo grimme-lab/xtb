@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_local
+contains
 
 subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use xtb_mctc_accuracy, only : wp, sp
@@ -24,6 +26,8 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use xtb_setparam
    use xtb_scc_core, only : get_wiberg
    use xtb_dtrafo
+   use xtb_onetri
+   use xtb_dipole
    implicit none
    type(TBasisset), intent(in) :: basis
    integer, intent(in) :: nao,ihomo,nat,at(nat),nbf
@@ -64,7 +68,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    character(len=80) :: atmp
    character(len=5) :: lmostring(4)
    data lmostring/'sigma','LP   ','pi   ','delpi'/
-   logical l1,l2,l3,bndcheck,flip
+   logical l1,l2,l3,flip
    integer LWORK,IWORK,LIWORK,INFO
    integer :: iscreen,icoord,ilmoi,icent ! file handles
 
@@ -850,4 +854,4 @@ pure subroutine piorient(a,b,flip)
    return
 end subroutine piorient
 
-
+end module xtb_local

@@ -14,12 +14,16 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_hlex
+contains
 
 subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga,basis)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_type_basisset
    use xtb_dtrafo
+   use xtb_onetri
+   use xtb_dipole
    implicit none
    type(TBasisset), intent(in) :: basis
    integer, intent(in)  :: nao,ihomo,nat,at(nat),nbf
@@ -74,3 +78,4 @@ subroutine hlex(nat,at,nbf,nao,ihomo,xyz,focc,s,cmo,eiga,basis)
    write(*,'('' oscillator strength : '',e12.5)') fl
 
 end subroutine hlex
+end module xtb_hlex

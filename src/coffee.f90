@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_coffee
+contains
 
 subroutine get_COFFEE(mol)
    use xtb_mctc_accuracy, only : wp
@@ -70,3 +72,5 @@ subroutine get_CUP(iunit,fmt)
       & " (     '-------'     )", &
       & "  `-=.._________..--'"
 end subroutine get_CUP
+
+end module xtb_coffee

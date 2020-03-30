@@ -16,16 +16,11 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_peeq
-! ------------------------------------------------------------------------
-!  PEEQ method developed and implemented by E. Caldeweyher
-!   01/19
-!  with help of (alphabetically sorted):
-!  S. Ehlert, S. Grimme, P. Pracht
-! ------------------------------------------------------------------------
-use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_la
    use xtb_xtb_data
+   use xtb_chargemodel
    implicit none
    private
 

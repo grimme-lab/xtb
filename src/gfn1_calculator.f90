@@ -37,6 +37,7 @@ module subroutine gfn1_calculation &
 
    use xtb_basis
    use xtb_eeq
+   use xtb_chargemodel
    use xtb_disp_ncoord
    use xtb_scc_core
    use xtb_scf

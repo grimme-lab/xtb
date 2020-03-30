@@ -19,6 +19,11 @@ module xtb_modef
    use xtb_mctc_io, only : stdout
    use xtb_mctc_accuracy, only : wp
    use xtb_single, only : singlepoint
+   use xtb_anharmlib
+   implicit none
+   private
+
+   public :: modefollow
 contains
    ! mode following routine for conformational searches or 1D-anharmonic calc
    ! thres types of operation:

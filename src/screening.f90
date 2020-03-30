@@ -29,6 +29,7 @@ module xtb_screening
    use xtb_dynamic, only : wrc,boltz,xyzsort2
    use xtb_setparam
    use xtb_geoopt
+   use xtb_cqpath
 
    implicit none
    private

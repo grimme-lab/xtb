@@ -23,6 +23,8 @@ module xtb_relaxation_engine
    use xtb_mctc_convert, only : fstoau, amutoau
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
+   use xtb_bfgs
+   use xtb_david2
    implicit none
    private :: wp
    !> precision of the rational function step (usually single instead of double)

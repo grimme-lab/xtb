@@ -23,6 +23,9 @@ module xtb_scf
    use xtb_xtb_halogen
    use xtb_xtb_repulsion
    use xtb_paramset, only : tmmetal
+   use xtb_hlex
+   use xtb_local
+   use xtb_dipole
    implicit none
    private
 

@@ -27,6 +27,7 @@ module xtb_mdoptim
    use xtb_setparam
    use xtb_splitparam
    use xtb_geoopt
+   use xtb_cqpath
    implicit none
    private
 

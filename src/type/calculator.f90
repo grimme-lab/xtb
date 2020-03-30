@@ -31,6 +31,8 @@ module xtb_type_calculator
    use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
    use xtb_extern_mopac, only : runMopac
    use xtb_extern_orca, only : runOrca
+   use xtb_metadynamic
+   use xtb_constrainpot
    implicit none
 
    public :: TCalculator

@@ -26,6 +26,7 @@
 module xtb_modelhessian
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
+   use xtb_chargemodel
    implicit none
 
    public :: mh_lindh

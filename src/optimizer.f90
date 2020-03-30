@@ -20,6 +20,8 @@ module xtb_optimizer
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
+   use xtb_bfgs
+   use xtb_david2
 
    logical,private,parameter :: profile = .true.
 

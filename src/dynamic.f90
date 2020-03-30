@@ -21,6 +21,7 @@ module xtb_dynamic
    use xtb_mctc_filetypes, only : fileType
    use xtb_single, only : singlepoint
    use xtb_intmodes, only : xyzgeo
+   use xtb_metadynamic
 
 contains
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC

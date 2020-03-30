@@ -28,6 +28,7 @@ module xtb_scc_core
    use xtb_mctc_la, only : sygvd,gemm,symm
    use xtb_type_environment, only : TEnvironment
    use xtb_xtb_data
+   use xtb_broyden
    implicit none
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)

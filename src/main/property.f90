@@ -19,6 +19,7 @@ module xtb_propertyoutput
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_symbols, only : toSymbol
+   use xtb_cube
 
 contains
 

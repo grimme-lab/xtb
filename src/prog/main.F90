@@ -76,6 +76,9 @@ module xtb_prog_main
    use xtb_xtb_gfn2
    use xtb_main_setup
    use xtb_geoopt
+   use xtb_metadynamic
+   use xtb_biaspath
+   use xtb_coffee
    implicit none
    private
 

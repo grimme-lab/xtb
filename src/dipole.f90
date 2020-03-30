@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_dipole
+contains
 
 subroutine Dints(n,nbf,xyz,S1,S2,S3,basis)
    use xtb_mctc_accuracy, only : wp
@@ -125,4 +127,4 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
 
 end subroutine calc_dipole
 
-
+end module xtb_dipole
