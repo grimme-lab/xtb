@@ -519,14 +519,13 @@ subroutine xtbMain(env, argParser)
 
    call delete_file('.sccnotconverged')
 
-   if (restart.and.mode_extrun.eq.p_ext_xtb) then ! only in first run
-      call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
-   endif
-
    call env%checkpoint("Setup for calculation failed")
 
    select type(calc)
    type is(TxTBCalculator)
+      if (restart.and.calc%xtbData%level /= 0) then ! only in first run
+         call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
+      endif
       calc%etemp = etemp
       calc%maxiter = maxscciter
       ipeashift = calc%xtbData%ipeashift
@@ -921,9 +920,12 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !  to further speed up xtb calculations we dump our most important
    !  quantities in a restart file, so we can save some precious seconds
-   if (restart) then
-      call writeRestart(env,wfn,'xtbrestart',gfn_method)
-   endif
+   select type(calc)
+   type is(TxTBCalculator)
+      if (restart) then
+         call writeRestart(env,wfn,'xtbrestart',gfn_method)
+      endif
+   end select
    call wfn%deallocate
 
 
