@@ -332,6 +332,7 @@ subroutine xtbMain(env, argParser)
       tstep_md = (minval(atmass)/(atomic_mass(1)*autoamu))**(1.0_wp/3.0_wp)
    endif
 
+   mol%chrg = real(chrg, wp)
    wfn%nel = idint(sum(mol%z)) - chrg
    wfn%nopen = nalphabeta
    if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
@@ -700,11 +701,11 @@ subroutine xtbMain(env, argParser)
    endif
 
    ! reset the gap, since it is currently not updated in ancopt and numhess
-   res%hl_gap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
-
+   if (allocated(wfn%emo)) then
+      res%hl_gap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
+   end if
 
    call env%checkpoint("Calculation terminated")
-
 
    ! ========================================================================
    !> PRINTOUT SECTION
