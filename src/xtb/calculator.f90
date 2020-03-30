@@ -42,18 +42,24 @@ module xtb_xtb_calculator
    public :: TxTBCalculator
 
 
+   !> Calculator interface for xTB based methods
    type, extends(TCalculator) :: TxTBCalculator
 
+      !> Tight binding basis set
       type(TBasisset), allocatable :: basis
 
+      !> Parametrisation data base
       type(TxTBData), allocatable :: xtbData
 
+      !> Electronic temperature
       real(wp) :: etemp
 
+      !> Maximum number of cycles for SCC convergence
       integer :: maxiter
 
    contains
 
+      !> Perform xTB single point calculation
       procedure :: singlepoint
 
    end type TxTBCalculator
