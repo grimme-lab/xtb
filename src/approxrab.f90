@@ -18,6 +18,8 @@
 module xtb_approxrab
    use xtb_mctc_accuracy, only : wp
   implicit none
+  private
+  public :: pbc_approx_rab, approx_rab, approx_bonds
 
 ! parameter blocks
   real(wp),private, dimension(86) :: cnfak

@@ -244,7 +244,7 @@ subroutine test_peeq_api_srb
 
    implicit none
 
-   real(wp),parameter :: thr = 1.0e-10_wp
+   real(wp),parameter :: thr = 1.0e-9_wp
    ! CaF2
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
