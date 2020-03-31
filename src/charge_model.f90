@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_chargemodel
+contains
 
 subroutine new_multieq_model_2019(chrgeq,n,at)
    use xtb_mctc_accuracy, only : wp
@@ -403,3 +405,5 @@ subroutine read_charge_model(chrgeq,n,at,fname)
    enddo
 
 end subroutine read_charge_model
+
+end module xtb_chargemodel

@@ -28,6 +28,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
    use xtb_type_data
 
    use xtb_io_writer, only : writeMolecule
+   use xtb_geoopt
 
    implicit none
 
@@ -35,7 +36,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    type(TWavefunction),intent(inout) :: wfx
 
    integer  :: ilog ! file handle

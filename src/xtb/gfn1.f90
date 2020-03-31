@@ -20,53 +20,61 @@ module xtb_xtb_gfn1
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
-   use xtb_type_param, only : TxTBParameter
+   use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
+   use xtb_disp_dftd3param, only : copy_c6, reference_c6
    implicit none
    private
 
    public :: initGFN1, gfn1Globals
    public :: setGFN1ReferenceOcc, setGFN1NumberOfPrimitives, setGFN1PairParam
+   public :: setGFN1kCN
 
 
    interface initGFN1
       module procedure :: initData
       module procedure :: initRepulsion
+      module procedure :: initDispersion
       module procedure :: initCoulomb
       module procedure :: initHamiltonian
       module procedure :: initHalogen
    end interface initGFN1
 
+   real(wp), parameter :: cnshell(2, 0:3) = reshape(&
+      &[0.6_wp, 0.6_wp,-0.3_wp,-0.3_wp,-0.5_wp, 0.5_wp,-0.5_wp, 0.5_wp], &
+      & shape(cnshell))
 
    type(TxTBParameter), parameter :: gfn1Globals = TxTBParameter( &
-      ks =      1.850000000000000_wp, &
-      kp =      2.250000000000000_wp, &
-      kd =      2.000000000000000_wp, &
-      kf =      0.000000000000000_wp, &
-      kdiffa =  2.080000000000000_wp, &
-      kdiffb =  2.850000000000000_wp, &
-      ipeashift = 1.780690000000000_wp, &
-      zcnf =    0.000000000000000_wp, &
-      tscal =   0.000000000000000_wp, &
-      kcn =     0.6000000000000001_wp, &
-      fpol =    -0.3000000000000000_wp, &
-      ken =     -0.5000000000000000_wp, &
-      lshift =  0.000000000000000_wp, &
-      lshifta = 0.000000000000000_wp, &
-      split =   0.000000000000000_wp, &
-      zqf =     0.000000000000000_wp, &
-      alphaj =  2.000000000000000_wp, &
-      kexpo =   1.500000000000000_wp, &
-      dispa =   0.6300000000000000_wp, &
-      dispb =   5.000000000000000_wp, &
-      dispc =   2.400000000000000_wp, &
-      dispatm = 0.7000000000000001_wp, &
-      xbdamp =  0.4400000000000001_wp, &
-      xbrad =   1.300000000000000_wp )
+      kshell = [1.85_wp, 2.25_wp, 2.0_wp, 2.0_wp], &
+      enshell = -0.7_wp, &
+      ksp = 2.08_wp, &
+      kdiff = 2.85_wp, &
+      cnshell = cnshell, &
+      ipeashift = 1.78069_wp, &
+      alphaj =  2.0_wp, &
+      xbdamp =  0.44_wp, &
+      xbrad =   1.3_wp)
+
+   type(dftd_parameter) :: gfn1Disp = dftd_parameter(&
+      s6=1.0_wp, s8=2.4_wp, a1=0.63_wp, a2=5.0_wp, s9=0.0_wp)
 
 
    !> Maximum number of elements supported by GFN1-xTB
    integer, parameter :: maxElem = 86
+
+
+   integer, parameter :: gfn1Kinds(118) = [&
+   &  1,                                                 1, &! H-He
+   &  0, 0,                               0, 1, 1, 1, 1, 1, &! Li-Ne
+   &  0, 0,                               0, 1, 1, 1, 1, 1, &! Na-Ar
+   &  0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, &! K-Kr
+   &  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, &! Rb-Xe
+   &  0, 0, &! Cs/Ba
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &!La-Lu
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, &! Lu-Rn
+   &  0, 0, &
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, &!Fr-
+   &        0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1 ]! -Og
 
 
    ! ========================================================================
@@ -555,9 +563,14 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%name = 'GFN1-xTB'
+   self%doi = '10.1021/acs.jctc.7b00118'
+   self%level = 1
    self%nShell = nShell(:maxElem)
+   self%ipeashift = gfn1Globals%ipeashift * 0.1_wp
 
    call initGFN1(self%repulsion)
+   call initGFN1(self%dispersion)
    call initGFN1(self%coulomb, self%nShell)
    call initGFN1(self%hamiltonian, self%nShell)
    allocate(self%halogen)
@@ -576,6 +589,21 @@ subroutine initRepulsion(self)
 end subroutine initRepulsion
 
 
+subroutine initDispersion(self)
+
+   !> Data instance
+   type(TDispersionData), intent(out) :: self
+
+   self%dpar = gfn1Disp
+   self%g_a = 0.0_wp
+   self%g_c = 0.0_wp
+   self%wf  = 4.0_wp
+
+   if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
+
+end subroutine initDispersion
+
+
 subroutine initCoulomb(self, nShell)
 
    !> Data instance
@@ -584,6 +612,7 @@ subroutine initCoulomb(self, nShell)
    !> Number of shells
    integer, intent(in) :: nShell(:)
 
+   self%gExp = gfn1Globals%alphaj
    self%chemicalHardness = chemicalHardness
    self%thirdOrderAtom = thirdOrderAtom
    self%shellHardness = shellHardness(0:2, :maxElem)
@@ -600,11 +629,29 @@ subroutine initHamiltonian(self, nShell)
    integer, intent(in) :: nShell(:)
 
    integer :: mShell, nPrim, lAng
-   integer :: iZp, iSh
+   integer :: iZp, iSh, jSh
    logical :: valShell(0:3)
 
    mShell = maxval(nShell)
    self%angShell = angularMomentum(:mShell, :maxElem)
+
+   do iSh = 0, 3
+      do jSh = 0, 3
+         self%kScale(jSh, iSh) = 0.5_wp * (gfn1Globals%kShell(iSh) &
+            & + gfn1Globals%kShell(jSh))
+      end do
+   end do
+   self%kScale(0,1) = gfn1Globals%ksp
+   self%kScale(1,0) = gfn1Globals%ksp
+   self%kDiff = gfn1Globals%kDiff
+   do iSh = 0, 3
+      do jSh = 0, 3
+         self%enScale(jSh, iSh) = 0.005_wp * (gfn1Globals%enshell(iSh) &
+            & + gfn1Globals%enshell(jSh))
+      end do
+   end do
+   self%enScale4 = gfn1Globals%enscale4
+   self%wExp = 0.0_wp
 
    self%electronegativity = paulingEN(:maxElem)
    self%atomicRad = atomicRad(:maxElem)
@@ -612,6 +659,10 @@ subroutine initHamiltonian(self, nShell)
    self%selfEnergy = selfEnergy(:mShell, :maxElem)
    self%slaterExponent = slaterExponent(:mShell, :maxElem)
    self%principalQuantumNumber = principalQuantumNumber(:mShell, :maxElem)
+
+   allocate(self%kCN(mShell, maxElem))
+   call setGFN1kCN(self%kCN, nShell, self%angShell, self%selfEnergy, &
+      & gfn1Globals%cnshell)
 
    allocate(self%valenceShell(mShell, maxElem))
    call generateValenceShellData(self%valenceShell, nShell, self%angShell)
@@ -721,7 +772,7 @@ subroutine setGFN1PairParam(pairParam)
    real(wp), allocatable :: pairParam(:, :)
 
    integer :: iZp, jZp, iTr, jTr
-   real(wp), parameter :: kp(2) = [1.1_wp, 1.2_wp]
+   real(wp), parameter :: kp(3) = [1.1_wp, 1.2_wp, 1.2_wp]
 
    pairParam(:, :) = 1.0_wp
 
@@ -732,9 +783,9 @@ subroutine setGFN1PairParam(pairParam)
          if (iTr > 0 .and. jTr > 0) then
             pairParam(iZp, jZp) = 0.5_wp*(kp(iTr)+kp(jTr))
             pairParam(jZp, iZp) = 0.5_wp*(kp(iTr)+kp(jTr))
-         endif
-      enddo
-   enddo
+         end if
+      end do
+   end do
 
 contains
 
@@ -744,8 +795,10 @@ elemental function dBlockRow(zp) result(tr)
 
    if (zp > 20 .and. zp < 30) then
       tr = 1
-   else if (zp > 38 .and. zp < 48 .or. zp > 56 .and. zp < 80) then
+   else if (zp > 38 .and. zp < 48) then
       tr = 2
+   else if (zp > 56 .and. zp < 80) then
+      tr = 3
    else
       tr = 0
    end if
@@ -753,6 +806,36 @@ elemental function dBlockRow(zp) result(tr)
 end function dBlockRow
 
 end subroutine setGFN1PairParam
+
+
+subroutine setGFN1kCN(kCN, nShell, angShell, selfEnergy, cnShell)
+
+   real(wp), intent(out) :: kCN(:, :)
+
+   integer, intent(in) :: nShell(:)
+
+   integer, intent(in) :: angShell(:, :)
+
+   real(wp), intent(in) :: selfEnergy(:, :)
+
+   real(wp), intent(in) :: cnShell(:, 0:)
+
+   integer :: nElem, iZp, iSh, lAng, iKind
+
+   nElem = min(size(kCN, dim=2), size(nShell), size(angShell, dim=2))
+
+   kCN(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      iKind = gfn1Kinds(iZp)
+      if (iKind > 0) then
+         do iSh = 1, nShell(iZp)
+            lAng = angShell(iSh, iZp)
+            kCN(iSh, iZp) = -selfEnergy(iSh, iZp) * cnShell(iKind, lAng) * 0.01_wp
+         end do
+      end if
+   end do
+
+end subroutine setGFN1kCN
 
 
 subroutine initHalogen(self)

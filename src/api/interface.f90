@@ -154,17 +154,17 @@ integer(c_int) function xtb_calculation_api &
    select case(gfn_method)
    case(0)
       call peeq &
-         & (env, mol, wfn, basis, global_parameter, global_data, &
+         & (env, mol, wfn, basis, global_data, &
          &  egap, opt%etemp, opt%prlevel, .false., opt%ccm, opt%acc, &
          &  energy, gradient, sigma, res)
    case(1)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
+         & (env, mol, wfn, basis, pcem, global_data, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case(2)
       call scf &
-         & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
+         & (env, mol, wfn, basis, pcem, global_data, &
          &  egap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
          &  energy, gradient, res)
    case default
@@ -511,7 +511,7 @@ function gfn12_calc_impl &
    call eeq_guess_wavefunction(env, mol, wfn, global_data)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
+      & (env, mol, wfn, basis, pcem, global_data, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 
@@ -874,7 +874,7 @@ function gfn12_pcem_impl &
    call eeq_guess_wavefunction(env, mol, wfn, global_data)
 
    call scf &
-      & (env, mol, wfn, basis, global_parameter, pcem, global_data, &
+      & (env, mol, wfn, basis, pcem, global_data, &
       &  hl_gap, opt%etemp, opt%maxiter, opt%prlevel, .false., .false., opt%acc, &
       &  energy, gradient, res)
 

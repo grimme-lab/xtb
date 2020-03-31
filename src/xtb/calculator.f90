@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2019-2020 Sebastian Ehlert
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -15,44 +15,59 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> abstract calculator that hides implementation details from calling codes
-module xtb_type_calculator
+!> TODO
+module xtb_xtb_calculator
    use xtb_mctc_accuracy, only : wp
+   use xtb_type_basisset, only : TBasisset
+   use xtb_type_calculator, only : TCalculator
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : scc_parameter
+   use xtb_type_pcem
    use xtb_type_wavefunction
+   use xtb_xtb_data, only : TxTBData
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
    use xtb_solv_gbobc, only : lgbsa
+   use xtb_scf, only : scf
    use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
-   use xtb_extern_mopac, only : runMopac
-   use xtb_extern_orca, only : runOrca
+   use xtb_peeq, only : peeq
+   use xtb_embedding, only : read_pcem
    use xtb_metadynamic
    use xtb_constrainpot
    implicit none
-
-   public :: TCalculator
    private
 
+   public :: TxTBCalculator
 
-   !> Base calculator
-   type :: TCalculator
 
-      real(wp) :: accuracy
+   !> Calculator interface for xTB based methods
+   type, extends(TCalculator) :: TxTBCalculator
+
+      !> Tight binding basis set
+      type(TBasisset), allocatable :: basis
+
+      !> Parametrisation data base
+      type(TxTBData), allocatable :: xtbData
+
+      !> Electronic temperature
+      real(wp) :: etemp
+
+      !> Maximum number of cycles for SCC convergence
+      integer :: maxiter
 
    contains
 
-      !> Perform single point calculation
+      !> Perform xTB single point calculation
       procedure :: singlepoint
 
       !> Write informative printout
       procedure :: writeInfo
 
-   end type TCalculator
+   end type TxTBCalculator
 
    character(len=*),private,parameter :: outfmt = &
       '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
@@ -68,7 +83,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    character(len=*), parameter :: source = 'type_calculator_singlepoint'
 
    !> Calculator instance
-   class(TCalculator), intent(in) :: self
+   class(TxTBCalculator), intent(in) :: self
 
    !> Computational environment
    type(TEnvironment), intent(inout) :: env
@@ -100,6 +115,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    !> Detailed results
    type(scc_results), intent(out) :: results
 
+   type(tb_pcem) :: pcem
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix
@@ -117,23 +133,27 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    efix = 0.0_wp
 
    ! ------------------------------------------------------------------------
+   !> external constrains which can be applied beforehand
+
+   !> check for external point charge field
+   call open_file(ich, pcem_file, 'r')
+   if (ich /= -1) then
+      call read_pcem(ich, env, pcem, self%xtbData%coulomb)
+      call close_file(ich)
+   end if
+
+   ! ------------------------------------------------------------------------
    !  actual calculation
-   select case(mode_extrun)
-   case(p_ext_qmdff)
-      call ff_eg  (mol%n,mol%at,mol%xyz,energy,gradient)
-      call ff_nonb(mol%n,mol%at,mol%xyz,energy,gradient)
-      call ff_hb  (mol%n,mol%at,mol%xyz,energy,gradient)
+   select case(self%xtbData%level)
+   case(1, 2)
+      call scf(env,mol,wfn,self%basis,pcem,self%xtbData, &
+         &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
+         &   self%accuracy,energy,gradient,results)
 
-   case(p_ext_orca)
-      call runOrca(env,mol,energy,gradient)
-
-   case(p_ext_turbomole)
-      call external_turbomole(mol%n,mol%at,mol%xyz,wfn%nel,wfn%nopen, &
-         &                    .true.,energy,gradient,results%dipole,lgbsa)
-
-   case(p_ext_mopac)
-      call runMopac(env,mol%n,mol%at,mol%xyz,energy,gradient)
-
+   case(0)
+      call peeq &
+         & (env,mol,wfn,self%basis,self%xtbData,hlgap,self%etemp, &
+         &  printlevel,.true.,ccm,self%accuracy,energy,gradient,sigma,results)
    end select
 
    call env%check(exitRun)
@@ -141,6 +161,18 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       call env%error("Electronic structure method terminated", source)
       return
    end if
+
+   ! ------------------------------------------------------------------------
+   !  post processing of gradient and energy
+
+   ! point charge embedding gradient file
+   if (pcem%n > 0) then
+      call open_file(ich,pcem_grad,'w')
+      do i=1,pcem%n
+         write(ich,'(3f12.8)')pcem%grd(1:3,i)
+      enddo
+      call close_file(ich)
+   endif
 
    ! ------------------------------------------------------------------------
    !  various external potentials
@@ -170,8 +202,28 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
+      if (.not.silent.and.lgbsa) then
+         write(env%unit,outfmt) "total w/o Gsasa/hb", &
+            &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
+      endif
       write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
       write(env%unit,outfmt) "HOMO-LUMO gap     ", results%hl_gap, "eV   "
+      if (.not.silent) then
+         if (verbose) then
+            write(env%unit,'(9x,"::",49("."),"::")')
+            write(env%unit,outfmt) "HOMO orbital eigv.", wfn%emo(wfn%ihomo),  "eV   "
+            write(env%unit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
+         endif
+         write(env%unit,'(9x,"::",49("."),"::")')
+         if (gfn_method.eq.2) call print_gfn2_results(env%unit,results,verbose,lgbsa)
+         if (gfn_method.eq.1) call print_gfn1_results(env%unit,results,verbose,lgbsa)
+         if (gfn_method.eq.0) call print_gfn0_results(env%unit,results,verbose,lgbsa)
+         write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
+         if (verbose) then
+            write(env%unit,'(9x,"::",49("."),"::")')
+            write(env%unit,outfmt) "atomisation energy", results%e_atom, "Eh   "
+         endif
+      endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,'(a)')
    endif
@@ -239,7 +291,7 @@ end subroutine print_gfn2_results
 subroutine writeInfo(self, unit, mol)
 
    !> Calculator instance
-   class(TCalculator), intent(in) :: self
+   class(TxTBCalculator), intent(in) :: self
 
    !> Unit for I/O
    integer, intent(in) :: unit
@@ -247,14 +299,9 @@ subroutine writeInfo(self, unit, mol)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
-   select case(mode_extrun)
-   case(p_ext_qmdff)
-      call qmdff_header(unit)
-   case(p_ext_orca, p_ext_mopac, p_ext_turbomole)
-      call driver_header(unit)
-   end select
+   call self%xtbData%writeInfo(unit, mol%at)
 
 end subroutine writeInfo
 
 
-end module xtb_type_calculator
+end module xtb_xtb_calculator

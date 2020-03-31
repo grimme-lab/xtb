@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_bfgs
+contains
 
 subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    use xtb_mctc_accuracy, only : wp
@@ -179,3 +181,5 @@ subroutine hdamp(gnorm,dampO,dampD)
       dampO = 0.5
    endif
 end subroutine hdamp
+
+end module xtb_bfgs

@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_blowsy
+contains
 
 pure subroutine blowsy(ity,a,b,n)
    use xtb_mctc_accuracy, only : wp
@@ -49,4 +51,4 @@ pure subroutine blowsy(ity,a,b,n)
       enddo
    endif
 end subroutine blowsy
-
+end module xtb_blowsy

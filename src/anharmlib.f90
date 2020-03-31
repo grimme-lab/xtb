@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public Licen
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_anharmlib
+contains
+
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! analyze a pot curve with n points for stationary points
 ! xx are the grid points, yy the energies and yy* the
@@ -140,3 +143,4 @@ subroutine curveanal(n,xx,yy,yy1,yy2,list,ityp,nstat,eps)
 
 end subroutine
 
+end module xtb_anharmlib

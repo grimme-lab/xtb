@@ -55,7 +55,7 @@
 !    "version": 6.1
 ! }
 subroutine main_json &
-      (ijson,mol,wfx,xbas,xpar,sccres,freqres)
+      (ijson,mol,wfx,xbas,sccres,freqres)
    use xtb_mctc_accuracy, only : wp
 
 !! ========================================================================
@@ -78,7 +78,6 @@ subroutine main_json &
    type(TMolecule), intent(in) :: mol
    type(TWavefunction),intent(in) :: wfx
    type(TBasisset),    intent(in) :: xbas
-   type(scc_parameter),  intent(in) :: xpar
    type(scc_results),    intent(in) :: sccres
    type(freq_results),   intent(in) :: freqres
 

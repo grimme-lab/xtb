@@ -19,6 +19,7 @@ module xtb_propertyoutput
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_symbols, only : toSymbol
+   use xtb_cube
 
 contains
 
@@ -46,7 +47,7 @@ subroutine write_energy(iunit,sccres,frqres,hess)
 end subroutine write_energy
 
 subroutine main_property &
-      (iunit,mol,wfx,basis,xpar,xtbData,res,acc)
+      (iunit,mol,wfx,basis,xtbData,res,acc)
 
    use xtb_mctc_convert
 
@@ -78,7 +79,6 @@ subroutine main_property &
    real(wp),intent(in) :: acc      ! accuracy of integral calculation
    type(TWavefunction),intent(inout) :: wfx
    type(TBasisset),    intent(in) :: basis
-   type(scc_parameter),  intent(in) :: xpar
    type(scc_results),    intent(in) :: res
 
    real(wp),allocatable :: S(:,:)     ! overlap integrals
@@ -133,9 +133,9 @@ subroutine main_property &
 
 !! D4 molecular dispersion printout
    if ((newdisp.and.gfn_method.eq.2).and.pr_mulliken) &
-   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xpar%wf,xpar%g_a,xpar%g_c)
+   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c)
    if (gfn_method.eq.0.and.pr_mulliken) &
-   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xpar%wf,xpar%g_a,xpar%g_c)
+   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c)
 
 !! Spin population
    if (pr_spin_population .and. wfx%nopen.ne.0) &
@@ -205,7 +205,7 @@ subroutine main_property &
 end subroutine main_property
 
 subroutine main_cube &
-      (lverbose,mol,wfx,basis,xpar,res)
+      (lverbose,mol,wfx,basis,res)
 
    use xtb_mctc_convert
 
@@ -236,7 +236,6 @@ subroutine main_cube &
    type(TMolecule), intent(in) :: mol
    type(TWavefunction),intent(in) :: wfx
    type(TBasisset),    intent(in) :: basis
-   type(scc_parameter),  intent(in) :: xpar
    type(scc_results),    intent(in) :: res
 
    real(wp),allocatable :: C(:,:)     ! molecular orbitals

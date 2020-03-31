@@ -69,10 +69,16 @@ module xtb_prog_main
    use xtb_modef, only : modefollow
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
+   use xtb_xtb_calculator
    use xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
+   use xtb_main_setup
+   use xtb_geoopt
+   use xtb_metadynamic
+   use xtb_biaspath
+   use xtb_coffee
    implicit none
    private
 
@@ -95,7 +101,7 @@ subroutine xtbMain(env, argParser)
 !  use some wrapper types to bundle information together
    type(TMolecule) :: mol
    type(scc_results) :: res
-   type(tb_calculator) :: calc
+   class(TCalculator), allocatable :: calc
    type(freq_results) :: fres
    type(TWavefunction) :: wfn
    type(chrg_parameter) :: chrgeq
@@ -153,7 +159,7 @@ subroutine xtbMain(env, argParser)
 !  undocumented and unexplainable variables go here
    integer  :: nFiles, iFile
    integer  :: rohf,err
-   real(wp) :: dum5,egap,etot
+   real(wp) :: dum5,egap,etot,ipeashift
    real(wp) :: zero,t0,t1,w0,w1,acc,etot2,g298
    real(wp) :: qmdff_s6,one,two
    real(wp) :: ea,ip
@@ -261,6 +267,7 @@ subroutine xtbMain(env, argParser)
    chrg = ichrg
    rohf = 1 ! HS default
    egap = 0.0_wp
+   ipeashift = 0.0_wp
 
 
    ! ========================================================================
@@ -328,6 +335,7 @@ subroutine xtbMain(env, argParser)
       tstep_md = (minval(atmass)/(atomic_mass(1)*autoamu))**(1.0_wp/3.0_wp)
    endif
 
+   mol%chrg = real(chrg, wp)
    wfn%nel = idint(sum(mol%z)) - chrg
    wfn%nopen = nalphabeta
    if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
@@ -420,147 +428,94 @@ subroutine xtbMain(env, argParser)
             p_run_modef,p_run_mdopt,p_run_metaopt)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
-            if(periodic)then
-               call peeq_header(env%unit)
-            else
-               call gfn0_header(env%unit)
-            endif
          endif
          if(gfn_method.eq.1) then
             fnv=xfind(p_fname_param_gfn1)
-            call gfn1_header(env%unit)
          endif
          if(gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
-            call gfn2_header(env%unit)
          endif
       case(p_run_vip,p_run_vea,p_run_vipea,p_run_vfukui,p_run_vomega)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
-            call gfn0_header(env%unit)
          endif
          if(gfn_method.eq.1) then
             fnv=xfind(p_fname_param_ipea)
-            call ipea_header(env%unit)
          endif
          if(gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
-            call gfn2_header(env%unit)
          endif
       end select
    endif
 
 
    ! ------------------------------------------------------------------------
-   !> Obtain the parameter file
-   allocate(calc%xtb)
-   call open_file(ich,fnv,'r')
-   exist = ich .ne. -1
-   if (exist) then
-      call readParam(env,ich,globpar,calc%xtb,.true.)
-      call close_file(ich)
-   else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fnv,globpar,calc%xtb,exist)
-      if (.not.exist) then
-         call env%error('Parameter file '//fnv//' not found!', source)
-      end if
-   endif
-
+   !> Obtain the parameter data
+   call newCalculator(env, mol, calc, fnv)
    call env%checkpoint("Could not setup parameterisation")
 
-!   do i = 1, 86
-!      do j = 1, i
-!         if (abs(kpair(j,i)-1.0_wp).gt.1e-5_wp) &
-!            write(env%unit,'(13x,"KAB for ",a2," - ",a2,5x,":",F22.4)') &
-!            toSymbol(j),toSymbol(i),kpair(j,i)
-!      enddo
-!   enddo
 
-
-   allocate(calc%param)
-
-   select case(gfn_method)
-   case default
-      call env%terminate('Internal error, wrong GFN method passed!')
-   case(1)
-      call set_gfn1_parameter(calc%param,globpar,calc%xtb)
-      call gfn1_prparam(env%unit,mol%n,mol%at,calc%param)
-   case(2)
-      call set_gfn2_parameter(calc%param,globpar,calc%xtb)
-      call gfn2_prparam(env%unit,mol%n,mol%at,calc%param)
-   case(0)
-      call set_gfn0_parameter(calc%param,globpar,calc%xtb)
-      call gfn0_prparam(env%unit,mol%n,mol%at,calc%param)
-   end select
-
-   !  init GBSA part
+   ! ------------------------------------------------------------------------
+   !> init GBSA part
    if(lgbsa) then
       call init_gbsa(env%unit,solvent,gsolvstate,temp_md,gfn_method,ngrida)
    endif
-   !  initialize PC embedding (set default file names and stuff)
+   !> initialize PC embedding (set default file names and stuff)
    call init_pcem
 
 
    ! ------------------------------------------------------------------------
-   !> set up the basis set for the tb-Hamiltonian
-   allocate(calc%basis)
-   call newBasisset(calc%xtb,mol%n,mol%at,calc%basis,okbas)
-   if (.not.okbas) call env%terminate('basis set could not be setup completely')
-
-
-   ! ------------------------------------------------------------------------
    !> initial guess, setup wavefunction
-   call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
+   select type(calc)
+   type is(TxTBCalculator)
+      call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
-   !> EN charges and CN
-   if (gfn_method.lt.2) then
-      call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
-   else
-      call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-   endif
-   if (guess_charges.eq.p_guess_gasteiger) then
-      call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,calc%param%ken1,wfn%q,cn,gfn_method,.true.)
-   else if (guess_charges.eq.p_guess_goedecker) then
-      call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-      call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
-         .false.,.false.,.false.)
-   else
-      call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-      wfn%q = real(chrg,wp)/real(mol%n,wp)
-   endif
-   !> initialize shell charges from gasteiger charges
-   call iniqshell(calc%xtb,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
-
+      !> EN charges and CN
+      if (gfn_method.lt.2) then
+         call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
+      else
+         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+      endif
+      if (guess_charges.eq.p_guess_gasteiger) then
+         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
+      else if (guess_charges.eq.p_guess_goedecker) then
+         call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+         call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
+            .false.,.false.,.false.)
+      else
+         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+         wfn%q = real(chrg,wp)/real(mol%n,wp)
+      endif
+      !> initialize shell charges from gasteiger charges
+      call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   end select
 
    ! ------------------------------------------------------------------------
    !> printout a header for the exttyp
+   call calc%writeInfo(env%unit, mol)
    select case(mode_extrun)
-   case default
-      call scc_header(env%unit)
-   case(p_ext_eht)
-      call eht_header(env%unit)
    case(p_ext_qmdff)
-      call qmdff_header(env%unit)
       call ff_ini(mol%n,mol%at,mol%xyz,cn,qmdff_s6)
    case(p_ext_orca)
-      call driver_header(env%unit)
       call checkOrca(env)
    case(p_ext_mopac)
-      call driver_header(env%unit)
       call checkMopac(env)
-   case(p_ext_turbomole)
-      call driver_header(env%unit)
-      write(*,*) 'Running Turbomole Calculation!'
    end select
 
    call delete_file('.sccnotconverged')
 
-   if (restart.and.mode_extrun.eq.p_ext_xtb) then ! only in first run
-      call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
-   endif
-
    call env%checkpoint("Setup for calculation failed")
 
+   select type(calc)
+   type is(TxTBCalculator)
+      if (restart.and.calc%xtbData%level /= 0) then ! only in first run
+         call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
+      endif
+      calc%etemp = etemp
+      calc%maxiter = maxscciter
+      ipeashift = calc%xtbData%ipeashift
+   end select
+   calc%accuracy = acc
 
    ! ========================================================================
    !> the SP energy which is always done
@@ -637,10 +592,10 @@ subroutine xtbMain(env, argParser)
       call singlepoint &
          &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ip=etot2-etot-calc%param%ipshift
+      ip=etot2-etot-ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical IP shift (eV):",f10.4)') &
-         &                  autoev*calc%param%ipshift
+         &                  autoev*ipeashift
       write(env%unit,'("delta SCC IP (eV):",f10.4)') autoev*ip
       write(env%unit,'(72("-"))')
       wfn%nel = wfn%nel+1
@@ -656,10 +611,10 @@ subroutine xtbMain(env, argParser)
       call singlepoint &
          &       (env,mol,wfn,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
-      ea=etot-etot2-calc%param%eashift
+      ea=etot-etot2-ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical EA shift (eV):",f10.4)') &
-         &                  autoev*calc%param%eashift
+         &                  autoev*ipeashift
       write(env%unit,'("delta SCC EA (eV):",f10.4)') autoev*ea
       write(env%unit,'(72("-"))')
 
@@ -730,11 +685,11 @@ subroutine xtbMain(env, argParser)
    endif
 
    ! reset the gap, since it is currently not updated in ancopt and numhess
-   res%hl_gap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
-
+   if (allocated(wfn%emo)) then
+      res%hl_gap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
+   end if
 
    call env%checkpoint("Calculation terminated")
-
 
    ! ========================================================================
    !> PRINTOUT SECTION
@@ -785,18 +740,22 @@ subroutine xtbMain(env, argParser)
    if(periodic)then
       write(*,*)'Periodic properties'
    else
-      call main_property(iprop, &
-         mol,wfn,calc%basis,calc%param,calc%xtb,res,acc)
-      call main_cube(verbose, &
-         mol,wfn,calc%basis,calc%param,res)
+      select type(calc)
+      type is(TxTBCalculator)
+         call main_property(iprop,mol,wfn,calc%basis,calc%xtbData,res,acc)
+         call main_cube(verbose,mol,wfn,calc%basis,res)
+      end select
    endif
 
 
    if (pr_json) then
-      call open_file(ich,'xtbout.json','w')
-      call main_json(ich, &
-         mol,wfn,calc%basis,calc%param,res,fres)
-      call close_file(ich)
+      select type(calc)
+      type is(TxTBCalculator)
+         call open_file(ich,'xtbout.json','w')
+         call main_json(ich, &
+            mol,wfn,calc%basis,res,fres)
+         call close_file(ich)
+      end select
    endif
 
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
@@ -946,9 +905,12 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !  to further speed up xtb calculations we dump our most important
    !  quantities in a restart file, so we can save some precious seconds
-   if (restart) then
-      call writeRestart(env,wfn,'xtbrestart',gfn_method)
-   endif
+   select type(calc)
+   type is(TxTBCalculator)
+      if (restart) then
+         call writeRestart(env,wfn,'xtbrestart',gfn_method)
+      endif
+   end select
    call wfn%deallocate
 
 

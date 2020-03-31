@@ -23,6 +23,8 @@ module xtb_relaxation_engine
    use xtb_mctc_convert, only : fstoau, amutoau
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
+   use xtb_bfgs
+   use xtb_david2
    implicit none
    private :: wp
    !> precision of the rational function step (usually single instead of double)
@@ -158,7 +160,7 @@ subroutine fire &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of steps
@@ -408,7 +410,7 @@ subroutine l_ancopt &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of optimization cycles
@@ -789,7 +791,7 @@ subroutine lbfgs_relax &
    type(TMolecule), intent(inout) :: mol
 
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
 
    !> settings for the low memory BFGS
    type(lbfgs_options), intent(in) :: opt
@@ -1054,7 +1056,7 @@ subroutine inertial_relax &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
 
    !> settings for the fast inertial relaxation engine
    type(fire_options), intent(in) :: opt

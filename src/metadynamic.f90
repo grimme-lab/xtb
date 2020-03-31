@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_metadynamic
+contains
+
 subroutine metadynamic(metavar,nat,at,xyz,ebias,g)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
@@ -105,4 +108,4 @@ subroutine load_metadynamic(metavar,nat,at,xyz)
       "metadynamics with", nstruc, "initial structures loaded"
 
 end subroutine load_metadynamic
-
+end module xtb_metadynamic

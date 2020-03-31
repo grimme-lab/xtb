@@ -14,8 +14,11 @@
 !
 ! You should have received a copy of the GNU Lesser General Public Licen
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_onetri
+contains
 
 subroutine onetri(ity,s,s1,array,n,ival)
+   use xtb_blowsy
    implicit real*8 (a-h,o-z)
    !     ******designed for abelian groups only******
    !
@@ -51,4 +54,4 @@ subroutine onetri(ity,s,s1,array,n,ival)
    call dgemm('n','n',n,ival,n,1.d0,s1,n,array,n,0.d0,s2,n)
    call dgemm('t','n',ival,ival,n,1.d0,array,n,s2,n,0.d0,s1,ival)
 end subroutine
-
+end module xtb_onetri

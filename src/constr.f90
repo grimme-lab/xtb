@@ -337,6 +337,7 @@ end subroutine constrpot
 subroutine constrhess(nat,at,xyz0,Hess)
    use xtb_mctc_accuracy, only : wp
    use xtb_scanparam
+   use xtb_constrainpot
    implicit none
    integer, intent(in)    :: nat
    integer, intent(in)    :: at(nat)

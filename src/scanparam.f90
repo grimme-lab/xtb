@@ -18,6 +18,7 @@
 module xtb_scanparam
    use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
+   use xtb_constrainpot
    implicit none
    private :: wp
    public

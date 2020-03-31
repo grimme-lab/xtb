@@ -21,6 +21,7 @@ module xtb_dynamic
    use xtb_mctc_filetypes, only : fileType
    use xtb_single, only : singlepoint
    use xtb_intmodes, only : xyzgeo
+   use xtb_metadynamic
 
 contains
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -158,7 +159,7 @@ subroutine md(env,mol,wfx,calc, &
 
    type(TMolecule),intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   type(tb_calculator),  intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer  :: icall
    integer, intent(in) :: maxiter
    integer, intent(inout) :: cdump2

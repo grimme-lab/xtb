@@ -20,13 +20,32 @@ module xtb_xtb_data
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
+   use xtb_type_param, only : dftd_parameter
    implicit none
    private
 
    public :: TxTBData, init
-   public :: TRepulsionData, TCoulombData, THamiltonianData
-   public :: THalogenData, TMultipoleData
-   public :: generateValenceShellData
+   public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
+   public :: THalogenData, TMultipoleData, TShortRangeData
+   public :: generateValenceShellData, angToShellData
+
+
+   !> Data for the dispersion contribution
+   type :: TDispersionData
+
+      !> Damping parameters
+      type(dftd_parameter) :: dpar
+
+      !> Weighting factor for Gaussian interpolation
+      real(wp) :: wf
+
+      !> Charge steepness
+      real(wp) :: g_a
+
+      !> Charge height
+      real(wp) :: g_c
+
+   end type TDispersionData
 
 
    !> Data for the repulsion contribution
@@ -61,6 +80,21 @@ module xtb_xtb_data
 
    !> Data for the evaluation of the xTB core Hamiltonian
    type :: THamiltonianData
+
+      !> Scaling factors for different interacting shells
+      real(wp) :: kScale(0:3, 0:3)
+
+      !> Scaling factor for diffuse or polarisation function
+      real(wp) :: kDiff
+
+      !> Shell dependence of the EN polynom
+      real(wp) :: enScale(0:3, 0:3)
+
+      !> Quartic contribution to EN polynom
+      real(wp) :: enscale4
+
+      !> Exponent for shell exponent weighting
+      real(wp) :: wExp
 
       !> Principal quantum number of each shell
       integer, allocatable :: principalQuantumNumber(:, :)
@@ -122,6 +156,9 @@ module xtb_xtb_data
       !> Third order electrostatics is shell resolved
       logical :: shellResolved
 
+      !> Exponent of the generalized gamma function
+      real(wp) :: gExp
+
       !> Atomic hardnesses used in second order electrostatics
       real(wp), allocatable :: chemicalHardness(:)
 
@@ -130,6 +167,9 @@ module xtb_xtb_data
 
       !> Third order Hubbard derivatives
       real(wp), allocatable :: thirdOrderAtom(:)
+
+      !> Shell resolved third order Hubbard derivatives
+      real(wp), allocatable :: thirdOrderShell(:, :)
 
       !> Charge widths for EEQ model
       real(wp), allocatable :: chargeWidth(:)
@@ -194,8 +234,35 @@ module xtb_xtb_data
    end type THalogenData
 
 
+   !> Short range basis correction
+   type TShortRangeData
+
+      !> Additional offset for the reference bond lengths
+      real(wp) :: shift
+
+      !> Scaling factor for the energy contribution
+      real(wp) :: prefactor
+
+      !> Steepness of the EN dependence
+      real(wp) :: steepness
+
+      !> Scaling factor for electronegativity differences
+      real(wp) :: enScale
+
+   end type TShortRangeData
+
+
    !> Parametrisation data for the xTB method
    type :: TxTBData
+
+      !> Name of the parametrisation
+      character(len=:), allocatable :: name
+
+      !> Reference to the publication
+      character(len=:), allocatable :: doi
+
+      !> Internal version number
+      integer :: level
 
       !> Number of shells
       integer, allocatable :: nShell(:)
@@ -209,11 +276,25 @@ module xtb_xtb_data
       !> Parametrisation data for Coulombic interactions
       type(TCoulombData) :: coulomb
 
+      !> Parametrisation data for dispersion interactions
+      type(TDispersionData) :: dispersion
+
       !> Parametrisation data for multipole electrostatics (optional)
       type(TMultipoleData), allocatable :: multipole
 
       !> Parametrisation data for halogen bond correction (optional)
       type(THalogenData), allocatable :: halogen
+
+      !> Parametrisation data for the short range basis correction (optional)
+      type(TShortRangeData), allocatable :: srb
+
+      !> Shift for IP/EA calculations
+      real(wp) :: ipeashift
+
+   contains
+
+      !> Write informative printout for the parametrisation data
+      procedure :: writeInfo
 
    end type TxTBData
 
@@ -257,6 +338,106 @@ module xtb_xtb_data
 
 
 contains
+
+
+subroutine writeInfo(self, unit, num)
+
+   !> Instance of the parametrisation data
+   class(TxTBData), intent(in) :: self
+
+   !> Unit for I/O
+   integer, intent(in) :: unit
+
+   !> Atomic numbers
+   integer, intent(in), optional :: num(:)
+
+   character(len=*), parameter :: rnum = '(f12.6)'
+   character(len=*), parameter :: offset = '(8x)'
+   character(len=*), parameter :: head = '(6x,"*",1x,a,":")'
+   character(len=*), parameter :: rfmt = '('//offset//',a,t36,'//rnum//')'
+   character(len=*), parameter :: afmt = '('//offset//',a,t36,4x,a)'
+   character(len=:), allocatable :: name
+   integer :: ii, jj
+
+   write(unit, '(a)')
+   if (allocated(self%name)) then
+      allocate(character(len=2*len(self%name)-1) :: name)
+      name = repeat(' ', len(name))
+      do ii = 1, len(self%name)
+         jj = 2*ii-1
+         name(jj:jj) = self%name(ii:ii)
+      end do
+   else
+      name = repeat(' ', 10)
+      write(name, '(i0)') self%level
+      name = 'xTB level '//trim(name)
+   end if
+   call generic_header(unit, name, 49, 10)
+
+   write(unit, '(a)')
+   if (allocated(self%doi)) then
+      write(unit, afmt) "Reference", self%doi
+   end if
+
+   write(unit, head) "Hamiltonian"
+   write(unit, rfmt, advance='no') "H0-scaling (s, p, d)"
+   do ii = 0, 2
+      write(unit, rnum, advance='no') self%hamiltonian%kScale(ii, ii)
+   end do
+   write(unit, '(a)')
+   write(unit, rfmt) "zeta-weighting", self%hamiltonian%wExp
+
+   write(unit, head) "Dispersion"
+   write(unit, rfmt) "s8", self%dispersion%dpar%s8
+   write(unit, rfmt) "a1", self%dispersion%dpar%a1
+   write(unit, rfmt) "a2", self%dispersion%dpar%a2
+   write(unit, rfmt) "s9", self%dispersion%dpar%s9
+
+   write(unit, head) "Repulsion"
+   write(unit, rfmt, advance='no') "kExp", self%repulsion%kExp
+   if (self%repulsion%kExpLight /= self%repulsion%kExp) then
+      write(unit, rnum, advance='no') self%repulsion%kExpLight
+   end if
+   write(unit, '(a)')
+   write(unit, rfmt) "rExp", self%repulsion%rExp
+
+   write(unit, head) "Coulomb"
+   write(unit, rfmt) "alpha", self%coulomb%gExp
+   if (allocated(self%coulomb%thirdOrderShell)) then
+      write(unit, afmt) "third order", "shell-resolved"
+   else if (allocated(self%coulomb%thirdOrderAtom)) then
+      write(unit, afmt) "third order", "atomic"
+   else
+      write(unit, afmt) "third order", "false"
+   end if
+
+   if (allocated(self%multipole)) then
+      write(unit, afmt) "anisotropic", "true"
+      write(unit, rfmt) "a3", self%multipole%dipDamp
+      write(unit, rfmt) "a5", self%multipole%quadDamp
+      write(unit, rfmt) "cn-shift", self%multipole%cnShift
+      write(unit, rfmt) "cn-exp", self%multipole%cnExp
+      write(unit, rfmt) "max-rad", self%multipole%cnRMax
+   else
+      write(unit, afmt) "anisotropic", "false"
+   end if
+
+   if (allocated(self%halogen)) then
+      write(unit, head) "Halogen bond correction"
+      write(unit, rfmt) "rad-scale", self%halogen%radScale
+      write(unit, rfmt) "damping", self%halogen%dampingPar
+   end if
+
+   if (allocated(self%srb)) then
+      write(unit, head) "Polar bond correction"
+      write(unit, rfmt) "rad-shift", self%srb%shift
+      write(unit, rfmt) "strength", self%srb%prefactor
+      write(unit, rfmt) "en-exp", self%srb%steepness
+      write(unit, rfmt) "en-scale", self%srb%enScale
+   end if
+   write(unit, '(a)')
+
+end subroutine writeInfo
 
 
 !> Generator for valence shell data from the angular momenta of the shells
@@ -464,6 +645,37 @@ subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
    end if
 
 end subroutine initCoulomb
+
+
+!> Transform a data array from angular momenta to shell number references
+subroutine angToShellData(kDat, nShell, angShell, angDat)
+
+   !> Data in terms of shell number of each species
+   real(wp), intent(out) :: kDat(:, :)
+
+   !> Number of shells for each species
+   integer, intent(in) :: nShell(:)
+
+   !> Angular momenta of each shell
+   integer, intent(in) :: angShell(:, :)
+
+   !> Data in terms of angular momenta of each shell
+   real(wp), intent(in) :: angDat(0:, :)
+
+   integer :: nElem, iZp, iSh, lAng, iKind
+
+   nElem = min(size(kDat, dim=2), size(nShell), size(angShell, dim=2), &
+      & size(angDat, dim=2))
+
+   kDat(:, :) = 0.0_wp
+   do iZp = 1, nElem
+      do iSh = 1, nShell(iZp)
+         lAng = angShell(iSh, iZp)
+         kDat(iSh, iZp) = angDat(lAng, iZp)
+      end do
+   end do
+
+end subroutine angToShellData
 
 
 end module xtb_xtb_data

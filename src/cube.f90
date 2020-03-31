@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_cube
+contains
+
 !cccccccccccccccccccccccccccccccc
 !    write out cube file        c
 !cccccccccccccccccccccccccccccccc
@@ -60,7 +63,6 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    real*8 step,px,py,pz,xinc,yinc,zinc,nx,ny,nz,vv(1),v,est,nfod
    real*8 f1,f2,dx1,dy1,dz1,dx2,dy2,dz2,r1,dum,r1xy,r2xy
    real*8 dxx1,dyy1,dzz1,dxx2,dyy2,dzz2,ar1,ar2,cc
-   real*8 fastexp
    integer ifile
 
    call timing(t0,w0)
@@ -292,7 +294,6 @@ subroutine primvalf(dx,dy,dz,dx2,dy2,dz2,alpr2,lao,nexp,a,f)
    real*8 a(0:nexp)
    real*8 f,dx2,dy2,dz2
    real*8 dx,dy,dz,alpr2
-   real*8 fastexp
 
    goto (100,201,202,203,301,302,303,304,305,306) lao
 
@@ -327,3 +328,5 @@ real*8 function fastexp(nexp,array,arg)
    fastexp=array(int(100.0d0*arg))
 
 end function fastexp
+
+end module xtb_cube

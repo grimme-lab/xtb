@@ -26,6 +26,8 @@ module xtb_mdoptim
    use xtb_io_writer, only : writeMolecule
    use xtb_setparam
    use xtb_splitparam
+   use xtb_geoopt
+   use xtb_cqpath
    implicit none
    private
 
@@ -42,7 +44,7 @@ subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   type(tb_calculator),intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer  :: icall,maxiter
    real(wp) :: epot,et,egap
    real(wp), intent(inout) :: grd(3,mol%n)

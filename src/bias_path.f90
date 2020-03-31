@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_biaspath
+contains
 
 !! ========================================================================
 !  RMSD biased push/pull path finder (RMSD-BPP)
@@ -34,8 +36,10 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    use xtb_setparam
    use xtb_fixparam
 
+   use xtb_geoopt
    use xtb_optimizer
    use xtb_lsrmsd
+   use xtb_metadynamic
 
    implicit none
 
@@ -44,7 +48,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    type(TMolecule),    intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   type(tb_calculator),  intent(in) :: calc
+   class(TCalculator), intent(in) :: calc
    integer, intent(in)    :: maxiter
    real(wp),intent(in)    :: epot
    real(wp),intent(in)    :: et
@@ -319,4 +323,4 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
 end subroutine bias_path
 
-
+end module xtb_biaspath

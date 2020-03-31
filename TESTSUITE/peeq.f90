@@ -51,7 +51,6 @@ subroutine test_peeq_sp
    type(TEnvironment)  :: env
    type(TWavefunction) :: wfn
    type(TBasisset)     :: basis
-   type(scc_parameter)   :: param
    type(scc_results)     :: res
    type(TxTBData) :: xtbData
 
@@ -103,8 +102,6 @@ subroutine test_peeq_sp
       call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
    endif
-   call set_gfn0_parameter(param,globpar,xtbData)
-   call gfn0_prparam(stdout,mol%n,mol%at,param)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
 
@@ -115,7 +112,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(env,mol,wfn,basis,xtbData,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3576550429483_wp,thr)
@@ -139,7 +136,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(env,mol,wfn,basis,xtbData,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514777045762_wp,thr)

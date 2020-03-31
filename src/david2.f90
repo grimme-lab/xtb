@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_david2
+contains
+
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! real*4 version
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -430,3 +433,5 @@ subroutine smread(n,iwo,v,irec)
 end subroutine smread
 
 end subroutine solver_sdavidson
+
+end module xtb_david2

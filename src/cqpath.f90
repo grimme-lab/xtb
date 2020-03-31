@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_cqpath
+contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Repositionierung entlang des Reaktionspfads
@@ -517,7 +519,6 @@ subroutine cqpath_read_pathfile(fn,nl,nat,nstr,file_xyz,iat,energy)
 
     integer :: u
     integer :: i,j,k,sr,so,x,nn
-    integer :: cqpathe2i
     real*8  :: xx(10)
     character*100 :: a
     character*2 :: b
@@ -572,7 +573,7 @@ integer function cqpathe2i( cin )
 ! wandelt eine Zeichenkette in iat um
     implicit none
     character(2), intent(in) :: cin
-    character(2) :: cqpathtohigher,c
+    character(2) :: c
     integer :: iout
     c = cqpathtohigher(cin)
     if (c == 'H') iout = 1
@@ -665,3 +666,4 @@ integer function cqpathe2i( cin )
     return
 end function cqpathe2i
 
+end module xtb_cqpath

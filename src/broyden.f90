@@ -31,6 +31,8 @@
 ! Note: The modified Broyden method works on the INPUT charges of the sc
 ! the difference produced by the SCC step. Especially the INPUT charge o
 ! iteration is needed, which is usually not stored!
+module xtb_broyden
+contains
 
 subroutine broyden(n,q,qlast,dq,dqlast,iter,maxiter,&
       &                   alpha,omega,df,u,a)
@@ -179,4 +181,4 @@ subroutine matinv(a, nrow)
 
 
 end subroutine matinv
-
+end module xtb_broyden

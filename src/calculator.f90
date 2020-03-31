@@ -102,6 +102,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
 ! ------------------------------------------------------------------------
    use xtb_disp_ncoord
    use xtb_eeq
+   use xtb_chargemodel
    use xtb_disp_dftd4
    !use dfuncpar
 
@@ -275,6 +276,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
 ! ------------------------------------------------------------------------
    use xtb_disp_ncoord
    use xtb_eeq
+   use xtb_chargemodel
    use xtb_disp_dftd4
    use xtb_pbc_tools
    use xtb_pbc, only : get_realspace_cutoff

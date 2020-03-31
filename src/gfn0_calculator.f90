@@ -41,6 +41,8 @@ module subroutine gfn0_calculation &
    use xtb_readparam
    use xtb_paramset
 
+   use xtb_main_setup
+   use xtb_xtb_calculator
    use xtb_xtb_data
    use xtb_xtb_gfn0
 
@@ -65,10 +67,8 @@ module subroutine gfn0_calculation &
    integer, parameter    :: wsc_rep(3) = [1,1,1] ! FIXME
 
    type(TWavefunction) :: wfn
-   type(TBasisset)     :: basis
-   type(scc_parameter)   :: param
+   type(TxTBCalculator) :: calc
    type(scc_results)     :: res
-   type(TxTBData) :: xtbData
 
    character(len=*),parameter :: outfmt = &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
@@ -113,29 +113,16 @@ module subroutine gfn0_calculation &
    ! ====================================================================
    ! we could require our user to perform this step, but if we want
    ! to be sure about getting the correct parameters, we should do it here
+   ! let's check if we can find the parameter file
+   call rdpath(env%xtbpath, p_fnv_gfn0, fnv, exist)
+   if (exist) then
+      call newXTBCalculator(env, mol, calc, fnv)
+   else
+      call newXTBCalculator(env, mol, calc, p_fnv_gfn0)
+   end if
 
-   ! we will try an internal parameter file first to avoid IO
-   call use_parameterset(p_fnv_gfn0,globpar,xtbData,exist)
-   ! no luck, we have to fire up some IO to get our parameters
-   if (.not.exist) then
-      ! let's check if we can find the parameter file
-      call rdpath(env%xtbpath,p_fnv_gfn0,fnv,exist)
-      ! maybe the user provides a local parameter file, this was always
-      ! an option in `xtb', so we will give it a try
-      if (.not.exist) fnv = p_fnv_gfn0
-      call open_file(ipar,fnv,'r')
-      if (ipar.eq.-1) then
-         ! at this point there is no chance to recover from this error
-         call env%error("Parameter file '"//fnv//"' not found", source)
-         return
-      endif
-      call readParam(env,ipar,globpar,xtbData,.true.)
-      call close_file(ipar)
-   endif
-   call set_gfn0_parameter(param,globpar,xtbData)
    if (opt%prlevel > 1) then
       call gfn0_header(iunit)
-      call gfn0_prparam(iunit,mol%n,mol%at,param)
    endif
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none" &
@@ -145,16 +132,10 @@ module subroutine gfn0_calculation &
    endif
 
    ! ====================================================================
-   !  STEP 3: expand our Slater basis set in contracted Gaussians
-   ! ====================================================================
-
-   call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
-
-   ! ====================================================================
    !  STEP 4: setup the initial wavefunction
    ! ====================================================================
 
-   call wfn%allocate(mol%n,basis%nshell,basis%nao)
+   call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
    ! do a SAD guess since we are not need any of this information later
    wfn%q = mol%chrg / real(mol%n,wp)
 
@@ -162,8 +143,9 @@ module subroutine gfn0_calculation &
    !  STEP 5: do the calculation
    ! ====================================================================
 
-   call peeq(env,mol,wfn,basis,param,xtbData,hl_gap,opt%etemp,opt%prlevel,opt%grad, &
-      &      opt%ccm,opt%acc,energy,gradient,sigma,res)
+   call peeq(env,mol,wfn,calc%basis,calc%xtbData,hl_gap,opt%etemp,opt%prlevel, &
+      & opt%grad,opt%ccm,opt%acc,energy,gradient,sigma,res)
+
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Single point calculation terminated", source)

@@ -173,6 +173,7 @@ subroutine test_dftd4_pbc_energies
    use xtb_type_param
    use xtb_disp_dftd4
    use xtb_eeq
+   use xtb_chargemodel
    use xtb_disp_ncoord
    use xtb_pbc_tools
    implicit none
@@ -284,6 +285,7 @@ subroutine test_dftd4_cell_gradient
    use xtb_type_param
    use xtb_disp_dftd4
    use xtb_eeq
+   use xtb_chargemodel
    use xtb_disp_ncoord
    use xtb_pbc_tools
    implicit none

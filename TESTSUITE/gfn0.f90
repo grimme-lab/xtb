@@ -50,7 +50,6 @@ subroutine test_gfn0_sp
    type(scc_results)     :: res
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
-   type(scc_parameter)   :: param
    type(TxTBData) :: xtbData
 
    real(wp) :: etot,egap,sigma(3,3)
@@ -89,8 +88,6 @@ subroutine test_gfn0_sp
       call readParam(env,ipar,globpar,xtbData,.true.)
       call close_file(ipar)
 
-   call set_gfn0_parameter(param,globpar,xtbData)
-
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
    call assert(okbas)
 
@@ -103,7 +100,7 @@ subroutine test_gfn0_sp
 
    g = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,param,xtbData, &
+   call peeq(env,mol,wfn,basis,xtbData, &
       &   egap,et,prlevel,lgrad,.false.,acc,etot,g,sigma,res)
 
    call assert(res%converged)

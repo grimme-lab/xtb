@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_constrainpot
+contains
 
 subroutine constrain_zaxis(fix,n,at,xyz,g,e)
    use xtb_mctc_accuracy, only : wp
@@ -381,3 +383,4 @@ subroutine constrain_hess(fix,n,at,xyz0,Hess)
 
 end subroutine constrain_hess
 
+end module xtb_constrainpot
