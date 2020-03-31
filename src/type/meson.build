@@ -27,6 +27,7 @@ srcs += files(
   'fragments.f90',
   'identitymap.f90',
   'molecule.f90',
+  'neighbourlist.f90',
   'latticepoint.f90',
   'options.f90',
   'param.f90',
@@ -37,6 +38,7 @@ srcs += files(
   'timer.f90',
   'topology.f90',
   'wavefunction.f90',
+  'wignerseitzcell.f90',
   'wsc.f90',
   'vendordata.f90',
 )

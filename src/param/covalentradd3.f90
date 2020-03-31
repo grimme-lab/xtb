@@ -23,7 +23,7 @@ module xtb_param_covalentradd3
    implicit none
    private
 
-   public :: getCovalentRadD3
+   public :: getCovalentRadD3, covalentRadD3
 
 
    !> Get atomic radius for a species

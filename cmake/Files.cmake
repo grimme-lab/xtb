@@ -65,6 +65,8 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/type/reader.f90"
   "${XTB_ROOT}/src/type/identitymap.f90"
   "${XTB_ROOT}/src/type/buffer.f90"
+  "${XTB_ROOT}/src/type/neighbourlist.f90"
+  "${XTB_ROOT}/src/type/wignerseitzcell.f90"
   "${XTB_ROOT}/src/type/latticepoint.f90"
 
   # Global data
@@ -128,6 +130,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/param/atomicrad.f90"
   "${XTB_ROOT}/src/param/covalentradd3.f90"
   "${XTB_ROOT}/src/param/paulingen.f90"
+  "${XTB_ROOT}/src/param/sqrtzr4r2.f90"
   "${XTB_ROOT}/src/param/vdwradd3.f90"
 
   # Initial guess
@@ -147,7 +150,9 @@ set(XTB_SOURCES
 
   # Dispersion
   "${XTB_ROOT}/src/disp/ncoord.f90"
+  "${XTB_ROOT}/src/disp/coordinationnumber.f90"
   "${XTB_ROOT}/src/disp/dftd3.f"
+  "${XTB_ROOT}/src/disp/dftd3.f90"
   "${XTB_ROOT}/src/disp/dftd4.f90"
 
   # Continuum solvation
@@ -285,6 +290,7 @@ set(XTB_SOURCES
 
 set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/assertion.f90"
+  "${XTB_ROOT}/TESTSUITE/dftd3.f90"
   "${XTB_ROOT}/TESTSUITE/dftd4.f90"
   "${XTB_ROOT}/TESTSUITE/eeq_model.f90"
   "${XTB_ROOT}/TESTSUITE/geometry_reader.f90"
