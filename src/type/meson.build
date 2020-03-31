@@ -27,6 +27,7 @@ srcs += files(
   'fragments.f90',
   'identitymap.f90',
   'molecule.f90',
+  'latticepoint.f90',
   'options.f90',
   'param.f90',
   'pcem.f90',

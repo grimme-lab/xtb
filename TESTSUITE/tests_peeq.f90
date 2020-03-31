@@ -135,6 +135,10 @@ program peeq_tester
       case('calc'); call test_thermo_calc
       case('print'); call test_print_thermo
       end select
+   case('latticepoint')
+      select case(sec)
+      case('pbc3d'); call test_latticepoint_pbc3d
+      end select
    end select
 
    ! falling through the tester is always an error
