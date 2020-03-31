@@ -64,6 +64,9 @@ module xtb_xtb_calculator
       !> Perform xTB single point calculation
       procedure :: singlepoint
 
+      !> Write informative printout
+      procedure :: writeInfo
+
    end type TxTBCalculator
 
    character(len=*),private,parameter :: outfmt = &
@@ -283,6 +286,22 @@ subroutine print_gfn2_results(iunit,res,verbose,lgbsa)
    endif
    write(iunit,outfmt) "repulsion energy  ", res%e_rep,  "Eh   "
 end subroutine print_gfn2_results
+
+
+subroutine writeInfo(self, unit, mol)
+
+   !> Calculator instance
+   class(TxTBCalculator), intent(in) :: self
+
+   !> Unit for I/O
+   integer, intent(in) :: unit
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   call self%xtbData%writeInfo(unit, mol%at)
+
+end subroutine writeInfo
 
 
 end module xtb_xtb_calculator

@@ -255,6 +255,12 @@ module xtb_xtb_data
    !> Parametrisation data for the xTB method
    type :: TxTBData
 
+      !> Name of the parametrisation
+      character(len=:), allocatable :: name
+
+      !> Reference to the publication
+      character(len=:), allocatable :: doi
+
       !> Internal version number
       integer :: level
 
@@ -284,6 +290,11 @@ module xtb_xtb_data
 
       !> Shift for IP/EA calculations
       real(wp) :: ipeashift
+
+   contains
+
+      !> Write informative printout for the parametrisation data
+      procedure :: writeInfo
 
    end type TxTBData
 
@@ -327,6 +338,106 @@ module xtb_xtb_data
 
 
 contains
+
+
+subroutine writeInfo(self, unit, num)
+
+   !> Instance of the parametrisation data
+   class(TxTBData), intent(in) :: self
+
+   !> Unit for I/O
+   integer, intent(in) :: unit
+
+   !> Atomic numbers
+   integer, intent(in), optional :: num(:)
+
+   character(len=*), parameter :: rnum = '(f12.6)'
+   character(len=*), parameter :: offset = '(8x)'
+   character(len=*), parameter :: head = '(6x,"*",1x,a,":")'
+   character(len=*), parameter :: rfmt = '('//offset//',a,t36,'//rnum//')'
+   character(len=*), parameter :: afmt = '('//offset//',a,t36,4x,a)'
+   character(len=:), allocatable :: name
+   integer :: ii, jj
+
+   write(unit, '(a)')
+   if (allocated(self%name)) then
+      allocate(character(len=2*len(self%name)-1) :: name)
+      name = repeat(' ', len(name))
+      do ii = 1, len(self%name)
+         jj = 2*ii-1
+         name(jj:jj) = self%name(ii:ii)
+      end do
+   else
+      name = repeat(' ', 10)
+      write(name, '(i0)') self%level
+      name = 'xTB level '//trim(name)
+   end if
+   call generic_header(unit, name, 49, 10)
+
+   write(unit, '(a)')
+   if (allocated(self%doi)) then
+      write(unit, afmt) "Reference", self%doi
+   end if
+
+   write(unit, head) "Hamiltonian"
+   write(unit, rfmt, advance='no') "H0-scaling (s, p, d)"
+   do ii = 0, 2
+      write(unit, rnum, advance='no') self%hamiltonian%kScale(ii, ii)
+   end do
+   write(unit, '(a)')
+   write(unit, rfmt) "zeta-weighting", self%hamiltonian%wExp
+
+   write(unit, head) "Dispersion"
+   write(unit, rfmt) "s8", self%dispersion%dpar%s8
+   write(unit, rfmt) "a1", self%dispersion%dpar%a1
+   write(unit, rfmt) "a2", self%dispersion%dpar%a2
+   write(unit, rfmt) "s9", self%dispersion%dpar%s9
+
+   write(unit, head) "Repulsion"
+   write(unit, rfmt, advance='no') "kExp", self%repulsion%kExp
+   if (self%repulsion%kExpLight /= self%repulsion%kExp) then
+      write(unit, rnum, advance='no') self%repulsion%kExpLight
+   end if
+   write(unit, '(a)')
+   write(unit, rfmt) "rExp", self%repulsion%rExp
+
+   write(unit, head) "Coulomb"
+   write(unit, rfmt) "alpha", self%coulomb%gExp
+   if (allocated(self%coulomb%thirdOrderShell)) then
+      write(unit, afmt) "third order", "shell-resolved"
+   else if (allocated(self%coulomb%thirdOrderAtom)) then
+      write(unit, afmt) "third order", "atomic"
+   else
+      write(unit, afmt) "third order", "false"
+   end if
+
+   if (allocated(self%multipole)) then
+      write(unit, afmt) "anisotropic", "true"
+      write(unit, rfmt) "a3", self%multipole%dipDamp
+      write(unit, rfmt) "a5", self%multipole%quadDamp
+      write(unit, rfmt) "cn-shift", self%multipole%cnShift
+      write(unit, rfmt) "cn-exp", self%multipole%cnExp
+      write(unit, rfmt) "max-rad", self%multipole%cnRMax
+   else
+      write(unit, afmt) "anisotropic", "false"
+   end if
+
+   if (allocated(self%halogen)) then
+      write(unit, head) "Halogen bond correction"
+      write(unit, rfmt) "rad-scale", self%halogen%radScale
+      write(unit, rfmt) "damping", self%halogen%dampingPar
+   end if
+
+   if (allocated(self%srb)) then
+      write(unit, head) "Polar bond correction"
+      write(unit, rfmt) "rad-shift", self%srb%shift
+      write(unit, rfmt) "strength", self%srb%prefactor
+      write(unit, rfmt) "en-exp", self%srb%steepness
+      write(unit, rfmt) "en-scale", self%srb%enScale
+   end if
+   write(unit, '(a)')
+
+end subroutine writeInfo
 
 
 !> Generator for valence shell data from the angular momenta of the shells

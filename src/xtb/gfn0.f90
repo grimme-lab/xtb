@@ -740,6 +740,7 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%name = 'GFN0-xTB'
    self%level = 0
    self%nShell = nShell(:maxElem)
 

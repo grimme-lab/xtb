@@ -563,6 +563,8 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%name = 'GFN1-xTB'
+   self%doi = '10.1021/acs.jctc.7b00118'
    self%level = 1
    self%nShell = nShell(:maxElem)
    self%ipeashift = gfn1Globals%ipeashift * 0.1_wp

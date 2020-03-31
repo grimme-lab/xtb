@@ -428,32 +428,22 @@ subroutine xtbMain(env, argParser)
             p_run_modef,p_run_mdopt,p_run_metaopt)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
-            if(periodic)then
-               call peeq_header(env%unit)
-            else
-               call gfn0_header(env%unit)
-            endif
          endif
          if(gfn_method.eq.1) then
             fnv=xfind(p_fname_param_gfn1)
-            call gfn1_header(env%unit)
          endif
          if(gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
-            call gfn2_header(env%unit)
          endif
       case(p_run_vip,p_run_vea,p_run_vipea,p_run_vfukui,p_run_vomega)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
-            call gfn0_header(env%unit)
          endif
          if(gfn_method.eq.1) then
             fnv=xfind(p_fname_param_ipea)
-            call ipea_header(env%unit)
          endif
          if(gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
-            call gfn2_header(env%unit)
          endif
       end select
    endif
@@ -502,23 +492,14 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> printout a header for the exttyp
+   call calc%writeInfo(env%unit, mol)
    select case(mode_extrun)
-   case default
-      call scc_header(env%unit)
-   case(p_ext_eht)
-      call eht_header(env%unit)
    case(p_ext_qmdff)
-      call qmdff_header(env%unit)
       call ff_ini(mol%n,mol%at,mol%xyz,cn,qmdff_s6)
    case(p_ext_orca)
-      call driver_header(env%unit)
       call checkOrca(env)
    case(p_ext_mopac)
-      call driver_header(env%unit)
       call checkMopac(env)
-   case(p_ext_turbomole)
-      call driver_header(env%unit)
-      write(*,*) 'Running Turbomole Calculation!'
    end select
 
    call delete_file('.sccnotconverged')

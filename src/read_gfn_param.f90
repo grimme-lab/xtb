@@ -77,7 +77,7 @@ subroutine readParam &
    real(wp) :: kpair(max_elem,max_elem)
    real(wp) :: kcnat(0:2,max_elem)
    real(wp) :: eeqEN(max_elem)
-   real(wp) :: kExpLight
+   real(wp) :: kExpLight, kExp
    character(len=30) :: timestp(max_elem)
    type(dftd_parameter) :: disp
 
@@ -123,21 +123,9 @@ subroutine readParam &
    readgroups: do
       if (index(line,flag).eq.1) then
          select case(line(2:))
-         case('level 0')
+         case('info')
             newFormat = .true.
-            level = 0
-            kExpLight = 1.5_wp
-            call getline(iunit,line,err)
-         case('level 1')
-            newFormat = .true.
-            level = 1
-            kExpLight = 1.5_wp
-            call getline(iunit,line,err)
-         case('level 2')
-            newFormat = .true.
-            level = 2
-            kExpLight = 1.0_wp
-            call getline(iunit,line,err)
+            call read_info
          case('globpar')
             call read_globpar
          case('pairpar')
@@ -169,7 +157,7 @@ subroutine readParam &
    xtbData%ipeashift = globpar%ipeashift * 0.1_wp
 
    ! Repulsion
-   call init(xtbData%repulsion, 1.5_wp, kExpLight, 1.0_wp, globpar%renscale, &
+   call init(xtbData%repulsion, kExp, kExpLight, 1.0_wp, globpar%renscale, &
       & repAlpha, repZeff, electronegativity)
 
    ! Coulomb
@@ -317,6 +305,36 @@ subroutine readParam &
 
 contains
 
+subroutine read_info
+   use xtb_readin, only : getValue
+   character(len=:), allocatable :: key, val
+   integer :: ie, idum
+   do
+      call getline(iunit,line,err)
+      if (debug) print'("->",a)',line
+      if (err.ne.0) exit
+      if (index(line,flag).gt.0) exit
+
+      ie = index(line,space)
+      if (line.eq.'') cycle ! skip empty lines
+      if (ie.eq.0) cycle
+
+      key = trim(line(:ie-1))
+      val = trim(adjustl(line(ie+1:)))
+
+      select case(key)
+      case default
+         call env%warning("Unknown key '"//key//"' for '"//flag//"info'")
+      case('level')
+         if (getValue(env,val,idum)) level = idum
+      case('name')
+         xtbData%name = val
+      case('doi')
+         xtbData%doi = val
+      end select
+   enddo
+end subroutine read_info
+
 subroutine read_globpar
    implicit none
    character(len=:), allocatable :: key, val
@@ -348,6 +366,8 @@ subroutine gfn_globpar(key,val,globpar)
    select case(key)
    case default
       call env%warning("Unknown key '"//key//"' for '"//flag//"globpar'")
+   case('kexp'); if (getValue(env,val,ddum)) kExp = ddum
+   case('kexplight'); if (getValue(env,val,ddum)) kExpLight = ddum
    case('ks'); if (getValue(env,val,ddum)) globpar%kshell(0) = ddum
    case('kp'); if (getValue(env,val,ddum)) globpar%kshell(1) = ddum
    case('kd'); if (getValue(env,val,ddum)) globpar%kshell(2) = ddum

@@ -1,4 +1,7 @@
-$level 0
+$info
+level 0
+name GFN0-xTB
+doi 10.26434/chemrxiv.8326202.v1
 $globpar
 ks        2.0000000
 kp        2.4868000
@@ -13,11 +16,12 @@ srbshift  0.0537000
 srbpre   -0.0129000
 srbexp    3.4847000
 srbken    0.5097000
-alphaj    1.1241000
 a1        0.8000000
 a2        4.6000000
 s8        2.8500000
 s9        0.0000000
+kexp        1.50000
+kexplight   1.50000
 renscale -0.0900000
 $end
 $pairpar

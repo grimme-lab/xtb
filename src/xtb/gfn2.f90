@@ -52,10 +52,6 @@ module xtb_xtb_gfn2
       kdiff = 2.0_wp, &
       ipeashift = 1.78069_wp, &
       gam3shell = gam3shell, &
-      zcnf =    .5000000000000000_wp, &
-      tscal =   .2500000000000000_wp, &
-      kcn =     .2500000000000000_wp, &
-      ken =     -2.000000000000000_wp, &
       aesshift =1.2_wp, &
       aesexp =  4.0_wp, &
       aesrmax = 5.0_wp, &
@@ -734,6 +730,8 @@ subroutine initData(self)
    !> Data instance
    type(TxTBData), intent(out) :: self
 
+   self%name = 'GFN2-xTB'
+   self%doi = '10.1021/acs.jctc.8b01176'
    self%level = 2
    self%nShell = nShell(:maxElem)
    self%ipeashift = gfn2Globals%ipeashift * 0.1_wp

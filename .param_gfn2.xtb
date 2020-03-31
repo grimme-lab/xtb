@@ -1,4 +1,7 @@
-$level 2
+$info
+level 2
+name GFN2-xTB
+doi 10.1021/acs.jctc.8b01176
 $globpar
 ks          1.85000
 kp          2.23000
@@ -15,12 +18,15 @@ gam3d2      0.25000
 aesshift    1.20000
 aesexp      4.00000
 aesrmax     5.00000
+alphaj      2.00000
 a1          0.52000
 a2          5.00000
 s8          2.70000
 s9          5.00000
 aesdmp3     3.00000
 aesdmp5     4.00000
+kexp        1.50000
+kexplight   1.00000
 $end
 $pairpar
 $end
