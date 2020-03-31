@@ -18,5 +18,6 @@ srcs += files(
   'atomicrad.f90',
   'covalentradd3.f90',
   'paulingen.f90',
+  'sqrtzr4r2.f90',
   'vdwradd3.f90',
 )

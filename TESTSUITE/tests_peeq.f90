@@ -76,6 +76,11 @@ program peeq_tester
       case('api'); call test_peeq_api
       case('srb'); call test_peeq_api_srb
       end select
+   case('dftd3')
+      select case(sec)
+      case('pbc3dneighs'); call test_dftd3_pbc3d_neighbourlist
+      case('pbc3dlatp'); call test_dftd3_pbc3d_latticepoints
+      end select
    case('dftd4')
       select case(sec)
       case('properties'); call test_dftd4_properties
