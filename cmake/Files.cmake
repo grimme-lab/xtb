@@ -68,6 +68,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/type/neighbourlist.f90"
   "${XTB_ROOT}/src/type/wignerseitzcell.f90"
   "${XTB_ROOT}/src/type/latticepoint.f90"
+  "${XTB_ROOT}/src/type/coulomb.f90"
 
   # Global data
   "${XTB_ROOT}/src/gfn0param.f90"
@@ -154,6 +155,10 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/disp/dftd3.f"
   "${XTB_ROOT}/src/disp/dftd3.f90"
   "${XTB_ROOT}/src/disp/dftd4.f90"
+
+  # Coulomb
+  "${XTB_ROOT}/coulomb/ewald.f90"
+  "${XTB_ROOT}/coulomb/gaussian.f90"
 
   # Continuum solvation
   "${XTB_ROOT}/src/solv/gbobc.f90"

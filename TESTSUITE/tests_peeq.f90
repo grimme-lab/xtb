@@ -40,6 +40,15 @@ program peeq_tester
    call rdarg(2,sec)
 
    select case(arg)
+   case('coulomb')
+      select case(sec)
+      case('point_0d'); call test_coulomb_point_cluster
+      case('point_3d'); call test_coulomb_point_pbc3d
+      case('gfn1_0d'); call test_gfn1_point_cluster
+      case('gfn1_3d'); call test_gfn1_point_pbc3d
+      case('gfn2_0d'); call test_gfn2_point_cluster
+      case('gfn2_3d'); call test_gfn2_point_pbc3d
+      end select
    case('eeq_model')
       select case(sec)
       case('water'); call test_eeq_model_water

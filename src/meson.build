@@ -16,8 +16,9 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subdir('api')
-subdir('extern')
+subdir('coulomb')
 subdir('disp')
+subdir('extern')
 subdir('io')
 subdir('main')
 subdir('mctc')
