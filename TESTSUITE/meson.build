@@ -106,6 +106,10 @@ test('Thermo: print', xtb_test, args: ['thermo', 'print'], env: xtbenv)
 
 test('Coulomb: point (0D)', xtb_test, args: ['coulomb', 'point_0d'], env: xtbenv)
 test('Coulomb: point (3D)', xtb_test, args: ['coulomb', 'point_3d'], env: xtbenv)
+test('Coulomb: GFN1 (0D)', xtb_test, args: ['coulomb', 'gfn1_0d'], env: xtbenv)
+test('Coulomb: GFN1 (3D)', xtb_test, args: ['coulomb', 'gfn1_3d'], env: xtbenv)
+test('Coulomb: GFN2 (0D)', xtb_test, args: ['coulomb', 'gfn2_0d'], env: xtbenv)
+test('Coulomb: GFN2 (3D)', xtb_test, args: ['coulomb', 'gfn2_3d'], env: xtbenv)
 
 test('EEQ model: water', xtb_test,args: ['eeq_model', 'water'], env: xtbenv)
 test('EEQ model: 3D Ewald', xtb_test,args: ['eeq_model', 'ewald'], env: xtbenv)

@@ -157,8 +157,9 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/disp/dftd4.f90"
 
   # Coulomb
-  "${XTB_ROOT}/coulomb/ewald.f90"
-  "${XTB_ROOT}/coulomb/gaussian.f90"
+  "${XTB_ROOT}/src/coulomb/ewald.f90"
+  "${XTB_ROOT}/src/coulomb/gaussian.f90"
+  "${XTB_ROOT}/src/coulomb/klopmanohno.f90"
 
   # Continuum solvation
   "${XTB_ROOT}/src/solv/gbobc.f90"
@@ -295,6 +296,7 @@ set(XTB_SOURCES
 
 set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/assertion.f90"
+  "${XTB_ROOT}/TESTSUITE/coulomb.f90"
   "${XTB_ROOT}/TESTSUITE/dftd3.f90"
   "${XTB_ROOT}/TESTSUITE/dftd4.f90"
   "${XTB_ROOT}/TESTSUITE/eeq_model.f90"
