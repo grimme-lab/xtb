@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Generalized Klopman-Ohno electrostatics
 module xtb_coulomb_klopmanohno
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
@@ -231,6 +231,8 @@ subroutine initKlopmanOhno(self, env, id, lattice, boundaryCond, gav, hardness, 
    case(boundaryCondition%cluster)
       ! nothing to do
    case(boundaryCondition%pbc3d)
+      call env%error("Periodic boundary conditions not supported", source)
+      return
       volume = abs(matDet3x3(lattice))
       recLat(:, :) = 2*pi*transpose(matInv3x3(lattice))
 

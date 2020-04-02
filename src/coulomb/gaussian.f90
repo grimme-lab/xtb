@@ -18,267 +18,605 @@
 !> TODO
 module xtb_coulomb_gaussian
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_constants, only : pi, sqrtpi
-   use xtb_coulomb_ewald, only : ewaldMatPBC3D, ewaldDerivPBC3D => ewaldDerivPBC3D_alp
+   use xtb_mctc_math, only : matInv3x3, matDet3x3
+   use xtb_coulomb_ewald
+   use xtb_type_coulomb, only : TCoulomb
+   use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
-   use xtb_type_param, only : chrg_parameter
+   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
+   use xtb_mctc_constants, only : pi, sqrtpi
    implicit none
    private
 
-   public :: get_coulomb_matrix, get_coulomb_derivs
+
+   public :: TGaussianSmeared, init
 
 
-   ! √(2/π)
-   real(wp),parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+   type, extends(TCoulomb) :: TGaussianSmeared
+
+      real(wp), allocatable :: rad(:, :)
+
+   contains
+
+      !> Returns full Coulomb matrix
+      procedure :: getCoulombMatrix
+
+      !> Returns derivatives of Coulomb matrix
+      procedure :: getCoulombDerivs
+
+   end type TGaussianSmeared
 
 
-   interface get_coulomb_matrix
-      module procedure :: get_coulomb_matrix_0d
-      module procedure :: get_coulomb_matrix_3d
-   end interface get_coulomb_matrix
-
-
-   interface get_coulomb_derivs
-      module procedure :: get_coulomb_derivs_0d
-      module procedure :: get_coulomb_derivs_3d
-   end interface get_coulomb_derivs
+   interface init
+      module procedure :: initFromMolecule
+      module procedure :: initGaussianSmeared
+   end interface init
 
 
 contains
 
 
-subroutine get_coulomb_matrix_0d(mol, chrgeq, amat)
-   type(TMolecule), intent(in) :: mol
-   type(chrg_parameter), intent(in) :: chrgeq
-   real(wp), intent(out) :: amat(:, :)
-   integer :: iat, jat
-   real(wp) :: r1, gamij
-   Amat = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) shared(mol,chrgeq, amat) &
-   !$omp private(jat, r1, gamij)
-   do iat = 1, len(mol)
-      ! EN of atom i
-      do jat = 1, iat-1
-         r1 = norm2(mol%xyz(:,jat) - mol%xyz(:,iat))
-         gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2+chrgeq%alpha(jat)**2)
-         Amat(jat, iat) = erf(gamij*r1)/r1
-         Amat(iat, jat) = Amat(jat,iat)
-      enddo
-      Amat(iat, iat) = chrgeq%gam(iat) + sqrt2pi/chrgeq%alpha(iat)
-   enddo
-   !$omp end parallel do
-end subroutine get_coulomb_matrix_0d
+subroutine initFromMolecule(self, env, mol, rad, nshell, alpha, &
+      & tolerance)
 
-subroutine get_coulomb_matrix_3d(mol, chrgeq, rTrans, gTrans, cf, amat)
-   use xtb_type_molecule
-   use xtb_type_param
-   type(TMolecule), intent(in) :: mol
-   type(chrg_parameter), intent(in) :: chrgeq
-   real(wp), intent(in) :: rTrans(:, :)
-   real(wp), intent(in) :: gTrans(:, :)
-   real(wp), intent(in) :: cf
-   real(wp), intent(out) :: amat(:, :)
-   integer, parameter :: ewaldCutD(3) = 2
-   integer, parameter :: ewaldCutR(3) = 2
-   real(wp), parameter :: zero(3) = 0.0_wp
-   integer :: iat, jat, wscAt, iG1, iG2, iG3, iRp
-   real(wp) :: gamii, gamij, riw(3), gVec(3)
+   !> Source of the generated error
+   character(len=*), parameter :: source = 'coulomb_gaussian_initFromMolecule'
 
-   amat = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) reduction(+:amat) &
-   !$omp shared(mol, chrgeq, cf, gTrans, rTrans) &
-   !$omp private(iat, jat, wscAt, gamii, gamij, riw)
+   !> Instance of the Coulomb evaluator
+   type(TGaussianSmeared), intent(out) :: self
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: rad(:, :)
+
+   !> Number of shell for each species
+   integer, intent(in), optional :: nshell(:)
+
+   !> Convergence factor
+   real(wp), intent(in), optional :: alpha
+
+   !> Tolerance for the Ewald sum
+   real(wp), intent(in), optional :: tolerance
+
+   logical :: exitRun
+
+   call init(self, env, mol%id, mol%lattice, mol%boundaryCondition, &
+      & rad, nshell, alpha, tolerance)
+
+   call env%check(exitRun)
+   if (exitRun) return
+
+   call self%update(env, mol)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Initializing internal state of evaluator failed", source)
+   end if
+
+end subroutine initFromMolecule
+
+
+subroutine initGaussianSmeared(self, env, id, lattice, boundaryCond, rad, &
+      & nshell, alpha, tolerance)
+
+   !> Source of the generated error
+   character(len=*), parameter :: source = 'coulomb_gaussian_initGaussianSmeared'
+
+   !> Instance of the Coulomb evaluator
+   type(TGaussianSmeared), intent(out) :: self
+
+   !> Identity of each atom
+   integer, intent(in) :: id(:)
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Lattice parameters
+   real(wp), intent(in) :: lattice(:, :)
+
+   !> Boundary conditions for this evaluator
+   integer, intent(in) :: boundaryCond
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: rad(:, :)
+
+   !> Number of shell for each species
+   integer, intent(in), optional :: nshell(:)
+
+   !> Convergence factor
+   real(wp), intent(in), optional :: alpha
+
+   !> Tolerance for the Ewald sum
+   real(wp), intent(in), optional :: tolerance
+
+   logical :: exitRun
+   integer :: natom, ndim
+   integer :: ind, iat, ish
+   real(wp) :: volume, recLat(3, 3)
+
+   self%boundaryCondition = boundaryCond
+   self%rad = rad
+
+   natom = size(id, dim=1)
+   allocate(self%itbl(2, natom))
+   if (present(nshell)) then
+      ind = 0
+      do iat = 1, natom
+         ish = nshell(id(iat))
+         self%itbl(:, iat) = [ind, ish]
+         ind = ind + ish
+      end do
+   else
+      do iat = 1, natom
+         self%itbl(:, iat) = [iat-1, 1]
+      end do
+   end if
+
+   select case(self%boundaryCondition)
+   case default
+      call env%error("Boundary condition not supported", source)
+   case(boundaryCondition%cluster)
+      ! nothing to do
+   case(boundaryCondition%pbc3d)
+      volume = abs(matDet3x3(lattice))
+      recLat(:, :) = 2*pi*transpose(matInv3x3(lattice))
+
+      if (present(tolerance)) then
+         self%tolerance = tolerance
+      else
+         self%tolerance = 1.0e-8_wp
+      end if
+
+      if (present(alpha)) then
+         self%alpha = alpha
+      else
+         call getOptimalAlpha(env, lattice, recLat, volume, self%tolerance, &
+            & self%alpha)
+      end if
+
+      call getMaxR(env, self%alpha, self%tolerance, self%rCutoff)
+      call getMaxG(env, self%alpha, volume, self%tolerance, self%gCutoff)
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not setup numerical thresholds", source)
+         return
+      end if
+
+      call init(self%rLatPoint, env, lattice, boundaryCond, self%rCutoff)
+      call init(self%gLatPoint, env, recLat, boundaryCond, self%gCutoff)
+      call init(self%wsCell, natom)
+   end select
+
+end subroutine initGaussianSmeared
+
+
+subroutine getCoulombMatrix(self, mol, jmat)
+
+   !> Instance of the Coulomb evaluator
+   class(TGaussianSmeared), intent(inout) :: self
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Coulomb matrix
+   real(wp), intent(out) :: jmat(:, :)
+
+   select case(self%boundaryCondition)
+   case(boundaryCondition%cluster)
+      call getCoulombMatrixCluster(mol, self%itbl, self%rad, jmat)
+   case(boundaryCondition%pbc3d)
+      call getCoulombMatrixPBC3D(self%wsCell, mol%id, self%itbl, self%rad, &
+         & self%alpha, mol%volume, self%rTrans, self%gTrans(:, 2:), jmat)
+   end select
+
+end subroutine getCoulombMatrix
+
+
+subroutine getCoulombMatrixCluster(mol, itbl, rad, jmat)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Index table
+   integer, intent(in) :: itbl(:, :)
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: rad(:, :)
+
+   !> Coulomb matrix
+   real(wp), intent(out) :: jmat(:, :)
+
+   integer :: iat, jat, ish, jsh, ii, jj, iid, jid
+   real(wp) :: r1, rterm, gij
+
+   jmat(:, :) = 0.0_wp
+
+   !$omp parallel do default(none) shared(mol, itbl, rad, jmat) &
+   !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r1, rterm, gij)
    do iat = 1, len(mol)
-      gamii = 1.0_wp/(sqrt(2.0_wp)*chrgeq%alpha(iat))
-      amat(iat, iat) = chrgeq%gam(iat) + sqrt2pi/chrgeq%alpha(iat) &
-         ! reciprocal for 0th atom
-         + ewaldMatPBC3D(zero, gTrans, 0.0_wp, mol%volume, cf, 1.0_wp) &
-         ! direct for 0th atom
-         + eeq_ewald_3d_dir(zero, rTrans, gamii, cf, 1.0_wp)
+      ii = itbl(1, iat)
+      iid = mol%id(iat)
       do jat = 1, iat-1
-         gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2+chrgeq%alpha(jat)**2)
-         do wscAt = 1, mol%wsc%itbl(jat,iat)
-            riw = mol%xyz(:,iat) - mol%xyz(:,jat) &
-               &  - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
-            amat(iat,jat) = Amat(iat,jat) &
-               ! reciprocal lattice sums
-               + ewaldMatPBC3D(riw, gTrans, 0.0_wp, mol%volume, cf, &
-                  & mol%wsc%w(jat,iat)) &
-               ! direct lattice sums
-               + eeq_ewald_3d_dir(riw, rTrans, gamij, cf, mol%wsc%w(jat,iat))
+         jj = itbl(1, jat)
+         jid = mol%id(jat)
+         r1 = norm2(mol%xyz(:, jat) - mol%xyz(:, iat))
+         do ish = 1, itbl(2, iat)
+            do jsh = 1, itbl(2, jat)
+               gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, jid)**2)
+               rterm = erf(gij*r1)/r1
+               jmat(jj+jsh, ii+ish) = rterm
+               jmat(ii+ish, jj+jsh) = rterm
+            end do
          end do
-         amat(jat,iat) = amat(iat,jat)
+      end do
+      do ish = 1, itbl(2, iat)
+         do jsh = 1, ish-1
+            gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, iid)**2)
+            jmat(ii+jsh, ii+ish) = 2.0_wp/sqrtpi*gij
+            jmat(ii+ish, ii+jsh) = 2.0_wp/sqrtpi*gij
+         end do
+         gij = sqrt(0.5_wp)/rad(ish, iid)
+         jmat(ii+ish, ii+ish) = 2.0_wp/sqrtpi*gij
       end do
    end do
    !$omp end parallel do
-end subroutine get_coulomb_matrix_3d
 
-subroutine get_coulomb_derivs_0d(mol, chrgeq, qvec, amatdr, atrace)
-   use xtb_type_molecule
-   use xtb_type_param
-   type(TMolecule), intent(in) :: mol
-   type(chrg_parameter), intent(in) :: chrgeq
-   real(wp), intent(in) :: qvec(:)
-   real(wp), intent(out) :: amatdr(:, :, :)
-   real(wp), intent(out) :: atrace(:, :)
-   integer :: iat, jat
-   real(wp) :: rij(3), r2, gamij2, arg2
-   real(wp) :: dE, dG(3)
-   amatdr = 0.0_wp
-   atrace = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) reduction(+:atrace, amatdr) &
-   !$omp shared(mol,chrgeq, qvec) private(jat, rij, r2, gamij2, arg2, dE, dG)
-   do iat = 1, len(mol)
-      ! EN of atom i
-      do jat = 1, iat-1
-         rij = mol%xyz(:,iat) - mol%xyz(:,jat)
-         r2 = sum(rij**2)
-         gamij2 = 1.0_wp/(chrgeq%alpha(iat)**2+chrgeq%alpha(jat)**2)
-         arg2 = gamij2*r2
-         dE = erf(sqrt(arg2))/sqrt(r2)
-         dG = (2*sqrt(gamij2)*exp(-arg2)/sqrtpi - dE) * rij/r2
-         amatdr(:, iat, jat) = amatdr(:, iat, jat) + dG*qvec(iat)
-         amatdr(:, jat, iat) = amatdr(:, jat, iat) - dG*qvec(jat)
-         atrace(:, iat) = atrace(:, iat) + dG*qvec(jat)
-         atrace(:, jat) = atrace(:, jat) - dG*qvec(iat)
-      enddo
-   enddo
-   !$omp end parallel do
-end subroutine get_coulomb_derivs_0d
+end subroutine getCoulombMatrixCluster
 
-subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, rTrans, gTrans, cf, &
-      & amatdr, amatdL, atrace)
-   use xtb_type_molecule
-   use xtb_type_param
-   type(TMolecule), intent(in) :: mol
-   type(chrg_parameter), intent(in) :: chrgeq
-   real(wp), intent(in) :: cf
-   real(wp), intent(in) :: qvec(:)
-   real(wp), intent(in) :: gTrans(:, :)
+
+subroutine getCoulombMatrixPBC3D(wsCell, id, itbl, rad, alpha, volume, rTrans, &
+      & gTrans, jmat)
+
+   !> Wigner-Seitz cell
+   type(TWignerSeitzCell), intent(in) :: wsCell
+
+   !> Identity
+   integer, intent(in) :: id(:)
+
+   !> Index table
+   integer, intent(in) :: itbl(:, :)
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: rad(:, :)
+
+   !> Cell volume
+   real(wp), intent(in) :: volume
+
+   !> Convergence factor
+   real(wp), intent(in) :: alpha
+
+   !> Real space lattice translations
    real(wp), intent(in) :: rTrans(:, :)
-   real(wp), intent(out) :: amatdr(:, :, :)
-   real(wp), intent(out) :: amatdL(:, :, :)
-   real(wp), intent(out) :: atrace(:, :)
-   integer, parameter :: ewaldCutD(3) = 2
-   integer, parameter :: ewaldCutR(3) = 2
+
+   !> Reciprocal space lattice translations
+   real(wp), intent(in) :: gTrans(:, :)
+
+   !> Coulomb matrix
+   real(wp), intent(out) :: jmat(:, :)
+
+   integer :: iat, ineigh, img, jat, ish, jsh, ii, jj, iid, jid
+   real(wp) :: vec(3), rterm, gterm, weight, gij
    real(wp), parameter :: zero(3) = 0.0_wp
-   integer :: iat, jat, wscAt, ii
-   real(wp) :: gamij, dG(3), dS(3, 3), riw(3)
-   integer :: iG1, iG2, iG3, iRp
-   real(wp) :: gVec(3)
+
+   jmat(:, :) = 0.0_wp
+
+   !$omp parallel do default(none) reduction(+:jmat) &
+   !$omp shared(wsCell, id, itbl, alpha, volume, gTrans, rTrans, rad) &
+   !$omp private(iat, ineigh, img, jat, ish, jsh, ii, jj, iid, jid, rterm, &
+   !$omp& gterm, vec, weight, gij)
+   do iat = 1, size(wsCell%neighs)
+      ii = itbl(1, iat)
+      iid = id(iat)
+      do ineigh = 1, wsCell%neighs(iat)
+         img = wsCell%ineigh(ineigh, iat)
+         jat = wsCell%image(img)
+         jj = itbl(1, jat)
+         jid = id(jat)
+         weight = wsCell%weight(ineigh, iat)
+         vec(:) = wsCell%coords(:, img) - wsCell%coords(:, iat)
+         gterm = ewaldMatPBC3D(vec, gTrans, 0.0_wp, volume, alpha, weight) &
+            &  - pi / (volume * alpha**2) * weight
+         if (iat /= jat) then
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, itbl(2, jat)
+                  gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, jid)**2)
+                  rterm = gterm + getRTerm(vec, gij, rTrans, alpha, weight)
+                  jmat(jj+jsh, ii+ish) = jmat(jj+jsh, ii+ish) + rterm
+                  jmat(ii+ish, jj+jsh) = jmat(ii+ish, jj+jsh) + rterm
+               end do
+            end do
+         else
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, ish-1
+                  gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, iid)**2)
+                  rterm = gterm + getRTerm(vec, gij, rTrans, alpha, weight)
+                  jmat(ii+jsh, ii+ish) = jmat(ii+jsh, ii+ish) + rterm
+                  jmat(ii+ish, ii+jsh) = jmat(ii+ish, ii+jsh) + rterm
+               end do
+               gij = sqrt(0.5_wp)/rad(ish, iid)
+               rterm = gterm + getRTerm(vec, gij, rTrans, alpha, weight)
+               jmat(ii+ish, ii+ish) = jmat(ii+ish, ii+ish) + rterm
+            end do
+         end if
+      end do
+      do ish = 1, itbl(2, iat)
+         do jsh = 1, ish-1
+            gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, iid)**2)
+            jmat(ii+jsh, ii+ish) = jmat(ii+jsh, ii+ish) + 2.0_wp/sqrtpi*gij
+            jmat(ii+ish, ii+jsh) = jmat(ii+ish, ii+jsh) + 2.0_wp/sqrtpi*gij
+         end do
+         gij = sqrt(0.5_wp)/rad(ish, iid)
+         jmat(ii+ish, ii+ish) = jmat(ii+ish, ii+ish) + 2.0_wp/sqrtpi*gij
+      end do
+   end do
+   !$omp end parallel do
+
+end subroutine getCoulombMatrixPBC3D
+
+
+pure function getRTerm(vec, gam, rTrans, alpha, scale) result(rTerm)
+   real(wp),intent(in) :: vec(3)
+   real(wp),intent(in) :: gam
+   real(wp),intent(in) :: rTrans(:,:)
+   real(wp),intent(in) :: alpha
+   real(wp),intent(in) :: scale
+   real(wp) :: rTerm
+   real(wp),parameter :: eps = 1.0e-9_wp
+   integer  :: itr
+   real(wp) :: r1, rij(3)
+   rTerm = 0.0_wp
+   do itr = 1, size(rTrans, dim=2)
+      rij = vec + rTrans(:, itr)
+      r1 = norm2(rij)
+      ! self-interaction correction
+      if(r1 < eps) then
+         rTerm = rTerm - 2.0_wp*alpha/sqrtpi
+      else
+         rterm = rTerm + erf(gam*r1)/r1 - erf(alpha*r1)/r1
+      end if
+   end do
+   rTerm = rTerm * scale
+end function getRTerm
+
+
+subroutine getCoulombDerivs(self, mol, qvec, djdr, djdtr, djdL)
+
+   !> Instance of the Coulomb evaluator
+   class(TGaussianSmeared), intent(inout) :: self
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Charges
+   real(wp), intent(in) :: qvec(:)
+
+   !> Derivative of Coulomb matrix w.r.t. Cartesian coordinates
+   real(wp), intent(out) :: djdr(:, :, :)
+
+   !> Trace derivative of Coulomb matrix
+   real(wp), intent(out) :: djdtr(:, :)
+
+   !> Derivative of Coulomb matrix w.r.t. strain deformations
+   real(wp), intent(out) :: djdL(:, :, :)
+
+   select case(self%boundaryCondition)
+   case(boundaryCondition%cluster)
+      call getCoulombDerivsCluster(mol, self%itbl, self%rad, qvec, djdr, &
+         & djdtr, djdL)
+   case(boundaryCondition%pbc3d)
+      call getCoulombDerivsPBC3D(self%wsCell, mol%id, self%itbl, self%rad, &
+         & self%alpha, mol%volume, self%rTrans, self%gTrans(:, 2:), qvec, &
+         & djdr, djdtr, djdL)
+   end select
+
+end subroutine getCoulombDerivs
+
+
+subroutine getCoulombDerivsCluster(mol, itbl, rad, qvec, djdr, djdtr, djdL)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Index table
+   integer, intent(in) :: itbl(:, :)
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: rad(:, :)
+
+   !> Charges
+   real(wp), intent(in) :: qvec(:)
+
+   !> Derivative of Coulomb matrix w.r.t. Cartesian coordinates
+   real(wp), intent(out) :: djdr(:, :, :)
+
+   !> Trace derivative of Coulomb matrix
+   real(wp), intent(out) :: djdtr(:, :)
+
+   !> Derivative of Coulomb matrix w.r.t. strain deformations
+   real(wp), intent(out) :: djdL(:, :, :)
+
+   integer :: iat, jat, ish, jsh, ii, jj, iid, jid
+   real(wp) :: r2, g1, gij, vec(3), dG(3), dS(3, 3)
+
+   djdr(:, :, :) = 0.0_wp
+   djdtr(:, :) = 0.0_wp
+   djdL(:, :, :) = 0.0_wp
+
+   !$omp parallel do default(none) reduction(+:djdr, djdtr, djdL) &
+   !$omp shared(mol, itbl, qvec, rad) &
+   !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r2, g1, gij, vec, dG, dS)
+   do iat = 1, len(mol)
+      ii = itbl(1, iat)
+      iid = mol%id(iat)
+      do jat = 1, iat-1
+         jj = itbl(1, jat)
+         jid = mol%id(jat)
+         vec(:) = mol%xyz(:, jat) - mol%xyz(:, iat)
+         r2 = sum(vec**2)
+         do ish = 1, itbl(2, iat)
+            do jsh = 1, itbl(2, jat)
+               gij = 1.0_wp/(rad(ish, iid)**2 + rad(jsh, jid)**2)
+               g1 = erf(sqrt(gij*r2))/sqrt(r2)
+               dG(:) = (2*sqrt(gij)*exp(-gij*r2)/sqrtpi - g1) * vec/r2
+               dS(:, :) = spread(dG, 1, 3) * spread(vec, 2, 3)
+               djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
+               djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
+               djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
+               djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
+               djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) - dS*qvec(ii+ish)
+               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(jj+jsh)
+            end do
+         end do
+      end do
+   end do
+   !$omp end parallel do
+
+end subroutine getCoulombDerivsCluster
+
+
+subroutine getCoulombDerivsPBC3D(wsCell, id, itbl, rad, alpha, volume, rTrans, &
+      & gTrans, qvec, djdr, djdtr, djdL)
+
+   !> Wigner-Seitz cell
+   type(TWignerSeitzCell), intent(in) :: wsCell
+
+   !> Identity
+   integer, intent(in) :: id(:)
+
+   !> Radii of charge densities
+   real(wp), intent(in) :: rad(:, :)
+
+   !> Cell volume
+   real(wp), intent(in) :: volume
+
+   !> Convergence factor
+   real(wp), intent(in) :: alpha
+
+   !> Real space lattice translations
+   real(wp), intent(in) :: rTrans(:, :)
+
+   !> Reciprocal space lattice translations
+   real(wp), intent(in) :: gTrans(:, :)
+
+   !> Index table
+   integer, intent(in) :: itbl(:, :)
+
+   !> Charges
+   real(wp), intent(in) :: qvec(:)
+
+   !> Derivative of Coulomb matrix w.r.t. Cartesian coordinates
+   real(wp), intent(out) :: djdr(:, :, :)
+
+   !> Trace derivative of Coulomb matrix
+   real(wp), intent(out) :: djdtr(:, :)
+
+   !> Derivative of Coulomb matrix w.r.t. strain deformations
+   real(wp), intent(out) :: djdL(:, :, :)
+
+   integer :: iat, jat, ish, jsh, ii, jj, ineigh, img, iid, jid
+   real(wp) :: weight, gij, vec(3), dG(3), dS(3, 3), dGg(3), dGr(3), dSg(3, 3)
+   real(wp) :: dSr(3, 3)
    real(wp), parameter :: unity(3, 3) = reshape(&
       & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
       & [3, 3])
-   amatdr = 0.0_wp
-   amatdL = 0.0_wp
-   atrace = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) &
-   !$omp reduction(+:atrace,amatdr,amatdL) &
-   !$omp shared(mol, chrgeq, qvec, cf, gTrans, rTrans) &
-   !$omp private(iat, jat, ii, wscAt, riw, gamij, dG, dS)
-   do iat = 1, len(mol)
-      do jat = 1, iat-1
-         ! over WSC partner
-         gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2 + chrgeq%alpha(jat)**2)
-         do wscAt = 1, mol%wsc%itbl(jat,iat)
-            riw = mol%xyz(:,iat) - mol%xyz(:,jat) &
-               &  - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
-            call ewaldDerivPBC3D(riw, gTrans, 0.0_wp, mol%volume, cf, &
-               & mol%wsc%w(jat,iat), dG, dS)
-            amatdr(:, iat, jat) = amatdr(:, iat, jat) + dG*qvec(iat)
-            amatdr(:, jat, iat) = amatdr(:, jat, iat) - dG*qvec(jat)
-            atrace(:, iat) = atrace(:, iat) + dG*qvec(jat)
-            atrace(:, jat) = atrace(:, jat) - dG*qvec(iat)
-            amatdL(:, :, iat) = amatdL(:, :, iat) + dS*qvec(jat)
-            amatdL(:, :, jat) = amatdL(:, :, jat) + dS*qvec(iat)
-            call eeq_ewald_dx_3d_dir(riw, rTrans, gamij, cf, mol%wsc%w(jat,iat), &
-               &                     dG,dS)
-            amatdr(:, iat, jat) = amatdr(:, iat, jat) + dG*qvec(iat)
-            amatdr(:, jat, iat) = amatdr(:, jat, iat) - dG*qvec(jat)
-            atrace(:, iat) = atrace(:, iat) + dG*qvec(jat)
-            atrace(:, jat) = atrace(:, jat) - dG*qvec(iat)
-            amatdL(:, :, iat) = amatdL(:, :, iat) + dS*qvec(jat)
-            amatdL(:, :, jat) = amatdL(:, :, jat) + dS*qvec(iat)
-         enddo  ! k WSC partner
-      enddo     ! jat
 
-      gamij = 1.0_wp/(sqrt(2.0_wp)*chrgeq%alpha(iat))
-      call ewaldDerivPBC3D(zero, gTrans, 0.0_wp, mol%volume, cf, 1.0_wp, dG, dS)
-      amatdL(:, :, iat) = amatdL(:, :, iat) + dS*qvec(iat)
-      call eeq_ewald_dx_3d_dir(zero, rTrans, gamij, cf, 1.0_wp, dG, dS)
-      amatdL(:, :, iat) = amatdL(:, :, iat) + (dS+unity*cf/sqrtpi/3.0_wp)*qvec(iat)
-   enddo
-   !$omp end parallel do
-end subroutine get_coulomb_derivs_3d
+   djdr(:, :, :) = 0.0_wp
+   djdtr(:, :) = 0.0_wp
+   djdL(:, :, :) = 0.0_wp
 
-
-pure function eeq_ewald_3d_dir(riw,rTrans,gamij,cf,scale) result(Amat)
-   use xtb_mctc_constants
-   implicit none
-   real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
-   real(wp),intent(in) :: rTrans(:,:) !< direct lattice
-   real(wp),intent(in) :: gamij     !< interaction radius
-   real(wp),intent(in) :: cf        !< convergence factor
-   real(wp),intent(in) :: scale
-   real(wp) :: Amat                 !< element of interaction matrix
-   real(wp),parameter :: eps = 1.0e-9_wp
-   integer  :: dx,dy,dz,itr
-   real(wp) :: distiw,rij(3)
-   real(wp) :: t(3)
-   Amat = 0.0_wp
-   do itr = 1, size(rTrans, dim=2)
-      rij = riw + rTrans(:, itr)
-      distiw = norm2(rij)
-      ! self-interaction correction
-      if(distiw < eps) then
-         Amat = Amat - cf/sqrtpi
-      else
-         Amat = Amat - erf(   cf*distiw)/distiw &
-            &        + erf(gamij*distiw)/distiw
-      end if
+   dGr = 0.0_wp
+   dSr = 0.0_wp
+   !$omp parallel do default(none) reduction(+:djdr, djdtr, djdL) &
+   !$omp shared(wsCell, id, itbl, rad, qvec, alpha, volume, gTrans, rTrans) &
+   !$omp private(iat, ineigh, img, jat, ish, jsh, ii, jj, iid, jid, vec, weight, &
+   !$omp& gij, dG, dS, dGg, dGr, dSg, dSr)
+   do iat = 1, size(wsCell%neighs)
+      ii = itbl(1, iat)
+      iid = id(iat)
+      do ineigh = 1, wsCell%neighs(iat)
+         img = wsCell%ineigh(ineigh, iat)
+         jat = wsCell%image(img)
+         jj = itbl(1, jat)
+         jid = id(jat)
+         weight = wsCell%weight(ineigh, iat)
+         vec(:) = wsCell%coords(:, img) - wsCell%coords(:, iat)
+         call ewaldDerivPBC3D(vec, gTrans, 0.0_wp, volume, alpha, weight, dGg, dSg)
+         if (iat /= jat) then
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, itbl(2, jat)
+                  gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, jid)**2)
+                  call getRDeriv(vec, gij, rTrans, alpha, weight, dGr, dSr)
+                  dG(:) = dGg + dGr
+                  dS(:, :) = dSg + dSr + pi / (volume * alpha**2) * weight * unity
+                  djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
+                  djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
+                  djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
+                  djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
+                  djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) - dS*qvec(ii+ish)
+                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(jj+jsh)
+               end do
+            end do
+         else
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, ish-1
+                  gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, iid)**2)
+                  call getRDeriv(vec, gij, rTrans, alpha, weight, dGr, dSr)
+                  dS(:, :) = dSg + dSr + pi / (volume * alpha**2) * weight * unity
+                  djdL(:, :, ii+jsh) = djdL(:, :, ii+jsh) - dS*qvec(ii+ish)
+                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(ii+jsh)
+               end do
+               gij = sqrt(0.5_wp)/rad(ish, iid)
+               call getRDeriv(vec, gij, rTrans, alpha, weight, dGr, dSr)
+               dS(:, :) = dSg + dSr + pi / (volume * alpha**2) * weight * unity
+               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(ii+ish)
+            end do
+         end if
+      end do
    end do
-   Amat = Amat * scale
-end function eeq_ewald_3d_dir
+   !$omp end parallel do
 
-pure subroutine eeq_ewald_dx_3d_dir(riw,rTrans,gamij,cf,scale,dAmat,sigma)
-   use xtb_mctc_constants
-   use xtb_pbc_tools
-   implicit none
-   real(wp),intent(in) :: riw(3)    !< distance from i to WSC atom
-   real(wp),intent(in) :: rTrans(:,:)
-   real(wp),intent(in) :: gamij     !< interaction radius
-   real(wp),intent(in) :: cf        !< convergence factor
-   real(wp),intent(in) :: scale
-   real(wp),intent(out) :: dAmat(3) !< element of interaction matrix
-   real(wp),intent(out) :: sigma(3,3)
-   real(wp),parameter :: eps = 1.0e-9_wp
-   integer  :: dx,dy,dz,i,itr
-   real(wp) :: distiw,rij(3),arga,argb
-   real(wp) :: t(3),dtmp,stmp(3)
-   dAmat = 0.0_wp
-   sigma = 0.0_wp
+end subroutine getCoulombDerivsPBC3D
+
+
+pure subroutine getRDeriv(vec, gij, rTrans, alpha, scale, dG, dS)
+   real(wp), intent(in) :: vec(:)
+   real(wp), intent(in) :: gij
+   real(wp), intent(in) :: rTrans(:,:)
+   real(wp), intent(in) :: alpha
+   real(wp), intent(in) :: scale
+   real(wp), intent(out) :: dG(:)
+   real(wp), intent(out) :: dS(:,:)
+   real(wp), parameter :: eps = 1.0e-9_wp
+   integer :: itr
+   real(wp) :: r1, rij(3), arg, dd
+   real(wp), parameter :: unity(3, 3) = reshape(&
+      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
+      & [3, 3])
+   dG = 0.0_wp
+   dS = 0.0_wp
    do itr = 1, size(rTrans, dim=2)
       ! real contributions
-      rij = riw + rTrans(:, itr)
-      distiw = norm2(rij)
-      if(distiw < eps) cycle
-      arga = cf**2   *distiw**2
-      stmp = + exp(-arga)/sqrtpi * cf * 2.0_wp / 3.0_wp
-      do i = 1, 3
-         sigma(i,i) = sigma(i,i) + stmp(i)! * rij(i)**2
-      enddo
-      argb = gamij**2*distiw**2
-      dtmp = - 2*cf*exp(-arga)/(sqrtpi*distiw**2) &
-         &   + erf(cf*distiw)/(distiw**3)           &
-         &   + 2*gamij*exp(-argb)/(sqrtpi*distiw**2) &
-         &   - erf(gamij*distiw)/(distiw**3)
-      dAmat = dAmat + rij*dtmp
-      sigma = sigma + dtmp*outer_prod_3x3(rij,rij)
+      rij = vec + rTrans(:, itr)
+      r1 = norm2(rij)
+      if (r1 < eps) cycle
+      arg = alpha**2*r1**2
+      dd = + 2*gij*exp(-gij**2*r1**2)/(sqrtpi*r1**2) - erf(gij*r1)/(r1**3) &
+         & - 2*alpha*exp(-arg)/(sqrtpi*r1**2) + erf(alpha*r1)/(r1**3)
+      dG = dG + rij*dd
+      dS = dS + dd*spread(rij, 1, 3)*spread(rij, 2, 3)
    enddo
-   dAmat = dAmat * scale
-   sigma = sigma * scale
+   dG = dG * scale
+   dS = dS * scale
 
-end subroutine eeq_ewald_dx_3d_dir
+end subroutine getRDeriv
 
 
 end module xtb_coulomb_gaussian

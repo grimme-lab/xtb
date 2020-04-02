@@ -44,10 +44,12 @@ program peeq_tester
       select case(sec)
       case('point_0d'); call test_coulomb_point_cluster
       case('point_3d'); call test_coulomb_point_pbc3d
-      case('gfn1_0d'); call test_gfn1_point_cluster
-      case('gfn1_3d'); call test_gfn1_point_pbc3d
-      case('gfn2_0d'); call test_gfn2_point_cluster
-      case('gfn2_3d'); call test_gfn2_point_pbc3d
+      case('gfn1_0d'); call test_coulomb_gfn1_cluster
+      case('gfn1_3d'); call test_coulomb_gfn1_pbc3d
+      case('gfn2_0d'); call test_coulomb_gfn2_cluster
+      case('gfn2_3d'); call test_coulomb_gfn2_pbc3d
+      case('gaussian_0d'); call test_coulomb_gaussian_cluster
+      case('gaussian_3d'); call test_coulomb_gaussian_pbc3d
       end select
    case('eeq_model')
       select case(sec)
