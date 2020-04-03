@@ -708,7 +708,7 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
    real(wp),intent(in)  :: g_a,g_c
    real(wp),intent(in)  :: wdispmat(ndim,ndim)
    real(wp),intent(in)  :: gw(ndim)
-   real(wp),intent(out) :: hdisp(nat)
+   real(wp),intent(inout) :: hdisp(nat)
 
    integer  :: i,ii,k,ia
    real(wp) :: qmod,iz
@@ -724,7 +724,6 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
    zetavec = 0.0_wp
    zerovec = 0.0_wp
    dumvec  = 0.0_wp
-   hdisp   = 0.0_wp
 
    k = 0
    do i = 1, nat
@@ -745,7 +744,8 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
    k = 0
    do i = 1, nat
       ia = at(i)
-      hdisp(i) = sum(dumvec(k+1:k+dispm%nref(ia))*zerovec(k+1:k+dispm%nref(ia)))
+      hdisp(i) = hdisp(i) &
+         & + sum(dumvec(k+1:k+dispm%nref(ia))*zerovec(k+1:k+dispm%nref(ia)))
       k = k + dispm%nref(ia)
    enddo
 

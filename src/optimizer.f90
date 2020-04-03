@@ -721,7 +721,7 @@ pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
    allocate(iwork(5*n),work(lwork),ifail(n))
 
    j=1
-   call ssyevx('V','I','U',n,A,n,dum,dum,j,j,thr, &
+   call syevx('V','I','U',n,A,n,dum,dum,j,j,thr, &
    &           i,e,U,n,work,lwork,iwork,ifail,info)
    if (info.ne.0) fail = .true.
 
@@ -748,7 +748,7 @@ pure subroutine solver_sspevx(n,thr,A,U,e,fail)
    allocate(iwork(5*n),work(8*n),ifail(n))
 
    j=1
-   call sspevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
+   call spevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
    if (info.ne.0) fail = .true.
 
    deallocate(iwork,work,ifail)

@@ -231,10 +231,10 @@ subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
    integer :: iat,jat
 
    allocate( fgba(n), source = 0.0_wp )
-   call dsymv('u',n,evtoau,fgb,n,q,1,0.0_wp,fgba,1)
+   call dsymv('u',n,1.0_wp,fgb,n,q,1,0.0_wp,fgba,1)
    call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
    if (lhb) then
-      fgba = evtoau * fhb * 2.0_wp * q
+      fgba = fhb * 2.0_wp * q
       call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
    end if
 

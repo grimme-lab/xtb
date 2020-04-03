@@ -17,6 +17,8 @@
 
 module xtb_type_anc
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas
+   use xtb_mctc_lapack
    implicit none
 
    public :: tb_anc
@@ -157,7 +159,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
    allocate(iwork(liwork), source = 0 )
    allocate(aux(lwork), source = 0.0_wp )
 
-   call dsyevd('V','U',self%n3,hess,self%n3,self%eigv, &
+   call syevd('V','U',self%n3,hess,self%n3,self%eigv, &
       &        aux,lwork,iwork,liwork,info)
 
    !elow = 1.0e+99_wp
@@ -248,7 +250,7 @@ subroutine generate_anc_packed(self,xyz,hess,pr)
    allocate(aux(lwork), source = 0.0_wp )
    allocate(u(self%n3,self%n3), source = 0.0_wp )
 
-   call dspevd('V','U',self%n3,hess,self%eigv,u,self%n3, &
+   call spevd('V','U',self%n3,hess,self%eigv,u,self%n3, &
       &        aux,lwork,iwork,liwork,info)
 
    !elow = 1.0e+99_wp
@@ -344,9 +346,8 @@ pure subroutine sort(nat3,nvar,hess,b)
 
 end subroutine sort
 
-pure subroutine get_cartesian(self,xyz)
+subroutine get_cartesian(self,xyz)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la
    implicit none
    class(tb_anc),intent(in) :: self
    integer :: m,i,j,k

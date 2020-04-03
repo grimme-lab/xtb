@@ -186,7 +186,6 @@ end subroutine read_pcem
 !  J potentials for GFN1 including the point charge stuff
 !! ========================================================================
 subroutine jpot_pcem_gfn1(jData,n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
-   use xtb_mctc_convert, only : autoev
    use xtb_type_pcem
    implicit none
    type(TCoulombData), intent(in) :: jData
@@ -211,7 +210,7 @@ subroutine jpot_pcem_gfn1(jData,n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
          gj = pcem%gam(kk)
          rab = norm2(pcem%xyz(:,kk) - xyz(:,iat))
          xj = 2.0_wp/(1./gi+1./gj)
-         dum = autoev/(rab**alphaj+1._wp/xj**alphaj)**(1._wp/alphaj)
+         dum = 1.0_wp/(rab**alphaj+1._wp/xj**alphaj)**(1._wp/alphaj)
          eh1 = eh1+pcem%q(kk)*dum
       enddo
       Vpc(is) = eh1
@@ -223,7 +222,6 @@ end subroutine jpot_pcem_gfn1
 !  J potentials for GFN2 including the point charge stuff
 !! ========================================================================
 subroutine jpot_pcem_gfn2(jData,n,pcem,nshell,at,xyz,ash,lsh,Vpc)
-   use xtb_mctc_convert, only : autoev
    use xtb_type_pcem
    implicit none
    type(TCoulombData), intent(in) :: jData
@@ -247,8 +245,7 @@ subroutine jpot_pcem_gfn2(jData,n,pcem,nshell,at,xyz,ash,lsh,Vpc)
          gj = pcem%gam(kk)
          r2 = sum((pcem%xyz(:,kk) - xyz(:,iat))**2)
          xj = 0.5_wp*(gi+gj)
-         dum = autoev/sqrt(r2+1._wp/xj**2)
-!        dum = autoev/sqrt(r2+1._wp/(gi*gj)) !NEWAV
+         dum = 1.0_wp/sqrt(r2+1._wp/xj**2)
          eh1 = eh1+pcem%q(kk)*dum
       enddo
       Vpc(is) = eh1
@@ -274,9 +271,6 @@ pure subroutine electro_pcem(nshell,dqsh,Vpc,es,scc)
    do i=1,nshell
       es =es + dqsh(i)*Vpc(i)
    enddo
-
-!  ES energy in Eh
-   es = es*evtoau
 
 !  Etotal
    scc = scc + es

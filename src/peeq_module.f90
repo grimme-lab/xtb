@@ -806,7 +806,7 @@ pure subroutine drep_grad(repData,mol,trans,erep,g,sigma)
 end subroutine drep_grad
 
 ! short-ranged bond correction
-pure subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,g,sigma)
+subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,g,sigma)
 
    use xtb_type_param
    use xtb_type_molecule

@@ -18,10 +18,15 @@
 srcs += files(
   'basisset.f90',
   'calculator.f90',
+  'coulomb.f90',
   'data.f90',
+  'dispersion.f90',
+  'eeq.f90',
   'gfn0.f90',
   'gfn1.f90',
   'gfn2.f90',
   'halogen.f90',
+  'multipole.f90',
   'repulsion.f90',
+  'thirdorder.f90',
 )

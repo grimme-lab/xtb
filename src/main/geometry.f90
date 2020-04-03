@@ -566,7 +566,7 @@ pure function moments_of_inertia(n,atmass,xyz) result(moments)
    real(wp),intent(in)  :: atmass(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp) :: moments(3)
-   real(wp) :: center(3),mass,t(6),work(9)
+   real(wp) :: center(3),mass,t(6),work(9),tmp(3,3)
    real(wp) :: x,x2,y,y2,z,z2
    integer  :: iat,info
 
@@ -587,7 +587,7 @@ pure function moments_of_inertia(n,atmass,xyz) result(moments)
       t(6) = t(6) + mass * (x2+y2)
    enddo
 
-   call dspev('N','U',3,t,moments,work,3,work,info)
+   call spev('N','U',3,t,moments,tmp,3,work,info)
    if (info.ne.0) moments = -1.0_wp
 
 end function moments_of_inertia

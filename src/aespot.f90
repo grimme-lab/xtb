@@ -465,7 +465,7 @@ end subroutine mmompop
 subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer nat,at(nat)
    real(wp) xyz(3,nat),q(nat)
    real(wp) e
@@ -599,7 +599,7 @@ end subroutine fockelectro
 subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
    real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
@@ -729,7 +729,7 @@ end subroutine setvsdq
 subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
    real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
@@ -1120,7 +1120,7 @@ end subroutine mmomgabzero
 ! radcn : CN-dependent radius
 subroutine get_radcn(aesData,n,at,cn,shift,expo,rmax,radcn)
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (out) :: radcn(n)
@@ -1145,7 +1145,7 @@ end subroutine get_radcn
 !       : on output : derivatives of RADCN(j) w.r.t. Cart. directions of i, so we flip indices!!!
 subroutine dradcn(aesData,n,at,cn,shift,expo,rmax,dcn)
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (inout) :: dcn(3,n,n)

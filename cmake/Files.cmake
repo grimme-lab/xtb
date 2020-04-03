@@ -37,7 +37,9 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/mctc/param/r4r2_expectation_values.f90"
   "${XTB_ROOT}/src/mctc/mctc_timings.f90"
   "${XTB_ROOT}/src/mctc/mctc_filetools.f90"
-  "${XTB_ROOT}/src/mctc/mctc_la.f90"
+  "${XTB_ROOT}/src/mctc/linalg.f90"
+  "${XTB_ROOT}/src/mctc/lapack.f90"
+  "${XTB_ROOT}/src/mctc/blas.f90"
   "${XTB_ROOT}/src/mctc/mctc_init.f90"
   "${XTB_ROOT}/src/mctc/error.f90"
   "${XTB_ROOT}/src/mctc/signal.c"
@@ -141,12 +143,17 @@ set(XTB_SOURCES
   # Basis set
   "${XTB_ROOT}/src/xtb/basisset.f90"
   "${XTB_ROOT}/src/xtb/calculator.f90"
+  "${XTB_ROOT}/src/xtb/coulomb.f90"
   "${XTB_ROOT}/src/xtb/data.f90"
+  "${XTB_ROOT}/src/xtb/dispersion.f90"
+  "${XTB_ROOT}/src/xtb/eeq.f90"
   "${XTB_ROOT}/src/xtb/gfn0.f90"
   "${XTB_ROOT}/src/xtb/gfn1.f90"
   "${XTB_ROOT}/src/xtb/gfn2.f90"
   "${XTB_ROOT}/src/xtb/halogen.f90"
+  "${XTB_ROOT}/src/xtb/multipole.f90"
   "${XTB_ROOT}/src/xtb/repulsion.f90"
+  "${XTB_ROOT}/src/xtb/thirdorder.f90"
   "${XTB_ROOT}/src/slater.f90"
 
   # Dispersion
