@@ -1,6 +1,7 @@
 subroutine test_coulomb_point_cluster
    use assertion
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_la, only : contract
    use xtb_type_coulomb
    use xtb_type_environment
    use xtb_type_molecule
@@ -94,8 +95,8 @@ subroutine test_coulomb_point_cluster
    call assert_close(energy, -0.16130778864155_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nat, 1.0_wp, djdr, 3*nat, charges, 1, 0.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, djdL, 9, charges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -151,6 +152,7 @@ subroutine test_coulomb_point_pbc3d
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
+   use xtb_mctc_la, only : contract
    use xtb_type_coulomb
    use xtb_type_environment
    use xtb_type_molecule
@@ -267,8 +269,8 @@ subroutine test_coulomb_point_pbc3d
    call assert_close(energy,-0.19871381077095_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nat, 1.0_wp, djdr, 3*nat, charges, 1, 0.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, djdL, 9, charges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat, 5
@@ -325,6 +327,7 @@ end subroutine test_coulomb_point_pbc3d
 subroutine test_coulomb_gfn1_cluster
    use assertion
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
@@ -439,8 +442,8 @@ subroutine test_coulomb_gfn1_cluster
    call assert_close(energy, 0.74487442026461E-01_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nat, 1.0_wp, djdr, 3*nat, charges, 1, 0.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, djdL, 9, charges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -528,9 +531,8 @@ subroutine test_coulomb_gfn1_cluster
    call assert_close(energy, 0.15670711466457_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nsh, 1.0_wp, djdr, 3*nat, shellCharges, 1, 0.0_wp, &
-      & gradient, 1)
-   call dgemv('n', 9, nsh, 1.0_wp, djdL, 9, shellCharges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, shellCharges, gradient)
+   call contract(djdL, shellCharges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -586,6 +588,7 @@ subroutine test_coulomb_gfn1_pbc3d
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
+   use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
@@ -690,6 +693,7 @@ end subroutine test_coulomb_gfn1_pbc3d
 subroutine test_coulomb_gfn2_cluster
    use assertion
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
@@ -801,8 +805,8 @@ subroutine test_coulomb_gfn2_cluster
    call assert_close(energy, 0.54562180505117E-01_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nat, 1.0_wp, djdr, 3*nat, charges, 1, 0.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, djdL, 9, charges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -889,9 +893,8 @@ subroutine test_coulomb_gfn2_cluster
    call assert_close(energy, 0.76930095102192E-01_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nsh, 1.0_wp, djdr, 3*nat, shellCharges, 1, 0.0_wp, &
-      & gradient, 1)
-   call dgemv('n', 9, nsh, 1.0_wp, djdL, 9, shellCharges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, shellCharges, gradient)
+   call contract(djdL, shellCharges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -947,6 +950,7 @@ subroutine test_coulomb_gfn2_pbc3d
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
+   use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
@@ -1052,6 +1056,7 @@ subroutine test_coulomb_gaussian_cluster
    use assertion
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : sqrtpi
+   use xtb_mctc_la, only : contract
    use xtb_coulomb_gaussian
    use xtb_type_environment
    use xtb_type_molecule
@@ -1147,8 +1152,8 @@ subroutine test_coulomb_gaussian_cluster
    call assert_close(energy, 0.10159878036650_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nat, 1.0_wp, djdr, 3*nat, charges, 1, 0.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, djdL, 9, charges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -1205,6 +1210,7 @@ subroutine test_coulomb_gaussian_pbc3d
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
+   use xtb_mctc_la, only : contract
    use xtb_coulomb_gaussian
    use xtb_type_environment
    use xtb_type_molecule
@@ -1322,8 +1328,8 @@ subroutine test_coulomb_gaussian_pbc3d
    call assert_close(energy, 0.17261986036367_wp, thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
-   call dgemv('n', 3*nat, nat, 1.0_wp, djdr, 3*nat, charges, 1, 0.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, djdL, 9, charges, 1, 0.0_wp, sigma, 1)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
 
    ! check numerical gradient
    do ii = 1, nat, 5

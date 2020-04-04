@@ -185,70 +185,72 @@ end subroutine read_pcem
 !! ========================================================================
 !  J potentials for GFN1 including the point charge stuff
 !! ========================================================================
-subroutine jpot_pcem_gfn1(jData,n,pcem,nshell,at,xyz,ash,lsh,alphaj,Vpc)
+subroutine jpot_pcem_gfn1(jData,n,pcem,nshell,at,xyz,alphaj,Vpc)
    use xtb_type_pcem
    implicit none
    type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    type(tb_pcem),intent(inout) :: pcem
-   integer, intent(in)  :: nshell
+   integer, intent(in)  :: nshell(:)
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: xyz(3,n)
-   integer, intent(in)  :: ash(nshell)
-   integer, intent(in)  :: lsh(nshell)
    real(wp),intent(in)  :: alphaj
-   real(wp),intent(inout) :: Vpc(nshell)
-   integer  :: is,iat,ati,kk
+   real(wp),intent(inout) :: Vpc(:)
+   integer  :: ish,ii,iat,ati,kk
    real(wp) :: eh1,dum,gi,gj,xj,rab
 
-   do is = 1, nshell
-      iat = ash(is)
+   ii = 0
+   do iat = 1, n
       ati = at(iat)
-      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
-      eh1 = 0.0_wp
-      do kk = 1, pcem%n
-         gj = pcem%gam(kk)
-         rab = norm2(pcem%xyz(:,kk) - xyz(:,iat))
-         xj = 2.0_wp/(1./gi+1./gj)
-         dum = 1.0_wp/(rab**alphaj+1._wp/xj**alphaj)**(1._wp/alphaj)
-         eh1 = eh1+pcem%q(kk)*dum
-      enddo
-      Vpc(is) = eh1
-   enddo
+      do ish = 1, nshell(ati)
+         gi = jData%shellHardness(ish,ati)
+         eh1 = 0.0_wp
+         do kk = 1, pcem%n
+            gj = pcem%gam(kk)
+            rab = norm2(pcem%xyz(:,kk) - xyz(:,iat))
+            xj = 2.0_wp/(1./gi+1./gj)
+            dum = 1.0_wp/(rab**alphaj+1._wp/xj**alphaj)**(1._wp/alphaj)
+            eh1 = eh1+pcem%q(kk)*dum
+         end do
+         Vpc(ii+ish) = eh1
+      end do
+      ii = ii + nshell(ati)
+   end do
 
 end subroutine jpot_pcem_gfn1
 
 !! ========================================================================
 !  J potentials for GFN2 including the point charge stuff
 !! ========================================================================
-subroutine jpot_pcem_gfn2(jData,n,pcem,nshell,at,xyz,ash,lsh,Vpc)
+subroutine jpot_pcem_gfn2(jData,n,pcem,nshell,at,xyz,Vpc)
    use xtb_type_pcem
    implicit none
    type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    type(tb_pcem),intent(in) :: pcem
-   integer, intent(in)  :: nshell
+   integer, intent(in)  :: nshell(:)
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: xyz(3,n)
-   integer, intent(in)  :: ash(nshell)
-   integer, intent(in)  :: lsh(nshell)
-   real(wp),intent(inout) :: Vpc(nshell)
-   integer  :: is,iat,ati,kk
+   real(wp),intent(inout) :: Vpc(:)
+   integer  :: ish,ii,iat,ati,kk
    real(wp) :: eh1,dum,gi,gj,xj,r2
 
-   do is = 1, nshell
-      iat = ash(is)
+   ii = 0
+   do iat = 1, n
       ati = at(iat)
-      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
-      eh1 = 0.0_wp
-      do kk = 1, pcem%n
-         gj = pcem%gam(kk)
-         r2 = sum((pcem%xyz(:,kk) - xyz(:,iat))**2)
-         xj = 0.5_wp*(gi+gj)
-         dum = 1.0_wp/sqrt(r2+1._wp/xj**2)
-         eh1 = eh1+pcem%q(kk)*dum
+      do ish = 1, nshell(ati)
+         gi = jData%shellHardness(ish,ati)
+         eh1 = 0.0_wp
+         do kk = 1, pcem%n
+            gj = pcem%gam(kk)
+            r2 = sum((pcem%xyz(:,kk) - xyz(:,iat))**2)
+            xj = 0.5_wp*(gi+gj)
+            dum = 1.0_wp/sqrt(r2+1._wp/xj**2)
+            eh1 = eh1+pcem%q(kk)*dum
+         enddo
+         Vpc(ii+ish) = eh1
       enddo
-      Vpc(is) = eh1
+      ii = ii + nshell(ati)
    enddo
 
 end subroutine jpot_pcem_gfn2
@@ -280,7 +282,7 @@ end subroutine electro_pcem
 !! ========================================================================
 !  point charge embedding gradient for GFN1
 !! ========================================================================
-subroutine pcem_grad_gfn1(jData,g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
+subroutine pcem_grad_gfn1(jData,g,gpc,n,pcem,at,nshell,xyz,alphaj,qsh)
    use xtb_type_pcem
    implicit none
    type(TCoulombData), intent(in) :: jData
@@ -289,42 +291,42 @@ subroutine pcem_grad_gfn1(jData,g,gpc,n,pcem,at,nshell,xyz,ash,lsh,alphaj,qsh)
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(inout) :: gpc(3,pcem%n)
    integer, intent(in) :: at(n)
-   integer, intent(in) :: nshell
+   integer, intent(in) :: nshell(:)
    real(wp),intent(in) :: xyz(3,n)
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
    real(wp),intent(in) :: alphaj
-   real(wp),intent(in) :: qsh(nshell)
+   real(wp),intent(in) :: qsh(:)
 
-   integer  :: is,j,iat,ati
+   integer  :: ish,ii,j,iat,ati
    real(wp) :: dr(3)
    real(wp) :: gi,gj,r2,rr,yy,ff
 
-
-   do is = 1, nshell
-      iat = ash(is)
+   ii = 0
+   do iat = 1, n
       ati = at(iat)
-      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
-      do j = 1, pcem%n
-         dr = xyz(:,iat) - pcem%xyz(:,j)
-         r2 = sum(dr**2)
-         gj = pcem%gam(j)
-         rr = 2.0_wp/(1.0_wp/gi+1.0_wp/gj)
-         rr = 1.0_wp/rr**alphaj
-         ff = r2**(alphaj/2.0_wp-1.0_wp)*&
-            &(r2**(alphaj*0.5_wp)+rr)**(-1.0_wp/alphaj-1.0_wp)
-         yy = ff*qsh(is)*pcem%q(j)
-         g(:,iat)=g(:,iat)-dr*yy
-         gpc(:,j)=gpc(:,j)+dr*yy
-      enddo
-   enddo
+      do ish = 1, nshell(ati)
+         gi = jData%shellHardness(ish,ati)
+         do j = 1, pcem%n
+            dr = xyz(:,iat) - pcem%xyz(:,j)
+            r2 = sum(dr**2)
+            gj = pcem%gam(j)
+            rr = 2.0_wp/(1.0_wp/gi+1.0_wp/gj)
+            rr = 1.0_wp/rr**alphaj
+            ff = r2**(alphaj/2.0_wp-1.0_wp)*&
+               &(r2**(alphaj*0.5_wp)+rr)**(-1.0_wp/alphaj-1.0_wp)
+            yy = ff*qsh(ii+ish)*pcem%q(j)
+            g(:,iat)=g(:,iat)-dr*yy
+            gpc(:,j)=gpc(:,j)+dr*yy
+         end do
+      end do
+      ii = ii + nshell(ati)
+   end do
 
 end subroutine pcem_grad_gfn1
 
 !! ========================================================================
 !  point charge embedding gradient for GFN2
 !! ========================================================================
-subroutine pcem_grad_gfn2(jData,g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
+subroutine pcem_grad_gfn2(jData,g,gpc,n,pcem,at,nshell,xyz,qsh)
    use xtb_type_pcem
    implicit none
    type(TCoulombData), intent(in) :: jData
@@ -333,32 +335,32 @@ subroutine pcem_grad_gfn2(jData,g,gpc,n,pcem,at,nshell,xyz,ash,lsh,qsh)
    real(wp),intent(inout) :: g(3,n)
    real(wp),intent(inout) :: gpc(3,pcem%n)
    integer, intent(in) :: at(n)
-   integer, intent(in) :: nshell
+   integer, intent(in) :: nshell(:)
    real(wp),intent(in) :: xyz(3,n)
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   real(wp),intent(in) :: qsh(nshell)
+   real(wp),intent(in) :: qsh(:)
 
-   integer  :: is,j,iat,ati
+   integer  :: ish,ii,j,iat,ati
    real(wp) :: dr(3)
    real(wp) :: gi,gj,r2,rr,yy
 
-   do is = 1,nshell
-      iat = ash(is)
+   ii = 0
+   do iat = 1, n
       ati = at(iat)
-      gi  = jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
-      do j = 1, pcem%n
-         dr = xyz(:,iat) - pcem%xyz(:,j)
-         r2 = sum(dr**2)
-         gj = pcem%gam(j)
-         rr = 0.5_wp*(gi+gj)
-         rr = 1.0_wp/rr**2
-!        rr = 1.0d0/(gi*gj) !NEWAV
-         yy = qsh(is)*pcem%q(j)*(r2+rr)**(-1.5_wp)
-         g(:,iat) = g(:,iat) - dr*yy
-         gpc(:,j) = gpc(:,j) + dr*yy
-      enddo
-   enddo
+      do ish = 1, nshell(ati)
+         gi = jData%shellHardness(ish,ati)
+         do j = 1, pcem%n
+            dr = xyz(:,iat) - pcem%xyz(:,j)
+            r2 = sum(dr**2)
+            gj = pcem%gam(j)
+            rr = 0.5_wp*(gi+gj)
+            rr = 1.0_wp/rr**2
+            yy = qsh(ii+ish)*pcem%q(j)*(r2+rr)**(-1.5_wp)
+            g(:,iat) = g(:,iat) - dr*yy
+            gpc(:,j) = gpc(:,j) + dr*yy
+         end do
+      end do
+      ii = ii + nshell(ati)
+   end do
 
 end subroutine pcem_grad_gfn2
 

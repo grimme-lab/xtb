@@ -152,6 +152,7 @@ subroutine readParam &
 
    call setpair(level, kpair)
 
+   mShell = maxval(nShell)
    xtbData%level = level
    xtbData%nShell = nShell
    xtbData%ipeashift = globpar%ipeashift * 0.1_wp
@@ -163,7 +164,9 @@ subroutine readParam &
    ! Coulomb
    xtbData%coulomb%gExp = globpar%alphaj
    xtbData%coulomb%chemicalHardness = atomicHardness(:max_elem)
-   xtbData%coulomb%shellHardness = shellHardness(:, :max_elem)
+   allocate(xtbData%coulomb%shellHardness(mShell, max_elem))
+   call setGFN1ShellHardness(xtbData%coulomb%shellHardness, nShell, angShell, &
+      & atomicHardness, shellHardness)
    xtbData%coulomb%thirdOrderAtom = thirdOrderAtom(:max_elem)
    xtbData%coulomb%electronegativity = eeqEN(:max_elem)
    xtbData%coulomb%kCN = eeqkCN(:max_elem)
@@ -176,7 +179,6 @@ subroutine readParam &
    xtbData%dispersion%wf  = 6.0_wp
 
    ! Hamiltonian
-   mShell = maxval(xtbData%nShell)
    xtbData%hamiltonian%angShell = angShell(:mShell, :)
 
    do iSh = 0, 3

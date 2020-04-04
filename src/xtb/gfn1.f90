@@ -28,7 +28,7 @@ module xtb_xtb_gfn1
 
    public :: initGFN1, gfn1Globals
    public :: setGFN1ReferenceOcc, setGFN1NumberOfPrimitives, setGFN1PairParam
-   public :: setGFN1kCN
+   public :: setGFN1kCN, setGFN1ShellHardness
 
 
    interface initGFN1
@@ -235,7 +235,7 @@ module xtb_xtb_gfn1
       & 2, 2, 2, 3, 3, 3]
 
    !> Angular momentum of each shell
-   integer, parameter :: angularMomentum(3, 1:maxElem) = reshape([&
+   integer, parameter :: angShell(3, 1:maxElem) = reshape([&
       & 0, 0, 0,  0, 0, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0, &
       & 0, 1, 0,  0, 1, 0,  0, 1, 2,  0, 1, 0,  0, 1, 0,  0, 1, 2,  0, 1, 2, &
       & 0, 1, 2,  0, 1, 2,  0, 1, 2,  0, 1, 2,  0, 1, 0,  0, 1, 2,  2, 0, 1, &
@@ -248,7 +248,7 @@ module xtb_xtb_gfn1
       & 2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1, &
       & 2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1,  2, 0, 1, &
       & 2, 0, 1,  2, 0, 1,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 0,  0, 1, 2, &
-      & 0, 1, 2,  0, 1, 2], shape(angularMomentum))
+      & 0, 1, 2,  0, 1, 2], shape(angShell))
 
    !> Principal quantum number of each shell
    integer, parameter :: principalQuantumNumber(3, 1:maxElem) = reshape([&
@@ -615,7 +615,9 @@ subroutine initCoulomb(self, nShell)
    self%gExp = gfn1Globals%alphaj
    self%chemicalHardness = chemicalHardness
    self%thirdOrderAtom = thirdOrderAtom
-   self%shellHardness = shellHardness(0:2, :maxElem)
+   allocate(self%shellHardness(maxval(nShell), size(nShell)))
+   call setGFN1ShellHardness(self%shellHardness, nShell, angShell, &
+      & chemicalHardness, shellHardness)
 
 end subroutine initCoulomb
 
@@ -633,7 +635,7 @@ subroutine initHamiltonian(self, nShell)
    logical :: valShell(0:3)
 
    mShell = maxval(nShell)
-   self%angShell = angularMomentum(:mShell, :maxElem)
+   self%angShell = angShell(:mShell, :maxElem)
 
    do iSh = 0, 3
       do jSh = 0, 3
@@ -836,6 +838,35 @@ subroutine setGFN1kCN(kCN, nShell, angShell, selfEnergy, cnShell)
    end do
 
 end subroutine setGFN1kCN
+
+
+subroutine setGFN1ShellHardness(shellHardness, nShell, angShell, atomicHardness, &
+      & angHardness)
+
+   real(wp), intent(out) :: shellHardness(:, :)
+
+   integer, intent(in) :: nShell(:)
+
+   integer, intent(in) :: angShell(:, :)
+
+   real(wp), intent(in) :: atomicHardness(:)
+
+   real(wp), intent(in) :: angHardness(0:, :)
+
+   integer :: nElem, iZp, iSh, lAng
+
+   nElem = min(size(shellHardness, dim=2), size(nShell), size(angShell, dim=2))
+
+   shellHardness(:, :) = 0.0_wp
+   do iZp = 1, maxElem
+      do iSh = 1, nShell(iZp)
+         lAng = angShell(iSh, iZp)
+         shellHardness(iSh, iZp) = atomicHardness(iZp) * &
+            (1.0_wp + angHardness(lAng, iZp))
+      end do
+   end do
+
+end subroutine setGFN1ShellHardness
 
 
 subroutine initHalogen(self)

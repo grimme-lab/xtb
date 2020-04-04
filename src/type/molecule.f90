@@ -355,6 +355,8 @@ type(TMolecule) function new_molecule_api &
       mol%sym(i) = toSymbol(at(i))
    end do
 
+   call getIdentity(mol%nId, mol%id, mol%at)
+
    mol%xyz = xyz
    if (c_associated(c_loc(chrg))) then
       mol%chrg = chrg
