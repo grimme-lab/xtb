@@ -18,9 +18,21 @@
 module xtb_scf
 ! ========================================================================
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert, only : autoev,evtoau
    use xtb_mctc_la, only : contract
+   use xtb_coulomb_klopmanohno
+   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
+   use xtb_disp_dftd3, only : d3_gradient
+   use xtb_type_basisset
    use xtb_type_coulomb, only : TCoulomb
+   use xtb_type_data
+   use xtb_type_environment
    use xtb_type_molecule, only : TMolecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_timer
+   use xtb_type_wavefunction
+   use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_xtb_data
    use xtb_xtb_halogen
    use xtb_xtb_repulsion
@@ -28,18 +40,19 @@ module xtb_scf
    use xtb_xtb_dispersion
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
+   use xtb_scc_core
+   use xtb_grad_core
    use xtb_hlex
    use xtb_local
    use xtb_dipole
-   use xtb_coulomb_klopmanohno
    implicit none
    private
 
    public :: scf
 
-   logical,private,parameter :: profile = .true.
+   logical, parameter :: profile = .true.
 
-   integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+   integer, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
    integer, parameter :: metal(1:86) = [&
       & 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, &
@@ -50,30 +63,15 @@ module xtb_scf
 
 contains
 
-subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
-&              egap,et,maxiter,prlevel,restart,grd,acc,eel,g, &
-&              res)
+subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
+      & egap, et, maxiter, prlevel, restart, grd, acc, energy, gradient, res)
 
-   use xtb_mctc_convert, only : autoev,evtoau
-
-! ========================================================================
-!  type definitions
-   use xtb_type_environment
-   use xtb_type_molecule
-   use xtb_type_wavefunction
-   use xtb_type_basisset
-   use xtb_type_param
-   use xtb_type_data
-   use xtb_type_timer
-   use xtb_type_pcem
 
 ! ========================================================================
 !  global storage
    use xtb_setparam
 
 ! ========================================================================
-   use xtb_scc_core
-
 ! ========================================================================
    use xtb_aespot,    only : sdqint,setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
@@ -84,6 +82,11 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    &                     mdisp,prmolc6,edisp_scc,edisp,abcappr
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
+   use xtb_aespot,    only : ddqint,dradcn,aniso_grad,setdvsdq,dsint
+   use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift,compute_gb_egrad
+   use xtb_disp_dftd4, only: dispgrad
+   use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
+   use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 
    use xtb_readin
 
@@ -104,8 +107,9 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    logical, intent(in)    :: restart
    logical, intent(in)    :: grd
    real(wp),intent(in)    :: acc
-   real(wp),intent(inout) :: eel
-   real(wp),intent(inout) :: g(3,mol%n)
+   real(wp),intent(inout) :: energy
+   real(wp),intent(inout) :: gradient(3,mol%n)
+   real(wp) :: sigma(3,3)
    type(scc_results),intent(out) :: res
    type(TxTBData), intent(in) :: xtbData
 
@@ -130,6 +134,9 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    real(wp),allocatable :: gam2sh(:, :)
    type(TxTBCoulomb) :: ies
    type(TKlopmanOhno) :: coulomb
+   real(wp), allocatable :: djdr(:, :, :)
+   real(wp), allocatable :: djdtr(:, :)
+   real(wp), allocatable :: djdL(:, :, :)
 !  AES stuff
    type(TxTBMultipole), allocatable :: aes
    real(wp),allocatable  :: dpint(:,:),qpint(:,:)
@@ -155,17 +162,19 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    integer,allocatable :: xblist(:,:)
    real(wp),allocatable :: sqrab(:)
    real(wp),allocatable :: dcndr(:,:,:)
+   real(wp),allocatable :: dcndL(:,:,:)
+   real(wp),allocatable :: trans(:,:)
 
    real(wp) :: dipol(3),dip,gsolv,eat,hlgap,efix
    real(wp) :: temp,xsum,eh1,rab,eold,dum,xx,r2
-   real(wp) :: t0,t1,sum,rr,scal,hav,alpha,ep,dx,dy,dz,dum1,r0i,r0j
+   real(wp) :: t0,t1,sum,rr,hav,alpha,ep,dx,dy,dz,dum1,r0i,r0j
    real(wp) :: efa,efb,nfoda,nfodb,hdii,hdjj,qconv,ff
    real(wp) :: x1,x2,ed,intcut,neglect,ga,gb,ehb,h0s,hmat,rab2
    real(wp) :: h0sr,scfconv,rmsq,dum2,drfdxyz(3),yy,tex,rav,tab,ljexp
    real(wp) :: ees,xa,xb,ya,yb,za,zb,repab,jmpol,kdampxb,vvxb,exb
-   real(wp) :: w2,xj,gi,gj,eatoms,neglect2,gnorm
+   real(wp) :: w2,xj,gi,gj,eatoms,neglect2
    real(wp) :: w0,w1,damp,damp0,gtmp(3),exc
-   real(wp) :: esave
+   real(wp) :: esave,eel
    real(wp) :: eaes,t6,t7,pi,epol,kexpe
    parameter (pi =  3.14159265358979_wp)
 
@@ -185,7 +194,7 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    type(TSolvent) :: gbsa
    real(wp),allocatable :: fgb(:,:)
    real(wp),allocatable :: fhb(:)
-   real(wp) :: gborn,tgb
+   real(wp) :: gborn,ghb
 !  for the CM5 charges
    real(wp),allocatable :: cm5a(:)
    real(wp),allocatable :: dcm5a(:,:,:)
@@ -270,7 +279,10 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    call qsh2qat(basis%ash,wfn%qsh,wfn%q)
 
 !  # atom arrays
-   allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2),dcndr(3,mol%n,mol%n),cn(mol%n))
+   allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2))
+   allocate(dcndr(3,mol%n,mol%n),cn(mol%n),dcndL(3,3,mol%n))
+   allocate(trans(3,1))
+   trans(:, :) = 0.0_wp
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
    if(lgbsa) then
@@ -467,14 +479,48 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    if (profile) call timer%measure(1)
    if (profile) call timer%measure(2,"Dispersion")
 
-   if ((gfn_method > 1).and.newdisp) then
+   ! ========================================================================
+   ! Coordination number
+   if (gfn_method == 1) then
+      ! D3 part first because we need CN
+      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
+   else
+      ! CN/dCN replaced by special smoother and faster decaying function
+      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
+   endif
+
+   ! ------------------------------------------------------------------------
+   ! dispersion (DFT-D type correction)
+   if (gfn_method == 1) then
+      call d3_gradient &
+         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, sqrtZr4r2, 60.0_wp, &
+         &  cn, dcndr, dcndL, ed, gradient, sigma)
+   else
       allocate(scD4)
       call init(scD4, xtbData%dispersion, mol)
    endif
 
    if (profile) call timer%measure(2)
+   if (profile) call timer%measure(6,"classical contributions")
+
+   ! ========================================================================
+   ! Halogen bond correction
+   exb=0.0_wp
+   if (allocated(xtbData%halogen)) then
+      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,xblist,nxb,&
+         & ljexp,exb,gradient)
+   end if
+
+   ! ------------------------------------------------------------------------
+   ! Repulsion energy
+   ep = 0.0_wp
+   call repulsionEnGrad(mol, xtbData%repulsion, ep, gradient, sigma)
+
+   if (profile) call timer%measure(6)
    if (profile) call timer%measure(3,"integral evaluation")
 
+   ! ========================================================================
+   ! Overlap integrals
    allocate(dpint(3,basis%nao*(basis%nao+1)/2), &
       &     qpint(6,basis%nao*(basis%nao+1)/2), &
       &     source = 0.0_wp)
@@ -482,14 +528,6 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at,basis%nbf, &
       & basis%nao,mol%xyz,neglect,ndp,nqp,intcut,basis%caoshell,basis%saoshell, &
       & basis%nprim,basis%primcount,basis%alp,basis%cont,S,dpint,qpint)
-
-   if (gfn_method > 1) then
-      ! CN/dCN replaced by special smoother and faster decaying function
-      call dncoord_gfn(mol%n,mol%at,mol%xyz,cn,dcndr)
-   else
-      ! D3 part first because we need CN
-      call dncoord_d3(mol%n,mol%at,mol%xyz,cn,dcndr)
-   endif
 
    ! prepare aes stuff
    if (allocated(xtbData%multipole)) then
@@ -508,9 +546,7 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
          & aes%quadDamp,radcn,aes%gab3,aes%gab5) ! zero damping
    end if
 
-   if (profile) call timer%measure(3)
-   if (profile) call timer%measure(1)
-
+   ! ------------------------------------------------------------------------
    ! prepare matrix indices
    nmat =0
    nmat2=0
@@ -540,24 +576,10 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
       ishell=mmm(basis%lao2(ii))
    enddo
 
-   if (profile) call timer%measure(1)
-   if (profile) call timer%measure(6,"classical contributions")
-
-   ! this is the classical part of the energy/gradient
-   ! dispersion/XB/repulsion for GFN1-xTB
-   ! only repulsion for GFN2-xTB
-   call cls_grad(mol,xtbData,nxb,ljexp,xblist, &
-      &          ed,exb,ep,g,prlevel)
-
-   if (profile) call timer%measure(6)
+   if (profile) call timer%measure(3)
    if (profile) call timer%measure(4,"zeroth order Hamiltonian")
 
-   if(pr)then
-      write(env%unit,'(a)')
-      write(env%unit,*) 'iter      E             dE          RMSdq', &
-      &'      gap      omega  full diag'
-   endif
-
+   ! ========================================================================
    ! do H0 once
    H0=0
    call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
@@ -569,7 +591,15 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,"iterations")
 
+   ! ========================================================================
    ! SCC iterations
+
+   if(pr)then
+      write(env%unit,'(a)')
+      write(env%unit,*) 'iter      E             dE          RMSdq', &
+      &'      gap      omega  full diag'
+   endif
+
    call scc(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &     mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &     wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
@@ -593,10 +623,7 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
       return
    end if
 
-   9999  continue
-
-! ------------------------------------------------------------------------
-!  check for convergence, only do this if printlevel is maximal (WHY?)
+   ! check for convergence, only do this if printlevel is maximal (WHY?)
    res % converged = .not. fail
    if (fail) then
       call env%warning("Self consistent charge iterator did not converge", source)
@@ -617,29 +644,56 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
       call timer%write_timing(env%unit,5,'SCC iter.')
    if (profile) call timer%measure(6,"molecular gradient")
 
-!  print'("Entering gradient calculation")'
-! ========================================================================
-!  GRADIENT (now 100% analytical (that's not true!))
-! ========================================================================
+   ! ========================================================================
+   ! GRADIENT (finally 100% analytical)
+   call scf_grad(mol, nmat2, matlist2, H0, ves, S, xtbData, trans, selfEnergy, &
+      & dSEdcn, sqrab, wfn, basis, intcut, aes, radcn, gradient, prlevel)
 
-   call scf_grad(mol,nmat2,matlist2, &
-        &        H0,ves,S,xtbData,selfEnergy,dSEdcn, &
-        &        sqrab,wfn,basis,coulomb, &
-        &        scD4,mbd, &
-        &        intcut, &
-        &        aes,radcn, &
-        &        lpcem,pcem, &
-        &        gbsa,gborn,fgb,fhb,cm5a,dcm5a,gsolv, &
-        &        eel,ed,embd, &
-        &        g,prlevel)
-!  print'("Finished gradient calculation")'
+   ! ------------------------------------------------------------------------
+   ! dispersion (DFT-D type correction)
+   if (allocated(scD4)) then
+      call dispgrad(mol%n, scD4%ndim, mol%at, wfn%q, mol%xyz, &
+         & xtbData%dispersion%dpar, scD4%wf, scD4%g_a, scD4%g_c, scD4%refC6, &
+         & mbd, gradient, embd)
+      embd = embd - ed
+   endif
 
-!  calculate the norm for printout
-   gnorm = sqrt(sum( g**2 ))
-! ========================================================================
-!  clear some space
-   if (gfn_method > 1) then
-      deallocate(radcn,mdlst,mqlst) !CBNEW
+   ! ------------------------------------------------------------------------
+   ! Solvation contributions from GBSA
+   if (lgbsa) then
+      if (gfn_method > 1) then
+         call compute_gb_egrad(gbsa, wfn%q, gborn, ghb, gradient, minpr)
+      else
+         cm5(:)=wfn%q+cm5a
+         call compute_gb_egrad(gbsa, cm5, gborn, ghb, gradient, minpr)
+         call cm5_grad_gfn1(gradient, mol%n, cm5, fgb, fhb, dcm5a, lhb)
+      endif
+!     solvation energy
+      gbsa%gborn = gborn
+      gbsa%ghb = ghb
+      gsolv = gborn+gbsa%gsasa+gbsa%ghb+gshift
+      eel = eel+gbsa%gsasa+gshift
+   endif
+
+   ! ------------------------------------------------------------------------
+   ! Derivative of electrostatic energy
+   allocate(djdr(3, mol%n, basis%nshell))
+   allocate(djdtr(3, basis%nshell))
+   allocate(djdL(3, 3, basis%nshell))
+   call coulomb%getCoulombDerivs(mol, wfn%qsh, djdr, djdtr, djdL)
+   call contract(djdr, wfn%qsh, gradient, beta=1.0_wp)
+   !call contract(djdL, wfn%qsh, sigma, beta=1.0_wp)
+
+   ! ------------------------------------------------------------------------
+   ! ES point charge embedding
+   if (lpcem) then
+      if (gfn_method == 1) then
+         call pcem_grad_gfn1(xtbData%coulomb,gradient,pcem%grd,mol%n,pcem,mol%at, &
+            & xtbData%nshell,mol%xyz,xtbData%coulomb%gExp,wfn%qsh)
+      else
+         call pcem_grad_gfn2(xtbData%coulomb,gradient,pcem%grd,mol%n,pcem,mol%at, &
+            & xtbData%nshell,mol%xyz,wfn%qsh)
+      endif
    endif
 
    if (profile) call timer%measure(6)
@@ -647,72 +701,68 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
       call timer%write_timing(env%unit,6,'gradient')
    if (profile) call timer%measure(7,"printout")
 
-! ========================================================================
-!  PROPERTIES & PRINTOUT
-! ========================================================================
+   ! ========================================================================
+   ! PROPERTIES & PRINTOUT
+
    printing: if (pr) then
-! ------------------------------------------------------------------------
-!     print orbital energies and occupation numbers
+      ! ---------------------------------------------------------------------
+      ! print orbital energies and occupation numbers
       if (pr_eig) then
-         !call preig(env%unit,wfn%focc,1.0_wp,wfn%emo, &
-                    !max(wfn%ihomoa-12,1),min(wfn%ihomoa+11,basis%nao))
-         call print_orbital_eigenvalues(env%unit,wfn,5)
+         call print_orbital_eigenvalues(env%unit, wfn, 5)
       endif
 
-! ------------------------------------------------------------------------
-!     HOMO-LUMO excitation properties if  UHF=2
+      ! ---------------------------------------------------------------------
+      ! HOMO-LUMO excitation properties if UHF=2
       if (wfn%nopen.eq.2) then
-         call hlex(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,wfn%focc,S,wfn%C,wfn%emo,basis)
+         call hlex(mol%n, mol%at, basis%nbf, basis%nao, wfn%ihomoa, mol%xyz, &
+            & wfn%focc, S, wfn%C, wfn%emo, basis)
       endif
 
-! ------------------------------------------------------------------------
-!     LMO /xTB-IFF
+      ! ---------------------------------------------------------------------
+      ! LMO /xTB-IFF
       if (pr_lmo) then
          tmp=wfn%emo*evtoau
-         call local(mol%n,mol%at,basis%nbf,basis%nao,wfn%ihomoa,mol%xyz,mol%z,wfn%focc,S,wfn%P,wfn%C,tmp,wfn%q,eel,lgbsa,basis)
+         call local(mol%n, mol%at, basis%nbf, basis%nao, wfn%ihomoa, mol%xyz, &
+            & mol%z, wfn%focc, S, wfn%P, wfn%C, tmp, wfn%q, eel, lgbsa, basis)
       endif
 
    endif printing
 
-! ------------------------------------------------------------------------
-!  get Wiberg bond orders
-   call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
+   ! ------------------------------------------------------------------------
+   ! get Wiberg bond orders
+   call get_wiberg(mol%n, basis%nao, mol%at, mol%xyz, wfn%P, S, wfn%wbo, &
+      & basis%fila2)
 
-! ------------------------------------------------------------------------
-!  dipole calculation (always done because its free)
+   ! ------------------------------------------------------------------------
+   ! dipole calculation (always done because its free)
    if (.not.allocated(xtbData%multipole)) then
       call mmompop(mol%n,basis%nao,basis%aoat2,mol%xyz,wfn%p,s,dpint,qpint, &
          &         wfn%dipm,wfn%qp)
    endif
-
    call calc_dipole(mol%n,mol%at,mol%xyz,mol%z,basis%nao,wfn%P,dpint,dip,dipol)
 
    if (profile) call timer%measure(7)
 
-!  END OF PROPERTY & PRINTOUT BLOCK
-! ========================================================================
 
-! ========================================================================
-!  SAVE FOR FINAL PRINTOUT
-! ========================================================================
-   dum=eel
-!  Etot
-   eel = eel + ep + exb + embd
-   eat = eatoms*evtoau - eel
+   ! ========================================================================
+   ! SAVE FOR FINAL PRINTOUT
+   ! total energy
+   energy = eel + ep + exb + embd
+   eat = eatoms*evtoau - energy
    if (.not.allocated(scD4)) then
-      eel = eel + ed
+      energy = energy + ed
    endif
-   res%e_elec  = dum
+   res%e_elec  = eel
    res%e_atom  = eat
    res%e_rep   = ep
    res%e_es    = ees
    res%e_aes   = eaes
    res%e_axc   = epol
    res%e_disp  = ed+embd
-   res%e_total = eel
+   res%e_total = energy
    res%hl_gap  = egap
    res%dipole  = dipol
-   if (allocated(xtbData%halogen)) res%e_xb   = exb
+   if (allocated(xtbData%halogen)) res%e_xb = exb
    if (lgbsa) then
       res%g_solv  = gsolv
       res%g_born  = gborn
@@ -720,7 +770,7 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
       res%g_hb    = gbsa%ghb
       res%g_shift = gshift
    endif
-   res%gnorm = norm2(g)
+   res%gnorm = norm2(gradient)
 
    if (profile.and.pr) call timer%write(env%unit,'SCC')
 
@@ -730,16 +780,9 @@ subroutine scf(env,mol,wfn,basis,pcem,xtbData, &
    call deallocate_gbsa(gbsa)
 end subroutine scf
 
-subroutine scf_grad(mol,nmat2,matlist2, &
-      &             H0,shellShift,S,xtbData,selfEnergy,dSEdcn, &
-      &             sqrab,wfn,basis,coulomb, &
-      &             scD4,mbd, &
-      &             intcut, &
-      &             aes,radcn, &
-      &             lpcem,pcem, &
-      &             gbsa,gborn,fgb,fhb,cm5a,dcm5a,gsolv, &
-      &             eel,ed,embd, &
-      &             g,printlvl)
+subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
+      & selfEnergy, dSEdcn, sqrab, wfn, basis, intcut, aes, radcn, gradient, &
+      & printlvl)
 
 ! ========================================================================
 !  type definitions
@@ -769,83 +812,57 @@ subroutine scf_grad(mol,nmat2,matlist2, &
    type(TWavefunction),intent(in) :: wfn
    type(TBasisset),    intent(in) :: basis
    type(TxTBData), intent(in) :: xtbData
-   class(TCoulomb), intent(inout) :: coulomb
    integer, intent(in)    :: nmat2
    integer,intent(in) :: matlist2(2,nmat2)
    real(wp),intent(in)    :: selfEnergy(:)
    real(wp),intent(in)    :: dSEdcn(:)
+   real(wp),intent(in) :: trans(:, :)
    real(wp),intent(in)    :: sqrab(:)
    real(wp),intent(inout) :: H0(basis%nao*(basis%nao+1)/2)
    real(wp),intent(in) :: shellShift(:)
-   real(wp),intent(inout) :: g(:, :)
+   real(wp),intent(inout) :: gradient(:, :)
    real(wp),intent(in)    :: S(basis%nao,basis%nao)
    type(TxTBMultipole), intent(in), optional :: aes
    real(wp),intent(in)    :: intcut
    real(wp),intent(in)    :: radcn(:)
-   type(TxTBDispersion), intent(in), optional :: scD4
-   integer, intent(in)    :: mbd
-   real(wp),intent(inout) :: ed
-   real(wp),intent(out)   :: embd
-   real(wp),intent(inout) :: eel
-   type(TSolvent),intent(inout) :: gbsa
-   real(wp),intent(inout) :: gborn
-   real(wp)               :: ghb
-   real(wp),intent(inout) :: gsolv
-   real(wp),intent(in)    :: cm5a(:)
-   real(wp),intent(in)    :: dcm5a(:,:,:)
-   real(wp),intent(inout) :: fgb(:,:)
-   real(wp),intent(inout) :: fhb(:)
-   type(tb_pcem),intent(inout) :: pcem
-   logical, intent(in)    :: lpcem
    integer, intent(in)    :: printlvl
 
    integer :: m,i,j,kk,ish,jsh
    real(wp) :: h1
    real(wp),allocatable :: qq(:)
-   real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: dcndr(:,:,:)
+   real(wp),allocatable :: cn(:), dcndr(:,:,:), dcndL(:,:,:)
    real(wp),allocatable :: X(:,:)
    real(wp),allocatable :: H(:,:)
    real(wp),allocatable :: vs(:),vd(:,:),vq(:,:)
-   real(wp), allocatable :: djdr(:, :, :)
-   real(wp), allocatable :: djdtr(:, :)
-   real(wp), allocatable :: djdL(:, :, :)
    logical :: pr,minpr
-
-!  print'("Entered gradient calculation")'
 
    minpr = printlvl.gt.0
    pr = printlvl.gt.1
 
-!  print'("Allocating local memory")'
    allocate( cn(mol%n), source = 0.0_wp )
    allocate( dcndr(3,mol%n,mol%n), source = 0.0_wp )
+   allocate( dcndL(3,3,mol%n), source = 0.0_wp )
    allocate( H(basis%nao,basis%nao), source = 0.0_wp )
    allocate( X(basis%nao,basis%nao), source = 0.0_wp )
-!  print'("Allocated local memory")'
 
 !  get energy weighted density matrix and convert from eV to Eh
-!  print'("Getting energy weighted density matrix")'
    call prep_grad_conv(basis%nao, H0, wfn%C, wfn%focc, wfn%emo, X)
 
 !  wave function terms
-!  print'("Calculating polynomial derivatives")'
-   call poly_grad(xtbData%hamiltonian, g, mol%n, mol%at, basis%nao, nmat2, &
+   call poly_grad(xtbData%hamiltonian, gradient, mol%n, mol%at, basis%nao, nmat2, &
       & matlist2, mol%xyz, sqrab, wfn%P, S, basis%aoat2, basis%lao2, H0)
 
-!  CN dependent part
-!  print'("Calculating CN dependent derivatives")'
-   if (gfn_method > 1) then
-      call dncoord_gfn(mol%n,mol%at,mol%xyz,cn,dcndr)
+   ! CN dependent part
+   if (gfn_method == 1) then
+      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
    else
-      call dncoord_d3(mol%n,mol%at,mol%xyz,cn,dcndr)
+      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
    endif
-   call hcn_grad(xtbData%hamiltonian, g, mol%n, mol%at, basis%nao, nmat2, &
+   call hcn_grad(xtbData%hamiltonian, gradient, mol%n, mol%at, basis%nao, nmat2, &
       & matlist2, mol%xyz, wfn%P, S, dcndr, selfEnergy, dSEdcn, &
       & basis%aoat2, basis%lao2, basis%valao2, basis%aoexp, basis%ao2sh)
 
 !  preccalc
-!  print'("Resetting the Hamiltonian")'
    do m=1,nmat2
       i=matlist2(1,m)
       j=matlist2(2,m)
@@ -858,7 +875,6 @@ subroutine scf_grad(mol,nmat2,matlist2, &
    enddo
 
 !  multipole gradient stuff
-!  print'("Calculating multipole gradient")'
    if (allocated(xtbData%multipole)) then
       allocate( vs(mol%n),vd(3,mol%n),vq(6,mol%n), source = 0.0_wp )
 !     VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
@@ -869,137 +885,25 @@ subroutine scf_grad(mol,nmat2,matlist2, &
       call ddqint(xtbData%nShell, xtbData%hamiltonian, intcut, mol%n, basis%nao, &
          & basis%nbf, mol%at, mol%xyz, basis%caoshell, basis%saoshell, &
          & basis%nprim, basis%primcount, basis%alp, basis%cont, wfn%p, &
-         & vs, vd, vq, H, g)
+         & vs, vd, vq, H, gradient)
 
 ! WARNING: dcndr is overwritten on output and now dR0A/dXC,
 !          and index i & j are flipped
       call dradcn(xtbData%multipole, mol%n, mol%at, cn, aes%cnShift, &
          & aes%cnExp, aes%cnRMax, dcndr)
       call aniso_grad(mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, wfn%qp, &
-         & aes%dipDamp, aes%quadDamp, radcn, dcndr, aes%gab3, aes%gab5, g)
+         & aes%dipDamp, aes%quadDamp, radcn, dcndr, aes%gab3, aes%gab5, gradient)
 
    else
 !     wave function terms 2/overlap dependent parts of H
       call dsint(xtbData%nShell, xtbData%hamiltonian, intcut, mol%n, basis%nao, &
          & basis%nbf, mol%at, mol%xyz, sqrab, basis%caoshell, basis%saoshell, &
-         & basis%nprim, basis%primcount, basis%alp, basis%cont, H, g)
+         & basis%nprim, basis%primcount, basis%alp, basis%cont, H, gradient)
    endif
 
-!  dispersion (DFT-D type correction)
-!  print'("Calculating dispersion gradient")'
-   if (present(scD4)) then
-      call dispgrad(mol%n, scD4%ndim, mol%at, wfn%q, mol%xyz, &
-         & xtbData%dispersion%dpar, scD4%wf, scD4%g_a, scD4%g_c, scD4%refC6, &
-         & mbd, g, embd)
-      embd = embd - ed
-   endif
-
-! GBSA
-! start GBSA gradient
-!  print'("Calculating GBSA gradient")'
-   if (lgbsa) then
-      if (gfn_method > 1) then
-         call compute_gb_egrad(gbsa, wfn%q, gborn, ghb, g, minpr)
-      else
-         allocate( qq(mol%n), source = wfn%q )
-         qq=qq+cm5a
-         call compute_gb_egrad(gbsa, qq, gborn, ghb, g, minpr)
-         call cm5_grad_gfn1(g, mol%n, qq, fgb, fhb, dcm5a, lhb)
-      endif
-!     solvation energy
-      gbsa%gborn = gborn
-      gbsa%ghb = ghb
-      gsolv = gborn+gbsa%gsasa+gbsa%ghb+gshift
-      eel = eel+gbsa%gsasa+gshift
-   endif
-
-   ! Derivative of electrostatic energy
-   allocate(djdr(3, mol%n, basis%nshell))
-   allocate(djdtr(3, basis%nshell))
-   allocate(djdL(3, 3, basis%nshell))
-   call coulomb%getCoulombDerivs(mol, wfn%qsh, djdr, djdtr, djdL)
-   call contract(djdr, wfn%qsh, g, beta=1.0_wp)
-   !call contract(djdL, wfn%qsh, sigma, beta=1.0_wp)
-
-! --- ES point charge embedding
-!  print'("Calculating embedding gradient")'
-   if (lpcem) then
-      if (gfn_method == 1) then
-         call pcem_grad_gfn1(xtbData%coulomb,g,pcem%grd,mol%n,pcem,mol%at, &
-            & xtbData%nshell,mol%xyz,xtbData%coulomb%gExp,wfn%qsh)
-      else
-         call pcem_grad_gfn2(xtbData%coulomb,g,pcem%grd,mol%n,pcem,mol%at, &
-            & xtbData%nshell,mol%xyz,wfn%qsh)
-      endif
-   endif
-
-!  print'("Finished in gradient subroutine")'
 
 end subroutine scf_grad
 
-subroutine cls_grad(mol,xtbData,nxb,ljexp,xblist,ed,exb,ep,g,printlvl)
-
-! ========================================================================
-!  type definitions
-   use xtb_type_param
-
-! ========================================================================
-!  global storage
-   use xtb_setparam
-
-! ========================================================================
-!  interfaces
-   use xtb_scc_core
-   use xtb_grad_core
-
-   implicit none
-
-   type(TMolecule), intent(in) :: mol
-   type(TxTBData), intent(in) :: xtbData
-   real(wp),intent(inout) :: g(:,:)
-   real(wp),intent(inout) :: ed
-   integer, intent(in)    :: nxb
-   integer, intent(in)    :: xblist(:,:)
-   real(wp),intent(in)    :: ljexp
-   real(wp),intent(inout) :: exb
-   real(wp),intent(inout) :: ep
-   integer, intent(in)    :: printlvl
-   real(wp) :: sigma(3,3)
-
-   real(wp),allocatable :: cn(:)
-   real(wp),allocatable :: dcndr(:,:,:)
-   logical :: pr,minpr
-
-!  print'("Entered gradient calculation")'
-
-   minpr = printlvl.gt.0
-   pr = printlvl.gt.1
-
-!  print'("Allocating local memory")'
-   allocate( cn(mol%n), source = 0.0_wp )
-   allocate( dcndr(3,mol%n,mol%n), source = 0.0_wp )
-
-!  dispersion (DFT-D type correction)
-!  print'("Calculating dispersion gradient")'
-   if (gfn_method == 1) then
-      call gdisp(mol%n,mol%at,mol%xyz,xtbData%dispersion%dpar%a1, &
-         &  xtbData%dispersion%dpar%a2,xtbData%dispersion%dpar%s8, &
-         &  xtbData%dispersion%dpar%s9,ed,g,cn,dcndr)
-   endif
-
-! XB or gCP ----------------------------------------------------
-!  print'("Calculating xbond gradient")'
-   exb=0.0_wp
-   if (allocated(xtbData%halogen)) then
-      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,xblist,nxb,&
-         & ljexp,exb,g)
-   end if
-
-!  print'("Calculating shell es and repulsion gradient")'
-   ep = 0.0_wp
-   call repulsionEnGrad(mol, xtbData%repulsion, ep, g, sigma)
-
-end subroutine cls_grad
 
 pure elemental function early3d(i) result(bool)
    implicit none
@@ -1009,10 +913,9 @@ pure elemental function early3d(i) result(bool)
    if ((i.ge.21).and.(i.le.24)) bool = .true.
 end function early3d
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-! X..Y bond? (X=halogen but not F, Y=N,O,P,S) !CB: Cl is formally included, but
-! has a parater of zero in GFN1-xTB
 
+!> X..Y bond? (X=halogen but not F, Y=N,O,P,S) !CB: Cl is formally included, but
+!  has a parameter of zero in GFN1-xTB
 pure elemental function xbond(ati,atj) result(bool)
    integer,intent(in) :: ati,atj
    logical :: bool
@@ -1033,5 +936,6 @@ pure elemental function xbond(ati,atj) result(bool)
    if(lx2.and.ly1) bool=.true.
 
 end function xbond
+
 
 end module xtb_scf

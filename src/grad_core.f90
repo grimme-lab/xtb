@@ -197,17 +197,8 @@ subroutine hcn_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
 !$omp end parallel
 
 
-!  CN-level shift gradient
-!$omp parallel default(none) &
-!$omp shared(n,dcndr,hcn) &
-!$omp private(i,gtmp) shared ( g )
-!$omp do
-   do i=1,n
-      call gemv('n',3,n,1.0d0,dcndr(:,:,i),3,hcn,1,0.0d0,gtmp,1)
-      g(1:3,i)=g(1:3,i)+gtmp(1:3)
-   enddo
-!$omp end do
-!$omp end parallel
+   ! CN-level shift gradient
+   call contract(dcndr, hcn, g, beta=1.0_wp)
 
 end subroutine hcn_grad
 

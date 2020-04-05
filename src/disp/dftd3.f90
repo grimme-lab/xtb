@@ -95,6 +95,7 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
 
 end subroutine weight_references
 
+
 !> calculate atomic dispersion coefficients and their derivatives w.r.t.
 !  the coordination number.
 subroutine get_atomic_c6(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
@@ -139,6 +140,7 @@ subroutine get_atomic_c6(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
       end do
    end do
 end subroutine get_atomic_c6
+
 
 subroutine d3_gradient_latp &
       & (mol, trans, par, weighting_factor, r4r2, cutoff, &
@@ -230,12 +232,13 @@ subroutine d3_gradient_latp &
    end do
    !$omp end parallel do
 
-   call dgemv('n', 3*nat, nat,-1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
+   call dgemv('n', 3*nat, nat, 1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
    call dgemv('n', 9, nat, 1.0_wp, dcndL, 9, dEdcn, 1, 1.0_wp, sigma, 1)
 
    energy = sum(energies)
 
 end subroutine d3_gradient_latp
+
 
 subroutine d3_gradient_neigh &
       & (mol, neighs, neighlist, par, weighting_factor, r4r2, &
@@ -324,18 +327,20 @@ subroutine d3_gradient_neigh &
    enddo
    !$omp end parallel do
 
-   call dgemv('n', 3*nat, nat,-1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
+   call dgemv('n', 3*nat, nat, 1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
    call dgemv('n', 9, nat, 1.0_wp, dcndL, 9, dEdcn, 1, 1.0_wp, sigma, 1)
 
    energy = sum(energies)
 
 end subroutine d3_gradient_neigh
 
+
 real(wp) pure elemental function weight_cn(wf,cn,cnref) result(cngw)
    real(wp),intent(in) :: wf, cn, cnref
    intrinsic :: exp
    cngw = exp ( -wf * ( cn - cnref )**2 )
 end function weight_cn
+
 
 real(wp) pure elemental function pair_scale(iat, jat) result(scale)
    integer, intent(in) :: iat, jat

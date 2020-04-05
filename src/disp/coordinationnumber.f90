@@ -196,7 +196,7 @@ subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
       do ij = 1, neighs(iat)
          img = neighlist%iNeigh(ij, iat)
          r2 = neighlist%dist2(ij, iat)
-         rij = -neighlist%coords(:, iat) + neighlist%coords(:, img) ! FIXME
+         rij = neighlist%coords(:, iat) - neighlist%coords(:, img)
          jat = neighlist%image(img)
          atj = mol%at(jat)
          r1 = sqrt(r2)
@@ -347,7 +347,7 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
          end if
 
          do itr = 1, size(trans, dim=2)
-            rij = -mol%xyz(:, iat) + mol%xyz(:, jat) + trans(:, itr)
+            rij = mol%xyz(:, iat) - (mol%xyz(:, jat) + trans(:, itr))
             r2 = sum(rij**2)
             if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
             r1 = sqrt(r2)
