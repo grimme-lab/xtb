@@ -27,7 +27,20 @@ module xtb_xtb_data
    public :: TxTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
    public :: THalogenData, TMultipoleData, TShortRangeData
+   public :: newData, getData
    public :: generateValenceShellData, angToShellData
+
+
+   interface newData
+      module procedure :: newAtomicData
+      module procedure :: newShellData
+   end interface newData
+
+
+   interface getData
+      module procedure :: getAtomicData
+      module procedure :: getShellData
+   end interface getData
 
 
    !> Data for the dispersion contribution
@@ -676,6 +689,77 @@ subroutine angToShellData(kDat, nShell, angShell, angDat)
    end do
 
 end subroutine angToShellData
+
+
+subroutine newAtomicData(vec, num, data)
+
+   real(wp), allocatable, intent(out) :: vec(:)
+
+   integer, intent(in) :: num(:)
+
+   real(wp), intent(in) :: data(:)
+
+   allocate(vec(size(num)))
+   call getAtomicData(vec, num, data)
+
+end subroutine newAtomicData
+
+
+subroutine getAtomicData(vec, num, data)
+
+   real(wp), intent(out) :: vec(:)
+
+   integer, intent(in) :: num(:)
+
+   real(wp), intent(in) :: data(:)
+
+   integer :: ii, izp
+
+   do ii = 1, size(vec, dim=1)
+      izp = num(ii)
+      vec(ii) = data(izp)
+   end do
+
+end subroutine getAtomicData
+
+
+subroutine newShellData(vec, num, nshell, data)
+
+   real(wp), allocatable, intent(out) :: vec(:, :)
+
+   integer, intent(in) :: num(:)
+
+   integer, intent(in) :: nshell(:)
+
+   real(wp), intent(in) :: data(:, :)
+
+   allocate(vec(maxval(nshell), size(num)))
+   call getShellData(vec, num, nshell, data)
+
+end subroutine newShellData
+
+
+subroutine getShellData(vec, num, nshell, data)
+
+   real(wp), intent(out) :: vec(:, :)
+
+   integer, intent(in) :: num(:)
+
+   integer, intent(in) :: nshell(:)
+
+   real(wp), intent(in) :: data(:, :)
+
+   integer :: ii, ish, izp
+
+   vec(:, :) = 0.0_wp
+   do ii = 1, size(vec, dim=2)
+      izp = num(ii)
+      do ish = 1, nshell(izp)
+         vec(ish, ii) = data(ish, izp)
+      end do
+   end do
+
+end subroutine getShellData
 
 
 end module xtb_xtb_data

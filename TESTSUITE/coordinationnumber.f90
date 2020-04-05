@@ -1,22 +1,13 @@
-subroutine test_dftd3_pbc3d_neighbourlist
-   use xtb_mctc_accuracy, only : wp
+subroutine test_ncoord_pbc3d_latticepoints
    use assertion
-
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
-
+   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
    use xtb_type_latticepoint, only : TLatticePoint, init
-   use xtb_type_param, only : dftd_parameter
-
-   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
-   use xtb_disp_dftd3, only : d3_gradient
-   use xtb_disp_dftd3param, only : copy_c6, reference_c6
-   use xtb_param_sqrtzr4r2, only : sqrtZr4r2
-
    implicit none
-
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
@@ -59,82 +50,82 @@ subroutine test_dftd3_pbc3d_neighbourlist
       & 0.0462076831749_wp,    6.6435057067500_wp,    0.1670513770770_wp,  &
       & 0.2262248220170_wp,   -0.9573234940220_wp,    6.7608039126200_wp], &
       & shape(lattice)) * aatoau
-   type(dftd_parameter),parameter :: dparam_pbe = dftd_parameter ( &
-      & s6=1.0_wp, s8=0.95948085_wp, a1=0.38574991_wp, a2=4.80688534_wp, s9=0.0_wp)
 
    type(TMolecule) :: mol
    type(TEnvironment) :: env
    type(TLatticePoint) :: latp
-   type(TNeighbourlist) :: neighList
 
-   integer, allocatable :: neighs(:)
    real(wp), allocatable :: trans(:, :)
-
-   real(wp) :: energy, sigma(3, 3)
-   real(wp), allocatable :: gradient(:, :)
    real(wp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
 
    call init(env)
 
    call init(mol, at, xyz, lattice=lattice)
 
-   if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
-   allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
-   allocate(gradient(3, nat))
 
-   energy = 0.0_wp
-   gradient(:, :) = 0.0_wp
-   sigma(:, :) = 0.0_wp
+   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
+   call latp%getLatticePoints(trans, 40.0_wp)
 
-   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
-   call latp%getLatticePoints(trans, 60.0_wp)
-   call init(neighList, len(mol))
-   call neighList%generate(env, mol%xyz, 60.0_wp, trans, .false.)
-
-   call neighlist%getNeighs(neighs, 40.0_wp)
-   call getCoordinationNumber(mol, neighs, neighList, cnType%exp, &
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, &
       & cn, dcndr, dcndL)
-   call neighlist%getNeighs(neighs, 60.0_wp)
-   call d3_gradient(mol, neighs, neighList, dparam_pbe, 4.0_wp, sqrtZr4r2, &
-      & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call assert_close(energy, -0.70956131647955E-01_wp, thr)
-   call assert_close(norm2(gradient), 0.80967207004742E-03_wp, thr)
+   call assert_close(cn( 1), 1.0644889257925_wp, thr)
+   call assert_close(cn( 2), 1.0631767469669_wp, thr)
+   call assert_close(cn(11), 3.1006970695816_wp, thr)
+   call assert_close(cn(18), 1.0075732171735_wp, thr)
+   call assert_close(cn(19), 1.0059732047433_wp, thr)
+   call assert_close(cn(26), 1.0076129647756_wp, thr)
+   call assert_close(norm2(dcndr), 1.0111771304250_wp, thr)
 
-   call assert_close(gradient(1, 3), -0.36750795547191E-04_wp, thr)
-   call assert_close(gradient(2, 7),  0.97188478756351E-04_wp, thr)
-   call assert_close(gradient(3,12), -0.46581766272258E-04_wp, thr)
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, &
+      & cn, dcndr, dcndL)
 
-   call assert_close(sigma(1,1),  0.75334721374086E-01_wp, thr)
-   call assert_close(sigma(2,1), -0.62270444669135E-05_wp, thr)
-   call assert_close(sigma(3,2),  0.23549303643349E-03_wp, thr)
+   call assert_close(cn( 4), 1.0017771035280_wp, thr)
+   call assert_close(cn( 8), 3.9823122257845_wp, thr)
+   call assert_close(cn(12), 3.9825267700108_wp, thr)
+   call assert_close(cn(14), 2.9944763199487_wp, thr)
+   call assert_close(cn(15), 3.9804643916712_wp, thr)
+   call assert_close(cn(16), 3.9809919526339_wp, thr)
+   call assert_close(cn(31), 0.9937992456497_wp, thr)
+   call assert_close(norm2(dcndr), 0.56981134655575_wp, thr)
+
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
+      & cn, dcndr, dcndL)
+
+   call assert_close(cn( 9), 3.8048129507609_wp, thr)
+   call assert_close(cn(13), 3.8069332740701_wp, thr)
+   call assert_close(cn(20), 0.9239504636072_wp, thr)
+   call assert_close(cn(21), 0.9245161490576_wp, thr)
+   call assert_close(cn(22), 0.9236911432582_wp, thr)
+   call assert_close(cn(30), 0.9241833212868_wp, thr)
+   call assert_close(norm2(dcndr), 0.53663107191832_wp, thr)
+
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, &
+      & cn, dcndr, dcndL)
+
+   call assert_close(cn( 3), 1.1819234421527_wp, thr)
+   call assert_close(cn( 5), 4.2453004956734_wp, thr)
+   call assert_close(cn(10), 3.3142686980438_wp, thr)
+   call assert_close(cn(23), 1.0257176118018_wp, thr)
+   call assert_close(cn(24), 1.0254266219049_wp, thr)
+   call assert_close(cn(32), 1.0249293241088_wp, thr)
+   call assert_close(norm2(dcndr), 2.9659913317090_wp, thr)
 
    call terminate(afail)
+end subroutine test_ncoord_pbc3d_latticepoints
 
-end subroutine test_dftd3_pbc3d_neighbourlist
 
-
-subroutine test_dftd3_pbc3d_latticepoints
-   use xtb_mctc_accuracy, only : wp
+subroutine test_ncoord_pbc3d_neighbourlist
    use assertion
-
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
-
+   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
    use xtb_type_latticepoint, only : TLatticePoint, init
-   use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
-   use xtb_type_param, only : dftd_parameter
-
-   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
-   use xtb_disp_dftd3, only : d3_gradient
-   use xtb_disp_dftd3param, only : copy_c6, reference_c6
-   use xtb_param_sqrtzr4r2, only : sqrtZr4r2
-
    implicit none
-
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
@@ -177,8 +168,6 @@ subroutine test_dftd3_pbc3d_latticepoints
       & 0.0462076831749_wp,    6.6435057067500_wp,    0.1670513770770_wp,  &
       & 0.2262248220170_wp,   -0.9573234940220_wp,    6.7608039126200_wp], &
       & shape(lattice)) * aatoau
-   type(dftd_parameter),parameter :: dparam_pbe = dftd_parameter ( &
-      & s6=1.0_wp, s8=0.95948085_wp, a1=0.38574991_wp, a2=4.80688534_wp, s9=0.0_wp)
 
    type(TMolecule) :: mol
    type(TEnvironment) :: env
@@ -187,25 +176,16 @@ subroutine test_dftd3_pbc3d_latticepoints
 
    integer, allocatable :: neighs(:)
    real(wp), allocatable :: trans(:, :)
-
-   real(wp) :: energy, sigma(3, 3)
-   real(wp), allocatable :: gradient(:, :)
    real(wp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
 
    call init(env)
 
    call init(mol, at, xyz, lattice=lattice)
 
-   if (.not.allocated(reference_c6)) call copy_c6(reference_c6)
    allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
-   allocate(gradient(3, nat))
 
-   energy = 0.0_wp
-   gradient(:, :) = 0.0_wp
-   sigma(:, :) = 0.0_wp
-
-   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 40.0_wp)
    call init(neighList, len(mol))
    call neighList%generate(env, mol%xyz, 40.0_wp, trans, .false.)
@@ -213,21 +193,48 @@ subroutine test_dftd3_pbc3d_latticepoints
    call neighlist%getNeighs(neighs, 40.0_wp)
    call getCoordinationNumber(mol, neighs, neighList, cnType%exp, &
       & cn, dcndr, dcndL)
-   call latp%getLatticePoints(trans, 60.0_wp)
-   call d3_gradient(mol, trans, dparam_pbe, 4.0_wp, sqrtZr4r2, 60.0_wp, &
-      & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call assert_close(energy, -0.70957467834973E-01_wp, thr)
-   call assert_close(norm2(gradient), 0.80953440515160E-03_wp, thr)
+   call assert_close(cn( 1), 1.0644889257925_wp, thr)
+   call assert_close(cn( 2), 1.0631767469669_wp, thr)
+   call assert_close(cn(11), 3.1006970695816_wp, thr)
+   call assert_close(cn(18), 1.0075732171735_wp, thr)
+   call assert_close(cn(19), 1.0059732047433_wp, thr)
+   call assert_close(cn(26), 1.0076129647756_wp, thr)
+   call assert_close(norm2(dcndr), 1.0111771304250_wp, thr)
 
-   call assert_close(gradient(1, 3), -0.36750229627472E-04_wp, thr)
-   call assert_close(gradient(2, 7),  0.97133121226048E-04_wp, thr)
-   call assert_close(gradient(3,12), -0.46580608745602E-04_wp, thr)
+   call getCoordinationNumber(mol, neighs, neighList, cnType%erf, &
+      & cn, dcndr, dcndL)
 
-   call assert_close(sigma(1,1),  0.75336316933972E-01_wp, thr)
-   call assert_close(sigma(2,1), -0.61981535450274E-05_wp, thr)
-   call assert_close(sigma(3,2),  0.23588761667468E-03_wp, thr)
+   call assert_close(cn( 4), 1.0017771035280_wp, thr)
+   call assert_close(cn( 8), 3.9823122257845_wp, thr)
+   call assert_close(cn(12), 3.9825267700108_wp, thr)
+   call assert_close(cn(14), 2.9944763199487_wp, thr)
+   call assert_close(cn(15), 3.9804643916712_wp, thr)
+   call assert_close(cn(16), 3.9809919526339_wp, thr)
+   call assert_close(cn(31), 0.9937992456497_wp, thr)
+   call assert_close(norm2(dcndr), 0.56981134655575_wp, thr)
+
+   call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
+      & cn, dcndr, dcndL)
+
+   call assert_close(cn( 9), 3.8048129507609_wp, thr)
+   call assert_close(cn(13), 3.8069332740701_wp, thr)
+   call assert_close(cn(20), 0.9239504636072_wp, thr)
+   call assert_close(cn(21), 0.9245161490576_wp, thr)
+   call assert_close(cn(22), 0.9236911432582_wp, thr)
+   call assert_close(cn(30), 0.9241833212868_wp, thr)
+   call assert_close(norm2(dcndr), 0.53663107191832_wp, thr)
+
+   call getCoordinationNumber(mol, neighs, neighList, cnType%gfn, &
+      & cn, dcndr, dcndL)
+
+   call assert_close(cn( 3), 1.1819234421527_wp, thr)
+   call assert_close(cn( 5), 4.2453004956734_wp, thr)
+   call assert_close(cn(10), 3.3142686980438_wp, thr)
+   call assert_close(cn(23), 1.0257176118018_wp, thr)
+   call assert_close(cn(24), 1.0254266219049_wp, thr)
+   call assert_close(cn(32), 1.0249293241088_wp, thr)
+   call assert_close(norm2(dcndr), 2.9659913317090_wp, thr)
 
    call terminate(afail)
-
-end subroutine test_dftd3_pbc3d_latticepoints
+end subroutine test_ncoord_pbc3d_neighbourlist

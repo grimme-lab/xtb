@@ -40,6 +40,11 @@ program peeq_tester
    call rdarg(2,sec)
 
    select case(arg)
+   case('ncoord')
+      select case(sec)
+      case('pbc3dneighs'); call test_ncoord_pbc3d_neighbourlist
+      case('pbc3dlatp'); call test_ncoord_pbc3d_latticepoints
+      end select
    case('coulomb')
       select case(sec)
       case('point_0d'); call test_coulomb_point_cluster

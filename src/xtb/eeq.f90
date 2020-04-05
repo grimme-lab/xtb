@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Implementation of the electronegativity equilibration model
 module xtb_xtb_eeq
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la

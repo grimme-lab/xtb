@@ -303,6 +303,7 @@ set(XTB_SOURCES
 
 set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/assertion.f90"
+  "${XTB_ROOT}/TESTSUITE/coordinationnumber.f90"
   "${XTB_ROOT}/TESTSUITE/coulomb.f90"
   "${XTB_ROOT}/TESTSUITE/dftd3.f90"
   "${XTB_ROOT}/TESTSUITE/dftd4.f90"

@@ -15,14 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!! ========================================================================
-!  GENERAL FUNCTIONS FOR CORE FUNCTIONALITIES OF THE SCC
-!! ------------------------------------------------------------------------
-!  GFN1:
-!  -> build_h0_gfn1
-!  GFN2:
-!  -> build_h0_gfn2
-!! ========================================================================
+!> general functions for core functionalities of the SCC
 module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
@@ -35,10 +28,20 @@ module xtb_scc_core
    use xtb_xtb_multipole
    use xtb_broyden
    implicit none
+   private
+
+   public :: getSelfEnergy, build_h0, scc, electro, electro_gbsa, solve, solve4
+   public :: fermismear, occ, occu, dmat
+   public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
+   public :: iniqshell, setzshell
+   public :: shellPoly, h0scal
+
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
+
 contains
+
 
 subroutine getSelfEnergy(hData, nShell, at, cn, qat, selfEnergy, dSEdcn, dSEdq)
    type(THamiltonianData), intent(in) :: hData
@@ -168,11 +171,9 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
 
 end subroutine build_h0
 
-!! ========================================================================
-!  build GFN1 Fockian
-!! ========================================================================
+!> build isotropic H1/Fockian
 subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
-      & H1, H0, S, shellShift, aoat2, ao2sh)
+      & H0, S, shellShift, aoat2, ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_solv_gbobc, only : lgbsa
    integer, intent(in)  :: n
@@ -187,16 +188,14 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
    real(wp),intent(out) :: H(ndim,ndim)
-   real(wp),intent(out) :: H1(ndim*(1+ndim)/2)
 
    integer  :: m,i,j,k
    integer  :: ishell,jshell
    integer  :: ii,jj,kk
    real(wp) :: dum
-   real(wp) :: eh1,t8,t9,tgb
+   real(wp) :: eh1,t8,t9,tgb,h1
 
    H = 0.0_wp
-   H1 = 0.0_wp
 
    do m = 1, nmat
       i = matlist(1,m)
@@ -204,24 +203,16 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
       k = j+i*(i-1)/2
       ishell = ao2sh(i)
       jshell = ao2sh(j)
-      dum = S(j,i)
-!     SCC terms
-!     2nd order ES term (optional: including point charge potential)
+      ! SCC terms
       eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
-!     3rd order and set-up of H
-      ii = aoat2(i)
-      jj = aoat2(j)
-      dum = S(j,i)
-      H1(k) = -dum*eh1*0.5_wp
-      H(j,i) = H0(k)+H1(k)
+      H1 = -S(j,i)*eh1*0.5_wp
+      H(j,i) = H0(k) + H1
       H(i,j) = H(j,i)
    enddo
 
 end subroutine buildIsotropicH1
 
-!! ========================================================================
-!  build GFN1 Fockian
-!! ========================================================================
+!> build anisotropic H1/Fockian
 subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
@@ -251,9 +242,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
 
-! --- set up of Fock matrix
-!  overlap dependent terms
-!  on purpose, vs is NOT added to H1 (gradient is calculated separately)
+   !> overlap dependent terms
    do m=1,nmat
       i=matlist(1,m)
       j=matlist(2,m)
@@ -261,12 +250,27 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       ii=aoat2(i)
       jj=aoat2(j)
       dum=S(j,i)
-!     CAMM potential
+      ! CAMM potential
       eh1=0.50d0*dum*(vs(ii)+vs(jj))*autoev
       H(j,i)=H(j,i)+eh1
       H(i,j)=H(j,i)
    enddo
-!  quadrupole-dependent terms
+   !> dipolar terms
+   do m=1,ndp
+      i=mdlst(1,m)
+      j=mdlst(2,m)
+      k=lin(j,i)
+      ii=aoat2(i)
+      jj=aoat2(j)
+      eh1=0.0d0
+      do l=1,3
+         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
+      enddo
+      eh1=0.50d0*eh1*autoev
+      H(i,j)=H(i,j)+eh1
+      H(j,i)=H(i,j)
+   enddo
+   !> quadrupole-dependent terms
    do m=1,nqp
       i=mqlst(1,m)
       j=mqlst(2,m)
@@ -280,25 +284,6 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+qpint(l,k)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
-!     purposely, do NOT add dip/qpole-int terms onto H1
-!     (due to gradient computation later on)
-      H(i,j)=H(i,j)+eh1
-      H(j,i)=H(i,j)
-   enddo
-!  dipolar terms
-   do m=1,ndp
-      i=mdlst(1,m)
-      j=mdlst(2,m)
-      k=lin(j,i)
-      ii=aoat2(i)
-      jj=aoat2(j)
-      eh1=0.0d0
-      do l=1,3
-         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
-      enddo
-      eh1=0.50d0*eh1*autoev
-!     purposely, do NOT add dip/qpole-int terms onto H1
-!     (due to gradient computation later on)
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
@@ -306,9 +291,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
 end subroutine addAnisotropicH1
 
 
-!! ========================================================================
-!  self consistent charge iterator for GFN2 Hamiltonian
-!! ========================================================================
+!> self consistent charge iterator
 subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
       &        q,dipm,qp,qq,qlmom,qsh,zsh, &
@@ -319,7 +302,7 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        pcem,shellShift,externShift, &
       &        et,focc,focca,foccb,efa,efb, &
       &        eel,ees,eaes,epol,ed,epcem,egap,emo,ihomo,ihomoa,ihomob, &
-      &        H0,H1,H,S,dpint,qpint,X,P,ies, &
+      &        H0,H,S,dpint,qpint,X,P,ies, &
       &        maxiter,startpdiag,scfconv,qconv, &
       &        minpr,pr, &
       &        fail,jter)
@@ -435,7 +418,6 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer, intent(inout) :: ihomob
 !! ------------------------------------------------------------------------
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
-   real(wp),intent(out)   :: H1(ndim*(ndim+1)/2)
    real(wp),intent(out)   :: H(ndim,ndim)
    real(wp),intent(inout) :: P(ndim,ndim)
    real(wp),intent(inout) :: X(ndim,ndim)
@@ -507,7 +489,7 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call addToShellShift(ash, atomicShift, shellShift)
 
    ! build the charge dependent Hamiltonian
-   call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H1,H0,S, &
+   call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
       & shellShift,aoat2,ao2sh)
    if (present(aes)) then
       call addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
@@ -692,9 +674,8 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
 end subroutine scc
 
-!! ========================================================================
-!  H0 off-diag scaling
-!! ========================================================================
+
+!> H0 off-diag scaling
 subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj,km)
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: n
@@ -738,6 +719,7 @@ subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj,km)
 
 
 end subroutine h0scal
+
 
 !! ========================================================================
 !  total energy for GFN1
@@ -833,6 +815,7 @@ pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
    scc = scc + es + ehb
 
 end subroutine electro_gbsa
+
 
 !! ========================================================================
 !  S(R) enhancement factor
@@ -1008,6 +991,7 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 
 end subroutine solve4
 
+
 !! ========================================================================
 !  eigenvalue solver
 !! ========================================================================
@@ -1089,6 +1073,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 
 end subroutine solve
 
+
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use xtb_mctc_convert, only : autoev
    use xtb_mctc_constants, only : kB
@@ -1153,6 +1138,7 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 
 end subroutine fermismear
 
+
 subroutine occ(ndim,nel,nopen,ihomo,focc)
    integer  :: nel
    integer  :: nopen
@@ -1196,6 +1182,7 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
    enddo
 
 end subroutine occ
+
 
 subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
    integer  :: nel
@@ -1258,13 +1245,10 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
 end subroutine occu
 
 
-!ccccccccccccccccccccccccccccccccccccccccccccc
-! density matrix
+!> density matrix
 ! C: MO coefficient
 ! X: scratch
 ! P  dmat
-!ccccccccccccccccccccccccccccccccccccccccccccc
-
 subroutine dmat(ndim,focc,C,P)
    use xtb_mctc_la, only : gemm
    integer, intent(in)  :: ndim
@@ -1286,6 +1270,7 @@ subroutine dmat(ndim,focc,C,P)
    deallocate(Ptmp)
 
 end subroutine dmat
+
 
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    use xtb_mctc_la, only : gemm
@@ -1322,10 +1307,8 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
 
 end subroutine get_wiberg
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop + AO pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop + AO pop
 subroutine mpopall(n,nao,aoat,S,P,qao,q)
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
@@ -1353,10 +1336,8 @@ subroutine mpopall(n,nao,aoat,S,P,qao,q)
 
 end subroutine mpopall
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop
 subroutine mpop0(n,nao,aoat,S,P,q)
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
@@ -1380,10 +1361,8 @@ subroutine mpop0(n,nao,aoat,S,P,q)
 
 end subroutine mpop0
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken AO pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken AO pop
 subroutine mpopao(n,nao,S,P,qao)
    integer nao,n
    real(wp)  S (nao,nao)
@@ -1405,10 +1384,8 @@ subroutine mpopao(n,nao,S,P,qao)
 
 end subroutine mpopao
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop
 subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  S (nao,nao)
@@ -1440,10 +1417,8 @@ subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
 
 end subroutine mpop
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop shell wise
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop shell wise
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
@@ -1467,6 +1442,7 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
 
 end subroutine mpopsh
 
+
 subroutine qsh2qat(ash,qsh,qat)
    integer, intent(in) :: ash(:)
    real(wp), intent(in) :: qsh(:)
@@ -1482,10 +1458,7 @@ subroutine qsh2qat(ash,qsh,qat)
 end subroutine qsh2qat
 
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Loewdin pop
-!cccccccccccccccccccccccccccccccccccccccc
-
+!> Loewdin pop
 subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  C (nao,nao)
@@ -1511,10 +1484,8 @@ subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
 
 end subroutine lpop
 
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c atomic valence shell pops and total atomic energy
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
+!> atomic valence shell pops and total atomic energy
 subroutine iniqshell(xtbData,n,at,z,nshell,q,qsh,gfn_method)
    type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
@@ -1584,6 +1555,5 @@ subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
 
 end subroutine setzshell
 
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 end module xtb_scc_core

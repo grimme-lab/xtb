@@ -37,11 +37,10 @@ contains
 !  convert H0/H1 from eV to Eh and calculate the energy weighted density
 !  matrix
 !! ========================================================================
-subroutine prep_grad_conv(ndim,H0,H1,C,focc,emo,X)
+subroutine prep_grad_conv(ndim,H0,C,focc,emo,X)
    use xtb_mctc_convert, only : autoev,evtoau
    integer, intent(in)    :: ndim
    real(wp),intent(inout) :: H0(ndim*(ndim+1)/2)
-   real(wp),intent(inout) :: H1(ndim*(ndim+1)/2)
    real(wp),intent(in)    :: C(ndim,ndim)
    real(wp),intent(in)    :: focc(ndim)
    real(wp),intent(in)    :: emo(ndim)
@@ -51,7 +50,6 @@ subroutine prep_grad_conv(ndim,H0,H1,C,focc,emo,X)
 
    allocate( temp(ndim), source = 0.0_wp )
    H0 = H0*evtoau
-   H1 = H1*evtoau
 
 !  get energy weigthed density matrix
    temp = focc * emo*evtoau
