@@ -122,7 +122,7 @@ subroutine test_coulomb_point_cluster
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -130,7 +130,7 @@ subroutine test_coulomb_point_cluster
          shift(:) = matmul(jmat, charges)
          er = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -138,7 +138,7 @@ subroutine test_coulomb_point_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr)
       end do
@@ -296,7 +296,7 @@ subroutine test_coulomb_point_pbc3d
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%lattice(:, :) = matmul(eps, lattice)
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
@@ -305,7 +305,7 @@ subroutine test_coulomb_point_pbc3d
          shift(:) = matmul(jmat, charges)
          er = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%lattice(:, :) = matmul(eps, lattice)
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
@@ -314,7 +314,7 @@ subroutine test_coulomb_point_pbc3d
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr)
       end do
@@ -470,7 +470,7 @@ subroutine test_coulomb_gfn1_cluster
    eps = unity
    do ii = 1, 3
       do jj = 1, ii-1
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -478,7 +478,7 @@ subroutine test_coulomb_gfn1_cluster
          shift(:) = matmul(jmat, charges)
          er = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -486,7 +486,7 @@ subroutine test_coulomb_gfn1_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
       end do
@@ -558,7 +558,7 @@ subroutine test_coulomb_gfn1_cluster
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -566,7 +566,7 @@ subroutine test_coulomb_gfn1_cluster
          shift(:) = matmul(jmat, shellCharges)
          er = 0.5_wp*dot_product(shellCharges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -574,7 +574,7 @@ subroutine test_coulomb_gfn1_cluster
          shift(:) = matmul(jmat, shellCharges)
          el = 0.5_wp*dot_product(shellCharges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
       end do
@@ -832,7 +832,7 @@ subroutine test_coulomb_gfn2_cluster
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -840,7 +840,7 @@ subroutine test_coulomb_gfn2_cluster
          shift(:) = matmul(jmat, charges)
          er = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -848,7 +848,7 @@ subroutine test_coulomb_gfn2_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr)
       end do
@@ -920,7 +920,7 @@ subroutine test_coulomb_gfn2_cluster
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -928,7 +928,7 @@ subroutine test_coulomb_gfn2_cluster
          shift(:) = matmul(jmat, shellCharges)
          er = 0.5_wp*dot_product(shellCharges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -936,7 +936,7 @@ subroutine test_coulomb_gfn2_cluster
          shift(:) = matmul(jmat, shellCharges)
          el = 0.5_wp*dot_product(shellCharges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr)
       end do
@@ -1179,7 +1179,7 @@ subroutine test_coulomb_gaussian_cluster
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -1187,7 +1187,7 @@ subroutine test_coulomb_gaussian_cluster
          shift(:) = matmul(jmat, charges)
          er = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
          call coulomb%update(env, mol)
@@ -1195,7 +1195,7 @@ subroutine test_coulomb_gaussian_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr)
       end do
@@ -1355,7 +1355,7 @@ subroutine test_coulomb_gaussian_pbc3d
    eps = unity
    do ii = 1, 3
       do jj = 1, ii
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
          mol%lattice(:, :) = matmul(eps, lattice)
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
@@ -1364,7 +1364,7 @@ subroutine test_coulomb_gaussian_pbc3d
          shift(:) = matmul(jmat, charges)
          er = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) + 4*step
+         eps(jj, ii) = eps(jj, ii) - 2*step
          mol%lattice(:, :) = matmul(eps, lattice)
          mol%xyz(:, :) = matmul(eps, xyz)
          call mol%update
@@ -1373,7 +1373,7 @@ subroutine test_coulomb_gaussian_pbc3d
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
 
-         eps(jj, ii) = eps(jj, ii) - 2*step
+         eps(jj, ii) = eps(jj, ii) + step
 
          call assert_close(sigma(jj, ii), (er - el)*step2, thr)
       end do

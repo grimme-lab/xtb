@@ -195,7 +195,7 @@ pure subroutine ewaldDerivPBC3D(vec, gTrans, qpc, volume, alpha, scale, &
       dtmp = -sin(arg) * expterm
       dAmat = dAmat + rik*dtmp
       dS = spread(rik,1,3)*spread(rik,2,3)
-      sigma = sigma + expterm * cos(arg) * ( &
+      sigma = sigma + 0.5_wp * expterm * cos(arg) * ( &
          & - unity * (1.0_wp + rik2*fqpc) &
          & + (2.0_wp/rik2 + 0.5_wp/alpha**2 + 0.5_wp*fqpc) * dS)
    end do

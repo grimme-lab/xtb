@@ -22,6 +22,10 @@ module xtb_peeq
    use xtb_xtb_data
    use xtb_chargemodel
    use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
+      & cutCoordinationNumber
+   use xtb_coulomb_gaussian
+   use xtb_xtb_eeq
    implicit none
    private
 
@@ -112,10 +116,18 @@ subroutine peeq &
    real(wp), allocatable :: dSEdcn(:)
    real(wp), allocatable :: dSEdq(:)
    integer :: rep_cn(3)
+   integer :: nid
+   integer, allocatable :: idnum(:)
+   real(wp),allocatable :: chargeWidth(:, :)
+   real(wp),allocatable :: gam(:, :)
+   real(wp),allocatable :: kcn(:, :)
+   real(wp),allocatable :: chi(:, :)
+   type(TGaussianSmeared) :: coulomb
+   type(TENEquilibration) :: eeq
 
 ! ------------------------------------------------------------------------
    ! local variable (without comment)
-   integer :: ii,jj,i,j,k,m,iat,jat,atj,kk
+   integer :: ii,jj,i,j,k,m,iat,jat,ati,atj,kk
    integer :: il,jl
 
    integer,parameter :: lladr(4)    = [1,3,6,10]
@@ -323,13 +335,10 @@ subroutine peeq &
 ! ---------------------------------------
 !  Get CN(1:n) + dcndr(3,1:n,1:n) under pbc
 ! ---------------------------------------
-   if (mol%npbc > 0) then
-      call get_erf_cn(mol,cn,dcndr,dcndL,thr=900.0_wp)
-      call dncoord_logcn(mol%n,cn,dcndr,dcndL,cn_max=8.0_wp)
-   else
-      call get_erf_cn(mol,cn,dcndr,thr=900.0_wp)
-      call dncoord_logcn(mol%n,cn,dcndr,cn_max=8.0_wp)
-   endif
+   call latp%getLatticePoints(trans, 40.0_wp)
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, &
+      & cn, dcndr, dcndL)
+   call cutCoordinationNumber(mol%n, cn, dcndr, dcndL, maxCN=8.0_wp)
 
    if (profile) call timer%measure(2)
 ! ---------------------------------------
@@ -355,11 +364,38 @@ subroutine peeq &
    call gfn0_charge_model(chrgeq,mol%n,mol%at,xtbData%coulomb)
    ! initialize electrostatic energy
    if (lgbsa) then
+      dcndr = -dcndr
       call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
          &            ees,gsolv,g,.false.,.true.,.true.)
    else
-      call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,qeeq,dqdr,dqdL, &
-         &            ees,g,sigma,.false.,.true.,.true.)
+      nid = maxval(mol%id)
+      allocate(idnum(nid))
+      do ii = 1, nId
+         jat = 0
+         do iat = 1, mol%n
+            if (mol%id(iat) == ii) then
+               jat = iat
+               exit
+            end if
+         end do
+         idnum(ii) = mol%at(jat)
+      end do
+      allocate(chargeWidth(1, nid))
+      allocate(chi(1, nid))
+      allocate(kcn(1, nid))
+      allocate(gam(1, nid))
+      do ii = 1, nid
+         ati = idnum(ii)
+         chargeWidth(1, ii) = xtbData%coulomb%chargeWidth(ati)
+         gam(1, ii) = xtbData%coulomb%chemicalHardness(ati)
+         kcn(1, ii) = xtbData%coulomb%kcn(ati)
+         chi(1, ii) = xtbData%coulomb%electronegativity(ati)
+      end do
+      call init(coulomb, env, mol, chargeWidth)
+      call init(eeq, env, chi, kcn, gam)
+      call eeq%chargeEquilibration(env, mol, coulomb, cn, dcndr, dcndL, &
+         & ees, g, sigma, qat=qeeq, dqdr=dqdr, dqdL=dqdL)
+      dcndr = -dcndr
    endif
 
    call env%check(exitRun)

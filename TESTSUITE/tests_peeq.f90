@@ -58,8 +58,8 @@ program peeq_tester
       end select
    case('eeq_model')
       select case(sec)
-      case('water'); call test_eeq_model_water
-      case('ewald'); call test_eeq_model_ewald
+      case('water'); call test_eeq_water
+      case('ewald'); call test_eeq_ewald
       case('gbsa');  call test_eeq_model_gbsa
       case('hbond'); call test_eeq_model_hbond
       case('salt');  call test_eeq_model_salt

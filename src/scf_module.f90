@@ -845,10 +845,10 @@ subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
    allocate( H(basis%nao,basis%nao), source = 0.0_wp )
    allocate( X(basis%nao,basis%nao), source = 0.0_wp )
 
-!  get energy weighted density matrix and convert from eV to Eh
+   ! get energy weighted density matrix and convert from eV to Eh
    call prep_grad_conv(basis%nao, H0, wfn%C, wfn%focc, wfn%emo, X)
 
-!  wave function terms
+   ! wave function terms
    call poly_grad(xtbData%hamiltonian, gradient, mol%n, mol%at, basis%nao, nmat2, &
       & matlist2, mol%xyz, sqrab, wfn%P, S, basis%aoat2, basis%lao2, H0)
 
@@ -857,12 +857,12 @@ subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
    else
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
-   endif
+   end if
    call hcn_grad(xtbData%hamiltonian, gradient, mol%n, mol%at, basis%nao, nmat2, &
       & matlist2, mol%xyz, wfn%P, S, dcndr, selfEnergy, dSEdcn, &
       & basis%aoat2, basis%lao2, basis%valao2, basis%aoexp, basis%ao2sh)
 
-!  preccalc
+   ! preccalc
    do m=1,nmat2
       i=matlist2(1,m)
       j=matlist2(2,m)
@@ -872,14 +872,14 @@ subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
       kk=j+i*(i-1)/2
       H(j,i)=(H1+H0(kk)/S(j,i))*wfn%P(j,i)-X(j,i)
       H(i,j)=H(j,i)
-   enddo
+   end do
 
-!  multipole gradient stuff
+   ! multipole gradient stuff
    if (allocated(xtbData%multipole)) then
       allocate( vs(mol%n),vd(3,mol%n),vq(6,mol%n), source = 0.0_wp )
-!     VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
-!     since moment integrals are now computed with origin at
-!     respective atoms
+      ! VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
+      ! since moment integrals are now computed with origin at
+      ! respective atoms
       call setdvsdq(xtbData%multipole, mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, &
          & wfn%qp, aes%gab3, aes%gab5, vs, vd, vq)
       call ddqint(xtbData%nShell, xtbData%hamiltonian, intcut, mol%n, basis%nao, &
@@ -887,8 +887,7 @@ subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
          & basis%nprim, basis%primcount, basis%alp, basis%cont, wfn%p, &
          & vs, vd, vq, H, gradient)
 
-! WARNING: dcndr is overwritten on output and now dR0A/dXC,
-!          and index i & j are flipped
+      ! WARNING: dcndr is overwritten on output and now dR0A/dXC
       call dradcn(xtbData%multipole, mol%n, mol%at, cn, aes%cnShift, &
          & aes%cnExp, aes%cnRMax, dcndr)
       call aniso_grad(mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, wfn%qp, &
@@ -899,7 +898,7 @@ subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
       call dsint(xtbData%nShell, xtbData%hamiltonian, intcut, mol%n, basis%nao, &
          & basis%nbf, mol%at, mol%xyz, sqrab, basis%caoshell, basis%saoshell, &
          & basis%nprim, basis%primcount, basis%alp, basis%cont, H, gradient)
-   endif
+   end if
 
 
 end subroutine scf_grad

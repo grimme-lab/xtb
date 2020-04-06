@@ -307,6 +307,7 @@ set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/coulomb.f90"
   "${XTB_ROOT}/TESTSUITE/dftd3.f90"
   "${XTB_ROOT}/TESTSUITE/dftd4.f90"
+  "${XTB_ROOT}/TESTSUITE/eeq.f90"
   "${XTB_ROOT}/TESTSUITE/eeq_model.f90"
   "${XTB_ROOT}/TESTSUITE/geometry_reader.f90"
   "${XTB_ROOT}/TESTSUITE/gfn0.f90"

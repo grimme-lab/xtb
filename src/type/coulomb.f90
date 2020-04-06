@@ -495,15 +495,15 @@ subroutine getCoulombDerivsCluster(mol, itbl, qvec, djdr, djdtr, djdL)
          vec(:) = mol%xyz(:, jat) - mol%xyz(:, iat)
          r1 = norm2(vec)
          dG(:) = -vec/r1**3
-         dS(:, :) = spread(dG, 1, 3) * spread(vec, 2, 3)
+         dS(:, :) = 0.5_wp * spread(dG, 1, 3) * spread(vec, 2, 3)
          do ish = 1, itbl(2, iat)
             do jsh = 1, itbl(2, jat)
                djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
                djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
                djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
                djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
-               djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) - dS*qvec(ii+ish)
-               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(jj+jsh)
+               djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) + dS*qvec(ii+ish)
+               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(jj+jsh)
             end do
          end do
       end do
@@ -579,17 +579,17 @@ subroutine getCoulombDerivsPBC3D(wsCell, itbl, alpha, volume, rTrans, gTrans, &
                   djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
                   djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
                   djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
-                  djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) - dS*qvec(ii+ish)
-                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(jj+jsh)
+                  djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) + dS*qvec(ii+ish)
+                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(jj+jsh)
                end do
             end do
          else
             do ish = 1, itbl(2, iat)
                do jsh = 1, ish-1
-                  djdL(:, :, ii+jsh) = djdL(:, :, ii+jsh) - dS*qvec(ii+ish)
-                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(ii+jsh)
+                  djdL(:, :, ii+jsh) = djdL(:, :, ii+jsh) + dS*qvec(ii+ish)
+                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(ii+jsh)
                end do
-               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) - dS*qvec(ii+ish)
+               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(ii+ish)
             end do
          end if
       end do
@@ -622,7 +622,7 @@ pure subroutine getRDeriv(vec, rTrans, alpha, scale, dG, dS)
       arg = alpha**2*r1**2
       dd = - 2*alpha*exp(-arg)/(sqrtpi*r1**2) - erfc(alpha*r1)/(r1**3)
       dG = dG + rij*dd
-      dS = dS + dd*spread(rij, 1, 3)*spread(rij, 2, 3)
+      dS = dS + 0.5_wp*dd*spread(rij, 1, 3)*spread(rij, 2, 3)
    enddo
    dG = dG * scale
    dS = dS * scale

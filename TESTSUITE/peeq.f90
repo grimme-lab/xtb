@@ -115,18 +115,18 @@ subroutine test_peeq_sp
    call peeq(env,mol,wfn,basis,xtbData,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
-   call assert_close(energy,-7.3576550429483_wp,thr)
-   call assert_close(hl_gap, 2.0722850435118_wp,1.0e-4_wp)
-   call assert_close(norm2(gradient),4.6530106590558_wp,thr)
-   call assert_close(gradient(1,1),0.0204787285706_wp,thr)
-   call assert_close(gradient(3,2),3.1001342337520_wp,thr)
+   call assert_close(energy,-7.3569880287801_wp,thr)
+   call assert_close(hl_gap, 2.1170422163611_wp,1.0e-4_wp)
+   call assert_close(norm2(gradient),4.6530879625071_wp,thr)
+   call assert_close(gradient(1,1),0.0172010070708_wp,thr)
+   call assert_close(gradient(3,2),3.1001769440424_wp,thr)
 
-   call assert_close(sigma(1,1),-0.46949660136776_wp,thr)
-   call assert_close(sigma(2,1),-0.34304476307923_wp,thr)
-   call assert_close(sigma(2,3), -1.3504527773901_wp,thr)
+   call assert_close(sigma(1,1),-0.48671624017220_wp,thr)
+   call assert_close(sigma(2,1),-0.33617246184789_wp,thr)
+   call assert_close(sigma(2,3), -1.3504511640658_wp,thr)
 
-   call assert_close(res%e_elec,-8.323348293826_wp,thr)
-   call assert_close(res%e_es,  -0.106932060267_wp,thr)
+   call assert_close(res%e_elec,-8.303090012925_wp,thr)
+   call assert_close(res%e_es,  -0.126523327000_wp,thr)
    call assert_close(res%e_disp,-0.004089262287_wp,thr)
    call assert_close(res%e_rep,  1.076714573432_wp,thr)
    call assert_close(res%e_xb,   0.000000000000_wp,thr)
@@ -139,18 +139,18 @@ subroutine test_peeq_sp
    call peeq(env,mol,wfn,basis,xtbData,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
-   call assert_close(energy,-7.3514777045762_wp,thr)
-   call assert_close(hl_gap, 2.1721883949504_wp,1.0e-4_wp)
-   call assert_close(norm2(gradient),4.6424961940410_wp,thr)
-   call assert_close(gradient(1,1),0.0109632042166_wp,thr)
-   call assert_close(gradient(3,2),3.0958397030189_wp,thr)
+   call assert_close(energy,-7.3514154667467_wp,thr)
+   call assert_close(hl_gap, 2.2269146636198_wp,1.0e-4_wp)
+   call assert_close(norm2(gradient),4.6439673441101_wp,thr)
+   call assert_close(gradient(1,1),0.0078611851660_wp,thr)
+   call assert_close(gradient(3,2),3.0969512131817_wp,thr)
 
-   call assert_close(sigma(1,1),-0.49612812087251_wp,thr)
-   call assert_close(sigma(2,1),-0.32463429156960_wp,thr)
-   call assert_close(sigma(2,3), -1.3397723168730_wp,thr)
+   call assert_close(sigma(1,1),-0.51140202345977_wp,thr)
+   call assert_close(sigma(2,1),-0.31809502301718_wp,thr)
+   call assert_close(sigma(2,3), -1.3396048387964_wp,thr)
 
-   call assert_close(res%e_elec,-8.317170955429_wp,thr)
-   call assert_close(res%e_es,  -0.106932060267_wp,thr)
+   call assert_close(res%e_elec,-8.297517450892_wp,thr)
+   call assert_close(res%e_es,  -0.126523327000_wp,thr)
    call assert_close(res%e_disp,-0.004089262287_wp,thr)
    call assert_close(res%e_rep,  1.076714573432_wp,thr)
    call assert_close(res%e_xb,   0.000000000000_wp,thr)
@@ -218,10 +218,10 @@ subroutine test_peeq_api
    call gfn0_calculation &
       (stdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
-   call assert_close(hl_gap, 4.8620892163953_wp,thr)
-   call assert_close(energy,-8.4898922181241_wp,thr)
-   call assert_close(norm2(gradient),0.00000000000000E+00_wp,thr)
-   call assert_close(norm2(gradlatt),0.45059748320564E-02_wp,thr)
+   call assert_close(hl_gap, 4.9685235017906_wp,thr)
+   call assert_close(energy,-8.4880302003264_wp,thr)
+   call assert_close(norm2(gradient),0.33854562415955E-04_wp,thr)
+   call assert_close(norm2(gradlatt),0.36942138269522E-02_wp,thr)
 
    call terminate(afail)
 
@@ -314,20 +314,20 @@ subroutine test_peeq_api_srb
    call gfn0_calculation &
       (stdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
 
-   call assert_close(hl_gap, 3.3073195156202_wp,thr)
-   call assert_close(energy,-47.310985782789_wp,thr)
-   call assert_close(norm2(gradient),0.35661228276887E-01_wp,thr)
-   call assert_close(norm2(gradlatt),0.19204614066516E-01_wp,thr)
+   call assert_close(hl_gap, 3.2452476555284_wp,thr)
+   call assert_close(energy,-47.338540517155_wp,thr)
+   call assert_close(norm2(gradient),0.60638271315898E-01_wp,thr)
+   call assert_close(norm2(gradlatt),0.25854908622194E-01_wp,thr)
 
-   call assert_close(gradient(1, 3), 0.71669969919753E-03_wp,thr)
-   call assert_close(gradient(2,11), 0.86141903688108E-02_wp,thr)
-   call assert_close(gradient(1, 6),-0.23307620462240E-02_wp,thr)
-   call assert_close(gradient(3, 5), 0.90733350522692E-03_wp,thr)
-   call assert_close(gradient(1, 8), 0.30461459040208E-02_wp,thr)
+   call assert_close(gradient(1, 3), 0.15525538562142E-02_wp,thr)
+   call assert_close(gradient(2,11), 0.14683394145168E-01_wp,thr)
+   call assert_close(gradient(1, 6),-0.18987450337364E-02_wp,thr)
+   call assert_close(gradient(3, 5), 0.15843597334219E-02_wp,thr)
+   call assert_close(gradient(1, 8), 0.25603918239962E-02_wp,thr)
 
-   call assert_close(gradlatt(1,3),0.49893356364686E-03_wp,thr)
-   call assert_close(gradlatt(2,2),0.94665150568032E-02_wp,thr)
-   call assert_close(gradlatt(1,2),0.85097891190246E-03_wp,thr)
+   call assert_close(gradlatt(1,3),0.24148403250709E-03_wp,thr)
+   call assert_close(gradlatt(2,2),0.11806429198343E-01_wp,thr)
+   call assert_close(gradlatt(1,2),0.60507570594769E-03_wp,thr)
 
    call terminate(afail)
 

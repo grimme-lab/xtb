@@ -192,7 +192,7 @@ subroutine chargeEquilibration(self, env, mol, coulomb, cn, dcndr, dcndL, &
 
    deriv = present(gradient) .or. present(sigma)
    response = present(dqdr) .or. present(dqdL)
-   nsh = sum(coulomb%itbl(1, :))
+   nsh = sum(coulomb%itbl(2, :))
    ndim = nsh + 1
    allocate(jmat(ndim, ndim))
    allocate(xvec(ndim))
@@ -254,15 +254,17 @@ subroutine chargeEquilibration(self, env, mol, coulomb, cn, dcndr, dcndL, &
       allocate(djdtr(3, ndim))
       allocate(djdL(3, 3, ndim))
       allocate(dxdr(3, mol%n, ndim))
-      allocate(dxdL(3, mol%n, ndim))
+      allocate(dxdL(3, 3, ndim))
       call coulomb%getCoulombDerivs(mol, qvec, djdr, djdtr, djdL)
       do iat = 1, mol%n
          ii = coulomb%itbl(1, iat)
          do ish = 1, coulomb%itbl(2, iat)
-            dxdr(:, :, ii+ish) = dxdcn(ii+ish)*dcndr(:, :, iat)
-            dxdL(:, :, ii+ish) = dxdcn(ii+ish)*dcndL(:, :, iat)
+            dxdr(:, :, ii+ish) = -dxdcn(ii+ish)*dcndr(:, :, iat)
+            dxdL(:, :, ii+ish) = -dxdcn(ii+ish)*dcndL(:, :, iat)
          end do
       end do
+      dxdr(:, :, ndim) = 0.0_wp
+      dxdL(:, :, ndim) = 0.0_wp
 
       if (present(gradient)) then
          call contract(djdr, qvec, gradient, beta=1.0_wp)
@@ -270,7 +272,7 @@ subroutine chargeEquilibration(self, env, mol, coulomb, cn, dcndr, dcndL, &
       end if
 
       if (present(sigma)) then
-         call contract(djdL, qvec, sigma, beta=1.0_wp, alpha=0.5_wp)
+         call contract(djdL, qvec, sigma, beta=1.0_wp)
          call contract(dxdL, qvec, sigma, beta=1.0_wp)
       end if
 
@@ -283,13 +285,15 @@ subroutine chargeEquilibration(self, env, mol, coulomb, cn, dcndr, dcndL, &
          end do
 
          if (present(dqdr)) then
-            call contract(djdr, inv, dqdr, alpha=-1.0_wp, beta=0.0_wp)
-            call contract(dxdr, inv, dqdr, alpha=-1.0_wp, beta=1.0_wp)
+            dqdr(:, :, :) = 0.0_wp
+            call contract(djdr, inv(:, :nsh), dqdr, alpha=-1.0_wp, beta=0.0_wp)
+            call contract(dxdr, inv(:, :nsh), dqdr, alpha=-1.0_wp, beta=1.0_wp)
          end if
 
          if (present(dqdL)) then
-            call contract(djdL, inv, dqdL, alpha=-1.0_wp, beta=0.0_wp)
-            call contract(dxdL, inv, dqdL, alpha=-1.0_wp, beta=1.0_wp)
+            dqdL(:, :, :) = 0.0_wp
+            call contract(djdL, inv(:, :nsh), dqdL, alpha=-2.0_wp, beta=0.0_wp)
+            call contract(dxdL, inv(:, :nsh), dqdL, alpha=-1.0_wp, beta=1.0_wp)
          end if
       end if
    end if
