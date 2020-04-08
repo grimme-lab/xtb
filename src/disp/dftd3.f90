@@ -39,6 +39,7 @@ module xtb_disp_dftd3
 
    interface d3_atm_gradient
       module procedure :: d3_atm_gradient_neigh
+      module procedure :: d3_atm_gradient_latp
    end interface d3_atm_gradient
 
 
@@ -282,6 +283,143 @@ subroutine disp_gradient_latp &
    !$omp end parallel do
 
 end subroutine disp_gradient_latp
+
+
+subroutine d3_atm_gradient_latp &
+      & (mol, trans, par, weighting_factor, cutoff, &
+      &  cn, dcndr, dcndL, energy, gradient, sigma)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(in) :: weighting_factor
+   real(wp), intent(in) :: cutoff
+   real(wp), intent(in) :: cn(:)
+   real(wp), intent(in) :: dcndr(:, :, :)
+   real(wp), intent(in) :: dcndL(:, :, :)
+
+   real(wp), intent(inout) :: energy
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+
+   integer :: nat, max_ref
+   real(wp), allocatable :: gw(:, :), dgwdcn(:, :)
+   real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
+   real(wp), allocatable :: energies(:), dEdcn(:)
+
+   nat = len(mol)
+   max_ref = maxval(number_of_references(mol%at))
+   allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
+      &     dc6dcn(nat, nat), energies(nat), dEdcn(nat), source=0.0_wp)
+
+   call weight_references(nat, mol%at, weighting_factor, cn, gw, dgwdcn)
+
+   call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
+
+   call atm_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+
+   energy = energy + sum(energies)
+
+end subroutine d3_atm_gradient_latp
+
+
+subroutine atm_gradient_latp &
+      & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(in) :: r4r2(:)
+   real(wp), intent(in) :: cutoff
+   real(wp), intent(in) :: c6(:, :)
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(inout) :: energies(:)
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(inout) :: dEdcn(:)
+
+   integer :: iat, jat, kat, ati, atj, atk, jtr, ktr
+   real(wp) :: cutoff2
+   real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
+   real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
+   real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
+   real(wp), parameter :: sr = 4.0_wp/3.0_wp
+
+   cutoff2 = cutoff**2
+
+   do iat = 1, len(mol)
+      ati = mol%at(iat)
+      do jat = 1, iat
+         atj = mol%at(jat)
+
+         c6ij = c6(jat,iat)
+         !cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
+         cij = sr*get_vdwrad(ati, atj)
+
+         do kat = 1, jat
+            atk = mol%at(kat)
+
+            c6ik = c6(kat,iat)
+            c6jk = c6(kat,jat)
+
+            !cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
+            cik = sr*get_vdwrad(ati, atk)
+            !cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
+            cjk = sr*get_vdwrad(atj, atk)
+
+            do jtr = 1, size(trans, dim=2)
+               rij = mol%xyz(:, jat) - mol%xyz(:, iat) + trans(:, jtr)
+               r2ij = sum(rij**2)
+               if (r2ij > cutoff2 .or. r2ij < 1.0e-14_wp) cycle
+               do ktr = 1, size(trans, dim=2)
+                  if (jat == kat .and. jtr == ktr) cycle
+                  rik = mol%xyz(:, kat) - mol%xyz(:, iat) + trans(:, ktr)
+                  r2ik = sum(rik**2)
+                  if (r2ik > cutoff2 .or. r2ik < 1.0e-14_wp) cycle
+                  rjk = mol%xyz(:, kat) - mol%xyz(:, jat) + trans(:, ktr) &
+                     & - trans(:, jtr)
+                  r2jk = sum(rjk**2)
+                  if (r2jk > cutoff2 .or. r2jk < 1.0e-14_wp) cycle
+
+                  call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+                     & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+                     & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+                     & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+
+                  scale = par%s9 * triple_scale(iat, jat, kat)
+                  energies(iat) = energies(iat) + dE * scale/3
+                  energies(jat) = energies(jat) + dE * scale/3
+                  energies(kat) = energies(kat) + dE * scale/3
+                  gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
+                  gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
+                  gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
+                  sigma(:, :) = sigma + dS * scale
+                  dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+                  dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+                  dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+
+               end do
+            end do
+
+         end do
+      end do
+   end do
+
+end subroutine atm_gradient_latp
 
 
 subroutine d3_full_gradient_neigh &
