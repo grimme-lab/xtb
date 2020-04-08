@@ -33,10 +33,14 @@ module xtb_type_coulomb
    private
 
    public :: TCoulomb, init
+   public :: setupBoundaryConditions, setupIndexTable
 
 
    !> Base point charge electrostatics evaluator
    type :: TCoulomb
+
+      !> Number of atoms
+      integer :: natom
 
       !> Boundary conditions for this Coulomb evaluator
       integer :: boundaryCondition
@@ -94,7 +98,7 @@ module xtb_type_coulomb
 contains
 
 
-subroutine initFromMolecule(self, env, mol, nshell, alpha, tolerance)
+subroutine initFromMolecule(self, env, mol, num, nshell, alpha, tolerance)
 
    !> Source of the generated error
    character(len=*), parameter :: source = 'type_coulomb_initFromMolecule'
@@ -108,6 +112,9 @@ subroutine initFromMolecule(self, env, mol, nshell, alpha, tolerance)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
    !> Number of shell for each species
    integer, intent(in), optional :: nshell(:)
 
@@ -119,7 +126,7 @@ subroutine initFromMolecule(self, env, mol, nshell, alpha, tolerance)
 
    logical :: exitRun
 
-   call init(self, env, mol%id, mol%lattice, mol%boundaryCondition, nshell, &
+   call init(self, env, mol%id, mol%lattice, mol%boundaryCondition, num, nshell, &
       & alpha, tolerance)
 
    call env%check(exitRun)
@@ -134,7 +141,7 @@ subroutine initFromMolecule(self, env, mol, nshell, alpha, tolerance)
 end subroutine initFromMolecule
 
 
-subroutine initCoulomb(self, env, id, lattice, boundaryCond, nshell, alpha, &
+subroutine initCoulomb(self, env, id, lattice, boundaryCond, num, nshell, alpha, &
       & tolerance)
 
    !> Source of the generated error
@@ -155,6 +162,9 @@ subroutine initCoulomb(self, env, id, lattice, boundaryCond, nshell, alpha, &
    !> Boundary conditions for this evaluator
    integer, intent(in) :: boundaryCond
 
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
    !> Number of shell for each species
    integer, intent(in), optional :: nshell(:)
 
@@ -165,26 +175,83 @@ subroutine initCoulomb(self, env, id, lattice, boundaryCond, nshell, alpha, &
    real(wp), intent(in), optional :: tolerance
 
    logical :: exitRun
-   integer :: natom
-   integer :: ind, iat, ish
-   real(wp) :: volume, recLat(3, 3)
 
    self%boundaryCondition = boundaryCond
+   self%natom = size(id, dim=1)
 
-   natom = size(id, dim=1)
-   allocate(self%itbl(2, natom))
+   call setupIndexTable(self%natom, self%itbl, id, num, nshell)
+
+   call setupBoundaryConditions(self, env, lattice, alpha, tolerance)
+
+end subroutine initCoulomb
+
+
+subroutine setupIndexTable(natom, itbl, id, num, nshell)
+
+   !> Number of atoms
+   integer, intent(in) :: natom
+
+   !> Index table
+   integer, allocatable, intent(out) :: itbl(:, :)
+
+   !> Identity of each atom
+   integer, intent(in) :: id(:)
+
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
+   !> Number of shell for each species
+   integer, intent(in), optional :: nshell(:)
+
+   integer :: ind, iat, ish
+
+   allocate(itbl(2, natom))
    if (present(nshell)) then
       ind = 0
-      do iat = 1, natom
-         ish = nshell(id(iat))
-         self%itbl(:, iat) = [ind, ish]
-         ind = ind + ish
-      end do
+      if (present(num)) then
+         do iat = 1, natom
+            ish = nshell(num(id(iat)))
+            itbl(:, iat) = [ind, ish]
+            ind = ind + ish
+         end do
+      else
+         do iat = 1, natom
+            ish = nshell(id(iat))
+            itbl(:, iat) = [ind, ish]
+            ind = ind + ish
+         end do
+      end if
    else
       do iat = 1, natom
-         self%itbl(:, iat) = [iat-1, 1]
+         itbl(:, iat) = [iat-1, 1]
       end do
    end if
+
+end subroutine setupIndexTable
+
+
+subroutine setupBoundaryConditions(self, env, lattice, alpha, tolerance)
+
+   !> Source of the generated error
+   character(len=*), parameter :: source = 'type_coulomb_setupBoundaryConditions'
+
+   !> Instance of the Coulomb evaluator
+   class(TCoulomb), intent(inout) :: self
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Lattice parameters
+   real(wp), intent(in) :: lattice(:, :)
+
+   !> Convergence factor
+   real(wp), intent(in), optional :: alpha
+
+   !> Tolerance for the Ewald sum
+   real(wp), intent(in), optional :: tolerance
+
+   logical :: exitRun
+   real(wp) :: volume, recLat(3, 3)
 
    select case(self%boundaryCondition)
    case default
@@ -217,12 +284,12 @@ subroutine initCoulomb(self, env, id, lattice, boundaryCond, nshell, alpha, &
          return
       end if
 
-      call init(self%rLatPoint, env, lattice, boundaryCond, self%rCutoff)
-      call init(self%gLatPoint, env, recLat, boundaryCond, self%gCutoff)
-      call init(self%wsCell, natom)
+      call init(self%rLatPoint, env, lattice, self%boundaryCondition, self%rCutoff)
+      call init(self%gLatPoint, env, recLat, self%boundaryCondition, self%gCutoff)
+      call init(self%wsCell, self%natom)
    end select
 
-end subroutine initCoulomb
+end subroutine setupBoundaryConditions
 
 
 !> Update internal state of the Coulomb evaluator

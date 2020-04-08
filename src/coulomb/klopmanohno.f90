@@ -22,7 +22,7 @@ module xtb_coulomb_klopmanohno
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_math, only : matInv3x3, matDet3x3
    use xtb_coulomb_ewald
-   use xtb_type_coulomb, only : TCoulomb
+   use xtb_type_coulomb, only : TCoulomb, setupBoundaryConditions, setupIndexTable
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_latticepoint, only : TLatticePoint, init
@@ -100,8 +100,8 @@ module xtb_coulomb_klopmanohno
 contains
 
 
-subroutine initFromMolecule(self, env, mol, gav, hardness, gExp, nshell, alpha, &
-      & tolerance)
+subroutine initFromMolecule(self, env, mol, gav, hardness, gExp, num, nshell, &
+      & alpha, tolerance)
 
    !> Source of the generated error
    character(len=*), parameter :: source = 'type_coulomb_initFromMolecule'
@@ -124,6 +124,9 @@ subroutine initFromMolecule(self, env, mol, gav, hardness, gExp, nshell, alpha, 
    !> Generalized exponent
    real(wp), intent(in) :: gExp
 
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
    !> Number of shell for each species
    integer, intent(in), optional :: nshell(:)
 
@@ -136,7 +139,7 @@ subroutine initFromMolecule(self, env, mol, gav, hardness, gExp, nshell, alpha, 
    logical :: exitRun
 
    call init(self, env, mol%id, mol%lattice, mol%boundaryCondition, gav, &
-      & hardness, gExp, nshell, alpha, tolerance)
+      & hardness, gExp, num, nshell, alpha, tolerance)
 
    call env%check(exitRun)
    if (exitRun) return
@@ -151,7 +154,7 @@ end subroutine initFromMolecule
 
 
 subroutine initKlopmanOhno(self, env, id, lattice, boundaryCond, gav, hardness, &
-      & gExp, nshell, alpha, tolerance)
+      & gExp, num, nshell, alpha, tolerance)
 
    !> Source of the generated error
    character(len=*), parameter :: source = 'type_coulomb_initCoulomb'
@@ -180,6 +183,9 @@ subroutine initKlopmanOhno(self, env, id, lattice, boundaryCond, gav, hardness, 
    !> Generalized exponent
    real(wp), intent(in) :: gExp
 
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
    !> Number of shell for each species
    integer, intent(in), optional :: nshell(:)
 
@@ -190,27 +196,21 @@ subroutine initKlopmanOhno(self, env, id, lattice, boundaryCond, gav, hardness, 
    real(wp), intent(in), optional :: tolerance
 
    logical :: exitRun
-   integer :: natom, ndim
-   integer :: ind, iat, ish
-   real(wp) :: volume, recLat(3, 3)
+   integer :: ii
 
    self%boundaryCondition = boundaryCond
-   self%hardness = hardness
    self%gExp = gExp
+   self%natom = size(id, dim=1)
 
-   natom = size(id, dim=1)
-   allocate(self%itbl(2, natom))
-   if (present(nshell)) then
-      ind = 0
-      do iat = 1, natom
-         ish = nshell(id(iat))
-         self%itbl(:, iat) = [ind, ish]
-         ind = ind + ish
+   call setupIndexTable(self%natom, self%itbl, id, num, nshell)
+
+   if (present(num)) then
+      allocate(self%hardness(size(hardness, dim=1), size(num)))
+      do ii = 1, size(num)
+         self%hardness(:, ii) = hardness(:, num(ii))
       end do
    else
-      do iat = 1, natom
-         self%itbl(:, iat) = [iat-1, 1]
-      end do
+      self%hardness = hardness
    end if
 
    select case(gav)
@@ -230,37 +230,6 @@ subroutine initKlopmanOhno(self, env, id, lattice, boundaryCond, gav, hardness, 
       call env%error("Boundary condition not supported", source)
    case(boundaryCondition%cluster)
       ! nothing to do
-   case(boundaryCondition%pbc3d)
-      call env%error("Periodic boundary conditions not supported", source)
-      return
-      volume = abs(matDet3x3(lattice))
-      recLat(:, :) = 2*pi*transpose(matInv3x3(lattice))
-
-      if (present(tolerance)) then
-         self%tolerance = tolerance
-      else
-         self%tolerance = 1.0e-8_wp
-      end if
-
-      if (present(alpha)) then
-         self%alpha = alpha
-      else
-         call getOptimalAlpha(env, lattice, recLat, volume, self%tolerance, &
-            & self%alpha)
-      end if
-
-      call getMaxR(env, self%alpha, self%tolerance, self%rCutoff)
-      call getMaxG(env, self%alpha, volume, self%tolerance, self%gCutoff)
-
-      call env%check(exitRun)
-      if (exitRun) then
-         call env%error("Could not setup numerical thresholds", source)
-         return
-      end if
-
-      call init(self%rLatPoint, env, lattice, boundaryCond, self%rCutoff)
-      call init(self%gLatPoint, env, recLat, boundaryCond, self%gCutoff)
-      call init(self%wsCell, natom)
    end select
 
 end subroutine initKlopmanOhno

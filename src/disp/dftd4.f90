@@ -22,23 +22,37 @@ module xtb_disp_dftd4
       &                  en => pauling_en, &
       &                  rcov => covalent_radius_d3, &
       &                  r4r2 => sqrt_z_r4_over_r2
+   use xtb_mctc_la, only : contract
    !! ========================================================================
    !  mix in the covalent coordination number from the ncoord module
    !  also get the CN-Parameters to inline the CN-derivative in the gradient
-   use xtb_disp_ncoord, only : covncoord => ncoord_d4, kn,k1,k4,k5,k6
-   use xtb_type_param, only : dftd_parameter
    use xtb_disp_dftd4param, only: zeff, thopi, ootpi, p_mbd_none, p_mbd_rpalike, &
       &                   p_mbd_exact_atm, p_mbd_approx_atm, p_refq_goedecker, &
       &                   p_refq_gfn2xtb
+   use xtb_disp_ncoord, only : covncoord => ncoord_d4, kn,k1,k4,k5,k6
+   use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_type_dispersionmodel
+   use xtb_type_molecule, only : TMolecule, len
+   use xtb_type_neighbourlist, only : TNeighbourList
+   use xtb_type_param, only : dftd_parameter
    implicit none
 
    type(tb_dispersion_model) :: dispm
 
+
    interface d4_gradient
+      module procedure :: d4_full_gradient_neigh
+      module procedure :: d4_full_gradient_latp
       module procedure :: d4_gradient_neigh
       module procedure :: d4_gradient_latp
    end interface d4_gradient
+
+
+   interface d4_atm_gradient
+      module procedure :: d4_atm_gradient_neigh
+      module procedure :: d4_atm_gradient_latp
+   end interface d4_atm_gradient
+
 
 contains
 
@@ -3976,12 +3990,12 @@ subroutine get_atomic_c6(nat, atoms, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq
    end do
 end subroutine get_atomic_c6
 
+
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
-subroutine d4_gradient_neigh &
+subroutine d4_full_gradient_neigh &
       & (mol, neighs, neighs3, neighlist, par, g_a, g_c, wf, &
-      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, &
-      &  energy_pair, energy_mbd)
+      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -3998,7 +4012,7 @@ subroutine d4_gradient_neigh &
    !> Number of neighbours for each atom.
    integer, intent(in) :: neighs(:)
 
-   !> Number of neighbours for each atom (for non-additive contr.)
+   !> Number of neighbours for each atom.
    integer, intent(in) :: neighs3(:)
 
    !> Charge scaling height.
@@ -4023,10 +4037,10 @@ subroutine d4_gradient_neigh &
    real(wp), intent(in) :: q(:)
 
    !> Derivative of partial charges w.r.t. atomic coordinates.
-   real(wp), intent(in) :: dqdr(:, :, :)
+   real(wp), intent(in), optional :: dqdr(:, :, :)
 
    !> Derivative of partial charges w.r.t. strain deformations
-   real(wp), intent(in) :: dqdL(:, :, :)
+   real(wp), intent(in), optional :: dqdL(:, :, :)
 
    !> Dispersion energy.
    real(wp), intent(inout) :: energy
@@ -4037,22 +4051,116 @@ subroutine d4_gradient_neigh &
    !> Stress tensor resulting from dispersion interactions.
    real(wp), intent(inout) :: sigma(:, :)
 
-   !> Pairwise dispersion energy.
-   real(wp), intent(inout), optional :: energy_pair
-
-   !> Non-additive dispersion energy.
-   real(wp), intent(inout), optional :: energy_mbd
+   real(wp), intent(out), optional :: e2
+   real(wp), intent(out), optional :: e3
 
    integer :: nat, max_ref
-   integer :: iat, jat, ati, atj, ij, img
-
-   real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
-   real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
    real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
    real(wp), allocatable :: zerovec(:, :), zerodcn(:, :), zerodq(:, :)
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
    real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
+
+   nat = len(mol)
+   max_ref = maxval(dispm%nref(mol%at))
+   allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
+      &     zerovec(max_ref, nat), zerodcn(max_ref, nat), zerodq(max_ref, nat), &
+      &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
+      &     energies(nat), energies3(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
+
+   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
+      &                   zetadcn, zerodcn, zetadq)
+
+   call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+
+   call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, &
+      & c6, dc6dcn, dc6dq, energies, gradient, sigma, dEdcn, dEdq)
+
+   if (present(e2)) e2 = sum(energies)
+   if (par%s9 /= 0.0_wp) then
+      call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+      call atm_gradient_neigh(mol, neighs3, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
+         & energies3, gradient, sigma, dEdcn)
+   end if
+   if (present(e3)) e3 = sum(energies3)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   if (present(dqdr)) then
+      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+   end if
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   if (present(dqdL)) then
+      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+   end if
+
+   energy = energy + sum(energies) + sum(energies3)
+
+end subroutine d4_full_gradient_neigh
+
+
+!> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
+!  periodicity due to the static neighbourlist.
+subroutine d4_gradient_neigh &
+      & (mol, neighs, neighlist, par, g_a, g_c, wf, &
+      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
+   use xtb_type_molecule
+   use xtb_type_neighbourlist
+   use xtb_type_param
+
+   !> Molecular Structure information.
+   type(TMolecule), intent(in) :: mol
+
+   !> Static neighbourlist.
+   type(TNeighbourList), intent(in) :: neighlist
+
+   !> Becke--Johnson damping parameters.
+   type(dftd_parameter), intent(in) :: par
+
+   !> Number of neighbours for each atom.
+   integer, intent(in) :: neighs(:)
+
+   !> Charge scaling height.
+   real(wp), intent(in) :: g_a
+
+   !> Charge scaling steepness.
+   real(wp), intent(in) :: g_c
+
+   !> Exponent for the Gaussian weighting.
+   real(wp), intent(in) :: wf
+
+   !> Coordination number of every atom.
+   real(wp), intent(in) :: cn(:)
+
+   !> Derivative of CN w.r.t. atomic coordinates.
+   real(wp), intent(in) :: dcndr(:, :, :)
+
+   !> Derivative of CN w.r.t. strain deformations
+   real(wp), intent(in) :: dcndL(:, :, :)
+
+   !> Partial charge of every atom.
+   real(wp), intent(in) :: q(:)
+
+   !> Derivative of partial charges w.r.t. atomic coordinates.
+   real(wp), intent(in), optional :: dqdr(:, :, :)
+
+   !> Derivative of partial charges w.r.t. strain deformations
+   real(wp), intent(in), optional :: dqdL(:, :, :)
+
+   !> Dispersion energy.
+   real(wp), intent(inout) :: energy
+
+   !> Derivative of the dispersion energy w.r.t. atomic positions.
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Stress tensor resulting from dispersion interactions.
+   real(wp), intent(inout) :: sigma(:, :)
+
+   integer :: nat, max_ref
+
+   real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
+   real(wp), allocatable :: zerovec(:, :), zerodcn(:, :), zerodq(:, :)
+   real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
+   real(wp), allocatable :: energies(:), dEdcn(:), dEdq(:)
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
@@ -4066,9 +4174,70 @@ subroutine d4_gradient_neigh &
 
    call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
 
+   call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, &
+      & c6, dc6dcn, dc6dq, energies, gradient, sigma, dEdcn, dEdq)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   if (present(dqdr)) then
+      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+   end if
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   if (present(dqdL)) then
+      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+   end if
+
+   energy = energy + sum(energies)
+
+end subroutine d4_gradient_neigh
+
+
+!> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
+!  periodicity due to the static neighbourlist.
+subroutine disp_gradient_neigh &
+      & (mol, neighs, neighlist, par, r4r2, c6, dc6dcn, dc6dq, &
+      &  energies, gradient, sigma, dEdcn, dEdq)
+
+   !> Molecular Structure information.
+   type(TMolecule), intent(in) :: mol
+
+   !> Static neighbourlist.
+   type(TNeighbourList), intent(in) :: neighlist
+
+   !> Becke--Johnson damping parameters.
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: r4r2(:)
+
+   !> Number of neighbours for each atom.
+   integer, intent(in) :: neighs(:)
+
+   real(wp), intent(in) :: c6(:, :)
+
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(in) :: dc6dq(:, :)
+
+   !> Dispersion energy.
+   real(wp), intent(inout) :: energies(:)
+
+   !> Derivative of the dispersion energy w.r.t. atomic positions.
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Stress tensor resulting from dispersion interactions.
+   real(wp), intent(inout) :: sigma(:, :)
+
+   real(wp), intent(inout) :: dEdcn(:)
+
+   real(wp), intent(inout) :: dEdq(:)
+
+   integer :: iat, jat, ati, atj, ij, img
+
+   real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
+   real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
-   !$omp shared(mol, neighs, neighlist, par, c6, dc6dcn, dc6dq) &
+   !$omp shared(mol, neighs, neighlist, par, r4r2, c6, dc6dcn, dc6dq) &
    !$omp private(ij, img, jat, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
    !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
    do iat = 1, len(mol)
@@ -4117,31 +4286,174 @@ subroutine d4_gradient_neigh &
    enddo
    !$omp end parallel do
 
-   if (present(energy_pair)) energy_pair = sum(energies)
-!   if (par%s9 > 0.0_wp) then
-!      allocate(energies3(nat), source=0.0_wp)
-!      call d4_atm_gradient(mol, par, neighs3, neighlist, zerovec, zerodcn, zerodq, &
-!         &                 dEdcn, dEdq, energies3, gradient, sigma)
-!      if (present(energy_mbd)) energy_mbd = sum(energies3)
-!      energies = energies + energies3
-!   endif
-
-   call dgemv('n', 3*nat, nat, 1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
-   call dgemv('n', 3*nat, nat, 1.0_wp, dqdr, 3*nat, dEdq, 1, 1.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, dcndL, 9, dEdcn, 1, 1.0_wp, sigma, 1)
-   call dgemv('n', 9, nat, 1.0_wp, dqdL, 9, dEdq, 1, 1.0_wp, sigma, 1)
-
-   energy = sum(energies)
-
-end subroutine d4_gradient_neigh
+end subroutine disp_gradient_neigh
 
 
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
-subroutine d4_gradient_latp &
-      & (mol, trans, trans3, par, g_a, g_c, wf, cutoff, cutoff3, &
-      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, &
-      &  energy_pair, energy_mbd)
+subroutine d4_atm_gradient_neigh &
+      & (mol, neighs, neighlist, par, g_a, g_c, wf, cn, dcndr, dcndL, &
+      &  energy, gradient, sigma)
+   use xtb_type_molecule
+   use xtb_type_neighbourlist
+   use xtb_type_param
+
+   !> Molecular Structure information.
+   type(TMolecule), intent(in) :: mol
+
+   !> Static neighbourlist.
+   type(TNeighbourList), intent(in) :: neighlist
+
+   !> Becke--Johnson damping parameters.
+   type(dftd_parameter), intent(in) :: par
+
+   !> Number of neighbours for each atom.
+   integer, intent(in) :: neighs(:)
+
+   !> Charge scaling height.
+   real(wp), intent(in) :: g_a
+
+   !> Charge scaling steepness.
+   real(wp), intent(in) :: g_c
+
+   !> Exponent for the Gaussian weighting.
+   real(wp), intent(in) :: wf
+
+   !> Coordination number of every atom.
+   real(wp), intent(in) :: cn(:)
+
+   !> Derivative of CN w.r.t. atomic coordinates.
+   real(wp), intent(in) :: dcndr(:, :, :)
+
+   !> Derivative of CN w.r.t. strain deformations
+   real(wp), intent(in) :: dcndL(:, :, :)
+
+   !> Dispersion energy.
+   real(wp), intent(inout) :: energy
+
+   !> Derivative of the dispersion energy w.r.t. atomic positions.
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Stress tensor resulting from dispersion interactions.
+   real(wp), intent(inout) :: sigma(:, :)
+
+   integer :: nat, max_ref
+
+   real(wp), allocatable :: q(:)
+   real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
+   real(wp), allocatable :: zerovec(:, :), zerodcn(:, :), zerodq(:, :)
+   real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
+   real(wp), allocatable :: energies(:), dEdcn(:)
+
+   nat = len(mol)
+   max_ref = maxval(dispm%nref(mol%at))
+   allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
+      &     zerovec(max_ref, nat), zerodcn(max_ref, nat), zerodq(max_ref, nat), &
+      &     q(nat), c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
+      &     energies(nat), dEdcn(nat), source=0.0_wp)
+
+   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
+      &                   zetadcn, zerodcn, zetadq)
+
+   call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+
+   call atm_gradient_neigh &
+      & (mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+
+   energy = energy + sum(energies)
+
+end subroutine d4_atm_gradient_neigh
+
+
+subroutine atm_gradient_neigh &
+      & (mol, neighs, neighlist, par, r4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Neighbour list
+   type(TNeighbourList), intent(in) :: neighlist
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   integer, intent(in) :: neighs(:)
+   real(wp), intent(in) :: r4r2(:)
+   real(wp), intent(in) :: c6(:, :)
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(inout) :: energies(:)
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(inout) :: dEdcn(:)
+
+   integer :: iat, jat, kat, ati, atj, atk, jtr, ktr, ij, jk, ik
+   real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
+   real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
+   real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
+   real(wp), parameter :: sr = 4.0_wp/3.0_wp
+
+   do iat = 1, len(mol)
+      ati = mol%at(iat)
+      do ij = 1, neighs(iat)
+         jtr = neighlist%ineigh(ij, iat)
+         r2ij = neighlist%dist2(ij, iat)
+         rij = neighlist%coords(:, jtr) - neighlist%coords(:, iat)
+         jat = neighlist%image(jtr)
+         atj = mol%at(jat)
+
+         c6ij = c6(jat,iat)
+         cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
+
+         do ik = 1, ij-1
+            ktr = neighlist%ineigh(ik, iat)
+            rik = neighlist%coords(:, ktr) - neighlist%coords(:, iat)
+            r2ik = neighlist%dist2(ik, iat)
+            rjk = neighlist%coords(:, ktr) - neighlist%coords(:, jtr)
+            r2jk = sum(rjk**2)
+            kat = neighlist%image(ktr)
+            atk = mol%at(kat)
+
+            c6ik = c6(kat,iat)
+            c6jk = c6(kat,jat)
+
+            cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
+            cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
+
+            call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+               & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+               & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+               & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+
+            scale = par%s9 * triple_scale(iat, jat, kat)
+            energies(iat) = energies(iat) + dE * scale/3
+            energies(jat) = energies(jat) + dE * scale/3
+            energies(kat) = energies(kat) + dE * scale/3
+            gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
+            gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
+            gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
+            sigma(:, :) = sigma + dS * scale
+            dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+            dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+            dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+
+         end do
+      end do
+   end do
+
+end subroutine atm_gradient_neigh
+
+
+!> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
+!  periodicity due to the static neighbourlist.
+subroutine d4_full_gradient_latp &
+      & (mol, trans, par, g_a, g_c, wf, cutoff, cutoff3, &
+      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
@@ -4155,9 +4467,6 @@ subroutine d4_gradient_latp &
    !> Translation vectors
    real(wp), intent(in) :: trans(:, :)
 
-   !> Translation vectors for non-additive contr.
-   real(wp), intent(in) :: trans3(:, :)
-
    !> Charge scaling height.
    real(wp), intent(in) :: g_a
 
@@ -4170,7 +4479,7 @@ subroutine d4_gradient_latp &
    !> Cutoff for pairwise interactions
    real(wp), intent(in) :: cutoff
 
-   !> Cutoff for non-additive interactions
+   !> Cutoff for threebody interactions
    real(wp), intent(in) :: cutoff3
 
    !> Coordination number of every atom.
@@ -4186,10 +4495,10 @@ subroutine d4_gradient_latp &
    real(wp), intent(in) :: q(:)
 
    !> Derivative of partial charges w.r.t. atomic coordinates.
-   real(wp), intent(in) :: dqdr(:, :, :)
+   real(wp), intent(in), optional :: dqdr(:, :, :)
 
    !> Derivative of partial charges w.r.t. strain deformations
-   real(wp), intent(in) :: dqdL(:, :, :)
+   real(wp), intent(in), optional :: dqdL(:, :, :)
 
    !> Dispersion energy.
    real(wp), intent(inout) :: energy
@@ -4200,18 +4509,10 @@ subroutine d4_gradient_latp &
    !> Stress tensor resulting from dispersion interactions.
    real(wp), intent(inout) :: sigma(:, :)
 
-   !> Pairwise dispersion energy.
-   real(wp), intent(inout), optional :: energy_pair
-
-   !> Non-additive dispersion energy.
-   real(wp), intent(inout), optional :: energy_mbd
+   real(wp), intent(out), optional :: e2
+   real(wp), intent(out), optional :: e3
 
    integer :: nat, max_ref
-   integer :: iat, jat, ati, atj, itr
-
-   real(wp) :: cutoff2
-   real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
-   real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
 
    real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
    real(wp), allocatable :: zerovec(:, :), zerodcn(:, :), zerodq(:, :)
@@ -4220,7 +4521,107 @@ subroutine d4_gradient_latp &
 
    nat = len(mol)
    max_ref = maxval(dispm%nref(mol%at))
-   cutoff2 = cutoff**2
+   allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
+      &     zerovec(max_ref, nat), zerodcn(max_ref, nat), zerodq(max_ref, nat), &
+      &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
+      &     energies(nat), energies3(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
+
+   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
+      &                   zetadcn, zerodcn, zetadq)
+
+   call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+
+   call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, dc6dq, &
+      &  energies, gradient, sigma, dEdcn, dEdq)
+
+   if (present(e2)) e2 = sum(energies)
+   if (par%s9 /= 0.0_wp) then
+      call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+      call atm_gradient_latp(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
+         &  energies3, gradient, sigma, dEdcn)
+   end if
+   if (present(e3)) e3 = sum(energies3)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   if (present(dqdr)) then
+      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+   end if
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   if (present(dqdL)) then
+      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+   end if
+
+   energy = energy + sum(energies) + sum(energies3)
+
+end subroutine d4_full_gradient_latp
+
+
+!> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
+!  periodicity due to the static neighbourlist.
+subroutine d4_gradient_latp &
+      & (mol, trans, par, g_a, g_c, wf, cutoff, &
+      &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
+   use xtb_type_molecule
+   use xtb_type_neighbourlist
+   use xtb_type_param
+
+   !> Molecular Structure information.
+   type(TMolecule), intent(in) :: mol
+
+   !> Becke--Johnson damping parameters.
+   type(dftd_parameter), intent(in) :: par
+
+   !> Translation vectors
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Charge scaling height.
+   real(wp), intent(in) :: g_a
+
+   !> Charge scaling steepness.
+   real(wp), intent(in) :: g_c
+
+   !> Exponent for the Gaussian weighting.
+   real(wp), intent(in) :: wf
+
+   !> Cutoff for pairwise interactions
+   real(wp), intent(in) :: cutoff
+
+   !> Coordination number of every atom.
+   real(wp), intent(in) :: cn(:)
+
+   !> Derivative of CN w.r.t. atomic coordinates.
+   real(wp), intent(in) :: dcndr(:, :, :)
+
+   !> Derivative of CN w.r.t. strain deformations
+   real(wp), intent(in) :: dcndL(:, :, :)
+
+   !> Partial charge of every atom.
+   real(wp), intent(in) :: q(:)
+
+   !> Derivative of partial charges w.r.t. atomic coordinates.
+   real(wp), intent(in), optional :: dqdr(:, :, :)
+
+   !> Derivative of partial charges w.r.t. strain deformations
+   real(wp), intent(in), optional :: dqdL(:, :, :)
+
+   !> Dispersion energy.
+   real(wp), intent(inout) :: energy
+
+   !> Derivative of the dispersion energy w.r.t. atomic positions.
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Stress tensor resulting from dispersion interactions.
+   real(wp), intent(inout) :: sigma(:, :)
+
+   integer :: nat, max_ref
+
+   real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
+   real(wp), allocatable :: zerovec(:, :), zerodcn(:, :), zerodq(:, :)
+   real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
+   real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
+
+   nat = len(mol)
+   max_ref = maxval(dispm%nref(mol%at))
    allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
       &     zerovec(max_ref, nat), zerodcn(max_ref, nat), zerodq(max_ref, nat), &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
@@ -4231,9 +4632,70 @@ subroutine d4_gradient_latp &
 
    call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
 
+   call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, dc6dq, &
+      &  energies, gradient, sigma, dEdcn, dEdq)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   if (present(dqdr)) then
+      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+   end if
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   if (present(dqdL)) then
+      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+   end if
+
+   energy = energy + sum(energies)
+
+end subroutine d4_gradient_latp
+
+
+subroutine disp_gradient_latp &
+      & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, dc6dq, &
+      &  energies, gradient, sigma, dEdcn, dEdq)
+
+   !> Molecular Structure information.
+   type(TMolecule), intent(in) :: mol
+
+   !> Becke--Johnson damping parameters.
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: r4r2(:)
+
+   !> Translation vectors
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Cutoff for pairwise interactions
+   real(wp), intent(in) :: cutoff
+
+   real(wp), intent(in) :: c6(:, :)
+
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(in) :: dc6dq(:, :)
+
+   !> Dispersion energy.
+   real(wp), intent(inout) :: energies(:)
+
+   !> Derivative of the dispersion energy w.r.t. atomic positions.
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Stress tensor resulting from dispersion interactions.
+   real(wp), intent(inout) :: sigma(:, :)
+
+   real(wp), intent(inout) :: dEdcn(:)
+
+   real(wp), intent(inout) :: dEdq(:)
+
+   integer :: iat, jat, ati, atj, itr
+
+   real(wp) :: cutoff2
+   real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
+   real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+
+   cutoff2 = cutoff**2
    !$omp parallel do default(none) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn, dEdq) &
-   !$omp shared(mol, trans, cutoff2, par, c6, dc6dcn, dc6dq) &
+   !$omp shared(mol, trans, cutoff2, par, r4r2, c6, dc6dcn, dc6dq) &
    !$omp private(iat, jat, itr, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
    !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
    do iat = 1, len(mol)
@@ -4283,23 +4745,275 @@ subroutine d4_gradient_latp &
    end do
    !$omp end parallel do
 
-   if (present(energy_pair)) energy_pair = sum(energies)
-!   if (par%s9 > 0.0_wp) then
-!      allocate(energies3(nat), source=0.0_wp)
-!      call d4_atm_gradient(mol, par, neighs3, neighlist, zerovec, zerodcn, zerodq, &
-!         &                 dEdcn, dEdq, energies3, gradient, sigma)
-!      if (present(energy_mbd)) energy_mbd = sum(energies3)
-!      energies = energies + energies3
-!   endif
+end subroutine disp_gradient_latp
 
-   call dgemv('n', 3*nat, nat, 1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
-   call dgemv('n', 3*nat, nat, 1.0_wp, dqdr, 3*nat, dEdq, 1, 1.0_wp, gradient, 1)
-   call dgemv('n', 9, nat, 1.0_wp, dcndL, 9, dEdcn, 1, 1.0_wp, sigma, 1)
-   call dgemv('n', 9, nat, 1.0_wp, dqdL, 9, dEdq, 1, 1.0_wp, sigma, 1)
 
-   energy = sum(energies)
+!> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
+!  periodicity due to the static neighbourlist.
+subroutine d4_atm_gradient_latp &
+      & (mol, trans, par, g_a, g_c, wf, cutoff, cn, dcndr, dcndL, &
+      &  energy, gradient, sigma)
+   use xtb_type_molecule
+   use xtb_type_neighbourlist
+   use xtb_type_param
 
-end subroutine d4_gradient_latp
+   !> Molecular Structure information.
+   type(TMolecule), intent(in) :: mol
+
+   !> Becke--Johnson damping parameters.
+   type(dftd_parameter), intent(in) :: par
+
+   !> Translation vectors
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Charge scaling height.
+   real(wp), intent(in) :: g_a
+
+   !> Charge scaling steepness.
+   real(wp), intent(in) :: g_c
+
+   !> Exponent for the Gaussian weighting.
+   real(wp), intent(in) :: wf
+
+   !> Cutoff for pairwise interactions
+   real(wp), intent(in) :: cutoff
+
+   !> Coordination number of every atom.
+   real(wp), intent(in) :: cn(:)
+
+   !> Derivative of CN w.r.t. atomic coordinates.
+   real(wp), intent(in) :: dcndr(:, :, :)
+
+   !> Derivative of CN w.r.t. strain deformations
+   real(wp), intent(in) :: dcndL(:, :, :)
+
+   !> Dispersion energy.
+   real(wp), intent(inout) :: energy
+
+   !> Derivative of the dispersion energy w.r.t. atomic positions.
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Stress tensor resulting from dispersion interactions.
+   real(wp), intent(inout) :: sigma(:, :)
+
+   integer :: nat, max_ref
+
+   real(wp), allocatable :: q(:)
+   real(wp), allocatable :: zetavec(:, :), zetadcn(:, :), zetadq(:, :)
+   real(wp), allocatable :: zerovec(:, :), zerodcn(:, :), zerodq(:, :)
+   real(wp), allocatable :: c6(:, :), dc6dcn(:, :), dc6dq(:, :)
+   real(wp), allocatable :: energies(:), energies3(:), dEdcn(:), dEdq(:)
+
+   nat = len(mol)
+   max_ref = maxval(dispm%nref(mol%at))
+   allocate(zetavec(max_ref, nat), zetadcn(max_ref, nat), zetadq(max_ref, nat), &
+      &     zerovec(max_ref, nat), zerodcn(max_ref, nat), zerodq(max_ref, nat), &
+      &     q(nat), c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
+      &     energies(nat), dEdcn(nat), source=0.0_wp)
+
+   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
+      &                   zetadcn, zerodcn, zetadq)
+
+   call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+
+   call atm_gradient_latp &
+      & (mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+
+   energy = energy + sum(energies)
+
+end subroutine d4_atm_gradient_latp
+
+
+subroutine atm_gradient_latp &
+      & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(in) :: r4r2(:)
+   real(wp), intent(in) :: cutoff
+   real(wp), intent(in) :: c6(:, :)
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(inout) :: energies(:)
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(inout) :: dEdcn(:)
+
+   integer :: iat, jat, kat, ati, atj, atk, jtr, ktr
+   real(wp) :: cutoff2
+   real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
+   real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
+   real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
+   real(wp), parameter :: sr = 4.0_wp/3.0_wp
+
+   cutoff2 = cutoff**2
+
+   do iat = 1, len(mol)
+      ati = mol%at(iat)
+      do jat = 1, iat
+         atj = mol%at(jat)
+
+         c6ij = c6(jat,iat)
+         cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
+
+         do kat = 1, jat
+            atk = mol%at(kat)
+
+            c6ik = c6(kat,iat)
+            c6jk = c6(kat,jat)
+
+            cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
+            cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
+
+            do jtr = 1, size(trans, dim=2)
+               rij = mol%xyz(:, jat) - mol%xyz(:, iat) + trans(:, jtr)
+               r2ij = sum(rij**2)
+               if (r2ij > cutoff2 .or. r2ij < 1.0e-14_wp) cycle
+               do ktr = 1, size(trans, dim=2)
+                  if (jat == kat .and. jtr == ktr) cycle
+                  rik = mol%xyz(:, kat) - mol%xyz(:, iat) + trans(:, ktr)
+                  r2ik = sum(rik**2)
+                  if (r2ik > cutoff2 .or. r2ik < 1.0e-14_wp) cycle
+                  rjk = mol%xyz(:, kat) - mol%xyz(:, jat) + trans(:, ktr) &
+                     & - trans(:, jtr)
+                  r2jk = sum(rjk**2)
+                  if (r2jk > cutoff2 .or. r2jk < 1.0e-14_wp) cycle
+
+                  call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+                     & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+                     & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+                     & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+
+                  scale = par%s9 * triple_scale(iat, jat, kat)
+                  energies(iat) = energies(iat) + dE * scale/3
+                  energies(jat) = energies(jat) + dE * scale/3
+                  energies(kat) = energies(kat) + dE * scale/3
+                  gradient(:, iat) = gradient(:, iat) + dG(:, 1) * scale
+                  gradient(:, jat) = gradient(:, jat) + dG(:, 2) * scale
+                  gradient(:, kat) = gradient(:, kat) + dG(:, 3) * scale
+                  sigma(:, :) = sigma + dS * scale
+                  dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+                  dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+                  dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+
+               end do
+            end do
+
+         end do
+      end do
+   end do
+
+end subroutine atm_gradient_latp
+
+
+pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+      & r2ij, r2jk, r2ik, dc6ij, dc6ji, dc6jk, dc6kj, dc6ik, dc6ki, &
+      & rij, rjk, rik, alp, dE, dG, dS, dCN)
+
+   real(wp), intent(in) :: c6ij, c6ik, c6jk
+   real(wp), intent(in) :: cij, cjk, cik
+   real(wp), intent(in) :: r2ij, r2jk, r2ik
+   real(wp), intent(in) :: dc6ij, dc6ji, dc6jk, dc6kj, dc6ik, dc6ki
+   real(wp), intent(in) :: rij(3), rjk(3), rik(3)
+   integer, intent(in) :: alp
+   real(wp), intent(out) :: dE, dG(3, 3), dS(3, 3), dCN(3)
+
+   real(wp) :: c9, dc9, ccc1, rrr1, rrr2, rrr3, ang, dang, fdmp, dfdmp, dGr, cr
+
+   c9 = -sqrt(c6ij*c6ik*c6jk)
+
+   ccc1 = cij*cjk*cik
+
+   rrr2 = r2ij*r2jk*r2ik
+   rrr1 = sqrt(rrr2)
+   rrr3 = rrr1*rrr2
+
+   ang = 0.375_wp * (r2ij+r2jk-r2ik)*(r2ij-r2jk+r2ik)*(-r2ij+r2jk+r2ik) &
+      & / (rrr3*rrr2) + 1.0_wp/(rrr3)
+
+   cr = (ccc1/rrr1)**(1.0_wp/3.0_wp)
+   fdmp = 1.0_wp/(1.0_wp + 6.0_wp*cr**alp)
+   dfdmp = -(2.0_wp*alp*cr**alp) * fdmp**2
+
+   ! Energy contribution
+   dE = -fdmp*ang*c9
+
+   ! Derivative w.r.t. i-j distance
+   dang = -0.375_wp*(r2ij**3+r2ij**2*(r2jk+r2ik) &
+      & +r2ij*(3.0_wp*r2jk**2+2.0_wp*r2jk*r2ik+3.0_wp*r2ik**2) &
+      & -5.0_wp*(r2jk-r2ik)**2*(r2jk+r2ik)) / (rrr3*rrr2)
+   dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ij
+   dG(:, 1) = -dGr * rij
+   dG(:, 2) = +dGr * rij 
+   dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3)
+
+   ! Derivative w.r.t. i-k distance
+   dang = -0.375_wp*(r2ik**3+r2ik**2*(r2jk+r2ij) &
+      & +r2ik*(3.0_wp*r2jk**2+2.0*r2jk*r2ij+3.0_wp*r2ij**2) &
+      & -5.0_wp*(r2jk-r2ij)**2*(r2jk+r2ij)) / (rrr3*rrr2)
+   dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
+   dG(:, 1) = -dGr * rik + dG(:, 1)
+   dG(:, 3) = +dGr * rik 
+   dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS
+
+   ! Derivative w.r.t. j-k distance
+   dang=-0.375_wp*(r2jk**3+r2jk**2*(r2ik+r2ij) &
+      & +r2jk*(3.0_wp*r2ik**2+2.0_wp*r2ik*r2ij+3.0_wp*r2ij**2) &
+      & -5.0_wp*(r2ik-r2ij)**2*(r2ik+r2ij)) / (rrr3*rrr2)
+   dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2jk
+   dG(:, 2) = -dGr * rjk + dG(:, 2)
+   dG(:, 3) = +dGr * rjk + dG(:, 3)
+   dS(:, :) = 0.5_wp * dGr * spread(rjk, 1, 3) * spread(rjk, 2, 3) + dS
+
+   ! CN derivative
+   dc9 = 0.5_wp*c9*(dc6ij/c6ij+dc6ik/c6ik)
+   dCN(1) = -ang*fdmp*dc9
+   dc9 = 0.5_wp*c9*(dc6ji/c6ij+dc6jk/c6jk)
+   dCN(2) = -ang*fdmp*dc9
+   dc9 = 0.5_wp*c9*(dc6ki/c6ik+dc6kj/c6jk)
+   dCN(3) = -ang*fdmp*dc9
+
+end subroutine deriv_atm_triple
+
+
+!> Logic exercise to distribute a triple energy to atomwise energies.
+elemental function triple_scale(ii, jj, kk) result(scale)
+
+   !> Atom indices
+   integer, intent(in) :: ii, jj, kk
+
+   !> Fraction of energy
+   real(wp) :: scale
+
+   if (ii == jj) then
+      if (ii == kk) then
+         ! ii'i" -> 1/6
+         scale = 1.0_wp/6.0_wp
+      else
+         ! ii'j -> 1/2
+         scale = 0.5_wp
+      end if
+   else
+      if (ii /= kk .and. jj /= kk) then
+         ! ijk -> 1 (full)
+         scale = 1.0_wp
+      else
+         ! ijj' and iji' -> 1/2
+         scale = 0.5_wp
+      end if
+   end if
+
+end function triple_scale
 
 
 end module xtb_disp_dftd4

@@ -22,7 +22,7 @@ module xtb_coulomb_gaussian
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_math, only : matInv3x3, matDet3x3
    use xtb_coulomb_ewald
-   use xtb_type_coulomb, only : TCoulomb
+   use xtb_type_coulomb, only : TCoulomb, setupBoundaryConditions, setupIndexTable
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_latticepoint, only : TLatticePoint, init
@@ -59,7 +59,7 @@ module xtb_coulomb_gaussian
 contains
 
 
-subroutine initFromMolecule(self, env, mol, rad, nshell, alpha, &
+subroutine initFromMolecule(self, env, mol, rad, num, nshell, alpha, &
       & tolerance)
 
    !> Source of the generated error
@@ -77,6 +77,9 @@ subroutine initFromMolecule(self, env, mol, rad, nshell, alpha, &
    !> Shell/Atomic hardnesses for each species
    real(wp), intent(in) :: rad(:, :)
 
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
    !> Number of shell for each species
    integer, intent(in), optional :: nshell(:)
 
@@ -89,7 +92,7 @@ subroutine initFromMolecule(self, env, mol, rad, nshell, alpha, &
    logical :: exitRun
 
    call init(self, env, mol%id, mol%lattice, mol%boundaryCondition, &
-      & rad, nshell, alpha, tolerance)
+      & rad, num, nshell, alpha, tolerance)
 
    call env%check(exitRun)
    if (exitRun) return
@@ -104,7 +107,7 @@ end subroutine initFromMolecule
 
 
 subroutine initGaussianSmeared(self, env, id, lattice, boundaryCond, rad, &
-      & nshell, alpha, tolerance)
+      & num, nshell, alpha, tolerance)
 
    !> Source of the generated error
    character(len=*), parameter :: source = 'coulomb_gaussian_initGaussianSmeared'
@@ -127,6 +130,9 @@ subroutine initGaussianSmeared(self, env, id, lattice, boundaryCond, rad, &
    !> Shell/Atomic hardnesses for each species
    real(wp), intent(in) :: rad(:, :)
 
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
    !> Number of shell for each species
    integer, intent(in), optional :: nshell(:)
 
@@ -137,63 +143,23 @@ subroutine initGaussianSmeared(self, env, id, lattice, boundaryCond, rad, &
    real(wp), intent(in), optional :: tolerance
 
    logical :: exitRun
-   integer :: natom, ndim
-   integer :: ind, iat, ish
-   real(wp) :: volume, recLat(3, 3)
+   integer :: ii
 
    self%boundaryCondition = boundaryCond
-   self%rad = rad
+   self%natom = size(id, dim=1)
 
-   natom = size(id, dim=1)
-   allocate(self%itbl(2, natom))
-   if (present(nshell)) then
-      ind = 0
-      do iat = 1, natom
-         ish = nshell(id(iat))
-         self%itbl(:, iat) = [ind, ish]
-         ind = ind + ish
+   call setupIndexTable(self%natom, self%itbl, id, num, nshell)
+
+   if (present(num)) then
+      allocate(self%rad(size(rad, dim=1), size(num)))
+      do ii = 1, size(num)
+         self%rad(:, ii) = rad(:, num(ii))
       end do
    else
-      do iat = 1, natom
-         self%itbl(:, iat) = [iat-1, 1]
-      end do
+      self%rad = rad
    end if
 
-   select case(self%boundaryCondition)
-   case default
-      call env%error("Boundary condition not supported", source)
-   case(boundaryCondition%cluster)
-      ! nothing to do
-   case(boundaryCondition%pbc3d)
-      volume = abs(matDet3x3(lattice))
-      recLat(:, :) = 2*pi*transpose(matInv3x3(lattice))
-
-      if (present(tolerance)) then
-         self%tolerance = tolerance
-      else
-         self%tolerance = 1.0e-8_wp
-      end if
-
-      if (present(alpha)) then
-         self%alpha = alpha
-      else
-         call getOptimalAlpha(env, lattice, recLat, volume, self%tolerance, &
-            & self%alpha)
-      end if
-
-      call getMaxR(env, self%alpha, self%tolerance, self%rCutoff)
-      call getMaxG(env, self%alpha, volume, self%tolerance, self%gCutoff)
-
-      call env%check(exitRun)
-      if (exitRun) then
-         call env%error("Could not setup numerical thresholds", source)
-         return
-      end if
-
-      call init(self%rLatPoint, env, lattice, boundaryCond, self%rCutoff)
-      call init(self%gLatPoint, env, recLat, boundaryCond, self%gCutoff)
-      call init(self%wsCell, natom)
-   end select
+   call setupBoundaryConditions(self, env, lattice, alpha, tolerance)
 
 end subroutine initGaussianSmeared
 

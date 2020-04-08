@@ -22,5 +22,6 @@ srcs += files(
   'dftd3_parameters.f90',
   'dftd4.f90',
   'dftd4_parameters.f90',
+  'encharges.f90',
   'ncoord.f90',
 )

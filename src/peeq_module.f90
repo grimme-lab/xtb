@@ -24,6 +24,8 @@ module xtb_peeq
    use xtb_type_latticepoint, only : TLatticePoint, init
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
       & cutCoordinationNumber
+   use xtb_disp_dftd4, only : d4_gradient
+   use xtb_disp_encharges, only : getENCharges
    use xtb_coulomb_gaussian
    use xtb_xtb_eeq
    implicit none
@@ -43,7 +45,7 @@ module xtb_peeq
 contains
 
 subroutine peeq &
-      (env,mol,wfn,basis,xtbData,egap,et,prlevel,grd,ccm,acc,etot,g,sigma,res)
+      (env,mol,wfn,basis,xtbData,egap,et,prlevel,grd,ccm,acc,etot,gradient,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
@@ -91,7 +93,7 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
    real(wp),intent(inout)                    :: etot !< total energy
    real(wp),intent(inout)                    :: egap !< HOMO-LUMO gap
-   real(wp),intent(inout),dimension(3,mol%n) :: g    !< molecular gradient
+   real(wp),intent(inout),dimension(3,mol%n) :: gradient    !< molecular gradient
    type(TWavefunction),intent(inout)       :: wfn  !< TB-wavefunction
 ! ------------------------------------------------------------------------
 !  OUTPUT
@@ -100,10 +102,8 @@ subroutine peeq &
 
 ! ------------------------------------------------------------------------
    type(chrg_parameter) :: chrgeq
-   real(wp), allocatable :: cn   (:)
-   real(wp), allocatable :: sqrab(:)
-   real(wp), allocatable :: dcndr(:,:,:)
-   real(wp), allocatable :: dcndL(:,:,:)
+   real(wp), allocatable :: cn(:), dcndr(:,:,:), dcndL(:,:,:)
+   real(wp), allocatable :: ccn(:), dccndr(:,:,:), dccndL(:,:,:)
    real(wp), allocatable :: X    (:,:)
    real(wp), allocatable :: S    (:,:)
    real(wp), allocatable :: H    (:,:)
@@ -119,9 +119,6 @@ subroutine peeq &
    integer :: nid
    integer, allocatable :: idnum(:)
    real(wp),allocatable :: chargeWidth(:, :)
-   real(wp),allocatable :: gam(:, :)
-   real(wp),allocatable :: kcn(:, :)
-   real(wp),allocatable :: chi(:, :)
    type(TGaussianSmeared) :: coulomb
    type(TENEquilibration) :: eeq
 
@@ -241,7 +238,7 @@ subroutine peeq &
    esrb  = 0.0_wp
    ed    = 0.0_wp
    ees   = 0.0_wp
-   g = 0.0_wp
+   gradient = 0.0_wp
 
    !debug = prlevel.gt.2
    debug =.false.
@@ -257,7 +254,7 @@ subroutine peeq &
    neglect2=neglect*10.0_wp
    scfconv=1.e-6_wp*acc
 
-   call init(latp, env, mol, 40.0_wp)
+   call init(latp, env, mol, 60.0_wp)
 
 ! ---------------------------------------
 !  IMPORTANT FACT: H is given in eV
@@ -266,10 +263,12 @@ subroutine peeq &
 ! ---------------------------------------
 !  Get memory
 ! ---------------------------------------
-   allocate(sqrab(mol%n*(mol%n+1)/2));   sqrab = 0.0_wp
    allocate(cn(mol%n));                     cn = 0.0_wp
    allocate(dcndr(3,mol%n,mol%n));       dcndr = 0.0_wp
    allocate(dcndL(3,3,mol%n));           dcndL = 0.0_wp
+   allocate(ccn(mol%n));                   ccn = 0.0_wp
+   allocate(dccndr(3,mol%n,mol%n));     dccndr = 0.0_wp
+   allocate(dccndL(3,3,mol%n));         dccndL = 0.0_wp
    allocate(H(nao,nao));                     H = 0.0_wp
    allocate(X(nao,nao));                     X = 0.0_wp
    allocate(H0(naop));                      H0 = 0.0_wp
@@ -282,8 +281,8 @@ subroutine peeq &
    allocate(dSEdcn(nshell))
    allocate(dSEdq(nshell))
    allocate(qeeq(mol%n));           qeeq = 0.0_wp
-   allocate(dqdr(3,mol%n,mol%n+1)); dqdr = 0.0_wp
-   allocate(dqdL(3,3,mol%n+1));     dqdL = 0.0_wp
+   allocate(dqdr(3,mol%n,mol%n)); dqdr = 0.0_wp
+   allocate(dqdL(3,3,mol%n));     dqdL = 0.0_wp
 
 ! ---------------------------------------
 !  Fill levels
@@ -299,19 +298,6 @@ subroutine peeq &
       wfn%ihomoa=0
       wfn%nopen=0
    endif
-
-! ---------------------------------------
-!  Calculate distances
-! ---------------------------------------
-   k = 0
-   do i=1,mol%n
-      do j=1,i
-         k=k+1
-         sqrab(k)=(mol%xyz(1,i)-mol%xyz(1,j))**2 &
-         &       +(mol%xyz(2,i)-mol%xyz(2,j))**2 &
-         &       +(mol%xyz(3,i)-mol%xyz(3,j))**2
-      enddo
-   enddo
 
    if (prlevel > 1) then
       write(env%unit,'(/,10x,51("."))')
@@ -341,6 +327,36 @@ subroutine peeq &
    call cutCoordinationNumber(mol%n, cn, dcndr, dcndL, maxCN=8.0_wp)
 
    if (profile) call timer%measure(2)
+   if (profile) call timer%measure(4,"D4 Dispersion")
+! ----------------------------------------
+!  D4 dispersion energy + gradient (2B) under pbc
+! ----------------------------------------
+   call getENCharges(env, mol, cn, dcndr, dcndL, qeeq, dqdr, dqdL)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not get EN charges for D4 dispersion", source)
+      return
+   end if
+
+   call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
+      & ccn, dccndr, dccndL)
+   call latp%getLatticePoints(trans, 60.0_wp)
+   call d4_gradient(mol, trans, xtbData%dispersion%dpar, xtbData%dispersion%g_a, &
+      & xtbData%dispersion%g_c, xtbData%dispersion%wf, 60.0_wp, &
+      & ccn, dccndr, dccndL, qeeq, dqdr, dqdL, ed, gradient, sigma)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Evaluation of dispersion energy failed", source)
+      return
+   end if
+
+   ! better save than sorry, delete the D4-EEQ charges
+   qeeq(:) = 0.0_wp
+   dqdr(:, :, :) = 0.0_wp
+   dqdL(:, :, :) = 0.0_wp
+
+   if (profile) call timer%measure(4)
 ! ---------------------------------------
 !  Get EEQ charges q(1:n) + dqdr(3,1:n,1:n) under pbc
 ! ---------------------------------------
@@ -354,7 +370,7 @@ subroutine peeq &
       ! add SASA term to energy and gradient
       ees = gbsa%gsasa
       gsolv = gbsa%gsasa
-      g = g + gbsa%dsdr
+      gradient = gradient + gbsa%dsdr
       if (profile) call timer%measure(9)
    endif
 
@@ -365,7 +381,7 @@ subroutine peeq &
    ! initialize electrostatic energy
    if (lgbsa) then
       call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
-         &            ees,gsolv,g,.false.,.true.,.true.)
+         &            ees,gsolv,gradient,.false.,.true.,.true.)
    else
       nid = maxval(mol%id)
       allocate(idnum(nid))
@@ -380,20 +396,15 @@ subroutine peeq &
          idnum(ii) = mol%at(jat)
       end do
       allocate(chargeWidth(1, nid))
-      allocate(chi(1, nid))
-      allocate(kcn(1, nid))
-      allocate(gam(1, nid))
       do ii = 1, nid
          ati = idnum(ii)
          chargeWidth(1, ii) = xtbData%coulomb%chargeWidth(ati)
-         gam(1, ii) = xtbData%coulomb%chemicalHardness(ati)
-         kcn(1, ii) = xtbData%coulomb%kcn(ati)
-         chi(1, ii) = xtbData%coulomb%electronegativity(ati)
       end do
       call init(coulomb, env, mol, chargeWidth)
-      call init(eeq, env, chi, kcn, gam)
+      call init(eeq, env, xtbData%coulomb%electronegativity, &
+         & xtbData%coulomb%kcn, xtbData%coulomb%chemicalHardness, num=idnum)
       call eeq%chargeEquilibration(env, mol, coulomb, cn, dcndr, dcndL, &
-         & ees, g, sigma, qat=qeeq, dqdr=dqdr, dqdL=dqdL)
+         & ees, gradient, sigma, qat=qeeq, dqdr=dqdr, dqdL=dqdL)
    endif
 
    call env%check(exitRun)
@@ -405,20 +416,6 @@ subroutine peeq &
    wfn%q = qeeq
 
    if (profile) call timer%measure(3)
-   if (profile) call timer%measure(4,"D4 Dispersion")
-! ----------------------------------------
-!  D4 dispersion energy + gradient (2B) under pbc
-! ----------------------------------------
-   call ddisp_peeq(xtbData%dispersion,mol,env,cn,dcndr,dcndL,grd,ed,g,sigma)
-   dcndr = -dcndr
-
-   call env%check(exitRun)
-   if (exitRun) then
-      call env%error("Evaluation of dispersion energy failed", source)
-      return
-   end if
-
-   if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,"Integral evaluation")
 ! ---------------------------------------
 !  Build AO overlap S and H0 integrals under pbc
@@ -510,13 +507,13 @@ subroutine peeq &
 !  GRADIENT (100% analytical)
 ! ======================================================================
    ! repulsion energy + gradient
-   !g = 0.0_wp; sigma = 0.0_wp
+   !gradient = 0.0_wp; sigma = 0.0_wp
    call latp%getLatticePoints(trans, 40.0_wp)
-   call drep_grad(xtbData%repulsion,mol,trans,ep,g,sigma)
+   call drep_grad(xtbData%repulsion,mol,trans,ep,gradient,sigma)
    ! short ranged bond energy + gradient
    if (allocated(xtbData%srb)) then
       call latp%getLatticePoints(trans, sqrt(200.0_wp))
-      call dsrb_grad(mol,xtbData%srb,cn,dcndr,dcndL,trans,esrb,g,sigma)
+      call dsrb_grad(mol,xtbData%srb,cn,dcndr,dcndL,trans,esrb,gradient,sigma)
    end if
    !etot = ep + esrb; return
    ! h0 gradient
@@ -529,13 +526,13 @@ subroutine peeq &
       call ccm_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
          & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
          & mol%lattice,wfn%q,cn, &
-         & wfn%P,Pew,g,sigma,dhdcn,dhdq,mol%wsc)
+         & wfn%P,Pew,gradient,sigma,dhdcn,dhdq,mol%wsc)
    else
       call latp%getLatticePoints(trans, sqrt(800.0_wp))
       call pbc_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
          & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
          & trans,wfn%q,cn, &
-         & wfn%P,Pew,g,sigma,dhdcn,dhdq)
+         & wfn%P,Pew,gradient,sigma,dhdcn,dhdq)
    endif
    if (mol%npbc > 0) then
       ! setup CN sigma
@@ -544,14 +541,14 @@ subroutine peeq &
       call dgemv('n',9,mol%n,1.0_wp,dqdL, 9, dhdq,1,1.0_wp,sigma,1)
    endif
    ! setup CN gradient
-   call dgemv('n',3*mol%n,mol%n,-1.0_wp,dcndr,3*mol%n,dhdcn,1,1.0_wp,g,1)
+   call dgemv('n',3*mol%n,mol%n, 1.0_wp,dcndr,3*mol%n,dhdcn,1,1.0_wp,gradient,1)
    ! setup  q gradient
-   call dgemv('n',3*mol%n,mol%n, 1.0_wp,dqdr, 3*mol%n, dhdq,1,1.0_wp,g,1)
+   call dgemv('n',3*mol%n,mol%n, 1.0_wp,dqdr, 3*mol%n, dhdq,1,1.0_wp,gradient,1)
 
    if (profile) call timer%measure(8)
 
 !  calculate the norm for printout
-   res%gnorm = sqrt(sum( g**2 ))
+   res%gnorm = sqrt(sum( gradient**2 ))
 
 ! ---------------------------------------
 !  Properties + printout
@@ -612,175 +609,12 @@ subroutine peeq &
 
 end associate
 
-! ---------------------------------------
-! Free memory
-! ---------------------------------------
    if (profile) call timer%deallocate
-   if(allocated(S))         deallocate(S)
-   if(allocated(H))         deallocate(H)
-   if(allocated(H0))        deallocate(H0)
-   if(allocated(X))         deallocate(X)
-   if(allocated(H1))        deallocate(H1)
-   if(allocated(kcnao))     deallocate(kcnao)
-   if(allocated(zsh))       deallocate(zsh)
-   if(allocated(dqdr))      deallocate(dqdr)
 
 end subroutine peeq
 
-! -----------------------------------------------------------------------
-!  Calculate D4 dispersion gradient
-! -----------------------------------------------------------------------
-subroutine ddisp_peeq(disp,mol,env,cn,dcndr,dcndL,grd,ed,gd,sigma)
-   use xtb_mctc_accuracy, only : wp
-   ! -----------------------------------------------------------------------
-   !  Type definitions
-   ! -----------------------------------------------------------------------
-   use xtb_type_molecule
-   use xtb_type_environment
-   use xtb_type_wavefunction
-   use xtb_type_basisset
-   use xtb_type_param
-   use xtb_type_data
-   ! -----------------------------------------------------------------------
-   !  DFT-D4 definitions and PBC definitions
-   ! -----------------------------------------------------------------------
-   use xtb_disp_dftd4
-   use xtb_eeq
-   use xtb_pbc,    only : get_realspace_cutoff
-   use xtb_disp_ncoord
-   implicit none
-
-   character(len=*), parameter :: source = 'peeq_ddisp'
-
-   ! -----------------------------------------------------------------------
-   !  Intent IN
-   ! -----------------------------------------------------------------------
-   type(TDispersionData), intent(in) :: disp
-   type(TMolecule),           intent(in)     :: mol
-   type(dftd_parameter)                        :: par
-   type(chrg_parameter)                        :: chrgeq
-   type(TEnvironment), intent(inout) :: env
-   ! EEQ partial charges and derivatives
-   real(wp), dimension(mol%n),        intent(in) :: cn
-   real(wp), dimension(3,mol%n,mol%n),intent(in) :: dcndr
-   real(wp), dimension(3,3,mol%n),    intent(in) :: dcndL
-
-   ! -----------------------------------------------------------------------
-   !  Intent INOUT
-   ! -----------------------------------------------------------------------
-   ! dispersion energy and derivative
-   real(wp),                     intent(inout) :: ed
-   real(wp), dimension(3,mol%n), intent(inout) :: gd
-   real(wp), dimension(3,3),     intent(inout) :: sigma
-
-   !--- allocatables
-   real(wp),allocatable, dimension(:,:)   :: sdum
-   real(wp),allocatable, dimension(:,:)   :: gdum
-   real(wp),allocatable, dimension(:)     :: q
-   real(wp),allocatable, dimension(:,:,:) :: dqdr
-   real(wp),allocatable, dimension(:,:,:) :: dqdL
-   real(wp),allocatable, dimension(:)     :: covcn
-   real(wp),allocatable, dimension(:,:,:) :: dcovcndr
-   real(wp),allocatable, dimension(:,:,:) :: dcovcndL
-   real(wp),allocatable, dimension(:,:)   :: c6abns
-   real(wp),allocatable, dimension(:)     :: gw
-   real(wp),allocatable, dimension(:,:)   :: gdummy
-
-   ! -----------------------------------------------------------------------
-   !  Variables
-   ! -----------------------------------------------------------------------
-   integer               :: i,j,k,l,m
-   integer               :: ndim
-   integer               :: mbd
-   logical, intent(in)   :: grd
-   integer, dimension(3) :: rep_vdw,rep_cn
-   ! real space cutoffs
-   real(wp), parameter   :: cn_thr = 1600.0_wp
-   real(wp), parameter   :: crit_vdw         = 4000.0_wp
-
-   ! damping variable
-   real(wp) :: edum
-   real(wp) :: t6
-   real(wp) :: t8
-   real(wp) :: expterm
-   logical :: exitRun
-
-   ! -----------------------------------------------------------------------
-   !  Initialization
-   ! -----------------------------------------------------------------------
-   ed  = 0.0_wp
-   mbd = 0
-
-   ! -----------------------------------------------------------------------
-   !  Get ndim
-   ! -----------------------------------------------------------------------
-   call d4dim(mol%n,mol%at,ndim)
-   if (mol%npbc > 0) &
-      call get_realspace_cutoff(mol%lattice,crit_vdw,rep_vdw)
-
-   ! -----------------------------------------------------------------------
-   !  Get memory
-   ! -----------------------------------------------------------------------
-   allocate(c6abns(ndim,ndim));   c6abns = 0.0_wp
-   allocate(gw(ndim));                gw = 0.0_wp
-   allocate(q(mol%n));                 q = 0.0_wp
-   allocate(dqdr(3,mol%n,mol%n+1)); dqdr = 0.0_wp
-   allocate(dqdL(3,3,mol%n+1));     dqdL = 0.0_wp
-   allocate(covcn(mol%n));               covcn = 0.0_wp
-   allocate(dcovcndr(3,mol%n,mol%n)); dcovcndr = 0.0_wp
-   allocate(dcovcndL(3,3,mol%n));     dcovcndL = 0.0_wp
-
-   ! get D4(EEQ) charges
-   call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   ! neither sdum nor gdum need to be dummy allocated, since lgrad = .false. is set
-   ! eeq_chrgeq must not reference sdum/gdum and we can avoid the dummy allocate
-   call eeq_chrgeq(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL,edum,gdum,sdum, &
-      &            .false.,.false.,.true.)
-
-   call env%check(exitRun)
-   if (exitRun) then
-      call env%error("Electronegativity equilibration failed", source)
-      return
-   end if
-
-   if (mol%npbc > 0) then
-      call get_d4_cn(mol,covcn,dcovcndr,dcovcndL,thr=cn_thr)
-      !else
-      !call dncoord_d4(mol%n,mol%at,mol%xyz,covcn,dcovcndr,cn_thr)
-   endif
-
-   ! setup c6abns with diagonal terms: i interaction with its images
-   call pbc_d4(mol%n,ndim,mol%at,disp%wf,disp%g_a,disp%g_c,covcn,gw,c6abns)
-
-   ! -----------------------------------------------------------------------
-   !  Set dispersion parameters and calculate Edisp or Gradient
-   ! -----------------------------------------------------------------------
-   if (mol%npbc > 0) then
-      call dispgrad_3d(mol,ndim,q,covcn,dcovcndr,dcovcndL,rep_vdw,rep_vdw,crit_vdw,crit_vdw, &
-         &             disp%dpar,disp%wf,disp%g_a,disp%g_c,c6abns,mbd, &
-         &             gd,sigma,ed,dqdr,dqdL)
-   else
-      call dispgrad(mol%n,ndim,mol%at,q,mol%xyz, &
-         &          disp%dpar,disp%wf,disp%g_a,disp%g_c, &
-         &          c6abns,mbd, &
-         &          gd,ed,dqdr)
-   endif
-
-   ! -----------------------------------------------------------------------
-   !  Free willy (no this is not ORCA)
-   ! -----------------------------------------------------------------------
-   if(allocated(c6abns))  deallocate(c6abns)
-   if(allocated(gw))      deallocate(gw)
-   if(allocated(covcn))    deallocate(covcn)
-   if(allocated(dcovcndr)) deallocate(dcovcndr)
-   if(allocated(dcovcndL)) deallocate(dcovcndL)
-   if(allocated(q))       deallocate(q)
-   if(allocated(dqdr))    deallocate(dqdr)
-   if(allocated(dqdL))    deallocate(dqdL)
-end subroutine ddisp_peeq
-
 ! repulsion
-pure subroutine drep_grad(repData,mol,trans,erep,g,sigma)
+pure subroutine drep_grad(repData,mol,trans,erep,gradient,sigma)
    use xtb_type_molecule
    use xtb_type_param
    use xtb_pbc_tools
@@ -789,7 +623,7 @@ pure subroutine drep_grad(repData,mol,trans,erep,g,sigma)
    type(TRepulsionData), intent(in) :: repData
    type(TMolecule), intent(in) :: mol
    real(wp), intent(in) :: trans(:, :)
-   real(wp), intent(inout) :: g(:, :)
+   real(wp), intent(inout) :: gradient(:, :)
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(out) :: erep
    integer :: i,j,k,lin
@@ -831,8 +665,8 @@ pure subroutine drep_grad(repData,mol,trans,erep,g,sigma)
             erep = erep + expterm/r * w
             ! save repulsion gradient
             dtmp = expterm*(1.5_wp*alpha*r2top34 + 1)/r2top34top2 * w
-            g(:,i) = g(:,i) - dtmp*rij
-            g(:,j) = g(:,j) + dtmp*rij
+            gradient(:,i) = gradient(:,i) - dtmp*rij
+            gradient(:,j) = gradient(:,j) + dtmp*rij
             sigma = sigma - dtmp*outer_prod_3x3(rij,rij)
          enddo ! k WSC partner
       enddo ! j atom
@@ -841,7 +675,7 @@ pure subroutine drep_grad(repData,mol,trans,erep,g,sigma)
 end subroutine drep_grad
 
 ! short-ranged bond correction
-subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,g,sigma)
+subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,gradient,sigma)
 
    use xtb_type_param
    use xtb_type_molecule
@@ -856,7 +690,7 @@ subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,g,sigma)
    type(TMolecule), intent(in) :: mol
    type(TShortRangeData), intent(in) :: srb
    real(wp), intent(in) :: trans(:, :)
-   real(wp), intent(inout) :: g(:, :)
+   real(wp), intent(inout) :: gradient(:, :)
    real(wp), intent(inout) :: sigma(:, :)
    real(wp), intent(out) :: esrb
    real(wp), intent(in) :: cn(:)
@@ -911,22 +745,16 @@ subroutine dsrb_grad(mol,srb,cn,dcndr,dcndL,trans,esrb,g,sigma)
          ! save SRB energy
          esrb = esrb + expterm * w
          dtmp = 2.0_wp*pre*dr*expterm * w
-         g(:,iat) = g(:,iat) - dtmp*rij/rab
-         g(:,jat) = g(:,jat) + dtmp*rij/rab
+         gradient(:,iat) = gradient(:,iat) - dtmp*rij/rab
+         gradient(:,jat) = gradient(:,jat) + dtmp*rij/rab
          ! three body gradient
-         dEdr0(i) = dEdr0(i) - dtmp
+         dEdr0(i) = dEdr0(i) + dtmp
          sigma = sigma - dtmp*spread(rij, 1, 3)*spread(rij, 2, 3)/rab
       enddo ! rep
    enddo ! i
 
-   call dgemv('n',3*mol%n,nsrb,+1.0_wp,drab0dr,3*mol%n,dEdr0,1,1.0_wp,g,1)
-   call dgemv('n',9,nsrb,-1.0_wp,drab0dL,9,dEdr0,1,1.0_wp,sigma,1)
-
-   ! free memory
-   if(allocated(drab0dr))   deallocate(drab0dr)
-   if(allocated(drab0dl))   deallocate(drab0dl)
-   if(allocated(rab0))    deallocate(rab0)
-   if(allocated(srblist)) deallocate(srblist)
+   call contract(drab0dr, dEdr0, gradient, beta=1.0_wp)
+   call contract(drab0dL, dEdr0, sigma, beta=1.0_wp)
 
 end subroutine dsrb_grad
 

@@ -162,6 +162,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/disp/dftd3.f"
   "${XTB_ROOT}/src/disp/dftd3.f90"
   "${XTB_ROOT}/src/disp/dftd4.f90"
+  "${XTB_ROOT}/src/disp/encharges.f90"
 
   # Coulomb
   "${XTB_ROOT}/src/coulomb/ewald.f90"

@@ -503,7 +503,7 @@ subroutine test_coulomb_gfn1_cluster
    ! Second run now for shellwise electrostatics
    call init(mol, at, xyz)
    call init(coulomb, env, mol, gamAverage%harmonic, shellHardness, 2.0_wp, &
-      & nshell)
+      & nshell=nshell)
 
    call coulomb%getCoulombMatrix(mol, jmat)
 
@@ -865,7 +865,7 @@ subroutine test_coulomb_gfn2_cluster
    ! Second run now for shellwise electrostatics
    call init(mol, at, xyz)
    call init(coulomb, env, mol, gamAverage%arithmetic, shellHardness, 2.0_wp, &
-      & nshell)
+      & nshell=nshell)
 
    call coulomb%getCoulombMatrix(mol, jmat)
 

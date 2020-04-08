@@ -57,6 +57,7 @@ module xtb_xtb_eeq
    !> Initialize equilibration model
    interface init
       module procedure :: initENEquilibration
+      module procedure :: initENEquilibrationAtomic
    end interface init
 
 
@@ -85,7 +86,82 @@ contains
 
 
 !> Initialize equilibration model form parameters
-subroutine initENEquilibration(self, env, chi, kcn, gam)
+subroutine initENEquilibrationAtomic(self, env, chi, kcn, gam, num)
+
+   !> Source for error generation
+   character(len=*), parameter :: source = 'xtb_eeq_initENEquilibrationAtomic'
+
+   !> Instance of the equilibration model
+   type(TENEquilibration), intent(out) :: self
+
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Electronegativity of each species
+   real(wp), intent(in) :: chi(:)
+
+   !> Coordination number dependence of each species
+   real(wp), intent(in), optional :: kcn(:)
+
+   !> Chemical hardness of each species
+   real(wp), intent(in), optional :: gam(:)
+
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
+   integer :: ii
+
+   if (present(num)) then
+      allocate(self%chi(1, size(num)))
+      do ii = 1, size(num)
+         self%chi(1, ii) = chi(num(ii))
+      end do
+   else
+      self%chi = reshape(chi, [1, size(chi)])
+   end if
+
+   self%solve_lineq => solve_sysv
+   self%invert_lineq => solve_sytri
+
+   if (present(kcn)) then
+      if (any(shape(kcn) /= shape(chi))) then
+         call env%error("Cannot initialize CN dependence of EN", source)
+         allocate(self%kcn(1, size(self%chi)))
+         self%kcn(:, :) = 0.0_wp
+      else
+         if (present(num)) then
+            allocate(self%kcn(1, size(num)))
+            do ii = 1, size(num)
+               self%kcn(1, ii) = kcn(num(ii))
+            end do
+         else
+            self%kcn = reshape(kcn, [1, size(kcn)])
+         end if
+      end if
+   end if
+
+   if (present(gam)) then
+      if (any(shape(gam) /= shape(chi))) then
+         call env%error("Cannot initialize chemical hardness", source)
+         allocate(self%gam(1, size(self%chi)))
+         self%gam(:, :) = 0.0_wp
+      else
+         if (present(num)) then
+            allocate(self%gam(1, size(num)))
+            do ii = 1, size(num)
+               self%gam(1, ii) = gam(num(ii))
+            end do
+         else
+            self%gam = reshape(gam, [1, size(gam)])
+         end if
+      end if
+   end if
+
+end subroutine initENEquilibrationAtomic
+
+
+!> Initialize equilibration model form parameters
+subroutine initENEquilibration(self, env, chi, kcn, gam, num)
 
    !> Source for error generation
    character(len=*), parameter :: source = 'xtb_eeq_initENEquilibration'
@@ -105,27 +181,54 @@ subroutine initENEquilibration(self, env, chi, kcn, gam)
    !> Chemical hardness of each species
    real(wp), intent(in), optional :: gam(:, :)
 
-   self%chi = chi
+   !> Atomic number for each id
+   integer, intent(in), optional :: num(:)
+
+   integer :: ii
+
+   if (present(num)) then
+      allocate(self%chi(size(chi, dim=1), size(num)))
+      do ii = 1, size(num)
+         self%chi(:, ii) = chi(:, num(ii))
+      end do
+   else
+      self%chi = chi
+   end if
+
    self%solve_lineq => solve_sysv
    self%invert_lineq => solve_sytri
 
    if (present(kcn)) then
       if (any(shape(kcn) /= shape(chi))) then
          call env%error("Cannot initialize CN dependence of EN", source)
-         allocate(self%kcn(size(chi, 1), size(chi, 2)))
+         allocate(self%kcn(size(self%chi, 1), size(self%chi, 2)))
          self%kcn(:, :) = 0.0_wp
       else
-         self%kcn = kcn
+         if (present(num)) then
+            allocate(self%kcn(size(kcn, dim=1), size(num)))
+            do ii = 1, size(num)
+               self%kcn(:, ii) = kcn(:, num(ii))
+            end do
+         else
+            self%kcn = kcn
+         end if
       end if
    end if
 
    if (present(gam)) then
       if (any(shape(gam) /= shape(chi))) then
          call env%error("Cannot initialize chemical hardness", source)
-         allocate(self%gam(size(chi, 1), size(chi, 2)))
+         allocate(self%gam(size(self%chi, 1), size(self%chi, 2)))
          self%gam(:, :) = 0.0_wp
       else
-         self%gam = gam
+         if (present(num)) then
+            allocate(self%gam(size(gam, dim=1), size(num)))
+            do ii = 1, size(num)
+               self%gam(:, ii) = gam(:, num(ii))
+            end do
+         else
+            self%gam = gam
+         end if
       end if
    end if
 

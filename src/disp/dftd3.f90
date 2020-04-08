@@ -32,6 +32,7 @@ module xtb_disp_dftd3
 
    interface d3_gradient
       module procedure :: d3_full_gradient_neigh
+      module procedure :: d3_full_gradient_latp
       module procedure :: d3_gradient_neigh
       module procedure :: d3_gradient_latp
    end interface d3_gradient
@@ -155,6 +156,63 @@ subroutine get_atomic_c6(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
       end do
    end do
 end subroutine get_atomic_c6
+
+
+subroutine d3_full_gradient_latp &
+      & (mol, trans, par, weighting_factor, cutoff, cutoff3, &
+      &  cn, dcndr, dcndL, energy, gradient, sigma, e2, e3)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(in) :: weighting_factor
+   real(wp), intent(in) :: cutoff
+   real(wp), intent(in) :: cutoff3
+   real(wp), intent(in) :: cn(:)
+   real(wp), intent(in) :: dcndr(:, :, :)
+   real(wp), intent(in) :: dcndL(:, :, :)
+
+   real(wp), intent(inout) :: energy
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(out), optional :: e2
+   real(wp), intent(out), optional :: e3
+
+   integer :: nat, max_ref
+   real(wp), allocatable :: gw(:, :), dgwdcn(:, :)
+   real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
+   real(wp), allocatable :: energies(:), energies3(:), dEdcn(:)
+
+   nat = len(mol)
+   max_ref = maxval(number_of_references(mol%at))
+   allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
+      & dc6dcn(nat, nat), energies(nat), energies3(nat), &
+      & dEdcn(nat), source=0.0_wp)
+
+   call weight_references(nat, mol%at, weighting_factor, cn, gw, dgwdcn)
+
+   call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
+
+   call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   if (present(e2)) e2 = sum(energies)
+   if (par%s9 /= 0.0_wp) then
+      call atm_gradient_latp(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
+         &  energies3, gradient, sigma, dEdcn)
+   end if
+   if (present(e3)) e3 = sum(energies3)
+
+   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+
+   energy = energy + sum(energies) + sum(energies3)
+
+end subroutine d3_full_gradient_latp
 
 
 subroutine d3_gradient_latp &
@@ -424,7 +482,7 @@ end subroutine atm_gradient_latp
 
 subroutine d3_full_gradient_neigh &
       & (mol, neighs, neighs3, neighlist, par, weighting_factor, &
-      &  cn, dcndr, dcndL, energy, gradient, sigma)
+      &  cn, dcndr, dcndL, energy, gradient, sigma, e2, e3)
 
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
@@ -445,16 +503,19 @@ subroutine d3_full_gradient_neigh &
    real(wp), intent(inout) :: energy
    real(wp), intent(inout) :: gradient(:, :)
    real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(out), optional :: e2
+   real(wp), intent(out), optional :: e3
 
    integer :: nat, max_ref
    real(wp), allocatable :: gw(:, :), dgwdcn(:, :)
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
-   real(wp), allocatable :: energies(:), dEdcn(:)
+   real(wp), allocatable :: energies(:), energies3(:), dEdcn(:)
 
    nat = len(mol)
    max_ref = maxval(number_of_references(mol%at))
    allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
-      &     dc6dcn(nat, nat), energies(nat), dEdcn(nat), source=0.0_wp)
+      & dc6dcn(nat, nat), energies(nat), energies3(nat), &
+      & dEdcn(nat), source=0.0_wp)
 
    call weight_references(nat, mol%at, weighting_factor, cn, gw, dgwdcn)
 
@@ -463,15 +524,17 @@ subroutine d3_full_gradient_neigh &
    call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
 
+   if (present(e2)) e2 = sum(energies)
    if (par%s9 /= 0.0_wp) then
       call atm_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
-         & energies, gradient, sigma, dEdcn)
+         & energies3, gradient, sigma, dEdcn)
    end if
+   if (present(e3)) e3 = sum(energies3)
 
    call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
 
-   energy = energy + sum(energies)
+   energy = energy + sum(energies) + sum(energies3)
 
 end subroutine d3_full_gradient_neigh
 

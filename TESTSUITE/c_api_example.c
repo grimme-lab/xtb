@@ -32,7 +32,7 @@ main (int argc, char **argv)
                                &energy, NULL, dipole, q, NULL, qp, wbo);
 
    assert(stat == 0);
-   assert(fabs(energy + 8.3824793818504) < 1.0e-10);
+   assert(fabs(energy + 8.3824793849585) < 1.0e-10);
    assert(fabs(q[5] - 0.05184019996829) < 1.0e-8);
    assert(fabs(dipole[2] + 0.29832384492435) < 1.0e-6);
    assert(fabs(qp[14] - 0.56386138525354) < 1.0e-6);

@@ -78,7 +78,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    &                     new_gbsa,deallocate_gbsa, &
    &                     update_nnlist_gbsa,compute_fgb,compute_brad_sasa
    use xtb_disp_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
-   &                     mdisp,prmolc6,edisp_scc,edisp,abcappr
+   &                     mdisp,prmolc6,edisp_scc,edisp,abcappr,d4_gradient
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
    use xtb_aespot,    only : ddqint,dradcn,aniso_grad,setdvsdq,dsint
@@ -129,8 +129,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    real(wp),allocatable :: dSEdcn(:)
    integer :: nid
    integer, allocatable :: idnum(:)
-   integer, allocatable :: idshell(:)
-   real(wp),allocatable :: gam2sh(:, :)
    type(TxTBCoulomb) :: ies
    type(TKlopmanOhno) :: coulomb
    real(wp), allocatable :: djdr(:, :, :)
@@ -144,7 +142,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 ! ========================================================================
    type(TxTBDispersion), allocatable :: scD4
    real(wp) :: embd
-   real(wp),allocatable :: covcn(:)
    integer  :: mbd
    parameter(mbd=3)
    real(wp) :: molc6,molc8,molpol
@@ -184,7 +181,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    integer :: npr,ii,jj,kk,i,j,k,m,iat,jat,mi,jter,atj,kkk,mj,mm
    integer :: ishell,jshell,np,ia,ndimv,l,nmat,nmat2
    integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag
-   integer :: is,js
+   integer :: is,js,gav
 
    character(len=128) :: atmp,ftmp
    logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
@@ -399,25 +396,14 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
       end do
       idnum(ii) = mol%at(jat)
    end do
-   allocate(idShell(nid))
-   allocate(gam2sh(maxval(xtbData%nShell), nid))
-   gam2sh(:, :) = 0.0_wp
-   do ii = 1, nid
-      ati = idnum(ii)
-      idShell(ii) = xtbData%nShell(ati)
-      do is = 1, idShell(ii)
-         jj = xtbData%hamiltonian%angShell(is, ati)
-         gam2sh(is, ii) = xtbData%coulomb%shellHardness(is, ati)
-      end do
-   end do
 
    if(gfn_method == 1)then
-      call init(coulomb, env, mol, gamAverage%harmonic, gam2sh, &
-         & xtbData%coulomb%gExp, idshell)
+      gav = gamAverage%harmonic
    else !GFN2
-      call init(coulomb, env, mol, gamAverage%arithmetic, gam2sh, &
-         & xtbData%coulomb%gExp, idshell)
+      gav = gamAverage%arithmetic
    endif
+   call init(coulomb, env, mol, gav, xtbData%coulomb%shellHardness, &
+      & xtbData%coulomb%gExp, num=idnum, nshell=xtbData%nShell)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -651,10 +637,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
    if (allocated(scD4)) then
-      call dispgrad(mol%n, scD4%ndim, mol%at, wfn%q, mol%xyz, &
-         & xtbData%dispersion%dpar, scD4%wf, scD4%g_a, scD4%g_c, scD4%refC6, &
-         & mbd, gradient, embd)
-      embd = embd - ed
+      call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
+         & cn, dcndr, dcndL)
+      call d4_gradient(mol, trans, xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
+         &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
+         &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)
    endif
 
    ! ------------------------------------------------------------------------
@@ -801,7 +788,7 @@ subroutine scf_grad(mol, nmat2, matlist2, H0, shellShift, S, xtbData, trans, &
 
    use xtb_aespot,    only : ddqint,dradcn,aniso_grad,setdvsdq,dsint
    use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift,compute_gb_egrad
-   use xtb_disp_dftd4, only: dispgrad
+   use xtb_disp_dftd4, only: d4_gradient
    use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
    use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 

@@ -101,6 +101,10 @@ program peeq_tester
       end select
    case('dftd4')
       select case(sec)
+      case('pbc3dneighs'); call test_dftd4_pbc3d_neighbourlist
+      case('pbc3dlatp'); call test_dftd4_pbc3d_latticepoints
+      case('pbc3datmneighs'); call test_dftd4_pbc3d_threebody_neighs
+      case('pbc3datmlatp'); call test_dftd4_pbc3d_threebody_latp
       case('properties'); call test_dftd4_properties
       case('energies');   call test_dftd4_energies
       case('pbc_disp');   call test_dftd4_pbc_energies
