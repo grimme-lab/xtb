@@ -21,12 +21,21 @@ module xtb_disp_coordinationnumber
    use xtb_mctc_constants, only : pi
    use xtb_param_covalentradd3, only : covalentRadD3
    use xtb_param_paulingen, only : paulingEN
+   use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_neighbourlist, only : TNeighbourList
+   use xtb_type_latticepoint, only : TLatticePoint, init_ => init
    implicit none
    private
 
    public :: cnType, getCoordinationNumber, cutCoordinationNumber
+
+
+   interface getCoordinationNumber
+      module procedure :: getCoordinationNumberWrap
+      module procedure :: getCoordinationNumberNL
+      module procedure :: getCoordinationNumberLP
+   end interface getCoordinationNumber
 
 
    !> Possible counting functions for calculating coordination numbers
@@ -89,27 +98,85 @@ contains
 
 !> Geometric fractional coordination number, supports both error function
 !  and exponential counting functions.
-subroutine getCoordinationNumber(mol, neighs, neighlist, cf, cn, dcndr, dcndL)
+subroutine getCoordinationNumberWrap(env, mol, cf, cn, dcndr, dcndL, cutoff)
 
-   !> Molecular structure information.
+   !> Source for error creation
+   character(len=*), parameter :: source = &
+      & 'disp_coordinationnumber_getCoordinationNumberWrap'
+
+   !> Computational Environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Molecular structure information
    type(TMolecule), intent(in) :: mol
 
-   !> Number of interacting neighbours.
-   integer, intent(in) :: neighs(:)
-
-   !> Neighbourlist.
-   type(TNeighbourList), intent(in) :: neighlist
-
-   !> Coordination number type (by counting function).
+   !> Coordination number type (by counting function)
    integer, intent(in) :: cf
 
-   !> Error function coordination number.
+   !> Error function coordination number
    real(wp), intent(out) :: cn(:)
 
-   !> Derivative of the CN with respect to the Cartesian coordinates.
+   !> Derivative of the CN with respect to the Cartesian coordinates
    real(wp), intent(out) :: dcndr(:, :, :)
 
-   !> Derivative of the CN with respect to strain deformations.
+   !> Derivative of the CN with respect to strain deformations
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   !> Real space cutoff for the coordination number
+   real(wp), intent(in), optional :: cutoff
+
+   logical :: exitRun
+   real(wp) :: rCutoff
+   real(wp), allocatable :: trans(:, :)
+   type(TLatticePoint) :: latp
+
+   if (present(cutoff)) then
+      rCutoff = cutoff
+   else
+      rCutoff = 40.0_wp
+   end if
+
+   !> Initialize lattice point generator, this might fail
+   call init_(latp, env, mol, rCutoff)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Setup of lattice point generator failed", source)
+      return
+   end if
+
+   !> Generate a new batch of lattice points
+   call latp%getLatticePoints(trans, rCutoff)
+
+   !> Actual call to the lattice point version of the CN evaluation
+   call getCoordinationNumber(mol, trans, rCutoff, cf, cn, dcndr, dcndL)
+
+end subroutine getCoordinationNumberWrap
+
+
+!> Geometric fractional coordination number, supports both error function
+!  and exponential counting functions.
+subroutine getCoordinationNumberNL(mol, neighs, neighlist, cf, cn, dcndr, dcndL)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Number of interacting neighbours
+   integer, intent(in) :: neighs(:)
+
+   !> Neighbourlist
+   type(TNeighbourList), intent(in) :: neighlist
+
+   !> Coordination number type (by counting function)
+   integer, intent(in) :: cf
+
+   !> Error function coordination number
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations
    real(wp), intent(out) :: dcndL(:, :, :)
 
    real(wp), parameter :: kcn_exp = 16.0_wp
@@ -118,42 +185,43 @@ subroutine getCoordinationNumber(mol, neighs, neighlist, cf, cn, dcndr, dcndL)
 
    select case(cf)
    case(cnType%exp)
-      call ncoord_impl(mol, neighs, neighlist, kcn_exp, expCount, dexpCount, &
-         &             .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+      call ncoordNeighs(mol, neighs, neighlist, kcn_exp, expCount, dexpCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
    case(cnType%erf)
-      call ncoord_impl(mol, neighs, neighlist, kcn_erf, erfCount, derfCount, &
-         &             .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+      call ncoordNeighs(mol, neighs, neighlist, kcn_erf, erfCount, derfCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
    case(cnType%cov)
-      call ncoord_impl(mol, neighs, neighlist, kcn_erf, erfCount, derfCount, &
-         &             .true., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+      call ncoordNeighs(mol, neighs, neighlist, kcn_erf, erfCount, derfCount, &
+         & .true., covalentRadD3, paulingEN, cn, dcndr, dcndL)
    case(cnType%gfn)
-      call ncoord_impl(mol, neighs, neighlist, kcn_gfn, gfnCount, dgfnCount, &
-         &             .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+      call ncoordNeighs(mol, neighs, neighlist, kcn_gfn, gfnCount, dgfnCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
    end select
 
-end subroutine getCoordinationNumber
+end subroutine getCoordinationNumberNL
+
 
 !> Actual implementation of the coordination number, takes a generic counting
 !  function to return the respective CN.
-subroutine ncoord_impl(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
-      &                rcov, en, cn, dcndr, dcndL)
+subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
+      & rcov, en, cn, dcndr, dcndL)
 
-   !> Molecular structure information.
+   !> Molecular structure information
    type(TMolecule), intent(in) :: mol
 
-   !> Number of interacting neighbours.
+   !> Number of interacting neighbours
    integer, intent(in) :: neighs(:)
 
-   !> Neighbourlist.
+   !> Neighbourlist
    type(TNeighbourList), target, intent(in) :: neighlist
 
-   !> Function implementing the counting function.
+   !> Function implementing the counting function
    procedure(countingFunction) :: cfunc
 
-   !> Function implementing the derivative of counting function w.r.t. distance.
+   !> Function implementing the derivative of counting function w.r.t. distance
    procedure(countingFunction) :: dfunc
 
-   !> Use a covalency criterium by Pauling EN's.
+   !> Use a covalency criterium by Pauling EN's
    logical, intent(in) :: enscale
 
    !> Steepness of counting function
@@ -165,13 +233,13 @@ subroutine ncoord_impl(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
    !> Electronegativity
    real(wp), intent(in) :: en(:)
 
-   !> Error function coordination number.
+   !> Error function coordination number
    real(wp), intent(out) :: cn(:)
 
-   !> Derivative of the CN with respect to the Cartesian coordinates.
+   !> Derivative of the CN with respect to the Cartesian coordinates
    real(wp), intent(out) :: dcndr(:, :, :)
 
-   !> Derivative of the CN with respect to strain deformations.
+   !> Derivative of the CN with respect to strain deformations
    real(wp), intent(out) :: dcndL(:, :, :)
 
    integer :: iat, jat, ati, atj, ij, img
@@ -189,7 +257,7 @@ subroutine ncoord_impl(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
       do ij = 1, neighs(iat)
          img = neighlist%iNeigh(ij, iat)
          r2 = neighlist%dist2(ij, iat)
-         rij = -neighlist%coords(:, iat) + neighlist%coords(:, img) ! FIXME
+         rij = neighlist%coords(:, iat) - neighlist%coords(:, img)
          jat = neighlist%image(img)
          atj = mol%at(jat)
          r1 = sqrt(r2)
@@ -226,7 +294,153 @@ subroutine ncoord_impl(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
    enddo
    !$omp end parallel do
 
-end subroutine ncoord_impl
+end subroutine ncoordNeighs
+
+
+!> Geometric fractional coordination number, supports both error function
+!  and exponential counting functions.
+subroutine getCoordinationNumberLP(mol, trans, cutoff, cf, cn, dcndr, dcndL)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Lattice points
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Coordination number type (by counting function)
+   integer, intent(in) :: cf
+
+   !> Error function coordination number
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   real(wp), parameter :: kcn_exp = 16.0_wp
+   real(wp), parameter :: kcn_erf = 7.5_wp
+   real(wp), parameter :: kcn_gfn = 10.0_wp
+
+   select case(cf)
+   case(cnType%exp)
+      call ncoordLatP(mol, trans, cutoff, kcn_exp, expCount, dexpCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%erf)
+      call ncoordLatP(mol, trans, cutoff, kcn_erf, erfCount, derfCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%cov)
+      call ncoordLatP(mol, trans, cutoff, kcn_erf, erfCount, derfCount, &
+         & .true., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%gfn)
+      call ncoordLatP(mol, trans, cutoff, kcn_gfn, gfnCount, dgfnCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   end select
+
+end subroutine getCoordinationNumberLP
+
+
+!> Actual implementation of the coordination number, takes a generic counting
+!  function to return the respective CN.
+subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
+      & rcov, en, cn, dcndr, dcndL)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Lattice points
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Function implementing the counting function
+   procedure(countingFunction) :: cfunc
+
+   !> Function implementing the derivative of counting function w.r.t. distance
+   procedure(countingFunction) :: dfunc
+
+   !> Use a covalency criterium by Pauling EN's
+   logical, intent(in) :: enscale
+
+   !> Steepness of counting function
+   real(wp), intent(in) :: kcn
+
+   !> Covalent radius
+   real(wp), intent(in) :: rcov(:)
+
+   !> Electronegativity
+   real(wp), intent(in) :: en(:)
+
+   !> Error function coordination number.
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates.
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations.
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   integer :: iat, jat, ati, atj, itr
+   real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
+
+   cn = 0.0_wp
+   dcndr = 0.0_wp
+   dcndL = 0.0_wp
+   cutoff2 = cutoff**2
+
+   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
+   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, trans, cutoff2) &
+   !$omp private(jat, itr, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   do iat = 1, len(mol)
+      ati = mol%at(iat)
+      do jat = 1, iat
+         atj = mol%at(jat)
+
+         if (enscale) then
+            den = k4*exp(-(abs(en(ati)-en(atj)) + k5)**2/k6)
+         else
+            den = 1.0_wp
+         end if
+
+         do itr = 1, size(trans, dim=2)
+            rij = mol%xyz(:, iat) - (mol%xyz(:, jat) + trans(:, itr))
+            r2 = sum(rij**2)
+            if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
+            r1 = sqrt(r2)
+
+            rc = rcov(ati) + rcov(atj)
+
+            countf = den * cfunc(kcn, r1, rc)
+            countd = den * dfunc(kcn, r1, rc) * rij/r1
+
+            cn(iat) = cn(iat) + countf
+            if (iat /= jat) then
+               cn(jat) = cn(jat) + countf
+            end if
+
+            dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
+            dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
+            dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
+            dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+
+            stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+
+            dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+            if (iat /= jat) then
+               dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+            end if
+
+         end do
+      end do
+   end do
+   !$omp end parallel do
+
+end subroutine ncoordLatP
 
 
 !> Error function counting function for coordination number contributions.

@@ -633,7 +633,7 @@ pure subroutine compute_fgb(this,fgb,fhb)
 !  initialize
    fgb=0.0_wp
 
-   hkeps=gbm%keps*autoeV
+   hkeps=gbm%keps
 
    if(gbm%lsalt) then
 
@@ -652,14 +652,14 @@ pure subroutine compute_fgb(this,fgb,fhb)
          expd=exp(-dd)
          dfgb=sqrt(r2+aa*expd)
          gg=this%ionscr(i)+this%ionscr(j)
-         fgb(i,j)=autoeV*(exp(-gbm%kappa*dfgb)*gg-iepsu)/dfgb
+         fgb(i,j)=(exp(-gbm%kappa*dfgb)*gg-iepsu)/dfgb
          fgb(j,i)=fgb(i,j)
       enddo
 
 !     self-energy part
       do i = 1, this%nat
          gg=this%ionscr(i)*2.0_wp
-         fgb(i,i)=autoeV*(exp(-gbm%kappa*this%brad(i))*gg-iepsu)/this%brad(i)
+         fgb(i,i)=(exp(-gbm%kappa*this%brad(i))*gg-iepsu)/this%brad(i)
       enddo
 
    else
@@ -689,7 +689,7 @@ pure subroutine compute_fgb(this,fgb,fhb)
 
 !  compute the HB term
    if(lhb) then
-      fhb=this%hbw*autoeV
+      fhb=this%hbw
    else
       fhb=0.0_wp
    endif

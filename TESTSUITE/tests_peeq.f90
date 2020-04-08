@@ -40,10 +40,26 @@ program peeq_tester
    call rdarg(2,sec)
 
    select case(arg)
+   case('ncoord')
+      select case(sec)
+      case('pbc3dneighs'); call test_ncoord_pbc3d_neighbourlist
+      case('pbc3dlatp'); call test_ncoord_pbc3d_latticepoints
+      end select
+   case('coulomb')
+      select case(sec)
+      case('point_0d'); call test_coulomb_point_cluster
+      case('point_3d'); call test_coulomb_point_pbc3d
+      case('gfn1_0d'); call test_coulomb_gfn1_cluster
+      case('gfn1_3d'); call test_coulomb_gfn1_pbc3d
+      case('gfn2_0d'); call test_coulomb_gfn2_cluster
+      case('gfn2_3d'); call test_coulomb_gfn2_pbc3d
+      case('gaussian_0d'); call test_coulomb_gaussian_cluster
+      case('gaussian_3d'); call test_coulomb_gaussian_pbc3d
+      end select
    case('eeq_model')
       select case(sec)
-      case('water'); call test_eeq_model_water
-      case('ewald'); call test_eeq_model_ewald
+      case('water'); call test_eeq_water
+      case('ewald'); call test_eeq_ewald
       case('gbsa');  call test_eeq_model_gbsa
       case('hbond'); call test_eeq_model_hbond
       case('salt');  call test_eeq_model_salt
@@ -80,9 +96,15 @@ program peeq_tester
       select case(sec)
       case('pbc3dneighs'); call test_dftd3_pbc3d_neighbourlist
       case('pbc3dlatp'); call test_dftd3_pbc3d_latticepoints
+      case('pbc3datmneighs'); call test_dftd3_pbc3d_threebody_neighs
+      case('pbc3datmlatp'); call test_dftd3_pbc3d_threebody_latp
       end select
    case('dftd4')
       select case(sec)
+      case('pbc3dneighs'); call test_dftd4_pbc3d_neighbourlist
+      case('pbc3dlatp'); call test_dftd4_pbc3d_latticepoints
+      case('pbc3datmneighs'); call test_dftd4_pbc3d_threebody_neighs
+      case('pbc3datmlatp'); call test_dftd4_pbc3d_threebody_latp
       case('properties'); call test_dftd4_properties
       case('energies');   call test_dftd4_energies
       case('pbc_disp');   call test_dftd4_pbc_energies

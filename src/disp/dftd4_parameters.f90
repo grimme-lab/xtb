@@ -61,12 +61,12 @@ module xtb_disp_dftd4param
    real(wp),dimension(7,max_elem)    :: refcn
    integer, dimension(7,max_elem)    :: refsys 
    real(wp),dimension(23,7,max_elem) :: alphaiw
-   real(wp),dimension(8)       :: secq
-   real(wp),dimension(8)       :: dfts,pbcs,gffs,sols,clss
-   real(wp),dimension(8)       :: sscale
-   real(wp),dimension(8)       :: seccn
-   real(wp),dimension(8)       :: seccnd3
-   real(wp),dimension(23,8)    :: secaiw
+   real(wp),dimension(17)       :: secq
+   real(wp),dimension(17)       :: dfts,pbcs,gffs,sols,clss
+   real(wp),dimension(17)       :: sscale
+   real(wp),dimension(17)       :: seccn
+   real(wp),dimension(17)       :: seccnd3
+   real(wp),dimension(23,17)    :: secaiw
 
    include 'param_ref.inc'
 

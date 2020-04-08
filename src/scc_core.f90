@@ -15,25 +15,33 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!! ========================================================================
-!  GENERAL FUNCTIONS FOR CORE FUNCTIONALITIES OF THE SCC
-!! ------------------------------------------------------------------------
-!  GFN1:
-!  -> build_h0_gfn1
-!  GFN2:
-!  -> build_h0_gfn2
-!! ========================================================================
+!> general functions for core functionalities of the SCC
 module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la, only : sygvd,gemm,symm
+   use xtb_mctc_la, only : contract
+   use xtb_mctc_lapack, only : sygvd
+   use xtb_mctc_blas, only : gemm, symm, symv
    use xtb_type_environment, only : TEnvironment
    use xtb_xtb_data
+   use xtb_xtb_coulomb
+   use xtb_xtb_dispersion
+   use xtb_xtb_multipole
    use xtb_broyden
    implicit none
+   private
+
+   public :: getSelfEnergy, build_h0, scc, electro, electro_gbsa, solve, solve4
+   public :: fermismear, occ, occu, dmat
+   public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
+   public :: iniqshell, setzshell
+   public :: shellPoly, h0scal
+
 
    integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
+
 contains
+
 
 subroutine getSelfEnergy(hData, nShell, at, cn, qat, selfEnergy, dSEdcn, dSEdq)
    type(THamiltonianData), intent(in) :: hData
@@ -126,7 +134,6 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
    integer  :: iat,jat,ish,jsh,il,jl,iZp,jZp
    real(wp) :: hdii,hdjj,hav
    real(wp) :: km
-   real(wp),parameter :: aot = -0.5d0 ! AO exponent dep. H0 scal
 
    H0=0.0_wp
 
@@ -164,14 +171,11 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
 
 end subroutine build_h0
 
-!! ========================================================================
-!  build GFN1 Fockian
-!! ========================================================================
-subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
-      & gam3at,cm5,fgb,fhb,aoat2,ao2sh)
+!> build isotropic H1/Fockian
+subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
+      & H0, S, shellShift, aoat2, ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_solv_gbobc, only : lgbsa
-   type(TCoulombData), intent(in) :: jData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -180,25 +184,18 @@ subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
    integer, intent(in)  :: matlist(2,nmat)
    real(wp),intent(in)  :: H0(ndim*(1+ndim)/2)
    real(wp),intent(in)  :: S(ndim,ndim)
-   real(wp),intent(in)  :: ves(nshell)
-   real(wp),intent(in)  :: q(n)
-   real(wp),intent(in)  :: gam3at(n)
-   real(wp),intent(in)  :: cm5(n)
-   real(wp),intent(in)  :: fgb(n,n)
-   real(wp),intent(in)  :: fhb(n)
+   real(wp),intent(in)  :: shellShift(nshell)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
    real(wp),intent(out) :: H(ndim,ndim)
-   real(wp),intent(out) :: H1(ndim*(1+ndim)/2)
 
    integer  :: m,i,j,k
    integer  :: ishell,jshell
    integer  :: ii,jj,kk
    real(wp) :: dum
-   real(wp) :: eh1,t8,t9,tgb
+   real(wp) :: eh1,t8,t9,tgb,h1
 
    H = 0.0_wp
-   H1 = 0.0_wp
 
    do m = 1, nmat
       i = matlist(1,m)
@@ -206,55 +203,19 @@ subroutine build_h1_gfn1(jData,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves,q, &
       k = j+i*(i-1)/2
       ishell = ao2sh(i)
       jshell = ao2sh(j)
-      dum = S(j,i)
-!     SCC terms
-!     2nd order ES term (optional: including point charge potential)
-      eh1 = ves(ishell) + ves(jshell)
-!     3rd order and set-up of H
-      ii = aoat2(i)
-      jj = aoat2(j)
-      dum = S(j,i)
-!     third-order diagonal term, unscreened
-      t8 = q(ii)**2 * gam3at(ii)
-      t9 = q(jj)**2 * gam3at(jj)
-      eh1 = eh1 + autoev*(t8+t9)
-      H1(k) = -dum*eh1*0.5_wp
-      H(j,i) = H0(k)+H1(k)
+      ! SCC terms
+      eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
+      H1 = -S(j,i)*eh1*0.5_wp
+      H(j,i) = H0(k) + H1
       H(i,j) = H(j,i)
    enddo
-!  add the gbsa SCC term
-   if (lgbsa) then
-!     hbpow=2.d0*c3-1.d0
-      do m=1,nmat
-         i=matlist(1,m)
-         j=matlist(2,m)
-         k=j+i*(i-1)/2
-         ii=aoat2(i)
-         jj=aoat2(j)
-         dum=S(j,i)
-!        GBSA SCC terms
-         eh1=0.0_wp
-         do kk=1,n
-            eh1=eh1+cm5(kk)*(fgb(kk,ii)+fgb(kk,jj))
-         enddo
-         t8=fhb(ii)*cm5(ii)+fhb(jj)*cm5(jj)
-         tgb=-dum*(0.5_wp*eh1+t8)
-         H1(k)=H1(k)+tgb
-         H(j,i)=H(j,i)+tgb
-         H(i,j)=H(j,i)
-      enddo
-   endif
 
-end subroutine build_h1_gfn1
+end subroutine buildIsotropicH1
 
-!! ========================================================================
-!  build GFN1 Fockian
-!! ========================================================================
-subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-                         H,H1,H0,S,dpint,qpint,ves,vs,vd,vq,q,qsh,gam3sh, &
-                         hdisp,fgb,fhb,aoat2,ao2sh)
+!> build anisotropic H1/Fockian
+subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+                         H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_solv_gbobc, only : lgbsa
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -265,24 +226,15 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer, intent(in)  :: matlist(2,nmat)
    integer, intent(in)  :: mdlst(2,ndp)
    integer, intent(in)  :: mqlst(2,nqp)
-   real(wp),intent(in)  :: H0(ndim*(1+ndim)/2)
    real(wp),intent(in)  :: S(ndim,ndim)
    real(wp),intent(in)  :: dpint(3,ndim*(1+ndim)/2)
    real(wp),intent(in)  :: qpint(6,ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: ves(nshell)
    real(wp),intent(in)  :: vs(n)
    real(wp),intent(in)  :: vd(3,n)
    real(wp),intent(in)  :: vq(6,n)
-   real(wp),intent(in)  :: q(n)
-   real(wp),intent(in)  :: qsh(nshell)
-   real(wp),intent(in)  :: gam3sh(nshell)
-   real(wp),intent(in)  :: hdisp(n)
-   real(wp),intent(in)  :: fgb(n,n)
-   real(wp),intent(in)  :: fhb(n)
    integer, intent(in)  :: aoat2(ndim)
    integer, intent(in)  :: ao2sh(ndim)
-   real(wp),intent(out) :: H(ndim,ndim)
-   real(wp),intent(out) :: H1(ndim*(1+ndim)/2)
+   real(wp),intent(inout) :: H(ndim,ndim)
 
    integer, external :: lin
    integer  :: m,i,j,k,l
@@ -290,43 +242,35 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer  :: ishell,jshell
    real(wp) :: dum,eh1,t8,t9,tgb
 
-   H1=0.0_wp
-   H =0.0_wp
-! --- set up of Fock matrix
-!  overlap dependent terms
-!  on purpose, vs is NOT added to H1 (gradient is calculated separately)
+   !> overlap dependent terms
    do m=1,nmat
       i=matlist(1,m)
       j=matlist(2,m)
       k=j+i*(i-1)/2
       ii=aoat2(i)
       jj=aoat2(j)
-      ishell=ao2sh(i)
-      jshell=ao2sh(j)
       dum=S(j,i)
-!     SCC terms
-!     2nd order ES term (optional: including point charge potential)
-      eh1=ves(ishell)+ves(jshell)
-!     SIE term
-!     t6=gsie(at(ii))*pi*sin(2.0d0*pi*q(ii))
-!     t7=gsie(at(jj))*pi*sin(2.0d0*pi*q(jj))
-!     eh1=eh1+autoev*(t6+t7)*gscal
-!     third order term
-      t8=qsh(ishell)**2*gam3sh(ishell)
-      t9=qsh(jshell)**2*gam3sh(jshell)
-      eh1=eh1+autoev*(t8+t9)
-      H1(k)=-dum*eh1*0.5d0
-! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
-!     Dispersion contribution to Hamiltionian
-      H1(k)=H1(k) - 0.5d0*dum*autoev*(hdisp(ii)+hdisp(jj))
-! SAW end - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
-      H(j,i)=H0(k)+H1(k)
-!     CAMM potential
+      ! CAMM potential
       eh1=0.50d0*dum*(vs(ii)+vs(jj))*autoev
       H(j,i)=H(j,i)+eh1
       H(i,j)=H(j,i)
    enddo
-!  quadrupole-dependent terms
+   !> dipolar terms
+   do m=1,ndp
+      i=mdlst(1,m)
+      j=mdlst(2,m)
+      k=lin(j,i)
+      ii=aoat2(i)
+      jj=aoat2(j)
+      eh1=0.0d0
+      do l=1,3
+         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
+      enddo
+      eh1=0.50d0*eh1*autoev
+      H(i,j)=H(i,j)+eh1
+      H(j,i)=H(i,j)
+   enddo
+   !> quadrupole-dependent terms
    do m=1,nqp
       i=mqlst(1,m)
       j=mqlst(2,m)
@@ -340,368 +284,28 @@ subroutine build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+qpint(l,k)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
-!     purposely, do NOT add dip/qpole-int terms onto H1
-!     (due to gradient computation later on)
       H(i,j)=H(i,j)+eh1
       H(j,i)=H(i,j)
    enddo
-!  dipolar terms
-   do m=1,ndp
-      i=mdlst(1,m)
-      j=mdlst(2,m)
-      k=lin(j,i)
-      ii=aoat2(i)
-      jj=aoat2(j)
-      eh1=0.0d0
-      do l=1,3
-         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
-      enddo
-      eh1=0.50d0*eh1*autoev
-!     purposely, do NOT add dip/qpole-int terms onto H1
-!     (due to gradient computation later on)
-      H(i,j)=H(i,j)+eh1
-      H(j,i)=H(i,j)
-   enddo
-!                                          call timing(t2,w2)
-!                           call prtime(6,t2-t1,w2-w1,'Fmat')
-!  add the gbsa SCC term
-   if(lgbsa) then
-!     hbpow=2.d0*c3-1.d0
-      do m=1,nmat
-         i=matlist(1,m)
-         j=matlist(2,m)
-         k=j+i*(i-1)/2
-         ii=aoat2(i)
-         jj=aoat2(j)
-         dum=S(j,i)
-!        GBSA SCC terms
-         eh1=0.0d0
-         do kk=1,n
-            eh1=eh1+q(kk)*(fgb(kk,ii)+fgb(kk,jj))
-         enddo
-         t8=fhb(ii)*q(ii)+fhb(jj)*q(jj)
-         tgb=-dum*(0.5d0*eh1+t8)
-         H1(k)=H1(k)+tgb
-         H(j,i)=H(j,i)+tgb
-         H(i,j)=H(j,i)
-      enddo
-   endif
 
-end subroutine build_h1_gfn2
+end subroutine addAnisotropicH1
 
-!! ========================================================================
-!  self consistent charge iterator for GFN1 Hamiltonian
-!! ========================================================================
-subroutine scc_gfn1(env,xtbData,n,nel,nopen,ndim,nmat,nshell, &
-   &                at,matlist,aoat2,ao2sh,ash, &
-   &                q,qq,qlmom,qsh,zsh, &
-   &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
-   &                broy,broydamp,damp0, &
-   &                pcem,ves,vpc, &
-   &                et,focc,focca,foccb,efa,efb, &
-   &                eel,ees,epcem,egap,emo,ihomo,ihomoa,ihomob, &
-   &                H0,H1,H,S,X,P,jab,gam3at, &
-   &                maxiter,startpdiag,scfconv,qconv, &
-   &                minpr,pr, &
-   &                fail,jter)
-   use xtb_mctc_convert, only : autoev,evtoau
 
-   use xtb_solv_gbobc, only : lgbsa,lhb,TSolvent
-   use xtb_embedding, only : electro_pcem
-
-   character(len=*), parameter :: source = 'scc_gfn1'
-
-   type(TEnvironment), intent(inout) :: env
-
-   type(TxTBData), intent(in) :: xtbData
-
-   integer, intent(in)  :: n
-   integer, intent(in)  :: nel
-   integer, intent(in)  :: nopen
-   integer, intent(in)  :: ndim
-   integer, intent(in)  :: nmat
-   integer, intent(in)  :: nshell
-!! ------------------------------------------------------------------------
-!  general options for the iterator
-   integer, intent(in)  :: maxiter
-   integer, intent(in)  :: startpdiag
-   real(wp),intent(in)  :: scfconv
-   real(wp),intent(in)  :: qconv
-   logical, intent(in)  :: minpr
-   logical, intent(in)  :: pr
-   logical, intent(out) :: fail
-!! ------------------------------------------------------------------------
-   integer, intent(in)  :: at(n)
-!! ------------------------------------------------------------------------
-   integer, intent(in)  :: matlist(2,nmat)
-   integer, intent(in)  :: aoat2(ndim)
-   integer, intent(in)  :: ao2sh(ndim)
-   integer, intent(in)  :: ash(:)
-   real(wp),intent(in) :: gam3at(n)
-!! ------------------------------------------------------------------------
-!  a bunch of charges
-   real(wp),intent(inout) :: q(n)
-   real(wp),intent(inout) :: qq(n)
-   real(wp),intent(inout) :: qlmom(3,n)
-   real(wp),intent(inout) :: qsh(nshell)
-   real(wp),intent(in)    :: zsh(nshell)
-!! ------------------------------------------------------------------------
-!  continuum solvation model GBSA
-   type(TSolvent),intent(inout) :: gbsa
-   real(wp),intent(inout) :: fgb(n,n)
-   real(wp),intent(inout) :: fhb(n)
-   real(wp),intent(in)    :: cm5a(n)
-   real(wp),intent(inout) :: cm5(n)
-   real(wp),intent(inout) :: gborn
-!! ------------------------------------------------------------------------
-!  point charge embedding potentials
-   logical, intent(in)    :: pcem
-   real(wp),intent(inout) :: ves(nshell)
-   real(wp),intent(inout) :: vpc(nshell)
-!! ------------------------------------------------------------------------
-!  Fermi-smearing
-   real(wp),intent(in)    :: et
-   real(wp),intent(inout) :: focc(ndim)
-   real(wp),intent(inout) :: foccb(ndim),focca(ndim)
-   real(wp),intent(inout) :: efa,efb
-!! ------------------------------------------------------------------------
-!  Convergence accelerators, a simple damping as well as a Broyden mixing
-!  are available. The Broyden mixing is used by default seems reliable.
-   real(wp),intent(in)    :: damp0
-   real(wp)               :: damp
-!  Broyden
-   logical, intent(in)    :: broy
-   real(wp),intent(inout) :: broydamp
-   real(wp)               :: omegap
-   real(wp),allocatable   :: df(:,:)
-   real(wp),allocatable   :: u(:,:)
-   real(wp),allocatable   :: a(:,:)
-   real(wp),allocatable   :: q_in(:)
-   real(wp),allocatable   :: dq(:)
-   real(wp),allocatable   :: qlast_in(:)
-   real(wp),allocatable   :: dqlast(:)
-   real(wp),allocatable   :: omega(:)
-!! ------------------------------------------------------------------------
-!  results of the SCC iterator
-   real(wp),intent(out)   :: eel
-   real(wp),intent(out)   :: epcem
-   real(wp),intent(out)   :: ees
-   real(wp),intent(out)   :: egap
-   real(wp),intent(out)   :: emo(ndim)
-   integer, intent(inout) :: ihomoa
-!! ------------------------------------------------------------------------
-   real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
-   real(wp),intent(out)   :: H1(ndim*(ndim+1)/2)
-   real(wp),intent(out)   :: H(ndim,ndim)
-   real(wp),intent(inout) :: P(ndim,ndim)
-   real(wp),intent(inout) :: X(ndim,ndim)
-   real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(inout) :: jab(nshell,nshell)
-
-   integer, intent(inout) :: jter
-!! ------------------------------------------------------------------------
-!  local variables
-   integer,external :: lin
-   integer  :: i,ii,j,jj,k,kk,l,m
-   integer  :: ishell,jshell
-   integer  :: ihomo,ihomob
-   real(wp) :: t8,t9
-   real(wp) :: eh1,dum,tgb
-   real(wp) :: eold
-   real(wp) :: ga,gb
-   real(wp) :: rmsq
-   real(wp) :: nfoda,nfodb
-   logical  :: fulldiag
-   logical  :: lastdiag
-   integer  :: iter
-   integer  :: thisiter
-   logical  :: converged
-   logical  :: econverged
-   logical  :: qconverged
-
-   converged = .false.
-   lastdiag = .false.
-   ! number of iterations for this iterator
-   thisiter = maxiter - jter
-
-   damp = damp0
-!  broyden data storage and init
-   allocate( df(thisiter,nshell),u(thisiter,nshell), &
-   &         a(thisiter,thisiter),dq(nshell),dqlast(nshell), &
-   &         qlast_in(nshell),omega(thisiter),q_in(nshell), &
-   &         source = 0.0_wp )
-
-!! ------------------------------------------------------------------------
-!  iteration entry point
-   scc_iterator: do iter = 1, thisiter
-!! ------------------------------------------------------------------------
-!  build the Fockian from current ES potential and partial charges
-!  includes GBSA contribution to Fockian
-   call build_H1_gfn1(xtbData%coulomb,n,at,ndim,nshell,nmat,matlist,H,H1,H0,S,ves, &
-      & q,gam3at,cm5,fgb,fhb,aoat2,ao2sh)
-
-!! ------------------------------------------------------------------------
-!  solve HC=SCemo(X,P are scratch/store)
-!  solution is in H(=C)/emo
-!! ------------------------------------------------------------------------
-   fulldiag=.false.
-   if (iter.lt.startpdiag) fulldiag=.true.
-   if (lastdiag )          fulldiag=.true.
-   call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
-
-   if (fail) then
-      call env%error("Diagonalization of Hamiltonian failed", source)
-      return
-   endif
-
-   if ((ihomo+1.le.ndim).and.(ihomo.ge.1)) egap = emo(ihomo+1)-emo(ihomo)
-!  automatic reset to small value
-   if ((egap.lt.0.1_wp).and.(iter.eq.0)) broydamp = 0.03_wp
-
-!! ------------------------------------------------------------------------
-!  Fermi smearing
-   if (et.gt.0.1_wp) then
-!     convert restricted occ first to alpha/beta
-      if(nel.gt.0) then
-         call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
-      else
-         focca=0.0_wp
-         foccb=0.0_wp
-         ihomoa=0
-         ihomob=0
-      endif
-      if(ihomoa+1.le.ndim) then
-         call fermismear(.false.,ndim,ihomoa,et,emo,focca,nfoda,efa,ga)
-      endif
-      if(ihomob+1.le.ndim) then
-         call fermismear(.false.,ndim,ihomob,et,emo,foccb,nfodb,efb,gb)
-      endif
-      focc = focca + foccb
-   else
-      ga = 0.0_wp
-      gb = 0.0_wp
-   endif
-!! ------------------------------------------------------------------------
-
-!  save q
-   q_in(1:nshell)=qsh(1:nshell)
-   k=nshell
-
-!  density matrix
-   call dmat(ndim,focc,H,P)
-
-!  new q
-   call mpopsh (n,ndim,nshell,ao2sh,S,P,qsh)
-   qsh = zsh - qsh
-
-!  qat from qsh
-   call qsh2qat(ash,qsh,q)
-
-   eold=eel
-   call electro(n,at,ndim,nshell,jab,H0,P,q,gam3at,qsh,ees,eel)
-
-!  point charge contribution
-   if (pcem) call electro_pcem(nshell,qsh,Vpc,epcem,eel)
-
-!  new cm5 charges and gborn energy
-   if(lgbsa) then
-      cm5=q+cm5a
-      call electro_gbsa(n,at,fgb,fhb,cm5,gborn,eel)
-   endif
-
-!  ad el. entropies*T
-   eel=eel+ga+gb
-
-!! ------------------------------------------------------------------------
-!  check for energy convergence
-   econverged = abs(eel - eold) < scfconv
-!! ------------------------------------------------------------------------
-
-   dq(1:nshell)=qsh(1:nshell)-q_in(1:nshell)
-   rmsq=sum(dq(1:nshell)**2)/dble(n)
-   rmsq=sqrt(rmsq)
-
-!! ------------------------------------------------------------------------
-!  end of SCC convergence part
-   qconverged = rmsq < qconv
-!! ------------------------------------------------------------------------
-
-!  SCC convergence acceleration
-   if (.not.broy) then
-
-!     simple damp
-      if(iter.gt.0) then
-         omegap=egap
-         ! monopoles only
-         do i=1,nshell
-            qsh(i)=damp*qsh(i)+(1.0_wp-damp)*q_in(i)
-         enddo
-         if(eel-eold.lt.0) then
-            damp=damp*1.15_wp
-         else
-            damp=damp0
-         endif
-         damp=min(damp,1.0_wp)
-         if (egap.lt.1.0_wp) damp=min(damp,0.5_wp)
-      endif
-
-   else
-
-!     Broyden mixing
-      omegap=0.0_wp
-      call broyden(nshell,q_in,qlast_in,dq,dqlast, &
-      &            iter,thisiter,broydamp,omega,df,u,a)
-      qsh(1:nshell)=q_in(1:nshell)
-      if(iter.gt.1) omegap=omega(iter-1)
-   endif ! Broyden?
-
-   call qsh2qat(ash,qsh,q) !new qat
-
-   if(minpr) write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
-   &         iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
-   qq=q
-
-   if(lgbsa) cm5=q+cm5a
-!  set up ES potential
-   if(pcem) then
-      ves(1:nshell)=Vpc(1:nshell)
-   else
-      ves=0.0_wp
-   endif
-   call setespot(nshell,qsh,jab,ves)
-
-!! ------------------------------------------------------------------------
-   if (econverged.and.qconverged) then
-      converged = .true.
-      if (lastdiag) exit scc_iterator
-      lastdiag = .true.
-   endif
-!! ------------------------------------------------------------------------
-
-   enddo scc_iterator
-
-   jter = jter + min(iter,maxiter-jter)
-   fail = .not.converged
-
-end subroutine scc_gfn1
-
-!! ========================================================================
-!  self consistent charge iterator for GFN2 Hamiltonian
-!! ========================================================================
-subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
-   &                at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
-   &                q,dipm,qp,qq,qlmom,qsh,zsh, &
-   &                xyz,vs,vd,vq,gab3,gab5, &
-   &                gbsa,fgb,fhb,cm5,cm5a,gborn, &
-   &                newdisp,dispdim,g_a,g_c,gw,wdispmat,hdisp, &
-   &                broy,broydamp,damp0, &
-   &                pcem,ves,vpc, &
-   &                et,focc,focca,foccb,efa,efb, &
-   &                eel,ees,eaes,epol,ed,epcem,egap,emo,ihomo,ihomoa,ihomob, &
-   &                H0,H1,H,S,dpint,qpint,X,P,jab,gam3sh, &
-   &                maxiter,startpdiag,scfconv,qconv, &
-   &                minpr,pr, &
-   &                fail,jter)
+!> self consistent charge iterator
+subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+      &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
+      &        q,dipm,qp,qq,qlmom,qsh,zsh, &
+      &        xyz,aes, &
+      &        gbsa,fgb,fhb,cm5,cm5a,gborn, &
+      &        scD4, &
+      &        broy,broydamp,damp0, &
+      &        pcem,shellShift,externShift, &
+      &        et,focc,focca,foccb,efa,efb, &
+      &        eel,ees,eaes,epol,ed,epcem,egap,emo,ihomo,ihomoa,ihomob, &
+      &        H0,H,S,dpint,qpint,X,P,ies, &
+      &        maxiter,startpdiag,scfconv,qconv, &
+      &        minpr,pr, &
+      &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
 
    use xtb_solv_gbobc,  only : lgbsa,lhb,TSolvent
@@ -710,7 +314,7 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    &                  mmompop,aniso_electro,setvsdq
    use xtb_embedding, only : electro_pcem
 
-   character(len=*), parameter :: source = 'scc_gfn2'
+   character(len=*), parameter :: source = 'scc_core'
 
    type(TEnvironment), intent(inout) :: env
 
@@ -753,12 +357,11 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(in)    :: zsh(nshell)
 !! ------------------------------------------------------------------------
 !  anisotropic electrostatic
+   type(TxTBMultipole), intent(in), optional :: aes
    real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(inout) :: vs(n)
-   real(wp),intent(inout) :: vd(3,n)
-   real(wp),intent(inout) :: vq(6,n)
-   real(wp),intent(inout) :: gab3(n*(n+1)/2)
-   real(wp),intent(inout) :: gab5(n*(n+1)/2)
+   real(wp), allocatable :: vs(:)
+   real(wp), allocatable :: vd(:, :)
+   real(wp), allocatable :: vq(:, :)
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    type(TSolvent),intent(inout) :: gbsa
@@ -769,17 +372,13 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: gborn
 !! ------------------------------------------------------------------------
 !  selfconsistent DFT-D4 dispersion correction
-   logical, intent(in)    :: newdisp
-   integer, intent(in)    :: dispdim
-   real(wp),intent(in)    :: g_a,g_c
-   real(wp),intent(in)    :: gw(dispdim)
-   real(wp),intent(in)    :: wdispmat(dispdim,dispdim)
-   real(wp),intent(inout) :: hdisp(n)
+   type(TxTBDispersion), intent(inout), optional :: scD4
 !! ------------------------------------------------------------------------
 !  point charge embedding potentials
    logical, intent(in)    :: pcem
-   real(wp),intent(inout) :: ves(nshell)
-   real(wp),intent(inout) :: vpc(nshell)
+   real(wp),intent(inout) :: shellShift(nshell)
+   real(wp),intent(inout) :: externShift(nshell)
+   real(wp), allocatable :: atomicShift(:)
 !! ------------------------------------------------------------------------
 !  Fermi-smearing
    real(wp),intent(in)    :: et
@@ -819,15 +418,13 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer, intent(inout) :: ihomob
 !! ------------------------------------------------------------------------
    real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
-   real(wp),intent(out)   :: H1(ndim*(ndim+1)/2)
    real(wp),intent(out)   :: H(ndim,ndim)
    real(wp),intent(inout) :: P(ndim,ndim)
    real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
    real(wp),intent(in)    :: dpint(3,ndim*(ndim+1)/2)
    real(wp),intent(in)    :: qpint(6,ndim*(ndim+1)/2)
-   real(wp),intent(inout) :: jab(nshell,nshell)
-   real(wp),intent(in)    :: gam3sh(nshell)
+   type(TxTBCoulomb), intent(inout) :: ies
 
    integer, intent(inout) :: jter
 !! ------------------------------------------------------------------------
@@ -855,31 +452,59 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    thisiter = maxiter - jter
 
    damp = damp0
-   nbr = nshell + 9*n
+   if (present(aes)) then
+      nbr = nshell + 9*n
+      allocate(vs(n), vd(3, n), vq(6, n))
+   else
+      nbr = nshell
+   end if
 !  broyden data storage and init
    allocate( df(thisiter,nbr),u(thisiter,nbr),a(thisiter,thisiter), &
    &         dq(nbr),dqlast(nbr),qlast_in(nbr),omega(thisiter), &
-   &         q_in(nbr), source = 0.0_wp )
+   &         q_in(nbr),atomicShift(n), source = 0.0_wp )
 
 !! ------------------------------------------------------------------------
 !  Iteration entry point
    scc_iterator: do iter = 1, thisiter
-!! ------------------------------------------------------------------------
-   call build_h1_gfn2(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
-                      H,H1,H0,S,dpint,qpint,ves,vs,vd,vq,q,qsh,gam3sh, &
-                      hdisp,fgb,fhb,aoat2,ao2sh)
 
-!! ------------------------------------------------------------------------
-!  solve HC=SCemo(X,P are scratch/store)
-!  solution is in H(=C)/emo
-!! ------------------------------------------------------------------------
+   ! set up ES potential
+   atomicShift(:) = 0.0_wp
+   shellShift(:) = externShift
+   call ies%addShift(q, qsh, atomicShift, shellShift)
+   ! compute potential intermediates
+   if (present(aes)) then
+      call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
+   end if
+   ! Solvation contributions
+   if (lgbsa) then
+      cm5(:) = q + cm5a
+      call setespot(n, cm5, fgb, atomicShift)
+      atomicShift(:) = atomicShift + 2*cm5*fhb
+   end if
+   ! self consistent dispersion contributions
+   if (present(scD4)) then
+      call scD4%addShift(at, q, atomicShift)
+   end if
+   ! expand all atomic potentials to shell resolved potentials
+   call addToShellShift(ash, atomicShift, shellShift)
+
+   ! build the charge dependent Hamiltonian
+   call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
+      & shellShift,aoat2,ao2sh)
+   if (present(aes)) then
+      call addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
+         & H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+   end if
+
+   ! ------------------------------------------------------------------------
+   ! solve HC=SCemo(X,P are scratch/store)
+   ! solution is in H(=C)/emo
+   ! ------------------------------------------------------------------------
    fulldiag=.false.
    if(iter.lt.startpdiag) fulldiag=.true.
    if(lastdiag )          fulldiag=.true.
-!                                            call timing(t1,w1)
+
    call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
-!                                            call timing(t2,w2)
-!                            call prtime(6,t2-t1,w2-w1,'diag')
 
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
@@ -887,12 +512,12 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    endif
 
    if(ihomo+1.le.ndim.and.ihomo.ge.1)egap=emo(ihomo+1)-emo(ihomo)
-!  automatic reset to small value
+   ! automatic reset to small value
    if(egap.lt.0.1.and.iter.eq.0) broydamp=0.03
 
-!  Fermi smearing
+   ! Fermi smearing
    if(et.gt.0.1)then
-!     convert restricted occ first to alpha/beta
+      ! convert restricted occ first to alpha/beta
       if(nel.gt.0) then
          call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
       else
@@ -913,90 +538,95 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       gb = 0.0_wp
    endif
 
-!  save q
+   ! save q
    q_in(1:nshell)=qsh(1:nshell)
-   k=nshell
-   call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
+   if (present(aes)) then
+      k=nshell
+      call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
+   end if
 
-!  density matrix
+   ! density matrix
    call dmat(ndim,focc,H,P)
 
-!  new q
-   call mpopsh (n,ndim,nshell,ao2sh,S,P,qsh)
+   ! new q
+   call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
    qsh = zsh - qsh
 
-!  qat from qsh
+   ! qat from qsh
    call qsh2qat(ash,qsh,q)
 
    eold=eel
-   call electro2(n,at,ndim,nshell,jab,H0,P,q, &
-   &                gam3sh,qsh,ees,eel)
-!  multipole electrostatic
-   call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
-!  call scalecamm(n,at,dipm,qp)
-!  DEBUG option: check, whether energy from Fock matrix coincides
-!                w/ energy routine
-!  include 'cammcheck.inc'
-!  evaluate energy
-   call aniso_electro(xtbData%multipole,n,at,xyz,q,dipm,qp,gab3,gab5,eaes,epol)
-   eel=eel+eaes+epol
-! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1804
-   if (newdisp) then
-      ed = edisp_scc(n,dispdim,at,q,g_a,g_c,wdispmat,gw)
+   call electro(n,at,ndim,nshell,ies,H0,P,q,qsh,ees,eel)
+   ! multipole electrostatic
+   if (present(aes)) then
+      call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+      ! evaluate energy
+      call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
+      eel=eel+eaes+epol
+   end if
+
+   ! Self consistent dispersion
+   if (present(scD4)) then
+      call scD4%getEnergy(at, q, ed)
       eel = eel + ed
    endif
-! SAW end - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1804
 
-!  point charge contribution
-   if(pcem) call electro_pcem(nshell,qsh,Vpc,epcem,eel)
+   ! point charge contribution
+   if(pcem) then
+      call electro_pcem(nshell,qsh,externShift,epcem,eel)
+   end if
 
-!!  new cm5 charges and gborn energy
+   ! new cm5 charges and gborn energy
    if(lgbsa) then
       cm5=q+cm5a
       call electro_gbsa(n,at,fgb,fhb,cm5,gborn,eel)
    endif
 
-!  ad el. entropies*T
+   ! add el. entropies*T
    eel=eel+ga+gb
 
-!! ------------------------------------------------------------------------
-!  check for energy convergence
+   ! ------------------------------------------------------------------------
+   ! check for energy convergence
    econverged = abs(eel - eold) < scfconv
-!! ------------------------------------------------------------------------
+   ! ------------------------------------------------------------------------
 
    dq(1:nshell)=qsh(1:nshell)-q_in(1:nshell)
-   k=nshell
-   call gfn2broyden_diff(n,k,nbr,dipm,qp,q_in,dq) ! CAMM case
+   if (present(aes)) then
+      k=nshell
+      call gfn2broyden_diff(n,k,nbr,dipm,qp,q_in,dq) ! CAMM case
+   end if
    rmsq=sum(dq(1:nbr)**2)/dble(n)
    rmsq=sqrt(rmsq)
 
-!! ------------------------------------------------------------------------
-!  end of SCC convergence part
+   ! ------------------------------------------------------------------------
+   ! end of SCC convergence part
    qconverged = rmsq < qconv
-!! ------------------------------------------------------------------------
+   ! ------------------------------------------------------------------------
 
-!  SCC convergence acceleration
+   ! SCC convergence acceleration
    if(.not.broy)then
 
-!      simple damp
+      ! simple damp
       if(iter.gt.0) then
          omegap=egap
          ! monopoles only
          do i=1,nshell
             qsh(i)=damp*qsh(i)+(1.0d0-damp)*q_in(i)
          enddo
-         ! CAMM
-         k=nshell
-         do i=1,n
-            do j=1,3
-               k=k+1
-               dipm(j,i)=damp*dipm(j,i)+(1.0d0-damp)*q_in(k)
+         if (present(aes)) then
+            ! CAMM
+            k=nshell
+            do i=1,n
+               do j=1,3
+                  k=k+1
+                  dipm(j,i)=damp*dipm(j,i)+(1.0d0-damp)*q_in(k)
+               enddo
+               do j=1,6
+                  k=k+1
+                  qp(j,i)=damp*qp(j,i)+(1.0d0-damp)*q_in(k)
+               enddo
             enddo
-            do j=1,6
-               k=k+1
-               qp(j,i)=damp*qp(j,i)+(1.0d0-damp)*q_in(k)
-            enddo
-         enddo
+         end if
          if(eel-eold.lt.0) then
             damp=damp*1.15
          else
@@ -1008,36 +638,24 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    else
 
-!     Broyden mixing
+      ! Broyden mixing
       omegap=0.0d0
-      call broyden(nbr,q_in,qlast_in,dq,dqlast, &
-     &             iter,thisiter,broydamp,omega,df,u,a)
+      call broyden(nbr,q_in,qlast_in,dq,dqlast,iter,thisiter,broydamp,omega,df,u,a)
       qsh(1:nshell)=q_in(1:nshell)
-      k=nshell
-      call gfn2broyden_out(n,k,nbr,q_in,dipm,qp) ! CAMM case
+      if (present(aes)) then
+         k=nshell
+         call gfn2broyden_out(n,k,nbr,q_in,dipm,qp) ! CAMM case
+      end if
       if(iter.gt.1) omegap=omega(iter-1)
    endif ! Broyden?
 
-   call qsh2qat(ash,qsh,q) !new qat
+   call qsh2qat(ash, qsh, q) !new qat
 
-! SAW start - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
-   if(newdisp) call disppot(n,dispdim,at,q,g_a,g_c,wdispmat,gw,hdisp)
-! SAW end - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 1801
+   if(lgbsa) cm5 = q+cm5a
 
    if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
    qq=q
-
-   if(lgbsa) cm5=q+cm5a
-!  set up ES potential
-   if(pcem) then
-      ves(1:nshell)=Vpc(1:nshell)
-   else
-      ves=0.0d0
-   endif
-   call setespot(nshell,qsh,jab,ves)
-!  compute potential intermediates
-   call setvsdq(xtbData%multipole,n,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
 
 !  end of SCC convergence part
 
@@ -1054,13 +672,11 @@ subroutine scc_gfn2(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    jter = jter + min(iter,thisiter)
    fail = .not.converged
 
-end subroutine scc_gfn2
+end subroutine scc
 
-!! ========================================================================
-!  H0 off-diag scaling
-!! ========================================================================
-subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj, &
-   &              km)
+
+!> H0 off-diag scaling
+subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj,km)
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
@@ -1104,10 +720,11 @@ subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj, &
 
 end subroutine h0scal
 
+
 !! ========================================================================
 !  total energy for GFN1
 !! ========================================================================
-pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,gam3at,dqsh,es,scc)
+pure subroutine electro(n,at,nbf,nshell,ies,H0,P,dq,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -1115,9 +732,8 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,gam3at,dqsh,es,scc)
    integer, intent(in) :: nshell
    real(wp),intent(in)  :: H0(nbf*(nbf+1)/2)
    real(wp),intent(in)  :: P (nbf,nbf)
-   real(wp),intent(in)  :: gab(nshell,nshell)
+   type(TxTBCoulomb), intent(inout) :: ies
    real(wp),intent(in)  :: dq(n)
-   real(wp),intent(in)  :: gam3at(n)
    real(wp),intent(in)  :: dqsh(nshell)
    real(wp),intent(out) :: es
    real(wp),intent(out) :: scc
@@ -1126,29 +742,8 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,gam3at,dqsh,es,scc)
    integer  :: i,j,k
    real(wp) :: h,t
 
-!  second order non-diagonal
-   es =0.0d0
-   do i=1,nshell-1
-      do j=i+1,nshell
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
-
-   es=es*2.0_wp
-
-!  second-order diagonal term
-   do i=1,nshell
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-   t=0.0_wp
-   do i=1,n
-!     third-order diagonal term
-      t = t + gam3at(i)*dq(i)**3
-   enddo
-
-!  ES energy in Eh (gam3 in Eh)
-   es=0.50_wp*es*evtoau+t/3.0_wp
+   ! ES energy in Eh
+   call ies%getEnergy(dq, dqsh, es)
 
 !  H0 part
    k=0
@@ -1166,77 +761,6 @@ pure subroutine electro(n,at,nbf,nshell,gab,H0,P,dq,gam3at,dqsh,es,scc)
    scc = es + 2.0_wp*h*evtoau
 
 end subroutine electro
-
-!! ========================================================================
-!  total energy for GFN2
-!! ========================================================================
-pure subroutine electro2(n,at,nbf,nshell,gab,H0,P,q,  &
-   &                     gam3sh,dqsh,es,scc)
-   use xtb_mctc_constants, only : pi
-   use xtb_mctc_convert, only : evtoau
-   integer,intent(in)  :: n
-   integer,intent(in)  :: at(n)
-   integer,intent(in)  :: nbf
-   integer,intent(in)  :: nshell
-   real(wp), intent(in)  :: H0(nbf*(nbf+1)/2)
-   real(wp), intent(in)  :: P (nbf,nbf)
-   real(wp), intent(in)  :: q (n) ! not used
-   real(wp), intent(in)  :: gab(nshell,nshell)
-   real(wp), intent(in)  :: gam3sh(nshell)
-   real(wp), intent(in)  :: dqsh(nshell)
-   real(wp), intent(out) :: scc
-   real(wp), intent(out) :: es
-   real(wp) :: ehb ! not used
-
-   integer :: i,j,k
-   real(wp)  :: h,t,esie
-
-!  second order non-diagonal
-   es =0.0d0
-   do i=1,nshell-1
-      do j=i+1,nshell
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
-
-   es=es*2.0d0
-
-!  second-order diagonal term
-   do i=1,nshell
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-   t=0.0d0
-   do i=1,nshell
-!     third-order diagonal term
-      t = t + gam3sh(i)*dqsh(i)**3
-   enddo
-
-!  SIE diagonal term
-!  esie=0
-!  do i=1,n
-!     esie=esie+gsie(at(i))*(sin(pi*q(i)))**2
-!  enddo
-
-!  ES energy in Eh (gam3 in Eh)
-   es=0.50d0*es*evtoau+t/3.0d0
-
-!  H0 part
-   k=0
-   h=0.0d0
-   do i=1,nbf
-      do j=1,i-1
-         k=k+1
-         h=h+P(j,i)*H0(k)
-      enddo
-      k=k+1
-      h=h+P(i,i)*H0(k)*0.5d0
-   enddo
-
-!  Etotal in Eh
-   scc = es + 2.0d0*h*evtoau
-
-end subroutine electro2
 
 
 !! ========================================================================
@@ -1282,15 +806,16 @@ pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
    endif
 
 !  ES energy in Eh
-   es=0.5*es*evtoau
+   es=0.5*es
 
 !  HB energy in Eh
-   ehb=ehb*evtoau
+   ehb=ehb
 
 !  Etotal in Eh
    scc = scc + es + ehb
 
 end subroutine electro_gbsa
+
 
 !! ========================================================================
 !  S(R) enhancement factor
@@ -1326,97 +851,44 @@ end function shellPoly
 !! ========================================================================
 !  set up Coulomb potential due to 2nd order fluctuation
 !! ========================================================================
-pure subroutine setespot(nshell,qsh,jab,ves)
+pure subroutine setespot(nshell, qsh, jmat, shellShift)
+
+   !> Dimension of the Coulomb matrix
    integer, intent(in) :: nshell
-   real(wp),intent(in) ::  qsh(nshell),jab(nshell,nshell)
-!  ves possibly already contains with PC-potential
-   real(wp),intent(inout) :: ves(nshell)
-   real(wp) :: qshi,vesi
-   integer  :: i,j,k
-   do i=1,nshell
-      qshi=qsh(i)
-      vesi=0.0_wp
-      do j=1,i-1
-         ves(j)=ves(j)+qshi*jab(j,i)
-         vesi=vesi+qsh(j)*jab(j,i)
-      enddo
-      vesi=vesi+qshi*jab(i,i)
-      ves(i)=ves(i)+vesi
-   enddo
+
+   !> Shell resolved partial charges
+   real(wp),intent(in) :: qsh(:)
+
+   !> Coulomb matrix
+   real(wp),intent(in) :: jmat(:, :)
+
+   !> shell-resolved potential shift
+   real(wp),intent(inout) :: shellShift(:)
+
+   call symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
+
 end subroutine setespot
 
-pure subroutine jpot_gfn1(jData,nat,nshell,ash,lsh,at,sqrab,alphaj,jab)
-   use xtb_mctc_convert
-   use xtb_lin
-   type(TCoulombData), intent(in) :: jData
-   integer, intent(in) :: nat
-   integer, intent(in) :: nshell
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   integer, intent(in) :: at(nat)
-   real(wp),intent(in) :: sqrab(nat*(nat+1)/2)
-   real(wp),intent(in) :: alphaj
-   real(wp),intent(inout) :: jab(nshell,nshell)
 
-   integer  :: is,iat,ati,js,jat,atj,k
-   real(wp) :: gi,gj,xj,rab
+pure subroutine addToShellShift(shellAtom, atomicShift, shellShift)
 
-   do is=1,nshell
-      iat=ash(is)
-      ati=at(iat)
-      gi=jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
-      do js=1,is
-         jat=ash(js)
-         atj=at(jat)
-         k=lin(jat,iat)
-         gj=jData%chemicalHardness(atj)*(1.0_wp+jData%shellHardness(1+lsh(js),atj))
-         xj=2.0_wp/(1./gi+1./gj)
-         if(is.eq.js)then
-            jab(is,js)=xj*autoev
-         else
-            rab=sqrt(sqrab(k))
-            jab(js,is)=autoev/(rab**alphaj &
-               &  + 1._wp/xj**alphaj)**(1._wp/alphaj)
-            jab(is,js)=jab(js,is)
-         endif
-      enddo
-   enddo
+   !> Atom each shell is centered on
+   integer, intent(in) :: shellAtom(:)
 
-end subroutine jpot_gfn1
+   !> Atomic potential shift
+   real(wp), intent(in) :: atomicShift(:)
 
-pure subroutine jpot_gfn2(jData,nat,nshell,ash,lsh,at,sqrab,jab)
-   use xtb_mctc_convert
-   use xtb_lin
-   type(TCoulombData), intent(in) :: jData
-   integer, intent(in) :: nat
-   integer, intent(in) :: nshell
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   integer, intent(in) :: at(nat)
-   real(wp),intent(in) :: sqrab(nat*(nat+1)/2)
-   real(wp),intent(inout) :: jab(nshell,nshell)
+   !> Shell-resolved potential shift
+   real(wp), intent(inout) :: shellShift(:)
 
-   integer  :: is,iat,ati,js,jat,atj,k
-   real(wp) :: gi,gj,xj,rab
+   integer :: ii
 
-   do is=1,nshell
-      iat=ash(is)
-      ati=at(iat)
-      gi=jData%chemicalHardness(ati)*(1.0_wp+jData%shellHardness(1+lsh(is),ati))
-      do js=1,is-1
-         jat=ash(js)
-         atj=at(jat)
-         k=lin(jat,iat)
-         gj=jData%chemicalHardness(atj)*(1.0_wp+jData%shellHardness(1+lsh(js),atj))
-         xj=0.5_wp*(gi+gj)
-         jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/xj**2)
-         ! jab(js,is)=autoev/sqrt(sqrab(k)+1._wp/(gi*gj))  ! NEWAV
-         jab(is,js)=jab(js,is)
-      enddo
-      jab(is,is)=autoev*gi
-   enddo
+   do ii = 1, size(shellShift, dim=1)
+      shellShift(ii) = shellShift(ii) + atomicShift(shellAtom(ii))
+   end do
 
-end subroutine jpot_gfn2
+end subroutine addToShellShift
+
 
 !! ========================================================================
 !  eigenvalue solver single-precision
@@ -1519,6 +991,7 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 
 end subroutine solve4
 
+
 !! ========================================================================
 !  eigenvalue solver
 !! ========================================================================
@@ -1600,6 +1073,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 
 end subroutine solve
 
+
 subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
    use xtb_mctc_convert, only : autoev
    use xtb_mctc_constants, only : kB
@@ -1664,6 +1138,7 @@ subroutine fermismear(prt,norbs,nel,t,eig,occ,fod,e_fermi,s)
 
 end subroutine fermismear
 
+
 subroutine occ(ndim,nel,nopen,ihomo,focc)
    integer  :: nel
    integer  :: nopen
@@ -1707,6 +1182,7 @@ subroutine occ(ndim,nel,nopen,ihomo,focc)
    enddo
 
 end subroutine occ
+
 
 subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
    integer  :: nel
@@ -1769,13 +1245,10 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
 end subroutine occu
 
 
-!ccccccccccccccccccccccccccccccccccccccccccccc
-! density matrix
+!> density matrix
 ! C: MO coefficient
 ! X: scratch
 ! P  dmat
-!ccccccccccccccccccccccccccccccccccccccccccccc
-
 subroutine dmat(ndim,focc,C,P)
    use xtb_mctc_la, only : gemm
    integer, intent(in)  :: ndim
@@ -1797,6 +1270,7 @@ subroutine dmat(ndim,focc,C,P)
    deallocate(Ptmp)
 
 end subroutine dmat
+
 
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    use xtb_mctc_la, only : gemm
@@ -1833,10 +1307,8 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
 
 end subroutine get_wiberg
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop + AO pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop + AO pop
 subroutine mpopall(n,nao,aoat,S,P,qao,q)
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
@@ -1864,10 +1336,8 @@ subroutine mpopall(n,nao,aoat,S,P,qao,q)
 
 end subroutine mpopall
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop
 subroutine mpop0(n,nao,aoat,S,P,q)
    integer nao,n,aoat(nao)
    real(wp)  S (nao,nao)
@@ -1891,10 +1361,8 @@ subroutine mpop0(n,nao,aoat,S,P,q)
 
 end subroutine mpop0
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken AO pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken AO pop
 subroutine mpopao(n,nao,S,P,qao)
    integer nao,n
    real(wp)  S (nao,nao)
@@ -1916,10 +1384,8 @@ subroutine mpopao(n,nao,S,P,qao)
 
 end subroutine mpopao
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop
 subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  S (nao,nao)
@@ -1951,10 +1417,8 @@ subroutine mpop(n,nao,aoat,lao,S,P,q,ql)
 
 end subroutine mpop
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Mulliken pop shell wise
-!cccccccccccccccccccccccccccccccccccccccc
 
+!> Mulliken pop shell wise
 subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
    integer nao,n,nshell,ao2sh(nao)
    real(wp)  S (nao,nao)
@@ -1978,6 +1442,7 @@ subroutine mpopsh(n,nao,nshell,ao2sh,S,P,qsh)
 
 end subroutine mpopsh
 
+
 subroutine qsh2qat(ash,qsh,qat)
    integer, intent(in) :: ash(:)
    real(wp), intent(in) :: qsh(:)
@@ -1993,10 +1458,7 @@ subroutine qsh2qat(ash,qsh,qat)
 end subroutine qsh2qat
 
 
-!cccccccccccccccccccccccccccccccccccccccc
-!c Loewdin pop
-!cccccccccccccccccccccccccccccccccccccccc
-
+!> Loewdin pop
 subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
    integer nao,n,aoat(nao),lao(nao)
    real(wp)  C (nao,nao)
@@ -2022,10 +1484,8 @@ subroutine lpop(n,nao,aoat,lao,occ,C,f,q,ql)
 
 end subroutine lpop
 
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c atomic valence shell pops and total atomic energy
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
+!> atomic valence shell pops and total atomic energy
 subroutine iniqshell(xtbData,n,at,z,nshell,q,qsh,gfn_method)
    type(TxTBData), intent(in) :: xtbData
    integer, intent(in)  :: n
@@ -2095,6 +1555,5 @@ subroutine setzshell(xtbData,n,at,nshell,z,zsh,e,gfn_method)
 
 end subroutine setzshell
 
-!cccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 end module xtb_scc_core

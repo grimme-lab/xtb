@@ -203,6 +203,7 @@ subroutine d4_calculation(iunit,opt,mol,dparam,energy,gradient)
    call d4(mol%n,ndim,mol%at,opt%wf,opt%g_a,opt%g_c,covcn,gweights,refc6)
 
    call get_erf_cn(mol,cn,dcndr)
+   dcndr = -dcndr
 
 ! ------------------------------------------------------------------------
 !  get partial charges
@@ -394,6 +395,7 @@ subroutine d4_pbc_calculation(iunit,opt,mol,dparam,energy,gradient,latgrad)
    call pbc_d4(mol%n,ndim,mol%at,opt%wf,opt%g_a,opt%g_c,covcn,gweights,refc6)
 
    call get_erf_cn(mol,cn,dcndr,dcndL,thr=rthr_cn)
+   dcndr = -dcndr
 
 ! ------------------------------------------------------------------------
 !  get partial charges

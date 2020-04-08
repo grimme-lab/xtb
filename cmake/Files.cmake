@@ -37,7 +37,9 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/mctc/param/r4r2_expectation_values.f90"
   "${XTB_ROOT}/src/mctc/mctc_timings.f90"
   "${XTB_ROOT}/src/mctc/mctc_filetools.f90"
-  "${XTB_ROOT}/src/mctc/mctc_la.f90"
+  "${XTB_ROOT}/src/mctc/linalg.f90"
+  "${XTB_ROOT}/src/mctc/lapack.f90"
+  "${XTB_ROOT}/src/mctc/blas.f90"
   "${XTB_ROOT}/src/mctc/mctc_init.f90"
   "${XTB_ROOT}/src/mctc/error.f90"
   "${XTB_ROOT}/src/mctc/signal.c"
@@ -68,6 +70,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/type/neighbourlist.f90"
   "${XTB_ROOT}/src/type/wignerseitzcell.f90"
   "${XTB_ROOT}/src/type/latticepoint.f90"
+  "${XTB_ROOT}/src/type/coulomb.f90"
 
   # Global data
   "${XTB_ROOT}/src/gfn0param.f90"
@@ -140,12 +143,17 @@ set(XTB_SOURCES
   # Basis set
   "${XTB_ROOT}/src/xtb/basisset.f90"
   "${XTB_ROOT}/src/xtb/calculator.f90"
+  "${XTB_ROOT}/src/xtb/coulomb.f90"
   "${XTB_ROOT}/src/xtb/data.f90"
+  "${XTB_ROOT}/src/xtb/dispersion.f90"
+  "${XTB_ROOT}/src/xtb/eeq.f90"
   "${XTB_ROOT}/src/xtb/gfn0.f90"
   "${XTB_ROOT}/src/xtb/gfn1.f90"
   "${XTB_ROOT}/src/xtb/gfn2.f90"
   "${XTB_ROOT}/src/xtb/halogen.f90"
+  "${XTB_ROOT}/src/xtb/multipole.f90"
   "${XTB_ROOT}/src/xtb/repulsion.f90"
+  "${XTB_ROOT}/src/xtb/thirdorder.f90"
   "${XTB_ROOT}/src/slater.f90"
 
   # Dispersion
@@ -154,6 +162,12 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/disp/dftd3.f"
   "${XTB_ROOT}/src/disp/dftd3.f90"
   "${XTB_ROOT}/src/disp/dftd4.f90"
+  "${XTB_ROOT}/src/disp/encharges.f90"
+
+  # Coulomb
+  "${XTB_ROOT}/src/coulomb/ewald.f90"
+  "${XTB_ROOT}/src/coulomb/gaussian.f90"
+  "${XTB_ROOT}/src/coulomb/klopmanohno.f90"
 
   # Continuum solvation
   "${XTB_ROOT}/src/solv/gbobc.f90"
@@ -290,8 +304,11 @@ set(XTB_SOURCES
 
 set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/assertion.f90"
+  "${XTB_ROOT}/TESTSUITE/coordinationnumber.f90"
+  "${XTB_ROOT}/TESTSUITE/coulomb.f90"
   "${XTB_ROOT}/TESTSUITE/dftd3.f90"
   "${XTB_ROOT}/TESTSUITE/dftd4.f90"
+  "${XTB_ROOT}/TESTSUITE/eeq.f90"
   "${XTB_ROOT}/TESTSUITE/eeq_model.f90"
   "${XTB_ROOT}/TESTSUITE/geometry_reader.f90"
   "${XTB_ROOT}/TESTSUITE/gfn0.f90"

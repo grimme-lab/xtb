@@ -355,6 +355,8 @@ type(TMolecule) function new_molecule_api &
       mol%sym(i) = toSymbol(at(i))
    end do
 
+   call getIdentity(mol%nId, mol%id, mol%at)
+
    mol%xyz = xyz
    if (c_associated(c_loc(chrg))) then
       mol%chrg = chrg
@@ -606,7 +608,7 @@ pure function moments_of_inertia(self) result(moments)
    implicit none
    class(TMolecule),intent(in) :: self !< molecular structure information
    real(wp) :: moments(3)
-   real(wp) :: center(3),atmass,t(6),work(9)
+   real(wp) :: center(3),atmass,t(6),work(9),tmp(3,3)
    real(wp) :: x,x2,y,y2,z,z2
    integer  :: iat,info
    ! currently not supported
@@ -631,7 +633,7 @@ pure function moments_of_inertia(self) result(moments)
       t(6) = t(6) + atmass * (x2+y2)
    enddo
 
-   call dspev('N','U',3,t,moments,work,3,work,info)
+   call spev('N','U',3,t,moments,tmp,3,work,info)
    if (info.ne.0) moments = -1.0_wp
 
 end function moments_of_inertia
@@ -683,7 +685,7 @@ pure subroutine align_to_principal_axes(self,break_symmetry)
       t(6) = t(6) + atmass * (x2+y2)
    enddo
 
-   call dspev('V','U',3,t,moments,axes,3,work,info)
+   call spev('V','U',3,t,moments,axes,3,work,info)
    if (info.ne.0) return
 
    det = mat_det_3x3(axes)

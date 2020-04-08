@@ -465,7 +465,7 @@ end subroutine mmompop
 subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer nat,at(nat)
    real(wp) xyz(3,nat),q(nat)
    real(wp) e
@@ -599,7 +599,7 @@ end subroutine fockelectro
 subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
    real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
@@ -729,7 +729,7 @@ end subroutine setvsdq
 subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent(in) :: nat,at(nat)
    real(wp), intent(in) ::  q(nat),dipm(3,nat)
    real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
@@ -1001,11 +1001,7 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
       enddo
       ! CN-dependent part  - O(N^2)
       tmp2=3.0_wp*tmp2
-      do j=1,nat
-         do k=1,3
-            g(k,j)=g(k,j)-tmp2*dcn(k,j,i)
-         enddo
-      enddo
+      g(:,:)=g-tmp2*dcn(:,:,i)
 
    enddo
 end subroutine aniso_grad
@@ -1120,7 +1116,7 @@ end subroutine mmomgabzero
 ! radcn : CN-dependent radius
 subroutine get_radcn(aesData,n,at,cn,shift,expo,rmax,radcn)
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (out) :: radcn(n)
@@ -1141,11 +1137,11 @@ end subroutine get_radcn
 ! shift : global offset from cnval     (parameter)
 ! expo  : exponent scaling/ steepness  (parameter)
 ! rmax  : maximum radius               (parameter)
-! dcn   : on input  : derivatives of CN(i) w.r.t. Cart. directions of j
-!       : on output : derivatives of RADCN(j) w.r.t. Cart. directions of i, so we flip indices!!!
+! dcn   : on input  : derivatives of CN(j) w.r.t. Cart. directions of i
+!       : on output : derivatives of RADCN(j) w.r.t. Cart. directions of i
 subroutine dradcn(aesData,n,at,cn,shift,expo,rmax,dcn)
    implicit none
-   type(TMultipoleData), intent(in) :: aesData
+   class(TMultipoleData), intent(in) :: aesData
    integer, intent (in) :: n,at(n)
    real(wp), intent (in)  :: cn(n),shift,expo,rmax
    real(wp), intent (inout) :: dcn(3,n,n)
@@ -1156,19 +1152,8 @@ subroutine dradcn(aesData,n,at,cn,shift,expo,rmax,dcn)
       t1 =exp(-expo*(cn(i)-aesData%valenceCN(at(i))-shift))  ! CN - VALCN - SHIFT
       t2 =(rmax-rco)/(1.0_wp+2.0_wp*t1+t1*t1)
       t2 = t2*expo*t1
-      do j=1,i
-         rco=aesData%multiRad(at(j))             ! base radius of element
-         t3 =exp(-expo*(cn(j)-aesData%valenceCN(at(j))-shift))  ! CN - VALCN - SHIFT
-         t4 =(rmax-rco)/(1.0_wp+2.0_wp*t3+t3*t3)
-         t4 = t4*expo*t3
-         do k=1,3
-            tmp1=dcn(k,j,i)*t4
-            tmp2=dcn(k,i,j)*t2
-            dcn(k,i,j)=tmp1
-            dcn(k,j,i)=tmp2
-         enddo
-      enddo
-   enddo
+      dcn(:,:,i)=dcn(:,:,i)*t2
+   end do
 end subroutine dradcn
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

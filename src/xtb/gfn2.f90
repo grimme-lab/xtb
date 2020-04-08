@@ -22,6 +22,7 @@ module xtb_xtb_gfn2
    use xtb_param_paulingen, only : paulingEN
    use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
+   use xtb_xtb_gfn1, only : setGFN1ShellHardness
    use xtb_disp_dftd4, only : d4init, p_refq_gfn2xtb
    implicit none
    private
@@ -785,7 +786,9 @@ subroutine initCoulomb(self, nShell)
    allocate(self%thirdOrderShell(maxval(nShell), size(nShell)))
    call setGFN2ThirdOrderShell(self%thirdOrderShell, nShell, angShell, &
       & thirdOrderAtom, gfn2Globals%gam3shell)
-   self%shellHardness = shellHardness
+   allocate(self%shellHardness(maxval(nShell), maxElem))
+   call setGFN1ShellHardness(self%shellHardness, nShell, angShell, &
+      & chemicalHardness, shellHardness)
 
 end subroutine initCoulomb
 

@@ -21,6 +21,7 @@ module xtb_api_utils
    use iso_c_binding
    use xtb_mctc_accuracy, only : wp
    use xtb_chargemodel
+   use xtb_xtb_data
    implicit none
 
    interface c_return

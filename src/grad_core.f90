@@ -37,11 +37,10 @@ contains
 !  convert H0/H1 from eV to Eh and calculate the energy weighted density
 !  matrix
 !! ========================================================================
-subroutine prep_grad_conv(ndim,H0,H1,C,focc,emo,X)
+subroutine prep_grad_conv(ndim,H0,C,focc,emo,X)
    use xtb_mctc_convert, only : autoev,evtoau
    integer, intent(in)    :: ndim
    real(wp),intent(inout) :: H0(ndim*(ndim+1)/2)
-   real(wp),intent(inout) :: H1(ndim*(ndim+1)/2)
    real(wp),intent(in)    :: C(ndim,ndim)
    real(wp),intent(in)    :: focc(ndim)
    real(wp),intent(in)    :: emo(ndim)
@@ -51,7 +50,6 @@ subroutine prep_grad_conv(ndim,H0,H1,C,focc,emo,X)
 
    allocate( temp(ndim), source = 0.0_wp )
    H0 = H0*evtoau
-   H1 = H1*evtoau
 
 !  get energy weigthed density matrix
    temp = focc * emo*evtoau
@@ -199,17 +197,8 @@ subroutine hcn_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
 !$omp end parallel
 
 
-!  CN-level shift gradient
-!$omp parallel default(none) &
-!$omp shared(n,dcndr,hcn) &
-!$omp private(i,gtmp) shared ( g )
-!$omp do
-   do i=1,n
-      call gemv('n',3,n,1.0d0,dcndr(:,:,i),3,hcn,1,0.0d0,gtmp,1)
-      g(1:3,i)=g(1:3,i)+gtmp(1:3)
-   enddo
-!$omp end do
-!$omp end parallel
+   ! CN-level shift gradient
+   call contract(dcndr, hcn, g, beta=1.0_wp)
 
 end subroutine hcn_grad
 
@@ -231,119 +220,14 @@ subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
    integer :: iat,jat
 
    allocate( fgba(n), source = 0.0_wp )
-   call dsymv('u',n,evtoau,fgb,n,q,1,0.0_wp,fgba,1)
+   call dsymv('u',n,1.0_wp,fgb,n,q,1,0.0_wp,fgba,1)
    call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
    if (lhb) then
-      fgba = evtoau * fhb * 2.0_wp * q
+      fgba = fhb * 2.0_wp * q
       call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
    end if
 
 end subroutine cm5_grad_gfn1
-
-
-!! ========================================================================
-!  shellwise electrostatic gradient for GFN1
-!! ========================================================================
-subroutine shelles_grad_gfn1(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,alphaj,qsh)
-   use xtb_lin
-   type(TCoulombData), intent(in) :: jData
-   real(wp),intent(inout) :: g(3,n)
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
-   integer, intent(in) :: nshell
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: sqrab(n*(n+1)/2)
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   real(wp),intent(in) :: alphaj
-   real(wp),intent(in) :: qsh(nshell)
-
-   integer  :: is,js,iat,jat,ati,atj
-   real(wp) :: xa,ya,za,dx,dy,dz
-   real(wp) :: gi,gj,r2,rr,yy,ff
-
-   do is=1,nshell
-      iat=ash(is)
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      gi=jData%chemicalHardness(ati)*(1.0d0+jData%shellHardness(lsh(is)+1,ati))
-      do js=1,nshell
-         jat=ash(js)
-         if(jat.le.iat) cycle
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
-         atj=at(jat)
-         r2=sqrab(lin(jat,iat))
-         gj=jData%chemicalHardness(atj)*(1.0d0+jData%shellHardness(lsh(js)+1,atj))
-         rr=2.0d0/(1./gi+1./gj)
-         rr=1.0d0/rr**alphaj
-         ff=r2**(alphaj/2.0d0-1.0d0)* &
-         &        (r2**(alphaj*0.5d0)+rr)**(-1.0d0/alphaj-1.0d0)
-         yy=ff*qsh(is)*qsh(js)
-         g(1,iat)=g(1,iat)-dx*yy
-         g(2,iat)=g(2,iat)-dy*yy
-         g(3,iat)=g(3,iat)-dz*yy
-         g(1,jat)=g(1,jat)+dx*yy
-         g(2,jat)=g(2,jat)+dy*yy
-         g(3,jat)=g(3,jat)+dz*yy
-      enddo
-   enddo
-
-end subroutine shelles_grad_gfn1
-
-!! ========================================================================
-!  shellwise electrostatic gradient for GFN2
-!! ========================================================================
-subroutine shelles_grad_gfn2(g,jData,n,at,nshell,xyz,sqrab,ash,lsh,qsh)
-   use xtb_lin
-   type(TCoulombData), intent(in) :: jData
-   real(wp),intent(inout) :: g(3,n)
-   integer, intent(in) :: n
-   integer, intent(in) :: at(n)
-   integer, intent(in) :: nshell
-   real(wp),intent(in) :: xyz(3,n)
-   real(wp),intent(in) :: sqrab(n*(n+1)/2)
-   integer, intent(in) :: ash(nshell)
-   integer, intent(in) :: lsh(nshell)
-   real(wp),intent(in) :: qsh(nshell)
-
-   integer  :: is,js,iat,jat,ati,atj
-   real(wp) :: xa,ya,za,dx,dy,dz
-   real(wp) :: gi,gj,r2,rr,yy
-
-   do is=1,nshell
-      iat=ash(is)
-      xa=xyz(1,iat)
-      ya=xyz(2,iat)
-      za=xyz(3,iat)
-      ati=at(iat)
-      gi=jData%chemicalHardness(ati)*(1.0d0+jData%shellHardness(1+lsh(is),ati))
-      do js=1,nshell
-         jat=ash(js)
-         if(jat.le.iat) cycle
-         dx=xa-xyz(1,jat)
-         dy=ya-xyz(2,jat)
-         dz=za-xyz(3,jat)
-         atj=at(jat)
-         r2=sqrab(lin(jat,iat))
-         gj=jData%chemicalHardness(atj)*(1.0d0+jData%shellHardness(1+lsh(js),atj))
-         rr=0.5d0*(gi+gj)
-         rr=1.0d0/rr**2
-!        rr=1.0d0/(gi*gj) !NEWAV
-         yy=qsh(is)*qsh(js)*(r2+rr)**(-1.5d0)
-         g(1,iat)=g(1,iat)-dx*yy
-         g(2,iat)=g(2,iat)-dy*yy
-         g(3,iat)=g(3,iat)-dz*yy
-         g(1,jat)=g(1,jat)+dx*yy
-         g(2,jat)=g(2,jat)+dy*yy
-         g(3,jat)=g(3,jat)+dz*yy
-      enddo
-   enddo
-
-end subroutine shelles_grad_gfn2
 
 
 !! ========================================================================

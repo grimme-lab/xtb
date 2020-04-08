@@ -16,12 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'coordinationnumber.f90',
-  'dftd3.f',
-  'dftd3.f90',
-  'dftd3_parameters.f90',
-  'dftd4.f90',
-  'dftd4_parameters.f90',
-  'encharges.f90',
-  'ncoord.f90',
+  'ewald.f90',
+  'gaussian.f90',
+  'klopmanohno.f90',
 )
