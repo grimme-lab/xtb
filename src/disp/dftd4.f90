@@ -48,7 +48,7 @@ subroutine d4init(g_a,g_c,mode)
    integer, intent(in)  :: mode
 
    integer  :: i,ia,is,icn,j,ii,jj
-   integer  :: cncount(0:15)
+   integer  :: cncount(0:18)
    real(wp) :: sec_al(23),iz,c6,alpha(23)
    real(wp) :: tmp_hq(7,118)
 

@@ -364,7 +364,6 @@ subroutine peeq &
    call gfn0_charge_model(chrgeq,mol%n,mol%at,xtbData%coulomb)
    ! initialize electrostatic energy
    if (lgbsa) then
-      dcndr = -dcndr
       call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
          &            ees,gsolv,g,.false.,.true.,.true.)
    else
@@ -395,7 +394,6 @@ subroutine peeq &
       call init(eeq, env, chi, kcn, gam)
       call eeq%chargeEquilibration(env, mol, coulomb, cn, dcndr, dcndL, &
          & ees, g, sigma, qat=qeeq, dqdr=dqdr, dqdL=dqdL)
-      dcndr = -dcndr
    endif
 
    call env%check(exitRun)
@@ -412,6 +410,7 @@ subroutine peeq &
 !  D4 dispersion energy + gradient (2B) under pbc
 ! ----------------------------------------
    call ddisp_peeq(xtbData%dispersion,mol,env,cn,dcndr,dcndL,grd,ed,g,sigma)
+   dcndr = -dcndr
 
    call env%check(exitRun)
    if (exitRun) then

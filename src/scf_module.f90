@@ -32,7 +32,6 @@ module xtb_scf
    use xtb_type_pcem
    use xtb_type_timer
    use xtb_type_wavefunction
-   use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_xtb_data
    use xtb_xtb_halogen
    use xtb_xtb_repulsion
@@ -493,7 +492,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! dispersion (DFT-D type correction)
    if (gfn_method == 1) then
       call d3_gradient &
-         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, sqrtZr4r2, 60.0_wp, &
+         & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 60.0_wp, &
          &  cn, dcndr, dcndL, ed, gradient, sigma)
    else
       allocate(scD4)

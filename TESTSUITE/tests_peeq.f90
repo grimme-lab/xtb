@@ -96,6 +96,7 @@ program peeq_tester
       select case(sec)
       case('pbc3dneighs'); call test_dftd3_pbc3d_neighbourlist
       case('pbc3dlatp'); call test_dftd3_pbc3d_latticepoints
+      case('pbc3datm'); call test_dftd3_pbc3d_threebody
       end select
    case('dftd4')
       select case(sec)

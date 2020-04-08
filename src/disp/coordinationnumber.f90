@@ -21,8 +21,10 @@ module xtb_disp_coordinationnumber
    use xtb_mctc_constants, only : pi
    use xtb_param_covalentradd3, only : covalentRadD3
    use xtb_param_paulingen, only : paulingEN
+   use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_neighbourlist, only : TNeighbourList
+   use xtb_type_latticepoint, only : TLatticePoint, init_ => init
    implicit none
    private
 
@@ -30,6 +32,7 @@ module xtb_disp_coordinationnumber
 
 
    interface getCoordinationNumber
+      module procedure :: getCoordinationNumberWrap
       module procedure :: getCoordinationNumberNL
       module procedure :: getCoordinationNumberLP
    end interface getCoordinationNumber
@@ -91,6 +94,64 @@ module xtb_disp_coordinationnumber
 
 
 contains
+
+
+!> Geometric fractional coordination number, supports both error function
+!  and exponential counting functions.
+subroutine getCoordinationNumberWrap(env, mol, cf, cn, dcndr, dcndL, cutoff)
+
+   !> Source for error creation
+   character(len=*), parameter :: source = &
+      & 'disp_coordinationnumber_getCoordinationNumberWrap'
+
+   !> Computational Environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Coordination number type (by counting function)
+   integer, intent(in) :: cf
+
+   !> Error function coordination number
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   !> Real space cutoff for the coordination number
+   real(wp), intent(in), optional :: cutoff
+
+   logical :: exitRun
+   real(wp) :: rCutoff
+   real(wp), allocatable :: trans(:, :)
+   type(TLatticePoint) :: latp
+
+   if (present(cutoff)) then
+      rCutoff = cutoff
+   else
+      rCutoff = 40.0_wp
+   end if
+
+   !> Initialize lattice point generator, this might fail
+   call init_(latp, env, mol, rCutoff)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Setup of lattice point generator failed", source)
+      return
+   end if
+
+   !> Generate a new batch of lattice points
+   call latp%getLatticePoints(trans, rCutoff)
+
+   !> Actual call to the lattice point version of the CN evaluation
+   call getCoordinationNumber(mol, trans, rCutoff, cf, cn, dcndr, dcndL)
+
+end subroutine getCoordinationNumberWrap
 
 
 !> Geometric fractional coordination number, supports both error function

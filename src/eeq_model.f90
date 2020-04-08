@@ -892,13 +892,13 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
       call get_coulomb_derivs(mol, chrgeq, Xtmp, rTrans, gTrans, cf, &
          & dAmatdr, dAmatdL, Afac)
       do i = 1, mol%n
-         dXvecdr(:,:,i) = +dcndr(:,:,i)*Xfac(i)
-         dXvecdL(:,:,i) = +dcndL(:,:,i)*Xfac(i)
+         dXvecdr(:,:,i) = -dcndr(:,:,i)*Xfac(i)
+         dXvecdL(:,:,i) = -dcndL(:,:,i)*Xfac(i)
       enddo
    else
       call get_coulomb_derivs(mol, chrgeq, Xtmp, dAmatdr, Afac)
       do i = 1, mol%n
-         dXvecdr(:,:,i) = +dcndr(:,:,i)*Xfac(i) ! merge dX and dA for speedup
+         dXvecdr(:,:,i) = -dcndr(:,:,i)*Xfac(i) ! merge dX and dA for speedup
       enddo
    endif
 endif do_molecular_gradient
@@ -908,7 +908,7 @@ endif do_molecular_gradient
    call dgemv('n',3*mol%n,m,+1.0_wp,dXvecdr,3*mol%n,Xtmp,1,1.0_wp,gradient,1)
    if (mol%npbc > 0) then
       call dgemv('n',3*3,m,+0.5_wp,dAmatdL,3*3,Xtmp,1,1.0_wp,sigma,1)
-      call dgemv('n',3*3,m,-1.0_wp,dXvecdL,3*3,Xtmp,1,1.0_wp,sigma,1)
+      call dgemv('n',3*3,m,+1.0_wp,dXvecdL,3*3,Xtmp,1,1.0_wp,sigma,1)
    endif
    endif
 
@@ -970,7 +970,7 @@ do_partial_charge_derivative: if (lcpq) then
       &       1.0_wp,dqdr,3*mol%n)
    if (mol%npbc > 0) then
       call dgemm('n','n',9,mol%n,m,-1.0_wp,dAmatdL,9,Ainv,m,1.0_wp,dqdL,3*3)
-      call dgemm('n','n',9,mol%n,m,+1.0_wp,dXvecdL,9,Ainv,m,1.0_wp,dqdL,3*3)
+      call dgemm('n','n',9,mol%n,m,-1.0_wp,dXvecdL,9,Ainv,m,1.0_wp,dqdL,3*3)
    endif
    !print'(/,"analytical gradient")'
    !print'(3f20.14)',dqdr(:,:,:n)
@@ -1206,7 +1206,7 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
 
    call get_coulomb_derivs(mol, chrgeq, Xtmp, dAmatdr, Afac)
    do i = 1, mol%n
-      dAmatdr(:,:,i) = dAmatdr(:,:,i) + dcndr(:,:,i)*Xfac(i)
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) - dcndr(:,:,i)*Xfac(i)
    enddo
    call compute_gb_damat(gbsa,Xtmp,gborn,ghb,dAmatdr,Afac,lverbose)
    gsolv = gsolv + gborn + ghb + gshift
