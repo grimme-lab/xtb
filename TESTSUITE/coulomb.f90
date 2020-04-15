@@ -159,7 +159,6 @@ subroutine test_coulomb_point_pbc3d
    implicit none
 
    real(wp),parameter :: thr = 1.0e-9_wp
-   ! CaF2
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
    real(wp),parameter :: xyz(3,nat) = reshape(&
@@ -595,7 +594,6 @@ subroutine test_coulomb_gfn1_pbc3d
    implicit none
 
    real(wp),parameter :: thr = 1.0e-9_wp
-   ! CaF2
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
    real(wp),parameter :: xyz(3,nat) = reshape(&
@@ -649,6 +647,8 @@ subroutine test_coulomb_gfn1_pbc3d
       & 8.52471706343666E-2_wp, 9.46559327232836E-2_wp, 8.25241730550529E-2_wp, &
       & 0.10241788528707E+0_wp, 0.10484272561566E+0_wp, 0.10417532504838E+0_wp, &
       & 8.96531455310284E-2_wp, 9.68902639794006E-2_wp]
+   real(wp),parameter :: atomicHardness(1, 3) = reshape([&
+      & 0.583349_wp, 0.479988_wp, 0.470099_wp], [1, 3])
 
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -671,7 +671,8 @@ subroutine test_coulomb_gfn1_pbc3d
 
    call init(env)
    call init(mol, at, xyz, lattice=lattice)
-   !call init(coulomb, env, mol, tolerance=1.0e-8_wp)
+   call init(coulomb, env, mol, gamAverage%harmonic, atomicHardness, 2.0_wp, &
+      & tolerance=1.0e-8_wp)
 
    call assert_close(coulomb%rCutoff, 18.11939328_wp, thr)
    call assert_close(coulomb%gCutoff, 1.4680064_wp, thr)
@@ -684,7 +685,99 @@ subroutine test_coulomb_gfn1_pbc3d
    allocate(djdtr(3, nat))
    allocate(djdL(3, 3, nat))
 
-   stop 77
+   call coulomb%getCoulombMatrix(mol, jmat)
+
+   do ii = 1, nat
+      do jj = 1, ii-1
+         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+      end do
+   end do
+   call assert_close(jmat( 1, 3),-0.26692685831907E-01_wp, thr)
+   call assert_close(jmat( 2, 3),-0.68773950642218E-01_wp, thr)
+   call assert_close(jmat( 4, 6),-0.38988468002079E-01_wp, thr)
+   call assert_close(jmat( 3,10),-0.23000529589385E-01_wp, thr)
+   call assert_close(jmat( 6, 3),-0.51594544630953E-01_wp, thr)
+   call assert_close(jmat( 7,18), 0.41437913557408E-02_wp, thr)
+   call assert_close(jmat(12,20),-0.64306568194767E-01_wp, thr)
+
+   shift(:) = matmul(jmat, charges)
+   energy = 0.5_wp*dot_product(charges, shift)
+   call assert_close(energy, 0.10334568151034_wp, thr)
+
+   call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
+   call contract(djdr, charges, gradient)
+   call contract(djdL, charges, sigma)
+
+   ! check numerical gradient
+   do ii = 1, nat, 5
+      do jj = 1, 3
+         mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, charges)
+         er = 0.5_wp*dot_product(charges, shift)
+         mol%xyz(jj, ii) = mol%xyz(jj, ii) - 2*step
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, charges)
+         el = 0.5_wp*dot_product(charges, shift)
+         mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
+         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+      end do
+   end do
+
+   ! check numerical strain derivatives
+   eps = unity
+   do ii = 1, 3
+      do jj = 1, ii
+         eps(jj, ii) = eps(jj, ii) + step
+         mol%lattice(:, :) = matmul(eps, lattice)
+         mol%xyz(:, :) = matmul(eps, xyz)
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, charges)
+         er = 0.5_wp*dot_product(charges, shift)
+
+         eps(jj, ii) = eps(jj, ii) - 2*step
+         mol%lattice(:, :) = matmul(eps, lattice)
+         mol%xyz(:, :) = matmul(eps, xyz)
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, charges)
+         el = 0.5_wp*dot_product(charges, shift)
+
+         eps(jj, ii) = eps(jj, ii) + step
+
+         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+      end do
+   end do
+
+   ! reset and try another shape
+   call init(coulomb, env, mol, gamAverage%geometric, atomicHardness, 3.0_wp, &
+      & tolerance=1.0e-8_wp)
+
+   call coulomb%getCoulombMatrix(mol, jmat)
+
+   do ii = 1, nat
+      do jj = 1, ii-1
+         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+      end do
+   end do
+   call assert_close(jmat( 1, 3),-0.13464382457757E-01_wp, thr)
+   call assert_close(jmat( 2, 3),-0.60078828891465E-01_wp, thr)
+   call assert_close(jmat( 4, 6),-0.24046964967552E-01_wp, thr)
+   call assert_close(jmat( 3,10),-0.60407457734382E-02_wp, thr)
+   call assert_close(jmat( 6, 3),-0.38251294880785E-01_wp, thr)
+   call assert_close(jmat( 7,18), 0.32150302911807E-01_wp, thr)
+   call assert_close(jmat(12,20),-0.50061175269104E-01_wp, thr)
+
+   shift(:) = matmul(jmat, charges)
+   energy = 0.5_wp*dot_product(charges, shift)
+   call assert_close(energy, 0.86046710402599E-01_wp, thr)
 
    call terminate(afail)
 end subroutine test_coulomb_gfn1_pbc3d
@@ -957,7 +1050,6 @@ subroutine test_coulomb_gfn2_pbc3d
    implicit none
 
    real(wp),parameter :: thr = 1.0e-9_wp
-   ! CaF2
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
    real(wp),parameter :: xyz(3,nat) = reshape(&
@@ -1217,7 +1309,6 @@ subroutine test_coulomb_gaussian_pbc3d
    implicit none
 
    real(wp),parameter :: thr = 1.0e-9_wp
-   ! CaF2
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
    real(wp),parameter :: xyz(3,nat) = reshape(&
