@@ -30,7 +30,7 @@ module xtb_scc_core
    implicit none
    private
 
-   public :: getSelfEnergy, build_h0, scc, electro, electro_gbsa, solve, solve4
+   public :: build_h0, scc, electro, electro_gbsa, solve, solve4
    public :: fermismear, occ, occu, dmat
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
@@ -41,73 +41,6 @@ module xtb_scc_core
 
 
 contains
-
-
-subroutine getSelfEnergy(hData, nShell, at, cn, qat, selfEnergy, dSEdcn, dSEdq)
-   type(THamiltonianData), intent(in) :: hData
-   integer, intent(in) :: nShell(:)
-   integer, intent(in) :: at(:)
-   real(wp), intent(in), optional :: cn(:)
-   real(wp), intent(in), optional :: qat(:)
-   real(wp), intent(out) :: selfEnergy(:)
-   real(wp), intent(out), optional :: dSEdcn(:)
-   real(wp), intent(out), optional :: dSEdq(:)
-
-   integer :: ind, iAt, iZp, iSh, lang
-
-   selfEnergy(:) = 0.0_wp
-   if (present(dSEdcn)) dSEdcn(:) = 0.0_wp
-   if (present(dSEdq)) dSEdq(:) = 0.0_wp
-   ind = 0
-   do iAt = 1, size(cn)
-      iZp = at(iAt)
-      do iSh = 1, nShell(iZp)
-         selfEnergy(ind+iSh) = hData%selfEnergy(iSh, iZp)
-      end do
-      ind = ind + nShell(iZp)
-   end do
-   if (present(dSEdq) .and. present(qat)) then
-      ind = 0
-      do iAt = 1, size(cn)
-         iZp = at(iAt)
-         do iSh = 1, nShell(iZp)
-            lAng = hData%angShell(iSh, iZp)+1
-            selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
-               & - hData%kQShell(lAng,iZp)*qat(iAt) - hData%kQAtom(iZp)*qat(iAt)**2
-            dSEdq(ind+iSh) = -hData%kQShell(lAng,iZp) - hData%kQAtom(iZp)*2*qat(iAt)
-         end do
-         ind = ind + nShell(iZp)
-      end do
-      if (present(dSEdcn) .and. present(cn)) then
-         ind = 0
-         do iAt = 1, size(cn)
-            iZp = at(iAt)
-            do iSh = 1, nShell(iZp)
-               lAng = hData%angShell(iSh, iZp)+1
-               selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
-                  & - hData%kCN(lAng+1, iZp) * cn(iAt)
-               dSEdcn(ind+iSh) = -hData%kCN(iSh, iZp)
-            end do
-            ind = ind + nShell(iZp)
-         end do
-      end if
-   else
-      if (present(dSEdcn) .and. present(cn)) then
-         ind = 0
-         do iAt = 1, size(cn)
-            iZp = at(iAt)
-            do iSh = 1, nShell(iZp)
-               lAng = hData%angShell(iSh, iZp)+1
-               selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
-                  & - hData%kCN(iSh, iZp) * cn(iAt)
-               dSEdcn(ind+iSh) = -hData%kCN(iSh, iZp)
-            end do
-            ind = ind + nShell(iZp)
-         end do
-      end if
-   end if
-
-end subroutine getSelfEnergy
 
 !! ========================================================================
 !  build GFN2 core Hamiltonian

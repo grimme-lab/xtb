@@ -151,6 +151,7 @@ set(XTB_SOURCES
   "${XTB_ROOT}/src/xtb/gfn1.f90"
   "${XTB_ROOT}/src/xtb/gfn2.f90"
   "${XTB_ROOT}/src/xtb/halogen.f90"
+  "${XTB_ROOT}/src/xtb/hamiltonian.f90"
   "${XTB_ROOT}/src/xtb/multipole.f90"
   "${XTB_ROOT}/src/xtb/repulsion.f90"
   "${XTB_ROOT}/src/xtb/thirdorder.f90"

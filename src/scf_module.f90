@@ -37,6 +37,7 @@ module xtb_scf
    use xtb_xtb_repulsion
    use xtb_xtb_coulomb
    use xtb_xtb_dispersion
+   use xtb_xtb_hamiltonian
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
    use xtb_scc_core

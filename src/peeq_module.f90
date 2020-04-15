@@ -28,6 +28,7 @@ module xtb_peeq
    use xtb_disp_encharges, only : getENCharges
    use xtb_coulomb_gaussian
    use xtb_xtb_eeq
+   use xtb_xtb_hamiltonian, only : getSelfEnergy
    implicit none
    private
 
@@ -112,9 +113,9 @@ subroutine peeq &
    real(wp), allocatable :: zsh  (:)
    real(wp), allocatable :: kcnao(:)
    real(wp), allocatable :: kqao (:)
-   real(wp), allocatable :: selfEnergy(:)
-   real(wp), allocatable :: dSEdcn(:)
-   real(wp), allocatable :: dSEdq(:)
+   real(wp), allocatable :: selfEnergy(:, :)
+   real(wp), allocatable :: dSEdcn(:, :)
+   real(wp), allocatable :: dSEdq(:, :)
    integer :: rep_cn(3)
    integer :: nid
    integer, allocatable :: idnum(:)
@@ -277,9 +278,9 @@ subroutine peeq &
    allocate(kcnao(nao));                 kcnao = 0.0_wp
    allocate(kqao(nao));                   kqao = 0.0_wp
    allocate(zsh(nshell));                  zsh = 0.0_wp
-   allocate(selfEnergy(nshell))
-   allocate(dSEdcn(nshell))
-   allocate(dSEdq(nshell))
+   allocate(selfEnergy(maxval(xtbData%nshell), mol%n))
+   allocate(dSEdcn(maxval(xtbData%nshell), mol%n))
+   allocate(dSEdq(maxval(xtbData%nshell), mol%n))
    allocate(qeeq(mol%n));           qeeq = 0.0_wp
    allocate(dqdr(3,mol%n,mol%n)); dqdr = 0.0_wp
    allocate(dqdL(3,3,mol%n));     dqdL = 0.0_wp
@@ -420,17 +421,16 @@ subroutine peeq &
 ! ---------------------------------------
 !  Build AO overlap S and H0 integrals under pbc
 ! ---------------------------------------
+   call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn, wfn%q, &
+      & selfEnergy, dSEdcn, dSEdq)
    if (ccm) then
-      call ccm_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
-         & mol%n,mol%at,basis,nbf,nao,mol%xyz,mol%lattice, &
-         & wfn%q,cn,intcut, &
-         & s,h0,mol%wsc)
+      call ccm_build_SH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & mol%n, mol%at, basis, nbf, nao, mol%xyz, mol%lattice, intcut, &
+         & s, h0, mol%wsc)
    else
       call latp%getLatticePoints(trans, sqrt(800.0_wp))
-      call pbc_build_SH0(xtbData%nShell, xtbData%hamiltonian, &
-         & mol%n,mol%at,basis,nbf,nao,mol%xyz,trans,&
-         & wfn%q,cn,intcut, &
-         & s,h0)
+      call pbc_build_SH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & mol%n, mol%at, basis, nbf, nao, mol%xyz, trans, intcut, s, h0)
    endif
 
    if (profile) call timer%measure(5)
@@ -523,16 +523,14 @@ subroutine peeq &
    ! setup energy weighted density matrix = pew
    call dmat(nao,tmp,wfn%C,pew)
    if (ccm) then
-      call ccm_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
-         & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
-         & mol%lattice,wfn%q,cn, &
-         & wfn%P,Pew,gradient,sigma,dhdcn,dhdq,mol%wsc)
+      call ccm_build_dSH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & dSEdcn, dSEdq, mol%n, basis, intcut, nao, nbf, mol%at, mol%xyz, &
+         & mol%lattice, wfn%P, Pew, gradient, sigma, dhdcn, dhdq, mol%wsc)
    else
       call latp%getLatticePoints(trans, sqrt(800.0_wp))
-      call pbc_build_dSH0(xtbData%nShell, xtbData%hamiltonian, &
-         & mol%n,basis,intcut,nao,nbf,mol%at,mol%xyz, &
-         & trans,wfn%q,cn, &
-         & wfn%P,Pew,gradient,sigma,dhdcn,dhdq)
+      call pbc_build_dSH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & dSEdcn, dSEdq, mol%n, basis, intcut, nao, nbf, mol%at, mol%xyz, &
+         & trans, wfn%P, Pew, gradient, sigma, dhdcn, dhdq)
    endif
    if (mol%npbc > 0) then
       ! setup CN sigma
@@ -813,8 +811,8 @@ end subroutine build_srblist
 ! ------------------------------------------------------------------------
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
-subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intcut, &
-      &                  sint,h0,wsc)
+subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
+      & xyz, lattice, intcut, sint, h0, wsc)
 
    use xtb_type_basisset
    use xtb_type_wsc
@@ -829,6 +827,7 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    type(THamiltonianData), intent(in) :: hData
    type(tb_wsc), intent(in) :: wsc
    type(TBasisset), intent(in) :: basis
+   real(wp), intent(in) :: selfEnergy(:, :)
 
    integer, intent(in)  :: nat
    integer, intent(in)  :: nbf
@@ -836,8 +835,6 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: lattice(3,3)
-   real(wp),intent(in)  :: q(nat)
-   real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
@@ -880,7 +877,7 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,t) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,intcut,nat,cn,q)
+   !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,intcut,nat,selfEnergy)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -912,10 +909,8 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
-                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
-                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = selfEnergy(ish, iat)
+               hjj = selfEnergy(jsh, jat)
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -999,8 +994,7 @@ subroutine ccm_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,lattice,q,cn,intc
             ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
             ! calculate environment dependent shift
-            hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
-               &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+            hii = selfEnergy(ish, iat)
             H0(ii) = hii
          end do
       end do
@@ -1011,8 +1005,8 @@ end subroutine ccm_build_SH0
 ! ------------------------------------------------------------------------
 !  Calculate the periodic AO overlap matrix
 ! ------------------------------------------------------------------------
-subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,trans,q,cn,intcut, &
-      &                  sint,h0)
+subroutine pbc_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
+      & xyz, trans, intcut, sint, h0)
 
    use xtb_type_basisset
 
@@ -1025,6 +1019,7 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,trans,q,cn,intcut
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
    type(TBasisset), intent(in) :: basis
+   real(wp), intent(in) :: selfEnergy(:, :)
 
    integer, intent(in)  :: nat
    integer, intent(in)  :: nbf
@@ -1032,8 +1027,6 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,trans,q,cn,intcut
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: trans(:,:)
-   real(wp),intent(in)  :: q(nat)
-   real(wp),intent(in)  :: cn(nat)
    real(wp),intent(in)  :: intcut
 
    real(wp),intent(out) :: sint(nao,nao)  ! overlap matrix S
@@ -1080,7 +1073,7 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,trans,q,cn,intcut
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,itr,t) &
    !$omp reduction (+:sint,h0) &
-   !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,cn,q,trans,w)
+   !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,trans,w,selfEnergy)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1112,10 +1105,8 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,trans,q,cn,intcut
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
-                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
-                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = selfEnergy(ish, iat)
+               hjj = selfEnergy(jsh, jat)
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1199,8 +1190,7 @@ subroutine pbc_build_SH0(nShell,hData,nat,at,basis,nbf,nao,xyz,trans,q,cn,intcut
             ii  = i*(1+i)/2 ! H0 is packed, note i*(i-1)/2+i = i*(1+i)/2
 
             ! calculate environment dependent shift
-            hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
-               &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
+            hii = selfEnergy(ish, iat)
             H0(ii) = hii
          end do
       end do
@@ -1341,8 +1331,8 @@ end subroutine get_grad_overlap
 ! ------------------------------------------------------------------------
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
-subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn,P,Pew,g,sigma,&
-      &                   dHdcn,dHdq,wsc)
+subroutine ccm_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, &
+      & thr, nao, nbf, at, xyz, lattice, P, Pew, g, sigma, dHdcn, dHdq, wsc)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -1357,6 +1347,9 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    ! intent in
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
+   real(wp), intent(in) :: selfEnergy(:, :)
+   real(wp), intent(in) :: dSEdcn(:, :)
+   real(wp), intent(in) :: dSEdq(:, :)
    integer, intent(in)      :: nat
    type(tb_wsc), intent(in) :: wsc
    type(TBasisset), intent(in) :: basis
@@ -1366,8 +1359,6 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
    real(wp),intent(in) :: lattice(3,3)
-   real(wp),intent(in) :: q(nat)
-   real(wp),intent(in) :: cn(nat)
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
    ! intent inout
@@ -1410,8 +1401,8 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
    !$omp&        mli,mlj,dum,dumdum,tmp,stmp,rij,zi,zj,zetaij,enpoly,iao,jao,t, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
-   !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,thr,nat,cn,q, &
-   !$omp        P,Pew)
+   !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,thr,nat,selfEnergy, &
+   !$omp        dSEdcn,dSEdq,P,Pew)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1443,10 +1434,8 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
-                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
-                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = selfEnergy(ish, iat)
+               hjj = selfEnergy(jsh, jat)
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1532,16 +1521,14 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
                         ! Hamiltonian without Hav
                         HPij = km * shpoly * Pij * sdq(jj,ii) * wsc%w(jat,iat)
                         ! save dE/dCN for CNi
-                        dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(ish,ati)
+                        dhdcn(iat) = dhdcn(iat) + HPij*dSEdcn(ish, iat)
                         ! save dE/dCN for CNj
-                        dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(jsh,atj)
+                        dhdcn(jat) = dhdcn(jat) + HPij*dSEdcn(jsh, jat)
 
                         ! save dE/dq for qi
-                        dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(ish,ati) &
-                           &                  - HPij*hData%kQAtom(ati)*2*q(iat)
+                        dhdq(iat) = dhdq(iat) + HPij*dSEdq(ish, iat)
                         ! save dE/dq for qj
-                        dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jsh,atj) &
-                           &                  - HPij*hData%kQAtom(atj)*2*q(jat)
+                        dhdq(jat) = dhdq(jat) + HPij*dSEdq(jsh, jat)
 
                      enddo
                   enddo
@@ -1570,9 +1557,9 @@ subroutine ccm_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,lattice,q,cn
             Pii = P(i,i)*evtoau
 
             ! save dE/dCN for CNi
-            dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(ish,ati)
+            dhdcn(iat) = dhdcn(iat) + Pii*dSEdcn(ish, iat)
             ! save dE/dq for qi
-            dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(ish,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
+            dhdq(iat) = dhdq(iat) + Pii*dSEdq(ish, iat)
          end do
       end do
    end do
@@ -1582,8 +1569,8 @@ end subroutine ccm_build_dSH0
 ! ------------------------------------------------------------------------
 !  Calculate the gradient resulting from a periodic AO overlap matrix
 ! ------------------------------------------------------------------------
-subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P,Pew,g,sigma, &
-      &                   dHdcn,dHdq)
+subroutine pbc_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, &
+      & thr, nao, nbf, at, xyz, trans, P, Pew, g, sigma, dHdcn, dHdq)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert
 
@@ -1598,6 +1585,9 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P
    ! intent in
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
+   real(wp), intent(in) :: selfEnergy(:, :)
+   real(wp), intent(in) :: dSEdcn(:, :)
+   real(wp), intent(in) :: dSEdq(:, :)
    integer, intent(in)      :: nat
    type(TBasisset), intent(in) :: basis
    real(wp),intent(in)      :: thr
@@ -1606,8 +1596,6 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P
    integer, intent(in) :: at(nat)
    real(wp),intent(in) :: xyz(3,nat)
    real(wp),intent(in) :: trans(:,:)
-   real(wp),intent(in) :: q(nat)
-   real(wp),intent(in) :: cn(nat)
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: Pew(nao,nao)
    ! intent inout
@@ -1655,7 +1643,8 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,Pij,Hij,HPij,H0sr, &
    !$omp&        itr,t) &
    !$omp reduction (+:g,sigma,dhdcn,dhdq) &
-   !$omp shared(basis,at,nShell,hData,xyz,thr,nat,cn,q,trans,P,Pew,w)
+   !$omp shared(basis,at,nShell,hData,xyz,thr,nat,trans,P,Pew,w,selfEnergy, &
+   !$omp& dSEdcn,dSEdq)
    !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
@@ -1687,10 +1676,8 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P
                il = shell(basis%lao2(i))
                jl = shell(basis%lao2(j))
                ! diagonals are the same for all H0 elements
-               hii = basis%hdiag2(i) - hData%kCN(ish,ati)*cn(iat) &
-                  &  - hData%kQShell(ish,ati)*q(iat) - hData%kQAtom(ati)*q(iat)**2
-               hjj = basis%hdiag2(j) - hData%kCN(jsh,atj)*cn(jat) &
-                  &  - hData%kQShell(jsh,atj)*q(jat) - hData%kQAtom(atj)*q(jat)**2
+               hii = selfEnergy(ish, iat)
+               hjj = selfEnergy(jsh, jat)
 
                ! evaluate the EN polynom for this shells
                enpoly = (1.0_wp + hData%enScale(jl-1,il-1)*den2 &
@@ -1776,16 +1763,14 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P
                         ! Hamiltonian without Hav
                         HPij = km * shpoly * Pij * sdq(jj,ii) * w
                         ! save dE/dCN for CNi
-                        dhdcn(iat) = dhdcn(iat) - HPij*hData%kCN(ish,ati)
+                        dhdcn(iat) = dhdcn(iat) + HPij*dSEdcn(ish, iat)
                         ! save dE/dCN for CNj
-                        dhdcn(jat) = dhdcn(jat) - HPij*hData%kCN(jsh,atj)
+                        dhdcn(jat) = dhdcn(jat) + HPij*dSEdcn(jsh, jat)
 
                         ! save dE/dq for qi
-                        dhdq(iat) = dhdq(iat) - HPij*hData%kQShell(ish,ati) &
-                           &                  - HPij*hData%kQAtom(ati)*2*q(iat)
+                        dhdq(iat) = dhdq(iat) + HPij*dSEdq(ish, iat)
                         ! save dE/dq for qj
-                        dhdq(jat) = dhdq(jat) - HPij*hData%kQShell(jsh,atj) &
-                           &                  - HPij*hData%kQAtom(atj)*2*q(jat)
+                        dhdq(jat) = dhdq(jat) + HPij*dSEdq(jsh, jat)
 
                      enddo
                   enddo
@@ -1814,9 +1799,9 @@ subroutine pbc_build_dSH0(nShell,hData,nat,basis,thr,nao,nbf,at,xyz,trans,q,cn,P
             Pii = P(i,i)*evtoau
 
             ! save dE/dCN for CNi
-            dhdcn(iat) = dhdcn(iat) - Pii*hData%kCN(ish,ati)
+            dhdcn(iat) = dhdcn(iat) + Pii*dSEdcn(ish, iat)
             ! save dE/dq for qi
-            dhdq(iat) = dhdq(iat) - Pii*hData%kQShell(ish,ati) - Pii*hData%kQAtom(ati)*2*q(iat)
+            dhdq(iat) = dhdq(iat) + Pii*dSEdq(ish, iat)
          end do
       end do
    end do
