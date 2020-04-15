@@ -317,6 +317,7 @@ set(XTB_F_TEST_SOURCES
   "${XTB_ROOT}/TESTSUITE/latticepoint.f90"
   "${XTB_ROOT}/TESTSUITE/pbc_tools.f90"
   "${XTB_ROOT}/TESTSUITE/peeq.f90"
+  "${XTB_ROOT}/TESTSUITE/repulsion.f90"
   "${XTB_ROOT}/TESTSUITE/symmetry.f90"
   "${XTB_ROOT}/TESTSUITE/tbdef_atomlist.f90"
   "${XTB_ROOT}/TESTSUITE/tbdef_molecule.f90"

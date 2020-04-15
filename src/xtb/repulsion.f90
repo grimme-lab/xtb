@@ -15,11 +15,12 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Implementation of the repulsion energy used in the xTB Hamiltonian
 module xtb_xtb_repulsion
    use xtb_mctc_accuracy, only : wp
    use xtb_type_identitymap, only : TIdentityMap
    use xtb_type_molecule, only : TMolecule, len
+   use xtb_type_neighbourlist, only : TNeighbourlist
    use xtb_xtb_data
    implicit none
    private
@@ -27,25 +28,119 @@ module xtb_xtb_repulsion
    public :: repulsionEnGrad
 
 
+   interface repulsionEnGrad
+      module procedure :: repulsionEnGrad_latp
+      module procedure :: repulsionEnGrad_neighs
+   end interface repulsionEnGrad
+
+
 contains
 
 
-!> Repulsion gradient of GFN1-xTB
-subroutine repulsionEnGrad(mol, repData, energy, gradient, sigma)
+!> Lattice point based implementation of the repulsion energy
+subroutine repulsionEnGrad_latp(mol, repData, trans, cutoff, energy, gradient, &
+      & sigma)
 
-   !>
+   !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
-   !>
+   !> Repulsion parametrisation
    type(TRepulsionData), intent(in) :: repData
 
-   !>
+   !> Lattice translations
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Molecular gradient
    real(wp), intent(inout) :: gradient(:, :)
 
-   !>
+   !> Strain derivatives
    real(wp), intent(inout) :: sigma(:, :)
 
-   !>
+   !> Repulsion energy
+   real(wp), intent(inout) :: energy
+
+   integer  :: iat, jat, iZp, jZp, itr
+   real(wp) :: t16, t26, t27
+   real(wp) :: alpha, zeff, kExp, cutoff2
+   real(wp) :: r1, r2, rij(3), dS(3, 3), dG(3), dE
+   real(wp), allocatable :: energies(:)
+
+   cutoff2 = cutoff**2
+
+   allocate(energies(len(mol)))
+   energies(:) = 0.0_wp
+
+   !$omp parallel do default(none) reduction(+:energies, gradient, sigma) &
+   !$omp shared(repData, mol, cutoff2, trans) &
+   !$omp private(iat, jat, itr, iZp, jZp, r2, rij, r1, alpha, zeff, kexp, &
+   !$omp& t16, t26, t27, dE, dG, dS)
+   do iAt = 1, len(mol)
+      iZp = mol%at(iAt)
+      do jAt = 1, iAt
+         jZp = mol%at(jAt)
+         alpha = sqrt(repData%alpha(iZp)*repData%alpha(jZp))
+         zeff = repData%zeff(iZp)*repData%zeff(jZp)
+         if (iZp > 2 .or. jZp > 2) then
+            kExp = repData%kExp
+         else
+            kExp = repData%kExpLight
+         end if
+         do itr = 1, size(trans, dim=2)
+            rij = mol%xyz(:, iAt) - mol%xyz(:, jAt) - trans(:, itr)
+            r2 = sum(rij**2)
+            if (r2 > cutoff2 .or. r2 < 1.0e-8_wp) cycle
+            r1 = sqrt(r2)
+
+            t16 = r1**kExp
+            t26 = exp(-alpha*t16)
+            t27 = r1**repData%rExp
+            dE = zeff * t26/t27
+            dG = -(alpha*t16*kExp + repData%rExp) * dE * rij/r2
+            dS = spread(dG, 1, 3) * spread(rij, 2, 3)
+            energies(iAt) = energies(iAt) + 0.5_wp * dE
+            sigma = sigma + 0.5_wp * dS
+            if (iAt /= jAt) then
+               energies(jAt) = energies(jAt) + 0.5_wp * dE
+               sigma = sigma + 0.5_wp * dS
+               gradient(:, iAt) = gradient(:, iAt) + dG
+               gradient(:, jAt) = gradient(:, jAt) - dG
+            endif
+         enddo
+      enddo
+   enddo
+   !$omp end parallel do
+
+   energy = energy + sum(energies)
+
+end subroutine repulsionEnGrad_latp
+
+
+!> Lattice point based implementation of the repulsion energy
+subroutine repulsionEnGrad_neighs(mol, repData, neighs, neighList, energy, &
+      & gradient, sigma)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Repulsion parametrisation
+   type(TRepulsionData), intent(in) :: repData
+
+   !> Number of neighbours for each atom
+   integer, intent(in) :: neighs(:)
+
+   !> Neighbourlist
+   class(TNeighbourList), intent(in) :: neighList
+
+   !> Molecular gradient
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Strain derivatives
+   real(wp), intent(inout) :: sigma(:, :)
+
+   !> Repulsion energy
    real(wp), intent(inout) :: energy
 
    integer  :: iat, jat, iZp, jZp, ij, img
@@ -54,21 +149,21 @@ subroutine repulsionEnGrad(mol, repData, energy, gradient, sigma)
    real(wp) :: r1, r2, rij(3), dS(3, 3), dG(3), dE
    real(wp), allocatable :: energies(:)
 
-   cutoff2 = repData%cutoff**2
+   allocate(energies(len(mol)))
+   energies(:) = 0.0_wp
 
-   allocate(energies(len(mol)), source=0.0_wp)
-
-   !$omp parallel do default(none) &
-   !$omp reduction(+:energies, gradient, sigma) shared(repData, mol, cutoff2) &
-   !$omp private(iat, jat, iZp, jZp, r2, rij, r1, alpha, zeff, kexp, &
-   !$omp&        t16, t26, t27, dE, dG, dS)
+   !$omp parallel do default(none) reduction(+:energies, gradient, sigma) &
+   !$omp shared(repData, mol, neighs, neighList) &
+   !$omp private(iat, jat, ij, img, iZp, jZp, r2, rij, r1, alpha, zeff, kexp, &
+   !$omp& t16, t26, t27, dE, dG, dS)
    do iAt = 1, len(mol)
       iZp = mol%at(iAt)
-      do jAt = 1, iAt-1
+      do ij = 1, neighs(iAt)
+         img = neighList%ineigh(ij, iAt)
+         jAt = neighList%image(img)
          jZp = mol%at(jAt)
-         rij = mol%xyz(:, iAt) - mol%xyz(:, jAt)
-         r2 = sum(rij**2)
-         if (r2 > cutoff2) cycle
+         rij = neighList%coords(:, iAt) - neighList%coords(:, img)
+         r2 = neighList%dist2(ij, iAt)
          r1 = sqrt(r2)
 
          alpha = sqrt(repData%alpha(iZp)*repData%alpha(jZp))
@@ -98,7 +193,7 @@ subroutine repulsionEnGrad(mol, repData, energy, gradient, sigma)
 
    energy = energy + sum(energies)
 
-end subroutine repulsionEnGrad
+end subroutine repulsionEnGrad_neighs
 
 
 end module xtb_xtb_repulsion

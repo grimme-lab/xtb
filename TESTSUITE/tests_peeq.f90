@@ -40,6 +40,11 @@ program peeq_tester
    call rdarg(2,sec)
 
    select case(arg)
+   case('repulsion')
+      select case(sec)
+      case('cluster'); call test_repulsion_cluster
+      case('pbc3d'); call test_repulsion_pbc3d
+      end select
    case('ncoord')
       select case(sec)
       case('pbc3dneighs'); call test_ncoord_pbc3d_neighbourlist
