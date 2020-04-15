@@ -225,12 +225,7 @@ subroutine initKlopmanOhno(self, env, id, lattice, boundaryCond, gav, hardness, 
       self%gamAverage => geometricAverage
    end select
 
-   select case(self%boundaryCondition)
-   case default
-      call env%error("Boundary condition not supported", source)
-   case(boundaryCondition%cluster)
-      ! nothing to do
-   end select
+   call setupBoundaryConditions(self, env, lattice, alpha, tolerance)
 
 end subroutine initKlopmanOhno
 
@@ -250,6 +245,10 @@ subroutine getCoulombMatrix(self, mol, jmat)
    case(boundaryCondition%cluster)
       call getCoulombMatrixCluster(mol, self%itbl, self%gamAverage, self%gExp, &
          & self%hardness, jmat)
+   case(boundaryCondition%pbc3d)
+      call getCoulombMatrixPBC3D(self%wsCell, mol%id, self%itbl, self%gamAverage, &
+         & self%gExp, self%hardness, self%alpha, mol%volume, self%rTrans, &
+         & self%gTrans(:, 2:), jmat)
    end select
 
 end subroutine getCoulombMatrix
@@ -313,6 +312,102 @@ subroutine getCoulombMatrixCluster(mol, itbl, gamAverage, gExp, hardness, jmat)
 end subroutine getCoulombMatrixCluster
 
 
+subroutine getCoulombMatrixPBC3D(wsCell, id, itbl, gamAverage, gExp, hardness, &
+      & alpha, volume, rTrans, gTrans, jmat)
+
+   !> Wigner-Seitz cell
+   type(TWignerSeitzCell), intent(in) :: wsCell
+
+   !> Identity
+   integer, intent(in) :: id(:)
+
+   !> Index table
+   integer, intent(in) :: itbl(:, :)
+
+   !> Averaging function for the hardnesses
+   procedure(funcAverage) :: gamAverage
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: hardness(:, :)
+
+   !> Generalized exponent
+   real(wp), intent(in) :: gExp
+
+   !> Cell volume
+   real(wp), intent(in) :: volume
+
+   !> Convergence factor
+   real(wp), intent(in) :: alpha
+
+   !> Real space lattice translations
+   real(wp), intent(in) :: rTrans(:, :)
+
+   !> Reciprocal space lattice translations
+   real(wp), intent(in) :: gTrans(:, :)
+
+   !> Coulomb matrix
+   real(wp), intent(out) :: jmat(:, :)
+
+   integer :: iat, ineigh, img, jat, ish, jsh, ii, jj, iid, jid
+   real(wp) :: vec(3), rterm, gterm, weight, gij
+   real(wp), parameter :: zero(3) = 0.0_wp
+
+   jmat(:, :) = 0.0_wp
+
+   !$omp parallel do default(none) reduction(+:jmat) &
+   !$omp shared(wsCell, id, itbl, alpha, volume, gTrans, rTrans, hardness, gExp) &
+   !$omp private(iat, ineigh, img, jat, ish, jsh, ii, jj, iid, jid, rterm, &
+   !$omp& gterm, vec, weight, gij)
+   do iat = 1, size(wsCell%neighs)
+      ii = itbl(1, iat)
+      iid = id(iat)
+      do ineigh = 1, wsCell%neighs(iat)
+         img = wsCell%ineigh(ineigh, iat)
+         jat = wsCell%image(img)
+         jj = itbl(1, jat)
+         jid = id(jat)
+         weight = wsCell%weight(ineigh, iat)
+         vec(:) = wsCell%coords(:, img) - wsCell%coords(:, iat)
+         gterm = ewaldMatPBC3D(vec, gTrans, 0.0_wp, volume, alpha, weight) &
+            &  - pi / (volume * alpha**2) * weight
+         if (iat /= jat) then
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, itbl(2, jat)
+                  gij = gamAverage(hardness(ish, iid), hardness(jsh, jid))
+                  rterm = gterm + getRTerm(vec, gij, gExp, rTrans, alpha, weight)
+                  jmat(jj+jsh, ii+ish) = jmat(jj+jsh, ii+ish) + rterm
+                  jmat(ii+ish, jj+jsh) = jmat(ii+ish, jj+jsh) + rterm
+               end do
+            end do
+         else
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, ish-1
+                  gij = gamAverage(hardness(ish, iid), hardness(jsh, iid))
+                  rterm = gterm + getRTerm(vec, gij, gExp, rTrans, alpha, weight)
+                  jmat(ii+jsh, ii+ish) = jmat(ii+jsh, ii+ish) + rterm
+                  jmat(ii+ish, ii+jsh) = jmat(ii+ish, ii+jsh) + rterm
+               end do
+               gij = hardness(ish, iid)
+               rterm = gterm + getRTerm(vec, gij, gExp, rTrans, alpha, weight)
+               jmat(ii+ish, ii+ish) = jmat(ii+ish, ii+ish) + rterm
+            end do
+         end if
+      end do
+      do ish = 1, itbl(2, iat)
+         do jsh = 1, ish-1
+            gij = gamAverage(hardness(ish, iid), hardness(jsh, iid))
+            jmat(ii+jsh, ii+ish) = jmat(ii+jsh, ii+ish) + gij
+            jmat(ii+ish, ii+jsh) = jmat(ii+ish, ii+jsh) + gij
+         end do
+         gij = hardness(ish, iid)
+         jmat(ii+ish, ii+ish) = jmat(ii+ish, ii+ish) + gij
+      end do
+   end do
+   !$omp end parallel do
+
+end subroutine getCoulombMatrixPBC3D
+
+
 pure function getRTerm(vec, gam, gExp, rTrans, alpha, scale) result(rTerm)
    real(wp),intent(in) :: vec(3)
    real(wp),intent(in) :: gam
@@ -332,7 +427,7 @@ pure function getRTerm(vec, gam, gExp, rTrans, alpha, scale) result(rTerm)
       if(r1 < eps) then
          rTerm = rTerm - 2.0_wp*alpha/sqrtpi
       else
-         rterm = 1.0_wp/(r1**gExp + gam**(-gExp))**(1.0_wp/gExp) &
+         rterm = rTerm + 1.0_wp/(r1**gExp + gam**(-gExp))**(1.0_wp/gExp) &
             & - erf(alpha*r1)/r1
       end if
    end do
@@ -364,6 +459,10 @@ subroutine getCoulombDerivs(self, mol, qvec, djdr, djdtr, djdL)
    case(boundaryCondition%cluster)
       call getCoulombDerivsCluster(mol, self%itbl, self%gamAverage, self%gExp, &
          & self%hardness, qvec, djdr, djdtr, djdL)
+   case(boundaryCondition%pbc3d)
+      call getCoulombDerivsPBC3D(self%wsCell, mol%id, self%itbl, &
+         & self%gamAverage, self%gExp, self%hardness, self%alpha, mol%volume, &
+         & self%rTrans, self%gTrans(:, 2:), qvec, djdr, djdtr, djdL)
    end select
 
 end subroutine getCoulombDerivs
@@ -436,6 +535,152 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
    !$omp end parallel do
 
 end subroutine getCoulombDerivsCluster
+
+
+subroutine getCoulombDerivsPBC3D(wsCell, id, itbl, gamAverage, gExp, hardness, &
+      & alpha, volume, rTrans, gTrans, qvec, djdr, djdtr, djdL)
+
+   !> Wigner-Seitz cell
+   type(TWignerSeitzCell), intent(in) :: wsCell
+
+   !> Identity
+   integer, intent(in) :: id(:)
+
+   !> Averaging function for the hardnesses
+   procedure(funcAverage) :: gamAverage
+
+   !> Shell/Atomic hardnesses for each species
+   real(wp), intent(in) :: hardness(:, :)
+
+   !> Generalized exponent
+   real(wp), intent(in) :: gExp
+
+   !> Cell volume
+   real(wp), intent(in) :: volume
+
+   !> Convergence factor
+   real(wp), intent(in) :: alpha
+
+   !> Real space lattice translations
+   real(wp), intent(in) :: rTrans(:, :)
+
+   !> Reciprocal space lattice translations
+   real(wp), intent(in) :: gTrans(:, :)
+
+   !> Index table
+   integer, intent(in) :: itbl(:, :)
+
+   !> Charges
+   real(wp), intent(in) :: qvec(:)
+
+   !> Derivative of Coulomb matrix w.r.t. Cartesian coordinates
+   real(wp), intent(out) :: djdr(:, :, :)
+
+   !> Trace derivative of Coulomb matrix
+   real(wp), intent(out) :: djdtr(:, :)
+
+   !> Derivative of Coulomb matrix w.r.t. strain deformations
+   real(wp), intent(out) :: djdL(:, :, :)
+
+   integer :: iat, jat, ish, jsh, ii, jj, ineigh, img, iid, jid
+   real(wp) :: weight, gij, vec(3), dG(3), dS(3, 3), dGg(3), dGr(3), dSg(3, 3)
+   real(wp) :: dSr(3, 3)
+   real(wp), parameter :: unity(3, 3) = reshape(&
+      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
+      & [3, 3])
+
+   djdr(:, :, :) = 0.0_wp
+   djdtr(:, :) = 0.0_wp
+   djdL(:, :, :) = 0.0_wp
+
+   dGr = 0.0_wp
+   dSr = 0.0_wp
+   !$omp parallel do default(none) reduction(+:djdr, djdtr, djdL) &
+   !$omp shared(wsCell, id, itbl, hardness, gExp, qvec, alpha, volume, gTrans, &
+   !$omp& rTrans) &
+   !$omp private(iat, ineigh, img, jat, ish, jsh, ii, jj, iid, jid, vec, weight, &
+   !$omp& gij, dG, dS, dGg, dGr, dSg, dSr)
+   do iat = 1, size(wsCell%neighs)
+      ii = itbl(1, iat)
+      iid = id(iat)
+      do ineigh = 1, wsCell%neighs(iat)
+         img = wsCell%ineigh(ineigh, iat)
+         jat = wsCell%image(img)
+         jj = itbl(1, jat)
+         jid = id(jat)
+         weight = wsCell%weight(ineigh, iat)
+         vec(:) = wsCell%coords(:, img) - wsCell%coords(:, iat)
+         call ewaldDerivPBC3D(vec, gTrans, 0.0_wp, volume, alpha, weight, dGg, dSg)
+         if (iat /= jat) then
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, itbl(2, jat)
+                  gij = gamAverage(hardness(ish, iid), hardness(jsh, jid))
+                  call getRDeriv(vec, gij, gExp, rTrans, alpha, weight, dGr, dSr)
+                  dG(:) = dGg + dGr
+                  dS(:, :) = dSg + dSr + pi / (volume * alpha**2) * weight * unity
+                  djdr(:, iat, jj+jsh) = djdr(:, iat, jj+jsh) - dG*qvec(ii+ish)
+                  djdr(:, jat, ii+ish) = djdr(:, jat, ii+ish) + dG*qvec(jj+jsh)
+                  djdtr(:, jj+jsh) = djdtr(:, jj+jsh) + dG*qvec(ii+ish)
+                  djdtr(:, ii+ish) = djdtr(:, ii+ish) - dG*qvec(jj+jsh)
+                  djdL(:, :, jj+jsh) = djdL(:, :, jj+jsh) + dS*qvec(ii+ish)
+                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(jj+jsh)
+               end do
+            end do
+         else
+            do ish = 1, itbl(2, iat)
+               do jsh = 1, ish-1
+                  gij = gamAverage(hardness(ish, iid), hardness(jsh, iid))
+                  call getRDeriv(vec, gij, gExp, rTrans, alpha, weight, dGr, dSr)
+                  dS(:, :) = dSg + dSr + pi / (volume * alpha**2) * weight * unity
+                  djdL(:, :, ii+jsh) = djdL(:, :, ii+jsh) + dS*qvec(ii+ish)
+                  djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(ii+jsh)
+               end do
+               gij = hardness(ish, iid)
+               call getRDeriv(vec, gij, gExp, rTrans, alpha, weight, dGr, dSr)
+               dS(:, :) = dSg + dSr + pi / (volume * alpha**2) * weight * unity
+               djdL(:, :, ii+ish) = djdL(:, :, ii+ish) + dS*qvec(ii+ish)
+            end do
+         end if
+      end do
+   end do
+   !$omp end parallel do
+
+end subroutine getCoulombDerivsPBC3D
+
+
+pure subroutine getRDeriv(vec, gij, gExp, rTrans, alpha, scale, dG, dS)
+   real(wp), intent(in) :: vec(:)
+   real(wp), intent(in) :: gij
+   real(wp), intent(in) :: gExp
+   real(wp), intent(in) :: rTrans(:,:)
+   real(wp), intent(in) :: alpha
+   real(wp), intent(in) :: scale
+   real(wp), intent(out) :: dG(:)
+   real(wp), intent(out) :: dS(:,:)
+   real(wp), parameter :: eps = 1.0e-9_wp
+   integer :: itr
+   real(wp) :: r1, g1, rij(3), arg, dd
+   real(wp), parameter :: unity(3, 3) = reshape(&
+      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
+      & [3, 3])
+   dG = 0.0_wp
+   dS = 0.0_wp
+   do itr = 1, size(rTrans, dim=2)
+      ! real contributions
+      rij = vec + rTrans(:, itr)
+      r1 = norm2(rij)
+      if (r1 < eps) cycle
+      arg = alpha**2*r1**2
+      g1 = 1.0_wp / (r1**gExp + gij**(-gExp))
+      dd = -r1**(gExp-2.0_wp) * g1 * g1**(1.0_wp/gExp) &
+         & - 2*alpha*exp(-arg)/(sqrtpi*r1**2) + erf(alpha*r1)/(r1**3)
+      dG = dG + rij*dd
+      dS = dS + 0.5_wp * dd*spread(rij, 1, 3)*spread(rij, 2, 3)
+   enddo
+   dG = dG * scale
+   dS = dS * scale
+
+end subroutine getRDeriv
 
 
 !> Harmonic averaging functions for hardnesses in GFN1-xTB
