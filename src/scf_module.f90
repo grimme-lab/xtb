@@ -499,7 +499,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! ------------------------------------------------------------------------
    ! Repulsion energy
    ep = 0.0_wp
-   call repulsionEnGrad(mol, xtbData%repulsion, ep, gradient, sigma)
+   call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
+      & ep, gradient, sigma)
 
    if (profile) call timer%measure(6)
    if (profile) call timer%measure(3,"integral evaluation")
