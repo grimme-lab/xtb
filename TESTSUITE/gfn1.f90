@@ -166,8 +166,8 @@ subroutine test_gfn1_api
    call gfn1_calculation &
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
-   call assert_close(hl_gap, 5.6067613075402_wp,thr)
-   call assert_close(energy,-8.4156335932985_wp,thr)
+   call assert_close(hl_gap, 5.6067613073468_wp,thr)
+   call assert_close(energy,-8.4156335928615_wp,thr)
    call assert_close(norm2(gradient),0.95790240549503E-02_wp,thr)
 
    call assert_close(gradient(1,5), 0.18116310445596E-02_wp,thr)
@@ -308,7 +308,7 @@ subroutine test_gfn1_pcem_api
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
-   call assert_close(energy,-23.113490916186_wp,thr)
+   call assert_close(energy,-23.113490914998_wp,thr)
    call assert_close(norm2(gradient),0.11143014174684E-01_wp,thr)
 
    call assert_close(gradient(1,5),-0.17083259496397E-02_wp,thr)
@@ -333,7 +333,7 @@ subroutine test_gfn1_pcem_api
    call gfn1_calculation &
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
-   call assert_close(hl_gap, 8.7253450666347_wp,thr)
+   call assert_close(hl_gap, 8.7253450652232_wp,thr)
    call assert_close(energy,-11.559896105984_wp,thr)
    call assert_close(norm2(gradient),0.24211484942219E-01_wp,thr)
 
@@ -357,7 +357,7 @@ subroutine test_gfn1_pcem_api
    call gfn1_calculation &
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
-   call assert_close(hl_gap, 8.9183046297437_wp,thr)
+   call assert_close(hl_gap, 8.9183046283326_wp,thr)
    call assert_close(energy,-11.565012263827_wp,thr)
    call assert_close(norm2(gradient),0.23134284179991E-01_wp,thr)
 
@@ -393,7 +393,7 @@ subroutine test_gfn1_xb
 
    implicit none
 
-   real(wp),parameter :: thr = 1.0e-10_wp
+   real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 6
    integer, parameter :: at(nat) = [35,35,8,6,1,1]
    real(wp),parameter :: xyz(3,nat) = reshape([&
@@ -427,14 +427,15 @@ subroutine test_gfn1_xb
    call gfn1_calculation &
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
-   call assert_close(hl_gap, 2.4991963560983_wp,thr)
-   call assert_close(energy,-15.606235084362_wp,thr)
-   call assert_close(norm2(gradient),0.23014355263560E-01_wp,thr)
+   call assert_close(hl_gap, 2.4991941159068_wp,thr)
+   call assert_close(energy,-15.606233877972_wp,thr)
+   call assert_close(norm2(gradient),0.23014320345408E-01_wp,thr)
 
    call assert_close(gradient(1,5),-0.39000047348209E-02_wp,thr)
-   call assert_close(gradient(2,2),-0.49295215644179E-02_wp,thr)
+   call assert_close(gradient(2,2),-0.49294645520340E-02_wp,thr)
    call assert_close(gradient(1,4), 0.17228152301357E-01_wp,thr)
    call assert_close(gradient(3,6), 0.00000000000000E+00_wp,thr)
+
 
    call terminate(afail)
 

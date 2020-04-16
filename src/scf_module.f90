@@ -137,7 +137,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    real(wp), allocatable :: djdL(:, :, :)
 !  AES stuff
    type(TxTBMultipole), allocatable :: aes
-   real(wp),allocatable  :: dpint(:,:),qpint(:,:)
+   real(wp),allocatable  :: dpint(:,:,:),qpint(:,:,:)
    real(wp),allocatable  :: radcn(:) ! CBNEW
 
 ! ========================================================================
@@ -508,8 +508,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 
    ! ========================================================================
    ! Overlap integrals
-   allocate(dpint(3,basis%nao*(basis%nao+1)/2), &
-      &     qpint(6,basis%nao*(basis%nao+1)/2), &
+   allocate(dpint(3,basis%nao,basis%nao), &
+      &     qpint(6,basis%nao,basis%nao), &
       &     source = 0.0_wp)
    ! compute integrals and prescreen to set up list arrays
    call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at,basis%nbf, &

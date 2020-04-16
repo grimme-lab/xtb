@@ -160,8 +160,8 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer, intent(in)  :: mdlst(2,ndp)
    integer, intent(in)  :: mqlst(2,nqp)
    real(wp),intent(in)  :: S(ndim,ndim)
-   real(wp),intent(in)  :: dpint(3,ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: qpint(6,ndim*(1+ndim)/2)
+   real(wp),intent(in)  :: dpint(3,ndim,ndim)
+   real(wp),intent(in)  :: qpint(6,ndim,ndim)
    real(wp),intent(in)  :: vs(n)
    real(wp),intent(in)  :: vd(3,n)
    real(wp),intent(in)  :: vq(6,n)
@@ -197,7 +197,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       jj=aoat2(j)
       eh1=0.0d0
       do l=1,3
-         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
+         eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
       H(i,j)=H(i,j)+eh1
@@ -214,7 +214,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       ! note: these come in the following order
       ! xx, yy, zz, xy, xz, yz
       do l=1,6
-         eh1=eh1+qpint(l,k)*(vq(l,ii)+vq(l,jj))
+         eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
       H(i,j)=H(i,j)+eh1
@@ -355,8 +355,8 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: P(ndim,ndim)
    real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(in)    :: dpint(3,ndim*(ndim+1)/2)
-   real(wp),intent(in)    :: qpint(6,ndim*(ndim+1)/2)
+   real(wp),intent(in)    :: dpint(3,ndim,ndim)
+   real(wp),intent(in)    :: qpint(6,ndim,ndim)
    type(TxTBCoulomb), intent(inout) :: ies
 
    integer, intent(inout) :: jter
