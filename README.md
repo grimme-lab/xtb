@@ -1,17 +1,21 @@
 # Semiempirical Extended Tight-Binding Program Package
 
-[![Build Status](https://img.shields.io/travis/com/grimme-lab/xtb?logo=linux&logoColor=white)](https://travis-ci.com/grimme-lab/xtb)
-[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI?logo=apple&logoColor=white)](https://github.com/grimme-lab/xtb/actions)
 [![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/master/COPYING)
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
 [![DOI](https://zenodo.org/badge/211856832.svg)](https://zenodo.org/badge/latestdoi/211856832)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
+[![Gitter](https://badges.gitter.im/xtb-dev/community.svg)](https://gitter.im/xtb-dev/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
 
+<div align="center">
 <img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="120">
+</div>
 
 ## Installation
+
+[![Build Status](https://img.shields.io/travis/com/grimme-lab/xtb?logo=linux&logoColor=white)](https://travis-ci.com/grimme-lab/xtb)
+[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI?logo=apple&logoColor=white)](https://github.com/grimme-lab/xtb/actions)
 
 Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
