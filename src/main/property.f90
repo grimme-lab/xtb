@@ -59,6 +59,7 @@ subroutine main_property &
    use xtb_type_data
    use xtb_type_param
    use xtb_xtb_data
+   use xtb_intgrad
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
@@ -102,8 +103,8 @@ subroutine main_property &
    ndim = basis%nao*(basis%nao+1)/2
    allocate(S(basis%nao,basis%nao), dpint(3,basis%nao,basis%nao), &
       & qpint(6,basis%nao,basis%nao), source = 0.0_wp )
-   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at, &
-      &        basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+   call sdqint(xtbData%nShell,xtbData%hamiltonian%angShell,mol%n,mol%at, &
+      &        basis%nbf,basis%nao,mol%xyz,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 

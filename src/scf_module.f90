@@ -37,7 +37,8 @@ module xtb_scf
    use xtb_xtb_repulsion
    use xtb_xtb_coulomb
    use xtb_xtb_dispersion
-   use xtb_xtb_hamiltonian
+   use xtb_xtb_hamiltonian, only : getSelfEnergy, build_SDQH0, count_dpint, &
+      & count_qpint
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
    use xtb_scc_core
@@ -73,7 +74,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 
 ! ========================================================================
 ! ========================================================================
-   use xtb_aespot,    only : sdqint,setdqlist,get_radcn,setvsdq, &
+   use xtb_aespot,    only : setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
    use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
@@ -518,9 +519,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
       & selfEnergy=selfEnergy2, dSEdcn=dSEdcn2)
    ! compute integrals and prescreen to set up list arrays
-   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at,basis%nbf, &
-      & basis%nao,mol%xyz,neglect,ndp,nqp,intcut,basis%caoshell,basis%saoshell, &
-      & basis%nprim,basis%primcount,basis%alp,basis%cont,S,dpint,qpint)
+   call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, basis%nbf, &
+      & basis%nao, mol%xyz, selfEnergy, intcut, basis%caoshell, basis%saoshell, &
+      & basis%nprim, basis%primcount, basis%alp, basis%cont, S, dpint, qpint, H0)
+   call count_dpint(ndp, dpint, neglect)
+   call count_qpint(nqp, qpint, neglect)
 
    ! prepare aes stuff
    if (allocated(xtbData%multipole)) then

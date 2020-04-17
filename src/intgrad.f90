@@ -865,4 +865,255 @@ pure subroutine build_ds_ints(a,b,alpi,alpj,la,lb,v,g)
 
 end subroutine build_ds_ints
 
+
+pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+      &                       nprim,primcount,alp,cont,ss,dd,qq)
+   implicit none
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: iptyp
+   integer, intent(in)  :: jptyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: point(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: ss(:,:)
+   real(wp),intent(out) :: dd(:,:,:)
+   real(wp),intent(out) :: qq(:,:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   real(wp) :: ab,est,saw(10)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   ss = 0.0_wp
+   dd = 0.0_wp
+   qq = 0.0_wp
+
+   rij = rj - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   do ip = 1,nprim(icao+1)
+      iprim = ip+primcount(icao+1)
+      alpi = alp(iprim) ! exponent the same for each l component
+      do jp = 1,nprim(jcao+1)
+         jprim = jp+primcount(jcao+1)
+         alpj = alp(jprim) ! exponent the same for each l component
+         ab = 1.0_wp/(alpi+alpj)
+         est = rij2*alpi*alpj*ab
+         if(est.gt.intcut) cycle
+         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         do mli = 1,naoi
+            iprim = ip+primcount(icao+mli)
+            ci = cont(iprim) ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            do mlj = 1,naoj
+               jprim = jp+primcount(jcao+mlj)
+               saw = 0.0_wp
+               ! prim-prim quadrupole and dipole integrals
+               call build_sdq_ints(ri,rj,point,alpi,alpj, &
+                  & iptyp+mli,jptyp+mlj,saw)
+               cc = cont(jprim)*ci
+               ! from primitive integrals fill CAO-CAO matrix for ish-jsh block
+               !                             ! overlap
+               ss(mlj,mli) = ss(mlj,mli)+saw(1)*cc
+               ! dipole
+               dd(:,mlj,mli) = dd(:,mlj,mli)+saw(2:4)*cc
+               ! quadrupole
+               qq(:,mlj,mli) = qq(:,mlj,mli)+saw(5:10)*cc
+            enddo ! mlj
+         enddo ! mli
+      enddo ! jp
+   enddo ! ip
+
+end subroutine get_multiints
+
+
+!> computes the dipole and quadrupole integrals and performs screening to
+!  determine, which contribute to potential
+subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
+      &           nprim,primcount,alp,cont,sint,dpint,qpint)
+   implicit none
+   integer, intent(in) :: nShell(:)
+   integer, intent(in) :: angShell(:,:)
+   !> # of atoms
+   integer, intent(in)  :: nat
+   !> # of spherical AOs (SAOs)
+   integer, intent(in)  :: nao
+   !> # of Cartesian AOs (CAOs)
+   integer, intent(in)  :: nbf
+   integer, intent(in)  :: at(nat)
+   !> cartesian coordinates
+   real(wp),intent(in)  :: xyz(3,nat)
+   !> integral cutoff according to prefactor from Gaussian product theorem
+   real(wp),intent(in)  :: intcut
+   !> map shell of atom to index in CAO space (lowest Cart. component is taken)
+   integer, intent(in)  :: caoshell(:,:)
+   !> map shell of atom to index in SAO space (lowest m_l component is taken)
+   integer, intent(in)  :: saoshell(:,:)
+   integer, intent(in)  :: nprim(:)
+   !> index of first primitive (over entire system) of given CAO
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+   !> overlap integral matrix
+   real(wp),intent(out) :: sint(nao,nao)
+   !> dipole integral matrix
+   real(wp),intent(out) :: dpint(3,nao,nao)
+   !> quadrupole integral matrix
+   real(wp),intent(out) :: qpint(6,nao,nao)
+
+
+   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,km,mi,mj,ij
+   real(wp) tmp1,tmp2,tmp3,tmp4,step,step2
+   real(wp) dx,dy,dz,s00r,s00l,s00,alpj
+   real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cc,cj,alpi,rab2,ab,est
+   integer, parameter :: llao (0:3) = (/ 1, 3, 6,10/)
+   integer, parameter :: llao2(0:3) = (/ 1, 3, 5, 7/)
+
+   real(wp)  ra(3),rb(3),f1,f2,point(3)
+   real(wp) dtmp(3),qtmp(6),ss(6,6),dd(3,6,6),qq(6,6,6),tmp(6,6)
+   integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,jshmax
+   integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
+   integer itt(0:3)
+   parameter(itt  =(/0,1,4,10/))
+   real(wp) :: saw(10)
+
+
+   ! integrals
+   sint = 0.0_wp
+   dpint = 0.0_wp
+   qpint = 0.0_wp
+   ! --- Aufpunkt for moment operator
+   point = 0.0_wp
+
+   !$OMP PARALLEL PRIVATE (iat,jat,izp,cc,ci,ra,rb,saw, &
+   !$omp& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
+   !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq, &
+   !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp, &
+   !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij) &
+   !$omp shared (sint,dpint,qpint)
+   !$OMP DO schedule(dynamic)
+   do iat = 1,nat
+      ra(1:3) = xyz(1:3,iat)
+      izp = at(iat)
+      do jat = 1,iat-1
+         rb(1:3) = xyz(1:3,jat)
+         jzp = at(jat)
+         rab2 = sum( (rb-ra)**2 )
+         !           ints < 1.d-9 for RAB > 40 Bohr
+         if(rab2.gt.2000) cycle
+         do ish = 1,nShell(izp)
+            ishtyp = angShell(ish,izp)
+            icao = caoshell(ish,iat)
+            naoi = llao(ishtyp)
+            iptyp = itt(ishtyp)
+            do jsh = 1,nShell(jzp)
+               jshtyp = angShell(jsh,jzp)
+               jcao = caoshell(jsh,jat)
+               naoj = llao(jshtyp)
+               jptyp = itt(jshtyp)
+               ss = 0.0_wp
+               dd = 0.0_wp
+               qq = 0.0_wp
+               call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+                  &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
+               !transform from CAO to SAO
+               call dtrf2(ss,ishtyp,jshtyp)
+               do k = 1,3
+                  tmp(1:6,1:6) = dd(k,1:6,1:6)
+                  call dtrf2(tmp,ishtyp,jshtyp)
+                  dd(k,1:6,1:6) = tmp(1:6,1:6)
+               enddo
+               do k = 1,6
+                  tmp(1:6,1:6) = qq(k,1:6,1:6)
+                  call dtrf2(tmp,ishtyp,jshtyp)
+                  qq(k,1:6,1:6) = tmp(1:6,1:6)
+               enddo
+               do ii = 1,llao2(ishtyp)
+                  iao = ii+saoshell(ish,iat)
+                  do jj = 1,llao2(jshtyp)
+                     jao = jj+saoshell(jsh,jat)
+                     sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
+                     sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
+                     dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd(1:3, jj, ii)
+                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
+                     qpint(1:6, iao, jao) = qpint(1:6, iao, jao) + qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qpint(1:6, jao, iao) + qq(1:6, jj, ii)
+                  enddo
+               enddo
+            enddo
+         enddo
+      enddo
+   enddo
+   !$OMP END DO
+   !$OMP END PARALLEL
+
+   ! diagonal elements
+   do iat = 1, nat
+      ra = xyz(:, iat)
+      izp = at(iat)
+      do ish = 1, nShell(izp)
+         ishtyp = angShell(ish,izp)
+         do iao = 1, llao2(ishtyp)
+            i = iao+saoshell(ish,iat)
+            sint(i,i) = 1.0_wp + sint(i,i)
+         end do
+
+         icao = caoshell(ish,iat)
+         naoi = llao(ishtyp)
+         iptyp = itt(ishtyp)
+         do jsh = 1, ish
+            jshtyp = angShell(jsh,izp)
+            jcao = caoshell(jsh,iat)
+            naoj = llao(jshtyp)
+            jptyp = itt(jshtyp)
+            ss = 0.0_wp
+            dd = 0.0_wp
+            qq = 0.0_wp
+            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+               &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
+            !transform from CAO to SAO
+            !call dtrf2(ss,ishtyp,jshtyp)
+            do k = 1,3
+               tmp(1:6, 1:6) = dd(k,1:6, 1:6)
+               call dtrf2(tmp, ishtyp, jshtyp)
+               dd(k, 1:6, 1:6) = tmp(1:6, 1:6)
+            enddo
+            do k = 1,6
+               tmp(1:6, 1:6) = qq(k, 1:6, 1:6)
+               call dtrf2(tmp, ishtyp, jshtyp)
+               qq(k, 1:6, 1:6) = tmp(1:6, 1:6)
+            enddo
+            do ii = 1, llao2(ishtyp)
+               iao = ii + saoshell(ish,iat)
+               do jj = 1, llao2(jshtyp)
+                  jao = jj + saoshell(jsh,iat)
+                  if (jao > iao .and. ish ==  jsh) cycle
+                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd(1:3, jj, ii)
+                  if (iao /= jao) then
+                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
+                  end if
+                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  if (jao /= iao) then
+                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                  end if
+               end do
+            end do
+         end do
+      end do
+   end do
+
+end subroutine sdqint
+
+
 end module xtb_intgrad
