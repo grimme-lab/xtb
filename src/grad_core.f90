@@ -34,31 +34,6 @@ module xtb_grad_core
 
 contains
 
-!! ========================================================================
-!  convert H0/H1 from eV to Eh and calculate the energy weighted density
-!  matrix
-!! ========================================================================
-subroutine prep_grad_conv(ndim,C,focc,emo,X)
-   use xtb_mctc_convert, only : autoev,evtoau
-   integer, intent(in)    :: ndim
-   real(wp),intent(in)    :: C(ndim,ndim)
-   real(wp),intent(in)    :: focc(ndim)
-   real(wp),intent(in)    :: emo(ndim)
-   real(wp),intent(out)   :: X(ndim,ndim)
-
-   real(wp),allocatable :: temp(:)
-
-   allocate( temp(ndim), source = 0.0_wp )
-
-!  get energy weigthed density matrix
-   temp = focc * emo*evtoau
-
-   call dmat(ndim,temp,C,X)
-
-   deallocate( temp )
-
-end subroutine prep_grad_conv
-
 
 !! ========================================================================
 !  derivative of the CM5 additional term for GBSA in GFN1

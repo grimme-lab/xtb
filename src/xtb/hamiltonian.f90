@@ -353,7 +353,7 @@ end subroutine build_SDQH0
 !> Computes the gradient of the dipole/qpole integral contribution
 subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf, &
       & at, xyz, caoshell, saoshell, nprim, primcount, alp, cont, p, Pew, &
-      & ves, vs, vd, vq, dhdcn, g)
+      & ves, vs, vd, vq, dhdcn, g, sigma)
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
    real(wp), intent(in) :: selfEnergy(:, :)
@@ -388,6 +388,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    !> Energy weighted density matrix
    real(wp),intent(in) :: Pew(:, :)
    real(wp),intent(inout) :: g(:, :)
+   real(wp),intent(inout) :: sigma(:, :)
    real(wp),intent(inout) :: dhdcn(:)
 
    integer itt(0:3)
@@ -418,7 +419,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
    !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz) &
-   !$omp reduction(+:g,dhdcn)
+   !$omp reduction(+:g,sigma,dhdcn)
    !$OMP DO schedule(dynamic)
    do iat = 1,nat
       ri = xyz(:,iat)
@@ -515,6 +516,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                enddo
                g(:,iat) = g(:,iat)+g_xyz
                g(:,jat) = g(:,jat)-g_xyz
+               sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
             enddo ! jsh : loop over shells on jat
          enddo  ! ish : loop over shells on iat
       enddo ! jat
