@@ -246,11 +246,11 @@ subroutine test_gfn2gbsa_api
 
    call assert_close(hl_gap, 3.408607724814_wp,1e-5_wp)
    call assert_close(energy,-22.002501380096_wp,thr)
-   call assert_close(norm2(gradient),0.019344118754_wp,thr)
+   call assert_close(norm2(gradient),0.19366866479475E-01_wp,thr)
    call assert_close(gradient(1,1), .9038674439127e-02_wp,thr)
    call assert_close(gradient(3,2),-.1394693523214e-02_wp,thr)
    call assert_close(gradient(3,11),-gradient(3,10),thr)
-   call assert_close(gradient(1,8),.1383384688560e-02_wp,thr)
+   call assert_close(gradient(1,8),0.17878350587682E-02_wp,thr)
 
    call terminate(afail)
 

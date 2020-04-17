@@ -938,6 +938,76 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
 end subroutine get_multiints
 
 
+pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+      &                           intcut,nprim,primcount,alp,cont,sdq,sdqg)
+   implicit none
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: iptyp
+   integer, intent(in)  :: jptyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: sdq(:,:,:)
+   real(wp),intent(out) :: sdqg(:,:,:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   real(wp) :: ab,est,saw(10),sawg(3,10)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   sdqg = 0.0_wp
+   sdq  = 0.0_wp
+
+   rij = ri - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   ! we go through the primitives (because the screening is the same for all of them)
+   do ip = 1,nprim(icao+1)
+      iprim = ip+primcount(icao+1)
+      ! exponent the same for each l component
+      alpi = alp(iprim)
+      do jp = 1,nprim(jcao+1)
+         jprim = jp+primcount(jcao+1)
+         ! exponent the same for each l component
+         alpj = alp(jprim)
+         est = alpi*alpj*rij2/(alpi+alpj)
+         if(est.gt.intcut) cycle
+         !--------------- compute gradient ----------
+         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         do mli = 1,naoi
+            iprim = ip+primcount(icao+mli)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci = cont(iprim)
+            do mlj = 1,naoj
+               jprim = jp+primcount(jcao+mlj)
+               cc = cont(jprim)*ci
+               saw = 0;sawg = 0
+               call build_dsdq_ints(ri,rj,rj,alpi,alpj,iptyp+mli,jptyp+mlj,saw,sawg)
+               sdq(:,mlj,mli) = sdq(:,mlj,mli) + saw*cc
+               sdqg(:,:10,mlj,mli) = sdqg(:,:10,mlj,mli) + sawg*cc
+            enddo ! mlj : Cartesian component of j prims
+         enddo  ! mli : Cartesian component of i prims
+      enddo ! jp : loop over j prims
+   enddo  ! ip : loop over i prims
+   do mli = 1,naoi
+      do mlj = 1,naoj
+         call shiftintg(sdqg(:,:,mlj,mli),sdq(:,mlj,mli),rij)
+      enddo
+   enddo
+end subroutine get_grad_multiint
+
+
 !> computes the dipole and quadrupole integrals and performs screening to
 !  determine, which contribute to potential
 subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &

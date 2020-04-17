@@ -17,6 +17,7 @@
 
 module xtb_grad_core
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert, only : evtoau
    use xtb_xtb_data
 
    use xtb_mctc_la
@@ -37,10 +38,9 @@ contains
 !  convert H0/H1 from eV to Eh and calculate the energy weighted density
 !  matrix
 !! ========================================================================
-subroutine prep_grad_conv(ndim,H0,C,focc,emo,X)
+subroutine prep_grad_conv(ndim,C,focc,emo,X)
    use xtb_mctc_convert, only : autoev,evtoau
    integer, intent(in)    :: ndim
-   real(wp),intent(inout) :: H0(ndim*(ndim+1)/2)
    real(wp),intent(in)    :: C(ndim,ndim)
    real(wp),intent(in)    :: focc(ndim)
    real(wp),intent(in)    :: emo(ndim)
@@ -49,7 +49,6 @@ subroutine prep_grad_conv(ndim,H0,C,focc,emo,X)
    real(wp),allocatable :: temp(:)
 
    allocate( temp(ndim), source = 0.0_wp )
-   H0 = H0*evtoau
 
 !  get energy weigthed density matrix
    temp = focc * emo*evtoau
@@ -60,147 +59,6 @@ subroutine prep_grad_conv(ndim,H0,C,focc,emo,X)
 
 end subroutine prep_grad_conv
 
-!! ========================================================================
-!  wave function terms
-!! ========================================================================
-subroutine poly_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz,sqrab,P,S,aoat2,lao2,H0)
-   use xtb_lin
-   type(THamiltonianData), intent(in) :: hData
-   real(wp),intent(inout) :: g(3,n)
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   integer, intent(in)    :: ndim
-   integer, intent(in)    :: nmat2
-   integer, intent(in)    :: matlist2(2,nmat2)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: sqrab(n*(n+1)/2)
-   real(wp),intent(in)    :: P(ndim,ndim)
-   real(wp),intent(in)    :: S(ndim,ndim)
-   integer, intent(in)    :: aoat2(ndim)
-   integer, intent(in)    :: lao2(ndim)
-   real(wp),intent(in)    :: H0(ndim*(ndim+1)/2)
-
-   integer  :: i,j,kk,m
-   integer  :: iat,jat,il,jl,iZp,jZp
-   real(wp) :: hji,rab2
-   real(wp) :: h0s,h0sr
-   real(wp) :: dum
-   real(wp) :: drfdxyz(3)
-
-!  using matlist2 => overlap between all atom pairs
-   do m = 1, nmat2
-      i = matlist2(1,m)
-      j = matlist2(2,m)
-      kk = j+i*(i-1)/2
-      iat = aoat2(i)
-      jat = aoat2(j)
-      iZp = at(iat)
-      jZp = at(jat)
-      il=mmm(lao2(i))
-      jl=mmm(lao2(j))
-      rab2 = sqrab(lin(jat,iat))
-      hji = 2.0_wp*P(j,i)*S(j,i)
-!     H0=S H (1+b x)
-!     dH0/dx = H(1+bx)dS/dx + S H (b)
-      call dshellPoly(hData%shellPoly(il,iZp),hData%shellPoly(jl,jZp),&
-         & hData%atomicRad(iZp),hData%atomicRad(jZp),rab2,xyz(:,iat),xyz(:,jat),&
-         & dum,drfdxyz)
-      h0s = H0(kk)/S(j,i) !H(1+bx)
-      h0sr = h0s/dum      !H
-      g(1,iat) = g(1,iat) + Hji*h0sr*drfdxyz(1)
-      g(2,iat) = g(2,iat) + Hji*h0sr*drfdxyz(2)
-      g(3,iat) = g(3,iat) + Hji*h0sr*drfdxyz(3)
-      g(1,jat) = g(1,jat) - Hji*h0sr*drfdxyz(1)
-      g(2,jat) = g(2,jat) - Hji*h0sr*drfdxyz(2)
-      g(3,jat) = g(3,jat) - Hji*h0sr*drfdxyz(3)
-   enddo
-
-end subroutine poly_grad
-
-!! ========================================================================
-!  CN dependent part of the xTB Hamiltonian
-!! ========================================================================
-subroutine hcn_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
-   &                P,S,dcndr,selfEnergy,dSEdcn, &
-   &                aoat2,lao2,valao2,aoexp,ao2sh)
-   use xtb_mctc_convert, only : autoev,evtoau
-   type(THamiltonianData), intent(in) :: hData
-   integer, intent(in)    :: n
-   integer, intent(in)    :: at(n)
-   integer, intent(in)    :: ndim
-   integer, intent(in)    :: nmat2
-   integer, intent(in)    :: matlist2(2,nmat2)
-   real(wp),intent(in)    :: xyz(3,n)
-   real(wp),intent(in)    :: P(ndim,ndim)
-   real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(in)    :: dcndr(3,n,n)
-   real(wp),intent(in)    :: selfEnergy(:)
-   real(wp),intent(in)    :: dSEdcn(:)
-   integer, intent(in)    :: aoat2(ndim)
-   integer, intent(in)    :: lao2(ndim)
-   integer, intent(in)    :: valao2(ndim)
-   integer, intent(in)    :: ao2sh(ndim)
-   real(wp),intent(in)    :: aoexp(ndim)
-   real(wp),intent(inout) :: g(3,n)
-
-   real(wp),allocatable :: hcn(:)
-
-   integer  :: i,j,m
-   integer  :: iat,jat,iZp,jZp
-   integer  :: il,jl,ish,jsh
-   real(wp) :: psij,dHdSE
-   real(wp) :: gtmp(3)
-   real(wp) :: km,fact
-   real(wp) :: shPoly,dum1,dum2
-   real(wp),parameter :: aot = -0.5_wp ! AO exponent dep. H0 scal
-
-   allocate( hcn(n), source = 0.0_wp )
-
-!  CN dependent part of H0
-   hcn=0.0_wp
-!$omp parallel default(none) &
-!$omp shared(nmat2,matlist2,aoat2,lao2,valao2,P,S,n,at,xyz,hData,ndim) &
-!$omp shared(aoexp,ao2sh,dSEdcn) &
-!$omp private(i,m,j,jat,iat,ish,jsh,dum1,dum2,km,shPoly,il,jl,psij,dHdSe,iZp,jZp) &
-!$omp reduction(+:hcn)
-!$omp do
-   do m = 1, nmat2
-      i = matlist2(1,m)
-      j = matlist2(2,m)
-      iat = aoat2(i)
-      jat = aoat2(j)
-      ish = ao2sh(i)
-      jsh = ao2sh(j)
-      iZp = at(iat)
-      jZp = at(jat)
-      il = mmm(lao2(i))
-      jl = mmm(lao2(j))
-      psij = P(j,i)*S(j,i)
-      shPoly = shellPoly(hData%shellPoly(il, iZp), hData%shellPoly(jl, jZp), &
-         & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      call h0scal(hData,il,jl,izp,jzp,valao2(i).ne.0,valao2(j).ne.0,  &
-      &               km)
-      km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
-      dHdSE = psij*km*shPoly*evtoau
-      hcn(jat)=hcn(jat) + dHdSE*dSEdcn(jsh) ! h independent part in H0
-      hcn(iat)=hcn(iat) + dHdSE*dSEdcn(ish) ! h independent part in H0
-   end do
-!$omp end do
-!$omp do
-   do i=1,ndim
-      iat = aoat2(i)
-      ish = ao2sh(i)
-      dHdSE = P(i,i)*evtoau ! diagonal contribution
-      hcn(iat)=hcn(iat) + dHdSE*dSEdcn(ish)
-   enddo
-!$omp end do
-!$omp end parallel
-
-
-   ! CN-level shift gradient
-   call contract(dcndr, hcn, g, beta=1.0_wp)
-
-end subroutine hcn_grad
 
 !! ========================================================================
 !  derivative of the CM5 additional term for GBSA in GFN1
