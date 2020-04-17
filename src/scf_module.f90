@@ -27,6 +27,7 @@ module xtb_scf
    use xtb_type_coulomb, only : TCoulomb
    use xtb_type_data
    use xtb_type_environment
+   use xtb_type_latticepoint, only : TLatticePoint, init
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param
    use xtb_type_pcem
@@ -113,6 +114,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    real(wp) :: sigma(3,3)
    type(scc_results),intent(out) :: res
    type(TxTBData), intent(in) :: xtbData
+   type(TLatticePoint) :: latp
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)
@@ -277,6 +279,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 !  do the first SCC by full diag
    if(egap.eq.0) startpdiag=1000
 
+   call init(latp, env, mol, 60.0_wp)
+
 !ccccccccccccccccccc
 ! note: H is in eV!
 !ccccccccccccccccccc
@@ -286,11 +290,13 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 !  # atom arrays
    allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2))
    allocate(dcndr(3,mol%n,mol%n),cn(mol%n),dcndL(3,3,mol%n))
-   allocate(trans(3,1))
-   trans(:, :) = 0.0_wp
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
    if(lgbsa) then
+      if (mol%npbc > 0) then
+         call env%error("Solvation not available with PBC", source)
+         return
+      end if
       call new_gbsa(gbsa,mol%n,mol%at)
       allocate(fgb(mol%n,mol%n),fhb(mol%n),cm5a(mol%n),dcm5a(3,mol%n,mol%n))
       gborn=0._wp
@@ -472,9 +478,32 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    damp  =damp0
 
    if (profile) call timer%measure(1)
+   if (profile) call timer%measure(3,"classical contributions")
+
+   ! ------------------------------------------------------------------------
+   ! Repulsion energy
+   ep = 0.0_wp
+   call latp%getLatticePoints(trans, 40.0_wp)
+   call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
+      & ep, gradient, sigma)
+
+
+   ! ------------------------------------------------------------------------
+   ! Halogen bond correction
+   exb=0.0_wp
+   if (allocated(xtbData%halogen)) then
+      if (nxb > 0 .and. mol%npbc > 0) then
+         call env%error("Halogen bond correction not available with PBC", source)
+         return
+      end if
+      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,xblist,nxb,&
+         & ljexp,exb,gradient)
+   end if
+
+   if (profile) call timer%measure(3)
    if (profile) call timer%measure(2,"Dispersion")
 
-   ! ========================================================================
+   ! ------------------------------------------------------------------------
    ! Coordination number
    if (gfn_method == 1) then
       ! D3 part first because we need CN
@@ -486,6 +515,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
+   call latp%getLatticePoints(trans, 60.0_wp)
    if (gfn_method == 1) then
       call d3_gradient &
          & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 60.0_wp, &
@@ -496,23 +526,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    endif
 
    if (profile) call timer%measure(2)
-   if (profile) call timer%measure(3,"classical contributions")
-
-   ! ========================================================================
-   ! Halogen bond correction
-   exb=0.0_wp
-   if (allocated(xtbData%halogen)) then
-      call xbpot(xtbData%halogen,mol%n,mol%at,mol%xyz,xblist,nxb,&
-         & ljexp,exb,gradient)
-   end if
-
-   ! ------------------------------------------------------------------------
-   ! Repulsion energy
-   ep = 0.0_wp
-   call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
-      & ep, gradient, sigma)
-
-   if (profile) call timer%measure(3)
    if (profile) call timer%measure(4,"integral evaluation")
 
    ! ========================================================================
@@ -524,14 +537,20 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
       & selfEnergy=selfEnergy, dSEdcn=dSEdcn)
    ! compute integrals and prescreen to set up list arrays
-   call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, basis%nbf, &
-      & basis%nao, mol%xyz, selfEnergy, intcut, basis%caoshell, basis%saoshell, &
-      & basis%nprim, basis%primcount, basis%alp, basis%cont, S, dpint, qpint, H0)
+   call latp%getLatticePoints(trans, sqrt(800.0_wp))
+   call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
+      & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
+      & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
+      & basis%cont, S, dpint, qpint, H0)
    call count_dpint(ndp, dpint, neglect)
    call count_qpint(nqp, qpint, neglect)
 
    ! prepare aes stuff
    if (allocated(xtbData%multipole)) then
+      if (mol%npbc > 0) then
+         call env%error("Multipoles not available with PBC", source)
+         return
+      end if
       allocate(aes)
       call init(aes, xtbData%multipole)
 
@@ -662,10 +681,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    end if
 
    dhdcn(:) = 0.0_wp
+   call latp%getLatticePoints(trans, sqrt(800.0_wp))
    call build_dSDQH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
-      & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, basis%caoshell, &
-      & basis%saoshell, basis%nprim, basis%primcount, basis%alp, basis%cont, &
-      & wfn%p, Pew, shellShift, vs, vd, vq, dhdcn, gradient, sigma)
+      & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
+      & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
+      & basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, dhdcn, gradient, sigma)
    ! setup CN gradient
    call contract(dcndr, dhdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dhdcn, sigma, beta=1.0_wp)
@@ -689,8 +709,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
    if (allocated(scD4)) then
+      call latp%getLatticePoints(trans, 40.0_wp)
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
          & cn, dcndr, dcndL)
+      call latp%getLatticePoints(trans, 60.0_wp)
       call d4_gradient(mol, trans, xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
          &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
          &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)

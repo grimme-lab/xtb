@@ -143,7 +143,7 @@ end subroutine getSelfEnergy2D
 
 !> Computes the dipole and quadrupole integrals and performs screening to
 !  determine, which contribute to potential
-subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, selfEnergy, &
+subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy, &
       & intcut, caoshell, saoshell, nprim, primcount, alp, cont, &
       & sint, dpint, qpint, H0)
    implicit none
@@ -158,6 +158,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, selfEnergy, &
    integer, intent(in)  :: at(nat)
    !> Cartesian coordinates
    real(wp),intent(in)  :: xyz(3,nat)
+   real(wp),intent(in)    :: trans(:, :)
    real(wp), intent(in) :: selfEnergy(:, :)
    !> Integral cutoff according to prefactor from Gaussian product theorem
    real(wp),intent(in)  :: intcut
@@ -189,7 +190,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, selfEnergy, &
    real(wp) dtmp(3),qtmp(6),ss(6,6),dd(3,6,6),qq(6,6,6),tmp(6,6)
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,jshmax
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
-   integer :: il, jl
+   integer :: il, jl, itr
    real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly
    integer itt(0:3)
    parameter(itt  =(/0,1,4,10/))
@@ -204,30 +205,27 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, selfEnergy, &
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   !$OMP PARALLEL &
-   !$omp shared(selfEnergy) &
+   !$OMP PARALLEL default(none) &
+   !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
+   !$omp& nprim, primcount, alp, cont, intcut, trans, point) &
    !$omp PRIVATE (iat,jat,izp,ci,ra,rb,saw, &
    !$omp& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq,shpoly, &
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
-   !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij) &
-   !$omp reduction(+:sint,dpint,qpint)
+   !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
+   !$omp reduction(+:sint,dpint,qpint,H0)
    !$OMP DO schedule(dynamic)
-   do iat = 1,nat
+   do iat = 1, nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
-      do jat = 1,iat-1
-         rb(1:3) = xyz(1:3,jat)
+      do jat = 1, iat-1
          jzp = at(jat)
-         rab2 = sum( (rb-ra)**2 )
-         !           ints < 1.d-9 for RAB > 40 Bohr
-         if(rab2.gt.2000) cycle
-         do ish = 1,nShell(izp)
+         do ish = 1, nShell(izp)
             ishtyp = hData%angShell(ish,izp)
             icao = caoshell(ish,iat)
             naoi = llao(ishtyp)
             iptyp = itt(ishtyp)
-            do jsh = 1,nShell(jzp)
+            do jsh = 1, nShell(jzp)
                jshtyp = hData%angShell(jsh,jzp)
                jcao = caoshell(jsh,jat)
                naoj = llao(jshtyp)
@@ -248,39 +246,44 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, selfEnergy, &
 
                hav = 0.5_wp * km * (hii + hjj) * zetaij
 
-               ! distance dependent polynomial
-               shpoly = shellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
-                  &               hData%atomicRad(izp),hData%atomicRad(jzp),ra,rb)
+               do itr = 1, size(trans, dim=2)
+                  rb(1:3) = xyz(1:3,jat) + trans(:, itr)
+                  rab2 = sum( (rb-ra)**2 )
 
-               ss = 0.0_wp
-               dd = 0.0_wp
-               qq = 0.0_wp
-               call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
-                  &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
-               !transform from CAO to SAO
-               call dtrf2(ss,ishtyp,jshtyp)
-               do k = 1,3
-                  tmp(1:6,1:6) = dd(k,1:6,1:6)
-                  call dtrf2(tmp,ishtyp,jshtyp)
-                  dd(k,1:6,1:6) = tmp(1:6,1:6)
-               enddo
-               do k = 1,6
-                  tmp(1:6,1:6) = qq(k,1:6,1:6)
-                  call dtrf2(tmp,ishtyp,jshtyp)
-                  qq(k,1:6,1:6) = tmp(1:6,1:6)
-               enddo
-               do ii = 1,llao2(ishtyp)
-                  iao = ii+saoshell(ish,iat)
-                  do jj = 1,llao2(jshtyp)
-                     jao = jj+saoshell(jsh,jat)
-                     ij = lin(iao, jao)
-                     H0(ij) = H0(ij) + hav * shpoly * ss(jj, ii)
-                     sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
-                     sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
-                     dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd(1:3, jj, ii)
-                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
-                     qpint(1:6, iao, jao) = qpint(1:6, iao, jao) + qq(1:6, jj, ii)
-                     qpint(1:6, jao, iao) = qpint(1:6, jao, iao) + qq(1:6, jj, ii)
+                  ! distance dependent polynomial
+                  shpoly=shellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
+                     &             hData%atomicRad(izp),hData%atomicRad(jzp),ra,rb)
+
+                  ss = 0.0_wp
+                  dd = 0.0_wp
+                  qq = 0.0_wp
+                  call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+                     &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
+                  !transform from CAO to SAO
+                  call dtrf2(ss,ishtyp,jshtyp)
+                  do k = 1,3
+                     tmp(1:6,1:6) = dd(k,1:6,1:6)
+                     call dtrf2(tmp,ishtyp,jshtyp)
+                     dd(k,1:6,1:6) = tmp(1:6,1:6)
+                  enddo
+                  do k = 1,6
+                     tmp(1:6,1:6) = qq(k,1:6,1:6)
+                     call dtrf2(tmp,ishtyp,jshtyp)
+                     qq(k,1:6,1:6) = tmp(1:6,1:6)
+                  enddo
+                  do ii = 1,llao2(ishtyp)
+                     iao = ii+saoshell(ish,iat)
+                     do jj = 1,llao2(jshtyp)
+                        jao = jj+saoshell(jsh,jat)
+                        ij = lin(iao, jao)
+                        H0(ij) = H0(ij) + hav * shpoly * ss(jj, ii)
+                        sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
+                        sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
+                        dpint(:, iao, jao) = dpint(:, iao, jao) + dd(:, jj, ii)
+                        dpint(:, jao, iao) = dpint(:, jao, iao) + dd(:, jj, ii)
+                        qpint(:, iao, jao) = qpint(:, iao, jao) + qq(:, jj, ii)
+                        qpint(:, jao, iao) = qpint(:, jao, iao) + qq(:, jj, ii)
+                     enddo
                   enddo
                enddo
             enddo
@@ -352,8 +355,8 @@ end subroutine build_SDQH0
 
 !> Computes the gradient of the dipole/qpole integral contribution
 subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf, &
-      & at, xyz, caoshell, saoshell, nprim, primcount, alp, cont, p, Pew, &
-      & ves, vs, vd, vq, dhdcn, g, sigma)
+      & at, xyz, trans, caoshell, saoshell, nprim, primcount, alp, cont, &
+      & p, Pew, ves, vs, vd, vq, dhdcn, g, sigma)
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
    real(wp), intent(in) :: selfEnergy(:, :)
@@ -374,6 +377,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    real(wp),intent(in)    :: vq(6,nat)
    !> Cartesian coordinates
    real(wp),intent(in)    :: xyz(3,nat)
+   real(wp),intent(in)    :: trans(:, :)
    !> Map shell of atom to index in CAO space (lowest Cart. component is taken)
    integer, intent(in)    :: caoshell(:,:)
    !> Map shell of atom to index in SAO space (lowest m_l component is taken)
@@ -403,7 +407,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,ixyz
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
    real(wp) :: dumdum(3,10),dum(10),sdq(10,6,6),sdqg(3,19,6,6)
-   integer :: il, jl
+   integer :: il, jl, itr
    real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly, dshpoly(3)
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
 
@@ -411,27 +415,22 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    point = 0.0_wp
    ! call timing(t1,t3)
    !$OMP PARALLEL default(none) &
-   !$omp shared(nat, at, xyz, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
+   !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& ves, vs, vd, vq, &
    !$omp& intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
    !$omp PRIVATE(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp, &
    !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
    !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
-   !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz) &
+   !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
    !$omp reduction(+:g,sigma,dhdcn)
    !$OMP DO schedule(dynamic)
    do iat = 1,nat
       ri = xyz(:,iat)
       izp = at(iat)
       do jat = 1,iat-1
-         rj = xyz(:,jat)
          !           if (jat.eq.iat) cycle
          jzp = at(jat)
-         rij = ri - rj
-         rij2 =  sum( rij**2 )
-         !           ints < 1.d-9 for RAB > 40 Bohr
-         if (rij2.gt.2000) cycle
          do ish = 1,nShell(izp)
             ishtyp = hData%angShell(ish,izp)
             icao = caoshell(ish,iat)
@@ -461,62 +460,68 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                ! averaged H0 element (without overlap contribution!)
                hav = 0.5_wp * km * (hii + hjj) * zetaij * evtoau
 
-               ! distance dependent polynomial
-               call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
-                  & hData%atomicRad(izp),hData%atomicRad(jzp),rij2,ri,rj,&
-                  & shpoly,dshpoly)
+               do itr = 1, size(trans, dim=2)
+                  rj = xyz(:,jat) + trans(:, itr)
+                  rij = ri - rj
+                  rij2 =  sum( rij**2 )
 
-               sdqg = 0;sdq = 0
-               call get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
-                  &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
-               tmp(1:6,1:6) = sdq(1,1:6,1:6)
-               call dtrf2(tmp,ishtyp,jshtyp)
-               sdq(1,1:6,1:6) = tmp(1:6,1:6)
-               do k = 1,19 ! 1 S, 2-4 D, 5-10 Q, 11-13 D, 14-19 Q
-                  do ixyz = 1,3
-                     ! transform from CAO to SAO
-                     !                        call dtrf2(sdqg(ixyz,k,1:6,1:6),ishtyp,jshtyp)
-                     tmp(1:6,1:6) = sdqg(ixyz,k,1:6,1:6)
-                     call dtrf2(tmp,ishtyp,jshtyp)
-                     sdqg(ixyz,k,1:6,1:6) = tmp(1:6,1:6)
-                  enddo
-               enddo
-               g_xyz(:) = 0.0_wp
-               do ii = 1,llao2(ishtyp)
-                  iao = ii+saoshell(ish,iat)
-                  do jj = 1,llao2(jshtyp)
-                     jao = jj+saoshell(jsh,jat)
-                     Pij = p(jao,iao)
+                  ! distance dependent polynomial
+                  call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
+                     & hData%atomicRad(izp),hData%atomicRad(jzp),rij2,ri,rj,&
+                     & shpoly,dshpoly)
 
-                     ! Hamiltonian element without overlap
-                     Hij  = hav * shpoly
-                     HPij = Hij * Pij
-
-                     g_xyz(:) = g_xyz + 2*HPij*sdq(1,jj,ii)*dshpoly/shpoly
-
+                  sdqg = 0;sdq = 0
+                  call get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+                     &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
+                  tmp(1:6,1:6) = sdq(1,1:6,1:6)
+                  call dtrf2(tmp,ishtyp,jshtyp)
+                  sdq(1,1:6,1:6) = tmp(1:6,1:6)
+                  do k = 1,19 ! 1 S, 2-4 D, 5-10 Q, 11-13 D, 14-19 Q
                      do ixyz = 1,3
-                        stmp = sdqg(ixyz,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
-                           & -Pij*(ves(ish,iat)+ves(jsh,jat)) &
-                           & +Pij*(vs(iat)+vs(jat)))
-                        dtmp = Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
-                           & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
-                        qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
-                           & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
-                        g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
-
-                     enddo ! ixyz
-
-                     ! Hamiltonian without Hav
-                     HPij = km * zetaij * shpoly * Pij * sdq(1,jj,ii) * evtoau
-                     ! save dE/dCN for CNi
-                     dhdcn(iat) = dhdcn(iat) + HPij*dSEdcn(ish, iat)
-                     ! save dE/dCN for CNj
-                     dhdcn(jat) = dhdcn(jat) + HPij*dSEdcn(jsh, jat)
+                        ! transform from CAO to SAO
+                        !                        call dtrf2(sdqg(ixyz,k,1:6,1:6),ishtyp,jshtyp)
+                        tmp(1:6,1:6) = sdqg(ixyz,k,1:6,1:6)
+                        call dtrf2(tmp,ishtyp,jshtyp)
+                        sdqg(ixyz,k,1:6,1:6) = tmp(1:6,1:6)
+                     enddo
                   enddo
-               enddo
-               g(:,iat) = g(:,iat)+g_xyz
-               g(:,jat) = g(:,jat)-g_xyz
-               sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
+                  g_xyz(:) = 0.0_wp
+                  do ii = 1,llao2(ishtyp)
+                     iao = ii+saoshell(ish,iat)
+                     do jj = 1,llao2(jshtyp)
+                        jao = jj+saoshell(jsh,jat)
+                        Pij = p(jao,iao)
+
+                        ! Hamiltonian element without overlap
+                        Hij  = hav * shpoly
+                        HPij = Hij * Pij
+
+                        g_xyz(:) = g_xyz + 2*HPij*sdq(1,jj,ii)*dshpoly/shpoly
+
+                        do ixyz = 1,3
+                           stmp = sdqg(ixyz,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
+                              & -Pij*(ves(ish,iat)+ves(jsh,jat)) &
+                              & +Pij*(vs(iat)+vs(jat)))
+                           dtmp = Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
+                              & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
+                           qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
+                              & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
+                           g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
+
+                        enddo ! ixyz
+
+                        ! Hamiltonian without Hav
+                        HPij = km * zetaij * shpoly * Pij * sdq(1,jj,ii) * evtoau
+                        ! save dE/dCN for CNi
+                        dhdcn(iat) = dhdcn(iat) + HPij*dSEdcn(ish, iat)
+                        ! save dE/dCN for CNj
+                        dhdcn(jat) = dhdcn(jat) + HPij*dSEdcn(jsh, jat)
+                     enddo
+                  enddo
+                  g(:,iat) = g(:,iat)+g_xyz
+                  g(:,jat) = g(:,jat)-g_xyz
+                  sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
+               enddo ! lattice translations
             enddo ! jsh : loop over shells on jat
          enddo  ! ish : loop over shells on iat
       enddo ! jat
