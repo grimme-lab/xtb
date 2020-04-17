@@ -59,6 +59,7 @@ subroutine main_property &
    use xtb_type_data
    use xtb_type_param
    use xtb_xtb_data
+   use xtb_intgrad
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
@@ -82,8 +83,8 @@ subroutine main_property &
    type(scc_results),    intent(in) :: res
 
    real(wp),allocatable :: S(:,:)     ! overlap integrals
-   real(wp),allocatable :: dpint(:,:) ! dipole integrals
-   real(wp),allocatable :: qpint(:,:) ! quadrupole integrals
+   real(wp),allocatable :: dpint(:,:,:) ! dipole integrals
+   real(wp),allocatable :: qpint(:,:,:) ! quadrupole integrals
    real(wp),allocatable :: C(:,:)     ! molecular orbitals
    real(wp),allocatable :: emo(:)     ! orbital energies
    real(wp),allocatable :: focc(:)    ! fractional occupation numbers
@@ -100,9 +101,10 @@ subroutine main_property &
 !  integral neglect threshold
    neglect =10.0d-9*acc
    ndim = basis%nao*(basis%nao+1)/2
-   allocate(S(basis%nao,basis%nao), dpint(3,ndim), qpint(6,ndim), source = 0.0_wp )
-   call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at, &
-      &        basis%nbf,basis%nao,mol%xyz,neglect,ndp,nqp,intcut, &
+   allocate(S(basis%nao,basis%nao), dpint(3,basis%nao,basis%nao), &
+      & qpint(6,basis%nao,basis%nao), source = 0.0_wp )
+   call sdqint(xtbData%nShell,xtbData%hamiltonian%angShell,mol%n,mol%at, &
+      &        basis%nbf,basis%nao,mol%xyz,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
 
@@ -756,7 +758,7 @@ subroutine print_dipole(iunit,n,at,xyz,z,nao,P,dpint)
   real(wp),intent(in) :: z(n)
   integer, intent(in) :: nao
   real(wp),intent(in) :: P(nao,nao)
-  real(wp),intent(in) :: dpint(3,nao*(1+nao)/2)
+  real(wp),intent(in) :: dpint(3,nao,nao)
 
   integer  :: i,j,k
   real(wp) :: d(3),dip
@@ -772,10 +774,10 @@ subroutine print_dipole(iunit,n,at,xyz,z,nao,P,dpint)
   do i = 1, nao
      do j = 1, i-1
         k = k+1
-        d = d - 2.0_wp*P(j,i)*dpint(:,k)
+        d = d - 2.0_wp*P(j,i)*dpint(:,i,j)
      enddo
      k = k+1
-     d = d - P(i,i)*dpint(:,k)
+     d = d - P(i,i)*dpint(:,i,i)
   enddo
 
   dip = norm2(d)

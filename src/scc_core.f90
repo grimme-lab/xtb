@@ -30,7 +30,7 @@ module xtb_scc_core
    implicit none
    private
 
-   public :: getSelfEnergy, build_h0, scc, electro, electro_gbsa, solve, solve4
+   public :: build_h0, scc, electro, electro_gbsa, solve, solve4
    public :: fermismear, occ, occu, dmat
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
@@ -41,73 +41,6 @@ module xtb_scc_core
 
 
 contains
-
-
-subroutine getSelfEnergy(hData, nShell, at, cn, qat, selfEnergy, dSEdcn, dSEdq)
-   type(THamiltonianData), intent(in) :: hData
-   integer, intent(in) :: nShell(:)
-   integer, intent(in) :: at(:)
-   real(wp), intent(in), optional :: cn(:)
-   real(wp), intent(in), optional :: qat(:)
-   real(wp), intent(out) :: selfEnergy(:)
-   real(wp), intent(out), optional :: dSEdcn(:)
-   real(wp), intent(out), optional :: dSEdq(:)
-
-   integer :: ind, iAt, iZp, iSh, lang
-
-   selfEnergy(:) = 0.0_wp
-   if (present(dSEdcn)) dSEdcn(:) = 0.0_wp
-   if (present(dSEdq)) dSEdq(:) = 0.0_wp
-   ind = 0
-   do iAt = 1, size(cn)
-      iZp = at(iAt)
-      do iSh = 1, nShell(iZp)
-         selfEnergy(ind+iSh) = hData%selfEnergy(iSh, iZp)
-      end do
-      ind = ind + nShell(iZp)
-   end do
-   if (present(dSEdq) .and. present(qat)) then
-      ind = 0
-      do iAt = 1, size(cn)
-         iZp = at(iAt)
-         do iSh = 1, nShell(iZp)
-            lAng = hData%angShell(iSh, iZp)+1
-            selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
-               & - hData%kQShell(lAng,iZp)*qat(iAt) - hData%kQAtom(iZp)*qat(iAt)**2
-            dSEdq(ind+iSh) = -hData%kQShell(lAng,iZp) - hData%kQAtom(iZp)*2*qat(iAt)
-         end do
-         ind = ind + nShell(iZp)
-      end do
-      if (present(dSEdcn) .and. present(cn)) then
-         ind = 0
-         do iAt = 1, size(cn)
-            iZp = at(iAt)
-            do iSh = 1, nShell(iZp)
-               lAng = hData%angShell(iSh, iZp)+1
-               selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
-                  & - hData%kCN(lAng+1, iZp) * cn(iAt)
-               dSEdcn(ind+iSh) = -hData%kCN(iSh, iZp)
-            end do
-            ind = ind + nShell(iZp)
-         end do
-      end if
-   else
-      if (present(dSEdcn) .and. present(cn)) then
-         ind = 0
-         do iAt = 1, size(cn)
-            iZp = at(iAt)
-            do iSh = 1, nShell(iZp)
-               lAng = hData%angShell(iSh, iZp)+1
-               selfEnergy(ind+iSh) = selfEnergy(ind+iSh) &
-                  & - hData%kCN(iSh, iZp) * cn(iAt)
-               dSEdcn(ind+iSh) = -hData%kCN(iSh, iZp)
-            end do
-            ind = ind + nShell(iZp)
-         end do
-      end if
-   end if
-
-end subroutine getSelfEnergy
 
 !! ========================================================================
 !  build GFN2 core Hamiltonian
@@ -151,7 +84,7 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
       jl = mmm(lao2(j))
       hdii = selfEnergy(ish)
       hdjj = selfEnergy(jsh)
-      call h0scal(hData,n,at,i,j,il,jl,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      call h0scal(hData,il,jl,izp,jzp,valao2(i).ne.0,valao2(j).ne.0, &
       &           km)
       km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
       hav = 0.5d0*(hdii+hdjj)* &
@@ -227,8 +160,8 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
    integer, intent(in)  :: mdlst(2,ndp)
    integer, intent(in)  :: mqlst(2,nqp)
    real(wp),intent(in)  :: S(ndim,ndim)
-   real(wp),intent(in)  :: dpint(3,ndim*(1+ndim)/2)
-   real(wp),intent(in)  :: qpint(6,ndim*(1+ndim)/2)
+   real(wp),intent(in)  :: dpint(3,ndim,ndim)
+   real(wp),intent(in)  :: qpint(6,ndim,ndim)
    real(wp),intent(in)  :: vs(n)
    real(wp),intent(in)  :: vd(3,n)
    real(wp),intent(in)  :: vq(6,n)
@@ -264,7 +197,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       jj=aoat2(j)
       eh1=0.0d0
       do l=1,3
-         eh1=eh1+dpint(l,k)*(vd(l,ii)+vd(l,jj))
+         eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
       H(i,j)=H(i,j)+eh1
@@ -281,7 +214,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       ! note: these come in the following order
       ! xx, yy, zz, xy, xz, yz
       do l=1,6
-         eh1=eh1+qpint(l,k)*(vq(l,ii)+vq(l,jj))
+         eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
       H(i,j)=H(i,j)+eh1
@@ -422,8 +355,8 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp),intent(inout) :: P(ndim,ndim)
    real(wp),intent(inout) :: X(ndim,ndim)
    real(wp),intent(in)    :: S(ndim,ndim)
-   real(wp),intent(in)    :: dpint(3,ndim*(ndim+1)/2)
-   real(wp),intent(in)    :: qpint(6,ndim*(ndim+1)/2)
+   real(wp),intent(in)    :: dpint(3,ndim,ndim)
+   real(wp),intent(in)    :: qpint(6,ndim,ndim)
    type(TxTBCoulomb), intent(inout) :: ies
 
    integer, intent(inout) :: jter
@@ -676,31 +609,24 @@ end subroutine scc
 
 
 !> H0 off-diag scaling
-subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj,km)
+subroutine h0scal(hData,il,jl,izp,jzp,valaoi,valaoj,km)
    type(THamiltonianData), intent(in) :: hData
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: i
-   integer, intent(in)  :: j
    integer, intent(in)  :: il
    integer, intent(in)  :: jl
-   integer, intent(in)  :: iat
-   integer, intent(in)  :: jat
+   integer, intent(in)  :: izp
+   integer, intent(in)  :: jzp
    logical, intent(in)  :: valaoi
    logical, intent(in)  :: valaoj
    real(wp),intent(out) :: km
-   integer  :: ii,jj
    real(wp) :: den, enpoly
 
    km = 0.0_wp
 
 !  valence
    if(valaoi.and.valaoj) then
-      ii=at(iat)
-      jj=at(jat)
-      den=(hData%electronegativity(ii)-hData%electronegativity(jj))**2
+      den=(hData%electronegativity(izp)-hData%electronegativity(jzp))**2
       enpoly = (1.0_wp+hData%enScale(jl-1,il-1)*den*(1.0_wp+hData%enScale4*den))
-      km=hData%kScale(jl-1,il-1)*enpoly*hData%pairParam(ii,jj)
+      km=hData%kScale(jl-1,il-1)*enpoly*hData%pairParam(izp,jzp)
       return
    endif
 

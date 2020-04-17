@@ -26,6 +26,7 @@ srcs += files(
   'gfn1.f90',
   'gfn2.f90',
   'halogen.f90',
+  'hamiltonian.f90',
   'multipole.f90',
   'repulsion.f90',
   'thirdorder.f90',

@@ -63,7 +63,7 @@ subroutine test_gfn2_scc
    wfn%nopen = 0
 
    allocate( g(3,mol%n), source = 0.0_wp )
- 
+
    call use_parameterset('.param_gfn2.xtb',globpar,xtbData,okpar)
    call assert(okpar)
 
@@ -139,7 +139,7 @@ subroutine test_gfn2_api
 
    implicit none
 
-   real(wp),parameter :: thr = 1.0e-10_wp
+   real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 7
    integer, parameter :: at(nat) = [6,6,6,1,1,1,1]
    real(wp),parameter :: xyz(3,nat) = reshape(&
@@ -174,7 +174,6 @@ subroutine test_gfn2_api
 
    call gfn2_calculation &
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
-
    call assert_close(hl_gap, 7.0005867526665_wp,thr)
    call assert_close(energy,-8.3824793849585_wp,thr)
    call assert_close(norm2(gradient),0.11544410028854E-01_wp,thr)
@@ -247,11 +246,11 @@ subroutine test_gfn2gbsa_api
 
    call assert_close(hl_gap, 3.408607724814_wp,1e-5_wp)
    call assert_close(energy,-22.002501380096_wp,thr)
-   call assert_close(norm2(gradient),0.019344118754_wp,thr)
+   call assert_close(norm2(gradient),0.19366866479475E-01_wp,thr)
    call assert_close(gradient(1,1), .9038674439127e-02_wp,thr)
    call assert_close(gradient(3,2),-.1394693523214e-02_wp,thr)
    call assert_close(gradient(3,11),-gradient(3,10),thr)
-   call assert_close(gradient(1,8),.1383384688560e-02_wp,thr)
+   call assert_close(gradient(1,8),0.17878350587682E-02_wp,thr)
 
    call terminate(afail)
 
@@ -393,8 +392,8 @@ subroutine test_gfn2_pcem_api
    call gfn2_calculation &
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
-   call assert_close(hl_gap, 12.391144583778_wp,thr)
-   call assert_close(energy,-20.323978513218_wp,thr)
+   call assert_close(hl_gap, 12.391144584178_wp,thr)
+   call assert_close(energy,-20.323978512117_wp,thr)
    call assert_close(norm2(gradient),0.78119239557115E-02_wp,thr)
 
    call assert_close(gradient(1,5),-0.22192122053513E-02_wp,thr)
@@ -420,7 +419,7 @@ subroutine test_gfn2_pcem_api
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 12.718203165741_wp,thr)
-   call assert_close(energy,-10.160927754769_wp,thr)
+   call assert_close(energy,-10.160927754235_wp,thr)
    call assert_close(norm2(gradient),0.21549557655285E-01_wp,thr)
 
    call assert_close(gradient(1,5),-0.20326749264006E-02_wp,thr)
@@ -444,7 +443,7 @@ subroutine test_gfn2_pcem_api
       (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
 
    call assert_close(hl_gap, 13.024345612330_wp,thr)
-   call assert_close(energy,-10.168788269555_wp,thr)
+   call assert_close(energy,-10.168788268962_wp,thr)
    call assert_close(norm2(gradient),0.18113624400926E-01_wp,thr)
 
    call assert_close(gradient(1,5),-0.50646289499094E-03_wp,thr)

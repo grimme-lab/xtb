@@ -708,6 +708,8 @@ subroutine test_coulomb_gfn1_pbc3d
    call contract(djdr, charges, gradient)
    call contract(djdL, charges, sigma)
 
+   if (afail > 0) call terminate(afail)
+
    ! check numerical gradient
    do ii = 1, nat, 5
       do jj = 1, 3
@@ -727,6 +729,8 @@ subroutine test_coulomb_gfn1_pbc3d
          call assert_close(gradient(jj, ii), (er - el)*step2, thr)
       end do
    end do
+
+   if (afail > 0) call terminate(afail)
 
    ! check numerical strain derivatives
    eps = unity
@@ -1051,6 +1055,7 @@ subroutine test_coulomb_gfn2_pbc3d
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
+   integer, parameter :: nsh = 48
    integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
    real(wp),parameter :: xyz(3,nat) = reshape(&
       &[4.5853168464880421_wp,  4.9392326929575878_wp,  4.1894081210748118_wp,  &
@@ -1103,6 +1108,27 @@ subroutine test_coulomb_gfn2_pbc3d
       & 8.52471706343666E-2_wp, 9.46559327232836E-2_wp, 8.25241730550529E-2_wp, &
       & 0.10241788528707E+0_wp, 0.10484272561566E+0_wp, 0.10417532504838E+0_wp, &
       & 8.96531455310284E-2_wp, 9.68902639794006E-2_wp]
+   real(wp),parameter :: shellCharges(nsh) = [&
+      & 2.548824270679E-01_wp, -6.417655149522E-01_wp,  2.550635758392E-01_wp, &
+      &-6.396203663170E-01_wp,  2.532654296214E-01_wp, -6.361388572143E-01_wp, &
+      & 2.540628366400E-01_wp, -6.399929765001E-01_wp, -4.278481458258E-02_wp, &
+      &-4.516926912533E-02_wp, -4.246973895241E-02_wp, -4.510205724522E-02_wp, &
+      &-7.814112584798E-02_wp,  3.246268964607E-01_wp, -4.508032230865E-02_wp, &
+      &-4.909932323115E-02_wp, -4.266711021723E-02_wp, -4.507074501219E-02_wp, &
+      &-7.801055759726E-02_wp,  3.277862846551E-01_wp, -7.706736816894E-02_wp, &
+      & 3.274667529347E-01_wp, -4.274056057957E-02_wp, -4.198972178466E-02_wp, &
+      &-4.402591663970E-02_wp, -4.284660977700E-02_wp, -7.796687803440E-02_wp, &
+      & 3.284463358790E-01_wp, -4.319146370456E-02_wp, -3.898718552660E-02_wp, &
+      &-4.414934521005E-02_wp, -4.299559035202E-02_wp,  8.243712818772E-02_wp, &
+      & 9.197499978461E-02_wp,  6.661156570939E-02_wp,  9.654423384175E-02_wp, &
+      & 7.038786665539E-02_wp,  8.271657181661E-02_wp,  7.609575142603E-02_wp, &
+      & 6.807174316298E-02_wp,  8.294849862734E-02_wp,  8.523505177342E-02_wp, &
+      & 6.304638754319E-02_wp,  6.764681513028E-02_wp,  9.295478478980E-02_wp, &
+      & 8.550915995666E-02_wp,  6.157630928522E-02_wp,  6.771601209250E-02_wp]
+   integer, parameter :: nshell(3) = [2, 2, 1]
+   real(wp), parameter :: shellHardness(2, 3) = reshape([&
+      & 0.451896_wp, 0.5195457349920_wp, 0.538015_wp, 0.5948486449370_wp, &
+      & 0.405771_wp, 0.0_wp], [2, 3])
 
    type(TEnvironment) :: env
    type(TMolecule) :: mol
@@ -1125,20 +1151,95 @@ subroutine test_coulomb_gfn2_pbc3d
 
    call init(env)
    call init(mol, at, xyz, lattice=lattice)
-   !call init(coulomb, env, mol, tolerance=1.0e-8_wp)
+   call init(coulomb, env, mol, gamAverage%arithmetic, shellHardness, 2.0_wp, &
+      & nshell=nshell)
 
    call assert_close(coulomb%rCutoff, 18.11939328_wp, thr)
    call assert_close(coulomb%gCutoff, 1.4680064_wp, thr)
    call assert_close(coulomb%alpha, 0.2097152_wp, thr)
 
-   allocate(shift(nat))
-   allocate(jMat(nat, nat))
+   allocate(shift(nsh))
+   allocate(jMat(nsh, nsh))
    allocate(gradient(3, nat))
-   allocate(djdr(3, nat, nat))
-   allocate(djdtr(3, nat))
-   allocate(djdL(3, 3, nat))
+   allocate(djdr(3, nat, nsh))
+   allocate(djdtr(3, nsh))
+   allocate(djdL(3, 3, nsh))
 
-   stop 77
+   call coulomb%getCoulombMatrix(mol, jmat)
+
+   do ii = 1, nsh
+      do jj = 1, ii-1
+         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+      end do
+   end do
+
+   call assert_close(jmat( 1, 3), -0.65948223431173E-01_wp, thr)
+   call assert_close(jmat( 2, 3), -0.63531253417773E-01_wp, thr)
+   call assert_close(jmat( 4, 6), -0.71249446497053E-01_wp, thr)
+   call assert_close(jmat( 3,10), -0.47826859938370E-01_wp, thr)
+   call assert_close(jmat( 6, 3), -0.72960918626276E-01_wp, thr)
+   call assert_close(jmat( 7,18), -0.57502477782259E-01_wp, thr)
+   call assert_close(jmat(12,20), -0.13191548797843E-01_wp, thr)
+
+   shift(:) = matmul(jmat, shellCharges)
+   energy = 0.5_wp*dot_product(shellCharges, shift)
+   call assert_close(energy, 0.93929971020624E-01_wp, thr)
+
+   call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
+   call contract(djdr, shellCharges, gradient)
+   call contract(djdL, shellCharges, sigma)
+
+   if (afail > 0) call terminate(afail)
+
+   ! check numerical gradient
+   do ii = 1, nat, 5
+      do jj = 1, 3
+         mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, shellCharges)
+         er = 0.5_wp*dot_product(shellCharges, shift)
+         mol%xyz(jj, ii) = mol%xyz(jj, ii) - 2*step
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, shellCharges)
+         el = 0.5_wp*dot_product(shellCharges, shift)
+         mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
+         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+      end do
+   end do
+
+   if (afail > 0) call terminate(afail)
+
+   ! check numerical strain derivatives
+   eps = unity
+   do ii = 1, 3
+      do jj = 1, ii
+         eps(jj, ii) = eps(jj, ii) + step
+         mol%lattice(:, :) = matmul(eps, lattice)
+         mol%xyz(:, :) = matmul(eps, xyz)
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, shellCharges)
+         er = 0.5_wp*dot_product(shellCharges, shift)
+
+         eps(jj, ii) = eps(jj, ii) - 2*step
+         mol%lattice(:, :) = matmul(eps, lattice)
+         mol%xyz(:, :) = matmul(eps, xyz)
+         call mol%update
+         call coulomb%update(env, mol)
+         call coulomb%getCoulombMatrix(mol, jmat)
+         shift(:) = matmul(jmat, shellCharges)
+         el = 0.5_wp*dot_product(shellCharges, shift)
+
+         eps(jj, ii) = eps(jj, ii) + step
+
+         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+      end do
+   end do
 
    call terminate(afail)
 end subroutine test_coulomb_gfn2_pbc3d

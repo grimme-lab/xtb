@@ -412,11 +412,6 @@ subroutine xtbMain(env, argParser)
       call env%terminate('This is an internal error, please use gfn_method=2!')
    end if
 
-   !> check for PBCs
-   if(periodic.and.gfn_method /= 0)then
-      call env%terminate('Periodic implementation only available at zeroth-order.')
-   end if
-
    ! ------------------------------------------------------------------------
    !> Print the method header and select the parameter file
    if (.not.allocated(fnv)) then
@@ -476,16 +471,20 @@ subroutine xtbMain(env, argParser)
       else
          call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
       endif
-      if (guess_charges.eq.p_guess_gasteiger) then
-         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
-      else if (guess_charges.eq.p_guess_goedecker) then
-         call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-         call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
-            .false.,.false.,.false.)
-      else
-         call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+      if (mol%npbc > 0) then
          wfn%q = real(chrg,wp)/real(mol%n,wp)
-      endif
+      else
+         if (guess_charges.eq.p_guess_gasteiger) then
+            call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
+         else if (guess_charges.eq.p_guess_goedecker) then
+            call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+            call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
+               .false.,.false.,.false.)
+         else
+            call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
+            wfn%q = real(chrg,wp)/real(mol%n,wp)
+         end if
+      end if
       !> initialize shell charges from gasteiger charges
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
    end select
