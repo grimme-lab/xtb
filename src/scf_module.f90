@@ -128,6 +128,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    real(wp),allocatable :: Xcao(:,:)
    real(wp),allocatable :: selfEnergy(:)
    real(wp),allocatable :: dSEdcn(:)
+   real(wp),allocatable :: selfEnergy2(:, :)
+   real(wp),allocatable :: dSEdcn2(:, :)
    integer :: nid
    integer, allocatable :: idnum(:)
    type(TxTBCoulomb) :: ies
@@ -314,6 +316,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    &        zsh(basis%nshell),&
    &        matlist (2,basis%nao*(basis%nao+1)/2), &
    &        matlist2(2,basis%nao*(basis%nao+1)/2-basis%nao))
+   allocate(selfEnergy2(maxval(xtbData%nshell), mol%n))
+   allocate(dSEdcn2(maxval(xtbData%nshell), mol%n))
 
    call setzshell(xtbData,mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,gfn_method)
 
@@ -511,6 +515,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    allocate(dpint(3,basis%nao,basis%nao), &
       &     qpint(6,basis%nao,basis%nao), &
       &     source = 0.0_wp)
+   call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
+      & selfEnergy=selfEnergy2, dSEdcn=dSEdcn2)
    ! compute integrals and prescreen to set up list arrays
    call sdqint(xtbData%nShell,xtbData%hamiltonian,mol%n,mol%at,basis%nbf, &
       & basis%nao,mol%xyz,neglect,ndp,nqp,intcut,basis%caoshell,basis%saoshell, &

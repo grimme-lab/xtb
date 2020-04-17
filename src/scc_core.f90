@@ -84,7 +84,7 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
       jl = mmm(lao2(j))
       hdii = selfEnergy(ish)
       hdjj = selfEnergy(jsh)
-      call h0scal(hData,n,at,i,j,il,jl,iat,jat,valao2(i).ne.0,valao2(j).ne.0, &
+      call h0scal(hData,il,jl,izp,jzp,valao2(i).ne.0,valao2(j).ne.0, &
       &           km)
       km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
       hav = 0.5d0*(hdii+hdjj)* &
@@ -609,31 +609,24 @@ end subroutine scc
 
 
 !> H0 off-diag scaling
-subroutine h0scal(hData,n,at,i,j,il,jl,iat,jat,valaoi,valaoj,km)
+subroutine h0scal(hData,il,jl,izp,jzp,valaoi,valaoj,km)
    type(THamiltonianData), intent(in) :: hData
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   integer, intent(in)  :: i
-   integer, intent(in)  :: j
    integer, intent(in)  :: il
    integer, intent(in)  :: jl
-   integer, intent(in)  :: iat
-   integer, intent(in)  :: jat
+   integer, intent(in)  :: izp
+   integer, intent(in)  :: jzp
    logical, intent(in)  :: valaoi
    logical, intent(in)  :: valaoj
    real(wp),intent(out) :: km
-   integer  :: ii,jj
    real(wp) :: den, enpoly
 
    km = 0.0_wp
 
 !  valence
    if(valaoi.and.valaoj) then
-      ii=at(iat)
-      jj=at(jat)
-      den=(hData%electronegativity(ii)-hData%electronegativity(jj))**2
+      den=(hData%electronegativity(izp)-hData%electronegativity(jzp))**2
       enpoly = (1.0_wp+hData%enScale(jl-1,il-1)*den*(1.0_wp+hData%enScale4*den))
-      km=hData%kScale(jl-1,il-1)*enpoly*hData%pairParam(ii,jj)
+      km=hData%kScale(jl-1,il-1)*enpoly*hData%pairParam(izp,jzp)
       return
    endif
 

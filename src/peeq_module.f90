@@ -40,9 +40,6 @@ module xtb_peeq
    !> profiling
    logical,parameter,private :: profile = .true.
 
-   !> mapping from l-quantum numbers to shell types
-   integer,parameter,private :: shell(*) = [1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4]
-
 contains
 
 subroutine peeq &
@@ -903,11 +900,8 @@ subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
 
-               ! get indices
-               i = 1+basis%saoshell(ish,iat)
-               j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i))
-               jl = shell(basis%lao2(j))
+               il = ishtyp+1
+               jl = jshtyp+1
                ! diagonals are the same for all H0 elements
                hii = selfEnergy(ish, iat)
                hjj = selfEnergy(jsh, jat)
@@ -917,16 +911,16 @@ subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                   & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
-               zi = basis%aoexp(i)
-               zj = basis%aoexp(j)
+               zi = hData%slaterExponent(ish, ati)
+               zj = hData%slaterExponent(jsh, atj)
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
                km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
-               valaoi = basis%valao2(i).eq.0
-               valaoj = basis%valao2(j).eq.0
+               valaoi = hData%valenceShell(ish, ati).eq.0
+               valaoj = hData%valenceShell(jsh, atj).eq.0
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
@@ -1099,11 +1093,8 @@ subroutine pbc_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
 
-               ! get indices
-               i = 1+basis%saoshell(ish,iat)
-               j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i))
-               jl = shell(basis%lao2(j))
+               il = ishtyp+1
+               jl = jshtyp+1
                ! diagonals are the same for all H0 elements
                hii = selfEnergy(ish, iat)
                hjj = selfEnergy(jsh, jat)
@@ -1113,16 +1104,16 @@ subroutine pbc_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                   & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
-               zi = basis%aoexp(i)
-               zj = basis%aoexp(j)
+               zi = hData%slaterExponent(ish, ati)
+               zj = hData%slaterExponent(jsh, atj)
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
                km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
-               valaoi = basis%valao2(i).eq.0
-               valaoj = basis%valao2(j).eq.0
+               valaoi = hData%valenceShell(ish, ati).eq.0
+               valaoj = hData%valenceShell(jsh, atj).eq.0
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
@@ -1428,11 +1419,8 @@ subroutine ccm_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, 
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
 
-               ! get indices
-               i = 1+basis%saoshell(ish,iat)
-               j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i))
-               jl = shell(basis%lao2(j))
+               il = ishtyp+1
+               jl = jshtyp+1
                ! diagonals are the same for all H0 elements
                hii = selfEnergy(ish, iat)
                hjj = selfEnergy(jsh, jat)
@@ -1442,16 +1430,16 @@ subroutine ccm_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, 
                   & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
-               zi = basis%aoexp(i)
-               zj = basis%aoexp(j)
+               zi = hData%slaterExponent(ish, ati)
+               zj = hData%slaterExponent(jsh, atj)
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
                km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
-               valaoi = basis%valao2(i).eq.0
-               valaoj = basis%valao2(j).eq.0
+               valaoi = hData%valenceShell(ish, ati).eq.0
+               valaoj = hData%valenceShell(jsh, atj).eq.0
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then
@@ -1670,11 +1658,8 @@ subroutine pbc_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, 
                naoj = llao(jshtyp)
                jptyp = itt(jshtyp)
 
-               ! get indices
-               i = 1+basis%saoshell(ish,iat)
-               j = 1+basis%saoshell(jsh,jat)
-               il = shell(basis%lao2(i))
-               jl = shell(basis%lao2(j))
+               il = ishtyp+1
+               jl = jshtyp+1
                ! diagonals are the same for all H0 elements
                hii = selfEnergy(ish, iat)
                hjj = selfEnergy(jsh, jat)
@@ -1684,16 +1669,16 @@ subroutine pbc_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, 
                   & + hData%enScale4*hData%enScale(jl-1,il-1)*den4)
 
                ! we scale the two shells depending on their exponent
-               zi = basis%aoexp(i)
-               zj = basis%aoexp(j)
+               zi = hData%slaterExponent(ish, ati)
+               zj = hData%slaterExponent(jsh, atj)
                zetaij = 2 * sqrt(zi*zj)/(zi+zj)
 
                ! now do the real magic (called EHT enhancement factor)
                km = hData%kScale(jl-1,il-1) * hData%pairParam(ati,atj) * zetaij * enpoly
 
                ! check for valence orbitals
-               valaoi = basis%valao2(i).eq.0
-               valaoj = basis%valao2(j).eq.0
+               valaoi = hData%valenceShell(ish, ati).eq.0
+               valaoj = hData%valenceShell(jsh, atj).eq.0
                ! and scale appropiately
                if (valaoi) then
                   if (valaoj) then

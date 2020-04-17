@@ -178,7 +178,7 @@ subroutine hcn_grad(hData,g,n,at,ndim,nmat2,matlist2,xyz, &
       psij = P(j,i)*S(j,i)
       shPoly = shellPoly(hData%shellPoly(il, iZp), hData%shellPoly(jl, jZp), &
          & hData%atomicRad(iZp), hData%atomicRad(jZp),xyz(:,iat),xyz(:,jat))
-      call h0scal(hData,n,at,i,j,il,jl,iat,jat,valao2(i).ne.0,valao2(j).ne.0,  &
+      call h0scal(hData,il,jl,izp,jzp,valao2(i).ne.0,valao2(j).ne.0,  &
       &               km)
       km = km*(2*sqrt(aoexp(i)*aoexp(j))/(aoexp(i)+aoexp(j)))**hData%wExp
       dHdSE = psij*km*shPoly*evtoau
