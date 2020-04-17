@@ -440,3 +440,82 @@ subroutine test_gfn1_xb
    call terminate(afail)
 
 end subroutine test_gfn1_xb
+
+
+subroutine test_gfn1_pbc3d
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
+   use assertion
+
+   use xtb_mctc_convert
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_environment
+   use xtb_type_wavefunction
+
+   use xtb_pbc_tools
+
+   use xtb_calculators
+
+   implicit none
+
+   real(wp),parameter :: thr = 1.0e-9_wp
+   ! CaF2
+   integer, parameter :: nat = 3
+   integer, parameter :: at(nat) = [9,9,20]
+   real(wp),parameter :: abc(3,nat) = reshape(&
+      &[0.25_wp, 0.25_wp, 0.25_wp, &
+      & 0.75_wp, 0.75_wp, 0.75_wp, &
+      & 0.00_wp, 0.00_wp, 0.00_wp], shape(abc))
+   real(wp),parameter :: lattice(3,3) = reshape(&
+      &[5.9598811567890_wp,      2.1071361905157_wp,      3.6496669404404_wp,    &
+      & 0.0000000000000_wp,      6.3214085715472_wp,      3.6496669404404_wp,    &
+      & 0.0000000000000_wp,      0.0000000000000_wp,      7.2993338808807_wp],   &
+      & shape(lattice))
+   type(scc_options),parameter :: opt = scc_options( &
+      &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+
+   type(TMolecule)    :: mol
+   type(TEnvironment) :: env
+   type(tb_pcem)      :: pcem
+   type(TWavefunction):: wfn
+
+   real(wp) :: energy
+   real(wp) :: hl_gap
+   real(wp) :: gradlatt(3,3)
+   real(wp) :: stress(3,3)
+   real(wp),allocatable :: gradient(:,:)
+   real(wp),allocatable :: xyz(:,:)
+
+   ! setup the environment variables
+   call init(env)
+
+   allocate(xyz(3, nat))
+   call coord_trafo(nat,lattice,abc,xyz)
+   call init(mol, at, xyz, lattice=lattice)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+   gradlatt = 0.0_wp
+
+   call mctc_mute
+
+   call gfn1_calculation &
+      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+
+   call assert_close(hl_gap, 7.5302549721955_wp,thr)
+   call assert_close(energy,-11.069452578476_wp,thr)
+   call assert_close(norm2(gradient), 0.28766497266274E-01_wp,thr)
+
+   call assert_close(gradient(1,1),-0.18972454825631E-03_wp,thr)
+   call assert_close(gradient(1,2),-0.66834750631031E-02_wp,thr)
+   call assert_close(gradient(1,3), 0.68731996113594E-02_wp,thr)
+   call assert_close(gradient(2,1),-0.26831102888425E-03_wp,thr)
+   call assert_close(gradient(3,3), 0.16835831947879E-01_wp,thr)
+
+   call terminate(afail)
+
+end subroutine test_gfn1_pbc3d

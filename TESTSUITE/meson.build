@@ -158,6 +158,7 @@ endif
 test('GFN1-xTB: SCC', xtb_test, args: ['gfn1', 'scc'], env: xtbenv)
 test('GFN1-xTB: API', xtb_test, args: ['gfn1', 'api'], env: xtbenv)
 test('GFN1-xTB: XB', xtb_test, args: ['gfn1', 'xb'], env: xtbenv)
+test('GFN1-xTB: PBC', xtb_test, args: ['gfn1', 'pbc3d'], env: xtbenv)
 test('GFN1-xTB: API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv)
 test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv)
 

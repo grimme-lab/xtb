@@ -135,15 +135,19 @@ module subroutine gfn1_calculation &
 
    call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
-   ! do a EEQ guess
-   allocate( cn(mol%n), source = 0.0_wp )
-   call new_charge_model_2019(chrgeq,mol%n,mol%at)
-   call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-   call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
-   deallocate(cn)
-   call env%check(exitRun)
-   if (exitRun) then
-      call env%error("EEQ quess failed", source)
+   if (mol%npbc == 0) then
+      ! do a EEQ guess
+      allocate( cn(mol%n), source = 0.0_wp )
+      call new_charge_model_2019(chrgeq,mol%n,mol%at)
+      call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+      call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
+      deallocate(cn)
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("EEQ quess failed", source)
+      end if
+   else
+      wfn%q(:) = 0.0_wp
    end if
 
    call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
