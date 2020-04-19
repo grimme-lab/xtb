@@ -40,6 +40,8 @@ write(iunit,'(3x,a)') &
    "in the mass-spec context:",&
    "* V. Asgeirsson, C. Bauer and S. Grimme, Chem. Sci., 2017, 8, 4879.",&
    "  DOI: 10.1039/c7sc00601b",&
+   "* J. Koopman and S. Grimme, ACS Omega 2019, 4, 12, 15120-15133.",&
+   "  DOI: 10.1021/acsomega.9b02011",&
    "",&
    "for metadynamics refer to:",&
    "* S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862", &
