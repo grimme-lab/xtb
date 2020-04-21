@@ -126,6 +126,8 @@ for DFT-D4:
   DOI: [10.1063/1.4993215](https://dx.doi.org/10.1063/1.4993215)
 - E. Caldeweyher, S. Ehlert, A. Hansen, H. Neugebauer, S. Spicher, C. Bannwarth and S. Grimme, *J. Chem. Phys.*,
   **2019**, 150, 154122. DOI: [10.1063/1.5090222](https://dx.doi.org/10.1063/1.5090222)
+- E. Caldeweyher, J.-M. Mewes, S. Ehlert and S. Grimme, *Phys. Chem. Chem. Phys.*, **2020**, just accepted. 
+  DOI: [10.1039/D0CP00502A](https://dx.doi.org/10.1039/D0CP00502A) 
 
 for sTDA-xTB:
 - S. Grimme and C. Bannwarth, *J. Chem. Phys.*, **2016**, 145, 054103.
