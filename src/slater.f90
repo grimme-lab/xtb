@@ -351,6 +351,20 @@ module xtb_slater
       & 4.512983737e-1_wp, 3.552053926e-1_wp, 6.974153145e-2_wp],&
       & shape(pCoeff6))
 
+   real(wp), parameter :: pAlpha6s(6) = [&
+      & 5.800292686e-1_wp, 2.718262251e-1_wp, 7.938523262e-2_wp, & ! 6s
+      & 4.975088254e-2_wp, 2.983643556e-2_wp, 1.886067216e-2_wp]
+   real(wp), parameter :: pCoeff6s(6) = [&
+      & 4.554359511e-3_wp, 5.286443143e-2_wp,-7.561016358e-1_wp, & ! 6s
+      &-2.269803820e-1_wp, 1.332494651e+0_wp, 3.622518293e-1_wp]
+
+   real(wp), parameter :: pAlpha6p(6) = [&
+      & 6.696537714e-1_wp, 1.395089793e-1_wp, 8.163894960e-2_wp, & ! 6p
+      & 4.586329272e-2_wp, 2.961305556e-2_wp, 1.882221321e-2_wp]
+   real(wp), parameter :: pCoeff6p(6) = [&
+      & 2.782723680e-3_wp,-1.282887780e-1_wp,-2.266255943e-1_wp, & ! 6p
+      & 4.682259383e-1_wp, 6.752048848e-1_wp, 1.091534212e-1_wp]
+
 
 contains
 
@@ -389,8 +403,10 @@ pure subroutine slaterToGauss(ng, n, l, zeta, alpha, coeff, norm, info)
    !> Basic checks first, we cannot support principal QN of six or higher
    !> also you should not violate l ∊ [n-1, n-2, ..., 1, 0]
    if ((n > 5).or.(n <= l)) then
-      info = 2
-      return
+      if (.not.(n == 6 .and. ng == 6)) then
+         info = 2
+         return
+      end if
    endif
 
    !> Don't allow negative exponents in the first place
@@ -435,8 +451,21 @@ pure subroutine slaterToGauss(ng, n, l, zeta, alpha, coeff, norm, info)
       alpha(:ng) = pAlpha5(:, ityp) * zeta**2
       coeff(:ng) = pCoeff5(:, ityp)
    case(6)
-      alpha(:ng) = pAlpha6(:, ityp) * zeta**2
-      coeff(:ng) = pCoeff6(:, ityp)
+      if (n == 6) then
+         if (l == 0) then
+            alpha(:ng) = pAlpha6s(:) * zeta**2
+            coeff(:ng) = pCoeff6s(:)
+         else if (l == 1) then
+            alpha(:ng) = pAlpha6p(:) * zeta**2
+            coeff(:ng) = pCoeff6p(:)
+         else
+            info = 2
+            return
+         end if
+      else
+         alpha(:ng) = pAlpha6(:, ityp) * zeta**2
+         coeff(:ng) = pCoeff6(:, ityp)
+      end if
    end select
 
    !> normalize the gaussian if requested
