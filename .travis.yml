@@ -28,4 +28,4 @@ jobs:
         - OMP_NUM_THREADS=2 make -j all test install
 
 install:
-   - pip3 install meson ase pytest
+   - pip3 install meson==0.53.2 ase pytest
