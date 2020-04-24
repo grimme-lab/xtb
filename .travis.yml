@@ -25,7 +25,7 @@ jobs:
         - mkdir _build
         - cd _build
         - cmake -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
-        - XTBPATH=$PWD/.. OMP_NUM_THREADS=2 make -j all test install
+        - OMP_NUM_THREADS=2 make -j all test install
 
 install:
    - pip3 install meson ase pytest
