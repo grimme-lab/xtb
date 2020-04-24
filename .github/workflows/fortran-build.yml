@@ -9,6 +9,7 @@ jobs:
     - uses: actions/setup-python@v1
       with:
         python-version: '3.x'
-    - run: brew install gcc@8 ninja meson lapack
+    - run: brew install gcc@8 ninja
+    - run: pip install meson==0.53.2
     - run: FC=gfortran-8 CC=gcc-8 meson setup build_gcc --buildtype release -Dla_backend=netlib --warnlevel 0
     - run: ninja -C build_gcc test
