@@ -65,6 +65,7 @@ set_target_properties(xtb_static PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
   ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
   POSITION_INDEPENDENT_CODE ON
+  OUTPUT_NAME xtb
 )
 target_include_directories(xtb_static
  PUBLIC
@@ -86,6 +87,7 @@ target_link_libraries(xtb_shared
 set_target_properties(xtb_shared PROPERTIES
   Fortran_MODULE_DIRECTORY xtb-mod
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+  OUTPUT_NAME xtb
 )
 target_include_directories(xtb_shared
  PUBLIC
