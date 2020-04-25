@@ -104,6 +104,7 @@ Run the testsuite with
 ninja -C build test
 ----
 
+If you have chosen make as generator use the same command with make.
 All tests should pass, otherwise https://github.com/grimme-lab/xtb/issues/new/choose[open an issue].
 
 == Installing xtb with CMake
@@ -123,11 +124,5 @@ To perform the actual installation run
 ninja -C _build install
 ----
 
-if you have chosen make as generator use
-
-[source,bash]
-----
-make -C _build install
-----
-
+If you have chosen make as generator use the same command with make.
 Depending on the installation prefix and your user rights ninja/make might ask for the `root` access to perform the installation.
