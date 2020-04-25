@@ -20,24 +20,25 @@ This is the offical repository of the `xtb` program package developed by the Gri
 Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
 
-To compile `xtb` from source install Intel Parallel Studio 17 or later, or GCC version 8 or later.
+`xtb` is routinely compiled with Intel Parallel Studio 17 on our clusters in Bonn, successful builds on OSX have been performed as well.
+We have not tried to build `xtb` on Windows so far.
+It is also possible to compile `xtb` with GCC (version 8), but we recommend to use binaries compiled with Intel.
 
-There are two ways of building xtb.
+This projects supports two build systems, meson and CMake.
+A short guide on the usage of each is given here, follow the linked instructions for a more detailed guide ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
 
 ### Meson
-Using [`meson`](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.49 or newer.
-To use the default backend of `meson` you have to install [`ninja`](https://ninja-build.org/) version 1.5 or newer.
+
+Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.51 or newer.
+To use the default backend of meson you have to install [ninja](https://ninja-build.org/) version 1.7 or newer.
 
 ```bash
 export FC=ifort CC=icc
-meson setup build_intel --buildtype release --optimization=2
-ninja -C build_intel test
+meson setup build --buildtype release --optimization 2
+ninja -C build test
 ```
 
 Make sure the testsuite is running without errors.
-`xtb` is routinely compiled with Intel Parallel Studio 17 on our clusters in Bonn,
-but we have not tried to compile it on either OSX or Windows so far.
-It is also possible to compile `xtb` with GCC (version 8), but we recommend to use binaries compiled with Intel.
 
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
 
@@ -45,41 +46,30 @@ To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
 ninja -C build_intel install
 ```
 
-For a local installation (or if you want to pack a release), modify the
-configuration by using
-
-```bash
-meson configure build_intel --prefix=/
-DESTDIR=$HOME/.local ninja -C build_intel install
-```
-
-The build system will generate configuration files in `$DESTDIR/share/xtb` to
-be sourced in your `.bashrc` or `.cshrc` which will make `xtb` and the
-parameter files available. Also a pkg-config file is generated to make
-`xtb` available in other projects as dependency.
+For more information on the build with meson see the instructions [here](./meson/README.adoc).
 
 ### CMake
 
-The CMake build system requires both `make` and `cmake` to be installed, the
-latter has to be version 3.9 or newer.
+The CMake build system requires both make and CMake to be installed, the latter has to be version 3.9 or newer.
 
-Building xtb with CMake works with the following chain of commands:
+Building `xtb` with CMake works with the following chain of commands:
 
 ```bash
 mkdir build
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/.local ..
+pushd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
 make
-make install
+ctest
+popd
 ```
 
-The compiled tests can be executed using the following commands:
+To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
 
 ```bash
-cd build && XTBPATH=$PWD/.. OMP_NUM_THREADS=1 make test
+make -C build_intel install
 ```
 
-(This also works when not installing the program, but just building it.)
+For more detailed information on the build with CMake see the instructions [here](./cmake/README.adoc).
 
 ### Conda
 
@@ -104,6 +94,8 @@ conda search xtb --channel conda-forge
 ```
 
 ## Documentation
+
+[![Documentation Status](https://readthedocs.org/projects/xtb-docs/badge/?version=latest)](https://xtb-docs.readthedocs.io/en/latest/?badge=latest)
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
 
@@ -136,6 +128,8 @@ for sTDA-xTB:
 in the mass-spec context:
 - V. Asgeirsson, C. Bauer and S. Grimme, *Chem. Sci.*, **2017**, 8, 4879.
   DOI: [10.1039/c7sc00601b](https://dx.doi.org/10.1039/c7sc00601b)
+- J. Koopman and S. Grimme, *ACS Omega*, **2019**, 4, 12, 15120-15133.",&
+  DOI: [10.1021/acsomega.9b02011](https://dx.doi.org/10.1021/acsomega.9b02011)
 
 for metadynamics refer to:
 - S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
