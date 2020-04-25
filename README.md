@@ -25,7 +25,7 @@ We have not tried to build `xtb` on Windows so far.
 It is also possible to compile `xtb` with GCC (version 8), but we recommend to use binaries compiled with Intel.
 
 This projects supports two build systems, meson and CMake.
-A short guide on the usage of each is given here, follow the linked instructions for a more detailed guide ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
+A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
 
 ### Meson
 
