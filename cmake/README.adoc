@@ -1,0 +1,128 @@
+= Building xtb with CMake
+
+To build `xtb` from the source in this repository the https://cmake.org/[CMake build system] can be employed.
+The build files used require a CMake verson version of >= 3.9 or newer.
+We highly recommend to use CMake together with the https://ninja-build.org/[ninja] (version 1.10 required), but the default make build will work as well.
+
+== Getting CMake
+
+CMake should be available in a sufficient up-to-date version from your operating systems package manager.
+You can also use `conda` to install CMake and ninja from the conda-forge channel
+
+[source,bash]
+----
+conda config --add channels conda-forge
+conda install cmake ninja
+----
+
+Alternatively you can install the latest version of CMake and ninja with `pip` (or `pip3` depending on your system):
+
+[source,bash]
+----
+pip install cmake ninja [--user]
+----
+
+== Configure Intel Fortran build with MKL
+
+The recommended build for `xtb` is with Intel Parallel Studio using the Intel Fortran compiler and the Math Kernel Library as default backend.
+Precompiled, statically linked `xtb` binaries for Linux are provided at https://github.com/grimme-lab/xtb/releases/latest[release page].
+With CMake 3.13 and newer the configuration can be conveniently performed from the repository root by
+
+[source,bash]
+----
+export FC=ifort CC=icc
+cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release
+----
+
+For older versions of CMake use
+
+[source,bash]
+----
+export FC=ifort CC=icc
+mkdir _build
+pushd _build
+cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
+popd
+----
+
+To build the project use
+
+[source,bash]
+----
+ninja -C _build
+----
+
+Note, ninja will by default use all the threads available on your system.
+If you share the build machine with others it might be helpful to reduce the number of concurrent jobs using the `-j` flag.
+In case you prefer make leave out the `-GNinja` option and run
+
+[source,bash]
+----
+make -C _build -j
+----
+
+to build the project.
+
+== Configure GCC build
+
+`xtb` can also be compiled with GCC version 8 or later.
+The configuration with CMake 3.13 or newer can be performed conveniently with
+
+[source,bash]
+----
+export FC=gfortran CC=gcc
+cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release
+----
+
+For older versions of CMake you have to use
+
+[source,bash]
+----
+export FC=gfortran CC=gcc
+mkdir _build
+pushd _build
+cmake -GNinja -DCMAKE_BUILD_TYPE=Release ..
+popd
+----
+
+To compile and run `xtb` with GCC 7 (especially 7.3.0) the source code has to be patched at several placed, for appropriate patches visit the https://github.com/grimme-lab/xtb-feedstock[conda-forge feedstock repository].
+If you are compiling `xtb` on Darwin platforms, ensure that GCC is the actual GCC and not clang.
+The build can be performed just like before:
+
+[source,bash]
+----
+ninja -C _build
+----
+
+== Testing the build with CTest
+
+After successfully building the `xtb` program ensure that it is working as expected.
+Run the testsuite with
+
+[source,bash]
+----
+ninja -C build test
+----
+
+If you have chosen make as generator use the same command with make.
+All tests should pass, otherwise https://github.com/grimme-lab/xtb/issues/new/choose[open an issue].
+
+== Installing xtb with CMake
+
+To use `xtb` in production or to pack a release with precompiled binaries the project should be installed with ninja.
+The installation prefix defaults to `/usr/local` on Linux systems, you might want to adjust this first by configuring your build with
+
+[source,bash]
+----
+cmake _build -DCMAKE_INSTALL_PREFIX=$HOME/.local
+----
+
+To perform the actual installation run
+
+[source,bash]
+----
+ninja -C _build install
+----
+
+If you have chosen make as generator use the same command with make.
+Depending on the installation prefix and your user rights ninja/make might ask for the `root` access to perform the installation.

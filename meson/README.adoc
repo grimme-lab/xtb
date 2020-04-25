@@ -1,0 +1,107 @@
+= Building xtb with meson
+
+To build `xtb` from the source in this repository the https://mesonbuild.com[meson build system] can be used.
+For a decent Fortran support verson 0.51 of meson or newer is required to build `xtb`,
+additionally the default backend https://ninja-build.org/[ninja] is required with version 1.7 or newer.
+
+== Getting meson
+
+To install the meson build system first check your package manager for an up-to-date meson version,
+usually this will also install ninja as dependency.
+Alternatively you can install the latest version of meson and ninja with `pip` (or `pip3` depending on your system):
+
+[source,bash]
+----
+pip install meson ninja [--user]
+----
+
+If you prefer `conda` as a package manage you can install meson and ninja from the conda-forge channel.
+Make sure to select the conda-forge channel for searching packages.
+
+[source,bash]
+----
+conda config --add channels conda-forge
+conda install meson ninja
+----
+
+== Configure Intel Fortran build with MKL
+
+The recommended build for `xtb` is with Intel Parallel Studio using the Intel Fortran compiler and the Math Kernel Library as default backend.
+Precompiled, statically linked `xtb` binaries for Linux are provided at https://github.com/grimme-lab/xtb/releases/latest[release page].
+The setup for the linear algebra backend defaults to MKL, therefore, only the compilers have to exported before configuring the build:
+
+[source,bash]
+----
+export FC=ifort CC=icc
+meson setup build --buildtype release --optimization 2
+----
+
+After the configuration step the build can be performed with ninja:
+
+[source,bash]
+----
+ninja -C build
+----
+
+Note, ninja will by default use all the threads available on your system.
+If you share the build machine with others it might be helpful to reduce the number of concurrent jobs using the `-j` flag.
+
+== Configure GCC build with OpenBLAS
+
+`xtb` can also be compiled with GCC version 8 or later.
+For this example we additonally choose to change the linear algebra backend to OpenBLAS, if you have Intel Parallel Studio installed, you can leave out the last argument to get the MKL backend.
+
+[source,bash]
+----
+export FC=gfortran CC=gcc
+meson setup build --buildtype release --optimization 2 -Dla_backend=openblas
+----
+
+To compile and run `xtb` with GCC 7 (especially 7.3.0) the source code has to be patched at several placed, for appropriate patches visit the https://github.com/grimme-lab/xtb-feedstock[conda-forge feedstock repository].
+The build system will check if the OpenBLAS library provides LAPACK features as well, if this is not the case it will additionally search for LAPACK.
+If you are compiling `xtb` on Darwin platforms, ensure that GCC is the actual GCC and not clang.
+The build can be performed just like before:
+
+[source,bash]
+----
+ninja -C build
+----
+
+== Testing the build with meson
+
+After successfully building the `xtb` program ensure that it is working as expected.
+Run the testsuite with
+
+[source,bash]
+----
+ninja -C build test
+----
+
+All tests should pass, otherwise https://github.com/grimme-lab/xtb/issues/new/choose[open an issue].
+
+== Installing `xtb` with meson
+
+To use `xtb` in production or to pack a release with precompiled binaries the project should be installed with ninja.
+The installation prefix defaults to `/usr/local` on Linux systems, you might want to adjust this first by configuring your build with
+
+[source,bash]
+----
+meson configure build --prefix $HOME/.local
+----
+
+To perform the actual installation run
+
+[source,bash]
+----
+ninja -C build install
+----
+
+Depending on the installation prefix and your user rights ninja might ask for the `root` access to perform the installation.
+
+
+= Extending the meson build
+
+To add new source code it should be sufficient to add the new files in the `meson.build` file in the respective source directory in the `src` tree.
+New directories in the `src` tree can be included by adding them as `subdir` to the parent `meson.build` file.
+To kinds of source files are distinguished, all sources for the `xtb` library are included in the `srcs` variable, while files used exclusively for the executable are stored in the `prog` list.
+Source files for the testing are defined in the `TESTSUITE/meson.build` file together with their tests.
