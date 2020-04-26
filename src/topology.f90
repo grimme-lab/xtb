@@ -216,6 +216,8 @@ subroutine topologyToNeighbourList(topo, neighList, mol)
       neighList%weight(neighList%neighs(iat), iat) = iBond(3)
    end do
 
+   call neighList%sort
+
 end subroutine topologyToNeighbourList
 
 
