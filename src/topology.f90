@@ -93,7 +93,7 @@ subroutine makeBondTopology(topo, mol, wbo)
    do iat = 1, len(mol)
       do jat = 1, iat-1
          associate(w => wbo(jat, iat))
-            if (mol%at(iat) == 6 .and. mol%at(jat) == 6) then
+            if (any(mol%at(iat) == [6, 7, 8]) .and. any(mol%at(jat) == [6, 7, 8])) then
                if (w > wbothr .and. w <= 1.2_wp) then
                   call topo%push_back([jat, iat, 1])
                else if (w > 1.5_wp .and. w <= 2.3_wp) then
