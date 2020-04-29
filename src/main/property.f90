@@ -20,6 +20,7 @@ module xtb_propertyoutput
    use xtb_mctc_io, only : stdout
    use xtb_mctc_symbols, only : toSymbol
    use xtb_cube
+   use xtb_topology
 
 contains
 
@@ -158,6 +159,8 @@ subroutine main_property &
       call print_wbofile(ifile,mol%n,wfx%wbo,0.1_wp)
       call close_file(ifile)
       call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
+
+      call checkTopology(iunit, mol, wfx%wbo, 1)
    endif
 
    if (pr_wbofrag) &
