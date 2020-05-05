@@ -28,7 +28,6 @@ pure subroutine getsymnum(pgroup,lin,symnum)
    if(index(pgroup,'cs').ne.0)symnum=1
    if(index(pgroup,'c2').ne.0)symnum=2
    if(index(pgroup,'c3').ne.0)symnum=3
-   if(index(pgroup,'s6').ne.0)symnum=3
    if(index(pgroup,'c4').ne.0)symnum=4
    if(index(pgroup,'c5').ne.0)symnum=5
    if(index(pgroup,'c6').ne.0)symnum=6
@@ -37,6 +36,9 @@ pure subroutine getsymnum(pgroup,lin,symnum)
    if(index(pgroup,'c9').ne.0)symnum=9
    if(index(pgroup,'c10').ne.0)symnum=10
    if(index(pgroup,'c11').ne.0)symnum=11
+   if(index(pgroup,'s4').ne.0)symnum=2
+   if(index(pgroup,'s6').ne.0)symnum=3
+   if(index(pgroup,'s8').ne.0)symnum=4
    if(index(pgroup,'d2').ne.0)symnum=4
    if(index(pgroup,'d3').ne.0)symnum=6
    if(index(pgroup,'d4').ne.0)symnum=8
@@ -58,7 +60,6 @@ pure subroutine getsymnum(pgroup,lin,symnum)
    if(index(pgroup,'Cs').ne.0)symnum=1
    if(index(pgroup,'C2').ne.0)symnum=2
    if(index(pgroup,'C3').ne.0)symnum=3
-   if(index(pgroup,'S6').ne.0)symnum=3
    if(index(pgroup,'C4').ne.0)symnum=4
    if(index(pgroup,'C5').ne.0)symnum=5
    if(index(pgroup,'C6').ne.0)symnum=6
@@ -67,6 +68,9 @@ pure subroutine getsymnum(pgroup,lin,symnum)
    if(index(pgroup,'C9').ne.0)symnum=9
    if(index(pgroup,'C10').ne.0)symnum=10
    if(index(pgroup,'C11').ne.0)symnum=11
+   if(index(pgroup,'S4').ne.0)symnum=2
+   if(index(pgroup,'S6').ne.0)symnum=3
+   if(index(pgroup,'S8').ne.0)symnum=4
    if(index(pgroup,'D2').ne.0)symnum=4
    if(index(pgroup,'D3').ne.0)symnum=6
    if(index(pgroup,'D4').ne.0)symnum=8
