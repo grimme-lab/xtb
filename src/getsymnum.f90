@@ -15,6 +15,8 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+
+! This is the ROTATIONAL symmetry number (sigma)
 pure subroutine getsymnum(pgroup,lin,symnum)
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -44,7 +46,10 @@ pure subroutine getsymnum(pgroup,lin,symnum)
    if(index(pgroup,'d8').ne.0)symnum=16
    if(index(pgroup,'d9').ne.0)symnum=18
    if(index(pgroup,'d10').ne.0)symnum=20
+   if(index(pgroup,'t').ne.0)symnum=12
+   if(index(pgroup,'th').ne.0)symnum=12
    if(index(pgroup,'td').ne.0)symnum=12
+   if(index(pgroup,'o').ne.0)symnum=24
    if(index(pgroup,'oh').ne.0)symnum=24
    if(index(pgroup,'ih').ne.0)symnum=60
    if(index(pgroup,'c').ne.0.and.lin)symnum=1
@@ -71,7 +76,10 @@ pure subroutine getsymnum(pgroup,lin,symnum)
    if(index(pgroup,'D8').ne.0)symnum=16
    if(index(pgroup,'D9').ne.0)symnum=18
    if(index(pgroup,'D10').ne.0)symnum=20
+   if(index(pgroup,'T').ne.0)symnum=12
+   if(index(pgroup,'Th').ne.0)symnum=12
    if(index(pgroup,'Td').ne.0)symnum=12
+   if(index(pgroup,'O').ne.0)symnum=24
    if(index(pgroup,'Oh').ne.0)symnum=24
    if(index(pgroup,'Ih').ne.0)symnum=60
    if(index(pgroup,'C').ne.0.and.lin)symnum=1
