@@ -1,16 +1,16 @@
 subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
   use iso_fortran_env
-  use re_start
-  use tbdef_molecule
+  use xtb_restart
+  use xtb_type_molecule
   use gff_param
-  use setparam, only : ichrg
+  use xtb_setparam, only : ichrg
   implicit none
 ! Dummy
   !integer,intent(in) :: ich
   integer,intent(in) :: p_ext_gfnff
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
-  type(tb_molecule)  :: mol
+  type(TMolecule)    :: mol
 ! Stack
   logical            :: ex
   logical            :: success
@@ -45,12 +45,12 @@ end subroutine gfnff_setup
 
 subroutine gfnff_input(mol)
   use iso_fortran_env, only : wp => real64
-  use tbdef_molecule
+  use xtb_type_molecule
   use gff_param
-  use setparam, only : ichrg
+  use xtb_setparam, only : ichrg
   implicit none
 ! Dummy  
-  type(tb_molecule),intent(in) :: mol
+  type(TMolecule),intent(in) :: mol
 ! Stack
   integer           :: i,j,k
   integer           :: ni
@@ -148,12 +148,6 @@ subroutine gfnff_input(mol)
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
     case(0)
-    !ex=.false.  
-    !inquire(file='.CHRG',exist=ex)
-       ! if (ichrg.ne.0) then
-       !    qfrag(1) = ichrg
-       !    qfrag(2:mol%n) = 9999
-       !if(ex)then
        call open_file(ich,'.CHRG','r')
        if (ich.ne.-1) then
            !open(unit=1,file='.CHRG')

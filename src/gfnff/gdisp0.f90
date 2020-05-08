@@ -3,7 +3,7 @@
      &                        disp,g,cn,dcnij)
       use gff_d3com
       use gff_param, only:d3r0,zetac6
-      use tbpar_dftd3
+      use xtb_disp_dftd3param
       implicit none  
 
       integer,intent(in) :: n,iz(n),npair,pairlist(2,n*(n+1)/2)

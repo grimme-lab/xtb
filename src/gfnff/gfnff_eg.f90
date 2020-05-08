@@ -29,11 +29,10 @@
    subroutine gfnff_eg(pr,n,ichrg,at,xyz,makeq,g,etot,res_gff)
       use gff_param
       use gff_d3com, only: rcov
-      use gff_qmmm   
-      use tbdef_data
-      use tbdef_timer
+      use xtb_type_data
+      use xtb_type_timer
       use gffmod_dftd3
-      use gbobc
+      use xtb_solv_gbobc
       implicit none
       type(scc_results),intent(out) :: res_gff
       integer n
@@ -49,7 +48,7 @@
       real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext,eqmmm
       real*8 :: gsolv, gborn, ghb
 
-      type(tb_solvent) :: gbsa
+      type(TSolvent) :: gbsa
 
       integer i,j,k,l,m,ij,nd3
       integer ati,atj,iat,jat

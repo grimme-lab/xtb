@@ -35,7 +35,6 @@ srcs += files(
   'mdcom.f90',
   'md.f',
   'mrec.f',
-  'nbondmat.f',
   'occu.f90',
   'shake_module.f',
   'shortest_distance.f90',

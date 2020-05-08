@@ -24,18 +24,20 @@ subroutine struc_convert( &
          & etot,g,sigma)
   use iso_fortran_env, only : wp => real64
   use gff_param
-  use tbpar_dftd3
-  use tbdef_molecule
-  use tbdef_wavefunction
-  use tbdef_calculator
-  use tbdef_data
-  use re_start
-  use set_module
-  use setparam
-  use dynamic
-  use readin, only : xfind
+  use xtb_disp_dftd3param
+  use xtb_type_environment
+  use xtb_type_molecule
+  use xtb_type_wavefunction
+  use xtb_typ_calculator
+  use xtb_type_data
+  use xtb_restart
+  use xtb_setmod
+  use xtb_setparam
+  use xtb_dynamic
+  use xtb_readin, only : xfind
   implicit none
 ! Dummy -----------------------------------------------------------------------
+  type(tb_molecule),intent(inout)             :: mol
   type(tb_molecule),intent(inout)             :: mol
   type(tb_wavefunction),intent(inout)         :: wfn
   type(tb_calculator),intent(in)              :: calc
