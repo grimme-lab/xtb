@@ -104,6 +104,30 @@ write(iunit,'(10x,a)') &
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
 end subroutine gfn2_header
 
+subroutine gfnff_header(iunit)
+integer,intent(in) :: iunit
+write(iunit,'(10x,a)') &
+   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
+   " ------------------------------------------------- ",&
+   "|                   G F N - F F                   |",&
+   "|          A general generic force-field          |",&
+   "|           based on GFN ideas and parts          |",&
+   " ------------------------------------------------- "
+   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
+end subroutine gfnff_header
+
+subroutine struc_convert_header(iunit)
+integer,intent(in) :: iunit
+write(iunit,'(10x,a)') &
+   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
+   " ------------------------------------------------- ",&
+   "|                     2D => 3D                    |",&
+   "|          A structure converter based on         |",&
+   "|                   G F N - F F                   |",&
+   " ------------------------------------------------- "
+   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
+end subroutine struc_convert_header
+
 subroutine ipea_header(iunit)
 integer,intent(in) :: iunit
 write(iunit,'(10x,a)') &

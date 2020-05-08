@@ -34,6 +34,7 @@ subroutine struc_convert( &
   use xtb_setmod
   use xtb_setparam
   use xtb_dynamic
+  use xtb_geoopt
   use xtb_readin, only : xfind
   implicit none
 ! Dummy -----------------------------------------------------------------------
@@ -101,7 +102,7 @@ subroutine struc_convert( &
 !------------------------------------------------------------------------------
 ! force field geometry optimization
   call geometry_optimization &
-      &     (mol,wfn,calc,   &
+      &     (env,mol,wfn,calc,   &
       &      egap,etemp,maxiter,maxcycle,etot,g,sigma,p_olev_crude,.false.,.true.,fail)
   if (allocated(fnv)) then
     opt_logfile = fnv

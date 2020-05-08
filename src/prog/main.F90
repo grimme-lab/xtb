@@ -70,6 +70,7 @@ module xtb_prog_main
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
    use xtb_xtb_calculator
+   use xtb_gfnff_calculator
    use xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
@@ -79,6 +80,9 @@ module xtb_prog_main
    use xtb_metadynamic
    use xtb_biaspath
    use xtb_coffee
+   use xtb_disp_dftd3param
+   use xtb_disp_dftd4
+   use gff_param, only : gff_print
    implicit none
    private
 
@@ -242,6 +246,18 @@ subroutine xtbMain(env, argParser)
          call env%error('.UHF is empty!', source)
       else
          call set_spin(env,cdum)
+         call close_file(ich)
+      end if
+   endif
+   
+   !> efield read: gfnff only
+   call open_file(ich,'.EFIELD','r')
+   if (ich.ne.-1) then
+      call getline(ich,cdum,iostat=err)
+      if (err /= 0) then
+         call env%error('.EFIELD is empty!', source)
+      else
+         call set_efield(env,cdum)
          call close_file(ich)
       end if
    endif
@@ -422,15 +438,19 @@ subroutine xtbMain(env, argParser)
       case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess, &
             p_run_md,p_run_omd,p_run_path,p_run_screen, &
             p_run_modef,p_run_mdopt,p_run_metaopt)
-         if(gfn_method.eq.0) then
-            fnv=xfind(p_fname_param_gfn0)
-         endif
-         if(gfn_method.eq.1) then
-            fnv=xfind(p_fname_param_gfn1)
-         endif
-         if(gfn_method.eq.2) then
-            fnv=xfind(p_fname_param_gfn2)
-         endif
+        if (mode_extrun.eq.p_ext_gfnff) then
+            fnv=xfind(p_fname_param_gfnff)
+        else
+           if(gfn_method.eq.0) then
+              fnv=xfind(p_fname_param_gfn0)
+           endif
+           if(gfn_method.eq.1) then
+              fnv=xfind(p_fname_param_gfn1)
+           endif
+           if(gfn_method.eq.2) then
+              fnv=xfind(p_fname_param_gfn2)
+           endif
+        end if
       case(p_run_vip,p_run_vea,p_run_vipea,p_run_vfukui,p_run_vomega)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
@@ -502,6 +522,14 @@ subroutine xtbMain(env, argParser)
       call checkMopac(env)
    end select
 
+   ! ------------------------------------------------------------------------
+   !> initialize GFN-force-field
+   select type(calc)
+   type is(TGFFCalculator)
+      if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
+      call gfnff_setup(verbose,restart,mol,p_ext_gfnff)
+   end select
+
    call delete_file('.sccnotconverged')
 
    call env%checkpoint("Setup for calculation failed")
@@ -524,7 +552,10 @@ subroutine xtbMain(env, argParser)
       &       (env,mol,wfn,calc, &
       &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
-
+   select type(calc)
+   type is(TGFFCalculator)
+     gff_print=.false.
+   end select
    call env%checkpoint("Single point calculation terminated")
 
 

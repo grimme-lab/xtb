@@ -27,17 +27,17 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
        if (.not.success) then
           write(*,'(10x,"GFN-FF topology read in did not work!")')    
           write(*,'(10x,"Generating new topology file!")')
-          call gfnff_ini(verbose,ini,mol%n,ichrg,mol%at,mol%xyz)
+          call gfnff_ini(verbose,ini,mol,ichrg)
           call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
        end if
      else
-       call gfnff_ini(verbose,ini,mol%n,ichrg,mol%at,mol%xyz)
+       call gfnff_ini(verbose,ini,mol,ichrg)
        if (.not.mol%struc%two_dimensional) then
           call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
        end if   
      end if
   else if (.not.restart) then
-     call gfnff_ini(verbose,ini,mol%n,ichrg,mol%at,mol%xyz)
+     call gfnff_ini(verbose,ini,mol,ichrg)
      call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
   end if
 

@@ -11,8 +11,8 @@ module gff_param
 
    !loicals
    logical  :: ini       !make a neghbour lsit or use existing one?
-   logical  :: gff_print !shows timing of energy + gradient
-   logical  :: make_chrg = .true.
+   logical  :: gff_print = .true. !shows timing of energy + gradient
+   logical  :: make_chrg = .true. !generates new eeq chareges based on current geometry
 
    real(wp), private, parameter :: p_gff_chi(86) = [&
       & 1.227054_wp, 1.451412_wp, 0.813363_wp, 1.062841_wp, 1.186499_wp, &

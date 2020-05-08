@@ -1,17 +1,16 @@
 !last change Thu Jul 11 08:36:42 CEST 2019
-subroutine gfnff_ini(pr,makeneighbor,n,ichrg,at,xyz)
+subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       use iso_fortran_env, only : wp => real64, sp => real32
+      use xtb_type_molecule
       use gff_param
       use gff_d3com, only: rcov,r2r4
       use gff_frag_hess
       use re_start
       implicit none
 !--------------------------------------------------------------------------------------------------
-      !integer, intent(in) :: iunit
-      integer, intent(in) :: n             ! # of atoms
-      integer, intent(in) :: at(n)         ! ordinal numbers
+      type(TMolecule), intent(in) :: mol   ! # molecule type
+      
       integer, intent(in) :: ichrg         ! mol. charge
-      real(wp),intent(in) :: xyz(3,n)      ! coords
       logical, intent(in) :: pr            ! print flag
       logical, intent(in) :: makeneighbor  ! make a neigbor list or use existing one?
 !--------------------------------------------------------------------------------------------------
@@ -64,23 +63,14 @@ subroutine gfnff_ini(pr,makeneighbor,n,ichrg,at,xyz)
       real(sp),allocatable:: rabd(:,:)
       
       character(len=255) atmp
-      character(len=2) asym
       integer  :: ich, err
+
+      settingNames: associate( n => mol%n, at => mol%at, xyz => mol%xyz )
 
       if (pr) then
          write(*,*) 
          write(*,'(10x,"entering GFN-FF setup routine... ",i0)') n
       endif
-
-      !inquire(file='gfnff_topo', exist=ex)
-      !if (ex) then
-      !  call read_restart('gfnff_topo',n,13,success,.true.)
-      !  if (success) write(*,'(10x,"GFN-FF topology read from file successfully!")')
-      !  if (.not.success) write(*,'(10x,"GFN-FF topology read in did not work!")')
-      !  return
-      !end if
-      !call gfnff_set_param(n)
-      !call gfnff_read_param(iunit)
 
       write(*,*)
       write(*,'(10x,"==================== Thresholds ====================")')
@@ -832,7 +822,7 @@ subroutine gfnff_ini(pr,makeneighbor,n,ichrg,at,xyz)
          if(pisip(pis).gt.0.40) then
             write(*,*)'WARNING: probably wrong pi occupation. Second attempt with Nel=Nel-1!'
             do i=1,n
-               if(piadr4(i).ne.0) write(*,*) 'at,nb,hyb,Npiel:', i,asym(at(i)),nb(20,i),hyb(i),piel(i)
+               if(piadr4(i).ne.0) write(*,*) 'at,nb,hyb,Npiel:', i,mol%sym(i),nb(20,i),hyb(i),piel(i)
             enddo
             nelpi=nelpi-1
             Api = Apisave 
@@ -878,13 +868,13 @@ subroutine gfnff_ini(pr,makeneighbor,n,ichrg,at,xyz)
 
 !     if(pr)then
       write(*,*)
-      write(*,'(" atom   neighbors  erfCN metchar sp-hybrid imet pi  qest     coordinates")')
+      write(*,'(2x,"atom   neighbors  erfCN metchar sp-hybrid imet pi  qest     coordinates")')
       do i=1,n
          j = hyb(i)
          if(amide(n,at,hyb,nb,piadr,i))  j=-hyb(i)
          if(at(i).eq.6.and.itag(i).eq.1) j=-hyb(i)
          write(*,'(i5,2x,a2,3x,i4,3x,f5.2,2x,f5.2,8x,i2,3x,i2,3x,i2,2x,f6.3,3f12.6)') &
-     &             i,asym(at(i)),nb(20,i),cn(i),mchar(i),j,imetal(i),piadr(i),qa(i),xyz(1:3,i)
+     &             i,mol%sym(i),nb(20,i),cn(i),mchar(i),j,imetal(i),piadr(i),qa(i),xyz(1:3,i)
       enddo
 
 !     compute fragments and charges for output (check for CT)
@@ -1131,7 +1121,7 @@ subroutine gfnff_ini(pr,makeneighbor,n,ichrg,at,xyz)
 ! output
          r0 = (rtmp(ij)+vbond(1,i))*0.529167 
          if(pr) write(*,'(2a3,2i5,2x,2i5,2x,6f8.3)') & 
-     &   asym(ia),asym(ja),ii,jj,bbtyp,rings,0.529167*rab(ij),r0,pibo(i),fqq,vbond(3,i),vbond(2,i)
+     &   mol%sym(ii),mol%sym(jj),ii,jj,bbtyp,rings,0.529167*rab(ij),r0,pibo(i),fqq,vbond(3,i),vbond(2,i)
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1751,7 +1741,9 @@ subroutine gfnff_ini(pr,makeneighbor,n,ichrg,at,xyz)
       write(*,*)
       endif
 
-end
+      end associate settingNames
+
+end subroutine gfnff_ini
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

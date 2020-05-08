@@ -92,6 +92,11 @@ program peeq_tester
       case('api'); call test_gfn0_api
       case('srb'); call test_gfn0_api_srb
       end select
+   case('gfnff')
+      select case(sec)
+      case('sp');  call test_gfnff_sp
+      case('hb');  call test_gfnff_hb
+      end select
    case('peeq')
       select case(sec)
       case('sp');  call test_peeq_sp

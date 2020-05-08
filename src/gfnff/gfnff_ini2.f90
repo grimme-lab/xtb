@@ -16,7 +16,6 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       real*8  lintr                    ! threshold for linearity
 
       logical etacoord,da,strange_iat,metal_iat
-      character*2 asym
       integer,allocatable :: nbdum(:,:)
       real*8 ,allocatable :: cn(:),rtmp(:)                     
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm

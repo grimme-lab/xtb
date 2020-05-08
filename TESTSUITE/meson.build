@@ -31,6 +31,7 @@ xtb_test += files('dftd4.f90')
 xtb_test += files('gfn2.f90')
 xtb_test += files('gfn1.f90')
 xtb_test += files('gfn0.f90')
+xtb_test += files('gfnff.f90')
 xtb_test += files('peeq.f90')
 xtb_test += files('repulsion.f90')
 xtb_test += files('symmetry.f90')
@@ -64,6 +65,7 @@ test('IP/EA', xtb_exe, args: ['--coffee', '--gfn', '2', '--vipea', '--strict', '
 test('GFN0-xTB', xtb_exe, args: ['--coffee', '--gfn', '0', '--strict', '--norestart'], env: xtbenv)
 test('GFN1-xTB', xtb_exe, args: ['--coffee', '--gfn', '1', '--strict', '--norestart'], env: xtbenv)
 test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--gbsa', 'h2o', '--norestart'], env: xtbenv)
+test('GFN-FF', xtb_exe, args: ['--coffee', '--gfnff', '--strict', '--norestart'], env: xtbenv)
 
 # more specific tests are implemented by the tester binary
 test('Molecule: axis', xtb_test, args: ['xtb_type_molecule', 'axis'], env: xtbenv)
@@ -168,3 +170,6 @@ test('GFN0-xTB: SRB', xtb_test, args: ['gfn0', 'srb'], env: xtbenv)
 test('GFN0-xTB: SP  (PBC)', xtb_test, args: ['peeq', 'sp'], env: xtbenv)
 test('GFN0-xTB: API (PBC)', xtb_test, args: ['peeq', 'api'], env: xtbenv)
 test('GFN0-xTB: SRB (PBC)', xtb_test, args: ['peeq', 'srb'], env: xtbenv)
+
+test('GFN-FF: SP', xtb_test, args: ['gfnff', 'sp'])
+test('GFN-FF: SP (HB)', xtb_test, args: ['gfnff', 'hb'])

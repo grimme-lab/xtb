@@ -103,7 +103,7 @@
       subroutine getdC6gfnff(mxci,mxcj,cni,cnj,&
      &                       izi,izj,iat,jat,c6,dc6i,dc6j) 
       use gff_d3com
-      use tbpar_dftd3
+      use xtb_disp_dftd3param
       IMPLICIT NONE
       integer mxci,mxcj 
       integer iat,jat,izi,izj
@@ -171,7 +171,8 @@
       end 
 
 module gffmod_dftd3
-   use iso_fortran_env, only: wp => real64
+   !use iso_fortran_env, only: wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    public :: d3_gradient
    private
@@ -181,7 +182,7 @@ contains
 !> Calculate the weights of the reference system and the derivatives w.r.t.
 !  coordination number for later use.
 subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
-   use tbpar_dftd3
+   use xtb_disp_dftd3param
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> Atomic numbers of every atom.
@@ -240,7 +241,7 @@ end subroutine weight_references
 !> Calculate the weights of the reference system and the derivatives w.r.t.
 !  coordination number for later use.
 subroutine weight_references_d4(nat, atoms, wf, cn, gwvec, gwdcn)
-   use dftd4
+   use xtb_disp_dftd4
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> Atomic numbers of every atom.
@@ -257,6 +258,8 @@ subroutine weight_references_d4(nat, atoms, wf, cn, gwvec, gwdcn)
    integer :: iat, ati, iref, icount
    real(wp) :: norm, dnorm, gw, expw, expd, gwk, dgwk
 
+   dispm = tb_dispersion_model()
+
    gwvec = 0.0_wp
    gwdcn = 0.0_wp
 
@@ -264,20 +267,20 @@ subroutine weight_references_d4(nat, atoms, wf, cn, gwvec, gwdcn)
       ati = atoms(iat)
       norm = 0.0_wp
       dnorm = 0.0_wp
-      do iref = 1, refn(ati)
-         gw = weight_cn(wf, cn(iat), refcn(iref, ati))
+      do iref = 1, dispm%nref(ati)
+         gw = weight_cn(wf, cn(iat), dispm%cn(iref, ati))
          norm = norm + gw
-         dnorm = dnorm + 2*wf*(refcn(iref, ati) - cn(iat)) * gw
+         dnorm = dnorm + 2*wf*(dispm%cn(iref, ati) - cn(iat)) * gw
       end do
       norm = 1.0_wp / norm
-      do iref = 1, refn(ati)
-         expw = weight_cn(wf, cn(iat), refcn(iref, ati))
-         expd = 2*wf*(refcn(iref, ati) - cn(iat)) * expw
+      do iref = 1, dispm%nref(ati)
+         expw = weight_cn(wf, cn(iat), dispm%cn(iref, ati))
+         expd = 2*wf*(dispm%cn(iref, ati) - cn(iat)) * expw
 
          gwk = expw * norm
          if (gwk /= gwk) then
-            if (maxval(refcn(:refn(ati), ati)) &
-               & == refcn(iref, ati)) then
+            if (maxval(dispm%cn(:dispm%nref(ati), ati)) &
+               & == dispm%cn(iref, ati)) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
@@ -299,7 +302,7 @@ end subroutine weight_references_d4
 !> calculate atomic dispersion coefficients and their derivatives w.r.t.
 !  the coordination number.
 subroutine get_atomic_c6(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
-   use tbpar_dftd3
+   use xtb_disp_dftd3param
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> numbers of every atom.
@@ -345,8 +348,8 @@ end subroutine get_atomic_c6
 !> calculate atomic dispersion coefficients and their derivatives w.r.t.
 !  the coordination number.
 subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
-   use tbpar_dftd3, only : get_c6
-   use dftd4
+   use xtb_disp_dftd3param, only : get_c6
+   use xtb_disp_dftd4
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> numbers of every atom.
@@ -363,6 +366,8 @@ subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj
 
+   dispm = tb_dispersion_model()
+
    c6 = 0.0_wp
    dc6dcn = 0.0_wp
 
@@ -373,8 +378,8 @@ subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
          dc6 = 0.0_wp
          dc6dcni = 0.0_wp
          dc6dcnj = 0.0_wp
-         do iref = 1, refn(ati)
-            do jref = 1, refn(atj)
+         do iref = 1, dispm%nref(ati)
+            do jref = 1, dispm%nref(atj)
                refc6 = get_c6(iref, jref, ati, atj)
                dc6 = dc6 + gwvec(iref, iat) * gwvec(jref, jat) * refc6
                dc6dcni = dc6dcni + gwdcn(iref, iat) * gwvec(jref, jat) * refc6
@@ -391,8 +396,8 @@ end subroutine get_atomic_c6_d4
 
 subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, weighting_factor, &
       &                cn, dcndr, energy, gradient)
-   use tbpar_dftd3
-   use dftd4
+   use xtb_disp_dftd3param
+   use xtb_disp_dftd4
    use mctcpar_r4r2, only: r4r2 => sqrt_z_r4_over_r2
 
    integer, intent(in) :: nat
@@ -421,7 +426,9 @@ subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, weighti
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
    real(wp), allocatable :: energies(:), dEdcn(:)
 
-   max_ref = maxval(refn(at))
+   dispm = tb_dispersion_model()
+
+   max_ref = maxval(dispm%nref(at))
    allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
       &     dc6dcn(nat, nat), energies(nat), dEdcn(nat), source=0.0_wp)
 

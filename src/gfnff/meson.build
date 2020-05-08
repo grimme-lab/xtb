@@ -16,7 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'axis.f',
+  'calculator.f90',
   'd3com.f90',
   'dmat.f',
   'fermi.f',
@@ -29,15 +29,10 @@ srcs += files(
   'gfnff_qm.f90',
   'gfnff_rab.f',
   'gfnff_setup.f90',
-  'hess_stuff.f',
-  'lin.f',
   'math.f',
   'mdcom.f90',
-  'md.f',
   'mrec.f',
   'occu.f90',
   'shake_module.f',
-  'shortest_distance.f90',
   'struc_converter.f90',
-  'timing.f',
 )

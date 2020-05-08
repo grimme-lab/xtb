@@ -6,7 +6,7 @@
 ! gfnff_ini call
 !
 ! the total energy is
-! ees + edisp + erep + ebond + eangl + etors + ehb + exb + ebatm + eext + eqmmm
+! ees + edisp + erep + ebond + eangl + etors + ehb + exb + ebatm + eext
 !
 ! uses EEQ charge and D3 routines
 ! basic trigonometry for bending and torsion angles
@@ -40,12 +40,11 @@
       integer at(n)
       real*8 xyz(3,n)
       real*8 g  (3,n)
-      !real*8 q  (n)
       real*8 etot
       logical pr 
       logical makeq
 
-      real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext,eqmmm
+      real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext
       real*8 :: gsolv, gborn, ghb
 
       type(TSolvent) :: gbsa
@@ -53,8 +52,6 @@
       integer i,j,k,l,m,ij,nd3
       integer ati,atj,iat,jat
       integer hbA,hbB
-      !integer nr_hb
-      !integer bond_hbn
       integer lin   
       logical ex
       real*8  r2,rab,qq0,erff,dd,dum1,r3(3),t8,dum,t22,t39
@@ -72,7 +69,6 @@
       real*8, allocatable :: sqrab(:), srab(:)
       real*8, allocatable :: g5tmp(:,:)
       integer,allocatable :: d3list(:,:)                 
-      !integer,allocatable :: bond_hbl(:,:)
       type(tb_timer) :: timer
       
       g  =  0
@@ -86,7 +82,6 @@
       etors=0
       ebatm=0
       eext =0
-      eqmmm=0
 
       allocate(sqrab(n*(n+1)/2),srab(n*(n+1)/2),qtmp(n),g5tmp(3,n), &
      &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
@@ -295,33 +290,6 @@
          else
             call egbond(i,iat,jat,rab,rij,drij,n,at,xyz,ebond,g)
          end if
-!----------------------------------------------------------------------------------------
-! original implementation of ebond + gradient:
-         !t8 =vbond(2,i)
-         !dr =rab-rij
-         !dum=vbond(3,i)*exp(-t8*dr**2)
-         !ebond=ebond+dum                      ! energy
-!        !write(*,'(i3,10f12.6)') i,dum,vbond(3,i),vbond(2,i),rab,rij
-         !yy=2.0d0*t8*dr*dum
-         !dx=xyz(1,iat)-xyz(1,jat)
-         !dy=xyz(2,iat)-xyz(2,jat)
-         !dz=xyz(3,iat)-xyz(3,jat)
-         !t4=-yy*(dx/rab-grab0(1,iat,i))
-         !t5=-yy*(dy/rab-grab0(2,iat,i))
-         !t6=-yy*(dz/rab-grab0(3,iat,i))
-         !g(1,iat)=g(1,iat)+t4-grab0(1,iat,i)*yy ! to avoid if in loop below
-         !g(2,iat)=g(2,iat)+t5-grab0(2,iat,i)*yy
-         !g(3,iat)=g(3,iat)+t6-grab0(3,iat,i)*yy
-         !t4=-yy*(-dx/rab-grab0(1,jat,i))
-         !t5=-yy*(-dy/rab-grab0(2,jat,i))
-         !t6=-yy*(-dz/rab-grab0(3,jat,i))
-         !g(1,jat)=g(1,jat)+t4-grab0(1,jat,i)*yy ! to avoid if in loop below
-         !g(2,jat)=g(2,jat)+t5-grab0(2,jat,i)*yy
-         !g(3,jat)=g(3,jat)+t6-grab0(3,jat,i)*yy
-         !do k=1,n !3B gradient
-         !   g(:,k)=g(:,k)+grab0(:,k,i)*yy 
-         !enddo
-!---------------------------------------------------------------------------------------------
       enddo
 !!$omp end do
 !!$omp end parallel
@@ -517,13 +485,11 @@
          enddo
       endif
 
-      call qmmm_eg(n,at,xyz,eqmmm,g)
-
 !!!!!!!!!!!!!!!!!!
 ! total energy
 !!!!!!!!!!!!!!!!!!
  99   etot = ees + edisp + erep + ebond &
-     &           + eangl + etors + ehb + exb + ebatm + eext + eqmmm &
+     &           + eangl + etors + ehb + exb + ebatm + eext &
      &           + gsolv + gshift + gborn + ghb
 
 !!!!!!!!!!!!!!!!!!
@@ -713,12 +679,7 @@
          do k=1,n !3B gradient
             g(:,k)=g(:,k)+drij(:,k)*yy 
          end do
-         zz=dum*vbond(2,i)*dr**2*t1!*0.5
-         !do j=1,n
-         !   do k=1,n
-         !      g(:,j)=g(:,j)+hb_dcn(:,k,j)*zz
-         !   end do   
-         !end do
+         zz=dum*vbond(2,i)*dr**2*t1
          do j=1,bond_hb_nr !CN gradient
             jH = bond_hb_AH(2,j)
             jA = bond_hb_AH(1,j)
@@ -830,11 +791,9 @@
          dt  = theta - c0  
          ea  = kijk * dt**2
          deddt = 2.d0 * kijk * dt 
-!        write(*,'(''case 1'',3i3,4f10.5)') j,i,k,c0*180./pi,theta*180./pi,kijk,ea*627.5
          else
          ea=kijk*(cosa-cos(c0))**2 
          deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)               
-!        write(*,'(''case 2'',3i3,4f10.5)') j,i,k,c0*180./pi,theta*180./pi,kijk,ea*627.5
          endif
 
          e = ea * damp
@@ -935,8 +894,6 @@
       real*8  dampjl,damp2jl,valijklff,rn
       parameter (pi = 3.1415926535897932384626433832795029d0)
 
-         !c0  =vangl(1,m)
-         !kijk=vangl(2,m)
          va(1:3) = xyz(1:3,i)
          vb(1:3) = xyz(1:3,j)
          vc(1:3) = xyz(1:3,k)
@@ -1028,7 +985,6 @@
          g(1:3,3)=dij*ddc(1:3)+term3-term2    
          g(1:3,4)=dij*ddd(1:3)-term3
          e=et*damp
-!        write(*,'(4i3,6f10.5)') i,j,k,l,phi*180./pi,phi0*180./pi,rn,et*damp*627.5
          else
          vab(1:3) = xyz(1:3,j)-xyz(1:3,i)
          vcb(1:3) = xyz(1:3,j)-xyz(1:3,k)
@@ -1061,7 +1017,6 @@
          g(1:3,3)=dij*ddc(1:3)-term2
          g(1:3,4)=dij*ddd(1:3)-term3
          e=et*damp
-!        write(*,'(4i3,6f10.5)') i,j,k,l,phi*180./pi,phi0*180./pi,et*damp*627.5
          endif
 
       end
@@ -1114,7 +1069,6 @@
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
       subroutine egtors_nci(i,j,k,l,rn,phi0,fc,n,at,xyz,e,g)                 
-      !use gff_param
       implicit none
       !Dummy
       integer n,at(n)
@@ -1134,8 +1088,6 @@
       real*8  dampjl,damp2jl,valijklff
       parameter (pi = 3.1415926535897932384626433832795029d0)
 
-         !rn=dble(tlist(5,m))
-         !phi0 =vtors(1,m)
          vab(1:3) = xyz(1:3,i)-xyz(1:3,j)
          vcb(1:3) = xyz(1:3,j)-xyz(1:3,k)
          vdc(1:3) = xyz(1:3,k)-xyz(1:3,l)
@@ -1152,8 +1104,8 @@
          c1=rn*dphi1+pi
          x1cos=cos(c1)
          x1sin=sin(c1)
-         et =(1.+x1cos)*fc !*vtors(2,m)
-         dij=-rn*x1sin*fc*damp !*vtors(2,m)
+         et =(1.+x1cos)*fc
+         dij=-rn*x1sin*fc*damp
          term1(1:3)=et*damp2ij*dampjk*dampkl*vab(1:3)
          term2(1:3)=et*damp2jk*dampij*dampkl*vcb(1:3)
          term3(1:3)=et*damp2kl*dampij*dampjk*vdc(1:3)
@@ -1226,9 +1178,9 @@
 
       subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa)
       use iso_fortran_env, id => output_unit, wp => real64
-      use mctc_la
+      use xtb_mctc_la
       use gff_param, only: chieeq,gameeq,alpeeq,cnf,nfrag,qfrag,fraglist
-      use gbobc
+      use xtb_solv_gbobc
       implicit none
       logical, intent(in)  :: single     ! real*4 flag for solver
       integer, intent(in)  :: n          ! number of atoms     
@@ -1240,7 +1192,7 @@
       real(wp),intent(out) :: q(n)       ! output charges
       real(wp),intent(out) :: es         ! ES energy     
       real(wp),intent(out) :: eeqtmp(2,n*(n+1)/2)    ! intermediates
-      type(tb_solvent), intent(in) :: gbsa
+      type(TSolvent), intent(in) :: gbsa
 
 !  local variables
       integer  :: m,i,j,k,ii,ij
@@ -1372,7 +1324,6 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 shortcut
 
       integer i,j,ij,lina
-      character*2 asym
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
 
       gdr  = 0
@@ -1446,10 +1397,6 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     energy      
       rterm  = -aci*rdamp*qhoutl
       energy =  bas*rterm
-
-!     write(*,'( 2(a2,i4,2x),i4,2x,3f6.3,2x,2f6.2,2x,f9.3)')&
-!    &  asym(at(A)),A,asym(at(B)),B,H,damps,dampl,outl,bas,aci,energy*627.5
-!     stop
 
 !     gradient
       drah(1:3)=xyz(1:3,A)-xyz(1:3,H)
@@ -1554,7 +1501,6 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 :: p_ab
 
       integer i,j,ij,lina,nbb
-      character*2 asym
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
 
       p_bh=1.d0+hbabmix
@@ -1651,10 +1597,6 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     constant values, no gradient
       const = ca(2)*qa*cb(1)*qb*xhaci_globabh
-
-!     write(*,*) q(A),q(B)
-!     write(*,'( 2(a2,i4,2x),i4,2x,3f6.3,2x,4f6.2,2x,f9.3)')&
-!    &  asym(at(A)),A,asym(at(B)),B,H,damps,dampl,outl,ca(2),qa,cb(1),qb,energy*627.5
 
 !     energy
       energy = -rdamp*qhoutl*const
@@ -1801,7 +1743,6 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 hblpcut
 
       integer i,j,ij,lina,nbb
-      character*2 asym
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
 
       p_bh=1.d0+hbabmix
@@ -2100,7 +2041,6 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ii,jj,kk,ll,ij,lina
       integer nbb,nbc
       integer ntors,rn
-      character*2 asym
       parameter (pi = 3.1415926535897932384626433832795029d0)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
@@ -2441,7 +2381,6 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ii,jj,kk,ll,ij,lina
       integer nbb,nbc
       integer ntors,rn
-      character*2 asym
       parameter (pi = 3.1415926535897932384626433832795029d0)
       
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
@@ -2715,7 +2654,6 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ii,jj,kk,ll,ij,lina
       integer nbb,nbc
       integer ntors,rn
-      character*2 asym
       parameter (pi = 3.1415926535897932384626433832795029d0)
       
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
@@ -2936,7 +2874,6 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       real*8 shortcut,const
 
       integer i,j
-      character*2 asym
 
       gdr =  0
       energy=0
@@ -2996,9 +2933,6 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       aterm = -rdamp*const
       dterm = -outl*const
       energy= -rdamp*outl*const
-
-!     write(*,'( 3(a2,i4,2x),2x,3f6.3,2x,4f6.2,2x,f9.3)') &
-!    &       asym(at(A)),A,asym(at(B)),B,asym(at(X)),X,damps,dampl,outl,cx,cb,qb,qx,energy*627.5
 
 !     damping part rab
       gi = rdamp*(-(2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3&
