@@ -258,8 +258,6 @@ subroutine weight_references_d4(nat, atoms, wf, cn, gwvec, gwdcn)
    integer :: iat, ati, iref, icount
    real(wp) :: norm, dnorm, gw, expw, expd, gwk, dgwk
 
-   dispm = tb_dispersion_model()
-
    gwvec = 0.0_wp
    gwdcn = 0.0_wp
 
@@ -366,8 +364,6 @@ subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj
 
-   dispm = tb_dispersion_model()
-
    c6 = 0.0_wp
    dc6dcn = 0.0_wp
 
@@ -380,7 +376,7 @@ subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
          dc6dcnj = 0.0_wp
          do iref = 1, dispm%nref(ati)
             do jref = 1, dispm%nref(atj)
-               refc6 = get_c6(iref, jref, ati, atj)
+               refc6 = dispm%c6(iref, jref, ati, atj)
                dc6 = dc6 + gwvec(iref, iat) * gwvec(jref, jat) * refc6
                dc6dcni = dc6dcni + gwdcn(iref, iat) * gwvec(jref, jat) * refc6
                dc6dcnj = dc6dcnj + gwvec(iref, iat) * gwdcn(jref, jat) * refc6
@@ -425,8 +421,6 @@ subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, weighti
    real(wp), allocatable :: gw(:, :), dgwdcn(:, :)
    real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
    real(wp), allocatable :: energies(:), dEdcn(:)
-
-   dispm = tb_dispersion_model()
 
    max_ref = maxval(dispm%nref(at))
    allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
