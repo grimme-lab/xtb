@@ -99,7 +99,7 @@ module xtb_setparam
    integer, parameter :: p_engine_rf       = 1
    integer, parameter :: p_engine_lbfgs    = 2
    integer, parameter :: p_engine_inertial = 3
-   integer :: opt_engine = p_engine_rf
+   integer :: opt_engine = p_engine_lbfgs
    type(ancopt_setvar) :: optset = ancopt_setvar (&
       optlev = p_olev_normal, &
 !  number of opt. cycles before new ANC are made
@@ -360,6 +360,7 @@ module xtb_setparam
    integer, parameter :: p_ext_psi4      = 10
    integer, parameter :: p_ext_adf       = 11
    integer, parameter :: p_ext_mopac     = 12
+   integer, parameter :: p_ext_gfnff     = 13
 !  integer  :: dummyint ! not used
    integer  :: runtyp = 2 ! SCC by default
    integer, parameter :: p_run_scc    =   2

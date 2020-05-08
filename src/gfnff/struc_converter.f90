@@ -20,15 +20,15 @@
 ! of an 2 dimensional input structure.
 !------------------------------------------------------------------------------
 subroutine struc_convert( &
-         & restart,mol,wfn,calc,egap,et,maxiter,maxcycle,&
+         & env,restart,mol,wfn,calc,egap,et,maxiter,maxcycle,&
          & etot,g,sigma)
-  use iso_fortran_env, only : wp => real64
+  use xtb_mctc_accuracy, only : wp
   use gff_param
   use xtb_disp_dftd3param
   use xtb_type_environment
   use xtb_type_molecule
   use xtb_type_wavefunction
-  use xtb_typ_calculator
+  use xtb_type_calculator
   use xtb_type_data
   use xtb_restart
   use xtb_setmod
@@ -37,10 +37,10 @@ subroutine struc_convert( &
   use xtb_readin, only : xfind
   implicit none
 ! Dummy -----------------------------------------------------------------------
-  type(tb_molecule),intent(inout)             :: mol
-  type(tb_molecule),intent(inout)             :: mol
-  type(tb_wavefunction),intent(inout)         :: wfn
-  type(tb_calculator),intent(in)              :: calc
+  type(TEnvironment),intent(inout)            :: env
+  type(TMolecule),intent(inout)               :: mol
+  type(TWavefunction),intent(inout)           :: wfn
+  type(TCalculator),intent(in)                :: calc
   integer,intent(in)                          :: maxiter
   integer,intent(in)                          :: maxcycle
   real(wp),intent(inout)                      :: etot
@@ -113,7 +113,7 @@ subroutine struc_convert( &
 ! force field md simulation
   idum = 0
   call md                &
-      &   (mol,wfn,calc, &
+      &   (env,mol,wfn,calc, &
       &    egap,etemp,maxiter,etot,g,sigma,0,temp_md,idum)
 !------------------------------------------------------------------------------
 ! set all back to input

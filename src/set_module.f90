@@ -901,6 +901,8 @@ subroutine set_exttyp(typ)
       extmode = 1
    case('mopac')
       mode_extrun = p_ext_mopac
+   case('ff')
+      mode_extrun = p_ext_gfnff
 
    end select
    set = .false.
@@ -1050,6 +1052,27 @@ subroutine set_spin(env,val)
    endif
    set1 = .false.
 end subroutine set_spin
+
+
+subroutine set_efield(env, val)
+   use gff_param, only : efield
+   implicit none
+   character(len=*), parameter :: source = 'set_efield'
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in) :: val
+   integer  :: err
+   real(wp) :: idum(3)
+   logical,save :: set1 = .true.
+   if (set1) then
+      if (getValue(env,val,idum)) then
+         efield = idum
+      else
+         call env%error('E-field could not be read from your argument', source)
+      endif
+   endif
+   set1 = .false.
+end subroutine set_efield
+
 
 subroutine set_write(env,key,val)
    !Purpose: set global parameter for writeouts
@@ -1278,6 +1301,10 @@ subroutine set_gfn(env,key,val)
    case('version','method')
       if (key.eq.'version') &
          call env%warning("Don't use the 'version' key, since it is confusing",source)
+      if(val.eq.'ff') then
+         set1=.false.
+         return
+      endif
       if (getValue(env,val,idum).and.set1) then
          if ((idum.ge.0).and.(idum.le.2)) then ! actually, this looks stupid...
             gfn_method = idum

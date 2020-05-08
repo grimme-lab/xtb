@@ -10,7 +10,7 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
   integer,intent(in) :: p_ext_gfnff
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
-  type(TMolecule)    :: mol
+  type(TMolecule)  :: mol
 ! Stack
   logical            :: ex
   logical            :: success
@@ -20,25 +20,25 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
   if (restart) then
      inquire(file='gfnff_topo', exist=ex)
      if (ex) then
-       call read_restart('gfnff_topo',mol%n,p_ext_gfnff,success,.true.)
-       if (success) write(*,'(10x,"GFN-FF topology read from file successfully!")')
+       call read_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,success,.true.)
        !hbrefgeo is usually set within gfnff_ini2/gfnff_hbset0 equal to initial xyz
        hbrefgeo=mol%xyz
+       if (success) write(*,'(10x,"GFN-FF topology read from file successfully!")')
        if (.not.success) then
           write(*,'(10x,"GFN-FF topology read in did not work!")')    
           write(*,'(10x,"Generating new topology file!")')
           call gfnff_ini(verbose,ini,mol%n,ichrg,mol%at,mol%xyz)
-          call write_restart('gfnff_topo',mol%n,p_ext_gfnff)
+          call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
        end if
      else
        call gfnff_ini(verbose,ini,mol%n,ichrg,mol%at,mol%xyz)
        if (.not.mol%struc%two_dimensional) then
-          call write_restart('gfnff_topo',mol%n,p_ext_gfnff)
+          call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
        end if   
      end if
   else if (.not.restart) then
      call gfnff_ini(verbose,ini,mol%n,ichrg,mol%at,mol%xyz)
-     call write_restart('gfnff_topo',mol%n,p_ext_gfnff)
+     call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
   end if
 
 end subroutine gfnff_setup  
@@ -148,6 +148,12 @@ subroutine gfnff_input(mol)
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
     case(0)
+    !ex=.false.  
+    !inquire(file='.CHRG',exist=ex)
+       ! if (ichrg.ne.0) then
+       !    qfrag(1) = ichrg
+       !    qfrag(2:mol%n) = 9999
+       !if(ex)then
        call open_file(ich,'.CHRG','r')
        if (ich.ne.-1) then
            !open(unit=1,file='.CHRG')

@@ -121,6 +121,7 @@ subroutine xtbMain(env, argParser)
    character(len=*),parameter :: p_fname_param_gfn0  = '.param_gfn0.xtb'
    character(len=*),parameter :: p_fname_param_gfn1  = '.param_gfn.xtb'
    character(len=*),parameter :: p_fname_param_gfn2  = '.param_gfn2.xtb'
+   character(len=*),parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
    character(len=*),parameter :: p_fname_param_ipea  = '.param_ipea.xtb'
    character(len=*),parameter :: p_fname_param_stda1 = '.param_stda1.xtb'
    character(len=*),parameter :: p_fname_param_stda2 = '.param_stda2.xtb'
@@ -1168,9 +1169,15 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--gfn0')
          call set_gfn(env,'method','0')
-         call set_exttyp('eht')    !ppracht 10/2018 GFN0
+         call set_exttyp('eht')
          call env%warning("The use of '"//flag//"' is discouraged, " //&
             & "please use '--gfn 0' next time", source)
+      
+      case('--gfnff')
+         call set_exttyp('ff')
+      
+      case('--gff')
+         call set_exttyp('ff')
 
       case('--etemp')
          call args%nextArg(sec)

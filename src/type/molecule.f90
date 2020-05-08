@@ -134,6 +134,9 @@ module xtb_type_molecule
 
       !> Turbomole specific information about input type
       type(turbo_info) :: turbo = turbo_info()
+      
+      !> Specific information about input structure
+      type(struc_info) :: struc = struc_info()
 
       !> Raw input buffer
       type(tb_buffer) :: info
