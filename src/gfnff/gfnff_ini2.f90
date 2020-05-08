@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,13 +17,13 @@
 
 subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf)
       use gff_param
-      implicit none  
+      implicit none
       logical makeneighbor
       integer at(natoms),natoms
       integer hyb (natoms)
       integer itag(natoms)
       integer nbm(20,natoms)                 ! needed for ring assignment (done without metals)
-      integer nbf(20,natoms)                 ! full needed for fragment assignment 
+      integer nbf(20,natoms)                 ! full needed for fragment assignment
       real*8  rab   (natoms*(natoms+1)/2)
       real*8  xyz(3,natoms)
       real*8  mchar(natoms)
@@ -33,34 +33,34 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 
       logical etacoord,da,strange_iat,metal_iat
       integer,allocatable :: nbdum(:,:)
-      real*8 ,allocatable :: cn(:),rtmp(:)                     
+      real*8 ,allocatable :: cn(:),rtmp(:)
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm
       integer ai,aj,nn,im,ncm,l,no
       real*8 r,pi,a1,f,f1,phi,f2,rco,fat(86)
       data pi/3.1415926535897932384626433832795029d0/
       data fat   / 86 * 1.0d0 /
 
-!     special hacks      
-      fat( 1)=1.02 
-      fat( 4)=1.03 
-      fat( 5)=1.02 
-      fat( 8)=1.02 
-      fat( 9)=1.05 
-      fat(10)=1.10 
-      fat(11)=1.01 
-      fat(12)=1.02 
-      fat(15)=0.97 
-      fat(18)=1.10 
-      fat(19)=1.02 
-      fat(20)=1.02 
-      fat(38)=1.02 
-      fat(34)=0.99 
-      fat(50)=1.01 
-      fat(51)=0.99 
-      fat(52)=0.95 
-      fat(53)=0.98 
-      fat(56)=1.02 
-      fat(76)=1.02 
+!     special hacks
+      fat( 1)=1.02
+      fat( 4)=1.03
+      fat( 5)=1.02
+      fat( 8)=1.02
+      fat( 9)=1.05
+      fat(10)=1.10
+      fat(11)=1.01
+      fat(12)=1.02
+      fat(15)=0.97
+      fat(18)=1.10
+      fat(19)=1.02
+      fat(20)=1.02
+      fat(38)=1.02
+      fat(34)=0.99
+      fat(50)=1.01
+      fat(51)=0.99
+      fat(52)=0.95
+      fat(53)=0.98
+      fat(56)=1.02
+      fat(76)=1.02
       fat(82)=1.06
       fat(83)=0.95
 
@@ -97,7 +97,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
         call getnb(natoms,at,rtmp,rab,mchar,2,f_in,f2_in,nbf  ,nb ) ! no highly coordinates atoms
         call getnb(natoms,at,rtmp,rab,mchar,3,f_in,f2_in,nbf  ,nbm) ! no metals and unusually coordinated stuff
 
-! take the input 
+! take the input
       else
 
         nbf = nb
@@ -186,23 +186,23 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          if(group(ati).eq.1) then
             if(nb20i.eq.2)               hyb(i)=1 ! bridging H
             if(nb20i.gt.2)               hyb(i)=3 ! M+ tetra coord
-            if(nb20i.gt.4)               hyb(i)=0 ! M+ HC            
+            if(nb20i.gt.4)               hyb(i)=0 ! M+ HC
          endif
 ! Be
          if(group(ati).eq.2) then
             if(nb20i.eq.2)               hyb(i)=1 ! bridging M
             if(nb20i.gt.2)               hyb(i)=3 ! M+ tetra coord
-            if(nb20i.gt.4)               hyb(i)=0 ! 
+            if(nb20i.gt.4)               hyb(i)=0 !
          endif
-! B         
+! B
          if(group(ati).eq.3) then
             if(nb20i.gt.4)                               hyb(i)=3
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
-            if(nb20i.eq.4)                               hyb(i)=3   
-            if(nb20i.eq.3)                               hyb(i)=2   
-            if(nb20i.eq.2)                               hyb(i)=1   
+            if(nb20i.eq.4)                               hyb(i)=3
+            if(nb20i.eq.3)                               hyb(i)=2
+            if(nb20i.eq.2)                               hyb(i)=1
          endif
-! C            
+! C
          if(group(ati).eq.4) then
             if(nb20i.ge.4)                               hyb(i)=3
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
@@ -222,13 +222,13 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             endif
             if(nb20i.eq.1)                               hyb(i)=1  ! CO
          endif
-! N         
+! N
          if(group(ati).eq.5) then
-            if(nb20i.ge.4)                               hyb(i)=3   
+            if(nb20i.ge.4)                               hyb(i)=3
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.3)                               hyb(i)=3
             if(nb20i.eq.3.and.ati.eq.7)  then
-               kk=0 
+               kk=0
                ll=0
                nn=0
                do j=1,3
@@ -250,19 +250,19 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
                call bangl(xyz,nbdum(1,i),i,nbdum(2,i),phi)
                jj=nbdum(1,i)
                kk=nbdum(2,i)
-               if(nbdum(20,jj).eq.1.and.at(jj).eq.6)     hyb(i)=1  ! R-N=C 
-               if(nbdum(20,kk).eq.1.and.at(kk).eq.6)     hyb(i)=1  ! R-N=C 
+               if(nbdum(20,jj).eq.1.and.at(jj).eq.6)     hyb(i)=1  ! R-N=C
+               if(nbdum(20,kk).eq.1.and.at(kk).eq.6)     hyb(i)=1  ! R-N=C
                if(nbdum(20,jj).eq.1.and.at(jj).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
                if(nbdum(20,kk).eq.1.and.at(kk).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
                if(nbdum(1,i).gt.0.and.metal(at(nbdum(1,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
                if(nbdum(2,i).gt.0.and.metal(at(nbdum(2,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
                if(at(jj).eq.7.and.at(kk).eq.7.and. &
-     &          nbdum(20,jj).le.2.and.nbdum(20,kk).le.2) hyb(i)=1  ! N=N=N                      
+     &          nbdum(20,jj).le.2.and.nbdum(20,kk).le.2) hyb(i)=1  ! N=N=N
                if(phi*180./pi.gt.lintr)                 hyb(i)=1  ! geometry dep. setup! GEODEP
             endif
             if(nb20i.eq.1)                               hyb(i)=1
-         endif 
-! O         
+         endif
+! O
          if(group(ati).eq.6) then
             if(nb20i.ge.3)                               hyb(i)=3
             if(nb20i.gt.3.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
@@ -270,7 +270,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(nb20i.eq.2.and.nbmdiff.gt.0) then
                call nn_nearest_noM(i,natoms,at,nb,rab,j) ! CN of closest non-M atom
                                         if(j.eq.3)       hyb(i)=2 ! M-O-X konj
-                                        if(j.eq.4)       hyb(i)=3 ! M-O-X non 
+                                        if(j.eq.4)       hyb(i)=3 ! M-O-X non
             endif
             if(nb20i.eq.1)                               hyb(i)=2
             if(nb20i.eq.1.and.nbdiff.eq.0) then
@@ -320,7 +320,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       end
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
-! fill neighbor list                             
+! fill neighbor list
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine getnb(n,at,rad,r,mchar,icase,f,f2,nbf,nb)
@@ -330,7 +330,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       real*8 rad(n*(n+1)/2),r(n*(n+1)/2),mchar(n),f,f2
 
       integer i,j,k,nn,icase,hc_crit,nnfi,nnfj,lin
-      integer tag(n*(n+1)/2)  
+      integer tag(n*(n+1)/2)
       real*8 rco,fm
 
       nb  = 0 ! resulting array (nbf is full from first call)
@@ -340,10 +340,10 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          do j=1,i-1
             nnfj=nbf(20,j)               ! full CN of i
             fm=1.0d0
-!           full case   
+!           full case
             if(icase.eq.1)then
                if(metal(at(i)).eq.2) fm=fm*f2 !change radius for metal atoms
-               if(metal(at(j)).eq.2) fm=fm*f2 
+               if(metal(at(j)).eq.2) fm=fm*f2
                if(metal(at(i)).eq.1) fm=fm*(f2+0.025)
                if(metal(at(j)).eq.1) fm=fm*(f2+0.025)
             endif
@@ -351,15 +351,15 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(icase.eq.2)then
                hc_crit = 6
                if(group(at(i)).le.2) hc_crit = 4
-               if(nnfi.gt.hc_crit) cycle 
+               if(nnfi.gt.hc_crit) cycle
                hc_crit = 6
                if(group(at(j)).le.2) hc_crit = 4
-               if(nnfj.gt.hc_crit) cycle 
+               if(nnfj.gt.hc_crit) cycle
             endif
 !           no metals and unusually coordinated stuff
             if(icase.eq.3)then
                if(mchar(i).gt.0.25 .or. metal(at(i)).gt.0) cycle   ! metal case TMonly ?? TODO
-               if(mchar(j).gt.0.25 .or. metal(at(j)).gt.0) cycle   ! metal case 
+               if(mchar(j).gt.0.25 .or. metal(at(j)).gt.0) cycle   ! metal case
                if(nnfi.gt.normcn(at(i)).and.at(i).gt.10)   cycle   ! HC case
                if(nnfj.gt.normcn(at(j)).and.at(j).gt.10)   cycle   ! HC case
             endif
@@ -384,18 +384,18 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       end
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
-! find the CN of nearest non metal of atom i 
+! find the CN of nearest non metal of atom i
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine nn_nearest_noM(ii,n,at,nb,r,nn)
       use gff_param, only: metal
       implicit none
       integer ii,n,at(n),nn,nb(20,n)
-      real*8 r(n*(n+1)/2)  
+      real*8 r(n*(n+1)/2)
 
       integer jmin,j,jj,lin
       real*8 rmin
-       
+
       nn=0
       rmin=1.d+42
       jmin=0
@@ -650,10 +650,10 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 
       chktors=.true.
 
-      call bangl(xyz,j,i,k,phi)   
+      call bangl(xyz,j,i,k,phi)
 !     write(*,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
-      call bangl(xyz,i,j,l,phi)   
+      call bangl(xyz,i,j,l,phi)
 !     write(*,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
 
@@ -685,23 +685,23 @@ subroutine gfnff_hbset(n,at,xyz,sqrab)
       integer n
       integer at(n)
       real(wp) sqrab(n*(n+1)/2)
-      real(wp) xyz(3,n)          
+      real(wp) xyz(3,n)
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       real(wp) rab,rmsd
       logical ijnonbond
 
       rmsd = sqrt(sum((xyz-hbrefgeo)**2))/dble(n)
-      
+
       if(rmsd.lt.1.d-6 .or. rmsd.gt. 0.3d0) then ! update list if first call or substantial move occured
 
-      nhb1=0   
-      nhb2=0   
+      nhb1=0
+      nhb2=0
       do ix=1,nathbAB
          i=hbatABl(1,ix)
          j=hbatABl(2,ix)
-         ij=j+i*(i-1)/2        
-         rab=sqrab(ij)       
+         ij=j+i*(i-1)/2
+         rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
          ijnonbond=bpair(ij).ne.1
          do k=1,nathbH
@@ -719,7 +719,7 @@ subroutine gfnff_hbset(n,at,xyz,sqrab)
                hblist2(1,nhb2)=j
                hblist2(2,nhb2)=i
                hblist2(3,nhb2)=nh
-            elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then 
+            elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
                nhb1=nhb1+1
                hblist1(1,nhb1)=i
                hblist1(2,nhb1)=j
@@ -728,12 +728,12 @@ subroutine gfnff_hbset(n,at,xyz,sqrab)
          enddo
       enddo
 
-      nxb =0   
+      nxb =0
       do ix=1,natxbAB
          i =xbatABl(1,ix)
          j =xbatABl(2,ix)
-         ij=j+i*(i-1)/2        
-         rab=sqrab(ij)        
+         ij=j+i*(i-1)/2
+         rab=sqrab(ij)
          if(rab.gt.hbthr2)cycle
          nxb=nxb+1
          hblist3(1,nxb)=i
@@ -759,7 +759,7 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl)
       integer,intent(in) :: bond_hbn
       integer,intent(out) :: bond_hbl(3,bond_hbn)
       real(wp),intent(in) :: sqrab(n*(n+1)/2)
-      real(wp),intent(in) :: xyz(3,n)          
+      real(wp),intent(in) :: xyz(3,n)
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       integer bond_nr
@@ -772,8 +772,8 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl)
       do ix=1,nathbAB
          i=hbatABl(1,ix)
          j=hbatABl(2,ix)
-         ij=j+i*(i-1)/2        
-         rab=sqrab(ij)       
+         ij=j+i*(i-1)/2
+         rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
          ijnonbond=bpair(ij).ne.1
          do k=1,nathbH
@@ -804,7 +804,7 @@ subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn)
       integer,intent(in) :: at(n)
       integer,intent(out) :: bond_hbn
       real(wp),intent(in) :: sqrab(n*(n+1)/2)
-      real(wp),intent(in) :: xyz(3,n)          
+      real(wp),intent(in) :: xyz(3,n)
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       real(wp) rab
@@ -815,8 +815,8 @@ subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn)
       do ix=1,nathbAB
          i=hbatABl(1,ix)
          j=hbatABl(2,ix)
-         ij=j+i*(i-1)/2        
-         rab=sqrab(ij)       
+         ij=j+i*(i-1)/2
+         rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
          ijnonbond=bpair(ij).ne.1
          do k=1,nathbH
@@ -887,9 +887,9 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB)
                      tot_count = tot_count + 1
                      lin_AHB(tot_count) = lin(hbA,hbH)
                      lin_diff=lin_AHB(tot_count)-lin_AHB(tot_count-1)
-                     if (lin_diff.eq.0) then 
+                     if (lin_diff.eq.0) then
                         B_count = B_count + 1
-                     end if   
+                     end if
                      !Next AH pair
                      if (lin_diff.ne.0) then
                         AH_count = AH_count + 1
@@ -897,7 +897,7 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB)
                         bond_hb_AH(2,AH_count) = hbH
                         !Reset B count
                         B_count = 1
-                     end if   
+                     end if
                      bond_hb_Bn(AH_count) = B_count
                      bond_hb_B(B_count,AH_count) = Bat
                   end if
@@ -1045,19 +1045,19 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
       integer n
       integer at(n)
       real(wp) sqrab(n*(n+1)/2)
-      real(wp) xyz(3,n)          
+      real(wp) xyz(3,n)
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       logical ijnonbond
       real(wp) rab
 
-      nhb1=0   
-      nhb2=0   
+      nhb1=0
+      nhb2=0
       do ix=1,nathbAB
          i=hbatABl(1,ix)
          j=hbatABl(2,ix)
-         ij=j+i*(i-1)/2        
-         rab=sqrab(ij)       
+         ij=j+i*(i-1)/2
+         rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
          ijnonbond=bpair(ij).ne.1
          do k=1,nathbH
@@ -1068,18 +1068,18 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
                nhb2=nhb2+1
             elseif(bpair(jnh).eq.1.and.ijnonbond)then
                nhb2=nhb2+1
-            elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then 
+            elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
                nhb1=nhb1+1
             endif
          enddo
       enddo
 
-      nxb =0   
+      nxb =0
       do ix=1,natxbAB
          i =xbatABl(1,ix)
          j =xbatABl(2,ix)
-         ij=j+i*(i-1)/2        
-         rab=sqrab(ij)        
+         ij=j+i*(i-1)/2
+         rab=sqrab(ij)
          if(rab.gt.hbthr2)cycle
          nxb=nxb+1
       enddo
@@ -1095,7 +1095,7 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
 
       end
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc      
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! HB strength
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -1140,7 +1140,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       integer adum1(0:n),adum2(0:n),kk,j,idum(maxr),same(maxr),k
       real*8  w(n),av,sd
       logical chkrng
- 
+
       cout = 0
       irout= 0
 !     if(n.le.2.or.at(a0_in).gt.10.or.nbin(19,a0_in).eq.1) return
@@ -1150,7 +1150,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 
       cdum=0
       kk=0
-      do m=1,nn               
+      do m=1,nn
 !     if(nb(m,a0_in).eq.1) cycle ! check (comment out)
       nb=nbin
       if(nb(m,a0_in).eq.1) cycle ! check (comment out)
@@ -1158,7 +1158,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
          if(nb(20,i).eq.1)nb(20,i)=0
       enddo
 
-      do mm=1,nn            
+      do mm=1,nn
          w(mm)=dble(mm)
          list(mm)=mm
       enddo
@@ -1244,11 +1244,11 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       enddo
 
 ! compare
-      same=0     
+      same=0
       do i=1,kk
          do j=i+1,kk
             if(idum(i).ne.idum(j)) cycle ! different ring size
-            if(same(j).eq.1      ) cycle ! already double     
+            if(same(j).eq.1      ) cycle ! already double
             adum1=0
             adum2=0
             do m=1,10
@@ -1283,8 +1283,8 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 !           enddo
 !           av=dble(i2)/dble(nn)
 !           sd=0
-!           cout(m,19)=0           
-!           do k=1,nn   
+!           cout(m,19)=0
+!           do k=1,nn
 !              i1=at(cdum(k,i))
 !              sd=sd+(av-dble(i1))**2
 !           enddo
@@ -1331,12 +1331,12 @@ subroutine goedeckera(n,at,nb,pair,q,es)
       use xtb_mctc_la
       use gff_param, only: alpeeq,chieeq,gameeq,nfrag,qfrag,fraglist
    implicit none
-   integer, intent(in)  :: n          ! number of atoms     
-   integer, intent(in)  :: at(n)      ! ordinal numbers            
-   integer, intent(in)  :: nb(20,n)   ! neighbors                  
-   real(wp),intent(in)  :: pair(n*(n+1)/2)  
+   integer, intent(in)  :: n          ! number of atoms
+   integer, intent(in)  :: at(n)      ! ordinal numbers
+   integer, intent(in)  :: nb(20,n)   ! neighbors
+   real(wp),intent(in)  :: pair(n*(n+1)/2)
    real(wp),intent(out) :: q(n)       ! output charges
-   real(wp),intent(out) :: es         ! ES energy     
+   real(wp),intent(out) :: es         ! ES energy
 
 !  local variables
    integer  :: m,i,j,k,l,ii,jj,kk
@@ -1344,7 +1344,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
    integer  :: info,lwork
    integer,allocatable :: ipiv(:)
 
-   real(wp) :: gammij,sief1,sief2  
+   real(wp) :: gammij,sief1,sief2
    real(wp) :: r2,r0
    real(wp) :: rij
    real(wp) :: tsqrt2pi,bohr
@@ -1357,7 +1357,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
    parameter (tsqrt2pi = 0.797884560802866_wp)
 
    m=n+nfrag ! # atoms frag constrain
-   allocate(A(m,m),x(m),work(m*m),ipiv(m))  
+   allocate(A(m,m),x(m),work(m*m),ipiv(m))
 
 !  call prmati(6,pair,n,0,'pair')
 
@@ -1365,30 +1365,30 @@ subroutine goedeckera(n,at,nb,pair,q,es)
 
 !  setup RHS
    do i=1,n
-      x(i)    =chieeq(i) ! EN of atom  
+      x(i)    =chieeq(i) ! EN of atom
       A(i,i)  =gameeq(i)+tsqrt2pi/sqrt(alpeeq(i))
    enddo
 
-!  setup A matrix  
+!  setup A matrix
    do i=1,n
       do j=1,i-1
          ij = i*(i-1)/2+j
          rij=pair(ij)
-         r2 = rij*rij  
+         r2 = rij*rij
          gammij=1.d0/sqrt(alpeeq(i)+alpeeq(j)) ! squared above
-         tmp = erf(gammij*rij)/rij        
-         A(j,i) = tmp     
-         A(i,j) = tmp       
+         tmp = erf(gammij*rij)/rij
+         A(j,i) = tmp
+         A(i,j) = tmp
       enddo
    enddo
- 
+
 !  fragment charge constrain
    do i=1,nfrag
       x(n+i)=qfrag(i)
       do j=1,n
          if(fraglist(j).eq.i) then
-            A(n+i,j)=1    
-            A(j,n+i)=1   
+            A(n+i,j)=1
+            A(j,n+i)=1
          endif
       enddo
    enddo
@@ -1403,7 +1403,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
 
    if(n.eq.1) q(1)=qfrag(1)
 
-!  energy 
+!  energy
       es = 0.0_wp
       do i=1,n
       ii = i*(i-1)/2
@@ -1411,28 +1411,28 @@ subroutine goedeckera(n,at,nb,pair,q,es)
          ij = ii+j
          rij=pair(ij)
          gammij=1.d0/sqrt(alpeeq(i)+alpeeq(j)) ! squared above
-         tmp = erf(gammij*rij)/rij        
+         tmp = erf(gammij*rij)/rij
          es = es + q(i)*q(j)*tmp/rij
       enddo
       es = es - q(i)* chieeq(i) &
      &        + q(i)*q(i)*0.5d0*(gameeq(i)+tsqrt2pi/sqrt(alpeeq(i)))
       enddo
 
-end 
+end
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! condense charges to heavy atoms based on topology
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine qheavy(n,at,nb,q)   
+      subroutine qheavy(n,at,nb,q)
       implicit none
       integer,intent(in)   ::  n,nb(20,n),at(n)
-      real*8,intent(inout) ::  q(n)      
+      real*8,intent(inout) ::  q(n)
 
       integer i,j,k
       real*8 qtmp(n)
 
-      qtmp = q  
+      qtmp = q
       do i=1,n
          if(at(i).ne.1) cycle
          qtmp(i)=0
@@ -1452,7 +1452,7 @@ end
 
       subroutine nbondmat(n,nb,pair)
       implicit none
-!     Dummy  
+!     Dummy
       integer,intent(in)  :: n
       integer,intent(in)  :: nb(20,n)
       integer,intent(out) ::  pair(n*(n+1)/2)
@@ -1482,22 +1482,22 @@ end
          enddo
       enddo
 
-!     one bond, tag=1      
+!     one bond, tag=1
       tag=1
 !     call pairsbond(n,nn,list,pair,tag)
 
-!     determine up to 3 bonds in between      
+!     determine up to 3 bonds in between
       do d=1,2
 
-!     loop over atoms      
+!     loop over atoms
       do i=1,n
          ni=nn(i)
          newi=ni
-!        all neighbors of i         
+!        all neighbors of i
          do ii=1,ni
             i1=list(ii,i)
             ni1=nb(20,i1)
-!           all neighbors of neighbors of i         
+!           all neighbors of neighbors of i
             do iii=1,ni1
                newatom=nb(iii,i1)
                da=.false.
@@ -1506,7 +1506,7 @@ end
                enddo
                if(.not.da)then
                  newi=newi+1
-                 nlist(newi,i)=newatom           
+                 nlist(newi,i)=newatom
                endif
             enddo
          enddo
@@ -1579,7 +1579,7 @@ end
       xatom=.false.
       if(ati.eq.17.or.ati.eq.35.or.ati.eq.53.or.&  ! X in A-X...B
      &   ati.eq.16.or.ati.eq.34.or.ati.eq.52.or.&
-     &   ati.eq.15.or.ati.eq.33.or.ati.eq.51) xatom=.true.                                   
+     &   ati.eq.15.or.ati.eq.33.or.ati.eq.51) xatom=.true.
       end
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1619,7 +1619,7 @@ end
          endif
       enddo
 
-      if(nc.eq.1)then 
+      if(nc.eq.1)then
          do i=1,nb(20,ic)
             j=nb(i,ic)
             if(at(j).eq. 8.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =O on the C?

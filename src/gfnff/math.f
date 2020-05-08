@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -114,7 +114,7 @@ c  .....................................................................
       dimension a(3),b(3)
 
       c = 0.0d0
-    
+
       do i=1,3
          c = c + a(i)*b(i)
       end do
@@ -157,8 +157,8 @@ c ... determinante of rb,ra,rc
 
       thab=valijk(natoms,xyz,i,k,j)
       thbc=valijk(natoms,xyz,j,l,k)
-      call crossprod(ra,rb,na)      
-      call crossprod(rb,rc,nb)      
+      call crossprod(ra,rb,na)
+      call crossprod(rb,rc,nb)
       nan=vecnorm(na,3,1)
       nbn=vecnorm(nb,3,1)
 
@@ -175,10 +175,10 @@ c ... determinante of rb,ra,rc
 c the gradient dphir is only compatible with this subroutine
 c if the statement below is commented out. If not, opt. and
 c Hessian show large errors and imags. I don't understand
-c this entirely but thats how it is. 
+c this entirely but thats how it is.
 c SG, Sat May 24 11:41:42 CEST 2014
 
-c     if (deter.lt.0) then 
+c     if (deter.lt.0) then
 c        valijkl=2.d0*pi-valijkl
 c     end if
 

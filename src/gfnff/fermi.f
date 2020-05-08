@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -16,13 +16,13 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c fermi smearing      
+c fermi smearing
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       SUBROUTINE FERMISMEAR(prt,NORBS,NEL,T,eig,occ,fod,e_fermi,s)
-      IMPLICIT NONE                        
-      integer norbs 
-      integer nel   
+      IMPLICIT NONE
+      integer norbs
+      integer nel
       real*8  eig(norbs)
       real*8  occ(norbs)
       real*8  t
@@ -40,7 +40,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       if(nel+1.gt.norbs) return
 
       BKT = BOLTZ*T
- 
+
       E_FERMI = 0.5*(EIG(NEL)+EIG(NEL+1))
       OCCT=NEL
 
@@ -50,9 +50,9 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
         NCYCLE = NCYCLE+1
         DO I = 1, NORBS
           FERMIFUNCT = 0.0
-          if((EIG(I)-E_FERMI)/BKT.lt.50) then 
+          if((EIG(I)-E_FERMI)/BKT.lt.50) then
             FERMIFUNCT = 1.0/(EXP((EIG(I)-E_FERMI)/BKT)+1.0)
-            DFERMIFUNCT = EXP((EIG(I)-E_FERMI)/BKT) /                
+            DFERMIFUNCT = EXP((EIG(I)-E_FERMI)/BKT) /
      .      (BKT*(EXP((EIG(I)-E_FERMI)/BKT)+1.0)**2)
           ELSE
             DFERMIFUNCT = 0.0

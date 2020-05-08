@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -24,12 +24,12 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       implicit none
       integer ndim      ! # basis
       integer nopen     ! # of open shells
-      integer nel       ! # of electrons   
+      integer nel       ! # of electrons
       logical ovlp      ! in overlap basis?
-      logical pr        ! 
+      logical pr        !
       real(wp) et       ! electronic temp Fermi smear
       real(wp) eel      ! electronic energy = sum_occ nocc*eps
-      real(wp) focc(ndim)! occupations 
+      real(wp) focc(ndim)! occupations
       real(wp) e(ndim)  ! eigenvalues
       real(wp) A(ndim,ndim)
       real(wp) S(ndim,ndim)
@@ -57,7 +57,7 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       allocate(aux(lwork))
       call dsyev ('V','U',ndim,A,ndim,e,aux,lwork,info)
 
-      else 
+      else
 ! with overlap case
 
       allocate (aux(1),iwork(1),ifail(ndim))
@@ -84,9 +84,9 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       endif
 
       if(et.gt.1.d-3) then
-! Fermi smearing, convert restricted occ first to alpha/beta             
+! Fermi smearing, convert restricted occ first to alpha/beta
         call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
-        if(ihomoa.le.ndim.and.ihomoa.gt.0) then 
+        if(ihomoa.le.ndim.and.ihomoa.gt.0) then
          call FERMISMEAR(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
         else
           focca=0
@@ -114,8 +114,8 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
         enddo
         if(2*(nel/2).ne.nel) focc(nel/2+1)=1.0
       endif
-      
-      focca = focc * e 
+
+      focca = focc * e
       eel = sum(focca)
 ! density matrix
       S = A

@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
-       
+
        module gff_shake_module
        implicit none
        integer :: shake_mode
@@ -25,7 +25,7 @@
        real*8,  allocatable :: dro(:,:)
        real*8,  allocatable :: dr (:,:)
        integer, parameter :: maxcyc = 5000
-       real*8, parameter :: tolshake = 1.d-6 
+       real*8, parameter :: tolshake = 1.d-6
 
        contains
 
@@ -41,7 +41,7 @@
 
        integer list(nat*(nat+1)/2),lin,ij
 
-      ncons  = nbond  
+      ncons  = nbond
       allocate(conslist(2,ncons),distcons(ncons),
      .         dro(3,ncons),dr(4,ncons))
 
@@ -123,11 +123,11 @@
 
           xyzt(1:3,iat) = xyzt(1:3,iat) + rmi*gcons*dro(1:3,i)
           xyzt(1:3,jat) = xyzt(1:3,jat) - rmj*gcons*dro(1:3,i)
-          
+
          enddo
 
         endif
-        
+
         icyc = icyc + 1
 
         if(.not.conv.and.icyc.le.maxcyc) goto 100
@@ -136,9 +136,9 @@
          velo = velo + (xyzt-xyz)*tau1
          acc  = acc  + (xyzt-xyz)*tau2
          xyz  = xyzt
-        else 
+        else
          write(*,*)'SHAKE did not converge! maxdev=',maxdev
-c        if(maxdev.gt.1.d-3) stop 'SHAKE error too large'        
+c        if(maxdev.gt.1.d-3) stop 'SHAKE error too large'
         endif
 
        return

@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,9 +17,9 @@
 
 !---------------------------------------------------
 ! GFN-FF
-! energy and analytical gradient for given xyz and 
+! energy and analytical gradient for given xyz and
 ! charge ichrg
-! requires D3 ini (rcov,r2r4,copyc6) as well as 
+! requires D3 ini (rcov,r2r4,copyc6) as well as
 ! gfnff_ini call
 !
 ! the total energy is
@@ -29,13 +29,13 @@
 ! basic trigonometry for bending and torsion angles
 ! taken slightly modified from QMDFF code
 ! repulsion and rabguess from xtb GFN0 part
-! 
+!
 ! requires setup of
 !     integer,allocatable :: blist(:,:)
 !     integer,allocatable :: alist(:,:)
 !     integer,allocatable :: tlist(:,:)
 !     integer,allocatable ::b3list(:,:)
-!     real(wp),allocatable:: vbond(:,:)  
+!     real(wp),allocatable:: vbond(:,:)
 !     real(wp),allocatable:: vangl(:,:)
 !     real(wp),allocatable:: vtors(:,:)
 !     chi,gam,alp,cnf
@@ -70,7 +70,7 @@
       real*8 xyz(3,n)
       real*8 g  (3,n)
       real*8 etot
-      logical pr 
+      logical pr
       logical makeq
 
       real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext
@@ -81,7 +81,7 @@
       integer i,j,k,l,m,ij,nd3
       integer ati,atj,iat,jat
       integer hbA,hbB
-      integer lin   
+      integer lin
       logical ex
       real*8  r2,rab,qq0,erff,dd,dum1,r3(3),t8,dum,t22,t39
       real*8  dx,dy,dz,yy,t4,t5,t6,alpha,t20
@@ -97,9 +97,9 @@
       real*8, allocatable :: hb_cn(:), hb_dcn(:,:,:)
       real*8, allocatable :: sqrab(:), srab(:)
       real*8, allocatable :: g5tmp(:,:)
-      integer,allocatable :: d3list(:,:)                 
+      integer,allocatable :: d3list(:,:)
       type(tb_timer) :: timer
-      
+
       g  =  0
       exb = 0
       ehb = 0
@@ -171,16 +171,16 @@
          if(bpair(ij).eq.1) cycle ! list avoided because of memory
          ati=at(iat)
          atj=at(jat)
-         rab=srab(ij)               
-         t16=r2**0.75            
-         t19=t16*t16  
+         rab=srab(ij)
+         t16=r2**0.75
+         t19=t16*t16
          t8 =t16*alphanb(ij)
          t26=exp(-t8)*repz(ati)*repz(atj)*repscaln
          erep=erep+t26/rab !energy
          t27=t26*(1.5d0*t8+1.0d0)/t19
          r3 =(xyz(:,iat)-xyz(:,jat))*t27
-         g(:,iat)=g(:,iat)-r3   
-         g(:,jat)=g(:,jat)+r3   
+         g(:,iat)=g(:,iat)-r3
+         g(:,jat)=g(:,jat)+r3
          enddo
       enddo
       if (pr) call timer%measure(2)
@@ -206,14 +206,14 @@
          g(2,jat)=g(2,jat)+dum*r3(2)
          g(2,iat)=g(2,iat)-dum*r3(2)
          g(3,jat)=g(3,jat)+dum*r3(3)
-         g(3,iat)=g(3,iat)-dum*r3(3)    
+         g(3,iat)=g(3,iat)-dum*r3(3)
       enddo
       etot = ebond + erep
       return
       endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! erf CN and gradient for disp 
+! erf CN and gradient for disp
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(3,'dCN')
@@ -243,7 +243,7 @@
       if (pr) call timer%measure(5)
 
 !!!!!!!!
-! ES part 
+! ES part
 !!!!!!!!
       if (pr) call timer%measure(6,'EEQ gradient')
 !$omp parallel default(none) private(i,j,k,ij,r3,r2,rab,gammij,erff,dd) shared(n,q,sqrab,srab,eeqtmp,xyz,g,at) ! WRONG RESULTS
@@ -252,10 +252,10 @@
          k = i*(i-1)/2
          do j=1,i-1
             ij = k+j
-            r2 =sqrab(ij)         
+            r2 =sqrab(ij)
             rab= srab(ij)
-            gammij=eeqtmp(1,ij)   
-            erff  =eeqtmp(2,ij)   
+            gammij=eeqtmp(1,ij)
+            erff  =eeqtmp(2,ij)
             dd=(2.0d0*gammij*exp(-gammij**2*r2) &
      &         /(sqrtpi*r2)-erff/(rab*r2))*q(i)*q(j)
             r3=(xyz(:,i)-xyz(:,j))*dd
@@ -276,7 +276,7 @@
          gborn = 0.0d0
          ghb = 0.0d0
       endif
- 
+
       do i=1,n
          qtmp(i)=q(i)*cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
       enddo
@@ -300,7 +300,7 @@
       if(nbond.gt.0)then
       allocate(grab0(3,n,nbond),rab0(nbond))
       rab0(:)=vbond(1,:) ! shifts
-      call gfnffdrab(n,at,xyz,cn,dcn,nbond,blist,rab0,grab0) 
+      call gfnffdrab(n,at,xyz,cn,dcn,nbond,blist,rab0,grab0)
       deallocate(dcn)
 
 !!$omp parallel private(i,k,iat,jat,ij,rab,rij,drij,t8,dr,dum,yy,dx,dy,dz,t4,t5,t6) shared ( g,grab0,ebond,blist,vbond,rab0,srab,xyz )
@@ -311,7 +311,7 @@
          ati=at(iat)
          atj=at(jat)
          ij=iat*(iat-1)/2+jat
-         rab=srab(ij)               
+         rab=srab(ij)
          rij=rab0(i)
          drij=grab0(:,:,i)
          if (nr_hb(i).ge.1) then
@@ -346,7 +346,7 @@
          alpha=sqrt(repa(ati)*repa(atj))
          repab=repz(ati)*repz(atj)*repscalb
          t16=r2**0.75d0
-         t19=t16*t16  
+         t19=t16*t16
          t26=exp(-alpha*t16)*repab
          erep=erep+t26/rab !energy
          t27=t26*(1.5d0*alpha*t16+1.0d0)/t19
@@ -372,7 +372,7 @@
          j = alist(1,m)
          i = alist(2,m)
          k = alist(3,m)
-         call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp)                 
+         call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,i)=g(1:3,i)+g3tmp(1:3,2)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,3)
@@ -394,7 +394,7 @@
          j=tlist(2,m)
          k=tlist(3,m)
          l=tlist(4,m)
-         call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp)                 
+         call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp)
          g(1:3,i)=g(1:3,i)+g4tmp(1:3,1)
          g(1:3,j)=g(1:3,j)+g4tmp(1:3,2)
          g(1:3,k)=g(1:3,k)+g4tmp(1:3,3)
@@ -407,7 +407,7 @@
       if (pr) call timer%measure(8)
 
 !!!!!!!!!!!!!!!!!!
-! BONDED ATM     
+! BONDED ATM
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(9,'bonded ATM')
@@ -431,7 +431,7 @@
       if (pr) call timer%measure(9)
 
 !!!!!!!!!!!!!!!!!!
-! EHB            
+! EHB
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(10,'HB/XB (incl list setup)')
@@ -453,7 +453,7 @@
 !$omp end do
 !$omp end parallel
       endif
-      
+
 
       if(nhb2.gt.0) then
 !$omp parallel private(i,j,k,l,etmp,g5tmp) shared ( nhb2,n,nb,at,xyz,g,qa,sqrab,srab,hblist2 )
@@ -472,7 +472,7 @@
          else if(at(k).eq.7.and.nb(20,k).eq.2) then
            call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g5tmp)
          else
-         !Default  
+         !Default
            call abhgfnff_eg2new(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g5tmp)
          end if
          g=g+g5tmp
@@ -483,7 +483,7 @@
       endif
 
 !!!!!!!!!!!!!!!!!!
-! EXB            
+! EXB
 !!!!!!!!!!!!!!!!!!
 
       if(nxb.gt.0) then
@@ -510,7 +510,7 @@
             g(:,i)= g(:,i) + r3(:)
             eext = eext + r3(1)*(xyz(1,i)-xyze0(1,i))+&
      &                    r3(2)*(xyz(2,i)-xyze0(2,i))+&
-     &                    r3(3)*(xyz(3,i)-xyze0(3,i))  
+     &                    r3(3)*(xyz(3,i)-xyze0(3,i))
          enddo
       endif
 
@@ -527,7 +527,7 @@
       if (pr) then
         call timer%write(6,'E+G')
         if(abs(sum(q)-ichrg).gt.1.d-1) then ! check EEQ only once
-          write(*,*) q                
+          write(*,*) q
           write(*,*) sum(q),ichrg
           stop 'EEQ charge constrain error'
         endif
@@ -536,9 +536,9 @@
            r3(:) = r3(:)+q(i)*xyz(:,i)
         enddo
 !       write(*,'(''dipole moment xyz :'',4f16.8)') r3,2.5418d0*sqrt(sum(r3**2))
-!       write(*,'(''CN    :'',20f7.3)') cn   
-!       if(n.lt.200) write(*,'(''q     :'',20f7.3)') q    
-!       if(sum(abs(efield)).gt.1d-6)write(*,'(''Eext  :'',f16.8)') eext  
+!       write(*,'(''CN    :'',20f7.3)') cn
+!       if(n.lt.200) write(*,'(''q     :'',20f7.3)') q
+!       if(sum(abs(efield)).gt.1d-6)write(*,'(''Eext  :'',f16.8)') eext
 
 !       just for fit De calc
         sqrab = 1.d+12
@@ -550,7 +550,7 @@
         de=-(etot - eesinf)
 !       write(*,'(10x,"De    :",f16.8,f14.3)') de,de*627.5095d0
 !       write out fitting stuff
-        inquire(file='.EAT',exist=ex)  
+        inquire(file='.EAT',exist=ex)
         if(ex)then
           open(unit=91,file='.EAT')
           read(91,*) dum
@@ -590,14 +590,14 @@
       res_gff%g_born  = gborn
       res_gff%g_solv  = gsolv
       res_gff%g_shift = gshift
-      res_gff%g_sasa  = gbsa%gsasa 
+      res_gff%g_sasa  = gbsa%gsasa
       res_gff%dipole  = matmul(xyz, q)
 
    end subroutine gfnff_eg
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbond(i,iat,jat,rab,rij,drij,n,at,xyz,e,g)                 
+      subroutine egbond(i,iat,jat,rab,rij,drij,n,at,xyz,e,g)
       use gff_param
       implicit none
       !Dummy
@@ -618,7 +618,7 @@
       real*8 dx,dy,dz
       real*8 yy
       real*8 t4,t5,t6,t8
-         
+
          t8 =vbond(2,i)
          dr =rab-rij
          dum=vbond(3,i)*exp(-t8*dr**2)
@@ -640,14 +640,14 @@
          g(2,jat)=g(2,jat)+t5-drij(2,jat)*yy
          g(3,jat)=g(3,jat)+t6-drij(3,jat)*yy
          do k=1,n !3B gradient
-            g(:,k)=g(:,k)+drij(:,k)*yy 
+            g(:,k)=g(:,k)+drij(:,k)*yy
          enddo
 
       end subroutine egbond
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g)                 
+      subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g)
       use gff_param
       implicit none
       !Dummy
@@ -706,7 +706,7 @@
          g(2,jat)=g(2,jat)+t5-drij(2,jat)*yy
          g(3,jat)=g(3,jat)+t6-drij(3,jat)*yy
          do k=1,n !3B gradient
-            g(:,k)=g(:,k)+drij(:,k)*yy 
+            g(:,k)=g(:,k)+drij(:,k)*yy
          end do
          zz=dum*vbond(2,i)*dr**2*t1
          do j=1,bond_hb_nr !CN gradient
@@ -718,7 +718,7 @@
                   hbB = bond_hb_B(k,j)
                   g(:,hbB)=g(:,hbB)-hb_dcn(:,hbB,hbH)*zz
                end do
-            end if   
+            end if
          end do
 
       end subroutine egbond_hb
@@ -748,7 +748,7 @@
       real(wp),parameter :: hlfosqrtpi = 1.0_wp/1.77245385091_wp
       real(wp),parameter :: kn=27.5_wp
       real(wp),parameter :: rcov_scal=1.78
-      
+
          cn  = 0._wp
          dcn = 0._wp
 
@@ -774,12 +774,12 @@
                dcn(:,iat,iat)=-dtmp*rij/r + dcn(:,iat,iat)
             end do
          end do
-      
+
       end subroutine dncoord_erf
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbend(m,j,i,k,n,at,xyz,e,g)                 
+      subroutine egbend(m,j,i,k,n,at,xyz,e,g)
       use gff_param
       implicit none
       integer m,n,at(n)
@@ -817,12 +817,12 @@
          damp=dampij*dampjk
 
          if(pi-c0.lt.1.d-6)then ! linear
-         dt  = theta - c0  
+         dt  = theta - c0
          ea  = kijk * dt**2
-         deddt = 2.d0 * kijk * dt 
+         deddt = 2.d0 * kijk * dt
          else
-         ea=kijk*(cosa-cos(c0))**2 
-         deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)               
+         ea=kijk*(cosa-cos(c0))**2
+         deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)
          endif
 
          e = ea * damp
@@ -843,7 +843,7 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbend_nci_mul(j,i,k,c0,fc,n,at,xyz,e,g)                 
+      subroutine egbend_nci_mul(j,i,k,c0,fc,n,at,xyz,e,g)
       use gff_param
       implicit none
       !Dummy
@@ -879,12 +879,12 @@
          theta= dacos(cosa)
 
          if(pi-c0.lt.1.d-6)then     ! linear
-         dt  = theta - c0  
+         dt  = theta - c0
          ea  = kijk * dt**2
-         deddt = 2.d0 * kijk * dt 
+         deddt = 2.d0 * kijk * dt
          else
          ea=kijk*(cosa-cos(c0))**2  ! not linear
-         deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)               
+         deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)
          endif
 
          e = (1.0d0-ea)
@@ -903,7 +903,7 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbend_nci(j,i,k,c0,kijk,n,at,xyz,e,g)                 
+      subroutine egbend_nci(j,i,k,c0,kijk,n,at,xyz,e,g)
       use gff_param
       implicit none
       !Dummy
@@ -941,12 +941,12 @@
          damp=dampij*dampjk
 
          if(pi-c0.lt.1.d-6)then ! linear
-         dt  = theta - c0  
+         dt  = theta - c0
          ea  = kijk * dt**2
-         deddt = 2.d0 * kijk * dt 
+         deddt = 2.d0 * kijk * dt
          else
-         ea=kijk*(cosa-cos(c0))**2 
-         deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)               
+         ea=kijk*(cosa-cos(c0))**2
+         deddt=2.0d0*kijk*sin(theta)*(cos(c0)-cosa)
          endif
 
          e = ea * damp
@@ -967,7 +967,7 @@
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egtors(m,i,j,k,l,n,at,xyz,e,g)                 
+      subroutine egtors(m,i,j,k,l,n,at,xyz,e,g)
       use gff_param
       implicit none
       integer m,n,at(n)
@@ -1010,8 +1010,8 @@
          term2(1:3)=et*damp2jk*dampij*dampkl*vcb(1:3)
          term3(1:3)=et*damp2kl*dampij*dampjk*vdc(1:3)
          g(1:3,1)=dij*dda(1:3)+term1
-         g(1:3,2)=dij*ddb(1:3)-term1+term2     
-         g(1:3,3)=dij*ddc(1:3)+term3-term2    
+         g(1:3,2)=dij*ddb(1:3)-term1+term2
+         g(1:3,3)=dij*ddc(1:3)+term3-term2
          g(1:3,4)=dij*ddd(1:3)-term3
          e=et*damp
          else
@@ -1029,13 +1029,13 @@
          call domegadr(n,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
          if(tlist(5,m).eq.0)then  ! phi0=0 case
          dphi1=phi-phi0
-         c1=dphi1+pi    
+         c1=dphi1+pi
          x1cos=cos(c1)
          x1sin=sin(c1)
          et   =(1.+x1cos)*vtors(2,m)
          dij  =-x1sin*vtors(2,m)*damp
          else                     ! double min at phi0,-phi0
-         et =   vtors(2,m)*(cos(phi) -cos(phi0))**2 
+         et =   vtors(2,m)*(cos(phi) -cos(phi0))**2
          dij=2.*vtors(2,m)* sin(phi)*(cos(phi0)-cos(phi))*damp
          endif
          term1(1:3)=et*damp2ij*dampjk*dampjl*vab(1:3)
@@ -1051,9 +1051,9 @@
       end
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- 
+
       !torsion without distance damping!!! damping is inherint in the HB term
-      subroutine egtors_nci_mul(i,j,k,l,rn,phi0,tshift,n,at,xyz,e,g)                 
+      subroutine egtors_nci_mul(i,j,k,l,rn,phi0,tshift,n,at,xyz,e,g)
       implicit none
       !Dummy
       integer n,at(n)
@@ -1096,8 +1096,8 @@
       end
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- 
-      subroutine egtors_nci(i,j,k,l,rn,phi0,fc,n,at,xyz,e,g)                 
+
+      subroutine egtors_nci(i,j,k,l,rn,phi0,fc,n,at,xyz,e,g)
       implicit none
       !Dummy
       integer n,at(n)
@@ -1139,8 +1139,8 @@
          term2(1:3)=et*damp2jk*dampij*dampkl*vcb(1:3)
          term3(1:3)=et*damp2kl*dampij*dampjk*vdc(1:3)
          g(1:3,1)=dij*dda(1:3)+term1
-         g(1:3,2)=dij*ddb(1:3)-term1+term2     
-         g(1:3,3)=dij*ddc(1:3)+term3-term2    
+         g(1:3,2)=dij*ddb(1:3)-term1+term2
+         g(1:3,3)=dij*ddc(1:3)+term3-term2
          g(1:3,4)=dij*ddd(1:3)-term3
          e=et*damp
       end
@@ -1173,7 +1173,7 @@
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end
-      
+
       subroutine gfnffdampa_nci(ati,atj,r2,damp,ddamp)
       use gff_d3com, only: rcov
       use gff_param,only: atcuta_nci
@@ -1201,7 +1201,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Ref.: S. Alireza Ghasemi, Albert Hofstetter, Santanu Saha, and Stefan Goedecker
 !       PHYSICAL REVIEW B 92, 045131 (2015)
-!       Interatomic potentials for ionic systems with density functional accuracy 
+!       Interatomic potentials for ionic systems with density functional accuracy
 !       based on charge densities obtained by a neural network
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1212,14 +1212,14 @@
       use xtb_solv_gbobc
       implicit none
       logical, intent(in)  :: single     ! real*4 flag for solver
-      integer, intent(in)  :: n          ! number of atoms     
-      integer, intent(in)  :: at(n)      ! ordinal numbers            
+      integer, intent(in)  :: n          ! number of atoms
+      integer, intent(in)  :: at(n)      ! ordinal numbers
       real(wp),intent(in)  :: sqrab(n*(n+1)/2)   ! squared dist
       real(wp),intent(in)  :: r(n*(n+1)/2)       ! dist
       real(wp),intent(in)  :: chrg       ! total charge on system
-      real(wp),intent(in)  :: cn(n)      ! CN                       
+      real(wp),intent(in)  :: cn(n)      ! CN
       real(wp),intent(out) :: q(n)       ! output charges
-      real(wp),intent(out) :: es         ! ES energy     
+      real(wp),intent(out) :: es         ! ES energy
       real(wp),intent(out) :: eeqtmp(2,n*(n+1)/2)    ! intermediates
       type(TSolvent), intent(in) :: gbsa
 
@@ -1235,17 +1235,17 @@
 
       m=n+nfrag ! # atoms + chrg constrain + frag constrain
 
-      allocate(A(m,m),x(m))   
+      allocate(A(m,m),x(m))
 !  setup RHS
       do i=1,n
          x(i) = chieeq(i) + cnf(at(i))*sqrt(cn(i))
       enddo
 
       A = 0
-!  setup A matrix  
+!  setup A matrix
 !$omp parallel default(none) &
 !$omp shared(n,sqrab,r,eeqtmp,alpeeq,gameeq,A,at) &
-!$omp private(i,j,k,ij,gammij,tmp)  
+!$omp private(i,j,k,ij,gammij,tmp)
 !$omp do schedule(dynamic)
       do i=1,n
       A(i,i)=tsqrt2pi/sqrt(alpeeq(i))+gameeq(i) ! J of i
@@ -1255,7 +1255,7 @@
          gammij=1./sqrt(alpeeq(i)+alpeeq(j)) ! squared above
          tmp = erf(gammij*r(ij))
          eeqtmp(1,ij)=gammij
-         eeqtmp(2,ij)=tmp    
+         eeqtmp(2,ij)=tmp
          A(j,i) = tmp/r(ij)
          A(i,j) = A(j,i)
       enddo
@@ -1268,8 +1268,8 @@
         x(n+i)=qfrag(i)
         do j=1,n
          if(fraglist(j).eq.i) then
-            A(n+i,j)=1       
-            A(j,n+i)=1      
+            A(n+i,j)=1
+            A(j,n+i)=1
          endif
         enddo
       enddo
@@ -1299,7 +1299,7 @@
 
       if(n.eq.1) q(1)=chrg
 
-!  energy 
+!  energy
       es = 0.0_wp
       do i=1,n
       ii = i*(i-1)/2
@@ -1315,7 +1315,7 @@
       !work = x
       !call dsymv('u', n, 0.5d0, A, m, q, 1, -1.0_wp, work, 1)
       !es = ddot(n, q, 1, work, 1)
-      
+
 !     deallocate(cn)
 
       end subroutine goed_gfnff
@@ -1353,7 +1353,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 shortcut
 
       integer i,j,ij,lina
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       gdr  = 0
       energy=0
@@ -1362,17 +1362,17 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     A-B distance
       ij=lina(A,B)
-      rab2=sqrab(ij)      
-      rab =srab (ij)        
+      rab2=sqrab(ij)
+      rab =srab (ij)
 
 !     A-H distance
       ij=lina(A,H)
-      rah2= sqrab(ij)           
+      rah2= sqrab(ij)
       rah = srab (ij)
 
 !     B-H distance
       ij=lina(B,H)
-      rbh2= sqrab(ij)           
+      rbh2= sqrab(ij)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
@@ -1415,7 +1415,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rah4 = rah2*rah2
       rbh4 = rbh2*rbh2
       denom = 1.d0/(rah4+rbh4)
-      
+
       caa=qa*ca(1)
       cbb=qb*cb(1)
       qhoutl=qh*outl
@@ -1423,7 +1423,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       bas = (caa*rah4 + cbb*rbh4)*denom
       aci = (cb(2)*rah4+ca(2)*rbh4)*denom
 
-!     energy      
+!     energy
       rterm  = -aci*rdamp*qhoutl
       energy =  bas*rterm
 
@@ -1465,8 +1465,8 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
 
-!     out of line term: rab 
-      gi = aterm*2.d0*ratio2*expo*rahprbh/(1+ratio2)**2/(rahprbh-rab)/rab2 
+!     out of line term: rab
+      gi = aterm*2.d0*ratio2*expo*rahprbh/(1+ratio2)**2/(rahprbh-rab)/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -1478,13 +1478,13 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       dgb(1:3) = drbh(1:3)*tmp/rbh
       gb(1:3) = gb(1:3) + dgb(1:3)
       dgh(1:3) = -dga(1:3)-dgb(1:3)
-      gh(1:3) = gh(1:3) + dgh(1:3)      
+      gh(1:3) = gh(1:3) + dgh(1:3)
 
 !     move gradients into place
 
       gdr(1:3,1) = ga(1:3)
       gdr(1:3,2) = gb(1:3)
-      gdr(1:3,3) = gh(1:3)      
+      gdr(1:3,3) = gh(1:3)
 
 !     write(*,'(9d12.6)') ga,gb,gh
 end
@@ -1530,7 +1530,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 :: p_ab
 
       integer i,j,ij,lina,nbb
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       p_bh=1.d0+hbabmix
       p_ab=    -hbabmix
@@ -1543,7 +1543,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       nbb=nb(20,B)
 !     Neighbours of B
-      do i=1,nbb       
+      do i=1,nbb
 !        compute distances
          dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,nb(i,B))
          drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,nb(i,B))
@@ -1557,17 +1557,17 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     A-B distance
       ij=lina(A,B)
-      rab2=sqrab(ij)      
+      rab2=sqrab(ij)
       rab =srab (ij)
 
 !     A-H distance
       ij=lina(A,H)
-      rah2= sqrab(ij)           
-      rah = srab (ij)    
-      
+      rah2= sqrab(ij)
+      rah = srab (ij)
+
 !     B-H distance
       ij=lina(B,H)
-      rbh2= sqrab(ij)           
+      rbh2= sqrab(ij)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
@@ -1578,14 +1578,14 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
-      
+
 !     out-of-line damp: A...nb(B)-B
       hbnbcut_save = hbnbcut
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
          if(at(B).eq.7.and.nb(20,B).eq.1) then
            hbnbcut=2.0
-         end if  
+         end if
          expo_nb(i)=(hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))**(1.0)
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
@@ -1621,7 +1621,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       ex1b=exp(-hbst*q(B))
       ex2b=ex1b+hbsf
       qb=ex1b/ex2b
-      
+
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
@@ -1655,12 +1655,12 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gb(1:3) = gb(1:3)+dg(1:3)
       gh(1:3) =       - dg(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A-H...B term
 !------------------------------------------------------------------------------
-!     out of line term: rab 
+!     out of line term: rab
       tmp1 = -2.d0*aterm*ratio2*expo/(1+ratio2)**2/(rahprbh-rab)
-      gi   = -tmp1 *rahprbh/rab2 
+      gi   = -tmp1 *rahprbh/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -1675,7 +1675,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       dgh(1:3) = -dga(1:3)-dgb(1:3)
       gh(1:3)  =  gh(1:3) + dgh(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A...nb(B)-B term
 !------------------------------------------------------------------------------
 !     out of line term: rab
@@ -1684,7 +1684,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          mask_nb(i)=.false.
          tmp2(i)  = 2.d0*nbterm*product(outl_nb,mask_nb)*ratio2_nb(i)*expo_nb(i)/&
                   & (1+ratio2_nb(i))**2/(ranbprbnb(i)-rab)
-         gi_nb(i) = -tmp2(i) *ranbprbnb(i)/rab2 
+         gi_nb(i) = -tmp2(i) *ranbprbnb(i)/rab2
          dg(1:3)  = gi_nb(i)*drab(1:3)
          ga(1:3)  = ga(1:3) + dg(1:3)
          gb(1:3)  = gb(1:3) - dg(1:3)
@@ -1706,8 +1706,8 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !------------------------------------------------------------------------------
       if(nbb.lt.1) then
          gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
-         gdr(1:3,B) = gdr(1:3,B) + gb(1:3) 
-         gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+         gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
+         gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
          return
       endif
 
@@ -1715,7 +1715,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     move gradients into place
       gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
-      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
       end do
@@ -1772,7 +1772,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 hblpcut
 
       integer i,j,ij,lina,nbb
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       p_bh=1.d0+hbabmix
       p_ab=    -hbabmix
@@ -1787,7 +1787,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       nbb=nb(20,B)
 !     Neighbours of B
-      do i=1,nbb       
+      do i=1,nbb
 !        compute distances
          dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,nb(i,B))
          drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,nb(i,B))
@@ -1800,7 +1800,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       end do
 
 !     Neighbours of B
-      do i=1,nbb       
+      do i=1,nbb
          drnb(1:3,i)=xyz(1:3,nb(i,B))-xyz(1:3,B)
          vector = vector + drnb(1:3,i)
       end do
@@ -1816,17 +1816,17 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     A-B distance
       ij=lina(A,B)
-      rab2=sqrab(ij)      
+      rab2=sqrab(ij)
       rab =srab (ij)
 
 !     A-H distance
       ij=lina(A,H)
-      rah2= sqrab(ij)           
-      rah = srab (ij)    
-      
+      rah2= sqrab(ij)
+      rah = srab (ij)
+
 !     B-H distance
       ij=lina(B,H)
-      rbh2= sqrab(ij)           
+      rbh2= sqrab(ij)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
@@ -1847,7 +1847,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       expo_lp=(hblpcut/radab)*(ralpprblp/rab-1.d0)
       ratio2_lp=exp(expo_lp)
       outl_lp=2.d0/(1.d0+ratio2_lp)
-      
+
 !     out-of-line damp: A...nb(B)-B
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
@@ -1886,7 +1886,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       ex1b=exp(-hbst*q(B))
       ex2b=ex1b+hbsf
       qb=ex1b/ex2b
-      
+
       qhoutl=qh*outl*outl_nb_tot*outl_lp
 
 !     constant values, no gradient
@@ -1923,12 +1923,12 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gb(1:3) = gb(1:3)+dg(1:3)
       gh(1:3) =       - dg(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A-H...B term
 !------------------------------------------------------------------------------
-!     out of line term: rab 
+!     out of line term: rab
       tmp1 = -2.d0*aterm*ratio2*expo/(1+ratio2)**2/(rahprbh-rab)
-      gi   = -tmp1 *rahprbh/rab2 
+      gi   = -tmp1 *rahprbh/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -1943,12 +1943,12 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       dgh(1:3) = -dga(1:3)-dgb(1:3)
       gh(1:3)  =  gh(1:3) + dgh(1:3)
 
-!!------------------------------------------------------------------------------      
+!!------------------------------------------------------------------------------
 !!     angular A...LP-B term
 !!------------------------------------------------------------------------------
-!     out of line term: rab 
+!     out of line term: rab
       tmp3 = -2.d0*lpterm*ratio2_lp*expo_lp/(1+ratio2_lp)**2/(ralpprblp-rab)
-      gi   = -tmp3 *ralpprblp/rab2 
+      gi   = -tmp3 *ralpprblp/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -1971,7 +1971,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       end do
       gnb_lp=matmul(gii,glp)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A...nb(B)-B term
 !------------------------------------------------------------------------------
 !     out of line term: rab
@@ -1980,7 +1980,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          mask_nb(i)=.false.
          tmp2(i)  = 2.d0*nbterm*product(outl_nb,mask_nb)*ratio2_nb(i)*expo_nb(i)/&
                   & (1+ratio2_nb(i))**2/(ranbprbnb(i)-rab)
-         gi_nb(i) = -tmp2(i) *ranbprbnb(i)/rab2 
+         gi_nb(i) = -tmp2(i) *ranbprbnb(i)/rab2
          dg(1:3)  = gi_nb(i)*drab(1:3)
          ga(1:3)  = ga(1:3) + dg(1:3)
          gb(1:3)  = gb(1:3) - dg(1:3)
@@ -2002,8 +2002,8 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !------------------------------------------------------------------------------
       if(nbb.lt.1) then
          gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
-         gdr(1:3,B) = gdr(1:3,B) + gb(1:3) 
-         gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+         gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
+         gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
          return
       endif
 
@@ -2011,7 +2011,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     move gradients into place
       gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3) + gnb_lp(1:3)
-      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i) - gnb_lp(1:3)/dble(nbb)
       end do
@@ -2072,7 +2072,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer ntors,rn
       parameter (pi = 3.1415926535897932384626433832795029d0)
 
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       p_bh=1.d0+hbabmix
       p_ab=    -hbabmix
@@ -2104,7 +2104,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       nbb=nb(20,B)
 !     Neighbours of B
-      do i=1,nbb       
+      do i=1,nbb
 !        compute distances
          dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,nb(i,B))
          drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,nb(i,B))
@@ -2118,17 +2118,17 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     A-B distance
       ij=lina(A,B)
-      rab2=sqrab(ij)      
+      rab2=sqrab(ij)
       rab =srab (ij)
 
 !     A-H distance
       ij=lina(A,H)
-      rah2= sqrab(ij)           
-      rah = srab (ij)    
-      
+      rah2= sqrab(ij)
+      rah = srab (ij)
+
 !     B-H distance
       ij=lina(B,H)
-      rbh2= sqrab(ij)           
+      rbh2= sqrab(ij)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
@@ -2139,7 +2139,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
-      
+
 !     out-of-line damp: A...nb(B)-B
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
@@ -2178,7 +2178,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          phi0=t0*pi/180.
          vtors(1,j)=phi0-(pi/2.0)
          vtors(2,j)=tors_hb !gff_param
-      end do  
+      end do
 
       !Calculate etors
       !write(*,*)'torsion atoms       nrot      phi0   phi      FC'
@@ -2192,9 +2192,9 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          tshift=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
          call egtors_nci_mul(ii,jj,kk,ll,rn,phi0,tshift,n,at,xyz,etmp(i),g4tmp(:,:,i))
-         !write(*,'(4i5,2x,i2,4x,3f8.3,2x,f5.3)') & 
+         !write(*,'(4i5,2x,i2,4x,3f8.3,2x,f5.3)') &
          !     &    ii,jj,kk,ll,rn,2*phi0*180./pi,phi*180./pi,fc,etmp(i)
-      end do   
+      end do
       etors=product(etmp(1:ntors))
       !Calculate gtors
       t_mask=.true.
@@ -2219,7 +2219,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,eangl,g3tmp)
-      !write(*,'(3i5,2x,3f8.3,2x,f5.3)') & 
+      !write(*,'(3i5,2x,3f8.3,2x,f5.3)') &
       !     &    jj,kk,ll,phi0*180./pi,phi*180./pi,fc,eangl
       gangl(1:3,jj)=gangl(1:3,jj)+g3tmp(1:3,1)
       gangl(1:3,kk)=gangl(1:3,kk)+g3tmp(1:3,2)
@@ -2239,7 +2239,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       ex1b=exp(-hbst*q(B))
       ex2b=ex1b+hbsf
       qb=ex1b/ex2b
-      
+
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
@@ -2276,12 +2276,12 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gb(1:3) = gb(1:3)+dg(1:3)
       gh(1:3) =       - dg(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A-H...B term
 !------------------------------------------------------------------------------
-!     out of line term: rab 
+!     out of line term: rab
       tmp1 = -2.d0*aterm*ratio2*expo/(1+ratio2)**2/(rahprbh-rab)
-      gi   = -tmp1 *rahprbh/rab2 
+      gi   = -tmp1 *rahprbh/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -2296,7 +2296,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       dgh(1:3) = -dga(1:3)-dgb(1:3)
       gh(1:3)  =  gh(1:3) + dgh(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A...nb(B)-B term
 !------------------------------------------------------------------------------
 !     out of line term: rab
@@ -2305,7 +2305,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          mask_nb(i)=.false.
          tmp2(i)  = 2.d0*nbterm*product(outl_nb,mask_nb)*ratio2_nb(i)*expo_nb(i)/&
                   & (1+ratio2_nb(i))**2/(ranbprbnb(i)-rab)
-         gi_nb(i) = -tmp2(i) *ranbprbnb(i)/rab2 
+         gi_nb(i) = -tmp2(i) *ranbprbnb(i)/rab2
          dg(1:3)  = gi_nb(i)*drab(1:3)
          ga(1:3)  = ga(1:3) + dg(1:3)
          gb(1:3)  = gb(1:3) - dg(1:3)
@@ -2327,34 +2327,34 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !------------------------------------------------------------------------------
       if(nbb.lt.1) then
          gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
-         gdr(1:3,B) = gdr(1:3,B) + gb(1:3) 
-         gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+         gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
+         gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
          return
       endif
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     torsion term H...B=C<R1,R2
 !------------------------------------------------------------------------------
       do i = 1,ntors
          ii =tlist(1,i)
-         gdr(1:3,ii) = gdr(1:3,ii)+gtors(1:3,ii)*tterm 
+         gdr(1:3,ii) = gdr(1:3,ii)+gtors(1:3,ii)*tterm
       end do
       gdr(1:3,jj) = gdr(1:3,jj)+gtors(1:3,jj)*tterm
-      gdr(1:3,kk) = gdr(1:3,kk)+gtors(1:3,kk)*tterm      
-      gdr(1:3,ll) = gdr(1:3,ll)+gtors(1:3,ll)*tterm      
+      gdr(1:3,kk) = gdr(1:3,kk)+gtors(1:3,kk)*tterm
+      gdr(1:3,ll) = gdr(1:3,ll)+gtors(1:3,ll)*tterm
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angle term H...B=C
 !------------------------------------------------------------------------------
       gdr(1:3,jj) = gdr(1:3,jj)+gangl(1:3,jj)*bterm
-      gdr(1:3,kk) = gdr(1:3,kk)+gangl(1:3,kk)*bterm      
-      gdr(1:3,ll) = gdr(1:3,ll)+gangl(1:3,ll)*bterm      
+      gdr(1:3,kk) = gdr(1:3,kk)+gangl(1:3,kk)*bterm
+      gdr(1:3,ll) = gdr(1:3,ll)+gangl(1:3,ll)*bterm
 
 !------------------------------------------------------------------------------
 !     move gradients into place
       gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
-      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
       end do
@@ -2411,8 +2411,8 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer nbb,nbc
       integer ntors,rn
       parameter (pi = 3.1415926535897932384626433832795029d0)
-      
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       p_bh=1.d0+hbabmix
       p_ab=    -hbabmix
@@ -2444,17 +2444,17 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       !A-B distance
       ij=lina(A,B)
-      rab2=sqrab(ij)      
+      rab2=sqrab(ij)
       rab =srab (ij)
 
       !A-H distance
       ij=lina(A,H)
-      rah2= sqrab(ij)           
-      rah = srab (ij)    
-      
+      rah2= sqrab(ij)
+      rah = srab (ij)
+
       !B-H distance
       ij=lina(B,H)
-      rbh2= sqrab(ij)           
+      rbh2= sqrab(ij)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
@@ -2480,7 +2480,7 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
-      
+
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
@@ -2493,7 +2493,7 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          tlist(5,j)=2
          vtors(1,j)=pi/2.0
          vtors(2,j)=0.70
-      end do  
+      end do
 
       !Calculate etors
       !write(*,*)'torsion atoms       nrot      phi0   phi      FC'
@@ -2507,14 +2507,14 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          tshift=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
          call egtors_nci_mul(ii,jj,kk,ll,rn,phi0,tshift,n,at,xyz,etmp,g4tmp)
-         !write(*,'(4i5,2x,i2,4x,3f8.3,2x,f5.3)') & 
+         !write(*,'(4i5,2x,i2,4x,3f8.3,2x,f5.3)') &
          !     &    ii,jj,kk,ll,rn,2*phi0*180./pi,phi*180./pi,fc,etmp
          gtors(1:3,ii) = gtors(1:3,ii)+g4tmp(1:3,1)
          gtors(1:3,jj) = gtors(1:3,jj)+g4tmp(1:3,2)
          gtors(1:3,kk) = gtors(1:3,kk)+g4tmp(1:3,3)
-         gtors(1:3,ll) = gtors(1:3,ll)+g4tmp(1:3,4)      
+         gtors(1:3,ll) = gtors(1:3,ll)+g4tmp(1:3,4)
          etors = etors + etmp
-      end do   
+      end do
       etors=etors/ntors
 
       !Calculate eangl + gangl
@@ -2525,7 +2525,7 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,etmp,g3tmp)
-      !write(*,'(3i5,2x,3f8.3,2x,f5.3)') & 
+      !write(*,'(3i5,2x,3f8.3,2x,f5.3)') &
       !     &    jj,kk,ll,phi0*180./pi,phi*180./pi,fc,etmp
       gangl(1:3,jj)=gangl(1:3,jj)+g3tmp(1:3,1)
       gangl(1:3,kk)=gangl(1:3,kk)+g3tmp(1:3,2)
@@ -2546,8 +2546,8 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       ex1b=exp(-hbst*q(B))
       ex2b=ex1b+hbsf
       qb=ex1b/ex2b
-      
-!     max distance to neighbors excluded, would lead to linear C=O-H      
+
+!     max distance to neighbors excluded, would lead to linear C=O-H
       qhoutl=qh*outl
 
 !     constant values, no gradient
@@ -2586,12 +2586,12 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gb(1:3) = gb(1:3)+dg(1:3)
       gh(1:3) =       - dg(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A-H...B term
 !------------------------------------------------------------------------------
-!     out of line term: rab 
+!     out of line term: rab
       tmp1 = -2.d0*aterm*ratio2*expo/(1+ratio2)**2/(rahprbh-rab)
-      gi   = -tmp1 *rahprbh/rab2 
+      gi   = -tmp1 *rahprbh/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -2607,29 +2607,29 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gh(1:3)  =  gh(1:3) + dgh(1:3)
 
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     torsion term H...B=C<R1,R2
 !------------------------------------------------------------------------------
       do i = 1,ntors
          ii =tlist(1,i)
-         gdr(1:3,ii) = gdr(1:3,ii)+gtors(1:3,ii)*tterm 
+         gdr(1:3,ii) = gdr(1:3,ii)+gtors(1:3,ii)*tterm
       end do
       gdr(1:3,jj) = gdr(1:3,jj)+gtors(1:3,jj)*tterm
-      gdr(1:3,kk) = gdr(1:3,kk)+gtors(1:3,kk)*tterm      
-      gdr(1:3,ll) = gdr(1:3,ll)+gtors(1:3,ll)*tterm      
+      gdr(1:3,kk) = gdr(1:3,kk)+gtors(1:3,kk)*tterm
+      gdr(1:3,ll) = gdr(1:3,ll)+gtors(1:3,ll)*tterm
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angle term H...B=C
 !------------------------------------------------------------------------------
       gdr(1:3,jj) = gdr(1:3,jj)+gangl(1:3,jj)*bterm
-      gdr(1:3,kk) = gdr(1:3,kk)+gangl(1:3,kk)*bterm      
-      gdr(1:3,ll) = gdr(1:3,ll)+gangl(1:3,ll)*bterm      
+      gdr(1:3,kk) = gdr(1:3,kk)+gangl(1:3,kk)*bterm
+      gdr(1:3,ll) = gdr(1:3,ll)+gangl(1:3,ll)*bterm
 
 !------------------------------------------------------------------------------
 !     move gradients into place
       gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
-      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
 
 end
 
@@ -2684,8 +2684,8 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer nbb,nbc
       integer ntors,rn
       parameter (pi = 3.1415926535897932384626433832795029d0)
-      
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       p_bh=1.d0+hbabmix
       p_ab=    -hbabmix
@@ -2715,17 +2715,17 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       !A-B distance
       ij=lina(A,B)
-      rab2=sqrab(ij)      
+      rab2=sqrab(ij)
       rab =srab (ij)
 
       !A-H distance
       ij=lina(A,H)
-      rah2= sqrab(ij)           
-      rah = srab (ij)    
-      
+      rah2= sqrab(ij)
+      rah = srab (ij)
+
       !B-H distance
       ij=lina(B,H)
-      rbh2= sqrab(ij)           
+      rbh2= sqrab(ij)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
@@ -2751,7 +2751,7 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
-      
+
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
@@ -2764,7 +2764,7 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          tlist(5,j)=2
          vtors(1,j)=pi
          vtors(2,j)=0.30
-      end do  
+      end do
 
       !Calculate etors
       !write(*,*)'torsion atoms       nrot      phi0   phi      FC'
@@ -2777,15 +2777,15 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          phi0=vtors(1,i)
          fc=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
-      !   write(*,'(4i5,2x,i2,4x,3f8.3)') & 
+      !   write(*,'(4i5,2x,i2,4x,3f8.3)') &
       !&   ii,jj,kk,ll,rn,phi0*180./pi,phi*180./pi,fc
          call egtors_nci(ii,jj,kk,ll,rn,phi0,fc,n,at,xyz,etmp,g4tmp)
          gdr(1:3,ii) = gdr(1:3,ii)+g4tmp(1:3,1)
          gdr(1:3,jj) = gdr(1:3,jj)+g4tmp(1:3,2)
-         gdr(1:3,kk) = gdr(1:3,kk)+g4tmp(1:3,3)      
-         gdr(1:3,ll) = gdr(1:3,ll)+g4tmp(1:3,4)      
+         gdr(1:3,kk) = gdr(1:3,kk)+g4tmp(1:3,3)
+         gdr(1:3,ll) = gdr(1:3,ll)+g4tmp(1:3,4)
          etors = etors + etmp
-      end do   
+      end do
 
       !Calculate eangl + gangl
       write(*,*)'angle atoms          phi0   phi      FC'
@@ -2793,7 +2793,7 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       phi0=r0*pi/180.
       fc=0.20
       call bangl(xyz,kk,jj,ll,phi)
-      write(*,'(3i5,2x,3f8.3)') & 
+      write(*,'(3i5,2x,3f8.3)') &
       &   jj,kk,ll,phi0*180./pi,phi*180./pi,fc
       call egbend_nci(jj,kk,ll,phi0,fc,n,at,xyz,etmp,g3tmp)
       gdr(1:3,jj)=gdr(1:3,jj)+g3tmp(1:3,1)
@@ -2815,8 +2815,8 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       ex1b=exp(-hbst*q(B))
       ex2b=ex1b+hbsf
       qb=ex1b/ex2b
-      
-!     max distance to neighbors excluded, would lead to linear C=O-H      
+
+!     max distance to neighbors excluded, would lead to linear C=O-H
       qhoutl=qh*outl
 
 !     constant values, no gradient
@@ -2849,12 +2849,12 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gb(1:3) = gb(1:3)+dg(1:3)
       gh(1:3) =       - dg(1:3)
 
-!------------------------------------------------------------------------------      
+!------------------------------------------------------------------------------
 !     angular A-H...B term
 !------------------------------------------------------------------------------
-!     out of line term: rab 
+!     out of line term: rab
       tmp1 = -2.d0*aterm*ratio2*expo/(1+ratio2)**2/(rahprbh-rab)
-      gi   = -tmp1 *rahprbh/rab2 
+      gi   = -tmp1 *rahprbh/rab2
       dg(1:3) = gi*drab(1:3)
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -2873,7 +2873,7 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     move gradients into place
       gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
-      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)      
+      gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
 
 end
 
@@ -2910,7 +2910,7 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       cb = 1.!xhbas(at(B))
       cx = xbaci(at(X))
 
-!     compute distances      
+!     compute distances
       drax(1:3) = xyz(1:3,A)-xyz(1:3,X)
       drbx(1:3) = xyz(1:3,B)-xyz(1:3,X)
       drab(1:3) = xyz(1:3,A)-xyz(1:3,B)
@@ -3013,9 +3013,9 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
 
       real*8 r2ij,r2jk,r2ik,c9,mijk,imjk,ijmk,rijk3,ang,angr9,rav3
       real*8 rij(3),rik(3),rjk(3),drij,drik,drjk,dang,ff,fi,fj,fk,fqq
-      parameter (fqq=3.0d0)  
+      parameter (fqq=3.0d0)
       integer linij,linik,linjk,lina,i,j
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
+      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       fi=(1.d0-fqq*q(iat))
       fi=min(max(fi,-4.0d0),4.0d0)
@@ -3035,7 +3035,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
       imjk= r2ij-r2jk+r2ik
       ijmk= r2ij+r2jk-r2ik
       rijk3=r2ij*r2jk*r2ik
-      rav3=rijk3**1.5 ! R^9 
+      rav3=rijk3**1.5 ! R^9
       ang=0.375d0*ijmk*imjk*mijk/rijk3
       angr9=(ang +1.0d0)/rav3
       energy=c9*angr9 ! energy
@@ -3044,17 +3044,17 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
               dang=-0.375d0*(r2ij**3+r2ij**2*(r2jk+r2ik) &
      &             +r2ij*(3.0d0*r2jk**2+2.0*r2jk*r2ik+3.0*r2ik**2) &
      &             -5.0*(r2jk-r2ik)**2*(r2jk+r2ik)) &
-     &             /(srab(linij)*rijk3*rav3) 
+     &             /(srab(linij)*rijk3*rav3)
               drij=-dang*c9
               dang=-0.375d0*(r2jk**3+r2jk**2*(r2ik+r2ij) &
      &             +r2jk*(3.0d0*r2ik**2+2.0*r2ik*r2ij+3.0*r2ij**2) &
      &             -5.0*(r2ik-r2ij)**2*(r2ik+r2ij)) &
-     &             /(srab(linjk)*rijk3*rav3) 
+     &             /(srab(linjk)*rijk3*rav3)
               drjk=-dang*c9
               dang=-0.375d0*(r2ik**3+r2ik**2*(r2jk+r2ij) &
      &             +r2ik*(3.0d0*r2jk**2+2.0*r2jk*r2ij+3.0*r2ij**2) &
      &             -5.0*(r2jk-r2ij)**2*(r2jk+r2ij)) &
-     &             /(srab(linik)*rijk3*rav3) 
+     &             /(srab(linik)*rijk3*rav3)
               drik=-dang*c9
 
       rij=xyz(:,jat)-xyz(:,iat)
@@ -3111,14 +3111,14 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
       derivative = 0.0_wp
       r   = 0.0_wp
       r0  = 0.0_wp
-      rij = 0.0_wp      
+      rij = 0.0_wp
       thr = sqrt(thr2)
       !> create error function CN
       do i = 2, n
          ii=i*(i-1)/2
          do j = 1, i-1
             ij = ii+j
-            r = rab(ij) 
+            r = rab(ij)
             if (r.gt.thr) cycle
             r0=(rcov(at(i))+rcov(at(j)))
             dr = (r-r0)/r0
@@ -3144,18 +3144,18 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
             r0 = (rcov(at(i)) + rcov(at(j)))
             !> get derfCN/dRij
             derivative = create_derfCN(kn,r,r0)
-!           derivative = create_dexpCN(16.0d0,r,r0)            
+!           derivative = create_dexpCN(16.0d0,r,r0)
             rij  = derivative*(xyz(:,j) - xyz(:,i))/r
             !> project rij gradient onto cartesians
             dlogCN(:,j,j)= dlogdcnj*rij + dlogCN(:,j,j)
-            dlogCN(:,i,j)=-dlogdcnj*rij 
-            dlogCN(:,j,i)= dlogdcni*rij 
-            dlogCN(:,i,i)=-dlogdcni*rij + dlogCN(:,i,i)         
+            dlogCN(:,i,j)=-dlogdcnj*rij
+            dlogCN(:,j,i)= dlogdcni*rij
+            dlogCN(:,i,i)=-dlogdcni*rij + dlogCN(:,i,i)
          enddo
       enddo
 
     contains
-      
+
 pure elemental function create_logCN(cn) result(count)
       use iso_fortran_env, only : wp => real64
       use gff_param,only : cnmax
@@ -3179,7 +3179,7 @@ pure elemental function create_erfCN(k,r,r0) result(count)
    real(wp), intent(in) :: r0
    real(wp) :: count
    real(wp) :: dr
-   dr = (r -r0)/r0   
+   dr = (r -r0)/r0
    count = 0.5_wp * (1.0_wp + erf(kn*dr))
 end function create_erfCN
 
@@ -3192,7 +3192,7 @@ pure elemental function create_derfCN(k,r,r0) result(count)
    real(wp), parameter :: sqrtpi = 1.77245385091_wp
    real(wp) :: count
    real(wp) :: dr
-   dr = (r -r0)/r0   
+   dr = (r -r0)/r0
    count = k/sqrtpi*exp(-k**2*dr*dr)/r0
 end function create_derfCN
 

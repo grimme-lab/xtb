@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -31,12 +31,12 @@ module gff_gffcom
       real(wp) :: xhaci_globabh      ! HB AH-B
       real(wp) :: hbabmix            ! HB AH-B
       real(wp) :: hbnbcut            ! new parameter for neighbour angle
-      real(wp) :: cnmax              ! max CN cut-off              
-      real(wp) :: efield(3)          ! electric field components   
+      real(wp) :: cnmax              ! max CN cut-off
+      real(wp) :: efield(3)          ! electric field components
 !general common stuff used in energy-gradient routines
       real(wp) :: repa (86),repz (86),zb3atm(86)   ! rep alpha bond, prefactor (Zval), 3atm bond term
       real(wp) :: xhaci(86),xhbas(86),xbaci(86)    ! HB/XB
-      real(wp) :: rad(86)                          ! radii used for HB/XB damping and topology 
+      real(wp) :: rad(86)                          ! radii used for HB/XB damping and topology
       real(wp) :: en (86)                          ! EN
       real(wp) :: cnf(86)                          ! EN dep. in EEQ. xi,gam,alp set for atoms in gnff_ini
       real(wp) :: d3r0(86*87/2)                    ! BJ radii set in gnff_ini()
@@ -56,7 +56,7 @@ module gff_gffcom
       integer,allocatable ::  blist(:,:)   ! bonded atoms
       integer,allocatable ::  alist(:,:)   ! angles
       integer,allocatable ::  tlist(:,:)   ! torsions
-      integer,allocatable :: b3list(:,:)   ! bond atm   
+      integer,allocatable :: b3list(:,:)   ! bond atm
       integer,allocatable :: hblist1(:,:)  ! HBs loose
       integer,allocatable :: hblist2(:,:)  ! HBs bonded
       integer,allocatable :: hblist3(:,:)  ! XBs
@@ -75,9 +75,9 @@ module gff_gffcom
       real(wp),allocatable:: alphanb(:)   ! non-bonded exponent for atom pairs
       real(wp),allocatable::    qa(:)     ! estimated atomic charges (fixed and obtained from topology EEQ)
       real(wp),allocatable::     q(:)     ! atomic charges (obtained from EEQ)
-      real(wp),allocatable:: hbrefgeo(:,:)! atom xyz, used to check for HB list update       
-      real(wp),allocatable::    xyze0(:,:)! atom xyz, starting geom. (for Efield energy)     
-      real(wp),allocatable:: zetac6(:)    ! D4 scaling factor product 
+      real(wp),allocatable:: hbrefgeo(:,:)! atom xyz, used to check for HB list update
+      real(wp),allocatable::    xyze0(:,:)! atom xyz, starting geom. (for Efield energy)
+      real(wp),allocatable:: zetac6(:)    ! D4 scaling factor product
       real(wp),allocatable:: qfrag (:)    ! fragment charge (for EEQ)
 
      data xhaci / 86 * 0 /

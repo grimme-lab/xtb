@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-module gff_mdcom 
+module gff_mdcom
       use iso_fortran_env, only : wp => real64
       implicit none
       private :: wp
@@ -23,9 +23,9 @@ module gff_mdcom
 
       real(wp) :: tmax = 100.
       real(wp) :: tsoll= 298.
-      real(wp) :: tstep0=2.5 
+      real(wp) :: tstep0=2.5
       real(wp) :: dumpmd=100.
-      real(wp) :: hmass =4. 
-      logical  :: thermostat = .true. 
+      real(wp) :: hmass =4.
+      logical  :: thermostat = .true.
 
 end

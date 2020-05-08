@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -14,13 +14,13 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
- 
+
       subroutine gfnffdrab(n,at,xyz,cn,dcn,nsrb,srblist,rab,grab)
       implicit none
-      integer n                 ! number of atoms     
-      integer at(n)             ! ordinal numbers            
+      integer n                 ! number of atoms
+      integer at(n)             ! ordinal numbers
       real*8  xyz(3,n)          ! Cartesian coords in Bohr
-      real*8  cn(n)             ! D3 CN                      
+      real*8  cn(n)             ! D3 CN
       real*8  dcn(3,n,n)        ! D3 CN derivatives
       integer nsrb              ! # of pairs
       integer srblist(2,nsrb)   ! list of atom pairs
@@ -68,7 +68,7 @@ c     parameter)
      . 2.34224386
      ./
       data r0 /
-     . 0.55682207, 0.80966997, 2.49092101, 1.91705642, 1.35974851, 
+     . 0.55682207, 0.80966997, 2.49092101, 1.91705642, 1.35974851,
      . 0.98310699, 0.98423007, 0.76716063, 1.06139799, 1.17736822, ! 10
      . 2.85570926, 2.56149012, 2.31673425, 2.03181740, 1.82568535,
      . 1.73685958, 1.97498207, 2.00136196, 3.58772537, 2.68096221, ! 20
@@ -80,7 +80,7 @@ c     parameter)
      . 2.15244869, 2.55958313, 2.59141300, 2.62030465, 2.39935278, ! 50
      . 2.56912355, 2.54374096, 2.56914830, 2.53680807, 4.24537037,
      . 3.66542289, 3.19903011, 2.80000000, 2.80000000, 2.80000000, ! 60
-     . 2.80000000, 2.80000000, 2.80000000, 2.80000000, 2.80000000,   
+     . 2.80000000, 2.80000000, 2.80000000, 2.80000000, 2.80000000,
      . 2.80000000, 2.80000000, 2.80000000, 2.80000000, 2.80000000,
      . 2.80000000, 2.34880037, 2.37597108, 2.49067697, 2.14100577,
      . 2.33473532, 2.19498900, 2.12678348, 2.34895048, 2.33422774,
@@ -110,8 +110,8 @@ c     parameter)
 
 c parameter input for fit
 c     open(unit=11,file='~/.param')
-c     do i=1,86  
-c        read(11,*) r0(i),cnfak(i),en(i) ! r0, CN dep 
+c     do i=1,86
+c        read(11,*) r0(i),cnfak(i),en(i) ! r0, CN dep
 c     enddo
 c     do j=1,2
 c     do i=1,4
@@ -133,7 +133,7 @@ c     global EN polynominal parameters x 10^3
       p(4,2)=    -0.85808076
       p(5,2)=    -1.15000000
       p(6,2)=    -1.30000000
- 
+
 !     do i=1,n
 !        dcn(1:3,i,i)=-dcn(1:3,i,i) ! to allow inverted access on array
 !     enddo
@@ -153,7 +153,7 @@ c--------
          k2=0.005d0*(p(ir,2)+p(jr,2))
          ff=1.0d0-k1*den-k2*den**2
          rab(k) =(ra+rb+rab(k))*ff
-         do m=1,n 
+         do m=1,n
             grab(1:3,m,k)=ff*(cnfak(ati)*dcn(1:3,m,i)
      .                       +cnfak(atj)*dcn(1:3,m,j))
          enddo
@@ -172,7 +172,7 @@ c--------
       INTEGER FUNCTION iTabRow6(i)
       implicit none
       INTEGER i
- 
+
       iTabRow6=0
       If (i.gt. 0 .and. i.le. 2) Then
          iTabRow6=1
@@ -187,7 +187,7 @@ c--------
       Else If (i.gt.54) Then
          iTabRow6=6
       End If
- 
+
       Return
       End
 
@@ -195,9 +195,9 @@ c--------
 
       subroutine gfnffrab(n,at,cn,rab)
       implicit none
-      integer n                 ! number of atoms     
-      integer at(n)             ! ordinal numbers            
-      real*8  cn(n)             ! D3 CN                      
+      integer n                 ! number of atoms
+      integer at(n)             ! ordinal numbers
+      real*8  cn(n)             ! D3 CN
       real*8 rab(n*(n+1)/2)     ! output bond lengths estimates
 
       integer m,i,j,k,ii,jj,ati,atj,ir,jr
@@ -278,8 +278,8 @@ c--------
       p(4,2)=    -0.85808076
       p(5,2)=    -1.15000000
       p(6,2)=    -1.30000000
- 
-      do i=1,n    
+
+      do i=1,n
          do j=1,i-1
          k=lin(j,i)
          ati=at(i)

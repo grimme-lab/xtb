@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -14,7 +14,7 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
-      
+
       subroutine mrecgff(nat,nb,molcount,molvec)
       ! molcount: number of total fragments (increased during search)
       ! nat: overall number of atoms
@@ -44,15 +44,15 @@
       endif
       enddo
       molcount=molcount-1
-      end 
+      end
 
       recursive subroutine mrecgff2(nb,i,taken,nat,bond,molvec,molcnt)
       implicit none
       integer i,nat, molcnt,molvec(nat),j,icn,k,nb(20,nat)
       real*8 bond(nat,nat)
       logical taken(nat)
-    
-      icn=nb(20,i)     
+
+      icn=nb(20,i)
       do k=1,icn
          j=maxloc(bond(:,i),1)
          bond(j,i)=0
@@ -63,5 +63,5 @@
             call mrecgff2(nb,j,taken,nat,bond,molvec,molcnt)
          endif
       enddo
-      end 
+      end
 

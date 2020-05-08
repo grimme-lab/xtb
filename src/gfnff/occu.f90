@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -25,10 +25,10 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
       focc=0
       focca=0
       foccb=0
-! even nel      
+! even nel
       if(mod(nel,2).eq.0)then
       ihomo=nel/2
-      do i=1,ihomo 
+      do i=1,ihomo
          focc(i)=2
       enddo
       if(2*ihomo.ne.nel) then
@@ -42,14 +42,14 @@ subroutine occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
             focc(ihomo+i)=focc(ihomo+i)+1
          enddo
       endif
-! odd nel      
+! odd nel
       else
       na=nel/2+(nopen-1)/2+1
       nb=nel/2-(nopen-1)/2
-      do i=1,na             
+      do i=1,na
          focc(i)=focc(i)+1
       enddo
-      do i=1,nb             
+      do i=1,nb
          focc(i)=focc(i)+1
       enddo
       endif

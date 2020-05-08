@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -42,7 +42,7 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
        hbrefgeo=mol%xyz
        if (success) write(*,'(10x,"GFN-FF topology read from file successfully!")')
        if (.not.success) then
-          write(*,'(10x,"GFN-FF topology read in did not work!")')    
+          write(*,'(10x,"GFN-FF topology read in did not work!")')
           write(*,'(10x,"Generating new topology file!")')
           call gfnff_ini(verbose,ini,mol,ichrg)
           call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
@@ -51,14 +51,14 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
        call gfnff_ini(verbose,ini,mol,ichrg)
        if (.not.mol%struc%two_dimensional) then
           call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
-       end if   
+       end if
      end if
   else if (.not.restart) then
      call gfnff_ini(verbose,ini,mol,ichrg)
      call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff)
   end if
 
-end subroutine gfnff_setup  
+end subroutine gfnff_setup
 
 subroutine gfnff_input(mol)
   use iso_fortran_env, only : wp => real64
@@ -66,7 +66,7 @@ subroutine gfnff_input(mol)
   use gff_param
   use xtb_setparam, only : ichrg
   implicit none
-! Dummy  
+! Dummy
   type(TMolecule),intent(in) :: mol
 ! Stack
   integer           :: i,j,k
@@ -74,7 +74,7 @@ subroutine gfnff_input(mol)
   integer           :: ns
   integer           :: nf
   integer           :: ich
-  integer           :: iatom  
+  integer           :: iatom
   integer           :: iresidue
   integer           :: ifrag
   integer           :: ibond
@@ -134,7 +134,7 @@ subroutine gfnff_input(mol)
           ni=nb(20,i)
           ex=.false.
           do k=1,ni
-             if(nb(k,i).eq.j) then 
+             if(nb(k,i).eq.j) then
                 ex=.true.
                 exit
              endif

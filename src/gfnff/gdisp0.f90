@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -15,117 +15,20 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-! somewhat stripped pure D3(BJ) routine which is faster by a factor of two compared to gdisp
-    subroutine egdisp_gfnff(n,iz,xyz,sqrab,srab,npair,pairlist,&
-     &                        disp,g,cn,dcnij)
-      use gff_d3com
-      use gff_param, only:d3r0,zetac6
-      use xtb_disp_dftd3param
-      implicit none  
-
-      integer,intent(in) :: n,iz(n),npair,pairlist(2,n*(n+1)/2)
-      real*8,intent(in) :: xyz(3,n)
-      real*8,intent(in) :: sqrab(n*(n+1)/2) 
-      real*8,intent(in) ::  srab(n*(n+1)/2) 
-      real*8,intent(inout) :: g(3,n)
-      real*8,intent(in) :: dcnij(3,n,n)
-      real*8,intent(in) :: cn(n)
- 
-      integer iat,jat,i,j,m,linij,ati,atj,lina
-      real*8 R0,c6,disp,R06,R08
-      real*8 r2,r,r4,r5,r6,r7,r8,t6,t8
-      real*8 dc6_rest,r423
-      real*8 dc6iji,dc6ijj
-      real*8 rij(3)
-      real*8 drij(n*(n+1)/2)  !d(E)/d(r_ij) derivative wrt. dist. iat-jat
-      real*8 dc6i(n)          ! dE_disp/dCN(iat) in dc6i(iat)
-                              !dCN(iat)/d(r_ij) is equal to
-                              !dCN(jat)/d(r_ij)    
-      lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2        
-
-      disp=0
-      drij=0.0d0
-      dc6i=0.0d0
-
-!$omp parallel default(none) &
-!$omp shared(npair,pairlist,srab,sqrab,r2r4,iz,cn,d3r0,drij,dc6i,disp,zetac6) &
-!$omp private(m,iat,jat,linij,r,r2,r4,r5,r6,r7,r8,r423,R0,t6,t8,c6,dc6iji,dc6ijj,dc6_rest, &
-!$omp&        ati,atj,r06,r08)
-!$omp do REDUCTION (+:disp,dc6i,drij)
-      do m=1,npair
-          iat=pairlist(1,m)
-          jat=pairlist(2,m)
-          linij=jat+iat*(iat-1)/2        
-          ati=iz(iat)
-          atj=iz(jat)
-          call getdC6gfnff(number_of_references(ati),number_of_references(atj),&
-     &                     cn(iat),cn(jat),&
-     &                     iz(iat),iz(jat),iat,jat,c6,dc6iji,dc6ijj)
-          c6 = c6 * zetac6(linij)
-          r2=sqrab(linij)
-          r =srab (linij)
-          r4=r2*r2
-          r5=r4*r
-          r6=r5*r 
-          r7=r6*r
-          r8=r7*r
-          R0=d3r0(lina(ati,atj)) ! is R0^2!
-!         R06=R0**6
-!         R08=R06*R0*R0
-          R06=R0*R0*R0
-          R08=R06*R0
-          t6=(r6+R06)
-          t8=(r8+R08)
-          r423=r2r4(ati)*r2r4(atj)*3.0d0*2.0d0 ! factor 2 = s8
-          drij(linij)=drij(linij) &
-     &             -C6*6.0d0*r5/(t6*t6) &
-     &        -r423*C6*8.0d0*r7/(t8*t8)  
-          dc6_rest=1.0d0/t6+r423/t8
-          disp=disp+dc6_rest*c6  ! calculate E_disp
-          dc6i(iat)=dc6i(iat)+dc6_rest*dc6iji
-          dc6i(jat)=dc6i(jat)+dc6_rest*dc6ijj
-      enddo ! pair
-!$omp enddo
-!$omp end parallel
-
-      disp=-disp
-
-! After calculating all derivatives dE/dr_ij w.r.t. distances,
-! the grad w.r.t. the coordinates is calculated dE/dr_ij * dr_ij/dxyz_i       
-! this part is much faster and OMP makes it slower in wall time
-
-!!$omp parallel shared(npair,pairlist,srab,xyz,dcnij,drij,dc6i) private(m,iat,jat,linij,r,rij)
-!!$omp do schedule(dynamic) REDUCTION (+:g)
-      do m=1,npair
-         iat=pairlist(1,m)
-         jat=pairlist(2,m)
-         linij=jat+iat*(iat-1)/2        
-         r=srab(linij)
-         rij=(xyz(:,jat)-xyz(:,iat))/r
-         g(:,iat)=g(:,iat)+drij(linij)*rij
-         g(:,jat)=g(:,jat)-drij(linij)*rij
-      enddo ! pair
-!!$omp enddo
-!!$omp end parallel
-
-      call dgemv('n',3*n,n,-1.0d0,dcnij,3*n,dc6i,1,1.0d0,g,1)
-
-      end 
-
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !      The   N E W   gradC6 routine    C
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
- 
+
       subroutine getdC6gfnff(mxci,mxcj,cni,cnj,&
-     &                       izi,izj,iat,jat,c6,dc6i,dc6j) 
+     &                       izi,izj,iat,jat,c6,dc6i,dc6j)
       use gff_d3com
       use xtb_disp_dftd3param
       IMPLICIT NONE
-      integer mxci,mxcj 
+      integer mxci,mxcj
       integer iat,jat,izi,izj
       real*8 cni,cnj
-      real*8 dc6i,dc6j,c6       
+      real*8 dc6i,dc6j,c6
 
       real*8 k3,k32
       parameter (k3     =-4)
@@ -161,10 +64,10 @@
               zaehler=zaehler+c6ref*expterm
               nenner=nenner+expterm
               expterm=expterm*k32
-              term=expterm*dri           
+              term=expterm*dri
               dzaehler_i=dzaehler_i+c6ref*term
               dnenner_i =dnenner_i +      term
-              term=expterm*drj             
+              term=expterm*drj
               dzaehler_j=dzaehler_j+c6ref*term
               dnenner_j =dnenner_j +      term
             end if
@@ -185,7 +88,7 @@
 !      dc6i=((dzaehler_i*nenner)-(dnenner_i*zaehler)) /(nenner*nenner)
 !      dc6j=((dzaehler_j*nenner)-(dnenner_j*zaehler)) /(nenner*nenner)
 
-      end 
+      end
 
 module gffmod_dftd3
    !use iso_fortran_env, only: wp => real64
@@ -505,7 +408,7 @@ pure elemental integer function lin(i1,i2)
    integer :: idum1,idum2
    idum1=max(i1,i2)
    idum2=min(i1,i2)
-   lin=idum2+idum1*(idum1-1)/2        
+   lin=idum2+idum1*(idum1-1)/2
 end function lin
 
 real(wp) pure elemental function weight_cn(wf,cn,cnref) result(cngw)

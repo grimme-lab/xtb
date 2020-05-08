@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -219,7 +219,7 @@ subroutine writeInfo(self, unit, mol)
    select case(mode_extrun)
    case(p_ext_gfnff)
      call gfnff_header(unit)
-   end select  
+   end select
 
 end subroutine writeInfo
 

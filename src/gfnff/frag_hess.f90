@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -18,7 +18,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !in gfnff_ini:
 !      integer, parameter :: maxsystem = 50
-!      integer :: ispinsyst  (10*n,maxsystem) 
+!      integer :: ispinsyst  (10*n,maxsystem)
 !      integer :: nspinsyst  (maxsystem)
 !      integer :: nsystem
 !      call fragmentize(n,at,xyz,maxsystem, 400, rab, nb, ispinsyst, nspinsyst, nsystem)
@@ -53,7 +53,7 @@ module gff_frag_hess
         real(wp) :: distance(nspin)
       end function shortest_distance
       subroutine eigsort4(lab,ew,u)
-      use iso_fortran_env, only : sp => real32 
+      use iso_fortran_env, only : sp => real32
          implicit none
          integer  :: ii,k, j, i
          real(sp) :: pp, hilf
@@ -68,7 +68,7 @@ module gff_frag_hess
      subroutine fragmentize(nspin, at, xyz, maxsystem, maxmagnat, jab, neigh, ispinsyst, nspinsyst, nsystem)
       use iso_fortran_env, only : wp => real64, sp => real32
         implicit none
-        
+
         !Dummy Arguments:
         integer,  intent(in)  :: nspin                              ! # of atoms in the whole system
         integer,  intent(in)  :: maxsystem                          ! maximum # of fragments
@@ -81,7 +81,7 @@ module gff_frag_hess
         integer, allocatable, intent(out) :: nspinsyst(:)           ! array with # of atoms for each fragment
         integer,  intent(out) :: nsystem                            ! # of fragments
         real(sp)  :: rmaxab(nspin, nspin)
-     
+
         !Stack
         integer  :: i, ati
         integer  :: current
@@ -112,7 +112,7 @@ module gff_frag_hess
         logical  :: equal(maxsystem)
         logical  :: visited(nspin)
         logical  :: assigned(nspin, nspin)
-        
+
         integer, allocatable  :: ifrag_ini(:)
 
         allocate( ispinsyst(nspin,maxsystem), source = 0)
@@ -124,7 +124,7 @@ module gff_frag_hess
         end if
 
 !       open (55, file="fragment.out")
-     
+
         nci_frag_size = 50
         fragcount = 0
         fragvec = 0
@@ -134,7 +134,7 @@ module gff_frag_hess
         equal = .false.
 
         call mrecgff(nspin, neigh, fragcount, fragvec)
-     
+
         nsystem = maxval(fragvec)
 
         !Use NCI-Fragmentation from mrec:
@@ -151,7 +151,7 @@ module gff_frag_hess
              ifrag_ini = ispinsyst(1:nfrag_ini,i)
              call com(nfrag_ini,at(ifrag_ini),xyz(:,ifrag_ini),frag_cma(:,i))
              deallocate (ifrag_ini)
-           end if  
+           end if
         end do
 
         !Determine box size
@@ -191,7 +191,7 @@ module gff_frag_hess
               end if
            end do
            nsystem = nsystem - eq_frag
-        end do    
+        end do
 
         !overwrite ispinsyst/nspinsyst
         do i = 1, nsystem
@@ -218,13 +218,13 @@ module gff_frag_hess
               end do
            end do
         end do
-     
+
         magdist = rmaxab
-     
+
         !Find Sub-Systems with nspinsyst > maxmagnat
         ass = maxloc(nspinsyst, 1)
         do while (nspinsyst(ass) > maxmagnat)
-     
+
            !Set Spins in this list as available for algorithm
            assigned = .false.
            do i = 1, nspinsyst(ass)
@@ -232,29 +232,29 @@ module gff_frag_hess
                  assigned(ispinsyst(i, ass), ispinsyst(j, ass)) = .true.
               end do ! End Loop over  j from 1 to nspinsyst(ass)
            end do ! End Loop over  i from 1 to nspin
-     
-     
+
+
            !Find largest distance:
            maxdist = maxval(rmaxab, mask=assigned)
            maxdistatoms = maxloc(rmaxab, mask=assigned)
            !        write( *, * ) "maxdistatoms", maxdistatoms
-     
+
            !If a Path is found between A and B
            if (maxdist < huge(1.0_wp)) then
-     
+
               !get shortest Path from A to B
               cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
               current = maxdistatoms(2)
-     
+
               !loop while A and B are still connected
               do while (cur_dist < huge(1.0_wp))
-     
+
                  !find weakest link
                  max_link = 0
                  max_linkatoms = 0
                  i = 1
                  path = 0
-     
+
                  do while (precessor(current) /= 0)
                     path(i) = current
                     current = precessor(current)
@@ -264,24 +264,24 @@ module gff_frag_hess
                  i = i + 1
                  max_linkatoms(1) = path(i/2)
                  max_linkatoms(2) = path((i/2) + 1)
-     
+
                  !Split weakest link, set distance to infinity
                  magdist(max_linkatoms(1), max_linkatoms(2)) = huge(1.0_wp)
                  magdist(max_linkatoms(2), max_linkatoms(1)) = huge(1.0_wp)
-     
+
                  !Get next-shortest Path:
                  cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
                  current = maxdistatoms(2)
               end do ! cur_dist < huge(1.0_wp)
-     
+
               !A and B are now Seperated:
               rmaxab(maxdistatoms(1), maxdistatoms(2)) = huge(1.0_sp)
               rmaxab(maxdistatoms(2), maxdistatoms(1)) = huge(1.0_sp)
            end if ! End if: while maxdist < huge(1.0d0)
-     
+
            !Split into subsystems:
            !Overwrite old spinsystem:
-     
+
            cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
            nspinsyst(ass) = count(visited)
            ispinsyst(:, ass) = 0
@@ -292,7 +292,7 @@ module gff_frag_hess
                  k = k + 1
               end if
            end do ! End Loop over  i from 1 to count(visited)
-     
+
            !add new spinsystem
            cur_dist = shortest_distance(nspin, maxdistatoms(2), maxdistatoms(1), neigh, magdist, visited, precessor)
            nsystem = nsystem + 1
@@ -305,10 +305,10 @@ module gff_frag_hess
               end if
            end do ! End Loop over  i from 1 to count(visited)
            ass = maxloc(nspinsyst, 1)
-     
+
         end do ! End loop: while nspinsyst(ass) > maxmagnat
-        
-        
+
+
 !        write fragment.out file for visualization
 !        do i = 1, nsystem !loop über separierte systeme
 !           write (55, *) "System ", i, "mit atomen", nspinsyst(i)
@@ -317,7 +317,7 @@ module gff_frag_hess
 !           end do
 !        end do
 !        close (55)
-     
+
      end subroutine fragmentize
 
      subroutine frag_hess_diag( nat,hess,eig_calc )
@@ -328,8 +328,8 @@ module gff_frag_hess
      !
      ! How does it work?
      ! This subroutine uses masked arrays: an array (hess_mask) consists only of logicals and has
-     ! the same size as the hessian matrix of the entire system. For all entries of the hessian 
-     ! matrix that belong to one fragment, the corresponding position in the masked array is set 
+     ! the same size as the hessian matrix of the entire system. For all entries of the hessian
+     ! matrix that belong to one fragment, the corresponding position in the masked array is set
      ! true. Using the intrinsic "pack and unpack" functions in combination with mask, the hessian
      ! entries for only one fragment are written into a smaller array (mini_hess) which is faster
      ! diagonalized due to the reduzed size (# of atoms in fragment < # of atoms in the entire system).
@@ -361,7 +361,7 @@ module gff_frag_hess
         real(sp), allocatable    :: mini_hess(:,:)               ! eigenvectors of fragment
         real(sp), allocatable    :: eig(:)                       ! eigenvalues of fragment
         real(sp), allocatable    :: aux(:)                       ! for ssyev
-        
+
 
         ev_calc  = 0.0e0_sp
         eig_calc = 0.0e0_sp
@@ -369,27 +369,27 @@ module gff_frag_hess
 
 !$omp parallel default(none) &
 !$omp private(isystem,i,ii,j,jj,nat_cur,nat3_cur,mini_hess,hess_mask,eig,lwork,aux,info) &
-!$omp shared(nsystem,ev_calc,eig_calc,hess,nspinsyst,ispinsyst) 
+!$omp shared(nsystem,ev_calc,eig_calc,hess,nspinsyst,ispinsyst)
 !!$omp do schedule(static)
 !$omp do reduction(+:ev_calc,eig_calc)
         do isystem = 1 , nsystem
            hess_mask = .false.
            do i = 1,nspinsyst(isystem)
               do j = 1,i
-                 
+
                  nat_cur =  nspinsyst(isystem)
                  nat3_cur = 3 * nat_cur
                  ii = 3*ispinsyst(i,isystem)
                  jj = 3*ispinsyst(j,isystem)
                  hess_mask(ii-2:ii,jj-2:jj) = .true.
                  hess_mask(jj-2:jj,ii-2:ii) = .true.
-              
+
                end do
-           end do  
+           end do
 
            allocate( mini_hess(nat3_cur,nat3_cur), source = 0.0e0_sp )
            allocate( eig(nat3_cur), source = 0.0e0_sp )
-           
+
            mini_hess = reshape( pack( hess, mask = hess_mask ), shape( mini_hess ) )
            lwork = 1 + 6*nat3_cur + 2*nat3_cur**2
            allocate(aux(lwork))
@@ -397,7 +397,7 @@ module gff_frag_hess
            deallocate(aux)
 !!$omp critical
            ev_calc  = unpack( reshape( mini_hess, [ nat3_cur*nat3_cur ]  ), mask = hess_mask, field = ev_calc )
-           eig_calc = unpack( eig, mask = any(hess_mask,1), field = eig_calc ) 
+           eig_calc = unpack( eig, mask = any(hess_mask,1), field = eig_calc )
 !!$omp end critical
 
            deallocate( mini_hess,eig )
@@ -407,8 +407,8 @@ module gff_frag_hess
 !$omp end parallel
 
         do i = 1,nat3
-           ev_calc(:,i) = ev_calc(:,i) - ( sum( ev_calc(:,i) ) / nat3 ) 
-        end do   
+           ev_calc(:,i) = ev_calc(:,i) - ( sum( ev_calc(:,i) ) / nat3 )
+        end do
 
         hess = ev_calc
 
@@ -416,7 +416,7 @@ module gff_frag_hess
 
      end subroutine frag_hess_diag
 
-end module gff_frag_hess    
+end module gff_frag_hess
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !calculates the shortest path between two atoms
@@ -535,8 +535,8 @@ pure subroutine com(n,at,xyz,sum3)
    real(wp)              :: sumwx,sumwy,sumwz
 
    sumw=0
-   sumwx=0.d0                                                 
-   sumwy=0.d0                                                  
+   sumwx=0.d0
+   sumwy=0.d0
    sumwz=0.d0
 
    do i = 1, n

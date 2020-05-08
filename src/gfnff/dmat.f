@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -30,9 +30,9 @@ cccccccccccccccccccccccccccccccccccccccccccccc
       real*8 P(ndim,ndim)
       integer i,m
       real*8,allocatable ::Ptmp(:,:)
-              
-      allocate(Ptmp(ndim,ndim))                  
-      do m=1,ndim  
+
+      allocate(Ptmp(ndim,ndim))
+      do m=1,ndim
          do i=1,ndim
             Ptmp(i,m)=C(i,m)*focc(m)
          enddo

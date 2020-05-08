@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2019-2020 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -27,21 +27,21 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       integer adum1(0:n),adum2(0:n),kk,j,idum(600),same(600),k
       real*8  w(n),av,sd
       logical chkrng
- 
+
       if(n.le.2) return
 
       nn=nbin(20,a0_in)
 
       cdum=0
       kk=0
-      do m=1,nn               
+      do m=1,nn
 !     if(nb(m,a0_in).eq.1) cycle
       nb=nbin
       do i=1,n
          if(nb(20,i).eq.1)nb(20,i)=0
       enddo
 
-      do mm=1,nn            
+      do mm=1,nn
          w(mm)=dble(mm)
          list(mm)=mm
       enddo
@@ -124,11 +124,11 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       enddo
 
 ! compare
-      same=0     
+      same=0
       do i=1,kk
          do j=i+1,kk
             if(idum(i).ne.idum(j)) cycle ! different ring size
-            if(same(j).eq.1      ) cycle ! already double     
+            if(same(j).eq.1      ) cycle ! already double
             adum1=0
             adum2=0
             do m=1,10
@@ -160,8 +160,8 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
             enddo
             av=dble(i2)/dble(nn)
             sd=0
-            cout(m,19)=0           
-            do k=1,nn   
+            cout(m,19)=0
+            do k=1,nn
                i1=at(cdum(k,i))
                sd=sd+(av-dble(i1))**2
             enddo

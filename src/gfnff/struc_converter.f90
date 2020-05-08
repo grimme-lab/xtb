@@ -129,7 +129,7 @@ subroutine struc_convert( &
   write(*,'(10x," ------------------------------------------------- ")')
   write(*,'(10x,"|           2D => 3D conversion done!             |")')
   write(*,'(10x," ------------------------------------------------- ")')
-  write(*,*)  
+  write(*,*)
   mode_extrun = mode_input
   mol%struc%two_dimensional=.false.
   call gfnff_param_dealloc()
