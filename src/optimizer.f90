@@ -982,23 +982,23 @@ subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
       call env%error("internal error in model hessian!", source)
       return
    case(p_modh_old)
-     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (1995)"
+     if (pr) write(env%unit,'(x,a)') "Using Lindh-Hessian (1995)"
      call ddvopt(xyz, natoms, Hess, chg, modh%s6)
    case(p_modh_lindh_d2)
-     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
+     if (pr) write(env%unit,'(x,a)') "Using Lindh-Hessian"
      call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
    case(p_modh_lindh)
-     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
+     if (pr) write(env%unit,'(x,a)') "Using Lindh-Hessian (2007)"
      call mh_lindh(xyz, natoms, Hess, chg, modh)
    case(p_modh_swart)
-     if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
+     if (pr) write(env%unit,'(x,a)') "Using Swart-Hessian"
      call mh_swart(xyz, natoms, Hess, chg, modh)
    case(p_modh_gff)
      if (mode_extrun.eq.p_ext_gfnff) then        
-        if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
+        if (pr) write(env%unit,'(x,a)') "Using GFN-FF Lindh-Hessian"
         call gff_ddvopt(xyz, natoms, HEss, chg, modh%s6)
      else
-        if (pr) write(env%unit,'(a)') "This Lindh-Hessian is only compatible with GFN-FF"
+        if (pr) write(env%unit,'(x,a)') "This Lindh-Hessian is only compatible with GFN-FF"
      end if
    end select
 !  constraints

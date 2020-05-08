@@ -19,6 +19,7 @@
 ! 2D => 3D structure converter, uses GFN-FF MD + OPT to generate a 3D structure
 ! of an 2 dimensional input structure.
 !------------------------------------------------------------------------------
+
 subroutine struc_convert( &
          & env,restart,mol,wfn,calc,egap,et,maxiter,maxcycle,&
          & etot,g,sigma)

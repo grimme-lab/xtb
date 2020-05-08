@@ -111,7 +111,7 @@ write(iunit,'(10x,a)') &
    " ------------------------------------------------- ",&
    "|                   G F N - F F                   |",&
    "|          A general generic force-field          |",&
-   "|           based on GFN ideas and parts          |",&
+   "|                   Version 1.0                   |",&
    " ------------------------------------------------- "
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
 end subroutine gfnff_header

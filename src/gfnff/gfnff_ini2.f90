@@ -1,3 +1,19 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2019-2020 Sebastian Ehlert
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf)
       use gff_param
@@ -64,11 +80,11 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
         do i=1,natoms
            ai=at(i)
            f1=fq
-           if(metal(ai)) f1 = f1 * 2.0d0
+           if(metal(ai) > 0) f1 = f1 * 2.0d0
            do j=1,i-1
               f2=fq
               aj=at(j)
-              if(metal(aj)) f2 = f2 * 2.0d0
+              if(metal(aj) > 0) f2 = f2 * 2.0d0
               k=lin(j,i)
               rco=rtmp(k)
               rtmp(k)=rtmp(k)-qa(i)*f1-qa(j)*f2 ! change radius of atom i and j with charge

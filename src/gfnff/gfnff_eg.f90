@@ -1,5 +1,22 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2019-2020 Sebastian Ehlert
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 !---------------------------------------------------
-! GFN-FF, SG March 2019
+! GFN-FF
 ! energy and analytical gradient for given xyz and 
 ! charge ichrg
 ! requires D3 ini (rcov,r2r4,copyc6) as well as 
@@ -27,6 +44,7 @@
 !---------------------------------------------------
 
    subroutine gfnff_eg(pr,n,ichrg,at,xyz,makeq,g,etot,res_gff)
+      use xtb_mctc_accuracy, only : wp
       use gff_param
       use gff_d3com, only: rcov
       use xtb_type_data
@@ -34,6 +52,17 @@
       use gffmod_dftd3
       use xtb_solv_gbobc
       implicit none
+      interface
+         subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr)
+            import :: wp
+            integer,intent(in)   :: nat
+            integer,intent(in)   :: at(nat)
+            real(wp),intent(in)  :: xyz(3,nat)
+            real(wp),intent(out) :: cn(nat)
+            real(wp),intent(out) :: dcn(3,nat,nat)
+            real(wp),intent(in),optional :: thr
+         end subroutine
+      end interface
       type(scc_results),intent(out) :: res_gff
       integer n
       integer ichrg

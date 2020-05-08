@@ -1,4 +1,20 @@
-!last change Thu Jul 11 08:36:42 CEST 2019
+! This file is part of xtb.
+!
+! Copyright (C) 2019-2020 Sebastian Ehlert
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       use xtb_mctc_accuracy, only : wp
       use xtb_type_molecule
@@ -20,10 +36,15 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       integer ringsi,ringsj,ringsk,ringl,npi,nelpi,picount,npiall,maxtors,rings4,nheav
       integer nm,maxhb,ki,n13,current,ncarbo,ctype,mtyp1,mtyp2
       integer ind3(3),sr(20),cr(10,20),niel(86)          
-      integer qloop_count,itabrow6,nf,nsi,nmet,nhi,nhj,ifrag
+      integer qloop_count,nf,nsi,nmet,nhi,nhj,ifrag
       integer hbA,hbH,Bat,atB,Aat,Hat
       integer AHB_nr
       integer bond_hbn
+      interface
+         integer function itabrow6(i)
+            integer i
+         end function
+      end interface
 
       real(wp) r0,pi,ff,omega,f1,f2,phi,valijklff,ringf,fcn
       real(wp) shift,dum,dum1,dum2,dum4,qafac,fqq,feta
@@ -33,7 +54,6 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       real(wp) bstrength
       real(wp) xx(20)
       real(wp) fkl,qreps,fbsmall,bohr
-      real(wp) zeta
       
       parameter (pi=3.1415926535897932384626433832795029_wp)
       parameter (bohr=1.0_wp/0.52917726_wp)
@@ -779,7 +799,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       eold= 0
       Pold= 2.d0/3.d0
 ! iterative Hueckel loop, off-diag terms are reduced depending on P to avoid overdelocalization
-      do nn=1,maxhiter      ! just some iterations
+      do nn=1,nint(maxhiter)      ! just some iterations
       Api = 0
       do i=1,npi
          ii=piadr3(i)
@@ -1743,7 +1763,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 
       end associate settingNames
 
-end subroutine gfnff_ini
+contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1801,3 +1821,4 @@ pure elemental function zeta(at,q)
 
 end function zeta
 
+end subroutine gfnff_ini

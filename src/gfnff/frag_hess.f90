@@ -1,3 +1,20 @@
+! This file is part of xtb.
+!
+! Copyright (C) 2019-2020 Sebastian Ehlert
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !in gfnff_ini:
 !      integer, parameter :: maxsystem = 50
@@ -164,7 +181,7 @@ module gff_frag_hess
            !nfrag_ini=nspinsyst(i)
            do j = i+1, nci_ini
               nfrag_ini=nspinsyst(j)
-              if (norm2(grid(:,i)).ne.0.and.norm2(grid(:,i)-grid(:,j)).eq.0.and.equal(j).eq..false.) then
+              if (norm2(grid(:,i)).ne.0.and.norm2(grid(:,i)-grid(:,j)).eq.0.and..not.equal(j)) then
                 eq_frag = eq_frag + 1
                 do k = 1, nfrag_ini
                    ispinsyst(nspinsyst(i)+k,i) = ispinsyst(k,j)
@@ -179,7 +196,7 @@ module gff_frag_hess
         !overwrite ispinsyst/nspinsyst
         do i = 1, nsystem
            do j = 1, nci_ini
-           if (equal(j).eq..false.) then
+           if (.not.equal(j)) then
              nspinsyst(i) = nspinsyst(j)
              ispinsyst(:,i) = ispinsyst(:,j)
              equal(j) = .true.
@@ -223,14 +240,14 @@ module gff_frag_hess
            !        write( *, * ) "maxdistatoms", maxdistatoms
      
            !If a Path is found between A and B
-           if (maxdist < huge(1.0d0)) then
+           if (maxdist < huge(1.0_wp)) then
      
               !get shortest Path from A to B
               cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
               current = maxdistatoms(2)
      
               !loop while A and B are still connected
-              do while (cur_dist < huge(1.0d0))
+              do while (cur_dist < huge(1.0_wp))
      
                  !find weakest link
                  max_link = 0
@@ -249,17 +266,17 @@ module gff_frag_hess
                  max_linkatoms(2) = path((i/2) + 1)
      
                  !Split weakest link, set distance to infinity
-                 magdist(max_linkatoms(1), max_linkatoms(2)) = huge(1.0d0)
-                 magdist(max_linkatoms(2), max_linkatoms(1)) = huge(1.0d0)
+                 magdist(max_linkatoms(1), max_linkatoms(2)) = huge(1.0_wp)
+                 magdist(max_linkatoms(2), max_linkatoms(1)) = huge(1.0_wp)
      
                  !Get next-shortest Path:
                  cur_dist = shortest_distance(nspin, maxdistatoms(1), maxdistatoms(2), neigh, magdist, visited, precessor)
                  current = maxdistatoms(2)
-              end do ! cur_dist < huge(1.0d0
+              end do ! cur_dist < huge(1.0_wp)
      
               !A and B are now Seperated:
-              rmaxab(maxdistatoms(1), maxdistatoms(2)) = huge(1.00)
-              rmaxab(maxdistatoms(2), maxdistatoms(1)) = huge(1.00)
+              rmaxab(maxdistatoms(1), maxdistatoms(2)) = huge(1.0_sp)
+              rmaxab(maxdistatoms(2), maxdistatoms(1)) = huge(1.0_sp)
            end if ! End if: while maxdist < huge(1.0d0)
      
            !Split into subsystems:
@@ -270,7 +287,7 @@ module gff_frag_hess
            ispinsyst(:, ass) = 0
            k = 1
            do i = 1, nspin
-              if (visited(i) == .true.) then
+              if (visited(i)) then
                  ispinsyst(k, ass) = i
                  k = k + 1
               end if
@@ -282,7 +299,7 @@ module gff_frag_hess
            nspinsyst(nsystem) = count(visited)
            k = 1
            do i = 1, nspin
-              if (visited(i) == .true.) then
+              if (visited(i)) then
                  ispinsyst(k, nsystem) = i
                  k = k + 1
               end if
@@ -407,7 +424,7 @@ end module gff_frag_hess
 !https://de.wikipedia.org/wiki/Dijkstra-Algorithmus
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function shortest_distance(nspin, start, goal, neighbours, input_distances, visited, precessor)
-      use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp, sp
    implicit none
    !Dummy Arguments:
    real(wp)             :: shortest_distance
@@ -434,7 +451,7 @@ function shortest_distance(nspin, start, goal, neighbours, input_distances, visi
    distance = huge(distance)
    distance(start) = 0
    visited = .false.
-   do while (all(visited) == .false.) !as long there are unvisited nodes
+   do while (.not.all(visited)) !as long there are unvisited nodes
       current = minloc(distance, 1,.not. visited)
 
       !Abort if Fragments are not connected:
@@ -456,7 +473,7 @@ function shortest_distance(nspin, start, goal, neighbours, input_distances, visi
          !loop over all neighbours of current atom
          do i_neighbours = 1, neighbours(20, current)
             neighbour = neighbours(i_neighbours, current)
-            if (visited(neighbour) == .false.) then
+            if (.not.visited(neighbour)) then
                !distanzupdate
                alt_dist = distance(current) + input_distances(current, neighbour)
                !write( *, * ) alt_dist, distance(current),
