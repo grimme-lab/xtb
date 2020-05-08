@@ -76,6 +76,7 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    character(len=3) :: symbol
    character(len=5) :: v2000
    integer, parameter :: ccc_to_charge(0:7) = [0, +3, +2, +1, 0, -1, -2, -3]
+   logical :: two_dim = .false.
 
    !> Element symbols
    character(len=symbolLength),allocatable :: sym(:)
@@ -92,8 +93,10 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    call getline(unit, line, error)
    read(line, '(20x,a2)', iostat=error) sdf_dim
    if (error == 0 .and. (sdf_dim == '2D' .or. sdf_dim == '2d')) then
-      iomsg = "two dimensional structures are not a valid input for this program"
-      return
+      !iomsg = "two dimensional structures are not a valid input for this program"
+      iomsg = "two dimensional structures input recognized"
+      two_dim = .true.
+      !return
    endif
    call getline(unit, line, error)
    call getline(unit, line, error)
@@ -133,6 +136,7 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    call init(mol, sym, xyz)
    call move_alloc(sdf, mol%sdf)
    if (len(name) > 0) mol%name = name
+   if (two_dim) mol%struc%two_dimensional = .true.
 
    call mol%bonds%allocate(size=number_of_bonds, order=3)
    do ibond = 1, number_of_bonds

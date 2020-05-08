@@ -116,6 +116,7 @@ module xtb_setparam
    integer, parameter :: p_modh_lindh_d2 =  2
    integer, parameter :: p_modh_swart    =  3
    integer, parameter :: p_modh_old      =  4
+   integer, parameter :: p_modh_gff      =  5
    type(modhess_setvar) :: mhset = modhess_setvar (&
       model = p_modh_old, &
 !  force constants for stretch, bend and torsion

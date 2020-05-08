@@ -88,8 +88,9 @@ subroutine readMoleculePDB(mol, unit, status, iomsg)
             try = scan(pdb(iatom)%name, 'HCNOSPF')
             if (try > 0) sym(iatom) = pdb(iatom)%name(try:try)//' '
          endif         
-         read(a_charge, *, iostat=try) pdb(iatom)%charge
-         if (try /= 0) pdb(iatom)%charge = 0
+         !read(a_charge, *, iostat=try) pdb(iatom)%charge
+         call pdbchrg2int(a_charge,pdb(iatom)%charge)
+         !if (try /= 0) pdb(iatom)%charge = 0
       endif
    enddo
    if (error /= 0) then
@@ -124,6 +125,16 @@ subroutine readMoleculePDB(mol, unit, status, iomsg)
    status = .true.
 
 end subroutine readMoleculePDB
+
+subroutine pdbchrg2int(chrg_str,chrg_int)
+   implicit none
+   character(len=*) chrg_str
+   integer n,k,ios, chrg_int
+   n=len_trim(chrg_str)
+   forall (k=1:n) chrg_str(k:k) = chrg_str(n-k+1:n-k+1)
+   read(chrg_str,*, iostat=ios) chrg_int
+   if (ios /= 0 ) chrg_int=0
+end subroutine pdbchrg2int
 
 
 end module xtb_io_reader_pdb

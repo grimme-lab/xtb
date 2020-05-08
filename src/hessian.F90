@@ -228,6 +228,60 @@ subroutine numhess( &
       !$ call mkl_set_num_threads(nproc)
 #endif
 
+   else if (mode_extrun.eq.p_ext_gfnff) then
+!! ------------------------------------------------------------------------
+!  GFN-FF case
+!! ------------------------------------------------------------------------
+      do ia = 1, mol%n
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+
+            tmol = mol
+            wfx = wf0 ! initialize wavefunction
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
+
+            gr = 0.0_wp
+            eel = 0.0_wp
+            call singlepoint &
+               & (env,tmol,wfx,calc, &
+               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
+            dipd(1:3,ii)=sccr%dipole(1:3)
+            pold(ii)=sccr%molpol
+
+            call wfx%deallocate ! clean up
+            tmol = mol
+            wfx = wf0 ! reset wavefunction
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
+
+            gl = 0.0_wp
+            eel = 0.0_wp
+            call singlepoint &
+               & (env,tmol,wfx,calc, &
+               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)
+            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
+            pold(ii)=(pold(ii)-sccl%molpol)*step2
+
+            do ja= 1, mol%n
+               do jc = 1, 3
+                  jj = (ja-1)*3 + jc
+                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
+               enddo
+            enddo
+
+            call wfx%deallocate ! clean up
+            call tmol%deallocate
+         enddo
+
+         if(ia.eq.3)then
+            call timing(t1,w1)
+            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
+               & 0.3333333d0*mol%n*(t1-t0)/60.
+            write(*,'(''estimated wall time'',F10.2,'' min'')') &
+               & 0.3333333d0*mol%n*(w1-w0)/60.
+         endif
+      enddo
+
    else
 !! ------------------------------------------------------------------------
 !  normal case

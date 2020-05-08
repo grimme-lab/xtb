@@ -993,6 +993,13 @@ subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
    case(p_modh_swart)
      if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
      call mh_swart(xyz, natoms, Hess, chg, modh)
+   case(p_modh_gff)
+     if (mode_extrun.eq.p_ext_gfnff) then        
+        if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
+        call gff_ddvopt(xyz, natoms, HEss, chg, modh%s6)
+     else
+        if (pr) write(env%unit,'(a)') "This Lindh-Hessian is only compatible with GFN-FF"
+     end if
    end select
 !  constraints
    call constrhess(natoms,chg,xyz,Hess)

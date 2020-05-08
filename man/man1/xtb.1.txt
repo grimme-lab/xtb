@@ -66,6 +66,9 @@ OPTIONS
 *--gfn* 'INT'::
     specify parametrisation of GFN-xTB (default = 2)
 
+*--gfnff* ::
+    specify parametrisation of GFN-FF
+
 *--etemp* 'REAL'::
     electronic temperature (default = 300K)
 

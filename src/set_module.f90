@@ -1457,6 +1457,7 @@ subroutine set_opt(env,key,val)
          case("old");      mhset%model = p_modh_old
          case("unit");     mhset%model = p_modh_unit
          case("read");     mhset%model = p_modh_read
+         case("gfnff");    mhset%model = p_modh_gff
          end select
       endif
       set14 = .false.

@@ -148,12 +148,6 @@ subroutine gfnff_input(mol)
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
     case(0)
-    !ex=.false.  
-    !inquire(file='.CHRG',exist=ex)
-       ! if (ichrg.ne.0) then
-       !    qfrag(1) = ichrg
-       !    qfrag(2:mol%n) = 9999
-       !if(ex)then
        call open_file(ich,'.CHRG','r')
        if (ich.ne.-1) then
            !open(unit=1,file='.CHRG')
@@ -173,6 +167,5 @@ subroutine gfnff_input(mol)
   end select
 
  !-------------------------------------------------------------------
-  efield = 0
 
 end subroutine gfnff_input

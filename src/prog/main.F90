@@ -149,6 +149,9 @@ subroutine xtbMain(env, argParser)
 !! ------------------------------------------------------------------------
    integer,external :: ncore
 
+!! ------------------------------------------------------------------------
+   logical :: struc_conversion_done = .false.
+
 !! ========================================================================
 !  debugging variables for numerical gradient
    logical, parameter    :: gen_param = .false.
@@ -363,6 +366,15 @@ subroutine xtbMain(env, argParser)
    if(fit) acc=0.2 ! higher SCF accuracy during fit
 
    ! ------------------------------------------------------------------------
+   !> 2D => 3D STRUCTURE CONVERTER
+   ! ------------------------------------------------------------------------
+   if (mol%struc%two_dimensional) then
+      call struc_convert (env,restart,mol,wfn,calc,egap,etemp,maxscciter, &
+                       &  optset%maxoptcycle,etot,g,sigma)
+      struc_conversion_done = .true.
+   end if
+
+   ! ------------------------------------------------------------------------
    !> CONSTRAINTS & SCANS
    !> now we are at a point that we can check for requested constraints
    call read_userdata(xcontrol,env,mol)
@@ -558,6 +570,15 @@ subroutine xtbMain(env, argParser)
    end select
    call env%checkpoint("Single point calculation terminated")
 
+   !> write 2d => 3d converted structure   
+   if (struc_conversion_done) then
+      call generateFileName(tmpname, 'gfnff_convert', extension, mol%ftype)
+      write(env%unit,'(10x,a,1x,a,/)') &
+         "converted geometry written to:",tmpname
+      call open_file(ich,tmpname,'w')
+      call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
+      call close_file(ich)
+   end if
 
    ! ------------------------------------------------------------------------
    !> numerical gradient for debugging purposes
@@ -819,8 +840,14 @@ subroutine xtbMain(env, argParser)
       call close_file(ich)
    endif
 
-   call write_energy(env%unit,res,fres, &
-      & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+   select type(calc)
+   type is(TxTBCalculator)
+      call write_energy(env%unit,res,fres, &
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+   type is(TGFFCalculator)
+      call write_energy_gff(env%unit,res,fres, &
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+   end select  
 
 
    ! ------------------------------------------------------------------------
