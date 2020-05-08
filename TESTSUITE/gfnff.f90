@@ -51,8 +51,7 @@ subroutine test_gfnff_sp
    if (ipar.eq.-1) then
       ! at this point there is no chance to recover from this error
       ! THEREFORE, we have to kill the program
-      call env%error("Parameter file '"//fnv//"' not found!")
-      call terminate(1)
+      call env%terminate("Parameter file '"//fnv//"' not found!")
    endif
    if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
    call gfnff_read_param(ipar)
@@ -143,8 +142,7 @@ subroutine test_gfnff_hb
    if (ipar.eq.-1) then
       ! at this point there is no chance to recover from this error
       ! THEREFORE, we have to kill the program
-      call env%error("Parameter file '"//fnv//"' not found!")
-      call terminate(1)
+      call env%terminate("Parameter file '"//fnv//"' not found!")
    endif
    if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
    call gfnff_read_param(ipar)

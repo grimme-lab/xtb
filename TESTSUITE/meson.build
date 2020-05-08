@@ -171,5 +171,5 @@ test('GFN0-xTB: SP  (PBC)', xtb_test, args: ['peeq', 'sp'], env: xtbenv)
 test('GFN0-xTB: API (PBC)', xtb_test, args: ['peeq', 'api'], env: xtbenv)
 test('GFN0-xTB: SRB (PBC)', xtb_test, args: ['peeq', 'srb'], env: xtbenv)
 
-test('GFN-FF: SP', xtb_test, args: ['gfnff', 'sp'])
-test('GFN-FF: SP (HB)', xtb_test, args: ['gfnff', 'hb'])
+test('GFN-FF: SP', xtb_test, args: ['gfnff', 'sp'], env: xtbenv)
+test('GFN-FF: SP (HB)', xtb_test, args: ['gfnff', 'hb'], env: xtbenv)
