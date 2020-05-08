@@ -1,11 +1,11 @@
 !last change Thu Jul 11 08:36:42 CEST 2019
 subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
-      use iso_fortran_env, only : wp => real64, sp => real32
+      use xtb_mctc_accuracy, only : wp
       use xtb_type_molecule
       use gff_param
       use gff_d3com, only: rcov,r2r4
       use gff_frag_hess
-      use re_start
+      use xtb_restart
       implicit none
 !--------------------------------------------------------------------------------------------------
       type(TMolecule), intent(in) :: mol   ! # molecule type

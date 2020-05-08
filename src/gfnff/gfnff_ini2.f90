@@ -1312,7 +1312,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 
 subroutine goedeckera(n,at,nb,pair,q,es)
       use iso_fortran_env, id => output_unit, wp => real64
-      use mctc_la
+      use xtb_mctc_la
       use gff_param, only: alpeeq,chieeq,gameeq,nfrag,qfrag,fraglist
    implicit none
    integer, intent(in)  :: n          ! number of atoms     
