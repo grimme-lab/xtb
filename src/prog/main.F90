@@ -38,6 +38,7 @@ module xtb_prog_main
    use xtb_constrain_param, only : read_userdata
    use xtb_solv_gbobc, only: lgbsa,init_gbsa
    use xtb_shake, only: init_shake
+   use gfnff_shake, only: gff_init_shake => init_shake
    use xtb_embedding, only : init_pcem
    use xtb_io_reader, only : readMolecule
    use xtb_io_writer, only : writeMolecule
@@ -864,7 +865,12 @@ subroutine xtbMain(env, argParser)
       fixset%n = 0 ! no fixing for MD runs
       call start_timing(6)
       idum = 0
-      if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
+      select type(calc)
+      type is(TxTBCalculator)
+         if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
+      type is(TGFFCalculator)
+         if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz)
+      end select
       call md &
          &     (env,mol,wfn,calc, &
          &      egap,etemp,maxscciter,etot,g,sigma,0,temp_md,idum)

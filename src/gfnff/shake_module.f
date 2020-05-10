@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-       module gff_shake_module
+       module gfnff_shake
        implicit none
        integer :: shake_mode
        integer :: ncons = 0
@@ -144,4 +144,4 @@ c        if(maxdev.gt.1.d-3) stop 'SHAKE error too large'
        return
        end subroutine do_shake
 
-       end module gff_shake_module
+       end module gfnff_shake
