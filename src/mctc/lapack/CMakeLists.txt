@@ -21,7 +21,6 @@ list(APPEND srcs
    "${dir}/eigensolve.f90"
    "${dir}/geneigval.f90"
    "${dir}/gst.f90"
-   "${dir}/linearsolve.f90"
    "${dir}/stdeigval.f90"
    "${dir}/trf.f90"
    "${dir}/tri.f90"

@@ -22,35 +22,35 @@ module xtb_mctc_lapack_trs
    implicit none
    private
 
-   public :: getrs, sytrs, sptrs, potrs, pptrs
+   public :: mctc_getrs, mctc_sytrs, mctc_sptrs, mctc_potrs, mctc_pptrs
 
    public :: lapack_getrs, lapack_sytrs, lapack_sptrs, lapack_potrs, lapack_pptrs
 
 
-   interface getrs
+   interface mctc_getrs
       module procedure :: mctc_sgetrs
       module procedure :: mctc_dgetrs
-   end interface getrs
+   end interface mctc_getrs
 
-   interface sytrs
+   interface mctc_sytrs
       module procedure :: mctc_ssytrs
       module procedure :: mctc_dsytrs
-   end interface sytrs
+   end interface mctc_sytrs
 
-   interface sptrs
+   interface mctc_sptrs
       module procedure :: mctc_ssptrs
       module procedure :: mctc_dsptrs
-   end interface sptrs
+   end interface mctc_sptrs
 
-   interface potrs
+   interface mctc_potrs
       module procedure :: mctc_spotrs
       module procedure :: mctc_dpotrs
-   end interface potrs
+   end interface mctc_potrs
 
-   interface pptrs
+   interface mctc_pptrs
       module procedure :: mctc_spptrs
       module procedure :: mctc_dpptrs
-   end interface pptrs
+   end interface mctc_pptrs
 
 
    interface lapack_getrs
@@ -296,12 +296,12 @@ module xtb_mctc_lapack_trs
 contains
 
 
-subroutine mctc_sgetrs(env, amat, ipiv, bmat, trans)
+subroutine mctc_sgetrs(env, amat, bmat, ipiv, trans)
    character(len=*), parameter :: source = 'mctc_lapack_getrs'
    type(TEnvironment), intent(inout) :: env
    real(sp), intent(in) :: amat(:, :)
-   integer, intent(in) :: ipiv(:)
    real(sp), intent(inout) :: bmat(:, :)
+   integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
    character(len=1) :: tra
    integer :: info, n, nrhs, lda, ldb
@@ -321,12 +321,12 @@ subroutine mctc_sgetrs(env, amat, ipiv, bmat, trans)
 end subroutine mctc_sgetrs
 
 
-subroutine mctc_dgetrs(env, amat, ipiv, bmat, trans)
+subroutine mctc_dgetrs(env, amat, bmat, ipiv, trans)
    character(len=*), parameter :: source = 'mctc_lapack_getrs'
    type(TEnvironment), intent(inout) :: env
    real(dp), intent(in) :: amat(:, :)
-   integer, intent(in) :: ipiv(:)
    real(dp), intent(inout) :: bmat(:, :)
+   integer, intent(in) :: ipiv(:)
    character(len=1), intent(in), optional :: trans
    character(len=1) :: tra
    integer :: info, n, nrhs, lda, ldb

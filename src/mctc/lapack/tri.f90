@@ -22,35 +22,35 @@ module xtb_mctc_lapack_tri
    implicit none
    private
 
-   public :: getri, sytri, sptri, potri, pptri
+   public :: mctc_getri, mctc_sytri, mctc_sptri, mctc_potri, mctc_pptri
 
    public :: lapack_getri, lapack_sytri, lapack_sptri, lapack_potri, lapack_pptri
 
 
-   interface getri
+   interface mctc_getri
       module procedure :: mctc_sgetri
       module procedure :: mctc_dgetri
-   end interface getri
+   end interface mctc_getri
 
-   interface sytri
+   interface mctc_sytri
       module procedure :: mctc_ssytri
       module procedure :: mctc_dsytri
-   end interface sytri
+   end interface mctc_sytri
 
-   interface sptri
+   interface mctc_sptri
       module procedure :: mctc_ssptri
       module procedure :: mctc_dsptri
-   end interface sptri
+   end interface mctc_sptri
 
-   interface potri
+   interface mctc_potri
       module procedure :: mctc_spotri
       module procedure :: mctc_dpotri
-   end interface potri
+   end interface mctc_potri
 
-   interface pptri
+   interface mctc_pptri
       module procedure :: mctc_spptri
       module procedure :: mctc_dpptri
-   end interface pptri
+   end interface mctc_pptri
 
 
    interface lapack_getri

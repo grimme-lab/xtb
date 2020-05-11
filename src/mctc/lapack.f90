@@ -17,11 +17,22 @@
 
 !> Interfaces to LAPACK
 module xtb_mctc_lapack
-   use xtb_mctc_lapack_trf
-   use xtb_mctc_lapack_tri
-   use xtb_mctc_lapack_trs
-   use xtb_mctc_lapack_stdeigval
-   use xtb_mctc_lapack_geneigval
+   use xtb_mctc_lapack_geneigval, only : lapack_sygv, lapack_sygvd, lapack_sygvx, &
+      & lapack_spgv, lapack_spgvd, lapack_spgvx,lapack_hegv, lapack_hegvd, &
+      & lapack_hegvx, lapack_hpgv, lapack_hpgvd,  lapack_hpgvx
+   use xtb_mctc_lapack_gst, only : lapack_sygst, lapack_spgst, lapack_hegst, &
+      & lapack_hpgst
+   use xtb_mctc_lapack_stdeigval, only : lapack_syev, lapack_syevd, lapack_syevx, &
+      & lapack_syevr, lapack_spev, lapack_spevd, lapack_spevx, lapack_heev, &
+      & lapack_heevd, lapack_heevx, lapack_heevr, lapack_hpev, lapack_hpevd, &
+      & lapack_hpevx
+   use xtb_mctc_lapack_trf, only : lapack_getrf, lapack_sytrf, lapack_sptrf, &
+      & lapack_potrf, lapack_pptrf
+   use xtb_mctc_lapack_tri, only : lapack_getri, lapack_sytri, lapack_sptri, &
+      & lapack_potri, lapack_pptri
+   use xtb_mctc_lapack_trs, only : lapack_getrs, lapack_sytrs, lapack_sptrs, &
+      & lapack_potrs, lapack_pptrs
+   use xtb_mctc_lapack_wrap
    implicit none
    public
 

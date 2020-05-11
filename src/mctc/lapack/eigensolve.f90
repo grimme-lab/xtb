@@ -19,7 +19,7 @@
 module xtb_mctc_lapack_eigensolve
    use xtb_mctc_accuracy, only : sp, dp
    use xtb_mctc_lapack_geneigval, only : lapack_sygvd
-   use xtb_mctc_lapack_trf, only : potrf
+   use xtb_mctc_lapack_trf, only : mctc_potrf
    use xtb_type_environment, only : TEnvironment
    implicit none
    private
@@ -27,19 +27,6 @@ module xtb_mctc_lapack_eigensolve
    public :: TEigenSolver, init
 
 
-   !> Possible eigensolvers
-   type :: TEigenSolverEnum
-
-      !> Divide and conquere algorithm (sygvd & syevd)
-      integer :: divideAndConquere = 1
-
-   end type TEigenSolverEnum
-
-   !> Actual eigensolver enumerator
-   type(TEigenSolverEnum), parameter :: eigenSolver = TEigenSolverEnum()
-
-
-   !>
    type :: TEigenSolver
       private
       integer :: n
@@ -61,40 +48,6 @@ module xtb_mctc_lapack_eigensolve
    end interface init
 
 
-   abstract interface
-      subroutine sstd_solve(self, env, amat, eval)
-         import :: TEigenSolver, TEnvironment, sp
-         class(TEigenSolver), intent(inout) :: self
-         type(TEnvironment), intent(inout) :: env
-         real(sp), intent(inout) :: amat(:, :)
-         real(sp), intent(out) :: eval(:)
-      end subroutine sstd_solve
-      subroutine dstd_solve(self, env, amat, eval)
-         import :: TEigenSolver, TEnvironment, dp
-         class(TEigenSolver), intent(inout) :: self
-         type(TEnvironment), intent(inout) :: env
-         real(dp), intent(inout) :: amat(:, :)
-         real(dp), intent(out) :: eval(:)
-      end subroutine dstd_solve
-      subroutine sgen_solve(self, env, amat, bmat, eval)
-         import :: TEigenSolver, TEnvironment, sp
-         class(TEigenSolver), intent(inout) :: self
-         type(TEnvironment), intent(inout) :: env
-         real(sp), intent(inout) :: amat(:, :)
-         real(sp), intent(in) :: bmat(:, :)
-         real(sp), intent(out) :: eval(:)
-      end subroutine sgen_solve
-      subroutine dgen_solve(self, env, amat, bmat, eval)
-         import :: TEigenSolver, TEnvironment, dp
-         class(TEigenSolver), intent(inout) :: self
-         type(TEnvironment), intent(inout) :: env
-         real(dp), intent(inout) :: amat(:, :)
-         real(dp), intent(in) :: bmat(:, :)
-         real(dp), intent(out) :: eval(:)
-      end subroutine dgen_solve
-   end interface
-
-
 contains
 
 
@@ -111,7 +64,7 @@ subroutine initSEigenSolver(self, env, bmat)
 
    self%sbmat = bmat
    ! Check for Cholesky factorisation
-   call potrf(env, self%sbmat)
+   call mctc_potrf(env, self%sbmat)
 
 end subroutine initSEigenSolver
 
@@ -129,7 +82,7 @@ subroutine initDEigenSolver(self, env, bmat)
 
    self%dbmat = bmat
    ! Check for Cholesky factorisation
-   call potrf(env, self%dbmat)
+   call mctc_potrf(env, self%dbmat)
 
 end subroutine initDEigenSolver
 
@@ -141,12 +94,14 @@ subroutine mctc_ssygvd(self, env, amat, bmat, eval)
    real(sp), intent(inout) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(out) :: eval(:)
-   integer :: info
+   integer :: info, lswork, liwork
 
    self%sbmat(:, :) = bmat
 
+   lswork = size(self%swork)
+   liwork = size(self%iwork)
    call lapack_sygvd(1, 'v', 'u', self%n, amat, self%n, self%sbmat, self%n, eval, &
-      & self%swork, size(self%swork), self%iwork, size(self%iwork), info)
+      & self%swork, lswork, self%iwork, liwork, info)
 
    if (info /= 0) then
       call env%error("Failed to solve eigenvalue problem", source)
@@ -162,12 +117,14 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
    real(dp), intent(inout) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(out) :: eval(:)
-   integer :: info
+   integer :: info, ldwork, liwork
 
    self%dbmat(:, :) = bmat
 
+   ldwork = size(self%dwork)
+   liwork = size(self%iwork)
    call lapack_sygvd(1, 'v', 'u', self%n, amat, self%n, self%dbmat, self%n, eval, &
-      & self%dwork, size(self%dwork), self%iwork, size(self%iwork), info)
+      & self%dwork, ldwork, self%iwork, liwork, info)
 
    if (info /= 0) then
       call env%error("Failed to solve eigenvalue problem", source)

@@ -22,7 +22,7 @@ module xtb_mctc_lapack_gst
    implicit none
    private
 
-   public :: sygst, spgst
+   public :: mctc_sygst, mctc_spgst
 
    public :: lapack_sygst, lapack_spgst, lapack_hegst, lapack_hpgst
 
@@ -37,10 +37,10 @@ module xtb_mctc_lapack_gst
    !  B*A*x = lambda*x, and A is overwritten by U*A*U**T or L**T*A*L.
    !
    !  B must have been previously factorized as U**T*U or L*L**T by DPOTRF.
-   interface sygst
+   interface mctc_sygst
       module procedure :: mctc_ssygst
       module procedure :: mctc_dsygst
-   end interface sygst
+   end interface mctc_sygst
 
    !> reduces a real symmetric-definite generalized eigenproblem
    !  to standard form, using packed storage.
@@ -52,10 +52,10 @@ module xtb_mctc_lapack_gst
    !  B*A*x = lambda*x, and A is overwritten by U*A*U**T or L**T*A*L.
    !
    !  B must have been previously factorized as U**T*U or L*L**T by DPPTRF.
-   interface spgst
+   interface mctc_spgst
       module procedure :: mctc_sspgst
       module procedure :: mctc_dspgst
-   end interface spgst
+   end interface mctc_spgst
 
 
    !> DSYGST reduces a real symmetric-definite generalized eigenproblem

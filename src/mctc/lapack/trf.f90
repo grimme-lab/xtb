@@ -22,35 +22,35 @@ module xtb_mctc_lapack_trf
    implicit none
    private
 
-   public :: getrf, sytrf, sptrf, potrf, pptrf
+   public :: mctc_getrf, mctc_sytrf, mctc_sptrf, mctc_potrf, mctc_pptrf
 
    public :: lapack_getrf, lapack_sytrf, lapack_sptrf, lapack_potrf, lapack_pptrf
 
 
-   interface getrf
+   interface mctc_getrf
       module procedure :: mctc_sgetrf
       module procedure :: mctc_dgetrf
-   end interface getrf
+   end interface mctc_getrf
 
-   interface sytrf
+   interface mctc_sytrf
       module procedure :: mctc_ssytrf
       module procedure :: mctc_dsytrf
-   end interface sytrf
+   end interface mctc_sytrf
 
-   interface sptrf
+   interface mctc_sptrf
       module procedure :: mctc_ssptrf
       module procedure :: mctc_dsptrf
-   end interface sptrf
+   end interface mctc_sptrf
 
-   interface potrf
+   interface mctc_potrf
       module procedure :: mctc_spotrf
       module procedure :: mctc_dpotrf
-   end interface potrf
+   end interface mctc_potrf
 
-   interface pptrf
+   interface mctc_pptrf
       module procedure :: mctc_spptrf
       module procedure :: mctc_dpptrf
-   end interface pptrf
+   end interface mctc_pptrf
 
 
    interface lapack_getrf
