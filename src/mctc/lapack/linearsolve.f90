@@ -15,15 +15,12 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Interfaces to LAPACK
-module xtb_mctc_lapack
-   use xtb_mctc_lapack_trf
-   use xtb_mctc_lapack_tri
-   use xtb_mctc_lapack_trs
-   use xtb_mctc_lapack_stdeigval
-   use xtb_mctc_lapack_geneigval
+!> LAPACK linear equation solvers.
+module xtb_mctc_lapack_linearsolve
+   use xtb_mctc_accuracy, only : sp, dp
+   use xtb_type_environment, only : TEnvironment
    implicit none
-   public
+   private
 
 
-end module xtb_mctc_lapack
+end module xtb_mctc_lapack_linearsolve

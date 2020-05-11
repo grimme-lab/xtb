@@ -28,6 +28,7 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine pseudodiag(n,nocc,fmo,eig)
+   use xtb_mctc_blas_level1, only : blas_rot
 !$  use omp_lib
     implicit none
     !Dummy Arguments
@@ -113,7 +114,7 @@ subroutine pseudodiag(n,nocc,fmo,eig)
                 i_virt = batch*blocksize + aux_virt
                 i_occ  = i_virt+aux_occ-1 - (((i_virt-1+aux_occ)/(nocc+1))*nocc)
                  !      rotation of pseudo-eigenvectors
-                call srot(n, vector(:,i_occ), 1, vector(:,nocc+i_virt), 1, alphaarr(i_occ,i_virt), betaarr(i_occ,i_virt) )
+                call blas_rot(n, vector(:,i_occ), 1, vector(:,nocc+i_virt), 1, alphaarr(i_occ,i_virt), betaarr(i_occ,i_virt) )
             end do ! End Loop over  j from 1 to nocc
             !$OMP END DO
         !$OMP END PARALLEL
@@ -131,7 +132,7 @@ subroutine pseudodiag(n,nocc,fmo,eig)
             i_virt = batch*blocksize + aux_virt
             i_occ  = i_virt+aux_occ-1 - (((i_virt-1+aux_occ)/(nocc+1))*nocc)
             !if ((alphaarr(i_occ,i_virt)==0.0) .and. (betaarr(i_occ,i_virt)==0.0)) cycle
-            call srot(n, vector(:,i_occ), 1, vector(:,nocc+i_virt), 1, alphaarr(i_occ,i_virt), betaarr(i_occ,i_virt) )
+            call blas_rot(n, vector(:,i_occ), 1, vector(:,nocc+i_virt), 1, alphaarr(i_occ,i_virt), betaarr(i_occ,i_virt) )
         end do ! End Loop over  j from 1 to nocc
         !$OMP END DO
     !$OMP END PARALLEL

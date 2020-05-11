@@ -20,6 +20,7 @@ module xtb_scf
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autoev,evtoau
    use xtb_mctc_la, only : contract
+   use xtb_mctc_lapack_eigensolve, only : TEigenSolver, init
    use xtb_coulomb_klopmanohno
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_disp_dftd3, only : d3_gradient
@@ -115,6 +116,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    type(scc_results),intent(out) :: res
    type(TxTBData), intent(in) :: xtbData
    type(TLatticePoint) :: latp
+   type(TEigenSolver) :: solver
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)
@@ -608,7 +610,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
       &'      gap      omega  full diag'
    endif
 
-   call scc(env,xtbData,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
+   call init(solver, env, S)
+   call scc(env,xtbData,solver,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &     mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &     wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &     mol%xyz,aes, &

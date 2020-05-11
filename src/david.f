@@ -33,6 +33,9 @@ c note: the current version only works for the LOWEST root i.e. nr=1 !!!
 c-----------------------------------------------------------------------
  
       subroutine ddavid(pr,ini,n,nr,crite,H,C,e)
+      use xtb_mctc_lapack_stdeigval, only : lapack_syevd
+      use xtb_mctc_blas_level1, only : blas_copy, blas_axpy, blas_dot
+      use xtb_mctc_blas_level2, only : blas_spmv
       implicit none                        
       logical pr      ! print logical
       logical ini     ! initialize start vector if .true., if false starts from previous vector
@@ -51,7 +54,7 @@ c local
       integer lauf,l1,l2,k,LWORK,LIWORK,INFO,ianf,i,ien,ico,ialt,memlun2
       integer,allocatable :: iwork(:)
 
-      real*8 valn(nr),uim,s,ddot,one,zero,denerg
+      real*8 valn(nr),uim,s,one,zero,denerg
       real*8, allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
       real*8, allocatable :: Uaug(:,:),d(:),aux(:)
       real*8, allocatable :: AB(:,:),av(:),tmpav(:,:)
@@ -97,12 +100,12 @@ C H * C for initialization
             call random_number(s)
             C(k,i)=s
           enddo
-          s=ddot(n,C(1,i),1,C(1,i),1)
+          s=blas_dot(n,C(:,i),1,C(:,i),1)
           C(1:n,i)=C(1:n,i)/sqrt(s)
          endif
          call dmwrite(n,lun1,C(1,i),i)
 c        call dgemv('N',n,n,ONE,H,n,C(1,i),1,ZERO,vecf2(ianf),1)
-         call dspmv('U',n, ONE,HP,  C(1,i),1,ZERO,vecf2(ianf),1)
+         call blas_spmv('U',n,ONE,HP,C(:,i),1,ZERO,vecf2(ianf:),1)
          call dmwrite(n,lun2,vecf2(ianf),i)   
          ianf = ianf + n
       enddo
@@ -121,9 +124,9 @@ c aufbau des iideks feldes
       enddo
     
       if(nr.eq.1)then
-         av(1)=ddot(n,C(1,1),1,vecf2(1),1)
+         av(1)=blas_dot(n,C(:,1),1,vecf2,1)
       else
-         stop '# roots > 1 not implemented'
+         error stop '# roots > 1 not implemented'
 c aufbau der startmatrix av = bi*a*bj mit bi, bj startvektoren
 c     allocate(tmpav(nr,nr),AB(n,nr))
 c     k=0
@@ -157,7 +160,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             Uaug(l1,l2) = av(k)
          enddo
       enddo
-      call dsyevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      call lapack_syevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
       valn(1:nr) = d(1:nr)
 
 c aufbau der eigentlichen vektoren, die stehen dann auf vecf1
@@ -168,7 +171,7 @@ c multiplikation der vorherigen entwicklungsvektoren mit den entwicklungskoeffiz
          ianf = 1
          do lauf = 1,nr    
             uim = Uaug(i,lauf)
-            call daxpy(n,uim,w,1,vecf1(ianf),1)
+            call blas_axpy(n,uim,w,1,vecf1(ianf:),1)
             ianf = ianf + n
          enddo
       enddo
@@ -189,7 +192,7 @@ c h*bi-e*bi steht jetzt auf vecf2
          ianf = 1
          do lauf = 1,nr   
             uim = Uaug(i,lauf)
-            call daxpy(n,uim,w,1,vecf2(ianf),1)
+            call blas_axpy(n,uim,w,1,vecf2(ianf:),1)
             ianf = ianf + n
          enddo
       enddo
@@ -231,11 +234,11 @@ c-- mit allen alten
 c orthogonaliesung des betrachteten auf die alten
            do jalt = 1,ialt
               call dmread(n,lun1,w,jalt)
-              s=-ddot(n,w,1,vecf1(ianf),1)
-              call daxpy(n,s,w,1,vecf1(ianf),1)
+              s=-blas_dot(n,w,1,vecf1(ianf:),1)
+              call blas_axpy(n,s,w,1,vecf1(ianf:),1)
            enddo
 c normierung dessen was vom betrachteten uebrig bleibt
-           s=ddot(n,vecf1(ianf),1,vecf1(ianf),1)
+           s=blas_dot(n,vecf1(ianf:),1,vecf1(ianf:),1)
            if (s.gt.0.00000001)then
 c neuer wird mitgenommen
               s = ONE /sqrt(s)
@@ -255,7 +258,7 @@ c wegschreiben des neuen zu den alten
 c umspeichern der ueberlebenden vektoren auf vecf1
       ianf = 1
       do lauf = 1,nneue
-         call dcopy(n,vecf1(ineue(lauf)),1,vecf1(ianf),1)
+         call blas_copy(n,vecf1(ineue(lauf):),1,vecf1(ianf:),1)
          ianf = ianf + n
       enddo
 
@@ -263,7 +266,7 @@ C H * C
       ianf = 1
       do i = 1,nneue
 c        call dgemv('N',n,n,ONE,H,n,vecf1(ianf),1,ZERO,vecf2(ianf),1)
-         call dspmv('U',n, ONE,HP,  vecf1(ianf),1,ZERO,vecf2(ianf),1)
+         call blas_spmv('U',n,ONE,HP,vecf1(ianf:),1,ZERO,vecf2(ianf:),1)
          ianf = ianf + n
       enddo
 
@@ -280,7 +283,7 @@ c zunaechst mit den alten
         ianf = 1 
         ilauf = iideks(j) + jalt
         do jneu = 1,nneue 
-           av(ilauf) = ddot(n,w,1,vecf2(ianf),1)
+           av(ilauf) = blas_dot(n,w,1,vecf2(ianf:),1)
            ilauf = ilauf + jneu + j 
            ianf = ianf + n 
         enddo  
@@ -291,7 +294,7 @@ c dann mit den neuen
          janf = 1 
          ilauf = iideks(j+jneu) - jneu + 1 
          do jneu1 = 1,jneu
-            av(ilauf) = ddot(n,vecf2(ianf),1,vecf1(janf),1)
+            av(ilauf) = blas_dot(n,vecf2(ianf:),1,vecf1(janf:),1)
             janf = janf + n 
             ilauf = ilauf + 1 
         enddo
@@ -355,6 +358,9 @@ c real*4 version
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine sdavid(pr,ini,n,nr,crite,H,C,e)
+      use xtb_mctc_lapack_stdeigval, only : lapack_syevd
+      use xtb_mctc_blas_level1, only : blas_copy, blas_axpy, blas_dot
+      use xtb_mctc_blas_level2, only : blas_spmv
       implicit none                        
       logical pr      ! print logical
       logical ini     ! initialize start vector if .true., if false starts from previous vector
@@ -373,7 +379,7 @@ c local
       integer lauf,l1,l2,k,LWORK,LIWORK,INFO,ianf,i,ien,ico,ialt,memlun2
       integer,allocatable :: iwork(:)
 
-      real*4 valn(nr),uim,s,sdot,one,zero,denerg
+      real*4 valn(nr),uim,s,one,zero,denerg
       real*4, allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
       real*4, allocatable :: Uaug(:,:),d(:),aux(:)
       real*4, allocatable :: AB(:,:),av(:),tmpav(:,:)
@@ -419,12 +425,12 @@ C H * C for initialization
             call random_number(s)
             C(k,i)=s
           enddo
-          s=sdot(n,C(1,i),1,C(1,i),1)
+          s=blas_dot(n,C(:,i),1,C(:,i),1)
           C(1:n,i)=C(1:n,i)/sqrt(s)
          endif
          call smwrite(n,lun1,C(1,i),i)
 c        call sgemv('N',n,n,ONE,H,n,C(1,i),1,ZERO,vecf2(ianf),1)
-         call sspmv('U',n,  ONE,HP, C(1,i),1,ZERO,vecf2(ianf),1)
+         call blas_spmv('U',n,ONE,HP, C(:,i),1,ZERO,vecf2(ianf:),1)
          call smwrite(n,lun2,vecf2(ianf),i)   
          ianf = ianf + n
       enddo
@@ -443,9 +449,9 @@ c aufbau des iideks feldes
       enddo
     
       if(nr.eq.1)then
-         av(1)=sdot(n,C(1,1),1,vecf2(1),1)
+         av(1)=blas_dot(n,C(:,1),1,vecf2,1)
       else
-         stop '# roots > 1 not implemented'
+         error stop '# roots > 1 not implemented'
 c aufbau der startmatrix av = bi*a*bj mit bi, bj startvektoren
 c     allocate(tmpav(nr,nr),AB(n,nr))
 c     k=0
@@ -479,7 +485,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
             Uaug(l1,l2) = av(k)
          enddo
       enddo
-      call ssyevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      call lapack_syevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
       valn(1:nr) = d(1:nr)
 
 c aufbau der eigentlichen vektoren, die stehen dann auf vecf1
@@ -490,7 +496,7 @@ c multiplikation der vorherigen entwicklungsvektoren mit den entwicklungskoeffiz
          ianf = 1
          do lauf = 1,nr    
             uim = Uaug(i,lauf)
-            call saxpy(n,uim,w,1,vecf1(ianf),1)
+            call blas_axpy(n,uim,w,1,vecf1(ianf:),1)
             ianf = ianf + n
          enddo
       enddo
@@ -511,7 +517,7 @@ c h*bi-e*bi steht jetzt auf vecf2
          ianf = 1
          do lauf = 1,nr   
             uim = Uaug(i,lauf)
-            call saxpy(n,uim,w,1,vecf2(ianf),1)
+            call blas_axpy(n,uim,w,1,vecf2(ianf:),1)
             ianf = ianf + n
          enddo
       enddo
@@ -553,11 +559,11 @@ c-- mit allen alten
 c orthogonaliesung des betrachteten auf die alten
            do jalt = 1,ialt
               call smread(n,lun1,w,jalt)
-              s=-sdot(n,w,1,vecf1(ianf),1)
-              call saxpy(n,s,w,1,vecf1(ianf),1)
+              s=-blas_dot(n,w,1,vecf1(ianf:),1)
+              call blas_axpy(n,s,w,1,vecf1(ianf:),1)
            enddo
 c normierung dessen was vom betrachteten uebrig bleibt
-           s=sdot(n,vecf1(ianf),1,vecf1(ianf),1)
+           s=blas_dot(n,vecf1(ianf:),1,vecf1(ianf:),1)
            if (s.gt.0.00000001)then
 c neuer wird mitgenommen
               s = ONE /sqrt(s)
@@ -577,7 +583,7 @@ c wegschreiben des neuen zu den alten
 c umspeichern der ueberlebenden vektoren auf vecf1
       ianf = 1
       do lauf = 1,nneue
-         call scopy(n,vecf1(ineue(lauf)),1,vecf1(ianf),1)
+         call blas_copy(n,vecf1(ineue(lauf):),1,vecf1(ianf:),1)
          ianf = ianf + n
       enddo
 
@@ -585,7 +591,7 @@ C H * C
       ianf = 1
       do i = 1,nneue
 c        call sgemv('N',n,n,ONE,H,n,vecf1(ianf),1,ZERO,vecf2(ianf),1)
-         call sspmv('U',n,  ONE,HP, vecf1(ianf),1,ZERO,vecf2(ianf),1)
+         call blas_spmv('U',n,ONE,HP,vecf1(ianf:),1,ZERO,vecf2(ianf:),1)
          ianf = ianf + n
       enddo
 
@@ -602,7 +608,7 @@ c zunaechst mit den alten
         ianf = 1 
         ilauf = iideks(j) + jalt
         do jneu = 1,nneue 
-           av(ilauf) = sdot(n,w,1,vecf2(ianf),1)
+           av(ilauf) = blas_dot(n,w,1,vecf2(ianf:),1)
            ilauf = ilauf + jneu + j 
            ianf = ianf + n 
         enddo  
@@ -613,7 +619,7 @@ c dann mit den neuen
          janf = 1 
          ilauf = iideks(j+jneu) - jneu + 1 
          do jneu1 = 1,jneu
-            av(ilauf) = sdot(n,vecf2(ianf),1,vecf1(janf),1)
+            av(ilauf) = blas_dot(n,vecf2(ianf:),1,vecf1(janf:),1)
             janf = janf + n 
             ilauf = ilauf + 1 
         enddo
@@ -671,8 +677,3 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       read(iwo,rec=irec) v
       return
       end 
-
-
-
-
-

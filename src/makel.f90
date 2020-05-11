@@ -24,6 +24,8 @@
 !**********************************************************************
 
 subroutine makel(nao, s, can, clo )
+   use xtb_mctc_lapack_stdeigval, only : lapack_syev
+   use xtb_mctc_blas_level3, only : blas_gemm
    implicit real*8 (a-h,o-z)
    dimension s(nao,nao)
    dimension can(nao,nao)
@@ -36,7 +38,7 @@ subroutine makel(nao, s, can, clo )
 
    vecs = s
 
-   call dsyev ('V','U',nao,vecs,nao,e,aux,lwork,info)
+   call lapack_syev ('V','U',nao,vecs,nao,e,aux,lwork,info)
 
    do i=1,nao
       if(e(i).lt.0) stop 'sorry, must stop in S^1/2!'
@@ -50,13 +52,13 @@ subroutine makel(nao, s, can, clo )
       enddo
    enddo
 
-   call dgemm('N','T',nao,nao,nao,1.0d0,x, nao,cc,nao,0.0d0,vecs,nao)
+   call blas_gemm('N','T',nao,nao,nao,1.0d0,x, nao,cc,nao,0.0d0,vecs,nao)
 
    x = vecs
    deallocate(e,aux,cc,vecs)
 
    moci=nao
-   call dgemm('n','n',nao,moci,nao,1.d0,x,nao,can,nao,0.d0,clo,nao)
+   call blas_gemm('n','n',nao,moci,nao,1.d0,x,nao,can,nao,0.d0,clo,nao)
 
    deallocate(x)
    return
@@ -65,6 +67,8 @@ end subroutine makel
 
 ! unrestricted version
 subroutine umakel(nao, s, cana, canb, cloa, clob )
+   use xtb_mctc_lapack_stdeigval, only : lapack_syev
+   use xtb_mctc_blas_level3, only : blas_gemm
    implicit real*8 (a-h,o-z)
    dimension s(nao,nao)
    dimension cana(nao,nao)
@@ -79,7 +83,7 @@ subroutine umakel(nao, s, cana, canb, cloa, clob )
 
    vecs = s
 
-   call dsyev ('V','U',nao,vecs,nao,e,aux,lwork,info)
+   call lapack_syev ('V','U',nao,vecs,nao,e,aux,lwork,info)
 
    do i=1,nao
       if(e(i).lt.0) stop 'sorry, must stop in S^1/2!'
@@ -93,14 +97,14 @@ subroutine umakel(nao, s, cana, canb, cloa, clob )
       enddo
    enddo
 
-   call dgemm('N','T',nao,nao,nao,1.0d0,x,nao,cc,nao,0.0d0,vecs,nao)
+   call blas_gemm('N','T',nao,nao,nao,1.0d0,x,nao,cc,nao,0.0d0,vecs,nao)
 
    x = vecs
    deallocate(e,aux,cc,vecs)
 
    moci=nao
-   call dgemm('n','n',nao,moci,nao,1.d0,x,nao,cana,nao,0.d0,cloa,nao)
-   call dgemm('n','n',nao,moci,nao,1.d0,x,nao,canb,nao,0.d0,clob,nao)
+   call blas_gemm('n','n',nao,moci,nao,1.d0,x,nao,cana,nao,0.d0,cloa,nao)
+   call blas_gemm('n','n',nao,moci,nao,1.d0,x,nao,canb,nao,0.d0,clob,nao)
 
    deallocate(x)
    return

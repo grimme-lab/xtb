@@ -427,6 +427,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
       &          timer,exact)
 
+   use xtb_mctc_blas_level2, only : blas_gemv
    use xtb_type_molecule
    use xtb_type_anc
    use xtb_type_wavefunction
@@ -701,7 +702,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 end subroutine relax
 
 pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
-   use xtb_mctc_la
+   use xtb_mctc_lapack, only : lapack_syevx
    implicit none
    integer, intent(in)    :: n
    real(sp),intent(in)    :: thr
@@ -721,7 +722,7 @@ pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
    allocate(iwork(5*n),work(lwork),ifail(n))
 
    j=1
-   call syevx('V','I','U',n,A,n,dum,dum,j,j,thr, &
+   call lapack_syevx('V','I','U',n,A,n,dum,dum,j,j,thr, &
    &           i,e,U,n,work,lwork,iwork,ifail,info)
    if (info.ne.0) fail = .true.
 
@@ -729,7 +730,7 @@ pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
 end subroutine solver_ssyevx
 
 pure subroutine solver_sspevx(n,thr,A,U,e,fail)
-   use xtb_mctc_la
+   use xtb_mctc_lapack, only : lapack_spevx
    implicit none
    integer, intent(in)    :: n
    real(sp),intent(in)    :: thr
@@ -748,7 +749,7 @@ pure subroutine solver_sspevx(n,thr,A,U,e,fail)
    allocate(iwork(5*n),work(8*n),ifail(n))
 
    j=1
-   call spevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
+   call lapack_spevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
    if (info.ne.0) fail = .true.
 
    deallocate(iwork,work,ifail)
@@ -827,6 +828,7 @@ subroutine prdechng(nat3,grad,displ,hess,depred)
 ! Output:
 ! depred - Predicted energy change
 !---------------------------------------------------------------------
+   use xtb_mctc_blas_level2, only : blas_spmv
    implicit none
 
 ! Input:
@@ -847,7 +849,7 @@ subroutine prdechng(nat3,grad,displ,hess,depred)
 !---------------------------------------------------------------------
    allocate( hdx(nat3), source = 0.0_wp )
 
-   call dspmv('u',nat3,0.5d0,hess,displ,1,0.0d0,hdx,1)
+   call blas_spmv('u',nat3,0.5d0,hess,displ,1,0.0d0,hdx,1)
 
    gtmp   = ddot(nat3,displ,1,grad,1)
 
@@ -1002,7 +1004,7 @@ end subroutine modhes
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine itochess(nvar,nat3,b,hess,fc)
-   use xtb_mctc_la, only : gemm
+   use xtb_mctc_blas, only : blas_gemm
    implicit none
    integer, intent(in)  :: nvar
    integer, intent(in)  :: nat3
@@ -1029,10 +1031,10 @@ subroutine itochess(nvar,nat3,b,hess,fc)
    enddo
 
 !  calculate H*B (note: B is saved as Bt)
-   call gemm ('n','t',nvar,nat3,nvar,1.0d0,h,nvar,b,nat3,0.0d0,hb,nvar)
+   call blas_gemm ('n','t',nvar,nat3,nvar,1.0d0,h,nvar,b,nat3,0.0d0,hb,nvar)
 
 !  calculate Bt*HB
-   call gemm ('n','n',nat3,nat3,nvar,1.0d0,b,nat3,hb,nvar,0.0d0,chess,nat3)
+   call blas_gemm ('n','n',nat3,nat3,nvar,1.0d0,b,nat3,hb,nvar,0.0d0,chess,nat3)
 
 !  pack
    k=0

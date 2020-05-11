@@ -18,6 +18,7 @@ module xtb_onetri
 contains
 
 subroutine onetri(ity,s,s1,array,n,ival)
+   use xtb_mctc_blas_level3, only : blas_symm, blas_gemm
    use xtb_blowsy
    implicit real*8 (a-h,o-z)
    !     ******designed for abelian groups only******

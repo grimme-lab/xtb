@@ -19,18 +19,14 @@ module xtb_mctc_la
    use xtb_mctc_accuracy, only : wp, sp, dp
    use xtb_mctc_lapack
    use xtb_mctc_blas
+   use xtb_mctc_blas_wrap3, only : contract => mctc_gemm
+   use xtb_mctc_blas_wrap2, only : contract => mctc_gemv
    implicit none
    public ! Forward lapack/blas module
 
    private :: wp, sp, dp
 
 
-   interface contract
-      module procedure :: contract211
-      module procedure :: contract312
-      module procedure :: contract222
-      module procedure :: contract323
-   end interface contract
 
 
    interface htosq
@@ -110,10 +106,10 @@ subroutine dsyprj(nbdim,m,bmat,n,asym)
   call htosq(n,scra,asym)
 
 ! Calculate scrb = asym*bmat
-  call symm('l','u',n,m,1.0_dp,scra,n,bmat,nbdim,0.0_dp,scrb,n)
+  call blas_symm('l','u',n,m,1.0_dp,scra,n,bmat,nbdim,0.0_dp,scrb,n)
   
 ! Calculate scra = scrb*bmat'
-  call gemm('n','t',n,n,m,1.0_dp,scrb,n,bmat,nbdim,0.0_dp,scra,n)
+  call blas_gemm('n','t',n,n,m,1.0_dp,scrb,n,bmat,nbdim,0.0_dp,scra,n)
 
 ! Calculate asym = asym - scra - scra'
   do i=1,n
@@ -124,10 +120,10 @@ subroutine dsyprj(nbdim,m,bmat,n,asym)
   end do
      
 ! Calculate scrb' = scra'*bmat
-  call gemm('t','n',n,m,n,1.0_dp,scra,n,bmat,nbdim,0.0_dp,scrb,n)
+  call blas_gemm('t','n',n,m,n,1.0_dp,scra,n,bmat,nbdim,0.0_dp,scrb,n)
 
 ! Calculate scra = bmat*scrb'
-  call gemm('n','t',n,n,m,1.0_dp,bmat,nbdim,scrb,n,0.0_dp,scra,n)
+  call blas_gemm('n','t',n,n,m,1.0_dp,bmat,nbdim,scrb,n,0.0_dp,scra,n)
   
 ! Calculate asym = asym + scra
   do i=1,n
@@ -198,7 +194,7 @@ subroutine dblckmgs(m,n,ndim,darray)
 !-----------------------------------------------------------------
   do ii=1,ibsize
 
-     tmp = dot(m,darray(:,ii),1,darray(:,ii),1)
+     tmp = blas_dot(m,darray(:,ii),1,darray(:,ii),1)
 
 ! Linear dependence
      if(tmp < thr) then
@@ -207,11 +203,11 @@ subroutine dblckmgs(m,n,ndim,darray)
      end if
 
      tmp = 1.0_dp/sqrt(tmp)
-     call scal(m,tmp,darray(:,ii),1)
+     call blas_scal(m,tmp,darray(:,ii),1)
 
      do jj=ii+1,ibsize
-        tmp = dot(m,darray(:,ii),1,darray(:,jj),1)
-        call axpy(m,-tmp,darray(:,ii),1,darray(:,jj),1)
+        tmp = blas_dot(m,darray(:,ii),1,darray(:,jj),1)
+        call blas_axpy(m,-tmp,darray(:,ii),1,darray(:,jj),1)
      end do
 
   end do
@@ -241,7 +237,7 @@ subroutine dblckmgs(m,n,ndim,darray)
 ! Othogonalize vectors on the block ii+1 among themself using modified schmidt
      do kk=istrt,iend
 
-        tmp = dot(m,darray(:,kk),1,darray(:,kk),1)
+        tmp = blas_dot(m,darray(:,kk),1,darray(:,kk),1)
 
 ! Linear dependence
         if(tmp < thr) then
@@ -250,11 +246,11 @@ subroutine dblckmgs(m,n,ndim,darray)
         end if
      
         tmp = 1.0_dp/sqrt(tmp)
-        call scal(m,tmp,darray(:,kk),1)
+        call blas_scal(m,tmp,darray(:,kk),1)
 
         do ll=kk+1,iend
-           tmp = dot(m,darray(:,kk),1,darray(:,ll),1)
-           call axpy(m,-tmp,darray(:,kk),1,darray(:,ll),1)
+           tmp = blas_dot(m,darray(:,kk),1,darray(:,ll),1)
+           call blas_axpy(m,-tmp,darray(:,kk),1,darray(:,ll),1)
         end do
 
      end do
@@ -280,17 +276,17 @@ function ssyluinv(Amat,m) result(info)
    integer  :: i,j
 
    ! assume work space query, set best value to test after first dsytrf call
-   call ssytrf('L',m,Amat,m,ipiv,test,-1,info)
+   call lapack_sytrf('L',m,Amat,m,ipiv,test,-1,info)
    lwork=int(test(1))
    allocate( work(lwork), source = 0.0_sp )
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call ssytrf('L',m,Amat,m,ipiv,work,lwork,info)
+   call lapack_sytrf('L',m,Amat,m,ipiv,work,lwork,info)
    if(info > 0) return
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Amat matrix
    ! Amat matrix is overwritten with lower triangular part of A⁻¹
-   call ssytri('L',m,Amat,m,ipiv,work,info)
+   call lapack_sytri('L',m,Amat,m,ipiv,work,info)
    if (info > 0) return
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix
@@ -317,17 +313,17 @@ function dsyluinv(Amat,m) result(info)
    allocate( ipiv(m), source = 0 )
 
    ! assume work space query, set best value to test after first dsytrf call
-   call dsytrf('L',m,Amat,m,ipiv,test,-1,info)
+   call lapack_sytrf('L',m,Amat,m,ipiv,test,-1,info)
    lwork=int(test(1))
    allocate( work(lwork), source = 0.0_dp )
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call dsytrf('L',m,Amat,m,ipiv,work,lwork,info)
+   call lapack_sytrf('L',m,Amat,m,ipiv,work,lwork,info)
    if(info > 0) return
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Amat matrix
    ! Amat matrix is overwritten with lower triangular part of A⁻¹
-   call dsytri('L',m,Amat,m,ipiv,work,info)
+   call lapack_sytri('L',m,Amat,m,ipiv,work,info)
    if (info > 0) return
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix
@@ -359,7 +355,7 @@ subroutine contract211(amat, bvec, cvec, alpha, beta)
    nn = size(amat, dim=1)
    mm = size(amat, dim=2)
 
-   call gemv('n', nn, mm, aa, amat, nn, bvec, 1, bb, cvec, 1)
+   call blas_gemv('n', nn, mm, aa, amat, nn, bvec, 1, bb, cvec, 1)
 
 end subroutine contract211
 
@@ -387,7 +383,7 @@ subroutine contract312(amat, bvec, cvec, alpha, beta)
    aptr(1:size(amat, dim=1) * size(amat, dim=2), 1:size(amat, dim=3)) => amat
    cptr(1:size(cvec, dim=1) * size(cvec, dim=2)) => cvec
 
-   call gemv('n', nn, mm, aa, aptr, nn, bvec, 1, bb, cptr, 1)
+   call blas_gemv('n', nn, mm, aa, aptr, nn, bvec, 1, bb, cptr, 1)
 
 end subroutine contract312
 
@@ -412,7 +408,7 @@ subroutine contract222(amat, bmat, cmat, alpha, beta)
    mm = size(amat, dim=2)
    kk = size(cmat, dim=2)
 
-   call gemm('n', 'n', nn, kk, mm, aa, amat, nn, bmat, mm, bb, cmat, nn)
+   call blas_gemm('n', 'n', nn, kk, mm, aa, amat, nn, bmat, mm, bb, cmat, nn)
 
 end subroutine contract222
 
@@ -439,9 +435,9 @@ subroutine contract323(amat, bmat, cmat, alpha, beta)
    mm = size(amat, dim=3)
    kk = size(cmat, dim=3)
    aptr(1:size(amat, dim=1) * size(amat, dim=2), 1:size(amat, dim=3)) => amat
-   cptr(1:size(cmat, dim=1) * size(cmat, dim=2), 1:size(amat, dim=3)) => cmat
+   cptr(1:size(cmat, dim=1) * size(cmat, dim=2), 1:size(cmat, dim=3)) => cmat
 
-   call gemm('n', 'n', nn, kk, mm, aa, aptr, nn, bmat, mm, bb, cptr, nn)
+   call blas_gemm('n', 'n', nn, kk, mm, aa, aptr, nn, bmat, mm, bb, cptr, nn)
 
 end subroutine contract323
 

@@ -21,6 +21,7 @@
 
 subroutine locmode(n,n3,at,xyz,vthr,freq,rmass,uin,ng,group)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas_level3, only : blas_gemm
    implicit none
    integer n,n3,at(n),ng,group(n)
    real(wp) xyz(3,n),freq(n3),rmass(n3),uin(n3,n3),vthr
@@ -95,7 +96,7 @@ subroutine locmode(n,n3,at,xyz,vthr,freq,rmass,uin,ng,group)
       rl(i)=dum2
    enddo
    ! the local modes in ul
-   CALL DGEMM('N','N',n3,nvar,nvar,1.D0,u,n3,d,nvar,0.D0,ul,n3)
+   CALL blas_gemm('N','N',n3,nvar,nvar,1.D0,u,n3,d,nvar,0.D0,ul,n3)
 
    ! sort
    do i=1,nvar

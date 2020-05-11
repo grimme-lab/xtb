@@ -19,6 +19,8 @@ contains
 
 subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_blas_level2, only : blas_spmv
+   use xtb_mctc_blas_level1, only : blas_dot
    !-------------------------------------------------------------------
    ! Purpose:
    ! Performs BFGS update of Hessian matrix
@@ -57,11 +59,11 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    svec(1:nat3) = grad(1:nat3) - grado(1:nat3)
 
    ! calculate tvec = h*dx
-   call dspmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,tvec,1)
+   call blas_spmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,tvec,1)
 
    ! calculate scalar dxdx and jtdx
-   ddtd = ddot(nat3,tvec,1,dx,1)
-   dds  = ddot(nat3,svec,1,dx,1)
+   ddtd = blas_dot(nat3,tvec,1,dx,1)
+   dds  = blas_dot(nat3,svec,1,dx,1)
    ooddtd = 1.0_wp / ddtd
    oodds  = 1.0_wp / dds
 

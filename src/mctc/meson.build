@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+subdir('blas')
+subdir('lapack')
+
 # MCTC library
 srcs += files(
   'accuracy.f90',

@@ -604,11 +604,11 @@ end subroutine shift_to_center_of_mass
 
 pure function moments_of_inertia(self) result(moments)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la
+   use xtb_mctc_math, only : eigval3x3
    implicit none
    class(TMolecule),intent(in) :: self !< molecular structure information
    real(wp) :: moments(3)
-   real(wp) :: center(3),atmass,t(6),work(9),tmp(3,3)
+   real(wp) :: center(3),atmass,inertia(3,3),work(9),tmp(3,3)
    real(wp) :: x,x2,y,y2,z,z2
    integer  :: iat,info
    ! currently not supported
@@ -618,23 +618,22 @@ pure function moments_of_inertia(self) result(moments)
    endif
    center = self%center_of_mass()
 
-   t = 0.0_wp
+   inertia(:, :) = 0.0_wp
 
    do iat = 1, self%n
       atmass = self%atmass(iat)
       x = self%xyz(1,iat)-center(1); x2 = x**2
       y = self%xyz(2,iat)-center(2); y2 = y**2
       z = self%xyz(3,iat)-center(3); z2 = z**2
-      t(1) = t(1) + atmass * (y2+z2)
-      t(2) = t(2) - atmass * x*y
-      t(3) = t(3) + atmass * (x2+z2)
-      t(4) = t(4) - atmass * x*z
-      t(5) = t(5) - atmass * y*z
-      t(6) = t(6) + atmass * (x2+y2)
+      inertia(1,1) = inertia(1,1) + atmass * (y2+z2)
+      inertia(1,2) = inertia(1,2) - atmass * x*y
+      inertia(2,2) = inertia(2,2) + atmass * (x2+z2)
+      inertia(1,3) = inertia(1,3) - atmass * x*z
+      inertia(2,3) = inertia(2,3) - atmass * y*z
+      inertia(3,3) = inertia(3,3) + atmass * (x2+y2)
    enddo
 
-   call spev('N','U',3,t,moments,tmp,3,work,info)
-   if (info.ne.0) moments = -1.0_wp
+   call eigval3x3(inertia, moments)
 
 end function moments_of_inertia
 
@@ -653,23 +652,30 @@ end function rotational_constants
 
 pure subroutine align_to_principal_axes(self,break_symmetry)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la
+   use xtb_mctc_math, only : eigvec3x3, matdet3x3
    use xtb_pbc_tools
    implicit none
    class(TMolecule),intent(inout) :: self !< molecular structure information
    logical, optional, intent(in)    :: break_symmetry
    real(wp) :: moments(3),det
-   real(wp) :: center(3),atmass,t(6),work(9),axes(3,3)
+   real(wp) :: center(3),atmass,inertia(3,3),axes(3,3)
    real(wp) :: x,x2,y,y2,z,z2
-   integer  :: i,iat,info
+   integer  :: i,iat
    ! currently not supported
    if (self%npbc > 0) then
       return
    endif
    center = self%center_of_mass()
-   t = 0.0_wp
+   inertia(:, :) = 0.0_wp
    if (present(break_symmetry)) then
-      if (break_symmetry) t = [(real(i,wp)*1.0e-10_wp,i=1,6)]
+      if (break_symmetry) then
+         inertia(1,1) = 1.0e-10_wp
+         inertia(1,2) = 2.0e-10_wp
+         inertia(2,2) = 3.0e-10_wp
+         inertia(1,3) = 4.0e-10_wp
+         inertia(2,3) = 5.0e-10_wp
+         inertia(3,3) = 6.0e-10_wp
+      end if
    endif
 
    do iat = 1, self%n
@@ -677,18 +683,17 @@ pure subroutine align_to_principal_axes(self,break_symmetry)
       x = self%xyz(1,iat)-center(1); x2 = x**2
       y = self%xyz(2,iat)-center(2); y2 = y**2
       z = self%xyz(3,iat)-center(3); z2 = z**2
-      t(1) = t(1) + atmass * (y2+z2)
-      t(2) = t(2) - atmass * x*y
-      t(3) = t(3) + atmass * (x2+z2)
-      t(4) = t(4) - atmass * x*z
-      t(5) = t(5) - atmass * y*z
-      t(6) = t(6) + atmass * (x2+y2)
+      inertia(1,1) = inertia(1,1) + atmass * (y2+z2)
+      inertia(1,2) = inertia(1,2) - atmass * x*y
+      inertia(2,2) = inertia(2,2) + atmass * (x2+z2)
+      inertia(1,3) = inertia(1,3) - atmass * x*z
+      inertia(2,3) = inertia(2,3) - atmass * y*z
+      inertia(3,3) = inertia(3,3) + atmass * (x2+y2)
    enddo
 
-   call spev('V','U',3,t,moments,axes,3,work,info)
-   if (info.ne.0) return
+   call eigvec3x3(inertia,moments,axes)
 
-   det = mat_det_3x3(axes)
+   det = matDet3x3(axes)
    if (det < 0) axes(:,1) = -axes(:,1)
 
    call coord_trafo(self%n,axes,self%xyz)

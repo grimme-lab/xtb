@@ -38,6 +38,7 @@ contains
 subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    use xtb_type_basisset
    use xtb_setparam
+   use xtb_mctc_blas_level3, only : blas_gemm
    implicit none
    type(TBasisset), intent(in) :: basis
 
@@ -98,7 +99,7 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
       Ptmp(1:nbf,nmo+1:nbf)=0
       C   (1:nbf,nmo+1:nbf)=0
    endif
-   call DGEMM('N','T',nbf,nbf,nbf, 1.0d0,C,nbf,Ptmp,nbf,0.0d0,P,nbf)
+   call blas_gemm('N','T',nbf,nbf,nbf, 1.0d0,C,nbf,Ptmp,nbf,0.0d0,P,nbf)
    deallocate(Ptmp,C)
 
    nm=0

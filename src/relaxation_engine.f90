@@ -383,6 +383,7 @@ subroutine l_ancopt &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
 
    use xtb_mctc_convert
+   use xtb_mctc_lapack_stdeigval, only : lapack_syev
 
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -573,7 +574,7 @@ subroutine l_ancopt &
    ! diagonalize the hessian
    lwork  = 1 + 6*nat3 + 2*nat3**2
    allocate(aux(lwork))
-   call ssyev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
+   call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
    deallocate(aux)
 
    thr = 1.0e-11_wp

@@ -714,7 +714,7 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 end subroutine build_wdispmat
 
 subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
-   use xtb_mctc_la, only : symv
+   use xtb_mctc_blas, only : blas_symv
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -751,7 +751,7 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
       enddo
    enddo
 !  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
-   call symv('U',ndim,1._wp,wdispmat,ndim,zetavec,1,0._wp,dumvec,1)
+   call blas_symv('U',ndim,1._wp,wdispmat,ndim,zetavec,1,0._wp,dumvec,1)
 !  call gemv('N',ndim,ndim,1._wp,wdispmat,ndim,zetavec, &
 !  &     1,0._wp,dumvec,1)
 !  get atomic reference contributions
@@ -768,7 +768,7 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
 end subroutine disppot
 
 function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
-   use xtb_mctc_la, only : symv
+   use xtb_mctc_blas, only : blas_symv
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -801,7 +801,7 @@ function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
       enddo
    enddo
 !  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
-   call symv('U',ndim,0.5_wp,wdispmat,ndim,zetavec,1,0.0_wp,dumvec,1)
+   call blas_symv('U',ndim,0.5_wp,wdispmat,ndim,zetavec,1,0.0_wp,dumvec,1)
 !  call gemv('N',ndim,ndim,0.5_wp,wdispmat,ndim,zetavec, &
 !  &           1,0.0_wp,dumvec,1)
    ed = dot_product(dumvec,zetavec)
@@ -1881,7 +1881,8 @@ subroutine dabcgrad(nat,ndim,at,xyz,par,dcn,zvec,dzvec,itbl,g,eout)
 end subroutine dabcgrad
 
 subroutine dispmb(E,aw,xyz,oor6ab,nat)
-   use xtb_mctc_la, only : syev,gemm
+   use xtb_mctc_lapack, only : lapack_syev
+   use xtb_mctc_blas, only : blas_gemm
    integer, intent(in)  :: nat
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: aw(23,nat)
@@ -1942,15 +1943,15 @@ subroutine dispmb(E,aw,xyz,oor6ab,nat)
       enddo
 
       AT  = 0.0d0 
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,T, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,T, &
   &             3*nat,0.0_wp,F_,3*nat)
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,F_,3*nat,A, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,F_,3*nat,A, &
   &             3*nat,0.0_wp,AT,3*nat)
 
       F_ = F - AT
 
       d = 0.0d0
-      call syev('N','U',3*nat,F_,3*nat,d,w,12*nat,info)
+      call lapack_syev('N','U',3*nat,F_,3*nat,d,w,12*nat,info)
       if (info.ne.0) then
 !        call raise('W','MBD eigenvalue not solvable')
          print'(1x,''* MBD eigenvalue not solvable'')'
@@ -1964,9 +1965,9 @@ subroutine dispmb(E,aw,xyz,oor6ab,nat)
          return
       endif
 
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,AT,3*nat,AT, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,AT,3*nat,AT, &
   &             3*nat,0.0_wp,F_,3*nat)
-!     call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,F_,3*nat,AT, &
+!     call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,F_,3*nat,AT, &
 ! &             3*nat,0.0_wp,A,3*nat)
        
       d_ = 1.0_wp; d2 = 0.0_wp!; d3 = 0.0_wp
@@ -1995,7 +1996,8 @@ end subroutine dispmb
 !! !WARNING!WARNING!WARNING!WARNING!WARNING!WARNING!WARNING!WARNING! !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
-   use xtb_mctc_la, only : syev,gemm
+   use xtb_mctc_lapack, only : lapack_syev
+   use xtb_mctc_blas, only : blas_gemm
    integer, intent(in)  :: nat
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: aw(23,nat)
@@ -2123,9 +2125,9 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
       enddo
 
       AT  = 0.0_wp
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,T, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,T, &
            &     3*nat,0.0_wp,tmp1,3*nat)
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp1,3*nat,A, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp1,3*nat,A, &
            &     3*nat,0.0_wp,AT,3*nat)
         !call prmat(6,AT,3*nat,3*nat,'AT')
 
@@ -2133,7 +2135,7 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
         !call prmat(6,dF,3*nat,3*nat,'1-AT')
 
       d = 0.0d0
-      call syev('V','U',3*nat,tmp1,3*nat,d,w,12*nat,info)
+      call lapack_syev('V','U',3*nat,tmp1,3*nat,d,w,12*nat,info)
         !call prmat(6,tmp1,3*nat,3*nat,'F eigv.')
       if (info.ne.0) then
 !        call raise('W','MBD eigenvalue not solvable')
@@ -2149,7 +2151,7 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
       endif
 
 !     two-body contribution to energy
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,AT,3*nat,AT, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,AT,3*nat,AT, &
            &     3*nat,0.0_wp,tmp2,3*nat)
         !call prmat(6,dF,3*nat,3*nat,'dF')
 
@@ -2186,9 +2188,9 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
       enddo
         !call prmat(6,dF,3*nat,3*nat,'dF')
 !     (1-AT)⁻¹ = U·Λ⁻¹·U†
-      call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp1,3*nat,dF, &
+      call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp1,3*nat,dF, &
            &     3*nat,0.0_wp,tmp2,3*nat)
-!     call gemm('N','T',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,tmp1, &
+!     call blas_gemm('N','T',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,tmp1, &
 !          &     3*nat,0.0_wp,AT,3*nat)
         !call prmat(6,dF,3*nat,3*nat,'dF')
 !     unfortunately this might not be enough, we have to substract the
@@ -2201,7 +2203,7 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
 !     dF = dF - AT
 !     or more easier by the use of dgemm's beta by replacing the last
 !     dgemm by:
-!     call gemm('N','T',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,tmp1, &
+!     call blas_gemm('N','T',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,tmp1, &
 !          &     3*nat,1.0_wp,AT,3*nat)
 !     But we would have to consider AT instead of dF in the following code
 !     which would be at least confusing
@@ -2218,30 +2220,30 @@ subroutine mbdgrad(nat,xyz,aw,daw,oor6ab,g,E)
          enddo
 
 !        (∇A^½)TA^½
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,dA,3*nat,T, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,dA,3*nat,T, &
               &     3*nat,0.0_wp,tmp2,3*nat)
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,A, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,A, &
               &     3*nat,0.0_wp,dAT,3*nat)
 
 !        (∇A^½)TA^½+A^½(∇T)A^½ (please note the use of beta=1.0!)
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,nT(:,:,l), &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,nT(:,:,l), &
               &     3*nat,0.0_wp,tmp2,3*nat)
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,A, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,A, &
               &     3*nat,1.0_wp,dAT,3*nat)
 
 !        last term and we have: (∇A^½)TA^½+A^½(∇T)A^½+A^½T(∇A^½)
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,T, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,A,3*nat,T, &
               &     3*nat,0.0_wp,tmp2,3*nat)
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,dA, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,tmp2,3*nat,dA, &
               &     3*nat,1.0_wp,dAT,3*nat)
 
 !        by multiplying the prefactor we get to:
 !        ((1-A^½TA^½)⁻¹+A^½TA^½)·((∇A^½)TA^½+A^½(∇T)A^½+A^½T(∇A^½))
-         call gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,AT,3*nat,dAT, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,1.0_wp,AT,3*nat,dAT, &
               &     3*nat,0.0_wp,tmp2,3*nat)
 !        now the other term of
 !        [(1-A^½TA^½)⁻¹+A^½TA^½),((∇A^½)TA^½+A^½(∇T)A^½+A^½T(∇A^½)]
-         call gemm('N','N',3*nat,3*nat,3*nat,-1.0_wp,dAT,3*nat,AT, &
+         call blas_gemm('N','N',3*nat,3*nat,3*nat,-1.0_wp,dAT,3*nat,AT, &
               &     3*nat,1.0_wp,tmp2,3*nat)
 
          do i = 1, nat

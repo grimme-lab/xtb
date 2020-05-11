@@ -18,7 +18,9 @@
 !> Implementation of the electronegativity equilibration model
 module xtb_xtb_eeq
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la
+   use xtb_mctc_blas, only : blas_dot, blas_symv
+   use xtb_mctc_lapack, only : lapack_sytrf, lapack_sytri
+   use xtb_mctc_la, only : contract
    use xtb_type_coulomb, only : TCoulomb
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
@@ -348,8 +350,8 @@ subroutine chargeEquilibration(self, env, mol, coulomb, cn, dcndr, dcndL, &
 
    if (present(energy)) then
       shift = xvec
-      call symv('l', ndim, 0.5_wp, jmat, ndim, qvec, 1, -1.0_wp, shift, 1)
-      energy = energy + dot(ndim, qvec, 1, shift, 1)
+      call blas_symv('l', ndim, 0.5_wp, jmat, ndim, qvec, 1, -1.0_wp, shift, 1)
+      energy = energy + blas_dot(ndim, qvec, 1, shift, 1)
    end if
 
    if (deriv .or. response) then
@@ -435,11 +437,11 @@ subroutine solve_sysv(env, mat, rhs, vec)
    ptr(1:ndim, 1:1) => vec(1:ndim)
 
    ! assume work space query, set best value to test after first dsysv call
-   call sysv('l', ndim, 1, mat, ndim, ipiv, ptr, ndim, test, -1, info)
+   call dsysv('l', ndim, 1, mat, ndim, ipiv, ptr, ndim, test, -1, info)
    lwork = int(test(1))
    allocate(work(lwork))
 
-   call sysv('l', ndim, 1, mat, ndim, ipiv, ptr, ndim, work, lwork, info)
+   call dsysv('l', ndim, 1, mat, ndim, ipiv, ptr, ndim, work, lwork, info)
 
    if (info > 0) then
       call env%error("LAPACK linear equation solver failed", source)
@@ -477,7 +479,7 @@ subroutine solve_sytri(env, mat, rhs, vec)
    call env%check(exitRun)
    if (exitRun) return
 
-   call symv('l', ndim, 1.0_wp, mat, ndim, rhs, 1, 0.0_wp, vec, 1)
+   call blas_symv('l', ndim, 1.0_wp, mat, ndim, rhs, 1, 0.0_wp, vec, 1)
 
 end subroutine solve_sytri
 
@@ -507,12 +509,12 @@ subroutine invert_sytri(env, mat)
    allocate(ipiv(ndim))
 
    ! assume work space query, set best value to test after first dsytrf call
-   call sytrf('L', ndim, mat, ndim, ipiv, test, -1, info)
+   call lapack_sytrf('L', ndim, mat, ndim, ipiv, test, -1, info)
    lwork = int(test(1))
    allocate(work(lwork))
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call sytrf('L', ndim, mat, ndim, ipiv, work, lwork, info)
+   call lapack_sytrf('L', ndim, mat, ndim, ipiv, work, lwork, info)
    if(info > 0)then
       call env%error('Bunch-Kaufman factorization failed', source)
       return
@@ -520,7 +522,7 @@ subroutine invert_sytri(env, mat)
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in matrix
    ! matrix is overwritten with lower triangular part of A⁻¹
-   call sytri('L', ndim, mat, ndim, ipiv, work, info)
+   call lapack_sytri('L', ndim, mat, ndim, ipiv, work, info)
    if (info > 0) then
       call env%error('Bunch-Kaufman inversion failed', source)
       return
