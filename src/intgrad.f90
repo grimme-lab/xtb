@@ -217,7 +217,7 @@ end subroutine rhftce2
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine dtrf2(s,li,lj)
-   use xtb_mctc_blas_level3, only : blas_gemm
+   use xtb_mctc_blas, only : mctc_gemm
    implicit none
    real(wp),intent(inout) :: s(6,6)
    integer, intent(in)    :: li,lj
@@ -300,8 +300,8 @@ pure subroutine dtrf2(s,li,lj)
    end select
    !     if not returned up to here -> d-d
    ! CB: transposing s in first dgemm is important for integrals other than S
-   CALL blas_gemm('T','N',6,6,6,1._wp,s,6,trafo,6,0._wp,dum,6)
-   CALL blas_gemm('T','N',6,6,6,1._wp,dum,6,trafo,6,0._wp,s2,6)
+   CALL mctc_gemm(trafo, s, dum, transa='T')
+   CALL mctc_gemm(dum, trafo, s2, transb='N')
    s(1:5,1:5) = s2(2:6,2:6)
    return
 

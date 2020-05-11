@@ -24,8 +24,8 @@
 !**********************************************************************
 
 subroutine makel(nao, s, can, clo )
-   use xtb_mctc_lapack_stdeigval, only : lapack_syev
-   use xtb_mctc_blas_level3, only : blas_gemm
+   use xtb_mctc_lapack, only : lapack_syev
+   use xtb_mctc_blas, only : blas_gemm
    implicit real*8 (a-h,o-z)
    dimension s(nao,nao)
    dimension can(nao,nao)
@@ -67,8 +67,8 @@ end subroutine makel
 
 ! unrestricted version
 subroutine umakel(nao, s, cana, canb, cloa, clob )
-   use xtb_mctc_lapack_stdeigval, only : lapack_syev
-   use xtb_mctc_blas_level3, only : blas_gemm
+   use xtb_mctc_lapack, only : lapack_syev
+   use xtb_mctc_blas, only : blas_gemm
    implicit real*8 (a-h,o-z)
    dimension s(nao,nao)
    dimension cana(nao,nao)

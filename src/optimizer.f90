@@ -427,7 +427,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
       &          timer,exact)
 
-   use xtb_mctc_blas_level2, only : blas_gemv
+   use xtb_mctc_blas, only : blas_gemv
    use xtb_type_molecule
    use xtb_type_anc
    use xtb_type_wavefunction
@@ -828,7 +828,7 @@ subroutine prdechng(nat3,grad,displ,hess,depred)
 ! Output:
 ! depred - Predicted energy change
 !---------------------------------------------------------------------
-   use xtb_mctc_blas_level2, only : blas_spmv
+   use xtb_mctc_blas, only : blas_spmv
    implicit none
 
 ! Input:

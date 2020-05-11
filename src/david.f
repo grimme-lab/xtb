@@ -33,9 +33,9 @@ c note: the current version only works for the LOWEST root i.e. nr=1 !!!
 c-----------------------------------------------------------------------
  
       subroutine ddavid(pr,ini,n,nr,crite,H,C,e)
-      use xtb_mctc_lapack_stdeigval, only : lapack_syevd
-      use xtb_mctc_blas_level1, only : blas_copy, blas_axpy, blas_dot
-      use xtb_mctc_blas_level2, only : blas_spmv
+      use xtb_mctc_lapack, only : lapack_syevd
+      use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot,
+     & blas_spmv
       implicit none                        
       logical pr      ! print logical
       logical ini     ! initialize start vector if .true., if false starts from previous vector
@@ -358,9 +358,9 @@ c real*4 version
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine sdavid(pr,ini,n,nr,crite,H,C,e)
-      use xtb_mctc_lapack_stdeigval, only : lapack_syevd
-      use xtb_mctc_blas_level1, only : blas_copy, blas_axpy, blas_dot
-      use xtb_mctc_blas_level2, only : blas_spmv
+      use xtb_mctc_lapack, only : lapack_syevd
+      use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot,
+     & blas_spmv
       implicit none                        
       logical pr      ! print logical
       logical ini     ! initialize start vector if .true., if false starts from previous vector

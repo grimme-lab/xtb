@@ -21,7 +21,7 @@
 
 subroutine locmode(n,n3,at,xyz,vthr,freq,rmass,uin,ng,group)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas_level3, only : blas_gemm
+   use xtb_mctc_blas, only : blas_gemm
    implicit none
    integer n,n3,at(n),ng,group(n)
    real(wp) xyz(3,n),freq(n3),rmass(n3),uin(n3,n3),vthr

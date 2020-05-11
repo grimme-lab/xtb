@@ -157,8 +157,7 @@ end subroutine broyden
 
 subroutine matinv(a, nrow)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_lapack_trf, only : lapack_getrf
-   use xtb_mctc_lapack_tri, only : lapack_getri
+   use xtb_mctc_lapack, only : lapack_getrf, lapack_getri
    integer nRow
    real(wp) a(nrow,nrow)
 

@@ -24,9 +24,8 @@ contains
 
 subroutine sdavid2(n,crite,H,C,e,fail)
    use xtb_mctc_accuracy, only : wp => sp
-   use xtb_mctc_lapack_stdeigval, only : lapack_syevd
-   use xtb_mctc_blas_level1, only : blas_copy, blas_axpy, blas_dot
-   use xtb_mctc_blas_level2, only : blas_spmv
+   use xtb_mctc_lapack, only : lapack_syevd
+   use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot, blas_spmv
    implicit none
    logical,parameter :: pr = .false.
    logical,parameter :: ini = .false.
@@ -221,9 +220,8 @@ end subroutine sdavid2
 
 subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
    use xtb_mctc_accuracy, only : wp => sp
-   use xtb_mctc_lapack_stdeigval, only : lapack_syevd
-   use xtb_mctc_blas_level1, only : blas_copy, blas_axpy, blas_dot
-   use xtb_mctc_blas_level2, only : blas_spmv
+   use xtb_mctc_lapack, only : lapack_syevd
+   use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot, blas_spmv
    implicit none
    logical, intent(in) :: pr
    logical,parameter :: ini = .false.

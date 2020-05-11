@@ -383,7 +383,7 @@ subroutine l_ancopt &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
 
    use xtb_mctc_convert
-   use xtb_mctc_lapack_stdeigval, only : lapack_syev
+   use xtb_mctc_lapack, only : lapack_syev
 
    use xtb_type_molecule
    use xtb_type_wavefunction

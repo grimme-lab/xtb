@@ -47,8 +47,6 @@ end subroutine test_class_molecule_mic_distances
 subroutine test_class_molecule_axis_trafo
    use xtb_mctc_accuracy, only : wp
    use assertion
-   use xtb_mctc_lapack, only : lapack_syev
-   use xtb_mctc_math
    use xtb_type_molecule
    use xtb_type_param
    use xtb_disp_ncoord

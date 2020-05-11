@@ -38,7 +38,7 @@ contains
 subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    use xtb_type_basisset
    use xtb_setparam
-   use xtb_mctc_blas_level3, only : blas_gemm
+   use xtb_mctc_blas, only : blas_gemm
    implicit none
    type(TBasisset), intent(in) :: basis
 

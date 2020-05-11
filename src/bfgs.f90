@@ -19,8 +19,7 @@ contains
 
 subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas_level2, only : blas_spmv
-   use xtb_mctc_blas_level1, only : blas_dot
+   use xtb_mctc_blas, only : blas_spmv, blas_dot
    !-------------------------------------------------------------------
    ! Purpose:
    ! Performs BFGS update of Hessian matrix

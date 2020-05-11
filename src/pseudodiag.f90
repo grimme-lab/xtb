@@ -28,7 +28,7 @@
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine pseudodiag(n,nocc,fmo,eig)
-   use xtb_mctc_blas_level1, only : blas_rot
+    use xtb_mctc_blas, only : blas_rot
 !$  use omp_lib
     implicit none
     !Dummy Arguments
