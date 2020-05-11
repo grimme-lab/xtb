@@ -25,6 +25,7 @@ list(APPEND srcs
    "${dir}/trf.f90"
    "${dir}/tri.f90"
    "${dir}/trs.f90"
+   "${dir}/wrap.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
