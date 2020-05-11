@@ -18,7 +18,7 @@
 !> Implementation of the electronegativity equilibration model
 module xtb_xtb_eeq
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : blas_dot, blas_symv
+   use xtb_mctc_blas, only : mctc_dot, mctc_symv
    use xtb_mctc_lapack, only : lapack_sytrf, lapack_sytri
    use xtb_mctc_la, only : contract
    use xtb_type_coulomb, only : TCoulomb
@@ -350,8 +350,8 @@ subroutine chargeEquilibration(self, env, mol, coulomb, cn, dcndr, dcndL, &
 
    if (present(energy)) then
       shift = xvec
-      call blas_symv('l', ndim, 0.5_wp, jmat, ndim, qvec, 1, -1.0_wp, shift, 1)
-      energy = energy + blas_dot(ndim, qvec, 1, shift, 1)
+      call mctc_symv(jmat, qvec, shift, alpha=0.5_wp, beta=-1.0_wp)
+      energy = energy + mctc_dot(qvec, shift)
    end if
 
    if (deriv .or. response) then
@@ -479,7 +479,7 @@ subroutine solve_sytri(env, mat, rhs, vec)
    call env%check(exitRun)
    if (exitRun) return
 
-   call blas_symv('l', ndim, 1.0_wp, mat, ndim, rhs, 1, 0.0_wp, vec, 1)
+   call mctc_symv(mat, rhs, vec)
 
 end subroutine solve_sytri
 
