@@ -18,7 +18,7 @@
 !> Implementation of an isotropic electrostatics container
 module xtb_xtb_coulomb
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : dot, symv
+   use xtb_mctc_blas, only : blas_dot, blas_symv
    use xtb_xtb_data, only : TCoulombData
    use xtb_xtb_thirdorder, only : TThirdOrder, init
    implicit none
@@ -109,7 +109,7 @@ subroutine addShift(self, qat, qsh, atomicShift, shellShift)
 
    call self%thirdOrder%addShift(qat, qsh, atomicShift, shellShift)
 
-   call symv('l', nsh, 1.0_wp, self%jmat, nsh, qsh, 1, 1.0_wp, shellShift, 1)
+   call blas_symv('l', nsh, 1.0_wp, self%jmat, nsh, qsh, 1, 1.0_wp, shellShift, 1)
 
 end subroutine addShift
 
@@ -136,8 +136,8 @@ pure subroutine getEnergy(self, qat, qsh, energy)
 
    call self%thirdOrder%getEnergy(qat, qsh, eThird)
 
-   call symv('l', nsh, 1.0_wp, self%jmat, nsh, qsh, 1, 0.0_wp, self%shift, 1)
-   energy = 0.5_wp * dot(nsh, self%shift, 1, qsh, 1) + eThird
+   call blas_symv('l', nsh, 1.0_wp, self%jmat, nsh, qsh, 1, 0.0_wp, self%shift, 1)
+   energy = 0.5_wp * blas_dot(nsh, self%shift, 1, qsh, 1) + eThird
 
 end subroutine getEnergy
 

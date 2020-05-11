@@ -22,6 +22,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : autoev,autoaa
    use xtb_mctc_symbols, only : toSymbol
+   use xtb_mctc_blas, only : blas_gemm
    use xtb_type_basisset
    use xtb_setparam
    use xtb_scc_core, only : get_wiberg
@@ -233,7 +234,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    call lmosort2(n,f,d,ecent)
 
    ! the lmos
-   CALL DGEMM('N','N',nao,n,n,1.D0,cca,nao,d,n,0.D0,cmo,nao)
+   CALL dgemm('N','N',nao,n,n,1.D0,cca,nao,d,n,0.D0,cmo,nao) ! non-std BLAS
 
    ! X^2,Y^2,Z^2 over LMOs
    !     k=0

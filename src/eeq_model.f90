@@ -19,6 +19,8 @@ module xtb_eeq
    use, intrinsic :: iso_fortran_env, only : istdout => output_unit
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
+   use xtb_mctc_blas, only : mctc_gemv, mctc_gemm, mctc_symv, mctc_copy, mctc_dot
+   use xtb_mctc_lapack, only : lapack_sytrf, lapack_sytri
    use xtb_type_environment, only : TEnvironment
    use xtb_gfn0param, alp => alpg
    use xtb_coulomb_ewald, only : ewaldMatPBC3D, ewaldDerivPBC3D => ewaldDerivPBC3D_alp
@@ -495,9 +497,9 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
 !! ------------------------------------------------------------------------
    if (lverbose) write(istdout,'(72("="),/,1x,a)') &
       "Isotropic electrostatic (IES) energy calculation"
-   work(:m) = Xvec
-   call dsymv('u',m,0.5_wp,Amat,m,Xtmp,1,-1.0_wp,work,1)
-   es = dot_product(Xtmp,work(:m))
+   call mctc_copy(Xvec, work)
+   call mctc_symv(Amat, Xtmp, work, alpha=0.5_wp, beta=-1.0_wp)
+   es = mctc_dot(Xtmp, work)
    energy = es + energy
    if (lverbose) then
       write(istdout,'(72("-"))')
@@ -545,8 +547,8 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
 endif do_molecular_gradient
 
    if (lgrad) then
-   call dgemv('n',3*n,m,+1.0_wp,dAmat,3*n,Xtmp,1,1.0_wp,gradient,1)
-   call dgemv('n',3*n,m,-1.0_wp,dXvec,3*n,Xtmp,1,1.0_wp,gradient,1)
+   call mctc_gemv(dAmat,Xtmp,gradient,alpha=+1.0_wp,beta=1.0_wp)
+   call mctc_gemv(dXvec,Xtmp,gradient,alpha=-1.0_wp,beta=1.0_wp)
    endif
 
 !! ------------------------------------------------------------------------
@@ -560,7 +562,7 @@ do_partial_charge_derivative: if (lcpq) then
    allocate( Ainv(m,m), source = Amat )
 
    ! assume work space query, set best value to test after first dsytrf call
-   call dsytrf('L',m,Ainv,m,ipiv,test,-1,info)
+   call lapack_sytrf('L',m,Ainv,m,ipiv,test,-1,info)
    if (int(test(1)) > lwork) then
       deallocate(work)
       lwork=int(test(1))
@@ -568,14 +570,14 @@ do_partial_charge_derivative: if (lcpq) then
    endif
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call dsytrf('L',m,Ainv,m,ipiv,work,lwork,info)
+   call lapack_sytrf('L',m,Ainv,m,ipiv,work,lwork,info)
    if(info > 0)then
       call raise('E', '(goedecker_inversion) DSYTRF failed',1)
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call dsytri('L',m,Ainv,m,ipiv,work,info)
+   call lapack_sytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
       call raise('E', '(goedecker_inversion) DSYTRI failed',1)
    endif
@@ -595,9 +597,8 @@ do_partial_charge_derivative: if (lcpq) then
    do i = 1, n
       dAmat(:,i,i) = Afac(:,i) + dAmat(:,i,i)
    enddo
-   !call dsymm('r','l',3*n,m,-1.0_wp,Ainv,m,dAmat,3*n,1.0_wp,dqdr,3*n)
-   call dgemm('n','n',3*n,n,m,-1.0_wp,dAmat,3*n,Ainv,m,1.0_wp,dqdr,3*n)
-   call dgemm('n','n',3*n,n,m,+1.0_wp,dXvec,3*n,Ainv,m,1.0_wp,dqdr,3*n)
+   call mctc_gemm(dAmat, Ainv, dqdr, alpha=-1.0_wp, beta=1.0_wp)
+   call mctc_gemm(dXvec, Ainv, dqdr, alpha=+1.0_wp, beta=1.0_wp)
    !print'(/,"analytical gradient")'
    !print'(3f20.14)',dqdr(:,:,:n)
 
@@ -866,9 +867,9 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
 ! ------------------------------------------------------------------------
    if (lverbose) write(istdout,'(72("="),/,1x,a)') &
       "Isotropic electrostatic (IES) energy calculation"
-   work(:m) = Xvec
-   call dsymv('u',m,0.5_wp,Amat,m,Xtmp,1,-1.0_wp,work,1)
-   es = dot_product(Xtmp,work(:m))
+   call mctc_copy(Xvec, work)
+   call mctc_symv(Amat, Xtmp, work, alpha=0.5_wp, beta=-1.0_wp)
+   es = mctc_dot(Xtmp, work)
    energy = es + energy
    if (lverbose) then
       write(istdout,'(72("-"))')
@@ -904,11 +905,11 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
 endif do_molecular_gradient
 
    if (lgrad) then
-   call dgemv('n',3*mol%n,m,+1.0_wp,dAmatdr,3*mol%n,Xtmp,1,1.0_wp,gradient,1)
-   call dgemv('n',3*mol%n,m,+1.0_wp,dXvecdr,3*mol%n,Xtmp,1,1.0_wp,gradient,1)
+   call mctc_gemv(dAmatdr, Xtmp, gradient, alpha=+1.0_wp, beta=1.0_wp)
+   call mctc_gemv(dXvecdr, Xtmp, gradient, alpha=+1.0_wp, beta=1.0_wp)
    if (mol%npbc > 0) then
-      call dgemv('n',3*3,m,+0.5_wp,dAmatdL,3*3,Xtmp,1,1.0_wp,sigma,1)
-      call dgemv('n',3*3,m,+1.0_wp,dXvecdL,3*3,Xtmp,1,1.0_wp,sigma,1)
+      call mctc_gemv(dAmatdL, Xtmp, sigma, alpha=+0.5_wp, beta=1.0_wp)
+      call mctc_gemv(dXvecdL, Xtmp, sigma, alpha=+1.0_wp, beta=1.0_wp)
    endif
    endif
 
@@ -922,7 +923,7 @@ do_partial_charge_derivative: if (lcpq) then
    allocate( Ainv(m,m), source = Amat )
 
    ! assume work space query, set best value to test after first dsytrf call
-   call dsytrf('L',m,Ainv,m,ipiv,test,-1,info)
+   call lapack_sytrf('L',m,Ainv,m,ipiv,test,-1,info)
    if (int(test(1)) > lwork) then
       deallocate(work)
       lwork=int(test(1))
@@ -930,7 +931,7 @@ do_partial_charge_derivative: if (lcpq) then
    endif
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call dsytrf('L',m,Ainv,m,ipiv,work,lwork,info)
+   call lapack_sytrf('L',m,Ainv,m,ipiv,work,lwork,info)
    if(info > 0)then
       call env%error("Could not factorize Coulomb matrix", source)
       return
@@ -938,7 +939,7 @@ do_partial_charge_derivative: if (lcpq) then
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call dsytri('L',m,Ainv,m,ipiv,work,info)
+   call lapack_sytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
       call env%error("Coulomb Matrix is singular, cannot invert", source)
       return
@@ -964,13 +965,11 @@ do_partial_charge_derivative: if (lcpq) then
       dAmatdr(:,i,i) = Afac(:,i) + dAmatdr(:,i,i)
    enddo
    !call dsymm('r','l',3*n,m,-1.0_wp,Ainv,m,dAmatdr,3*n,1.0_wp,dqdr,3*n)
-   call dgemm('n','n',3*mol%n,mol%n,m,-1.0_wp,dAmatdr,3*mol%n,Ainv,m, &
-      &       1.0_wp,dqdr,3*mol%n)
-   call dgemm('n','n',3*mol%n,mol%n,m,-1.0_wp,dXvecdr,3*mol%n,Ainv,m, &
-      &       1.0_wp,dqdr,3*mol%n)
+   call mctc_gemm(dAmatdr, Ainv, dqdr, alpha=-1.0_wp, beta=1.0_wp)
+   call mctc_gemm(dXvecdr, Ainv, dqdr, alpha=-1.0_wp, beta=1.0_wp)
    if (mol%npbc > 0) then
-      call dgemm('n','n',9,mol%n,m,-1.0_wp,dAmatdL,9,Ainv,m,1.0_wp,dqdL,3*3)
-      call dgemm('n','n',9,mol%n,m,-1.0_wp,dXvecdL,9,Ainv,m,1.0_wp,dqdL,3*3)
+      call mctc_gemm(dAmatdL, Ainv, dqdL, alpha=-1.0_wp, beta=1.0_wp)
+      call mctc_gemm(dXvecdL, Ainv, dqdL, alpha=-1.0_wp, beta=1.0_wp)
    endif
    !print'(/,"analytical gradient")'
    !print'(3f20.14)',dqdr(:,:,:n)
@@ -1182,9 +1181,9 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
 ! ------------------------------------------------------------------------
    if (lverbose) write(istdout,'(72("="),/,1x,a)') &
       "Isotropic electrostatic (IES) energy calculation"
-   work(:m) = Xvec
-   call dsymv('u',m,0.5_wp,Amat,m,Xtmp,1,-1.0_wp,work,1)
-   es = dot_product(Xtmp,work(:m))
+   call mctc_copy(Xvec, work)
+   call mctc_symv(Amat, Xtmp, work, alpha=0.5_wp, beta=-1.0_wp)
+   es = mctc_dot(Xtmp, work)
    energy = es + energy + gshift
    if (lverbose) then
       write(istdout,'(72("-"))')
@@ -1213,7 +1212,7 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
 endif do_molecular_gradient
 
    if (lgrad) then
-   call dgemv('n',3*mol%n,m,+1.0_wp,dAmatdr,3*mol%n,Xtmp,1,1.0_wp,gradient,1)
+   call mctc_gemv(dAmatdr, Xtmp, gradient, alpha=1.0_wp, beta=1.0_wp)
    endif
 
 ! ------------------------------------------------------------------------
@@ -1226,7 +1225,7 @@ do_partial_charge_derivative: if (lcpq) then
    allocate( Ainv(m,m), source = Amat )
 
    ! assume work space query, set best value to test after first dsytrf call
-   call dsytrf('L',m,Ainv,m,ipiv,test,-1,info)
+   call lapack_sytrf('L',m,Ainv,m,ipiv,test,-1,info)
    if (int(test(1)) > lwork) then
       deallocate(work)
       lwork=int(test(1))
@@ -1234,7 +1233,7 @@ do_partial_charge_derivative: if (lcpq) then
    endif
 
    ! Bunch-Kaufman factorization A = L*D*L**T
-   call dsytrf('L',m,Ainv,m,ipiv,work,lwork,info)
+   call lapack_sytrf('L',m,Ainv,m,ipiv,work,lwork,info)
    if(info > 0)then
       call env%error("Could not factorize Coulomb matrix", source)
       return
@@ -1242,7 +1241,7 @@ do_partial_charge_derivative: if (lcpq) then
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
-   call dsytri('L',m,Ainv,m,ipiv,work,info)
+   call lapack_sytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
       call env%error("Coulomb Matrix is singular, cannot invert", source)
       return

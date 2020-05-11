@@ -29,6 +29,8 @@ module xtb_mctc_constants
    real(wp),public,parameter :: fourpi = 4.0_wp * pi
 !  π/2
    real(wp),public,parameter :: pihalf = 0.5_wp * pi
+!  2π/3
+   real(wp),public,parameter :: twothirdpi = 2.0_wp * pi / 3.0_wp
 !  Boltzmann constant in Eh/K
    real(wp),public,parameter :: kB = 3.166808578545117e-06_wp
 !  speed of light c in vacuum in a.u.

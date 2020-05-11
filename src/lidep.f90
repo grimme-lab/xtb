@@ -32,8 +32,9 @@
 !----------------------------------------------------------------------------------------------
 module xtb_lineardep
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la, only : sygvd,gemm,symm
-   use xtb_setparam , only: lidethr
+   use xtb_mctc_lapack, only : lapack_sygvd, lapack_syev
+   use xtb_setparam, only: lidethr
+   use xtb_mctc_blas, only : blas_gemm, blas_symm
    implicit none
 
    !real(wp) :: lidethr    ! cut-off threshold for small overlap eigenvalues
@@ -261,7 +262,7 @@ subroutine canorthog2(ndim,S,U,ssq,fail)
     ssq=0.0d0
    !--- determine optimal work space
    !--- only calculates the optimal size of the 'work' array
-    call dsyev('v','l',ndim,U,ndim,ssq,wdim,-1,ierr)
+    call lapack_syev('v','l',ndim,U,ndim,ssq,wdim,-1,ierr)
     if(ierr /= 0)then
        fail=.true.
        return
@@ -270,7 +271,7 @@ subroutine canorthog2(ndim,S,U,ssq,fail)
     allocate(work(lwork))
 
    !--- diagonalize overlap s = U**T*S*U
-    call dsyev('v','l',ndim,U,ndim,ssq,work,lwork,ierr)
+    call lapack_syev('v','l',ndim,U,ndim,ssq,work,lwork,ierr)
     if(ierr /= 0)then
        fail=.true.
        return
@@ -498,18 +499,18 @@ subroutine orthgsolve(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
     allocate (aux(lwork))
   !--- calculate F'=X**T*F*X  
 
-    call dgemm('n','n',nbf,xbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
-    call dgemm('t','n',xbf,xbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,xbf)
+    call blas_gemm('n','n',nbf,xbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
+    call blas_gemm('t','n',xbf,xbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,xbf)
     
   !--- Caluclate C' and ε from F'*C' = C'*ε
-    call dsyev('v','u',xbf,H,xbf,e,aux,lwork,info)
+    call lapack_syev('v','u',xbf,H,xbf,e,aux,lwork,info)
     if(info.ne.0)then
        fail=.true.
        return
     endif
   !--- calculate C = X*C'
     P=0.0d0
-    call dgemm('N','N',nbf,xbf,xbf,1.0d0,X,nbf,H,xbf,0.0d0,P,nbf)
+    call blas_gemm('N','N',nbf,xbf,xbf,1.0d0,X,nbf,H,xbf,0.0d0,P,nbf)
     H=P
     deallocate(aux)
     return
@@ -546,12 +547,12 @@ subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
   !--- calculate F'=X**T*F*X  
     allocate(Xaux(nbf,xbf),Paux(nbf,xbf))
     Xaux=X(:,1:xbf)
-    call dgemm('n','n',nbf,xbf,nbf,1.0d0,H,nbf,Xaux,nbf,0.0d0,Paux,nbf)
+    call blas_gemm('n','n',nbf,xbf,nbf,1.0d0,H,nbf,Xaux,nbf,0.0d0,Paux,nbf)
     allocate(Haux(xbf,xbf))
-    call dgemm('t','n',xbf,xbf,nbf,1.0d0,Xaux,nbf,Paux,nbf,0.0d0,Haux,xbf)
+    call blas_gemm('t','n',xbf,xbf,nbf,1.0d0,Xaux,nbf,Paux,nbf,0.0d0,Haux,xbf)
 
   !--- Caluclate C' and ε from F'*C' = C'*ε
-    call dsyev('v','u',xbf,Haux,xbf,e,aux,lwork,info)
+    call lapack_syev('v','u',xbf,Haux,xbf,e,aux,lwork,info)
     !call prmat(6,e,nbf,1,"eigenvalues")
 
     if(info.ne.0)then
@@ -560,7 +561,7 @@ subroutine orthgsolve2(full,ndim,cutdim,ihomo,acc,H,S,X,P,e,fail)
     endif
   !--- calculate C = X*C'
     P=0.0d0
-    call dgemm('N','N',nbf,xbf,xbf,1.0d0,Xaux,nbf,Haux,xbf,0.0d0,P,nbf)
+    call blas_gemm('N','N',nbf,xbf,xbf,1.0d0,Xaux,nbf,Haux,xbf,0.0d0,P,nbf)
     H=P
 
     deallocate(Haux,Paux,Xaux)

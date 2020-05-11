@@ -157,6 +157,7 @@ end subroutine broyden
 
 subroutine matinv(a, nrow)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_lapack, only : lapack_getrf, lapack_getri
    integer nRow
    real(wp) a(nrow,nrow)
 
@@ -167,10 +168,10 @@ subroutine matinv(a, nrow)
 
    allocate(ipiv(nrow),work(nrow))
    !     LU decomoposition of a general matrix
-   call dgetrf(nrow,nrow,a,nrow,ipiv,info)
+   call lapack_getrf(nrow,nrow,a,nrow,ipiv,info)
    if (info == 0) then
       !     generate inverse of a matrix given its LU decomposition
-      call dgetri(nrow,a,nrow,ipiv,work,nrow,info)
+      call lapack_getri(nrow,a,nrow,ipiv,work,nrow,info)
    endif
    deallocate(ipiv,work)
    if(info .ne. 0)then

@@ -559,7 +559,7 @@ contains
 
 pure function moments_of_inertia(n,atmass,xyz) result(moments)
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_la
+   use xtb_mctc_lapack, only : lapack_spev
    use xtb_mctc_convert
    implicit none
    integer, intent(in)  :: n
@@ -587,7 +587,7 @@ pure function moments_of_inertia(n,atmass,xyz) result(moments)
       t(6) = t(6) + mass * (x2+y2)
    enddo
 
-   call spev('N','U',3,t,moments,tmp,3,work,info)
+   call lapack_spev('N','U',3,t,moments,tmp,3,work,info)
    if (info.ne.0) moments = -1.0_wp
 
 end function moments_of_inertia

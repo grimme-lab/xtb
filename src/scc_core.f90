@@ -19,8 +19,9 @@
 module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
-   use xtb_mctc_lapack, only : sygvd
-   use xtb_mctc_blas, only : gemm, symm, symv
+   use xtb_mctc_lapack, only : lapack_sygvd
+   use xtb_mctc_blas, only : blas_gemm, blas_symm, blas_symv
+   use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_xtb_data
    use xtb_xtb_coulomb
@@ -225,7 +226,7 @@ end subroutine addAnisotropicH1
 
 
 !> self consistent charge iterator
-subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
       &        q,dipm,qp,qq,qlmom,qsh,zsh, &
       &        xyz,aes, &
@@ -252,6 +253,7 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    type(TEnvironment), intent(inout) :: env
 
    type(TxTBData), intent(in) :: xtbData
+   type(TEigenSolver), intent(inout) :: solver
 
    integer, intent(in)  :: n
    integer, intent(in)  :: nel
@@ -437,8 +439,10 @@ subroutine scc(env,xtbData,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    if(iter.lt.startpdiag) fulldiag=.true.
    if(lastdiag )          fulldiag=.true.
 
-   call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
+   !call solve(fulldiag,ndim,ihomo,scfconv,H,S,X,P,emo,fail)
 
+   call solver%solve(env, H, S, emo)
+   call env%check(fail)
    if(fail)then
       call env%error("Diagonalization of Hamiltonian failed", source)
       return
@@ -791,7 +795,7 @@ pure subroutine setespot(nshell, qsh, jmat, shellShift)
    !> shell-resolved potential shift
    real(wp),intent(inout) :: shellShift(:)
 
-   call symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
+   call blas_symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
 
 end subroutine setespot
 
@@ -859,13 +863,13 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !     USE DIAG IN NON-ORTHORGONAL BASIS
       allocate (aux4(1),iwork(1),ifail(ndim))
       P4 = s4
-      call sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &!workspace query
+      call lapack_sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &!workspace query
      &           -1,iwork,liwork,info)
       lwork=int(aux4(1))
       liwork=iwork(1)
       deallocate(aux4,iwork)
       allocate (aux4(lwork),iwork(liwork))              !do it
-      call sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &
+      call lapack_sygvd(1,'v','u',ndim,h4,ndim,p4,ndim,e4,aux4, &
      &           lwork,iwork,liwork,info)
       if(info.ne.0) then
          fail=.true.
@@ -879,11 +883,11 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !        nbf = ndim
 !        lwork  = 1 + 6*nbf + 2*nbf**2
 !        allocate (aux(lwork))
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
-!        call gemm('T','N',nbf,nbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,nbf)
+!        call blas_gemm('N','N',nbf,nbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
+!        call blas_gemm('T','N',nbf,nbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,nbf)
 !        call SYEV('V','U',nbf,H,nbf,e,aux,lwork,info)
 !        if(info.ne.0) error stop 'diag error'
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,X,nbf,H,nbf,0.0d0,P,nbf)
+!        call blas_gemm('N','N',nbf,nbf,nbf,1.0d0,X,nbf,H,nbf,0.0d0,P,nbf)
 !        H = P
 !        deallocate(aux)
 !     endif
@@ -893,8 +897,8 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    else
 !                                                     call timing(t0,w0)
 !     go to MO basis using trafo(X) from first iteration (=full diag)
-!      call gemm('N','N',ndim,ndim,ndim,1.d0,H4,ndim,X4,ndim,0.d0,P4,ndim)
-!      call gemm('T','N',ndim,ndim,ndim,1.d0,X4,ndim,P4,ndim,0.d0,H4,ndim)
+!      call blas_gemm('N','N',ndim,ndim,ndim,1.d0,H4,ndim,X4,ndim,0.d0,P4,ndim)
+!      call blas_gemm('T','N',ndim,ndim,ndim,1.d0,X4,ndim,P4,ndim,0.d0,H4,ndim)
 !                                                     call timing(t1,w1)
 !                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
 !                                                     call timing(t0,w0)
@@ -903,7 +907,7 @@ subroutine solve4(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
 
 !     C = X C', P=scratch
-!      call gemm('N','N',ndim,ndim,ndim,1.d0,X4,ndim,H4,ndim,0.d0,P4,ndim)
+!      call blas_gemm('N','N',ndim,ndim,ndim,1.d0,X4,ndim,H4,ndim,0.d0,P4,ndim)
 !     save and output MO matrix in AO basis
 !      H4 = P4
    endif
@@ -947,13 +951,13 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !     USE DIAG IN NON-ORTHORGONAL BASIS
       allocate (aux(1),iwork(1),ifail(ndim))
       P = s
-      call sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
+      call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &!workspace query
      &           -1,iwork,liwork,info)
       lwork=int(aux(1))
       liwork=iwork(1)
       deallocate(aux,iwork)
       allocate (aux(lwork),iwork(liwork))              !do it
-      call sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &
+      call lapack_sygvd(1,'v','u',ndim,h,ndim,p,ndim,e,aux, &
      &           lwork,iwork,liwork,info)
       !write(*,*)'SYGVD INFO', info
       if(info.ne.0) then
@@ -968,11 +972,11 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !        nbf = ndim
 !        lwork  = 1 + 6*nbf + 2*nbf**2
 !        allocate (aux(lwork))
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
-!        call gemm('T','N',nbf,nbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,nbf)
+!        call blas_gemm('N','N',nbf,nbf,nbf,1.0d0,H,nbf,X,nbf,0.0d0,P,nbf)
+!        call blas_gemm('T','N',nbf,nbf,nbf,1.0d0,X,nbf,P,nbf,0.0d0,H,nbf)
 !        call SYEV('V','U',nbf,H,nbf,e,aux,lwork,info)
 !        if(info.ne.0) error stop 'diag error'
-!        call gemm('N','N',nbf,nbf,nbf,1.0d0,X,nbf,H,nbf,0.0d0,P,nbf)
+!        call blas_gemm('N','N',nbf,nbf,nbf,1.0d0,X,nbf,H,nbf,0.0d0,P,nbf)
 !        H = P
 !        deallocate(aux)
 !     endif
@@ -982,8 +986,8 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
    else
 !                                                     call timing(t0,w0)
 !     go to MO basis using trafo(X) from first iteration (=full diag)
-      call gemm('N','N',ndim,ndim,ndim,1.d0,H,ndim,X,ndim,0.d0,P,ndim)
-      call gemm('T','N',ndim,ndim,ndim,1.d0,X,ndim,P,ndim,0.d0,H,ndim)
+      call blas_gemm('N','N',ndim,ndim,ndim,1.d0,H,ndim,X,ndim,0.d0,P,ndim)
+      call blas_gemm('T','N',ndim,ndim,ndim,1.d0,X,ndim,P,ndim,0.d0,H,ndim)
 !                                                     call timing(t1,w1)
 !                       call prtime(6,1.5*(t1-t0),1.5*(w1-w0),'3xdgemm')
 !                                                     call timing(t0,w0)
@@ -992,7 +996,7 @@ subroutine solve(full,ndim,ihomo,acc,H,S,X,P,e,fail)
 !                                call prtime(6,t1-t0,w1-w0,'pseudodiag')
 
 !     C = X C', P=scratch
-      call gemm('N','N',ndim,ndim,ndim,1.d0,X,ndim,H,ndim,0.d0,P,ndim)
+      call blas_gemm('N','N',ndim,ndim,ndim,1.d0,X,ndim,H,ndim,0.d0,P,ndim)
 !     save and output MO matrix in AO basis
       H = P
    endif
@@ -1176,7 +1180,6 @@ end subroutine occu
 ! X: scratch
 ! P  dmat
 subroutine dmat(ndim,focc,C,P)
-   use xtb_mctc_la, only : gemm
    integer, intent(in)  :: ndim
    real(wp),intent(in)  :: focc(*)
    real(wp),intent(in)  :: C(ndim,ndim)
@@ -1191,7 +1194,7 @@ subroutine dmat(ndim,focc,C,P)
          Ptmp(i,m)=C(i,m)*focc(m)
       enddo
    enddo
-   call gemm('n','t',ndim,ndim,ndim,1.0_wp,C,ndim,Ptmp,ndim,0.0_wp,P,ndim)
+   call blas_gemm('n','t',ndim,ndim,ndim,1.0_wp,C,ndim,Ptmp,ndim,0.0_wp,P,ndim)
 
    deallocate(Ptmp)
 
@@ -1199,7 +1202,6 @@ end subroutine dmat
 
 
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
-   use xtb_mctc_la, only : gemm
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: P(ndim,ndim)
@@ -1212,7 +1214,7 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    integer i,j,k,m
 
    allocate(Ptmp(ndim,ndim))
-   call gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
+   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,P,ndim,S,ndim,0.0d0,Ptmp,ndim)
    wb = 0
    do i = 1, n
       do j = 1, i-1
