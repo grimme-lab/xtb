@@ -90,7 +90,7 @@
 
       end
 
-module gffmod_dftd3
+module xtb_gfnff_gdisp0
    !use iso_fortran_env, only: wp => real64
    use xtb_mctc_accuracy, only : wp
    implicit none
