@@ -34,6 +34,7 @@ module xtb_type_atomlist
       logical :: error = .false.
    contains
       generic :: new => from_integers, from_logicals, from_string, from_defaults
+      ! Should be private, but must be declared as public due to PGI bug #28452
       procedure, non_overridable :: from_defaults
       procedure, private :: from_integers => atomlist_assign_integers
       procedure, private :: from_logicals => atomlist_assign_logicals

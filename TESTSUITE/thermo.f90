@@ -136,8 +136,7 @@ subroutine test_thermo_calc
    real(wp), parameter :: rotational_constants(3) = &
       & 0.5_wp*autorcm/[moments(3), moments(2), moments(1)]
    real(wp), parameter :: averaged_moment = &
-      & sum(moments)/3 /(kgtome*aatoau**2*1.0e+20_wp)
-   real(wp), parameter :: molecular_mass = sum(ams)
+      & (moments(1)+moments(2)+moments(3))/3 /(kgtome*aatoau**2*1.0e+20_wp)
    logical, parameter :: atom = .false.
    logical, parameter :: linear = .false.
    real(wp), parameter :: symmetry_number = 1
@@ -145,13 +144,12 @@ subroutine test_thermo_calc
    real(wp), parameter :: temperature = 298.15_wp
    real(wp), parameter :: rotor_cutoff = 100.0_wp
    logical, parameter :: pr = .true.
-   real(wp), parameter :: zero_point_energy = 0.5_wp * sum(vibs)
    real(wp) :: et, ht, g, ts
 
    call thermodyn(stdout,rotational_constants(1),rotational_constants(2), &
       &           rotational_constants(3),averaged_moment,linear,atom, &
-      &           symmetry_number,molecular_mass,vibs,nvibs,energy,temperature, &
-      &           rotor_cutoff,et,ht,g,ts,zero_point_energy,pr)
+      &           symmetry_number,sum(ams),vibs,nvibs,energy,temperature, &
+      &           rotor_cutoff,et,ht,g,ts,0.5_wp*sum(vibs),pr)
 
    call assert_close(et, 0.50275771916811E-01_wp, thr)
    call assert_close(ht, 0.67528241233247E-02_wp, thr)

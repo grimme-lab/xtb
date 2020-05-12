@@ -160,7 +160,8 @@ subroutine test_coulomb_point_pbc3d
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
-   integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
+   integer, parameter :: at(nat) = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
    real(wp),parameter :: xyz(3,nat) = reshape(&
       &[4.5853168464880421_wp,  4.9392326929575878_wp,  4.1894081210748118_wp,  &
       & 5.8862267152491423_wp,  1.1425258978245871_wp,  6.5015058204768126_wp,  &
@@ -595,7 +596,8 @@ subroutine test_coulomb_gfn1_pbc3d
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
-   integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
+   integer, parameter :: at(nat) = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
    real(wp),parameter :: xyz(3,nat) = reshape(&
       &[4.5853168464880421_wp,  4.9392326929575878_wp,  4.1894081210748118_wp,  &
       & 5.8862267152491423_wp,  1.1425258978245871_wp,  6.5015058204768126_wp,  &
@@ -1056,7 +1058,8 @@ subroutine test_coulomb_gfn2_pbc3d
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
    integer, parameter :: nsh = 48
-   integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
+   integer, parameter :: at(nat) = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
    real(wp),parameter :: xyz(3,nat) = reshape(&
       &[4.5853168464880421_wp,  4.9392326929575878_wp,  4.1894081210748118_wp,  &
       & 5.8862267152491423_wp,  1.1425258978245871_wp,  6.5015058204768126_wp,  &
@@ -1411,7 +1414,8 @@ subroutine test_coulomb_gaussian_pbc3d
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
-   integer, parameter :: at(nat) = [spread(8, 1, 4), spread(6, 1, 12),  spread(1, 1, 16)]
+   integer, parameter :: at(nat) = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, &
+      & 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
    real(wp),parameter :: xyz(3,nat) = reshape(&
       &[4.5853168464880421_wp,  4.9392326929575878_wp,  4.1894081210748118_wp,  &
       & 5.8862267152491423_wp,  1.1425258978245871_wp,  6.5015058204768126_wp,  &

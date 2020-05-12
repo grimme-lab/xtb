@@ -53,6 +53,7 @@ module xtb_type_reader
       generic :: close => closeUnit
 
       !> Close connected unit
+      ! Should be private, but must be declared as public due to PGI bug #28452
       procedure :: closeUnit
 
    end type TReader

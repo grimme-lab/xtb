@@ -43,7 +43,7 @@ elif fc.get_id() == 'intel'
   endif
 elif fc.get_id() == 'pgi'
   add_project_arguments(
-    '-Mbackslash', '-Mallocatable=03', '-traceback',
+    '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
     language: 'fortran'
   )
 endif
@@ -73,6 +73,9 @@ if get_option('la_backend') == 'mkl'
     elif fc.get_id() == 'intel'
       libmkl_exe = [fc.find_library('mkl_intel_lp64')]
       libmkl_exe += fc.find_library('mkl_intel_thread')
+    elif fc.get_id() == 'pgi'
+      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      libmkl_exe += fc.find_library('mkl_pgi_thread')
     endif
     libmkl_exe += fc.find_library('mkl_core')
     libmkl_sha = [fc.find_library('mkl_rt')]
