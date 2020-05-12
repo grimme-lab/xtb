@@ -119,12 +119,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  actual calculation
-   select case(mode_extrun)
-   case default
-      call gfnff_eg(gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg,gradient,energy,results)
-   case(p_ext_gfnff)
-      call gfnff_eg(gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg,gradient,energy,results)
-   end select
+   call gfnff_eg(gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg,gradient,energy,results)
 
    call env%check(exitRun)
    if (exitRun) then
