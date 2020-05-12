@@ -24,8 +24,10 @@ project(
   meson_version: '>=0.51',
   default_options: [
     'includedir=include/xtb',
+    'default_library=both',
   ],
 )
+message(get_option('default_library'))
 
 commit = get_option('build_name')
 git = find_program('git', required: false)
@@ -86,46 +88,38 @@ incdir = include_directories('include')
 # Build target
 
 # create a static library from all sources
-xtb_lib_static = static_library(
+xtb_lib = library(
   meson.project_name(),
   srcs,
-  include_directories: incdir,
-  install: true,
-  pic: true,
-)
-
-xtb_exe = executable(
-  meson.project_name(),
-  prog,
-  dependencies: dependencies_exe,
-  include_directories: incdir,
-  link_with: xtb_lib_static,
-  link_language: 'fortran',
-  install: true,
-)
-
-xtb_lib_shared = shared_library(
-  meson.project_name(),
   version: meson.project_version(),
   dependencies: dependencies_sha,
   include_directories: incdir,
-  link_whole: xtb_lib_static,
-  install: true
+  install: true,
 )
 
 xtb_dep_static = [
   declare_dependency(
-    link_whole: xtb_lib_static,
-    ),
+    link_with: xtb_lib.get_static_lib(),
+    include_directories: xtb_lib.private_dir_include(),
+  ),
   dependencies_exe,
 ]
-
 xtb_dep = [
   declare_dependency(
-    link_with: xtb_lib_shared,
+    link_with: xtb_lib.get_shared_lib(),
+    include_directories: xtb_lib.private_dir_include(),
   ),
   dependencies_sha,
 ]
+
+xtb_exe = executable(
+  meson.project_name(),
+  prog,
+  dependencies: xtb_dep_static,
+  include_directories: incdir,
+  link_language: 'fortran',
+  install: true,
+)
 
 ## ========================================== ##
 ## INSTALL

@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 submodule(xtb_calculators) gfn0_calc_implementation
+   use xtb_type_environment, only : TEnvironment
    implicit none
 contains
 ! ========================================================================

@@ -45,8 +45,10 @@ module xtb_xtb_gfn2
       &[1.0_wp, 1.0_wp, 0.5_wp, 0.5_wp, 0.25_wp, 0.25_wp, 0.25_wp, 0.25_wp], &
       & shape(gam3shell))
 
+   real(wp), parameter :: kshell(4) = [1.85_wp, 2.23_wp, 2.23_wp, 2.23_wp]
+
    type(TxTBParameter), parameter :: gfn2Globals = TxTBParameter( &
-      kshell = [1.85_wp, 2.23_wp, 2.23_wp, 2.23_wp], &
+      kshell = kshell, &
       enshell = 2.0_wp, &
       ksd = 2.0_wp, &
       kpd = 2.0_wp, &

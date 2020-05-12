@@ -610,7 +610,7 @@ subroutine ff_hb(n,at,xyz,eh,g)
 !     r  =sqrt((xyz(1,i1)-xyz(1,i2))**2 &
 !        &    +(xyz(2,i1)-xyz(2,i2))**2 &
 !        &    +(xyz(3,i1)-xyz(3,i2))**2)
-      r  = norm2(xyz(:,i1)-xyz(:,i2))
+      r  = sqrt(sum((xyz(:,i1)-xyz(:,i2))**2))
       if(r.gt.25.0d0)cycle
       i  =hb(3,k)
       if(at(i).eq.1)then

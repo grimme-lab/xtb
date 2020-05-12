@@ -55,7 +55,7 @@ module xtb_scf
 
    logical, parameter :: profile = .true.
 
-   integer, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+   integer, parameter :: mmm(20)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
    integer, parameter :: metal(1:86) = [&
       & 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, &

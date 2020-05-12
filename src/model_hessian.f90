@@ -1875,7 +1875,7 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    do i = 1, n
       ! EN of atom i
       do j = 1, i-1
-         r = norm2(xyz(:,j) - xyz(:,i))
+         r = sqrt(sum((xyz(:,j) - xyz(:,i))**2))
          gamij = 1.0_wp/sqrt(alpha(i)+alpha(j))
          Amat(j,i) = erf(gamij*r)/r
          Amat(i,j) = Amat(j,i)

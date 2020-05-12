@@ -374,7 +374,7 @@ subroutine calc_distances(n,at,xyz,bond,maxdist,ndist,dist,id, &
       iat = at(i)
       do j = 1, i-1
          jat = at(j)
-         r  = norm2(xyz(:,i)-xyz(:,j))
+         r  = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          if (bond(j,i).gt.0) then
             m = m+1
             if (m.ge.maxdist) exit get_dist
@@ -518,7 +518,7 @@ subroutine get_bonds(n,at,xyz,bond)
       k = 0
       do while(k.eq.0 .and. f.lt.1.5_wp)
          do j = 1, i-1
-            r = norm2(xyz(:,j)-xyz(:,i))
+            r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
             r0 = rad(at(i))+rad(at(j))
             if (r.lt.f*r0) then
                k = k+1

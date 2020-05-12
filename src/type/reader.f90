@@ -53,7 +53,7 @@ module xtb_type_reader
       generic :: close => closeUnit
 
       !> Close connected unit
-      procedure, private :: closeUnit
+      procedure :: closeUnit
 
    end type TReader
 

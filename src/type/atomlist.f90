@@ -20,14 +20,13 @@ module xtb_type_atomlist
    use xtb_mctc_accuracy, only : wp
    implicit none
    public :: TAtomList
-   public :: size, len, assignment(=), write(formatted), read(formatted)
+   public :: size, len, assignment(=)
    private
 
    character, parameter :: p_delimiter = ','
    character, parameter :: p_skip = '-'
 
    type :: TAtomList
-      private
       logical, allocatable :: list(:)
       logical :: default = .false.
       character :: delimiter = p_delimiter
@@ -35,7 +34,7 @@ module xtb_type_atomlist
       logical :: error = .false.
    contains
       generic :: new => from_integers, from_logicals, from_string, from_defaults
-      procedure, private, non_overridable :: from_defaults => atomlist_defaults
+      procedure, non_overridable :: from_defaults
       procedure, private :: from_integers => atomlist_assign_integers
       procedure, private :: from_logicals => atomlist_assign_logicals
       procedure, private :: from_string => atomlist_assign_string
@@ -88,14 +87,6 @@ module xtb_type_atomlist
       module procedure :: list_assign_atomlist
    end interface assignment(=)
 
-   interface write(formatted)
-      module procedure :: atomlist_write_formatted
-   end interface write(formatted)
-
-   interface read(formatted)
-      module procedure :: atomlist_read_formatted
-   end interface read(formatted)
-
 contains
 
 pure function atomlist_from_logicals(list, truth, delimiter, skip) result(self)
@@ -131,9 +122,9 @@ pure function atomlist_from_string(list, truth, delimiter, skip) result(self)
    call self%new(list)
 end function atomlist_from_string
 
-subroutine atomlist_defaults(self)
+subroutine from_defaults(self)
    class(TAtomList), intent(out) :: self
-end subroutine atomlist_defaults
+end subroutine from_defaults
 
 pure elemental subroutine atomlist_switch_truth(self)
    class(TAtomList), intent(inout) :: self

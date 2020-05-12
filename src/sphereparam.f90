@@ -221,7 +221,7 @@ subroutine get_sphere_radius_list(nat,at,xyz,nlist,list,center,radius,do_trafo)
    max_distance = 0.0_wp ! ~equals diameter of sphere
    do i = 1, nlist
       do j = 1, i-1
-         distance = norm2(coord(:,list(j))-coord(:,list(i)))
+         distance = sqrt(sum((coord(:,list(j))-coord(:,list(i)))**2))
          max_distance = max(max_distance,distance)
       enddo
    enddo
@@ -272,7 +272,7 @@ subroutine get_sphere_radius_fragment(nat,at,xyz,center,fragment,radius,do_trafo
    do i = 1, nat
       do j = 1, i-1
          if (splitlist(i).ne.fragment.or.fragment.ne.splitlist(j)) cycle
-         distance = norm2(coord(:,j)-coord(:,i))
+         distance = sqrt(sum((coord(:,j)-coord(:,i))**2))
          max_distance = max(max_distance,distance)
       enddo
    enddo
@@ -320,7 +320,7 @@ subroutine get_sphere_radius_all(nat,at,xyz,center,radius,do_trafo)
    max_distance = 0.0_wp ! ~equals diameter of sphere
    do i = 1, nat
       do j = 1, i-1
-         distance = norm2(coord(:,j)-coord(:,i))
+         distance = sqrt(sum((coord(:,j)-coord(:,i))**2))
          max_distance = max(max_distance,distance)
       enddo
    enddo
@@ -362,7 +362,7 @@ subroutine logfermi_cavity_list(nat,at,xyz,nlist,list,temp,alpha,center,radius,&
    do i = 1, nlist
       iat = list(i)
       r = w*(xyz(:,iat) - center)
-      dist = norm2(r)
+      dist = sqrt(sum(r**2))
       expterm = exp(alpha*(dist-R0))
       fermi = 1.0_wp/(1.0_wp+expterm)
       efix = efix + kB*temp * log( 1.0_wp+expterm )
@@ -398,7 +398,7 @@ subroutine logfermi_cavity_frag(nat,at,xyz,fragment,temp,alpha,center,radius,&
    do i = 1, nat
       if (splitlist(i).ne.fragment) cycle
       r = w*(xyz(:,i) - center)
-      dist = norm2(r)
+      dist = sqrt(sum(r**2))
       expterm = exp(alpha*(dist-R0))
       fermi = 1.0_wp/(1.0_wp+expterm)
       efix = efix + kB*temp * log( 1.0_wp+expterm )
@@ -431,7 +431,7 @@ subroutine logfermi_cavity_all(nat,at,xyz,temp,alpha,center,radius,&
 
    do i = 1, nat
       r = w*(xyz(:,i) - center)
-      dist = norm2(r)
+      dist = sqrt(sum(r**2))
       expterm = exp(alpha*(dist-R0))
       fermi = 1.0_wp/(1.0_wp+expterm)
       efix = efix + kB*temp * log( 1.0_wp+expterm )
@@ -467,7 +467,7 @@ subroutine polynomial_cavity_list(nat,at,xyz,nlist,list,alpha,center,radius,&
    do i = 1, nlist
       iat = list(i)
       r = w*(xyz(:,iat) - center)
-      dist = norm2(r)
+      dist = sqrt(sum(r**2))
       polyterm = (dist/R0)**alpha
       efix = efix + polyterm
       gfix(:,iat) = gfix(:,iat) + alpha*polyterm * (r*w)/(dist**2+1.0e-14_wp)
@@ -501,7 +501,7 @@ subroutine polynomial_cavity_frag(nat,at,xyz,fragment,alpha,center,radius,&
    do i = 1, nat
       if (splitlist(i).ne.fragment) cycle
       r = w*(xyz(:,i) - center)
-      dist = norm2(r)
+      dist = sqrt(sum(r**2))
       polyterm = (dist/R0)**alpha
       efix = efix + polyterm
       gfix(:,i) = gfix(:,i) + alpha*polyterm * (r*w)/(dist**2+1.0e-14_wp)
@@ -532,7 +532,7 @@ subroutine polynomial_cavity_all(nat,at,xyz,alpha,center,radius,&
 
    do i = 1, nat
       r = w*(xyz(:,i) - center)
-      dist = norm2(r)
+      dist = sqrt(sum(r**2))
       polyterm = (dist/R0)**alpha
       efix = efix + polyterm
       gfix(:,i) = gfix(:,i) + alpha*polyterm * (r*w)/(dist**2+1.0e-14_wp)

@@ -624,7 +624,7 @@ pure subroutine build_dispmat(nat,ndim,at,xyz,par,c6abns,dispmat)
       do j = 1, i-1
          ja = at(j)
          cutoff = par%a1*sqrt(3._wp*r4r2(at(i))*r4r2(at(j)))+par%a2
-         r = norm2(xyz(:,j)-xyz(:,i))
+         r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
          if (r.gt.rthr) cycle
 !        oor6  = 1.0_wp/(r**6  + cutoff**6 )
 !        oor8  = 1.0_wp/(r**8  + cutoff**8 )
@@ -688,7 +688,7 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 !        oor6  = 1.0_wp/(r2**3 + cutoff**6 )
 !        oor8  = 1.0_wp/(r2**4 + cutoff**8 )
 !        oor10 = 1.0_wp/(r2**5 + cutoff**10)
-         r = norm2(xyz(:,j)-xyz(:,i))
+         r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
          if (r.gt.rthr) cycle
          oor6  = fdmpr_bj( 6,r,cutoff)
          oor8  = fdmpr_bj( 8,r,cutoff)
@@ -870,7 +870,7 @@ subroutine edisp(nat,ndim,at,q,xyz,par,g_a,g_c, &
       do j = 1, i-1
          ja = at(j)
          ij = i*(i-1)/2 + j
-         r = norm2(xyz(:,i)-xyz(:,j))
+         r = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
 !        r2 = sum( (xyz(:,i)-xyz(:,j))**2 )
          cutoff = par%a1*sqrt(3._wp*r4r2(ia)*r4r2(ja))+par%a2
 !        oor6 = 1._wp/(r2**3 + cutoff**6)

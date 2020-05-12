@@ -41,6 +41,11 @@ elif fc.get_id() == 'intel'
     add_project_link_arguments('-static', language: 'fortran')
     add_project_link_arguments('-static', language: 'c') # icc will do linking
   endif
+elif fc.get_id() == 'pgi'
+  add_project_arguments(
+    '-Mbackslash', '-Mallocatable=03', '-traceback',
+    language: 'fortran'
+  )
 endif
 
 if cc.get_id() == 'gcc'

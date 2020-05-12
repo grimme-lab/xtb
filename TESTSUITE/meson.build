@@ -37,11 +37,11 @@ xtb_test += files('symmetry.f90')
 xtb_test += files('thermo.f90')
 xtb_test += files('tbdef_atomlist.f90')
 
-xtb_test = executable('xtb_test',
-                      xtb_test,
-                      dependencies: dependencies_exe,
-                      include_directories: incdir,
-                      link_with: xtb_lib_static)
+xtb_test = executable(
+  'xtb_test',
+  xtb_test,
+  dependencies: xtb_dep_static,
+)
 
 # some very basic checks to see if the executable reacts at all
 test('Argparser: print version', xtb_exe, args: '--version', env: xtbenv)
@@ -150,8 +150,7 @@ test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv)
 if cc.get_id() == 'intel'
    test('GFN2-xTB: C', executable('xtb_c_test', files('c_api_example.c'),
                                   include_directories: incdir,
-                                  link_with: xtb_lib_static,
-                                  dependencies: dependencies_exe),
+                                  dependencies: xtb_dep_static),
                                   env: xtbenv)
 endif
 

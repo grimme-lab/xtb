@@ -68,7 +68,7 @@ subroutine get_coulomb_matrix_0d(mol, chrgeq, amat)
    do iat = 1, len(mol)
       ! EN of atom i
       do jat = 1, iat-1
-         r1 = norm2(mol%xyz(:,jat) - mol%xyz(:,iat))
+         r1 = sqrt(sum((mol%xyz(:,jat) - mol%xyz(:,iat))**2))
          gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2+chrgeq%alpha(jat)**2)
          Amat(jat, iat) = erf(gamij*r1)/r1
          Amat(iat, jat) = Amat(jat,iat)
@@ -237,7 +237,7 @@ pure function eeq_ewald_3d_dir(riw,rTrans,gamij,cf,scale) result(Amat)
    Amat = 0.0_wp
    do itr = 1, size(rTrans, dim=2)
       rij = riw + rTrans(:, itr)
-      distiw = norm2(rij)
+      distiw = sqrt(sum(rij**2))
       ! self-interaction correction
       if(distiw < eps) then
          Amat = Amat - cf/sqrtpi
@@ -269,7 +269,7 @@ pure subroutine eeq_ewald_dx_3d_dir(riw,rTrans,gamij,cf,scale,dAmat,sigma)
    do itr = 1, size(rTrans, dim=2)
       ! real contributions
       rij = riw + rTrans(:, itr)
-      distiw = norm2(rij)
+      distiw = sqrt(sum(rij**2))
       if(distiw < eps) cycle
       arga = cf**2   *distiw**2
       stmp = + exp(-arga)/sqrtpi * cf * 2.0_wp / 3.0_wp
@@ -444,7 +444,7 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
    do i = 1, n
       ! EN of atom i
       do j = 1, i-1
-         r = norm2(xyz(:,j) - xyz(:,i))
+         r = sqrt(sum((xyz(:,j) - xyz(:,i))**2))
          gamij = 1.0_wp/sqrt(alpha(i)+alpha(j))
          Amat(j,i) = erf(gamij*r)/r
          Amat(i,j) = Amat(j,i)

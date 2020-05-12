@@ -58,8 +58,6 @@ subroutine test_atomlist
    call atl%to_string(string)
    call assert_eq(string, '2 6:7 9')
    call atl%switch_truth
-   write(string, *) atl
-   call assert_eq(string, '1 3:5 8')
    call atl%to_list(list)
    call atl%switch_truth
    call atl%add(list)
