@@ -19,6 +19,7 @@
 module xtb_main_setup
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
+   use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : TxTBParameter
@@ -88,7 +89,7 @@ subroutine newCalculator(env, mol, calc, fname)
 
       call move_alloc(gfnff, calc)
    case(p_ext_qmdff, p_ext_orca, p_ext_turbomole, p_ext_mopac)
-      allocate(TCalculator :: calc)
+      allocate(TDummyCalculator :: calc)
    end select
 
 end subroutine newCalculator

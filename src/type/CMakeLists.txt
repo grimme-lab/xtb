@@ -26,6 +26,7 @@ list(APPEND srcs
   "${dir}/coulomb.f90"
   "${dir}/data.f90"
   "${dir}/dispersion_model.f90"
+  "${dir}/dummycalc.f90"
   "${dir}/environment.f90"
   "${dir}/fragments.f90"
   "${dir}/identitymap.f90"

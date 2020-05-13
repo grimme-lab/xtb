@@ -24,6 +24,7 @@ srcs += files(
   'coulomb.f90',
   'data.f90',
   'dispersion_model.f90',
+  'dummycalc.f90',
   'environment.f90',
   'fragments.f90',
   'identitymap.f90',
