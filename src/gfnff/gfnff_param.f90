@@ -17,8 +17,9 @@
 
 module xtb_gfnff_param
    use xtb_mctc_accuracy, only : wp, sp
-   use xtb_gfnff_data, only : TGFFData
+   use xtb_gfnff_data, only : TGFFData, init
    use xtb_gfnff_generator, only : TGFFGenerator
+   use xtb_gfnff_topology, only : TGFFTopology
    implicit none
    private :: wp
    public
@@ -245,6 +246,7 @@ module xtb_gfnff_param
 
    type(TGFFData), protected :: ffData
    type(TGFFGenerator), protected :: ffGen
+   type(TGFFTopology) :: ffTopo
 
 !----------------------------------------------------------------------------------------
    real(wp) :: efield(3)              ! electric field components
@@ -283,65 +285,12 @@ module xtb_gfnff_param
    ! parameters which are determined in gfnff_ini
    !------------------------------------------------------------------------
 
-   !number of terms
-   integer  :: nbond,nangl,ntors,nhb1,nhb2,nxb,nathbH,nathbAB,natxbAB,nbatm
-   integer  :: nfrag
-   integer  :: maxsystem   ! max. number of fragmentsfor hessian
-   integer  :: bond_hb_nr  ! number of unique AH...B HB/bond terms
-   integer  :: b_max      ! number of B atoms per unique AH bond
-
-   !numbers that are rewritten, so must be stored for allocation
-   integer  :: nbond_blist,nbond_vbond,nangl_alloc,ntors_alloc
-
    !file type read
    integer  :: read_file_type
-
-   !lists
-   integer,allocatable ::     nb(:,:)   ! neighbors nb(20,i) is the # neigbors
-   integer,allocatable ::    bpair(:)   ! # of cov. between atoms
-   integer,allocatable ::  blist(:,:)   ! bonded atoms
-   integer,allocatable ::  alist(:,:)   ! angles
-   integer,allocatable ::  tlist(:,:)   ! torsions
-   integer,allocatable :: b3list(:,:)   ! bond atm
-   integer,allocatable :: hblist1(:,:)  ! HBs loose
-   integer,allocatable :: hblist2(:,:)  ! HBs bonded
-   integer,allocatable :: hblist3(:,:)  ! XBs
-   !-----------------------------------------------
-   integer,allocatable :: nr_hb(:)      ! Nr. of H bonds per O-H or N-H bond
-   integer,allocatable :: bond_hb_AH(:,:) ! A, H atoms in bonds that are also part of HBs
-   integer,allocatable :: bond_hb_B(:,:)  ! B atoms in bonds that are also part of HBs
-   integer,allocatable :: bond_hb_Bn(:)   ! Nr. of B atoms for one AH bond pair
-   !-----------------------------------------------
-   integer,allocatable :: hbatABl(:,:)  ! AB atoms for HB
-   integer,allocatable :: xbatABl(:,:)  ! AB atoms for XB
-   integer,allocatable :: hbatHl (:)    ! H  atoms for HB
-   integer,allocatable :: fraglist(:)   ! atoms in molecular fragments (for EEQ)
-   integer,allocatable :: qpdb  (:)     ! atomic charge in residues from PDB file
-
-   !potential parameters used in energy-gradient routine
-   real(wp),allocatable:: vbond(:,:)    ! bonds
-   real(wp),allocatable:: vangl(:,:)    ! angles
-   real(wp),allocatable:: vtors(:,:)    ! torsions
-   real(wp),allocatable:: chieeq(:)     ! atomic ENs for EEQ
-   real(wp),allocatable:: gameeq(:)     ! atomic gamma for EEQ
-   real(wp),allocatable:: alpeeq(:)     ! atomic alpha for EEQ, squared
-   real(wp),allocatable:: alphanb(:)    ! non-bonded exponent for atom pairs
-   real(wp),allocatable::    qa(:)      ! estimated atomic charges (fixed and obtained from topology EEQ)
-   real(wp),allocatable::     q(:)      ! atomic charges (obtained from EEQ)
-   real(wp),allocatable:: hbrefgeo(:,:) ! atom xyz, used to check for HB list update
-   real(wp),allocatable::    xyze0(:,:) ! atom xyz, starting geom. (for Efield energy)
-   real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product
-   real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
-   real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
-
 
    !========================================================================
    ! DATA
    !------------------------------------------------------------------------
-
-   data xhaci / 86 * 0 /
-   data xhbas / 86 * 0 /
-   data xbaci / 86 * 0 /
 
    !Pauling EN
    real(wp), parameter :: en(1:86) = [&
@@ -413,6 +362,7 @@ module xtb_gfnff_param
      integer   :: i,j,k
      real(wp)  :: dum
 
+     call init(ffData, 86)
      call newGFNFFGenerator(ffGen)
 
      ffData%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
@@ -441,6 +391,7 @@ module xtb_gfnff_param
      ffData%xhaci_globabh=0.268   ! A-H...B gen. scaling
      ffData%xhaci_coh=0.350       ! A-H...O=C gen. scaling
      ffData%xhaci_glob=1.50       ! acidity
+     xhbas(:) = 0.0_wp
      xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
      xhbas( 7)=1.68d0
      xhbas( 8)=0.67d0
@@ -455,6 +406,7 @@ module xtb_gfnff_param
      xhbas(34)=xhbas(16)
      xhbas(51)=xhbas(15)
      xhbas(52)=xhbas(16)
+     xhaci(:) = 0.0_wp
      xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
      xhaci( 7)=ffData%xhaci_glob+0.1
      xhaci( 8)=ffData%xhaci_glob
@@ -464,6 +416,7 @@ module xtb_gfnff_param
      xhaci(17)=ffData%xhaci_glob+1.0
      xhaci(35)=ffData%xhaci_glob+1.0
      xhaci(53)=ffData%xhaci_glob+1.0
+     xbaci(:) = 0.0_wp
      xbaci(15)=1.0d0              ! XB acidities
      xbaci(16)=1.0d0
      xbaci(17)=0.5d0
@@ -537,38 +490,38 @@ module xtb_gfnff_param
 !    Dummy
      integer,intent(in) :: n
 
-     if (.not.allocated(nb)) allocate( nb(20,n), source = 0 )
-     if (.not.allocated(bpair)) allocate( bpair(n*(n+1)/2), source = 0 )
-     if (.not.allocated(alphanb)) allocate( alphanb(n*(n+1)/2), source = 0.0d0 )
-     if (.not.allocated(chieeq)) allocate( chieeq(n), source = 0.0d0 )
-     if (.not.allocated(gameeq)) allocate( gameeq(n), source = 0.0d0 )
-     if (.not.allocated(alpeeq)) allocate( alpeeq(n), source = 0.0d0 )
-     if (.not.allocated(qa)) allocate( qa(n), source = 0.0d0 )
-     if (.not.allocated(q)) allocate( q(n), source = 0.0d0 )
-     if (.not.allocated(hbrefgeo)) allocate( hbrefgeo(3,n), source = 0.0d0 )
-     if (.not.allocated(zetac6)) allocate( zetac6(n*(n+1)/2), source = 0.0d0 )
-     if (.not.allocated(xyze0)) allocate( xyze0(3,n), source = 0.0d0 )
-     if (.not.allocated(b3list)) allocate( b3list(3,1000*n), source = 0 )
-     if (.not.allocated(fraglist)) allocate( fraglist(n), source = 0 )
-     if (.not.allocated(qfrag)) allocate( qfrag(n), source = 0.0d0 )
-     if (.not.allocated(hbatHl)) allocate( hbatHl(n), source = 0 )
-     if (.not.allocated(hbbas)) allocate( hbbas(n), source = 0.0d0 )
-     if (.not.allocated(hbatABl)) allocate( hbatABl(2,n*(n+1)/2), source = 0 )
-     if (.not.allocated(xbatABl)) allocate( xbatABl(3,natxbAB), source = 0 )
+     if (.not.allocated(ffTopo%nb)) allocate( ffTopo%nb(20,n), source = 0 )
+     if (.not.allocated(ffTopo%bpair)) allocate( ffTopo%bpair(n*(n+1)/2), source = 0 )
+     if (.not.allocated(ffTopo%alphanb)) allocate( ffTopo%alphanb(n*(n+1)/2), source = 0.0d0 )
+     if (.not.allocated(ffTopo%chieeq)) allocate( ffTopo%chieeq(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%gameeq)) allocate( ffTopo%gameeq(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%alpeeq)) allocate( ffTopo%alpeeq(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%qa)) allocate( ffTopo%qa(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%q)) allocate( ffTopo%q(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%hbrefgeo)) allocate( ffTopo%hbrefgeo(3,n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%zetac6)) allocate( ffTopo%zetac6(n*(n+1)/2), source = 0.0d0 )
+     if (.not.allocated(ffTopo%xyze0)) allocate( ffTopo%xyze0(3,n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%b3list)) allocate( ffTopo%b3list(3,1000*n), source = 0 )
+     if (.not.allocated(ffTopo%fraglist)) allocate( ffTopo%fraglist(n), source = 0 )
+     if (.not.allocated(ffTopo%qfrag)) allocate( ffTopo%qfrag(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%hbatHl)) allocate( ffTopo%hbatHl(n), source = 0 )
+     if (.not.allocated(ffTopo%hbbas)) allocate( ffTopo%hbbas(n), source = 0.0d0 )
+     if (.not.allocated(ffTopo%hbatABl)) allocate( ffTopo%hbatABl(2,n*(n+1)/2), source = 0 )
+     if (.not.allocated(ffTopo%xbatABl)) allocate( ffTopo%xbatABl(3,ffTopo%natxbAB), source = 0 )
 
-     if (.not.allocated(blist)) allocate( blist(2,nbond_blist), source = 0 )
-     if (.not.allocated(nr_hb)) allocate( nr_hb(nbond_blist), source = 0 )
-     if (.not.allocated(bond_hb_AH)) allocate( bond_hb_AH(2,bond_hb_nr), source = 0 )
-     if (.not.allocated(bond_hb_B)) allocate( bond_hb_B(b_max,bond_hb_nr), source = 0 )
-     if (.not.allocated(bond_hb_Bn)) allocate( bond_hb_Bn(bond_hb_nr), source = 0 )
-     if (.not.allocated(alist)) allocate( alist(3,nangl_alloc), source = 0 )
-     if (.not.allocated(tlist)) allocate( tlist(5,ntors_alloc), source = 0 )
-     if (.not.allocated(vbond)) allocate( vbond(3,nbond_vbond), source = 0.0d0 )
-     if (.not.allocated(vangl)) allocate( vangl(2,nangl_alloc), source = 0.0d0 )
-     if (.not.allocated(vtors)) allocate( vtors(2,ntors_alloc), source = 0.0d0 )
-     if (.not.allocated(hblist1)) allocate( hblist1(3,nhb1), source = 0 )
-     if (.not.allocated(hblist2)) allocate( hblist2(3,nhb2), source = 0 )
-     if (.not.allocated(hblist3)) allocate( hblist3(3,nxb), source = 0 )
+     if (.not.allocated(ffTopo%blist)) allocate( ffTopo%blist(2,ffTopo%nbond_blist), source = 0 )
+     if (.not.allocated(ffTopo%nr_hb)) allocate( ffTopo%nr_hb(ffTopo%nbond_blist), source = 0 )
+     if (.not.allocated(ffTopo%bond_hb_AH)) allocate( ffTopo%bond_hb_AH(2,ffTopo%bond_hb_nr), source = 0 )
+     if (.not.allocated(ffTopo%bond_hb_B)) allocate( ffTopo%bond_hb_B(ffTopo%b_max,ffTopo%bond_hb_nr), source = 0 )
+     if (.not.allocated(ffTopo%bond_hb_Bn)) allocate( ffTopo%bond_hb_Bn(ffTopo%bond_hb_nr), source = 0 )
+     if (.not.allocated(ffTopo%alist)) allocate( ffTopo%alist(3,ffTopo%nangl_alloc), source = 0 )
+     if (.not.allocated(ffTopo%tlist)) allocate( ffTopo%tlist(5,ffTopo%ntors_alloc), source = 0 )
+     if (.not.allocated(ffTopo%vbond)) allocate( ffTopo%vbond(3,ffTopo%nbond_vbond), source = 0.0d0 )
+     if (.not.allocated(ffTopo%vangl)) allocate( ffTopo%vangl(2,ffTopo%nangl_alloc), source = 0.0d0 )
+     if (.not.allocated(ffTopo%vtors)) allocate( ffTopo%vtors(2,ffTopo%ntors_alloc), source = 0.0d0 )
+     if (.not.allocated(ffTopo%hblist1)) allocate( ffTopo%hblist1(3,ffTopo%nhb1), source = 0 )
+     if (.not.allocated(ffTopo%hblist2)) allocate( ffTopo%hblist2(3,ffTopo%nhb2), source = 0 )
+     if (.not.allocated(ffTopo%hblist3)) allocate( ffTopo%hblist3(3,ffTopo%nxb), source = 0 )
 
    end subroutine gfnff_param_alloc
 
@@ -577,38 +530,38 @@ module xtb_gfnff_param
      implicit none
 !    Dummy
 
-     if (allocated(nb)) deallocate( nb )
-     if (allocated(bpair)) deallocate( bpair )
-     if (allocated(alphanb)) deallocate( alphanb )
-     if (allocated(chieeq)) deallocate( chieeq )
-     if (allocated(gameeq)) deallocate( gameeq )
-     if (allocated(alpeeq)) deallocate( alpeeq )
-     if (allocated(qa)) deallocate( qa )
-     if (allocated(q)) deallocate( q )
-     if (allocated(hbrefgeo)) deallocate( hbrefgeo )
-     if (allocated(zetac6)) deallocate( zetac6 )
-     if (allocated(xyze0)) deallocate( xyze0 )
-     if (allocated(b3list)) deallocate( b3list )
-     if (allocated(fraglist)) deallocate( fraglist )
-     if (allocated(qfrag)) deallocate( qfrag )
-     if (allocated(hbatHl)) deallocate( hbatHl )
-     if (allocated(hbbas)) deallocate( hbbas )
-     if (allocated(hbatABl)) deallocate( hbatABl )
-     if (allocated(xbatABl)) deallocate( xbatABl )
+     if (allocated(ffTopo%nb)) deallocate( ffTopo%nb )
+     if (allocated(ffTopo%bpair)) deallocate( ffTopo%bpair )
+     if (allocated(ffTopo%alphanb)) deallocate( ffTopo%alphanb )
+     if (allocated(ffTopo%chieeq)) deallocate( ffTopo%chieeq )
+     if (allocated(ffTopo%gameeq)) deallocate( ffTopo%gameeq )
+     if (allocated(ffTopo%alpeeq)) deallocate( ffTopo%alpeeq )
+     if (allocated(ffTopo%qa)) deallocate( ffTopo%qa )
+     if (allocated(ffTopo%q)) deallocate( ffTopo%q )
+     if (allocated(ffTopo%hbrefgeo)) deallocate( ffTopo%hbrefgeo )
+     if (allocated(ffTopo%zetac6)) deallocate( ffTopo%zetac6 )
+     if (allocated(ffTopo%xyze0)) deallocate( ffTopo%xyze0 )
+     if (allocated(ffTopo%b3list)) deallocate( ffTopo%b3list )
+     if (allocated(ffTopo%fraglist)) deallocate( ffTopo%fraglist )
+     if (allocated(ffTopo%qfrag)) deallocate( ffTopo%qfrag )
+     if (allocated(ffTopo%hbatHl)) deallocate( ffTopo%hbatHl )
+     if (allocated(ffTopo%hbbas)) deallocate( ffTopo%hbbas )
+     if (allocated(ffTopo%hbatABl)) deallocate( ffTopo%hbatABl )
+     if (allocated(ffTopo%xbatABl)) deallocate( ffTopo%xbatABl )
 
-     if (allocated(blist)) deallocate( blist )
-     if (allocated(nr_hb)) deallocate( nr_hb )
-     if (allocated(bond_hb_AH)) deallocate( bond_hb_AH )
-     if (allocated(bond_hb_B)) deallocate( bond_hb_B )
-     if (allocated(bond_hb_Bn)) deallocate( bond_hb_Bn )
-     if (allocated(alist)) deallocate( alist )
-     if (allocated(tlist)) deallocate( tlist )
-     if (allocated(vbond)) deallocate( vbond )
-     if (allocated(vangl)) deallocate( vangl )
-     if (allocated(vtors)) deallocate( vtors )
-     if (allocated(hblist1)) deallocate( hblist1 )
-     if (allocated(hblist2)) deallocate( hblist2 )
-     if (allocated(hblist3)) deallocate( hblist3 )
+     if (allocated(ffTopo%blist)) deallocate( ffTopo%blist )
+     if (allocated(ffTopo%nr_hb)) deallocate( ffTopo%nr_hb )
+     if (allocated(ffTopo%bond_hb_AH)) deallocate( ffTopo%bond_hb_AH )
+     if (allocated(ffTopo%bond_hb_B)) deallocate( ffTopo%bond_hb_B )
+     if (allocated(ffTopo%bond_hb_Bn)) deallocate( ffTopo%bond_hb_Bn )
+     if (allocated(ffTopo%alist)) deallocate( ffTopo%alist )
+     if (allocated(ffTopo%tlist)) deallocate( ffTopo%tlist )
+     if (allocated(ffTopo%vbond)) deallocate( ffTopo%vbond )
+     if (allocated(ffTopo%vangl)) deallocate( ffTopo%vangl )
+     if (allocated(ffTopo%vtors)) deallocate( ffTopo%vtors )
+     if (allocated(ffTopo%hblist1)) deallocate( ffTopo%hblist1 )
+     if (allocated(ffTopo%hblist2)) deallocate( ffTopo%hblist2 )
+     if (allocated(ffTopo%hblist3)) deallocate( ffTopo%hblist3 )
 
    end subroutine gfnff_param_dealloc
 

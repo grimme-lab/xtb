@@ -30,7 +30,7 @@
        contains
 
        subroutine init_shake(nat,at,xyz)
-       use xtb_gfnff_param, only: blist,nbond
+       use xtb_gfnff_param, only: ffTopo
        implicit none
        integer :: nat,at(nat)
        real*8  :: xyz(3,nat)
@@ -41,11 +41,11 @@
 
        integer list(nat*(nat+1)/2),lin,ij
 
-      ncons  = nbond
+      ncons  = ffTopo%nbond
       allocate(conslist(2,ncons),distcons(ncons),&
      &         dro(3,ncons),dr(4,ncons))
 
-      conslist(1:2,1:ncons)=blist(1:2,1:ncons)
+      conslist(1:2,1:ncons)=ffTopo%blist(1:2,1:ncons)
       do i = 1, ncons
          iat = conslist(1,i)
          jat = conslist(2,i)

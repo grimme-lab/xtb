@@ -66,14 +66,14 @@ subroutine test_gfnff_sp
    call delete_file('charges')
    call gfnff_ini(verbose,.true.,mol,nint(mol%chrg))
 
-   call assert_eq(nbond,6)
-   call assert_eq(nangl,6)
-   call assert_eq(ntors,1)
+   call assert_eq(ffTopo%nbond,6)
+   call assert_eq(ffTopo%nangl,6)
+   call assert_eq(ffTopo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,g,etot,res_gff)
+   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,g,etot,res_gff)
 
    call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
    call assert_close(res_gff%gnorm,   0.06237477492373_wp,thr)
@@ -160,14 +160,14 @@ subroutine test_gfnff_hb
    call delete_file('charges')
    call gfnff_ini(verbose,.true.,mol,nint(mol%chrg))
 
-   call assert_eq(nbond,5)
-   call assert_eq(nangl,4)
-   call assert_eq(ntors,1)
+   call assert_eq(ffTopo%nbond,5)
+   call assert_eq(ffTopo%nangl,4)
+   call assert_eq(ffTopo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,g,etot,res_gff)
+   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,g,etot,res_gff)
 
    call assert_close(res_gff%e_total,-0.949706677118_wp,thr)
    call assert_close(res_gff%gnorm,   0.001152720923_wp,thr)

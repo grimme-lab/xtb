@@ -17,6 +17,7 @@
 
 module xtb_gfnff_eg
    use xtb_gfnff_ini2
+   use xtb_type_environment, only : TEnvironment
    implicit none
    private
    public :: gfnff_eg, gfnff_dlogcoord
@@ -51,7 +52,7 @@ contains
 !
 !---------------------------------------------------
 
-   subroutine gfnff_eg(pr,n,ichrg,at,xyz,makeq,g,etot,res_gff)
+   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       use xtb_disp_dftd4, only: rcov
@@ -61,6 +62,8 @@ contains
       use xtb_solv_gbobc
       use xtb_mctc_constants
       implicit none
+      character(len=*), parameter :: source = 'gfnff_eg'
+      type(TEnvironment), intent(inout) :: env
       type(scc_results),intent(out) :: res_gff
       integer n
       integer ichrg
@@ -164,13 +167,13 @@ contains
          ij=m+jat
          r2=sqrab(ij)
          if(r2.gt.repthr)   cycle ! cut-off
-         if(bpair(ij).eq.1) cycle ! list avoided because of memory
+         if(ffTopo%bpair(ij).eq.1) cycle ! list avoided because of memory
          ati=at(iat)
          atj=at(jat)
          rab=srab(ij)
          t16=r2**0.75
          t19=t16*t16
-         t8 =t16*alphanb(ij)
+         t8 =t16*ffTopo%alphanb(ij)
          t26=exp(-t8)*repz(ati)*repz(atj)*ffData%repscaln
          erep=erep+t26/rab !energy
          t27=t26*(1.5d0*t8+1.0d0)/t19
@@ -188,9 +191,9 @@ contains
 
       if(ffmode.eq.-1)then
       ebond=0
-      do i=1,nbond
-         iat=blist(1,i)
-         jat=blist(2,i)
+      do i=1,ffTopo%nbond
+         iat=ffTopo%blist(1,i)
+         jat=ffTopo%blist(2,i)
          r3 =xyz(:,iat)-xyz(:,jat)
          rab=sqrt(sum(r3*r3))
          rn=0.7*(rcov(at(iat))+rcov(at(jat)))
@@ -214,7 +217,7 @@ contains
 
       if (pr) call timer%measure(3,'dCN')
       call gfnff_dlogcoord(n,at,xyz,srab,cn,dcn,cnthr) ! new erf used in GFN0
-      if (sum(nr_hb).gt.0) call dncoord_erf(n,at,xyz,hb_cn,hb_dcn,900.0d0) ! HB erf CN
+      if (sum(ffTopo%nr_hb).gt.0) call dncoord_erf(n,at,xyz,hb_cn,hb_dcn,900.0d0) ! HB erf CN
       if (pr) call timer%measure(3)
 
 !!!!!!
@@ -223,7 +226,7 @@ contains
 
       if (pr) call timer%measure(4,'EEQ energy and q')
       call goed_gfnff(accff.gt.1,n,at,sqrab,srab,&         ! modified version
-     &                dfloat(ichrg),eeqtmp,cn,q,ees,gbsa)  ! without dq/dr
+     &                dfloat(ichrg),eeqtmp,cn,ffTopo%q,ees,gbsa)  ! without dq/dr
       if (pr) call timer%measure(4)
 
 !!!!!!!!
@@ -232,7 +235,7 @@ contains
 
       if (pr) call timer%measure(5,'D3')
       if(nd3.gt.0) then
-         call d3_gradient(n, at, xyz, nd3, d3list, zetac6, d3r0, 4.0d0, &
+         call d3_gradient(n, at, xyz, nd3, d3list, ffTopo%zetac6, d3r0, 4.0d0, &
             &             cn, dcn, edisp, g)
       endif
       deallocate(d3list)
@@ -242,7 +245,7 @@ contains
 ! ES part
 !!!!!!!!
       if (pr) call timer%measure(6,'EEQ gradient')
-!$omp parallel default(none) private(i,j,k,ij,r3,r2,rab,gammij,erff,dd) shared(n,q,sqrab,srab,eeqtmp,xyz,g,at) ! WRONG RESULTS
+!$omp parallel default(none) private(i,j,k,ij,r3,r2,rab,gammij,erff,dd) shared(ffTopo,n,sqrab,srab,eeqtmp,xyz,g,at) ! WRONG RESULTS
 !$omp do reduction (+:g)
       do i=1,n
          k = i*(i-1)/2
@@ -253,7 +256,7 @@ contains
             gammij=eeqtmp(1,ij)
             erff  =eeqtmp(2,ij)
             dd=(2.0d0*gammij*exp(-gammij**2*r2) &
-     &         /(sqrtpi*r2)-erff/(rab*r2))*q(i)*q(j)
+     &         /(sqrtpi*r2)-erff/(rab*r2))*ffTopo%q(i)*ffTopo%q(j)
             r3=(xyz(:,i)-xyz(:,j))*dd
             g(:,i)=g(:,i)+r3
             g(:,j)=g(:,j)-r3
@@ -265,7 +268,7 @@ contains
 
       if (lgbsa) then
          call timer%measure(11, "GBSA")
-         call compute_gb_egrad(gbsa, q, gborn, ghb, g, pr)
+         call compute_gb_egrad(gbsa, ffTopo%q, gborn, ghb, g, pr)
          gsolv = gsolv + gborn + ghb + gshift
          call timer%measure(11)
       else
@@ -274,10 +277,10 @@ contains
       endif
 
       do i=1,n
-         qtmp(i)=q(i)*cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
+         qtmp(i)=ffTopo%q(i)*cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
       enddo
 
-!$omp parallel default(none) private(i,j) shared(n,q,dcn,qtmp,g,at)
+!$omp parallel default(none) private(i,j) shared(n,dcn,qtmp,g,at)
 !$omp do reduction (+:g)
       do i=1,n
          do j=1,n
@@ -293,24 +296,24 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(7,'bonds')
-      if(nbond.gt.0)then
-      allocate(grab0(3,n,nbond),rab0(nbond))
-      rab0(:)=vbond(1,:) ! shifts
-      call gfnffdrab(n,at,xyz,cn,dcn,nbond,blist,rab0,grab0)
+      if(ffTopo%nbond.gt.0)then
+      allocate(grab0(3,n,ffTopo%nbond),rab0(ffTopo%nbond))
+      rab0(:)=ffTopo%vbond(1,:) ! shifts
+      call gfnffdrab(n,at,xyz,cn,dcn,ffTopo%nbond,ffTopo%blist,rab0,grab0)
       deallocate(dcn)
 
-!!$omp parallel private(i,k,iat,jat,ij,rab,rij,drij,t8,dr,dum,yy,dx,dy,dz,t4,t5,t6) shared ( g,grab0,ebond,blist,vbond,rab0,srab,xyz )
+!!$omp parallel private(i,k,iat,jat,ij,rab,rij,drij,t8,dr,dum,yy,dx,dy,dz,t4,t5,t6) shared ( g,grab0,ebond,ffTopo%blist,vbond,rab0,srab,xyz )
 !!$omp do REDUCTION (+:g,ebond)
-      do i=1,nbond
-         iat=blist(1,i)
-         jat=blist(2,i)
+      do i=1,ffTopo%nbond
+         iat=ffTopo%blist(1,i)
+         jat=ffTopo%blist(2,i)
          ati=at(iat)
          atj=at(jat)
          ij=iat*(iat-1)/2+jat
          rab=srab(ij)
          rij=rab0(i)
          drij=grab0(:,:,i)
-         if (nr_hb(i).ge.1) then
+         if (ffTopo%nr_hb(i).ge.1) then
             call egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,ebond,g)
          else
             call egbond(i,iat,jat,rab,rij,drij,n,at,xyz,ebond,g)
@@ -325,9 +328,9 @@ contains
 ! bonded REP
 !!!!!!!!!!!!!!!!!!
 
-      do i=1,nbond
-         iat=blist(1,i)
-         jat=blist(2,i)
+      do i=1,ffTopo%nbond
+         iat=ffTopo%blist(1,i)
+         jat=ffTopo%blist(2,i)
          ij=iat*(iat-1)/2+jat
          xa=xyz(1,iat)
          ya=xyz(2,iat)
@@ -361,13 +364,13 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(8,'bend and torsion')
-      if(nangl.gt.0)then
+      if(ffTopo%nangl.gt.0)then
 !!$omp parallel private(m,j,i,k,etmp,g3tmp) shared ( nangl,n,at,xyz,g,alist )
 !!$omp do REDUCTION (+:eangl,g)
-      do m=1,nangl
-         j = alist(1,m)
-         i = alist(2,m)
-         k = alist(3,m)
+      do m=1,ffTopo%nangl
+         j = ffTopo%alist(1,m)
+         i = ffTopo%alist(2,m)
+         k = ffTopo%alist(3,m)
          call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,i)=g(1:3,i)+g3tmp(1:3,2)
@@ -382,14 +385,14 @@ contains
 ! torsion
 !!!!!!!!!!!!!!!!!!
 
-      if(ntors.gt.0)then
+      if(ffTopo%ntors.gt.0)then
 !!$omp parallel private(m,i,j,k,l,etmp,g4tmp) shared ( ntors,n,at,xyz,g,tlist )
 !!$omp do REDUCTION (+:etors,g)
-      do m=1,ntors
-         i=tlist(1,m)
-         j=tlist(2,m)
-         k=tlist(3,m)
-         l=tlist(4,m)
+      do m=1,ffTopo%ntors
+         i=ffTopo%tlist(1,m)
+         j=ffTopo%tlist(2,m)
+         k=ffTopo%tlist(3,m)
+         l=ffTopo%tlist(4,m)
          call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp)
          g(1:3,i)=g(1:3,i)+g4tmp(1:3,1)
          g(1:3,j)=g(1:3,j)+g4tmp(1:3,2)
@@ -407,15 +410,15 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(9,'bonded ATM')
-      if(nbatm.gt.0) then
+      if(ffTopo%nbatm.gt.0) then
 
 !!$omp parallel private(i,j,k,l,etmp,g3tmp) shared ( nbatm,n,at,xyz,qa,srab,sqrab,g,b3list ) OMP GIVES WRONG RESULTS HERE!
 !!$omp do REDUCTION (+:ebatm,g)
-      do i=1,nbatm
-         j=b3list(1,i)
-         k=b3list(2,i)
-         l=b3list(3,i)
-         call batmgfnff_eg(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g3tmp)
+      do i=1,ffTopo%nbatm
+         j=ffTopo%b3list(1,i)
+         k=ffTopo%b3list(2,i)
+         l=ffTopo%b3list(3,i)
+         call batmgfnff_eg(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g3tmp)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -433,14 +436,14 @@ contains
       if (pr) call timer%measure(10,'HB/XB (incl list setup)')
       call gfnff_hbset(n,at,xyz,sqrab)
 
-      if(nhb1.gt.0) then
-!$omp parallel private(i,j,k,l,etmp,g3tmp) shared ( nhb1,n,at,xyz,g,qa,sqrab,srab,hblist1 )
+      if(ffTopo%nhb1.gt.0) then
+!$omp parallel private(i,j,k,l,etmp,g3tmp) shared (ffTopo,n,at,xyz,g,sqrab,srab )
 !$omp do REDUCTION (+:ehb,g)
-      do i=1,nhb1
-         j=hblist1(1,i)
-         k=hblist1(2,i)
-         l=hblist1(3,i)
-         call abhgfnff_eg1(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g3tmp)
+      do i=1,ffTopo%nhb1
+         j=ffTopo%hblist1(1,i)
+         k=ffTopo%hblist1(2,i)
+         l=ffTopo%hblist1(3,i)
+         call abhgfnff_eg1(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g3tmp)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -451,25 +454,25 @@ contains
       endif
 
 
-      if(nhb2.gt.0) then
-!$omp parallel private(i,j,k,l,etmp,g5tmp) shared ( nhb2,n,nb,at,xyz,g,qa,sqrab,srab,hblist2 )
+      if(ffTopo%nhb2.gt.0) then
+!$omp parallel private(i,j,k,l,etmp,g5tmp) shared (ffTopo,n,at,xyz,g,sqrab,srab )
 !$omp do REDUCTION (+:ehb,g)
-      do i=1,nhb2
-         j=hblist2(1,i)
-         k=hblist2(2,i)
-         l=hblist2(3,i)
+      do i=1,ffTopo%nhb2
+         j=ffTopo%hblist2(1,i)
+         k=ffTopo%hblist2(2,i)
+         l=ffTopo%hblist2(3,i)
          !Carbonyl case R-C=O...H_A
-         if(at(k).eq.8.and.nb(20,k).eq.1.and.at(nb(1,k)).eq.6) then
-           call abhgfnff_eg3(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g5tmp)
+         if(at(k).eq.8.and.ffTopo%nb(20,k).eq.1.and.at(ffTopo%nb(1,k)).eq.6) then
+           call abhgfnff_eg3(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
          !Nitro case R-N=O...H_A
-         else if(at(k).eq.8.and.nb(20,k).eq.1.and.at(nb(1,k)).eq.7) then
-           call abhgfnff_eg3(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g5tmp)
+         else if(at(k).eq.8.and.ffTopo%nb(20,k).eq.1.and.at(ffTopo%nb(1,k)).eq.7) then
+           call abhgfnff_eg3(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
          !N hetero aromat
-         else if(at(k).eq.7.and.nb(20,k).eq.2) then
-           call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g5tmp)
+         else if(at(k).eq.7.and.ffTopo%nb(20,k).eq.2) then
+           call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
          else
          !Default
-           call abhgfnff_eg2new(n,j,k,l,at,xyz,qa,sqrab,srab,etmp,g5tmp)
+           call abhgfnff_eg2new(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
          end if
          g=g+g5tmp
          ehb=ehb+etmp
@@ -482,12 +485,12 @@ contains
 ! EXB
 !!!!!!!!!!!!!!!!!!
 
-      if(nxb.gt.0) then
-      do i=1,nxb
-         j=hblist3(1,i)
-         k=hblist3(2,i)
-         l=hblist3(3,i)
-         call rbxgfnff_eg(n,j,k,l,at,xyz,qa,etmp,g3tmp)
+      if(ffTopo%nxb.gt.0) then
+      do i=1,ffTopo%nxb
+         j=ffTopo%hblist3(1,i)
+         k=ffTopo%hblist3(2,i)
+         l=ffTopo%hblist3(3,i)
+         call rbxgfnff_eg(n,j,k,l,at,xyz,ffTopo%qa,etmp,g3tmp)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -502,11 +505,11 @@ contains
 
       if(sum(abs(efield)).gt.1d-6)then
          do i=1,n
-            r3(:) =-q(i)*efield(:)
+            r3(:) =-ffTopo%q(i)*efield(:)
             g(:,i)= g(:,i) + r3(:)
-            eext = eext + r3(1)*(xyz(1,i)-xyze0(1,i))+&
-     &                    r3(2)*(xyz(2,i)-xyze0(2,i))+&
-     &                    r3(3)*(xyz(3,i)-xyze0(3,i))
+            eext = eext + r3(1)*(xyz(1,i)-ffTopo%xyze0(1,i))+&
+     &                    r3(2)*(xyz(2,i)-ffTopo%xyze0(2,i))+&
+     &                    r3(3)*(xyz(3,i)-ffTopo%xyze0(3,i))
          enddo
       endif
 
@@ -522,14 +525,14 @@ contains
 !!!!!!!!!!!!!!!!!!
       if (pr) then
         call timer%write(6,'E+G')
-        if(abs(sum(q)-ichrg).gt.1.d-1) then ! check EEQ only once
-          write(*,*) q
-          write(*,*) sum(q),ichrg
+        if(abs(sum(ffTopo%q)-ichrg).gt.1.d-1) then ! check EEQ only once
+          write(*,*) ffTopo%q
+          write(*,*) sum(ffTopo%q),ichrg
           stop 'EEQ charge constrain error'
         endif
         r3 = 0
         do i=1,n
-           r3(:) = r3(:)+q(i)*xyz(:,i)
+           r3(:) = r3(:)+ffTopo%q(i)*xyz(:,i)
         enddo
 
 !       just for fit De calc
@@ -582,7 +585,7 @@ contains
       res_gff%g_solv  = gsolv
       res_gff%g_shift = gshift
       res_gff%g_sasa  = gbsa%gsasa
-      res_gff%dipole  = matmul(xyz, q)
+      res_gff%dipole  = matmul(xyz, ffTopo%q)
 
    end subroutine gfnff_eg
 
@@ -610,9 +613,9 @@ contains
       real*8 yy
       real*8 t4,t5,t6,t8
 
-         t8 =vbond(2,i)
+         t8 =ffTopo%vbond(2,i)
          dr =rab-rij
-         dum=vbond(3,i)*exp(-t8*dr**2)
+         dum=ffTopo%vbond(3,i)*exp(-t8*dr**2)
          e=e+dum                      ! bond energy
          yy=2.0d0*t8*dr*dum
          dx=xyz(1,iat)-xyz(1,jat)
@@ -676,9 +679,9 @@ contains
          end if
 
          t1=1.0-ffData%vbond_scale
-         t8 =(-t1*hb_cn(hbH)+1.0)*vbond(2,i)
+         t8 =(-t1*hb_cn(hbH)+1.0)*ffTopo%vbond(2,i)
          dr =rab-rij
-         dum=vbond(3,i)*exp(-t8*dr**2)
+         dum=ffTopo%vbond(3,i)*exp(-t8*dr**2)
          e=e+dum                      ! bond energy
          yy=2.0d0*t8*dr*dum
          dx=xyz(1,iat)-xyz(1,jat)
@@ -699,14 +702,14 @@ contains
          do k=1,n !3B gradient
             g(:,k)=g(:,k)+drij(:,k)*yy
          end do
-         zz=dum*vbond(2,i)*dr**2*t1
-         do j=1,bond_hb_nr !CN gradient
-            jH = bond_hb_AH(2,j)
-            jA = bond_hb_AH(1,j)
+         zz=dum*ffTopo%vbond(2,i)*dr**2*t1
+         do j=1,ffTopo%bond_hb_nr !CN gradient
+            jH = ffTopo%bond_hb_AH(2,j)
+            jA = ffTopo%bond_hb_AH(1,j)
             if (jH.eq.hbH.and.jA.eq.hbA) then
                g(:,hbH)=g(:,hbH)+hb_dcn(:,hbH,hbH)*zz
-               do k=1,bond_hb_Bn(j)
-                  hbB = bond_hb_B(k,j)
+               do k=1,ffTopo%bond_hb_Bn(j)
+                  hbB = ffTopo%bond_hb_B(k,j)
                   g(:,hbB)=g(:,hbB)-hb_dcn(:,hbB,hbH)*zz
                end do
             end if
@@ -743,12 +746,12 @@ contains
          cn  = 0._wp
          dcn = 0._wp
 
-         do i = 1,bond_hb_nr
-            iat = bond_hb_AH(2,i)
+         do i = 1,ffTopo%bond_hb_nr
+            iat = ffTopo%bond_hb_AH(2,i)
             ati = at(iat)
-            iA  = bond_hb_AH(1,i)
-            do j = 1, bond_hb_Bn(i)
-               jat = bond_hb_B(j,i)
+            iA  = ffTopo%bond_hb_AH(1,i)
+            do j = 1, ffTopo%bond_hb_Bn(i)
+               jat = ffTopo%bond_hb_B(j,i)
                atj = at(jat)
                rij = xyz(:,jat) - xyz(:,iat)
                r2  = sum( rij**2 )
@@ -788,8 +791,8 @@ contains
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
 
-         c0  =vangl(1,m)
-         kijk=vangl(2,m)
+         c0  =ffTopo%vangl(1,m)
+         kijk=ffTopo%vangl(2,m)
          va(1:3) = xyz(1:3,i)
          vb(1:3) = xyz(1:3,j)
          vc(1:3) = xyz(1:3,k)
@@ -958,7 +961,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egtors(m,i,j,k,l,n,at,xyz,e,g)
-      use xtb_gfnff_param
+      use xtb_gfnff_param, only : ffTopo
       use xtb_mctc_constants
       implicit none
       integer m,n,at(n)
@@ -975,9 +978,9 @@ contains
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
 
-         rn=dble(tlist(5,m))
-         phi0 =vtors(1,m)
-         if(tlist(5,m).gt.0)then
+         rn=dble(ffTopo%tlist(5,m))
+         phi0 =ffTopo%vtors(1,m)
+         if(ffTopo%tlist(5,m).gt.0)then
          vab(1:3) = xyz(1:3,i)-xyz(1:3,j)
          vcb(1:3) = xyz(1:3,j)-xyz(1:3,k)
          vdc(1:3) = xyz(1:3,k)-xyz(1:3,l)
@@ -994,8 +997,8 @@ contains
          c1=rn*dphi1+pi
          x1cos=cos(c1)
          x1sin=sin(c1)
-         et =(1.+x1cos)*vtors(2,m)
-         dij=-rn*x1sin*vtors(2,m)*damp
+         et =(1.+x1cos)*ffTopo%vtors(2,m)
+         dij=-rn*x1sin*ffTopo%vtors(2,m)*damp
          term1(1:3)=et*damp2ij*dampjk*dampkl*vab(1:3)
          term2(1:3)=et*damp2jk*dampij*dampkl*vcb(1:3)
          term3(1:3)=et*damp2kl*dampij*dampjk*vdc(1:3)
@@ -1017,16 +1020,16 @@ contains
          damp= dampjk*dampij*dampjl
          phi=omega(n,xyz,i,j,k,l)
          call domegadr(n,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
-         if(tlist(5,m).eq.0)then  ! phi0=0 case
+         if(ffTopo%tlist(5,m).eq.0)then  ! phi0=0 case
          dphi1=phi-phi0
          c1=dphi1+pi
          x1cos=cos(c1)
          x1sin=sin(c1)
-         et   =(1.+x1cos)*vtors(2,m)
-         dij  =-x1sin*vtors(2,m)*damp
+         et   =(1.+x1cos)*ffTopo%vtors(2,m)
+         dij  =-x1sin*ffTopo%vtors(2,m)*damp
          else                     ! double min at phi0,-phi0
-         et =   vtors(2,m)*(cos(phi) -cos(phi0))**2
-         dij=2.*vtors(2,m)* sin(phi)*(cos(phi0)-cos(phi))*damp
+         et =   ffTopo%vtors(2,m)*(cos(phi) -cos(phi0))**2
+         dij=2.*ffTopo%vtors(2,m)* sin(phi)*(cos(phi0)-cos(phi))*damp
          endif
          term1(1:3)=et*damp2ij*dampjk*dampjl*vab(1:3)
          term2(1:3)=et*damp2jk*dampij*dampjl*vcb(1:3)
@@ -1199,7 +1202,7 @@ contains
       subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa)
       use iso_fortran_env, id => output_unit, wp => real64
       use xtb_mctc_la
-      use xtb_gfnff_param, only: chieeq,gameeq,alpeeq,cnf,nfrag,qfrag,fraglist
+      use xtb_gfnff_param, only: ffTopo,cnf
       use xtb_solv_gbobc
       implicit none
       logical, intent(in)  :: single     ! real*4 flag for solver
@@ -1224,26 +1227,26 @@ contains
 !  parameter
       parameter (tsqrt2pi = 0.797884560802866_wp)
 
-      m=n+nfrag ! # atoms + chrg constrain + frag constrain
+      m=n+ffTopo%nfrag ! # atoms + chrg constrain + frag constrain
 
       allocate(A(m,m),x(m))
 !  setup RHS
       do i=1,n
-         x(i) = chieeq(i) + cnf(at(i))*sqrt(cn(i))
+         x(i) = ffTopo%chieeq(i) + cnf(at(i))*sqrt(cn(i))
       enddo
 
       A = 0
 !  setup A matrix
 !$omp parallel default(none) &
-!$omp shared(n,sqrab,r,eeqtmp,alpeeq,gameeq,A,at) &
+!$omp shared(ffTopo,n,sqrab,r,eeqtmp,A,at) &
 !$omp private(i,j,k,ij,gammij,tmp)
 !$omp do schedule(dynamic)
       do i=1,n
-      A(i,i)=tsqrt2pi/sqrt(alpeeq(i))+gameeq(i) ! J of i
+      A(i,i)=tsqrt2pi/sqrt(ffTopo%alpeeq(i))+ffTopo%gameeq(i) ! J of i
       k = i*(i-1)/2
       do j=1,i-1
          ij = k+j
-         gammij=1./sqrt(alpeeq(i)+alpeeq(j)) ! squared above
+         gammij=1./sqrt(ffTopo%alpeeq(i)+ffTopo%alpeeq(j)) ! squared above
          tmp = erf(gammij*r(ij))
          eeqtmp(1,ij)=gammij
          eeqtmp(2,ij)=tmp
@@ -1255,10 +1258,10 @@ contains
 !$omp end parallel
 
 !  fragment charge constrain
-      do i=1,nfrag
-        x(n+i)=qfrag(i)
+      do i=1,ffTopo%nfrag
+        x(n+i)=ffTopo%qfrag(i)
         do j=1,n
-         if(fraglist(j).eq.i) then
+         if(ffTopo%fraglist(j).eq.i) then
             A(n+i,j)=1
             A(j,n+i)=1
          endif
@@ -1299,8 +1302,8 @@ contains
          tmp   =eeqtmp(2,ij)
          es = es + q(i)*q(j)*tmp/r(ij)
       enddo
-      es = es - q(i)*(chieeq(i) + cnf(at(i))*sqrt(cn(i))) &
-     &        + q(i)*q(i)*0.5d0*(gameeq(i)+tsqrt2pi/sqrt(alpeeq(i)))
+      es = es - q(i)*(ffTopo%chieeq(i) + cnf(at(i))*sqrt(cn(i))) &
+     &        + q(i)*q(i)*0.5d0*(ffTopo%gameeq(i)+tsqrt2pi/sqrt(ffTopo%alpeeq(i)))
       enddo
 
       !work = x
@@ -1480,7 +1483,7 @@ end subroutine abhgfnff_eg1
 
 !subroutine for case 2: A-H...B including orientation of neighbors at B
 subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,xhbas,rad,nb,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,xhbas,rad,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -1490,19 +1493,19 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(nb(20,B)),ranb2(nb(20,B)),rbnb(nb(20,B)),rbnb2(nb(20,B))
+      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,nb(20,B)),drbnb(3,nb(20,B))
+      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(nb(20,B))
-      real*8 tmp1,tmp2(nb(20,B))
-      real*8 rahprbh,ranbprbnb(nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(nb(20,B))
+      real*8 gi,gi_nb(ffTopo%nb(20,B))
+      real*8 tmp1,tmp2(ffTopo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm
       real*8 qa,qb,qh
@@ -1510,9 +1513,9 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 outl_nb(nb(20,B)),outl_nb_tot
+      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot
       real*8 hbnbcut_save
-      logical mask_nb(nb(20,B))
+      logical mask_nb(ffTopo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -1529,12 +1532,12 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       call hbonds(A,B,at(A),at(B),ca,cb)
 
-      nbb=nb(20,B)
+      nbb=ffTopo%nb(20,B)
 !     Neighbours of B
       do i=1,nbb
 !        compute distances
-         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,nb(i,B))
-         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,nb(i,B))
+         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,ffTopo%nb(i,B))
+         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,ffTopo%nb(i,B))
 !        A-nb(B) distance
          ranb2(i) = sum(dranb(1:3,i)**2)
          ranb(i)  = sqrt(ranb2(i))
@@ -1568,7 +1571,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       outl=2.d0/(1.d0+ratio2)
 
 !     out-of-line damp: A...nb(B)-B
-      if(at(B).eq.7.and.nb(20,B).eq.1) then
+      if(at(B).eq.7.and.ffTopo%nb(20,B).eq.1) then
         hbnbcut_save = 2.0
       else
         hbnbcut_save = ffData%hbnbcut
@@ -1706,14 +1709,14 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
-         gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
+         gdr(1:3,ffTopo%nb(i,B)) = gdr(1:3,ffTopo%nb(i,B)) + gnb(1:3,i)
       end do
 
 end subroutine abhgfnff_eg2new
 
 !subroutine for case 2: A-H...B including LP position
 subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,xhbas,rad,nb,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,xhbas,rad,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -1723,19 +1726,19 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_lp,ratio2_nb(nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_lp,ratio2_nb(ffTopo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(nb(20,B)),ranb2(nb(20,B)),rbnb(nb(20,B)),rbnb2(nb(20,B))
+      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3),dralp(3),drblp(3)
-      real*8 dranb(3,nb(20,B)),drbnb(3,nb(20,B))
+      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,nb(20,B)),gnb_lp(3),glp(3)
+      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B)),gnb_lp(3),glp(3)
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(nb(20,B))
-      real*8 tmp1,tmp2(nb(20,B)),tmp3
-      real*8 rahprbh,ranbprbnb(nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_lp,expo_nb(nb(20,B))
+      real*8 gi,gi_nb(ffTopo%nb(20,B))
+      real*8 tmp1,tmp2(ffTopo%nb(20,B)),tmp3
+      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_lp,expo_nb(ffTopo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm,lpterm
       real*8 qa,qb,qh
@@ -1743,15 +1746,15 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 outl_nb(nb(20,B)),outl_nb_tot,outl_lp
+      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot,outl_lp
       real*8 vector(3),vnorm
       real*8 gii(3,3)
       real*8 unit_vec(3)
-      real*8 drnb(3,nb(20,B))
+      real*8 drnb(3,ffTopo%nb(20,B))
       real*8 lp(3)   !lonepair position
       real*8 lp_dist !distance parameter between B and lonepair
       real*8 ralp,ralp2,rblp,rblp2,ralpprblp
-      logical mask_nb(nb(20,B))
+      logical mask_nb(ffTopo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -1773,12 +1776,12 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       call hbonds(A,B,at(A),at(B),ca,cb)
 
-      nbb=nb(20,B)
+      nbb=ffTopo%nb(20,B)
 !     Neighbours of B
       do i=1,nbb
 !        compute distances
-         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,nb(i,B))
-         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,nb(i,B))
+         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,ffTopo%nb(i,B))
+         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,ffTopo%nb(i,B))
 !        A-nb(B) distance
          ranb2(i) = sum(dranb(1:3,i)**2)
          ranb(i)  = sqrt(ranb2(i))
@@ -1789,7 +1792,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     Neighbours of B
       do i=1,nbb
-         drnb(1:3,i)=xyz(1:3,nb(i,B))-xyz(1:3,B)
+         drnb(1:3,i)=xyz(1:3,ffTopo%nb(i,B))-xyz(1:3,B)
          vector = vector + drnb(1:3,i)
       end do
 
@@ -2001,7 +2004,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3) + gnb_lp(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
-         gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i) - gnb_lp(1:3)/dble(nbb)
+         gdr(1:3,ffTopo%nb(i,B)) = gdr(1:3,ffTopo%nb(i,B)) + gnb(1:3,i) - gnb_lp(1:3)/dble(nbb)
       end do
 
 end subroutine abhgfnff_eg2_rnr
@@ -2011,7 +2014,7 @@ end subroutine abhgfnff_eg2_rnr
 !equal to abhgfnff_eg2_new multiplied by etors and eangl
 subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param,only: ffData,xhbas,rad,nb,repz
+      use xtb_gfnff_param,only: ffData,ffTopo,xhbas,rad,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2021,34 +2024,34 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(nb(20,B)),ranb2(nb(20,B)),rbnb(nb(20,B)),rbnb2(nb(20,B))
+      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,nb(20,B)),drbnb(3,nb(20,B))
+      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
       real*8 phi,phi0,r0,t0,fc,tshift,bshift
       real*8 eangl,etors,gangl(3,n),gtors(3,n)
       real*8 etmp(20),g3tmp(3,3),g4tmp(3,4,20)
       real*8 ratio,qhoutl,radab
-      real*8 gi,gi_nb(nb(20,B))
-      real*8 tmp1,tmp2(nb(20,B))
-      real*8 rahprbh,ranbprbnb(nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(nb(20,B))
+      real*8 gi,gi_nb(ffTopo%nb(20,B))
+      real*8 tmp1,tmp2(ffTopo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm,bterm,tterm
       real*8 qa,qb,qh
       real*8 ca(2),cb(2)
       real*8 gqa,gqb,gqh
       real*8 shortcut
-      real*8 tlist(5,nb(20,nb(1,B)))
-      real*8 vtors(2,nb(20,nb(1,B)))
+      real*8 tlist(5,ffTopo%nb(20,ffTopo%nb(1,B)))
+      real*8 vtors(2,ffTopo%nb(20,ffTopo%nb(1,B)))
       real*8 valijklff
       real*8 const
-      real*8 outl_nb(nb(20,B)),outl_nb_tot
-      logical mask_nb(nb(20,B)),t_mask(20)
+      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot
+      logical mask_nb(ffTopo%nb(20,B)),t_mask(20)
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -2084,17 +2087,17 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !     / \       \
       !    R1  R2      ii
       !------------------------------------------
-      nbb=nb(20,B)
-      C=nb(nbb,B)
-      nbc=nb(20,C)
+      nbb=ffTopo%nb(20,B)
+      C=ffTopo%nb(nbb,B)
+      nbc=ffTopo%nb(20,C)
       ntors=nbc-nbb
 
-      nbb=nb(20,B)
+      nbb=ffTopo%nb(20,B)
 !     Neighbours of B
       do i=1,nbb
 !        compute distances
-         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,nb(i,B))
-         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,nb(i,B))
+         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,ffTopo%nb(i,B))
+         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,ffTopo%nb(i,B))
 !        A-nb(B) distance
          ranb2(i) = sum(dranb(1:3,i)**2)
          ranb(i)  = sqrt(ranb2(i))
@@ -2154,9 +2157,9 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
-         if( nb(i,C) == B ) cycle
+         if( ffTopo%nb(i,C) == B ) cycle
          j = j + 1
-         tlist(1,j)=nb(i,C)
+         tlist(1,j)=ffTopo%nb(i,C)
          tlist(2,j)=B
          tlist(3,j)=C
          tlist(4,j)=H
@@ -2336,7 +2339,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
-         gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
+         gdr(1:3,ffTopo%nb(i,B)) = gdr(1:3,ffTopo%nb(i,B)) + gnb(1:3,i)
       end do
 
 end subroutine abhgfnff_eg3
@@ -2345,7 +2348,7 @@ end subroutine abhgfnff_eg3
 !this is the multiplicative version of incorporationg etors and ebend without neighbor LP
 subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only: ffData,rad,nb,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2355,22 +2358,22 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(nb(20,B)),ranb2(nb(20,B)),rbnb(nb(20,B)),rbnb2(nb(20,B))
+      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,nb(20,B)),drbnb(3,nb(20,B))
+      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
       real*8 phi,phi0,r0,fc,tshift,bshift
       real*8 eangl,etors,gangl(3,n),gtors(3,n)
       real*8 etmp,g3tmp(3,3),g4tmp(3,4)
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(nb(20,B))
-      real*8 tmp1,tmp2(nb(20,B))
-      real*8 rahprbh,ranbprbnb(nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(nb(20,B))
+      real*8 gi,gi_nb(ffTopo%nb(20,B))
+      real*8 tmp1,tmp2(ffTopo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,bterm,tterm
       real*8 qa,qb,qh
@@ -2378,10 +2381,10 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 tlist(5,nb(20,nb(1,B)))
-      real*8 vtors(2,nb(20,nb(1,B)))
+      real*8 tlist(5,ffTopo%nb(20,ffTopo%nb(1,B)))
+      real*8 vtors(2,ffTopo%nb(20,ffTopo%nb(1,B)))
       real*8 valijklff
-      logical mask_nb(nb(20,B))
+      logical mask_nb(ffTopo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -2416,9 +2419,9 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !     / \       \
       !    R1  R2      ii
       !------------------------------------------
-      nbb=nb(20,B)
-      C=nb(nbb,B)
-      nbc=nb(20,C)
+      nbb=ffTopo%nb(20,B)
+      C=ffTopo%nb(nbb,B)
+      nbc=ffTopo%nb(20,C)
       ntors=nbc-nbb
 
       !A-B distance
@@ -2463,9 +2466,9 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
-         if( nb(i,C) == B ) cycle
+         if( ffTopo%nb(i,C) == B ) cycle
          j = j + 1
-         tlist(1,j)=nb(i,C)
+         tlist(1,j)=ffTopo%nb(i,C)
          tlist(2,j)=B
          tlist(3,j)=C
          tlist(4,j)=H
@@ -2605,7 +2608,7 @@ end subroutine abhgfnff_eg3_mul
 !this is the additive version of incorporationg etors and ebend
 subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only: ffData,xhbas,rad,nb,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,xhbas,rad,repz
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2615,22 +2618,22 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(nb(20,B)),ranb2(nb(20,B)),rbnb(nb(20,B)),rbnb2(nb(20,B))
+      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,nb(20,B)),drbnb(3,nb(20,B))
+      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
       real*8 phi,phi0,r0,fc
       real*8 eangl,etors
       real*8 etmp,g3tmp(3,3),g4tmp(3,4)
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(nb(20,B))
-      real*8 tmp1,tmp2(nb(20,B))
-      real*8 rahprbh,ranbprbnb(nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(nb(20,B))
+      real*8 gi,gi_nb(ffTopo%nb(20,B))
+      real*8 tmp1,tmp2(ffTopo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm
       real*8 qa,qb,qh
@@ -2638,11 +2641,11 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 outl_nb(nb(20,B)),outl_nb_tot
-      real*8 tlist(5,nb(20,nb(1,B)))
-      real*8 vtors(2,nb(20,nb(1,B)))
+      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot
+      real*8 tlist(5,ffTopo%nb(20,ffTopo%nb(1,B)))
+      real*8 vtors(2,ffTopo%nb(20,ffTopo%nb(1,B)))
       real*8 valijklff
-      logical mask_nb(nb(20,B))
+      logical mask_nb(ffTopo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -2675,9 +2678,9 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !     / \       \
       !    R1  R2      ii
       !------------------------------------------
-      nbb=nb(20,B)
-      C=nb(nbb,B)
-      nbc=nb(20,C)
+      nbb=ffTopo%nb(20,B)
+      C=ffTopo%nb(nbb,B)
+      nbc=ffTopo%nb(20,C)
       ntors=nbc-nbb
 
       !A-B distance
@@ -2722,9 +2725,9 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
-         if( nb(i,C) == B ) cycle
+         if( ffTopo%nb(i,C) == B ) cycle
          j = j + 1
-         tlist(1,j)=nb(i,C)
+         tlist(1,j)=ffTopo%nb(i,C)
          tlist(2,j)=B
          tlist(3,j)=C
          tlist(4,j)=H

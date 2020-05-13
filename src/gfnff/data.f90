@@ -21,7 +21,7 @@ module xtb_gfnff_data
    implicit none
    private
 
-   public :: TGFFData
+   public :: TGFFData, init
 
 
    !> Parametrisation data for the force field
@@ -87,10 +87,92 @@ module xtb_gfnff_data
       !> max CN cut-off
       real(wp) :: cnmax
 
+      !> rep alpha bond
+      real(wp), allocatable :: repa (:)
+      real(wp), allocatable :: repan(:)
+
+      !> prefactor (Zval), 3atm bond term
+      real(wp), allocatable :: repz (:)
+      real(wp), allocatable :: zb3atm(:)
+
+      !> HB/XB
+      real(wp), allocatable :: xhaci(:)
+      real(wp), allocatable :: xhbas(:)
+      real(wp), allocatable :: xbaci(:)
+
+      !> EN dep. in EEQ.
+      real(wp), allocatable :: chi(:)
+      real(wp), allocatable :: gam(:)
+      real(wp), allocatable :: cnf(:)
+      real(wp), allocatable :: alp(:)
+
+      !> Elem. bond param.
+      real(wp), allocatable :: bond(:)
+
+      !> Elem. angular param.
+      real(wp), allocatable :: angl(:)
+
+      !> Elem. angular param.
+      real(wp), allocatable :: angl2(:)
+
+      !> Elem. torsion param_alloc.
+      real(wp), allocatable :: tors(:)
+
+      !> Elem. torsion param.
+      real(wp), allocatable :: tors2(:)
+
+      !> BJ radii set in gnff_ini()
+      real(wp), allocatable :: d3r0(:)
+
    end type TGFFData
 
 
+   !> Initialize a new instance of the parametrisation data
+   interface init
+      module procedure :: initGFFData
+   end interface init
+
+
 contains
+
+
+!> Initialize a new instance of the parametrisation data
+subroutine initGFFData(self, ndim)
+
+   !> Instance of the parametrisation data
+   type(TGFFData), intent(out) :: self
+
+   !> Dimension for allocating space
+   integer, intent(in) :: ndim
+
+   allocate(self%repa (ndim))
+   allocate(self%repan(ndim))
+
+   allocate(self%repz (ndim))
+   allocate(self%zb3atm(ndim))
+
+   allocate(self%xhaci(ndim))
+   allocate(self%xhbas(ndim))
+   allocate(self%xbaci(ndim))
+
+   allocate(self%chi(ndim))
+   allocate(self%gam(ndim))
+   allocate(self%cnf(ndim))
+   allocate(self%alp(ndim))
+
+   allocate(self%bond(ndim))
+
+   allocate(self%angl(ndim))
+
+   allocate(self%angl2(ndim))
+
+   allocate(self%tors(ndim))
+
+   allocate(self%tors2(ndim))
+
+   allocate(self%d3r0(ndim*(1+ndim)/2))
+
+end subroutine initGFFData
 
 
 end module xtb_gfnff_data

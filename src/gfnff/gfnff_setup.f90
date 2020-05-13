@@ -49,7 +49,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
      if (ex) then
        call read_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,success,.true.)
        !hbrefgeo is usually set within gfnff_ini2/gfnff_hbset0 equal to initial xyz
-       hbrefgeo=mol%xyz
+       ffTopo%hbrefgeo=mol%xyz
        if (success) write(*,'(10x,"GFN-FF topology read from file successfully!")')
        if (.not.success) then
           write(*,'(10x,"GFN-FF topology read in did not work!")')
@@ -99,10 +99,10 @@ subroutine gfnff_input(env, mol)
   character(len=80) :: atmp
   character(len=80) :: s(10)
 
-  if (.not.allocated(nb))       allocate( nb(20,mol%n), source = 0 )
-  if (.not.allocated(qfrag))    allocate( qfrag(mol%n), source = 0.0d0 )
-  if (.not.allocated(fraglist)) allocate( fraglist(mol%n), source = 0 )
-  if (.not.allocated(q))        allocate( q(mol%n), source = 0.0d0 )
+  if (.not.allocated(ffTopo%nb))       allocate( ffTopo%nb(20,mol%n), source = 0 )
+  if (.not.allocated(ffTopo%qfrag))    allocate( ffTopo%qfrag(mol%n), source = 0.0d0 )
+  if (.not.allocated(ffTopo%fraglist)) allocate( ffTopo%fraglist(mol%n), source = 0 )
+  if (.not.allocated(ffTopo%q))        allocate( ffTopo%q(mol%n), source = 0.0d0 )
 
   !write(*,*) 'test' , mol%ftype
 
@@ -128,44 +128,44 @@ subroutine gfnff_input(env, mol)
       do iresidue = minval(rn),maxval(rn)
         if (any(iresidue .eq. rn)) then
           ifrag=ifrag+1
-          where(iresidue .eq. rn) fraglist = ifrag
+          where(iresidue .eq. rn) ffTopo%fraglist = ifrag
         end if
       end do
-      nfrag = maxval(fraglist)
+      ffTopo%nfrag = maxval(ffTopo%fraglist)
       do iatom=1,mol%n
-        qfrag(fraglist(iatom)) = qfrag(fraglist(iatom)) + dble(qatom(iatom))
+        ffTopo%qfrag(ffTopo%fraglist(iatom)) = ffTopo%qfrag(ffTopo%fraglist(iatom)) + dble(qatom(iatom))
       end do
-      qpdb = qatom
+      ffTopo%qpdb = qatom
     end associate
-    ichrg=idint(sum(qfrag(1:nfrag)))
+    ichrg=idint(sum(ffTopo%qfrag(1:ffTopo%nfrag)))
     write(*,'(10x,"charge from pdb residues: ",i0)') ichrg
   !--------------------------------------------------------------------
   ! SDF case
   case(fileType%sdf,fileType%molfile)
     ini = .false.
-    nb=0
-    nfrag=0
+    ffTopo%nb=0
+    ffTopo%nfrag=0
     do ibond = 1, len(mol%bonds)
       call mol%bonds%get_item(ibond,bond_ij)
       i = bond_ij(1)
       j = bond_ij(2)
-      ni=nb(20,i)
+      ni=ffTopo%nb(20,i)
       ex=.false.
       do k=1,ni
-        if(nb(k,i).eq.j) then
+        if(ffTopo%nb(k,i).eq.j) then
           ex=.true.
           exit
         endif
       enddo
       if(.not.ex)then
-        nb(20,i)=nb(20,i)+1
-        nb(nb(20,i),i)=j
-        nb(20,j)=nb(20,j)+1
-        nb(nb(20,j),j)=i
+        ffTopo%nb(20,i)=ffTopo%nb(20,i)+1
+        ffTopo%nb(ffTopo%nb(20,i),i)=j
+        ffTopo%nb(20,j)=ffTopo%nb(20,j)+1
+        ffTopo%nb(ffTopo%nb(20,j),j)=i
       endif
     end do
     do i=1,mol%n
-      if(nb(20,i).eq.0)then
+      if(ffTopo%nb(20,i).eq.0)then
         dum1=1.d+42
         do j=1,i
           r=sqrt(sum((mol%xyz(:,i)-mol%xyz(:,j))**2))
@@ -174,8 +174,8 @@ subroutine gfnff_input(env, mol)
             k=j
           endif
         enddo
-        nb(20,i)=1
-        nb(1,i)=k
+        ffTopo%nb(20,i)=1
+        ffTopo%nb(1,i)=k
       endif
     end do
   !--------------------------------------------------------------------
@@ -191,11 +191,11 @@ subroutine gfnff_input(env, mol)
       read(ich,'(a)')atmp
       call close_file(ich)
       call readline(atmp,floats,s,ns,nf)
-      qfrag(1:nf)=floats(1:nf)
-      ichrg=int(sum(qfrag(1:nf)))
-      qfrag(nf+1:mol%n)=9999
+      ffTopo%qfrag(1:nf)=floats(1:nf)
+      ichrg=int(sum(ffTopo%qfrag(1:nf)))
+      ffTopo%qfrag(nf+1:mol%n)=9999
     else
-      qfrag=0
+      ffTopo%qfrag=0
     end if
   end select
 

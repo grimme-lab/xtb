@@ -71,7 +71,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 ! determine the neighbor list
       if(makeneighbor) then
 
-        nb =0  ! without highly coordinates atoms
+        ffTopo%nb =0  ! without highly coordinates atoms
         nbm=0  ! without any metal
         nbf=0  ! full
 
@@ -89,21 +89,21 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
               if(metal(aj) > 0) f2 = f2 * 2.0d0
               k=lin(j,i)
               rco=rtmp(k)
-              rtmp(k)=rtmp(k)-qa(i)*f1-qa(j)*f2 ! change radius of atom i and j with charge
+              rtmp(k)=rtmp(k)-ffTopo%qa(i)*f1-ffTopo%qa(j)*f2 ! change radius of atom i and j with charge
 !             element specials
               rtmp(k)=rtmp(k)*fat(ai)*fat(aj)
            enddo
         enddo
 
         call getnb(natoms,at,rtmp,rab,mchar,1,f_in,f2_in,nbdum,nbf) ! full
-        call getnb(natoms,at,rtmp,rab,mchar,2,f_in,f2_in,nbf  ,nb ) ! no highly coordinates atoms
+        call getnb(natoms,at,rtmp,rab,mchar,2,f_in,f2_in,nbf  ,ffTopo%nb ) ! no highly coordinates atoms
         call getnb(natoms,at,rtmp,rab,mchar,3,f_in,f2_in,nbf  ,nbm) ! no metals and unusually coordinated stuff
 
 ! take the input
       else
 
-        nbf = nb
-        nbm = nb
+        nbf = ffTopo%nb
+        nbm = ffTopo%nb
 
       endif
 ! done
@@ -120,14 +120,14 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          if(at(i).lt.11.and.nbf(20,i).gt.2)then
             do k=1,nbf(20,i)
                kk=nbf(k,i)
-               if(metal(at(kk)).ne.0.or.nb(20,kk).gt.4) then
-                  nb (19,i)=1
+               if(metal(at(kk)).ne.0.or.ffTopo%nb(20,kk).gt.4) then
+                  ffTopo%nb (19,i)=1
                   nbf(19,i)=1
                   nbm(19,i)=1
                endif
             enddo
          endif
-!        write(*,*) i,(nb(j,i),j=1,nb(20,i))
+!        write(*,*) i,(ffTopo%nb(j,i),j=1,ffTopo%nb(20,i))
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -175,7 +175,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       do i=1,natoms
          ati  = at(i)
          hyb(i)=0    ! don't know it
-         nbdiff =nbf(20,i)-nb (20,i)
+         nbdiff =nbf(20,i)-ffTopo%nb (20,i)
          nbmdiff=nbf(20,i)-nbm(20,i)
          nb20i=nbdum(20,i)
          nh=0
@@ -217,7 +217,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
               else
                                                          hyb(i)=1  ! linear triple bond etc
               endif
-              if(qa(i).lt.-0.4)                          then
+              if(ffTopo%qa(i).lt.-0.4)                          then
                                                          hyb(i)=2
                                                         itag(i)=0  ! tag for Hueckel and HB routines
               endif
@@ -235,9 +235,9 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
                nn=0
                do j=1,3
                   jj=nbdum(j,i)
-                  if(at(jj).eq. 8.and.nb(20,jj).eq.1) kk=kk+1 ! check for NO2 or R2-N=O
-                  if(at(jj).eq. 5.and.nb(20,jj).eq.4) ll=ll+1 ! check for B-N, if the CN(B)=4 the N is loosely bound and sp2
-                  if(at(jj).eq.16.and.nb(20,jj).eq.4) nn=nn+1 ! check for N-SO2-
+                  if(at(jj).eq. 8.and.ffTopo%nb(20,jj).eq.1) kk=kk+1 ! check for NO2 or R2-N=O
+                  if(at(jj).eq. 5.and.ffTopo%nb(20,jj).eq.4) ll=ll+1 ! check for B-N, if the CN(B)=4 the N is loosely bound and sp2
+                  if(at(jj).eq.16.and.ffTopo%nb(20,jj).eq.4) nn=nn+1 ! check for N-SO2-
                enddo
                if(nn.eq.1.and.ll.eq.0.and.kk.eq.0)       hyb(i)=3
                if(ll.eq.1.and.nn.eq.0)                   hyb(i)=2
@@ -270,13 +270,13 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(nb20i.gt.3.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.2)                               hyb(i)=3
             if(nb20i.eq.2.and.nbmdiff.gt.0) then
-               call nn_nearest_noM(i,natoms,at,nb,rab,j) ! CN of closest non-M atom
+               call nn_nearest_noM(i,natoms,at,ffTopo%nb,rab,j) ! CN of closest non-M atom
                                         if(j.eq.3)       hyb(i)=2 ! M-O-X konj
                                         if(j.eq.4)       hyb(i)=3 ! M-O-X non
             endif
             if(nb20i.eq.1)                               hyb(i)=2
             if(nb20i.eq.1.and.nbdiff.eq.0) then
-            if(nb(20,nb(1,i)).eq.1)                      hyb(i)=1 ! CO
+            if(ffTopo%nb(20,ffTopo%nb(1,i)).eq.1)                      hyb(i)=1 ! CO
             endif
          endif
 ! F
@@ -302,15 +302,15 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          endif
       enddo
 
-      nb = nbdum ! list is complete but hyb determination is based only on reduced (without metals) list
+      ffTopo%nb = nbdum ! list is complete but hyb determination is based only on reduced (without metals) list
 
       deallocate(nbdum)
 
       j = 0
       do i=1,natoms
-         if(nb(20,i).gt.12) j = j +1
-         do k=1,nb(20,i)
-            kk=nb(k,i)
+         if(ffTopo%nb(20,i).gt.12) j = j +1
+         do k=1,ffTopo%nb(20,i)
+            kk=ffTopo%nb(k,i)
             if(at(kk).eq.6.and.at(i).eq.6.and.itag(i).eq.1.and.itag(kk).eq.1) then ! check the very special situation of
                itag(i) =0                                                          ! two carbene C bonded which is an arine
                itag(kk)=0
@@ -688,56 +688,56 @@ subroutine gfnff_hbset(n,at,xyz,sqrab)
       real(wp) rab,rmsd
       logical ijnonbond
 
-      rmsd = sqrt(sum((xyz-hbrefgeo)**2))/dble(n)
+      rmsd = sqrt(sum((xyz-ffTopo%hbrefgeo)**2))/dble(n)
 
       if(rmsd.lt.1.d-6 .or. rmsd.gt. 0.3d0) then ! update list if first call or substantial move occured
 
-      nhb1=0
-      nhb2=0
-      do ix=1,nathbAB
-         i=hbatABl(1,ix)
-         j=hbatABl(2,ix)
+      ffTopo%nhb1=0
+      ffTopo%nhb2=0
+      do ix=1,ffTopo%nathbAB
+         i=ffTopo%hbatABl(1,ix)
+         j=ffTopo%hbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
-         ijnonbond=bpair(ij).ne.1
-         do k=1,nathbH
-            nh=hbatHl(k)
+         ijnonbond=ffTopo%bpair(ij).ne.1
+         do k=1,ffTopo%nathbH
+            nh=ffTopo%hbatHl(k)
             inh=lin(i,nh)
             jnh=lin(j,nh)
-            if(bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               nhb2=nhb2+1
-               hblist2(1,nhb2)=i
-               hblist2(2,nhb2)=j
-               hblist2(3,nhb2)=nh
-            elseif(bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               nhb2=nhb2+1
-               hblist2(1,nhb2)=j
-               hblist2(2,nhb2)=i
-               hblist2(3,nhb2)=nh
+            if(ffTopo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
+               ffTopo%nhb2=ffTopo%nhb2+1
+               ffTopo%hblist2(1,ffTopo%nhb2)=i
+               ffTopo%hblist2(2,ffTopo%nhb2)=j
+               ffTopo%hblist2(3,ffTopo%nhb2)=nh
+            elseif(ffTopo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
+               ffTopo%nhb2=ffTopo%nhb2+1
+               ffTopo%hblist2(1,ffTopo%nhb2)=j
+               ffTopo%hblist2(2,ffTopo%nhb2)=i
+               ffTopo%hblist2(3,ffTopo%nhb2)=nh
             elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
-               nhb1=nhb1+1
-               hblist1(1,nhb1)=i
-               hblist1(2,nhb1)=j
-               hblist1(3,nhb1)=nh
+               ffTopo%nhb1=ffTopo%nhb1+1
+               ffTopo%hblist1(1,ffTopo%nhb1)=i
+               ffTopo%hblist1(2,ffTopo%nhb1)=j
+               ffTopo%hblist1(3,ffTopo%nhb1)=nh
             endif
          enddo
       enddo
 
-      nxb =0
-      do ix=1,natxbAB
-         i =xbatABl(1,ix)
-         j =xbatABl(2,ix)
+      ffTopo%nxb =0
+      do ix=1,ffTopo%natxbAB
+         i =ffTopo%xbatABl(1,ix)
+         j =ffTopo%xbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr2)cycle
-         nxb=nxb+1
-         hblist3(1,nxb)=i
-         hblist3(2,nxb)=j
-         hblist3(3,nxb)=xbatABl(3,ix)
+         ffTopo%nxb=ffTopo%nxb+1
+         ffTopo%hblist3(1,ffTopo%nxb)=i
+         ffTopo%hblist3(2,ffTopo%nxb)=j
+         ffTopo%hblist3(3,ffTopo%nxb)=ffTopo%xbatABl(3,ix)
       enddo
 
-      hbrefgeo = xyz
+      ffTopo%hbrefgeo = xyz
 
       endif  ! else do nothing
 
@@ -764,23 +764,23 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl)
 
       bond_nr=0
       bond_hbl=0
-      do ix=1,nathbAB
-         i=hbatABl(1,ix)
-         j=hbatABl(2,ix)
+      do ix=1,ffTopo%nathbAB
+         i=ffTopo%hbatABl(1,ix)
+         j=ffTopo%hbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
-         ijnonbond=bpair(ij).ne.1
-         do k=1,nathbH
-            nh=hbatHl(k)
+         ijnonbond=ffTopo%bpair(ij).ne.1
+         do k=1,ffTopo%nathbH
+            nh=ffTopo%hbatHl(k)
             inh=lin(i,nh)
             jnh=lin(j,nh)
-            if(bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
+            if(ffTopo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
                bond_nr=bond_nr+1
                bond_hbl(1,bond_nr)=i
                bond_hbl(2,bond_nr)=j
                bond_hbl(3,bond_nr)=nh
-            elseif(bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
+            elseif(ffTopo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
                bond_nr=bond_nr+1
                bond_hbl(1,bond_nr)=j
                bond_hbl(2,bond_nr)=i
@@ -807,20 +807,20 @@ subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn)
 
 
       bond_hbn=0
-      do ix=1,nathbAB
-         i=hbatABl(1,ix)
-         j=hbatABl(2,ix)
+      do ix=1,ffTopo%nathbAB
+         i=ffTopo%hbatABl(1,ix)
+         j=ffTopo%hbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
-         ijnonbond=bpair(ij).ne.1
-         do k=1,nathbH
-            nh=hbatHl(k)
+         ijnonbond=ffTopo%bpair(ij).ne.1
+         do k=1,ffTopo%nathbH
+            nh=ffTopo%hbatHl(k)
             inh=lin(i,nh)
             jnh=lin(j,nh)
-            if(bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
+            if(ffTopo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
                bond_hbn=bond_hbn+1
-            elseif(bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
+            elseif(ffTopo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
                bond_hbn=bond_hbn+1
             endif
          enddo
@@ -858,8 +858,8 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB)
       lin_diff=0
 
       do i=1,numbond
-         ii=blist(1,i)
-         jj=blist(2,i)
+         ii=ffTopo%blist(1,i)
+         jj=ffTopo%blist(2,i)
          ia=at(ii)
          ja=at(jj)
          if (ia.eq.1) then
@@ -888,13 +888,13 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB)
                      !Next AH pair
                      if (lin_diff.ne.0) then
                         AH_count = AH_count + 1
-                        bond_hb_AH(1,AH_count) = hbA
-                        bond_hb_AH(2,AH_count) = hbH
+                        ffTopo%bond_hb_AH(1,AH_count) = hbA
+                        ffTopo%bond_hb_AH(2,AH_count) = hbH
                         !Reset B count
                         B_count = 1
                      end if
-                     bond_hb_Bn(AH_count) = B_count
-                     bond_hb_B(B_count,AH_count) = Bat
+                     ffTopo%bond_hb_Bn(AH_count) = B_count
+                     ffTopo%bond_hb_B(B_count,AH_count) = Bat
                   end if
                else
                  cycle
@@ -937,8 +937,8 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
       lin_diff=0
 
       do i=1,numbond
-         ii=blist(1,i)
-         jj=blist(2,i)
+         ii=ffTopo%blist(1,i)
+         jj=ffTopo%blist(2,i)
          ia=at(ii)
          ja=at(jj)
          if (ia.eq.1) then
@@ -972,7 +972,7 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                  cycle
                end if
             end do
-            nr_hb(i) = B_count
+            ffTopo%nr_hb(i) = B_count
          end if
       end do
 
@@ -999,8 +999,8 @@ subroutine bond_hb_AHB_set0(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr)
       tot_AHB_nr=0
 
       do i=1,numbond
-         ii=blist(1,i)
-         jj=blist(2,i)
+         ii=ffTopo%blist(1,i)
+         jj=ffTopo%blist(2,i)
          ia=at(ii)
          ja=at(jj)
          if (ia.eq.1) then
@@ -1046,47 +1046,47 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
       logical ijnonbond
       real(wp) rab
 
-      nhb1=0
-      nhb2=0
-      do ix=1,nathbAB
-         i=hbatABl(1,ix)
-         j=hbatABl(2,ix)
+      ffTopo%nhb1=0
+      ffTopo%nhb2=0
+      do ix=1,ffTopo%nathbAB
+         i=ffTopo%hbatABl(1,ix)
+         j=ffTopo%hbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr1)cycle
-         ijnonbond=bpair(ij).ne.1
-         do k=1,nathbH
-            nh=hbatHl(k)
+         ijnonbond=ffTopo%bpair(ij).ne.1
+         do k=1,ffTopo%nathbH
+            nh=ffTopo%hbatHl(k)
             inh=lin(i,nh)
             jnh=lin(j,nh)
-            if(bpair(inh).eq.1.and.ijnonbond)then
-               nhb2=nhb2+1
-            elseif(bpair(jnh).eq.1.and.ijnonbond)then
-               nhb2=nhb2+1
+            if(ffTopo%bpair(inh).eq.1.and.ijnonbond)then
+               ffTopo%nhb2=ffTopo%nhb2+1
+            elseif(ffTopo%bpair(jnh).eq.1.and.ijnonbond)then
+               ffTopo%nhb2=ffTopo%nhb2+1
             elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
-               nhb1=nhb1+1
+               ffTopo%nhb1=ffTopo%nhb1+1
             endif
          enddo
       enddo
 
-      nxb =0
-      do ix=1,natxbAB
-         i =xbatABl(1,ix)
-         j =xbatABl(2,ix)
+      ffTopo%nxb =0
+      do ix=1,ffTopo%natxbAB
+         i =ffTopo%xbatABl(1,ix)
+         j =ffTopo%xbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr2)cycle
-         nxb=nxb+1
+         ffTopo%nxb=ffTopo%nxb+1
       enddo
 
 ! the actual size can be larger, so make it save
-      nhb1=(nhb1*5)
-      nhb2=(nhb2*5)
-      nxb =(nxb *3)
+      ffTopo%nhb1=(ffTopo%nhb1*5)
+      ffTopo%nhb2=(ffTopo%nhb2*5)
+      ffTopo%nxb =(ffTopo%nxb *3)
 
 !     initialize the HB list check array
 
-      hbrefgeo = xyz
+      ffTopo%hbrefgeo = xyz
 
       end subroutine gfnff_hbset0
 
@@ -1100,8 +1100,8 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
       integer i,j
       integer ati,atj
       real*8 ci(2),cj(2)
-      ci(1)=hbbas(i)
-      cj(1)=hbbas(j)
+      ci(1)=ffTopo%hbbas(i)
+      cj(1)=ffTopo%hbbas(j)
       ci(2)=xhaci(ati)
       cj(2)=xhaci(atj)
       end subroutine hbonds
@@ -1299,7 +1299,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 subroutine goedeckera(n,at,nb,pair,q,es)
       use iso_fortran_env, id => output_unit, wp => real64
       use xtb_mctc_la
-      use xtb_gfnff_param, only: alpeeq,chieeq,gameeq,nfrag,qfrag,fraglist
+      use xtb_gfnff_param, only: ffTopo
    implicit none
    integer, intent(in)  :: n          ! number of atoms
    integer, intent(in)  :: at(n)      ! ordinal numbers
@@ -1326,7 +1326,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
 !  parameter
    parameter (tsqrt2pi = 0.797884560802866_wp)
 
-   m=n+nfrag ! # atoms frag constrain
+   m=n+ffTopo%nfrag ! # atoms frag constrain
    allocate(A(m,m),x(m),work(m*m),ipiv(m))
 
 !  call prmati(6,pair,n,0,'pair')
@@ -1335,8 +1335,8 @@ subroutine goedeckera(n,at,nb,pair,q,es)
 
 !  setup RHS
    do i=1,n
-      x(i)    =chieeq(i) ! EN of atom
-      A(i,i)  =gameeq(i)+tsqrt2pi/sqrt(alpeeq(i))
+      x(i)    =ffTopo%chieeq(i) ! EN of atom
+      A(i,i)  =ffTopo%gameeq(i)+tsqrt2pi/sqrt(ffTopo%alpeeq(i))
    enddo
 
 !  setup A matrix
@@ -1345,7 +1345,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
          ij = i*(i-1)/2+j
          rij=pair(ij)
          r2 = rij*rij
-         gammij=1.d0/sqrt(alpeeq(i)+alpeeq(j)) ! squared above
+         gammij=1.d0/sqrt(ffTopo%alpeeq(i)+ffTopo%alpeeq(j)) ! squared above
          tmp = erf(gammij*rij)/rij
          A(j,i) = tmp
          A(i,j) = tmp
@@ -1353,10 +1353,10 @@ subroutine goedeckera(n,at,nb,pair,q,es)
    enddo
 
 !  fragment charge constrain
-   do i=1,nfrag
-      x(n+i)=qfrag(i)
+   do i=1,ffTopo%nfrag
+      x(n+i)=ffTopo%qfrag(i)
       do j=1,n
-         if(fraglist(j).eq.i) then
+         if(ffTopo%fraglist(j).eq.i) then
             A(n+i,j)=1
             A(j,n+i)=1
          endif
@@ -1371,7 +1371,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
 
    q(1:n) = x(1:n)
 
-   if(n.eq.1) q(1)=qfrag(1)
+   if(n.eq.1) q(1)=ffTopo%qfrag(1)
 
 !  energy
       es = 0.0_wp
@@ -1380,12 +1380,12 @@ subroutine goedeckera(n,at,nb,pair,q,es)
       do j=1,i-1
          ij = ii+j
          rij=pair(ij)
-         gammij=1.d0/sqrt(alpeeq(i)+alpeeq(j)) ! squared above
+         gammij=1.d0/sqrt(ffTopo%alpeeq(i)+ffTopo%alpeeq(j)) ! squared above
          tmp = erf(gammij*rij)/rij
          es = es + q(i)*q(j)*tmp/rij
       enddo
-      es = es - q(i)* chieeq(i) &
-     &        + q(i)*q(i)*0.5d0*(gameeq(i)+tsqrt2pi/sqrt(alpeeq(i)))
+      es = es - q(i)* ffTopo%chieeq(i) &
+     &        + q(i)*q(i)*0.5d0*(ffTopo%gameeq(i)+tsqrt2pi/sqrt(ffTopo%alpeeq(i)))
       enddo
 
 end subroutine goedeckera
