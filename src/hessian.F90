@@ -34,8 +34,6 @@ subroutine numhess( &
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
-   use xtb_xtb_calculator
-   use xtb_gfnff_calculator
    use xtb_type_data
 
    use xtb_setparam
@@ -44,6 +42,8 @@ subroutine numhess( &
 
    use xtb_single, only : singlepoint
    use xtb_axis, only : axis
+
+   use xtb_gfnff_calculator, only : TGFFCalculator
 
    implicit none
 
@@ -157,7 +157,9 @@ subroutine numhess( &
    type is (TGFFCalculator)
       parallize = .false.
    end select
-   omp_parallel: if (parallize) then
+
+   omp_parallize: if (parallize) then
+
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -237,6 +239,7 @@ subroutine numhess( &
       !$ call mkl_set_num_threads(nproc)
 #endif
 
+   else
 !! ------------------------------------------------------------------------
 !  normal case
 !! ------------------------------------------------------------------------
@@ -308,7 +311,8 @@ subroutine numhess( &
 
    endif
 
-   else omp_parallel
+   else omp_parallize
+
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -372,6 +376,7 @@ subroutine numhess( &
          endif
       enddo
 
+   else
 !! ------------------------------------------------------------------------
 !  normal case
 !! ------------------------------------------------------------------------
@@ -426,7 +431,8 @@ subroutine numhess( &
       enddo
 
    endif
-   end if omp_parallel
+
+   end if omp_parallize
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
