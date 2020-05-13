@@ -51,6 +51,7 @@ srcs += files(
   'david2.f90',
   'david.f',
   'define.f90',
+  'detrotra.f90',
   'dipole.f90',
   'drsp.f',
   'dtrafo.f90',

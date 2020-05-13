@@ -495,7 +495,6 @@ module xtb_gfnff_param
      integer   :: i,j,k
      real(wp)  :: dum
 
-     hbnbcut = hbnbcut*10. ! new parameter for neighbour angle
      cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
      linthr  = 160.        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
                            ! but this occurs e.g. for Sc in unclear situations. So make it save (160)
