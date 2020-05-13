@@ -26,6 +26,10 @@ write(iunit,'(3x,a)') &
    "* P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint.",&
    "  DOI: 10.26434/chemrxiv.8326202.v1",&
    "",&
+   "for GFN-FF:",&
+   "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020,",&
+   "  DOI: 10.1002/anie.202004239", &
+   "",&
    "for DFT-D4:",&
    "* E. Caldeweyher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2017,",&
    "  147, 034112. DOI: 10.1063/1.4993215", &

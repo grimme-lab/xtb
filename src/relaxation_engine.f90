@@ -399,6 +399,8 @@ subroutine l_ancopt &
    use xtb_hessian
    use xtb_lsrmsd
 
+   use xtb_gfnff_fraghess
+
    implicit none
 
    !> Source of errors in the main program unit
@@ -469,6 +471,9 @@ subroutine l_ancopt &
    !  settings for the LBFGS optimizer
    type(lbfgs_options) :: opt
 
+   !  determine wheter hessian is fragmented or not
+   logical :: fragmented_hessian
+
    !  timer for profiling (only for printlevel > 1)
    type(tb_timer) :: timer
 
@@ -517,13 +522,25 @@ subroutine l_ancopt &
    minpr = opt%printlevel > 0
    pr    = opt%printlevel > 1
    debug = opt%printlevel > 2
+   fragmented_hessian = mode_extrun.eq.p_ext_gfnff.and.mol%n.gt.500
+
+   if (mode_extrun.eq.p_ext_gfnff) opt%hlow = 0.02
+   if (fragmented_hessian) then
+      if (mol%n .gt. 2000) opt%hlow = 2.0e-2_wp + (mol%n - 2000.0_wp) * 5.0e-6_wp
+      opt%hlow=min(opt%hlow,0.05_wp)
+   end if   
 
    call axis(mol%n,mol%at,mol%xyz,a,b,c)
    linear = c.lt.1.0e-10_wp
 
+   ! different DOF in case of frag hess
    nat3 = 3 * mol%n
-   nvar = nat3 - 6
-   if(linear) nvar = nat3 - 5
+   if (fragmented_hessian) then
+      nvar = nat3
+   else
+      nvar = nat3 - 6
+      if(linear) nvar = nat3 - 5
+   end if
 
    ! print a nice summary with all settings and thresholds of ANCopt
    if(pr)then
@@ -572,16 +589,36 @@ subroutine l_ancopt &
       enddo
    enddo
    ! diagonalize the hessian
-   lwork  = 1 + 6*nat3 + 2*nat3**2
-   allocate(aux(lwork))
-   call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
-   deallocate(aux)
+   if (fragmented_hessian) then
+      if (nsystem.gt.1) then
+         write(env%unit,'(" * fragmented diagonalization...",1x,i0,1x,"fragments")') nsystem
+         call frag_hess_diag(mol%n,hess,eig)
+       else if (nsystem.eq.1) then
+          lwork  = 1 + 6*nat3 + 2*nat3**2
+          allocate(aux(lwork))
+          call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
+          deallocate(aux)
+       end if
+   else
+      lwork  = 1 + 6*nat3 + 2*nat3**2
+      allocate(aux(lwork))
+      call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
+      deallocate(aux)
+   end if
 
-   thr = 1.0e-11_wp
-   ! shift all non-zero eigenvalues by
-   edum = minval(eig)
-   damp = max(opt%hlow - edum,0.0_wp)
-   where(abs(eig).gt.thr) eig = eig+damp
+   if (mode_extrun.eq.p_ext_gfnff) then
+      thr = 1.0e-7_wp
+      ! shift all non-zero eigenvalues by
+      edum = minval(eig)
+      damp = max(opt%hlow - edum,0.0_wp)
+      eig = eig+damp
+   else
+      thr = 1.0e-11_wp
+      ! shift all non-zero eigenvalues by
+      edum = minval(eig)
+      damp = max(opt%hlow - edum,0.0_wp)
+      where(abs(eig).gt.thr) eig = eig+damp
+   end if
 
    if(pr)then
       write(env%unit,*) 'Shifting diagonal of input Hessian by ', damp

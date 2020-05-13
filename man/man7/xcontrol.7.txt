@@ -343,7 +343,7 @@ $opt
 *tsroot*='int'::
     dummy
 
-*hessian*=lindh-d2|lindh|swart::
+*hessian*=lindh-d2|lindh|swart|gfnff::
     model hessian for generation of ANC used in optimization
 
 *kstretch*='real'::

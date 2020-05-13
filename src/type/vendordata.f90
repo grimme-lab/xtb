@@ -21,7 +21,7 @@ module xtb_type_vendordata
    implicit none
    private
 
-   public :: pdb_data, sdf_data, vasp_info, turbo_info
+   public :: pdb_data, sdf_data, vasp_info, turbo_info, struc_info
    public :: resize
 
 
@@ -77,6 +77,16 @@ module xtb_type_vendordata
       logical :: angs_lattice = .false.
       logical :: angs_coord = .false.
    end type turbo_info
+
+
+   !> structure input info
+   !
+   !  contains informations from different input file formats
+   !  SDF: is the structure 2d or 3D?
+   type :: struc_info
+      logical :: two_dimensional = .false.
+      logical :: add_hydrogen = .false.
+   end type struc_info
 
 
    interface resize

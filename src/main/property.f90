@@ -47,6 +47,28 @@ subroutine write_energy(iunit,sccres,frqres,hess)
    write(iunit,'(11x,49("-"))')
 end subroutine write_energy
 
+subroutine write_energy_gff(iunit,sccres,frqres,hess)
+   use xtb_type_data
+   implicit none
+   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
+   logical, intent(in) :: hess
+   type(scc_results), intent(in) :: sccres
+   type(freq_results),intent(in) :: frqres
+   character(len=*),parameter :: outfmt = '(10x,"|",1x,a,f24.12,1x,a,1x,"|")'
+   write(iunit,'(a)')
+   write(iunit,'(11x,49("-"))')
+   if (hess) then
+      write(iunit,outfmt) "TOTAL ENERGY      ", frqres%etot,            "Eh  "
+      write(iunit,outfmt) "TOTAL ENTHALPY    ", frqres%etot+frqres%htot,"Eh  "
+      write(iunit,outfmt) "TOTAL FREE ENERGY ", frqres%etot+frqres%gtot,"Eh  "
+      write(iunit,outfmt) "GRADIENT NORM     ", frqres%gnorm,           "Eh/α"
+   else
+      write(iunit,outfmt) "TOTAL ENERGY      ", sccres%e_total,"Eh  "
+      write(iunit,outfmt) "GRADIENT NORM     ", sccres%gnorm,  "Eh/α"
+   endif
+   write(iunit,'(11x,49("-"))')
+end subroutine write_energy_gff
+
 subroutine main_property &
       (iunit,mol,wfx,basis,xtbData,res,acc)
 
@@ -937,7 +959,11 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    atom=.false.
    linear=.false.
    sthr=thermo_sthr
-   scale_factor=1.0
+   if (mode_extrun.eq.p_ext_gfnff) then
+      scale_factor=1.03
+   else
+      scale_factor=1.0
+   end if
    nvib=0
    nimag=0
 

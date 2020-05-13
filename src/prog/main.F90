@@ -38,6 +38,7 @@ module xtb_prog_main
    use xtb_constrain_param, only : read_userdata
    use xtb_solv_gbobc, only: lgbsa,init_gbsa
    use xtb_shake, only: init_shake
+   use xtb_gfnff_shake, only: gff_init_shake => init_shake
    use xtb_embedding, only : init_pcem
    use xtb_io_reader, only : readMolecule
    use xtb_io_writer, only : writeMolecule
@@ -70,6 +71,7 @@ module xtb_prog_main
    use xtb_mdoptim, only : mdopt
    use xtb_screening, only : screen
    use xtb_xtb_calculator
+   use xtb_gfnff_calculator
    use xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
@@ -79,6 +81,11 @@ module xtb_prog_main
    use xtb_metadynamic
    use xtb_biaspath
    use xtb_coffee
+   use xtb_disp_dftd3param
+   use xtb_disp_dftd4
+   use xtb_gfnff_param, only : gff_print
+   use xtb_gfnff_setup, only : gfnff_setup
+   use xtb_gfnff_convert, only : struc_convert
    implicit none
    private
 
@@ -121,6 +128,7 @@ subroutine xtbMain(env, argParser)
    character(len=*),parameter :: p_fname_param_gfn0  = '.param_gfn0.xtb'
    character(len=*),parameter :: p_fname_param_gfn1  = '.param_gfn.xtb'
    character(len=*),parameter :: p_fname_param_gfn2  = '.param_gfn2.xtb'
+   character(len=*),parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
    character(len=*),parameter :: p_fname_param_ipea  = '.param_ipea.xtb'
    character(len=*),parameter :: p_fname_param_stda1 = '.param_stda1.xtb'
    character(len=*),parameter :: p_fname_param_stda2 = '.param_stda2.xtb'
@@ -143,6 +151,9 @@ subroutine xtbMain(env, argParser)
 
 !! ------------------------------------------------------------------------
    integer,external :: ncore
+
+!! ------------------------------------------------------------------------
+   logical :: struc_conversion_done = .false.
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -241,6 +252,18 @@ subroutine xtbMain(env, argParser)
          call env%error('.UHF is empty!', source)
       else
          call set_spin(env,cdum)
+         call close_file(ich)
+      end if
+   endif
+   
+   !> efield read: gfnff only
+   call open_file(ich,'.EFIELD','r')
+   if (ich.ne.-1) then
+      call getline(ich,cdum,iostat=err)
+      if (err /= 0) then
+         call env%error('.EFIELD is empty!', source)
+      else
+         call set_efield(env,cdum)
          call close_file(ich)
       end if
    endif
@@ -346,6 +369,15 @@ subroutine xtbMain(env, argParser)
    if(fit) acc=0.2 ! higher SCF accuracy during fit
 
    ! ------------------------------------------------------------------------
+   !> 2D => 3D STRUCTURE CONVERTER
+   ! ------------------------------------------------------------------------
+   if (mol%struc%two_dimensional) then
+      call struc_convert (env,restart,mol,wfn,egap,etemp,maxscciter, &
+                       &  optset%maxoptcycle,etot,g,sigma)
+      struc_conversion_done = .true.
+   end if
+
+   ! ------------------------------------------------------------------------
    !> CONSTRAINTS & SCANS
    !> now we are at a point that we can check for requested constraints
    call read_userdata(xcontrol,env,mol)
@@ -421,15 +453,19 @@ subroutine xtbMain(env, argParser)
       case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess, &
             p_run_md,p_run_omd,p_run_path,p_run_screen, &
             p_run_modef,p_run_mdopt,p_run_metaopt)
-         if(gfn_method.eq.0) then
-            fnv=xfind(p_fname_param_gfn0)
-         endif
-         if(gfn_method.eq.1) then
-            fnv=xfind(p_fname_param_gfn1)
-         endif
-         if(gfn_method.eq.2) then
-            fnv=xfind(p_fname_param_gfn2)
-         endif
+        if (mode_extrun.eq.p_ext_gfnff) then
+            fnv=xfind(p_fname_param_gfnff)
+        else
+           if(gfn_method.eq.0) then
+              fnv=xfind(p_fname_param_gfn0)
+           endif
+           if(gfn_method.eq.1) then
+              fnv=xfind(p_fname_param_gfn1)
+           endif
+           if(gfn_method.eq.2) then
+              fnv=xfind(p_fname_param_gfn2)
+           endif
+        end if
       case(p_run_vip,p_run_vea,p_run_vipea,p_run_vfukui,p_run_vomega)
          if(gfn_method.eq.0) then
             fnv=xfind(p_fname_param_gfn0)
@@ -501,6 +537,14 @@ subroutine xtbMain(env, argParser)
       call checkMopac(env)
    end select
 
+   ! ------------------------------------------------------------------------
+   !> initialize GFN-force-field
+   select type(calc)
+   type is(TGFFCalculator)
+      call d3init(mol%n, mol%at)
+      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
+   end select
+
    call delete_file('.sccnotconverged')
 
    call env%checkpoint("Setup for calculation failed")
@@ -523,9 +567,21 @@ subroutine xtbMain(env, argParser)
       &       (env,mol,wfn,calc, &
       &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
-
+   select type(calc)
+   type is(TGFFCalculator)
+     gff_print=.false.
+   end select
    call env%checkpoint("Single point calculation terminated")
 
+   !> write 2d => 3d converted structure   
+   if (struc_conversion_done) then
+      call generateFileName(tmpname, 'gfnff_convert', extension, mol%ftype)
+      write(env%unit,'(10x,a,1x,a,/)') &
+         "converted geometry written to:",tmpname
+      call open_file(ich,tmpname,'w')
+      call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
+      call close_file(ich)
+   end if
 
    ! ------------------------------------------------------------------------
    !> numerical gradient for debugging purposes
@@ -787,8 +843,14 @@ subroutine xtbMain(env, argParser)
       call close_file(ich)
    endif
 
-   call write_energy(env%unit,res,fres, &
-      & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+   select type(calc)
+   type is(TxTBCalculator)
+      call write_energy(env%unit,res,fres, &
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+   type is(TGFFCalculator)
+      call write_energy_gff(env%unit,res,fres, &
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+   end select  
 
 
    ! ------------------------------------------------------------------------
@@ -805,7 +867,12 @@ subroutine xtbMain(env, argParser)
       fixset%n = 0 ! no fixing for MD runs
       call start_timing(6)
       idum = 0
-      if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
+      select type(calc)
+      type is(TxTBCalculator)
+         if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
+      type is(TGFFCalculator)
+         if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz)
+      end select
       call md &
          &     (env,mol,wfn,calc, &
          &      egap,etemp,maxscciter,etot,g,sigma,0,temp_md,idum)
@@ -1168,9 +1235,15 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--gfn0')
          call set_gfn(env,'method','0')
-         call set_exttyp('eht')    !ppracht 10/2018 GFN0
+         call set_exttyp('eht')
          call env%warning("The use of '"//flag//"' is discouraged, " //&
             & "please use '--gfn 0' next time", source)
+      
+      case('--gfnff')
+         call set_exttyp('ff')
+      
+      case('--gff')
+         call set_exttyp('ff')
 
       case('--etemp')
          call args%nextArg(sec)

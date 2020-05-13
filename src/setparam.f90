@@ -99,7 +99,7 @@ module xtb_setparam
    integer, parameter :: p_engine_rf       = 1
    integer, parameter :: p_engine_lbfgs    = 2
    integer, parameter :: p_engine_inertial = 3
-   integer :: opt_engine = p_engine_rf
+   integer :: opt_engine = p_engine_lbfgs
    type(ancopt_setvar) :: optset = ancopt_setvar (&
       optlev = p_olev_normal, &
 !  number of opt. cycles before new ANC are made
@@ -116,6 +116,7 @@ module xtb_setparam
    integer, parameter :: p_modh_lindh_d2 =  2
    integer, parameter :: p_modh_swart    =  3
    integer, parameter :: p_modh_old      =  4
+   integer, parameter :: p_modh_gff      =  5
    type(modhess_setvar) :: mhset = modhess_setvar (&
       model = p_modh_old, &
 !  force constants for stretch, bend and torsion
@@ -360,6 +361,7 @@ module xtb_setparam
    integer, parameter :: p_ext_psi4      = 10
    integer, parameter :: p_ext_adf       = 11
    integer, parameter :: p_ext_mopac     = 12
+   integer, parameter :: p_ext_gfnff     = 13
 !  integer  :: dummyint ! not used
    integer  :: runtyp = 2 ! SCC by default
    integer, parameter :: p_run_scc    =   2

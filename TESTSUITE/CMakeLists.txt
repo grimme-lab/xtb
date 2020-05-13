@@ -34,6 +34,7 @@ set(tests
   "${dir}/gfn2.f90"
   "${dir}/gfn1.f90"
   "${dir}/gfn0.f90"
+  "${dir}/gfnff.f90"
   "${dir}/peeq.f90"
   "${dir}/repulsion.f90"
   "${dir}/symmetry.f90"
@@ -80,6 +81,7 @@ add_test("EXE_IP/EA" ${XTB-EXE} --coffee --gfn 2 --vipea --strict --norestart)
 add_test("EXE_GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart)
 add_test("EXE_GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart)
 add_test("EXE_GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart)
+add_test("EXE_GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart)
 
 add_test("Molecule_axis" ${XTB-TESTER} xtb_type_molecule axis)
 add_test("Molecule_MIC" ${XTB-TESTER} xtb_type_molecule mic)
@@ -147,6 +149,9 @@ add_test("GFN0-xTB_SP_PBC" ${XTB-TESTER} peeq sp)
 add_test("GFN0-xTB_API_PBC" ${XTB-TESTER} peeq api)
 add_test("GFN0-xTB_SRB_PBC" ${XTB-TESTER} peeq srb)
 
+add_test("GFN-FF_SP" ${XTB-TESTER} gfnff sp)
+add_test("GFN-FF_HB" ${XTB-TESTER} gfnff hb)
+
 add_test("CAPI" ${XTB-CTESTER})
 
 set_tests_properties(EXE_Singlepoint
@@ -154,6 +159,7 @@ set_tests_properties(EXE_Singlepoint
   "EXE_IP/EA"
   "EXE_GFN1-xTB"
   "EXE_GFN2-xTB/GBSA"
+  "EXE_GFN2-FF"
   "CAPI"
   "GFN2-xTB_SCC"
   "GFN2-xTB_API"
@@ -172,6 +178,8 @@ set_tests_properties(EXE_Singlepoint
   "GFN0-xTB_SP_PBC"
   "GFN0-xTB_API_PBC"
   "GFN0-xTB_SRB_PBC"
+  "GFN-FF_SP"
+  "GFN-FF_HB"
   PROPERTIES
   ENVIRONMENT XTBPATH=${CMAKE_CURRENT_SOURCE_DIR}/..
 )

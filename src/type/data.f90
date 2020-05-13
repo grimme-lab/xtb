@@ -46,6 +46,12 @@ module xtb_type_data
       real(wp) :: g_total = 0.0_wp
       real(wp) :: gnorm = 0.0_wp
       logical  :: converged = .true.
+      real(wp) :: e_bond = 0.0_wp
+      real(wp) :: e_angl = 0.0_wp
+      real(wp) :: e_tors = 0.0_wp
+      real(wp) :: e_hb = 0.0_wp
+      real(wp) :: e_batm = 0.0_wp
+      real(wp) :: e_ext = 0.0_wp
    end type scc_results
 
    type freq_results

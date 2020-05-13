@@ -19,6 +19,7 @@
 module xtb_main_setup
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
+   use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : TxTBParameter
@@ -27,6 +28,7 @@ module xtb_main_setup
    use xtb_paramset, only : use_parameterset
    use xtb_basis, only : newBasisset
    use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_eeq, only : goedecker_chrgeq
    use xtb_iniq, only : iniqcn
    use xtb_scc_core, only : iniqshell
@@ -36,7 +38,7 @@ module xtb_main_setup
    private
 
    public :: newCalculator
-   public :: newXTBCalculator
+   public :: newXTBCalculator, newGFFCalculator
 
 
 contains
@@ -55,6 +57,8 @@ subroutine newCalculator(env, mol, calc, fname)
    character(len=*), intent(in) :: fname
 
    type(TxTBCalculator), allocatable :: xtb
+   type(TGFFCalculator), allocatable :: gfnff
+   
    logical :: exitRun
 
    select case(mode_extrun)
@@ -72,8 +76,20 @@ subroutine newCalculator(env, mol, calc, fname)
       end if
 
       call move_alloc(xtb, calc)
+   case(p_ext_gfnff)
+      allocate(gfnff)
+
+      call newGFFCalculator(env, mol, gfnff, fname)
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
+
+      call move_alloc(gfnff, calc)
    case(p_ext_qmdff, p_ext_orca, p_ext_turbomole, p_ext_mopac)
-      allocate(TCalculator :: calc)
+      allocate(TDummyCalculator :: calc)
    end select
 
 end subroutine newCalculator
@@ -127,5 +143,43 @@ subroutine newXTBCalculator(env, mol, calc, fname)
 
 end subroutine newXTBCalculator
 
+subroutine newGFFCalculator(env, mol, calc, fname)
+   use xtb_gfnff_param
+
+   character(len=*), parameter :: source = 'main_setup_newGFFCalculator'
+
+   type(TEnvironment), intent(inout) :: env
+
+   type(TMolecule), intent(in) :: mol
+
+   type(TGFFCalculator), intent(out) :: calc
+
+   character(len=*), intent(in) :: fname
+
+   type(TxTBParameter) :: globpar
+   integer :: ich
+   logical :: exist, okbas
+   logical :: exitRun
+
+   calc%dummy = 1
+
+   !> Obtain the parameter file
+   call open_file(ich, fname, 'r')
+   exist = ich /= -1
+   if (exist) then
+      call gfnff_read_param(ich)
+      call close_file(ich)
+   else ! no parameter file
+      call env%error('Parameter file '//fname//' not found!', source)
+      return
+   endif
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not load parameters", source)
+      return
+   end if
+
+end subroutine newGFFCalculator
 
 end module xtb_main_setup

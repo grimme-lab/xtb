@@ -23,6 +23,7 @@ module xtb_restart
    implicit none
 
    public :: readRestart, writeRestart
+   public :: read_restart_gff, write_restart_gff
 
 
 contains
@@ -77,11 +78,68 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
          if (verbose) &
          call env%warning("Dimension missmatch in restart file.", source)
          success = .false.
+      end if
+   end if
+
+end subroutine readRestart
+
+
+subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose)
+   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_gfnff_param
+   use xtb_gfnff_fraghess, only : nsystem,ispinsyst,nspinsyst
+   implicit none
+   character(len=*),intent(in) :: fname
+   integer,intent(in)  :: n
+   integer,intent(in)  :: p_ext_gfnff
+   logical,intent(out) :: success
+   logical,intent(in)  :: verbose
+
+   integer(int64) :: iver8,nat8
+
+   integer :: ich ! file handle
+   integer :: err
+   logical :: exist
+
+   success = .false.
+   call open_binary(ich,fname,'r')
+   if (ich.ne.-1) then
+      !read the first byte, which identify the calculation specs
+      read(ich,iostat=err) iver8,nat8
+      if(err.eq.0) then
+         if (iver8.ne.int(p_ext_gfnff,int64).and.verbose) &
+            &  call raise('W','Version number missmatch in restart file.',1)
+         if (nat8.ne.n.and.verbose) then
+            call raise('W','Atom number missmatch in restart file.',1)
+            success=.false.
+            return
+         else if (iver8.eq.int(p_ext_gfnff)) then
+            success = .true.
+            read(ich) nbond,nangl,ntors,nhb1,nhb2,nxb,nathbH,nathbAB,  &
+                    & natxbAB,nbatm,nfrag,nsystem,maxsystem        
+            read(ich) nbond_blist,nbond_vbond,nangl_alloc,ntors_alloc,bond_hb_nr,b_max
+            call gfnff_param_alloc(n)
+            if (.not.allocated(ispinsyst)) allocate( ispinsyst(n,maxsystem), source = 0 )
+            if (.not.allocated(nspinsyst)) allocate( nspinsyst(maxsystem), source = 0 )
+            read(ich) nb,bpair,blist,alist,tlist,b3list,hblist1,hblist2,hblist3,       &
+                    & fraglist,hbatHl,hbatABl,xbatABl,ispinsyst,nspinsyst,             &
+                    & bond_hb_AH,bond_hb_B,bond_hb_Bn,nr_hb
+            read(ich) vbond,vangl,vtors,chieeq,gameeq,alpeeq,alphanb,qa,q,xyze0,zetac6,&
+                    & qfrag,hbbas
+         else
+            if (verbose) &
+               call raise('S','Dimension missmatch in restart file.',1)
+            success = .false.
+         endif
+      else
+         if (verbose) &
+            call raise('S',"Dimension missmatch in restart file.",1)
+         success = .false.
       endif
       call close_file(ich)
    endif
 
-end subroutine readRestart
+end subroutine read_restart_gff
 
 
 subroutine writeRestart(env,wfx,fname,gfn_method)
@@ -93,8 +151,8 @@ subroutine writeRestart(env,wfx,fname,gfn_method)
 
    call open_binary(ich,fname,'w')
    write(ich) int(gfn_method,i8),int(gfn_method,i8), &
-              int(wfx%n,i8),int(wfx%nshell,i8), &
-              int(wfx%nel,i8),int(wfx%nopen,i8)
+      int(wfx%n,i8),int(wfx%nshell,i8), &
+      int(wfx%nel,i8),int(wfx%nopen,i8)
    write(ich) wfx%qsh
    if (gfn_method.gt.1) then
       write(ich) wfx%dipm
@@ -103,6 +161,34 @@ subroutine writeRestart(env,wfx,fname,gfn_method)
    call close_file(ich)
 
 end subroutine writeRestart
+
+
+subroutine write_restart_gff(fname,nat,p_ext_gfnff)
+   use iso_fortran_env, wp => real64, istdout => output_unit
+   use xtb_gfnff_param
+   use xtb_gfnff_fraghess, only : nsystem,ispinsyst,nspinsyst
+   implicit none
+   character(len=*),intent(in) :: fname
+   integer,intent(in)  :: nat
+   integer,intent(in)  :: p_ext_gfnff
+   integer :: ich ! file handle
+
+   call open_binary(ich,fname,'w')
+   !Dimensions
+   write(ich) int(p_ext_gfnff,int64),int(nat,int64)
+   write(ich) nbond,nangl,ntors,   &
+            & nhb1,nhb2,nxb,nathbH,nathbAB,natxbAB,nbatm,nfrag,nsystem,  &
+            & maxsystem
+   write(ich) nbond_blist,nbond_vbond,nangl_alloc,ntors_alloc,bond_hb_nr,b_max
+   !Arrays Integers
+   write(ich) nb,bpair,blist,alist,tlist,b3list,hblist1,hblist2,hblist3, &
+      & fraglist,hbatHl,hbatABl,xbatABl,ispinsyst,nspinsyst,             &
+      & bond_hb_AH,bond_hb_B,bond_hb_Bn,nr_hb
+   !Arrays Reals
+   write(ich) vbond,vangl,vtors,chieeq,gameeq,alpeeq,alphanb,qa,q,       &
+      & xyze0,zetac6,qfrag,hbbas
+   call close_file(ich)
+end subroutine write_restart_gff
 
 
 end module xtb_restart

@@ -56,6 +56,61 @@ module xtb_disp_dftd4
 
 contains
 
+subroutine d3init(nat,at)
+   use xtb_disp_dftd4param
+   implicit none
+   integer, intent(in)  :: nat
+   integer, intent(in)  :: at(nat)
+
+   integer  :: i,ia,is,icn,j,ja,ii,jj,ij
+   integer  :: cncount(0:18)
+   real(wp) :: alpha(23),c6
+
+   intrinsic :: nint
+
+   dispm = tb_dispersion_model()
+
+   dispm%atoms = 0
+   dispm%nref = 0.0_wp
+
+   !> set up ncount und alpha, also obtain the dimension of the dispmat
+   do i = 1, nat
+      ia = at(i)
+      if (dispm%atoms(ia).eq.0) then
+         dispm%nref(ia) = refn(ia)
+         do j = 1, dispm%nref(ia)
+            is = refsys(j,ia)
+            alpha = sscale(is)*secaiw(:,is)
+            dispm%cn(j,ia) = refcn(j,ia)
+            dispm%alpha(:,j,ia) = max(ascale(j,ia)*(alphaiw(:,j,ia) &
+               &                - hcount(j,ia)*alpha), 0.0_wp)
+         enddo
+      endif
+      dispm%atoms(ia) = dispm%atoms(ia)+1
+   enddo
+
+   ! integrate C6 coefficients
+   !$omp parallel default(none) private(i,j,ii,jj,ij,alpha,c6) shared(dispm)
+   !$omp do schedule(runtime)
+   do i = 1, 86
+      do j = 1, i
+         if (dispm%atoms(i) > 0 .and. dispm%atoms(j) > 0) then
+            do ii = 1, dispm%nref(i)
+               do jj = 1, dispm%nref(j)
+                  alpha = dispm%alpha(:,ii,i)*dispm%alpha(:,jj,j)
+                  c6 = thopi * trapzd(alpha)
+                  dispm%c6(ii,jj,i,j) = c6
+                  dispm%c6(jj,ii,j,i) = c6
+               enddo
+            enddo
+         endif
+      enddo
+   enddo
+   !$omp end do
+   !$omp end parallel
+
+end subroutine d3init
+
 subroutine d4init(g_a,g_c,mode)
    use xtb_disp_dftd4param
    real(wp),intent(in)  :: g_a,g_c

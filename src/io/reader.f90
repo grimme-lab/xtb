@@ -87,6 +87,11 @@ subroutine readMolecule(env, mol, unit, ftype)
       return
    end if
 
+   if (mol%struc%two_dimensional) then
+      call env%error("Two dimensional input structures are not supported", source)
+      return
+   end if
+
    call mol%update
 
    mol%ftype = ftype
