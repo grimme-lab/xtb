@@ -171,7 +171,7 @@ contains
          t16=r2**0.75
          t19=t16*t16
          t8 =t16*alphanb(ij)
-         t26=exp(-t8)*repz(ati)*repz(atj)*repscaln
+         t26=exp(-t8)*repz(ati)*repz(atj)*ffData%repscaln
          erep=erep+t26/rab !energy
          t27=t26*(1.5d0*t8+1.0d0)/t19
          r3 =(xyz(:,iat)-xyz(:,jat))*t27
@@ -340,7 +340,7 @@ contains
          ati=at(iat)
          atj=at(jat)
          alpha=sqrt(repa(ati)*repa(atj))
-         repab=repz(ati)*repz(atj)*repscalb
+         repab=repz(ati)*repz(atj)*ffData%repscalb
          t16=r2**0.75d0
          t19=t16*t16
          t26=exp(-alpha*t16)*repab
@@ -675,7 +675,7 @@ contains
            return
          end if
 
-         t1=1.0-vbond_scale
+         t1=1.0-ffData%vbond_scale
          t8 =(-t1*hb_cn(hbH)+1.0)*vbond(2,i)
          dr =rab-rij
          dum=vbond(3,i)*exp(-t8*dr**2)
@@ -1143,11 +1143,11 @@ contains
 
       subroutine gfnffdampa(ati,atj,r2,damp,ddamp)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: atcuta
+      use xtb_gfnff_param,only: ffData
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =atcuta*(rcov(ati)+rcov(atj))**2
+      rcut =ffData%atcuta*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
@@ -1155,11 +1155,11 @@ contains
 
       subroutine gfnffdampt(ati,atj,r2,damp,ddamp)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: atcutt
+      use xtb_gfnff_param,only: ffData
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =atcutt*(rcov(ati)+rcov(atj))**2
+      rcut =ffData%atcutt*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
@@ -1167,11 +1167,11 @@ contains
 
       subroutine gfnffdampa_nci(ati,atj,r2,damp,ddamp)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: atcuta_nci
+      use xtb_gfnff_param,only: ffData
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =atcuta_nci*(rcov(ati)+rcov(atj))**2
+      rcut =ffData%atcuta_nci*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
@@ -1179,11 +1179,11 @@ contains
 
       subroutine gfnffdampt_nci(ati,atj,r2,damp,ddamp)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: atcutt_nci
+      use xtb_gfnff_param,only: ffData
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =atcutt_nci*(rcov(ati)+rcov(atj))**2
+      rcut =ffData%atcutt_nci*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
@@ -1317,7 +1317,7 @@ contains
 
 !subroutine for case 1: A...H...B
 subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst
+      use xtb_gfnff_param, only: ffData,rad
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,3)
@@ -1370,36 +1370,36 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       radab=rad(at(A))+rad(at(B))
 
 !     out-of-line damp
-      expo=(hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1=(rab2/hblongcut)**hbalp
+      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=hbscut*radab
-      ratio3=(shortcut/rab2)**hbalp
+      shortcut=ffData%hbscut*radab
+      ratio3=(shortcut/rab2)**ffData%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp = damps*dampl
       rdamp = damp/rab2/rab
 
 !     hydrogen charge scaled term
-      ex1h=exp(hbst*q(H))
-      ex2h=ex1h+hbsf
+      ex1h=exp(ffData%hbst*q(H))
+      ex2h=ex1h+ffData%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-hbst*q(A))
-      ex2a=ex1a+hbsf
+      ex1a=exp(-ffData%hbst*q(A))
+      ex2a=ex1a+ffData%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-hbst*q(B))
-      ex2b=ex1b+hbsf
+      ex1b=exp(-ffData%hbst*q(B))
+      ex2b=ex1b+ffData%hbsf
       qb=ex1b/ex2b
 
 !     donor-acceptor term
@@ -1451,7 +1451,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gh(1:3) = gh(1:3) + dgh(1:3)
 
 !     damping part rab
-      gi = rdamp*(-(2.d0*hbalp*ratio1/(1+ratio1))+(2.d0*hbalp*ratio3/(1+ratio3))-3.d0)/rab2
+      gi = rdamp*(-(2.d0*ffData%hbalp*ratio1/(1+ratio1))+(2.d0*ffData%hbalp*ratio3/(1+ratio3))-3.d0)/rab2
       dg(1:3) = gi*drab(1:3)*dterm
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -1480,7 +1480,7 @@ end subroutine abhgfnff_eg1
 
 !subroutine for case 2: A-H...B including orientation of neighbors at B
 subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_gfnff_param, only: ffData,xhbas,rad,nb,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -1521,8 +1521,8 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ij,lina,nbb
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+hbabmix
-      p_ab=    -hbabmix
+      p_bh=1.d0+ffData%hbabmix
+      p_ab=    -ffData%hbabmix
 
       gdr    = 0
       energy = 0
@@ -1562,58 +1562,58 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       radab=rad(at(A))+rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     out-of-line damp: A...nb(B)-B
-      hbnbcut_save = hbnbcut
+      hbnbcut_save = ffData%hbnbcut
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
          if(at(B).eq.7.and.nb(20,B).eq.1) then
-           hbnbcut=2.0
+           ffData%hbnbcut=2.0
          end if
-         expo_nb(i)=(hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
+         expo_nb(i)=(ffData%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))**(1.0)
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
       end do
       outl_nb_tot = product(outl_nb)
 
 !     long damping
-      ratio1=(rab2/hblongcut)**hbalp
+      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=hbscut*radab
-      ratio3=(shortcut/rab2)**hbalp
+      shortcut=ffData%hbscut*radab
+      ratio3=(shortcut/rab2)**ffData%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
 
 !     hydrogen charge scaled term
-      ex1h=exp(hbst*q(H))
-      ex2h=ex1h+hbsf
+      ex1h=exp(ffData%hbst*q(H))
+      ex2h=ex1h+ffData%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-hbst*q(A))
-      ex2a=ex1a+hbsf
+      ex1a=exp(-ffData%hbst*q(A))
+      ex2a=ex1a+ffData%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-hbst*q(B))
-      ex2b=ex1b+hbsf
+      ex1b=exp(-ffData%hbst*q(B))
+      ex2b=ex1b+ffData%hbsf
       qb=ex1b/ex2b
 
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const
@@ -1708,12 +1708,12 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
       end do
 
-      hbnbcut=hbnbcut_save
+      ffData%hbnbcut=hbnbcut_save
 end subroutine abhgfnff_eg2new
 
 !subroutine for case 2: A-H...B including LP position
 subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_gfnff_param, only: ffData,xhbas,rad,nb,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -1762,8 +1762,8 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ij,lina,nbb
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+hbabmix
-      p_ab=    -hbabmix
+      p_bh=1.d0+ffData%hbabmix
+      p_ab=    -ffData%hbabmix
 
       gdr    = 0
       energy = 0
@@ -1821,7 +1821,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       radab=rad(at(A))+rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
@@ -1839,46 +1839,46 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     out-of-line damp: A...nb(B)-B
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
-         expo_nb(i)=(hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
+         expo_nb(i)=(ffData%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))**(1.0)
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
       end do
       outl_nb_tot = product(outl_nb)
 
 !     long damping
-      ratio1=(rab2/hblongcut)**hbalp
+      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=hbscut*radab
-      ratio3=(shortcut/rab2)**hbalp
+      shortcut=ffData%hbscut*radab
+      ratio3=(shortcut/rab2)**ffData%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
 
 !     hydrogen charge scaled term
-      ex1h=exp(hbst*q(H))
-      ex2h=ex1h+hbsf
+      ex1h=exp(ffData%hbst*q(H))
+      ex2h=ex1h+ffData%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-hbst*q(A))
-      ex2a=ex1a+hbsf
+      ex1a=exp(-ffData%hbst*q(A))
+      ex2a=ex1a+ffData%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-hbst*q(B))
-      ex2b=ex1b+hbsf
+      ex1b=exp(-ffData%hbst*q(B))
+      ex2b=ex1b+ffData%hbsf
       qb=ex1b/ex2b
 
       qhoutl=qh*outl*outl_nb_tot*outl_lp
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const
@@ -2011,7 +2011,7 @@ end subroutine abhgfnff_eg2_rnr
 !equal to abhgfnff_eg2_new multiplied by etors and eangl
 subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param,only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_coh,hbabmix,nb,repz,hbnbcut,tors_hb,bend_hb
+      use xtb_gfnff_param,only: ffData,xhbas,rad,nb,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2061,8 +2061,8 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+hbabmix
-      p_ab=    -hbabmix
+      p_bh=1.d0+ffData%hbabmix
+      p_ab=    -ffData%hbabmix
 
       gdr    = 0
       energy = 0
@@ -2122,7 +2122,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       radab=rad(at(A))+rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
@@ -2130,23 +2130,23 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     out-of-line damp: A...nb(B)-B
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
-         expo_nb(i)=(hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
+         expo_nb(i)=(ffData%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
       end do
       outl_nb_tot = product(outl_nb)
 
 !     long damping
-      ratio1=(rab2/hblongcut)**hbalp
+      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=hbscut*radab
+      shortcut=ffData%hbscut*radab
       ratio3=(shortcut/rab2)**6
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
@@ -2164,7 +2164,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          t0=180
          phi0=t0*pi/180.
          vtors(1,j)=phi0-(pi/2.0)
-         vtors(2,j)=tors_hb !xtb_gfnff_param
+         vtors(2,j)=ffData%tors_hb !xtb_gfnff_param
       end do
 
       !Calculate etors
@@ -2198,7 +2198,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Calculate eangl + gangl
       r0=120
       phi0=r0*pi/180.
-      bshift=bend_hb !xtb_gfnff_param
+      bshift=ffData%bend_hb !xtb_gfnff_param
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,eangl,g3tmp)
@@ -2207,24 +2207,24 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gangl(1:3,ll)=gangl(1:3,ll)+g3tmp(1:3,3)
 
 !     hydrogen charge scaled term
-      ex1h=exp(hbst*q(H))
-      ex2h=ex1h+hbsf
+      ex1h=exp(ffData%hbst*q(H))
+      ex2h=ex1h+ffData%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-hbst*q(A))
-      ex2a=ex1a+hbsf
+      ex1a=exp(-ffData%hbst*q(A))
+      ex2a=ex1a+ffData%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-hbst*q(B))
-      ex2b=ex1b+hbsf
+      ex1b=exp(-ffData%hbst*q(B))
+      ex2b=ex1b+ffData%hbsf
       qb=ex1b/ex2b
 
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*xhaci_coh
+      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_coh
 
 !     energy
       energy = -rdamp*qhoutl*eangl*etors*const
@@ -2345,7 +2345,7 @@ end subroutine abhgfnff_eg3
 !this is the multiplicative version of incorporationg etors and ebend without neighbor LP
 subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_gfnff_param, only: ffData,rad,nb,repz
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2393,8 +2393,8 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+hbabmix
-      p_ab=    -hbabmix
+      p_bh=1.d0+ffData%hbabmix
+      p_ab=    -ffData%hbabmix
 
       gdr    = 0
       energy = 0
@@ -2440,22 +2440,22 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       radab=rad(at(A))+rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1=(rab2/hblongcut)**hbalp
+      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=hbscut*radab
-      ratio3=(shortcut/rab2)**hbalp
+      shortcut=ffData%hbscut*radab
+      ratio3=(shortcut/rab2)**ffData%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
@@ -2505,25 +2505,25 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       eangl=eangl+etmp
 
 !     hydrogen charge scaled term
-      ex1h=exp(hbst*q(H))
-      ex2h=ex1h+hbsf
+      ex1h=exp(ffData%hbst*q(H))
+      ex2h=ex1h+ffData%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-hbst*q(A))
-      ex2a=ex1a+hbsf
+      ex1a=exp(-ffData%hbst*q(A))
+      ex2a=ex1a+ffData%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-hbst*q(B))
-      ex2b=ex1b+hbsf
+      ex1b=exp(-ffData%hbst*q(B))
+      ex2b=ex1b+ffData%hbsf
       qb=ex1b/ex2b
 
 !     max distance to neighbors excluded, would lead to linear C=O-H
       qhoutl=qh*outl
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const*eangl*etors
@@ -2605,7 +2605,7 @@ end subroutine abhgfnff_eg3_mul
 !this is the additive version of incorporationg etors and ebend
 subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_gfnff_param, only: ffData,xhbas,rad,nb,repz
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2654,8 +2654,8 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+hbabmix
-      p_ab=    -hbabmix
+      p_bh=1.d0+ffData%hbabmix
+      p_ab=    -ffData%hbabmix
 
       gdr    = 0
       energy = 0
@@ -2699,22 +2699,22 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       radab=rad(at(A))+rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1=(rab2/hblongcut)**hbalp
+      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=hbscut*radab
-      ratio3=(shortcut/rab2)**hbalp
+      shortcut=ffData%hbscut*radab
+      ratio3=(shortcut/rab2)**ffData%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
@@ -2767,25 +2767,25 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       eangl=eangl+etmp
 
 !     hydrogen charge scaled term
-      ex1h=exp(hbst*q(H))
-      ex2h=ex1h+hbsf
+      ex1h=exp(ffData%hbst*q(H))
+      ex2h=ex1h+ffData%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-hbst*q(A))
-      ex2a=ex1a+hbsf
+      ex1a=exp(-ffData%hbst*q(A))
+      ex2a=ex1a+ffData%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-hbst*q(B))
-      ex2b=ex1b+hbsf
+      ex1b=exp(-ffData%hbst*q(B))
+      ex2b=ex1b+ffData%hbsf
       qb=ex1b/ex2b
 
 !     max distance to neighbors excluded, would lead to linear C=O-H
       qhoutl=qh*outl
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const+etors+eangl
@@ -2847,7 +2847,7 @@ end subroutine abhgfnff_eg3_add
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
-      use xtb_gfnff_param, only: xbacut,xbscut,xbaci,xhbas,rad,hbalp,hblongcut_xb,xbst,xbsf
+      use xtb_gfnff_param, only: ffData,rad,xbaci
       implicit none
       integer               :: A,B,X,n,at(n)
       real*8                :: xyz(3,n)
@@ -2893,31 +2893,31 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       rbx  = sqrt(rbx2)+1.d-12
 
 !     out-of-line damp
-      expo   = xbacut*((rax+rbx)/rab-1.d0)
+      expo   = ffData%xbacut*((rax+rbx)/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2 = exp(expo)
       outl   = 2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1 = (rbx2/hblongcut_xb)**hbalp
+      ratio1 = (rbx2/ffData%hblongcut_xb)**ffData%hbalp
       dampl  = 1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut = xbscut*(rad(at(A))+rad(at(B)))
-      ratio3   = (shortcut/rbx2)**hbalp
+      shortcut = ffData%xbscut*(rad(at(A))+rad(at(B)))
+      ratio3   = (shortcut/rbx2)**ffData%hbalp
       damps    = 1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
       rdamp = damp/rbx2/rbx ! **2
 
 !     halogen charge scaled term
-      ex1_x = exp(xbst*q(X))
-      ex2_x = ex1_x+xbsf
+      ex1_x = exp(ffData%xbst*q(X))
+      ex2_x = ex1_x+ffData%xbsf
       qx    = ex1_x/ex2_x
 
 !     donor charge scaled term
-      ex1_b = exp(-xbst*q(B))
-      ex2_b = ex1_b+xbsf
+      ex1_b = exp(-ffData%xbst*q(B))
+      ex2_b = ex1_b+ffData%xbsf
       qb    = ex1_b/ex2_b
 
 !     constant values, no gradient
@@ -2929,7 +2929,7 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       energy= -rdamp*outl*const
 
 !     damping part rab
-      gi = rdamp*(-(2.d0*hbalp*ratio1/(1.d0+ratio1))+(2.d0*hbalp*ratio3&
+      gi = rdamp*(-(2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3&
      &     /(1.d0+ratio3))-3.d0)/rbx2   ! 4,5,6 instead of 3.
       gi = gi*dterm
       dg(1:3) = gi*drbx(1:3)
@@ -3041,7 +3041,6 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
 subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
       use iso_fortran_env, only : wp => real64
       use xtb_disp_dftd4, only : rcov
-      use xtb_gfnff_param,only : cnmax
       implicit none
       integer, intent(in)  :: n
       integer, intent(in)  :: at(n)
@@ -3123,18 +3122,18 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
 
 pure elemental function create_logCN(cn) result(count)
       use iso_fortran_env, only : wp => real64
-      use xtb_gfnff_param,only : cnmax
+      use xtb_gfnff_param,only : ffData
    real(wp), intent(in) :: cn
    real(wp) :: count
-   count = log(1 + exp(cnmax)) - log(1 + exp(cnmax - cn) )
+   count = log(1 + exp(ffData%cnmax)) - log(1 + exp(ffData%cnmax - cn) )
 end function create_logCN
 
 pure elemental function create_dlogCN(cn) result(count)
       use iso_fortran_env, only : wp => real64
-      use xtb_gfnff_param,only : cnmax
+      use xtb_gfnff_param,only : ffData
    real(wp), intent(in) :: cn
    real(wp) :: count
-   count = exp(cnmax)/(exp(cnmax) + exp(cn))
+   count = exp(ffData%cnmax)/(exp(ffData%cnmax) + exp(cn))
 end function create_dlogCN
 
 pure elemental function create_erfCN(k,r,r0) result(count)
@@ -3150,7 +3149,6 @@ end function create_erfCN
 
 pure elemental function create_derfCN(k,r,r0) result(count)
       use iso_fortran_env, only : wp => real64
-      use xtb_gfnff_param,only : cnmax
    real(wp), intent(in) :: k
    real(wp), intent(in) :: r
    real(wp), intent(in) :: r0

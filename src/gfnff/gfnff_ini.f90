@@ -346,7 +346,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 !     at this point for the non-geom. dep. charges qa with CN = nb
       do i=1,mol%n
          ati=mol%at(i)
-         dum =min(dble(nb(20,i)),cnmax)  ! limits it
+         dum =min(dble(nb(20,i)),ffData%cnmax)  ! limits it
 !                   base val  spec. corr.    CN dep.
          chieeq(i)=-chi(ati) + dxi(i) + cnf(ati)*sqrt(dum)
          gameeq(i)= gam(ati)

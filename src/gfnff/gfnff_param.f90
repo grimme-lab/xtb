@@ -17,6 +17,7 @@
 
 module xtb_gfnff_param
    use xtb_mctc_accuracy, only : wp, sp 
+   use xtb_gfnff_data, only : TGFFData
    implicit none
    private :: wp
    public
@@ -241,24 +242,8 @@ module xtb_gfnff_param
       & 0.219729_wp, 0.344830_wp, 0.331862_wp, 0.767979_wp, 0.536799_wp, &
       & 0.500000_wp]
 
-   !common variables which are used in energy-gradient routines
-   real(wp) :: repscaln,repscalb      ! repulsion scaling
-   real(wp) :: atcuta,atcutt          ! bend/tors angle damping
-   real(wp) :: atcuta_nci,atcutt_nci  ! bend/tors nci angle damping for HB term
-   real(wp) :: hbacut,hbscut          ! damping HB
-   real(wp) :: xbacut,xbscut          ! damping XB
-   real(wp) :: hbalp                  ! damping HB/XB
-   real(wp) :: hblongcut,hblongcut_xb ! damping HB/XB
-   real(wp) :: hbst,hbsf,xbst,xbsf    ! charge scaling HB/XB
-   real(wp) :: xhaci_globabh          ! HB AH-B
-   real(wp) :: xhaci_coh              ! HB AH-O=C
-   real(wp) :: xhaci_glob             ! acidity
-   real(wp) :: hbabmix                ! HB AH-B
-   real(wp) :: hbnbcut                ! new parameter for neighbour angle
-   real(wp) :: tors_hb                ! new parameter for HB NCI angle term
-   real(wp) :: bend_hb                ! new parameter for HB NCI torsion term
-   real(wp) :: vbond_scale            ! new parameter for FC scaling of bonds in HB
-   real(wp) :: cnmax                  ! max CN cut-off
+   type(TGFFData) :: ffData
+
 !----------------------------------------------------------------------------------------
    real(wp) :: efield(3)              ! electric field components
 
@@ -495,7 +480,7 @@ module xtb_gfnff_param
      integer   :: i,j,k
      real(wp)  :: dum
 
-     cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
+     ffData%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
      linthr  = 160.        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
                            ! but this occurs e.g. for Sc in unclear situations. So make it save (160)
      fcthr   = 1.d-3       ! skip torsion and bending if potential is small
@@ -508,15 +493,15 @@ module xtb_gfnff_param
      hqabthr  =0.01        ! H charge (qa) threshold for H in HB list 18
       qabthr  =0.10        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
                            ! larger val. better for S30L but worse in PubChem RMSD checks
-     atcuta  = 0.595d0     ! angle damping
-     atcutt  = 0.505d0     ! torsion angle damping
-     atcuta_nci  = 0.395d0 ! nci angle damping in HB term
-     atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
+     ffData%atcuta  = 0.595d0     ! angle damping
+     ffData%atcutt  = 0.505d0     ! torsion angle damping
+     ffData%atcuta_nci  = 0.395d0 ! nci angle damping in HB term
+     ffData%atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
      srb1    = 0.3731      ! bond params
      srb2    = 0.3171      !
      srb3    = 0.2538      !
-     repscalb= 1.7583      ! bonded rep. scaling
-     repscaln= 0.4270      ! non-bonded rep. scaling
+     ffData%repscalb= 1.7583      ! bonded rep. scaling
+     ffData%repscaln= 0.4270      ! non-bonded rep. scaling
      qrepscal= 0.3480      ! change of non-bonded rep. with q(topo)
      nrepscal=-0.1270      !   "    "      "       "   CN
      hhfac   = 0.6290      ! HH repulsion
@@ -592,25 +577,25 @@ module xtb_gfnff_param
      fringbo =0.020d0      ! str ring size dep.
      aheavy3 =89.          ! three coord. heavy eq. angle
      aheavy4 =100.         ! four   "       "    "    "
-     hbacut   =49.         ! HB angle cut-off
-     hbscut   =22.         ! HB SR     "   "
-     xbacut   =70.         ! same for XB
-     xbscut   = 5.         !
-     hbsf     = 1.         ! charge dep.
-     hbst     =15.         ! 10 is better for S22, 20 better for HCN2 and S30L
-     xbsf     =0.03        !
-     xbst     =15.         !
-     hbalp    = 6.         ! damp
-     hblongcut=85.         ! values larger than 85 yield large RMSDs for P26
-     hblongcut_xb=70.      ! values larger than 70 yield large MAD for HAL28
-     hbabmix  =0.80        !
-     hbnbcut  =11.20       !
-     tors_hb   =0.94       ! torsion potential shift in HB term
-     bend_hb   =0.20       ! bending potential shift in HB term
-     vbond_scale=0.9       ! vbond(2) scaling for CN(H) = 1
-     xhaci_globabh=0.268   ! A-H...B gen. scaling
-     xhaci_coh=0.350       ! A-H...O=C gen. scaling
-     xhaci_glob=1.50       ! acidity
+     ffData%hbacut   =49.         ! HB angle cut-off
+     ffData%hbscut   =22.         ! HB SR     "   "
+     ffData%xbacut   =70.         ! same for XB
+     ffData%xbscut   = 5.         !
+     ffData%hbsf     = 1.         ! charge dep.
+     ffData%hbst     =15.         ! 10 is better for S22, 20 better for HCN2 and S30L
+     ffData%xbsf     =0.03        !
+     ffData%xbst     =15.         !
+     ffData%hbalp    = 6.         ! damp
+     ffData%hblongcut=85.         ! values larger than 85 yield large RMSDs for P26
+     ffData%hblongcut_xb=70.      ! values larger than 70 yield large MAD for HAL28
+     ffData%hbabmix  =0.80        !
+     ffData%hbnbcut  =11.20       !
+     ffData%tors_hb   =0.94       ! torsion potential shift in HB term
+     ffData%bend_hb   =0.20       ! bending potential shift in HB term
+     ffData%vbond_scale=0.9       ! vbond(2) scaling for CN(H) = 1
+     ffData%xhaci_globabh=0.268   ! A-H...B gen. scaling
+     ffData%xhaci_coh=0.350       ! A-H...O=C gen. scaling
+     ffData%xhaci_glob=1.50       ! acidity
      xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
      xhbas( 7)=1.68d0
      xhbas( 8)=0.67d0
@@ -626,14 +611,14 @@ module xtb_gfnff_param
      xhbas(51)=xhbas(15)
      xhbas(52)=xhbas(16)
      xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
-     xhaci( 7)=xhaci_glob+0.1
-     xhaci( 8)=xhaci_glob
-     xhaci( 9)=xhaci_glob
-     xhaci(15)=xhaci_glob
-     xhaci(16)=xhaci_glob
-     xhaci(17)=xhaci_glob+1.0
-     xhaci(35)=xhaci_glob+1.0
-     xhaci(53)=xhaci_glob+1.0
+     xhaci( 7)=ffData%xhaci_glob+0.1
+     xhaci( 8)=ffData%xhaci_glob
+     xhaci( 9)=ffData%xhaci_glob
+     xhaci(15)=ffData%xhaci_glob
+     xhaci(16)=ffData%xhaci_glob
+     xhaci(17)=ffData%xhaci_glob+1.0
+     xhaci(35)=ffData%xhaci_glob+1.0
+     xhaci(53)=ffData%xhaci_glob+1.0
      xbaci(15)=1.0d0              ! XB acidities
      xbaci(16)=1.0d0
      xbaci(17)=0.5d0

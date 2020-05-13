@@ -17,6 +17,7 @@
 
 srcs += files(
   'calculator.f90',
+  'data.f90',
   'frag_hess.f90',
   'gdisp0.f90',
   'gfnff_eg.f90',
@@ -30,4 +31,5 @@ srcs += files(
   'mrec.f90',
   'shake_module.f90',
   'struc_converter.f90',
+  'topology.f90',
 )
