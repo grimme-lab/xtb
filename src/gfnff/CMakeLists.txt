@@ -22,6 +22,7 @@ list(APPEND srcs
   "${dir}/data.f90"
   "${dir}/frag_hess.f90"
   "${dir}/gdisp0.f90"
+  "${dir}/generator.f90"
   "${dir}/gfnff_eg.f90"
   "${dir}/gfnff_ini.f90"
   "${dir}/gfnff_ini2.f90"

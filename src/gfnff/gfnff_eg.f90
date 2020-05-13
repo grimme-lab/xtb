@@ -1568,13 +1568,14 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       outl=2.d0/(1.d0+ratio2)
 
 !     out-of-line damp: A...nb(B)-B
-      hbnbcut_save = ffData%hbnbcut
+      if(at(B).eq.7.and.nb(20,B).eq.1) then
+        hbnbcut_save = 2.0
+      else
+        hbnbcut_save = ffData%hbnbcut
+      end if
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
-         if(at(B).eq.7.and.nb(20,B).eq.1) then
-           ffData%hbnbcut=2.0
-         end if
-         expo_nb(i)=(ffData%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
+         expo_nb(i)=(hbnbcut_save/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))**(1.0)
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
       end do
@@ -1708,7 +1709,6 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
       end do
 
-      ffData%hbnbcut=hbnbcut_save
 end subroutine abhgfnff_eg2new
 
 !subroutine for case 2: A-H...B including LP position

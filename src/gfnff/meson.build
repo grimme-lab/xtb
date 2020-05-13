@@ -20,6 +20,7 @@ srcs += files(
   'data.f90',
   'frag_hess.f90',
   'gdisp0.f90',
+  'generator.f90',
   'gfnff_eg.f90',
   'gfnff_ini.f90',
   'gfnff_ini2.f90',
