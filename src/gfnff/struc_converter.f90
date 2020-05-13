@@ -19,9 +19,11 @@
 ! 2D => 3D structure converter, uses GFN-FF MD + OPT to generate a 3D structure
 ! of an 2 dimensional input structure.
 !------------------------------------------------------------------------------
+module xtb_gfnff_convert
+contains
 
 subroutine struc_convert( &
-         & env,restart,mol,wfn,calc,egap,et,maxiter,maxcycle,&
+         & env,restart,mol,wfn,egap,et,maxiter,maxcycle,&
          & etot,g,sigma)
   use xtb_mctc_accuracy, only : wp
   use xtb_gfnff_param
@@ -30,7 +32,7 @@ subroutine struc_convert( &
   use xtb_type_environment
   use xtb_type_molecule
   use xtb_type_wavefunction
-  use xtb_type_calculator
+  use xtb_gfnff_calculator
   use xtb_type_data
   use xtb_restart
   use xtb_setmod
@@ -43,7 +45,6 @@ subroutine struc_convert( &
   type(TEnvironment),intent(inout)            :: env
   type(TMolecule),intent(inout)               :: mol
   type(TWavefunction),intent(inout)           :: wfn
-  type(TCalculator),intent(in)                :: calc
   integer,intent(in)                          :: maxiter
   integer,intent(in)                          :: maxcycle
   real(wp),intent(inout)                      :: etot
@@ -54,6 +55,7 @@ subroutine struc_convert( &
   logical,intent(in)                          :: restart
   character(len=:),allocatable                :: fnv
 ! Stack -----------------------------------------------------------------------
+  type(TGFFCalculator)                        :: calc
   integer                                     :: ich
   integer                                     :: idum
   integer                                     :: mode_input
@@ -136,3 +138,4 @@ subroutine struc_convert( &
   call gfnff_param_dealloc()
 
 end subroutine struc_convert
+end module xtb_gfnff_convert

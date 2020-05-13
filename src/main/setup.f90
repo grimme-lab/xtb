@@ -37,7 +37,7 @@ module xtb_main_setup
    private
 
    public :: newCalculator
-   public :: newXTBCalculator
+   public :: newXTBCalculator, newGFFCalculator
 
 
 contains
@@ -145,7 +145,7 @@ end subroutine newXTBCalculator
 subroutine newGFFCalculator(env, mol, calc, fname)
    use xtb_gfnff_param
 
-   character(len=*), parameter :: source = 'main_setup_newXTBCalculator'
+   character(len=*), parameter :: source = 'main_setup_newGFFCalculator'
 
    type(TEnvironment), intent(inout) :: env
 

@@ -85,6 +85,7 @@ module xtb_prog_main
    use xtb_disp_dftd4
    use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_setup, only : gfnff_setup
+   use xtb_gfnff_convert, only : struc_convert
    implicit none
    private
 
@@ -371,7 +372,7 @@ subroutine xtbMain(env, argParser)
    !> 2D => 3D STRUCTURE CONVERTER
    ! ------------------------------------------------------------------------
    if (mol%struc%two_dimensional) then
-      call struc_convert (env,restart,mol,wfn,calc,egap,etemp,maxscciter, &
+      call struc_convert (env,restart,mol,wfn,egap,etemp,maxscciter, &
                        &  optset%maxoptcycle,etot,g,sigma)
       struc_conversion_done = .true.
    end if
