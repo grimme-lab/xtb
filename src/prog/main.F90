@@ -541,7 +541,7 @@ subroutine xtbMain(env, argParser)
    !> initialize GFN-force-field
    select type(calc)
    type is(TGFFCalculator)
-      if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
+      call d3init(mol%n, mol%at)
       call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
    end select
 

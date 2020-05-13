@@ -22,9 +22,7 @@ module xtb_gfnff_calculator
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_type_param, only : scc_parameter
    use xtb_type_wavefunction
-   use xtb_xtb_data, only : TxTBData
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -43,8 +41,7 @@ module xtb_gfnff_calculator
    !> Calculator interface for xTB based methods
    type, extends(TCalculator) :: TGFFCalculator
 
-      !> Parametrisation data base
-      type(TxTBData), allocatable :: xtbData
+      integer :: dummy
 
    contains
 

@@ -160,19 +160,17 @@ subroutine newGFFCalculator(env, mol, calc, fname)
    logical :: exist, okbas
    logical :: exitRun
 
+   calc%dummy = 1
+
    !> Obtain the parameter file
-   allocate(calc%xtbData)
    call open_file(ich, fname, 'r')
    exist = ich /= -1
    if (exist) then
       call gfnff_read_param(ich)
       call close_file(ich)
-   else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fname, globpar, calc%xtbData, exist)
-      if (.not.exist) then
-         call env%error('Parameter file '//fname//' not found!', source)
-         return
-      end if
+   else ! no parameter file
+      call env%error('Parameter file '//fname//' not found!', source)
+      return
    endif
 
    call env%check(exitRun)
