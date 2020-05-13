@@ -20,7 +20,8 @@
 ! ndim is the dimension of the problem for nel electrons with nopen more alpha than beta
 
 subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
-      use iso_fortran_env, only : wp => real64
+      use xtb_mctc_accuracy, only : wp
+      use xtb_scc_core, only : dmat, fermismear, occu
       implicit none
       integer ndim      ! # basis
       integer nopen     ! # of open shells
@@ -87,12 +88,12 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
 ! Fermi smearing, convert restricted occ first to alpha/beta
         call occu(ndim,nel,nopen,ihomoa,ihomob,focca,foccb)
         if(ihomoa.le.ndim.and.ihomoa.gt.0) then
-         call FERMISMEAR(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
+         call fermismear(.false.,ndim,ihomoa,et,e,focca,nfoda,efa,ga)
         else
           focca=0
         endif
         if(ihomob.le.ndim.and.ihomob.gt.0) then
-          call FERMISMEAR(.false.,ndim,ihomob,et,e,foccb,nfodb,efb,gb)
+          call fermismear(.false.,ndim,ihomob,et,e,foccb,nfodb,efb,gb)
         else
           foccb=0
         endif
@@ -129,5 +130,6 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       endif
 
       deallocate(focca,foccb)
-      end
+      
+end subroutine gfnffqmsolve
 

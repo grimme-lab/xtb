@@ -93,10 +93,7 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    call getline(unit, line, error)
    read(line, '(20x,a2)', iostat=error) sdf_dim
    if (error == 0 .and. (sdf_dim == '2D' .or. sdf_dim == '2d')) then
-      !iomsg = "two dimensional structures are not a valid input for this program"
-      iomsg = "two dimensional structures input recognized"
       two_dim = .true.
-      !return
    endif
    call getline(unit, line, error)
    call getline(unit, line, error)

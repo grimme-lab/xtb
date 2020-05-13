@@ -15,116 +15,37 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-c  .....................................................................
-
-      subroutine vscal(a,n,scale)
-      implicit double precision (a-h,o-z), integer (i-n)
-      dimension a(n)
-
-
-      do i=1,n
-         a(i) = a(i)*scale
-      end do
-
-      return
-      end
-
-c  .....................................................................
-
-      subroutine vcpy(a,b,n)
-      implicit double precision (a-h,o-z), integer (i-n)
-      dimension a(n),b(n)
-
-      do i=1,n
-         a(i) = b(i)
-      end do
-
-      return
-      end
-
-c  .....................................................................
-
-      subroutine vadd(a,b,c,n)
-      implicit double precision (a-h,o-z), integer (i-n)
-      dimension a(n),b(n),c(n)
-
-      do i=1,n
-         c(i) = a(i) + b(i)
-      end do
-
-      return
-      end
-
-c  .....................................................................
 
       subroutine vsub(a,b,c,n)
-      implicit double precision (a-h,o-z), integer (i-n)
-      dimension a(n),b(n),c(n)
+      implicit none
+      integer n
+      real*8 a(n),b(n),c(n)
+      integer i
 
       do i=1,n
          c(i) = a(i) - b(i)
       end do
 
       return
-      end
+      end subroutine vsub
 
 c  .....................................................................
 
-      subroutine vseti(ia,n,ival)
-      implicit double precision (a-h,o-z), integer (i-n)
-      dimension ia(n)
-
-      do i=1,n
-         ia(i) = ival
-      end do
-
-      return
-      end
-
-c  .....................................................................
-
-      subroutine vsetr(a,n,rval)
-      implicit double precision (a-h,o-z), integer (i-n)
-      dimension a(n)
-
-      do i=1,n
-         a(i) = rval
-      end do
-
-      return
-      end
-
-c  .....................................................................
-
-      double precision function vlen(a)
-      implicit double precision (a-h,o-z)
-      dimension a(3)
+      real*8 function vlen(a)
+      implicit none !double precision (a-h,o-z)
+      real*8 a(3)
+      real*8 tot
 
       tot = a(1)*a(1)+a(2)*a(2)+a(3)*a(3)
       vlen = 0.0d0
       if (tot.gt.0.0d0) vlen = dsqrt(tot)
 
       return
-      end
+      end function vlen
 
 c  .....................................................................
 
-      subroutine timpsc(a,b,c)
-      implicit double precision (a-h,o-z)
-      dimension a(3),b(3)
-
-      c = 0.0d0
-
-      do i=1,3
-         c = c + a(i)*b(i)
-      end do
-
-      return
-      end
-
-c  .....................................................................
-
-      real*8 Function valijklff(natoms,xyz,i,j,k,l)
+      real*8 function valijklff(natoms,xyz,i,j,k,l)
 
       implicit none
 
@@ -172,14 +93,4 @@ c ... determinante of rb,ra,rc
 
       valijklff=acos(snanb)
 
-c the gradient dphir is only compatible with this subroutine
-c if the statement below is commented out. If not, opt. and
-c Hessian show large errors and imags. I don't understand
-c this entirely but thats how it is.
-c SG, Sat May 24 11:41:42 CEST 2014
-
-c     if (deter.lt.0) then
-c        valijkl=2.d0*pi-valijkl
-c     end if
-
-      End
+      end function valijklff

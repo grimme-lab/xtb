@@ -15,83 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-!      The   N E W   gradC6 routine    C
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-
-      subroutine getdC6gfnff(mxci,mxcj,cni,cnj,&
-     &                       izi,izj,iat,jat,c6,dc6i,dc6j)
-      use gff_d3com
-      use xtb_disp_dftd3param
-      IMPLICIT NONE
-      integer mxci,mxcj
-      integer iat,jat,izi,izj
-      real*8 cni,cnj
-      real*8 dc6i,dc6j,c6
-
-      real*8 k3,k32
-      parameter (k3     =-4)
-      parameter (k32    =-8)
-      real*8 zaehler,nenner,dzaehler_i,dnenner_i,dzaehler_j,dnenner_j
-      real*8 expterm,cn_refi,cn_refj,c6ref,r,term,dri,drj
-      real*8 c6mem,r_save
-      integer a,b
-
-      c6mem=-1.d99
-      r_save=9999.0
-      zaehler=0.0d0
-      nenner=0.0d0
-      dzaehler_i=0.d0
-      dnenner_i=0.d0
-      dzaehler_j=0.d0
-      dnenner_j=0.d0
-
-      DO a=1,mxci
-        DO b=1,mxcj
-            c6ref = get_c6(a,b,izi,izj) !c6ab(1,a,b,izi,izj)
-            if (c6ref.gt.0) then
-              cn_refi=reference_cn(a,izi) !c6ab(2,a,b,izi,izj)
-              cn_refj=reference_cn(b,izj) !c6ab(3,a,b,izi,izj)
-              dri = cni-cn_refi
-              drj = cnj-cn_refj
-              r=dri**2+drj**2
-              if (r.lt.r_save) then
-                r_save=r
-                c6mem=c6ref
-              end if
-              expterm=exp(k3*r)
-              zaehler=zaehler+c6ref*expterm
-              nenner=nenner+expterm
-              expterm=expterm*k32
-              term=expterm*dri
-              dzaehler_i=dzaehler_i+c6ref*term
-              dnenner_i =dnenner_i +      term
-              term=expterm*drj
-              dzaehler_j=dzaehler_j+c6ref*term
-              dnenner_j =dnenner_j +      term
-            end if
-        ENDDO !b
-      ENDDO !a
-
-      if (nenner.gt.1.0d-9) then
-        c6  =zaehler/nenner
-        dc6i=((dzaehler_i*nenner)-(dnenner_i*zaehler)) /(nenner*nenner)
-        dc6j=((dzaehler_j*nenner)-(dnenner_j*zaehler)) /(nenner*nenner)
-      else
-        c6=c6mem
-        dc6i=0.0d0
-        dc6j=0.0d0
-      end if
-!      nenner=nenner+1.d-9   ! can not be smaller than 1.d-10 in highly coordinated systems like metal clusters for cnmax=6
-!      c6  =zaehler/nenner
-!      dc6i=((dzaehler_i*nenner)-(dnenner_i*zaehler)) /(nenner*nenner)
-!      dc6j=((dzaehler_j*nenner)-(dnenner_j*zaehler)) /(nenner*nenner)
-
-      end
-
 module xtb_gfnff_gdisp0
-   !use iso_fortran_env, only: wp => real64
    use xtb_mctc_accuracy, only : wp
    implicit none
    public :: d3_gradient
@@ -426,4 +350,4 @@ real(wp) pure elemental function pair_scale(iat, jat) result(scale)
    endif
 end function pair_scale
 
-end module gffmod_dftd3
+end module xtb_gfnff_gdisp0

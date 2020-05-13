@@ -34,6 +34,8 @@ subroutine numhess( &
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
+   use xtb_xtb_calculator
+   use xtb_gfnff_calculator
    use xtb_type_data
 
    use xtb_setparam
@@ -149,6 +151,8 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
+   select type(calc)
+   type is(TxTBCalculator)
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -228,61 +232,6 @@ subroutine numhess( &
       !$ call mkl_set_num_threads(nproc)
 #endif
 
-   else if (mode_extrun.eq.p_ext_gfnff) then
-!! ------------------------------------------------------------------------
-!  GFN-FF case
-!! ------------------------------------------------------------------------
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-
-            tmol = mol
-            wfx = wf0 ! initialize wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
-
-            gr = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,wfx,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-
-            call wfx%deallocate ! clean up
-            tmol = mol
-            wfx = wf0 ! reset wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
-
-            gl = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,wfx,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
-            enddo
-
-            call wfx%deallocate ! clean up
-            call tmol%deallocate
-         enddo
-
-         if(ia.eq.3)then
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(w1-w0)/60.
-         endif
-      enddo
-
-   else
 !! ------------------------------------------------------------------------
 !  normal case
 !! ------------------------------------------------------------------------
@@ -353,6 +302,126 @@ subroutine numhess( &
 #endif
 
    endif
+
+   type is(TGFFCalculator)
+   if(freezeset%n.gt.0) then
+      ! for frozfc of about 10 the frozen modes
+      ! approach 5000 cm-1, i.e., come too close to
+      ! the real ones
+      nonfrozh=mol%n-freezeset%n
+      do a = 1,mol%n
+         res%freq(a)=float(a)
+      enddo
+      do a=1,freezeset%n
+         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000d0
+      enddo
+      call sortind(mol%n,res%freq)
+      do a=1,nonfrozh
+         indx(a)=idint(res%freq(a))
+      enddo
+      do a=nonfrozh+1,mol%n
+         indx(a)=idint(res%freq(a)/100000d0)
+      enddo
+      write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
+         & indx(nonfrozh+1:mol%n)
+      ! the index array indx(1:n) contains from 1:nonfrozh in ascending order
+      ! the non-frozen atoms and from nonfrozh+1:n the frozen ones also in
+      ! ascending order
+      ! now compute a subblock of the Hessian
+      do a = 1, nonfrozh
+         ia=indx(a)
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+            tmol = mol
+            wfx = wf0
+            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
+            call singlepoint &
+               & (env,tmol,wfx,calc, &
+               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
+            tmol = mol
+            wfx = wf0
+            dipd(1:3,ii)=sccr%dipole(1:3)
+            pold(ii)=sccr%molpol
+            mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
+            call singlepoint &
+               & (env,tmol,wfx,calc, &
+               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
+            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
+            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
+            pold(ii)=(pold(ii)-sccl%molpol)*step2
+            do b = 1, mol%n
+               ja = indx(b)
+               do jc = 1, 3
+                  jj = (ja-1)*3 + jc
+                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
+                  h(jj,ii) = h(ii,jj)  ! symmetric coupling part
+               enddo
+            enddo
+         enddo
+         if(a.eq.3)then
+            call timing(t1,w1)
+            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
+               & 0.3333333d0*nonfrozh*(t1-t0)/60.
+            write(*,'(''estimated wall time'',F10.2,'' min'')') &
+               & 0.3333333d0*nonfrozh*(w1-w0)/60.
+         endif
+      enddo
+
+!! ------------------------------------------------------------------------
+!  normal case
+!! ------------------------------------------------------------------------
+      do ia = 1, mol%n
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+
+            tmol = mol
+            wfx = wf0 ! initialize wavefunction
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
+
+            gr = 0.0_wp
+            eel = 0.0_wp
+            call singlepoint &
+               & (env,tmol,wfx,calc, &
+               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
+            dipd(1:3,ii)=sccr%dipole(1:3)
+            pold(ii)=sccr%molpol
+
+            call wfx%deallocate ! clean up
+            tmol = mol
+            wfx = wf0 ! reset wavefunction
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
+
+            gl = 0.0_wp
+            eel = 0.0_wp
+            call singlepoint &
+               & (env,tmol,wfx,calc, &
+               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)
+            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
+            pold(ii)=(pold(ii)-sccl%molpol)*step2
+
+            do ja= 1, mol%n
+               do jc = 1, 3
+                  jj = (ja-1)*3 + jc
+                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
+               enddo
+            enddo
+
+            call wfx%deallocate ! clean up
+            call tmol%deallocate
+         enddo
+
+         if(ia.eq.3)then
+            call timing(t1,w1)
+            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
+               & 0.3333333d0*mol%n*(t1-t0)/60.
+            write(*,'(''estimated wall time'',F10.2,'' min'')') &
+               & 0.3333333d0*mol%n*(w1-w0)/60.
+         endif
+      enddo
+
+   endif
+   end select
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================

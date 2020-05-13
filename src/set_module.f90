@@ -1055,7 +1055,7 @@ end subroutine set_spin
 
 
 subroutine set_efield(env, val)
-   use gff_param, only : efield
+   use xtb_gfnff_param, only : efield
    implicit none
    character(len=*), parameter :: source = 'set_efield'
    type(TEnvironment), intent(inout) :: env

@@ -17,9 +17,6 @@
 
 srcs += files(
   'calculator.f90',
-  'd3com.f90',
-  'dmat.f',
-  'fermi.f',
   'frag_hess.f90',
   'gdisp0.f90',
   'gfnff_eg.f90',
@@ -30,9 +27,7 @@ srcs += files(
   'gfnff_rab.f',
   'gfnff_setup.f90',
   'math.f',
-  'mdcom.f90',
-  'mrec.f',
-  'occu.f90',
-  'shake_module.f',
+  'mrec.f90',
+  'shake_module.f90',
   'struc_converter.f90',
 )

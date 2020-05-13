@@ -18,10 +18,11 @@
 subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       use xtb_mctc_accuracy, only : wp
       use xtb_type_molecule
-      use gff_param
-      use gff_d3com, only: rcov,r2r4
-      use gff_frag_hess
+      use xtb_gfnff_param
+      use xtb_disp_dftd4, only: r2r4 => r4r2, rcov
+      use xtb_gfnff_fraghess
       use xtb_restart
+      use xtb_mctc_constants
       implicit none
 !--------------------------------------------------------------------------------------------------
       type(TMolecule), intent(in) :: mol   ! # molecule type
@@ -46,7 +47,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          end function
       end interface
 
-      real(wp) r0,pi,ff,omega,f1,f2,phi,valijklff,ringf,fcn
+      real(wp) r0,ff,omega,f1,f2,phi,valijklff,ringf,fcn
       real(wp) shift,dum,dum1,dum2,dum4,qafac,fqq,feta
       real(wp) sumppi,fpi,fxh,fijk,fsrb2,ees
       real(wp) fheavy,fn,eold,fctot,fij
@@ -55,7 +56,6 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       real(wp) xx(20)
       real(wp) fkl,qreps,fbsmall,bohr
 
-      parameter (pi=3.1415926535897932384626433832795029_wp)
       parameter (bohr=1.0_wp/0.52917726_wp)
 
       logical lring,picon,notpicon,bridge,sp3ij,nofs,xatom,ccij,amide,success

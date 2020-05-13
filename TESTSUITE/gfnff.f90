@@ -6,7 +6,7 @@ subroutine test_gfnff_sp
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_data
-   use gff_param
+   use xtb_gfnff_param
    use xtb_setparam
    use xtb_setmod
    use xtb_disp_dftd3param
@@ -98,7 +98,7 @@ subroutine test_gfnff_hb
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_data
-   use gff_param
+   use xtb_gfnff_param
    use xtb_setparam
    use xtb_setmod
    use xtb_disp_dftd3param

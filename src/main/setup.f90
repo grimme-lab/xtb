@@ -143,7 +143,7 @@ subroutine newXTBCalculator(env, mol, calc, fname)
 end subroutine newXTBCalculator
 
 subroutine newGFFCalculator(env, mol, calc, fname)
-   use gff_param
+   use xtb_gfnff_param
 
    character(len=*), parameter :: source = 'main_setup_newXTBCalculator'
 

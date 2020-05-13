@@ -24,7 +24,7 @@ subroutine struc_convert( &
          & env,restart,mol,wfn,calc,egap,et,maxiter,maxcycle,&
          & etot,g,sigma)
   use xtb_mctc_accuracy, only : wp
-  use gff_param
+  use xtb_gfnff_param
   use xtb_disp_dftd3param
   use xtb_type_environment
   use xtb_type_molecule

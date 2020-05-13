@@ -19,7 +19,7 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
   use iso_fortran_env
   use xtb_restart
   use xtb_type_molecule
-  use gff_param
+  use xtb_gfnff_param
   use xtb_setparam, only : ichrg
   implicit none
 ! Dummy
@@ -63,7 +63,8 @@ end subroutine gfnff_setup
 subroutine gfnff_input(mol)
   use iso_fortran_env, only : wp => real64
   use xtb_type_molecule
-  use gff_param
+  use xtb_mctc_filetypes, only : fileType
+  use xtb_gfnff_param
   use xtb_setparam, only : ichrg
   implicit none
 ! Dummy
@@ -91,21 +92,25 @@ subroutine gfnff_input(mol)
   if (.not.allocated(fraglist)) allocate( fraglist(mol%n), source = 0 )
   if (.not.allocated(q))        allocate( q(mol%n), source = 0.0d0 )
 
-  if (allocated(mol%pdb)) then
-    read_file_type = 2
-    ini = .true.
-  else if (allocated(mol%sdf)) then
-    read_file_type = 1
-    ini = .false.
-  else
-    read_file_type = 0
-    ini = .true.
-  end if
+  !write(*,*) 'test' , mol%ftype
 
-  select case(read_file_type)
+  !if (allocated(mol%pdb)) then
+  !  read_file_type = 2
+  !  ini = .true.
+  !else if (allocated(mol%sdf)) then
+  !  read_file_type = 1
+  !  ini = .false.
+  !else
+  !  read_file_type = 0
+  !  ini = .true.
+  !end if
+
+  select case(mol%ftype)
   !--------------------------------------------------------------------
   ! PDB case
-    case(2)
+    case(fileType%pdb)
+    !write(*,*) 'PDB' , mol%ftype
+        ini = .true.
         ifrag=0
         associate(rn => mol%pdb%residue_number, qatom => mol%pdb%charge)
           do iresidue = minval(rn),maxval(rn)
@@ -124,7 +129,9 @@ subroutine gfnff_input(mol)
         write(*,'(10x,"charge from pdb residues: ",i0)') ichrg
   !--------------------------------------------------------------------
   ! SDF case
-    case(1)
+    case(fileType%sdf)
+    !write(*,*) 'SDF' , mol%ftype
+       ini = .false.
        nb=0
        nfrag=0
        do ibond = 1, len(mol%bonds)
@@ -164,10 +171,39 @@ subroutine gfnff_input(mol)
        end associate
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
-    case(0)
+    case(fileType%xyz)
+    !write(*,*) 'XYZ' , mol%ftype
+       ini = .true.
        call open_file(ich,'.CHRG','r')
        if (ich.ne.-1) then
-           !open(unit=1,file='.CHRG')
+           read(ich,'(a)')atmp
+           call close_file(ich)
+           call readline(atmp,floats,s,ns,nf)
+           qfrag(1:nf)=floats(1:nf)
+           ichrg=int(sum(qfrag(1:nf)))
+           qfrag(nf+1:mol%n)=9999
+        else
+           qfrag=0
+        end if
+    case(fileType%tmol)
+    !write(*,*) 'COORD' , mol%ftype
+       ini = .true.
+       call open_file(ich,'.CHRG','r')
+       if (ich.ne.-1) then
+           read(ich,'(a)')atmp
+           call close_file(ich)
+           call readline(atmp,floats,s,ns,nf)
+           qfrag(1:nf)=floats(1:nf)
+           ichrg=int(sum(qfrag(1:nf)))
+           qfrag(nf+1:mol%n)=9999
+        else
+           qfrag=0
+        end if
+    case(fileType%molfile)
+    !write(*,*) 'MOL' , mol%ftype
+       ini = .true.
+       call open_file(ich,'.CHRG','r')
+       if (ich.ne.-1) then
            read(ich,'(a)')atmp
            call close_file(ich)
            call readline(atmp,floats,s,ns,nf)
@@ -180,7 +216,7 @@ subroutine gfnff_input(mol)
   !-------------------------------------------------------------------
   ! Default
     case default
-        write(*,'(10x,"Input file format not recognized!")')
+        write(*,'(10x,"Input file format not suitable for GFN-FF!")')
   end select
 
  !-------------------------------------------------------------------

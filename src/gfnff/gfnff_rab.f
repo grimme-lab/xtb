@@ -47,6 +47,7 @@ c     parameter)
 ! base radius
 ! CN dep. lin
 ! CN dep. quadratic (not used, only slightly better)
+
       data en /
      . 2.30085633, 2.78445145, 1.52956084, 1.51714704, 2.20568300,
      . 2.49640820, 2.81007174, 4.51078438, 4.67476223, 3.29383610,
@@ -108,18 +109,6 @@ c     parameter)
      . 0.04800662
      ./
 
-c parameter input for fit
-c     open(unit=11,file='~/.param')
-c     do i=1,86
-c        read(11,*) r0(i),cnfak(i),en(i) ! r0, CN dep
-c     enddo
-c     do j=1,2
-c     do i=1,4
-c        read(11,*) p(i,j)
-c     enddo
-c     enddo
-c     close(11)
-
 c     global EN polynominal parameters x 10^3
       p(1,1)=    29.84522887
       p(2,1)=    -1.70549806
@@ -134,9 +123,6 @@ c     global EN polynominal parameters x 10^3
       p(5,2)=    -1.15000000
       p(6,2)=    -1.30000000
 
-!     do i=1,n
-!        dcn(1:3,i,i)=-dcn(1:3,i,i) ! to allow inverted access on array
-!     enddo
 
       do k=1,nsrb
          i=srblist(1,k)
@@ -160,12 +146,7 @@ c--------
 c--------
       enddo
 
-!     do i=1,n
-!        dcn(1:3,i,i)=-dcn(1:3,i,i)
-!     enddo
-!     stop
-
-      end
+      end subroutine gfnffdrab
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -189,7 +170,7 @@ c--------
       End If
 
       Return
-      End
+      End FUNCTION iTabRow6
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -296,4 +277,4 @@ c--------
          enddo
       enddo
 
-      end
+      end subroutine gfnffrab

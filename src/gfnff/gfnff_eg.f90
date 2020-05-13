@@ -45,12 +45,13 @@
 
    subroutine gfnff_eg(pr,n,ichrg,at,xyz,makeq,g,etot,res_gff)
       use xtb_mctc_accuracy, only : wp
-      use gff_param
-      use gff_d3com, only: rcov
+      use xtb_gfnff_param
+      use xtb_disp_dftd4, only: rcov
       use xtb_type_data
       use xtb_type_timer
-      use gffmod_dftd3
+      use xtb_gfnff_gdisp0
       use xtb_solv_gbobc
+      use xtb_mctc_constants
       implicit none
       interface
          subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr)
@@ -86,11 +87,9 @@
       real*8  r2,rab,qq0,erff,dd,dum1,r3(3),t8,dum,t22,t39
       real*8  dx,dy,dz,yy,t4,t5,t6,alpha,t20
       real*8  repab,t16,t19,t26,t27,xa,ya,za,cosa,de,t28
-      real*8  gammij,sqrtpi,eesinf,etmp,phi,valijklff
-      real*8  omega,pi,rn,dr,g3tmp(3,3),g4tmp(3,4)
+      real*8  gammij,eesinf,etmp,phi,valijklff
+      real*8  omega,rn,dr,g3tmp(3,3),g4tmp(3,4)
       real*8 rij,drij(3,n)
-      parameter (pi = 3.1415926535897932384626433832795029d0)
-      parameter (sqrtpi  = 1.77245385090552d0)
 
       real*8, allocatable :: grab0(:,:,:), rab0(:), eeqtmp(:,:)
       real*8, allocatable :: cn(:), dcn(:,:,:), qtmp(:)
@@ -517,7 +516,7 @@
 !!!!!!!!!!!!!!!!!!
 ! total energy
 !!!!!!!!!!!!!!!!!!
- 99   etot = ees + edisp + erep + ebond &
+      etot = ees + edisp + erep + ebond &
      &           + eangl + etors + ehb + exb + ebatm + eext &
      &           + gsolv + gshift + gborn + ghb
 
@@ -535,10 +534,6 @@
         do i=1,n
            r3(:) = r3(:)+q(i)*xyz(:,i)
         enddo
-!       write(*,'(''dipole moment xyz :'',4f16.8)') r3,2.5418d0*sqrt(sum(r3**2))
-!       write(*,'(''CN    :'',20f7.3)') cn
-!       if(n.lt.200) write(*,'(''q     :'',20f7.3)') q
-!       if(sum(abs(efield)).gt.1d-6)write(*,'(''Eext  :'',f16.8)') eext
 
 !       just for fit De calc
         sqrab = 1.d+12
@@ -548,7 +543,6 @@
 !       which is computed here to get the atomization energy De,n,at(n)
         call goed_gfnff(.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,gbsa)
         de=-(etot - eesinf)
-!       write(*,'(10x,"De    :",f16.8,f14.3)') de,de*627.5095d0
 !       write out fitting stuff
         inquire(file='.EAT',exist=ex)
         if(ex)then
@@ -598,7 +592,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbond(i,iat,jat,rab,rij,drij,n,at,xyz,e,g)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       !Dummy
       integer,intent(in)   :: i
@@ -648,7 +642,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       !Dummy
       integer,intent(in)   :: i
@@ -725,8 +719,8 @@
 
       subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr)
       use iso_fortran_env, only : wp => real64
-      use gff_param
-      use gff_d3com, only : rcov
+      use xtb_gfnff_param
+      use xtb_disp_dftd4, only : rcov
       implicit none
       !Dummy
       integer,intent(in)   :: nat
@@ -780,7 +774,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbend(m,j,i,k,n,at,xyz,e,g)
-      use gff_param
+      use xtb_gfnff_param
+      use xtb_mctc_constants
       implicit none
       integer m,n,at(n)
       integer i,j,k
@@ -790,12 +785,11 @@
       real*8  dt,ea,dedb(3),dedc(3),rmul2,rmul1,deddt
       real*8  term1(3),term2(3),rab2,vab(3),vcb(3),rp
       real*8  rcb2,damp,dampij,damp2ij,dampjk,damp2jk
-      real*8  theta,pi,deda(3),vlen,vp(3),et,dij,c1
+      real*8  theta,deda(3),vlen,vp(3),et,dij,c1
       real*8  term3(3),x1sin,x1cos,e1,dphi1,vdc(3)
       real*8  ddd(3),ddc(3),ddb(3),dda(3),rjl,phi
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
          c0  =vangl(1,m)
          kijk=vangl(2,m)
@@ -839,12 +833,13 @@
          g(1:3,2) =  deda(1:3)*damp+term1(1:3)
          g(1:3,3) =  dedc(1:3)*damp+term2(1:3)
 
-      end
+      end subroutine egbend
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbend_nci_mul(j,i,k,c0,fc,n,at,xyz,e,g)
-      use gff_param
+      use xtb_gfnff_param
+      use xtb_mctc_constants
       implicit none
       !Dummy
       integer n,at(n)
@@ -856,13 +851,11 @@
       real*8  dt,ea,dedb(3),dedc(3),rmul2,rmul1,deddt
       real*8  term1(3),term2(3),rab2,vab(3),vcb(3),rp
       real*8  rcb2,damp,dampij,damp2ij,dampjk,damp2jk
-      real*8  theta,pi,deda(3),vlen,vp(3),et,dij,c1
+      real*8  theta,deda(3),vlen,vp(3),et,dij,c1
       real*8  term3(3),x1sin,x1cos,e1,dphi1,vdc(3)
       real*8  ddd(3),ddc(3),ddb(3),dda(3),rjl,phi
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
-
 
          kijk=fc/(cos(0.0d0)-cos(c0))**2
          va(1:3) = xyz(1:3,i)
@@ -899,12 +892,13 @@
          g(1:3,2) = -deda(1:3)
          g(1:3,3) = -dedc(1:3)
 
-      end
+      end subroutine egbend_nci_mul
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbend_nci(j,i,k,c0,kijk,n,at,xyz,e,g)
-      use gff_param
+      use xtb_gfnff_param
+      use xtb_mctc_constants
       implicit none
       !Dummy
       integer n,at(n)
@@ -916,12 +910,11 @@
       real*8  dt,ea,dedb(3),dedc(3),rmul2,rmul1,deddt
       real*8  term1(3),term2(3),rab2,vab(3),vcb(3),rp
       real*8  rcb2,damp,dampij,damp2ij,dampjk,damp2jk
-      real*8  theta,pi,deda(3),vlen,vp(3),et,dij,c1
+      real*8  theta,deda(3),vlen,vp(3),et,dij,c1
       real*8  term3(3),x1sin,x1cos,e1,dphi1,vdc(3)
       real*8  ddd(3),ddc(3),ddb(3),dda(3),rjl,phi
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
          va(1:3) = xyz(1:3,i)
          vb(1:3) = xyz(1:3,j)
@@ -963,12 +956,13 @@
          g(1:3,2) =  deda(1:3)*damp+term1(1:3)
          g(1:3,3) =  dedc(1:3)*damp+term2(1:3)
 
-      end
+      end subroutine egbend_nci
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egtors(m,i,j,k,l,n,at,xyz,e,g)
-      use gff_param
+      use xtb_gfnff_param
+      use xtb_mctc_constants
       implicit none
       integer m,n,at(n)
       integer i,j,k,l
@@ -978,12 +972,11 @@
       real*8  dt,ea,dedb(3),dedc(3),rmul2,rmul1,deddt
       real*8  term1(3),term2(3),rab2,vab(3),vcb(3),rp
       real*8  rcb2,damp,dampij,damp2ij,dampjk,damp2jk
-      real*8  theta,pi,deda(3),vlen,vp(3),et,dij,c1
+      real*8  theta,deda(3),vlen,vp(3),et,dij,c1
       real*8  term3(3),x1sin,x1cos,e1,dphi1,vdc(3)
       real*8  ddd(3),ddc(3),ddb(3),dda(3),rjl,phi
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
          rn=dble(tlist(5,m))
          phi0 =vtors(1,m)
@@ -1048,12 +1041,13 @@
          e=et*damp
          endif
 
-      end
+      end subroutine egtors
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       !torsion without distance damping!!! damping is inherint in the HB term
       subroutine egtors_nci_mul(i,j,k,l,rn,phi0,tshift,n,at,xyz,e,g)
+      use xtb_mctc_constants
       implicit none
       !Dummy
       integer n,at(n)
@@ -1066,12 +1060,11 @@
       real*8  dt,ea,dedb(3),dedc(3),rmul2,rmul1,deddt
       real*8  term1(3),term2(3),rab2,vab(3),vcb(3),rp
       real*8  rcb2,damp,dampij,damp2ij,dampjk,damp2jk
-      real*8  theta,pi,deda(3),vlen,vp(3),et,dij,c1
+      real*8  theta,deda(3),vlen,vp(3),et,dij,c1
       real*8  term3(3),x1sin,x1cos,e1,dphi1,vdc(3)
       real*8  ddd(3),ddc(3),ddb(3),dda(3),rjl,phi
       real*8  omega,rij,rijk,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
          fc=(1.0d0-tshift)/2.0d0
          vab(1:3) = xyz(1:3,i)-xyz(1:3,j)
@@ -1093,11 +1086,13 @@
          g(1:3,3)=dij*ddc(1:3)
          g(1:3,4)=dij*ddd(1:3)
          e=et !*damp
-      end
+      end subroutine egtors_nci_mul
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egtors_nci(i,j,k,l,rn,phi0,fc,n,at,xyz,e,g)
+      use xtb_mctc_constants
+      use xtb_mctc_constants
       implicit none
       !Dummy
       integer n,at(n)
@@ -1110,12 +1105,11 @@
       real*8  dt,ea,dedb(3),dedc(3),rmul2,rmul1,deddt
       real*8  term1(3),term2(3),rab2,vab(3),vcb(3),rp
       real*8  rcb2,damp,dampij,damp2ij,dampjk,damp2jk
-      real*8  theta,pi,deda(3),vlen,vp(3),et,dij,c1
+      real*8  theta,deda(3),vlen,vp(3),et,dij,c1
       real*8  term3(3),x1sin,x1cos,e1,dphi1,vdc(3)
       real*8  ddd(3),ddc(3),ddb(3),dda(3),rjl,phi
       real*8  omega,rij,rijk,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
          vab(1:3) = xyz(1:3,i)-xyz(1:3,j)
          vcb(1:3) = xyz(1:3,j)-xyz(1:3,k)
@@ -1143,7 +1137,7 @@
          g(1:3,3)=dij*ddc(1:3)+term3-term2
          g(1:3,4)=dij*ddd(1:3)-term3
          e=et*damp
-      end
+      end subroutine egtors_nci
 
 !cccccccccccccccccccccccccccccccccccccccccccccc
 ! damping of bend and torsion for long
@@ -1151,8 +1145,8 @@
 !cccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine gfnffdampa(ati,atj,r2,damp,ddamp)
-      use gff_d3com, only: rcov
-      use gff_param,only: atcuta
+      use xtb_disp_dftd4, only: rcov
+      use xtb_gfnff_param,only: atcuta
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
@@ -1160,11 +1154,11 @@
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
-      end
+      end subroutine gfnffdampa
 
       subroutine gfnffdampt(ati,atj,r2,damp,ddamp)
-      use gff_d3com, only: rcov
-      use gff_param,only: atcutt
+      use xtb_disp_dftd4, only: rcov
+      use xtb_gfnff_param,only: atcutt
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
@@ -1172,11 +1166,11 @@
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
-      end
+      end subroutine gfnffdampt
 
       subroutine gfnffdampa_nci(ati,atj,r2,damp,ddamp)
-      use gff_d3com, only: rcov
-      use gff_param,only: atcuta_nci
+      use xtb_disp_dftd4, only: rcov
+      use xtb_gfnff_param,only: atcuta_nci
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
@@ -1184,11 +1178,11 @@
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
-      end
+      end subroutine gfnffdampa_nci
 
       subroutine gfnffdampt_nci(ati,atj,r2,damp,ddamp)
-      use gff_d3com, only: rcov
-      use gff_param,only: atcutt_nci
+      use xtb_disp_dftd4, only: rcov
+      use xtb_gfnff_param,only: atcutt_nci
       implicit none
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
@@ -1196,7 +1190,7 @@
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
-      end
+      end subroutine gfnffdampt_nci
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Ref.: S. Alireza Ghasemi, Albert Hofstetter, Santanu Saha, and Stefan Goedecker
@@ -1208,7 +1202,7 @@
       subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa)
       use iso_fortran_env, id => output_unit, wp => real64
       use xtb_mctc_la
-      use gff_param, only: chieeq,gameeq,alpeeq,cnf,nfrag,qfrag,fraglist
+      use xtb_gfnff_param, only: chieeq,gameeq,alpeeq,cnf,nfrag,qfrag,fraglist
       use xtb_solv_gbobc
       implicit none
       logical, intent(in)  :: single     ! real*4 flag for solver
@@ -1326,7 +1320,7 @@
 
 !subroutine for case 1: A...H...B
 subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use gff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst
+      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,3)
@@ -1481,17 +1475,15 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gh(1:3) = gh(1:3) + dgh(1:3)
 
 !     move gradients into place
-
       gdr(1:3,1) = ga(1:3)
       gdr(1:3,2) = gb(1:3)
       gdr(1:3,3) = gh(1:3)
 
-!     write(*,'(9d12.6)') ga,gb,gh
-end
+end subroutine abhgfnff_eg1
 
 !subroutine for case 2: A-H...B including orientation of neighbors at B
 subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use gff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -1537,7 +1529,6 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       gdr    = 0
       energy = 0
-!     hbnbcut = 20.d0  !!!new parameter for neighbour damp in common !!!
 
       call hbonds(A,B,at(A),at(B),ca,cb)
 
@@ -1721,11 +1712,11 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       end do
 
       hbnbcut=hbnbcut_save
-end
+end subroutine abhgfnff_eg2new
 
 !subroutine for case 2: A-H...B including LP position
 subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use gff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2016,13 +2007,14 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i) - gnb_lp(1:3)/dble(nbb)
       end do
 
-end
+end subroutine abhgfnff_eg2_rnr
 
 !subroutine for case 3: A-H...B, B is 0=C including two in plane LPs at B
 !this is the multiplicative version of incorporationg etors and ebend
 !equal to abhgfnff_eg2_new multiplied by etors and eangl
 subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use gff_param,only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_coh,hbabmix,nb,repz,hbnbcut,tors_hb,bend_hb
+      use xtb_mctc_constants
+      use xtb_gfnff_param,only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_coh,hbabmix,nb,repz,hbnbcut,tors_hb,bend_hb
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2030,7 +2022,6 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 sqrab(n*(n+1)/2)   ! squared dist
       real*8 srab(n*(n+1)/2)    ! dist
 
-      real*8 C,D
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
       real*8 ratio1,ratio2,ratio2_nb(nb(20,B)),ratio3
@@ -2057,7 +2048,6 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 shortcut
       real*8 tlist(5,nb(20,nb(1,B)))
       real*8 vtors(2,nb(20,nb(1,B)))
-      real*8 pi
       real*8 valijklff
       real*8 const
       real*8 outl_nb(nb(20,B)),outl_nb_tot
@@ -2067,10 +2057,10 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 :: p_bh
       real*8 :: p_ab
 
+      integer C,D
       integer i,j,ii,jj,kk,ll,ij,lina
       integer nbb,nbc
       integer ntors,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
@@ -2177,11 +2167,10 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          t0=180
          phi0=t0*pi/180.
          vtors(1,j)=phi0-(pi/2.0)
-         vtors(2,j)=tors_hb !gff_param
+         vtors(2,j)=tors_hb !xtb_gfnff_param
       end do
 
       !Calculate etors
-      !write(*,*)'torsion atoms       nrot      phi0   phi      FC'
       do i = 1,ntors
          ii =tlist(1,i)
          jj =tlist(2,i)
@@ -2192,8 +2181,6 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          tshift=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
          call egtors_nci_mul(ii,jj,kk,ll,rn,phi0,tshift,n,at,xyz,etmp(i),g4tmp(:,:,i))
-         !write(*,'(4i5,2x,i2,4x,3f8.3,2x,f5.3)') &
-         !     &    ii,jj,kk,ll,rn,2*phi0*180./pi,phi*180./pi,fc,etmp(i)
       end do
       etors=product(etmp(1:ntors))
       !Calculate gtors
@@ -2212,15 +2199,12 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       end do
 
       !Calculate eangl + gangl
-      !write(*,*)'angle atoms          phi0   phi      FC'
       r0=120
       phi0=r0*pi/180.
-      bshift=bend_hb !gff_param
+      bshift=bend_hb !xtb_gfnff_param
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,eangl,g3tmp)
-      !write(*,'(3i5,2x,3f8.3,2x,f5.3)') &
-      !     &    jj,kk,ll,phi0*180./pi,phi*180./pi,fc,eangl
       gangl(1:3,jj)=gangl(1:3,jj)+g3tmp(1:3,1)
       gangl(1:3,kk)=gangl(1:3,kk)+g3tmp(1:3,2)
       gangl(1:3,ll)=gangl(1:3,ll)+g3tmp(1:3,3)
@@ -2243,7 +2227,6 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
-      !const = ca(2)*qa*cb(1)*qb*xhaci_globabh
       const = ca(2)*qa*cb(1)*qb*xhaci_coh
 
 !     energy
@@ -2359,12 +2342,13 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          gdr(1:3,nb(i,B)) = gdr(1:3,nb(i,B)) + gnb(1:3,i)
       end do
 
-end
+end subroutine abhgfnff_eg3
 
 !subroutine for case 3: A-H...B, B is 0=C including two in plane LPs at B
 !this is the multiplicative version of incorporationg etors and ebend without neighbor LP
 subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use gff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_mctc_constants
+      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2399,7 +2383,6 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 const
       real*8 tlist(5,nb(20,nb(1,B)))
       real*8 vtors(2,nb(20,nb(1,B)))
-      real*8 pi
       real*8 valijklff
       logical mask_nb(nb(20,B))
 
@@ -2410,7 +2393,6 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ii,jj,kk,ll,ij,lina
       integer nbb,nbc
       integer ntors,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
@@ -2496,7 +2478,6 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       end do
 
       !Calculate etors
-      !write(*,*)'torsion atoms       nrot      phi0   phi      FC'
       do i = 1,ntors
          ii =tlist(1,i)
          jj =tlist(2,i)
@@ -2507,8 +2488,6 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          tshift=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
          call egtors_nci_mul(ii,jj,kk,ll,rn,phi0,tshift,n,at,xyz,etmp,g4tmp)
-         !write(*,'(4i5,2x,i2,4x,3f8.3,2x,f5.3)') &
-         !     &    ii,jj,kk,ll,rn,2*phi0*180./pi,phi*180./pi,fc,etmp
          gtors(1:3,ii) = gtors(1:3,ii)+g4tmp(1:3,1)
          gtors(1:3,jj) = gtors(1:3,jj)+g4tmp(1:3,2)
          gtors(1:3,kk) = gtors(1:3,kk)+g4tmp(1:3,3)
@@ -2517,16 +2496,12 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       end do
       etors=etors/ntors
 
-      !Calculate eangl + gangl
-      !write(*,*)'angle atoms          phi0   phi      FC'
       r0=120
       phi0=r0*pi/180.
       bshift=0.1
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,etmp,g3tmp)
-      !write(*,'(3i5,2x,3f8.3,2x,f5.3)') &
-      !     &    jj,kk,ll,phi0*180./pi,phi*180./pi,fc,etmp
       gangl(1:3,jj)=gangl(1:3,jj)+g3tmp(1:3,1)
       gangl(1:3,kk)=gangl(1:3,kk)+g3tmp(1:3,2)
       gangl(1:3,ll)=gangl(1:3,ll)+g3tmp(1:3,3)
@@ -2560,10 +2535,6 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       drah(1:3)=xyz(1:3,A)-xyz(1:3,H)
       drbh(1:3)=xyz(1:3,B)-xyz(1:3,H)
       drab(1:3)=xyz(1:3,A)-xyz(1:3,B)
-
-      !aterm  = -rdamp*qh*eangl*const
-      !dterm  = -qhoutl*eangl*const
-      !bterm  = -rdamp*qhoutl*const
 
       aterm  = -rdamp*qh*etors*eangl*const
       dterm  = -qhoutl*etors*eangl*const
@@ -2631,12 +2602,13 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
 
-end
+end subroutine abhgfnff_eg3_mul
 
 !subroutine for case 3: A-H...B, B is 0=C including two in plane LPs at B
 !this is the additive version of incorporationg etors and ebend
 subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use gff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
+      use xtb_mctc_constants
+      use xtb_gfnff_param, only:hbacut,hbscut,xhbas,rad,hbalp,hblongcut,hbsf,hbst,xhaci_globabh,hbabmix,nb,repz,hbnbcut
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2672,7 +2644,6 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 outl_nb(nb(20,B)),outl_nb_tot
       real*8 tlist(5,nb(20,nb(1,B)))
       real*8 vtors(2,nb(20,nb(1,B)))
-      real*8 pi
       real*8 valijklff
       logical mask_nb(nb(20,B))
 
@@ -2683,7 +2654,6 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ii,jj,kk,ll,ij,lina
       integer nbb,nbc
       integer ntors,rn
-      parameter (pi = 3.1415926535897932384626433832795029d0)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
@@ -2777,8 +2747,6 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          phi0=vtors(1,i)
          fc=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
-      !   write(*,'(4i5,2x,i2,4x,3f8.3)') &
-      !&   ii,jj,kk,ll,rn,phi0*180./pi,phi*180./pi,fc
          call egtors_nci(ii,jj,kk,ll,rn,phi0,fc,n,at,xyz,etmp,g4tmp)
          gdr(1:3,ii) = gdr(1:3,ii)+g4tmp(1:3,1)
          gdr(1:3,jj) = gdr(1:3,jj)+g4tmp(1:3,2)
@@ -2875,14 +2843,14 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
 
-end
+end subroutine abhgfnff_eg3_add
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! XB energy and analytical gradient
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
-      use gff_param, only: xbacut,xbscut,xbaci,xhbas,rad,hbalp,hblongcut_xb,xbst,xbsf
+      use xtb_gfnff_param, only: xbacut,xbscut,xbaci,xhbas,rad,hbalp,hblongcut_xb,xbst,xbsf
       implicit none
       integer               :: A,B,X,n,at(n)
       real*8                :: xyz(3,n)
@@ -2997,14 +2965,14 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       gdr(1:3,3) = gx(1:3)
 
       return
-      end
+      end subroutine rbxgfnff_eg
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! taken from D3 ATM code
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
-      use gff_param, only: repz,zb3atm
+      use xtb_gfnff_param, only: repz,zb3atm
       implicit none
       integer iat,jat,kat,n,at(n)
       real*8 xyz(3,n),energy,g(3,3),q(n)
@@ -3067,7 +3035,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
       g(:,3  )=        -drik*rik/srab(linik)
       g(:,3  )=g(:,3  )-drjk*rjk/srab(linjk)
 
-      end
+      end subroutine batmgfnff_eg
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! CN routines
@@ -3075,8 +3043,8 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
 !> logCN derivative saved in dlogCN array
 subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
       use iso_fortran_env, only : wp => real64
-      use gff_d3com, only : rcov
-      use gff_param,only : cnmax
+      use xtb_disp_dftd4, only : rcov
+      use xtb_gfnff_param,only : cnmax
       implicit none
       integer, intent(in)  :: n
       integer, intent(in)  :: at(n)
@@ -3158,7 +3126,7 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
 
 pure elemental function create_logCN(cn) result(count)
       use iso_fortran_env, only : wp => real64
-      use gff_param,only : cnmax
+      use xtb_gfnff_param,only : cnmax
    real(wp), intent(in) :: cn
    real(wp) :: count
    count = log(1 + exp(cnmax)) - log(1 + exp(cnmax - cn) )
@@ -3166,7 +3134,7 @@ end function create_logCN
 
 pure elemental function create_dlogCN(cn) result(count)
       use iso_fortran_env, only : wp => real64
-      use gff_param,only : cnmax
+      use xtb_gfnff_param,only : cnmax
    real(wp), intent(in) :: cn
    real(wp) :: count
    count = exp(cnmax)/(exp(cnmax) + exp(cn))
@@ -3185,7 +3153,7 @@ end function create_erfCN
 
 pure elemental function create_derfCN(k,r,r0) result(count)
       use iso_fortran_env, only : wp => real64
-      use gff_param,only : cnmax
+      use xtb_gfnff_param,only : cnmax
    real(wp), intent(in) :: k
    real(wp), intent(in) :: r
    real(wp), intent(in) :: r0
@@ -3215,4 +3183,3 @@ pure elemental function create_dexpCN(k,r,r0) result(count)
 end function create_dexpCN
 
 end subroutine gfnff_dlogcoord
-

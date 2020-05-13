@@ -86,8 +86,8 @@ end subroutine readRestart
 
 subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose)
    use iso_fortran_env, wp => real64, istdout => output_unit
-   use gff_param
-   use gff_frag_hess, only : nsystem,ispinsyst,nspinsyst
+   use xtb_gfnff_param
+   use xtb_gfnff_fraghess, only : nsystem,ispinsyst,nspinsyst
    implicit none
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: n
@@ -165,8 +165,8 @@ end subroutine writeRestart
 
 subroutine write_restart_gff(fname,nat,p_ext_gfnff)
    use iso_fortran_env, wp => real64, istdout => output_unit
-   use gff_param
-   use gff_frag_hess, only : nsystem,ispinsyst,nspinsyst
+   use xtb_gfnff_param
+   use xtb_gfnff_fraghess, only : nsystem,ispinsyst,nspinsyst
    implicit none
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: nat

@@ -2656,7 +2656,7 @@ end module xtb_modelhessian
 
       subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6)
 !                        torsion     bend         bonds    charges BJ radii^2
-      use gff_param, only: ntors,tlist, nangl,alist, nbond,blist, qa,  d3r0
+      use xtb_gfnff_param, only: ntors,tlist, nangl,alist, nbond,blist, qa,  d3r0
       use xtb_type_timer
       Implicit Real*8 (a-h, o-z)
 

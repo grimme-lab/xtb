@@ -38,7 +38,7 @@ module xtb_prog_main
    use xtb_constrain_param, only : read_userdata
    use xtb_solv_gbobc, only: lgbsa,init_gbsa
    use xtb_shake, only: init_shake
-   use gfnff_shake, only: gff_init_shake => init_shake
+   use xtb_gfnff_shake, only: gff_init_shake => init_shake
    use xtb_embedding, only : init_pcem
    use xtb_io_reader, only : readMolecule
    use xtb_io_writer, only : writeMolecule
@@ -83,7 +83,7 @@ module xtb_prog_main
    use xtb_coffee
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use gff_param, only : gff_print
+   use xtb_gfnff_param, only : gff_print
    implicit none
    private
 

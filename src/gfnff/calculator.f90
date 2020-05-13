@@ -32,7 +32,7 @@ module xtb_gfnff_calculator
    use xtb_solv_gbobc, only : lgbsa
    use xtb_metadynamic
    use xtb_constrainpot
-   use gff_param, only : make_chrg,gff_print
+   use xtb_gfnff_param, only : make_chrg,gff_print
    implicit none
    private
 

@@ -24,7 +24,7 @@
 !      call fragmentize(n,at,xyz,maxsystem, 400, rab, nb, ispinsyst, nspinsyst, nsystem)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module gff_frag_hess
+module xtb_gfnff_fraghess
    !$ use omp_lib
    implicit none
    save
@@ -416,7 +416,7 @@ module gff_frag_hess
 
      end subroutine frag_hess_diag
 
-end module gff_frag_hess
+end module xtb_gfnff_fraghess
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !calculates the shortest path between two atoms

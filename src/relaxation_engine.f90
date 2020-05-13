@@ -399,7 +399,7 @@ subroutine l_ancopt &
    use xtb_hessian
    use xtb_lsrmsd
 
-   use gff_frag_hess
+   use xtb_gfnff_fraghess
 
    implicit none
 

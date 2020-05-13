@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       logical makeneighbor
       integer at(natoms),natoms
@@ -317,14 +317,14 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       enddo
       if(dble(j)/dble(natoms).gt.0.3) stop ' too many atoms with extreme high CN, probably very bad input!'
 
-      end
+      end subroutine gfnff_neigh
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 ! fill neighbor list
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine getnb(n,at,rad,r,mchar,icase,f,f2,nbf,nb)
-      use gff_param, only:metal,normcn,group
+      use xtb_gfnff_param, only:metal,normcn,group
       implicit none
       integer n,at(n),nbf(20,n),nb(20,n)
       real*8 rad(n*(n+1)/2),r(n*(n+1)/2),mchar(n),f,f2
@@ -381,14 +381,14 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          nb(20,i) = nn
       enddo
 
-      end
+      end subroutine getnb 
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 ! find the CN of nearest non metal of atom i
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine nn_nearest_noM(ii,n,at,nb,r,nn)
-      use gff_param, only: metal
+      use xtb_gfnff_param, only: metal
       implicit none
       integer ii,n,at(n),nn,nb(20,n)
       real*8 r(n*(n+1)/2)
@@ -410,7 +410,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 
       if(jmin.gt.0) nn=nb(20,jmin)
 
-      end
+      end subroutine nn_nearest_noM
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 ! find smallest ring in which atom i is located
@@ -425,7 +425,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          if(s(k,i).lt.rings) rings=s(k,i)
       enddo
 
-      end
+      end subroutine ringsatom
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 ! find smallest ring in which bond i-j is located
@@ -455,7 +455,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       rings=min(rings1,rings2)
       if(rings.eq.99) rings=0
 
-      end
+      end subroutine ringsbond
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! find smallest ring in which angle i-j-k is located
@@ -501,7 +501,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       rings=min(rings1,rings2,rings3)
       if(rings.eq.99) rings=0
 
-      end
+      end subroutine ringsbend
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! find smallest torsion in which angle i-j-k-l is located
@@ -568,14 +568,9 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       rings=min(rings1,rings2,rings3,rings4)
       if(rings.eq.99) then
          rings=0
-!     else
-!        if(rings.eq.rings1) ht=ht1
-!        if(rings.eq.rings2) ht=ht2
-!        if(rings.eq.rings3) ht=ht3
-!        if(rings.eq.rings4) ht=ht4
       endif
 
-      end
+      end subroutine ringstors
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! find smallest torsion in which angle i-j-k-l is located
@@ -639,7 +634,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          ringl=0
       endif
 
-      end
+      end subroutine ringstorl
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -659,7 +654,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 
       chktors=.false.
 
-      end
+      end function chktors
 
       logical function chkrng(nn,n,c)
       implicit none
@@ -674,13 +669,13 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          if(idum(i).eq.1) j=j+1
       enddo
       if(j.ne.n) chkrng=.false.
-      end
+      end function chkrng
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine gfnff_hbset(n,at,xyz,sqrab)
       use iso_fortran_env, only : wp => real64
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       integer n
       integer at(n)
@@ -708,7 +703,6 @@ subroutine gfnff_hbset(n,at,xyz,sqrab)
             nh=hbatHl(k)
             inh=lin(i,nh)
             jnh=lin(j,nh)
-            !write(*,*) 'test', bpair(inh),bpair(jnh),bpair(ij)
             if(bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
                nhb2=nhb2+1
                hblist2(1,nhb2)=i
@@ -743,16 +737,15 @@ subroutine gfnff_hbset(n,at,xyz,sqrab)
 
       hbrefgeo = xyz
 
-!     write(*,*) 'HB list update.',nhb1,nhb2
       endif  ! else do nothing
 
-      end
+      end subroutine gfnff_hbset
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl)
       use iso_fortran_env, only : wp => real64
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       integer,intent(in) :: n
       integer,intent(in) :: at(n)
@@ -794,11 +787,11 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl)
          enddo
       enddo
 
-end
+end subroutine bond_hbset
 
 subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn)
       use iso_fortran_env, only : wp => real64
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       integer,intent(in) :: n
       integer,intent(in) :: at(n)
@@ -831,10 +824,10 @@ subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn)
          enddo
       enddo
 
-end
+end subroutine bond_hbset0
 
 subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       !Dummy
       integer,intent(in)  :: n
@@ -911,7 +904,7 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB)
 end subroutine bond_hb_AHB_set
 
 subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH_count,bmax)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       !Dummy
       integer,intent(in)  :: n
@@ -984,7 +977,7 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
 end subroutine bond_hb_AHB_set1
 
 subroutine bond_hb_AHB_set0(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       !Dummy
       integer,intent(in)  :: n
@@ -1040,7 +1033,7 @@ end subroutine bond_hb_AHB_set0
 
 subroutine gfnff_hbset0(n,at,xyz,sqrab)
       use iso_fortran_env, only : wp => real64
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       integer n
       integer at(n)
@@ -1093,14 +1086,14 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
 
       hbrefgeo = xyz
 
-      end
+      end subroutine gfnff_hbset0
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! HB strength
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine hbonds(i,j,ati,atj,ci,cj)
-      use gff_param
+      use xtb_gfnff_param
       implicit none
       integer i,j
       integer ati,atj
@@ -1109,18 +1102,7 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
       cj(1)=hbbas(j)
       ci(2)=xhaci(ati)
       cj(2)=xhaci(atj)
-      end
-
-      !subroutine hbonds(ati,atj,ci,cj)
-      !use gff_param
-      !implicit none
-      !integer ati,atj
-      !real*8 ci(2),cj(2)
-      !ci(1)=xhbas(ati)
-      !cj(1)=xhbas(atj)
-      !ci(2)=xhaci(ati)
-      !cj(2)=xhaci(atj)
-      !end
+      end subroutine hbonds
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! ring analysis routine, don't touch ;-)
@@ -1276,25 +1258,12 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
                m=19
                goto 999
             endif
-!           i2=0
-!           do k=1,nn            ! determine if its a hetereo
-!              i1=at(cdum(k,i))
-!              i2=i2+i1
-!           enddo
-!           av=dble(i2)/dble(nn)
-!           sd=0
-!           cout(m,19)=0
-!           do k=1,nn
-!              i1=at(cdum(k,i))
-!              sd=sd+(av-dble(i1))**2
-!           enddo
-!           if(sd.gt.1.d-6) cout(m,19)=idint(1000.*sqrt(sd)/dble(nn))
          endif
       enddo
 999   irout(20)=m  ! number of rings for this atom
 
       return
-      end
+      end subroutine getring36
 
       subroutine ssort(n,edum,ind)
       implicit none
@@ -1319,7 +1288,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
          ind(k)=sc1
   140 continue
 
-      end
+      end subroutine ssort
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! neighbor only version of EEQ model
@@ -1329,7 +1298,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 subroutine goedeckera(n,at,nb,pair,q,es)
       use iso_fortran_env, id => output_unit, wp => real64
       use xtb_mctc_la
-      use gff_param, only: alpeeq,chieeq,gameeq,nfrag,qfrag,fraglist
+      use xtb_gfnff_param, only: alpeeq,chieeq,gameeq,nfrag,qfrag,fraglist
    implicit none
    integer, intent(in)  :: n          ! number of atoms
    integer, intent(in)  :: at(n)      ! ordinal numbers
@@ -1418,7 +1387,7 @@ subroutine goedeckera(n,at,nb,pair,q,es)
      &        + q(i)*q(i)*0.5d0*(gameeq(i)+tsqrt2pi/sqrt(alpeeq(i)))
       enddo
 
-end
+end subroutine goedeckera
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! condense charges to heavy atoms based on topology
@@ -1444,7 +1413,7 @@ end
 
       q = qtmp
 
-      end
+      end subroutine qheavy
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! determine number of cov. bonds between atoms
@@ -1527,7 +1496,7 @@ end
          enddo
       enddo
 
-      end
+      end subroutine nbondmat
 
       subroutine pairsbond(n,nn,list,pair,tag)
       implicit none
@@ -1556,7 +1525,7 @@ end
          enddo
       enddo
 
-      end
+      end subroutine pairsbond
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1565,14 +1534,14 @@ end
       pilist=.false.
 !     if(ati.eq.5.or.ati.eq.6.or.ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16) pilist=.true.
       if(ati.eq.5.or.ati.eq.6.or.ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16.or.ati.eq.17) pilist=.true.
-      end
+      end function pilist
 
       logical function nofs(ati)
       integer ati
       nofs=.false.
 !     if(ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16) nofs=.true.
       if(ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16.or.ati.eq.17) nofs=.true.
-      end
+      end function nofs
 
       logical function xatom(ati)
       integer ati
@@ -1580,7 +1549,7 @@ end
       if(ati.eq.17.or.ati.eq.35.or.ati.eq.53.or.&  ! X in A-X...B
      &   ati.eq.16.or.ati.eq.34.or.ati.eq.52.or.&
      &   ati.eq.15.or.ati.eq.33.or.ati.eq.51) xatom=.true.
-      end
+      end function xatom
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1598,7 +1567,7 @@ end
 
       if(no.eq.1.and.pi(a).ne.0) ctype = 1 ! a C=O carbon
 
-      end
+      end function ctype
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1629,4 +1598,4 @@ end
 
       if( no .eq. 1 ) amide = .true.
 
-      end
+      end function amide
