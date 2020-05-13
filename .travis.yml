@@ -8,7 +8,6 @@ addons:
       packages:
          - libblas-dev
          - liblapack-dev
-         - ninja-build
          - gfortran-8
          - python-pip
 
@@ -28,4 +27,4 @@ jobs:
         - OMP_NUM_THREADS=2 make -j all test install
 
 install:
-   - pip3 install meson==0.54.1 ase pytest
+   - pip3 install meson==0.53.2 ninja ase pytest
