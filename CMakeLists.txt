@@ -103,6 +103,7 @@ install(FILES
   "${xtb-dir}/param_gfn1-xtb.txt"
   "${xtb-dir}/param_gfn2-xtb.txt"
   "${xtb-dir}/param_ipea-xtb.txt"
+  "${xtb-dir}/.param_gfnff.xtb"
   DESTINATION share/xtb/
 )
 install(TARGETS lib-xtb-static lib-xtb-shared xtb-exe
