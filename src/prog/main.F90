@@ -84,6 +84,7 @@ module xtb_prog_main
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
    use xtb_gfnff_param, only : gff_print
+   use xtb_gfnff_setup, only : gfnff_setup
    implicit none
    private
 
@@ -540,7 +541,7 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TGFFCalculator)
       if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
-      call gfnff_setup(verbose,restart,mol,p_ext_gfnff)
+      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
    end select
 
    call delete_file('.sccnotconverged')

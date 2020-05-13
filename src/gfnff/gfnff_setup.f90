@@ -15,9 +15,17 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
+module xtb_gfnff_setup
+  implicit none
+  private
+  public :: gfnff_setup, gfnff_input
+
+contains
+
+subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
   use iso_fortran_env
   use xtb_restart
+  use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule
   use xtb_gfnff_param
   use xtb_setparam, only : ichrg
@@ -28,11 +36,12 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
   type(TMolecule)  :: mol
+  type(TEnvironment), intent(inout) :: env
 ! Stack
   logical            :: ex
   logical            :: success
 
-  call gfnff_input(mol)
+  call gfnff_input(env, mol)
   call gfnff_set_param(mol%n)
   if (restart) then
      inquire(file='gfnff_topo', exist=ex)
@@ -60,16 +69,18 @@ subroutine gfnff_setup(verbose,restart,mol,p_ext_gfnff)
 
 end subroutine gfnff_setup
 
-subroutine gfnff_input(mol)
-  use iso_fortran_env, only : wp => real64
+subroutine gfnff_input(env, mol)
+  use xtb_mctc_accuracy, only : wp
+  use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule
   use xtb_mctc_filetypes, only : fileType
   use xtb_gfnff_param
   use xtb_setparam, only : ichrg
   implicit none
-! Dummy
+  ! Dummy
   type(TMolecule),intent(in) :: mol
-! Stack
+  type(TEnvironment), intent(inout) :: env
+  ! Stack
   integer           :: i,j,k
   integer           :: ni
   integer           :: ns
@@ -108,117 +119,87 @@ subroutine gfnff_input(mol)
   select case(mol%ftype)
   !--------------------------------------------------------------------
   ! PDB case
-    case(fileType%pdb)
+  case(fileType%pdb)
     !write(*,*) 'PDB' , mol%ftype
-        ini = .true.
-        ifrag=0
-        associate(rn => mol%pdb%residue_number, qatom => mol%pdb%charge)
-          do iresidue = minval(rn),maxval(rn)
-            if (any(iresidue .eq. rn)) then
-              ifrag=ifrag+1
-              where(iresidue .eq. rn) fraglist = ifrag
-            end if
-          end do
-          nfrag = maxval(fraglist)
-          do iatom=1,mol%n
-             qfrag(fraglist(iatom)) = qfrag(fraglist(iatom)) + dble(qatom(iatom))
-          end do
-          qpdb = qatom
-        end associate
-        ichrg=idint(sum(qfrag(1:nfrag)))
-        write(*,'(10x,"charge from pdb residues: ",i0)') ichrg
+    ini = .true.
+    ifrag=0
+    associate(rn => mol%pdb%residue_number, qatom => mol%pdb%charge)
+      do iresidue = minval(rn),maxval(rn)
+        if (any(iresidue .eq. rn)) then
+          ifrag=ifrag+1
+          where(iresidue .eq. rn) fraglist = ifrag
+        end if
+      end do
+      nfrag = maxval(fraglist)
+      do iatom=1,mol%n
+        qfrag(fraglist(iatom)) = qfrag(fraglist(iatom)) + dble(qatom(iatom))
+      end do
+      qpdb = qatom
+    end associate
+    ichrg=idint(sum(qfrag(1:nfrag)))
+    write(*,'(10x,"charge from pdb residues: ",i0)') ichrg
   !--------------------------------------------------------------------
   ! SDF case
-    case(fileType%sdf)
-    !write(*,*) 'SDF' , mol%ftype
-       ini = .false.
-       nb=0
-       nfrag=0
-       do ibond = 1, len(mol%bonds)
-          call mol%bonds%get_item(ibond,bond_ij)
-          i = bond_ij(1)
-          j = bond_ij(2)
-          ni=nb(20,i)
-          ex=.false.
-          do k=1,ni
-             if(nb(k,i).eq.j) then
-                ex=.true.
-                exit
-             endif
-          enddo
-          if(.not.ex)then
-             nb(20,i)=nb(20,i)+1
-             nb(nb(20,i),i)=j
-             nb(20,j)=nb(20,j)+1
-             nb(nb(20,j),j)=i
+  case(fileType%sdf,fileType%molfile)
+    ini = .false.
+    nb=0
+    nfrag=0
+    do ibond = 1, len(mol%bonds)
+      call mol%bonds%get_item(ibond,bond_ij)
+      i = bond_ij(1)
+      j = bond_ij(2)
+      ni=nb(20,i)
+      ex=.false.
+      do k=1,ni
+        if(nb(k,i).eq.j) then
+          ex=.true.
+          exit
+        endif
+      enddo
+      if(.not.ex)then
+        nb(20,i)=nb(20,i)+1
+        nb(nb(20,i),i)=j
+        nb(20,j)=nb(20,j)+1
+        nb(nb(20,j),j)=i
+      endif
+    end do
+    do i=1,mol%n
+      if(nb(20,i).eq.0)then
+        dum1=1.d+42
+        do j=1,i
+          r=sqrt(sum((mol%xyz(:,i)-mol%xyz(:,j))**2))
+          if(r.lt.dum1.and.r.gt.0.001)then
+            dum1=r
+            k=j
           endif
-       end do
-       associate(xyz => mol%xyz)
-         do i=1,mol%n
-            if(nb(20,i).eq.0)then
-              dum1=1.d+42
-              do j=1,i
-                 r=sqrt((xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2)
-                 if(r.lt.dum1.and.r.gt.0.001)then
-                    dum1=r
-                    k=j
-                 endif
-              enddo
-              nb(20,i)=1
-              nb(1,i)=k
-           endif
-         end do
-       end associate
+        enddo
+        nb(20,i)=1
+        nb(1,i)=k
+      endif
+    end do
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
-    case(fileType%xyz)
-    !write(*,*) 'XYZ' , mol%ftype
-       ini = .true.
-       call open_file(ich,'.CHRG','r')
-       if (ich.ne.-1) then
-           read(ich,'(a)')atmp
-           call close_file(ich)
-           call readline(atmp,floats,s,ns,nf)
-           qfrag(1:nf)=floats(1:nf)
-           ichrg=int(sum(qfrag(1:nf)))
-           qfrag(nf+1:mol%n)=9999
-        else
-           qfrag=0
-        end if
-    case(fileType%tmol)
-    !write(*,*) 'COORD' , mol%ftype
-       ini = .true.
-       call open_file(ich,'.CHRG','r')
-       if (ich.ne.-1) then
-           read(ich,'(a)')atmp
-           call close_file(ich)
-           call readline(atmp,floats,s,ns,nf)
-           qfrag(1:nf)=floats(1:nf)
-           ichrg=int(sum(qfrag(1:nf)))
-           qfrag(nf+1:mol%n)=9999
-        else
-           qfrag=0
-        end if
-    case(fileType%molfile)
-    !write(*,*) 'MOL' , mol%ftype
-       ini = .true.
-       call open_file(ich,'.CHRG','r')
-       if (ich.ne.-1) then
-           read(ich,'(a)')atmp
-           call close_file(ich)
-           call readline(atmp,floats,s,ns,nf)
-           qfrag(1:nf)=floats(1:nf)
-           ichrg=int(sum(qfrag(1:nf)))
-           qfrag(nf+1:mol%n)=9999
-        else
-           qfrag=0
-        end if
-  !-------------------------------------------------------------------
-  ! Default
-    case default
-        write(*,'(10x,"Input file format not suitable for GFN-FF!")')
+  case default
+    if (mol%npbc > 0) then
+      call env%error("Input file format not suitable for GFN-FF!")
+      return
+    end if
+    ini = .true.
+    call open_file(ich,'.CHRG','r')
+    if (ich.ne.-1) then
+      read(ich,'(a)')atmp
+      call close_file(ich)
+      call readline(atmp,floats,s,ns,nf)
+      qfrag(1:nf)=floats(1:nf)
+      ichrg=int(sum(qfrag(1:nf)))
+      qfrag(nf+1:mol%n)=9999
+    else
+      qfrag=0
+    end if
   end select
 
- !-------------------------------------------------------------------
+  !-------------------------------------------------------------------
 
 end subroutine gfnff_input
+
+end module xtb_gfnff_setup

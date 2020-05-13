@@ -25,6 +25,7 @@ subroutine struc_convert( &
          & etot,g,sigma)
   use xtb_mctc_accuracy, only : wp
   use xtb_gfnff_param
+  use xtb_gfnff_setup
   use xtb_disp_dftd3param
   use xtb_type_environment
   use xtb_type_molecule
@@ -78,7 +79,7 @@ subroutine struc_convert( &
      call gfnff_read_param(ich)
      call close_file(ich)
   end if
-  call gfnff_setup(verbose,restart,mol,p_ext_gfnff)
+  call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
 !===============================
 ! Set Block
   ffmode   = -1                  ! just simple rep+harm. on bonds FF

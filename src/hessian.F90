@@ -78,6 +78,7 @@ subroutine numhess( &
    real(wp),allocatable :: bond(:,:)
 
 !$ integer  :: nproc
+   logical :: parallize
 
    real(wp),allocatable :: h (:,:)
    real(wp),allocatable :: hss(:)
@@ -151,8 +152,12 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
+   parallize = .true.
    select type(calc)
-   type is(TxTBCalculator)
+   type is (TGFFCalculator)
+      parallize = .false.
+   end select
+   omp_parallel: if (parallize) then
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -303,7 +308,7 @@ subroutine numhess( &
 
    endif
 
-   type is(TGFFCalculator)
+   else omp_parallel
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -421,7 +426,7 @@ subroutine numhess( &
       enddo
 
    endif
-   end select
+   end if omp_parallel
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================

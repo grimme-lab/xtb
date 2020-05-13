@@ -19,9 +19,6 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/calculator.f90"
-  "${dir}/d3com.f90"
-  "${dir}/dmat.f"
-  "${dir}/fermi.f"
   "${dir}/frag_hess.f90"
   "${dir}/gdisp0.f90"
   "${dir}/gfnff_eg.f90"
@@ -32,10 +29,8 @@ list(APPEND srcs
   "${dir}/gfnff_rab.f"
   "${dir}/gfnff_setup.f90"
   "${dir}/math.f"
-  "${dir}/mdcom.f90"
-  "${dir}/mrec.f"
-  "${dir}/occu.f90"
-  "${dir}/shake_module.f"
+  "${dir}/mrec.f90"
+  "${dir}/shake_module.f90"
   "${dir}/struc_converter.f90"
 )
 

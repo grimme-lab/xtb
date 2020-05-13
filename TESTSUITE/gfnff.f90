@@ -7,6 +7,7 @@ subroutine test_gfnff_sp
    use xtb_type_molecule
    use xtb_type_data
    use xtb_gfnff_param
+   use xtb_gfnff_setup
    use xtb_setparam
    use xtb_setmod
    use xtb_disp_dftd3param
@@ -56,7 +57,7 @@ subroutine test_gfnff_sp
    if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
    call gfnff_read_param(ipar)
    call close_file(ipar)
-   call gfnff_input(mol)
+   call gfnff_input(env, mol)
    call gfnff_set_param(mol%n)
 
    call delete_file('gfnff_topo')
@@ -99,6 +100,7 @@ subroutine test_gfnff_hb
    use xtb_type_molecule
    use xtb_type_data
    use xtb_gfnff_param
+   use xtb_gfnff_setup
    use xtb_setparam
    use xtb_setmod
    use xtb_disp_dftd3param
@@ -147,7 +149,7 @@ subroutine test_gfnff_hb
    if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
    call gfnff_read_param(ipar)
    call close_file(ipar)
-   call gfnff_input(mol)
+   call gfnff_input(env, mol)
    call gfnff_set_param(mol%n)
 
    call delete_file('gfnff_topo')
