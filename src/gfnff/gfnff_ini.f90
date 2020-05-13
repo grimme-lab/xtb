@@ -202,11 +202,11 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 
 !111   continue
 !  do the loop only if factor is significant
-   do while (qloop_count.lt.2.and.rqshrink.gt.1.d-3)
+   do while (qloop_count.lt.2.and.ffGen%rqshrink.gt.1.d-3)
 
       write(*,'(10x,"----------------------------------------")')
       write(*,'(10x,"generating topology and atomic info file ...")')
-      call gfnff_neigh(makeneighbor,mol%n,mol%at,mol%xyz,rab,rqshrink,rthr,rthr2,linthr,mchar,hyb,itag,nbm,nbf)
+      call gfnff_neigh(makeneighbor,mol%n,mol%at,mol%xyz,rab,ffGen%rqshrink,ffGen%rthr,ffGen%rthr2,ffGen%linthr,mchar,hyb,itag,nbm,nbf)
 
       do i=1,mol%n
          imetal(i)=metal(mol%at(i))
@@ -351,7 +351,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          chieeq(i)=-chi(ati) + dxi(i) + cnf(ati)*sqrt(dum)
          gameeq(i)= gam(ati)
          if(imetal(i).eq.2)then           ! the "true" charges for the TM metals are small (for various reasons)
-            chieeq(i)=chieeq(i)-mchishift ! so take for the non-geom. dep. ones less electronegative metals yield more q+
+            chieeq(i)=chieeq(i)-ffGen%mchishift ! so take for the non-geom. dep. ones less electronegative metals yield more q+
          endif                            ! which reflect better the true polarity used for guessing various
                                           ! potential terms. The positive effect of this is big.
          alpeeq(i)= alp(ati)**2
@@ -378,9 +378,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       end do
       do k = 1, mol%n
       do i = 1, mol%n
-         if (rabd(i, k) > tdist_thr) cycle
+         if (rabd(i, k) > ffGen%tdist_thr) cycle
          do j = 1, mol%n
-            if (rabd(k, j) >  tdist_thr) cycle
+            if (rabd(k, j) >  ffGen%tdist_thr) cycle
             if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
                 rabd(i, j) =  rabd(i, k) + rabd(k, j)
             end if
@@ -391,8 +391,8 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       do i=1,mol%n
          do j=1,i-1
             ij=lin(j,i)
-            if(rabd(j,i).gt.tdist_thr) rabd(j,i)=1.0+12 ! values not properly considered
-            rtmp(ij) = rfgoed1* rabd(j,i) / 0.52917726d0
+            if(rabd(j,i).gt.ffGen%tdist_thr) rabd(j,i)=1.0+12 ! values not properly considered
+            rtmp(ij) = ffGen%rfgoed1* rabd(j,i) / 0.52917726d0
          enddo
       enddo
       deallocate(rabd)
@@ -504,7 +504,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 
       if(qloop_count.eq.0) itmp(1:mol%n)=nb(20,1:mol%n)
       qloop_count=qloop_count+1
-      if(qloop_count.lt.2.and.rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
+      if(qloop_count.lt.2.and.ffGen%rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
          deallocate(blist,btyp,pibo,pimvec)
 !         goto 111
       endif
@@ -616,20 +616,20 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 
       do i=1,mol%n
          ati=mol%at(i)
-         fn=1.0d0 + nrepscal/(1.0d0+dble(nb(20,i))**2)
-         dum1=repan(ati)*(1.d0 + qa(i)*qrepscal)*fn ! a small but physically correct decrease of repulsion with q
+         fn=1.0d0 + ffGen%nrepscal/(1.0d0+dble(nb(20,i))**2)
+         dum1=repan(ati)*(1.d0 + qa(i)*ffGen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
          f1=zeta(ati,qa(i))
          do j=1,i-1
             atj=mol%at(j)
-            fn=1.0d0 + nrepscal/(1.0d0+dble(nb(20,j))**2)
-            dum2=repan(atj)*(1.d0 + qa(j)*qrepscal)*fn
+            fn=1.0d0 + ffGen%nrepscal/(1.0d0+dble(nb(20,j))**2)
+            dum2=repan(atj)*(1.d0 + qa(j)*ffGen%qrepscal)*fn
             f2=zeta(atj,qa(j))
             ij=lin(j,i)
             ff = 1.0d0
             if(ati.eq.1.and.atj.eq.1) then
-               ff = 1.0d0*hhfac                     ! special H ... H case (for other pairs there is no good effect of this)
-               if(bpair(ij).eq.3) ff=ff*hh14rep     ! 1,4 case important for right torsion pot.
-               if(bpair(ij).eq.2) ff=ff*hh13rep     ! 1,3 case
+               ff = 1.0d0*ffGen%hhfac                     ! special H ... H case (for other pairs there is no good effect of this)
+               if(bpair(ij).eq.3) ff=ff*ffGen%hh14rep     ! 1,4 case important for right torsion pot.
+               if(bpair(ij).eq.2) ff=ff*ffGen%hh13rep     ! 1,3 case
             endif
             if((ati.eq.1.and.metal(atj).gt.0).or.(atj.eq.1.and.metal(ati).gt.0)) ff=0.85 ! M...H
             if((ati.eq.1.and.atj.eq.6).or.(atj.eq.1.and.ati.eq.6))               ff=0.91 ! C...H, good effect
@@ -667,7 +667,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       do i=1,mol%n
          if(mol%at(i).ne.1)  cycle
          if(hyb(i).eq.1) cycle      ! exclude bridging hydrogens from HB correction
-         ff=hqabthr
+         ff=ffGen%hqabthr
          j=nb(1,i)
          if(j.le.0) cycle
          if(mol%at(j).gt.10) ff=ff-0.20                ! H on heavy atoms may be negatively charged
@@ -682,11 +682,11 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       nathbAB=0
       do i=1,mol%n
          if(mol%at(i).eq. 6.and.piadr2(i).eq.0) cycle ! C sp or sp2 pi
-         ff=qabthr
+         ff=ffGen%qabthr
          if(mol%at(i).gt.10) ff=ff+0.2   ! heavy atoms may be positively charged
          if(qa(i).gt.ff) cycle
          do j=1,i-1
-            ff=qabthr
+            ff=ffGen%qabthr
             if(mol%at(j).gt.10) ff=ff+0.2  ! heavy atoms may be positively charged
             if(qa(j).gt.ff) cycle
             call hbonds(i,j,mol%at(i),mol%at(j),hbpi,hbpj)
@@ -801,11 +801,11 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       eold= 0
       Pold= 2.d0/3.d0
 ! iterative Hueckel loop, off-diag terms are reduced depending on P to avoid overdelocalization
-      do nn=1,nint(maxhiter)      ! just some iterations
+      do nn=1,nint(ffGen%maxhiter)      ! just some iterations
       Api = 0
       do i=1,npi
          ii=piadr3(i)
-         Api(i,i)=hdiag(mol%at(ii))+qa(ii)*hueckelp3-dble(piel(ii)-1)*pilpf
+         Api(i,i)=ffGen%hdiag(mol%at(ii))+qa(ii)*ffGen%hueckelp3-dble(piel(ii)-1)*ffGen%pilpf
       enddo
 !     loop over bonds for pair interactions
       do i=1,nbond
@@ -815,10 +815,10 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          ja=piadr4(jj)
          if(ia.gt.0.and.ja.gt.0) then
             dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
-            dum=sqrt(hoffdiag(mol%at(ii))*hoffdiag(mol%at(jj)))-dum           ! better than arithmetic
-            dum2=hiter
-            if(hyb(ii).eq.1)                 dum2=dum2*htriple        ! triple bond is different
-            if(hyb(jj).eq.1)                 dum2=dum2*htriple        ! triple bond is different
+            dum=sqrt(ffGen%hoffdiag(mol%at(ii))*ffGen%hoffdiag(mol%at(jj)))-dum           ! better than arithmetic
+            dum2=ffGen%hiter
+            if(hyb(ii).eq.1)                 dum2=dum2*ffGen%htriple        ! triple bond is different
+            if(hyb(jj).eq.1)                 dum2=dum2*ffGen%htriple        ! triple bond is different
             Api(ja,ia)=-dum  * (1.0d0-dum2*(2.0d0/3.0d0-Pold(ja,ia))) ! Pmat scaling with benzene as reference
             Api(ia,ja)=Api(ja,ia)
          endif
@@ -953,7 +953,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          fheavy=1.d0
          fheavy=1.d0
          fcn   =1.d0
-         fsrb2 =srb2
+         fsrb2 =ffGen%srb2
          bridge=.false.
          shift =0.d0
 ! assign bond type
@@ -981,21 +981,21 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
             hybi=max(hyb(ii),hyb(jj))
             hybj=min(hyb(ii),hyb(jj))
             if(hybi.eq.5.or.hybj.eq.5) then
-            bstrength=bstren(4)                                       ! base value hypervalent
+            bstrength=ffGen%bstren(4)                                       ! base value hypervalent
             else
-            bstrength=bsmat(hybi,hybj)                                ! base value normal hyb
+            bstrength=ffGen%bsmat(hybi,hybj)                                ! base value normal hyb
             endif
             if(hybi.eq.3.and.hybj.eq.2.and.(ia.eq.7.or.ja.eq.7)) &
-     &                                      bstrength=bstren(2)*1.04   ! N-sp2
+     &                                      bstrength=ffGen%bstren(2)*1.04   ! N-sp2
 
             if(bridge)then
-               if(group(ia).eq.7)           bstrength=bstren(1)*0.50d0 ! bridging X
-               if(group(ja).eq.7)           bstrength=bstren(1)*0.50d0 ! bridging X
-               if(ia.eq.1.or.ia.eq.9)       bstrength=bstren(1)*0.30d0 ! bridging H/F
-               if(ja.eq.1.or.ja.eq.9)       bstrength=bstren(1)*0.30d0 ! bridging H/F
+               if(group(ia).eq.7)           bstrength=ffGen%bstren(1)*0.50d0 ! bridging X
+               if(group(ja).eq.7)           bstrength=ffGen%bstren(1)*0.50d0 ! bridging X
+               if(ia.eq.1.or.ia.eq.9)       bstrength=ffGen%bstren(1)*0.30d0 ! bridging H/F
+               if(ja.eq.1.or.ja.eq.9)       bstrength=ffGen%bstren(1)*0.30d0 ! bridging H/F
             endif
-            if(bbtyp.eq.4)                  shift=hyper_shift          ! hypervalent
-            if(ia.eq.1.or.ja.eq.1)          shift=rabshifth            ! XH
+            if(bbtyp.eq.4)                  shift=ffGen%hyper_shift          ! hypervalent
+            if(ia.eq.1.or.ja.eq.1)          shift=ffGen%rabshifth            ! XH
             if(ia.eq.9.and.ja.eq.9)         shift=0.22                 ! f2
             if(hyb(ii).eq.3.and.hyb(jj).eq.0)shift=shift-0.022         ! X-sp3
             if(hyb(ii).eq.0.and.hyb(jj).eq.3)shift=shift-0.022         ! X-sp3
@@ -1017,35 +1017,35 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
             if( (ja.eq.1.and.ia.eq.7) )                    fxh=1.06    !
             if( (ia.eq.1.and.ja.eq.8) )                    fxh=0.93    ! OH
             if( (ja.eq.1.and.ia.eq.8) )                    fxh=0.93    !
-            if(bbtyp.eq.3.and.ia.eq.6.and.ja.eq.8) bstrength=bstren(3)*0.90d0 ! makes CO right and M-CO reasonable
-            if(bbtyp.eq.3.and.ia.eq.8.and.ja.eq.6) bstrength=bstren(3)*0.90d0 !
+            if(bbtyp.eq.3.and.ia.eq.6.and.ja.eq.8) bstrength=ffGen%bstren(3)*0.90d0 ! makes CO right and M-CO reasonable
+            if(bbtyp.eq.3.and.ia.eq.8.and.ja.eq.6) bstrength=ffGen%bstren(3)*0.90d0 !
 !           modify locally for triple bonds
             if( bbtyp.eq.3.and. (hyb(ii).eq.0.or.hyb(jj).eq.0) ) bbtyp=1 ! sp-sp3
             if( bbtyp.eq.3.and. (hyb(ii).eq.3.or.hyb(jj).eq.3) ) bbtyp=1 ! sp-sp3
             if( bbtyp.eq.3.and. (hyb(ii).eq.2.or.hyb(jj).eq.2) ) bbtyp=2 ! sp-sp2
 !           Pi stuff
             if(pibo(i).gt.0) then
-                          shift=hueckelp*(bzref - pibo(i)) ! ref value = no correction is benzene, P=2/3
+                          shift=ffGen%hueckelp*(ffGen%bzref - pibo(i)) ! ref value = no correction is benzene, P=2/3
                           if(bbtyp.ne.3.and.pibo(i).gt.0.1) then
                                                             btyp(i)=2
                                                             bbtyp=2
                           endif
-                          fpi=1.0d0-hueckelp2*(bzref2 - pibo(i)) ! deepness
+                          fpi=1.0d0-ffGen%hueckelp2*(ffGen%bzref2 - pibo(i)) ! deepness
             endif
             if(ia.gt.10.and.ja.gt.10)then
               fcn=fcn/(1.0d0+0.007*dble(nb(20,ii))**2)
               fcn=fcn/(1.0d0+0.007*dble(nb(20,jj))**2)
             endif
             qafac=qa(ii)*qa(jj)*70.0d0
-            fqq=1.0d0+qfacbm0*exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
+            fqq=1.0d0+ffGen%qfacbm0*exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
 ! metal involed
          else
             shift=0
-            bstrength=bstren(bbtyp)
+            bstrength=ffGen%bstren(bbtyp)
             if(bbtyp.eq.7)then ! TM-TM
-               if(itabrow6(ia).gt.4.and.itabrow6(ja).gt.4) bstrength=bstren(8) ! 4/5d-4/5d
-               if(itabrow6(ia).eq.4.and.itabrow6(ja).gt.4) bstrength=bstren(9) ! 3d-4/5d
-               if(itabrow6(ja).eq.4.and.itabrow6(ia).gt.4) bstrength=bstren(9) ! 3d-4/5d
+               if(itabrow6(ia).gt.4.and.itabrow6(ja).gt.4) bstrength=ffGen%bstren(8) ! 4/5d-4/5d
+               if(itabrow6(ia).eq.4.and.itabrow6(ja).gt.4) bstrength=ffGen%bstren(9) ! 3d-4/5d
+               if(itabrow6(ja).eq.4.and.itabrow6(ia).gt.4) bstrength=ffGen%bstren(9) ! 3d-4/5d
                dum=2.0d0*mchar(ii)+2.0d0*mchar(jj)
                dum=min(dum,0.5d0)  ! limit the "metallic" correction
                bstrength=bstrength*(1.0d0-dum)
@@ -1062,7 +1062,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
             if(imetal(jj).eq.2)                   mtyp2=4  ! TM
             qafac=qa(ii)*qa(jj)*25.0d0
             dum=exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
-            fqq=1.0d0+dum * (qfacbm(mtyp1)+qfacbm(mtyp2))*0.5   ! metal charge corr.
+            fqq=1.0d0+dum * (ffGen%qfacbm(mtyp1)+ffGen%qfacbm(mtyp2))*0.5   ! metal charge corr.
             if(imetal(ii).eq.2.and.ja.gt.10)      fheavy=0.65d0 ! heavy gen. ligand
             if(imetal(jj).eq.2.and.ia.gt.10)      fheavy=0.65d0
             if(imetal(ii).eq.2.and.ja.eq.15)      fheavy=1.60d0 ! P ligand
@@ -1097,14 +1097,14 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                                                   shift= 0.47d0
                                        endif
             endif
-            if(imetal(ii).eq.2)                   shift=shift+metal2_shift   ! metal shift TM
-            if(imetal(jj).eq.2)                   shift=shift+metal2_shift   !
-            if(imetal(ii).eq.1.and.group(ia).le.2)shift=shift+metal1_shift   ! metal shift group 1+2
-            if(imetal(jj).eq.1.and.group(ja).le.2)shift=shift+metal1_shift   !
-            if(mtyp1     .eq.3)                   shift=shift+metal3_shift   ! metal shift MG
-            if(mtyp2     .eq.3)                   shift=shift+metal3_shift   !
-            if(bbtyp.eq.6.and.metal(ia).eq.2)     shift=shift+eta_shift*nb(20,ii)! eta coordinated
-            if(bbtyp.eq.6.and.metal(ja).eq.2)     shift=shift+eta_shift*nb(20,jj)! eta coordinated
+            if(imetal(ii).eq.2)                   shift=shift+ffGen%metal2_shift   ! metal shift TM
+            if(imetal(jj).eq.2)                   shift=shift+ffGen%metal2_shift   !
+            if(imetal(ii).eq.1.and.group(ia).le.2)shift=shift+ffGen%metal1_shift   ! metal shift group 1+2
+            if(imetal(jj).eq.1.and.group(ja).le.2)shift=shift+ffGen%metal1_shift   !
+            if(mtyp1     .eq.3)                   shift=shift+ffGen%metal3_shift   ! metal shift MG
+            if(mtyp2     .eq.3)                   shift=shift+ffGen%metal3_shift   !
+            if(bbtyp.eq.6.and.metal(ia).eq.2)     shift=shift+ffGen%eta_shift*nb(20,ii)! eta coordinated
+            if(bbtyp.eq.6.and.metal(ja).eq.2)     shift=shift+ffGen%eta_shift*nb(20,jj)! eta coordinated
             if(mtyp1.gt.0.and.mtyp1.lt.3) fcn=fcn/(1.0d0+0.100*dble(nb(20,ii))**2)
             if(mtyp2.gt.0.and.mtyp2.lt.3) fcn=fcn/(1.0d0+0.100*dble(nb(20,jj))**2)
             if(mtyp1.eq.3)                fcn=fcn/(1.0d0+0.030*dble(nb(20,ii))**2)
@@ -1112,28 +1112,28 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
             if(mtyp1.eq.4)                fcn=fcn/(1.0d0+0.036*dble(nb(20,ii))**2)
             if(mtyp2.eq.4)                fcn=fcn/(1.0d0+0.036*dble(nb(20,jj))**2)
             if(mtyp1.eq.4.or.mtyp2.eq.4)then
-              fsrb2=-srb2*0.22! weaker, inverse EN dep. for TM metals
+              fsrb2=-ffGen%srb2*0.22! weaker, inverse EN dep. for TM metals
             else
-              fsrb2= srb2*0.28! "normal" for other metals
+              fsrb2= ffGen%srb2*0.28! "normal" for other metals
             endif
          endif
 
          if(ia.gt.10.and.ja.gt.10) then  ! both atoms are heavy
-             shift = shift + hshift3
-             if(ia.gt.18) shift = shift + hshift4
-             if(ja.gt.18) shift = shift + hshift4
-             if(ia.gt.36) shift = shift + hshift5
-             if(ja.gt.36) shift = shift + hshift5
+             shift = shift + ffGen%hshift3
+             if(ia.gt.18) shift = shift + ffGen%hshift4
+             if(ja.gt.18) shift = shift + ffGen%hshift4
+             if(ia.gt.36) shift = shift + ffGen%hshift5
+             if(ja.gt.36) shift = shift + ffGen%hshift5
          endif
 
 ! shift
-         vbond(1,i) = rabshift + shift   ! value for all bonds + special part
+         vbond(1,i) = ffGen%rabshift + shift   ! value for all bonds + special part
 
 ! RINGS prefactor
-         if(rings.gt.0) ringf = 1.0d0 + fringbo*(6.0d0-dble(rings))**2  ! max ring size is 6
+         if(rings.gt.0) ringf = 1.0d0 + ffGen%fringbo*(6.0d0-dble(rings))**2  ! max ring size is 6
 
 ! steepness
-         vbond(2,i) =  srb1*( 1.0d0 + fsrb2*(en(ia)-en(ja))**2 + srb3*bstrength )
+         vbond(2,i) =  ffGen%srb1*( 1.0d0 + fsrb2*(en(ia)-en(ja))**2 + ffGen%srb3*bstrength )
 
 ! tot prefactor        atoms              spec     typ       qterm    heavy-M  pi   XH(3ring,OH...) CN for M
          vbond(3,i) = -bond(ia)*bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
@@ -1212,7 +1212,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                atj=mol%at(jj)
                atk=mol%at(kk)
                fijk=angl(ati)*angl2(atj)*angl2(atk)
-               if(fijk.lt.fcthr) cycle     ! too small
+               if(fijk.lt.ffGen%fcthr) cycle     ! too small
                nangl=nangl+1
             enddo
          enddo
@@ -1241,7 +1241,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                atj=mol%at(jj)
                atk=mol%at(kk)
                fijk=angl(ati)*angl2(atj)*angl2(atk)
-               if(fijk.lt.fcthr) cycle     ! too small
+               if(fijk.lt.ffGen%fcthr) cycle     ! too small
                call bangl(mol%xyz,jj,i,kk,phi)
                if(metal(ati).gt.0.and.phi*180./pi.lt.60.) cycle ! skip eta cases even if CN < 6 (e.g. CaCp+)
                feta=1.0d0
@@ -1279,9 +1279,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                triple=(hyb(ii).eq.1 .or. hyb(jj).eq.1) .or. &
      &                (hyb(ii).eq.1 .or. hyb(kk).eq.1)
                if(imetal(ii).eq.0.and.imetal(jj).eq.0.and.imetal(kk).eq.0) then
-               fqq=1.0d0-(qa(ii)*qa(jj)+qa(ii)*qa(kk))*qfacBEN      ! weaken it
+               fqq=1.0d0-(qa(ii)*qa(jj)+qa(ii)*qa(kk))*ffGen%qfacBEN      ! weaken it
                else
-               fqq=1.0d0-(qa(ii)*qa(jj)+qa(ii)*qa(kk))*qfacBEN*2.5
+               fqq=1.0d0-(qa(ii)*qa(jj)+qa(ii)*qa(kk))*ffGen%qfacBEN*2.5
                endif
                f2 =1.0d0
                fn =1.0d0
@@ -1299,8 +1299,8 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                if(hyb(i).eq.2)                                   r0=120.
                if(hyb(i).eq.3)                                   r0=109.5
                if(hyb(i).eq.3.and.mol%at(i).gt.10) then
-                                               if(nn.le.3)       r0=aheavy3    ! heavy maingroup three coordinated
-                                               if(nn.ge.4)       r0=aheavy4    ! heavy maingroup four  coordinated
+                                               if(nn.le.3)       r0=ffGen%aheavy3    ! heavy maingroup three coordinated
+                                               if(nn.ge.4)       r0=ffGen%aheavy4    ! heavy maingroup four  coordinated
                                 if(nn.eq.4.and.group(ati).eq.5)  r0=109.5      ! four coordinated group 5
                   if(nn.eq.4.and.group(ati).eq.4.and.ati.gt.49)  r0=109.5      ! four coordinated Sn, Pb
                                            if(group(ati).eq.4)   r0=r0-nh*5.   ! smaller angles for XHn Si...
@@ -1310,7 +1310,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                if(hyb(i).eq.5)                                   then
                                                                  r0=90.
                                                                  f2=0.11       ! not very important
-                                       if(phi*180./pi.gt.linthr) r0=180.       ! hypervalent coordination can be linear GEODEP
+                                       if(phi*180./pi.gt.ffGen%linthr) r0=180.       ! hypervalent coordination can be linear GEODEP
                endif
 !!!!!!!!!!
 ! B
@@ -1332,7 +1332,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                                                                  f2=2.0
                   endif
                   if(hyb(i).eq.3.and.nn.gt.4)                    then
-                                       if(phi*180./pi.gt.linthr) r0=180.       ! hypervalent coordination can be linear GEODEP
+                                       if(phi*180./pi.gt.ffGen%linthr) r0=180.       ! hypervalent coordination can be linear GEODEP
                   endif
                endif
 !!!!!!!!!!
@@ -1350,7 +1350,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                     if(npi.eq.2)                                 then
                                                                  r0=109. ! e.g. Ph-O-Ph
                                                                  endif
-                    if(nmet.gt.0.and.phi*180./pi.gt.linthr)      then
+                    if(nmet.gt.0.and.phi*180./pi.gt.ffGen%linthr)      then
                                                                  r0=180. ! metal coordination can be linear GEODEP
                                                                  f2 = 0.3
                                                                  endif
@@ -1412,7 +1412,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                                                                  f2 = 0.60d0  ! complex 7 in S30L makes artificial torsions if this is 0.4 which is
                                                                               ! slightly better for the phenylmethylethyne bending pot.
                  if(atj.eq.7.or.atk.eq.7)                        f2 = 1.00d0
-                 if((imetal(jj).eq.2.or.imetal(kk).eq.2).and.phi*180./pi.gt.linthr) then
+                 if((imetal(jj).eq.2.or.imetal(kk).eq.2).and.phi*180./pi.gt.ffGen%linthr) then
                                  if(ati.eq.6.and.atj.eq.6)       f2=3.   ! M-CC
                                  if(ati.eq.6.and.atk.eq.6)       f2=3.   ! M-CC
                                  if(ati.eq.6.and.atj.eq.7)       f2=3.   ! M-CN
@@ -1439,7 +1439,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                                                                  if(ati.eq.17) r0= 90.
                                                                  if(ati.eq.35) r0= 90.
                                                                  if(ati.eq.53) r0= 90.
-                                        if(ati.gt.9.and.phi*180./pi.gt.linthr) r0=180. ! change to linear if linear coordinated, GEODEP
+                                        if(ati.gt.9.and.phi*180./pi.gt.ffGen%linthr) r0=180. ! change to linear if linear coordinated, GEODEP
                                                                  f2=0.6/dble(ati)**0.15
                endif
 ! PB or Sn can be pyramidal
@@ -1461,7 +1461,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                                    if(hyb(i).eq.1)               r0=180.
                                    if(hyb(i).eq.2)               r0=120.
                                    if(hyb(i).eq.3)               r0=109.5
-                                   if(phi*180./pi.gt.linthr)     r0=180. ! change to linear
+                                   if(phi*180./pi.gt.ffGen%linthr)     r0=180. ! change to linear
                endif
 
                fn=1.0d0 - 2.36d0/dble(nn)**2
@@ -1470,7 +1470,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 ! end of definitions
 !----------------------
                vangl(1,nangl)=r0*pi/180.
-               fbsmall=(1.0d0-fbs1*exp(-0.64*(vangl(1,nangl)-pi)**2))
+               fbsmall=(1.0d0-ffGen%fbs1*exp(-0.64*(vangl(1,nangl)-pi)**2))
 
 !                          central*neigbor charge spec. met.  small angle corr.
                vangl(2,nangl)= fijk * fqq * f2 * fn * fbsmall * feta
@@ -1509,11 +1509,11 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          jj=blist(2,m)
          if(btyp(m).eq.3.or.btyp(m).eq.6) cycle    ! metal eta or triple
          fij=tors(mol%at(ii))*tors(mol%at(jj))             ! atom contribution, central bond
-         if(fij.lt.fcthr)                 cycle
+         if(fij.lt.ffGen%fcthr)                 cycle
          if(tors(mol%at(ii)).lt.0.or.tors(mol%at(jj)).lt.0) cycle ! no negative values
          if(metal(mol%at(ii)).gt.1.and.nb(20,ii).gt.4)  cycle ! no HC metals
          if(metal(mol%at(jj)).gt.1.and.nb(20,jj).gt.4)  cycle !
-         fqq=1.0d0+abs(qa(ii)*qa(jj))*qfacTOR      ! weaken it for e.g. CF-CF and similar
+         fqq=1.0d0+abs(qa(ii)*qa(jj))*ffGen%qfacTOR      ! weaken it for e.g. CF-CF and similar
          call ringsbond(mol%n,ii,jj,cring,sring,rings) ! i and j in same ring
          lring=.false.
          ccij =.false.
@@ -1543,9 +1543,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                if(mol%at(ll).eq.7.and.piadr(ll).eq.0) fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*0.5
 !              if(amide(mol%n,mol%at,hyb,nb,piadr,kk))    fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*1.0
 !              if(amide(mol%n,mol%at,hyb,nb,piadr,ll))    fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*1.0
-               if(fkl.lt.fcthr)               cycle
+               if(fkl.lt.ffGen%fcthr)               cycle
                if(tors(mol%at(kk)).lt.0.or.tors(mol%at(ll)).lt.0) cycle ! no negative values
-               f1 = torsf(1)
+               f1 = ffGen%torsf(1)
                f2 = 0.0d0
                fkl=fkl*(dble(nb(20,kk))*dble(nb(20,ll)))**(-0.14)  ! CN term
 
@@ -1565,10 +1565,10 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                     if ( btyp(m).eq.1 .and. rings4 .gt. 0 )then
                       call ringstorl(mol%n,ii,jj,kk,ll,cring,sring,ringl)  ! largest ring in which i,j,k,l are
                       notpicon=piadr(kk).eq.0.and.piadr(ll).eq.0                      ! do it only for sat. rings
-                      if ( rings4 .eq. 3 .and.                      notpicon) then; nrot=1; phi = 0.d0; f1=fr3; endif
-                      if ( rings4 .eq. 4 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=fr4; endif
-                      if ( rings4 .eq. 5 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=fr5; endif
-                      if ( rings4 .eq. 6 .and. ringl.eq.rings4 .and.notpicon) then; nrot=3; phi =60.d0; f1=fr6; endif
+                      if ( rings4 .eq. 3 .and.                      notpicon) then; nrot=1; phi = 0.d0; f1=ffGen%fr3; endif
+                      if ( rings4 .eq. 4 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=ffGen%fr4; endif
+                      if ( rings4 .eq. 5 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=ffGen%fr5; endif
+                      if ( rings4 .eq. 6 .and. ringl.eq.rings4 .and.notpicon) then; nrot=3; phi =60.d0; f1=ffGen%fr6; endif
                     endif
                     if ( rings4.eq.0 .and. btyp(m).eq.1 .and. nb(20,kk).eq.1.and.nb(20,ll).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
                     if(btyp(m).eq.2 .and. rings.eq.5 .and. mol%at(ii)*mol%at(jj).eq.42) then
@@ -1635,9 +1635,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 !-------------------
 
 ! total FC            sigma       pi             charge central outer kl
-               fctot = (f1 + 10.d0*torsf(2)*f2) * fqq * fij * fkl
+               fctot = (f1 + 10.d0*ffGen%torsf(2)*f2) * fqq * fij * fkl
 
-               if(fctot.gt.fcthr) then ! avoid tiny potentials
+               if(fctot.gt.ffGen%fcthr) then ! avoid tiny potentials
                   ntors=ntors+1
                   if(ntors.gt.maxtors) stop 'internal (torsion setup) error'
                   tlist(1,ntors)=ll
@@ -1658,9 +1658,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                if(sp3kl.and.sp3ij.and.(.not.lring).and.btyp(m).lt.5) then
                   ntors=ntors+1
                   if(ntors.gt.maxtors) stop 'internal (torsion setup) error'
-                  ff = torsf(6)
-                  if(mol%at(ii).eq.7.or.mol%at(jj).eq.7) ff = torsf(7)
-                  if(mol%at(ii).eq.8.or.mol%at(jj).eq.8) ff = torsf(8)
+                  ff = ffGen%torsf(6)
+                  if(mol%at(ii).eq.7.or.mol%at(jj).eq.7) ff = ffGen%torsf(7)
+                  if(mol%at(ii).eq.8.or.mol%at(jj).eq.8) ff = ffGen%torsf(8)
                   tlist(1,ntors)=ll
                   tlist(2,ntors)=ii
                   tlist(3,ntors)=jj
@@ -1728,9 +1728,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
            tlist(5,ntors)=0         ! phi0=0 case (pi)
            vtors(1,ntors)=0.0d0     !  "      "
            sumppi=pbo(lin(i,jj))+pbo(lin(i,kk))+pbo(lin(i,ll))
-           f2=1.0d0-sumppi*torsf(5)
+           f2=1.0d0-sumppi*ffGen%torsf(5)
 !                         base val  piBO  charge term
-           vtors(2,ntors)=torsf(3) * f2 * fqq
+           vtors(2,ntors)=ffGen%torsf(3) * f2 * fqq
 !          carbonyl corr.
            if(mol%at(i).eq.5.and.ncarbo.gt.0)             vtors(2,ntors)=vtors(2,ntors)*38.
            if(mol%at(i).eq.6.and.ncarbo.gt.0)             vtors(2,ntors)=vtors(2,ntors)*38.

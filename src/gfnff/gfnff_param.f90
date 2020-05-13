@@ -17,7 +17,7 @@
 
 module xtb_gfnff_param
    use xtb_mctc_accuracy, only : wp, sp 
-   use xtb_gfnff_data, only : TGFFData
+   use xtb_gfnff_data, only : TGFFData, TGFFGen
    implicit none
    private :: wp
    public
@@ -243,80 +243,12 @@ module xtb_gfnff_param
       & 0.500000_wp]
 
    type(TGFFData) :: ffData
+   type(TGFFGen) :: ffGen
 
 !----------------------------------------------------------------------------------------
    real(wp) :: efield(3)              ! electric field components
 
    !Thresholds
-   real(wp) linthr        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
-   real(wp) fcthr         ! skip torsion and bending if potential is small
-   real(sp) tdist_thr     ! R threshold in Angstroem for cov distance estimated used in apprx EEQ
-   real(wp) rthr          ! important bond determination threshold, large values yield more 1.23
-   real(wp) rthr2         ! decrease if a metal is present, larger values yield smaller CN
-   real(wp) rqshrink      ! change of R0 for topo with charge qa, larger values yield smaller CN for metals in particular
-   real(wp) hqabthr       ! H charge (qa) threshold for H in HB list 18
-   real(wp) qabthr        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
-                          ! larger val. better for S30L but worse in PubChem RMSD checks
-   !Parameter
-   real(wp) srb1,srb2,srb3
-   real(wp) qrepscal      ! change of non-bonded rep. with q(topo)
-   real(wp) nrepscal      !   "    "      "       "   CN
-   real(wp) hhfac         ! HH repulsion
-   real(wp) hh13rep
-   real(wp) hh14rep
-   real(wp) bstren(9)
-   real(wp) qfacBEN       ! bend FC change with polarity
-   real(wp) qfacTOR       ! torsion FC change with polarity
-   real(wp) fr3           ! tors FC 3-ring
-   real(wp) fr4           ! tors FC 4-ring
-   real(wp) fr5           ! tors FC 5-ring
-   real(wp) fr6           ! tors FC 6-ring
-   real(wp) torsf(8)      ! bonds
-   real(wp) fbs1          ! small bend corr.
-   real(wp) batmscal      ! bonded ATM scal
-
-   !Shifts
-   real(wp) mchishift
-   real(wp) rabshift     ! gen shift
-   real(wp) rabshifth    ! XH
-   real(wp) hyper_shift  ! hypervalent
-   real(wp) hshift3      ! heavy
-   real(wp) hshift4      !
-   real(wp) hshift5      !
-   real(wp) metal1_shift ! group 1+2 metals
-   real(wp) metal2_shift ! TM
-   real(wp) metal3_shift ! main group metals
-   real(wp) eta_shift    ! eta bonded
-
-   !Charge Param
-   real(wp) qfacbm(0:4)  ! bond charge dependent
-   real(wp) qfacbm0
-   real(wp) rfgoed1      ! topo dist scaling
-
-   !Hückel Param
-   real(wp) htriple      ! decrease Hueckel off-diag for triple bonds because they are less well conjugated 1.4
-   real(wp) hueckelp2    ! increase pot depth depending on P
-   real(wp) hueckelp3    ! diagonal element change with qa
-   real(wp) hdiag(17)    ! diagonal element relative to C
-   real(wp) hoffdiag(17) ! Huckel off-diag constants
-   real(wp) hiter        ! iteration mixing
-   real(wp) hueckelp     ! diagonal qa dep.
-   real(wp) bzref        ! ref P value R shift
-   real(wp) bzref2       !  "  "  "    k stretch
-   real(wp) pilpf        ! 2el diag shift
-   real(wp) maxhiter     ! the Hückel iterations can diverge so take only a few steps
-
-   !D3 Param
-   real(wp) d3a1         ! D3, s8 fixed = 2
-   real(wp) d3a2
-
-   !Stuff
-   real(wp) split0       ! mixing of sp^n with sp^n-1
-   real(wp) split1       ! mixing of sp^n with sp^n-1
-   real(wp) fringbo      ! str ring size dep.
-   real(wp) aheavy3      ! three coord. heavy eq. angle
-   real(wp) aheavy4      ! four   "       "    "    "
-   real(wp) bsmat(0:3,0:3)
 
    !========================================================================
    ! parameters which are either rlisted below
@@ -481,102 +413,102 @@ module xtb_gfnff_param
      real(wp)  :: dum
 
      ffData%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
-     linthr  = 160.        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
+     ffGen%linthr  = 160.        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
                            ! but this occurs e.g. for Sc in unclear situations. So make it save (160)
-     fcthr   = 1.d-3       ! skip torsion and bending if potential is small
-     tdist_thr=12.         ! R threshold in Angstroem for cov distance estimated used in apprx EEQ
+     ffGen%fcthr   = 1.d-3       ! skip torsion and bending if potential is small
+     ffGen%tdist_thr=12.         ! R threshold in Angstroem for cov distance estimated used in apprx EEQ
                            ! the following two parameters are critical for topo setup
-     rthr     =1.25        ! important bond determination threshold
+     ffGen%rthr     =1.25        ! important bond determination threshold
                            ! large values yield more 1.23
-     rthr2    =1.00        ! decrease if a metal is present, larger values yield smaller CN
-     rqshrink =0.23        ! change of R0 for topo with charge qa, larger values yield smaller CN for metals in particular
-     hqabthr  =0.01        ! H charge (qa) threshold for H in HB list 18
-      qabthr  =0.10        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
-                           ! larger val. better for S30L but worse in PubChem RMSD checks
+     ffGen%rthr2    =1.00        ! decrease if a metal is present, larger values yield smaller CN
+     ffGen%rqshrink =0.23        ! change of R0 for topo with charge qa, larger values yield smaller CN for metals in particular
+     ffGen%hqabthr  =0.01        ! H charge (qa) threshold for H in HB list 18
+     ffGen%qabthr  =0.10        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
+     ! larger val. better for S30L but worse in PubChem RMSD checks
      ffData%atcuta  = 0.595d0     ! angle damping
      ffData%atcutt  = 0.505d0     ! torsion angle damping
      ffData%atcuta_nci  = 0.395d0 ! nci angle damping in HB term
      ffData%atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
-     srb1    = 0.3731      ! bond params
-     srb2    = 0.3171      !
-     srb3    = 0.2538      !
+     ffGen%srb1    = 0.3731      ! bond params
+     ffGen%srb2    = 0.3171      !
+     ffGen%srb3    = 0.2538      !
      ffData%repscalb= 1.7583      ! bonded rep. scaling
      ffData%repscaln= 0.4270      ! non-bonded rep. scaling
-     qrepscal= 0.3480      ! change of non-bonded rep. with q(topo)
-     nrepscal=-0.1270      !   "    "      "       "   CN
-     hhfac   = 0.6290      ! HH repulsion
-     hh13rep = 1.4580      !
-     hh14rep = 0.7080      !
-     bstren(1)=1.00d0      ! single bond
-     bstren(2)=1.24d0      ! double bond
-     bstren(3)=1.98d0      ! triple bond
-     bstren(4)=1.22d0      ! hyperval bond
-     bstren(5)=1.00d0      ! M-X
-     bstren(6)=0.78d0      ! M eta
-     bstren(7)=3.40d0      ! M-M
-     bstren(8)=3.40d0      ! M-M
-     qfacBEN =-0.54        ! bend FC change with polarity
-     qfacTOR =12.0d0       ! torsion FC change with polarity
-     fr3     =0.3          ! tors FC 3-ring
-     fr4     =1.0          ! tors FC 4-ring
-     fr5     =1.5          ! tors FC 5-ring
-     fr6     =5.7          ! tors FC 6-ring
-     torsf(1)=1.00         ! single bond
-     torsf(2)=1.18         ! pi bond
-     torsf(3)=1.05         ! improper
-     torsf(5)=0.50         ! pi part improper
-     torsf(6)=-0.90        ! extra sp3 C
-     torsf(7)= 0.70        ! extra sp3 N
-     torsf(8)=-2.00        ! extra sp3 O
-     fbs1    =0.50         ! small bend corr.
-     batmscal=-0.30d0      ! bonded ATM scal
-     mchishift=-0.09d0
-     rabshift    =-0.110   ! gen shift
-     rabshifth   =-0.050   ! XH
-     hyper_shift = 0.03    ! hypervalent
-     hshift3     = -0.11   ! heavy
-     hshift4     = -0.11   !
-     hshift5     = -0.06   !
-     metal1_shift= 0.2     ! group 1+2 metals
-     metal2_shift= 0.15    ! TM
-     metal3_shift= 0.05    ! main group metals
-     eta_shift   = 0.040   ! eta bonded
-     qfacbm(0)   =1.0d0    ! bond charge dep.gff_srcs += 'gff/gfnff_input.f90'
+     ffGen%qrepscal= 0.3480      ! change of non-bonded rep. with q(topo)
+     ffGen%nrepscal=-0.1270      !   "    "      "       "   CN
+     ffGen%hhfac   = 0.6290      ! HH repulsion
+     ffGen%hh13rep = 1.4580      !
+     ffGen%hh14rep = 0.7080      !
+     ffGen%bstren(1)=1.00d0      ! single bond
+     ffGen%bstren(2)=1.24d0      ! double bond
+     ffGen%bstren(3)=1.98d0      ! triple bond
+     ffGen%bstren(4)=1.22d0      ! hyperval bond
+     ffGen%bstren(5)=1.00d0      ! M-X
+     ffGen%bstren(6)=0.78d0      ! M eta
+     ffGen%bstren(7)=3.40d0      ! M-M
+     ffGen%bstren(8)=3.40d0      ! M-M
+     ffGen%qfacBEN =-0.54        ! bend FC change with polarity
+     ffGen%qfacTOR =12.0d0       ! torsion FC change with polarity
+     ffGen%fr3     =0.3          ! tors FC 3-ring
+     ffGen%fr4     =1.0          ! tors FC 4-ring
+     ffGen%fr5     =1.5          ! tors FC 5-ring
+     ffGen%fr6     =5.7          ! tors FC 6-ring
+     ffGen%torsf(1)=1.00         ! single bond
+     ffGen%torsf(2)=1.18         ! pi bond
+     ffGen%torsf(3)=1.05         ! improper
+     ffGen%torsf(5)=0.50         ! pi part improper
+     ffGen%torsf(6)=-0.90        ! extra sp3 C
+     ffGen%torsf(7)= 0.70        ! extra sp3 N
+     ffGen%torsf(8)=-2.00        ! extra sp3 O
+     ffGen%fbs1    =0.50         ! small bend corr.
+     ffGen%batmscal=-0.30d0      ! bonded ATM scal
+     ffGen%mchishift=-0.09d0
+     ffGen%rabshift    =-0.110   ! gen shift
+     ffGen%rabshifth   =-0.050   ! XH
+     ffGen%hyper_shift = 0.03    ! hypervalent
+     ffGen%hshift3     = -0.11   ! heavy
+     ffGen%hshift4     = -0.11   !
+     ffGen%hshift5     = -0.06   !
+     ffGen%metal1_shift= 0.2     ! group 1+2 metals
+     ffGen%metal2_shift= 0.15    ! TM
+     ffGen%metal3_shift= 0.05    ! main group metals
+     ffGen%eta_shift   = 0.040   ! eta bonded
+     ffGen%qfacbm(0)   =1.0d0    ! bond charge dep.gff_srcs += 'gff/gfnff_input.f90'
 
-     qfacbm(1:2) =-0.2d0   !
-     qfacbm(  3) =0.70d0   !
-     qfacbm(  4) =0.50d0   !
-     qfacbm0     =0.047    !
-     rfgoed1  =1.175       ! topo dist scaling
-     htriple = 1.45d0      ! decrease Hueckel off-diag for triple bonds because they are less well conjugated 1.4
-     hueckelp2=1.00d0      ! increase pot depth depending on P
-     hueckelp3=-0.24d0     ! diagonal element change with qa
-     hdiag(5) =-0.5d0      ! diagonal element relative to C
-     hdiag(6) =0.00d0      !
-     hdiag(7) =0.14d0      !
-     hdiag(8) =-0.38d0     !
-     hdiag(9) =-0.29d0     !
-     hdiag(16)=-0.30d0     !
-     hdiag(17)=-0.30d0     !
-     hoffdiag(5)=0.5d0     ! Huckel off-diag constants
-     hoffdiag(6)=1.00d0    !
-     hoffdiag(7)=0.66d0    !
-     hoffdiag(8)=1.10d0    !
-     hoffdiag(9)=0.23d0    !
-     hoffdiag(16)=0.60d0   !
-     hoffdiag(17)=1.00d0   !
-     hiter   =0.700d0      ! iteration mixing
-     hueckelp=0.340d0      ! diagonal qa dep.
-     bzref   =0.370d0      ! ref P value R shift
-     bzref2  =0.315d0      !  "  "  "    k stretch
-     pilpf   =0.530d0      ! 2el diag shift
-     maxhiter=5            ! the Hückel iterations can diverge so take only a few steps
-     d3a1    = 0.58d0      ! D3, s8 fixed = 2
-     d3a2    = 4.80d0
-     split0  =0.670d0      ! mixing of sp^n with sp^n-1
-     fringbo =0.020d0      ! str ring size dep.
-     aheavy3 =89.          ! three coord. heavy eq. angle
-     aheavy4 =100.         ! four   "       "    "    "
+     ffGen%qfacbm(1:2) =-0.2d0   !
+     ffGen%qfacbm(  3) =0.70d0   !
+     ffGen%qfacbm(  4) =0.50d0   !
+     ffGen%qfacbm0     =0.047    !
+     ffGen%rfgoed1  =1.175       ! topo dist scaling
+     ffGen%htriple = 1.45d0      ! decrease Hueckel off-diag for triple bonds because they are less well conjugated 1.4
+     ffGen%hueckelp2=1.00d0      ! increase pot depth depending on P
+     ffGen%hueckelp3=-0.24d0     ! diagonal element change with qa
+     ffGen%hdiag(5) =-0.5d0      ! diagonal element relative to C
+     ffGen%hdiag(6) =0.00d0      !
+     ffGen%hdiag(7) =0.14d0      !
+     ffGen%hdiag(8) =-0.38d0     !
+     ffGen%hdiag(9) =-0.29d0     !
+     ffGen%hdiag(16)=-0.30d0     !
+     ffGen%hdiag(17)=-0.30d0     !
+     ffGen%hoffdiag(5)=0.5d0     ! Huckel off-diag constants
+     ffGen%hoffdiag(6)=1.00d0    !
+     ffGen%hoffdiag(7)=0.66d0    !
+     ffGen%hoffdiag(8)=1.10d0    !
+     ffGen%hoffdiag(9)=0.23d0    !
+     ffGen%hoffdiag(16)=0.60d0   !
+     ffGen%hoffdiag(17)=1.00d0   !
+     ffGen%hiter   =0.700d0      ! iteration mixing
+     ffGen%hueckelp=0.340d0      ! diagonal qa dep.
+     ffGen%bzref   =0.370d0      ! ref P value R shift
+     ffGen%bzref2  =0.315d0      !  "  "  "    k stretch
+     ffGen%pilpf   =0.530d0      ! 2el diag shift
+     ffGen%maxhiter=5            ! the Hückel iterations can diverge so take only a few steps
+     ffGen%d3a1    = 0.58d0      ! D3, s8 fixed = 2
+     ffGen%d3a2    = 4.80d0
+     ffGen%split0  =0.670d0      ! mixing of sp^n with sp^n-1
+     ffGen%fringbo =0.020d0      ! str ring size dep.
+     ffGen%aheavy3 =89.          ! three coord. heavy eq. angle
+     ffGen%aheavy4 =100.         ! four   "       "    "    "
      ffData%hbacut   =49.         ! HB angle cut-off
      ffData%hbscut   =22.         ! HB SR     "   "
      ffData%xbacut   =70.         ! same for XB
@@ -628,32 +560,32 @@ module xtb_gfnff_param
      xbaci(51)=1.2d0
      xbaci(52)=1.2d0
      xbaci(53)=1.2d0
-     split1=1.0d0-split0
-     bsmat = -999.
-     bsmat(0,0)=bstren(1)
-     bsmat(3,0)=bstren(1)
-     bsmat(3,3)=bstren(1)
-     bsmat(2,2)=bstren(2)
-     bsmat(1,1)=bstren(3)
-     bsmat(1,0)=split0*bstren(1)+split1*bstren(3)
-     bsmat(3,1)=split0*bstren(1)+split1*bstren(3)
-     bsmat(2,1)=split0*bstren(2)+split1*bstren(3)
-     bsmat(2,0)=split0*bstren(1)+split1*bstren(2)
-     bsmat(3,2)=split0*bstren(1)+split1*bstren(2)
-     bstren(9)=0.5*(bstren(7)+bstren(8))
+     ffGen%split1=1.0d0-ffGen%split0
+     ffGen%bsmat = -999.
+     ffGen%bsmat(0,0)=ffGen%bstren(1)
+     ffGen%bsmat(3,0)=ffGen%bstren(1)
+     ffGen%bsmat(3,3)=ffGen%bstren(1)
+     ffGen%bsmat(2,2)=ffGen%bstren(2)
+     ffGen%bsmat(1,1)=ffGen%bstren(3)
+     ffGen%bsmat(1,0)=ffGen%split0*ffGen%bstren(1)+ffGen%split1*ffGen%bstren(3)
+     ffGen%bsmat(3,1)=ffGen%split0*ffGen%bstren(1)+ffGen%split1*ffGen%bstren(3)
+     ffGen%bsmat(2,1)=ffGen%split0*ffGen%bstren(2)+ffGen%split1*ffGen%bstren(3)
+     ffGen%bsmat(2,0)=ffGen%split0*ffGen%bstren(1)+ffGen%split1*ffGen%bstren(2)
+     ffGen%bsmat(3,2)=ffGen%split0*ffGen%bstren(1)+ffGen%split1*ffGen%bstren(2)
+     ffGen%bstren(9)=0.5*(ffGen%bstren(7)+ffGen%bstren(8))
 
 !    3B bond prefactors and D3 stuff
      k=0
      do i=1,86
         dum=dble(i)
-        zb3atm(i)=dum*batmscal**(1.d0/3.d0)  ! inlcude pre-factor
+        zb3atm(i)=dum*ffGen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
         do j=1,i
            k=k+1
            dum=r2r4(i)*r2r4(j)*3.0d0
-           d3r0(k)=(d3a1*dsqrt(dum)+d3a2)**2   ! save R0^2 for efficiency reasons
+           d3r0(k)=(ffGen%d3a1*dsqrt(dum)+ffGen%d3a2)**2   ! save R0^2 for efficiency reasons
         enddo
      enddo
-     zb3atm(1)=0.25d0*batmscal**(1.d0/3.d0) ! slightly better than 1.0
+     zb3atm(1)=0.25d0*ffGen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! numerical precision settings
