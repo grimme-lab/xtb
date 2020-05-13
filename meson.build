@@ -140,9 +140,10 @@ if asciidoc.found()
 endif
 
 xtb_parameter_files = [
-  '.param_gfn0.xtb',
-  '.param_gfn2.xtb',
-  '.param_gfn.xtb',
+  'param_gfn0-xtb.txt',
+  'param_gfn2-xtb.txt',
+  'param_gfn1-xtb.txt',
+  'param_ipea-xtb.txt',
 ]
 
 install_data(xtb_parameter_files)

@@ -125,13 +125,11 @@ subroutine xtbMain(env, argParser)
 !! ========================================================================
 !  default names for important files in xtb
    character(len=*),parameter :: p_fname_rc = '.xtbrc'
-   character(len=*),parameter :: p_fname_param_gfn0  = '.param_gfn0.xtb'
-   character(len=*),parameter :: p_fname_param_gfn1  = '.param_gfn.xtb'
-   character(len=*),parameter :: p_fname_param_gfn2  = '.param_gfn2.xtb'
+   character(len=*),parameter :: p_fname_param_gfn0  = 'param_gfn0-xtb.txt'
+   character(len=*),parameter :: p_fname_param_gfn1  = 'param_gfn1-xtb.txt'
+   character(len=*),parameter :: p_fname_param_gfn2  = 'param_gfn2-xtb.txt'
    character(len=*),parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
-   character(len=*),parameter :: p_fname_param_ipea  = '.param_ipea.xtb'
-   character(len=*),parameter :: p_fname_param_stda1 = '.param_stda1.xtb'
-   character(len=*),parameter :: p_fname_param_stda2 = '.param_stda2.xtb'
+   character(len=*),parameter :: p_fname_param_ipea  = 'param_ipea-xtb.txt'
 
    integer :: chrg,gsolvstate
    integer :: i,j,k,l,idum

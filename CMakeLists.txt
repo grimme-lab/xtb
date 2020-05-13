@@ -99,9 +99,10 @@ install(FILES "${xtb-dir}/include/xtb.h"
   DESTINATION include/xtb/
 )
 install(FILES
-  "${xtb-dir}/.param_gfn0.xtb"
-  "${xtb-dir}/.param_gfn.xtb"
-  "${xtb-dir}/.param_gfn2.xtb"
+  "${xtb-dir}/param_gfn0-xtb.txt"
+  "${xtb-dir}/param_gfn1-xtb.txt"
+  "${xtb-dir}/param_gfn2-xtb.txt"
+  "${xtb-dir}/param_ipea-xtb.txt"
   DESTINATION share/xtb/
 )
 install(TARGETS lib-xtb-static lib-xtb-shared xtb-exe

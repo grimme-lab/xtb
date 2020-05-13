@@ -65,14 +65,14 @@ subroutine use_parameterset(name,globpar,xtbData,exist)
    type(TxTBData), intent(out) :: xtbData
    exist = .false.
    select case(name)
-   case('.param_gfn0.xtb')
+   case('param_gfn0-xtb.txt')
       return
       globpar = gfn0Globals
       call initGFN0(xtbData)
-   case('.param_gfn.xtb')
+   case('param_gfn1-xtb.txt')
       globpar = gfn1Globals
       call initGFN1(xtbData)
-   case('.param_gfn2.xtb')
+   case('param_gfn2-xtb.txt')
       globpar = gfn2Globals
       call initGFN2(xtbData)
    case default

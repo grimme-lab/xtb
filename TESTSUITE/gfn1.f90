@@ -62,7 +62,7 @@ subroutine test_gfn1_scc
 
    allocate( g(3,mol%n), source = 0.0_wp )
 
-   call use_parameterset('.param_gfn.xtb',globpar,xtbData,okpar)
+   call use_parameterset('param_gfn1-xtb.txt',globpar,xtbData,okpar)
    call assert(okpar)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)

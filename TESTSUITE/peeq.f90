@@ -61,7 +61,7 @@ subroutine test_peeq_sp
 
    integer, parameter    :: wsc_rep(3) = [1,1,1] ! FIXME
 
-   character(len=*), parameter   :: p_fnv_gfn0 = '.param_gfn0.xtb'
+   character(len=*), parameter   :: p_fnv_gfn0 = 'param_gfn0-xtb.txt'
    character(len=:), allocatable :: fnv
    type(TxTBParameter) :: globpar
    integer  :: ipar
