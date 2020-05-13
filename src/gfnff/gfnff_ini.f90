@@ -14,11 +14,15 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_gfnff_ini
+contains
 
 subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       use xtb_mctc_accuracy, only : wp
       use xtb_type_molecule
       use xtb_gfnff_param
+      use xtb_gfnff_ini2
+      use xtb_gfnff_eg, only : gfnff_dlogcoord
       use xtb_disp_dftd4, only: r2r4 => r4r2, rcov
       use xtb_gfnff_fraghess
       use xtb_restart
@@ -35,7 +39,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       integer ati,atj,atk,i,j,k,l,lin,nn,ii,jj,kk,ll,m,rings,ia,ja,ij,ix,nnn,idum,ip,ji,no
       integer ineig,jneig,nrot,bbtyp,ringtyp,nn1,nn2,hybi,hybj,pis,ka,nh,jdum,hcalc,nc
       integer ringsi,ringsj,ringsk,ringl,npi,nelpi,picount,npiall,maxtors,rings4,nheav
-      integer nm,maxhb,ki,n13,current,ncarbo,ctype,mtyp1,mtyp2
+      integer nm,maxhb,ki,n13,current,ncarbo,mtyp1,mtyp2
       integer ind3(3),sr(20),cr(10,20),niel(86)
       integer qloop_count,nf,nsi,nmet,nhi,nhj,ifrag
       integer hbA,hbH,Bat,atB,Aat,Hat
@@ -58,8 +62,8 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 
       parameter (bohr=1.0_wp/0.52917726_wp)
 
-      logical lring,picon,notpicon,bridge,sp3ij,nofs,xatom,ccij,amide,success
-      logical heavy,triple,piat,chktors,sp3kl,pilist,ex,cnij,frag_charges_known
+      logical lring,picon,notpicon,bridge,sp3ij,ccij,success
+      logical heavy,triple,piat,sp3kl,ex,cnij,frag_charges_known
 
       integer,allocatable :: btyp(:),imetal(:),nbm(:,:),nbf(:,:)
       integer,allocatable :: hyb(:),itag(:)
@@ -1818,3 +1822,5 @@ pure elemental function zeta(at,q)
 end function zeta
 
 end subroutine gfnff_ini
+
+end module xtb_gfnff_ini

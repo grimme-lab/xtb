@@ -15,6 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_gfnff_eg
+   use xtb_gfnff_ini2
+   implicit none
+   private
+   public :: gfnff_eg, gfnff_dlogcoord
+
+contains
+
 !---------------------------------------------------
 ! GFN-FF
 ! energy and analytical gradient for given xyz and
@@ -53,17 +61,6 @@
       use xtb_solv_gbobc
       use xtb_mctc_constants
       implicit none
-      interface
-         subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr)
-            import :: wp
-            integer,intent(in)   :: nat
-            integer,intent(in)   :: at(nat)
-            real(wp),intent(in)  :: xyz(3,nat)
-            real(wp),intent(out) :: cn(nat)
-            real(wp),intent(out) :: dcn(3,nat,nat)
-            real(wp),intent(in),optional :: thr
-         end subroutine
-      end interface
       type(scc_results),intent(out) :: res_gff
       integer n
       integer ichrg
@@ -3183,3 +3180,5 @@ pure elemental function create_dexpCN(k,r,r0) result(count)
 end function create_dexpCN
 
 end subroutine gfnff_dlogcoord
+
+end module xtb_gfnff_eg

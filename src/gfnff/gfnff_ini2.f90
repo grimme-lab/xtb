@@ -14,6 +14,8 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_gfnff_ini2
+contains
 
 subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf)
       use xtb_gfnff_param
@@ -1121,7 +1123,6 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       integer list(n),m,mm,nn,c(10),cdum(10,maxr),iring
       integer adum1(0:n),adum2(0:n),kk,j,idum(maxr),same(maxr),k
       real*8  w(n),av,sd
-      logical chkrng
 
       cout = 0
       irout= 0
@@ -1599,3 +1600,4 @@ end subroutine goedeckera
       if( no .eq. 1 ) amide = .true.
 
       end function amide
+end module xtb_gfnff_ini2

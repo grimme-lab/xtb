@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_gfnff_setup
+  use xtb_gfnff_ini, only : gfnff_ini
   implicit none
   private
   public :: gfnff_setup, gfnff_input
