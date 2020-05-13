@@ -78,7 +78,7 @@ module subroutine gfn2_calculation &
 
    character(len=*),parameter :: outfmt = &
       '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
-   character(len=*), parameter   :: p_fnv_gfn2 = '.param_gfn2.xtb'
+   character(len=*), parameter   :: p_fnv_gfn2 = 'param_gfn2-xtb.txt'
    character(len=:), allocatable :: fnv
    type(TxTBParameter) :: globpar
    integer  :: ipar

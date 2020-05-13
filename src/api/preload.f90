@@ -68,11 +68,11 @@ integer(c_int) function load_xtb_parameters_api(gfn, filename) &
    else
       select case(gfn)
       case(0_c_int)
-         call load_xtb_parameters(env, '.param_gfn0.xtb', globpar, status)
+         call load_xtb_parameters(env, 'param_gfn0-xtb.txt', globpar, status)
       case(1_c_int)
-         call load_xtb_parameters(env, '.param_gfn.xtb', globpar, status)
+         call load_xtb_parameters(env, 'param_gfn1-xtb.txt', globpar, status)
       case(2_c_int)
-         call load_xtb_parameters(env, '.param_gfn2.xtb', globpar, status)
+         call load_xtb_parameters(env, 'param_gfn2-xtb.txt', globpar, status)
       case default
          status = 2
       end select

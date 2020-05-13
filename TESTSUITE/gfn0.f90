@@ -71,12 +71,12 @@ subroutine test_gfn0_sp
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call use_parameterset('.param_gfn0.xtb',globpar,xtbData,okpar)
+   call use_parameterset('param_gfn0-xtb.txt',globpar,xtbData,okpar)
    !call assert(okpar)
-      call rdpath(env%xtbpath,'.param_gfn0.xtb',fnv,exist)
+      call rdpath(env%xtbpath,'param_gfn0-xtb.txt',fnv,exist)
       ! maybe the user provides a local parameter file, this was always
       ! an option in `xtb', so we will give it a try
-      if (.not.exist) fnv = '.param_gfn0.xtb'
+      if (.not.exist) fnv = 'param_gfn0-xtb.txt'
       call open_file(ipar,fnv,'r')
       if (ipar.eq.-1) then
          ! at this point there is no chance to recover from this error
