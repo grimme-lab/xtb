@@ -348,13 +348,13 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          ati=mol%at(i)
          dum =min(dble(ffTopo%nb(20,i)),ffGen%cnmax)  ! limits it
 !                   base val  spec. corr.    CN dep.
-         ffTopo%chieeq(i)=-chi(ati) + dxi(i) + cnf(ati)*sqrt(dum)
-         ffTopo%gameeq(i)= gam(ati)
+         ffTopo%chieeq(i)=-ffData%chi(ati) + dxi(i) + ffData%cnf(ati)*sqrt(dum)
+         ffTopo%gameeq(i)= ffData%gam(ati)
          if(imetal(i).eq.2)then           ! the "true" charges for the TM metals are small (for various reasons)
             ffTopo%chieeq(i)=ffTopo%chieeq(i)-ffGen%mchishift ! so take for the non-geom. dep. ones less electronegative metals yield more q+
          endif                            ! which reflect better the true polarity used for guessing various
                                           ! potential terms. The positive effect of this is big.
-         ffTopo%alpeeq(i)= alp(ati)**2
+         ffTopo%alpeeq(i)= ffData%alp(ati)**2
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -547,8 +547,8 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 !     prepare true EEQ parameter, they are ATOMIC not element specific!
       do i=1,mol%n
 !                   base val   spec. corr.
-         ffTopo%chieeq(i)=-chi(mol%at(i)) + dxi(i)
-         ffTopo%gameeq(i)= gam(mol%at(i)) +dgam(i)
+         ffTopo%chieeq(i)=-ffData%chi(mol%at(i)) + dxi(i)
+         ffTopo%gameeq(i)= ffData%gam(mol%at(i)) +dgam(i)
          ff = 0
          if(mol%at(i).eq.6)       ff= 0.09
          if(mol%at(i).eq.7)       ff=-0.21
@@ -556,7 +556,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          if(group(mol%at(i)).eq.7)ff= 0.50
          if(imetal(i).eq.1)   ff= 0.3
          if(imetal(i).eq.2)   ff=-0.1
-         ffTopo%alpeeq(i) = (alp(mol%at(i))+ff*ffTopo%qa(i))**2
+         ffTopo%alpeeq(i) = (ffData%alp(mol%at(i))+ff*ffTopo%qa(i))**2
       enddo
       deallocate(dgam,dxi)
 
@@ -617,12 +617,12 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       do i=1,mol%n
          ati=mol%at(i)
          fn=1.0d0 + ffGen%nrepscal/(1.0d0+dble(ffTopo%nb(20,i))**2)
-         dum1=repan(ati)*(1.d0 + ffTopo%qa(i)*ffGen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
+         dum1=ffData%repan(ati)*(1.d0 + ffTopo%qa(i)*ffGen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
          f1=zeta(ati,ffTopo%qa(i))
          do j=1,i-1
             atj=mol%at(j)
             fn=1.0d0 + ffGen%nrepscal/(1.0d0+dble(ffTopo%nb(20,j))**2)
-            dum2=repan(atj)*(1.d0 + ffTopo%qa(j)*ffGen%qrepscal)*fn
+            dum2=ffData%repan(atj)*(1.d0 + ffTopo%qa(j)*ffGen%qrepscal)*fn
             f2=zeta(atj,ffTopo%qa(j))
             ij=lin(j,i)
             ff = 1.0d0
@@ -648,7 +648,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
       do i = 1,mol%n
          nn=ffTopo%nb(20,i)
          ati=mol%at(i)
-         ffTopo%hbbas(i)=xhbas(mol%at(i))
+         ffTopo%hbbas(i)=ffData%xhbas(mol%at(i))
          ! Carbene:
          if(ati.eq.6.and.nn.eq.2.and.itag(i).eq.1) ffTopo%hbbas(i) = 1.46
          ! Carbonyl R-C=O
@@ -708,7 +708,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
             do j=1,mol%n
                if(i.eq.j.or.j.eq.ix) cycle
                if(ffTopo%bpair(lin(j,ix)).le.3) cycle   ! must be A...B and not X-B i.e. A-X...B
-               if(xhbas(mol%at(j)).lt.1.d-6) cycle   ! B must be O,N,...
+               if(ffData%xhbas(mol%at(j)).lt.1.d-6) cycle   ! B must be O,N,...
                if(group(mol%at(j)).eq.4    ) then
                   if(piadr2(j).eq.0.or.ffTopo%qa(j).gt.0.05) cycle   ! must be a (pi)base
                endif
@@ -728,7 +728,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
             do j=1,mol%n
                if(i.eq.j.or.j.eq.ix) cycle
                if(ffTopo%bpair(lin(j,ix)).le.3) cycle  ! must be A...B and not X-B i.e. A-X...B
-               if(xhbas(mol%at(j)).lt.1.d-6) cycle  ! B must be O,N,...
+               if(ffData%xhbas(mol%at(j)).lt.1.d-6) cycle  ! B must be O,N,...
                if(group(mol%at(j)).eq.4    ) then
                   if(piadr2(j).eq.0.or.ffTopo%qa(j).gt.0.05) cycle   ! must be a (pi)base
                endif
@@ -1136,7 +1136,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          ffTopo%vbond(2,i) =  ffGen%srb1*( 1.0d0 + fsrb2*(en(ia)-en(ja))**2 + ffGen%srb3*bstrength )
 
 ! tot prefactor        atoms              spec     typ       qterm    heavy-M  pi   XH(3ring,OH...) CN for M
-         ffTopo%vbond(3,i) = -bond(ia)*bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
+         ffTopo%vbond(3,i) = -ffData%bond(ia)*ffData%bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
 !        write(*,*) bond(ia),bond(ja),ringf,bstrength,fqq,fheavy,fpi,fxh
 !        stop
 
@@ -1211,7 +1211,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                kk=ffTopo%nb(k,i)
                atj=mol%at(jj)
                atk=mol%at(kk)
-               fijk=angl(ati)*angl2(atj)*angl2(atk)
+               fijk=ffData%angl(ati)*ffData%angl2(atj)*ffData%angl2(atk)
                if(fijk.lt.ffGen%fcthr) cycle     ! too small
                ffTopo%nangl=ffTopo%nangl+1
             enddo
@@ -1240,7 +1240,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                kk=ffTopo%nb(k,i)
                atj=mol%at(jj)
                atk=mol%at(kk)
-               fijk=angl(ati)*angl2(atj)*angl2(atk)
+               fijk=ffData%angl(ati)*ffData%angl2(atj)*ffData%angl2(atk)
                if(fijk.lt.ffGen%fcthr) cycle     ! too small
                call bangl(mol%xyz,jj,i,kk,phi)
                if(metal(ati).gt.0.and.phi*180./pi.lt.60.) cycle ! skip eta cases even if CN < 6 (e.g. CaCp+)
@@ -1474,7 +1474,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
 
 !                          central*neigbor charge spec. met.  small angle corr.
                ffTopo%vangl(2,ffTopo%nangl)= fijk * fqq * f2 * fn * fbsmall * feta
-!              write(*,*) angl(ati),angl2(atj),angl2(atk), angl(ati)*angl2(atj)*angl2(atk), fqq,f2,fn,fbsmall
+!              write(*,*) ffData%angl(ati),ffData%angl2(atj),ffData%angl2(atk), ffData%angl(ati)*ffData%angl2(atj)*ffData%angl2(atk), fqq,f2,fn,fbsmall
                if(pr)write(*,'(3i5,2x,3f8.3,l2,i4)') ii,jj,kk,r0,phi*180./pi,ffTopo%vangl(2,ffTopo%nangl),picon,rings
             enddo
          enddo
@@ -1491,8 +1491,8 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          ii=ffTopo%blist(1,m)
          jj=ffTopo%blist(2,m)
          if(btyp(m).eq.3.or.btyp(m).eq.6)           cycle ! no sp-sp or metal eta
-         if(tors(mol%at(ii)).lt.0.or.tors(mol%at(jj)).lt.0) cycle ! no negative values
-         if(tors(mol%at(ii))*tors(mol%at(jj)).lt.1.d-3)     cycle ! no small values
+         if(ffData%tors(mol%at(ii)).lt.0.or.ffData%tors(mol%at(jj)).lt.0) cycle ! no negative values
+         if(ffData%tors(mol%at(ii))*ffData%tors(mol%at(jj)).lt.1.d-3)     cycle ! no small values
          if(metal(mol%at(ii)).gt.1.and.ffTopo%nb(20,ii).gt.4)  cycle ! no HC metals
          if(metal(mol%at(jj)).gt.1.and.ffTopo%nb(20,jj).gt.4)  cycle !
          ffTopo%ntors=ffTopo%ntors+ffTopo%nb(20,ii)*ffTopo%nb(20,jj)*2 ! upper limit
@@ -1508,9 +1508,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
          ii=ffTopo%blist(1,m)
          jj=ffTopo%blist(2,m)
          if(btyp(m).eq.3.or.btyp(m).eq.6) cycle    ! metal eta or triple
-         fij=tors(mol%at(ii))*tors(mol%at(jj))             ! atom contribution, central bond
+         fij=ffData%tors(mol%at(ii))*ffData%tors(mol%at(jj))             ! atom contribution, central bond
          if(fij.lt.ffGen%fcthr)                 cycle
-         if(tors(mol%at(ii)).lt.0.or.tors(mol%at(jj)).lt.0) cycle ! no negative values
+         if(ffData%tors(mol%at(ii)).lt.0.or.ffData%tors(mol%at(jj)).lt.0) cycle ! no negative values
          if(metal(mol%at(ii)).gt.1.and.ffTopo%nb(20,ii).gt.4)  cycle ! no HC metals
          if(metal(mol%at(jj)).gt.1.and.ffTopo%nb(20,jj).gt.4)  cycle !
          fqq=1.0d0+abs(ffTopo%qa(ii)*ffTopo%qa(jj))*ffGen%qfacTOR      ! weaken it for e.g. CF-CF and similar
@@ -1538,13 +1538,13 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg)
                if(ll.eq.ii) cycle
                if(ll.eq.kk) cycle
                if(chktors(mol%n,mol%xyz,ii,jj,kk,ll)) cycle  ! near 180
-               fkl=tors2(mol%at(kk))*tors2(mol%at(ll))       ! outer kl term
-               if(mol%at(kk).eq.7.and.piadr(kk).eq.0) fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*0.5
-               if(mol%at(ll).eq.7.and.piadr(ll).eq.0) fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*0.5
-!              if(amide(mol%n,mol%at,hyb,ffTopo%nb,piadr,kk))    fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*1.0
-!              if(amide(mol%n,mol%at,hyb,ffTopo%nb,piadr,ll))    fkl=tors2(mol%at(kk))*tors2(mol%at(ll))*1.0
+               fkl=ffData%tors2(mol%at(kk))*ffData%tors2(mol%at(ll))       ! outer kl term
+               if(mol%at(kk).eq.7.and.piadr(kk).eq.0) fkl=ffData%tors2(mol%at(kk))*ffData%tors2(mol%at(ll))*0.5
+               if(mol%at(ll).eq.7.and.piadr(ll).eq.0) fkl=ffData%tors2(mol%at(kk))*ffData%tors2(mol%at(ll))*0.5
+!              if(amide(mol%n,mol%at,hyb,ffTopo%nb,piadr,kk))    fkl=ffData%tors2(mol%at(kk))*ffData%tors2(mol%at(ll))*1.0
+!              if(amide(mol%n,mol%at,hyb,ffTopo%nb,piadr,ll))    fkl=ffData%tors2(mol%at(kk))*ffData%tors2(mol%at(ll))*1.0
                if(fkl.lt.ffGen%fcthr)               cycle
-               if(tors(mol%at(kk)).lt.0.or.tors(mol%at(ll)).lt.0) cycle ! no negative values
+               if(ffData%tors(mol%at(kk)).lt.0.or.ffData%tors(mol%at(ll)).lt.0) cycle ! no negative values
                f1 = ffGen%torsf(1)
                f2 = 0.0d0
                fkl=fkl*(dble(ffTopo%nb(20,kk))*dble(ffTopo%nb(20,ll)))**(-0.14)  ! CN term

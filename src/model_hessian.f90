@@ -2655,8 +2655,7 @@ end module xtb_modelhessian
       End
 
       subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6)
-!                        torsion     bend         bonds    charges BJ radii^2
-      use xtb_gfnff_param, only: ffTopo, d3r0
+      use xtb_gfnff_param, only: ffTopo, ffData
       use xtb_type_timer
       Implicit Real*8 (a-h, o-z)
 
@@ -2812,7 +2811,7 @@ end module xtb_modelhessian
             c66=-s6*sqrt(c6(iANr(katom))*c6(iANr(latom))) ! D2 value
             rr=sqrt(rkl2)
             rr3=rr*rkl2
-            r02=d3r0(lina(at(katom),at(latom)))
+            r02=ffData%d3r0(lina(at(katom),at(latom)))
             rrpa=rr+sqrt(r02) ! qq damping with BJ radius
             cqq=2.0d0*ffTopo%qa(kAtom)*ffTopo%qa(lAtom) ! a bit upscaled
             call getqqxx(xkl,    cqq,c66,rr,rkl2,rr3,rrpa,r02,hxx)

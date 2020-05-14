@@ -235,8 +235,8 @@ contains
 
       if (pr) call timer%measure(5,'D3')
       if(nd3.gt.0) then
-         call d3_gradient(n, at, xyz, nd3, d3list, ffTopo%zetac6, d3r0, 4.0d0, &
-            &             cn, dcn, edisp, g)
+         call d3_gradient(n, at, xyz, nd3, d3list, ffTopo%zetac6, ffData%d3r0, &
+            & 4.0d0, cn, dcn, edisp, g)
       endif
       deallocate(d3list)
       if (pr) call timer%measure(5)
@@ -277,7 +277,7 @@ contains
       endif
 
       do i=1,n
-         qtmp(i)=ffTopo%q(i)*cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
+         qtmp(i)=ffTopo%q(i)*ffData%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
       enddo
 
 !$omp parallel default(none) private(i,j) shared(n,dcn,qtmp,g,at)
@@ -342,7 +342,7 @@ contains
          rab=srab(ij)
          ati=at(iat)
          atj=at(jat)
-         alpha=sqrt(repa(ati)*repa(atj))
+         alpha=sqrt(ffData%repa(ati)*ffData%repa(atj))
          repab=repz(ati)*repz(atj)*ffData%repscalb
          t16=r2**0.75d0
          t19=t16*t16
@@ -1202,7 +1202,7 @@ contains
       subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa)
       use iso_fortran_env, id => output_unit, wp => real64
       use xtb_mctc_la
-      use xtb_gfnff_param, only: ffTopo,cnf
+      use xtb_gfnff_param, only: ffTopo, ffData
       use xtb_solv_gbobc
       implicit none
       logical, intent(in)  :: single     ! real*4 flag for solver
@@ -1232,7 +1232,7 @@ contains
       allocate(A(m,m),x(m))
 !  setup RHS
       do i=1,n
-         x(i) = ffTopo%chieeq(i) + cnf(at(i))*sqrt(cn(i))
+         x(i) = ffTopo%chieeq(i) + ffData%cnf(at(i))*sqrt(cn(i))
       enddo
 
       A = 0
@@ -1302,7 +1302,7 @@ contains
          tmp   =eeqtmp(2,ij)
          es = es + q(i)*q(j)*tmp/r(ij)
       enddo
-      es = es - q(i)*(ffTopo%chieeq(i) + cnf(at(i))*sqrt(cn(i))) &
+      es = es - q(i)*(ffTopo%chieeq(i) + ffData%cnf(at(i))*sqrt(cn(i))) &
      &        + q(i)*q(i)*0.5d0*(ffTopo%gameeq(i)+tsqrt2pi/sqrt(ffTopo%alpeeq(i)))
       enddo
 
@@ -1483,7 +1483,7 @@ end subroutine abhgfnff_eg1
 
 !subroutine for case 2: A-H...B including orientation of neighbors at B
 subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,ffTopo,xhbas,rad,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -1716,7 +1716,7 @@ end subroutine abhgfnff_eg2new
 
 !subroutine for case 2: A-H...B including LP position
 subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,ffTopo,xhbas,rad,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2014,7 +2014,7 @@ end subroutine abhgfnff_eg2_rnr
 !equal to abhgfnff_eg2_new multiplied by etors and eangl
 subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param,only: ffData,ffTopo,xhbas,rad,repz
+      use xtb_gfnff_param,only: ffData,ffTopo,rad,repz
       implicit none
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2608,7 +2608,7 @@ end subroutine abhgfnff_eg3_mul
 !this is the additive version of incorporationg etors and ebend
 subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only: ffData,ffTopo,xhbas,rad,repz
+      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
       implicit none
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
@@ -2850,7 +2850,7 @@ end subroutine abhgfnff_eg3_add
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
-      use xtb_gfnff_param, only: ffData,rad,xbaci
+      use xtb_gfnff_param, only: ffData,rad
       implicit none
       integer               :: A,B,X,n,at(n)
       real*8                :: xyz(3,n)
@@ -2875,8 +2875,8 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       gdr =  0
       energy=0
 
-      cb = 1.!xhbas(at(B))
-      cx = xbaci(at(X))
+      cb = 1.!ffData%xhbas(at(B))
+      cx = ffData%xbaci(at(X))
 
 !     compute distances
       drax(1:3) = xyz(1:3,A)-xyz(1:3,X)
@@ -2972,7 +2972,7 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
-      use xtb_gfnff_param, only: repz,zb3atm
+      use xtb_gfnff_param, only: repz, ffData
       implicit none
       integer iat,jat,kat,n,at(n)
       real*8 xyz(3,n),energy,g(3,3),q(n)
@@ -2992,7 +2992,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
       fk=(1.d0-fqq*q(kat))
       fk=min(max(fk,-4.0d0),4.0d0)
       ff=fi*fj*fk ! charge term
-      c9=ff*zb3atm(at(iat))*zb3atm(at(jat))*zb3atm(at(kat)) ! strength of interaction
+      c9=ff*ffData%zb3atm(at(iat))*ffData%zb3atm(at(jat))*ffData%zb3atm(at(kat)) ! strength of interaction
       linij=lina(iat,jat)
       linik=lina(iat,kat)
       linjk=lina(jat,kat)

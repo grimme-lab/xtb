@@ -258,32 +258,10 @@ module xtb_gfnff_param
    ! or read in by gfnff_read_param
    !------------------------------------------------------------------------
 
-   !general common stuff used in energy-gradient routines
-   !> rep alpha bond
-   real(wp) :: repa (86) = p_gff_repa,repan(86) = p_gff_repan
-   real(wp) :: repz (86),zb3atm(86)             ! prefactor (Zval), 3atm bond term
-   real(wp) :: xhaci(86),xhbas(86),xbaci(86)    ! HB/XB
-   real(wp) :: chi(86) = p_gff_chi              ! EN dep. in EEQ.
-   real(wp) :: gam(86) = p_gff_gam              ! EN dep. in EEQ.
-   real(wp) :: cnf(86) = p_gff_cnf              ! EN dep. in EEQ.
-   real(wp) :: alp(86) = p_gff_alp              ! EN dep. in EEQ.
-   real(wp) :: bond(86) = p_gff_bond            ! Elem. bond param.
-   real(wp) :: angl(86) = p_gff_angl            ! Elem. angular param.
-   real(wp) :: angl2(86) = p_gff_angl2          ! Elem. angular param.
-   real(wp) :: tors(86) = p_gff_tors            ! Elem. torsion param_alloc.
-   real(wp) :: tors2(86) = p_gff_tors2          ! Elem. torsion param.
-   real(wp) :: d3r0(86*87/2)                    ! BJ radii set in gnff_ini()
-
    !numerical precision cut-offs
    real(wp) :: cnthr,repthr,dispthr,hbthr1,hbthr2,accff
 
-   integer  :: group(86),metal(86),normcn(86)   ! for assignment
    integer  :: ffmode
-
-
-   !========================================================================
-   ! parameters which are determined in gfnff_ini
-   !------------------------------------------------------------------------
 
    !file type read
    integer  :: read_file_type
@@ -321,34 +299,35 @@ module xtb_gfnff_param
   &1.58D0,1.50D0,1.41D0,1.36D0,1.32D0,1.30D0,1.30D0,1.32D0,1.44D0,&
   &1.45D0,1.50D0,1.42D0,1.48D0,1.46D0]
 
-   data metal / &
-  &0,                                                          0,&!He
-  &1,1,                                         0, 0, 0, 0, 0, 0,&!Ne
-  &1,1,                                         1, 0, 0, 0, 0, 0,&!Ar
-  &1,1,2,          2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 0, 0, 0, 0, 0,&!Kr
-  &1,2,2,          2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 0, 0, 0, 0,&!Xe
-  &1,2,2,  14*2,   2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 1, 1, 0, 0/ !Rn  ! At is NOT a metal, Po is borderline but slightly better as metal
-   data group / &
-  &1,                                                          8,&!He
-  &1,2,                                         3, 4, 5, 6, 7, 8,&!Ne
-  &1,2,                                         3, 4, 5, 6, 7, 8,&!Ar
-  &1,2,-3,        -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Kr
-  &1,2,-3,        -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Xe
-  &1,2,-3, 14*-3, -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8/ !Rn
-   data normcn/ &  ! only for non metals well defined
-  &1,                                                          0,&!He
-  &4,4,                                         4, 4, 4, 2, 1, 0,&!Ne
-  &4,4,                                         4, 4, 4, 2, 1, 0,&!Ar
-  &4,4,4,          4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Kr
-  &4,4,4,          4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Xe
-  &4,4,4,  14*4,   4, 6, 6, 6, 6, 6, 6, 6, 4,   4, 4, 4, 4, 1, 0/ !Rn
-   data repz  / &
-  &1.,                                                         2.,&!He
-  &1.,2.,                                       3.,4.,5.,6.,7.,8.,&!Ne
-  &1.,2.,                                       3.,4.,5.,6.,7.,8.,&!Ar
-  &1.,2.,3.,      4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Kr
-  &1.,2.,3.,      4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Xe
-  &1.,2.,3.,14*3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8./ !Rn
+   integer, parameter :: metal(86) = (/ &
+  &0,                                                                0,&!He
+  &1,1,                                               0, 0, 0, 0, 0, 0,&!Ne
+  &1,1,                                               1, 0, 0, 0, 0, 0,&!Ar
+  &1,1,2,                2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 0, 0, 0, 0, 0,&!Kr
+  &1,2,2,                2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 0, 0, 0, 0,&!Xe
+  &1,2,2,spread(2,1,14), 2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 1, 1, 0, 0/)!Rn
+  ! At is NOT a metal, Po is borderline but slightly better as metal
+   integer, parameter :: group(86) = (/ &
+  &1,                                                                   8,&!He
+  &1,2,                                                  3, 4, 5, 6, 7, 8,&!Ne
+  &1,2,                                                  3, 4, 5, 6, 7, 8,&!Ar
+  &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Kr
+  &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Xe
+  &1,2,-3,spread(-3,1,14), -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8/)!Rn
+   integer, parameter :: normcn(86) = (/ &  ! only for non metals well defined
+  &1,                                                                0,&!He
+  &4,4,                                               4, 4, 4, 2, 1, 0,&!Ne
+  &4,4,                                               4, 4, 4, 2, 1, 0,&!Ar
+  &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Kr
+  &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Xe
+  &4,4,4,spread(4,1,14), 4, 6, 6, 6, 6, 6, 6, 6, 4,   4, 4, 4, 4, 1, 0/) !Rn
+   real(wp), parameter :: repz(86) =   (/ &
+  &1.,                                                                    2.,&!He
+  &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ne
+  &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ar
+  &1.,2.,3.,                 4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Kr
+  &1.,2.,3.,                 4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Xe
+  &1.,2.,3.,spread(3.,1,14), 4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8./) !Rn
 
    contains
 
@@ -362,7 +341,6 @@ module xtb_gfnff_param
      integer   :: i,j,k
      real(wp)  :: dum
 
-     call init(ffData, 86)
      call newGFNFFGenerator(ffGen)
 
      ffData%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
@@ -391,54 +369,54 @@ module xtb_gfnff_param
      ffData%xhaci_globabh=0.268   ! A-H...B gen. scaling
      ffData%xhaci_coh=0.350       ! A-H...O=C gen. scaling
      ffData%xhaci_glob=1.50       ! acidity
-     xhbas(:) = 0.0_wp
-     xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
-     xhbas( 7)=1.68d0
-     xhbas( 8)=0.67d0
-     xhbas( 9)=0.52d0
-     xhbas(14)=4.0d0
-     xhbas(15)=3.5d0
-     xhbas(16)=2.0d0
-     xhbas(17)=1.5d0
-     xhbas(35)=1.5d0
-     xhbas(53)=1.9d0
-     xhbas(33)=xhbas(15)
-     xhbas(34)=xhbas(16)
-     xhbas(51)=xhbas(15)
-     xhbas(52)=xhbas(16)
-     xhaci(:) = 0.0_wp
-     xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
-     xhaci( 7)=ffData%xhaci_glob+0.1
-     xhaci( 8)=ffData%xhaci_glob
-     xhaci( 9)=ffData%xhaci_glob
-     xhaci(15)=ffData%xhaci_glob
-     xhaci(16)=ffData%xhaci_glob
-     xhaci(17)=ffData%xhaci_glob+1.0
-     xhaci(35)=ffData%xhaci_glob+1.0
-     xhaci(53)=ffData%xhaci_glob+1.0
-     xbaci(:) = 0.0_wp
-     xbaci(15)=1.0d0              ! XB acidities
-     xbaci(16)=1.0d0
-     xbaci(17)=0.5d0
-     xbaci(33)=1.2d0
-     xbaci(34)=1.2d0
-     xbaci(35)=0.9d0
-     xbaci(51)=1.2d0
-     xbaci(52)=1.2d0
-     xbaci(53)=1.2d0
+     ffData%xhbas(:) = 0.0_wp
+     ffData%xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
+     ffData%xhbas( 7)=1.68d0
+     ffData%xhbas( 8)=0.67d0
+     ffData%xhbas( 9)=0.52d0
+     ffData%xhbas(14)=4.0d0
+     ffData%xhbas(15)=3.5d0
+     ffData%xhbas(16)=2.0d0
+     ffData%xhbas(17)=1.5d0
+     ffData%xhbas(35)=1.5d0
+     ffData%xhbas(53)=1.9d0
+     ffData%xhbas(33)=ffData%xhbas(15)
+     ffData%xhbas(34)=ffData%xhbas(16)
+     ffData%xhbas(51)=ffData%xhbas(15)
+     ffData%xhbas(52)=ffData%xhbas(16)
+     ffData%xhaci(:) = 0.0_wp
+     ffData%xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
+     ffData%xhaci( 7)=ffData%xhaci_glob+0.1
+     ffData%xhaci( 8)=ffData%xhaci_glob
+     ffData%xhaci( 9)=ffData%xhaci_glob
+     ffData%xhaci(15)=ffData%xhaci_glob
+     ffData%xhaci(16)=ffData%xhaci_glob
+     ffData%xhaci(17)=ffData%xhaci_glob+1.0
+     ffData%xhaci(35)=ffData%xhaci_glob+1.0
+     ffData%xhaci(53)=ffData%xhaci_glob+1.0
+     ffData%xbaci(:) = 0.0_wp
+     ffData%xbaci(15)=1.0d0              ! XB acidities
+     ffData%xbaci(16)=1.0d0
+     ffData%xbaci(17)=0.5d0
+     ffData%xbaci(33)=1.2d0
+     ffData%xbaci(34)=1.2d0
+     ffData%xbaci(35)=0.9d0
+     ffData%xbaci(51)=1.2d0
+     ffData%xbaci(52)=1.2d0
+     ffData%xbaci(53)=1.2d0
 
 !    3B bond prefactors and D3 stuff
      k=0
      do i=1,86
         dum=dble(i)
-        zb3atm(i)=dum*ffGen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
+        ffData%zb3atm(i)=dum*ffGen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
         do j=1,i
            k=k+1
            dum=r2r4(i)*r2r4(j)*3.0d0
-           d3r0(k)=(ffGen%d3a1*dsqrt(dum)+ffGen%d3a2)**2   ! save R0^2 for efficiency reasons
+           ffData%d3r0(k)=(ffGen%d3a1*dsqrt(dum)+ffGen%d3a2)**2   ! save R0^2 for efficiency reasons
         enddo
      enddo
-     zb3atm(1)=0.25d0*ffGen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
+     ffData%zb3atm(1)=0.25d0*ffGen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! numerical precision settings
@@ -466,20 +444,22 @@ module xtb_gfnff_param
      real(wp) :: xx(20)
      character(len=256) :: atmp
 
+     call init(ffData, 86)
+
      do i=1,86
          read(iunit,'(a)')atmp
          call readl(atmp,xx,nn)
-         chi (i)=xx(2)
-         gam (i)=xx(3)
-         cnf (i)=xx(4)
-         alp (i)=xx(5)
-         bond(i)=xx(6)
-         repa(i)=xx(7)
-        repan(i)=xx(8)
-         angl(i)=xx(9)
-        angl2(i)=xx(10)
-         tors(i)=xx(11)
-        tors2(i)=xx(12)
+         ffData%chi(i)=xx(2)
+         ffData%gam(i)=xx(3)
+         ffData%cnf(i)=xx(4)
+         ffData%alp(i)=xx(5)
+         ffData%bond(i)=xx(6)
+         ffData%repa(i)=xx(7)
+         ffData%repan(i)=xx(8)
+         ffData%angl(i)=xx(9)
+         ffData%angl2(i)=xx(10)
+         ffData%tors(i)=xx(11)
+         ffData%tors2(i)=xx(12)
       enddo
 
    end subroutine gfnff_read_param

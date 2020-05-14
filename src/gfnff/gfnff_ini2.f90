@@ -1102,8 +1102,8 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab)
       real*8 ci(2),cj(2)
       ci(1)=ffTopo%hbbas(i)
       cj(1)=ffTopo%hbbas(j)
-      ci(2)=xhaci(ati)
-      cj(2)=xhaci(atj)
+      ci(2)=ffData%xhaci(ati)
+      cj(2)=ffData%xhaci(atj)
       end subroutine hbonds
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
