@@ -537,6 +537,8 @@ $write
 *torsions*='bool'::
     geometry summary on dihedral angles and torsions
     (available with `--define`)
+*vib_normal_modes*='bool'::
+    write normal modes as Turbomole vibrational modes data group
 
 LEGACY
 ~~~~~~

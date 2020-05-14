@@ -381,10 +381,12 @@ subroutine main_freq &
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
+   use xtb_splitparam, only : atmass
 
 !! ------------------------------------------------------------------------
    use xtb_hessian
    use xtb_disp_ncoord
+   use xtb_io_writer_turbomole, only : writeNormalModesTurbomole
 
    implicit none
 
@@ -432,6 +434,14 @@ subroutine main_freq &
    write(iunit,'(1x,a)') &
       & 'recommended (thermochemical) frequency scaling factor: 1.0'
    call g98fake2('g98.out',mol%n,mol%at,mol%xyz,res%freq,res%rmass,res%dipt,res%hess)
+
+   if (pr_nmtm) then
+      call open_file(ifile, "vib_normal_modes", 'w')
+      if (ifile .ne. -1) then
+         call writeNormalModesTurbomole(ifile, atmass, res%hess)
+         call close_file(ifile)
+      end if
+   end if
 
    call generic_header(iunit,"Thermodynamic Functions",49,10)
    call print_thermo(iunit,mol%n,res%n3true,mol%at,mol%xyz,res%freq,res%etot,res%htot,res%gtot, &

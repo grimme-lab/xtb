@@ -24,6 +24,7 @@ module xtb_io_writer_turbomole
 
    public :: writeMoleculeCoord
    public :: writeResultsTurbomole
+   public :: writeNormalModesTurbomole
 
 
 contains
@@ -161,6 +162,51 @@ subroutine writeGradLattTurbomole(unit, lattice, energy, sigma)
       write(unit, '(3ES22.13)') gradlatt(1, i), gradlatt(2, i), gradlatt(3, i)
    end do
 end subroutine writeGradLattTurbomole
+
+
+subroutine writeNormalModesTurbomole(unit, atmass, normalModes)
+   implicit none
+   integer, intent(in) :: unit
+   real(wp), intent(in) :: atmass(:) !< atom mass
+   real(wp), intent(in) :: normalModes(:, :) !< NM
+   real(wp), allocatable :: h(:, :)
+
+   integer :: i,j,k,mincol,maxcol,ic,n,nat3
+   character(len=:), allocatable :: frmt
+
+   h = normalModes
+   n = size(atmass)
+   nat3 = size(normalModes, 1)
+
+   do j=1,nat3
+      do i=1,n
+         do k=1,3
+            ic = 3*(i-1) + k
+            h(ic,j) = h(ic,j) / sqrt(atmass(i))  ! remove mass (needed for vibesTM compatibility)
+         enddo
+      enddo
+   enddo
+
+   frmt = '(i2,i3,5f15.10)'
+   if (nat3.gt.99) frmt = '(i3,i2,5f15.10)'
+
+   write(unit, '(a)') '$vibrational normal modes'
+
+   do i = 1, nat3
+      ic = 0
+      maxcol = 0
+      do while(maxcol.lt.nat3)
+         mincol = maxcol+1
+         maxcol = min(maxcol+5,nat3)
+         ic=ic+1
+         write(unit,frmt) i,ic,(h(i,j),j=mincol,maxcol) ! right TM order
+!        write(unit,frmt) i,ic,(h(j,i),j=mincol,maxcol) ! natural, state order
+      end do
+   end do
+
+   write(unit, '(a)') '$end'
+
+end subroutine writeNormalModesTurbomole
 
 
 end module xtb_io_writer_turbomole
