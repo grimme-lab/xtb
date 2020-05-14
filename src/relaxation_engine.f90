@@ -609,21 +609,8 @@ subroutine l_ancopt &
    end if
 
    if (.not. fragmented_hessian) then
-      call detrotra4(linear,mol%n,mol%at,mol%xyz,hess,eig)
+      call detrotra4(linear,mol,hess,eig)
    end if
-
-   !if (mode_extrun.eq.p_ext_gfnff) then
-   !   ! shift all eigenvalues by
-   !   edum = minval(eig)
-   !   damp = max(opt%hlow - edum,0.0_wp)
-   !   eig = eig+damp
-   !else
-   !   thr = 1.0e-11_wp
-   !   ! shift all non-zero eigenvalues by
-   !   edum = minval(eig)
-   !   damp = max(opt%hlow - edum,0.0_wp)
-   !   !where(abs(eig).gt.thr) eig = eig+damp
-   !end if
 
    select type(calc)
    type is(TxTBCalculator)
