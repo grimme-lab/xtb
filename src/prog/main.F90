@@ -207,6 +207,8 @@ subroutine xtbMain(env, argParser)
    case(0)
       if (.not.coffee) then
          call env%error("No input file given, so there is nothing to do", source)
+      else
+         fname = 'coffee'
       end if
    case(1:)
       do iFile = 1, nFiles-1
