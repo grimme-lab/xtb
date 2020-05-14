@@ -207,6 +207,8 @@ subroutine xtbMain(env, argParser)
    case(0)
       if (.not.coffee) then
          call env%error("No input file given, so there is nothing to do", source)
+      else
+         fname = 'coffee'
       end if
    case(1:)
       do iFile = 1, nFiles-1
@@ -215,6 +217,10 @@ subroutine xtbMain(env, argParser)
       end do
       call argParser%nextFile(fname)
    end select
+
+   if (.not.allocated(xcontrol)) then
+      xcontrol = fname
+   end if
 
    call env%checkpoint("Command line argument parsing failed")
 
@@ -1086,7 +1092,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    lgrad = .false.
    accuracy = 1.0_wp
    gsolvstate = 0
-   inputFile = 'xcontrol'
 
    nFlags = args%countFlags()
    call args%nextFlag(flag)
