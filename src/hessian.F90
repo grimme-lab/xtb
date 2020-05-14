@@ -476,6 +476,11 @@ subroutine numhess( &
       enddo
    endif
 
+   if (pr_dftbp_hessian_out) then
+      call writeHessianOut('hessian.out', res%hess)
+      write(env%unit, '(A)') "DFTB+ style hessian.out written"
+   end if
+
    ! prepare all for diag
    ! copy
    k=0
@@ -1184,5 +1189,27 @@ pure subroutine sortind(nvar,edum)
 
 end subroutine sortind
 
+
+!> Write the second derivative matrix
+subroutine writeHessianOut(fileName, pDynMatrix)
+
+   !> File name
+   character(*), intent(in) :: fileName
+
+   !> Dynamical (Hessian) matrix
+   real(wp), intent(in) :: pDynMatrix(:,:)
+
+   !> Format string for energy second derivative matrix
+   character(len=*), parameter :: formatHessian = '(4f16.10)'
+
+   integer :: ii, fd
+
+   call open_file(fd, fileName, 'w')
+   do ii = 1, size(pDynMatrix, dim=2)
+      write(fd, formatHessian) pDynMatrix(:, ii)
+   end do
+   call close_file(fd)
+
+end subroutine writeHessianOut
 
 end module xtb_hessian
