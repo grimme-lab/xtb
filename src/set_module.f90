@@ -1471,15 +1471,14 @@ subroutine set_opt(env,key,val)
       if (getValue(env,val,ldum).and.set17) optset%exact_rf = ldum
       set17 = .false.
    case('engine')
-      if (set18) then
+      if (.not.allocated(opt_engine)) then
          select case(lowercase(val))
          case default; call env%warning("engine '"//val//"' is not implemented",source)
          case('rf','ancopt');      opt_engine = p_engine_rf
          case('lbfgs','l-ancopt'); opt_engine = p_engine_lbfgs
          case('inertial','fire');  opt_engine = p_engine_inertial
          end select
-      endif
-      set18 = .false.
+      end if
    case('output')
       if (.not.allocated(opt_outfile)) opt_outfile = val
    case('logfile')

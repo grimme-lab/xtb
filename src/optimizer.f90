@@ -950,7 +950,6 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    use xtb_modelhessian
    use xtb_setparam
    use xtb_type_calculator
-   use xtb_xtb_calculator
    use xtb_gfnff_calculator
 !
 !       generates a Lindh Model Hessian
@@ -984,7 +983,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    Hess=0.d0
 
    select type(calc)
-   type is(TxTBCalculator)
+   class default
       select case(modh%model)
       case default
          call env%error("internal error in model hessian!", source)
@@ -1006,8 +1005,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
       select case(modh%model)
       case default
          if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
-         call gff_ddvopt(xyz, natoms, HEss, chg, modh%s6)
-         return
+         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6)
       case(p_modh_lindh_d2)
         if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
         call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
