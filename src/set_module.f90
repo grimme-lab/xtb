@@ -375,6 +375,7 @@ subroutine write_set_write(ictrl)
    write(ictrl,'(3x,"stm=",a)')              bool2string(pr_stm)
    write(ictrl,'(3x,"modef=",a)')            bool2string(pr_modef)
    write(ictrl,'(3x,"gbsa=",a)')             bool2string(pr_gbsa)
+   write(ictrl,'(3x,"vib_normal_modes=",a)') bool2string(pr_nmtm)
 end subroutine write_set_write
 
 subroutine write_set_external(ictrl)
@@ -1114,6 +1115,7 @@ subroutine set_write(env,key,val)
    logical,save :: set27 = .true.
    logical,save :: set28 = .true.
    logical,save :: set29 = .true.
+   logical,save :: set30 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by write",source)
@@ -1207,6 +1209,9 @@ subroutine set_write(env,key,val)
    case('gbsa')
       if (getValue(env,val,ldum).and.set29) pr_gbsa = ldum
       set29 = .false.
+   case('vib_normal_modes', 'nmtm')
+      if (getValue(env,val,ldum).and.set30) pr_nmtm = ldum
+      set30 = .false.
    end select
 end subroutine set_write
 
