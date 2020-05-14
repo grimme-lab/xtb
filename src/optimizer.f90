@@ -298,7 +298,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    if (profile) call timer%measure(2,'model hessian')
    if (.not.ex)then ! normal case
      if(pr)write(env%unit,'(/,''generating ANC from model Hessian ...'')')
-     call modhes(env, mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
+     call modhes(env, calc, mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
      call env%check(fail)
      if (fail) then
         call env%error("Calculation of model hessian failed", source)
@@ -342,7 +342,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    enddo
 
 !  initialize hessian for opt.
-   call anc%new(env%unit,molopt%xyz,h,pr)
+   call anc%new(env%unit,molopt%xyz,h,pr,linear)
 
    if (profile) call timer%measure(3)
 
@@ -945,10 +945,12 @@ subroutine prdispl(nvar,displ)
 
 end subroutine prdispl
 
-subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
+subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    use xtb_type_setvar
    use xtb_modelhessian
    use xtb_setparam
+   use xtb_type_calculator
+   use xtb_gfnff_calculator
 !
 !       generates a Lindh Model Hessian
 !       Chem. Phys. Let. 241(1995) 423-428
@@ -961,11 +963,14 @@ subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
 
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
+   
+   !> Calculator
+   class(TCalculator), intent(in) :: calc
 
    type(modhess_setvar),intent(in) :: modh
    logical, intent(in)  :: pr
 
-!   Other variables
+!  Other variables
    integer  :: i
    integer  :: nhess
    integer, intent(in)  :: natoms
@@ -977,30 +982,42 @@ subroutine modhes(env, modh, natoms, xyz, chg, Hess, pr)
    nhess=3*natoms
    Hess=0.d0
 
-   select case(modh%model)
-   case default
-      call env%error("internal error in model hessian!", source)
-      return
-   case(p_modh_old)
-     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (1995)"
-     call ddvopt(xyz, natoms, Hess, chg, modh%s6)
-   case(p_modh_lindh_d2)
-     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
-     call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
-   case(p_modh_lindh)
-     if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
-     call mh_lindh(xyz, natoms, Hess, chg, modh)
-   case(p_modh_swart)
-     if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
-     call mh_swart(xyz, natoms, Hess, chg, modh)
-   case(p_modh_gff)
-     if (mode_extrun.eq.p_ext_gfnff) then        
-        if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
-        call gff_ddvopt(xyz, natoms, HEss, chg, modh%s6)
-     else
-        if (pr) write(env%unit,'(a)') "This Lindh-Hessian is only compatible with GFN-FF"
-     end if
+   select type(calc)
+   class default
+      select case(modh%model)
+      case default
+         call env%error("internal error in model hessian!", source)
+         return
+      case(p_modh_old)
+        if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (1995)"
+        call ddvopt(xyz, natoms, Hess, chg, modh%s6)
+      case(p_modh_lindh_d2)
+        if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
+        call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
+      case(p_modh_lindh)
+        if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
+        call mh_lindh(xyz, natoms, Hess, chg, modh)
+      case(p_modh_swart)
+        if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
+        call mh_swart(xyz, natoms, Hess, chg, modh)
+      end select
+   type is(TGFFCalculator)
+      select case(modh%model)
+      case default
+         if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
+         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6)
+      case(p_modh_lindh_d2)
+        if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
+        call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
+      case(p_modh_lindh)
+        if (pr) write(env%unit,'(a)') "Using Lindh-Hessian (2007)"
+        call mh_lindh(xyz, natoms, Hess, chg, modh)
+      case(p_modh_swart)
+        if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
+        call mh_swart(xyz, natoms, Hess, chg, modh)
+      end select
    end select
+
 !  constraints
    call constrhess(natoms,chg,xyz,Hess)
 

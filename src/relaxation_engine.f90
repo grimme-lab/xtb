@@ -310,7 +310,7 @@ subroutine fire &
    if (profile) call timer%measure(7,"model hessian")
    if (opt%precon) then
       if (minpr) write(env%unit,'(" * calculating model hessian...")')
-      call modhes(env,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
+      call modhes(env,calc,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
       if (.not.linear) call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1)
    endif
    if (profile) call timer%measure(7)
@@ -388,6 +388,8 @@ subroutine l_ancopt &
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_calculator
+   use xtb_xtb_calculator
+   use xtb_gfnff_calculator
    use xtb_type_data
    use xtb_type_timer
 
@@ -398,6 +400,7 @@ subroutine l_ancopt &
    use xtb_axis
    use xtb_hessian
    use xtb_lsrmsd
+   use xtb_detrotra, only : detrotra4
 
    use xtb_gfnff_fraghess
 
@@ -576,7 +579,7 @@ subroutine l_ancopt &
 ! ======================================================================
    if (profile) call timer%measure(2,"model hessian")
    if (minpr) write(env%unit,'(" * calculating model hessian...")')
-   call modhes(env,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
+   call modhes(env,calc,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
    if (.not.linear) call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1)
    if (profile) call timer%measure(2)
    if (profile) call timer%measure(3,"ANC generation")
@@ -606,19 +609,23 @@ subroutine l_ancopt &
       deallocate(aux)
    end if
 
-   if (mode_extrun.eq.p_ext_gfnff) then
-      thr = 1.0e-7_wp
-      ! shift all non-zero eigenvalues by
-      edum = minval(eig)
-      damp = max(opt%hlow - edum,0.0_wp)
-      eig = eig+damp
-   else
+   if (.not. fragmented_hessian) then
+      call detrotra4(linear,mol,hess,eig)
+   end if
+
+   select type(calc)
+   type is(TxTBCalculator)
       thr = 1.0e-11_wp
       ! shift all non-zero eigenvalues by
       edum = minval(eig)
       damp = max(opt%hlow - edum,0.0_wp)
       where(abs(eig).gt.thr) eig = eig+damp
-   end if
+   type is(TGFFCalculator)
+      thr = 1.0e-11_wp
+      ! shift all non-zero eigenvalues by
+      edum = minval(eig)
+      damp = max(opt%hlow - edum,0.0_wp)
+   end select
 
    if(pr)then
       write(env%unit,*) 'Shifting diagonal of input Hessian by ', damp

@@ -16,6 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+  'defaults.f90',
   'geometry.f90',
   'json.f90',
   'property.f90',

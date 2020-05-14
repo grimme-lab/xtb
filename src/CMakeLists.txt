@@ -53,6 +53,7 @@ list(APPEND srcs
   "${dir}/david2.f90"
   "${dir}/david.f"
   "${dir}/define.f90"
+  "${dir}/detrotra.f90"
   "${dir}/dipole.f90"
   "${dir}/drsp.f"
   "${dir}/dtrafo.f90"

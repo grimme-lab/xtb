@@ -77,6 +77,7 @@ module xtb_prog_main
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
    use xtb_main_setup
+   use xtb_main_defaults, only : initDefaults
    use xtb_geoopt
    use xtb_metadynamic
    use xtb_biaspath
@@ -489,14 +490,8 @@ subroutine xtbMain(env, argParser)
    call newCalculator(env, mol, calc, fnv)
    call env%checkpoint("Could not setup parameterisation")
 
-
-   ! ------------------------------------------------------------------------
-   !> init GBSA part
-   if(lgbsa) then
-      call init_gbsa(env%unit,solvent,gsolvstate,temp_md,gfn_method,ngrida)
-   endif
-   !> initialize PC embedding (set default file names and stuff)
-   call init_pcem
+   call initDefaults(env, calc, mol, gsolvstate)
+   call env%checkpoint("Could not setup defaults")
 
 
    ! ------------------------------------------------------------------------

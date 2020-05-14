@@ -18,6 +18,7 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/defaults.f90"
   "${dir}/geometry.f90"
   "${dir}/json.f90"
   "${dir}/property.f90"

@@ -127,15 +127,17 @@ subroutine write_anc(self,iunit,comment)
    write(iunit,'(72("<"))')
 end subroutine write_anc
 
-subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
+subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la
+   use xtb_detrotra, only : detrotra8
    implicit none
    class(tb_anc),intent(inout) :: self
    integer,      intent(in)    :: iunit
    real(wp),     intent(in)    :: xyz(3,self%n)
    real(wp),     intent(inout) :: hess(self%n3,self%n3)
    logical,      intent(in)    :: pr
+   logical,      intent(in)    :: linear
 
    real(wp),parameter   :: thr1 = 1.0e-10_wp
    real(wp),parameter   :: thr2 = 1.0e-11_wp
@@ -161,6 +163,8 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
 
    call lapack_syevd('V','U',self%n3,hess,self%n3,self%eigv, &
       &        aux,lwork,iwork,liwork,info)
+
+   call detrotra8(linear,self%n,self%xyz,hess,self%eigv) 
 
    !elow = 1.0e+99_wp
    elow = minval(self%eigv,mask=(abs(self%eigv) > thr1))
@@ -190,6 +194,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
       nvar = 0
       ! take largest (positive) first
       do i = self%n3, 1, -1
+         if (abs(self%eigv(i)) < thr .and. nvar < self%nvar) write(*,*) 'here', self%eigv(i)
          if (abs(self%eigv(i)) > thr .and. nvar < self%nvar) then
             nvar = nvar+1
             self%B(:,nvar) = hess(:,i)
@@ -208,8 +213,10 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr)
 
    enddo get_anc
 
-   if (fail) &
+   if (fail) then
+      write(*,*) 'nvar, selv%nvar',nvar,self%nvar
       call raise('E',"ANC generation failed!",1)
+   end if
 
    call sort(self%n3,self%nvar,self%hess,self%B)
 
