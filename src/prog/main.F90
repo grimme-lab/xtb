@@ -216,6 +216,10 @@ subroutine xtbMain(env, argParser)
       call argParser%nextFile(fname)
    end select
 
+   if (.not.allocated(xcontrol)) then
+      xcontrol = fname
+   end if
+
    call env%checkpoint("Command line argument parsing failed")
 
 
@@ -1086,7 +1090,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    lgrad = .false.
    accuracy = 1.0_wp
    gsolvstate = 0
-   inputFile = 'xcontrol'
 
    nFlags = args%countFlags()
    call args%nextFlag(flag)
