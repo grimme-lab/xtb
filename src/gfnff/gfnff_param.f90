@@ -244,10 +244,6 @@ module xtb_gfnff_param
       & 0.219729_wp, 0.344830_wp, 0.331862_wp, 0.767979_wp, 0.536799_wp, &
       & 0.500000_wp]
 
-   type(TGFFData) :: ffData
-   type(TGFFGenerator) :: ffGen
-   type(TGFFTopology) :: ffTopo
-
 !----------------------------------------------------------------------------------------
    real(wp) :: efield(3)              ! electric field components
 

@@ -84,7 +84,7 @@ module xtb_prog_main
    use xtb_coffee
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use xtb_gfnff_param, only : gff_print, ffGen, ffData, ffTopo
+   use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_setup, only : gfnff_setup
    use xtb_gfnff_convert, only : struc_convert
    implicit none
@@ -541,7 +541,7 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TGFFCalculator)
       call d3init(mol%n, mol%at)
-      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,ffGen,ffData,ffTopo)
+      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,calc%gen,calc%param,calc%topo)
    end select
 
    call delete_file('.sccnotconverged')
@@ -870,7 +870,7 @@ subroutine xtbMain(env, argParser)
       class default
          if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
       type is(TGFFCalculator)
-         if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz,ffTopo)
+         if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz,calc%topo)
       end select
       call md &
          &     (env,mol,wfn,calc, &

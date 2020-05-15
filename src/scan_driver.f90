@@ -36,7 +36,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    type(TWavefunction),intent(inout) :: wfx
 
    integer  :: ilog ! file handle

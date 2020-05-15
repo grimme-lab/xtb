@@ -89,17 +89,17 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
         nbf=0  ! full
 
         do i=1,natoms
-           cn(i)=dble(ffData%normcn(at(i)))
+           cn(i)=dble(param%normcn(at(i)))
         enddo
         call gfnffrab(natoms,at,cn,rtmp) ! guess RAB based on "normal" CN
         do i=1,natoms
            ai=at(i)
            f1=fq
-           if(ffData%metal(ai) > 0) f1 = f1 * 2.0d0
+           if(param%metal(ai) > 0) f1 = f1 * 2.0d0
            do j=1,i-1
               f2=fq
               aj=at(j)
-              if(ffData%metal(aj) > 0) f2 = f2 * 2.0d0
+              if(param%metal(aj) > 0) f2 = f2 * 2.0d0
               k=lin(j,i)
               rco=rtmp(k)
               rtmp(k)=rtmp(k)-topo%qa(i)*f1-topo%qa(j)*f2 ! change radius of atom i and j with charge
@@ -108,9 +108,9 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
            enddo
         enddo
 
-        call getnb(natoms,at,rtmp,rab,mchar,1,f_in,f2_in,nbdum,nbf,ffData) ! full
-        call getnb(natoms,at,rtmp,rab,mchar,2,f_in,f2_in,nbf  ,topo%nb,ffData) ! no highly coordinates atoms
-        call getnb(natoms,at,rtmp,rab,mchar,3,f_in,f2_in,nbf  ,nbm,ffData) ! no metals and unusually coordinated stuff
+        call getnb(natoms,at,rtmp,rab,mchar,1,f_in,f2_in,nbdum,nbf,param) ! full
+        call getnb(natoms,at,rtmp,rab,mchar,2,f_in,f2_in,nbf  ,topo%nb,param) ! no highly coordinates atoms
+        call getnb(natoms,at,rtmp,rab,mchar,3,f_in,f2_in,nbf  ,nbm,param) ! no metals and unusually coordinated stuff
 
 ! take the input
       else
@@ -125,7 +125,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 
 ! tag atoms in nb(19,i) if they belong to a cluster (which avoids the ring search)
       do i=1,natoms
-         if(nbf(20,i).eq.0.and.ffData%group(at(i)).ne.8)then
+         if(nbf(20,i).eq.0.and.param%group(at(i)).ne.8)then
             write(*,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
             write(*,'(''  warning: no bond partners for atom'',i4)')i
             write(*,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
@@ -133,7 +133,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
          if(at(i).lt.11.and.nbf(20,i).gt.2)then
             do k=1,nbf(20,i)
                kk=nbf(k,i)
-               if(ffData%metal(at(kk)).ne.0.or.topo%nb(20,kk).gt.4) then
+               if(param%metal(at(kk)).ne.0.or.topo%nb(20,kk).gt.4) then
                   topo%nb (19,i)=1
                   nbf(19,i)=1
                   nbm(19,i)=1
@@ -157,7 +157,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             nm=0
             do k=1,nbf(20,i)  ! how many metals ? and which
                kk=nbf(k,i)
-               if(ffData%metal(at(kk)).ne.0) then
+               if(param%metal(at(kk)).ne.0) then
                   nm=nm+1
                   im=kk
                endif
@@ -198,19 +198,19 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(at(nbdum(j,i)).eq.8) no=no+1
          enddo
 ! H
-         if(ffData%group(ati).eq.1) then
+         if(param%group(ati).eq.1) then
             if(nb20i.eq.2)               hyb(i)=1 ! bridging H
             if(nb20i.gt.2)               hyb(i)=3 ! M+ tetra coord
             if(nb20i.gt.4)               hyb(i)=0 ! M+ HC
          endif
 ! Be
-         if(ffData%group(ati).eq.2) then
+         if(param%group(ati).eq.2) then
             if(nb20i.eq.2)               hyb(i)=1 ! bridging M
             if(nb20i.gt.2)               hyb(i)=3 ! M+ tetra coord
             if(nb20i.gt.4)               hyb(i)=0 !
          endif
 ! B
-         if(ffData%group(ati).eq.3) then
+         if(param%group(ati).eq.3) then
             if(nb20i.gt.4)                               hyb(i)=3
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.4)                               hyb(i)=3
@@ -218,7 +218,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(nb20i.eq.2)                               hyb(i)=1
          endif
 ! C
-         if(ffData%group(ati).eq.4) then
+         if(param%group(ati).eq.4) then
             if(nb20i.ge.4)                               hyb(i)=3
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.3)                               hyb(i)=2
@@ -238,7 +238,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(nb20i.eq.1)                               hyb(i)=1  ! CO
          endif
 ! N
-         if(ffData%group(ati).eq.5) then
+         if(param%group(ati).eq.5) then
             if(nb20i.ge.4)                               hyb(i)=3
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.3)                               hyb(i)=3
@@ -269,8 +269,8 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
                if(nbdum(20,kk).eq.1.and.at(kk).eq.6)     hyb(i)=1  ! R-N=C
                if(nbdum(20,jj).eq.1.and.at(jj).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
                if(nbdum(20,kk).eq.1.and.at(kk).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
-               if(nbdum(1,i).gt.0.and.ffData%metal(at(nbdum(1,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
-               if(nbdum(2,i).gt.0.and.ffData%metal(at(nbdum(2,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
+               if(nbdum(1,i).gt.0.and.param%metal(at(nbdum(1,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
+               if(nbdum(2,i).gt.0.and.param%metal(at(nbdum(2,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
                if(at(jj).eq.7.and.at(kk).eq.7.and. &
      &          nbdum(20,jj).le.2.and.nbdum(20,kk).le.2) hyb(i)=1  ! N=N=N
                if(phi*180./pi.gt.lintr)                 hyb(i)=1  ! geometry dep. setup! GEODEP
@@ -278,12 +278,12 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             if(nb20i.eq.1)                               hyb(i)=1
          endif
 ! O
-         if(ffData%group(ati).eq.6) then
+         if(param%group(ati).eq.6) then
             if(nb20i.ge.3)                               hyb(i)=3
             if(nb20i.gt.3.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.2)                               hyb(i)=3
             if(nb20i.eq.2.and.nbmdiff.gt.0) then
-               call nn_nearest_noM(i,natoms,at,topo%nb,rab,j,ffData) ! CN of closest non-M atom
+               call nn_nearest_noM(i,natoms,at,topo%nb,rab,j,param) ! CN of closest non-M atom
                                         if(j.eq.3)       hyb(i)=2 ! M-O-X konj
                                         if(j.eq.4)       hyb(i)=3 ! M-O-X non
             endif
@@ -293,25 +293,25 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             endif
          endif
 ! F
-         if(ffData%group(ati).eq.7) then
+         if(param%group(ati).eq.7) then
             if(nb20i.eq.2)                               hyb(i)=1
             if(nb20i.gt.2.and.ati.gt.10)                 hyb(i)=5
          endif
 ! Ne
-         if(ffData%group(ati).eq.8) then
+         if(param%group(ati).eq.8) then
                                                          hyb(i)=0
             if(nb20i.gt.0.and.ati.gt.2)                  hyb(i)=5
          endif
 ! done with main groups
-         if(ffData%group(ati).le.0) then ! TMs
+         if(param%group(ati).le.0) then ! TMs
             nni=nb20i
             if(nh.ne.0.and.nh.ne.nni) nni=nni-nh ! don't count Hs
             if(nni.le.2)                               hyb(i)=1
-            if(nni.le.2.and.ffData%group(ati).le.-6)          hyb(i)=2
+            if(nni.le.2.and.param%group(ati).le.-6)          hyb(i)=2
             if(nni.eq.3)                               hyb(i)=2
-            if(nni.eq.4.and.ffData%group(ati).gt.-7)          hyb(i)=3  ! early TM, tetrahedral
-            if(nni.eq.4.and.ffData%group(ati).le.-7)          hyb(i)=3  ! late TM, square planar
-            if(nni.eq.5.and.ffData%group(ati).eq.-3)          hyb(i)=3  ! Sc-La are tetrahedral CN=5
+            if(nni.eq.4.and.param%group(ati).gt.-7)          hyb(i)=3  ! early TM, tetrahedral
+            if(nni.eq.4.and.param%group(ati).le.-7)          hyb(i)=3  ! late TM, square planar
+            if(nni.eq.5.and.param%group(ati).eq.-3)          hyb(i)=3  ! Sc-La are tetrahedral CN=5
          endif
       enddo
 
@@ -339,7 +339,6 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine getnb(n,at,rad,r,mchar,icase,f,f2,nbf,nb,param)
-      use xtb_gfnff_param, only: ffData
       implicit none
       type(TGFFData), intent(in) :: param
       integer n,at(n),nbf(20,n),nb(20,n)
@@ -358,26 +357,26 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             fm=1.0d0
 !           full case
             if(icase.eq.1)then
-               if(ffData%metal(at(i)).eq.2) fm=fm*f2 !change radius for metal atoms
-               if(ffData%metal(at(j)).eq.2) fm=fm*f2
-               if(ffData%metal(at(i)).eq.1) fm=fm*(f2+0.025)
-               if(ffData%metal(at(j)).eq.1) fm=fm*(f2+0.025)
+               if(param%metal(at(i)).eq.2) fm=fm*f2 !change radius for metal atoms
+               if(param%metal(at(j)).eq.2) fm=fm*f2
+               if(param%metal(at(i)).eq.1) fm=fm*(f2+0.025)
+               if(param%metal(at(j)).eq.1) fm=fm*(f2+0.025)
             endif
 !           no HC atoms
             if(icase.eq.2)then
                hc_crit = 6
-               if(ffData%group(at(i)).le.2) hc_crit = 4
+               if(param%group(at(i)).le.2) hc_crit = 4
                if(nnfi.gt.hc_crit) cycle
                hc_crit = 6
-               if(ffData%group(at(j)).le.2) hc_crit = 4
+               if(param%group(at(j)).le.2) hc_crit = 4
                if(nnfj.gt.hc_crit) cycle
             endif
 !           no metals and unusually coordinated stuff
             if(icase.eq.3)then
-               if(mchar(i).gt.0.25 .or. ffData%metal(at(i)).gt.0) cycle   ! metal case TMonly ?? TODO
-               if(mchar(j).gt.0.25 .or. ffData%metal(at(j)).gt.0) cycle   ! metal case
-               if(nnfi.gt.ffData%normcn(at(i)).and.at(i).gt.10)   cycle   ! HC case
-               if(nnfj.gt.ffData%normcn(at(j)).and.at(j).gt.10)   cycle   ! HC case
+               if(mchar(i).gt.0.25 .or. param%metal(at(i)).gt.0) cycle   ! metal case TMonly ?? TODO
+               if(mchar(j).gt.0.25 .or. param%metal(at(j)).gt.0) cycle   ! metal case
+               if(nnfi.gt.param%normcn(at(i)).and.at(i).gt.10)   cycle   ! HC case
+               if(nnfj.gt.param%normcn(at(j)).and.at(j).gt.10)   cycle   ! HC case
             endif
             k=lin(j,i)
             rco=rad(k) !(rad(i)+rad(j))/0.5291670d0
@@ -404,7 +403,6 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine nn_nearest_noM(ii,n,at,nb,r,nn,param)
-      use xtb_gfnff_param, only: ffData
       implicit none
       type(TGFFData), intent(in) :: param
       integer ii,n,at(n),nn,nb(20,n)
@@ -418,7 +416,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       jmin=0
       do j=1,nb(20,ii)
          jj=nb(j,ii)
-         if(ffData%metal(at(jj)).ne.0) cycle
+         if(param%metal(at(jj)).ne.0) cycle
          if(r(lin(jj,ii)).lt.rmin)then
             rmin=r(lin(jj,ii))
             jmin=jj
@@ -1126,8 +1124,8 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab,topo)
       real*8 ci(2),cj(2)
       ci(1)=topo%hbbas(i)
       cj(1)=topo%hbbas(j)
-      ci(2)=ffData%xhaci(ati)
-      cj(2)=ffData%xhaci(atj)
+      ci(2)=param%xhaci(ati)
+      cj(2)=param%xhaci(atj)
       end subroutine hbonds
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

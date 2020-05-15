@@ -44,7 +44,7 @@ subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    integer  :: icall,maxiter
    real(wp) :: epot,et,egap
    real(wp), intent(inout) :: grd(3,mol%n)

@@ -30,7 +30,10 @@ module xtb_gfnff_calculator
    use xtb_solv_gbobc, only : lgbsa
    use xtb_metadynamic
    use xtb_constrainpot
-   use xtb_gfnff_param, only : make_chrg,gff_print,ffData,ffTopo
+   use xtb_gfnff_param, only : make_chrg,gff_print
+   use xtb_gfnff_data, only : TGFFData
+   use xtb_gfnff_topology, only : TGFFTopology
+   use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
    implicit none
    private
@@ -41,7 +44,9 @@ module xtb_gfnff_calculator
    !> Calculator interface for xTB based methods
    type, extends(TCalculator) :: TGFFCalculator
 
-      integer :: dummy
+      type(TGFFData) :: param
+      type(TGFFGenerator) :: gen
+      type(TGFFTopology) :: topo
 
    contains
 
@@ -67,7 +72,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    character(len=*), parameter :: source = 'type_calculator_singlepoint'
 
    !> Calculator instance
-   class(TGFFCalculator), intent(in) :: self
+   class(TGFFCalculator), intent(inout) :: self
 
    !> Computational environment
    type(TEnvironment), intent(inout) :: env
@@ -118,7 +123,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    ! ------------------------------------------------------------------------
    !  actual calculation
    call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,ffData,ffTopo)
+      & gradient,energy,results,self%param,self%topo)
 
    call env%check(exitRun)
    if (exitRun) then

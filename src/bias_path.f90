@@ -48,7 +48,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    type(TMolecule),    intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfx
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    integer, intent(in)    :: maxiter
    real(wp),intent(in)    :: epot
    real(wp),intent(in)    :: et
