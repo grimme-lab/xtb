@@ -16,7 +16,10 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_gfnff_param
-   use xtb_mctc_accuracy, only : wp, sp 
+   use xtb_mctc_accuracy, only : wp, sp
+   use xtb_gfnff_data, only : TGFFData, init
+   use xtb_gfnff_generator, only : TGFFGenerator
+   use xtb_gfnff_topology, only : TGFFTopology
    implicit none
    private :: wp
    public
@@ -241,192 +244,27 @@ module xtb_gfnff_param
       & 0.219729_wp, 0.344830_wp, 0.331862_wp, 0.767979_wp, 0.536799_wp, &
       & 0.500000_wp]
 
-   !common variables which are used in energy-gradient routines
-   real(wp) :: repscaln,repscalb      ! repulsion scaling
-   real(wp) :: atcuta,atcutt          ! bend/tors angle damping
-   real(wp) :: atcuta_nci,atcutt_nci  ! bend/tors nci angle damping for HB term
-   real(wp) :: hbacut,hbscut          ! damping HB
-   real(wp) :: xbacut,xbscut          ! damping XB
-   real(wp) :: hbalp                  ! damping HB/XB
-   real(wp) :: hblongcut,hblongcut_xb ! damping HB/XB
-   real(wp) :: hbst,hbsf,xbst,xbsf    ! charge scaling HB/XB
-   real(wp) :: xhaci_globabh          ! HB AH-B
-   real(wp) :: xhaci_coh              ! HB AH-O=C
-   real(wp) :: xhaci_glob             ! acidity
-   real(wp) :: hbabmix                ! HB AH-B
-   real(wp) :: hbnbcut                ! new parameter for neighbour angle
-   real(wp) :: tors_hb                ! new parameter for HB NCI angle term
-   real(wp) :: bend_hb                ! new parameter for HB NCI torsion term
-   real(wp) :: vbond_scale            ! new parameter for FC scaling of bonds in HB
-   real(wp) :: cnmax                  ! max CN cut-off
 !----------------------------------------------------------------------------------------
    real(wp) :: efield(3)              ! electric field components
 
    !Thresholds
-   real(wp) linthr        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
-   real(wp) fcthr         ! skip torsion and bending if potential is small
-   real(sp) tdist_thr     ! R threshold in Angstroem for cov distance estimated used in apprx EEQ
-   real(wp) rthr          ! important bond determination threshold, large values yield more 1.23
-   real(wp) rthr2         ! decrease if a metal is present, larger values yield smaller CN
-   real(wp) rqshrink      ! change of R0 for topo with charge qa, larger values yield smaller CN for metals in particular
-   real(wp) hqabthr       ! H charge (qa) threshold for H in HB list 18
-   real(wp) qabthr        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
-                          ! larger val. better for S30L but worse in PubChem RMSD checks
-   !Parameter
-   real(wp) srb1,srb2,srb3
-   real(wp) qrepscal      ! change of non-bonded rep. with q(topo)
-   real(wp) nrepscal      !   "    "      "       "   CN
-   real(wp) hhfac         ! HH repulsion
-   real(wp) hh13rep
-   real(wp) hh14rep
-   real(wp) bstren(9)
-   real(wp) qfacBEN       ! bend FC change with polarity
-   real(wp) qfacTOR       ! torsion FC change with polarity
-   real(wp) fr3           ! tors FC 3-ring
-   real(wp) fr4           ! tors FC 4-ring
-   real(wp) fr5           ! tors FC 5-ring
-   real(wp) fr6           ! tors FC 6-ring
-   real(wp) torsf(8)      ! bonds
-   real(wp) fbs1          ! small bend corr.
-   real(wp) batmscal      ! bonded ATM scal
-
-   !Shifts
-   real(wp) mchishift
-   real(wp) rabshift     ! gen shift
-   real(wp) rabshifth    ! XH
-   real(wp) hyper_shift  ! hypervalent
-   real(wp) hshift3      ! heavy
-   real(wp) hshift4      !
-   real(wp) hshift5      !
-   real(wp) metal1_shift ! group 1+2 metals
-   real(wp) metal2_shift ! TM
-   real(wp) metal3_shift ! main group metals
-   real(wp) eta_shift    ! eta bonded
-
-   !Charge Param
-   real(wp) qfacbm(0:4)  ! bond charge dependent
-   real(wp) qfacbm0
-   real(wp) rfgoed1      ! topo dist scaling
-
-   !Hückel Param
-   real(wp) htriple      ! decrease Hueckel off-diag for triple bonds because they are less well conjugated 1.4
-   real(wp) hueckelp2    ! increase pot depth depending on P
-   real(wp) hueckelp3    ! diagonal element change with qa
-   real(wp) hdiag(17)    ! diagonal element relative to C
-   real(wp) hoffdiag(17) ! Huckel off-diag constants
-   real(wp) hiter        ! iteration mixing
-   real(wp) hueckelp     ! diagonal qa dep.
-   real(wp) bzref        ! ref P value R shift
-   real(wp) bzref2       !  "  "  "    k stretch
-   real(wp) pilpf        ! 2el diag shift
-   real(wp) maxhiter     ! the Hückel iterations can diverge so take only a few steps
-
-   !D3 Param
-   real(wp) d3a1         ! D3, s8 fixed = 2
-   real(wp) d3a2
-
-   !Stuff
-   real(wp) split0       ! mixing of sp^n with sp^n-1
-   real(wp) split1       ! mixing of sp^n with sp^n-1
-   real(wp) fringbo      ! str ring size dep.
-   real(wp) aheavy3      ! three coord. heavy eq. angle
-   real(wp) aheavy4      ! four   "       "    "    "
-   real(wp) bsmat(0:3,0:3)
 
    !========================================================================
    ! parameters which are either rlisted below
    ! or read in by gfnff_read_param
    !------------------------------------------------------------------------
 
-   !general common stuff used in energy-gradient routines
-   !> rep alpha bond
-   real(wp) :: repa (86) = p_gff_repa,repan(86) = p_gff_repan
-   real(wp) :: repz (86),zb3atm(86)             ! prefactor (Zval), 3atm bond term
-   real(wp) :: xhaci(86),xhbas(86),xbaci(86)    ! HB/XB
-   real(wp) :: chi(86) = p_gff_chi              ! EN dep. in EEQ.
-   real(wp) :: gam(86) = p_gff_gam              ! EN dep. in EEQ.
-   real(wp) :: cnf(86) = p_gff_cnf              ! EN dep. in EEQ.
-   real(wp) :: alp(86) = p_gff_alp              ! EN dep. in EEQ.
-   real(wp) :: bond(86) = p_gff_bond            ! Elem. bond param.
-   real(wp) :: angl(86) = p_gff_angl            ! Elem. angular param.
-   real(wp) :: angl2(86) = p_gff_angl2          ! Elem. angular param.
-   real(wp) :: tors(86) = p_gff_tors            ! Elem. torsion param_alloc.
-   real(wp) :: tors2(86) = p_gff_tors2          ! Elem. torsion param.
-   real(wp) :: d3r0(86*87/2)                    ! BJ radii set in gnff_ini()
-
    !numerical precision cut-offs
    real(wp) :: cnthr,repthr,dispthr,hbthr1,hbthr2,accff
 
-   integer  :: group(86),metal(86),normcn(86)   ! for assignment
    integer  :: ffmode
-
-
-   !========================================================================
-   ! parameters which are determined in gfnff_ini
-   !------------------------------------------------------------------------
-
-   !number of terms
-   integer  :: nbond,nangl,ntors,nhb1,nhb2,nxb,nathbH,nathbAB,natxbAB,nbatm
-   integer  :: nfrag
-   integer  :: maxsystem   ! max. number of fragmentsfor hessian
-   integer  :: bond_hb_nr  ! number of unique AH...B HB/bond terms
-   integer  :: b_max      ! number of B atoms per unique AH bond
-
-   !numbers that are rewritten, so must be stored for allocation
-   integer  :: nbond_blist,nbond_vbond,nangl_alloc,ntors_alloc
-
-   !file type read
-   integer  :: read_file_type
-
-   !lists
-   integer,allocatable ::     nb(:,:)   ! neighbors nb(20,i) is the # neigbors
-   integer,allocatable ::    bpair(:)   ! # of cov. between atoms
-   integer,allocatable ::  blist(:,:)   ! bonded atoms
-   integer,allocatable ::  alist(:,:)   ! angles
-   integer,allocatable ::  tlist(:,:)   ! torsions
-   integer,allocatable :: b3list(:,:)   ! bond atm
-   integer,allocatable :: hblist1(:,:)  ! HBs loose
-   integer,allocatable :: hblist2(:,:)  ! HBs bonded
-   integer,allocatable :: hblist3(:,:)  ! XBs
-   !-----------------------------------------------
-   integer,allocatable :: nr_hb(:)      ! Nr. of H bonds per O-H or N-H bond
-   integer,allocatable :: bond_hb_AH(:,:) ! A, H atoms in bonds that are also part of HBs
-   integer,allocatable :: bond_hb_B(:,:)  ! B atoms in bonds that are also part of HBs
-   integer,allocatable :: bond_hb_Bn(:)   ! Nr. of B atoms for one AH bond pair
-   !-----------------------------------------------
-   integer,allocatable :: hbatABl(:,:)  ! AB atoms for HB
-   integer,allocatable :: xbatABl(:,:)  ! AB atoms for XB
-   integer,allocatable :: hbatHl (:)    ! H  atoms for HB
-   integer,allocatable :: fraglist(:)   ! atoms in molecular fragments (for EEQ)
-   integer,allocatable :: qpdb  (:)     ! atomic charge in residues from PDB file
-
-   !potential parameters used in energy-gradient routine
-   real(wp),allocatable:: vbond(:,:)    ! bonds
-   real(wp),allocatable:: vangl(:,:)    ! angles
-   real(wp),allocatable:: vtors(:,:)    ! torsions
-   real(wp),allocatable:: chieeq(:)     ! atomic ENs for EEQ
-   real(wp),allocatable:: gameeq(:)     ! atomic gamma for EEQ
-   real(wp),allocatable:: alpeeq(:)     ! atomic alpha for EEQ, squared
-   real(wp),allocatable:: alphanb(:)    ! non-bonded exponent for atom pairs
-   real(wp),allocatable::    qa(:)      ! estimated atomic charges (fixed and obtained from topology EEQ)
-   real(wp),allocatable::     q(:)      ! atomic charges (obtained from EEQ)
-   real(wp),allocatable:: hbrefgeo(:,:) ! atom xyz, used to check for HB list update
-   real(wp),allocatable::    xyze0(:,:) ! atom xyz, starting geom. (for Efield energy)
-   real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product
-   real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
-   real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
-
 
    !========================================================================
    ! DATA
    !------------------------------------------------------------------------
 
-   data xhaci / 86 * 0 /
-   data xhbas / 86 * 0 /
-   data xbaci / 86 * 0 /
-
    !Pauling EN
-   real(wp), parameter :: en(1:86) = [&
+   real(wp), private, parameter :: en(1:86) = [&
   &         2.200,3.000,0.980,1.570,2.040,2.550,3.040,3.440,3.980 &
   &        ,4.500,0.930,1.310,1.610,1.900,2.190,2.580,3.160,3.500 &
   &        ,0.820,1.000,1.360,1.540,1.630,1.660,1.550,1.830,1.880 &
@@ -442,7 +280,7 @@ module xtb_gfnff_param
    ! in CRC Handbook of Chemistry and Physics, 91st Edition (2010-2011),
    ! edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
    ! corrected Nov. 17, 2010 for the 92nd edition.
-   real(wp), parameter :: rad(1:86) = [&
+   real(wp), private, parameter :: rad(1:86) = [&
   &0.32D0,0.37D0,1.30D0,0.99D0,0.84D0,0.75D0,0.71D0,0.64D0,0.60D0,&
   &0.62D0,1.60D0,1.40D0,1.24D0,1.14D0,1.09D0,1.04D0,1.00D0,1.01D0,&
   &2.00D0,1.74D0,1.59D0,1.48D0,1.44D0,1.30D0,1.29D0,1.24D0,1.18D0,&
@@ -454,221 +292,126 @@ module xtb_gfnff_param
   &1.58D0,1.50D0,1.41D0,1.36D0,1.32D0,1.30D0,1.30D0,1.32D0,1.44D0,&
   &1.45D0,1.50D0,1.42D0,1.48D0,1.46D0]
 
-   data metal / &
-  &0,                                                          0,&!He
-  &1,1,                                         0, 0, 0, 0, 0, 0,&!Ne
-  &1,1,                                         1, 0, 0, 0, 0, 0,&!Ar
-  &1,1,2,          2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 0, 0, 0, 0, 0,&!Kr
-  &1,2,2,          2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 0, 0, 0, 0,&!Xe
-  &1,2,2,  14*2,   2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 1, 1, 0, 0/ !Rn  ! At is NOT a metal, Po is borderline but slightly better as metal
-   data group / &
-  &1,                                                          8,&!He
-  &1,2,                                         3, 4, 5, 6, 7, 8,&!Ne
-  &1,2,                                         3, 4, 5, 6, 7, 8,&!Ar
-  &1,2,-3,        -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Kr
-  &1,2,-3,        -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Xe
-  &1,2,-3, 14*-3, -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8/ !Rn
-   data normcn/ &  ! only for non metals well defined
-  &1,                                                          0,&!He
-  &4,4,                                         4, 4, 4, 2, 1, 0,&!Ne
-  &4,4,                                         4, 4, 4, 2, 1, 0,&!Ar
-  &4,4,4,          4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Kr
-  &4,4,4,          4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Xe
-  &4,4,4,  14*4,   4, 6, 6, 6, 6, 6, 6, 6, 4,   4, 4, 4, 4, 1, 0/ !Rn
-   data repz  / &
-  &1.,                                                         2.,&!He
-  &1.,2.,                                       3.,4.,5.,6.,7.,8.,&!Ne
-  &1.,2.,                                       3.,4.,5.,6.,7.,8.,&!Ar
-  &1.,2.,3.,      4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Kr
-  &1.,2.,3.,      4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Xe
-  &1.,2.,3.,14*3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8./ !Rn
+   integer, private, parameter :: metal(86) = (/ &
+  &0,                                                                0,&!He
+  &1,1,                                               0, 0, 0, 0, 0, 0,&!Ne
+  &1,1,                                               1, 0, 0, 0, 0, 0,&!Ar
+  &1,1,2,                2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 0, 0, 0, 0, 0,&!Kr
+  &1,2,2,                2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 0, 0, 0, 0,&!Xe
+  &1,2,2,spread(2,1,14), 2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 1, 1, 0, 0/)!Rn
+  ! At is NOT a metal, Po is borderline but slightly better as metal
+   integer, private, parameter :: group(86) = (/ &
+  &1,                                                                   8,&!He
+  &1,2,                                                  3, 4, 5, 6, 7, 8,&!Ne
+  &1,2,                                                  3, 4, 5, 6, 7, 8,&!Ar
+  &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Kr
+  &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Xe
+  &1,2,-3,spread(-3,1,14), -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8/)!Rn
+   integer, private, parameter :: normcn(86) = (/ &  ! only for non metals well defined
+  &1,                                                                0,&!He
+  &4,4,                                               4, 4, 4, 2, 1, 0,&!Ne
+  &4,4,                                               4, 4, 4, 2, 1, 0,&!Ar
+  &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Kr
+  &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Xe
+  &4,4,4,spread(4,1,14), 4, 6, 6, 6, 6, 6, 6, 6, 4,   4, 4, 4, 4, 1, 0/) !Rn
+   real(wp), private, parameter :: repz(86) =   (/ &
+  &1.,                                                                    2.,&!He
+  &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ne
+  &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ar
+  &1.,2.,3.,                 4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Kr
+  &1.,2.,3.,                 4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8.,&!Xe
+  &1.,2.,3.,spread(3.,1,14), 4.,5.,6.,7.,8.,9.,10.,11.,12.,3.,4.,5.,6.,7.,8./) !Rn
 
    contains
 
-   subroutine gfnff_set_param(n)
+   subroutine gfnff_set_param(n, gen, param)
      use xtb_mctc_accuracy, only : wp 
      use xtb_disp_dftd4, only : r2r4 => r4r2, rcov
      implicit none
 !    Dummy                      ,
      integer,intent(in)  :: n
+     type(TGFFGenerator), intent(out) :: gen
+     type(TGFFData), intent(inout) :: param
 !    Stack
      integer   :: i,j,k
      real(wp)  :: dum
 
-     cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
-     linthr  = 160.        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
-                           ! but this occurs e.g. for Sc in unclear situations. So make it save (160)
-     fcthr   = 1.d-3       ! skip torsion and bending if potential is small
-     tdist_thr=12.         ! R threshold in Angstroem for cov distance estimated used in apprx EEQ
-                           ! the following two parameters are critical for topo setup
-     rthr     =1.25        ! important bond determination threshold
-                           ! large values yield more 1.23
-     rthr2    =1.00        ! decrease if a metal is present, larger values yield smaller CN
-     rqshrink =0.23        ! change of R0 for topo with charge qa, larger values yield smaller CN for metals in particular
-     hqabthr  =0.01        ! H charge (qa) threshold for H in HB list 18
-      qabthr  =0.10        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
-                           ! larger val. better for S30L but worse in PubChem RMSD checks
-     atcuta  = 0.595d0     ! angle damping
-     atcutt  = 0.505d0     ! torsion angle damping
-     atcuta_nci  = 0.395d0 ! nci angle damping in HB term
-     atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
-     srb1    = 0.3731      ! bond params
-     srb2    = 0.3171      !
-     srb3    = 0.2538      !
-     repscalb= 1.7583      ! bonded rep. scaling
-     repscaln= 0.4270      ! non-bonded rep. scaling
-     qrepscal= 0.3480      ! change of non-bonded rep. with q(topo)
-     nrepscal=-0.1270      !   "    "      "       "   CN
-     hhfac   = 0.6290      ! HH repulsion
-     hh13rep = 1.4580      !
-     hh14rep = 0.7080      !
-     bstren(1)=1.00d0      ! single bond
-     bstren(2)=1.24d0      ! double bond
-     bstren(3)=1.98d0      ! triple bond
-     bstren(4)=1.22d0      ! hyperval bond
-     bstren(5)=1.00d0      ! M-X
-     bstren(6)=0.78d0      ! M eta
-     bstren(7)=3.40d0      ! M-M
-     bstren(8)=3.40d0      ! M-M
-     qfacBEN =-0.54        ! bend FC change with polarity
-     qfacTOR =12.0d0       ! torsion FC change with polarity
-     fr3     =0.3          ! tors FC 3-ring
-     fr4     =1.0          ! tors FC 4-ring
-     fr5     =1.5          ! tors FC 5-ring
-     fr6     =5.7          ! tors FC 6-ring
-     torsf(1)=1.00         ! single bond
-     torsf(2)=1.18         ! pi bond
-     torsf(3)=1.05         ! improper
-     torsf(5)=0.50         ! pi part improper
-     torsf(6)=-0.90        ! extra sp3 C
-     torsf(7)= 0.70        ! extra sp3 N
-     torsf(8)=-2.00        ! extra sp3 O
-     fbs1    =0.50         ! small bend corr.
-     batmscal=-0.30d0      ! bonded ATM scal
-     mchishift=-0.09d0
-     rabshift    =-0.110   ! gen shift
-     rabshifth   =-0.050   ! XH
-     hyper_shift = 0.03    ! hypervalent
-     hshift3     = -0.11   ! heavy
-     hshift4     = -0.11   !
-     hshift5     = -0.06   !
-     metal1_shift= 0.2     ! group 1+2 metals
-     metal2_shift= 0.15    ! TM
-     metal3_shift= 0.05    ! main group metals
-     eta_shift   = 0.040   ! eta bonded
-     qfacbm(0)   =1.0d0    ! bond charge dep.gff_srcs += 'gff/gfnff_input.f90'
+     call newGFNFFGenerator(gen)
 
-     qfacbm(1:2) =-0.2d0   !
-     qfacbm(  3) =0.70d0   !
-     qfacbm(  4) =0.50d0   !
-     qfacbm0     =0.047    !
-     rfgoed1  =1.175       ! topo dist scaling
-     htriple = 1.45d0      ! decrease Hueckel off-diag for triple bonds because they are less well conjugated 1.4
-     hueckelp2=1.00d0      ! increase pot depth depending on P
-     hueckelp3=-0.24d0     ! diagonal element change with qa
-     hdiag(5) =-0.5d0      ! diagonal element relative to C
-     hdiag(6) =0.00d0      !
-     hdiag(7) =0.14d0      !
-     hdiag(8) =-0.38d0     !
-     hdiag(9) =-0.29d0     !
-     hdiag(16)=-0.30d0     !
-     hdiag(17)=-0.30d0     !
-     hoffdiag(5)=0.5d0     ! Huckel off-diag constants
-     hoffdiag(6)=1.00d0    !
-     hoffdiag(7)=0.66d0    !
-     hoffdiag(8)=1.10d0    !
-     hoffdiag(9)=0.23d0    !
-     hoffdiag(16)=0.60d0   !
-     hoffdiag(17)=1.00d0   !
-     hiter   =0.700d0      ! iteration mixing
-     hueckelp=0.340d0      ! diagonal qa dep.
-     bzref   =0.370d0      ! ref P value R shift
-     bzref2  =0.315d0      !  "  "  "    k stretch
-     pilpf   =0.530d0      ! 2el diag shift
-     maxhiter=5            ! the Hückel iterations can diverge so take only a few steps
-     d3a1    = 0.58d0      ! D3, s8 fixed = 2
-     d3a2    = 4.80d0
-     split0  =0.670d0      ! mixing of sp^n with sp^n-1
-     fringbo =0.020d0      ! str ring size dep.
-     aheavy3 =89.          ! three coord. heavy eq. angle
-     aheavy4 =100.         ! four   "       "    "    "
-     hbacut   =49.         ! HB angle cut-off
-     hbscut   =22.         ! HB SR     "   "
-     xbacut   =70.         ! same for XB
-     xbscut   = 5.         !
-     hbsf     = 1.         ! charge dep.
-     hbst     =15.         ! 10 is better for S22, 20 better for HCN2 and S30L
-     xbsf     =0.03        !
-     xbst     =15.         !
-     hbalp    = 6.         ! damp
-     hblongcut=85.         ! values larger than 85 yield large RMSDs for P26
-     hblongcut_xb=70.      ! values larger than 70 yield large MAD for HAL28
-     hbabmix  =0.80        !
-     hbnbcut  =11.20       !
-     tors_hb   =0.94       ! torsion potential shift in HB term
-     bend_hb   =0.20       ! bending potential shift in HB term
-     vbond_scale=0.9       ! vbond(2) scaling for CN(H) = 1
-     xhaci_globabh=0.268   ! A-H...B gen. scaling
-     xhaci_coh=0.350       ! A-H...O=C gen. scaling
-     xhaci_glob=1.50       ! acidity
-     xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
-     xhbas( 7)=1.68d0
-     xhbas( 8)=0.67d0
-     xhbas( 9)=0.52d0
-     xhbas(14)=4.0d0
-     xhbas(15)=3.5d0
-     xhbas(16)=2.0d0
-     xhbas(17)=1.5d0
-     xhbas(35)=1.5d0
-     xhbas(53)=1.9d0
-     xhbas(33)=xhbas(15)
-     xhbas(34)=xhbas(16)
-     xhbas(51)=xhbas(15)
-     xhbas(52)=xhbas(16)
-     xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
-     xhaci( 7)=xhaci_glob+0.1
-     xhaci( 8)=xhaci_glob
-     xhaci( 9)=xhaci_glob
-     xhaci(15)=xhaci_glob
-     xhaci(16)=xhaci_glob
-     xhaci(17)=xhaci_glob+1.0
-     xhaci(35)=xhaci_glob+1.0
-     xhaci(53)=xhaci_glob+1.0
-     xbaci(15)=1.0d0              ! XB acidities
-     xbaci(16)=1.0d0
-     xbaci(17)=0.5d0
-     xbaci(33)=1.2d0
-     xbaci(34)=1.2d0
-     xbaci(35)=0.9d0
-     xbaci(51)=1.2d0
-     xbaci(52)=1.2d0
-     xbaci(53)=1.2d0
-     split1=1.0d0-split0
-     bsmat = -999.
-     bsmat(0,0)=bstren(1)
-     bsmat(3,0)=bstren(1)
-     bsmat(3,3)=bstren(1)
-     bsmat(2,2)=bstren(2)
-     bsmat(1,1)=bstren(3)
-     bsmat(1,0)=split0*bstren(1)+split1*bstren(3)
-     bsmat(3,1)=split0*bstren(1)+split1*bstren(3)
-     bsmat(2,1)=split0*bstren(2)+split1*bstren(3)
-     bsmat(2,0)=split0*bstren(1)+split1*bstren(2)
-     bsmat(3,2)=split0*bstren(1)+split1*bstren(2)
-     bstren(9)=0.5*(bstren(7)+bstren(8))
+     param%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
+     param%atcuta  = 0.595d0     ! angle damping
+     param%atcutt  = 0.505d0     ! torsion angle damping
+     param%atcuta_nci  = 0.395d0 ! nci angle damping in HB term
+     param%atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
+     param%repscalb= 1.7583      ! bonded rep. scaling
+     param%repscaln= 0.4270      ! non-bonded rep. scaling
+     param%hbacut   =49.         ! HB angle cut-off
+     param%hbscut   =22.         ! HB SR     "   "
+     param%xbacut   =70.         ! same for XB
+     param%xbscut   = 5.         !
+     param%hbsf     = 1.         ! charge dep.
+     param%hbst     =15.         ! 10 is better for S22, 20 better for HCN2 and S30L
+     param%xbsf     =0.03        !
+     param%xbst     =15.         !
+     param%hbalp    = 6.         ! damp
+     param%hblongcut=85.         ! values larger than 85 yield large RMSDs for P26
+     param%hblongcut_xb=70.      ! values larger than 70 yield large MAD for HAL28
+     param%hbabmix  =0.80        !
+     param%hbnbcut  =11.20       !
+     param%tors_hb   =0.94       ! torsion potential shift in HB term
+     param%bend_hb   =0.20       ! bending potential shift in HB term
+     param%vbond_scale=0.9       ! vbond(2) scaling for CN(H) = 1
+     param%xhaci_globabh=0.268   ! A-H...B gen. scaling
+     param%xhaci_coh=0.350       ! A-H...O=C gen. scaling
+     param%xhaci_glob=1.50       ! acidity
+     param%xhbas(:) = 0.0_wp
+     param%xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
+     param%xhbas( 7)=1.68d0
+     param%xhbas( 8)=0.67d0
+     param%xhbas( 9)=0.52d0
+     param%xhbas(14)=4.0d0
+     param%xhbas(15)=3.5d0
+     param%xhbas(16)=2.0d0
+     param%xhbas(17)=1.5d0
+     param%xhbas(35)=1.5d0
+     param%xhbas(53)=1.9d0
+     param%xhbas(33)=param%xhbas(15)
+     param%xhbas(34)=param%xhbas(16)
+     param%xhbas(51)=param%xhbas(15)
+     param%xhbas(52)=param%xhbas(16)
+     param%xhaci(:) = 0.0_wp
+     param%xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
+     param%xhaci( 7)=param%xhaci_glob+0.1
+     param%xhaci( 8)=param%xhaci_glob
+     param%xhaci( 9)=param%xhaci_glob
+     param%xhaci(15)=param%xhaci_glob
+     param%xhaci(16)=param%xhaci_glob
+     param%xhaci(17)=param%xhaci_glob+1.0
+     param%xhaci(35)=param%xhaci_glob+1.0
+     param%xhaci(53)=param%xhaci_glob+1.0
+     param%xbaci(:) = 0.0_wp
+     param%xbaci(15)=1.0d0              ! XB acidities
+     param%xbaci(16)=1.0d0
+     param%xbaci(17)=0.5d0
+     param%xbaci(33)=1.2d0
+     param%xbaci(34)=1.2d0
+     param%xbaci(35)=0.9d0
+     param%xbaci(51)=1.2d0
+     param%xbaci(52)=1.2d0
+     param%xbaci(53)=1.2d0
 
 !    3B bond prefactors and D3 stuff
      k=0
      do i=1,86
         dum=dble(i)
-        zb3atm(i)=dum*batmscal**(1.d0/3.d0)  ! inlcude pre-factor
+        param%zb3atm(i)=-dum*gen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
         do j=1,i
            k=k+1
            dum=r2r4(i)*r2r4(j)*3.0d0
-           d3r0(k)=(d3a1*dsqrt(dum)+d3a2)**2   ! save R0^2 for efficiency reasons
+           param%d3r0(k)=(gen%d3a1*dsqrt(dum)+gen%d3a2)**2   ! save R0^2 for efficiency reasons
         enddo
      enddo
-     zb3atm(1)=0.25d0*batmscal**(1.d0/3.d0) ! slightly better than 1.0
+     param%zb3atm(1)=-0.25d0*gen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! numerical precision settings
@@ -685,113 +428,238 @@ module xtb_gfnff_param
 
    end subroutine gfnff_set_param
 
-   subroutine gfnff_read_param(iunit)
+
+   subroutine gfnff_read_param(iunit, param)
      use xtb_mctc_accuracy, only : wp 
      implicit none
 !    Dummy
      integer,intent(in)  :: iunit
+     type(TGFFData), intent(out) :: param
 !    Stack
      integer  :: i,nn
      real(wp) :: xx(20)
      character(len=256) :: atmp
 
+     call init(param, 86)
+
+     param%en(:) = en
+     param%rad(:) = rad
+     param%metal(:) = metal
+     param%group(:) = group
+     param%normcn(:) = normcn
+     param%repz(:) = repz
+
      do i=1,86
          read(iunit,'(a)')atmp
          call readl(atmp,xx,nn)
-         chi (i)=xx(2)
-         gam (i)=xx(3)
-         cnf (i)=xx(4)
-         alp (i)=xx(5)
-         bond(i)=xx(6)
-         repa(i)=xx(7)
-        repan(i)=xx(8)
-         angl(i)=xx(9)
-        angl2(i)=xx(10)
-         tors(i)=xx(11)
-        tors2(i)=xx(12)
+         param%chi(i)=xx(2)
+         param%gam(i)=xx(3)
+         param%cnf(i)=xx(4)
+         param%alp(i)=xx(5)
+         param%bond(i)=xx(6)
+         param%repa(i)=xx(7)
+         param%repan(i)=xx(8)
+         param%angl(i)=xx(9)
+         param%angl2(i)=xx(10)
+         param%tors(i)=xx(11)
+         param%tors2(i)=xx(12)
       enddo
 
    end subroutine gfnff_read_param
 
-   subroutine gfnff_param_alloc(n)
+   subroutine gfnff_param_alloc(topo, n)
      use xtb_mctc_accuracy, only : wp 
      implicit none
 !    Dummy
+     type(TGFFTopology), intent(inout) :: topo
      integer,intent(in) :: n
 
-     if (.not.allocated(nb)) allocate( nb(20,n), source = 0 )
-     if (.not.allocated(bpair)) allocate( bpair(n*(n+1)/2), source = 0 )
-     if (.not.allocated(alphanb)) allocate( alphanb(n*(n+1)/2), source = 0.0d0 )
-     if (.not.allocated(chieeq)) allocate( chieeq(n), source = 0.0d0 )
-     if (.not.allocated(gameeq)) allocate( gameeq(n), source = 0.0d0 )
-     if (.not.allocated(alpeeq)) allocate( alpeeq(n), source = 0.0d0 )
-     if (.not.allocated(qa)) allocate( qa(n), source = 0.0d0 )
-     if (.not.allocated(q)) allocate( q(n), source = 0.0d0 )
-     if (.not.allocated(hbrefgeo)) allocate( hbrefgeo(3,n), source = 0.0d0 )
-     if (.not.allocated(zetac6)) allocate( zetac6(n*(n+1)/2), source = 0.0d0 )
-     if (.not.allocated(xyze0)) allocate( xyze0(3,n), source = 0.0d0 )
-     if (.not.allocated(b3list)) allocate( b3list(3,1000*n), source = 0 )
-     if (.not.allocated(fraglist)) allocate( fraglist(n), source = 0 )
-     if (.not.allocated(qfrag)) allocate( qfrag(n), source = 0.0d0 )
-     if (.not.allocated(hbatHl)) allocate( hbatHl(n), source = 0 )
-     if (.not.allocated(hbbas)) allocate( hbbas(n), source = 0.0d0 )
-     if (.not.allocated(hbatABl)) allocate( hbatABl(2,n*(n+1)/2), source = 0 )
-     if (.not.allocated(xbatABl)) allocate( xbatABl(3,natxbAB), source = 0 )
+     if (.not.allocated(topo%nb)) allocate( topo%nb(20,n), source = 0 )
+     if (.not.allocated(topo%bpair)) allocate( topo%bpair(n*(n+1)/2), source = 0 )
+     if (.not.allocated(topo%alphanb)) allocate( topo%alphanb(n*(n+1)/2), source = 0.0d0 )
+     if (.not.allocated(topo%chieeq)) allocate( topo%chieeq(n), source = 0.0d0 )
+     if (.not.allocated(topo%gameeq)) allocate( topo%gameeq(n), source = 0.0d0 )
+     if (.not.allocated(topo%alpeeq)) allocate( topo%alpeeq(n), source = 0.0d0 )
+     if (.not.allocated(topo%qa)) allocate( topo%qa(n), source = 0.0d0 )
+     if (.not.allocated(topo%q)) allocate( topo%q(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbrefgeo)) allocate( topo%hbrefgeo(3,n), source = 0.0d0 )
+     if (.not.allocated(topo%zetac6)) allocate( topo%zetac6(n*(n+1)/2), source = 0.0d0 )
+     if (.not.allocated(topo%xyze0)) allocate( topo%xyze0(3,n), source = 0.0d0 )
+     if (.not.allocated(topo%b3list)) allocate( topo%b3list(3,1000*n), source = 0 )
+     if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(n), source = 0 )
+     if (.not.allocated(topo%qfrag)) allocate( topo%qfrag(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbatHl)) allocate( topo%hbatHl(n), source = 0 )
+     if (.not.allocated(topo%hbbas)) allocate( topo%hbbas(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbatABl)) allocate( topo%hbatABl(2,n*(n+1)/2), source = 0 )
+     if (.not.allocated(topo%xbatABl)) allocate( topo%xbatABl(3,topo%natxbAB), source = 0 )
 
-     if (.not.allocated(blist)) allocate( blist(2,nbond_blist), source = 0 )
-     if (.not.allocated(nr_hb)) allocate( nr_hb(nbond_blist), source = 0 )
-     if (.not.allocated(bond_hb_AH)) allocate( bond_hb_AH(2,bond_hb_nr), source = 0 )
-     if (.not.allocated(bond_hb_B)) allocate( bond_hb_B(b_max,bond_hb_nr), source = 0 )
-     if (.not.allocated(bond_hb_Bn)) allocate( bond_hb_Bn(bond_hb_nr), source = 0 )
-     if (.not.allocated(alist)) allocate( alist(3,nangl_alloc), source = 0 )
-     if (.not.allocated(tlist)) allocate( tlist(5,ntors_alloc), source = 0 )
-     if (.not.allocated(vbond)) allocate( vbond(3,nbond_vbond), source = 0.0d0 )
-     if (.not.allocated(vangl)) allocate( vangl(2,nangl_alloc), source = 0.0d0 )
-     if (.not.allocated(vtors)) allocate( vtors(2,ntors_alloc), source = 0.0d0 )
-     if (.not.allocated(hblist1)) allocate( hblist1(3,nhb1), source = 0 )
-     if (.not.allocated(hblist2)) allocate( hblist2(3,nhb2), source = 0 )
-     if (.not.allocated(hblist3)) allocate( hblist3(3,nxb), source = 0 )
+     if (.not.allocated(topo%blist)) allocate( topo%blist(2,topo%nbond_blist), source = 0 )
+     if (.not.allocated(topo%nr_hb)) allocate( topo%nr_hb(topo%nbond_blist), source = 0 )
+     if (.not.allocated(topo%bond_hb_AH)) allocate( topo%bond_hb_AH(2,topo%bond_hb_nr), source = 0 )
+     if (.not.allocated(topo%bond_hb_B)) allocate( topo%bond_hb_B(topo%b_max,topo%bond_hb_nr), source = 0 )
+     if (.not.allocated(topo%bond_hb_Bn)) allocate( topo%bond_hb_Bn(topo%bond_hb_nr), source = 0 )
+     if (.not.allocated(topo%alist)) allocate( topo%alist(3,topo%nangl_alloc), source = 0 )
+     if (.not.allocated(topo%tlist)) allocate( topo%tlist(5,topo%ntors_alloc), source = 0 )
+     if (.not.allocated(topo%vbond)) allocate( topo%vbond(3,topo%nbond_vbond), source = 0.0d0 )
+     if (.not.allocated(topo%vangl)) allocate( topo%vangl(2,topo%nangl_alloc), source = 0.0d0 )
+     if (.not.allocated(topo%vtors)) allocate( topo%vtors(2,topo%ntors_alloc), source = 0.0d0 )
+     if (.not.allocated(topo%hblist1)) allocate( topo%hblist1(3,topo%nhb1), source = 0 )
+     if (.not.allocated(topo%hblist2)) allocate( topo%hblist2(3,topo%nhb2), source = 0 )
+     if (.not.allocated(topo%hblist3)) allocate( topo%hblist3(3,topo%nxb), source = 0 )
 
    end subroutine gfnff_param_alloc
 
-   subroutine gfnff_param_dealloc()
+   subroutine gfnff_param_dealloc(topo)
      use xtb_mctc_accuracy, only : wp 
      implicit none
+     type(TGFFTopology), intent(inout) :: topo
 !    Dummy
 
-     if (allocated(nb)) deallocate( nb )
-     if (allocated(bpair)) deallocate( bpair )
-     if (allocated(alphanb)) deallocate( alphanb )
-     if (allocated(chieeq)) deallocate( chieeq )
-     if (allocated(gameeq)) deallocate( gameeq )
-     if (allocated(alpeeq)) deallocate( alpeeq )
-     if (allocated(qa)) deallocate( qa )
-     if (allocated(q)) deallocate( q )
-     if (allocated(hbrefgeo)) deallocate( hbrefgeo )
-     if (allocated(zetac6)) deallocate( zetac6 )
-     if (allocated(xyze0)) deallocate( xyze0 )
-     if (allocated(b3list)) deallocate( b3list )
-     if (allocated(fraglist)) deallocate( fraglist )
-     if (allocated(qfrag)) deallocate( qfrag )
-     if (allocated(hbatHl)) deallocate( hbatHl )
-     if (allocated(hbbas)) deallocate( hbbas )
-     if (allocated(hbatABl)) deallocate( hbatABl )
-     if (allocated(xbatABl)) deallocate( xbatABl )
+     if (allocated(topo%nb)) deallocate( topo%nb )
+     if (allocated(topo%bpair)) deallocate( topo%bpair )
+     if (allocated(topo%alphanb)) deallocate( topo%alphanb )
+     if (allocated(topo%chieeq)) deallocate( topo%chieeq )
+     if (allocated(topo%gameeq)) deallocate( topo%gameeq )
+     if (allocated(topo%alpeeq)) deallocate( topo%alpeeq )
+     if (allocated(topo%qa)) deallocate( topo%qa )
+     if (allocated(topo%q)) deallocate( topo%q )
+     if (allocated(topo%hbrefgeo)) deallocate( topo%hbrefgeo )
+     if (allocated(topo%zetac6)) deallocate( topo%zetac6 )
+     if (allocated(topo%xyze0)) deallocate( topo%xyze0 )
+     if (allocated(topo%b3list)) deallocate( topo%b3list )
+     if (allocated(topo%fraglist)) deallocate( topo%fraglist )
+     if (allocated(topo%qfrag)) deallocate( topo%qfrag )
+     if (allocated(topo%hbatHl)) deallocate( topo%hbatHl )
+     if (allocated(topo%hbbas)) deallocate( topo%hbbas )
+     if (allocated(topo%hbatABl)) deallocate( topo%hbatABl )
+     if (allocated(topo%xbatABl)) deallocate( topo%xbatABl )
 
-     if (allocated(blist)) deallocate( blist )
-     if (allocated(nr_hb)) deallocate( nr_hb )
-     if (allocated(bond_hb_AH)) deallocate( bond_hb_AH )
-     if (allocated(bond_hb_B)) deallocate( bond_hb_B )
-     if (allocated(bond_hb_Bn)) deallocate( bond_hb_Bn )
-     if (allocated(alist)) deallocate( alist )
-     if (allocated(tlist)) deallocate( tlist )
-     if (allocated(vbond)) deallocate( vbond )
-     if (allocated(vangl)) deallocate( vangl )
-     if (allocated(vtors)) deallocate( vtors )
-     if (allocated(hblist1)) deallocate( hblist1 )
-     if (allocated(hblist2)) deallocate( hblist2 )
-     if (allocated(hblist3)) deallocate( hblist3 )
+     if (allocated(topo%blist)) deallocate( topo%blist )
+     if (allocated(topo%nr_hb)) deallocate( topo%nr_hb )
+     if (allocated(topo%bond_hb_AH)) deallocate( topo%bond_hb_AH )
+     if (allocated(topo%bond_hb_B)) deallocate( topo%bond_hb_B )
+     if (allocated(topo%bond_hb_Bn)) deallocate( topo%bond_hb_Bn )
+     if (allocated(topo%alist)) deallocate( topo%alist )
+     if (allocated(topo%tlist)) deallocate( topo%tlist )
+     if (allocated(topo%vbond)) deallocate( topo%vbond )
+     if (allocated(topo%vangl)) deallocate( topo%vangl )
+     if (allocated(topo%vtors)) deallocate( topo%vtors )
+     if (allocated(topo%hblist1)) deallocate( topo%hblist1 )
+     if (allocated(topo%hblist2)) deallocate( topo%hblist2 )
+     if (allocated(topo%hblist3)) deallocate( topo%hblist3 )
 
    end subroutine gfnff_param_dealloc
+
+
+   subroutine newGFNFFGenerator(gen)
+     type(TGFFGenerator), intent(out) :: gen
+
+     gen%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
+     gen%linthr  = 160.        ! when is an angle close to linear ? (GEODEP) for metals values closer to 170 (than to 160) are better
+                           ! but this occurs e.g. for Sc in unclear situations. So make it save (160)
+     gen%fcthr   = 1.d-3       ! skip torsion and bending if potential is small
+     gen%tdist_thr=12.         ! R threshold in Angstroem for cov distance estimated used in apprx EEQ
+                           ! the following two parameters are critical for topo setup
+     gen%rthr     =1.25        ! important bond determination threshold
+                           ! large values yield more 1.23
+     gen%rthr2    =1.00        ! decrease if a metal is present, larger values yield smaller CN
+     gen%rqshrink =0.23        ! change of R0 for topo with charge qa, larger values yield smaller CN for metals in particular
+     gen%hqabthr  =0.01        ! H charge (qa) threshold for H in HB list 18
+     gen%qabthr  =0.10        ! AB charge (qa) threshold for AB in HB list, avoids HBs with positive atoms,
+     ! larger val. better for S30L but worse in PubChem RMSD checks
+     gen%srb1    = 0.3731      ! bond params
+     gen%srb2    = 0.3171      !
+     gen%srb3    = 0.2538      !
+     gen%qrepscal= 0.3480      ! change of non-bonded rep. with q(topo)
+     gen%nrepscal=-0.1270      !   "    "      "       "   CN
+     gen%hhfac   = 0.6290      ! HH repulsion
+     gen%hh13rep = 1.4580      !
+     gen%hh14rep = 0.7080      !
+     gen%bstren(1)=1.00d0      ! single bond
+     gen%bstren(2)=1.24d0      ! double bond
+     gen%bstren(3)=1.98d0      ! triple bond
+     gen%bstren(4)=1.22d0      ! hyperval bond
+     gen%bstren(5)=1.00d0      ! M-X
+     gen%bstren(6)=0.78d0      ! M eta
+     gen%bstren(7)=3.40d0      ! M-M
+     gen%bstren(8)=3.40d0      ! M-M
+     gen%qfacBEN =-0.54        ! bend FC change with polarity
+     gen%qfacTOR =12.0d0       ! torsion FC change with polarity
+     gen%fr3     =0.3          ! tors FC 3-ring
+     gen%fr4     =1.0          ! tors FC 4-ring
+     gen%fr5     =1.5          ! tors FC 5-ring
+     gen%fr6     =5.7          ! tors FC 6-ring
+     gen%torsf(1)=1.00         ! single bond
+     gen%torsf(2)=1.18         ! pi bond
+     gen%torsf(3)=1.05         ! improper
+     gen%torsf(5)=0.50         ! pi part improper
+     gen%torsf(6)=-0.90        ! extra sp3 C
+     gen%torsf(7)= 0.70        ! extra sp3 N
+     gen%torsf(8)=-2.00        ! extra sp3 O
+     gen%fbs1    =0.50         ! small bend corr.
+     gen%batmscal=0.30d0       ! bonded ATM scal
+     gen%mchishift=-0.09d0
+     gen%rabshift    =-0.110   ! gen shift
+     gen%rabshifth   =-0.050   ! XH
+     gen%hyper_shift = 0.03    ! hypervalent
+     gen%hshift3     = -0.11   ! heavy
+     gen%hshift4     = -0.11   !
+     gen%hshift5     = -0.06   !
+     gen%metal1_shift= 0.2     ! group 1+2 metals
+     gen%metal2_shift= 0.15    ! TM
+     gen%metal3_shift= 0.05    ! main group metals
+     gen%eta_shift   = 0.040   ! eta bonded
+     gen%qfacbm(0)   =1.0d0    ! bond charge dep.gff_srcs += 'gff/gfnff_input.f90'
+
+     gen%qfacbm(1:2) =-0.2d0   !
+     gen%qfacbm(  3) =0.70d0   !
+     gen%qfacbm(  4) =0.50d0   !
+     gen%qfacbm0     =0.047    !
+     gen%rfgoed1  =1.175       ! topo dist scaling
+     gen%htriple = 1.45d0      ! decrease Hueckel off-diag for triple bonds because they are less well conjugated 1.4
+     gen%hueckelp2=1.00d0      ! increase pot depth depending on P
+     gen%hueckelp3=-0.24d0     ! diagonal element change with qa
+     gen%hdiag(5) =-0.5d0      ! diagonal element relative to C
+     gen%hdiag(6) =0.00d0      !
+     gen%hdiag(7) =0.14d0      !
+     gen%hdiag(8) =-0.38d0     !
+     gen%hdiag(9) =-0.29d0     !
+     gen%hdiag(16)=-0.30d0     !
+     gen%hdiag(17)=-0.30d0     !
+     gen%hoffdiag(5)=0.5d0     ! Huckel off-diag constants
+     gen%hoffdiag(6)=1.00d0    !
+     gen%hoffdiag(7)=0.66d0    !
+     gen%hoffdiag(8)=1.10d0    !
+     gen%hoffdiag(9)=0.23d0    !
+     gen%hoffdiag(16)=0.60d0   !
+     gen%hoffdiag(17)=1.00d0   !
+     gen%hiter   =0.700d0      ! iteration mixing
+     gen%hueckelp=0.340d0      ! diagonal qa dep.
+     gen%bzref   =0.370d0      ! ref P value R shift
+     gen%bzref2  =0.315d0      !  "  "  "    k stretch
+     gen%pilpf   =0.530d0      ! 2el diag shift
+     gen%maxhiter=5            ! the Hückel iterations can diverge so take only a few steps
+     gen%d3a1    = 0.58d0      ! D3, s8 fixed = 2
+     gen%d3a2    = 4.80d0
+     gen%split0  =0.670d0      ! mixing of sp^n with sp^n-1
+     gen%fringbo =0.020d0      ! str ring size dep.
+     gen%aheavy3 =89.          ! three coord. heavy eq. angle
+     gen%aheavy4 =100.         ! four   "       "    "    "
+     gen%split1=1.0d0-gen%split0
+     gen%bsmat = -999.
+     gen%bsmat(0,0)=gen%bstren(1)
+     gen%bsmat(3,0)=gen%bstren(1)
+     gen%bsmat(3,3)=gen%bstren(1)
+     gen%bsmat(2,2)=gen%bstren(2)
+     gen%bsmat(1,1)=gen%bstren(3)
+     gen%bsmat(1,0)=gen%split0*gen%bstren(1)+gen%split1*gen%bstren(3)
+     gen%bsmat(3,1)=gen%split0*gen%bstren(1)+gen%split1*gen%bstren(3)
+     gen%bsmat(2,1)=gen%split0*gen%bstren(2)+gen%split1*gen%bstren(3)
+     gen%bsmat(2,0)=gen%split0*gen%bstren(1)+gen%split1*gen%bstren(2)
+     gen%bsmat(3,2)=gen%split0*gen%bstren(1)+gen%split1*gen%bstren(2)
+     gen%bstren(9)=0.5*(gen%bstren(7)+gen%bstren(8))
+
+   end subroutine newGFNFFGenerator
+
 
 end module xtb_gfnff_param

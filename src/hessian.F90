@@ -55,7 +55,7 @@ subroutine numhess( &
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: maxiter
    type(TWavefunction),intent(inout) :: wf0
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -155,6 +155,7 @@ subroutine numhess( &
    parallize = .true.
    select type(calc)
    type is (TGFFCalculator)
+      calc%update = .false.
       parallize = .false.
    end select
 

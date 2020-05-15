@@ -160,7 +160,7 @@ subroutine fire &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of steps
@@ -416,7 +416,7 @@ subroutine l_ancopt &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
    !> maximum number of optimization cycles
@@ -836,7 +836,7 @@ subroutine lbfgs_relax &
    type(TMolecule), intent(inout) :: mol
 
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
 
    !> settings for the low memory BFGS
    type(lbfgs_options), intent(in) :: opt
@@ -1101,7 +1101,7 @@ subroutine inertial_relax &
 
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
 
    !> settings for the fast inertial relaxation engine
    type(fire_options), intent(in) :: opt

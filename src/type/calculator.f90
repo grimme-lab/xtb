@@ -51,7 +51,7 @@ module xtb_type_calculator
          import :: scc_results
 
          !> Calculator instance
-         class(TCalculator), intent(in) :: self
+         class(TCalculator), intent(inout) :: self
 
          !> Computational environment
          type(TEnvironment), intent(inout) :: env

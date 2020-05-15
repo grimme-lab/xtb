@@ -83,7 +83,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    character(len=*), parameter :: source = 'type_calculator_singlepoint'
 
    !> Calculator instance
-   class(TxTBCalculator), intent(in) :: self
+   class(TxTBCalculator), intent(inout) :: self
 
    !> Computational environment
    type(TEnvironment), intent(inout) :: env

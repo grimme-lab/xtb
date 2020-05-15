@@ -25,7 +25,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module xtb_gfnff_fraghess
-   !$ use omp_lib
+!$ use omp_lib
+   use xtb_gfnff_mrec, only : mrecgff
    implicit none
    save
 

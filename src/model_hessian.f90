@@ -2654,11 +2654,13 @@ end module xtb_modelhessian
       Return
       End
 
-      subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6)
-!                        torsion     bend         bonds    charges BJ radii^2
-      use xtb_gfnff_param, only: ntors,tlist, nangl,alist, nbond,blist, qa,  d3r0
+      subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6,param,topo)
+      use xtb_gfnff_data, only : TGFFData
+      use xtb_gfnff_topology, only : TGFFTopology
       use xtb_type_timer
       Implicit Real*8 (a-h, o-z)
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
 
       Integer at(nAtoms)
       Real*8 Cart(3,nAtoms)
@@ -2757,9 +2759,9 @@ end module xtb_modelhessian
 !
 !     Hessian for tension
 !
-      do ibond=1,nbond
-         kAtom=blist(1,ibond)
-         lAtom=blist(2,ibond)
+      do ibond=1,topo%nbond
+         kAtom=topo%blist(1,ibond)
+         lAtom=topo%blist(2,ibond)
          kr=iTabRow(iANr(kAtom))
          lr=iTabRow(iANr(lAtom))
             xkl=Cart(1,kAtom)-Cart(1,lAtom)
@@ -2812,9 +2814,9 @@ end module xtb_modelhessian
             c66=-s6*sqrt(c6(iANr(katom))*c6(iANr(latom))) ! D2 value
             rr=sqrt(rkl2)
             rr3=rr*rkl2
-            r02=d3r0(lina(at(katom),at(latom)))
+            r02=param%d3r0(lina(at(katom),at(latom)))
             rrpa=rr+sqrt(r02) ! qq damping with BJ radius
-            cqq=2.0d0*qa(kAtom)*qa(lAtom) ! a bit upscaled
+            cqq=2.0d0*topo%qa(kAtom)*topo%qa(lAtom) ! a bit upscaled
             call getqqxx(xkl,    cqq,c66,rr,rkl2,rr3,rrpa,r02,hxx)
             call getqqxy(xkl,ykl,cqq,c66,rr,rkl2,rr3,rrpa,r02,hxy)
             call getqqxy(xkl,zkl,cqq,c66,rr,rkl2,rr3,rrpa,r02,hxz)
@@ -2851,10 +2853,10 @@ end module xtb_modelhessian
 !     Hessian for bending
 !
       if (profile) call timer%measure(2,'bend')
-      do iangl=1,nangl
-         mAtom=alist(1,iangl)
-         iAtom=alist(2,iangl)
-         jAtom=alist(3,iangl)
+      do iangl=1,topo%nangl
+         mAtom=topo%alist(1,iangl)
+         iAtom=topo%alist(2,iangl)
+         jAtom=topo%alist(3,iangl)
          mr=iTabRow(iANr(mAtom))
          ir=iTabRow(iANr(iAtom))
          jr=iTabRow(iANr(jAtom))
@@ -3037,11 +3039,11 @@ end module xtb_modelhessian
 !     Hessian for torsion
 !
       if (profile) call timer%measure(3,'torsion')
-      do itors=1,ntors
-         iAtom=tlist(3,itors)
-         jAtom=tlist(1,itors)
-         kAtom=tlist(2,itors)
-         lAtom=tlist(4,itors)
+      do itors=1,topo%ntors
+         iAtom=topo%tlist(3,itors)
+         jAtom=topo%tlist(1,itors)
+         kAtom=topo%tlist(2,itors)
+         lAtom=topo%tlist(4,itors)
 
                  ir=iTabRow(iANr(iAtom))
                  jr=iTabRow(iANr(jAtom))

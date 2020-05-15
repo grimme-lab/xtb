@@ -78,11 +78,11 @@ subroutine struc_convert( &
   exist = ich .ne. -1
   if (exist) then
      write(*,'(10x,"2D input recognized, conversion to 3D using GFN-FF:")')
-     call gfnff_read_param(ich)
+     call gfnff_read_param(ich, calc%param)
      call close_file(ich)
   end if
   call d3init(mol%n, mol%at)
-  call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
+  call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,calc%gen,calc%param,calc%topo)
 !===============================
 ! Set Block
   ffmode   = -1                  ! just simple rep+harm. on bonds FF
@@ -136,7 +136,7 @@ subroutine struc_convert( &
   write(*,*)
   mode_extrun = mode_input
   mol%struc%two_dimensional=.false.
-  call gfnff_param_dealloc()
+  call gfnff_param_dealloc(calc%topo)
 
 end subroutine struc_convert
 end module xtb_gfnff_convert

@@ -127,7 +127,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
@@ -449,7 +449,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    type(tb_timer),       intent(inout) :: timer
    type(tb_anc),         intent(inout) :: anc
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: iupdat
    integer, intent(in)    :: ilog
@@ -965,7 +965,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    type(TEnvironment), intent(inout) :: env
    
    !> Calculator
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
 
    type(modhess_setvar),intent(in) :: modh
    logical, intent(in)  :: pr
@@ -1005,7 +1005,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
       select case(modh%model)
       case default
          if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
-         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6)
+         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, calc%param, calc%topo)
       case(p_modh_lindh_d2)
         if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
         call mh_lindh_d2(xyz, natoms, Hess, chg, modh)

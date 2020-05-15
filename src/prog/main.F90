@@ -541,7 +541,7 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TGFFCalculator)
       call d3init(mol%n, mol%at)
-      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff)
+      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,calc%gen,calc%param,calc%topo)
    end select
 
    call delete_file('.sccnotconverged')
@@ -867,10 +867,10 @@ subroutine xtbMain(env, argParser)
       call start_timing(6)
       idum = 0
       select type(calc)
-      type is(TxTBCalculator)
+      class default
          if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
       type is(TGFFCalculator)
-         if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz)
+         if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz,calc%topo)
       end select
       call md &
          &     (env,mol,wfn,calc, &

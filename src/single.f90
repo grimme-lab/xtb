@@ -45,7 +45,7 @@ subroutine singlepoint &
    type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
    type(TWavefunction),intent(inout) :: wfn
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    type(tb_pcem) :: pcem
    real(wp),intent(inout) :: egap
    real(wp),intent(in)    :: et
