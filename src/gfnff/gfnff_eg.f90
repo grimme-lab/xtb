@@ -54,7 +54,7 @@ contains
 !
 !---------------------------------------------------
 
-   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff,param,topo)
+   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff,param,topo,update)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       use xtb_disp_dftd4, only: rcov
@@ -69,6 +69,7 @@ contains
       type(scc_results),intent(out) :: res_gff
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(inout) :: topo
+      logical, intent(in) :: update
       integer n
       integer ichrg
       integer at(n)
@@ -438,7 +439,9 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(10,'HB/XB (incl list setup)')
-      call gfnff_hbset(n,at,xyz,sqrab,topo)
+      if (update) then
+         call gfnff_hbset(n,at,xyz,sqrab,topo)
+      end if
 
       if(topo%nhb1.gt.0) then
 !$omp parallel private(i,j,k,l,etmp,g3tmp) shared (topo,n,at,xyz,g,sqrab,srab )

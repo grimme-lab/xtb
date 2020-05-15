@@ -162,6 +162,7 @@ subroutine newGFFCalculator(env, mol, calc, fname)
    logical :: exitRun
 
    call calc%topo%zero
+   calc%update = .true.
 
    !> Obtain the parameter file
    call open_file(ich, fname, 'r')
