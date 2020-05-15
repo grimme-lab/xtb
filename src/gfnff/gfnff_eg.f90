@@ -599,7 +599,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbond(i,iat,jat,rab,rij,drij,n,at,xyz,e,g,topo)
-      use xtb_gfnff_param
       implicit none
       !Dummy
       type(TGFFTopology), intent(in) :: topo
@@ -650,7 +649,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g,param,topo)
-      use xtb_gfnff_param
       implicit none
       !Dummy
       type(TGFFData), intent(in) :: param
@@ -729,7 +727,6 @@ contains
 
       subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr,topo)
       use iso_fortran_env, only : wp => real64
-      use xtb_gfnff_param
       use xtb_disp_dftd4, only : rcov
       implicit none
       !Dummy
@@ -785,7 +782,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbend(m,j,i,k,n,at,xyz,e,g,param,topo)
-      use xtb_gfnff_param
       use xtb_mctc_constants
       implicit none
       type(TGFFData), intent(in) :: param
@@ -851,7 +847,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbend_nci_mul(j,i,k,c0,fc,n,at,xyz,e,g)
-      use xtb_gfnff_param
       use xtb_mctc_constants
       implicit none
       !Dummy
@@ -910,7 +905,6 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       subroutine egbend_nci(j,i,k,c0,kijk,n,at,xyz,e,g,param)
-      use xtb_gfnff_param
       use xtb_mctc_constants
       implicit none
       !Dummy
@@ -2187,7 +2181,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
          t0=180
          phi0=t0*pi/180.
          vtors(1,j)=phi0-(pi/2.0)
-         vtors(2,j)=param%tors_hb !xtb_gfnff_param
+         vtors(2,j)=param%tors_hb
       end do
 
       !Calculate etors
@@ -2221,7 +2215,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       !Calculate eangl + gangl
       r0=120
       phi0=r0*pi/180.
-      bshift=param%bend_hb !xtb_gfnff_param
+      bshift=param%bend_hb
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,eangl,g3tmp)
@@ -2996,10 +2990,11 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr,param)
 subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g,param)
       implicit none
       type(TGFFData), intent(in) :: param
-      integer iat,jat,kat,n,at(n)
-      real*8 xyz(3,n),energy,g(3,3),q(n)
-      real*8 sqrab(n*(n+1)/2)   ! squared dist
-      real*8 srab (n*(n+1)/2)   ! dist
+      integer, intent(in) :: iat,jat,kat,n,at(n)
+      real*8, intent(in) :: xyz(3,n),q(n)
+      real*8, intent(out) :: energy,g(3,3)
+      real*8, intent(in) :: sqrab(n*(n+1)/2)   ! squared dist
+      real*8, intent(in) :: srab (n*(n+1)/2)   ! dist
 
       real*8 r2ij,r2jk,r2ik,c9,mijk,imjk,ijmk,rijk3,ang,angr9,rav3
       real*8 rij(3),rik(3),rjk(3),drij,drik,drjk,dang,ff,fi,fj,fk,fqq

@@ -404,14 +404,14 @@ module xtb_gfnff_param
      k=0
      do i=1,86
         dum=dble(i)
-        param%zb3atm(i)=dum*gen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
+        param%zb3atm(i)=-dum*gen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
         do j=1,i
            k=k+1
            dum=r2r4(i)*r2r4(j)*3.0d0
            param%d3r0(k)=(gen%d3a1*dsqrt(dum)+gen%d3a2)**2   ! save R0^2 for efficiency reasons
         enddo
      enddo
-     param%zb3atm(1)=0.25d0*gen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
+     param%zb3atm(1)=-0.25d0*gen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! numerical precision settings
@@ -597,7 +597,7 @@ module xtb_gfnff_param
      gen%torsf(7)= 0.70        ! extra sp3 N
      gen%torsf(8)=-2.00        ! extra sp3 O
      gen%fbs1    =0.50         ! small bend corr.
-     gen%batmscal=-0.30d0      ! bonded ATM scal
+     gen%batmscal=0.30d0       ! bonded ATM scal
      gen%mchishift=-0.09d0
      gen%rabshift    =-0.110   ! gen shift
      gen%rabshifth   =-0.050   ! XH
