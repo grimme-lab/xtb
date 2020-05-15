@@ -50,6 +50,8 @@ subroutine test_gfnff_sp
    call init(env)
    call init(mol,at,xyz)
 
+   call topo%zero ! FIXME
+
    allocate( g(3,mol%n), source = 0.0_wp )
  
    call rdpath(env%xtbpath,'.param_gfnff.xtb',fnv,exist)
@@ -150,6 +152,8 @@ subroutine test_gfnff_hb
 
    call init(env)
    call init(mol,at,xyz)
+
+   call topo%zero ! FIXME
 
    allocate( g(3,mol%n), source = 0.0_wp )
  

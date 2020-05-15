@@ -14,6 +14,10 @@
 !
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+module xtb_gfnff_mrec
+      private
+      public :: mrecgff
+contains
 
       subroutine mrecgff(nat,nb,molcount,molvec)
       ! molcount: number of total fragments (increased during search)
@@ -64,4 +68,4 @@
          endif
       enddo
       end subroutine mrecgff2
-
+end module xtb_gfnff_mrec

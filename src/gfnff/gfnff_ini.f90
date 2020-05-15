@@ -26,6 +26,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo)
       use xtb_gfnff_generator, only : TGFFGenerator
       use xtb_gfnff_ini2
       use xtb_gfnff_eg, only : gfnff_dlogcoord
+      use xtb_gfnff_mrec, only : mrecgff
       use xtb_disp_dftd4, only: r2r4 => r4r2, rcov
       use xtb_gfnff_fraghess
       use xtb_restart

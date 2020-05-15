@@ -161,6 +161,8 @@ subroutine newGFFCalculator(env, mol, calc, fname)
    logical :: exist, okbas
    logical :: exitRun
 
+   call calc%topo%zero
+
    !> Obtain the parameter file
    call open_file(ich, fname, 'r')
    exist = ich /= -1

@@ -89,10 +89,43 @@ module xtb_gfnff_topology
       real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
       real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
+
+   contains
+
+      procedure :: zero
+
    end type TGFFTopology
 
 
 contains
+
+
+subroutine zero(self)
+   class(TGFFTopology), intent(out) :: self
+
+   self%nbond = 0
+   self%nangl = 0
+   self%ntors = 0
+   self%nhb1 = 0
+   self%nhb2 = 0
+   self%nxb = 0
+   self%nathbH = 0
+   self%nathbAB = 0
+   self%natxbAB = 0
+   self%nbatm = 0
+   self%nfrag = 0
+   self%maxsystem = 0
+   self%bond_hb_nr = 0
+   self%b_max = 0
+
+   self%nbond_blist = 0
+   self%nbond_vbond = 0
+   self%nangl_alloc = 0
+   self%ntors_alloc = 0
+
+   self%read_file_type = 0
+
+end subroutine zero
 
 
 end module xtb_gfnff_topology
