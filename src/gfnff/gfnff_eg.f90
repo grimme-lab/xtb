@@ -17,6 +17,8 @@
 
 module xtb_gfnff_eg
    use xtb_gfnff_ini2
+   use xtb_gfnff_data, only : TGFFData
+   use xtb_gfnff_topology, only : TGFFTopology
    use xtb_type_environment, only : TEnvironment
    implicit none
    private
@@ -52,7 +54,7 @@ contains
 !
 !---------------------------------------------------
 
-   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff)
+   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff,param,topo)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       use xtb_disp_dftd4, only: rcov
@@ -65,6 +67,8 @@ contains
       character(len=*), parameter :: source = 'gfnff_eg'
       type(TEnvironment), intent(inout) :: env
       type(scc_results),intent(out) :: res_gff
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(inout) :: topo
       integer n
       integer ichrg
       integer at(n)
@@ -167,14 +171,14 @@ contains
          ij=m+jat
          r2=sqrab(ij)
          if(r2.gt.repthr)   cycle ! cut-off
-         if(ffTopo%bpair(ij).eq.1) cycle ! list avoided because of memory
+         if(topo%bpair(ij).eq.1) cycle ! list avoided because of memory
          ati=at(iat)
          atj=at(jat)
          rab=srab(ij)
          t16=r2**0.75
          t19=t16*t16
-         t8 =t16*ffTopo%alphanb(ij)
-         t26=exp(-t8)*repz(ati)*repz(atj)*ffData%repscaln
+         t8 =t16*topo%alphanb(ij)
+         t26=exp(-t8)*param%repz(ati)*param%repz(atj)*param%repscaln
          erep=erep+t26/rab !energy
          t27=t26*(1.5d0*t8+1.0d0)/t19
          r3 =(xyz(:,iat)-xyz(:,jat))*t27
@@ -191,9 +195,9 @@ contains
 
       if(ffmode.eq.-1)then
       ebond=0
-      do i=1,ffTopo%nbond
-         iat=ffTopo%blist(1,i)
-         jat=ffTopo%blist(2,i)
+      do i=1,topo%nbond
+         iat=topo%blist(1,i)
+         jat=topo%blist(2,i)
          r3 =xyz(:,iat)-xyz(:,jat)
          rab=sqrt(sum(r3*r3))
          rn=0.7*(rcov(at(iat))+rcov(at(jat)))
@@ -216,8 +220,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(3,'dCN')
-      call gfnff_dlogcoord(n,at,xyz,srab,cn,dcn,cnthr) ! new erf used in GFN0
-      if (sum(ffTopo%nr_hb).gt.0) call dncoord_erf(n,at,xyz,hb_cn,hb_dcn,900.0d0) ! HB erf CN
+      call gfnff_dlogcoord(n,at,xyz,srab,cn,dcn,cnthr,param) ! new erf used in GFN0
+      if (sum(topo%nr_hb).gt.0) call dncoord_erf(n,at,xyz,hb_cn,hb_dcn,900.0d0,topo) ! HB erf CN
       if (pr) call timer%measure(3)
 
 !!!!!!
@@ -226,7 +230,7 @@ contains
 
       if (pr) call timer%measure(4,'EEQ energy and q')
       call goed_gfnff(accff.gt.1,n,at,sqrab,srab,&         ! modified version
-     &                dfloat(ichrg),eeqtmp,cn,ffTopo%q,ees,gbsa)  ! without dq/dr
+     &                dfloat(ichrg),eeqtmp,cn,topo%q,ees,gbsa,param,topo)  ! without dq/dr
       if (pr) call timer%measure(4)
 
 !!!!!!!!
@@ -235,7 +239,7 @@ contains
 
       if (pr) call timer%measure(5,'D3')
       if(nd3.gt.0) then
-         call d3_gradient(n, at, xyz, nd3, d3list, ffTopo%zetac6, ffData%d3r0, &
+         call d3_gradient(n, at, xyz, nd3, d3list, topo%zetac6, param%d3r0, &
             & 4.0d0, cn, dcn, edisp, g)
       endif
       deallocate(d3list)
@@ -245,7 +249,7 @@ contains
 ! ES part
 !!!!!!!!
       if (pr) call timer%measure(6,'EEQ gradient')
-!$omp parallel default(none) private(i,j,k,ij,r3,r2,rab,gammij,erff,dd) shared(ffTopo,n,sqrab,srab,eeqtmp,xyz,g,at) ! WRONG RESULTS
+!$omp parallel default(none) private(i,j,k,ij,r3,r2,rab,gammij,erff,dd) shared(topo,n,sqrab,srab,eeqtmp,xyz,g,at) ! WRONG RESULTS
 !$omp do reduction (+:g)
       do i=1,n
          k = i*(i-1)/2
@@ -256,7 +260,7 @@ contains
             gammij=eeqtmp(1,ij)
             erff  =eeqtmp(2,ij)
             dd=(2.0d0*gammij*exp(-gammij**2*r2) &
-     &         /(sqrtpi*r2)-erff/(rab*r2))*ffTopo%q(i)*ffTopo%q(j)
+     &         /(sqrtpi*r2)-erff/(rab*r2))*topo%q(i)*topo%q(j)
             r3=(xyz(:,i)-xyz(:,j))*dd
             g(:,i)=g(:,i)+r3
             g(:,j)=g(:,j)-r3
@@ -268,7 +272,7 @@ contains
 
       if (lgbsa) then
          call timer%measure(11, "GBSA")
-         call compute_gb_egrad(gbsa, ffTopo%q, gborn, ghb, g, pr)
+         call compute_gb_egrad(gbsa, topo%q, gborn, ghb, g, pr)
          gsolv = gsolv + gborn + ghb + gshift
          call timer%measure(11)
       else
@@ -277,7 +281,7 @@ contains
       endif
 
       do i=1,n
-         qtmp(i)=ffTopo%q(i)*ffData%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
+         qtmp(i)=topo%q(i)*param%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
       enddo
 
 !$omp parallel default(none) private(i,j) shared(n,dcn,qtmp,g,at)
@@ -296,27 +300,27 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(7,'bonds')
-      if(ffTopo%nbond.gt.0)then
-      allocate(grab0(3,n,ffTopo%nbond),rab0(ffTopo%nbond))
-      rab0(:)=ffTopo%vbond(1,:) ! shifts
-      call gfnffdrab(n,at,xyz,cn,dcn,ffTopo%nbond,ffTopo%blist,rab0,grab0)
+      if(topo%nbond.gt.0)then
+      allocate(grab0(3,n,topo%nbond),rab0(topo%nbond))
+      rab0(:)=topo%vbond(1,:) ! shifts
+      call gfnffdrab(n,at,xyz,cn,dcn,topo%nbond,topo%blist,rab0,grab0)
       deallocate(dcn)
 
-!!$omp parallel private(i,k,iat,jat,ij,rab,rij,drij,t8,dr,dum,yy,dx,dy,dz,t4,t5,t6) shared ( g,grab0,ebond,ffTopo%blist,vbond,rab0,srab,xyz )
+!!$omp parallel private(i,k,iat,jat,ij,rab,rij,drij,t8,dr,dum,yy,dx,dy,dz,t4,t5,t6) shared ( g,grab0,ebond,topo%blist,vbond,rab0,srab,xyz )
 !!$omp do REDUCTION (+:g,ebond)
-      do i=1,ffTopo%nbond
-         iat=ffTopo%blist(1,i)
-         jat=ffTopo%blist(2,i)
+      do i=1,topo%nbond
+         iat=topo%blist(1,i)
+         jat=topo%blist(2,i)
          ati=at(iat)
          atj=at(jat)
          ij=iat*(iat-1)/2+jat
          rab=srab(ij)
          rij=rab0(i)
          drij=grab0(:,:,i)
-         if (ffTopo%nr_hb(i).ge.1) then
-            call egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,ebond,g)
+         if (topo%nr_hb(i).ge.1) then
+            call egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,ebond,g,param,topo)
          else
-            call egbond(i,iat,jat,rab,rij,drij,n,at,xyz,ebond,g)
+            call egbond(i,iat,jat,rab,rij,drij,n,at,xyz,ebond,g,topo)
          end if
       enddo
 !!$omp end do
@@ -328,9 +332,9 @@ contains
 ! bonded REP
 !!!!!!!!!!!!!!!!!!
 
-      do i=1,ffTopo%nbond
-         iat=ffTopo%blist(1,i)
-         jat=ffTopo%blist(2,i)
+      do i=1,topo%nbond
+         iat=topo%blist(1,i)
+         jat=topo%blist(2,i)
          ij=iat*(iat-1)/2+jat
          xa=xyz(1,iat)
          ya=xyz(2,iat)
@@ -342,8 +346,8 @@ contains
          rab=srab(ij)
          ati=at(iat)
          atj=at(jat)
-         alpha=sqrt(ffData%repa(ati)*ffData%repa(atj))
-         repab=repz(ati)*repz(atj)*ffData%repscalb
+         alpha=sqrt(param%repa(ati)*param%repa(atj))
+         repab=param%repz(ati)*param%repz(atj)*param%repscalb
          t16=r2**0.75d0
          t19=t16*t16
          t26=exp(-alpha*t16)*repab
@@ -364,14 +368,14 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(8,'bend and torsion')
-      if(ffTopo%nangl.gt.0)then
+      if(topo%nangl.gt.0)then
 !!$omp parallel private(m,j,i,k,etmp,g3tmp) shared ( nangl,n,at,xyz,g,alist )
 !!$omp do REDUCTION (+:eangl,g)
-      do m=1,ffTopo%nangl
-         j = ffTopo%alist(1,m)
-         i = ffTopo%alist(2,m)
-         k = ffTopo%alist(3,m)
-         call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp)
+      do m=1,topo%nangl
+         j = topo%alist(1,m)
+         i = topo%alist(2,m)
+         k = topo%alist(3,m)
+         call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp,param,topo)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,i)=g(1:3,i)+g3tmp(1:3,2)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,3)
@@ -385,15 +389,15 @@ contains
 ! torsion
 !!!!!!!!!!!!!!!!!!
 
-      if(ffTopo%ntors.gt.0)then
+      if(topo%ntors.gt.0)then
 !!$omp parallel private(m,i,j,k,l,etmp,g4tmp) shared ( ntors,n,at,xyz,g,tlist )
 !!$omp do REDUCTION (+:etors,g)
-      do m=1,ffTopo%ntors
-         i=ffTopo%tlist(1,m)
-         j=ffTopo%tlist(2,m)
-         k=ffTopo%tlist(3,m)
-         l=ffTopo%tlist(4,m)
-         call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp)
+      do m=1,topo%ntors
+         i=topo%tlist(1,m)
+         j=topo%tlist(2,m)
+         k=topo%tlist(3,m)
+         l=topo%tlist(4,m)
+         call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp,param,topo)
          g(1:3,i)=g(1:3,i)+g4tmp(1:3,1)
          g(1:3,j)=g(1:3,j)+g4tmp(1:3,2)
          g(1:3,k)=g(1:3,k)+g4tmp(1:3,3)
@@ -410,15 +414,15 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(9,'bonded ATM')
-      if(ffTopo%nbatm.gt.0) then
+      if(topo%nbatm.gt.0) then
 
 !!$omp parallel private(i,j,k,l,etmp,g3tmp) shared ( nbatm,n,at,xyz,qa,srab,sqrab,g,b3list ) OMP GIVES WRONG RESULTS HERE!
 !!$omp do REDUCTION (+:ebatm,g)
-      do i=1,ffTopo%nbatm
-         j=ffTopo%b3list(1,i)
-         k=ffTopo%b3list(2,i)
-         l=ffTopo%b3list(3,i)
-         call batmgfnff_eg(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g3tmp)
+      do i=1,topo%nbatm
+         j=topo%b3list(1,i)
+         k=topo%b3list(2,i)
+         l=topo%b3list(3,i)
+         call batmgfnff_eg(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -434,16 +438,16 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(10,'HB/XB (incl list setup)')
-      call gfnff_hbset(n,at,xyz,sqrab)
+      call gfnff_hbset(n,at,xyz,sqrab,topo)
 
-      if(ffTopo%nhb1.gt.0) then
-!$omp parallel private(i,j,k,l,etmp,g3tmp) shared (ffTopo,n,at,xyz,g,sqrab,srab )
+      if(topo%nhb1.gt.0) then
+!$omp parallel private(i,j,k,l,etmp,g3tmp) shared (topo,n,at,xyz,g,sqrab,srab )
 !$omp do REDUCTION (+:ehb,g)
-      do i=1,ffTopo%nhb1
-         j=ffTopo%hblist1(1,i)
-         k=ffTopo%hblist1(2,i)
-         l=ffTopo%hblist1(3,i)
-         call abhgfnff_eg1(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g3tmp)
+      do i=1,topo%nhb1
+         j=topo%hblist1(1,i)
+         k=topo%hblist1(2,i)
+         l=topo%hblist1(3,i)
+         call abhgfnff_eg1(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param,topo)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -454,25 +458,25 @@ contains
       endif
 
 
-      if(ffTopo%nhb2.gt.0) then
-!$omp parallel private(i,j,k,l,etmp,g5tmp) shared (ffTopo,n,at,xyz,g,sqrab,srab )
+      if(topo%nhb2.gt.0) then
+!$omp parallel private(i,j,k,l,etmp,g5tmp) shared (topo,n,at,xyz,g,sqrab,srab )
 !$omp do REDUCTION (+:ehb,g)
-      do i=1,ffTopo%nhb2
-         j=ffTopo%hblist2(1,i)
-         k=ffTopo%hblist2(2,i)
-         l=ffTopo%hblist2(3,i)
+      do i=1,topo%nhb2
+         j=topo%hblist2(1,i)
+         k=topo%hblist2(2,i)
+         l=topo%hblist2(3,i)
          !Carbonyl case R-C=O...H_A
-         if(at(k).eq.8.and.ffTopo%nb(20,k).eq.1.and.at(ffTopo%nb(1,k)).eq.6) then
-           call abhgfnff_eg3(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
+         if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.6) then
+           call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
          !Nitro case R-N=O...H_A
-         else if(at(k).eq.8.and.ffTopo%nb(20,k).eq.1.and.at(ffTopo%nb(1,k)).eq.7) then
-           call abhgfnff_eg3(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
+         else if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.7) then
+           call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
          !N hetero aromat
-         else if(at(k).eq.7.and.ffTopo%nb(20,k).eq.2) then
-           call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
+         else if(at(k).eq.7.and.topo%nb(20,k).eq.2) then
+           call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
          else
          !Default
-           call abhgfnff_eg2new(n,j,k,l,at,xyz,ffTopo%qa,sqrab,srab,etmp,g5tmp)
+           call abhgfnff_eg2new(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
          end if
          g=g+g5tmp
          ehb=ehb+etmp
@@ -485,12 +489,12 @@ contains
 ! EXB
 !!!!!!!!!!!!!!!!!!
 
-      if(ffTopo%nxb.gt.0) then
-      do i=1,ffTopo%nxb
-         j=ffTopo%hblist3(1,i)
-         k=ffTopo%hblist3(2,i)
-         l=ffTopo%hblist3(3,i)
-         call rbxgfnff_eg(n,j,k,l,at,xyz,ffTopo%qa,etmp,g3tmp)
+      if(topo%nxb.gt.0) then
+      do i=1,topo%nxb
+         j=topo%hblist3(1,i)
+         k=topo%hblist3(2,i)
+         l=topo%hblist3(3,i)
+         call rbxgfnff_eg(n,j,k,l,at,xyz,topo%qa,etmp,g3tmp,param)
          g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
          g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
@@ -505,11 +509,11 @@ contains
 
       if(sum(abs(efield)).gt.1d-6)then
          do i=1,n
-            r3(:) =-ffTopo%q(i)*efield(:)
+            r3(:) =-topo%q(i)*efield(:)
             g(:,i)= g(:,i) + r3(:)
-            eext = eext + r3(1)*(xyz(1,i)-ffTopo%xyze0(1,i))+&
-     &                    r3(2)*(xyz(2,i)-ffTopo%xyze0(2,i))+&
-     &                    r3(3)*(xyz(3,i)-ffTopo%xyze0(3,i))
+            eext = eext + r3(1)*(xyz(1,i)-topo%xyze0(1,i))+&
+     &                    r3(2)*(xyz(2,i)-topo%xyze0(2,i))+&
+     &                    r3(3)*(xyz(3,i)-topo%xyze0(3,i))
          enddo
       endif
 
@@ -525,14 +529,14 @@ contains
 !!!!!!!!!!!!!!!!!!
       if (pr) then
         call timer%write(6,'E+G')
-        if(abs(sum(ffTopo%q)-ichrg).gt.1.d-1) then ! check EEQ only once
-          write(*,*) ffTopo%q
-          write(*,*) sum(ffTopo%q),ichrg
+        if(abs(sum(topo%q)-ichrg).gt.1.d-1) then ! check EEQ only once
+          write(*,*) topo%q
+          write(*,*) sum(topo%q),ichrg
           stop 'EEQ charge constrain error'
         endif
         r3 = 0
         do i=1,n
-           r3(:) = r3(:)+ffTopo%q(i)*xyz(:,i)
+           r3(:) = r3(:)+topo%q(i)*xyz(:,i)
         enddo
 
 !       just for fit De calc
@@ -541,7 +545,7 @@ contains
         cn = 0
 !       asymtotically for R=inf, Etot is the SIE contaminted EES
 !       which is computed here to get the atomization energy De,n,at(n)
-        call goed_gfnff(.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,gbsa)
+        call goed_gfnff(.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,gbsa,param,topo)
         de=-(etot - eesinf)
 !       write out fitting stuff
         inquire(file='.EAT',exist=ex)
@@ -585,16 +589,17 @@ contains
       res_gff%g_solv  = gsolv
       res_gff%g_shift = gshift
       res_gff%g_sasa  = gbsa%gsasa
-      res_gff%dipole  = matmul(xyz, ffTopo%q)
+      res_gff%dipole  = matmul(xyz, topo%q)
 
    end subroutine gfnff_eg
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbond(i,iat,jat,rab,rij,drij,n,at,xyz,e,g)
+      subroutine egbond(i,iat,jat,rab,rij,drij,n,at,xyz,e,g,topo)
       use xtb_gfnff_param
       implicit none
       !Dummy
+      type(TGFFTopology), intent(in) :: topo
       integer,intent(in)   :: i
       integer,intent(in)   :: n
       integer,intent(in)   :: iat
@@ -613,9 +618,9 @@ contains
       real*8 yy
       real*8 t4,t5,t6,t8
 
-         t8 =ffTopo%vbond(2,i)
+         t8 =topo%vbond(2,i)
          dr =rab-rij
-         dum=ffTopo%vbond(3,i)*exp(-t8*dr**2)
+         dum=topo%vbond(3,i)*exp(-t8*dr**2)
          e=e+dum                      ! bond energy
          yy=2.0d0*t8*dr*dum
          dx=xyz(1,iat)-xyz(1,jat)
@@ -641,10 +646,12 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g)
+      subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g,param,topo)
       use xtb_gfnff_param
       implicit none
       !Dummy
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer,intent(in)   :: i
       integer,intent(in)   :: n
       integer,intent(in)   :: iat
@@ -678,10 +685,10 @@ contains
            return
          end if
 
-         t1=1.0-ffData%vbond_scale
-         t8 =(-t1*hb_cn(hbH)+1.0)*ffTopo%vbond(2,i)
+         t1=1.0-param%vbond_scale
+         t8 =(-t1*hb_cn(hbH)+1.0)*topo%vbond(2,i)
          dr =rab-rij
-         dum=ffTopo%vbond(3,i)*exp(-t8*dr**2)
+         dum=topo%vbond(3,i)*exp(-t8*dr**2)
          e=e+dum                      ! bond energy
          yy=2.0d0*t8*dr*dum
          dx=xyz(1,iat)-xyz(1,jat)
@@ -702,14 +709,14 @@ contains
          do k=1,n !3B gradient
             g(:,k)=g(:,k)+drij(:,k)*yy
          end do
-         zz=dum*ffTopo%vbond(2,i)*dr**2*t1
-         do j=1,ffTopo%bond_hb_nr !CN gradient
-            jH = ffTopo%bond_hb_AH(2,j)
-            jA = ffTopo%bond_hb_AH(1,j)
+         zz=dum*topo%vbond(2,i)*dr**2*t1
+         do j=1,topo%bond_hb_nr !CN gradient
+            jH = topo%bond_hb_AH(2,j)
+            jA = topo%bond_hb_AH(1,j)
             if (jH.eq.hbH.and.jA.eq.hbA) then
                g(:,hbH)=g(:,hbH)+hb_dcn(:,hbH,hbH)*zz
-               do k=1,ffTopo%bond_hb_Bn(j)
-                  hbB = ffTopo%bond_hb_B(k,j)
+               do k=1,topo%bond_hb_Bn(j)
+                  hbB = topo%bond_hb_B(k,j)
                   g(:,hbB)=g(:,hbB)-hb_dcn(:,hbB,hbH)*zz
                end do
             end if
@@ -717,12 +724,13 @@ contains
 
       end subroutine egbond_hb
 
-      subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr)
+      subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr,topo)
       use iso_fortran_env, only : wp => real64
       use xtb_gfnff_param
       use xtb_disp_dftd4, only : rcov
       implicit none
       !Dummy
+      type(TGFFTopology), intent(in) :: topo
       integer,intent(in)   :: nat
       integer,intent(in)   :: at(nat)
       real(wp),intent(in)  :: xyz(3,nat)
@@ -746,12 +754,12 @@ contains
          cn  = 0._wp
          dcn = 0._wp
 
-         do i = 1,ffTopo%bond_hb_nr
-            iat = ffTopo%bond_hb_AH(2,i)
+         do i = 1,topo%bond_hb_nr
+            iat = topo%bond_hb_AH(2,i)
             ati = at(iat)
-            iA  = ffTopo%bond_hb_AH(1,i)
-            do j = 1, ffTopo%bond_hb_Bn(i)
-               jat = ffTopo%bond_hb_B(j,i)
+            iA  = topo%bond_hb_AH(1,i)
+            do j = 1, topo%bond_hb_Bn(i)
+               jat = topo%bond_hb_B(j,i)
                atj = at(jat)
                rij = xyz(:,jat) - xyz(:,iat)
                r2  = sum( rij**2 )
@@ -773,10 +781,12 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbend(m,j,i,k,n,at,xyz,e,g)
+      subroutine egbend(m,j,i,k,n,at,xyz,e,g,param,topo)
       use xtb_gfnff_param
       use xtb_mctc_constants
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer m,n,at(n)
       integer i,j,k
       real*8 xyz(3,n),g(3,3),e
@@ -791,8 +801,8 @@ contains
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
 
-         c0  =ffTopo%vangl(1,m)
-         kijk=ffTopo%vangl(2,m)
+         c0  =topo%vangl(1,m)
+         kijk=topo%vangl(2,m)
          va(1:3) = xyz(1:3,i)
          vb(1:3) = xyz(1:3,j)
          vc(1:3) = xyz(1:3,k)
@@ -806,8 +816,8 @@ contains
          cosa = dble(min(1.0d0,max(-1.0d0,cosa)))
          theta= dacos(cosa)
 
-         call gfnffdampa(at(i),at(j),rab2,dampij,damp2ij)
-         call gfnffdampa(at(k),at(j),rcb2,dampjk,damp2jk)
+         call gfnffdampa(at(i),at(j),rab2,dampij,damp2ij,param)
+         call gfnffdampa(at(k),at(j),rcb2,dampjk,damp2jk,param)
          damp=dampij*dampjk
 
          if(pi-c0.lt.1.d-6)then ! linear
@@ -896,11 +906,12 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egbend_nci(j,i,k,c0,kijk,n,at,xyz,e,g)
+      subroutine egbend_nci(j,i,k,c0,kijk,n,at,xyz,e,g,param)
       use xtb_gfnff_param
       use xtb_mctc_constants
       implicit none
       !Dummy
+      type(TGFFData), intent(in) :: param
       integer n,at(n)
       integer i,j,k
       real*8 c0,kijk
@@ -929,8 +940,8 @@ contains
          cosa = dble(min(1.0d0,max(-1.0d0,cosa)))
          theta= dacos(cosa)
 
-         call gfnffdampa_nci(at(i),at(j),rab2,dampij,damp2ij)
-         call gfnffdampa_nci(at(k),at(j),rcb2,dampjk,damp2jk)
+         call gfnffdampa_nci(at(i),at(j),rab2,dampij,damp2ij,param)
+         call gfnffdampa_nci(at(k),at(j),rcb2,dampjk,damp2jk,param)
          damp=dampij*dampjk
 
          if(pi-c0.lt.1.d-6)then ! linear
@@ -960,10 +971,11 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egtors(m,i,j,k,l,n,at,xyz,e,g)
-      use xtb_gfnff_param, only : ffTopo
+      subroutine egtors(m,i,j,k,l,n,at,xyz,e,g,param,topo)
       use xtb_mctc_constants
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer m,n,at(n)
       integer i,j,k,l
       real*8 xyz(3,n),g(3,4),e
@@ -978,18 +990,18 @@ contains
       real*8  omega,rij,rijk,phi0,rkl,rjk,dampkl,damp2kl
       real*8  dampjl,damp2jl,valijklff,rn
 
-         rn=dble(ffTopo%tlist(5,m))
-         phi0 =ffTopo%vtors(1,m)
-         if(ffTopo%tlist(5,m).gt.0)then
+         rn=dble(topo%tlist(5,m))
+         phi0 =topo%vtors(1,m)
+         if(topo%tlist(5,m).gt.0)then
          vab(1:3) = xyz(1:3,i)-xyz(1:3,j)
          vcb(1:3) = xyz(1:3,j)-xyz(1:3,k)
          vdc(1:3) = xyz(1:3,k)-xyz(1:3,l)
          rij = vab(1)*vab(1) + vab(2)*vab(2) + vab(3)*vab(3)
          rjk = vcb(1)*vcb(1) + vcb(2)*vcb(2) + vcb(3)*vcb(3)
          rkl = vdc(1)*vdc(1) + vdc(2)*vdc(2) + vdc(3)*vdc(3)
-         call gfnffdampt(at(i),at(j),rij,dampij,damp2ij)
-         call gfnffdampt(at(k),at(j),rjk,dampjk,damp2jk)
-         call gfnffdampt(at(k),at(l),rkl,dampkl,damp2kl)
+         call gfnffdampt(at(i),at(j),rij,dampij,damp2ij,param)
+         call gfnffdampt(at(k),at(j),rjk,dampjk,damp2jk,param)
+         call gfnffdampt(at(k),at(l),rkl,dampkl,damp2kl,param)
          damp= dampjk*dampij*dampkl
          phi=valijklff(n,xyz,i,j,k,l)
          call dphidr  (n,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
@@ -997,8 +1009,8 @@ contains
          c1=rn*dphi1+pi
          x1cos=cos(c1)
          x1sin=sin(c1)
-         et =(1.+x1cos)*ffTopo%vtors(2,m)
-         dij=-rn*x1sin*ffTopo%vtors(2,m)*damp
+         et =(1.+x1cos)*topo%vtors(2,m)
+         dij=-rn*x1sin*topo%vtors(2,m)*damp
          term1(1:3)=et*damp2ij*dampjk*dampkl*vab(1:3)
          term2(1:3)=et*damp2jk*dampij*dampkl*vcb(1:3)
          term3(1:3)=et*damp2kl*dampij*dampjk*vdc(1:3)
@@ -1014,22 +1026,22 @@ contains
          rij = vab(1)*vab(1) + vab(2)*vab(2) + vab(3)*vab(3)
          rjk = vcb(1)*vcb(1) + vcb(2)*vcb(2) + vcb(3)*vcb(3)
          rjl = vdc(1)*vdc(1) + vdc(2)*vdc(2) + vdc(3)*vdc(3)
-         call gfnffdampt(at(i),at(j),rij,dampij,damp2ij)
-         call gfnffdampt(at(k),at(j),rjk,dampjk,damp2jk)
-         call gfnffdampt(at(j),at(l),rjl,dampjl,damp2jl)
+         call gfnffdampt(at(i),at(j),rij,dampij,damp2ij,param)
+         call gfnffdampt(at(k),at(j),rjk,dampjk,damp2jk,param)
+         call gfnffdampt(at(j),at(l),rjl,dampjl,damp2jl,param)
          damp= dampjk*dampij*dampjl
          phi=omega(n,xyz,i,j,k,l)
          call domegadr(n,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
-         if(ffTopo%tlist(5,m).eq.0)then  ! phi0=0 case
+         if(topo%tlist(5,m).eq.0)then  ! phi0=0 case
          dphi1=phi-phi0
          c1=dphi1+pi
          x1cos=cos(c1)
          x1sin=sin(c1)
-         et   =(1.+x1cos)*ffTopo%vtors(2,m)
-         dij  =-x1sin*ffTopo%vtors(2,m)*damp
+         et   =(1.+x1cos)*topo%vtors(2,m)
+         dij  =-x1sin*topo%vtors(2,m)*damp
          else                     ! double min at phi0,-phi0
-         et =   ffTopo%vtors(2,m)*(cos(phi) -cos(phi0))**2
-         dij=2.*ffTopo%vtors(2,m)* sin(phi)*(cos(phi0)-cos(phi))*damp
+         et =   topo%vtors(2,m)*(cos(phi) -cos(phi0))**2
+         dij=2.*topo%vtors(2,m)* sin(phi)*(cos(phi0)-cos(phi))*damp
          endif
          term1(1:3)=et*damp2ij*dampjk*dampjl*vab(1:3)
          term2(1:3)=et*damp2jk*dampij*dampjl*vcb(1:3)
@@ -1090,11 +1102,11 @@ contains
 
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine egtors_nci(i,j,k,l,rn,phi0,fc,n,at,xyz,e,g)
-      use xtb_mctc_constants
+      subroutine egtors_nci(i,j,k,l,rn,phi0,fc,n,at,xyz,e,g,param)
       use xtb_mctc_constants
       implicit none
       !Dummy
+      type(TGFFData), intent(in) :: param
       integer n,at(n)
       integer i,j,k,l
       integer rn
@@ -1117,9 +1129,9 @@ contains
          rij = vab(1)*vab(1) + vab(2)*vab(2) + vab(3)*vab(3)
          rjk = vcb(1)*vcb(1) + vcb(2)*vcb(2) + vcb(3)*vcb(3)
          rkl = vdc(1)*vdc(1) + vdc(2)*vdc(2) + vdc(3)*vdc(3)
-         call gfnffdampt_nci(at(i),at(j),rij,dampij,damp2ij)
-         call gfnffdampt_nci(at(k),at(j),rjk,dampjk,damp2jk)
-         call gfnffdampt_nci(at(k),at(l),rkl,dampkl,damp2kl)
+         call gfnffdampt_nci(at(i),at(j),rij,dampij,damp2ij,param)
+         call gfnffdampt_nci(at(k),at(j),rjk,dampjk,damp2jk,param)
+         call gfnffdampt_nci(at(k),at(l),rkl,dampkl,damp2kl,param)
          damp= dampjk*dampij*dampkl
          phi=valijklff(n,xyz,i,j,k,l)
          call dphidr  (n,xyz,i,j,k,l,phi,dda,ddb,ddc,ddd)
@@ -1144,49 +1156,49 @@ contains
 ! bond distances to allow proper dissociation
 !cccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine gfnffdampa(ati,atj,r2,damp,ddamp)
+      subroutine gfnffdampa(ati,atj,r2,damp,ddamp,param)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: ffData
       implicit none
+      type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =ffData%atcuta*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcuta*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end subroutine gfnffdampa
 
-      subroutine gfnffdampt(ati,atj,r2,damp,ddamp)
+      subroutine gfnffdampt(ati,atj,r2,damp,ddamp,param)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: ffData
       implicit none
+      type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =ffData%atcutt*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcutt*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end subroutine gfnffdampt
 
-      subroutine gfnffdampa_nci(ati,atj,r2,damp,ddamp)
+      subroutine gfnffdampa_nci(ati,atj,r2,damp,ddamp,param)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: ffData
       implicit none
+      type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =ffData%atcuta_nci*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcuta_nci*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end subroutine gfnffdampa_nci
 
-      subroutine gfnffdampt_nci(ati,atj,r2,damp,ddamp)
+      subroutine gfnffdampt_nci(ati,atj,r2,damp,ddamp,param)
       use xtb_disp_dftd4, only: rcov
-      use xtb_gfnff_param,only: ffData
       implicit none
+      type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =ffData%atcutt_nci*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcutt_nci*(rcov(ati)+rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
@@ -1199,12 +1211,13 @@ contains
 !       based on charge densities obtained by a neural network
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa)
+      subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,topo)
       use iso_fortran_env, id => output_unit, wp => real64
       use xtb_mctc_la
-      use xtb_gfnff_param, only: ffTopo, ffData
       use xtb_solv_gbobc
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       logical, intent(in)  :: single     ! real*4 flag for solver
       integer, intent(in)  :: n          ! number of atoms
       integer, intent(in)  :: at(n)      ! ordinal numbers
@@ -1227,26 +1240,26 @@ contains
 !  parameter
       parameter (tsqrt2pi = 0.797884560802866_wp)
 
-      m=n+ffTopo%nfrag ! # atoms + chrg constrain + frag constrain
+      m=n+topo%nfrag ! # atoms + chrg constrain + frag constrain
 
       allocate(A(m,m),x(m))
 !  setup RHS
       do i=1,n
-         x(i) = ffTopo%chieeq(i) + ffData%cnf(at(i))*sqrt(cn(i))
+         x(i) = topo%chieeq(i) + param%cnf(at(i))*sqrt(cn(i))
       enddo
 
       A = 0
 !  setup A matrix
 !$omp parallel default(none) &
-!$omp shared(ffTopo,n,sqrab,r,eeqtmp,A,at) &
+!$omp shared(topo,n,sqrab,r,eeqtmp,A,at) &
 !$omp private(i,j,k,ij,gammij,tmp)
 !$omp do schedule(dynamic)
       do i=1,n
-      A(i,i)=tsqrt2pi/sqrt(ffTopo%alpeeq(i))+ffTopo%gameeq(i) ! J of i
+      A(i,i)=tsqrt2pi/sqrt(topo%alpeeq(i))+topo%gameeq(i) ! J of i
       k = i*(i-1)/2
       do j=1,i-1
          ij = k+j
-         gammij=1./sqrt(ffTopo%alpeeq(i)+ffTopo%alpeeq(j)) ! squared above
+         gammij=1./sqrt(topo%alpeeq(i)+topo%alpeeq(j)) ! squared above
          tmp = erf(gammij*r(ij))
          eeqtmp(1,ij)=gammij
          eeqtmp(2,ij)=tmp
@@ -1258,10 +1271,10 @@ contains
 !$omp end parallel
 
 !  fragment charge constrain
-      do i=1,ffTopo%nfrag
-        x(n+i)=ffTopo%qfrag(i)
+      do i=1,topo%nfrag
+        x(n+i)=topo%qfrag(i)
         do j=1,n
-         if(ffTopo%fraglist(j).eq.i) then
+         if(topo%fraglist(j).eq.i) then
             A(n+i,j)=1
             A(j,n+i)=1
          endif
@@ -1302,8 +1315,8 @@ contains
          tmp   =eeqtmp(2,ij)
          es = es + q(i)*q(j)*tmp/r(ij)
       enddo
-      es = es - q(i)*(ffTopo%chieeq(i) + ffData%cnf(at(i))*sqrt(cn(i))) &
-     &        + q(i)*q(i)*0.5d0*(ffTopo%gameeq(i)+tsqrt2pi/sqrt(ffTopo%alpeeq(i)))
+      es = es - q(i)*(topo%chieeq(i) + param%cnf(at(i))*sqrt(cn(i))) &
+     &        + q(i)*q(i)*0.5d0*(topo%gameeq(i)+tsqrt2pi/sqrt(topo%alpeeq(i)))
       enddo
 
       !work = x
@@ -1319,9 +1332,10 @@ contains
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !subroutine for case 1: A...H...B
-subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,rad
+subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,3)
       real*8 q(n)
@@ -1352,7 +1366,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr  = 0
       energy=0
 
-      call hbonds(A,B,at(A),at(B),ca,cb)
+      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
 
 !     A-B distance
       ij=lina(A,B)
@@ -1370,39 +1384,39 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
-      radab=rad(at(A))+rad(at(B))
+      radab=param%rad(at(A))+param%rad(at(B))
 
 !     out-of-line damp
-      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(param%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
+      ratio1=(rab2/param%hblongcut)**param%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=ffData%hbscut*radab
-      ratio3=(shortcut/rab2)**ffData%hbalp
+      shortcut=param%hbscut*radab
+      ratio3=(shortcut/rab2)**param%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp = damps*dampl
       rdamp = damp/rab2/rab
 
 !     hydrogen charge scaled term
-      ex1h=exp(ffData%hbst*q(H))
-      ex2h=ex1h+ffData%hbsf
+      ex1h=exp(param%hbst*q(H))
+      ex2h=ex1h+param%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-ffData%hbst*q(A))
-      ex2a=ex1a+ffData%hbsf
+      ex1a=exp(-param%hbst*q(A))
+      ex2a=ex1a+param%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-ffData%hbst*q(B))
-      ex2b=ex1b+ffData%hbsf
+      ex1b=exp(-param%hbst*q(B))
+      ex2b=ex1b+param%hbsf
       qb=ex1b/ex2b
 
 !     donor-acceptor term
@@ -1454,7 +1468,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gh(1:3) = gh(1:3) + dgh(1:3)
 
 !     damping part rab
-      gi = rdamp*(-(2.d0*ffData%hbalp*ratio1/(1+ratio1))+(2.d0*ffData%hbalp*ratio3/(1+ratio3))-3.d0)/rab2
+      gi = rdamp*(-(2.d0*param%hbalp*ratio1/(1+ratio1))+(2.d0*param%hbalp*ratio3/(1+ratio3))-3.d0)/rab2
       dg(1:3) = gi*drab(1:3)*dterm
       ga(1:3) = ga(1:3) + dg(1:3)
       gb(1:3) = gb(1:3) - dg(1:3)
@@ -1482,9 +1496,10 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 end subroutine abhgfnff_eg1
 
 !subroutine for case 2: A-H...B including orientation of neighbors at B
-subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
+subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
       real*8 q(n)
@@ -1493,19 +1508,19 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(topo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
+      real*8 ranb(topo%nb(20,B)),ranb2(topo%nb(20,B)),rbnb(topo%nb(20,B)),rbnb2(topo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
+      real*8 dranb(3,topo%nb(20,B)),drbnb(3,topo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,topo%nb(20,B))
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(ffTopo%nb(20,B))
-      real*8 tmp1,tmp2(ffTopo%nb(20,B))
-      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
+      real*8 gi,gi_nb(topo%nb(20,B))
+      real*8 tmp1,tmp2(topo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(topo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(topo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm
       real*8 qa,qb,qh
@@ -1513,9 +1528,9 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot
+      real*8 outl_nb(topo%nb(20,B)),outl_nb_tot
       real*8 hbnbcut_save
-      logical mask_nb(ffTopo%nb(20,B))
+      logical mask_nb(topo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -1524,20 +1539,20 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ij,lina,nbb
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+ffData%hbabmix
-      p_ab=    -ffData%hbabmix
+      p_bh=1.d0+param%hbabmix
+      p_ab=    -param%hbabmix
 
       gdr    = 0
       energy = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb)
+      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
 
-      nbb=ffTopo%nb(20,B)
+      nbb=topo%nb(20,B)
 !     Neighbours of B
       do i=1,nbb
 !        compute distances
-         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,ffTopo%nb(i,B))
-         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,ffTopo%nb(i,B))
+         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,topo%nb(i,B))
+         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,topo%nb(i,B))
 !        A-nb(B) distance
          ranb2(i) = sum(dranb(1:3,i)**2)
          ranb(i)  = sqrt(ranb2(i))
@@ -1562,19 +1577,19 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
-      radab=rad(at(A))+rad(at(B))
+      radab=param%rad(at(A))+param%rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(param%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     out-of-line damp: A...nb(B)-B
-      if(at(B).eq.7.and.ffTopo%nb(20,B).eq.1) then
+      if(at(B).eq.7.and.topo%nb(20,B).eq.1) then
         hbnbcut_save = 2.0
       else
-        hbnbcut_save = ffData%hbnbcut
+        hbnbcut_save = param%hbnbcut
       end if
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
@@ -1585,39 +1600,39 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       outl_nb_tot = product(outl_nb)
 
 !     long damping
-      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
+      ratio1=(rab2/param%hblongcut)**param%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=ffData%hbscut*radab
-      ratio3=(shortcut/rab2)**ffData%hbalp
+      shortcut=param%hbscut*radab
+      ratio3=(shortcut/rab2)**param%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*param%hbalp*ratio1/(1.d0+ratio1))+(2.d0*param%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
 
 !     hydrogen charge scaled term
-      ex1h=exp(ffData%hbst*q(H))
-      ex2h=ex1h+ffData%hbsf
+      ex1h=exp(param%hbst*q(H))
+      ex2h=ex1h+param%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-ffData%hbst*q(A))
-      ex2a=ex1a+ffData%hbsf
+      ex1a=exp(-param%hbst*q(A))
+      ex2a=ex1a+param%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-ffData%hbst*q(B))
-      ex2b=ex1b+ffData%hbsf
+      ex1b=exp(-param%hbst*q(B))
+      ex2b=ex1b+param%hbsf
       qb=ex1b/ex2b
 
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*param%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const
@@ -1709,15 +1724,16 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
-         gdr(1:3,ffTopo%nb(i,B)) = gdr(1:3,ffTopo%nb(i,B)) + gnb(1:3,i)
+         gdr(1:3,topo%nb(i,B)) = gdr(1:3,topo%nb(i,B)) + gnb(1:3,i)
       end do
 
 end subroutine abhgfnff_eg2new
 
 !subroutine for case 2: A-H...B including LP position
-subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
-      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
+subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
       real*8 q(n)
@@ -1726,19 +1742,19 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_lp,ratio2_nb(ffTopo%nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_lp,ratio2_nb(topo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
+      real*8 ranb(topo%nb(20,B)),ranb2(topo%nb(20,B)),rbnb(topo%nb(20,B)),rbnb2(topo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3),dralp(3),drblp(3)
-      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
+      real*8 dranb(3,topo%nb(20,B)),drbnb(3,topo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B)),gnb_lp(3),glp(3)
+      real*8 ga(3),gb(3),gh(3),gnb(3,topo%nb(20,B)),gnb_lp(3),glp(3)
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(ffTopo%nb(20,B))
-      real*8 tmp1,tmp2(ffTopo%nb(20,B)),tmp3
-      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_lp,expo_nb(ffTopo%nb(20,B))
+      real*8 gi,gi_nb(topo%nb(20,B))
+      real*8 tmp1,tmp2(topo%nb(20,B)),tmp3
+      real*8 rahprbh,ranbprbnb(topo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_lp,expo_nb(topo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm,lpterm
       real*8 qa,qb,qh
@@ -1746,15 +1762,15 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot,outl_lp
+      real*8 outl_nb(topo%nb(20,B)),outl_nb_tot,outl_lp
       real*8 vector(3),vnorm
       real*8 gii(3,3)
       real*8 unit_vec(3)
-      real*8 drnb(3,ffTopo%nb(20,B))
+      real*8 drnb(3,topo%nb(20,B))
       real*8 lp(3)   !lonepair position
       real*8 lp_dist !distance parameter between B and lonepair
       real*8 ralp,ralp2,rblp,rblp2,ralpprblp
-      logical mask_nb(ffTopo%nb(20,B))
+      logical mask_nb(topo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -1765,23 +1781,23 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       integer i,j,ij,lina,nbb
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+ffData%hbabmix
-      p_ab=    -ffData%hbabmix
+      p_bh=1.d0+param%hbabmix
+      p_ab=    -param%hbabmix
 
       gdr    = 0
       energy = 0
       vector = 0
-      lp_dist = 0.50-0.018*repz(at(B))
+      lp_dist = 0.50-0.018*param%repz(at(B))
       hblpcut=56
 
-      call hbonds(A,B,at(A),at(B),ca,cb)
+      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
 
-      nbb=ffTopo%nb(20,B)
+      nbb=topo%nb(20,B)
 !     Neighbours of B
       do i=1,nbb
 !        compute distances
-         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,ffTopo%nb(i,B))
-         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,ffTopo%nb(i,B))
+         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,topo%nb(i,B))
+         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,topo%nb(i,B))
 !        A-nb(B) distance
          ranb2(i) = sum(dranb(1:3,i)**2)
          ranb(i)  = sqrt(ranb2(i))
@@ -1792,7 +1808,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
 !     Neighbours of B
       do i=1,nbb
-         drnb(1:3,i)=xyz(1:3,ffTopo%nb(i,B))-xyz(1:3,B)
+         drnb(1:3,i)=xyz(1:3,topo%nb(i,B))-xyz(1:3,B)
          vector = vector + drnb(1:3,i)
       end do
 
@@ -1821,10 +1837,10 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
-      radab=rad(at(A))+rad(at(B))
+      radab=param%rad(at(A))+param%rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(param%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
@@ -1842,46 +1858,46 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     out-of-line damp: A...nb(B)-B
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
-         expo_nb(i)=(ffData%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
+         expo_nb(i)=(param%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))**(1.0)
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
       end do
       outl_nb_tot = product(outl_nb)
 
 !     long damping
-      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
+      ratio1=(rab2/param%hblongcut)**param%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=ffData%hbscut*radab
-      ratio3=(shortcut/rab2)**ffData%hbalp
+      shortcut=param%hbscut*radab
+      ratio3=(shortcut/rab2)**param%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*param%hbalp*ratio1/(1.d0+ratio1))+(2.d0*param%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
 
 !     hydrogen charge scaled term
-      ex1h=exp(ffData%hbst*q(H))
-      ex2h=ex1h+ffData%hbsf
+      ex1h=exp(param%hbst*q(H))
+      ex2h=ex1h+param%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-ffData%hbst*q(A))
-      ex2a=ex1a+ffData%hbsf
+      ex1a=exp(-param%hbst*q(A))
+      ex2a=ex1a+param%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-ffData%hbst*q(B))
-      ex2b=ex1b+ffData%hbsf
+      ex1b=exp(-param%hbst*q(B))
+      ex2b=ex1b+param%hbsf
       qb=ex1b/ex2b
 
       qhoutl=qh*outl*outl_nb_tot*outl_lp
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*param%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const
@@ -2004,7 +2020,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3) + gnb_lp(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
-         gdr(1:3,ffTopo%nb(i,B)) = gdr(1:3,ffTopo%nb(i,B)) + gnb(1:3,i) - gnb_lp(1:3)/dble(nbb)
+         gdr(1:3,topo%nb(i,B)) = gdr(1:3,topo%nb(i,B)) + gnb(1:3,i) - gnb_lp(1:3)/dble(nbb)
       end do
 
 end subroutine abhgfnff_eg2_rnr
@@ -2012,10 +2028,11 @@ end subroutine abhgfnff_eg2_rnr
 !subroutine for case 3: A-H...B, B is 0=C including two in plane LPs at B
 !this is the multiplicative version of incorporationg etors and ebend
 !equal to abhgfnff_eg2_new multiplied by etors and eangl
-subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
+subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       use xtb_mctc_constants
-      use xtb_gfnff_param,only: ffData,ffTopo,rad,repz
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer A,B,H,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
       real*8 q(n)
@@ -2024,34 +2041,34 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(topo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
+      real*8 ranb(topo%nb(20,B)),ranb2(topo%nb(20,B)),rbnb(topo%nb(20,B)),rbnb2(topo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
+      real*8 dranb(3,topo%nb(20,B)),drbnb(3,topo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,topo%nb(20,B))
       real*8 phi,phi0,r0,t0,fc,tshift,bshift
       real*8 eangl,etors,gangl(3,n),gtors(3,n)
       real*8 etmp(20),g3tmp(3,3),g4tmp(3,4,20)
       real*8 ratio,qhoutl,radab
-      real*8 gi,gi_nb(ffTopo%nb(20,B))
-      real*8 tmp1,tmp2(ffTopo%nb(20,B))
-      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
+      real*8 gi,gi_nb(topo%nb(20,B))
+      real*8 tmp1,tmp2(topo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(topo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(topo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm,bterm,tterm
       real*8 qa,qb,qh
       real*8 ca(2),cb(2)
       real*8 gqa,gqb,gqh
       real*8 shortcut
-      real*8 tlist(5,ffTopo%nb(20,ffTopo%nb(1,B)))
-      real*8 vtors(2,ffTopo%nb(20,ffTopo%nb(1,B)))
+      real*8 tlist(5,topo%nb(20,topo%nb(1,B)))
+      real*8 vtors(2,topo%nb(20,topo%nb(1,B)))
       real*8 valijklff
       real*8 const
-      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot
-      logical mask_nb(ffTopo%nb(20,B)),t_mask(20)
+      real*8 outl_nb(topo%nb(20,B)),outl_nb_tot
+      logical mask_nb(topo%nb(20,B)),t_mask(20)
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -2064,8 +2081,8 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+ffData%hbabmix
-      p_ab=    -ffData%hbabmix
+      p_bh=1.d0+param%hbabmix
+      p_ab=    -param%hbabmix
 
       gdr    = 0
       energy = 0
@@ -2074,7 +2091,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       eangl  = 0
       gangl  = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb)
+      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
 
       !Determine all neighbors for torsion term
       !  A
@@ -2087,17 +2104,17 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !     / \       \
       !    R1  R2      ii
       !------------------------------------------
-      nbb=ffTopo%nb(20,B)
-      C=ffTopo%nb(nbb,B)
-      nbc=ffTopo%nb(20,C)
+      nbb=topo%nb(20,B)
+      C=topo%nb(nbb,B)
+      nbc=topo%nb(20,C)
       ntors=nbc-nbb
 
-      nbb=ffTopo%nb(20,B)
+      nbb=topo%nb(20,B)
 !     Neighbours of B
       do i=1,nbb
 !        compute distances
-         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,ffTopo%nb(i,B))
-         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,ffTopo%nb(i,B))
+         dranb(1:3,i) = xyz(1:3,A) - xyz(1:3,topo%nb(i,B))
+         drbnb(1:3,i) = xyz(1:3,B) - xyz(1:3,topo%nb(i,B))
 !        A-nb(B) distance
          ranb2(i) = sum(dranb(1:3,i)**2)
          ranb(i)  = sqrt(ranb2(i))
@@ -2122,10 +2139,10 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
-      radab=rad(at(A))+rad(at(B))
+      radab=param%rad(at(A))+param%rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(param%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
@@ -2133,23 +2150,23 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 !     out-of-line damp: A...nb(B)-B
       do i=1,nbb
          ranbprbnb(i)=ranb(i)+rbnb(i)+1.d-12
-         expo_nb(i)=(ffData%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
+         expo_nb(i)=(param%hbnbcut/radab)*(ranbprbnb(i)/rab-1.d0)
          ratio2_nb(i)=exp(-expo_nb(i))
          outl_nb(i)=( 2.d0/(1.d0+ratio2_nb(i)) ) - 1.0d0
       end do
       outl_nb_tot = product(outl_nb)
 
 !     long damping
-      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
+      ratio1=(rab2/param%hblongcut)**param%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=ffData%hbscut*radab
+      shortcut=param%hbscut*radab
       ratio3=(shortcut/rab2)**6
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*param%hbalp*ratio1/(1.d0+ratio1))+(2.d0*param%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
@@ -2157,9 +2174,9 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
-         if( ffTopo%nb(i,C) == B ) cycle
+         if( topo%nb(i,C) == B ) cycle
          j = j + 1
-         tlist(1,j)=ffTopo%nb(i,C)
+         tlist(1,j)=topo%nb(i,C)
          tlist(2,j)=B
          tlist(3,j)=C
          tlist(4,j)=H
@@ -2167,7 +2184,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          t0=180
          phi0=t0*pi/180.
          vtors(1,j)=phi0-(pi/2.0)
-         vtors(2,j)=ffData%tors_hb !xtb_gfnff_param
+         vtors(2,j)=param%tors_hb !xtb_gfnff_param
       end do
 
       !Calculate etors
@@ -2201,7 +2218,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Calculate eangl + gangl
       r0=120
       phi0=r0*pi/180.
-      bshift=ffData%bend_hb !xtb_gfnff_param
+      bshift=param%bend_hb !xtb_gfnff_param
       fc=1.0d0-bshift
       call bangl(xyz,kk,jj,ll,phi)
       call egbend_nci_mul(jj,kk,ll,phi0,fc,n,at,xyz,eangl,g3tmp)
@@ -2210,24 +2227,24 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gangl(1:3,ll)=gangl(1:3,ll)+g3tmp(1:3,3)
 
 !     hydrogen charge scaled term
-      ex1h=exp(ffData%hbst*q(H))
-      ex2h=ex1h+ffData%hbsf
+      ex1h=exp(param%hbst*q(H))
+      ex2h=ex1h+param%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-ffData%hbst*q(A))
-      ex2a=ex1a+ffData%hbsf
+      ex1a=exp(-param%hbst*q(A))
+      ex2a=ex1a+param%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-ffData%hbst*q(B))
-      ex2b=ex1b+ffData%hbsf
+      ex1b=exp(-param%hbst*q(B))
+      ex2b=ex1b+param%hbsf
       qb=ex1b/ex2b
 
       qhoutl=qh*outl*outl_nb_tot
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_coh
+      const = ca(2)*qa*cb(1)*qb*param%xhaci_coh
 
 !     energy
       energy = -rdamp*qhoutl*eangl*etors*const
@@ -2339,17 +2356,18 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
       do i=1,nbb
-         gdr(1:3,ffTopo%nb(i,B)) = gdr(1:3,ffTopo%nb(i,B)) + gnb(1:3,i)
+         gdr(1:3,topo%nb(i,B)) = gdr(1:3,topo%nb(i,B)) + gnb(1:3,i)
       end do
 
 end subroutine abhgfnff_eg3
 
 !subroutine for case 3: A-H...B, B is 0=C including two in plane LPs at B
 !this is the multiplicative version of incorporationg etors and ebend without neighbor LP
-subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
+subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
       real*8 q(n)
@@ -2358,22 +2376,22 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(topo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
+      real*8 ranb(topo%nb(20,B)),ranb2(topo%nb(20,B)),rbnb(topo%nb(20,B)),rbnb2(topo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
+      real*8 dranb(3,topo%nb(20,B)),drbnb(3,topo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,topo%nb(20,B))
       real*8 phi,phi0,r0,fc,tshift,bshift
       real*8 eangl,etors,gangl(3,n),gtors(3,n)
       real*8 etmp,g3tmp(3,3),g4tmp(3,4)
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(ffTopo%nb(20,B))
-      real*8 tmp1,tmp2(ffTopo%nb(20,B))
-      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
+      real*8 gi,gi_nb(topo%nb(20,B))
+      real*8 tmp1,tmp2(topo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(topo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(topo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,bterm,tterm
       real*8 qa,qb,qh
@@ -2381,10 +2399,10 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 tlist(5,ffTopo%nb(20,ffTopo%nb(1,B)))
-      real*8 vtors(2,ffTopo%nb(20,ffTopo%nb(1,B)))
+      real*8 tlist(5,topo%nb(20,topo%nb(1,B)))
+      real*8 vtors(2,topo%nb(20,topo%nb(1,B)))
       real*8 valijklff
-      logical mask_nb(ffTopo%nb(20,B))
+      logical mask_nb(topo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -2396,8 +2414,8 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+ffData%hbabmix
-      p_ab=    -ffData%hbabmix
+      p_bh=1.d0+param%hbabmix
+      p_ab=    -param%hbabmix
 
       gdr    = 0
       energy = 0
@@ -2406,7 +2424,7 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       eangl  = 0
       gangl  = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb)
+      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
 
       !Determine all neighbors for torsion term
       !  A
@@ -2419,9 +2437,9 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !     / \       \
       !    R1  R2      ii
       !------------------------------------------
-      nbb=ffTopo%nb(20,B)
-      C=ffTopo%nb(nbb,B)
-      nbc=ffTopo%nb(20,C)
+      nbb=topo%nb(20,B)
+      C=topo%nb(nbb,B)
+      nbc=topo%nb(20,C)
       ntors=nbc-nbb
 
       !A-B distance
@@ -2440,25 +2458,25 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
-      radab=rad(at(A))+rad(at(B))
+      radab=param%rad(at(A))+param%rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(param%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
+      ratio1=(rab2/param%hblongcut)**param%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=ffData%hbscut*radab
-      ratio3=(shortcut/rab2)**ffData%hbalp
+      shortcut=param%hbscut*radab
+      ratio3=(shortcut/rab2)**param%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*param%hbalp*ratio1/(1.d0+ratio1))+(2.d0*param%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
@@ -2466,9 +2484,9 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
-         if( ffTopo%nb(i,C) == B ) cycle
+         if( topo%nb(i,C) == B ) cycle
          j = j + 1
-         tlist(1,j)=ffTopo%nb(i,C)
+         tlist(1,j)=topo%nb(i,C)
          tlist(2,j)=B
          tlist(3,j)=C
          tlist(4,j)=H
@@ -2508,25 +2526,25 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       eangl=eangl+etmp
 
 !     hydrogen charge scaled term
-      ex1h=exp(ffData%hbst*q(H))
-      ex2h=ex1h+ffData%hbsf
+      ex1h=exp(param%hbst*q(H))
+      ex2h=ex1h+param%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-ffData%hbst*q(A))
-      ex2a=ex1a+ffData%hbsf
+      ex1a=exp(-param%hbst*q(A))
+      ex2a=ex1a+param%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-ffData%hbst*q(B))
-      ex2b=ex1b+ffData%hbsf
+      ex1b=exp(-param%hbst*q(B))
+      ex2b=ex1b+param%hbsf
       qb=ex1b/ex2b
 
 !     max distance to neighbors excluded, would lead to linear C=O-H
       qhoutl=qh*outl
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*param%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const*eangl*etors
@@ -2606,10 +2624,11 @@ end subroutine abhgfnff_eg3_mul
 
 !subroutine for case 3: A-H...B, B is 0=C including two in plane LPs at B
 !this is the additive version of incorporationg etors and ebend
-subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
+subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       use xtb_mctc_constants
-      use xtb_gfnff_param, only: ffData,ffTopo,rad,repz
       implicit none
+      type(TGFFData), intent(in) :: param
+      type(TGFFTopology), intent(in) :: topo
       integer A,B,H,C,D,n,at(n)
       real*8 xyz(3,n),energy,gdr(3,n)
       real*8 q(n)
@@ -2618,22 +2637,22 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       real*8 outl,dampl,damps,rdamp,damp
       real*8 ddamp,rabdamp,rbhdamp
-      real*8 ratio1,ratio2,ratio2_nb(ffTopo%nb(20,B)),ratio3
+      real*8 ratio1,ratio2,ratio2_nb(topo%nb(20,B)),ratio3
       real*8 xm,ym,zm
       real*8 rab,rah,rbh,rab2,rah2,rbh2,rah4,rbh4
-      real*8 ranb(ffTopo%nb(20,B)),ranb2(ffTopo%nb(20,B)),rbnb(ffTopo%nb(20,B)),rbnb2(ffTopo%nb(20,B))
+      real*8 ranb(topo%nb(20,B)),ranb2(topo%nb(20,B)),rbnb(topo%nb(20,B)),rbnb2(topo%nb(20,B))
       real*8 drah(3),drbh(3),drab(3),drm(3)
-      real*8 dranb(3,ffTopo%nb(20,B)),drbnb(3,ffTopo%nb(20,B))
+      real*8 dranb(3,topo%nb(20,B)),drbnb(3,topo%nb(20,B))
       real*8 dg(3),dga(3),dgb(3),dgh(3),dgnb(3)
-      real*8 ga(3),gb(3),gh(3),gnb(3,ffTopo%nb(20,B))
+      real*8 ga(3),gb(3),gh(3),gnb(3,topo%nb(20,B))
       real*8 phi,phi0,r0,fc
       real*8 eangl,etors
       real*8 etmp,g3tmp(3,3),g4tmp(3,4)
       real*8 denom,ratio,qhoutl,radab
-      real*8 gi,gi_nb(ffTopo%nb(20,B))
-      real*8 tmp1,tmp2(ffTopo%nb(20,B))
-      real*8 rahprbh,ranbprbnb(ffTopo%nb(20,B))
-      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(ffTopo%nb(20,B))
+      real*8 gi,gi_nb(topo%nb(20,B))
+      real*8 tmp1,tmp2(topo%nb(20,B))
+      real*8 rahprbh,ranbprbnb(topo%nb(20,B))
+      real*8 ex1a,ex2a,ex1b,ex2b,ex1h,ex2h,expo,expo_nb(topo%nb(20,B))
       real*8 eabh
       real*8 aterm,dterm,nbterm
       real*8 qa,qb,qh
@@ -2641,11 +2660,11 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       real*8 gqa,gqb,gqh
       real*8 shortcut
       real*8 const
-      real*8 outl_nb(ffTopo%nb(20,B)),outl_nb_tot
-      real*8 tlist(5,ffTopo%nb(20,ffTopo%nb(1,B)))
-      real*8 vtors(2,ffTopo%nb(20,ffTopo%nb(1,B)))
+      real*8 outl_nb(topo%nb(20,B)),outl_nb_tot
+      real*8 tlist(5,topo%nb(20,topo%nb(1,B)))
+      real*8 vtors(2,topo%nb(20,topo%nb(1,B)))
       real*8 valijklff
-      logical mask_nb(ffTopo%nb(20,B))
+      logical mask_nb(topo%nb(20,B))
 
 !     proportion between Rbh und Rab distance dependencies
       real*8 :: p_bh
@@ -2657,15 +2676,15 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
 
       lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
-      p_bh=1.d0+ffData%hbabmix
-      p_ab=    -ffData%hbabmix
+      p_bh=1.d0+param%hbabmix
+      p_ab=    -param%hbabmix
 
       gdr    = 0
       energy = 0
       etors  = 0
       eangl  = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb)
+      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
 
       !Determine all neighbors for torsion term
       !  A
@@ -2678,9 +2697,9 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !     / \       \
       !    R1  R2      ii
       !------------------------------------------
-      nbb=ffTopo%nb(20,B)
-      C=ffTopo%nb(nbb,B)
-      nbc=ffTopo%nb(20,C)
+      nbb=topo%nb(20,B)
+      C=topo%nb(nbb,B)
+      nbc=topo%nb(20,C)
       ntors=nbc-nbb
 
       !A-B distance
@@ -2699,25 +2718,25 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       rbh = srab (ij)
 
       rahprbh=rah+rbh+1.d-12
-      radab=rad(at(A))+rad(at(B))
+      radab=param%rad(at(A))+param%rad(at(B))
 
 !     out-of-line damp: A-H...B
-      expo=(ffData%hbacut/radab)*(rahprbh/rab-1.d0)
+      expo=(param%hbacut/radab)*(rahprbh/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2=exp(expo)
       outl=2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1=(rab2/ffData%hblongcut)**ffData%hbalp
+      ratio1=(rab2/param%hblongcut)**param%hbalp
       dampl=1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut=ffData%hbscut*radab
-      ratio3=(shortcut/rab2)**ffData%hbalp
+      shortcut=param%hbscut*radab
+      ratio3=(shortcut/rab2)**param%hbalp
       damps=1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
-      ddamp = (-2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3/(1.d0+ratio3))
+      ddamp = (-2.d0*param%hbalp*ratio1/(1.d0+ratio1))+(2.d0*param%hbalp*ratio3/(1.d0+ratio3))
       rbhdamp = damp * ( (p_bh/rbh2/rbh) )
       rabdamp = damp * ( (p_ab/rab2/rab) )
       rdamp   = rbhdamp + rabdamp
@@ -2725,9 +2744,9 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       !Set up torsion paramter
       j = 0
       do i = 1,nbc
-         if( ffTopo%nb(i,C) == B ) cycle
+         if( topo%nb(i,C) == B ) cycle
          j = j + 1
-         tlist(1,j)=ffTopo%nb(i,C)
+         tlist(1,j)=topo%nb(i,C)
          tlist(2,j)=B
          tlist(3,j)=C
          tlist(4,j)=H
@@ -2747,7 +2766,7 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
          phi0=vtors(1,i)
          fc=vtors(2,i)
          phi=valijklff(n,xyz,ii,jj,kk,ll)
-         call egtors_nci(ii,jj,kk,ll,rn,phi0,fc,n,at,xyz,etmp,g4tmp)
+         call egtors_nci(ii,jj,kk,ll,rn,phi0,fc,n,at,xyz,etmp,g4tmp,param)
          gdr(1:3,ii) = gdr(1:3,ii)+g4tmp(1:3,1)
          gdr(1:3,jj) = gdr(1:3,jj)+g4tmp(1:3,2)
          gdr(1:3,kk) = gdr(1:3,kk)+g4tmp(1:3,3)
@@ -2763,32 +2782,32 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr)
       call bangl(xyz,kk,jj,ll,phi)
       write(*,'(3i5,2x,3f8.3)') &
       &   jj,kk,ll,phi0*180./pi,phi*180./pi,fc
-      call egbend_nci(jj,kk,ll,phi0,fc,n,at,xyz,etmp,g3tmp)
+      call egbend_nci(jj,kk,ll,phi0,fc,n,at,xyz,etmp,g3tmp,param)
       gdr(1:3,jj)=gdr(1:3,jj)+g3tmp(1:3,1)
       gdr(1:3,kk)=gdr(1:3,kk)+g3tmp(1:3,2)
       gdr(1:3,ll)=gdr(1:3,ll)+g3tmp(1:3,3)
       eangl=eangl+etmp
 
 !     hydrogen charge scaled term
-      ex1h=exp(ffData%hbst*q(H))
-      ex2h=ex1h+ffData%hbsf
+      ex1h=exp(param%hbst*q(H))
+      ex2h=ex1h+param%hbsf
       qh=ex1h/ex2h
 
 !     hydrogen charge scaled term
-      ex1a=exp(-ffData%hbst*q(A))
-      ex2a=ex1a+ffData%hbsf
+      ex1a=exp(-param%hbst*q(A))
+      ex2a=ex1a+param%hbsf
       qa=ex1a/ex2a
 
 !     hydrogen charge scaled term
-      ex1b=exp(-ffData%hbst*q(B))
-      ex2b=ex1b+ffData%hbsf
+      ex1b=exp(-param%hbst*q(B))
+      ex2b=ex1b+param%hbsf
       qb=ex1b/ex2b
 
 !     max distance to neighbors excluded, would lead to linear C=O-H
       qhoutl=qh*outl
 
 !     constant values, no gradient
-      const = ca(2)*qa*cb(1)*qb*ffData%xhaci_globabh
+      const = ca(2)*qa*cb(1)*qb*param%xhaci_globabh
 
 !     energy
       energy = -rdamp*qhoutl*const+etors+eangl
@@ -2849,9 +2868,9 @@ end subroutine abhgfnff_eg3_add
 ! XB energy and analytical gradient
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
-      use xtb_gfnff_param, only: ffData,rad
+subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr,param)
       implicit none
+      type(TGFFData), intent(in) :: param
       integer               :: A,B,X,n,at(n)
       real*8                :: xyz(3,n)
       real*8,intent(inout)  :: energy,gdr(3,3)
@@ -2875,8 +2894,8 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       gdr =  0
       energy=0
 
-      cb = 1.!ffData%xhbas(at(B))
-      cx = ffData%xbaci(at(X))
+      cb = 1.!param%xhbas(at(B))
+      cx = param%xbaci(at(X))
 
 !     compute distances
       drax(1:3) = xyz(1:3,A)-xyz(1:3,X)
@@ -2896,31 +2915,31 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       rbx  = sqrt(rbx2)+1.d-12
 
 !     out-of-line damp
-      expo   = ffData%xbacut*((rax+rbx)/rab-1.d0)
+      expo   = param%xbacut*((rax+rbx)/rab-1.d0)
       if(expo.gt.15.0d0) return ! avoid overflow
       ratio2 = exp(expo)
       outl   = 2.d0/(1.d0+ratio2)
 
 !     long damping
-      ratio1 = (rbx2/ffData%hblongcut_xb)**ffData%hbalp
+      ratio1 = (rbx2/param%hblongcut_xb)**param%hbalp
       dampl  = 1.d0/(1.d0+ratio1)
 
 !     short damping
-      shortcut = ffData%xbscut*(rad(at(A))+rad(at(B)))
-      ratio3   = (shortcut/rbx2)**ffData%hbalp
+      shortcut = param%xbscut*(param%rad(at(A))+param%rad(at(B)))
+      ratio3   = (shortcut/rbx2)**param%hbalp
       damps    = 1.d0/(1.d0+ratio3)
 
       damp  = damps*dampl
       rdamp = damp/rbx2/rbx ! **2
 
 !     halogen charge scaled term
-      ex1_x = exp(ffData%xbst*q(X))
-      ex2_x = ex1_x+ffData%xbsf
+      ex1_x = exp(param%xbst*q(X))
+      ex2_x = ex1_x+param%xbsf
       qx    = ex1_x/ex2_x
 
 !     donor charge scaled term
-      ex1_b = exp(-ffData%xbst*q(B))
-      ex2_b = ex1_b+ffData%xbsf
+      ex1_b = exp(-param%xbst*q(B))
+      ex2_b = ex1_b+param%xbsf
       qb    = ex1_b/ex2_b
 
 !     constant values, no gradient
@@ -2932,7 +2951,7 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
       energy= -rdamp*outl*const
 
 !     damping part rab
-      gi = rdamp*(-(2.d0*ffData%hbalp*ratio1/(1.d0+ratio1))+(2.d0*ffData%hbalp*ratio3&
+      gi = rdamp*(-(2.d0*param%hbalp*ratio1/(1.d0+ratio1))+(2.d0*param%hbalp*ratio3&
      &     /(1.d0+ratio3))-3.d0)/rbx2   ! 4,5,6 instead of 3.
       gi = gi*dterm
       dg(1:3) = gi*drbx(1:3)
@@ -2971,9 +2990,9 @@ subroutine rbxgfnff_eg(n,A,B,X,at,xyz,q,energy,gdr)
 ! taken from D3 ATM code
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
-      use xtb_gfnff_param, only: repz, ffData
+subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g,param)
       implicit none
+      type(TGFFData), intent(in) :: param
       integer iat,jat,kat,n,at(n)
       real*8 xyz(3,n),energy,g(3,3),q(n)
       real*8 sqrab(n*(n+1)/2)   ! squared dist
@@ -2992,7 +3011,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
       fk=(1.d0-fqq*q(kat))
       fk=min(max(fk,-4.0d0),4.0d0)
       ff=fi*fj*fk ! charge term
-      c9=ff*ffData%zb3atm(at(iat))*ffData%zb3atm(at(jat))*ffData%zb3atm(at(kat)) ! strength of interaction
+      c9=ff*param%zb3atm(at(iat))*param%zb3atm(at(jat))*param%zb3atm(at(kat)) ! strength of interaction
       linij=lina(iat,jat)
       linik=lina(iat,kat)
       linjk=lina(jat,kat)
@@ -3041,10 +3060,11 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g)
 ! CN routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !> logCN derivative saved in dlogCN array
-subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
+subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2,param)
       use iso_fortran_env, only : wp => real64
       use xtb_disp_dftd4, only : rcov
       implicit none
+      type(TGFFData), intent(in) :: param
       integer, intent(in)  :: n
       integer, intent(in)  :: at(n)
       real(wp),intent(in)  :: xyz(3,n)
@@ -3099,13 +3119,13 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
       !> create cutted logarithm CN + derivatives
       do i = 1, n
          ii=i*(i-1)/2
-         logCN(i) = create_logCN(cn(i))
+         logCN(i) = create_logCN(cn(i),param)
          !> get dlogCN/dCNi
-         dlogdcni = create_dlogCN(cn(i))
+         dlogdcni = create_dlogCN(cn(i),param)
          do j = 1, i-1
             ij = ii+j
             !> get dlogCN/dCNj
-            dlogdcnj = create_dlogCN(cn(j))
+            dlogdcnj = create_dlogCN(cn(j),param)
             r = rab(ij)
             if (r.gt.thr) cycle
             r0 = (rcov(at(i)) + rcov(at(j)))
@@ -3123,20 +3143,20 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2)
 
     contains
 
-pure elemental function create_logCN(cn) result(count)
+pure elemental function create_logCN(cn,param) result(count)
       use iso_fortran_env, only : wp => real64
-      use xtb_gfnff_param,only : ffData
+      type(TGFFData), intent(in) :: param
    real(wp), intent(in) :: cn
    real(wp) :: count
-   count = log(1 + exp(ffData%cnmax)) - log(1 + exp(ffData%cnmax - cn) )
+   count = log(1 + exp(param%cnmax)) - log(1 + exp(param%cnmax - cn) )
 end function create_logCN
 
-pure elemental function create_dlogCN(cn) result(count)
+pure elemental function create_dlogCN(cn,param) result(count)
       use iso_fortran_env, only : wp => real64
-      use xtb_gfnff_param,only : ffData
+      type(TGFFData), intent(in) :: param
    real(wp), intent(in) :: cn
    real(wp) :: count
-   count = exp(ffData%cnmax)/(exp(ffData%cnmax) + exp(cn))
+   count = exp(param%cnmax)/(exp(param%cnmax) + exp(cn))
 end function create_dlogCN
 
 pure elemental function create_erfCN(k,r,r0) result(count)

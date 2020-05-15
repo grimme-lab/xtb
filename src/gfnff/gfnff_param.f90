@@ -244,8 +244,8 @@ module xtb_gfnff_param
       & 0.219729_wp, 0.344830_wp, 0.331862_wp, 0.767979_wp, 0.536799_wp, &
       & 0.500000_wp]
 
-   type(TGFFData), protected :: ffData
-   type(TGFFGenerator), protected :: ffGen
+   type(TGFFData) :: ffData
+   type(TGFFGenerator) :: ffGen
    type(TGFFTopology) :: ffTopo
 
 !----------------------------------------------------------------------------------------
@@ -263,15 +263,12 @@ module xtb_gfnff_param
 
    integer  :: ffmode
 
-   !file type read
-   integer  :: read_file_type
-
    !========================================================================
    ! DATA
    !------------------------------------------------------------------------
 
    !Pauling EN
-   real(wp), parameter :: en(1:86) = [&
+   real(wp), private, parameter :: en(1:86) = [&
   &         2.200,3.000,0.980,1.570,2.040,2.550,3.040,3.440,3.980 &
   &        ,4.500,0.930,1.310,1.610,1.900,2.190,2.580,3.160,3.500 &
   &        ,0.820,1.000,1.360,1.540,1.630,1.660,1.550,1.830,1.880 &
@@ -287,7 +284,7 @@ module xtb_gfnff_param
    ! in CRC Handbook of Chemistry and Physics, 91st Edition (2010-2011),
    ! edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
    ! corrected Nov. 17, 2010 for the 92nd edition.
-   real(wp), parameter :: rad(1:86) = [&
+   real(wp), private, parameter :: rad(1:86) = [&
   &0.32D0,0.37D0,1.30D0,0.99D0,0.84D0,0.75D0,0.71D0,0.64D0,0.60D0,&
   &0.62D0,1.60D0,1.40D0,1.24D0,1.14D0,1.09D0,1.04D0,1.00D0,1.01D0,&
   &2.00D0,1.74D0,1.59D0,1.48D0,1.44D0,1.30D0,1.29D0,1.24D0,1.18D0,&
@@ -299,7 +296,7 @@ module xtb_gfnff_param
   &1.58D0,1.50D0,1.41D0,1.36D0,1.32D0,1.30D0,1.30D0,1.32D0,1.44D0,&
   &1.45D0,1.50D0,1.42D0,1.48D0,1.46D0]
 
-   integer, parameter :: metal(86) = (/ &
+   integer, private, parameter :: metal(86) = (/ &
   &0,                                                                0,&!He
   &1,1,                                               0, 0, 0, 0, 0, 0,&!Ne
   &1,1,                                               1, 0, 0, 0, 0, 0,&!Ar
@@ -307,21 +304,21 @@ module xtb_gfnff_param
   &1,2,2,                2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 0, 0, 0, 0,&!Xe
   &1,2,2,spread(2,1,14), 2, 2, 2, 2, 2, 2, 2, 2, 2,   1, 1, 1, 1, 0, 0/)!Rn
   ! At is NOT a metal, Po is borderline but slightly better as metal
-   integer, parameter :: group(86) = (/ &
+   integer, private, parameter :: group(86) = (/ &
   &1,                                                                   8,&!He
   &1,2,                                                  3, 4, 5, 6, 7, 8,&!Ne
   &1,2,                                                  3, 4, 5, 6, 7, 8,&!Ar
   &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Kr
   &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Xe
   &1,2,-3,spread(-3,1,14), -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8/)!Rn
-   integer, parameter :: normcn(86) = (/ &  ! only for non metals well defined
+   integer, private, parameter :: normcn(86) = (/ &  ! only for non metals well defined
   &1,                                                                0,&!He
   &4,4,                                               4, 4, 4, 2, 1, 0,&!Ne
   &4,4,                                               4, 4, 4, 2, 1, 0,&!Ar
   &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Kr
   &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Xe
   &4,4,4,spread(4,1,14), 4, 6, 6, 6, 6, 6, 6, 6, 4,   4, 4, 4, 4, 1, 0/) !Rn
-   real(wp), parameter :: repz(86) =   (/ &
+   real(wp), private, parameter :: repz(86) =   (/ &
   &1.,                                                                    2.,&!He
   &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ne
   &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ar
@@ -331,92 +328,94 @@ module xtb_gfnff_param
 
    contains
 
-   subroutine gfnff_set_param(n)
+   subroutine gfnff_set_param(n, gen, param)
      use xtb_mctc_accuracy, only : wp 
      use xtb_disp_dftd4, only : r2r4 => r4r2, rcov
      implicit none
 !    Dummy                      ,
      integer,intent(in)  :: n
+     type(TGFFGenerator), intent(out) :: gen
+     type(TGFFData), intent(inout) :: param
 !    Stack
      integer   :: i,j,k
      real(wp)  :: dum
 
-     call newGFNFFGenerator(ffGen)
+     call newGFNFFGenerator(gen)
 
-     ffData%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
-     ffData%atcuta  = 0.595d0     ! angle damping
-     ffData%atcutt  = 0.505d0     ! torsion angle damping
-     ffData%atcuta_nci  = 0.395d0 ! nci angle damping in HB term
-     ffData%atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
-     ffData%repscalb= 1.7583      ! bonded rep. scaling
-     ffData%repscaln= 0.4270      ! non-bonded rep. scaling
-     ffData%hbacut   =49.         ! HB angle cut-off
-     ffData%hbscut   =22.         ! HB SR     "   "
-     ffData%xbacut   =70.         ! same for XB
-     ffData%xbscut   = 5.         !
-     ffData%hbsf     = 1.         ! charge dep.
-     ffData%hbst     =15.         ! 10 is better for S22, 20 better for HCN2 and S30L
-     ffData%xbsf     =0.03        !
-     ffData%xbst     =15.         !
-     ffData%hbalp    = 6.         ! damp
-     ffData%hblongcut=85.         ! values larger than 85 yield large RMSDs for P26
-     ffData%hblongcut_xb=70.      ! values larger than 70 yield large MAD for HAL28
-     ffData%hbabmix  =0.80        !
-     ffData%hbnbcut  =11.20       !
-     ffData%tors_hb   =0.94       ! torsion potential shift in HB term
-     ffData%bend_hb   =0.20       ! bending potential shift in HB term
-     ffData%vbond_scale=0.9       ! vbond(2) scaling for CN(H) = 1
-     ffData%xhaci_globabh=0.268   ! A-H...B gen. scaling
-     ffData%xhaci_coh=0.350       ! A-H...O=C gen. scaling
-     ffData%xhaci_glob=1.50       ! acidity
-     ffData%xhbas(:) = 0.0_wp
-     ffData%xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
-     ffData%xhbas( 7)=1.68d0
-     ffData%xhbas( 8)=0.67d0
-     ffData%xhbas( 9)=0.52d0
-     ffData%xhbas(14)=4.0d0
-     ffData%xhbas(15)=3.5d0
-     ffData%xhbas(16)=2.0d0
-     ffData%xhbas(17)=1.5d0
-     ffData%xhbas(35)=1.5d0
-     ffData%xhbas(53)=1.9d0
-     ffData%xhbas(33)=ffData%xhbas(15)
-     ffData%xhbas(34)=ffData%xhbas(16)
-     ffData%xhbas(51)=ffData%xhbas(15)
-     ffData%xhbas(52)=ffData%xhbas(16)
-     ffData%xhaci(:) = 0.0_wp
-     ffData%xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
-     ffData%xhaci( 7)=ffData%xhaci_glob+0.1
-     ffData%xhaci( 8)=ffData%xhaci_glob
-     ffData%xhaci( 9)=ffData%xhaci_glob
-     ffData%xhaci(15)=ffData%xhaci_glob
-     ffData%xhaci(16)=ffData%xhaci_glob
-     ffData%xhaci(17)=ffData%xhaci_glob+1.0
-     ffData%xhaci(35)=ffData%xhaci_glob+1.0
-     ffData%xhaci(53)=ffData%xhaci_glob+1.0
-     ffData%xbaci(:) = 0.0_wp
-     ffData%xbaci(15)=1.0d0              ! XB acidities
-     ffData%xbaci(16)=1.0d0
-     ffData%xbaci(17)=0.5d0
-     ffData%xbaci(33)=1.2d0
-     ffData%xbaci(34)=1.2d0
-     ffData%xbaci(35)=0.9d0
-     ffData%xbaci(51)=1.2d0
-     ffData%xbaci(52)=1.2d0
-     ffData%xbaci(53)=1.2d0
+     param%cnmax   = 4.4         ! max. CN considered ie all larger values smoothly set to this val
+     param%atcuta  = 0.595d0     ! angle damping
+     param%atcutt  = 0.505d0     ! torsion angle damping
+     param%atcuta_nci  = 0.395d0 ! nci angle damping in HB term
+     param%atcutt_nci  = 0.305d0 ! nci torsion angle damping in HB term
+     param%repscalb= 1.7583      ! bonded rep. scaling
+     param%repscaln= 0.4270      ! non-bonded rep. scaling
+     param%hbacut   =49.         ! HB angle cut-off
+     param%hbscut   =22.         ! HB SR     "   "
+     param%xbacut   =70.         ! same for XB
+     param%xbscut   = 5.         !
+     param%hbsf     = 1.         ! charge dep.
+     param%hbst     =15.         ! 10 is better for S22, 20 better for HCN2 and S30L
+     param%xbsf     =0.03        !
+     param%xbst     =15.         !
+     param%hbalp    = 6.         ! damp
+     param%hblongcut=85.         ! values larger than 85 yield large RMSDs for P26
+     param%hblongcut_xb=70.      ! values larger than 70 yield large MAD for HAL28
+     param%hbabmix  =0.80        !
+     param%hbnbcut  =11.20       !
+     param%tors_hb   =0.94       ! torsion potential shift in HB term
+     param%bend_hb   =0.20       ! bending potential shift in HB term
+     param%vbond_scale=0.9       ! vbond(2) scaling for CN(H) = 1
+     param%xhaci_globabh=0.268   ! A-H...B gen. scaling
+     param%xhaci_coh=0.350       ! A-H...O=C gen. scaling
+     param%xhaci_glob=1.50       ! acidity
+     param%xhbas(:) = 0.0_wp
+     param%xhbas( 6)=0.80d0      ! basicities (XB and HB), i.e., B...X-A or B...H..A
+     param%xhbas( 7)=1.68d0
+     param%xhbas( 8)=0.67d0
+     param%xhbas( 9)=0.52d0
+     param%xhbas(14)=4.0d0
+     param%xhbas(15)=3.5d0
+     param%xhbas(16)=2.0d0
+     param%xhbas(17)=1.5d0
+     param%xhbas(35)=1.5d0
+     param%xhbas(53)=1.9d0
+     param%xhbas(33)=param%xhbas(15)
+     param%xhbas(34)=param%xhbas(16)
+     param%xhbas(51)=param%xhbas(15)
+     param%xhbas(52)=param%xhbas(16)
+     param%xhaci(:) = 0.0_wp
+     param%xhaci( 6)=0.75               ! HB acidities, a bit weaker for CH
+     param%xhaci( 7)=param%xhaci_glob+0.1
+     param%xhaci( 8)=param%xhaci_glob
+     param%xhaci( 9)=param%xhaci_glob
+     param%xhaci(15)=param%xhaci_glob
+     param%xhaci(16)=param%xhaci_glob
+     param%xhaci(17)=param%xhaci_glob+1.0
+     param%xhaci(35)=param%xhaci_glob+1.0
+     param%xhaci(53)=param%xhaci_glob+1.0
+     param%xbaci(:) = 0.0_wp
+     param%xbaci(15)=1.0d0              ! XB acidities
+     param%xbaci(16)=1.0d0
+     param%xbaci(17)=0.5d0
+     param%xbaci(33)=1.2d0
+     param%xbaci(34)=1.2d0
+     param%xbaci(35)=0.9d0
+     param%xbaci(51)=1.2d0
+     param%xbaci(52)=1.2d0
+     param%xbaci(53)=1.2d0
 
 !    3B bond prefactors and D3 stuff
      k=0
      do i=1,86
         dum=dble(i)
-        ffData%zb3atm(i)=dum*ffGen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
+        param%zb3atm(i)=dum*gen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
         do j=1,i
            k=k+1
            dum=r2r4(i)*r2r4(j)*3.0d0
-           ffData%d3r0(k)=(ffGen%d3a1*dsqrt(dum)+ffGen%d3a2)**2   ! save R0^2 for efficiency reasons
+           param%d3r0(k)=(gen%d3a1*dsqrt(dum)+gen%d3a2)**2   ! save R0^2 for efficiency reasons
         enddo
      enddo
-     ffData%zb3atm(1)=0.25d0*ffGen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
+     param%zb3atm(1)=0.25d0*gen%batmscal**(1.d0/3.d0) ! slightly better than 1.0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! numerical precision settings
@@ -434,114 +433,124 @@ module xtb_gfnff_param
    end subroutine gfnff_set_param
 
 
-   subroutine gfnff_read_param(iunit)
+   subroutine gfnff_read_param(iunit, param)
      use xtb_mctc_accuracy, only : wp 
      implicit none
 !    Dummy
      integer,intent(in)  :: iunit
+     type(TGFFData), intent(out) :: param
 !    Stack
      integer  :: i,nn
      real(wp) :: xx(20)
      character(len=256) :: atmp
 
-     call init(ffData, 86)
+     call init(param, 86)
+
+     param%en(:) = en
+     param%rad(:) = rad
+     param%metal(:) = metal
+     param%group(:) = group
+     param%normcn(:) = normcn
+     param%repz(:) = repz
 
      do i=1,86
          read(iunit,'(a)')atmp
          call readl(atmp,xx,nn)
-         ffData%chi(i)=xx(2)
-         ffData%gam(i)=xx(3)
-         ffData%cnf(i)=xx(4)
-         ffData%alp(i)=xx(5)
-         ffData%bond(i)=xx(6)
-         ffData%repa(i)=xx(7)
-         ffData%repan(i)=xx(8)
-         ffData%angl(i)=xx(9)
-         ffData%angl2(i)=xx(10)
-         ffData%tors(i)=xx(11)
-         ffData%tors2(i)=xx(12)
+         param%chi(i)=xx(2)
+         param%gam(i)=xx(3)
+         param%cnf(i)=xx(4)
+         param%alp(i)=xx(5)
+         param%bond(i)=xx(6)
+         param%repa(i)=xx(7)
+         param%repan(i)=xx(8)
+         param%angl(i)=xx(9)
+         param%angl2(i)=xx(10)
+         param%tors(i)=xx(11)
+         param%tors2(i)=xx(12)
       enddo
 
    end subroutine gfnff_read_param
 
-   subroutine gfnff_param_alloc(n)
+   subroutine gfnff_param_alloc(topo, n)
      use xtb_mctc_accuracy, only : wp 
      implicit none
 !    Dummy
+     type(TGFFTopology), intent(inout) :: topo
      integer,intent(in) :: n
 
-     if (.not.allocated(ffTopo%nb)) allocate( ffTopo%nb(20,n), source = 0 )
-     if (.not.allocated(ffTopo%bpair)) allocate( ffTopo%bpair(n*(n+1)/2), source = 0 )
-     if (.not.allocated(ffTopo%alphanb)) allocate( ffTopo%alphanb(n*(n+1)/2), source = 0.0d0 )
-     if (.not.allocated(ffTopo%chieeq)) allocate( ffTopo%chieeq(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%gameeq)) allocate( ffTopo%gameeq(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%alpeeq)) allocate( ffTopo%alpeeq(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%qa)) allocate( ffTopo%qa(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%q)) allocate( ffTopo%q(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%hbrefgeo)) allocate( ffTopo%hbrefgeo(3,n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%zetac6)) allocate( ffTopo%zetac6(n*(n+1)/2), source = 0.0d0 )
-     if (.not.allocated(ffTopo%xyze0)) allocate( ffTopo%xyze0(3,n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%b3list)) allocate( ffTopo%b3list(3,1000*n), source = 0 )
-     if (.not.allocated(ffTopo%fraglist)) allocate( ffTopo%fraglist(n), source = 0 )
-     if (.not.allocated(ffTopo%qfrag)) allocate( ffTopo%qfrag(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%hbatHl)) allocate( ffTopo%hbatHl(n), source = 0 )
-     if (.not.allocated(ffTopo%hbbas)) allocate( ffTopo%hbbas(n), source = 0.0d0 )
-     if (.not.allocated(ffTopo%hbatABl)) allocate( ffTopo%hbatABl(2,n*(n+1)/2), source = 0 )
-     if (.not.allocated(ffTopo%xbatABl)) allocate( ffTopo%xbatABl(3,ffTopo%natxbAB), source = 0 )
+     if (.not.allocated(topo%nb)) allocate( topo%nb(20,n), source = 0 )
+     if (.not.allocated(topo%bpair)) allocate( topo%bpair(n*(n+1)/2), source = 0 )
+     if (.not.allocated(topo%alphanb)) allocate( topo%alphanb(n*(n+1)/2), source = 0.0d0 )
+     if (.not.allocated(topo%chieeq)) allocate( topo%chieeq(n), source = 0.0d0 )
+     if (.not.allocated(topo%gameeq)) allocate( topo%gameeq(n), source = 0.0d0 )
+     if (.not.allocated(topo%alpeeq)) allocate( topo%alpeeq(n), source = 0.0d0 )
+     if (.not.allocated(topo%qa)) allocate( topo%qa(n), source = 0.0d0 )
+     if (.not.allocated(topo%q)) allocate( topo%q(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbrefgeo)) allocate( topo%hbrefgeo(3,n), source = 0.0d0 )
+     if (.not.allocated(topo%zetac6)) allocate( topo%zetac6(n*(n+1)/2), source = 0.0d0 )
+     if (.not.allocated(topo%xyze0)) allocate( topo%xyze0(3,n), source = 0.0d0 )
+     if (.not.allocated(topo%b3list)) allocate( topo%b3list(3,1000*n), source = 0 )
+     if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(n), source = 0 )
+     if (.not.allocated(topo%qfrag)) allocate( topo%qfrag(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbatHl)) allocate( topo%hbatHl(n), source = 0 )
+     if (.not.allocated(topo%hbbas)) allocate( topo%hbbas(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbatABl)) allocate( topo%hbatABl(2,n*(n+1)/2), source = 0 )
+     if (.not.allocated(topo%xbatABl)) allocate( topo%xbatABl(3,topo%natxbAB), source = 0 )
 
-     if (.not.allocated(ffTopo%blist)) allocate( ffTopo%blist(2,ffTopo%nbond_blist), source = 0 )
-     if (.not.allocated(ffTopo%nr_hb)) allocate( ffTopo%nr_hb(ffTopo%nbond_blist), source = 0 )
-     if (.not.allocated(ffTopo%bond_hb_AH)) allocate( ffTopo%bond_hb_AH(2,ffTopo%bond_hb_nr), source = 0 )
-     if (.not.allocated(ffTopo%bond_hb_B)) allocate( ffTopo%bond_hb_B(ffTopo%b_max,ffTopo%bond_hb_nr), source = 0 )
-     if (.not.allocated(ffTopo%bond_hb_Bn)) allocate( ffTopo%bond_hb_Bn(ffTopo%bond_hb_nr), source = 0 )
-     if (.not.allocated(ffTopo%alist)) allocate( ffTopo%alist(3,ffTopo%nangl_alloc), source = 0 )
-     if (.not.allocated(ffTopo%tlist)) allocate( ffTopo%tlist(5,ffTopo%ntors_alloc), source = 0 )
-     if (.not.allocated(ffTopo%vbond)) allocate( ffTopo%vbond(3,ffTopo%nbond_vbond), source = 0.0d0 )
-     if (.not.allocated(ffTopo%vangl)) allocate( ffTopo%vangl(2,ffTopo%nangl_alloc), source = 0.0d0 )
-     if (.not.allocated(ffTopo%vtors)) allocate( ffTopo%vtors(2,ffTopo%ntors_alloc), source = 0.0d0 )
-     if (.not.allocated(ffTopo%hblist1)) allocate( ffTopo%hblist1(3,ffTopo%nhb1), source = 0 )
-     if (.not.allocated(ffTopo%hblist2)) allocate( ffTopo%hblist2(3,ffTopo%nhb2), source = 0 )
-     if (.not.allocated(ffTopo%hblist3)) allocate( ffTopo%hblist3(3,ffTopo%nxb), source = 0 )
+     if (.not.allocated(topo%blist)) allocate( topo%blist(2,topo%nbond_blist), source = 0 )
+     if (.not.allocated(topo%nr_hb)) allocate( topo%nr_hb(topo%nbond_blist), source = 0 )
+     if (.not.allocated(topo%bond_hb_AH)) allocate( topo%bond_hb_AH(2,topo%bond_hb_nr), source = 0 )
+     if (.not.allocated(topo%bond_hb_B)) allocate( topo%bond_hb_B(topo%b_max,topo%bond_hb_nr), source = 0 )
+     if (.not.allocated(topo%bond_hb_Bn)) allocate( topo%bond_hb_Bn(topo%bond_hb_nr), source = 0 )
+     if (.not.allocated(topo%alist)) allocate( topo%alist(3,topo%nangl_alloc), source = 0 )
+     if (.not.allocated(topo%tlist)) allocate( topo%tlist(5,topo%ntors_alloc), source = 0 )
+     if (.not.allocated(topo%vbond)) allocate( topo%vbond(3,topo%nbond_vbond), source = 0.0d0 )
+     if (.not.allocated(topo%vangl)) allocate( topo%vangl(2,topo%nangl_alloc), source = 0.0d0 )
+     if (.not.allocated(topo%vtors)) allocate( topo%vtors(2,topo%ntors_alloc), source = 0.0d0 )
+     if (.not.allocated(topo%hblist1)) allocate( topo%hblist1(3,topo%nhb1), source = 0 )
+     if (.not.allocated(topo%hblist2)) allocate( topo%hblist2(3,topo%nhb2), source = 0 )
+     if (.not.allocated(topo%hblist3)) allocate( topo%hblist3(3,topo%nxb), source = 0 )
 
    end subroutine gfnff_param_alloc
 
-   subroutine gfnff_param_dealloc()
+   subroutine gfnff_param_dealloc(topo)
      use xtb_mctc_accuracy, only : wp 
      implicit none
+     type(TGFFTopology), intent(inout) :: topo
 !    Dummy
 
-     if (allocated(ffTopo%nb)) deallocate( ffTopo%nb )
-     if (allocated(ffTopo%bpair)) deallocate( ffTopo%bpair )
-     if (allocated(ffTopo%alphanb)) deallocate( ffTopo%alphanb )
-     if (allocated(ffTopo%chieeq)) deallocate( ffTopo%chieeq )
-     if (allocated(ffTopo%gameeq)) deallocate( ffTopo%gameeq )
-     if (allocated(ffTopo%alpeeq)) deallocate( ffTopo%alpeeq )
-     if (allocated(ffTopo%qa)) deallocate( ffTopo%qa )
-     if (allocated(ffTopo%q)) deallocate( ffTopo%q )
-     if (allocated(ffTopo%hbrefgeo)) deallocate( ffTopo%hbrefgeo )
-     if (allocated(ffTopo%zetac6)) deallocate( ffTopo%zetac6 )
-     if (allocated(ffTopo%xyze0)) deallocate( ffTopo%xyze0 )
-     if (allocated(ffTopo%b3list)) deallocate( ffTopo%b3list )
-     if (allocated(ffTopo%fraglist)) deallocate( ffTopo%fraglist )
-     if (allocated(ffTopo%qfrag)) deallocate( ffTopo%qfrag )
-     if (allocated(ffTopo%hbatHl)) deallocate( ffTopo%hbatHl )
-     if (allocated(ffTopo%hbbas)) deallocate( ffTopo%hbbas )
-     if (allocated(ffTopo%hbatABl)) deallocate( ffTopo%hbatABl )
-     if (allocated(ffTopo%xbatABl)) deallocate( ffTopo%xbatABl )
+     if (allocated(topo%nb)) deallocate( topo%nb )
+     if (allocated(topo%bpair)) deallocate( topo%bpair )
+     if (allocated(topo%alphanb)) deallocate( topo%alphanb )
+     if (allocated(topo%chieeq)) deallocate( topo%chieeq )
+     if (allocated(topo%gameeq)) deallocate( topo%gameeq )
+     if (allocated(topo%alpeeq)) deallocate( topo%alpeeq )
+     if (allocated(topo%qa)) deallocate( topo%qa )
+     if (allocated(topo%q)) deallocate( topo%q )
+     if (allocated(topo%hbrefgeo)) deallocate( topo%hbrefgeo )
+     if (allocated(topo%zetac6)) deallocate( topo%zetac6 )
+     if (allocated(topo%xyze0)) deallocate( topo%xyze0 )
+     if (allocated(topo%b3list)) deallocate( topo%b3list )
+     if (allocated(topo%fraglist)) deallocate( topo%fraglist )
+     if (allocated(topo%qfrag)) deallocate( topo%qfrag )
+     if (allocated(topo%hbatHl)) deallocate( topo%hbatHl )
+     if (allocated(topo%hbbas)) deallocate( topo%hbbas )
+     if (allocated(topo%hbatABl)) deallocate( topo%hbatABl )
+     if (allocated(topo%xbatABl)) deallocate( topo%xbatABl )
 
-     if (allocated(ffTopo%blist)) deallocate( ffTopo%blist )
-     if (allocated(ffTopo%nr_hb)) deallocate( ffTopo%nr_hb )
-     if (allocated(ffTopo%bond_hb_AH)) deallocate( ffTopo%bond_hb_AH )
-     if (allocated(ffTopo%bond_hb_B)) deallocate( ffTopo%bond_hb_B )
-     if (allocated(ffTopo%bond_hb_Bn)) deallocate( ffTopo%bond_hb_Bn )
-     if (allocated(ffTopo%alist)) deallocate( ffTopo%alist )
-     if (allocated(ffTopo%tlist)) deallocate( ffTopo%tlist )
-     if (allocated(ffTopo%vbond)) deallocate( ffTopo%vbond )
-     if (allocated(ffTopo%vangl)) deallocate( ffTopo%vangl )
-     if (allocated(ffTopo%vtors)) deallocate( ffTopo%vtors )
-     if (allocated(ffTopo%hblist1)) deallocate( ffTopo%hblist1 )
-     if (allocated(ffTopo%hblist2)) deallocate( ffTopo%hblist2 )
-     if (allocated(ffTopo%hblist3)) deallocate( ffTopo%hblist3 )
+     if (allocated(topo%blist)) deallocate( topo%blist )
+     if (allocated(topo%nr_hb)) deallocate( topo%nr_hb )
+     if (allocated(topo%bond_hb_AH)) deallocate( topo%bond_hb_AH )
+     if (allocated(topo%bond_hb_B)) deallocate( topo%bond_hb_B )
+     if (allocated(topo%bond_hb_Bn)) deallocate( topo%bond_hb_Bn )
+     if (allocated(topo%alist)) deallocate( topo%alist )
+     if (allocated(topo%tlist)) deallocate( topo%tlist )
+     if (allocated(topo%vbond)) deallocate( topo%vbond )
+     if (allocated(topo%vangl)) deallocate( topo%vangl )
+     if (allocated(topo%vtors)) deallocate( topo%vtors )
+     if (allocated(topo%hblist1)) deallocate( topo%hblist1 )
+     if (allocated(topo%hblist2)) deallocate( topo%hblist2 )
+     if (allocated(topo%hblist3)) deallocate( topo%hblist3 )
 
    end subroutine gfnff_param_dealloc
 

@@ -30,7 +30,7 @@ module xtb_gfnff_calculator
    use xtb_solv_gbobc, only : lgbsa
    use xtb_metadynamic
    use xtb_constrainpot
-   use xtb_gfnff_param, only : make_chrg,gff_print
+   use xtb_gfnff_param, only : make_chrg,gff_print,ffData,ffTopo
    use xtb_gfnff_eg
    implicit none
    private
@@ -117,7 +117,8 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  actual calculation
-   call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg,gradient,energy,results)
+   call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg, &
+      & gradient,energy,results,ffData,ffTopo)
 
    call env%check(exitRun)
    if (exitRun) then

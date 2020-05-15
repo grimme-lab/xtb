@@ -29,9 +29,10 @@
 
        contains
 
-       subroutine init_shake(nat,at,xyz)
-       use xtb_gfnff_param, only: ffTopo
+       subroutine init_shake(nat,at,xyz,topo)
+       use xtb_gfnff_topology, only : TGFFTopology
        implicit none
+       type(TGFFTopology), intent(in) :: topo
        integer :: nat,at(nat)
        real*8  :: xyz(3,nat)
        real*8  :: wbo(nat,nat)
@@ -41,11 +42,11 @@
 
        integer list(nat*(nat+1)/2),lin,ij
 
-      ncons  = ffTopo%nbond
+      ncons  = topo%nbond
       allocate(conslist(2,ncons),distcons(ncons),&
      &         dro(3,ncons),dr(4,ncons))
 
-      conslist(1:2,1:ncons)=ffTopo%blist(1:2,1:ncons)
+      conslist(1:2,1:ncons)=topo%blist(1:2,1:ncons)
       do i = 1, ncons
          iat = conslist(1,i)
          jat = conslist(2,i)

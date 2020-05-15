@@ -84,11 +84,13 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
 end subroutine readRestart
 
 
-subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose)
+subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose,topo)
    use iso_fortran_env, wp => real64, istdout => output_unit
    use xtb_gfnff_param
    use xtb_gfnff_fraghess, only : nsystem,ispinsyst,nspinsyst
+   use xtb_gfnff_topology, only : TGFFTopology
    implicit none
+   type(TGFFTopology), intent(inout) :: topo
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: n
    integer,intent(in)  :: p_ext_gfnff
@@ -115,21 +117,21 @@ subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose)
             return
          else if (iver8.eq.int(p_ext_gfnff)) then
             success = .true.
-            read(ich) ffTopo%nbond,ffTopo%nangl,ffTopo%ntors,ffTopo%nhb1,ffTopo%nhb2,ffTopo%nxb,ffTopo%nathbH,ffTopo%nathbAB,  &
-                    & ffTopo%natxbAB,ffTopo%nbatm,ffTopo%nfrag,nsystem,ffTopo%maxsystem        
-            read(ich) ffTopo%nbond_blist,ffTopo%nbond_vbond,ffTopo%nangl_alloc,ffTopo%ntors_alloc,ffTopo%bond_hb_nr,ffTopo%b_max
-            call gfnff_param_alloc(n)
-            if (.not.allocated(ispinsyst)) allocate( ispinsyst(n,ffTopo%maxsystem), source = 0 )
-            if (.not.allocated(nspinsyst)) allocate( nspinsyst(ffTopo%maxsystem), source = 0 )
-            read(ich) ffTopo%nb,ffTopo%bpair,ffTopo%blist,ffTopo%alist, &
-               & ffTopo%tlist,ffTopo%b3list,ffTopo%hblist1,ffTopo%hblist2, &
-               & ffTopo%hblist3,ffTopo%fraglist,ffTopo%hbatHl,ffTopo%hbatABl, &
-               & ffTopo%xbatABl,ispinsyst,nspinsyst,ffTopo%bond_hb_AH, &
-               & ffTopo%bond_hb_B,ffTopo%bond_hb_Bn,ffTopo%nr_hb
-            read(ich) ffTopo%vbond,ffTopo%vangl,ffTopo%vtors,ffTopo%chieeq, &
-               & ffTopo%gameeq,ffTopo%alpeeq,ffTopo%alphanb,ffTopo%qa, &
-               & ffTopo%q,ffTopo%xyze0,ffTopo%zetac6,&
-               & ffTopo%qfrag,ffTopo%hbbas
+            read(ich) topo%nbond,topo%nangl,topo%ntors,topo%nhb1,topo%nhb2,topo%nxb,topo%nathbH,topo%nathbAB,  &
+                    & topo%natxbAB,topo%nbatm,topo%nfrag,nsystem,topo%maxsystem        
+            read(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
+            call gfnff_param_alloc(topo, n)
+            if (.not.allocated(ispinsyst)) allocate( ispinsyst(n,topo%maxsystem), source = 0 )
+            if (.not.allocated(nspinsyst)) allocate( nspinsyst(topo%maxsystem), source = 0 )
+            read(ich) topo%nb,topo%bpair,topo%blist,topo%alist, &
+               & topo%tlist,topo%b3list,topo%hblist1,topo%hblist2, &
+               & topo%hblist3,topo%fraglist,topo%hbatHl,topo%hbatABl, &
+               & topo%xbatABl,ispinsyst,nspinsyst,topo%bond_hb_AH, &
+               & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
+            read(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq, &
+               & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
+               & topo%q,topo%xyze0,topo%zetac6,&
+               & topo%qfrag,topo%hbbas
          else
             if (verbose) &
                call raise('S','Dimension missmatch in restart file.',1)
@@ -167,11 +169,13 @@ subroutine writeRestart(env,wfx,fname,gfn_method)
 end subroutine writeRestart
 
 
-subroutine write_restart_gff(fname,nat,p_ext_gfnff)
+subroutine write_restart_gff(fname,nat,p_ext_gfnff,topo)
    use iso_fortran_env, wp => real64, istdout => output_unit
    use xtb_gfnff_param
    use xtb_gfnff_fraghess, only : nsystem,ispinsyst,nspinsyst
+   use xtb_gfnff_topology, only : TGFFTopology
    implicit none
+   type(TGFFTopology), intent(in) :: topo
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: nat
    integer,intent(in)  :: p_ext_gfnff
@@ -180,17 +184,17 @@ subroutine write_restart_gff(fname,nat,p_ext_gfnff)
    call open_binary(ich,fname,'w')
    !Dimensions
    write(ich) int(p_ext_gfnff,int64),int(nat,int64)
-   write(ich) ffTopo%nbond,ffTopo%nangl,ffTopo%ntors,   &
-            & ffTopo%nhb1,ffTopo%nhb2,ffTopo%nxb,ffTopo%nathbH,ffTopo%nathbAB,ffTopo%natxbAB,ffTopo%nbatm,ffTopo%nfrag,nsystem,  &
-            & ffTopo%maxsystem
-   write(ich) ffTopo%nbond_blist,ffTopo%nbond_vbond,ffTopo%nangl_alloc,ffTopo%ntors_alloc,ffTopo%bond_hb_nr,ffTopo%b_max
+   write(ich) topo%nbond,topo%nangl,topo%ntors,   &
+            & topo%nhb1,topo%nhb2,topo%nxb,topo%nathbH,topo%nathbAB,topo%natxbAB,topo%nbatm,topo%nfrag,nsystem,  &
+            & topo%maxsystem
+   write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
    !Arrays Integers
-   write(ich) ffTopo%nb,ffTopo%bpair,ffTopo%blist,ffTopo%alist,ffTopo%tlist,ffTopo%b3list,ffTopo%hblist1,ffTopo%hblist2,ffTopo%hblist3, &
-      & ffTopo%fraglist,ffTopo%hbatHl,ffTopo%hbatABl,ffTopo%xbatABl,ispinsyst,nspinsyst,             &
-      & ffTopo%bond_hb_AH,ffTopo%bond_hb_B,ffTopo%bond_hb_Bn,ffTopo%nr_hb
+   write(ich) topo%nb,topo%bpair,topo%blist,topo%alist,topo%tlist,topo%b3list,topo%hblist1,topo%hblist2,topo%hblist3, &
+      & topo%fraglist,topo%hbatHl,topo%hbatABl,topo%xbatABl,ispinsyst,nspinsyst,             &
+      & topo%bond_hb_AH,topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
    !Arrays Reals
-   write(ich) ffTopo%vbond,ffTopo%vangl,ffTopo%vtors,ffTopo%chieeq,ffTopo%gameeq,ffTopo%alpeeq,ffTopo%alphanb,ffTopo%qa,ffTopo%q,       &
-      & ffTopo%xyze0,ffTopo%zetac6,ffTopo%qfrag,ffTopo%hbbas
+   write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,topo%q,       &
+      & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas
    call close_file(ich)
 end subroutine write_restart_gff
 

@@ -57,14 +57,14 @@ subroutine test_gfnff_sp
       call env%terminate("Parameter file '"//fnv//"' not found!")
    endif
    if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
-   call gfnff_read_param(ipar)
+   call gfnff_read_param(ipar, ffData)
    call close_file(ipar)
-   call gfnff_input(env, mol)
-   call gfnff_set_param(mol%n)
+   call gfnff_input(env, mol, ffTopo)
+   call gfnff_set_param(mol%n, ffGen, ffData)
 
    call delete_file('gfnff_topo')
    call delete_file('charges')
-   call gfnff_ini(verbose,.true.,mol,nint(mol%chrg))
+   call gfnff_ini(verbose,.true.,mol,nint(mol%chrg),ffGen,ffData,ffTopo)
 
    call assert_eq(ffTopo%nbond,6)
    call assert_eq(ffTopo%nangl,6)
@@ -73,7 +73,8 @@ subroutine test_gfnff_sp
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,g,etot,res_gff)
+   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
+      & g,etot,res_gff,ffData,ffTopo)
 
    call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
    call assert_close(res_gff%gnorm,   0.06237477492373_wp,thr)
@@ -88,7 +89,7 @@ subroutine test_gfnff_sp
    call assert_close(res_gff%e_batm, -0.00000000000000_wp,thr)
 
    call mol%deallocate
-   call gfnff_param_dealloc()
+   call gfnff_param_dealloc(ffTopo)
 
    call terminate(afail)
 end subroutine test_gfnff_sp
@@ -151,14 +152,14 @@ subroutine test_gfnff_hb
       call env%terminate("Parameter file '"//fnv//"' not found!")
    endif
    if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
-   call gfnff_read_param(ipar)
+   call gfnff_read_param(ipar, ffData)
    call close_file(ipar)
-   call gfnff_input(env, mol)
-   call gfnff_set_param(mol%n)
+   call gfnff_input(env, mol, ffTopo)
+   call gfnff_set_param(mol%n, ffGen, ffData)
 
    call delete_file('gfnff_topo')
    call delete_file('charges')
-   call gfnff_ini(verbose,.true.,mol,nint(mol%chrg))
+   call gfnff_ini(verbose,.true.,mol,nint(mol%chrg),ffGen,ffData,ffTopo)
 
    call assert_eq(ffTopo%nbond,5)
    call assert_eq(ffTopo%nangl,4)
@@ -167,7 +168,8 @@ subroutine test_gfnff_hb
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,g,etot,res_gff)
+   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
+      & g,etot,res_gff,ffData,ffTopo)
 
    call assert_close(res_gff%e_total,-0.949706677118_wp,thr)
    call assert_close(res_gff%gnorm,   0.001152720923_wp,thr)
@@ -182,7 +184,7 @@ subroutine test_gfnff_hb
    call assert_close(res_gff%e_batm, -0.0000000000000_wp,thr)
 
    call mol%deallocate
-   call gfnff_param_dealloc()
+   call gfnff_param_dealloc(ffTopo)
 
    call terminate(afail)
 end subroutine test_gfnff_hb

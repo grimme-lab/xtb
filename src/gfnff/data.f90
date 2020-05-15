@@ -87,6 +87,13 @@ module xtb_gfnff_data
       !> max CN cut-off
       real(wp) :: cnmax
 
+      !> Constant data
+      real(wp), allocatable :: en(:)
+      real(wp), allocatable :: rad(:)
+      integer, allocatable :: metal(:)
+      integer, allocatable :: group(:)
+      integer, allocatable :: normcn(:)
+
       !> rep alpha bond
       real(wp), allocatable :: repa (:)
       real(wp), allocatable :: repan(:)
@@ -144,6 +151,12 @@ subroutine initGFFData(self, ndim)
 
    !> Dimension for allocating space
    integer, intent(in) :: ndim
+
+   allocate(self%en(ndim))
+   allocate(self%rad(ndim))
+   allocate(self%metal(ndim))
+   allocate(self%group(ndim))
+   allocate(self%normcn(ndim))
 
    allocate(self%repa (ndim))
    allocate(self%repan(ndim))

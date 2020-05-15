@@ -951,6 +951,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    use xtb_setparam
    use xtb_type_calculator
    use xtb_gfnff_calculator
+   use xtb_gfnff_param, only : ffData, ffTopo
 !
 !       generates a Lindh Model Hessian
 !       Chem. Phys. Let. 241(1995) 423-428
@@ -1005,7 +1006,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
       select case(modh%model)
       case default
          if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
-         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6)
+         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, ffData, ffTopo)
       case(p_modh_lindh_d2)
         if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
         call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
