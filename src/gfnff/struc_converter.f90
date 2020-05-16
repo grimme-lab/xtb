@@ -41,6 +41,7 @@ subroutine struc_convert( &
   use xtb_geoopt
   use xtb_readin, only : xfind
   use xtb_disp_dftd4, only : d3init
+  use xtb_main_setup, only : newGFFCalculator
   implicit none
 ! Dummy -----------------------------------------------------------------------
   type(TEnvironment),intent(inout)            :: env
@@ -74,18 +75,10 @@ subroutine struc_convert( &
   mode_input = mode_extrun
   mode_extrun = p_ext_gfnff
   if (.not.allocated(fnv)) fnv=xfind(p_fname_param_gfnff)
-  call open_file(ich,fnv,'r')
-  exist = ich .ne. -1
-  if (exist) then
-     write(*,'(10x,"2D input recognized, conversion to 3D using GFN-FF:")')
-     call gfnff_read_param(ich, calc%param)
-     call close_file(ich)
-  end if
-  call d3init(mol%n, mol%at)
-  call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,calc%gen,calc%param,calc%topo)
+  call newGFFCalculator(env, mol, calc, fnv, restart, gffVersion%harmonic2020)
+
 !===============================
 ! Set Block
-  ffmode   = -1                  ! just simple rep+harm. on bonds FF
   time_in  = time_md
   time_md  = 5.0_wp              ! short 5 ps MD to move it in 3D
   temp_in  = temp_md

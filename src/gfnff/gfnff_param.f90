@@ -22,10 +22,9 @@ module xtb_gfnff_param
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
    private
-   public :: ini, gff_print, make_chrg, efield, ffmode
-   public :: cnthr, repthr, dispthr, hbthr1, hbthr2, accff
+   public :: ini, gff_print, make_chrg, efield
    public :: gfnff_set_param, gfnff_load_param, gfnff_read_param
-   public :: gfnff_param_alloc, gfnff_param_dealloc
+   public :: gfnff_param_alloc, gfnff_param_dealloc, gfnff_thresholds
    public :: gffVersion
 
 
@@ -34,6 +33,9 @@ module xtb_gfnff_param
 
       !> Version published in Angew. Chem. 2020
       integer :: angewChem2020 = 1
+
+      !> Harmonic potential version of the Angew. Chem. 2020
+      integer :: harmonic2020 = -1
 
    end type TGFFVersionEnum
 
@@ -274,18 +276,6 @@ module xtb_gfnff_param
 !----------------------------------------------------------------------------------------
    real(wp) :: efield(3)              ! electric field components
 
-   !Thresholds
-
-   !========================================================================
-   ! parameters which are either rlisted below
-   ! or read in by gfnff_read_param
-   !------------------------------------------------------------------------
-
-   !numerical precision cut-offs
-   real(wp) :: cnthr,repthr,dispthr,hbthr1,hbthr2,accff
-
-   integer  :: ffmode
-
    !========================================================================
    ! DATA
    !------------------------------------------------------------------------
@@ -444,16 +434,22 @@ module xtb_gfnff_param
 ! numerical precision settings
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      accff  =0.1d0  ! global accuracy factor similar to acc in xtb used in SCF
-      if(n.gt.10000) accff = 2.0d0
-
-      dispthr=1500.0d0-log10(accff)*1000.d0
-      cnthr  = 100.0d0-log10(accff)* 50.0d0
-      repthr = 400.0d0-log10(accff)*100.0d0
-      hbthr1 = 200.0d0-log10(accff)* 50.0d0
-      hbthr2 = 400.0d0-log10(accff)* 50.0d0
-
    end subroutine gfnff_set_param
+
+
+   subroutine gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
+      real(wp), intent(in) :: accuracy
+      real(wp), intent(out) :: dispthr
+      real(wp), intent(out) :: cnthr
+      real(wp), intent(out) :: repthr
+      real(wp), intent(out) :: hbthr1
+      real(wp), intent(out) :: hbthr2
+      dispthr=1500.0d0-log10(accuracy)*1000.d0
+      cnthr  = 100.0d0-log10(accuracy)* 50.0d0
+      repthr = 400.0d0-log10(accuracy)*100.0d0
+      hbthr1 = 200.0d0-log10(accuracy)* 50.0d0
+      hbthr2 = 400.0d0-log10(accuracy)* 50.0d0
+   end subroutine gfnff_thresholds
 
 
    subroutine gfnff_load_param(version, param, exist)
@@ -475,7 +471,7 @@ module xtb_gfnff_param
      param%repz(:) = repz
 
      select case(version)
-     case(gffVersion%angewChem2020)
+     case(gffVersion%angewChem2020, gffVersion%harmonic2020)
         call loadGFNFFAngewChem2020(param)
         exist = .true.
      end select
@@ -483,7 +479,7 @@ module xtb_gfnff_param
    end subroutine gfnff_load_param
 
 
-   subroutine loadGFNFFParamAngewChem2020(param)
+   subroutine loadGFNFFAngewChem2020(param)
      type(TGFFData), intent(inout) :: param
      param%chi(:) = chi_angewChem2020
      param%gam(:) = gam_angewChem2020
@@ -496,7 +492,7 @@ module xtb_gfnff_param
      param%angl2(:) = angl2_angewChem2020
      param%tors(:) = tors_angewChem2020
      param%tors2(:) = tors2_angewChem2020
-   end subroutine loadGFNFFParamAngewChem2020
+   end subroutine loadGFNFFAngewChem2020
 
 
    subroutine gfnff_read_param(iunit, param)

@@ -26,7 +26,7 @@ module xtb_gfnff_setup
 
 contains
 
-subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo)
+subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accuracy)
   use iso_fortran_env
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
@@ -42,6 +42,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo)
   integer,intent(in) :: p_ext_gfnff
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
+  real(wp),intent(in) :: accuracy
   type(TMolecule)  :: mol
   type(TEnvironment), intent(inout) :: env
   !type(TGFFTopology), intent(inout) :: topo
@@ -61,17 +62,17 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo)
        if (.not.success) then
           write(*,'(10x,"GFN-FF topology read in did not work!")')
           write(*,'(10x,"Generating new topology file!")')
-          call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo)
+          call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo,accuracy)
           call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
        end if
      else
-       call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo)
+       call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo,accuracy)
        if (.not.mol%struc%two_dimensional) then
           call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
        end if
      end if
   else if (.not.restart) then
-     call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo)
+     call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo,accuracy)
      call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
   end if
 

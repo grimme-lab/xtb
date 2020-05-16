@@ -17,10 +17,10 @@
 module xtb_gfnff_ini
 contains
 
-subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo)
+subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       use xtb_mctc_accuracy, only : wp, sp
       use xtb_type_molecule
-      use xtb_gfnff_param, only : efield, cnthr, repthr, dispthr, hbthr1, hbthr2
+      use xtb_gfnff_param, only : efield, gfnff_thresholds
       use xtb_gfnff_data, only : TGFFData
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_generator, only : TGFFGenerator
@@ -37,6 +37,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo)
       type(TGFFTopology), intent(inout) :: topo
       type(TGFFGenerator), intent(in) :: gen
       type(TGFFData), intent(in) :: param
+      real(wp), intent(in) :: accuracy
 
       integer, intent(in) :: ichrg         ! mol. charge
       logical, intent(in) :: pr            ! print flag
@@ -95,6 +96,9 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo)
 
       character(len=255) atmp
       integer  :: ich, err
+      real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
+
+      call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
       if (pr) then
          write(*,*)
@@ -749,7 +753,7 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo)
          enddo
       enddo
 
-      call gfnff_hbset0(mol%n,mol%at,mol%xyz,sqrab,topo)
+      call gfnff_hbset0(mol%n,mol%at,mol%xyz,sqrab,topo,hbthr1,hbthr2)
       write(*,'(10x,"maxhb123",3x,i0,x,i0,x,i0)') topo%nhb1,topo%nhb2,topo%nxb
       allocate( topo%hblist1(3,topo%nhb1),topo%hblist2(3,topo%nhb2),topo%hblist3(3,topo%nxb), source = 0 )
 
@@ -1187,10 +1191,10 @@ subroutine gfnff_ini(pr,makeneighbor,mol,ichrg,gen,param,topo)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       !Set up fix hblist just like for the HB term
-      call bond_hbset0(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,topo)
+      call bond_hbset0(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,topo,hbthr1,hbthr2)
       allocate(bond_hbl(3,bond_hbn))
       allocate(topo%nr_hb(topo%nbond), source=0)
-      call bond_hbset(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,bond_hbl,topo)
+      call bond_hbset(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
 
       !Set up AH, B and nr. of B list
       call bond_hb_AHB_set0(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,topo)

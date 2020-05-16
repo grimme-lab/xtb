@@ -688,7 +688,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset(n,at,xyz,sqrab,topo)
+subroutine gfnff_hbset(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
       use iso_fortran_env, only : wp => real64
       use xtb_gfnff_param
       implicit none
@@ -697,6 +697,7 @@ subroutine gfnff_hbset(n,at,xyz,sqrab,topo)
       integer at(n)
       real(wp) sqrab(n*(n+1)/2)
       real(wp) xyz(3,n)
+      real(wp), intent(in) :: hbthr1, hbthr2
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       real(wp) rab,rmsd
@@ -759,7 +760,7 @@ subroutine gfnff_hbset(n,at,xyz,sqrab,topo)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo)
+subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
       use iso_fortran_env, only : wp => real64
       use xtb_gfnff_param
       implicit none
@@ -770,6 +771,7 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo)
       integer,intent(out) :: bond_hbl(3,bond_hbn)
       real(wp),intent(in) :: sqrab(n*(n+1)/2)
       real(wp),intent(in) :: xyz(3,n)
+      real(wp),intent(in) :: hbthr1, hbthr2
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       integer bond_nr
@@ -806,7 +808,7 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo)
 
 end subroutine bond_hbset
 
-subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn,topo)
+subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn,topo,hbthr1,hbthr2)
       use iso_fortran_env, only : wp => real64
       use xtb_gfnff_param
       implicit none
@@ -816,6 +818,7 @@ subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn,topo)
       integer,intent(out) :: bond_hbn
       real(wp),intent(in) :: sqrab(n*(n+1)/2)
       real(wp),intent(in) :: xyz(3,n)
+      real(wp),intent(in) :: hbthr1, hbthr2
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       real(wp) rab
@@ -1052,7 +1055,7 @@ end subroutine bond_hb_AHB_set0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset0(n,at,xyz,sqrab,topo)
+subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
       use iso_fortran_env, only : wp => real64
       use xtb_gfnff_param
       implicit none
@@ -1061,6 +1064,7 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab,topo)
       integer at(n)
       real(wp) sqrab(n*(n+1)/2)
       real(wp) xyz(3,n)
+      real(wp),intent(in) :: hbthr1, hbthr2
 
       integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
       logical ijnonbond

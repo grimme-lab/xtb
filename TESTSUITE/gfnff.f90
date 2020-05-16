@@ -14,9 +14,8 @@ subroutine test_gfnff_sp
    use xtb_setmod
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use xtb_gfnff_data, only : TGFFData
-   use xtb_gfnff_topology, only : TGFFTopology
-   use xtb_gfnff_generator, only : TGFFGenerator
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 8
@@ -36,9 +35,7 @@ subroutine test_gfnff_sp
    type(TMolecule)     :: mol
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
-   type(TGFFTopology) :: topo
-   type(TGFFGenerator) :: gen
-   type(TGFFData) :: param
+   type(TGFFCalculator) :: calc
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
@@ -50,39 +47,21 @@ subroutine test_gfnff_sp
    call init(env)
    call init(mol,at,xyz)
 
-   call topo%zero ! FIXME
+   call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+
+   call env%checkpoint("GFN-FF parameter setup failed")
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call rdpath(env%xtbpath,'.param_gfnff.xtb',fnv,exist)
-   ! maybe the user provides a local parameter file, this was always
-   ! an option in `xtb', so we will give it a try
-   if (.not.exist) fnv = '.param_gfnff.xtb'
-   call open_file(ipar,fnv,'r')
-   if (ipar.eq.-1) then
-      ! at this point there is no chance to recover from this error
-      ! THEREFORE, we have to kill the program
-      call env%terminate("Parameter file '"//fnv//"' not found!")
-   endif
-   if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
-   call gfnff_read_param(ipar, param)
-   call close_file(ipar)
-   call gfnff_input(env, mol, topo)
-   call gfnff_set_param(mol%n, gen, param)
-
-   call delete_file('gfnff_topo')
-   call delete_file('charges')
-   call gfnff_ini(verbose,.true.,mol,nint(mol%chrg),gen,param,topo)
-
-   call assert_eq(topo%nbond,6)
-   call assert_eq(topo%nangl,6)
-   call assert_eq(topo%ntors,1)
+   call assert_eq(calc%topo%nbond,6)
+   call assert_eq(calc%topo%nangl,6)
+   call assert_eq(calc%topo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,param,topo,.true.)
+      & g,etot,res_gff,calc%param,calc%topo,.true.,calc%version,calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
    call assert_close(res_gff%gnorm,   0.06237477492373_wp,thr)
@@ -97,7 +76,6 @@ subroutine test_gfnff_sp
    call assert_close(res_gff%e_batm, -0.00000000000000_wp,thr)
 
    call mol%deallocate
-   call gfnff_param_dealloc(topo)
 
    call terminate(afail)
 end subroutine test_gfnff_sp
@@ -118,9 +96,8 @@ subroutine test_gfnff_hb
    use xtb_setmod
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use xtb_gfnff_data, only : TGFFData
-   use xtb_gfnff_topology, only : TGFFTopology
-   use xtb_gfnff_generator, only : TGFFGenerator
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator
    implicit none
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
@@ -139,9 +116,7 @@ subroutine test_gfnff_hb
    type(TMolecule)     :: mol
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
-   type(TGFFTopology) :: topo
-   type(TGFFGenerator) :: gen
-   type(TGFFData) :: param
+   type(TGFFCalculator) :: calc
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
@@ -153,39 +128,21 @@ subroutine test_gfnff_hb
    call init(env)
    call init(mol,at,xyz)
 
-   call topo%zero ! FIXME
+   call newGFFCalculator(env, mol, calc, '---', .false.)
+
+   call env%checkpoint("GFN-FF parameter setup failed")
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call rdpath(env%xtbpath,'.param_gfnff.xtb',fnv,exist)
-   ! maybe the user provides a local parameter file, this was always
-   ! an option in `xtb', so we will give it a try
-   if (.not.exist) fnv = '.param_gfnff.xtb'
-   call open_file(ipar,fnv,'r')
-   if (ipar.eq.-1) then
-      ! at this point there is no chance to recover from this error
-      ! THEREFORE, we have to kill the program
-      call env%terminate("Parameter file '"//fnv//"' not found!")
-   endif
-   if (.not.allocated(reference_c6)) call d3init(mol%n, mol%at)
-   call gfnff_read_param(ipar, param)
-   call close_file(ipar)
-   call gfnff_input(env, mol, topo)
-   call gfnff_set_param(mol%n, gen, param)
-
-   call delete_file('gfnff_topo')
-   call delete_file('charges')
-   call gfnff_ini(verbose,.true.,mol,nint(mol%chrg),gen,param,topo)
-
-   call assert_eq(topo%nbond,5)
-   call assert_eq(topo%nangl,4)
-   call assert_eq(topo%ntors,1)
+   call assert_eq(calc%topo%nbond,5)
+   call assert_eq(calc%topo%nangl,4)
+   call assert_eq(calc%topo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,param,topo,.true.)
+      & g,etot,res_gff,calc%param,calc%topo,.true.,calc%version,calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.949706677118_wp,thr)
    call assert_close(res_gff%gnorm,   0.001152720923_wp,thr)
@@ -200,7 +157,6 @@ subroutine test_gfnff_hb
    call assert_close(res_gff%e_batm, -0.0000000000000_wp,thr)
 
    call mol%deallocate
-   call gfnff_param_dealloc(topo)
 
    call terminate(afail)
 end subroutine test_gfnff_hb
