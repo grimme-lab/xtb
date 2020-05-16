@@ -20,6 +20,7 @@ program xtb_prog_primary
    use xtb_prog_argparser
    use xtb_prog_info, only : xtbInfo
    use xtb_prog_main, only : xtbMain
+   use xtb_prog_thermo, only : xtbThermo
    use xtb_prog_submodules
    use xtb_type_environment
 
@@ -55,6 +56,10 @@ program xtb_prog_primary
    case(xtbSubmodule%info)
       !> Run the info submodule
       call xtbInfo(env, argParser)
+
+   case(xtbSubmodule%thermo)
+      !> Run the thermo submodule
+      call xtbThermo(env, argParser)
 
    end select
 

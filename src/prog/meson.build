@@ -21,4 +21,5 @@ prog += files(
   'main.F90',
   'primary.f90',
   'submodules.f90',
+  'thermo.f90',
 )

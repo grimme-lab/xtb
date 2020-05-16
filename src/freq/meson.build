@@ -15,15 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
-
-list(APPEND prog
-  "${dir}/argparser.f90"
-  "${dir}/info.f90"
-  "${dir}/main.F90"
-  "${dir}/primary.f90"
-  "${dir}/submodules.f90"
-  "${dir}/thermo.f90"
+srcs += files(
+  'project.f90',
+  'utils.f90',
 )
-
-set(prog ${prog} PARENT_SCOPE)
