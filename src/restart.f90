@@ -130,7 +130,7 @@ subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose,topo)
             read(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq, &
                & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
                & topo%q,topo%xyze0,topo%zetac6,&
-               & topo%qfrag,topo%hbbas
+               & topo%qfrag,topo%hbbas,topo%hbaci
          else
             if (verbose) &
                call raise('S','Dimension missmatch in restart file.',1)
@@ -192,7 +192,7 @@ subroutine write_restart_gff(fname,nat,p_ext_gfnff,topo)
       & topo%bond_hb_AH,topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
    !Arrays Reals
    write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,topo%q,       &
-      & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas
+      & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas,topo%hbaci
    call close_file(ich)
 end subroutine write_restart_gff
 
