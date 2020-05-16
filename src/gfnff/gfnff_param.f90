@@ -21,8 +21,25 @@ module xtb_gfnff_param
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
-   private :: wp
-   public
+   private
+   public :: ini, gff_print, make_chrg, efield, ffmode
+   public :: cnthr, repthr, dispthr, hbthr1, hbthr2, accff
+   public :: gfnff_set_param, gfnff_load_param, gfnff_read_param
+   public :: gfnff_param_alloc, gfnff_param_dealloc
+   public :: gffVersion
+
+
+   !> Available versions of the force field implemented
+   type :: TGFFVersionEnum
+
+      !> Version published in Angew. Chem. 2020
+      integer :: angewChem2020 = 1
+
+   end type TGFFVersionEnum
+
+   !> Actual enumerator for force field versions
+   type(TGFFVersionEnum), parameter :: gffVersion = TGFFVersionEnum()
+
 
    !========================================================================
    ! all fixed parameters/potetnial parameters/thresholds/cut-offs
@@ -34,7 +51,7 @@ module xtb_gfnff_param
    logical  :: gff_print = .true. !shows timing of energy + gradient
    logical  :: make_chrg = .true. !generates new eeq chareges based on current geometry
 
-   real(wp), private, parameter :: p_gff_chi(86) = [&
+   real(wp), parameter :: chi_angewChem2020(86) = [&
       & 1.227054_wp, 1.451412_wp, 0.813363_wp, 1.062841_wp, 1.186499_wp, &
       & 1.311555_wp, 1.528485_wp, 1.691201_wp, 1.456784_wp, 1.231037_wp, &
       & 0.772989_wp, 1.199092_wp, 1.221576_wp, 1.245964_wp, 1.248942_wp, &
@@ -53,7 +70,8 @@ module xtb_gfnff_param
       & 1.132714_wp, 1.133698_wp, 1.134681_wp, 1.135665_wp, 1.136648_wp, &
       & 1.061832_wp, 1.053084_wp, 1.207830_wp, 1.236314_wp, 1.310129_wp, &
       & 1.157380_wp]
-   real(wp), private, parameter :: p_gff_gam(86) = [&
+
+   real(wp), parameter :: gam_angewChem2020(86) = [&
       &-0.448428_wp, 0.131022_wp, 0.571431_wp, 0.334622_wp,-0.089208_wp, &
       &-0.025895_wp,-0.027280_wp,-0.031236_wp,-0.159892_wp, 0.074198_wp, &
       & 0.316829_wp, 0.326072_wp, 0.069748_wp,-0.120184_wp,-0.193159_wp, &
@@ -72,7 +90,8 @@ module xtb_gfnff_param
       & 0.001267_wp, 0.003763_wp, 0.006259_wp, 0.008755_wp, 0.011251_wp, &
       & 0.020477_wp,-0.056566_wp, 0.051943_wp, 0.076708_wp, 0.000273_wp, &
       &-0.068929_wp]
-   real(wp), private, parameter :: p_gff_cnf(86) = [&
+
+   real(wp), parameter :: cnf_angewChem2020(86) = [&
       & 0.008904_wp, 0.004641_wp, 0.048324_wp, 0.080316_wp,-0.051990_wp, &
       & 0.031779_wp, 0.132184_wp, 0.157353_wp, 0.064120_wp, 0.036540_wp, &
       &-0.000627_wp, 0.005412_wp, 0.018809_wp, 0.016329_wp, 0.012149_wp, &
@@ -91,7 +110,8 @@ module xtb_gfnff_param
       & 0.030610_wp, 0.024937_wp, 0.019264_wp, 0.013592_wp, 0.007919_wp, &
       & 0.006383_wp,-0.089155_wp,-0.001293_wp, 0.019269_wp, 0.074803_wp, &
       & 0.016657_wp]
-   real(wp), private, parameter :: p_gff_alp(86) = [&
+
+   real(wp), parameter :: alp_angewChem2020(86) = [&
       & 0.585069_wp, 0.432382_wp, 0.628636_wp, 0.743646_wp, 1.167323_wp, &
       & 0.903430_wp, 1.278388_wp, 0.905347_wp, 1.067014_wp, 2.941513_wp, &
       & 0.687680_wp, 0.792170_wp, 1.337040_wp, 1.251409_wp, 1.068295_wp, &
@@ -110,7 +130,8 @@ module xtb_gfnff_param
       & 0.755886_wp, 0.755589_wp, 0.755291_wp, 0.754994_wp, 0.754697_wp, &
       & 0.868029_wp, 1.684375_wp, 2.001040_wp, 2.067331_wp, 2.228923_wp, &
       & 1.874218_wp]
-   real(wp), private, parameter :: p_gff_bond(86) = [&
+
+   real(wp), parameter :: bond_angewChem2020(86) = [&
       & 0.417997_wp, 0.258490_wp, 0.113608_wp, 0.195935_wp, 0.231217_wp, &
       & 0.385248_wp, 0.379257_wp, 0.339249_wp, 0.330706_wp, 0.120319_wp, &
       & 0.127255_wp, 0.173647_wp, 0.183796_wp, 0.273055_wp, 0.249044_wp, &
@@ -129,7 +150,8 @@ module xtb_gfnff_param
       & 0.207828_wp, 0.175257_wp, 0.142686_wp, 0.110115_wp, 0.077544_wp, &
       & 0.108597_wp, 0.148422_wp, 0.183731_wp, 0.192274_wp, 0.127706_wp, &
       & 0.086756_wp]
-   real(wp), private, parameter :: p_gff_repa(86) = [&
+
+   real(wp), parameter :: repa_angewChem2020(86) = [&
       & 2.639785_wp, 3.575012_wp, 0.732142_wp, 1.159621_wp, 1.561585_wp, &
       & 1.762895_wp, 2.173015_wp, 2.262269_wp, 2.511112_wp, 3.577220_wp, &
       & 0.338845_wp, 0.693023_wp, 0.678792_wp, 0.804784_wp, 1.012178_wp, &
@@ -148,7 +170,8 @@ module xtb_gfnff_param
       & 0.840294_wp, 0.871808_wp, 0.903322_wp, 0.934836_wp, 0.966350_wp, &
       & 0.467729_wp, 0.486102_wp, 0.559176_wp, 0.557520_wp, 0.563373_wp, &
       & 0.484713_wp]
-   real(wp), private, parameter :: p_gff_repan(86) = [&
+
+   real(wp), parameter :: repan_angewChem2020(86) = [&
       & 1.071395_wp, 1.072699_wp, 1.416847_wp, 1.156187_wp, 0.682382_wp, &
       & 0.556380_wp, 0.746785_wp, 0.847242_wp, 0.997252_wp, 0.873051_wp, &
       & 0.322503_wp, 0.415554_wp, 0.423946_wp, 0.415776_wp, 0.486773_wp, &
@@ -167,7 +190,8 @@ module xtb_gfnff_param
       & 0.425876_wp, 0.473522_wp, 0.521168_wp, 0.568814_wp, 0.616460_wp, &
       & 0.242521_wp, 0.293680_wp, 0.320931_wp, 0.322666_wp, 0.333641_wp, &
       & 0.434163_wp]
-   real(wp), private, parameter :: p_gff_angl(86) = [&
+
+   real(wp), parameter :: angl_angewChem2020(86) = [&
       & 1.661808_wp, 0.300000_wp, 0.018158_wp, 0.029224_wp, 0.572683_wp, &
       & 0.771055_wp, 1.053577_wp, 2.159889_wp, 1.525582_wp, 0.400000_wp, &
       & 0.041070_wp, 0.028889_wp, 0.086910_wp, 0.494456_wp, 0.409204_wp, &
@@ -186,7 +210,8 @@ module xtb_gfnff_param
       & 0.212227_wp, 0.198382_wp, 0.184538_wp, 0.170693_wp, 0.156849_wp, &
       & 0.104547_wp, 0.313474_wp, 0.220185_wp, 0.415042_wp, 1.259822_wp, &
       & 0.400000_wp]
-   real(wp), private, parameter :: p_gff_angl2(86) = [&
+
+   real(wp), parameter :: angl2_angewChem2020(86) = [&
       & 0.624197_wp, 0.600000_wp, 0.050000_wp, 0.101579_wp, 0.180347_wp, &
       & 0.755851_wp, 0.761551_wp, 0.813653_wp, 0.791274_wp, 0.400000_wp, &
       & 0.000000_wp, 0.022706_wp, 0.100000_wp, 0.338514_wp, 0.453023_wp, &
@@ -205,7 +230,8 @@ module xtb_gfnff_param
       & 0.120423_wp, 0.128766_wp, 0.137109_wp, 0.145451_wp, 0.153794_wp, &
       & 0.323570_wp, 0.233450_wp, 0.268137_wp, 0.307481_wp, 0.316447_wp, &
       & 0.400000_wp]
-   real(wp), private, parameter :: p_gff_tors(86) = [&
+
+   real(wp), parameter :: tors_angewChem2020(86) = [&
       & 0.100000_wp, 0.100000_wp, 0.100000_wp, 0.000000_wp, 0.121170_wp, &
       & 0.260028_wp, 0.222546_wp, 0.250620_wp, 0.256328_wp, 0.400000_wp, &
       & 0.115000_wp, 0.000000_wp, 0.103731_wp, 0.069103_wp, 0.104280_wp, &
@@ -224,7 +250,8 @@ module xtb_gfnff_param
       & 0.178553_wp, 0.152085_wp, 0.125616_wp, 0.099147_wp, 0.072679_wp, &
       & 0.203077_wp, 0.169346_wp, 0.090568_wp, 0.144762_wp, 0.231884_wp, &
       & 0.400000_wp]
-   real(wp), private, parameter :: p_gff_tors2(86) = [&
+
+   real(wp), parameter :: tors2_angewChem2020(86) = [&
       & 1.618678_wp, 1.000000_wp, 0.064677_wp, 0.000000_wp, 0.965814_wp, &
       & 1.324709_wp, 1.079334_wp, 1.478599_wp, 0.304844_wp, 0.500000_wp, &
       & 0.029210_wp, 0.000000_wp, 0.417423_wp, 0.334275_wp, 0.817008_wp, &
@@ -264,7 +291,7 @@ module xtb_gfnff_param
    !------------------------------------------------------------------------
 
    !Pauling EN
-   real(wp), private, parameter :: en(1:86) = [&
+   real(wp), parameter :: en(1:86) = [&
   &         2.200,3.000,0.980,1.570,2.040,2.550,3.040,3.440,3.980 &
   &        ,4.500,0.930,1.310,1.610,1.900,2.190,2.580,3.160,3.500 &
   &        ,0.820,1.000,1.360,1.540,1.630,1.660,1.550,1.830,1.880 &
@@ -280,7 +307,7 @@ module xtb_gfnff_param
    ! in CRC Handbook of Chemistry and Physics, 91st Edition (2010-2011),
    ! edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
    ! corrected Nov. 17, 2010 for the 92nd edition.
-   real(wp), private, parameter :: rad(1:86) = [&
+   real(wp), parameter :: rad(1:86) = [&
   &0.32D0,0.37D0,1.30D0,0.99D0,0.84D0,0.75D0,0.71D0,0.64D0,0.60D0,&
   &0.62D0,1.60D0,1.40D0,1.24D0,1.14D0,1.09D0,1.04D0,1.00D0,1.01D0,&
   &2.00D0,1.74D0,1.59D0,1.48D0,1.44D0,1.30D0,1.29D0,1.24D0,1.18D0,&
@@ -292,7 +319,7 @@ module xtb_gfnff_param
   &1.58D0,1.50D0,1.41D0,1.36D0,1.32D0,1.30D0,1.30D0,1.32D0,1.44D0,&
   &1.45D0,1.50D0,1.42D0,1.48D0,1.46D0]
 
-   integer, private, parameter :: metal(86) = (/ &
+   integer, parameter :: metal(86) = (/ &
   &0,                                                                0,&!He
   &1,1,                                               0, 0, 0, 0, 0, 0,&!Ne
   &1,1,                                               1, 0, 0, 0, 0, 0,&!Ar
@@ -307,14 +334,14 @@ module xtb_gfnff_param
   &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Kr
   &1,2,-3,                 -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8,&!Xe
   &1,2,-3,spread(-3,1,14), -4,-5,-6,-7,-8,-9,-10,-11,-12,3, 4, 5, 6, 7, 8/)!Rn
-   integer, private, parameter :: normcn(86) = (/ &  ! only for non metals well defined
+   integer, parameter :: normcn(86) = (/ &  ! only for non metals well defined
   &1,                                                                0,&!He
   &4,4,                                               4, 4, 4, 2, 1, 0,&!Ne
   &4,4,                                               4, 4, 4, 2, 1, 0,&!Ar
   &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Kr
   &4,4,4,                4, 6, 6, 6, 6, 6, 6, 4, 4,   4, 4, 4, 4, 1, 0,&!Xe
   &4,4,4,spread(4,1,14), 4, 6, 6, 6, 6, 6, 6, 6, 4,   4, 4, 4, 4, 1, 0/) !Rn
-   real(wp), private, parameter :: repz(86) =   (/ &
+   real(wp), parameter :: repz(86) =   (/ &
   &1.,                                                                    2.,&!He
   &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ne
   &1.,2.,                                                  3.,4.,5.,6.,7.,8.,&!Ar
@@ -427,6 +454,49 @@ module xtb_gfnff_param
       hbthr2 = 400.0d0-log10(accff)* 50.0d0
 
    end subroutine gfnff_set_param
+
+
+   subroutine gfnff_load_param(version, param, exist)
+     use xtb_mctc_accuracy, only : wp 
+     implicit none
+     integer, intent(in) :: version
+     type(TGFFData), intent(out) :: param
+     logical, intent(out) :: exist
+
+     exist = .false.
+
+     call init(param, 86)
+
+     param%en(:) = en
+     param%rad(:) = rad
+     param%metal(:) = metal
+     param%group(:) = group
+     param%normcn(:) = normcn
+     param%repz(:) = repz
+
+     select case(version)
+     case(gffVersion%angewChem2020)
+        call loadGFNFFAngewChem2020(param)
+        exist = .true.
+     end select
+
+   end subroutine gfnff_load_param
+
+
+   subroutine loadGFNFFParamAngewChem2020(param)
+     type(TGFFData), intent(inout) :: param
+     param%chi(:) = chi_angewChem2020
+     param%gam(:) = gam_angewChem2020
+     param%cnf(:) = cnf_angewChem2020
+     param%alp(:) = alp_angewChem2020
+     param%bond(:) = bond_angewChem2020
+     param%repa(:) = repa_angewChem2020
+     param%repan(:) = repan_angewChem2020
+     param%angl(:) = angl_angewChem2020
+     param%angl2(:) = angl2_angewChem2020
+     param%tors(:) = tors_angewChem2020
+     param%tors2(:) = tors2_angewChem2020
+   end subroutine loadGFNFFParamAngewChem2020
 
 
    subroutine gfnff_read_param(iunit, param)

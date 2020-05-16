@@ -170,9 +170,12 @@ subroutine newGFFCalculator(env, mol, calc, fname)
    if (exist) then
       call gfnff_read_param(ich, calc%param)
       call close_file(ich)
-   else ! no parameter file
-      call env%error('Parameter file '//fname//' not found!', source)
-      return
+   else ! no parameter file, try to load internal version
+      call gfnff_load_param(gffVersion%angewChem2020, calc%param, exist)
+      if (.not.exist) then
+         call env%error('Parameter file '//fname//' not found!', source)
+         return
+      end if
    endif
 
    call env%check(exitRun)
