@@ -17,6 +17,7 @@
 module xtb_gfnff_ini2
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
+   use xtb_type_environment, only : TEnvironment
    implicit none
    private
    public :: gfnff_neigh, getnb, nbondmat
@@ -28,9 +29,11 @@ module xtb_gfnff_ini2
 
 contains
 
-subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf,param,topo)
+subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf,param,topo)
       use xtb_gfnff_param
       implicit none
+      character(len=*), parameter :: source = 'gfnff_ini2_neigh'
+      type(TEnvironment), intent(inout) :: env
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(inout) :: topo
       logical makeneighbor
@@ -126,9 +129,9 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
 ! tag atoms in nb(19,i) if they belong to a cluster (which avoids the ring search)
       do i=1,natoms
          if(nbf(20,i).eq.0.and.param%group(at(i)).ne.8)then
-            write(*,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
-            write(*,'(''  warning: no bond partners for atom'',i4)')i
-            write(*,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
+            write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
+            write(env%unit,'(''  warning: no bond partners for atom'',i4)')i
+            write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
          endif
          if(at(i).lt.11.and.nbf(20,i).gt.2)then
             do k=1,nbf(20,i)
@@ -140,7 +143,7 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
                endif
             enddo
          endif
-!        write(*,*) i,(topo%nb(j,i),j=1,topo%nb(20,i))
+!        write(env%unit,*) i,(topo%nb(j,i),j=1,topo%nb(20,i))
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -330,7 +333,9 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
             endif
          enddo
       enddo
-      if(dble(j)/dble(natoms).gt.0.3) stop ' too many atoms with extreme high CN, probably very bad input!'
+      if(dble(j)/dble(natoms).gt.0.3) then
+         call env%error(' too many atoms with extreme high CN', source)
+      end if
 
       end subroutine gfnff_neigh
 
@@ -661,10 +666,10 @@ subroutine gfnff_neigh(makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,
       chktors=.true.
 
       call bangl(xyz,j,i,k,phi)
-!     write(*,*) phi*180./3.1415926d0
+!     write(env%unit,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
       call bangl(xyz,i,j,l,phi)
-!     write(*,*) phi*180./3.1415926d0
+!     write(env%unit,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
 
       chktors=.false.
@@ -1322,10 +1327,12 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 ! included up to 1,4 interactions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine goedeckera(n,at,nb,pair,q,es,topo)
-      use iso_fortran_env, id => output_unit, wp => real64
-      use xtb_mctc_la
+subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
    implicit none
+   character(len=*), parameter :: source = 'gfnff_ini2_goedeckera'
+   type(TEnvironment), intent(inout) :: env
    type(TGFFTopology), intent(in) :: topo
    integer, intent(in)  :: n          ! number of atoms
    integer, intent(in)  :: at(n)      ! ordinal numbers
@@ -1335,9 +1342,9 @@ subroutine goedeckera(n,at,nb,pair,q,es,topo)
    real(wp),intent(out) :: es         ! ES energy
 
 !  local variables
+   logical :: exitRun
    integer  :: m,i,j,k,l,ii,jj,kk
    integer  :: ij,lj
-   integer  :: info,lwork
    integer,allocatable :: ipiv(:)
 
    real(wp) :: gammij,sief1,sief2
@@ -1347,13 +1354,12 @@ subroutine goedeckera(n,at,nb,pair,q,es,topo)
    real(wp) :: tmp
    real(wp),allocatable :: A (:,:)
    real(wp),allocatable :: x(:)
-   real(wp),allocatable :: work(:)
 
 !  parameter
    parameter (tsqrt2pi = 0.797884560802866_wp)
 
    m=n+topo%nfrag ! # atoms frag constrain
-   allocate(A(m,m),x(m),work(m*m),ipiv(m))
+   allocate(A(m,m),x(m),ipiv(m))
 
 !  call prmati(6,pair,n,0,'pair')
 
@@ -1390,10 +1396,14 @@ subroutine goedeckera(n,at,nb,pair,q,es,topo)
    enddo
 !  call prmat(6,A,m,m,'A ini')
 
-   lwork=m*m
-   call DSYSV('U', m, 1, A, m, IPIV, x, m, WORK, LWORK, INFO)
+   call mctc_sytrf(env, a, ipiv)
+   call mctc_sytrs(env, a, x, ipiv)
 
-   if(info.ne.0) stop '(goedeckerpa) DSYSV failed'
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error('Solving linear equations failed', source)
+      return
+   end if
 
    q(1:n) = x(1:n)
 
