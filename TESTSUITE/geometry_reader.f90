@@ -460,10 +460,11 @@ subroutine test_geometry_reader_molfile_benzen_flat
    call readMolecule(env, mol, iunit, fileType%molfile)
 
    call env%check(fail)
-   if (fail) call terminate(1)
    call assert(.not.fail)
+   call env%checkpoint("Failed to read geometry")
+   call assert(mol%struc%two_dimensional)
 
-   call terminate(0) ! should fail
+   call terminate(afail)
 end subroutine
 
 subroutine test_geometry_reader_molfile_benzen
@@ -673,10 +674,11 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
    call readMolecule(env, mol, iunit, fileType%sdf)
 
    call env%check(fail)
-   if (fail) call terminate(1)
    call assert(.not.fail)
+   call env%checkpoint("Failed to read geometry")
+   call assert(mol%struc%two_dimensional)
 
-   call terminate(0) ! should fail
+   call terminate(afail)
 end subroutine
 
 subroutine test_geometry_reader_file_pdb_4qxx_noh
