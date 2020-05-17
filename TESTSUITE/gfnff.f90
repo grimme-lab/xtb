@@ -47,6 +47,7 @@ subroutine test_gfnff_sp
    call init(env)
    call init(mol,at,xyz)
 
+   call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
 
    call env%checkpoint("GFN-FF parameter setup failed")
@@ -128,6 +129,7 @@ subroutine test_gfnff_hb
    call init(env)
    call init(mol,at,xyz)
 
+   call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '---', .false.)
 
    call env%checkpoint("GFN-FF parameter setup failed")
