@@ -24,6 +24,7 @@ list(APPEND prog
   "${dir}/primary.f90"
   "${dir}/submodules.f90"
   "${dir}/thermo.f90"
+  "${dir}/topology.f90"
 )
 
 set(prog ${prog} PARENT_SCOPE)

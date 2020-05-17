@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Available submodule in this program
 module xtb_prog_submodules
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -38,6 +38,9 @@ module xtb_prog_submodules
 
       !> Thermodynamic function evaluator
       integer :: thermo = 3
+
+      !> Force field topology generator
+      integer :: topo = 4
 
    end type TSubmoduleEnum
 
@@ -66,6 +69,9 @@ function getSubmodule(argument) result(submod)
 
    case('thermo')
       submod = xtbSubmodule%thermo
+
+   case('topo')
+      submod = xtbSubmodule%topo
 
    end select
 
