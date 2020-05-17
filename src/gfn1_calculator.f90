@@ -126,7 +126,8 @@ module subroutine gfn1_calculation &
 
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none"
    if (lgbsa) then
-      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida, &
+         & opt%prlevel > 0)
    endif
 
    ! ====================================================================

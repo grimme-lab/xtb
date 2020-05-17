@@ -23,7 +23,7 @@ module xtb_main_defaults
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_setparam, only : temp_md, gfn_method, ngrida, solvent, opt_engine, &
-      & p_engine_lbfgs, p_engine_rf
+      & p_engine_lbfgs, p_engine_rf, silent
    use xtb_solv_gbobc, only : lgbsa, init_gbsa
    implicit none
    private
@@ -50,7 +50,8 @@ subroutine initDefaults(env, calc, mol, gsolvstate)
    end if
 
    if (lgbsa) then
-      call init_gbsa(env%unit, solvent, gsolvstate, temp_md, gfn_method, ngrida)
+      call init_gbsa(env%unit, solvent, gsolvstate, temp_md, gfn_method, ngrida, &
+         & .not.silent)
    end if
 
    ! initialize PC embedding (set default file names and stuff)

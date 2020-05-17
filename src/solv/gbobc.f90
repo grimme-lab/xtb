@@ -216,7 +216,7 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
 
 end subroutine load_custom_parameters
 
-subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
+subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida,verbose)
    use xtb_mctc_strings
    use xtb_readin
    implicit none
@@ -226,6 +226,7 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
    real(wp),intent(in) :: temp
    integer, intent(in) :: gfn_method
    integer, intent(in) :: ngrida
+   logical, intent(in) :: verbose
 
    integer :: i,fix,inum,ich
    real(wp) :: rad
@@ -243,11 +244,15 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
       fname = '.param_gbsa_'//trim(sname)
    endif
    fname = xfind(fname)
-   write(iunit,*) 'Solvent             : ', trim(sname)
+   if (verbose) then
+      write(iunit,*) 'Solvent             : ', trim(sname)
+   end if
 
    inquire(file=fname,exist=ex)
    if(ex)then
-      write(iunit,*) 'GBSA parameter file : ', trim(fname)
+      if (verbose) then
+         write(iunit,*) 'GBSA parameter file : ', trim(fname)
+      end if
       open(newunit=ich,file=fname)
       call read_gbsa_parameters(ich, gfn_solvent)
       close(ich)
@@ -301,7 +306,9 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
          case('custom'); gfn_solvent = custom_solvent
          end select
       endif
-      write(iunit,'(1x,"Using internal parameter file:",1x,a)') fname
+      if (verbose) then
+         write(iunit,'(1x,"Using internal parameter file:",1x,a)') fname
+      end if
    endif
 
    call new_gbsa_model(gbm,gfn_solvent,mode,temp,ngrida)
@@ -309,7 +316,9 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida)
    lhb = gbm%lhb
    gshift = gbm%gshift
 
-   call gbsa_info(iunit,gbm)
+   if (verbose) then
+      call gbsa_info(iunit,gbm)
+   end if
 
 end subroutine init_gbsa
 
