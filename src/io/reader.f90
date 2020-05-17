@@ -19,9 +19,10 @@
 module xtb_io_reader
    use xtb_io_reader_ctfile, only : readMoleculeMolfile, readMoleculeSDF
    use xtb_io_reader_gaussian, only : readMoleculeGaussianExternal
-   use xtb_io_reader_genformat, only : readMoleculeGenFormat
+   use xtb_io_reader_genformat, only : readMoleculeGenFormat, &
+      & readHessianDFTBPlus
    use xtb_io_reader_pdb, only : readMoleculePDB
-   use xtb_io_reader_turbomole, only : readMoleculeCoord
+   use xtb_io_reader_turbomole, only : readMoleculeCoord, readHessianTurbomole
    use xtb_io_reader_vasp, only : readMoleculeVasp
    use xtb_io_reader_xyz, only : readMoleculeXYZ
    use xtb_mctc_accuracy, only : wp
@@ -32,7 +33,7 @@ module xtb_io_reader
    implicit none
    private
 
-   public :: readMolecule
+   public :: readMolecule, readHessian
 
 
 contains
@@ -97,6 +98,42 @@ subroutine readMolecule(env, mol, unit, ftype)
    mol%ftype = ftype
 
 end subroutine readMolecule
+
+
+subroutine readHessian(env, mol, hessian, reader, format)
+   character(len=*), parameter :: source = 'io_reader_readHessian'
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol
+   type(TReader), intent(inout) :: reader
+   integer, intent(in) :: format
+   real(wp), intent(out) :: hessian(:, :)
+   character(len=:), allocatable :: message
+   logical :: status
+
+   if (any(shape(hessian) /= [3*mol%n, 3*mol%n])) then
+      call env%error("Shape of hessian array does not match geometry", source)
+      return
+   end if
+
+   select case(format)
+   case default
+      message = "Unknown hessian format"
+      status = .false.
+
+   case(fileType%tmol)
+      call readHessianTurbomole(hessian, reader, mol, status, message)
+
+   case(fileType%gen)
+      call readHessianDFTBPlus(hessian, reader, mol, status, message)
+
+   end select
+
+   if (.not.status) then
+      call env%error(message, source)
+      return
+   end if
+
+end subroutine readHessian
 
 
 end module xtb_io_reader

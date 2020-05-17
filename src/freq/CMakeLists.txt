@@ -17,13 +17,9 @@
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
-list(APPEND prog
-  "${dir}/argparser.f90"
-  "${dir}/info.f90"
-  "${dir}/main.F90"
-  "${dir}/primary.f90"
-  "${dir}/submodules.f90"
-  "${dir}/thermo.f90"
+list(APPEND srcs
+  "${dir}/project.f90"
+  "${dir}/utils.f90"
 )
 
-set(prog ${prog} PARENT_SCOPE)
+set(srcs ${srcs} PARENT_SCOPE)

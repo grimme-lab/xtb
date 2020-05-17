@@ -23,11 +23,13 @@ module xtb_io_reader_genformat
    use xtb_mctc_systools
    use xtb_pbc_tools
    use xtb_type_molecule
+   use xtb_type_reader
    use xtb_type_vendordata, only : vasp_info
    implicit none
    private
 
    public :: readMoleculeGenFormat
+   public :: readHessianDFTBPlus
 
 
 contains
@@ -145,6 +147,43 @@ subroutine next_line(unit, line, error)
 end subroutine next_line
 
 end subroutine readMoleculeGenFormat
+
+
+subroutine readHessianDFTBPlus(hessian, reader, mol, status, iomsg)
+   real(wp), intent(out) :: hessian(:, :)
+   type(TMolecule), intent(in) :: mol
+   type(TReader), intent(inout) :: reader
+   logical, intent(out) :: status
+   character(len=:), allocatable, intent(out) :: iomsg
+   character(len=:), allocatable :: line
+   character(len=32) :: buffer
+   integer :: error, ndim, ii, jj, jbatch, iline
+
+   status = .false.
+   iline = 0
+
+   if (error /= 0) then
+      iomsg = "Could not find $hessian data group"
+      return
+   end if
+
+   ndim = 3*len(mol)
+
+   read(reader%unit, *, iostat=error) ((hessian(jj, ii), jj=1, ndim), ii=1, ndim)
+
+   if (error /= 0) then
+      if (is_iostat_end(error)) then
+         iomsg = "Unexpected end of file while reading hessian"
+      else
+         write(buffer, '(i0)') iline
+         iomsg = "Failed to read hessian in line "//trim(buffer)
+      end if
+      return
+   end if
+
+   status = .true.
+
+end subroutine readHessianDFTBPlus
 
 
 end module xtb_io_reader_genformat

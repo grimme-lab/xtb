@@ -36,6 +36,9 @@ module xtb_prog_submodules
       !> Info run mode of xtb
       integer :: info = 2
 
+      !> Thermodynamic function evaluator
+      integer :: thermo = 3
+
    end type TSubmoduleEnum
 
    !> Actual enumerator for the submodules
@@ -60,6 +63,9 @@ function getSubmodule(argument) result(submod)
 
    case('info')
       submod = xtbSubmodule%info
+
+   case('thermo')
+      submod = xtbSubmodule%thermo
 
    end select
 
