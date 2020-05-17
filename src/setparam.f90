@@ -269,6 +269,7 @@ module xtb_setparam
    logical  :: pr_modef = .false.
    logical  :: pr_gbsa = .false.
    logical  :: pr_nmtm = .false.
+   logical  :: pr_dftbp_hessian_out = .false.
 
 !! ------------------------------------------------------------------------
 !  point group symmetrization threshold

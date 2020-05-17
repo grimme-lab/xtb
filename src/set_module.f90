@@ -376,6 +376,7 @@ subroutine write_set_write(ictrl)
    write(ictrl,'(3x,"modef=",a)')            bool2string(pr_modef)
    write(ictrl,'(3x,"gbsa=",a)')             bool2string(pr_gbsa)
    write(ictrl,'(3x,"vib_normal_modes=",a)') bool2string(pr_nmtm)
+   write(ictrl,'(3x,"hessian.out=",a)')      bool2string(pr_dftbp_hessian_out)
 end subroutine write_set_write
 
 subroutine write_set_external(ictrl)
@@ -1116,6 +1117,7 @@ subroutine set_write(env,key,val)
    logical,save :: set28 = .true.
    logical,save :: set29 = .true.
    logical,save :: set30 = .true.
+   logical,save :: set31 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by write",source)
@@ -1212,6 +1214,9 @@ subroutine set_write(env,key,val)
    case('vib_normal_modes', 'nmtm')
       if (getValue(env,val,ldum).and.set30) pr_nmtm = ldum
       set30 = .false.
+   case('hessian.out')
+      if (getValue(env,val,ldum).and.set31) pr_dftbp_hessian_out = ldum
+      set31 = .false.
    end select
 end subroutine set_write
 

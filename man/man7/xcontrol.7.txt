@@ -539,6 +539,8 @@ $write
     (available with `--define`)
 *vib_normal_modes*='bool'::
     write normal modes as Turbomole vibrational modes data group
+*hessian.out*='bool'::
+    write DFTB+ style hessian.out file containing the unprojected hessian
 
 LEGACY
 ~~~~~~
