@@ -54,7 +54,8 @@ contains
 !
 !---------------------------------------------------
 
-   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff,param,topo,update)
+   subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
+         & param,topo,update,version,accuracy)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       use xtb_disp_dftd4, only: rcov
@@ -70,6 +71,8 @@ contains
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(inout) :: topo
       logical, intent(in) :: update
+      integer, intent(in) :: version
+      real(wp), intent(in) :: accuracy
       integer n
       integer ichrg
       integer at(n)
@@ -103,6 +106,9 @@ contains
       real*8, allocatable :: g5tmp(:,:)
       integer,allocatable :: d3list(:,:)
       type(tb_timer) :: timer
+      real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
+
+      call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
       g  =  0
       exb = 0
@@ -194,7 +200,7 @@ contains
 ! i.e. an harmonic potential with estimated Re
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      if(ffmode.eq.-1)then
+      if (version == gffVersion%harmonic2020) then
       ebond=0
       do i=1,topo%nbond
          iat=topo%blist(1,i)
@@ -230,7 +236,7 @@ contains
 !!!!!!
 
       if (pr) call timer%measure(4,'EEQ energy and q')
-      call goed_gfnff(accff.gt.1,n,at,sqrab,srab,&         ! modified version
+      call goed_gfnff(accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
      &                dfloat(ichrg),eeqtmp,cn,topo%q,ees,gbsa,param,topo)  ! without dq/dr
       if (pr) call timer%measure(4)
 
@@ -440,7 +446,7 @@ contains
 
       if (pr) call timer%measure(10,'HB/XB (incl list setup)')
       if (update) then
-         call gfnff_hbset(n,at,xyz,sqrab,topo)
+         call gfnff_hbset(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
       end if
 
       if(topo%nhb1.gt.0) then

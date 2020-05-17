@@ -85,7 +85,6 @@ module xtb_prog_main
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
    use xtb_gfnff_param, only : gff_print
-   use xtb_gfnff_setup, only : gfnff_setup
    use xtb_gfnff_convert, only : struc_convert
    implicit none
    private
@@ -487,7 +486,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
-   call newCalculator(env, mol, calc, fnv)
+   call newCalculator(env, mol, calc, fnv, restart, acc)
    call env%checkpoint("Could not setup parameterisation")
 
    call initDefaults(env, calc, mol, gsolvstate)
@@ -536,14 +535,6 @@ subroutine xtbMain(env, argParser)
       call checkMopac(env)
    end select
 
-   ! ------------------------------------------------------------------------
-   !> initialize GFN-force-field
-   select type(calc)
-   type is(TGFFCalculator)
-      call d3init(mol%n, mol%at)
-      call gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,calc%gen,calc%param,calc%topo)
-   end select
-
    call delete_file('.sccnotconverged')
 
    call env%checkpoint("Setup for calculation failed")
@@ -557,7 +548,6 @@ subroutine xtbMain(env, argParser)
       calc%maxiter = maxscciter
       ipeashift = calc%xtbData%ipeashift
    end select
-   calc%accuracy = acc
 
    ! ========================================================================
    !> the SP energy which is always done
