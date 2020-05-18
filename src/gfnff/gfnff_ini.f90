@@ -435,15 +435,17 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
             read(ich,*,iostat=err) dum
             if (err /= 0) exit
             if (i < mol%n) then
-              i = i+1
-              qtmp(topo%fraglist(i))=qtmp(topo%fraglist(i))+dum
+               i = i+1
+               qtmp(topo%fraglist(i))=qtmp(topo%fraglist(i))+dum
             else
-              err = 1
+               call env%warning("More charges than atoms present, assuming missmatch", source)
+               err = 1
             end if
          enddo
+         if (is_iostat_end(err) .and. i == mol%n) err = 0
          call close_file(ich)
          if (err == 0) then
-            if (i < mol%n .or. abs(sum(qtmp) - ichrg) < 1.0e-3_wp) then
+            if (i < mol%n .or. abs(sum(qtmp) - ichrg) > 1.0e-3_wp) then
                call env%warning("Rejecting external charges input due to missmatch", source)
             else
                topo%qfrag=dnint(qtmp)
