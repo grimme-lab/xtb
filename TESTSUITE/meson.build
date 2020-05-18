@@ -57,15 +57,15 @@ test('Info', xtb_exe, env: xtbenv, args: [
   files('../assets/inputs/xyz/taxol.xyz'),
 ])
 
-test('Singlepoint', xtb_exe, args: ['--coffee', '--strict', '--norestart'], env: xtbenv)
+test('Singlepoint', xtb_exe, args: ['--coffee', '--strict', '--norestart', '--namespace', 'test1'], env: xtbenv)
 if get_option('la_backend') != 'netlib'
-  test('Geometry opt.', xtb_exe, args: ['--coffee', '--opt', '--strict', '--norestart'], env: xtbenv)
+  test('Geometry opt.', xtb_exe, args: ['--coffee', '--opt', '--strict', '--norestart', '--namespace', 'test2'], env: xtbenv)
 endif
-test('IP/EA', xtb_exe, args: ['--coffee', '--gfn', '2', '--vipea', '--strict', '--norestart'], env: xtbenv)
-test('GFN0-xTB', xtb_exe, args: ['--coffee', '--gfn', '0', '--strict', '--norestart'], env: xtbenv)
-test('GFN1-xTB', xtb_exe, args: ['--coffee', '--gfn', '1', '--strict', '--norestart'], env: xtbenv)
-test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--gbsa', 'h2o', '--norestart'], env: xtbenv)
-test('GFN-FF', xtb_exe, args: ['--coffee', '--gfnff', '--strict', '--norestart'], env: xtbenv)
+test('IP/EA', xtb_exe, args: ['--coffee', '--gfn', '2', '--vipea', '--strict', '--norestart', '--namespace', 'test3'], env: xtbenv)
+test('GFN0-xTB', xtb_exe, args: ['--coffee', '--gfn', '0', '--strict', '--norestart', '--namespace', 'test4'], env: xtbenv)
+test('GFN1-xTB', xtb_exe, args: ['--coffee', '--gfn', '1', '--strict', '--norestart', '--namespace', 'test5'], env: xtbenv)
+test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--gbsa', 'h2o', '--norestart', '--namespace', 'test6'], env: xtbenv)
+test('GFN-FF', xtb_exe, args: ['--coffee', '--gfnff', '--strict', '--norestart', '--namespace', 'test7'], env: xtbenv)
 
 # more specific tests are implemented by the tester binary
 test('Molecule: axis', xtb_test, args: ['xtb_type_molecule', 'axis'], env: xtbenv)

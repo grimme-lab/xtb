@@ -592,11 +592,14 @@ subroutine l_ancopt &
       enddo
    enddo
    ! diagonalize the hessian
+   select type(calc)
+   type is(TGFFCalculator)
    if (fragmented_hessian) then
-      if (nsystem.gt.1) then
-         write(env%unit,'(" * fragmented diagonalization...",1x,i0,1x,"fragments")') nsystem
-         call frag_hess_diag(mol%n,hess,eig)
-       else if (nsystem.eq.1) then
+      if (calc%topo%nsystem.gt.1) then
+         write(env%unit,'(" * fragmented diagonalization...",1x,i0,1x,"fragments")') calc%topo%nsystem
+         call frag_hess_diag(mol%n,hess,eig,calc%topo%ispinsyst, &
+            & calc%topo%nspinsyst,calc%topo%nsystem)
+       else if (calc%topo%nsystem.eq.1) then
           lwork  = 1 + 6*nat3 + 2*nat3**2
           allocate(aux(lwork))
           call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
@@ -608,6 +611,12 @@ subroutine l_ancopt &
       call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
       deallocate(aux)
    end if
+   class default
+      lwork  = 1 + 6*nat3 + 2*nat3**2
+      allocate(aux(lwork))
+      call lapack_syev ('V','U',nat3,hess,nat3,eig,aux,lwork,info)
+      deallocate(aux)
+   end select
 
    if (.not. fragmented_hessian) then
       call detrotra4(linear,mol,hess,eig)

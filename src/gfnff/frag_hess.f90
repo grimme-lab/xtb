@@ -28,11 +28,6 @@ module xtb_gfnff_fraghess
 !$ use omp_lib
    use xtb_gfnff_mrec, only : mrecgff
    implicit none
-   save
-
-   integer, allocatable  :: ispinsyst(:,:)
-   integer, allocatable  :: nspinsyst(:)
-   integer               :: nsystem
 
    interface
      function shortest_distance(nspin, start, goal, neighbours, input_distances, visited, precessor)
@@ -321,7 +316,7 @@ module xtb_gfnff_fraghess
 
      end subroutine fragmentize
 
-     subroutine frag_hess_diag( nat,hess,eig_calc )
+     subroutine frag_hess_diag( nat,hess,eig_calc,ispinsyst,nspinsyst,nsystem )
      !---------------------------------------------------------------------------------------------
      ! Purpose:
      ! Subroutine performs diagonalization of fragmented hessian.
@@ -349,6 +344,9 @@ module xtb_gfnff_fraghess
         integer,  intent(in)     :: nat                          ! # of atoms
         real(sp), intent(inout)  :: hess(3*nat,3*nat)            ! input hessian
         real(sp), intent(out)    :: eig_calc(3*nat)              ! eigenvectors od entire system
+        integer,  intent(in) :: ispinsyst(:,:)         ! array with list of atoms of each fragment
+        integer,  intent(in) :: nspinsyst(:)           ! array with # of atoms for each fragment
+        integer,  intent(in) :: nsystem                            ! # of fragments
         !Stack
         integer                  :: isystem
         integer                  :: i,j,ii,jj,k

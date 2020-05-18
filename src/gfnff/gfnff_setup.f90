@@ -34,6 +34,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accura
   use xtb_gfnff_param, only : ini, gfnff_set_param
   use xtb_setparam, only : ichrg
   implicit none
+  character(len=*), parameter :: source = 'gfnff_setup'
 ! Dummy
   !integer,intent(in) :: ich
   type(TGFFTopology), intent(inout) :: topo
@@ -45,12 +46,18 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accura
   real(wp),intent(in) :: accuracy
   type(TMolecule)  :: mol
   type(TEnvironment), intent(inout) :: env
-  !type(TGFFTopology), intent(inout) :: topo
 ! Stack
   logical            :: ex
   logical            :: success
+  logical :: exitRun
 
   call gfnff_input(env, mol, topo)
+  call env%check(exitRun)
+  if (exitRun) then
+     call env%error("Failed to prepare topology from geometry input", source)
+     return
+  end if
+
   call gfnff_set_param(mol%n, gen, param)
   if (restart) then
      inquire(file='gfnff_topo', exist=ex)
@@ -58,21 +65,29 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accura
        call read_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,success,.true.,topo)
        !hbrefgeo is usually set within gfnff_ini2/gfnff_hbset0 equal to initial xyz
        topo%hbrefgeo=mol%xyz
-       if (success) write(*,'(10x,"GFN-FF topology read from file successfully!")')
-       if (.not.success) then
-          write(*,'(10x,"GFN-FF topology read in did not work!")')
-          write(*,'(10x,"Generating new topology file!")')
-          call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo,accuracy)
-          call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
-       end if
-     else
-       call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo,accuracy)
-       if (.not.mol%struc%two_dimensional) then
-          call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
+       if (success) then
+          write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
+          return
+       else
+          call env%warning("Could not read topology file", source)
+          call env%check(exitRun)
+          if (exitRun) then
+             return
+          end if
+
        end if
      end if
-  else if (.not.restart) then
-     call gfnff_ini(verbose,ini,mol,ichrg,gen,param,topo,accuracy)
+  end if
+
+  call gfnff_ini(env,verbose,ini,mol,ichrg,gen,param,topo,accuracy)
+
+  call env%check(exitRun)
+  if (exitRun) then
+     call env%error("Failed to generate topology", source)
+     return
+  end if
+
+  if (.not.mol%struc%two_dimensional) then
      call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
   end if
 
@@ -113,24 +128,10 @@ subroutine gfnff_input(env, mol, topo)
   if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(mol%n), source = 0 )
   if (.not.allocated(topo%q))        allocate( topo%q(mol%n), source = 0.0d0 )
 
-  !write(*,*) 'test' , mol%ftype
-
-  !if (allocated(mol%pdb)) then
-  !  read_file_type = 2
-  !  ini = .true.
-  !else if (allocated(mol%sdf)) then
-  !  read_file_type = 1
-  !  ini = .false.
-  !else
-  !  read_file_type = 0
-  !  ini = .true.
-  !end if
-
   select case(mol%ftype)
   !--------------------------------------------------------------------
   ! PDB case
   case(fileType%pdb)
-    !write(*,*) 'PDB' , mol%ftype
     ini = .true.
     ifrag=0
     associate(rn => mol%pdb%residue_number, qatom => mol%pdb%charge)
@@ -147,7 +148,7 @@ subroutine gfnff_input(env, mol, topo)
       topo%qpdb = qatom
     end associate
     ichrg=idint(sum(topo%qfrag(1:topo%nfrag)))
-    write(*,'(10x,"charge from pdb residues: ",i0)') ichrg
+    write(env%unit,'(10x,"charge from pdb residues: ",i0)') ichrg
   !--------------------------------------------------------------------
   ! SDF case
   case(fileType%sdf,fileType%molfile)

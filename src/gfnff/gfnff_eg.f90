@@ -20,6 +20,8 @@ module xtb_gfnff_eg
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_type_environment, only : TEnvironment
+   use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
+   use xtb_mctc_blas, only : mctc_gemv
    implicit none
    private
    public :: gfnff_eg, gfnff_dlogcoord
@@ -57,7 +59,7 @@ contains
    subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
          & param,topo,update,version,accuracy)
       use xtb_mctc_accuracy, only : wp
-      use xtb_gfnff_param
+      use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
       use xtb_disp_dftd4, only: rcov
       use xtb_type_data
       use xtb_type_timer
@@ -172,6 +174,9 @@ contains
 !!!!!!!!!!!!!
 
       if (pr) call timer%measure(2,'non bonded repulsion')
+      !$omp parallel do default(none) reduction(+:erep, g) &
+      !$omp shared(n, at, xyz, srab, sqrab, repthr, topo, param) &
+      !$omp private(iat, jat, m, ij, ati, atj, rab, r2, r3, t8, t16, t19, t26, t27)
       do iat=1,n
          m=iat*(iat-1)/2
          do jat=1,iat-1
@@ -193,6 +198,7 @@ contains
          g(:,jat)=g(:,jat)+r3
          enddo
       enddo
+      !$omp end parallel do
       if (pr) call timer%measure(2)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -202,6 +208,8 @@ contains
 
       if (version == gffVersion%harmonic2020) then
       ebond=0
+      !$omp parallel do default(none) reduction(+:ebond, g) &
+      !$omp shared(topo, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
       do i=1,topo%nbond
          iat=topo%blist(1,i)
          jat=topo%blist(2,i)
@@ -211,13 +219,10 @@ contains
          r2=rn-rab
          ebond=ebond+0.1d0*r2**2  ! fixfc = 0.1
          dum=0.1d0*2.0d0*r2/rab
-         g(1,jat)=g(1,jat)+dum*r3(1)
-         g(1,iat)=g(1,iat)-dum*r3(1)
-         g(2,jat)=g(2,jat)+dum*r3(2)
-         g(2,iat)=g(2,iat)-dum*r3(2)
-         g(3,jat)=g(3,jat)+dum*r3(3)
-         g(3,iat)=g(3,iat)-dum*r3(3)
+         g(:,jat)=g(:,jat)+dum*r3
+         g(:,iat)=g(:,iat)-dum*r3
       enddo
+      !$omp end parallel do
       etot = ebond + erep
       return
       endif
@@ -236,7 +241,7 @@ contains
 !!!!!!
 
       if (pr) call timer%measure(4,'EEQ energy and q')
-      call goed_gfnff(accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
+      call goed_gfnff(env,accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
      &                dfloat(ichrg),eeqtmp,cn,topo%q,ees,gbsa,param,topo)  ! without dq/dr
       if (pr) call timer%measure(4)
 
@@ -256,8 +261,9 @@ contains
 ! ES part
 !!!!!!!!
       if (pr) call timer%measure(6,'EEQ gradient')
-!$omp parallel default(none) private(i,j,k,ij,r3,r2,rab,gammij,erff,dd) shared(topo,n,sqrab,srab,eeqtmp,xyz,g,at) ! WRONG RESULTS
-!$omp do reduction (+:g)
+      !$omp parallel do default(none) reduction (+:g) &
+      !$omp shared(topo,n,sqrab,srab,eeqtmp,xyz,at) &
+      !$omp private(i,j,k,ij,r3,r2,rab,gammij,erff,dd)
       do i=1,n
          k = i*(i-1)/2
          do j=1,i-1
@@ -267,14 +273,13 @@ contains
             gammij=eeqtmp(1,ij)
             erff  =eeqtmp(2,ij)
             dd=(2.0d0*gammij*exp(-gammij**2*r2) &
-     &         /(sqrtpi*r2)-erff/(rab*r2))*topo%q(i)*topo%q(j)
+               & /(sqrtpi*r2)-erff/(rab*r2))*topo%q(i)*topo%q(j)
             r3=(xyz(:,i)-xyz(:,j))*dd
             g(:,i)=g(:,i)+r3
             g(:,j)=g(:,j)-r3
          enddo
       enddo
-!$omp end do
-!$omp end parallel
+      !$omp end parallel do
       if(.not.pr) deallocate(eeqtmp)
 
       if (lgbsa) then
@@ -291,15 +296,7 @@ contains
          qtmp(i)=topo%q(i)*param%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
       enddo
 
-!$omp parallel default(none) private(i,j) shared(n,dcn,qtmp,g,at)
-!$omp do reduction (+:g)
-      do i=1,n
-         do j=1,n
-            g(:,j)=g(:,j)-dcn(:,j,i)*qtmp(i)
-         enddo
-      enddo
-!$omp end do
-!$omp end parallel
+      call mctc_gemv(dcn, qtmp, g, alpha=-1.0_wp, beta=1.0_wp)
       if (pr) call timer%measure(6)
 
 !!!!!!!!!!!!!!!!!!
@@ -313,8 +310,10 @@ contains
       call gfnffdrab(n,at,xyz,cn,dcn,topo%nbond,topo%blist,rab0,grab0)
       deallocate(dcn)
 
-!!$omp parallel private(i,k,iat,jat,ij,rab,rij,drij,t8,dr,dum,yy,dx,dy,dz,t4,t5,t6) shared ( g,grab0,ebond,topo%blist,vbond,rab0,srab,xyz )
-!!$omp do REDUCTION (+:g,ebond)
+      !$omp parallel do default(none) reduction(+:g, ebond) &
+      !$omp shared(grab0, topo, param, rab0, srab, xyz, at, hb_cn, hb_dcn, n) &
+      !$omp private(i, k, iat, jat, ij, rab, rij, drij, t8, dr, dum, yy, &
+      !$omp& dx, dy, dz, t4, t5, t6, ati, atj)
       do i=1,topo%nbond
          iat=topo%blist(1,i)
          jat=topo%blist(2,i)
@@ -330,8 +329,7 @@ contains
             call egbond(i,iat,jat,rab,rij,drij,n,at,xyz,ebond,g,topo)
          end if
       enddo
-!!$omp end do
-!!$omp end parallel
+      !$omp end parallel do
 
       deallocate(hb_dcn)
 
@@ -339,6 +337,10 @@ contains
 ! bonded REP
 !!!!!!!!!!!!!!!!!!
 
+      !$omp parallel do default(none) reduction(+:erep, g) &
+      !$omp shared(topo, param, at, sqrab, srab, xyz) &
+      !$omp private(i, iat, jat, ij, xa, ya, za, dx, dy, dz, r2, rab, ati, atj, &
+      !$omp& alpha, repab, t16, t19, t26, t27)
       do i=1,topo%nbond
          iat=topo%blist(1,i)
          jat=topo%blist(2,i)
@@ -367,6 +369,7 @@ contains
          g(2,jat)=g(2,jat)+dy*t27
          g(3,jat)=g(3,jat)+dz*t27
       enddo
+      !$omp end parallel do
       endif
       if (pr) call timer%measure(7)
 
@@ -376,20 +379,20 @@ contains
 
       if (pr) call timer%measure(8,'bend and torsion')
       if(topo%nangl.gt.0)then
-!!$omp parallel private(m,j,i,k,etmp,g3tmp) shared ( nangl,n,at,xyz,g,alist )
-!!$omp do REDUCTION (+:eangl,g)
-      do m=1,topo%nangl
-         j = topo%alist(1,m)
-         i = topo%alist(2,m)
-         k = topo%alist(3,m)
-         call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp,param,topo)
-         g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
-         g(1:3,i)=g(1:3,i)+g3tmp(1:3,2)
-         g(1:3,k)=g(1:3,k)+g3tmp(1:3,3)
-         eangl=eangl+etmp
-      enddo
-!!$omp end do
-!!$omp end parallel
+         !$omp parallel do default(none) reduction (+:eangl, g) &
+         !$omp shared(n, at, xyz, topo, param) &
+         !$omp private(m, j, i, k, etmp, g3tmp)
+         do m=1,topo%nangl
+            j = topo%alist(1,m)
+            i = topo%alist(2,m)
+            k = topo%alist(3,m)
+            call egbend(m,j,i,k,n,at,xyz,etmp,g3tmp,param,topo)
+            g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
+            g(1:3,i)=g(1:3,i)+g3tmp(1:3,2)
+            g(1:3,k)=g(1:3,k)+g3tmp(1:3,3)
+            eangl=eangl+etmp
+         enddo
+         !$omp end parallel do
       endif
 
 !!!!!!!!!!!!!!!!!!
@@ -397,22 +400,22 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if(topo%ntors.gt.0)then
-!!$omp parallel private(m,i,j,k,l,etmp,g4tmp) shared ( ntors,n,at,xyz,g,tlist )
-!!$omp do REDUCTION (+:etors,g)
-      do m=1,topo%ntors
-         i=topo%tlist(1,m)
-         j=topo%tlist(2,m)
-         k=topo%tlist(3,m)
-         l=topo%tlist(4,m)
-         call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp,param,topo)
-         g(1:3,i)=g(1:3,i)+g4tmp(1:3,1)
-         g(1:3,j)=g(1:3,j)+g4tmp(1:3,2)
-         g(1:3,k)=g(1:3,k)+g4tmp(1:3,3)
-         g(1:3,l)=g(1:3,l)+g4tmp(1:3,4)
-         etors=etors+etmp
-      enddo
-!!$omp end do
-!!$omp end parallel
+         !$omp parallel do default(none) reduction(+:etors, g) &
+         !$omp shared(param, topo, n, at, xyz) &
+         !$omp private(m, i, j, k, l, etmp, g4tmp)
+         do m=1,topo%ntors
+            i=topo%tlist(1,m)
+            j=topo%tlist(2,m)
+            k=topo%tlist(3,m)
+            l=topo%tlist(4,m)
+            call egtors(m,i,j,k,l,n,at,xyz,etmp,g4tmp,param,topo)
+            g(1:3,i)=g(1:3,i)+g4tmp(1:3,1)
+            g(1:3,j)=g(1:3,j)+g4tmp(1:3,2)
+            g(1:3,k)=g(1:3,k)+g4tmp(1:3,3)
+            g(1:3,l)=g(1:3,l)+g4tmp(1:3,4)
+            etors=etors+etmp
+         enddo
+         !$omp end parallel do
       endif
       if (pr) call timer%measure(8)
 
@@ -422,21 +425,20 @@ contains
 
       if (pr) call timer%measure(9,'bonded ATM')
       if(topo%nbatm.gt.0) then
-
-!!$omp parallel private(i,j,k,l,etmp,g3tmp) shared ( nbatm,n,at,xyz,qa,srab,sqrab,g,b3list ) OMP GIVES WRONG RESULTS HERE!
-!!$omp do REDUCTION (+:ebatm,g)
-      do i=1,topo%nbatm
-         j=topo%b3list(1,i)
-         k=topo%b3list(2,i)
-         l=topo%b3list(3,i)
-         call batmgfnff_eg(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param)
-         g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
-         g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
-         g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
-         ebatm=ebatm+etmp
-      enddo
-!!$omp end do
-!!$omp end parallel
+         !$omp parallel do default(none) reduction(+:ebatm, g) &
+         !$omp shared(n, at, xyz, srab, sqrab, topo, param) &
+         !$omp private(i, j, k, l, etmp, g3tmp)
+         do i=1,topo%nbatm
+            j=topo%b3list(1,i)
+            k=topo%b3list(2,i)
+            l=topo%b3list(3,i)
+            call batmgfnff_eg(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param)
+            g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
+            g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
+            g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
+            ebatm=ebatm+etmp
+         enddo
+         !$omp end parallel do
       endif
       if (pr) call timer%measure(9)
 
@@ -450,48 +452,52 @@ contains
       end if
 
       if(topo%nhb1.gt.0) then
-!$omp parallel private(i,j,k,l,etmp,g3tmp) shared (topo,n,at,xyz,g,sqrab,srab )
-!$omp do REDUCTION (+:ehb,g)
-      do i=1,topo%nhb1
-         j=topo%hblist1(1,i)
-         k=topo%hblist1(2,i)
-         l=topo%hblist1(3,i)
-         call abhgfnff_eg1(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param,topo)
-         g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
-         g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
-         g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
-         ehb=ehb+etmp
-      enddo
-!$omp end do
-!$omp end parallel
+         !$omp parallel do default(none) reduction(+:ehb, g) &
+         !$omp shared(topo, param, n, at, xyz, sqrab, srab) &
+         !$omp private(i, j, k, l, etmp, g3tmp)
+         do i=1,topo%nhb1
+            j=topo%hblist1(1,i)
+            k=topo%hblist1(2,i)
+            l=topo%hblist1(3,i)
+            call abhgfnff_eg1(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param,topo)
+            g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
+            g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
+            g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
+            ehb=ehb+etmp
+         enddo
+         !$omp end parallel do
       endif
 
 
       if(topo%nhb2.gt.0) then
-!$omp parallel private(i,j,k,l,etmp,g5tmp) shared (topo,n,at,xyz,g,sqrab,srab )
-!$omp do REDUCTION (+:ehb,g)
-      do i=1,topo%nhb2
-         j=topo%hblist2(1,i)
-         k=topo%hblist2(2,i)
-         l=topo%hblist2(3,i)
-         !Carbonyl case R-C=O...H_A
-         if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.6) then
-           call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
-         !Nitro case R-N=O...H_A
-         else if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.7) then
-           call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
-         !N hetero aromat
-         else if(at(k).eq.7.and.topo%nb(20,k).eq.2) then
-           call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
-         else
-         !Default
-           call abhgfnff_eg2new(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g5tmp,param,topo)
-         end if
-         g=g+g5tmp
-         ehb=ehb+etmp
-      enddo
-!$omp end do
-!$omp end parallel
+         !$omp parallel do default(none) reduction(+:ehb, g) &
+         !$omp shared(topo, param, n, at, xyz, sqrab, srab) &
+         !$omp private(i, j, k, l, etmp, g5tmp)
+         do i=1,topo%nhb2
+            j=topo%hblist2(1,i)
+            k=topo%hblist2(2,i)
+            l=topo%hblist2(3,i)
+            !Carbonyl case R-C=O...H_A
+            if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.6) then
+               call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
+                  & etmp,g5tmp,param,topo)
+               !Nitro case R-N=O...H_A
+            else if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.7) then
+               call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
+                  & etmp,g5tmp,param,topo)
+               !N hetero aromat
+            else if(at(k).eq.7.and.topo%nb(20,k).eq.2) then
+               call abhgfnff_eg2_rnr(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
+                  & etmp,g5tmp,param,topo)
+            else
+               !Default
+               call abhgfnff_eg2new(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
+                  & etmp,g5tmp,param,topo)
+            end if
+            g=g+g5tmp
+            ehb=ehb+etmp
+         enddo
+         !$omp end parallel do
       endif
 
 !!!!!!!!!!!!!!!!!!
@@ -499,16 +505,19 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if(topo%nxb.gt.0) then
-      do i=1,topo%nxb
-         j=topo%hblist3(1,i)
-         k=topo%hblist3(2,i)
-         l=topo%hblist3(3,i)
-         call rbxgfnff_eg(n,j,k,l,at,xyz,topo%qa,etmp,g3tmp,param)
-         g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
-         g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
-         g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
-         exb=exb+etmp
-      enddo
+         !$omp parallel do default(none) reduction(+:exb, g) &
+         !$omp shared(topo, param, n, at, xyz) private(i, j, k, l, etmp, g3tmp)
+         do i=1,topo%nxb
+            j=topo%hblist3(1,i)
+            k=topo%hblist3(2,i)
+            l=topo%hblist3(3,i)
+            call rbxgfnff_eg(n,j,k,l,at,xyz,topo%qa,etmp,g3tmp,param)
+            g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
+            g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
+            g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
+            exb=exb+etmp
+         enddo
+         !$omp end parallel do
       endif
       if (pr) call timer%measure(10)
 
@@ -539,9 +548,10 @@ contains
       if (pr) then
         call timer%write(6,'E+G')
         if(abs(sum(topo%q)-ichrg).gt.1.d-1) then ! check EEQ only once
-          write(*,*) topo%q
-          write(*,*) sum(topo%q),ichrg
-          stop 'EEQ charge constrain error'
+          write(env%unit,*) topo%q
+          write(env%unit,*) sum(topo%q),ichrg
+          call env%error('EEQ charge constrain error', source)
+          return
         endif
         r3 = 0
         do i=1,n
@@ -554,7 +564,7 @@ contains
         cn = 0
 !       asymtotically for R=inf, Etot is the SIE contaminted EES
 !       which is computed here to get the atomization energy De,n,at(n)
-        call goed_gfnff(.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,gbsa,param,topo)
+        call goed_gfnff(env,.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,gbsa,param,topo)
         de=-(etot - eesinf)
 !       write out fitting stuff
         inquire(file='.EAT',exist=ex)
@@ -688,7 +698,7 @@ contains
            hbH=jat
            hbA=iat
          else
-           write(*,'(10x,"No H-atom found in this bond ",i0,x,i0)'), iat,jat
+           write(*,'(10x,"No H-atom found in this bond ",i0,1x,i0)'), iat,jat
            return
          end if
 
@@ -1214,11 +1224,13 @@ contains
 !       based on charge densities obtained by a neural network
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine goed_gfnff(single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,topo)
-      use iso_fortran_env, id => output_unit, wp => real64
+      subroutine goed_gfnff(env,single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,topo)
+      use xtb_mctc_accuracy, only : wp, sp
       use xtb_mctc_la
       use xtb_solv_gbobc
       implicit none
+      character(len=*), parameter :: source = 'gfnff_eg_goed'
+      type(TEnvironment), intent(inout) :: env
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(in) :: topo
       logical, intent(in)  :: single     ! real*4 flag for solver
@@ -1235,13 +1247,13 @@ contains
 
 !  local variables
       integer  :: m,i,j,k,ii,ij
-      integer  :: info,lwork
       integer,allocatable :: ipiv(:)
       real(wp) :: gammij,tsqrt2pi,r2,tmp
-      real(wp),allocatable :: A (:,:),x (:),work (:)
-      real*4  ,allocatable :: A4(:,:),x4(:),work4(:)
+      real(wp),allocatable :: A (:,:),x (:)
+      real(sp),allocatable :: A4(:,:),x4(:)
 !  parameter
       parameter (tsqrt2pi = 0.797884560802866_wp)
+      logical :: exitRun
 
       m=n+topo%nfrag ! # atoms + chrg constrain + frag constrain
 
@@ -1287,25 +1299,29 @@ contains
       if (lgbsa) call compute_amat(gbsa, A)
 
 !     call prmat(6,A,m,m,'A eg')
-      lwork=m*m
       allocate(ipiv(m))
 
       if(single) then
-      allocate(A4(m,m),work4(m*m),x4(m))
-      A4=A
-      x4=x
-      deallocate(A,x)
-      call SSYSV('U', m, 1, A4,m, IPIV,x4, m,WORK4, LWORK, INFO)
-      q(1:n)=x4(1:n)
-      deallocate(A4,work4,x4)
+         allocate(A4(m,m),x4(m))
+         A4=A
+         x4=x
+         deallocate(A,x)
+         call mctc_sytrf(env, a4, ipiv)
+         call mctc_sytrs(env, a4, x4, ipiv)
+         q(1:n)=x4(1:n)
+         deallocate(A4,x4)
       else
-      allocate(work(m*m))
-      call DSYSV('U', m, 1, A, m, IPIV, x, m, WORK, LWORK, INFO)
-      q(1:n)=x(1:n)
-      deallocate(A,work,x)
+         call mctc_sytrf(env, a, ipiv)
+         call mctc_sytrs(env, a, x, ipiv)
+         q(1:n)=x(1:n)
+         deallocate(A,x)
       endif
 
-      if(info.ne.0) stop 'EEQ *SYSV failed'
+      call env%check(exitRun)
+      if(exitRun) then
+         call env%error('Solving linear equations failed', source)
+         return
+      end if
 
       if(n.eq.1) q(1)=chrg
 
