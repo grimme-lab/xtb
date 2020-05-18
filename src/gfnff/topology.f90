@@ -90,6 +90,10 @@ module xtb_gfnff_topology
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
       real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
 
+      integer, allocatable  :: ispinsyst(:,:)
+      integer, allocatable  :: nspinsyst(:)
+      integer               :: nsystem
+
    contains
 
       procedure :: zero

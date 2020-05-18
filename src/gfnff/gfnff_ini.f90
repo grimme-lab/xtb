@@ -1815,7 +1815,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
 
       topo%maxsystem = 5000
       !if(mol%n.gt.500)then
-      call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb,ispinsyst,nspinsyst,nsystem)
+      call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb, &
+         & topo%ispinsyst,topo%nspinsyst,topo%nsystem)
       !else
       !   nsystem=1
       !endif
