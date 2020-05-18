@@ -68,10 +68,15 @@ subroutine struc_convert( &
   real(wp)                                    :: hmass_in
   logical                                     :: exist
   logical                                     :: fail
+  integer, allocatable :: opt_in
   character(len=*),parameter                  :: p_fname_param_gfnff = '.param_gfnff.xtb'
 !------------------------------------------------------------------------------
 ! set up force field
   call struc_convert_header
+  if (allocated(opt_engine)) then
+    opt_in = opt_engine
+  end if
+  opt_engine = p_engine_rf
   mode_input = mode_extrun
   mode_extrun = p_ext_gfnff
   if (.not.allocated(fnv)) fnv=xfind(p_fname_param_gfnff)
@@ -121,6 +126,11 @@ subroutine struc_convert( &
   tstep_md = step_in
   dump_md2 = dump_in
   md_hmass = hmass_in
+  if (allocated(opt_in)) then
+    opt_engine = opt_in
+  else
+    deallocate(opt_engine)
+  end if
 !------------------------------------------------------------------------------
   write(*,*)
   write(*,'(10x," ------------------------------------------------- ")')

@@ -76,7 +76,7 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    character(len=3) :: symbol
    character(len=5) :: v2000
    integer, parameter :: ccc_to_charge(0:7) = [0, +3, +2, +1, 0, -1, -2, -3]
-   logical :: two_dim = .false.
+   logical :: two_dim
 
    !> Element symbols
    character(len=symbolLength),allocatable :: sym(:)
@@ -88,12 +88,13 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
    real(wp),allocatable :: xyz(:,:)
 
    status = .false.
+   two_dim = .false.
 
    call getline(unit, name, error)
    call getline(unit, line, error)
    read(line, '(20x,a2)', iostat=error) sdf_dim
-   if (error == 0 .and. (sdf_dim == '2D' .or. sdf_dim == '2d')) then
-      two_dim = .true.
+   if (error == 0) then
+      two_dim = sdf_dim == '2D' .or. sdf_dim == '2d'
    endif
    call getline(unit, line, error)
    call getline(unit, line, error)

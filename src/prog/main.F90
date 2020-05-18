@@ -322,6 +322,9 @@ subroutine xtbMain(env, argParser)
       call open_file(ich, fname, 'r')
       call readMolecule(env, mol, ich, ftype)
       call close_file(ich)
+      if (mol%struc%two_dimensional) then
+         call env%warning("Two dimensional input structure detected", source)
+      end if
 
       call env%checkpoint("reading geometry input '"//fname//"' failed")
    endif
@@ -379,6 +382,7 @@ subroutine xtbMain(env, argParser)
       call struc_convert (env,restart,mol,wfn,egap,etemp,maxscciter, &
                        &  optset%maxoptcycle,etot,g,sigma)
       struc_conversion_done = .true.
+      mol%struc%two_dimensional = .false.
    end if
 
    ! ------------------------------------------------------------------------
