@@ -92,6 +92,8 @@ subroutine xtbThermo(env, argParser)
 
    !> Print an informative banner
    call thermoHeader(env%unit)
+   !> print current time
+   call prdate('S')
 
    !> Also store a copy of the atomic masses in amu in global storage
    atmass = mol%atmass * autoamu

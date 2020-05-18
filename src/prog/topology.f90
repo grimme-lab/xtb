@@ -104,6 +104,8 @@ subroutine xtbTopology(env, argParser)
 
    !> Print an informative banner
    call topologyHeader(env%unit)
+   !> print current time
+   call prdate('S')
 
    if (.not.allocated(param)) then
       call rdpath(env%xtbpath, '.param_gfnff.xtb', param, exist)
