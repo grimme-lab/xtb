@@ -76,12 +76,12 @@ add_test("EXE_Info" ${XTB-EXE} info
   "${xtb-dir}/assets/inputs/vasp/ammonia.vasp"
   "${xtb-dir}/assets/inputs/xyz/taxol.xyz"
 )
-add_test("EXE_Singlepoint" ${XTB-EXE} --coffee --strict --norestart)
-add_test("EXE_IP/EA" ${XTB-EXE} --coffee --gfn 2 --vipea --strict --norestart)
-add_test("EXE_GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart)
-add_test("EXE_GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart)
-add_test("EXE_GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart)
-add_test("EXE_GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart)
+add_test("EXE_Singlepoint" ${XTB-EXE} --coffee --strict --norestart --namespace test1)
+add_test("EXE_IP/EA" ${XTB-EXE} --coffee --gfn 2 --vipea --strict --norestart --namespace test2)
+add_test("EXE_GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart --namespace test3)
+add_test("EXE_GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart --namespace test4)
+add_test("EXE_GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart --namespace test5)
+add_test("EXE_GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 
 add_test("Molecule_axis" ${XTB-TESTER} xtb_type_molecule axis)
 add_test("Molecule_MIC" ${XTB-TESTER} xtb_type_molecule mic)

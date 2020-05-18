@@ -441,12 +441,22 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
               err = 1
             end if
          enddo
-         err = 0
          call close_file(ich)
          if (err == 0) then
-           topo%qfrag=dnint(qtmp)
-           write(env%unit,'(10x,"fragment charges from <charges> :",10F7.3)') topo%qfrag(1:topo%nfrag)
+            if (i < mol%n .or. abs(sum(qtmp) - ichrg) < 1.0e-3_wp) then
+               call env%warning("Rejecting external charges input due to missmatch", source)
+            else
+               topo%qfrag=dnint(qtmp)
+               write(env%unit,'(10x,"fragment charges from <charges> :",10F7.3)') topo%qfrag(1:topo%nfrag)
+            end if
+         else
+            call env%warning("Could not initialize fragment charges from file", source)
          endif
+
+         call env%check(exitRun)
+         if (exitRun) then
+            return
+         end if
       endif
       if(mol%n.lt.100.and.topo%nfrag.gt.2.and.ichrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
          itmp=0
