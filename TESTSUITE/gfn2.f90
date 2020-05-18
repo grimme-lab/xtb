@@ -132,10 +132,11 @@ subroutine test_gfn2_api
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -157,9 +158,10 @@ subroutine test_gfn2_api
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -172,8 +174,11 @@ subroutine test_gfn2_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn2_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
    call assert_close(hl_gap, 7.0005867526665_wp,thr)
    call assert_close(energy,-8.3824793849585_wp,thr)
    call assert_close(norm2(gradient),0.11544410028854E-01_wp,thr)
@@ -197,10 +202,11 @@ subroutine test_gfn2gbsa_api
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
 
    implicit none
 
@@ -226,9 +232,10 @@ subroutine test_gfn2gbsa_api
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -241,8 +248,12 @@ subroutine test_gfn2gbsa_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn2_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, wfn)
+   call addSolvationModel(env, calc, opt%solvent)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 3.408607724814_wp,1e-5_wp)
    call assert_close(energy,-22.002501380096_wp,thr)
@@ -266,12 +277,13 @@ subroutine test_gfn2salt_api
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_environment
 
    use xtb_solv_gbobc
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
 
    implicit none
 
@@ -294,9 +306,10 @@ subroutine test_gfn2salt_api
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -313,8 +326,12 @@ subroutine test_gfn2salt_api
    ion_rad = 1.0_wp
    ionst = 1.0e-3_wp
 
-   call gfn2_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, wfn)
+   call addSolvationModel(env, calc, opt%solvent)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 6.895830675032_wp,5e-5_wp)
    call assert_close(energy,-13.027106170796_wp,thr)
@@ -339,10 +356,12 @@ subroutine test_gfn2_pcem_api
    use xtb_type_molecule
    use xtb_type_wavefunction
    use xtb_type_param
+   use xtb_type_data
    use xtb_type_pcem
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
 
    implicit none
 
@@ -374,9 +393,10 @@ subroutine test_gfn2_pcem_api
    type(TMolecule)    :: mol
    type(TWavefunction):: wfn
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -389,8 +409,11 @@ subroutine test_gfn2_pcem_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn2_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 12.391144584178_wp,thr)
    call assert_close(energy,-20.323978512117_wp,thr)
@@ -403,20 +426,25 @@ subroutine test_gfn2_pcem_api
 
    ! reset
    call mol%deallocate
+   deallocate(gradient)
+
+   call init(mol, at(:nat2), xyz(:, :nat2))
+   allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call init(mol, at(:nat2), xyz(:, :nat2))
+   call newXTBCalculator(env, mol, calc, method=2)
 
-   call pcem%allocate(nat2)
-   pcem%xyz = xyz(:,nat2+1:)
+   call calc%pcem%allocate(nat2)
+   calc%pcem%xyz = xyz(:,nat2+1:)
    ! gam from xtb_aoparam is now filled with GFN2-xTB hardnesses
-   pcem%gam = gam
-   pcem%q   = q
-   pcem%grd = 0.0_wp
+   calc%pcem%gam = gam
+   calc%pcem%q   = q
+   calc%pcem%grd = 0.0_wp
 
-   call gfn2_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newWavefunction(env, mol, calc, wfn)
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 12.718203165741_wp,thr)
    call assert_close(energy,-10.160927754235_wp,thr)
@@ -427,20 +455,21 @@ subroutine test_gfn2_pcem_api
    call assert_close(gradient(1,4),-0.11929405659085E-02_wp,thr)
    call assert_close(gradient(3,6),-0.16607682747438E-02_wp,thr)
 
-   call assert_close(norm2(pcem%grd),0.10043976337709E-01_wp,thr)
-   call assert_close(pcem%grd(1,5),-0.24831958012524E-03_wp,thr)
-   call assert_close(pcem%grd(2,2), 0.14208444722973E-02_wp,thr)
-   call assert_close(pcem%grd(1,4), 0.37466852704082E-02_wp,thr)
-   call assert_close(pcem%grd(3,6), 0.65161344334732E-03_wp,thr)
+   call assert_close(norm2(calc%pcem%grd),0.10043976337709E-01_wp,thr)
+   call assert_close(calc%pcem%grd(1,5),-0.24831958012524E-03_wp,thr)
+   call assert_close(calc%pcem%grd(2,2), 0.14208444722973E-02_wp,thr)
+   call assert_close(calc%pcem%grd(1,4), 0.37466852704082E-02_wp,thr)
+   call assert_close(calc%pcem%grd(3,6), 0.65161344334732E-03_wp,thr)
 
    ! reset
    energy = 0.0_wp
    gradient = 0.0_wp
-   pcem%grd = 0.0_wp
-   pcem%gam = 999.0_wp ! point charges
+   calc%pcem%grd = 0.0_wp
+   calc%pcem%gam = 999.0_wp ! point charges
 
-   call gfn2_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newWavefunction(env, mol, calc, wfn)
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 13.024345612330_wp,thr)
    call assert_close(energy,-10.168788268962_wp,thr)
@@ -451,11 +480,11 @@ subroutine test_gfn2_pcem_api
    call assert_close(gradient(1,4),-0.74927880093291E-02_wp,thr)
    call assert_close(gradient(3,6),-0.13248514654811E-02_wp,thr)
 
-   call assert_close(norm2(pcem%grd),0.18721791896294E-01_wp,thr)
-   call assert_close(pcem%grd(1,5),-0.21573703225712E-02_wp,thr)
-   call assert_close(pcem%grd(2,2), 0.25653662154150E-02_wp,thr)
-   call assert_close(pcem%grd(1,4), 0.12124342986218E-01_wp,thr)
-   call assert_close(pcem%grd(3,6), 0.12140575062433E-02_wp,thr)
+   call assert_close(norm2(calc%pcem%grd),0.18721791896294E-01_wp,thr)
+   call assert_close(calc%pcem%grd(1,5),-0.21573703225712E-02_wp,thr)
+   call assert_close(calc%pcem%grd(2,2), 0.25653662154150E-02_wp,thr)
+   call assert_close(calc%pcem%grd(1,4), 0.12124342986218E-01_wp,thr)
+   call assert_close(calc%pcem%grd(3,6), 0.12140575062433E-02_wp,thr)
 
    call terminate(afail)
 

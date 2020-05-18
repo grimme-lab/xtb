@@ -59,9 +59,6 @@ target_include_directories(lib-xtb-static
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
 )
 
-message("BLAS_LIBRARIES ${BLAS_LIBRARIES}")
-message("LAPACK_LIBRARIES ${LAPACK_LIBRARIES}")
-
 # Shared Library
 add_library(lib-xtb-shared SHARED $<TARGET_OBJECTS:xtb-object> )
 target_link_libraries(lib-xtb-shared

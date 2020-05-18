@@ -58,6 +58,7 @@ end subroutine writecosmofile
 
 subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_global, only : persistentEnv
    use xtb_mctc_systools
    use xtb_type_wavefunction
    use xtb_setparam
@@ -84,8 +85,8 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
    call rdvar('HOSTNAME',cdum,err)
    if (err.eq.0) &
       write(iunit,'(10x,a,":",1x,a)') 'hostname                   ',cdum
-   if (allocated(xenv%namespace)) &
-      write(iunit,'(10x,a,":",1x,a)') 'calculation namespace      ',xenv%namespace
+   if (allocated(persistentEnv%io%namespace)) &
+      write(iunit,'(10x,a,":",1x,a)') 'calculation namespace      ',persistentEnv%io%namespace
    ! ----------------------------------------------------------------------
    !  print the home and path to check if there are set correctly
    write(iunit,'(10x,a,":",1x,a)') 'coordinate file            ',fname

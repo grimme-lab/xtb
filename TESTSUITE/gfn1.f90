@@ -123,11 +123,12 @@ subroutine test_gfn1_api
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_wavefunction
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -147,10 +148,11 @@ subroutine test_gfn1_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
    type(TWavefunction):: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -163,8 +165,11 @@ subroutine test_gfn1_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 5.6067613073468_wp,thr)
    call assert_close(energy,-8.4156335928615_wp,thr)
@@ -188,11 +193,12 @@ subroutine test_gfn1gbsa_api
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_wavefunction
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
 
    implicit none
 
@@ -214,10 +220,11 @@ subroutine test_gfn1gbsa_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
    type(TWavefunction):: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -230,8 +237,12 @@ subroutine test_gfn1gbsa_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+   call addSolvationModel(env, calc, opt%solvent)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 6.641641300724_wp,1e-4_wp)
    call assert_close(energy,-14.215790820910_wp,thr)
@@ -254,11 +265,12 @@ subroutine test_gfn1_pcem_api
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_wavefunction
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -288,10 +300,11 @@ subroutine test_gfn1_pcem_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
    type(TWavefunction):: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -304,8 +317,11 @@ subroutine test_gfn1_pcem_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, method=1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
    call assert_close(energy,-23.113490914998_wp,thr)
@@ -323,15 +339,18 @@ subroutine test_gfn1_pcem_api
 
    call init(mol, at(:nat2), xyz(:, :nat2))
 
-   call pcem%allocate(nat2)
-   pcem%xyz = xyz(:,nat2+1:)
-   ! gam from xtb_aoparam is now filled with GFN1-xTB hardnesses
-   pcem%gam = gam
-   pcem%q   = q
-   pcem%grd = 0.0_wp
+   call newXTBCalculator(env, mol, calc, 'param_gfn1-xtb.txt', 1)
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call calc%pcem%allocate(nat2)
+   calc%pcem%xyz = xyz(:,nat2+1:)
+   ! gam from xtb_aoparam is now filled with GFN1-xTB hardnesses
+   calc%pcem%gam = gam
+   calc%pcem%q   = q
+   calc%pcem%grd = 0.0_wp
+
+   call newWavefunction(env, mol, calc, wfn)
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 8.7253450652232_wp,thr)
    call assert_close(energy,-11.559896105984_wp,thr)
@@ -342,20 +361,21 @@ subroutine test_gfn1_pcem_api
    call assert_close(gradient(1,4),-0.27846344196073E-02_wp,thr)
    call assert_close(gradient(3,6),-0.12174494093948E-02_wp,thr)
 
-   call assert_close(norm2(pcem%grd),0.12965281862178E-01_wp,thr)
-   call assert_close(pcem%grd(1,5),-0.65532598920592E-03_wp,thr)
-   call assert_close(pcem%grd(2,2), 0.17820246510446E-02_wp,thr)
-   call assert_close(pcem%grd(1,4), 0.60888638785130E-02_wp,thr)
-   call assert_close(pcem%grd(3,6), 0.86753094430381E-03_wp,thr)
+   call assert_close(norm2(calc%pcem%grd),0.12965281862178E-01_wp,thr)
+   call assert_close(calc%pcem%grd(1,5),-0.65532598920592E-03_wp,thr)
+   call assert_close(calc%pcem%grd(2,2), 0.17820246510446E-02_wp,thr)
+   call assert_close(calc%pcem%grd(1,4), 0.60888638785130E-02_wp,thr)
+   call assert_close(calc%pcem%grd(3,6), 0.86753094430381E-03_wp,thr)
 
    ! reset
    energy = 0.0_wp
    gradient = 0.0_wp
-   pcem%grd = 0.0_wp
-   pcem%gam = 999.0_wp ! point charges
+   calc%pcem%grd = 0.0_wp
+   calc%pcem%gam = 999.0_wp ! point charges
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newWavefunction(env, mol, calc, wfn)
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 8.9183046283326_wp,thr)
    call assert_close(energy,-11.565012263827_wp,thr)
@@ -366,11 +386,11 @@ subroutine test_gfn1_pcem_api
    call assert_close(gradient(1,4),-0.75488974649673E-02_wp,thr)
    call assert_close(gradient(3,6),-0.12128428341685E-02_wp,thr)
 
-   call assert_close(norm2(pcem%grd),0.18251544072073E-01_wp,thr)
-   call assert_close(pcem%grd(1,5),-0.16079631752423E-02_wp,thr)
-   call assert_close(pcem%grd(2,2), 0.23749979339001E-02_wp,thr)
-   call assert_close(pcem%grd(1,4), 0.10140193991067E-01_wp,thr)
-   call assert_close(pcem%grd(3,6), 0.11833638475792E-02_wp,thr)
+   call assert_close(norm2(calc%pcem%grd),0.18251544072073E-01_wp,thr)
+   call assert_close(calc%pcem%grd(1,5),-0.16079631752423E-02_wp,thr)
+   call assert_close(calc%pcem%grd(2,2), 0.23749979339001E-02_wp,thr)
+   call assert_close(calc%pcem%grd(1,4), 0.10140193991067E-01_wp,thr)
+   call assert_close(calc%pcem%grd(3,6), 0.11833638475792E-02_wp,thr)
 
    call terminate(afail)
 
@@ -385,11 +405,12 @@ subroutine test_gfn1_xb
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_param
-   use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_wavefunction
    use xtb_type_environment
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -408,10 +429,11 @@ subroutine test_gfn1_xb
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(tb_pcem)        :: pcem
    type(TWavefunction):: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:)
 
@@ -424,8 +446,11 @@ subroutine test_gfn1_xb
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, 'param_gfn1-xtb.txt', 1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 2.4991941159068_wp,thr)
    call assert_close(energy,-15.606233877972_wp,thr)
@@ -452,12 +477,14 @@ subroutine test_gfn1_pbc3d
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_pcem
+   use xtb_type_data
    use xtb_type_environment
    use xtb_type_wavefunction
 
    use xtb_pbc_tools
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -481,8 +508,10 @@ subroutine test_gfn1_pbc3d
    type(TEnvironment) :: env
    type(tb_pcem)      :: pcem
    type(TWavefunction):: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
-   real(wp) :: energy
+   real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
    real(wp) :: gradlatt(3,3)
    real(wp) :: stress(3,3)
@@ -503,8 +532,11 @@ subroutine test_gfn1_pbc3d
 
    call mctc_mute
 
-   call gfn1_calculation &
-      (stdout,env,opt,mol,pcem,wfn,hl_gap,energy,gradient)
+   call newXTBCalculator(env, mol, calc, 'param_gfn1-xtb.txt', 1)
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 7.5302549721955_wp,thr)
    call assert_close(energy,-11.069452578476_wp,thr)

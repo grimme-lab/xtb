@@ -18,26 +18,30 @@
 !> TODO
 module xtb_main_setup
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_systools, only : rdpath
    use xtb_type_calculator, only : TCalculator
    use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_type_param, only : TxTBParameter
+   use xtb_type_param, only : TxTBParameter, chrg_parameter
    use xtb_type_wavefunction, only : TWavefunction
    use xtb_readparam, only : readParam
    use xtb_paramset, only : use_parameterset
    use xtb_basis, only : newBasisset
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_eeq, only : goedecker_chrgeq
+   use xtb_eeq, only : eeq_chrgeq
    use xtb_iniq, only : iniqcn
    use xtb_scc_core, only : iniqshell
+   use xtb_embedding, only : read_pcem
    use xtb_setparam
    use xtb_disp_ncoord
+   use xtb_chargemodel
+   use xtb_solv_gbobc, only : lgbsa, init_gbsa
    implicit none
    private
 
-   public :: newCalculator
+   public :: newCalculator, newWavefunction, addSolvationModel
    public :: newXTBCalculator, newGFFCalculator
 
 
@@ -71,7 +75,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
    case(p_ext_eht, p_ext_xtb)
       allocate(xtb)
 
-      call newXTBCalculator(env, mol, xtb, fname)
+      call newXTBCalculator(env, mol, xtb, fname, gfn_method, accuracy)
 
       call env%check(exitRun)
       if (exitRun) then
@@ -80,7 +84,6 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
       end if
 
       call move_alloc(xtb, calc)
-      calc%accuracy = accuracy
    case(p_ext_gfnff)
       allocate(gfnff)
 
@@ -101,7 +104,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
 end subroutine newCalculator
 
 
-subroutine newXTBCalculator(env, mol, calc, fname)
+subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
 
    character(len=*), parameter :: source = 'main_setup_newXTBCalculator'
 
@@ -111,27 +114,70 @@ subroutine newXTBCalculator(env, mol, calc, fname)
 
    type(TxTBCalculator), intent(out) :: calc
 
-   character(len=*), intent(in) :: fname
+   integer, intent(in), optional :: method
 
+   real(wp), intent(in), optional :: accuracy
+
+   character(len=*), intent(in), optional :: fname
+
+   character(len=:), allocatable :: filename
    type(TxTBParameter) :: globpar
    integer :: ich
    logical :: exist, okbas
    logical :: exitRun
 
+   if (present(fname)) then
+      filename = fname
+   else
+      if (present(method)) then
+         select case(method)
+         case(0)
+            call rdpath(env%xtbpath, 'param_gfn0-xtb.txt', filename, exist)
+            if (.not.exist) filename = 'param_gfn0-xtb.txt'
+         case(1)
+            call rdpath(env%xtbpath, 'param_gfn1-xtb.txt', filename, exist)
+            if (.not.exist) filename = 'param_gfn1-xtb.txt'
+         case(2)
+            call rdpath(env%xtbpath, 'param_gfn2-xtb.txt', filename, exist)
+            if (.not.exist) filename = 'param_gfn2-xtb.txt'
+         end select
+      end if
+   end if
+   if (.not.allocated(filename)) then
+      call env%error("No parameter file or parametrisation info provided", source)
+      return
+   end if
+
+   if (present(accuracy)) then
+      calc%accuracy = accuracy
+   else
+      calc%accuracy = 1.0_wp
+   end if
+
+   calc%etemp = 300.0_wp
+   calc%maxiter = 250
+
    !> Obtain the parameter file
    allocate(calc%xtbData)
-   call open_file(ich, fname, 'r')
+   call open_file(ich, filename, 'r')
    exist = ich /= -1
    if (exist) then
       call readParam(env, ich, globpar, calc%xtbData, .true.)
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
-      call use_parameterset(fname, globpar, calc%xtbData, exist)
+      call use_parameterset(filename, globpar, calc%xtbData, exist)
       if (.not.exist) then
-         call env%error('Parameter file '//fname//' not found!', source)
+         call env%error('Parameter file '//filename//' not found!', source)
          return
       end if
    endif
+
+   if (present(method)) then
+      if (method /= calc%xtbData%level) then
+         call env%error("Requested method does not match loaded method", source)
+         return
+      end if
+   end if
 
    call env%check(exitRun)
    if (exitRun) then
@@ -145,6 +191,15 @@ subroutine newXTBCalculator(env, mol, calc, fname)
    if (.not.okbas) then
       call env%error('basis set could not be setup completely', source)
       return
+   end if
+
+   !> check for external point charge field
+   if (allocated(pcem_file)) then
+      call open_file(ich, pcem_file, 'r')
+      if (ich /= -1) then
+         call read_pcem(ich, env, calc%pcem, calc%xtbData%coulomb)
+         call close_file(ich)
+      end if
    end if
 
 end subroutine newXTBCalculator
@@ -213,5 +268,86 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    end if
 
 end subroutine newGFFCalculator
+
+
+subroutine newWavefunction(env, mol, calc, wfn)
+   type(TEnvironment), intent(inout) :: env
+   type(TWavefunction), intent(inout) :: wfn
+   type(TxTBCalculator), intent(in) :: calc
+   type(TMolecule), intent(in) :: mol
+   real(wp), allocatable :: cn(:)
+   type(chrg_parameter) :: chrgeq
+
+   allocate(cn(mol%n))
+   call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
+
+   wfn%nel = idint(sum(mol%z)) - nint(mol%chrg)
+   wfn%nopen = mol%uhf
+   if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
+
+   if (mol%npbc > 0) then
+      wfn%q = mol%chrg/real(mol%n,wp)
+   else
+      if (guess_charges.eq.p_guess_gasteiger) then
+         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,nint(mol%chrg),1.0_wp, &
+            & wfn%q,cn,calc%xtbData%level,.true.)
+      else if (guess_charges.eq.p_guess_goedecker) then
+         call new_charge_model_2019(chrgeq,mol%n,mol%at)
+         call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+         call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
+      else
+         wfn%q = mol%chrg/real(mol%n,wp)
+      end if
+   end if
+
+   call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell, &
+      & wfn%q,wfn%qsh,calc%xtbData%level)
+end subroutine newWavefunction
+
+
+subroutine addSolvationModel(env, calc, solvent, state, temp, nang)
+   type(TEnvironment), intent(inout) :: env
+   class(TCalculator), intent(in) :: calc
+   character(len=*), intent(in) :: solvent
+   integer, intent(in), optional :: state
+   real(wp), intent(in), optional :: temp
+   integer, intent(in), optional :: nang
+   integer :: solvState
+   real(wp) :: temperature
+   integer :: gridSize
+   integer :: level
+
+   if (present(state)) then
+      solvState = state
+   else
+      solvState = 0
+   end if
+
+   if (present(temp)) then
+      temperature = temp
+   else
+      temperature = 298.15_wp
+   end if
+
+   if (present(nang)) then
+      gridSize = nang
+   else
+      gridSize = ngrida
+   end if
+
+   level = 0
+   select type(calc)
+   type is(TxTBCalculator)
+      level = calc%xtbData%level
+   end select
+
+
+   lgbsa = len_trim(solvent).gt.0 .and. solvent.ne."none"
+   if (lgbsa) then
+      call init_gbsa(env%unit, trim(solvent), solvState, temperature, level, &
+         & gridSize, .false.)
+   endif
+
+end subroutine addSolvationModel
 
 end module xtb_main_setup

@@ -142,7 +142,7 @@ test('GFN2-xTB: SCC', xtb_test, args: ['gfn2', 'scc'], env: xtbenv)
 test('GFN2-xTB: API', xtb_test, args: ['gfn2', 'api'], env: xtbenv)
 test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv)
 test('GFN2-xTB: API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv)
-test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv)
+#test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv)
 if cc.get_id() == 'intel'
    test('GFN2-xTB: C', executable('xtb_c_test', files('c_api_example.c'),
                                   include_directories: incdir,

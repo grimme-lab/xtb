@@ -29,7 +29,8 @@ module xtb_mctc_global
    ! sanity status of the mctc environment, beware if it goes insane
    logical :: good = .true.
 
-   type(TEnvironment) :: persistentEnv
+   !> Global environment
+   type(TEnvironment), allocatable :: persistentEnv
 
    type :: errormsg
       character(len=:),allocatable :: msg

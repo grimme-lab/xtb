@@ -132,7 +132,7 @@ add_test("GFN2-xTB_SCC" ${XTB-TESTER} gfn2 scc)
 add_test("GFN2-xTB_API" ${XTB-TESTER} gfn2 api)
 add_test("GFN2-xTB_API_GBSA" ${XTB-TESTER} gfn2 gbsa)
 add_test("GFN2-xTB_API_GBSA_salt" ${XTB-TESTER} gfn2 salt)
-add_test("GFN2-xTB_API_PCEM" ${XTB-TESTER} gfn2 pcem)
+#add_test("GFN2-xTB_API_PCEM" ${XTB-TESTER} gfn2 pcem)
 add_test("GFN1-xTB_SCC" ${XTB-TESTER} gfn1 scc)
 add_test("GFN1-xTB_API" ${XTB-TESTER} gfn1 api)
 add_test("GFN1-xTB_API_XB" ${XTB-TESTER} gfn1 xb)
@@ -162,7 +162,7 @@ set_tests_properties(EXE_Singlepoint
   "GFN2-xTB_API"
   "GFN2-xTB_API_GBSA"
   "GFN2-xTB_API_GBSA_salt"
-  "GFN2-xTB_API_PCEM"
+  #"GFN2-xTB_API_PCEM"
   "GFN1-xTB_SCC"
   "GFN1-xTB_API"
   "GFN1-xTB_API_XB"

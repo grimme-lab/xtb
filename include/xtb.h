@@ -1,302 +1,240 @@
-/* extended tight binding program package
- * Copyright (C) 2019-2020  Stefan Grimme (xtb@thch.uni-bonn.de)
+/* This file is part of xtb.
+ *
+ * Copyright (C) 2019-2020  Sebastian Ehlert
  * 
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #pragma once
 
+#define XTB_API_ENTRY
+#define XTB_API_CALL
+#define XTB_API_SUFFIX__VERSION_6_3
+
+/// Define proprocessor to allow to check for specific API features
+#define XTB_VERSION_6_3   1
+
+/// Possible print levels for API calls
+#define XTB_VERBOSITY_FULL    2
+#define XTB_VERBOSITY_MINIMAL 1
+#define XTB_VERBOSITY_MUTED   0
+
 #ifdef __cplusplus
-namespace xtb {
+extern "C" {
 #else
 #include <stdbool.h>
 #endif
 
-typedef struct PEEQ_options {
-   int prlevel;
-   int parallel;
-   double acc;
-   double etemp;
-   bool grad;
-   bool ccm;
-   char solvent[20];
-} PEEQ_options;
+/*
+ * Opaque pointers to Fortran objects
+**/
 
-typedef struct SCC_options {
-   int prlevel;
-   int parallel;
-   double acc;
-   double etemp;
-   bool grad;
-   bool restart;
-   bool ccm;
-   int maxiter;
-   char solvent[20];
-} SCC_options;
+/// Calculation environment class
+typedef struct _xtb_TEnvironment* xtb_TEnvironment;
 
-/// opaque molecular structure type (allocated, manipulated and freed by xtb)
-typedef void* xTB_molecule;
+/// Molecular structure data class
+typedef struct _xtb_TMolecule* xtb_TMolecule;
 
-/// opaque calculation parameters (allocated and freed by xtb)
-typedef void* xTB_parameters; // dummy
+/// Single point calculator class
+typedef struct _xtb_TCalculator* xtb_TCalculator;
 
-/// opaque tight binding basisset (allocated and freed by xtb)
-typedef void* xTB_basisset;
+/// Single point results class
+typedef struct _xtb_TResults* xtb_TResults;
 
-/// opaque tight binding wavefunction (allocated and freed by xtb)
-typedef void* xTB_wavefunction;
+/*
+ * Calculation environment
+**/
 
-/// opaque external potential data (allocated, manipulated and freed by xtb)
-typedef void* xTB_external; // dummy
+/// Create new xtb calculation environment object
+extern XTB_API_ENTRY xtb_TEnvironment XTB_API_CALL
+xtb_newEnvironment(void) XTB_API_SUFFIX__VERSION_6_3;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/// Delete a xtb calculation environment object
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_delEnvironment(xtb_TEnvironment* /* env */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Constructor for the molecular structure type, returns a nullptr in case
-/// the generation fails. All values have to be provided.
-extern xTB_molecule
-new_xTB_molecule(
-      const int* natoms,
-      const int* numbers, // [natoms]
-      const double* positions, // [3*natoms3]
-      const double* charge,
-      const int* uhf,
-      const double* lattice, // [3*3]
-      const bool* periodic); // [3]
+/// Check current status of calculation environment
+extern XTB_API_ENTRY int XTB_API_CALL
+xtb_checkEnvironment(xtb_TEnvironment /* env */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Updates the molecular structure type. This routine checks for the allocation
-/// state of the opaque pointer before copying positions and lattice.
-extern int
-update_xTB_molecule(
-      xTB_molecule mol,
-      const double* positions, // [3*natoms]
-      const double* lattice); // [3*3]
+/// Show and empty error stack
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_showEnvironment(xtb_TEnvironment /* env */,
+                    const char* /* message */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Deconstructor for the molecular structure type.
-extern void
-delete_xTB_molecule(xTB_molecule mol);
+/// Bind output from this environment
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setOutput(xtb_TEnvironment /* env */,
+              const char* /* filename */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Constructor for the tight binding wavefunction.
-extern xTB_wavefunction
-new_xTB_wavefunction(const xTB_molecule mol, const xTB_basisset basis);
+/// Release output unit from this environment
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_releaseOutput(xtb_TEnvironment /* env */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Return dimensions of this tight binding wavefunction.
-extern void
-dimensions_xTB_wavefunction(
-      const xTB_wavefunction wfn,
-      int* nat,
-      int* nao,
-      int* nsh);
+/// Set verbosity of calculation output
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setVerbosity(xtb_TEnvironment /* env */,
+                 int /* verbosity */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Query the wavefunction properties, pass NULL/nullptr in case you want
-/// a query to be ignored.
-/// In case the wavefunction is not allocated nothing is returned.
-extern void
-query_xTB_wavefunction(
-      const xTB_wavefunction wfn,
-      double* charges, // [nat]
-      double* dipoles, // [3*nat]
-      double* quadrupoles, // [6*nat]
-      double* bond_orders, // [nat*nat]
-      double* hl_gap,
-      double* orbital_energies); // [nao]
+/*
+ * Molecular structure data class
+**/
 
-/// Deconstructor for the tight binding basisset.
-extern void
-delete_xTB_wavefunction(xTB_wavefunction wfn);
+/// Create new molecular structure data
+extern XTB_API_ENTRY xtb_TMolecule XTB_API_CALL
+xtb_newMolecule(xtb_TEnvironment /* env */,
+                const int* /* natoms */,
+                const int* /* numbers [natoms] */,
+                const double* /* positions [natoms][3] */,
+                const double* /* charge in e */,
+                const int* /* uhf */,
+                const double* /* lattice [3][3] */,
+                const bool* /* periodic [3] */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Constructor for the tight binding basisset.
-extern xTB_basisset
-new_xTB_basisset(const xTB_basisset basis);
+/// Delete molecular structure data
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_delMolecule(xtb_TMolecule* /* mol */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Return dimensions of this tight binding basisset.
-/// For not allocated input zero is returned, every argument is optional.
-extern void
-dimensions_xTB_basisset(
-      const xTB_basisset basis,
-      int* nat,
-      int* nbf,
-      int* nao,
-      int* nsh);
+/// Update coordinates and lattice parameters
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_updateMolecule(xtb_TEnvironment /* env */,
+                   xtb_TMolecule /* mol */,
+                   const double* /* positions [natoms][3] */,
+                   const double* /* lattice [3][3] */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Deconstructor for the tight binding wavefunction.
-extern void
-delete_xTB_basisset(xTB_basisset basis);
+/*
+ * Singlepoint calculator
+**/
 
-/// Load GFN-xTB parametrisation and create a lock, the file name is optional.
-/// The lock is maintained by the shared libary. This call is secured with
-/// an omp critical mutex called xtb_load_api.
-extern int
-load_xTB_parameters(const int* gfn, const char* filename);
+/// Create new calculator object
+extern XTB_API_ENTRY xtb_TCalculator XTB_API_CALL
+xtb_newCalculator(void) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Check if xTB was correctly initialized.
-extern bool
-check_xTB_init(void);
+/// Delete calculator object
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_delCalculator(xtb_TCalculator* /* calc */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Check if xTB was locked on the correct parametrisation.
-extern bool
-check_xTB_lock(const int* gfn);
+/// Load GFN0-xTB calculator
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_loadGFN0xTB(xtb_TEnvironment /* env */,
+                xtb_TMolecule /* mol */,
+                xtb_TCalculator /* calc */,
+                char* /* filename */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Release the lock on the xTB parametrisation.
-extern void
-reset_xTB_lock(void);
+/// Load GFN1-xTB calculator
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_loadGFN1xTB(xtb_TEnvironment /* env */,
+                xtb_TMolecule /* mol */,
+                xtb_TCalculator /* calc */,
+                char* /* filename */) XTB_API_SUFFIX__VERSION_6_3;
 
-/// Unsafe xTB calculation, this calculation mode requires to setup at least
-/// the parametrisation and the molecular structure data.
-///
-/// In case you pass null-pointers instead of the basisset and wavefunction,
-/// those will be constructed on-the-fly and deleted afterwards.
-/// Properties like energy, gradient and stress tensor are returned directly,
-/// while other properties can be obtained from querying the wavefunction.
-extern int
-xTB_calculation(
-      const xTB_molecule mol,
-      const xTB_parameters param, // not used
-      const xTB_basisset basis, // optional
-      const xTB_wavefunction wfn, // optional
-      const xTB_external pcem, // not used
-      const SCC_options* opt,
-      const char* output,
-      double* energy,
-      double* gradient, // [3*nat]
-      double* stress); // [3*3]
+/// Load GFN2-xTB calculator
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_loadGFN2xTB(xtb_TEnvironment /* env */,
+                xtb_TMolecule /* mol */,
+                xtb_TCalculator /* calc */,
+                char* /* filename */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GFN0_PBC_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const double* lattice,
-      const bool* pbc,
-      const PEEQ_options* opt,
-      const char* output,
-      double* energy,
-      double* grad,
-      double* stress,
-      double* glat);
+/// Load GFN-FF calculator
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_loadGFNFF(xtb_TEnvironment /* env */,
+              xtb_TMolecule /* mol */,
+              xtb_TCalculator /* calc */,
+              char* /* filename */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GFN2_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const SCC_options* opt,
-      const char* output,
-      double* energy,
-      double* grad,
-      double* dipole,
-      double* q,
-      double* dipm,
-      double* qp,
-      double* wbo);
+/// Add a solvation model to calculator (requires loaded parametrisation)
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setSolvent(xtb_TEnvironment /* env */,
+               xtb_TCalculator /* calc */,
+               char* /* solvent */,
+               int* /* state */,
+               double* /* temp */,
+               int* /* grid */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GFN2_QMMM_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const SCC_options* opt,
-      const char* output,
-      const int* npc,
-      const double* pc_q,
-      const int* pc_at,
-      const double* pc_gam,
-      const double* pc_coord,
-      double* energy,
-      double* grad,
-      double* pc_grad);
+/// Unset the solvation model
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_releaseSolvent(xtb_TEnvironment /* env */,
+                   xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GFN1_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const SCC_options* opt,
-      const char* output,
-      double* energy,
-      double* grad,
-      double* dipole,
-      double* q,
-      double* wbo);
+/// Add a external charge potential to calculator (only supported in GFN1/2-xTB)
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setExternalCharges(xtb_TEnvironment /* env */,
+                       xtb_TCalculator /* calc */,
+                       int* /* n */,
+                       int* /* numbers [n] */,
+                       double* /* charges [n] */,
+                       double* /* positions [n][3] */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GFN1_QMMM_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const SCC_options* opt,
-      const char* output,
-      const int* npc,
-      const double* pc_q,
-      const int* pc_at,
-      const double* pc_gam,
-      const double* pc_coord,
-      double* energy,
-      double* grad,
-      double* pc_grad);
+/// Unset the external charge potential
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_releaseExternalCharges(xtb_TEnvironment /* env */,
+                           xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GFN0_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* charge,
-      const int* uhf,
-      const double* coord,
-      const PEEQ_options* opt,
-      const char* output,
-      double* energy,
-      double* grad);
+/// Perform singlepoint calculation
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_singlepoint(xtb_TEnvironment /* env */,
+                xtb_TMolecule /* mol */,
+                xtb_TCalculator /* calc */,
+                xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_6_3;
 
-extern int
-GBSA_model_preload(
-      const double* epsv,
-      const double* smass,
-      const double* rhos,
-      const double* c1,
-      const double* rprobe,
-      const double* gshift,
-      const double* soset,
-      const double* dum,
-      const double* gamscale,
-      const double* sx,
-      const double* tmp);
+/*
+ * Calculation results
+**/
 
-extern int
-GBSA_calculation(
-      const int* natoms,
-      const int* attyp,
-      const double* coord,
-      const char* solvent,
-      const int* reference,
-      const double* temperature,
-      const int* method,
-      const int* grid_size,
-      const char* file,
-      double* brad,
-      double* sasa);
+/// Create new singlepoint results object
+extern XTB_API_ENTRY xtb_TResults XTB_API_CALL
+xtb_newResults(void) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Delete singlepoint results object
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_delResults(xtb_TResults* /* res */) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Query singlepoint results object for energy
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getEnergy(xtb_TEnvironment /* env */,
+              xtb_TResults /* res */,
+              double* /* energy */) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Query singlepoint results object for gradient
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getGradient(xtb_TEnvironment /* env */,
+                xtb_TResults /* res */,
+                double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Query singlepoint results object for virial
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getVirial(xtb_TEnvironment /* env */,
+              xtb_TResults /* res */,
+              double* /* virial [3][3] */) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Query singlepoint results object for dipole
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getDipole(xtb_TEnvironment /* env */,
+              xtb_TResults /* res */,
+              double* /* dipole [3] */) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Query singlepoint results object for partial charges
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getCharges(xtb_TEnvironment /* env */,
+               xtb_TResults /* res */,
+               double* /* charges [natoms] */) XTB_API_SUFFIX__VERSION_6_3;
+
+/// Query singlepoint results object for bond orders
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getBondOrders(xtb_TEnvironment /* env */,
+                  xtb_TResults /* res */,
+                  double* /* wbo [natoms][natoms] */) XTB_API_SUFFIX__VERSION_6_3;
 
 #ifdef __cplusplus
-}
 }
 #endif

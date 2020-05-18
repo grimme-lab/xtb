@@ -166,12 +166,15 @@ subroutine test_peeq_api
 
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_data
    use xtb_type_param
    use xtb_type_environment
 
    use xtb_pbc_tools
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -193,11 +196,14 @@ subroutine test_peeq_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
+   type(TWavefunction) :: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp) :: gradlatt(3,3)
-   real(wp) :: stress(3,3)
+   real(wp) :: sigma(3,3),inv_lat(3,3)
    real(wp),allocatable :: gradient(:,:)
    real(wp),allocatable :: xyz(:,:)
 
@@ -215,8 +221,14 @@ subroutine test_peeq_api
 
    call mctc_mute
 
-   call gfn0_calculation &
-      (stdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+   call newXTBCalculator(env, mol, calc, method=0)
+   call env%checkpoint("failed setup")
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+   inv_lat = mat_inv_3x3(mol%lattice)
+   call sigma_to_latgrad(sigma,inv_lat,gradlatt)
 
    call assert_close(hl_gap, 4.9685235017906_wp,thr)
    call assert_close(energy,-8.4863996084661_wp,thr)
@@ -235,12 +247,15 @@ subroutine test_peeq_api_srb
    use xtb_mctc_convert
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_data
    use xtb_type_param
    use xtb_type_environment
 
    use xtb_pbc_tools
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -292,11 +307,14 @@ subroutine test_peeq_api_srb
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
+   type(TWavefunction) :: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp) :: gradlatt(3,3)
-   real(wp) :: stress(3,3)
+   real(wp) :: sigma(3,3),inv_lat(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -311,8 +329,14 @@ subroutine test_peeq_api_srb
 
    call mctc_mute
 
-   call gfn0_calculation &
-      (stdout,env,opt,mol,hl_gap,energy,gradient,stress,gradlatt)
+   call newXTBCalculator(env, mol, calc, method=0)
+   call env%checkpoint("failed setup")
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+   inv_lat = mat_inv_3x3(mol%lattice)
+   call sigma_to_latgrad(sigma,inv_lat,gradlatt)
 
    call assert_close(hl_gap, 3.2452476555284_wp,thr)
    call assert_close(energy,-47.338099017467_wp,thr)

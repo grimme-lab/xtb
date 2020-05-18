@@ -86,8 +86,6 @@ subroutine d3init(nat,at)
    enddo
 
    ! integrate C6 coefficients
-   !$omp parallel default(none) private(i,j,ii,jj,ij,alpha,c6) shared(dispm)
-   !$omp do schedule(runtime)
    do i = 1, 86
       do j = 1, i
          if (dispm%atoms(i) > 0 .and. dispm%atoms(j) > 0) then
@@ -102,8 +100,6 @@ subroutine d3init(nat,at)
          endif
       enddo
    enddo
-   !$omp end do
-   !$omp end parallel
 
 end subroutine d3init
 

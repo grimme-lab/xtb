@@ -366,6 +366,7 @@ subroutine xtbMain(env, argParser)
    endif
 
    mol%chrg = real(chrg, wp)
+   mol%uhf = nalphabeta
    wfn%nel = idint(sum(mol%z)) - chrg
    wfn%nopen = nalphabeta
    if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
@@ -1030,6 +1031,7 @@ end subroutine xtbMain
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       & restart, gsolvstate, strict, copycontrol, coffee)
+   use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
    character(len=*), parameter :: source = "prog_main_parseArguments"
@@ -1157,8 +1159,8 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          end if
 
       case('--namespace')
-         call args%nextArg(xenv%namespace)
-         if (.not.allocated(xenv%namespace)) then
+         call args%nextArg(persistentEnv%io%namespace)
+         if (.not.allocated(persistentEnv%io%namespace)) then
             call env%error("Namespace argument is missing", source)
          end if
 

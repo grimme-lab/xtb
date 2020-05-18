@@ -311,7 +311,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 !     initialize the fgb matrix (dielectric screening of the Coulomb potential)
       call compute_fgb(gbsa,fgb,fhb)
 !     initialize the CM5 charges computation
-      if(gfn_method > 1) then !GFN2 does not use CM5 charges
+      if(xtbData%level > 1) then !GFN2 does not use CM5 charges
         cm5=wfn%q
         cm5a=0.d0
         dcm5a=0.d0
@@ -331,7 +331,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    allocate(selfEnergy(maxval(xtbData%nshell), mol%n))
    allocate(dSEdcn(maxval(xtbData%nshell), mol%n))
 
-   call setzshell(xtbData,mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,gfn_method)
+   call setzshell(xtbData,mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,xtbData%level)
 
    ! fill levels
    if(wfn%nel.ne.0) then
@@ -414,7 +414,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
       idnum(ii) = mol%at(jat)
    end do
 
-   if(gfn_method == 1)then
+   if(xtbData%level == 1)then
       gav = gamAverage%harmonic
    else !GFN2
       gav = gamAverage%arithmetic
@@ -434,7 +434,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    allocate(Vpc(basis%nshell))
    vpc(:) = 0.0_wp
    if(lpcem)then
-      if (gfn_method == 1)then
+      if (xtbData%level == 1)then
          call jpot_pcem_gfn1(xtbData%coulomb,mol%n,pcem,xtbData%nshell,mol%at, &
             & mol%xyz,xtbData%coulomb%gExp,Vpc)
       else ! GFN2
@@ -454,9 +454,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
       if (allocated(xtbData%halogen)) &
       write(env%unit,intfmt) "# halogen bonds    ",nxb
       write(env%unit,intfmt) "max. iterations    ",maxiter
-      if (gfn_method == 2) &
+      if (xtbData%level == 2) &
       write(env%unit,chrfmt) "Hamiltonian        ","GFN2-xTB"
-      if (gfn_method == 1) &
+      if (xtbData%level == 1) &
       write(env%unit,chrfmt) "Hamiltonian        ","GFN1-xTB"
       write(env%unit,chrfmt) "restarted?         ",bool2string(restart)
       write(env%unit,chrfmt) "GBSA solvation     ",bool2string(lgbsa)
@@ -506,7 +506,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 
    ! ------------------------------------------------------------------------
    ! Coordination number
-   if (gfn_method == 1) then
+   if (xtbData%level == 1) then
       ! D3 part first because we need CN
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
    else
@@ -517,7 +517,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
    call latp%getLatticePoints(trans, 60.0_wp)
-   if (gfn_method == 1) then
+   if (xtbData%level == 1) then
       call d3_gradient &
          & (mol, trans, xtbData%dispersion%dpar, 4.0_wp, 60.0_wp, &
          &  cn, dcndr, dcndL, ed, gradient, sigma)
@@ -723,7 +723,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
    if (lgbsa) then
-      if (gfn_method > 1) then
+      if (xtbData%level > 1) then
          call compute_gb_egrad(gbsa, wfn%q, gborn, ghb, gradient, minpr)
       else
          cm5(:)=wfn%q+cm5a
@@ -749,7 +749,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    ! ------------------------------------------------------------------------
    ! ES point charge embedding
    if (lpcem) then
-      if (gfn_method == 1) then
+      if (xtbData%level == 1) then
          call pcem_grad_gfn1(xtbData%coulomb,gradient,pcem%grd,mol%n,pcem,mol%at, &
             & xtbData%nshell,mol%xyz,xtbData%coulomb%gExp,wfn%qsh)
       else

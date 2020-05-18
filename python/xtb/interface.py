@@ -16,43 +16,46 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 """Wrapper around the C-API of the xtb shared library."""
 
-from typing import Optional
-
-from ctypes import Structure, c_int, c_double, c_bool, c_char_p, c_char, \
-                   POINTER, cdll, CDLL
-
+from ctypes import (
+    c_void_p,
+    POINTER,
+    c_int,
+    c_double,
+    c_bool,
+    c_char_p,
+    cdll,
+    CDLL,
+    byref,
+    pointer,
+)
 from distutils.sysconfig import get_config_vars
+from enum import Enum, auto
+from typing import List, Optional
 import sys
 import os.path as op
 import numpy as np
 
-# seems like ctypeslib is not always available
-try:
-    as_ctype = np.ctypeslib.as_ctypes_type  # pylint:disable=invalid-name
-except AttributeError:
-    as_ctype = None  # pylint:disable=invalid-name
 
-__all__ = ['SCCOptions', 'PEEQOptions', 'XTBLibrary', 'load_library']
+_libxtb = None
 
 
 def get_shared_lib_extension():
     """Try to figure out which extension a shared library should have on the
     given platform. This code is borrowed from numpy and slightly modified."""
-    if (sys.platform.startswith('linux') or
-            sys.platform.startswith('gnukfreebsd')):
-        return '.so'
-    if sys.platform.startswith('darwin'):
-        return '.dylib'
-    if sys.platform.startswith('win'):
-        return '.dll'
+    if sys.platform.startswith("linux") or sys.platform.startswith("gnukfreebsd"):
+        return ".so"
+    if sys.platform.startswith("darwin"):
+        return ".dylib"
+    if sys.platform.startswith("win"):
+        return ".dll"
     confvars = get_config_vars()
     # SO is deprecated in 3.3.1, use EXT_SUFFIX instead
-    so_ext = confvars.get('EXT_SUFFIX', None)
+    so_ext = confvars.get("EXT_SUFFIX", None)
     if so_ext is None:
-        so_ext = confvars.get('SO', '')
-    if 'SOABI' in confvars:
+        so_ext = confvars.get("SO", "")
+    if "SOABI" in confvars:
         # Does nothing unless SOABI config var exists
-        so_ext = so_ext.replace('.' + confvars.get('SOABI'), '', 1)
+        so_ext = so_ext.replace("." + confvars.get("SOABI"), "", 1)
     return so_ext
 
 
@@ -69,407 +72,427 @@ def load_library(libname: str) -> CDLL:
     return cdll.LoadLibrary(libname_ext)
 
 
-class _Structure_(Structure):  # pylint: disable=invalid-name,protected-access
-    """patch Structure class to allow returning it arguments as dict."""
-    def to_dict(self) -> dict:
-        """return structure as dictionary."""
-        return {key: getattr(self, key) for key, _ in self._fields_}
+class Param(Enum):
+    """Possible parametrisations for the Calculator class"""
 
-    def to_list(self) -> list:
-        """return structure as list. Order is the same as in structure."""
-        return [getattr(self, key) for key, _ in self._fields_]
+    GFN2xTB = auto()
+    GFN1xTB = auto()
+    GFN0xTB = auto()
+    GFNFF = auto()
 
 
-class SCCOptions(_Structure_):
-    """Options for evaluating a SCC-Hamiltonian."""
-    _fields_ = [
-        ('print_level', c_int),
-        ('parallel', c_int),
-        ('accuracy', c_double),
-        ('electronic_temperature', c_double),
-        ('gradient', c_bool),
-        ('restart', c_bool),
-        ('ccm', c_bool),
-        ('max_iterations', c_int),
-        ('solvent', c_char*20),
-    ]
+VEnvironment = c_void_p
+VMolecule = c_void_p
+VCalculator = c_void_p
+VResults = c_void_p
 
-
-class PEEQOptions(_Structure_):
-    """Options for evaluating a EEQ-Hamiltonian."""
-    _fields_ = [
-        ('print_level', c_int),
-        ('parallel', c_int),
-        ('accuracy', c_double),
-        ('electronic_temperature', c_double),
-        ('gradient', c_bool),
-        ('ccm', c_bool),
-        ('solvent', c_char*20),
-    ]
-
-
-def check_ndarray(array: np.ndarray, ctype, size: int, name="array") -> None:
-    """check if we got the correct array data"""
-    if not isinstance(array, np.ndarray):
-        raise ValueError("{} must be of type ndarray".format(name))
-    if array.size != size:
-        raise ValueError("{} does not have the correct size of {}"
-                         .format(name, size))
-    if as_ctype is not None:
-        if as_ctype(array.dtype) != ctype:
-            raise ValueError("{} must be of {} compatible type"
-                             .format(name, ctype))
+_XTB_API_6_3 = {
+    "xtb_newEnvironment": (VEnvironment, []),
+    #"xtb_delEnvironment": (None, [POINTER(VEnvironment)]),
+    "xtb_checkEnvironment": (c_int, [VEnvironment]),
+    "xtb_showEnvironment": (None, [VEnvironment, c_char_p]),
+    "xtb_setOutput": (None, [VEnvironment, c_char_p]),
+    "xtb_releaseOutput": (None, [VEnvironment]),
+    "xtb_setVerbosity": (None, [VEnvironment, c_int]),
+    "xtb_newMolecule": (
+        VMolecule,
+        [
+            VEnvironment,
+            POINTER(c_int),
+            POINTER(c_int),
+            POINTER(c_double),
+            POINTER(c_double),
+            POINTER(c_int),
+            POINTER(c_double),
+            POINTER(c_bool),
+        ],
+    ),
+    #"xtb_delMolecule": (None, [POINTER(VMolecule)]),
+    "xtb_updateMolecule": (
+        None,
+        [VEnvironment, VMolecule, POINTER(c_double), POINTER(c_double),],
+    ),
+    "xtb_newCalculator": (VCalculator, []),
+    #"xtb_delCalculator": (None, [POINTER(VCalculator)]),
+    "xtb_loadGFN0xTB": (None, [VEnvironment, VMolecule, VCalculator, c_char_p]),
+    "xtb_loadGFN1xTB": (None, [VEnvironment, VMolecule, VCalculator, c_char_p]),
+    "xtb_loadGFN2xTB": (None, [VEnvironment, VMolecule, VCalculator, c_char_p]),
+    "xtb_loadGFNFF": (None, [VEnvironment, VMolecule, VCalculator, c_char_p]),
+    "xtb_setSolvent": (
+        None,
+        [
+            VEnvironment,
+            VCalculator,
+            c_char_p,
+            POINTER(c_int),
+            POINTER(c_double),
+            POINTER(c_int),
+        ],
+    ),
+    "xtb_releaseSolvent": (None, [VEnvironment, VCalculator]),
+    "xtb_setExternalCharges": (
+        None,
+        [
+            VEnvironment,
+            VCalculator,
+            POINTER(c_int),
+            POINTER(c_int),
+            POINTER(c_double),
+            POINTER(c_double),
+        ],
+    ),
+    "xtb_releaseExternalCharges": (None, [VEnvironment, VCalculator]),
+    "xtb_singlepoint": (None, [VEnvironment, VMolecule, VCalculator, VResults]),
+    "xtb_newResults": (VResults, []),
+    #"xtb_delResults": (None, [POINTER(VResults)]),
+    "xtb_getEnergy": (None, [VEnvironment, VResults, POINTER(c_double)]),
+    "xtb_getGradient": (None, [VEnvironment, VResults, POINTER(c_double)]),
+    "xtb_getVirial": (None, [VEnvironment, VResults, POINTER(c_double)]),
+    "xtb_getDipole": (None, [VEnvironment, VResults, POINTER(c_double)]),
+    "xtb_getBondOrders": (None, [VEnvironment, VResults, POINTER(c_double)]),
+}
 
 
 class XTBLibrary:
-    """wrapper for the xtb shared library"""
-
-    # define periodic GFN0-xTB interface
-    _GFN0_PBC_calculation_ = (
-        POINTER(c_int),  # number of atoms
-        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
-        POINTER(c_double),  # molecular charge
-        POINTER(c_int),  # number of unpaired electrons
-        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
-        POINTER(c_double),  # lattice parameters, dimension(9)
-        POINTER(c_bool),  # periodicity of the system
-        POINTER(PEEQOptions),
-        c_char_p,  # output file name
-        POINTER(c_double),  # energy
-        POINTER(c_double),  # gradient, dimension(3*number of atoms)
-        POINTER(c_double),  # stress tensor, dimension(9)
-        POINTER(c_double),  # lattice gradient, dimension(9)
-    )
-
-    # define GFN0-xTB interface
-    _GFN0_calculation_ = (
-        POINTER(c_int),  # number of atoms
-        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
-        POINTER(c_double),  # molecular charge
-        POINTER(c_int),  # number of unpaired electrons
-        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
-        POINTER(PEEQOptions),
-        c_char_p,  # output file name
-        POINTER(c_double),  # energy
-        POINTER(c_double),  # gradient, dimension(3*number of atoms)
-    )
-
-    # define GFN1-xTB interface
-    _GFN1_calculation_ = (
-        POINTER(c_int),  # number of atoms
-        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
-        POINTER(c_double),  # molecular charge
-        POINTER(c_int),  # number of unpaired electrons
-        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
-        POINTER(SCCOptions),
-        c_char_p,  # output file name
-        POINTER(c_double),  # energy
-        POINTER(c_double),  # gradient, dimension(3*number of atoms)
-    )
-
-    # define GFN2-xTB interface
-    _GFN2_calculation_ = (
-        POINTER(c_int),  # number of atoms
-        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
-        POINTER(c_double),  # molecular charge
-        POINTER(c_int),  # number of unpaired electrons
-        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
-        POINTER(SCCOptions),
-        c_char_p,  # output file name
-        POINTER(c_double),  # energy
-        POINTER(c_double),  # gradient, dimension(3*number of atoms)
-        POINTER(c_double),
-        POINTER(c_double),
-        POINTER(c_double),
-        POINTER(c_double),
-        POINTER(c_double),
-    )
-
-    _GBSA_model_preload_ = (
-        POINTER(c_double),  # dielectric data
-        POINTER(c_double),  # molar mass (g/mol)
-        POINTER(c_double),  # solvent density (g/cm^3)
-        POINTER(c_double),  # Born radii
-        POINTER(c_double),  # Atomic surfaces
-        POINTER(c_double),  # Gshift (gsolv=reference vs. gsolv)
-        POINTER(c_double),  # offset parameter (fitted)
-        POINTER(c_double),
-        POINTER(c_double),  # Surface tension (mN/m=dyn/cm), dimension(94)
-        POINTER(c_double),  # dielectric descreening parameters, dimension(94)
-        POINTER(c_double),  # hydrogen bond strength, dimension(94)
-    )
-
-    _GBSA_calculation_ = (
-        POINTER(c_int),  # number of atoms
-        POINTER(c_int),  # atomic numbers, dimension(number of atoms)
-        POINTER(c_double),  # cartesian coordinates, dimension(3*number of atoms)
-        c_char_p,  # solvent name
-        POINTER(c_int),  # reference state (0: gsolv=reference, 1: gsolv)
-        POINTER(c_double),  # temperature (only for reference=0 or 2
-        POINTER(c_int),  # method (1 or 2)
-        POINTER(c_int),  # angular grid size (available Lebedev-grids)
-        c_char_p,  # output file name
-        POINTER(c_double),  # Born radii, dimension(number of atoms)
-        POINTER(c_double),  # SASA, dimension(number of atoms)
-    )
-
-    _lebedev_grids_ = [6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, 230, 266,
-                       302, 350, 434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354,
-                       2702, 3074, 3470, 3890, 4334, 4802, 5294, 5810]
+    """Shared library instance"""
 
     def __init__(self, library: Optional[CDLL] = None):
-        """construct library from CDLL object."""
         if library is not None:
-            self.library = library
+            if isinstance(library, XTBLibrary):
+                self._lib = library._lib
+            else:
+                self._lib = library
         else:
-            self.library = load_library('libxtb')
+            self._lib = load_library("libxtb")
 
-        self._set_argtypes_()
+        for name, signature in _XTB_API_6_3.items():
+            restype, argtypes = signature
+            _set(self._lib, name, restype, argtypes)
 
-    def _set_argtypes_(self) -> None:
-        """define all interfaces."""
-        self.library.GFN0_calculation.argtypes = self._GFN0_calculation_
-        self.library.GFN1_calculation.argtypes = self._GFN1_calculation_
-        self.library.GFN2_calculation.argtypes = self._GFN2_calculation_
-        self.library.GFN0_PBC_calculation.argtypes = self._GFN0_PBC_calculation_
-        self.library.GBSA_model_preload.argtypes = self._GBSA_model_preload_
-        self.library.GBSA_calculation.argtypes = self._GBSA_calculation_
 
-    # pylint: disable=invalid-name, too-many-arguments, too-many-locals
-    def GFN0Calculation(self, natoms: int, numbers, positions, options: dict,
-                        charge: float = 0.0, magnetic_moment: int = 0,
-                        output: str = "-", cell=None, pbc=None) -> dict:
-        """wrapper for calling the GFN0 Calculator from the library."""
-        periodic = cell is not None and pbc is not None
+class Environment:
+    """Calculation environment"""
 
-        check_ndarray(numbers, c_int, natoms, "numbers")
-        check_ndarray(positions, c_double, 3*natoms, "positions")
-        if periodic:
-            check_ndarray(cell, c_double, 9, "cell")
-            check_ndarray(pbc, c_bool, 3, "pbc")
+    _env = None
 
-        energy = c_double(0.0)
-        gradient = np.zeros((natoms, 3), dtype=c_double)
+    def __init__(self, library: Optional[CDLL] = None):
+        """Create new xtb calculation environment object"""
+        global _libxtb
+        if _libxtb is None:
+            _libxtb = XTBLibrary(library)
+        self._env = c_void_p(_libxtb._lib.xtb_newEnvironment())
 
-        # turn all strings to binary data, such that ctypes will not complain
-        l_options = {key: val.encode('utf-8') if isinstance(val, str) else val
-                     for key, val in options.items()}
+    def __del__(self):
+        """Delete a xtb calculation environment object"""
+        global _libxtb
+        if self._env is not None:
+            _libxtb._lib.xtb_delEnvironment(byref(self._env))
 
-        if periodic:
-            cell_gradient = np.zeros((3, 3), dtype=c_double)
-            stress_tensor = np.zeros((3, 3), dtype=c_double)
-            args = [
-                c_int(natoms),
-                numbers.ctypes.data_as(POINTER(c_int)),
-                c_double(charge),
-                c_int(magnetic_moment),
-                positions.ctypes.data_as(POINTER(c_double)),
-                cell.ctypes.data_as(POINTER(c_double)),
-                pbc.ctypes.data_as(POINTER(c_bool)),
-                PEEQOptions(**l_options),
-                output.encode('utf-8'),
-                energy,
-                gradient.ctypes.data_as(POINTER(c_double)),
-                stress_tensor.ctypes.data_as(POINTER(c_double)),
-                cell_gradient.ctypes.data_as(POINTER(c_double)),
-            ]
-            stat = self.library.GFN0_PBC_calculation(*args)
+    def check(self) -> int:
+        """Check current status of calculation environment"""
+        global _libxtb
+        return _libxtb._lib.xtb_checkEnvironment(self._env)
+
+    def show(self, message: str) -> None:
+        """Show and empty error stack"""
+        global _libxtb
+        _message = message.encode()
+        _libxtb._lib.xtb_showEnvironment(self._env, _message)
+
+    def set_output(self, filename: str) -> None:
+        """Bind output from this environment"""
+        global _libxtb
+        _filename = filename.encode()
+        _libxtb._lib.xtb_setOutput(self._env, _filename)
+
+    def release_output(self) -> None:
+        """Release output unit from this environment"""
+        global _libxtb
+        _libxtb._lib.xtb_releaseOutput(self._env)
+
+    def set_verbosity(self, verbosity: int) -> None:
+        """Set verbosity of calculation output"""
+        global _libxtb
+        _libxtb._lib.xtb_setVerbosity(self._env, verbosity)
+
+
+class Molecule(Environment):
+    """Molecular structure data"""
+
+    _mol = None
+
+    def __init__(
+        self,
+        numbers: List[int],
+        positions: List[float],
+        charge: Optional[float] = None,
+        uhf: Optional[int] = None,
+        lattice: Optional[List[float]] = None,
+        periodic: Optional[List[bool]] = None,
+        library: Optional[CDLL] = None,
+    ):
+        """Create new molecular structure data"""
+        global _libxtb
+        Environment.__init__(self, library)
+        if isinstance(positions, np.ndarray):
+            if positions.size % 3 != 0:
+                raise ValueError("Expected tripels of cartesian coordinates")
         else:
-            args = [
-                c_int(natoms),
-                numbers.ctypes.data_as(POINTER(c_int)),
-                c_double(charge),
-                c_int(magnetic_moment),
-                positions.ctypes.data_as(POINTER(c_double)),
-                PEEQOptions(**l_options),
-                output.encode('utf-8'),
-                energy,
-                gradient.ctypes.data_as(POINTER(c_double)),
-            ]
-            stat = self.library.GFN0_calculation(*args)
+            if len(positions) % 3 != 0:
+                raise ValueError("Expected tripels of cartesian coordinates")
 
-        if stat != 0:
-            raise RuntimeError("GFN0 calculation failed in xtb.")
+        if isinstance(positions, np.ndarray):
+            if 3 * len(numbers) != positions.size:
+                raise ValueError("Dimension missmatch between numbers and postions")
+        else:
+            if 3 * len(numbers) != len(positions):
+                raise ValueError("Dimension missmatch between numbers and postions")
 
-        results = {
-            'energy': energy.value,
-            'gradient': gradient,
-        }
-        if periodic:
-            results['cell gradient'] = cell_gradient
-            results['stress tensor'] = stress_tensor
-        return results
+        self._natoms = len(numbers)
+        _numbers = np.array(numbers, dtype="i4")
+        _positions = np.array(positions, dtype="float")
 
-    # pylint: disable=invalid-name, too-many-arguments, too-many-locals
-    def GFN1Calculation(self, natoms: int, numbers, positions, options: dict,
-                        charge: float = 0.0, magnetic_moment: int = 0,
-                        output: str = "-") -> dict:
-        """wrapper for calling the GFN1 Calculator from the library."""
+        if lattice is not None:
+            if len(lattice) != 9:
+                raise ValueError("Invalid lattice provided")
+            _lattice = np.array(lattice, dtype="float")
+        else:
+            _lattice = None
 
-        check_ndarray(numbers, c_int, natoms, "numbers")
-        check_ndarray(positions, c_double, 3*natoms, "positions")
+        if periodic is not None:
+            if len(periodic) != 3:
+                raise ValueError("Invalid periodicity provided")
+            _periodic = np.array(periodic, dtype="bool")
+        else:
+            _periodic = None
 
-        energy = c_double(0.0)
-        gradient = np.zeros((natoms, 3), dtype=c_double)
-        dipole = np.zeros(3, dtype=c_double)
-        charges = np.zeros(natoms, dtype=c_double)
-        wiberg = np.zeros((natoms, natoms), dtype=c_double)
+        self._mol = c_void_p(_libxtb._lib.xtb_newMolecule(
+            self._env,
+            c_int(self._natoms),
+            _cast(POINTER(c_int), _numbers),
+            _cast(POINTER(c_double), _positions),
+            None if charge is None else c_double(charge),
+            None if uhf is None else c_int(uhf),
+            _cast(POINTER(c_double), _lattice),
+            _cast(POINTER(c_bool), _periodic),
+        ))
 
-        # turn all strings to binary data, such that ctypes will not complain
-        l_options = {key: val.encode('utf-8') if isinstance(val, str) else val
-                     for key, val in options.items()}
+        if self.check() != 0:
+            raise ValueError("Could not initialize molecular structure data")
 
-        args = [
-            c_int(natoms),
-            numbers.ctypes.data_as(POINTER(c_int)),
-            c_double(charge),
-            c_int(magnetic_moment),
-            positions.ctypes.data_as(POINTER(c_double)),
-            SCCOptions(**l_options),
-            output.encode('utf-8'),
-            energy,
-            gradient.ctypes.data_as(POINTER(c_double)),
-            dipole.ctypes.data_as(POINTER(c_double)),
-            charges.ctypes.data_as(POINTER(c_double)),
-            wiberg.ctypes.data_as(POINTER(c_double)),
-        ]
-        stat = self.library.GFN1_calculation(*args)
+    def __del__(self):
+        """Delete molecular structure data"""
+        global _libxtb
+        Environment.__del__(self)
+        if self._mol is not None:
+            _libxtb._lib.xtb_delMolecule(byref(self._mol))
 
-        if stat != 0:
-            raise RuntimeError("GFN1 calculation failed in xtb.")
+    def __len__(self):
+        return self._natoms
 
-        return {
-            'energy': energy.value,
-            'gradient': gradient,
-            'dipole moment': dipole,
-            'charges': charges,
-            'wiberg': wiberg,
-        }
+    def update(
+        self, positions: List[float], lattice: Optional[List[float]] = None,
+    ):
+        """Update coordinates and lattice parameters"""
+        global _libxtb
 
-    # pylint: disable=invalid-name, too-many-arguments, too-many-locals
-    def GFN2Calculation(self, natoms: int, numbers, positions, options: dict,
-                        charge: float = 0.0, magnetic_moment: int = 0,
-                        output: str = "-") -> dict:
-        """wrapper for calling the GFN2 Calculator from the library."""
+        if 3 * len(self) != len(positions):
+            raise ValueError("Dimension missmatch for postions")
+        _positions = np.array(positions, dtype="float")
 
-        check_ndarray(numbers, c_int, natoms, "numbers")
-        check_ndarray(positions, c_double, 3*natoms, "positions")
+        if lattice is not None:
+            if len(lattice) != 9:
+                raise ValueError("Invalid lattice provided")
+            _lattice = np.array(lattice, dtype="float")
+        else:
+            _lattice = None
 
-        energy = c_double(0.0)
-        gradient = np.zeros((natoms, 3), dtype=c_double)
-        dipole = np.zeros(3, dtype=c_double)
-        charges = np.zeros(natoms, dtype=c_double)
-        dipoles = np.zeros((natoms, 3), dtype=c_double)
-        quadrupoles = np.zeros((natoms, 6), dtype=c_double)
-        wiberg = np.zeros((natoms, natoms), dtype=c_double)
-
-        # turn all strings to binary data, such that ctypes will not complain
-        l_options = {key: val.encode('utf-8') if isinstance(val, str) else val
-                     for key, val in options.items()}
-
-        args = [
-            c_int(natoms),
-            numbers.ctypes.data_as(POINTER(c_int)),
-            c_double(charge),
-            c_int(magnetic_moment),
-            positions.ctypes.data_as(POINTER(c_double)),
-            SCCOptions(**l_options),
-            output.encode('utf-8'),
-            energy,
-            gradient.ctypes.data_as(POINTER(c_double)),
-            dipole.ctypes.data_as(POINTER(c_double)),
-            charges.ctypes.data_as(POINTER(c_double)),
-            dipoles.ctypes.data_as(POINTER(c_double)),
-            quadrupoles.ctypes.data_as(POINTER(c_double)),
-            wiberg.ctypes.data_as(POINTER(c_double)),
-        ]
-        stat = self.library.GFN2_calculation(*args)
-
-        if stat != 0:
-            raise RuntimeError("GFN2 calculation failed in xtb.")
-
-        return {
-            'energy': energy.value,
-            'gradient': gradient,
-            'dipole moment': dipole,
-            'charges': charges,
-            'dipoles': dipoles,
-            'quadrupoles': quadrupoles,
-            'wiberg': wiberg,
-        }
-
-    # pylint: disable=invalid-name, too-many-arguments, too-many-locals
-    def GBSACalculation(self, natoms: int, numbers, positions,
-                        options: dict, output: str) -> dict:
-        """wrapper for calling the GBSA Calculator from the library."""
-
-        check_ndarray(numbers, c_int, natoms, "numbers")
-        check_ndarray(positions, c_double, 3*natoms, "positions")
-
-        if 'solvent' not in options:
-            raise ValueError("solvent has to present in options")
-        ref_state = options['reference'] if 'reference' in options else 0
-        if ref_state not in [0, 1, 2]:
-            raise ValueError("reference state {} is no defined".format(ref_state))
-        temp = options['temperature'] if 'temperature' in options else 298.15
-        if temp <= 0.0:
-            raise ValueError("negative temperature does not make sense")
-        grid = options['grid size'] if 'grid size' in options else 230
-        if grid not in self._lebedev_grids_:
-            raise ValueError("angular grid {} is no Lebedev grid".format(grid))
-        method = options['method'] if 'method' in options else 2
-        if method not in [1, 2]:
-            raise ValueError("method {} is no available".format(method))
-
-        born = np.zeros(natoms, dtype=c_double)
-        sasa = np.zeros(natoms, dtype=c_double)
-
-        args = (
-            c_int(natoms),
-            numbers.ctypes.data_as(POINTER(c_int)),
-            positions.ctypes.data_as(POINTER(c_double)),
-            options['solvent'].encode('utf-8'),
-            c_int(ref_state),
-            c_double(temp),
-            c_int(method),
-            c_int(grid),
-            output.encode('utf-8'),
-            born.ctypes.data_as(POINTER(c_double)),
-            sasa.ctypes.data_as(POINTER(c_double)),
-        )
-        stat = self.library.GBSA_calculation(*args)
-
-        if stat != 0:
-            raise RuntimeError("GBSA calculation failed in xtb.")
-        return {
-            'born': born,
-            'sasa': sasa,
-        }
-
-    def GBSA_model_preload(self, epsv: float, smass: float, rhos: float, c1: float,
-                           rprobe: float, gshift: float, soset: float,
-                           gamscale, sx, tmp) -> None:
-        """preload parameters into GBSA"""
-
-        check_ndarray(gamscale, c_double, 94, "gamscale")
-        check_ndarray(sx, c_double, 94, "sx")
-        check_ndarray(tmp, c_double, 94, "tmp")
-
-        args = (
-            c_double(epsv),
-            c_double(smass),
-            c_double(rhos),
-            c_double(c1),
-            c_double(rprobe),
-            c_double(gshift),
-            c_double(soset),
-            None,
-            gamscale.ctypes.data_as(POINTER(c_double)),
-            sx.ctypes.data_as(POINTER(c_double)),
-            tmp.ctypes.data_as(POINTER(c_double)),
+        _libxtb._lib.xtb_updateMolecule(
+            self._env,
+            self._mol,
+            _cast(POINTER(c_double), _positions),
+            _cast(POINTER(c_double), _lattice),
         )
 
-        stat = self.library.GBSA_model_preload(*args)
+        if self.check() != 0:
+            raise ValueError("Could not update molecular structure data")
 
-        if stat != 0:
-            raise RuntimeError("GBSA parameters could not be loaded by xtb.")
+
+class Results(Environment):
+    """Calculation results"""
+
+    _res = None
+
+    def __init__(self, mol: Molecule, library: Optional[CDLL] = None):
+        """Create new singlepoint results object"""
+        global _libxtb
+        Environment.__init__(self, library)
+        self._res = c_void_p(_libxtb._lib.xtb_newResults())
+        self._natoms = len(mol)
+
+    def __del__(self):
+        """Delete singlepoint results object"""
+        global _libxtb
+        Environment.__del__(self)
+        if self._res is not None:
+            _libxtb._lib.xtb_delResults(byref(self._res))
+
+    def __len__(self):
+        return self._natoms
+
+    def get_energy(self):
+        """Query singlepoint results object for energy"""
+        global _libxtb
+        _energy = c_double(0.0)
+        _libxtb._lib.xtb_getEnergy(self._env, self._res, _energy)
+        if self.check() != 0:
+            raise ValueError("Energy is not available")
+        return _energy.value
+
+    def get_gradient(self):
+        """Query singlepoint results object for gradient"""
+        global _libxtb
+        _gradient = np.zeros((len(self), 3))
+        _libxtb._lib.xtb_getGradient(
+            self._env, self._res, _cast(POINTER(c_double), _gradient)
+        )
+        if self.check() != 0:
+            raise ValueError("Gradient is not available")
+        return _gradient
+
+    def get_virial(self):
+        """Query singlepoint results object for virial"""
+        global _libxtb
+        _virial = np.zeros((3, 3))
+        _libxtb._lib.xtb_getVirial(self._env, self._res, _cast(POINTER(c_double), _virial))
+        if self.check() != 0:
+            raise ValueError("Virial is not available")
+        return _virial
+
+    def get_dipole(self):
+        """Query singlepoint results object for dipole"""
+        global _libxtb
+        _dipole = np.zeros(3)
+        _libxtb._lib.xtb_getDipole(self._env, self._res, _cast(POINTER(c_double), _dipole))
+        if self.check() != 0:
+            raise ValueError("Dipole is not available")
+        return _dipole
+
+    def get_charges(self):
+        """Query singlepoint results object for partial charges"""
+        global _libxtb
+        _charges = np.zeros(len(self))
+        _libxtb._lib.xtb_getCharges(
+            self._env, self._res, _cast(POINTER(c_double), _charges)
+        )
+        if self.check() != 0:
+            raise ValueError("Charges are not available")
+        return _charges
+
+    def get_bond_orders(self):
+        """Query singlepoint results object for bond orders"""
+        global _libxtb
+        _bond_orders = np.zeros((len(self), len(self)))
+        _libxtb._lib.xtb_getBondOrders(
+            self._env, self._res, _cast(POINTER(c_double), _bond_orders)
+        )
+        if self.check() != 0:
+            raise ValueError("Bond orders are not available")
+        return _bond_orders
+
+
+class Calculator(Molecule):
+    """Singlepoint calculator"""
+
+    _calc = None
+
+    def __init__(
+        self,
+        param: Param,
+        numbers: List[int],
+        positions: List[float],
+        charge: Optional[float] = None,
+        uhf: Optional[int] = None,
+        lattice: Optional[List[float]] = None,
+        periodic: Optional[List[bool]] = None,
+        solvent: Optional[str] = None,
+        library: Optional[CDLL] = None,
+    ):
+        """Create new calculator object"""
+        global _libxtb
+        Molecule.__init__(
+            self, numbers, positions, charge, uhf, lattice, periodic, library,
+        )
+
+        self._loader = {
+            Param.GFN2xTB: _libxtb._lib.xtb_loadGFN2xTB,
+            Param.GFN1xTB: _libxtb._lib.xtb_loadGFN1xTB,
+            Param.GFN0xTB: _libxtb._lib.xtb_loadGFN0xTB,
+            Param.GFNFF: _libxtb._lib.xtb_loadGFNFF,
+        }
+
+        self._calc = c_void_p(_libxtb._lib.xtb_newCalculator())
+        self._load(param)
+        if solvent is not None:
+            self.set_solvent(solvent)
+
+    def __del__(self):
+        """Delete calculator object"""
+        global _libxtb
+        Molecule.__del__(self)
+        if self._calc is not None:
+            _libxtb._lib.xtb_delCalculator(byref(self._calc))
+
+    def _load(self, param: Param):
+        """Load parametrisation data into calculator"""
+
+        self._loader[param](
+            self._env, self._mol, self._calc, None,
+        )
+
+        if self.check() != 0:
+            raise ValueError("Could not load parametrisation data")
+
+    def set_solvent(self, solvent: Optional[str]):
+        """Add/Remove solvation model to/from calculator"""
+        global _libxtb
+
+        if solvent is None:
+            _libxtb._lib.xtb_releaseSolvent(
+                self._env, self._calc,
+            )
+        else:
+            _solvent = solvent.encode()
+
+            _libxtb._lib.xtb_setSolvent(
+                self._env, self._calc, _solvent, None, None, None,
+            )
+
+        if self.check() != 0:
+            raise ValueError("Could not load parametrisation data")
+
+    def singlepoint(self, res: Optional[Results] = None) -> Results:
+        """Perform singlepoint calculation"""
+        global _libxtb
+
+        _res = Results(self, _libxtb._lib) if res is None else res
+        _libxtb._lib.xtb_singlepoint(
+            self._env, self._mol, self._calc, _res._res,
+        )
+
+        if self.check() != 0:
+            raise ValueError("Single point calculation failed")
+
+        return _res
+
+
+def _cast(ctype, array):
+    """Cast a numpy array to a FFI pointer"""
+    return None if array is None else array.ctypes.data_as(ctype)
+
+
+def _set(lib, name, restype, argtypes):
+    """Setup the ctypes signature for a function in a shared library"""
+    func = lib.__getattr__(name)
+    func.restype = restype
+    func.argtypes = argtypes
