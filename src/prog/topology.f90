@@ -20,6 +20,7 @@ module xtb_prog_topology
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : getFileType, fileType
    use xtb_mctc_systools, only : rdpath, getline
+   use xtb_mctc_timings
    use xtb_mctc_version, only : version, author, date
    use xtb_io_reader, only : readMolecule, readHessian
    use xtb_type_environment, only : TEnvironment
@@ -112,6 +113,17 @@ subroutine xtbTopology(env, argParser)
    call newGFFCalculator(env, mol, calc, param, .false.)
 
    call env%checkpoint("Could not setup force field topology")
+
+   write(env%unit,'(a)')
+   write(env%unit,'(72("-"))')
+   call stop_timing_run
+   call stop_timing(1)
+   call prdate('E')
+   write(env%unit,'(72("-"))')
+   call prtiming(1,'total')
+
+   write(env%unit,'(a)')
+   call terminate(0)
 
 end subroutine xtbTopology
 
