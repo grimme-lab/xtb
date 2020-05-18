@@ -176,7 +176,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    if (present(version)) then
       calc%version = version
    else
-      calc%version = gffVersion%angewChem2020
+      calc%version = gffVersion%angewChem2020_1
    end if
 
    call calc%topo%zero
@@ -203,8 +203,8 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 
    call d3init(mol%n, mol%at)
 
-   call gfnff_setup(env, verbose, restart, mol, p_ext_gfnff, &
-      & calc%gen, calc%param, calc%topo, calc%accuracy)
+   call gfnff_setup(env, verbose, restart, mol, &
+      & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)
 
    call env%check(exitRun)
    if (exitRun) then

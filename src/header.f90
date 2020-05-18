@@ -104,14 +104,24 @@ write(iunit,'(10x,a)') &
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
 end subroutine gfn2_header
 
-subroutine gfnff_header(iunit)
+subroutine gfnff_header(iunit,version)
+use xtb_gfnff_param, only : gffVersion
 integer,intent(in) :: iunit
+integer,intent(in) :: version
+character(len=52)  :: nr
+select case(version)
+case(gffVersion%angewChem2020, gffVersion%harmonic2020)
+  nr="|                  Version 1.0.0                  |"
+case(gffVersion%angewChem2020_1)
+  nr="|                  Version 1.0.1                  |"
+end select  
+
 write(iunit,'(10x,a)') &
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
    " ------------------------------------------------- ",&
    "|                   G F N - F F                   |",&
-   "|          A general generic force-field          |",&
-   "|                   Version 1.0                   |",&
+   "|          A general generic force-field          |",nr,&
+   !|                  Version 1.0.x                  |
    " ------------------------------------------------- "
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
 end subroutine gfnff_header

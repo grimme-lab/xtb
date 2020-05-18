@@ -26,7 +26,7 @@ module xtb_gfnff_setup
 
 contains
 
-subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accuracy)
+subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   use iso_fortran_env
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
@@ -40,7 +40,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accura
   type(TGFFTopology), intent(inout) :: topo
   type(TGFFGenerator), intent(inout) :: gen
   type(TGFFData), intent(inout) :: param
-  integer,intent(in) :: p_ext_gfnff
+  integer,intent(in) :: version
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
   real(wp),intent(in) :: accuracy
@@ -62,14 +62,14 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accura
   if (restart) then
      inquire(file='gfnff_topo', exist=ex)
      if (ex) then
-       call read_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,success,.true.,topo)
+       call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
        !hbrefgeo is usually set within gfnff_ini2/gfnff_hbset0 equal to initial xyz
        topo%hbrefgeo=mol%xyz
        if (success) then
           write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
           return
        else
-          call env%warning("Could not read topology file", source)
+          call env%warning("Could not read topology file, generated new one", source)
           call env%check(exitRun)
           if (exitRun) then
              return
@@ -88,7 +88,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,p_ext_gfnff,gen,param,topo,accura
   end if
 
   if (.not.mol%struc%two_dimensional) then
-     call write_restart_gff('gfnff_topo',mol%n,p_ext_gfnff,topo)
+     call write_restart_gff(env,'gfnff_topo',mol%n,version,topo)
   end if
 
 end subroutine gfnff_setup

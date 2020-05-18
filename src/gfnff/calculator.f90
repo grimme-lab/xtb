@@ -220,7 +220,7 @@ subroutine writeInfo(self, unit, mol)
 
    select case(mode_extrun)
    case(p_ext_gfnff)
-     call gfnff_header(unit)
+     call gfnff_header(unit,self%version)
    end select
 
 end subroutine writeInfo

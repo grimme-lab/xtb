@@ -474,7 +474,7 @@ module xtb_gfnff_param
      param%repz(:) = repz
 
      select case(version)
-     case(gffVersion%angewChem2020, gffVersion%harmonic2020)
+     case(gffVersion%angewChem2020, gffVersion%angewChem2020_1, gffVersion%harmonic2020)
         call loadGFNFFAngewChem2020(param)
         exist = .true.
      end select
