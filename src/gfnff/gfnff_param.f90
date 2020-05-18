@@ -33,6 +33,9 @@ module xtb_gfnff_param
 
       !> Version published in Angew. Chem. 2020
       integer :: angewChem2020 = 1
+      
+      !> Adding improved amide description to Angew. Chem. 2020 version
+      integer :: angewChem2020_1 = 2
 
       !> Harmonic potential version of the Angew. Chem. 2020
       integer :: harmonic2020 = -1

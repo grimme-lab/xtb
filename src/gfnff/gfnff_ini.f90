@@ -732,7 +732,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
          nn=topo%nb(1,i)
          topo%hbaci(i)=param%xhaci(mol%at(i))
          ! AmideH:
-         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.70
+         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.80
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
