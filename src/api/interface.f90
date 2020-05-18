@@ -92,7 +92,6 @@ integer(c_int) function xtb_calculation_api &
    type(scc_results) :: res
    type(tb_pcem) :: pcem
    integer(c_int) :: stat_basis
-   integer :: iunit
    logical :: exist, sane, exitRun
 
    call init(env)
@@ -111,13 +110,13 @@ integer(c_int) function xtb_calculation_api &
    opt = c_opt
 
    ! open a unit for IO
-   call c_open_file(iunit, c_output, opt%prlevel)
+   call c_open_file(env%unit, c_output, opt%prlevel)
 
    ! print the xtb banner with version number and compilation date
    if (opt%prlevel > 2) then
-      call xtb_header(iunit)
-      call disclamer(iunit)
-      call citation(iunit)
+      call xtb_header(env%unit)
+      call disclamer(env%unit)
+      call citation(env%unit)
    endif
 
    ! handle basisset
@@ -200,7 +199,7 @@ integer(c_int) function xtb_calculation_api &
 
 contains
 subroutine finalize
-   if (iunit /= stdout) close(iunit)
+   if (env%unit /= stdout) close(env%unit)
    if (.not.c_associated(c_basis)) then
       call basis%deallocate
       deallocate(basis)
@@ -250,7 +249,6 @@ function peeq_api &
 
    character(len=:),allocatable :: outfile
 
-   integer  :: iunit
    logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
@@ -270,15 +268,15 @@ function peeq_api &
    opt = opt_in
 
    ! open a unit for IO
-   call c_open_file(iunit, file_in, opt%prlevel)
+   call c_open_file(env%unit, file_in, opt%prlevel)
 
    if (opt%prlevel > 2) then
       ! print the xtb banner with version number and compilation date
-      call xtb_header(iunit)
+      call xtb_header(env%unit)
       ! make sure you cannot blame us for destroying your computer
-      call disclamer(iunit)
+      call disclamer(env%unit)
       ! how to cite this program
-      call citation(iunit)
+      call citation(env%unit)
    endif
 
    ! ====================================================================
@@ -300,7 +298,7 @@ function peeq_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
+      (env%unit,env,opt,mol,hl_gap,energy,gradient,stress_tensor,lattice_gradient)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -334,7 +332,7 @@ contains
    subroutine finalize
       call mol%deallocate
       deallocate(gradient)
-      if (iunit.ne.stdout) close(iunit)
+      if (env%unit.ne.stdout) close(env%unit)
    end subroutine finalize
 end function peeq_api
 
@@ -455,7 +453,6 @@ function gfn12_calc_impl &
 
    character(len=:),allocatable :: outfile
 
-   integer  :: iunit
    logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
@@ -469,15 +466,15 @@ function gfn12_calc_impl &
    opt = opt_in
 
    ! open a unit for IO
-   call c_open_file(iunit, file_in, opt%prlevel)
+   call c_open_file(env%unit, file_in, opt%prlevel)
 
    if (opt%prlevel > 2) then
       ! print the xtb banner with version number and compilation date
-      call xtb_header(iunit)
+      call xtb_header(env%unit)
       ! make sure you cannot blame us for destroying your computer
-      call disclamer(iunit)
+      call disclamer(env%unit)
       ! how to cite this program
-      call citation(iunit)
+      call citation(env%unit)
    endif
 
    ! aquire the molecular structure and fill with data from C
@@ -491,7 +488,8 @@ function gfn12_calc_impl &
    ! setup solvent model
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none"
    if (lgbsa) then
-      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(env%unit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida, &
+         & opt%prlevel > 0)
    endif
 
    ! call the actual Fortran API to perform the calculation
@@ -550,7 +548,7 @@ contains
       call wfn%deallocate
       call basis%deallocate
       deallocate(gradient)
-      if (iunit.ne.stdout) close(iunit)
+      if (env%unit.ne.stdout) close(env%unit)
    end subroutine finalize
 end function gfn12_calc_impl
 
@@ -585,7 +583,6 @@ function gfn0_api &
 
    character(len=:),allocatable :: outfile
 
-   integer  :: iunit
    logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
@@ -606,15 +603,15 @@ function gfn0_api &
    opt = opt_in
 
    ! open a unit for IO
-   call c_open_file(iunit, file_in, opt%prlevel)
+   call c_open_file(env%unit, file_in, opt%prlevel)
 
    if (opt%prlevel > 2) then
       ! print the xtb banner with version number and compilation date
-      call xtb_header(iunit)
+      call xtb_header(env%unit)
       ! make sure you cannot blame us for destroying your computer
-      call disclamer(iunit)
+      call disclamer(env%unit)
       ! how to cite this program
-      call citation(iunit)
+      call citation(env%unit)
    endif
 
    ! ====================================================================
@@ -636,7 +633,7 @@ function gfn0_api &
    call mctc_mute
 
    call gfn0_calculation &
-      (iunit,env,opt,mol,hl_gap,energy,gradient,dum,dum)
+      (env%unit,env,opt,mol,hl_gap,energy,gradient,dum,dum)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -668,7 +665,7 @@ contains
    subroutine finalize
       call mol%deallocate
       deallocate(gradient)
-      if (iunit.ne.stdout) close(iunit)
+      if (env%unit.ne.stdout) close(env%unit)
    end subroutine finalize
 end function gfn0_api
 
@@ -810,7 +807,6 @@ function gfn12_pcem_impl &
 
    integer(c_int) :: stat_basis
    type(scc_results) :: res
-   integer  :: iunit
    logical  :: sane, exitRun
    integer  :: i
    real(wp) :: energy
@@ -823,15 +819,15 @@ function gfn12_pcem_impl &
    opt = opt_in
 
    ! open a unit for IO
-   call c_open_file(iunit, file_in, opt%prlevel)
+   call c_open_file(env%unit, file_in, opt%prlevel)
 
    if (opt%prlevel > 2) then
       ! print the xtb banner with version number and compilation date
-      call xtb_header(iunit)
+      call xtb_header(env%unit)
       ! make sure you cannot blame us for destroying your computer
-      call disclamer(iunit)
+      call disclamer(env%unit)
       ! how to cite this program
-      call citation(iunit)
+      call citation(env%unit)
    endif
 
    ! aquire the molecular structure and fill with data from C
@@ -854,7 +850,8 @@ function gfn12_pcem_impl &
    ! setup solvent model
    lgbsa = len_trim(opt%solvent).gt.0 .and. opt%solvent.ne."none"
    if (lgbsa) then
-      call init_gbsa(iunit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida)
+      call init_gbsa(env%unit,trim(opt%solvent),0,opt%etemp,gfn_method,ngrida,&
+         & opt%prlevel > 0)
    endif
 
    ! call the actual Fortran API to perform the calculation
@@ -909,7 +906,7 @@ contains
       call pcem%deallocate
       call wfn%deallocate
       deallocate(gradient)
-      if (iunit.ne.stdout) close(iunit)
+      if (env%unit.ne.stdout) close(env%unit)
    end subroutine finalize
 end function gfn12_pcem_impl
 
@@ -941,7 +938,6 @@ function gbsa_calculation_api &
    real(c_double), intent(out) :: brad(natoms)
    real(c_double), intent(out) :: sasa(natoms)
 
-   integer :: iunit
    logical :: sane, exitRun
    character(len=:), allocatable :: outfile
    character(len=:), allocatable :: solvent
@@ -957,18 +953,18 @@ function gbsa_calculation_api &
    call c_string_convert(outfile,file_in)
 
    if (outfile.ne.'-') then
-      call open_file(iunit,outfile,'w')
-      if (iunit.eq.-1) then
-         iunit = stdout
+      call open_file(env%unit,outfile,'w')
+      if (env%unit.eq.-1) then
+         env%unit = stdout
       endif
    else
-      iunit = stdout
+      env%unit = stdout
    endif
 
    ! shut down fatal errors from the MCTC library, so it will not kill the caller
    call mctc_mute
 
-   call init_gbsa(iunit,solvent,reference,temperature,method,grid_size)
+   call init_gbsa(env%unit,solvent,reference,temperature,method,grid_size,.true.)
 
    call mctc_sanity(sane)
    if (.not.sane) then
@@ -1006,7 +1002,7 @@ contains
    subroutine finalize
       call mol%deallocate
       call deallocate_gbsa(gbsa)
-      if (iunit.ne.stdout) call close_file(iunit)
+      if (env%unit.ne.stdout) call close_file(env%unit)
    end subroutine finalize
 end function gbsa_calculation_api
 
