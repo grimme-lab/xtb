@@ -609,7 +609,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
 !                   base val   spec. corr.
          topo%chieeq(i)=-param%chi(mol%at(i)) + dxi(i)
          topo%gameeq(i)= param%gam(mol%at(i)) +dgam(i)
-         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) chieeq(i) = chieeq(i) - 0.02
+         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%chieeq(i) = topo%chieeq(i) - 0.02
          ff = 0
          if(mol%at(i).eq.6)       ff= 0.09
          if(mol%at(i).eq.7)       ff=-0.21
