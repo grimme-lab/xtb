@@ -20,6 +20,7 @@ module xtb_prog_thermo
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autorcm, autoamu
    use xtb_mctc_filetypes, only : getFileType, fileType
+   use xtb_mctc_timings
    use xtb_mctc_version, only : version, author, date
    use xtb_io_reader, only : readMolecule, readHessian
    use xtb_type_environment, only : TEnvironment
@@ -91,6 +92,8 @@ subroutine xtbThermo(env, argParser)
 
    !> Print an informative banner
    call thermoHeader(env%unit)
+   !> print current time
+   call prdate('S')
 
    !> Also store a copy of the atomic masses in amu in global storage
    atmass = mol%atmass * autoamu
@@ -123,6 +126,17 @@ subroutine xtbThermo(env, argParser)
 
    call print_thermo(env%unit,mol%n, size(freq), mol%at, mol%xyz, freq, 0.0_wp, &
       & htot, gtot, nimag, .true., zp)
+
+   write(env%unit,'(a)')
+   write(env%unit,'(72("-"))')
+   call stop_timing_run
+   call stop_timing(1)
+   call prdate('E')
+   write(env%unit,'(72("-"))')
+   call prtiming(1,'total')
+
+   write(env%unit,'(a)')
+   call terminate(0)
 
 end subroutine xtbThermo
 

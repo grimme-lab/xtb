@@ -21,6 +21,7 @@ program xtb_prog_primary
    use xtb_prog_info, only : xtbInfo
    use xtb_prog_main, only : xtbMain
    use xtb_prog_thermo, only : xtbThermo
+   use xtb_prog_topology, only : xtbTopology
    use xtb_prog_submodules
    use xtb_type_environment
 
@@ -60,6 +61,10 @@ program xtb_prog_primary
    case(xtbSubmodule%thermo)
       !> Run the thermo submodule
       call xtbThermo(env, argParser)
+
+   case(xtbSubmodule%topo)
+      !> Run the thermo submodule
+      call xtbTopology(env, argParser)
 
    end select
 
