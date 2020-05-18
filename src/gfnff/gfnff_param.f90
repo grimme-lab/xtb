@@ -33,6 +33,9 @@ module xtb_gfnff_param
 
       !> Version published in Angew. Chem. 2020
       integer :: angewChem2020 = 1
+      
+      !> Adding improved amide description to Angew. Chem. 2020 version
+      integer :: angewChem2020_1 = 2
 
       !> Harmonic potential version of the Angew. Chem. 2020
       integer :: harmonic2020 = -1
@@ -471,7 +474,7 @@ module xtb_gfnff_param
      param%repz(:) = repz
 
      select case(version)
-     case(gffVersion%angewChem2020, gffVersion%harmonic2020)
+     case(gffVersion%angewChem2020, gffVersion%angewChem2020_1, gffVersion%harmonic2020)
         call loadGFNFFAngewChem2020(param)
         exist = .true.
      end select
@@ -556,6 +559,7 @@ module xtb_gfnff_param
      if (.not.allocated(topo%qfrag)) allocate( topo%qfrag(n), source = 0.0d0 )
      if (.not.allocated(topo%hbatHl)) allocate( topo%hbatHl(n), source = 0 )
      if (.not.allocated(topo%hbbas)) allocate( topo%hbbas(n), source = 0.0d0 )
+     if (.not.allocated(topo%hbaci)) allocate( topo%hbaci(n), source = 0.0d0 )
      if (.not.allocated(topo%hbatABl)) allocate( topo%hbatABl(2,n*(n+1)/2), source = 0 )
      if (.not.allocated(topo%xbatABl)) allocate( topo%xbatABl(3,topo%natxbAB), source = 0 )
 
@@ -597,6 +601,7 @@ module xtb_gfnff_param
      if (allocated(topo%qfrag)) deallocate( topo%qfrag )
      if (allocated(topo%hbatHl)) deallocate( topo%hbatHl )
      if (allocated(topo%hbbas)) deallocate( topo%hbbas )
+     if (allocated(topo%hbaci)) deallocate( topo%hbaci )
      if (allocated(topo%hbatABl)) deallocate( topo%hbatABl )
      if (allocated(topo%xbatABl)) deallocate( topo%xbatABl )
 

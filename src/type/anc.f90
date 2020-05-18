@@ -194,7 +194,6 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
       nvar = 0
       ! take largest (positive) first
       do i = self%n3, 1, -1
-         if (abs(self%eigv(i)) < thr .and. nvar < self%nvar) write(*,*) 'here', self%eigv(i)
          if (abs(self%eigv(i)) > thr .and. nvar < self%nvar) then
             nvar = nvar+1
             self%B(:,nvar) = hess(:,i)

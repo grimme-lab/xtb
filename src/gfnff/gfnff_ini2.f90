@@ -21,7 +21,7 @@ module xtb_gfnff_ini2
    implicit none
    private
    public :: gfnff_neigh, getnb, nbondmat
-   public :: pairsbond, pilist, nofs, xatom, ctype, amide
+   public :: pairsbond, pilist, nofs, xatom, ctype, amide, amideH, alphaCO
    public :: ringsatom, ringsbond, ringsbend, ringstors, ringstorl
    public :: chktors, chkrng, hbonds, getring36, ssort, goedeckera, qheavy
    public :: gfnff_hbset, gfnff_hbset0, bond_hbset, bond_hbset0
@@ -1123,7 +1123,7 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
 ! HB strength
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine hbonds(i,j,ati,atj,ci,cj,param,topo)
+      subroutine hbonds(i,j,ci,cj,param,topo)
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
@@ -1133,8 +1133,8 @@ subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
       real*8 ci(2),cj(2)
       ci(1)=topo%hbbas(i)
       cj(1)=topo%hbbas(j)
-      ci(2)=param%xhaci(ati)
-      cj(2)=param%xhaci(atj)
+      ci(2)=topo%hbaci(i)
+      cj(2)=topo%hbaci(j)
       end subroutine hbonds
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1608,6 +1608,38 @@ end subroutine goedeckera
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+      logical function alphaCO(n,at,hyb,nb,pi,a,b)
+      integer n,a,b,at(n),hyb(n),nb(20,n),pi(n)
+      integer i,j,no,nc
+
+      alphaCO = .false. 
+      if(pi(a).ne.0.and.hyb(b).eq.3.and.at(a).eq.6.and.at(b).eq.6) then  
+         no = 0
+         do i=1,nb(20,a)
+            j=nb(i,a)
+            if(at(j).eq. 8.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =O on the C?
+         enddo
+         if(no.eq.1) then
+            alphaCO = .true.
+            return
+         endif
+      endif
+      if(pi(b).ne.0.and.hyb(a).eq.3.and.at(b).eq.6.and.at(a).eq.6) then  
+         no = 0
+         do i=1,nb(20,b)
+            j=nb(i,b)
+            if(at(j).eq. 8.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =O on the C?
+         enddo
+         if(no.eq.1) then
+            alphaCO = .true.
+            return
+         endif
+      endif
+ 
+      end function alphaCO
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       logical function amide(n,at,hyb,nb,pi,a)
       integer n,a,at(n),hyb(n),nb(20,n),pi(n)
       integer i,j,no,nc,ic
@@ -1636,4 +1668,29 @@ end subroutine goedeckera
       if( no .eq. 1 ) amide = .true.
 
       end function amide
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      logical function amideH(n,at,hyb,nb,pi,a)
+      integer n,a,at(n),hyb(n),nb(20,n),pi(n)
+      integer i,j,nc,nn
+      !logical amide
+
+      amideH = .false. ! don't know
+      if(nb(20,a).ne.1               )  return
+      nn=nb(1,a)       ! the N
+      if(.not.amide(n,at,hyb,nb,pi,nn)) return
+
+      nc=0
+      do i=1,nb(20,nn)
+         j=nb(i,nn)
+         if(at(j).eq.6.and.hyb(j).eq.3) then  ! a sp3 C on N?
+            nc = nc + 1
+         endif
+      enddo
+
+      if( nc .eq. 1 ) amideH = .true.
+
+      end function amideH
+
 end module xtb_gfnff_ini2

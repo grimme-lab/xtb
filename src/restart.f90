@@ -84,19 +84,20 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
 end subroutine readRestart
 
 
-subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose,topo)
-   use iso_fortran_env, wp => real64, istdout => output_unit
+subroutine read_restart_gff(env,fname,n,version,success,verbose,topo)
    use xtb_gfnff_param
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
+   character(len=*), parameter :: source = 'restart_read_restart_gff'
+   type(TEnvironment), intent(inout) :: env
    type(TGFFTopology), intent(inout) :: topo
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: n
-   integer,intent(in)  :: p_ext_gfnff
+   integer,intent(in)  :: version
    logical,intent(out) :: success
    logical,intent(in)  :: verbose
 
-   integer(int64) :: iver8,nat8
+   integer(i8) :: iver8,nat8
 
    integer :: ich ! file handle
    integer :: err
@@ -108,13 +109,13 @@ subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose,topo)
       !read the first byte, which identify the calculation specs
       read(ich,iostat=err) iver8,nat8
       if(err.eq.0) then
-         if (iver8.ne.int(p_ext_gfnff,int64).and.verbose) &
-            &  call raise('W','Version number missmatch in restart file.',1)
+         if (iver8.ne.int(version,i8).and.verbose) &
+            &  call env%warning('Version number missmatch in restart file.',source)
          if (nat8.ne.n.and.verbose) then
-            call raise('W','Atom number missmatch in restart file.',1)
+            call env%warning('Atom number missmatch in restart file.',source)
             success=.false.
             return
-         else if (iver8.eq.int(p_ext_gfnff)) then
+         else if (iver8.eq.int(version)) then
             success = .true.
             read(ich) topo%nbond,topo%nangl,topo%ntors,topo%nhb1,topo%nhb2,topo%nxb,topo%nathbH,topo%nathbAB,  &
                     & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,topo%maxsystem
@@ -130,15 +131,15 @@ subroutine read_restart_gff(fname,n,p_ext_gfnff,success,verbose,topo)
             read(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq, &
                & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
                & topo%q,topo%xyze0,topo%zetac6,&
-               & topo%qfrag,topo%hbbas
+               & topo%qfrag,topo%hbbas,topo%hbaci
          else
             if (verbose) &
-               call raise('S','Dimension missmatch in restart file.',1)
+               call env%warning("Dimension missmatch in restart file.",source)
             success = .false.
          endif
       else
          if (verbose) &
-            call raise('S',"Dimension missmatch in restart file.",1)
+            call env%warning("Dimension missmatch in restart file.",source)
          success = .false.
       endif
       call close_file(ich)
@@ -168,20 +169,20 @@ subroutine writeRestart(env,wfx,fname,gfn_method)
 end subroutine writeRestart
 
 
-subroutine write_restart_gff(fname,nat,p_ext_gfnff,topo)
-   use iso_fortran_env, wp => real64, istdout => output_unit
+subroutine write_restart_gff(env,fname,nat,version,topo)
    use xtb_gfnff_param
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
+   type(TEnvironment), intent(inout) :: env
    type(TGFFTopology), intent(in) :: topo
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: nat
-   integer,intent(in)  :: p_ext_gfnff
+   integer,intent(in)  :: version
    integer :: ich ! file handle
 
    call open_binary(ich,fname,'w')
    !Dimensions
-   write(ich) int(p_ext_gfnff,int64),int(nat,int64)
+   write(ich) int(version,i8),int(nat,i8)
    write(ich) topo%nbond,topo%nangl,topo%ntors,   &
             & topo%nhb1,topo%nhb2,topo%nxb,topo%nathbH,topo%nathbAB,topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,  &
             & topo%maxsystem
@@ -192,7 +193,7 @@ subroutine write_restart_gff(fname,nat,p_ext_gfnff,topo)
       & topo%bond_hb_AH,topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
    !Arrays Reals
    write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,topo%q,       &
-      & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas
+      & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas,topo%hbaci
    call close_file(ich)
 end subroutine write_restart_gff
 

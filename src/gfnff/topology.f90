@@ -89,6 +89,7 @@ module xtb_gfnff_topology
       real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
       real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
+      real(wp),allocatable:: hbaci (:)     ! HB acceptor atom acidity
 
       integer, allocatable  :: ispinsyst(:,:)
       integer, allocatable  :: nspinsyst(:)

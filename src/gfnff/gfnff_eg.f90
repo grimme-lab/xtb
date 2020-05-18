@@ -1385,7 +1385,7 @@ subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       gdr  = 0
       energy=0
 
-      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
+      call hbonds(A,B,ca,cb,param,topo)
 
 !     A-B distance
       ij=lina(A,B)
@@ -1564,7 +1564,7 @@ subroutine abhgfnff_eg2new(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       gdr    = 0
       energy = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
+      call hbonds(A,B,ca,cb,param,topo)
 
       nbb=topo%nb(20,B)
 !     Neighbours of B
@@ -1809,7 +1809,7 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       lp_dist = 0.50-0.018*param%repz(at(B))
       hblpcut=56
 
-      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
+      call hbonds(A,B,ca,cb,param,topo)
 
       nbb=topo%nb(20,B)
 !     Neighbours of B
@@ -2110,7 +2110,7 @@ subroutine abhgfnff_eg3(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       eangl  = 0
       gangl  = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
+      call hbonds(A,B,ca,cb,param,topo)
 
       !Determine all neighbors for torsion term
       !  A
@@ -2443,7 +2443,7 @@ subroutine abhgfnff_eg3_mul(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       eangl  = 0
       gangl  = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
+      call hbonds(A,B,ca,cb,param,topo)
 
       !Determine all neighbors for torsion term
       !  A
@@ -2703,7 +2703,7 @@ subroutine abhgfnff_eg3_add(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
       etors  = 0
       eangl  = 0
 
-      call hbonds(A,B,at(A),at(B),ca,cb,param,topo)
+      call hbonds(A,B,ca,cb,param,topo)
 
       !Determine all neighbors for torsion term
       !  A

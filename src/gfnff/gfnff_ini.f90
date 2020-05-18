@@ -609,6 +609,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
 !                   base val   spec. corr.
          topo%chieeq(i)=-param%chi(mol%at(i)) + dxi(i)
          topo%gameeq(i)= param%gam(mol%at(i)) +dgam(i)
+         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%chieeq(i) = topo%chieeq(i) - 0.02
          ff = 0
          if(mol%at(i).eq.6)       ff= 0.09
          if(mol%at(i).eq.7)       ff=-0.21
@@ -719,6 +720,22 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! make list of HB donor acidity
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      !atom specific (not element) basicity parameters
+      allocate( topo%hbaci(mol%n), source =1.0d0 )
+      do i = 1,mol%n
+         topo%hbaci(i)=param%xhaci(mol%at(i))
+      end do
+      do i = 1,mol%n
+         nn=topo%nb(1,i)
+         topo%hbaci(i)=param%xhaci(mol%at(i))
+         ! AmideH:
+         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.80
+      end do
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! make list of ABs for HAB
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -750,7 +767,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
             ff=gen%qabthr
             if(mol%at(j).gt.10) ff=ff+0.2  ! heavy atoms may be positively charged
             if(topo%qa(j).gt.ff) cycle
-            call hbonds(i,j,mol%at(i),mol%at(j),hbpi,hbpj,param,topo)
+            call hbonds(i,j,hbpi,hbpj,param,topo)
             if(hbpi(1)*hbpj(2).lt.1.d-6.and.hbpi(2)*hbpj(1).lt.1.d-6)cycle
             if(mol%at(j).eq. 6.and.piadr2(j).eq.0) cycle ! C sp or sp2 pi
             topo%nathbAB = topo%nathbAB + 1
@@ -1654,6 +1671,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
                                                          phi  =180.d0
                                                          nrot = 3
                     endif
+                    if (alphaCO(mol%n,mol%at,hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.15d0
+                    if (amide(mol%n,mol%at,hyb,topo%nb,piadr,ii).and.hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.15d0
+                    if (amide(mol%n,mol%at,hyb,topo%nb,piadr,jj).and.hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.15d0
                endif
 ! SP3 specials
                if(hyb(ii).eq.3.and.hyb(jj).eq.3) then
