@@ -69,7 +69,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
           write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
           return
        else
-          call env%warning("Could not read topology file, generated new one", source)
+          call env%warning("Could not read topology file.", source)
           call env%check(exitRun)
           if (exitRun) then
              return
