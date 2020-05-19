@@ -276,7 +276,7 @@ subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, r4r2, &
    !dgwdcn = dgwdcn*zeta_scale
    call get_atomic_c6_d4(nat, at, gw, dgwdcn, c6, dc6dcn)
 
-   !$omp parallel do default(shared) schedule(runtime) &
+   !$omp parallel do default(none) schedule(runtime) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn) &
    !$omp shared(at, xyz, npair, pairlist, zeta_scale, radii, r4r2, c6, dc6dcn) &
    !$omp private(ij, img, iat, jat, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
