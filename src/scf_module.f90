@@ -82,12 +82,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    &                     new_gbsa,deallocate_gbsa, &
    &                     update_nnlist_gbsa,compute_fgb,compute_brad_sasa
    use xtb_disp_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
-   &                     mdisp,prmolc6,edisp_scc,edisp,abcappr,d4_gradient
+   &                     mdisp,prmolc6,edisp_scc,d4_gradient
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
    use xtb_aespot,    only : dradcn,aniso_grad,setdvsdq,dsint
    use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift,compute_gb_egrad
-   use xtb_disp_dftd4, only: dispgrad
    use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
    use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 
