@@ -836,7 +836,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       pisea= 0
 
       if(pr) then
-         write(env%unit,'(10x,"iterarive Hueckel run to get P ...")')
+         write(env%unit,'(10x,"iterative Hueckel run to get P ...")')
       endif
       do pis=1,picount ! loop over pi systems
       npi   =0
@@ -992,7 +992,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
                dum=dum+topo%qa(k)
             endif
          enddo
-         write(env%unit,'(5x,i2,10x,i4,10x,f8.3)')i,m,dum
+         write(env%unit,'(5x,i3,10x,i4,10x,f8.3)')i,m,dum
       enddo
       write(env%unit,*)
       endif

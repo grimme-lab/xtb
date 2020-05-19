@@ -174,7 +174,7 @@ contains
 !!!!!!!!!!!!!
 
       if (pr) call timer%measure(2,'non bonded repulsion')
-      !$omp parallel do default(none) reduction(+:erep, g) &
+      !$omp parallel do default(shared) reduction(+:erep, g) &
       !$omp shared(n, at, xyz, srab, sqrab, repthr, topo, param) &
       !$omp private(iat, jat, m, ij, ati, atj, rab, r2, r3, t8, t16, t19, t26, t27)
       do iat=1,n
@@ -261,7 +261,7 @@ contains
 ! ES part
 !!!!!!!!
       if (pr) call timer%measure(6,'EEQ gradient')
-      !$omp parallel do default(none) reduction (+:g) &
+      !$omp parallel do default(shared) reduction (+:g) &
       !$omp shared(topo,n,sqrab,srab,eeqtmp,xyz,at) &
       !$omp private(i,j,k,ij,r3,r2,rab,gammij,erff,dd)
       do i=1,n
@@ -310,7 +310,7 @@ contains
       call gfnffdrab(n,at,xyz,cn,dcn,topo%nbond,topo%blist,rab0,grab0)
       deallocate(dcn)
 
-      !$omp parallel do default(none) reduction(+:g, ebond) &
+      !$omp parallel do default(shared) reduction(+:g, ebond) &
       !$omp shared(grab0, topo, param, rab0, srab, xyz, at, hb_cn, hb_dcn, n) &
       !$omp private(i, k, iat, jat, ij, rab, rij, drij, t8, dr, dum, yy, &
       !$omp& dx, dy, dz, t4, t5, t6, ati, atj)
@@ -337,7 +337,7 @@ contains
 ! bonded REP
 !!!!!!!!!!!!!!!!!!
 
-      !$omp parallel do default(none) reduction(+:erep, g) &
+      !$omp parallel do default(shared) reduction(+:erep, g) &
       !$omp shared(topo, param, at, sqrab, srab, xyz) &
       !$omp private(i, iat, jat, ij, xa, ya, za, dx, dy, dz, r2, rab, ati, atj, &
       !$omp& alpha, repab, t16, t19, t26, t27)
@@ -379,7 +379,7 @@ contains
 
       if (pr) call timer%measure(8,'bend and torsion')
       if(topo%nangl.gt.0)then
-         !$omp parallel do default(none) reduction (+:eangl, g) &
+         !$omp parallel do default(shared) reduction (+:eangl, g) &
          !$omp shared(n, at, xyz, topo, param) &
          !$omp private(m, j, i, k, etmp, g3tmp)
          do m=1,topo%nangl
@@ -400,7 +400,7 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if(topo%ntors.gt.0)then
-         !$omp parallel do default(none) reduction(+:etors, g) &
+         !$omp parallel do default(shared) reduction(+:etors, g) &
          !$omp shared(param, topo, n, at, xyz) &
          !$omp private(m, i, j, k, l, etmp, g4tmp)
          do m=1,topo%ntors
@@ -425,7 +425,7 @@ contains
 
       if (pr) call timer%measure(9,'bonded ATM')
       if(topo%nbatm.gt.0) then
-         !$omp parallel do default(none) reduction(+:ebatm, g) &
+         !$omp parallel do default(shared) reduction(+:ebatm, g) &
          !$omp shared(n, at, xyz, srab, sqrab, topo, param) &
          !$omp private(i, j, k, l, etmp, g3tmp)
          do i=1,topo%nbatm
@@ -452,7 +452,7 @@ contains
       end if
 
       if(topo%nhb1.gt.0) then
-         !$omp parallel do default(none) reduction(+:ehb, g) &
+         !$omp parallel do default(shared) reduction(+:ehb, g) &
          !$omp shared(topo, param, n, at, xyz, sqrab, srab) &
          !$omp private(i, j, k, l, etmp, g3tmp)
          do i=1,topo%nhb1
@@ -470,7 +470,7 @@ contains
 
 
       if(topo%nhb2.gt.0) then
-         !$omp parallel do default(none) reduction(+:ehb, g) &
+         !$omp parallel do default(shared) reduction(+:ehb, g) &
          !$omp shared(topo, param, n, at, xyz, sqrab, srab) &
          !$omp private(i, j, k, l, etmp, g5tmp)
          do i=1,topo%nhb2
@@ -505,7 +505,7 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if(topo%nxb.gt.0) then
-         !$omp parallel do default(none) reduction(+:exb, g) &
+         !$omp parallel do default(shared) reduction(+:exb, g) &
          !$omp shared(topo, param, n, at, xyz) private(i, j, k, l, etmp, g3tmp)
          do i=1,topo%nxb
             j=topo%hblist3(1,i)
@@ -1261,7 +1261,7 @@ contains
 
       A = 0
 !  setup A matrix
-!$omp parallel default(none) &
+!$omp parallel default(shared) &
 !$omp shared(topo,n,sqrab,r,eeqtmp,A,at) &
 !$omp private(i,j,k,ij,gammij,tmp)
 !$omp do schedule(dynamic)
