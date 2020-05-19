@@ -36,7 +36,7 @@ list(APPEND srcs
   "${dir}/options.f90"
   "${dir}/param.f90"
   "${dir}/pcem.f90"
-  "${dir}/reader.f90"
+  "${dir}/reader.F90"
   "${dir}/setvar.f90"
   "${dir}/solvent.f90"
   "${dir}/timer.f90"
