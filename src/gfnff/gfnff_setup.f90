@@ -122,6 +122,7 @@ subroutine gfnff_input(env, mol, topo)
   logical           :: ex
   character(len=80) :: atmp
   character(len=80) :: s(10)
+  integer, allocatable :: rn(:)
 
   if (.not.allocated(topo%nb))       allocate( topo%nb(20,mol%n), source = 0 )
   if (.not.allocated(topo%qfrag))    allocate( topo%qfrag(mol%n), source = 0.0d0 )
@@ -134,19 +135,22 @@ subroutine gfnff_input(env, mol, topo)
   case(fileType%pdb)
     ini = .true.
     ifrag=0
-    associate(rn => mol%pdb%residue_number, qatom => mol%pdb%charge)
-      do iresidue = minval(rn),maxval(rn)
-        if (any(iresidue .eq. rn)) then
-          ifrag=ifrag+1
-          where(iresidue .eq. rn) topo%fraglist = ifrag
-        end if
-      end do
-      topo%nfrag = maxval(topo%fraglist)
-      do iatom=1,mol%n
-        topo%qfrag(topo%fraglist(iatom)) = topo%qfrag(topo%fraglist(iatom)) + dble(qatom(iatom))
-      end do
-      topo%qpdb = qatom
-    end associate
+    allocate(rn(mol%n))
+    rn(:) = mol%pdb%residue_number
+    do iresidue = minval(rn),maxval(rn)
+      if (any(iresidue .eq. rn)) then
+        ifrag=ifrag+1
+        where(iresidue .eq. rn) topo%fraglist = ifrag
+      end if
+    end do
+    deallocate(rn)
+    topo%nfrag = maxval(topo%fraglist)
+    if (.not.allocated(topo%qpdb)) allocate(topo%qpdb(mol%n))
+    do iatom=1,mol%n
+      topo%qfrag(topo%fraglist(iatom)) = topo%qfrag(topo%fraglist(iatom)) &
+        & + dble(mol%pdb(iatom)%charge)
+      topo%qpdb(iatom) = mol%pdb(iatom)%charge
+    end do
     ichrg=idint(sum(topo%qfrag(1:topo%nfrag)))
     write(env%unit,'(10x,"charge from pdb residues: ",i0)') ichrg
   !--------------------------------------------------------------------

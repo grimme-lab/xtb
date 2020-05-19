@@ -8,18 +8,24 @@ addons:
       packages:
          - libblas-dev
          - liblapack-dev
+         - gfortran-7
          - gfortran-8
          - python-pip
-
-env: FC=gfortran-8 CC=gcc-8
 
 jobs:
    include:
       - name: meson-build
+        env: FC=gfortran-8 CC=gcc-8
+        script:
+        - meson build --buildtype release --prefix $PWD/install --warnlevel 0 -Dla_backend=netlib
+        - OMP_NUM_THREADS=2 ninja -C build test install
+      - name: meson-build
+        env: FC=gfortran-7 CC=gcc-7
         script:
         - meson build --buildtype release --prefix $PWD/install --warnlevel 0 -Dla_backend=netlib
         - OMP_NUM_THREADS=2 ninja -C build test install
       - name: CMake-build
+        env: FC=gfortran-8 CC=gcc-8
         script:
         - mkdir _build
         - cd _build

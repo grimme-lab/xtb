@@ -15,6 +15,12 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifdef __GNUC__
+#if GCC_VERSION < 70500
+#define HAS_GCC_BUG_84412
+#endif
+#endif
+
 subroutine print_filelist(iunit)
    use xtb_mctc_filetools
    use xtb_readin
@@ -211,8 +217,20 @@ subroutine close_file(unit)
    implicit none
    integer,intent(in) :: unit
    logical :: opened
+   integer :: i
    !$omp critical (io)
+   ! GCC7 cannot inquire on files with negative unit, fixed in GCC7.5.0
+   ! see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84412
+#ifdef HAS_GCC_BUG_84412
+   opened = .false.
+   do i = 1, nfiles
+      if (unit == filelist(i)%unit) then
+         opened = opened .or. filelist(i)%open
+      end if
+   end do
+#else
    inquire(unit=unit,opened=opened)
+#endif
    if (opened) then
       close(unit)
       call pop_file(unit)
@@ -225,8 +243,20 @@ subroutine remove_file(unit)
    implicit none
    integer,intent(in) :: unit
    logical :: opened
+   integer :: i
    !$omp critical (io)
+   ! GCC7 cannot inquire on files with negative unit, fixed in GCC7.5.0
+   ! see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84412
+#ifdef HAS_GCC_BUG_84412
+   opened = .false.
+   do i = 1, nfiles
+      if (unit == filelist(i)%unit) then
+         opened = opened .or. filelist(i)%open
+      end if
+   end do
+#else
    inquire(unit=unit,opened=opened)
+#endif
    if (opened) then
       close(unit,status='delete')
       call pop_file(unit,'d')
