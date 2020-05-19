@@ -66,7 +66,7 @@ list(APPEND srcs
   "${dir}/eqrot.f90"
   "${dir}/esp.f"
   "${dir}/expire.f90"
-  "${dir}/filetools.f90"
+  "${dir}/filetools.F90"
   "${dir}/fixparam.f90"
   "${dir}/foden.f90"
   "${dir}/fragment.f90"

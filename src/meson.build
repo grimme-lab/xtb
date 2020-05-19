@@ -64,7 +64,7 @@ srcs += files(
   'eqrot.f90',
   'esp.f',
   'expire.f90',
-  'filetools.f90',
+  'filetools.F90',
   'fixparam.f90',
   'foden.f90',
   'fragment.f90',
