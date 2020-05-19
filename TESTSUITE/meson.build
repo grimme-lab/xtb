@@ -137,12 +137,6 @@ test('DFT-D4: latticepoints', xtb_test, args: ['dftd4', 'pbc3dlatp'], env: xtben
 test('DFT-D4: neighbourlist', xtb_test, args: ['dftd4', 'pbc3dneighs'], env: xtbenv)
 test('DFT-D4: threebody (LP)', xtb_test, args: ['dftd4', 'pbc3datmlatp'], env: xtbenv)
 test('DFT-D4: threebody (NL)', xtb_test, args: ['dftd4', 'pbc3datmneighs'], env: xtbenv)
-test('Dispersion: properties', xtb_test,args: ['dftd4', 'properties'], env: xtbenv)
-test('Dispersion: energies', xtb_test,args: ['dftd4', 'energies'], env: xtbenv)
-test('Dispersion: energies (PBC)', xtb_test,args: ['dftd4', 'pbc_disp'], env: xtbenv)
-#test('Dispersion: cell gradients', xtb_test,args: ['dftd4', 'cell_gradient'] env: xtbenv)
-test('Dispersion: API', xtb_test,args: ['dftd4', 'api'], env: xtbenv)
-#test('Dispersion: API (PBC)', xtb_test,args: ['dftd4', 'pbc_api'] env: xtbenv)
 
 test('GFN2-xTB: SCC', xtb_test, args: ['gfn2', 'scc'], env: xtbenv)
 test('GFN2-xTB: API', xtb_test, args: ['gfn2', 'api'], env: xtbenv)

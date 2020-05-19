@@ -22,6 +22,7 @@ module xtb_gfnff_eg
    use xtb_type_environment, only : TEnvironment
    use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
    use xtb_mctc_blas, only : mctc_gemv
+   use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    implicit none
    private
    public :: gfnff_eg, gfnff_dlogcoord
@@ -60,7 +61,6 @@ contains
          & param,topo,update,version,accuracy)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
-      use xtb_disp_dftd4, only: rcov
       use xtb_type_data
       use xtb_type_timer
       use xtb_gfnff_gdisp0
@@ -209,13 +209,13 @@ contains
       if (version == gffVersion%harmonic2020) then
       ebond=0
       !$omp parallel do default(none) reduction(+:ebond, g) &
-      !$omp shared(topo, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
+      !$omp shared(topo, param, xyz, at) private(i, iat, jat, rab, r2, r3, rn, dum)
       do i=1,topo%nbond
          iat=topo%blist(1,i)
          jat=topo%blist(2,i)
          r3 =xyz(:,iat)-xyz(:,jat)
          rab=sqrt(sum(r3*r3))
-         rn=0.7*(rcov(at(iat))+rcov(at(jat)))
+         rn=0.7*(param%rcov(at(iat))+param%rcov(at(jat)))
          r2=rn-rab
          ebond=ebond+0.1d0*r2**2  ! fixfc = 0.1
          dum=0.1d0*2.0d0*r2/rab
@@ -233,7 +233,7 @@ contains
 
       if (pr) call timer%measure(3,'dCN')
       call gfnff_dlogcoord(n,at,xyz,srab,cn,dcn,cnthr,param) ! new erf used in GFN0
-      if (sum(topo%nr_hb).gt.0) call dncoord_erf(n,at,xyz,hb_cn,hb_dcn,900.0d0,topo) ! HB erf CN
+      if (sum(topo%nr_hb).gt.0) call dncoord_erf(n,at,xyz,param%rcov,hb_cn,hb_dcn,900.0d0,topo) ! HB erf CN
       if (pr) call timer%measure(3)
 
 !!!!!!
@@ -252,7 +252,7 @@ contains
       if (pr) call timer%measure(5,'D3')
       if(nd3.gt.0) then
          call d3_gradient(n, at, xyz, nd3, d3list, topo%zetac6, param%d3r0, &
-            & 4.0d0, cn, dcn, edisp, g)
+            & sqrtZr4r2, 4.0d0, cn, dcn, edisp, g)
       endif
       deallocate(d3list)
       if (pr) call timer%measure(5)
@@ -741,15 +741,15 @@ contains
 
       end subroutine egbond_hb
 
-      subroutine dncoord_erf(nat,at,xyz,cn,dcn,thr,topo)
+      subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo)
       use iso_fortran_env, only : wp => real64
-      use xtb_disp_dftd4, only : rcov
       implicit none
       !Dummy
       type(TGFFTopology), intent(in) :: topo
       integer,intent(in)   :: nat
       integer,intent(in)   :: at(nat)
       real(wp),intent(in)  :: xyz(3,nat)
+      real(wp),intent(in)  :: rcov(:)
       real(wp),intent(out) :: cn(nat)
       real(wp),intent(out) :: dcn(3,nat,nat)
       real(wp),intent(in),optional :: thr
@@ -1170,48 +1170,44 @@ contains
 !cccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine gfnffdampa(ati,atj,r2,damp,ddamp,param)
-      use xtb_disp_dftd4, only: rcov
       implicit none
       type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =param%atcuta*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcuta*(param%rcov(ati)+param%rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end subroutine gfnffdampa
 
       subroutine gfnffdampt(ati,atj,r2,damp,ddamp,param)
-      use xtb_disp_dftd4, only: rcov
       implicit none
       type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =param%atcutt*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcutt*(param%rcov(ati)+param%rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end subroutine gfnffdampt
 
       subroutine gfnffdampa_nci(ati,atj,r2,damp,ddamp,param)
-      use xtb_disp_dftd4, only: rcov
       implicit none
       type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =param%atcuta_nci*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcuta_nci*(param%rcov(ati)+param%rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
       end subroutine gfnffdampa_nci
 
       subroutine gfnffdampt_nci(ati,atj,r2,damp,ddamp,param)
-      use xtb_disp_dftd4, only: rcov
       implicit none
       type(TGFFData), intent(in) :: param
       integer ati,atj
       real*8 r2,damp,ddamp,rr,rcut
-      rcut =param%atcutt_nci*(rcov(ati)+rcov(atj))**2
+      rcut =param%atcutt_nci*(param%rcov(ati)+param%rcov(atj))**2
       rr   =(r2/rcut)**2
       damp = 1.0d0/(1.0d0+rr)
       ddamp=-2.d0*2*rr/(r2*(1.0d0+rr)**2)
@@ -3082,7 +3078,6 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g,param)
 !> logCN derivative saved in dlogCN array
 subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2,param)
       use iso_fortran_env, only : wp => real64
-      use xtb_disp_dftd4, only : rcov
       implicit none
       type(TGFFData), intent(in) :: param
       integer, intent(in)  :: n
@@ -3127,7 +3122,7 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2,param)
             ij = ii+j
             r = rab(ij)
             if (r.gt.thr) cycle
-            r0=(rcov(at(i))+rcov(at(j)))
+            r0=(param%rcov(at(i))+param%rcov(at(j)))
             dr = (r-r0)/r0
             !> hier kommt die CN funktion hin
 !           erfCN = create_expCN(16.0d0,r,r0)
@@ -3148,7 +3143,7 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2,param)
             dlogdcnj = create_dlogCN(cn(j),param)
             r = rab(ij)
             if (r.gt.thr) cycle
-            r0 = (rcov(at(i)) + rcov(at(j)))
+            r0 = (param%rcov(at(i)) + param%rcov(at(j)))
             !> get derfCN/dRij
             derivative = create_derfCN(kn,r,r0)
 !           derivative = create_dexpCN(16.0d0,r,r0)

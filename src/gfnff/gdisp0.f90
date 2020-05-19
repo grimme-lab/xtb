@@ -234,11 +234,10 @@ subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
    end do
 end subroutine get_atomic_c6_d4
 
-subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, weighting_factor, &
-      &                cn, dcndr, energy, gradient)
+subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, r4r2, &
+      & weighting_factor, cn, dcndr, energy, gradient)
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use mctcpar_r4r2, only: r4r2 => sqrt_z_r4_over_r2
 
    integer, intent(in) :: nat
    integer, intent(in) :: at(:)
@@ -246,6 +245,7 @@ subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, weighti
    integer, intent(in) :: npair
    integer, intent(in) :: pairlist(:, :)
    real(wp), intent(in) :: zeta_scale(:)
+   real(wp), intent(in) :: r4r2(:)
    real(wp), intent(in) :: radii(:)
 
    real(wp), intent(in) :: weighting_factor
@@ -278,7 +278,7 @@ subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, weighti
 
    !$omp parallel do default(none) schedule(runtime) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn) &
-   !$omp shared(nat, at, xyz, npair, pairlist, zeta_scale, radii, c6, dc6dcn) &
+   !$omp shared(at, xyz, npair, pairlist, zeta_scale, radii, r4r2, c6, dc6dcn) &
    !$omp private(ij, img, iat, jat, ati, atj, r2, rij, r4r2ij, r0, t6, t8, t10, &
    !$omp&        d6, d8, d10, disp, ddisp, dE, dG, dS)
    do img = 1, npair

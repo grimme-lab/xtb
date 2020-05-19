@@ -90,6 +90,7 @@ module xtb_gfnff_data
       !> Constant data
       real(wp), allocatable :: en(:)
       real(wp), allocatable :: rad(:)
+      real(wp), allocatable :: rcov(:)
       integer, allocatable :: metal(:)
       integer, allocatable :: group(:)
       integer, allocatable :: normcn(:)
@@ -157,6 +158,7 @@ subroutine initGFFData(self, ndim)
    allocate(self%metal(ndim))
    allocate(self%group(ndim))
    allocate(self%normcn(ndim))
+   allocate(self%rcov(ndim))
 
    allocate(self%repa (ndim))
    allocate(self%repan(ndim))

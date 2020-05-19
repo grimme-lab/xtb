@@ -731,6 +731,7 @@ end subroutine print_wbo_fragment
 
 subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    use xtb_disp_dftd4
+   use xtb_disp_ncoord
    use xtb_eeq
    implicit none
    integer, intent(in) :: iunit
@@ -755,7 +756,7 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    allocate( covcn(n), aw(23,n), c6ab(n,n), gw(dispdim), &
              c6ref(dispdim,dispdim), source = 0.0_wp )
 
-   call covncoord(n,at,xyz,covcn,thr=1600.0_wp)
+   call ncoord_d4(n,at,xyz,covcn,thr=1600.0_wp)
    call d4(n,dispdim,at,wf,g_a,g_c,covcn,gw,c6ref)
    call mdisp(n,dispdim,at,q,xyz,g_a,g_c,gw,c6ref, &
               molc6,molc8,molpol,aout=aw,cout=c6ab)
