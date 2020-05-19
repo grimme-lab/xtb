@@ -343,7 +343,7 @@ module xtb_gfnff_param
 
    subroutine gfnff_set_param(n, gen, param)
      use xtb_mctc_accuracy, only : wp 
-     use xtb_disp_dftd4, only : r2r4 => r4r2, rcov
+     use xtb_param_sqrtzr4r2, only : sqrtZr4r2
      implicit none
 !    Dummy                      ,
      integer,intent(in)  :: n
@@ -424,7 +424,7 @@ module xtb_gfnff_param
         param%zb3atm(i)=-dum*gen%batmscal**(1.d0/3.d0)  ! inlcude pre-factor
         do j=1,i
            k=k+1
-           dum=r2r4(i)*r2r4(j)*3.0d0
+           dum=sqrtZr4r2(i)*sqrtZr4r2(j)*3.0d0
            param%d3r0(k)=(gen%d3a1*dsqrt(dum)+gen%d3a2)**2   ! save R0^2 for efficiency reasons
         enddo
      enddo
@@ -454,6 +454,7 @@ module xtb_gfnff_param
 
    subroutine gfnff_load_param(version, param, exist)
      use xtb_mctc_accuracy, only : wp 
+     use xtb_param_covalentRadD3, only : covalentRadD3
      implicit none
      integer, intent(in) :: version
      type(TGFFData), intent(out) :: param
@@ -465,6 +466,7 @@ module xtb_gfnff_param
 
      param%en(:) = en
      param%rad(:) = rad
+     param%rcov(:) = covalentRadD3(1:86)
      param%metal(:) = metal
      param%group(:) = group
      param%normcn(:) = normcn

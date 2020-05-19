@@ -19,14 +19,13 @@ module xtb_disp_dftd4
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi
    use xtb_mctc_param, only: gam => chemical_hardness
-   use xtb_mctc_la, only : contract
+   use xtb_mctc_blas, only : mctc_gemv
    !! ========================================================================
    !  mix in the covalent coordination number from the ncoord module
    !  also get the CN-Parameters to inline the CN-derivative in the gradient
    use xtb_disp_dftd4param, only: zeff, thopi, ootpi, p_mbd_none, p_mbd_rpalike, &
       &                   p_mbd_exact_atm, p_mbd_approx_atm, p_refq_goedecker, &
       &                   p_refq_gfn2xtb
-   use xtb_disp_ncoord, only : covncoord => ncoord_d4, kn,k1,k4,k5,k6
    use xtb_param_sqrtzr4r2, only : sqrtZr4r2
    use xtb_type_dispersionmodel
    use xtb_type_molecule, only : TMolecule, len
@@ -1123,13 +1122,13 @@ subroutine d4_full_gradient_neigh &
    end if
    if (present(e3)) e3 = sum(energies3)
 
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
    if (present(dqdr)) then
-      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+      call mctc_gemv(dqdr, dEdq, gradient, beta=1.0_wp)
    end if
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
    if (present(dqdL)) then
-      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+      call mctc_gemv(dqdL, dEdq, sigma, beta=1.0_wp)
    end if
 
    energy = energy + sum(energies) + sum(energies3)
@@ -1216,13 +1215,13 @@ subroutine d4_gradient_neigh &
    call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, &
       & c6, dc6dcn, dc6dq, energies, gradient, sigma, dEdcn, dEdq)
 
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
    if (present(dqdr)) then
-      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+      call mctc_gemv(dqdr, dEdq, gradient, beta=1.0_wp)
    end if
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
    if (present(dqdL)) then
-      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+      call mctc_gemv(dqdL, dEdq, sigma, beta=1.0_wp)
    end if
 
    energy = energy + sum(energies)
@@ -1400,8 +1399,8 @@ subroutine d4_atm_gradient_neigh &
       & (mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
 
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
 
    energy = energy + sum(energies)
 
@@ -1581,13 +1580,13 @@ subroutine d4_full_gradient_latp &
    end if
    if (present(e3)) e3 = sum(energies3)
 
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
    if (present(dqdr)) then
-      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+      call mctc_gemv(dqdr, dEdq, gradient, beta=1.0_wp)
    end if
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
    if (present(dqdL)) then
-      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+      call mctc_gemv(dqdL, dEdq, sigma, beta=1.0_wp)
    end if
 
    energy = energy + sum(energies) + sum(energies3)
@@ -1674,13 +1673,13 @@ subroutine d4_gradient_latp &
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, dc6dq, &
       &  energies, gradient, sigma, dEdcn, dEdq)
 
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
    if (present(dqdr)) then
-      call contract(dqdr, dEdq, gradient, beta=1.0_wp)
+      call mctc_gemv(dqdr, dEdq, gradient, beta=1.0_wp)
    end if
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
    if (present(dqdL)) then
-      call contract(dqdL, dEdq, sigma, beta=1.0_wp)
+      call mctc_gemv(dqdL, dEdq, sigma, beta=1.0_wp)
    end if
 
    energy = energy + sum(energies)
@@ -1859,8 +1858,8 @@ subroutine d4_atm_gradient_latp &
       & (mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
 
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
+   call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
+   call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
 
    energy = energy + sum(energies)
 
