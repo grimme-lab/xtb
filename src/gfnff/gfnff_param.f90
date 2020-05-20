@@ -502,6 +502,7 @@ module xtb_gfnff_param
 
    subroutine gfnff_read_param(iunit, param)
      use xtb_mctc_accuracy, only : wp 
+     use xtb_param_covalentRadD3, only : covalentRadD3
      implicit none
 !    Dummy
      integer,intent(in)  :: iunit
@@ -515,6 +516,7 @@ module xtb_gfnff_param
 
      param%en(:) = en
      param%rad(:) = rad
+     param%rcov(:) = covalentRadD3(1:86)
      param%metal(:) = metal
      param%group(:) = group
      param%normcn(:) = normcn
