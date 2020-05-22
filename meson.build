@@ -26,7 +26,7 @@ project(
     'includedir=include/xtb',
     'c_std=c11',
     'buildtype=release',
-    'default_library=shared',
+    'default_library=both',
   ],
 )
 
@@ -94,10 +94,10 @@ incdir = include_directories('include')
 # create a static library from all sources,
 # this is the common base of all targets created for xtb
 xtb_common = static_library(
-  meson.project_name(),
+  '_@0@'.format(meson.project_name()),
   sources: srcs,
   include_directories: incdir,
-  install: install_modules,
+  install: false,
   pic: true,
 )
 
