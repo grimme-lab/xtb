@@ -19,7 +19,7 @@
 project(
   'xtb',
   'fortran', 'c',
-  version: '6.2.3',
+  version: '6.3.0',
   license: 'LGPL3',
   meson_version: '>=0.51',
   default_options: [
