@@ -79,6 +79,7 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
          call env%warning("Dimension missmatch in restart file.", source)
          success = .false.
       end if
+      call close_file(ich)
    end if
 
 end subroutine readRestart
@@ -114,6 +115,7 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo)
          if (nat8.ne.n.and.verbose) then
             call env%warning('Atom number missmatch in restart file.',source)
             success=.false.
+            call close_file(ich)
             return
          else if (iver8.eq.int(version)) then
             success = .true.

@@ -159,7 +159,7 @@ subroutine findUnit(self, unit, pos)
    pos = 0
    do i = 1, self%count
       if (self%log(i)%open .and. self%log(i)%unit == unit) then
-         pos = unit
+         pos = i
          exit
       end if
    end do
