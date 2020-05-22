@@ -17,8 +17,10 @@
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
+static = get_option('static')
+dependencies = []
 
-if get_option('static') and fc.get_id() == 'intel'
+if static and fc.get_id() == 'intel'
   if get_option('la_backend') != 'mkl'
     error('Static linked binaries are only supported with Intel MKL')
   endif
@@ -55,7 +57,7 @@ if get_option('la_backend') == 'mkl'
 
   mkl_rt_dep = fc.find_library('mkl_rt', required: true)
 
-  if get_option('static')
+  if static
     if fc.get_id() == 'gcc'
       libmkl_exe = [fc.find_library('mkl_gf_lp64')]
       libmkl_exe += fc.find_library('mkl_gnu_thread')
@@ -64,9 +66,8 @@ if get_option('la_backend') == 'mkl'
       libmkl_exe += fc.find_library('mkl_intel_thread')
     endif
     libmkl_exe += fc.find_library('mkl_core')
-    libmkl_sha = [fc.find_library('mkl_rt')]
-    dependencies_sha += mkl_rt_dep
-    dependencies_exe += libmkl_exe
+    lib_deps += mkl_rt_dep
+    exe_deps += libmkl_exe
   else
     dependencies += mkl_rt_dep
   endif
@@ -114,19 +115,11 @@ else
 endif
 
 if get_option('openmp')
-  if fc.get_id() == 'gcc'
-    add_project_arguments('-fopenmp', language: 'fortran')
-    add_project_link_arguments('-fopenmp', language: 'fortran')
-    add_project_link_arguments('-fopenmp', language: 'c')
-  elif fc.get_id() == 'intel'
-    add_project_arguments('-qopenmp', language: 'fortran')
-    add_project_link_arguments('-qopenmp', language: 'fortran')
-    add_project_link_arguments('-qopenmp', language: 'c')
-  endif
+  dependencies += dependency('openmp')
 endif
 
 dependencies += dependency('threads')
 
 # distribute dependencies for shared object and static executable
-dependencies_sha += dependencies
-dependencies_exe += dependencies
+lib_deps += dependencies
+exe_deps += dependencies
