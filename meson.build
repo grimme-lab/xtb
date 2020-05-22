@@ -24,6 +24,8 @@ project(
   meson_version: '>=0.51',
   default_options: [
     'includedir=include/xtb',
+    'c_std=c11',
+    'buildtype=release',
   ],
 )
 
@@ -118,12 +120,14 @@ xtb_dep_static = declare_dependency(
   link_with: xtb_lib_static,
   include_directories: [incdir, xtb_lib_static.private_dir_include()],
   dependencies: dependencies_exe,
+  version: meson.project_version(),
 )
 
 xtb_dep = declare_dependency(
   link_with: xtb_lib_shared,
   include_directories: incdir,
   dependencies: dependencies_sha,
+  version: meson.project_version(),
 )
 
 xtb_header = files('include/xtb.h')
@@ -133,11 +137,20 @@ xtb_header = files('include/xtb.h')
 ## ========================================== ##
 install_headers(xtb_header)
 
-asciidoc = find_program('a2x', required: false)
+asciidoc = find_program('asciidoctor', required: false)
 if asciidoc.found()
-  run_command(asciidoc, 'man/man1/xtb.1.txt', '--format=manpage')
-  run_command(asciidoc, 'man/man7/xcontrol.7.txt', '--format=manpage')
-  install_man(['man/man1/xtb.1', 'man/man7/xcontrol.7'])
+  xtb_man = []
+  xtb_man += configure_file(
+    command: [asciidoc, '-b', 'manpage', '@INPUT@', '-o', '@OUTPUT@'],
+    input: files('man/man1/xtb.1.adoc'),
+    output: '@BASENAME@',
+  )
+  xtb_man += configure_file(
+    command: [asciidoc, '-b', 'manpage', '@INPUT@', '-o', '@OUTPUT@'],
+    input: files('man/man7/xcontrol.7.adoc'),
+    output: '@BASENAME@',
+  )
+  install_man(xtb_man)
 endif
 
 xtb_parameter_files = [
