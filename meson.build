@@ -142,12 +142,12 @@ if asciidoc.found()
   xtb_man = []
   xtb_man += configure_file(
     command: [asciidoc, '-b', 'manpage', '@INPUT@', '-o', '@OUTPUT@'],
-    input: files('man/man1/xtb.1.adoc'),
+    input: files('man/xtb.1.adoc'),
     output: '@BASENAME@',
   )
   xtb_man += configure_file(
     command: [asciidoc, '-b', 'manpage', '@INPUT@', '-o', '@OUTPUT@'],
-    input: files('man/man7/xcontrol.7.adoc'),
+    input: files('man/xcontrol.7.adoc'),
     output: '@BASENAME@',
   )
   install_man(xtb_man)
