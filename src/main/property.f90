@@ -72,7 +72,6 @@ end subroutine write_energy_gff
 subroutine main_property &
       (iunit,mol,wfx,basis,xtbData,res,acc)
 
-   use xtb_mctc_global, only : persistentEnv
    use xtb_mctc_convert
 
 !! ========================================================================
