@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.9)
 
 # Setup the XTB Project
 project(xtb
-   VERSION 6.2.2
+   VERSION 6.3.0
 )
 enable_language(Fortran)
 enable_testing()
@@ -58,9 +58,6 @@ target_include_directories(lib-xtb-static
   $<BUILD_INTERFACE:${xtb-dir}/include>
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
 )
-
-message("BLAS_LIBRARIES ${BLAS_LIBRARIES}")
-message("LAPACK_LIBRARIES ${LAPACK_LIBRARIES}")
 
 # Shared Library
 add_library(lib-xtb-shared SHARED $<TARGET_OBJECTS:xtb-object> )

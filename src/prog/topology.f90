@@ -132,6 +132,7 @@ end subroutine xtbTopology
 
 !> Parse command line arguments
 subroutine parseArguments(env, args, param)
+   use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
    character(len=*), parameter :: source = "prog_topology_parseArguments"
@@ -177,8 +178,8 @@ subroutine parseArguments(env, args, param)
          end if
 
       case('--namespace')
-         call args%nextArg(xenv%namespace)
-         if (.not.allocated(xenv%namespace)) then
+         call args%nextArg(persistentEnv%io%namespace)
+         if (.not.allocated(persistentEnv%io%namespace)) then
             call env%error("Namespace argument is missing", source)
          end if
 

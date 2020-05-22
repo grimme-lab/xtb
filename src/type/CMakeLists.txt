@@ -30,6 +30,7 @@ list(APPEND srcs
   "${dir}/environment.f90"
   "${dir}/fragments.f90"
   "${dir}/identitymap.f90"
+  "${dir}/iohandler.f90"
   "${dir}/molecule.f90"
   "${dir}/neighbourlist.f90"
   "${dir}/latticepoint.f90"

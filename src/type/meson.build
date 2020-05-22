@@ -28,6 +28,7 @@ srcs += files(
   'environment.f90',
   'fragments.f90',
   'identitymap.f90',
+  'iohandler.f90',
   'molecule.f90',
   'neighbourlist.f90',
   'latticepoint.f90',

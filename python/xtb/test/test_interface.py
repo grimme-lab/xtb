@@ -25,31 +25,20 @@ def test_library():
     # check if we can load this one
     lib = load_library("libxtb")
     # check if we find some functions
-    assert lib.GFN0_calculation is not None
-    assert lib.GFN1_calculation is not None
-    assert lib.GFN2_calculation is not None
+    assert lib.xtb_singlepoint is not None
 
     from xtb.interface import XTBLibrary
 
     libxtb = XTBLibrary(library=lib)
-    assert libxtb.library is lib
-    # check if we find some functions
-    assert hasattr(libxtb, "GFN0Calculation")
-    assert hasattr(libxtb, "GFN1Calculation")
-    assert hasattr(libxtb, "GFN2Calculation")
-
-    libxtb = XTBLibrary()
-    # check if we find some functions
-    assert hasattr(libxtb, "GFN0Calculation")
-    assert hasattr(libxtb, "GFN1Calculation")
-    assert hasattr(libxtb, "GFN2Calculation")
+    assert libxtb._lib is lib
 
 
 class Testing:
     """test all defined interfaces"""
+
     from ctypes import c_int, c_double
     from numpy import array
-    from xtb.interface import XTBLibrary
+    from xtb.interface import Calculator, Results, Param
 
     natoms = 24
     numbers = array(
@@ -85,35 +74,16 @@ class Testing:
         ],
         dtype=c_double,
     )
-    lib = XTBLibrary()
 
     def test_gfn0_interface(self):
         """check if the GFN0-xTB interface is working correctly."""
         thr = 1.0e-8
         from pytest import approx
 
-        options = {
-            "print_level": 1,
-            "parallel": 0,
-            "accuracy": 1.0,
-            "electronic_temperature": 300.0,
-            "gradient": True,
-            "ccm": True,
-            "solvent": "none",
-        }
-        kwargs = {
-            "natoms": self.natoms,
-            "numbers": self.numbers,
-            "charge": 0.0,
-            "positions": self.positions,
-            "options": options,
-            "output": "-",
-            "magnetic_moment": 0,
-        }
-        results = self.lib.GFN0Calculation(**kwargs)
-        assert results
-        gnorm = abs(results["gradient"].flatten()).mean()
-        assert approx(results["energy"], thr) == -40.90885036015837
+        calc = self.Calculator(self.Param.GFN0xTB, self.numbers, self.positions)
+        results = calc.singlepoint()
+        gnorm = abs(results.get_gradient().flatten()).mean()
+        assert approx(results.get_energy(), thr) == -40.90885036015837
         assert approx(gnorm, thr) == 0.00510542946913145
 
     def test_gfn1_interface(self):
@@ -121,22 +91,10 @@ class Testing:
         thr = 1.0e-8
         from pytest import approx
 
-        options = {
-            "print_level": 1,
-            "parallel": 0,
-            "accuracy": 1.0,
-            "electronic_temperature": 300.0,
-            "gradient": True,
-            "restart": False,
-            "ccm": True,
-            "max_iterations": 30,
-            "solvent": "none",
-        }
-        args = (self.natoms, self.numbers, self.positions, options, 0.0, 0, "-")
-        results = self.lib.GFN1Calculation(*args)
-        assert results
-        gnorm = abs(results["gradient"].flatten()).mean()
-        assert approx(results["energy"], thr) == -44.50970242016477
+        calc = self.Calculator(self.Param.GFN1xTB, self.numbers, self.positions)
+        results = calc.singlepoint()
+        gnorm = abs(results.get_gradient().flatten()).mean()
+        assert approx(results.get_energy(), thr) == -44.50970242016477
         assert approx(gnorm, thr) == 0.004842112340521374
 
     def test_gfn2_gbsa_interface(self):
@@ -144,28 +102,11 @@ class Testing:
         thr = 1.0e-8
         from pytest import approx
 
-        options = {
-            "print_level": 1,
-            "parallel": 0,
-            "accuracy": 1.0,
-            "electronic_temperature": 300.0,
-            "gradient": True,
-            "restart": False,
-            "ccm": True,
-            "max_iterations": 30,
-            "solvent": "ch2cl2",
-        }
-        results = self.lib.GFN2Calculation(
-            natoms=self.natoms,
-            numbers=self.numbers,
-            charge=0.0,
-            positions=self.positions,
-            options=options,
-            output="-",
-            magnetic_moment=0,
+        calc = self.Calculator(
+            self.Param.GFN2xTB, self.numbers, self.positions, solvent="ch2cl2"
         )
-        assert results
-        gnorm = abs(results["gradient"].flatten()).mean()
-        assert approx(results["energy"], thr) == -42.170584528028506
+        results = calc.singlepoint()
+        gnorm = abs(results.get_gradient().flatten()).mean()
+        assert approx(results.get_energy(), thr) == -42.170584528028506
         assert approx(gnorm, thr) == 0.004685246019376688
-        assert approx(results["charges"].sum(), thr) == 0.0
+        assert approx(results.get_charges().sum(), thr) == 0.0

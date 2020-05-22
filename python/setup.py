@@ -21,7 +21,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name="xtb",
-      version="6.2.3",
+      version="6.3.0",
       author="Sebastian Ehlert",
       author_email="ehlert@thch.uni-bonn.de",
       description="Wrapper for the extended tight binding program",

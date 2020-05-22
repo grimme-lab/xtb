@@ -17,7 +17,4 @@
 
 """Python Wrapper for the Extended Tight Binding (xTB) Program Package."""
 
-from xtb.calculators import GFN1, GFN2, GFN0
-
-__version__ = "6.2.1"
-__all__ = ["GFN1", "GFN2", "GFN0"]
+__version__ = "6.3.0"

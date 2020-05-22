@@ -19,7 +19,7 @@
 project(
   'xtb',
   'fortran', 'c',
-  version: '6.2.3',
+  version: '6.3.0',
   license: 'LGPL3',
   meson_version: '>=0.51',
   default_options: [
@@ -81,6 +81,7 @@ subdir('src')
 srcs += 'symmetry/symmetry.f90'
 srcs += 'symmetry/symmetry_i.c'
 
+xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')
 
 # Build target
@@ -113,24 +114,24 @@ xtb_lib_shared = shared_library(
   install: true
 )
 
-xtb_dep_static = [
-  declare_dependency(
-    link_whole: xtb_lib_static,
-    ),
-  dependencies_exe,
-]
+xtb_dep_static = declare_dependency(
+  link_with: xtb_lib_static,
+  include_directories: [incdir, xtb_lib_static.private_dir_include()],
+  dependencies: dependencies_exe,
+)
 
-xtb_dep = [
-  declare_dependency(
-    link_with: xtb_lib_shared,
-  ),
-  dependencies_sha,
-]
+xtb_dep = declare_dependency(
+  link_with: xtb_lib_shared,
+  include_directories: incdir,
+  dependencies: dependencies_sha,
+)
+
+xtb_header = files('include/xtb.h')
 
 ## ========================================== ##
 ## INSTALL
 ## ========================================== ##
-install_headers('include/xtb.h')
+install_headers(xtb_header)
 
 asciidoc = find_program('a2x', required: false)
 if asciidoc.found()
@@ -176,27 +177,16 @@ xtbenv.set('XTBPATH', meson.current_source_dir())
 subdir('TESTSUITE')
 
 if get_option('python')
-  py_xtb = meson.current_source_dir() / 'python' / 'xtb'
-
-  has_numpy = run_command('python3', '-c', '"import numpy"').returncode() == 0
-  has_ase = run_command('python3', '-c', '"import ase"').returncode() == 0
-  pytest = find_program('pytest', required: false)
-  if pytest.found() and has_numpy and has_ase
-    test('pytest: xtb.py', pytest, args: ['--pyargs', 'xtb'], env: xtbenv)
-  endif
-
-  mypy = find_program('mypy', required: false)
-  if mypy.found()
-    test('mypy: xtb.py', mypy, args: [py_xtb, '--ignore-missing-imports'], env: xtbenv)
-  endif
-
-  pylint = find_program('pylint', required: false)
-  if pylint.found()
-    test('pylint: xtb.py', pylint, args: [py_xtb, '--disable=invalid-names,duplicate-code'], env: xtbenv)
-  endif
-
-  flake8 = find_program('flake8', required: false)
-  if flake8.found()
-    test('flake8: xtb.py', flake8, args: [py_xtb, '--max-line-length=83'], env: xtbenv)
+  pymod = import('python')
+  python = pymod.find_installation(
+    'python3',
+    required: false,
+  )
+  if python.found()
+    has_numpy = run_command(python, '-c', '"import numpy"').returncode() == 0
+    has_pytest = run_command(python, '-c', '"import pytest"').returncode() == 0
+    if has_numpy and has_pytest
+      test('pytest: xtb', python, args: ['-m', 'pytest', '--pyargs', 'xtb'], env: xtbenv)
+    endif
   endif
 endif

@@ -130,12 +130,15 @@ subroutine test_gfn0_api
 
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_wavefunction
+   use xtb_type_data
    use xtb_type_param
    use xtb_type_environment
 
    use xtb_pbc_tools
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -155,10 +158,13 @@ subroutine test_gfn0_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
+   type(TWavefunction) :: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
    real(wp) :: energy
    real(wp) :: hl_gap
-   real(wp) :: dum(3,3)
+   real(wp) :: sigma(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -170,8 +176,12 @@ subroutine test_gfn0_api
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn0_calculation &
-      (stdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
+   call newXTBCalculator(env, mol, calc, method=0)
+   call env%checkpoint("failed setup")
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 5.5384029314207_wp,thr)
    call assert_close(energy,-8.6908532561691_wp,thr)
@@ -193,12 +203,15 @@ subroutine test_gfn0_api_srb
 
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_data
+   use xtb_type_wavefunction
    use xtb_type_param
    use xtb_type_environment
 
    use xtb_pbc_tools
 
-   use xtb_calculators
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
    implicit none
 
@@ -237,10 +250,13 @@ subroutine test_gfn0_api_srb
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
+   type(TWavefunction) :: wfn
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
 
    real(wp) :: energy
    real(wp) :: hl_gap
-   real(wp) :: dum(3,3)
+   real(wp) :: sigma(3,3)
    real(wp),allocatable :: gradient(:,:)
 
    ! setup the environment variables
@@ -252,8 +268,12 @@ subroutine test_gfn0_api_srb
    energy = 0.0_wp
    gradient = 0.0_wp
 
-   call gfn0_calculation &
-      (stdout,env,opt,mol,hl_gap,energy,gradient,dum,dum)
+   call newXTBCalculator(env, mol, calc, method=0)
+   call env%checkpoint("failed setup")
+   call newWavefunction(env, mol, calc, wfn)
+
+   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
 
    call assert_close(hl_gap, 3.1192454818777_wp,thr)
    call assert_close(energy,-40.908850360158_wp,thr)

@@ -177,7 +177,7 @@ subroutine test_symmetry_c20
    integer, parameter :: iunit = stdout
    logical, parameter :: pr = .true.
 
-   call rattle(nat,xyz,0.025_wp)
+   call rattle(nat,xyz,0.010_wp)
 
    call getsymmetry(pr,iunit,nat,at,xyz,0.1_wp,maxatdesy,pgroup)
 

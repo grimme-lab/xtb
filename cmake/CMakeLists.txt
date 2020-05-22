@@ -34,6 +34,3 @@ configure_file(
   @ONLY
 )
 set(xtb-config-dir "${CMAKE_CURRENT_BINARY_DIR}" PARENT_SCOPE)
-
-message("BLAS_LIBRARIES ${BLAS_LIBRARIES}")
-message("LAPACK_LIBRARIES ${LAPACK_LIBRARIES}")

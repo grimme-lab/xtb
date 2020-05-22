@@ -53,6 +53,7 @@ subroutine mctc_init(progname,ntimer,verbose)
 !  set this for xtb_mctc_global
    name = progname
 
+   allocate(persistentEnv)
    call init(persistentEnv)
 
 end subroutine mctc_init

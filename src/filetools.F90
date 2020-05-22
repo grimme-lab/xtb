@@ -15,251 +15,86 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-#ifdef __GNUC__
-#if GCC_VERSION < 70500
-#define HAS_GCC_BUG_84412
-#endif
-#endif
-
 subroutine print_filelist(iunit)
-   use xtb_mctc_filetools
+   use xtb_mctc_global, only : persistentEnv
    use xtb_readin
    implicit none
    integer,intent(in) :: iunit
-   character(len=8) :: status
-   integer :: i
 
-   write(iunit,'(1x,"unit",2x,"open",3x,"action",5x,"filename")')
-   do i = 1, nfiles
-      select case(filelist(i)%status)
-      case('r','R'); status = "read    "
-      case('a','A'); status = "appended"
-      case('w','W'); status = "written "
-      case('s','S'); status = "replaced"
-      case('d','D'); status = "deleted "
-      case('t','T'); status = "touched "
-      case default;  status = "        "
-      end select
-      write(iunit,'(i5,1x,a5,1x,":",1x,a8,3x,a)') &
-         abs(filelist(i)%unit), bool2string(filelist(i)%open), status, &
-         filelist(i)%name
-   enddo
+   call persistentEnv%io%list(iunit)
+
 end subroutine print_filelist
 
 subroutine delete_file(name)
-   use xtb_mctc_filetools
-   use xtb_setparam
+   use xtb_mctc_global, only : persistentEnv
    implicit none
    character(len=*),intent(in)  :: name
-   character(len=:),allocatable :: file
-   logical :: exist,opened
-   integer :: iunit,err
 
-   file = get_namespace(name)
+   call persistentEnv%io%deleteFile(name)
 
-   !$omp critical (io)
-   inquire(file=file, exist=exist, opened=opened, number=iunit)
-   if (opened) then
-      close(iunit,status='delete')
-      call pop_file(iunit,'d')
-   else if (exist) then
-      inquire(file=file, opened=opened, number=iunit)
-      open(newunit=iunit, file=file, iostat=err, status='old')
-      if (err.eq.0) then
-         close(iunit,status='delete')
-         call push_file(iunit,file,'d')
-      endif
-   endif
-   !$omp end critical (io)
 end subroutine delete_file
 
 subroutine touch_file(name)
-   use xtb_mctc_filetools
+   use xtb_mctc_global, only : persistentEnv
    use xtb_setparam
    implicit none
    character(len=*),intent(in)  :: name
-   character(len=:),allocatable :: file
-   logical :: exist
-   integer :: iunit,err
 
-   file = get_namespace(name)
+   call persistentEnv%io%touchFile(name)
 
-   !$omp critical (io)
-   inquire(file=file, exist=exist)
-   if (.not.exist) then
-      open(newunit=iunit, file=file, iostat=err, status='new')
-      if (err.eq.0) then
-         close(iunit)
-         call push_file(iunit,file,'t')
-      endif
-   endif
-   !$omp end critical (io)
 end subroutine touch_file
 
 subroutine open_binary(iunit,name,status)
-   use xtb_mctc_filetools
-   use xtb_setparam
+   use xtb_mctc_global, only : persistentEnv
    implicit none
+   integer, intent(out) :: iunit
    character(len=*),intent(in)  :: name
    character(len=1),intent(in)  :: status
-   character(len=:),allocatable :: file
-   integer,intent(out) :: iunit
-   character(len=1)    :: cstatus
-   integer :: err
-   logical :: exist
 
-   iunit = -1 ! failed to open file
-   cstatus = status
-
-   file = get_namespace(name)
-
-   ! acquire mutex for IO
-   !$omp critical (io)
    select case(status)
    case default
-      err = -1
-   case('a','A')
-      inquire(file=file, exist=exist)
-      if (exist) then
-         open(newunit=iunit, file=file, iostat=err, action='write', status='old',&
-            form='unformatted')
-         if (err.ne.0) iunit = -1
-      else
-         open(newunit=iunit, file=file, iostat=err, action='write', status='new',&
-            form='unformatted')
-         cstatus = 'w'
-         if (err.ne.0) iunit = -1
-      endif
+      iunit = -1
    case('r','R')
-      inquire(file=file, exist=exist)
-      if (.not.exist) then
-         file = name
-         inquire(file=file, exist=exist)
-      endif
-      if (exist) then
-         open(newunit=iunit, file=file, iostat=err, action='read', status='old',&
-            form='unformatted')
-         if (err.ne.0) iunit = -1
-      endif
+      call persistentEnv%io%readBinary(iunit, name)
    case('w','W')
-      inquire(file=file, exist=exist)
-      if (exist) cstatus = 's'
-      open(newunit=iunit, file=file, iostat=err, action='write',&
-         form='unformatted')
-      if (err.ne.0) iunit = -1
+      call persistentEnv%io%writeBinary(iunit, name)
    end select
-
-   if (iunit.ne.-1) then
-      call push_file(iunit,file,cstatus)
-   endif
-   !$omp end critical (io)
 
 end subroutine open_binary
 
 subroutine open_file(iunit,name,status)
-   use xtb_mctc_filetools
-   use xtb_setparam
+   use xtb_mctc_global, only : persistentEnv
    implicit none
    character(len=*),intent(in)  :: name
    character(len=1),intent(in)  :: status
-   character(len=:),allocatable :: file
    integer,intent(out) :: iunit
-   character(len=1)    :: cstatus
-   integer :: err
-   logical :: exist
 
-   iunit = -1 ! failed to open file
-   cstatus = status
-
-   file = get_namespace(name)
-
-   ! acquire mutex for IO
-   !$omp critical (io)
    select case(status)
    case default
-      err = -1
-   case('a','A')
-      inquire(file=file, exist=exist)
-      if (exist) then
-         open(newunit=iunit, file=file, iostat=err, action='write', status='old')
-         if (err.ne.0) iunit = -1
-      else
-         open(newunit=iunit, file=file, iostat=err, action='write', status='new')
-         cstatus = 'w'
-         if (err.ne.0) iunit = -1
-      endif
+      iunit = -1
    case('r','R')
-      inquire(file=file, exist=exist)
-      if (.not.exist) then
-         file = name
-         inquire(file=file, exist=exist)
-      endif
-      if (exist) then
-         open(newunit=iunit, file=file, iostat=err, action='read', status='old')
-         if (err.ne.0) iunit = -1
-      endif
+      call persistentEnv%io%readFile(iunit, name)
    case('w','W')
-      inquire(file=file, exist=exist)
-      if (exist) cstatus = 's'
-      open(newunit=iunit, file=file, iostat=err, action='write')
-      if (err.ne.0) iunit = -1
+      call persistentEnv%io%writeFile(iunit, name)
    end select
-
-   if (iunit.ne.-1) then
-      call push_file(iunit,file,cstatus)
-   endif
-   !$omp end critical (io)
 
 end subroutine open_file
 
 subroutine close_file(unit)
-   use xtb_mctc_filetools
+   use xtb_mctc_global, only : persistentEnv
    implicit none
    integer,intent(in) :: unit
    logical :: opened
-   integer :: i
-   !$omp critical (io)
-   ! GCC7 cannot inquire on files with negative unit, fixed in GCC7.5.0
-   ! see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84412
-#ifdef HAS_GCC_BUG_84412
-   opened = .false.
-   do i = 1, nfiles
-      if (unit == filelist(i)%unit) then
-         opened = opened .or. filelist(i)%open
-      end if
-   end do
-#else
-   inquire(unit=unit,opened=opened)
-#endif
-   if (opened) then
-      close(unit)
-      call pop_file(unit)
-   endif
-   !$omp end critical (io)
+
+   call persistentEnv%io%closeFile(unit)
+
 end subroutine close_file
 
 subroutine remove_file(unit)
-   use xtb_mctc_filetools
+   use xtb_mctc_global, only : persistentEnv
    implicit none
    integer,intent(in) :: unit
-   logical :: opened
-   integer :: i
-   !$omp critical (io)
-   ! GCC7 cannot inquire on files with negative unit, fixed in GCC7.5.0
-   ! see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=84412
-#ifdef HAS_GCC_BUG_84412
-   opened = .false.
-   do i = 1, nfiles
-      if (unit == filelist(i)%unit) then
-         opened = opened .or. filelist(i)%open
-      end if
-   end do
-#else
-   inquire(unit=unit,opened=opened)
-#endif
-   if (opened) then
-      close(unit,status='delete')
-      call pop_file(unit,'d')
-   endif
-   !$omp end critical (io)
+
+   call persistentEnv%io%closeFile(unit, remove=.true.)
+
 end subroutine remove_file

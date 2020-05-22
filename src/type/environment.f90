@@ -20,6 +20,7 @@ module xtb_type_environment
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_systools, only : rdvar, rdarg
+   use xtb_type_iohandler, only : TIOHandler, init_ => init
    implicit none
    private
 
@@ -65,6 +66,9 @@ module xtb_type_environment
 
       !> Calculations home directory
       character(len=:),allocatable :: xtbhome
+
+      !> File input/output handling
+      type(TIOHandler) :: io
 
    contains
 
@@ -141,6 +145,8 @@ subroutine initEnvironment(self, strict)
    else
       self%strict = .false.
    end if
+
+   call init_(self%io)
 
 end subroutine initEnvironment
 

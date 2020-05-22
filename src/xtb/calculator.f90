@@ -59,6 +59,9 @@ module xtb_xtb_calculator
       !> Maximum number of cycles for SCC convergence
       integer :: maxiter
 
+      !> External potential
+      type(tb_pcem) :: pcem
+
    contains
 
       !> Perform xTB single point calculation
@@ -115,7 +118,6 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    !> Detailed results
    type(scc_results), intent(out) :: results
 
-   type(tb_pcem) :: pcem
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix
@@ -133,20 +135,10 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    efix = 0.0_wp
 
    ! ------------------------------------------------------------------------
-   !> external constrains which can be applied beforehand
-
-   !> check for external point charge field
-   call open_file(ich, pcem_file, 'r')
-   if (ich /= -1) then
-      call read_pcem(ich, env, pcem, self%xtbData%coulomb)
-      call close_file(ich)
-   end if
-
-   ! ------------------------------------------------------------------------
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
-      call scf(env,mol,wfn,self%basis,pcem,self%xtbData, &
+      call scf(env,mol,wfn,self%basis,self%pcem,self%xtbData, &
          &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
          &   self%accuracy,energy,gradient,results)
 
@@ -166,10 +158,10 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    !  post processing of gradient and energy
 
    ! point charge embedding gradient file
-   if (pcem%n > 0) then
+   if (allocated(pcem_grad) .and. self%pcem%n > 0) then
       call open_file(ich,pcem_grad,'w')
-      do i=1,pcem%n
-         write(ich,'(3f12.8)')pcem%grd(1:3,i)
+      do i=1,self%pcem%n
+         write(ich,'(3f12.8)')self%pcem%grd(1:3,i)
       enddo
       call close_file(ich)
    endif
@@ -215,9 +207,9 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
             write(env%unit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
          endif
          write(env%unit,'(9x,"::",49("."),"::")')
-         if (gfn_method.eq.2) call print_gfn2_results(env%unit,results,verbose,lgbsa)
-         if (gfn_method.eq.1) call print_gfn1_results(env%unit,results,verbose,lgbsa)
-         if (gfn_method.eq.0) call print_gfn0_results(env%unit,results,verbose,lgbsa)
+         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,lgbsa)
+         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,lgbsa)
+         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,lgbsa)
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')

@@ -430,6 +430,7 @@ subroutine initrand
 end subroutine initrand
 
 function get_namespace(string) result(name)
+   use xtb_mctc_global, only : persistentEnv
    implicit none
    character(len=*),intent(in)  :: string
    character(len=:),allocatable :: name
@@ -437,11 +438,11 @@ function get_namespace(string) result(name)
       name = string
       return
    endif
-   if (allocated(xenv%namespace)) then
+   if (allocated(persistentEnv%io%namespace)) then
       if (string(1:1).eq.dot) then
-         name = dot//xenv%namespace//string
+         name = dot//persistentEnv%io%namespace//string
       else
-         name = xenv%namespace//dot//string
+         name = persistentEnv%io%namespace//dot//string
       endif
    else
       name = string
