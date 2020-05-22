@@ -15,34 +15,36 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-xtb_test = [files('tests_peeq.f90')]
-xtb_test += files('assertion.f90')
-xtb_test += files('tbdef_molecule.f90')
-xtb_test += files('latticepoint.f90')
-xtb_test += files('tbdef_wsc.f90')
-xtb_test += files('geometry_reader.f90')
-xtb_test += files('coordinationnumber.f90')
-xtb_test += files('coulomb.f90')
-xtb_test += files('eeq.f90')
-xtb_test += files('eeq_model.f90')
-xtb_test += files('pbc_tools.f90')
-xtb_test += files('dftd3.f90')
-xtb_test += files('dftd4.f90')
-xtb_test += files('gfn2.f90')
-xtb_test += files('gfn1.f90')
-xtb_test += files('gfn0.f90')
-xtb_test += files('gfnff.f90')
-xtb_test += files('peeq.f90')
-xtb_test += files('repulsion.f90')
-xtb_test += files('symmetry.f90')
-xtb_test += files('thermo.f90')
-xtb_test += files('tbdef_atomlist.f90')
+xtb_test = files(
+  'assertion.f90',
+  'coordinationnumber.f90',
+  'coulomb.f90',
+  'eeq.f90',
+  'eeq_model.f90',
+  'dftd3.f90',
+  'dftd4.f90',
+  'geometry_reader.f90',
+  'gfn0.f90',
+  'gfn1.f90',
+  'gfn2.f90',
+  'gfnff.f90',
+  'latticepoint.f90',
+  'pbc_tools.f90',
+  'peeq.f90',
+  'repulsion.f90',
+  'symmetry.f90',
+  'tests_peeq.f90',
+  'thermo.f90',
+  'tbdef_atomlist.f90',
+  'tbdef_molecule.f90',
+  'tbdef_wsc.f90',
+)
 
-xtb_test = executable('xtb_test',
-                      xtb_test,
-                      dependencies: dependencies_exe,
-                      include_directories: incdir,
-                      link_with: xtb_lib_static)
+xtb_test = executable(
+  'xtb_test',
+  sources: xtb_test,
+  dependencies: xtb_dep_static,
+)
 
 # some very basic checks to see if the executable reacts at all
 test('Argparser: print version', xtb_exe, args: '--version', env: xtbenv)
@@ -144,11 +146,15 @@ test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv)
 test('GFN2-xTB: API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv)
 #test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv)
 if cc.get_id() == 'intel'
-   test('GFN2-xTB: C', executable('xtb_c_test', files('c_api_example.c'),
-                                  include_directories: incdir,
-                                  link_with: xtb_lib_static,
-                                  dependencies: dependencies_exe),
-                                  env: xtbenv)
+  test(
+    'GFN2-xTB: C',
+    executable(
+      'xtb_c_test',
+      sources: files('c_api_example.c'),
+      dependencies: xtb_dep_static
+    ),
+    env: xtbenv,
+  )
 endif
 
 test('GFN1-xTB: SCC', xtb_test, args: ['gfn1', 'scc'], env: xtbenv)

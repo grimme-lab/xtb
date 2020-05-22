@@ -26,8 +26,12 @@ project(
     'includedir=include/xtb',
     'c_std=c11',
     'buildtype=release',
+    'default_library=shared',
   ],
 )
+
+install = not meson.is_subproject()
+install_modules = install and get_option('install_modules')
 
 commit = get_option('build_name')
 git = find_program('git', required: false)
@@ -65,9 +69,8 @@ configure_file(
 ## ========================================== ##
 ## Configuration and dependencies
 ## ========================================== ##
-dependencies = []
-dependencies_exe = []
-dependencies_sha = []
+exe_deps = []
+lib_deps = []
 
 subdir('meson')
 
@@ -88,46 +91,45 @@ incdir = include_directories('include')
 
 # Build target
 
-# create a static library from all sources
-xtb_lib_static = static_library(
+# create a static library from all sources,
+# this is the common base of all targets created for xtb
+xtb_common = static_library(
   meson.project_name(),
-  srcs,
+  sources: srcs,
   include_directories: incdir,
-  install: true,
+  install: install_modules,
   pic: true,
 )
 
-xtb_exe = executable(
-  meson.project_name(),
-  prog,
-  dependencies: dependencies_exe,
-  include_directories: incdir,
-  link_with: xtb_lib_static,
-  link_language: 'fortran',
-  install: true,
-)
-
-xtb_lib_shared = shared_library(
+xtb_lib = library(
   meson.project_name(),
   version: meson.project_version(),
-  dependencies: dependencies_sha,
+  dependencies: lib_deps,
   include_directories: incdir,
-  link_whole: xtb_lib_static,
-  install: true
+  link_whole: xtb_common,
+  install: install,
 )
 
 xtb_dep_static = declare_dependency(
-  link_with: xtb_lib_static,
-  include_directories: [incdir, xtb_lib_static.private_dir_include()],
-  dependencies: dependencies_exe,
+  link_with: xtb_common,
+  include_directories: [incdir, xtb_common.private_dir_include()],
+  dependencies: exe_deps,
   version: meson.project_version(),
 )
 
 xtb_dep = declare_dependency(
-  link_with: xtb_lib_shared,
+  link_with: xtb_lib,
   include_directories: incdir,
-  dependencies: dependencies_sha,
+  dependencies: lib_deps,
   version: meson.project_version(),
+)
+
+xtb_exe = executable(
+  meson.project_name(),
+  sources: prog,
+  dependencies: xtb_dep_static,
+  link_language: 'fortran',
+  install: install,
 )
 
 xtb_header = files('include/xtb.h')
@@ -135,7 +137,9 @@ xtb_header = files('include/xtb.h')
 ## ========================================== ##
 ## INSTALL
 ## ========================================== ##
-install_headers(xtb_header)
+if install
+  install_headers(xtb_header)
+endif
 
 asciidoc = find_program('asciidoctor', required: false)
 if asciidoc.found()
@@ -150,7 +154,9 @@ if asciidoc.found()
     input: files('man/xcontrol.7.adoc'),
     output: '@BASENAME@',
   )
-  install_man(xtb_man)
+  if install
+    install_man(xtb_man)
+  endif
 endif
 
 xtb_parameter_files = [
@@ -161,9 +167,11 @@ xtb_parameter_files = [
   '.param_gfnff.xtb',
 ]
 
-install_data(xtb_parameter_files)
+if install
+  install_data(xtb_parameter_files)
+endif
 
-if get_option('install_modules')
+if install_modules
   xtb_objs = []
   foreach file: srcs
     xtb_objs += '@0@.o'.format('_'.join(file.split('/')))
@@ -175,7 +183,9 @@ if get_option('install_modules')
 endif
 
 # additional misc. files
-subdir('assets')
+if install
+  subdir('assets')
+endif
 
 ## ========================================== ##
 ## TESTSUITE
