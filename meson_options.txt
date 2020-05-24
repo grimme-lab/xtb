@@ -26,7 +26,5 @@ option('install_modules', type: 'boolean', value: false,
        description: 'Install Fortran module files to include directory.')
 option('static', type: 'boolean', value: true,
        description: 'Produce statically linked executables.')
-option('python', type: 'boolean', value: true,
-       description: 'Build and test the ctypes Python API.')
 option('build_name', type: 'string', value: 'unknown',
        description: 'Name of the build, will be overwritten automatically by git')
