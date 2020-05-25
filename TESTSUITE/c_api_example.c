@@ -30,6 +30,8 @@ main (int argc, char **argv)
    double q[natoms];
    double wbo[natoms*natoms];
 
+   assert(XTB_API_VERSION == xtb_getAPIVersion());
+
    env = xtb_newEnvironment();
    calc = xtb_newCalculator();
    res = xtb_newResults();
