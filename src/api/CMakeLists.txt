@@ -24,6 +24,7 @@ list(APPEND srcs
   "${dir}/interface.f90"
   "${dir}/results.f90"
   "${dir}/utils.f90"
+  "${dir}/version.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

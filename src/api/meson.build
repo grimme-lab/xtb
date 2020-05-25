@@ -22,4 +22,5 @@ srcs += files(
   'interface.f90',
   'results.f90',
   'utils.f90',
+  'version.f90',
 )

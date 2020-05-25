@@ -28,7 +28,8 @@ module xtb_api_environment
 
    public :: VEnvironment
    public :: newEnvironment_api, delEnvironment_api, checkEnvironment_api, &
-      & showEnvironment_api, setOutput_api, releaseOutput_api, setVerbosity_api
+      & showEnvironment_api, setOutput_api, releaseOutput_api, setVerbosity_api, &
+      & getError_api
 
 
    !> Void pointer to calculation environment
@@ -200,6 +201,40 @@ subroutine setVerbosity_api(venv, verbosity) &
    end if
 
 end subroutine setVerbosity_api
+
+
+!> Set verbosity of calculation output
+subroutine getError_api(venv, charptr, buffersize) &
+      & bind(C, name="xtb_getError")
+   character(len=*), parameter :: source = 'xtb_api_getError'
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   character(kind=c_char), intent(inout) :: charptr(*)
+   character(len=:, kind=c_char), allocatable :: buffer
+   integer(c_int), intent(in), optional :: buffersize
+   logical :: exitRun
+   integer :: maxLength
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (present(buffersize)) then
+         maxLength = buffersize
+      else
+         maxLength = huge(maxlength) - 2
+      end if
+
+      call env%ptr%check(exitRun)
+      if (exitRun) then
+         call env%ptr%getLog(buffer)
+         if (len(buffer) > 0) then
+            call f_c_character(buffer, charptr, maxLength)
+         end if
+      end if
+   end if
+
+end subroutine getError_api
 
 
 end module xtb_api_environment
