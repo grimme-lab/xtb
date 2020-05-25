@@ -198,18 +198,3 @@ xtbenv.set('XTBPATH', meson.current_source_dir())
 
 # all tests are defined in a separate meson.build
 subdir('TESTSUITE')
-
-if get_option('python')
-  pymod = import('python')
-  python = pymod.find_installation(
-    'python3',
-    required: false,
-  )
-  if python.found()
-    has_numpy = run_command(python, '-c', '"import numpy"').returncode() == 0
-    has_pytest = run_command(python, '-c', '"import pytest"').returncode() == 0
-    if has_numpy and has_pytest
-      test('pytest: xtb', python, args: ['-m', 'pytest', '--pyargs', 'xtb'], env: xtbenv)
-    endif
-  endif
-endif
