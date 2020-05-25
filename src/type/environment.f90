@@ -90,6 +90,9 @@ module xtb_type_environment
       !> Forceful terminate the current run, use only in main drivers!
       procedure :: terminate => terminateRun
 
+      !> Return log to string
+      procedure :: getLog
+
    end type TEnvironment
 
 
@@ -222,6 +225,33 @@ subroutine show(self, message, isError)
    end if
 
 end subroutine show
+
+
+!> Check status of calculation environment
+subroutine getLog(self, message)
+
+   !> Calculation environment
+   class(TEnvironment), intent(inout) :: self
+
+   !> Message in case of error
+   character(len=:), allocatable, intent(out) :: message
+
+   integer :: iLog
+   logical :: isError0
+   character(len=512) :: buffer
+
+   message = ''
+
+   if (self%nLog > 0) then
+      do iLog = self%nLog, 1, -1
+         write(buffer, '("-", i0, "-", 1x, a)') iLog, self%log(iLog)%message
+         deallocate(self%log(iLog)%message)
+         message = message // new_line('a') // trim(buffer)
+      end do
+      self%nLog = 0
+   end if
+
+end subroutine getLog
 
 
 subroutine terminateRun(self, message, code)

@@ -24,7 +24,7 @@ module xtb_api_utils
    implicit none
    private
 
-   public :: c_f_character, verifyMolecule, checkGlobalEnv
+   public :: c_f_character, f_c_character, verifyMolecule, checkGlobalEnv
 
 contains
 
@@ -45,6 +45,18 @@ subroutine c_f_character(rhs, lhs)
    lhs = transfer(rhs(1:ii-1), lhs)
 
 end subroutine c_f_character
+
+
+subroutine f_c_character(rhs, lhs, len)
+   character(kind=c_char), intent(out) :: lhs(*)
+   character(len=*), intent(in) :: rhs
+   integer, intent(in) :: len
+   integer :: length
+   length = min(len-1, len_trim(rhs))
+
+   lhs(1:length) = transfer(rhs(1:length), lhs(1:length)) // c_null_char
+
+end subroutine f_c_character
 
 
 !> Cold fusion check

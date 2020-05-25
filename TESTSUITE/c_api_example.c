@@ -29,6 +29,8 @@ main (int argc, char **argv)
    double dipole[3];
    double q[natoms];
    double wbo[natoms*natoms];
+   int buffersize = 512;
+   char buffer[buffersize];
 
    assert(XTB_API_VERSION == xtb_getAPIVersion());
 
@@ -39,6 +41,12 @@ main (int argc, char **argv)
    if (xtb_checkEnvironment(env)) {
       xtb_showEnvironment(env, NULL);
       return 1;
+   }
+
+   xtb_getEnergy(env, res, &energy);
+   if (xtb_checkEnvironment(env)) {
+      xtb_getError(env, buffer, &buffersize);
+      printf("Error message is:\n%s\n", buffer);
    }
 
    xtb_setVerbosity(env, XTB_VERBOSITY_FULL);
