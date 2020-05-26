@@ -39,6 +39,7 @@ module xtb_api_calculator
    public :: loadGFNFF_api, loadGFN0xTB_api, loadGFN1xTB_api, loadGFN2xTB_api
    public :: setSolvent_api, releaseSolvent_api
    public :: setExternalCharges_api, releaseExternalCharges_api
+   public :: setAccuracy_api, setElectronicTemp_api, setMaxIter_api
 
 
    !> Void pointer to single point calculator

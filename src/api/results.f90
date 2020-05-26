@@ -19,6 +19,7 @@
 module xtb_api_results
    use, intrinsic :: iso_c_binding
    use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert, only : evtoau
    use xtb_api_environment
    use xtb_api_utils
    use xtb_type_wavefunction
@@ -27,7 +28,9 @@ module xtb_api_results
 
    public :: VResults
    public :: newResults_api, delResults_api, getEnergy_api, getGradient_api, &
-      & getVirial_api, getDipole_api, getCharges_api, getBondOrders_api
+      & getVirial_api, getDipole_api, getCharges_api, getBondOrders_api, &
+      & getNao_api, getOrbitalEigenvalues_api, getOrbitalOccupations_api, &
+      & getOrbitalCoefficients_api, copyResults_api
 
 
    !> Void pointer to wavefunction and result objects
@@ -73,6 +76,27 @@ subroutine delResults_api(vres) &
    end if
 
 end subroutine delResults_api
+
+
+!> Create copy from a singlepoint results object
+function copyResults_api(vold) result(vres) &
+      & bind(C, name="xtb_copyResults")
+   type(VResults), pointer :: res
+   type(c_ptr) :: vres
+   type(VResults), pointer :: old
+   type(c_ptr), value :: vold
+
+   vres = c_null_ptr
+
+   if (c_associated(vold)) then
+      call c_f_pointer(vold, old)
+      call checkGlobalEnv
+
+      allocate(res, source=old)
+      vres = c_loc(res)
+   end if
+
+end function copyResults_api
 
 
 !> Query singlepoint results object for energy
@@ -265,6 +289,136 @@ subroutine getBondOrders_api(venv, vres, dptr) &
    end if
 
 end subroutine getBondOrders_api
+
+
+!> Query singlepoint results object for bond orders
+subroutine getNao_api(venv, vres, iptr) &
+      & bind(C, name="xtb_getNao")
+   character(len=*), parameter :: source = "xtb_api_getNao"
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vres
+   type(VResults), pointer :: res
+   integer(c_int), intent(inout) :: iptr
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vres)) then
+         call env%ptr%error("Results object is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vres, res)
+
+      if (allocated(res%wfn)) then
+         iptr = res%wfn%nao
+      else
+         iptr = 0
+      end if
+
+   end if
+
+end subroutine getNao_api
+
+
+!> Query singlepoint results object for orbital energies
+subroutine getOrbitalEigenvalues_api(venv, vres, dptr) &
+      & bind(C, name="xtb_getOrbitalEigenvalues")
+   character(len=*), parameter :: source = "xtb_api_getOrbitalEigenvalues"
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vres
+   type(VResults), pointer :: res
+   real(c_double), intent(inout) :: dptr(*)
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vres)) then
+         call env%ptr%error("Results object is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vres, res)
+
+      if (.not.allocated(res%wfn)) then
+         call env%ptr%error("Orbital eigenvalues are not available in results", &
+            & source)
+         return
+      end if
+
+      dptr(1:size(res%wfn%emo)) = res%wfn%emo * evtoau
+
+   end if
+
+end subroutine getOrbitalEigenvalues_api
+
+
+!> Query singlepoint results object for occupation numbers
+subroutine getOrbitalOccupations_api(venv, vres, dptr) &
+      & bind(C, name="xtb_getOrbitalOccupations")
+   character(len=*), parameter :: source = "xtb_api_getOrbitalOccupations"
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vres
+   type(VResults), pointer :: res
+   real(c_double), intent(inout) :: dptr(*)
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vres)) then
+         call env%ptr%error("Results object is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vres, res)
+
+      if (.not.allocated(res%wfn)) then
+         call env%ptr%error("Occupation numbers are not available in results", &
+            & source)
+         return
+      end if
+
+      dptr(1:size(res%wfn%focc)) = res%wfn%focc
+
+   end if
+
+end subroutine getOrbitalOccupations_api
+
+
+!> Query singlepoint results object for orbital coefficients
+subroutine getOrbitalCoefficients_api(venv, vres, dptr) &
+      & bind(C, name="xtb_getOrbitalCoefficients")
+   character(len=*), parameter :: source = "xtb_api_getOrbitalCoefficients"
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vres
+   type(VResults), pointer :: res
+   real(c_double), intent(inout) :: dptr(*)
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vres)) then
+         call env%ptr%error("Results object is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vres, res)
+
+      if (.not.allocated(res%wfn)) then
+         call env%ptr%error("Orbital coefficients are not available in results", &
+            & source)
+         return
+      end if
+
+      dptr(1:size(res%wfn%C)) = reshape(res%wfn%C, [size(res%wfn%C)])
+
+   end if
+
+end subroutine getOrbitalCoefficients_api
 
 
 end module xtb_api_results

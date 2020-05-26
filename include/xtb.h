@@ -105,7 +105,7 @@ xtb_setVerbosity(xtb_TEnvironment /* env */,
  * Molecular structure data class
 **/
 
-/// Create new molecular structure data
+/// Create new molecular structure data (quantities in Bohr)
 extern XTB_API_ENTRY xtb_TMolecule XTB_API_CALL
 xtb_newMolecule(xtb_TEnvironment /* env */,
                 const int* /* natoms */,
@@ -120,7 +120,7 @@ xtb_newMolecule(xtb_TEnvironment /* env */,
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_delMolecule(xtb_TMolecule* /* mol */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Update coordinates and lattice parameters
+/// Update coordinates and lattice parameters (quantities in Bohr)
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_updateMolecule(xtb_TEnvironment /* env */,
                    xtb_TMolecule /* mol */,
@@ -207,7 +207,7 @@ xtb_setMaxIter(xtb_TEnvironment /* env */,
                xtb_TCalculator /* calc */,
                int /* iterations */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Set electronic temperature for level filling in tight binding calculators
+/// Set electronic temperature for level filling in tight binding calculators in K
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_setElectronicTemp(xtb_TEnvironment /* env */,
                       xtb_TCalculator /* calc */,
@@ -232,31 +232,35 @@ xtb_newResults(void) XTB_API_SUFFIX__VERSION_6_3_0;
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_delResults(xtb_TResults* /* res */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Query singlepoint results object for energy
+/// Create copy from a singlepoint results object
+extern XTB_API_ENTRY xtb_TResults XTB_API_CALL
+xtb_copyResults(xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Query singlepoint results object for energy in Hartree
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getEnergy(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
               double* /* energy */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Query singlepoint results object for gradient
+/// Query singlepoint results object for gradient in Hartree / Bohr
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getGradient(xtb_TEnvironment /* env */,
                 xtb_TResults /* res */,
                 double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Query singlepoint results object for virial
+/// Query singlepoint results object for virial in Hartree
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getVirial(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
               double* /* virial [3][3] */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Query singlepoint results object for dipole
+/// Query singlepoint results object for dipole in e Bohr
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getDipole(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
               double* /* dipole [3] */) XTB_API_SUFFIX__VERSION_6_3_0;
 
-/// Query singlepoint results object for partial charges
+/// Query singlepoint results object for partial charges in e
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getCharges(xtb_TEnvironment /* env */,
                xtb_TResults /* res */,
@@ -267,6 +271,30 @@ extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getBondOrders(xtb_TEnvironment /* env */,
                   xtb_TResults /* res */,
                   double* /* wbo [natoms][natoms] */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Query singlepoint results object for the number of basis functions
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getNao(xtb_TEnvironment /* env */,
+           xtb_TResults /* res */,
+           int* /* nao */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Query singlepoint results object for orbital energies in Hartree [nao]
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getOrbitalEigenvalues(xtb_TEnvironment /* env */,
+                          xtb_TResults /* res */,
+                          double* /* emo */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Query singlepoint results object for occupation numbers [nao]
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getOrbitalOccupations(xtb_TEnvironment /* env */,
+                          xtb_TResults /* res */,
+                          double* /* focc */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Query singlepoint results object for orbital coefficients [nao][nao]
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getOrbitalCoefficients(xtb_TEnvironment /* env */,
+                           xtb_TResults /* res */,
+                           double* /* c */) XTB_API_SUFFIX__VERSION_6_3_0;
 
 #ifdef __cplusplus
 }
