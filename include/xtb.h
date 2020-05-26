@@ -195,6 +195,24 @@ extern XTB_API_ENTRY void XTB_API_CALL
 xtb_releaseExternalCharges(xtb_TEnvironment /* env */,
                            xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_6_3_0;
 
+/// Set numerical accuracy of calculator in the range of 1000 to 0.0001
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setAccuracy(xtb_TEnvironment /* env */,
+                xtb_TCalculator /* calc */,
+                double /* accuracy */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Set maximum number of iterations for self-consistent TB calculators
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setMaxIter(xtb_TEnvironment /* env */,
+               xtb_TCalculator /* calc */,
+               int /* iterations */) XTB_API_SUFFIX__VERSION_6_3_0;
+
+/// Set electronic temperature for level filling in tight binding calculators
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_setElectronicTemp(xtb_TEnvironment /* env */,
+                      xtb_TCalculator /* calc */,
+                      double /* temperature */) XTB_API_SUFFIX__VERSION_6_3_0;
+
 /// Perform singlepoint calculation
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_singlepoint(xtb_TEnvironment /* env */,
