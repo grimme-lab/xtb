@@ -40,7 +40,6 @@ subroutine struc_convert( &
   use xtb_dynamic
   use xtb_geoopt
   use xtb_readin, only : xfind
-  use xtb_disp_dftd4, only : d3init
   use xtb_main_setup, only : newGFFCalculator
   implicit none
 ! Dummy -----------------------------------------------------------------------

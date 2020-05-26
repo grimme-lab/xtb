@@ -4,6 +4,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
 
    use xtb_mctc_convert, only : aatoau
 
+   use xtb_type_dispersionmodel, only : TDispersionModel
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
@@ -12,7 +13,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
 
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
       & cutCoordinationNumber
-   use xtb_disp_dftd4, only : d4_gradient, p_refq_goedecker, d4init
+   use xtb_disp_dftd4, only : d4_gradient, p_refq_goedecker, newD4Model
    use xtb_disp_encharges, only : getENCharges
 
    implicit none
@@ -70,6 +71,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
    type(TEnvironment) :: env
    type(TLatticePoint) :: latp
    type(TNeighbourlist) :: neighList
+   type(TDispersionModel) :: dispm
 
    integer, allocatable :: neighs(:)
    real(wp), allocatable :: trans(:, :)
@@ -89,7 +91,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
 
    call init(mol, at, xyz, lattice=lattice)
 
-   call d4init(g_a,g_c,refqmode)
+   call newD4Model(dispm,g_a,g_c,refqmode)
    allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
    allocate(q(nat), dqdr(3, nat, nat), dqdL(3, 3, nat))
@@ -120,7 +122,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
    call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
       & cn, dcndr, dcndL)
    call neighlist%getNeighs(neighs, 60.0_wp)
-   call d4_gradient(mol, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
+   call d4_gradient(mol, dispm, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
       & cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
 
    call assert_close(energy, -0.73670210332109E-01_wp, thr)
@@ -151,7 +153,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
          call neighlist%getNeighs(neighs, 60.0_wp)
-         call d4_gradient(mol, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
+         call d4_gradient(mol, dispm, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
             & cn, dcndr, dcndL, q, dqdr, dqdL, er, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) - 2*step
 
@@ -165,7 +167,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
          call neighlist%getNeighs(neighs, 60.0_wp)
-         call d4_gradient(mol, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
+         call d4_gradient(mol, dispm, neighs, neighList, dparam_pbe, g_a, g_c, wf, &
             & cn, dcndr, dcndL, q, dqdr, dqdL, el, gdum, sdum)
 
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
@@ -185,7 +187,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
 !         call mol%update
 !         !call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
 !            !& cn, dcndr, dcndL)
-!         call d4_atm_gradient(mol, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
+!         call d4_atm_gradient(mol, dispm, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
 !            & cn, dcndr, dcndL, er, gdum, sdum)
 !
 !         eps(jj, ii) = eps(jj, ii) - 2*step
@@ -196,7 +198,7 @@ subroutine test_dftd4_pbc3d_neighbourlist
 !         call neighList%update(mol%xyz, trans)
 !         !call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
 !            !& cn, dcndr, dcndL)
-!         call d4_atm_gradient(mol, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
+!         call d4_atm_gradient(mol, dispm, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
 !            & cn, dcndr, dcndL, el, gdum, sdum)
 !
 !         eps(jj, ii) = eps(jj, ii) + step
@@ -216,6 +218,7 @@ subroutine test_dftd4_pbc3d_latticepoints
 
    use xtb_mctc_convert, only : aatoau
 
+   use xtb_type_dispersionmodel, only : TDispersionModel
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
@@ -225,7 +228,7 @@ subroutine test_dftd4_pbc3d_latticepoints
 
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
       & cutCoordinationNumber
-   use xtb_disp_dftd4, only : d4_gradient, p_refq_goedecker, d4init
+   use xtb_disp_dftd4, only : d4_gradient, p_refq_goedecker, newD4Model
    use xtb_disp_encharges, only : getENCharges
 
    implicit none
@@ -284,6 +287,7 @@ subroutine test_dftd4_pbc3d_latticepoints
    type(TEnvironment) :: env
    type(TLatticePoint) :: latp
    type(TNeighbourlist) :: neighList
+   type(TDispersionModel) :: dispm
 
    integer, allocatable :: neighs(:)
    real(wp), allocatable :: trans(:, :), trans2(:, :)
@@ -303,7 +307,7 @@ subroutine test_dftd4_pbc3d_latticepoints
 
    call init(mol, at, xyz, lattice=lattice)
 
-   call d4init(g_a,g_c,refqmode)
+   call newD4Model(dispm,g_a,g_c,refqmode)
    allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
    allocate(q(nat), dqdr(3, nat, nat), dqdL(3, 3, nat))
@@ -334,7 +338,7 @@ subroutine test_dftd4_pbc3d_latticepoints
    call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
       & cn, dcndr, dcndL)
    call latp%getLatticePoints(trans, 60.0_wp)
-   call d4_gradient(mol, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
+   call d4_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
       & cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
 
    call assert_close(energy, -0.73670210332109E-01_wp, thr)
@@ -363,7 +367,7 @@ subroutine test_dftd4_pbc3d_latticepoints
          call getENCharges(env, mol, cn, dcndr, dcndL, q, dqdr, dqdL)
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
-         call d4_gradient(mol, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
+         call d4_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
             & cn, dcndr, dcndL, q, dqdr, dqdL, er, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) - 2*step
 
@@ -376,7 +380,7 @@ subroutine test_dftd4_pbc3d_latticepoints
          call getENCharges(env, mol, cn, dcndr, dcndL, q, dqdr, dqdL)
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
-         call d4_gradient(mol, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
+         call d4_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, 60.0_wp, &
             & cn, dcndr, dcndL, q, dqdr, dqdL, el, gdum, sdum)
 
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
@@ -432,6 +436,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs
 
    use xtb_mctc_convert, only : aatoau
 
+   use xtb_type_dispersionmodel, only : TDispersionModel
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
@@ -440,7 +445,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs
    use xtb_type_param, only : dftd_parameter
 
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
-   use xtb_disp_dftd4, only : d4_atm_gradient, p_refq_goedecker, d4init
+   use xtb_disp_dftd4, only : d4_atm_gradient, p_refq_goedecker, newD4Model
    use xtb_disp_encharges, only : getENCharges
 
    implicit none
@@ -498,6 +503,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs
    type(TEnvironment) :: env
    type(TLatticePoint) :: latp
    type(TNeighbourlist) :: neighList
+   type(TDispersionModel) :: dispm
 
    integer, allocatable :: neighs(:)
    real(wp), allocatable :: trans(:, :), trans2(:, :)
@@ -517,7 +523,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs
 
    call init(mol, at, xyz)
 
-   call d4init(g_a,g_c,refqmode)
+   call newD4Model(dispm,g_a,g_c,refqmode)
    allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
    allocate(gradient(3, nat), gdum(3, nat))
@@ -534,7 +540,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs
    call neighlist%getNeighs(neighs, 15.0_wp)
    call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
       & cn, dcndr, dcndL)
-   call d4_atm_gradient(mol, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
+   call d4_atm_gradient(mol, dispm, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
    call assert_close(energy, 0.44030151321408E-03_wp, thr)
@@ -558,15 +564,15 @@ subroutine test_dftd4_pbc3d_threebody_neighs
          call neighList%update(mol%xyz, trans)
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
-         call d4_atm_gradient(mol, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
-            & cn, dcndr, dcndL, er, gdum, sdum)
+         call d4_atm_gradient(mol, dispm, neighs, neighlist, dparam_pbe, &
+            & g_a, g_c, wf, cn, dcndr, dcndL, er, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) - 2*step
          call mol%update
          call neighList%update(mol%xyz, trans)
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
-         call d4_atm_gradient(mol, neighs, neighlist, dparam_pbe, g_a, g_c, wf, &
-            & cn, dcndr, dcndL, el, gdum, sdum)
+         call d4_atm_gradient(mol, dispm, neighs, neighlist, dparam_pbe, &
+            & g_a, g_c, wf, cn, dcndr, dcndL, el, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
          call assert_close(gradient(jj, ii), (er - el)*step2, thr)
       end do
@@ -614,6 +620,7 @@ subroutine test_dftd4_pbc3d_threebody_latp
 
    use xtb_mctc_convert, only : aatoau
 
+   use xtb_type_dispersionmodel, only : TDispersionModel
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
@@ -622,7 +629,7 @@ subroutine test_dftd4_pbc3d_threebody_latp
    use xtb_type_param, only : dftd_parameter
 
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
-   use xtb_disp_dftd4, only : d4_atm_gradient, p_refq_goedecker, d4init
+   use xtb_disp_dftd4, only : d4_atm_gradient, p_refq_goedecker, newD4Model
    use xtb_disp_encharges, only : getENCharges
 
    implicit none
@@ -680,6 +687,7 @@ subroutine test_dftd4_pbc3d_threebody_latp
    type(TEnvironment) :: env
    type(TLatticePoint) :: latp
    type(TNeighbourlist) :: neighList
+   type(TDispersionModel) :: dispm
 
    integer, allocatable :: neighs(:)
    real(wp), allocatable :: trans(:, :), trans2(:, :)
@@ -699,7 +707,7 @@ subroutine test_dftd4_pbc3d_threebody_latp
 
    call init(mol, at, xyz)
 
-   call d4init(g_a,g_c,refqmode)
+   call newD4Model(dispm,g_a,g_c,refqmode)
    allocate(neighs(nat))
    allocate(cn(nat), dcndr(3, nat, nat), dcndL(3, 3, nat))
    allocate(gradient(3, nat), gdum(3, nat))
@@ -716,7 +724,7 @@ subroutine test_dftd4_pbc3d_threebody_latp
    call neighlist%getNeighs(neighs, 15.0_wp)
    call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
       & cn, dcndr, dcndL)
-   call d4_atm_gradient(mol, trans, dparam_pbe, g_a, g_c, wf, 15.0_wp, &
+   call d4_atm_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, 15.0_wp, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
    call assert_close(energy, 0.44070137748975E-03_wp, thr)
@@ -740,15 +748,15 @@ subroutine test_dftd4_pbc3d_threebody_latp
          call neighList%update(mol%xyz, trans)
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
-         call d4_atm_gradient(mol, trans, dparam_pbe, g_a, g_c, wf, 15.0_wp, &
-            & cn, dcndr, dcndL, er, gdum, sdum)
+         call d4_atm_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, &
+            & 15.0_wp, cn, dcndr, dcndL, er, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) - 2*step
          call mol%update
          call neighList%update(mol%xyz, trans)
          call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
             & cn, dcndr, dcndL)
-         call d4_atm_gradient(mol, trans, dparam_pbe, g_a, g_c, wf, 15.0_wp, &
-            & cn, dcndr, dcndL, el, gdum, sdum)
+         call d4_atm_gradient(mol, dispm, trans, dparam_pbe, g_a, g_c, wf, &
+            & 15.0_wp, cn, dcndr, dcndL, el, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
          call assert_close(gradient(jj, ii), (er - el)*step2, thr)
       end do

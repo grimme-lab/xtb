@@ -18,12 +18,12 @@
 module xtb_type_dispersionmodel
    use xtb_mctc_accuracy, only : wp
    implicit none
-   public :: tb_dispersion_model
+   public :: TDispersionModel
    private
 
    integer, parameter :: max_elem = 118
 
-   type :: tb_dispersion_model
+   type :: TDispersionModel
       real(wp) :: g_a = 0.0_wp
       real(wp) :: g_c = 0.0_wp
       integer, dimension(max_elem) :: atoms = 0
@@ -33,6 +33,6 @@ module xtb_type_dispersionmodel
       real(wp),dimension(7,max_elem) :: q = 0.0_wp
       real(wp),dimension(23,7,max_elem) :: alpha = 0.0_wp
       real(wp),dimension(7,7,max_elem,max_elem) :: c6 = 0.0_wp
-   end type tb_dispersion_model
+   end type TDispersionModel
 
 end module xtb_type_dispersionmodel

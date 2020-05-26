@@ -23,7 +23,7 @@ module xtb_xtb_gfn2
    use xtb_type_param, only : TxTBParameter, dftd_parameter
    use xtb_xtb_data
    use xtb_xtb_gfn1, only : setGFN1ShellHardness
-   use xtb_disp_dftd4, only : d4init, p_refq_gfn2xtb
+   use xtb_disp_dftd4, only : newD4Model, p_refq_gfn2xtb
    implicit none
    private
 
@@ -767,7 +767,7 @@ subroutine initDispersion(self)
    self%g_c = 2.0_wp
    self%wf  = 6.0_wp
 
-   call d4init(self%g_a, self%g_c, p_refq_gfn2xtb)
+   call newD4Model(self%dispm,self%g_a, self%g_c, p_refq_gfn2xtb)
 
 end subroutine initDispersion
 

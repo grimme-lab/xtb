@@ -339,9 +339,9 @@ subroutine peeq &
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
       & ccn, dccndr, dccndL)
    call latp%getLatticePoints(trans, 60.0_wp)
-   call d4_gradient(mol, trans, xtbData%dispersion%dpar, xtbData%dispersion%g_a, &
-      & xtbData%dispersion%g_c, xtbData%dispersion%wf, 60.0_wp, &
-      & ccn, dccndr, dccndL, qeeq, dqdr, dqdL, ed, gradient, sigma)
+   call d4_gradient(mol, xtbData%dispersion%dispm, trans, xtbData%dispersion%dpar, &
+      & xtbData%dispersion%g_a, xtbData%dispersion%g_c, xtbData%dispersion%wf, &
+      & 60.0_wp, ccn, dccndr, dccndL, qeeq, dqdr, dqdL, ed, gradient, sigma)
 
    call env%check(exitRun)
    if (exitRun) then

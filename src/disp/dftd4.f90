@@ -33,8 +33,6 @@ module xtb_disp_dftd4
    use xtb_type_param, only : dftd_parameter
    implicit none
 
-   type(tb_dispersion_model) :: dispm
-
 
    interface d4_gradient
       module procedure :: d4_full_gradient_neigh
@@ -52,9 +50,10 @@ module xtb_disp_dftd4
 
 contains
 
-subroutine d3init(nat,at)
+subroutine newD3Model(dispm,nat,at)
    use xtb_disp_dftd4param
    implicit none
+   type(TDispersionModel), intent(out) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
 
@@ -64,7 +63,7 @@ subroutine d3init(nat,at)
 
    intrinsic :: nint
 
-   dispm = tb_dispersion_model()
+   dispm = TDispersionModel()
 
    dispm%atoms = 0
    dispm%nref = 0.0_wp
@@ -101,10 +100,11 @@ subroutine d3init(nat,at)
       enddo
    enddo
 
-end subroutine d3init
+end subroutine newD3Model
 
-subroutine d4init(g_a,g_c,mode)
+subroutine newD4Model(dispm,g_a,g_c,mode)
    use xtb_disp_dftd4param
+   type(TDispersionModel), intent(out) :: dispm
    real(wp),intent(in)  :: g_a,g_c
    integer, intent(in)  :: mode
 
@@ -115,7 +115,7 @@ subroutine d4init(g_a,g_c,mode)
 
    intrinsic :: nint
 
-   dispm = tb_dispersion_model()
+   dispm = TDispersionModel()
 
    secq = 0.0_wp
    select case(mode)
@@ -199,9 +199,10 @@ subroutine d4init(g_a,g_c,mode)
       enddo
    enddo
 
-end subroutine d4init
+end subroutine newD4Model
 
-subroutine d4dim(nat,at,ndim)
+subroutine d4dim(dispm,nat,at,ndim)
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: at(nat)
    integer, intent(out) :: ndim
@@ -272,8 +273,9 @@ subroutine prmolc6(molc6,molc8,molpol,nat,at,  &
    &          molc6,molc8,molpol
 end subroutine prmolc6
 
-subroutine mdisp(nat,ndim,at,q,xyz,g_a,g_c, &
-           &     gw,c6abns,molc6,molc8,molpol,aout,cout,rout,vout)
+subroutine mdisp(dispm,nat,ndim,at,q,xyz,g_a,g_c, &
+      &     gw,c6abns,molc6,molc8,molpol,aout,cout,rout,vout)
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -573,8 +575,9 @@ pure elemental function fdmprdr_zerom(n,r,c,rsn,alp) result(dfdmp)
 end function fdmprdr_zerom
 
 
-subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
+subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
    use xtb_mctc_accuracy, only : wp
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -642,7 +645,8 @@ subroutine d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
 end subroutine d4
 
 
-subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
+subroutine build_wdispmat(dispm,nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -706,8 +710,9 @@ subroutine build_wdispmat(nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 end subroutine build_wdispmat
 
 
-subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
+subroutine disppot(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
    use xtb_mctc_blas, only : mctc_symv
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -759,8 +764,9 @@ subroutine disppot(nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
 end subroutine disppot
 
 
-function edisp_scc(nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
+function edisp_scc(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
    use xtb_mctc_blas, only : mctc_symv, mctc_dot
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -802,7 +808,8 @@ end function edisp_scc
 
 
 ! --- PBC
-subroutine pbc_d4(nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
+subroutine pbc_d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
@@ -879,8 +886,9 @@ end subroutine pbc_d4
 
 !> Calculate the weights of the reference system and the derivatives w.r.t.
 !  coordination number for later use.
-subroutine weight_references(nat, atoms, g_a, g_c, wf, q, cn, &
+subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, &
       &                      zetavec, zerovec, zetadcn, zerodcn, zetadq)
+   type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> Atomic numbers of every atom.
@@ -970,7 +978,9 @@ end subroutine weight_references
 
 !> calculate atomic dispersion coefficients and their derivatives w.r.t.
 !  the coordination number.
-subroutine get_atomic_c6(nat, atoms, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
+      & c6, dc6dcn, dc6dq)
+   type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> numbers of every atom.
@@ -1028,11 +1038,12 @@ end subroutine get_atomic_c6
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
 subroutine d4_full_gradient_neigh &
-      & (mol, neighs, neighs3, neighlist, par, g_a, g_c, wf, &
+      & (mol, dispm, neighs, neighs3, neighlist, par, g_a, g_c, wf, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1102,17 +1113,19 @@ subroutine d4_full_gradient_neigh &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), energies3(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
-      &                   zetadcn, zerodcn, zetadq)
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+      & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
-   call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+   call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
+      & c6, dc6dcn, dc6dq)
 
    call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, &
       & c6, dc6dcn, dc6dq, energies, gradient, sigma, dEdcn, dEdq)
 
    if (present(e2)) e2 = sum(energies)
    if (par%s9 /= 0.0_wp) then
-      call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+      call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
+         & c6, dc6dcn, dc6dq)
       call atm_gradient_neigh(mol, neighs3, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
          & energies3, gradient, sigma, dEdcn)
    end if
@@ -1135,11 +1148,12 @@ end subroutine d4_full_gradient_neigh
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
 subroutine d4_gradient_neigh &
-      & (mol, neighs, neighlist, par, g_a, g_c, wf, &
+      & (mol, dispm, neighs, neighlist, par, g_a, g_c, wf, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1203,10 +1217,11 @@ subroutine d4_gradient_neigh &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
-      &                   zetadcn, zerodcn, zetadq)
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+      & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
-   call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+   call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
+      & c6, dc6dcn, dc6dq)
 
    call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, &
       & c6, dc6dcn, dc6dq, energies, gradient, sigma, dEdcn, dEdq)
@@ -1326,11 +1341,12 @@ end subroutine disp_gradient_neigh
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
 subroutine d4_atm_gradient_neigh &
-      & (mol, neighs, neighlist, par, g_a, g_c, wf, cn, dcndr, dcndL, &
+      & (mol, dispm, neighs, neighlist, par, g_a, g_c, wf, cn, dcndr, dcndL, &
       &  energy, gradient, sigma)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1386,10 +1402,11 @@ subroutine d4_atm_gradient_neigh &
       &     q(nat), c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), source=0.0_wp)
 
-   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
-      &                   zetadcn, zerodcn, zetadq)
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+      & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
-   call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+   call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
+      & c6, dc6dcn, dc6dq)
 
    call atm_gradient_neigh &
       & (mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
@@ -1486,11 +1503,12 @@ end subroutine atm_gradient_neigh
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
 subroutine d4_full_gradient_latp &
-      & (mol, trans, par, g_a, g_c, wf, cutoff, cutoff3, &
+      & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, cutoff3, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma, e2, e3)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1560,19 +1578,21 @@ subroutine d4_full_gradient_latp &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), energies3(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
-      &                   zetadcn, zerodcn, zetadq)
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+      & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
-   call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+   call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
+      & c6, dc6dcn, dc6dq)
 
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, dc6dq, &
       &  energies, gradient, sigma, dEdcn, dEdq)
 
    if (present(e2)) e2 = sum(energies)
    if (par%s9 /= 0.0_wp) then
-      call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+      call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
+         & c6, dc6dcn, dc6dq)
       call atm_gradient_latp(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
-         &  energies3, gradient, sigma, dEdcn)
+         & energies3, gradient, sigma, dEdcn)
    end if
    if (present(e3)) e3 = sum(energies3)
 
@@ -1593,11 +1613,12 @@ end subroutine d4_full_gradient_latp
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
 subroutine d4_gradient_latp &
-      & (mol, trans, par, g_a, g_c, wf, cutoff, &
+      & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, &
       &  cn, dcndr, dcndL, q, dqdr, dqdL, energy, gradient, sigma)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1661,13 +1682,14 @@ subroutine d4_gradient_latp &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
-      &                   zetadcn, zerodcn, zetadq)
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+      & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
-   call get_atomic_c6(nat, mol%at, zetavec, zetadcn, zetadq, c6, dc6dcn, dc6dq)
+   call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
+      & c6, dc6dcn, dc6dq)
 
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, dc6dq, &
-      &  energies, gradient, sigma, dEdcn, dEdq)
+      & energies, gradient, sigma, dEdcn, dEdq)
 
    call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
    if (present(dqdr)) then
@@ -1785,11 +1807,12 @@ end subroutine disp_gradient_latp
 !> Evaluate gradient of DFT-D4, this routine can handle systems of arbitrary
 !  periodicity due to the static neighbourlist.
 subroutine d4_atm_gradient_latp &
-      & (mol, trans, par, g_a, g_c, wf, cutoff, cn, dcndr, dcndL, &
+      & (mol, dispm, trans, par, g_a, g_c, wf, cutoff, cn, dcndr, dcndL, &
       &  energy, gradient, sigma)
    use xtb_type_molecule
    use xtb_type_neighbourlist
    use xtb_type_param
+   type(TDispersionModel), intent(in) :: dispm
 
    !> Molecular Structure information.
    type(TMolecule), intent(in) :: mol
@@ -1845,10 +1868,11 @@ subroutine d4_atm_gradient_latp &
       &     q(nat), c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), source=0.0_wp)
 
-   call weight_references(nat, mol%at, g_a, g_c, wf, q, cn, zetavec, zerovec, &
-      &                   zetadcn, zerodcn, zetadq)
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+      & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
-   call get_atomic_c6(nat, mol%at, zerovec, zerodcn, zerodq, c6, dc6dcn, dc6dq)
+   call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
+      & c6, dc6dcn, dc6dq)
 
    call atm_gradient_latp &
       & (mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &

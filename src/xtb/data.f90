@@ -21,6 +21,7 @@ module xtb_xtb_data
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
    use xtb_type_param, only : dftd_parameter
+   use xtb_type_dispersionmodel, only : TDispersionModel
    implicit none
    private
 
@@ -57,6 +58,9 @@ module xtb_xtb_data
 
       !> Charge height
       real(wp) :: g_c
+
+      !> Reference data for the dispersion
+      type(TDispersionModel) :: dispm
 
    end type TDispersionData
 
