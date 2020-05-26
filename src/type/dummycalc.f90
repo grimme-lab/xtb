@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Mock interface for all methods that not yet have their own calculator
 module xtb_type_dummycalc
    use xtb_mctc_accuracy, only : wp
    use xtb_type_data
@@ -28,7 +28,6 @@ module xtb_type_dummycalc
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
-   use xtb_solv_gbobc, only : lgbsa
    use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
    use xtb_extern_mopac, only : runMopac
    use xtb_extern_orca, only : runOrca
@@ -128,7 +127,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
 
    case(p_ext_turbomole)
       call external_turbomole(mol%n,mol%at,mol%xyz,wfn%nel,wfn%nopen, &
-         &                    .true.,energy,gradient,results%dipole,lgbsa)
+         & .true.,energy,gradient,results%dipole,allocated(self%solv))
 
    case(p_ext_mopac)
       call runMopac(env,mol%n,mol%at,mol%xyz,energy,gradient)
@@ -176,63 +175,6 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    endif
 
 end subroutine singlepoint
-
-
-subroutine print_gfn0_results(iunit,res,verbose,lgbsa)
-   use xtb_type_data
-   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
-   type(scc_results),    intent(in) :: res
-   logical,intent(in) :: verbose,lgbsa
-   write(iunit,outfmt) "H0 energy         ", res%e_elec, "Eh   "
-   write(iunit,outfmt) "repulsion energy  ", res%e_rep,  "Eh   "
-   write(iunit,outfmt) "electrostat energy", res%e_es,   "Eh   "
-   write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
-   !write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   " ! not saved
-   write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
-   !write(iunit,outfmt) "   -> Ghb         ", res%g_hb,   "Eh   " ! not saved
-   write(iunit,outfmt) "   -> Gshift      ", res%g_shift,"Eh   "
-   write(iunit,outfmt) "dispersion energy ", res%e_disp, "Eh   "
-   write(iunit,outfmt) "short-range corr. ", res%e_xb,   "Eh   "
-end subroutine print_gfn0_results
-
-subroutine print_gfn1_results(iunit,res,verbose,lgbsa)
-   use xtb_type_data
-   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
-   type(scc_results),    intent(in) :: res
-   logical,intent(in) :: verbose,lgbsa
-   write(iunit,outfmt) "SCC energy        ", res%e_elec, "Eh   "
-   write(iunit,outfmt) "-> electrostatic  ", res%e_es,   "Eh   "
-   if (lgbsa) then
-   write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
-   write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   "
-   write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
-   write(iunit,outfmt) "   -> Ghb         ", res%g_hb,   "Eh   "
-   write(iunit,outfmt) "   -> Gshift      ", res%g_shift,"Eh   "
-   endif
-   write(iunit,outfmt) "repulsion energy  ", res%e_rep,  "Eh   "
-   write(iunit,outfmt) "dispersion energy ", res%e_disp, "Eh   "
-   write(iunit,outfmt) "halogen bond corr.", res%e_xb,   "Eh   "
-end subroutine print_gfn1_results
-
-subroutine print_gfn2_results(iunit,res,verbose,lgbsa)
-   use xtb_type_data
-   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
-   type(scc_results),    intent(in) :: res
-   logical,intent(in) :: verbose,lgbsa
-   write(iunit,outfmt) "SCC energy        ", res%e_elec, "Eh   "
-   write(iunit,outfmt) "-> isotropic ES   ", res%e_es,   "Eh   "
-   write(iunit,outfmt) "-> anisotropic ES ", res%e_aes,  "Eh   "
-   write(iunit,outfmt) "-> anisotropic XC ", res%e_axc,  "Eh   "
-   write(iunit,outfmt) "-> dispersion     ", res%e_disp, "Eh   "
-   if (lgbsa) then
-   write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
-   write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   "
-   write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
-   write(iunit,outfmt) "   -> Ghb         ", res%g_hb,   "Eh   "
-   write(iunit,outfmt) "   -> Gshift      ", res%g_shift,"Eh   "
-   endif
-   write(iunit,outfmt) "repulsion energy  ", res%e_rep,  "Eh   "
-end subroutine print_gfn2_results
 
 
 subroutine writeInfo(self, unit, mol)

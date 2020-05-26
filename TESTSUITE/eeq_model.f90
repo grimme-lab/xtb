@@ -40,6 +40,7 @@ subroutine test_eeq_model_gbsa
    es  = 0.0_wp
    ges = 0.0_wp
 
+   call init(env)
    call init(mol, at, xyz)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, cn, dcndr, dcndL)
@@ -78,8 +79,7 @@ subroutine test_eeq_model_gbsa
    q = 0.0_wp
    dqdr = 0.0_wp
 
-   lgbsa = .true.
-   call init_gbsa(iunit,'ch2cl2',0,temp,2,230,.true.)
+   call initGBSA(env,'ch2cl2',0,temp,2,230,.true.)
    call new_gbsa(gbsa,mol%n,mol%at)
    call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
    call compute_brad_sasa(gbsa,mol%xyz)
@@ -175,6 +175,7 @@ subroutine test_eeq_model_salt
    es  = 0.0_wp
    ges = 0.0_wp
 
+   call init(env)
    call init(mol, at, xyz)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, cn, dcndr, dcndL)
@@ -207,11 +208,10 @@ subroutine test_eeq_model_salt
    q = 0.0_wp
    dqdr = 0.0_wp
 
-   lgbsa = .true.
    lsalt = .true.
    ionst = 0.001_wp
    ion_rad = 1.0_wp
-   call init_gbsa(iunit,'ch2cl2',0,temp,2,230,.true.)
+   call initGBSA(env,'ch2cl2',0,temp,2,230,.true.)
    call new_gbsa(gbsa,mol%n,mol%at)
    call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
    call compute_brad_sasa(gbsa,mol%xyz)

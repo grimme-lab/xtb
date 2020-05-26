@@ -109,7 +109,6 @@ end subroutine build_h0
 subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
       & H0, S, shellShift, aoat2, ao2sh)
    use xtb_mctc_convert, only : autoev,evtoau
-   use xtb_solv_gbobc, only : lgbsa
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    integer, intent(in)  :: ndim
@@ -242,7 +241,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
 
-   use xtb_solv_gbobc,  only : lgbsa,lhb,TSolvent
+   use xtb_solv_gbobc,  only : TSolvent
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
@@ -299,7 +298,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp), allocatable :: vq(:, :)
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
-   type(TSolvent),intent(inout) :: gbsa
+   type(TSolvent), allocatable, intent(inout) :: gbsa
    real(wp),intent(inout) :: fgb(n,n)
    real(wp),intent(inout) :: fhb(n)
    real(wp),intent(in)    :: cm5a(n)
@@ -411,7 +410,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
    end if
    ! Solvation contributions
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       cm5(:) = q + cm5a
       call setespot(n, cm5, fgb, atomicShift)
       atomicShift(:) = atomicShift + 2*cm5*fhb
@@ -514,7 +513,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    end if
 
    ! new cm5 charges and gborn energy
-   if(lgbsa) then
+   if(allocated(gbsa)) then
       cm5=q+cm5a
       call electro_gbsa(n,at,fgb,fhb,cm5,gborn,eel)
    endif
@@ -588,7 +587,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    call qsh2qat(ash, qsh, q) !new qat
 
-   if(lgbsa) cm5 = q+cm5a
+   if(allocated(gbsa)) cm5 = q+cm5a
 
    if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
@@ -698,7 +697,6 @@ end subroutine electro
 !! ========================================================================
 pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
-   use xtb_solv_gbobc, only: lhb
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: gab(n,n)
@@ -728,12 +726,10 @@ pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
 
 !  HB energy
    ehb=0.d0
-   if(lhb)then
-      do i = 1, n
-!        ehb = ehb + fhb(i)*(dqsh(i)**2)**c3
-         ehb = ehb + fhb(i)*(dqsh(i)**2)
-      enddo
-   endif
+   do i = 1, n
+!     ehb = ehb + fhb(i)*(dqsh(i)**2)**c3
+      ehb = ehb + fhb(i)*(dqsh(i)**2)
+   enddo
 
 !  ES energy in Eh
    es=0.5*es

@@ -36,7 +36,6 @@ module xtb_prog_main
    use xtb_symparam
    use xtb_fixparam
    use xtb_constrain_param, only : read_userdata
-   use xtb_solv_gbobc, only: lgbsa,init_gbsa
    use xtb_shake, only: init_shake
    use xtb_gfnff_shake, only: gff_init_shake => init_shake
    use xtb_embedding, only : init_pcem
@@ -791,7 +790,8 @@ subroutine xtbMain(env, argParser)
    else
       select type(calc)
       type is(TxTBCalculator)
-         call main_property(iprop,mol,wfn,calc%basis,calc%xtbData,res,acc)
+         call main_property(iprop,mol,wfn,calc%basis,calc%xtbData,res,calc%solv, &
+            & acc)
          call main_cube(verbose,mol,wfn,calc%basis,res)
       end select
    endif
@@ -1318,7 +1318,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          end if
 
       case('-g', '--gbsa')
-         lgbsa = .true.
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_gbsa(env, 'solvent', sec)

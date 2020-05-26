@@ -66,7 +66,7 @@ module xtb_scf
 
 contains
 
-subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
+subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
       & egap, et, maxiter, prlevel, restart, grd, acc, energy, gradient, res)
 
 
@@ -78,7 +78,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 ! ========================================================================
    use xtb_aespot,    only : setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
-   use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift, &
+   use xtb_solv_gbobc,     only : lhb,TSolvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
    &                     update_nnlist_gbsa,compute_fgb,compute_brad_sasa
    use xtb_disp_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
@@ -86,7 +86,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
    use xtb_aespot,    only : dradcn,aniso_grad,setdvsdq,dsint
-   use xtb_solv_gbobc,     only : lgbsa,lhb,TSolvent,gshift,compute_gb_egrad
+   use xtb_solv_gbobc,     only : lhb,TSolvent,gshift,compute_gb_egrad
    use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
    use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 
@@ -114,6 +114,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    real(wp) :: sigma(3,3)
    type(scc_results),intent(out) :: res
    type(TxTBData), intent(in) :: xtbData
+   type(TSolvent), allocatable, intent(inout) :: gbsa
    type(TLatticePoint) :: latp
    type(TEigenSolver) :: solver
 
@@ -199,7 +200,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
 
 !  GBSA stuff
-   type(TSolvent) :: gbsa
    real(wp),allocatable :: fgb(:,:)
    real(wp),allocatable :: fhb(:)
    real(wp) :: gborn,ghb
@@ -293,7 +293,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    allocate(dcndr(3,mol%n,mol%n),cn(mol%n),dcndL(3,3,mol%n))
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
-   if(lgbsa) then
+   if (allocated(gbsa)) then
       if (mol%npbc > 0) then
          call env%error("Solvation not available with PBC", source)
          return
@@ -459,7 +459,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
       if (xtbData%level == 1) &
       write(env%unit,chrfmt) "Hamiltonian        ","GFN1-xTB"
       write(env%unit,chrfmt) "restarted?         ",bool2string(restart)
-      write(env%unit,chrfmt) "GBSA solvation     ",bool2string(lgbsa)
+      write(env%unit,chrfmt) "GBSA solvation     ",bool2string(allocated(gbsa))
       write(env%unit,chrfmt) "PC potential       ",bool2string(lpcem)
       if (lpcem) then
          write(env%unit,intfmt) "-> # point charges ",pcem%n
@@ -723,7 +723,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       if (xtbData%level > 1) then
          call compute_gb_egrad(gbsa, wfn%q, gborn, ghb, gradient, minpr)
       else
@@ -786,7 +786,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
       if (pr_lmo) then
          tmp=wfn%emo*evtoau
          call local(mol%n, mol%at, basis%nbf, basis%nao, wfn%ihomoa, mol%xyz, &
-            & mol%z, wfn%focc, S, wfn%P, wfn%C, tmp, wfn%q, eel, lgbsa, basis)
+            & mol%z, wfn%focc, S, wfn%P, wfn%C, tmp, wfn%q, eel, allocated(gbsa), &
+            & basis)
       endif
 
    endif printing
@@ -826,7 +827,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
    res%hl_gap  = egap
    res%dipole  = dipol
    if (allocated(xtbData%halogen)) res%e_xb = exb
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       res%g_solv  = gsolv
       res%g_born  = gborn
       res%g_sasa  = gbsa%gsasa
@@ -840,7 +841,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, &
 ! ========================================================================
    if (profile) call timer%deallocate
 
-   call deallocate_gbsa(gbsa)
+   if (allocated(gbsa)) then
+      call deallocate_gbsa(gbsa)
+   end if
 end subroutine scf
 
 

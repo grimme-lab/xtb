@@ -278,10 +278,10 @@ subroutine write_set_hess(ictrl)
 end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
-   use xtb_solv_gbobc, only: lgbsa,ionst,ion_rad
+   use xtb_solv_gbobc, only: ionst,ion_rad
    implicit none
    integer,intent(in) :: ictrl
-   if (lgbsa) then
+   if (len_trim(solvent).gt.0 .and. solvent.ne."none") then
       write(ictrl,'(a,"gbsa")') flag
       if (allocated(solvent)) write(ictrl,'(3x,"solvent=",a)') solvent
       write(ictrl,'(3x,"ion_st=",g0)') ionst
@@ -1802,7 +1802,7 @@ end subroutine set_reactor
 
 
 subroutine set_gbsa(env,key,val)
-   use xtb_solv_gbobc, only: lsalt,ionst,ion_rad,lgbsa
+   use xtb_solv_gbobc, only: lsalt,ionst,ion_rad
    implicit none
    character(len=*), parameter :: source = 'set_gbsa'
    type(TEnvironment), intent(inout) :: env
@@ -1822,7 +1822,6 @@ subroutine set_gbsa(env,key,val)
    case('solvent')
       if (set1 .and. val.ne.'none') then
          solvent = val
-         lgbsa=.true.
       endif
       set1 = .false.
    case('ion_st')

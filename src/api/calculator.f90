@@ -26,7 +26,6 @@ module xtb_api_calculator
    use xtb_api_utils
    use xtb_gfnff_calculator
    use xtb_main_setup
-   use xtb_solv_gbobc, only : lgbsa
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
@@ -406,7 +405,11 @@ subroutine releaseSolvent_api(venv, vcalc) &
       end if
       call c_f_pointer(vcalc, calc)
 
-      lgbsa = .false.
+      if (allocated(calc%ptr)) then
+         if (allocated(calc%ptr%solv)) then
+            deallocate(calc%ptr%solv)
+         end if
+      end if
 
    end if
 

@@ -58,7 +58,7 @@ contains
 !---------------------------------------------------
 
    subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
-         & param,topo,update,version,accuracy)
+         & param,topo,gbsa,update,version,accuracy)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
       use xtb_type_data
@@ -72,6 +72,7 @@ contains
       type(scc_results),intent(out) :: res_gff
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(inout) :: topo
+      type(TSolvent), allocatable, intent(inout) :: gbsa
       logical, intent(in) :: update
       integer, intent(in) :: version
       real(wp), intent(in) :: accuracy
@@ -86,8 +87,6 @@ contains
 
       real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext
       real*8 :: gsolv, gborn, ghb
-
-      type(TSolvent) :: gbsa
 
       integer i,j,k,l,m,ij,nd3
       integer ati,atj,iat,jat
@@ -128,7 +127,7 @@ contains
      &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
      &         hb_dcn(3,n,n),hb_cn(n))
 
-      if (pr) call timer%new(10 + count([lgbsa]),.false.)
+      if (pr) call timer%new(10 + count([allocated(gbsa)]),.false.)
 
       if (pr) call timer%measure(1,'distance/D3 list')
       nd3=0
@@ -154,7 +153,7 @@ contains
 ! GBSA
 !!!!!!!!!!!!!
 
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       call timer%measure(11, "GBSA")
       call new_gbsa(gbsa, n, at)
       call update_nnlist_gbsa(gbsa, xyz, .false.)
@@ -282,7 +281,7 @@ contains
       !$omp end parallel do
       if(.not.pr) deallocate(eeqtmp)
 
-      if (lgbsa) then
+      if (allocated(gbsa)) then
          call timer%measure(11, "GBSA")
          call compute_gb_egrad(gbsa, topo%q, gborn, ghb, g, pr)
          gsolv = gsolv + gborn + ghb + gshift
@@ -607,7 +606,11 @@ contains
       res_gff%g_born  = gborn
       res_gff%g_solv  = gsolv
       res_gff%g_shift = gshift
-      res_gff%g_sasa  = gbsa%gsasa
+      if (allocated(gbsa)) then
+         res_gff%g_sasa  = gbsa%gsasa
+      else
+         res_gff%g_sasa  = 0.0_wp
+      end if
       res_gff%dipole  = matmul(xyz, topo%q)
 
    end subroutine gfnff_eg
@@ -1239,7 +1242,7 @@ contains
       real(wp),intent(out) :: q(n)       ! output charges
       real(wp),intent(out) :: es         ! ES energy
       real(wp),intent(out) :: eeqtmp(2,n*(n+1)/2)    ! intermediates
-      type(TSolvent), intent(in) :: gbsa
+      type(TSolvent), allocatable, intent(in) :: gbsa
 
 !  local variables
       integer  :: m,i,j,k,ii,ij
@@ -1292,7 +1295,7 @@ contains
         enddo
       enddo
 
-      if (lgbsa) call compute_amat(gbsa, A)
+      if (allocated(gbsa)) call compute_amat(gbsa, A)
 
 !     call prmat(6,A,m,m,'A eg')
       allocate(ipiv(m))

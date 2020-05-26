@@ -37,7 +37,7 @@ module xtb_main_setup
    use xtb_setparam
    use xtb_disp_ncoord
    use xtb_chargemodel
-   use xtb_solv_gbobc, only : lgbsa, init_gbsa
+   use xtb_solv_gbobc, only : initGBSA
    implicit none
    private
 
@@ -307,7 +307,7 @@ end subroutine newWavefunction
 
 subroutine addSolvationModel(env, calc, solvent, state, temp, nang)
    type(TEnvironment), intent(inout) :: env
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    character(len=*), intent(in) :: solvent
    integer, intent(in), optional :: state
    real(wp), intent(in), optional :: temp
@@ -342,10 +342,10 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang)
    end select
 
 
-   lgbsa = len_trim(solvent).gt.0 .and. solvent.ne."none"
-   if (lgbsa) then
-      call init_gbsa(env%unit, trim(solvent), solvState, temperature, level, &
+   if (len_trim(solvent).gt.0 .and. solvent.ne."none") then
+      call initGBSA(env, trim(solvent), solvState, temperature, level, &
          & gridSize, .false.)
+      allocate(calc%solv)
    endif
 
 end subroutine addSolvationModel
