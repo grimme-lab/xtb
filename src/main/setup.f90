@@ -207,7 +207,7 @@ end subroutine newXTBCalculator
 subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    use xtb_gfnff_param
    use xtb_gfnff_setup, only : gfnff_setup
-   use xtb_disp_dftd4, only : d3init
+   use xtb_disp_dftd4, only : newD3Model
 
    character(len=*), parameter :: source = 'main_setup_newGFFCalculator'
 
@@ -256,7 +256,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
       end if
    endif
 
-   call d3init(mol%n, mol%at)
+   call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
    call gfnff_setup(env, verbose, restart, mol, &
       & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)

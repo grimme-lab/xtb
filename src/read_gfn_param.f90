@@ -22,7 +22,7 @@ module xtb_readparam
    use xtb_xtb_gfn2
    use xtb_paramset
    use xtb_disp_dftd3param, only : copy_c6, reference_c6
-   use xtb_disp_dftd4, only : d4init, p_refq_gfn2xtb, p_refq_goedecker
+   use xtb_disp_dftd4, only : newD4Model, p_refq_gfn2xtb, p_refq_goedecker
 
 contains
 
@@ -248,7 +248,8 @@ subroutine readParam &
       xtbData%srb%enScale = globpar%srbken
 
       ! Dispersion
-      call d4init(xtbData%dispersion%g_a, xtbData%dispersion%g_c, p_refq_goedecker)
+      call newD4Model(xtbData%dispersion%dispm, xtbData%dispersion%g_a, &
+         & xtbData%dispersion%g_c, p_refq_goedecker)
 
    case(1)
       ! Halogen
@@ -301,7 +302,8 @@ subroutine readParam &
       call setGFN2NumberOfPrimitives(xtbData%hamiltonian, xtbData%nShell)
 
       ! Dispersion
-      call d4init(xtbData%dispersion%g_a, xtbData%dispersion%g_c, p_refq_gfn2xtb)
+      call newD4Model(xtbData%dispersion%dispm, xtbData%dispersion%g_a, &
+         & xtbData%dispersion%g_c, p_refq_gfn2xtb)
 
    end select
 

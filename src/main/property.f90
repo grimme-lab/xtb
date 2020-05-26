@@ -157,10 +157,14 @@ subroutine main_property &
    endif
 
 !! D4 molecular dispersion printout
-   if ((newdisp.and.gfn_method.eq.2).and.pr_mulliken) &
-   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c)
-   if (gfn_method.eq.0.and.pr_mulliken) &
-   call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c)
+   if ((newdisp.and.gfn_method.eq.2).and.pr_mulliken) then
+      call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf, &
+         & xtbData%dispersion%g_a,xtbData%dispersion%g_c,xtbData%dispersion%dispm)
+   end if
+   if (gfn_method.eq.0.and.pr_mulliken) then
+      call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf, &
+         & xtbData%dispersion%g_a,xtbData%dispersion%g_c,xtbData%dispersion%dispm)
+   end if
 
 !! Spin population
    if (pr_spin_population .and. wfx%nopen.ne.0) &
@@ -729,10 +733,11 @@ contains
 
 end subroutine print_wbo_fragment
 
-subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
+subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c,dispm)
    use xtb_disp_dftd4
    use xtb_disp_ncoord
    use xtb_eeq
+   use xtb_type_dispersionmodel
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
@@ -742,6 +747,7 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    real(wp),intent(in) :: wf
    real(wp),intent(in) :: g_a
    real(wp),intent(in) :: g_c
+   type(TDispersionModel), intent(in) :: dispm
 
    integer  :: i
    integer  :: dispdim
@@ -752,13 +758,13 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c)
    real(wp),allocatable :: aw(:,:)    ! frequency dependent polarizibilities
    real(wp),allocatable :: c6ab(:,:)  ! actual C6 coeffients
 
-   call d4dim(n,at,dispdim)
+   call d4dim(dispm,n,at,dispdim)
    allocate( covcn(n), aw(23,n), c6ab(n,n), gw(dispdim), &
              c6ref(dispdim,dispdim), source = 0.0_wp )
 
    call ncoord_d4(n,at,xyz,covcn,thr=1600.0_wp)
-   call d4(n,dispdim,at,wf,g_a,g_c,covcn,gw,c6ref)
-   call mdisp(n,dispdim,at,q,xyz,g_a,g_c,gw,c6ref, &
+   call d4(dispm,n,dispdim,at,wf,g_a,g_c,covcn,gw,c6ref)
+   call mdisp(dispm,n,dispdim,at,q,xyz,g_a,g_c,gw,c6ref, &
               molc6,molc8,molpol,aout=aw,cout=c6ab)
 
    write(iunit,'(a)')

@@ -18,6 +18,7 @@
 !> Topological data for force field type calculations
 module xtb_gfnff_topology
    use xtb_mctc_accuracy, only : wp
+   use xtb_type_dispersionmodel, only : TDispersionModel
    implicit none
    private
 
@@ -94,6 +95,8 @@ module xtb_gfnff_topology
       integer, allocatable  :: ispinsyst(:,:)
       integer, allocatable  :: nspinsyst(:)
       integer               :: nsystem
+
+      type(TDispersionModel) :: dispm
 
    contains
 

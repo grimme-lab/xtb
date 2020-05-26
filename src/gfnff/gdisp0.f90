@@ -84,8 +84,9 @@ end subroutine weight_references
 
 !> Calculate the weights of the reference system and the derivatives w.r.t.
 !  coordination number for later use.
-subroutine weight_references_d4(nat, atoms, wf, cn, gwvec, gwdcn)
-   use xtb_disp_dftd4
+subroutine weight_references_d4(dispm, nat, atoms, wf, cn, gwvec, gwdcn)
+   use xtb_type_dispersionmodel, only : TDispersionModel
+   type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> Atomic numbers of every atom.
@@ -189,9 +190,10 @@ end subroutine get_atomic_c6
 
 !> calculate atomic dispersion coefficients and their derivatives w.r.t.
 !  the coordination number.
-subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
+subroutine get_atomic_c6_d4(dispm, nat, atoms, gwvec, gwdcn, c6, dc6dcn)
    use xtb_disp_dftd3param, only : get_c6
-   use xtb_disp_dftd4
+   use xtb_type_dispersionmodel, only : TDispersionModel
+   type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
    integer, intent(in) :: nat
    !> numbers of every atom.
@@ -234,11 +236,12 @@ subroutine get_atomic_c6_d4(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
    end do
 end subroutine get_atomic_c6_d4
 
-subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, r4r2, &
-      & weighting_factor, cn, dcndr, energy, gradient)
+subroutine d3_gradient(dispm, nat, at, xyz, npair, pairlist, zeta_scale, radii, &
+      & r4r2, weighting_factor, cn, dcndr, energy, gradient)
    use xtb_disp_dftd3param
-   use xtb_disp_dftd4
+   use xtb_type_dispersionmodel, only : TDispersionModel
 
+   type(TDispersionModel), intent(in) :: dispm
    integer, intent(in) :: nat
    integer, intent(in) :: at(:)
    real(wp), intent(in) :: xyz(:, :)
@@ -270,11 +273,11 @@ subroutine d3_gradient(nat, at, xyz, npair, pairlist, zeta_scale, radii, r4r2, &
    allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
       &     dc6dcn(nat, nat), energies(nat), dEdcn(nat), source=0.0_wp)
 
-   call weight_references_d4(nat, at, weighting_factor, cn, gw, dgwdcn)
+   call weight_references_d4(dispm, nat, at, weighting_factor, cn, gw, dgwdcn)
 
    !gw = gw*zeta_scale
    !dgwdcn = dgwdcn*zeta_scale
-   call get_atomic_c6_d4(nat, at, gw, dgwdcn, c6, dc6dcn)
+   call get_atomic_c6_d4(dispm, nat, at, gw, dgwdcn, c6, dc6dcn)
 
    !$omp parallel do default(none) schedule(runtime) &
    !$omp reduction(+:energies, gradient, sigma, dEdcn) &

@@ -21,6 +21,7 @@ module xtb_xtb_dispersion
    use xtb_disp_dftd4
    use xtb_disp_ncoord
    use xtb_type_molecule, only : TMolecule
+   use xtb_type_dispersionmodel, only : TDispersionModel
    use xtb_xtb_data, only : TDispersionData
    implicit none
    private
@@ -44,6 +45,8 @@ module xtb_xtb_dispersion
 
       real(wp), allocatable :: refC6(:, :)
 
+      type(TDispersionModel), pointer :: dispm => null()
+
    contains
 
       procedure :: addShift
@@ -65,7 +68,7 @@ subroutine initDispersion(self, input, mol)
 
    type(TxTBDispersion), intent(out) :: self
 
-   type(TDispersionData), intent(in) :: input
+   type(TDispersionData), intent(in), target :: input
 
    type(TMolecule), intent(in) :: mol
 
@@ -74,7 +77,8 @@ subroutine initDispersion(self, input, mol)
    self%g_a = input%g_a
    self%g_c = input%g_c
    self%wf = input%wf
-   call d4dim(mol%n, mol%at, self%ndim)
+   self%dispm => input%dispm
+   call d4dim(self%dispm, mol%n, mol%at, self%ndim)
 
    allocate(self%gweight(self%ndim))
    allocate(self%refC6(self%ndim, self%ndim))
@@ -82,10 +86,10 @@ subroutine initDispersion(self, input, mol)
    allocate(cn(mol%n))
 
    call ncoord_d4(mol%n, mol%at, mol%xyz, cn, thr=1600.0_wp)
-   call d4(mol%n, self%ndim, mol%at, self%wf, self%g_a, &
+   call d4(self%dispm, mol%n, self%ndim, mol%at, self%wf, self%g_a, &
       & self%g_c, cn, self%gweight, self%refC6)
-   call build_wdispmat(mol%n, self%ndim, mol%at, mol%xyz, input%dpar, &
-      & self%refC6, self%gweight, self%dispmat)
+   call build_wdispmat(self%dispm, mol%n, self%ndim, mol%at, mol%xyz, &
+      & input%dpar, self%refC6, self%gweight, self%dispmat)
 
 end subroutine initDispersion
 
@@ -100,8 +104,8 @@ subroutine addShift(self, id, qat, atomicShift)
 
    real(wp), intent(inout) :: atomicShift(:)
 
-   call disppot(size(id), self%ndim, id, qat, self%g_a, self%g_c, self%dispMat, &
-      & self%gweight, atomicShift)
+   call disppot(self%dispm, size(id), self%ndim, id, qat, self%g_a, self%g_c, &
+      & self%dispMat, self%gweight, atomicShift)
 
 end subroutine addShift
 
@@ -116,8 +120,8 @@ subroutine getEnergy(self, id, qat, energy)
 
    real(wp), intent(out) :: energy
 
-   energy = edisp_scc(size(id), self%ndim, id, qat, self%g_a, self%g_c, &
-      & self%dispMat, self%gweight)
+   energy = edisp_scc(self%dispm, size(id), self%ndim, id, qat, self%g_a, &
+      & self%g_c, self%dispMat, self%gweight)
 
 end subroutine getEnergy
 

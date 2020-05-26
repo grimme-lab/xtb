@@ -251,8 +251,8 @@ contains
 
       if (pr) call timer%measure(5,'D3')
       if(nd3.gt.0) then
-         call d3_gradient(n, at, xyz, nd3, d3list, topo%zetac6, param%d3r0, &
-            & sqrtZr4r2, 4.0d0, cn, dcn, edisp, g)
+         call d3_gradient(topo%dispm, n, at, xyz, nd3, d3list, topo%zetac6, &
+            & param%d3r0, sqrtZr4r2, 4.0d0, cn, dcn, edisp, g)
       endif
       deallocate(d3list)
       if (pr) call timer%measure(5)
