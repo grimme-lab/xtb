@@ -63,7 +63,7 @@ subroutine newD3Model(dispm,nat,at)
 
    intrinsic :: nint
 
-   dispm = TDispersionModel()
+   call init(dispm, maxElem=maxval(at))
 
    dispm%atoms = 0
    dispm%nref = 0.0_wp
@@ -85,7 +85,7 @@ subroutine newD3Model(dispm,nat,at)
    enddo
 
    ! integrate C6 coefficients
-   do i = 1, 86
+   do i = 1, maxval(at)
       do j = 1, i
          if (dispm%atoms(i) > 0 .and. dispm%atoms(j) > 0) then
             do ii = 1, dispm%nref(i)
@@ -115,7 +115,7 @@ subroutine newD4Model(dispm,g_a,g_c,mode)
 
    intrinsic :: nint
 
-   dispm = TDispersionModel()
+   call init(dispm)
 
    secq = 0.0_wp
    select case(mode)
