@@ -70,7 +70,7 @@ subroutine write_energy_gff(iunit,sccres,frqres,hess)
 end subroutine write_energy_gff
 
 subroutine main_property &
-      (iunit,mol,wfx,basis,xtbData,res,acc)
+      (iunit,mol,wfx,basis,xtbData,res,solv,acc)
 
    use xtb_mctc_convert
 
@@ -81,6 +81,7 @@ subroutine main_property &
    use xtb_type_basisset
    use xtb_type_data
    use xtb_type_param
+   use xtb_type_solvent
    use xtb_xtb_data
    use xtb_intgrad
 
@@ -104,6 +105,7 @@ subroutine main_property &
    type(TWavefunction),intent(inout) :: wfx
    type(TBasisset),    intent(in) :: basis
    type(scc_results),    intent(in) :: res
+   type(TSolvent), allocatable, intent(in) :: solv
 
    real(wp),allocatable :: S(:,:)     ! overlap integrals
    real(wp),allocatable :: dpint(:,:,:) ! dipole integrals
@@ -149,11 +151,8 @@ subroutine main_property &
    endif
 
    ! GBSA information
-   if (lgbsa.and.pr_gbsa) then
-      call new_gbsa(gbsa,mol%n,mol%at)
-      call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
-      call compute_brad_sasa(gbsa,mol%xyz)
-      call print_gbsa_info(iunit,gbsa)
+   if (allocated(solv).and.pr_gbsa) then
+      call print_gbsa_info(iunit,solv)
    endif
 
 !! D4 molecular dispersion printout

@@ -149,6 +149,7 @@ subroutine deallocate_gbsa(this)
    if (allocated(this%dhbdw))   deallocate(this%dhbdw)
    if (allocated(this%ionscr))  deallocate(this%ionscr)
    if (allocated(this%discr))   deallocate(this%discr)
+   if (allocated(this%at))      deallocate(this%at)
 end subroutine deallocate_gbsa
 
 subroutine allocate_gbsa(this,n,nang)

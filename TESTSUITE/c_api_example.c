@@ -31,6 +31,7 @@ main (int argc, char **argv)
    double wbo[natoms*natoms];
    int buffersize = 512;
    char buffer[buffersize];
+   char solvent[] = "h2o";
 
    assert(XTB_API_VERSION == xtb_getAPIVersion());
 
@@ -80,6 +81,32 @@ main (int argc, char **argv)
    assert(fabs(q[5] - 0.05184019996829) < 1.0e-8);
    assert(fabs(dipole[2] + 0.298279305689518) < 1.0e-6);
    assert(fabs(wbo[9] - 2.89823984265213) < 1.0e-8);
+
+   xtb_setSolvent(env, calc, solvent, NULL, NULL, NULL);
+   if (xtb_checkEnvironment(env)) {
+      xtb_showEnvironment(env, NULL);
+      return 6;
+   }
+
+   xtb_singlepoint(env, mol, calc, res);
+   if (xtb_checkEnvironment(env)) {
+      xtb_showEnvironment(env, NULL);
+      return 7;
+   }
+
+   xtb_getEnergy(env, res, &energy);
+   xtb_getCharges(env, res, q);
+   xtb_getDipole(env, res, dipole);
+   xtb_getBondOrders(env, res, wbo);
+   if (xtb_checkEnvironment(env)) {
+      xtb_showEnvironment(env, NULL);
+      return 8;
+   }
+
+   assert(fabs(energy + 8.38393864716134) < 1.0e-9);
+   assert(fabs(q[5] - 0.06090868805034) < 1.0e-8);
+   assert(fabs(dipole[2] + 0.35455233974705) < 1.0e-6);
+   assert(fabs(wbo[9] - 2.89453979224265) < 1.0e-8);
 
    xtb_delResults(&res);
    xtb_delCalculator(&calc);

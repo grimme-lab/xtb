@@ -15,19 +15,19 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Force field calculator
 module xtb_gfnff_calculator
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
+   use xtb_type_solvent, only : TSolvent
    use xtb_type_wavefunction
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
-   use xtb_solv_gbobc, only : lgbsa
    use xtb_metadynamic
    use xtb_constrainpot
    use xtb_gfnff_param, only : make_chrg,gff_print
@@ -125,8 +125,8 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    ! ------------------------------------------------------------------------
    !  actual calculation
    call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,self%param,self%topo,self%update,self%version, &
-      & self%accuracy)
+      & gradient,energy,results,self%param,self%topo,self%solv,self%update, &
+      & self%version,self%accuracy)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -165,14 +165,14 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.lgbsa) then
+      if (.not.silent.and.allocated(self%solv)) then
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
       write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
       if (.not.silent) then
          write(env%unit,'(9x,"::",49("."),"::")')
-         call print_gfnff_results(env%unit,results,verbose,lgbsa)
+         call print_gfnff_results(env%unit,results,verbose,allocated(self%solv))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
@@ -185,11 +185,11 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
 
 end subroutine singlepoint
 
-subroutine print_gfnff_results(iunit,res_gff,verbose,lgbsa)
+subroutine print_gfnff_results(iunit,res_gff,verbose,lsolv)
    use xtb_type_data
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
    type(scc_results),    intent(in) :: res_gff
-   logical,intent(in) :: verbose,lgbsa
+   logical,intent(in) :: verbose,lsolv
    write(iunit,outfmt) "bond energy       ", res_gff%e_bond, "Eh   "
    write(iunit,outfmt) "angle energy      ", res_gff%e_angl, "Eh   "
    write(iunit,outfmt) "torsion energy    ", res_gff%e_tors, "Eh   "
@@ -200,11 +200,13 @@ subroutine print_gfnff_results(iunit,res_gff,verbose,lgbsa)
    write(iunit,outfmt) "XB energy         ", res_gff%e_xb,   "Eh   "
    write(iunit,outfmt) "bonded atm energy ", res_gff%e_batm, "Eh   "
    write(iunit,outfmt) "external energy   ", res_gff%e_ext,  "Eh   "
-   write(iunit,outfmt) "-> Gsolv          ", res_gff%g_solv, "Eh   "
-   write(iunit,outfmt) "   -> Gborn       ", res_gff%g_born, "Eh   "
-   write(iunit,outfmt) "   -> Gsasa       ", res_gff%g_sasa, "Eh   "
-   write(iunit,outfmt) "   -> Ghb         ", res_gff%g_hb,   "Eh   "
-   write(iunit,outfmt) "   -> Gshift      ", res_gff%g_shift,"Eh   "
+   if (lsolv) then
+      write(iunit,outfmt) "-> Gsolv          ", res_gff%g_solv, "Eh   "
+      write(iunit,outfmt) "   -> Gborn       ", res_gff%g_born, "Eh   "
+      write(iunit,outfmt) "   -> Gsasa       ", res_gff%g_sasa, "Eh   "
+      write(iunit,outfmt) "   -> Ghb         ", res_gff%g_hb,   "Eh   "
+      write(iunit,outfmt) "   -> Gshift      ", res_gff%g_shift,"Eh   "
+   end if
 end subroutine print_gfnff_results
 
 subroutine writeInfo(self, unit, mol)

@@ -24,7 +24,7 @@ module xtb_main_defaults
    use xtb_type_molecule, only : TMolecule
    use xtb_setparam, only : temp_md, gfn_method, ngrida, solvent, opt_engine, &
       & p_engine_lbfgs, p_engine_rf, silent
-   use xtb_solv_gbobc, only : lgbsa, init_gbsa
+   use xtb_main_setup, only : addSolvationModel
    implicit none
    private
 
@@ -37,7 +37,7 @@ contains
 subroutine initDefaults(env, calc, mol, gsolvstate)
 
    type(TEnvironment), intent(inout) :: env
-   class(TCalculator), intent(in) :: calc
+   class(TCalculator), intent(inout) :: calc
    type(TMolecule), intent(in) :: mol
    integer, intent(in) :: gsolvstate
 
@@ -49,10 +49,8 @@ subroutine initDefaults(env, calc, mol, gsolvstate)
       end if
    end if
 
-   if (lgbsa) then
-      call init_gbsa(env%unit, solvent, gsolvstate, temp_md, gfn_method, ngrida, &
-         & .not.silent)
-   end if
+   ! Optionally add a solvation model
+   call addSolvationModel(env, calc, solvent, gsolvstate, temp_md, ngrida)
 
    ! initialize PC embedding (set default file names and stuff)
    call init_pcem

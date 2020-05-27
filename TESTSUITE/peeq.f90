@@ -12,6 +12,7 @@ subroutine test_peeq_sp
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
+   use xtb_type_solvent
 
    use xtb_setparam, only : gfn_method
 
@@ -53,6 +54,7 @@ subroutine test_peeq_sp
    type(TBasisset)     :: basis
    type(scc_results)     :: res
    type(TxTBData) :: xtbData
+   type(TSolvent), allocatable :: gbsa
 
    real(wp)              :: energy
    real(wp)              :: hl_gap
@@ -112,7 +114,7 @@ subroutine test_peeq_sp
 
    call mctc_mute
 
-   call peeq(env,mol,wfn,basis,xtbData,hl_gap,et,prlevel,lgrad,.true.,acc, &
+   call peeq(env,mol,wfn,basis,xtbData,gbsa,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3570001012578_wp,thr)
@@ -136,7 +138,7 @@ subroutine test_peeq_sp
    gradient = 0.0_wp
    sigma = 0.0_wp
 
-   call peeq(env,mol,wfn,basis,xtbData,hl_gap,et,prlevel,lgrad,.false.,acc, &
+   call peeq(env,mol,wfn,basis,xtbData,gbsa,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
    call assert_close(energy,-7.3514275392244_wp,thr)

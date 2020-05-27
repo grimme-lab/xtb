@@ -22,6 +22,7 @@ module xtb_type_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_wavefunction, only : TWavefunction
+   use xtb_type_solvent, only : TSolvent
    implicit none
 
    public :: TCalculator
@@ -32,6 +33,7 @@ module xtb_type_calculator
    type, abstract :: TCalculator
 
       real(wp) :: accuracy
+      type(TSolvent), allocatable :: solv
 
    contains
 

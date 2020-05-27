@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> TODO
+!> Extended tight binding calculator
 module xtb_xtb_calculator
    use xtb_mctc_accuracy, only : wp
    use xtb_type_basisset, only : TBasisset
@@ -25,13 +25,13 @@ module xtb_xtb_calculator
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : scc_parameter
    use xtb_type_pcem
+   use xtb_type_solvent, only : TSolvent
    use xtb_type_wavefunction
    use xtb_xtb_data, only : TxTBData
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
-   use xtb_solv_gbobc, only : lgbsa
    use xtb_scf, only : scf
    use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
    use xtb_peeq, only : peeq
@@ -138,13 +138,13 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
-      call scf(env,mol,wfn,self%basis,self%pcem,self%xtbData, &
+      call scf(env,mol,wfn,self%basis,self%pcem,self%xtbData,self%solv, &
          &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
          &   self%accuracy,energy,gradient,results)
 
    case(0)
       call peeq &
-         & (env,mol,wfn,self%basis,self%xtbData,hlgap,self%etemp, &
+         & (env,mol,wfn,self%basis,self%xtbData,self%solv,hlgap,self%etemp, &
          &  printlevel,.true.,ccm,self%accuracy,energy,gradient,sigma,results)
    end select
 
@@ -194,7 +194,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.lgbsa) then
+      if (.not.silent.and.allocated(self%solv)) then
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
@@ -207,9 +207,9 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
             write(env%unit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
          endif
          write(env%unit,'(9x,"::",49("."),"::")')
-         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,lgbsa)
-         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,lgbsa)
-         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,lgbsa)
+         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,allocated(self%solv))
+         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(self%solv))
+         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(self%solv))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
@@ -223,11 +223,11 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
 end subroutine singlepoint
 
 
-subroutine print_gfn0_results(iunit,res,verbose,lgbsa)
+subroutine print_gfn0_results(iunit,res,verbose,lsolv)
    use xtb_type_data
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
    type(scc_results),    intent(in) :: res
-   logical,intent(in) :: verbose,lgbsa
+   logical,intent(in) :: verbose,lsolv
    write(iunit,outfmt) "H0 energy         ", res%e_elec, "Eh   "
    write(iunit,outfmt) "repulsion energy  ", res%e_rep,  "Eh   "
    write(iunit,outfmt) "electrostat energy", res%e_es,   "Eh   "
@@ -240,14 +240,14 @@ subroutine print_gfn0_results(iunit,res,verbose,lgbsa)
    write(iunit,outfmt) "short-range corr. ", res%e_xb,   "Eh   "
 end subroutine print_gfn0_results
 
-subroutine print_gfn1_results(iunit,res,verbose,lgbsa)
+subroutine print_gfn1_results(iunit,res,verbose,lsolv)
    use xtb_type_data
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
    type(scc_results),    intent(in) :: res
-   logical,intent(in) :: verbose,lgbsa
+   logical,intent(in) :: verbose,lsolv
    write(iunit,outfmt) "SCC energy        ", res%e_elec, "Eh   "
    write(iunit,outfmt) "-> electrostatic  ", res%e_es,   "Eh   "
-   if (lgbsa) then
+   if (lsolv) then
    write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
    write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   "
    write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
@@ -259,17 +259,17 @@ subroutine print_gfn1_results(iunit,res,verbose,lgbsa)
    write(iunit,outfmt) "halogen bond corr.", res%e_xb,   "Eh   "
 end subroutine print_gfn1_results
 
-subroutine print_gfn2_results(iunit,res,verbose,lgbsa)
+subroutine print_gfn2_results(iunit,res,verbose,lsolv)
    use xtb_type_data
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
    type(scc_results),    intent(in) :: res
-   logical,intent(in) :: verbose,lgbsa
+   logical,intent(in) :: verbose,lsolv
    write(iunit,outfmt) "SCC energy        ", res%e_elec, "Eh   "
    write(iunit,outfmt) "-> isotropic ES   ", res%e_es,   "Eh   "
    write(iunit,outfmt) "-> anisotropic ES ", res%e_aes,  "Eh   "
    write(iunit,outfmt) "-> anisotropic XC ", res%e_axc,  "Eh   "
    write(iunit,outfmt) "-> dispersion     ", res%e_disp, "Eh   "
-   if (lgbsa) then
+   if (lsolv) then
    write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
    write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   "
    write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "

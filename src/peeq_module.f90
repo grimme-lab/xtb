@@ -43,7 +43,7 @@ module xtb_peeq
 contains
 
 subroutine peeq &
-      (env,mol,wfn,basis,xtbData,egap,et,prlevel,grd,ccm,acc,etot,gradient,sigma,res)
+      (env,mol,wfn,basis,xtbData,gbsa,egap,et,prlevel,grd,ccm,acc,etot,gradient,sigma,res)
 
 ! ------------------------------------------------------------------------
 !  Class definitions
@@ -93,6 +93,7 @@ subroutine peeq &
    real(wp),intent(inout)                    :: egap !< HOMO-LUMO gap
    real(wp),intent(inout),dimension(3,mol%n) :: gradient    !< molecular gradient
    type(TWavefunction),intent(inout)       :: wfn  !< TB-wavefunction
+   type(TSolvent),allocatable,intent(inout) :: gbsa
 ! ------------------------------------------------------------------------
 !  OUTPUT
 ! ------------------------------------------------------------------------
@@ -207,7 +208,6 @@ subroutine peeq &
 ! ---------------------------------------
 !  EEQ/GBSA information
 ! ---------------------------------------
-   type(TSolvent) :: gbsa
    real(wp) :: gsolv
 
    associate( nao => basis%nao, &
@@ -217,7 +217,7 @@ subroutine peeq &
          &    nbfp => basis%nbf*(basis%nbf+1)/2)
 
    if (profile) then
-      if (lgbsa) then
+      if (allocated(gbsa)) then
          call timer%new(9,.false.)
       else
          call timer%new(8,.false.)
@@ -359,7 +359,7 @@ subroutine peeq &
 !  Get EEQ charges q(1:n) + dqdr(3,1:n,1:n) under pbc
 ! ---------------------------------------
 
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       if (profile) call timer%measure(9,"GBSA setup")
       call new_gbsa(gbsa,mol%n,mol%at)
       call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
@@ -377,7 +377,7 @@ subroutine peeq &
    ! names DO NOT corresponds to content of variables, obviously...
    call gfn0_charge_model(chrgeq,mol%n,mol%at,xtbData%coulomb)
    ! initialize electrostatic energy
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,qeeq,dqdr, &
          &            ees,gsolv,gradient,.false.,.true.,.true.)
    else
@@ -589,7 +589,7 @@ subroutine peeq &
    res%g_hb    = ehb
    res%e_total = etot
    res%hl_gap  = egap
-   if (lgbsa) then
+   if (allocated(gbsa)) then
       res%g_solv  = gsolv
       !res%g_born  = gborn    ! not returned
       res%g_sasa  = gbsa%gsasa

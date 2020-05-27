@@ -15,12 +15,12 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lgbsa)
+subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam
    implicit none
    integer n, at(n), nel, nopen
-   logical grd,lgbsa
+   logical grd,lsolv
    real(wp) xyz(3,n)
    real(wp) g  (3,n)
    real(wp) eel

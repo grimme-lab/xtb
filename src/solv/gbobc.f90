@@ -22,8 +22,8 @@ module xtb_solv_gbobc
    use xtb_type_solvent
    implicit none
 
-   public :: lgbsa,lhb,lsalt
-   public :: init_gbsa,new_gbsa
+   public :: lhb,lsalt
+   public :: initGBSA,new_gbsa
    public :: gshift
    public :: ionst,ion_rad
    public :: TSolvent
@@ -41,8 +41,6 @@ module xtb_solv_gbobc
 ! ========================================================================
 !  PARAMETER
 ! ------------------------------------------------------------------------
-!  flag for gbsa
-   logical :: lgbsa = .false.
 !  cutoffs
 !  Born radii
    real(wp),parameter :: lrcut_a=35._wp
@@ -216,11 +214,12 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
 
 end subroutine load_custom_parameters
 
-subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida,verbose)
+subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,verbose)
    use xtb_mctc_strings
    use xtb_readin
    implicit none
-   integer, intent(in) :: iunit
+   character(len=*), parameter :: source = 'solv_gbobc_initGBSA'
+   type(TEnvironment), intent(inout) :: env
    character(len=*),intent(in) :: sname
    integer, intent(in) :: mode
    real(wp),intent(in) :: temp
@@ -245,25 +244,25 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida,verbose)
    endif
    fname = xfind(fname)
    if (verbose) then
-      write(iunit,*) 'Solvent             : ', trim(sname)
+      write(env%unit,*) 'Solvent             : ', trim(sname)
    end if
 
    inquire(file=fname,exist=ex)
    if(ex)then
       if (verbose) then
-         write(iunit,*) 'GBSA parameter file : ', trim(fname)
+         write(env%unit,*) 'GBSA parameter file : ', trim(fname)
       end if
       open(newunit=ich,file=fname)
       call read_gbsa_parameters(ich, gfn_solvent)
       close(ich)
    else
-      !call raise('W','Could not find GBSA parameters in XTBPATH,'//&
-      !   ' trying internal parameters')
+      !call env%warning('Could not find GBSA parameters in XTBPATH,'//&
+      !   ' trying internal parameters', source)
       if (gfn_method.gt.1.or.gfn_method == 0) then
          select case(lowercase(trim(sname)))
          case default
-            call raise('E','solvent : '//trim(sname)//&
-               ' not parametrized for GFN2-xTB Hamiltonian',1)
+            call env%error('solvent : '//trim(sname)//&
+               ' not parametrized for GFN2-xTB Hamiltonian', source)
          case('acetone');      gfn_solvent = gfn2_acetone
          case('acetonitrile'); gfn_solvent = gfn2_acetonitrile
          case('benzene');      gfn_solvent = gfn2_benzene
@@ -282,13 +281,13 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida,verbose)
          case('custom'); gfn_solvent = custom_solvent
          end select
       !else if (gfn_method.eq.0) then
-            !call raise('E','solvent : '//trim(sname)//&
-               !' not parametrized for GFN0-xTB Hamiltonian',1)
+            !call env%error('solvent : '//trim(sname)//&
+               !' not parametrized for GFN0-xTB Hamiltonian',source)
       else
          select case(lowercase(trim(sname)))
          case default
-            call raise('E','solvent : '//trim(sname)//&
-               ' not parametrized for GFN-xTB Hamiltonian',1)
+            call env%error('solvent : '//trim(sname)//&
+               ' not parametrized for GFN-xTB Hamiltonian', source)
          case('acetone');      gfn_solvent = gfn1_acetone
          case('acetonitrile'); gfn_solvent = gfn1_acetonitrile
          case('benzene');      gfn_solvent = gfn1_benzene
@@ -307,7 +306,7 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida,verbose)
          end select
       endif
       if (verbose) then
-         write(iunit,'(1x,"Using internal parameter file:",1x,a)') fname
+         write(env%unit,'(1x,"Using internal parameter file:",1x,a)') fname
       end if
    endif
 
@@ -317,10 +316,10 @@ subroutine init_gbsa(iunit,sname,mode,temp,gfn_method,ngrida,verbose)
    gshift = gbm%gshift
 
    if (verbose) then
-      call gbsa_info(iunit,gbm)
+      call gbsa_info(env%unit,gbm)
    end if
 
-end subroutine init_gbsa
+end subroutine initGBSA
 
 subroutine gbsa_info(iunit,gbm)
    implicit none

@@ -85,7 +85,7 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
       allocate(xyznew(3,mol0%n,nall),rot(3,0:nall),de(nall), &
          &         ecnf(0:nall),double(0:nall), &
          &         imass(mol0%n),ecnfnew(0:nall))
-      call qmdfftoscreen(mol0%n,mol0%at,mol0%xyz,nall,xyznew)
+      call qmdfftoscreen(mol0%n,mol0%at,mol0%xyz,nall,xyznew,allocated(calc%solv))
    else  ! the ensemble exists
       atmp='xtbscreen.xyz'
       call cqpath_read_pathfile_parameter(atmp,iz1,iz2,nall)
@@ -263,9 +263,8 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
 end subroutine screen
 
 ! call QMDFF MD to generate conformer ensemble
-subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
+subroutine qmdfftoscreen(n,at,xyz,nall,xyzall,lsolv)
    use iso_c_binding, only : c_null_char
-   use xtb_solv_gbobc, only: lgbsa
    use xtb_setparam
    implicit none
    integer  :: n
@@ -273,6 +272,7 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
    integer  :: nall
    real(wp) :: xyzall(3,n,nall)
    real(wp) :: xyz   (3,n)
+   logical, intent(in) :: lsolv
 
    character(80) :: atmp
    character(2)  :: a2
@@ -293,7 +293,7 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall)
    do i=1,ntemp_siman
       write(atmp,'(''qmdff coord -rd -md '',i4,'' -temp '',F6.1, &
          &   '' > tmp'')') idint(time_md),temp2
-      if(lgbsa) &
+      if(lsolv) &
          &   write(atmp,'(''qmdff coord -rd -md '',i4,'' -temp '',F6.1, &
          &   '' -gbsa '',a20,'' > tmp'')') idint(time_md),temp2,solvent
       write(*,*)'QMDFF call:',trim(atmp)
