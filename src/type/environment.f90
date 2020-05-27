@@ -246,7 +246,11 @@ subroutine getLog(self, message)
       do iLog = self%nLog, 1, -1
          write(buffer, '("-", i0, "-", 1x, a)') iLog, self%log(iLog)%message
          deallocate(self%log(iLog)%message)
-         message = message // new_line('a') // trim(buffer)
+         if (len_trim(message) > 0) then
+            message = message // new_line('a') // trim(buffer)
+         else
+            message = trim(buffer)
+         end if
       end do
       self%nLog = 0
    end if

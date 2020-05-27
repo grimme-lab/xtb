@@ -38,6 +38,7 @@ module xtb_api_calculator
    public :: loadGFNFF_api, loadGFN0xTB_api, loadGFN1xTB_api, loadGFN2xTB_api
    public :: setSolvent_api, releaseSolvent_api
    public :: setExternalCharges_api, releaseExternalCharges_api
+   public :: setAccuracy_api, setElectronicTemp_api, setMaxIter_api
 
 
    !> Void pointer to single point calculator
@@ -509,6 +510,124 @@ subroutine releaseExternalCharges_api(venv, vcalc) &
    end if
 
 end subroutine releaseExternalCharges_api
+
+
+subroutine setAccuracy_api(venv, vcalc, accuracy) &
+      & bind(C, name="xtb_setAccuracy")
+   character(len=*), parameter :: source = 'xtb_api_setAccuracy'
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vcalc
+   type(VCalculator), pointer :: calc
+   real(c_double), value, intent(in) :: accuracy
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vcalc)) then
+         call env%ptr%error("Singlepoint calculator is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vcalc, calc)
+
+      if (.not.allocated(calc%ptr)) then
+         call env%ptr%error("Setting accuracy not possible, no calculator loaded", &
+            & source)
+         return
+      end if
+
+      if (accuracy < 1.e-4_c_double) then
+         call env%ptr%warning("We cannot provide this level of accuracy, "//&
+            & "resetted accuracy to 0.0001", source)
+         calc%ptr%accuracy = 1.e-4_wp
+      else if (accuracy > 1.e+3_c_double) then
+         call env%ptr%warning("We cannot provide this level of accuracy, "//&
+            & "resetted accuracy to 1000", source)
+         calc%ptr%accuracy = 1.e+3_wp
+      else
+         calc%ptr%accuracy = accuracy
+      end if
+
+   end if
+
+end subroutine setAccuracy_api
+
+
+subroutine setMaxIter_api(venv, vcalc, maxiter) &
+      & bind(C, name="xtb_setMaxIter")
+   character(len=*), parameter :: source = 'xtb_api_setMaxIter'
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vcalc
+   type(VCalculator), pointer :: calc
+   integer(c_int), value, intent(in) :: maxiter
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vcalc)) then
+         call env%ptr%error("Singlepoint calculator is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vcalc, calc)
+
+      if (.not.allocated(calc%ptr)) then
+         call env%ptr%error("Setting accuracy not possible, no calculator loaded", &
+            & source)
+         return
+      end if
+
+      select type(xtb => calc%ptr)
+      class default
+         call env%ptr%warning("Cannot set iterations for non-iterative method", &
+            & source)
+      type is(TxTBCalculator)
+         xtb%maxiter = max(maxiter, 1)
+      end select
+
+   end if
+
+end subroutine setMaxIter_api
+
+
+subroutine setElectronicTemp_api(venv, vcalc, temperature) &
+      & bind(C, name="xtb_setElectronicTemp")
+   character(len=*), parameter :: source = 'xtb_api_setElectronicTemp'
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vcalc
+   type(VCalculator), pointer :: calc
+   real(c_double), value, intent(in) :: temperature
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vcalc)) then
+         call env%ptr%error("Singlepoint calculator is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vcalc, calc)
+
+      if (.not.allocated(calc%ptr)) then
+         call env%ptr%error("Setting accuracy not possible, no calculator loaded", &
+            & source)
+         return
+      end if
+
+      select type(xtb => calc%ptr)
+      class default
+         call env%ptr%warning("Calculator does not support electronic temperature", &
+            & source)
+      type is(TxTBCalculator)
+         xtb%etemp = max(temperature, 1.0e-6_c_double)
+      end select
+
+   end if
+
+end subroutine setElectronicTemp_api
 
 
 end module xtb_api_calculator

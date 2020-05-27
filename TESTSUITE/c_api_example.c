@@ -57,6 +57,9 @@ main (int argc, char **argv)
    }
 
    xtb_loadGFN2xTB(env, mol, calc, NULL);
+   xtb_setAccuracy(env, calc, 1.0);
+   xtb_setElectronicTemp(env, calc, 300.0);
+   xtb_setMaxIter(env, calc, 30);
    if (xtb_checkEnvironment(env)) {
       xtb_showEnvironment(env, NULL);
       return 3;
