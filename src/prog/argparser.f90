@@ -102,6 +102,8 @@ subroutine initArgument(self, iArg)
    integer, intent(in) :: iArg
 
    integer :: length
+   character(len=*), parameter :: flagchars = &
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-'
 
    self%unused = .true.
 
@@ -110,7 +112,8 @@ subroutine initArgument(self, iArg)
    call get_command_argument(iArg, self%raw)
 
    inquire(file=self%raw, exist=self%isFile)
-   self%isFlag = index(self%raw, '-') == 1
+   self%isFlag = index(self%raw, '-') == 1 &
+      & .and. (len(self%raw) > 2 .or. verify(self%raw, flagchars) == 0)
 
 end subroutine initArgument
 
