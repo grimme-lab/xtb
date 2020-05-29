@@ -120,7 +120,7 @@ module xtb_solv_gbobc
       real(wp) :: gshift = 0.0_wp
 !     offset parameter (fitted)
       real(wp) :: soset = 0.0_wp
-      real(wp) :: dum = 0.0_wp
+      real(wp) :: alpha = 0.0_wp
 !     Surface tension (mN/m=dyn/cm)
       real(wp) :: gamscale(94) = 0.0_wp
 !     dielectric descreening parameters
@@ -155,6 +155,8 @@ module xtb_solv_gbobc
       real(wp) :: kappa = 0._wp
       !> SASA grid size
       integer :: nangsa = 230
+      !> β = 1 / ε, we save αβ because they are always used together
+      real(wp) :: alpbet = 0.0_wp
    end type gbsa_model
 
    type(gbsa_model), private :: gbm
@@ -177,7 +179,7 @@ module xtb_solv_gbobc
 
 contains
 
-subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
+subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,alpha, &
       &                           gamscale,sx,tmp)
    implicit none
    !> Dielectric data
@@ -193,7 +195,7 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
    real(wp), intent(in), optional :: gshift
    !> offset parameter (fitted)
    real(wp), intent(in), optional :: soset
-   real(wp), intent(in), optional :: dum
+   real(wp), intent(in), optional :: alpha
    !> Surface tension (mN/m=dyn/cm)
    real(wp), intent(in), optional :: gamscale(94)
    !> dielectric descreening parameters
@@ -207,7 +209,7 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,dum, &
    if (present(rprobe))  custom_solvent%rprobe   = rprobe
    if (present(gshift))  custom_solvent%gshift   = gshift
    if (present(soset))   custom_solvent%soset    = soset
-   if (present(dum))     custom_solvent%dum      = dum
+   if (present(alpha))   custom_solvent%alpha    = alpha
    if (present(gamscale))custom_solvent%gamscale = gamscale
    if (present(sx))      custom_solvent%sx       = sx
    if (present(tmp))     custom_solvent%tmp      = tmp
@@ -396,7 +398,7 @@ subroutine new_gbsa_model(gbm,solvent,mode,temp,ngrida)
    gbm%rprobe = solvent%rprobe
    gbm%gshift = solvent%gshift
    gbm%soset  = solvent%soset*0.1_wp*aatoau
-   gbm%dum    = solvent%dum
+   gbm%alpha  = solvent%alpha
    do i = 1, 94
       gbm%gamscale(i) = solvent%gamscale(i)
       gbm%sx(i)       = solvent%sx(i)
@@ -438,8 +440,15 @@ subroutine new_gbsa_model(gbm,solvent,mode,temp,ngrida)
    gamma_in=(1.0d-5)*autokcal/mNmkcal
 
 !  dielectric scaling
+   ! ALPB asymmetric correction
+   if (gbm%alpha > 0.0_wp) then
+      gbm%alpbet = gbm%alpha / gbm%epsv
+   else
+      gbm%alpbet = 0.0_wp
+   end if
+
    gbm%epsu=1.0_wp
-   gbm%keps=((1.0_wp/gbm%epsv)-(1.0_wp/gbm%epsu))
+   gbm%keps=((1.0_wp/gbm%epsv)-(1.0_wp/gbm%epsu)) / (1.0_wp + gbm%alpbet)
 
 !  set the salt term
    if(gbm%lsalt) then
@@ -465,7 +474,7 @@ subroutine read_gbsa_parameters(ifile, param)
    read(ifile,*) param%rprobe
    read(ifile,*) param%gshift
    read(ifile,*) param%soset
-   read(ifile,*) param%dum
+   read(ifile,*) param%alpha
    do i = 1, 94
       read(ifile,*) param%gamscale(i), param%sx(i), param%tmp(i)
    enddo
@@ -585,6 +594,10 @@ pure subroutine compute_amat(this,Amat)
          Amat(i,i) = Amat(i,i) + gbm%keps*bp
       enddo
 
+      if (gbm%alpbet > 0.0_wp) then
+         Amat(:, :) = Amat + gbm%alpbet / this%aDet
+      end if
+
    else
 
       iepsu=1.0_wp/gbm%epsu
@@ -694,6 +707,10 @@ pure subroutine compute_fgb(this,fgb,fhb)
       do i = 1, this%nat
          fgb(i,i)=hkeps/this%brad(i)
       enddo
+
+      if (gbm%alpbet > 0.0_wp) then
+         fgb(:, :) = fgb + gbm%alpbet / this%aDet
+      end if
 
    endif
 
@@ -935,6 +952,10 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
          !gradient = gradient + this%brdr(:,:,i) * grddbi*q(i)
       enddo
 
+      if (gbm%alpbet > 0.0_wp) then
+         egb = egb + sum(q)**2 * gbm%alpbet / this%aDet
+      end if
+
    else
       ! GB-SE energy and gradient
 
@@ -1131,6 +1152,10 @@ subroutine compute_brad_sasa(this,xyz)
 
    ! compute the HB term
    if (lhb) call compute_fhb(this,xyz)
+
+   if (gbm%alpbet > 0.0_wp) then
+      call getADet(this%nat, xyz, this%vdwr, this%aDet)
+   end if
 
 end subroutine compute_brad_sasa
 
@@ -1770,5 +1795,50 @@ pure subroutine update_dist_gbsa(this,xyz)
 end subroutine update_dist_gbsa
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+subroutine getADet(nAtom, xyz, rad, aDet)
+   use xtb_mctc_math, only : matDet3x3
+
+   !> Number of atoms
+   integer, intent(in) :: nAtom
+
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(:, :)
+
+   !> Atomic radii
+   real(wp), intent(in) :: rad(:)
+
+   !> Shape descriptor of the structure
+   real(wp), intent(out) :: aDet
+
+   integer :: iat
+   real(wp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3)
+   real(wp), parameter :: tof = 2.0_wp/5.0_wp, unity(3, 3) = reshape(&
+      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
+      & [3, 3])
+
+   totRad3 = 0.0_wp
+   center(:) = 0.0_wp
+   do iat = 1, nAtom
+      rad2 = rad(iat) * rad(iat)
+      rad3 = rad2 * rad(iat)
+      totRad3 = totRad3 + rad3
+      center(:) = center + xyz(:, iat) * rad3
+   end do
+   center = center / totRad3
+
+   inertia(:, :) = 0.0_wp
+   do iat = 1, nAtom
+      rad2 = rad(iat) * rad(iat)
+      rad3 = rad2 * rad(iat)
+      vec(:) = xyz(:, iat) - center
+      r2 = sum(vec**2)
+      inertia(:, :) = inertia + rad3 * ((r2 + tof*rad2) * unity &
+         & - spread(vec, 1, 3) * spread(vec, 2, 3))
+   end do
+
+   aDet = sqrt(matDet3x3(inertia)**(1.0_wp/3.0_wp)/(tof*totRad3))
+
+end subroutine getADet
 
 end module xtb_solv_gbobc

@@ -105,6 +105,9 @@ module xtb_type_solvent
 ! ------------------------------------------------------------------------
 !     GB energy gradient
       real(wp),allocatable :: dbrdp(:)
+
+      !> Shape descriptor
+      real(wp) :: aDet
    end type TSolvent
 
 contains
