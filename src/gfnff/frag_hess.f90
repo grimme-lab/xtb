@@ -31,7 +31,7 @@ module xtb_gfnff_fraghess
 
    interface
      function shortest_distance(nspin, start, goal, neighbours, input_distances, visited, precessor)
-      use iso_fortran_env, only : wp => real64
+        use xtb_mctc_accuracy, only : wp
         implicit none
         real(wp)             :: shortest_distance
         integer, intent(in)  :: nspin
@@ -49,7 +49,7 @@ module xtb_gfnff_fraghess
         real(wp) :: distance(nspin)
       end function shortest_distance
       subroutine eigsort4(lab,ew,u)
-      use iso_fortran_env, only : sp => real32
+         use xtb_mctc_accuracy, only : sp
          implicit none
          integer  :: ii,k, j, i
          real(sp) :: pp, hilf
@@ -62,7 +62,7 @@ module xtb_gfnff_fraghess
    contains
 
      subroutine fragmentize(nspin, at, xyz, maxsystem, maxmagnat, jab, neigh, ispinsyst, nspinsyst, nsystem)
-      use iso_fortran_env, only : wp => real64, sp => real32
+        use xtb_mctc_accuracy, only : wp, sp
         implicit none
 
         !Dummy Arguments:
@@ -103,7 +103,7 @@ module xtb_gfnff_fraghess
         real(wp) :: maxdist
         real(wp) :: cur_dist
         real(wp) :: max_link
-        real(wp) :: box_xyz(3)
+        real(wp) :: box_xyz(3), vec(3)
         real(wp) :: frag_cma(3,maxsystem)
         logical  :: equal(maxsystem)
         logical  :: visited(nspin)
@@ -177,7 +177,8 @@ module xtb_gfnff_fraghess
            !nfrag_ini=nspinsyst(i)
            do j = i+1, nci_ini
               nfrag_ini=nspinsyst(j)
-              if (norm2(grid(:,i)).ne.0.and.norm2(grid(:,i)-grid(:,j)).eq.0.and..not.equal(j)) then
+              vec(:) = grid(:,i)-grid(:,j)
+              if (norm2(grid(:,i)).ne.0.and.norm2(vec).eq.0.and..not.equal(j)) then
                 eq_frag = eq_frag + 1
                 do k = 1, nfrag_ini
                    ispinsyst(nspinsyst(i)+k,i) = ispinsyst(k,j)
@@ -338,7 +339,7 @@ module xtb_gfnff_fraghess
      ! hess     - diagonalized hessian (eigenvectors), overwritten
      ! eig_calc - diagonalized hessian (eigenvalues)
      !---------------------------------------------------------------------------------------------
-      use iso_fortran_env, only : wp => real64, sp => real32
+     use xtb_mctc_accuracy, only : wp, sp
         implicit none
         !Dummy Arguments
         integer,  intent(in)     :: nat                          ! # of atoms
@@ -490,7 +491,7 @@ end function shortest_distance
 
 
 subroutine eigsort4(lab,u,ew)
-      use iso_fortran_env, only : sp => real32
+   use xtb_mctc_accuracy, only : wp, sp
    implicit none
    integer  :: ii,k, j, i
    real(sp) :: pp, hilf
@@ -521,7 +522,7 @@ subroutine eigsort4(lab,u,ew)
 end subroutine eigsort4
 
 pure subroutine com(n,at,xyz,sum3)
-   use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    !Dummy
    integer, intent(in)   :: n

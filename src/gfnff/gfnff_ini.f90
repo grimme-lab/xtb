@@ -1859,7 +1859,7 @@ contains
 
 !> @brief charge scaling function
 pure elemental function zeta(at,q)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
    implicit none
    integer ,intent(in) :: at
    real(wp),intent(in) :: q

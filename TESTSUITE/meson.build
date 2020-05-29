@@ -44,6 +44,7 @@ xtb_test = executable(
   'xtb_test',
   sources: xtb_test,
   dependencies: xtb_dep_static,
+  link_language: 'fortran',
 )
 
 # some very basic checks to see if the executable reacts at all

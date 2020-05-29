@@ -694,7 +694,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine gfnff_hbset(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(inout) :: topo
@@ -766,7 +766,7 @@ subroutine gfnff_hbset(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
@@ -814,7 +814,7 @@ subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
 end subroutine bond_hbset
 
 subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn,topo,hbthr1,hbthr2)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
@@ -1061,7 +1061,7 @@ end subroutine bond_hb_AHB_set0
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(inout) :: topo

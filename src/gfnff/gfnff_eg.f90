@@ -745,7 +745,7 @@ contains
       end subroutine egbond_hb
 
       subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo)
-      use iso_fortran_env, only : wp => real64
+      use xtb_mctc_accuracy, only : wp
       implicit none
       !Dummy
       type(TGFFTopology), intent(in) :: topo
@@ -3080,7 +3080,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g,param)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !> logCN derivative saved in dlogCN array
 subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2,param)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       implicit none
       type(TGFFData), intent(in) :: param
       integer, intent(in)  :: n
@@ -3162,7 +3162,7 @@ subroutine gfnff_dlogcoord(n,at,xyz,rab,logCN,dlogCN,thr2,param)
     contains
 
 pure elemental function create_logCN(cn,param) result(count)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       type(TGFFData), intent(in) :: param
    real(wp), intent(in) :: cn
    real(wp) :: count
@@ -3170,7 +3170,7 @@ pure elemental function create_logCN(cn,param) result(count)
 end function create_logCN
 
 pure elemental function create_dlogCN(cn,param) result(count)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
       type(TGFFData), intent(in) :: param
    real(wp), intent(in) :: cn
    real(wp) :: count
@@ -3178,7 +3178,7 @@ pure elemental function create_dlogCN(cn,param) result(count)
 end function create_dlogCN
 
 pure elemental function create_erfCN(k,r,r0) result(count)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
    real(wp), intent(in) :: k
    real(wp), intent(in) :: r
    real(wp), intent(in) :: r0
@@ -3189,7 +3189,7 @@ pure elemental function create_erfCN(k,r,r0) result(count)
 end function create_erfCN
 
 pure elemental function create_derfCN(k,r,r0) result(count)
-      use iso_fortran_env, only : wp => real64
+use xtb_mctc_accuracy, only : wp
    real(wp), intent(in) :: k
    real(wp), intent(in) :: r
    real(wp), intent(in) :: r0

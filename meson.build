@@ -74,6 +74,8 @@ lib_deps = []
 
 subdir('meson')
 
+with_library = fc.get_id() != 'pgi'
+
 ## ========================================== ##
 ## Sources
 ## ========================================== ##
@@ -101,15 +103,6 @@ xtb_common = static_library(
   pic: true,
 )
 
-xtb_lib = library(
-  meson.project_name(),
-  version: meson.project_version(),
-  dependencies: lib_deps,
-  include_directories: incdir,
-  link_whole: xtb_common,
-  install: install,
-)
-
 xtb_dep_static = declare_dependency(
   link_with: xtb_common,
   include_directories: [incdir, xtb_common.private_dir_include()],
@@ -117,12 +110,23 @@ xtb_dep_static = declare_dependency(
   version: meson.project_version(),
 )
 
-xtb_dep = declare_dependency(
-  link_with: xtb_lib,
-  include_directories: incdir,
-  dependencies: lib_deps,
-  version: meson.project_version(),
-)
+if with_library
+   xtb_lib = library(
+     meson.project_name(),
+     version: meson.project_version(),
+     dependencies: lib_deps,
+     include_directories: incdir,
+     link_whole: xtb_common,
+     install: install,
+   )
+
+   xtb_dep = declare_dependency(
+     link_with: xtb_lib,
+     include_directories: incdir,
+     dependencies: lib_deps,
+     version: meson.project_version(),
+   )
+endif
 
 xtb_exe = executable(
   meson.project_name(),
