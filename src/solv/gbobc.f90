@@ -263,6 +263,7 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,verbose)
          case default
             call env%error('solvent : '//trim(sname)//&
                ' not parametrized for GFN2-xTB Hamiltonian', source)
+            return
          case('acetone');      gfn_solvent = gfn2_acetone
          case('acetonitrile'); gfn_solvent = gfn2_acetonitrile
          case('benzene');      gfn_solvent = gfn2_benzene
@@ -288,6 +289,7 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,verbose)
          case default
             call env%error('solvent : '//trim(sname)//&
                ' not parametrized for GFN-xTB Hamiltonian', source)
+            return
          case('acetone');      gfn_solvent = gfn1_acetone
          case('acetonitrile'); gfn_solvent = gfn1_acetonitrile
          case('benzene');      gfn_solvent = gfn1_benzene
