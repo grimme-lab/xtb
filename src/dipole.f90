@@ -92,7 +92,7 @@ subroutine Dints(n,nbf,xyz,S1,S2,S3,basis)
 end subroutine Dints
 
 subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    implicit none
    integer, intent(in) :: n

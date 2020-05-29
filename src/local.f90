@@ -530,7 +530,7 @@ end subroutine local
 
 ! determine type of LMO
 subroutine lmotype(n,at,xyz,ex,ey,ez,ia1,ia2,xcen,modi,pithr,typ)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    integer, intent(in)    :: n,ia1,ia2,at(n)
    integer, intent(out)   :: typ
@@ -560,7 +560,7 @@ subroutine lmotype(n,at,xyz,ex,ey,ez,ia1,ia2,xcen,modi,pithr,typ)
       r1=sqrt((xyz(1,ia1)-ex)**2+(xyz(2,ia1)-ey)**2+(xyz(3,ia1)-ez)**2)
       r2=sqrt((xyz(1,ia2)-ex)**2+(xyz(2,ia2)-ey)**2+(xyz(3,ia2)-ez)**2)
       r=r1+r2
-      r0=norm2(xyz(:,ia1)-xyz(:,ia2))
+      r0=sqrt(sum((xyz(:,ia1)-xyz(:,ia2))**2))
       if(r/r0.gt.1.04)then
          typ=3  ! pi
          if(xcen.gt.pithr) typ=4
@@ -704,7 +704,7 @@ subroutine lmoneigh(n,rk,ecent,aneigh,neigh)
 end subroutine lmoneigh
 
 subroutine atomneigh(n,nat,xyz,ecent,neigh)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    integer, intent(in)    :: n,nat
    integer, intent(inout) :: neigh(2,n)
@@ -736,7 +736,7 @@ pure function bndcheck(nat,list,i1,i2) result(check)
 end function bndcheck
 
 subroutine irand3(n1,n2,n3)
-   use iso_fortran_env, sp => real32
+   use xtb_mctc_accuracy, only : sp
    integer,intent(out) :: n1,n2,n3
    integer  :: irand
    real(sp) :: x
@@ -801,7 +801,7 @@ pure subroutine threeoutfour(i1,i2,j1,j2,n1,n2,n3)
 end subroutine threeoutfour
 
 pure subroutine calcrotation(x,ori,vec,phi)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
 
    integer i,j
@@ -836,7 +836,7 @@ pure subroutine calcrotation(x,ori,vec,phi)
 end subroutine calcrotation
 
 pure subroutine piorient(a,b,flip)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    real(wp),intent(in)  :: a(3),b(3)
    logical, intent(out) :: flip

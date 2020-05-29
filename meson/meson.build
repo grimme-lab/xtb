@@ -43,6 +43,11 @@ elif fc.get_id() == 'intel'
     add_project_link_arguments('-static', language: 'fortran')
     add_project_link_arguments('-static', language: 'c') # icc will do linking
   endif
+elif fc.get_id() == 'pgi'
+  add_project_arguments(
+    '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
+    language: 'fortran'
+  )
 endif
 
 # fix compiliation problems with of symmetry/symmetry_i.c
@@ -64,6 +69,9 @@ if get_option('la_backend') == 'mkl'
     elif fc.get_id() == 'intel'
       libmkl_exe = [fc.find_library('mkl_intel_lp64')]
       libmkl_exe += fc.find_library('mkl_intel_thread')
+    elif fc.get_id() == 'pgi'
+      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      libmkl_exe += fc.find_library('mkl_pgi_thread')
     endif
     libmkl_exe += fc.find_library('mkl_core')
     lib_deps += mkl_rt_dep

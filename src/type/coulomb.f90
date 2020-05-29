@@ -388,7 +388,7 @@ subroutine getCoulombMatrixCluster(mol, itbl, jmat)
       ii = itbl(1, iat)
       do jat = 1, iat-1
          jj = itbl(1, jat)
-         r1 = norm2(mol%xyz(:, jat) - mol%xyz(:, iat))
+         r1 = sqrt(sum((mol%xyz(:, jat) - mol%xyz(:, iat))**2))
          rterm = 1.0_wp/r1
          do ish = 1, itbl(2, iat)
             do jsh = 1, itbl(2, jat)

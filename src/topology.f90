@@ -204,7 +204,7 @@ subroutine topologyToNeighbourList(topo, neighList, mol)
       call topo%get_item(ii, iBond)
       iat = min(iBond(1), iBond(2))
       jat = max(iBond(1), iBond(2))
-      r2 = norm2(neighList%coords(:, iat) - neighList%coords(:, jat))
+      r2 = sum((neighList%coords(:, iat) - neighList%coords(:, jat))**2)
       neighList%neighs(iat) = neighList%neighs(iat) + 1
       if (neighList%neighs(iat) > mNeigh) then
          mNeigh = 2*mNeigh

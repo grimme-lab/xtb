@@ -44,7 +44,7 @@ subroutine constrain_zaxis(fix,n,at,xyz,g,e)
 end subroutine constrain_zaxis
 
 subroutine constrain_pos(fix,n,at,xyz,g,e)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
    type(fix_setvar),intent(in) :: fix
@@ -86,7 +86,7 @@ end function lin
 end subroutine constrain_pos
 
 subroutine qpothess2(fix,n,at,xyz,h)
-   use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
    type(fix_setvar),intent(in) :: fix
@@ -163,7 +163,7 @@ end function lin
 end subroutine qpothess2
 
 subroutine constrain_dist(fix,n,at,xyz,g,e)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
    type(fix_setvar),intent(in) :: fix
@@ -206,7 +206,7 @@ subroutine constrain_dist(fix,n,at,xyz,g,e)
 end subroutine constrain_dist
 
 subroutine constrain_angle(fix,n,at,xyz,g,e)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    use xtb_basic_geo
    implicit none
@@ -263,7 +263,7 @@ subroutine constrain_angle(fix,n,at,xyz,g,e)
 end subroutine constrain_angle
 
 subroutine constrain_dihedral(fix,n,at,xyz,g,e)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_type_setvar
    use xtb_basic_geo
@@ -309,7 +309,7 @@ subroutine constrain_dihedral(fix,n,at,xyz,g,e)
 end subroutine constrain_dihedral
 
 subroutine constrain_pot(fix,n,at,xyz,g,e)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
    type(constr_setvar),intent(in) :: fix
@@ -327,7 +327,7 @@ subroutine constrain_pot(fix,n,at,xyz,g,e)
 end subroutine constrain_pot
 
 subroutine constrain_hess(fix,n,at,xyz0,Hess)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_setvar
    implicit none
    type(constr_setvar),intent(in) :: fix

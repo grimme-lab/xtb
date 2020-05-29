@@ -26,7 +26,7 @@ module xtb_mctc_namegen
 
    character(len=1), parameter :: delimiter = '-'
 
-   character(len=11), parameter :: tWord(61) = [ &
+   character(len=*), parameter :: tWord(61) = [ &
       &"talkative  ", "tall       ", "tame       ", "tan        ", "tangible   ", &
       &"tart       ", "tasty      ", "tattered   ", "taut       ", "tedious    ", &
       &"teeming    ", "tempting   ", "tender     ", "tense      ", "tepid      ", &
@@ -41,7 +41,7 @@ module xtb_mctc_namegen
       &"trustworthy", "trusty     ", "truthful   ", "tubby      ", "turbulent  ", &
       &"twin       "]
 
-   character(len=9), parameter :: bWord(53) = [ &
+   character(len=*), parameter :: bWord(53) = [ &
       & "back      ", "backs     ", "bail      ", "balance   ", "balances  ", &
       & "balloon   ", "balloons  ", "ban       ", "bans      ", "bandage   ", &
       & "bandages  ", "bank      ", "bare      ", "bargain   ", "battle    ", &

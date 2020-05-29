@@ -222,8 +222,7 @@ pure subroutine dtrf2(s,li,lj)
    real(wp),intent(inout) :: s(6,6)
    integer, intent(in)    :: li,lj
    ! CAO-AO transformation
-   real(wp) :: trafo(6,6)
-   parameter (trafo = reshape((/ & ! copied from scf.f, simplyfied
+   real(wp), parameter :: trafo(6,6) = reshape((/ & ! copied from scf.f, simplyfied
       ! --- dS
       & sqrt(1.0_wp/5.0_wp), &
       & sqrt(1.0_wp/5.0_wp), &
@@ -239,7 +238,7 @@ pure subroutine dtrf2(s,li,lj)
       ! --- rest
       & 0.0_wp,0.0_wp,0.0_wp,1.0_wp,0.0_wp,0.0_wp, &
       & 0.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp,0.0_wp, &
-      & 0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp /), shape(trafo)))
+      & 0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp /), shape(trafo))
 
    real(wp) s2(6,6),sspher,dum(6,6)
    integer ii,jj,m,n

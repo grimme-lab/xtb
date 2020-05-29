@@ -684,7 +684,7 @@ subroutine build_wdispmat(dispm,nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
 !        oor6  = 1.0_wp/(r2**3 + cutoff**6 )
 !        oor8  = 1.0_wp/(r2**4 + cutoff**8 )
 !        oor10 = 1.0_wp/(r2**5 + cutoff**10)
-         r = norm2(xyz(:,j)-xyz(:,i))
+         r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
          if (r.gt.rthr) cycle
          oor6  = fdmpr_bj( 6,r,cutoff)
          oor8  = fdmpr_bj( 8,r,cutoff)

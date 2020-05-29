@@ -221,7 +221,7 @@ end subroutine sdavid2
 subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
    use xtb_mctc_accuracy, only : wp => sp
    use xtb_mctc_lapack, only : lapack_syevd
-   use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot, blas_spmv
+   use xtb_mctc_blas, only : blas_copy, blas_axpy, blas_dot, mctc_spmv
    implicit none
    logical, intent(in) :: pr
    logical,parameter :: ini = .false.
@@ -270,7 +270,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
 
    ! H * C for initialization
    call smwrite(n,lun1,C(1,1),1)
-   call blas_spmv('U',n,  1.0_wp,HP, C(:,1),1,0.0_wp,vecf2,1)
+   call mctc_spmv(HP, C(:,1), vecf2)
    call smwrite(n,lun2,vecf2,1)
 
    ! aufbau des iideks feldes
@@ -374,7 +374,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
       endif
 
       ! H * C
-      call blas_spmv('U',n,  1.0_wp,HP, vecf1,1,0.0_wp,vecf2,1)
+      call mctc_spmv(HP, vecf1, vecf2)
 
       call smwrite(n,lun2,vecf2,memlun2+1)
 

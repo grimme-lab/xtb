@@ -38,7 +38,7 @@ module xtb_scc_core
    public :: shellPoly, h0scal
 
 
-   integer, private, parameter :: mmm(*)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
+   integer, private, parameter :: mmm(20)=(/1,2,2,2,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4/)
 
 
 contains

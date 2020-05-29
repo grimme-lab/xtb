@@ -36,12 +36,14 @@ module xtb_xtb_gfn0
       module procedure :: initHamiltonian
    end interface initGFN0
 
+   real(wp), parameter :: enshell(4) = [0.6_wp, -0.1_wp, -0.2_wp, -0.2_wp]
+   real(wp), parameter :: kshell(4) = [2.0000000_wp, 2.4868000_wp, 2.2700000_wp, 0.6000000_wp]
 
    type(TxTBParameter), parameter :: gfn0Globals = TxTBParameter( &
-      kshell = [2.0000000_wp, 2.4868000_wp, 2.2700000_wp, 0.6000000_wp], &
+      kshell   = kshell, &
       kdiffa   = 0.0000000_wp, &
       kdiffb   =-0.1000000_wp, &
-      enshell = [0.6_wp, -0.1_wp, -0.2_wp, -0.2_wp], &
+      enshell  = enshell, &
       enscale4 = 4.0000000_wp, &
       ipeashift= 1.7806900_wp, &
       zcnf     = 0.0537000_wp, &
