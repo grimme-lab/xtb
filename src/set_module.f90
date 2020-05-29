@@ -185,13 +185,15 @@ subroutine write_set_opt(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"opt")') flag
-   write(ictrl,'(3x,"engine=")',advance='no')
-   select case(opt_engine)
-   case default;            write(ictrl,'("unknown")')
-   case(p_engine_rf);       write(ictrl,'("rf")')
-   case(p_engine_lbfgs);    write(ictrl,'("lbfgs")')
-   case(p_engine_inertial); write(ictrl,'("inertial")')
-   end select
+   if (allocated(opt_engine)) then
+      write(ictrl,'(3x,"engine=")',advance='no')
+      select case(opt_engine)
+      case default;            write(ictrl,'("unknown")')
+      case(p_engine_rf);       write(ictrl,'("rf")')
+      case(p_engine_lbfgs);    write(ictrl,'("lbfgs")')
+      case(p_engine_inertial); write(ictrl,'("inertial")')
+      end select
+   end if
    if (allocated(opt_outfile)) &
       write(ictrl,'(3x,"output=",a)')  opt_outfile
    if (allocated(opt_logfile)) &
