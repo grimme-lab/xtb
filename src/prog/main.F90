@@ -218,7 +218,11 @@ subroutine xtbMain(env, argParser)
    end select
 
    if (.not.allocated(xcontrol)) then
-      xcontrol = fname
+      if (copycontrol) then
+         xcontrol = 'xtb.inp'
+      else
+         xcontrol = fname
+      end if
    end if
 
    call env%checkpoint("Command line argument parsing failed")
