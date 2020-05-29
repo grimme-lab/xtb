@@ -72,7 +72,7 @@ subroutine splitm(nat,at,xyz,cn)
    bond = 0
    do i=1,nat
       do j=1,nat
-         r=norm2(xyz(:,i)-xyz(:,j))
+         r=sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          rco=(atomicRad(at(i))+atomicRad(at(j)))*autoaa
          if(r.lt.2.5*rco) bond(j,i)=1
       enddo

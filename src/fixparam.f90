@@ -112,7 +112,7 @@ subroutine fix_info(iunit,n,at,xyz)
       do m = 1, shakeset%n, 2
          i = shakeset%atoms(m)
          j = shakeset%atoms(m+1)
-         val = norm2(xyz(:,i)-xyz(:,j))
+         val = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          write(iunit,'(2(i6,1x,i3,1x,a2),1x,f14.7)') &
             i,at(i),toSymbol(at(i)), &
             j,at(j),toSymbol(at(j)), &

@@ -481,7 +481,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    !  part 2: get the distance between those atoms
       i = potset%dist%atoms(ioffset+1)
       j = potset%dist%atoms(ioffset+2)
-      dist = norm2(xyz(:,i)-xyz(:,j))
+      dist = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
       if (trim(argv(narg)).eq.'auto') then
          potset%dist%val(potset%dist%n) = dist
       else
@@ -590,7 +590,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    !  part 2: get the distance between those atoms
       i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
-      dist = norm2(xyz(:,i)-xyz(:,j))
+      dist = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
       if (trim(argv(narg)).eq.'auto') then
          valconstr(nconstr) = dist
       else

@@ -134,7 +134,7 @@ subroutine setup_constrain_pot(n,at,xyz)
          do j = 1, i-1
             jj = potset%pos%atoms(j)
             ij = ij+1
-            rij = norm2(xyz(1:3,jj)-xyz(1:3,ii))
+            rij = sqrt(sum((xyz(1:3,jj)-xyz(1:3,ii))**2))
             potset%pos%val(ij) = rij
          enddo
       enddo
@@ -147,6 +147,7 @@ subroutine pot_info(iunit,n,at,xyz)
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_mctc_symbols, only : toSymbol
+   use xtb_mctc_blas, only : mctc_nrm2
    implicit none
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
@@ -186,7 +187,7 @@ subroutine pot_info(iunit,n,at,xyz)
          write(iunit,'(i6,1x,i3,1x,a2)',advance='no') ii,at(ii),toSymbol(at(ii))
          if (allocated(potset%xyz)) then
             write(iunit,'(4f14.7)') &
-               potset%xyz(:,ii)*autoaa, norm2(potset%xyz(:,ii)-xyz(:,ii))*autoaa
+               potset%xyz(:,ii)*autoaa, sqrt(sum((potset%xyz(:,ii)-xyz(:,ii))**2))*autoaa
          else
             write(iunit,'(4f14.7)') &
                xyz(:,ii)*autoaa, 0.0_wp
@@ -204,9 +205,9 @@ subroutine pot_info(iunit,n,at,xyz)
       e = 0.0_wp
       call constrain_pos(potset%pos,n,at,xyz,g,e)
       efix = efix+e
-      gfix = gfix+norm2(g)
+      gfix = gfix+mctc_nrm2(g)
       write(iunit,'(5x,a,2f14.7)')"    constraining energy/grad norm:", &
-         e,norm2(g)
+         e,mctc_nrm2(g)
 
       write(iunit,'(a)')
    endif
@@ -220,7 +221,7 @@ subroutine pot_info(iunit,n,at,xyz)
          i = potset%dist%atoms(mm)
          j = potset%dist%atoms(mm+1)
          val0 = potset%dist%val(m)
-         val = norm2(xyz(:,i)-xyz(:,j))
+         val = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          write(iunit,'(2(i6,1x,i3,1x,a2),26x,1x,2f14.7)') &
             i,at(i),toSymbol(at(i)), &
             j,at(j),toSymbol(at(j)), &
@@ -238,9 +239,9 @@ subroutine pot_info(iunit,n,at,xyz)
       e = 0.0_wp
       call constrain_dist(potset%dist,n,at,xyz,g,e)
       efix = efix+e
-      gfix = gfix+norm2(g)
+      gfix = gfix+mctc_nrm2(g)
       write(iunit,'(5x,a,2f14.7)')"    constraining energy/grad norm:", &
-         e,norm2(g)
+         e,mctc_nrm2(g)
 
       write(iunit,'(a)')
    endif
@@ -272,9 +273,9 @@ subroutine pot_info(iunit,n,at,xyz)
       e = 0.0_wp
       call constrain_angle(potset%angle,n,at,xyz,g,e)
       efix = efix+e
-      gfix = gfix+norm2(g)
+      gfix = gfix+mctc_nrm2(g)
       write(iunit,'(5x,a,2f14.7)')"    constraining energy/grad norm:", &
-         e,norm2(g)
+         e,mctc_nrm2(g)
 
       write(iunit,'(a)')
    endif
@@ -309,9 +310,9 @@ subroutine pot_info(iunit,n,at,xyz)
       e = 0.0_wp
       call constrain_dihedral(potset%dihedral,n,at,xyz,g,e)
       efix = efix+e
-      gfix = gfix+norm2(g)
+      gfix = gfix+mctc_nrm2(g)
       write(iunit,'(5x,a,2f14.7)')"    constraining energy/grad norm:", &
-         e,norm2(g)
+         e,mctc_nrm2(g)
 
       write(iunit,'(a)')
    endif
@@ -337,7 +338,7 @@ subroutine constrain_all_bonds(n,at,xyz)
 
    do i = 1, n
       do j = 1, i-1
-         r  = norm2(xyz(:,i)-xyz(:,j))
+         r  = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          r0 = rad(at(j))+rad(at(i))
          if (r.lt.f*r0) then
             ioffset = 2*potset%dist%n

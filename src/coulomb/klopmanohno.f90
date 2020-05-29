@@ -287,7 +287,7 @@ subroutine getCoulombMatrixCluster(mol, itbl, gamAverage, gExp, hardness, jmat)
       do jat = 1, iat-1
          jj = itbl(1, jat)
          jid = mol%id(jat)
-         r1 = norm2(mol%xyz(:, jat) - mol%xyz(:, iat))
+         r1 = sqrt(sum((mol%xyz(:, jat) - mol%xyz(:, iat))**2))
          rterm = 1.0_wp/r1
          do ish = 1, itbl(2, iat)
             do jsh = 1, itbl(2, jat)
@@ -422,7 +422,7 @@ pure function getRTerm(vec, gam, gExp, rTrans, alpha, scale) result(rTerm)
    rTerm = 0.0_wp
    do itr = 1, size(rTrans, dim=2)
       rij = vec + rTrans(:, itr)
-      r1 = norm2(rij)
+      r1 = sqrt(sum(rij**2))
       ! self-interaction correction
       if(r1 < eps) then
          rTerm = rTerm - 2.0_wp*alpha/sqrtpi
@@ -515,7 +515,7 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
          jj = itbl(1, jat)
          jid = mol%id(jat)
          vec(:) = mol%xyz(:, jat) - mol%xyz(:, iat)
-         r1 = norm2(vec)
+         r1 = sqrt(sum(vec**2))
          do ish = 1, itbl(2, iat)
             do jsh = 1, itbl(2, jat)
                gij = gamAverage(hardness(ish, iid), hardness(jsh, jid))
@@ -668,7 +668,7 @@ pure subroutine getRDeriv(vec, gij, gExp, rTrans, alpha, scale, dG, dS)
    do itr = 1, size(rTrans, dim=2)
       ! real contributions
       rij = vec + rTrans(:, itr)
-      r1 = norm2(rij)
+      r1 = sqrt(sum(rij**2))
       if (r1 < eps) cycle
       arg = alpha**2*r1**2
       g1 = 1.0_wp / (r1**gExp + gij**(-gExp))

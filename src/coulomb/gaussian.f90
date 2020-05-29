@@ -213,7 +213,7 @@ subroutine getCoulombMatrixCluster(mol, itbl, rad, jmat)
       do jat = 1, iat-1
          jj = itbl(1, jat)
          jid = mol%id(jat)
-         r1 = norm2(mol%xyz(:, jat) - mol%xyz(:, iat))
+         r1 = sqrt(sum((mol%xyz(:, jat) - mol%xyz(:, iat))**2))
          do ish = 1, itbl(2, iat)
             do jsh = 1, itbl(2, jat)
                gij = 1.0_wp/sqrt(rad(ish, iid)**2 + rad(jsh, jid)**2)
@@ -341,7 +341,7 @@ pure function getRTerm(vec, gam, rTrans, alpha, scale) result(rTerm)
    rTerm = 0.0_wp
    do itr = 1, size(rTrans, dim=2)
       rij = vec + rTrans(:, itr)
-      r1 = norm2(rij)
+      r1 = sqrt(sum(rij**2))
       ! self-interaction correction
       if(r1 < eps) then
          rTerm = rTerm - 2.0_wp*alpha/sqrtpi
@@ -571,7 +571,7 @@ pure subroutine getRDeriv(vec, gij, rTrans, alpha, scale, dG, dS)
    do itr = 1, size(rTrans, dim=2)
       ! real contributions
       rij = vec + rTrans(:, itr)
-      r1 = norm2(rij)
+      r1 = sqrt(sum(rij**2))
       if (r1 < eps) cycle
       arg = alpha**2*r1**2
       dd = + 2*gij*exp(-gij**2*r1**2)/(sqrtpi*r1**2) - erf(gij*r1)/(r1**3) &

@@ -85,7 +85,7 @@ subroutine generate_wsc(mol,wsc)
                   c=c+1
                   lattr(:,c) = [aa,bb,cc]
                   rw = mol%xyz(:,jj) + matmul(mol%lattice,t)
-                  dist(c)=norm2(mol%xyz(:,ii)-rw)
+                  dist(c)=sqrt(sum((mol%xyz(:,ii)-rw)**2))
                end do
             end do
          end do

@@ -269,6 +269,13 @@ subroutine terminateRun(self, message, code)
    !> Exit code for termination
    integer, intent(in), optional :: code
 
+   interface
+      subroutine terminate(code)
+         integer, intent(in) :: code
+      end subroutine terminate
+   end interface
+
+
    call self%error(message)
 
    call self%show("Program stopped due to fatal error", .true.)

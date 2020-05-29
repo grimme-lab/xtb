@@ -207,7 +207,7 @@ subroutine jpot_pcem_gfn1(jData,n,pcem,nshell,at,xyz,alphaj,Vpc)
          eh1 = 0.0_wp
          do kk = 1, pcem%n
             gj = pcem%gam(kk)
-            rab = norm2(pcem%xyz(:,kk) - xyz(:,iat))
+            rab = sqrt(sum((pcem%xyz(:,kk) - xyz(:,iat))**2))
             xj = 2.0_wp/(1./gi+1./gj)
             dum = 1.0_wp/(rab**alphaj+1._wp/xj**alphaj)**(1._wp/alphaj)
             eh1 = eh1+pcem%q(kk)*dum

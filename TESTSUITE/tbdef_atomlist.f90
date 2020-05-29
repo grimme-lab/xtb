@@ -7,10 +7,10 @@ subroutine test_atomlist
    type(TAtomList) :: atl
    character(len=:), allocatable :: string
    integer, allocatable :: list(:)
-   integer, parameter :: atoms(*) = [3,1,1,5,8,1,1,2,5]
-   logical, parameter :: lpar(*) = [.true., .false., .true., .true., .true., &
+   integer, parameter :: atoms(9) = [3,1,1,5,8,1,1,2,5]
+   logical, parameter :: lpar(9) = [.true., .false., .true., .true., .true., &
       &                             .false., .false., .true., .false.]
-   integer, parameter :: ipar(*) = [1, 3, 4, 5, 8]
+   integer, parameter :: ipar(5) = [1, 3, 4, 5, 8]
    character(len=*), parameter :: cpar = '1,3-5,8'
 
    write(stderr,'(a)') " * Testing defaults"
@@ -58,8 +58,6 @@ subroutine test_atomlist
    call atl%to_string(string)
    call assert_eq(string, '2 6:7 9')
    call atl%switch_truth
-   write(string, *) atl
-   call assert_eq(string, '1 3:5 8')
    call atl%to_list(list)
    call atl%switch_truth
    call atl%add(list)

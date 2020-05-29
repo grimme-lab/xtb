@@ -476,7 +476,7 @@ subroutine mol_calculate_distances(self)
    else
       do i = 1, self%n
          do j = 1, i-1
-            self%dist(j,i) = norm2(self%xyz(:,j)-self%xyz(:,i))
+            self%dist(j,i) = sqrt(sum((self%xyz(:,j)-self%xyz(:,i))**2))
             self%dist(i,j) = self%dist(j,i)
          enddo
          self%dist(i,i) = 0.0_wp

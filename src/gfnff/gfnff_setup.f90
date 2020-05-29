@@ -27,7 +27,6 @@ module xtb_gfnff_setup
 contains
 
 subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
-  use iso_fortran_env
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule

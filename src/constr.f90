@@ -139,7 +139,7 @@ subroutine constrallbonds(nat,at,xyz)
    do i = 1, nat
       do j =1, i
          if(i.eq.j) cycle
-         rij=norm2(xyz(:,i)-xyz(:,j))
+         rij=sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          rco=(atomicRad(at(j))+atomicRad(at(i)))*autoaa
          if(0.52917726*rij.lt.1.2*rco)then
             nconstr = nconstr + 1
