@@ -17,14 +17,7 @@
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
-static = get_option('static')
 dependencies = []
-
-if static and fc.get_id() == 'intel'
-  if get_option('la_backend') != 'mkl'
-    error('Static linked binaries are only supported with Intel MKL')
-  endif
-endif
 
 if fc.get_id() != cc.get_id()
   warning('FC and CC are not from the same vendor')
@@ -39,10 +32,6 @@ elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
   add_project_arguments('-traceback', language: 'fortran')
-  if get_option('static')
-    add_project_link_arguments('-static', language: 'fortran')
-    add_project_link_arguments('-static', language: 'c') # icc will do linking
-  endif
 elif fc.get_id() == 'pgi'
   add_project_arguments(
     '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
@@ -57,30 +46,41 @@ add_project_arguments('-D_Float128=__float128', language: 'c')
 ## LIBRARIES
 ## ========================================== ##
 
-if get_option('la_backend') == 'mkl'
+la_backend = get_option('la_backend')
+if la_backend == 'mkl' or la_backend == 'mkl-static'
   add_project_arguments('-DWITH_MKL', language: 'fortran')
+  if la_backend == 'mkl-static'
+    add_project_link_arguments('-static', language: 'fortran')
+    add_project_link_arguments('-static', language: 'c') # icc will do linking
+  endif
 
   mkl_rt_dep = fc.find_library('mkl_rt', required: true)
 
-  if static
-    if fc.get_id() == 'gcc'
-      libmkl_exe = [fc.find_library('mkl_gf_lp64')]
-      libmkl_exe += fc.find_library('mkl_gnu_thread')
-    elif fc.get_id() == 'intel'
-      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-      libmkl_exe += fc.find_library('mkl_intel_thread')
-    elif fc.get_id() == 'pgi'
-      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-      libmkl_exe += fc.find_library('mkl_pgi_thread')
-    endif
-    libmkl_exe += fc.find_library('mkl_core')
-    lib_deps += mkl_rt_dep
-    exe_deps += libmkl_exe
-  else
-    dependencies += mkl_rt_dep
+  if fc.get_id() == 'gcc'
+    libmkl_exe = [fc.find_library('mkl_gf_lp64')]
+    libmkl_exe += fc.find_library('mkl_gnu_thread')
+  elif fc.get_id() == 'intel'
+    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+    libmkl_exe += fc.find_library('mkl_intel_thread')
+  elif fc.get_id() == 'pgi'
+    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+    libmkl_exe += fc.find_library('mkl_pgi_thread')
+  endif
+  libmkl_exe += fc.find_library('mkl_core')
+  lib_deps += mkl_rt_dep
+  exe_deps += libmkl_exe
+
+elif la_backend == 'mkl-rt'
+  add_project_arguments('-DWITH_MKL', language: 'fortran')
+
+  mkl_rt_dep = fc.find_library('mkl_rt', required: true)
+  if fc.get_id() == 'intel'
+    exe_deps += fc.find_library('ifcore')
   endif
 
-elif get_option('la_backend') == 'openblas'
+  dependencies += mkl_rt_dep
+
+elif la_backend == 'openblas'
   # search for OpenBLAS
   blas_dep = dependency('openblas', required: false)
   if not blas_dep.found()
@@ -101,7 +101,7 @@ elif get_option('la_backend') == 'openblas'
     dependencies += lapack_dep
   endif
 
-elif get_option('la_backend') == 'custom'
+elif la_backend == 'custom'
   foreach lib: get_option('custom_libraries')
     dependencies += fc.find_library(lib)
   endforeach

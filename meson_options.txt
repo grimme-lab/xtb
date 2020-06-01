@@ -15,8 +15,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-option('la_backend', type: 'combo', value: 'mkl',
-       choices: ['mkl', 'openblas', 'netlib', 'custom'],
+option('la_backend', type: 'combo', value: 'mkl-static',
+       choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
        description : 'Linear algebra backend for program.')
 option('custom_libraries', type: 'array', value: [],
        description: 'libraries to load for custom linear algebra backend')
@@ -24,7 +24,5 @@ option('openmp', type: 'boolean', value: true,
        description: 'use OpenMP parallelisation')
 option('install_modules', type: 'boolean', value: false,
        description: 'Install Fortran module files to include directory.')
-option('static', type: 'boolean', value: true,
-       description: 'Produce statically linked executables.')
 option('build_name', type: 'string', value: 'unknown',
        description: 'Name of the build, will be overwritten automatically by git')
