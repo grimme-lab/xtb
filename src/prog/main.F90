@@ -85,6 +85,7 @@ module xtb_prog_main
    use xtb_disp_dftd4
    use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_convert, only : struc_convert
+   use xtb_scan
    implicit none
    private
 
