@@ -15,6 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+module xtb_scan
+contains
+
 subroutine relaxed_scan(env, mol, wfx, calc)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : fileType
@@ -135,3 +138,5 @@ subroutine relaxed_scan(env, mol, wfx, calc)
    call close_file(ilog)
 
 end subroutine relaxed_scan
+
+end module xtb_scan
