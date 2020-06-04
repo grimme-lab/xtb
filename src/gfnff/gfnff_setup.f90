@@ -208,7 +208,8 @@ subroutine gfnff_input(env, mol, topo)
       ichrg=int(sum(topo%qfrag(1:nf)))
       topo%qfrag(nf+1:mol%n)=9999
     else
-      topo%qfrag=0
+      topo%qfrag(1)=mol%chrg
+      topo%qfrag(2:mol%n)=0
     end if
   end select
 
