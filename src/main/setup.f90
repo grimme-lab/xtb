@@ -271,12 +271,14 @@ end subroutine newGFFCalculator
 
 
 subroutine newWavefunction(env, mol, calc, wfn)
+   character(len=*), parameter :: source = 'main_setup_newWavefunction'
    type(TEnvironment), intent(inout) :: env
    type(TWavefunction), intent(inout) :: wfn
    type(TxTBCalculator), intent(in) :: calc
    type(TMolecule), intent(in) :: mol
    real(wp), allocatable :: cn(:)
    type(chrg_parameter) :: chrgeq
+   logical :: exitRun
 
    allocate(cn(mol%n))
    call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
@@ -295,6 +297,12 @@ subroutine newWavefunction(env, mol, calc, wfn)
          call new_charge_model_2019(chrgeq,mol%n,mol%at)
          call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
          call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
+
+         call env%check(exitRun)
+         if (exitRun) then
+            call env%rescue("EEQ guess failed, falling back to SAD guess", source)
+            wfn%q = mol%chrg/real(mol%n,wp)
+         end if
       else
          wfn%q = mol%chrg/real(mol%n,wp)
       end if
