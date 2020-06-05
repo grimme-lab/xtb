@@ -93,6 +93,9 @@ module xtb_type_environment
       !> Return log to string
       procedure :: getLog
 
+      !> Rescue errors
+      procedure :: rescue
+
    end type TEnvironment
 
 
@@ -339,6 +342,29 @@ subroutine warning(self, message, source)
    end if
 
 end subroutine warning
+
+
+!> Catch errors and continue
+subroutine rescue(self, message, source)
+
+   !> Calculation environment
+   class(TEnvironment), intent(inout) :: self
+
+   !> Error message
+   character(len=*), intent(in) :: message
+
+   !> Source of the error message
+   character(len=*), intent(in), optional :: source
+
+   integer :: iLog
+
+   do iLog = 1, self%nLog
+      self%log(iLog)%error = self%strict
+   end do
+
+   call self%warning(message, source)
+
+end subroutine rescue
 
 
 !> Reallocate message list
