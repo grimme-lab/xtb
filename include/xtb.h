@@ -20,10 +20,12 @@
 #define XTB_API_ENTRY
 #define XTB_API_CALL
 #define XTB_API_SUFFIX__VERSION_6_3_0
+#define XTB_API_SUFFIX__VERSION_6_3_1
 
 /// Define proprocessor to allow to check for specific API features
 #define XTB_API_VERSION 10000
 #define XTB_VERSION_6_3_0   1
+#define XTB_VERSION_6_3_1   1
 
 /// Possible print levels for API calls
 #define XTB_VERBOSITY_FULL    2
