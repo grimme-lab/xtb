@@ -205,7 +205,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   !$OMP PARALLEL default(none) &
+   !$OMP PARALLEL DO default(none) &
    !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
    !$omp& nprim, primcount, alp, cont, intcut, trans, point) &
    !$omp PRIVATE (iat,jat,izp,ci,ra,rb,saw, &
@@ -214,7 +214,6 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
    !$omp reduction(+:sint,dpint,qpint,H0)
-   !$OMP DO schedule(dynamic)
    do iat = 1, nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
@@ -290,10 +289,13 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
          enddo
       enddo
    enddo
-   !$OMP END DO
-   !$OMP END PARALLEL
+   !$OMP END PARALLEL DO
 
    ! diagonal elements
+   !$omp parallel do default(none) reduction(+:H0, sint, dpint, qpint) &
+   !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell) &
+   !$omp private(iat, ra, izp, ish, ishtyp, iao, i, ii, icao, naoi, iptyp, &
+   !$omp& jah, jshtyp, jcao, ss, dd, qq, k, tmp, jao, jj)
    do iat = 1, nat
       ra = xyz(:, iat)
       izp = at(iat)
@@ -340,15 +342,16 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                   if (iao /= jao) then
                      dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
                   end if
-                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  qpint(1:6, iao, jao) = qpint(1:6, iao, jao) + qq(1:6, jj, ii)
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qpint(1:6, jao, iao) + qq(1:6, jj, ii)
                   end if
                end do
             end do
          end do
       end do
    end do
+   !$omp end parallel do
 
 end subroutine build_SDQH0
 
@@ -410,11 +413,12 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    integer :: il, jl, itr
    real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly, dshpoly(3)
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
+   real(wp), parameter :: rthr = 1600.0_wp
 
    thr2 = intcut
    point = 0.0_wp
    ! call timing(t1,t3)
-   !$OMP PARALLEL default(none) &
+   !$OMP PARALLEL DO default(none) &
    !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& ves, vs, vd, vq, &
    !$omp& intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
@@ -424,7 +428,6 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
    !$omp reduction(+:g,sigma,dhdcn)
-   !$OMP DO schedule(dynamic)
    do iat = 1,nat
       ri = xyz(:,iat)
       izp = at(iat)
@@ -464,6 +467,8 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                   rj = xyz(:,jat) + trans(:, itr)
                   rij = ri - rj
                   rij2 =  sum( rij**2 )
+
+                  if (rij2 > rthr) cycle
 
                   ! distance dependent polynomial
                   call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
@@ -526,12 +531,14 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
          enddo  ! ish : loop over shells on iat
       enddo ! jat
    enddo  ! iat
-   !$OMP END DO
-   !$OMP END PARALLEL
+   !$OMP END PARALLEL DO
    !                                                      call timing(t2,t4)
    !                                     call prtime(6,t2-t1,t4-t3,'dqint5')
 
    ! diagonal contributions
+   !$omp parallel do default(none) reduction(+:dhdcn) &
+   !$omp shared(nat, at, nshell, hData, saoshell) &
+   !$omp private(iat, izp, ish, ishtyp, iao, i, Pij)
    do iat = 1, nat
       izp = at(iat)
       do ish = 1, nShell(izp)
@@ -545,6 +552,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
          end do
       end do
    end do
+   !$omp end parallel do
 
 end subroutine build_dSDQH0
 
