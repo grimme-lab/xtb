@@ -924,6 +924,10 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, &
    zerodcn = 0.0_wp
    zetadq  = 0.0_wp
 
+   !$omp parallel do default(none) shared(zetavec, zetadcn, zetadq, zerodcn) &
+   !$omp shared(nat, atoms, zeff, gam, dispm, cn, q) &
+   !$omp private(iat, ati, zi, gi, norm, dnorm, iref, icount, twf, gw, expw, &
+   !$omp& expd, gwk, dgwk)
    do iat = 1, nat
       ati = atoms(iat)
 
@@ -973,6 +977,7 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, &
 
       end do
    end do
+   !$omp end parallel do
 
 end subroutine weight_references
 
@@ -1005,6 +1010,10 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    dc6dcn = 0.0_wp
    dc6dq = 0.0_wp
 
+   !$omp parallel do default(none) shared(c6, dc6dcn, dc6dq) &
+   !$omp shared(nat, atoms, dispm, zetavec, zetadcn, zetadq) &
+   !$omp private(iat, ati, jat, atj, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj, &
+   !$omp& iref, jref)
    do iat = 1, nat
       ati = atoms(iat)
       do jat = 1, iat
@@ -1032,6 +1041,8 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
          dc6dq(jat, iat) = dc6dqj
       end do
    end do
+   !$omp end parallel do
+
 end subroutine get_atomic_c6
 
 
@@ -1449,6 +1460,10 @@ subroutine atm_gradient_neigh &
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
 
+   !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
+   !$omp shared(mol, neighs, neighlist, par, r4r2) &
+   !$omp private(iat, ati, ij, jtr, r2ij, rij, jat, atj, ik, ktr, kat, atk, rik, &
+   !$omp& r2ik, rjk, r2jk, c6ij, cij, c6ik, c6jk, cik, cjk, scale, dE, dG, dS, dCN)
    do iat = 1, len(mol)
       ati = mol%at(iat)
       do ij = 1, neighs(iat)
@@ -1496,6 +1511,7 @@ subroutine atm_gradient_neigh &
          end do
       end do
    end do
+   !$omp end parallel do
 
 end subroutine atm_gradient_neigh
 
@@ -1916,6 +1932,10 @@ subroutine atm_gradient_latp &
 
    cutoff2 = cutoff**2
 
+   !$omp parallel do default(none) reduction(+energies, gradient, sigma, dEdcn) &
+   !$omp shared(mol, r4r2, par, trans, cutoff2) &
+   !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
+   !$omp& itr, rij, r2ij, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN)
    do iat = 1, len(mol)
       ati = mol%at(iat)
       do jat = 1, iat
@@ -1970,6 +1990,7 @@ subroutine atm_gradient_latp &
          end do
       end do
    end do
+   !$omp end parallel do
 
 end subroutine atm_gradient_latp
 

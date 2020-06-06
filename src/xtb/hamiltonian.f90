@@ -28,7 +28,7 @@ module xtb_xtb_hamiltonian
    implicit none
    private
 
-   public :: getSelfEnergy, build_SDQH0, build_dSDQH0
+   public :: getSelfEnergy, build_SDQH0, build_dSDQH0, build_dSDQH0_noreset
    public :: count_dpint, count_qpint
 
 
@@ -205,7 +205,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   !$OMP PARALLEL default(none) &
+   !$OMP PARALLEL DO default(none) &
    !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
    !$omp& nprim, primcount, alp, cont, intcut, trans, point) &
    !$omp PRIVATE (iat,jat,izp,ci,ra,rb,saw, &
@@ -214,7 +214,6 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
    !$omp reduction(+:sint,dpint,qpint,H0)
-   !$OMP DO schedule(dynamic)
    do iat = 1, nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
@@ -290,10 +289,13 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
          enddo
       enddo
    enddo
-   !$OMP END DO
-   !$OMP END PARALLEL
+   !$OMP END PARALLEL DO
 
    ! diagonal elements
+   !$omp parallel do default(none) reduction(+:H0, sint, dpint, qpint) &
+   !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell) &
+   !$omp private(iat, ra, izp, ish, ishtyp, iao, i, ii, icao, naoi, iptyp, &
+   !$omp& jah, jshtyp, jcao, ss, dd, qq, k, tmp, jao, jj)
    do iat = 1, nat
       ra = xyz(:, iat)
       izp = at(iat)
@@ -340,15 +342,16 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                   if (iao /= jao) then
                      dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd(1:3, jj, ii)
                   end if
-                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  qpint(1:6, iao, jao) = qpint(1:6, iao, jao) + qq(1:6, jj, ii)
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                     qpint(1:6, jao, iao) = qpint(1:6, jao, iao) + qq(1:6, jj, ii)
                   end if
                end do
             end do
          end do
       end do
    end do
+   !$omp end parallel do
 
 end subroutine build_SDQH0
 
@@ -403,18 +406,19 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,lin,jshmax
+   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,jshmax
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,ixyz
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
    real(wp) :: dumdum(3,10),dum(10),sdq(10,6,6),sdqg(3,19,6,6)
    integer :: il, jl, itr
    real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly, dshpoly(3)
    real(wp) :: Pij, Hij, HPij, g_xyz(3)
+   real(wp), parameter :: rthr = 1600.0_wp
 
    thr2 = intcut
    point = 0.0_wp
    ! call timing(t1,t3)
-   !$OMP PARALLEL default(none) &
+   !$OMP PARALLEL DO default(none) &
    !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& ves, vs, vd, vq, &
    !$omp& intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
@@ -424,13 +428,13 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
    !$omp reduction(+:g,sigma,dhdcn)
-   !$OMP DO schedule(dynamic)
    do iat = 1,nat
       ri = xyz(:,iat)
       izp = at(iat)
       do jat = 1,iat-1
          !           if (jat.eq.iat) cycle
          jzp = at(jat)
+
          do ish = 1,nShell(izp)
             ishtyp = hData%angShell(ish,izp)
             icao = caoshell(ish,iat)
@@ -464,6 +468,8 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                   rj = xyz(:,jat) + trans(:, itr)
                   rij = ri - rj
                   rij2 =  sum( rij**2 )
+
+                  if (rij2 > rthr) cycle
 
                   ! distance dependent polynomial
                   call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
@@ -526,12 +532,14 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
          enddo  ! ish : loop over shells on iat
       enddo ! jat
    enddo  ! iat
-   !$OMP END DO
-   !$OMP END PARALLEL
+   !$OMP END PARALLEL DO
    !                                                      call timing(t2,t4)
    !                                     call prtime(6,t2-t1,t4-t3,'dqint5')
 
    ! diagonal contributions
+   !$omp parallel do default(none) reduction(+:dhdcn) &
+   !$omp shared(nat, at, nshell, hData, saoshell) &
+   !$omp private(iat, izp, ish, ishtyp, iao, i, Pij)
    do iat = 1, nat
       izp = at(iat)
       do ish = 1, nShell(izp)
@@ -545,8 +553,202 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
          end do
       end do
    end do
+   !$omp end parallel do
 
 end subroutine build_dSDQH0
+
+
+!> Computes the gradient of the dipole/qpole integral contribution
+subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
+      & nat, nao, nbf, at, xyz, caoshell, saoshell, nprim, primcount, &
+      & alp, cont, H0, S, p, Pew, ves, vs, vd, vq, dhdcn, g, sigma)
+   integer, intent(in) :: nShell(:)
+   type(THamiltonianData), intent(in) :: hData
+   real(wp), intent(in) :: selfEnergy(:, :)
+   real(wp), intent(in) :: dSEdcn(:, :)
+   !> # of atoms
+   integer, intent(in)    :: nat
+   !> # of spherical AOs (SAOs)
+   integer, intent(in)    :: nao
+   !> # of Cartesian AOs (CAOs)
+   integer, intent(in)    :: nbf
+   !> Atomic numbers of atoms
+   integer, intent(in)    :: at(nat)
+   !> Integral cutoff according to prefactor from Gaussian product theorem
+   real(wp),intent(in)    :: intcut
+   real(wp),intent(in)    :: ves(:, :)
+   real(wp),intent(in)    :: vs(nat)
+   real(wp),intent(in)    :: vd(3,nat)
+   real(wp),intent(in)    :: vq(6,nat)
+   !> Cartesian coordinates
+   real(wp),intent(in)    :: xyz(3,nat)
+   !> Map shell of atom to index in CAO space (lowest Cart. component is taken)
+   integer, intent(in)    :: caoshell(:,:)
+   !> Map shell of atom to index in SAO space (lowest m_l component is taken)
+   integer, intent(in)    :: saoshell(:,:)
+   integer, intent(in)    :: nprim(:)
+   !> Index of first primitive (over entire system) of given CAO, dimension: nbf
+   integer, intent(in)    :: primcount(:)
+   real(wp),intent(in)    :: alp(:)
+   real(wp),intent(in)    :: cont(:)
+   !> Molecular Hamiltonian
+   real(wp),intent(in) :: H0(:, :)
+   !> Molecular Overlap
+   real(wp),intent(in) :: S(:, :)
+   !> Density matrix
+   real(wp),intent(in) :: p(:, :)
+   !> Energy weighted density matrix
+   real(wp),intent(in) :: Pew(:, :)
+   real(wp),intent(inout) :: g(:, :)
+   real(wp),intent(inout) :: sigma(:, :)
+   real(wp),intent(inout) :: dhdcn(:)
+
+   integer itt(0:3)
+   parameter (itt=(/0,1,4,10/))
+   real(wp) tmp1,tmp2,tmp3,step,step2,step3,s00r,s00l,s00,alpj
+   real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cj,alpi,rij2,ab,est
+   real(wp) f1,f2,point(3),tmp(6,6),rij(3),ri(3),rj(3)
+   real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
+   real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
+   real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
+   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,jshmax
+   integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,ixyz
+   integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
+   real(wp) :: dumdum(3,10),dum(10),sdq(10,6,6),sdqg(3,19,6,6)
+   integer :: il, jl, itr
+   real(wp) :: zi, zj, zetaij, km, hii, hjj, hav, shpoly, dshpoly(3), dCN
+   real(wp) :: Pij, Hij, HPij, g_xyz(3)
+   real(wp), parameter :: rthr = 1600.0_wp
+
+   thr2 = intcut
+   point = 0.0_wp
+   ! call timing(t1,t3)
+   !$OMP PARALLEL DO default(none) &
+   !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
+   !$omp& H0, S, ves, vs, vd, vq, &
+   !$omp& intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
+   !$omp PRIVATE(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij, &
+   !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,dCN, &
+   !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
+   !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
+   !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
+   !$omp reduction(+:g,sigma,dhdcn)
+   do iat = 1,nat
+      ri = xyz(:,iat)
+      izp = at(iat)
+      do jat = 1,iat-1
+         !           if (jat.eq.iat) cycle
+         jzp = at(jat)
+
+         rj = xyz(:,jat)
+         rij = ri - rj
+         rij2 =  sum( rij**2 )
+
+         if (rij2 > rthr) cycle
+         do ish = 1,nShell(izp)
+            ishtyp = hData%angShell(ish,izp)
+            icao = caoshell(ish,iat)
+            naoi = llao(ishtyp)
+            iptyp = itt(ishtyp)
+            jshmax = nShell(jzp)
+            !              if(iat.eq.jat) jshmax = ish
+            do jsh = 1,jshmax ! jshells
+               jshtyp = hData%angShell(jsh,jzp)
+               jcao = caoshell(jsh,jat)
+               naoj = llao(jshtyp)
+               jptyp = itt(jshtyp)
+
+               il = ishtyp+1
+               jl = jshtyp+1
+               ! diagonals are the same for all H0 elements
+               hii = selfEnergy(ish, iat)
+               hjj = selfEnergy(jsh, jat)
+
+               ! distance dependent polynomial
+               call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
+                  & hData%atomicRad(izp),hData%atomicRad(jzp),rij2,ri,rj,&
+                  & shpoly,dshpoly)
+
+               ! averaged H0 element (without overlap contribution!)
+               hav = 0.5_wp * (hii + hjj)
+
+               sdqg = 0;sdq = 0
+               call get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+                  &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
+               do k = 1,19 ! 1 S, 2-4 D, 5-10 Q, 11-13 D, 14-19 Q
+                  do ixyz = 1,3
+                     ! transform from CAO to SAO
+                     !                        call dtrf2(sdqg(ixyz,k,1:6,1:6),ishtyp,jshtyp)
+                     tmp(1:6,1:6) = sdqg(ixyz,k,1:6,1:6)
+                     call dtrf2(tmp,ishtyp,jshtyp)
+                     sdqg(ixyz,k,1:6,1:6) = tmp(1:6,1:6)
+                  enddo
+               enddo
+               g_xyz(:) = 0.0_wp
+               dCN = 0.0_wp
+               do ii = 1,llao2(ishtyp)
+                  iao = ii+saoshell(ish,iat)
+                  do jj = 1,llao2(jshtyp)
+                     jao = jj+saoshell(jsh,jat)
+                     Pij = p(jao,iao)
+
+                     ! Hamiltonian element without overlap
+                     Hij  = H0(jao, iao)
+                     HPij = Hij * Pij
+
+                     g_xyz(:) = g_xyz + 2*HPij*S(jao,iao)*dshpoly/shpoly &
+                        & + sdqg(:,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
+                        & - Pij*(ves(ish,iat)+ves(jsh,jat)) &
+                        & + Pij*(vs(iat)+vs(jat)))
+
+                     do ixyz = 1,3
+                        dtmp = Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
+                           & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
+                        qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
+                           & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
+                        g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
+
+                     enddo ! ixyz
+
+                     ! Hamiltonian without Hav
+                     dCN = dCN + HPij / hav * S(jao, iao)
+                  enddo
+               enddo
+               ! save dE/dCN for CNi
+               dhdcn(iat) = dhdcn(iat) + dCN*dSEdcn(ish, iat)
+               ! save dE/dCN for CNj
+               dhdcn(jat) = dhdcn(jat) + dCN*dSEdcn(jsh, jat)
+               g(:,iat) = g(:,iat)+g_xyz
+               g(:,jat) = g(:,jat)-g_xyz
+               sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
+            enddo ! jsh : loop over shells on jat
+         enddo  ! ish : loop over shells on iat
+      enddo ! jat
+   enddo  ! iat
+   !$OMP END PARALLEL DO
+   !                                                      call timing(t2,t4)
+   !                                     call prtime(6,t2-t1,t4-t3,'dqint5')
+
+   ! diagonal contributions
+   !$omp parallel do default(none) reduction(+:dhdcn) &
+   !$omp shared(nat, at, nshell, hData, saoshell) &
+   !$omp private(iat, izp, ish, ishtyp, iao, i, Pij)
+   do iat = 1, nat
+      izp = at(iat)
+      do ish = 1, nShell(izp)
+         ishtyp = hData%angShell(ish,izp)
+         do iao = 1, llao2(ishtyp)
+            i = iao+saoshell(ish,iat)
+
+            Pij = P(i,i)
+            ! save dE/dCN for CNi
+            dhdcn(iat) = dhdcn(iat) + Pij*dSEdcn(ish, iat)*evtoau
+         end do
+      end do
+   end do
+   !$omp end parallel do
+
+end subroutine build_dSDQH0_noreset
 
 
 !> Count number of significant dipole integrals
