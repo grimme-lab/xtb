@@ -595,7 +595,7 @@ pure subroutine compute_amat(this,Amat)
       enddo
 
       if (gbm%alpbet > 0.0_wp) then
-         Amat(:, :) = Amat + gbm%alpbet / this%aDet
+         Amat(:, :) = Amat + gbm%keps * gbm%alpbet / this%aDet
       end if
 
    else
@@ -877,10 +877,11 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
 
 end subroutine compute_gb_damat
 
-subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
+subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
    implicit none
    type(TSolvent), intent(in) :: this
 
+   real(wp), intent(in)    :: xyz(3,this%nat)
    real(wp), intent(in)    :: q(this%nat)
    real(wp), intent(out)   :: gborn
    real(wp), intent(out)   :: ghb
@@ -1022,6 +1023,10 @@ subroutine compute_gb_egrad(this,q,gborn,ghb,gradient,lpr)
    else
       ghb = 0.0_wp
    endif
+
+   if (gbm%alpbet > 0.0_wp) then
+      call getADetDeriv(this%nat, xyz, this%vdwr, gbm%kEps*gbm%alpbet, q, gradient)
+   end if
 
 !  if(lopt.and.lpr) then
 !   write(*,'(/,a)') 'Results GBOBC:'
@@ -1840,5 +1845,77 @@ subroutine getADet(nAtom, xyz, rad, aDet)
    aDet = sqrt(matDet3x3(inertia)**(1.0_wp/3.0_wp)/(tof*totRad3))
 
 end subroutine getADet
+
+
+subroutine getADetDeriv(nAtom, xyz, rad, kEps, qvec, gradient)
+   use xtb_mctc_math, only : matDet3x3
+
+   !> Number of atoms
+   integer, intent(in) :: nAtom
+
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(:, :)
+
+   !> Atomic radii
+   real(wp), intent(in) :: rad(:)
+
+   real(wp), intent(in) :: kEps
+   real(wp), intent(in) :: qvec(:)
+
+   !> Molecular gradient
+   real(wp), intent(inout) :: gradient(:, :)
+
+   integer :: iat
+   real(wp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
+   real(wp) :: aDeriv(3, 3), qtotal
+   real(wp), parameter :: tof = 2.0_wp/5.0_wp, unity(3, 3) = reshape(&
+      & [1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 1.0_wp], &
+      & [3, 3])
+
+   qtotal = 0.0_wp
+   totRad3 = 0.0_wp
+   center(:) = 0.0_wp
+   do iat = 1, nAtom
+      rad2 = rad(iat) * rad(iat)
+      rad3 = rad2 * rad(iat)
+      totRad3 = totRad3 + rad3
+      center(:) = center + xyz(:, iat) * rad3
+      qtotal = qtotal + qvec(iat)
+   end do
+   center = center / totRad3
+
+   inertia(:, :) = 0.0_wp
+   do iat = 1, nAtom
+      rad2 = rad(iat) * rad(iat)
+      rad3 = rad2 * rad(iat)
+      vec(:) = xyz(:, iat) - center
+      r2 = sum(vec**2)
+      inertia(:, :) = inertia + rad3 * ((r2 + tof*rad2) * unity &
+         & - spread(vec, 1, 3) * spread(vec, 2, 3))
+   end do
+   aDet = sqrt(matDet3x3(inertia)**(1.0_wp/3.0_wp)/(tof*totRad3))
+
+   aDeriv(:, :) = reshape([&
+      & inertia(1,1)*(inertia(2,2)+inertia(3,3))-inertia(1,2)**2-inertia(1,3)**2, &
+      & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
+      & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
+      & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
+      & inertia(2,2)*(inertia(1,1)+inertia(3,3))-inertia(1,2)**2-inertia(2,3)**2, &
+      & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
+      & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
+      & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
+      & inertia(3,3)*(inertia(1,1)+inertia(2,2))-inertia(1,3)**2-inertia(2,3)**2],&
+      & shape=[3, 3]) * (250.0_wp / (48.0_wp * totRad3**3 * aDet**5)) &
+      & * (-0.5_wp * kEps * qtotal**2 / aDet**2)
+
+   do iat = 1, nAtom
+      rad2 = rad(iat) * rad(iat)
+      rad3 = rad2 * rad(iat)
+      vec(:) = xyz(:, iat) - center
+      gradient(:, iat) = gradient(:, iat) + rad3 * matmul(aderiv, vec)
+   end do
+
+end subroutine getADetDeriv
+
 
 end module xtb_solv_gbobc

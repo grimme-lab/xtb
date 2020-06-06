@@ -749,10 +749,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
    ! Solvation contributions from GBSA
    if (allocated(gbsa)) then
       if (xtbData%level > 1) then
-         call compute_gb_egrad(gbsa, wfn%q, gborn, ghb, gradient, minpr)
+         call compute_gb_egrad(gbsa, mol%xyz, wfn%q, gborn, ghb, gradient, minpr)
       else
          cm5(:)=wfn%q+cm5a
-         call compute_gb_egrad(gbsa, cm5, gborn, ghb, gradient, minpr)
+         call compute_gb_egrad(gbsa, mol%xyz, cm5, gborn, ghb, gradient, minpr)
          call cm5_grad_gfn1(gradient, mol%n, cm5, fgb, fhb, dcm5a, lhb)
       endif
 !     solvation energy

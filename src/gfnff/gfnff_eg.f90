@@ -283,7 +283,7 @@ contains
 
       if (allocated(gbsa)) then
          call timer%measure(11, "GBSA")
-         call compute_gb_egrad(gbsa, topo%q, gborn, ghb, g, pr)
+         call compute_gb_egrad(gbsa, xyz, topo%q, gborn, ghb, g, pr)
          gsolv = gsolv + gborn + ghb + gshift
          call timer%measure(11)
       else
