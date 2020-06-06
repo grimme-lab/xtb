@@ -40,7 +40,7 @@ module xtb_scf
    use xtb_xtb_coulomb
    use xtb_xtb_dispersion
    use xtb_xtb_hamiltonian, only : getSelfEnergy, build_SDQH0, build_dSDQH0, &
-      & count_dpint, count_qpint
+      & build_dSdQH0_noreset, count_dpint, count_qpint
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
    use xtb_scc_core
@@ -140,6 +140,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
    real(wp),allocatable :: shellShift(:, :)
    real(wp),allocatable :: temp(:)
    real(wp),allocatable :: Pew(:, :)
+   real(wp),allocatable :: H(:, :)
    integer :: nid
    integer, allocatable :: idnum(:)
    type(TxTBCoulomb) :: ies
@@ -683,11 +684,35 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
    end if
 
    dhdcn(:) = 0.0_wp
-   call latp%getLatticePoints(trans, sqrt(800.0_wp))
-   call build_dSDQH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
-      & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
-      & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
-      & basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, dhdcn, gradient, sigma)
+   if (mol%npbc == 0) then
+      allocate(H(basis%nao, basis%nao))
+      H(:, :) = 0.0_wp
+      do m = 1, nmat2
+         i = matlist2(1,m)
+         j = matlist2(2,m)
+         k = j+i*(i-1)/2
+         !ishell = ao2sh(i)
+         !jshell = ao2sh(j)
+         ! SCC terms
+         !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
+         !H1 = -S(j,i)*eh1*0.5_wp
+         H(j,i) = H0(k)*evtoau/S(j,i)
+         H(i,j) = H(j,i)
+      enddo
+      call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & dSEdcn, intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, &
+         & nmat2, matlist2, &
+         & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+         & basis%alp, basis%cont, H, S, wfn%p, Pew, shellShift, vs, vd, vq, &
+         & dhdcn, gradient, sigma)
+   else
+      call latp%getLatticePoints(trans, sqrt(800.0_wp))
+      call build_dSDQH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
+         & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
+         & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+         & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
+         & dhdcn, gradient, sigma)
+   end if
    ! setup CN gradient
    call contract(dcndr, dhdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dhdcn, sigma, beta=1.0_wp)
