@@ -406,7 +406,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,lin,jshmax
+   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,jshmax
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,ixyz
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
    real(wp) :: dumdum(3,10),dum(10),sdq(10,6,6),sdqg(3,19,6,6)
@@ -562,7 +562,6 @@ end subroutine build_dSDQH0
 subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
       & nat, nao, nbf, at, xyz, caoshell, saoshell, nprim, primcount, &
       & alp, cont, H0, S, p, Pew, ves, vs, vd, vq, dhdcn, g, sigma)
-   use xtb_lin
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
    real(wp), intent(in) :: selfEnergy(:, :)
@@ -612,7 +611,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,lin,jshmax
+   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,jshmax
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,ixyz
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
    real(wp) :: dumdum(3,10),dum(10),sdq(10,6,6),sdqg(3,19,6,6)
