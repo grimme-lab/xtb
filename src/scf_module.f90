@@ -80,7 +80,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
    &                     mmomgabzero,mmompop,molmom
    use xtb_solv_gbobc,     only : lhb,TSolvent,gshift, &
    &                     new_gbsa,deallocate_gbsa, &
-   &                     update_nnlist_gbsa,compute_fgb,compute_brad_sasa
+   &                     update_nnlist_gbsa,compute_amat,compute_brad_sasa
    use xtb_disp_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
    &                     mdisp,prmolc6,edisp_scc,d4_gradient
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
@@ -300,7 +300,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
          return
       end if
       call new_gbsa(gbsa,mol%n,mol%at)
-      allocate(fgb(mol%n,mol%n),fhb(mol%n),cm5a(mol%n),dcm5a(3,mol%n,mol%n))
+      allocate(fgb(mol%n,mol%n),cm5a(mol%n),dcm5a(3,mol%n,mol%n))
+      fgb(:, :) = 0.0_wp
       gborn=0._wp
       gbsa%gsasa=0._wp
       gbsa%ghb=0._wp
@@ -310,7 +311,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
       ! compute Born radii
       call compute_brad_sasa(gbsa,mol%xyz)
 !     initialize the fgb matrix (dielectric screening of the Coulomb potential)
-      call compute_fgb(gbsa,fgb,fhb)
+      call compute_amat(gbsa,fgb)
 !     initialize the CM5 charges computation
       if(xtbData%level > 1) then !GFN2 does not use CM5 charges
         cm5=wfn%q
@@ -615,7 +616,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
       &     mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &     wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &     mol%xyz,aes, &
-      &     gbsa,fgb,fhb,cm5,cm5a,gborn, &
+      &     gbsa,fgb,cm5,cm5a,gborn, &
       &     scD4, &
       &     broy,broydamp,damp0, &
       &     lpcem,ves,vpc, &

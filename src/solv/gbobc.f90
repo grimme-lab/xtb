@@ -30,10 +30,9 @@ module xtb_solv_gbobc
    public :: allocate_gbsa,deallocate_gbsa
    public :: compute_brad_sasa
    public :: compute_amat
-   public :: compute_fgb
    public :: compute_gb_egrad
    public :: compute_gb_damat
-   public :: compute_hb
+   public :: compute_hb_egrad
    public :: update_nnlist_gbsa
    public :: load_custom_parameters
 
@@ -482,10 +481,10 @@ end subroutine read_gbsa_parameters
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine new_gbsa(this,n,at)
+subroutine new_gbsa(self,n,at)
    use xtb_solv_lebedev
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -498,65 +497,96 @@ subroutine new_gbsa(this,n,at)
    real(wp), allocatable :: xang(:),yang(:),zang(:),wang(:)
 
    ! get some space
-   call allocate_gbsa(this,n,gbm%nangsa)
+   call allocate_gbsa(self,n,gbm%nangsa)
 
    ! initialize the vdw radii array
-   this%at = at
-   this%maxvdwr=0.0_wp
+   self%at = at
+   self%maxvdwr=0.0_wp
    minvdwr=1000.0_wp
-   do i=1,this%nat
-      this%vdwr(i)=gbm%rvdw(this%at(i))*aatoau
-      this%rho(i)=this%vdwr(i)*gbm%sx(this%at(i))
-      this%svdw(i)=this%vdwr(i)-gbm%soset
-      this%maxvdwr=max(this%maxvdwr,this%vdwr(i))
-      minvdwr=min(minvdwr,this%vdwr(i))
+   do i=1,self%nat
+      self%vdwr(i)=gbm%rvdw(self%at(i))*aatoau
+      self%rho(i)=self%vdwr(i)*gbm%sx(self%at(i))
+      self%svdw(i)=self%vdwr(i)-gbm%soset
+      self%maxvdwr=max(self%maxvdwr,self%vdwr(i))
+      minvdwr=min(minvdwr,self%vdwr(i))
    enddo
 
    ! nearest-neighbor list preparation
-   this%lrcut = lrcut_a*aatoau
+   self%lrcut = lrcut_a*aatoau
    k=0
-   do i=1,this%nat
+   do i=1,self%nat
       do j = 1,i-1
          k=k+1
-         this%ppind(1,k)=i
-         this%ppind(2,k)=j
+         self%ppind(1,k)=i
+         self%ppind(2,k)=j
       enddo
    enddo
 
    ! initialize solvent-accessible atomic surface area computation (SASA)
    maxrasasa=0.0_wp
-   do i = 1, this%nat
-      this%vdwsa(i) = gbm%rasasa(this%at(i))*aatoau
-      maxrasasa=max(maxrasasa,this%vdwsa(i))
-      this%trj2(1,i) = (this%vdwsa(i)-w)**2
-      this%trj2(2,i) = (this%vdwsa(i)+w)**2
-      r=this%vdwsa(i)+w
-      this%wrp(i)=(0.25_wp/w+ &
-         &            3.0_wp*ah3*(0.2_wp*r*r-0.5*r*this%vdwsa(i)+ &
-         &            this%vdwsa(i)*this%vdwsa(i)/3.))*r*r*r
-      r=this%vdwsa(i)-w
-      this%wrp(i)=this%wrp(i)-(0.25/w+ &
-         &    3.0_wp*ah3*(0.2_wp*r*r-0.5*r*this%vdwsa(i)+ &
-         &            this%vdwsa(i)*this%vdwsa(i)/3.))*r*r*r
+   do i = 1, self%nat
+      self%vdwsa(i) = gbm%rasasa(self%at(i))*aatoau
+      maxrasasa=max(maxrasasa,self%vdwsa(i))
+      self%trj2(1,i) = (self%vdwsa(i)-w)**2
+      self%trj2(2,i) = (self%vdwsa(i)+w)**2
+      r=self%vdwsa(i)+w
+      self%wrp(i)=(0.25_wp/w+ &
+         &            3.0_wp*ah3*(0.2_wp*r*r-0.5*r*self%vdwsa(i)+ &
+         &            self%vdwsa(i)*self%vdwsa(i)/3.))*r*r*r
+      r=self%vdwsa(i)-w
+      self%wrp(i)=self%wrp(i)-(0.25/w+ &
+         &    3.0_wp*ah3*(0.2_wp*r*r-0.5*r*self%vdwsa(i)+ &
+         &            self%vdwsa(i)*self%vdwsa(i)/3.))*r*r*r
    enddo
 
-   this%srcut = 2.0_wp*(w + maxrasasa) + srcut_add*aatoau
-   this%sasagam=fourpi*gbm%gammas
-   do i = 1, this%nat
-      this%gamsasa(i)=gbm%gamscale(this%at(i))*fourpi*gbm%gammas
+   self%srcut = 2.0_wp*(w + maxrasasa) + srcut_add*aatoau
+   self%sasagam=fourpi*gbm%gammas
+   do i = 1, self%nat
+      self%gamsasa(i)=gbm%gamscale(self%at(i))*fourpi*gbm%gammas
    enddo
 
    iAng = 0
    do i = 1, size(gridSize)
-      if (this%nang == gridSize(i)) iAng = i
+      if (self%nang == gridSize(i)) iAng = i
    end do
-   call getAngGrid(iAng, this%angGrid, this%angWeight, ierr)
+   call getAngGrid(iAng, self%angGrid, self%angWeight, ierr)
 
 end subroutine new_gbsa
 
-pure subroutine compute_amat(this,Amat)
+pure subroutine compute_amat(self,Amat)
    implicit none
-   type(TSolvent),intent(in) :: this
+   type(TSolvent),intent(in) :: self
+
+   real(wp),intent(inout) :: Amat(:,:)
+
+   integer  :: i,j,nnj
+   integer  :: kk
+   real(wp), allocatable :: fhb(:)
+   real(wp), parameter :: a13=1.0_wp/3.0_wp
+   real(wp), parameter :: a4=0.25_wp
+   real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+   real(wp) :: aa,r2,gg,iepsu,arg,bp
+   real(wp) :: dd,expd,fgb,fgb2,dfgb
+
+   call compute_amat_still(self, Amat)
+
+   ! compute the HB term
+   if(lhb) then
+      do i = 1, self%nat
+         Amat(i,i) = Amat(i,i) + 2*self%hbw(i)
+      enddo
+   endif
+
+   ! ALPB shape dependent correction for charged systems
+   if (gbm%alpbet > 0.0_wp) then
+      Amat(:, :) = Amat + gbm%keps * gbm%alpbet / self%aDet
+   end if
+
+end subroutine compute_amat
+
+pure subroutine compute_amat_still(self, Amat)
+   implicit none
+   type(TSolvent),intent(in) :: self
 
    real(wp),intent(inout) :: Amat(:,:)
 
@@ -572,14 +602,14 @@ pure subroutine compute_amat(this,Amat)
    if(.not.gbm%lsalt) then
 
       ! compute energy and Amat direct and radii derivatives
-      do kk = 1, this%ntpair
-         r2 = this%ddpair(1,kk)
+      do kk = 1, self%ntpair
+         r2 = self%ddpair(1,kk)
          r2 = r2*r2
 
-         i = this%ppind(1,kk)
-         j = this%ppind(2,kk)
+         i = self%ppind(1,kk)
+         j = self%ppind(2,kk)
 
-         aa = this%brad(i)*this%brad(j)
+         aa = self%brad(i)*self%brad(j)
          dd = a4*r2/aa
          expd = exp(-dd)
          fgb2 = r2+aa*expd
@@ -589,147 +619,52 @@ pure subroutine compute_amat(this,Amat)
       enddo
 
       ! self-energy part
-      do i = 1, this%nat
-         bp = 1._wp/this%brad(i)
+      do i = 1, self%nat
+         bp = 1._wp/self%brad(i)
          Amat(i,i) = Amat(i,i) + gbm%keps*bp
       enddo
-
-      if (gbm%alpbet > 0.0_wp) then
-         Amat(:, :) = Amat + gbm%keps * gbm%alpbet / this%aDet
-      end if
 
    else
 
       iepsu=1.0_wp/gbm%epsu
 
       ! compute energy and Amat direct and radii derivatives
-      do kk = 1, this%ntpair
-         r2=this%ddpair(1,kk)
+      do kk = 1, self%ntpair
+         r2=self%ddpair(1,kk)
          r2=r2*r2
 
-         i=this%ppind(1,kk)
-         j=this%ppind(2,kk)
+         i=self%ppind(1,kk)
+         j=self%ppind(2,kk)
 
-         aa=this%brad(i)*this%brad(j)
+         aa=self%brad(i)*self%brad(j)
          dd=a4*r2/aa
          expd=exp(-dd)
          fgb2=r2+aa*expd
          fgb=sqrt(r2+aa*expd)
          dfgb=1._wp/fgb
-         gg=this%ionscr(i)+this%ionscr(j)
+         gg=self%ionscr(i)+self%ionscr(j)
          Amat(i,j)=(exp(-gbm%kappa*fgb)*gg-iepsu)*dfgb + Amat(i,j)
          Amat(j,i)=(exp(-gbm%kappa*fgb)*gg-iepsu)*dfgb + Amat(j,i)
       enddo
 
       ! self-energy part
-      do i = 1, this%nat
-         gg=this%ionscr(i)*2.0_wp
-         Amat(i,i)= Amat(i,i) + (exp(-gbm%kappa*this%brad(i))*gg-iepsu)/this%brad(i)
+      do i = 1, self%nat
+         gg=self%ionscr(i)*2.0_wp
+         Amat(i,i)= Amat(i,i) + (exp(-gbm%kappa*self%brad(i))*gg-iepsu)/self%brad(i)
       enddo
 
 
    endif
 
-   ! compute the HB term
-   if(lhb) then
-      do i = 1, this%nat
-         Amat(i,i) = Amat(i,i) + this%hbw(i)
-      enddo
-   endif
+end subroutine compute_amat_still
 
-end subroutine compute_amat
-
-pure subroutine compute_fgb(this,fgb,fhb)
+pure subroutine compute_gb_damat(self,q,gborn,ghb,dAmatdr,Afac,lpr)
    implicit none
-   type(TSolvent),intent(in) :: this
+   type(TSolvent), intent(in) :: self
 
-   real(wp),intent(out) :: fgb(this%nat,this%nat)
-   real(wp),intent(out) :: fhb(this%nat)
-
-   integer  :: i,j,nnj
-   integer  :: kk
-   real(wp), parameter :: a13=1.0_wp/3.0_wp
-   real(wp), parameter :: a4=0.25_wp
-   real(wp) :: aa,r2,gg,iepsu
-   real(wp) :: dd,expd,dfgb,hkeps
-
-!  initialize
-   fgb=0.0_wp
-
-   hkeps=gbm%keps
-
-   if(gbm%lsalt) then
-
-      iepsu=1.0_wp/gbm%epsu
-
-!     compute energy and fgb direct and radii derivatives
-      do kk = 1, this%ntpair
-         r2=this%ddpair(1,kk)
-         r2=r2*r2
-
-         i=this%ppind(1,kk)
-         j=this%ppind(2,kk)
-
-         aa=this%brad(i)*this%brad(j)
-         dd=a4*r2/aa
-         expd=exp(-dd)
-         dfgb=sqrt(r2+aa*expd)
-         gg=this%ionscr(i)+this%ionscr(j)
-         fgb(i,j)=(exp(-gbm%kappa*dfgb)*gg-iepsu)/dfgb
-         fgb(j,i)=fgb(i,j)
-      enddo
-
-!     self-energy part
-      do i = 1, this%nat
-         gg=this%ionscr(i)*2.0_wp
-         fgb(i,i)=(exp(-gbm%kappa*this%brad(i))*gg-iepsu)/this%brad(i)
-      enddo
-
-   else
-
-!     compute energy and fgb direct and radii derivatives
-      do kk = 1, this%ntpair
-         r2=this%ddpair(1,kk)
-         r2=r2*r2
-
-         i=this%ppind(1,kk)
-         j=this%ppind(2,kk)
-
-         aa=this%brad(i)*this%brad(j)
-         dd=a4*r2/aa
-         expd=exp(-dd)
-         dfgb=1.0_wp/(r2+aa*expd)
-         fgb(i,j)=hkeps*sqrt(dfgb)
-         fgb(j,i)=fgb(i,j)
-      enddo
-
-!     self-energy part
-      do i = 1, this%nat
-         fgb(i,i)=hkeps/this%brad(i)
-      enddo
-
-      if (gbm%alpbet > 0.0_wp) then
-         fgb(:, :) = fgb + gbm%alpbet / this%aDet
-      end if
-
-   endif
-
-!  compute the HB term
-   if(lhb) then
-      fhb=this%hbw
-   else
-      fhb=0.0_wp
-   endif
-
-end subroutine compute_fgb
-
-pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
-   implicit none
-   type(TSolvent), intent(in) :: this
-
-   real(wp), intent(in)    :: q(this%nat)
-   real(wp), intent(inout) :: dAmatdr(3,this%nat,this%nat)
-   real(wp), intent(inout) :: Afac(3,this%nat)
+   real(wp), intent(in)    :: q(self%nat)
+   real(wp), intent(inout) :: dAmatdr(3,self%nat,self%nat)
+   real(wp), intent(inout) :: Afac(3,self%nat)
    real(wp), intent(out)   :: gborn
    real(wp), intent(out)   :: ghb
    logical,  intent(in)    :: lpr
@@ -752,16 +687,16 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
       ! GB energy and gradient
 
       ! compute energy and fgb direct and radii derivatives
-      do kk = 1, this%ntpair
-         r = this%ddpair(1,kk)
+      do kk = 1, self%ntpair
+         r = self%ddpair(1,kk)
          r2 = r*r
 
-         i = this%ppind(1,kk)
-         j = this%ppind(2,kk)
+         i = self%ppind(1,kk)
+         j = self%ppind(2,kk)
 
          ! dielectric scaling of the charges
          qq = q(i)*q(j)*gbm%keps
-         aa = this%brad(i)*this%brad(j)
+         aa = self%brad(i)*self%brad(j)
          dd = a4*r2/aa
          expd = exp(-dd)
          fgb2 = r2+aa*expd
@@ -772,28 +707,28 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
          egb = egb + qq*dfgb
 
          ap = (1._wp-a4*expd)*dfgb3
-         dr = ap*this%ddpair(2:4,kk)
+         dr = ap*self%ddpair(2:4,kk)
          dAmatdr(:,i,j) = dAmatdr(:,i,j) - dr*q(i)
          dAmatdr(:,j,i) = dAmatdr(:,j,i) + dr*q(j)
          Afac(:,i) = Afac(:,i) - dr*q(j)
          Afac(:,j) = Afac(:,j) + dr*q(i)
 
          bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
-         grddbi = this%dbrdp(i)*this%brad(j)*bp
-         grddbj = this%dbrdp(j)*this%brad(i)*bp
+         grddbi = self%dbrdp(i)*self%brad(j)*bp
+         grddbj = self%dbrdp(j)*self%brad(i)*bp
 
-         dAmatdr(:,:,j) = dAmatdr(:,:,j) + this%brdr(:,:,j)*grddbj*q(i)
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%brdr(:,:,i)*grddbi*q(j)
+         dAmatdr(:,:,j) = dAmatdr(:,:,j) + self%brdr(:,:,j)*grddbj*q(i)
+         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi*q(j)
 
       enddo
 
       ! self-energy part
-      do i = 1, this%nat
-         bp = 1._wp/this%brad(i)
+      do i = 1, self%nat
+         bp = 1._wp/self%brad(i)
          qq = q(i)*bp
          egb = egb + 0.5_wp*q(i)*qq*gbm%keps
-         grddbi = -this%dbrdp(i)*gbm%keps*bp*bp*0.5_wp
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%brdr(:,:,i)*grddbi*q(i)
+         grddbi = -self%dbrdp(i)*gbm%keps*bp*bp*0.5_wp
+         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi*q(i)
       enddo
 
    else
@@ -802,15 +737,15 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
       epu=1._wp/gbm%epsu
 
       ! compute energy and fgb direct and radii derivatives
-      do kk = 1, this%ntpair
-         r = this%ddpair(1,kk)
+      do kk = 1, self%ntpair
+         r = self%ddpair(1,kk)
          r2 = r*r
 
-         i = this%ppind(1,kk)
-         j = this%ppind(2,kk)
+         i = self%ppind(1,kk)
+         j = self%ppind(2,kk)
 
          qq = q(i)*q(j)
-         aa = this%brad(i)*this%brad(j)
+         aa = self%brad(i)*self%brad(j)
          dd = a4*r2/aa
          expd = exp(-dd)
          fgb2 = r2+aa*expd
@@ -819,14 +754,14 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
          dfgb = sqrt(dfgb2)
          aa = gbm%kappa*fgb
          expa = exp(-aa)
-         gg = (this%ionscr(i)+this%ionscr(j))*expa
+         gg = (self%ionscr(i)+self%ionscr(j))*expa
 
          egb = egb + qq*dfgb*(gg-epu)
 
          dfgb3 = (gg*(1._wp+aa)-epu)*dfgb*dfgb2
 
          ap = (1._wp-a4*expd)*dfgb3
-         dr = ap*this%ddpair(2:4,kk)
+         dr = ap*self%ddpair(2:4,kk)
          dAmatdr(:,i,j) = dAmatdr(:,i,j) - dr*q(i)
          dAmatdr(:,j,i) = dAmatdr(:,j,i) + dr*q(j)
          Afac(:,i) = Afac(:,i) - dr*q(j)
@@ -834,23 +769,23 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
 
          qfg = dfgb*expa
          bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
-         grddbi = this%dbrdp(i)*(this%brad(j)*bp+qfg*this%discr(i))*q(j)
-         grddbj = this%dbrdp(j)*(this%brad(i)*bp+qfg*this%discr(j))*q(i)
+         grddbi = self%dbrdp(i)*(self%brad(j)*bp+qfg*self%discr(i))*q(j)
+         grddbj = self%dbrdp(j)*(self%brad(i)*bp+qfg*self%discr(j))*q(i)
 
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%brdr(:,:,i)*grddbi
-         dAmatdr(:,:,j) = dAmatdr(:,:,j) + this%brdr(:,:,j)*grddbj
+         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi
+         dAmatdr(:,:,j) = dAmatdr(:,:,j) + self%brdr(:,:,j)*grddbj
 
       enddo
 
       ! self-energy part
-      do i = 1, this%nat
-         gg = exp(-gbm%kappa*this%brad(i))
-         aa = 2._wp*this%ionscr(i)*gg-epu
-         qq = q(i)/this%brad(i)
+      do i = 1, self%nat
+         gg = exp(-gbm%kappa*self%brad(i))
+         aa = 2._wp*self%ionscr(i)*gg-epu
+         qq = q(i)/self%brad(i)
          egb = egb + 0.5_wp*qq*q(i)*aa
-         ap = aa-this%brad(i)*2._wp*(this%discr(i)+this%ionscr(i)*gbm%kappa)*gg
-         grddbi = -this%dbrdp(i)*0.5_wp*qq*ap/this%brad(i)
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%brdr(:,:,i)*grddbi
+         ap = aa-self%brad(i)*2._wp*(self%discr(i)+self%ionscr(i)*gbm%kappa)*gg
+         grddbi = -self%dbrdp(i)*0.5_wp*qq*ap/self%brad(i)
+         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi
       enddo
 
    endif
@@ -858,34 +793,45 @@ pure subroutine compute_gb_damat(this,q,gborn,ghb,dAmatdr,Afac,lpr)
    gborn = egb
 
    if(lhb) then
-      call compute_ahb(this,q,ghb,dAmatdr)
+      call compute_ahb(self,q,ghb,dAmatdr)
    endif
-
-!  if(lopt.and.lpr) then
-!   write(*,'(/,a)') 'Results GBOBC:'
-!   write(*,*) 'At #,  Z , GBOBC (A), RVDW (A)'
-!   do i = 1, this%nat
-!    write(*,'(I5,2x,I2,6F12.4)') i,at(i),this%brad(i)/aatoau, &
-!&   rvdw(at(i)),sx(at(i)),xyz(1:3,i)/aatoau
-!   enddo
-!   write(*,'(/,a)') 'Free Energy (kcal/mol):'
-!   write(*,'(''G-EL  = '',F8.3)') this%gborn*autokcal
-!   write(*,'(''GCAV  = '',F8.3)') this%gsasa*autokcal
-!   write(*,'(''G-HB  = '',F8.3)') this%ghb*autokcal
-!   write(*,'(''GSOL  = '',F8.3)') (this%gborn+this%gsasa+this%ghb)*autokcal
-!  endif
 
 end subroutine compute_gb_damat
 
-subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
+subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
    implicit none
-   type(TSolvent), intent(in) :: this
+   type(TSolvent), intent(in) :: self
 
-   real(wp), intent(in)    :: xyz(3,this%nat)
-   real(wp), intent(in)    :: q(this%nat)
+   real(wp), intent(in)    :: xyz(3,self%nat)
+   real(wp), intent(in)    :: q(self%nat)
    real(wp), intent(out)   :: gborn
    real(wp), intent(out)   :: ghb
-   real(wp), intent(inout) :: gradient(3,this%nat)
+   real(wp), intent(inout) :: gradient(3,self%nat)
+   logical,  intent(in)    :: lpr
+
+   call compute_gb_egrad_still(self,q,gborn,gradient,lpr)
+
+   gradient = gradient + self%dsdr
+
+   if(lhb) then
+      call compute_hb_egrad(self,q,ghb,gradient)
+   else
+      ghb = 0.0_wp
+   endif
+
+   if (gbm%alpbet > 0.0_wp) then
+      call getADetDeriv(self%nat, xyz, self%vdwr, gbm%kEps*gbm%alpbet, q, gradient)
+   end if
+
+end subroutine compute_gb_egrad
+
+subroutine compute_gb_egrad_still(self,q,gborn,gradient,lpr)
+   implicit none
+   type(TSolvent), intent(in) :: self
+
+   real(wp), intent(in)    :: q(self%nat)
+   real(wp), intent(out)   :: gborn
+   real(wp), intent(inout) :: gradient(3,self%nat)
    logical,  intent(in)    :: lpr
 
    integer :: i,j,k,nnj
@@ -900,7 +846,7 @@ subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
    real(wp) :: dr(3),r
    real(wp),allocatable :: grddb(:)
 
-   allocate(grddb(this%nat), source = 0.0_wp )
+   allocate(grddb(self%nat), source = 0.0_wp )
 
    egb = 0._wp
    grddb = 0._wp
@@ -909,16 +855,16 @@ subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
       ! GB energy and gradient
 
       ! compute energy and fgb direct and radii derivatives
-      do kk = 1, this%ntpair
-         r = this%ddpair(1,kk)
+      do kk = 1, self%ntpair
+         r = self%ddpair(1,kk)
          r2 = r*r
 
-         i = this%ppind(1,kk)
-         j = this%ppind(2,kk)
+         i = self%ppind(1,kk)
+         j = self%ppind(2,kk)
 
          ! dielectric scaling of the charges
          qq = q(i)*q(j)
-         aa = this%brad(i)*this%brad(j)
+         aa = self%brad(i)*self%brad(j)
          dd = a4*r2/aa
          expd = exp(-dd)
          fgb2 = r2+aa*expd
@@ -929,32 +875,32 @@ subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
          egb = egb + qq*gbm%keps*dfgb
 
          ap = (1._wp-a4*expd)*dfgb3
-         dr = ap*this%ddpair(2:4,kk)
+         dr = ap*self%ddpair(2:4,kk)
          gradient(:,i) = gradient(:,i) - dr*qq
          gradient(:,j) = gradient(:,j) + dr*qq
 
          bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
-         grddbi = this%dbrdp(i)*this%brad(j)*bp
-         grddbj = this%dbrdp(j)*this%brad(i)*bp
+         grddbi = self%dbrdp(i)*self%brad(j)*bp
+         grddbj = self%dbrdp(j)*self%brad(i)*bp
          grddb(i) = grddb(i) + grddbi*qq
-         !gradient = gradient + this%brdr(:,:,i) * grddbi*qq
+         !gradient = gradient + self%brdr(:,:,i) * grddbi*qq
          grddb(j) = grddb(j) + grddbj*qq
-         !gradient = gradient + this%brdr(:,:,j) * grddbj*qq
+         !gradient = gradient + self%brdr(:,:,j) * grddbj*qq
 
       enddo
 
       ! self-energy part
-      do i = 1, this%nat
-         bp = 1._wp/this%brad(i)
+      do i = 1, self%nat
+         bp = 1._wp/self%brad(i)
          qq = q(i)*bp
          egb = egb + 0.5_wp*q(i)*qq*gbm%keps
-         grddbi = -this%dbrdp(i)*0.5_wp*gbm%keps*qq*bp
+         grddbi = -self%dbrdp(i)*0.5_wp*gbm%keps*qq*bp
          grddb(i) = grddb(i) + grddbi*q(i)
-         !gradient = gradient + this%brdr(:,:,i) * grddbi*q(i)
+         !gradient = gradient + self%brdr(:,:,i) * grddbi*q(i)
       enddo
 
       if (gbm%alpbet > 0.0_wp) then
-         egb = egb + sum(q)**2 * gbm%alpbet / this%aDet
+         egb = egb + sum(q)**2 * gbm%alpbet / self%aDet
       end if
 
    else
@@ -963,22 +909,22 @@ subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
       epu=1._wp/gbm%epsu
 
       ! compute energy and fgb direct and radii derivatives
-      do kk = 1, this%ntpair
-         r = this%ddpair(1,kk)
+      do kk = 1, self%ntpair
+         r = self%ddpair(1,kk)
          r2 = r*r
 
-         i = this%ppind(1,kk)
-         j = this%ppind(2,kk)
+         i = self%ppind(1,kk)
+         j = self%ppind(2,kk)
 
          qq = q(i)*q(j)
-         aa = this%brad(i)*this%brad(j)
+         aa = self%brad(i)*self%brad(j)
          dd = a4*r2/aa
          expd = exp(-dd)
          dfgb = r2+aa*expd
          fgb = sqrt(dfgb)
          aa = gbm%kappa*fgb
          expa = exp(-aa)
-         gg = (this%ionscr(i)+this%ionscr(j))*expa
+         gg = (self%ionscr(i)+self%ionscr(j))*expa
          qfg = qq/fgb
 
          egb = egb + qfg*(gg-epu)
@@ -986,69 +932,45 @@ subroutine compute_gb_egrad(this,xyz,q,gborn,ghb,gradient,lpr)
          dfgb3 = qfg*(gg*(1._wp+aa)-epu)/dfgb
 
          ap = (1._wp-a4*expd)*dfgb3
-         dr = ap*this%ddpair(2:4,kk)
+         dr = ap*self%ddpair(2:4,kk)
          gradient(:,i) = gradient(:,i) - dr
          gradient(:,j) = gradient(:,j) + dr
 
          qfg = qfg*expa
          bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
-         grddbi = this%dbrdp(i)*(this%brad(j)*bp+qfg*this%discr(i))
-         grddbj = this%dbrdp(j)*(this%brad(i)*bp+qfg*this%discr(j))
+         grddbi = self%dbrdp(i)*(self%brad(j)*bp+qfg*self%discr(i))
+         grddbj = self%dbrdp(j)*(self%brad(i)*bp+qfg*self%discr(j))
          grddb(i) = grddb(i) + grddbi
          grddb(j) = grddb(j) + grddbj
 
       enddo
 
       ! self-energy part
-      do i = 1, this%nat
-         gg = exp(-gbm%kappa*this%brad(i))
-         aa = 2._wp*this%ionscr(i)*gg-epu
-         qq = q(i)/this%brad(i)
+      do i = 1, self%nat
+         gg = exp(-gbm%kappa*self%brad(i))
+         aa = 2._wp*self%ionscr(i)*gg-epu
+         qq = q(i)/self%brad(i)
          egb = egb + 0.5_wp*qq*q(i)*aa
-         ap = aa-this%brad(i)*2._wp*(this%discr(i)+this%ionscr(i)*gbm%kappa)*gg
-         grddbi = -this%dbrdp(i)*0.5_wp*qq*qq*ap
+         ap = aa-self%brad(i)*2._wp*(self%discr(i)+self%ionscr(i)*gbm%kappa)*gg
+         grddbi = -self%dbrdp(i)*0.5_wp*qq*qq*ap
          grddb(i) = grddb(i) + grddbi
       enddo
 
    endif
    ! contract with the Born radii derivatives
-   call dgemv('n',3*this%nat,this%nat,1.0_wp,this%brdr,3*this%nat,grddb,1, &
+   call dgemv('n',3*self%nat,self%nat,1.0_wp,self%brdr,3*self%nat,grddb,1, &
       &       1.0_wp,gradient,1)
 
    gborn = egb
-   gradient = gradient + this%dsdr
 
-   if(lhb) then
-      call compute_hb(this,q,ghb,gradient)
-   else
-      ghb = 0.0_wp
-   endif
+end subroutine compute_gb_egrad_still
 
-   if (gbm%alpbet > 0.0_wp) then
-      call getADetDeriv(this%nat, xyz, this%vdwr, gbm%kEps*gbm%alpbet, q, gradient)
-   end if
-
-!  if(lopt.and.lpr) then
-!   write(*,'(/,a)') 'Results GBOBC:'
-!   write(*,*) 'At #,  Z , GBOBC (A), RVDW (A)'
-!   do i = 1, this%nat
-!    write(*,'(I5,2x,I2,6F12.4)') i,at(i),this%brad(i)/aatoau, &
-!&   rvdw(at(i)),sx(at(i)),xyz(1:3,i)/aatoau
-!   enddo
-!   write(*,'(/,a)') 'Free Energy (kcal/mol):'
-!   write(*,'(''G-EL  = '',F8.3)') this%gborn*autokcal
-!   write(*,'(''GCAV  = '',F8.3)') this%gsasa*autokcal
-!   write(*,'(''G-HB  = '',F8.3)') this%ghb*autokcal
-!   write(*,'(''GSOL  = '',F8.3)') (this%gborn+this%gsasa+this%ghb)*autokcal
-!  endif
-
-end subroutine compute_gb_egrad
-
-pure subroutine compute_fhb(this,xyz)
+!> Compute contributions to potential for hydrogen bonding correction
+pure subroutine compute_fhb(self,xyz)
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
-   real(wp), intent(in) :: xyz(3,this%nat)
+   real(wp), intent(in) :: xyz(3,self%nat)
 
    integer  :: i
    integer  :: iz,nhb
@@ -1058,132 +980,133 @@ pure subroutine compute_fhb(this,xyz)
    integer  :: j
    real(wp) :: wbh,wah
 
-   this%hbw=0.0_wp
-   this%dhbdw=0.0_wp
+   self%hbw=0.0_wp
+   self%dhbdw=0.0_wp
 
-   do i = 1, this%nat
+   do i = 1, self%nat
       ! atomic Z
-      iz=this%at(i)
+      iz=self%at(i)
       ! number of HB
       nhb=gbm%at_hb(iz)
       if(nhb.le.0) cycle
       ! SASA-D for HB
-      smaxd=1.0_wp/(this%vdwsa(i)*this%vdwsa(i)*this%gamsasa(i))
-      sasad=this%sasa(i)*smaxd
-      this%hbw(i)=gbm%hb_mag(iz)*sasad
-      this%dhbdw(i)=gbm%hb_mag(iz)*smaxd
+      smaxd=1.0_wp/(self%vdwsa(i)*self%vdwsa(i)*self%gamsasa(i))
+      sasad=self%sasa(i)*smaxd
+      self%hbw(i)=gbm%hb_mag(iz)*sasad
+      self%dhbdw(i)=gbm%hb_mag(iz)*smaxd
    enddo
 
 end subroutine compute_fhb
 
-pure subroutine compute_hb(this,q,ghb,gradient)
+!> Compute contributions to energy and gradient for hydrogen bonding correction
+pure subroutine compute_hb_egrad(self,q,ghb,gradient)
    implicit none
-   type(TSolvent), intent(in) :: this
+   type(TSolvent), intent(in) :: self
 
-   real(wp), intent(in)    :: q(this%nat)
+   real(wp), intent(in)    :: q(self%nat)
    real(wp), intent(out)   :: ghb
-   real(wp), intent(inout) :: gradient(3,this%nat)
+   real(wp), intent(inout) :: gradient(3,self%nat)
 
    integer  :: i,j
    real(wp) :: dhbed
    real(wp) :: qq
 
    ghb=0.0_wp
-   do i = 1, this%nat
+   do i = 1, self%nat
       qq = q(i)*q(i)
-      ghb = ghb + this%hbw(i)*qq
+      ghb = ghb + self%hbw(i)*qq
    enddo
 
-   do i = 1, this%nat
-      dhbed=this%dhbdw(i)
+   do i = 1, self%nat
+      dhbed=self%dhbdw(i)
       if(abs(dhbed).le.0.0_wp) cycle
       dhbed=dhbed*q(i)*q(i)
-      do j = 1, this%nat
-         gradient(:,j) = gradient(:,j) + this%dsdrt(:,j,i)*dhbed
+      do j = 1, self%nat
+         gradient(:,j) = gradient(:,j) + self%dsdrt(:,j,i)*dhbed
       enddo
    enddo
 
-end subroutine compute_hb
+end subroutine compute_hb_egrad
 
-pure subroutine compute_ahb(this,q,ghb,dAmatdr)
+pure subroutine compute_ahb(self,q,ghb,dAmatdr)
    implicit none
-   type(TSolvent), intent(in) :: this
+   type(TSolvent), intent(in) :: self
 
-   real(wp), intent(in)    :: q(this%nat)
+   real(wp), intent(in)    :: q(self%nat)
    real(wp), intent(out)   :: ghb
-   real(wp), intent(inout) :: dAmatdr(3,this%nat,this%nat)
+   real(wp), intent(inout) :: dAmatdr(3,self%nat,self%nat)
 
    integer  :: i,j
    real(wp) :: dhbed
    real(wp) :: qq
 
    ghb=0.0_wp
-   do i = 1, this%nat
+   do i = 1, self%nat
       qq = q(i)*q(i)
-      ghb = ghb + this%hbw(i)*qq
+      ghb = ghb + self%hbw(i)*qq
    enddo
 
-   do i = 1, this%nat
-      dhbed=this%dhbdw(i)
+   do i = 1, self%nat
+      dhbed=self%dhbdw(i)
       if(abs(dhbed).le.0.0_wp) cycle
       dhbed=dhbed*q(i)
-      dAmatdr(:,:,i) = dAmatdr(:,:,i) + this%dsdrt(:,:,i)*dhbed
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%dsdrt(:,:,i)*dhbed
    enddo
 
 end subroutine compute_ahb
 
-subroutine compute_brad_sasa(this,xyz)
+subroutine compute_brad_sasa(self,xyz)
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
-   real(wp), intent(in) :: xyz(3,this%nat)
+   real(wp), intent(in) :: xyz(3,self%nat)
 
    integer i,j,kk
 
-   this%brad=0.0_wp
-   this%dsdr=0.0_wp
-   this%dsdrt=0.0_wp
-   this%brdr=0.0_wp
+   self%brad=0.0_wp
+   self%dsdr=0.0_wp
+   self%dsdrt=0.0_wp
+   self%brdr=0.0_wp
 
-   call compute_psi(this)
+   call compute_psi(self)
 
-   call compute_bornr(this)
+   call compute_bornr(self)
 
    ! compute solvent accessible surface and its derivatives
-   call compute_numsa(this,xyz)
+   call compute_numsa(self,xyz)
 
    ! compute the Debye-Hueckel ion exclusion term
-   if (gbm%lsalt) call compute_debye_hueckel(this)
+   if (gbm%lsalt) call compute_debye_hueckel(self)
 
    ! compute the HB term
-   if (lhb) call compute_fhb(this,xyz)
+   if (lhb) call compute_fhb(self,xyz)
 
    if (gbm%alpbet > 0.0_wp) then
-      call getADet(this%nat, xyz, this%vdwr, this%aDet)
+      call getADet(self%nat, xyz, self%vdwr, self%aDet)
    end if
 
 end subroutine compute_brad_sasa
 
 !> compute the Debye-Hueckel ion exclusion term
-pure subroutine compute_debye_hueckel(this)
+pure subroutine compute_debye_hueckel(self)
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
    integer  :: i
    real(wp) :: aa,gg
 
    aa=0.5_wp/gbm%epsv
-   do i = 1, this%nat
-      gg=gbm%kappa*(this%brad(i)+gbm%ion_rad)
-      this%ionscr(i)=aa*exp(gg)/(1.0_wp+gg)
-      this%discr(i)=this%ionscr(i)*gbm%kappa*gg/(1.0_wp+gg)
+   do i = 1, self%nat
+      gg=gbm%kappa*(self%brad(i)+gbm%ion_rad)
+      self%ionscr(i)=aa*exp(gg)/(1.0_wp+gg)
+      self%discr(i)=self%ionscr(i)*gbm%kappa*gg/(1.0_wp+gg)
    enddo
 
 end subroutine compute_debye_hueckel
 
-pure subroutine compute_bornr(this)
+pure subroutine compute_bornr(self)
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
    integer iat
    real(wp) br
@@ -1193,12 +1116,12 @@ pure subroutine compute_bornr(this)
    real(wp) arg,arg2,th,ch
    real(wp) alpi,beti,gami
 
-   do iat = 1, this%nat
+   do iat = 1, self%nat
 
-      br = this%brad(iat)
+      br = self%brad(iat)
 
-      svdwi=this%svdw(iat)
-      vdwri=this%vdwr(iat)
+      svdwi=self%svdw(iat)
+      vdwri=self%vdwr(iat)
       s1=1.0_wp/svdwi
       v1=1.0_wp/vdwri
       s2=0.5_wp*svdwi
@@ -1220,16 +1143,16 @@ pure subroutine compute_bornr(this)
       dpsi=s2*v1*arg2/(dpsi*dpsi)
       dpsi=gbm%c1*dpsi
 
-      this%brad(iat) = br
-      this%dbrdp(iat) = dpsi
+      self%brad(iat) = br
+      self%dbrdp(iat) = dpsi
 
    enddo
 
 end subroutine compute_bornr
 
-pure subroutine compute_psi(this)
+pure subroutine compute_psi(self)
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
    real(wp),allocatable :: br(:),brdr(:,:,:),brdrt(:,:)
    integer  :: kk
@@ -1241,22 +1164,22 @@ pure subroutine compute_psi(this)
    real(wp) :: rvdwi,rvdwj
    integer  :: ovij,ovji,ov
 
-   allocate( br(this%nat),brdr(3,this%nat,this%nat),brdrt(3,this%nat), &
+   allocate( br(self%nat),brdr(3,self%nat,self%nat),brdrt(3,self%nat), &
       &      source = 0.0_wp)
 
-   do kk = 1, this%nnrad
+   do kk = 1, self%nnrad
 
-      ii=this%nnlistr(1,kk)
-      jj=this%nnlistr(2,kk)
-      nn=this%nnlistr(3,kk)
+      ii=self%nnlistr(1,kk)
+      jj=self%nnlistr(2,kk)
+      nn=self%nnlistr(3,kk)
 
-      r=this%ddpair(1,nn)
-      dr(:)=this%ddpair(2:4,nn)
+      r=self%ddpair(1,nn)
+      dr(:)=self%ddpair(2:4,nn)
 
-      rhoi=this%rho(ii)
-      rhoj=this%rho(jj)
-      rvdwi=this%vdwr(ii)
-      rvdwj=this%vdwr(jj)
+      rhoi=self%rho(ii)
+      rhoj=self%rho(jj)
+      rvdwi=self%vdwr(ii)
+      rvdwj=self%vdwr(jj)
 
       ovij=1
       ovji=1
@@ -1468,23 +1391,23 @@ pure subroutine compute_psi(this)
    enddo
 
    ! save Born radii
-   this%brad = br
+   self%brad = br
    ! save derivative of Born radii w.r.t. atomic positions
-   this%brdr = brdr
+   self%brdr = brdr
    ! save one-center terms
-   do i = 1, this%nat
-      this%brdr(:,i,i) = brdrt(:,i)
+   do i = 1, self%nat
+      self%brdr(:,i,i) = brdrt(:,i)
    enddo
 
    deallocate( br,brdr,brdrt)
 
 end subroutine compute_psi
 
-pure subroutine compute_numsa(this,xyz)
+pure subroutine compute_numsa(self,xyz)
    implicit none
-   type(TSolvent), intent(inout) :: this
+   type(TSolvent), intent(inout) :: self
 
-   real(wp), intent(in) :: xyz(3,this%nat)
+   real(wp), intent(in) :: xyz(3,self%nat)
 
    integer iat,jat
    integer ip,jj,nnj,nnk
@@ -1497,13 +1420,13 @@ pure subroutine compute_numsa(this,xyz)
    integer :: nni
    integer, allocatable :: grdi(:)
 
-   allocate(grads(3,this%nat), source = 0.0_wp)
+   allocate(grads(3,self%nat), source = 0.0_wp)
 
-   do iat = 1, this%nat
+   do iat = 1, self%nat
 
-      rsas = this%vdwsa(iat)
+      rsas = self%vdwsa(iat)
       ! allocate space for the gradient storage
-      nno=this%nnsas(iat)
+      nno=self%nnsas(iat)
       allocate(grds(3,nno))
       allocate(grdi(nno))
 
@@ -1514,19 +1437,19 @@ pure subroutine compute_numsa(this,xyz)
       ! atomic position
       xyza(:)=xyz(:,iat)
       ! radial atomic weight
-      wr=this%wrp(iat)*this%gamsasa(iat)
+      wr=self%wrp(iat)*self%gamsasa(iat)
 
       ! loop over grid points
-      do ip=1,this%nang
+      do ip=1,self%nang
          ! grid point position
-         xyzp(:) = xyza(:) + rsas*this%angGrid(1:3,ip)
+         xyzp(:) = xyza(:) + rsas*self%angGrid(1:3,ip)
          ! atomic surface function at the grid point
-         call compute_w_sp(this%nat,this%nnlists,this%trj2,this%vdwsa, &
+         call compute_w_sp(self%nat,self%nnlists,self%trj2,self%vdwsa, &
             &              xyz,iat,nno,xyzp,sasap,grds,nni,grdi)
 
          if(sasap.gt.tolsesp) then
             ! numerical quadrature weight
-            wsa = this%angWeight(ip)*wr*sasap
+            wsa = self%angWeight(ip)*wr*sasap
             ! accumulate the surface area
             sasai = sasai + wsa
             ! accumulate the surface gradient
@@ -1542,15 +1465,15 @@ pure subroutine compute_numsa(this,xyz)
       deallocate(grds)
       deallocate(grdi)
 
-      this%sasa(iat) = sasai
-      this%dsdrt(:,:,iat) = grads
+      self%sasa(iat) = sasai
+      self%dsdrt(:,:,iat) = grads
 
    enddo
 
    ! contract surface gradient
-   this%dsdr = sum(this%dsdrt, dim=3)
+   self%dsdr = sum(self%dsdrt, dim=3)
 
-   this%gsasa = sum(this%sasa)
+   self%gsasa = sum(self%sasa)
 
 end subroutine compute_numsa
 
@@ -1613,29 +1536,29 @@ end subroutine compute_w_sp
 
 !> setup a pairlist and compute pair distances of all neighbors
 !  within thresholds lrcut and srcut.
-subroutine update_nnlist_gbsa(this,xyz,parallel)
+subroutine update_nnlist_gbsa(self,xyz,parallel)
    implicit none
-   type(TSolvent),intent(inout) :: this
+   type(TSolvent),intent(inout) :: self
 
-   real(wp),intent(in) :: xyz(3,this%nat)
+   real(wp),intent(in) :: xyz(3,self%nat)
    logical, intent(in) :: parallel
 
    if (parallel) then
-      call update_nnlist_gbsa_parallel(this,xyz)
+      call update_nnlist_gbsa_parallel(self,xyz)
    else
-      call update_nnlist_gbsa_sequential(this,xyz)
+      call update_nnlist_gbsa_sequential(self,xyz)
    endif
 
 end subroutine update_nnlist_gbsa
 !> setup a pairlist and compute pair distances of all neighbors
 !  within thresholds lrcut and srcut.
 !  OMP parallel version.
-subroutine update_nnlist_gbsa_parallel(this,xyz)
+subroutine update_nnlist_gbsa_parallel(self,xyz)
 !$ use omp_lib
    implicit none
-   type(TSolvent),intent(inout) :: this
+   type(TSolvent),intent(inout) :: self
 
-   real(wp),intent(in) :: xyz(3,this%nat)
+   real(wp),intent(in) :: xyz(3,self%nat)
 
    integer kk,i1,i2
    real(wp) rcutn2,lrcut2,srcut2
@@ -1649,17 +1572,17 @@ subroutine update_nnlist_gbsa_parallel(this,xyz)
    nproc=1
 !$ nproc=omp_get_max_threads()
 
-   allocate(plisttr(3,this%ntpair,nproc),nnls(this%nat,this%nat))
-   allocate(nntmp(this%nat),npid(nproc))
+   allocate(plisttr(3,self%ntpair,nproc),nnls(self%nat,self%nat))
+   allocate(nntmp(self%nat),npid(nproc))
    npid = 0
 
-   lrcut2 = this%lrcut*this%lrcut
-   srcut2 = this%srcut*this%srcut
+   lrcut2 = self%lrcut*self%lrcut
+   srcut2 = self%srcut*self%srcut
 
-   this%nnsas=0
-   this%nnlists=0
+   self%nnsas=0
+   self%nnlists=0
 !$omp parallel default(none) &
-!$omp&         shared ( this,xyz,lrcut2,srcut2 ) &
+!$omp&         shared ( self,xyz,lrcut2,srcut2 ) &
 !$omp&         private( i1,i2,x,y,z,dr2,ip,ip2,thrid,nntmp,nnls ) &
 !$omp&         shared ( plisttr, npid )
    ip=0
@@ -1669,17 +1592,17 @@ subroutine update_nnlist_gbsa_parallel(this,xyz)
    thrid=1
 !$ thrid=omp_get_thread_num() + 1
 !$omp do
-   do kk=1,this%ntpair
-      i1=this%ppind(1,kk)
-      i2=this%ppind(2,kk)
+   do kk=1,self%ntpair
+      i1=self%ppind(1,kk)
+      i2=self%ppind(2,kk)
       x=xyz(1,i1)-xyz(1,i2)
       y=xyz(2,i1)-xyz(2,i2)
       z=xyz(3,i1)-xyz(3,i2)
       dr2=x**2+y**2+z**2
-      this%ddpair(2,kk)=x
-      this%ddpair(3,kk)=y
-      this%ddpair(4,kk)=z
-      this%ddpair(1,kk)=sqrt(dr2)
+      self%ddpair(2,kk)=x
+      self%ddpair(3,kk)=y
+      self%ddpair(4,kk)=z
+      self%ddpair(1,kk)=sqrt(dr2)
       if(dr2.lt.lrcut2) then
          ip = ip + 1
          plisttr(1,ip,thrid)=i1
@@ -1696,21 +1619,21 @@ subroutine update_nnlist_gbsa_parallel(this,xyz)
 !$omp end do
    npid(thrid)=ip
 !$omp critical
-   do i1=1,this%nat
+   do i1=1,self%nat
       do i2=1,nntmp(i1)
-         this%nnlists(this%nnsas(i1)+i2,i1)=nnls(i2,i1)
+         self%nnlists(self%nnsas(i1)+i2,i1)=nnls(i2,i1)
       enddo
-      this%nnsas(i1)=this%nnsas(i1)+nntmp(i1)
+      self%nnsas(i1)=self%nnsas(i1)+nntmp(i1)
    enddo
 !$omp end critical
 !$omp end parallel
 
-   this%nnrad=0
+   self%nnrad=0
    do thrid=1,nproc
-      do kk = this%nnrad+1,this%nnrad+npid(thrid)
-         this%nnlistr(1:3,kk)=plisttr(1:3,kk-this%nnrad,thrid)
+      do kk = self%nnrad+1,self%nnrad+npid(thrid)
+         self%nnlistr(1:3,kk)=plisttr(1:3,kk-self%nnrad,thrid)
       enddo
-      this%nnrad = this%nnrad + npid(thrid)
+      self%nnrad = self%nnrad + npid(thrid)
    enddo
 
    deallocate(nntmp,nnls)
@@ -1719,11 +1642,11 @@ end subroutine update_nnlist_gbsa_parallel
 !> setup a pairlist and compute pair distances of all neighbors
 !  within thresholds lrcut and srcut
 !  Sequential version.
-pure subroutine update_nnlist_gbsa_sequential(this,xyz)
+pure subroutine update_nnlist_gbsa_sequential(self,xyz)
    implicit none
-   type(TSolvent),intent(inout) :: this
+   type(TSolvent),intent(inout) :: self
 
-   real(wp),intent(in) :: xyz(3,this%nat)
+   real(wp),intent(in) :: xyz(3,self%nat)
 
    integer kk,i1,i2
    real(wp) rcutn2,lrcut2,srcut2
@@ -1732,34 +1655,34 @@ pure subroutine update_nnlist_gbsa_sequential(this,xyz)
    integer, allocatable :: nntmp(:)
    integer, allocatable :: nnls(:,:)
 
-   allocate(nnls(this%nat,this%nat))
-   allocate(nntmp(this%nat))
+   allocate(nnls(self%nat,self%nat))
+   allocate(nntmp(self%nat))
 
-   lrcut2 = this%lrcut*this%lrcut
-   srcut2 = this%srcut*this%srcut
+   lrcut2 = self%lrcut*self%lrcut
+   srcut2 = self%srcut*self%srcut
 
-   this%nnsas=0
-   this%nnlists=0
+   self%nnsas=0
+   self%nnlists=0
    ip=0
    ip2=0
    nntmp=0
    nnls=0
-   do kk=1,this%ntpair
-      i1=this%ppind(1,kk)
-      i2=this%ppind(2,kk)
+   do kk=1,self%ntpair
+      i1=self%ppind(1,kk)
+      i2=self%ppind(2,kk)
       x=xyz(1,i1)-xyz(1,i2)
       y=xyz(2,i1)-xyz(2,i2)
       z=xyz(3,i1)-xyz(3,i2)
       dr2=x**2+y**2+z**2
-      this%ddpair(2,kk)=x
-      this%ddpair(3,kk)=y
-      this%ddpair(4,kk)=z
-      this%ddpair(1,kk)=sqrt(dr2)
+      self%ddpair(2,kk)=x
+      self%ddpair(3,kk)=y
+      self%ddpair(4,kk)=z
+      self%ddpair(1,kk)=sqrt(dr2)
       if(dr2.lt.lrcut2) then
          ip = ip + 1
-         this%nnlistr(1,ip)=i1
-         this%nnlistr(2,ip)=i2
-         this%nnlistr(3,ip)=kk
+         self%nnlistr(1,ip)=i1
+         self%nnlistr(2,ip)=i2
+         self%nnlistr(3,ip)=kk
          if(dr2.lt.srcut2) then
             nntmp(i1) = nntmp(i1) + 1
             nntmp(i2) = nntmp(i2) + 1
@@ -1768,33 +1691,33 @@ pure subroutine update_nnlist_gbsa_sequential(this,xyz)
          endif
       endif
    enddo
-   this%nnrad = ip
-   do i1=1,this%nat
+   self%nnrad = ip
+   do i1=1,self%nat
       do i2=1,nntmp(i1)
-         this%nnlists(this%nnsas(i1)+i2,i1)=nnls(i2,i1)
+         self%nnlists(self%nnsas(i1)+i2,i1)=nnls(i2,i1)
       enddo
-      this%nnsas(i1)=this%nnsas(i1)+nntmp(i1)
+      self%nnsas(i1)=self%nnsas(i1)+nntmp(i1)
    enddo
 
    deallocate(nntmp,nnls)
 
 end subroutine update_nnlist_gbsa_sequential
 
-pure subroutine update_dist_gbsa(this,xyz)
+pure subroutine update_dist_gbsa(self,xyz)
    implicit none
-   type(TSolvent),intent(inout) :: this
+   type(TSolvent),intent(inout) :: self
 
-   real(wp),intent(in) :: xyz(3,this%nat)
+   real(wp),intent(in) :: xyz(3,self%nat)
 
    integer i1,i2,kk
 
-   do kk = 1, this%ntpair
-      i1=this%ppind(1,kk)
-      i2=this%ppind(2,kk)
-      this%ddpair(2:4,kk)=xyz(1:3,i1)-xyz(1:3,i2)
-      this%ddpair(1,kk)=sqrt(this%ddpair(2,kk)**2+ &
-      &                      this%ddpair(3,kk)**2+ &
-      &                      this%ddpair(4,kk)**2)
+   do kk = 1, self%ntpair
+      i1=self%ppind(1,kk)
+      i2=self%ppind(2,kk)
+      self%ddpair(2:4,kk)=xyz(1:3,i1)-xyz(1:3,i2)
+      self%ddpair(1,kk)=sqrt(self%ddpair(2,kk)**2+ &
+      &                      self%ddpair(3,kk)**2+ &
+      &                      self%ddpair(4,kk)**2)
    enddo
 
 end subroutine update_dist_gbsa
