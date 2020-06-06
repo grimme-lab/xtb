@@ -701,7 +701,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, &
       enddo
       call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
          & dSEdcn, intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, &
-         & nmat2, matlist2, &
          & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
          & basis%alp, basis%cont, H, S, wfn%p, Pew, shellShift, vs, vd, vq, &
          & dhdcn, gradient, sigma)

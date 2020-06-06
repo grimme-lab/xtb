@@ -560,7 +560,7 @@ end subroutine build_dSDQH0
 
 !> Computes the gradient of the dipole/qpole integral contribution
 subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
-      & nat, nao, nbf, at, xyz, nmat, matlist, caoshell, saoshell, nprim, primcount, &
+      & nat, nao, nbf, at, xyz, caoshell, saoshell, nprim, primcount, &
       & alp, cont, H0, S, p, Pew, ves, vs, vd, vq, dhdcn, g, sigma)
    use xtb_lin
    integer, intent(in) :: nShell(:)
@@ -573,8 +573,6 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    integer, intent(in)    :: nao
    !> # of Cartesian AOs (CAOs)
    integer, intent(in)    :: nbf
-   integer, intent(in) :: nmat
-   integer, intent(in) :: matlist(:, :)
    !> Atomic numbers of atoms
    integer, intent(in)    :: at(nat)
    !> Integral cutoff according to prefactor from Gaussian product theorem
@@ -667,17 +665,13 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                hii = selfEnergy(ish, iat)
                hjj = selfEnergy(jsh, jat)
 
-               ! we scale the two shells depending on their exponent
-               zi = hData%slaterExponent(ish, izp)
-               zj = hData%slaterExponent(jsh, jzp)
-               zetaij = (2 * sqrt(zi*zj)/(zi+zj))**hData%wExp
-               call h0scal(hData,il,jl,izp,jzp,hData%valenceShell(ish, izp).ne.0, &
-                  & hData%valenceShell(jsh, jzp).ne.0,km)
-
                ! distance dependent polynomial
                call dshellPoly(hData%shellPoly(il,izp),hData%shellPoly(jl,jzp),&
                   & hData%atomicRad(izp),hData%atomicRad(jzp),rij2,ri,rj,&
                   & shpoly,dshpoly)
+
+               ! averaged H0 element (without overlap contribution!)
+               hav = 0.5_wp * (hii + hjj)
 
                sdqg = 0;sdq = 0
                call get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
@@ -703,12 +697,12 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                      Hij  = H0(jao, iao)
                      HPij = Hij * Pij
 
-                     g_xyz(:) = g_xyz + 2*HPij*S(jao,iao)*dshpoly/shpoly
+                     g_xyz(:) = g_xyz + 2*HPij*S(jao,iao)*dshpoly/shpoly &
+                        & + sdqg(:,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
+                        & - Pij*(ves(ish,iat)+ves(jsh,jat)) &
+                        & + Pij*(vs(iat)+vs(jat)))
 
                      do ixyz = 1,3
-                        stmp = sdqg(ixyz,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
-                           & -Pij*(ves(ish,iat)+ves(jsh,jat)) &
-                           & +Pij*(vs(iat)+vs(jat)))
                         dtmp = Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
                            & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
                         qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
@@ -718,13 +712,13 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                      enddo ! ixyz
 
                      ! Hamiltonian without Hav
-                     dCN = km * zetaij * shpoly * Pij * S(jao,iao) * evtoau
-                     ! save dE/dCN for CNi
-                     dhdcn(iat) = dhdcn(iat) + dCN*dSEdcn(ish, iat)
-                     ! save dE/dCN for CNj
-                     dhdcn(jat) = dhdcn(jat) + dCN*dSEdcn(jsh, jat)
+                     dCN = dCN + HPij / hav * S(jao, iao)
                   enddo
                enddo
+               ! save dE/dCN for CNi
+               dhdcn(iat) = dhdcn(iat) + dCN*dSEdcn(ish, iat)
+               ! save dE/dCN for CNj
+               dhdcn(jat) = dhdcn(jat) + dCN*dSEdcn(jsh, jat)
                g(:,iat) = g(:,iat)+g_xyz
                g(:,jat) = g(:,jat)-g_xyz
                sigma(:, :) = sigma + spread(g_xyz, 1, 3) * spread(rij, 2, 3)
