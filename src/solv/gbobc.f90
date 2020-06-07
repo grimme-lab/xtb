@@ -215,7 +215,7 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,alpha, 
 
 end subroutine load_custom_parameters
 
-subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,verbose)
+subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,verbose)
    use xtb_mctc_strings
    use xtb_readin
    implicit none
@@ -227,6 +227,7 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,verbose)
    integer, intent(in) :: gfn_method
    integer, intent(in) :: ngrida
    logical, intent(in) :: verbose
+   logical, intent(in) :: alpb
 
    integer :: i,fix,inum,ich
    real(wp) :: rad
@@ -313,6 +314,8 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,verbose)
       end if
    endif
 
+   if (alpb) gfn_solvent%alpha = 0.571412_wp
+
    call new_gbsa_model(gbm,gfn_solvent,mode,temp,ngrida)
 
    lhb = gbm%lhb
@@ -329,6 +332,11 @@ subroutine gbsa_info(iunit,gbm)
    integer, intent(in) :: iunit
    type(gbsa_model), intent(in) :: gbm
 
+   if (gbm%alpbet > 0.0_wp) then
+      write(iunit,*) 'solvation model            : ALPB'
+   else
+      write(iunit,*) 'solvation model            : GBSA'
+   end if
    write(iunit,'(1x,a,1x)',advance='no') 'Gsolv ref. state (COSMO-RS):'
    select case(gbm%mode)
    case(1)

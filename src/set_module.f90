@@ -280,6 +280,7 @@ subroutine write_set_hess(ictrl)
 end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
+   use xtb_readin, only : bool2string
    use xtb_solv_gbobc, only: ionst,ion_rad
    implicit none
    integer,intent(in) :: ictrl
@@ -296,6 +297,7 @@ subroutine write_set_gbsa(ictrl)
       case(p_angsa_extreme);  write(ictrl,'(a)') "extreme"
       case default;           write(ictrl,'(i0)') ngrida
       end select
+      write(ictrl,'(3x,"alpb=",a)') bool2string(alpb)
    endif
 end subroutine write_set_gbsa
 
@@ -1818,6 +1820,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
       select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
@@ -1855,6 +1858,9 @@ subroutine set_gbsa(env,key,val)
          endselect
       endif
       set4 = .false.
+   case('alpb')
+      if (getValue(env,val,ldum).and.set5) alpb = ldum
+      set5 = .false.
    end select
 end subroutine set_gbsa
 

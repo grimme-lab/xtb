@@ -190,6 +190,7 @@ module xtb_setparam
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
    character(len=:),allocatable :: solvent
+   logical :: alpb = .false.
 !  Choose the grid for the GBSA
    integer, parameter :: ldgrids(32) = &
       &[  6,  14,  26,  38,  50,  74,  86, 110, 146, 170, &
