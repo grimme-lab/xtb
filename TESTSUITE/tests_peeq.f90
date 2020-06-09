@@ -96,6 +96,7 @@ program peeq_tester
       select case(sec)
       case('sp');  call test_gfnff_sp
       case('hb');  call test_gfnff_hb
+      case('gbsa');call test_gfnff_gbsa
       end select
    case('peeq')
       select case(sec)

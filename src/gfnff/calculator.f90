@@ -166,6 +166,8 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
       if (.not.silent.and.allocated(self%solv)) then
+         write(env%unit,outfmt) "total w/o Gsolv   ", &
+            &  results%e_total-results%g_solv, "Eh   "
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
