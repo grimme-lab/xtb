@@ -539,7 +539,7 @@ contains
 !!!!!!!!!!!!!!!!!!
       etot = ees + edisp + erep + ebond &
      &           + eangl + etors + ehb + exb + ebatm + eext &
-     &           + gsolv + gshift + gborn + ghb
+     &           + gsolv
 
 !!!!!!!!!!!!!!!!!!
 ! printout
