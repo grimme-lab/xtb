@@ -97,6 +97,7 @@ xtb_common = static_library(
   '_@0@'.format(meson.project_name()),
   sources: srcs,
   include_directories: incdir,
+  dependencies: exe_deps,
   install: false,
   pic: true,
 )
