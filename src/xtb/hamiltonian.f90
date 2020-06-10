@@ -293,9 +293,10 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
 
    ! diagonal elements
    !$omp parallel do default(none) reduction(+:H0, sint, dpint, qpint) &
-   !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell) &
+   !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell, &
+   !$omp& point, intcut, nprim, primcount, alp, cont) &
    !$omp private(iat, ra, izp, ish, ishtyp, iao, i, ii, icao, naoi, iptyp, &
-   !$omp& jah, jshtyp, jcao, ss, dd, qq, k, tmp, jao, jj)
+   !$omp& jsh, jshtyp, jcao, ss, dd, qq, k, tmp, jao, jj, naoj, jptyp)
    do iat = 1, nat
       ra = xyz(:, iat)
       izp = at(iat)
@@ -538,7 +539,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
 
    ! diagonal contributions
    !$omp parallel do default(none) reduction(+:dhdcn) &
-   !$omp shared(nat, at, nshell, hData, saoshell) &
+   !$omp shared(nat, at, nshell, hData, saoshell, P, dSEdcn) &
    !$omp private(iat, izp, ish, ishtyp, iao, i, Pij)
    do iat = 1, nat
       izp = at(iat)
@@ -624,7 +625,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    point = 0.0_wp
    ! call timing(t1,t3)
    !$OMP PARALLEL DO default(none) &
-   !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
+   !$omp shared(nat, at, xyz, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& H0, S, ves, vs, vd, vq, &
    !$omp& intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
    !$omp PRIVATE(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij, &
@@ -731,7 +732,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
 
    ! diagonal contributions
    !$omp parallel do default(none) reduction(+:dhdcn) &
-   !$omp shared(nat, at, nshell, hData, saoshell) &
+   !$omp shared(nat, at, nshell, hData, saoshell, P, dSEdcn) &
    !$omp private(iat, izp, ish, ishtyp, iao, i, Pij)
    do iat = 1, nat
       izp = at(iat)

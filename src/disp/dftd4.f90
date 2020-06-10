@@ -886,7 +886,7 @@ end subroutine pbc_d4
 
 !> Calculate the weights of the reference system and the derivatives w.r.t.
 !  coordination number for later use.
-subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, &
+subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, &
       &                      zetavec, zerovec, zetadcn, zerodcn, zetadq)
    type(TDispersionModel), intent(in) :: dispm
    !> Nr. of atoms (without periodic images)
@@ -903,6 +903,8 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, &
    real(wp), intent(in) :: cn(:)
    !> Partial charge of every atom.
    real(wp), intent(in) :: q(:)
+   real(wp), intent(in) :: zeff(:)
+   real(wp), intent(in) :: gam(:)
    !> weighting and scaling function for the atomic reference systems
    real(wp), intent(out) :: zetaVec(:, :)
    !> weighting and scaling function for the atomic reference systems for q=0
@@ -925,7 +927,7 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, &
    zetadq  = 0.0_wp
 
    !$omp parallel do default(none) shared(zetavec, zetadcn, zetadq, zerodcn) &
-   !$omp shared(nat, atoms, zeff, gam, dispm, cn, q) &
+   !$omp shared(nat, atoms, dispm, cn, q, zeff, gam, g_a, g_c, wf, zerovec) &
    !$omp private(iat, ati, zi, gi, norm, dnorm, iref, icount, twf, gw, expw, &
    !$omp& expd, gwk, dgwk)
    do iat = 1, nat
@@ -1013,7 +1015,7 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    !$omp parallel do default(none) shared(c6, dc6dcn, dc6dq) &
    !$omp shared(nat, atoms, dispm, zetavec, zetadcn, zetadq) &
    !$omp private(iat, ati, jat, atj, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj, &
-   !$omp& iref, jref)
+   !$omp& iref, jref, refc6)
    do iat = 1, nat
       ati = atoms(iat)
       do jat = 1, iat
@@ -1124,7 +1126,7 @@ subroutine d4_full_gradient_neigh &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), energies3(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, zeff, gam, &
       & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
    call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
@@ -1228,7 +1230,7 @@ subroutine d4_gradient_neigh &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, zeff, gam, &
       & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
    call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
@@ -1413,7 +1415,7 @@ subroutine d4_atm_gradient_neigh &
       &     q(nat), c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), source=0.0_wp)
 
-   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, zeff, gam, &
       & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
    call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
@@ -1461,7 +1463,7 @@ subroutine atm_gradient_neigh &
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
 
    !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
-   !$omp shared(mol, neighs, neighlist, par, r4r2) &
+   !$omp shared(mol, neighs, neighlist, par, r4r2, c6, dc6dcn) &
    !$omp private(iat, ati, ij, jtr, r2ij, rij, jat, atj, ik, ktr, kat, atk, rik, &
    !$omp& r2ik, rjk, r2jk, c6ij, cij, c6ik, c6jk, cik, cjk, scale, dE, dG, dS, dCN)
    do iat = 1, len(mol)
@@ -1594,7 +1596,7 @@ subroutine d4_full_gradient_latp &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), energies3(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, zeff, gam, &
       & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
    call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
@@ -1698,7 +1700,7 @@ subroutine d4_gradient_latp &
       &     c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), dEdq(nat), source=0.0_wp)
 
-   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, zeff, gam, &
       & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
    call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
@@ -1884,7 +1886,7 @@ subroutine d4_atm_gradient_latp &
       &     q(nat), c6(nat, nat), dc6dcn(nat, nat), dc6dq(nat, nat), &
       &     energies(nat), dEdcn(nat), source=0.0_wp)
 
-   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, &
+   call weight_references(dispm, nat, mol%at, g_a, g_c, wf, q, cn, zeff, gam, &
       & zetavec, zerovec, zetadcn, zerodcn, zetadq)
 
    call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
@@ -1932,10 +1934,10 @@ subroutine atm_gradient_latp &
 
    cutoff2 = cutoff**2
 
-   !$omp parallel do default(none) reduction(+energies, gradient, sigma, dEdcn) &
-   !$omp shared(mol, r4r2, par, trans, cutoff2) &
+   !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
+   !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn) &
    !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
-   !$omp& itr, rij, r2ij, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN)
+   !$omp& rij, r2ij, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN)
    do iat = 1, len(mol)
       ati = mol%at(iat)
       do jat = 1, iat
