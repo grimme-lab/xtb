@@ -313,17 +313,19 @@ subroutine newWavefunction(env, mol, calc, wfn)
 end subroutine newWavefunction
 
 
-subroutine addSolvationModel(env, calc, solvent, state, temp, nang)
+subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
    type(TEnvironment), intent(inout) :: env
    class(TCalculator), intent(inout) :: calc
    character(len=*), intent(in) :: solvent
    integer, intent(in), optional :: state
    real(wp), intent(in), optional :: temp
    integer, intent(in), optional :: nang
+   logical, intent(in), optional :: verbose
    integer :: solvState
    real(wp) :: temperature
    integer :: gridSize
    integer :: level
+   logical :: pr
 
    if (present(state)) then
       solvState = state
@@ -343,6 +345,12 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang)
       gridSize = ngrida
    end if
 
+   if (present(verbose)) then
+      pr = verbose
+   else
+      pr = .false.
+   end if
+
    level = 0
    select type(calc)
    type is(TxTBCalculator)
@@ -352,7 +360,7 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang)
 
    if (len_trim(solvent).gt.0 .and. solvent.ne."none") then
       call initGBSA(env, trim(solvent), solvState, temperature, level, &
-         & gridSize, .false.)
+         & gridSize, alpb, pr)
       allocate(calc%solv)
    endif
 

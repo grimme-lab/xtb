@@ -50,7 +50,7 @@ subroutine initDefaults(env, calc, mol, gsolvstate)
    end if
 
    ! Optionally add a solvation model
-   call addSolvationModel(env, calc, solvent, gsolvstate, temp_md, ngrida)
+   call addSolvationModel(env, calc, solvent, gsolvstate, temp_md, ngrida, .not.silent)
 
    ! initialize PC embedding (set default file names and stuff)
    call init_pcem

@@ -229,7 +229,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
       &        q,dipm,qp,qq,qlmom,qsh,zsh, &
       &        xyz,aes, &
-      &        gbsa,fgb,fhb,cm5,cm5a,gborn, &
+      &        gbsa,fgb,cm5,cm5a,gborn, &
       &        scD4, &
       &        broy,broydamp,damp0, &
       &        pcem,shellShift,externShift, &
@@ -300,7 +300,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  continuum solvation model GBSA
    type(TSolvent), allocatable, intent(inout) :: gbsa
    real(wp),intent(inout) :: fgb(n,n)
-   real(wp),intent(inout) :: fhb(n)
    real(wp),intent(in)    :: cm5a(n)
    real(wp),intent(inout) :: cm5(n)
    real(wp),intent(inout) :: gborn
@@ -413,7 +412,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    if (allocated(gbsa)) then
       cm5(:) = q + cm5a
       call setespot(n, cm5, fgb, atomicShift)
-      atomicShift(:) = atomicShift + 2*cm5*fhb
    end if
    ! self consistent dispersion contributions
    if (present(scD4)) then
@@ -515,7 +513,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    ! new cm5 charges and gborn energy
    if(allocated(gbsa)) then
       cm5=q+cm5a
-      call electro_gbsa(n,at,fgb,fhb,cm5,gborn,eel)
+      call electro_gbsa(n,at,fgb,cm5,gborn,eel)
    endif
 
    ! add el. entropies*T
@@ -695,12 +693,11 @@ end subroutine electro
 !! ========================================================================
 !  GBSA related subroutine
 !! ========================================================================
-pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
+pure subroutine electro_gbsa(n,at,gab,dqsh,es,scc)
    use xtb_mctc_convert, only : evtoau
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
    real(wp),intent(in)  :: gab(n,n)
-   real(wp),intent(in)  :: fhb(n)
    real(wp),intent(in)  :: dqsh(n)
    real(wp),intent(out) :: es
    real(wp),intent(inout) :: scc
@@ -722,13 +719,6 @@ pure subroutine electro_gbsa(n,at,gab,fhb,dqsh,es,scc)
 !  second-order diagonal term + HB contribution
    do i=1,n
       es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-!  HB energy
-   ehb=0.d0
-   do i = 1, n
-!     ehb = ehb + fhb(i)*(dqsh(i)**2)**c3
-      ehb = ehb + fhb(i)*(dqsh(i)**2)
    enddo
 
 !  ES energy in Eh
