@@ -235,21 +235,21 @@ subroutine test_gfnff_gbsa
       & g,etot,res_gff,calc%param,calc%topo,calc%solv,.true.,calc%version, &
       & calc%accuracy)
 
-   call assert_close(res_gff%e_total,-0.963965759735_wp,thr)
-   call assert_close(res_gff%gnorm,   0.006620747519_wp,thr)
+   call assert_close(res_gff%e_total,-0.964158677062_wp,thr)
+   call assert_close(res_gff%gnorm,   0.013624276205_wp,thr)
    call assert_close(res_gff%e_bond, -0.856707643513_wp,thr)
    call assert_close(res_gff%e_angl,  0.000579711773_wp,thr)
    call assert_close(res_gff%e_tors,  0.000000008811_wp,thr)
-   call assert_close(res_gff%e_es,   -0.151138740773_wp,thr*10)
+   call assert_close(res_gff%e_es,   -0.150043166563_wp,thr*10)
    call assert_close(res_gff%e_disp, -0.001251669186_wp,thr)
    call assert_close(res_gff%e_rep,   0.066881023899_wp,thr)
    call assert_close(res_gff%e_hb,   -0.006894292337_wp,thr)
    call assert_close(res_gff%e_xb,   -0.000000000000_wp,thr)
    call assert_close(res_gff%e_batm, -0.000000000000_wp,thr)
-   call assert_close(res_gff%g_solv, -0.015434158338_wp,thr)
+   call assert_close(res_gff%g_solv, -0.016722649876_wp,thr)
    call assert_close(res_gff%g_sasa,  0.000126368690_wp,thr)
-   call assert_close(res_gff%g_hb,   -0.008444397163_wp,thr)
-   call assert_close(res_gff%g_born, -0.008973572992_wp,thr)
+   call assert_close(res_gff%g_hb,   -0.009238122476_wp,thr)
+   call assert_close(res_gff%g_born, -0.009468339217_wp,thr)
    call assert_close(res_gff%g_shift, 0.001857443126_wp,thr)
 
    call mol%deallocate
