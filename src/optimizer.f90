@@ -365,8 +365,10 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
 
    ! this comes close to a goto, but it's not a goto ... it's even worse
    if (restart.and.iter.lt.maxopt) then
-      write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
-      write(env%unit,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
+      if (pr) then
+         write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
+         write(env%unit,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
+      end if
       cycle ANC_microiter
    endif
    exit  ANC_microiter

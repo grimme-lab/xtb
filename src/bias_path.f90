@@ -100,7 +100,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    nk      =6           ! # of test runs with different k bias
    maxpath =nalp*nk
 
-   ppull= 0.05_wp       ! default pull strength on path point
+   ppull= pathset%ppull ! default pull strength on path point
 
    pthr = 0.00_wp       ! include points on path depending on overlap of approx TS modes
    gthr = 0.01_wp       ! Gnorm at TS exit thr
@@ -192,7 +192,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    call delete_file('.xtbtmpmode')
    call delete_file('hessian')
 
-   do ialp=1,nalp ! alp
+   bias_loop: do ialp=1,nalp ! alp
       factor = 1.0_wp
       do run=1,nk  ! k_push/pull
 
@@ -272,7 +272,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
          ! increase power
          factor = factor * k_change
 
-         if(done) goto 999
+         if(done) exit bias_loop
 
          if(rms.lt.rmsd_prod_thr) then ! found product
             factor = factor / k_change / 1.2_wp  ! test a bit smaller push/pull
@@ -281,13 +281,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
       enddo
       factor2= factor2 + alp_change
-   enddo  ! bias loop
-
-   !! ------------------------------------------------------------------------
-   ! done
-   !! ------------------------------------------------------------------------
-
-   999 continue
+   enddo bias_loop
 
    !! ------------------------------------------------------------------------
    ! output and find path yielding product
@@ -492,7 +486,7 @@ subroutine screenpath(np,npwanted,npnew,n,xyz,e,xyzdum)
 
    thr=0.01_wp
    k  = 0
-   10 continue
+10 continue
    k = k + 1
    j = 1
    do i=2,np-1

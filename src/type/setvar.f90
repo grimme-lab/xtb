@@ -267,6 +267,8 @@ module xtb_type_setvar
       real(wp) :: alp  = 0.70_wp
 !     file name for product structure
       character(len=:),allocatable :: fname
+!     default pull strength on path point
+      real(wp) :: ppull = 0.05_wp
 !     atom list
       integer  :: nat = 0
       integer, allocatable :: atoms(:)

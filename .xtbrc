@@ -91,7 +91,7 @@ $write
    modef=true
 $path
    nrun=1
-   nopt=25
+   npoint=25
    anopt=10
    kpush=0.003
    kpull=-0.015
