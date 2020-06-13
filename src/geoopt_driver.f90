@@ -37,6 +37,8 @@ subroutine geometry_optimization &
 
    implicit none
 
+   character(len=*), parameter :: source = 'xtb_geoopt'
+
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
 
@@ -106,11 +108,14 @@ subroutine geometry_optimization &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
    end select
 
-   if (fail) then
-      call touch_file('NOT_CONVERGED')
-   else
-      call touch_file('.xtboptok')
-   endif
+   if (pr) then
+      if (fail) then
+         call touch_file('NOT_CONVERGED')
+         call env%warning("Geometry optimization did not converge", source)
+      else
+         call touch_file('.xtboptok')
+      endif
+   end if
 
    if (pr.and.pr_finalstruct) then
       write(env%unit,'(''================'')')

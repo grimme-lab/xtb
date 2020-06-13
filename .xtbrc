@@ -90,12 +90,13 @@ $write
    torsions=false
    modef=true
 $path
-   nrun=3
-   nopt=50
-   anopt=3
-   kpush=.5000000000000000E-01
-   kpull=-.4000000000000000E-01
-   alp=.7000000000000000
+   nrun=1
+   npoint=25
+   anopt=10
+   kpush=0.003
+   kpull=-0.015
+   ppull=0.05
+   alp=1.2
 $wall
    potential=logfermi
    alpha=30

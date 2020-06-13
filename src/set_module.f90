@@ -424,10 +424,11 @@ subroutine write_set_path(ictrl)
    integer :: i
    write(ictrl,'(a,"path")') flag
    write(ictrl,'(3x,"nrun=",i0)')  pathset%nrun
-   write(ictrl,'(3x,"nopt=",i0)')  pathset%nopt
+   write(ictrl,'(3x,"npoint=",i0)')  pathset%nopt
    write(ictrl,'(3x,"anopt=",i0)') pathset%anopt
    write(ictrl,'(3x,"kpush=",g0)') pathset%kpush
    write(ictrl,'(3x,"kpull=",g0)') pathset%kpull
+   write(ictrl,'(3x,"ppull=",g0)') pathset%ppull
    write(ictrl,'(3x,"alp=",g0)')   pathset%alp
    if (allocated(pathset%fname)) &
       write(ictrl,'(3x,"product=",a)') pathset%fname
@@ -2163,6 +2164,7 @@ subroutine set_path(env,key,val)
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
+   logical,save :: set8 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2170,7 +2172,7 @@ subroutine set_path(env,key,val)
    case('nrun')
       if (getValue(env,val,idum).and.set1) pathset%nrun = idum
       set1 = .false.
-   case('nopt')
+   case('nopt', 'npoint')
       if (getValue(env,val,idum).and.set2) pathset%nopt = idum
       set2 = .false.
    case('anopt')
@@ -2193,6 +2195,9 @@ subroutine set_path(env,key,val)
          endif
          pathset%fname = val
       endif
+      set7 = .false.
+   case('ppull')
+      if (getValue(env,val,ddum).and.set7) pathset%ppull = ddum
       set7 = .false.
    end select
 

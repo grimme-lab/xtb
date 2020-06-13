@@ -1009,6 +1009,9 @@ subroutine xtbMain(env, argParser)
       &   (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_metaopt)) then
       call prtiming(3,'ANC optimizer')
    endif
+   if (runtyp.eq.p_run_path) then
+      call prtiming(4,'path finder')
+   endif
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
       call prtiming(5,'numerical hessian')
    endif
