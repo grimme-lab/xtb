@@ -19,27 +19,29 @@ contains
 
 !! ========================================================================
 !  RMSD biased push/pull path finder (RMSD-BPP)
-!  SG 12/18
+!  SG 12/18, modified 06/20
 !! ========================================================================
 subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_convert
-
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_wavefunction
-
+   use xtb_type_data, only : scc_results
+   use xtb_single, only : singlepoint
    use xtb_io_writer, only : writeMolecule
-
    use xtb_setparam
    use xtb_fixparam
-
+   use xtb_cqpath
    use xtb_geoopt
    use xtb_optimizer
    use xtb_lsrmsd
    use xtb_metadynamic
+   use xtb_readin
+   use xtb_axis, only : axis
+   use xtb_param_atomicRad, only : atomicRad
 
    implicit none
 
@@ -56,38 +58,74 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    real(wp),intent(inout) :: grd(3,mol%n)
    real(wp),intent(inout) :: sigma(3,3)
 
-   real(wp),allocatable :: xyz0(:,:)
-   real(wp),allocatable :: xyz1(:,:)
-   real(wp),allocatable :: g0(:,:),g1(:,:)
-   real(wp),allocatable :: xyznew(:,:,:)
-   real(wp),allocatable :: enew(:)
-   real(wp),allocatable :: dat(:,:,:)
-   integer, allocatable :: at1(:)
+   real(wp),allocatable :: xyze(:,:)
+   real(wp),allocatable :: xyzp(:,:)
+   real(wp),allocatable :: gtmp(:,:)
+   real(wp),allocatable :: xyzpath(:,:,:)
+   real(wp),allocatable :: xyzdum (:,:,:)
+   real(wp),allocatable :: bo(:,:), cn(:)
+   real(wp),allocatable :: pvec1(:), pvec2(:)
+   real(wp),allocatable :: epath(:), mempath(:,:)
+   integer, allocatable :: atp(:)
+   integer, allocatable :: splitl(:)
+   integer, allocatable :: npath(:)
 
-   integer maxpath
-   parameter (maxpath=2000) ! max # points on one path
-   integer i,j,k,nn,npath(100),olev,skip,irun,maxoptiter
-   real(wp) e,U(3,3),x(3),y(3),rms,barr,drms,gnew,e0,e1,dum0
-   real(wp) xx(10),dum,factor,mem(5,100),distort,gnorm,dum1,ang
-   real(wp) ma,mfac,gthr,fnat
-   parameter (distort=0.005)  ! set such that symmetric HCN and trans-dichlorethen react
+   integer i,j,k,ii,nn,olev,skip,irun,maxoptiter,nk,maxcycle,idum,maxpath
+   integer np,iter,its,modef,run,npathk,tsmodeav,ialp,nrefine,nalp,imem(100)
+   integer ilog,ilog2,idat ! file handle
+
+   real(wp) U(3,3),x(3),y(3),rms,barr,drms,gnew,e1,dum0,r,rco,rms2,factor2
+   real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+   real(wp) fnat,rmsd_prod_thr,alp_change,k_change,edrmsd,ppull
+   real(wp) gdum,gts,emax,eback,eforw,eforw_prev,gsum_prev,pthr
+   real(wp) de_min,grad_min,e_ed,e_pr,de,ddot,gthr
+
    character(len=80) :: atmp,btmp
-   logical fail,ex
-   integer :: ilog,idat ! file handle
+   logical fail,ex,done,degen
+   type(scc_results) :: res
 
-   if(pathset%nrun.gt.100) call raise('E','too big path_nrun (max 100)',1)
+!! ------------------------------------------------------------------------
+!  some parameters                     
+!! ------------------------------------------------------------------------
+
+   nrefine =pathset%nrun! # of refinement (full path opt) steps (usually 1)
+   nalp    =4           ! # of test runs with different alpha bias
+   nk      =6           ! # of test runs with different k bias
+   maxpath =nalp*nk
+
+   ppull= 0.05_wp       ! default pull strength on path point
+
+   pthr = 0.00_wp       ! include points on path depending on overlap of approx TS modes
+   gthr = 0.01_wp       ! Gnorm at TS exit thr
+   rmsd_prod_thr=0.2_wp ! RMSD between product and last point on path found   
+                        ! if less, loop terminates and path is considered as ok
+   k_change  = 1.5_wp   ! increase k push/pull in each try by this
+   alp_change= 0.2_wp   ! decrease alpha in each alp try by this
+   scc       = 2.0_wp   ! high accuracy not important in SP
+
+   optset%maxdispl_opt=0.50_wp ! don't make it too small (more points, erratic behavior)
+   optset%hlow_opt    =0.03_wp ! too small values can cause spikes
+
+   ilog =14 
+   ilog2=142
+
    call metaset%allocate(mol%n,2)
-   allocate(enew(maxpath),xyznew(3,mol%n,maxpath),dat(2,maxpath,100))
-   allocate(xyz0(3,mol%n),xyz1(3,mol%n),g0(3,mol%n),g1(3,mol%n),at1(mol%n))
+   allocate(splitl(mol%n),gtmp(3,mol%n),pvec1(3*mol%n),pvec2(3*mol%n))
+   allocate(xyze(3,mol%n),xyzp(3,mol%n),bo(mol%n,mol%n),atp(mol%n),cn(mol%n))
+   allocate(npath(maxpath),mempath(4,maxpath))
 
    if (.not.allocated(pathset%fname)) then
       call raise('E','No product structure given!',1)
    endif
    write(env%unit,*) 'reading reference structures from '//pathset%fname//' ...'
-   call rdcoord(pathset%fname,mol%n,xyz1,at1)
-   if (any(at1.ne.mol%at)) then
+   call rdcoord(pathset%fname,mol%n,xyzp,atp) ! product
+   if (any(atp.ne.mol%at)) then
       call raise('E','Atom type missmatch between reactant and product!',1)
    endif
+   xyze=mol%xyz ! educt
+
+   call rmsd(mol%n,xyze,xyzp,0,U,x,y,rms,.false.,gtmp)
+   write(env%unit,'("educt product RMSD :",f9.3)')rms          
 
    if (pathset%nat.gt.0) then
       metaset%nat = pathset%nat
@@ -97,230 +135,799 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
       metaset%nat = 0
       fnat= mol%n  ! all atoms used in RMSD
    endif
-   metaset%width=pathset%alp   ! copy width to metadyn common block
-   metaset%nstruc = 2
 
-   write(env%unit,'("initial k push/pull              :",2f9.3)') &
-      &        pathset%kpush,pathset%kpull
-   write(env%unit,'("Gaussian width (1/Bohr)          :",f9.3)')metaset%width
-   write(env%unit,'("# random initial distor incr +/- :",f9.3)')distort
-   write(env%unit,'("# optlevel                       :",i4)')optset%optlev
-   write(env%unit,'("# of runs                        :",i4)')pathset%nrun
-   write(env%unit,'("approx # structures opt on path  :",i4)')pathset%nopt
-   write(env%unit,'("# of ''an''-optimization steps     :",i4)')pathset%anopt
-   factor = 1.0
-   xyz0 = mol%xyz
-   metaset%xyz(:,:,1) = xyz0
-   metaset%xyz(:,:,2) = xyz1
-
-   metaset%width =1.0 ! start value
+   write(env%unit,'("initial k push/pull (in code xNat) :",2f9.3)')pathset%kpush,pathset%kpull
+   write(env%unit,'("initial Gaussian width (1/Bohr)    :",f9.3)')pathset%alp
+   write(env%unit,'("# refinement runs                  :",i4)')nrefine        
+   write(env%unit,'("# of ''an''-optimization steps       :",i4)')pathset%anopt
+   write(env%unit,'("# optlevel                         :",i4)')optset%optlev
    write(env%unit,*)
-   write(env%unit,*) ' k_push/k_pull internally multiplied by Natoms!'
-   write(env%unit,*) ' user info on effect of push/pull parameters'
-   write(env%unit,*) ' ang. ed-prod G should be small, Govlp large'
-   write(env%unit,*)  &
-      &         '  width   k_push  k_pull  |Gbias| ang. ed-prod G  Govlp'
-   do i=1,9
-      ! forward
-      metaset%factor(1) = pathset%kpush * fnat * factor
-      metaset%factor(2) = pathset%kpull * fnat * factor
-      g0 = 0
-      call metadynamic(metaset,mol%n,mol%at,xyz0,e0,g0)
-      ! backward
-      metaset%factor(2) = pathset%kpush * fnat * factor
-      metaset%factor(1) = pathset%kpull * fnat * factor
-      g1 = 0
-      call metadynamic(metaset,mol%n,mol%at,xyz1,e1,g1)
 
-      dum=1.d-9
-      dum0=1.d-9
-      dum1=1.d-9
+!! ------------------------------------------------------------------------
+!  check if its poly-molecular reaction (in case increas rmsd_prod_thr)
+!! ------------------------------------------------------------------------
+
+   bo = 0
+   do i=1,mol%n
+      cn(i)=0
       do j=1,mol%n
-         do k=1,3
-            dum0=dum0+g0(k,j)*g0(k,j)
-            dum1=dum1+g1(k,j)*g1(k,j)
-            dum=dum  +g0(k,j)*g1(k,j)
-         enddo
+         r=norm2(xyzp(:,i)-xyzp(:,j))
+         rco=(atomicRad(mol%at(i))+atomicRad(mol%at(j)))*autoaa
+         if(r.lt.2.5*rco) then
+            bo(j,i)=1
+            cn(i)=cn(i)+1
+         endif
       enddo
-      ang =acos(-dum/(sqrt(dum0*dum1)))*360./3.14159
-      dum1=0.5*(sum(abs(g0))+sum(abs(g1)))
-      write(env%unit,'(3f8.3,f12.6,f8.1,f12.5)')metaset%width, &
-         &   metaset%factor(2)/fnat, &
-         &   metaset%factor(1)/fnat, &
-         &   dum1,ang,-dum
-      metaset%width = metaset%width - 0.1
-      factor = factor * 1.5
+      bo(i,i)=0
    enddo
+   call mrec(i,xyzp,cn,bo,mol%n,mol%at,splitl)
+   rmsd_prod_thr = rmsd_prod_thr * float(i) ! RMSD can be large if fragments are involved
+   deallocate(bo,cn,splitl)
 
-   call rmsd(mol%n,xyz0,xyz1,0,U,x,y,rms,.false.,g0)
-   write(env%unit,'("input reactant/product RMSD (Bohr)  :",f9.3,/)')rms
-   if(rms.gt.4)  &
-      & write(env%unit,*) 'WARNING: for large reactant/product RMSD,', &
-   &            ' small $path/alp values (width) should be tested.'
-   if(optset%optlev.lt.1) &
-      &  write(env%unit,*) 'WARNING: $opt/level=tight or vtight recommended!'
+   call axis(mol%n,mol%at,xyze,x(1),x(2),x(3))
+   call axis(mol%n,mol%at,xyzp,y(1),y(2),y(3))
+
+   degen = .false.
+   dum = 2.0_wp*abs(sum(x)-sum(y))/(sum(x)+sum(y))
+   if(dum.lt.0.01) degen = .true.  ! possibly degenrate E/P
+   write(env%unit,'("degenerate system :",l,2f9.6)')degen,sum(x),sum(y)
 
 !! ------------------------------------------------------------------------
 !  loop over runs with increasing Vbias
 !! ------------------------------------------------------------------------
-   metaset%width = pathset%alp
-   factor = 1
-   do irun=1,pathset%nrun
-      ! distort slightly to avoid trapping
-      xyz0 = metaset%xyz(:,:,1)
-      do i=1,mol%n
-         do j=1,3
-            call random_number(dum)
-            if(mod(i,2).eq.0)then
-               xyz0(j,i)=xyz0(j,i)+distort*dum
-            else
-               xyz0(j,i)=xyz0(j,i)-distort*dum
-            endif
-         enddo
-      enddo
+
+   metaset%xyz(:,:,1) = xyze   
+   metaset%xyz(:,:,2) = xyzp
+   done  = .false.
+   irun  = 0
+   factor2= 0.0_wp
+   call execute_command_line('rm -rf .xtbtmpmode hessian') 
+
+   do ialp=1,nalp ! alp
+   factor = 1.0_wp
+   do run=1,nk  ! k_push/pull
+
+      irun = irun + 1
       ! set for metadyn routine (common)
       metaset%factor(1) = pathset%kpush * factor * fnat
       metaset%factor(2) = pathset%kpull * factor * fnat
+      metaset%width = pathset%alp - factor2
+      metaset%width = max(metaset%width,0.2_wp)
 
 !! ------------------------------------------------------------------------
       ! make path
 !! ------------------------------------------------------------------------
-      write(env%unit,*)
-      write(env%unit,*)'optimizing inital path with Vbias ...'
-      write(env%unit,'("actual k push/pull :",2f8.3)')  &
-         &          metaset%factor(1:2)/fnat
-      maxoptiter=0
 
-      mol%xyz = xyz0
-      call geometry_optimization &
-         &          (env, mol,wfx,calc, &
-         &           egap,et,maxiter,maxoptiter,e,grd,sigma,optset%optlev, &
-         &           .true.,.false.,fail)
-      write(atmp,'("mv xtbopt.log xtbpath_biasopt_",i0,".xyz")') &
-         &      irun
-      call execute_command_line(atmp)
+      if(degen)then ! avoid symmetry trapping
+      do i=1,mol%n
+         do j=1,3
+            call random_number(dum)
+            if(mod(i,2).eq.0)then
+               mol%xyz(j,i)=mol%xyz(j,i)+0.05*dum
+            else
+               mol%xyz(j,i)=mol%xyz(j,i)-0.05*dum
+            endif
+         enddo
+      enddo
+      endif
+
+      metaset%nstruc = 2
+      maxoptiter     = 0
+      olev           = optset%optlev       ! opt level 
+      mol%xyz        = xyze 
+
+      atmp='xtbopt.log'
+      call open_file(ilog,atmp,'w')
+      call ancopt (env,ilog,mol,wfx,calc,egap,et,maxiter,maxoptiter,dum,grd,sigma,olev,.false.,fail)
+      call close_file(ilog)
 
 !! ------------------------------------------------------------------------
       ! read opt history file (kept)
 !! ------------------------------------------------------------------------
-      write(atmp,'("xtbpath_biasopt_",i0,".xyz")') irun
-      write(btmp,'("xtbpath_",i0,".xyz")') irun
-      open(newunit=ilog,file=atmp)
-      j=1
- 10   continue
-      read(ilog,'(a)',end=100) atmp
-      read(ilog,'(a)')         atmp
-      call readl(atmp,xx,nn)
-      gnew=xx(2) ! gradient
-      do i=1,mol%n
-         read(ilog,'(a)') atmp
-         call readl(atmp,xx,nn)
-         xyznew(1:3,i,j)=xx(1:3)*aatoau
-      enddo
-      if(gnew.gt.1.d-8) j=j+1 ! discard ancopt restart points
-      goto 10
-100   continue
-      if(j-1.gt.maxpath) call raise('E','internal error in path.f',1)
-      close(ilog,status='delete')
-      npath(irun) = j-1
 
-      skip = max(1,npath(irun) / pathset%nopt) ! this leads approx to the requested # points
+      call cqpath_read_pathfile_parameter(atmp,j,k,npath(irun))
+      if(k.ne.mol%n) call env%terminate('read error in bias_path, 1')
+      allocate(xyzpath(3,mol%n,npath(irun)),epath(npath(irun)))
+      call cqpath_read_pathfile(atmp,j,k,npath(irun),xyzpath,mol%at,epath)
+      xyzpath=xyzpath/0.52917726_wp
 
-!! ------------------------------------------------------------------------
-      ! opt all without Vbias
-!! ------------------------------------------------------------------------
-      metaset%nstruc = 0   ! no constraint
-      olev=p_olev_crude    ! just steps
-      maxoptiter=pathset%anopt! max steps for opt
-      write(env%unit,*) ' # of points on xtbopt.log: ',npath(irun)
-      write(env%unit,*) ' doing short optimizations without Vbias ... '
-      k=0
-      do i=1,npath(irun)
-         if(mod(i,skip).ne.0) cycle
-         k=k+1
-         mol%xyz=xyznew(:,:,i)
-         call geometry_optimization &
-            &       (env, mol,wfx,calc, &
-            &        egap,et,maxiter,maxoptiter,enew(k),grd,sigma,olev, &
-            &        .false.,.true.,fail)
-         if(k.gt.1.and.mod(k,10).eq.0)  &
-            &      write(env%unit,'(i5,"  unconstrained dE :",f14.6)')k, &
-            &      enew(k)-enew(1)
-         xyznew(:,:,k)=mol%xyz
-      enddo
-      npath(irun)=k
-      metaset%nstruc = 2 ! reactivate
-
-!! ------------------------------------------------------------------------
       ! check RMSD if something happened
-!! ------------------------------------------------------------------------
-      call rmsd(mol%n,xyznew(:,:,1),xyznew(:,:,k),0,U,x,y,rms,.false.,g0)
-      mem(3,irun)=rms
+      mol%xyz(:, :) = xyzpath(:, :, npath(irun))
+      call rmsd(mol%n,mol%xyz,xyzp,0,U,x,y,rms,.false.,gtmp)
+
+      write(env%unit,'(i3," # points, run ",i3," for k push/pull/alpha :",3f8.3,5x," prod-ed RMSD:",f8.3)')  &
+         &  npath(irun),run,metaset%factor(1:2)/fnat, metaset%width, rms
 
 !! ------------------------------------------------------------------------
       ! save results
 !! ------------------------------------------------------------------------
-      open(newunit=ilog,file=btmp)
-      barr=-1.d+42
-      rms =0
-      do i=1,npath(irun)
-         if(i.gt.1)then
-            call rmsd(mol%n,xyznew(:,:,i-1),xyznew(:,:,i),0,U,x,y,drms, &
-                      .false.,g0)
-         endif
-         dum=autokcal*(enew(i)-enew(1))
-         if(dum.gt.barr) barr=dum
-         mol%xyz(:, :) = xyznew(:, :, i)
-         call writeMolecule(mol, ilog, fileType%xyz, energy=dum)
-         dat(1,i,irun) = rms
-         dat(2,i,irun) = dum
-         rms=rms+drms ! the plot coordinate in dat file is the sum of dRMSD with previous structure
-      enddo
-      close(ilog)
-      write(env%unit,*) 'final path written to ',trim(btmp)
-      mem(1,irun)=barr
-      mem(2,irun)=autokcal*(enew(npath(irun))-enew(1))
-      call rmsd(mol%n,metaset%xyz(:,:,1),xyznew(:,:,1),0,U,x,y,rms,.false.,g0)
-      mem(4,irun)=rms
-      call rmsd(mol%n,metaset%xyz(:,:,2),xyznew(:,:,npath(irun)),0,U,x,y,rms, &
-                .false.,g0)
-      mem(5,irun)=rms
-      ! increase power (but keep width)
-      factor = factor * 1.5
 
-   enddo
+      write(btmp,'("xtbpath_",i0,".xyz")') irun
+      call open_file(ilog2,btmp,'w')
+      metaset%nstruc = 0 ! no bias
+      barr=-1.d+42
+      do i=1,npath(irun)
+         mol%xyz(:, :) = xyzpath(:, :, i)
+         call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(i),grd,sigma,res)
+         dum=autokcal*(epath(i)-epath(1))
+         if(dum.gt.barr) barr=dum
+         call writeMolecule(mol, ilog2, fileType%xyz, energy=dum)
+      enddo
+      call close_file(ilog2)
+      mempath(1,irun)=barr
+      mempath(2,irun)=autokcal*(epath(npath(irun))-epath(1))
+      mempath(3,irun)=rms
+      mempath(4,irun)=metaset%width 
+      deallocate(xyzpath,epath)
+
+      ! increase power 
+      factor = factor * k_change
+
+      if(done) goto 999
+
+      if(rms.lt.rmsd_prod_thr) then ! found product
+         factor = factor / k_change / 1.2_wp  ! test a bit smaller push/pull
+         done = .true. ! close enough to product, add one more (with less bias) and then exit
+      endif
+
+   enddo  
+   factor2= factor2 + alp_change
+   enddo  ! bias loop
+
 !! ------------------------------------------------------------------------
    ! done
 !! ------------------------------------------------------------------------
 
-!! ------------------------------------------------------------------------
-   ! final output
-!! ------------------------------------------------------------------------
-   open(unit=idat,file='xtbpath.dat') ! for comparison all pot curves
-   write(env%unit,*)
-   write(env%unit,*) 'energies in kcal/mol, RMSD in Bohr'
-   do irun=1,pathset%nrun
-      if(mem(3,irun).lt.0.5.or.abs(mem(1,irun)).lt.1) &
-         & write(env%unit,*) 'WARNING: may be no reaction so increase |kpush/pull|' &
-         &           ,' or decrease kpath_alp'
-      write(env%unit,'("run",i2,"  barrier:", &
-         &       f7.2,"  dE:",f7.2, &
-         &   "  ed-prod RMSD:",f6.2, &
-         &   "  ed-startpath RMSD:",f6.2, &
-         &   "  prod-endpath RMSD:",f6.2 &
-         &       )') irun,mem(1:5,irun)
-      drms=dat(1,npath(irun),irun)/mem(3,irun)    ! normalize path length
-      do j=1,npath(irun)
-         write(idat,*) dat(1,j,irun)/drms,dat(2,j,irun)
-      enddo
-      write(idat,*)
-   enddo
-   close(idat)
-   write(env%unit,*)  &
-      'check potential xtbpath.dat (cummu. dRMSD in Bohr vs. E in kcal)'
+999 continue
 
-   call execute_command_line('rm -rf xtbopt.log xtbopt.coord') ! just crab from last short opt
+!! ------------------------------------------------------------------------
+   ! output and find path yielding product
+!! ------------------------------------------------------------------------
+
+   write(env%unit,*)
+   write(env%unit,*) 'path trials (see xtbpath_*.xyz), energies in kcal/mol'
+   j = 0
+   do i=1,irun  
+      write(env%unit,'("run",i2,"  barrier:",f7.2,"  dE:",f7.2, "  product-end path RMSD:",f8.3 &
+         &       )') i,mempath(1:3,i)
+      if(mempath(3,i).lt.rmsd_prod_thr) then
+         j = j + 1
+         imem(j) = i
+      endif
+   enddo
+   if(j.eq.0) call raise('E','No product! Decrease alp in $path and/or optlevel.',1)
+   dum = 1.d+42
+   k = 1
+   do i=1,j   ! take from those the one with lowest barrier
+      ii=imem(i)
+      if(mempath(1,ii).lt.dum) then
+         dum = mempath(1,ii)
+         k = ii
+      endif
+   enddo
+   npathk = k
+
+                                                  ! important modification of the pull strength on the path
+   ppull = ppull * (mempath(4,npathk)/1.2_wp)**2  ! if the opt. path alpha is small, the 
+                                                  ! kpull for the constrained opt. must be small
+                                                  ! e.g. for helicene or BCF racem.
+
+!! ------------------------------------------------------------------------
+!  take best path for refinement    
+!! ------------------------------------------------------------------------
+
+   write(btmp,'("xtbpath_",i0,".xyz")') npathk   
+   call cqpath_read_pathfile_parameter(btmp,j,k,np)
+   allocate(xyzpath(3,mol%n,np),epath(np))
+   call cqpath_read_pathfile(btmp,j,k,np,xyzpath,mol%at,epath)
+   xyzpath=xyzpath/0.52917726_wp
+   write(env%unit,'("path ",i2," taken with ",i4," points.")') npathk, np
+
+   deallocate(npath,mempath)
+
+!! ------------------------------------------------------------------------
+!  make the path nicer for optimizations
+!! ------------------------------------------------------------------------
+ 
+   write(env%unit,'("screening points ...")') 
+   if(np.gt.pathset%nopt)then
+      allocate(xyzdum(3,mol%n,np))
+      call screenpath(np,pathset%nopt,idum,mol%n,xyzpath,epath,xyzdum)
+      xyzdum(:,:,1:idum)=xyzpath(1:,:,1:idum)
+      deallocate(xyzpath,epath)
+      np=idum
+      allocate(xyzpath(3,mol%n,np),epath(np))
+      xyzpath(:,:,1:np)=xyzdum(1:,:,1:np)
+      deallocate(xyzdum)          
+      write(env%unit,'("new # points :",i3)') np
+   endif
+
+!  call cleanpath(np,mol%n,xyzpath,xyze,xyzp,pthr) ! not good
+
+   epath = 0
+   btmp='xtbpath_0.xyz' ! write the path before opt.
+   write(env%unit,'("start path on file ",a)') btmp
+   call open_file(ilog2,btmp,'w')
+   metaset%nstruc = 0 ! unbiased energy and gradient
+   mol%xyz=xyzpath(:,:,1)
+   call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(1),grd,sigma,res)
+   call writeMolecule(mol, ilog2, fileType%xyz, energy=0.0_wp)
+   do i=2,np-1
+      mol%xyz=xyzpath(:,:,i)
+      call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(i),grd,sigma,res)
+      call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(i)-epath(1)))
+   end do
+   mol%xyz=xyzpath(:,:,np)
+   call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(np),grd,sigma,res)
+   call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(np)-epath(1)))
+   call close_file(ilog2)
+
+!! ------------------------------------------------------------------------
+!  new section for path refinment by restricted (path biased) opt.
+!! ------------------------------------------------------------------------
+
+   maxoptiter=pathset%anopt
+
+   allocate(xyzdum(3,mol%n,np))
+   call open_file(ilog,'xtbopt.log','w')
+   eforw= 1.0d+42
+   gts  = 1.0d+42
+   do iter=1,nrefine
+      write(env%unit,'(''refinement cycle'',i4)')iter
+      call alignpath(mol%n,np,xyzpath)
+
+      xyzdum(:,:,1:np) = xyzpath(:,:,1:np)      ! save coords for path mode projection
+      do i=2,np-1                               ! one opt for all points
+         if(mod(i,10).eq.0.or.i.eq.2) write(*,*) 'optimizing points ',i,' ...'
+         mol%xyz=xyzpath(:,:,i)
+         call metadyn_tsmode(mol%n,np,i,xyzdum,mol%xyz,ppull) ! add bias on path (and constrain optionally)
+         call ancopt (env,ilog,mol,wfx,calc,egap,et,maxiter,maxoptiter,epath(i),grd,sigma,olev,.false.,fail)
+         xyzpath(:,:,i)=mol%xyz
+      end do
+
+      call open_file(ilog2,'xtbpath.xyz','w')
+      mol%xyz=xyzpath(:,:,1) ! first point
+      call writeMolecule(mol, ilog2, fileType%xyz, energy=0.0_wp)
+      write(env%unit,*)
+      dum =-1.d+42
+      metaset%nstruc = 0 ! unbiased energy and gradient
+      do i=2,np-1
+         mol%xyz=xyzpath(:,:,i)
+         call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.true.,scc,epath(i),grd,sigma,res)
+         call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(i)-epath(1)))
+         if(epath(i).gt.dum)then
+            dum=epath(i)
+            gts=sqrt(sum(grd**2))
+            its=i
+         endif
+      enddo
+      mol%xyz=xyzpath(:,:,np)  ! last point
+      call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(np)-epath(1)))
+      call close_file(ilog2)
+
+      gsum_prev=gts 
+      eforw_prev=eforw
+      emax=maxval(epath(1:np))
+      eforw=(emax-epath(1) )*autokcal
+      eback=(emax-epath(np))*autokcal
+      de   =(epath(np)-epath(1))*autokcal
+      write(env%unit,'(''forward  barrier (kcal)  :'',f10.3)') eforw    
+      write(env%unit,'(''backward barrier (kcal)  :'',f10.3)') eback    
+      write(env%unit,'(''reaction energy  (kcal)  :'',f10.3)') de
+      write(env%unit,'(''opt. pull strength       :'',f10.3)') ppull
+      write(env%unit,'(''norm(g) at est. TS, point:'', f8.5,i4)') gts, its
+
+      if(gts.lt.gthr) then
+         write(env%unit,'("terminated because grad at TS <threshold")')
+         exit
+      endif
+
+   end do
+   write(env%unit,*)
+   if(iter.ge.nrefine)write(env%unit,'("terminated because max. # cycles reached")')
+
+!! ------------------------------------------------------------------------
+!  output
+!! ------------------------------------------------------------------------
+
+   btmp='xtbpath_ts.xyz'
+   write(env%unit,'("estimated TS on file ",a)') btmp
+   call open_file(ilog,btmp,'w')
+   mol%xyz=xyzpath(:,:,its)
+   call writeMolecule(mol, ilog, fileType%xyz, energy=epath(its))
+   close(ilog)
+
+   dum=0
+   write(env%unit,'("path data (pmode=approx. path mode):")')
+   write(env%unit,'("point",5x,"drms",5x,"energy",1x,"pmode ovlp",1x,"pmode grad")')
+   do i=2,np
+      call guess_tsmode(mol%n,np,i,xyzpath,pvec1,pvec2)
+      gdum=ddot(3*mol%n,pvec1,1,pvec2,1)
+      mol%xyz=xyzpath(:,:,i)
+      call rmsd(mol%n,xyzpath(:,:,i),xyzpath(:,:,i-1),0,U,x,y,rms,.false.,gtmp)
+      dum1=(epath(i)-epath(i-1))/(rms*real(mol%n))  ! gradient along path
+      write(env%unit,'(i4,3f10.3,f10.5)') i,dum,(epath(i)-epath(1))*autokcal,gdum,dum1
+      dum=dum+rms
+   enddo
 
 end subroutine bias_path
 
+!! ========================================================================
+!  remove unecessary points
+!! ========================================================================
+subroutine screenpath(np,npwanted,npnew,n,xyz,e,xyzdum)
+  use xtb_mctc_accuracy, only : wp
+  use xtb_type_environment
+    implicit none
+    integer   n,np,npwanted,npnew
+    real(wp)  xyz   (3,n,np)       ! path coords
+    real(wp)  e     (np)           ! energies   
+    real(wp)  xyzdum(3,n,np)       ! path coords
+
+    integer i, j, k
+    real(wp) :: dum1,dum2,thr
+    real(wp), allocatable :: grad(:)
+
+    allocate(grad(np))
+
+    xyzdum = xyz
+
+    do i=2,np-1
+       dum2 = sum((xyz(:,:,i+1)-xyz(:,:,i-1))**2)+1.0_wp
+       dum1 = e(i+1)-e(i-1)
+       grad(i) = dum1/dum2
+    enddo
+
+    thr=0.01_wp
+    k  = 0
+ 10 continue
+    k = k + 1
+    j = 1
+    do i=2,np-1
+       if(abs(grad(i)).gt.thr)then
+         j = j + 1
+         xyz(:,:,j) = xyzdum(:,:,i)
+       endif
+    enddo
+    if(j.ge.npwanted.and.k.lt.100)then
+       thr = thr * 1.3
+       goto 10
+    endif
+
+    npnew = j + 1
+    xyz(:,:,1) = xyzdum(:,:,1)
+    xyz(:,:,npnew) = xyzdum(:,:,np)
+
+end
+
+
+!! ========================================================================
+!  put a bias on structure of actual point on path (and project out mode)
+!! ========================================================================
+
+subroutine metadyn_tsmode(n,sn,its,xyzpath,xyzact,kpull)
+  use xtb_mctc_accuracy, only : wp
+  use xtb_metadynamic
+  use xtb_fixparam
+    implicit none
+    integer   n,its,sn
+    real(wp)  xyzpath(3,n,sn)    ! path coords
+    real(wp)  xyzact (3,n)       ! actual "
+    real(wp)  kpull                           
+
+    real(wp), allocatable :: pvec1(:), pvec2(:)
+    integer :: i,j,k
+    integer :: modef, idat         
+    
+
+    metaset%nstruc = 1
+
+    metaset%factor(1) = -kpull * real(n)  ! pull point on path, 0.05 good choice
+    metaset%width = 1.3_wp
+
+    metaset%xyz(:,:,1) = xyzact(:,:)
+
+    ! do not project, is unstable
+
+!   allocate(pvec1(3*n),pvec2(3*n))
+!   call guess_tsmode(n,sn,its,xyzpath,pvec1,pvec2)
+!   modef = 1
+!   idat  =15
+!   call open_binary(idat,'.xtbtmpmode','w')
+!   write (idat) modef
+!   write (idat) 0.5*(pvec1+pvec2)
+!   call close_file(idat)
+!   deallocate(pvec1,pvec2)
+
+    end
+
+!! ========================================================================
+!  get TS mode(s) (two directions) at path point its
+!! ========================================================================
+
+subroutine guess_tsmode(n,sn,its,xyz,pvec1,pvec2)
+  use xtb_mctc_accuracy, only : wp
+    implicit none
+    integer   n,its,sn
+    real(wp)  xyz(3,n,sn)
+    real(wp)  pvec1(3*n)
+    real(wp)  pvec2(3*n)
+
+    integer :: i,j,k
+    real(wp)  rms1,rms2,dum,dum2,third1,third2
+    real(wp), allocatable, dimension(:) :: v          
+    parameter (third1 = 1.0_wp/3.0_wp)
+    parameter (third2 = 2.0_wp/3.0_wp)
+
+    i   = 0
+    rms1= 0
+    rms2= 0
+    do k=1,n
+       do j=1,3
+          i = i + 1
+          dum = (xyz(j,k,its+1) - xyz(j,k,its))
+          if(its+2.le.sn)then
+             dum2 = (xyz(j,k,its+2) - xyz(j,k,its+1))
+             dum  = third2*dum+third1*dum2
+          endif
+          pvec1(i) = dum
+          rms1= rms1 + dum**2
+          dum = (xyz(j,k,its  ) - xyz(j,k,its-1))
+          if(its.gt.2)then
+             dum2 = (xyz(j,k,its-1) - xyz(j,k,its-2))
+             dum  = third2*dum+third1*dum2
+          endif
+          pvec2(i) = dum
+          rms2= rms2 + dum**2
+       enddo
+    enddo
+    pvec1(:) = pvec1(:) / dsqrt(rms1) ! the vectors point in the same direction
+    pvec2(:) = pvec2(:) / dsqrt(rms2)
+  
+    end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Repositionierung entlang des Reaktionspfads
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine alignpath(nat,sn,xyz)
+    implicit none
+    integer nat,sn
+    real*8 xyz(3,nat,sn)
+
+    real(8), allocatable, dimension(:,:) :: sp_atom
+    real(8), allocatable, dimension(:) :: x,y,x2,y2,strecke_X
+    real(8) :: strecke_X_inc,temp_strecke_X,xyz_0(3),xyz_1(3),xyz_diff(3)
+    integer :: i,j,k
+
+    allocate (strecke_X(sn),sp_atom(3,sn),x(sn),y(sn),x2(sn),y2(sn))
+
+!   loop über alle atome um ein array der punte eines atoms entlang des pfads zu bekommen
+    do i=1,nat
+       sp_atom(:,:) = xyz(:,i,:)
+!      loop über den pfad
+       xyz_0(:) = sp_atom(:,1)
+       strecke_X(1) = 0.0
+       do j=2,sn
+          xyz_1(:) = sp_atom(:,j)
+          xyz_diff = xyz_1 - xyz_0
+          xyz_0 = xyz_1
+          strecke_X(j) = strecke_X(j-1) + sqrt(sum(xyz_diff**2))
+        end do
+!       Für x,y,z in abh. von strecke_X einen cube Spline machen
+!       X = strecke_X , Y = [x|y|z]
+        do k=1,3
+           x(:) = strecke_X(:)
+           y(:) = sp_atom(k,:)
+!       Repositionieren auf x
+           call cqpath_repos_sym(sn,x,x2)               ! symmetric
+           call cqpath_damped_cube_spline(sn,x,y,x2,y2) ! much better than non-damped
+           sp_atom(k,:) = y2(:)
+        end do
+!       Neuen Punkte übertragen
+        xyz(:,i,:) = sp_atom(:,:)
+    end do
+
+    deallocate (strecke_X,sp_atom,x,y,x2,y2)
+end
+
+!!!!!!!!!!!!!! REPOSITIONIERUNG AUF DEM PFAD !!!!!!!!!!!!!!!!
+subroutine cqpath_repos_sym(n,x,x2)
+! in    n  - dimension von array x,y
+!       x  - array x
+! out   x2 - symmetrisch Punkte aus array x
+!
+    implicit none
+    integer, intent(in)  :: n
+    real(8), intent(in)  :: x(n)
+    real(8), intent(out) :: x2(n)
+    
+    real(8) x_wert, x_anfang, x_ende, x_schritt
+    integer :: i
+    
+! Symmetrisch verteilen
+! dx(i) = strecke/punkte
+    x_anfang = x(1)
+    x_ende = x(n)
+    x_schritt = (x_ende-x_anfang)/(REAL(n,8)-1.0)
+      
+    x_wert = x_anfang
+    x2(1) = x_anfang
+    do i=2,n-1
+       x_wert = x_wert + x_schritt
+       x2(i) = x_wert
+    end do
+    x2(n) = x_ende
+
+end
+
+subroutine cqpath_repos_asym(n,x1,x2)
+    implicit none
+    integer, intent(in)  :: n
+    real(8), intent(in)  :: x1(n)
+    real(8), intent(out) :: x2(n)
+    
+    real(8) x_schritt, x_anfang, x_ende, x, ynorm
+    real(8), dimension(:), allocatable :: y
+    integer :: i
+    
+    allocate(y(n))
+
+    ynorm = 0.
+    x = -1.
+    do i=1,n
+       y(i)=1./exp(-2.0*x**4)
+       ynorm = ynorm + y(i)
+       x = x + 2./float(n-1)
+    enddo
+    y = real(n,8) * y / ynorm
+
+    x_anfang = x1(1)
+    x_ende   = x1(n)
+    x_schritt= (x_ende-x_anfang)/(REAL(n,8)-2.0)
+      
+    x = x_anfang
+    do i=1,n
+       x2(i) = x
+       x = x + x_schritt*y(i)
+    end do
+
+end
+
+!!!!!!!!!!!!!! Y-Werte entlang der Repositionierung !!!!!!!!!!!!!!!!!!!!
+subroutine cqpath_cube_spline(n,x,y,x2,y2)
+! in    n  - dimension von array x,y
+!       x  - array x
+!       y  - array y
+! out   x2 - symmetrisch Punkte aus array xx (eigentlich überflüssig)
+!       y2 - symmetrische Punkte aus array yy
+    implicit none
+    integer, intent(in) :: n
+    real(8), intent(in) :: x(n),y(n),x2(n)
+    real(8), intent(out) :: y2(n)
+    
+    real(8), dimension(:), allocatable :: ypp
+    real(8) y_wert, y_wert_ypval, y_wert_yppval
+    integer :: i
+
+    allocate (ypp(n))
+    call spline_cubic_set ( n, x, y, 0, 0.0d0, 0, 0.0d0, ypp )
+    y2(1) = y(1)
+    do i=2,n-1
+        call spline_cubic_val ( n, x, y, ypp, x2(i), y_wert, y_wert_ypval, y_wert_yppval )
+        y2(i) = y_wert
+    end do
+    y2(n) = y(n)
+    deallocate (ypp)
+    return
+end
+
+subroutine cqpath_damped_cube_spline(n,x,y,x2,y2)
+! in    n  - dimension von array x,y
+!       x  - array x
+!       y  - array y
+! out   x2 - symmetrisch Punkte aus array xx (eigentlich überflüssig)
+!       y2 - symmetrische Punkte aus array yy
+    implicit none
+    integer, intent(in) :: n
+    real(8), intent(in) :: x(n),y(n),x2(n)
+    real(8), intent(out) :: y2(n)
+    
+    real(8), dimension(:,:), allocatable :: abcd
+    real(8) y_wert
+    integer :: i
+    
+    allocate (abcd(n,4))    
+    call cqpath_damped_cube_spline_set(n,x,y,abcd)
+    
+    y2(1) = y(1)
+    do i=2,n-1
+        call cqpath_damped_cube_spline_val(n,abcd,x,x2(i),y_wert)
+        y2(i) = y_wert
+    end do
+    y2(n) = y(n)
+    
+    deallocate (abcd)
+    return
+end
+
+!!!!!!!!!!!!!!!!!!! SPLINE FUNKTIONEN !!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine cqpath_damped_cube_spline_set(n,x,y,abcd)
+! in    n  - dimension von array x,y
+!       x  - array x
+!       y  - array y
+! out   abcd - array of polynom coefficients
+!
+! Based on Constrained Cubic Spline Interpolation for Chemical Engineering Application
+! by CJC Kruger
+!
+! Rewritten and optimized in fortran
+    implicit none
+    integer, intent(in) :: n
+    real(8), intent(in) :: x(n)
+    real(8), intent(in) :: y(n)
+    real(8), intent(out) :: abcd(n,4)
+
+    real(8) fs_x0,fs_x1,fss_x0,fss_x1
+    real(8) x0,x1,x2,y0,y1,y2
+    real(8) x1_x0,y1_y0,x0_2,x0_3,x1_x0_2,x1_2
+    real(8) steigung
+    real(8), dimension(:), allocatable :: dx,dy,f1
+    
+    integer :: i,j,nf
+    
+    nf = n-1
+    allocate (dx(nf),dy(nf),f1(n))
+    
+    do i=1,nf
+        dx(i) = x(i+1)-x(i)
+        dy(i) = y(i+1)-y(i)
+    end do
+    
+    do i=2,nf
+        steigung = dy(i-1)*dy(i)
+        if (steigung > 0.0) then
+            f1(i) = 2.0/(dx(i)/dy(i)+dx(i-1)/dy(i-1))
+        else if (steigung <= 0.0) then
+            f1(i) = 0.0
+        end if
+    end do
+    
+    f1(1) = 3.0*dy(1)/(2.0*dx(1)) - f1(2)/2.0
+    f1(n) = 3.0*dy(n-1)/(2.0*dx(n-1)) - f1(n-1)/2.0
+    
+    do i=2,n
+        x1_x0 = dx(i-1)
+        y1_y0 = dy(i-1)
+        x0_2 = x(i-1)*x(i-1)
+        x0_3 = x0_2*x(i-1)
+        x1_x0_2 = x1_x0*x1_x0
+        x1_2 = x(i)*x(i)
+        
+        fss_x0 = -2.0*(f1(i) + 2.0*f1(i-1))/(x1_x0)+6.0*(y1_y0)/x1_x0_2
+        fss_x1 = 2.0*(2.0*f1(i) + f1(i-1))/(x1_x0)-6.0*(y1_y0)/x1_x0_2
+        
+        abcd(i,4) = (fss_x1 - fss_x0)/(6.0*(x1_x0))
+        abcd(i,3) = (x(i)*fss_x0-x(i-1)*fss_x1)/(2.0*x1_x0)
+        abcd(i,2) = ((y1_y0)-abcd(i,3)*(x1_2-x0_2)-abcd(i,4)*(x1_2*x(i)-x0_3))/(x1_x0)
+        abcd(i,1) = y(i-1) - abcd(i,2)*x(i-1) - abcd(i,3) * x0_2 - abcd(i,4) * x0_3
+    end do
+
+    deallocate(dx,dy,f1)
+end
+
+subroutine cqpath_damped_cube_spline_val(n,abcd,x,x1,y1)
+! in    n    - dimension von array x,y
+!       abcd - array of polynom coefficients
+!       x    - x
+! out   y    - f(x,abcd)
+!
+! Based on Constrained Cubic Spline Interpolation for Chemical Engineering Application
+! by CJC Kruger
+!
+! Rewritten and optimized in fortran
+    integer, intent(in) :: n
+    real(8), intent(in) :: abcd(n,4)
+    real(8), intent(in) :: x(n)
+    real(8), intent(in) :: x1
+    real(8), intent(out) :: y1
+
+    integer :: j
+    real(8) :: xx
+    
+    do j=2,n
+        if (x1 < x(j)) then
+            if (x1 >= x(j-1)) then
+                xx = x1*x1
+                y1 = abcd(j,1)+abcd(j,2)*x1+abcd(j,3)*xx+abcd(j,4)*xx*x1
+            end if
+        end if
+    end do
+    return
+end
+
+!! ========================================================================
+!  remove bad points, not used
+!! ========================================================================
+
+subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
+  use xtb_mctc_accuracy, only : wp
+  use xtb_type_environment
+    implicit none
+    integer   n,np
+    real(wp)  xyz(3,n,np)       ! path coords
+    real(wp)  xyz0(3,n)         ! path coords
+    real(wp)  xyz1(3,n)         ! path coords
+    real(wp)  pthr              ! threshold   
+
+    real(wp), allocatable :: pvec1(:), pvec2(:), ovlp(:), delta(:,:), xyzdum(:,:,:)
+    real(wp)              :: dum, ddot          
+    integer               :: i,j,k,l
+    integer               :: ib, ie  
+
+    write(*,'(''input path length :'',i3)') np
+
+    allocate(pvec1(3*n),pvec2(3*n),ovlp(np),delta(3,n),xyzdum(3,n,np))
+
+    ovlp = 1
+    do i=2,np-1
+      call guess_tsmode(n,np,i,xyz,pvec1,pvec2)
+      ovlp(i)=ddot(3*n,pvec1,1,pvec2,1)
+    enddo
+    write(*,*) 'path overlaps before alignment'
+    write(*,'(20f6.2)') ovlp(1:np)
+    call alignpath(n,np,xyz)
+    do i=2,np-1
+      call guess_tsmode(n,np,i,xyz,pvec1,pvec2)
+      ovlp(i)=ddot(3*n,pvec1,1,pvec2,1)
+    enddo
+    write(*,*) 'path overlaps after alignment'
+    write(*,'(20f6.2)') ovlp(1:np)
+
+! get bad points and replace them by linear interpolation
+    do i=2,np-1
+       if(ovlp(i).lt.pthr)then
+          write(*,*) 'bad point ',i
+          do k=i-1,1,-1
+             ib=k
+             if(ovlp(k).gt.pthr) then
+                ib = k
+                goto 10
+             endif
+          enddo
+ 10       do k=i+1,np
+             ie=k
+             if(ovlp(k).gt.pthr) then
+                ie = k
+                goto 20
+             endif
+          enddo
+ 20       continue 
+!         write(*,*) i,ib,ie,ovlp(i)
+          ! structures ib+1...i-1 are unreliable
+          delta (:,:) = (xyz(:,:,ie) - xyz(:,:,ib))/float(ib-ie)
+          l = 0
+          do k=ib+1,ie-1
+             l = l + 1
+             xyzdum(:,:,k) = xyz(:,:,ib) - delta(:,:)*float(l)
+          enddo
+       endif
+    enddo
+
+    do i=2,np-1
+       if(ovlp(i).lt.pthr) xyz(:,:,i) = xyzdum(:,:,i) 
+    enddo
+
+    call alignpath(n,np,xyz)
+    do i=2,np-1
+      call guess_tsmode(n,np,i,xyz,pvec1,pvec2)
+      ovlp(i)=ddot(3*n,pvec1,1,pvec2,1)
+    enddo
+    write(*,*) 'path overlaps after cleaning and alignment'
+    write(*,'(20f6.2)') ovlp(1:np)
+
+end
+
 end module xtb_biaspath
+
