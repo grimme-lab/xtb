@@ -397,7 +397,6 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
          write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "FAILED TO CONVERGE GEOMETRY OPTIMIZATION IN",iter,"ITERATIONS"
       endif
-      call env%warning("Geometry optimization did not converge", source)
    endif
 
    mol = molopt

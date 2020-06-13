@@ -50,6 +50,8 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
    implicit none
 
+   character(len=*), parameter :: source = 'xtb_path'
+
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
 
@@ -120,17 +122,18 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    allocate(npath(maxpath),mempath(4,maxpath))
 
    if (.not.allocated(pathset%fname)) then
-      call raise('E','No product structure given!',1)
+      call env%error('No product structure given!', source)
+      return
    endif
    write(env%unit,*) 'reading reference structures from '//pathset%fname//' ...'
    call rdcoord(pathset%fname,mol%n,xyzp,atp) ! product
    if (any(atp.ne.mol%at)) then
-      call raise('E','Atom type missmatch between reactant and product!',1)
+      call env%error('Atom type missmatch between reactant and product!', source)
    endif
-   xyze=mol%xyz ! educt
+   xyze=mol%xyz ! reactant
 
    call rmsd(mol%n,xyze,xyzp,0,U,x,y,rms,.false.,gtmp)
-   write(env%unit,'("educt product RMSD :",f9.3)')rms
+   write(env%unit,'("reactant product RMSD :",f9.3)')rms
 
    if (pathset%nat.gt.0) then
       metaset%nat = pathset%nat
@@ -186,7 +189,8 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    done  = .false.
    irun  = 0
    factor2= 0.0_wp
-   call execute_command_line('rm -rf .xtbtmpmode hessian')
+   call delete_file('.xtbtmpmode')
+   call delete_file('hessian')
 
    do ialp=1,nalp ! alp
       factor = 1.0_wp
@@ -300,7 +304,10 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
          imem(j) = i
       endif
    enddo
-   if(j.eq.0) call raise('E','No product! Decrease alp in $path and/or optlevel.',1)
+   if(j.eq.0) then
+      call env%error('No product! Decrease alp in $path and/or optlevel.', source)
+      return
+   end if
    dum = 1.d+42
    k = 1
    do i=1,j   ! take from those the one with lowest barrier
