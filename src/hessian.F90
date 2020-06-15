@@ -21,7 +21,7 @@ module xtb_hessian
 contains
 
 subroutine numhess( &
-      & env,mol,wf0,calc, &
+      & env,mol,chk0,calc, &
       & egap,et,maxiter,etot,gr,sr,res)
    use xtb_mctc_accuracy, only : wp
 !$ use omp_lib
@@ -32,7 +32,7 @@ subroutine numhess( &
 !  type definitions
    use xtb_type_environment
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
 
@@ -54,7 +54,7 @@ subroutine numhess( &
    type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
    integer, intent(in)    :: maxiter
-   type(TWavefunction),intent(inout) :: wf0
+   type(TRestart),intent(inout) :: chk0
    class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
@@ -64,7 +64,7 @@ subroutine numhess( &
    real(wp),intent(inout) :: sr(3,3)
    type(freq_results),intent(out) :: res
 
-   type(TWavefunction) :: wfx
+   type(TRestart) :: chk
    type(scc_results) :: sccr,sccl
    real(wp) :: rij(3),step,zpve,t1,t0,dumi,dum,xsum
    real(wp) :: dumj,acc,w0,w1,step2,aa,bb,cc,scalh,hof,h298
@@ -121,7 +121,7 @@ subroutine numhess( &
    acc=accu_hess
 
    call singlepoint &
-      & (env,mol,wf0,calc, &
+      & (env,mol,chk0,calc, &
       &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
 
    write(env%unit,'(''step length          :'',F10.5)') step
@@ -187,9 +187,9 @@ subroutine numhess( &
       ! now compute a subblock of the Hessian
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
-      !$omp&         firstprivate(mol,calc,et,maxiter,acc,wf0) &
-      !$omp&         private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,wfx,tmol) &
-      !$omp&         shared (h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh,env)
+      !$omp firstprivate(et,maxiter,acc) &
+      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,chk,tmol) &
+      !$omp shared (mol,h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh,env,calc,chk0)
       !$ call omp_set_num_threads(1)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
@@ -200,18 +200,18 @@ subroutine numhess( &
          do ic = 1, 3
             ii = (ia-1)*3+ic
             tmol = mol
-            wfx = wf0
+            chk = chk0
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
             tmol = mol
-            wfx = wf0
+            chk = chk0
             dipd(1:3,ii)=sccr%dipole(1:3)
             pold(ii)=sccr%molpol
             mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -246,9 +246,9 @@ subroutine numhess( &
 !! ------------------------------------------------------------------------
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
-      !$omp firstprivate(mol,calc,et,maxiter,acc,wf0) &
-      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,wfx,tmol) &
-      !$omp shared (h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env)
+      !$omp firstprivate(et,maxiter,acc) &
+      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,chk,tmol) &
+      !$omp shared (mol,h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env,calc,chk0)
       !$ call omp_set_num_threads(1)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(1)
@@ -259,26 +259,25 @@ subroutine numhess( &
             ii = (ia-1)*3+ic
 
             tmol = mol
-            wfx = wf0 ! initialize wavefunction
+            chk = chk0 ! initialize wavefunction
             tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
 
             gr = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
             dipd(1:3,ii)=sccr%dipole(1:3)
             pold(ii)=sccr%molpol
 
-            call wfx%deallocate ! clean up
             tmol = mol
-            wfx = wf0 ! reset wavefunction
+            chk = chk0 ! reset wavefunction
             tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
 
             gl = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=xyzsave(ic,ia)
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -291,7 +290,6 @@ subroutine numhess( &
                enddo
             enddo
 
-            call wfx%deallocate ! clean up
             call tmol%deallocate
          enddo
 
@@ -343,18 +341,18 @@ subroutine numhess( &
          do ic = 1, 3
             ii = (ia-1)*3+ic
             tmol = mol
-            wfx = wf0
+            chk = chk0
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
             tmol = mol
-            wfx = wf0
+            chk = chk0
             dipd(1:3,ii)=sccr%dipole(1:3)
             pold(ii)=sccr%molpol
             mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -386,26 +384,25 @@ subroutine numhess( &
             ii = (ia-1)*3+ic
 
             tmol = mol
-            wfx = wf0 ! initialize wavefunction
+            chk = chk0 ! initialize wavefunction
             tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
 
             gr = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
             dipd(1:3,ii)=sccr%dipole(1:3)
             pold(ii)=sccr%molpol
 
-            call wfx%deallocate ! clean up
             tmol = mol
-            wfx = wf0 ! reset wavefunction
+            chk = chk0 ! reset wavefunction
             tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
 
             gl = 0.0_wp
             eel = 0.0_wp
             call singlepoint &
-               & (env,tmol,wfx,calc, &
+               & (env,tmol,chk,calc, &
                &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
             tmol%xyz(ic,ia)=xyzsave(ic,ia)
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
@@ -418,7 +415,6 @@ subroutine numhess( &
                enddo
             enddo
 
-            call wfx%deallocate ! clean up
             call tmol%deallocate
          enddo
 

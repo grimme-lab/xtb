@@ -22,7 +22,7 @@ module xtb_api_results
    use xtb_mctc_convert, only : evtoau
    use xtb_api_environment
    use xtb_api_utils
-   use xtb_type_wavefunction
+   use xtb_type_restart
    implicit none
    private
 
@@ -35,7 +35,7 @@ module xtb_api_results
 
    !> Void pointer to wavefunction and result objects
    type :: VResults
-      type(TWavefunction), allocatable :: wfn
+      type(TRestart), allocatable :: chk
       real(wp), allocatable :: energy
       real(wp), allocatable :: gradient(:, :)
       real(wp), allocatable :: sigma(:, :)
@@ -247,12 +247,12 @@ subroutine getCharges_api(venv, vres, dptr) &
       end if
       call c_f_pointer(vres, res)
 
-      if (.not.allocated(res%wfn)) then
+      if (.not.allocated(res%chk)) then
          call env%ptr%error("Partial charges are not available in results", source)
          return
       end if
 
-      dptr(1:size(res%wfn%q)) = res%wfn%q
+      dptr(1:size(res%chk%wfn%q)) = res%chk%wfn%q
 
    end if
 
@@ -279,12 +279,12 @@ subroutine getBondOrders_api(venv, vres, dptr) &
       end if
       call c_f_pointer(vres, res)
 
-      if (.not.allocated(res%wfn)) then
+      if (.not.allocated(res%chk)) then
          call env%ptr%error("Bond orders are not available in results", source)
          return
       end if
 
-      dptr(1:size(res%wfn%wbo)) = reshape(res%wfn%wbo, [size(res%wfn%wbo)])
+      dptr(1:size(res%chk%wfn%wbo)) = reshape(res%chk%wfn%wbo, [size(res%chk%wfn%wbo)])
 
    end if
 
@@ -311,8 +311,8 @@ subroutine getNao_api(venv, vres, iptr) &
       end if
       call c_f_pointer(vres, res)
 
-      if (allocated(res%wfn)) then
-         iptr = res%wfn%nao
+      if (allocated(res%chk)) then
+         iptr = res%chk%wfn%nao
       else
          iptr = 0
       end if
@@ -342,13 +342,13 @@ subroutine getOrbitalEigenvalues_api(venv, vres, dptr) &
       end if
       call c_f_pointer(vres, res)
 
-      if (.not.allocated(res%wfn)) then
+      if (.not.allocated(res%chk)) then
          call env%ptr%error("Orbital eigenvalues are not available in results", &
             & source)
          return
       end if
 
-      dptr(1:size(res%wfn%emo)) = res%wfn%emo * evtoau
+      dptr(1:size(res%chk%wfn%emo)) = res%chk%wfn%emo * evtoau
 
    end if
 
@@ -375,13 +375,13 @@ subroutine getOrbitalOccupations_api(venv, vres, dptr) &
       end if
       call c_f_pointer(vres, res)
 
-      if (.not.allocated(res%wfn)) then
+      if (.not.allocated(res%chk)) then
          call env%ptr%error("Occupation numbers are not available in results", &
             & source)
          return
       end if
 
-      dptr(1:size(res%wfn%focc)) = res%wfn%focc
+      dptr(1:size(res%chk%wfn%focc)) = res%chk%wfn%focc
 
    end if
 
@@ -408,13 +408,13 @@ subroutine getOrbitalCoefficients_api(venv, vres, dptr) &
       end if
       call c_f_pointer(vres, res)
 
-      if (.not.allocated(res%wfn)) then
+      if (.not.allocated(res%chk)) then
          call env%ptr%error("Orbital coefficients are not available in results", &
             & source)
          return
       end if
 
-      dptr(1:size(res%wfn%C)) = reshape(res%wfn%C, [size(res%wfn%C)])
+      dptr(1:size(res%chk%wfn%C)) = reshape(res%chk%wfn%C, [size(res%chk%wfn%C)])
 
    end if
 

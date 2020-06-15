@@ -24,6 +24,7 @@ module xtb_main_setup
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : TxTBParameter, chrg_parameter
+   use xtb_type_restart, only : TRestart
    use xtb_type_wavefunction, only : TWavefunction
    use xtb_readparam, only : readParam
    use xtb_paramset, only : use_parameterset
@@ -269,8 +270,15 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 
 end subroutine newGFFCalculator
 
+subroutine newWavefunction(env, mol, calc, chk)
+   type(TEnvironment), intent(inout) :: env
+   type(TRestart), intent(inout) :: chk
+   type(TxTBCalculator), intent(in) :: calc
+   type(TMolecule), intent(in) :: mol
+   call newWavefunction_(env, mol, calc, chk%wfn)
+end subroutine newWavefunction
 
-subroutine newWavefunction(env, mol, calc, wfn)
+subroutine newWavefunction_(env, mol, calc, wfn)
    character(len=*), parameter :: source = 'main_setup_newWavefunction'
    type(TEnvironment), intent(inout) :: env
    type(TWavefunction), intent(inout) :: wfn
@@ -310,7 +318,7 @@ subroutine newWavefunction(env, mol, calc, wfn)
 
    call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell, &
       & wfn%q,wfn%qsh,calc%xtbData%level)
-end subroutine newWavefunction
+end subroutine newWavefunction_
 
 
 subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
@@ -358,10 +366,10 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
    end select
 
 
-   if (len_trim(solvent).gt.0 .and. solvent.ne."none") then
+   calc%lSolv = len_trim(solvent).gt.0 .and. solvent.ne."none"
+   if (calc%lSolv) then
       call initGBSA(env, trim(solvent), solvState, temperature, level, &
          & gridSize, alpb, solvKernel, pr)
-      allocate(calc%solv)
    endif
 
 end subroutine addSolvationModel

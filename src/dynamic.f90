@@ -137,7 +137,7 @@ subroutine boltz(n,t,e,p)
    p = p / sum(p)
 end subroutine boltz
 
-subroutine md(env,mol,wfx,calc, &
+subroutine md(env,mol,chk,calc, &
       &       egap,et,maxiter,epot,grd,sigma,icall,Tsoll,cdump2)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autokcal, aatoau, amutokg, amutoau, fstoau
@@ -145,7 +145,7 @@ subroutine md(env,mol,wfx,calc, &
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_data
    use xtb_shake, only: do_shake,ncons,xhonly
    use xtb_setparam
@@ -158,7 +158,7 @@ subroutine md(env,mol,wfx,calc, &
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule),intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfx
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    integer  :: icall
    integer, intent(in) :: maxiter
@@ -351,7 +351,7 @@ subroutine md(env,mol,wfx,calc, &
    grd=0.0_wp
    epot=0.0_wp
    call singlepoint &
-      &     (env,mol,wfx,calc, &
+      &     (env,mol,chk,calc, &
       &      egap,et,maxiter,0,.true.,.false.,1.0_wp,epot,grd,sigma,res)
 
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -392,7 +392,7 @@ subroutine md(env,mol,wfx,calc, &
       epot=0.0_wp
       grd = 0.0_wp
       call singlepoint &
-         &     (env,mol,wfx,calc, &
+         &     (env,mol,chk,calc, &
          &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res)
 
       if (metaset%maxsave.ne.0) then

@@ -407,9 +407,7 @@ subroutine releaseSolvent_api(venv, vcalc) &
       call c_f_pointer(vcalc, calc)
 
       if (allocated(calc%ptr)) then
-         if (allocated(calc%ptr%solv)) then
-            deallocate(calc%ptr%solv)
-         end if
+         calc%ptr%lSolv = .false.
       end if
 
    end if

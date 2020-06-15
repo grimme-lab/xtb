@@ -21,7 +21,7 @@ module xtb_mdoptim
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_data
    use xtb_io_writer, only : writeMolecule
    use xtb_setparam
@@ -37,13 +37,13 @@ module xtb_mdoptim
 contains
 
 
-subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
+subroutine mdopt(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfx
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    integer  :: icall,maxiter
    real(wp) :: epot,et,egap
@@ -87,7 +87,7 @@ subroutine mdopt(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
          mol%xyz=xyznew(:,:,i)*angtoau
 
          call geometry_optimization &
-            &      (env, mol,wfx,calc, &
+            &      (env, mol,chk,calc, &
             &       egap,etemp,maxscciter,optset%maxoptcycle,epot,grd,sigma, &
             &       optset%optlev,.false.,.true.,fail)
 

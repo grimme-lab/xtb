@@ -25,7 +25,7 @@ subroutine geometry_optimization &
    use xtb_mctc_io, only : stdout
 
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
 
@@ -46,7 +46,7 @@ subroutine geometry_optimization &
    integer, intent(in)    :: tight
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: wfn
    class(TCalculator), intent(inout) :: calc
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et

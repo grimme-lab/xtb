@@ -126,7 +126,7 @@ subroutine test_gfn1_api
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_data
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_environment
 
    use xtb_xtb_calculator, only : TxTBCalculator
@@ -150,7 +150,7 @@ subroutine test_gfn1_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(TWavefunction):: wfn
+   type(TRestart) :: wfn
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
@@ -196,7 +196,7 @@ subroutine test_gfn1gbsa_api
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_data
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_environment
 
    use xtb_xtb_calculator, only : TxTBCalculator
@@ -222,7 +222,7 @@ subroutine test_gfn1gbsa_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(TWavefunction):: wfn
+   type(TRestart):: wfn
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
@@ -268,7 +268,7 @@ subroutine test_gfn1_pcem_api
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_data
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_environment
 
    use xtb_xtb_calculator, only : TxTBCalculator
@@ -302,7 +302,7 @@ subroutine test_gfn1_pcem_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(TWavefunction):: wfn
+   type(TRestart) :: wfn
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
@@ -408,7 +408,7 @@ subroutine test_gfn1_xb
    use xtb_type_molecule
    use xtb_type_param
    use xtb_type_data
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_environment
 
    use xtb_xtb_calculator, only : TxTBCalculator
@@ -431,7 +431,7 @@ subroutine test_gfn1_xb
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(TWavefunction):: wfn
+   type(TRestart) :: wfn
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
@@ -481,7 +481,7 @@ subroutine test_gfn1_pbc3d
    use xtb_type_pcem
    use xtb_type_data
    use xtb_type_environment
-   use xtb_type_wavefunction
+   use xtb_type_restart
 
    use xtb_pbc_tools
 
@@ -509,7 +509,7 @@ subroutine test_gfn1_pbc3d
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
    type(tb_pcem)      :: pcem
-   type(TWavefunction):: wfn
+   type(TRestart) :: wfn
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 

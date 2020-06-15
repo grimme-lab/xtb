@@ -132,7 +132,7 @@ subroutine test_gfn2_api
 
    use xtb_type_options
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
@@ -158,7 +158,7 @@ subroutine test_gfn2_api
       &  solvent = "none")
 
    type(TMolecule)    :: mol
-   type(TWavefunction):: wfn
+   type(TRestart) :: chk
    type(TEnvironment) :: env
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
@@ -177,9 +177,9 @@ subroutine test_gfn2_api
    gradient = 0.0_wp
 
    call newXTBCalculator(env, mol, calc, method=2)
-   call newWavefunction(env, mol, calc, wfn)
+   call newWavefunction(env, mol, calc, chk)
 
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
    call assert_close(hl_gap, 7.0005867526665_wp,thr)
    call assert_close(energy,-8.3824793849585_wp,thr)
@@ -202,7 +202,7 @@ subroutine test_gfn2gbsa_api
 
    use xtb_type_options
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
@@ -232,7 +232,7 @@ subroutine test_gfn2gbsa_api
       &  solvent = "h2o")
 
    type(TMolecule)    :: mol
-   type(TWavefunction):: wfn
+   type(TRestart) :: chk
    type(TEnvironment) :: env
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
@@ -251,10 +251,10 @@ subroutine test_gfn2gbsa_api
    gradient = 0.0_wp
 
    call newXTBCalculator(env, mol, calc, method=2)
-   call newWavefunction(env, mol, calc, wfn)
+   call newWavefunction(env, mol, calc, chk)
    call addSolvationModel(env, calc, opt%solvent)
 
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
    call assert_close(hl_gap, 3.408607724814_wp,1e-5_wp)
@@ -277,7 +277,7 @@ subroutine test_gfn2salt_api
 
    use xtb_type_options
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
@@ -306,7 +306,7 @@ subroutine test_gfn2salt_api
       &  solvent = 'ch2cl2' )
 
    type(TMolecule)    :: mol
-   type(TWavefunction):: wfn
+   type(TRestart) :: chk
    type(TEnvironment) :: env
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
@@ -329,10 +329,10 @@ subroutine test_gfn2salt_api
    ionst = 1.0e-3_wp
 
    call newXTBCalculator(env, mol, calc, method=2)
-   call newWavefunction(env, mol, calc, wfn)
+   call newWavefunction(env, mol, calc, chk)
    call addSolvationModel(env, calc, opt%solvent)
 
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
    call assert_close(hl_gap, 6.895830675032_wp,5e-5_wp)
@@ -356,7 +356,7 @@ subroutine test_gfn2_pcem_api
 
    use xtb_type_options
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_param
    use xtb_type_data
    use xtb_type_pcem
@@ -393,7 +393,7 @@ subroutine test_gfn2_pcem_api
       &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
 
    type(TMolecule)    :: mol
-   type(TWavefunction):: wfn
+   type(TRestart) :: chk
    type(TEnvironment) :: env
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
@@ -412,9 +412,9 @@ subroutine test_gfn2_pcem_api
    gradient = 0.0_wp
 
    call newXTBCalculator(env, mol, calc, method=2)
-   call newWavefunction(env, mol, calc, wfn)
+   call newWavefunction(env, mol, calc, chk)
 
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
    call assert_close(hl_gap, 12.391144584178_wp,thr)
@@ -444,8 +444,8 @@ subroutine test_gfn2_pcem_api
    calc%pcem%q   = q
    calc%pcem%grd = 0.0_wp
 
-   call newWavefunction(env, mol, calc, wfn)
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
    call assert_close(hl_gap, 12.718203165741_wp,thr)
@@ -469,8 +469,8 @@ subroutine test_gfn2_pcem_api
    calc%pcem%grd = 0.0_wp
    calc%pcem%gam = 999.0_wp ! point charges
 
-   call newWavefunction(env, mol, calc, wfn)
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
    call assert_close(hl_gap, 13.024345612330_wp,thr)

@@ -91,14 +91,14 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
 
 end subroutine get_optthr
 
-subroutine ancopt(env,ilog,mol,wfn,calc, &
+subroutine ancopt(env,ilog,mol,chk,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
    use xtb_mctc_convert
    use xtb_mctc_la
 
    use xtb_type_molecule
    use xtb_type_anc
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
@@ -126,7 +126,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
    integer, intent(in)    :: tight
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: maxcycle_in
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp),intent(inout) :: etot
@@ -350,7 +350,7 @@ subroutine ancopt(env,ilog,mol,wfn,calc, &
 
 ! now everything is prepared for the optimization
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
-      & iii,wfn,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
+      & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
       & converged,timer,optset%exact_rf)
 
    call env%check(fail)
@@ -424,14 +424,14 @@ end subroutine ancopt
 !! without going over the RESTART logical at the end of the subroutine.
 !* I have warned you, be careful not to break anything.
 subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
-      &          ii,wfn,calc, &
+      &          ii,chk,calc, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
       &          timer,exact)
 
    use xtb_mctc_blas, only : blas_gemv
    use xtb_type_molecule
    use xtb_type_anc
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
@@ -449,7 +449,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    type(TMolecule),    intent(inout) :: mol
    type(tb_timer),       intent(inout) :: timer
    type(tb_anc),         intent(inout) :: anc
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    integer, intent(in)    :: maxiter
    integer, intent(in)    :: iupdat
@@ -523,7 +523,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
    call singlepoint &
-         (env,mol,wfn,calc, &
+         (env,mol,chk,calc, &
           egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res)
    if (profile) call timer%measure(5)
 

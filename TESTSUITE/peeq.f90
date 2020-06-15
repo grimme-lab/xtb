@@ -168,7 +168,7 @@ subroutine test_peeq_api
 
    use xtb_type_options
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_data
    use xtb_type_param
    use xtb_type_environment
@@ -198,7 +198,7 @@ subroutine test_peeq_api
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(TWavefunction) :: wfn
+   type(TRestart) :: chk
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
@@ -225,9 +225,9 @@ subroutine test_peeq_api
 
    call newXTBCalculator(env, mol, calc, method=0)
    call env%checkpoint("failed setup")
-   call newWavefunction(env, mol, calc, wfn)
+   call newWavefunction(env, mol, calc, chk)
 
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,gradlatt)
@@ -249,7 +249,7 @@ subroutine test_peeq_api_srb
    use xtb_mctc_convert
    use xtb_type_options
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_data
    use xtb_type_param
    use xtb_type_environment
@@ -310,7 +310,7 @@ subroutine test_peeq_api_srb
 
    type(TMolecule)    :: mol
    type(TEnvironment) :: env
-   type(TWavefunction) :: wfn
+   type(TRestart) :: chk
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
@@ -334,9 +334,9 @@ subroutine test_peeq_api_srb
 
    call newXTBCalculator(env, mol, calc, method=0)
    call env%checkpoint("failed setup")
-   call newWavefunction(env, mol, calc, wfn)
+   call newWavefunction(env, mol, calc, chk)
 
-   call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,gradlatt)

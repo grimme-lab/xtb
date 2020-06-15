@@ -26,7 +26,7 @@ module xtb_xtb_calculator
    use xtb_type_param, only : scc_parameter
    use xtb_type_pcem
    use xtb_type_solvent, only : TSolvent
-   use xtb_type_wavefunction
+   use xtb_type_restart, only : TRestart
    use xtb_xtb_data, only : TxTBData
    use xtb_setparam
    use xtb_fixparam
@@ -79,7 +79,7 @@ module xtb_xtb_calculator
 contains
 
 
-subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
+subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
    !> Source of the generated errors
@@ -95,7 +95,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    type(TMolecule), intent(inout) :: mol
 
    !> Wavefunction data
-   type(TWavefunction), intent(inout) :: wfn
+   type(TRestart), intent(inout) :: chk
 
    !> Print level for IO
    integer, intent(in) :: printlevel
@@ -118,6 +118,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    !> Detailed results
    type(scc_results), intent(out) :: results
 
+   type(TSolvent), allocatable :: solv
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix
@@ -134,17 +135,21 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    hlgap = 0.0_wp
    efix = 0.0_wp
 
+   if (self%lSolv) then
+      allocate(solv)
+   end if
+
    ! ------------------------------------------------------------------------
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
-      call scf(env,mol,wfn,self%basis,self%pcem,self%xtbData,self%solv, &
+      call scf(env,mol,chk%wfn,self%basis,self%pcem,self%xtbData,solv, &
          &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
          &   self%accuracy,energy,gradient,results)
 
    case(0)
       call peeq &
-         & (env,mol,wfn,self%basis,self%xtbData,self%solv,hlgap,self%etemp, &
+         & (env,mol,chk%wfn,self%basis,self%xtbData,solv,hlgap,self%etemp, &
          &  printlevel,.true.,ccm,self%accuracy,energy,gradient,sigma,results)
    end select
 
@@ -194,7 +199,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.allocated(self%solv)) then
+      if (.not.silent.and.allocated(solv)) then
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
@@ -203,13 +208,13 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       if (.not.silent) then
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
-            write(env%unit,outfmt) "HOMO orbital eigv.", wfn%emo(wfn%ihomo),  "eV   "
-            write(env%unit,outfmt) "LUMO orbital eigv.", wfn%emo(wfn%ihomo+1),"eV   "
+            write(env%unit,outfmt) "HOMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo),  "eV   "
+            write(env%unit,outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo+1),"eV   "
          endif
          write(env%unit,'(9x,"::",49("."),"::")')
-         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,allocated(self%solv))
-         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(self%solv))
-         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(self%solv))
+         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,allocated(solv))
+         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(solv))
+         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(solv))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')

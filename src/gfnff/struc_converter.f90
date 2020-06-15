@@ -23,7 +23,7 @@ module xtb_gfnff_convert
 contains
 
 subroutine struc_convert( &
-         & env,restart,mol,wfn,egap,et,maxiter,maxcycle,&
+         & env,restart,mol,chk,egap,et,maxiter,maxcycle,&
          & etot,g,sigma)
   use xtb_mctc_accuracy, only : wp
   use xtb_gfnff_param
@@ -31,7 +31,7 @@ subroutine struc_convert( &
   use xtb_disp_dftd3param
   use xtb_type_environment
   use xtb_type_molecule
-  use xtb_type_wavefunction
+  use xtb_type_restart
   use xtb_gfnff_calculator
   use xtb_type_data
   use xtb_restart
@@ -45,7 +45,7 @@ subroutine struc_convert( &
 ! Dummy -----------------------------------------------------------------------
   type(TEnvironment),intent(inout)            :: env
   type(TMolecule),intent(inout)               :: mol
-  type(TWavefunction),intent(inout)           :: wfn
+  type(TRestart),intent(inout)                :: chk
   integer,intent(in)                          :: maxiter
   integer,intent(in)                          :: maxcycle
   real(wp),intent(inout)                      :: etot
@@ -104,7 +104,7 @@ subroutine struc_convert( &
 !------------------------------------------------------------------------------
 ! force field geometry optimization
   call geometry_optimization &
-      &     (env,mol,wfn,calc,   &
+      &     (env,mol,chk,calc,   &
       &      egap,etemp,maxiter,maxcycle,etot,g,sigma,p_olev_crude,.false.,.true.,fail)
   if (allocated(fnv)) then
     opt_logfile = fnv
@@ -116,7 +116,7 @@ subroutine struc_convert( &
 ! force field md simulation
   idum = 0
   call md                &
-      &   (env,mol,wfn,calc, &
+      &   (env,mol,chk,calc, &
       &    egap,etemp,maxiter,etot,g,sigma,0,temp_md,idum)
 !------------------------------------------------------------------------------
 ! set all back to input

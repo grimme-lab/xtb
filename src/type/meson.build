@@ -36,6 +36,7 @@ srcs += files(
   'param.f90',
   'pcem.f90',
   'reader.F90',
+  'restart.f90',
   'setvar.f90',
   'solvent.f90',
   'timer.f90',

@@ -128,13 +128,13 @@ contains
 
 !> frontend implementation of the fast inertial relaxation engine
 subroutine fire &
-      &   (env,ilog,mol,wfn,calc, &
+      &   (env,ilog,mol,chk,calc, &
       &    optlevel,maxstep,energy,egap,gradient,sigma,printlevel,fail)
 
    use xtb_mctc_convert
 
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
@@ -159,7 +159,7 @@ subroutine fire &
    integer, intent(in) :: ilog
 
    type(TMolecule), intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
@@ -319,7 +319,7 @@ subroutine fire &
 
    call inertial_relax &
       &   (env,iter,thisstep,opt,molopt, &
-      &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
+      &    chk,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
    thisstep = min(ceiling(thisstep*opt%finc),2*opt%micro_cycle)
@@ -378,14 +378,14 @@ end subroutine fire
 !> frontend implementation of the low memory/linear scaling (by taste)
 !  approximate normal coordinate rational function optimizer (L-ANCopt)
 subroutine l_ancopt &
-      &   (env,ilog,mol,wfn,calc, &
+      &   (env,ilog,mol,chk,calc, &
       &    optlevel,maxcycle_in,energy,egap,gradient,sigma,printlevel,fail)
 
    use xtb_mctc_convert
    use xtb_mctc_lapack, only : lapack_syev
 
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_xtb_calculator
    use xtb_gfnff_calculator
@@ -414,7 +414,7 @@ subroutine l_ancopt &
    integer, intent(in) :: ilog
 
    type(TMolecule), intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    !> optimization level
    integer, intent(in) :: optlevel
@@ -684,7 +684,7 @@ subroutine l_ancopt &
 
    call lbfgs_relax &
       &   (env,iter,thiscycle,opt,molopt, &
-      &    wfn,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
+      &    chk,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
       &    converged,fail,timer)
 
    thiscycle = min(ceiling(thiscycle*opt%cycle_inc),2*opt%micro_cycle)
@@ -818,11 +818,11 @@ end subroutine lbfgs_step
 !  is augmented with a coordinate transformation in approximate normal coordinates
 subroutine lbfgs_relax &
       &   (env,iter,maxcycle,opt,mol, &
-      &    wfn,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
+      &    chk,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
       &    converged,fail,timer)
 
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
@@ -842,7 +842,7 @@ subroutine lbfgs_relax &
 
    type(TMolecule), intent(inout) :: mol
 
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
 
    !> settings for the low memory BFGS
@@ -1016,7 +1016,7 @@ subroutine lbfgs_relax &
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
       call singlepoint &
-         &(env,mol,wfn,calc, &
+         &(env,mol,chk,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
          & energy,g_xyz,sigma,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
@@ -1082,13 +1082,13 @@ end subroutine lbfgs_relax
 !> backend implementation of the fast inertial relaxation engine
 subroutine inertial_relax &
       &   (env,iter,maxstep,opt,mol, &
-      &    wfn,calc,energy,egap,gradient,sigma,hessp,velocities, &
+      &    chk,calc,energy,egap,gradient,sigma,hessp,velocities, &
       &    lat_velocities,optcell,converged,fail,timer)
 
    use xtb_mctc_convert
 
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
@@ -1107,7 +1107,7 @@ subroutine inertial_relax &
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
 
    !> settings for the fast inertial relaxation engine
@@ -1330,7 +1330,7 @@ subroutine inertial_relax &
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
       call singlepoint &
-         &(env,mol,wfn,calc, &
+         &(env,mol,chk,calc, &
          & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
          & energy,gradient,sigma,res)
       if (profile) call timer%measure(4)

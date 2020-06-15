@@ -21,7 +21,7 @@ module xtb_type_calculator
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_type_wavefunction, only : TWavefunction
+   use xtb_type_restart, only : TRestart
    use xtb_type_solvent, only : TSolvent
    implicit none
 
@@ -33,7 +33,7 @@ module xtb_type_calculator
    type, abstract :: TCalculator
 
       real(wp) :: accuracy
-      type(TSolvent), allocatable :: solv
+      logical :: lSolv
 
    contains
 
@@ -47,9 +47,9 @@ module xtb_type_calculator
 
 
    abstract interface
-      subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
+      subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
             & energy, gradient, sigma, hlgap, results)
-         import :: TCalculator, TEnvironment, TMolecule, TWavefunction, wp
+         import :: TCalculator, TEnvironment, TMolecule, TRestart, wp
          import :: scc_results
 
          !> Calculator instance
@@ -62,7 +62,7 @@ module xtb_type_calculator
          type(TMolecule), intent(inout) :: mol
 
          !> Wavefunction data
-         type(TWavefunction), intent(inout) :: wfn
+         type(TRestart), intent(inout) :: chk
 
          !> Print level for IO
          integer, intent(in) :: printlevel

@@ -22,7 +22,7 @@ module xtb_screening
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_data
    use xtb_io_writer, only : writeMolecule
    use xtb_axis, only : axis
@@ -38,13 +38,13 @@ module xtb_screening
 
 contains
 
-subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
+subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule), intent(inout) :: mol0
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    integer icall,maxiter
    real(wp) epot,et,egap
@@ -85,7 +85,7 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
       allocate(xyznew(3,mol0%n,nall),rot(3,0:nall),de(nall), &
          &         ecnf(0:nall),double(0:nall), &
          &         imass(mol0%n),ecnfnew(0:nall))
-      call qmdfftoscreen(mol0%n,mol0%at,mol0%xyz,nall,xyznew,allocated(calc%solv))
+      call qmdfftoscreen(mol0%n,mol0%at,mol0%xyz,nall,xyznew,calc%lSolv)
    else  ! the ensemble exists
       atmp='xtbscreen.xyz'
       call cqpath_read_pathfile_parameter(atmp,iz1,iz2,nall)
@@ -145,7 +145,7 @@ subroutine screen(env, mol0, wfn, calc, egap, et, maxiter, epot, grd, sigma)
          mol%xyz(1:3,1:mol%n)=xyznew(1:3,1:mol%n,i)
 
          call geometry_optimization &
-            &       (env, mol,wfn,calc, &
+            &       (env, mol,chk,calc, &
             &        egap,et,maxiter,maxoptiter,ecnf(i),grd,sigma,optset%optlev, &
             &        .false.,.true.,fail)
 

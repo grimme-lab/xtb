@@ -18,7 +18,7 @@
 module xtb_scan
 contains
 
-subroutine relaxed_scan(env, mol, wfx, calc)
+subroutine relaxed_scan(env, mol, chk, calc)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : fileType
    use xtb_setparam
@@ -26,7 +26,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
 
    use xtb_type_environment
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
 
@@ -40,7 +40,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
 
    type(TMolecule), intent(inout) :: mol
    class(TCalculator), intent(inout) :: calc
-   type(TWavefunction),intent(inout) :: wfx
+   type(TRestart),intent(inout) :: chk
 
    integer  :: ilog ! file handle
    real(wp) :: egap
@@ -86,7 +86,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
             if (.not.verbose) &
                write(env%unit,'("... step",1x,i0,1x,"...")') k
             call geometry_optimization &
-               &(env, mol,wfx,calc, &
+               &(env, mol,chk,calc, &
                & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
             efix = 0.0_wp
             call constrpot(mol%n,mol%at,mol%xyz,g,efix)
@@ -117,7 +117,7 @@ subroutine relaxed_scan(env, mol, wfx, calc)
          if (.not.verbose) &
             write(env%unit,'("... step",1x,i0,1x,"...")')   j
          call geometry_optimization &
-            &(env, mol,wfx,calc, &
+            &(env, mol,chk,calc, &
             & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
          efix = 0.0_wp
          call constrpot(mol%n,mol%at,mol%xyz,g,efix)
