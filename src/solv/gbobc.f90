@@ -19,6 +19,8 @@ module xtb_solv_gbobc
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_mctc_convert
+   use xtb_mctc_blas, only : mctc_gemv
+   use xtb_solv_kernel, only : gbKernel
    use xtb_type_solvent
    implicit none
 
@@ -35,8 +37,9 @@ module xtb_solv_gbobc
    public :: compute_hb_egrad
    public :: update_nnlist_gbsa
    public :: load_custom_parameters
-
    private
+
+
 ! ========================================================================
 !  PARAMETER
 ! ------------------------------------------------------------------------
@@ -156,6 +159,8 @@ module xtb_solv_gbobc
       integer :: nangsa = 230
       !> β = 1 / ε, we save αβ because they are always used together
       real(wp) :: alpbet = 0.0_wp
+      !> Interaction kernel
+      integer :: kernel = gbKernel%still
    end type gbsa_model
 
    type(gbsa_model), private :: gbm
@@ -175,6 +180,13 @@ module xtb_solv_gbobc
    include 'param_gbsa_toluene.inc'
    include 'param_gbsa_dmf.inc'
    include 'param_gbsa_nhexan.inc'
+
+   !> P16 zeta parameter
+   real(wp), parameter :: zetaP16 = 1.028_wp
+
+   !> P16 zeta parameter over 16
+   real(wp), parameter :: zetaP16o16 = zetaP16 / 16.0_wp
+
 
 contains
 
@@ -215,7 +227,7 @@ subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,alpha, 
 
 end subroutine load_custom_parameters
 
-subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,verbose)
+subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
    use xtb_mctc_strings
    use xtb_readin
    implicit none
@@ -228,6 +240,7 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,verbose)
    integer, intent(in) :: ngrida
    logical, intent(in) :: verbose
    logical, intent(in) :: alpb
+   integer, intent(in) :: kernel
 
    integer :: i,fix,inum,ich
    real(wp) :: rad
@@ -318,6 +331,8 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,verbose)
 
    call new_gbsa_model(gbm,gfn_solvent,mode,temp,ngrida)
 
+   gbm%kernel = kernel
+
    lhb = gbm%lhb
    gshift = gbm%gshift
 
@@ -337,6 +352,12 @@ subroutine gbsa_info(iunit,gbm)
    else
       write(iunit,*) 'solvation model            : GBSA'
    end if
+   select case(gbm%kernel)
+   case(gbKernel%still)
+      write(iunit,*) 'interacton kernel          : Still'
+   case(gbKernel%p16)
+      write(iunit,*) 'interacton kernel          : P16'
+   end select
    write(iunit,'(1x,a,1x)',advance='no') 'Gsolv ref. state (COSMO-RS):'
    select case(gbm%mode)
    case(1)
@@ -561,7 +582,7 @@ subroutine new_gbsa(self,n,at)
 
 end subroutine new_gbsa
 
-pure subroutine compute_amat(self,Amat)
+subroutine compute_amat(self,Amat)
    implicit none
    type(TSolvent),intent(in) :: self
 
@@ -576,7 +597,12 @@ pure subroutine compute_amat(self,Amat)
    real(wp) :: aa,r2,gg,iepsu,arg,bp
    real(wp) :: dd,expd,fgb,fgb2,dfgb
 
-   call compute_amat_still(self, Amat)
+   select case(gbm%kernel)
+   case(gbKernel%still)
+      call compute_amat_still(self, Amat)
+   case(gbKernel%p16)
+      call compute_amat_p16(self, Amat)
+   end select
 
    ! compute the HB term
    if(lhb) then
@@ -592,7 +618,7 @@ pure subroutine compute_amat(self,Amat)
 
 end subroutine compute_amat
 
-pure subroutine compute_amat_still(self, Amat)
+subroutine compute_amat_still(self, Amat)
    implicit none
    type(TSolvent),intent(in) :: self
 
@@ -665,6 +691,47 @@ pure subroutine compute_amat_still(self, Amat)
    endif
 
 end subroutine compute_amat_still
+
+subroutine compute_amat_p16(self, Amat)
+   implicit none
+   type(TSolvent),intent(in) :: self
+
+   real(wp),intent(inout) :: Amat(:,:)
+
+   integer :: kk
+   integer :: iat, jat
+   real(wp) :: r1, ab, arg, eab, fgb, dfgb, bp
+
+   ! compute energy and Amat direct and radii derivatives
+   !$omp parallel do default(none) shared(Amat, self, gbm) &
+   !$omp private(kk, iat, jat, r1, ab, arg, fgb, dfgb)
+   do kk = 1, self%ntpair
+      r1 = self%ddpair(1,kk)
+
+      iat = self%ppind(1,kk)
+      jat = self%ppind(2,kk)
+
+      ab = sqrt(self%brad(iat) * self%brad(jat))
+      arg = ab / (ab + zetaP16o16*r1) ! ab / (1 + ζR/(16·ab))
+      arg = arg * arg ! ab / (1 + ζR/(16·ab))²
+      arg = arg * arg ! ab / (1 + ζR/(16·ab))⁴
+      arg = arg * arg ! ab / (1 + ζR/(16·ab))⁸
+      arg = arg * arg ! ab / (1 + ζR/(16·ab))¹⁶
+      fgb = r1 + ab*arg
+      dfgb = 1.0_wp / fgb
+
+      Amat(iat,jat) = gbm%keps*dfgb + Amat(iat,jat)
+      Amat(jat,iat) = gbm%keps*dfgb + Amat(jat,iat)
+   enddo
+   !$omp end parallel do
+
+   ! self-energy part
+   do iat = 1, self%nat
+      bp = 1._wp/self%brad(iat)
+      Amat(iat,iat) = Amat(iat,iat) + gbm%keps*bp
+   enddo
+
+end subroutine compute_amat_p16
 
 pure subroutine compute_gb_damat(self,q,gborn,ghb,dAmatdr,Afac,lpr)
    implicit none
@@ -817,7 +884,12 @@ subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
    real(wp), intent(inout) :: gradient(3,self%nat)
    logical,  intent(in)    :: lpr
 
-   call compute_gb_egrad_still(self,q,gborn,gradient,lpr)
+   select case(gbm%kernel)
+   case(gbKernel%still)
+      call compute_gb_egrad_still(self,q,gborn,gradient,lpr)
+   case(gbKernel%p16)
+      call compute_gb_egrad_p16(self,q,gborn,gradient,lpr)
+   end select
 
    gradient = gradient + self%dsdr
 
@@ -828,6 +900,7 @@ subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
    endif
 
    if (gbm%alpbet > 0.0_wp) then
+      gborn = gborn + sum(q)**2 * gbm%alpbet / self%aDet * gbm%kEps
       call getADetDeriv(self%nat, xyz, self%vdwr, gbm%kEps*gbm%alpbet, q, gradient)
    end if
 
@@ -907,10 +980,6 @@ subroutine compute_gb_egrad_still(self,q,gborn,gradient,lpr)
          !gradient = gradient + self%brdr(:,:,i) * grddbi*q(i)
       enddo
 
-      if (gbm%alpbet > 0.0_wp) then
-         egb = egb + sum(q)**2 * gbm%alpbet / self%aDet
-      end if
-
    else
       ! GB-SE energy and gradient
 
@@ -966,19 +1035,94 @@ subroutine compute_gb_egrad_still(self,q,gborn,gradient,lpr)
 
    endif
    ! contract with the Born radii derivatives
-   call dgemv('n',3*self%nat,self%nat,1.0_wp,self%brdr,3*self%nat,grddb,1, &
-      &       1.0_wp,gradient,1)
+   call mctc_gemv(self%brdr, grddb, gradient, beta=1.0_wp)
 
    gborn = egb
 
 end subroutine compute_gb_egrad_still
 
+subroutine compute_gb_egrad_p16(self,q,gborn,gradient,lpr)
+   implicit none
+   type(TSolvent), intent(in) :: self
+
+   real(wp), intent(in)    :: q(self%nat)
+   real(wp), intent(out)   :: gborn
+   real(wp), intent(inout) :: gradient(3,self%nat)
+   logical,  intent(in)    :: lpr
+
+   integer :: iat, jat, kk
+   real(wp) :: vec(3), r2, r1, ab, arg1, arg16, qq, fgb, fgb2, dfgb, dfgb2, egb
+   real(wp) :: dEdbri, dEdbrj, dG(3), ap, bp, dS(3, 3)
+   real(wp),allocatable :: dEdbr(:)
+
+   allocate(dEdbr(self%nat), source = 0.0_wp )
+
+   egb = 0._wp
+   dEdbr(:) = 0._wp
+
+   ! GB energy and gradient
+   !$omp parallel do default(none) reduction(+:egb, gradient, dEdbr) &
+   !$omp private(iat, jat, vec, r1, r2, ab, arg1, arg16, fgb, dfgb, dfgb2, ap, &
+   !$omp& bp, qq, dEdbri, dEdbrj, dG, dS) shared(self, gbm, q)
+   do kk = 1, self%ntpair
+      vec(:) = self%ddpair(2:4, kk)
+      r1 = self%ddpair(1,kk)
+      r2 = r1*r1
+
+      iat = self%ppind(1,kk)
+      jat = self%ppind(2,kk)
+      qq = q(iat)*q(jat)
+
+      ab = sqrt(self%brad(iat) * self%brad(jat))
+      arg1 = ab / (ab + zetaP16o16*r1) ! 1 / (1 + ζR/(16·ab))
+      arg16 = arg1 * arg1 ! 1 / (1 + ζR/(16·ab))²
+      arg16 = arg16 * arg16 ! 1 / (1 + ζR/(16·ab))⁴
+      arg16 = arg16 * arg16 ! 1 / (1 + ζR/(16·ab))⁸
+      arg16 = arg16 * arg16 ! 1 / (1 + ζR/(16·ab))¹⁶
+
+      fgb = r1 + ab*arg16
+      dfgb = 1.0_wp / fgb
+      dfgb2 = dfgb * dfgb
+
+      egb = egb + qq*gbm%keps*dfgb
+
+      ! (1 - ζ/(1 + Rζ/(16 ab))^17)/(R + ab/(1 + Rζ/(16 ab))¹⁶)²
+      ap = (1.0_wp - zetaP16 * arg1 * arg16) * dfgb2
+      dG(:) = ap * vec * gbm%keps / r1 * qq
+      gradient(:, iat) = gradient(:, iat) - dG
+      gradient(:, jat) = gradient(:, jat) + dG
+
+      ! -(Rζ/(2·ab²·(1 + Rζ/(16·ab))¹⁷) + 1/(2·ab·(1 + Rζ/(16·ab))¹⁶))/(R + ab/(1 + Rζ/(16·ab))¹⁶)²
+      bp = -0.5_wp*(r1 * zetaP16 / ab * arg1 + 1.0_wp) / ab * arg16 * dfgb2
+      dEdbri = self%dbrdp(iat)*self%brad(jat) * bp * gbm%keps * qq
+      dEdbrj = self%dbrdp(jat)*self%brad(iat) * bp * gbm%keps * qq
+      dEdbr(iat) = dEdbr(iat) + dEdbri
+      dEdbr(jat) = dEdbr(jat) + dEdbrj
+
+   end do
+   !$omp end parallel do
+
+   ! self-energy part
+   do iat = 1, self%nat
+      bp = 1._wp/self%brad(iat)
+      qq = q(iat)*bp
+      egb = egb + 0.5_wp*q(iat)*qq*gbm%keps
+      dEdbri = -self%dbrdp(iat)*0.5_wp*gbm%keps*qq*bp
+      dEdbr(iat) = dEdbr(iat) + dEdbri*q(iat)
+      !gradient = gradient + self%brdr(:,:,i) * dEdbri*q(i)
+   enddo
+
+   ! contract with the Born radii derivatives
+   call mctc_gemv(self%brdr, dEdbr, gradient, beta=1.0_wp)
+
+   gborn = egb
+
+end subroutine compute_gb_egrad_p16
+
 !> Compute contributions to potential for hydrogen bonding correction
-pure subroutine compute_fhb(self,xyz)
+pure subroutine compute_fhb(self)
    implicit none
    type(TSolvent), intent(inout) :: self
-
-   real(wp), intent(in) :: xyz(3,self%nat)
 
    integer  :: i
    integer  :: iz,nhb
@@ -1087,7 +1231,7 @@ subroutine compute_brad_sasa(self,xyz)
    if (gbm%lsalt) call compute_debye_hueckel(self)
 
    ! compute the HB term
-   if (lhb) call compute_fhb(self,xyz)
+   if (lhb) call compute_fhb(self)
 
    if (gbm%alpbet > 0.0_wp) then
       call getADet(self%nat, xyz, self%vdwr, self%aDet)
