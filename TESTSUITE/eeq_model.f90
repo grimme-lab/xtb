@@ -9,6 +9,7 @@ subroutine test_eeq_model_gbsa
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_eeq
    use xtb_chargemodel
+   use xtb_solv_kernel
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -79,7 +80,7 @@ subroutine test_eeq_model_gbsa
    q = 0.0_wp
    dqdr = 0.0_wp
 
-   call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,.true.)
+   call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,gbKernel%still,.true.)
    call new_gbsa(gbsa,mol%n,mol%at)
    call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
    call compute_brad_sasa(gbsa,mol%xyz)
@@ -139,6 +140,7 @@ subroutine test_eeq_model_salt
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_eeq
    use xtb_chargemodel
+   use xtb_solv_kernel
    implicit none
 
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -211,7 +213,7 @@ subroutine test_eeq_model_salt
    lsalt = .true.
    ionst = 0.001_wp
    ion_rad = 1.0_wp
-   call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,.true.)
+   call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,gbKernel%still,.true.)
    call new_gbsa(gbsa,mol%n,mol%at)
    call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
    call compute_brad_sasa(gbsa,mol%xyz)

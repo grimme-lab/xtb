@@ -360,7 +360,7 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
 
    if (len_trim(solvent).gt.0 .and. solvent.ne."none") then
       call initGBSA(env, trim(solvent), solvState, temperature, level, &
-         & gridSize, alpb, pr)
+         & gridSize, alpb, solvKernel, pr)
       allocate(calc%solv)
    endif
 

@@ -298,6 +298,12 @@ subroutine write_set_gbsa(ictrl)
       case default;           write(ictrl,'(i0)') ngrida
       end select
       write(ictrl,'(3x,"alpb=",a)') bool2string(alpb)
+      select case(solvKernel)
+      case(gbKernel%still)
+         write(ictrl,'(3x,"kernel=still")')
+      case(gbKernel%p16)
+         write(ictrl,'(3x,"kernel=p16")')
+      end select
    endif
 end subroutine write_set_gbsa
 
@@ -1822,6 +1828,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
+   logical,save :: set6 = .true.
       select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
@@ -1862,6 +1869,17 @@ subroutine set_gbsa(env,key,val)
    case('alpb')
       if (getValue(env,val,ldum).and.set5) alpb = ldum
       set5 = .false.
+   case('kernel')
+      if (set6) then
+         select case(val)
+         case default
+            call env%warning("Unknown solvation kernel '"//val//"' requested", &
+               & source)
+         case('still'); solvKernel = gbKernel%still
+         case('p16');   solvKernel = gbKernel%p16
+         end select
+      end if
+      set6 = .false.
    end select
 end subroutine set_gbsa
 
