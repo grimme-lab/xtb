@@ -6,6 +6,7 @@ subroutine test_gfnff_sp
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_data
+   use xtb_type_solvent
    use xtb_gfnff_param
    use xtb_gfnff_setup
    use xtb_gfnff_eg
@@ -36,6 +37,7 @@ subroutine test_gfnff_sp
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
+   type(TSolvent), allocatable :: solv
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
@@ -62,7 +64,7 @@ subroutine test_gfnff_sp
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,calc%solv,.true.,calc%version, &
+      & g,etot,res_gff,calc%param,calc%topo,solv,.true.,calc%version, &
       & calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
@@ -89,6 +91,7 @@ subroutine test_gfnff_hb
    use xtb_type_environment
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_solvent
    use xtb_type_data
    use xtb_gfnff_param
    use xtb_gfnff_setup
@@ -119,6 +122,7 @@ subroutine test_gfnff_hb
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
+   type(TSolvent), allocatable :: solv
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
@@ -145,7 +149,7 @@ subroutine test_gfnff_hb
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,calc%solv,.true.,calc%version, &
+      & g,etot,res_gff,calc%param,calc%topo,solv,.true.,calc%version, &
       & calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.949706677118_wp,thr)
@@ -172,6 +176,7 @@ subroutine test_gfnff_gbsa
    use xtb_type_environment
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_solvent
    use xtb_type_data
    use xtb_gfnff_param
    use xtb_gfnff_setup
@@ -205,6 +210,7 @@ subroutine test_gfnff_gbsa
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
+   type(TSolvent), allocatable :: solv
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
@@ -219,6 +225,7 @@ subroutine test_gfnff_gbsa
    call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '---', .false.)
    call addSolvationModel(env, calc, opt%solvent)
+   allocate(solv)
 
    call env%checkpoint("GFN-FF parameter setup failed")
 
@@ -232,7 +239,7 @@ subroutine test_gfnff_gbsa
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,calc%solv,.true.,calc%version, &
+      & g,etot,res_gff,calc%param,calc%topo,solv,.true.,calc%version, &
       & calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.964158677062_wp,thr)

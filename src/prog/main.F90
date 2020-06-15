@@ -24,7 +24,7 @@ module xtb_prog_main
    use xtb_mctc_param
    use xtb_type_molecule
    use xtb_type_calculator
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
@@ -110,7 +110,7 @@ subroutine xtbMain(env, argParser)
    type(scc_results) :: res
    class(TCalculator), allocatable :: calc
    type(freq_results) :: fres
-   type(TWavefunction) :: wfn
+   type(TRestart) :: chk
    type(chrg_parameter) :: chrgeq
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -157,7 +157,7 @@ subroutine xtbMain(env, argParser)
 !  debugging variables for numerical gradient
    logical, parameter    :: gen_param = .false.
    logical, parameter    :: debug = .false.
-   type(TWavefunction) :: wf0
+   type(TRestart) :: wf0
    real(wp),allocatable  :: coord(:,:),numg(:,:),gdum(:,:)
    real(wp) :: sdum(3,3)
    real(wp),parameter    :: step = 0.00001_wp, step2 = 0.5_wp/step
@@ -174,7 +174,7 @@ subroutine xtbMain(env, argParser)
    real(wp) :: ea,ip
    real(wp) :: vomega,vfukui
    real(wp),allocatable :: f_plus(:), f_minus(:)
-   type(TWavefunction) :: wf_p, wf_m
+   type(TRestart) :: wf_p, wf_m
    parameter (zero=0.0_wp)
    parameter (one =1.0_wp)
    parameter (two =2.0_wp)
@@ -371,12 +371,12 @@ subroutine xtbMain(env, argParser)
 
    mol%chrg = real(chrg, wp)
    mol%uhf = nalphabeta
-   wfn%nel = idint(sum(mol%z)) - chrg
-   wfn%nopen = nalphabeta
-   if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
+   chk%wfn%nel = idint(sum(mol%z)) - chrg
+   chk%wfn%nopen = nalphabeta
+   if(chk%wfn%nopen == 0 .and. mod(chk%wfn%nel,2) /= 0) chk%wfn%nopen=1
    call initrand
 
-   call setup_summary(env%unit,mol%n,fname,xcontrol,wfn,xrc,exist)
+   call setup_summary(env%unit,mol%n,fname,xcontrol,chk%wfn,xrc,exist)
 
    if(fit) acc=0.2 ! higher SCF accuracy during fit
 
@@ -384,7 +384,7 @@ subroutine xtbMain(env, argParser)
    !> 2D => 3D STRUCTURE CONVERTER
    ! ------------------------------------------------------------------------
    if (mol%struc%two_dimensional) then
-      call struc_convert (env,restart,mol,wfn,egap,etemp,maxscciter, &
+      call struc_convert (env,restart,mol,chk,egap,etemp,maxscciter, &
                        &  optset%maxoptcycle,etot,g,sigma)
       struc_conversion_done = .true.
       mol%struc%two_dimensional = .false.
@@ -506,7 +506,7 @@ subroutine xtbMain(env, argParser)
    !> initial guess, setup wavefunction
    select type(calc)
    type is(TxTBCalculator)
-      call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
+      call chk%wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
       !> EN charges and CN
       if (gfn_method.lt.2) then
@@ -515,21 +515,21 @@ subroutine xtbMain(env, argParser)
          call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
       endif
       if (mol%npbc > 0) then
-         wfn%q = real(chrg,wp)/real(mol%n,wp)
+         chk%wfn%q = real(chrg,wp)/real(mol%n,wp)
       else
          if (guess_charges.eq.p_guess_gasteiger) then
-            call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,wfn%q,cn,gfn_method,.true.)
+            call iniqcn(mol%n,chk%wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,chk%wfn%q,cn,gfn_method,.true.)
          else if (guess_charges.eq.p_guess_goedecker) then
             call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-            call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,wfn%q,dq,er,g,&
+            call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,chk%wfn%q,dq,er,g,&
                .false.,.false.,.false.)
          else
             call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-            wfn%q = real(chrg,wp)/real(mol%n,wp)
+            chk%wfn%q = real(chrg,wp)/real(mol%n,wp)
          end if
       end if
       !> initialize shell charges from gasteiger charges
-      call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,wfn%q,wfn%qsh,gfn_method)
+      call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,chk%wfn%q,chk%wfn%qsh,gfn_method)
    end select
 
    ! ------------------------------------------------------------------------
@@ -551,7 +551,7 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TxTBCalculator)
       if (restart.and.calc%xtbData%level /= 0) then ! only in first run
-         call readRestart(env,wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
+         call readRestart(env,chk%wfn,'xtbrestart',mol%n,mol%at,gfn_method,exist,.true.)
       endif
       calc%etemp = etemp
       calc%maxiter = maxscciter
@@ -562,7 +562,7 @@ subroutine xtbMain(env, argParser)
    !> the SP energy which is always done
    call start_timing(2)
    call singlepoint &
-      &       (env,mol,wfn,calc, &
+      &       (env,mol,chk,calc, &
       &        egap,etemp,maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
    call stop_timing(2)
    select type(calc)
@@ -590,18 +590,18 @@ subroutine xtbMain(env, argParser)
       print *, g
       allocate( coord(3,mol%n), source = mol%xyz )
       allocate( numg(3,mol%n),gdum(3,mol%n), source = 0.0_wp )
-      wf0 = wfn
+      wf0 = chk
       do i = 1, mol%n
          do j = 1, 3
             mol%xyz(j,i) = mol%xyz(j,i) + step
-            wfn = wf0
+            chk = wf0
             call singlepoint &
-               &       (env,mol,wfn,calc, &
+               &       (env,mol,chk,calc, &
                &        egap,etemp,maxscciter,0,.true.,.true.,acc,er,gdum,sdum,res)
             mol%xyz(j,i) = mol%xyz(j,i) - 2*step
-            wfn = wf0
+            chk = wf0
             call singlepoint &
-               &       (env,mol,wfn,calc, &
+               &       (env,mol,chk,calc, &
                &        egap,etemp,maxscciter,0,.true.,.true.,acc,el,gdum,sdum,res)
             mol%xyz(j,i) = mol%xyz(j,i) + step
             numg(j,i) = step2 * (er - el)
@@ -623,12 +623,12 @@ subroutine xtbMain(env, argParser)
          call ancopt_header(env%unit,veryverbose)
       call start_timing(3)
       call geometry_optimization &
-         &     (env, mol,wfn,calc, &
+         &     (env, mol,chk,calc, &
          &      egap,etemp,maxscciter,optset%maxoptcycle,etot,g,sigma,optset%optlev,.true.,.false.,murks)
       res%e_total = etot
       res%gnorm = norm2(g)
       if (nscan.gt.0) then
-         call relaxed_scan(env,mol,wfn,calc)
+         call relaxed_scan(env,mol,chk,calc)
       endif
       call stop_timing(3)
    endif
@@ -640,10 +640,10 @@ subroutine xtbMain(env, argParser)
       & .or.runtyp.eq.p_run_vomega) then
       call start_timing(2)
       call vip_header(env%unit)
-      wfn%nel = wfn%nel-1
-      if (mod(wfn%nel,2).ne.0) wfn%nopen = 1
+      chk%wfn%nel = chk%wfn%nel-1
+      if (mod(chk%wfn%nel,2).ne.0) chk%wfn%nopen = 1
       call singlepoint &
-         &       (env,mol,wfn,calc, &
+         &       (env,mol,chk,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
       ip=etot2-etot-ipeashift
       write(env%unit,'(72("-"))')
@@ -651,7 +651,7 @@ subroutine xtbMain(env, argParser)
          &                  autoev*ipeashift
       write(env%unit,'("delta SCC IP (eV):",f10.4)') autoev*ip
       write(env%unit,'(72("-"))')
-      wfn%nel = wfn%nel+1
+      chk%wfn%nel = chk%wfn%nel+1
       call stop_timing(2)
    endif
 
@@ -659,10 +659,10 @@ subroutine xtbMain(env, argParser)
       & .or.runtyp.eq.p_run_vomega) then
       call start_timing(2)
       call vea_header(env%unit)
-      wfn%nel = wfn%nel+1
-      if (mod(wfn%nel,2).ne.0) wfn%nopen = 1
+      chk%wfn%nel = chk%wfn%nel+1
+      if (mod(chk%wfn%nel,2).ne.0) chk%wfn%nopen = 1
       call singlepoint &
-         &       (env,mol,wfn,calc, &
+         &       (env,mol,chk,calc, &
          &        egap,etemp,maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
       ea=etot-etot2-ipeashift
       write(env%unit,'(72("-"))')
@@ -671,7 +671,7 @@ subroutine xtbMain(env, argParser)
       write(env%unit,'("delta SCC EA (eV):",f10.4)') autoev*ea
       write(env%unit,'(72("-"))')
 
-      wfn%nel = wfn%nel-1
+      chk%wfn%nel = chk%wfn%nel-1
       call stop_timing(2)
    endif
 
@@ -697,25 +697,25 @@ subroutine xtbMain(env, argParser)
       allocate(f_plus(mol%n),f_minus(mol%n))
       write(env%unit,'(a)')
       write(env%unit,'("Fukui index Calculation")')
-      wf_p=wfn
-      wf_m=wfn
-      wf_p%nel = wf_p%nel+1
-      if (mod(wf_p%nel,2).ne.0) wf_p%nopen = 1
+      wf_p%wfn=chk%wfn
+      wf_m%wfn=chk%wfn
+      wf_p%wfn%nel = wf_p%wfn%nel+1
+      if (mod(wf_p%wfn%nel,2).ne.0) wf_p%wfn%nopen = 1
       call singlepoint &
          &       (env,mol,wf_p,calc, &
          &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
-      f_plus=wf_p%q-wfn%q
+      f_plus=wf_p%wfn%q-chk%wfn%q
 
-      wf_m%nel = wf_m%nel-1
-      if (mod(wf_m%nel,2).ne.0) wf_m%nopen = 1
+      wf_m%wfn%nel = wf_m%wfn%nel-1
+      if (mod(wf_m%wfn%nel,2).ne.0) wf_m%wfn%nopen = 1
       call singlepoint &
          &       (env,mol,wf_m,calc, &
          &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
-      f_minus=wfn%q-wf_m%q
+      f_minus=chk%wfn%q-wf_m%wfn%q
       write(env%unit,'(a)')
       write(env%unit, '(1x,"    #        f(+)     f(-)     f(0)")')
       do i=1,mol%n
-         write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), f_plus(i), f_minus(i), 0.5d0*(wf_p%q(i)-wf_m%q(i))
+         write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), f_plus(i), f_minus(i), 0.5d0*(wf_p%wfn%q(i)-wf_m%wfn%q(i))
       enddo
       deallocate(f_plus,f_minus)
    endif
@@ -730,7 +730,7 @@ subroutine xtbMain(env, argParser)
       endif
       call start_timing(5)
       call numhess &
-         &       (env,mol,wfn,calc, &
+         &       (env,mol,chk,calc, &
          &        egap,etemp,maxscciter,etot,g,sigma,fres)
       call stop_timing(5)
 
@@ -738,8 +738,8 @@ subroutine xtbMain(env, argParser)
    endif
 
    ! reset the gap, since it is currently not updated in ancopt and numhess
-   if (allocated(wfn%emo)) then
-      res%hl_gap = wfn%emo(wfn%ihomo+1)-wfn%emo(wfn%ihomo)
+   if (allocated(chk%wfn%emo)) then
+      res%hl_gap = chk%wfn%emo(chk%wfn%ihomo+1)-chk%wfn%emo(chk%wfn%ihomo)
    end if
 
    call env%checkpoint("Calculation terminated")
@@ -795,9 +795,9 @@ subroutine xtbMain(env, argParser)
    else
       select type(calc)
       type is(TxTBCalculator)
-         call main_property(iprop,mol,wfn,calc%basis,calc%xtbData,res,calc%solv, &
-            & acc)
-         call main_cube(verbose,mol,wfn,calc%basis,res)
+         call main_property(iprop,mol,chk%wfn,calc%basis,calc%xtbData,res, &
+            & calc%lSolv,acc)
+         call main_cube(verbose,mol,chk%wfn,calc%basis,res)
       end select
    endif
 
@@ -807,7 +807,7 @@ subroutine xtbMain(env, argParser)
       type is(TxTBCalculator)
          call open_file(ich,'xtbout.json','w')
          call main_json(ich, &
-            mol,wfn,calc%basis,res,fres)
+            mol,chk%wfn,calc%basis,res,fres)
          call close_file(ich)
       end select
    endif
@@ -820,7 +820,7 @@ subroutine xtbMain(env, argParser)
 
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
       call generic_header(iprop,'Frequency Printout',49,10)
-      call main_freq(iprop,mol,wfn,fres)
+      call main_freq(iprop,mol,chk%wfn,fres)
    endif
 
    if (allocated(property_file)) then
@@ -868,12 +868,12 @@ subroutine xtbMain(env, argParser)
       idum = 0
       select type(calc)
       class default
-         if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,wfn%wbo)
+         if (shake_md) call init_shake(mol%n,mol%at,mol%xyz,chk%wfn%wbo)
       type is(TGFFCalculator)
          if (shake_md) call gff_init_shake(mol%n,mol%at,mol%xyz,calc%topo)
       end select
       call md &
-         &     (env,mol,wfn,calc, &
+         &     (env,mol,chk,calc, &
          &      egap,etemp,maxscciter,etot,g,sigma,0,temp_md,idum)
       call stop_timing(6)
    endif
@@ -906,7 +906,7 @@ subroutine xtbMain(env, argParser)
             enddo
          enddo
          call geometry_optimization &
-            &     (env, mol,wfn,calc, &
+            &     (env, mol,chk,calc, &
             &      egap,etemp,maxscciter,optset%maxoptcycle,etot,g,sigma,optset%optlev,verbose,.true.,murks)
          if (.not.verbose) then
             write(env%unit,'("current energy:",1x,f20.8)') etot
@@ -932,7 +932,7 @@ subroutine xtbMain(env, argParser)
          call env%warning("Metadynamics under PBC are not implemented", source)
       endif
       call start_timing(4)
-      call bias_path(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call bias_path(env,mol,chk,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(4)
    endif
 
@@ -941,7 +941,7 @@ subroutine xtbMain(env, argParser)
    !  screen over input structures
    if (runtyp.eq.p_run_screen) then
       call start_timing(8)
-      call screen(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call screen(env,mol,chk,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(8)
    endif
 
@@ -953,7 +953,7 @@ subroutine xtbMain(env, argParser)
          call env%warning("Modefollowing under PBC is not implemented", source)
       endif
       call start_timing(9)
-      call modefollow(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call modefollow(env,mol,chk,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(9)
    endif
 
@@ -962,7 +962,7 @@ subroutine xtbMain(env, argParser)
    !  optimize along MD from xtb.trj for conformer searches
    if (runtyp.eq.p_run_mdopt) then
       call start_timing(10)
-      call mdopt(env,mol,wfn,calc,egap,etemp,maxscciter,etot,g,sigma)
+      call mdopt(env,mol,chk,calc,egap,etemp,maxscciter,etot,g,sigma)
       call stop_timing(10)
    endif
 
@@ -973,10 +973,9 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TxTBCalculator)
       if (restart) then
-         call writeRestart(env,wfn,'xtbrestart',gfn_method)
+         call writeRestart(env,chk%wfn,'xtbrestart',gfn_method)
       endif
    end select
-   call wfn%deallocate
 
 
    ! ------------------------------------------------------------------------

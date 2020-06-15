@@ -27,13 +27,13 @@ contains
 !  RMSD biased push/pull path finder (RMSD-BPP)
 !  SG 12/18, modified 06/20
 !! ========================================================================
-subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
+subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_convert
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_data, only : scc_results
    use xtb_single, only : singlepoint
    use xtb_io_writer, only : writeMolecule
@@ -56,7 +56,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    type(TEnvironment), intent(inout) :: env
 
    type(TMolecule),    intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfx
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    integer, intent(in)    :: maxiter
    real(wp),intent(in)    :: epot
@@ -227,7 +227,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
 
          atmp='xtbopt.log'
          call open_file(ilog,atmp,'w')
-         call ancopt (env,ilog,mol,wfx,calc,egap,et,maxiter,maxoptiter,dum,grd,sigma,olev,.false.,fail)
+         call ancopt (env,ilog,mol,chk,calc,egap,et,maxiter,maxoptiter,dum,grd,sigma,olev,.false.,fail)
          call close_file(ilog)
 
          !! ------------------------------------------------------------------------
@@ -257,7 +257,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
          barr=-1.d+42
          do i=1,npath(irun)
             mol%xyz(:, :) = xyzpath(:, :, i)
-            call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(i),grd,sigma,res)
+            call singlepoint(env,mol,chk,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(i),grd,sigma,res)
             dum=autokcal*(epath(i)-epath(1))
             if(dum.gt.barr) barr=dum
             call writeMolecule(mol, ilog2, fileType%xyz, energy=dum)
@@ -356,15 +356,15 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
    call open_file(ilog2,btmp,'w')
    metaset%nstruc = 0 ! unbiased energy and gradient
    mol%xyz=xyzpath(:,:,1)
-   call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(1),grd,sigma,res)
+   call singlepoint(env,mol,chk,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(1),grd,sigma,res)
    call writeMolecule(mol, ilog2, fileType%xyz, energy=0.0_wp)
    do i=2,np-1
       mol%xyz=xyzpath(:,:,i)
-      call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(i),grd,sigma,res)
+      call singlepoint(env,mol,chk,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(i),grd,sigma,res)
       call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(i)-epath(1)))
    end do
    mol%xyz=xyzpath(:,:,np)
-   call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(np),grd,sigma,res)
+   call singlepoint(env,mol,chk,calc,egap,et,maxiter,0,.true.,.false.,scc,epath(np),grd,sigma,res)
    call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(np)-epath(1)))
    call close_file(ilog2)
 
@@ -387,7 +387,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
          if(mod(i,10).eq.0.or.i.eq.2) write(*,*) 'optimizing points ',i,' ...'
          mol%xyz=xyzpath(:,:,i)
          call metadyn_tsmode(mol%n,np,i,xyzdum,mol%xyz,ppull) ! add bias on path (and constrain optionally)
-         call ancopt (env,ilog,mol,wfx,calc,egap,et,maxiter,maxoptiter,epath(i),grd,sigma,olev,.false.,fail)
+         call ancopt (env,ilog,mol,chk,calc,egap,et,maxiter,maxoptiter,epath(i),grd,sigma,olev,.false.,fail)
          xyzpath(:,:,i)=mol%xyz
       end do
 
@@ -399,7 +399,7 @@ subroutine bias_path(env, mol, wfx, calc, egap, et, maxiter, epot, grd, sigma)
       metaset%nstruc = 0 ! unbiased energy and gradient
       do i=2,np-1
          mol%xyz=xyzpath(:,:,i)
-         call singlepoint(env,mol,wfx,calc,egap,et,maxiter,0,.true.,.true.,scc,epath(i),grd,sigma,res)
+         call singlepoint(env,mol,chk,calc,egap,et,maxiter,0,.true.,.true.,scc,epath(i),grd,sigma,res)
          call writeMolecule(mol, ilog2, fileType%xyz, energy=autokcal*(epath(i)-epath(1)))
          if(epath(i).gt.dum)then
             dum=epath(i)

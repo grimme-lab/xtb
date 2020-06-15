@@ -80,23 +80,23 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
       call c_f_pointer(vres, res)
 
       ! check cache, automatically invalidate missmatched data
-      if (allocated(res%wfn)) then
+      if (allocated(res%chk)) then
          select type(xtb => calc%ptr)
          type is(TxTBCalculator)
-            if (res%wfn%n /= mol%ptr%n .or. res%wfn%n /= xtb%basis%n .or. &
-               & res%wfn%nao /= xtb%basis%nao .or. &
-               & res%wfn%nshell /= xtb%basis%nshell) then
-               deallocate(res%wfn)
+            if (res%chk%wfn%n /= mol%ptr%n .or. res%chk%wfn%n /= xtb%basis%n .or. &
+               & res%chk%wfn%nao /= xtb%basis%nao .or. &
+               & res%chk%wfn%nshell /= xtb%basis%nshell) then
+               deallocate(res%chk)
             end if
          end select
       end if
 
-      if (.not.allocated(res%wfn)) then
-         allocate(res%wfn)
+      if (.not.allocated(res%chk)) then
+         allocate(res%chk)
          ! in case of a new wavefunction cache we have to perform an initial guess
          select type(xtb => calc%ptr)
          type is(TxTBCalculator)
-            call newWavefunction(env%ptr, mol%ptr, xtb, res%wfn)
+            call newWavefunction(env%ptr, mol%ptr, xtb, res%chk)
          end select
       end if
 
@@ -128,13 +128,13 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          allocate(res%sigma(3, 3))
       end if
 
-      call calc%ptr%singlepoint(env%ptr, mol%ptr, res%wfn, env%verbosity, .true., &
+      call calc%ptr%singlepoint(env%ptr, mol%ptr, res%chk, env%verbosity, .true., &
          & res%energy, res%gradient, res%sigma, res%egap, spRes)
 
       ! invalidate cache for properties not produced in GFN-FF
       select type(gfnff => calc%ptr)
       type is(TGFFCalculator)
-         deallocate(res%wfn)
+         deallocate(res%chk)
          deallocate(res%egap)
          deallocate(res%sigma)
       end select

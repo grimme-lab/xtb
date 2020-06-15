@@ -28,7 +28,7 @@ module xtb_single
    use xtb_mctc_accuracy, only : wp
    use xtb_type_environment
    use xtb_type_molecule
-   use xtb_type_wavefunction
+   use xtb_type_restart
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_pcem
@@ -40,11 +40,11 @@ contains
 
 
 subroutine singlepoint &
-      & (env,mol,wfn,calc, &
+      & (env,mol,chk,calc, &
       &  egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,sigma,res)
    type(TEnvironment), intent(inout) :: env
    type(TMolecule), intent(inout) :: mol
-   type(TWavefunction),intent(inout) :: wfn
+   type(TRestart),intent(inout) :: chk
    class(TCalculator), intent(inout) :: calc
    type(tb_pcem) :: pcem
    real(wp),intent(inout) :: egap
@@ -60,7 +60,7 @@ subroutine singlepoint &
    real(wp),intent(out)   :: sigma(3,3)
 
    ! Just forward the singlepoint implementation of the calculator
-   call calc%singlepoint(env, mol, wfn, prlevel, restart, etot, g, sigma, egap, res)
+   call calc%singlepoint(env, mol, chk, prlevel, restart, etot, g, sigma, egap, res)
 
 end subroutine singlepoint
 

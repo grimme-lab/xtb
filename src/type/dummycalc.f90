@@ -23,7 +23,7 @@ module xtb_type_dummycalc
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : scc_parameter
-   use xtb_type_wavefunction
+   use xtb_type_restart, only : TRestart
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -59,7 +59,7 @@ module xtb_type_dummycalc
 contains
 
 
-subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
+subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
    !> Source of the generated errors
@@ -75,7 +75,7 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
    type(TMolecule), intent(inout) :: mol
 
    !> Wavefunction data
-   type(TWavefunction), intent(inout) :: wfn
+   type(TRestart), intent(inout) :: chk
 
    !> Print level for IO
    integer, intent(in) :: printlevel
@@ -126,8 +126,8 @@ subroutine singlepoint(self, env, mol, wfn, printlevel, restart, &
       call runOrca(env,mol,energy,gradient)
 
    case(p_ext_turbomole)
-      call external_turbomole(mol%n,mol%at,mol%xyz,wfn%nel,wfn%nopen, &
-         & .true.,energy,gradient,results%dipole,allocated(self%solv))
+      call external_turbomole(mol%n,mol%at,mol%xyz,chk%wfn%nel,chk%wfn%nopen, &
+         & .true.,energy,gradient,results%dipole,self%lSolv)
 
    case(p_ext_mopac)
       call runMopac(env,mol%n,mol%at,mol%xyz,energy,gradient)
