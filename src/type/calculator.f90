@@ -33,7 +33,7 @@ module xtb_type_calculator
    type, abstract :: TCalculator
 
       real(wp) :: accuracy
-      logical :: lSolv
+      logical :: lSolv = .false.
 
    contains
 
