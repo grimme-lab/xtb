@@ -12,6 +12,7 @@ subroutine test_gfn2_scc
    use xtb_type_data
    use xtb_type_pcem
    use xtb_type_environment
+   use xtb_type_solvation
    use xtb_type_solvent
 
    use xtb_setparam
@@ -48,6 +49,7 @@ subroutine test_gfn2_scc
    type(tb_pcem)         :: pcem
    type(TxTBData) :: xtbData
    type(TSolvent), allocatable :: gbsa
+   class(TSolvation), allocatable :: solvation
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -83,7 +85,7 @@ subroutine test_gfn2_scc
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,pcem,xtbData,gbsa, &
+   call scf(env,mol,wfn,basis,pcem,xtbData,gbsa,solvation, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)

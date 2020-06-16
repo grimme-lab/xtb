@@ -138,10 +138,12 @@ subroutine initEnvironment(self, strict)
    call rdvar('HOME', self%home, err)
    call rdvar('PATH', self%path, err)
    call rdvar('XTBHOME', self%xtbhome, err)
+   if (.not.allocated(self%xtbhome)) self%xtbhome = ''
    if (err /= 0 .or. len(self%xtbhome) <= 0) then
       self%xtbhome = self%home
    end if
    call rdvar('XTBPATH', self%xtbpath, err)
+   if (.not.allocated(self%xtbpath)) self%xtbpath = ''
    if (err /= 0 .or. len(self%xtbpath) <= 0) then
       self%xtbpath = self%xtbhome
    end if

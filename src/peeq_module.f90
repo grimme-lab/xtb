@@ -362,7 +362,6 @@ subroutine peeq &
    if (allocated(gbsa)) then
       if (profile) call timer%measure(9,"GBSA setup")
       call new_gbsa(gbsa,mol%n,mol%at)
-      call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
       ! compute Born radii
       call compute_brad_sasa(gbsa,mol%xyz)
       ! add SASA term to energy and gradient

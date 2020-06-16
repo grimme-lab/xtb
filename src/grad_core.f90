@@ -34,35 +34,6 @@ module xtb_grad_core
 
 contains
 
-
-!! ========================================================================
-!  derivative of the CM5 additional term for GBSA in GFN1
-!! ========================================================================
-subroutine cm5_grad_gfn1(g,n,q,fgb,fhb,dcm5a,lhb)
-   use xtb_mctc_convert, only : autoev,evtoau
-   real(wp),intent(inout) :: g(3,n)
-   integer, intent(in)    :: n
-   real(wp),intent(in)    :: q(n)
-   real(wp),intent(inout) :: fgb(n,n)
-   real(wp),intent(inout) :: fhb(n)
-   real(wp),intent(in)    :: dcm5a(3,n,n)
-   logical, intent(in)    :: lhb
-
-   real(wp), allocatable  :: fgba(:)
-   real(wp), allocatable  :: dcm5(:,:)
-   integer :: iat,jat
-
-   allocate( fgba(n), source = 0.0_wp )
-   call dsymv('u',n,1.0_wp,fgb,n,q,1,0.0_wp,fgba,1)
-   call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
-   if (lhb) then
-      fgba = fhb * 2.0_wp * q
-      call dgemv('n',3*n,n,1.0_wp,dcm5a,3*n,fgba,1,1.0_wp,g,1)
-   end if
-
-end subroutine cm5_grad_gfn1
-
-
 !! ========================================================================
 !  derivative of S(R) enhancement factor
 !! ========================================================================

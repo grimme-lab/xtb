@@ -16,10 +16,12 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Generator for Lebedev-Laikov grids.
-!>
-!> V.I. Lebedev, and D.N. Laikov, "A quadrature formula for the sphere of the
-!> 131st algebraic order of accuracy", Doklady Mathematics, Vol. 59, No. 3,
-!> 1999, pp. 477-481.
+!  Adapted for DFTB+ from John Burkardt's portation of Dmitri Laikov's
+!  C implementation of
+! 
+!  V.I. Lebedev, and D.N. Laikov, "A quadrature formula for the sphere of the
+!  131st algebraic order of accuracy", Doklady Mathematics, Vol. 59, No. 3,
+!  1999, pp. 477-481.
 module xtb_solv_lebedev
    use xtb_mctc_accuracy, only : wp
    implicit none
@@ -38,7 +40,9 @@ module xtb_solv_lebedev
 
    real(wp), parameter :: z = 0.0_wp
 
+
 contains
+
 
 !> Wrapper for generation of angular Lebedev-Laikov grids
 pure subroutine getAngGrid(nAng, grid, weights, stat)

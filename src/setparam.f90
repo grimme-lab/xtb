@@ -22,6 +22,7 @@
 module xtb_setparam
    use xtb_mctc_accuracy, only : wp
    use xtb_solv_kernel, only : gbKernel
+   use xtb_solv_input, only : TSolvInput
    use xtb_type_setvar
 
    implicit none
@@ -190,6 +191,7 @@ module xtb_setparam
    real(wp) :: step_hess = 0.005_wp
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
+   type(TSolvInput) :: solvInput
    character(len=:),allocatable :: solvent
    logical :: alpb = .false.
    integer :: solvKernel = gbKernel%still

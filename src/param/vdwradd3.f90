@@ -23,7 +23,7 @@ module xtb_param_vdwradd3
    implicit none
    private
 
-   public :: getVanDerWaalsRadD3
+   public :: getVanDerWaalsRadD3, vanDerWaalsRadD3
 
 
    !> Get van-der-Waals Rad for a species
@@ -34,7 +34,7 @@ module xtb_param_vdwradd3
 
 
    !> D3 pairwise van-der-Waals radii (only homoatomic pairs present here)
-   real(wp), parameter :: vanDerWaalsRadiiD3(1:94) = aatoau * [&
+   real(wp), parameter :: vanDerWaalsRadD3(1:94) = aatoau * [&
       & 1.09155_wp, 0.86735_wp, 1.74780_wp, 1.54910_wp, &
       & 1.60800_wp, 1.45515_wp, 1.31125_wp, 1.24085_wp, &
       & 1.14980_wp, 1.06870_wp, 1.85410_wp, 1.74195_wp, &
@@ -87,8 +87,8 @@ elemental function getVanDerWaalsRadD3Number(number) result(rad)
    !> van-der-Waals radius
    real(wp) :: rad
 
-   if (number > 0 .and. number <= size(vanDerWaalsRadiiD3, dim=1)) then
-      rad = vanDerWaalsRadiiD3(number)
+   if (number > 0 .and. number <= size(vanDerWaalsRadD3, dim=1)) then
+      rad = vanDerWaalsRadD3(number)
    else
       rad = -1.0_wp
    end if

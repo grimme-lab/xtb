@@ -18,6 +18,7 @@
 !> Extended tight binding calculator
 module xtb_xtb_calculator
    use xtb_mctc_accuracy, only : wp
+   use xtb_solv_model, only : info, newSolvationModel
    use xtb_type_basisset, only : TBasisset
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
@@ -25,6 +26,7 @@ module xtb_xtb_calculator
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : scc_parameter
    use xtb_type_pcem
+   use xtb_type_solvation, only : TSolvation
    use xtb_type_solvent, only : TSolvent
    use xtb_type_restart, only : TRestart
    use xtb_type_wsc, only : tb_wsc
@@ -134,6 +136,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: inmol
    logical, parameter :: ccm = .true.
    logical :: exitRun
+   class(TSolvation), allocatable :: solvation
 
    call mol%update
    if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
@@ -148,11 +151,15 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       allocate(solv)
    end if
 
+   if (allocated(self%solvation)) then
+      call newSolvationModel(self%solvation, env, solvation, mol%at)
+   end if
+
    ! ------------------------------------------------------------------------
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
-      call scf(env,mol,chk%wfn,self%basis,self%pcem,self%xtbData,solv, &
+      call scf(env,mol,chk%wfn,self%basis,self%pcem,self%xtbData,solv,solvation, &
          &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
          &   self%accuracy,energy,gradient,results)
 
@@ -306,6 +313,10 @@ subroutine writeInfo(self, unit, mol)
    type(TMolecule), intent(in) :: mol
 
    call self%xtbData%writeInfo(unit, mol%at)
+
+   if (allocated(self%solvation)) then
+      call info(self%solvation, unit)
+   end if
 
 end subroutine writeInfo
 

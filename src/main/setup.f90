@@ -19,6 +19,8 @@
 module xtb_main_setup
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_systools, only : rdpath
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_model, only : init
    use xtb_type_calculator, only : TCalculator
    use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
@@ -38,7 +40,7 @@ module xtb_main_setup
    use xtb_setparam
    use xtb_disp_ncoord
    use xtb_chargemodel
-   use xtb_solv_gbobc, only : initGBSA
+   use xtb_solv_gbobc, only : initGBSA, ionst, ion_rad
    implicit none
    private
 
@@ -370,6 +372,11 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
    if (calc%lSolv) then
       call initGBSA(env, trim(solvent), solvState, temperature, level, &
          & gridSize, alpb, solvKernel, pr)
+      allocate(calc%solvation)
+      solvInput = TSolvInput(&
+         & solvent=solvent, alpb=alpb, kernel=solvKernel, state=solvState, &
+         & ionStrength=ionst, ionRad=ion_rad)
+      call init(calc%solvation, env, solvInput, level)
    endif
 
 end subroutine addSolvationModel

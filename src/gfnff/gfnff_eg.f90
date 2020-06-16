@@ -156,7 +156,6 @@ contains
    if (allocated(gbsa)) then
       call timer%measure(11, "GBSA")
       call new_gbsa(gbsa, n, at)
-      call update_nnlist_gbsa(gbsa, xyz, .false.)
       ! compute Born radii
       call compute_brad_sasa(gbsa, xyz)
       ! add SASA term to energy and gradient

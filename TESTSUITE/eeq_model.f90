@@ -82,7 +82,6 @@ subroutine test_eeq_model_gbsa
 
    call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,gbKernel%still,.true.)
    call new_gbsa(gbsa,mol%n,mol%at)
-   call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
    call compute_brad_sasa(gbsa,mol%xyz)
 
    es = gbsa%gsasa
@@ -215,7 +214,6 @@ subroutine test_eeq_model_salt
    ion_rad = 1.0_wp
    call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,gbKernel%still,.true.)
    call new_gbsa(gbsa,mol%n,mol%at)
-   call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
    call compute_brad_sasa(gbsa,mol%xyz)
 
    es = gbsa%gsasa

@@ -19,6 +19,7 @@ module xtb_propertyoutput
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_symbols, only : toSymbol
+   use xtb_solv_cm5
    use xtb_cube
    use xtb_topology
 
@@ -152,7 +153,6 @@ subroutine main_property &
    ! GBSA information
    if (lgbsa.and.pr_gbsa) then
       call new_gbsa(gbsa,mol%n,mol%at)
-      call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
       call compute_brad_sasa(gbsa,mol%xyz)
       call print_gbsa_info(iunit,gbsa)
    endif

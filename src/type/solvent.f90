@@ -89,6 +89,7 @@ module xtb_type_solvent
 ! ------------------------------------------------------------------------
 !     Hydrogen bond contribution
       real(wp) :: ghb
+      real(wp),allocatable :: hbmag(:)
       real(wp),allocatable :: hbw(:)
 ! ------------------------------------------------------------------------
 !  Gradient:
@@ -153,6 +154,7 @@ subroutine deallocate_gbsa(this)
    if (allocated(this%ionscr))  deallocate(this%ionscr)
    if (allocated(this%discr))   deallocate(this%discr)
    if (allocated(this%at))      deallocate(this%at)
+   if (allocated(this%hbmag))   deallocate(this%hbmag)
 end subroutine deallocate_gbsa
 
 subroutine allocate_gbsa(this,n,nang)
@@ -192,6 +194,7 @@ subroutine allocate_gbsa(this,n,nang)
    allocate(this%angWeight(this%nAng), source = 0.0_wp)
    ! initialize the hydrogen bonding contribution
    allocate(this%hbw(this%nat), source = 0.0_wp)
+   allocate(this%hbmag(this%nat), source = 0.0_wp)
    allocate(this%dhbdw(this%nat), source = 0.0_wp)
    ! initialize the salt term
    allocate(this%ionscr(this%nat), source = 0.0_wp)
