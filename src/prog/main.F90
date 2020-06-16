@@ -630,6 +630,15 @@ subroutine xtbMain(env, argParser)
       if (nscan.gt.0) then
          call relaxed_scan(env,mol,chk,calc)
       endif
+      if (murks) then
+         call generateFileName(tmpname, 'xtblast', extension, mol%ftype)
+         write(env%unit,'(/,a,1x,a,/)') &
+            "last geometry written to:",tmpname
+         call open_file(ich,tmpname,'w')
+         call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
+         call close_file(ich)
+         call env%terminate("Geometry optimization failed")
+      end if
       call stop_timing(3)
    endif
 

@@ -58,7 +58,7 @@ subroutine geometry_optimization &
    logical, intent(in)    :: initial_sp
 
    type(scc_results) :: res
-   logical :: final_sp
+   logical :: final_sp, exitRun
    integer :: printlevel
    integer :: ilog
 
@@ -115,6 +115,12 @@ subroutine geometry_optimization &
       else
          call touch_file('.xtboptok')
       endif
+   end if
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%rescue("Trying to recover from failed geometry optimization", source)
+      fail = .true.
    end if
 
    if (pr.and.pr_finalstruct) then
