@@ -355,7 +355,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 
    call env%check(fail)
    if (fail) then
-      call env%error("GEOMETRY OPTIMIZATION FAILED!", source)
+      call env%error("Could not relax structure", source)
       return
    endif
 
