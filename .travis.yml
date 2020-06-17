@@ -25,6 +25,7 @@ jobs:
               - intel-oneapi-ifort
               - intel-oneapi-icc
               - intel-oneapi-mkl
+              - intel-oneapi-mkl-devel
               - intel-oneapi-openmp
         before_install:
         - source /opt/intel/inteloneapi/setvars.sh
