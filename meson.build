@@ -24,7 +24,6 @@ project(
   meson_version: '>=0.51',
   default_options: [
     'includedir=include/xtb',
-    'c_std=c11',
     'buildtype=release',
     'default_library=both',
   ],
