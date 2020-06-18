@@ -88,6 +88,8 @@ subroutine writeMolecule(self, unit, format, energy, gnorm, number)
       endif
    end select
 
+   ! Flush file so that the output file can be visualized during optimization
+   flush(unit)
 end subroutine writeMolecule
 
 
