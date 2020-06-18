@@ -35,6 +35,7 @@ module xtb_gfnff_calculator
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
+   use xtb_generate_wsc
    implicit none
    private
 

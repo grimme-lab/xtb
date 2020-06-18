@@ -33,6 +33,7 @@ module xtb_type_dummycalc
    use xtb_extern_orca, only : runOrca
    use xtb_metadynamic
    use xtb_constrainpot
+   use xtb_generate_wsc
    implicit none
 
    public :: TDummyCalculator

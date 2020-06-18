@@ -40,6 +40,7 @@ module xtb_type_molecule
    use xtb_type_fragments
    use xtb_type_buffer
    use xtb_type_vendordata
+   use xtb_generate_wsc
    implicit none
 
    public :: TMolecule, new_molecule_api, init

@@ -38,6 +38,7 @@ module xtb_xtb_calculator
    use xtb_embedding, only : read_pcem
    use xtb_metadynamic
    use xtb_constrainpot
+   use xtb_generate_wsc
    implicit none
    private
 
