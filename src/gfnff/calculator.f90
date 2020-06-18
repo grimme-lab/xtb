@@ -39,9 +39,9 @@ module xtb_gfnff_calculator
    implicit none
    interface
       subroutine generate_wsc(mol,wsc)
-        import :: TMolecule, tb_wsc
-        type(TMolecule), intent(inout) :: mol
-        type(tb_wsc),    intent(inout) :: wsc
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
       end subroutine generate_wsc
    end interface
    private
