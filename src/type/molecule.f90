@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> molecular structure information
-! 
+!
 !  contains information about the molecular geometry, the atom types
 !  the nuclear and total charge, atomic masses and all interatomic distances
 !  In periodic calculations the lattice parameters, a Wigner--Seitz cell
@@ -134,7 +134,7 @@ module xtb_type_molecule
 
       !> Turbomole specific information about input type
       type(turbo_info) :: turbo = turbo_info()
-      
+
       !> Specific information about input structure
       type(struc_info) :: struc = struc_info()
 
@@ -194,7 +194,16 @@ contains
 
 !> Constructor for the molecular structure type
 subroutine initMolecule &
-      & (mol, at, sym, xyz, chrg, uhf, lattice, pbc)
+     & (mol, at, sym, xyz, chrg, uhf, lattice, pbc)
+
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
+
    type(TMolecule), intent(out) :: mol
    integer, intent(in) :: at(:)
    character(len=*), intent(in) :: sym(:)
@@ -532,7 +541,7 @@ subroutine mol_set_atomic_masses(self)
 end subroutine mol_set_atomic_masses
 
 !> wrap cartesian coordinates back into cell
-! 
+!
 !  This automatically done when calling @see xyz_to_abc, so we only have
 !  to perform the transformation there and back again
 subroutine wrap_back(self)

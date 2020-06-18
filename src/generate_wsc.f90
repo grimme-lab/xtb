@@ -89,6 +89,8 @@ subroutine generate_wsc(mol,wsc)
                end do
             end do
          end do
+         ! sanity check; otherwise code below crashes sometimes
+         if (c .eq. 0) cycle
          ! get first image with same dist
          ! find minimum in dist-array and assign it to minpos = minimum position
          trans=.true.
@@ -125,4 +127,3 @@ subroutine generate_wsc(mol,wsc)
 !$omp endparallel
 
 end subroutine generate_wsc
-

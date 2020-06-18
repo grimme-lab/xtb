@@ -27,6 +27,7 @@ module xtb_xtb_calculator
    use xtb_type_pcem
    use xtb_type_solvent, only : TSolvent
    use xtb_type_restart, only : TRestart
+   use xtb_type_wsc, only : tb_wsc
    use xtb_xtb_data, only : TxTBData
    use xtb_setparam
    use xtb_fixparam
@@ -39,6 +40,14 @@ module xtb_xtb_calculator
    use xtb_metadynamic
    use xtb_constrainpot
    implicit none
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
+
    private
 
    public :: TxTBCalculator

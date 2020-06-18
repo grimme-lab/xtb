@@ -24,6 +24,7 @@ module xtb_type_dummycalc
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : scc_parameter
    use xtb_type_restart, only : TRestart
+   use xtb_type_wsc, only : tb_wsc
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -34,6 +35,13 @@ module xtb_type_dummycalc
    use xtb_metadynamic
    use xtb_constrainpot
    implicit none
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
 
    public :: TDummyCalculator
    private
