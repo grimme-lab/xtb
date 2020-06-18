@@ -26,3 +26,5 @@ option('install_modules', type: 'boolean', value: false,
        description: 'Install Fortran module files to include directory.')
 option('build_name', type: 'string', value: 'unknown',
        description: 'Name of the build, will be overwritten automatically by git')
+option('test_timeout', type: 'integer', min: 1, value: 30,
+       description: 'test timeout in seconds')
