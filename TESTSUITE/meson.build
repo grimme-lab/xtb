@@ -60,7 +60,7 @@ test('Info', xtb_exe, env: xtbenv, args: [
   files('../assets/inputs/xyz/taxol.xyz'),
 ])
 
-default_test_timeout = 2000
+default_test_timeout = get_option('default_test_timeout')
 
 test('Singlepoint', xtb_exe, args: ['--coffee', '--strict', '--norestart', '--namespace', 'test1'], env: xtbenv, timeout: default_test_timeout)
 if get_option('la_backend') != 'netlib'
