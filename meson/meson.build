@@ -28,6 +28,7 @@ if fc.get_id() == 'gcc'
   add_project_arguments('-fdefault-double-8', language: 'fortran')
   add_project_arguments('-ffree-line-length-none', language: 'fortran')
   add_project_arguments('-fbacktrace', language: 'fortran')
+  add_project_arguments('-fexternal-blas', language: 'fortran')
 elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
