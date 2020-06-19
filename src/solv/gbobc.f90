@@ -24,7 +24,7 @@ module xtb_solv_gbobc
    use xtb_solv_gbsa, only : addGradientSaltStill, addGradientStill, &
       & addGradientP16, addGradientHBond, getADet, addADetDeriv, &
       & addBornMatSaltStill, addBornMatStill, addBornMatP16, &
-      & compute_fhb, compute_debye_hueckel, update_nnlist_gbsa
+      & compute_fhb, getDebyeHueckel, update_nnlist_gbsa
    use xtb_solv_kernel, only : gbKernel
    use xtb_solv_sasa, only : compute_numsa
    use xtb_type_solvent
@@ -868,7 +868,7 @@ subroutine compute_brad_sasa(self, xyz)
    self%gsasa = mctc_dot(self%sasa, self%gamsasa)
 
    ! compute the Debye-Hueckel ion exclusion term
-   if (gbm%lsalt) call compute_debye_hueckel(self%nat, gbm%epsv, gbm%kappa, &
+   if (gbm%lsalt) call getDebyeHueckel(self%nat, gbm%epsv, gbm%kappa, &
       & gbm%ion_rad, self%brad, self%ionscr, self%discr)
 
    ! compute the HB term

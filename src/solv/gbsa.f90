@@ -37,7 +37,7 @@ module xtb_solv_gbsa
    public :: addGradientHBond
    public :: addBornMatSaltStill, addBornMatStill, addBornMatP16
    public :: getADet, addADetDeriv
-   public :: compute_fhb, compute_debye_hueckel, update_nnlist_gbsa
+   public :: compute_fhb, getDebyeHueckel, update_nnlist_gbsa
 
 
    type, extends(TSolvation) :: TBorn
@@ -298,23 +298,6 @@ subroutine initBorn(self, env, num, vdwRad, dielectricConst, freeEnergyShift, &
    end if
    self%keps = (1.0_wp/self%dielectricConst - 1.0_wp) / (1.0_wp + self%alpbet)
 
-   if (present(ionSt)) then
-      self%lsalt = ionSt > 0.0_wp
-   else
-      self%lsalt = .false.
-   end if
-   if (self%lsalt) then
-      allocate(self%ionscr(self%nat))
-      allocate(self%discr(self%nat))
-      if (present(ionRad)) then
-         self%ionRad = ionRad
-      else
-         self%ionRad = 0.0_wp
-      end if
-      self%kappa = sqrt(self%dielectricConst*temperature*kappaConst/ionSt)*aatoau
-      self%kappa = 1.0_wp/self%kappa
-   end if
-
    self%nat = size(num)
    self%at = num
    self%ntpair = self%nat*(self%nat-1)/2
@@ -331,6 +314,23 @@ subroutine initBorn(self, env, num, vdwRad, dielectricConst, freeEnergyShift, &
          self%ppind(2, ij) = jat
       enddo
    enddo
+
+   if (present(ionSt)) then
+      self%lsalt = ionSt > 0.0_wp
+   else
+      self%lsalt = .false.
+   end if
+   if (self%lsalt) then
+      allocate(self%ionscr(self%nat))
+      allocate(self%discr(self%nat))
+      if (present(ionRad)) then
+         self%ionRad = ionRad
+      else
+         self%ionRad = 0.0_wp
+      end if
+      self%kappa = sqrt(self%dielectricConst*temperature*kappaConst/ionSt)*aatoau
+      self%kappa = 1.0_wp/self%kappa
+   end if
 
    self%lrcut = rCutoff
    self%bornScale = bornScale
@@ -426,7 +426,7 @@ subroutine update(self, env, num, xyz)
 
    ! compute the Debye-Hueckel ion exclusion term
    if (self%lsalt) then
-      call compute_debye_hueckel(self%nat, self%dielectricConst, self%kappa, &
+      call getDebyeHueckel(self%nat, self%dielectricConst, self%kappa, &
          & self%ionRad, self%brad, self%ionscr, self%discr)
    end if
 
@@ -778,7 +778,7 @@ end subroutine addADetDeriv
 
 
 !> compute the Debye-Hueckel ion exclusion term
-pure subroutine compute_debye_hueckel(nat, dielectricConst, kappa, ionRad, brad, &
+pure subroutine getDebyeHueckel(nat, dielectricConst, kappa, ionRad, brad, &
       & ionscr, discr)
 
    integer, intent(in) :: nat
@@ -789,7 +789,7 @@ pure subroutine compute_debye_hueckel(nat, dielectricConst, kappa, ionRad, brad,
    real(wp), intent(out) :: ionscr(:)
    real(wp), intent(out) :: discr(:)
 
-   integer  :: i
+   integer :: i
    real(wp) :: aa, gg
 
    aa=0.5_wp/dielectricConst
@@ -799,7 +799,7 @@ pure subroutine compute_debye_hueckel(nat, dielectricConst, kappa, ionRad, brad,
       discr(i)=ionscr(i)*kappa*gg/(1.0_wp+gg)
    enddo
 
-end subroutine compute_debye_hueckel
+end subroutine getDebyeHueckel
 
 
 !> setup a pairlist and compute pair distances of all neighbors
@@ -1093,7 +1093,7 @@ pure subroutine addGradientHBond(nat, at, q, hbw, dhbdw, dsdrt, ghb, gradient)
 end subroutine addGradientHBond
 
 
-subroutine addBornMatSaltStill(nat, ntpair, ppind, ddpair, kappa, brad, ionscr, &
+pure subroutine addBornMatSaltStill(nat, ntpair, ppind, ddpair, kappa, brad, ionscr, &
       & Amat)
 
    !> Number of atoms
@@ -1122,14 +1122,11 @@ subroutine addBornMatSaltStill(nat, ntpair, ppind, ddpair, kappa, brad, ionscr, 
 
    integer  :: i, j, nnj
    integer  :: kk
-   real(wp), allocatable :: fhb(:)
    real(wp), parameter :: a13=1.0_wp/3.0_wp
    real(wp), parameter :: a4=0.25_wp
    real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
-   real(wp) :: aa, r2, gg, iepsu, arg, bp
+   real(wp) :: aa, r2, gg, arg, bp
    real(wp) :: dd, expd, fgb, fgb2, dfgb
-
-   iepsu=1.0_wp
 
    ! compute energy and Amat direct and radii derivatives
    do kk = 1, ntpair
@@ -1159,7 +1156,7 @@ subroutine addBornMatSaltStill(nat, ntpair, ppind, ddpair, kappa, brad, ionscr, 
 end subroutine addBornMatSaltStill
 
 
-subroutine addBornMatStill(nat, ntpair, ppind, ddpair, keps, brad, Amat)
+pure subroutine addBornMatStill(nat, ntpair, ppind, ddpair, keps, brad, Amat)
 
    !> Number of atoms
    integer, intent(in) :: nat
@@ -1184,7 +1181,6 @@ subroutine addBornMatStill(nat, ntpair, ppind, ddpair, keps, brad, Amat)
 
    integer  :: i, j, nnj
    integer  :: kk
-   real(wp), allocatable :: fhb(:)
    real(wp), parameter :: a13=1.0_wp/3.0_wp
    real(wp), parameter :: a4=0.25_wp
    real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
