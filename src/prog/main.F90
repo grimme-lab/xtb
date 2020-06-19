@@ -1417,6 +1417,25 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("No solvent name provided for GBSA", source)
          end if
 
+      case('--cosmo')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_gbsa(env, 'solvent', sec)
+            call set_gbsa(env, 'cosmo', 'true')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               if (sec == 'reference') then
+                  gsolvstate = 1
+               else if (sec == 'bar1M') then
+                  gsolvstate = 2
+               else
+                  call env%warning("Unknown reference state '"//sec//"'", source)
+               end if
+            end if
+         else
+            call env%error("No solvent name provided for COSMO", source)
+         end if
+
       case('--scc', '--sp')
          call set_runtyp('scc')
 

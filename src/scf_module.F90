@@ -89,6 +89,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    use xtb_aespot,    only : dradcn,aniso_grad,setdvsdq
    use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
    use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
+   use xtb_solv_cosmo, only : TCosmo
 
    use xtb_readin
 
@@ -117,6 +118,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    class(TSolvation), allocatable, intent(inout) :: solvation
    type(TLatticePoint) :: latp
    type(TEigenSolver) :: solver
+   type(TCosmo) :: cosmo
 
 ! ========================================================================
    real(wp),allocatable :: cn(:)

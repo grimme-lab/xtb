@@ -15,11 +15,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+add_subdirectory("ddcosmo")
+
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/born.f90"
   "${dir}/cm5.f90"
+  "${dir}/cosmo.f90"
   "${dir}/gbsa.f90"
   "${dir}/input.F90"
   "${dir}/kernel.f90"
