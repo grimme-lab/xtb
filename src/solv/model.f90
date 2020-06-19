@@ -457,6 +457,20 @@ subroutine info(self, unit)
    write(unit, '(8x, a, t40, es14.4, 1x, a, t60, es14.4, 1x, a)') &
       "Born offset", self%bornOffset, "a0", self%bornOffset/autoaa, "AA"
 
+   write(unit, '(8x, a, t40)', advance='no') "H-bond correction"
+   if (any(self%hBondStrength < 0.0_wp)) then
+      write(unit, '(a)') "true"
+   else
+      write(unit, '(a)') "false"
+   end if
+
+   write(unit, '(8x, a, t40)', advance='no') "Ion screening"
+   if (self%ionStrength > 0.0_wp) then
+      write(unit, '(a)') "true"
+   else
+      write(unit, '(a)') "false"
+   end if
+
    if (allocated(self%surfaceTension)) then
       write(unit, '(8x, a, t40, es14.4, 1x, a, t60, es14.4, 1x, a)') &
          "Surface tension", surfaceTension, "Eh", surfaceTension*automNm, "dyn/cm"

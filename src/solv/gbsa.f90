@@ -369,8 +369,6 @@ subroutine initBorn(self, env, num, vdwRad, dielectricConst, freeEnergyShift, &
          &            self%vdwsa(iat)*self%vdwsa(iat)/3.0_wp))*r*r*r
       self%gamsasa(iat) = surfaceTension(izp)
    end do
-   print*, gammas
-   print*, surfaceTension(num)
    self%srcut = 2 * (w + maxval(self%vdwsa)) + rOffset
 
    call bisectSearch(iang, gridSize, nAng)
@@ -1331,7 +1329,7 @@ subroutine addGradientSaltStill(nat, ntpair, ppind, ddpair, qat, kappa, &
    allocate(grddb(nat), source = 0.0_wp )
 
    egb = 0._wp
-   grddb = 0._wp
+   grddb(:) = 0._wp
 
    ! GB-SE energy and gradient
 
@@ -1361,7 +1359,7 @@ subroutine addGradientSaltStill(nat, ntpair, ppind, ddpair, qat, kappa, &
       ap = (1._wp-a4*expd)*dfgb3
       dr = ap*ddpair(2:4, kk)
       gradient(:, i) = gradient(:, i) - dr
-      gradient(:,  j) = gradient(:, j) + dr
+      gradient(:, j) = gradient(:, j) + dr
 
       qfg = qfg*expa
       bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
@@ -1439,7 +1437,7 @@ subroutine addGradientStill(nat, ntpair, ppind, ddpair, qat, keps, &
    allocate(grddb(nat), source = 0.0_wp )
 
    egb = 0._wp
-   grddb = 0._wp
+   grddb(:) = 0._wp
 
    ! GB energy and gradient
 
