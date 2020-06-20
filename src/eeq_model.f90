@@ -1017,7 +1017,7 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
 !  Input
 ! ------------------------------------------------------------------------
    type(TMolecule),intent(in) :: mol     !< molecular structure information
-   type(TSolvent), intent(in) :: gbsa
+   type(TBorn), intent(in) :: gbsa
    real(wp),intent(in)    :: cn(mol%n)     ! erf-CN
    real(wp),intent(in)    :: dcndr(3,mol%n,mol%n) ! derivative of erf-CN
    logical, intent(in)    :: lverbose      ! toggles printout

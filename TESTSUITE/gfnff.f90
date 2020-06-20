@@ -92,7 +92,6 @@ subroutine test_gfnff_hb
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_restart
-   use xtb_type_solvent
    use xtb_type_data
    use xtb_gfnff_param
    use xtb_gfnff_setup
@@ -124,7 +123,6 @@ subroutine test_gfnff_hb
    type(TRestart)      :: chk
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
-   type(TSolvent), allocatable :: solv
 
    real(wp) :: etot, sigma(3,3), gap
    real(wp), allocatable :: g(:,:)
@@ -177,7 +175,6 @@ subroutine test_gfnff_gbsa
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_restart
-   use xtb_type_solvent
    use xtb_type_data
    use xtb_gfnff_param
    use xtb_gfnff_setup
@@ -212,7 +209,6 @@ subroutine test_gfnff_gbsa
    type(TRestart)      :: chk
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
-   type(TSolvent), allocatable :: solv
 
    real(wp) :: etot, sigma(3,3), gap
    real(wp), allocatable :: g(:,:)
@@ -227,7 +223,6 @@ subroutine test_gfnff_gbsa
    call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '---', .false.)
    call addSolvationModel(env, calc, opt%solvent)
-   allocate(solv)
 
    call env%checkpoint("GFN-FF parameter setup failed")
 

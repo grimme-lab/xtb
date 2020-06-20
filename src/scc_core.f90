@@ -242,7 +242,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
 
-   use xtb_solv_gbobc,  only : TSolvent
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq

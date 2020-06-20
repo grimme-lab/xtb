@@ -23,7 +23,6 @@ module xtb_type_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart, only : TRestart
-   use xtb_type_solvent, only : TSolvent
    implicit none
 
    public :: TCalculator

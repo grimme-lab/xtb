@@ -93,7 +93,7 @@ subroutine peeq &
    real(wp),intent(inout)                    :: egap !< HOMO-LUMO gap
    real(wp),intent(inout),dimension(3,mol%n) :: gradient    !< molecular gradient
    type(TWavefunction),intent(inout)       :: wfn  !< TB-wavefunction
-   type(TSolvent),allocatable,intent(inout) :: gbsa
+   type(TBorn),allocatable,intent(inout) :: gbsa
 ! ------------------------------------------------------------------------
 !  OUTPUT
 ! ------------------------------------------------------------------------

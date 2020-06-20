@@ -54,7 +54,7 @@ subroutine test_peeq_sp
    type(TBasisset)     :: basis
    type(scc_results)     :: res
    type(TxTBData) :: xtbData
-   type(TSolvent), allocatable :: gbsa
+   type(TBorn), allocatable :: gbsa
 
    real(wp)              :: energy
    real(wp)              :: hl_gap

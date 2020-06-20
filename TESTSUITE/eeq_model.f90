@@ -29,7 +29,7 @@ subroutine test_eeq_model_gbsa
 
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
-   type(TSolvent)     :: gbsa
+   type(TBorn)     :: gbsa
    type(TEnvironment) :: env
    real(wp), parameter :: trans(3, 1) = 0.0_wp
    real(wp) :: es,gsolv,sigma(3,3)
@@ -163,7 +163,7 @@ subroutine test_eeq_model_salt
 
    type(TMolecule)    :: mol
    type(chrg_parameter) :: chrgeq
-   type(TSolvent)     :: gbsa
+   type(TBorn)     :: gbsa
    type(TEnvironment) :: env
    real(wp), parameter :: trans(3, 1) = 0.0_wp
    real(wp) :: es,gsolv,sigma(3,3)

@@ -27,7 +27,7 @@ module xtb_xtb_calculator
    use xtb_type_param, only : scc_parameter
    use xtb_type_pcem
    use xtb_type_solvation, only : TSolvation
-   use xtb_type_solvent, only : TSolvent
+   use xtb_type_solvent, only : TBorn
    use xtb_type_restart, only : TRestart
    use xtb_type_wsc, only : tb_wsc
    use xtb_xtb_data, only : TxTBData
@@ -129,7 +129,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !> Detailed results
    type(scc_results), intent(out) :: results
 
-   type(TSolvent), allocatable :: solv
+   type(TBorn), allocatable :: solv
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix

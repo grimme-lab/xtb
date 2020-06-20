@@ -118,7 +118,7 @@ subroutine main_property &
    real(wp) :: dip,dipol(3)
    real(wp) :: intcut,neglect
 
-   type(TSolvent) :: gbsa
+   type(TBorn) :: gbsa
 
 !  primitive cut-off
    intcut=25.0_wp-10.0*log10(acc)
@@ -1207,7 +1207,7 @@ subroutine print_gbsa_info(iunit,gbsa)
    use xtb_solv_gbobc
    implicit none
    integer, intent(in) :: iunit
-   type(TSolvent), intent(in) :: gbsa
+   type(TBorn), intent(in) :: gbsa
 
    integer :: i
 

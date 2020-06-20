@@ -17,108 +17,18 @@
 
 module xtb_type_solvent
    use xtb_mctc_accuracy, only : wp
+   use xtb_solv_gbsa, only : TBorn
 
    implicit none
-   public :: TSolvent
+   public :: TBorn
    public :: allocate_gbsa,deallocate_gbsa
    private
-
-! ========================================================================
-!  GBSA class: contains all molecule specific information
-   type :: TSolvent
-!     number of atoms
-      integer  :: nat
-!     atom types
-      integer, allocatable :: at(:)
-!     number of pairs
-      integer  :: ntpair
-!     number of angular grid points
-      integer :: nang 
-!     angular grid
-      real(wp), allocatable :: angGrid(:,:)
-      real(wp), allocatable :: angWeight(:)
-! ------------------------------------------------------------------------
-!     van der Waals radii of the particles
-      real(wp),allocatable :: vdwr(:)
-!     greatest van der Waals radius
-      real(wp) :: maxvdwr
-! ------------------------------------------------------------------------
-!     pair descreening approximation radii
-      real(wp),allocatable :: rho(:)
-!     offset van der Waals radii
-      real(wp),allocatable :: svdw(:)
-! ------------------------------------------------------------------------
-!     Neighbor list:
-!     cut-off radius for the Born radius NN list
-      real(wp) :: lrcut
-!     cut-off radius for the SASA NN list
-      real(wp) :: srcut
-!     number of neighbors for Born radii
-      integer  :: nnrad
-!     number of neighbors for SASA computation
-      integer, allocatable :: nnsas(:)
-!     neighbors of an atom for Born radii
-      integer, allocatable :: nnlistr(:,:)
-!     neighbors of an atom for SASA
-      integer, allocatable :: nnlists(:,:)
-!     all pairs indeces array
-      integer, allocatable :: ppind(:,:)
-!     all pairs vector differences and magnitudes array
-      real(wp),allocatable :: ddpair(:,:)
-! ------------------------------------------------------------------------
-!     Atom specific surface data
-      real(wp),allocatable :: vdwsa(:)
-      real(wp),allocatable :: wrp(:)
-      real(wp),allocatable :: trj2(:,:)
-! ------------------------------------------------------------------------
-!     Dielectric data
-      real(wp) :: gborn
-! ------------------------------------------------------------------------
-!     Born radii
-      real(wp),allocatable :: brad(:)
-! ------------------------------------------------------------------------
-!     Salt screening
-      real(wp),allocatable :: ionscr(:)
-      real(wp),allocatable :: discr(:)
-! ------------------------------------------------------------------------
-!     Atomic surfaces
-      real(wp) :: gsasa
-      real(wp) :: sasagam
-      real(wp),allocatable :: gamsasa(:)
-      real(wp),allocatable :: sasa(:)
-! ------------------------------------------------------------------------
-!     Hydrogen bond contribution
-      real(wp) :: ghb
-      real(wp),allocatable :: hbmag(:)
-      real(wp),allocatable :: hbw(:)
-! ------------------------------------------------------------------------
-!  Gradient:
-! ------------------------------------------------------------------------
-!     Born radii gradient
-      real(wp),allocatable :: brdr(:,:,:)
-! ------------------------------------------------------------------------
-!     Molecular Surface gradient
-      real(wp),allocatable :: dsdr(:,:)
-      real(wp),allocatable :: dsdrt(:,:,:)
-! ------------------------------------------------------------------------
-!     Hydrogen bond gradient
-      real(wp),allocatable :: dhbdw(:)
-! ------------------------------------------------------------------------
-!     GB energy gradient
-      real(wp),allocatable :: dbrdp(:)
-
-      !> Shape descriptor
-      real(wp) :: aDet
-   end type TSolvent
 
 contains
 
 subroutine deallocate_gbsa(this)
    implicit none
-   type(TSolvent) :: this
-
-   this%gborn=0.0_wp
-   this%ghb=0.0_wp
+   type(TBorn) :: this
 
    this%nat=0
    this%ntpair=0
@@ -127,7 +37,6 @@ subroutine deallocate_gbsa(this)
 
    this%lrcut=0.0_wp
    this%srcut=0.0_wp
-   this%maxvdwr=0.0_wp
 
    if (allocated(this%angGrid)) deallocate(this%angGrid)
    if (allocated(this%angWeight)) deallocate(this%angWeight)
@@ -136,7 +45,6 @@ subroutine deallocate_gbsa(this)
    if (allocated(this%svdw))    deallocate(this%svdw)
    if (allocated(this%brad))    deallocate(this%brad)
    if (allocated(this%brdr))    deallocate(this%brdr)
-   if (allocated(this%dbrdp))   deallocate(this%dbrdp)
    if (allocated(this%nnlistr)) deallocate(this%nnlistr)
    if (allocated(this%nnsas))   deallocate(this%nnsas)
    if (allocated(this%nnlists)) deallocate(this%nnlists)
@@ -158,7 +66,7 @@ subroutine deallocate_gbsa(this)
 end subroutine deallocate_gbsa
 
 subroutine allocate_gbsa(this,n,nang)
-   type(TSolvent), intent(inout) :: this
+   type(TBorn), intent(inout) :: this
    integer, intent(in) :: n
    integer, intent(in) :: nang
 
@@ -176,7 +84,6 @@ subroutine allocate_gbsa(this,n,nang)
    ! initialize Born radii
    allocate(this%brad(this%nat), source = 0.0_wp)
    allocate(this%brdr(3,this%nat,this%nat), source = 0.0_wp)
-   allocate(this%dbrdp(this%nat), source = 0.0_wp)
    allocate(this%nnlistr(3,this%ntpair), source = 0)
    allocate(this%nnsas(this%nat), source = 0)
    allocate(this%nnlists(this%nat,this%nat), source = 0)

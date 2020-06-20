@@ -21,12 +21,11 @@ module xtb_solv_gbobc
    use xtb_mctc_convert
    use xtb_mctc_blas, only : mctc_dot, mctc_gemv
    use xtb_solv_born, only : compute_bornr
-   use xtb_solv_gbsa, only : addGradientSaltStill, addGradientStill, &
-      & addGradientP16, addGradientHBond, getADet, addADetDeriv, &
-      & addBornMatSaltStill, addBornMatStill, addBornMatP16, &
-      & addBornDerivSaltStill, addBornDerivStill, addHBondDeriv, &
-      & compute_fhb, getDebyeHueckel, update_nnlist_gbsa
-   use xtb_solv_kernel, only : gbKernel
+   use xtb_solv_gbsa, only : addGradientHBond, getADet, addADetDeriv, &
+      & addHBondDeriv, compute_fhb, getDebyeHueckel, update_nnlist_gbsa
+   use xtb_solv_kernel, only : gbKernel, addBornMatSaltStill, addBornMatStill, &
+      & addBornMatP16, addGradientSaltStill, addGradientStill, addGradientP16, &
+      & addBornDerivSaltStill, addBornDerivStill
    use xtb_solv_sasa, only : compute_numsa
    use xtb_type_solvent
    implicit none
@@ -35,7 +34,7 @@ module xtb_solv_gbobc
    public :: initGBSA,new_gbsa
    public :: gshift
    public :: ionst,ion_rad
-   public :: TSolvent
+   public :: TBorn
    public :: allocate_gbsa,deallocate_gbsa
    public :: compute_brad_sasa
    public :: compute_amat
@@ -518,14 +517,14 @@ end subroutine read_gbsa_parameters
 subroutine new_gbsa(self,n,at)
    use xtb_solv_lebedev
    implicit none
-   type(TSolvent), intent(inout) :: self
+   type(TBorn), intent(inout) :: self
 
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
 
    integer i,j,k,iAng
    integer ierr
-   real(wp) minvdwr
+   real(wp) minvdwr, maxvdwr
    real(wp) maxrasasa
    real(wp) r
    real(wp), allocatable :: xang(:),yang(:),zang(:),wang(:)
@@ -535,13 +534,13 @@ subroutine new_gbsa(self,n,at)
 
    ! initialize the vdw radii array
    self%at = at
-   self%maxvdwr=0.0_wp
+   maxvdwr=0.0_wp
    minvdwr=1000.0_wp
    do i=1,self%nat
       self%vdwr(i)=gbm%rvdw(self%at(i))*aatoau
       self%rho(i)=self%vdwr(i)*gbm%sx(self%at(i))
       self%svdw(i)=self%vdwr(i)-gbm%soset
-      self%maxvdwr=max(self%maxvdwr,self%vdwr(i))
+      maxvdwr=max(maxvdwr,self%vdwr(i))
       minvdwr=min(minvdwr,self%vdwr(i))
    enddo
 
@@ -593,7 +592,7 @@ end subroutine new_gbsa
 
 subroutine compute_amat(self,Amat)
    implicit none
-   type(TSolvent),intent(in) :: self
+   type(TBorn),intent(in) :: self
 
    real(wp),intent(inout) :: Amat(:,:)
 
@@ -637,7 +636,7 @@ end subroutine compute_amat
 
 pure subroutine compute_gb_damat(self,q,gborn,ghb,dAmatdr,Afac,lpr)
    implicit none
-   type(TSolvent), intent(in) :: self
+   type(TBorn), intent(in) :: self
 
    real(wp), intent(in)    :: q(self%nat)
    real(wp), intent(inout) :: dAmatdr(3,self%nat,self%nat)
@@ -680,7 +679,7 @@ end subroutine compute_gb_damat
 
 subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
    implicit none
-   type(TSolvent), intent(in) :: self
+   type(TBorn), intent(in) :: self
 
    real(wp), intent(in)    :: xyz(3,self%nat)
    real(wp), intent(in)    :: q(self%nat)
@@ -722,7 +721,7 @@ end subroutine compute_gb_egrad
 
 
 subroutine compute_brad_sasa(self, xyz)
-   type(TSolvent), intent(inout) :: self
+   type(TBorn), intent(inout) :: self
 
    real(wp), intent(in) :: xyz(3,self%nat)
 
