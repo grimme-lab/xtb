@@ -36,6 +36,7 @@ module xtb_solv_gbsa
    public :: addGradientSaltStill, addGradientStill, addGradientP16
    public :: addGradientHBond
    public :: addBornMatSaltStill, addBornMatStill, addBornMatP16
+   public :: addBornDerivSaltStill, addBornDerivStill, addHBondDeriv
    public :: getADet, addADetDeriv
    public :: compute_fhb, getDebyeHueckel, update_nnlist_gbsa
 
@@ -186,6 +187,9 @@ module xtb_solv_gbsa
 
       !> Calculate derivatives of solvation energy
       procedure :: addGradient
+
+      !> Get complete interaction matrix
+      procedure :: addBornDeriv
 
    end type TBorn
 
@@ -1592,6 +1596,288 @@ subroutine addGradientP16(nat, ntpair, ppind, ddpair, qat, keps, &
    energy = egb
 
 end subroutine addGradientP16
+
+
+pure subroutine addBornDeriv(self,q,gborn,ghb,dAmatdr,Afac)
+   implicit none
+   class(TBorn), intent(in) :: self
+
+   real(wp), intent(in)    :: q(self%nat)
+   real(wp), intent(inout) :: dAmatdr(3,self%nat,self%nat)
+   real(wp), intent(inout) :: Afac(3,self%nat)
+   real(wp), intent(out)   :: gborn
+   real(wp), intent(out)   :: ghb
+
+   integer :: i,j,k,nnj
+   integer :: kk
+   real(wp), parameter :: a13=1._wp/3._wp
+   real(wp), parameter :: a4=0.25_wp
+   real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+   real(wp) :: aa,r2,fgb,fgb2,br3
+   real(wp) :: qq,dd,expd,dfgb,dfgb2,dfgb3,ap,bp,qfg
+   real(wp) :: gg,expa,aii,egb
+   real(wp) :: r0vdw,r01,r02,ar02
+   real(wp) :: grddbi,grddbj
+   real(wp) :: dr(3),r
+
+   egb = 0._wp
+
+   select case(self%kernel)
+   case(gbKernel%still)
+      if (self%lsalt) then
+         call addBornDerivSaltStill(self%nat, self%ntpair, self%ppind, &
+            & self%ddpair, q, self%kappa, self%brad, self%brdr, self%ionscr, &
+            & self%discr, gborn, dAmatdr, Afac)
+      else
+         call addBornDerivStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
+            & q, self%keps, self%brad, self%brdr, gborn, dAmatdr, Afac)
+      endif
+   case(gbKernel%p16)
+   end select
+
+   if (self%lhb) then
+      call addHBondDeriv(self%nat, q, self%hbw, self%dhbdw, self%dsdrt, &
+         & ghb, dAmatdr)
+   endif
+
+end subroutine addBornDeriv
+
+
+pure subroutine addBornDerivSaltStill(nat, ntpair, ppind, ddpair, qat, kappa, &
+      & brad, brdr, ionscr, discr, gborn, dAmatdr, Afac)
+
+   !> Number of atoms
+   integer, intent(in) :: nat
+
+   !> Number of all interacting pairs
+   integer, intent(in) :: ntpair
+
+   !> Index list
+   integer, intent(in) :: ppind(:, :)
+
+   !> Distances of all pairs
+   real(wp), intent(in) :: ddpair(:, :)
+
+   !> Atomic partial charges
+   real(wp), intent(in) :: qat(:)
+
+   !> Debye screening length
+   real(wp), intent(in) :: kappa
+
+   !> Born radii
+   real(wp), intent(in) :: brad(:)
+
+   !> Derivative of Born radii w.r.t. cartesian coordinates
+   real(wp), intent(in) :: brdr(:, :, :)
+
+   !> Ion screening
+   real(wp), intent(in) :: ionscr(:)
+
+   !> Derivative of ion screening w.r.t. Born radii
+   real(wp), intent(in) :: discr(:)
+
+   real(wp), intent(inout) :: dAmatdr(:, :, :)
+   real(wp), intent(inout) :: Afac(:, :)
+   real(wp), intent(out)   :: gborn
+
+   integer :: i,j,k,nnj
+   integer :: kk
+   real(wp), parameter :: a13=1._wp/3._wp
+   real(wp), parameter :: a4=0.25_wp
+   real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+   real(wp) :: aa,r2,fgb,fgb2,br3
+   real(wp) :: qq,dd,expd,dfgb,dfgb2,dfgb3,ap,bp,qfg
+   real(wp) :: gg,expa,aii,egb
+   real(wp) :: r0vdw,r01,r02,ar02
+   real(wp) :: grddbi,grddbj
+   real(wp) :: dr(3),r
+
+   egb = 0._wp
+
+   ! GB-SE energy and dAmatdr
+
+   ! compute energy and fgb direct and radii derivatives
+   do kk = 1, ntpair
+      r = ddpair(1,kk)
+      r2 = r*r
+
+      i = ppind(1,kk)
+      j = ppind(2,kk)
+
+      qq = qat(i)*qat(j)
+      aa = brad(i)*brad(j)
+      dd = a4*r2/aa
+      expd = exp(-dd)
+      fgb2 = r2+aa*expd
+      fgb = sqrt(fgb2)
+      dfgb2 = 1._wp/fgb2
+      dfgb = sqrt(dfgb2)
+      aa = kappa*fgb
+      expa = exp(-aa)
+      gg = (ionscr(i)+ionscr(j))*expa
+
+      egb = egb + qq*dfgb*(gg-1.0_wp)
+
+      dfgb3 = (gg*(1._wp+aa)-1.0_wp)*dfgb*dfgb2
+
+      ap = (1._wp-a4*expd)*dfgb3
+      dr = ap*ddpair(2:4,kk)
+      dAmatdr(:,i,j) = dAmatdr(:,i,j) - dr*qat(i)
+      dAmatdr(:,j,i) = dAmatdr(:,j,i) + dr*qat(j)
+      Afac(:,i) = Afac(:,i) - dr*qat(j)
+      Afac(:,j) = Afac(:,j) + dr*qat(i)
+
+      qfg = dfgb*expa
+      bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
+      grddbi = (brad(j)*bp+qfg*discr(i))*qat(j)
+      grddbj = (brad(i)*bp+qfg*discr(j))*qat(i)
+
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) + brdr(:,:,i)*grddbi
+      dAmatdr(:,:,j) = dAmatdr(:,:,j) + brdr(:,:,j)*grddbj
+
+   enddo
+
+   ! self-energy part
+   do i = 1, nat
+      gg = exp(-kappa*brad(i))
+      aa = 2._wp*ionscr(i)*gg-1.0_wp
+      qq = qat(i)/brad(i)
+      egb = egb + 0.5_wp*qq*qat(i)*aa
+      ap = aa-brad(i)*2._wp*(discr(i)+ionscr(i)*kappa)*gg
+      grddbi = -0.5_wp*qq*ap/brad(i)
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) + brdr(:,:,i)*grddbi
+   enddo
+
+   gborn = egb
+
+end subroutine addBornDerivSaltStill
+
+
+pure subroutine addBornDerivStill(nat, ntpair, ppind, ddpair, qat, keps, &
+      & brad, brdr, gborn, dAmatdr, Afac)
+
+   !> Number of atoms
+   integer, intent(in) :: nat
+
+   !> Number of all interacting pairs
+   integer, intent(in) :: ntpair
+
+   !> Index list
+   integer, intent(in) :: ppind(:, :)
+
+   !> Distances of all pairs
+   real(wp), intent(in) :: ddpair(:, :)
+
+   !> Atomic partial charges
+   real(wp), intent(in) :: qat(:)
+
+   !> Dielectric screening
+   real(wp), intent(in) :: keps
+
+   !> Born radii
+   real(wp), intent(in) :: brad(:)
+
+   !> Derivative of Born radii w.r.t. cartesian coordinates
+   real(wp), intent(in) :: brdr(:, :, :)
+
+   real(wp), intent(inout) :: dAmatdr(:, :, :)
+   real(wp), intent(inout) :: Afac(:, :)
+   real(wp), intent(out)   :: gborn
+
+   integer :: i,j,k,nnj
+   integer :: kk
+   real(wp), parameter :: a13=1._wp/3._wp
+   real(wp), parameter :: a4=0.25_wp
+   real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+   real(wp) :: aa,r2,fgb,fgb2,br3
+   real(wp) :: qq,dd,expd,dfgb,dfgb2,dfgb3,ap,bp,qfg
+   real(wp) :: gg,expa,aii,egb
+   real(wp) :: r0vdw,r01,r02,ar02
+   real(wp) :: grddbi,grddbj
+   real(wp) :: dr(3),r
+
+   egb = 0._wp
+
+   ! GB energy and gradient
+
+   ! compute energy and fgb direct and radii derivatives
+   do kk = 1, ntpair
+      r = ddpair(1,kk)
+      r2 = r*r
+
+      i = ppind(1,kk)
+      j = ppind(2,kk)
+
+      ! dielectric scaling of the charges
+      qq = qat(i)*qat(j)*keps
+      aa = brad(i)*brad(j)
+      dd = a4*r2/aa
+      expd = exp(-dd)
+      fgb2 = r2+aa*expd
+      dfgb2 = 1._wp/fgb2
+      dfgb = sqrt(dfgb2)
+      dfgb3 = dfgb2*dfgb*keps
+
+      egb = egb + qq*dfgb
+
+      ap = (1._wp-a4*expd)*dfgb3
+      dr = ap*ddpair(2:4,kk)
+      dAmatdr(:,i,j) = dAmatdr(:,i,j) - dr*qat(i)
+      dAmatdr(:,j,i) = dAmatdr(:,j,i) + dr*qat(j)
+      Afac(:,i) = Afac(:,i) - dr*qat(j)
+      Afac(:,j) = Afac(:,j) + dr*qat(i)
+
+      bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
+      grddbi = brad(j)*bp
+      grddbj = brad(i)*bp
+
+      dAmatdr(:,:,j) = dAmatdr(:,:,j) + brdr(:,:,j)*grddbj*qat(i)
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) + brdr(:,:,i)*grddbi*qat(j)
+
+   enddo
+
+   ! self-energy part
+   do i = 1, nat
+      bp = 1._wp/brad(i)
+      qq = qat(i)*bp
+      egb = egb + 0.5_wp*qat(i)*qq*keps
+      grddbi = -keps*bp*bp*0.5_wp
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) + brdr(:,:,i)*grddbi*qat(i)
+   enddo
+
+   gborn = egb
+
+end subroutine addBornDerivStill
+
+
+pure subroutine addHBondDeriv(nat,q,hbw,dhbdw,dsdrt,ghb,dAmatdr)
+
+   integer, intent(in) :: nat
+   real(wp), intent(in) :: q(:)
+   real(wp), intent(in) :: hbw(:)
+   real(wp), intent(in) :: dhbdw(:)
+   real(wp), intent(in) :: dsdrt(:, :, :)
+   real(wp), intent(out) :: ghb
+   real(wp), intent(inout) :: dAmatdr(:, :, :)
+
+   integer  :: i,j
+   real(wp) :: dhbed
+   real(wp) :: qq
+
+   ghb=0.0_wp
+   do i = 1, nat
+      qq = q(i)*q(i)
+      ghb = ghb + hbw(i)*qq
+   enddo
+
+   do i = 1, nat
+      dhbed=dhbdw(i)
+      if(abs(dhbed).le.0.0_wp) cycle
+      dhbed=dhbed*q(i)
+      dAmatdr(:,:,i) = dAmatdr(:,:,i) + dsdrt(:,:,i)*dhbed
+   enddo
+
+end subroutine addHBondDeriv
 
 
 end module xtb_solv_gbsa

@@ -24,6 +24,7 @@ module xtb_solv_gbobc
    use xtb_solv_gbsa, only : addGradientSaltStill, addGradientStill, &
       & addGradientP16, addGradientHBond, getADet, addADetDeriv, &
       & addBornMatSaltStill, addBornMatStill, addBornMatP16, &
+      & addBornDerivSaltStill, addBornDerivStill, addHBondDeriv, &
       & compute_fhb, getDebyeHueckel, update_nnlist_gbsa
    use xtb_solv_kernel, only : gbKernel
    use xtb_solv_sasa, only : compute_numsa
@@ -657,119 +658,22 @@ pure subroutine compute_gb_damat(self,q,gborn,ghb,dAmatdr,Afac,lpr)
    real(wp) :: grddbi,grddbj
    real(wp) :: dr(3),r
 
-   egb = 0._wp
+   select case(gbm%kernel)
+   case(gbKernel%still)
+      if (gbm%lsalt) then
+         call addBornDerivSaltStill(self%nat, self%ntpair, self%ppind, &
+            & self%ddpair, q, gbm%kappa, self%brad, self%brdr, self%ionscr, &
+            & self%discr, gborn, dAmatdr, Afac)
+      else
+         call addBornDerivStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
+            & q, gbm%keps, self%brad, self%brdr, gborn, dAmatdr, Afac)
+      endif
+   case(gbKernel%p16)
+   end select
 
-   if(.not.gbm%lsalt) then
-      ! GB energy and gradient
-
-      ! compute energy and fgb direct and radii derivatives
-      do kk = 1, self%ntpair
-         r = self%ddpair(1,kk)
-         r2 = r*r
-
-         i = self%ppind(1,kk)
-         j = self%ppind(2,kk)
-
-         ! dielectric scaling of the charges
-         qq = q(i)*q(j)*gbm%keps
-         aa = self%brad(i)*self%brad(j)
-         dd = a4*r2/aa
-         expd = exp(-dd)
-         fgb2 = r2+aa*expd
-         dfgb2 = 1._wp/fgb2
-         dfgb = sqrt(dfgb2)
-         dfgb3 = dfgb2*dfgb*gbm%keps
-
-         egb = egb + qq*dfgb
-
-         ap = (1._wp-a4*expd)*dfgb3
-         dr = ap*self%ddpair(2:4,kk)
-         dAmatdr(:,i,j) = dAmatdr(:,i,j) - dr*q(i)
-         dAmatdr(:,j,i) = dAmatdr(:,j,i) + dr*q(j)
-         Afac(:,i) = Afac(:,i) - dr*q(j)
-         Afac(:,j) = Afac(:,j) + dr*q(i)
-
-         bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
-         grddbi = self%brad(j)*bp
-         grddbj = self%brad(i)*bp
-
-         dAmatdr(:,:,j) = dAmatdr(:,:,j) + self%brdr(:,:,j)*grddbj*q(i)
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi*q(j)
-
-      enddo
-
-      ! self-energy part
-      do i = 1, self%nat
-         bp = 1._wp/self%brad(i)
-         qq = q(i)*bp
-         egb = egb + 0.5_wp*q(i)*qq*gbm%keps
-         grddbi = -gbm%keps*bp*bp*0.5_wp
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi*q(i)
-      enddo
-
-   else
-      ! GB-SE energy and dAmatdr
-
-      epu=1._wp/gbm%epsu
-
-      ! compute energy and fgb direct and radii derivatives
-      do kk = 1, self%ntpair
-         r = self%ddpair(1,kk)
-         r2 = r*r
-
-         i = self%ppind(1,kk)
-         j = self%ppind(2,kk)
-
-         qq = q(i)*q(j)
-         aa = self%brad(i)*self%brad(j)
-         dd = a4*r2/aa
-         expd = exp(-dd)
-         fgb2 = r2+aa*expd
-         fgb = sqrt(fgb2)
-         dfgb2 = 1._wp/fgb2
-         dfgb = sqrt(dfgb2)
-         aa = gbm%kappa*fgb
-         expa = exp(-aa)
-         gg = (self%ionscr(i)+self%ionscr(j))*expa
-
-         egb = egb + qq*dfgb*(gg-epu)
-
-         dfgb3 = (gg*(1._wp+aa)-epu)*dfgb*dfgb2
-
-         ap = (1._wp-a4*expd)*dfgb3
-         dr = ap*self%ddpair(2:4,kk)
-         dAmatdr(:,i,j) = dAmatdr(:,i,j) - dr*q(i)
-         dAmatdr(:,j,i) = dAmatdr(:,j,i) + dr*q(j)
-         Afac(:,i) = Afac(:,i) - dr*q(j)
-         Afac(:,j) = Afac(:,j) + dr*q(i)
-
-         qfg = dfgb*expa
-         bp = -0.5_wp*expd*(1._wp+dd)*dfgb3
-         grddbi = (self%brad(j)*bp+qfg*self%discr(i))*q(j)
-         grddbj = (self%brad(i)*bp+qfg*self%discr(j))*q(i)
-
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi
-         dAmatdr(:,:,j) = dAmatdr(:,:,j) + self%brdr(:,:,j)*grddbj
-
-      enddo
-
-      ! self-energy part
-      do i = 1, self%nat
-         gg = exp(-gbm%kappa*self%brad(i))
-         aa = 2._wp*self%ionscr(i)*gg-epu
-         qq = q(i)/self%brad(i)
-         egb = egb + 0.5_wp*qq*q(i)*aa
-         ap = aa-self%brad(i)*2._wp*(self%discr(i)+self%ionscr(i)*gbm%kappa)*gg
-         grddbi = -0.5_wp*qq*ap/self%brad(i)
-         dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%brdr(:,:,i)*grddbi
-      enddo
-
-   endif
-
-   gborn = egb
-
-   if(lhb) then
-      call compute_ahb(self,q,ghb,dAmatdr)
+   if (gbm%lhb) then
+      call addHBondDeriv(self%nat, q, self%hbw, self%dhbdw, self%dsdrt, &
+         & ghb, dAmatdr)
    endif
 
 end subroutine compute_gb_damat
@@ -816,32 +720,6 @@ subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
 
 end subroutine compute_gb_egrad
 
-
-pure subroutine compute_ahb(self,q,ghb,dAmatdr)
-   type(TSolvent), intent(in) :: self
-
-   real(wp), intent(in)    :: q(self%nat)
-   real(wp), intent(out)   :: ghb
-   real(wp), intent(inout) :: dAmatdr(3,self%nat,self%nat)
-
-   integer  :: i,j
-   real(wp) :: dhbed
-   real(wp) :: qq
-
-   ghb=0.0_wp
-   do i = 1, self%nat
-      qq = q(i)*q(i)
-      ghb = ghb + self%hbw(i)*qq
-   enddo
-
-   do i = 1, self%nat
-      dhbed=self%dhbdw(i)
-      if(abs(dhbed).le.0.0_wp) cycle
-      dhbed=dhbed*q(i)
-      dAmatdr(:,:,i) = dAmatdr(:,:,i) + self%dsdrt(:,:,i)*dhbed
-   enddo
-
-end subroutine compute_ahb
 
 subroutine compute_brad_sasa(self, xyz)
    type(TSolvent), intent(inout) :: self
