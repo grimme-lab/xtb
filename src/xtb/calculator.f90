@@ -94,7 +94,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
    !> Source of the generated errors
-   character(len=*), parameter :: source = 'type_calculator_singlepoint'
+   character(len=*), parameter :: source = 'xtb_calculator_singlepoint'
 
    !> Calculator instance
    class(TxTBCalculator), intent(inout) :: self

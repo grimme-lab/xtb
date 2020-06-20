@@ -2,11 +2,11 @@ subroutine test_gfnff_sp
    use xtb_mctc_accuracy, only : wp
    use assertion
    use xtb_mctc_systools
+   use xtb_solv_gbsa
    use xtb_type_environment
    use xtb_type_options
    use xtb_type_molecule
    use xtb_type_data
-   use xtb_type_solvent
    use xtb_gfnff_param
    use xtb_gfnff_setup
    use xtb_gfnff_eg
@@ -37,7 +37,7 @@ subroutine test_gfnff_sp
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
-   type(TSolvent), allocatable :: solv
+   type(TBorn), allocatable :: solvation
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
@@ -64,7 +64,7 @@ subroutine test_gfnff_sp
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,solv,.true.,calc%version, &
+      & g,etot,res_gff,calc%param,calc%topo,solvation,.true.,calc%version, &
       & calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
@@ -91,6 +91,7 @@ subroutine test_gfnff_hb
    use xtb_type_environment
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_restart
    use xtb_type_solvent
    use xtb_type_data
    use xtb_gfnff_param
@@ -120,11 +121,12 @@ subroutine test_gfnff_hb
 
    type(TMolecule)     :: mol
    type(TEnvironment)  :: env
+   type(TRestart)      :: chk
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
    type(TSolvent), allocatable :: solv
 
-   real(wp) :: etot
+   real(wp) :: etot, sigma(3,3), gap
    real(wp), allocatable :: g(:,:)
    character(len=:),allocatable :: fnv
    integer  :: ipar
@@ -148,9 +150,7 @@ subroutine test_gfnff_hb
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,solv,.true.,calc%version, &
-      & calc%accuracy)
+   call calc%singlepoint(env, mol, chk, 1, .false., etot, g, sigma, gap, res_gff)
 
    call assert_close(res_gff%e_total,-0.949706677118_wp,thr)
    call assert_close(res_gff%gnorm,   0.001152720923_wp,thr)
@@ -176,6 +176,7 @@ subroutine test_gfnff_gbsa
    use xtb_type_environment
    use xtb_type_options
    use xtb_type_molecule
+   use xtb_type_restart
    use xtb_type_solvent
    use xtb_type_data
    use xtb_gfnff_param
@@ -208,11 +209,12 @@ subroutine test_gfnff_gbsa
 
    type(TMolecule)     :: mol
    type(TEnvironment)  :: env
+   type(TRestart)      :: chk
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
    type(TSolvent), allocatable :: solv
 
-   real(wp) :: etot
+   real(wp) :: etot, sigma(3,3), gap
    real(wp), allocatable :: g(:,:)
    character(len=:),allocatable :: fnv
    integer  :: ipar
@@ -238,9 +240,7 @@ subroutine test_gfnff_gbsa
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,solv,.true.,calc%version, &
-      & calc%accuracy)
+   call calc%singlepoint(env, mol, chk, 1, .false., etot, g, sigma, gap, res_gff)
 
    call assert_close(res_gff%e_total,-0.964158677062_wp,thr)
    call assert_close(res_gff%gnorm,   0.013624276205_wp,thr)

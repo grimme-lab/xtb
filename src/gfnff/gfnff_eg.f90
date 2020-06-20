@@ -19,6 +19,7 @@ module xtb_gfnff_eg
    use xtb_gfnff_ini2
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
+   use xtb_solv_gbsa, only : TBorn
    use xtb_type_environment, only : TEnvironment
    use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
    use xtb_mctc_blas, only : mctc_gemv
@@ -58,13 +59,12 @@ contains
 !---------------------------------------------------
 
    subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
-         & param,topo,gbsa,update,version,accuracy)
+         & param,topo,solvation,update,version,accuracy)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
       use xtb_type_data
       use xtb_type_timer
       use xtb_gfnff_gdisp0
-      use xtb_solv_gbobc
       use xtb_mctc_constants
       implicit none
       character(len=*), parameter :: source = 'gfnff_eg'
@@ -72,7 +72,7 @@ contains
       type(scc_results),intent(out) :: res_gff
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(inout) :: topo
-      type(TSolvent), allocatable, intent(inout) :: gbsa
+      type(TBorn), allocatable, intent(inout) :: solvation
       logical, intent(in) :: update
       integer, intent(in) :: version
       real(wp), intent(in) :: accuracy
@@ -86,7 +86,7 @@ contains
       logical makeq
 
       real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext
-      real*8 :: gsolv, gborn, ghb
+      real*8 :: gsolv, gborn, ghb, gsasa, gshift
 
       integer i,j,k,l,m,ij,nd3
       integer ati,atj,iat,jat
@@ -123,11 +123,17 @@ contains
       ebatm=0
       eext =0
 
+      gsolv = 0.0d0
+      gsasa = 0.0d0
+      gborn = 0.0d0
+      ghb = 0.0d0
+      gshift = 0.0d0
+
       allocate(sqrab(n*(n+1)/2),srab(n*(n+1)/2),qtmp(n),g5tmp(3,n), &
      &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
      &         hb_dcn(3,n,n),hb_cn(n))
 
-      if (pr) call timer%new(10 + count([allocated(gbsa)]),.false.)
+      if (pr) call timer%new(10 + count([allocated(solvation)]),.false.)
 
       if (pr) call timer%measure(1,'distance/D3 list')
       nd3=0
@@ -153,16 +159,10 @@ contains
 ! GBSA
 !!!!!!!!!!!!!
 
-   if (allocated(gbsa)) then
+   if (allocated(solvation)) then
       call timer%measure(11, "GBSA")
-      call new_gbsa(gbsa, n, at)
-      ! compute Born radii
-      call compute_brad_sasa(gbsa, xyz)
-      ! add SASA term to energy and gradient
-      gsolv = gbsa%gsasa
+      call solvation%update(env, at, xyz)
       call timer%measure(11)
-   else
-      gsolv = 0.0d0
    endif
 
 
@@ -240,7 +240,7 @@ contains
 
       if (pr) call timer%measure(4,'EEQ energy and q')
       call goed_gfnff(env,accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
-     &                dfloat(ichrg),eeqtmp,cn,topo%q,ees,gbsa,param,topo)  ! without dq/dr
+     &                dfloat(ichrg),eeqtmp,cn,topo%q,ees,solvation,param,topo)  ! without dq/dr
       if (pr) call timer%measure(4)
 
 !!!!!!!!
@@ -280,10 +280,12 @@ contains
       !$omp end parallel do
       if(.not.pr) deallocate(eeqtmp)
 
-      if (allocated(gbsa)) then
+      if (allocated(solvation)) then
          call timer%measure(11, "GBSA")
-         call compute_gb_egrad(gbsa, xyz, topo%q, gborn, ghb, g, pr)
-         gsolv = gsolv + gborn + ghb + gshift
+         call solvation%addGradient(env, at, xyz, topo%q, topo%q, g)
+         call solvation%getEnergyParts(env, topo%q, topo%q, gborn, ghb, gsasa, &
+            & gshift)
+         gsolv = gsasa + gborn + ghb + gshift
          call timer%measure(11)
       else
          gborn = 0.0d0
@@ -562,7 +564,7 @@ contains
         cn = 0
 !       asymtotically for R=inf, Etot is the SIE contaminted EES
 !       which is computed here to get the atomization energy De,n,at(n)
-        call goed_gfnff(env,.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,gbsa,param,topo)
+        call goed_gfnff(env,.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,solvation,param,topo)
         de=-(etot - eesinf)
 !       write out fitting stuff
         inquire(file='.EAT',exist=ex)
@@ -605,12 +607,8 @@ contains
       res_gff%g_born  = gborn
       res_gff%g_solv  = gsolv
       res_gff%g_shift = gshift
-      if (allocated(gbsa)) then
-         res_gff%g_sasa  = gbsa%gsasa
-      else
-         res_gff%g_sasa  = 0.0_wp
-      end if
-      res_gff%dipole  = matmul(xyz, topo%q)
+      res_gff%g_sasa  = gsasa
+      call mctc_gemv(xyz, topo%q, res_gff%dipole)
 
    end subroutine gfnff_eg
 
@@ -1225,7 +1223,6 @@ contains
       subroutine goed_gfnff(env,single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,topo)
       use xtb_mctc_accuracy, only : wp, sp
       use xtb_mctc_la
-      use xtb_solv_gbobc
       implicit none
       character(len=*), parameter :: source = 'gfnff_eg_goed'
       type(TEnvironment), intent(inout) :: env
@@ -1241,7 +1238,7 @@ contains
       real(wp),intent(out) :: q(n)       ! output charges
       real(wp),intent(out) :: es         ! ES energy
       real(wp),intent(out) :: eeqtmp(2,n*(n+1)/2)    ! intermediates
-      type(TSolvent), allocatable, intent(in) :: gbsa
+      type(TBorn), allocatable, intent(in) :: gbsa
 
 !  local variables
       integer  :: m,i,j,k,ii,ij
@@ -1294,7 +1291,9 @@ contains
         enddo
       enddo
 
-      if (allocated(gbsa)) call compute_amat(gbsa, A)
+      if (allocated(gbsa)) then
+         A(:n, :n) = A(:n, :n) + gbsa%bornMat(:, :)
+      end if
 
 !     call prmat(6,A,m,m,'A eg')
       allocate(ipiv(m))

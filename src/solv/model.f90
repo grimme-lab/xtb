@@ -32,7 +32,7 @@ module xtb_solv_model
    implicit none
    private
 
-   public :: TSolvModel, init, info, newSolvationModel
+   public :: TSolvModel, init, info, newSolvationModel, newBornModel
 
 
    !> Payload to create actual solvation models
@@ -510,6 +510,33 @@ subroutine newSolvationModel(self, env, model, num)
    call move_alloc(born, model)
 
 end subroutine newSolvationModel
+
+
+subroutine newBornModel(self, env, model, num)
+
+   !> Error source for traceback
+   character(len=*), parameter :: source = 'solv_model_newSolvationModel'
+
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> Data structure
+   class(TSolvModel), intent(in) :: self
+
+   !> Solvation model to create
+   type(TBorn), allocatable, intent(out) :: model
+
+   !> Atomic numbers
+   integer, intent(in) :: num(:)
+
+   allocate(model)
+   call init_(model, env, num, self%vdwRad, self%dielectricConst, &
+      & self%freeEnergyShift, self%descreening, self%bornScale, &
+      & self%bornOffset, self%surfaceTension, self%probeRad, lrcut, srcut, &
+      & self%nAng, self%hBondStrength, self%temperature, self%kernel, &
+      & self%alpb, self%ionStrength, self%ionRad)
+
+end subroutine newBornModel
 
 
 end module xtb_solv_model
