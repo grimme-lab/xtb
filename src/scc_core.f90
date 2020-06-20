@@ -32,7 +32,7 @@ module xtb_scc_core
    implicit none
    private
 
-   public :: build_h0, scc, electro, electro_gbsa, solve, solve4
+   public :: build_h0, scc, electro, solve, solve4
    public :: fermismear, occ, occu, dmat
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
@@ -230,7 +230,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
       &        q,dipm,qp,qq,qlmom,qsh,zsh, &
       &        xyz,aes, &
-      &        gbsa,fgb,cm5,cm5a,gborn,solvation, &
+      &        cm5,cm5a,gborn,solvation, &
       &        scD4, &
       &        broy,broydamp,damp0, &
       &        pcem,shellShift,externShift, &
@@ -300,8 +300,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
    class(TSolvation), allocatable, intent(inout) :: solvation
-   type(TSolvent), allocatable, intent(inout) :: gbsa
-   real(wp),intent(inout) :: fgb(n,n)
    real(wp),intent(in)    :: cm5a(n)
    real(wp),intent(inout) :: cm5(n)
    real(wp),intent(inout) :: gborn
@@ -414,11 +412,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    if (allocated(solvation)) then
       cm5(:) = q + cm5a
       call solvation%addShift(env, cm5, qsh, atomicShift, shellShift)
-   else
-      if (allocated(gbsa)) then
-         cm5(:) = q + cm5a
-         call setespot(n, cm5, fgb, atomicShift)
-      end if
    end if
    ! self consistent dispersion contributions
    if (present(scD4)) then
@@ -522,11 +515,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       cm5=q+cm5a
       call solvation%getEnergy(env, cm5, qsh, gborn)
       eel = eel + gborn
-   else
-      if(allocated(gbsa)) then
-         cm5=q+cm5a
-         call electro_gbsa(n,at,fgb,cm5,gborn,eel)
-      endif
    end if
 
    ! add el. entropies*T
@@ -598,7 +586,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    call qsh2qat(ash, qsh, q) !new qat
 
-   if(allocated(gbsa).or.allocated(solvation)) cm5 = q+cm5a
+   if(allocated(solvation)) cm5 = q+cm5a
 
    if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
@@ -701,45 +689,6 @@ pure subroutine electro(n,at,nbf,nshell,ies,H0,P,dq,dqsh,es,scc)
    scc = es + 2.0_wp*h*evtoau
 
 end subroutine electro
-
-
-!! ========================================================================
-!  GBSA related subroutine
-!! ========================================================================
-pure subroutine electro_gbsa(n,at,gab,dqsh,es,scc)
-   use xtb_mctc_convert, only : evtoau
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: gab(n,n)
-   real(wp),intent(in)  :: dqsh(n)
-   real(wp),intent(out) :: es
-   real(wp),intent(inout) :: scc
-
-   integer :: i,j,k
-   real(wp)  :: h,t
-
-!  second order non-diagonal
-   es =0
-   do i=1,n-1
-      do j=i+1,n
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
-
-   es=es*2.0d0
-
-!  second-order diagonal term + HB contribution
-   do i=1,n
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-!  ES energy in Eh
-   es=0.5*es
-
-!  Etotal in Eh
-   scc = scc + es
-
-end subroutine electro_gbsa
 
 
 !! ========================================================================

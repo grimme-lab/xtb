@@ -159,7 +159,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
-      call scf(env,mol,chk%wfn,self%basis,self%pcem,self%xtbData,solv,solvation, &
+      call scf(env,mol,chk%wfn,self%basis,self%pcem,self%xtbData,solvation, &
          &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
          &   self%accuracy,energy,gradient,results)
 

@@ -69,7 +69,7 @@ module xtb_scf
 
 contains
 
-subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
+subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       & egap, et, maxiter, prlevel, restart, grd, acc, energy, gradient, res)
 
 
@@ -81,15 +81,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
 ! ========================================================================
    use xtb_aespot,    only : setdqlist,get_radcn,setvsdq, &
    &                     mmomgabzero,mmompop,molmom
-   use xtb_solv_gbobc,     only : lhb,TSolvent,gshift, &
-   &                     new_gbsa,deallocate_gbsa, &
-   &                     compute_amat,compute_brad_sasa
    use xtb_disp_dftd4, only: build_wdispmat,d4dim,d4,disppot,p_refq_gfn2xtb, &
    &                     mdisp,prmolc6,edisp_scc,d4_gradient
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
    use xtb_aespot,    only : dradcn,aniso_grad,setdvsdq,dsint
-   use xtb_solv_gbobc,     only : lhb,TSolvent,gshift,compute_gb_egrad
    use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
    use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 
@@ -117,7 +113,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
    real(wp) :: sigma(3,3)
    type(scc_results),intent(out) :: res
    type(TxTBData), intent(in) :: xtbData
-   type(TSolvent), allocatable, intent(inout) :: gbsa
    class(TSolvation), allocatable, intent(inout) :: solvation
    type(TLatticePoint) :: latp
    type(TEigenSolver) :: solver
@@ -205,14 +200,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
    logical :: ex,minpr,pr,fulldiag,lastdiag,iniqsh,fail
 
 !  GBSA stuff
-   real(wp),allocatable :: fgb(:,:)
-   real(wp),allocatable :: fhb(:)
-   real(wp) :: gborn,ghb,gsasa
+   real(wp) :: gborn,ghb,gsasa,gshift
 !  for the CM5 charges
    real(wp),allocatable :: cm5a(:)
    real(wp),allocatable :: dcm5a(:,:,:)
-   real(wp),allocatable :: fgba(:),dcm5(:,:)
-   real(wp) :: hbpow
 
 !  point charge embedding stuff
    logical  :: lpcem
@@ -298,35 +289,30 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
    allocate(dcndr(3,mol%n,mol%n),cn(mol%n),dcndL(3,3,mol%n))
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
-   if (allocated(gbsa)) then
+   if (allocated(solvation)) then
       if (mol%npbc > 0) then
          call env%error("Solvation not available with PBC", source)
          return
       end if
-      if (allocated(solvation)) then
-         call solvation%update(env, mol%at, mol%xyz)
-      end if
-      call new_gbsa(gbsa,mol%n,mol%at)
-      allocate(fgb(mol%n,mol%n),cm5a(mol%n),dcm5a(3,mol%n,mol%n))
-      fgb(:, :) = 0.0_wp
+      call solvation%update(env, mol%at, mol%xyz)
+      allocate(cm5a(mol%n),dcm5a(3,mol%n,mol%n))
       gborn=0._wp
-      gbsa%gsasa=0._wp
-      gbsa%ghb=0._wp
+      gsasa=0._wp
+      ghb=0._wp
+      gshift=0._wp
       qq=0._wp
-      ! compute Born radii
-      call compute_brad_sasa(gbsa,mol%xyz)
-!     initialize the fgb matrix (dielectric screening of the Coulomb potential)
-      call compute_amat(gbsa,fgb)
-!     initialize the CM5 charges computation
-      if(xtbData%level > 1) then !GFN2 does not use CM5 charges
-        cm5=wfn%q
-        cm5a=0.d0
-        dcm5a=0.d0
-      else
-        call calc_cm5(mol%n,mol%at,mol%xyz,cm5a,dcm5a)
-        cm5 = wfn%q + cm5a
-      endif
-   endif
+      ! initialize the CM5 charges computation
+      cm5=wfn%q
+      cm5a=0.d0
+      dcm5a=0.d0
+      if(xtbData%level == 1) then ! only GFN1 does use CM5 charges
+         select type(solvation)
+         type is (TBorn)
+            call calc_cm5(mol%n,mol%at,mol%xyz,cm5a,dcm5a)
+            cm5 = wfn%q + cm5a
+         end select
+      end if
+   end if
 
    allocate(H0(basis%nao*(basis%nao+1)/2), &
    &        S(basis%nao,basis%nao),tmp(basis%nao), &
@@ -466,7 +452,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
       if (xtbData%level == 1) &
       write(env%unit,chrfmt) "Hamiltonian        ","GFN1-xTB"
       write(env%unit,chrfmt) "restarted?         ",bool2string(restart)
-      write(env%unit,chrfmt) "GBSA solvation     ",bool2string(allocated(gbsa))
+      write(env%unit,chrfmt) "GBSA solvation     ",bool2string(allocated(solvation))
       write(env%unit,chrfmt) "PC potential       ",bool2string(lpcem)
       if (lpcem) then
          write(env%unit,intfmt) "-> # point charges ",pcem%n
@@ -621,7 +607,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
       &     mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
       &     wfn%q,wfn%dipm,wfn%qp,qq,qlmom,wfn%qsh,zsh, &
       &     mol%xyz,aes, &
-      &     gbsa,fgb,cm5,cm5a,gborn,solvation, &
+      &     cm5,cm5a,gsolv,solvation, &
       &     scD4, &
       &     broy,broydamp,damp0, &
       &     lpcem,ves,vpc, &
@@ -753,34 +739,18 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
 
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
-   if (allocated(gbsa)) then
-      if (allocated(solvation)) then
-         cm5(:)=wfn%q+cm5a
-         call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
-         select type(solvation)
-         type is (TBorn)
-            call solvation%getEnergyParts(env, cm5, wfn%qsh, gborn, ghb, gsasa, &
-               & gshift)
-            gsolv = gborn+gsasa+ghb+gshift
-            if (xtbData%level == 1) then
-               call mctc_gemv(dcm5a, solvation%shift, gradient, beta=1.0_wp)
-            end if
-         end select
-      else
-         if (xtbData%level > 1) then
-            call compute_gb_egrad(gbsa, mol%xyz, wfn%q, gborn, ghb, gradient, minpr)
-         else
-            cm5(:)=wfn%q+cm5a
-            call compute_gb_egrad(gbsa, mol%xyz, cm5, gborn, ghb, gradient, minpr)
-            !call mctc_symv(fgb,cm5,fgba)
-            !call mctc_gemv(dcm5a,fgba,g,beta=1.0_wp)
-         endif
-         !     solvation energy
-         gbsa%gborn = gborn
-         gbsa%ghb = ghb
-         gsolv = gborn+gbsa%gsasa+gbsa%ghb+gshift
-         eel = eel+gbsa%gsasa+gshift
-      end if
+   if (allocated(solvation)) then
+      cm5(:)=wfn%q+cm5a
+      call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
+      select type(solvation)
+      type is (TBorn)
+         call solvation%getEnergyParts(env, cm5, wfn%qsh, gborn, ghb, gsasa, &
+            & gshift)
+         gsolv = gborn+gsasa+ghb+gshift
+         if (xtbData%level == 1) then
+            call mctc_gemv(dcm5a, solvation%shift, gradient, beta=1.0_wp)
+         end if
+      end select
    endif
 
    ! ------------------------------------------------------------------------
@@ -801,8 +771,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
       else
          call pcem_grad_gfn2(xtbData%coulomb,gradient,pcem%grd,mol%n,pcem,mol%at, &
             & xtbData%nshell,mol%xyz,wfn%qsh)
-      endif
-   endif
+      end if
+   end if
 
    if (profile) call timer%measure(6)
    if (.not.pr.and.profile.and.minpr) &
@@ -831,8 +801,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
       if (pr_lmo) then
          tmp=wfn%emo*evtoau
          call local(mol%n, mol%at, basis%nbf, basis%nao, wfn%ihomoa, mol%xyz, &
-            & mol%z, wfn%focc, S, wfn%P, wfn%C, tmp, wfn%q, eel, allocated(gbsa), &
-            & basis)
+            & mol%z, wfn%focc, S, wfn%P, wfn%C, tmp, wfn%q, eel, &
+            & allocated(solvation), basis)
       endif
 
    endif printing
@@ -872,13 +842,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
    res%hl_gap  = egap
    res%dipole  = dipol
    if (allocated(xtbData%halogen)) res%e_xb = exb
-   if (allocated(gbsa)) then
-      res%g_solv  = gsolv
-      res%g_born  = gborn
-      res%g_sasa  = gbsa%gsasa
-      res%g_hb    = gbsa%ghb
-      res%g_shift = gshift
-   endif
    if (allocated(solvation)) then
       res%g_solv  = gsolv
       res%g_born  = gborn
@@ -893,9 +856,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, gbsa, solvation, &
 ! ========================================================================
    if (profile) call timer%deallocate
 
-   if (allocated(gbsa)) then
-      call deallocate_gbsa(gbsa)
-   end if
 end subroutine scf
 
 

@@ -47,7 +47,6 @@ subroutine test_gfn1_scc
    type(TWavefunction) :: wfn
    type(tb_pcem)         :: pcem
    type(TxTBData) :: xtbData
-   type(TSolvent), allocatable :: gbsa
    class(TSolvation), allocatable :: solvation
 
    real(wp) :: etot,egap
@@ -83,7 +82,7 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,pcem,xtbData,gbsa,solvation, &
+   call scf(env,mol,wfn,basis,pcem,xtbData,solvation, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)
