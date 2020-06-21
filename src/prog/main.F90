@@ -29,6 +29,7 @@ module xtb_prog_main
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
    use xtb_prog_argparser
+   use xtb_solv_state
    use xtb_setparam
    use xtb_sphereparam
    use xtb_scanparam
@@ -1098,7 +1099,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    copycontrol = .false.
    lgrad = .false.
    accuracy = 1.0_wp
-   gsolvstate = 0
+   gsolvstate = solutionState%gsolv
 
    nFlags = args%countFlags()
    call args%nextFlag(flag)
@@ -1340,9 +1341,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call args%nextArg(sec)
             if (allocated(sec)) then
                if (sec == 'reference') then
-                  gsolvstate = 1
+                  gsolvstate = solutionState%reference
                else if (sec == 'bar1M') then
-                  gsolvstate = 2
+                  gsolvstate = solutionState%mol1bar
                else
                   call env%warning("Unknown reference state '"//sec//"'", source)
                end if

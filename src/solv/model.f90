@@ -26,7 +26,7 @@ module xtb_solv_model
    use xtb_solv_gbsa, only : TBorn, init_ => init
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
-   use xtb_solv_state, only : solutionState
+   use xtb_solv_state, only : solutionState, getStateShift
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    implicit none
@@ -171,6 +171,8 @@ subroutine initSolvModel(self, env, input, level)
       call loadInternalParam(self, env, solvent, level)
    end if
 
+   self%freeEnergyShift = self%freeEnergyShift + getStateShift(self%state, &
+      & self%temperature, self%density, self%molarMass)
 end subroutine initSolvModel
 
 
@@ -524,12 +526,11 @@ subroutine newBornModel(self, env, model, num)
    class(TSolvModel), intent(in) :: self
 
    !> Solvation model to create
-   type(TBorn), allocatable, intent(out) :: model
+   type(TBorn), intent(out) :: model
 
    !> Atomic numbers
    integer, intent(in) :: num(:)
 
-   allocate(model)
    call init_(model, env, num, self%vdwRad, self%dielectricConst, &
       & self%freeEnergyShift, self%descreening, self%bornScale, &
       & self%bornOffset, self%surfaceTension, self%probeRad, lrcut, srcut, &

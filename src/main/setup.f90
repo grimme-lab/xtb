@@ -370,12 +370,11 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
 
    calc%lSolv = len_trim(solvent).gt.0 .and. solvent.ne."none"
    if (calc%lSolv) then
-      call initGBSA(env, trim(solvent), solvState, temperature, level, &
-         & gridSize, alpb, solvKernel, pr)
-      allocate(calc%solvation)
       solvInput = TSolvInput(&
          & solvent=solvent, alpb=alpb, kernel=solvKernel, state=solvState, &
-         & ionStrength=ionst, ionRad=ion_rad)
+         & ionStrength=ionst, ionRad=ion_rad, nAng=gridSize)
+      call initGBSA(env, level, pr, solvInput)
+      allocate(calc%solvation)
       call init(calc%solvation, env, solvInput, level)
    endif
 

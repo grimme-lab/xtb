@@ -6,6 +6,8 @@ subroutine test_eeq_model_gbsa
    use xtb_type_molecule
    use xtb_type_param
    use xtb_solv_gbobc
+   use xtb_solv_input
+   use xtb_solv_state
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_eeq
    use xtb_chargemodel
@@ -27,9 +29,10 @@ subroutine test_eeq_model_gbsa
    integer, parameter :: iunit = stdout
    real(wp),parameter :: temp = 298.15_wp
 
-   type(TMolecule)    :: mol
+   type(TMolecule) :: mol
    type(chrg_parameter) :: chrgeq
-   type(TBorn)     :: gbsa
+   type(TBorn) :: gbsa
+   type(TSolvInput) :: input
    type(TEnvironment) :: env
    real(wp), parameter :: trans(3, 1) = 0.0_wp
    real(wp) :: es,gsolv,sigma(3,3)
@@ -80,8 +83,10 @@ subroutine test_eeq_model_gbsa
    q = 0.0_wp
    dqdr = 0.0_wp
 
-   call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,gbKernel%still,.true.)
-   call new_gbsa(gbsa,mol%n,mol%at)
+   input = TSolvInput(solvent='ch2cl2', alpb=.false., kernel=gbKernel%still, &
+      & state=solutionState%gsolv)
+   call initGBSA(env,2,.true.,input)
+   call new_gbsa(gbsa,env,mol%n,mol%at)
    call compute_brad_sasa(gbsa,mol%xyz)
 
    es = gbsa%gsasa
@@ -136,6 +141,8 @@ subroutine test_eeq_model_salt
    use xtb_type_molecule
    use xtb_type_param
    use xtb_solv_gbobc
+   use xtb_solv_input
+   use xtb_solv_state
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_eeq
    use xtb_chargemodel
@@ -161,9 +168,10 @@ subroutine test_eeq_model_salt
    integer, parameter :: iunit = stdout
    real(wp),parameter :: temp = 298.15_wp
 
-   type(TMolecule)    :: mol
+   type(TMolecule) :: mol
    type(chrg_parameter) :: chrgeq
-   type(TBorn)     :: gbsa
+   type(TBorn) :: gbsa
+   type(TSolvInput) :: input
    type(TEnvironment) :: env
    real(wp), parameter :: trans(3, 1) = 0.0_wp
    real(wp) :: es,gsolv,sigma(3,3)
@@ -212,8 +220,10 @@ subroutine test_eeq_model_salt
    lsalt = .true.
    ionst = 0.001_wp
    ion_rad = 1.0_wp
-   call initGBSA(env,'ch2cl2',0,temp,2,230,.false.,gbKernel%still,.true.)
-   call new_gbsa(gbsa,mol%n,mol%at)
+   input = TSolvInput(solvent='ch2cl2', alpb=.false., kernel=gbKernel%still, &
+      & state=solutionState%gsolv, ionStrength=0.001_wp, ionRad=1.0_wp)
+   call initGBSA(env,2,.true.,input)
+   call new_gbsa(gbsa,env,mol%n,mol%at)
    call compute_brad_sasa(gbsa,mol%xyz)
 
    es = gbsa%gsasa

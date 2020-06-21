@@ -21,16 +21,20 @@ module xtb_solv_gbobc
    use xtb_mctc_convert
    use xtb_mctc_blas, only : mctc_dot, mctc_gemv
    use xtb_solv_born, only : compute_bornr
-   use xtb_solv_gbsa, only : addGradientHBond, getADet, addADetDeriv, &
+   use xtb_solv_gbsa, only : TBorn, addGradientHBond, getADet, addADetDeriv, &
       & addHBondDeriv, compute_fhb, getDebyeHueckel, update_nnlist_gbsa
    use xtb_solv_kernel, only : gbKernel, addBornMatSaltStill, addBornMatStill, &
       & addBornMatP16, addGradientSaltStill, addGradientStill, addGradientP16, &
       & addBornDerivSaltStill, addBornDerivStill
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_model, only : TSolvModel, newBornModel
    use xtb_solv_sasa, only : compute_numsa
-   use xtb_type_solvent
+   use xtb_solv_state, only : solutionState
+   use xtb_type_environment, only : TEnvironment
+   use xtb_type_solvent, only : allocate_gbsa, deallocate_gbsa
    implicit none
 
-   public :: lhb,lsalt
+   public :: lsalt
    public :: initGBSA,new_gbsa
    public :: gshift
    public :: ionst,ion_rad
@@ -40,7 +44,6 @@ module xtb_solv_gbobc
    public :: compute_amat
    public :: compute_gb_egrad
    public :: compute_gb_damat
-   public :: load_custom_parameters
    private
 
 
@@ -79,9 +82,6 @@ module xtb_solv_gbobc
    real(wp) :: ionst=0._wp
    real(wp) :: ion_rad=0._wp
    real(wp), parameter :: kappa_const=0.7897d-3
-! ------------------------------------------------------------------------
-!  Hydrogen bond contribution
-   logical :: lhb=.true.
 ! ------------------------------------------------------------------------
 !  Gshift (gsolv=reference vs. gsolv)
    real(wp) :: gshift
@@ -168,7 +168,6 @@ module xtb_solv_gbobc
    end type gbsa_model
 
    type(gbsa_model), private :: gbm
-   type(gbsa_parameter), private :: custom_solvent
 
    include 'param_gbsa_acetone.inc'
    include 'param_gbsa_acetonitrile.inc'
@@ -194,57 +193,15 @@ module xtb_solv_gbobc
 
 contains
 
-subroutine load_custom_parameters(epsv,smass,rhos,c1,rprobe,gshift,soset,alpha, &
-      &                           gamscale,sx,tmp)
-   implicit none
-   !> Dielectric data
-   real(wp), intent(in), optional :: epsv
-   !> Solvent density (g/cm^3) and molar mass (g/mol)
-   real(wp), intent(in), optional :: smass
-   real(wp), intent(in), optional :: rhos
-   !> Born radii
-   real(wp), intent(in), optional :: c1
-   !> Atomic surfaces
-   real(wp), intent(in), optional :: rprobe
-   !> Gshift (gsolv=reference vs. gsolv)
-   real(wp), intent(in), optional :: gshift
-   !> offset parameter (fitted)
-   real(wp), intent(in), optional :: soset
-   real(wp), intent(in), optional :: alpha
-   !> Surface tension (mN/m=dyn/cm)
-   real(wp), intent(in), optional :: gamscale(94)
-   !> dielectric descreening parameters
-   real(wp), intent(in), optional :: sx(94)
-   real(wp), intent(in), optional :: tmp(94)
-
-   if (present(epsv))    custom_solvent%epsv     = epsv
-   if (present(smass))   custom_solvent%smass    = smass
-   if (present(rhos))    custom_solvent%rhos     = rhos
-   if (present(c1))      custom_solvent%c1       = c1
-   if (present(rprobe))  custom_solvent%rprobe   = rprobe
-   if (present(gshift))  custom_solvent%gshift   = gshift
-   if (present(soset))   custom_solvent%soset    = soset
-   if (present(alpha))   custom_solvent%alpha    = alpha
-   if (present(gamscale))custom_solvent%gamscale = gamscale
-   if (present(sx))      custom_solvent%sx       = sx
-   if (present(tmp))     custom_solvent%tmp      = tmp
-
-end subroutine load_custom_parameters
-
-subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
+subroutine initGBSA(env,gfn_method,verbose,input)
    use xtb_mctc_strings
    use xtb_readin
    implicit none
    character(len=*), parameter :: source = 'solv_gbobc_initGBSA'
    type(TEnvironment), intent(inout) :: env
-   character(len=*),intent(in) :: sname
-   integer, intent(in) :: mode
-   real(wp),intent(in) :: temp
    integer, intent(in) :: gfn_method
-   integer, intent(in) :: ngrida
    logical, intent(in) :: verbose
-   logical, intent(in) :: alpb
-   integer, intent(in) :: kernel
+   type(TSolvInput), intent(in) :: input
 
    integer :: i,fix,inum,ich
    real(wp) :: rad
@@ -255,15 +212,15 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
    type(gbsa_parameter) :: gfn_solvent
 
    if (gfn_method.gt.1) then
-      fname = '.param_gbsa2_'//trim(sname)
+      fname = '.param_gbsa2_'//trim(input%solvent)
    else if (gfn_method.eq.0) then
-      fname = '.param_gbsa0_'//trim(sname)
+      fname = '.param_gbsa0_'//trim(input%solvent)
    else
-      fname = '.param_gbsa_'//trim(sname)
+      fname = '.param_gbsa_'//trim(input%solvent)
    endif
    fname = xfind(fname)
    if (verbose) then
-      write(env%unit,*) 'Solvent             : ', trim(sname)
+      write(env%unit,*) 'Solvent             : ', trim(input%solvent)
    end if
 
    inquire(file=fname,exist=ex)
@@ -278,9 +235,9 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
       !call env%warning('Could not find GBSA parameters in XTBPATH,'//&
       !   ' trying internal parameters', source)
       if (gfn_method.gt.1.or.gfn_method == 0) then
-         select case(lowercase(trim(sname)))
+         select case(lowercase(trim(input%solvent)))
          case default
-            call env%error('solvent : '//trim(sname)//&
+            call env%error('solvent : '//trim(input%solvent)//&
                ' not parametrized for GFN2-xTB Hamiltonian', source)
             return
          case('acetone');      gfn_solvent = gfn2_acetone
@@ -298,15 +255,14 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
          case('dmf');          gfn_solvent = gfn2_dmf
          case('nhexan','n-hexan','nhexane','n-hexane');
             gfn_solvent = gfn2_nhexan
-         case('custom'); gfn_solvent = custom_solvent
          end select
       !else if (gfn_method.eq.0) then
-            !call env%error('solvent : '//trim(sname)//&
+            !call env%error('solvent : '//trim(input%solvent)//&
                !' not parametrized for GFN0-xTB Hamiltonian',source)
       else
-         select case(lowercase(trim(sname)))
+         select case(lowercase(trim(input%solvent)))
          case default
-            call env%error('solvent : '//trim(sname)//&
+            call env%error('solvent : '//trim(input%solvent)//&
                ' not parametrized for GFN-xTB Hamiltonian', source)
             return
          case('acetone');      gfn_solvent = gfn1_acetone
@@ -323,7 +279,6 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
          case('toluene');      gfn_solvent = gfn1_toluene
 !        case('dmf');          gfn_solvent = gfn1_dmf
 !        case('nhexan');       gfn_solvent = gfn1_nhexan
-         case('custom'); gfn_solvent = custom_solvent
          end select
       endif
       if (verbose) then
@@ -331,13 +286,12 @@ subroutine initGBSA(env,sname,mode,temp,gfn_method,ngrida,alpb,kernel,verbose)
       end if
    endif
 
-   if (alpb) gfn_solvent%alpha = 0.571412_wp
+   if (input%alpb) gfn_solvent%alpha = 0.571412_wp
 
-   call new_gbsa_model(gbm,gfn_solvent,mode,temp,ngrida)
+   call new_gbsa_model(gbm,gfn_solvent,input%state,input%temperature,input%nAng)
 
-   gbm%kernel = kernel
+   gbm%kernel = input%kernel
 
-   lhb = gbm%lhb
    gshift = gbm%gshift
 
    if (verbose) then
@@ -438,15 +392,15 @@ subroutine new_gbsa_model(gbm,solvent,mode,temp,ngrida)
       if(abs(tmp(i)).gt.1.d-3) gbm%lhb=.true.
    enddo
 
-   if(mode.eq.1) then ! gsolv=reference option in COSMOTHERM
+   if(mode.eq.solutionState%reference) then ! gsolv=reference option in COSMOTHERM
       !               RT*(ln(ideal gas mol volume)+ln(rho/M))
       gstate=(gbm%temp*8.31451/1000./4.184)* &
       &      (log(24.79_wp*gbm%temp/298.15)+ &
       &       log(1000.0_wp*gbm%rhos/gbm%smass))
       gbm%gshift=(gbm%gshift+gstate)*kcaltoau
-   elseif(mode.eq.0)then !gsolv option in COSMOTHERM to which it was fitted
+   elseif(mode.eq.solutionState%gsolv)then !gsolv option in COSMOTHERM to which it was fitted
       gbm%gshift=gbm%gshift*kcaltoau
-   elseif(mode.eq.2)then ! 1 bar gas/ 1 M solution is not implemented in COSMOTHERM although its the canonical choice
+   elseif(mode.eq.solutionState%mol1bar)then ! 1 bar gas/ 1 M solution is not implemented in COSMOTHERM although its the canonical choice
       gstate=(gbm%temp*8.31451/1000./4.184)*log(24.79_wp*gbm%temp/298.15)
       gbm%gshift=(gbm%gshift+gstate)*kcaltoau
    endif
@@ -514,10 +468,11 @@ end subroutine read_gbsa_parameters
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine new_gbsa(self,n,at)
+subroutine new_gbsa(self,env,n,at)
    use xtb_solv_lebedev
    implicit none
    type(TBorn), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
 
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
@@ -531,6 +486,16 @@ subroutine new_gbsa(self,n,at)
 
    ! get some space
    call allocate_gbsa(self,n,gbm%nangsa)
+
+   self%bornScale = gbm%c1
+   self%keps = gbm%keps
+   self%kappa = gbm%kappa
+   self%lsalt = gbm%lsalt
+   self%lhb = gbm%lhb
+   self%kernel = gbm%kernel
+   self%dielectricConst = gbm%epsv
+   self%ionRad = gbm%ion_rad
+   self%alpbet = gbm%alpbet
 
    ! initialize the vdw radii array
    self%at = at
@@ -605,30 +570,30 @@ subroutine compute_amat(self,Amat)
    real(wp) :: aa,r2,gg,iepsu,arg,bp
    real(wp) :: dd,expd,fgb,fgb2,dfgb
 
-   select case(gbm%kernel)
+   select case(self%kernel)
    case(gbKernel%still)
-      if (gbm%lsalt) then
+      if (self%lsalt) then
          call addBornMatSaltStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & gbm%kappa, self%brad, self%ionscr, Amat)
+            & self%kappa, self%brad, self%ionscr, Amat)
       else
          call addBornMatStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & gbm%keps, self%brad, Amat)
+            & self%keps, self%brad, Amat)
       end if
    case(gbKernel%p16)
       call addBornMatP16(self%nat, self%ntpair, self%ppind, self%ddpair, &
-         & gbm%keps, self%brad, Amat)
+         & self%keps, self%brad, Amat)
    end select
 
    ! compute the HB term
-   if(lhb) then
+   if(self%lhb) then
       do i = 1, self%nat
          Amat(i,i) = Amat(i,i) + 2*self%hbw(i)
       enddo
    endif
 
    ! ALPB shape dependent correction for charged systems
-   if (gbm%alpbet > 0.0_wp) then
-      Amat(:, :) = Amat + gbm%keps * gbm%alpbet / self%aDet
+   if (self%alpbet > 0.0_wp) then
+      Amat(:, :) = Amat + self%keps * self%alpbet / self%aDet
    end if
 
 end subroutine compute_amat
@@ -657,20 +622,20 @@ pure subroutine compute_gb_damat(self,q,gborn,ghb,dAmatdr,Afac,lpr)
    real(wp) :: grddbi,grddbj
    real(wp) :: dr(3),r
 
-   select case(gbm%kernel)
+   select case(self%kernel)
    case(gbKernel%still)
-      if (gbm%lsalt) then
+      if (self%lsalt) then
          call addBornDerivSaltStill(self%nat, self%ntpair, self%ppind, &
-            & self%ddpair, q, gbm%kappa, self%brad, self%brdr, self%ionscr, &
+            & self%ddpair, q, self%kappa, self%brad, self%brdr, self%ionscr, &
             & self%discr, gborn, dAmatdr, Afac)
       else
          call addBornDerivStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & q, gbm%keps, self%brad, self%brdr, gborn, dAmatdr, Afac)
+            & q, self%keps, self%brad, self%brdr, gborn, dAmatdr, Afac)
       endif
    case(gbKernel%p16)
    end select
 
-   if (gbm%lhb) then
+   if (self%lhb) then
       call addHBondDeriv(self%nat, q, self%hbw, self%dhbdw, self%dsdrt, &
          & ghb, dAmatdr)
    endif
@@ -688,33 +653,34 @@ subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
    real(wp), intent(inout) :: gradient(3,self%nat)
    logical,  intent(in)    :: lpr
 
-   select case(gbm%kernel)
+   select case(self%kernel)
    case(gbKernel%still)
-      if (gbm%lsalt) then
+      if (self%lsalt) then
          call addGradientSaltStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & q, gbm%kappa, self%brad, self%brdr, self%ionscr, self%discr, &
+            & q, self%kappa, self%brad, self%brdr, self%ionscr, self%discr, &
             & gborn, gradient)
       else
          call addGradientStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & q, gbm%keps, self%brad, self%brdr, gborn, gradient)
+            & q, self%keps, self%brad, self%brdr, gborn, gradient)
       end if
    case(gbKernel%p16)
       call addGradientP16(self%nat, self%ntpair, self%ppind, self%ddpair, &
-         & q, gbm%keps, self%brad, self%brdr, gborn, gradient)
+         & q, self%keps, self%brad, self%brdr, gborn, gradient)
    end select
 
    gradient = gradient + self%dsdr
 
-   if(lhb) then
+   if(self%lhb) then
       call addGradientHBond(self%nat, self%at, q, self%hbw, self%dhbdw, &
          & self%dsdrt, ghb, gradient)
    else
       ghb = 0.0_wp
    endif
 
-   if (gbm%alpbet > 0.0_wp) then
-      gborn = gborn + sum(q)**2 * gbm%alpbet / self%aDet * gbm%kEps
-      call addADetDeriv(self%nat, xyz, self%vdwr, gbm%kEps*gbm%alpbet, q, gradient)
+   if (self%alpbet > 0.0_wp) then
+      gborn = gborn + sum(q)**2 * self%alpbet / self%aDet * self%kEps
+      call addADetDeriv(self%nat, xyz, self%vdwr, self%kEps*self%alpbet, &
+         & q, gradient)
    end if
 
 end subroutine compute_gb_egrad
@@ -733,7 +699,7 @@ subroutine compute_brad_sasa(self, xyz)
       & self%nnlistr, self%ddpair, .false.)
 
    call compute_bornr(self%nat, self%nnrad, self%nnlistr, self%ddpair, &
-      & self%vdwr, self%rho, self%svdw, gbm%c1, self%brad, self%brdr)
+      & self%vdwr, self%rho, self%svdw, self%bornScale, self%brad, self%brdr)
 
    ! compute solvent accessible surface and its derivatives
    call compute_numsa(self%nat, self%nnsas, self%nnlists, xyz, self%vdwsa, &
@@ -745,14 +711,14 @@ subroutine compute_brad_sasa(self, xyz)
    self%gsasa = mctc_dot(self%sasa, self%gamsasa)
 
    ! compute the Debye-Hueckel ion exclusion term
-   if (gbm%lsalt) call getDebyeHueckel(self%nat, gbm%epsv, gbm%kappa, &
-      & gbm%ion_rad, self%brad, self%ionscr, self%discr)
+   if (self%lsalt) call getDebyeHueckel(self%nat, self%dielectricConst, &
+      & self%kappa, self%ionRad, self%brad, self%ionscr, self%discr)
 
    ! compute the HB term
-   if (lhb) call compute_fhb(self%nat, self%hbmag, self%vdwsa, self%sasa, &
+   if (self%lhb) call compute_fhb(self%nat, self%hbmag, self%vdwsa, self%sasa, &
       & self%hbw, self%dhbdw)
 
-   if (gbm%alpbet > 0.0_wp) then
+   if (self%alpbet > 0.0_wp) then
       call getADet(self%nat, xyz, self%vdwr, self%aDet)
    end if
 

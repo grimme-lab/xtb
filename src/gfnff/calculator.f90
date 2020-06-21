@@ -133,6 +133,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    efix = 0.0_wp
 
    if (allocated(self%solvation)) then
+      allocate(solvation)
       call newBornModel(self%solvation, env, solvation, mol%at)
    end if
 
