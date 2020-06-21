@@ -71,7 +71,7 @@ subroutine write_energy_gff(iunit,sccres,frqres,hess)
 end subroutine write_energy_gff
 
 subroutine main_property &
-      (iunit,mol,wfx,basis,xtbData,res,lgbsa,acc)
+      (iunit,env,mol,wfx,basis,xtbData,res,lgbsa,acc)
 
    use xtb_mctc_convert
 
@@ -79,6 +79,7 @@ subroutine main_property &
 !  load class definitions
    use xtb_type_molecule
    use xtb_type_wavefunction
+   use xtb_type_environment
    use xtb_type_basisset
    use xtb_type_data
    use xtb_type_param
@@ -100,6 +101,7 @@ subroutine main_property &
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
 !  molecule data
    type(TMolecule), intent(in) :: mol
+   type(TEnvironment), intent(inout) :: env
    type(TxTBData), intent(in) :: xtbData
    real(wp),intent(in) :: acc      ! accuracy of integral calculation
    type(TWavefunction),intent(inout) :: wfx
@@ -152,7 +154,7 @@ subroutine main_property &
 
    ! GBSA information
    if (lgbsa.and.pr_gbsa) then
-      call new_gbsa(gbsa,mol%n,mol%at)
+      call new_gbsa(gbsa,env,mol%n,mol%at)
       call compute_brad_sasa(gbsa,mol%xyz)
       call print_gbsa_info(iunit,gbsa)
    endif
