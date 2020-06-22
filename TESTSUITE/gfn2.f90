@@ -207,6 +207,7 @@ subroutine test_gfn2gbsa_api
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
+   use xtb_solv_input
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
@@ -253,7 +254,7 @@ subroutine test_gfn2gbsa_api
 
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)
-   call addSolvationModel(env, calc, opt%solvent)
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
@@ -273,6 +274,7 @@ end subroutine test_gfn2gbsa_api
 subroutine test_gfn2salt_api
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
+   use xtb_mctc_convert, only : aatoau
 
    use assertion
 
@@ -282,6 +284,7 @@ subroutine test_gfn2salt_api
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
+   use xtb_solv_input
 
    use xtb_solv_gbobc
 
@@ -331,7 +334,8 @@ subroutine test_gfn2salt_api
 
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)
-   call addSolvationModel(env, calc, opt%solvent)
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent, &
+      & ionRad=1.0_wp*aatoau, ionStrength=1.0e-3_wp))
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)

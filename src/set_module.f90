@@ -282,23 +282,24 @@ end subroutine write_set_hess
 subroutine write_set_gbsa(ictrl)
    use xtb_readin, only : bool2string
    use xtb_solv_gbobc, only: ionst,ion_rad
+   use xtb_mctc_convert, only : autoaa
    implicit none
    integer,intent(in) :: ictrl
-   if (len_trim(solvent).gt.0 .and. solvent.ne."none") then
+   if (len_trim(solvInput%solvent).gt.0 .and. solvInput%solvent.ne."none") then
       write(ictrl,'(a,"gbsa")') flag
-      if (allocated(solvent)) write(ictrl,'(3x,"solvent=",a)') solvent
-      write(ictrl,'(3x,"ion_st=",g0)') ionst
-      write(ictrl,'(3x,"ion_rad=",g0)') ion_rad
+      if (allocated(solvInput%solvent)) write(ictrl,'(3x,"solvent=",a)') solvInput%solvent
+      write(ictrl,'(3x,"ion_st=",g0)') solvInput%ionStrength
+      write(ictrl,'(3x,"ion_rad=",g0)') solvInput%ionRad * autoaa
       write(ictrl,'(3x,"gbsagrid=")',advance='no')
-      select case(ngrida)
+      select case(solvInput%nAng)
       case(p_angsa_normal);   write(ictrl,'(a)') "normal"
       case(p_angsa_tight);    write(ictrl,'(a)') "tight"
       case(p_angsa_verytight);write(ictrl,'(a)') "verytight"
       case(p_angsa_extreme);  write(ictrl,'(a)') "extreme"
-      case default;           write(ictrl,'(i0)') ngrida
+      case default;           write(ictrl,'(i0)') solvInput%nAng
       end select
-      write(ictrl,'(3x,"alpb=",a)') bool2string(alpb)
-      select case(solvKernel)
+      write(ictrl,'(3x,"alpb=",a)') bool2string(solvInput%alpb)
+      select case(solvInput%kernel)
       case(gbKernel%still)
          write(ictrl,'(3x,"kernel=still")')
       case(gbKernel%p16)
@@ -1636,7 +1637,10 @@ subroutine set_md(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by md",source)
    case('temp')
-      if (getValue(env,val,ddum).and.set1) temp_md = ddum
+      if (getValue(env,val,ddum).and.set1) then
+         temp_md = ddum
+         solvInput%temperature = ddum
+      end if
       set1 = .false.
    case('time')
       if (getValue(env,val,ddum).and.set2) time_md = ddum
@@ -1813,6 +1817,7 @@ end subroutine set_reactor
 
 
 subroutine set_gbsa(env,key,val)
+   use xtb_mctc_convert, only : aatoau
    use xtb_solv_gbobc, only: lsalt,ionst,ion_rad
    implicit none
    character(len=*), parameter :: source = 'set_gbsa'
@@ -1834,17 +1839,17 @@ subroutine set_gbsa(env,key,val)
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
    case('solvent')
       if (set1 .and. val.ne.'none') then
-         solvent = val
+         solvInput%solvent = val
       endif
       set1 = .false.
    case('ion_st')
       if (getValue(env,val,ddum).and.set2) then
-         ionst = ddum
+         solvInput%ionStrength = ddum
          if (ionst.gt.0.0_wp) lsalt = .true.
       endif
       set2 = .false.
    case('ion_rad')
-      if (getValue(env,val,ddum).and.set3) ion_rad = ddum
+      if (getValue(env,val,ddum).and.set3) solvInput%ionRad = ddum * aatoau
       set3 = .false.
    case('gbsagrid')
       if (set4) then
@@ -1854,20 +1859,20 @@ subroutine set_gbsa(env,key,val)
                if (any(idum.eq.ldgrids)) then
                   if (idum < p_angsa_normal) &
                      call env%warning("Small SASA grids can lead to numerical instabilities",source)
-                  ngrida = idum
+                  solvInput%nAng = idum
                else
                   call env%warning("There is no "//val//" Lebedev grid",source)
                endif
             endif
-         case('normal');    ngrida = p_angsa_normal
-         case('tight');     ngrida = p_angsa_tight
-         case('verytight'); ngrida = p_angsa_verytight
-         case('extreme');   ngrida = p_angsa_extreme
+         case('normal');    solvInput%nAng = p_angsa_normal
+         case('tight');     solvInput%nAng = p_angsa_tight
+         case('verytight'); solvInput%nAng = p_angsa_verytight
+         case('extreme');   solvInput%nAng = p_angsa_extreme
          endselect
       endif
       set4 = .false.
    case('alpb')
-      if (getValue(env,val,ldum).and.set5) alpb = ldum
+      if (getValue(env,val,ldum).and.set5) solvInput%alpb = ldum
       set5 = .false.
    case('kernel')
       if (set6) then
@@ -1875,8 +1880,8 @@ subroutine set_gbsa(env,key,val)
          case default
             call env%warning("Unknown solvation kernel '"//val//"' requested", &
                & source)
-         case('still'); solvKernel = gbKernel%still
-         case('p16');   solvKernel = gbKernel%p16
+         case('still'); solvInput%kernel = gbKernel%still
+         case('p16');   solvInput%kernel = gbKernel%p16
          end select
       end if
       set6 = .false.

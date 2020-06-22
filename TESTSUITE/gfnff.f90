@@ -171,6 +171,7 @@ subroutine test_gfnff_gbsa
    use xtb_mctc_accuracy, only : wp
    use assertion
    use xtb_mctc_systools
+   use xtb_solv_input
    use xtb_type_environment
    use xtb_type_options
    use xtb_type_molecule
@@ -222,7 +223,7 @@ subroutine test_gfnff_gbsa
 
    call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '---', .false.)
-   call addSolvationModel(env, calc, opt%solvent)
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
 
    call env%checkpoint("GFN-FF parameter setup failed")
 

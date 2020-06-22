@@ -199,6 +199,7 @@ subroutine test_gfn1gbsa_api
    use xtb_type_data
    use xtb_type_restart
    use xtb_type_environment
+   use xtb_solv_input
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
@@ -242,7 +243,7 @@ subroutine test_gfn1gbsa_api
 
    call newXTBCalculator(env, mol, calc, method=1)
    call newWavefunction(env, mol, calc, wfn)
-   call addSolvationModel(env, calc, opt%solvent)
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
 
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)

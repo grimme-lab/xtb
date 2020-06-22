@@ -192,9 +192,6 @@ module xtb_setparam
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
    type(TSolvInput) :: solvInput
-   character(len=:),allocatable :: solvent
-   logical :: alpb = .false.
-   integer :: solvKernel = gbKernel%still
 !  Choose the grid for the GBSA
    integer, parameter :: ldgrids(32) = &
       &[  6,  14,  26,  38,  50,  74,  86, 110, 146, 170, &
@@ -205,7 +202,6 @@ module xtb_setparam
    integer, parameter :: p_angsa_tight     = ldgrids(19)
    integer, parameter :: p_angsa_verytight = ldgrids(23)
    integer, parameter :: p_angsa_extreme   = ldgrids(32)
-   integer :: ngrida = p_angsa_normal
 
 !! ------------------------------------------------------------------------
 !  of points along normal mode path scan
