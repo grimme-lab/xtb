@@ -13,7 +13,7 @@ subroutine test_gfn0_sp
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
-   use xtb_type_solvent
+   use xtb_solv_gbsa
 
    use xtb_setparam
    use xtb_basis

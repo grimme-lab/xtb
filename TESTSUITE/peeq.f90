@@ -12,7 +12,7 @@ subroutine test_peeq_sp
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
-   use xtb_type_solvent
+   use xtb_solv_gbsa
 
    use xtb_setparam, only : gfn_method
 

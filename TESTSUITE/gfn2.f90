@@ -13,7 +13,7 @@ subroutine test_gfn2_scc
    use xtb_type_pcem
    use xtb_type_environment
    use xtb_type_solvation
-   use xtb_type_solvent
+   use xtb_solv_gbsa
 
    use xtb_setparam
    use xtb_basis

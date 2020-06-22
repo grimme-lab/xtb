@@ -18,6 +18,7 @@
 !> Extended tight binding calculator
 module xtb_xtb_calculator
    use xtb_mctc_accuracy, only : wp
+   use xtb_solv_gbsa, only : TBorn
    use xtb_solv_model, only : info, newSolvationModel, newBornModel
    use xtb_type_basisset, only : TBasisset
    use xtb_type_calculator, only : TCalculator
@@ -27,7 +28,6 @@ module xtb_xtb_calculator
    use xtb_type_param, only : scc_parameter
    use xtb_type_pcem
    use xtb_type_solvation, only : TSolvation
-   use xtb_type_solvent, only : TBorn
    use xtb_type_restart, only : TRestart
    use xtb_type_wsc, only : tb_wsc
    use xtb_xtb_data, only : TxTBData
