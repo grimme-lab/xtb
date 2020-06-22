@@ -5,8 +5,9 @@ subroutine test_eeq_model_gbsa
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
-   use xtb_solv_gbobc
+   use xtb_solv_gbsa
    use xtb_solv_input
+   use xtb_solv_model
    use xtb_solv_state
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_eeq
@@ -33,6 +34,7 @@ subroutine test_eeq_model_gbsa
    type(chrg_parameter) :: chrgeq
    type(TBorn) :: gbsa
    type(TSolvInput) :: input
+   type(TSolvModel) :: model
    type(TEnvironment) :: env
    real(wp), parameter :: trans(3, 1) = 0.0_wp
    real(wp) :: es,gsolv,sigma(3,3)
@@ -85,11 +87,11 @@ subroutine test_eeq_model_gbsa
 
    input = TSolvInput(solvent='ch2cl2', alpb=.false., kernel=gbKernel%still, &
       & state=solutionState%gsolv)
-   call initGBSA(env,2,.true.,input)
-   call new_gbsa(gbsa,env,mol%n,mol%at)
-   call compute_brad_sasa(gbsa,mol%xyz)
+   call init(model, env, input, 2)
+   call newBornModel(model, env, gbsa, mol%at)
+   call gbsa%update(env, mol%at, mol%xyz)
 
-   es = gbsa%gsasa
+   es = gbsa%gsasa + gbsa%gshift
    ges = gbsa%dsdr
    call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
       &            .false.,.true.,.true.)
@@ -136,12 +138,14 @@ end subroutine test_eeq_model_hbond
 subroutine test_eeq_model_salt
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
+   use xtb_mctc_convert, only : aatoau
    use assertion
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_param
-   use xtb_solv_gbobc
+   use xtb_solv_gbsa
    use xtb_solv_input
+   use xtb_solv_model
    use xtb_solv_state
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_eeq
@@ -172,6 +176,7 @@ subroutine test_eeq_model_salt
    type(chrg_parameter) :: chrgeq
    type(TBorn) :: gbsa
    type(TSolvInput) :: input
+   type(TSolvModel) :: model
    type(TEnvironment) :: env
    real(wp), parameter :: trans(3, 1) = 0.0_wp
    real(wp) :: es,gsolv,sigma(3,3)
@@ -217,16 +222,13 @@ subroutine test_eeq_model_salt
    q = 0.0_wp
    dqdr = 0.0_wp
 
-   lsalt = .true.
-   ionst = 0.001_wp
-   ion_rad = 1.0_wp
    input = TSolvInput(solvent='ch2cl2', alpb=.false., kernel=gbKernel%still, &
-      & state=solutionState%gsolv, ionStrength=0.001_wp, ionRad=1.0_wp)
-   call initGBSA(env,2,.true.,input)
-   call new_gbsa(gbsa,env,mol%n,mol%at)
-   call compute_brad_sasa(gbsa,mol%xyz)
+      & state=solutionState%gsolv, ionStrength=0.001_wp, ionRad=1.0_wp*aatoau)
+   call init(model, env, input, 2)
+   call newBornModel(model, env, gbsa, mol%at)
+   call gbsa%update(env, mol%at, mol%xyz)
 
-   es = gbsa%gsasa
+   es = gbsa%gsasa + gbsa%gshift
    ges = gbsa%dsdr
    call eeq_chrgeq(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr,es,gsolv,ges, &
       &            .false.,.true.,.true.)

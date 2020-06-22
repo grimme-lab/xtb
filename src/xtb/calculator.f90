@@ -18,7 +18,7 @@
 !> Extended tight binding calculator
 module xtb_xtb_calculator
    use xtb_mctc_accuracy, only : wp
-   use xtb_solv_model, only : info, newSolvationModel
+   use xtb_solv_model, only : info, newSolvationModel, newBornModel
    use xtb_type_basisset, only : TBasisset
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
@@ -129,14 +129,14 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !> Detailed results
    type(scc_results), intent(out) :: results
 
-   type(TBorn), allocatable :: solv
+   class(TSolvation), allocatable :: solvation
+   type(TBorn), allocatable :: gbsa
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix
    logical :: inmol
    logical, parameter :: ccm = .true.
    logical :: exitRun
-   class(TSolvation), allocatable :: solvation
 
    call mol%update
    if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
@@ -147,26 +147,26 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    hlgap = 0.0_wp
    efix = 0.0_wp
 
-   if (self%lSolv) then
-      allocate(solv)
-   end if
-
-   if (allocated(self%solvation)) then
-      call newSolvationModel(self%solvation, env, solvation, mol%at)
-   end if
-
    ! ------------------------------------------------------------------------
    !  actual calculation
    select case(self%xtbData%level)
    case(1, 2)
+      if (allocated(self%solvation)) then
+         call newSolvationModel(self%solvation, env, solvation, mol%at)
+      end if
       call scf(env,mol,chk%wfn,self%basis,self%pcem,self%xtbData,solvation, &
          &   hlgap,self%etemp,self%maxiter,printlevel,restart,.true., &
          &   self%accuracy,energy,gradient,results)
 
    case(0)
+      if (allocated(self%solvation)) then
+         allocate(gbsa)
+         call newBornModel(self%solvation, env, gbsa, mol%at)
+      end if
       call peeq &
-         & (env,mol,chk%wfn,self%basis,self%xtbData,solv,hlgap,self%etemp, &
+         & (env,mol,chk%wfn,self%basis,self%xtbData,gbsa,hlgap,self%etemp, &
          &  printlevel,.true.,ccm,self%accuracy,energy,gradient,sigma,results)
+
    end select
 
    call env%check(exitRun)
@@ -215,7 +215,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.allocated(solv)) then
+      if (.not.silent.and.allocated(self%solvation)) then
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
@@ -228,9 +228,9 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
             write(env%unit,outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo+1),"eV   "
          endif
          write(env%unit,'(9x,"::",49("."),"::")')
-         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,allocated(solv))
-         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(solv))
-         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(solv))
+         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,allocated(self%solvation))
+         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(self%solvation))
+         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(self%solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')

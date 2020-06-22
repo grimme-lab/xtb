@@ -806,7 +806,7 @@ subroutine xtbMain(env, argParser)
       select type(calc)
       type is(TxTBCalculator)
          call main_property(iprop,env,mol,chk%wfn,calc%basis,calc%xtbData,res, &
-            & calc%lSolv,acc)
+            & calc%solvation,acc)
          call main_cube(verbose,mol,chk%wfn,calc%basis,res)
       end select
    endif

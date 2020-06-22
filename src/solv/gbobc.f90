@@ -40,10 +40,6 @@ module xtb_solv_gbobc
    public :: ionst,ion_rad
    public :: TBorn
    public :: allocate_gbsa,deallocate_gbsa
-   public :: compute_brad_sasa
-   public :: compute_amat
-   public :: compute_gb_egrad
-   public :: compute_gb_damat
    private
 
 
@@ -486,6 +482,7 @@ subroutine new_gbsa(self,env,n,at)
 
    ! get some space
    call allocate_gbsa(self,n,gbm%nangsa)
+   allocate(self%bornMat(n, n))
 
    self%bornScale = gbm%c1
    self%keps = gbm%keps
@@ -554,175 +551,6 @@ subroutine new_gbsa(self,env,n,at)
    end do
 
 end subroutine new_gbsa
-
-subroutine compute_amat(self,Amat)
-   implicit none
-   type(TBorn),intent(in) :: self
-
-   real(wp),intent(inout) :: Amat(:,:)
-
-   integer  :: i,j,nnj
-   integer  :: kk
-   real(wp), allocatable :: fhb(:)
-   real(wp), parameter :: a13=1.0_wp/3.0_wp
-   real(wp), parameter :: a4=0.25_wp
-   real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
-   real(wp) :: aa,r2,gg,iepsu,arg,bp
-   real(wp) :: dd,expd,fgb,fgb2,dfgb
-
-   select case(self%kernel)
-   case(gbKernel%still)
-      if (self%lsalt) then
-         call addBornMatSaltStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & self%kappa, self%brad, self%ionscr, Amat)
-      else
-         call addBornMatStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & self%keps, self%brad, Amat)
-      end if
-   case(gbKernel%p16)
-      call addBornMatP16(self%nat, self%ntpair, self%ppind, self%ddpair, &
-         & self%keps, self%brad, Amat)
-   end select
-
-   ! compute the HB term
-   if(self%lhb) then
-      do i = 1, self%nat
-         Amat(i,i) = Amat(i,i) + 2*self%hbw(i)
-      enddo
-   endif
-
-   ! ALPB shape dependent correction for charged systems
-   if (self%alpbet > 0.0_wp) then
-      Amat(:, :) = Amat + self%keps * self%alpbet / self%aDet
-   end if
-
-end subroutine compute_amat
-
-
-pure subroutine compute_gb_damat(self,q,gborn,ghb,dAmatdr,Afac,lpr)
-   implicit none
-   type(TBorn), intent(in) :: self
-
-   real(wp), intent(in)    :: q(self%nat)
-   real(wp), intent(inout) :: dAmatdr(3,self%nat,self%nat)
-   real(wp), intent(inout) :: Afac(3,self%nat)
-   real(wp), intent(out)   :: gborn
-   real(wp), intent(out)   :: ghb
-   logical,  intent(in)    :: lpr
-
-   integer :: i,j,k,nnj
-   integer :: kk
-   real(wp), parameter :: a13=1._wp/3._wp
-   real(wp), parameter :: a4=0.25_wp
-   real(wp), parameter :: sqrt2pi = sqrt(2.0_wp/pi)
-   real(wp) :: aa,r2,fgb,fgb2,br3
-   real(wp) :: qq,dd,expd,dfgb,dfgb2,dfgb3,ap,bp,qfg
-   real(wp) :: gg,expa,epu,aii,egb
-   real(wp) :: r0vdw,r01,r02,ar02
-   real(wp) :: grddbi,grddbj
-   real(wp) :: dr(3),r
-
-   select case(self%kernel)
-   case(gbKernel%still)
-      if (self%lsalt) then
-         call addBornDerivSaltStill(self%nat, self%ntpair, self%ppind, &
-            & self%ddpair, q, self%kappa, self%brad, self%brdr, self%ionscr, &
-            & self%discr, gborn, dAmatdr, Afac)
-      else
-         call addBornDerivStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & q, self%keps, self%brad, self%brdr, gborn, dAmatdr, Afac)
-      endif
-   case(gbKernel%p16)
-   end select
-
-   if (self%lhb) then
-      call addHBondDeriv(self%nat, q, self%hbw, self%dhbdw, self%dsdrt, &
-         & ghb, dAmatdr)
-   endif
-
-end subroutine compute_gb_damat
-
-subroutine compute_gb_egrad(self,xyz,q,gborn,ghb,gradient,lpr)
-   implicit none
-   type(TBorn), intent(in) :: self
-
-   real(wp), intent(in)    :: xyz(3,self%nat)
-   real(wp), intent(in)    :: q(self%nat)
-   real(wp), intent(out)   :: gborn
-   real(wp), intent(out)   :: ghb
-   real(wp), intent(inout) :: gradient(3,self%nat)
-   logical,  intent(in)    :: lpr
-
-   select case(self%kernel)
-   case(gbKernel%still)
-      if (self%lsalt) then
-         call addGradientSaltStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & q, self%kappa, self%brad, self%brdr, self%ionscr, self%discr, &
-            & gborn, gradient)
-      else
-         call addGradientStill(self%nat, self%ntpair, self%ppind, self%ddpair, &
-            & q, self%keps, self%brad, self%brdr, gborn, gradient)
-      end if
-   case(gbKernel%p16)
-      call addGradientP16(self%nat, self%ntpair, self%ppind, self%ddpair, &
-         & q, self%keps, self%brad, self%brdr, gborn, gradient)
-   end select
-
-   gradient = gradient + self%dsdr
-
-   if(self%lhb) then
-      call addGradientHBond(self%nat, self%at, q, self%hbw, self%dhbdw, &
-         & self%dsdrt, ghb, gradient)
-   else
-      ghb = 0.0_wp
-   endif
-
-   if (self%alpbet > 0.0_wp) then
-      gborn = gborn + sum(q)**2 * self%alpbet / self%aDet * self%kEps
-      call addADetDeriv(self%nat, xyz, self%vdwr, self%kEps*self%alpbet, &
-         & q, gradient)
-   end if
-
-end subroutine compute_gb_egrad
-
-
-subroutine compute_brad_sasa(self, xyz)
-   type(TBorn), intent(inout) :: self
-
-   real(wp), intent(in) :: xyz(3,self%nat)
-
-   integer i,j,kk
-
-   ! initialize the neighbor list
-   call update_nnlist_gbsa(self%nat, self%ntpair, self%ppind, xyz, &
-      & self%lrcut, self%srcut, self%nnsas, self%nnlists, self%nnrad, &
-      & self%nnlistr, self%ddpair, .false.)
-
-   call compute_bornr(self%nat, self%nnrad, self%nnlistr, self%ddpair, &
-      & self%vdwr, self%rho, self%svdw, self%bornScale, self%brad, self%brdr)
-
-   ! compute solvent accessible surface and its derivatives
-   call compute_numsa(self%nat, self%nnsas, self%nnlists, xyz, self%vdwsa, &
-      & self%wrp, self%trj2, self%angWeight, self%angGrid, &
-      & self%sasa, self%dsdrt)
-
-   ! contract surface gradient
-   call mctc_gemv(self%dsdrt, self%gamsasa, self%dsdr)
-   self%gsasa = mctc_dot(self%sasa, self%gamsasa)
-
-   ! compute the Debye-Hueckel ion exclusion term
-   if (self%lsalt) call getDebyeHueckel(self%nat, self%dielectricConst, &
-      & self%kappa, self%ionRad, self%brad, self%ionscr, self%discr)
-
-   ! compute the HB term
-   if (self%lhb) call compute_fhb(self%nat, self%hbmag, self%vdwsa, self%sasa, &
-      & self%hbw, self%dhbdw)
-
-   if (self%alpbet > 0.0_wp) then
-      call getADet(self%nat, xyz, self%vdwr, self%aDet)
-   end if
-
-end subroutine compute_brad_sasa
 
 
 pure subroutine update_dist_gbsa(nat,ntpair,ppind,xyz,ddpair)

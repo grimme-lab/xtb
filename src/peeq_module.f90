@@ -361,11 +361,10 @@ subroutine peeq &
 
    if (allocated(gbsa)) then
       if (profile) call timer%measure(9,"GBSA setup")
-      call new_gbsa(gbsa,env,mol%n,mol%at)
       ! compute Born radii
-      call compute_brad_sasa(gbsa,mol%xyz)
+      call gbsa%update(env, mol%at, mol%xyz)
       ! add SASA term to energy and gradient
-      ees = gbsa%gsasa
+      ees = gbsa%gsasa + gbsa%gshift
       gsolv = gbsa%gsasa
       gradient = gradient + gbsa%dsdr
       if (profile) call timer%measure(9)
@@ -593,7 +592,7 @@ subroutine peeq &
       !res%g_born  = gborn    ! not returned
       res%g_sasa  = gbsa%gsasa
       !res%g_hb    = gbsa%ghb ! not returned
-      res%g_shift = gshift
+      res%g_shift = gbsa%gshift
    endif
    ! do NOT calculate the dipole moment from the density, because it's really bad
    res%dipole  = matmul(mol%xyz,wfn%q)
