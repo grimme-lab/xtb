@@ -18,7 +18,6 @@
 srcs += files(
   'born.f90',
   'cm5.f90',
-  'gbobc.f90',
   'gbsa.f90',
   'input.f90',
   'kernel.f90',

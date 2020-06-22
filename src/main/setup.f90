@@ -40,7 +40,6 @@ module xtb_main_setup
    use xtb_setparam
    use xtb_disp_ncoord
    use xtb_chargemodel
-   use xtb_solv_gbobc, only : initGBSA, ionst, ion_rad
    implicit none
    private
 
@@ -335,10 +334,13 @@ subroutine addSolvationModel(env, calc, input)
       level = calc%xtbData%level
    end select
 
+   if (allocated(input%solvent)) then
+      calc%lSolv = input%solvent /= 'none'
+   else
+      calc%lSolv = .false.
+   end if
 
-   calc%lSolv = allocated(input%solvent)
    if (calc%lSolv) then
-      call initGBSA(env, level, .false., input)
       allocate(calc%solvation)
       call init(calc%solvation, env, input, level)
    endif

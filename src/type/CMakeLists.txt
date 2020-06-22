@@ -41,7 +41,6 @@ list(APPEND srcs
   "${dir}/restart.f90"
   "${dir}/setvar.f90"
   "${dir}/solvation.f90"
-  "${dir}/solvent.f90"
   "${dir}/timer.f90"
   "${dir}/topology.f90"
   "${dir}/wavefunction.f90"

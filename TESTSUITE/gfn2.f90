@@ -286,8 +286,6 @@ subroutine test_gfn2salt_api
    use xtb_type_environment
    use xtb_solv_input
 
-   use xtb_solv_gbobc
-
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
 
@@ -327,10 +325,6 @@ subroutine test_gfn2salt_api
    allocate(gradient(3,mol%n))
    energy = 0.0_wp
    gradient = 0.0_wp
-
-   lsalt = .true.
-   ion_rad = 1.0_wp
-   ionst = 1.0e-3_wp
 
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)

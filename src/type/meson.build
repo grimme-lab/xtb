@@ -39,7 +39,6 @@ srcs += files(
   'restart.f90',
   'setvar.f90',
   'solvation.f90',
-  'solvent.f90',
   'timer.f90',
   'topology.f90',
   'wavefunction.f90',

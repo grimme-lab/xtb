@@ -48,6 +48,7 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
 !  Class definitions
 ! ------------------------------------------------------------------------
+   use xtb_solv_gbsa, only : TBorn
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -66,7 +67,6 @@ subroutine peeq &
    use xtb_eeq
    use xtb_disp_ncoord
    use xtb_lineardep
-   use xtb_solv_gbobc
    use xtb_pbc
 
    implicit none

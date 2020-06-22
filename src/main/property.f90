@@ -84,13 +84,13 @@ subroutine main_property &
    use xtb_type_data
    use xtb_type_param
    use xtb_solv_model
+   use xtb_solv_gbsa, only : TBorn
    use xtb_xtb_data
    use xtb_intgrad
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_solv_gbobc
 
 !! ------------------------------------------------------------------------
    use xtb_aespot
@@ -1207,7 +1207,7 @@ end subroutine print_thermo_sthr_ts
 subroutine print_gbsa_info(iunit,gbsa)
    use xtb_mctc_constants
    use xtb_mctc_convert
-   use xtb_solv_gbobc
+   use xtb_solv_gbsa, only : TBorn
    implicit none
    integer, intent(in) :: iunit
    type(TBorn), intent(in) :: gbsa

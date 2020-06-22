@@ -281,7 +281,6 @@ end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
    use xtb_readin, only : bool2string
-   use xtb_solv_gbobc, only: ionst,ion_rad
    use xtb_mctc_convert, only : autoaa
    implicit none
    integer,intent(in) :: ictrl
@@ -1818,7 +1817,6 @@ end subroutine set_reactor
 
 subroutine set_gbsa(env,key,val)
    use xtb_mctc_convert, only : aatoau
-   use xtb_solv_gbobc, only: lsalt,ionst,ion_rad
    implicit none
    character(len=*), parameter :: source = 'set_gbsa'
    type(TEnvironment), intent(inout) :: env
@@ -1845,7 +1843,6 @@ subroutine set_gbsa(env,key,val)
    case('ion_st')
       if (getValue(env,val,ddum).and.set2) then
          solvInput%ionStrength = ddum
-         if (ionst.gt.0.0_wp) lsalt = .true.
       endif
       set2 = .false.
    case('ion_rad')

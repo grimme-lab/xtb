@@ -744,12 +744,13 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
       select type(solvation)
       type is (TBorn)
+         if (xtbData%level == 1) then
+            call mctc_gemv(solvation%bornMat, cm5, solvation%shift)
+            call mctc_gemv(dcm5a, solvation%shift, gradient, beta=1.0_wp)
+         end if
          call solvation%getEnergyParts(env, cm5, wfn%qsh, gborn, ghb, gsasa, &
             & gshift)
          gsolv = gborn+gsasa+ghb+gshift
-         if (xtbData%level == 1) then
-            call mctc_gemv(dcm5a, solvation%shift, gradient, beta=1.0_wp)
-         end if
       end select
    endif
 

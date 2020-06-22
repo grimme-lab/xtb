@@ -590,7 +590,7 @@ subroutine getEnergyParts(self, env, qat, qsh, gborn, ghb, gsasa, gshift)
       end do
    end if
 
-   call mctc_symv(self%bornMat, qat, self%shift, alpha=0.5_wp, beta=1.0_wp)
+   call mctc_symv(self%bornMat, qat, self%shift, alpha=0.5_wp)
    gborn = mctc_dot(qat, self%shift) - ghb
 
    gsasa = self%gsasa
