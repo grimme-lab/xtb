@@ -259,3 +259,313 @@ subroutine test_gfnff_gbsa
 
    call terminate(afail)
 end subroutine test_gfnff_gbsa
+
+
+subroutine test_gfnff_mindless_basic
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(10) = [&
+      & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
+      & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
+   real(wp), parameter :: ref_energies(10) = &
+      &[-1.6235670601725_wp, -1.2974060907872_wp, -1.5825072926857_wp, &
+      & -1.6086171378897_wp, -1.5093596077875_wp, -1.6076220027918_wp, &
+      & -1.7328634195448_wp, -1.8875339867396_wp, -1.3924627411455_wp, &
+      & -1.9583702712389_wp]
+   real(wp), parameter :: ref_gnorms(10) = &
+      &[0.11714711890640_wp, 0.08933168067298_wp, 0.15687133018871_wp, &
+      & 0.09820451651462_wp, 0.08460010429134_wp, 0.08787739425161_wp, &
+      & 0.12463658172704_wp, 0.10062734775717_wp, 0.06353106786225_wp, &
+      & 0.09445561400996_wp]
+
+   call init(env)
+   do iMol = 1, 10
+      if (afail > 0) exit
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call delete_file('charges')
+      call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+end subroutine test_gfnff_mindless_basic
+
+
+subroutine test_gfnff_mindless_solvation
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(10) = [&
+      & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
+      & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
+   character(len=*), parameter :: solvents(10) = [character(len=20) ::&
+      & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
+      & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
+   real(wp), parameter :: ref_energies(10) = &
+      &[-1.6540916426629_wp, -1.3143056510098_wp, -1.6141899469716_wp, &
+      & -1.6204572392623_wp, -1.5288738676799_wp, -1.6293089943213_wp, &
+      & -1.7562513711414_wp, -1.9034123090085_wp, -1.4068602657374_wp, &
+      & -1.9722601751413_wp]
+   real(wp), parameter :: ref_gnorms(10) = &
+      &[0.11594122130461_wp, 0.08871796411903_wp, 0.15190830479600_wp, &
+      & 0.09873901233954_wp, 0.08427306878219_wp, 0.08670875610818_wp, &
+      & 0.11948602245812_wp, 0.10022284156198_wp, 0.06293974560862_wp, &
+      & 0.09564569352042_wp]
+
+   call init(env)
+   do iMol = 1, 10
+      if (afail > 0) exit
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call delete_file('charges')
+      call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+      call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
+         & alpb=mod(iMol, 2)==0))
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+end subroutine test_gfnff_mindless_solvation
+
+
+subroutine test_gfnff_scaleup
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: molecules(5) = [character(len=20) ::&
+      & "caffeine", "rivaroxaban", "grubbs", "remdesivir", "taxol"]
+   character(len=*), parameter :: solvents(5) = [character(len=20) ::&
+      & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
+   real(wp), parameter :: ref_energies(5) = &
+      &[-4.6919926039901_wp, -8.8811415532127_wp, -13.311107073100_wp, &
+      & -13.822813542638_wp, -20.575179994579_wp]
+   real(wp), parameter :: ref_gnorms(5) = &
+      &[0.05947676640487_wp, 0.09532763760008_wp, 0.16195989065950_wp, &
+      & 0.12497794198721_wp, 0.19334610335377_wp]
+
+   call init(env)
+   do iMol = 1, 5, 2
+      if (afail > 0) exit
+
+      call getMolecule(mol, trim(molecules(iMol)))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call delete_file('charges')
+      call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+      call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
+         & alpb=mod(iMol, 2)==0))
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+
+end subroutine test_gfnff_scaleup
+
+
+subroutine test_gfnff_pdb
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+   real(wp), parameter :: ref_energies(3) = &
+      &[-12.356361980252_wp, -12.440066554002_wp, -12.439608043754_wp]
+   real(wp), parameter :: ref_gnorms(3) = &
+      &[0.15856840437592_wp, 0.15154373066884_wp, 0.15156565779676_wp]
+
+   call init(env)
+   do iMol = 1, 3
+      if (afail > 0) exit
+
+      call getMolecule(mol, 'pdb-4qxx')
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call delete_file('charges')
+      call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+      if (iMol > 1) then
+         call addSolvationModel(env, calc, TSolvInput(solvent='h2o', &
+            & alpb=iMol==3))
+      end if
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+end subroutine test_gfnff_pdb

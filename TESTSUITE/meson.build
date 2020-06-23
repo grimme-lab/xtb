@@ -17,6 +17,7 @@
 
 xtb_test = files(
   'assertion.f90',
+  'molstock.f90',
   'coordinationnumber.f90',
   'coulomb.f90',
   'eeq.f90',
@@ -143,6 +144,8 @@ test('DFT-D4: neighbourlist', xtb_test, args: ['dftd4', 'pbc3dneighs'], env: xtb
 test('DFT-D4: threebody (LP)', xtb_test, args: ['dftd4', 'pbc3datmlatp'], env: xtbenv, timeout: test_timeout)
 test('DFT-D4: threebody (NL)', xtb_test, args: ['dftd4', 'pbc3datmneighs'], env: xtbenv, timeout: test_timeout)
 
+test('GFN2-xTB: Basic', xtb_test, args: ['gfn2', 'basic'], env: xtbenv, timeout: test_timeout)
+test('GFN2-xTB: Solvation', xtb_test, args: ['gfn2', 'solvation'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: SCC', xtb_test, args: ['gfn2', 'scc'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: API', xtb_test, args: ['gfn2', 'api'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv, timeout: test_timeout)
@@ -160,6 +163,8 @@ if cc.get_id() == 'intel'
   )
 endif
 
+test('GFN1-xTB: Basic', xtb_test, args: ['gfn1', 'basic'], env: xtbenv, timeout: test_timeout)
+test('GFN1-xTB: Solvation', xtb_test, args: ['gfn1', 'solvation'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: SCC', xtb_test, args: ['gfn1', 'scc'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: API', xtb_test, args: ['gfn1', 'api'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: XB', xtb_test, args: ['gfn1', 'xb'], env: xtbenv, timeout: test_timeout)
@@ -167,6 +172,8 @@ test('GFN1-xTB: PBC', xtb_test, args: ['gfn1', 'pbc3d'], env: xtbenv, timeout: t
 test('GFN1-xTB: API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv, timeout: test_timeout)
 
+test('GFN0-xTB: Basic', xtb_test, args: ['gfn0', 'basic'], env: xtbenv, timeout: test_timeout)
+test('GFN0-xTB: Solvation', xtb_test, args: ['gfn0', 'solvation'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: SP', xtb_test, args: ['gfn0', 'sp'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: API', xtb_test, args: ['gfn0', 'api'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: SRB', xtb_test, args: ['gfn0', 'srb'], env: xtbenv, timeout: test_timeout)
@@ -174,6 +181,10 @@ test('GFN0-xTB: SP  (PBC)', xtb_test, args: ['peeq', 'sp'], env: xtbenv, timeout
 test('GFN0-xTB: API (PBC)', xtb_test, args: ['peeq', 'api'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: SRB (PBC)', xtb_test, args: ['peeq', 'srb'], env: xtbenv, timeout: test_timeout)
 
+test('GFN-FF: Basic', xtb_test, args: ['gfnff', 'basic'], env: xtbenv, timeout: test_timeout)
+test('GFN-FF: Solvation', xtb_test, args: ['gfnff', 'solvation'], env: xtbenv, timeout: test_timeout)
 test('GFN-FF: SP', xtb_test, args: ['gfnff', 'sp'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF: SP (HB)', xtb_test, args: ['gfnff', 'hb'], env: xtbenv, timeout: test_timeout)
+test('GFN-FF: HB', xtb_test, args: ['gfnff', 'hb'], env: xtbenv, timeout: test_timeout)
 test('GFN-FF: GBSA', xtb_test, args: ['gfnff', 'gbsa'], env: xtbenv, timeout: test_timeout)
+test('GFN-FF: Scale-up', xtb_test, args: ['gfnff', 'scaleup'], env: xtbenv, timeout: test_timeout)
+test('GFN-FF: PDB', xtb_test, args: ['gfnff', 'pdb'], env: xtbenv, timeout: test_timeout)
