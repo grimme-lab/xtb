@@ -15,15 +15,15 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> 
+!> Initialize default values for global variables
 module xtb_main_defaults
    use xtb_mctc_accuracy, only : wp
    use xtb_embedding, only : init_pcem
    use xtb_type_calculator, only : TCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_setparam, only : temp_md, gfn_method, ngrida, solvent, opt_engine, &
-      & p_engine_lbfgs, p_engine_rf, silent
+   use xtb_setparam, only : opt_engine, p_engine_lbfgs, p_engine_rf, silent, &
+      & solvInput
    use xtb_main_setup, only : addSolvationModel
    implicit none
    private
@@ -49,8 +49,10 @@ subroutine initDefaults(env, calc, mol, gsolvstate)
       end if
    end if
 
+   solvInput%state = gsolvstate
+
    ! Optionally add a solvation model
-   call addSolvationModel(env, calc, solvent, gsolvstate, temp_md, ngrida, .not.silent)
+   call addSolvationModel(env, calc, solvInput)
 
    ! initialize PC embedding (set default file names and stuff)
    call init_pcem

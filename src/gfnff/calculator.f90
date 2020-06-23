@@ -18,11 +18,12 @@
 !> Force field calculator
 module xtb_gfnff_calculator
    use xtb_mctc_accuracy, only : wp
+   use xtb_solv_gbsa, only : TBorn, init
+   use xtb_solv_model, only : info, newBornModel
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_type_solvent, only : TSolvent
    use xtb_type_restart
    use xtb_type_wsc, only : tb_wsc
    use xtb_setparam
@@ -79,7 +80,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
    !> Source of the generated errors
-   character(len=*), parameter :: source = 'type_calculator_singlepoint'
+   character(len=*), parameter :: source = 'gfnff_calculator_singlepoint'
 
    !> Calculator instance
    class(TGFFCalculator), intent(inout) :: self
@@ -114,7 +115,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !> Detailed results
    type(scc_results), intent(out) :: results
 
-   type(TSolvent), allocatable :: solv
+   type(TBorn), allocatable :: solvation
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix
@@ -131,14 +132,15 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    hlgap = 0.0_wp
    efix = 0.0_wp
 
-   if (self%lSolv) then
-      allocate(solv)
+   if (allocated(self%solvation)) then
+      allocate(solvation)
+      call newBornModel(self%solvation, env, solvation, mol%at)
    end if
 
    ! ------------------------------------------------------------------------
    !  actual calculation
    call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,self%param,self%topo,solv,self%update, &
+      & gradient,energy,results,self%param,self%topo,solvation,self%update, &
       & self%version,self%accuracy)
 
    call env%check(exitRun)
@@ -178,7 +180,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.allocated(solv)) then
+      if (.not.silent.and.allocated(solvation)) then
          write(env%unit,outfmt) "total w/o Gsolv   ", &
             &  results%e_total-results%g_solv, "Eh   "
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
@@ -187,7 +189,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
       if (.not.silent) then
          write(env%unit,'(9x,"::",49("."),"::")')
-         call print_gfnff_results(env%unit,results,verbose,allocated(solv))
+         call print_gfnff_results(env%unit,results,verbose,allocated(solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
@@ -239,6 +241,10 @@ subroutine writeInfo(self, unit, mol)
    case(p_ext_gfnff)
      call gfnff_header(unit,self%version)
    end select
+
+   if (allocated(self%solvation)) then
+      call info(self%solvation, unit)
+   end if
 
 end subroutine writeInfo
 

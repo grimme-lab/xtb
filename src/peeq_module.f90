@@ -48,6 +48,7 @@ subroutine peeq &
 ! ------------------------------------------------------------------------
 !  Class definitions
 ! ------------------------------------------------------------------------
+   use xtb_solv_gbsa, only : TBorn
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_wavefunction
@@ -66,7 +67,6 @@ subroutine peeq &
    use xtb_eeq
    use xtb_disp_ncoord
    use xtb_lineardep
-   use xtb_solv_gbobc
    use xtb_pbc
 
    implicit none
@@ -93,7 +93,7 @@ subroutine peeq &
    real(wp),intent(inout)                    :: egap !< HOMO-LUMO gap
    real(wp),intent(inout),dimension(3,mol%n) :: gradient    !< molecular gradient
    type(TWavefunction),intent(inout)       :: wfn  !< TB-wavefunction
-   type(TSolvent),allocatable,intent(inout) :: gbsa
+   type(TBorn),allocatable,intent(inout) :: gbsa
 ! ------------------------------------------------------------------------
 !  OUTPUT
 ! ------------------------------------------------------------------------
@@ -361,12 +361,10 @@ subroutine peeq &
 
    if (allocated(gbsa)) then
       if (profile) call timer%measure(9,"GBSA setup")
-      call new_gbsa(gbsa,mol%n,mol%at)
-      call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
       ! compute Born radii
-      call compute_brad_sasa(gbsa,mol%xyz)
+      call gbsa%update(env, mol%at, mol%xyz)
       ! add SASA term to energy and gradient
-      ees = gbsa%gsasa
+      ees = gbsa%gsasa + gbsa%gshift
       gsolv = gbsa%gsasa
       gradient = gradient + gbsa%dsdr
       if (profile) call timer%measure(9)
@@ -594,7 +592,7 @@ subroutine peeq &
       !res%g_born  = gborn    ! not returned
       res%g_sasa  = gbsa%gsasa
       !res%g_hb    = gbsa%ghb ! not returned
-      res%g_shift = gshift
+      res%g_shift = gbsa%gshift
    endif
    ! do NOT calculate the dipole moment from the density, because it's really bad
    res%dipole  = matmul(mol%xyz,wfn%q)

@@ -18,8 +18,10 @@
 !! ------------------------------------------------------------------------
 !  reimplementation of the CM5 charges
 !! ------------------------------------------------------------------------
-subroutine calc_cm5(nat,at,xyz,cm5,dcm5dr)
+module xtb_solv_cm5
    use xtb_mctc_accuracy, only : wp
+contains
+subroutine calc_cm5(nat,at,xyz,cm5,dcm5dr)
 use xtb_mctc_convert
 implicit none
 integer, intent(in)  :: nat
@@ -126,3 +128,6 @@ do iat=1,nat
 enddo
 
 end subroutine calc_cm5
+
+
+end module xtb_solv_cm5

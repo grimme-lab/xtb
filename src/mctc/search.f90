@@ -24,19 +24,71 @@ module xtb_mctc_search
    public :: bisectSearch
 
 
+   interface bisectSearch
+      module procedure :: bisectSearchReal
+      module procedure :: bisectSearchInteger
+   end interface bisectSearch
+
+
 contains
 
 
-!> real case for bisection search
-pure subroutine bisectSearch(j, xx, x, tol)
+!> Integer case for bisection search
+pure subroutine bisectSearchInteger(j, xx, x)
 
-   !> located element such that xx(j) < x < xx(j+1)
+   !> Located element such that xx(j) <= x < xx(j+1)
    integer, intent(out) :: j
 
-   !> array of values in monotonic order to search through
+   !> Array of values in monotonic order to search through
+   integer, intent(in) :: xx(:)
+
+   !> Value to locate j for
+   integer, intent(in) :: x
+
+   integer :: n
+   integer :: jlower, jupper, jcurr
+
+   n = size(xx)
+   if (n == 0) then
+      j = 0
+      return
+   end if
+
+   if (x < xx(1)) then
+      j = 0
+   else if (x == xx(1)) then
+      j = 1
+   else if (x == xx(n)) then
+      j = n - 1
+   else if (x > xx(n)) then
+      j = n
+   else
+      jlower=0
+      jcurr=n+1
+      do while ((jcurr-jlower) > 1)
+         jupper=(jcurr+jlower)/2
+         if((xx(n) >= xx(1)).eqv.(x >= xx(jupper)))then
+            jlower = jupper
+         else
+            jcurr = jupper
+         end if
+      end do
+      j = jlower
+   end if
+
+end subroutine bisectSearchInteger
+
+
+!> Real case for bisection search
+pure subroutine bisectSearchReal(j, xx, x, tol)
+
+   !> Located element such that xx(j) <= x < xx(j+1)
+   integer, intent(out) :: j
+
+   !> Array of values in monotonic order to search through
    real(wp), intent(in) :: xx(:)
 
-   !> value to locate j for
+   !> Value to locate j for
    real(wp), intent(in) :: x
 
    !> Tolerance for equality comparision
@@ -82,7 +134,7 @@ pure subroutine bisectSearch(j, xx, x, tol)
       j = jlower
    end if
 
-end subroutine bisectSearch
+end subroutine bisectSearchReal
 
 
 end module xtb_mctc_search

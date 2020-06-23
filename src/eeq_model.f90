@@ -1005,7 +1005,7 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    use xtb_type_param
 
    use xtb_disp_ncoord
-   use xtb_solv_gbobc
+   use xtb_solv_gbsa, only : TBorn
 
    use xtb_pbc_tools
 
@@ -1017,7 +1017,7 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
 !  Input
 ! ------------------------------------------------------------------------
    type(TMolecule),intent(in) :: mol     !< molecular structure information
-   type(TSolvent), intent(in) :: gbsa
+   type(TBorn), intent(in) :: gbsa
    real(wp),intent(in)    :: cn(mol%n)     ! erf-CN
    real(wp),intent(in)    :: dcndr(3,mol%n,mol%n) ! derivative of erf-CN
    logical, intent(in)    :: lverbose      ! toggles printout
@@ -1131,7 +1131,7 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
 
    call get_coulomb_matrix(mol, chrgeq, Amat)
 
-   call compute_amat(gbsa,Amat)
+   Amat(:mol%n, :mol%n) = Amat(:mol%n, :mol%n) + gbsa%bornMat
 
 ! ------------------------------------------------------------------------
 !  solve the linear equations to obtain partial charges
@@ -1184,7 +1184,7 @@ subroutine eeq_chrgeq_gbsa(mol,env,chrgeq,gbsa,cn,dcndr,q,dqdr, &
    call mctc_copy(Xvec, work)
    call mctc_symv(Amat, Xtmp, work, alpha=0.5_wp, beta=-1.0_wp)
    es = mctc_dot(Xtmp, work)
-   energy = es + energy + gshift
+   energy = es + energy
    if (lverbose) then
       write(istdout,'(72("-"))')
       write(istdout,'(1x,a,1x,f20.14)') &
@@ -1207,8 +1207,8 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
    do i = 1, mol%n
       dAmatdr(:,:,i) = dAmatdr(:,:,i) - dcndr(:,:,i)*Xfac(i)
    enddo
-   call compute_gb_damat(gbsa,Xtmp,gborn,ghb,dAmatdr,Afac,lverbose)
-   gsolv = gsolv + gborn + ghb + gshift
+   call gbsa%addBornDeriv(Xtmp, gborn, ghb, dAmatdr, Afac)
+   gsolv = gsolv + gborn + ghb + gbsa%gshift
 endif do_molecular_gradient
 
    if (lgrad) then

@@ -295,7 +295,7 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall,lsolv)
          &   '' > tmp'')') idint(time_md),temp2
       if(lsolv) &
          &   write(atmp,'(''qmdff coord -rd -md '',i4,'' -temp '',F6.1, &
-         &   '' -gbsa '',a20,'' > tmp'')') idint(time_md),temp2,solvent
+         &   '' -gbsa '',a20,'' > tmp'')') idint(time_md),temp2,solvInput%solvent
       write(*,*)'QMDFF call:',trim(atmp)
       call execute_command_line(atmp)                                ! run qmdff
       temp2=temp2+(temp-tstart)/(ntemp_siman-1.)

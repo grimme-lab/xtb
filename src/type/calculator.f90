@@ -18,11 +18,11 @@
 !> abstract calculator that hides implementation details from calling codes
 module xtb_type_calculator
    use xtb_mctc_accuracy, only : wp
+   use xtb_solv_model, only : TSolvModel
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart, only : TRestart
-   use xtb_type_solvent, only : TSolvent
    implicit none
 
    public :: TCalculator
@@ -34,6 +34,7 @@ module xtb_type_calculator
 
       real(wp) :: accuracy
       logical :: lSolv = .false.
+      type(TSolvModel), allocatable :: solvation
 
    contains
 

@@ -19,6 +19,8 @@
 module xtb_main_setup
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_systools, only : rdpath
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_model, only : init
    use xtb_type_calculator, only : TCalculator
    use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
@@ -38,7 +40,6 @@ module xtb_main_setup
    use xtb_setparam
    use xtb_disp_ncoord
    use xtb_chargemodel
-   use xtb_solv_gbobc, only : initGBSA
    implicit none
    private
 
@@ -321,43 +322,11 @@ subroutine newWavefunction_(env, mol, calc, wfn)
 end subroutine newWavefunction_
 
 
-subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
+subroutine addSolvationModel(env, calc, input)
    type(TEnvironment), intent(inout) :: env
    class(TCalculator), intent(inout) :: calc
-   character(len=*), intent(in) :: solvent
-   integer, intent(in), optional :: state
-   real(wp), intent(in), optional :: temp
-   integer, intent(in), optional :: nang
-   logical, intent(in), optional :: verbose
-   integer :: solvState
-   real(wp) :: temperature
-   integer :: gridSize
+   type(TSolvInput), intent(in) :: input
    integer :: level
-   logical :: pr
-
-   if (present(state)) then
-      solvState = state
-   else
-      solvState = 0
-   end if
-
-   if (present(temp)) then
-      temperature = temp
-   else
-      temperature = 298.15_wp
-   end if
-
-   if (present(nang)) then
-      gridSize = nang
-   else
-      gridSize = ngrida
-   end if
-
-   if (present(verbose)) then
-      pr = verbose
-   else
-      pr = .false.
-   end if
 
    level = 0
    select type(calc)
@@ -365,11 +334,15 @@ subroutine addSolvationModel(env, calc, solvent, state, temp, nang, verbose)
       level = calc%xtbData%level
    end select
 
+   if (allocated(input%solvent)) then
+      calc%lSolv = input%solvent /= 'none'
+   else
+      calc%lSolv = .false.
+   end if
 
-   calc%lSolv = len_trim(solvent).gt.0 .and. solvent.ne."none"
    if (calc%lSolv) then
-      call initGBSA(env, trim(solvent), solvState, temperature, level, &
-         & gridSize, alpb, solvKernel, pr)
+      allocate(calc%solvation)
+      call init(calc%solvation, env, input, level)
    endif
 
 end subroutine addSolvationModel

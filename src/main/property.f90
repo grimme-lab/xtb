@@ -19,6 +19,7 @@ module xtb_propertyoutput
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_mctc_symbols, only : toSymbol
+   use xtb_solv_cm5
    use xtb_cube
    use xtb_topology
 
@@ -70,7 +71,7 @@ subroutine write_energy_gff(iunit,sccres,frqres,hess)
 end subroutine write_energy_gff
 
 subroutine main_property &
-      (iunit,mol,wfx,basis,xtbData,res,lgbsa,acc)
+      (iunit,env,mol,wfx,basis,xtbData,res,solvModel,acc)
 
    use xtb_mctc_convert
 
@@ -78,16 +79,18 @@ subroutine main_property &
 !  load class definitions
    use xtb_type_molecule
    use xtb_type_wavefunction
+   use xtb_type_environment
    use xtb_type_basisset
    use xtb_type_data
    use xtb_type_param
+   use xtb_solv_model
+   use xtb_solv_gbsa, only : TBorn
    use xtb_xtb_data
    use xtb_intgrad
 
 !! ========================================================================
 !  global storage of options, parameters and basis set
    use xtb_setparam
-   use xtb_solv_gbobc
 
 !! ------------------------------------------------------------------------
    use xtb_aespot
@@ -99,12 +102,13 @@ subroutine main_property &
    integer, intent(in) :: iunit ! file handle (usually output_unit=6)
 !  molecule data
    type(TMolecule), intent(in) :: mol
+   type(TEnvironment), intent(inout) :: env
    type(TxTBData), intent(in) :: xtbData
    real(wp),intent(in) :: acc      ! accuracy of integral calculation
    type(TWavefunction),intent(inout) :: wfx
    type(TBasisset),    intent(in) :: basis
    type(scc_results),    intent(in) :: res
-   logical, intent(in) :: lgbsa
+   type(TSolvModel), allocatable, intent(in) :: solvModel
 
    real(wp),allocatable :: S(:,:)     ! overlap integrals
    real(wp),allocatable :: dpint(:,:,:) ! dipole integrals
@@ -117,7 +121,7 @@ subroutine main_property &
    real(wp) :: dip,dipol(3)
    real(wp) :: intcut,neglect
 
-   type(TSolvent) :: gbsa
+   type(TBorn) :: gbsa
 
 !  primitive cut-off
    intcut=25.0_wp-10.0*log10(acc)
@@ -150,10 +154,9 @@ subroutine main_property &
    endif
 
    ! GBSA information
-   if (lgbsa.and.pr_gbsa) then
-      call new_gbsa(gbsa,mol%n,mol%at)
-      call update_nnlist_gbsa(gbsa,mol%xyz,.false.)
-      call compute_brad_sasa(gbsa,mol%xyz)
+   if (allocated(solvModel).and.pr_gbsa) then
+      call newBornModel(solvModel, env, gbsa, mol%at)
+      call gbsa%update(env, mol%at, mol%xyz)
       call print_gbsa_info(iunit,gbsa)
    endif
 
@@ -1204,10 +1207,10 @@ end subroutine print_thermo_sthr_ts
 subroutine print_gbsa_info(iunit,gbsa)
    use xtb_mctc_constants
    use xtb_mctc_convert
-   use xtb_solv_gbobc
+   use xtb_solv_gbsa, only : TBorn
    implicit none
    integer, intent(in) :: iunit
-   type(TSolvent), intent(in) :: gbsa
+   type(TBorn), intent(in) :: gbsa
 
    integer :: i
 

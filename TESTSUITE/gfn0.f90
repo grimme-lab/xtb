@@ -13,7 +13,7 @@ subroutine test_gfn0_sp
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
-   use xtb_type_solvent
+   use xtb_solv_gbsa
 
    use xtb_setparam
    use xtb_basis
@@ -52,7 +52,7 @@ subroutine test_gfn0_sp
    type(TBasisset)     :: basis
    type(TWavefunction) :: wfn
    type(TxTBData) :: xtbData
-   type(TSolvent), allocatable :: gbsa
+   type(TBorn), allocatable :: gbsa
 
    real(wp) :: etot,egap,sigma(3,3)
    real(wp), allocatable :: g(:,:)

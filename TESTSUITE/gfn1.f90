@@ -12,7 +12,8 @@ subroutine test_gfn1_scc
    use xtb_type_data
    use xtb_type_pcem
    use xtb_type_environment
-   use xtb_type_solvent
+   use xtb_type_solvation
+   use xtb_solv_gbsa
 
    use xtb_setparam
    use xtb_basis
@@ -46,7 +47,7 @@ subroutine test_gfn1_scc
    type(TWavefunction) :: wfn
    type(tb_pcem)         :: pcem
    type(TxTBData) :: xtbData
-   type(TSolvent), allocatable :: gbsa
+   class(TSolvation), allocatable :: solvation
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -81,7 +82,7 @@ subroutine test_gfn1_scc
 
    g = 0.0_wp
 
-   call scf(env,mol,wfn,basis,pcem,xtbData,gbsa, &
+   call scf(env,mol,wfn,basis,pcem,xtbData,solvation, &
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)
@@ -198,6 +199,7 @@ subroutine test_gfn1gbsa_api
    use xtb_type_data
    use xtb_type_restart
    use xtb_type_environment
+   use xtb_solv_input
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
@@ -241,7 +243,7 @@ subroutine test_gfn1gbsa_api
 
    call newXTBCalculator(env, mol, calc, method=1)
    call newWavefunction(env, mol, calc, wfn)
-   call addSolvationModel(env, calc, opt%solvent)
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
 
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)

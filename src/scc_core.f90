@@ -23,6 +23,7 @@ module xtb_scc_core
    use xtb_mctc_blas, only : blas_gemm, blas_symm, blas_symv
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
+   use xtb_type_solvation, only : TSolvation
    use xtb_xtb_data
    use xtb_xtb_coulomb
    use xtb_xtb_dispersion
@@ -31,7 +32,7 @@ module xtb_scc_core
    implicit none
    private
 
-   public :: build_h0, scc, electro, electro_gbsa, solve, solve4
+   public :: build_h0, scc, electro, solve, solve4
    public :: fermismear, occ, occu, dmat
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
@@ -229,7 +230,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
       &        q,dipm,qp,qq,qlmom,qsh,zsh, &
       &        xyz,aes, &
-      &        gbsa,fgb,cm5,cm5a,gborn, &
+      &        cm5,cm5a,gborn,solvation, &
       &        scD4, &
       &        broy,broydamp,damp0, &
       &        pcem,shellShift,externShift, &
@@ -241,7 +242,6 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       &        fail,jter)
    use xtb_mctc_convert, only : autoev,evtoau
 
-   use xtb_solv_gbobc,  only : TSolvent
    use xtb_disp_dftd4,  only: disppot,edisp_scc
    use xtb_aespot, only : gfn2broyden_diff,gfn2broyden_out,gfn2broyden_save, &
    &                  mmompop,aniso_electro,setvsdq
@@ -298,8 +298,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    real(wp), allocatable :: vq(:, :)
 !! ------------------------------------------------------------------------
 !  continuum solvation model GBSA
-   type(TSolvent), allocatable, intent(inout) :: gbsa
-   real(wp),intent(inout) :: fgb(n,n)
+   class(TSolvation), allocatable, intent(inout) :: solvation
    real(wp),intent(in)    :: cm5a(n)
    real(wp),intent(inout) :: cm5(n)
    real(wp),intent(inout) :: gborn
@@ -409,9 +408,9 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
    end if
    ! Solvation contributions
-   if (allocated(gbsa)) then
+   if (allocated(solvation)) then
       cm5(:) = q + cm5a
-      call setespot(n, cm5, fgb, atomicShift)
+      call solvation%addShift(env, cm5, qsh, atomicShift, shellShift)
    end if
    ! self consistent dispersion contributions
    if (present(scD4)) then
@@ -511,10 +510,11 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    end if
 
    ! new cm5 charges and gborn energy
-   if(allocated(gbsa)) then
+   if (allocated(solvation)) then
       cm5=q+cm5a
-      call electro_gbsa(n,at,fgb,cm5,gborn,eel)
-   endif
+      call solvation%getEnergy(env, cm5, qsh, gborn)
+      eel = eel + gborn
+   end if
 
    ! add el. entropies*T
    eel=eel+ga+gb
@@ -585,7 +585,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    call qsh2qat(ash, qsh, q) !new qat
 
-   if(allocated(gbsa)) cm5 = q+cm5a
+   if(allocated(solvation)) cm5 = q+cm5a
 
    if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
@@ -688,49 +688,6 @@ pure subroutine electro(n,at,nbf,nshell,ies,H0,P,dq,dqsh,es,scc)
    scc = es + 2.0_wp*h*evtoau
 
 end subroutine electro
-
-
-!! ========================================================================
-!  GBSA related subroutine
-!! ========================================================================
-pure subroutine electro_gbsa(n,at,gab,dqsh,es,scc)
-   use xtb_mctc_convert, only : evtoau
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: gab(n,n)
-   real(wp),intent(in)  :: dqsh(n)
-   real(wp),intent(out) :: es
-   real(wp),intent(inout) :: scc
-
-   integer :: i,j,k
-   real(wp)  :: h,t
-   real(wp)  :: ehb
-
-!  second order non-diagonal
-   es =0
-   do i=1,n-1
-      do j=i+1,n
-         es =es + dqsh(i)*dqsh(j)*gab(j,i)
-      enddo
-   enddo
-
-   es=es*2.0d0
-
-!  second-order diagonal term + HB contribution
-   do i=1,n
-      es =es + dqsh(i)*dqsh(i)*gab(i,i)
-   enddo
-
-!  ES energy in Eh
-   es=0.5*es
-
-!  HB energy in Eh
-   ehb=ehb
-
-!  Etotal in Eh
-   scc = scc + es + ehb
-
-end subroutine electro_gbsa
 
 
 !! ========================================================================
