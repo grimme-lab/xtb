@@ -742,3 +742,92 @@ subroutine test_gfn2_dmetal
    call terminate(afail)
 
 end subroutine test_gfn2_dmetal
+
+
+subroutine test_gfn2_mindless_cosmo
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   character(len=*), parameter :: mindless(10) = [&
+      & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
+      & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
+   character(len=*), parameter :: solvents(10) = [character(len=20) ::&
+      & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
+      & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
+   real(wp), parameter :: ref_energies(10) = &
+      &[-30.424333930237_wp, -24.114902871038_wp, -23.777177406826_wp, &
+      & -22.775402161626_wp, -27.760424622429_wp, -18.586841906143_wp, &
+      & -33.446029241998_wp, -30.003554890640_wp, -20.569045734767_wp, &
+      & -25.680626224496_wp]
+   real(wp), parameter :: ref_gnorms(10) = &
+      &[0.063926248159751_wp, 0.056751494292785_wp, 0.041584370884149_wp, &
+      & 0.073500772338236_wp, 0.045751862894852_wp, 0.050600225804789_wp, &
+      & 0.044676428566007_wp, 0.056639996611309_wp, 0.055832410695595_wp, &
+      & 0.048264563287080_wp]
+   real(wp), parameter :: ref_hlgaps(10) = &
+      &[2.7165564717490_wp, 1.4061577629347_wp, 0.1771423194601_wp, &
+      & 1.2496346178430_wp, 2.0651525275433_wp, 2.3213124406696_wp, &
+      & 2.6758855396281_wp, 0.8357204230078_wp, 3.3405583451719_wp, &
+      & 0.3970686123381_wp]
+
+   call init(env)
+   do iMol = 1, 2
+      if (afail > 0) exit
+
+      call getMolecule(mol, mindless(iMol))
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
+      call newWavefunction(env, mol, calc, chk)
+      call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
+         & cosmo=.true.))
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call assert_close(hl_gap, ref_hlgaps(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+end subroutine test_gfn2_mindless_cosmo
