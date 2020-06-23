@@ -71,6 +71,8 @@ program peeq_tester
       end select
    case('gfn2')
       select case(sec)
+      case('basic'); call test_gfn2_mindless_basic
+      case('solvation'); call test_gfn2_mindless_solvation
       case('scc'); call test_gfn2_scc
       case('api'); call test_gfn2_api
       case('gbsa'); call test_gfn2gbsa_api
@@ -79,6 +81,8 @@ program peeq_tester
       end select
    case('gfn1')
       select case(sec)
+      case('basic'); call test_gfn1_mindless_basic
+      case('solvation'); call test_gfn1_mindless_solvation
       case('scc'); call test_gfn1_scc
       case('api'); call test_gfn1_api
       case('gbsa'); call test_gfn1gbsa_api
@@ -88,12 +92,18 @@ program peeq_tester
       end select
    case('gfn0')
       select case(sec)
+      case('basic'); call test_gfn0_mindless_basic
+      case('solvation'); call test_gfn0_mindless_solvation
       case('sp');  call test_gfn0_sp
       case('api'); call test_gfn0_api
       case('srb'); call test_gfn0_api_srb
       end select
    case('gfnff')
       select case(sec)
+      case('basic'); call test_gfnff_mindless_basic
+      case('solvation'); call test_gfnff_mindless_solvation
+      case('scaleup'); call test_gfnff_scaleup
+      case('pdb'); call test_gfnff_pdb
       case('sp');  call test_gfnff_sp
       case('hb');  call test_gfnff_hb
       case('gbsa');call test_gfnff_gbsa

@@ -20,6 +20,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(tests
   "${dir}/tests_peeq.f90"
   "${dir}/assertion.f90"
+  "${dir}/molstock.f90"
   "${dir}/tbdef_molecule.f90"
   "${dir}/latticepoint.f90"
   "${dir}/tbdef_wsc.f90"
@@ -128,17 +129,23 @@ add_test("DFTD4_latticepoints" ${XTB-TESTER} dftd4 pbc3dlatp)
 add_test("DFTD4_neighbourlist" ${XTB-TESTER} dftd4 pbc3dneighs)
 add_test("DFTD4_threebody_lp" ${XTB-TESTER} dftd4 pbc3datmlatp)
 add_test("DFTD4_threebody_nl" ${XTB-TESTER} dftd4 pbc3datmneighs)
+add_test("GFN2-xTB_Basic" ${XTB-TESTER} gfn2 basic)
+add_test("GFN2-xTB_Solvation" ${XTB-TESTER} gfn2 solvation)
 add_test("GFN2-xTB_SCC" ${XTB-TESTER} gfn2 scc)
 add_test("GFN2-xTB_API" ${XTB-TESTER} gfn2 api)
 add_test("GFN2-xTB_API_GBSA" ${XTB-TESTER} gfn2 gbsa)
 add_test("GFN2-xTB_API_GBSA_salt" ${XTB-TESTER} gfn2 salt)
 #add_test("GFN2-xTB_API_PCEM" ${XTB-TESTER} gfn2 pcem)
+add_test("GFN1-xTB_Basic" ${XTB-TESTER} gfn1 basic)
+add_test("GFN1-xTB_Solvation" ${XTB-TESTER} gfn1 solvation)
 add_test("GFN1-xTB_SCC" ${XTB-TESTER} gfn1 scc)
 add_test("GFN1-xTB_API" ${XTB-TESTER} gfn1 api)
 add_test("GFN1-xTB_API_XB" ${XTB-TESTER} gfn1 xb)
 add_test("GFN1-xTB_API_PBC" ${XTB-TESTER} gfn1 pbc3d)
 add_test("GFN1-xTB_API_GBSA" ${XTB-TESTER} gfn1 gbsa)
 add_test("GFN1-xTB_API_PCEM" ${XTB-TESTER} gfn1 pcem)
+add_test("GFN0-xTB_Basic" ${XTB-TESTER} gfn0 basic)
+add_test("GFN0-xTB_Solvation" ${XTB-TESTER} gfn0 solvation)
 add_test("GFN0-xTB_SP" ${XTB-TESTER} gfn0 sp)
 add_test("GFN0-xTB_API" ${XTB-TESTER} gfn0 api)
 add_test("GFN0-xTB_SRB" ${XTB-TESTER} gfn0 srb)
@@ -146,8 +153,11 @@ add_test("GFN0-xTB_SP_PBC" ${XTB-TESTER} peeq sp)
 add_test("GFN0-xTB_API_PBC" ${XTB-TESTER} peeq api)
 add_test("GFN0-xTB_SRB_PBC" ${XTB-TESTER} peeq srb)
 
+add_test("GFN-FF_Basic" ${XTB-TESTER} gfnff basic)
+add_test("GFN-FF_Solvation" ${XTB-TESTER} gfnff solvation)
 add_test("GFN-FF_SP" ${XTB-TESTER} gfnff sp)
 add_test("GFN-FF_HB" ${XTB-TESTER} gfnff hb)
+add_test("GFN-FF_GBSA" ${XTB-TESTER} gfnff gbsa)
 
 add_test("CAPI" ${XTB-CTESTER})
 
@@ -169,14 +179,14 @@ set_tests_properties(EXE_Singlepoint
   "GFN1-xTB_API_PBC"
   "GFN1-xTB_API_GBSA"
   "GFN1-xTB_API_PCEM"
+  "GFN0-xTB_Basic"
+  "GFN0-xTB_Solvation"
   "GFN0-xTB_SP"
   "GFN0-xTB_API"
   "GFN0-xTB_SRB"
   "GFN0-xTB_SP_PBC"
   "GFN0-xTB_API_PBC"
   "GFN0-xTB_SRB_PBC"
-  "GFN-FF_SP"
-  "GFN-FF_HB"
   PROPERTIES
   ENVIRONMENT XTBPATH=${CMAKE_CURRENT_SOURCE_DIR}/..
 )
