@@ -19,6 +19,7 @@
 module xtb_solv_cosmo
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_blas, only : mctc_dot
+   use xtb_mctc_constants, only : fourpi
    use xtb_param_vdwradd3, only : getVanDerWaalsRadD3
    use xtb_solv_ddcosmo_core
    use xtb_solv_ddcosmo_solver
@@ -139,7 +140,7 @@ subroutine update(self, env, num, xyz)
    if (allocated(self%s)) deallocate(self%s)
 
    self%ddCosmo%TddControl = TddControl(iprint=0, lmax=6, ngrid=self%nAng, &
-      & iconv=7, igrad=1, eps=self%dielectricConst, eta=0.2_wp)
+      & iconv=8, igrad=1, eps=self%dielectricConst, eta=0.2_wp)
 
    call ddinit(self%ddCosmo, env, self%nat, xyz, self%rvdw)
 
@@ -186,7 +187,7 @@ subroutine addShift(self, env, qat, qsh, atomicShift, shellShift)
 
    call cosmo(self%ddCosmo, env, .true., self%phi, xx, self%sigma, restart)
 
-   keps = 0.5_wp * ((self%ddCosmo%eps - 1.0_wp)/self%ddCosmo%eps)
+   keps = 0.5_wp * ((self%ddCosmo%eps - 1.0_wp)/self%ddCosmo%eps) * sqrt(fourpi)
    atomicShift(:) = atomicShift + keps * self%sigma(1, :)
 
 end subroutine addShift
@@ -305,8 +306,7 @@ subroutine mkrhs(n, charge, xyz, ncav, ccav, phi, nylm, psi)
    real(wp) :: vec(3), d2, d, pi, fac
    real(wp), parameter :: zero=0.0_wp, one=1.0_wp, four=4.0_wp
 
-   pi  = 4.0_wp*atan(1.0_wp)
-   fac = sqrt(4.0_wp*pi)
+   fac = sqrt(fourpi)
    phi = 0.0_wp
    psi = 0.0_wp
 
@@ -462,7 +462,7 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma)
    real(wp), allocatable  :: g(:, :), rhs(:, :), work(:, :)
 
    ! parameters for the solver and matvec routine
-   tol     = 10.0_wp**(-ddCosmo%iconv)
+   tol     = 10.0_wp**(-ddCosmo%iconv-3)
    n_iter  = 200
 
    ! 1. INITIAL GUESS
