@@ -542,7 +542,7 @@ subroutine test_gfn2_mindless_basic
       & 0.4185654147579_wp]
 
    call init(env)
-   do iMol = 1, 10
+   do iMol = 1, 2
       if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
@@ -629,7 +629,7 @@ subroutine test_gfn2_mindless_solvation
       & 0.3859217429034_wp]
 
    call init(env)
-   do iMol = 1, 10
+   do iMol = 1, 2
       if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
