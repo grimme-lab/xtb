@@ -1360,9 +1360,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call args%nextArg(sec)
             if (allocated(sec)) then
                if (sec == 'reference') then
-                  gsolvstate = 1
+                  gsolvstate = solutionState%reference
                else if (sec == 'bar1M') then
-                  gsolvstate = 2
+                  gsolvstate = solutionState%mol1bar
                else
                   call env%warning("Unknown reference state '"//sec//"'", source)
                end if

@@ -412,7 +412,7 @@ subroutine test_gfn0_mindless_solvation
    character(len=*), parameter :: mindless(10) = [&
       & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
       & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
-   character(len=*), parameter :: solvents(10) = [&
+   character(len=*), parameter :: solvents(10) = [character(len=20) ::&
       & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
       & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
    real(wp), parameter :: ref_energies(10) = &

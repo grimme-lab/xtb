@@ -372,7 +372,7 @@ subroutine test_gfnff_mindless_solvation
    character(len=*), parameter :: mindless(10) = [&
       & "mindless01", "mindless02", "mindless03", "mindless04", "mindless05", &
       & "mindless06", "mindless07", "mindless08", "mindless09", "mindless10"]
-   character(len=*), parameter :: solvents(10) = [&
+   character(len=*), parameter :: solvents(10) = [character(len=20) ::&
       & "h2o", "chcl3", "thf", "acetonitrile", "toluene", &
       & "ch2cl2", "ether", "methanol", "cs2", "dmso"]
    real(wp), parameter :: ref_energies(10) = &
@@ -397,7 +397,7 @@ subroutine test_gfnff_mindless_solvation
 
       call delete_file('charges')
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
-      call addSolvationModel(env, calc, TSolvInput(solvent=solvents(iMol), &
+      call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
          & alpb=mod(iMol, 2)==0))
 
       call env%check(exitRun)
@@ -452,9 +452,9 @@ subroutine test_gfnff_scaleup
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
 
-   character(len=*), parameter :: molecules(5) = [&
+   character(len=*), parameter :: molecules(5) = [character(len=20) ::&
       & "caffeine", "rivaroxaban", "grubbs", "remdesivir", "taxol"]
-   character(len=*), parameter :: solvents(5) = [&
+   character(len=*), parameter :: solvents(5) = [character(len=20) ::&
       & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
    real(wp), parameter :: ref_energies(5) = &
       &[-4.6919926039901_wp, -8.8811415532127_wp, -13.311107073100_wp, &
