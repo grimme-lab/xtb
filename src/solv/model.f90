@@ -101,20 +101,20 @@ module xtb_solv_model
       real(wp) :: tmp(94) = 0.0_wp
    end type gbsa_parameter
 
-   include 'param_gbsa_acetone.inc'
-   include 'param_gbsa_acetonitrile.inc'
-   include 'param_gbsa_benzene.inc'
-   include 'param_gbsa_ch2cl2.inc'
-   include 'param_gbsa_chcl3.inc'
-   include 'param_gbsa_cs2.inc'
-   include 'param_gbsa_dmso.inc'
-   include 'param_gbsa_ether.inc'
-   include 'param_gbsa_h2o.inc'
-   include 'param_gbsa_methanol.inc'
-   include 'param_gbsa_thf.inc'
-   include 'param_gbsa_toluene.inc'
-   include 'param_gbsa_dmf.inc'
-   include 'param_gbsa_nhexan.inc'
+   include 'param_gbsa_acetone.fh'
+   include 'param_gbsa_acetonitrile.fh'
+   include 'param_gbsa_benzene.fh'
+   include 'param_gbsa_ch2cl2.fh'
+   include 'param_gbsa_chcl3.fh'
+   include 'param_gbsa_cs2.fh'
+   include 'param_gbsa_dmso.fh'
+   include 'param_gbsa_ether.fh'
+   include 'param_gbsa_h2o.fh'
+   include 'param_gbsa_methanol.fh'
+   include 'param_gbsa_thf.fh'
+   include 'param_gbsa_toluene.fh'
+   include 'param_gbsa_dmf.fh'
+   include 'param_gbsa_nhexan.fh'
 
 
    !> Solvent density (g/cm^3) and molar mass (g/mol)

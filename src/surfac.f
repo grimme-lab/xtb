@@ -33,8 +33,8 @@
       integer, parameter                :: nangsa=86
 !     integer, parameter                :: nangsa=230
       real(wp)                          :: grida(4,nangsa)
-      include 'grida86.inc'
-!     include 'grida230.inc'
+      include 'grida86.fh'
+!     include 'grida230.fh'
       integer                           :: i,j,k,np,ip
 
       ! D3 radii in Bohr

@@ -68,6 +68,6 @@ module xtb_disp_dftd4param
    real(wp),dimension(17)       :: seccnd3
    real(wp),dimension(23,17)    :: secaiw
 
-   include 'param_ref.inc'
+   include 'param_ref.fh'
 
 end module xtb_disp_dftd4param
