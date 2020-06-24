@@ -26,6 +26,8 @@ module xtb_api_calculator
    use xtb_api_utils
    use xtb_gfnff_calculator
    use xtb_main_setup
+   use xtb_solv_input
+   use xtb_solv_state
    use xtb_type_environment
    use xtb_type_molecule
    use xtb_type_calculator
@@ -340,6 +342,7 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
    real(c_double), intent(in), optional :: temperature
    integer(c_int), intent(in), optional :: grid
    character(len=:), allocatable :: solvent
+   type(TSolvInput) :: input
    integer :: gsolvstate, nang
    real(wp) :: temp
    logical :: exitRun
@@ -362,7 +365,7 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
       if (present(state)) then
          gsolvstate = state
       else
-         gsolvstate = 0
+         gsolvstate = solutionState%gsolv
       end if
 
       if (present(temperature)) then
@@ -379,7 +382,9 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
 
       call c_f_character(charptr, solvent)
 
-      call addSolvationModel(env%ptr, calc%ptr, solvent, gsolvstate, temp, nang)
+      input = TSolvInput(solvent=solvent, temperature=temp, state=gsolvstate, &
+         & nang=nang)
+      call addSolvationModel(env%ptr, calc%ptr, input)
 
       call env%ptr%check(exitRun)
       if (exitRun) then
@@ -413,9 +418,7 @@ subroutine releaseSolvent_api(venv, vcalc) &
       call c_f_pointer(vcalc, calc)
 
       if (allocated(calc%ptr)) then
-         if (allocated(calc%ptr%solv)) then
-            deallocate(calc%ptr%solv)
-         end if
+         calc%ptr%lSolv = .false.
       end if
 
    end if
