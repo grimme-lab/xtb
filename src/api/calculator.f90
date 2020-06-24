@@ -185,6 +185,8 @@ subroutine loadGFN0xTB_api(venv, vmol, vcalc, charptr) &
          if (.not.exist) then
             filename = dummy
          end if
+      else
+         filename = dummy
       end if
 
       allocate(xtb)
@@ -245,6 +247,8 @@ subroutine loadGFN1xTB_api(venv, vmol, vcalc, charptr) &
          if (.not.exist) then
             filename = dummy
          end if
+      else
+         filename = dummy
       end if
 
       allocate(xtb)
@@ -305,6 +309,8 @@ subroutine loadGFN2xTB_api(venv, vmol, vcalc, charptr) &
          if (.not.exist) then
             filename = dummy
          end if
+      else
+         filename = dummy
       end if
 
       allocate(xtb)
