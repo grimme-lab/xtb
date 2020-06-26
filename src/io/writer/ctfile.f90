@@ -87,8 +87,8 @@ subroutine writeMoleculeMolfile(mol, unit, comment_line)
 
    do iatom = 1, mol%n
       if (has_sdf_data) then
-         list12 = [mol%sdf(iatom)%isotope, charge_to_ccc(mol%sdf(iatom)%charge), &
-            &      0, 0, 0, mol%sdf(iatom)%valence, 0, 0, 0, 0, 0, 0]
+         list12 = [mol%sdf(iatom)%isotope, 0, 0, 0, 0, mol%sdf(iatom)%valence, &
+            & 0, 0, 0, 0, 0, 0]
       else
          list12 = 0
       endif
@@ -102,9 +102,22 @@ subroutine writeMoleculeMolfile(mol, unit, comment_line)
          & iatoms, list4
    enddo
 
-   if (nint(mol%chrg) /= 0) then
-      write(unit, '(a,*(1x,i3))') "M  CHG", 1, 1, nint(mol%chrg)
-   endif
+   if (has_sdf_data) then
+      if (sum(mol%sdf%charge) /= nint(mol%chrg)) then
+         write(unit, '(a,*(i3,1x,i3,1x,i3))') "M  CHG", 1, 1, nint(mol%chrg)
+      else
+         do iatom = 1, mol%n
+            if (mol%sdf(iatom)%charge /= 0) then
+               write(unit, '(a,*(i3,1x,i3,1x,i3))') &
+                  & "M  CHG", 1, iatom, mol%sdf(iatom)%charge
+            end if
+         end do
+      end if
+   else
+      if (nint(mol%chrg) /= 0) then
+         write(unit, '(a,*(i3,1x,i3,1x,i3))') "M  CHG", 1, 1, nint(mol%chrg)
+      end if
+   end if
 
    write(unit, '(a)') "M  END"
 

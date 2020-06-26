@@ -132,7 +132,7 @@ subroutine xtbMain(env, argParser)
    character(len=*),parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
    character(len=*),parameter :: p_fname_param_ipea  = 'param_ipea-xtb.txt'
 
-   integer :: chrg,gsolvstate
+   integer :: gsolvstate
    integer :: i,j,k,l,idum
    integer :: ich,ictrl,iprop ! file handle
    real(wp) :: sigma(3,3)
@@ -296,7 +296,6 @@ subroutine xtbMain(env, argParser)
    if(gfn_method == 0)  call set_exttyp('eht')
    !> C6 scaling of QMDFF dispersion to simulate solvent
    qmdff_s6 = 1.0_wp
-   chrg = ichrg
    rohf = 1 ! HS default
    egap = 0.0_wp
    ipeashift = 0.0_wp
@@ -329,6 +328,15 @@ subroutine xtbMain(env, argParser)
       call close_file(ich)
       if (mol%struc%two_dimensional) then
          call env%warning("Two dimensional input structure detected", source)
+      end if
+
+      ! Special CT input file case
+      if (mol%chrg /= 0.0_wp) then
+         if (ichrg == 0) then
+            ichrg = nint(mol%chrg)
+         else
+            call env%warning("Charge in sdf/mol input was overwritten", source)
+         end if
       end if
 
       call env%checkpoint("reading geometry input '"//fname//"' failed")
@@ -370,9 +378,9 @@ subroutine xtbMain(env, argParser)
       tstep_md = (minval(atmass)/(atomic_mass(1)*autoamu))**(1.0_wp/3.0_wp)
    endif
 
-   mol%chrg = real(chrg, wp)
+   mol%chrg = real(ichrg, wp)
    mol%uhf = nalphabeta
-   chk%wfn%nel = idint(sum(mol%z)) - chrg
+   chk%wfn%nel = idint(sum(mol%z)) - ichrg
    chk%wfn%nopen = nalphabeta
    if(chk%wfn%nopen == 0 .and. mod(chk%wfn%nel,2) /= 0) chk%wfn%nopen=1
    call initrand
@@ -516,17 +524,17 @@ subroutine xtbMain(env, argParser)
          call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
       endif
       if (mol%npbc > 0) then
-         chk%wfn%q = real(chrg,wp)/real(mol%n,wp)
+         chk%wfn%q = real(ichrg,wp)/real(mol%n,wp)
       else
          if (guess_charges.eq.p_guess_gasteiger) then
-            call iniqcn(mol%n,chk%wfn%nel,mol%at,mol%z,mol%xyz,chrg,1.0_wp,chk%wfn%q,cn,gfn_method,.true.)
+            call iniqcn(mol%n,chk%wfn%nel,mol%at,mol%z,mol%xyz,ichrg,1.0_wp,chk%wfn%q,cn,gfn_method,.true.)
          else if (guess_charges.eq.p_guess_goedecker) then
             call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
-            call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(chrg,wp),cn,dcn,chk%wfn%q,dq,er,g,&
+            call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(ichrg,wp),cn,dcn,chk%wfn%q,dq,er,g,&
                .false.,.false.,.false.)
          else
             call ncoord_gfn(mol%n,mol%at,mol%xyz,cn)
-            chk%wfn%q = real(chrg,wp)/real(mol%n,wp)
+            chk%wfn%q = real(ichrg,wp)/real(mol%n,wp)
          end if
       end if
       !> initialize shell charges from gasteiger charges

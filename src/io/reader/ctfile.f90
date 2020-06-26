@@ -152,8 +152,8 @@ subroutine readMoleculeMolfile(mol, unit, status, iomsg)
       call getline(unit, line, error)
       if (index(line, 'M  END') == 1) exit
       if (index(line, 'M  CHG') == 1) then
-         read(line(7:10), *) length
-         read(line(11:), '(*(1x,i3,1x,i3))') (charge(:, i), i=1, length)
+         read(line(7:9), *) length
+         read(line(10:), '(*(1x,i3,1x,i3))') (charge(:, i), i=1, length)
          do i = 1, length
             mol%sdf(charge(1, i))%charge = charge(2, i)
          enddo
