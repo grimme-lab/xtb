@@ -30,3 +30,19 @@ pkg_config = '@0@.pc'.format(meson.project_name())
 install_data(configure_file(input: files('templates'/pkg_config),
              output: pkg_config, configuration: config),
              install_dir: get_option('libdir')/'pkgconfig')
+
+# generate a tcl environment module
+# The convention is to name the file after the version and put it in a directory
+# with the program name, but we will name the intermediate tcl file differently.
+# On installation the file will be copied to the data_dir (share/xtb) and renamed
+# to the version number.
+env_module = '@0@.tcl'.format(meson.project_name())
+install_data(
+  configure_file(
+    input: files('templates/env-module.tcl'),
+    output: env_module,
+    configuration: config,
+  ),
+  rename: meson.project_version(),
+  install_dir: get_option('datadir')/'modules'/'modulefiles'/meson.project_name()
+)
