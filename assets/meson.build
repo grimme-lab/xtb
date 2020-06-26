@@ -44,4 +44,5 @@ install_data(
     configuration: config,
   ),
   rename: meson.project_version(),
+  install_dir: get_option('datadir')/'modules'/'modulefiles'/meson.project_name()
 )
