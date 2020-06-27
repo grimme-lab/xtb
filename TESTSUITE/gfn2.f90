@@ -662,3 +662,79 @@ subroutine test_gfn2_mindless_solvation
    call terminate(afail)
 
 end subroutine test_gfn2_mindless_solvation
+
+
+subroutine test_gfn2_dmetal
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   real(wp), parameter :: ref_energies(3) = &
+      &[-34.066853522474_wp, -34.078580189077_wp, -34.078529449408_wp]
+   real(wp), parameter :: ref_gnorms(3) = &
+      &[0.26985488354859_wp, 0.26591831790033_wp, 0.26613440125774_wp]
+   real(wp), parameter :: ref_hlgaps(3) = &
+      &[ 2.9239308006972_wp,  2.9163891345974_wp,  2.9168589130125_wp]
+
+   call init(env)
+   do iMol = 1, 3
+      if (afail > 0) exit
+
+      call getMolecule(mol, 'feco5')
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
+      call newWavefunction(env, mol, calc, chk)
+      if (iMol > 1) then
+         call addSolvationModel(env, calc, TSolvInput(solvent='ch2cl2', &
+            & alpb=iMol==3))
+      end if
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 1, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call assert_close(hl_gap, ref_hlgaps(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+end subroutine test_gfn2_dmetal

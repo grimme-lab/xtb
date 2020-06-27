@@ -150,6 +150,7 @@ test('GFN2-xTB: SCC', xtb_test, args: ['gfn2', 'scc'], env: xtbenv, timeout: tes
 test('GFN2-xTB: API', xtb_test, args: ['gfn2', 'api'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv, timeout: test_timeout)
+test('GFN2-xTB: d-Metal', xtb_test, args: ['gfn2', 'd-metal'], env: xtbenv, timeout: test_timeout)
 #test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv, timeout: test_timeout)
 if cc.get_id() == 'intel'
   test(
