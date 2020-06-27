@@ -78,6 +78,7 @@ program peeq_tester
       case('gbsa'); call test_gfn2gbsa_api
       case('salt'); call test_gfn2salt_api
       case('pcem'); call test_gfn2_pcem_api
+      case('d-metal'); call test_gfn2_dmetal
       end select
    case('gfn1')
       select case(sec)
