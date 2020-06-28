@@ -317,10 +317,10 @@ subroutine addGradientP16(nat, ntpair, ppind, ddpair, qat, keps, &
    dEdbr(:) = 0._wp
 
    ! GB energy and gradient
-   !$omp parallel do default(none) reduction(+:egb, gradient, dEdbr) &
-   !$omp private(iat, jat, vec, r1, r2, ab, arg1, arg16, fgb, dfgb, dfgb2, ap, &
-   !$omp& bp, qq, dEdbri, dEdbrj, dG, dS) &
-   !$omp shared(keps, qat, ntpair, ddpair, ppind, brad)
+   ! omp parallel do default(none) reduction(+:egb, gradient, dEdbr) &
+   ! omp private(iat, jat, vec, r1, r2, ab, arg1, arg16, fgb, dfgb, dfgb2, ap, &
+   ! omp& bp, qq, dEdbri, dEdbrj, dG, dS) &
+   ! omp shared(keps, qat, ntpair, ddpair, ppind, brad)
    do kk = 1, ntpair
       vec(:) = ddpair(2:4, kk)
       r1 = ddpair(1, kk)
@@ -357,7 +357,6 @@ subroutine addGradientP16(nat, ntpair, ppind, ddpair, qat, keps, &
       dEdbr(jat) = dEdbr(jat) + dEdbrj
 
    end do
-   !$omp end parallel do
 
    ! self-energy part
    do iat = 1, nat
@@ -731,8 +730,8 @@ subroutine addBornMatP16(nat, ntpair, ppind, ddpair, keps, brad, Amat)
    integer :: iat, jat
    real(wp) :: r1, ab, arg, eab, fgb, dfgb, bp
 
-   !$omp parallel do default(none) shared(Amat, ntpair, ppind, ddpair, brad, keps) &
-   !$omp private(kk, iat, jat, r1, ab, arg, fgb, dfgb)
+   ! omp parallel do default(none) shared(Amat, ntpair, ppind, ddpair, brad, keps) &
+   ! omp private(kk, iat, jat, r1, ab, arg, fgb, dfgb)
    do kk = 1, ntpair
       r1 = ddpair(1, kk)
 
@@ -751,7 +750,6 @@ subroutine addBornMatP16(nat, ntpair, ppind, ddpair, keps, brad, Amat)
       Amat(iat, jat) = keps*dfgb + Amat(iat, jat)
       Amat(jat, iat) = keps*dfgb + Amat(jat, iat)
    enddo
-   !$omp end parallel do
 
    ! self-energy part
    do iat = 1, nat
