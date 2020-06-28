@@ -128,7 +128,7 @@ subroutine writeGradientTurbomole(unit, xyz, sym, energy, gradient)
    real(wp), intent(in) :: gradient(:, :)
    integer :: i
 
-   write(unit, '("$gradient")')
+   write(unit, '("$grad")')
    write(unit, '(2x,"cycle =",1x,i6,4x,"SCF energy =",f18.11,3x,'//&
       &        '"|dE/dxyz| =",f10.6)') 1, energy, norm2(gradient)
    do i = 1, size(xyz, dim=2)
