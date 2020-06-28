@@ -144,10 +144,10 @@ subroutine main_property &
 
 !! Mulliken and CM5 charges
    if (pr_mulliken.and.gfn_method.eq.1) then
-      call open_file(ifile,'charges','w')
-      call print_mulliken(iunit,ifile,mol%n,mol%at,mol%xyz,mol%z,basis%nao,S,wfx%P,basis%aoat2,basis%lao2)
-      call close_file(ifile)
-   else if (pr_charges) then
+      call print_mulliken(iunit,mol%n,mol%at,mol%sym,mol%xyz,mol%z, &
+         & basis%nao,S,wfx%P,basis%aoat2,basis%lao2)
+   end if
+   if (pr_charges) then
       call open_file(ifile,'charges','w')
       call print_charges(ifile,mol%n,wfx%q)
       call close_file(ifile)
@@ -162,23 +162,26 @@ subroutine main_property &
 
 !! D4 molecular dispersion printout
    if ((newdisp.and.gfn_method.eq.2).and.pr_mulliken) then
-      call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf, &
-         & xtbData%dispersion%g_a,xtbData%dispersion%g_c,xtbData%dispersion%dispm)
+      call print_molpol(iunit,mol%n,mol%at,mol%sym,mol%xyz,wfx%q, &
+         & xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c, &
+         & xtbData%dispersion%dispm)
    end if
    if (gfn_method.eq.0.and.pr_mulliken) then
-      call print_molpol(iunit,mol%n,mol%at,mol%xyz,wfx%q,xtbData%dispersion%wf, &
-         & xtbData%dispersion%g_a,xtbData%dispersion%g_c,xtbData%dispersion%dispm)
+      call print_molpol(iunit,mol%n,mol%at,mol%sym,mol%xyz,wfx%q, &
+         & xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c,&
+         & xtbData%dispersion%dispm)
    end if
 
 !! Spin population
-   if (pr_spin_population .and. wfx%nopen.ne.0) &
-   call print_spin_population(iunit,mol%n,mol%at,basis%nao,wfx%focca,wfx%foccb,S,wfx%C, &
-   &                          basis%aoat2,basis%lao2)
+   if (pr_spin_population .and. wfx%nopen.ne.0) then
+      call print_spin_population(iunit,mol%n,mol%at,mol%sym,basis%nao,wfx%focca,&
+         & wfx%foccb,S,wfx%C,basis%aoat2,basis%lao2)
+   end if
 
    if (pr_fod_pop) then
       call open_file(ifile,'fod','w')
-      call print_fod_population(iunit,ifile,mol%n,mol%at,basis%nao,S,wfx%C,etemp,wfx%emo, &
-                                wfx%ihomoa,wfx%ihomob,basis%aoat2,basis%lao2)
+      call print_fod_population(iunit,ifile,mol%n,mol%at,mol%sym,basis%nao,S, &
+         & wfx%C,etemp,wfx%emo,wfx%ihomoa,wfx%ihomob,basis%aoat2,basis%lao2)
       call close_file(ifile)
    endif
 
@@ -188,7 +191,7 @@ subroutine main_property &
       call open_file(ifile,'wbo','w')
       call print_wbofile(ifile,mol%n,wfx%wbo,0.1_wp)
       call close_file(ifile)
-      call print_wiberg(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
+      call print_wiberg(iunit,mol%n,mol%at,mol%sym,wfx%wbo,0.1_wp)
 
       call checkTopology(iunit, mol, wfx%wbo, 1)
    endif
@@ -508,13 +511,13 @@ subroutine print_charges(ifile,n,q)
    endif
 end subroutine print_charges
 
-subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
+subroutine print_mulliken(iunit,n,at,sym,xyz,z,nao,S,P,aoat2,lao2)
    use xtb_scc_core, only : mpop
    implicit none
    integer, intent(in)  :: iunit
-   integer, intent(in)  :: ifile
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
+   character(len=*), intent(in) :: sym(n)
    real(wp),intent(in)  :: xyz(3,n)
    real(wp),intent(in)  :: z(n)
    integer, intent(in)  :: nao
@@ -535,16 +538,11 @@ subroutine print_mulliken(iunit,ifile,n,at,xyz,z,nao,S,P,aoat2,lao2)
    call calc_cm5(n,at,xyz,cm5a,dcm5a)
    cm5 = q + cm5a
    write(iunit,'(a)')
-   write(iunit,'(2x,"Mulliken/CM5 charges        n(s)   n(p)   n(d)")')
+   write(iunit,'(2x,"Mulliken/CM5 charges         n(s)   n(p)   n(d)")')
    do i=1,n
-      write(iunit,'(i6,a3,2f9.5,1x,4f7.3)') &
-         i,toSymbol(at(i)),q(i),cm5(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
+      write(iunit,'(i6,a4,2f9.5,1x,4f7.3)') &
+         i,sym(i),q(i),cm5(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
    enddo
-   if (ifile.ne.-1) then
-      do i = 1, n
-         write(ifile,'(f14.8)') q(i)
-      enddo
-   endif
 end subroutine print_mulliken
 
 subroutine print_wbofile(iunit,n,wbo,thr)
@@ -561,17 +559,18 @@ subroutine print_wbofile(iunit,n,wbo,thr)
    end do
 end subroutine print_wbofile
 
-subroutine print_wiberg(iunit,n,at,wbo,thr)
+subroutine print_wiberg(iunit,n,at,sym,wbo,thr)
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
+   character(len=*), intent(in) :: sym(n)
    real(wp),intent(in) :: wbo(n,n)
    real(wp),intent(in) :: thr
 
    real(wp),allocatable :: wbr(:,:)
    integer, allocatable :: imem(:)
-   integer  :: i,j,ibmax
+   integer  :: i,j,k,ibmax
    real(wp) :: xsum
 
    allocate( wbr(n,n), source = wbo )
@@ -580,7 +579,10 @@ subroutine print_wiberg(iunit,n,at,wbo,thr)
    write(iunit,'(a)')
    write(iunit,'("Wiberg/Mayer (AO) data.")')
    write(iunit,'("largest (>",f4.2,") Wiberg bond orders for each atom")') thr
-   write(iunit,'("          total WBO             WBO to atom ...")')
+   write(iunit,'(a)')
+   write(iunit,'(1x,75("-"))')
+   write(iunit,'(5x,"#",3x,"Z",1x,"sym",2x,"total",t25,3(5x,"#",1x,"sym",2x,"WBO",2x))')
+   write(iunit,'(1x,75("-"))')
    do i=1,n
       do j=1,n
          imem(j)=j
@@ -592,14 +594,21 @@ subroutine print_wiberg(iunit,n,at,wbo,thr)
          if (wbr(i,j).gt.thr) ibmax=j
          xsum=xsum+wbr(i,j)
       enddo
-      write(iunit,'(i6,a4,1x,f6.3,9(4x,a2,i4,f6.3))',advance='no') &
-         & i,toSymbol(at(i)),xsum
-      do j = 1, ibmax
-         write(iunit,'(4x,a2,i4,f6.3)',advance='no') &
-         & toSymbol(at(imem(j))),imem(j),wbr(i,j)
-      enddo
-      write(iunit,'(a)')
+      write(iunit,'(i6,1x,i3,1x,a4,f6.3,1x,"--")',advance='no') &
+         & i,at(i),sym(i),xsum
+      do j = 1, ibmax, 3
+         if (j > 1) then
+            write(iunit,'(t25)', advance='no')
+         end if
+         do k = j, min(ibmax, j+2)
+            write(iunit,'(i6,1x,a4,f6.3)',advance='no') &
+               & imem(k),sym(imem(k)),wbr(i,k)
+         enddo
+         write(iunit,'(a)')
+      end do
    enddo
+   write(iunit,'(1x,75("-"))')
+   write(iunit,'(a)')
 
    deallocate(wbr,imem)
 
@@ -737,7 +746,7 @@ contains
 
 end subroutine print_wbo_fragment
 
-subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c,dispm)
+subroutine print_molpol(iunit,n,at,sym,xyz,q,wf,g_a,g_c,dispm)
    use xtb_disp_dftd4
    use xtb_disp_ncoord
    use xtb_eeq
@@ -746,6 +755,7 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c,dispm)
    integer, intent(in) :: iunit
    integer, intent(in) :: n
    integer, intent(in) :: at(n)
+   character(len=*), intent(in) :: sym(n)
    real(wp),intent(in) :: xyz(3,n)
    real(wp),intent(in) :: q(n)
    real(wp),intent(in) :: wf
@@ -772,15 +782,15 @@ subroutine print_molpol(iunit,n,at,xyz,q,wf,g_a,g_c,dispm)
               molc6,molc8,molpol,aout=aw,cout=c6ab)
 
    write(iunit,'(a)')
-   write(iunit,'("     #   Z   ")',advance='no')
+   write(iunit,'("     #   Z     ")',advance='no')
    write(iunit,'("     covCN")',advance='no')
    write(iunit,'("         q")',advance='no')
    write(iunit,'("      C6AA")',advance='no')
    write(iunit,'("      α(0)")',advance='no')
    write(iunit,'(a)')
    do i=1,n
-      write(iunit,'(i6,1x,i3,1x,a2)',advance='no') &
-      &     i,at(i),toSymbol(at(i))
+      write(iunit,'(i6,1x,i3,1x,a4)',advance='no') &
+      &     i,at(i),sym(i)
       write(iunit,'(f10.3)',advance='no')covcn(i)
       write(iunit,'(f10.3)',advance='no')q(i)
       write(iunit,'(f10.3)',advance='no')c6ab(i,i)
@@ -837,12 +847,13 @@ subroutine print_dipole(iunit,n,at,xyz,z,nao,P,dpint)
 
 end subroutine print_dipole
 
-subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C,aoat2,lao2)
+subroutine print_spin_population(iunit,n,at,sym,nao,focca,foccb,S,C,aoat2,lao2)
    use xtb_scc_core, only : dmat, mpop
    implicit none
    integer, intent(in) :: iunit       ! STDOUT
    integer, intent(in) :: n           ! number of atoms
    integer, intent(in) :: at(n)       ! atom types
+   character(len=*), intent(in) :: sym(n) ! atom symbols
    integer, intent(in) :: nao         ! number of spherical atomic orbitals
    real(wp),intent(in) :: focca(nao)  ! fractional occupation numbers (alpha)
    real(wp),intent(in) :: foccb(nao)  ! fractional occupation numbers (beta)
@@ -864,16 +875,16 @@ subroutine print_spin_population(iunit,n,at,nao,focca,foccb,S,C,aoat2,lao2)
    call dmat(nao,tmp,C,X) ! X is scratch
    call mpop(n,nao,aoat2,lao2,S,X,q,qlmom)
    write(iunit,'(a)')
-   write(iunit,'(1x,"Mulliken population n(s)   n(p)   n(d)")')
+   write(iunit,'(1x,"Mulliken population  n(s)   n(p)   n(d)")')
    do i=1,n
-      write(iunit,'(i6,a3,1f8.4,1x,4f7.3)') &
-         &  i,toSymbol(at(i)),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
+      write(iunit,'(i6,a4,1f8.4,1x,4f7.3)') &
+         &  i,sym(i),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
    enddo
 
 end subroutine print_spin_population
 
-subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob, &
-      &                         aoat2,lao2)
+subroutine print_fod_population(iunit,ifile,n,at,sym,nao,S,C,etemp,emo,ihomoa, &
+      & ihomob,aoat2,lao2)
    use xtb_mctc_convert
    use xtb_scc_core
    implicit none
@@ -881,6 +892,7 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
    integer, intent(in) :: ifile       ! file handle for printout of FOD population
    integer, intent(in) :: n           ! number of atoms
    integer, intent(in) :: at(n)       ! atom types
+   character(len=*), intent(in) :: sym(n)  ! atom symbols
    integer, intent(in) :: nao         ! number of spherical atomic orbitals
    real(wp),intent(in) :: S(nao,nao)  ! overlap matrix
    real(wp),intent(in) :: C(nao,nao)  ! eigenvector/orbitals
@@ -917,10 +929,10 @@ subroutine print_fod_population(iunit,ifile,n,at,nao,S,C,etemp,emo,ihomoa,ihomob
    qlmom=0
    call lpop(n,nao,aoat2,lao2,focc,X,1.0d0,q,qlmom)
    write(iunit,'(a)')
-   write(iunit,'(" Loewdin FODpop     n(s)   n(p)   n(d)")')
+   write(iunit,'(" Loewdin FODpop      n(s)   n(p)   n(d)")')
    do i = 1, n
-      write(iunit,'(i6,a3,f8.4,1x,4f7.3)') &
-         i,toSymbol(at(i)),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
+      write(iunit,'(i6,a4,f8.4,1x,4f7.3)') &
+         i,sym(i),q(i),qlmom(1,i),qlmom(2,i),qlmom(3,i)
    enddo
    if (ifile.ne.-1) then
       do i = 1, n
