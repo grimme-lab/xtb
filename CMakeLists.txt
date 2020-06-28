@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.9)
 
 # Setup the XTB Project
 project(xtb
-   VERSION 6.3.0
+   VERSION 6.3.2
 )
 enable_language(Fortran)
 enable_testing()
