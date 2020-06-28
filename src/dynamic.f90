@@ -196,7 +196,7 @@ subroutine md(env,mol,chk,calc, &
    integer, allocatable :: na(:),nb(:),nc(:)
    character(len=80) :: atmp
    character(len=:),allocatable :: fname
-   integer :: ich,trj
+   integer :: ich,trj,pdb,imdl
    logical :: exist
 
    real(wp) :: metatime
@@ -332,6 +332,11 @@ subroutine md(env,mol,chk,calc, &
       write(atmp,'(''xtb.trj.'',i0)')icall
    endif
    call open_file(trj,trim(atmp),'w')
+   pdb = -1
+   if (allocated(mol%pdb) .and. icall == 0) then
+      call open_file(pdb, 'xtb-trj.pdb', 'w')
+      imdl = 0
+   end if
 
    if(.not.thermostat)then
       write(*,'(9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
@@ -492,6 +497,11 @@ subroutine md(env,mol,chk,calc, &
                write(trj,'(3f20.14)')velo(1:3,i)
             enddo
          endif
+         if (pdb /= -1) then
+            imdl = imdl+1
+            call writeMolecule(mol, pdb, fileType%pdb, number=imdl, &
+               & energy=epot, gnorm=res%gnorm)
+         end if
          !call wrmdrestart(mol%n,mol%xyz,velo)
       endif
       !! ========================================================================
@@ -621,6 +631,9 @@ subroutine md(env,mol,chk,calc, &
 
    ! exit
 1000 call close_file(trj)
+   if (pdb /= -1) then
+      call close_file(pdb)
+   end if
 
    write(*,*) 'average properties '
    write(*,*) 'Epot               :',Epav/k
