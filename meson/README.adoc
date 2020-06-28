@@ -99,6 +99,56 @@ ninja -C build install
 Depending on the installation prefix and your user rights ninja might ask for the `root` access to perform the installation.
 
 
+== Optimization Level
+
+By default the compiler optimization should only use `-O2`, although the program can be safely compiled with `-O3` when using Intel compilers.
+It is known that binaries build with GCC on `-O3` will produce wrong results for certain systems.
+To adjust the optimization level to `-O3` use
+
+[source,bash]
+----
+meson configure build --optimization=3
+----
+
+
+== Linear Algebra Backend
+
+When configuring the build the wanted linear algebra backend can be specified with
+
+[source,bash]
+----
+meson setup build -Dla_backend=<option>
+----
+
+The following options are available:
+
+[cols=2*]
+|===
+|backend
+|linked against
+
+|mkl-static
+|static MKL (default)
+
+|mkl
+|shared MKL
+
+|mkl-rt
+|MKL real time library
+
+|openblas
+|OpenBLAS and if required LAPACK
+
+|netlib
+|BLAS and LAPACK
+
+|custom
+|`-Dcustom_libraries=...`
+|===
+
+If you are using the MKL provided by conda-forge you have to link against the netlib backend
+
+
 = Extending the meson build
 
 To add new source code it should be sufficient to add the new files in the `meson.build` file in the respective source directory in the `src` tree.
