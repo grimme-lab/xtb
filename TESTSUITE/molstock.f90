@@ -60,7 +60,7 @@ end subroutine getMolecule
 subroutine mindless01(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "Na", "H", "O", "H", "F", "H", "H", "O", "N", "H", "H", "Cl", "B", "B", "N", "Al"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -1.85528263484662_wp,  3.58670515364616_wp, -2.41763729306344_wp, &
@@ -87,7 +87,7 @@ end subroutine mindless01
 subroutine mindless02(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "H", "S", "B", "O", "Mg", "H", "H", "H", "Si", "H", "B", "Li", "F", "H", "H", "S"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -1.79537625851198_wp, -3.77866422935275_wp, -1.07883558363403_wp, &
@@ -115,7 +115,7 @@ end subroutine mindless02
 subroutine mindless03(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "C", "O", "H", "Li", "Mg", "Al", "C", "H", "H", "H", "F", "S", "C", "H", "Na", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -0.02148551327524_wp, -0.67161751504297_wp, -4.75078512817560_wp, &
@@ -142,7 +142,7 @@ end subroutine mindless03
 subroutine mindless04(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "H", "B", "H", "F", "B", "H", "H", "Si", "H", "H", "C", "Al", "Si", "O", "H", "B"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -1.34544890768411_wp,  2.85946545334720_wp,  3.11183388215396_wp, &
@@ -169,7 +169,7 @@ end subroutine mindless04
 subroutine mindless05(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "B", "P", "H", "H", "B", "P", "H", "Cl", "N", "H", "P", "Si", "H", "H", "P", "N"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       &  0.68391902268453_wp,  0.21679405065309_wp, -2.81441127558071_wp, &
@@ -189,7 +189,7 @@ subroutine mindless05(mol)
       &  0.94405328902426_wp,  4.99525793054843_wp,  1.18501287451328_wp, &
       & -1.83118967048165_wp,  3.39933176543682_wp,  1.75515887283605_wp],&
       & shape(xyz))
-   integer, parameter :: uhf = 2
+   integer, parameter :: uhf = 1
    call init(mol, sym, xyz, uhf=uhf)
 end subroutine mindless05
 
@@ -197,7 +197,7 @@ end subroutine mindless05
 subroutine mindless06(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "B", "N", "H", "O", "B", "H", "Al", "H", "B", "Mg", "H", "H", "H", "H", "C", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       &  0.10912945825730_wp,  1.64180252123600_wp,  0.27838149792131_wp, &
@@ -225,7 +225,7 @@ end subroutine mindless06
 subroutine mindless07(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "C", "H", "B", "H", "H", "Cl", "F", "N", "C", "H", "S", "H", "H", "O", "F", "Mg"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -3.75104222741336_wp, -5.81308736205268_wp, -1.22507366840233_wp, &
@@ -253,7 +253,7 @@ end subroutine mindless07
 subroutine mindless08(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "C", "O", "B", "F", "H", "Al", "H", "H", "O", "B", "Be", "C", "H", "H", "B", "F"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -1.27823293129313_wp,  0.06442674490989_wp,  2.76980447300615_wp, &
@@ -281,7 +281,7 @@ end subroutine mindless08
 subroutine mindless09(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "H", "H", "H", "H", "Li", "H", "C", "B", "H", "H", "Si", "H", "Cl", "F", "H", "B"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       &  3.97360649552839_wp,  1.71723751297383_wp, -0.51862929250676_wp, &
@@ -308,7 +308,7 @@ end subroutine mindless09
 subroutine mindless10(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 16
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "H", "Si", "H", "Cl", "C", "H", "F", "H", "C", "N", "B", "H", "Mg", "C", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       &  3.57062307661218_wp, -1.68792229443234_wp,  2.78939425857465_wp, &
@@ -371,7 +371,7 @@ end subroutine caffeine
 subroutine rivaroxaban(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 47
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "Cl", "C", "C", "C", "C", "S", "C", "O", "N", "C", "C", "C", "N", &
       &  "C", "O", "O", "C", "C", "C", "C", "C", "C", "H", "H", "N", "C", &
       &  "O", "C", "O", "C", "C", "H", "H", "H", "H", "H", "H", "H", "H", &
@@ -432,7 +432,7 @@ end subroutine rivaroxaban
 subroutine grubbs(mol)
    type(TMolecule), intent(inout) :: mol
    integer, parameter :: nat = 75
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "Ru", "C", "C", "C", "C", "C", "C", "C", "O", "C", "C", "H", "H", &
       &  "H", "C", "H", "H", "H", "H", "H", "H", "H", "H", "H", "C", "N", &
       &  "C", "C", "C", "C", "C", "C", "C", "H", "H", "H", "H", "C", "H", &
@@ -523,8 +523,8 @@ end subroutine grubbs
 subroutine remdesivir(mol)
    type(TMolecule), intent(inout) :: mol
    integer, parameter :: nat = 77
-   character(len=*), parameter :: sym(nat) = &
-      &["P", "O", "N", "H", "C", "C", "O", "O", "C", "H", "C", "H", "C", &
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
+      & "P", "O", "N", "H", "C", "C", "O", "O", "C", "H", "C", "H", "C", &
       & "C", "H", "H", "H", "H", "H", "C", "C", "H", "H", "H", "H", "H", &
       & "H", "C", "H", "H", "H", "H", "O", "C", "C", "C", "C", "C", "C", &
       & "H", "H", "H", "H", "H", "O", "C", "C", "C", "C", "O", "H", "H", &
@@ -616,8 +616,8 @@ end subroutine remdesivir
 subroutine taxol(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 113
-   character(len=*), parameter :: sym(nat) = &
-      &["C", "C", "C", "H", "H", "H", "C", "C", "H", "H", "C", "O", "H", &
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
+      & "C", "C", "C", "H", "H", "H", "C", "C", "H", "H", "C", "O", "H", &
       & "C", "C", "H", "H", "H", "C", "H", "H", "H", "C", "H", "O", "C", &
       & "O", "C", "C", "C", "C", "C", "C", "H", "H", "H", "H", "H", "C", &
       & "H", "C", "C", "H", "H", "O", "C", "C", "H", "H", "C", "O", "H", &
@@ -750,8 +750,8 @@ subroutine pdb_4qxx(mol)
    use xtb_type_vendordata, only : pdb_data
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 76
-   character(len=*), parameter :: sym(nat) = &
-      &["N", "C", "C", "O", "H", "H", "H", "H", "H", "N", "C", "C", "O", &
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
+      & "N", "C", "C", "O", "H", "H", "H", "H", "H", "N", "C", "C", "O", &
       & "C", "C", "O", "N", "H", "H", "H", "H", "H", "H", "N", "C", "C", &
       & "O", "C", "C", "C", "C", "H", "H", "H", "H", "H", "H", "H", "H", &
       & "H", "H", "H", "N", "C", "C", "O", "C", "C", "C", "H", "H", "H", &
@@ -921,7 +921,7 @@ end subroutine pdb_4qxx
 subroutine manganese(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 37
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "Mn", "S ", "C ", "C ", "Cl", "C ", "Cl", "C ", "Cl", "C ", "Cl", &
       & "C ", "S ", "S ", "C ", "C ", "Cl", "C ", "Cl", "C ", "Cl", "C ", &
       & "Cl", "C ", "S ", "S ", "C ", "C ", "Cl", "C ", "Cl", "C ", "Cl", &
@@ -973,7 +973,7 @@ end subroutine manganese
 subroutine vcpco4(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 19
-   character(len=*), parameter :: sym(nat) = [&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "V", "C", "C", "C", "C", "C", "H", "H", "H", "H", "H", "C", "C", "C", &
       & "C", "O", "O", "O", "O"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
@@ -1004,7 +1004,7 @@ end subroutine vcpco4
 subroutine feco5(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 11
-   character(len=*), parameter :: sym(nat) = [character(len=2) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "fe", "c", "c", "c", "c", "c", "o", "o", "o", "o", "o"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -0.00000000000000_wp,  0.00414196770719_wp,  0.00000003847382_wp, &
