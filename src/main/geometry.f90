@@ -184,9 +184,9 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
    if (pr_angles) then
       allocate( bend(maxbend), source = 0.0_wp )
       allocate( ib(3,maxbend), source = 0 )
-      call calc_angles(n,at,sym,xyz,bond,maxbend,nbend,bend,ib)
+      call calc_angles(n,at,xyz,bond,maxbend,nbend,bend,ib)
       if (nbend.gt.0) then
-         call print_angles(iunit,n,at,nbend,bend,ib)
+         call print_angles(iunit,n,at,sym,nbend,bend,ib)
       endif
       deallocate( bend,ib )
    endif
@@ -194,9 +194,9 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
    if (pr_torsions) then
       allocate( trsn(maxtrsn), source = 0.0_wp )
       allocate( it(4,maxtrsn), source = 0 )
-      call calc_torsions(n,at,sym,xyz,bond,maxtrsn,ntrsn,trsn,it)
+      call calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
       if (ntrsn.gt.0) then
-         call print_torsions(iunit,n,at,ntrsn,trsn,it)
+         call print_torsions(iunit,n,at,sym,ntrsn,trsn,it)
       endif
       deallocate( trsn,it )
    endif
