@@ -157,7 +157,7 @@ subroutine main_property &
    if (allocated(solvModel).and.pr_gbsa) then
       call newBornModel(solvModel, env, gbsa, mol%at)
       call gbsa%update(env, mol%at, mol%xyz)
-      call print_gbsa_info(iunit,gbsa)
+      call print_gbsa_info(iunit, mol%sym, gbsa)
    endif
 
 !! D4 molecular dispersion printout
@@ -1204,12 +1204,13 @@ subroutine print_thermo_sthr_ts(iunit,nvib,vibs,avmom_si,sthr_rcm,temp)
 
 end subroutine print_thermo_sthr_ts
 
-subroutine print_gbsa_info(iunit,gbsa)
+subroutine print_gbsa_info(iunit,sym,gbsa)
    use xtb_mctc_constants
    use xtb_mctc_convert
    use xtb_solv_gbsa, only : TBorn
    implicit none
    integer, intent(in) :: iunit
+   character(len=*), intent(in) :: sym(:)
    type(TBorn), intent(in) :: gbsa
 
    integer :: i
@@ -1218,15 +1219,24 @@ subroutine print_gbsa_info(iunit,gbsa)
    write(iunit,'(1x,"*",1x,a)') &
       &  "generalized Born model for continuum solvation"
    write(iunit,'(a)')
-   write(iunit,'(2x,2a4,3x,3a)') "#","Z","Born rad/Å","   SASA/Å²","    H-bond"
-   do i = 1, gbsa%nat
-      write(iunit,'(i6,1x,i3,1x,a2,3f10.3)') &
-         &  i,gbsa%at(i),toSymbol(gbsa%at(i)), &
-         &  gbsa%brad(i)*autoaa,gbsa%sasa(i)*fourpi/gbsa%gamsasa(i)*autoaa**2, &
-         &  gbsa%hbw(i)
-   enddo
+   if (gbsa%lhb) then
+      write(iunit,'(2x,2a4,5x,3a)') "#","Z","Born rad/Å","   SASA/Å²","    H-bond"
+      do i = 1, size(sym)
+         write(iunit,'(i6,1x,i3,1x,a4,3f10.3)') &
+            &  i,gbsa%at(i),sym(i), &
+            &  gbsa%brad(i)*autoaa,gbsa%sasa(i)*fourpi*autoaa**2, &
+            &  gbsa%hbw(i)
+      end do
+   else
+      write(iunit,'(2x,2a4,5x,2a)') "#","Z","Born rad/Å","   SASA/Å²"
+      do i = 1, size(sym)
+         write(iunit,'(i6,1x,i3,1x,a4,2f10.3)') &
+            &  i,gbsa%at(i),sym(i), &
+            &  gbsa%brad(i)*autoaa,gbsa%sasa(i)*fourpi*autoaa**2
+      end do
+   end if
    write(iunit,'(/,1x,"total SASA / Å² :",f13.3)') &
-      &  sum(gbsa%sasa/gbsa%gamsasa)*fourpi*autoaa**2
+      &  sum(gbsa%sasa)*fourpi*autoaa**2
 
 
 end subroutine print_gbsa_info
