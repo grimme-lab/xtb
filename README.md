@@ -92,6 +92,18 @@ It is possible to list all of the versions of `xtb` available on your platform w
 ```
 conda search xtb --channel conda-forge
 ```
+### Cygwin-build xtb
+Now Windows users can build 'xtb' use 'Cygwin' and 'cmake'. The process is similar to the Cmake build.
+```bash
+mkdir build
+pushd build
+cmake /STACK:4000000000 -DCMAKE_BUILD_TYPE=Release ..
+make
+ctest
+popd
+```
+The only different is to set a lagre stack instead of the defalut stack. Under the default stack, xtb will terminate if you use 'GFN-2' to perform the calculation.
+Now the Cygwin-build xtb has been provided in the release.
 
 ## Documentation
 
