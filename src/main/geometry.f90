@@ -23,7 +23,7 @@ subroutine main_geometry(iunit,mol)
    type(TMolecule), intent(in) :: mol
 
    if (mol%npbc == 0) then
-      call print_geosum(iunit,mol%n,mol%at,mol%xyz)
+      call print_geosum(iunit,mol%n,mol%at,mol%sym,mol%xyz)
    else
       call print_pbcsum(iunit,mol)
    endif
@@ -50,9 +50,9 @@ subroutine print_pbcsum(iunit,mol)
    ! atomic coordinates
    write(iunit,'(1x,"*",1x,i0,1x,a)') mol%n,"atoms in unit cell"
    write(iunit,'(a)')
-   write(iunit,'(5x,"#",3x,"Z",3x,32x,"position/Å",8x,"charge")')
+   write(iunit,'(5x,"#",3x,"Z",5x,32x,"position/Å",8x,"charge")')
    do i = 1, mol%n
-      write(iunit,'(i6,1x,i3,1x,a2)',advance='no') i,mol%at(i),mol%sym(i)
+      write(iunit,'(i6,1x,i3,1x,a4)',advance='no') i,mol%at(i),mol%sym(i)
       write(iunit,'(3f14.7)',advance='no') mol%xyz(:,i)*conv
       write(iunit,'(f14.7)') mol%z(i)
    enddo
@@ -91,9 +91,9 @@ subroutine print_pbcsum(iunit,mol)
       ! geometry in fractional coordinates
       write(iunit,'(1x,"*",1x,a)') "geometry in fractional coordinates"
       write(iunit,'(a)')
-      write(iunit,'(5x,"#",3x,"Z",3x,20x,"fractional coordinates")')
+      write(iunit,'(5x,"#",3x,"Z",5x,20x,"fractional coordinates")')
       do i = 1, mol%n
-         write(iunit,'(i6,1x,i3,1x,a2)',advance='no') i,mol%at(i),mol%sym(i)
+         write(iunit,'(i6,1x,i3,1x,a4)',advance='no') i,mol%at(i),mol%sym(i)
          write(iunit,'(3f14.7)',advance='no') mol%abc(:,i)
          write(iunit,'(a)')
       enddo
@@ -113,7 +113,7 @@ subroutine print_pbcsum(iunit,mol)
 end subroutine print_pbcsum
 
 
-subroutine print_geosum(iunit,n,at,xyz)
+subroutine print_geosum(iunit,n,at,sym,xyz)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_mctc_convert
@@ -125,6 +125,7 @@ subroutine print_geosum(iunit,n,at,xyz)
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
+   character(len=*), intent(in) :: sym(n)
    real(wp),intent(in)  :: xyz(3,n)
 
    integer  :: i,j,k,l,m
@@ -174,7 +175,7 @@ subroutine print_geosum(iunit,n,at,xyz)
       call calc_distances(n,at,xyz,bond,maxdist,ndist,dist,id, &
          maxelem,nelem,ndel,distel,maxdel,mindel)
       if (ndist.gt.0) then
-         call print_distances(iunit,n,at,ndist,dist,id)
+         call print_distances(iunit,n,at,sym,ndist,dist,id)
          call print_elem_dist(iunit,maxelem,nelem,ndel,distel,maxdel,mindel)
       endif
       deallocate( dist,distel,maxdel,mindel,id,ndel)
@@ -183,7 +184,7 @@ subroutine print_geosum(iunit,n,at,xyz)
    if (pr_angles) then
       allocate( bend(maxbend), source = 0.0_wp )
       allocate( ib(3,maxbend), source = 0 )
-      call calc_angles(n,at,xyz,bond,maxbend,nbend,bend,ib)
+      call calc_angles(n,at,sym,xyz,bond,maxbend,nbend,bend,ib)
       if (nbend.gt.0) then
          call print_angles(iunit,n,at,nbend,bend,ib)
       endif
@@ -193,7 +194,7 @@ subroutine print_geosum(iunit,n,at,xyz)
    if (pr_torsions) then
       allocate( trsn(maxtrsn), source = 0.0_wp )
       allocate( it(4,maxtrsn), source = 0 )
-      call calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
+      call calc_torsions(n,at,sym,xyz,bond,maxtrsn,ntrsn,trsn,it)
       if (ntrsn.gt.0) then
          call print_torsions(iunit,n,at,ntrsn,trsn,it)
       endif
@@ -232,7 +233,7 @@ subroutine print_elem_dist(iunit,n,nbond,bond,dist,maxd,mind)
 
 end subroutine print_elem_dist
 
-subroutine print_distances(iunit,n,at,ndist,dist,id)
+subroutine print_distances(iunit,n,at,sym,ndist,dist,id)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
    use xtb_mctc_symbols, only : toSymbol
@@ -240,6 +241,7 @@ subroutine print_distances(iunit,n,at,ndist,dist,id)
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
+   character(len=*), intent(in) :: sym(n)
    integer, intent(in)  :: ndist
    real(wp),intent(in)  :: dist(ndist)
    integer, intent(in)  :: id(2,ndist)
@@ -249,15 +251,15 @@ subroutine print_distances(iunit,n,at,ndist,dist,id)
 
    write(iunit,'(1x,"*",1x,i0,1x,a)') ndist,"selected distances"
    write(iunit,'(a)')
-   write(iunit,'(2(5x,"#",3x,"Z",3x),26x,8x,"value/Å")')
+   write(iunit,'(2(5x,"#",3x,"Z",5x),30x,8x,"value/Å")')
    imax = maxloc(dist,1)
    imin = minloc(dist,1)
    do m = 1, ndist
       i = id(1,m)
       j = id(2,m)
-      write(iunit,'(2(i6,1x,i3,1x,a2),26x,1x,f14.7)',advance='no') &
-         i,at(i),toSymbol(at(i)), &
-         j,at(j),toSymbol(at(j)), &
+      write(iunit,'(2(i6,1x,i3,1x,a4),30x,1x,f14.7)',advance='no') &
+         i,at(i),sym(i), &
+         j,at(j),sym(j), &
          dist(m)*autoaa
       if (imax.eq.m) then
          write(iunit,'(1x,"(max)")')
@@ -271,7 +273,7 @@ subroutine print_distances(iunit,n,at,ndist,dist,id)
 
 end subroutine print_distances
 
-subroutine print_angles(iunit,n,at,nbend,bend,ib)
+subroutine print_angles(iunit,n,at,sym,nbend,bend,ib)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_mctc_symbols, only : toSymbol
@@ -279,6 +281,7 @@ subroutine print_angles(iunit,n,at,nbend,bend,ib)
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
+   character(len=*), intent(in) :: sym(n)
    integer, intent(in)  :: nbend
    real(wp),intent(in)  :: bend(nbend)
    integer, intent(in)  :: ib(3,nbend)
@@ -288,22 +291,22 @@ subroutine print_angles(iunit,n,at,nbend,bend,ib)
 
    write(iunit,'(1x,"*",1x,i0,1x,a)') nbend,"selected angles"
    write(iunit,'(a)')
-   write(iunit,'(3(5x,"#",3x,"Z",3x),13x,8x,"value/°")')
+   write(iunit,'(3(5x,"#",3x,"Z",5x),13x,10x,"value/°")')
    do m = 1, nbend
       i = ib(1,m)
       j = ib(2,m)
       k = ib(3,m)
-      write(iunit,'(3(i6,1x,i3,1x,a2),13x,1x,f14.7)') &
-         i,at(i),toSymbol(at(i)), &
-         j,at(j),toSymbol(at(j)), &
-         k,at(k),toSymbol(at(k)), &
+      write(iunit,'(3(i6,1x,i3,1x,a4),13x,1x,f14.7)') &
+         i,at(i),sym(i), &
+         j,at(j),sym(j), &
+         k,at(k),sym(k), &
          bend(m)*180.0_wp/pi
    enddo
    write(iunit,'(a)')
 
 end subroutine print_angles
 
-subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
+subroutine print_torsions(iunit,n,at,sym,ntrsn,trsn,it)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    use xtb_mctc_symbols, only : toSymbol
@@ -311,6 +314,7 @@ subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
    integer, intent(in)  :: iunit
    integer, intent(in)  :: n
    integer, intent(in)  :: at(n)
+   character(len=*), intent(in) :: sym(n)
    integer, intent(in)  :: ntrsn
    real(wp),intent(in)  :: trsn(ntrsn)
    integer, intent(in)  :: it(4,ntrsn)
@@ -320,17 +324,17 @@ subroutine print_torsions(iunit,n,at,ntrsn,trsn,it)
 
    write(iunit,'(1x,"*",1x,i0,1x,a)') ntrsn, "selected dihedral angles"
    write(iunit,'(a)')
-   write(iunit,'(4(5x,"#",3x,"Z",3x),8x,"value/°")')
+   write(iunit,'(4(5x,"#",3x,"Z",5x),8x,"value/°")')
    do m = 1, ntrsn
       i = it(1,m)
       j = it(2,m)
       k = it(3,m)
       l = it(4,m)
-      write(iunit,'(4(i6,1x,i3,1x,a2),1x,f14.7)') &
-         i,at(i),toSymbol(at(i)), &
-         j,at(j),toSymbol(at(j)), &
-         k,at(k),toSymbol(at(k)), &
-         l,at(l),toSymbol(at(l)), &
+      write(iunit,'(4(i6,1x,i3,1x,a4),1x,f14.7)') &
+         i,at(i),sym(i), &
+         j,at(j),sym(j), &
+         k,at(k),sym(k), &
+         l,at(l),sym(l), &
          trsn(m)*180.0_wp/pi
    enddo
    write(iunit,'(a)')
