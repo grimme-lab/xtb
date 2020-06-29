@@ -68,8 +68,6 @@ subroutine open_file(iunit,name,status)
    character(len=*),intent(in)  :: name
    character(len=1),intent(in)  :: status
    integer,intent(out) :: iunit
-   character(*),parameter :: unixnull = '/dev/null'
-   character(*),parameter :: winnull = 'NUL'
 
    select case(status)
    case default
@@ -78,12 +76,6 @@ subroutine open_file(iunit,name,status)
       call persistentEnv%io%readFile(iunit, name)
    case('w','W')
       call persistentEnv%io%writeFile(iunit, name)
-   case('n','N')
-#ifdef _WIN32
-       call persistentEnv%io%writeFile(iunit, winnull)
-#else
-       call persistentEnv%io%writeFile(iunit, unixnull)
-#endif  
    end select
 
 end subroutine open_file

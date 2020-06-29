@@ -1296,6 +1296,11 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          restart = .false. 
          verbose=.false.
          call set_ceasefiles(env)
+#ifdef _WIN32
+         call set_opt(env, 'logfile', 'NUL')
+#else
+         call set_opt(env, 'logfile', '/dev/null')
+#endif         
 
       case('--orca')
          call set_exttyp('orca')

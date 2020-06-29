@@ -72,11 +72,7 @@ subroutine geometry_optimization &
    endif
 
    if (.not.allocated(opt_logfile)) then
-      if(.not.ceasefiles)then 
-        call open_file(ilog,'xtbopt.log','w')
-      else 
-        call open_file(ilog,'xtbopt.log','n')
-     endif 
+      call open_file(ilog,'xtbopt.log','w')
    else
       if (opt_logfile == '-') then
          ilog = stdout
