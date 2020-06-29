@@ -1020,6 +1020,14 @@ subroutine set_enso_mode
    enso_mode = .true.
 end subroutine set_enso_mode
 
+subroutine set_ceasefiles(env)
+   implicit none
+   type(TEnvironment), intent(inout) :: env
+   ceasefiles = .true.
+   call set_write(env,'wiberg','false')
+   call set_write(env,'charges','false')
+end subroutine set_ceasefiles
+
 subroutine set_samerand
    implicit none
    samerand = .true.
@@ -1632,6 +1640,7 @@ subroutine set_md(env,key,val)
    logical,save :: set9 = .true.
    logical,save :: set10= .true.
    logical,save :: set11= .true.
+   logical,save :: set12= .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by md",source)
@@ -1644,9 +1653,13 @@ subroutine set_md(env,key,val)
    case('time')
       if (getValue(env,val,ddum).and.set2) time_md = ddum
       set2 = .false.
-   case('dump')
+   case('dump','dumpxyz','dumptrj')
       if (getValue(env,val,ddum).and.set3) dump_md2 = ddum
       set3 = .false.
+   case('sdump','dumpcoord')
+      call set_siman(env,'dump',val)
+      if (getValue(env,val,ddum).and.set12) dump_md = ddum
+      set12 = .false. 
    case('velo')
 !      if (getValue(env,val,idum).and.set4) then
 !         if (idum.eq.1) then
@@ -2146,6 +2159,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2153,6 +2167,10 @@ subroutine set_metadyn(env,key,val)
    case('save')
       if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
+   case('dump')
+      call set_siman(env,'dump',val)
+      if (getValue(env,val,ddum).and.set5) dump_md = ddum
+      set5 = .false.   
    case('width','alp')
       if (getValue(env,val,ddum).and.set2) metaset%width = ddum
       set2 = .false.

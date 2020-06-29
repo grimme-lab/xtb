@@ -1291,6 +1291,11 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--enso')
          call set_enso_mode
+       
+      case('--ceasefiles')
+         restart = .false. 
+         verbose=.false.
+         call set_ceasefiles(env)
 
       case('--orca')
          call set_exttyp('orca')

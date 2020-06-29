@@ -229,6 +229,7 @@ subroutine md(env,mol,chk,calc, &
    ! real coord dump to e.g. scoord.n in siman
    confdump=.false.
    if(nscan.eq.0.and.cdump2.ge.0) confdump=.true.
+   if(ceasefiles) confdump=.false.
    ! just screen
    screendump=200
 
