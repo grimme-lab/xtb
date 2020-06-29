@@ -419,6 +419,9 @@ subroutine releaseSolvent_api(venv, vcalc) &
 
       if (allocated(calc%ptr)) then
          calc%ptr%lSolv = .false.
+         if (allocated(calc%ptr%solvation)) then
+            deallocate(calc%ptr%solvation)
+         end if
       end if
 
    end if
