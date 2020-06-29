@@ -470,7 +470,7 @@ subroutine read_elempar
    character(len=:), allocatable :: key, val
    integer :: iz, ie
    if (getValue(env,line(4:5),iz)) then
-      timestp(iz) = line(7:35)
+      timestp(iz) = line(7:len_trim(line))
       do
          call getline(iunit,line,err)
          if (debug) print'("->",a)',line
