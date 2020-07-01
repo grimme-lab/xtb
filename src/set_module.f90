@@ -1020,14 +1020,6 @@ subroutine set_enso_mode
    enso_mode = .true.
 end subroutine set_enso_mode
 
-subroutine set_ceasefiles(env)
-   implicit none
-   type(TEnvironment), intent(inout) :: env
-   ceasefiles = .true.
-   call set_write(env,'wiberg','false')
-   call set_write(env,'charges','false')
-end subroutine set_ceasefiles
-
 subroutine set_samerand
    implicit none
    samerand = .true.
@@ -2167,10 +2159,6 @@ subroutine set_metadyn(env,key,val)
    case('save')
       if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
-   case('dump')
-      call set_siman(env,'dump',val)
-      if (getValue(env,val,ddum).and.set5) dump_md = ddum
-      set5 = .false.   
    case('width','alp')
       if (getValue(env,val,ddum).and.set2) metaset%width = ddum
       set2 = .false.

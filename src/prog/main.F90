@@ -1295,7 +1295,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case('--ceasefiles')
          restart = .false. 
          verbose=.false.
-         call set_ceasefiles(env)
+         ceasefiles = .true.
+         call set_write(env,'wiberg','false')
+         call set_write(env,'charges','false')
 #ifdef _WIN32
          call set_opt(env, 'logfile', 'NUL')
 #else
