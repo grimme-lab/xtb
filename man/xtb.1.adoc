@@ -244,6 +244,9 @@ GENERAL
 *-s, --silent*::
      clutter the screen less (not supported in every unit)
 
+*--ceasefiles*::
+     reduce the amount of output and files written
+
 *--strict*::
      turns all warnings into hard errors
 

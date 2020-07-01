@@ -1632,6 +1632,7 @@ subroutine set_md(env,key,val)
    logical,save :: set9 = .true.
    logical,save :: set10= .true.
    logical,save :: set11= .true.
+   logical,save :: set12= .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by md",source)
@@ -1644,9 +1645,13 @@ subroutine set_md(env,key,val)
    case('time')
       if (getValue(env,val,ddum).and.set2) time_md = ddum
       set2 = .false.
-   case('dump')
+   case('dump','dumpxyz','dumptrj')
       if (getValue(env,val,ddum).and.set3) dump_md2 = ddum
       set3 = .false.
+   case('sdump','dumpcoord')
+      call set_siman(env,'dump',val)
+      if (getValue(env,val,ddum).and.set12) dump_md = ddum
+      set12 = .false. 
    case('velo')
 !      if (getValue(env,val,idum).and.set4) then
 !         if (idum.eq.1) then
@@ -2146,6 +2151,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
 
    select case(key)
    case default ! do nothing

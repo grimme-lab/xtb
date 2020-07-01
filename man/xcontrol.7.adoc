@@ -264,7 +264,9 @@ $md
 *time*='real'::
     MD run time in ps
 *dump*='real'::
-    dump structure in every mddump fs
+    dump structure in every 'dump' fs
+*sdump*='real'::
+    dump structure as scoord.<num> every 'sdump' fs
 *velo*='int'::
     set to 1 if dumps (trj file) should contain velocities
 *nvt*='int'::

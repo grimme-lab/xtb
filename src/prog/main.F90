@@ -1291,6 +1291,18 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--enso')
          call set_enso_mode
+       
+      case('--ceasefiles')
+         restart = .false. 
+         verbose=.false.
+         ceasefiles = .true.
+         call set_write(env,'wiberg','false')
+         call set_write(env,'charges','false')
+#ifdef _WIN32
+         call set_opt(env, 'logfile', 'NUL')
+#else
+         call set_opt(env, 'logfile', '/dev/null')
+#endif         
 
       case('--orca')
          call set_exttyp('orca')

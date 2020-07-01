@@ -401,6 +401,7 @@ module xtb_setparam
    logical  :: silent = .false.
    logical  :: verbose = .false.
    logical  :: veryverbose = .false.
+   logical  :: ceasefiles  = .false.
 
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
