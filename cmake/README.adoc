@@ -126,3 +126,16 @@ ninja -C _build install
 
 If you have chosen make as generator use the same command with make.
 Depending on the installation prefix and your user rights ninja/make might ask for the `root` access to perform the installation.
+
+## Cygwin-build xtb
+Now Windows users can build 'xtb' use 'Cygwin' and 'Cmake'. The process is similar to the Cmake build. This build has been tested under GNU 7.4.0 compiler.
+```bash
+mkdir build
+pushd build
+cmake /STACK:4000000000 -DCMAKE_BUILD_TYPE=Release ..
+make
+ctest
+popd
+```
+The only different is to set a lagre stack instead of the defalut stack. Under the default stack, 'xtb' will terminate if you use 'GFN-2' to perform the calculation.
+
