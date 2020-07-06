@@ -37,7 +37,7 @@ module xtb_solv_sasa
 contains
 
 
-pure subroutine compute_numsa(nat, nnsas, nnlists, xyz, vdwsa, &
+subroutine compute_numsa(nat, nnsas, nnlists, xyz, vdwsa, &
       & wrp, trj2, angWeight, angGrid, sasa, dsdrt)
 
    !> Number of atoms
@@ -73,46 +73,44 @@ pure subroutine compute_numsa(nat, nnsas, nnlists, xyz, vdwsa, &
    !> Derivative of surface area w.r.t. cartesian coordinates
    real(wp), intent(out) :: dsdrt(:, :, :)
 
-   integer iat,jat
-   integer ip,jj,nnj,nnk
-   real(wp) rsas,sasai
-   real(wp) xyza(3),xyzp(3),sasap
-   real(wp) wr,wsa,drjj(3)
-   integer :: nno
-   real(wp), allocatable :: grds(:,:)
-   real(wp), allocatable :: grads(:,:)
-   integer :: nni
+   integer :: iat, jat, ip, jj, nnj, nnk, nni, nno
+   real(wp) :: rsas, sasai, xyza(3), xyzp(3), sasap, wr, wsa, drjj(3)
+   real(wp), allocatable :: grds(:, :), grads(:, :)
    integer, allocatable :: grdi(:)
 
    sasa(:) = 0.0_wp
    dsdrt(:, :, :) = 0.0_wp
 
+   ! allocate space for the gradient storage
    allocate(grads(3,nat), source = 0.0_wp)
+   allocate(grds(3,maxval(nnsas)))
+   allocate(grdi(maxval(nnsas)))
 
+   !$omp parallel do default(none) shared(sasa, dsdrt) &
+   !$omp shared(nat, vdwsa, nnsas, xyz, wrp, angGrid, angWeight, nnlists, trj2) &
+   !$omp private(iat, rsas, nno, grads, sasai, xyza, wr, ip, xyzp, wsa, &
+   !$omp& sasap, jj, nni, nnj, grdi, grds, drjj)
    do iat = 1, nat
 
       rsas = vdwsa(iat)
-      ! allocate space for the gradient storage
-      nno=nnsas(iat)
-      allocate(grds(3,nno))
-      allocate(grdi(nno))
+      nno = nnsas(iat)
 
       ! initialize storage
       grads = 0.0_wp
       sasai = 0.0_wp
 
       ! atomic position
-      xyza(:)=xyz(:,iat)
+      xyza(:) = xyz(:,iat)
       ! radial atomic weight
-      wr=wrp(iat)
+      wr = wrp(iat)
 
       ! loop over grid points
-      do ip=1, size(angGrid, 2)
+      do ip = 1, size(angGrid, 2)
          ! grid point position
          xyzp(:) = xyza(:) + rsas*angGrid(1:3,ip)
          ! atomic surface function at the grid point
-         call compute_w_sp(nat,nnlists,trj2,vdwsa, &
-            &              xyz,iat,nno,xyzp,sasap,grds,nni,grdi)
+         call compute_w_sp(nat, nnlists(:nno, iat), trj2, vdwsa, xyz, nno, xyzp, &
+            & sasap, grds, nni, grdi)
 
          if(sasap.gt.tolsesp) then
             ! numerical quadrature weight
@@ -123,30 +121,26 @@ pure subroutine compute_numsa(nat, nnsas, nnlists, xyz, vdwsa, &
             do jj = 1, nni
                nnj = grdi(jj)
                drjj(:) = wsa*grds(:,jj)
-               grads(:,iat)=grads(:,iat)+drjj(:)
-               grads(:,nnj)=grads(:,nnj)-drjj(:)
-            enddo
-         endif
-      enddo
-
-      deallocate(grds)
-      deallocate(grdi)
+               grads(:,iat) = grads(:,iat)+drjj(:)
+               grads(:,nnj) = grads(:,nnj)-drjj(:)
+            end do
+         end if
+      end do
 
       sasa(iat) = sasai
       dsdrt(:,:,iat) = grads
 
-   enddo
+   end do
 
 end subroutine compute_numsa
 
 
-pure subroutine compute_w_sp(nat,nnlists,trj2,vdwsa,xyza,iat,nno,xyzp,sasap,grds, &
+pure subroutine compute_w_sp(nat,nnlists,trj2,vdwsa,xyza,nno,xyzp,sasap,grds, &
       &                      nni,grdi)
    implicit none
 
    integer, intent(in)  :: nat
-   integer, intent(in)  :: nnlists(nat,nat)
-   integer, intent(in)  :: iat
+   integer, intent(in)  :: nnlists(nno)
    integer, intent(in)  :: nno
    integer, intent(out) :: nni
    real(wp),intent(in)  :: xyza(3,nat)
@@ -166,7 +160,7 @@ pure subroutine compute_w_sp(nat,nnlists,trj2,vdwsa,xyza,iat,nno,xyzp,sasap,grds
    nni=0
    sasap=1.0_wp
    do i = 1, nno
-      ia = nnlists(i,iat)
+      ia = nnlists(i)
       ! compute the distance to the atom
       tj(:)=xyzp(:)-xyza(:,ia)
       tj2=tj(1)*tj(1)+tj(2)*tj(2)+tj(3)*tj(3)

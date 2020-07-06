@@ -18,7 +18,7 @@
 !> COSMO implementation based on ddCOSMO backend
 module xtb_solv_cosmo
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : mctc_dot
+   use xtb_mctc_blas, only : mctc_dot, mctc_gemv
    use xtb_mctc_constants, only : fourpi
    use xtb_param_vdwradd3, only : getVanDerWaalsRadD3
    use xtb_solv_ddcosmo_core
@@ -60,6 +60,9 @@ module xtb_solv_cosmo
 
       !> Number of grid point
       integer :: nAng
+
+      !> Interaction matrix with surface charges jmat(ncav, n)
+      real(wp), allocatable :: jmat(:, :)
 
    contains
 
@@ -145,7 +148,9 @@ subroutine update(self, env, num, xyz)
    call ddinit(self%ddCosmo, env, self%nat, xyz, self%rvdw)
 
    allocate(self%phi(self%ddCosmo%ncav), self%psi(self%ddCosmo%nylm, self%nat))
-   allocate(self%s(self%ddCosmo%nylm, self%nat))
+   allocate(self%jmat(self%ddCosmo%ncav, self%nat))
+
+   call mkjmat(self%nat, xyz, self%ddCosmo%ncav, self%ddCosmo%ccav, self%jmat)
 
 end subroutine update
 
@@ -182,10 +187,24 @@ subroutine addShift(self, env, qat, qsh, atomicShift, shellShift)
       allocate(self%sigma(self%ddCosmo%nylm, self%nat))
    end if
 
-   call mkrhs(self%nat, qat, self%ddCosmo%csph, self%ddCosmo%ncav, &
-      & self%ddCosmo%ccav, self%phi, self%ddCosmo%nylm, self%psi)
+   call mkrhs(self%nat, qat, self%ddCosmo%ncav, self%jmat, self%phi, &
+      & self%ddCosmo%nylm, self%psi)
 
-   call cosmo(self%ddCosmo, env, .true., self%phi, xx, self%sigma, restart)
+   call cosmoSolv(self%ddCosmo, env, .true., self%phi, xx, self%sigma, restart)
+
+   restart = allocated(self%s)
+   if (.not.allocated(self%s)) then
+      allocate(self%s(self%ddCosmo%nylm, self%nat))
+   end if
+
+   ! solve adjoint ddCOSMO equation to get full potential contributions
+   call cosmoStar(self%ddCosmo, env, self%psi, self%s, restart)
+
+   ! we abuse Phi to store the unpacked and scaled value of s
+   call ddmkzeta(self%ddCosmo, self%s, self%phi)
+   ! and contract with the Coulomb matrix
+   call mctc_gemv(self%jmat, self%phi, atomicShift, alpha=-1.0_wp, &
+      & beta=1.0_wp, trans='t')
 
    keps = 0.5_wp * ((self%ddCosmo%eps - 1.0_wp)/self%ddCosmo%eps) * sqrt(fourpi)
    atomicShift(:) = atomicShift + keps * self%sigma(1, :)
@@ -253,7 +272,12 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
 
    allocate(fx(3, self%nat), zeta(self%ddCosmo%ncav), &
       & ef(3, max(self%nat, self%ddCosmo%ncav)))
-   call cosmoStar(self%ddCosmo, env, self%psi, self%s)
+
+   call cosmoStar(self%ddCosmo, env, self%psi, self%s, .true., &
+      & accuracy=self%ddCosmo%iconv+3)
+
+   ! reset Phi
+   call mctc_gemv(self%jmat, qat, self%phi)
 
    ! now call the routine that computes the ddcosmo specific contributions
    ! to the forces.
@@ -294,10 +318,10 @@ end subroutine addGradient
 
 
 !> Routine to compute the potential and psi vector
-subroutine mkrhs(n, charge, xyz, ncav, ccav, phi, nylm, psi)
+subroutine mkrhs(n, charge, ncav, jmat, phi, nylm, psi)
    integer, intent(in) :: n, ncav, nylm
-   real(wp), intent(in) :: xyz(3, n), charge(n)
-   real(wp), intent(in) :: ccav(3, ncav)
+   real(wp), intent(in) :: charge(n)
+   real(wp), intent(in) :: jmat(ncav, n)
    real(wp), intent(inout) :: phi(ncav)
    real(wp), intent(inout) :: psi(nylm, n)
 
@@ -310,17 +334,7 @@ subroutine mkrhs(n, charge, xyz, ncav, ccav, phi, nylm, psi)
    phi = 0.0_wp
    psi = 0.0_wp
 
-   !$omp parallel do default(shared) private(ic, v, j, vec, d2, d)
-   do ic = 1, ncav
-      v  = 0.0_wp
-      do j = 1, n
-         vec(:) = ccav(:, ic) - xyz(:, j)
-         d2 = vec(1)**2 + vec(2)**2 + vec(3)**2
-         d = sqrt(d2)
-         v = v + charge(j)/d
-      end do
-      phi(ic) = v
-   end do
+   call mctc_gemv(jmat, charge, phi)
 
    ! psi vector:
    do isph = 1, n
@@ -328,6 +342,30 @@ subroutine mkrhs(n, charge, xyz, ncav, ccav, phi, nylm, psi)
    end do
 
 end subroutine mkrhs
+
+
+subroutine mkjmat(n, xyz, ncav, ccav, jmat)
+   integer, intent(in) :: n, ncav
+   real(wp), intent(in) :: xyz(3, n)
+   real(wp), intent(in) :: ccav(3, ncav)
+   real(wp), intent(inout) :: jmat(ncav, n)
+
+   integer :: isph, ic, j
+   real(wp) :: v
+   real(wp) :: vec(3), d2, d, pi, fac
+   real(wp), parameter :: zero=0.0_wp, one=1.0_wp, four=4.0_wp
+
+   !$omp parallel do default(shared) private(ic, j, vec, d2, d)
+   do ic = 1, ncav
+      do j = 1, n
+         vec(:) = ccav(:, ic) - xyz(:, j)
+         d2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+         d = sqrt(d2)
+         jmat(ic, j) = 1.0_wp / d
+      end do
+   end do
+
+end subroutine mkjmat
 
 
 !> Wrapper for the linear solvers for COSMO equation
@@ -338,7 +376,7 @@ end subroutine mkrhs
 !     equations.
 !   - computes a guess for the solution (using the inverse diagonal);
 !   - calls the iterative solver;
-subroutine cosmo(ddCosmo, env, cart, phi, glm, sigma, restart)
+subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
 
    !> Error source
    character(len=*), parameter :: source = 'solv_cosmo_cosmo'
@@ -434,7 +472,7 @@ subroutine cosmo(ddCosmo, env, cart, phi, glm, sigma, restart)
       return
    endif
 
-end subroutine cosmo
+end subroutine cosmoSolv
 
 
 !> Wrapper for the linear solvers for adjoint COSMO equation
@@ -443,7 +481,7 @@ end subroutine cosmo
 !   - allocates memory for the linear solvers
 !   - computes a guess for the solution (using the inverse diagonal);
 !   - calls the iterative solver;
-subroutine cosmoStar(ddCosmo, env, psi, sigma)
+subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
    !> Error source
    character(len=*), parameter :: source = 'solv_cosmo_cosmoStar'
    type(TEnvironment), intent(inout) :: env
@@ -455,6 +493,12 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma)
    !> The solution to the COSMO (adjoint) equations
    real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nsph)
 
+   !> Initial guess is provided on sigma
+   logical, intent(in) :: restart
+
+   !> Overwrite accuracy
+   integer, intent(in), optional :: accuracy
+
    integer :: isph, istatus, n_iter, info, c1, c2, cr
    real(wp) :: tol, r_norm
    logical :: ok
@@ -462,13 +506,19 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma)
    real(wp), allocatable  :: g(:, :), rhs(:, :), work(:, :)
 
    ! parameters for the solver and matvec routine
-   tol     = 10.0_wp**(-ddCosmo%iconv-3)
+   if (present(accuracy)) then
+      tol = 10.0_wp**(-accuracy)
+   else
+      tol = 10.0_wp**(-ddCosmo%iconv)
+   end if
    n_iter  = 200
 
    ! 1. INITIAL GUESS
-   do isph = 1, ddCosmo%nsph
-      sigma(:, isph) = ddCosmo%facl(:)*psi(:, isph)
-   enddo
+   if (.not.restart) then
+      do isph = 1, ddCosmo%nsph
+         sigma(:, isph) = ddCosmo%facl(:)*psi(:, isph)
+      end do
+   end if
 
    ! 2. SOLVER CALL
    ! Jacobi method : see above

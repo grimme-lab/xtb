@@ -148,6 +148,7 @@ contains
 !  allocate the various arrays needed for ddcosmo,
 !  assemble the cavity and the various associated geometrical quantities.
 subroutine ddinit(self, env, n, xyz, rvdw)
+   use xtb_mctc_search, only : bisectSearch
    use xtb_solv_lebedev, only : gridSize, getAngGrid
 
    character(len=*), parameter :: source = 'solv_ddcosmo_ddinit'
@@ -169,15 +170,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    self%nsph = n
 
    ! choose the lebedev grid with number of points closest to ngrid:
-   igrid = 0
-   inear = 100000
-   do i = 1, size(gridSize)
-      jnear = iabs(gridSize(i)-self%ngrid)
-      if (jnear.lt.inear) then
-         inear = jnear
-         igrid = i
-      end if
-   end do
+   call bisectSearch(igrid, gridSize, self%ngrid)
    self%ngrid = gridSize(igrid)
 
    ! print a nice header:
@@ -226,7 +219,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
 
    ! set the centers and radii of the spheres:
    self%csph(:, :) = xyz
-   self%rsph = rvdw
+   self%rsph(:) = rvdw
 
    ! load a lebedev grid:
    call getAngGrid(igrid, self%grid, self%w, istatus)
@@ -291,7 +284,8 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       self%inl(isph) = lnl + 1
       do jsph = 1, self%nsph
          if (isph.ne.jsph) then
-            d2 = (self%csph(1, isph) - self%csph(1, jsph))**2 + (self%csph(2, isph) - self%csph(2, jsph))**2 + (self%csph(3, isph) - self%csph(3, jsph))**2
+            v(:) = self%csph(:, isph) - self%csph(:, jsph)
+            d2 = v(1)**2 + v(2)**2 + v(3)**2
             r2 = (self%rsph(isph) + self%rsph(jsph))**2
             if (d2.le.r2) then
                self%nl(ii) = jsph
