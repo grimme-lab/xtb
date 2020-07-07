@@ -460,6 +460,9 @@ $thermo
 *temp*='real'::
     temperature for thermostatistical calculation (default: 298.15 K)
 
+*imagthr*='real'::
+    threshold for inverting imaginary frequencies for thermo in cm-1 (default: -20.0)
+
 *sthr*='real'::
     rotor cut-off (cm-1) in thermo  (default: 50.0)
 

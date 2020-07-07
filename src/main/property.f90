@@ -987,7 +987,7 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    ! as being real if .gt. this value in cm-1
    ! this threshold requires projected freqs.!
    vibthr=1.0
-   ithr=-20
+   ithr=thermo_ithr
 
    atom=.false.
    linear=.false.

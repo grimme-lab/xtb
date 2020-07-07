@@ -239,6 +239,7 @@ subroutine write_set_thermo(ictrl)
    enddo
    write(ictrl,'(g0)') thermotemp(nthermo)
    write(ictrl,'(3x,"sthr=",g0)') thermo_sthr
+   write(ictrl,'(3x,"imagthr=",g0)') thermo_ithr
 end subroutine write_set_thermo
 
 subroutine write_set_md(ictrl)
@@ -1579,6 +1580,7 @@ subroutine set_thermo(env,key,val)
    character(len=p_str_length),dimension(p_arg_length) :: argv
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
+   logical,save :: set3 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by thermo",source)
@@ -1608,6 +1610,9 @@ subroutine set_thermo(env,key,val)
    case('sthr')
       if (getValue(env,val,ddum).and.set2) thermo_sthr = ddum
       set2 = .false.
+   case('imagthr')
+      if (getValue(env,val,ddum).and.set3) thermo_ithr = ddum
+      set3 = .false.
    end select
 end subroutine set_thermo
 
