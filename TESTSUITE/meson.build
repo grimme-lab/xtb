@@ -153,7 +153,7 @@ test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv, time
 test('GFN2-xTB: API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: d-Metal', xtb_test, args: ['gfn2', 'd-metal'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: Freq', xtb_test, args: ['hessian', 'gfn2'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB: COSMO', xtb_test, args: ['gfn2', 'cosmo'], env: xtbenv, timeout: test_timeout)
+#test('GFN2-xTB: COSMO', xtb_test, args: ['gfn2', 'cosmo'], env: xtbenv, timeout: test_timeout)
 #test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv, timeout: test_timeout)
 if cc.get_id() == 'intel'
   test(
@@ -177,7 +177,7 @@ test('GFN1-xTB: API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv, time
 test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: IPEA', xtb_test, args: ['gfn1', 'ipea'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: Freq', xtb_test, args: ['hessian', 'gfn1'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB: COSMO', xtb_test, args: ['gfn1', 'cosmo'], env: xtbenv, timeout: test_timeout)
+#test('GFN1-xTB: COSMO', xtb_test, args: ['gfn1', 'cosmo'], env: xtbenv, timeout: test_timeout)
 
 test('GFN0-xTB: Basic', xtb_test, args: ['gfn0', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: Solvation', xtb_test, args: ['gfn0', 'solvation'], env: xtbenv, timeout: test_timeout)

@@ -578,7 +578,10 @@ subroutine info(self, unit)
    write(unit, '(8x, a, t40, es14.4, 1x, a)') &
       & "Solvent mass", self%molarMass, "g/mol"
 
-   if (.not.self%cosmo) then
+   if (self%cosmo) then
+      write(unit, '(8x, a, t40, es14.4)') &
+         & "vdW Radii scaling", self%bornScale
+   else
       write(unit, '(8x, a, t40)', advance='no') "Interaction kernel"
       select case(self%kernel)
       case default
@@ -643,7 +646,7 @@ subroutine newSolvationModel(self, env, model, num)
 
    if (self%cosmo) then
       allocate(cosmo)
-      call init_(cosmo, env, num, self%dielectricConst, self%nAng, 1.0_wp)
+      call init_(cosmo, env, num, self%dielectricConst, self%nAng, self%bornScale)
       call move_alloc(cosmo, model)
    else
       allocate(born)
