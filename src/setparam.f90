@@ -140,6 +140,8 @@ module xtb_setparam
    real(wp) :: thermotemp(50) = (/298.15_wp,(0.0_wp,idum=2,50)/)
 !  rotor cut-off (cm-1) in thermo  (was 100 cm-1 previously)
    real(wp) :: thermo_sthr = 50.0_wp
+!  threshold (cm-1) for inverting imaginary modes
+   real(wp) :: thermo_ithr = -20.0_wp
 
 !! ------------------------------------------------------------------------
 !  MD thermostat/initial siman/GBSA temperature
