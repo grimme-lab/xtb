@@ -335,7 +335,8 @@ subroutine addSolvationModel(env, calc, input)
    end select
 
    if (allocated(input%solvent)) then
-      calc%lSolv = input%solvent /= 'none'
+      calc%lSolv = input%solvent /= 'none' .and. input%solvent /= 'gas' &
+         & .and. input%solvent /= 'vac'
    else
       calc%lSolv = .false.
    end if
