@@ -171,6 +171,8 @@ subroutine help
 !$ "",&
    "      --define       performs automatic check of input and terminate",&
    "",&
+   "      --json         write a JSON file",&
+   "",&
    "      --version      print version and terminate",&
    "",&
    "      --citation     print citation and terminate",&

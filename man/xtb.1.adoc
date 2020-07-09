@@ -232,6 +232,9 @@ GENERAL
 *--define*::
      performs automatic check of input and terminate
 
+*--json*::
+     write xtbout.json file
+
 *--citation*::
      print citation and terminate
 
