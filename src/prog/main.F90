@@ -1291,6 +1291,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--enso')
          call set_enso_mode
+
+      case('--json')
+         call set_write(env,'json','true')
        
       case('--ceasefiles')
          restart = .false. 
