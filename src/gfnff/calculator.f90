@@ -191,6 +191,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          write(env%unit,'(9x,"::",49("."),"::")')
          call print_gfnff_results(env%unit,results,verbose,allocated(solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
+         write(env%unit,outfmt) "total charge      ", sum(self%topo%q), "e    "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
             write(env%unit,outfmt) "atomisation energy", results%e_atom, "Eh   "
