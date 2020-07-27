@@ -232,6 +232,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(self%solvation))
          if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(self%solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
+         write(env%unit,outfmt) "total charge      ", sum(chk%wfn%q), "e    "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
             write(env%unit,outfmt) "atomisation energy", results%e_atom, "Eh   "

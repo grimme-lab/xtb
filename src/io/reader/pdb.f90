@@ -110,6 +110,7 @@ subroutine readMoleculePDB(mol, unit, status, iomsg)
    call init(mol, sym(:iatom), xyz(:, :iatom))
    call mol%frag%allocate(list(:iatom))
    mol%pdb = pdb(:iatom)
+   mol%chrg = sum(mol%pdb%charge)
 
    if (.not.all(mol%at > 0)) then
       iomsg = "invalid atom type found"
