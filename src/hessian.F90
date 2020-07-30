@@ -98,8 +98,6 @@ subroutine numhess( &
    logical :: exitRun
    character(len=128) :: errStr
 
-   parameter (scalh =1.00d0)
-
    n3=3*mol%n
    call res%allocate(mol%n)
    res%n3true = n3-3*freezeset%n
@@ -119,6 +117,7 @@ subroutine numhess( &
    if(extcode.eq.5) step=step*2.0_wp ! MOPAC is not very accurate
    ! SCC accuraccy
    acc=accu_hess
+   scalh=scale_hess
 
    call singlepoint &
       & (env,mol,chk0,calc, &
