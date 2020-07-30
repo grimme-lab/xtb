@@ -992,10 +992,14 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    atom=.false.
    linear=.false.
    sthr=thermo_sthr
-   if (mode_extrun.eq.p_ext_gfnff) then
-      scale_factor=1.03
+   if (abs(thermo_fscal - 1.0_wp) > 1.0e-8_wp) then
+      scale_factor=thermo_fscal
    else
-      scale_factor=1.0
+      if (mode_extrun.eq.p_ext_gfnff) then
+         scale_factor = 1.03_wp
+      else
+         scale_factor = 1.0_wp
+      end if
    end if
    nvib=0
    nimag=0

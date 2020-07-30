@@ -142,6 +142,8 @@ module xtb_setparam
    real(wp) :: thermo_sthr = 50.0_wp
 !  threshold (cm-1) for inverting imaginary modes
    real(wp) :: thermo_ithr = -20.0_wp
+   ! frequency scaling for therostatistical calculation
+   real(wp) :: thermo_fscal = 1.0_wp
 
 !! ------------------------------------------------------------------------
 !  MD thermostat/initial siman/GBSA temperature
@@ -191,6 +193,8 @@ module xtb_setparam
    real(wp) :: accu_hess = 0.3_wp
 !  Cartesian displacement increment for numerical Hessian
    real(wp) :: step_hess = 0.005_wp
+   ! Scaling factor for the hessian elements
+   real(wp) :: scale_hess = 1.0_wp
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
    type(TSolvInput) :: solvInput

@@ -240,6 +240,7 @@ subroutine write_set_thermo(ictrl)
    write(ictrl,'(g0)') thermotemp(nthermo)
    write(ictrl,'(3x,"sthr=",g0)') thermo_sthr
    write(ictrl,'(3x,"imagthr=",g0)') thermo_ithr
+   write(ictrl,'(3x,"scale=",g0)') thermo_fscal
 end subroutine write_set_thermo
 
 subroutine write_set_md(ictrl)
@@ -278,6 +279,7 @@ subroutine write_set_hess(ictrl)
    write(ictrl,'(a,"hess")') flag
    write(ictrl,'(3x,"sccacc=",g0)') accu_hess
    write(ictrl,'(3x,"step=",g0)') step_hess
+   write(ictrl,'(3x,"scale=",g0)') scale_hess
 end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
@@ -1581,6 +1583,7 @@ subroutine set_thermo(env,key,val)
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
+   logical,save :: set4 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by thermo",source)
@@ -1613,6 +1616,9 @@ subroutine set_thermo(env,key,val)
    case('imagthr')
       if (getValue(env,val,ddum).and.set3) thermo_ithr = ddum
       set3 = .false.
+   case('scale')
+      if (getValue(env,val,ddum).and.set4) thermo_fscal = ddum
+      set4 = .false.
    end select
 end subroutine set_thermo
 
@@ -1780,6 +1786,7 @@ subroutine set_hess(env,key,val)
    logical  :: ldum
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
+   logical,save :: set3 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by hess",source)
@@ -1789,6 +1796,9 @@ subroutine set_hess(env,key,val)
    case('step')
       if (getValue(env,val,ddum).and.set2) step_hess = ddum
       set2 = .false.
+   case('scale')
+      if (getValue(env,val,ddum).and.set3) scale_hess = ddum
+      set3 = .false.
    end select
 end subroutine set_hess
 
