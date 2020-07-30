@@ -28,7 +28,7 @@ jobs:
               - intel-oneapi-mkl-devel
               - intel-oneapi-openmp
         before_install:
-        - source /opt/intel/inteloneapi/setvars.sh
+        - source /opt/intel/oneapi/setvars.sh
         script:
         - meson build --buildtype=release --prefix=$PWD/install -Dla_backend=mkl-static
         - OMP_NUM_THREADS=2 ninja -C build test install

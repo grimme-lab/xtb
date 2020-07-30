@@ -464,7 +464,7 @@ subroutine test_gfnff_scaleup
       & 0.12497794198721_wp, 0.19334610335377_wp]
 
    call init(env)
-   do iMol = 1, 5, 2
+   do iMol = 1, 5
       if (afail > 0) exit
 
       call getMolecule(mol, trim(molecules(iMol)))
