@@ -151,6 +151,11 @@ contains
             endif
             srab (k)=sqrt(sqrab(k))
          enddo
+! The loop above only runs over the off diagonal elements
+! This initializes the unitialized diagonal to zero but does not
+! add it to the dispersion list.
+         sqrab(ij + i) = 0.0d0
+         srab(ij + i) = 0.0d0
       enddo
       if (pr) call timer%measure(1)
 
