@@ -75,7 +75,7 @@ subroutine help
    "",&
    "   -a,--acc REAL     accuracy for SCC calculation, lower is better (default = 1.0)",&
    "",&
-   "      --iteration INT number of iterations in SCC (default = 250)",&
+   "      --iterations INT number of iterations in SCC (default = 250)",&
    "",&
    "      --cycles       number of cycles in ANCopt (default = automatic)",&
    "",&
