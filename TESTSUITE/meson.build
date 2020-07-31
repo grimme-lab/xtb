@@ -184,7 +184,6 @@ test('GFN0-xTB: SRB (PBC)', xtb_test, args: ['peeq', 'srb'], env: xtbenv, timeou
 
 # Disable malloc perturbation to get reproducable GFN-FF runs
 gffenv = xtbenv
-gffenv.set('MALLOC_PERTURB_', '0')
 test('GFN-FF: Basic', xtb_test, args: ['gfnff', 'basic'], env: gffenv, timeout: test_timeout)
 test('GFN-FF: Solvation', xtb_test, args: ['gfnff', 'solvation'], env: gffenv, timeout: test_timeout)
 test('GFN-FF: SP', xtb_test, args: ['gfnff', 'sp'], env: gffenv, timeout: test_timeout)
