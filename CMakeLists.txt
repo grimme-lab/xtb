@@ -105,8 +105,8 @@ install(FILES
 )
 install(TARGETS lib-xtb-static lib-xtb-shared xtb-exe
   EXPORT xtbTargets
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib${LIB_SUFFIX}
+  ARCHIVE DESTINATION lib${LIB_SUFFIX}
   RUNTIME DESTINATION bin
 )
 # CMake package files
