@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.9)
 
 # Setup the XTB Project
 project(xtb
-   VERSION 6.3.2
+  VERSION 6.3.2
+  LANGUAGES C Fortran
 )
-enable_language(Fortran)
 enable_testing()
 
 set(xtb-dir "${CMAKE_CURRENT_SOURCE_DIR}")
