@@ -1,8 +1,12 @@
 cmake_minimum_required(VERSION 3.9)
 
+set(XTB_VERSION_MAJOR 6)
+set(XTB_VERSION_MINOR 3)
+set(XTB_VERSION_MICRO 2)
+
 # Setup the XTB Project
 project(xtb
-   VERSION 6.3.2
+   VERSION ${XTB_VERSION_MAJOR}.${XTB_VERSION_MINOR}.${XTB_VERSION_MICRO}
 )
 enable_language(Fortran)
 enable_testing()
@@ -71,6 +75,8 @@ set_target_properties(lib-xtb-shared PROPERTIES
   Fortran_MODULE_DIRECTORY ${xtb-mod}
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
   OUTPUT_NAME xtb
+  VERSION ${PROJECT_VERSION}
+  SOVERSION ${XTB_VERSION_MAJOR}
 )
 target_include_directories(lib-xtb-shared
   PUBLIC
