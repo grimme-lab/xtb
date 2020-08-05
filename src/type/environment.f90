@@ -135,8 +135,17 @@ subroutine initEnvironment(self, strict)
 
    call rdarg(0, self%whoami, err)
    call rdvar('HOSTNAME', self%hostname, err)
+   if (err /= 0 .or. len(self%hostname) <= 0) then
+     call raise('E',"Parsing HOSTNAME failed!",1)
+   end if
    call rdvar('HOME', self%home, err)
+   if (err /= 0 .or. len(self%home) <= 0) then
+     call raise('E',"Parsing HOME failed!",1)
+   end if
    call rdvar('PATH', self%path, err)
+   if (err /= 0 .or. len(self%path) <= 0) then
+     call raise('E',"Parsing PATH failed!",1)
+   end if
    call rdvar('XTBHOME', self%xtbhome, err)
    if (.not.allocated(self%xtbhome)) self%xtbhome = ''
    if (err /= 0 .or. len(self%xtbhome) <= 0) then
