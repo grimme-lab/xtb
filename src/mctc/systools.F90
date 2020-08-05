@@ -155,13 +155,17 @@ subroutine rdvar(name,var,iostat)
          call raise('E','could not be allocated',1)
       endif
    endif
-   call get_environment_variable(name,var,status=err)
-   if (err.ne.0) then
-      if (present(iostat)) then
-         iostat = err
-         return
-      else
-         call raise('E','System variable corrupted',1)
+   ! If the environment variable has not been set, l=0, and the
+   ! following get_environment_variable call crashes.
+   if (l.gt.0) then
+      call get_environment_variable(name,var,status=err)
+      if (err.ne.0) then
+         if (present(iostat)) then
+            iostat = err
+            return
+         else
+            call raise('E','System variable corrupted',1)
+         endif
       endif
    endif
    if (present(iostat)) iostat=0
