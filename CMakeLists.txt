@@ -56,7 +56,7 @@ set_target_properties(lib-xtb-static PROPERTIES
 target_include_directories(lib-xtb-static
   PUBLIC
   $<BUILD_INTERFACE:${xtb-dir}/include>
-  $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
+  $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>
 )
 
 # Shared Library
@@ -75,7 +75,7 @@ set_target_properties(lib-xtb-shared PROPERTIES
 target_include_directories(lib-xtb-shared
   PUBLIC
   $<BUILD_INTERFACE:${xtb-dir}/include>
-  $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include/xtb>
+  $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>
 )
 
 # Executables
@@ -93,7 +93,7 @@ target_include_directories(xtb-exe PRIVATE "${xtb-dir}/include")
 
 # Install
 install(FILES "${xtb-dir}/include/xtb.h"
-  DESTINATION include/xtb/
+  DESTINATION include
 )
 install(FILES
   "${xtb-dir}/param_gfn0-xtb.txt"
