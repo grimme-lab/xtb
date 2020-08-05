@@ -17,7 +17,7 @@
 
 option('la_backend', type: 'combo', value: 'mkl-static',
        choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
-       description : 'Linear algebra backend for program.')
+       description: 'Linear algebra backend for program.')
 option('custom_libraries', type: 'array', value: [],
        description: 'libraries to load for custom linear algebra backend')
 option('openmp', type: 'boolean', value: true,

@@ -126,3 +126,47 @@ ninja -C _build install
 
 If you have chosen make as generator use the same command with make.
 Depending on the installation prefix and your user rights ninja/make might ask for the `root` access to perform the installation.
+
+=== Advanced configuration of install destinations
+
+The CMake installation uses the install directories as defined by the https://www.gnu.org/prep/standards/html_node/Directory-Variables.html[GNU Coding Standards] and implemented in the https://cmake.org/cmake/help/latest/module/GNUInstallDirs.html[`GNUInstallDirs`] module.
+To modify the behaviour configure CMake with
+
+[source,bash]
+----
+cmake _build \
+  -DCMAKE_INSTALL_PREFIX=/usr \
+  -DCMAKE_INSTALL_BINDIR=bin \
+  -DCMAKE_INSTALL_LIBDIR=lib \
+  -DCMAKE_INSTALL_INCLUDEDIR=include \
+  -DCMAKE_INSTALL_DATADIR=share \
+  -DCMAKE_INSTALL_MANDIR=man
+----
+
+This will result in a directory structure like
+
+[source]
+----
+usr
+├── bin
+│   └── xtb
+├── include
+│   └── xtb.h
+├── lib
+│   ├── cmake
+│   │   └── xtb
+│   │       ├── xtbConfig.cmake
+│   │       ├── xtbConfigVersion.cmake
+│   │       ├── xtbTargets.cmake
+│   │       └── xtbTargets-noconfig.cmake
+│   ├── libxtb.a
+│   ├── libxtb.so -> libxtb.so.6
+│   ├── libxtb.so.6 -> libxtb.so.6.3.2
+│   └── libxtb.so.6.3.2
+└── share
+    └── xtb
+        ├── param_gfn0-xtb.txt
+        ├── param_gfn1-xtb.txt
+        ├── param_gfn2-xtb.txt
+        └── param_ipea-xtb.txt
+----
