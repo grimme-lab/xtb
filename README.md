@@ -43,7 +43,7 @@ Make sure the testsuite is running without errors.
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
 
 ```bash
-ninja -C build_intel install
+ninja -C build install
 ```
 
 For more information on the build with meson see the instructions [here](./meson/README.adoc).
@@ -66,7 +66,7 @@ popd
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
 
 ```bash
-make -C build_intel install
+make -C build install
 ```
 
 For more detailed information on the build with CMake see the instructions [here](./cmake/README.adoc).

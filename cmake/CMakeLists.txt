@@ -15,6 +15,12 @@ set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SC
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
 
 
+# Program version, split to get major version for SOVERSION
+string(REGEX MATCHALL "[0-9]+" version-split "${PROJECT_VERSION}")
+list(GET version-split 0 XTB_VERSION_MAJOR)
+set(XTB_VERSION_MAJOR "${XTB_VERSION_MAJOR}" PARENT_SCOPE)
+
+
 # Populate xtb_version.fh
 set(version ${PROJECT_VERSION})
 execute_process(COMMAND git rev-parse HEAD
@@ -33,4 +39,5 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh"
   @ONLY
 )
+
 set(xtb-config-dir "${CMAKE_CURRENT_BINARY_DIR}" PARENT_SCOPE)

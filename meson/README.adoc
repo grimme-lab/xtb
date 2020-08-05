@@ -79,6 +79,7 @@ ninja -C build test
 
 All tests should pass, otherwise https://github.com/grimme-lab/xtb/issues/new/choose[open an issue].
 
+
 == Installing `xtb` with meson
 
 To use `xtb` in production or to pack a release with precompiled binaries the project should be installed with ninja.
@@ -97,6 +98,56 @@ ninja -C build install
 ----
 
 Depending on the installation prefix and your user rights ninja might ask for the `root` access to perform the installation.
+
+
+=== Advanced configuration of install destinations
+
+The installation uses the default install directories of the https://mesonbuild.com/Builtin-options.html[meson build system]
+To modify the behaviour configure meson with
+
+[source,bash]
+----
+meson build \
+  --prefix=/usr \
+  --bindir=bin \
+  --libdir=lib \
+  --includedir=include \
+  --datadir=share \
+  --mandir=man
+----
+
+This will result in a directory structure like
+
+[source]
+----
+usr
+├── bin
+│   └── xtb
+├── include
+│   └── xtb.h
+├── lib
+│   ├── libxtb.a
+│   ├── libxtb.so -> libxtb.so.6
+│   ├── libxtb.so.6 -> libxtb.so.6.3.2
+│   ├── libxtb.so.6.3.2
+│   └── pkgconfig
+│       └── xtb.pc
+└── share
+    ├── man
+    │   ├── man1
+    │   │   └── xtb.1
+    │   └── man7
+    │       └── xcontrol.7
+    ├── modules
+    │   └── modulefiles
+    │       └── xtb
+    │           └── 6.3.2
+    └── xtb
+        ├── param_gfn0-xtb.txt
+        ├── param_gfn1-xtb.txt
+        ├── param_gfn2-xtb.txt
+        └── param_ipea-xtb.txt
+----
 
 
 == Optimization Level
