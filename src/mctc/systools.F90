@@ -16,10 +16,16 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_mctc_systools
+   implicit none
 
    character,parameter :: space = ' '
-   character,parameter :: colon = ':'
-   character,parameter :: slash = '/'
+#ifdef _WIN32
+   character,parameter :: pathdel = ';'
+   character,parameter :: pathsep = '\'
+#else
+   character,parameter :: pathdel = ':'
+   character,parameter :: pathsep = '/'
+#endif
 
 contains
 
@@ -68,14 +74,14 @@ subroutine rdpath(path,arg,fname,ex)
 
    scratch1 = path
    do
-      i = index(scratch1,colon)
+      i = index(scratch1,pathdel)
       if (i.eq.0) then
          scratch2 = scratch1
       else
          scratch2 = scratch1(:i-1)
          scratch1 = scratch1(i+1:)
       endif
-      fpath = scratch2//slash//arg
+      fpath = scratch2//pathsep//arg
       inquire(file=fpath,exist=exist)
       if (exist) exit
 !     print*,fpath,space,scratch1,exist
