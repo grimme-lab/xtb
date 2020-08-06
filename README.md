@@ -144,6 +144,8 @@ for metadynamics refer to:
 - S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
   DOI: [10.1021/acs.jctc.9b00143](https://dx.doi.org/10.1021/acs.jctc.9b00143)
 
+All references are available in [bibtex format](./assets/references.bib).
+
 ## License
 
 `xtb` is free software: you can redistribute it and/or modify it under
