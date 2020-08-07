@@ -214,6 +214,7 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient,dipole)
          if (index(line,'DIP_VEC:DEBYE') > 0)then
             call readl(line,dum,num)
             dipole(1:3) = dum(2:4)*dtoau
+            dipole(1:3) = dum(2:4)
             cycle read_mopac_output
          endif
          if (index(line,'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then
