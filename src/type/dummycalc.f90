@@ -109,6 +109,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    integer :: i,ich
    integer :: mode_sp_run = 1
    real(wp) :: efix
+   real(wp) :: dipole(3)
    logical :: inmol
    logical, parameter :: ccm = .true.
    logical :: exitRun
@@ -121,6 +122,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    sigma(:, :) = 0.0_wp
    hlgap = 0.0_wp
    efix = 0.0_wp
+   dipole(:) = 0.0_wp
 
    ! ------------------------------------------------------------------------
    !  actual calculation
@@ -138,7 +140,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          & .true.,energy,gradient,results%dipole,self%lSolv)
 
    case(p_ext_mopac)
-      call runMopac(env,mol%n,mol%at,mol%xyz,energy,gradient)
+      call runMopac(env,mol%n,mol%at,mol%xyz,energy,gradient,dipole)
 
    end select
 
@@ -161,6 +163,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    energy = energy + efix
    results%e_total = energy
    results%gnorm = norm2(gradient)
+   results%dipole = dipole
    if (fixset%n.gt.0) then
       do i=1, fixset%n
          !print*,i,fixset%atoms(i)
