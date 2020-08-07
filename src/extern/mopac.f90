@@ -146,7 +146,7 @@ subroutine checkMopac(env)
 end subroutine checkMopac
 
 
-subroutine runMopac(env,nat,at,xyz,energy,gradient)
+subroutine runMopac(env,nat,at,xyz,energy,gradient,dipole)
    character(len=*), parameter :: source = 'extern_mopac_checkMopac'
    type(TEnvironment), intent(inout) :: env
    integer, intent(in)  :: nat
@@ -154,6 +154,7 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient)
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(out) :: energy
    real(wp),intent(out) :: gradient(3,nat)
+   real(wp),intent(out) :: dipole(3)
 
    integer :: i,j,err
    integer :: imopac ! file handle
@@ -208,6 +209,11 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient)
          if (index(line,'TOTAL_ENERGY:EV') > 0) then
             call readl(line,dum,num)
             energy = dum(num)*evtoau
+            cycle read_mopac_output
+         endif
+         if (index(line,'DIP_VEC:DEBYE') > 0)then
+            call readl(line,dum,num)
+            dipole(1:3) = dum(2:4)*dtoau
             cycle read_mopac_output
          endif
          if (index(line,'GRADIENTS:KCAL/MOL/ANGSTROM') > 0) then
