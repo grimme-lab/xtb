@@ -20,8 +20,8 @@ integer,intent(in) :: iunit
 write(iunit,'(3x,a)') &
    "Cite this work as:", &
    "* C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht,",&
-   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020.",&
-   "  DOI: 10.1002/wcms.1493",&
+   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020,",&
+   "  e01493. DOI: 10.1002/wcms.1493",&
    "",&
    "for GFN2-xTB:",&
    "* S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017,",&
