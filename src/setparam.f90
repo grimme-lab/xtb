@@ -378,6 +378,7 @@ module xtb_setparam
    integer, parameter :: p_run_opt    =   4
    integer, parameter :: p_run_hess   =   5
    integer, parameter :: p_run_ohess  =   7
+   integer, parameter :: p_run_bhess  =  71
    integer, parameter :: p_run_md     =   6
    integer, parameter :: p_run_omd    =   8
    integer, parameter :: p_run_path   =  10

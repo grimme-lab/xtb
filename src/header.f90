@@ -260,6 +260,16 @@ write(iunit,'(10x,a)') &
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
 end subroutine numhess_header
 
+subroutine biashess_header(iunit)
+integer,intent(in) :: iunit
+write(iunit,'(10x,a)') &
+   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
+   " ------------------------------------------------- ",&
+   "|            Biased Numerical Hessian             |",&
+   " ------------------------------------------------- "
+   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
+end subroutine biashess_header
+
 subroutine md_header(iunit)
 integer,intent(in) :: iunit
 write(iunit,'(10x,a)') &

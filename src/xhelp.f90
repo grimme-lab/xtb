@@ -151,6 +151,9 @@ subroutine help
    "      --ohess [LEVEL] perform a numerical hessian calculation on",&
    "                     an ancopt(3) optimized geometry",&
    "",&
+   "      --bhess [LEVEL] perform a numerical biased hessian calculation on",&
+   "                     an ancopt(3) optimized geometry",&
+   "",&
    "      --md           molecular dynamics simulation on start geometry",&
    "",&
    "      --omd          molecular dynamics simulation on ancopt(3) optimized",&

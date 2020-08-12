@@ -39,6 +39,7 @@ subroutine numhess( &
    use xtb_setparam
    use xtb_splitparam
    use xtb_fixparam
+   use xtb_metadynamic
 
    use xtb_single, only : singlepoint
    use xtb_axis, only : axis
@@ -57,6 +58,7 @@ subroutine numhess( &
    type(TRestart),intent(inout) :: chk0
    class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
+   real(wp) :: ebias
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
    real(wp),intent(inout) :: egap
@@ -70,6 +72,7 @@ subroutine numhess( &
    real(wp) :: dumj,acc,w0,w1,step2,aa,bb,cc,scalh,hof,h298
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
+   real(wp) :: ddot
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
    integer  :: nread,kend,lowmode
    integer  :: nonfrozh,izero(6)
@@ -81,7 +84,15 @@ subroutine numhess( &
    logical :: parallize
 
    real(wp),allocatable :: h (:,:)
+   real(wp),allocatable :: htb (:,:)
+   real(wp),allocatable :: hbias (:,:)
    real(wp),allocatable :: hss(:)
+   real(wp),allocatable :: hsb(:)
+   real(wp),allocatable :: v(:)
+   real(wp),allocatable :: fc_tb(:)
+   real(wp),allocatable :: fc_bias(:)
+   real(wp),allocatable :: fc_tmp(:)
+   real(wp),allocatable :: freq_scal(:)
    real(wp),allocatable :: aux (:)
    real(wp),allocatable :: isqm(:)
    real(wp),allocatable :: gl  (:,:)
@@ -102,9 +113,10 @@ subroutine numhess( &
    call res%allocate(mol%n)
    res%n3true = n3-3*freezeset%n
 
-   allocate(hss(n3*(n3+1)/2),h(n3,n3), &
+   allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
-      & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n))
+      & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
+      & v(n3),fc_tb(n3),fc_bias(n3),fc_tmp(n3),freq_scal(n3))
 
    rd=.false.
    xyzsave = mol%xyz
@@ -147,6 +159,8 @@ subroutine numhess( &
    step2=0.5d0/step
 
    h = 0.0_wp
+   htb = 0.0_wp
+   hbias = 0.0_wp
 
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
@@ -443,6 +457,49 @@ subroutine numhess( &
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
 
+
+!! ========================================================================
+!  RMSD part -----------------------------------------------------------
+
+   if (runtyp.eq.p_run_bhess) then
+
+      do ia = 1, mol%n
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+
+            tmol=mol
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
+
+            gr = 0.0_wp
+            ebias = 0.0_wp
+            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
+
+            tmol=mol
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
+
+            gl = 0.0_wp
+            ebias = 0.0_wp
+            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
+            
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)
+
+            do ja= 1, mol%n
+               do jc = 1, 3
+                  jj = (ja-1)*3 + jc
+                  hbias(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
+               enddo
+            enddo
+
+            call tmol%deallocate
+         enddo
+
+      enddo
+
+   end if
+
+!  RMSD done -----------------------------------------------------------
+!! ========================================================================
+
    if(freezeset%n.gt.0)then
       ! inverse mass array
       do a = 1, mol%n
@@ -494,10 +551,14 @@ subroutine numhess( &
       do j=1,i
          k=k+1
          hss(k)=res%hess(j,i)
+         if (runtyp.eq.p_run_bhess) hsb(k)=hbias(j,i)
       enddo
    enddo
    ! project
    if(.not.res%linear)then ! projection does not work for linear mol.
+      if (runtyp.eq.p_run_bhess) then
+         call trproj(mol%n,n3,mol%xyz,hsb,.false.,0,res%freq,1) ! freq is dummy
+      end if
       call trproj(mol%n,n3,mol%xyz,hss,.false.,0,res%freq,1) ! freq is dummy
    endif
    ! non mass weigthed Hessian in hss
@@ -513,8 +574,14 @@ subroutine numhess( &
          k=k+1
          res%hess(j,i)=hss(k)*isqm(i)*isqm(j)*scalh
          res%hess(i,j)=res%hess(j,i)
+         if (runtyp.eq.p_run_bhess) then
+            hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
+            hbias(i,j)=hbias(j,i)
+         end if
       enddo
    enddo
+   ! calcualte htb without RMSD bias
+   if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
    lwork  = 1 + 6*n3 + 2*n3**2
    allocate(aux(lwork))
@@ -523,6 +590,19 @@ subroutine numhess( &
       call env%error('Diagonalization of hessian failed', source)
       return
    end if
+
+   ! calculate fc_tb and fc_bias
+   if (runtyp.eq.p_run_bhess) then
+      do j=1,n3
+         v(1:n3) = res%hess(1:n3,j) ! modes
+         call dgemv('n',n3,n3,1.0d0,htb,n3,v,1,0.0d0,fc_tmp,1)
+         fc_tb(j) = ddot(n3,v,1,fc_tmp,1)
+         call dgemv('n',n3,n3,1.0d0,hbias,n3,v,1,0.0d0,fc_tmp,1)
+         fc_bias(j) = ddot(n3,v,1,fc_tmp,1)
+         freq_scal(j) = sqrt( abs( fc_tb(j) / (fc_tb(j) + fc_bias(j)) ) )
+      end do
+   end if
+
 
    write(env%unit,'(a)')
    if(res%linear)then
@@ -539,6 +619,10 @@ subroutine numhess( &
       endif
    enddo
 
+   do i=1,n3
+      write(*,*) i,res%freq(i),freq_scal(i) !, fc_tb(i), fc_bias(i)
+   end do
+   
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    kend=6
    if(res%linear)then

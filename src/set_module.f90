@@ -973,6 +973,8 @@ subroutine set_runtyp(typ)
       runtyp = p_run_hess
    case('ohess')
       runtyp = p_run_ohess
+   case('bhess')
+      runtyp = p_run_bhess
 
    case('md')
       runtyp = p_run_md

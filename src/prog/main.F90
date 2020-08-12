@@ -472,7 +472,7 @@ subroutine xtbMain(env, argParser)
       select case(runtyp)
       case default
          call env%terminate('This is an internal error, please define your runtypes!')
-      case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess, &
+      case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess,p_run_bhess, &
             p_run_md,p_run_omd,p_run_path,p_run_screen, &
             p_run_modef,p_run_mdopt,p_run_metaopt)
         if (mode_extrun.eq.p_ext_gfnff) then
@@ -625,7 +625,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !  ANCopt
-   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
+   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess).or. &
       &   (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
       &   (runtyp.eq.p_run_metaopt)) then
       if (opt_engine.eq.p_engine_rf) &
@@ -741,8 +741,12 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> numerical hessian calculation
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
-      call numhess_header(env%unit)
+   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
+      if (runtyp.eq.p_run_bhess) then
+         call biashess_header(env%unit)
+      else
+         call numhess_header(env%unit)
+      end if
       if (mol%npbc > 0) then
          call env%error("Phonon calculations under PBC are not implemented", source)
       endif
@@ -1435,6 +1439,13 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--ohess')
          call set_runtyp('ohess')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_opt(env,'optlevel',sec)
+         endif
+      
+      case('--bhess')
+         call set_runtyp('bhess')
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)
