@@ -59,6 +59,14 @@ subroutine init_metadyn(nat,nstruc)
    metaset%factor = metaset%global_factor
 end subroutine init_metadyn
 
+subroutine init_bhess(nat,nstruc)
+   implicit none
+   integer, intent(in) :: nat
+   integer, intent(in) :: nstruc
+   call metaset%allocate(nat,nstruc)
+   metaset%factor = metaset%global_factor*sqrt(dble(nat))
+end subroutine init_bhess
+
 subroutine clear_metadyn
    call metaset%deallocate
 end subroutine clear_metadyn

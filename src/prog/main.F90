@@ -350,8 +350,11 @@ subroutine xtbMain(env, argParser)
    call init_constr(mol%n,mol%at)
    call init_scan
    call init_walls
-   call init_metadyn(mol%n,metaset%maxsave)
-
+   if (runtyp.eq.p_run_bhess) then
+      call init_bhess(mol%n,metaset%maxsave)
+   else
+      call init_metadyn(mol%n,metaset%maxsave)
+   end if
 
    ! ------------------------------------------------------------------------
    !> get some memory
@@ -836,11 +839,11 @@ subroutine xtbMain(env, argParser)
 
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
-      (runtyp.eq.p_run_metaopt)) then
+      (runtyp.eq.p_run_metaopt).or.(runtyp.eq.p_run_bhess)) then
       call main_geometry(iprop,mol)
    endif
 
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
+   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
       call generic_header(iprop,'Frequency Printout',49,10)
       call main_freq(iprop,mol,chk%wfn,fres)
    endif
@@ -848,14 +851,14 @@ subroutine xtbMain(env, argParser)
    if (allocated(property_file)) then
       if (iprop.ne.-1 .and. iprop.ne.env%unit) then
          call write_energy(iprop,res,fres, &
-            & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+            & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
          call close_file(iprop)
       endif
    endif
 
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
-      (runtyp.eq.p_run_metaopt)) then
+      (runtyp.eq.p_run_metaopt).or.(runtyp.eq.p_run_bhess)) then
       call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
       write(env%unit,'(/,a,1x,a,/)') &
          "optimized geometry written to:",tmpname
@@ -867,10 +870,10 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TxTBCalculator)
       call write_energy(env%unit,res,fres, &
-        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
    type is(TGFFCalculator)
       call write_energy_gff(env%unit,res,fres, &
-        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
    end select  
 
 
@@ -1026,14 +1029,14 @@ subroutine xtbMain(env, argParser)
    write(env%unit,'(72("-"))')
    call prtiming(1,'total')
    call prtiming(2,'SCF')
-   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
+   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess).or. &
       &   (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_metaopt)) then
       call prtiming(3,'ANC optimizer')
    endif
    if (runtyp.eq.p_run_path) then
       call prtiming(4,'path finder')
    endif
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
+   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
       call prtiming(5,'numerical hessian')
    endif
    if ((runtyp.eq.p_run_md).or.(runtyp.eq.p_run_omd).or. &

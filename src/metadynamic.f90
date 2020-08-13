@@ -108,6 +108,9 @@ subroutine load_metadynamic(metavar,nat,at,xyz)
    metavar%nstruc = nstruc
    write(stdout,'(a,1x,i0,1x,a)') &
       "metadynamics with", nstruc, "initial structures loaded"
-
+   write(stdout,'(a,1x,f6.3)') &
+      "kpush:", metavar%factor(metavar%nstruc)
+   write(stdout,'(a,1x,f6.3)') &
+      "alp  :", metavar%width
 end subroutine load_metadynamic
 end module xtb_metadynamic

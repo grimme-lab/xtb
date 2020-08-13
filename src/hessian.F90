@@ -73,6 +73,7 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    real(wp) :: ddot
+   real(wp) :: alpha
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
    integer  :: nread,kend,lowmode
    integer  :: nonfrozh,izero(6)
@@ -84,13 +85,14 @@ subroutine numhess( &
    logical :: parallize
 
    real(wp),allocatable :: h (:,:)
+   real(wp),allocatable :: hfull (:,:)
    real(wp),allocatable :: htb (:,:)
    real(wp),allocatable :: hbias (:,:)
    real(wp),allocatable :: hss(:)
    real(wp),allocatable :: hsb(:)
-   real(wp),allocatable :: v(:)
    real(wp),allocatable :: fc_tb(:)
    real(wp),allocatable :: fc_bias(:)
+   real(wp),allocatable :: v(:)
    real(wp),allocatable :: fc_tmp(:)
    real(wp),allocatable :: freq_scal(:)
    real(wp),allocatable :: aux (:)
@@ -113,10 +115,10 @@ subroutine numhess( &
    call res%allocate(mol%n)
    res%n3true = n3-3*freezeset%n
 
-   allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
+   allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),hfull(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & v(n3),fc_tb(n3),fc_bias(n3),fc_tmp(n3),freq_scal(n3))
+      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3))
 
    rd=.false.
    xyzsave = mol%xyz
@@ -159,6 +161,7 @@ subroutine numhess( &
    step2=0.5d0/step
 
    h = 0.0_wp
+   hfull = 0.0_wp
    htb = 0.0_wp
    hbias = 0.0_wp
 
@@ -568,20 +571,34 @@ subroutine numhess( &
    call wrhess(n3,hss,hname)
 
    ! include masses
+   !k=0
+   !do i=1,n3
+   !   do j=1,i
+   !      k=k+1
+   !      res%hess(j,i)=hss(k)*isqm(i)*isqm(j)*scalh
+   !      res%hess(i,j)=res%hess(j,i)
+   !      if (runtyp.eq.p_run_bhess) then
+   !         hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
+   !         hbias(i,j)=hbias(j,i)
+   !      end if
+   !   enddo
+   !enddo
    k=0
    do i=1,n3
       do j=1,i
          k=k+1
          res%hess(j,i)=hss(k)*isqm(i)*isqm(j)*scalh
          res%hess(i,j)=res%hess(j,i)
+         hfull(j,i)=hss(k)
+         hfull(i,j)=hfull(j,i)
          if (runtyp.eq.p_run_bhess) then
-            hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
+            hbias(j,i)=hsb(k)
             hbias(i,j)=hbias(j,i)
          end if
       enddo
    enddo
    ! calcualte htb without RMSD bias
-   if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
+   if (runtyp.eq.p_run_bhess) htb=hfull-hbias
    ! diag
    lwork  = 1 + 6*n3 + 2*n3**2
    allocate(aux(lwork))
@@ -591,6 +608,9 @@ subroutine numhess( &
       return
    end if
 
+   open(unit=67,file='~/.bhess_scal')
+   read(67,*) alpha
+   close(67)
    ! calculate fc_tb and fc_bias
    if (runtyp.eq.p_run_bhess) then
       do j=1,n3
@@ -599,10 +619,13 @@ subroutine numhess( &
          fc_tb(j) = ddot(n3,v,1,fc_tmp,1)
          call dgemv('n',n3,n3,1.0d0,hbias,n3,v,1,0.0d0,fc_tmp,1)
          fc_bias(j) = ddot(n3,v,1,fc_tmp,1)
-         freq_scal(j) = sqrt( abs( fc_tb(j) / (fc_tb(j) + fc_bias(j)) ) )
+         freq_scal(j) = sqrt( fc_tb(j) / ( fc_tb(j) + ( fc_bias(j) + alpha*fc_bias(j)**2 ) ) )
+         if (fc_tb(j).lt.0) then
+            freq_scal(j) = -sqrt( abs(fc_tb(j)) / ( abs(fc_tb(j)) + ( fc_bias(j) + alpha*fc_bias(j)**2 ) ) )
+         end if
+         res%freq(j)=freq_scal(j)*res%freq(j)
       end do
    end if
-
 
    write(env%unit,'(a)')
    if(res%linear)then
@@ -618,11 +641,14 @@ subroutine numhess( &
          izero(k)=i
       endif
    enddo
-
-   do i=1,n3
-      write(*,*) i,res%freq(i),freq_scal(i) !, fc_tb(i), fc_bias(i)
-   end do
    
+   write(env%unit,'(4x,"fc_bias scale factor: ",f14.8)') alpha 
+   write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
+   do i=1,n3
+      write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
+      &               res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
+   end do   
+
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    kend=6
    if(res%linear)then
