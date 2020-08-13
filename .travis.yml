@@ -51,4 +51,4 @@ jobs:
         - OMP_NUM_THREADS=2 make -j all test install
 
 install:
-   - pip3 install meson ninja pytest numpy
+   - pip3 install meson ninja
