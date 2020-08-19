@@ -382,8 +382,13 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
 
       call c_f_character(charptr, solvent)
 
-      input = TSolvInput(solvent=solvent, temperature=temp, state=gsolvstate, &
-         & nang=nang)
+      ! PGI 20.5 cannot use default constructor with deferred-length characters:
+      ! input = TSolvInput(solvent=solvent, temperature=temp, state=gsolvstate, &
+      !    & nang=nang)
+      input%solvent = solvent
+      input%temperature = temp
+      input%state = gsolvstate
+      input%nang = nang
       call addSolvationModel(env%ptr, calc%ptr, input)
 
       call env%ptr%check(exitRun)
