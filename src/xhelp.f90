@@ -19,13 +19,19 @@ subroutine citation(iunit)
 integer,intent(in) :: iunit
 write(iunit,'(3x,a)') &
    "Cite this work as:", &
+   "* C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht,",&
+   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020,",&
+   "  e01493. DOI: 10.1002/wcms.1493",&
+   "",&
+   "for GFN2-xTB:",&
    "* S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017,",&
    "  13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118", &
+   "for GFN1-xTB:",&
    "* C. Bannwarth, S. Ehlert and S. Grimme., J. Chem. Theory Comput., 2019,",&
    "  15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176",&
+   "for GFN0-xTB:",&
    "* P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint.",&
    "  DOI: 10.26434/chemrxiv.8326202.v1",&
-   "",&
    "for GFN-FF:",&
    "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020,",&
    "  DOI: 10.1002/anie.202004239", &
@@ -36,6 +42,8 @@ write(iunit,'(3x,a)') &
    "* E. Caldeweyher, S. Ehlert, A. Hansen, H. Neugebauer, S. Spicher,", &
    "  C. Bannwarth and S. Grimme, J. Chem. Phys., 2019, 150, 154122.", &
    "  DOI: 10.1063/1.5090222", &
+   "* E. Caldeweyher, J.-M. Mewes, S. Ehlert and S. Grimme, Phys. Chem. Chem. Phys.",&
+   "  2020, 22, 8499-8512. DOI: 10.1039/D0CP00502A",&
    "",&
    "for sTDA-xTB:",&
    "* S. Grimme and C. Bannwarth, J. Chem. Phys., 2016, 145, 054103.",&

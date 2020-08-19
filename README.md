@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/github/license/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/blob/master/COPYING)
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
-[![DOI](https://zenodo.org/badge/211856832.svg)](https://zenodo.org/badge/latestdoi/211856832)
+[![DOI](https://img.shields.io/badge/DOI-10.1002%2Fwcms.1493-blue)](https://doi.org/10.1002/wcms.1493)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
 [![Gitter](https://badges.gitter.im/xtb-dev/community.svg)](https://gitter.im/xtb-dev/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
@@ -105,6 +105,11 @@ See our [contributing guidelines](CONTRIBUTING.md).
 
 ## Citations
 
+General Reference to `xtb` and the implemented GFN methods:
+- C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht, J. Seibert, S. Spicher, S. Grimme
+  *WIREs Comput. Mol. Sci.*, **2020**, e01493.
+  DOI: [10.1002/wcms.1493](https://doi.org/10.1002/wcms.1493)
+
 for GFN-xTB:
 - S. Grimme, C. Bannwarth, P. Shushkov, *J. Chem. Theory Comput.*, **2017**, 13, 1989-2009.
   DOI: [10.1021/acs.jctc.7b00118](https://dx.doi.org/10.1021/acs.jctc.7b00118)
@@ -122,7 +127,7 @@ for DFT-D4:
   DOI: [10.1063/1.4993215](https://dx.doi.org/10.1063/1.4993215)
 - E. Caldeweyher, S. Ehlert, A. Hansen, H. Neugebauer, S. Spicher, C. Bannwarth and S. Grimme, *J. Chem. Phys.*,
   **2019**, 150, 154122. DOI: [10.1063/1.5090222](https://dx.doi.org/10.1063/1.5090222)
-- E. Caldeweyher, J.-M. Mewes, S. Ehlert and S. Grimme, *Phys. Chem. Chem. Phys.*, **2020**, just accepted. 
+- E. Caldeweyher, J.-M. Mewes, S. Ehlert and S. Grimme, *Phys. Chem. Chem. Phys.*, **2020**, 22, 8499-8512. 
   DOI: [10.1039/D0CP00502A](https://dx.doi.org/10.1039/D0CP00502A) 
 
 for sTDA-xTB:
@@ -132,12 +137,14 @@ for sTDA-xTB:
 in the mass-spec context:
 - V. Asgeirsson, C. Bauer and S. Grimme, *Chem. Sci.*, **2017**, 8, 4879.
   DOI: [10.1039/c7sc00601b](https://dx.doi.org/10.1039/c7sc00601b)
-- J. Koopman and S. Grimme, *ACS Omega*, **2019**, 4, 12, 15120-15133.",&
+- J. Koopman and S. Grimme, *ACS Omega*, **2019**, 4, 12, 15120-15133.
   DOI: [10.1021/acsomega.9b02011](https://dx.doi.org/10.1021/acsomega.9b02011)
 
 for metadynamics refer to:
 - S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
   DOI: [10.1021/acs.jctc.9b00143](https://dx.doi.org/10.1021/acs.jctc.9b00143)
+
+All references are available in [bibtex format](./assets/references.bib).
 
 ## License
 
