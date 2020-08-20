@@ -241,6 +241,7 @@ module xtb_type_setvar
       real(wp),allocatable :: factor(:)
       real(wp) :: width = 1.0_wp
       integer  :: nat = 0
+      logical  :: static = .true.
       integer, allocatable :: atoms(:)
       real(wp),allocatable :: xyz(:,:,:)
       character(len=:),allocatable :: fname

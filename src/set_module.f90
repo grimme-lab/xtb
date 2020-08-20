@@ -2183,6 +2183,9 @@ subroutine set_metadyn(env,key,val)
    case('coord')
       if (set4) metaset%fname = val
       set4 = .false.
+   case('static')
+      if (getValue(env,val,ldum).and.set5) metaset%static = ldum
+      set5 = .false.
    end select
 
 end subroutine set_metadyn

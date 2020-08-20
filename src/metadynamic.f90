@@ -35,6 +35,8 @@ subroutine metadynamic(metavar,nat,at,xyz,ebias,g)
    real(wp) :: etmp,rmsdval,e
    integer  :: i,j,k,iref,iat
 
+   if(metavar%nstruc < 1 ) return
+
    if (metavar%nat == 0) then
       allocate( xyzref(3,nat), grad(3,nat),source = 0.0_wp )
       !$omp parallel default(none) &

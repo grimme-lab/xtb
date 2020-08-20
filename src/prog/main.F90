@@ -1478,6 +1478,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          if (allocated(sec)) then
             call set_metadyn(env,'save',sec)
          end if
+         call set_metadyn(env,'static','false')
 
       case('--metaopt')
          call set_runtyp('metaopt')
