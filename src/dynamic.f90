@@ -152,6 +152,7 @@ subroutine md(env,mol,chk,calc, &
    use xtb_fixparam
    use xtb_scanparam
    use xtb_splitparam
+   use xtb_type_setvar, only: metadyn_setvar
    implicit none
 
    !> Calculation environment
@@ -199,8 +200,12 @@ subroutine md(env,mol,chk,calc, &
    integer :: ich,trj,pdb,imdl
    logical :: exist
 
+   type(metadyn_setvar) :: metasetlocal
+   real(wp) :: emtd
    real(wp) :: metatime
    metatime = 0.0_wp
+
+
 
    call delete_file('xtbmdok')
 
@@ -313,18 +318,35 @@ subroutine md(env,mol,chk,calc, &
    if( gmd)       write(*,*) 'GMD mode'
    if(restart)    write(*,*) 'RESTART'
 
-   if (metaset%maxsave.gt.0) then
-      write(env%unit,'("kpush  :",f9.3)') metaset%global_factor
-      write(env%unit,'("alpha  :",f9.3)') metaset%width
-      write(env%unit,'("update :",i4)')   metaset%maxsave
-      if (metaset%nstruc.eq.0) then
+
+   !--- For "true" metadynamics an independent RMSD potential
+   !    is constructed for this MD. "metaset" contains alpha and k
+   !    "metasetlocal" is the dynamic potential for the MTD.
+   !    If an ensemble was read into "metaset", only a static RMSD bias is applied.
+
+   metasetlocal = metaset
+   if((metaset%nstruc > 0).and.(metaset%static))then !if >0, an ensemble was read --> static potential
+       metasetlocal%maxsave=0 !save nothing new --> deactivate dynamic potential
+   else
+       metaset%nstruc=0  !avoid calculation of RMSD potential within singlepoint routine
+                         !--> would lead to double counting with "metasetlocal"
+   endif
+
+   if ((metasetlocal%maxsave.gt.0) .or. (metaset%nstruc > 0)) then
+      write(env%unit,'(" --- metadynamics parameter ---")')
+      write(env%unit,'(" kpush  :",f9.3)') metasetlocal%global_factor
+      write(env%unit,'(" alpha  :",f9.3)') metasetlocal%width
+      write(env%unit,'(" update :",i8)')   metasetlocal%maxsave
+      if (metasetlocal%nstruc.eq.0) then
          do i = 1, mol%n
             do j = 1, 3
                call random_number(dum2)
-               metaset%xyz(j,i,1) = mol%xyz(j,i) + 1.0e-6_wp*dum2
+               metasetlocal%xyz(j,i,1) = mol%xyz(j,i) + 1.0e-6_wp*dum2
             enddo
          enddo
-         metaset%nstruc = 1
+         metasetlocal%nstruc = 1
+      else
+      write(env%unit,'(" number of input RMSDs :",i4)') metasetlocal%nstruc
       endif
    endif
 
@@ -401,23 +423,28 @@ subroutine md(env,mol,chk,calc, &
          &     (env,mol,chk,calc, &
          &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res)
 
-      if (metaset%maxsave.ne.0) then
+      if (metasetlocal%maxsave.ne.0) then
          metatime = metatime + 1.0_wp
-         metaset%factor(1:metaset%nstruc) = metaset%global_factor
-         metaset%factor(metaset%nstruc) = metaset%factor(metaset%nstruc) &
+         metasetlocal%factor(1:metasetlocal%nstruc) = metasetlocal%global_factor
+         metasetlocal%factor(metasetlocal%nstruc) = metasetlocal%factor(metasetlocal%nstruc) &
             &    * (2.0_wp/(1.0_wp+exp(-0.03_wp*metatime))-1.0_wp)
          if (cdump.gt.cdump0) then
-            if (metaset%nstruc.lt.metaset%maxsave) then
+            if (metasetlocal%nstruc.lt.metasetlocal%maxsave) then
                metatime = 0.0
-               metaset%nstruc = metaset%nstruc + 1
-               metaset%xyz(:,:,metaset%nstruc) = mol%xyz
+               metasetlocal%nstruc = metasetlocal%nstruc + 1
+               metasetlocal%xyz(:,:,metasetlocal%nstruc) = mol%xyz
             else
-               do i = 2, metaset%maxsave
-                  metaset%xyz(:,:,i-1) = metaset%xyz(:,:,i)
+               do i = 2, metasetlocal%maxsave
+                  metasetlocal%xyz(:,:,i-1) = metasetlocal%xyz(:,:,i)
                enddo
-               metaset%xyz(:,:,metaset%maxsave) = mol%xyz
+               metasetlocal%xyz(:,:,metasetlocal%maxsave) = mol%xyz
             endif
+            write(*,'(2x,"adding snapshot to metadynamics bias")')
          endif
+      !-------------------------------------------------------------------------
+         emtd = 0.0d0
+         call metadynamic (metasetlocal,mol%n,mol%at,mol%xyz,emtd,grd)
+         epot = epot + emtd
       endif
 
       if(acount.eq.0)then  ! take only accurate Epot for average
