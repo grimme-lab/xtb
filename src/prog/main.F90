@@ -1463,6 +1463,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call set_opt(env,'optlevel',sec)
          endif
 
+      case('--rmsd')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_target_rmsd(env,sec)
+         endif
+
       case('--omd')
          call set_runtyp('omd')
          call set_opt(env,'optlevel','-1')
