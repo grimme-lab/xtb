@@ -108,9 +108,27 @@ subroutine load_metadynamic(metavar,nat,at,xyz)
    metavar%nstruc = nstruc
    write(stdout,'(a,1x,i0,1x,a)') &
       "metadynamics with", nstruc, "initial structures loaded"
-   write(stdout,'(a,1x,f6.3)') &
-      "kpush:", metavar%factor(metavar%nstruc)
-   write(stdout,'(a,1x,f6.3)') &
-      "alp  :", metavar%width
 end subroutine load_metadynamic
+
+subroutine set_metadynamic(metavar,nat,at,xyz)
+   use xtb_mctc_io, only : stdout
+   use xtb_mctc_accuracy, only : wp
+   use xtb_fixparam
+   use xtb_readin
+   implicit none
+   type(metadyn_setvar),intent(inout) :: metavar
+   integer, intent(in)    :: nat
+   integer, intent(in)    :: at(nat)
+   real(wp),intent(in)    :: xyz(3,nat)
+
+   integer  :: nstruc
+
+   nstruc = metavar%maxsave
+   metavar%nstruc = nstruc
+   metavar%xyz(:,:,nstruc) = xyz
+   metavar%width=1.0
+   write(stdout,'(a,1x,i0,1x,a)') &
+      "metadynamics with", nstruc, "initial structures loaded"
+end subroutine set_metadynamic
+
 end module xtb_metadynamic

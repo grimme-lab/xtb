@@ -135,6 +135,10 @@ subroutine numhess( &
       & (env,mol,chk0,calc, &
       &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
 
+   if (runtyp.eq.p_run_bhess) then
+   write(env%unit,'(''kpush                :'',F10.5)') metaset%factor(metaset%nstruc)
+   write(env%unit,'(''alpha                :'',F10.5)') metaset%width
+   end if
    write(env%unit,'(''step length          :'',F10.5)') step
    write(env%unit,'(''SCC accuracy         :'',F10.5)') acc
    write(env%unit,'(''Hessian scale factor :'',F10.5)') scalh
@@ -600,9 +604,9 @@ subroutine numhess( &
          call dgemv('n',n3,n3,1.0d0,hbias,n3,v,1,0.0d0,fc_tmp,1)
          fc_bias(j) = ddot(n3,v,1,fc_tmp,1)
          if (abs(res%freq(j)).gt.1.0d-6) then
-            freq_scal(j) = sqrt( fc_tb(j) / ( fc_tb(j) +  fc_bias(j) ) )
+            freq_scal(j) = sqrt( fc_tb(j) / ( fc_tb(j) +  1.25_wp*fc_bias(j) ) )
             if (fc_tb(j).lt.0) then
-               freq_scal(j) = -sqrt( abs(fc_tb(j)) / ( abs(fc_tb(j)) + fc_bias(j) ) )
+               freq_scal(j) = -sqrt( abs(fc_tb(j)) / ( abs(fc_tb(j)) + 1.25_wp*fc_bias(j) ) )
             end if
          else
             freq_scal(j) = 1.0_wp
@@ -632,12 +636,14 @@ subroutine numhess( &
       end do
    end if
 
-   write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
-   do i=1,n3
-      write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
-      &               res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
-   end do   
-   write(env%unit,*)
+   !if (runtyp.eq.p_run_bhess) then
+   !   write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
+   !   do i=1,n3
+   !      write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
+   !      &               res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
+   !   end do   
+   !   write(env%unit,*)
+   !end if
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    kend=6

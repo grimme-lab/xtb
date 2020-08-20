@@ -218,6 +218,14 @@ subroutine parseArguments(env, args, ftype, massWeighted)
          else
             call env%error("Rotor cutoff is missing", source)
          end if
+     
+      case('--ithr')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_thermo(env, 'imagthr','-'// sec)
+         else
+            call env%error("Imaginary cutoff is missing", source)
+         end if
 
       case('--temp')
          call args%nextArg(sec)

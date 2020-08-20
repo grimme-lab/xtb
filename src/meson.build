@@ -70,6 +70,7 @@ srcs += files(
   'generate_wsc.f90',
   'geoopt_driver.f90',
   'geosum.f90',
+  'getkopt.f90',
   'getname.f90',
   'getsymnum.f90',
   'gfn0param.f90',

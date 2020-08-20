@@ -87,6 +87,7 @@ module xtb_prog_main
    use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
+   use xtb_kopt
    implicit none
    private
 
@@ -351,7 +352,7 @@ subroutine xtbMain(env, argParser)
    call init_scan
    call init_walls
    if (runtyp.eq.p_run_bhess) then
-      call init_bhess(mol%n,metaset%maxsave)
+      call init_bhess(mol%n)
    else
       call init_metadyn(mol%n,metaset%maxsave)
    end if
@@ -401,7 +402,7 @@ subroutine xtbMain(env, argParser)
       struc_conversion_done = .true.
       mol%struc%two_dimensional = .false.
    end if
-
+   
    ! ------------------------------------------------------------------------
    !> CONSTRAINTS & SCANS
    !> now we are at a point that we can check for requested constraints
@@ -591,6 +592,14 @@ subroutine xtbMain(env, argParser)
       call open_file(ich,tmpname,'w')
       call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
       call close_file(ich)
+   end if
+   
+   ! ========================================================================
+   !> determine kopt for bhess
+   if (runtyp.eq.p_run_bhess) then
+      call set_metadynamic(metaset,mol%n,mol%at,mol%xyz)
+      call get_kopt (metaset,env,restart,mol,chk,calc,egap,etemp,maxscciter, &
+                       &  optset%maxoptcycle,optset%optlev,etot,g,sigma,acc)
    end if
 
    ! ------------------------------------------------------------------------
