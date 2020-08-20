@@ -94,7 +94,7 @@ subroutine get_coulomb_matrix_3d(mol, chrgeq, rTrans, gTrans, cf, amat)
    real(wp) :: gamii, gamij, riw(3), gVec(3)
 
    amat = 0.0_wp
-   !$omp parallel do default(none) schedule(runtime) reduction(+:amat) &
+   !$omp parallel do default(none) reduction(+:amat) &
    !$omp shared(mol, chrgeq, cf, gTrans, rTrans) &
    !$omp private(iat, jat, wscAt, gamii, gamij, riw)
    do iat = 1, len(mol)
@@ -107,8 +107,12 @@ subroutine get_coulomb_matrix_3d(mol, chrgeq, rTrans, gTrans, cf, amat)
       do jat = 1, iat-1
          gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2+chrgeq%alpha(jat)**2)
          do wscAt = 1, mol%wsc%itbl(jat,iat)
+            ! PGI 20.7 fails with `ICE: Errors in Lowering' for
+            ! - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
             riw = mol%xyz(:,iat) - mol%xyz(:,jat) &
-               &  - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
+               & - (mol%lattice(:,1) * mol%wsc%lattr(1,wscAt,jat,iat) &
+               &  + mol%lattice(:,2) * mol%wsc%lattr(2,wscAt,jat,iat) &
+               &  + mol%lattice(:,3) * mol%wsc%lattr(3,wscAt,jat,iat))
             amat(iat,jat) = Amat(iat,jat) &
                ! reciprocal lattice sums
                + ewaldMatPBC3D(riw, gTrans, 0.0_wp, mol%volume, cf, &
@@ -190,8 +194,12 @@ subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, rTrans, gTrans, cf, &
          ! over WSC partner
          gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2 + chrgeq%alpha(jat)**2)
          do wscAt = 1, mol%wsc%itbl(jat,iat)
+            ! PGI 20.7 fails with `ICE: Errors in Lowering' for
+            ! - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
             riw = mol%xyz(:,iat) - mol%xyz(:,jat) &
-               &  - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
+               & - (mol%lattice(:,1) * mol%wsc%lattr(1,wscAt,jat,iat) &
+               &  + mol%lattice(:,2) * mol%wsc%lattr(2,wscAt,jat,iat) &
+               &  + mol%lattice(:,3) * mol%wsc%lattr(3,wscAt,jat,iat))
             call ewaldDerivPBC3D(riw, gTrans, 0.0_wp, mol%volume, cf, &
                & mol%wsc%w(jat,iat), dG, dS)
             amatdr(:, iat, jat) = amatdr(:, iat, jat) + dG*qvec(iat)
