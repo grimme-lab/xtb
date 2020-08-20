@@ -445,12 +445,6 @@ subroutine md(env,mol,chk,calc, &
          emtd = 0.0d0
          call metadynamic (metasetlocal,mol%n,mol%at,mol%xyz,emtd,grd)
          epot = epot + emtd
-          if (fixset%n.gt.0) then
-              do i=1, fixset%n
-                !print*,i,fixset%atoms(i)
-                 grd(1:3,fixset%atoms(i))=0
-              enddo
-          endif
       endif
 
       if(acount.eq.0)then  ! take only accurate Epot for average
