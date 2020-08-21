@@ -210,6 +210,14 @@ subroutine parseArguments(env, args, ftype, massWeighted)
       case('--turbomole')
          ftype = fileType%tmol
          massWeighted = .true.
+      
+      case('--scale')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_thermo(env, 'scale', sec)
+         else
+            call env%error("Freq. scaling factor missing", source)
+         end if
 
       case('--sthr')
          call args%nextArg(sec)
