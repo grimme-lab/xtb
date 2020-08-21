@@ -67,17 +67,9 @@ subroutine get_kopt( &
   real(wp)                                    :: ax,cx
   logical                                     :: fail
 !! ========================================================================
-!  default names for important files in xtb
-   character(len=*),parameter :: p_fname_rc = '.xtbrc'
-   character(len=*),parameter :: p_fname_param_gfn0  = 'param_gfn0-xtb.txt'
-   character(len=*),parameter :: p_fname_param_gfn1  = 'param_gfn1-xtb.txt'
-   character(len=*),parameter :: p_fname_param_gfn2  = 'param_gfn2-xtb.txt'
-   character(len=*),parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
-!------------------------------------------------------------------------------
   call kopt_header(env%unit)
 !------------------------------------------------------------------------------
 ! set kopt boundaries
-  !target_rmsd=0.10
   ax         =0.0_wp
   cx         =0.005_wp*(dble(mol%n)/(target_rmsd+0.01_wp))
 
