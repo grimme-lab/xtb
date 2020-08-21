@@ -296,6 +296,13 @@ subroutine thermoHelp(unit)
    "",&
    "   --sthr REAL         Rotor cutoff for RRHO partition function in rcm",&
    "",&
+   "   --ithr REAL         Imag. freq. cutoff for RRHO in rcm",&
+   "                       enter a positive value, the sign will be inverted",&
+   "",&
+   "   --scale REAL        Frequency scaling factor for RRHO",&
+   "",&
+   "   --desy REAL         Threshold for symmetry recognition",&
+   "",&
    "   --temp REAL[,...]   Temperature for thermodynamic functions in K,",&
    "                       takes a comma separated list of temperatures",&
    "",&

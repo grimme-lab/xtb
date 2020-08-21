@@ -175,7 +175,7 @@ module xtb_setparam
    logical  :: honly = .false.
 
 !! ------------------------------------------------------------------------
-!  target rmsd value for bhess run in Angstrom
+!  target rmsd value for bhess run in Ångström
    real(wp) :: target_rmsd = 0.1_wp
 
 !! ------------------------------------------------------------------------
