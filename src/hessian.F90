@@ -566,9 +566,9 @@ subroutine numhess( &
          call dgemv('n',n3,n3,1.0d0,hbias,n3,v,1,0.0d0,fc_tmp,1)
          fc_bias(j) = ddot(n3,v,1,fc_tmp,1)
          if (abs(res%freq(j)).gt.1.0d-6) then
-            freq_scal(j) = sqrt( fc_tb(j)+alp2 / ( fc_tb(j)+alp2 +  alp1*fc_bias(j) ) )
+            freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
             if (fc_tb(j).lt.0) then
-               freq_scal(j) = -sqrt( abs(fc_tb(j))+alp2 / ( abs(fc_tb(j))+alp2 + alp1*fc_bias(j) ) )
+               freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
             end if
          else
             freq_scal(j) = 1.0_wp
@@ -719,41 +719,37 @@ subroutine numhess_rmsd( &
 !! ========================================================================
 !  RMSD part -----------------------------------------------------------
 
-   if (runtyp.eq.p_run_bhess) then
+   do ia = 1, mol%n
+      do ic = 1, 3
+         ii = (ia-1)*3+ic
 
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
+         tmol=mol
+         tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
 
-            tmol=mol
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
+         gr = 0.0_wp
+         ebias = 0.0_wp
+         call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
 
-            gr = 0.0_wp
-            ebias = 0.0_wp
-            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
+         tmol=mol
+         tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
 
-            tmol=mol
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
+         gl = 0.0_wp
+         ebias = 0.0_wp
+         call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
+         
+         tmol%xyz(ic,ia)=xyzsave(ic,ia)
 
-            gl = 0.0_wp
-            ebias = 0.0_wp
-            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
-            
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  hbias(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
+         do ja= 1, mol%n
+            do jc = 1, 3
+               jj = (ja-1)*3 + jc
+               hbias(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
             enddo
-
-            call tmol%deallocate
          enddo
 
+         call tmol%deallocate
       enddo
 
-   end if
+   end do
 
 !  RMSD done -----------------------------------------------------------
 !! ========================================================================
