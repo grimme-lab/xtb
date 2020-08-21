@@ -2169,6 +2169,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
+   logical,save :: set6 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2187,6 +2188,9 @@ subroutine set_metadyn(env,key,val)
       set4 = .false.
    case('static')
       if (getValue(env,val,ldum).and.set5) metaset%static = ldum
+      set5 = .false.
+   case('rmsd')
+      if (getValue(env,val,ddum).and.set5) target_rmsd = ddum
       set5 = .false.
    end select
 

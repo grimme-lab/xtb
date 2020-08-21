@@ -175,6 +175,10 @@ module xtb_setparam
    logical  :: honly = .false.
 
 !! ------------------------------------------------------------------------
+!  target rmsd value for bhess run
+   real(wp) :: target_rmsd = 0.1_wp
+
+!! ------------------------------------------------------------------------
 !  number of siman annealing blocks
    integer  :: ntemp_siman = 3
 !  energy window (kcal) for considering conformers

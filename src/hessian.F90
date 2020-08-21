@@ -59,6 +59,7 @@ subroutine numhess( &
    class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
    real(wp) :: ebias
+   real(wp) :: alp1,alp2
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
    real(wp),intent(inout) :: egap
@@ -461,48 +462,7 @@ subroutine numhess( &
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
 
-
-!! ========================================================================
-!  RMSD part -----------------------------------------------------------
-
-   if (runtyp.eq.p_run_bhess) then
-
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-
-            tmol=mol
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
-
-            gr = 0.0_wp
-            ebias = 0.0_wp
-            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
-
-            tmol=mol
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
-
-            gl = 0.0_wp
-            ebias = 0.0_wp
-            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
-            
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  hbias(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
-            enddo
-
-            call tmol%deallocate
-         enddo
-
-      enddo
-
-   end if
-
-!  RMSD done -----------------------------------------------------------
-!! ========================================================================
+   if (runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
 
    if(freezeset%n.gt.0)then
       ! inverse mass array
@@ -596,6 +556,8 @@ subroutine numhess( &
    end if
 
    ! calculate fc_tb and fc_bias
+   alp1=1.27_wp
+   alp2=1.5d-4
    if (runtyp.eq.p_run_bhess) then
       do j=1,n3
          v(1:n3) = res%hess(1:n3,j) ! modes
@@ -604,9 +566,9 @@ subroutine numhess( &
          call dgemv('n',n3,n3,1.0d0,hbias,n3,v,1,0.0d0,fc_tmp,1)
          fc_bias(j) = ddot(n3,v,1,fc_tmp,1)
          if (abs(res%freq(j)).gt.1.0d-6) then
-            freq_scal(j) = sqrt( fc_tb(j) / ( fc_tb(j) +  1.25_wp*fc_bias(j) ) )
+            freq_scal(j) = sqrt( fc_tb(j)+alp2 / ( fc_tb(j)+alp2 +  alp1*fc_bias(j) ) )
             if (fc_tb(j).lt.0) then
-               freq_scal(j) = -sqrt( abs(fc_tb(j)) / ( abs(fc_tb(j)) + 1.25_wp*fc_bias(j) ) )
+               freq_scal(j) = -sqrt( abs(fc_tb(j))+alp2 / ( abs(fc_tb(j))+alp2 + alp1*fc_bias(j) ) )
             end if
          else
             freq_scal(j) = 1.0_wp
@@ -636,14 +598,14 @@ subroutine numhess( &
       end do
    end if
 
-   !if (runtyp.eq.p_run_bhess) then
-   !   write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
-   !   do i=1,n3
-   !      write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
-   !      &               res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
-   !   end do   
-   !   write(env%unit,*)
-   !end if
+   if (verbose.and.runtyp.eq.p_run_bhess) then
+      110 format (f8.2,2x,f9.6,2x,f9.6,2x,f7.4)
+      write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
+      do i=1,n3
+         write(env%unit,110) res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
+      end do   
+      write(env%unit,*)
+   end if
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    kend=6
@@ -710,6 +672,93 @@ subroutine numhess( &
    end do
 
 end subroutine numhess
+
+subroutine numhess_rmsd( &
+      & env,mol,hbias)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert
+
+!! ========================================================================
+!  type definitions
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_calculator
+   use xtb_type_data
+
+   use xtb_setparam
+   use xtb_splitparam
+   use xtb_fixparam
+   use xtb_metadynamic
+
+   implicit none
+   !> Dummy
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(inout) :: mol
+   real(wp),intent(inout)         :: hbias(mol%n*3,mol%n*3)
+   !> Stack
+   type(TMolecule) :: tmol
+   real(wp) :: ebias
+   real(wp) :: step,step2
+   integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,a,b
+   real(wp),allocatable :: gr(:,:)
+   real(wp),allocatable :: gl(:,:)
+   real(wp),allocatable :: xyzsave(:,:)
+
+   n3=3*mol%n
+
+   allocate(gr(3,mol%n),gl(3,mol%n),xyzsave(3,mol%n))
+
+   xyzsave = mol%xyz
+
+   ! step length
+   step=0.0001_wp
+   step=step_hess
+   step2=0.5d0/step
+
+!! ========================================================================
+!  RMSD part -----------------------------------------------------------
+
+   if (runtyp.eq.p_run_bhess) then
+
+      do ia = 1, mol%n
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+
+            tmol=mol
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
+
+            gr = 0.0_wp
+            ebias = 0.0_wp
+            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
+
+            tmol=mol
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
+
+            gl = 0.0_wp
+            ebias = 0.0_wp
+            call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
+            
+            tmol%xyz(ic,ia)=xyzsave(ic,ia)
+
+            do ja= 1, mol%n
+               do jc = 1, 3
+                  jj = (ja-1)*3 + jc
+                  hbias(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
+               enddo
+            enddo
+
+            call tmol%deallocate
+         enddo
+
+      enddo
+
+   end if
+
+!  RMSD done -----------------------------------------------------------
+!! ========================================================================
+
+end subroutine numhess_rmsd
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 

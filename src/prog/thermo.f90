@@ -31,7 +31,7 @@ module xtb_prog_thermo
    use xtb_freq_utils, only : massWeightHessian, diagHessian
    use xtb_propertyoutput, only : print_thermo
    use xtb_splitparam, only : atmass
-   use xtb_setmod, only : set_thermo
+   use xtb_setmod, only : set_thermo, set_symmetry
    implicit none
    private
 
@@ -222,9 +222,17 @@ subroutine parseArguments(env, args, ftype, massWeighted)
       case('--ithr')
          call args%nextArg(sec)
          if (allocated(sec)) then
-            call set_thermo(env, 'imagthr','-'// sec)
+            call set_thermo(env, 'imagthr','-'//sec)
          else
             call env%error("Imaginary cutoff is missing", source)
+         end if
+      
+      case('--desy')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_symmetry(env,'desy',sec)
+         else
+            call env%error("Threshold for symmetry recognition missing", source)
          end if
 
       case('--temp')

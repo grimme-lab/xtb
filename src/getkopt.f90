@@ -17,21 +17,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 !------------------------------------------------------------------------------
 module xtb_kopt
-  use xtb_mctc_accuracy, only : wp
-  implicit none
-  real(wp) :: target_rmsd=0.10_wp
 
 contains
-
-subroutine set_target_rmsd(env,val)
-  use xtb_mctc_accuracy, only : wp
-  use xtb_readin
-  implicit none
-  type(TEnvironment),intent(inout) :: env
-  character(len=*),intent(in)      :: val 
-  real(wp)                         :: ddum
-  if (getValue(env,val,ddum)) target_rmsd=ddum
-end subroutine set_target_rmsd
   
 
 subroutine get_kopt( &
@@ -99,8 +86,8 @@ subroutine get_kopt( &
   call get_rmsd( &
                  & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
                  & etot,g,sigma,current_rmsd)
-  write(env%unit,'("target rmsd          ",f9.6)') target_rmsd   
-  write(env%unit,'("unbiased initial rmsd",f9.6)') current_rmsd   
+  write(env%unit,'("target rmsd          ",f9.6)') target_rmsd  
+  write(env%unit,'("unbiased initial rmsd",f9.6)') current_rmsd  
   write(env%unit,*)
   write(env%unit,'("iter. min.        max.        rmsd       kpush")') 
   if ( current_rmsd.gt.target_rmsd ) then
@@ -130,6 +117,7 @@ subroutine get_rmsd( &
          & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
          & etot,g,sigma,rmsdval)
   use xtb_mctc_accuracy, only : wp
+  use xtb_mctc_convert, only : autoaa
   use xtb_gfnff_param
   use xtb_gfnff_setup
   use xtb_disp_dftd3param
@@ -193,7 +181,7 @@ subroutine get_rmsd( &
 
   allocate( grad(3,mol%n), source = 0.0_wp )
   call rmsd(tmol%n,tmol%xyz,mol%xyz,1,U,x_center,y_center,rmsdval,.true.,grad)
-  rmsdval=rmsdval*0.529177_wp
+  rmsdval=rmsdval*autoaa
 
 end subroutine get_rmsd
 
