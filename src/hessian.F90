@@ -27,6 +27,7 @@ subroutine numhess( &
 !$ use omp_lib
 
    use xtb_mctc_convert
+   use xtb_mctc_blas
 
 !! ========================================================================
 !  type definitions
@@ -73,7 +74,6 @@ subroutine numhess( &
    real(wp) :: dumj,acc,w0,w1,step2,aa,bb,cc,scalh,hof,h298
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
-   real(wp) :: ddot
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
    integer  :: nread,kend,lowmode
    integer  :: nonfrozh,izero(6)
@@ -515,9 +515,18 @@ subroutine numhess( &
       do j=1,i
          k=k+1
          hss(k)=res%hess(j,i)
-         if (runtyp.eq.p_run_bhess) hsb(k)=hbias(j,i)
       enddo
    enddo
+   ! same for bhess run
+   if (runtyp.eq.p_run_bhess) then
+      k=0
+      do i=1,n3
+         do j=1,i
+            k=k+1
+            hsb(k)=hbias(j,i)
+         enddo
+      enddo
+   end if
    ! project
    if(.not.res%linear)then ! projection does not work for linear mol.
       if (runtyp.eq.p_run_bhess) then
@@ -538,12 +547,19 @@ subroutine numhess( &
          k=k+1
          res%hess(j,i)=hss(k)*isqm(i)*isqm(j)*scalh
          res%hess(i,j)=res%hess(j,i)
-         if (runtyp.eq.p_run_bhess) then
-            hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
-            hbias(i,j)=hbias(j,i)
-         end if
       enddo
    enddo
+   ! same for bhess run
+   if (runtyp.eq.p_run_bhess) then
+      k=0
+      do i=1,n3
+         do j=1,i
+            k=k+1
+            hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
+            hbias(i,j)=hbias(j,i)
+         enddo
+      enddo
+   end if   
    ! calcualte htb without RMSD bias
    if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
@@ -561,10 +577,10 @@ subroutine numhess( &
    if (runtyp.eq.p_run_bhess) then
       do j=1,n3
          v(1:n3) = res%hess(1:n3,j) ! modes
-         call dgemv('n',n3,n3,1.0d0,htb,n3,v,1,0.0d0,fc_tmp,1)
-         fc_tb(j) = ddot(n3,v,1,fc_tmp,1)
-         call dgemv('n',n3,n3,1.0d0,hbias,n3,v,1,0.0d0,fc_tmp,1)
-         fc_bias(j) = ddot(n3,v,1,fc_tmp,1)
+         call mctc_gemv(htb,v,fc_tmp)
+         fc_tb(j) = mctc_dot(v,fc_tmp)
+         call mctc_gemv(hbias,v,fc_tmp)
+         fc_bias(j) = mctc_dot(v,fc_tmp)
          if (abs(res%freq(j)).gt.1.0d-6) then
             freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
             if (fc_tb(j).lt.0) then
@@ -599,10 +615,10 @@ subroutine numhess( &
    end if
 
    if (verbose.and.runtyp.eq.p_run_bhess) then
-      110 format (f8.2,2x,f9.6,2x,f9.6,2x,f7.4)
       write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
       do i=1,n3
-         write(env%unit,110) res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
+         write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
+         res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
       end do   
       write(env%unit,*)
    end if

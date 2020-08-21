@@ -17,17 +17,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 !------------------------------------------------------------------------------
 module xtb_kopt
-
-contains
-  
-
-subroutine get_kopt( &
-         & metaset,env,restart,mol,chk,calc,egap,et,maxiter,maxcycle,optlev,&
-         & etot,g,sigma,acc)
   use xtb_mctc_accuracy, only : wp
-  use xtb_gfnff_param
-  use xtb_gfnff_setup
-  use xtb_disp_dftd3param
+  use xtb_mctc_convert, only : autoaa
   use xtb_type_environment
   use xtb_type_molecule
   use xtb_type_restart
@@ -38,8 +29,16 @@ subroutine get_kopt( &
   use xtb_setmod
   use xtb_setparam
   use xtb_geoopt
-  use xtb_main_setup
-  use xtb_readin, only : xfind
+  use xtb_lsrmsd
+  implicit none
+  private :: wp
+  public
+
+contains
+  
+subroutine get_kopt( &
+         & metaset,env,restart,mol,chk,calc,egap,et,maxiter,maxcycle,optlev,&
+         & etot,g,sigma,acc)
   implicit none
 ! Dummy -----------------------------------------------------------------------
   class(TCalculator),intent(inout)            :: calc
@@ -60,14 +59,13 @@ subroutine get_kopt( &
 ! Stack -----------------------------------------------------------------------
   integer                                     :: i
   integer                                     :: idum
-  !real(wp)                                    :: target_rmsd
   real(wp)                                    :: current_rmsd
   real(wp)                                    :: kopt
   real(wp)                                    :: kbias
   real(wp)                                    :: ax,cx
   logical                                     :: fail
 !! ========================================================================
-  call kopt_header(env%unit)
+  call generic_header(env%unit,"Optimal kpush determination",49,10)
 !------------------------------------------------------------------------------
 ! set kopt boundaries
   ax         =0.0_wp
@@ -108,24 +106,6 @@ end subroutine get_kopt
 subroutine get_rmsd( &
          & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
          & etot,g,sigma,rmsdval)
-  use xtb_mctc_accuracy, only : wp
-  use xtb_mctc_convert, only : autoaa
-  use xtb_gfnff_param
-  use xtb_gfnff_setup
-  use xtb_disp_dftd3param
-  use xtb_type_environment
-  use xtb_type_molecule
-  use xtb_type_restart
-  use xtb_type_calculator
-  use xtb_type_data
-  use xtb_type_setvar
-  use xtb_restart
-  use xtb_setmod
-  use xtb_setparam
-  use xtb_geoopt
-  use xtb_lsrmsd
-  use xtb_readin, only : xfind
-  use xtb_main_setup, only : newGFFCalculator
   implicit none
 ! Dummy -----------------------------------------------------------------------
   class(TCalculator),intent(inout)            :: calc

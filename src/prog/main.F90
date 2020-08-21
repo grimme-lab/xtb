@@ -401,8 +401,8 @@ subroutine xtbMain(env, argParser)
                        &  optset%maxoptcycle,etot,g,sigma)
       struc_conversion_done = .true.
       mol%struc%two_dimensional = .false.
-   end if
-   
+    end if
+
    ! ------------------------------------------------------------------------
    !> CONSTRAINTS & SCANS
    !> now we are at a point that we can check for requested constraints
@@ -599,7 +599,7 @@ subroutine xtbMain(env, argParser)
    if (runtyp.eq.p_run_bhess) then
       call set_metadynamic(metaset,mol%n,mol%at,mol%xyz)
       call get_kopt (metaset,env,restart,mol,chk,calc,egap,etemp,maxscciter, &
-                       &  optset%maxoptcycle,optset%optlev,etot,g,sigma,acc)
+         & optset%maxoptcycle,optset%optlev,etot,g,sigma,acc)
    end if
 
    ! ------------------------------------------------------------------------
@@ -755,7 +755,7 @@ subroutine xtbMain(env, argParser)
    !> numerical hessian calculation
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
       if (runtyp.eq.p_run_bhess) then
-         call biashess_header(env%unit)
+         call generic_header(env%unit,"Biased Numerical Hessian",49,10)
       else
          call numhess_header(env%unit)
       end if

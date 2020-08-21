@@ -2190,8 +2190,8 @@ subroutine set_metadyn(env,key,val)
       if (getValue(env,val,ldum).and.set5) metaset%static = ldum
       set5 = .false.
    case('rmsd')
-      if (getValue(env,val,ddum).and.set5) target_rmsd = ddum
-      set5 = .false.
+      if (getValue(env,val,ddum).and.set6) target_rmsd = ddum
+      set6 = .false.
    end select
 
 end subroutine set_metadyn
