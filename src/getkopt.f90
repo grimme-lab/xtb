@@ -57,6 +57,7 @@ subroutine get_kopt( &
   real(wp),intent(inout)                      :: sigma(3,3)
   logical,intent(in)                          :: restart
 ! Stack -----------------------------------------------------------------------
+  type(TMolecule)                             :: tmol
   integer                                     :: i
   integer                                     :: idum
   real(wp)                                    :: current_rmsd
@@ -67,6 +68,9 @@ subroutine get_kopt( &
 !! ========================================================================
   call generic_header(env%unit,"Optimal kpush determination",49,10)
 !------------------------------------------------------------------------------
+! copy input coordinates
+  tmol=mol
+
 ! set kopt boundaries
   ax         =0.0_wp
   cx         =0.005_wp*(dble(mol%n)/(target_rmsd+0.01_wp))
@@ -82,6 +86,7 @@ subroutine get_kopt( &
   write(env%unit,'("iter. min.        max.        rmsd       kpush")') 
   if ( current_rmsd.gt.target_rmsd ) then
      do i = 1,10
+        mol=tmol
         kbias = 0.5_wp * (cx +ax)
         metaset%factor = -kbias
         call get_rmsd( &
@@ -110,7 +115,7 @@ subroutine get_rmsd( &
 ! Dummy -----------------------------------------------------------------------
   class(TCalculator),intent(inout)            :: calc
   type(TEnvironment),intent(inout)            :: env
-  type(TMolecule),intent(in)                  :: mol
+  type(TMolecule),intent(inout)               :: mol
   type(TRestart),intent(inout)                :: chk
   integer,intent(in)                          :: maxiter
   integer,intent(in)                          :: maxcycle
@@ -129,30 +134,17 @@ subroutine get_rmsd( &
   real(wp)                                    :: x_center(3),y_center(3)
   real(wp),allocatable                        :: grad(:,:)
   logical                                     :: fail
-  character(len=:),allocatable                :: fnv
 !------------------------------------------------------------------------------
 ! save input geometry
   tmol=mol
 !------------------------------------------------------------------------------
 ! geometry optimization
-  fnv='/dev/null'
-  if (allocated(opt_logfile)) then
-    fnv = opt_logfile
-  else
-    deallocate(fnv)
-  endif
-  opt_logfile = '/dev/null'
   call geometry_optimization &
-      &     (env,tmol,chk,calc,   &
+      &     (env,mol,chk,calc,   &
       &      egap,etemp,maxiter,maxcycle,etot,g,sigma,optlev,.false.,.true.,fail)
-  if (allocated(fnv)) then
-    opt_logfile = fnv
-  else
-    deallocate(opt_logfile)
-  end if
 
   allocate( grad(3,mol%n), source = 0.0_wp )
-  call rmsd(tmol%n,tmol%xyz,mol%xyz,1,U,x_center,y_center,rmsdval,.true.,grad)
+  call rmsd(mol%n,mol%xyz,tmol%xyz,1,U,x_center,y_center,rmsdval,.true.,grad)
   rmsdval=rmsdval*autoaa
 
 end subroutine get_rmsd

@@ -595,7 +595,7 @@ subroutine xtbMain(env, argParser)
    end if
    
    ! ========================================================================
-   !> determine kopt for bhess
+   !> determine kopt for bhess including final biased geometry optimization
    if (runtyp.eq.p_run_bhess) then
       call set_metadynamic(metaset,mol%n,mol%at,mol%xyz)
       call get_kopt (metaset,env,restart,mol,chk,calc,egap,etemp,maxscciter, &
@@ -637,7 +637,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !  ANCopt
-   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess).or. &
+   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       &   (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
       &   (runtyp.eq.p_run_metaopt)) then
       if (opt_engine.eq.p_engine_rf) &
