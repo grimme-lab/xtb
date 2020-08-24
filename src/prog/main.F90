@@ -87,6 +87,7 @@ module xtb_prog_main
    use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
+   use xtb_kopt
    implicit none
    private
 
@@ -350,8 +351,11 @@ subroutine xtbMain(env, argParser)
    call init_constr(mol%n,mol%at)
    call init_scan
    call init_walls
-   call init_metadyn(mol%n,metaset%maxsave)
-
+   if (runtyp.eq.p_run_bhess) then
+      call init_bhess(mol%n)
+   else
+      call init_metadyn(mol%n,metaset%maxsave)
+   end if
 
    ! ------------------------------------------------------------------------
    !> get some memory
@@ -397,7 +401,7 @@ subroutine xtbMain(env, argParser)
                        &  optset%maxoptcycle,etot,g,sigma)
       struc_conversion_done = .true.
       mol%struc%two_dimensional = .false.
-   end if
+    end if
 
    ! ------------------------------------------------------------------------
    !> CONSTRAINTS & SCANS
@@ -472,7 +476,7 @@ subroutine xtbMain(env, argParser)
       select case(runtyp)
       case default
          call env%terminate('This is an internal error, please define your runtypes!')
-      case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess, &
+      case(p_run_scc,p_run_grad,p_run_opt,p_run_hess,p_run_ohess,p_run_bhess, &
             p_run_md,p_run_omd,p_run_path,p_run_screen, &
             p_run_modef,p_run_mdopt,p_run_metaopt)
         if (mode_extrun.eq.p_ext_gfnff) then
@@ -588,6 +592,14 @@ subroutine xtbMain(env, argParser)
       call open_file(ich,tmpname,'w')
       call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
       call close_file(ich)
+   end if
+   
+   ! ========================================================================
+   !> determine kopt for bhess including final biased geometry optimization
+   if (runtyp.eq.p_run_bhess) then
+      call set_metadynamic(metaset,mol%n,mol%at,mol%xyz)
+      call get_kopt (metaset,env,restart,mol,chk,calc,egap,etemp,maxscciter, &
+         & optset%maxoptcycle,optset%optlev,etot,g,sigma,acc)
    end if
 
    ! ------------------------------------------------------------------------
@@ -741,8 +753,12 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> numerical hessian calculation
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
-      call numhess_header(env%unit)
+   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
+      if (runtyp.eq.p_run_bhess) then
+         call generic_header(env%unit,"Biased Numerical Hessian",49,10)
+      else
+         call numhess_header(env%unit)
+      end if
       if (mol%npbc > 0) then
          call env%error("Phonon calculations under PBC are not implemented", source)
       endif
@@ -832,11 +848,11 @@ subroutine xtbMain(env, argParser)
 
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
-      (runtyp.eq.p_run_metaopt)) then
+      (runtyp.eq.p_run_metaopt).or.(runtyp.eq.p_run_bhess)) then
       call main_geometry(iprop,mol)
    endif
 
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
+   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
       call generic_header(iprop,'Frequency Printout',49,10)
       call main_freq(iprop,mol,chk%wfn,fres)
    endif
@@ -844,14 +860,14 @@ subroutine xtbMain(env, argParser)
    if (allocated(property_file)) then
       if (iprop.ne.-1 .and. iprop.ne.env%unit) then
          call write_energy(iprop,res,fres, &
-            & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+            & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
          call close_file(iprop)
       endif
    endif
 
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
-      (runtyp.eq.p_run_metaopt)) then
+      (runtyp.eq.p_run_metaopt).or.(runtyp.eq.p_run_bhess)) then
       call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
       write(env%unit,'(/,a,1x,a,/)') &
          "optimized geometry written to:",tmpname
@@ -863,10 +879,10 @@ subroutine xtbMain(env, argParser)
    select type(calc)
    type is(TxTBCalculator)
       call write_energy(env%unit,res,fres, &
-        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
    type is(TGFFCalculator)
       call write_energy_gff(env%unit,res,fres, &
-        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess))
+        & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
    end select  
 
 
@@ -1029,7 +1045,7 @@ subroutine xtbMain(env, argParser)
    if (runtyp.eq.p_run_path) then
       call prtiming(4,'path finder')
    endif
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess)) then
+   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
       call prtiming(5,'numerical hessian')
    endif
    if ((runtyp.eq.p_run_md).or.(runtyp.eq.p_run_omd).or. &
@@ -1435,6 +1451,13 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--ohess')
          call set_runtyp('ohess')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_opt(env,'optlevel',sec)
+         endif
+      
+      case('--bhess')
+         call set_runtyp('bhess')
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)

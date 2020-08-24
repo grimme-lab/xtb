@@ -31,7 +31,7 @@ module xtb_prog_thermo
    use xtb_freq_utils, only : massWeightHessian, diagHessian
    use xtb_propertyoutput, only : print_thermo
    use xtb_splitparam, only : atmass
-   use xtb_setmod, only : set_thermo
+   use xtb_setmod, only : set_thermo, set_symmetry
    implicit none
    private
 
@@ -210,6 +210,14 @@ subroutine parseArguments(env, args, ftype, massWeighted)
       case('--turbomole')
          ftype = fileType%tmol
          massWeighted = .true.
+      
+      case('--scale')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_thermo(env, 'scale', sec)
+         else
+            call env%error("Freq. scaling factor missing", source)
+         end if
 
       case('--sthr')
          call args%nextArg(sec)
@@ -217,6 +225,22 @@ subroutine parseArguments(env, args, ftype, massWeighted)
             call set_thermo(env, 'sthr', sec)
          else
             call env%error("Rotor cutoff is missing", source)
+         end if
+     
+      case('--ithr')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_thermo(env, 'imagthr','-'//sec)
+         else
+            call env%error("Imaginary cutoff is missing", source)
+         end if
+      
+      case('--desy')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_symmetry(env,'desy',sec)
+         else
+            call env%error("Threshold for symmetry recognition missing", source)
          end if
 
       case('--temp')
@@ -271,6 +295,13 @@ subroutine thermoHelp(unit)
    "Options",&
    "",&
    "   --sthr REAL         Rotor cutoff for RRHO partition function in rcm",&
+   "",&
+   "   --ithr REAL         Imag. freq. cutoff for RRHO in rcm",&
+   "                       enter a positive value, the sign will be inverted",&
+   "",&
+   "   --scale REAL        Frequency scaling factor for RRHO",&
+   "",&
+   "   --desy REAL         Threshold for symmetry recognition",&
    "",&
    "   --temp REAL[,...]   Temperature for thermodynamic functions in K,",&
    "                       takes a comma separated list of temperatures",&

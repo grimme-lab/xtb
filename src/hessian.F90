@@ -27,6 +27,7 @@ subroutine numhess( &
 !$ use omp_lib
 
    use xtb_mctc_convert
+   use xtb_mctc_blas
 
 !! ========================================================================
 !  type definitions
@@ -39,6 +40,7 @@ subroutine numhess( &
    use xtb_setparam
    use xtb_splitparam
    use xtb_fixparam
+   use xtb_metadynamic
 
    use xtb_single, only : singlepoint
    use xtb_axis, only : axis
@@ -57,6 +59,8 @@ subroutine numhess( &
    type(TRestart),intent(inout) :: chk0
    class(TCalculator), intent(inout) :: calc
    real(wp) :: eel
+   real(wp) :: ebias
+   real(wp) :: alp1,alp2
    real(wp),intent(inout) :: etot
    real(wp),intent(in)    :: et
    real(wp),intent(inout) :: egap
@@ -81,7 +85,15 @@ subroutine numhess( &
    logical :: parallize
 
    real(wp),allocatable :: h (:,:)
+   real(wp),allocatable :: htb (:,:)
+   real(wp),allocatable :: hbias (:,:)
    real(wp),allocatable :: hss(:)
+   real(wp),allocatable :: hsb(:)
+   real(wp),allocatable :: fc_tb(:)
+   real(wp),allocatable :: fc_bias(:)
+   real(wp),allocatable :: v(:)
+   real(wp),allocatable :: fc_tmp(:)
+   real(wp),allocatable :: freq_scal(:)
    real(wp),allocatable :: aux (:)
    real(wp),allocatable :: isqm(:)
    real(wp),allocatable :: gl  (:,:)
@@ -102,9 +114,10 @@ subroutine numhess( &
    call res%allocate(mol%n)
    res%n3true = n3-3*freezeset%n
 
-   allocate(hss(n3*(n3+1)/2),h(n3,n3), &
+   allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
-      & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n))
+      & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
+      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3))
 
    rd=.false.
    xyzsave = mol%xyz
@@ -123,6 +136,10 @@ subroutine numhess( &
       & (env,mol,chk0,calc, &
       &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
 
+   if (runtyp.eq.p_run_bhess) then
+   write(env%unit,'(''kpush                :'',F10.5)') metaset%factor(metaset%nstruc)
+   write(env%unit,'(''alpha                :'',F10.5)') metaset%width
+   end if
    write(env%unit,'(''step length          :'',F10.5)') step
    write(env%unit,'(''SCC accuracy         :'',F10.5)') acc
    write(env%unit,'(''Hessian scale factor :'',F10.5)') scalh
@@ -147,6 +164,8 @@ subroutine numhess( &
    step2=0.5d0/step
 
    h = 0.0_wp
+   htb = 0.0_wp
+   hbias = 0.0_wp
 
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
@@ -443,6 +462,8 @@ subroutine numhess( &
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
 
+   if (runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
+
    if(freezeset%n.gt.0)then
       ! inverse mass array
       do a = 1, mol%n
@@ -496,8 +517,21 @@ subroutine numhess( &
          hss(k)=res%hess(j,i)
       enddo
    enddo
+   ! same for bhess run
+   if (runtyp.eq.p_run_bhess) then
+      k=0
+      do i=1,n3
+         do j=1,i
+            k=k+1
+            hsb(k)=hbias(j,i)
+         enddo
+      enddo
+   end if
    ! project
    if(.not.res%linear)then ! projection does not work for linear mol.
+      if (runtyp.eq.p_run_bhess) then
+         call trproj(mol%n,n3,mol%xyz,hsb,.false.,0,res%freq,1) ! freq is dummy
+      end if
       call trproj(mol%n,n3,mol%xyz,hss,.false.,0,res%freq,1) ! freq is dummy
    endif
    ! non mass weigthed Hessian in hss
@@ -515,6 +549,19 @@ subroutine numhess( &
          res%hess(i,j)=res%hess(j,i)
       enddo
    enddo
+   ! same for bhess run
+   if (runtyp.eq.p_run_bhess) then
+      k=0
+      do i=1,n3
+         do j=1,i
+            k=k+1
+            hbias(j,i)=hsb(k)*isqm(i)*isqm(j)*scalh
+            hbias(i,j)=hbias(j,i)
+         enddo
+      enddo
+   end if   
+   ! calcualte htb without RMSD bias
+   if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
    lwork  = 1 + 6*n3 + 2*n3**2
    allocate(aux(lwork))
@@ -522,6 +569,27 @@ subroutine numhess( &
    if(info.ne.0) then
       call env%error('Diagonalization of hessian failed', source)
       return
+   end if
+
+   ! calculate fc_tb and fc_bias
+   alp1=1.27_wp
+   alp2=1.5d-4
+   if (runtyp.eq.p_run_bhess) then
+      do j=1,n3
+         v(1:n3) = res%hess(1:n3,j) ! modes
+         call mctc_gemv(htb,v,fc_tmp)
+         fc_tb(j) = mctc_dot(v,fc_tmp)
+         call mctc_gemv(hbias,v,fc_tmp)
+         fc_bias(j) = mctc_dot(v,fc_tmp)
+         if (abs(res%freq(j)).gt.1.0d-6) then
+            freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
+            if (fc_tb(j).lt.0) then
+               freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
+            end if
+         else
+            freq_scal(j) = 1.0_wp
+         end if
+      end do
    end if
 
    write(env%unit,'(a)')
@@ -538,6 +606,22 @@ subroutine numhess( &
          izero(k)=i
       endif
    enddo
+   
+   ! scale frequencies
+   if (runtyp.eq.p_run_bhess) then
+      do j=1,n3
+         res%freq(j)=freq_scal(j)*res%freq(j)
+      end do
+   end if
+
+   if (verbose.and.runtyp.eq.p_run_bhess) then
+      write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
+      do i=1,n3
+         write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
+         res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
+      end do   
+      write(env%unit,*)
+   end if
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    kend=6
@@ -604,6 +688,89 @@ subroutine numhess( &
    end do
 
 end subroutine numhess
+
+subroutine numhess_rmsd( &
+      & env,mol,hbias)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_convert
+
+!! ========================================================================
+!  type definitions
+   use xtb_type_environment
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_calculator
+   use xtb_type_data
+
+   use xtb_setparam
+   use xtb_splitparam
+   use xtb_fixparam
+   use xtb_metadynamic
+
+   implicit none
+   !> Dummy
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(inout) :: mol
+   real(wp),intent(inout)         :: hbias(mol%n*3,mol%n*3)
+   !> Stack
+   type(TMolecule) :: tmol
+   real(wp) :: ebias
+   real(wp) :: step,step2
+   integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,a,b
+   real(wp),allocatable :: gr(:,:)
+   real(wp),allocatable :: gl(:,:)
+   real(wp),allocatable :: xyzsave(:,:)
+
+   n3=3*mol%n
+
+   allocate(gr(3,mol%n),gl(3,mol%n),xyzsave(3,mol%n))
+
+   xyzsave = mol%xyz
+
+   ! step length
+   step=0.0001_wp
+   step=step_hess
+   step2=0.5d0/step
+
+!! ========================================================================
+!  RMSD part -----------------------------------------------------------
+
+   do ia = 1, mol%n
+      do ic = 1, 3
+         ii = (ia-1)*3+ic
+
+         tmol=mol
+         tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
+
+         gr = 0.0_wp
+         ebias = 0.0_wp
+         call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gr)
+
+         tmol=mol
+         tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
+
+         gl = 0.0_wp
+         ebias = 0.0_wp
+         call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
+         
+         tmol%xyz(ic,ia)=xyzsave(ic,ia)
+
+         do ja= 1, mol%n
+            do jc = 1, 3
+               jj = (ja-1)*3 + jc
+               hbias(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
+            enddo
+         enddo
+
+         call tmol%deallocate
+      enddo
+
+   end do
+
+!  RMSD done -----------------------------------------------------------
+!! ========================================================================
+
+end subroutine numhess_rmsd
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 

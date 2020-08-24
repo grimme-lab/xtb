@@ -571,29 +571,6 @@ contains
 !       which is computed here to get the atomization energy De,n,at(n)
         call goed_gfnff(env,.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,solvation,param,topo)
         de=-(etot - eesinf)
-!       write out fitting stuff
-        inquire(file='.EAT',exist=ex)
-        if(ex)then
-          open(unit=91,file='.EAT')
-          read(91,*) dum
-          close(91)
-          open(unit=91,file='.eat')
-          write(91,*) de*627.5095d0,dum
-          close(91)
-        endif
-        inquire(file='tmdipole',exist=ex)
-        if(ex)then
-          open(unit=91,file='tmdipole')
-          read(91,*)dx
-          read(91,*)dy
-          read(91,*)dz
-          close(91)
-          open(unit=91,file='.dipole')
-          write(91,*)r3(1),dx
-          write(91,*)r3(2),dy
-          write(91,*)r3(3),dz
-          close(91)
-        endif
       endif
 !     write resusts to res type
       res_gff%e_total = etot

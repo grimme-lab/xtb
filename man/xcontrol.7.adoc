@@ -258,6 +258,8 @@ $metadyn (6.1 only)
 *atoms*: 'list',...::
     atoms to include in rmsd calculation, if not present all atoms are
     taken into account
+*rmsd*: 'real',...::
+    target rmsd for biased hessian runs in Ångström
 
 $md
 ~~~

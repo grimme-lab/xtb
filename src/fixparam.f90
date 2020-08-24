@@ -59,6 +59,14 @@ subroutine init_metadyn(nat,nstruc)
    metaset%factor = metaset%global_factor
 end subroutine init_metadyn
 
+subroutine init_bhess(nat)
+   implicit none
+   integer, intent(in) :: nat
+   call metaset%allocate(nat,1)
+   metaset%maxsave= 1
+   metaset%factor = metaset%global_factor
+end subroutine init_bhess
+
 subroutine clear_metadyn
    call metaset%deallocate
 end subroutine clear_metadyn

@@ -338,6 +338,8 @@ subroutine constrhess(nat,at,xyz0,Hess)
    use xtb_mctc_accuracy, only : wp
    use xtb_scanparam
    use xtb_constrainpot
+   use xtb_fixparam
+   use xtb_metadynamic
    implicit none
    integer, intent(in)    :: nat
    integer, intent(in)    :: at(nat)
@@ -372,12 +374,14 @@ subroutine constrhess(nat,at,xyz0,Hess)
          call constrain_dist    (potset%dist,    nat,at,xyz,gr,e)
          call constrain_angle   (potset%angle,   nat,at,xyz,gr,e)
          call constrain_dihedral(potset%dihedral,nat,at,xyz,gr,e)
+         call metadynamic(metaset,nat,at,xyz,e,gr)
          xyz(ic,ia)=xyz(ic,ia)-2.*step
          gl=0
          call constrpot(nat,at,xyz,gl,e)
          call constrain_dist    (potset%dist,    nat,at,xyz,gl,e)
          call constrain_angle   (potset%angle,   nat,at,xyz,gl,e)
          call constrain_dihedral(potset%dihedral,nat,at,xyz,gl,e)
+         call metadynamic(metaset,nat,at,xyz,e,gl)
          xyz(ic,ia)=xyz(ic,ia)+step
          do ja = 1, n
             do jc = 1, 3

@@ -72,6 +72,7 @@ list(APPEND srcs
   "${dir}/generate_wsc.f90"
   "${dir}/geoopt_driver.f90"
   "${dir}/geosum.f90"
+  "${dir}/getkopt.f90"
   "${dir}/getname.f90"
   "${dir}/getsymnum.f90"
   "${dir}/gfn0param.f90"
