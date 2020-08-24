@@ -1038,7 +1038,7 @@ subroutine xtbMain(env, argParser)
    write(env%unit,'(72("-"))')
    call prtiming(1,'total')
    call prtiming(2,'SCF')
-   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess).or. &
+   if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       &   (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_metaopt)) then
       call prtiming(3,'ANC optimizer')
    endif

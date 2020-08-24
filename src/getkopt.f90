@@ -80,8 +80,8 @@ subroutine get_kopt( &
   call get_rmsd( &
                  & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
                  & etot,g,sigma,current_rmsd)
-  write(env%unit,'("target rmsd          ",f9.6)') target_rmsd  
-  write(env%unit,'("unbiased initial rmsd",f9.6)') current_rmsd  
+  write(env%unit,'("target rmsd / Å        ",f9.6)') target_rmsd  
+  write(env%unit,'("unbiased initial rmsd  ",f9.6)') current_rmsd  
   write(env%unit,*)
   write(env%unit,'("iter. min.        max.        rmsd       kpush")') 
   if ( current_rmsd.gt.target_rmsd ) then
