@@ -1607,6 +1607,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
             if(mol%at(topo%nb(jneig,jj)).eq.1) nhj=nhj+1
          enddo
          fij=fij*(dble(nhi)*dble(nhj))**0.07 ! n H term
+         ! amides and alpha carbons in peptides/proteins
+         if (alphaCO(mol%n,mol%at,hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,hyb,topo%nb,piadr,ii).and.hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,hyb,topo%nb,piadr,jj).and.hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
+         ! hypervalent
+         if(btyp(m).eq.4)                                                                   fij = fij * 0.2d0
 !        loop over neighbors of ij
          do ineig=1,topo%nb(20,ii)
             kk=topo%nb(ineig,ii)
@@ -1619,8 +1625,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
                fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))       ! outer kl term
                if(mol%at(kk).eq.7.and.piadr(kk).eq.0) fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*0.5
                if(mol%at(ll).eq.7.and.piadr(ll).eq.0) fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*0.5
-!              if(amide(mol%n,mol%at,hyb,topo%nb,piadr,kk))    fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*1.0
-!              if(amide(mol%n,mol%at,hyb,topo%nb,piadr,ll))    fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*1.0
                if(fkl.lt.gen%fcthr)               cycle
                if(param%tors(mol%at(kk)).lt.0.or.param%tors(mol%at(ll)).lt.0) cycle ! no negative values
                f1 = gen%torsf(1)
@@ -1670,9 +1674,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
                                                          phi  =180.d0
                                                          nrot = 3
                     endif
-                    if (alphaCO(mol%n,mol%at,hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.15d0
-                    if (amide(mol%n,mol%at,hyb,topo%nb,piadr,ii).and.hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.15d0
-                    if (amide(mol%n,mol%at,hyb,topo%nb,piadr,jj).and.hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.15d0
                endif
 ! SP3 specials
                if(hyb(ii).eq.3.and.hyb(jj).eq.3) then
@@ -1698,8 +1699,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
                             if(mol%at(ii).ge.16.and.mol%at(jj).ge.16)f1=25.0d0 ! better for h2s2
                endif
                endif
-! hypervalent
-               if(btyp(m).eq.4)                              fij= fij* 0.4! good effect
 ! pi system
                if(pibo(m).gt.0) then
                                 f2=pibo(m)*exp(-2.5d0*(1.24d0-pibo(m))**14)  ! decrease to very small values for P < 0.3
