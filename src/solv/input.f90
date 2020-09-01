@@ -34,10 +34,10 @@ module xtb_solv_input
       character(len=:), allocatable :: solvent
 
       !> Use the analytical linearized Poisson Boltzmann model
-      logical :: alpb = .false.
+      logical :: alpb = .true.
 
       !> Generalized Born interaction kernel
-      integer :: kernel = gbKernel%still
+      integer :: kernel = gbKernel%p16
 
       !> Reference state
       integer :: state = solutionState%gsolv

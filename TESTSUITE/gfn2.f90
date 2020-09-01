@@ -211,6 +211,7 @@ subroutine test_gfn2gbsa_api
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -254,7 +255,7 @@ subroutine test_gfn2gbsa_api
 
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)
-   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent, alpb=.false., kernel=gbKernel%still))
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
@@ -288,6 +289,7 @@ subroutine test_gfn2salt_api
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -329,7 +331,7 @@ subroutine test_gfn2salt_api
    call newXTBCalculator(env, mol, calc, method=2)
    call newWavefunction(env, mol, calc, chk)
    call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent, &
-      & ionRad=1.0_wp*aatoau, ionStrength=1.0e-3_wp))
+      & ionRad=1.0_wp*aatoau, ionStrength=1.0e-3_wp, alpb=.false., kernel=gbKernel%still))
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
@@ -590,6 +592,7 @@ subroutine test_gfn2_mindless_solvation
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -640,7 +643,7 @@ subroutine test_gfn2_mindless_solvation
       call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
       call newWavefunction(env, mol, calc, chk)
       call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
-         & alpb=mod(iMol, 2)==0))
+         & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
       call assert(.not.exitRun)
@@ -679,6 +682,7 @@ subroutine test_gfn2_dmetal
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -715,7 +719,7 @@ subroutine test_gfn2_dmetal
       call newWavefunction(env, mol, calc, chk)
       if (iMol > 1) then
          call addSolvationModel(env, calc, TSolvInput(solvent='ch2cl2', &
-            & alpb=iMol==3))
+            & alpb=iMol==3, kernel=gbKernel%still))
       end if
 
       call env%check(exitRun)

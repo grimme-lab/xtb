@@ -223,7 +223,7 @@ subroutine test_gfnff_gbsa
 
    call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '---', .false.)
-   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent, alpb=.false., kernel=gbKernel%still))
 
    call env%checkpoint("GFN-FF parameter setup failed")
 
@@ -353,6 +353,7 @@ subroutine test_gfnff_mindless_solvation
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -398,7 +399,7 @@ subroutine test_gfnff_mindless_solvation
       call delete_file('charges')
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
       call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
-         & alpb=mod(iMol, 2)==0))
+         & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
       call assert(.not.exitRun)
@@ -436,6 +437,7 @@ subroutine test_gfnff_scaleup
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -475,7 +477,7 @@ subroutine test_gfnff_scaleup
       call delete_file('charges')
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
       call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
-         & alpb=mod(iMol, 2)==0))
+         & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
       call assert(.not.exitRun)
@@ -514,6 +516,7 @@ subroutine test_gfnff_pdb
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -547,7 +550,7 @@ subroutine test_gfnff_pdb
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
       if (iMol > 1) then
          call addSolvationModel(env, calc, TSolvInput(solvent='h2o', &
-            & alpb=iMol==3))
+            & alpb=iMol==3, kernel=gbKernel%still))
       end if
 
       call env%check(exitRun)

@@ -1377,6 +1377,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_gbsa(env, 'solvent', sec)
+            call set_gbsa(env, 'alpb', 'false')
             call args%nextArg(sec)
             if (allocated(sec)) then
                if (sec == 'reference') then
@@ -1395,7 +1396,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_gbsa(env, 'solvent', sec)
-            call set_gbsa(env, 'alpb', 'true')
             call args%nextArg(sec)
             if (allocated(sec)) then
                if (sec == 'reference') then
