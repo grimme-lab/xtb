@@ -21,7 +21,7 @@ list(APPEND srcs
   "${dir}/born.f90"
   "${dir}/cm5.f90"
   "${dir}/gbsa.f90"
-  "${dir}/input.f90"
+  "${dir}/input.F90"
   "${dir}/kernel.f90"
   "${dir}/lebedev.f90"
   "${dir}/model.f90"

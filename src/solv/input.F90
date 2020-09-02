@@ -72,7 +72,58 @@ module xtb_solv_input
    end type TSolvInput
 
 
+#ifdef __PGIC__
+   !> Create a custom constructor due to PGI 20.7 failing for derived type
+   !  constructors using deferred-length character variables
+   interface TSolvInput
+      module procedure :: pgiWrapper
+   end interface TSolvInput
+#endif
+
+
 contains
+
+
+function pgiWrapper(solvent, alpb, kernel, state, temperature, nAng, &
+      & ionStrength, ionRad) result(self)
+
+   !> Selected solvent
+   character(len=*), intent(in) :: solvent
+
+   !> Use the analytical linearized Poisson Boltzmann model
+   logical, intent(in), optional :: alpb
+
+   !> Generalized Born interaction kernel
+   integer, intent(in), optional :: kernel
+
+   !> Reference state
+   integer, intent(in), optional :: state
+
+   !> Temperature
+   real(wp), intent(in), optional :: temperature
+
+   !> Number of grid points
+   integer, intent(in), optional :: nAng
+
+   !> Ion strength
+   real(wp), intent(in), optional :: ionStrength
+
+   !> Ion radius
+   real(wp), intent(in), optional :: ionRad
+
+   !> Instance of the solvation input data
+   type(TSolvInput) :: self
+
+   self%solvent = solvent
+   if (present(alpb)) self%alpb = alpb
+   if (present(kernel)) self%kernel = kernel
+   if (present(state)) self%state = state
+   if (present(temperature)) self%temperature = temperature
+   if (present(nAng)) self%nAng = nAng
+   if (present(ionStrength)) self%ionStrength = ionStrength
+   if (present(ionRad)) self%ionRad = ionRad
+
+end function pgiWrapper
 
 
 end module xtb_solv_input
