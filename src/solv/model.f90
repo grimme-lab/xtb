@@ -116,6 +116,30 @@ module xtb_solv_model
    include 'param_gbsa_dmf.fh'
    include 'param_gbsa_nhexan.fh'
 
+   include 'param_alpb_acetone.fh'
+   include 'param_alpb_acetonitrile.fh'
+   include 'param_alpb_aniline.fh'
+   include 'param_alpb_benzaldehyde.fh'
+   include 'param_alpb_benzene.fh'
+   include 'param_alpb_ch2cl2.fh'
+   include 'param_alpb_chcl3.fh'
+   include 'param_alpb_cs2.fh'
+   include 'param_alpb_dioxane.fh'
+   include 'param_alpb_dmf.fh'
+   include 'param_alpb_dmso.fh'
+   include 'param_alpb_ether.fh'
+   include 'param_alpb_ethylacetate.fh'
+   include 'param_alpb_furane.fh'
+   include 'param_alpb_hexadecane.fh'
+   include 'param_alpb_hexane.fh'
+   include 'param_alpb_nitromethane.fh'
+   include 'param_alpb_octanol.fh'
+   include 'param_alpb_phenol.fh'
+   include 'param_alpb_thf.fh'
+   include 'param_alpb_toluene.fh'
+   include 'param_alpb_water.fh'
+   include 'param_alpb_woctanol.fh'
+
 
    !> Solvent density (g/cm^3) and molar mass (g/mol)
    real(wp), parameter :: molcm3toau = 8.92388e-2_wp
@@ -210,48 +234,152 @@ subroutine loadInternalParam(self, env, solvent, level)
 
    type(gbsa_parameter), allocatable :: param
 
-   if (any(level == [2, 0])) then
-      self%paramFile = 'internal GFN2-xTB/GBSA'
-      select case(solvent)
-      case('acetone');      param = gfn2_acetone
-      case('acetonitrile'); param = gfn2_acetonitrile
-      case('benzene');      param = gfn2_benzene
-      case('ch2cl2','dichlormethane'); param = gfn2_ch2cl2
-      case('chcl3','chloroform');      param = gfn2_chcl3
-      case('cs2');          param = gfn2_cs2
-      case('dmso');         param = gfn2_dmso
-      case('ether');        param = gfn2_ether
-      case('h2o','water');  param = gfn2_h2o
-      case('methanol');     param = gfn2_methanol
-      case('thf');          param = gfn2_thf
-      case('toluene');      param = gfn2_toluene
-      case('dmf');          param = gfn2_dmf
-      case('nhexan','n-hexan','nhexane','n-hexane');
-         param = gfn2_nhexan
-      end select
-   else
-      self%paramFile = 'internal GFN1-xTB/GBSA'
-      select case(solvent)
-      case('acetone');      param = gfn1_acetone
-      case('acetonitrile'); param = gfn1_acetonitrile
-      case('benzene');      param = gfn1_benzene
-      case('ch2cl2','dichlormethane'); param = gfn1_ch2cl2
-      case('chcl3','chloroform');      param = gfn1_chcl3
-      case('cs2');          param = gfn1_cs2
-      case('dmso');         param = gfn1_dmso
-      case('ether');        param = gfn1_ether
-      case('h2o','water');  param = gfn1_h2o
-      case('methanol');     param = gfn1_methanol
-      case('thf');          param = gfn1_thf
-      case('toluene');      param = gfn1_toluene
-      end select
-   end if
+   select case(self%kernel)
+   case (gbKernel%still)
+      if (any(level == [2, 0])) then
+         self%paramFile = 'internal GFN2-xTB/GBSA'
+         select case(solvent)
+         case('acetone');      param = gfn2_acetone
+         case('acetonitrile'); param = gfn2_acetonitrile
+         case('benzene');      param = gfn2_benzene
+         case('ch2cl2','dichlormethane'); param = gfn2_ch2cl2
+         case('chcl3','chloroform');      param = gfn2_chcl3
+         case('cs2');          param = gfn2_cs2
+         case('dmso');         param = gfn2_dmso
+         case('ether');        param = gfn2_ether
+         case('h2o','water');  param = gfn2_h2o
+         case('methanol');     param = gfn2_methanol
+         case('thf');          param = gfn2_thf
+         case('toluene');      param = gfn2_toluene
+         case('dmf');          param = gfn2_dmf
+         case('nhexan','n-hexan','nhexane','n-hexane');
+            param = gfn2_nhexan
+         end select
+      else
+         self%paramFile = 'internal GFN1-xTB/GBSA'
+         select case(solvent)
+         case('acetone');      param = gfn1_acetone
+         case('acetonitrile'); param = gfn1_acetonitrile
+         case('benzene');      param = gfn1_benzene
+         case('ch2cl2','dichlormethane'); param = gfn1_ch2cl2
+         case('chcl3','chloroform');      param = gfn1_chcl3
+         case('cs2');          param = gfn1_cs2
+         case('dmso');         param = gfn1_dmso
+         case('ether');        param = gfn1_ether
+         case('h2o','water');  param = gfn1_h2o
+         case('methanol');     param = gfn1_methanol
+         case('thf');          param = gfn1_thf
+         case('toluene');      param = gfn1_toluene
+         end select
+      end if
 
-   if (.not.allocated(param)) then
-      call env%error("solvent: '"//solvent//"' is not parametrized", source)
-      return
-   end if
+      if (.not.allocated(param)) then
+         call env%error("solvent: '"//solvent//"' is not parametrized", source)
+         return
+      end if
 
+   case (gbKernel%p16)
+      if (level == 2) then
+         self%paramFile = 'internal GFN2-xTB/ALPB'
+         select case(solvent)
+         case('acetone');      param = gfn2_alpb_acetone
+         case('acetonitrile'); param = gfn2_alpb_acetonitrile
+         case('aniline');      param = gfn2_alpb_aniline
+         case('benzaldehyde');      param = gfn2_alpb_benzaldehyde
+         case('benzene');      param = gfn2_alpb_benzene
+         case('dioxane');      param = gfn2_alpb_dioxane
+         case('ethylacetate');      param = gfn2_alpb_ethylacetate
+         case('furane');      param = gfn2_alpb_furane
+         case('hexadecane');      param = gfn2_alpb_hexadecane
+         case('nitromethane');      param = gfn2_alpb_nitromethane
+         case('octanol');      param = gfn2_alpb_octanol
+         case('woctanol');      param = gfn2_alpb_woctanol
+         case('phenol');      param = gfn2_alpb_phenol 
+         case('ch2cl2','dichlormethane'); param = gfn2_alpb_ch2cl2
+         case('chcl3','chloroform');      param = gfn2_alpb_chcl3
+         case('cs2');          param = gfn2_alpb_cs2
+         case('dmso');         param = gfn2_alpb_dmso
+         case('ether');        param = gfn2_alpb_ether
+         case('h2o','water');  param = gfn2_alpb_water
+         case('methanol');
+            self%paramFile = 'internal GFN2-xTB/GBSA'
+            param = gfn2_methanol !still gbsa parameter
+         case('thf');          param = gfn2_alpb_thf
+         case('toluene');      param = gfn2_alpb_toluene
+         case('dmf');          param = gfn2_alpb_dmf
+         case('nhexan','n-hexan','nhexane','n-hexane');
+            param = gfn2_alpb_hexane
+         end select
+      elseif (level == 0) then
+         self%paramFile = 'internal GFN-FF/ALPB'
+         select case(solvent)
+         case('acetone');      param = gfnff_alpb_acetone
+         case('acetonitrile'); param = gfnff_alpb_acetonitrile
+         case('aniline');      param = gfnff_alpb_aniline
+         case('benzaldehyde');      param = gfnff_alpb_benzaldehyde
+         case('benzene');      param = gfnff_alpb_benzene
+         case('dioxane');      param = gfnff_alpb_dioxane
+         case('ethylacetate');      param = gfnff_alpb_ethylacetate
+         case('furane');      param = gfnff_alpb_furane
+         case('hexadecane');      param = gfnff_alpb_hexadecane
+         case('nitromethane');      param = gfnff_alpb_nitromethane
+         case('octanol');      param = gfnff_alpb_octanol
+         case('woctanol');      param = gfnff_alpb_woctanol
+         case('phenol');      param = gfnff_alpb_phenol 
+         case('ch2cl2','dichlormethane'); param = gfnff_alpb_ch2cl2
+         case('chcl3','chloroform');      param = gfnff_alpb_chcl3
+         case('cs2');          param = gfnff_alpb_cs2
+         case('dmso');         param = gfnff_alpb_dmso
+         case('ether');        param = gfnff_alpb_ether
+         case('h2o','water');  param = gfnff_alpb_water
+         case('methanol');
+            self%paramFile = 'internal GFN2-xTB/GBSA'
+            param = gfn2_methanol !still gbsa parameter
+         case('thf');          param = gfnff_alpb_thf
+         case('toluene');      param = gfnff_alpb_toluene
+         case('dmf');          param = gfnff_alpb_dmf
+         case('nhexan','n-hexan','nhexane','n-hexane');
+            param = gfnff_alpb_hexane
+      end select
+      else
+         self%paramFile = 'internal GFN1-xTB/ALPB'
+         select case(solvent)
+         case('acetone');      param = gfn1_alpb_acetone
+         case('acetonitrile'); param = gfn1_alpb_acetonitrile
+         case('aniline');      param = gfn1_alpb_aniline
+         case('benzaldehyde');      param = gfn1_alpb_benzaldehyde
+         case('benzene');      param = gfn1_alpb_benzene
+         case('dioxane');      param = gfn1_alpb_dioxane
+         case('ethylacetate');      param = gfn1_alpb_ethylacetate
+         case('furane');      param = gfn1_alpb_furane
+         case('hexadecane');      param = gfn1_alpb_hexadecane
+         case('nitromethane');      param = gfn1_alpb_nitromethane
+         case('octanol');      param = gfn1_alpb_octanol
+         case('woctanol');      param = gfn1_alpb_woctanol
+         case('phenol');      param = gfn1_alpb_phenol 
+         case('ch2cl2','dichlormethane'); param = gfn1_alpb_ch2cl2
+         case('chcl3','chloroform');      param = gfn1_alpb_chcl3
+         case('cs2');          param = gfn1_alpb_cs2
+         case('dmso');         param = gfn1_alpb_dmso
+         case('ether');        param = gfn1_alpb_ether
+         case('h2o','water');  param = gfn1_alpb_water
+         case('methanol');
+            self%paramFILE ='internal GFN1-xTB/GBSA'
+            param = gfn1_methanol !still gbsa parameter
+         case('thf');          param = gfn1_alpb_thf
+         case('toluene');      param = gfn1_alpb_toluene
+         case('dmf');          param = gfn1_alpb_dmf
+         case('nhexan','n-hexan','nhexane','n-hexane');
+            param = gfn1_alpb_hexane
+         end select
+      end if
+
+      if (.not.allocated(param)) then
+         call env%error("solvent: '"//solvent//"' is not parametrized", source)
+         return
+      end if
+
+   end select
    call paramToModel(self, param)
 
 end subroutine loadInternalParam

@@ -26,6 +26,7 @@ module xtb_api_calculator
    use xtb_api_utils
    use xtb_gfnff_calculator
    use xtb_main_setup
+   use xtb_solv_kernel
    use xtb_solv_input
    use xtb_solv_state
    use xtb_type_environment
@@ -389,6 +390,8 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
       input%temperature = temp
       input%state = gsolvstate
       input%nang = nang
+      input%alpb = .false.
+      input%kernel = gbKernel%still
       call addSolvationModel(env%ptr, calc%ptr, input)
 
       call env%ptr%check(exitRun)

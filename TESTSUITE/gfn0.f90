@@ -393,6 +393,7 @@ subroutine test_gfn0_mindless_solvation
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -444,7 +445,7 @@ subroutine test_gfn0_mindless_solvation
       call newXTBCalculator(env, mol, calc, method=0)
       call newWavefunction(env, mol, calc, chk)
       call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
-         & alpb=mod(iMol, 2)==0))
+         & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
       call assert(.not.exitRun)
