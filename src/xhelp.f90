@@ -71,8 +71,9 @@ subroutine help
    write(istdout,'(a)') &
    "Usage: xtb [options] <geometry> [options]", &
    "",&
-   "<geometry> may be provided as valid TM coordinate file (*coord in Bohr) or",&
-   "in xmol format (*xyz in Ångström).",&
+   "<geometry> may be provided as valid TM coordinate file (*coord in Bohr),",&
+   "in xmol format (*.xyz in Ångström), sdf or mol file format, PDB format",&
+   "genFormat input or Vasp's POSCAR format.",&
    "",&
    "Options:",&
    "",&
@@ -89,6 +90,8 @@ subroutine help
    "",&
    "      --gfn INT      specify parametrisation of GFN-xTB (default = 2)",&
    "",&
+   "      --gfnff        use the GFN-FF",&
+   "",&
    "      --qmdff        use QMDFF for single point (needs solvent-file)",&
    "",&
    "      --tm           use TURBOMOLE for single point (needs control-file)",&
@@ -97,25 +100,22 @@ subroutine help
    "",&
    "      --mopac        use MOPAC for single point (writes MOPAC input)",&
    "",&
-   "      --periodic     uses periodic boundary conditions (in developement)",&
-   "",&
    "      --etemp REAL   electronic temperature (default = 300K)",&
    "",&
-   "      --vparam FILE  Parameter file for vTB calculation",&
-   "",&
-   "      --xparam FILE  Parameter file for xTB calculation (not used)",&
+   "      --vparam FILE  Path to parameter file, must match requested model",&
    "",&
    "      --alpb SOLVENT [STATE] analytical linearized Poisson-Boltzmann (ALPB)", &
    "                     solvation model",&
    "",&
    "   -g,--gbsa SOLVENT [STATE] generalized born (GB) model with",&
    "                     solvent accessable surface area (SASA) model",&
+   "                     (use --alpb instead)",&
    "",&
    "      --pop          requests printout of Mulliken population analysis",&
    "",&
    "      --molden       requests printout of molden file",&
    "",&
-   "      --dipole      requests dipole printout",&
+   "      --dipole       requests dipole printout",&
    "",&
    "      --wbo          requests Wiberg bond order printout",&
    "",&
@@ -175,9 +175,8 @@ subroutine help
    "",&
    "      --namespace STRING give this xtb(1) run a namespace.",&
    "                     All files, even temporary ones, will be named accordingly",&
-   "                     (might not work everywhere).",&
    "",&
-   "      --[no]copy     copies the xcontrol file at startup (default = true)",&
+   "      --[no]copy     copies the xcontrol file at startup (default = false)",&
    "",&
    "      --[no]restart  restarts calculation from xtbrestart (default = true)",&
    "",&
@@ -186,6 +185,8 @@ subroutine help
    "      --define       performs automatic check of input and terminate",&
    "",&
    "      --json         write a JSON file",&
+   "",&
+   "      --strict       turn warnings into fatal errors",&
    "",&
    "      --version      print version and terminate",&
    "",&
@@ -200,17 +201,14 @@ subroutine help
    "Useful Maschine Settings:",&
    "",&
    "export MKL_NUM_THREADS=<NCORE>",&
-   "export OMP_THREAD_LIMIT=<NCORE>",&
-   "export OMP_NUM_THREADS=${OMP_THREAD_LIMIT},1",&
-   "export OMP_STACKSIZE=500m",&
+   "export OMP_NUM_THREADS=<NCORE>,1",&
+   "export OMP_STACKSIZE=1G",&
    "ulimit -s unlimited",&
    "",&
    "Output Conventions:",&
    "",&
    "total energies are given in atomic units (Eh)",&
    "gaps/HL energies are given in eV",&
-!  this was a nice joke in the devel version, but I have to take it out for the main release
-!  "Please read the manual carefully (just kidding... there is no manual)",&
    "",&
    "More information can be obtained by `man 1 xtb` and `man 7 xcontrol`",&
    "or at https://xtb-docs.readthedocs.io/en/latest/contents.html",&
