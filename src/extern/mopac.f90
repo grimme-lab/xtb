@@ -206,9 +206,9 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient,dipole)
          if (is_iostat_end(err)) then
             call env%error('Could not find gradient in mopac output',source)
          endif
-         if (index(line,'TOTAL_ENERGY:EV') > 0) then
+         if (index(line,'HEAT_OF_FORMATION:KCAL/MOL') > 0) then
             call readl(line,dum,num)
-            energy = dum(num)*evtoau
+            energy = dum(num)*kcaltoau
             cycle read_mopac_output
          endif
          if (index(line,'DIP_VEC:DEBYE') > 0)then
