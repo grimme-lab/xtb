@@ -105,7 +105,10 @@ subroutine help
    "",&
    "      --xparam FILE  Parameter file for xTB calculation (not used)",&
    "",&
-   "   -g,--gbsa [SOLVENT [STATE]] generalized born (GB) model with",&
+   "      --alpb SOLVENT [STATE] analytical linearized Poisson-Boltzmann (ALPB)", &
+   "                     solvation model",&
+   "",&
+   "   -g,--gbsa SOLVENT [STATE] generalized born (GB) model with",&
    "                     solvent accessable surface area (SASA) model",&
    "",&
    "      --pop          requests printout of Mulliken population analysis",&
