@@ -152,6 +152,9 @@ subroutine gfnff_input(env, mol, topo)
     end do
     ichrg=idint(sum(topo%qfrag(1:topo%nfrag)))
     write(env%unit,'(10x,"charge from pdb residues: ",i0)') ichrg
+    ! initialize qfrag as in the default case
+    topo%qfrag(1)=mol%chrg
+    topo%qfrag(2:mol%n)=0
   !--------------------------------------------------------------------
   ! SDF case
   case(fileType%sdf,fileType%molfile)
@@ -191,6 +194,9 @@ subroutine gfnff_input(env, mol, topo)
         topo%nb(1,i)=k
       endif
     end do
+    ! initialize qfrag as in the default case
+    topo%qfrag(1)=mol%chrg
+    topo%qfrag(2:mol%n)=0
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
   case default
