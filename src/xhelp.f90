@@ -33,7 +33,7 @@ write(iunit,'(3x,a)') &
    "* P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint.",&
    "  DOI: 10.26434/chemrxiv.8326202.v1",&
    "for GFN-FF:",&
-   "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020,",&
+   "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020, 59, 15665-15673.",&
    "  DOI: 10.1002/anie.202004239", &
    "",&
    "for DFT-D4:",&
