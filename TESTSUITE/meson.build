@@ -189,3 +189,4 @@ test('GFN-FF: HB', xtb_test, args: ['gfnff', 'hb'], env: xtbenv, timeout: test_t
 test('GFN-FF: GBSA', xtb_test, args: ['gfnff', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN-FF: Scale-up', xtb_test, args: ['gfnff', 'scaleup'], env: xtbenv, timeout: test_timeout)
 test('GFN-FF: PDB', xtb_test, args: ['gfnff', 'pdb'], env: xtbenv, timeout: test_timeout)
+test('GFN-FF: SDF', xtb_test, args: ['gfnff', 'sdf'], env: xtbenv, timeout: test_timeout)

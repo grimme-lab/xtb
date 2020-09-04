@@ -105,6 +105,7 @@ program peeq_tester
       case('solvation'); call test_gfnff_mindless_solvation
       case('scaleup'); call test_gfnff_scaleup
       case('pdb'); call test_gfnff_pdb
+      case('sdf'); call test_gfnff_sdf
       case('sp');  call test_gfnff_sp
       case('hb');  call test_gfnff_hb
       case('gbsa');call test_gfnff_gbsa
