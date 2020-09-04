@@ -159,7 +159,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    do i=1,mol%n
       cn(i)=0
       do j=1,mol%n
-         r=norm2(xyzp(:,i)-xyzp(:,j))
+         r=sqrt(sum(xyzp(:,i)-xyzp(:,j)))
          rco=(atomicRad(mol%at(i))+atomicRad(mol%at(j)))*autoaa
          if(r.lt.2.5*rco) then
             bo(j,i)=1
