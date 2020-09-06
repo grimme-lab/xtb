@@ -44,6 +44,7 @@ module xtb_scf
    use xtb_xtb_dispersion
    use xtb_xtb_hamiltonian, only : getSelfEnergy, build_SDQH0, build_dSDQH0, &
       & build_dSdQH0_noreset, count_dpint, count_qpint
+   use xtb_xtb_hamiltonian_gpu, only: build_SDQH0_gpu
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
    use xtb_scc_core
@@ -532,10 +533,17 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       & selfEnergy=selfEnergy, dSEdcn=dSEdcn)
    ! compute integrals and prescreen to set up list arrays
    call latp%getLatticePoints(trans, sqrt(800.0_wp))
+#ifdef XTB_GPU
+   call build_SDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
+      & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
+      & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
+      & basis%cont, S, dpint, qpint, H0)
+#else
    call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
       & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
       & basis%cont, S, dpint, qpint, H0)
+#endif
    call count_dpint(ndp, dpint, neglect)
    call count_qpint(nqp, qpint, neglect)
 

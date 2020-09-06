@@ -86,6 +86,10 @@ subdir('src')
 srcs += 'symmetry/symmetry.f90'
 srcs += 'symmetry/symmetry_i.c'
 
+if get_option('nvtx')
+  srcs += 'src/nvtx.f90'
+endif
+
 xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')
 

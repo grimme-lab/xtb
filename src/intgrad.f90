@@ -64,6 +64,7 @@ contains
 ! --------------------------------------------------------------[SAW1907]-
 !> calculates a partial overlap in one cartesian direction
 pure elemental function olapp(l,gama) result(s)
+   !$acc routine seq
    implicit none
    integer,intent(in) :: l
    real(wp),intent(in) :: gama
@@ -344,6 +345,7 @@ end subroutine build_hshift
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine build_hshift2(cfs,a,e,l)
+   !$acc routine seq
    implicit none
    integer,intent(in)  :: l
    real(wp), intent(in)  :: a,e
@@ -374,6 +376,7 @@ end subroutine build_hshift2
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine prod3(a,b,d,la,lb)
+   !$acc routine seq
    implicit none
    integer,intent(in)    :: la,lb
    real(wp), intent(in)    :: a(*),b(*)

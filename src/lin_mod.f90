@@ -27,6 +27,7 @@ contains
   !***********************************************************************
 
   pure elemental integer function lin(i1,i2)
+    !$acc routine seq
     integer,intent(in) :: i1,i2
     integer :: idum1,idum2
     idum1=max(i1,i2)
