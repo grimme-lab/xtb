@@ -288,7 +288,7 @@ subroutine write_set_gbsa(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    if (len_trim(solvInput%solvent).gt.0 .and. solvInput%solvent.ne."none") then
-      write(ictrl,'(a,"gbsa")') flag
+      write(ictrl,'(a,"solvation")') flag
       if (allocated(solvInput%solvent)) write(ictrl,'(3x,"solvent=",a)') solvInput%solvent
       write(ictrl,'(3x,"ion_st=",g0)') solvInput%ionStrength
       write(ictrl,'(3x,"ion_rad=",g0)') solvInput%ionRad * autoaa
@@ -775,6 +775,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case('siman'    ); call rdblock(env,set_siman,   line,id,copy,err,ncount)
          case('modef'    ); call rdblock(env,set_modef,   line,id,copy,err,ncount)
          case('gbsa'     ); call rdblock(env,set_gbsa,    line,id,copy,err,ncount)
+         case('solvation'); call rdblock(env,set_gbsa,    line,id,copy,err,ncount)
          case('embedding'); call rdblock(env,set_pcem,    line,id,copy,err,ncount)
          case('thermo'   ); call rdblock(env,set_thermo,  line,id,copy,err,ncount)
          case('external' ); call rdblock(env,set_external,line,id,copy,err,ncount)

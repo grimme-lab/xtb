@@ -119,7 +119,7 @@ for GFN-xTB:
   DOI: [10.26434/chemrxiv.8326202.v1](https://dx.doi.org/10.26434/chemrxiv.8326202.v1)
 
 for GFN-FF:
-- S. Spicher and S. Grimme, *Angew. Chem. Int. Ed.*, **2020**, accepted article.
+- S. Spicher and S. Grimme, *Angew. Chem. Int. Ed.*, **2020**, 59, 15665–15673
   DOI: [10.1002/anie.202004239](https://doi.org/10.1002/anie.202004239)
 
 for DFT-D4:
