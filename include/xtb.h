@@ -26,6 +26,7 @@
 #define XTB_VERSION_6_3_0   1
 #define XTB_VERSION_6_3_1   1
 #define XTB_VERSION_6_3_2   1
+#define XTB_VERSION_6_3_3   1
 
 /// Possible print levels for API calls
 #define XTB_VERBOSITY_FULL    2
