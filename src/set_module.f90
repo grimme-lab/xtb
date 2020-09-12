@@ -2171,6 +2171,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
+   logical,save :: set7 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2193,6 +2194,9 @@ subroutine set_metadyn(env,key,val)
    case('rmsd')
       if (getValue(env,val,ddum).and.set6) target_rmsd = ddum
       set6 = .false.
+   case('bias_ramp_time','ramp')
+      if (getValue(env,val,ddum).and.set7) metaset%ramp = ddum
+      set7 = .false.
    end select
 
 end subroutine set_metadyn
