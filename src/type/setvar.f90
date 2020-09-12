@@ -240,6 +240,7 @@ module xtb_type_setvar
       real(wp) :: global_factor = 0.0_wp
       real(wp),allocatable :: factor(:)
       real(wp) :: width = 1.0_wp
+      real(wp) :: ramp = 0.03_wp
       integer  :: nat = 0
       logical  :: static = .true.
       integer, allocatable :: atoms(:)
