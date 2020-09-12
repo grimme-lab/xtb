@@ -14,24 +14,25 @@ addons:
 
 jobs:
    include:
-      - name: meson-build
-        env: FC=ifort CC=icc
-        addons:
-           apt:
-              sources:
-              - sourceline: 'deb https://apt.repos.intel.com/oneapi all main'
-                key_url: 'https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'
-              packages:
-              - intel-oneapi-ifort
-              - intel-oneapi-icc
-              - intel-oneapi-mkl
-              - intel-oneapi-mkl-devel
-              - intel-oneapi-openmp
-        before_install:
-        - source /opt/intel/oneapi/setvars.sh
-        script:
-        - meson build --prefix=$PWD/install -Dla_backend=mkl-static
-        - OMP_NUM_THREADS=2 ninja -C build test install
+      # FIXME: broken since oneAPI beta08 -> beta09 update
+      #      - name: meson-build
+      #        env: FC=ifort CC=icc
+      #        addons:
+      #           apt:
+      #              sources:
+      #              - sourceline: 'deb https://apt.repos.intel.com/oneapi all main'
+      #                key_url: 'https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'
+      #              packages:
+      #              - intel-oneapi-ifort
+      #              - intel-oneapi-icc
+      #              - intel-oneapi-mkl
+      #              - intel-oneapi-mkl-devel
+      #              - intel-oneapi-openmp
+      #        before_install:
+      #        - source /opt/intel/oneapi/setvars.sh
+      #        script:
+      #        - meson build --prefix=$PWD/install -Dla_backend=mkl-static
+      #        - OMP_NUM_THREADS=2 ninja -C build test install
       - name: meson-build
         env: FC=gfortran-8 CC=gcc-8
         script:
