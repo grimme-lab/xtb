@@ -77,62 +77,6 @@ module xtb_xtb_hamiltonian_gpu
 
 contains
 
-pure subroutine build_sdq_ints_gpu(a,b,c,alpi,alpj,la,lb,kab,t,e,lx,ly,lz,v)
-   !$acc routine seq
-   implicit none
-   !     aufpunkte,ref point,intarray
-   integer,intent(in)  :: la,lb
-   real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3),c(3)
-   real(wp), intent(in)  :: kab,t(0:8),e(3)
-   integer, intent(in)  :: lx(84),ly(84),lz(84)
-   real(wp), intent(out) :: v(10)
-   !     local variables
-   real(wp)  :: dd(0:8),va(3),val(3,3)
-   real(wp)  :: aa(0:3,3),bb(0:3,3)
-   integer :: i,j,ij(3),ii(3),jj(3),lmax
-
-   val = 0
-
-   aa = 0
-   bb = 0
-   dd = 0
-   ii = [lx(la),ly(la),lz(la)]
-   jj = [lx(lb),ly(lb),lz(lb)]
-   ij = ii+jj
-   aa(ii(1),1)=1.0_wp
-   aa(ii(2),2)=1.0_wp
-   aa(ii(3),3)=1.0_wp
-   bb(jj(1),1)=1.0_wp
-   bb(jj(2),2)=1.0_wp
-   bb(jj(3),3)=1.0_wp
-
-   do i = 1, 3
-      ! calculate cartesian prefactor for first gaussian
-      call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
-      ! calculate cartesian prefactor for second gaussian
-      call build_hshift2(bb(:,i),b(i),e(i),jj(i))    ! |b>
-      ! form their product
-      call prod3(aa(:,i),bb(:,i),dd(:),ii(i),jj(i))
-      lmax = ij(i)
-      do j = 0, lmax
-         !    <a|b> <a|x|b>             <a|x²|b>
-         va = [t(j), t(j+1) + e(i)*t(j), t(j+2) + 2*e(i)*t(j+1) + e(i)*e(i)*t(j)]
-         val(i,1:3) = val(i,1:3) + dd(j)*va(1:3)
-      enddo
-   enddo
-   v( 1)=kab*(val(1,1)*val(2,1)*val(3,1))
-   v( 2)=kab*(val(1,2)*val(2,1)*val(3,1))
-   v( 3)=kab*(val(1,1)*val(2,2)*val(3,1))
-   v( 4)=kab*(val(1,1)*val(2,1)*val(3,2))
-   v( 5)=kab*(val(1,3)*val(2,1)*val(3,1))
-   v( 6)=kab*(val(1,1)*val(2,3)*val(3,1))
-   v( 7)=kab*(val(1,1)*val(2,1)*val(3,3))
-   v( 8)=kab*(val(1,2)*val(2,2)*val(3,1))
-   v( 9)=kab*(val(1,2)*val(2,1)*val(3,2))
-   v(10)=kab*(val(1,1)*val(2,2)*val(3,2))
-end subroutine build_sdq_ints_gpu
-
 
 ! --------------------------------------------------------------[SAW1907]-
 !     a: center of first gaussian
