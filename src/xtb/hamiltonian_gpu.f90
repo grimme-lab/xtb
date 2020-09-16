@@ -252,7 +252,7 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
 
    real(wp) s2(6,6),dum(6,6),sspher
 
-   !$acc enter data create(H0(:), sint(:, :), dpint(:, :, :), qpint(:, :, :))
+   !$acc enter data create(H0(:), sint(:, :))
 
    !$acc kernels default(present)
    ! integrals
@@ -271,7 +271,8 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
    !$acc& hData%referenceOcc(:, :), hData%kCN(:, :), hData%electronegativity(:), hData%atomicRad(:), &
    !$acc& hData%shellPoly(:, :), hData%pairParam(:, :), hData%kQShell(:, :), hData%kQAtom(:))
 
-   !$acc parallel vector_length(32) private(ss,dd,qq,rb,iat,jat,izp,ci,ra,& 
+   !$acc parallel vector_length(32) present(dpint,qpint) &
+   !$acc& private(ss,dd,qq,rb,iat,jat,izp,ci,ra,& 
    !$acc& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
    !$acc& jsh,jshmax,jshtyp,jcao,naoj,jptyp,shpoly, &
    !$acc& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
@@ -693,12 +694,18 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
    enddo
    !$acc end parallel
 
-   !$acc exit data copyout(H0(:), sint(:, :), dpint(:, :, :), qpint(:, :, :))
-
    ! dd array is transposed in ACC region, so dd2 is created for the diagonal
    ! elements, which is still running on CPU
 
    ! diagonal elements
+   !$acc parallel vector_length(32) present(H0,sint,dpint,qpint) &
+   !$acc& private(ss,dd,qq,iat,jat,izp,ci,ra,& 
+   !$acc& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
+   !$acc& jsh,jshmax,jshtyp,jcao,naoj,jptyp,shpoly, &
+   !$acc& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
+   !$acc& mli,mlj,iao,jao,ii,jj,k,ij,itr,ioff,joff,t,e,saw,s2,dum)
+
+   !$acc loop gang 
    do iat = 1, nat
       ra = xyz(:, iat)
       izp = at(iat)
@@ -714,46 +721,121 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
          icao = caoshell(ish,iat)
          naoi = llao(ishtyp)
          iptyp = itt(ishtyp)
+
+         !$acc loop seq private(ss,dd,qq,s2,dum,tmp)
          do jsh = 1, ish
             jshtyp = hData%angShell(jsh,izp)
             jcao = caoshell(jsh,iat)
             naoj = llao(jshtyp)
             jptyp = itt(jshtyp)
             ss = 0.0_wp
-            dd2 = 0.0_wp
+            dd = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
-               &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
+            !call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            !   &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
+
+            rab2 = sum( (ra-ra)**2 )
+
+            !$acc loop vector private(saw,t,e) independent collapse(2)
+            do ip = 1,nprim(icao+1)
+              do jp = 1,nprim(jcao+1)
+
+                iprim = ip+primcount(icao+1)
+                jprim = jp+primcount(jcao+1)
+                alpi = alp(iprim)
+                alpj = alp(jprim)
+
+                gama = alpi+alpj
+                ab = 1.0_wp/(gama)
+                e = (alpi * ra + alpj * ra)/(alpi + alpj)
+                !t(0:8) = olapp([(j,j=0,8)],gama)
+                !$acc loop seq
+                do k = 0,8
+                  t(k) = olapp(k, gama)
+                enddo
+
+                gama = alpi+alpj
+                ab = 1.0_wp/(gama)
+                est = rab2*alpi*alpj*ab
+                kab = exp(-est)*(sqrtpi*sqrt(ab))**3
+
+                do mli = 1,naoi
+                  do mlj = 1,naoj
+                    saw = 0.0_wp
+
+                    ! prim-prim quadrupole and dipole integrals
+                    call build_sdq_ints_gpu(ra,ra,point,alpi,alpj, &
+                      & iptyp+mli,jptyp+mlj,kab,t,e,lx,ly,lz,saw)
+
+                    iprim = ip+primcount(icao+mli)
+                    jprim = jp+primcount(jcao+mlj)
+                    ci = cont(iprim) ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+                    cc = cont(jprim)*ci
+                    ! from primitive integrals fill CAO-CAO matrix for ish-jsh block
+                    !                             ! overlap
+                    !$acc atomic
+                    ss(mlj,mli) = ss(mlj,mli)+saw(1)*cc
+                    ! dipole
+                    do k=1,3
+                      !$acc atomic
+                      dd(mlj,mli,k) = dd(mlj,mli,k)+saw(k+1)*cc
+                    enddo
+                    do k = 1,6
+                      ! quadrupole
+                      !$acc atomic
+                      qq(mlj,mli,k) = qq(mlj,mli,k)+saw(k+4)*cc
+                    enddo
+                  enddo ! mlj
+                enddo ! mli
+              enddo ! jp
+            enddo ! ip
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)
             do k = 1,3
-               tmp(1:6, 1:6) = dd2(k,1:6, 1:6)
-               call dtrf2(tmp, ishtyp, jshtyp)
-               dd2(k, 1:6, 1:6) = tmp(1:6, 1:6)
+               tmp(1:6, 1:6) = dd(1:6, 1:6, k)
+               call dtrf2_gpu(tmp, ishtyp, jshtyp)
+               dd(1:6, 1:6, k) = tmp(1:6, 1:6)
             enddo
             do k = 1,6
-               tmp(1:6, 1:6) = qq(k, 1:6, 1:6)
-               call dtrf2(tmp, ishtyp, jshtyp)
-               qq(k, 1:6, 1:6) = tmp(1:6, 1:6)
+               tmp(1:6, 1:6) = qq(1:6, 1:6, k)
+               call dtrf2_gpu(tmp, ishtyp, jshtyp)
+               qq(1:6, 1:6, k) = tmp(1:6, 1:6)
             enddo
             do ii = 1, llao2(ishtyp)
                iao = ii + saoshell(ish,iat)
                do jj = 1, llao2(jshtyp)
                   jao = jj + saoshell(jsh,iat)
                   if (jao > iao .and. ish ==  jsh) cycle
-                  dpint(1:3, iao, jao) = dpint(1:3, iao, jao) + dd2(1:3, jj, ii)
+                  do k = 1,3
+                    !$acc atomic  
+                    dpint(k, iao, jao) = dpint(k, iao, jao) + dd(jj, ii, k)
+                  enddo
                   if (iao /= jao) then
-                     dpint(1:3, jao, iao) = dpint(1:3, jao, iao) + dd2(1:3, jj, ii)
+                    do k=1,3
+                      !$acc atomic 
+                      dpint(k, jao, iao) = dpint(k, jao, iao) + dd(jj, ii, k)
+                    enddo
                   end if
-                  qpint(1:6, iao, jao) = qq(1:6, jj, ii)
+                  do k=1,6
+                    !$acc atomic write
+                    qpint(k, iao, jao) = qq(jj, ii, k)
+                  enddo
                   if (jao /= iao) then
-                     qpint(1:6, jao, iao) = qq(1:6, jj, ii)
+                    do k=1,6
+                      !$acc atomic write
+                      qpint(k, jao, iao) = qq(jj, ii, k)
+                    enddo
                   end if
                end do
             end do
          end do
       end do
    end do
+   !$acc end parallel
+
+   !$acc exit data copyout(H0,sint)
+
+   !!$acc update device(dpint(:, :, :), qpint(:, :, :))
 
    !$acc exit data delete(xyz, at, nShell, selfEnergy, caoshell, saoshell, &
    !$acc& nprim, primcount, alp, cont, intcut, trans, point)

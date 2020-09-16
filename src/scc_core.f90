@@ -146,6 +146,136 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
 
 end subroutine buildIsotropicH1
 
+subroutine addAnisotropicH1_gpu(n,at,ndim,nshell,nmat,ndp,nqp,thr,matlist,mdlst, &
+                         mqlst,H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+   use xtb_mctc_convert, only : autoev,evtoau
+   integer, intent(in)  :: n
+   integer, intent(in)  :: at(n)
+   integer, intent(in)  :: ndim
+   integer, intent(in)  :: nshell
+   integer, intent(in)  :: nmat
+   integer, intent(in)  :: ndp
+   integer, intent(in)  :: nqp
+   real(wp), intent(in)  :: thr
+   integer, intent(in)  :: matlist(2,nmat)
+   integer, intent(in)  :: mdlst(2,ndp)
+   integer, intent(in)  :: mqlst(2,nqp)
+   real(wp),intent(in)  :: S(ndim,ndim)
+   real(wp),intent(in)  :: dpint(3,ndim,ndim)
+   real(wp),intent(in)  :: qpint(6,ndim,ndim)
+   real(wp),intent(in)  :: vs(n)
+   real(wp),intent(in)  :: vd(3,n)
+   real(wp),intent(in)  :: vq(6,n)
+   integer, intent(in)  :: aoat2(ndim)
+   integer, intent(in)  :: ao2sh(ndim)
+   real(wp),intent(inout) :: H(ndim,ndim)
+
+   integer, external :: lin
+   integer  :: m,i,j,k,l
+   integer  :: ii,jj,kk
+   integer  :: ishell,jshell
+   real(wp) :: dum,eh1,t8,t9,tgb,thr2,tmp
+
+   !> overlap dependent terms
+   do m=1,nmat
+      i=matlist(1,m)
+      j=matlist(2,m)
+      k=j+i*(i-1)/2
+      ii=aoat2(i)
+      jj=aoat2(j)
+      dum=S(j,i)
+      ! CAMM potential
+      eh1=0.50d0*dum*(vs(ii)+vs(jj))*autoev
+      H(j,i)=H(j,i)+eh1
+      H(i,j)=H(j,i)
+   enddo
+   !> dipolar terms
+
+   thr2 = thr*1.0d-2
+
+   !$acc parallel loop vector gang collapse(2) present(dpint)
+   do j = 1,ndim
+     do i = 1,ndim
+       tmp = 0.0_wp
+       do k = 1,3
+         tmp = tmp+dpint(k,i,j)*dpint(k,i,j)
+       enddo
+       if (tmp.gt.thr2) then
+         ii=aoat2(i)
+         jj=aoat2(j)
+         eh1=0.0d0
+         do l=1,3
+           eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
+         enddo
+         eh1=0.50d0*eh1*autoev
+         H(i,j)=H(i,j)+eh1
+       endif
+     enddo
+   enddo
+   !$acc end parallel
+
+   !$acc parallel loop vector gang collapse(2) present(qpint)
+   do j = 1,ndim
+     do i = 1,ndim
+       tmp = 0.0_wp
+       do k = 1,6
+         tmp = tmp+2.0_wp*qpint(k,i,j)*qpint(k,i,j)
+       enddo
+       if (tmp.gt.thr2) then
+         ii=aoat2(i)
+         jj=aoat2(j)
+         eh1=0.0d0
+         ! note: these come in the following order
+         ! xx, yy, zz, xy, xz, yz
+         do l=1,6
+           eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
+         enddo
+         eh1=0.50d0*eh1*autoev
+         H(i,j)=H(i,j)+eh1
+       endif
+     enddo
+   enddo
+
+   !!$acc kernels present(dpint)
+   !do m=1,ndp
+   !   i=mdlst(1,m)
+   !   j=mdlst(2,m)
+   !   ii=aoat2(i)
+   !   jj=aoat2(j)
+   !   eh1=0.0d0
+   !   do l=1,3
+   !      eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
+   !   enddo
+   !   eh1=0.50d0*eh1*autoev
+   !   !$acc atomic
+   !   H(i,j)=H(i,j)+eh1
+   !   !$acc atomic write
+   !   H(j,i)=H(i,j)
+   !enddo
+   !!$acc end kernels
+   !!> quadrupole-dependent terms
+   !!$acc kernels present(qpint)
+   !do m=1,nqp
+   !   i=mqlst(1,m)
+   !   j=mqlst(2,m)
+   !   ii=aoat2(i)
+   !   jj=aoat2(j)
+   !   eh1=0.0d0
+   !   ! note: these come in the following order
+   !   ! xx, yy, zz, xy, xz, yz
+   !   do l=1,6
+   !      eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
+   !   enddo
+   !   eh1=0.50d0*eh1*autoev
+   !   !!$acc atomic
+   !   H(i,j)=H(i,j)+eh1
+   !   !!$acc atomic write
+   !   H(j,i)=H(i,j)
+   !enddo
+   !!$acc end kernels
+
+end subroutine addAnisotropicH1_gpu
+
 !> build anisotropic H1/Fockian
 subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
                          H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
@@ -190,10 +320,10 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       H(i,j)=H(j,i)
    enddo
    !> dipolar terms
+   
    do m=1,ndp
       i=mdlst(1,m)
       j=mdlst(2,m)
-      k=lin(j,i)
       ii=aoat2(i)
       jj=aoat2(j)
       eh1=0.0d0
@@ -201,16 +331,19 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
+      
       H(i,j)=H(i,j)+eh1
+      
       H(j,i)=H(i,j)
    enddo
+   
    !> quadrupole-dependent terms
+   
    do m=1,nqp
       i=mqlst(1,m)
       j=mqlst(2,m)
       ii=aoat2(i)
       jj=aoat2(j)
-      k=lin(j,i)
       eh1=0.0d0
       ! note: these come in the following order
       ! xx, yy, zz, xy, xz, yz
@@ -218,15 +351,18 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
+      
       H(i,j)=H(i,j)+eh1
+      
       H(j,i)=H(i,j)
    enddo
+   
 
 end subroutine addAnisotropicH1
 
 
 !> self consistent charge iterator
-subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
+subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,neglect,nmat,nshell, &
       &        at,matlist,mdlst,mqlst,aoat2,ao2sh,ash, &
       &        q,dipm,qp,qq,qlmom,qsh,zsh, &
       &        xyz,aes, &
@@ -260,6 +396,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    integer, intent(in)  :: ndim
    integer, intent(in)  :: ndp
    integer, intent(in)  :: nqp
+   real(wp), intent(in)  :: neglect
    integer, intent(in)  :: nmat
    integer, intent(in)  :: nshell
 !! ------------------------------------------------------------------------
@@ -423,8 +560,13 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
       & shellShift,aoat2,ao2sh)
    if (present(aes)) then
+#ifdef XTB_GPU
+      call addAnisotropicH1_gpu(n,at,ndim,nshell,nmat,ndp,nqp,neglect,matlist,mdlst,mqlst,&
+         & H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+#else
       call addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          & H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+#endif
    end if
 
    ! ------------------------------------------------------------------------

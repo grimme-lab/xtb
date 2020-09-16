@@ -114,6 +114,7 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
 
    ! contraction with P
    k = 0
+   !$acc kernels present (dpint)
    do i = 1, nao
       do j = 1, i-1
          k = k+1
@@ -122,6 +123,7 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
       k = k+1
       d = d - P(i,i)*dpint(:,i,i)
    enddo
+   !$acc end kernels 
 
    dip = norm2(d)
 

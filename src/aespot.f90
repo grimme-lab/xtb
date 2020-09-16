@@ -157,10 +157,9 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    qp = 0.0_wp
    !$acc end kernels
 
-   !$acc enter data copyin(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
-   !$acc& qpint(:, :, :),xyz(:, :))
+   !$acc enter data copyin(nao, nat, aoat2(:), s(:, :), p(:, :), xyz(:, :))
 
-   !$acc parallel private(pij,ps,ra,k,l,ii,jj)
+   !$acc parallel private(pij,ps,ra,k,l,ii,jj) present(dpint,qpint)
 
    !$acc loop gang vector collapse(2)
    do i = 1,nao
@@ -262,8 +261,7 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       qp(6,i) = qp(6,i)-tii
    enddo
 
-   !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
-   !$acc& qpint(:, :, :),xyz(:, :))
+   !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), xyz(:, :))
 
 end subroutine mmompop
 

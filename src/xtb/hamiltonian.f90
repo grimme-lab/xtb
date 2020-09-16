@@ -764,18 +764,24 @@ subroutine count_dpint(ndp, dpint, thr)
    !> Neglect threshold for dipole integrals
    real(wp), intent(in) :: thr
 
-   integer :: i, j
+   integer :: i, j, n
    real(wp) :: tmp1, thr2
 
    ndp = 0
    thr2 = (thr*1.0e-2_wp)-thr*1.0e-12_wp
 
-   do i = 1, size(dpint, dim=3)
+   n = size(dpint, dim=3)
+
+   !$acc kernels present(dpint) 
+   !$acc loop reduction(+:ndp)
+   do i = 1, n
       do j = 1, i
+         ! strided access, would be better if memory layout of dpint was changed
          tmp1 = sum(dpint(1:3, j, i)**2)
          if (tmp1 > thr2) ndp = ndp + 1
       enddo
    enddo
+   !$acc end kernels
 
 end subroutine count_dpint
 
@@ -792,18 +798,23 @@ subroutine count_qpint(nqp, qpint, thr)
    !> Neglect threshold for quadrupole integrals
    real(wp), intent(in) :: thr
 
-   integer :: i, j
+   integer :: i, j, n
    real(wp) :: tmp2, thr2
 
    nqp = 0
    thr2 = (thr*1.0e-2_wp)-thr*1.0e-12_wp
+   
+   n = size(qpint, dim=3)
 
-   do i = 1, size(qpint, dim=3)
+   !$acc kernels present(qpint) 
+   !$acc loop reduction(+:nqp)
+   do i = 1, n
       do j = 1, i
          tmp2 = sum(qpint(1:3, j, i)**2) + 2*sum(qpint(4:6, j, i)**2)
          if (tmp2 > thr2) nqp = nqp + 1
       enddo
    enddo
+   !$acc end kernels
 
 end subroutine count_qpint
 

@@ -2034,6 +2034,7 @@ subroutine atm_gradient_latp_gpu &
    real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
    real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
+   real(wp) :: c9, dc9, ccc1, rrr1, rrr2, rrr3, ang, dang, fdmp, dfdmp, dGr, cr
    integer :: mlen, k, kk
 
    cutoff2 = cutoff**2
@@ -2044,13 +2045,13 @@ subroutine atm_gradient_latp_gpu &
 
    !$acc parallel default(present) private(rij,rjk,rik,dG,dS,dCN) 
 
-   !$acc loop gang collapse(3)
+   !$acc loop gang collapse(2)
    do iat = 1, mlen
       do jat = 1, mlen
-         do kat = 1, mlen
-            if (jat.gt.iat) cycle
-            if (kat.gt.jat) cycle
+         if (jat.gt.iat) cycle
 
+         !$acc loop vector
+         do kat = 1, jat
             ati = mol%at(iat)
             atj = mol%at(jat)
 
@@ -2079,38 +2080,100 @@ subroutine atm_gradient_latp_gpu &
                   r2jk = sum(rjk**2)
                   if (r2jk > cutoff2 .or. r2jk < 1.0e-14_wp) cycle
 
-                  call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
-                     & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
-                     & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
-                     & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+                  !call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+                  !   & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+                  !   & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+                  !   & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+                  c9 = -sqrt(c6ij*c6ik*c6jk)
+
+                  ccc1 = cij*cjk*cik
+
+                  rrr2 = r2ij*r2jk*r2ik
+                  rrr1 = sqrt(rrr2)
+                  rrr3 = rrr1*rrr2
+
+                  ang = 0.375_wp * (r2ij+r2jk-r2ik)*(r2ij-r2jk+r2ik)*(-r2ij+r2jk+r2ik) &
+                    & / (rrr3*rrr2) + 1.0_wp/(rrr3)
+
+                  cr = (ccc1/rrr1)**(1.0_wp/3.0_wp)
+                  fdmp = 1.0_wp/(1.0_wp + 6.0_wp*cr**par%alp)
+                  dfdmp = -(2.0_wp*par%alp*cr**par%alp) * fdmp**2
+
+                  ! Energy contribution
+                  dE = -fdmp*ang*c9
+
+                  ! Derivative w.r.t. i-j distance
+                  dang = -0.375_wp*(r2ij**3+r2ij**2*(r2jk+r2ik) &
+                    & +r2ij*(3.0_wp*r2jk**2+2.0_wp*r2jk*r2ik+3.0_wp*r2ik**2) &
+                    & -5.0_wp*(r2jk-r2ik)**2*(r2jk+r2ik)) / (rrr3*rrr2)
+                  dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ij
+                  dG(:, 1) = -dGr * rij
+                  dG(:, 2) = +dGr * rij 
+                  dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3)
+
+                  ! Derivative w.r.t. i-k distance
+                  dang = -0.375_wp*(r2ik**3+r2ik**2*(r2jk+r2ij) &
+                    & +r2ik*(3.0_wp*r2jk**2+2.0*r2jk*r2ij+3.0_wp*r2ij**2) &
+                    & -5.0_wp*(r2jk-r2ij)**2*(r2jk+r2ij)) / (rrr3*rrr2)
+                  dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
+                  dG(:, 1) = -dGr * rik + dG(:, 1)
+                  dG(:, 3) = +dGr * rik 
+                  dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS
+
+                  ! Derivative w.r.t. j-k distance
+                  dang=-0.375_wp*(r2jk**3+r2jk**2*(r2ik+r2ij) &
+                    & +r2jk*(3.0_wp*r2ik**2+2.0_wp*r2ik*r2ij+3.0_wp*r2ij**2) &
+                    & -5.0_wp*(r2ik-r2ij)**2*(r2ik+r2ij)) / (rrr3*rrr2)
+                  dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2jk
+                  dG(:, 2) = -dGr * rjk + dG(:, 2)
+                  dG(:, 3) = +dGr * rjk + dG(:, 3)
+                  dS(:, :) = 0.5_wp * dGr * spread(rjk, 1, 3) * spread(rjk, 2, 3) + dS
+
+                  ! CN derivative
+                  dc9 = 0.5_wp*c9*(dc6dcn(iat,jat)/c6ij+dc6dcn(iat,kat)/c6ik)
+                  dCN(1) = -ang*fdmp*dc9
+                  dc9 = 0.5_wp*c9*(dc6dcn(jat,iat)/c6ij+dc6dcn(jat,kat)/c6jk)
+                  dCN(2) = -ang*fdmp*dc9
+                  dc9 = 0.5_wp*c9*(dc6dcn(kat,iat)/c6ik+dc6dcn(kat,jat)/c6jk)
+                  dCN(3) = -ang*fdmp*dc9
 
                   scale = par%s9 * triple_scale(iat, jat, kat)
                   !$acc atomic
                   energies(iat) = energies(iat) + dE * scale/3
+                  !$acc end atomic
                   !$acc atomic
                   energies(jat) = energies(jat) + dE * scale/3
+                  !$acc end atomic
                   !$acc atomic
                   energies(kat) = energies(kat) + dE * scale/3
+                  !$acc end atomic
                   do k = 1,3
                     !$acc atomic
                     gradient(k, iat) = gradient(k, iat) + dG(k, 1) * scale
+                    !$acc end atomic
                     !$acc atomic
                     gradient(k, jat) = gradient(k, jat) + dG(k, 2) * scale
+                    !$acc end atomic
                     !$acc atomic
                     gradient(k, kat) = gradient(k, kat) + dG(k, 3) * scale
+                    !$acc end atomic
                   enddo
                   do k = 1,3
                     do kk = 1,3
                       !$acc atomic
                       sigma(kk, k) = sigma(kk, k) + dS(kk, k) * scale
+                      !$acc end atomic
                     enddo
                   enddo
                   !$acc atomic
                   dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+                  !$acc end atomic
                   !$acc atomic
                   dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+                  !$acc end atomic
                   !$acc atomic
                   dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+                  !$acc end atomic
 
                end do
             end do
@@ -2131,7 +2194,6 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
       & r2ij, r2jk, r2ik, dc6ij, dc6ji, dc6jk, dc6kj, dc6ik, dc6ki, &
       & rij, rjk, rik, alp, dE, dG, dS, dCN)
 
-   !$acc routine vector
    real(wp), intent(in) :: c6ij, c6ik, c6jk
    real(wp), intent(in) :: cij, cjk, cik
    real(wp), intent(in) :: r2ij, r2jk, r2ik
