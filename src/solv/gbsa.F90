@@ -28,7 +28,7 @@ module xtb_solv_gbsa
       & addBornMatP16, addGradientSaltStill, addGradientStill, addGradientP16, &
       & addBornDerivSaltStill, addBornDerivStill
    use xtb_solv_lebedev, only : gridSize, getAngGrid
-   use xtb_solv_sasa, only : compute_numsa
+   use xtb_solv_sasa, only : compute_numsa, compute_numsa_gpu
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    implicit none
@@ -415,6 +415,11 @@ subroutine update(self, env, num, xyz)
       & self%vdwr, self%rho, self%svdw, self%bornScale, self%brad, self%brdr)
 
    ! compute solvent accessible surface and its derivatives
+
+   ! In case the compute_numsa_pgu routine works, here must be inserted the ifdef XTB_GPU
+   !call compute_numsa_gpu(self%nat, self%nnsas, self%nnlists, xyz, self%vdwsa, &
+   !   & self%wrp, self%trj2, self%angWeight, self%angGrid, &
+   !   & self%sasa, self%dsdrt)
    call compute_numsa(self%nat, self%nnsas, self%nnlists, xyz, self%vdwsa, &
       & self%wrp, self%trj2, self%angWeight, self%angGrid, &
       & self%sasa, self%dsdrt)

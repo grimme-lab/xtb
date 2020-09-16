@@ -29,7 +29,11 @@ module xtb_xtb_repulsion
 
 
    interface repulsionEnGrad
+#ifdef XTB_GPU
+      module procedure :: repulsionEnGrad_latp_gpu
+#else
       module procedure :: repulsionEnGrad_latp
+#endif
       module procedure :: repulsionEnGrad_neighs
    end interface repulsionEnGrad
 
@@ -154,6 +158,120 @@ subroutine repulsionEnGrad_latp(mol, repData, trans, cutoff, energy, gradient, &
    energy = energy + sum(energies)
 
 end subroutine repulsionEnGrad_latp
+
+
+subroutine repulsionEnGrad_latp_gpu(mol, repData, trans, cutoff, energy, gradient, &
+      & sigma)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Repulsion parametrisation
+   type(TRepulsionData), intent(in) :: repData
+
+   !> Lattice translations
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Molecular gradient
+   real(wp), intent(inout) :: gradient(:, :)
+
+   !> Strain derivatives
+   real(wp), intent(inout) :: sigma(:, :)
+
+   !> Repulsion energy
+   real(wp), intent(inout) :: energy
+
+   integer  :: iat, jat, iZp, jZp, itr
+   real(wp) :: t16, t26, t27
+   real(wp) :: alpha, zeff, kExp, cutoff2
+   real(wp) :: r1, r2, rij(3), dS(3, 3), dG(3), dE
+   real(wp), allocatable :: energies(:)
+   integer :: mlen, k, kk
+
+   cutoff2 = cutoff**2
+
+   allocate(energies(len(mol)))
+   energies(:) = 0.0_wp
+
+   mlen = len(mol)
+
+   ! TODO: Is this ACC parallelization working correctly? Currently not sure if there was/is an issue here...
+   
+   !$acc enter data copyin(energies, gradient, sigma, &
+   !$acc& repData, repData%alpha, repData%zeff, repData%kExp, repData%kExpLight, &
+   !$acc& repData%rExp, mol, mol%at, mol%xyz, cutoff2, trans)
+   !$acc parallel default(present) private(iat, jat, itr, iZp, jZp, r2, rij, r1, &
+   !$acc& alpha, zeff, kexp, t16, t26, t27, dE, dG, dS)
+
+   !$acc loop gang
+   do iAt = 1, mlen
+      iZp = mol%at(iAt)
+      do jAt = 1, iAt
+         jZp = mol%at(jAt)
+         alpha = sqrt(repData%alpha(iZp)*repData%alpha(jZp))
+         zeff = repData%zeff(iZp)*repData%zeff(jZp)
+         if (iZp > 2 .or. jZp > 2) then
+            kExp = repData%kExp
+         else
+            kExp = repData%kExpLight
+         end if
+         do itr = 1, size(trans, dim=2)
+            rij = mol%xyz(:, iAt) - mol%xyz(:, jAt) - trans(:, itr)
+            r2 = sum(rij**2)
+            if (r2 > cutoff2 .or. r2 < 1.0e-8_wp) cycle
+            r1 = sqrt(r2)
+
+            t16 = r1**kExp
+            t26 = exp(-alpha*t16)
+            t27 = r1**repData%rExp
+            dE = zeff * t26/t27
+            dG = -(alpha*t16*kExp + repData%rExp) * dE * rij/r2
+            dS = spread(dG, 1, 3) * spread(rij, 2, 3)
+            !$acc atomic
+            energies(iAt) = energies(iAt) + 0.5_wp * dE
+            !$acc end atomic
+            do k = 1,3
+               do kk = 1,3
+                  !$acc atomic
+                  sigma(k, kk) = sigma(k, kk) + 0.5_wp * dS(k, kk)
+                  !$acc end atomic
+               end do
+            end do
+            if (iAt /= jAt) then
+               !$acc atomic
+               energies(jAt) = energies(jAt) + 0.5_wp * dE
+               !$acc end atomic
+               do k = 1,3
+                  do kk = 1,3
+                     !$acc atomic
+                     sigma(k, kk) = sigma(k, kk) + 0.5_wp * dS(k, kk)
+                     !$acc end atomic
+                  end do
+               end do
+               do k = 1,3
+                  !$acc atomic
+                  gradient(k, iAt) = gradient(k, iAt) + dG(k)
+                  !$acc end atomic
+                  !$acc atomic
+                  gradient(k, jAt) = gradient(k, jAt) - dG(k)
+                  !$acc end atomic
+               end do
+            endif
+         enddo
+      enddo
+   enddo
+   !$acc end parallel
+
+   !$acc exit data copyout(energies, gradient, sigma)
+   !$acc exit data delete(repData, repData%alpha, repData%zeff, repData%kExp, repData%kExpLight, &
+   !$acc& repData%rExp, mol, mol%at, mol%xyz, cutoff2, trans)
+
+   energy = energy + sum(energies)
+
+end subroutine repulsionEnGrad_latp_gpu
 
 
 !> Lattice point based implementation of the repulsion energy

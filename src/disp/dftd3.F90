@@ -197,8 +197,13 @@ subroutine d3_full_gradient_latp &
 
    call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
 
+#ifdef XTB_GPU
+   call disp_gradient_latp_gpu(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+#else
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
+#endif
 
    if (present(e2)) e2 = sum(energies)
    if (par%s9 /= 0.0_wp) then
@@ -250,8 +255,13 @@ subroutine d3_gradient_latp &
 
    call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
 
+#ifdef XTB_GPU
+   call disp_gradient_latp_gpu(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+#else
    call disp_gradient_latp(mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
+#endif
 
    call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
@@ -341,6 +351,120 @@ subroutine disp_gradient_latp &
    !$omp end parallel do
 
 end subroutine disp_gradient_latp
+
+
+subroutine disp_gradient_latp_gpu &
+      & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(in) :: cutoff
+   real(wp), intent(in) :: r4r2(:)
+   real(wp), intent(in) :: c6(:, :)
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(inout) :: energies(:)
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(inout) :: dEdcn(:)
+
+   integer :: iat, jat, ati, atj, itr
+
+   real(wp) :: cutoff2
+   real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
+   real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+   integer :: mlen, k, kk
+
+   cutoff2 = cutoff**2
+   mlen = len(mol)
+
+   !$acc enter data copyin(energies, gradient, sigma, dEdcn, &
+   !$acc& mol, mol%at, mol%xyz, trans, cutoff2, par, r4r2, c6, dc6dcn)
+   !$acc parallel default(present) private(iat, jat, itr, ati, atj, r2, rij, r4r2ij, &
+   !$acc& r0, t6, t8, t10, d6, d8, d10, disp, ddisp, dE, dG, dS)
+
+   !$acc loop gang
+   do iat = 1, mlen
+      ati = mol%at(iat)
+      do jat = 1, iat
+         atj = mol%at(jat)
+         r4r2ij = 3*r4r2(ati)*r4r2(atj)
+         r0 = par%a1*sqrt(r4r2ij) + par%a2
+         do itr = 1, size(trans, dim=2)
+            rij = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
+            r2 = sum(rij**2)
+            if (r2 > cutoff2 .or. r2 < 1.0e-10_wp) cycle
+
+
+            t6 = 1._wp/(r2**3+r0**6)
+            t8 = 1._wp/(r2**4+r0**8)
+            t10 = 1._wp/(r2**5+r0**10)
+
+            d6 = -6*r2**2*t6**2
+            d8 = -8*r2**3*t8**2
+            d10 = -10*r2**4*t10**2
+
+            disp = par%s6*t6 + par%s8*r4r2ij*t8 &
+               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10
+            ddisp= par%s6*d6 + par%s8*r4r2ij*d8 &
+               & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10
+
+            dE = -c6(iat, jat)*disp * 0.5_wp
+            dG = -c6(iat, jat)*ddisp*rij
+            dS = spread(dG, 1, 3) * spread(rij, 2, 3) * 0.5_wp
+
+            !$acc atomic
+            energies(iat) = energies(iat) + dE
+            !$acc end atomic
+            !$acc atomic
+            dEdcn(iat) = dEdcn(iat) - dc6dcn(iat, jat) * disp
+            !$acc end atomic
+            do k = 1,3
+               do kk = 1,3
+                  !$acc atomic
+                  sigma(k, kk) = sigma(k, kk) + dS(k, kk)
+                  !$acc end atomic
+               end do
+            end do
+            if (iat /= jat) then
+               !$acc atomic
+               energies(jat) = energies(jat) + dE
+               !$acc end atomic
+               !$acc atomic
+               dEdcn(jat) = dEdcn(jat) - dc6dcn(jat, iat) * disp
+               !$acc end atomic
+               do k = 1,3
+                  !$acc atomic
+                  gradient(k, iat) = gradient(k, iat) + dG(k)
+                  !$acc end atomic
+                  !$acc atomic
+                  gradient(k, jat) = gradient(k, jat) - dG(k)
+                  !$acc end atomic
+               end do
+               do k = 1,3
+                  do kk = 1,3
+                     !$acc atomic
+                     sigma(k, kk) = sigma(k, kk) + dS(k, kk)
+                     !$acc end atomic
+                  end do
+               end do
+            end if
+
+         end do
+      end do
+   end do
+   !$acc end parallel
+
+   !$acc exit data copyout(energies, gradient, sigma, dEdcn)
+   !$acc exit data delete(mol, mol%at, mol%xyz, trans, cutoff2, par, r4r2, c6, dc6dcn)
+
+end subroutine disp_gradient_latp_gpu
 
 
 subroutine d3_atm_gradient_latp &
@@ -521,8 +645,13 @@ subroutine d3_full_gradient_neigh &
 
    call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
 
+#ifdef XTB_GPU
+   call disp_gradient_neigh_gpu(mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+#else
    call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
+#endif
 
    if (present(e2)) e2 = sum(energies)
    if (par%s9 /= 0.0_wp) then
@@ -576,8 +705,13 @@ subroutine d3_gradient_neigh &
 
    call get_atomic_c6(nat, mol%at, gw, dgwdcn, c6, dc6dcn)
 
+#ifdef XTB_GPU
+   call disp_gradient_neigh_gpu(mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+#else
    call disp_gradient_neigh(mol, neighs, neighlist, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
+#endif
 
    call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
@@ -664,6 +798,120 @@ subroutine disp_gradient_neigh &
    !$omp end parallel do
 
 end subroutine disp_gradient_neigh
+
+
+subroutine disp_gradient_neigh_gpu &
+      & (mol, neighs, neighlist, par, r4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Neighbour list
+   type(TNeighbourList), intent(in) :: neighlist
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   integer, intent(in) :: neighs(:)
+   real(wp), intent(in) :: r4r2(:)
+   real(wp), intent(in) :: c6(:, :)
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(inout) :: energies(:)
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(inout) :: dEdcn(:)
+
+   integer :: iat, jat, ati, atj, ij, img
+   real(wp) :: r4r2ij, r0, rij(3), r2, t6, t8, t10, d6, d8, d10
+   real(wp) :: dE, dG(3), dS(3, 3), disp, ddisp
+   integer :: mlen, k, kk
+
+   mlen = len(mol)
+
+   ! This is an untested ACC parallelization!
+
+   !$acc enter data copyin(energies, gradient, sigma, dEdcn, &
+   !$acc& mol, mol%at, mol%xyz, neighs, neighlist, par, r4r2, c6, dc6dcn)
+   !$acc parallel default(present) private(ij, img, jat, ati, atj, r2, rij, r4r2ij, &
+   !$acc& r0, t6, t8, t10, d6, d8, d10, disp, ddisp, dE, dG, dS)
+
+   !$acc loop gang
+   do iat = 1, mlen
+      ati = mol%at(iat)
+      do ij = 1, neighs(iat)
+         img = neighlist%ineigh(ij, iat)
+         r2 = neighlist%dist2(ij, iat)
+         rij = mol%xyz(:, iat) - neighlist%coords(:, img)
+         jat = neighlist%image(img)
+         atj = mol%at(jat)
+
+         r4r2ij = 3*r4r2(ati)*r4r2(atj)
+         r0 = par%a1*sqrt(r4r2ij) + par%a2
+
+         t6 = 1._wp/(r2**3+r0**6)
+         t8 = 1._wp/(r2**4+r0**8)
+         t10 = 1._wp/(r2**5+r0**10)
+
+         d6 = -6*r2**2*t6**2
+         d8 = -8*r2**3*t8**2
+         d10 = -10*r2**4*t10**2
+
+         disp = par%s6*t6 + par%s8*r4r2ij*t8 &
+            &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10
+         ddisp= par%s6*d6 + par%s8*r4r2ij*d8 &
+            & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10
+
+         dE = -c6(iat, jat)*disp * 0.5_wp
+         dG = -c6(iat, jat)*ddisp*rij
+         dS = spread(dG, 1, 3) * spread(rij, 2, 3) * 0.5_wp
+
+         !$acc atomic
+         energies(iat) = energies(iat) + dE
+         !$acc end atomic
+         !$acc atomic
+         dEdcn(iat) = dEdcn(iat) - dc6dcn(iat, jat) * disp
+         !$acc end atomic
+         do k = 1,3
+            do kk = 1,3
+               !$acc atomic
+               sigma(k, kk) = sigma(k, kk) + dS(k, kk)
+               !$acc end atomic
+            end do
+         end do
+         if (iat /= jat) then
+            !$acc atomic
+            energies(jat) = energies(jat) + dE
+            !$acc end atomic
+            !$acc atomic
+            dEdcn(jat) = dEdcn(jat) - dc6dcn(jat, iat) * disp
+            !$acc end atomic
+            do k = 1,3
+               !$acc atomic
+               gradient(k, iat) = gradient(k, iat) + dG(k)
+               !$acc end atomic
+               !$acc atomic
+               gradient(k, jat) = gradient(k, jat) - dG(k)
+               !$acc end atomic
+            end do
+            do k = 1,3
+               do kk = 1,3
+                  !$acc atomic
+                  sigma(k, kk) = sigma(k, kk) + dS(k, kk)
+                  !$acc end atomic
+               end do
+            end do
+         endif
+
+      enddo
+   enddo
+   !$acc end parallel
+
+   !$acc exit data copyout(energies, gradient, sigma, dEdcn)
+   !$acc exit data delete(mol, mol%at, mol%xyz, neighs, neighlist, par, r4r2, c6, dc6dcn)
+
+end subroutine disp_gradient_neigh_gpu
 
 
 subroutine d3_atm_gradient_neigh &

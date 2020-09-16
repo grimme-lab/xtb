@@ -22,7 +22,7 @@ module xtb_solv_sasa
    implicit none
    private
 
-   public :: compute_numsa
+   public :: compute_numsa, compute_numsa_gpu
 
    !> Smoothing dielectric function parameters
    real(wp), parameter :: w = 0.3_wp*aatoau
@@ -140,8 +140,137 @@ pure subroutine compute_numsa(nat, nnsas, nnlists, xyz, vdwsa, &
 end subroutine compute_numsa
 
 
+pure subroutine compute_numsa_gpu(nat, nnsas, nnlists, xyz, vdwsa, &
+      & wrp, trj2, angWeight, angGrid, sasa, dsdrt)
+
+   !> Number of atoms
+   integer, intent(in) :: nat
+
+   !> Number of neighbours to consider
+   integer, intent(in) :: nnsas(:)
+
+   !> Neighbourlist
+   integer, intent(in) :: nnlists(:, :)
+
+   !> Cartesian coordinates
+   real(wp), intent(in) :: xyz(:, :)
+
+   !> Van-der-Waals radii including probe radius of solvent
+   real(wp), intent(in) :: vdwsa(:)
+
+   !> Radial weights for the numerical integration
+   real(wp), intent(in) :: wrp(:)
+
+   !> Radial smoothing function
+   real(wp), intent(in) :: trj2(:, :)
+
+   !> Angular weights for the numerical integration
+   real(wp), intent(in) :: angWeight(:)
+
+   !> Angular grid for each atom
+   real(wp), intent(in) :: angGrid(:, :)
+
+   !> Surface area for each atom, including surface tension
+   real(wp), intent(out) :: sasa(:)
+
+   !> Derivative of surface area w.r.t. cartesian coordinates
+   real(wp), intent(out) :: dsdrt(:, :, :)
+
+   integer iat,jat
+   integer ip,jj,nnj,nnk
+   real(wp) rsas,sasai
+   real(wp) xyza(3),xyzp(3),sasap
+   real(wp) wr,wsa,drjj(3)
+   integer :: nno
+   real(wp), allocatable :: grds(:,:)
+   real(wp), allocatable :: grads(:,:)
+   integer :: nni
+   integer, allocatable :: grdi(:)
+   integer :: gridsize, k, kk, nno_max
+
+   sasa(:) = 0.0_wp
+   dsdrt(:, :, :) = 0.0_wp
+
+   allocate(grads(3,nat), source = 0.0_wp)
+
+   gridsize = size(angGrid, 2)
+   nno_max = maxval(nnsas)
+   allocate(grds(3,nno_max))
+   allocate(grdi(nno_max))
+
+   ! TODO: This ACC parallelization is currently not yet working! (add ifdef XTB_GPU in gbsa.F90 file if done)
+
+   !$acc enter data copyin(sasa, dsdrt, &
+   !$acc& nat, nnsas, nnlists, xyz, vdwsa, wrp, trj2, angWeight, angGrid)
+   !$acc parallel default(present) private(iat, jat, ip, jj, nnj, nnk, rsas, &
+   !$acc& sasai, xyza, xyzp, sasap, wr, wsa, drjj, nno, grds, grads, nni, grdi)
+
+   !$acc loop gang
+   do iat = 1, nat
+
+      rsas = vdwsa(iat)
+      nno=nnsas(iat)
+
+      ! initialize storage
+      grads = 0.0_wp
+      sasai = 0.0_wp
+
+      ! atomic position
+      xyza(:)=xyz(:,iat)
+      ! radial atomic weight
+      wr=wrp(iat)
+ 
+      ! loop over grid points
+      !!$acc loop seq private(nni, nno, sasap)
+      do ip=1, gridsize
+
+         ! grid point position
+         xyzp(:) = xyza(:) + rsas*angGrid(:,ip)
+         ! atomic surface function at the grid point
+         call compute_w_sp(nat,nnlists,trj2,vdwsa, &
+            &              xyz,iat,nno,xyzp,sasap,grds,nni,grdi)
+
+         if(sasap.gt.tolsesp) then
+            ! numerical quadrature weight
+            wsa = angWeight(ip)*wr*sasap
+            ! accumulate the surface area
+            sasai = sasai + wsa
+            ! accumulate the surface gradient
+            do jj = 1, nni
+               nnj = grdi(jj)
+               drjj(:) = wsa*grds(:,jj)
+               grads(:,iat)=grads(:,iat)+drjj(:)
+               grads(:,nnj)=grads(:,nnj)-drjj(:)
+            enddo
+         endif
+      enddo
+
+      !!$acc atomic
+      sasa(iat) = sasai
+      !!$acc end atomic
+      do k = 1,3
+         do kk = 1,nat
+            !!$acc atomic
+            dsdrt(k,kk,iat) = grads(k,kk)
+            !!$acc end atomic
+         end do 
+      end do
+
+   enddo
+   !$acc end parallel
+
+   !deallocate(grds)
+   !deallocate(grdi)
+
+   !$acc exit data copyout(sasa, dsdrt)
+   !$acc exit data delete(nat, nnsas, nnlists, xyz, vdwsa, wrp, trj2, angWeight, angGrid)
+
+end subroutine compute_numsa_gpu
+
+
 pure subroutine compute_w_sp(nat,nnlists,trj2,vdwsa,xyza,iat,nno,xyzp,sasap,grds, &
       &                      nni,grdi)
+   !$acc routine seq
    implicit none
 
    integer, intent(in)  :: nat

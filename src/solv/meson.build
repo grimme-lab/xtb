@@ -16,9 +16,9 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'born.f90',
+  'born.F90',
   'cm5.f90',
-  'gbsa.f90',
+  'gbsa.F90',
   'input.F90',
   'kernel.f90',
   'lebedev.f90',

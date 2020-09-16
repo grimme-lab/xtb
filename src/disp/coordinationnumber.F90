@@ -64,6 +64,7 @@ module xtb_disp_coordinationnumber
 
    abstract interface
    !> Abstract interface for the counting function (and its derivative)
+   !!$acc routine
    pure function countingFunction(k, r, r0)
       import :: wp
 
@@ -326,6 +327,7 @@ subroutine getCoordinationNumberLP(mol, trans, cutoff, cf, cn, dcndr, dcndL)
    real(wp), parameter :: kcn_erf = 7.5_wp
    real(wp), parameter :: kcn_gfn = 10.0_wp
 
+   ! When the GPU versoin of ncoordLatP works (see below), then insert a ifdef XTB_GPU here
    select case(cf)
    case(cnType%exp)
       call ncoordLatP(mol, trans, cutoff, kcn_exp, expCount, dexpCount, &
@@ -443,7 +445,142 @@ subroutine ncoordLatP(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
 end subroutine ncoordLatP
 
 
+subroutine ncoordLatP_gpu(mol, trans, cutoff, kcn, cfunc, dfunc, enscale, &
+      & rcov, en, cn, dcndr, dcndL)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Lattice points
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Function implementing the counting function
+   procedure(countingFunction) :: cfunc
+
+   !> Function implementing the derivative of counting function w.r.t. distance
+   procedure(countingFunction) :: dfunc
+
+   !> Use a covalency criterium by Pauling EN's
+   logical, intent(in) :: enscale
+
+   !> Steepness of counting function
+   real(wp), intent(in) :: kcn
+
+   !> Covalent radius
+   real(wp), intent(in) :: rcov(:)
+
+   !> Electronegativity
+   real(wp), intent(in) :: en(:)
+
+   !> Error function coordination number.
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates.
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations.
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   integer :: iat, jat, ati, atj, itr
+   real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
+   integer :: mlen, k, kk
+
+   cn = 0.0_wp
+   dcndr = 0.0_wp
+   dcndL = 0.0_wp
+   cutoff2 = cutoff**2
+
+   mlen = len(mol)
+
+   ! TODO: This ACC parallelization is currently not yet working
+
+   !!$acc enter data copyin(cn, dcndr, dcndL, &
+   !!$acc& enscale, rcov, en, mol, mol%at, mol%xyz, kcn, trans, cutoff2)
+   !!$acc parallel default(present) private(den, jat, itr, ati, atj, r2, rij, r1, rc, &
+   !!$acc& countf, countd, stress)
+
+   !!$acc loop gang
+   do iat = 1, mlen
+      ati = mol%at(iat)
+      do jat = 1, iat
+         atj = mol%at(jat)
+
+         if (enscale) then
+            den = k4*exp(-(abs(en(ati)-en(atj)) + k5)**2/k6)
+        ! else
+            den = 1.0_wp
+         end if
+
+         do itr = 1, size(trans, dim=2)
+            rij = mol%xyz(:, iat) - (mol%xyz(:, jat) + trans(:, itr))
+            r2 = sum(rij**2)
+            if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
+            r1 = sqrt(r2)
+
+            rc = rcov(ati) + rcov(atj)
+
+            countf = den * cfunc(kcn, r1, rc)
+            countd = den * dfunc(kcn, r1, rc) * rij/r1
+
+   !         !$acc atomic
+            cn(iat) = cn(iat) + countf
+    !        !$acc end atomic
+            if (iat /= jat) then
+     !          !$acc atomic
+               cn(jat) = cn(jat) + countf
+     !          !$acc end atomic
+            end if
+
+            do k = 1,3
+     !          !$acc atomic
+               dcndr(k, iat, iat) = dcndr(k, iat, iat) + countd(k)
+     !          !$acc end atomic
+     !          !$acc atomic
+               dcndr(k, jat, jat) = dcndr(k, jat, jat) - countd(k)
+     !          !$acc end atomic
+     !          !$acc atomic
+               dcndr(k, iat, jat) = dcndr(k, iat, jat) + countd(k)
+     !          !$acc end atomic
+     !          !$acc atomic
+               dcndr(k, jat, iat) = dcndr(k, jat, iat) - countd(k)
+     !          !$acc end atomic
+            end do
+
+            stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+
+            do k = 1,3
+               do kk = 1,3
+      !            !$acc atomic
+                  dcndL(k, kk, iat) = dcndL(k, kk, iat) + stress(k, kk)
+      !            !$acc end atomic
+               end do
+            end do
+            if (iat /= jat) then
+               do k = 1,3
+                  do kk = 1,3
+      !               !$acc atomic
+                     dcndL(k, kk, jat) = dcndL(k, kk, jat) + stress(k, kk)
+      !               !$acc end atomic
+                  end do
+               end do
+            end if
+
+         end do
+      end do
+   end do
+   !!$acc end parallel
+
+   !!$acc exit data copyout(cn, dcndr, dcndL)
+   !!$acc exit data delete(enscale, rcov, en, mol, mol%at, mol%xyz, kcn, trans, cutoff2)
+
+end subroutine ncoordLatP_gpu
+
+
 !> Error function counting function for coordination number contributions.
+!!$acc routine
 pure function erfCount(k, r, r0) result(count)
 
    !> Steepness of the counting function.
@@ -463,6 +600,7 @@ end function erfCount
 
 
 !> Derivative of the counting function w.r.t. the distance.
+!!$acc routine
 pure function derfCount(k, r, r0) result(count)
 
    !> Steepness of the counting function.
@@ -484,6 +622,7 @@ end function derfCount
 
 
 !> Exponential counting function for coordination number contributions.
+!!$acc routine
 pure function expCount(k, r, r0) result(count)
 
    !> Steepness of the counting function.
@@ -503,6 +642,7 @@ end function expCount
 
 
 !> Derivative of the counting function w.r.t. the distance.
+!!$acc routine
 pure function dexpCount(k, r, r0) result(count)
 
    !> Steepness of the counting function.
@@ -525,6 +665,7 @@ end function dexpCount
 
 
 !> Exponential counting function for coordination number contributions.
+!!$acc routine
 pure function gfnCount(k, r, r0) result(count)
 
    !> Steepness of the counting function.
@@ -544,6 +685,7 @@ end function gfnCount
 
 
 !> Derivative of the counting function w.r.t. the distance.
+!!$acc routine
 pure function dgfnCount(k, r, r0) result(count)
 
    !> Steepness of the counting function.

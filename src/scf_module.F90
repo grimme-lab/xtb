@@ -305,8 +305,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       ! initialize the CM5 charges computation
       cm5=wfn%q
       cm5a=0.d0
-      dcm5a=0.d0
       if(xtbData%level == 1) then ! only GFN1 does use CM5 charges
+         dcm5a=0.d0
          select type(solvation)
          type is (TBorn)
             call calc_cm5(mol%n,mol%at,mol%xyz,cm5a,dcm5a)
