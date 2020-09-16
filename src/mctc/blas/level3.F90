@@ -18,6 +18,11 @@
 !> Interfaces to BLAS
 module xtb_mctc_blas_level3
    use xtb_mctc_accuracy, only : sp, dp
+#ifdef USE_CUBLAS
+   use cublas, only : cublasSgemm, cublasDgemm, cublasSsymm, cublasDsymm, &
+      & cublasSsyrk, cublasDsyrk, cublasSsyr2k, cublasDsyr2k, &
+      & cublasStrmm, cublasDtrmm, cublasStrsm, cublasDtrsm
+#endif
    implicit none
    private
 
@@ -719,7 +724,7 @@ module xtb_mctc_blas_level3
 contains
 
 
-pure subroutine mctc_sgemm(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_sgemm(amat, bmat, cmat, transa, transb, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -760,11 +765,19 @@ pure subroutine mctc_sgemm(amat, bmat, cmat, transa, transb, alpha, beta)
    ldc = max(1, size(cmat, 1))
    m = size(cmat, 1)
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat, cmat)
+   !$acc host_data use_device(amat, bmat, cmat)
+   call cublasSgemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat, bmat)
+#else
    call blas_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+#endif
 end subroutine mctc_sgemm
 
 
-pure subroutine mctc_dgemm(amat, bmat, cmat, transa, transb, alpha, beta)
+subroutine mctc_dgemm(amat, bmat, cmat, transa, transb, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -805,11 +818,19 @@ pure subroutine mctc_dgemm(amat, bmat, cmat, transa, transb, alpha, beta)
    ldc = max(1, size(cmat, 1))
    m = size(cmat, 1)
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat, cmat)
+   !$acc host_data use_device(amat, bmat, cmat)
+   call cublasDgemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat, bmat)
+#else
    call blas_gemm(tra, trb, m, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+#endif
 end subroutine mctc_dgemm
 
 
-pure subroutine mctc_ssymm(amat, bmat, cmat, side, uplo, alpha, beta)
+subroutine mctc_ssymm(amat, bmat, cmat, side, uplo, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -845,11 +866,19 @@ pure subroutine mctc_ssymm(amat, bmat, cmat, side, uplo, alpha, beta)
    ldc = max(1, size(cmat, 1))
    m = size(cmat, 1)
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat, cmat)
+   !$acc host_data use_device(amat, bmat, cmat)
+   call cublasSsymm(lra, ula, m, n, a, amat, lda, bmat, ldb, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat, bmat)
+#else
    call blas_symm(lra, ula, m, n, a, amat, lda, bmat, ldb, b, cmat, ldc)
+#endif
 end subroutine mctc_ssymm
 
 
-pure subroutine mctc_dsymm(amat, bmat, cmat, side, uplo, alpha, beta)
+subroutine mctc_dsymm(amat, bmat, cmat, side, uplo, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -885,11 +914,19 @@ pure subroutine mctc_dsymm(amat, bmat, cmat, side, uplo, alpha, beta)
    ldc = max(1, size(cmat, 1))
    m = size(cmat, 1)
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat, cmat)
+   !$acc host_data use_device(amat, bmat, cmat)
+   call cublasDsymm(lra, ula, m, n, a, amat, lda, bmat, ldb, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat, bmat)
+#else
    call blas_symm(lra, ula, m, n, a, amat, lda, bmat, ldb, b, cmat, ldc)
+#endif
 end subroutine mctc_dsymm
 
 
-pure subroutine mctc_ssyrk(amat, cmat, uplo, trans, alpha, beta)
+subroutine mctc_ssyrk(amat, cmat, uplo, trans, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
    character(len=1), intent(in), optional :: uplo
@@ -927,11 +964,19 @@ pure subroutine mctc_ssyrk(amat, cmat, uplo, trans, alpha, beta)
    lda = max(1, size(amat, 1))
    ldc = max(1, size(cmat, 1))
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, cmat)
+   !$acc host_data use_device(amat, cmat)
+   call cublasSsyrk(ula, tra, n, k, a, amat, lda, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat)
+#else
    call blas_syrk(ula, tra, n, k, a, amat, lda, b, cmat, ldc)
+#endif
 end subroutine mctc_ssyrk
 
 
-pure subroutine mctc_dsyrk(amat, cmat, uplo, trans, alpha, beta)
+subroutine mctc_dsyrk(amat, cmat, uplo, trans, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
    character(len=1), intent(in), optional :: uplo
@@ -969,11 +1014,19 @@ pure subroutine mctc_dsyrk(amat, cmat, uplo, trans, alpha, beta)
    lda = max(1, size(amat, 1))
    ldc = max(1, size(cmat, 1))
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, cmat)
+   !$acc host_data use_device(amat, cmat)
+   call cublasDsyrk(ula, tra, n, k, a, amat, lda, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat)
+#else
    call blas_syrk(ula, tra, n, k, a, amat, lda, b, cmat, ldc)
+#endif
 end subroutine mctc_dsyrk
 
 
-pure subroutine mctc_ssyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
+subroutine mctc_ssyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -1013,11 +1066,19 @@ pure subroutine mctc_ssyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
    ldb = max(1, size(bmat, 1))
    ldc = max(1, size(cmat, 1))
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat, cmat)
+   !$acc host_data use_device(amat, bmat, cmat)
+   call cublasSsyr2k(ula, tra, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat, bmat)
+#else
    call blas_syr2k(ula, tra, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+#endif
 end subroutine mctc_ssyr2k
 
 
-pure subroutine mctc_dsyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
+subroutine mctc_dsyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -1057,11 +1118,19 @@ pure subroutine mctc_dsyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
    ldb = max(1, size(bmat, 1))
    ldc = max(1, size(cmat, 1))
    n = size(cmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat, cmat)
+   !$acc host_data use_device(amat, bmat, cmat)
+   call cublasDsyr2k(ula, tra, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+   !$acc end host_data
+   !$acc exit data copyout(cmat) delete(amat, bmat)
+#else
    call blas_syr2k(ula, tra, n, k, a, amat, lda, bmat, ldb, b, cmat, ldc)
+#endif
 end subroutine mctc_dsyr2k
 
 
-pure subroutine mctc_strsm(amat, bmat, side, uplo, transa, diag, alpha)
+subroutine mctc_strsm(amat, bmat, side, uplo, transa, diag, alpha)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1101,11 +1170,19 @@ pure subroutine mctc_strsm(amat, bmat, side, uplo, transa, diag, alpha)
    ldb = max(1, size(bmat, 1))
    m = size(bmat, 1)
    n = size(bmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat)
+   !$acc host_data use_device(amat, bmat)
+   call cublasStrsm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+   !$acc end host_data
+   !$acc exit data copyout(bmat) delete(amat)
+#else
    call blas_trsm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+#endif
 end subroutine mctc_strsm
 
 
-pure subroutine mctc_dtrsm(amat, bmat, side, uplo, transa, diag, alpha)
+subroutine mctc_dtrsm(amat, bmat, side, uplo, transa, diag, alpha)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1145,11 +1222,19 @@ pure subroutine mctc_dtrsm(amat, bmat, side, uplo, transa, diag, alpha)
    ldb = max(1, size(bmat, 1))
    m = size(bmat, 1)
    n = size(bmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat)
+   !$acc host_data use_device(amat, bmat)
+   call cublasDtrsm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+   !$acc end host_data
+   !$acc exit data copyout(bmat) delete(amat)
+#else
    call blas_trsm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+#endif
 end subroutine mctc_dtrsm
 
 
-pure subroutine mctc_strmm(amat, bmat, side, uplo, transa, diag, alpha)
+subroutine mctc_strmm(amat, bmat, side, uplo, transa, diag, alpha)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1189,11 +1274,19 @@ pure subroutine mctc_strmm(amat, bmat, side, uplo, transa, diag, alpha)
    ldb = max(1, size(bmat, 1))
    m = size(bmat, 1)
    n = size(bmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat)
+   !$acc host_data use_device(amat, bmat)
+   call cublasStrmm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+   !$acc end host_data
+   !$acc exit data copyout(bmat) delete(amat)
+#else
    call blas_trmm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+#endif
 end subroutine mctc_strmm
 
 
-pure subroutine mctc_dtrmm(amat, bmat, side, uplo, transa, diag, alpha)
+subroutine mctc_dtrmm(amat, bmat, side, uplo, transa, diag, alpha)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1233,7 +1326,15 @@ pure subroutine mctc_dtrmm(amat, bmat, side, uplo, transa, diag, alpha)
    ldb = max(1, size(bmat, 1))
    m = size(bmat, 1)
    n = size(bmat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(amat, bmat)
+   !$acc host_data use_device(amat, bmat)
+   call cublasDtrmm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+   !$acc end host_data
+   !$acc exit data copyout(bmat) delete(amat)
+#else
    call blas_trmm(lra, ula, tra, dia, m, n, a, amat, lda, bmat, ldb)
+#endif
 end subroutine mctc_dtrmm
 
 

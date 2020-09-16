@@ -38,6 +38,7 @@ contains
 !  derivative of S(R) enhancement factor
 !! ========================================================================
 pure subroutine dshellPoly(iPoly,jPoly,iRad,jRad,rab2,xyz1,xyz2,rf,dxyz)
+   !$acc routine seq
    real(wp), intent(in)  :: iPoly,jPoly
    real(wp), intent(in)  :: iRad,jRad
    real(wp), intent(in)  :: rab2

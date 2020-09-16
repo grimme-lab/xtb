@@ -137,6 +137,7 @@ end subroutine mctc_ssygvd
 
 
 subroutine mctc_dsygvd(self, env, amat, bmat, eval)
+        use nvtx
    character(len=*), parameter :: source = 'mctc_lapack_sygvd'
    class(TEigenSolver), intent(inout) :: self
    type(TEnvironment), intent(inout) :: env
@@ -151,6 +152,7 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
    self%dbmat(:, :) = bmat
 
 #ifdef USE_CUSOLVER
+call nvtxStartRange('dsygvd', __LINE__)
    !$acc enter data copyin(amat, self%dbmat, eval, info) create(self%dwork)
 
    !$acc host_data use_device(amat, self%dbmat, eval, self%dwork, info)
@@ -161,6 +163,7 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
 
    !$acc exit data copyout(amat, self%dbmat, eval, info) delete(self%dwork)
 
+call nvtxEndRange()
    if (istat /= 0) then
       call env%error("cuSovlerDnDsygvd failed", source)
    end if

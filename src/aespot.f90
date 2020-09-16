@@ -44,7 +44,7 @@ subroutine setdqlist(nao,ndp,nqp,thr,dpint,qpint,matdlst,matqlst)
    real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f
    ! stuff for potential
 
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,mq,md,ij
+   integer i,j,k,l,m,ii,jj,ll,kk,mq,md,ij
 
    ! INFO: this threshold must be slightly larger than max(0,thr2),
    !       where thr2 is the one used in screening in routine aesdqint
@@ -135,88 +135,123 @@ end subroutine unscalecamm
 ! qp(6,nat)        : traceless(!) cumulative atomic quadrupole moments (xx,xy,yy,xz,yz,zz)
 subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
    implicit none
-   integer, intent(in) :: nao,nat,aoat2(nao)
-   real(wp), intent(in) :: dpint(3,nao,nao),s(nao,nao)
-   real(wp), intent(in) :: qpint(6,nao,nao),p(nao,nao)
-   real(wp), intent(in) :: xyz(3,nat)
-   real(wp), intent(out):: dipm(3,nat),qp(6,nat)
+   integer, intent(in) :: nao,nat,aoat2(:)
+   real(wp), intent(in) :: s(:, :)
+   real(wp), intent(in) :: p(:, :)
+   real(wp), intent(in) :: dpint(:, :, :)
+   real(wp), intent(in) :: qpint(:, :, :)
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(out):: dipm(:, :)
+   real(wp), intent(out):: qp(:, :)
 
    real(wp) xk1,xl1,xk2,xl2,pij,tii,tjj
    real(wp) pqm,pdmk,pdml,ps,ra(3)
 
-   integer i,j,k,l,ii,jj,ij,kl,kj,lin
+   integer i,j,k,l,ii,jj,kl,kj,lin
+
+   !$acc enter data create(dipm(:, :), qp(:, :))
+
    ! CAMM
+   !$acc kernels default(present)
    dipm = 0.0_wp
    qp = 0.0_wp
-   ij = 0
+   !$acc end kernels
+
+   !$acc enter data copyin(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
+   !$acc& qpint(:, :, :),xyz(:, :))
+
+   !$acc parallel private(pij,ps,ra,k,l,ii,jj)
+
+   !$acc loop gang vector collapse(2)
    do i = 1,nao
-      ii = aoat2(i)
-      ra(1:3) = xyz(1:3,ii)
-      do j = 1,i-1
-         ij = ij+1
+      do j = 1,nao
+         if (j >= i) cycle
+         ii = aoat2(i)
          jj = aoat2(j)
+         ra(1:3) = xyz(1:3,ii)
          pij = p(j,i)
          ps = pij*s(j,i)
-         kl = 0
          !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
          !  when doing the Mulliken population, we switch to lin-compatible sorting
          !  i,e. xx,xy,yy,xz,yz,zz
+         !$acc loop vector private(xk1,xl1,xk2,xl2,tii,tjj,pqm,pdmk,pdml,kl,kj)
          do k = 1,3
             xk1 = ra(k)
             xk2 = xyz(k,jj)
-            pdmk = pij*dpint(k,i,j)
-            dipm(k,jj) = dipm(k,jj)+xk2*ps-pdmk
-            dipm(k,ii) = dipm(k,ii)+xk1*ps-pdmk
+            pdmk = pij*dpint(k,j,i)
+            tii = xk1*ps-pdmk
+            tjj = xk2*ps-pdmk
+            !$acc atomic
+            dipm(k,jj) = dipm(k,jj)+tjj
+            !$acc atomic
+            dipm(k,ii) = dipm(k,ii)+tii
             ! off-diagonal
             do l = 1,k-1
-               kl = kl+1
+               kl = k*(k-1)/2+l
                kj = k+l+1
                xl1 = ra(l)
                xl2 = xyz(l,jj)
-               pdml = pij*dpint(l,i,j)
-               pqm = pij*qpint(kj,i,j)
+               pdml = pij*dpint(l,j,i)
+               pqm = pij*qpint(kj,j,i)
                tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
                tjj = pdmk*xl2+pdml*xk2-xl2*xk2*ps-pqm
+               !$acc atomic
                qp(kl,jj) = qp(kl,jj)+tjj
+               !$acc atomic
                qp(kl,ii) = qp(kl,ii)+tii
             enddo
             ! diagonal
-            kl = kl+1
-            pqm = pij*qpint(k,i,j)
+            kl = k*(k+1)/2
+            pqm = pij*qpint(k,j,i)
             tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
             tjj = 2.0_wp*pdmk*xk2-xk2*xk2*ps-pqm
+            !$acc atomic
             qp(kl,jj) = qp(kl,jj)+tjj
+            !$acc atomic
             qp(kl,ii) = qp(kl,ii)+tii
          enddo
       enddo
-      ij = ij+1
+   enddo
+
+   !$acc loop gang vector
+   do i = 1,nao
+      ii = aoat2(i)
+      ra(1:3) = xyz(1:3,ii)
       pij = p(i,i)
       ps = pij*s(i,i)
-      kl = 0
       !  the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
       !  when doing the Mulliken population, we switch to lin-compatible sorting
       !  i,e. xx,xy,yy,xz,yz,zz
+      !$acc loop vector private(xk1,xl1,xk2,xl2,tii,pqm,pdmk,pdml,kl,kj)
       do k = 1,3
          xk1 = ra(k)
          pdmk = pij*dpint(k,i,i)
-         dipm(k,ii) = dipm(k,ii)+xk1*ps-pdmk
+         tii = xk1*ps-pdmk
+         !$acc atomic
+         dipm(k,ii) = dipm(k,ii)+tii
          ! off-diagonal
          do l = 1,k-1
-            kl = kl+1
+            kl = k*(k-1)/2+l
             kj = k+l+1 ! the qpint is stored as xx,yy,zz,xy,xz,yz (from integral routine)
             xl1 = ra(l)
             pdml = pij*dpint(l,i,i)
             pqm = pij*qpint(kj,i,i)
             tii = pdmk*xl1+pdml*xk1-xl1*xk1*ps-pqm
+            !$acc atomic
             qp(kl,ii) = qp(kl,ii)+tii
          enddo
          !diagonal
-         kl = kl+1
+         kl = k*(k+1)/2
          pqm = pij*qpint(k,i,i)
          tii = 2.0_wp*pdmk*xk1-xk1*xk1*ps-pqm
+         !$acc atomic
          qp(kl,ii) = qp(kl,ii)+tii
       enddo
    enddo
+   !$acc end parallel
+
+   !$acc exit data copyout(dipm(:, :), qp(:, :))
+
    ! remove trace
    do i = 1,nat
       tii = qp(1,i)+qp(3,i)+qp(6,i)
@@ -226,6 +261,10 @@ subroutine mmompop(nat,nao,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
       qp(3,i) = qp(3,i)-tii
       qp(6,i) = qp(6,i)-tii
    enddo
+
+   !$acc exit data delete(nao, nat, aoat2(:), s(:, :), p(:, :), dpint(:, :, :), &
+   !$acc& qpint(:, :, :),xyz(:, :))
+
 end subroutine mmompop
 
 
@@ -243,24 +282,34 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
    use xtb_lin, only : lin
    implicit none
    class(TMultipoleData), intent(in) :: aesData
-   integer nat,at(nat)
-   real(wp) xyz(3,nat),q(nat)
-   real(wp) e
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) :: xyz(:,:),q(:)
+   real(wp), intent(inout) :: e
    real(wp) qp1(6),rr(3),dp1(3),rij(3)
    real(wp) edd,e01,e02,e11,r2,tt,tt3,q1,qs2
    real(wp) ed,eq,epol
    ! stuff for potential
-   real(wp) gab3(nat*(nat+1)/2),gab5(nat*(nat+1)/2)
-   real(wp) dipm(3,nat),qp(6,nat)
-   real(wp), parameter :: bohr = 1.0_wp/0.52917726_wp
+   real(wp), intent(in) :: gab3(:,:),gab5(:,:)
+   real(wp), intent(in) :: dipm(:,:),qp(:,:)
+   integer, parameter :: idx(3, 3) = reshape([1, 2, 4, 2, 3, 5, 4, 5, 6], [3, 3])
 
    integer i,j,k,l,m,ki,kj,kl
+
+   ! acc enter data copyin(at, xyz, q, dipm, qp, gab3, gab5, &
+   ! acc& aesData, aesData%dipKernel(:), aesData%quadKernel(:))
+
+   ! acc kernels
    e = 0.0_wp
    epol = 0.0_wp
    e01 = 0.0_wp
    e02 = 0.0_wp
    e11 = 0.0_wp
-   do i = 1,nat
+   ! acc end kernels
+
+   ! acc parallel private(qp1, rr, dp1, rij)
+
+   ! acc loop gang
+   do i = 1, nat
       q1 = q(i)
       rr(1:3) = xyz(1:3,i)
       dp1(1:3) = dipm(1:3,i)
@@ -270,28 +319,43 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
       tt = dp1(1)*dp1(1)+dp1(2)*dp1(2)+dp1(3)*dp1(3)
       ! qpole
       tt3 = 0.0_wp
+      ! acc loop seq
       do k = 1,3
+         ! acc loop seq
          do l = 1,3
-            kl = lin(l,k)
+            kl = idx(l,k)
             tt3 = tt3+qp1(kl)*qp1(kl)
          enddo
       enddo
-      epol = epol+aesData%dipKernel(at(i))*tt+tt3*aesData%quadKernel(at(i))
+      eq = aesData%dipKernel(at(i))*tt+tt3*aesData%quadKernel(at(i))
+      ! acc atomic
+      epol = epol+eq
       ! ---
-      do j = 1,i-1             ! loop over all atoms
-         kj = lin(j,i)
+   enddo
+
+   ! acc loop gang collapse(2)
+   do i = 1, nat
+      do j = 1, nat
+         if (j >= i) cycle
+         q1 = q(i)
+         rr(1:3) = xyz(1:3,i)
+         dp1(1:3) = dipm(1:3,i)
+         qp1(1:6) = qp(1:6,i)
+         kj = i*(i-1)/2 + j
          rij(1:3) = xyz(1:3,j)-rr(1:3)
          r2 = sum(rij*rij)
          ed = 0.0_wp
          eq = 0.0_wp
          edd = 0.0_wp
          !           dipole - charge
+         ! acc loop seq
          do k = 1,3
             ed = ed+q(j)*dp1(k)*rij(k)
             ed = ed-dipm(k,j)*q1*rij(k)
             !              dip-dip & charge-qpole
+            ! acc loop seq
             do l = 1,3
-               kl = lin(l,k)
+               kl = idx(l,k)
                tt = rij(l)*rij(k)
                tt3 = 3.0_wp*tt
                eq = eq+q(j)*qp1(kl)*tt
@@ -301,14 +365,22 @@ subroutine aniso_electro(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,e,epol)
             !              diagonal dip-dip term
             edd = edd+dipm(k,j)*dp1(k)*r2
          enddo
-         e01 = e01+ed*gab3(kj)
-         e02 = e02+eq*gab5(kj)
-         e11 = e11+edd*gab5(kj)
+         ! acc atomic
+         e01 = e01+ed*gab3(j,i)
+         ! acc atomic
+         e02 = e02+eq*gab5(j,i)
+         ! acc atomic
+         e11 = e11+edd*gab5(j,i)
       enddo
    enddo
+   ! acc end parallel
+   ! acc kernels
    e = e01 + e02 + e11
+   ! acc end kernels
    !     write(*,'(''d,q,dd'',3f9.5)')  e01,e02,e11
    !      write(*,*) ' semilocal CT corr.: ',epol
+   ! acc exit data delete(aesData, aesData%dipKernel(:), aesData%quadKernel(:), &
+   ! acc& at, xyz, q, dipm, qp, gab3, gab5)
 
 end subroutine aniso_electro
 
@@ -377,17 +449,16 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
    class(TMultipoleData), intent(in) :: aesData
-   integer, intent(in) :: nat,at(nat)
-   real(wp), intent(in) ::  q(nat),dipm(3,nat)
-   real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
-   real(wp), intent(in) :: gab3(nat*(nat+1)/2)
-   real(wp), intent(in) :: gab5(nat*(nat+1)/2)
-   real(wp), intent(out) :: vs(nat),vd(3,nat),vq(6,nat)
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) ::  q(:),dipm(:,:)
+   real(wp), intent(in) ::  xyz(:,:),qp(:,:)
+   real(wp), intent(in) :: gab3(:,:)
+   real(wp), intent(in) :: gab5(:,:)
+   real(wp), intent(out) :: vs(:),vd(:,:),vq(:,:)
    real(wp) ra(3),dra(3),rb(3),stmp,dum3a,dum5a,t1a,t2a,t3a,t4a,r2a
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
    real(wp) qs1,qs2
-   integer i,j,k,l1,l2,ll,m,mx,ki,kj,mm
-   mm = 0
+   integer i,j,k,l1,l2,ll,m,mx,ki,kj
    vs = 0.0_wp
    vd = 0.0_wp
    vq = 0.0_wp
@@ -398,9 +469,8 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
       dtmp = 0.0_wp
       qtmp = 0.0_wp
       do j = 1,nat
-         mm = lin(j,i)
-         g3 = gab3(mm)
-         g5 = gab5(mm)
+         g3 = gab3(j,i)
+         g5 = gab5(j,i)
          rb(1:3) = xyz(1:3,j)
          dra(1:3) = ra(1:3)-rb(1:3)
          dum3a = 0.0_wp ! collect gab3 dependent terms
@@ -507,17 +577,16 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
    use xtb_lin, only : lin
    implicit none
    class(TMultipoleData), intent(in) :: aesData
-   integer, intent(in) :: nat,at(nat)
-   real(wp), intent(in) ::  q(nat),dipm(3,nat)
-   real(wp), intent(in) ::  xyz(3,nat),qp(6,nat)
-   real(wp), intent(in) :: gab3(nat*(nat+1)/2)
-   real(wp), intent(in) :: gab5(nat*(nat+1)/2)
-   real(wp), intent(out) :: vs(nat),vd(3,nat),vq(6,nat)
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in) ::  q(:),dipm(:,:)
+   real(wp), intent(in) ::  xyz(:,:),qp(:,:)
+   real(wp), intent(in) :: gab3(:,:)
+   real(wp), intent(in) :: gab5(:,:)
+   real(wp), intent(out) :: vs(:),vd(:,:),vq(:,:)
    real(wp) ra(3),dra(3),rb(3),stmp,dum3a,dum5a,t1a,t2a,t3a,t4a,r2a
    real(wp) r2ab,t1b,t2b,t3b,t4b,dum3b,dum5b,dtmp(3),qtmp(6),g3,g5
    real(wp) qs1,qs2
-   integer i,j,k,l1,l2,ll,m,mx,ki,kj,mm
-   mm = 0
+   integer i,j,k,l1,l2,ll,m,mx,ki,kj
    vs = 0.0_wp
    vd = 0.0_wp
    vq = 0.0_wp
@@ -528,9 +597,8 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
       dtmp = 0.0_wp
       qtmp = 0.0_wp
       do j = 1,nat
-         mm = lin(j,i)
-         g3 = gab3(mm)
-         g5 = gab5(mm)
+         g3 = gab3(j,i)
+         g5 = gab5(j,i)
          rb(1:3) = xyz(1:3,j)
          dra(1:3) = ra(1:3)-rb(1:3)
          dum3a = 0.0_wp ! collect gab3 dependent terms
@@ -610,8 +678,8 @@ subroutine molmom(iunit,n,xyz,q,dipm,qp,dip,d3)
    implicit none
    integer, intent(in) :: iunit
    integer, intent(in) :: n
-   real(wp), intent(in)  :: xyz(3,n),q(n),dipm(3,n),qp(6,n)
-   real(wp), intent(out) :: dip,d3(3)
+   real(wp), intent(in)  :: xyz(:,:),q(:),dipm(:,:),qp(:,:)
+   real(wp), intent(out) :: dip,d3(:)
    real(wp) rr1(3),rr2(3),tma(6),tmb(6),tmc(6),dum
    integer i,j,k,l
    rr1 = 0.0_wp
@@ -691,17 +759,17 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
    use xtb_lin, only : lin
    !gab3 Hellmann-Feynman terms correct, shift terms to be tested yet
    implicit none
-   integer, intent(in)   :: nat,at(nat)
-   real(wp), intent(in)    :: xyz(3,nat),q(nat),dipm(3,nat),qp(6,nat)
-   real(wp), intent(in)    :: gab3(nat*(nat+1)/2),gab5(nat*(nat+1)/2)
-   real(wp), intent(in)    :: kdmp3,kdmp5,radcn(nat),dcn(3,nat,nat)
-   real(wp), intent(inout) :: g(3,nat)
+   integer, intent(in)   :: nat,at(:)
+   real(wp), intent(in)    :: xyz(:,:),q(:),dipm(:,:),qp(:,:)
+   real(wp), intent(in)    :: gab3(:,:),gab5(:,:)
+   real(wp), intent(in)    :: kdmp3,kdmp5,radcn(:),dcn(:,:,:)
+   real(wp), intent(inout) :: g(:,:)
    real(wp) qp1(6),rr(3),dip(3),rij(3)
    real(wp) ed,eq,edd,e01,e02,e11,r2,tt,tt3,q1,dxi
    real(wp) tmp2,tmp3,rab,rabi,ddm2,ddm3a,ddm3b,qqa,qqb
    real(wp) dgab3,dgab5,damp1,damp2,ddamp,qs2
 
-   integer i,j,k,l,m,ki,kj,kl,mm
+   integer i,j,k,l,m,ki,kj,kl
    do i = 1,nat
       q1 = q(i)
       rr(1:3) = xyz(1:3,i)
@@ -735,7 +803,7 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
             ed = ed-dipm(k,j)*q1*rij(k)
             tt = q1*dipm(k,j)-q(j)*dip(k)
             ! part of dip-q derivative
-            g(k,i) = g(k,i)+gab3(kj)*tt
+            g(k,i) = g(k,i)+gab3(j,i)*tt
             !              dip-dip & charge-qpole
             ddm2 = 0.0_wp
             ddm3a = 0.0_wp
@@ -758,11 +826,11 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
                qqb = qqb+rij(l)*qp1(kl)
             enddo
             edd = edd+dipm(k,j)*dip(k)*r2
-            g(k,i) = g(k,i)-2.0_wp*gab5(kj)*ddm2*rij(k)
-            g(k,i) = g(k,i)+3.0_wp*gab5(kj)*ddm3a*dipm(k,j)
-            g(k,i) = g(k,i)+3.0_wp*gab5(kj)*ddm3b*dip(k)
-            g(k,i) = g(k,i)-2.0_wp*gab5(kj)*qqa*q1
-            g(k,i) = g(k,i)-2.0_wp*gab5(kj)*qqb*q(j)
+            g(k,i) = g(k,i)-2.0_wp*gab5(j,i)*ddm2*rij(k)
+            g(k,i) = g(k,i)+3.0_wp*gab5(j,i)*ddm3a*dipm(k,j)
+            g(k,i) = g(k,i)+3.0_wp*gab5(j,i)*ddm3b*dip(k)
+            g(k,i) = g(k,i)-2.0_wp*gab5(j,i)*qqa*q1
+            g(k,i) = g(k,i)-2.0_wp*gab5(j,i)*qqb*q(j)
          enddo
          do k = 1,3
             dxi = rij(k)*rabi
@@ -771,9 +839,9 @@ subroutine aniso_grad(nat,at,xyz,q,dipm,qp,kdmp3,kdmp5, &
          enddo
          ! collect terms for CN-dependent part
          rab = 0.50_wp*(radcn(i)+radcn(j))
-         tmp3 = ed*kdmp3*gab3(kj)*(damp1/rab)*(rab*rabi)**kdmp3
+         tmp3 = ed*kdmp3*gab3(j,i)*(damp1/rab)*(rab*rabi)**kdmp3
          tmp2 = tmp2+tmp3
-         tmp3 = (eq+edd)*kdmp5*gab5(kj)*(damp2/rab)*(rab*rabi)**kdmp5
+         tmp3 = (eq+edd)*kdmp5*gab5(j,i)*(damp2/rab)*(rab*rabi)**kdmp5
          tmp2 = tmp2+tmp3
       enddo
       ! CN-dependent part  - O(N^2)
@@ -790,8 +858,8 @@ subroutine checkspars(nao,ndp,nqp,nmat,matlist,mqlst,mdlst)
    use xtb_lin, only : lin
    implicit none
    integer,intent(in) :: ndp,nqp,nmat,nao
-   integer,intent(in) :: matlist(2,nao*(nao+1)/2)
-   integer,intent(in) :: mqlst(2,nqp),mdlst(2,ndp)
+   integer,intent(in) :: matlist(:,:)
+   integer,intent(in) :: mqlst(:,:),mdlst(:,:)
    integer  :: i,j,m,k,ntot,mi,mj,ki,kj,mm,kk
    logical,allocatable ::  nzero(:)
    ! check overall sparsity
@@ -837,10 +905,10 @@ end subroutine checkspars
 ! zero-damped gab
 subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
    implicit none
-   integer, intent(in) :: nat,at(nat)
-   real(wp), intent(in)  ::  xyz(3,nat),radcn(nat)
+   integer, intent(in) :: nat,at(:)
+   real(wp), intent(in)  ::  xyz(:,:),radcn(:)
    real(wp), intent(in)  ::  kdmp3,kdmp5
-   real(wp), intent(out) :: gab3(nat*(nat+1)/2),gab5(nat*(nat+1)/2)
+   real(wp), intent(out) :: gab3(:,:),gab5(:,:)
    real(wp) damp,ddamp
 
    real(wp) tmp1,tmp2,rr(3)
@@ -849,13 +917,11 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
    !!!!!!! set up damped Coulomb operators for multipole interactions
    gab3 = 0.0_wp ! for r**-2 decaying q-dip term
    gab5 = 0.0_wp ! for r**-3 decaying terms (q-qpol,dip-dip)
-   l = 1
-   gab3(1) = 0.0_wp
-   gab5(1) = 0.0_wp
-   do i = 2,nat
-      rr(1:3) = xyz(1:3,i)
-      do j = 1,i-1
-         l = l+1
+   do i = 1,nat
+      do j = 1,nat
+         if (j.ge.i) cycle
+         rr(1:3) = xyz(1:3,i)
+         l = i*(i-1)/2+j
          tmp2 = 0.0_wp
          do k = 1,3
             tmp1 = xyz(k,j)-rr(k)
@@ -864,21 +930,15 @@ subroutine mmomgabzero(nat,at,xyz,kdmp3,kdmp5,radcn,gab3,gab5)
          tmp1 = 1.0_wp/sqrt(tmp2)
          !           call dzero(2.0_wp,tmp1,at(i),at(j),damp,ddamp)
          call dzero(kdmp3,tmp1,radcn(i),radcn(j),damp,ddamp)
-         gab3(l) = gab(3.0_wp,tmp1,damp)
+         gab3(j,i) = gab(3.0_wp,tmp1,damp)
+         gab3(i,j) = gab3(j,i)
          !           call dzero(3.0_wp,tmp1,at(i),at(j),damp,ddamp)
          call dzero(kdmp5,tmp1,radcn(i),radcn(j),damp,ddamp)
-         gab5(l) = gab(5.0_wp,tmp1,damp)
+         gab5(j,i) = gab(5.0_wp,tmp1,damp)
+         gab5(i,j) = gab5(j,i)
       enddo
-      l = l+1
-      gab3(l) = 0.0_wp
-      gab5(l) = 0.0_wp
    enddo
 
-   !!!!!!! DEBUG
-   !      gab3 = 0.0_wp
-   !      gab5 = 0.0_wp
-   !      gab3 = 100.0_wp*gab3
-   !      gab5 = 100.0_wp*gab5
 end subroutine mmomgabzero
 
 
@@ -894,9 +954,9 @@ end subroutine mmomgabzero
 subroutine get_radcn(aesData,n,at,cn,shift,expo,rmax,radcn)
    implicit none
    class(TMultipoleData), intent(in) :: aesData
-   integer, intent (in) :: n,at(n)
-   real(wp), intent (in)  :: cn(n),shift,expo,rmax
-   real(wp), intent (out) :: radcn(n)
+   integer, intent (in) :: n,at(:)
+   real(wp), intent (in)  :: cn(:),shift,expo,rmax
+   real(wp), intent (out) :: radcn(:)
    real(wp) rco,t1,t2
    integer i,j
    do i = 1,n
@@ -919,9 +979,9 @@ end subroutine get_radcn
 subroutine dradcn(aesData,n,at,cn,shift,expo,rmax,dcn)
    implicit none
    class(TMultipoleData), intent(in) :: aesData
-   integer, intent (in) :: n,at(n)
-   real(wp), intent (in)  :: cn(n),shift,expo,rmax
-   real(wp), intent (inout) :: dcn(3,n,n)
+   integer, intent (in) :: n,at(:)
+   real(wp), intent (in)  :: cn(:),shift,expo,rmax
+   real(wp), intent (inout) :: dcn(:,:,:)
    real(wp) rco,t1,t2,t3,t4,tmp1,tmp2
    integer i,j,k
    do i = 1,n
@@ -988,8 +1048,8 @@ subroutine gfn2broyden_diff(n,istart,nbr,dipm,qp,q_in,dq)
    implicit none
    integer, intent (in) :: n,nbr
    integer, intent (inout) ::  istart
-   real(wp), intent (in)  :: dipm(3,n),qp(6,n),q_in(nbr)
-   real(wp), intent (inout) :: dq(nbr)
+   real(wp), intent (in)  :: dipm(:,:),qp(:,:),q_in(:)
+   real(wp), intent (inout) :: dq(:)
    integer i,j,k
    k = istart
    do i = 1,n
@@ -1010,8 +1070,8 @@ subroutine gfn2broyden_save(n,istart,nbr,dipm,qp,q_in)
    implicit none
    integer, intent (in) :: n,nbr
    integer, intent (inout) ::  istart
-   real(wp), intent (in)  :: dipm(3,n),qp(6,n)
-   real(wp), intent (inout) :: q_in(nbr)
+   real(wp), intent (in)  :: dipm(:,:),qp(:,:)
+   real(wp), intent (inout) :: q_in(:)
    integer i,j,k
    k = istart
    do i = 1,n
@@ -1034,8 +1094,8 @@ subroutine gfn2broyden_out(n,istart,nbr,q_in,dipm,qp)
    implicit none
    integer, intent (in) :: n,nbr
    integer, intent (inout) ::  istart
-   real(wp), intent (in)  :: q_in(nbr)
-   real(wp), intent (out) :: dipm(3,n),qp(6,n)
+   real(wp), intent (in)  :: q_in(:)
+   real(wp), intent (out) :: dipm(:,:),qp(:,:)
    integer i,j,k
    k = istart
    do i = 1,n
@@ -1094,7 +1154,7 @@ subroutine dsint(nShell,hData,thr,nat,nao,nbf,at,xyz,sqrab,caoshell,saoshell,npr
    real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
-   integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,km,mi,mj,ij,lin,jshmax
+   integer i,j,k,l,m,ii,jj,ll,kk,ki,kj,kl,km,mi,mj,ij,lin,jshmax
    integer ip,jp,iat,jat,izp,jzp,ish,jsh,icao,jcao,iao,jao,ixyz
    integer ishtyp,jshtyp,iptyp,jptyp,naoi,naoj,mli,mlj,iprim,jprim
    real(wp) :: dumdum(3),dum,sdq(6,6),sdqg(3,6,6)

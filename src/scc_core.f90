@@ -20,7 +20,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_mctc_lapack, only : lapack_sygvd
-   use xtb_mctc_blas, only : blas_gemm, blas_symm, blas_symv
+   use xtb_mctc_blas, only : blas_gemm, mctc_symv, mctc_gemm
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
@@ -29,6 +29,8 @@ module xtb_scc_core
    use xtb_xtb_dispersion
    use xtb_xtb_multipole
    use xtb_broyden
+   use nvtx
+   use cublas
    implicit none
    private
 
@@ -399,13 +401,16 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 !  Iteration entry point
    scc_iterator: do iter = 1, thisiter
 
+call nvtxStartRange('build_shift', __LINE__)
    ! set up ES potential
    atomicShift(:) = 0.0_wp
    shellShift(:) = externShift
    call ies%addShift(q, qsh, atomicShift, shellShift)
    ! compute potential intermediates
    if (present(aes)) then
+call nvtxStartRange('vsdq', __LINE__)
       call setvsdq(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,vs,vd,vq)
+call nvtxEndRange()
    end if
    ! Solvation contributions
    if (allocated(solvation)) then
@@ -414,18 +419,27 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    end if
    ! self consistent dispersion contributions
    if (present(scD4)) then
+call nvtxStartRange('scd4', __LINE__)
       call scD4%addShift(at, q, atomicShift)
+call nvtxEndRange()
    end if
    ! expand all atomic potentials to shell resolved potentials
    call addToShellShift(ash, atomicShift, shellShift)
+call nvtxEndRange()
 
    ! build the charge dependent Hamiltonian
+call nvtxStartRange('build_H1', __LINE__)
+call nvtxStartRange('iso', __LINE__)
    call buildIsotropicH1(n,at,ndim,nshell,nmat,matlist,H,H0,S, &
       & shellShift,aoat2,ao2sh)
+call nvtxEndRange()
    if (present(aes)) then
+call nvtxStartRange('aniso', __LINE__)
       call addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          & H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
+call nvtxEndRange()
    end if
+call nvtxEndRange()
 
    ! ------------------------------------------------------------------------
    ! solve HC=SCemo(X,P are scratch/store)
@@ -444,6 +458,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       return
    endif
 
+call nvtxStartRange('filling', __LINE__)
    if(ihomo+1.le.ndim.and.ihomo.ge.1)egap=emo(ihomo+1)-emo(ihomo)
    ! automatic reset to small value
    if(egap.lt.0.1.and.iter.eq.0) broydamp=0.03
@@ -470,34 +485,48 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
       ga = 0.0_wp
       gb = 0.0_wp
    endif
+call nvtxEndRange()
 
+call nvtxStartRange('broyden_save', __LINE__)
    ! save q
    q_in(1:nshell)=qsh(1:nshell)
    if (present(aes)) then
       k=nshell
       call gfn2broyden_save(n,k,nbr,dipm,qp,q_in)
    end if
+call nvtxEndRange()
 
+call nvtxStartRange('populations', __LINE__)
    ! density matrix
+call nvtxStartRange('dmat', __LINE__)
    call dmat(ndim,focc,H,P)
+call nvtxEndRange()
 
    ! new q
+call nvtxStartRange('mpopsh', __LINE__)
    call mpopsh(n,ndim,nshell,ao2sh,S,P,qsh)
    qsh = zsh - qsh
+call nvtxEndRange()
 
    ! qat from qsh
+call nvtxStartRange('qsh2qat', __LINE__)
    call qsh2qat(ash,qsh,q)
+call nvtxEndRange()
 
    eold=eel
    call electro(n,at,ndim,nshell,ies,H0,P,q,qsh,ees,eel)
    ! multipole electrostatic
    if (present(aes)) then
+call nvtxStartRange('mmompop', __LINE__)
       call mmompop(n,ndim,aoat2,xyz,p,s,dpint,qpint,dipm,qp)
+call nvtxEndRange()
       ! evaluate energy
       call aniso_electro(aes,n,at,xyz,q,dipm,qp,aes%gab3,aes%gab5,eaes,epol)
       eel=eel+eaes+epol
    end if
+call nvtxEndRange()
 
+call nvtxStartRange('energies', __LINE__)
    ! Self consistent dispersion
    if (present(scD4)) then
       call scD4%getEnergy(at, q, ed)
@@ -518,12 +547,14 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
 
    ! add el. entropies*T
    eel=eel+ga+gb
+call nvtxEndRange()
 
    ! ------------------------------------------------------------------------
    ! check for energy convergence
    econverged = abs(eel - eold) < scfconv
    ! ------------------------------------------------------------------------
 
+call nvtxStartRange('broyden_diff', __LINE__)
    dq(1:nshell)=qsh(1:nshell)-q_in(1:nshell)
    if (present(aes)) then
       k=nshell
@@ -586,6 +617,7 @@ subroutine scc(env,xtbData,solver,n,nel,nopen,ndim,ndp,nqp,nmat,nshell, &
    call qsh2qat(ash, qsh, q) !new qat
 
    if(allocated(solvation)) cm5 = q+cm5a
+call nvtxEndRange()
 
    if(minpr)write(env%unit,'(i4,F15.7,E14.6,E11.3,f8.2,2x,f8.1,l3)') &
    &  iter+jter,eel,eel-eold,rmsq,egap,omegap,fulldiag
@@ -740,7 +772,8 @@ pure subroutine setespot(nshell, qsh, jmat, shellShift)
    !> shell-resolved potential shift
    real(wp),intent(inout) :: shellShift(:)
 
-   call blas_symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
+   !call blas_symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
+   call mctc_symv(jmat, qsh, shellShift, beta=1.0_wp)
 
 end subroutine setespot
 
@@ -1126,20 +1159,29 @@ end subroutine occu
 ! P  dmat
 subroutine dmat(ndim,focc,C,P)
    integer, intent(in)  :: ndim
-   real(wp),intent(in)  :: focc(*)
-   real(wp),intent(in)  :: C(ndim,ndim)
-   real(wp),intent(out) :: P(ndim,ndim)
+   real(wp),intent(in)  :: focc(:)
+   real(wp),intent(in)  :: C(:,:)
+   real(wp),intent(out) :: P(:,:)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
 
-   allocate( Ptmp(ndim,ndim), source = 0.0_wp )
+   allocate(Ptmp(ndim,ndim))
+   ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
+   ! acc kernels default(present)
+   Ptmp = 0.0_wp
+   ! acc end kernels
 
+   ! acc parallel
+   ! acc loop gang collapse(2)
    do m=1,ndim
       do i=1,ndim
          Ptmp(i,m)=C(i,m)*focc(m)
       enddo
    enddo
-   call blas_gemm('n','t',ndim,ndim,ndim,1.0_wp,C,ndim,Ptmp,ndim,0.0_wp,P,ndim)
+   ! acc end parallel
+   ! acc update host(Ptmp)
+   call mctc_gemm(C, Ptmp, P, transb='t')
+   ! acc exit data copyout(P(:,:)) delete(C(:,:), focc(:), Ptmp(:, :))
 
    deallocate(Ptmp)
 

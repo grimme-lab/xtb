@@ -85,6 +85,7 @@ end function olapp
 ! --------------------------------------------------------------[SAW1907]-
 !> returns center of product Gaussian from two Gaussians by GPT
 pure function gpcenter(alp,ra,bet,rb) result(rp)
+  !$acc routine seq
    implicit none
    real(wp),intent(in) :: alp,bet
    real(wp),intent(in) :: ra(3),rb(3)
@@ -96,6 +97,7 @@ end function gpcenter
 
 ! --------------------------------------------------------------[SAW1907]-
 pure subroutine build_kab(ra,alp,rb,bet,gama,kab)
+  !$acc routine seq
    use xtb_mctc_constants
    implicit none
    !     this computes the center, exponent, and multiplying factor of
@@ -766,6 +768,7 @@ end subroutine build_dsdq_ints
 !> move gradient operator from center a to center b
 !  might look complicated, but take it from me: integrals are usually complicated.
 pure subroutine shiftintg(g,s,r)
+   !$acc routine seq
    implicit none
    real(wp),intent(inout) :: g(3,19)
    real(wp),intent(in)    :: s(10),r(3)

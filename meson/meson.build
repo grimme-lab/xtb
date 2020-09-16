@@ -47,9 +47,12 @@ elif fc.get_id() == 'pgi'
     add_project_link_arguments('-ta=tesla:cc@0@'.format(gpu_arch), language: 'fortran')
 
     if get_option('cusolver')
-      add_project_arguments('-Mcudalib=cusolver', '-DUSE_CUSOLVER', language: 'fortran')
-      add_project_link_arguments('-Mcudalib=cusolver', '-DUSE_CUSOLVER', language: 'fortran')
+      add_project_arguments('-Mcudalib=cusolver,cublas', '-DUSE_CUSOLVER', '-DUSE_CUBLAS', language: 'fortran')
+      add_project_link_arguments('-Mcudalib=cusolver,cublas', language: 'fortran')
     endif
+  else
+    add_project_arguments('-acc', '-Minfo=accel', '-ta=multicore', language: 'fortran')
+    add_project_link_arguments('-acc', '-Minfo=accel', '-ta=multicore', language: 'fortran')
   endif
 endif
 
@@ -150,7 +153,7 @@ endif
 dependencies += dependency('threads')
 
 if get_option('nvtx')
-  dependencies += fc.find_library('nvToolsExt', required: true)
+  dependencies += fc.find_library('nvToolsExt', required: true, dirs: '/sw/hpc-sdk/Linux_x86_64/20.7/cuda/lib64')
 endif
 
 # distribute dependencies for shared object and static executable

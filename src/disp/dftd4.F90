@@ -2044,12 +2044,13 @@ subroutine atm_gradient_latp_gpu &
 
    !$acc parallel default(present) private(rij,rjk,rik,dG,dS,dCN) 
 
-   !$acc loop gang collapse(2)
+   !$acc loop gang collapse(3)
    do iat = 1, mlen
       do jat = 1, mlen
-         if (jat.gt.iat) cycle
+         do kat = 1, mlen
+            if (jat.gt.iat) cycle
+            if (kat.gt.jat) cycle
 
-         do kat = 1, jat
             ati = mol%at(iat)
             atj = mol%at(jat)
 
@@ -2086,40 +2087,30 @@ subroutine atm_gradient_latp_gpu &
                   scale = par%s9 * triple_scale(iat, jat, kat)
                   !$acc atomic
                   energies(iat) = energies(iat) + dE * scale/3
-                  !$acc end atomic
                   !$acc atomic
                   energies(jat) = energies(jat) + dE * scale/3
-                  !$acc end atomic
                   !$acc atomic
                   energies(kat) = energies(kat) + dE * scale/3
-                  !$acc end atomic
                   do k = 1,3
                     !$acc atomic
                     gradient(k, iat) = gradient(k, iat) + dG(k, 1) * scale
-                    !$acc end atomic
                     !$acc atomic
                     gradient(k, jat) = gradient(k, jat) + dG(k, 2) * scale
-                    !$acc end atomic
                     !$acc atomic
                     gradient(k, kat) = gradient(k, kat) + dG(k, 3) * scale
-                    !$acc end atomic
                   enddo
                   do k = 1,3
                     do kk = 1,3
                       !$acc atomic
-                      sigma(k, kk) = sigma(k, kk) + dS(k, kk) * scale
-                      !$acc end atomic
+                      sigma(kk, k) = sigma(kk, k) + dS(kk, k) * scale
                     enddo
                   enddo
                   !$acc atomic
                   dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
-                  !$acc end atomic
                   !$acc atomic
                   dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
-                  !$acc end atomic
                   !$acc atomic
                   dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
-                  !$acc end atomic
 
                end do
             end do
