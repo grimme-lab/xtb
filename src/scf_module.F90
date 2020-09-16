@@ -227,6 +227,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  broyden stuff
    logical  :: broy
 
+call nvtxStartRange('single', __LINE__)
 ! ------------------------------------------------------------------------
 !  initialization
 ! ------------------------------------------------------------------------
@@ -395,6 +396,7 @@ call nvtxEndRange()
       enddo
    endif
 
+call nvtxStartRange('coulomb', __LINE__)
    ! setup isotropic electrostatics
    call init(ies, xtbData%coulomb, xtbData%nshell, mol%at)
 
@@ -439,6 +441,7 @@ call nvtxEndRange()
             & mol%xyz,Vpc)
       endif
    endif
+call nvtxEndRange
 
    if (prlevel > 1) then
       write(env%unit,'(/,10x,51("."))')
@@ -481,9 +484,11 @@ call nvtxEndRange()
    ! ------------------------------------------------------------------------
    ! Repulsion energy
    ep = 0.0_wp
+call nvtxStartRange('repulsion', __LINE__)
    call latp%getLatticePoints(trans, 40.0_wp)
    call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
       & ep, gradient, sigma)
+call nvtxEndRange
 
 
    ! ------------------------------------------------------------------------
@@ -503,6 +508,7 @@ call nvtxEndRange()
 
    ! ------------------------------------------------------------------------
    ! Coordination number
+call nvtxStartRange('CN', __LINE__)
    if (xtbData%level == 1) then
       ! D3 part first because we need CN
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
@@ -510,9 +516,11 @@ call nvtxEndRange()
       ! CN/dCN replaced by special smoother and faster decaying function
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
    endif
+call nvtxEndRange
 
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
+call nvtxStartRange('dispersion', __LINE__)
    call latp%getLatticePoints(trans, 60.0_wp)
    if (xtbData%level == 1) then
       call d3_gradient &
@@ -522,6 +530,7 @@ call nvtxEndRange()
       allocate(scD4)
       call init(scD4, xtbData%dispersion, mol)
    endif
+call nvtxEndRange
 
    if (profile) call timer%measure(2)
    if (profile) call timer%measure(4,"integral evaluation")
@@ -532,17 +541,16 @@ call nvtxEndRange()
       &     qpint(6,basis%nao,basis%nao), &
       &     source = 0.0_wp)
 
+call nvtxStartRange('build_SDQH0', __LINE__)
    call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
       & selfEnergy=selfEnergy, dSEdcn=dSEdcn)
    ! compute integrals and prescreen to set up list arrays
    call latp%getLatticePoints(trans, sqrt(800.0_wp))
 #ifdef XTB_GPU
-call nvtxStartRange('build_SDQH0', __LINE__)
    call build_SDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
       & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
       & basis%cont, S, dpint, qpint, H0)
-call nvtxEndRange()
 #else
    call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
@@ -551,9 +559,11 @@ call nvtxEndRange()
 #endif
    call count_dpint(ndp, dpint, neglect)
    call count_qpint(nqp, qpint, neglect)
+call nvtxEndRange()
 
    ! prepare aes stuff
    if (allocated(xtbData%multipole)) then
+call nvtxStartRange('multipoles', __LINE__)
       if (mol%npbc > 0) then
          call env%error("Multipoles not available with PBC", source)
          return
@@ -571,6 +581,7 @@ call nvtxEndRange()
          & aes%cnExp,aes%cnRMax,radcn)
       call mmomgabzero(mol%n,mol%at,mol%xyz,aes%dipDamp, &
          & aes%quadDamp,radcn,aes%gab3,aes%gab5) ! zero damping
+call nvtxEndRange()
    end if
 
    ! ------------------------------------------------------------------------
@@ -771,6 +782,7 @@ call nvtxEndRange()
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
    if (allocated(solvation)) then
+call nvtxStartRange('solvation', __LINE__)
       cm5(:)=wfn%q+cm5a
       call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
       select type(solvation)
@@ -783,10 +795,12 @@ call nvtxEndRange()
             & gshift)
          gsolv = gborn+gsasa+ghb+gshift
       end select
+call nvtxEndRange()
    endif
 
    ! ------------------------------------------------------------------------
    ! Derivative of electrostatic energy
+call nvtxStartRange('solvation', __LINE__)
    allocate(djdr(3, mol%n, basis%nshell))
    allocate(djdtr(3, basis%nshell))
    allocate(djdL(3, 3, basis%nshell))
@@ -805,6 +819,7 @@ call nvtxEndRange()
             & xtbData%nshell,mol%xyz,wfn%qsh)
       end if
    end if
+call nvtxEndRange()
 
    if (profile) call timer%measure(6)
    if (.not.pr.and.profile.and.minpr) &
@@ -887,6 +902,7 @@ call nvtxEndRange()
 
 ! ========================================================================
    if (profile) call timer%deallocate
+call nvtxEndRange()
 
 end subroutine scf
 
