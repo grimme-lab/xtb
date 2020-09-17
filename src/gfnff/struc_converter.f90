@@ -69,6 +69,17 @@ subroutine struc_convert( &
   logical                                     :: fail
   integer, allocatable :: opt_in
   character(len=*),parameter                  :: p_fname_param_gfnff = '.param_gfnff.xtb'
+! loop geoopt -----------------------------------------------------------------
+  integer                                     :: i, j
+  integer, parameter                          :: num_shift_runs = 3
+  real(wp), allocatable                       :: shift(:)
+  real(wp), allocatable                       :: mol_xyz_arr(:,:,:)
+  real(wp)                                    :: etot_arr(num_shift_runs)
+  real(wp)                                    :: sign_threshold
+  type(TMolecule)                             :: mol_shifted
+  allocate(shift(mol%n), source=0.0_wp)
+  allocate(mol_xyz_arr(3, mol%n, num_shift_runs), source=0.0_wp)
+  etot_arr = 0.0_wp
 !------------------------------------------------------------------------------
 ! set up force field
   call struc_convert_header
@@ -103,15 +114,37 @@ subroutine struc_convert( &
   opt_logfile = 'convert.log'
 !------------------------------------------------------------------------------
 ! force field geometry optimization
-  call geometry_optimization &
-      &     (env,mol,chk,calc,   &
-      &      egap,etemp,maxiter,maxcycle,etot,g,sigma,p_olev_crude,.false.,.true.,fail)
-  if (allocated(fnv)) then
-    opt_logfile = fnv
-  else
-    deallocate(opt_logfile)
-  endif
-  write(*,*)
+  ! loop runs 3 geoopt with different shifts in the new 3rd coordinate
+  ! and then keeps the mol%xyz with lowest etot for md
+  mol_shifted = mol
+  do i=1, num_shift_runs
+    if (i.ne.42) then  ! if in case you want an opt with the 2D init -> e.g. use if (i.ne.1)
+      mol_shifted = mol
+      ! create array with random shifts: 0<= shift <1
+      call RANDOM_NUMBER(shift)
+      ! change signs of shifts randomly
+      do j=1, size(shift)
+        call RANDOM_NUMBER(sign_threshold)
+        if (sign_threshold.lt.0.5_wp) shift(j) = -1.0_wp*shift(j)
+      enddo
+      mol_shifted%xyz(3,:) = mol_shifted%xyz(3,:) + shift  ! apply shifts
+    endif
+    
+    call geometry_optimization &
+        &     (env,mol_shifted,chk,calc,   &
+        &      egap,etemp,maxiter,maxcycle,etot,g,sigma,p_olev_crude,.false.,.true.,fail)
+    mol_xyz_arr(:,:,i) = mol_shifted%xyz  ! store optimized xyz
+    etot_arr(i) = etot                    ! store energy etot
+  enddo
+
+  mol%xyz(:,:) = mol_xyz_arr(:,:,minloc(etot_arr, DIM=1))  ! keep xyz with lowest etot
+
+    if (allocated(fnv)) then
+      opt_logfile = fnv
+    else
+      deallocate(opt_logfile)
+    endif
+    write(*,*)
 !------------------------------------------------------------------------------
 ! force field md simulation
   idum = 0
