@@ -246,10 +246,12 @@ subroutine numhess( &
          enddo
          if(a.eq.3)then
             call timing(t1,w1)
+            !$omp critical
             write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
                & 0.3333333d0*nonfrozh*(t1-t0)/60.
             write(*,'(''estimated wall time'',F10.2,'' min'')') &
                & 0.3333333d0*nonfrozh*(w1-w0)/60.
+            !$omp end critical
          endif
       enddo
       !$omp end do
@@ -315,10 +317,12 @@ subroutine numhess( &
 
          if(ia.eq.3)then
             call timing(t1,w1)
+            !$omp critical
             write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
                & 0.3333333d0*mol%n*(t1-t0)/60.
             write(*,'(''estimated wall time'',F10.2,'' min'')') &
                & 0.3333333d0*mol%n*(w1-w0)/60.
+            !$omp end critical
          endif
       enddo
       !$omp end do
