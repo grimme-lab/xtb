@@ -38,7 +38,7 @@ list(APPEND srcs
   "${dir}/systools.F90"
   "${dir}/thresholds.f90"
   "${dir}/version.f90"
-  "${dir}/mctc_global.f90"
+  "${dir}/mctc_global.F90"
   "${dir}/mctc_strings.f90"
   "${dir}/mctc_constants.f90"
   "${dir}/mctc_param.f90"
@@ -53,7 +53,7 @@ list(APPEND srcs
   "${dir}/linalg.f90"
   "${dir}/lapack.f90"
   "${dir}/blas.f90"
-  "${dir}/mctc_init.f90"
+  "${dir}/mctc_init.F90"
   "${dir}/error.f90"
   "${dir}/signal.c"
 )

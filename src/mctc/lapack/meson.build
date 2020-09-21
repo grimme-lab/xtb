@@ -16,7 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-   'eigensolve.f90',
+   'eigensolve.F90',
    'geneigval.f90',
    'gst.f90',
    'stdeigval.f90',

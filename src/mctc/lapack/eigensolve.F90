@@ -1,6 +1,7 @@
 ! This file is part of xtb.
 !
 ! Copyright (C) 2019-2020 Sebastian Ehlert
+! Copyright (C) 2020, NVIDIA CORPORATION. All rights reserved.
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -21,6 +22,10 @@ module xtb_mctc_lapack_eigensolve
    use xtb_mctc_lapack_geneigval, only : lapack_sygvd
    use xtb_mctc_lapack_trf, only : mctc_potrf
    use xtb_type_environment, only : TEnvironment
+#ifdef USE_CUSOLVER
+   use xtb_mctc_global
+   use cusolverDn
+#endif
    implicit none
    private
 
@@ -35,6 +40,9 @@ module xtb_mctc_lapack_eigensolve
       real(sp), allocatable :: sbmat(:, :)
       real(dp), allocatable :: dwork(:)
       real(dp), allocatable :: dbmat(:, :)
+#ifdef USE_CUSOLVER
+      integer :: lwork
+#endif
    contains
       generic :: solve => sgen_solve, dgen_solve
       procedure :: sgen_solve => mctc_ssygvd
@@ -74,11 +82,29 @@ subroutine initDEigenSolver(self, env, bmat)
    class(TEigenSolver), intent(out) :: self
    type(TEnvironment), intent(inout) :: env
    real(dp), intent(in) :: bmat(:, :)
+#ifdef USE_CUSOLVER
+   integer :: istat, lwork
+   ! dummy is only a dummy argument used to query the workspace size needed
+   ! for cuSolverDnDsygvd -- it is okay to pass an empty array to cuSolverDnDsygvd_bufferSize
+   real(dp) :: dummy(:) 
+#endif
 
    self%n = size(bmat, 1)
 
+#ifdef USE_CUSOLVER
+   istat = cusolverDnDsygvd_bufferSize(cusolverDnH, CUSOLVER_EIG_TYPE_1, &
+     CUSOLVER_EIG_MODE_VECTOR, CUBLAS_FILL_MODE_UPPER, self%n, dummy,    &
+     self%n, dummy, self%n, dummy, lwork)
+   if (istat /= 0) then
+      call env%error("failed to get dygvd buffer size", source)
+   end if
+
+   self%lwork = lwork
+   allocate(self%dwork(lwork))
+#else
    allocate(self%dwork(1 + 6*self%n + 2*self%n**2))
    allocate(self%iwork(3 + 5*self%n))
+#endif
 
    self%dbmat = bmat
    ! Check for Cholesky factorisation
@@ -118,13 +144,32 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(out) :: eval(:)
    integer :: info, ldwork, liwork
+#ifdef USE_CUSOLVER
+   integer :: istat
+#endif
 
    self%dbmat(:, :) = bmat
 
+#ifdef USE_CUSOLVER
+   !$acc enter data copyin(amat, self%dbmat, eval, info) create(self%dwork)
+
+   !$acc host_data use_device(amat, self%dbmat, eval, self%dwork, info)
+   istat = cusolverDnDsygvd(cusolverDnH, CUSOLVER_EIG_TYPE_1, &
+     CUSOLVER_EIG_MODE_VECTOR, CUBLAS_FILL_MODE_UPPER, self%n, amat, self%n, &
+     self%dbmat, self%n, eval, self%dwork, self%lwork, info)
+   !$acc end host_data
+
+   !$acc exit data copyout(amat, self%dbmat, eval, info) delete(self%dwork)
+
+   if (istat /= 0) then
+      call env%error("cuSovlerDnDsygvd failed", source)
+   end if
+#else
    ldwork = size(self%dwork)
    liwork = size(self%iwork)
    call lapack_sygvd(1, 'v', 'u', self%n, amat, self%n, self%dbmat, self%n, eval, &
       & self%dwork, ldwork, self%iwork, liwork, info)
+#endif
 
    if (info /= 0) then
       call env%error("Failed to solve eigenvalue problem", source)

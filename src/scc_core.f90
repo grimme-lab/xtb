@@ -611,6 +611,7 @@ end subroutine scc
 
 !> H0 off-diag scaling
 subroutine h0scal(hData,il,jl,izp,jzp,valaoi,valaoj,km)
+  !$acc routine seq
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: il
    integer, intent(in)  :: jl
@@ -695,6 +696,7 @@ end subroutine electro
 !! ========================================================================
 pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
    use xtb_mctc_convert, only : aatoau
+   !$acc routine seq
    real(wp), intent(in) :: iPoly,jPoly
    real(wp), intent(in) :: iRad,jRad
    real(wp), intent(in) :: xyz1(3),xyz2(3)
