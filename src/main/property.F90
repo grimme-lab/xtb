@@ -120,6 +120,7 @@ subroutine main_property &
    integer  :: ndim,ndp,nqp
    real(wp) :: dip,dipol(3)
    real(wp) :: intcut,neglect
+   real(wp), parameter :: trans(3, 1) = 0.0_wp
 
    type(TBorn) :: gbsa
 
@@ -131,10 +132,17 @@ subroutine main_property &
    ndim = basis%nao*(basis%nao+1)/2
    allocate(S(basis%nao,basis%nao), dpint(3,basis%nao,basis%nao), &
       & qpint(6,basis%nao,basis%nao), source = 0.0_wp )
+#ifdef XTB_GPU
+   call sdqint_gpu(xtbData%nShell,xtbData%hamiltonian%angShell,mol%n,mol%at, &
+      &        basis%nbf,basis%nao,mol%xyz,trans,intcut, &
+      &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
+      &        basis%alp,basis%cont,S,dpint,qpint)
+#else
    call sdqint(xtbData%nShell,xtbData%hamiltonian%angShell,mol%n,mol%at, &
       &        basis%nbf,basis%nao,mol%xyz,intcut, &
       &        basis%caoshell,basis%saoshell,basis%nprim,basis%primcount, &
       &        basis%alp,basis%cont,S,dpint,qpint)
+#endif
 
 !! orbital energies and occupation
     if (pr_eig) then

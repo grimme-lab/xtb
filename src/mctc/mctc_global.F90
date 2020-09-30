@@ -18,6 +18,7 @@
 module xtb_mctc_global
    use xtb_type_environment, only : TEnvironment
 #ifdef USE_CUSOLVER
+   use cublas
    use cusolverDn
 #endif
    character(len=:),allocatable :: name  !< name of the currently running program

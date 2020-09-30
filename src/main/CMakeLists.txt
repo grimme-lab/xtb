@@ -21,7 +21,7 @@ list(APPEND srcs
   "${dir}/defaults.f90"
   "${dir}/geometry.f90"
   "${dir}/json.f90"
-  "${dir}/property.f90"
+  "${dir}/property.F90"
   "${dir}/setup.f90"
 )
 

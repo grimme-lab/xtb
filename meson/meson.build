@@ -47,8 +47,8 @@ elif fc.get_id() == 'pgi'
     add_project_link_arguments('-ta=tesla:cc@0@'.format(gpu_arch), language: 'fortran')
 
     if get_option('cusolver')
-      add_project_arguments('-Mcudalib=cusolver', '-DUSE_CUSOLVER', language: 'fortran')
-      add_project_link_arguments('-Mcudalib=cusolver', '-DUSE_CUSOLVER', language: 'fortran')
+      add_project_arguments('-Mcudalib=cusolver,cublas', '-DUSE_CUSOLVER', '-DUSE_CUBLAS', language: 'fortran')
+      add_project_link_arguments('-Mcudalib=cusolver,cublas', language: 'fortran')
     endif
   endif
 endif

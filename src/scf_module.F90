@@ -44,7 +44,7 @@ module xtb_scf
    use xtb_xtb_dispersion
    use xtb_xtb_hamiltonian, only : getSelfEnergy, build_SDQH0, build_dSDQH0, &
       & build_dSdQH0_noreset, count_dpint, count_qpint
-   use xtb_xtb_hamiltonian_gpu, only: build_SDQH0_gpu
+   use xtb_xtb_hamiltonian_gpu, only: build_SDQH0_gpu, build_dSDQH0_gpu
    use xtb_xtb_multipole
    use xtb_paramset, only : tmmetal
    use xtb_scc_core
@@ -561,7 +561,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call setdqlist(basis%nao,ndp,nqp,neglect,dpint,qpint,mdlst,mqlst)
       ! set up 1/R^n * damping function terms
       ii=mol%n*(mol%n+1)/2
-      allocate(aes%gab3(ii),aes%gab5(ii),radcn(mol%n))
+      allocate(aes%gab3(mol%n, mol%n),aes%gab5(mol%n, mol%n),radcn(mol%n))
       call get_radcn(xtbData%multipole,mol%n,mol%at,cn,aes%cnShift, &
          & aes%cnExp,aes%cnRMax,radcn)
       call mmomgabzero(mol%n,mol%at,mol%xyz,aes%dipDamp, &
@@ -610,6 +610,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       &'      gap      omega  full diag'
    endif
 
+   !$acc enter data copyin(s, dpint, qpint)
+
    call init(solver, env, S)
    call scc(env,xtbData,solver,mol%n,wfn%nel,wfn%nopen,basis%nao,ndp,nqp,nmat,basis%nshell, &
       &     mol%at,matlist,mdlst,mqlst,basis%aoat2,basis%ao2sh,basis%ash, &
@@ -626,6 +628,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       &     maxiter,startpdiag,scfconv,qconv, &
       &     minpr,pr, &
       &     fail,jter)
+
+   !$acc exit data delete(s, dpint, qpint)
 
    ! check if something terrible happend in the SCC
    call env%check(exitRun)
@@ -684,6 +688,14 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    end if
 
    dhdcn(:) = 0.0_wp
+#ifdef XTB_GPU
+   call latp%getLatticePoints(trans, sqrt(800.0_wp))
+   call build_dSDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
+      & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
+      & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+      & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
+      & dhdcn, gradient, sigma)
+#else
    if (mol%npbc == 0) then
       allocate(H(basis%nao, basis%nao))
       H(:, :) = 0.0_wp
@@ -705,13 +717,13 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          & basis%alp, basis%cont, H, S, wfn%p, Pew, shellShift, vs, vd, vq, &
          & dhdcn, gradient, sigma)
    else
-      call latp%getLatticePoints(trans, sqrt(800.0_wp))
       call build_dSDQH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
          & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
          & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
          & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
          & dhdcn, gradient, sigma)
    end if
+#endif
    ! setup CN gradient
    call mctc_gemv(dcndr, dhdcn, gradient, beta=1.0_wp)
    call mctc_gemv(dcndL, dhdcn, sigma, beta=1.0_wp)

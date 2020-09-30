@@ -18,6 +18,13 @@
 !> Interfaces to BLAS
 module xtb_mctc_blas_level1
    use xtb_mctc_accuracy, only : sp, dp
+#ifdef USE_CUBLAS
+   use cublas, only : cublasSasum, cublasDasum, cublasSaxpy, cublasDaxpy, &
+      & cublasScopy, cublasDcopy, cublasSdot, cublasDdot, &
+      & cublasSnrm2, cublasDnrm2, cublasSrot, cublasDrot, &
+      & cublasSscal, cublasDscal, cublasSswap, cublasDswap, &
+      & cublasSiamax, cublasDiamax
+#endif
    implicit none
    private
 
@@ -478,27 +485,43 @@ module xtb_mctc_blas_level1
 contains
 
 
-pure function mctc_sasum(xvec) result(asum)
+function mctc_sasum(xvec) result(asum)
    real(sp) :: asum
    real(sp), intent(in) :: xvec(:)
    integer :: incx, n
    incx = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec) create(asum)
+   !$acc host_data use_device(xvec, asum)
+   asum = cublasSasum(n, xvec, incx)
+   !$acc end host_data
+   !$acc exit data copyout(asum) delete(xvec)
+#else
    asum = blas_asum(n, xvec, incx)
+#endif
 end function mctc_sasum
 
 
-pure function mctc_dasum(xvec) result(asum)
+function mctc_dasum(xvec) result(asum)
    real(dp) :: asum
    real(dp), intent(in) :: xvec(:)
    integer :: incx, n
    incx = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec) create(asum)
+   !$acc host_data use_device(xvec, asum)
+   asum = cublasDasum(n, xvec, incx)
+   !$acc end host_data
+   !$acc exit data copyout(asum) delete(xvec)
+#else
    asum = blas_asum(n, xvec, incx)
+#endif
 end function mctc_dasum
 
 
-pure subroutine mctc_saxpy(xvec, yvec, alpha)
+subroutine mctc_saxpy(xvec, yvec, alpha)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
    real(sp), intent(in), optional :: alpha
@@ -512,11 +535,19 @@ pure subroutine mctc_saxpy(xvec, yvec, alpha)
    incx = 1
    incy = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec)
+   !$acc host_data use_device(xvec, yvec)
+   call cublasSaxpy(n, a, xvec, incx, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(xvec)
+#else
    call blas_axpy(n, a, xvec, incx, yvec, incy)
+#endif
 end subroutine mctc_saxpy
 
 
-pure subroutine mctc_daxpy(xvec, yvec, alpha)
+subroutine mctc_daxpy(xvec, yvec, alpha)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
    real(dp), intent(in), optional :: alpha
@@ -530,11 +561,19 @@ pure subroutine mctc_daxpy(xvec, yvec, alpha)
    incx = 1
    incy = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec)
+   !$acc host_data use_device(xvec, yvec)
+   call cublasDaxpy(n, a, xvec, incx, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(xvec)
+#else
    call blas_axpy(n, a, xvec, incx, yvec, incy)
+#endif
 end subroutine mctc_daxpy
 
 
-pure subroutine mctc_scopy(xvec, yvec)
+subroutine mctc_scopy(xvec, yvec)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
    integer :: incx, incy, n
@@ -545,7 +584,7 @@ pure subroutine mctc_scopy(xvec, yvec)
 end subroutine mctc_scopy
 
 
-pure subroutine mctc_dcopy(xvec, yvec)
+subroutine mctc_dcopy(xvec, yvec)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
    integer :: incx, incy, n
@@ -556,7 +595,7 @@ pure subroutine mctc_dcopy(xvec, yvec)
 end subroutine mctc_dcopy
 
 
-pure function mctc_sdot(xvec, yvec) result(dot)
+function mctc_sdot(xvec, yvec) result(dot)
    real(sp) :: dot
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(in) :: yvec(:)
@@ -568,7 +607,7 @@ pure function mctc_sdot(xvec, yvec) result(dot)
 end function mctc_sdot
 
 
-pure function mctc_ddot(xvec, yvec) result(dot)
+function mctc_ddot(xvec, yvec) result(dot)
    real(dp) :: dot
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(in) :: yvec(:)
@@ -580,7 +619,7 @@ pure function mctc_ddot(xvec, yvec) result(dot)
 end function mctc_ddot
 
 
-pure function mctc_snrm2(xvec) result(nrm2)
+function mctc_snrm2(xvec) result(nrm2)
    real(sp) :: nrm2
    real(sp), intent(in) :: xvec(:)
    integer :: incx, n
@@ -590,7 +629,7 @@ pure function mctc_snrm2(xvec) result(nrm2)
 end function mctc_snrm2
 
 
-pure function mctc_dnrm2(xvec) result(nrm2)
+function mctc_dnrm2(xvec) result(nrm2)
    real(dp) :: nrm2
    real(dp), intent(in) :: xvec(:)
    integer :: incx, n
@@ -600,7 +639,7 @@ pure function mctc_dnrm2(xvec) result(nrm2)
 end function mctc_dnrm2
 
 
-pure subroutine mctc_srot(xvec, yvec, c, s)
+subroutine mctc_srot(xvec, yvec, c, s)
    real(sp), intent(in) :: c
    real(sp), intent(in) :: s
    real(sp), intent(inout) :: xvec(:)
@@ -613,7 +652,7 @@ pure subroutine mctc_srot(xvec, yvec, c, s)
 end subroutine mctc_srot
 
 
-pure subroutine mctc_drot(xvec, yvec, c, s)
+subroutine mctc_drot(xvec, yvec, c, s)
    real(dp), intent(in) :: c
    real(dp), intent(in) :: s
    real(dp), intent(inout) :: xvec(:)
@@ -626,7 +665,7 @@ pure subroutine mctc_drot(xvec, yvec, c, s)
 end subroutine mctc_drot
 
 
-pure subroutine mctc_sscal(xvec, alpha)
+subroutine mctc_sscal(xvec, alpha)
    real(sp), intent(in) :: alpha
    real(sp), intent(inout) :: xvec(:)
    integer :: incx, n
@@ -636,7 +675,7 @@ pure subroutine mctc_sscal(xvec, alpha)
 end subroutine mctc_sscal
 
 
-pure subroutine mctc_dscal(xvec, alpha)
+subroutine mctc_dscal(xvec, alpha)
    real(dp), intent(in) :: alpha
    real(dp), intent(inout) :: xvec(:)
    integer :: incx, n
@@ -646,7 +685,7 @@ pure subroutine mctc_dscal(xvec, alpha)
 end subroutine mctc_dscal
 
 
-pure subroutine mctc_sswap(xvec, yvec)
+subroutine mctc_sswap(xvec, yvec)
    real(sp), intent(inout) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
    integer :: incx, incy, n
@@ -657,7 +696,7 @@ pure subroutine mctc_sswap(xvec, yvec)
 end subroutine mctc_sswap
 
 
-pure subroutine mctc_dswap(xvec, yvec)
+subroutine mctc_dswap(xvec, yvec)
    real(dp), intent(inout) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
    integer :: incx, incy, n
@@ -668,7 +707,7 @@ pure subroutine mctc_dswap(xvec, yvec)
 end subroutine mctc_dswap
 
 
-pure function mctc_isamax(xvec) result(iamax)
+function mctc_isamax(xvec) result(iamax)
    integer :: iamax
    real(sp), intent(in) :: xvec(:)
    integer :: incx, n
@@ -678,7 +717,7 @@ pure function mctc_isamax(xvec) result(iamax)
 end function mctc_isamax
 
 
-pure function mctc_idamax(xvec) result(iamax)
+function mctc_idamax(xvec) result(iamax)
    integer :: iamax
    real(dp), intent(in) :: xvec(:)
    integer :: incx, n
