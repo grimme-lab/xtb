@@ -633,8 +633,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       &     minpr,pr, &
       &     fail,jter)
 
-   !$acc exit data delete(s)
-
    ! check if something terrible happend in the SCC
    call env%check(exitRun)
    if (exitRun) then
@@ -845,7 +843,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    endif
    call calc_dipole(mol%n,mol%at,mol%xyz,mol%z,basis%nao,wfn%P,dpint,dip,dipol)
 
-   !$acc exit data delete(dpint,qpint)
+   !$acc exit data delete(s,dpint,qpint)
 
    if (profile) call timer%measure(7)
 

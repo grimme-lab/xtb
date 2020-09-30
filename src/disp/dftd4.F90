@@ -280,8 +280,8 @@ subroutine mdisp(dispm,nat,ndim,at,q,xyz,g_a,g_c, &
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
    integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: q(nat) 
-   real(wp),intent(in)  :: xyz(3,nat) 
+   real(wp),intent(in)  :: q(nat)
+   real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: g_a,g_c
    real(wp),intent(in)  :: gw(ndim)
    real(wp),intent(in)  :: c6abns(ndim,ndim)
@@ -302,7 +302,7 @@ subroutine mdisp(dispm,nat,ndim,at,q,xyz,g_a,g_c, &
    real(wp),allocatable :: c6ab(:,:)
    real(wp),allocatable :: aw(:,:)
    parameter (oth=1._wp/3._wp)
-   
+
    allocate( zetvec(ndim),rvdw(nat),phv(nat),c6ab(nat,nat),aw(23,nat), &
    &         source = 0.0_wp )
    allocate( itbl(7,nat), source = 0 )
@@ -664,7 +664,7 @@ subroutine build_wdispmat(dispm,nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
    real(wp), parameter :: gwcut = 1.0e-7_wp
 
    allocate( itbl(7,nat), source = 0 )
- 
+
    wdispmat = 0.0_wp
 
    k = 0
@@ -749,7 +749,7 @@ subroutine disppot(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
           zetavec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
       enddo
    enddo
-!  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
+!  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim)
    call mctc_symv(wdispmat,zetavec,dumvec)
 !  get atomic reference contributions
    k = 0
@@ -799,7 +799,7 @@ function edisp_scc(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
           zetavec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
       enddo
    enddo
-!  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
+!  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim)
    call mctc_symv(wdispmat,zetavec,dumvec,alpha=0.5_wp)
    ed = mctc_dot(dumvec,zetavec)
 
@@ -2007,6 +2007,7 @@ subroutine atm_gradient_latp &
 
 end subroutine atm_gradient_latp
 
+
 subroutine atm_gradient_latp_gpu &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
@@ -2043,7 +2044,7 @@ subroutine atm_gradient_latp_gpu &
    !$acc enter data copyin(par,trans,r4r2,c6,dc6dcn,energies,gradient,sigma,dEdcn, &
    !$acc& mol,mol%at,mol%xyz)
 
-   !$acc parallel default(present) private(rij,rjk,rik,dG,dS,dCN) 
+   !$acc parallel default(present) private(rij,rjk,rik,dG,dS,dCN)
 
    !$acc loop gang collapse(2)
    do iat = 1, mlen
@@ -2108,7 +2109,7 @@ subroutine atm_gradient_latp_gpu &
                     & -5.0_wp*(r2jk-r2ik)**2*(r2jk+r2ik)) / (rrr3*rrr2)
                   dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ij
                   dG(:, 1) = -dGr * rij
-                  dG(:, 2) = +dGr * rij 
+                  dG(:, 2) = +dGr * rij
                   dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3)
 
                   ! Derivative w.r.t. i-k distance
@@ -2117,7 +2118,7 @@ subroutine atm_gradient_latp_gpu &
                     & -5.0_wp*(r2jk-r2ij)**2*(r2jk+r2ij)) / (rrr3*rrr2)
                   dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
                   dG(:, 1) = -dGr * rik + dG(:, 1)
-                  dG(:, 3) = +dGr * rik 
+                  dG(:, 3) = +dGr * rik
                   dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS
 
                   ! Derivative w.r.t. j-k distance
@@ -2140,40 +2141,30 @@ subroutine atm_gradient_latp_gpu &
                   scale = par%s9 * triple_scale(iat, jat, kat)
                   !$acc atomic
                   energies(iat) = energies(iat) + dE * scale/3
-                  !$acc end atomic
                   !$acc atomic
                   energies(jat) = energies(jat) + dE * scale/3
-                  !$acc end atomic
                   !$acc atomic
                   energies(kat) = energies(kat) + dE * scale/3
-                  !$acc end atomic
                   do k = 1,3
                     !$acc atomic
                     gradient(k, iat) = gradient(k, iat) + dG(k, 1) * scale
-                    !$acc end atomic
                     !$acc atomic
                     gradient(k, jat) = gradient(k, jat) + dG(k, 2) * scale
-                    !$acc end atomic
                     !$acc atomic
                     gradient(k, kat) = gradient(k, kat) + dG(k, 3) * scale
-                    !$acc end atomic
                   enddo
                   do k = 1,3
                     do kk = 1,3
                       !$acc atomic
                       sigma(kk, k) = sigma(kk, k) + dS(kk, k) * scale
-                      !$acc end atomic
                     enddo
                   enddo
                   !$acc atomic
                   dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
-                  !$acc end atomic
                   !$acc atomic
                   dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
-                  !$acc end atomic
                   !$acc atomic
                   dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
-                  !$acc end atomic
 
                end do
             end do
@@ -2185,7 +2176,6 @@ subroutine atm_gradient_latp_gpu &
 
    !$acc exit data copyout(energies,gradient,sigma,dEdcn)
    !$acc exit data delete(par,trans,r4r2,c6,dc6dcn,mol,mol%at,mol%xyz)
-
 
 end subroutine atm_gradient_latp_gpu
 
@@ -2228,7 +2218,7 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
       & -5.0_wp*(r2jk-r2ik)**2*(r2jk+r2ik)) / (rrr3*rrr2)
    dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ij
    dG(:, 1) = -dGr * rij
-   dG(:, 2) = +dGr * rij 
+   dG(:, 2) = +dGr * rij
    dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3)
 
    ! Derivative w.r.t. i-k distance
@@ -2237,7 +2227,7 @@ pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
       & -5.0_wp*(r2jk-r2ij)**2*(r2jk+r2ij)) / (rrr3*rrr2)
    dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
    dG(:, 1) = -dGr * rik + dG(:, 1)
-   dG(:, 3) = +dGr * rik 
+   dG(:, 3) = +dGr * rik
    dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS
 
    ! Derivative w.r.t. j-k distance

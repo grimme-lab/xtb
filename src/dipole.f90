@@ -103,7 +103,7 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
    real(wp),intent(in) :: P(nao,nao)
    real(wp),intent(in) :: dpint(3,nao,nao)
 
-   integer  :: i,j,k
+   integer  :: i,j
    real(wp),intent(out) :: d(3),dip
 
    ! core part
@@ -113,17 +113,14 @@ subroutine calc_dipole(n,at,xyz,z,nao,P,dpint,dip,d)
    enddo
 
    ! contraction with P
-   k = 0
    !$acc kernels present (dpint)
    do i = 1, nao
       do j = 1, i-1
-         k = k+1
          d = d - 2.0_wp*P(j,i)*dpint(:,i,j)
       enddo
-      k = k+1
       d = d - P(i,i)*dpint(:,i,i)
    enddo
-   !$acc end kernels 
+   !$acc end kernels
 
    dip = norm2(d)
 

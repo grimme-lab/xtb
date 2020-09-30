@@ -59,6 +59,7 @@ subroutine mctc_init(progname,ntimer,verbose)
    allocate(persistentEnv)
    call init(persistentEnv)
 
+   !$acc init
 #ifdef USE_CUSOLVER
    err = cusolverDnCreate(cusolverDnH)
    if (err /= 0) then

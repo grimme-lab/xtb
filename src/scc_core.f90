@@ -44,6 +44,7 @@ module xtb_scc_core
 
 contains
 
+
 !! ========================================================================
 !  build GFN2 core Hamiltonian
 !! ========================================================================
@@ -106,6 +107,7 @@ subroutine build_h0(hData,H0,n,at,ndim,nmat,matlist, &
 
 end subroutine build_h0
 
+
 !> build isotropic H1/Fockian
 subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
       & H0, S, shellShift, aoat2, ao2sh)
@@ -145,6 +147,7 @@ subroutine buildIsotropicH1(n, at, ndim, nshell, nmat, matlist, H, &
    enddo
 
 end subroutine buildIsotropicH1
+
 
 subroutine addAnisotropicH1_gpu(n,at,ndim,nshell,nmat,ndp,nqp,thr,matlist,mdlst, &
                          mqlst,H,S,dpint,qpint,vs,vd,vq,aoat2,ao2sh)
@@ -236,45 +239,8 @@ subroutine addAnisotropicH1_gpu(n,at,ndim,nshell,nmat,ndp,nqp,thr,matlist,mdlst,
      enddo
    enddo
 
-   !!$acc kernels present(dpint)
-   !do m=1,ndp
-   !   i=mdlst(1,m)
-   !   j=mdlst(2,m)
-   !   ii=aoat2(i)
-   !   jj=aoat2(j)
-   !   eh1=0.0d0
-   !   do l=1,3
-   !      eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
-   !   enddo
-   !   eh1=0.50d0*eh1*autoev
-   !   !$acc atomic
-   !   H(i,j)=H(i,j)+eh1
-   !   !$acc atomic write
-   !   H(j,i)=H(i,j)
-   !enddo
-   !!$acc end kernels
-   !!> quadrupole-dependent terms
-   !!$acc kernels present(qpint)
-   !do m=1,nqp
-   !   i=mqlst(1,m)
-   !   j=mqlst(2,m)
-   !   ii=aoat2(i)
-   !   jj=aoat2(j)
-   !   eh1=0.0d0
-   !   ! note: these come in the following order
-   !   ! xx, yy, zz, xy, xz, yz
-   !   do l=1,6
-   !      eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
-   !   enddo
-   !   eh1=0.50d0*eh1*autoev
-   !   !!$acc atomic
-   !   H(i,j)=H(i,j)+eh1
-   !   !!$acc atomic write
-   !   H(j,i)=H(i,j)
-   !enddo
-   !!$acc end kernels
-
 end subroutine addAnisotropicH1_gpu
+
 
 !> build anisotropic H1/Fockian
 subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
@@ -320,7 +286,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       H(i,j)=H(j,i)
    enddo
    !> dipolar terms
-   
+
    do m=1,ndp
       i=mdlst(1,m)
       j=mdlst(2,m)
@@ -331,14 +297,12 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
-      
       H(i,j)=H(i,j)+eh1
-      
       H(j,i)=H(i,j)
    enddo
-   
+
    !> quadrupole-dependent terms
-   
+
    do m=1,nqp
       i=mqlst(1,m)
       j=mqlst(2,m)
@@ -351,12 +315,10 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
-      
       H(i,j)=H(i,j)+eh1
-      
       H(j,i)=H(i,j)
    enddo
-   
+
 
 end subroutine addAnisotropicH1
 
