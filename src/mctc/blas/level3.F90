@@ -724,7 +724,7 @@ module xtb_mctc_blas_level3
 contains
 
 
-subroutine mctc_sgemm(amat, bmat, cmat, transa, transb, alpha, beta)
+pure subroutine mctc_sgemm(amat, bmat, cmat, transa, transb, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -777,7 +777,7 @@ subroutine mctc_sgemm(amat, bmat, cmat, transa, transb, alpha, beta)
 end subroutine mctc_sgemm
 
 
-subroutine mctc_dgemm(amat, bmat, cmat, transa, transb, alpha, beta)
+pure subroutine mctc_dgemm(amat, bmat, cmat, transa, transb, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -830,7 +830,7 @@ subroutine mctc_dgemm(amat, bmat, cmat, transa, transb, alpha, beta)
 end subroutine mctc_dgemm
 
 
-subroutine mctc_ssymm(amat, bmat, cmat, side, uplo, alpha, beta)
+pure subroutine mctc_ssymm(amat, bmat, cmat, side, uplo, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -878,7 +878,7 @@ subroutine mctc_ssymm(amat, bmat, cmat, side, uplo, alpha, beta)
 end subroutine mctc_ssymm
 
 
-subroutine mctc_dsymm(amat, bmat, cmat, side, uplo, alpha, beta)
+pure subroutine mctc_dsymm(amat, bmat, cmat, side, uplo, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -926,7 +926,7 @@ subroutine mctc_dsymm(amat, bmat, cmat, side, uplo, alpha, beta)
 end subroutine mctc_dsymm
 
 
-subroutine mctc_ssyrk(amat, cmat, uplo, trans, alpha, beta)
+pure subroutine mctc_ssyrk(amat, cmat, uplo, trans, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
    character(len=1), intent(in), optional :: uplo
@@ -976,7 +976,7 @@ subroutine mctc_ssyrk(amat, cmat, uplo, trans, alpha, beta)
 end subroutine mctc_ssyrk
 
 
-subroutine mctc_dsyrk(amat, cmat, uplo, trans, alpha, beta)
+pure subroutine mctc_dsyrk(amat, cmat, uplo, trans, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
    character(len=1), intent(in), optional :: uplo
@@ -1026,7 +1026,7 @@ subroutine mctc_dsyrk(amat, cmat, uplo, trans, alpha, beta)
 end subroutine mctc_dsyrk
 
 
-subroutine mctc_ssyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
+pure subroutine mctc_ssyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: bmat(:, :)
    real(sp), intent(inout) :: cmat(:, :)
@@ -1078,7 +1078,7 @@ subroutine mctc_ssyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
 end subroutine mctc_ssyr2k
 
 
-subroutine mctc_dsyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
+pure subroutine mctc_dsyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: bmat(:, :)
    real(dp), intent(inout) :: cmat(:, :)
@@ -1130,7 +1130,7 @@ subroutine mctc_dsyr2k(amat, bmat, cmat, uplo, trans, alpha, beta)
 end subroutine mctc_dsyr2k
 
 
-subroutine mctc_strsm(amat, bmat, side, uplo, transa, diag, alpha)
+pure subroutine mctc_strsm(amat, bmat, side, uplo, transa, diag, alpha)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1182,7 +1182,7 @@ subroutine mctc_strsm(amat, bmat, side, uplo, transa, diag, alpha)
 end subroutine mctc_strsm
 
 
-subroutine mctc_dtrsm(amat, bmat, side, uplo, transa, diag, alpha)
+pure subroutine mctc_dtrsm(amat, bmat, side, uplo, transa, diag, alpha)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1234,7 +1234,7 @@ subroutine mctc_dtrsm(amat, bmat, side, uplo, transa, diag, alpha)
 end subroutine mctc_dtrsm
 
 
-subroutine mctc_strmm(amat, bmat, side, uplo, transa, diag, alpha)
+pure subroutine mctc_strmm(amat, bmat, side, uplo, transa, diag, alpha)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side
@@ -1286,7 +1286,7 @@ subroutine mctc_strmm(amat, bmat, side, uplo, transa, diag, alpha)
 end subroutine mctc_strmm
 
 
-subroutine mctc_dtrmm(amat, bmat, side, uplo, transa, diag, alpha)
+pure subroutine mctc_dtrmm(amat, bmat, side, uplo, transa, diag, alpha)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(inout) :: bmat(:, :)
    character(len=1), intent(in), optional :: side

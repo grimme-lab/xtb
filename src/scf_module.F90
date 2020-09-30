@@ -52,7 +52,6 @@ module xtb_scf
    use xtb_hlex
    use xtb_local
    use xtb_dipole
-   use nvtx
    implicit none
    private
 
@@ -227,7 +226,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  broyden stuff
    logical  :: broy
 
-call nvtxStartRange('single', __LINE__)
 ! ------------------------------------------------------------------------
 !  initialization
 ! ------------------------------------------------------------------------
@@ -293,7 +291,6 @@ call nvtxStartRange('single', __LINE__)
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
    if (allocated(solvation)) then
-call nvtxStartRange('solvation', __LINE__)
       if (mol%npbc > 0) then
          call env%error("Solvation not available with PBC", source)
          return
@@ -316,7 +313,6 @@ call nvtxStartRange('solvation', __LINE__)
             cm5 = wfn%q + cm5a
          end select
       end if
-call nvtxEndRange()
    end if
 
    allocate(H0(basis%nao*(basis%nao+1)/2), &
@@ -396,7 +392,6 @@ call nvtxEndRange()
       enddo
    endif
 
-call nvtxStartRange('coulomb', __LINE__)
    ! setup isotropic electrostatics
    call init(ies, xtbData%coulomb, xtbData%nshell, mol%at)
 
@@ -441,7 +436,6 @@ call nvtxStartRange('coulomb', __LINE__)
             & mol%xyz,Vpc)
       endif
    endif
-call nvtxEndRange
 
    if (prlevel > 1) then
       write(env%unit,'(/,10x,51("."))')
@@ -484,11 +478,9 @@ call nvtxEndRange
    ! ------------------------------------------------------------------------
    ! Repulsion energy
    ep = 0.0_wp
-call nvtxStartRange('repulsion', __LINE__)
    call latp%getLatticePoints(trans, 40.0_wp)
    call repulsionEnGrad(mol, xtbData%repulsion, trans, 40.0_wp, &
       & ep, gradient, sigma)
-call nvtxEndRange
 
 
    ! ------------------------------------------------------------------------
@@ -508,7 +500,6 @@ call nvtxEndRange
 
    ! ------------------------------------------------------------------------
    ! Coordination number
-call nvtxStartRange('CN', __LINE__)
    if (xtbData%level == 1) then
       ! D3 part first because we need CN
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, cn, dcndr, dcndL)
@@ -516,11 +507,9 @@ call nvtxStartRange('CN', __LINE__)
       ! CN/dCN replaced by special smoother and faster decaying function
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, cn, dcndr, dcndL)
    endif
-call nvtxEndRange
 
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
-call nvtxStartRange('dispersion', __LINE__)
    call latp%getLatticePoints(trans, 60.0_wp)
    if (xtbData%level == 1) then
       call d3_gradient &
@@ -530,7 +519,6 @@ call nvtxStartRange('dispersion', __LINE__)
       allocate(scD4)
       call init(scD4, xtbData%dispersion, mol)
    endif
-call nvtxEndRange
 
    if (profile) call timer%measure(2)
    if (profile) call timer%measure(4,"integral evaluation")
@@ -541,7 +529,6 @@ call nvtxEndRange
       &     qpint(6,basis%nao,basis%nao), &
       &     source = 0.0_wp)
 
-call nvtxStartRange('build_SDQH0', __LINE__)
    call getSelfEnergy(xtbData%hamiltonian, xtbData%nShell, mol%at, cn=cn, &
       & selfEnergy=selfEnergy, dSEdcn=dSEdcn)
    ! compute integrals and prescreen to set up list arrays
@@ -559,11 +546,9 @@ call nvtxStartRange('build_SDQH0', __LINE__)
 #endif
    call count_dpint(ndp, dpint, neglect)
    call count_qpint(nqp, qpint, neglect)
-call nvtxEndRange()
 
    ! prepare aes stuff
    if (allocated(xtbData%multipole)) then
-call nvtxStartRange('multipoles', __LINE__)
       if (mol%npbc > 0) then
          call env%error("Multipoles not available with PBC", source)
          return
@@ -581,7 +566,6 @@ call nvtxStartRange('multipoles', __LINE__)
          & aes%cnExp,aes%cnRMax,radcn)
       call mmomgabzero(mol%n,mol%at,mol%xyz,aes%dipDamp, &
          & aes%quadDamp,radcn,aes%gab3,aes%gab5) ! zero damping
-call nvtxEndRange()
    end if
 
    ! ------------------------------------------------------------------------
@@ -704,44 +688,42 @@ call nvtxEndRange()
    end if
 
    dhdcn(:) = 0.0_wp
-!   if (mol%npbc == 0) then
-!      allocate(H(basis%nao, basis%nao))
-!      H(:, :) = 0.0_wp
-!      do m = 1, nmat2
-!         i = matlist2(1,m)
-!         j = matlist2(2,m)
-!         k = j+i*(i-1)/2
-!         !ishell = ao2sh(i)
-!         !jshell = ao2sh(j)
-!         ! SCC terms
-!         !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
-!         !H1 = -S(j,i)*eh1*0.5_wp
-!         H(j,i) = H0(k)*evtoau/S(j,i)
-!         H(i,j) = H(j,i)
-!      enddo
-!      call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
-!         & dSEdcn, intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, &
-!         & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
-!         & basis%alp, basis%cont, H, S, wfn%p, Pew, shellShift, vs, vd, vq, &
-!         & dhdcn, gradient, sigma)
-!   else
-      call latp%getLatticePoints(trans, sqrt(800.0_wp))
 #ifdef XTB_GPU
-call nvtxStartRange('build_dSDQH0', __LINE__)
-      call build_dSDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
-         & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
-         & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
-         & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
-         & dhdcn, gradient, sigma)
-call nvtxEndRange()
+   call latp%getLatticePoints(trans, sqrt(800.0_wp))
+   call build_dSDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
+      & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
+      & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+      & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
+      & dhdcn, gradient, sigma)
 #else
+   if (mol%npbc == 0) then
+      allocate(H(basis%nao, basis%nao))
+      H(:, :) = 0.0_wp
+      do m = 1, nmat2
+         i = matlist2(1,m)
+         j = matlist2(2,m)
+         k = j+i*(i-1)/2
+         !ishell = ao2sh(i)
+         !jshell = ao2sh(j)
+         ! SCC terms
+         !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
+         !H1 = -S(j,i)*eh1*0.5_wp
+         H(j,i) = H0(k)*evtoau/S(j,i)
+         H(i,j) = H(j,i)
+      enddo
+      call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
+         & dSEdcn, intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, &
+         & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
+         & basis%alp, basis%cont, H, S, wfn%p, Pew, shellShift, vs, vd, vq, &
+         & dhdcn, gradient, sigma)
+   else
       call build_dSDQH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, dSEdcn, &
          & intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, trans, &
          & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, &
          & basis%alp, basis%cont, wfn%p, Pew, shellShift, vs, vd, vq, &
          & dhdcn, gradient, sigma)
+   end if
 #endif
-!   end if
    ! setup CN gradient
    call mctc_gemv(dcndr, dhdcn, gradient, beta=1.0_wp)
    call mctc_gemv(dcndL, dhdcn, sigma, beta=1.0_wp)
@@ -752,7 +734,6 @@ call nvtxEndRange()
       ! VS, VD, VQ-dependent potentials are changed w.r.t. SCF,
       ! since moment integrals are now computed with origin at
       ! respective atoms
-call nvtxStartRange('multipoles', __LINE__)
       call setdvsdq(xtbData%multipole, mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, &
          & wfn%qp, aes%gab3, aes%gab5, vs, vd, vq)
 
@@ -761,13 +742,11 @@ call nvtxStartRange('multipoles', __LINE__)
          & aes%cnExp, aes%cnRMax, dcndr)
       call aniso_grad(mol%n, mol%at, mol%xyz, wfn%q, wfn%dipm, wfn%qp, &
          & aes%dipDamp, aes%quadDamp, radcn, dcndr, aes%gab3, aes%gab5, gradient)
-call nvtxEndRange()
    end if
 
    ! ------------------------------------------------------------------------
    ! dispersion (DFT-D type correction)
    if (allocated(scD4)) then
-call nvtxStartRange('dispersion', __LINE__)
       call latp%getLatticePoints(trans, 40.0_wp)
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
          & cn, dcndr, dcndL)
@@ -776,13 +755,11 @@ call nvtxStartRange('dispersion', __LINE__)
          &  xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
          &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
          &  energy=dum, gradient=gradient, sigma=sigma, e3=embd)
-call nvtxEndRange()
    endif
 
    ! ------------------------------------------------------------------------
    ! Solvation contributions from GBSA
    if (allocated(solvation)) then
-call nvtxStartRange('solvation', __LINE__)
       cm5(:)=wfn%q+cm5a
       call solvation%addGradient(env, mol%at, mol%xyz, cm5, wfn%qsh, gradient)
       select type(solvation)
@@ -795,12 +772,10 @@ call nvtxStartRange('solvation', __LINE__)
             & gshift)
          gsolv = gborn+gsasa+ghb+gshift
       end select
-call nvtxEndRange()
    endif
 
    ! ------------------------------------------------------------------------
    ! Derivative of electrostatic energy
-call nvtxStartRange('solvation', __LINE__)
    allocate(djdr(3, mol%n, basis%nshell))
    allocate(djdtr(3, basis%nshell))
    allocate(djdL(3, 3, basis%nshell))
@@ -819,7 +794,6 @@ call nvtxStartRange('solvation', __LINE__)
             & xtbData%nshell,mol%xyz,wfn%qsh)
       end if
    end if
-call nvtxEndRange()
 
    if (profile) call timer%measure(6)
    if (.not.pr.and.profile.and.minpr) &
@@ -902,7 +876,6 @@ call nvtxEndRange()
 
 ! ========================================================================
    if (profile) call timer%deallocate
-call nvtxEndRange()
 
 end subroutine scf
 

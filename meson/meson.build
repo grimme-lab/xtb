@@ -50,9 +50,6 @@ elif fc.get_id() == 'pgi'
       add_project_arguments('-Mcudalib=cusolver,cublas', '-DUSE_CUSOLVER', '-DUSE_CUBLAS', language: 'fortran')
       add_project_link_arguments('-Mcudalib=cusolver,cublas', language: 'fortran')
     endif
-  else
-    add_project_arguments('-acc', '-Minfo=accel', '-ta=multicore', language: 'fortran')
-    add_project_link_arguments('-acc', '-Minfo=accel', '-ta=multicore', language: 'fortran')
   endif
 endif
 
@@ -153,7 +150,7 @@ endif
 dependencies += dependency('threads')
 
 if get_option('nvtx')
-  dependencies += fc.find_library('nvToolsExt', required: true, dirs: '/sw/hpc-sdk/Linux_x86_64/20.7/cuda/lib64')
+  dependencies += fc.find_library('nvToolsExt', required: true)
 endif
 
 # distribute dependencies for shared object and static executable

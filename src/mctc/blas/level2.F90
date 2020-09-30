@@ -1176,7 +1176,7 @@ module xtb_mctc_blas_level2
 contains
 
 
-subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans)
+pure subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
@@ -1218,7 +1218,7 @@ subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans)
 end subroutine mctc_sgemv
 
 
-subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans)
+pure subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
@@ -1260,7 +1260,7 @@ subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans)
 end subroutine mctc_dgemv
 
 
-subroutine mctc_sger(amat, xvec, yvec, alpha)
+pure subroutine mctc_sger(amat, xvec, yvec, alpha)
    real(sp), intent(inout) :: amat(:, :)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(in) :: yvec(:)
@@ -1289,7 +1289,7 @@ subroutine mctc_sger(amat, xvec, yvec, alpha)
 end subroutine mctc_sger
 
 
-subroutine mctc_dger(amat, xvec, yvec, alpha)
+pure subroutine mctc_dger(amat, xvec, yvec, alpha)
    real(dp), intent(inout) :: amat(:, :)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(in) :: yvec(:)
@@ -1318,7 +1318,7 @@ subroutine mctc_dger(amat, xvec, yvec, alpha)
 end subroutine mctc_dger
 
 
-subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta)
    character(len=1), intent(in), optional :: uplo
    real(sp), intent(in), optional :: alpha
    real(sp), intent(in), optional :: beta
@@ -1358,7 +1358,7 @@ subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta)
 end subroutine mctc_sspmv
 
 
-subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta)
    character(len=1), intent(in), optional :: uplo
    real(dp), intent(in), optional :: alpha
    real(dp), intent(in), optional :: beta
@@ -1398,7 +1398,7 @@ subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta)
 end subroutine mctc_dspmv
 
 
-subroutine mctc_sspr(amat, xvec, uplo, alpha)
+pure subroutine mctc_sspr(amat, xvec, uplo, alpha)
    real(sp), intent(inout) :: amat(:)
    real(sp), intent(in) :: xvec(:)
    character(len=1), intent(in), optional :: uplo
@@ -1430,7 +1430,7 @@ subroutine mctc_sspr(amat, xvec, uplo, alpha)
 end subroutine mctc_sspr
 
 
-subroutine mctc_dspr(amat, xvec, uplo, alpha)
+pure subroutine mctc_dspr(amat, xvec, uplo, alpha)
    real(dp), intent(inout) :: amat(:)
    real(dp), intent(in) :: xvec(:)
    character(len=1), intent(in), optional :: uplo
@@ -1462,7 +1462,7 @@ subroutine mctc_dspr(amat, xvec, uplo, alpha)
 end subroutine mctc_dspr
 
 
-subroutine mctc_sspr2(amat, xvec, yvec, uplo, alpha)
+pure subroutine mctc_sspr2(amat, xvec, yvec, uplo, alpha)
    real(sp), intent(inout) :: amat(:)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(in) :: yvec(:)
@@ -1496,7 +1496,7 @@ subroutine mctc_sspr2(amat, xvec, yvec, uplo, alpha)
 end subroutine mctc_sspr2
 
 
-subroutine mctc_dspr2(amat, xvec, yvec, uplo, alpha)
+pure subroutine mctc_dspr2(amat, xvec, yvec, uplo, alpha)
    real(dp), intent(inout) :: amat(:)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(in) :: yvec(:)
@@ -1530,7 +1530,7 @@ subroutine mctc_dspr2(amat, xvec, yvec, uplo, alpha)
 end subroutine mctc_dspr2
 
 
-subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta)
    real(sp), intent(in) :: amat(:, :)
    real(sp), intent(in) :: xvec(:)
    real(sp), intent(inout) :: yvec(:)
@@ -1571,7 +1571,7 @@ subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta)
 end subroutine mctc_ssymv
 
 
-subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta)
+pure subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta)
    real(dp), intent(in) :: amat(:, :)
    real(dp), intent(in) :: xvec(:)
    real(dp), intent(inout) :: yvec(:)
@@ -1612,7 +1612,7 @@ subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta)
 end subroutine mctc_dsymv
 
 
-subroutine mctc_ssyr(amat, xvec, uplo, alpha)
+pure subroutine mctc_ssyr(amat, xvec, uplo, alpha)
    real(sp), intent(inout) :: amat(:, :)
    real(sp), intent(in) :: xvec(:)
    character(len=1), intent(in), optional :: uplo
@@ -1645,7 +1645,7 @@ subroutine mctc_ssyr(amat, xvec, uplo, alpha)
 end subroutine mctc_ssyr
 
 
-subroutine mctc_dsyr(amat, xvec, uplo, alpha)
+pure subroutine mctc_dsyr(amat, xvec, uplo, alpha)
    real(dp), intent(inout) :: amat(:, :)
    real(dp), intent(in) :: xvec(:)
    character(len=1), intent(in), optional :: uplo
@@ -1678,7 +1678,7 @@ subroutine mctc_dsyr(amat, xvec, uplo, alpha)
 end subroutine mctc_dsyr
 
 
-subroutine mctc_ssyr2(amat, xvec, yvec, uplo, alpha)
+pure subroutine mctc_ssyr2(amat, xvec, yvec, uplo, alpha)
    character(len=1), intent(in), optional :: uplo
    real(sp), intent(in), optional :: alpha
    real(sp), intent(inout) :: amat(:, :)
@@ -1713,7 +1713,7 @@ subroutine mctc_ssyr2(amat, xvec, yvec, uplo, alpha)
 end subroutine mctc_ssyr2
 
 
-subroutine mctc_dsyr2(amat, xvec, yvec, uplo, alpha)
+pure subroutine mctc_dsyr2(amat, xvec, yvec, uplo, alpha)
    character(len=1), intent(in), optional :: uplo
    real(dp), intent(in), optional :: alpha
    real(dp), intent(inout) :: amat(:, :)
