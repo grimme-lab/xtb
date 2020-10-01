@@ -111,7 +111,7 @@ module xtb_type_setvar
       integer  :: n    = 0
       integer  :: nval = 0
       real(wp) :: fc   = 0.0_wp
-      real(wp) :: expo = 0.0_wp
+      real(wp),allocatable :: expo(:)
       integer, allocatable :: atoms(:)
       real(wp),allocatable :: val(:)
    contains
@@ -356,7 +356,10 @@ subroutine allocate_fix(self,nat,nval,fc,expo)
    call self%deallocate
    if (present(nval)) self%nval = nval
    if (present(fc))   self%fc = fc
-   if (present(expo)) self%expo = expo
+   if (present(nval) .and. present(expo)) then
+      allocate(self%expo(nval))
+      self%expo(:) = expo
+   end if
    allocate( self%atoms(nat), source = 0 )
    if (present(nval)) allocate( self%val(nval),  source = 0.0_wp )
 end subroutine allocate_fix
@@ -365,7 +368,7 @@ subroutine deallocate_fix(self)
    class(fix_setvar) :: self
    self%n = 0
    self%fc = 0.0_wp
-   self%expo = 0.0_wp
+   if(allocated(self%expo)) deallocate( self%expo )
    if(allocated(self%atoms)) deallocate( self%atoms )
    if(allocated(self%val))   deallocate( self%val )
 end subroutine deallocate_fix
@@ -383,7 +386,7 @@ subroutine allocate_constr(self,nat,nval,fc,expo)
    allocate( self%lookup(nval), source = 0 )
    allocate( self%typeid(nval), source = 0 )
    call self%pos     %allocate(nat,nat*(nat+1)/2)
-   call self%dist    %allocate(nval*2,nval)
+   call self%dist    %allocate(nval*2,nval,expo=expo)
    call self%angle   %allocate(nval*3,nval)
    call self%dihedral%allocate(nval*4,nval)
    if (present(fc)) then
@@ -391,9 +394,6 @@ subroutine allocate_constr(self,nat,nval,fc,expo)
       self%dist    %fc = fc
       self%angle   %fc = fc
       self%dihedral%fc = fc
-   endif
-   if (present(expo)) then
-      self%dist%expo = expo
    endif
 end subroutine allocate_constr
 
