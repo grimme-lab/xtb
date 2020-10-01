@@ -228,8 +228,6 @@ subroutine pot_info(iunit,n,at,xyz)
             val0*autoaa, val*autoaa
       enddo
       write(iunit,'(a)')
-      write(iunit,'(5x,a,f14.7)') "  constraining potential exponent:", &
-         potset%dist%expo
       write(iunit,'(5x,a,f14.7)') " applied force constant per dist.:", &
          potset%dist%fc
       write(iunit,'(5x,a,f14.7)') "effective force constant per atom:", &

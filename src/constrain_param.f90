@@ -500,12 +500,20 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
                potset%dist%n = potset%dist%n-1 ! remove invalid contrain
                return
             end if
-            potset%dist%expo = real(idum, wp)
+            potset%dist%expo(potset%dist%n) = real(idum, wp)
          else
             call env%warning("Something went wrong in set_constr_ 'distance'. (3)",source)
             potset%dist%n = potset%dist%n-1 ! remove invalid contrain
             return
          end if
+         write(env%unit,'("constraining bond",2(1x,i0),1x,"to",'//&
+            '1x,f12.7,1x,"Å, actual value:",1x,f12.7,1x,"Å",1x,"with expo",1x,i0)') &
+            i,j, potset%dist%val(potset%dist%n)*autoaa, dist*autoaa, &
+            nint(potset%dist%expo(potset%dist%n))
+      else
+         write(env%unit,'("constraining bond",2(1x,i0),1x,"to",'//&
+            '1x,f12.7,1x,"Å, actual value:",1x,f12.7,1x,"Å")') &
+            i,j, potset%dist%val(potset%dist%n)*autoaa, dist*autoaa
       end if
 
    case('ANGLE')
