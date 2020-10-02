@@ -204,7 +204,6 @@ subroutine numhess( &
       ! ascending order
       ! now compute a subblock of the Hessian
 ! PGI 20.7 produces invalid LLVM-IR with the following OpenMP directives
-#ifndef __PGIC__
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
       !$omp firstprivate(et,maxiter,acc) &
@@ -215,7 +214,6 @@ subroutine numhess( &
       !$ call mkl_set_num_threads(1)
 #endif
       !$omp do schedule(dynamic)
-#endif
       do a = 1, nonfrozh
          ia=indx(a)
          do ic = 1, 3
@@ -256,13 +254,11 @@ subroutine numhess( &
             !$omp end critical
          endif
       enddo
-#ifndef __PGIC__
       !$omp end do
       !$omp end parallel
       !$ call omp_set_num_threads(nproc)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(nproc)
-#endif
 #endif
 
    else
@@ -270,7 +266,6 @@ subroutine numhess( &
 !  normal case
 !! ------------------------------------------------------------------------
 ! PGI 20.7 produces invalid LLVM-IR with the following OpenMP directives
-#ifndef __PGIC__
       !$ nproc = omp_get_num_threads()
       !$omp parallel default(shared) &
       !$omp firstprivate(et,maxiter,acc) &
@@ -281,7 +276,6 @@ subroutine numhess( &
       !$ call mkl_set_num_threads(1)
 #endif
       !$omp do schedule(dynamic)
-#endif
       do ia = 1, mol%n
          do ic = 1, 3
             ii = (ia-1)*3+ic
@@ -331,13 +325,11 @@ subroutine numhess( &
             !$omp end critical
          endif
       enddo
-#ifndef __PGIC__
       !$omp end do
       !$omp end parallel
       !$ call omp_set_num_threads(nproc)
 #ifdef WITH_MKL
       !$ call mkl_set_num_threads(nproc)
-#endif
 #endif
 
    endif
