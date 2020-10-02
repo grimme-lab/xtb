@@ -70,6 +70,7 @@ module xtb_setparam
    real(wp) :: etemp = 300.0_wp
 !  damping in Broyden SCC procedure (0.05 for critical cases, autoadjusted)
    real(wp) :: broydamp = 0.40_wp
+   real(wp) :: dispscale = 1.0_wp
 
    integer, parameter :: p_guess_sad = 0
    integer, parameter :: p_guess_gasteiger = 1

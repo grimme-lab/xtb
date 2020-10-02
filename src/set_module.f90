@@ -169,6 +169,7 @@ subroutine write_set_gfn(ictrl)
       write(ictrl,'(3x,"d4=",a)') bool2string(newdisp)
    write(ictrl,'(3x,"scc=",a)') bool2string(solve_scc)
    write(ictrl,'(3x,"periodic=",a)') bool2string(periodic)
+   write(ictrl,'(3x,"dispscale=",g0)') dispscale
 end subroutine write_set_gfn
 
 subroutine write_set_scc(ictrl)
@@ -1322,6 +1323,7 @@ subroutine set_gfn(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gfn",source)
@@ -1352,6 +1354,9 @@ subroutine set_gfn(env,key,val)
    case('periodic')
       if (getValue(env,val,ldum).and.set4) periodic = ldum
       set4 = .false.
+   case('dispscale')
+      if (getValue(env,val,ddum).and.set5) dispscale = ddum
+      set5 = .false.
    end select
 end subroutine set_gfn
 
