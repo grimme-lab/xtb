@@ -41,14 +41,65 @@ subroutine writeMoleculeGaussianExternal(mol, unit)
 end subroutine writeMoleculeGaussianExternal
 
 
-subroutine writeResultsGaussianExternal(unit, energy, dipole, gradient)
-   integer, intent(in) :: unit
+subroutine writeResultsGaussianExternal(mol, unit, energy, dipole, gradient, hess)
+   implicit none
+   type(TMolecule), intent(in) :: mol
+   integer, intent(in)  :: unit
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: dipole(:)
-   real(wp), intent(in) :: gradient(:, :)
+   real(wp), intent(in), optional :: gradient(:, :)
+   real(wp), intent(in), optional :: hess(:, :)
+
+   integer :: i,j,count
+   real(wp) :: buf(3)
 
    write(unit, '(4D20.12)') energy, dipole
-   write(unit, '(3D20.12)') gradient
+
+   if (present(gradient)) then
+      write(unit, '(3D20.12)') gradient
+   elseif (present(hess)) then
+      ! In case the gradient is not computed but the Hessian is, we output
+      ! gradients of zero. I don't know what would cause that to be honest...
+      write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
+   endif
+
+   if (present(hess)) then
+      ! First, we fake the polarizability and the dipole derivatives, which the
+      ! Gaussian Manual says should be of this form,
+      !
+      ! Polar(I), I=1,6          3D20.12
+      do i=1,6
+         write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
+      enddo
+
+      ! DDip(I), I=1,9*NAtoms    3D20.12
+      do i=1,9 * mol%n
+         write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
+      enddo
+
+      ! Now we are iterating over Hessian matrix elements. We will
+      ! append those to the output file in the correct format, given in
+      ! the Gaussian manual as
+      !
+      ! FFX(I), I=1,(3*NAtoms*(3*NAtoms+1))/2      3D20.12
+
+      ! that is, we need to print in group of three numbers, which is why the
+      ! whole buffer / count thing is present
+      count = 1
+      do i=1,3*mol%n
+         do j=1,i
+            buf(count) = hess(i,j)
+
+            if (count .eq. 3) then
+               count = 1
+               write(unit, '(3D20.12)') buf
+            else
+               count = count + 1
+            end if
+
+         enddo
+      enddo
+   endif
 
 end subroutine writeResultsGaussianExternal
 
