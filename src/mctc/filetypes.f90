@@ -156,6 +156,16 @@ subroutine generateFileMetaInfo(Name, path, basename, extension)
    iDot = index(name, '.', back=.true.)
    iSlash = index(name, '/', back=.true.)
 
+   ! When given a name like "Gau-3333.Ein", the basename should be "Gau-3333",
+   ! so if there is no '/', we assume there is an implicit './' at the
+   ! beginning of name.
+   if (iSlash > 0) then
+      path = name(:iSlash)
+   else
+      path = ''
+      iSlash = 0
+   endif
+
    if (iDot > iSlash .and. iDot > 0) then
       extension = name(iDot+1:)
    else ! means point is somewhere in the path or absent
@@ -163,17 +173,12 @@ subroutine generateFileMetaInfo(Name, path, basename, extension)
       extension = ''
    endif
 
-   if (iDot > iSlash .and. iSlash > 0) then
+   if (iDot > iSlash) then
       basename = name(iSlash+1:iDot-1)
    else
       basename = ''
    endif
 
-   if (iSlash > 0) then
-      path = name(:iSlash)
-   else
-      path = ''
-   endif
 
 end subroutine generateFileMetaInfo
 
