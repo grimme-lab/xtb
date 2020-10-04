@@ -87,6 +87,9 @@ module xtb_gfnff_data
       !> max CN cut-off
       real(wp) :: cnmax
 
+      !> D3 scaling
+      real(wp) :: dispscale
+
       !> Constant data
       real(wp), allocatable :: en(:)
       real(wp), allocatable :: rad(:)

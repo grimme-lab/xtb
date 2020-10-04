@@ -31,7 +31,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule
   use xtb_gfnff_param, only : ini, gfnff_set_param
-  use xtb_setparam, only : ichrg
+  use xtb_setparam, only : ichrg, dispscale
   implicit none
   character(len=*), parameter :: source = 'gfnff_setup'
 ! Dummy
@@ -58,6 +58,8 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   end if
 
   call gfnff_set_param(mol%n, gen, param)
+  param%dispscale = dispscale
+  print*, dispscale
   if (restart) then
      inquire(file='gfnff_topo', exist=ex)
      if (ex) then
