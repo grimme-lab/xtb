@@ -265,7 +265,7 @@ subroutine xtbMain(env, argParser)
          call close_file(ich)
       end if
    endif
-
+   
    !> efield read: gfnff only
    call open_file(ich,'.EFIELD','r')
    if (ich.ne.-1) then
@@ -321,7 +321,7 @@ subroutine xtbMain(env, argParser)
       fname = 'caffeine'
       call get_coffee(mol)
       call generateFileMetaInfo(fname, directory, basename, extension)
-   else
+   else                                                              
       call generateFileMetaInfo(fname, directory, basename, extension)
       ftype = getFileType(basename, extension)
       call open_file(ich, fname, 'r')
@@ -584,7 +584,7 @@ subroutine xtbMain(env, argParser)
    end select
    call env%checkpoint("Single point calculation terminated")
 
-   !> write 2d => 3d converted structure
+   !> write 2d => 3d converted structure   
    if (struc_conversion_done) then
       call generateFileName(tmpname, 'gfnff_convert', extension, mol%ftype)
       write(env%unit,'(10x,a,1x,a,/)') &
@@ -593,7 +593,7 @@ subroutine xtbMain(env, argParser)
       call writeMolecule(mol, ich, energy=res%e_total, gnorm=res%gnorm)
       call close_file(ich)
    end if
-
+   
    ! ========================================================================
    !> determine kopt for bhess including final biased geometry optimization
    if (runtyp.eq.p_run_bhess) then
@@ -857,7 +857,8 @@ subroutine xtbMain(env, argParser)
       call main_geometry(iprop,mol)
    endif
 
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
+   if (((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) &
+      .and.(geometry_inputfile.ne.p_geo_gaussian)) then
       call generic_header(iprop,'Frequency Printout',49,10)
       call main_freq(iprop,mol,chk%wfn,fres)
    endif
@@ -888,7 +889,7 @@ subroutine xtbMain(env, argParser)
    type is(TGFFCalculator)
       call write_energy_gff(env%unit,res,fres, &
         & (runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))
-   end select
+   end select  
 
 
    ! ------------------------------------------------------------------------
@@ -1278,10 +1279,10 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call set_exttyp('eht')
          call env%warning("The use of '"//flag//"' is discouraged, " //&
             & "please use '--gfn 0' next time", source)
-
+      
       case('--gfnff')
          call set_exttyp('ff')
-
+      
       case('--gff')
          call set_exttyp('ff')
 
@@ -1315,7 +1316,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--json')
          call set_write(env,'json','true')
-
+       
       case('--ceasefiles')
          restart = .false.
          verbose=.false.
@@ -1326,7 +1327,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call set_opt(env, 'logfile', 'NUL')
 #else
          call set_opt(env, 'logfile', '/dev/null')
-#endif
+#endif         
 
       case('--orca')
          call set_exttyp('orca')
@@ -1461,7 +1462,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)
          endif
-
+      
       case('--bhess')
          call set_runtyp('bhess')
          call args%nextArg(sec)

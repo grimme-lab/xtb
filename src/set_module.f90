@@ -947,6 +947,9 @@ subroutine set_geopref(typ)
    case('vasp','poscar')
       geometry_inputfile = p_geo_poscar
 
+   case('EIn', 'gaussian')
+      geometry_inputfile = p_geo_gaussian
+
    end select
    set = .false.
 end subroutine set_geopref

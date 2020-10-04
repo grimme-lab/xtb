@@ -504,6 +504,12 @@ subroutine numhess( &
       write(env%unit, '(A)') "DFTB+ style hessian.out written"
    end if
 
+   ! If we are currently computing a Hessian for Gaussian to use, we return it
+   ! right here and now and skip all the post-processing.
+   if (geometry_inputfile .eq. p_geo_gaussian) then
+      return
+   end if
+
    ! prepare all for diag
    ! copy
    k=0
