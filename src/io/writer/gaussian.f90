@@ -67,13 +67,9 @@ subroutine writeResultsGaussianExternal(mol, unit, energy, dipole, gradient, hes
       ! First, we fake the polarizability and the dipole derivatives, which the
       ! Gaussian Manual says should be of this form,
       !
-      ! Polar(I), I=1,6          3D20.12
-      do i=1,6
-         write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
-      enddo
-
-      ! DDip(I), I=1,9*NAtoms    3D20.12
-      do i=1,9 * mol%n
+      ! Polar(I), I=1,6        3D20.12   2 rows of 3 x 0.0
+      ! DDip(I), I=1,9*NAtoms  3D20.12   9 x Natoms or 3 natoms rows of 3 x .0.0
+      do i=1,3*mol%n + 2
          write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
       enddo
 
