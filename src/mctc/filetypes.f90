@@ -163,7 +163,6 @@ subroutine generateFileMetaInfo(Name, path, basename, extension)
       path = name(:iSlash)
    else
       path = ''
-      iSlash = 0
    endif
 
    if (iDot > iSlash .and. iDot > 0) then
