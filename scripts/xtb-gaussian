@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-2>&1 exec xtb $2 --grad > $4
+flag=$(awk 'NR == 1 {if ($2 == 2) {print "--hess"} else {print "--grad"} }' $2)
+2>&1 exec xtb $2 $flag > $4
