@@ -17,6 +17,10 @@
 
 module xtb_mctc_global
    use xtb_type_environment, only : TEnvironment
+#ifdef USE_CUSOLVER
+   use cublas
+   use cusolverDn
+#endif
    character(len=:),allocatable :: name  !< name of the currently running program
    character(len=:),allocatable,target :: msgbuffer !< error message buffer
    integer :: msgid !< number of generated errors
@@ -31,6 +35,9 @@ module xtb_mctc_global
 
    !> Global environment
    type(TEnvironment), allocatable :: persistentEnv
+#ifdef USE_CUSOLVER
+   type(cuSolverDnHandle) :: cusolverDnH
+#endif
 
    type :: errormsg
       character(len=:),allocatable :: msg

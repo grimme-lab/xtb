@@ -223,7 +223,7 @@ subroutine test_gfnff_gbsa
 
    call delete_file('charges')
    call newGFFCalculator(env, mol, calc, '---', .false.)
-   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent))
+   call addSolvationModel(env, calc, TSolvInput(solvent=opt%solvent, alpb=.false., kernel=gbKernel%still))
 
    call env%checkpoint("GFN-FF parameter setup failed")
 
@@ -353,6 +353,7 @@ subroutine test_gfnff_mindless_solvation
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -398,7 +399,7 @@ subroutine test_gfnff_mindless_solvation
       call delete_file('charges')
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
       call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
-         & alpb=mod(iMol, 2)==0))
+         & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
       call assert(.not.exitRun)
@@ -436,6 +437,7 @@ subroutine test_gfnff_scaleup
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -475,7 +477,7 @@ subroutine test_gfnff_scaleup
       call delete_file('charges')
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
       call addSolvationModel(env, calc, TSolvInput(solvent=trim(solvents(iMol)), &
-         & alpb=mod(iMol, 2)==0))
+         & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
       call assert(.not.exitRun)
@@ -514,6 +516,7 @@ subroutine test_gfnff_pdb
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
    use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
 
    implicit none
 
@@ -547,7 +550,7 @@ subroutine test_gfnff_pdb
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
       if (iMol > 1) then
          call addSolvationModel(env, calc, TSolvInput(solvent='h2o', &
-            & alpb=iMol==3))
+            & alpb=iMol==3, kernel=gbKernel%still))
       end if
 
       call env%check(exitRun)
@@ -569,3 +572,79 @@ subroutine test_gfnff_pdb
    call terminate(afail)
 
 end subroutine test_gfnff_pdb
+
+
+subroutine test_gfnff_sdf
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
+
+   use xtb_setparam, only : ichrg
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+   real(wp), parameter :: ref_energies(3) = &
+      &[-0.98330642628373_wp, -1.0751892050077_wp, -1.0752776712286_wp]
+   real(wp), parameter :: ref_gnorms(3) = &
+      &[0.11515550863614e-2_wp, 0.47224675049592e-2_wp, 0.47021127890168e-2_wp]
+
+   call init(env)
+   do iMol = 1, 3
+      if (afail > 0) exit
+
+      call getMolecule(mol, 'bug332')
+      ichrg = nint(mol%chrg)
+
+      if (allocated(gradient)) deallocate(gradient)
+      allocate(gradient(3, len(mol)))
+
+      call delete_file('charges')
+      call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+      if (iMol > 1) then
+         call addSolvationModel(env, calc, TSolvInput(solvent='h2o', &
+            & alpb=iMol==3, kernel=gbKernel%p16))
+      end if
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+      call env%check(exitRun)
+      call assert(.not.exitRun)
+      if (exitRun) exit
+
+      call assert_close(energy, ref_energies(iMol), thr)
+      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+
+   end do
+
+   call terminate(afail)
+
+end subroutine test_gfnff_sdf

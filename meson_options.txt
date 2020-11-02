@@ -28,3 +28,13 @@ option('build_name', type: 'string', value: 'unknown',
        description: 'Name of the build, will be overwritten automatically by git')
 option('test_timeout', type: 'integer', min: 1, value: 30,
        description: 'test timeout in seconds')
+
+# GPU specific options
+option('gpu', type: 'boolean', value: false,
+       description: 'use GPU acceleration')
+option('gpu_arch', type: 'string', value: '70',
+       description: 'GPU architecture version string')
+option('cusolver', type: 'boolean', value: false,
+       description: 'Use cuSOLVER for eigensolver routines')
+option('nvtx', type: 'boolean', value: false,
+       description: 'use NVTX markers')

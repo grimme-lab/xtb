@@ -193,10 +193,10 @@ subroutine constrain_dist(fix,n,at,xyz,g,e)
       d=r-r0
 !     e=e+fix%fc*d*d
 !     ff=fix%fc*2.0d0*d
-      dum= d**fix%expo
-      dum2=d**(fix%expo-1.0_wp)
+      dum= d**fix%expo(m)
+      dum2=d**(fix%expo(m)-1.0_wp)
       e=e+fix%fc*dum
-      ff=fix%fc*fix%expo*dum2
+      ff=fix%fc*fix%expo(m)*dum2
       dum=ff/r
       g(:,j)=g(:,j)+dum*rij
       g(:,i)=g(:,i)-dum*rij

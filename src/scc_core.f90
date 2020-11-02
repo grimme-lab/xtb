@@ -20,7 +20,7 @@ module xtb_scc_core
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_mctc_lapack, only : lapack_sygvd
-   use xtb_mctc_blas, only : blas_gemm, blas_symm, blas_symv
+   use xtb_mctc_blas, only : blas_gemm, mctc_symv, mctc_gemm
    use xtb_mctc_lapack_eigensolve, only : TEigenSolver
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
@@ -611,6 +611,7 @@ end subroutine scc
 
 !> H0 off-diag scaling
 subroutine h0scal(hData,il,jl,izp,jzp,valaoi,valaoj,km)
+  !$acc routine seq
    type(THamiltonianData), intent(in) :: hData
    integer, intent(in)  :: il
    integer, intent(in)  :: jl
@@ -695,6 +696,7 @@ end subroutine electro
 !! ========================================================================
 pure function shellPoly(iPoly,jPoly,iRad,jRad,xyz1,xyz2)
    use xtb_mctc_convert, only : aatoau
+   !$acc routine seq
    real(wp), intent(in) :: iPoly,jPoly
    real(wp), intent(in) :: iRad,jRad
    real(wp), intent(in) :: xyz1(3),xyz2(3)
@@ -738,7 +740,8 @@ pure subroutine setespot(nshell, qsh, jmat, shellShift)
    !> shell-resolved potential shift
    real(wp),intent(inout) :: shellShift(:)
 
-   call blas_symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
+   !call blas_symv('l', nshell, 1.0_wp, jmat, nshell, qsh, 1, 1.0_wp, shellShift, 1)
+   call mctc_symv(jmat, qsh, shellShift, beta=1.0_wp)
 
 end subroutine setespot
 
@@ -1124,20 +1127,29 @@ end subroutine occu
 ! P  dmat
 subroutine dmat(ndim,focc,C,P)
    integer, intent(in)  :: ndim
-   real(wp),intent(in)  :: focc(*)
-   real(wp),intent(in)  :: C(ndim,ndim)
-   real(wp),intent(out) :: P(ndim,ndim)
+   real(wp),intent(in)  :: focc(:)
+   real(wp),intent(in)  :: C(:,:)
+   real(wp),intent(out) :: P(:,:)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
 
-   allocate( Ptmp(ndim,ndim), source = 0.0_wp )
+   allocate(Ptmp(ndim,ndim))
+   ! acc enter data create(Ptmp(:,:)) copyin(C(:, :), focc(:), P(:, :))
+   ! acc kernels default(present)
+   Ptmp = 0.0_wp
+   ! acc end kernels
 
+   ! acc parallel
+   ! acc loop gang collapse(2)
    do m=1,ndim
       do i=1,ndim
          Ptmp(i,m)=C(i,m)*focc(m)
       enddo
    enddo
-   call blas_gemm('n','t',ndim,ndim,ndim,1.0_wp,C,ndim,Ptmp,ndim,0.0_wp,P,ndim)
+   ! acc end parallel
+   ! acc update host(Ptmp)
+   call mctc_gemm(C, Ptmp, P, transb='t')
+   ! acc exit data copyout(P(:,:)) delete(C(:,:), focc(:), Ptmp(:, :))
 
    deallocate(Ptmp)
 

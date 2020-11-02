@@ -128,7 +128,7 @@ list(APPEND srcs
   "${dir}/scan_driver.f90"
   "${dir}/scanparam.f90"
   "${dir}/scc_core.f90"
-  "${dir}/scf_module.f90"
+  "${dir}/scf_module.F90"
   "${dir}/screening.f90"
   "${dir}/set_module.f90"
   "${dir}/setparam.f90"

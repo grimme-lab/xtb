@@ -19,12 +19,12 @@
 project(
   'xtb',
   'fortran', 'c',
-  version: '6.3.2',
+  version: '6.3.3',
   license: 'LGPL3',
   meson_version: '>=0.51',
   default_options: [
     'includedir=include/xtb',
-    'buildtype=release',
+    'buildtype=debugoptimized',
     'default_library=both',
     'optimization=2',
   ],
@@ -85,6 +85,10 @@ subdir('src')
 
 srcs += 'symmetry/symmetry.f90'
 srcs += 'symmetry/symmetry_i.c'
+
+if get_option('nvtx')
+  srcs += 'src/nvtx.f90'
+endif
 
 xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')

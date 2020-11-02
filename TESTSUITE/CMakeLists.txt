@@ -159,6 +159,9 @@ add_test("GFN-FF_Solvation" ${XTB-TESTER} gfnff solvation)
 add_test("GFN-FF_SP" ${XTB-TESTER} gfnff sp)
 add_test("GFN-FF_HB" ${XTB-TESTER} gfnff hb)
 add_test("GFN-FF_GBSA" ${XTB-TESTER} gfnff gbsa)
+add_test("GFN-FF_Scale_up" ${XTB-TESTER} gfnff scaleup)
+add_test("GFN-FF_PDB" ${XTB-TESTER} gfnff pdb)
+add_test("GFN-FF_SDF" ${XTB-TESTER} gfnff sdf)
 
 add_test("CAPI" ${XTB-CTESTER})
 

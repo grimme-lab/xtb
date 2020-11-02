@@ -462,14 +462,14 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       potset%pos%n = size(list)
 
    case('DISTANCE')
-      if (narg.ne.3) then
+      if (narg.lt.3 .or. narg.gt.4) then
          call env%error('not enough arguments to constrain a distance',source)
          return
       endif
       ioffset = 2*potset%dist%n
       potset%dist%n = potset%dist%n+1
    !  part 1: get the constrained atoms
-      do i = 1, narg-1
+      do i = 1, 2
          if (getValue(env,trim(argv(i)),idum)) then
             potset%dist%atoms(ioffset+i) = idum
          else
@@ -482,10 +482,10 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       i = potset%dist%atoms(ioffset+1)
       j = potset%dist%atoms(ioffset+2)
       dist = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
-      if (trim(argv(narg)).eq.'auto') then
+      if (trim(argv(3)).eq.'auto') then
          potset%dist%val(potset%dist%n) = dist
       else
-         if (getValue(env,trim(argv(narg)),ddum)) then
+         if (getValue(env,trim(argv(3)),ddum)) then
             potset%dist%val(potset%dist%n) = ddum * aatoau
          else
             call env%warning("Something went wrong in set_constr_ 'distance'. (2)",source)
@@ -493,6 +493,28 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
             return
          endif
       endif
+      if (narg.eq.4) then
+         if (getValue(env,trim(argv(4)),idum)) then
+            if (idum < 2 .or. mod(idum, 2).ne.0) then
+               call env%warning("Invalid spring exponent given", source)
+               potset%dist%n = potset%dist%n-1 ! remove invalid contrain
+               return
+            end if
+            potset%dist%expo(potset%dist%n) = real(idum, wp)
+         else
+            call env%warning("Something went wrong in set_constr_ 'distance'. (3)",source)
+            potset%dist%n = potset%dist%n-1 ! remove invalid contrain
+            return
+         end if
+         write(env%unit,'("constraining bond",2(1x,i0),1x,"to",'//&
+            '1x,f12.7,1x,"Å, actual value:",1x,f12.7,1x,"Å",1x,"with expo",1x,i0)') &
+            i,j, potset%dist%val(potset%dist%n)*autoaa, dist*autoaa, &
+            nint(potset%dist%expo(potset%dist%n))
+      else
+         write(env%unit,'("constraining bond",2(1x,i0),1x,"to",'//&
+            '1x,f12.7,1x,"Å, actual value:",1x,f12.7,1x,"Å")') &
+            i,j, potset%dist%val(potset%dist%n)*autoaa, dist*autoaa
+      end if
 
    case('ANGLE')
       if (narg.ne.4) then

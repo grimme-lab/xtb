@@ -1,6 +1,7 @@
 ! This file is part of xtb.
 !
 ! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2020, NVIDIA CORPORATION. All rights reserved.
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -1609,8 +1610,13 @@ subroutine d4_full_gradient_latp &
    if (par%s9 /= 0.0_wp) then
       call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
          & c6, dc6dcn, dc6dq)
+#ifdef XTB_GPU
+      call atm_gradient_latp_gpu(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
+         & energies3, gradient, sigma, dEdcn)
+#else
       call atm_gradient_latp(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
          & energies3, gradient, sigma, dEdcn)
+#endif
    end if
    if (present(e3)) e3 = sum(energies3)
 
@@ -1892,9 +1898,15 @@ subroutine d4_atm_gradient_latp &
    call get_atomic_c6(dispm, nat, mol%at, zerovec, zerodcn, zerodq, &
       & c6, dc6dcn, dc6dq)
 
+#ifdef XTB_GPU
+   call atm_gradient_latp_gpu &
+      & (mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+#else
    call atm_gradient_latp &
       & (mol, trans, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
+#endif
 
    call mctc_gemv(dcndr, dEdcn, gradient, beta=1.0_wp)
    call mctc_gemv(dcndL, dEdcn, sigma, beta=1.0_wp)
@@ -1902,7 +1914,6 @@ subroutine d4_atm_gradient_latp &
    energy = energy + sum(energies)
 
 end subroutine d4_atm_gradient_latp
-
 
 subroutine atm_gradient_latp &
       & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
@@ -1996,11 +2007,131 @@ subroutine atm_gradient_latp &
 
 end subroutine atm_gradient_latp
 
+subroutine atm_gradient_latp_gpu &
+      & (mol, trans, cutoff, par, r4r2, c6, dc6dcn, &
+      &  energies, gradient, sigma, dEdcn)
+
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> Damping parameters
+   type(dftd_parameter), intent(in) :: par
+
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(in) :: r4r2(:)
+   real(wp), intent(in) :: cutoff
+   real(wp), intent(in) :: c6(:, :)
+   real(wp), intent(in) :: dc6dcn(:, :)
+
+   real(wp), intent(inout) :: energies(:)
+   real(wp), intent(inout) :: gradient(:, :)
+   real(wp), intent(inout) :: sigma(:, :)
+   real(wp), intent(inout) :: dEdcn(:)
+
+   integer :: iat, jat, kat, ati, atj, atk, jtr, ktr
+   real(wp) :: cutoff2
+   real(wp) :: rij(3), rjk(3), rik(3), r2ij, r2jk, r2ik
+   real(wp) :: c6ij, c6jk, c6ik, cij, cjk, cik, scale
+   real(wp) :: dE, dG(3, 3), dS(3, 3), dCN(3)
+   real(wp), parameter :: sr = 4.0_wp/3.0_wp
+   integer :: mlen, k, kk
+
+   cutoff2 = cutoff**2
+   mlen = len(mol)
+
+   !$acc enter data copyin(par,trans,r4r2,c6,dc6dcn,energies,gradient,sigma,dEdcn, &
+   !$acc& mol,mol%at,mol%xyz)
+
+   !$acc parallel default(present) private(rij,rjk,rik,dG,dS,dCN) 
+
+   !$acc loop gang collapse(3)
+   do iat = 1, mlen
+      do jat = 1, mlen
+         do kat = 1, mlen
+            if (jat.gt.iat) cycle
+            if (kat.gt.jat) cycle
+
+            ati = mol%at(iat)
+            atj = mol%at(jat)
+
+            c6ij = c6(jat,iat)
+            cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
+
+            atk = mol%at(kat)
+
+            c6ik = c6(kat,iat)
+            c6jk = c6(kat,jat)
+
+            cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
+            cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
+
+            do jtr = 1, size(trans, dim=2)
+               rij = mol%xyz(:, jat) - mol%xyz(:, iat) + trans(:, jtr)
+               r2ij = sum(rij**2)
+               if (r2ij > cutoff2 .or. r2ij < 1.0e-14_wp) cycle
+               do ktr = 1, size(trans, dim=2)
+                  if (jat == kat .and. jtr == ktr) cycle
+                  rik = mol%xyz(:, kat) - mol%xyz(:, iat) + trans(:, ktr)
+                  r2ik = sum(rik**2)
+                  if (r2ik > cutoff2 .or. r2ik < 1.0e-14_wp) cycle
+                  rjk = mol%xyz(:, kat) - mol%xyz(:, jat) + trans(:, ktr) &
+                     & - trans(:, jtr)
+                  r2jk = sum(rjk**2)
+                  if (r2jk > cutoff2 .or. r2jk < 1.0e-14_wp) cycle
+
+                  call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
+                     & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
+                     & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
+                     & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+
+                  scale = par%s9 * triple_scale(iat, jat, kat)
+                  !$acc atomic
+                  energies(iat) = energies(iat) + dE * scale/3
+                  !$acc atomic
+                  energies(jat) = energies(jat) + dE * scale/3
+                  !$acc atomic
+                  energies(kat) = energies(kat) + dE * scale/3
+                  do k = 1,3
+                    !$acc atomic
+                    gradient(k, iat) = gradient(k, iat) + dG(k, 1) * scale
+                    !$acc atomic
+                    gradient(k, jat) = gradient(k, jat) + dG(k, 2) * scale
+                    !$acc atomic
+                    gradient(k, kat) = gradient(k, kat) + dG(k, 3) * scale
+                  enddo
+                  do k = 1,3
+                    do kk = 1,3
+                      !$acc atomic
+                      sigma(kk, k) = sigma(kk, k) + dS(kk, k) * scale
+                    enddo
+                  enddo
+                  !$acc atomic
+                  dEdcn(iat) = dEdcn(iat) + dCN(1) * scale
+                  !$acc atomic
+                  dEdcn(jat) = dEdcn(jat) + dCN(2) * scale
+                  !$acc atomic
+                  dEdcn(kat) = dEdcn(kat) + dCN(3) * scale
+
+               end do
+            end do
+
+         end do
+      end do
+   end do
+   !$acc end parallel
+
+   !$acc exit data copyout(energies,gradient,sigma,dEdcn)
+   !$acc exit data delete(par,trans,r4r2,c6,dc6dcn,mol,mol%at,mol%xyz)
+
+
+end subroutine atm_gradient_latp_gpu
+
 
 pure subroutine deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &
       & r2ij, r2jk, r2ik, dc6ij, dc6ji, dc6jk, dc6kj, dc6ik, dc6ki, &
       & rij, rjk, rik, alp, dE, dG, dS, dCN)
 
+   !$acc routine vector
    real(wp), intent(in) :: c6ij, c6ik, c6jk
    real(wp), intent(in) :: cij, cjk, cik
    real(wp), intent(in) :: r2ij, r2jk, r2ik
@@ -2069,6 +2200,7 @@ end subroutine deriv_atm_triple
 
 !> Logic exercise to distribute a triple energy to atomwise energies.
 elemental function triple_scale(ii, jj, kk) result(scale)
+   !$acc routine seq
 
    !> Atom indices
    integer, intent(in) :: ii, jj, kk

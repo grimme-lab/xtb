@@ -49,6 +49,7 @@ subroutine getMolecule(mol, name)
    case('remdesivir');  call remdesivir(mol)
    case('taxol');       call taxol(mol)
    case('pdb-4qxx');    call pdb_4qxx(mol)
+   case('bug332');      call bug332(mol)
    case('manganese');   call manganese(mol)
    case('vcpco4');      call vcpco4(mol)
    case('feco5');       call feco5(mol)
@@ -1021,6 +1022,61 @@ subroutine feco5(mol)
       & shape(xyz))
    call init(mol, sym, xyz)
 end subroutine feco5
+
+
+subroutine bug332(mol)
+   use xtb_mctc_filetypes, only : fileType
+   use xtb_type_vendordata, only : sdf_data
+   type(TMolecule), intent(out) :: mol
+   integer, parameter :: nat = 13
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
+      & "O", "C", "C", "C", "C", "C", "N", "H", "H", "H", "H", "H", "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      &  2.81493577407313_wp, -4.24016708503309_wp, -0.05196746360567_wp,  &
+      &  1.60154274202939_wp, -2.27863154966258_wp, -0.01417294461973_wp,  &
+      &  2.83099844464216_wp,  0.08806122923725_wp,  0.44597532403414_wp,  &
+      &  1.46340377513576_wp,  2.31302456193979_wp,  0.48452573339981_wp,  &
+      & -1.07355331179575_wp,  2.33456743776178_wp,  0.09675396860402_wp,  &
+      & -2.54527188110842_wp, -0.01870828689804_wp, -0.38777176479579_wp,  &
+      & -0.96848454901482_wp, -2.31018997301585_wp, -0.41441690068088_wp,  &
+      &  4.85281623779525_wp,  0.06500657265582_wp,  0.75551243452903_wp,  &
+      &  2.44870688509933_wp,  4.07557195484931_wp,  0.83261325326035_wp,  &
+      & -2.07113964042975_wp,  4.12319304877160_wp,  0.14021766543785_wp,  &
+      & -3.51470129309789_wp,  0.11451739252741_wp, -2.22137285339888_wp,  &
+      & -4.00017188947235_wp, -0.25964834543344_wp,  1.07695481850448_wp,  &
+      & -1.83832540347633_wp, -4.00659695769996_wp, -0.74266229807381_wp], &
+      & shape(xyz))
+   integer, parameter :: bonds(3, 13) = reshape([ &
+      &  1,  2,  2,  &
+      &  2,  3,  1,  &
+      &  3,  4,  2,  &
+      &  3,  8,  1,  &
+      &  4,  5,  1,  &
+      &  4,  9,  1,  &
+      &  5,  6,  1,  &
+      &  5, 10,  1,  &
+      &  6,  7,  1,  &
+      &  6, 11,  1,  &
+      &  6, 12,  1,  &
+      &  7,  2,  1,  &
+      &  7, 13,  1], &
+      & shape(bonds))
+   integer, parameter :: charge_at = 5
+   real(wp), parameter :: charge = 1.0_wp
+   integer :: ibond
+
+   call init(mol, sym, xyz, chrg=charge)
+   mol%ftype = fileType%sdf
+
+   allocate(mol%sdf(nat), source=sdf_data())
+   mol%sdf(charge_at)%charge = nint(charge)
+
+   call mol%bonds%allocate(size=size(bonds, 2), order=size(bonds, 1))
+   do ibond = 1, size(bonds, 2)
+      call mol%bonds%push_back(bonds(:, ibond))
+   end do
+
+end subroutine bug332
 
 
 end module xtb_test_molstock

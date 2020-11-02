@@ -27,9 +27,9 @@ module xtb_xtb_multipole
 
    type, extends(TMultipoleData) :: TxTBMultipole
 
-      real(wp), allocatable :: gab3(:)
+      real(wp), allocatable :: gab3(:, :)
 
-      real(wp), allocatable :: gab5(:)
+      real(wp), allocatable :: gab5(:, :)
 
    end type
 

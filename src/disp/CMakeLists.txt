@@ -22,7 +22,7 @@ list(APPEND srcs
   "${dir}/dftd3.f"
   "${dir}/dftd3.f90"
   "${dir}/dftd3_parameters.f90"
-  "${dir}/dftd4.f90"
+  "${dir}/dftd4.F90"
   "${dir}/dftd4_parameters.f90"
   "${dir}/encharges.f90"
   "${dir}/ncoord.f90"

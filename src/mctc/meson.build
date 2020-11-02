@@ -36,7 +36,7 @@ srcs += files(
   'systools.F90',
   'thresholds.f90',
   'version.f90',
-  'mctc_global.f90',
+  'mctc_global.F90',
   'mctc_strings.f90',
   'mctc_constants.f90',
   'mctc_param.f90',
@@ -51,7 +51,7 @@ srcs += files(
   'linalg.f90',
   'lapack.f90',
   'blas.f90',
-  'mctc_init.f90',
+  'mctc_init.F90',
   'error.f90',
   'signal.c',
 )

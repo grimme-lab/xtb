@@ -169,6 +169,7 @@ subroutine write_set_gfn(ictrl)
       write(ictrl,'(3x,"d4=",a)') bool2string(newdisp)
    write(ictrl,'(3x,"scc=",a)') bool2string(solve_scc)
    write(ictrl,'(3x,"periodic=",a)') bool2string(periodic)
+   write(ictrl,'(3x,"dispscale=",g0)') dispscale
 end subroutine write_set_gfn
 
 subroutine write_set_scc(ictrl)
@@ -288,7 +289,7 @@ subroutine write_set_gbsa(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    if (len_trim(solvInput%solvent).gt.0 .and. solvInput%solvent.ne."none") then
-      write(ictrl,'(a,"gbsa")') flag
+      write(ictrl,'(a,"solvation")') flag
       if (allocated(solvInput%solvent)) write(ictrl,'(3x,"solvent=",a)') solvInput%solvent
       write(ictrl,'(3x,"ion_st=",g0)') solvInput%ionStrength
       write(ictrl,'(3x,"ion_rad=",g0)') solvInput%ionRad * autoaa
@@ -775,6 +776,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case('siman'    ); call rdblock(env,set_siman,   line,id,copy,err,ncount)
          case('modef'    ); call rdblock(env,set_modef,   line,id,copy,err,ncount)
          case('gbsa'     ); call rdblock(env,set_gbsa,    line,id,copy,err,ncount)
+         case('solvation'); call rdblock(env,set_gbsa,    line,id,copy,err,ncount)
          case('embedding'); call rdblock(env,set_pcem,    line,id,copy,err,ncount)
          case('thermo'   ); call rdblock(env,set_thermo,  line,id,copy,err,ncount)
          case('external' ); call rdblock(env,set_external,line,id,copy,err,ncount)
@@ -1321,6 +1323,7 @@ subroutine set_gfn(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
+   logical,save :: set5 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gfn",source)
@@ -1351,6 +1354,9 @@ subroutine set_gfn(env,key,val)
    case('periodic')
       if (getValue(env,val,ldum).and.set4) periodic = ldum
       set4 = .false.
+   case('dispscale')
+      if (getValue(env,val,ddum).and.set5) dispscale = ddum
+      set5 = .false.
    end select
 end subroutine set_gfn
 
@@ -2170,6 +2176,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
+   logical,save :: set7 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2192,6 +2199,9 @@ subroutine set_metadyn(env,key,val)
    case('rmsd')
       if (getValue(env,val,ddum).and.set6) target_rmsd = ddum
       set6 = .false.
+   case('bias_ramp_time','ramp')
+      if (getValue(env,val,ddum).and.set7) metaset%ramp = ddum
+      set7 = .false.
    end select
 
 end subroutine set_metadyn

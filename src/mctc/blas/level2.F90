@@ -18,6 +18,12 @@
 !> Interfaces to BLAS
 module xtb_mctc_blas_level2
    use xtb_mctc_accuracy, only : sp, dp
+#ifdef USE_CUBLAS
+   use cublas, only : cublasSgemv, cublasDgemv, cublasSger, cublasDger, &
+      & cublasSspmv, cublasDspmv, cublasSspr, cublasDspr, &
+      & cublasSspr2, cublasDspr2, cublasSsymv, cublasDsymv, &
+      & cublasSsyr, cublasDsyr, cublasSsyr2, cublasDsyr2
+#endif
    implicit none
    private
 
@@ -1200,7 +1206,15 @@ pure subroutine mctc_sgemv(amat, xvec, yvec, alpha, beta, trans)
    lda = max(1, size(amat, 1))
    m = size(amat, 1)
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasSgemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(amat, xvec)
+#else
    call blas_gemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+#endif
 end subroutine mctc_sgemv
 
 
@@ -1234,7 +1248,15 @@ pure subroutine mctc_dgemv(amat, xvec, yvec, alpha, beta, trans)
    lda = max(1, size(amat, 1))
    m = size(amat, 1)
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasDgemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(amat, xvec)
+#else
    call blas_gemv(tra, m, n, a, amat, lda, xvec, incx, b, yvec, incy)
+#endif
 end subroutine mctc_dgemv
 
 
@@ -1255,7 +1277,15 @@ pure subroutine mctc_sger(amat, xvec, yvec, alpha)
    lda = max(1, size(amat, 1))
    m = size(amat, 1)
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasSger(m, n, a, xvec, incx, yvec, incy, amat, lda)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec, yvec)
+#else
    call blas_ger(m, n, a, xvec, incx, yvec, incy, amat, lda)
+#endif
 end subroutine mctc_sger
 
 
@@ -1276,7 +1306,15 @@ pure subroutine mctc_dger(amat, xvec, yvec, alpha)
    lda = max(1, size(amat, 1))
    m = size(amat, 1)
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasDger(m, n, a, xvec, incx, yvec, incy, amat, lda)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec, yvec)
+#else
    call blas_ger(m, n, a, xvec, incx, yvec, incy, amat, lda)
+#endif
 end subroutine mctc_dger
 
 
@@ -1308,7 +1346,15 @@ pure subroutine mctc_sspmv(amat, xvec, yvec, uplo, alpha, beta)
    incx = 1
    incy = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasSspmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(amat, xvec)
+#else
    call blas_spmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+#endif
 end subroutine mctc_sspmv
 
 
@@ -1340,7 +1386,15 @@ pure subroutine mctc_dspmv(amat, xvec, yvec, uplo, alpha, beta)
    incx = 1
    incy = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasDspmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(amat, xvec)
+#else
    call blas_spmv(ula, n, a, amat, xvec, incx, b, yvec, incy)
+#endif
 end subroutine mctc_dspmv
 
 
@@ -1364,7 +1418,15 @@ pure subroutine mctc_sspr(amat, xvec, uplo, alpha)
    end if
    incx = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, amat)
+   !$acc host_data use_device(xvec, amat)
+   call cublasSspr(ula, n, a, xvec, incx, amat)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec)
+#else
    call blas_spr(ula, n, a, xvec, incx, amat)
+#endif
 end subroutine mctc_sspr
 
 
@@ -1388,7 +1450,15 @@ pure subroutine mctc_dspr(amat, xvec, uplo, alpha)
    end if
    incx = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, amat)
+   !$acc host_data use_device(xvec, amat)
+   call cublasDspr(ula, n, a, xvec, incx, amat)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec)
+#else
    call blas_spr(ula, n, a, xvec, incx, amat)
+#endif
 end subroutine mctc_dspr
 
 
@@ -1414,7 +1484,15 @@ pure subroutine mctc_sspr2(amat, xvec, yvec, uplo, alpha)
    incx = 1
    incy = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasSspr2(ula, n, a, xvec, incx, yvec, incy, amat)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec, yvec)
+#else
    call blas_spr2(ula, n, a, xvec, incx, yvec, incy, amat)
+#endif
 end subroutine mctc_sspr2
 
 
@@ -1440,7 +1518,15 @@ pure subroutine mctc_dspr2(amat, xvec, yvec, uplo, alpha)
    incx = 1
    incy = 1
    n = size(xvec)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasDspr2(ula, n, a, xvec, incx, yvec, incy, amat)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec, yvec)
+#else
    call blas_spr2(ula, n, a, xvec, incx, yvec, incy, amat)
+#endif
 end subroutine mctc_dspr2
 
 
@@ -1473,7 +1559,15 @@ pure subroutine mctc_ssymv(amat, xvec, yvec, uplo, alpha, beta)
    incy = 1
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasSsymv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(amat, xvec)
+#else
    call blas_symv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+#endif
 end subroutine mctc_ssymv
 
 
@@ -1506,7 +1600,15 @@ pure subroutine mctc_dsymv(amat, xvec, yvec, uplo, alpha, beta)
    incy = 1
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasDsymv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+   !$acc end host_data
+   !$acc exit data copyout(yvec) delete(amat, xvec)
+#else
    call blas_symv(ula, n, a, amat, lda, xvec, incx, b, yvec, incy)
+#endif
 end subroutine mctc_dsymv
 
 
@@ -1531,7 +1633,15 @@ pure subroutine mctc_ssyr(amat, xvec, uplo, alpha)
    incx = 1
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, amat)
+   !$acc host_data use_device(xvec, amat)
+   call cublasSsyr(ula, n, a, xvec, incx, amat, lda)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec)
+#else
    call blas_syr(ula, n, a, xvec, incx, amat, lda)
+#endif
 end subroutine mctc_ssyr
 
 
@@ -1556,7 +1666,15 @@ pure subroutine mctc_dsyr(amat, xvec, uplo, alpha)
    incx = 1
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, amat)
+   !$acc host_data use_device(xvec, amat)
+   call cublasDsyr(ula, n, a, xvec, incx, amat, lda)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec)
+#else
    call blas_syr(ula, n, a, xvec, incx, amat, lda)
+#endif
 end subroutine mctc_dsyr
 
 
@@ -1583,7 +1701,15 @@ pure subroutine mctc_ssyr2(amat, xvec, yvec, uplo, alpha)
    incy = 1
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasSsyr2(ula, n, a, xvec, incx, yvec, incy, amat, lda)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec, yvec)
+#else
    call blas_syr2(ula, n, a, xvec, incx, yvec, incy, amat, lda)
+#endif
 end subroutine mctc_ssyr2
 
 
@@ -1610,7 +1736,15 @@ pure subroutine mctc_dsyr2(amat, xvec, yvec, uplo, alpha)
    incy = 1
    lda = max(1, size(amat, 1))
    n = size(amat, 2)
+#ifdef USE_CUBLAS
+   !$acc enter data copyin(xvec, yvec, amat)
+   !$acc host_data use_device(xvec, yvec, amat)
+   call cublasDsyr2(ula, n, a, xvec, incx, yvec, incy, amat, lda)
+   !$acc end host_data
+   !$acc exit data copyout(amat) delete(xvec, yvec)
+#else
    call blas_syr2(ula, n, a, xvec, incx, yvec, incy, amat, lda)
+#endif
 end subroutine mctc_dsyr2
 
 

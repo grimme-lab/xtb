@@ -24,6 +24,9 @@ subroutine mctc_init(progname,ntimer,verbose)
    character(len=*),intent(in) :: progname
    integer,         intent(in) :: ntimer
    logical,         intent(in) :: verbose
+#ifdef USE_CUSOLVER
+   integer :: err
+#endif
 
 !! ========================================================================
 !  signal processing
@@ -56,6 +59,12 @@ subroutine mctc_init(progname,ntimer,verbose)
    allocate(persistentEnv)
    call init(persistentEnv)
 
+#ifdef USE_CUSOLVER
+   err = cusolverDnCreate(cusolverDnH)
+   if (err /= 0) then
+      call persistentEnv%error("failed to create cusolver handle", "mctc_init")
+   end if
+#endif
 end subroutine mctc_init
 
 subroutine mctc_sanity(sane)

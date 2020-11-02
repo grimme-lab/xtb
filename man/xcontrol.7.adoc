@@ -224,6 +224,9 @@ $gfn
 *method*='int'::
     version of the GFN Hamiltonian
 
+*dispscale*='real'::
+    Scale dispersion energy of GFN-FF
+
 $hess
 ~~~~~
 *sccacc*='real'::
