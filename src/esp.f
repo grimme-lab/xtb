@@ -383,11 +383,12 @@
 !     e is center of product gaussian with exponent gama, c is reference point
       d = e - c
 !     aname represents an external function
-      do 61 i=1,nnn
-      if(dabs(dd(i))-1.d-8) 61,61,41
-   41 call aname(lin(i),min(i),nin(i),gama,v,d)
-      va=dd(i)*v+va
-   61 continue
+      do i=1,nnn
+         if (dabs(dd(i))-1.d-8 .gt. 0.d0) then
+            call aname(lin(i),min(i),nin(i),gama,v,d)
+            va=dd(i)*v+va
+         end if
+      end do
       return
 
       end
