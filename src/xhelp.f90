@@ -66,9 +66,10 @@ write(iunit,'(3x,a)') &
    ""
 end subroutine citation
 
-subroutine help
-   use, intrinsic :: iso_fortran_env, only : istdout => output_unit
-   write(istdout,'(a)') &
+subroutine help(iunit)
+   implicit none
+   integer, intent(in) :: iunit
+   write(iunit,'(a)') &
    "Usage: xtb [options] <geometry> [options]", &
    "",&
    "<geometry> may be provided as valid TM coordinate file (*coord in Bohr),",&
