@@ -1481,7 +1481,6 @@ pure elemental function itabrow(i)
 end function itabrow
 
 pure subroutine outofp2(xyz,teta,bt)
-   use iso_fortran_env, wp => real64
    use xtb_mctc_constants
    implicit none
    real(wp),intent(out) :: teta
@@ -1772,7 +1771,6 @@ pure elemental function fk_vdw(alpha,r0,r2) result(gmm)
 end function fk_vdw
 
 subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
-   use iso_fortran_env, wp => real64
    use xtb_type_param
    implicit none
 
