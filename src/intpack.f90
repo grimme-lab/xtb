@@ -983,7 +983,7 @@ pure subroutine opac3(l,m,n,ga,v,d)
    !           electronic part of charge density
    implicit none
    integer,intent(in)  :: l,m,n
-   real(wp), intent(in)  :: ga,d(1)
+   real(wp), intent(in)  :: ga,d(3)
    real(wp), intent(out) :: v(1)
    real(wp)  :: dd(3),ddsq
    integer :: i
@@ -1006,7 +1006,7 @@ pure subroutine opad1(l,m,n,ga,v,d)
    !           electronic part of overlap
    implicit none
    integer,intent(in)  :: l,m,n
-   real(wp), intent(in)  :: ga,d(1)
+   real(wp), intent(in)  :: ga,d(3)
    real(wp), intent(out) :: v(1)
    v(1)=olap(l,m,n,ga)
    return
@@ -1367,16 +1367,13 @@ subroutine fmc(mvar,xvar,expmx,fmch)
    a=a-0.5d0
    approx=.886226925428d0*(dsqrt(xd)*xd**m)
    !!!if (m) 21, 23, 21
-   if(m.eq.0d0) then
-      goto 23
-   else
-      goto 21
+   if(m.ne.0d0) then
+      do i=1,m
+         b=b-1.d0
+         approx=approx*b
+      enddo
    endif
-   21  do i=1,m
-      b=b-1.d0
-      approx=approx*b
-   enddo
-   23  fimult=.5d0*expmx*xd
+   fimult=.5d0*expmx*xd
    fiprop=fimult/approx
    term=1.d0
    ptlsum=term
@@ -1413,9 +1410,8 @@ end subroutine fmc
       itot=l+m+n
       itoth=itot/2
       pre=(2.d0*pi/ga)*fn(l+1)*fn(m+1)*fn(n+1)
-      if(2*itoth-itot) 1,2,1
-   1  pre=-pre
-   2  del=.25d0/ga
+      pre=-pre
+      del=.25d0/ga
       x=ga*(d(1)**2+d(2)**2+d(3)**2)
       xx=2.d0*x
       call fmc (6,x,expmx,fmch)      ! 50 % of CPU
@@ -1447,7 +1443,7 @@ end subroutine fmc
       nh=n/2
       aainer=0.0d0
       last1 = lh+1
-      do 6 ii=1,last1
+      do ii=1,last1
        i = ii-1
        il=l-2*i+1
 !      ilr=r+il
@@ -1456,7 +1452,7 @@ end subroutine fmc
 !sg   if (ilr.gt.9 .or. i+1.gt.9 .or. il.gt.9) stop 'aainer: ilr'
        fi=fn(ilr)*fd(il)*fd(i+1)
        last2 = mh+1
-       do 5 jj=1,last2
+       do jj=1,last2
         j = jj-1
         jm=m-2*j+1
 !       jms=s+jm
@@ -1465,7 +1461,7 @@ end subroutine fmc
 !sg   if (jms.gt.9 .or. j+1.gt.9 .or. jm.gt.9) stop 'aainer: ilr'
         fij=fn(jms)*fd(jm)*fd(j+1)*fi
         last3 = nh+1
-        do 4 kk=1,last3
+        do kk=1,last3
          k = kk-1
          kn=n-2*k+1
 !        knt=t+kn
@@ -1476,43 +1472,48 @@ end subroutine fmc
          fijk=fn(knt)*fd(kn)*fd(k+1)*dp(ijkt+1)*fij
          lmrsij=lmnrst-2*ijkt
          last4 = ilrh+1
-         do 3 iu=1,last4
+         do iu=1,last4
           u = iu-1
           ilru=ilr-2*u
 !sg   if (u+1.gt.9 .or. ilru.gt.9) stop 'aainer: ilru'
           fu=fd(u+1)*fd(ilru)
-          if(dabs(d(1))-0.0000001d0)10,10,11
-   10     if(ilru-1) 12,12, 3
-   11     fu=fu*d(1)**(ilru-1)
-   12     last5 = jmsh+1
-          do 2 iv=1,last5
+          if(dabs(d(1))-0.0000001d0.le.0.0) then
+           if(ilru-1.gt.0) cycle
+          else
+           fu=fu*d(1)**(ilru-1)
+          end if
+          last5 = jmsh+1
+          do iv=1,last5
            v = iv-1
            jmsv=jms-2*v
            fuv=fu*fd(v+1)*fd(jmsv)
-           if(dabs(d(2))-0.0000001d0)20,20,21
-   20      if(jmsv-1) 22,22,2
-   21      fuv=fuv*d(2)**(jmsv-1)
-   22      last6 = knth+1
-           do 1 iw=1,last6
+           if(dabs(d(2))-0.0000001d0.le.0d0) then
+            if(jmsv-1.gt.0) cycle
+           else
+            fuv=fuv*d(2)**(jmsv-1)
+           end if
+           last6 = knth+1
+           do iw=1,last6
             w = iw-1
             kntw=knt-2*w
             fuvw=fuv*fd(w+1) *fd(kntw)
-            if(dabs(d(3))-0.0000001d0)30,30,31
-   30       if(kntw-1) 32,32,1
-   31       fuvw=fuvw*d(3)**(kntw-1)
-   32       uvwt=u+v+w
+            if(dabs(d(3))-0.0000001d0.le.0d0) then
+             if(kntw-1.gt.0) cycle
+            else
+             fuvw=fuvw*d(3)**(kntw-1)
+            end if
+            uvwt=u+v+w
             uvwth=uvwt/2
-            if(2*uvwth-uvwt) 33,34,33
-   33       fuvw=-fuvw
-   34       nuindx=lmrsij-uvwt
+            fuvw=-fuvw
+            nuindx=lmrsij-uvwt
             fuvw=fuvw*fnu(nuindx+1)*dp(uvwt+1)
             aainer=fijk*fuvw+aainer
-    1      continue
-    2     continue
-    3    continue
-    4   continue
-    5  continue
-    6 continue
+           enddo
+          enddo
+         enddo
+        enddo
+       enddo
+      enddo
       return
       end
 
