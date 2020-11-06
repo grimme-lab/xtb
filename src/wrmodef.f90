@@ -183,7 +183,7 @@ end subroutine wrmodef
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 subroutine g98fake(fname,n,at,xyz,freq,u2,u)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    integer, intent(in) :: n,at(n)
    real(wp),intent(in) :: freq(3*n),xyz(3,n),u2(3*n,3*n)

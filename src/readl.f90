@@ -35,7 +35,7 @@ end subroutine readl
 
 
 function readaa(a,istart,iend,iend2)
-   use iso_fortran_env, only : wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit real(wp) (a-h,o-z)
    real(wp) readaa
    character(*) a

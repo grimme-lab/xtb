@@ -16,7 +16,6 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_type_buffer
-   use iso_fortran_env
    implicit none
    public :: tb_buffer
    public :: len, size

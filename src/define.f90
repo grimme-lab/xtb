@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine eval_define(verbose)
-   use iso_fortran_env, only : id => output_unit
+   use, intrinsic :: iso_fortran_env, only : id => output_unit
    use xtb_mctc_global, only : msgid, name
    implicit none
    logical,intent(in) :: verbose

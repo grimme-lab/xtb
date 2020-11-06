@@ -104,7 +104,7 @@ subroutine wrtm(n,at,xyz)
 end subroutine wrtm
 
 subroutine rdtm(n,grd,e,g)
-   use iso_fortran_env, wp => real64
+   use xtb_mctc_accuracy, only : wp
    implicit none
    integer n, iunit, i, nl, j, nn
    logical grd

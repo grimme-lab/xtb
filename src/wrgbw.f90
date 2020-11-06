@@ -16,9 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine wrgbw(xtbData,n,iat,coord,z,basis,wfn)
-   use, intrinsic :: iso_fortran_env
-   use, intrinsic :: iso_c_binding
-   use xtb_mctc_accuracy, only : wp
+   use, intrinsic :: iso_fortran_env, only : output_unit
+   use, intrinsic :: iso_c_binding, only : c_bool, c_char, c_int, c_long, c_double
+   use xtb_mctc_accuracy, only : wp, int64 => i8
    use xtb_type_basisset
    use xtb_type_wavefunction
    use xtb_xtb_data

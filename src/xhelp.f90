@@ -67,7 +67,7 @@ write(iunit,'(3x,a)') &
 end subroutine citation
 
 subroutine help
-   use iso_fortran_env, only : istdout => output_unit
+   use, intrinsic :: iso_fortran_env, only : istdout => output_unit
    write(istdout,'(a)') &
    "Usage: xtb [options] <geometry> [options]", &
    "",&
@@ -216,7 +216,7 @@ subroutine help
 end subroutine help
 
 subroutine help_legacy
-   use iso_fortran_env, only : id => output_unit
+   use, intrinsic :: iso_fortran_env, only : id => output_unit
    write(id,'(''Usage: xtb <geometry> [options]'',/)')
 
    write(id,'(''<geometry> may be provided as'','//&
@@ -382,7 +382,7 @@ subroutine help_legacy
 end subroutine help_legacy
 
 subroutine definebanner
-   use iso_fortran_env, only : id => output_unit
+   use, intrinsic :: iso_fortran_env, only : id => output_unit
    write(id,"(""           _"")")
    write(id,"(""          | |"")")
    write(id,"(""  _ __ ___| |_ _   _ _ __ _ __        __"")")

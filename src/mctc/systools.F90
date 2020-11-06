@@ -30,7 +30,7 @@ module xtb_mctc_systools
 contains
 
 subroutine getline(unit,line,iostat)
-   use iso_fortran_env, only : iostat_eor
+   use, intrinsic :: iso_fortran_env, only : iostat_eor
    integer,intent(in) :: unit
    character(len=:),allocatable,intent(out) :: line
    integer,intent(out),optional :: iostat
