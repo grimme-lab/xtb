@@ -15,11 +15,11 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subroutine raise(mode,message,code)
+subroutine raise(mode,message)
    use xtb_mctc_global
+   implicit none
    character, intent(in) :: mode
    character(len=*), intent(in) :: message
-   integer, intent(in) :: code
 
    select case(mode)
    case('S','s') ! save to message buffer

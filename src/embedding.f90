@@ -124,14 +124,14 @@ subroutine read_pcem(iunit,env,pcem,jData)
 
       ! user provided crap input, bad user
       if (narg.lt.4) then
-         call raise('E',"Not enough entries for PC, please check!",1)
+         call raise('E',"Not enough entries for PC, please check!")
       endif
 
       ! we count this line
       n = n+1
       ! before we start parsing we check the number of lines
       if (n > npc) then ! bad user
-         call raise('E',"Wrong dimension input for PC, too many lines provided",1)
+         call raise('E',"Wrong dimension input for PC, too many lines provided")
       endif
 
       ! first position should be the partial charge
@@ -150,7 +150,7 @@ subroutine read_pcem(iunit,env,pcem,jData)
          if (err.ne.0) then
             call elem(argv(5),iat)
             if (iat.eq.0) then ! so much for the well-behaved user
-               call raise('E',"Invalid PC input: '"//trim(argv(5))//"'",1)
+               call raise('E',"Invalid PC input: '"//trim(argv(5))//"'")
             endif
             gami = jData%chemicalHardness(iat)
          endif
@@ -162,7 +162,7 @@ subroutine read_pcem(iunit,env,pcem,jData)
          ! a PC potential for GFN0-xTB, than this is YOUR problem now.
          if (gami < 0.0_wp) then
             call raise('S',"Found negative gam-value in user input: '"//&
-               &            trim(argv(5))//"'",1)
+               &            trim(argv(5))//"'")
          endif
       else
          ! we trust the dummy atom from xcontrol, since xcontrol could already
@@ -177,7 +177,7 @@ subroutine read_pcem(iunit,env,pcem,jData)
    ! user screwed up, we could rescue this by resetting npc
    ! or we rub it in his/her face :)
    if (n /= npc) then
-      call raise('E',"Wrong dimension input for PC, too few lines provided",1)
+      call raise('E',"Wrong dimension input for PC, too few lines provided")
    endif
 
 end subroutine read_pcem

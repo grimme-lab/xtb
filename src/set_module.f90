@@ -493,8 +493,6 @@ subroutine write_set_constrain(ictrl)
       if (atconstr(3,i).gt.0) idum = 2
       if (atconstr(4,i).gt.0) idum = 3
       select case(idum)
-      case default ! this is bad, we don't want this to happen
-         call raise('E','This is an internal error, please report this!',1)
       case(-2)
          write(ictrl,'(3x,"center:",1x,g0,1x,i0,1x,"# force constant")') &
             valconstr(i),iatf1
@@ -514,6 +512,8 @@ subroutine write_set_constrain(ictrl)
          write(ictrl,'(3x,"dihedral:",1x,4(i0,",",1x),g0,1x,"# in Degree")') &
             atconstr(1,i),atconstr(2,i),atconstr(3,i),atconstr(4,i), &
             valconstr(i)*180.0_wp/pi
+      case default ! this is bad, we don't want this to happen
+         call raise('E','This is an internal error, please report this!')
       end select
    enddo
 
@@ -530,12 +530,12 @@ subroutine write_set_scan(ictrl)
 
    write(ictrl,'(a,"scan")') flag
    select case(scan_mode)
-   case default ! this should never happen...
-      call raise('E','This is an internal error, please report this!',1)
    case(p_scan_sequential)
       write(ictrl,'(3x,"mode=sequential")')
    case(p_scan_concerted)
       write(ictrl,'(3x,"mode=concerted")')
+   case default ! this should never happen...
+      call raise('E','This is an internal error, please report this!')
    end select
    do i = 1, nscan
       ! instead of simply saving the kind of constraint while reading,
@@ -900,9 +900,6 @@ subroutine set_exttyp(typ)
    logical,save :: set = .true.
    if (.not.set) return
    select case(typ)
-   case default ! do nothing
-      call raise('S',typ//' is no valid exttyp (internal error)',1)
-
    case('vtb')
       mode_extrun = p_ext_vtb
    case('eht')
@@ -922,6 +919,8 @@ subroutine set_exttyp(typ)
    case('ff')
       mode_extrun = p_ext_gfnff
 
+   case default ! do nothing
+      call raise('S',typ//' is no valid exttyp (internal error)')
    end select
    set = .false.
 end subroutine set_exttyp
@@ -932,9 +931,6 @@ subroutine set_geopref(typ)
    logical,save :: set = .true.
    if (.not.set) return
    select case(typ)
-   case default ! do nothing
-      call raise('S',typ//' is no valid geometry format (internal error)',1)
-
    case('sdf')
       geometry_inputfile = p_geo_sdf
 
@@ -947,6 +943,8 @@ subroutine set_geopref(typ)
    case('vasp','poscar')
       geometry_inputfile = p_geo_poscar
 
+   case default ! do nothing
+      call raise('S',typ//' is no valid geometry format (internal error)')
    end select
    set = .false.
 end subroutine set_geopref
@@ -956,13 +954,10 @@ subroutine set_runtyp(typ)
    character(len=*),intent(in) :: typ
    logical,save :: set = .true.
    if (.not.set) then
-      call raise('S','Runtyp already set and locked, please use a composite runtyp instead.',1)
+      call raise('S','Runtyp already set and locked, please use a composite runtyp instead.')
       return
    endif
    select case(typ)
-   case default ! do nothing
-      call raise('E',typ//' is no valid runtyp (internal error)',1)
-
    case('scc')
       runtyp = p_run_scc
 
@@ -1008,6 +1003,9 @@ subroutine set_runtyp(typ)
       runtyp = p_run_vomega
    case('vfukui')
       runtyp = p_run_vfukui
+
+   case default ! do nothing
+      call raise('E',typ//' is no valid runtyp (internal error)')
    end select
    set = .false.
 end subroutine set_runtyp
@@ -1137,8 +1135,6 @@ subroutine set_write(env,key,val)
    logical,save :: set30 = .true.
    logical,save :: set31 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by write",source)
    case('esp')
       if (getValue(env,val,ldum).and.set1)  pr_esp = ldum
       set1 = .false.
@@ -1235,6 +1231,8 @@ subroutine set_write(env,key,val)
    case('hessian.out')
       if (getValue(env,val,ldum).and.set31) pr_dftbp_hessian_out = ldum
       set31 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by write",source)
    end select
 end subroutine set_write
 
@@ -1260,8 +1258,6 @@ subroutine set_pcem(env,key,val)
    logical,save :: set10 = .true.
    logical,save :: set11 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by embedding",source)
    case('at')
       if (getValue(env,val,idum).and.set1) pcem_dummyatom = idum
       set1 = .false.
@@ -1305,6 +1301,8 @@ subroutine set_pcem(env,key,val)
    case('gradient')
       if (set11) pcem_grad = val
       set11 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by embedding",source)
    end select
 end subroutine set_pcem
 
@@ -1325,8 +1323,6 @@ subroutine set_gfn(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by gfn",source)
    case('version','method')
       if (key.eq.'version') &
          call env%warning("Don't use the 'version' key, since it is confusing",source)
@@ -1357,6 +1353,8 @@ subroutine set_gfn(env,key,val)
    case('dispscale')
       if (getValue(env,val,ddum).and.set5) dispscale = ddum
       set5 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by gfn",source)
    end select
 end subroutine set_gfn
 
@@ -1375,8 +1373,6 @@ subroutine set_scc(env,key,val)
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by scc",source)
    case('temp')
       if (getValue(env,val,ddum).and.set1) eTemp = ddum
       set1 = .false.
@@ -1404,6 +1400,8 @@ subroutine set_scc(env,key,val)
          endif
       endif
       set4 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by scc",source)
    end select
 end subroutine set_scc
 
@@ -1437,8 +1435,6 @@ subroutine set_opt(env,key,val)
    logical,save :: set17 = .true.
    logical,save :: set18 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by opt",source)
    case('optlevel')
       if (set1) then
          optset%optlev = optlevel2int(val)
@@ -1515,6 +1511,8 @@ subroutine set_opt(env,key,val)
       if (.not.allocated(opt_outfile)) opt_outfile = val
    case('logfile')
       if (.not.allocated(opt_logfile)) opt_logfile = val
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by opt",source)
    end select
 end subroutine set_opt
 
@@ -1524,8 +1522,6 @@ function optlevel2int(level) result(ilvl)
    integer :: ilvl
 
    select case(level)
-   case default
-      ilvl = p_olev_normal
    case('crude','-3')
       ilvl = p_olev_crude
    case('sloppy','-2')
@@ -1542,6 +1538,8 @@ function optlevel2int(level) result(ilvl)
       ilvl = p_olev_vtight
    case('extreme','3')
       ilvl = p_olev_extreme
+   case default
+      ilvl = p_olev_normal
    end select
 
 end function optlevel2int
@@ -1552,8 +1550,6 @@ function int2optlevel(ilvl) result(level)
    integer,         intent(in)  :: ilvl
 
    select case(ilvl)
-   case default
-      level = 'normal'
    case(-3)
       level = 'crude'
    case(-2)
@@ -1570,6 +1566,8 @@ function int2optlevel(ilvl) result(level)
       level = 'verytight'
    case(3)
       level = 'extreme'
+   case default
+      level = 'normal'
    end select
 
 end function int2optlevel
@@ -1593,8 +1591,6 @@ subroutine set_thermo(env,key,val)
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by thermo",source)
    case('temp')
       if (.not.set1) return ! we could read this twice... but we don't do
       thermotemp = 0.0
@@ -1627,6 +1623,8 @@ subroutine set_thermo(env,key,val)
    case('scale')
       if (getValue(env,val,ddum).and.set4) thermo_fscal = ddum
       set4 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by thermo",source)
    end select
 end subroutine set_thermo
 
@@ -1653,8 +1651,6 @@ subroutine set_md(env,key,val)
    logical,save :: set11= .true.
    logical,save :: set12= .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by md",source)
    case('temp')
       if (getValue(env,val,ddum).and.set1) then
          temp_md = ddum
@@ -1726,6 +1722,8 @@ subroutine set_md(env,key,val)
    case('restart')
       if (getValue(env,val,ldum).and.set11) restart_md = ldum
       set11 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by md",source)
    end select
 end subroutine set_md
 
@@ -1796,8 +1794,6 @@ subroutine set_hess(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by hess",source)
    case('sccacc')
       if (getValue(env,val,ddum).and.set1) accu_hess = ddum
       set1 = .false.
@@ -1807,6 +1803,8 @@ subroutine set_hess(env,key,val)
    case('scale')
       if (getValue(env,val,ddum).and.set3) scale_hess = ddum
       set3 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by hess",source)
    end select
 end subroutine set_hess
 
@@ -1825,8 +1823,6 @@ subroutine set_reactor(env,key,val)
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by reactor",source)
    case('kpush')
       if (getValue(env,val,ddum).and.set1) reactset%kpush = ddum
       set1 = .false.
@@ -1839,6 +1835,8 @@ subroutine set_reactor(env,key,val)
    case('density')
       if (getValue(env,val,ddum).and.set4) reactset%dens  = ddum
       set4 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by reactor",source)
    end select
 end subroutine set_reactor
 
@@ -1860,9 +1858,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
-      select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by gbsa",source)
+   select case(key)
    case('solvent')
       if (set1 .and. val.ne.'none') then
          solvInput%solvent = val
@@ -1910,6 +1906,8 @@ subroutine set_gbsa(env,key,val)
          end select
       end if
       set6 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by gbsa",source)
    end select
 end subroutine set_gbsa
 
@@ -1931,8 +1929,6 @@ subroutine set_modef(env,key,val)
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by modef",source)
    case('n')
       if (getValue(env,val,idum).and.set1) mode_nscan = idum
       set1 = .false.
@@ -1954,6 +1950,8 @@ subroutine set_modef(env,key,val)
    case('mode')
       if (getValue(env,val,idum).and.set7) mode_follow = idum
       set7 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by modef",source)
    end select
 end subroutine set_modef
 
@@ -1971,8 +1969,6 @@ subroutine set_cube(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by cube",source)
    case('step')
       if (getValue(env,val,ddum).and.set1) cube_step = ddum
       set1 = .false.
@@ -1983,6 +1979,8 @@ subroutine set_cube(env,key,val)
       call env%warning("the key 'cal' has been removed",source)
 !      if (getValue(env,val,idum).and.set3) cube_cal = idum
 !      set3 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by cube",source)
    end select
 end subroutine set_cube
 
@@ -2002,8 +2000,6 @@ subroutine set_stm(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by stm",source)
    case('broadening')
       if (getValue(env,val,ddum).and.set1) stm_alp = ddum
       set1 = .false.
@@ -2019,6 +2015,8 @@ subroutine set_stm(env,key,val)
    case('potential')
       if (getValue(env,val,ddum).and.set5) stm_pot = ddum
       set5 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by stm",source)
    end select
 end subroutine set_stm
 
@@ -2035,14 +2033,14 @@ subroutine set_symmetry(env,key,val)
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by symmetry",source)
    case('desy')
       if (getValue(env,val,ddum).and.set1) desy = ddum
       set1 = .false.
    case('maxat')
       if (getValue(env,val,idum).and.set2) maxatdesy = idum
       set2 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by symmetry",source)
    end select
 end subroutine set_symmetry
 
@@ -2065,8 +2063,6 @@ subroutine set_external(env,key,val)
    logical,save :: set7 = .true.
    logical,save :: set8 = .true.
    select case(key)
-   case default
-      call env%warning("the key '"//key//"' is not recognized by external",source)
    case('orca bin')
       if (set1) ext_orca%executable = val
       set1 = .false.
@@ -2088,6 +2084,8 @@ subroutine set_external(env,key,val)
    case('turbodir')
       if (set7) ext_turbo%path = val
       set7 = .false.
+   case default
+      call env%warning("the key '"//key//"' is not recognized by external",source)
    end select
 end subroutine set_external
 
@@ -2104,11 +2102,11 @@ subroutine set_fix(env,key,val)
    logical  :: ldum
    logical,save :: set1 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by fix",source)
    case('freeze frequency')
       if (getValue(env,val,ddum).and.set1) freezeset%fc = ddum
       set1 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by fix",source)
    end select
 
 end subroutine set_fix
@@ -2130,8 +2128,6 @@ subroutine set_constr(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by constrain",source)
    case('force constant')
       if (getValue(env,val,ddum).and.set1) fcconstr = ddum
       set1 = .false.
@@ -2150,6 +2146,8 @@ subroutine set_constr(env,key,val)
    case('reference')
       if (set5) potset%fname = val
       set5 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by constrain",source)
    end select
 
 end subroutine set_constr
@@ -2179,8 +2177,6 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set7 = .true.
 
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by metadyn",source)
    case('save')
       if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
@@ -2202,6 +2198,8 @@ subroutine set_metadyn(env,key,val)
    case('bias_ramp_time','ramp')
       if (getValue(env,val,ddum).and.set7) metaset%ramp = ddum
       set7 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by metadyn",source)
    end select
 
 end subroutine set_metadyn
@@ -2227,8 +2225,6 @@ subroutine set_path(env,key,val)
    logical,save :: set8 = .true.
 
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by path",source)
    case('nrun')
       if (getValue(env,val,idum).and.set1) pathset%nrun = idum
       set1 = .false.
@@ -2259,6 +2255,8 @@ subroutine set_path(env,key,val)
    case('ppull')
       if (getValue(env,val,ddum).and.set7) pathset%ppull = ddum
       set7 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by path",source)
    end select
 
 end subroutine set_path
@@ -2278,8 +2276,6 @@ subroutine set_scan(env,key,val)
    logical  :: ldum
    logical,save :: set1 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by scan",source)
    case('mode')
       if (val.eq.'sequential') then
          scan_mode = p_scan_sequential
@@ -2287,6 +2283,8 @@ subroutine set_scan(env,key,val)
          scan_mode = p_scan_concerted
       endif
       set1 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by scan",source)
    end select
 
 end subroutine set_scan
@@ -2311,8 +2309,6 @@ subroutine set_wall(env,key,val)
    logical,save :: set7 = .true.
    logical,save :: set8 = .true.
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by fix",source)
    case('potential')
       if (.not.set1) return
       if (val.eq.'polynomial') then
@@ -2358,6 +2354,8 @@ subroutine set_wall(env,key,val)
          spherecent = p_cent_cog
       end select
       set8 = .false.
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by fix",source)
    end select
 
 end subroutine set_wall
@@ -2387,8 +2385,6 @@ subroutine set_legacy(env,key,val)
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
    select case(key)
-   case default ! do nothing
-      call env%warning("the key '"//key//"' is not recognized by set",source)
    case('runtyp');      call set_runtyp(val)
    case('chrg','charge'); call set_chrg(env,val)
    case('uhf');           call set_spin(env,val)
@@ -2486,6 +2482,8 @@ subroutine set_legacy(env,key,val)
    case('stm_grid');    call set_stm(env,'grid',val)
    case('stm_thr');     call set_stm(env,'thr',val)
    case('stm_pot');     call set_stm(env,'potential',val)
+   case default ! do nothing
+      call env%warning("the key '"//key//"' is not recognized by set",source)
    end select
 
 end subroutine set_legacy

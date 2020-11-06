@@ -341,7 +341,7 @@ subroutine readlog(fname,nat,at,xyz,nstruc)
 
    call open_file(ich,fname,'r')
    if (ich.eq.-1) then
-      call raise('E',"Could not find '"//fname//"'!",1)
+      call raise('E',"Could not find '"//fname//"'!")
    endif
 
    j = 0
@@ -349,7 +349,7 @@ subroutine readlog(fname,nat,at,xyz,nstruc)
       read(ich,*,iostat=err) idum
       if (err /= 0) exit read_struc
       if (idum /= nat) then
-         call raise('E',"Atom number missmatch in '"//fname//"'!",1)
+         call raise('E',"Atom number missmatch in '"//fname//"'!")
       endif
       if (j .ge. nstruc) exit read_struc
       read(ich,'(a)')

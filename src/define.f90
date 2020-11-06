@@ -26,7 +26,7 @@ subroutine eval_define(verbose)
       call definebanner
    endif
    save_i = msgid
-   call raise('F','Your input has following faults:',1)
+   call raise('F','Your input has following faults:')
    call terminate(save_i)
 end subroutine eval_define
 

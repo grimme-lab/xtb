@@ -1900,10 +1900,10 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    allocate( work(lwork), source = 0.0_wp )
 
    call dsysv('u',m,1,Atmp,m,ipiv,Xtmp,m,work,lwork,info)
-   if(info > 0) call raise('E','(goedecker_solve) DSYSV failed',1)
+   if(info > 0) call raise('E','(goedecker_solve) DSYSV failed')
 
    if(abs(sum(Xtmp(:n))-chrg) > 1.e-6_wp) &
-      call raise('E','(goedecker_solve) charge constrain error',1)
+      call raise('E','(goedecker_solve) charge constrain error')
    !print'(3f20.14)',Xtmp
 
 !! ------------------------------------------------------------------------
@@ -1964,14 +1964,14 @@ subroutine mh_eeq(n,at,xyz,chrg,chrgeq,kq,hess)
    ! Bunch-Kaufman factorization A = L*D*L**T
    call dsytrf('L',m,Ainv,m,ipiv,work,lwork,info)
    if(info > 0)then
-      call raise('E', '(goedecker_inversion) DSYTRF failed',1)
+      call raise('E', '(goedecker_inversion) DSYTRF failed')
    endif
 
    ! A⁻¹ from factorized L matrix, save lower part of A⁻¹ in Ainv matrix
    ! Ainv matrix is overwritten with lower triangular part of A⁻¹
    call dsytri('L',m,Ainv,m,ipiv,work,info)
    if (info > 0) then
-      call raise('E', '(goedecker_inversion) DSYTRI failed',1)
+      call raise('E', '(goedecker_inversion) DSYTRI failed')
    endif
 
    ! symmetrizes A⁻¹ matrix from lower triangular part of inverse matrix

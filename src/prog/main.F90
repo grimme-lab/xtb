@@ -450,7 +450,7 @@ subroutine xtbMain(env, argParser)
       call eval_define(veryverbose)
    endif
    call env%show('Please study the warnings concerning your input carefully')
-   call raise('F', 'Please study the warnings concerning your input carefully', 1)
+   call raise('F', 'Please study the warnings concerning your input carefully')
 
    ! ========================================================================
    !> From here we switch to the method setup
@@ -1017,7 +1017,7 @@ subroutine xtbMain(env, argParser)
    !  so we should tell the user, (s)he may want to know what went wrong
    call env%show("Runtime exception occurred")
    call raise('F','Some non-fatal runtime exceptions were caught,'// &
-      &           ' please check:',1)
+      &           ' please check:')
 
    ! ------------------------------------------------------------------------
    !  print all files xtb interacted with while running (for debugging mainly)

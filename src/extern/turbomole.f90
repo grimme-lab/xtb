@@ -74,7 +74,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    endif
 
 
-   call raise('E','This external code is not implemented',1)
+   call raise('E','This external code is not implemented')
 
 end subroutine external_turbomole
 
@@ -126,7 +126,7 @@ subroutine rdtm(n,grd,e,g)
 
    inquire(file='gradient',exist=ex)
    if(.not.ex) then
-      call raise('E','no gradient file found!',1)
+      call raise('E','no gradient file found!')
    endif
 
    j=0
@@ -138,7 +138,7 @@ subroutine rdtm(n,grd,e,g)
    301   continue
 
    if(nl.lt.2)then
-      call raise('E','illegal gradient file!',1)
+      call raise('E','illegal gradient file!')
    endif
 
    rewind iunit
@@ -183,7 +183,7 @@ subroutine extcodeok(extcode)
       read(ich,'(a)',end=100)atmp
  100  close(ich,status='delete')
       if(index(atmp,'actual').ne.0) call raise('E','external code error: '//&
-      &                                            trim(atmp),1)
+      &                                            trim(atmp))
    endif
 
    return

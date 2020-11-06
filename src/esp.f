@@ -113,12 +113,11 @@
       rewind(83)
       do i=1,np
          call getline(83,line,err)
-         if(err.ne.0)call raise('E',"Could not read points for ESP!",1)
+         if(err.ne.0)call raise('E',"Could not read points for ESP!")
          read(line,*,iostat=err) pa(1:3,i), atom_weight(1:2,i)
          if (err.ne.0) then
             read(line,*,iostat=err) pa(1:3,i)
-            if (err.ne.0) call raise('E',"Could not read coordinates!",
-     &                               1)
+            if (err.ne.0) call raise('E',"Could not read coordinates!")
          endif
       enddo
       write(*,*) np,' points read.'
