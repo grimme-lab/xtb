@@ -11,7 +11,7 @@ jobs:
         python-version: '3.x'
 
     - name: Install meson
-      run: pip3 install meson ninja
+      run: pip3 install meson==0.55.3 ninja
 
     - name: Configure build
       run: meson setup _build -Dla_backend=netlib --warnlevel=0
