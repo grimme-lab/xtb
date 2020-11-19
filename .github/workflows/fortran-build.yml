@@ -16,8 +16,8 @@ jobs:
     - name: Configure build
       run: meson setup _build -Dla_backend=netlib --warnlevel=0
       env:
-        FC: gfortran-8
-        CC: gcc-8
+        FC: gfortran-9
+        CC: gcc-9
 
     - name: Build library
       run: meson compile -C _build
