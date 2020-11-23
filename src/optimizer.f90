@@ -58,7 +58,7 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
 !  for DCOSMO-RS opts with TM i.e. between loose and normal, keyword "lax"
    case(p_olev_lax)
       ethr   = 2.d-5
-      gthr   = 2.d-3
+      gthr   = 2.5d-3
       maxcycle=n*2
       acc=2.00d0
 !  normal
