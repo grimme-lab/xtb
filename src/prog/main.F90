@@ -1355,7 +1355,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--fod')
          call set_write(env,'fod','true')
-         call set_scc(env,'etemp','12500.0')
+         call set_scc(env,'temp','5000.0')
 
       case('--iterations')
          call args%nextArg(sec)
