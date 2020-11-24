@@ -144,7 +144,6 @@ srcs += files(
   'symtranslib.f90',
   'thermo.f90',
   'timing.f90',
-  'tmgrad.f90',
   'topology.f90',
   'wrbas.f90',
   'wrgbw.f90',

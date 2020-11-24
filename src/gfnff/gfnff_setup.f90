@@ -116,7 +116,7 @@ subroutine gfnff_input(env, mol, topo)
   integer           :: iresidue
   integer           :: ifrag
   integer           :: ibond
-  integer           :: bond_ij(2)
+  integer           :: bond_ij(3)
   real(wp)          :: r
   real(wp)          :: dum1
   real(wp)          :: floats(10)

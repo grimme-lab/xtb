@@ -113,12 +113,11 @@
       rewind(83)
       do i=1,np
          call getline(83,line,err)
-         if(err.ne.0)call raise('E',"Could not read points for ESP!",1)
+         if(err.ne.0)call raise('E',"Could not read points for ESP!")
          read(line,*,iostat=err) pa(1:3,i), atom_weight(1:2,i)
          if (err.ne.0) then
             read(line,*,iostat=err) pa(1:3,i)
-            if (err.ne.0) call raise('E',"Could not read coordinates!",
-     &                               1)
+            if (err.ne.0) call raise('E',"Could not read coordinates!")
          endif
       enddo
       write(*,*) np,' points read.'
@@ -383,11 +382,12 @@
 !     e is center of product gaussian with exponent gama, c is reference point
       d = e - c
 !     aname represents an external function
-      do 61 i=1,nnn
-      if(dabs(dd(i))-1.d-8) 61,61,41
-   41 call aname(lin(i),min(i),nin(i),gama,v,d)
-      va=dd(i)*v+va
-   61 continue
+      do i=1,nnn
+         if (dabs(dd(i))-1.d-8 .gt. 0.d0) then
+            call aname(lin(i),min(i),nin(i),gama,v,d)
+            va=dd(i)*v+va
+         end if
+      end do
       return
 
       end

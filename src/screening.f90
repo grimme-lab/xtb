@@ -89,7 +89,7 @@ subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
    else  ! the ensemble exists
       atmp='xtbscreen.xyz'
       call cqpath_read_pathfile_parameter(atmp,iz1,iz2,nall)
-      if(iz2.ne.mol0%n) call raise('E','read error in screen',1)
+      if(iz2.ne.mol0%n) call raise('E','read error in screen')
       allocate(xyznew(3,mol0%n,nall),rot(3,0:nall),de(nall), &
          &         ecnf(0:nall),double(0:nall),eread(nall), &
          &         imass(mol0%n),ecnfnew(0:nall))

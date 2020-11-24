@@ -146,7 +146,6 @@ list(APPEND srcs
   "${dir}/symtranslib.f90"
   "${dir}/thermo.f90"
   "${dir}/timing.f90"
-  "${dir}/tmgrad.f90"
   "${dir}/topology.f90"
   "${dir}/wrbas.f90"
   "${dir}/wrgbw.f90"

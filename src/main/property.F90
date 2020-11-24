@@ -419,7 +419,7 @@ subroutine main_freq &
    integer  :: ifile
    integer  :: i,ii,j,jj,k,l
    character(len=:),allocatable  :: hname
-   integer, allocatable :: bond(:,:)
+   real(wp),allocatable :: bond(:,:)
    integer, allocatable :: molvec(:)
    real(wp),allocatable :: cn(:)
    real(wp),allocatable :: xyz0(:,:)
@@ -427,8 +427,8 @@ subroutine main_freq &
    real(wp) :: etot,h298,dum
    integer  :: lowmode
 
-   allocate( molvec(mol%n), bond(mol%n,mol%n), source = 0 )
-   allocate( xyz0(3,mol%n), h(3*mol%n,3*mol%n), cn(mol%n), source = 0.0_wp )
+   allocate( molvec(mol%n), source = 0 )
+   allocate( xyz0(3,mol%n), h(3*mol%n,3*mol%n), bond(mol%n,mol%n), cn(mol%n), source = 0.0_wp )
 
    if(res%linear)then
       write(iunit,'(1x,a)') 'vibrational frequencies (cm-1)'
