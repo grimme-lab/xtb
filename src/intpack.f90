@@ -1410,7 +1410,7 @@ end subroutine fmc
       itot=l+m+n
       itoth=itot/2
       pre=(2.d0*pi/ga)*fn(l+1)*fn(m+1)*fn(n+1)
-      pre=-pre
+      if (modulo(itot, 2) == 1) pre = -pre
       del=.25d0/ga
       x=ga*(d(1)**2+d(2)**2+d(3)**2)
       xx=2.d0*x
@@ -1504,7 +1504,7 @@ end subroutine fmc
             end if
             uvwt=u+v+w
             uvwth=uvwt/2
-            fuvw=-fuvw
+            if (modulo(uvwt, 2) == 1) fuvw = -fuvw
             nuindx=lmrsij-uvwt
             fuvw=fuvw*fnu(nuindx+1)*dp(uvwt+1)
             aainer=fijk*fuvw+aainer
