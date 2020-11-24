@@ -25,11 +25,11 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    ! Performs BFGS update of Hessian matrix
    !
    ! Input:
-   ! nat3	= dimension parameter as declared in the calling routine
-   ! grad	= actual gradient
+   ! nat3  = dimension parameter as declared in the calling routine
+   ! grad  = actual gradient
    ! grado = gradient one cycle before
    ! dx    = displ = displacement = coords(k) - coord(k-1) ; k=cycle
-   ! hess	= hessian matrix and in Output updated hessian
+   ! hess  = hessian matrix and in Output updated hessian
    !--------------------------------------------------------------------
    implicit none
 
@@ -110,12 +110,12 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    ! Performs Powell update of Hessian matrix
    !
    ! Input:
-   ! nat3	= dimension parameter as declared in the calling routine=
+   ! nat3  = dimension parameter as declared in the calling routine=
    !         3*natoms
-   ! grad	= actual gradient
+   ! grad  = actual gradient
    ! grado = gradient one cycle before
    ! dx    = displ = displacement = coords(k) - coord(k-1) ; k=cycle
-   ! hess	= hessian matrix and in Output updated hessian
+   ! hess  = hessian matrix and in Output updated hessian
    !--------------------------------------------------------------------
    implicit none
 

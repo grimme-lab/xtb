@@ -37,7 +37,7 @@
 #define M_PI 3.1415926535897932384626433832795028841971694
 #endif
 
-#define	DIMENSION 3
+#define DIMENSION 3
 #define MAXPARAM  7
 
 typedef struct {
@@ -114,7 +114,7 @@ int *                  NormalAxesCounts      = NULL ;
 int *                  ImproperAxesCounts    = NULL ;
 int                    BadOptimization       = 0 ;
 char *                 SymmetryCode          = "" ;
-char  		       MaxRotAxis[2]	     = "" ;
+char                   MaxRotAxis[2]         = "" ;
 /*
  *    Statistics
  */
@@ -1413,11 +1413,11 @@ find_improper_axes(void)
 for( i = 0 ; i < AtomsCount ; i++ ){
     for( j = i + 1 ; j < AtomsCount ; j++ ){
         for( k = 0 ; k < AtomsCount ; k++ ){
-	//#pragma inline
+        //#pragma inline
             if( ( axis = init_improper_axis( i, j, k ) ) != NULL ){
                 //#pragma omp critical
                  {
-        	ImproperAxesCount++ ;
+                ImproperAxesCount++ ;
                 ImproperAxes = (SYMMETRY_ELEMENT **) realloc( ImproperAxes, sizeof( SYMMETRY_ELEMENT* ) * ImproperAxesCount ) ;
                 if( ImproperAxes == NULL ){
                     perror( "Out of memory in find_higher_axes" ) ;
@@ -1688,7 +1688,7 @@ int
 identify_point_group( void )
 {
         int            i ;
-	int 	       j ;
+        int            j ;
         int            last_matching = -1 ;
         int            matching_count = 0 ;
 
@@ -1708,7 +1708,7 @@ for( i = 0 ; i < PointGroupsCount ; i++ ){
     }
 if( matching_count == 0 ){
     printf( "WARNING: These symmetry elements match no point group I know of. Sorry.\n"
-	    "Trying fallback mode to highest recognized Axis...\n" ) ;
+            "Trying fallback mode to highest recognized Axis...\n" ) ;
     return -1;    
 }
 if( matching_count >  1 ){
@@ -1772,7 +1772,7 @@ void schoenflies(int natoms, int* attype, double* coord, char* symbol, double* p
  ImproperAxesCount     = 0 ;
  BadOptimization       = 0 ;
  SymmetryCode          = "" ;
-// *MaxRotAxis	       = "" ;
+// *MaxRotAxis         = "" ;
  strncpy(MaxRotAxis, "", 2);
 //       /*
 //       *    Statistics
@@ -1824,8 +1824,8 @@ StatAccept            = 0 ;
     sort_symmetry_elements() ;
     summarize_symmetry_elements() ;
     if( BadOptimization )
-	printf( "Refinement of some symmetry elements was terminated before convergence was reached.\n"
-		"Some symmetry elements may remain unidentified.\n" ) ;
+        printf( "Refinement of some symmetry elements was terminated before convergence was reached.\n"
+                "Some symmetry elements may remain unidentified.\n" ) ;
     report_symmetry_elements_brief() ;
     last_pg = identify_point_group() ;
     if(last_pg >= 0){
