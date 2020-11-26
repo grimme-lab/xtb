@@ -1443,10 +1443,22 @@ subroutine set_opt(env,key,val)
       endif
       set1 = .false.
    case('microcycle')
-      if (getValue(env,val,idum).and.set2) optset%micro_opt = idum
+      if (getValue(env,val,idum).and.set2) then
+         if (idum > 0) then
+            optset%micro_opt = idum
+         else
+            call env%warning("Non-positive microcycle input rejected: '"//val//"'")
+         end if
+      end if
       set2 = .false.
    case('maxcycle')
-      if (getValue(env,val,idum).and.set3) optset%maxoptcycle = idum
+      if (getValue(env,val,idum).and.set3) then
+         if (idum >= 0) then
+            optset%maxoptcycle = idum
+         else
+            call env%warning("Negative optimization cycle input rejected: '"//val//"'")
+         end if
+      end if
       set3 = .false.
    case('maxdispl')
       if (getValue(env,val,ddum).and.set4) optset%maxdispl_opt = ddum
