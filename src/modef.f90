@@ -123,10 +123,10 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    ! error section
    inquire(file=fname,exist=ex)
    if(.not.ex.and.mode_follow.ne.0) &
-      & call raise('E','Hessian not found! run -hess first!',1)
+      & call raise('E','Hessian not found! run -hess first!')
 
-   if(mode.lt.6.and.(.not.intermol)) call raise('E','mode <7(6) makes no sense!',1)
-   if(mode_follow.gt.3*mol%n) call raise('E','mode >3N makes no sense!',1)
+   if(mode.lt.6.and.(.not.intermol)) call raise('E','mode <7(6) makes no sense!')
+   if(mode_follow.gt.3*mol%n) call raise('E','mode >3N makes no sense!')
 
 
    n3=3*mol%n
@@ -186,7 +186,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    ! normal case
    call open_binary(ich,fname,'r')
    read (ich)k
-   if(k.ne.n3) call raise('E','severe read error on modes',1)
+   if(k.ne.n3) call raise('E','severe read error on modes')
    read (ich)freq
    read (ich)rmass
    read (ich)u
@@ -216,7 +216,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
    if(nprj.eq.2)then
       uu(1:3*mol%n,2)=u(1:3*mol%n,mode_prj) ! assume that the additional mode which should be projected out is nr. mode_prj
-      if(mode.eq.mode_prj) call raise('E','bad choice of options',1) ! ie, normally the TS one
+      if(mode.eq.mode_prj) call raise('E','bad choice of options') ! ie, normally the TS one
    endif
 
    maxoptiter=optset%maxoptcycle

@@ -16,8 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_type_timer
-   use, intrinsic :: iso_fortran_env, only : int64
-   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_accuracy, only : wp, int64 => i8
    implicit none
 
    public :: tb_timer

@@ -81,7 +81,7 @@ subroutine countfix(nat,nfix,fname)
    call close_file(ich)
    return
    300 continue
-   call raise('e','internal error in countfix',1)
+   call raise('e','internal error in countfix')
 end subroutine countfix
 
 
@@ -123,7 +123,7 @@ subroutine rdfix(nat,n,xyz,iat,fname,fixed)
 20 continue
 
    call close_file(ich)
-   call raise('e','internal error in rdfix',1)
+   call raise('e','internal error in rdfix')
 30 call close_file(ich)
    return
 end subroutine rdfix

@@ -94,4 +94,3 @@ subroutine cutcov(n,at,xyz,cn,wb,bond)
    enddo
 
 end subroutine cutcov
-

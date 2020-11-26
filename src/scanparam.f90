@@ -112,9 +112,9 @@ subroutine read_reference(fname,n,at,xyz)
    call rdcoord(fname,n1,xyz,at1)
 
    if (n1.ne.n) &
-      call raise('E',"Atom number missmatch in constraint reference geometry!",1)
+      call raise('E',"Atom number missmatch in constraint reference geometry!")
    if (any(at.ne.at1)) &
-      call raise('E',"Atom type missmatch in constraint reference geometry!",1)
+      call raise('E',"Atom type missmatch in constraint reference geometry!")
 
 end subroutine read_reference
 

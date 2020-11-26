@@ -494,7 +494,7 @@ subroutine write_set_constrain(ictrl)
       if (atconstr(4,i).gt.0) idum = 3
       select case(idum)
       case default ! this is bad, we don't want this to happen
-         call raise('E','This is an internal error, please report this!',1)
+         call raise('E','This is an internal error, please report this!')
       case(-2)
          write(ictrl,'(3x,"center:",1x,g0,1x,i0,1x,"# force constant")') &
             valconstr(i),iatf1
@@ -531,7 +531,7 @@ subroutine write_set_scan(ictrl)
    write(ictrl,'(a,"scan")') flag
    select case(scan_mode)
    case default ! this should never happen...
-      call raise('E','This is an internal error, please report this!',1)
+      call raise('E','This is an internal error, please report this!')
    case(p_scan_sequential)
       write(ictrl,'(3x,"mode=sequential")')
    case(p_scan_concerted)
@@ -901,7 +901,7 @@ subroutine set_exttyp(typ)
    if (.not.set) return
    select case(typ)
    case default ! do nothing
-      call raise('S',typ//' is no valid exttyp (internal error)',1)
+      call raise('S',typ//' is no valid exttyp (internal error)')
 
    case('vtb')
       mode_extrun = p_ext_vtb
@@ -921,7 +921,6 @@ subroutine set_exttyp(typ)
       mode_extrun = p_ext_mopac
    case('ff')
       mode_extrun = p_ext_gfnff
-
    end select
    set = .false.
 end subroutine set_exttyp
@@ -933,7 +932,7 @@ subroutine set_geopref(typ)
    if (.not.set) return
    select case(typ)
    case default ! do nothing
-      call raise('S',typ//' is no valid geometry format (internal error)',1)
+      call raise('S',typ//' is no valid geometry format (internal error)')
 
    case('sdf')
       geometry_inputfile = p_geo_sdf
@@ -946,7 +945,6 @@ subroutine set_geopref(typ)
 
    case('vasp','poscar')
       geometry_inputfile = p_geo_poscar
-
    end select
    set = .false.
 end subroutine set_geopref
@@ -956,12 +954,12 @@ subroutine set_runtyp(typ)
    character(len=*),intent(in) :: typ
    logical,save :: set = .true.
    if (.not.set) then
-      call raise('S','Runtyp already set and locked, please use a composite runtyp instead.',1)
+      call raise('S','Runtyp already set and locked, please use a composite runtyp instead.')
       return
    endif
    select case(typ)
    case default ! do nothing
-      call raise('E',typ//' is no valid runtyp (internal error)',1)
+      call raise('E',typ//' is no valid runtyp (internal error)')
 
    case('scc')
       runtyp = p_run_scc
@@ -1860,7 +1858,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
-      select case(key)
+   select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
    case('solvent')

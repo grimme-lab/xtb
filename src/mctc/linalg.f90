@@ -181,7 +181,7 @@ subroutine dblckmgs(m,n,ndim,darray)
 ! Allocate overlap matrix
 !-----------------------------------------------------------------
   allocate(smat(ibsize,ibsize),stat=ierr)
-  if(ierr /= 0)  call raise('E','Memory allocation error in blckmgs',1)
+  if(ierr /= 0)  call raise('E','Memory allocation error in blckmgs')
 
 !-----------------------------------------------------------------
 ! Calculate the number of blocks
@@ -259,7 +259,7 @@ subroutine dblckmgs(m,n,ndim,darray)
 
 ! Clean up
   deallocate(smat,stat=ierr)
-  if(ierr /= 0) call raise('E','Memory deallocation error in blckmgs',1)
+  if(ierr /= 0) call raise('E','Memory deallocation error in blckmgs')
 
 end subroutine dblckmgs
 

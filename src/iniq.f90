@@ -49,7 +49,7 @@ contains
 !  version :: vTB(=0),GFN1(=1),GFN2(>1)
 !  verbose :: prints some header and makes a bit of analysis in the end
 subroutine iniqcn(nat,nel,at,z,xyz,chrg,kchrg1,q,cn,version,verbose)
-   use iso_fortran_env, only : id => output_unit
+   use, intrinsic :: iso_fortran_env, only : id => output_unit
 
    implicit none
 

@@ -123,7 +123,7 @@ subroutine set_sphere_radius_iso(radius,center,nlist,list,fragment)
    integer, intent(in),optional :: fragment
    number_walls = number_walls + 1
    if (number_walls.gt.maxwalls) & ! This should never happen
-   &  call raise('E','Number of wall potentials exceeded provided array size',1)
+   &  call raise('E','Number of wall potentials exceeded provided array size')
    wpot(number_walls)%radius = radius
    if (present(center)) wpot(number_walls)%center = center
    if (present(list).and.present(nlist)) &
@@ -138,7 +138,7 @@ subroutine set_sphere_radius_aniso(radius,center,nlist,list,fragment)
    integer, intent(in),optional :: fragment
    number_walls = number_walls + 1
    if (number_walls.gt.maxwalls) & ! If this happens, you used it wrong!
-   &  call raise('E','Number of wall potentials exceeded provided array size',1)
+   &  call raise('E','Number of wall potentials exceeded provided array size')
    wpot(number_walls)%radius = radius
    if (present(center)) wpot(number_walls)%center = center
    if (present(list).and.present(nlist)) &
@@ -559,7 +559,7 @@ subroutine cavity_egrad(nat,at,xyz,efix,gfix)
    do i = 1, number_walls
       select case(spherepot_type)
       case default ! make sure that this never happens, REALLY!
-         call raise('E','Internal error in sphereparam.f90, please report this.',1)
+         call raise('E','Internal error in sphereparam.f90, please report this.')
       case(p_type_polynomial)
          if (wpot(i)%fragment.gt.0) then
             call polynomial_cavity(nat,at,xyz,wpot(i)%fragment,sphere_alpha, &

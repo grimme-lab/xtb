@@ -680,7 +680,7 @@ contains
            hbH=jat
            hbA=iat
          else
-           write(*,'(10x,"No H-atom found in this bond ",i0,1x,i0)'), iat,jat
+           write(*,'(10x,"No H-atom found in this bond ",i0,1x,i0)') iat,jat
            return
          end if
 

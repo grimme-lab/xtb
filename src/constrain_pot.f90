@@ -357,10 +357,10 @@ subroutine constrain_hess(fix,n,at,xyz0,Hess)
          ii = (ia-1)*3+ic
          xyz(ic,ia)=xyz0(ic,ia)+step
          gr=0.0_wp
-         call constrpot(fix,n,at,xyz,gr,e)
+         call constrpot(n,at,xyz,gr,e)
          xyz(ic,ia)=xyz0(ic,ia)-step
          gl=0.0_wp
-         call constrpot(fix,n,at,xyz,gl,e)
+         call constrpot(n,at,xyz,gl,e)
          xyz(ic,ia)=xyz0(ic,ia)
          do ja = 1, n
             do jc = 1, 3

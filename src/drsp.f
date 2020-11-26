@@ -115,7 +115,6 @@ C
       END
 
       SUBROUTINE TQL2(NM,N,D,E,Z,IERR,EPS)
-         use iso_fortran_env, wp => real64
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 C               ===== PROCESSED BY AUGMENT, VERSION 4N =====
 C     APPROVED FOR VAX 11/780 ON MAY 6,1980.  J.D.NEECE

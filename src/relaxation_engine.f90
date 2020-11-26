@@ -622,7 +622,7 @@ subroutine l_ancopt &
    end if
 
    select type(calc)
-   type is(TxTBCalculator)
+   class default
       thr = 1.0e-11_wp
       ! shift all non-zero eigenvalues by
       edum = minval(eig)

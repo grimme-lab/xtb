@@ -145,7 +145,7 @@ subroutine rdatomnumber(fname,n)
    endif
    if(f.lt.1.0_wp) then
       write(*,*) f
-      call raise('E','Coordinate format not recognized!',1)
+      call raise('E','Coordinate format not recognized!')
    endif
    DO
       read(ich,'(a)',end=200)line

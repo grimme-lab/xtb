@@ -16,9 +16,9 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine wrgbw(xtbData,n,iat,coord,z,basis,wfn)
-   use, intrinsic :: iso_fortran_env
-   use, intrinsic :: iso_c_binding
-   use xtb_mctc_accuracy, only : wp
+   use, intrinsic :: iso_fortran_env, only : output_unit
+   use, intrinsic :: iso_c_binding, only : c_bool, c_char, c_int, c_long, c_double
+   use xtb_mctc_accuracy, only : wp, int64 => i8
    use xtb_type_basisset
    use xtb_type_wavefunction
    use xtb_xtb_data
@@ -92,11 +92,11 @@ subroutine wrgbw(xtbData,n,iat,coord,z,basis,wfn)
 
 !  check if we can provide the necessary C-types
    if (c_long.eq.0) &
-      call raise('E','Fortran and C kinds are incompatible!',1)
+      call raise('E','Fortran and C kinds are incompatible!')
    if (c_int.eq.0 .or. c_int.ne.kind(n)) &
-      call raise('E','Fortran and C kinds are incompatible!',1)
+      call raise('E','Fortran and C kinds are incompatible!')
    if (c_double.eq.0 .or. c_double.ne.wp) &
-      call raise('E','Fortran and C kinds are incompatible!',1)
+      call raise('E','Fortran and C kinds are incompatible!')
 
 !  copy the important dimensions
    nat = int(n,c_int)
@@ -152,7 +152,7 @@ subroutine wrgbw(xtbData,n,iat,coord,z,basis,wfn)
 
    inquire(file='orca.gbw',exist=exist)
    if (.not.exist) &
-      call raise('E','Unfortunately, we need an template gbw-file write the info block, otherwise this is not working.',1)
+      call raise('E','Unfortunately, we need an template gbw-file write the info block, otherwise this is not working.')
    open(newunit=iunit,file='orca.gbw',form='unformatted',access='stream')
    read(iunit) istart
    read(iunit) ival
