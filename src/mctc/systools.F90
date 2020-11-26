@@ -30,7 +30,7 @@ module xtb_mctc_systools
 contains
 
 subroutine getline(unit,line,iostat)
-   use iso_fortran_env, only : iostat_eor
+   use, intrinsic :: iso_fortran_env, only : iostat_eor
    integer,intent(in) :: unit
    character(len=:),allocatable,intent(out) :: line
    integer,intent(out),optional :: iostat
@@ -107,7 +107,7 @@ subroutine rdarg(i,arg,iostat)
          iostat = err
          return
       else
-         call raise('E','Command argument corrupted',1)
+         call raise('E','Command argument corrupted')
       endif
    endif
    allocate( character(len=l) :: arg, stat=err )
@@ -116,7 +116,7 @@ subroutine rdarg(i,arg,iostat)
          iostat = err
          return
       else
-         call raise('E','could not be allocated',1)
+         call raise('E','could not be allocated')
       endif
    endif
    call get_command_argument(i,arg,status=err)
@@ -125,7 +125,7 @@ subroutine rdarg(i,arg,iostat)
          iostat = err
          return
       else
-         call raise('E','Command argument corrupted',1)
+         call raise('E','Command argument corrupted')
       endif
    endif
    if (present(iostat)) iostat=0
@@ -143,7 +143,7 @@ subroutine rdvar(name,var,iostat)
          iostat = err
          return
       else
-         call raise('E','System variable unassigned',1)
+         call raise('E','System variable unassigned')
       endif
    endif
    allocate( character(len=l) :: var, stat=err )
@@ -152,7 +152,7 @@ subroutine rdvar(name,var,iostat)
          iostat = err
          return
       else
-         call raise('E','could not be allocated',1)
+         call raise('E','could not be allocated')
       endif
    endif
    ! If the environment variable has not been set, l=0, and the
@@ -164,7 +164,7 @@ subroutine rdvar(name,var,iostat)
             iostat = err
             return
          else
-            call raise('E','System variable corrupted',1)
+            call raise('E','System variable corrupted')
          endif
       endif
    endif

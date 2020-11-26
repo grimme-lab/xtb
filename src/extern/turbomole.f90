@@ -22,23 +22,34 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    integer n, at(n), nel, nopen
    logical grd,lsolv
    real(wp) xyz(3,n)
+   real(wp) xyz_cached(3,n)
    real(wp) g  (3,n)
    real(wp) eel
    real(wp) dip(3)
    character(len=255) atmp
+   logical :: cache, exist
 
+   cache = .false.
    dip=0
+
 
    ! TM (RI)
    if(extcode.eq.1)then
       !$omp critical (turbo_lock)
-      call wrtm(n,at,xyz)
-      if(extmode.eq.1)then
-         call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
-         if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
-      endif
-      call extcodeok(extcode)
-      call rdtm(n,grd,eel,g)
+      inquire(file='gradient', exist=exist)
+      if (exist .and. grd) then
+         call rdtm(n,grd,eel,g,xyz_cached)
+         cache = any(abs(xyz_cached - xyz) < 1.e-10_wp)
+      end if
+      if (.not.cache) then
+         call wrtm(n,at,xyz)
+         if(extmode.eq.1)then
+            call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
+            if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
+         endif
+         call extcodeok(extcode)
+         call rdtm(n,grd,eel,g,xyz_cached)
+      end if
       !$omp end critical (turbo_lock)
       return
    endif
@@ -46,15 +57,22 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    ! TM+d3+gcp
    if(extcode.eq.2)then
       !$omp critical (turbo_lock)
-      call wrtm(n,at,xyz)
-      if(extmode.le.2)then
-         call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
-         call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
-         call execute_command_line('exec dftd3 coord -grad >> job.last 2>> /dev/null')
-         call execute_command_line('exec gcp coord -file -grad >>job.last 2>>/dev/null')
-      endif
-      call extcodeok(extcode)
-      call rdtm(n,.true.,eel,g)
+      inquire(file='gradient', exist=exist)
+      if (exist .and. grd) then
+         call rdtm(n,grd,eel,g,xyz_cached)
+         cache = any(abs(xyz_cached - xyz) < 1.e-10_wp)
+      end if
+      if (.not.cache) then
+         call wrtm(n,at,xyz)
+         if(extmode.le.2)then
+            call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
+            call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
+            call execute_command_line('exec dftd3 coord -grad >> job.last 2>> /dev/null')
+            call execute_command_line('exec gcp coord -file -grad >>job.last 2>>/dev/null')
+         endif
+         call extcodeok(extcode)
+         call rdtm(n,.true.,eel,g,xyz_cached)
+      end if
       !$omp end critical (turbo_lock)
       return
    endif
@@ -62,19 +80,26 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    ! TM (NORI)
    if(extcode.eq.3)then
       !$omp critical (turbo_lock)
-      call wrtm(n,at,xyz)
-      if(extmode.eq.1)then
-         call execute_command_line('exec dscf  > job.last 2>> /dev/null')
-         if(grd)call execute_command_line('exec grad >> job.last 2>> /dev/null')
-      endif
-      call extcodeok(extcode)
-      call rdtm(n,grd,eel,g)
+      inquire(file='gradient', exist=exist)
+      if (exist .and. grd) then
+         call rdtm(n,grd,eel,g,xyz_cached)
+         cache = any(abs(xyz_cached - xyz) < 1.e-10_wp)
+      end if
+      if (.not.cache) then
+         call wrtm(n,at,xyz)
+         if(extmode.eq.1)then
+            call execute_command_line('exec dscf  > job.last 2>> /dev/null')
+            if(grd)call execute_command_line('exec grad >> job.last 2>> /dev/null')
+         endif
+         call extcodeok(extcode)
+         call rdtm(n,grd,eel,g,xyz_cached)
+      end if
       !$omp end critical (turbo_lock)
       return
    endif
 
 
-   call raise('E','This external code is not implemented',1)
+   call raise('E','This external code is not implemented')
 
 end subroutine external_turbomole
 
@@ -103,12 +128,12 @@ subroutine wrtm(n,at,xyz)
 
 end subroutine wrtm
 
-subroutine rdtm(n,grd,e,g)
-   use iso_fortran_env, wp => real64
+subroutine rdtm(n,grd,e,g,xyz)
+   use xtb_mctc_accuracy, only : wp
    implicit none
    integer n, iunit, i, nl, j, nn
    logical grd
-   real(wp) g(3,n), e, xx(10), x, y, z
+   real(wp) g(3,n), e, xx(10), x, y, z, xyz(3,n)
    logical ex
    character(len=128) a1
 
@@ -126,7 +151,7 @@ subroutine rdtm(n,grd,e,g)
 
    inquire(file='gradient',exist=ex)
    if(.not.ex) then
-      call raise('E','no gradient file found!',1)
+      call raise('E','no gradient file found!')
    endif
 
    j=0
@@ -138,7 +163,7 @@ subroutine rdtm(n,grd,e,g)
    301   continue
 
    if(nl.lt.2)then
-      call raise('E','illegal gradient file!',1)
+      call raise('E','illegal gradient file!')
    endif
 
    rewind iunit
@@ -148,7 +173,7 @@ subroutine rdtm(n,grd,e,g)
    call readl(a1,xx,nn)
    e=xx(2)
    do i=1,n
-      read(iunit,*)x,y,z
+      read(iunit,*)xyz(1,i),xyz(2,i),xyz(3,i)
    enddo
    do i=1,n
       read(iunit,*)g(1,i),g(2,i),g(3,i)
@@ -183,7 +208,7 @@ subroutine extcodeok(extcode)
       read(ich,'(a)',end=100)atmp
  100  close(ich,status='delete')
       if(index(atmp,'actual').ne.0) call raise('E','external code error: '//&
-      &                                            trim(atmp),1)
+      &                                            trim(atmp))
    endif
 
    return

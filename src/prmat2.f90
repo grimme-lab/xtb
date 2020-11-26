@@ -56,7 +56,8 @@ end subroutine prgemat
 
 
 subroutine prsymat(mat,d1,name,inunit,instep)
-   use iso_fortran_env, only : wp => real64, output_unit
+   use xtb_mctc_accuracy, only : wp
+   use, intrinsic :: iso_fortran_env, only : output_unit
    implicit none
    integer, intent(in) :: d1
    real(wp),intent(in) :: mat(d1*(d1+1))

@@ -1652,7 +1652,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
                       if ( rings4 .eq. 5 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=gen%fr5; endif
                       if ( rings4 .eq. 6 .and. ringl.eq.rings4 .and.notpicon) then; nrot=3; phi =60.d0; f1=gen%fr6; endif
                     endif
-                    if ( rings4.eq.0 .and. btyp(m).eq.1 .and. topo%nb(20,kk).eq.1.and.topo%nb(20,ll).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
+                    if ( rings4.eq.0 .and. btyp(m).eq.1 .and. &
+                                 topo%nb(20,kk).eq.1.and.topo%nb(20,ll).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
                     if(btyp(m).eq.2 .and. rings.eq.5 .and. mol%at(ii)*mol%at(jj).eq.42) then
                        if(amide(mol%n,mol%at,hyb,topo%nb,piadr,ii).or.amide(mol%n,mol%at,hyb,topo%nb,piadr,jj)) f1=5.  ! improving CB7
                     endif
