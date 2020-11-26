@@ -139,7 +139,8 @@ module xtb_solv_model
    include 'param_alpb_toluene.fh'
    include 'param_alpb_water.fh'
    include 'param_alpb_woctanol.fh'
-
+   include 'param_alpb_methanol.fh'
+   include 'param_alpb_ethanol.fh'
 
    !> Solvent density (g/cm^3) and molar mass (g/mol)
    real(wp), parameter :: molcm3toau = 8.92388e-2_wp
@@ -301,12 +302,11 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('dmso');         param = gfn2_alpb_dmso
          case('ether');        param = gfn2_alpb_ether
          case('h2o','water');  param = gfn2_alpb_water
-         case('methanol');
-            self%paramFile = 'internal GFN2-xTB/GBSA'
-            param = gfn2_methanol !still gbsa parameter
+         case('methanol');     param = gfn2_alpb_methanol 
          case('thf');          param = gfn2_alpb_thf
          case('toluene');      param = gfn2_alpb_toluene
          case('dmf');          param = gfn2_alpb_dmf
+         case('ethanol');      param = gfn2_alpb_ethanol
          case('nhexan','n-hexan','nhexane','n-hexane');
             param = gfn2_alpb_hexane
          end select
@@ -332,9 +332,8 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('dmso');         param = gfnff_alpb_dmso
          case('ether');        param = gfnff_alpb_ether
          case('h2o','water');  param = gfnff_alpb_water
-         case('methanol');
-            self%paramFile = 'internal GFN2-xTB/GBSA'
-            param = gfn2_methanol !still gbsa parameter
+         case('methanol');     param = gfnff_alpb_methanol
+         case('ethanol');      param = gfnff_alpb_ethanol
          case('thf');          param = gfnff_alpb_thf
          case('toluene');      param = gfnff_alpb_toluene
          case('dmf');          param = gfnff_alpb_dmf
@@ -363,9 +362,8 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('dmso');         param = gfn1_alpb_dmso
          case('ether');        param = gfn1_alpb_ether
          case('h2o','water');  param = gfn1_alpb_water
-         case('methanol');
-            self%paramFILE ='internal GFN1-xTB/GBSA'
-            param = gfn1_methanol !still gbsa parameter
+         case('methanol');     param = gfn1_alpb_methanol
+         case('ethanol');      param = gfn1_alpb_ethanol
          case('thf');          param = gfn1_alpb_thf
          case('toluene');      param = gfn1_alpb_toluene
          case('dmf');          param = gfn1_alpb_dmf
