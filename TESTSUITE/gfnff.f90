@@ -608,9 +608,9 @@ subroutine test_gfnff_sdf
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-0.98330642628373_wp, -1.0769327949979_wp, -1.0770116012984_wp]
+      &[-0.98330642628373_wp, -1.0826001974262_wp, -1.0826319137928_wp]
    real(wp), parameter :: ref_gnorms(3) = &
-      &[0.11515550863614e-2_wp, 0.49692321804809e-2_wp, 0.49548841785655e-2_wp]
+      &[0.11515550863614e-2_wp, 0.59760221346330e-2_wp, 0.59645861418074e-2_wp]
 
    call init(env)
    do iMol = 1, 3
