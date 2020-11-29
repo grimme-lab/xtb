@@ -579,7 +579,7 @@ subroutine numhess( &
          fc_bias(j) = mctc_dot(v,fc_tmp)
          if (abs(res%freq(j)).gt.1.0d-6) then
             freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
-            if (fc_tb(j).lt.0) then
+            if (fc_tb(j).lt.0.and.fc_bias(j).ne.0) then
                freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
             end if
          else
