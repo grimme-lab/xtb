@@ -138,7 +138,7 @@ subroutine numhess( &
 
    if (runtyp.eq.p_run_bhess) then
    write(env%unit,'(''kpush                :'',F10.5)') metaset%factor(metaset%nstruc)
-   write(env%unit,'(''alpha                :'',F10.5)') metaset%width
+   write(env%unit,'(''alpha                :'',F10.5)') metaset%global_width
    end if
    write(env%unit,'(''step length          :'',F10.5)') step
    write(env%unit,'(''SCC accuracy         :'',F10.5)') acc

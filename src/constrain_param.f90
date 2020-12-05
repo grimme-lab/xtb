@@ -1320,7 +1320,7 @@ subroutine set_metadyn(env,key,val,nat,at,idMap,xyz)
    logical  :: ldum
    integer  :: nlist
    integer, allocatable :: list(:)
-   integer  :: i,j
+   integer  :: i,j,iat
 
    integer  :: narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -1333,6 +1333,44 @@ subroutine set_metadyn(env,key,val,nat,at,idMap,xyz)
    endif
    select case(key)
    case default ! ignore, don't even think about raising them
+   case('bias atoms')
+      call atl%new(val)
+      if (atl%get_error()) then
+         call env%warning('something is wrong in the metadynamic atom list',source)
+         return
+      endif
+      if (rmsdset%nat > 0) call atl%add(rmsdset%atoms(:rmsdset%nat))
+      call atl%to_list(list)
+      rmsdset%atoms = list
+      rmsdset%nat = size(list)
+   case('bias elements')
+      call atl%new
+      do idum = 1, narg
+         ! get element by symbol
+         if (idMap%has(argv(idum))) then
+            call idMap%get(list, argv(idum))
+            if (allocated(list)) then
+               call atl%add(list)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            end if
+         else
+            ldum = getValue(env,trim(argv(idum)),iat)
+            if (.not.ldum) cycle ! skip garbage input
+            ! check for unreasonable input
+            if (iat > 0) then
+               call atl%add(at.eq.iat)
+            else
+               call env%warning("Unknown element: '"//trim(argv(idum))//"'",source)
+               cycle
+            endif
+         endif
+      enddo
+      if (rmsdset%nat > 0) call atl%add(rmsdset%atoms(:rmsdset%nat))
+      call atl%to_list(list)
+      rmsdset%atoms = list
+      rmsdset%nat = size(list)
    case('atoms')
       call atl%new(val)
       if (atl%get_error()) then

@@ -2187,6 +2187,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
+   logical,save :: set8 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2195,7 +2196,7 @@ subroutine set_metadyn(env,key,val)
       if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
    case('width','alp')
-      if (getValue(env,val,ddum).and.set2) metaset%width = ddum
+      if (getValue(env,val,ddum).and.set2) metaset%global_width = ddum
       set2 = .false.
    case('factor','kpush')
       if (getValue(env,val,ddum).and.set3) metaset%global_factor = ddum
@@ -2212,6 +2213,9 @@ subroutine set_metadyn(env,key,val)
    case('bias_ramp_time','ramp')
       if (getValue(env,val,ddum).and.set7) metaset%ramp = ddum
       set7 = .false.
+   case('bias-input', 'bias_input', 'bias input')
+      if (set8) rmsdset%fname = val
+      set8 = .false.
    end select
 
 end subroutine set_metadyn

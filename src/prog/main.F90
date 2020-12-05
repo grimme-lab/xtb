@@ -356,6 +356,7 @@ subroutine xtbMain(env, argParser)
    else
       call init_metadyn(mol%n,metaset%maxsave)
    end if
+   call load_rmsdbias(rmsdset,mol%n,mol%at,mol%xyz)
 
    ! ------------------------------------------------------------------------
    !> get some memory
@@ -1509,6 +1510,14 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)
+         end if
+
+      case('--bias-input')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_metadyn(env, 'bias-input', sec)
+         else
+            call env%error("No input file for RMSD bias provided", source)
          end if
 
       end select
