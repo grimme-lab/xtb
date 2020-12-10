@@ -33,6 +33,7 @@ module xtb_fixparam
 !  RMSD based meta dynamic feature
 !! ------------------------------------------------------------------------
    type(metadyn_setvar) :: metaset
+   type(metadyn_setvar) :: rmsdset
 
 contains
 
@@ -57,6 +58,7 @@ subroutine init_metadyn(nat,nstruc)
    integer, intent(in) :: nstruc
    call metaset%allocate(nat,nstruc)
    metaset%factor = metaset%global_factor
+   metaset%width = metaset%global_width
 end subroutine init_metadyn
 
 subroutine init_bhess(nat)

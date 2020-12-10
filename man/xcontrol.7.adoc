@@ -263,6 +263,16 @@ $metadyn (6.1 only)
     taken into account
 *rmsd*: 'real',...::
     target rmsd for biased hessian runs in Ångström
+*bias input*='file'::
+    read static bias from 'file', requires xyz format with factor and width of the
+    potential in the comment line
+*bias atoms*: 'list',...::
+    atoms to include in static rmsd calculation, if not present all atoms are
+    taken into account
+*bias elements*: 'id',...::
+    elements to include in static rmsd calculation, if not present all atoms are
+    taken into account.
+    Elements can be referenced by their element symbol or their atomic number.
 
 $md
 ~~~
