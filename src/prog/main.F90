@@ -1512,7 +1512,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call set_opt(env,'optlevel',sec)
          end if
 
-      case('--bias-input')
+      case('--bias-input', '--gesc')
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_metadyn(env, 'bias-input', sec)
