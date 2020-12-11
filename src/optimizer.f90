@@ -1291,8 +1291,13 @@ pure function get_averaged_gradient(self) result(deriv)
 end function get_averaged_gradient
 
 pure subroutine set_eg_log(self, e, g)
+   use xtb_mctc_resize, only : resize
    class(convergence_log), intent(inout) :: self
    real(wp), intent(in) :: e, g
+   if (self%nlog >= size(self%elog)) then
+      call resize(self%elog, size(self%elog)+size(self%elog)/2+1)
+      call resize(self%glog, size(self%glog)+size(self%glog)/2+1)
+   end if
    self%nlog = self%nlog + 1
    self%elog(self%nlog) = e
    self%glog(self%nlog) = g
