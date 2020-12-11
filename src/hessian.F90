@@ -100,6 +100,7 @@ subroutine numhess( &
    real(wp),allocatable :: xyzsave(:,:)
    real(wp),allocatable :: pold(:)
    real(wp),allocatable :: dipd(:,:)
+   real(wp),allocatable :: amass(:)
 
    type(TMolecule) :: tmol
 
@@ -117,7 +118,7 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3))
+      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3))
 
    rd=.false.
    xyzsave = mol%xyz
@@ -431,7 +432,6 @@ subroutine numhess( &
             tmol%xyz(ic,ia)=xyzsave(ic,ia)
             dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
             pold(ii)=(pold(ii)-sccl%molpol)*step2
-
             do ja= 1, mol%n
                do jc = 1, 3
                   jj = (ja-1)*3 + jc
@@ -450,7 +450,6 @@ subroutine numhess( &
                & 0.3333333d0*mol%n*(w1-w0)/60.
          endif
       enddo
-
    endif
 
    end if omp_parallize
@@ -466,7 +465,8 @@ subroutine numhess( &
          ia = indx(a)
          do ic = 1, 3
             ii = (ia-1)*3+ic
-            isqm(ii)=1.0_wp/sqrt(atmass(ia))
+            isqm(ii)=1.0_wp/sqrt(atmass(ia)*amutoau)
+            amass(ii)=isqm(ii) 
          enddo
       enddo
       ! at this point the H matrix has zeros in the frozen atom block
@@ -494,8 +494,9 @@ subroutine numhess( &
       do ia = 1, mol%n
          do ic = 1, 3
             ii = (ia-1)*3+ic
-            isqm(ii)=1.0_wp/sqrt(atmass(ia))
-         enddo
+            isqm(ii)=1.0_wp/sqrt(atmass(ia)*amutoau)
+            amass(ii)=isqm(ii)
+        enddo
       enddo
    endif
 
@@ -596,7 +597,7 @@ subroutine numhess( &
    endif
    k=0
    do i=1,n3
-      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))/sqrt(amutoau)
+      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i)) ! Formula was changed such that masses in a.u. are read above.
       if(abs(res%freq(i)).lt.0.01_wp) then
          k=k+1
          izero(k)=i
@@ -663,22 +664,41 @@ subroutine numhess( &
       enddo
       res%rmass(i)=xsum
    enddo
-   ! IR intensity
+   
+   !--- IR intensity ---!
+   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   !% --> res%hess corresponds to the orthonormal eigenvectors of the hessian       %
+   !%     matrix (-> normal modes of vibration). Mass-weighting is introduced       % 
+   !%     back again via multiplying with amass(j).                                 %  
+   !%                                                                               %
+   !% --> res%hess(j,i) is the matrix which transforms a derivative with            %
+   !%     respect to the j-th cartesian coordinate ("dipd") into a derivative with  %
+   !%     respect to the i-th (mass-weighted) normal coordinate.                    %
+   !%                                                                               %
+   !% --> amass(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).            %
+   !%                                                                               %
+   !% --> matmul(D x H) = U                                                         %
+   !%                                                                               %
+   !% --> D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives    %
+   !%                                              in x, y and z direction per mode %
+   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
    do i = 1, n3
       do k = 1, 3
          sum2 = 0.0_wp
          do j = 1, n3
-            sum2 = sum2 + res%hess(j,i)*dipd(k,j)
+            sum2 = sum2 + dipd(k,j)*(res%hess(j,i)*amass(j))
+            write(*,*) isqm(j)
          end do
-         trdip(k) = sum2
+         trdip(k) = sum2 
       end do
-      res%dipt(i) = sqrt (trdip(1)**2+trdip(2)**2+trdip(3)**2)
+      res%dipt(i) = autokmmol*(trdip(1)**2+trdip(2)**2+trdip(3)**2)
    end do
    ! Raman intensity
    do i = 1, n3
       sum2 = 0.0_wp
       do j = 1, n3
-         sum2 = sum2 + res%hess(j,i)*pold(j)
+         sum2 = sum2 + pold(j)*(res%hess(j,i)*amass(j))
       end do
       res%polt(i) = abs(sum2)
    end do
@@ -871,15 +891,19 @@ subroutine write_tm_vibspectrum(ich,n3,freq,ir_int)
    real(wp),intent(in)  :: ir_int(n3)
    integer  :: i
    real(wp) :: thr=0.01_wp
+   real(wp) :: thr2=1.0e-6_wp
    write(ich,'("$vibrational spectrum")')
    write(ich,'("#  mode     symmetry     wave number   IR intensity    selection rules")')
-   write(ich,'("#                         cm**(-1)        (amu)          IR     RAMAN")')
+   write(ich,'("#                         cm**(-1)      (km*mol⁻¹)       IR     RAMAN")')
    do i = 1, n3
       if (abs(freq(i)).lt.thr) then
-      write(ich,'(i6,9x,    f18.2,f16.5,7x," - ",5x," - ")') &
+        write(ich,'(i6,9x,    f18.2,f16.5,7x," - ",5x," - ")') &
          i,freq(i),0.0_wp
+      else if (abs(ir_int(i)).gt.thr2.and.abs(freq(i)).ge.thr) then
+        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"NO")') &
+         i,freq(i),ir_int(i)
       else
-      write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"YES")') &
+        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"NO",5x,"YES")') &
          i,freq(i),ir_int(i)
       endif
    enddo
@@ -951,7 +975,7 @@ subroutine g98fake2(fname,n,at,xyz,freq,red_mass,ir_int,u2)
    111 format(i5,i11,i14,4x,3f12.6)
 
    write (gu,*) 'Harmonic frequencies (cm**-1), IR intensities', &
-      & ' (KM/Mole),'
+      & ' (km*mol⁻¹),'
    write (gu,*) 'Raman scattering activities (A**4/amu),', &
       & ' Raman depolarization ratios,'
    write (gu,*) 'reduced masses (AMU), force constants (mDyne/A)', &
@@ -1062,7 +1086,7 @@ subroutine g98fake(fname,n,at,xyz,freq,u2)
    write (gu,*)
    111 format(i5,i11,i14,4x,3f12.6)
 
-   write (gu,*) 'Harmonic frequencies (cm**-1), IR intensities',' (KM/Mole),'
+   write (gu,*) 'Harmonic frequencies (cm**-1), IR intensities',' (km*mol⁻¹),'
    write (gu,*) 'Raman scattering activities (A**4/amu),', &
       & ' Raman depolarization ratios,'
    write (gu,*) 'reduced masses (AMU), force constants (mDyne/A)', &
