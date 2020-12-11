@@ -597,7 +597,8 @@ subroutine numhess( &
    endif
    k=0
    do i=1,n3
-      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i)) ! Formula was changed such that masses in a.u. are read above.
+      ! Eigenvalues in atomic units, convert to wavenumbers
+      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))
       if(abs(res%freq(i)).lt.0.01_wp) then
          k=k+1
          izero(k)=i
@@ -666,31 +667,28 @@ subroutine numhess( &
    enddo
    
    !--- IR intensity ---!
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   !% --> res%hess corresponds to the orthonormal eigenvectors of the hessian       %
-   !%     matrix (-> normal modes of vibration). Mass-weighting is introduced       % 
-   !%     back again via multiplying with amass(j).                                 %  
-   !%                                                                               %
-   !% --> res%hess(j,i) is the matrix which transforms a derivative with            %
-   !%     respect to the j-th cartesian coordinate ("dipd") into a derivative with  %
-   !%     respect to the i-th (mass-weighted) normal coordinate.                    %
-   !%                                                                               %
-   !% --> amass(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).            %
-   !%                                                                               %
-   !% --> matmul(D x H) = U                                                         %
-   !%                                                                               %
-   !% --> D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives    %
-   !%                                              in x, y and z direction per mode %
-   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   !  1. res%hess corresponds to the orthonormal eigenvectors of the hessian
+   !     matrix (-> normal modes of vibration). Mass-weighting is introduced
+   !     back again via multiplying with amass(j).
+   !
+   !  2. res%hess(j,i) is the matrix which transforms a derivative with
+   !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
+   !     respect to the i-th (mass-weighted) normal coordinate.
+   !
+   !  3. amass(j) = 1/sqrt(m(j)); m(j) is given in atomic units (a.u.).
+   !
+   !  4. matmul(D x H) = U
+   !
+   !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
+   !                                              in x, y and z direction per mode
 
    do i = 1, n3
       do k = 1, 3
          sum2 = 0.0_wp
          do j = 1, n3
             sum2 = sum2 + dipd(k,j)*(res%hess(j,i)*amass(j))
-            write(*,*) isqm(j)
          end do
-         trdip(k) = sum2 
+         trdip(k) = sum2
       end do
       res%dipt(i) = autokmmol*(trdip(1)**2+trdip(2)**2+trdip(3)**2)
    end do
