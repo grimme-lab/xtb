@@ -891,7 +891,6 @@ subroutine write_tm_vibspectrum(ich,n3,freq,ir_int)
    real(wp),intent(in)  :: ir_int(n3)
    integer  :: i
    real(wp) :: thr=0.01_wp
-   real(wp) :: thr2=1.0e-6_wp
    write(ich,'("$vibrational spectrum")')
    write(ich,'("#  mode     symmetry     wave number   IR intensity    selection rules")')
    write(ich,'("#                         cm**(-1)      (km*mol⁻¹)       IR     RAMAN")')
@@ -899,11 +898,8 @@ subroutine write_tm_vibspectrum(ich,n3,freq,ir_int)
       if (abs(freq(i)).lt.thr) then
         write(ich,'(i6,9x,    f18.2,f16.5,7x," - ",5x," - ")') &
          i,freq(i),0.0_wp
-      else if (abs(ir_int(i)).gt.thr2.and.abs(freq(i)).ge.thr) then
-        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"NO")') &
-         i,freq(i),ir_int(i)
       else
-        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"NO",5x,"YES")') &
+        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"YES")') &
          i,freq(i),ir_int(i)
       endif
    enddo
