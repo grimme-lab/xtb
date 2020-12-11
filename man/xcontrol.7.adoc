@@ -353,14 +353,12 @@ $opt
 *maxdispl*='real'::
     maximum coordinate displacement in `ancopt(3)`
 
+*average conv*='bool'::
+    average the energy and gradient before checking for convergence to accelerate
+    numerically noisy potential energy surfaces (default: false).
+
 *s6*='real'::
     dispersion scaling in ANC generation
-
-*ts*='bool'::
-    dummy
-
-*tsroot*='int'::
-    dummy
 
 *hessian*=lindh-d2|lindh|swart::
     model hessian for generation of ANC used in optimization

@@ -87,6 +87,7 @@ module xtb_type_setvar
 !     lowest force constant in ANC generation (should be > 0.005)
       real(wp) :: hlow_opt = 0.0_wp
       logical  :: exact_rf = .false.
+      logical :: average_conv = .false.
    end type ancopt_setvar
 
    type modhess_setvar

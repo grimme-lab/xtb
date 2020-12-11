@@ -112,7 +112,8 @@ module xtb_setparam
 !  maximum coordinate displacement in ancopt
       maxdispl_opt = 1.000_wp, &
 !  lowest force constant in ANC generation (should be > 0.005)
-      hlow_opt = 0.010_wp )
+      hlow_opt = 0.010_wp, &
+      average_conv = .false.)
    integer, parameter :: p_modh_read     = -2
    integer, parameter :: p_modh_unit     = -1
    integer, parameter :: p_modh_lindh    =  1

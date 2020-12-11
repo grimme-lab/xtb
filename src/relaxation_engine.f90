@@ -23,6 +23,7 @@ module xtb_relaxation_engine
    use xtb_mctc_convert, only : fstoau, amutoau
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
+   use xtb_optimizer, only : convergence_log, load_turbomole_log
    use xtb_bfgs
    use xtb_david2
    implicit none
@@ -389,6 +390,7 @@ subroutine l_ancopt &
    use xtb_type_calculator
    use xtb_xtb_calculator
    use xtb_gfnff_calculator
+   use xtb_type_dummycalc
    use xtb_type_data
    use xtb_type_timer
 
@@ -469,6 +471,7 @@ subroutine l_ancopt &
    real(wp), allocatable :: hdiag(:)
    real(wp), allocatable :: anc(:)
    real(wp), allocatable :: xyz0(:,:)
+   type(convergence_log), allocatable :: avconv
 
    !  settings for the LBFGS optimizer
    type(lbfgs_options) :: opt
@@ -497,6 +500,20 @@ subroutine l_ancopt &
    call get_optthr(mol%n,optlevel,opt%e_thr,opt%g_thr,maxcycle,opt%acc)
    ! check for user input regarding the maximum number of cycles
    if (maxcycle_in > 0) maxcycle = maxcycle_in
+
+   ! Activate averaged convergence criterium
+   if (optset%average_conv) then
+      select type(calc)
+      class is(TDummyCalculator)
+         avconv = load_turbomole_log(maxcycle)
+         if (avconv%nlog > 0 .and. pr) then
+            write(env%unit, '(a, 1x, i0, 1x, a)') &
+               "Convergence averaging initialized with", avconv%nlog, "entries"
+         end if
+      class default
+         avconv = convergence_log(maxcycle)
+      end select
+   end if
 
    ! open the logfile, the log is bound to unit 942, so we cannot use newunit
    ! and have to hope that nobody else is currently occupying this identifier
@@ -685,7 +702,7 @@ subroutine l_ancopt &
    call lbfgs_relax &
       &   (env,iter,thiscycle,opt,molopt, &
       &    chk,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
-      &    converged,fail,timer)
+      &    converged,fail,timer,avconv)
 
    thiscycle = min(ceiling(thiscycle*opt%cycle_inc),2*opt%micro_cycle)
 
@@ -819,7 +836,7 @@ end subroutine lbfgs_step
 subroutine lbfgs_relax &
       &   (env,iter,maxcycle,opt,mol, &
       &    chk,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
-      &    converged,fail,timer)
+      &    converged,fail,timer,avconv)
 
    use xtb_type_molecule
    use xtb_type_restart
@@ -876,6 +893,8 @@ subroutine lbfgs_relax &
    real(wp), intent(in) :: xyz0(:,:)
    !> timer for profiling the relaxation procedure
    type(tb_timer), intent(inout) :: timer
+   !> Average convergence memory
+   type(convergence_log), intent(inout), optional :: avconv
 
    type(scc_results) :: res
 
@@ -1041,6 +1060,18 @@ subroutine lbfgs_relax &
       endif
       !call wrlog(mol%n,xyz,attyp,energy,gnorm,.false.)
       if (profile) call timer%measure(7)
+
+      if (present(avconv)) then
+         call avconv%set_eg_log(energy, gnorm)
+         energy = avconv%get_averaged_energy()
+         gnorm = avconv%get_averaged_gradient()
+         if (pr) then
+            write(env%unit,'("av. E:",1x,f14.7,1x,"->",1x,f14.7)') &
+               avconv%elog(avconv%nlog), energy
+            write(env%unit,'("av. G:",1x,f14.7,1x,"->",1x,f14.7)') &
+               avconv%glog(avconv%nlog), gnorm
+         end if
+      end if
 
       ! check for convergence of the energy change
       ediff = energy - elast
