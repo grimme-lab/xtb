@@ -225,6 +225,7 @@ subroutine write_set_opt(ictrl)
    write(ictrl,'(3x,"ts=",i0)') bool2int(tsopt)
    write(ictrl,'(3x,"tsroot=",i0)') tsroot
    write(ictrl,'(3x,"exact rf=",g0)') bool2string(optset%exact_rf)
+   write(ictrl,'(3x,"average conv=",g0)') bool2string(optset%average_conv)
 end subroutine write_set_opt
 
 subroutine write_set_thermo(ictrl)
@@ -1525,6 +1526,9 @@ subroutine set_opt(env,key,val)
       if (.not.allocated(opt_outfile)) opt_outfile = val
    case('logfile')
       if (.not.allocated(opt_logfile)) opt_logfile = val
+   case('average conv')
+      if (getValue(env,val,ldum).and.set18) optset%average_conv = ldum
+      set18 = .false.
    end select
 end subroutine set_opt
 
