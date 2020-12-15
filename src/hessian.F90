@@ -465,8 +465,8 @@ subroutine numhess( &
          ia = indx(a)
          do ic = 1, 3
             ii = (ia-1)*3+ic
-            isqm(ii)=1.0_wp/sqrt(atmass(ia)*amutoau)
-            amass(ii)=isqm(ii) 
+            isqm(ii)=1.0_wp/sqrt(atmass(ia))
+            amass(ii)=isqm(ii)/sqrt(amutoau) 
          enddo
       enddo
       ! at this point the H matrix has zeros in the frozen atom block
@@ -494,8 +494,8 @@ subroutine numhess( &
       do ia = 1, mol%n
          do ic = 1, 3
             ii = (ia-1)*3+ic
-            isqm(ii)=1.0_wp/sqrt(atmass(ia)*amutoau)
-            amass(ii)=isqm(ii)
+            isqm(ii)=1.0_wp/sqrt(atmass(ia))
+            amass(ii)=isqm(ii)/sqrt(amutoau)
         enddo
       enddo
    endif
@@ -598,7 +598,7 @@ subroutine numhess( &
    k=0
    do i=1,n3
       ! Eigenvalues in atomic units, convert to wavenumbers
-      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))
+      res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))/sqrt(amutoau)
       if(abs(res%freq(i)).lt.0.01_wp) then
          k=k+1
          izero(k)=i
