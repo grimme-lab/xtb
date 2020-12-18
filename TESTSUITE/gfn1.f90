@@ -730,3 +730,89 @@ subroutine test_gfn1_mindless_solvation
    call terminate(afail)
 
 end subroutine test_gfn1_mindless_solvation
+
+
+subroutine test_ipea_indole
+   use assertion
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_xtb_calculator, only : TxTBCalculator
+   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
+
+   implicit none
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   integer, parameter :: nat = 15
+   character(len=*), parameter :: sym(nat) = [character(len=4)::&
+      & "C", "C", "C", "C", "C", "C", "H", "H", "H", "H", "C", "C", "N", "H", &
+      & "H"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      & -5.35892196512242_wp,  1.73312414112064_wp, -0.57717892384120_wp, &
+      & -7.65881264141790_wp,  0.49826397815934_wp, -0.98802419062021_wp, &
+      & -3.18596416481952_wp,  0.23723616573036_wp, -0.37947581998019_wp, &
+      & -3.24547162745174_wp, -2.39135340069686_wp, -0.57504353378802_wp, &
+      & -5.58372373567590_wp, -3.59229298714979_wp, -0.98874228639030_wp, &
+      & -7.77510636165883_wp, -2.12452413033580_wp, -1.19171772498436_wp, &
+      & -9.38333853055452_wp,  1.60452830650258_wp, -1.15099413591722_wp, &
+      & -5.68917043033699_wp, -5.63501089146626_wp, -1.14933117729174_wp, &
+      & -9.58383842846746_wp, -3.04470716793929_wp, -1.51155380153258_wp, &
+      & -5.27586852013397_wp,  3.77546410029495_wp, -0.41965138859121_wp, &
+      & -0.72015557111823_wp, -3.26425550101682_wp, -0.28287304164551_wp, &
+      &  0.80122480411036_wp, -1.18587847253807_wp,  0.07759213768431_wp, &
+      & -0.70611490908719_wp,  0.91783977772213_wp,  0.01598707951313_wp, &
+      & -0.09943736690084_wp,  2.71570592169382_wp,  0.22824107134708_wp, &
+      & -0.09051786154600_wp, -5.20876436014445_wp, -0.33266731412436_wp],&
+      & shape(xyz))
+   real(wp), parameter :: charge = -1.0_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   call init(env)
+   call init(mol, sym, xyz, chrg=charge)
+
+   allocate(gradient(3, len(mol)))
+
+   call newXTBCalculator(env, mol, calc, 'param_ipea-xtb.txt', 1)
+   call newWavefunction(env, mol, calc, chk)
+
+   call env%check(exitRun)
+   call assert(.not.exitRun)
+   if (.not.exitRun) then
+
+      call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+
+   end if
+
+   call env%check(exitRun)
+   call assert(.not.exitRun)
+   if (.not.exitRun) then
+
+      call assert_close(energy, -26.590861716652_wp, thr)
+      call assert_close(norm2(gradient), 0.84641833840045E-01_wp, thr)
+      call assert_close(hl_gap, 2.5955961749533_wp, thr)
+
+   end if
+
+   call terminate(afail)
+end subroutine test_ipea_indole

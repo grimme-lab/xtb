@@ -145,6 +145,7 @@ add_test("GFN1-xTB_API_XB" ${XTB-TESTER} gfn1 xb)
 add_test("GFN1-xTB_API_PBC" ${XTB-TESTER} gfn1 pbc3d)
 add_test("GFN1-xTB_API_GBSA" ${XTB-TESTER} gfn1 gbsa)
 add_test("GFN1-xTB_API_PCEM" ${XTB-TESTER} gfn1 pcem)
+add_test("GFN1-xTB_IPEA" ${XTB-TESTER} gfn1 ipea)
 add_test("GFN0-xTB_Basic" ${XTB-TESTER} gfn0 basic)
 add_test("GFN0-xTB_Solvation" ${XTB-TESTER} gfn0 solvation)
 add_test("GFN0-xTB_SP" ${XTB-TESTER} gfn0 sp)
@@ -183,6 +184,7 @@ set_tests_properties(EXE_Singlepoint
   "GFN1-xTB_API_PBC"
   "GFN1-xTB_API_GBSA"
   "GFN1-xTB_API_PCEM"
+  "GFN1-xTB_IPEA"
   "GFN0-xTB_Basic"
   "GFN0-xTB_Solvation"
   "GFN0-xTB_SP"
