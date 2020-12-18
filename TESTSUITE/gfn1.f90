@@ -736,6 +736,7 @@ subroutine test_ipea_indole
    use assertion
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
+   use xtb_mctc_systools, only : rdpath
 
    use xtb_type_molecule
    use xtb_type_param
@@ -783,17 +784,27 @@ subroutine test_ipea_indole
    type(scc_results) :: res
 
    integer :: iMol
-   logical :: exitRun
+   logical :: exitRun, exist
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
+   character(len=:), allocatable :: paramfile
 
    call init(env)
    call init(mol, sym, xyz, chrg=charge)
 
    allocate(gradient(3, len(mol)))
 
-   call newXTBCalculator(env, mol, calc, 'param_ipea-xtb.txt', 1)
-   call newWavefunction(env, mol, calc, chk)
+   call rdpath(env%xtbpath, 'param_ipea-xtb.txt', paramfile, exist)
+   if (.not.exist) paramfile = 'param_ipea-xtb.txt'
+
+   call newXTBCalculator(env, mol, calc, paramfile, 1)
+   call env%check(exitRun)
+   call assert(.not.exitRun)
+   if (.not.exitRun) then
+
+      call newWavefunction(env, mol, calc, chk)
+
+   end if
 
    call env%check(exitRun)
    call assert(.not.exitRun)
