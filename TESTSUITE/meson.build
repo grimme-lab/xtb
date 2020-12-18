@@ -172,6 +172,7 @@ test('GFN1-xTB: XB', xtb_test, args: ['gfn1', 'xb'], env: xtbenv, timeout: test_
 test('GFN1-xTB: PBC', xtb_test, args: ['gfn1', 'pbc3d'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv, timeout: test_timeout)
+test('GFN1-xTB: IPEA', xtb_test, args: ['gfn1', 'ipea'], env: xtbenv, timeout: test_timeout)
 
 test('GFN0-xTB: Basic', xtb_test, args: ['gfn0', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: Solvation', xtb_test, args: ['gfn0', 'solvation'], env: xtbenv, timeout: test_timeout)

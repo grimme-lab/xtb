@@ -90,6 +90,7 @@ program peeq_tester
       case('pcem'); call test_gfn1_pcem_api
       case('xb'); call test_gfn1_xb
       case('pbc3d'); call test_gfn1_pbc3d
+      case('ipea'); call test_ipea_indole
       end select
    case('gfn0')
       select case(sec)
