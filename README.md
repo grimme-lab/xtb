@@ -21,7 +21,7 @@ Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest r
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
 
 `xtb` is routinely compiled with Intel Parallel Studio 17 on our clusters in Bonn, successful builds on OSX have been performed as well.
-We have not tried to build `xtb` on Windows so far.
+To compile on Windows we recommend the MinGW toolchain (installable with [MSYS2](https://msys2.org)), or if a POSIX environment is preferred [Cygwin](https://cygwin.com).
 It is also possible to compile `xtb` with GCC (version 8), but we recommend to use binaries compiled with Intel.
 
 This projects supports two build systems, meson and CMake.
