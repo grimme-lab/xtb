@@ -26,3 +26,45 @@ jobs:
       run: meson test -C _build --print-errorlogs --no-rebuild
       env:
         OMP_NUM_THREADS: 2,1
+
+  # Test native MinGW Windows build
+  mingw-build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { msystem: MINGW64, arch: x86_64 },
+          { msystem: MINGW32, arch: i686   }
+        ]
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.msystem }}
+        update: false
+        install: >-
+          git
+          mingw-w64-${{ matrix.arch }}-gcc-fortran
+          mingw-w64-${{ matrix.arch }}-openblas
+          mingw-w64-${{ matrix.arch }}-lapack
+          mingw-w64-${{ matrix.arch }}-meson
+          mingw-w64-${{ matrix.arch }}-ninja
+
+    - name: Configure build
+      run: meson setup _build -Dla_backend=netlib --warnlevel=0
+      env:
+        FC: gfortran
+        CC: gcc
+
+    - name: Build library
+      run: meson compile -C _build
+
+    - name: Run unit tests
+      run: meson test -C _build --print-errorlogs --no-rebuild
+      env:
+        OMP_NUM_THREADS: 2,1
