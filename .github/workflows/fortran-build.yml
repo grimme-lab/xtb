@@ -214,6 +214,11 @@ jobs:
       with:
         path: ${{ github.workspace }} # This will download all files
 
+    - name: Create SHA256 checksum
+      run: |
+        cd ${{ env.OUTPUT_INTEL }}
+        sha256sum ${{ env.OUTPUT_INTEL }} > sha256.txt
+
     - name: Add ${{ env.OUTPUT_INTEL }} to release tag
       run: >-
         github-release upload
@@ -221,3 +226,11 @@ jobs:
         --replace
         --name ${{ env.OUTPUT_INTEL }}
         --file ${{ env.OUTPUT_INTEL }}/${{ env.OUTPUT_INTEL }}
+
+    - name: Add SHA256 checksums to release tag
+      run: >-
+        github-release upload
+        --tag ${{ env.RELEASE_TAG }}
+        --replace
+        --name sha256.txt
+        --file ${{ env.OUTPUT_INTEL }}/sha256.txt
