@@ -32,7 +32,7 @@ elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
   add_project_arguments('-traceback', language: 'fortran')
-elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidida_hpc'
+elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
   add_project_arguments(
     '-Mpreprocess', '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
     language: 'fortran'
