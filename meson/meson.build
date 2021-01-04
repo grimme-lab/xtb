@@ -32,7 +32,7 @@ elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
   add_project_arguments('-traceback', language: 'fortran')
-elif fc.get_id() == 'pgi'
+elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
   add_project_arguments(
     '-Mpreprocess', '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
     language: 'fortran'
@@ -76,7 +76,7 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
   elif fc.get_id() == 'intel'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
     libmkl_exe += fc.find_library('mkl_intel_thread')
-  elif fc.get_id() == 'pgi'
+  elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
     libmkl_exe += fc.find_library('mkl_pgi_thread')
   endif
