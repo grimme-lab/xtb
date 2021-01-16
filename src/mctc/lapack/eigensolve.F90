@@ -26,6 +26,7 @@ module xtb_mctc_lapack_eigensolve
    use xtb_mctc_global
    use cusolverDn
 #endif
+   use xtb_mctc_elpa
    implicit none
    private
 
@@ -43,6 +44,7 @@ module xtb_mctc_lapack_eigensolve
 #ifdef USE_CUSOLVER
       integer :: lwork
 #endif
+      type(TELPASolver) :: elpa
    contains
       generic :: solve => sgen_solve, dgen_solve
       procedure :: sgen_solve => mctc_ssygvd
@@ -89,6 +91,9 @@ subroutine initDEigenSolver(self, env, bmat)
    real(dp) :: dummy(:) 
 #endif
 
+#ifdef WITH_ELPA
+   call initELPASolver(self%elpa, env, bmat)
+#else
    self%n = size(bmat, 1)
 
 #ifdef USE_CUSOLVER
@@ -109,6 +114,7 @@ subroutine initDEigenSolver(self, env, bmat)
    self%dbmat = bmat
    ! Check for Cholesky factorisation
    call mctc_potrf(env, self%dbmat)
+#endif
 
 end subroutine initDEigenSolver
 
@@ -148,6 +154,9 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
    integer :: istat
 #endif
 
+#ifdef WITH_ELPA
+   call self%elpa%solve(env, amat, bmat, eval)
+#else
    self%dbmat(:, :) = bmat
 
 #ifdef USE_CUSOLVER
@@ -174,6 +183,7 @@ subroutine mctc_dsygvd(self, env, amat, bmat, eval)
    if (info /= 0) then
       call env%error("Failed to solve eigenvalue problem", source)
    end if
+#endif
 
 end subroutine mctc_dsygvd
 

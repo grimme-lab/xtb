@@ -28,6 +28,9 @@ option('build_name', type: 'string', value: 'unknown',
        description: 'Name of the build, will be overwritten automatically by git')
 option('test_timeout', type: 'integer', min: 1, value: 30,
        description: 'test timeout in seconds')
+option('elpa', type: 'combo', value: 'none',
+       choices: ['none', '2020.11.001'],
+       description: 'Version of the ELPA library to use')
 
 # GPU specific options
 option('gpu', type: 'boolean', value: false,

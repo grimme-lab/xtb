@@ -24,6 +24,7 @@ srcs += files(
   'boundaryconditions.f90',
   'chartools.f90',
   'convert.f90',
+  'elpa.F90',
   'filetypes.f90',
   'io.f90',
   'math.f90',

@@ -147,6 +147,24 @@ if get_option('openmp')
   dependencies += omp_dep
 endif
 
+if get_option('elpa') != 'none'
+  if get_option('openmp')
+    elpa_dep = dependency('elpa_onenode_openmp-@0@'.format(get_option('elpa')))
+  else
+    elpa_dep = dependency('elpa_onenode-@0@'.format(get_option('elpa')))
+  endif
+  if not fc.compiles('use elpa; end', dependencies: elpa_dep)
+    # Unfortunately, we have to hack this to get the include directory from fcflags
+    elpa_inc = elpa_dep.get_pkgconfig_variable('fcflags').split(' ')[0].split('-I')[-1].strip()
+    elpa_dep = declare_dependency(
+      include_directories: include_directories(elpa_inc),
+      dependencies: elpa_dep,
+    )
+  endif
+  dependencies += elpa_dep
+  add_project_arguments('-DWITH_ELPA', language: 'fortran')
+endif
+
 dependencies += dependency('threads')
 
 if get_option('nvtx')

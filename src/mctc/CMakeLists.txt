@@ -26,6 +26,7 @@ list(APPEND srcs
   "${dir}/boundaryconditions.f90"
   "${dir}/chartools.f90"
   "${dir}/convert.f90"
+  "${dir}/elpa.F90"
   "${dir}/filetypes.f90"
   "${dir}/io.f90"
   "${dir}/math.f90"
