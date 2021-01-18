@@ -17,6 +17,7 @@
 
 module xtb_hessian
    use xtb_mctc_accuracy, only : wp
+   use xtb_hessian_numdiff, only : numdiff2
 
 contains
 
@@ -161,7 +162,6 @@ subroutine numhess( &
    res%linear=.false.
    call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)
    if(cc.lt.1.d-10) res%linear=.true.
-   call timing(t0,w0)
    step2=0.5d0/step
 
    h = 0.0_wp
@@ -178,8 +178,6 @@ subroutine numhess( &
       parallize = .false.
    end select
 
-   omp_parallize: if (parallize) then
-
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -200,259 +198,25 @@ subroutine numhess( &
       enddo
       write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
          & indx(nonfrozh+1:mol%n)
-      ! the index array indx(1:n) contains from 1:nonfrozh in ascending order
-      ! the non-frozen atoms and from nonfrozh+1:n the frozen ones also in
-      ! ascending order
-      ! now compute a subblock of the Hessian
-! PGI 20.7 produces invalid LLVM-IR with the following OpenMP directives
-      !$ nproc = omp_get_num_threads()
-      !$omp parallel default(shared) &
-      !$omp firstprivate(et,maxiter,acc) &
-      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,chk,tmol) &
-      !$omp shared (mol,h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh,env,calc,chk0)
-      !$ call omp_set_num_threads(1)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(1)
-#endif
-      !$omp do schedule(dynamic)
-      do a = 1, nonfrozh
-         ia=indx(a)
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-            tmol = mol
-            chk = chk0
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
-            tmol = mol
-            chk = chk0
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-            mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-            do b = 1, mol%n
-               ja = indx(b)
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-                  h(jj,ii) = h(ii,jj)  ! symmetric coupling part
-               enddo
-            enddo
-         enddo
-         if(a.eq.3)then
-            !$omp critical
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(w1-w0)/60.
-            !$omp end critical
-         endif
-      enddo
-      !$omp end do
+
+      h = 0.0_wp
+      dipd = 0.0_wp
+      pold = 0.0_wp
+      !$omp parallel if(parallize) default(shared)
+      call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd)
       !$omp end parallel
-      !$ call omp_set_num_threads(nproc)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(nproc)
-#endif
 
    else
 !! ------------------------------------------------------------------------
 !  normal case
 !! ------------------------------------------------------------------------
-! PGI 20.7 produces invalid LLVM-IR with the following OpenMP directives
-      !$ nproc = omp_get_num_threads()
-      !$omp parallel default(shared) &
-      !$omp firstprivate(et,maxiter,acc) &
-      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,chk,tmol) &
-      !$omp shared (mol,h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env,calc,chk0)
-      !$ call omp_set_num_threads(1)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(1)
-#endif
-      !$omp do schedule(dynamic)
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-
-            tmol = mol
-            chk = chk0 ! initialize wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
-
-            gr = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-
-            tmol = mol
-            chk = chk0 ! reset wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
-
-            gl = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
-            enddo
-
-            call tmol%deallocate
-         enddo
-
-         if(ia.eq.3)then
-            !$omp critical
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(w1-w0)/60.
-            !$omp end critical
-         endif
-      enddo
-      !$omp end do
+      h = 0.0_wp
+      dipd = 0.0_wp
+      pold = 0.0_wp
+      !$omp parallel if(parallize) default(shared)
+      call numdiff2(env, mol, chk0, calc, step, h, dipd)
       !$omp end parallel
-      !$ call omp_set_num_threads(nproc)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(nproc)
-#endif
-
    endif
-
-   else omp_parallize
-
-   if(freezeset%n.gt.0) then
-      ! for frozfc of about 10 the frozen modes
-      ! approach 5000 cm-1, i.e., come too close to
-      ! the real ones
-      nonfrozh=mol%n-freezeset%n
-      do a = 1,mol%n
-         res%freq(a)=float(a)
-      enddo
-      do a=1,freezeset%n
-         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000d0
-      enddo
-      call sortind(mol%n,res%freq)
-      do a=1,nonfrozh
-         indx(a)=idint(res%freq(a))
-      enddo
-      do a=nonfrozh+1,mol%n
-         indx(a)=idint(res%freq(a)/100000d0)
-      enddo
-      write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
-         & indx(nonfrozh+1:mol%n)
-      ! the index array indx(1:n) contains from 1:nonfrozh in ascending order
-      ! the non-frozen atoms and from nonfrozh+1:n the frozen ones also in
-      ! ascending order
-      ! now compute a subblock of the Hessian
-      do a = 1, nonfrozh
-         ia=indx(a)
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-            tmol = mol
-            chk = chk0
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
-            tmol = mol
-            chk = chk0
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-            mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-            do b = 1, mol%n
-               ja = indx(b)
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-                  h(jj,ii) = h(ii,jj)  ! symmetric coupling part
-               enddo
-            enddo
-         enddo
-         if(a.eq.3)then
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(w1-w0)/60.
-         endif
-      enddo
-
-   else
-!! ------------------------------------------------------------------------
-!  normal case
-!! ------------------------------------------------------------------------
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-
-            tmol = mol
-            chk = chk0 ! initialize wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
-
-            gr = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-
-            tmol = mol
-            chk = chk0 ! reset wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
-
-            gl = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
-            enddo
-
-            call tmol%deallocate
-         enddo
-
-         if(ia.eq.3)then
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(w1-w0)/60.
-         endif
-      enddo
-   endif
-
-   end if omp_parallize
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
