@@ -16,6 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+  'numdiff.f90',
   'project.f90',
   'utils.f90',
 )

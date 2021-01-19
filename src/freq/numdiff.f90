@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Implementation of numerical second derivatives for single point calculators
-module xtb_hessian_numdiff
+module xtb_freq_numdiff
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data, only : scc_results
@@ -200,4 +200,4 @@ subroutine numdiff2_list(env, mol0, chk0, calc, list, step, hessian, dipgrad)
 end subroutine numdiff2_list
 
 
-end module xtb_hessian_numdiff
+end module xtb_freq_numdiff

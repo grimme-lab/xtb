@@ -17,7 +17,7 @@
 
 module xtb_hessian
    use xtb_mctc_accuracy, only : wp
-   use xtb_hessian_numdiff, only : numdiff2
+   use xtb_freq_numdiff, only : numdiff2
 
 contains
 
@@ -162,7 +162,7 @@ subroutine numhess( &
    res%linear=.false.
    call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)
    if(cc.lt.1.d-10) res%linear=.true.
-   step2=0.5d0/step
+   step2=0.5_wp/step
 
    h = 0.0_wp
    htb = 0.0_wp
@@ -187,14 +187,14 @@ subroutine numhess( &
          res%freq(a)=float(a)
       enddo
       do a=1,freezeset%n
-         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000d0
+         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000_wp
       enddo
       call sortind(mol%n,res%freq)
       do a=1,nonfrozh
          indx(a)=idint(res%freq(a))
       enddo
       do a=nonfrozh+1,mol%n
-         indx(a)=idint(res%freq(a)/100000d0)
+         indx(a)=idint(res%freq(a)/100000_wp)
       enddo
       write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
          & indx(nonfrozh+1:mol%n)
@@ -202,7 +202,7 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
-! This OpenMP statements leads to invalid LLVM-IR by NVHPC (20.7 to 20.11)
+! This OpenMP statements lead to invalid LLVM-IRwith NVHPC (20.7 to 20.11)
 #ifndef __PGIC__
       !$omp parallel if(parallize) default(shared)
       call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd)
@@ -218,7 +218,7 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
-! This OpenMP statements leads to invalid LLVM-IR by NVHPC (20.7 to 20.11)
+! This OpenMP statements lead to invalid LLVM-IR with NVHPC (20.7 to 20.11)
 #ifndef __PGIC__
       !$omp parallel if(parallize) default(shared)
       call numdiff2(env, mol, chk0, calc, step, h, dipd)
@@ -240,7 +240,7 @@ subroutine numhess( &
          do ic = 1, 3
             ii = (ia-1)*3+ic
             isqm(ii)=1.0_wp/sqrt(atmass(ia))
-            amass(ii)=isqm(ii)/sqrt(amutoau) 
+            amass(ii)=isqm(ii)/sqrt(amutoau)
          enddo
       enddo
       ! at this point the H matrix has zeros in the frozen atom block
@@ -330,7 +330,7 @@ subroutine numhess( &
             hbias(i,j)=hbias(j,i)
          enddo
       enddo
-   end if   
+   end if
    ! calcualte htb without RMSD bias
    if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
@@ -378,7 +378,7 @@ subroutine numhess( &
          izero(k)=i
       endif
    enddo
-   
+
    ! scale frequencies
    if (runtyp.eq.p_run_bhess) then
       do j=1,n3
@@ -387,11 +387,11 @@ subroutine numhess( &
    end if
 
    if (verbose.and.runtyp.eq.p_run_bhess) then
-      write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
+      write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")')
       do i=1,n3
          write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
          res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
-      end do   
+      end do
       write(env%unit,*)
    end if
 
@@ -439,7 +439,7 @@ subroutine numhess( &
       enddo
       res%rmass(i)=xsum
    enddo
-   
+
    !--- IR intensity ---!
    !  1. res%hess corresponds to the orthonormal eigenvectors of the hessian
    !     matrix (-> normal modes of vibration). Mass-weighting is introduced
@@ -518,7 +518,7 @@ subroutine numhess_rmsd( &
    ! step length
    step=0.0001_wp
    step=step_hess
-   step2=0.5d0/step
+   step2=0.5_wp/step
 
 !! ========================================================================
 !  RMSD part -----------------------------------------------------------
@@ -540,7 +540,7 @@ subroutine numhess_rmsd( &
          gl = 0.0_wp
          ebias = 0.0_wp
          call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
-         
+
          tmol%xyz(ic,ia)=xyzsave(ic,ia)
 
          do ja= 1, mol%n
@@ -928,20 +928,20 @@ subroutine trproj(natoms,nat3,xyz,hess,ldebug,nmode,mode,ndim)
    ! Input
    logical, intent(in) :: ldebug
    integer, intent(in) :: natoms,nat3,nmode,ndim
-   real(8), dimension(3,natoms) :: xyz
-   real(8), dimension(nat3,ndim):: mode
+   real(wp), dimension(3,natoms) :: xyz
+   real(wp), dimension(nat3,ndim):: mode
    ! Ouput
-   real(8), dimension(nat3*(nat3+1)/2) :: hess
+   real(wp), dimension(nat3*(nat3+1)/2) :: hess
    ! Local
    integer :: i
-   real(8) :: xm,ym,zm
-   real(8), dimension(3,natoms) ::xyzucm
+   real(wp) :: xm,ym,zm
+   real(wp), dimension(3,natoms) ::xyzucm
 
    xyzucm(:,:) = xyz(:,:)
 
-   xm = 0.0d0
-   ym = 0.0d0
-   zm = 0.0d0
+   xm = 0.0_wp
+   ym = 0.0_wp
+   zm = 0.0_wp
 
    do i=1,natoms
       xm = xm + xyzucm(1,i)
@@ -991,38 +991,38 @@ subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
    ! Input
    logical, intent(in) :: ldebug
    integer, intent(in) :: natoms,nat3,nmode,ndim
-   real(8), dimension(3,natoms) :: xyzucm
-   real(8), dimension(nat3,ndim):: mode
+   real(wp), dimension(3,natoms) :: xyzucm
+   real(wp), dimension(nat3,ndim):: mode
    ! Ouput
-   real(8), dimension(nat3*(nat3+1)/2) :: hess
+   real(wp), dimension(nat3*(nat3+1)/2) :: hess
 
    ! Local
    integer :: i,ii,iii
-   real(8), allocatable :: fmat(:,:)
+   real(wp), allocatable :: fmat(:,:)
    integer :: nprj
 
    nprj=6
    if(nmode.gt.0) nprj=nprj+nmode
    if(nmode.lt.0) nprj=nprj+fixset%n*3
    allocate(fmat(nat3,nprj))
-   fmat(:,:) = 0.0d0
+   fmat(:,:) = 0.0_wp
 
    if(nmode.ge.0) then
       do i=1,natoms
          do ii=1,3
             !        translation vectors
-            fmat(3*(i-1)+ii,ii) = 1.0d0
+            fmat(3*(i-1)+ii,ii) = 1.0_wp
          end do
          !        rotational vectors
-         fmat(3*(i-1)+1,4) =  0.0d0
+         fmat(3*(i-1)+1,4) =  0.0_wp
          fmat(3*(i-1)+2,4) = -xyzucm(3,i)
          fmat(3*(i-1)+3,4) =  xyzucm(2,i)
          fmat(3*(i-1)+1,5) =  xyzucm(3,i)
-         fmat(3*(i-1)+2,5) =  0.0d0
+         fmat(3*(i-1)+2,5) =  0.0_wp
          fmat(3*(i-1)+3,5) = -xyzucm(1,i)
          fmat(3*(i-1)+1,6) = -xyzucm(2,i)
          fmat(3*(i-1)+2,6) =  xyzucm(1,i)
-         fmat(3*(i-1)+3,6) =  0.0d0
+         fmat(3*(i-1)+3,6) =  0.0_wp
       end do
    endif
 
@@ -1035,20 +1035,20 @@ subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
    if(nmode.lt.0) then ! exact fixing
       do i=1,natoms
          !        rotational vectors
-         fmat(3*(i-1)+1,1) =  0.0d0
+         fmat(3*(i-1)+1,1) =  0.0_wp
          fmat(3*(i-1)+2,1) = -xyzucm(3,i)
          fmat(3*(i-1)+3,1) =  xyzucm(2,i)
          fmat(3*(i-1)+1,2) =  xyzucm(3,i)
-         fmat(3*(i-1)+2,2) =  0.0d0
+         fmat(3*(i-1)+2,2) =  0.0_wp
          fmat(3*(i-1)+3,2) = -xyzucm(1,i)
          fmat(3*(i-1)+1,3) = -xyzucm(2,i)
          fmat(3*(i-1)+2,3) =  xyzucm(1,i)
-         fmat(3*(i-1)+3,3) =  0.0d0
+         fmat(3*(i-1)+3,3) =  0.0_wp
       enddo
       do i=1,fixset%n
          iii=fixset%atoms(i)
          do ii=1,3
-            fmat(3*(iii-1)+ii,3+(i-1)*3+ii) = 1.0d0
+            fmat(3*(iii-1)+ii,3+(i-1)*3+ii) = 1.0_wp
          end do
       enddo
    endif

@@ -50,7 +50,7 @@ wbo
 charges
 dftd4_gradient
 .tmpxtbmodef
-/hessian
+hessian
 molden.input
 tmpxx
 xtb_localmodes
