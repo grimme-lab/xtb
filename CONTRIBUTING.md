@@ -121,27 +121,3 @@ Use your real name (sorry, no pseudonyms or anonymous contributions.)
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
-
-## Contributors
-
-We are developing this program to make our research possible.
-Many of the features that `xtb` has today have been added because there
-was a dire need for them and we had many contributors who made these
-features reality:
-
-- C. Bannwarth
-- F. Bohle (@fabothch)
-- G. Brandenburg
-- E. Caldeweyher (@f3rmion)
-- M. Checinski
-- S. Dohm (@thch-dohm)
-- S. Ehlert (@awvwgk)
-- S. Ehrlich
-- S. Grimme
-- F. März
-- H. Neugebauer (@haneug)
-- J. Pisarek
-- P. Pracht (@pprcht)
-- P. Shushkov
-- S. Spicher (@sespic)
-- J. Unsleber (@nabbelbabbel)
