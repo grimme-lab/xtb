@@ -4,13 +4,13 @@
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1002%2Fwcms.1493-blue)](https://doi.org/10.1002/wcms.1493)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
-[![Gitter](https://badges.gitter.im/xtb-dev/community.svg)](https://gitter.im/xtb-dev/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
 
 <div align="center">
 <img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="220">
 </div>
+
 
 ## Installation
 
@@ -30,6 +30,7 @@ It has been reported that `xtb` can be compiled using Intel Fortran on Windows a
 
 This projects supports two build systems, meson and CMake.
 A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
+
 
 ### Meson
 
@@ -51,6 +52,7 @@ ninja -C build install
 ```
 
 For more information on the build with meson see the instructions [here](./meson/README.adoc).
+
 
 ### CMake
 
@@ -75,6 +77,7 @@ make -C build install
 
 For more detailed information on the build with CMake see the instructions [here](./cmake/README.adoc).
 
+
 ### Conda
 
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/xtb.svg)](https://anaconda.org/conda-forge/xtb)
@@ -97,6 +100,7 @@ It is possible to list all of the versions of `xtb` available on your platform w
 conda search xtb --channel conda-forge
 ```
 
+
 ## Documentation
 
 [![Documentation Status](https://readthedocs.org/projects/xtb-docs/badge/?version=latest)](https://xtb-docs.readthedocs.io/en/latest/?badge=latest)
@@ -105,7 +109,49 @@ The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedoc
 
 ## Contributing
 
-See our [contributing guidelines](CONTRIBUTING.md).
+Please read our [contributing guidelines](CONTRIBUTING.md)
+before contributing to this project.
+
+
+### Contributors
+
+We are developing this program to make our research possible.
+Many of the features that `xtb` has today have been added because there
+was a dire need for them and we had many contributors who made these
+features reality:
+
+- P. Atkinson ([@patrickatkinson](https://github.com/patrickatkinson))
+- C. Bannwarth ([@cbannwarth](https://github.com/cbannwarth))
+- F. Bohle ([@fabothch](https://github.com/fabothch))
+- [G. Brandenburg](http://www.gerit-brandenburg.de/) ([@gbrandenburg](https://github.com/gbrandenburg))
+- [E. Caldeweyher](https://eikecaldeweyher.de/) ([@f3rmion](https://github.com/f3rmion))
+- M. Checinski
+- S. Dohm ([@thch-dohm](https://github.com/thch-dohm))
+- S. Ehlert ([@awvwgk](https://github.com/awvwgk))
+- S. Ehrlich
+- I. Gerasimov ([@FulgurIgor](https://github.com/fulgur/igor))
+- [S. Grimme](https://grimme.uni-bonn.de) ([@stefangrimme](https://github.com/stefangrimme))
+- J. Koopman ([@JayTheDog](https://github.com/jaythedog))
+- C. Lavinge ([@clavinge](https://github.com/clavinge))
+- S. Lehtola ([@susilehtola](https://github.com/susilehtola))
+- F. März
+- M. Müller ([@marcelmbn](https://github.com/marcelmbn))
+- F. Musil ([@felixmusil](https://github.com/felixmusil))
+- H. Neugebauer ([@haneug](https://github.com/haneug))
+- J. Pisarek
+- P. Pracht ([@pprcht](https://github.com/pprcht))
+- J. Seibert ([@liljay42](https://github.com/liljay42))
+- P. Shushkov
+- S. Spicher ([@sespic](https://github.com/sespic))
+- M. Stahn ([@MtoLStoN](https://github.com/mtolston))
+- T. Strunk ([@timostrunk](https://github.com/timostrunk))
+- T. Rose ([@Thomas3R](https://github.com/thomas3r))
+- J. Unsleber ([@nabbelbabbel](https://github.com/nabbelbabbel))
+
+Contributors are listed in alphabetical order.
+Some contributions predate the GitHub release of this project and are not visible in the repository commit history.
+For the contributor data from the commit history since then look [here](https://github.com/grimme-lab/xtb/graphs/contributors).
+
 
 ## Citations
 
@@ -150,6 +196,7 @@ for metadynamics refer to:
 
 All references are available in [bibtex format](./assets/references.bib).
 
+
 ## License
 
 `xtb` is free software: you can redistribute it and/or modify it under
@@ -161,3 +208,8 @@ the Free Software Foundation, either version 3 of the License, or
 but without any warranty; without even the implied warranty of
 merchantability or fitness for a particular purpose.  See the
 GNU Lesser General Public License for more details.
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in `xtb` by you, as defined in the
+GNU Lesser General Public license, shall be licensed as above, without any
+additional terms or conditions.
