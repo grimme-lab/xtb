@@ -1,19 +1,22 @@
 name: CI
 on: [push, pull_request]
 
+env:
+  BUILD_DIR: _build
+
 jobs:
-  gcc-build:
+  gcc-meson-build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-latest, ubuntu-latest]
         fc: [gfortran-9]
         cc: [gcc-9]
-
-    env:
-      FC: ${{ matrix.fc }}
-      CC: ${{ matrix.cc }}
+        include:
+          - os: ubuntu-latest
+            fc: gfortran-7
+            cc: gcc-7
 
     steps:
     - name: Checkout code
@@ -25,31 +28,75 @@ jobs:
         python-version: 3.x
 
     - name: Install meson
-      run: pip3 install meson==0.55.3 ninja
+      run: pip3 install meson==0.55.3 ninja cmake
 
     - name: Configure build
-      run: meson setup _build -Dla_backend=netlib --warnlevel=0
+      run: >-
+        meson setup ${{ env.BUILD_DIR }}
+        --buildtype=debug
+        --warnlevel=0
+        -Db_coverage=true
+        -Dla_backend=netlib
       env:
-        FC: gfortran-9
-        CC: gcc-9
+        FC: ${{ matrix.fc }}
+        CC: ${{ matrix.cc }}
 
     - name: Build project
-      run: meson compile -C _build
+      run: meson compile -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C _build --print-errorlogs --no-rebuild
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
+      env:
+        OMP_NUM_THREADS: 2,1
+
+    - name: Upload coverage report
+      run: bash <(curl -s https://codecov.io/bash)
+
+  gcc-cmake-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        fc: [gfortran-9]
+        cc: [gcc-9]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.x
+
+    - name: Install CMake
+      run: pip3 install ninja cmake
+
+    - name: Configure build
+      run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
+      env:
+        FC: ${{ matrix.fc }}
+        CC: ${{ matrix.cc }}
+
+    - name: Build project
+      run: cmake --build ${{ env.BUILD_DIR }}
+
+    - name: Run unit tests
+      run: ctest --parallel --output-on-failure
+      working-directory: ${{ env.BUILD_DIR }}
       env:
         OMP_NUM_THREADS: 2,1
 
   # Test native MinGW Windows build
-  mingw-build:
+  mingw-meson-build:
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         include: [
           { msystem: MINGW64, arch: x86_64 },
-          { msystem: MINGW32, arch: i686   }
+        # { msystem: MINGW32, arch: i686   }
         ]
     defaults:
       run:
@@ -72,20 +119,20 @@ jobs:
           mingw-w64-${{ matrix.arch }}-ninja
 
     - name: Configure build
-      run: meson setup _build -Dla_backend=netlib --warnlevel=0
+      run: meson setup ${{ env.BUILD_DIR }} -Dla_backend=netlib --warnlevel=0
       env:
         FC: gfortran
         CC: gcc
 
     - name: Build project
-      run: meson compile -C _build
+      run: meson compile -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C _build --print-errorlogs --no-rebuild
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
       env:
         OMP_NUM_THREADS: 2,1
 
-  intel-build:
+  intel-meson-build:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -130,19 +177,19 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Configure meson build
-      run: meson setup build --prefix=/ -Dfortran_args=-qopenmp
+      run: meson setup ${{ env.BUILD_DIR }} --prefix=/ -Dfortran_args=-qopenmp
 
     - name: Build project
-      run: ninja -C build
+      run: ninja -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C build --print-errorlogs --no-rebuild
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
       env:
         OMP_NUM_THREADS: 2,1
 
     - name: Install package
       run: |
-        meson install -C build --no-rebuild
+        meson install -C ${{ env.BUILD_DIR }} --no-rebuild
         tar cJvf xtb-bleed.tar.xz xtb-bleed
       env:
         DESTDIR: ${{ env.PWD }}/xtb-bleed
@@ -159,7 +206,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs:
-      - intel-build
+      - intel-meson-build
 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

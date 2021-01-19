@@ -14,8 +14,7 @@ This is the offical repository of the `xtb` program package developed by the Gri
 
 ## Installation
 
-[![Build Status](https://img.shields.io/travis/com/grimme-lab/xtb?logo=linux&logoColor=white)](https://travis-ci.com/grimme-lab/xtb)
-[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI?logo=apple&logoColor=white)](https://github.com/grimme-lab/xtb/actions)
+[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI)](https://github.com/grimme-lab/xtb/actions)
 
 Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
@@ -25,7 +24,7 @@ Bleeding edge releases of the latest source from this repository are available o
 It is also possible to compile `xtb` with GCC (version 7.5 or newer), but we recommend to use binaries compiled with Intel.
 Successful builds on OSX with GCC via homebrew have been performed as well.
 The NVHPC compilers (version 20.9) can be used to compile for CPU and GPU.
-To compile on Windows we recommend the MinGW toolchain (installable with [MSYS2](https://msys2.org)) or, if a POSIX environment is preferred, with [Cygwin](https://cygwin.com).
+To compile on Windows we recommend the MinGW toolchain (installable with [MSYS2](https://msys2.org)) or, if a POSIX environment is preferred, [Cygwin](https://cygwin.com).
 It has been reported that `xtb` can be compiled using Intel Fortran on Windows as well, but official support is not yet established.
 
 This projects supports two build systems, meson and CMake.
@@ -61,12 +60,9 @@ The CMake build system requires both make and CMake to be installed, the latter 
 Building `xtb` with CMake works with the following chain of commands:
 
 ```bash
-mkdir build
-pushd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-ctest
-popd
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+make -C build
+make -C build test
 ```
 
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
@@ -107,6 +103,7 @@ conda search xtb --channel conda-forge
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
 
+
 ## Contributing
 
 Please read our [contributing guidelines](CONTRIBUTING.md)
@@ -130,7 +127,7 @@ features reality:
 - S. Ehlert ([@awvwgk](https://github.com/awvwgk))
 - S. Ehrlich
 - I. Gerasimov ([@FulgurIgor](https://github.com/fulgur/igor))
-- [S. Grimme](https://grimme.uni-bonn.de) ([@stefangrimme](https://github.com/stefangrimme))
+- [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - J. Koopman ([@JayTheDog](https://github.com/jaythedog))
 - C. Lavinge ([@clavinge](https://github.com/clavinge))
 - S. Lehtola ([@susilehtola](https://github.com/susilehtola))
