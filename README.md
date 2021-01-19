@@ -16,14 +16,14 @@ This is the offical repository of the `xtb` program package developed by the Gri
 
 [![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI)](https://github.com/grimme-lab/xtb/actions)
 
-Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
+Statically linked binaries (Intel Compiler 18.0.2) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
 Bleeding edge releases of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
 
-`xtb` is routinely compiled with Intel Parallel Studio 17 and newer on our clusters in Bonn.
+`xtb` is routinely compiled with Intel Parallel Studio 18 and newer on our clusters in Bonn.
 It is also possible to compile `xtb` with GCC (version 7.5 or newer), but we recommend to use binaries compiled with Intel.
 Successful builds on OSX with GCC via homebrew have been performed as well.
-The NVHPC compilers (version 20.9) can be used to compile for CPU and GPU.
+The NVHPC compilers (version 20.9, 20.11) can be used to compile for CPU and GPU.
 To compile on Windows we recommend the MinGW toolchain (installable with [MSYS2](https://msys2.org)) or, if a POSIX environment is preferred, [Cygwin](https://cygwin.com).
 It has been reported that `xtb` can be compiled using Intel Fortran on Windows as well, but official support is not yet established.
 

@@ -202,9 +202,14 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
+! This OpenMP statements leads to invalid LLVM-IR by NVHPC (20.7 to 20.11)
+#ifndef __PGIC__
       !$omp parallel if(parallize) default(shared)
       call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd)
       !$omp end parallel
+#else
+      call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd)
+#endif
 
    else
 !! ------------------------------------------------------------------------
@@ -213,9 +218,14 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
+! This OpenMP statements leads to invalid LLVM-IR by NVHPC (20.7 to 20.11)
+#ifndef __PGIC__
       !$omp parallel if(parallize) default(shared)
       call numdiff2(env, mol, chk0, calc, step, h, dipd)
       !$omp end parallel
+#else
+      call numdiff2(env, mol, chk0, calc, step, h, dipd)
+#endif
    endif
 
 !  Hessian done -----------------------------------------------------------
