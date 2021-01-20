@@ -246,11 +246,31 @@ subroutine numhess( &
             amass(ii)=isqm(ii)/sqrt(amutoau)
          enddo
       enddo
+      do a = 1, nonfrozh
+         ia = indx(a)
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+            do b = 1, nonfrozh
+               ja = indx(b)
+               do jc = 1, 3
+                  jj = (ja-1)*3+jc
+                  if(abs(h(ii,jj)-h(jj,ii)).gt.1.d-2) then
+                     write(errStr,'(a,1x,i0,1x,i0,1x,a,1x,es14.6,1x,es14.6)') &
+                        & 'Hessian element ',i,j,' is not symmetric:',h(i,j),h(j,i)
+                     call env%warning(trim(errStr), source)
+                  endif
+                  h(jj,ii) = 0.5_wp*(h(ii,jj)+h(jj,ii))
+               enddo
+            enddo
+         enddo
+      enddo
       ! at this point the H matrix has zeros in the frozen atom block
       do a = nonfrozh+1,mol%n
          ia = indx(a)
          do ic = 1, 3
             ii = (ia-1)*3+ic
+            h(:, ii) = 0.0_wp
+            h(ii, :) = 0.0_wp
             h(ii,ii)=freezeset%fc   ! fill frozen diagonal block only
          enddo
       enddo
@@ -259,7 +279,7 @@ subroutine numhess( &
       ! symmetrize
       do i=1,n3
          do j=1,n3
-            res%hess(j,i)=(h(i,j)+h(j,i))*0.5
+            res%hess(j,i)=(h(i,j)+h(j,i))*0.5_wp
             if(abs(h(i,j)-h(j,i)).gt.1.d-2) then
                write(errStr,'(a,1x,i0,1x,i0,1x,a,1x,es14.6,1x,es14.6)') &
                   & 'Hessian element ',i,j,' is not symmetric:',h(i,j),h(j,i)
