@@ -137,12 +137,21 @@ else
 endif
 
 if get_option('openmp')
-  omp_dep = dependency('openmp', required: fc.get_id() != 'intel')
+  omp_dep = dependency('openmp', required: fc.get_id() != 'intel' and fc.get_id() != 'nvidia_hpc')
   if not omp_dep.found()
-    omp_dep = declare_dependency(
-      compile_args: '-qopenmp',
-      link_args: '-qopenmp',
-    )
+    if fc.get_id() == 'intel'
+      message('Using -qopenmp to use OpenMP with Intel compilers')
+      omp_dep = declare_dependency(
+        compile_args: '-qopenmp',
+        link_args: '-qopenmp',
+      )
+    else
+      message('Using -mp to use OpenMP with NVHPC compilers')
+      omp_dep = declare_dependency(
+        compile_args: '-mp',
+        link_args: '-mp',
+      )
+    endif
   endif
   dependencies += omp_dep
 endif

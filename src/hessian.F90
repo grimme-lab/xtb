@@ -1,6 +1,6 @@
 ! This file is part of xtb.
 !
-! Copyright (C) 2017-2020 Stefan Grimme
+! Copyright (C) 2017-2021 Stefan Grimme
 !
 ! xtb is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,6 +17,10 @@
 
 module xtb_hessian
    use xtb_mctc_accuracy, only : wp
+   use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
+      & write_tm_vibspectrum, g98fake, g98fake2
+   use xtb_freq_numdiff, only : numdiff2
+   use xtb_freq_project, only : trproj
 
 contains
 
@@ -161,8 +165,7 @@ subroutine numhess( &
    res%linear=.false.
    call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)
    if(cc.lt.1.d-10) res%linear=.true.
-   call timing(t0,w0)
-   step2=0.5d0/step
+   step2=0.5_wp/step
 
    h = 0.0_wp
    htb = 0.0_wp
@@ -178,8 +181,6 @@ subroutine numhess( &
       parallize = .false.
    end select
 
-   omp_parallize: if (parallize) then
-
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -189,270 +190,46 @@ subroutine numhess( &
          res%freq(a)=float(a)
       enddo
       do a=1,freezeset%n
-         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000d0
+         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000_wp
       enddo
       call sortind(mol%n,res%freq)
       do a=1,nonfrozh
          indx(a)=idint(res%freq(a))
       enddo
       do a=nonfrozh+1,mol%n
-         indx(a)=idint(res%freq(a)/100000d0)
+         indx(a)=idint(res%freq(a)/100000_wp)
       enddo
       write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
          & indx(nonfrozh+1:mol%n)
-      ! the index array indx(1:n) contains from 1:nonfrozh in ascending order
-      ! the non-frozen atoms and from nonfrozh+1:n the frozen ones also in
-      ! ascending order
-      ! now compute a subblock of the Hessian
-! PGI 20.7 produces invalid LLVM-IR with the following OpenMP directives
-      !$ nproc = omp_get_num_threads()
-      !$omp parallel default(shared) &
-      !$omp firstprivate(et,maxiter,acc) &
-      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,chk,tmol) &
-      !$omp shared (mol,h,dipd,pold,step,step2,t1,t0,w1,w0,indx,nonfrozh,env,calc,chk0)
-      !$ call omp_set_num_threads(1)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(1)
-#endif
-      !$omp do schedule(dynamic)
-      do a = 1, nonfrozh
-         ia=indx(a)
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-            tmol = mol
-            chk = chk0
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
-            tmol = mol
-            chk = chk0
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-            mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-            do b = 1, mol%n
-               ja = indx(b)
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-                  h(jj,ii) = h(ii,jj)  ! symmetric coupling part
-               enddo
-            enddo
-         enddo
-         if(a.eq.3)then
-            !$omp critical
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(w1-w0)/60.
-            !$omp end critical
-         endif
-      enddo
-      !$omp end do
+
+      h = 0.0_wp
+      dipd = 0.0_wp
+      pold = 0.0_wp
+! This OpenMP statements lead to invalid LLVM-IRwith NVHPC (20.7 to 20.11)
+#ifndef __PGIC__
+      !$omp parallel if(parallize) default(shared)
+      call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd)
       !$omp end parallel
-      !$ call omp_set_num_threads(nproc)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(nproc)
+#else
+      call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd)
 #endif
 
    else
 !! ------------------------------------------------------------------------
 !  normal case
 !! ------------------------------------------------------------------------
-! PGI 20.7 produces invalid LLVM-IR with the following OpenMP directives
-      !$ nproc = omp_get_num_threads()
-      !$omp parallel default(shared) &
-      !$omp firstprivate(et,maxiter,acc) &
-      !$omp private(ia,ic,ii,ja,jc,jj,eel,gr,gl,egap,sccr,sccl,sr,sl,chk,tmol) &
-      !$omp shared (mol,h,dipd,pold,step,step2,t1,t0,w1,w0,xyzsave,env,calc,chk0)
-      !$ call omp_set_num_threads(1)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(1)
-#endif
-      !$omp do schedule(dynamic)
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-
-            tmol = mol
-            chk = chk0 ! initialize wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
-
-            gr = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-
-            tmol = mol
-            chk = chk0 ! reset wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
-
-            gl = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
-            enddo
-
-            call tmol%deallocate
-         enddo
-
-         if(ia.eq.3)then
-            !$omp critical
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(w1-w0)/60.
-            !$omp end critical
-         endif
-      enddo
-      !$omp end do
+      h = 0.0_wp
+      dipd = 0.0_wp
+      pold = 0.0_wp
+! This OpenMP statements lead to invalid LLVM-IR with NVHPC (20.7 to 20.11)
+#ifndef __PGIC__
+      !$omp parallel if(parallize) default(shared)
+      call numdiff2(env, mol, chk0, calc, step, h, dipd)
       !$omp end parallel
-      !$ call omp_set_num_threads(nproc)
-#ifdef WITH_MKL
-      !$ call mkl_set_num_threads(nproc)
+#else
+      call numdiff2(env, mol, chk0, calc, step, h, dipd)
 #endif
-
    endif
-
-   else omp_parallize
-
-   if(freezeset%n.gt.0) then
-      ! for frozfc of about 10 the frozen modes
-      ! approach 5000 cm-1, i.e., come too close to
-      ! the real ones
-      nonfrozh=mol%n-freezeset%n
-      do a = 1,mol%n
-         res%freq(a)=float(a)
-      enddo
-      do a=1,freezeset%n
-         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000d0
-      enddo
-      call sortind(mol%n,res%freq)
-      do a=1,nonfrozh
-         indx(a)=idint(res%freq(a))
-      enddo
-      do a=nonfrozh+1,mol%n
-         indx(a)=idint(res%freq(a)/100000d0)
-      enddo
-      write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
-         & indx(nonfrozh+1:mol%n)
-      ! the index array indx(1:n) contains from 1:nonfrozh in ascending order
-      ! the non-frozen atoms and from nonfrozh+1:n the frozen ones also in
-      ! ascending order
-      ! now compute a subblock of the Hessian
-      do a = 1, nonfrozh
-         ia=indx(a)
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-            tmol = mol
-            chk = chk0
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gr,sr,sccr)
-            tmol = mol
-            chk = chk0
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-            mol%xyz(ic,ia)=mol%xyz(ic,ia)-2.*step
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,0,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=tmol%xyz(ic,ia)+step
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-            do b = 1, mol%n
-               ja = indx(b)
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-                  h(jj,ii) = h(ii,jj)  ! symmetric coupling part
-               enddo
-            enddo
-         enddo
-         if(a.eq.3)then
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*nonfrozh*(w1-w0)/60.
-         endif
-      enddo
-
-   else
-!! ------------------------------------------------------------------------
-!  normal case
-!! ------------------------------------------------------------------------
-      do ia = 1, mol%n
-         do ic = 1, 3
-            ii = (ia-1)*3+ic
-
-            tmol = mol
-            chk = chk0 ! initialize wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)+step
-
-            gr = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gr,sr,sccr)
-            dipd(1:3,ii)=sccr%dipole(1:3)
-            pold(ii)=sccr%molpol
-
-            tmol = mol
-            chk = chk0 ! reset wavefunction
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)-step
-
-            gl = 0.0_wp
-            eel = 0.0_wp
-            call singlepoint &
-               & (env,tmol,chk,calc, &
-               &  egap,et,maxiter,-1,.true.,.true.,acc,eel,gl,sl,sccl)
-            tmol%xyz(ic,ia)=xyzsave(ic,ia)
-            dipd(1:3,ii)=(dipd(1:3,ii)-sccl%dipole(1:3))*step2
-            pold(ii)=(pold(ii)-sccl%molpol)*step2
-            do ja= 1, mol%n
-               do jc = 1, 3
-                  jj = (ja-1)*3 + jc
-                  h(ii,jj) =(gr(jc,ja) - gl(jc,ja)) * step2
-               enddo
-            enddo
-
-            call tmol%deallocate
-         enddo
-
-         if(ia.eq.3)then
-            call timing(t1,w1)
-            write(*,'(''estimated CPU  time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(t1-t0)/60.
-            write(*,'(''estimated wall time'',F10.2,'' min'')') &
-               & 0.3333333d0*mol%n*(w1-w0)/60.
-         endif
-      enddo
-   endif
-
-   end if omp_parallize
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
@@ -466,7 +243,25 @@ subroutine numhess( &
          do ic = 1, 3
             ii = (ia-1)*3+ic
             isqm(ii)=1.0_wp/sqrt(atmass(ia))
-            amass(ii)=isqm(ii)/sqrt(amutoau) 
+            amass(ii)=isqm(ii)/sqrt(amutoau)
+         enddo
+      enddo
+      do a = 1, nonfrozh
+         ia = indx(a)
+         do ic = 1, 3
+            ii = (ia-1)*3+ic
+            do b = 1, nonfrozh
+               ja = indx(b)
+               do jc = 1, 3
+                  jj = (ja-1)*3+jc
+                  if(abs(h(ii,jj)-h(jj,ii)).gt.1.d-2) then
+                     write(errStr,'(a,1x,i0,1x,i0,1x,a,1x,es14.6,1x,es14.6)') &
+                        & 'Hessian element ',i,j,' is not symmetric:',h(i,j),h(j,i)
+                     call env%warning(trim(errStr), source)
+                  endif
+                  h(jj,ii) = 0.5_wp*(h(ii,jj)+h(jj,ii))
+               enddo
+            enddo
          enddo
       enddo
       ! at this point the H matrix has zeros in the frozen atom block
@@ -474,6 +269,8 @@ subroutine numhess( &
          ia = indx(a)
          do ic = 1, 3
             ii = (ia-1)*3+ic
+            h(:, ii) = 0.0_wp
+            h(ii, :) = 0.0_wp
             h(ii,ii)=freezeset%fc   ! fill frozen diagonal block only
          enddo
       enddo
@@ -482,7 +279,7 @@ subroutine numhess( &
       ! symmetrize
       do i=1,n3
          do j=1,n3
-            res%hess(j,i)=(h(i,j)+h(j,i))*0.5
+            res%hess(j,i)=(h(i,j)+h(j,i))*0.5_wp
             if(abs(h(i,j)-h(j,i)).gt.1.d-2) then
                write(errStr,'(a,1x,i0,1x,i0,1x,a,1x,es14.6,1x,es14.6)') &
                   & 'Hessian element ',i,j,' is not symmetric:',h(i,j),h(j,i)
@@ -556,7 +353,7 @@ subroutine numhess( &
             hbias(i,j)=hbias(j,i)
          enddo
       enddo
-   end if   
+   end if
    ! calcualte htb without RMSD bias
    if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
@@ -604,7 +401,7 @@ subroutine numhess( &
          izero(k)=i
       endif
    enddo
-   
+
    ! scale frequencies
    if (runtyp.eq.p_run_bhess) then
       do j=1,n3
@@ -613,11 +410,11 @@ subroutine numhess( &
    end if
 
    if (verbose.and.runtyp.eq.p_run_bhess) then
-      write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")') 
+      write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")')
       do i=1,n3
          write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
          res%freq(i),fc_tb(i),fc_bias(i),freq_scal(i)
-      end do   
+      end do
       write(env%unit,*)
    end if
 
@@ -665,7 +462,7 @@ subroutine numhess( &
       enddo
       res%rmass(i)=xsum
    enddo
-   
+
    !--- IR intensity ---!
    !  1. res%hess corresponds to the orthonormal eigenvectors of the hessian
    !     matrix (-> normal modes of vibration). Mass-weighting is introduced
@@ -744,7 +541,7 @@ subroutine numhess_rmsd( &
    ! step length
    step=0.0001_wp
    step=step_hess
-   step2=0.5d0/step
+   step2=0.5_wp/step
 
 !! ========================================================================
 !  RMSD part -----------------------------------------------------------
@@ -766,7 +563,7 @@ subroutine numhess_rmsd( &
          gl = 0.0_wp
          ebias = 0.0_wp
          call metadynamic(metaset,tmol%n,tmol%at,tmol%xyz,ebias,gl)
-         
+
          tmol%xyz(ic,ia)=xyzsave(ic,ia)
 
          do ja= 1, mol%n
@@ -882,476 +679,7 @@ end subroutine distort
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine write_tm_vibspectrum(ich,n3,freq,ir_int)
-   integer, intent(in)  :: ich ! file handle
-   integer, intent(in)  :: n3
-   real(wp),intent(in)  :: freq(n3)
-   real(wp),intent(in)  :: ir_int(n3)
-   integer  :: i
-   real(wp) :: thr=0.01_wp
-   write(ich,'("$vibrational spectrum")')
-   write(ich,'("#  mode     symmetry     wave number   IR intensity    selection rules")')
-   write(ich,'("#                         cm**(-1)      (km*mol⁻¹)       IR     RAMAN")')
-   do i = 1, n3
-      if (abs(freq(i)).lt.thr) then
-        write(ich,'(i6,9x,    f18.2,f16.5,7x," - ",5x," - ")') &
-         i,freq(i),0.0_wp
-      else
-        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"YES")') &
-         i,freq(i),ir_int(i)
-      endif
-   enddo
-   write(ich,'("$end")')
-end subroutine
-
-subroutine g98fake2(fname,n,at,xyz,freq,red_mass,ir_int,u2)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: freq(3*n)
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: u2(3*n,3*n)
-   character(len=*),intent(in) :: fname
-   real(wp),intent(in)  :: red_mass(3*n)
-   real(wp),intent(in)  :: ir_int  (3*n)
-
-   integer  :: gu,i,j,ka,kb,kc,la,lb,k
-   character(len=2) :: irrep
-   real(wp),allocatable :: u(:,:)
-   real(wp),allocatable :: red(:)
-   real(wp),allocatable :: f2 (:)
-   real(wp),allocatable :: ir (:)
-   real(wp) :: zero
-
-   allocate( u(3*n,3*n), red(3*n), f2(3*n), ir(3*n), source = 0.0_wp )
-
-   irrep='a'
-   zero    =0.0
-
-   k=0
-   do i=1,3*n
-      if(abs(freq(i)).gt.1.d-1)then
-         k=k+1
-         u(1:3*n,k)=u2(1:3*n,i)
-         f2(k)=freq(i)
-         ir(k)=ir_int(i)
-         red(k)=red_mass(i)
-      endif
-   enddo
-
-   gu=55
-   call open_file(gu,fname,'w')
-   write (gu,'('' Entering Gaussian System'')')
-   write (gu,'('' *********************************************'')')
-   write (gu,'('' Gaussian 98:'')')
-   write (gu,'('' frequency output generated by the xtb code'')')
-   write (gu,'('' *********************************************'')')
-
-   write (gu,*) '                        Standard orientation:'
-   write (gu,*) '---------------------------------------------', &
-      & '-----------------------'
-   write (gu,*) ' Center     Atomic     Atomic', &
-      & '              Coordinates (Angstroms)'
-   write (gu,*) ' Number     Number      Type ', &
-      & '             X           Y           Z'
-   write (gu,*) '-----------------------', &
-      & '---------------------------------------------'
-   j=0
-   do i=1,n
-      write(gu,111) i,at(i),j,xyz(1:3,i)*0.52917726
-   enddo
-   write (gu,*) '----------------------', &
-      & '----------------------------------------------'
-   write (gu,*) '    1 basis functions        1 primitive gaussians'
-   write (gu,*) '    1 alpha electrons        1 beta electrons'
-   write (gu,*)
-   111 format(i5,i11,i14,4x,3f12.6)
-
-   write (gu,*) 'Harmonic frequencies (cm**-1), IR intensities', &
-      & ' (km*mol⁻¹),'
-   write (gu,*) 'Raman scattering activities (A**4/amu),', &
-      & ' Raman depolarization ratios,'
-   write (gu,*) 'reduced masses (AMU), force constants (mDyne/A)', &
-      & ' and normal coordinates:'
-
-   ka=1
-   kc=3
-   60  kb=min0(kc,k)
-   write (gu,100) (j,j=ka,kb)
-   write (gu,105) (irrep,j=ka,kb)
-   write (gu,110) ' Frequencies --',(f2(j),j=ka,kb)
-   write (gu,110) ' Red. masses --',(red(j),j=ka,kb)
-   write (gu,110) ' Frc consts  --',(zero,j=ka,kb)
-   write (gu,110) ' IR Inten    --',(ir(j),j=ka,kb)
-   write (gu,110) ' Raman Activ --',(zero,j=ka,kb)
-   write (gu,110) ' Depolar     --',(zero,j=ka,kb)
-   write (gu,*)'Atom AN      X      Y      Z        X      Y', &
-      & '      Z        X      Y      Z'
-   la=1
-   70  lb=n
-   do  i=la,lb
-      write (gu,130) i,at(i), (u(i*3-2,j),  u(i*3-1,j),  u(i*3  ,j),j=ka,kb)
-   enddo
-   if (lb.eq.n) go to 90
-   go to 70
-   90  if (kb.eq.k) then
-      return
-   endif
-   ka=kc+1
-   kc=kc+3
-   go to 60
-
-   100 format (3(20x,i3))
-   105 format (3x,3(18x,a5))
-   110 format (a15,f11.4,12x,f11.4,12x,f11.4)
-   130 format (2i4,3(2x,3f7.2))
-
-   write(gu,'(''end of file'')')
-   call close_file(gu)
-   return
-
-end subroutine g98fake2
-
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-subroutine g98fake(fname,n,at,xyz,freq,u2)
-   use xtb_mctc_accuracy, only : wp
-   implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: freq(3*n)
-   real(wp),intent(in)  :: xyz(3,n)
-   real(wp),intent(in)  :: u2(3*n,3*n)
-   character(len=*),intent(in) :: fname
-
-   integer  :: gu,i,j,ka,kb,kc,la,lb,k
-   character(len=2) :: irrep
-   real(wp),allocatable :: u(:,:)
-   real(wp),allocatable :: red_mass(:)
-   real(wp),allocatable :: force   (:)
-   real(wp),allocatable :: ir_int  (:)
-   real(wp),allocatable :: f2      (:)
-   real(wp) :: zero
-
-   allocate( u(3*n,3*n), red_mass(3*n), force(3*n), ir_int(3*n), f2(3*n), &
-             source = 0.0_wp )
-
-   irrep='a'
-   red_mass=99.0
-   force   =99.0
-   ir_int  =99.0
-   zero    =0.0
-
-   k=0
-   do i=1,3*n
-      if(abs(freq(i)).gt.1.d-1)then
-         k=k+1
-         u(1:3*n,k)=u2(1:3*n,i)
-         f2(k)=freq(i)
-      endif
-   enddo
-
-   gu=55
-   call open_file(gu,fname,'w')
-   write (gu,'('' Entering Gaussian System'')')
-   write (gu,'('' *********************************************'')')
-   write (gu,'('' Gaussian 98:'')')
-   write (gu,'('' frequency output generated by the xtb code'')')
-   write (gu,'('' *********************************************'')')
-
-   write (gu,*) '                        Standard orientation:'
-   write (gu,*) '---------------------------------------------', &
-      & '-----------------------'
-   write (gu,*) ' Center     Atomic     Atomic', &
-      & '              Coordinates (Angstroms)'
-   write (gu,*) ' Number     Number      Type ', &
-      & '             X           Y           Z'
-   write (gu,*) '-----------------------', &
-      & '---------------------------------------------'
-   j=0
-   do i=1,n
-      write(gu,111) i,at(i),j,xyz(1:3,i)*0.52917726
-   enddo
-   write (gu,*) '----------------------', &
-      & '----------------------------------------------'
-   write (gu,*) '    1 basis functions        1 primitive gaussians'
-   write (gu,*) '    1 alpha electrons        1 beta electrons'
-   write (gu,*)
-   111 format(i5,i11,i14,4x,3f12.6)
-
-   write (gu,*) 'Harmonic frequencies (cm**-1), IR intensities',' (km*mol⁻¹),'
-   write (gu,*) 'Raman scattering activities (A**4/amu),', &
-      & ' Raman depolarization ratios,'
-   write (gu,*) 'reduced masses (AMU), force constants (mDyne/A)', &
-      & ' and normal coordinates:'
-
-   ka=1
-   kc=3
-   60  kb=min0(kc,k)
-   write (gu,100) (j,j=ka,kb)
-   write (gu,105) (irrep,j=ka,kb)
-   write (gu,110) ' Frequencies --',(f2(j),j=ka,kb)
-   write (gu,110) ' Red. masses --',(red_mass(j),j=ka,kb)
-   write (gu,110) ' Frc consts  --',(force(j),j=ka,kb)
-   write (gu,110) ' IR Inten    --',(ir_int(j),j=ka,kb)
-   write (gu,110) ' Raman Activ --',(zero,j=ka,kb)
-   write (gu,110) ' Depolar     --',(zero,j=ka,kb)
-   write (gu,*)'Atom AN      X      Y      Z        X      Y', &
-      & '      Z        X      Y      Z'
-   la=1
-   70  lb=n
-   do  i=la,lb
-      write (gu,130) i,at(i), (u(i*3-2,j),  u(i*3-1,j),  u(i*3  ,j),j=ka,kb)
-   enddo
-   if (lb.eq.n) go to 90
-   go to 70
-   90  if (kb.eq.k) then
-      return
-   endif
-   ka=kc+1
-   kc=kc+3
-   go to 60
-
-   100 format (3(20x,i3))
-   105 format (3x,3(18x,a5))
-   110 format (a15,f11.4,12x,f11.4,12x,f11.4)
-   130 format (2i4,3(2x,3f7.2))
-
-   write(gu,'(''end of file'')')
-   call close_file(gu)
-   return
-
-end subroutine g98fake
-
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-subroutine trproj(natoms,nat3,xyz,hess,ldebug,nmode,mode,ndim)
-
-   !----------------------------------------------------------------------
-   !  subroutine trproj drives projection of hessian out of the
-   !  space of translational and rotational motions:
-   !  first get xyz c.m.; second get transl. and rot. projection matrix
-   !
-   !  get center of mass coordinates with unit mass
-   !
-   ! Input
-   !   natoms  = number of atoms
-   !   nat3    = 3*natoms
-   !   xyz     = cartesian coordinates
-   !       ldebug  = debug flag = .true. for debugging
-   !
-   ! Ouput fo gtrprojm.f
-   !   xyzucm  = temporary c.m. coordinates
-   !
-   !       hess        = projected hessian out of space of transl. and rot.
-   !                 motion
-   !
-   !----------------------------------------------------------------------
-
-   implicit none
-
-   ! Input
-   logical, intent(in) :: ldebug
-   integer, intent(in) :: natoms,nat3,nmode,ndim
-   real(8), dimension(3,natoms) :: xyz
-   real(8), dimension(nat3,ndim):: mode
-   ! Ouput
-   real(8), dimension(nat3*(nat3+1)/2) :: hess
-   ! Local
-   integer :: i
-   real(8) :: xm,ym,zm
-   real(8), dimension(3,natoms) ::xyzucm
-
-   xyzucm(:,:) = xyz(:,:)
-
-   xm = 0.0d0
-   ym = 0.0d0
-   zm = 0.0d0
-
-   do i=1,natoms
-      xm = xm + xyzucm(1,i)
-      ym = ym + xyzucm(2,i)
-      zm = zm + xyzucm(3,i)
-   end do
-
-   xm = xm/natoms
-   ym = ym/natoms
-   zm = zm/natoms
-
-
-   do i=1,natoms
-      xyzucm(1,i) = xyzucm(1,i) - xm
-      xyzucm(2,i) = xyzucm(2,i) - ym
-      xyzucm(3,i) = xyzucm(3,i) - zm
-   end do
-
-   ! get translational and rotational projection matrix
-
-   call gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
-
-end subroutine trproj
-
-!----------------------------------------------------------------------
-subroutine gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
-   !----------------------------------------------------------------------
-   ! calculating the translational-rotational projection matrix
-   !
-   ! Input
-   !   natoms  = number of atoms
-   !   nat3    = 3*natoms
-   !   xyzucm  = coords c.m. from gxyzucm.f
-   !           hess    = hessian
-   !       ldebug      = debug flag = .true. for debugging
-   !
-   ! Ouput
-   !   fmat    = F-matrix with translational and rotational vectors
-   !       pmat        = projection matrix P = (1-FFt)
-   !   hess    = projected hessian
-   !----------------------------------------------------------------------
-   use xtb_fixparam
-   use xtb_mctc_la, only : blckmgs,syprj
-
-   implicit none
-
-   ! Input
-   logical, intent(in) :: ldebug
-   integer, intent(in) :: natoms,nat3,nmode,ndim
-   real(8), dimension(3,natoms) :: xyzucm
-   real(8), dimension(nat3,ndim):: mode
-   ! Ouput
-   real(8), dimension(nat3*(nat3+1)/2) :: hess
-
-   ! Local
-   integer :: i,ii,iii
-   real(8), allocatable :: fmat(:,:)
-   integer :: nprj
-
-   nprj=6
-   if(nmode.gt.0) nprj=nprj+nmode
-   if(nmode.lt.0) nprj=nprj+fixset%n*3
-   allocate(fmat(nat3,nprj))
-   fmat(:,:) = 0.0d0
-
-   if(nmode.ge.0) then
-      do i=1,natoms
-         do ii=1,3
-            !        translation vectors
-            fmat(3*(i-1)+ii,ii) = 1.0d0
-         end do
-         !        rotational vectors
-         fmat(3*(i-1)+1,4) =  0.0d0
-         fmat(3*(i-1)+2,4) = -xyzucm(3,i)
-         fmat(3*(i-1)+3,4) =  xyzucm(2,i)
-         fmat(3*(i-1)+1,5) =  xyzucm(3,i)
-         fmat(3*(i-1)+2,5) =  0.0d0
-         fmat(3*(i-1)+3,5) = -xyzucm(1,i)
-         fmat(3*(i-1)+1,6) = -xyzucm(2,i)
-         fmat(3*(i-1)+2,6) =  xyzucm(1,i)
-         fmat(3*(i-1)+3,6) =  0.0d0
-      end do
-   endif
-
-   if(nmode.gt.0) then  ! NMF
-      do i=1,nmode
-         fmat(1:nat3,6+i)=mode(1:nat3,i)
-      enddo
-   endif
-
-   if(nmode.lt.0) then ! exact fixing
-      do i=1,natoms
-         !        rotational vectors
-         fmat(3*(i-1)+1,1) =  0.0d0
-         fmat(3*(i-1)+2,1) = -xyzucm(3,i)
-         fmat(3*(i-1)+3,1) =  xyzucm(2,i)
-         fmat(3*(i-1)+1,2) =  xyzucm(3,i)
-         fmat(3*(i-1)+2,2) =  0.0d0
-         fmat(3*(i-1)+3,2) = -xyzucm(1,i)
-         fmat(3*(i-1)+1,3) = -xyzucm(2,i)
-         fmat(3*(i-1)+2,3) =  xyzucm(1,i)
-         fmat(3*(i-1)+3,3) =  0.0d0
-      enddo
-      do i=1,fixset%n
-         iii=fixset%atoms(i)
-         do ii=1,3
-            fmat(3*(iii-1)+ii,3+(i-1)*3+ii) = 1.0d0
-         end do
-      enddo
-   endif
-
-   if(ldebug) then
-      write(*,'(a)')
-      write(*,'(a)') ' Basis vectors before orthonormalization'
-      write(*,'(3e22.14)') fmat
-   end if
-
-   ! do orthogonalization
-
-   call  blckmgs(nat3,nprj,nat3,fmat)
-
-   ! do projection
-
-   call syprj(nat3,nprj,fmat,nat3,hess)
-
-   deallocate(fmat)
-
-end subroutine gtrprojm
-
-
-subroutine wrhess(nat3,h,fname)
-   use xtb_lin, only : lin
-   implicit none
-   integer, intent(in) :: nat3
-   real(wp),intent(in) :: h(nat3*(nat3+1)/2)
-   character(len=*),intent(in) :: fname
-   integer iunit,i,j,mincol,maxcol,k
-   character(len=5)  :: adum
-   character(len=80) :: a80
-
-   adum='   '
-   call open_file(iunit,fname,'w')
-   a80='$hessian'
-   write(iunit,'(a)')a80
-   do i=1,nat3
-      maxcol = 0
-      k=0
-      200    mincol = maxcol + 1
-      k=k+1
-      maxcol = min(maxcol+5,nat3)
-      write(iunit,'(a5,5f15.10)')adum,(h(lin(i,j)),j=mincol,maxcol)
-      if (maxcol.lt.nat3) goto 200
-   enddo
-   call close_file(iunit)
-
-end subroutine wrhess
-
-subroutine rdhess(nat3,h,fname)
-   implicit none
-   integer, intent(in)  :: nat3
-   real(wp),intent(out) :: h(nat3,nat3)
-   character(len=*),intent(in) :: fname
-   integer  :: iunit,i,j,mincol,maxcol
-   character(len=5)  :: adum
-   character(len=80) :: a80
-
-   !     write(*,*) 'Reading Hessian <',trim(fname),'>'
-   call open_file(iunit,fname,'r')
-   50  read(iunit,'(a)')a80
-   if(index(a80,'$hessian').ne.0)then
-      do i=1,nat3
-         maxcol = 0
-         200       mincol = maxcol + 1
-         maxcol = min(maxcol+5,nat3)
-         read(iunit,*)(h(j,i),j=mincol,maxcol)
-         if (maxcol.lt.nat3) goto 200
-      enddo
-      call close_file(iunit)
-      goto 300
-   endif
-   goto 50
-
-   300 return
-end subroutine rdhess
 
 pure subroutine sortind(nvar,edum)
    implicit none
@@ -1375,28 +703,5 @@ pure subroutine sortind(nvar,edum)
    enddo
 
 end subroutine sortind
-
-
-!> Write the second derivative matrix
-subroutine writeHessianOut(fileName, pDynMatrix)
-
-   !> File name
-   character(*), intent(in) :: fileName
-
-   !> Dynamical (Hessian) matrix
-   real(wp), intent(in) :: pDynMatrix(:,:)
-
-   !> Format string for energy second derivative matrix
-   character(len=*), parameter :: formatHessian = '(4f16.10)'
-
-   integer :: ii, fd
-
-   call open_file(fd, fileName, 'w')
-   do ii = 1, size(pDynMatrix, dim=2)
-      write(fd, formatHessian) pDynMatrix(:, ii)
-   end do
-   call close_file(fd)
-
-end subroutine writeHessianOut
 
 end module xtb_hessian
