@@ -346,6 +346,7 @@ subroutine mdisp(dispm,nat,ndim,at,q,xyz,g_a,g_c, &
 end subroutine mdisp
 
 pure elemental function zeta(a,c,qref,qmod)
+   !$acc routine seq
    real(wp),intent(in) :: qmod,qref
    real(wp),intent(in) :: a,c
    real(wp)            :: zeta
@@ -361,6 +362,7 @@ pure elemental function zeta(a,c,qref,qmod)
 end function zeta
 
 pure elemental function dzeta(a,c,qref,qmod)
+   !$acc routine seq
    real(wp),intent(in) :: qmod,qref
    real(wp),intent(in) :: a,c
    real(wp)            :: dzeta
@@ -447,6 +449,7 @@ pure function trapzd(pol)
 end function trapzd
 
 pure elemental function cngw(wf,cn,cnref)
+   !$acc routine seq
    real(wp),intent(in) :: wf,cn,cnref
    real(wp)            :: cngw ! CN-gaussian-weight
 
@@ -646,84 +649,94 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
 end subroutine d4
 
 
-subroutine build_wdispmat(dispm,nat,ndim,at,xyz,par,c6abns,gw,wdispmat)
+subroutine build_wdispmat(dispm,nat,ndim,at,itbl,xyz,par,c6abns,gw,wdispmat)
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: xyz(3,nat)
+   integer, intent(in)  :: at(:)
+   integer, intent(in)  :: itbl(:)
+   real(wp),intent(in)  :: xyz(:, :)
    type(dftd_parameter),intent(in)  :: par
-   real(wp),intent(in)  :: c6abns(ndim,ndim)
-   real(wp),intent(in)  :: gw(ndim)
-   real(wp),intent(out) :: wdispmat(ndim,ndim)
+   real(wp),intent(in)  :: c6abns(:, :)
+   real(wp),intent(in)  :: gw(:)
+   real(wp),intent(out) :: wdispmat(:, :)
 
    integer :: i,ii,ia,j,jj,ja,k,l
-   integer, allocatable :: itbl(:,:)
    real(wp) :: c8abns,c10abns,r2,cutoff,oor6,oor8,oor10,r,gwgw,r4r2ij
    real(wp), parameter :: rthr = 72.0_wp ! slightly larger than in gradient
    real(wp), parameter :: gwcut = 1.0e-7_wp
 
-   allocate( itbl(7,nat), source = 0 )
+   ! acc enter data create(wdispmat) copyin(at, xyz, itbl, dispm, dispm%nref, &
+   ! acc& c6abns, gw, par)
  
+   ! acc kernels default(present)
    wdispmat = 0.0_wp
+   ! acc end kernels
 
-   k = 0
+!#ifdef XTB_GPU
+   ! acc parallel default(present)
+   ! acc loop gang collapse(2) private(r4r2ij, cutoff, r2, oor6, oor8, oor10)
+!#else
+   !$omp parallel do shared(wdispmat) &
+   !$omp shared(nat, at, xyz, itbl, par, dispm, c6abns, gw) &
+   !$omp private(ia, k, j, ja, l, r4r2ij, cutoff, r2, oor6, oor8, oor10, &
+   !$omp& ii, jj, gwgw, c8abns, c10abns)
+!#endif
    do i = 1, nat
-      do ii = 1, dispm%nref(at(i))
-         k = k + 1
-         itbl(ii,i) = k
-      enddo
-   enddo
-
-   do i = 1, nat
-      ia = at(i)
-      do j = 1, i-1
+      do j = 1, nat
+         if (j >= i) cycle
+         ia = at(i)
          ja = at(j)
+         k = itbl(i)
+         l = itbl(j)
          r4r2ij = 3.0_wp*sqrtZr4r2(ia)*sqrtZr4r2(ja)
          cutoff = par%a1*sqrt(r4r2ij)+par%a2
-!        r2 = sum( (xyz(:,j)-xyz(:,i))**2 )
-!        oor6  = 1.0_wp/(r2**3 + cutoff**6 )
-!        oor8  = 1.0_wp/(r2**4 + cutoff**8 )
-!        oor10 = 1.0_wp/(r2**5 + cutoff**10)
-         r = sqrt(sum((xyz(:,j)-xyz(:,i))**2))
-         if (r.gt.rthr) cycle
-         oor6  = fdmpr_bj( 6,r,cutoff)
-         oor8  = fdmpr_bj( 8,r,cutoff)
-         oor10 = fdmpr_bj(10,r,cutoff)
+         r2 = sum( (xyz(:,j)-xyz(:,i))**2 )
+         if (r2.gt.rthr*rthr) cycle
+         oor6  = 1.0_wp/(r2**3 + cutoff**6 )
+         oor8  = 1.0_wp/(r2**4 + cutoff**8 )
+         oor10 = 1.0_wp/(r2**5 + cutoff**10)
+         ! acc loop seq
          do ii = 1, dispm%nref(ia)
-            k = itbl(ii,i)
+            ! acc loop seq private(gwgw, c8abns, c10abns)
             do jj = 1, dispm%nref(ja)
-               l = itbl(jj,j)
-               gwgw = gw(k)*gw(l)
+               gwgw = gw(k+ii)*gw(l+jj)
                if (gwgw.lt.gwcut) cycle
-               c8abns  = r4r2ij * c6abns(k,l)
-               c10abns = 49.0_wp/40.0_wp * r4r2ij**2 * c6abns(k,l)
-               wdispmat(k,l) = gw(k)*gw(l) * ( &
-               &  - par%s6  * ( c6abns(k,l)  * oor6 ) &
+               c8abns  = r4r2ij * c6abns(k+ii,l+jj)
+               c10abns = 49.0_wp/40.0_wp * r4r2ij**2 * c6abns(k+ii,l+jj)
+               wdispmat(k+ii,l+jj) = gw(k+ii)*gw(l+jj) * ( &
+               &  - par%s6  * ( c6abns(k+ii,l+jj)  * oor6 ) &
                &  - par%s8  * ( c8abns       * oor8 ) &
                &  - par%s10 * ( c10abns      * oor10) )
-               wdispmat(l,k) = wdispmat(k,l)
+               wdispmat(l+jj,k+ii) = wdispmat(k+ii,l+jj)
             enddo
          enddo
       enddo
    enddo
+!#ifdef XTB_GPU
+   ! acc end parallel
+
+   ! acc exit data copyout(wdispmat) delete(itbl, sqrtZr4r2, dispm, dispm%nref, &
+   ! acc& c6abns, gw)
+!#endif
 
 end subroutine build_wdispmat
 
 
-subroutine disppot(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
+subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
    use xtb_mctc_blas, only : mctc_symv
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: q(nat)
+   integer, intent(in)  :: at(:)
+   integer, intent(in)  :: itbl(:)
+   real(wp),intent(in)  :: q(:)
    real(wp),intent(in)  :: g_a,g_c
-   real(wp),intent(in)  :: wdispmat(ndim,ndim)
-   real(wp),intent(in)  :: gw(ndim)
-   real(wp),intent(inout) :: hdisp(nat)
+   real(wp),intent(in)  :: wdispmat(:,:)
+   real(wp),intent(in)  :: gw(:)
+   real(wp),intent(inout) :: hdisp(:)
 
-   integer  :: i,ii,k,ia
+   integer  :: iat,ii,k,ati
    real(wp) :: qmod,iz
    real(wp),parameter   :: gw_cut = 1.0e-7_wp
    real(wp),allocatable :: zetavec(:)
@@ -734,50 +747,82 @@ subroutine disppot(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw,hdisp)
 
    allocate( zetavec(ndim),zerovec(ndim),dumvec(ndim), source = 0._wp )
 
+   !$acc enter data create(zetavec, zerovec, dumvec) copyin(hdisp, itbl, at, zeff, &
+   !$acc& dispm, dispm%nref, dispm%q, q, gw, wdispmat, g_a, g_c)
+
+   !$acc kernels default(present)
    zetavec = 0.0_wp
    zerovec = 0.0_wp
    dumvec  = 0.0_wp
+   !$acc end kernels
 
-   k = 0
-   do i = 1, nat
-       ia = at(i)
-       iz = zeff(ia)
-       do ii = 1, dispm%nref(ia)
-          k = k + 1
-          if (gw(k).lt.gw_cut) cycle
-          zerovec(k) = dzeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
-          zetavec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
+#ifdef XTB_GPU
+   !$acc parallel default(present)
+   !$acc loop gang private(k, ati, iz)
+#else
+   !$omp parallel do shared(itbl, at, dispm, gw, q, g_a, g_c) &
+   !$omp private(k, ati, iz, ii)
+#endif
+   do iat = 1, nat
+      k = itbl(iat)
+      ati = at(iat)
+      iz = zeff(ati)
+      !$acc loop vector
+      do ii = 1, dispm%nref(ati)
+         if (gw(k+ii).lt.gw_cut) cycle
+         zerovec(k+ii) = dzeta(g_a,gam(ati)*g_c,dispm%q(ii,ati)+iz,q(iat)+iz)
+         zetavec(k+ii) =  zeta(g_a,gam(ati)*g_c,dispm%q(ii,ati)+iz,q(iat)+iz)
       enddo
    enddo
+#ifdef XTB_GPU
+   !$acc end parallel
+   !$acc exit data copyout(zetavec)
+#endif
+
 !  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
    call mctc_symv(wdispmat,zetavec,dumvec)
-!  get atomic reference contributions
-   k = 0
-   do i = 1, nat
-      ia = at(i)
-      hdisp(i) = hdisp(i) &
-         & + sum(dumvec(k+1:k+dispm%nref(ia))*zerovec(k+1:k+dispm%nref(ia)))
-      k = k + dispm%nref(ia)
-   enddo
 
-   deallocate(zetavec,zerovec,dumvec)
+!  get atomic reference contributions
+#ifdef XTB_GPU
+   !$acc parallel default(present)
+   !$acc loop gang private(k, ati)
+#else
+   !$omp parallel do reduction(+:hdisp) shared(itbl, at, dumvec, zerovec) &
+   !$omp private(ati, ii)
+#endif
+   do iat = 1, nat
+      k = itbl(iat)
+      ati = at(iat)
+      !$acc loop vector
+      do ii = 1, dispm%nref(ati)
+         !$acc atomic
+         hdisp(iat) = hdisp(iat) + dumvec(k+ii)*zerovec(k+ii)
+      end do
+   enddo
+#ifdef XTB_GPU
+   !$acc end parallel
+
+   !$acc exit data copyout(hdisp) delete(zerovec, dumvec, itbl, at, zeff, &
+   !$acc& dispm, dispm%nref, dispm%q, q, g_a, g_c, wdispmat, gw)
+#endif
 
 end subroutine disppot
 
 
-function edisp_scc(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
+function edisp_scc(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw) result(ed)
    use xtb_mctc_blas, only : mctc_symv, mctc_dot
    type(TDispersionModel), intent(in) :: dispm
    integer, intent(in)  :: nat
    integer, intent(in)  :: ndim
-   integer, intent(in)  :: at(nat)
-   real(wp),intent(in)  :: q(nat)
+   integer, intent(in)  :: at(:)
+   integer, intent(in)  :: itbl(:)
+   real(wp),intent(in)  :: q(:)
    real(wp),intent(in)  :: g_a,g_c
-   real(wp),intent(in)  :: wdispmat(ndim,ndim)
-   real(wp),intent(in)  :: gw(ndim)
+   real(wp),intent(in)  :: wdispmat(:,:)
+   real(wp),intent(in)  :: gw(:)
    real(wp) :: ed
 
-   integer  :: i,ii,k,ia
+   integer  :: iat,ii,k,ati
    real(wp) :: qmod,iz
    real(wp),parameter   :: gw_cut = 1.0e-7_wp
    real(wp),allocatable :: zetavec(:)
@@ -785,25 +830,27 @@ function edisp_scc(dispm,nat,ndim,at,q,g_a,g_c,wdispmat,gw) result(ed)
 
    intrinsic :: sum,dble
 
-   allocate( zetavec(ndim),dumvec(ndim), source = 0._wp )
+   allocate( zetavec(ndim),dumvec(ndim))
 
+   zetavec = 0.0_wp
+   dumvec = 0.0_wp
    ed = 0.0_wp
 
-   k = 0
-   do i = 1, nat
-       ia = at(i)
-       iz = zeff(ia)
-       do ii = 1, dispm%nref(ia)
-          k = k + 1
-          if (gw(k).lt.gw_cut) cycle
-          zetavec(k) =  zeta(g_a,gam(ia)*g_c,dispm%q(ii,ia)+iz,q(i)+iz)
+   !$omp parallel do shared(zetavec, dispm, nat, itbl, at, q, g_c, g_a) &
+   !$omp private(k, ati, iz, ii)
+   do iat = 1, nat
+       k = itbl(iat)
+       ati = at(iat)
+       iz = zeff(ati)
+       do ii = 1, dispm%nref(ati)
+          if (gw(k+ii).lt.gw_cut) cycle
+          zetavec(k+ii) = zeta(g_a,gam(ati)*g_c,dispm%q(ii,ati)+iz,q(iat)+iz)
       enddo
    enddo
-!  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim) 
+
+!  create vector -> dispmat(ndim,dnim) * zetavec(ndim) = dumvec(ndim)
    call mctc_symv(wdispmat,zetavec,dumvec,alpha=0.5_wp)
    ed = mctc_dot(dumvec,zetavec)
-
-   deallocate(zetavec,dumvec)
 
 end function edisp_scc
 
@@ -921,16 +968,27 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
    real(wp) :: norm, dnorm, twf, gw, expw, expd, gwk, dgwk
    real(wp) :: gi, zi
 
+   ! acc enter data create(zetavec, zerovec, zetadq, zetadq, zetadcn, zerodcn) &
+   ! acc& copyin(dispm, dispm%nref, dispm%ncount, dispm%cn, dispm%q, atoms, &
+   ! acc& cn, q, zeff, gam, g_a, g_c, wf)
+
+   ! acc kernels default(present)
    zetavec = 0.0_wp
    zerovec = 0.0_wp
    zetadcn = 0.0_wp
    zerodcn = 0.0_wp
    zetadq  = 0.0_wp
+   ! acc end kernels
 
-   !$omp parallel do default(none) shared(zetavec, zetadcn, zetadq, zerodcn) &
-   !$omp shared(nat, atoms, dispm, cn, q, zeff, gam, g_a, g_c, wf, zerovec) &
+!#ifdef XTB_GPU
+   ! acc parallel default(present)
+   ! acc loop gang private(zi, gi, norm, dnorm)
+!#else
+   !$omp parallel do shared(zetavec, zetadcn, zetadq, zerodcn) &
+   !$omp shared(nat, atoms, dispm, cn, q, g_a, g_c, wf, zerovec) &
    !$omp private(iat, ati, zi, gi, norm, dnorm, iref, icount, twf, gw, expw, &
    !$omp& expd, gwk, dgwk)
+!#endif
    do iat = 1, nat
       ati = atoms(iat)
 
@@ -939,7 +997,9 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
 
       norm = 0.0_wp
       dnorm = 0.0_wp
+      ! acc loop vector
       do iref = 1, dispm%nref(ati)
+         ! acc loop seq private(twf, gw)
          do icount = 1, dispm%ncount(iref, ati)
             twf = icount * wf
             gw = cngw(twf, cn(iat), dispm%cn(iref, ati))
@@ -948,9 +1008,11 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
          enddo
       end do
       norm = 1.0_wp / norm
+      ! acc loop vector private(expw, expd)
       do iref = 1, dispm%nref(ati)
          expw = 0.0_wp
          expd = 0.0_wp
+         ! acc loop seq private(twf, gw)
          do icount = 1, dispm%ncount(iref, ati)
             twf = icount * wf
             gw = cngw(twf, cn(iat), dispm%cn(iref, ati))
@@ -980,7 +1042,13 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
 
       end do
    end do
-   !$omp end parallel do
+!#ifdef XTB_GPU
+   ! acc end parallel
+
+   ! acc exit data copyout(zetavec, zerovec, zetadq, zetadq, zetadcn, zerodcn) &
+   ! acc& delete(dispm, dispm%nref, dispm%ncount, dispm%cn, dispm%q, atoms, &
+   ! acc& cn, q, zeff, gam, g_a, g_c, wf)
+!#endif
 
 end subroutine weight_references
 
@@ -1009,23 +1077,35 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj
 
+   !$acc enter data create(c6, dc6dcn, dc6dq) copyin(atoms, dispm, dispm%nref, dispm%c6, &
+   !$acc& zetavec, zetadcn, zetadq)
+
+   !$acc kernels default(present)
    c6 = 0.0_wp
    dc6dcn = 0.0_wp
    dc6dq = 0.0_wp
+   !$acc end kernels
 
+#ifdef XTB_GPU
+   !$acc parallel default(present)
+   !$acc loop gang collapse(2)
+#else
    !$omp parallel do default(none) shared(c6, dc6dcn, dc6dq) &
    !$omp shared(nat, atoms, dispm, zetavec, zetadcn, zetadq) &
    !$omp private(iat, ati, jat, atj, dc6, dc6dcni, dc6dcnj, dc6dqi, dc6dqj, &
    !$omp& iref, jref, refc6)
+#endif
    do iat = 1, nat
-      ati = atoms(iat)
-      do jat = 1, iat
+      do jat = 1, nat
+         if (jat > iat) cycle
+         ati = atoms(iat)
          atj = atoms(jat)
          dc6 = 0.0_wp
          dc6dcni = 0.0_wp
          dc6dcnj = 0.0_wp
          dc6dqi = 0.0_wp
          dc6dqj = 0.0_wp
+         !$acc loop vector collapse(2)
          do iref = 1, dispm%nref(ati)
             do jref = 1, dispm%nref(atj)
                refc6 = dispm%c6(iref, jref, ati, atj)
@@ -1044,7 +1124,12 @@ subroutine get_atomic_c6(dispm, nat, atoms, zetavec, zetadcn, zetadq, &
          dc6dq(jat, iat) = dc6dqj
       end do
    end do
-   !$omp end parallel do
+#ifdef XTB_GPU
+   !$acc end parallel
+
+   !$acc exit data copyout(c6, dc6dcn, dc6dq) delete(atoms, dispm, dispm%nref, dispm%c6, &
+   !$acc& zetavec, zetadcn, zetadq)
+#endif
 
 end subroutine get_atomic_c6
 
@@ -2036,6 +2121,8 @@ subroutine atm_gradient_latp_gpu &
    real(wp), parameter :: sr = 4.0_wp/3.0_wp
    integer :: mlen, k, kk
 
+   real(wp) :: c9, dc9, ccc1, rrr1, rrr2, rrr3, ang, dang, fdmp, dfdmp, dGr, cr
+
    cutoff2 = cutoff**2
    mlen = len(mol)
 
@@ -2083,6 +2170,59 @@ subroutine atm_gradient_latp_gpu &
                      & r2ij, r2jk, r2ik, dc6dcn(iat,jat), dc6dcn(jat,iat), &
                      & dc6dcn(jat,kat), dc6dcn(kat,jat), dc6dcn(iat,kat), &
                      & dc6dcn(kat,iat), rij, rjk, rik, par%alp, dE, dG, dS, dCN)
+
+   !c9 = -sqrt(c6ij*c6ik*c6jk)
+
+   !ccc1 = cij*cjk*cik
+
+   !rrr2 = r2ij*r2jk*r2ik
+   !rrr1 = sqrt(rrr2)
+   !rrr3 = rrr1*rrr2
+
+   !ang = 0.375_wp * (r2ij+r2jk-r2ik)*(r2ij-r2jk+r2ik)*(-r2ij+r2jk+r2ik) &
+   !   & / (rrr3*rrr2) + 1.0_wp/(rrr3)
+
+   !cr = (ccc1/rrr1)**(1.0_wp/3.0_wp)
+   !fdmp = 1.0_wp/(1.0_wp + 6.0_wp*cr**par%alp)
+   !dfdmp = -(2.0_wp*par%alp*cr**par%alp) * fdmp**2
+
+   !! Energy contribution
+   !dE = -fdmp*ang*c9
+
+   !! Derivative w.r.t. i-j distance
+   !dang = -0.375_wp*(r2ij**3+r2ij**2*(r2jk+r2ik) &
+   !   & +r2ij*(3.0_wp*r2jk**2+2.0_wp*r2jk*r2ik+3.0_wp*r2ik**2) &
+   !   & -5.0_wp*(r2jk-r2ik)**2*(r2jk+r2ik)) / (rrr3*rrr2)
+   !dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ij
+   !dG(:, 1) = -dGr * rij
+   !dG(:, 2) = +dGr * rij 
+   !dS(:, :) = 0.5_wp * dGr * spread(rij, 1, 3) * spread(rij, 2, 3)
+
+   !! Derivative w.r.t. i-k distance
+   !dang = -0.375_wp*(r2ik**3+r2ik**2*(r2jk+r2ij) &
+   !   & +r2ik*(3.0_wp*r2jk**2+2.0*r2jk*r2ij+3.0_wp*r2ij**2) &
+   !   & -5.0_wp*(r2jk-r2ij)**2*(r2jk+r2ij)) / (rrr3*rrr2)
+   !dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2ik
+   !dG(:, 1) = -dGr * rik + dG(:, 1)
+   !dG(:, 3) = +dGr * rik 
+   !dS(:, :) = 0.5_wp * dGr * spread(rik, 1, 3) * spread(rik, 2, 3) + dS
+
+   !! Derivative w.r.t. j-k distance
+   !dang=-0.375_wp*(r2jk**3+r2jk**2*(r2ik+r2ij) &
+   !   & +r2jk*(3.0_wp*r2ik**2+2.0_wp*r2ik*r2ij+3.0_wp*r2ij**2) &
+   !   & -5.0_wp*(r2ik-r2ij)**2*(r2ik+r2ij)) / (rrr3*rrr2)
+   !dGr = (-dang*c9*fdmp + dfdmp*c9*ang)/r2jk
+   !dG(:, 2) = -dGr * rjk + dG(:, 2)
+   !dG(:, 3) = +dGr * rjk + dG(:, 3)
+   !dS(:, :) = 0.5_wp * dGr * spread(rjk, 1, 3) * spread(rjk, 2, 3) + dS
+
+   !! CN derivative
+   !dc9 = 0.5_wp*c9*(dc6dcn(iat,jat)/c6ij+dc6dcn(iat,kat)/c6ik)
+   !dCN(1) = -ang*fdmp*dc9
+   !dc9 = 0.5_wp*c9*(dc6dcn(jat,iat)/c6ij+dc6dcn(jat,kat)/c6jk)
+   !dCN(2) = -ang*fdmp*dc9
+   !dc9 = 0.5_wp*c9*(dc6dcn(kat,iat)/c6ik+dc6dcn(kat,jat)/c6jk)
+   !dCN(3) = -ang*fdmp*dc9
 
                   scale = par%s9 * triple_scale(iat, jat, kat)
                   !$acc atomic

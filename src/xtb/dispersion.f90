@@ -39,6 +39,8 @@ module xtb_xtb_dispersion
 
       real(wp) :: wf
 
+      integer, allocatable :: itbl(:)
+
       real(wp), allocatable :: dispMat(:, :)
 
       real(wp), allocatable :: gweight(:)
@@ -74,6 +76,9 @@ subroutine initDispersion(self, input, mol)
 
    real(wp), allocatable :: cn(:)
 
+   integer :: k, iat
+   integer, allocatable :: itbl(:)
+
    self%g_a = input%g_a
    self%g_c = input%g_c
    self%wf = input%wf
@@ -83,12 +88,19 @@ subroutine initDispersion(self, input, mol)
    allocate(self%gweight(self%ndim))
    allocate(self%refC6(self%ndim, self%ndim))
    allocate(self%dispmat(self%ndim, self%ndim))
+   allocate(self%itbl(mol%n))
    allocate(cn(mol%n))
+
+   k = 0
+   do iat = 1, mol%n
+      self%itbl(iat) = k
+      k = k + self%dispm%nref(mol%at(iat))
+   enddo
 
    call ncoord_d4(mol%n, mol%at, mol%xyz, cn, thr=1600.0_wp)
    call d4(self%dispm, mol%n, self%ndim, mol%at, self%wf, self%g_a, &
       & self%g_c, cn, self%gweight, self%refC6)
-   call build_wdispmat(self%dispm, mol%n, self%ndim, mol%at, mol%xyz, &
+   call build_wdispmat(self%dispm, mol%n, self%ndim, mol%at, self%itbl, mol%xyz, &
       & input%dpar, self%refC6, self%gweight, self%dispmat)
 
 end subroutine initDispersion
@@ -104,7 +116,7 @@ subroutine addShift(self, id, qat, atomicShift)
 
    real(wp), intent(inout) :: atomicShift(:)
 
-   call disppot(self%dispm, size(id), self%ndim, id, qat, self%g_a, self%g_c, &
+   call disppot(self%dispm, size(id), self%ndim, id, self%itbl, qat, self%g_a, self%g_c, &
       & self%dispMat, self%gweight, atomicShift)
 
 end subroutine addShift
@@ -120,7 +132,7 @@ subroutine getEnergy(self, id, qat, energy)
 
    real(wp), intent(out) :: energy
 
-   energy = edisp_scc(self%dispm, size(id), self%ndim, id, qat, self%g_a, &
+   energy = edisp_scc(self%dispm, size(id), self%ndim, id, self%itbl, qat, self%g_a, &
       & self%g_c, self%dispMat, self%gweight)
 
 end subroutine getEnergy
