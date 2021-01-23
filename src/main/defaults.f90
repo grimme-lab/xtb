@@ -18,7 +18,6 @@
 !> Initialize default values for global variables
 module xtb_main_defaults
    use xtb_mctc_accuracy, only : wp
-   use xtb_embedding, only : init_pcem
    use xtb_type_calculator, only : TCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
@@ -53,9 +52,6 @@ subroutine initDefaults(env, calc, mol, gsolvstate)
 
    ! Optionally add a solvation model
    call addSolvationModel(env, calc, solvInput)
-
-   ! initialize PC embedding (set default file names and stuff)
-   call init_pcem
 
 end subroutine initDefaults
 

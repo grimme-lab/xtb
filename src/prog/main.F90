@@ -351,6 +351,7 @@ subroutine xtbMain(env, argParser)
    call init_constr(mol%n,mol%at)
    call init_scan
    call init_walls
+   call init_pcem
    if (runtyp.eq.p_run_bhess) then
       call init_bhess(mol%n)
    else
