@@ -126,7 +126,7 @@ features reality:
 - S. Dohm ([@thch-dohm](https://github.com/thch-dohm))
 - S. Ehlert ([@awvwgk](https://github.com/awvwgk))
 - S. Ehrlich
-- I. Gerasimov ([@FulgurIgor](https://github.com/fulgur/igor))
+- I. Gerasimov ([@FulgurIgor](https://github.com/fulgurigor))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - J. Koopman ([@JayTheDog](https://github.com/jaythedog))
 - C. Lavinge ([@clavinge](https://github.com/clavinge))
