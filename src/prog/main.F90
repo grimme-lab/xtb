@@ -1164,8 +1164,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case(     '--define')
          call set_define
 
-   !$ case('-P','--parallel')
-   !$    call args%nextArg(sec)
+      case('-P','--parallel')
+   !$    if (.false.) then
+            call env%warning('Program compiled without threading support', source)
+   !$    endif
+         ! Always remove next argument to keep argument parsing consistent
+         call args%nextArg(sec)
    !$    if (allocated(sec)) then
    !$    if (getValue(env,sec,idum)) then
    !$       nproc = omp_get_num_threads()

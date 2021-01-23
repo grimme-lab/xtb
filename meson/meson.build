@@ -72,13 +72,22 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
 
   if fc.get_id() == 'gcc'
     libmkl_exe = [fc.find_library('mkl_gf_lp64')]
-    libmkl_exe += fc.find_library('mkl_gnu_thread')
+    if get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_gnu_thread')
+    endif
   elif fc.get_id() == 'intel'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_intel_thread')
+    if get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_intel_thread')
+    endif
   elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_pgi_thread')
+    if get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_pgi_thread')
+    endif
+  endif
+  if not get_option('openmp')
+    libmkl_exe += fc.find_library('mkl_sequential')
   endif
   libmkl_exe += fc.find_library('mkl_core')
   lib_deps += mkl_rt_dep
