@@ -29,6 +29,6 @@ srcs += files(
   'hamiltonian.f90',
   'hamiltonian_gpu.f90',
   'multipole.f90',
-  'repulsion.f90',
+  'repulsion.F90',
   'thirdorder.f90',
 )

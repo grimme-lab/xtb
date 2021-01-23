@@ -1325,7 +1325,9 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
 
    real(wp) s2(6,6),dum(6,6),sspher
 
-   !$acc enter data create(sint(:, :), dpint(:, :, :), qpint(:, :, :))
+   !$acc enter data create(sint(:, :), dpint(:, :, :), qpint(:, :, :)) &
+   !$acc copyin(xyz, at, nShell, trans, caoshell, saoshell, &
+   !$acc& nprim, primcount, alp, cont, intcut, point, angShell(:, :))
 
    !$acc kernels default(present)
    ! integrals
@@ -1335,9 +1337,6 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
    !$acc end kernels
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
-
-   !$acc enter data copyin(xyz, at, nShell, trans, caoshell, saoshell, &
-   !$acc& nprim, primcount, alp, cont, intcut, point, angShell(:, :))
 
    !$acc parallel vector_length(32) private(ss,dd,qq,rb,iat,jat,izp,ci,ra,& 
    !$acc& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
