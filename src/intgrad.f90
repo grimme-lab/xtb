@@ -1094,13 +1094,13 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   !$OMP PARALLEL PRIVATE (iat,jat,izp,cc,ci,ra,rb,saw, &
+   !$OMP PARALLEL DO schedule(runtime) &
+   !$omp PRIVATE (iat,jat,izp,cc,ci,ra,rb,saw, &
    !$omp& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq, &
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij) &
    !$omp shared (sint,dpint,qpint)
-   !$OMP DO schedule(dynamic)
    do iat = 1,nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
@@ -1153,8 +1153,6 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
          enddo
       enddo
    enddo
-   !$OMP END DO
-   !$OMP END PARALLEL
 
    ! diagonal elements
    do iat = 1, nat
