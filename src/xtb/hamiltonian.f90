@@ -256,7 +256,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                   ss = 0.0_wp
                   dd = 0.0_wp
                   qq = 0.0_wp
-                  call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+                  call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
                      &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
                   !transform from CAO to SAO
                   call dtrf2(ss,ishtyp,jshtyp)
@@ -320,7 +320,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
             ss = 0.0_wp
             dd = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)
@@ -476,7 +476,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                      & shpoly,dshpoly)
 
                   sdqg = 0;sdq = 0
-                  call get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+                  call get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
                      &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
                   tmp(1:6,1:6) = sdq(1,1:6,1:6)
                   call dtrf2(tmp,ishtyp,jshtyp)
@@ -668,7 +668,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                hav = 0.5_wp * (hii + hjj)
 
                sdqg = 0;sdq = 0
-               call get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+               call get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
                   &                   intcut,nprim,primcount,alp,cont,sdq,sdqg)
                do k = 1,19 ! 1 S, 2-4 D, 5-10 Q, 11-13 D, 14-19 Q
                   do ixyz = 1,3
