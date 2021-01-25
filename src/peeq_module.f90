@@ -944,7 +944,7 @@ subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                      &               hData%atomicRad(ati),hData%atomicRad(atj),ri,rj)
 
                   ! get overlap integral
-                  call get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point, &
+                  call get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
                      &             intcut,basis%nprim,basis%primcount, &
                      &             basis%alp,basis%cont,ss)
 
@@ -1137,7 +1137,7 @@ subroutine pbc_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                      &               hData%atomicRad(ati),hData%atomicRad(atj),ri,rj)
 
                   ! get overlap integral
-                  call get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point, &
+                  call get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
                      &             intcut,basis%nprim,basis%primcount, &
                      &             basis%alp,basis%cont,ss)
 
@@ -1334,7 +1334,7 @@ subroutine ccm_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, 
                      & hData%atomicRad(ati),hData%atomicRad(atj),rij2,ri,rj,&
                      & shpoly,dshpoly)
 
-                  call get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+                  call get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
                      &                  point,thr,basis%nprim,basis%primcount, &
                      &                  basis%alp,basis%cont,sdq,sdqg)
 
@@ -1573,7 +1573,7 @@ subroutine pbc_build_dSH0(nShell, hData, selfEnergy, dSEdcn, dSEdq, nat, basis, 
                      & hData%atomicRad(ati),hData%atomicRad(atj),rij2,ri,rj,&
                      & shpoly,dshpoly)
 
-                  call get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+                  call get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
                      &                  point,thr,basis%nprim,basis%primcount, &
                      &                  basis%alp,basis%cont,sdq,sdqg)
 

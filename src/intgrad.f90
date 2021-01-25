@@ -871,14 +871,14 @@ pure subroutine build_ds_ints(a,b,e,alpi,alpj,la,lb,t,v,g)
 
 end subroutine build_ds_ints
 
-pure subroutine get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
       &                nprim,primcount,alp,cont,sint)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
    integer, intent(in)  :: naoj
-   integer, intent(in)  :: iptyp
-   integer, intent(in)  :: jptyp
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
    real(wp),intent(in)  :: ri(3)
    real(wp),intent(in)  :: rj(3)
    real(wp),intent(in)  :: point(3)
@@ -890,13 +890,15 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, 
    real(wp),intent(in)  :: alp(:)
    real(wp),intent(in)  :: cont(:)
 
-   integer  :: ip,iprim,mli,jp,jprim,mlj,k
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
    real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
    real(wp) :: ab,est,saw(10)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
 
    sint = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
 
    rij = ri - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
@@ -916,7 +918,7 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, 
          if(est.gt.intcut) cycle
          call build_kab(ri,alpi,rj,alpj,ab,kab)
          rp = gpcenter(alpi,ri,alpj,rj)
-         do k = 0, 8 ! maxval(ij)
+         do k = 0, ishtyp + jshtyp
             t(k) = olapp(k, alpi+alpj)
          end do
          ! now compute integrals
@@ -938,14 +940,14 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, 
 
 end subroutine get_overlap
 
-pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
       &                     nprim,primcount,alp,cont,sdq,sdqg)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
    integer, intent(in)  :: naoj
-   integer, intent(in)  :: iptyp
-   integer, intent(in)  :: jptyp
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
    real(wp),intent(in)  :: ri(3)
    real(wp),intent(in)  :: rj(3)
    real(wp),intent(in)  :: point(3)
@@ -958,7 +960,7 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,int
    real(wp),intent(in)  :: alp(:)
    real(wp),intent(in)  :: cont(:)
 
-   integer  :: ip,iprim,mli,jp,jprim,mlj,k
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
    real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
    real(wp) :: ab,est,saw,sawg(3)
 
@@ -966,6 +968,8 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,int
 
    sdqg = 0.0_wp
    sdq  = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
 
    rij = ri - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
@@ -985,7 +989,7 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,int
          if(est.gt.intcut) cycle
          call build_kab(ri,alpi,rj,alpj,ab,kab)
          rp = gpcenter(alpi,ri,alpj,rj)
-         do k = 0, 8 ! maxval(ij)+1
+         do k = 0, ishtyp + jshtyp + 1
             t(k) = olapp(k, alpi+alpj)
          end do
          !--------------- compute gradient ----------
@@ -1008,14 +1012,14 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,int
    enddo  ! ip : loop over i prims
 end subroutine get_grad_overlap
 
-pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
+pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
       &                       nprim,primcount,alp,cont,ss,dd,qq)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
    integer, intent(in)  :: naoj
-   integer, intent(in)  :: iptyp
-   integer, intent(in)  :: jptyp
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
    real(wp),intent(in)  :: ri(3)
    real(wp),intent(in)  :: rj(3)
    real(wp),intent(in)  :: point(3)
@@ -1029,7 +1033,7 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
    real(wp),intent(in)  :: alp(:)
    real(wp),intent(in)  :: cont(:)
 
-   integer  :: ip,iprim,mli,jp,jprim,mlj,k
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
    real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
    real(wp) :: ab,est,saw(10)
 
@@ -1038,6 +1042,8 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
    ss = 0.0_wp
    dd = 0.0_wp
    qq = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
 
    rij = rj - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
@@ -1055,7 +1061,7 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
          if(est.gt.intcut) cycle
          call build_kab(ri,alpi,rj,alpj,ab,kab)
          rp = gpcenter(alpi,ri,alpj,rj)
-         do k = 0, 8 ! maxval(ij) + 2
+         do k = 0, ishtyp + jshtyp + 2
             t(k) = olapp(k, alpi+alpj)
          end do
          ! now compute integrals  for different components of i(e.g., px,py,pz)
@@ -1084,14 +1090,14 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
 end subroutine get_multiints
 
 
-pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
       &                           intcut,nprim,primcount,alp,cont,sdq,sdqg)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
    integer, intent(in)  :: naoj
-   integer, intent(in)  :: iptyp
-   integer, intent(in)  :: jptyp
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
    real(wp),intent(in)  :: ri(3)
    real(wp),intent(in)  :: rj(3)
    real(wp),intent(in)  :: intcut
@@ -1103,7 +1109,7 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
    real(wp),intent(in)  :: alp(:)
    real(wp),intent(in)  :: cont(:)
 
-   integer  :: ip,iprim,mli,jp,jprim,mlj,k
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
    real(wp) :: rij(3),rp(3),rij2,alpi,alpj,ci,cj,cc,kab,t(0:8)
    real(wp) :: ab,est,saw(10),sawg(3,10)
 
@@ -1111,6 +1117,8 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
 
    sdqg = 0.0_wp
    sdq  = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
 
    rij = ri - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
@@ -1131,7 +1139,7 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
          if(est.gt.intcut) cycle
          call build_kab(ri,alpi,rj,alpj,ab,kab)
          rp = gpcenter(alpi,ri,alpj,rj)
-         do k = 0, 8 ! maxval(ij) + 3
+         do k = 0, ishtyp + jshtyp + 3
             t(k) = olapp(k, alpi+alpj)
          end do
          !--------------- compute gradient ----------
@@ -1245,7 +1253,7 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
                ss = 0.0_wp
                dd = 0.0_wp
                qq = 0.0_wp
-               call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+               call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
                   &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
                !transform from CAO to SAO
                call dtrf2(ss,ishtyp,jshtyp)
@@ -1298,7 +1306,7 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
             ss = 0.0_wp
             dd = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)
@@ -1493,7 +1501,7 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
                   dd = 0.0_wp
                   qq = 0.0_wp
 
-                  !call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+                  !call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
                   !   &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
                   !$acc loop vector private(saw,t,e) independent collapse(2)
                   do ip = 1,nprim(icao+1)
@@ -1878,7 +1886,7 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
             ss = 0.0_wp
             dd2 = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)
