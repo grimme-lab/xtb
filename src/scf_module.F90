@@ -86,7 +86,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    &                     mdisp,prmolc6,edisp_scc,d4_gradient
    use xtb_disp_ncoord,    only : dncoord_gfn,ncoord_d4,dncoord_d3
    use xtb_embedding, only : read_pcem,jpot_pcem_gfn1,jpot_pcem_gfn2
-   use xtb_aespot,    only : dradcn,aniso_grad,setdvsdq,dsint
+   use xtb_aespot,    only : dradcn,aniso_grad,setdvsdq
    use xtb_disp_ncoord,    only : dncoord_gfn,dncoord_d3
    use xtb_embedding, only : pcem_grad_gfn1,pcem_grad_gfn2
 
