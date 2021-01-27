@@ -388,9 +388,9 @@ subroutine numhess( &
 
    write(env%unit,'(a)')
    if(res%linear)then
-      write(env%unit,'(1x,a)') 'vibrational frequencies (cm-1)'
+      write(env%unit,'(1x,a)') 'vibrational frequencies (cm⁻¹)'
    else
-      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm-1)'
+      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    endif
    k=0
    do i=1,n3
