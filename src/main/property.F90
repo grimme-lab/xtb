@@ -439,7 +439,7 @@ subroutine main_freq &
 
    write(iunit,'(1x,a)') 'reduced masses (amu)'
    write(iunit,'(8(i4,'':'',f6.2))') (i,res%rmass(i),i=1,res%n3)
-   write(iunit,'(1x,a)') 'IR intensities (km*mol⁻¹)'
+   write(iunit,'(1x,a)') 'IR intensities (km·mol⁻¹)'
    write(iunit,'(8(i4,'':'',f6.2))') (i,res%dipt(i),i=1,res%n3)
    write(iunit,'(1x,a)') 'Raman intensities (amu)'
    write(iunit,'(8(i4,'':'',f6.2))') (i,res%polt(i),i=1,res%n3)
