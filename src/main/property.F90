@@ -431,15 +431,15 @@ subroutine main_freq &
    allocate( xyz0(3,mol%n), h(3*mol%n,3*mol%n), bond(mol%n,mol%n), cn(mol%n), source = 0.0_wp )
 
    if(res%linear)then
-      write(iunit,'(1x,a)') 'vibrational frequencies (cm-1)'
+      write(iunit,'(1x,a)') 'vibrational frequencies (cm⁻¹)'
    else
-      write(iunit,'(1x,a)') 'projected vibrational frequencies (cm-1)'
+      write(iunit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    endif
    call PREIGF(iunit,res%freq,res%n3true)
 
    write(iunit,'(1x,a)') 'reduced masses (amu)'
    write(iunit,'(8(i4,'':'',f6.2))') (i,res%rmass(i),i=1,res%n3)
-   write(iunit,'(1x,a)') 'IR intensities (amu)'
+   write(iunit,'(1x,a)') 'IR intensities (km·mol⁻¹)'
    write(iunit,'(8(i4,'':'',f6.2))') (i,res%dipt(i),i=1,res%n3)
    write(iunit,'(1x,a)') 'Raman intensities (amu)'
    write(iunit,'(8(i4,'':'',f6.2))') (i,res%polt(i),i=1,res%n3)
