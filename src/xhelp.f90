@@ -24,11 +24,11 @@ write(iunit,'(3x,a)') &
    "  e01493. DOI: 10.1002/wcms.1493",&
    "",&
    "for GFN2-xTB:",&
-   "* S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017,",&
-   "  13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118", &
-   "for GFN1-xTB:",&
    "* C. Bannwarth, S. Ehlert and S. Grimme., J. Chem. Theory Comput., 2019,",&
    "  15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176",&
+   "for GFN1-xTB:",&
+   "* S. Grimme, C. Bannwarth, P. Shushkov, J. Chem. Theory Comput., 2017,",&
+   "  13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118", &
    "for GFN0-xTB:",&
    "* P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, ChemRxiv, 2019, preprint.",&
    "  DOI: 10.26434/chemrxiv.8326202.v1",&
@@ -60,9 +60,11 @@ write(iunit,'(3x,a)') &
    "  DOI: 10.1021/acs.jctc.9b00143", &
    "",&
    "with help from (in alphabetical order)",&
-   "C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher, M. Checinski,",&
-   "S. Dohm, S. Ehlert, S. Ehrlich, F. März, H. Neugebauer, J. Pisarek,",&
-   "P. Pracht, P. Shushkov, and S. Spicher.",&
+   "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
+   "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, J. Koopman", &
+   "C. Lavinge, S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer", &
+   "J. Pisarek, P. Pracht, J. Seibert, P. Shushkov, S. Spicher, M. Stahn", &
+   "T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
    ""
 end subroutine citation
 
@@ -166,9 +168,6 @@ subroutine help(iunit)
    "      --metadyn [INT] meta dynamics simulation on start geometry",&
    "                     saving INT snapshots to bias the simulation",&
    "",&
-   "      --siman        conformational search by simulated annealing based on",&
-   "                     molecular dynamics. Conformers are optimized with ancopt.",&
-   "",&
    "      --modef INT    modefollowing algorithm.  INT specifies the mode",&
    "                     that should be used for the modefollowing.",&
    "",&
@@ -203,7 +202,7 @@ subroutine help(iunit)
    "",&
    "export MKL_NUM_THREADS=<NCORE>",&
    "export OMP_NUM_THREADS=<NCORE>,1",&
-   "export OMP_STACKSIZE=1G",&
+   "export OMP_STACKSIZE=4G",&
    "ulimit -s unlimited",&
    "",&
    "Output Conventions:",&
