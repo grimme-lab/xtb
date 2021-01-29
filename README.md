@@ -142,6 +142,7 @@ features reality:
 - S. Spicher ([@sespic](https://github.com/sespic))
 - M. Stahn ([@MtoLStoN](https://github.com/mtolston))
 - T. Strunk ([@timostrunk](https://github.com/timostrunk))
+- J. Stückrath ([@jbstueckrath](https://github.com/jbstueckrath))
 - T. Rose ([@Thomas3R](https://github.com/thomas3r))
 - J. Unsleber ([@nabbelbabbel](https://github.com/nabbelbabbel))
 

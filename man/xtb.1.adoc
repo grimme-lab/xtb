@@ -167,10 +167,6 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
     levels from crude, sloppy, loose, normal (default), tight, verytight
     to extreme can be chosen
 
-*--optts* ['LEVEL'] ['ROOT']::
-    call `ancopt(3)` to perform a transition state optimization, may need to 
-    perform a hessian calculation first
-
 *--hess*::
     perform a numerical hessian calculation on input geometry
 
@@ -203,21 +199,6 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 
 *--reactor*::
     experimental (6.1 only)
-
-////////////////////////////////////////////////////////////////////////////////
-*--gmd*::
-    performs a molecular dynamics simulation with separate equilibration
-    and production run
-////////////////////////////////////////////////////////////////////////////////
-
-*--siman*::
-    conformational search by simulated annealing based on molecular
-    dynamics. Conformers are optimized with `ancopt(3)`.
-
-//////////////
-*--screen*::
-    no idea
-//////////////
 
 *--modef* 'INT'::
     modefollowing algorithm. 'INT' specifies the mode that should be
