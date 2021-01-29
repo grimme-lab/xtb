@@ -121,7 +121,7 @@ module xtb_solv_ddcosmo_core
    type, extends(TddControl) :: TddCosmo
 
       !> Number of spheres/atoms
-      integer :: nsph
+      integer :: nat
 
       !> Number of integration points on cavity's boundary
       integer :: ncav
@@ -132,7 +132,7 @@ module xtb_solv_ddcosmo_core
       !> Workspaces
       logical :: grad
       integer, allocatable :: inl(:), nl(:)
-      real(wp), allocatable :: rsph(:), csph(:, :), ccav(:, :)
+      real(wp), allocatable :: rvdw(:), xyz(:, :), ccav(:, :)
       real(wp), allocatable :: w(:), grid(:, :), basis(:, :)
       real(wp), allocatable :: fact(:), facl(:), facs(:)
       real(wp), allocatable :: fi(:, :), ui(:, :), zi(:, :, :)
@@ -157,7 +157,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    integer, intent(in) :: n
    real(wp), intent(in) :: xyz(3, n), rvdw(n)
 
-   integer :: isph, jsph, i, ii, lnl, l, ind, m, igrid, inear, jnear
+   integer :: iat, jat, i, ii, lnl, l, ind, m, igrid, inear, jnear
    integer :: istatus
    real(wp) :: fac, fl, ffl, fnorm, d2, r2, v(3), vv, t, xt, swthr
 
@@ -167,7 +167,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    character(len=*), parameter :: f1010 = "(t5, 12i6)"
    character(len=*), parameter :: f1100 = "(t3, i8, 3f14.6)"
 
-   self%nsph = n
+   self%nat = n
 
    ! choose the lebedev grid with number of points closest to ngrid:
    call bisectSearch(igrid, gridSize, self%ngrid)
@@ -177,20 +177,20 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    call header(self)
 
    ! allocate:
-   self%grad   = self%igrad.ne.0
+   self%grad   = self%igrad /= 0
    self%nylm   = (self%lmax+1)*(self%lmax+1)
-   allocate(self%rsph(self%nsph), self%csph(3, self%nsph), self%w(self%ngrid), &
+   allocate(self%rvdw(self%nat), self%xyz(3, self%nat), self%w(self%ngrid), &
       & self%grid(3, self%ngrid), self%basis(self%nylm, self%ngrid), &
-      & self%inl(self%nsph+1), self%nl(self%nsph*nngmax), &
-      & self%fi(self%ngrid, self%nsph), self%ui(self%ngrid, self%nsph), &
+      & self%inl(self%nat+1), self%nl(self%nat*nngmax), &
+      & self%fi(self%ngrid, self%nat), self%ui(self%ngrid, self%nat), &
       & self%fact(max(2*self%lmax+1, 2)), self%facl(self%nylm), &
       & self%facs(self%nylm), stat=istatus)
-   if (istatus.ne.0) then
+   if (istatus /= 0) then
       call env%error('allocation failed', source)
       return
    end if
-   if (self%grad) allocate(self%zi(3, self%ngrid, self%nsph), stat=istatus)
-   if (istatus.ne.0) then
+   if (self%grad) allocate(self%zi(3, self%ngrid, self%nat), stat=istatus)
+   if (istatus /= 0) then
       call env%error('allocation failed', source)
       return
    end if
@@ -211,19 +211,19 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       self%facs(ind) = ffl
       do m = 1, l
          fnorm = sq2*ffl*sqrt(self%fact(l-m+1)/self%fact(l+m+1))
-         if (mod(m, 2).eq.1) fnorm = -fnorm
+         if (mod(m, 2) == 1) fnorm = -fnorm
          self%facs(ind+m) = fnorm
          self%facs(ind-m) = fnorm
       end do
    end do
 
    ! set the centers and radii of the spheres:
-   self%csph(:, :) = xyz
-   self%rsph(:) = rvdw
+   self%xyz(:, :) = xyz
+   self%rvdw(:) = rvdw
 
    ! load a lebedev grid:
    call getAngGrid(igrid, self%grid, self%w, istatus)
-   if (istatus.ne.0) then
+   if (istatus /= 0) then
       call env%error('angular grid generation failed', source)
       return
    end if
@@ -232,7 +232,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
 
    ! build a basis of spherical harmonics at the gridpoints:
    allocate(vplm(self%nylm), vcos(self%lmax+1), vsin(self%lmax+1), stat=istatus)
-   if (istatus.ne.0) then
+   if (istatus /= 0) then
       call env%error('allocation failed', source)
       return
    end if
@@ -242,12 +242,12 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    end do
    !$omp end parallel do
    deallocate(vplm, vcos, vsin, stat=istatus)
-   if (istatus.ne.0) then
+   if (istatus /= 0) then
       call env%error('deallocation failed', source)
       return
    end if
 
-   if (self%iprint.ge.4) then
+   if (self%iprint >= 4) then
       call prtsph(self, 'facs', 1, 0, self%facs)
       call prtsph(self, 'facl', 1, 0, self%facl)
       call prtsph(self, 'basis', self%ngrid, 0, self%basis)
@@ -257,8 +257,8 @@ subroutine ddinit(self, env, n, xyz, rvdw)
 
    ! build neighbors list (CSR format)
    !
-   !  \\  jsph |
-   ! isph  \\  |  1   2   3   4   5   6
+   !  \\  jat  |
+   ! iat   \\  |  1   2   3   4   5   6
    ! -----------------------------------
    !         1 |      x       x   x
    !         2 |  x       x       x   x
@@ -280,30 +280,30 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    ! index of nl
    ii  = 1
    lnl = 0
-   do isph = 1, self%nsph
-      self%inl(isph) = lnl + 1
-      do jsph = 1, self%nsph
-         if (isph.ne.jsph) then
-            v(:) = self%csph(:, isph) - self%csph(:, jsph)
+   do iat = 1, self%nat
+      self%inl(iat) = lnl + 1
+      do jat = 1, self%nat
+         if (iat /= jat) then
+            v(:) = self%xyz(:, iat) - self%xyz(:, jat)
             d2 = v(1)**2 + v(2)**2 + v(3)**2
-            r2 = (self%rsph(isph) + self%rsph(jsph))**2
-            if (d2.le.r2) then
-               self%nl(ii) = jsph
+            r2 = (self%rvdw(iat) + self%rvdw(jat))**2
+            if (d2 <= r2) then
+               self%nl(ii) = jat
                ii  = ii + 1
                lnl = lnl + 1
             end if
          end if
       end do
    end do
-   self%inl(self%nsph+1) = lnl+1
+   self%inl(self%nat+1) = lnl+1
 
-   if (self%iprint.ge.4) then
+   if (self%iprint >= 4) then
       write(iout, *) '   inl:'
-      write(iout, '(10i6)') self%inl(1:self%nsph+1)
+      write(iout, '(10i6)') self%inl(1:self%nat+1)
       write(iout, *)
-      do isph = 1, self%nsph
-         write(iout, f1000) isph
-         write(iout, f1010) self%nl(self%inl(isph):self%inl(isph+1)-1)
+      do iat = 1, self%nat
+         write(iout, f1000) iat
+         write(iout, f1010) self%nl(self%inl(iat):self%inl(iat+1)-1)
       end do
       write(iout, *)
    end if
@@ -328,24 +328,24 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    if (self%grad) self%zi = 0.0_wp
 
    !$omp parallel do default(shared) &
-   !$omp private(isph, i, ii, jsph, v, vv, t, xt, swthr, fac)
+   !$omp private(iat, i, ii, jat, v, vv, t, xt, swthr, fac)
    ! loop over spheres
-   do isph = 1, self%nsph
+   do iat = 1, self%nat
 
       ! loop over integration points
       do i = 1, self%ngrid
 
          ! loop over neighbors of i-sphere
-         do ii = self%inl(isph), self%inl(isph+1)-1
+         do ii = self%inl(iat), self%inl(iat+1)-1
 
             ! neighbor's number
-            jsph = self%nl(ii)
+            jat = self%nl(ii)
 
             ! compute t_n^ij
-            v(:) = self%csph(:, isph) + self%rsph(isph)*self%grid(:, i) - self%csph(:, jsph)
+            v(:) = self%xyz(:, iat) + self%rvdw(iat)*self%grid(:, i) - self%xyz(:, jat)
             vv = v(1)**2 + v(2)**2 + v(3)**2
             vv = sqrt(vv)
-            t = vv/self%rsph(jsph)
+            t = vv/self%rvdw(jat)
 
             ! compute \chi(t_n^ij)
             xt = fsw(t, se, self%eta)
@@ -354,26 +354,26 @@ subroutine ddinit(self, env, n, xyz, rvdw)
             swthr = 1.0_wp + (se + 1._wp)*self%eta / 2._wp
 
             ! t_n^ij belongs to switch region
-            if (self%grad .and. (t.lt.swthr .and. t.gt.swthr-self%eta)) then
-               fac = dfsw(t, se, self%eta) / self%rsph(jsph)
+            if (self%grad .and. (t < swthr .and. t > swthr-self%eta)) then
+               fac = dfsw(t, se, self%eta) / self%rvdw(jat)
 
                ! accumulate for zi
-               self%zi(:, i, isph) = self%zi(:, i, isph) + fac*v(:)/vv
+               self%zi(:, i, iat) = self%zi(:, i, iat) + fac*v(:)/vv
             end if
 
             ! accumulate for fi
-            self%fi(i, isph) = self%fi(i, isph) + xt
+            self%fi(i, iat) = self%fi(i, iat) + xt
          end do
 
          ! compute ui
-         if (self%fi(i, isph).le.1.0_wp)  self%ui(i, isph) = 1.0_wp - self%fi(i, isph)
+         if (self%fi(i, iat) <= 1.0_wp)  self%ui(i, iat) = 1.0_wp - self%fi(i, iat)
       end do
    end do
    !$omp end parallel do
 
-   if (self%iprint.ge.4) then
-      call ptcart(self, 'fi', self%nsph, 0, self%fi)
-      call ptcart(self, 'ui', self%nsph, 0, self%ui)
+   if (self%iprint >= 4) then
+      call ptcart(self, 'fi', self%nat, 0, self%fi)
+      call ptcart(self, 'ui', self%nat, 0, self%ui)
    end if
 
    ! build cavity array
@@ -381,13 +381,13 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    self%ncav=0
 
    ! loop over spheres
-   do isph = 1, self%nsph
+   do iat = 1, self%nat
 
       ! loop over integration points
       do i = 1, self%ngrid
 
          ! positive contribution from integration point
-         if (self%ui(i, isph).gt.0.0_wp) then
+         if (self%ui(i, iat) > 0.0_wp) then
 
             ! accumulate
             self%ncav = self%ncav + 1
@@ -398,7 +398,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
 
    ! allocate cavity array
    allocate(self%ccav(3, self%ncav), stat=istatus)
-   if (istatus .ne. 0) then
+   if (istatus  /=  0) then
       call env%error('allocation failed', source)
       return
    end if
@@ -408,25 +408,25 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    ii = 0
 
    ! loop over spheres
-   do isph = 1, self%nsph
+   do iat = 1, self%nat
 
       ! loop over integration points
       do i = 1, self%ngrid
 
          ! positive contribution from integration point
-         if (self%ui(i, isph).gt.0.0_wp) then
+         if (self%ui(i, iat) > 0.0_wp) then
 
             ! advance cavity array index
             ii = ii + 1
 
             ! store point
-            self%ccav(:, ii) = self%csph(:, isph) + self%rsph(isph)*self%grid(:, i)
+            self%ccav(:, ii) = self%xyz(:, iat) + self%rvdw(iat)*self%grid(:, i)
 
          end if
       end do
    end do
 
-   if (self%iprint.ge.4) then
+   if (self%iprint >= 4) then
       write(iout, *) '   external cavity points:'
       do ii = 1, self%ncav
          write(iout, f1100) ii, self%ccav(:, ii)
@@ -449,8 +449,8 @@ subroutine memfree(self, env)
    istatus = 0
 
    ! deallocate the arrays
-   if (allocated(self%rsph))  deallocate(self%rsph, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%csph))  deallocate(self%csph, stat=istatus) ; istatus0 = istatus0 + istatus
+   if (allocated(self%rvdw))  deallocate(self%rvdw, stat=istatus) ; istatus0 = istatus0 + istatus
+   if (allocated(self%xyz))  deallocate(self%xyz, stat=istatus) ; istatus0 = istatus0 + istatus
    if (allocated(self%ccav))  deallocate(self%ccav, stat=istatus) ; istatus0 = istatus0 + istatus
    if (allocated(self%w))  deallocate(self%w, stat=istatus) ; istatus0 = istatus0 + istatus
    if (allocated(self%grid))  deallocate(self%grid, stat=istatus) ; istatus0 = istatus0 + istatus
@@ -464,7 +464,7 @@ subroutine memfree(self, env)
    if (allocated(self%fi))  deallocate(self%fi, stat=istatus) ; istatus0 = istatus0 + istatus
    if (allocated(self%zi))  deallocate(self%zi, stat=istatus) ; istatus0 = istatus0 + istatus
 
-   if (istatus0.ne.0) then
+   if (istatus0 /= 0) then
       call env%error('deallocation failed', source)
       return
    end if
@@ -519,9 +519,9 @@ elemental function fsw(t, s, eta)
    flow = 1.0_wp - eta
 
    ! define switch function \chi
-   if (x.ge.1.0_wp) then
+   if (x >= 1.0_wp) then
       fsw = 0.0_wp
-   elseif (x.le.flow) then
+   elseif (x <= flow) then
       fsw = 1.0_wp
    else
       a = f15*eta - f12
@@ -555,9 +555,9 @@ elemental function dfsw(t, s, eta)
    flow = 1.0_wp - eta
 
    ! define derivative of switch function \chi
-   if (x.ge.1.0_wp) then
+   if (x >= 1.0_wp) then
       dfsw = 0.0_wp
-   elseif (x.le.flow) then
+   elseif (x <= flow) then
       dfsw = 0.0_wp
    else
       dfsw = f30*(1.0_wp-x)*(x-1.0_wp)*(x-1.0_wp+eta)*(x-1.0_wp+eta)/(eta**5)
@@ -580,14 +580,14 @@ subroutine ptcart(self, label, ncol, icol, x)
    character(len=*), parameter :: f1020 = "(1x, i5, 5f14.8)"
 
    ! print header :
-   if (ncol.eq.1) then
+   if (ncol == 1) then
       write (iout, '(3x, a, 1x, "(column ", i4")")') label, icol
    else
       write (iout, '(3x, a)') label
    end if
 
    ! print entries :
-   if (ncol.eq.1) then
+   if (ncol == 1) then
       do ig = 1, self%ngrid
          write(iout, f1000) ig, x(ig, 1)
       end do
@@ -624,14 +624,14 @@ subroutine prtsph(self, label, ncol, icol, x)
    character(len=*), parameter :: f1020 = "(1x, i3, i4, 5f14.8)"
 
    ! print header :
-   if (ncol.eq.1) then
+   if (ncol == 1) then
       write (iout, '(3x, a, 1x, "(column ", i4")")') label, icol
    else
       write (iout, '(3x, a)') label
    end if
 
    ! print entries :
-   if (ncol.eq.1) then
+   if (ncol == 1) then
       do l = 0, self%lmax
          ind = l*l + l + 1
          do m = -l, l
@@ -664,10 +664,10 @@ end subroutine prtsph
 
 
 !> Integrate against spherical harmonics
-subroutine intrhs(self, isph, x, xlm)
+subroutine intrhs(self, iat, x, xlm)
 
    type(TddCosmo), intent(in) :: self
-   integer, intent(in) :: isph
+   integer, intent(in) :: iat
    real(wp), intent(in) :: x(self%ngrid)
    real(wp), intent(inout) :: xlm(self%nylm)
 
@@ -682,9 +682,9 @@ subroutine intrhs(self, isph, x, xlm)
    end do
 
    ! printing
-   if (self%iprint.ge.5) then
-      call ptcart(self, 'pot', 1, isph, x)
-      call prtsph(self, 'vlm', 1, isph, xlm)
+   if (self%iprint >= 5) then
+      call ptcart(self, 'pot', 1, iat, x)
+      call prtsph(self, 'vlm', 1, iat, xlm)
    end if
 
 end subroutine intrhs
@@ -709,7 +709,7 @@ pure subroutine ylmbas(self, x, basloc, vplm, vcos, vsin)
    sthe = sqrt(1.0_wp - cthe*cthe)
 
    ! evalutate cos(phi) ; sin(phi)
-   if (sthe.ne.0.0_wp) then
+   if (sthe /= 0.0_wp) then
       cphi = x(1)/sthe
       sphi = x(2)/sthe
    else
@@ -720,7 +720,7 @@ pure subroutine ylmbas(self, x, basloc, vplm, vcos, vsin)
    ! evaluate cos(m*phi) and sin(m*phi) arrays. notice that this is
    ! pointless if z = 1, as the only non vanishing terms will be the
    ! ones with m=0.
-   if(sthe.ne.0.0_wp) then
+   if(sthe /= 0.0_wp) then
       call trgev(self, cphi, sphi, vcos, vsin)
    else
       vcos = 1.0_wp
@@ -772,7 +772,7 @@ pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
    cthe = x(3)
    sthe = sqrt(1.0_wp - cthe*cthe)
 
-   if (sthe.ne.0.0_wp) then
+   if (sthe /= 0.0_wp) then
       ! not (NORTH or SOUTH pole)
       cphi = x(1)/sthe
       sphi = x(2)/sthe
@@ -787,7 +787,7 @@ pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
    et(2) = cthe*sphi
    et(3) = -sthe
 
-   if(sthe.ne.0.0_wp) then
+   if(sthe /= 0.0_wp) then
       ! not (NORTH or SOUTH pole)
       ep(1) = -sphi/sthe
       ep(2) = cphi/sthe
@@ -803,7 +803,7 @@ pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
    ! pointless if z = 1, as the only non vanishing terms will be the
    ! ones with m=0.
 
-   if (sthe.ne.0.0_wp) then
+   if (sthe /= 0.0_wp) then
       ! not (NORTH or SOUTH pole)
       call trgev(self, cphi, sphi, vcos, vsin)
    else
@@ -827,24 +827,24 @@ pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
       ! m = 0
       fln = self%facs(ind)
       basloc(ind) = fln*vplm(ind)
-      if (l.gt.0) then
+      if (l > 0) then
          dbsloc(:, ind) = fln*vplm(ind+1)*et(:)
       else
          dbsloc(:, ind) = 0.0_wp
       end if
-      !dir$ simd
+      !$omp simd
       do m = 1, l
          fln = self%facs(ind+m)
          plm = fln*vplm(ind+m)
          pp1 = 0.0_wp
-         if (m.lt.l) pp1 = -0.5_wp*vplm(ind+m+1)
+         if (m < l) pp1 = -0.5_wp*vplm(ind+m+1)
          pm1 = 0.5_wp*(real(l+m, wp)*real(l-m+1, wp)*vplm(ind+m-1))
          pp  = pp1 + pm1
 
          ! m > 0
          basloc(ind+m) = plm*vcos(m+1)
 
-         if (sthe.ne.0.0_wp) then
+         if (sthe /= 0.0_wp) then
             ! not (NORTH or SOUTH pole)
             dbsloc(:, ind+m) = -fln*pp*vcos(m+1)*et(:) - real(m, wp)*plm*vsin(m+1)*ep(:)
          else
@@ -855,7 +855,7 @@ pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
          ! m < 0
          basloc(ind-m) = plm*vsin(m+1)
 
-         if (sthe.ne.0.0_wp) then
+         if (sthe /= 0.0_wp) then
             ! not (NORTH or SOUTH pole)
             dbsloc(:, ind-m) = -fln*pp*vsin(m+1)*et(:) + real(m, wp)*plm*vcos(m+1)*ep(:)
          else
@@ -889,7 +889,7 @@ pure subroutine polleg(self, x, y, plm)
    do m = 0, self%lmax
       ind      = (m + 1)*(m + 1)
       plm(ind) = pmm
-      if(m.eq.self%lmax) return
+      if(m == self%lmax) return
       fm = real(m, wp)
       pmm1 = x*(2.0_wp*fm + 1.0_wp)*pmm
       ind2 = ind + 2*m + 2
@@ -979,28 +979,28 @@ subroutine wghpot(self, phi, g)
 
    type(TddCosmo), intent(in) :: self
    real(wp), intent(in)  :: phi(self%ncav)
-   real(wp), intent(out) :: g(self%ngrid, self%nsph)
+   real(wp), intent(out) :: g(self%ngrid, self%nat)
 
-   integer :: isph, ig, ic
+   integer :: iat, ig, ic
 
    !> Initialize
    ic = 0
    g(:, :) = 0._wp
 
    ! loop over spheres
-   do isph = 1, self%nsph
+   do iat = 1, self%nat
 
       ! loop over points
       do ig = 1, self%ngrid
 
          ! nonzero contribution from point
-         if (self%ui(ig, isph).ne.0.0_wp) then
+         if (self%ui(ig, iat) /= 0.0_wp) then
 
             ! advance cavity point counter
             ic = ic + 1
 
             ! weight by (negative) characteristic function
-            g(ig, isph) = -self%ui(ig, isph) * phi(ic)
+            g(ig, iat) = -self%ui(ig, iat) * phi(ic)
 
          end if
 
@@ -1067,35 +1067,35 @@ end subroutine hsnorm
 !             j \ne i
 !
 ! The auxiliary quantity [ \xi_j ]_l^m needs to be computed explicitly.
-pure subroutine adjrhs(self, isph, xi, vlm, basloc, vplm, vcos, vsin)
+pure subroutine adjrhs(self, iat, xi, vlm, basloc, vplm, vcos, vsin)
 
    type(TddCosmo), intent(in) :: self
-   integer, intent(in) :: isph
-   real(wp), intent(in) :: xi(self%ngrid, self%nsph)
+   integer, intent(in) :: iat
+   real(wp), intent(in) :: xi(self%ngrid, self%nat)
    real(wp), intent(inout) :: vlm(self%nylm)
    real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
    real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
 
-   integer :: ij, jsph, ig, l, ind, m
+   integer :: ij, jat, ig, l, ind, m
    real(wp) :: vji(3), vvji, tji, sji(3), xji, oji, fac, ffac, t
 
    ! loop over neighbors of i-sphere
-   do ij = self%inl(isph), self%inl(isph+1)-1
+   do ij = self%inl(iat), self%inl(iat+1)-1
 
       ! j-sphere is neighbor
-      jsph = self%nl(ij)
+      jat = self%nl(ij)
 
       ! loop over integration points
       do ig = 1, self%ngrid
 
          ! compute t_n^ji = | r_j + \rho_j s_n - r_i | / \rho_i
-         vji  = self%csph(:, jsph) + self%rsph(jsph)*self%grid(:, ig) - self%csph(:, isph)
+         vji  = self%xyz(:, jat) + self%rvdw(jat)*self%grid(:, ig) - self%xyz(:, iat)
          vvji = vji(1)**2 + vji(2)**2 + vji(3)**2
          vvji = sqrt(vvji)
-         tji  = vvji/self%rsph(isph)
+         tji  = vvji/self%rvdw(iat)
 
          ! point is INSIDE i-sphere (+ transition layer)
-         if (tji.lt.(1.0_wp + (se+1.0_wp)/2.0_wp*self%eta)) then
+         if (tji < (1.0_wp + (se+1.0_wp)/2.0_wp*self%eta)) then
 
             ! compute s_n^ji
             sji = vji/vvji
@@ -1104,8 +1104,8 @@ pure subroutine adjrhs(self, isph, xi, vlm, basloc, vplm, vcos, vsin)
             xji = fsw(tji, se, self%eta)
 
             ! compute W_n^ji
-            if (self%fi(ig, jsph).gt.1.0_wp) then
-               oji = xji/self%fi(ig, jsph)
+            if (self%fi(ig, jat) > 1.0_wp) then
+               oji = xji/self%fi(ig, jat)
             else
                oji = xji
             end if
@@ -1117,7 +1117,7 @@ pure subroutine adjrhs(self, isph, xi, vlm, basloc, vplm, vcos, vsin)
             t = 1.0_wp
 
             ! compute w_n * xi(n, j) * W_n^ji
-            fac = self%w(ig) * xi(ig, jsph) * oji
+            fac = self%w(ig) * xi(ig, jat) * oji
 
             ! loop over l
             do l = 0, self%lmax
@@ -1156,12 +1156,12 @@ subroutine header(self)
       '   regularization parameter (eta):         ', 8x, f8.3, /, &
       '   dielectric constant:                    ', 8x, f8.4/)
 
-   if (self%iprint.gt.0) then
+   if (self%iprint > 0) then
 
       write(iout, 1000)
-      write(iout, 1010) self%ngrid, self%nsph, self%lmax, 10.0_wp**(-self%iconv), self%eta, self%eps
+      write(iout, 1010) self%ngrid, self%nat, self%lmax, 10.0_wp**(-self%iconv), self%eta, self%eps
 
-      if (self%igrad.eq.1)  write(iout, 1013)
+      if (self%igrad == 1)  write(iout, 1013)
       1013   format(' Compute forces.'//)
 
    end if
@@ -1170,18 +1170,18 @@ end subroutine header
 
 
 !> Compute the first part of <S, L^(x)X>
-pure subroutine fdoka(self, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, fx)
+pure subroutine fdoka(self, iat, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, fx)
 
    type(TddCosmo), intent(in) :: self
-   integer, intent(in) :: isph
-   real(wp), intent(in) :: sigma(self%nylm, self%nsph)
+   integer, intent(in) :: iat
+   real(wp), intent(in) :: sigma(self%nylm, self%nat)
    real(wp), intent(in) :: xi(self%ngrid)
    real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
    real(wp), intent(inout) :: dbsloc(3, self%nylm)
    real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
    real(wp), intent(inout) :: fx(3)
 
-   integer :: ig, ij, jsph, l, ind, m
+   integer :: ig, ij, jat, l, ind, m
    real(wp) :: vvij, tij, xij, oij, t, fac, fl, f1, f2, f3, beta, tlow, thigh
    real(wp) :: vij(3), sij(3), alp(3), va(3)
 
@@ -1190,14 +1190,14 @@ pure subroutine fdoka(self, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, f
 
    do ig = 1, self%ngrid
       va = 0.0_wp
-      do ij = self%inl(isph), self%inl(isph+1) - 1
-         jsph = self%nl(ij)
-         vij = self%csph(:, isph) + self%rsph(isph)*self%grid(:, ig) - self%csph(:, jsph)
+      do ij = self%inl(iat), self%inl(iat+1) - 1
+         jat = self%nl(ij)
+         vij = self%xyz(:, iat) + self%rvdw(iat)*self%grid(:, ig) - self%xyz(:, jat)
          vvij = vij(1)**2 + vij(2)**2 + vij(3)**2
          vvij = sqrt(vvij)
-         tij = vvij/self%rsph(jsph)
+         tij = vvij/self%rvdw(jat)
 
-         if (tij.ge.thigh) cycle
+         if (tij >= thigh) cycle
 
          sij = vij/vvij
          call dbasis(self, sij, basloc, dbsloc, vplm, vcos, vsin)
@@ -1208,26 +1208,26 @@ pure subroutine fdoka(self, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, f
             fl = real(l, wp)
             fac = t/self%facl(ind)
             do m = -l, l
-               f2 = fac*sigma(ind+m, jsph)
+               f2 = fac*sigma(ind+m, jat)
                f1 = f2*fl*basloc(ind+m)
                alp(:) = alp(:) + f1*sij(:) + f2*dbsloc(:, ind+m)
             end do
             t = t*tij
          end do
-         beta = intmlp(self, tij, sigma(:, jsph), basloc)
+         beta = intmlp(self, tij, sigma(:, jat), basloc)
          xij = fsw(tij, se, self%eta)
-         if (self%fi(ig, isph).gt.1.0_wp) then
-            oij = xij/self%fi(ig, isph)
-            f2  = -oij/self%fi(ig, isph)
+         if (self%fi(ig, iat) > 1.0_wp) then
+            oij = xij/self%fi(ig, iat)
+            f2  = -oij/self%fi(ig, iat)
          else
             oij = xij
             f2  = 0.0_wp
          end if
-         f1 = oij/self%rsph(jsph)
-         va(:) = va(:) + f1*alp(:) + beta*f2*self%zi(:, ig, isph)
-         if (tij .gt. tlow) then
-            f3 = beta*dfsw(tij, se, self%eta)/self%rsph(jsph)
-            if (self%fi(ig, isph).gt.1.0_wp) f3 = f3/self%fi(ig, isph)
+         f1 = oij/self%rvdw(jat)
+         va(:) = va(:) + f1*alp(:) + beta*f2*self%zi(:, ig, iat)
+         if (tij > tlow) then
+            f3 = beta*dfsw(tij, se, self%eta)/self%rvdw(jat)
+            if (self%fi(ig, iat) > 1.0_wp) f3 = f3/self%fi(ig, iat)
             va(:) = va(:) + f3*sij(:)
          end if
       end do
@@ -1238,18 +1238,18 @@ end subroutine fdoka
 
 
 !> Compute the the second part of <S, L^(x)X>
-pure subroutine fdokb(self, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, fx)
+pure subroutine fdokb(self, iat, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, fx)
 
    type(TddCosmo), intent(in) :: self
-   integer, intent(in) :: isph
-   real(wp), intent(in) :: sigma(self%nylm, self%nsph)
-   real(wp), intent(in) :: xi(self%ngrid, self%nsph)
+   integer, intent(in) :: iat
+   real(wp), intent(in) :: sigma(self%nylm, self%nat)
+   real(wp), intent(in) :: xi(self%ngrid, self%nat)
    real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
    real(wp), intent(inout) :: dbsloc(3, self%nylm)
    real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
    real(wp), intent(inout) :: fx(3)
 
-   integer :: ig, ji, jsph, l, ind, m, jk, ksph
+   integer :: ig, ji, jat, l, ind, m, jk, kat
    logical :: proc
    real(wp) :: vvji, tji, xji, oji, t, fac, fl, f1, f2, beta, di, tlow, thigh
    real(wp) :: b, g1, g2, vvjk, tjk, f, xjk
@@ -1263,14 +1263,14 @@ pure subroutine fdokb(self, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, f
    do ig = 1, self%ngrid
       vb = 0.0_wp
       vc = 0.0_wp
-      do ji = self%inl(isph), self%inl(isph+1) - 1
-         jsph = self%nl(ji)
-         vji = self%csph(:, jsph) + self%rsph(jsph)*self%grid(:, ig) - self%csph(:, isph)
+      do ji = self%inl(iat), self%inl(iat+1) - 1
+         jat = self%nl(ji)
+         vji = self%xyz(:, jat) + self%rvdw(jat)*self%grid(:, ig) - self%xyz(:, iat)
          vvji = vji(1)**2 + vji(2)**2 + vji(3)**2
          vvji = sqrt(vvji)
-         tji = vvji/self%rsph(isph)
+         tji = vvji/self%rvdw(iat)
 
-         if (tji.gt.thigh) cycle
+         if (tji > thigh) cycle
 
          sji = vji/vvji
          call dbasis(self, sji, basloc, dbsloc, vplm, vcos, vsin)
@@ -1282,55 +1282,55 @@ pure subroutine fdokb(self, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, f
             fl = real(l, wp)
             fac = t/self%facl(ind)
             do m = -l, l
-               f2 = fac*sigma(ind+m, isph)
+               f2 = fac*sigma(ind+m, iat)
                f1 = f2*fl*basloc(ind+m)
                alp = alp + f1*sji + f2*dbsloc(:, ind+m)
             end do
             t = t*tji
          end do
          xji = fsw(tji, se, self%eta)
-         if (self%fi(ig, jsph).gt.1.0_wp) then
-            oji = xji/self%fi(ig, jsph)
+         if (self%fi(ig, jat) > 1.0_wp) then
+            oji = xji/self%fi(ig, jat)
          else
             oji = xji
          end if
-         f1 = oji/self%rsph(isph)
-         vb = vb + f1*alp*xi(ig, jsph)
-         if (tji .gt. tlow) then
-            beta = intmlp(self, tji, sigma(:, isph), basloc)
-            if (self%fi(ig, jsph) .gt. 1.0_wp) then
-               di  = 1.0_wp/self%fi(ig, jsph)
+         f1 = oji/self%rvdw(iat)
+         vb = vb + f1*alp*xi(ig, jat)
+         if (tji > tlow) then
+            beta = intmlp(self, tji, sigma(:, iat), basloc)
+            if (self%fi(ig, jat) > 1.0_wp) then
+               di  = 1.0_wp/self%fi(ig, jat)
                fac = di*xji
                proc = .false.
                b    = 0.0_wp
-               do jk = self%inl(jsph), self%inl(jsph+1) - 1
-                  ksph = self%nl(jk)
-                  vjk = self%csph(:, jsph) + self%rsph(jsph)*self%grid(:, ig) - self%csph(:, ksph)
+               do jk = self%inl(jat), self%inl(jat+1) - 1
+                  kat = self%nl(jk)
+                  vjk = self%xyz(:, jat) + self%rvdw(jat)*self%grid(:, ig) - self%xyz(:, kat)
                   vvjk = vjk(1)**2 + vjk(2)**2 + vjk(3)**2
                   vvjk = sqrt(vvjk)
-                  tjk = vvjk/self%rsph(ksph)
-                  if (ksph.ne.isph) then
-                     if (tjk .le. thigh) then
+                  tjk = vvjk/self%rvdw(kat)
+                  if (kat /= iat) then
+                     if (tjk <= thigh) then
                         proc = .true.
                         sjk = vjk/vvjk
                         call ylmbas(self, sjk, basloc, vplm, vcos, vsin)
-                        g1 = intmlp(self, tjk, sigma(:, ksph), basloc)
+                        g1 = intmlp(self, tjk, sigma(:, kat), basloc)
                         xjk = fsw(tjk, se, self%eta)
                         b = b + g1*xjk
                      end if
                   end if
                end do
                if (proc) then
-                  g1 = di*di*dfsw(tji, se, self%eta)/self%rsph(isph)
-                  g2 = g1*xi(ig, jsph)*b
+                  g1 = di*di*dfsw(tji, se, self%eta)/self%rvdw(iat)
+                  g2 = g1*xi(ig, jat)*b
                   vc = vc + g2*sji
                end if
             else
                di = 1.0_wp
                fac = 0.0_wp
             end if
-            f2 = (1.0_wp-fac)*di*dfsw(tji, se, self%eta)/self%rsph(isph)
-            vb = vb + f2*xi(ig, jsph)*beta*sji
+            f2 = (1.0_wp-fac)*di*dfsw(tji, se, self%eta)/self%rvdw(iat)
+            vb = vb + f2*xi(ig, jat)*beta*sji
          end if
       end do
       fx = fx + self%w(ig)*(vb - vc)
@@ -1340,33 +1340,33 @@ end subroutine fdokb
 
 
 !> Compute the U^(x)\Phi contribution to <S, g^(x)>
-pure subroutine fdoga(self, isph, xi, phi, fx)
+pure subroutine fdoga(self, iat, xi, phi, fx)
 
    type(TddCosmo), intent(in) :: self
-   integer, intent(in) :: isph
-   real(wp), intent(in) :: xi(self%ngrid, self%nsph), phi(self%ngrid, self%nsph)
+   integer, intent(in) :: iat
+   real(wp), intent(in) :: xi(self%ngrid, self%nat), phi(self%ngrid, self%nat)
    real(wp), intent(inout) :: fx(3)
 
-   integer :: ig, ji, jsph
+   integer :: ig, ji, jat
    real(wp) :: vvji, tji, fac, swthr
    real(wp) :: alp(3), vji(3), sji(3)
 
    do ig = 1, self%ngrid
       alp = 0.0_wp
-      if (self%ui(ig, isph) .gt. 0.0_wp .and. self%ui(ig, isph).lt.1.0_wp) then
-         alp = alp + phi(ig, isph)*xi(ig, isph)*self%zi(:, ig, isph)
+      if (self%ui(ig, iat) > 0.0_wp .and. self%ui(ig, iat) <  1.0_wp) then
+         alp = alp + phi(ig, iat)*xi(ig, iat)*self%zi(:, ig, iat)
       end if
-      do ji = self%inl(isph), self%inl(isph+1) - 1
-         jsph = self%nl(ji)
-         vji = self%csph(:, jsph) + self%rsph(jsph)*self%grid(:, ig) - self%csph(:, isph)
+      do ji = self%inl(iat), self%inl(iat+1) - 1
+         jat = self%nl(ji)
+         vji = self%xyz(:, jat) + self%rvdw(jat)*self%grid(:, ig) - self%xyz(:, iat)
          vvji = vji(1)**2 + vji(2)**2 + vji(3)**2
          vvji = sqrt(vvji)
-         tji = vvji/self%rsph(isph)
+         tji = vvji/self%rvdw(iat)
          swthr = 1.0_wp + (se + 1._wp)*self%eta / 2._wp
-         if (tji.lt.swthr .and. tji.gt.swthr-self%eta .and. self%ui(ig, jsph).gt.0.0_wp) then
+         if (tji < swthr .and. tji > swthr-self%eta .and. self%ui(ig, jat) > 0.0_wp) then
             sji = vji/vvji
-            fac = - dfsw(tji, se, self%eta)/self%rsph(isph)
-            alp = alp + fac*phi(ig, jsph)*xi(ig, jsph)*sji
+            fac = - dfsw(tji, se, self%eta)/self%rvdw(iat)
+            alp = alp + fac*phi(ig, jat)*xi(ig, jat)*sji
          end if
       end do
       fx = fx - self%w(ig)*alp
@@ -1391,19 +1391,19 @@ end subroutine fdoga
 !     j \ne i                   n
 !
 ! This second step is performed by routine "intrhs".
-pure subroutine calcv(self, first, isph, pot, sigma, basloc, vplm, vcos, vsin)
+pure subroutine calcv(self, first, iat, pot, sigma, basloc, vplm, vcos, vsin)
 
    type(TddCosmo), intent(in) :: self
    logical, intent(in) :: first
-   integer, intent(in) :: isph
-   real(wp), intent(in) :: sigma(self%nylm, self%nsph)
+   integer, intent(in) :: iat
+   real(wp), intent(in) :: sigma(self%nylm, self%nat)
    real(wp), intent(inout) :: pot(self%ngrid)
    real(wp), intent(inout) :: basloc(self%nylm)
    real(wp), intent(inout) :: vplm(self%nylm)
    real(wp), intent(inout) :: vcos(self%lmax+1)
    real(wp), intent(inout) :: vsin(self%lmax+1)
 
-   integer :: its, ij, jsph
+   integer :: its, ij, jat
    real(wp) :: vij(3), sij(3)
    real(wp) :: vvij2, vvij, tij, xij, oij, stslm, stslm2, stslm3
 
@@ -1417,22 +1417,22 @@ pure subroutine calcv(self, first, isph, pot, sigma, basloc, vplm, vcos, vsin)
    do its = 1, self%ngrid
 
       ! contribution from integration point present
-      if (self%ui(its, isph).lt.1.0_wp) then
+      if (self%ui(its, iat) < 1.0_wp) then
 
          ! loop over neighbors of i-sphere
-         do ij = self%inl(isph), self%inl(isph+1)-1
+         do ij = self%inl(iat), self%inl(iat+1)-1
 
             ! neighbor is j-sphere
-            jsph = self%nl(ij)
+            jat = self%nl(ij)
 
             ! compute t_n^ij = | r_i + \rho_i s_n - r_j | / \rho_j
-            vij  = self%csph(:, isph) + self%rsph(isph)*self%grid(:, its) - self%csph(:, jsph)
+            vij  = self%xyz(:, iat) + self%rvdw(iat)*self%grid(:, its) - self%xyz(:, jat)
             vvij2 = vij(1)**2 + vij(2)**2 + vij(3)**2
             vvij = sqrt(vvij2)
-            tij  = vvij / self%rsph(jsph)
+            tij  = vvij / self%rvdw(jat)
 
             ! point is INSIDE j-sphere
-            if (tij.lt.1.0_wp) then
+            if (tij < 1.0_wp) then
 
                ! compute s_n^ij = (r_i + \rho_i s_n - r_j) / | ... |
                sij = vij / vvij
@@ -1441,9 +1441,9 @@ pure subroutine calcv(self, first, isph, pot, sigma, basloc, vplm, vcos, vsin)
                xij = fsw(tij, se, self%eta)
 
                ! compute W_n^ij
-               if (self%fi(its, isph).gt.1.0_wp) then
+               if (self%fi(its, iat) > 1.0_wp) then
 
-                  oij = xij / self%fi(its, isph)
+                  oij = xij / self%fi(its, iat)
 
                else
 
@@ -1455,7 +1455,7 @@ pure subroutine calcv(self, first, isph, pot, sigma, basloc, vplm, vcos, vsin)
                call ylmbas(self, sij, basloc, vplm, vcos, vsin)
 
                ! accumulate over j, l, m
-               pot(its) = pot(its) + oij * intmlp(self, tij, sigma(:, jsph), basloc)
+               pot(its) = pot(its) + oij * intmlp(self, tij, sigma(:, jat), basloc)
 
             end if
          end do
@@ -1475,18 +1475,18 @@ end subroutine calcv
 pure subroutine ddmkxi(self, s, xi)
 
    type(TddCosmo), intent(in) :: self
-   real(wp), intent(in) :: s(self%nylm, self%nsph)
+   real(wp), intent(in) :: s(self%nylm, self%nat)
    real(wp), intent(inout) :: xi(self%ncav)
 
-   integer :: its, isph, ii
+   integer :: its, iat, ii
 
    ii = 0
-   do isph = 1, self%nsph
+   do iat = 1, self%nat
       do its = 1, self%ngrid
-         if (self%ui(its, isph) .gt. 0.0_wp) then
+         if (self%ui(its, iat) > 0.0_wp) then
             ii = ii + 1
-            xi(ii) = self%w(its)*self%ui(its, isph) &
-               & * dot_product(self%basis(:, its), s(:, isph))
+            xi(ii) = self%w(its)*self%ui(its, iat) &
+               & * dot_product(self%basis(:, its), s(:, iat))
          end if
       end do
    end do
@@ -1503,18 +1503,18 @@ end subroutine ddmkxi
 !
 pure subroutine ddmkzeta(self, s, zeta)
    type(TddCosmo), intent(in) :: self
-   real(wp), intent(in) :: s(self%nylm, self%nsph)
+   real(wp), intent(in) :: s(self%nylm, self%nat)
    real(wp), intent(inout) :: zeta(self%ncav)
 
-   integer :: its, isph, ii
+   integer :: its, iat, ii
 
    ii = 0
-   do isph = 1, self%nsph
+   do iat = 1, self%nat
       do its = 1, self%ngrid
-         if (self%ui(its, isph) .gt. 0.0_wp) then
+         if (self%ui(its, iat) > 0.0_wp) then
             ii = ii + 1
-            zeta(ii) = self%w(its) * self%ui(its, isph) &
-               & * dot_product(self%basis(:, its), s(:, isph))
+            zeta(ii) = self%w(its) * self%ui(its, iat) &
+               & * dot_product(self%basis(:, its), s(:, iat))
          end if
       end do
    end do

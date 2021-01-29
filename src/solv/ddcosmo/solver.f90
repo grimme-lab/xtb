@@ -404,36 +404,36 @@ subroutine lx(ddCosmo, n, x, y)
 
    type(TddCosmo), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nsph)
-   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
 
-   integer :: isph, istatus
+   integer :: iat, istatus
    real(wp), allocatable :: pot(:), vplm(:), basloc(:), vcos(:), vsin(:)
 
    ! allocate workspaces
    allocate(pot(ddCosmo%ngrid), vplm(ddCosmo%nylm), basloc(ddCosmo%nylm), &
       & vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'X', ddCosmo%nsph, 0, x)
+   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
 
    ! initialize
    y = 0.0_wp
 
-   !$omp parallel do default(shared) private(isph, pot, basloc, vplm, vcos, vsin) &
+   !$omp parallel do default(shared) private(iat, pot, basloc, vplm, vcos, vsin) &
    !$omp schedule(dynamic)
    ! loop over spheres
-   do isph = 1, ddCosmo%nsph
+   do iat = 1, ddCosmo%nat
 
       ! compute NEGATIVE action of off-digonal blocks
-      call calcv(ddCosmo, .false., isph, pot, x, basloc, vplm, vcos, vsin)
-      call intrhs(ddCosmo, isph, pot, y(:, isph))
+      call calcv(ddCosmo, .false., iat, pot, x, basloc, vplm, vcos, vsin)
+      call intrhs(ddCosmo, iat, pot, y(:, iat))
 
       ! action of off-diagonal blocks
-      y(:, isph) = - y(:, isph)
+      y(:, iat) = - y(:, iat)
 
    end do
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'LX (off diagonal)', ddCosmo%nsph, 0, y)
+   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'LX (off diagonal)', ddCosmo%nat, 0, y)
 
 end subroutine lx
 
@@ -446,46 +446,46 @@ subroutine lstarx(ddCosmo, n, x, y)
 
    type(TddCosmo), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nsph)
-   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
 
-   integer :: isph, ig, istatus
+   integer :: iat, ig, istatus
    real(wp), allocatable :: xi(:, :), vplm(:), basloc(:), vcos(:), vsin(:)
 
    ! allocate workspaces
-   allocate(xi(ddCosmo%ngrid, ddCosmo%nsph), vplm(ddCosmo%nylm), &
+   allocate(xi(ddCosmo%ngrid, ddCosmo%nat), vplm(ddCosmo%nylm), &
       & basloc(ddCosmo%nylm), vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'X', ddCosmo%nsph, 0, x)
+   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
 
    ! initilize
    y = 0.0_wp
 
    ! expand x over spherical harmonics
-   !$omp parallel do default(shared) private(isph, ig)
+   !$omp parallel do default(shared) private(iat, ig)
    ! loop over spheres
-   do isph = 1, ddCosmo%nsph
+   do iat = 1, ddCosmo%nat
       ! loop over gridpoints
       do ig = 1, ddCosmo%ngrid
-         xi(ig, isph) = dot_product(x(:, isph), ddCosmo%basis(:, ig))
+         xi(ig, iat) = dot_product(x(:, iat), ddCosmo%basis(:, ig))
       end do
    end do
 
    ! compute action
-   !$omp parallel do default(shared) private(isph, basloc, vplm, vcos, vsin) &
+   !$omp parallel do default(shared) private(iat, basloc, vplm, vcos, vsin) &
    !$omp schedule(dynamic)
    ! loop over spheres
-   do isph = 1, ddCosmo%nsph
+   do iat = 1, ddCosmo%nat
 
       ! compute NEGATIVE action of off-digonal blocks
-      call adjrhs(ddCosmo, isph, xi, y(:, isph), basloc, vplm, vcos, vsin)
+      call adjrhs(ddCosmo, iat, xi, y(:, iat), basloc, vplm, vcos, vsin)
 
       ! action of off-diagonal blocks
-      y(:, isph) = - y(:, isph)
+      y(:, iat) = - y(:, iat)
 
    end do
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'L*X (off-diagonal)', ddCosmo%nsph, 0, y)
+   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'L*X (off-diagonal)', ddCosmo%nat, 0, y)
 
 end subroutine lstarx
 
@@ -494,15 +494,15 @@ end subroutine lstarx
 pure subroutine ldm1x(ddCosmo, n, x, y)
    type(TddCosmo), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nsph)
-   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
 
-   integer :: isph
+   integer :: iat
 
    ! loop over spheres
-   do isph = 1, ddCosmo%nsph
+   do iat = 1, ddCosmo%nat
       ! apply inverse
-      y(:, isph) = ddCosmo%facl*x(:, isph)
+      y(:, iat) = ddCosmo%facl*x(:, iat)
    end do
 
 end subroutine ldm1x
@@ -513,22 +513,22 @@ end subroutine ldm1x
 real(wp) function hnorm(ddCosmo, n, x)
    type(TddCosmo), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nsph)
-   integer :: isph, istatus
+   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
+   integer :: iat, istatus
    real(wp) :: vrms, vmax
    real(wp), allocatable :: u(:)
 
    ! allocate workspace
-   allocate(u(ddCosmo%nsph))
+   allocate(u(ddCosmo%nat))
 
    ! loop over spheres
-   do isph = 1, ddCosmo%nsph
+   do iat = 1, ddCosmo%nat
       ! compute norm contribution
-      call hsnorm(ddCosmo, x(:, isph), u(isph))
+      call hsnorm(ddCosmo, x(:, iat), u(iat))
    end do
 
    ! compute rms of norms
-   call rmsvec(ddCosmo%nsph, u, vrms, vmax)
+   call rmsvec(ddCosmo%nat, u, vrms, vmax)
 
    ! return value
    hnorm = vrms

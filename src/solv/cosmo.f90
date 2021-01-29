@@ -142,7 +142,7 @@ subroutine update(self, env, num, xyz)
    if (allocated(self%sigma)) deallocate(self%sigma)
    if (allocated(self%s)) deallocate(self%s)
 
-   self%ddCosmo%TddControl = TddControl(iprint=0, lmax=6, ngrid=self%nAng, &
+   self%ddCosmo%TddControl = TddControl(iprint=1, lmax=6, ngrid=self%nAng, &
       & iconv=8, igrad=1, eps=self%dielectricConst, eta=0.2_wp)
 
    call ddinit(self%ddCosmo, env, self%nat, xyz, self%rvdw)
@@ -150,7 +150,7 @@ subroutine update(self, env, num, xyz)
    allocate(self%phi(self%ddCosmo%ncav), self%psi(self%ddCosmo%nylm, self%nat))
    allocate(self%jmat(self%ddCosmo%ncav, self%nat))
 
-   call mkjmat(self%nat, xyz, self%ddCosmo%ncav, self%ddCosmo%ccav, self%jmat)
+   call mkjmat(xyz, self%ddCosmo%ccav, self%jmat)
 
 end subroutine update
 
@@ -266,7 +266,7 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
    !> Molecular gradient
    real(wp), intent(inout) :: gradient(:, :)
 
-   integer :: ii, isph, ig
+   integer :: ii, iat, ig
    real(wp) :: xx(1), esolv
    real(wp), allocatable :: fx(:, :), zeta(:), ef(:, :)
 
@@ -288,16 +288,16 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
 
    ! 1. solute's electric field at the cav points times zeta:
    !    compute the electric field
-   call efld(self%nat, qat, self%ddCosmo%csph, self%ddCosmo%ncav, &
+   call efld(self%nat, qat, self%ddCosmo%xyz, self%ddCosmo%ncav, &
       & self%ddCosmo%ccav, ef)
 
    ! contract it with the zeta intermediate
    ii = 0
-   do isph = 1, self%ddCosmo%nsph
+   do iat = 1, self%ddCosmo%nat
       do ig = 1, self%ddCosmo%ngrid
-         if (self%ddCosmo%ui(ig, isph).gt.0.0_wp) then
+         if (self%ddCosmo%ui(ig, iat) > 0.0_wp) then
             ii = ii + 1
-            fx(:, isph) = fx(:, isph) - zeta(ii)*ef(:, ii)
+            fx(:, iat) = fx(:, iat) - zeta(ii)*ef(:, ii)
          end if
       end do
    end do
@@ -305,11 +305,11 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
    ! 2. "zeta's" electric field at the nuclei times the charges.
    !    compute the "electric field"
    call efld(self%ddCosmo%ncav, zeta, self%ddCosmo%ccav, self%nat, &
-      & self%ddCosmo%csph, ef)
+      & self%ddCosmo%xyz, ef)
 
    ! contract it with the solute's charges.
-   do isph = 1, self%ddCosmo%nsph
-      fx(:, isph) = fx(:, isph) - ef(:, isph)*qat(isph)
+   do iat = 1, self%ddCosmo%nat
+      fx(:, iat) = fx(:, iat) - ef(:, iat)*qat(iat)
    end do
 
    gradient(:, :) = gradient(:, :) - fx
@@ -325,7 +325,7 @@ subroutine mkrhs(n, charge, ncav, jmat, phi, nylm, psi)
    real(wp), intent(inout) :: phi(ncav)
    real(wp), intent(inout) :: psi(nylm, n)
 
-   integer :: isph, ic, j
+   integer :: iat, ic, j
    real(wp) :: v
    real(wp) :: vec(3), d2, d, pi, fac
    real(wp), parameter :: zero=0.0_wp, one=1.0_wp, four=4.0_wp
@@ -337,27 +337,28 @@ subroutine mkrhs(n, charge, ncav, jmat, phi, nylm, psi)
    call mctc_gemv(jmat, charge, phi)
 
    ! psi vector:
-   do isph = 1, n
-      psi(1, isph) = fac*charge(isph)
+   do iat = 1, n
+      psi(1, iat) = fac*charge(iat)
    end do
 
 end subroutine mkrhs
 
 
-subroutine mkjmat(n, xyz, ncav, ccav, jmat)
-   integer, intent(in) :: n, ncav
-   real(wp), intent(in) :: xyz(3, n)
-   real(wp), intent(in) :: ccav(3, ncav)
-   real(wp), intent(inout) :: jmat(ncav, n)
+!> Evaluate the Coulomb interactions between the atomic sides (xyz) and the
+!> surface elements of the cavity (ccav).
+subroutine mkjmat(xyz, ccav, jmat)
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(in) :: ccav(:, :)
+   real(wp), intent(inout) :: jmat(:, :)
 
-   integer :: isph, ic, j
+   integer :: iat, ic, j
    real(wp) :: v
    real(wp) :: vec(3), d2, d, pi, fac
    real(wp), parameter :: zero=0.0_wp, one=1.0_wp, four=4.0_wp
 
    !$omp parallel do default(shared) private(ic, j, vec, d2, d)
-   do ic = 1, ncav
-      do j = 1, n
+   do ic = 1, size(ccav, 2)
+      do j = 1, size(xyz, 2)
          vec(:) = ccav(:, ic) - xyz(:, j)
          d2 = vec(1)**2 + vec(2)**2 + vec(3)**2
          d = sqrt(d2)
@@ -396,15 +397,15 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
 
    !> Contains the right-hand side for the COSMO equations if cart is false.
    !  glm is not referenced in any other case
-   real(wp), intent(in) :: glm(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(in) :: glm(ddCosmo%nylm, ddCosmo%nat)
 
    !> The solution to the COSMO (adjoint) equations
-   real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nat)
 
    !> Initial guess is provided on sigma
    logical, intent(in) :: restart
 
-   integer :: isph, istatus, n_iter, info, c1, c2, cr
+   integer :: iat, istatus, n_iter, info, c1, c2, cr
    real(wp) :: tol, r_norm
    logical :: ok
 
@@ -417,8 +418,8 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
    ! DIRECT COSMO EQUATION L X = g
 
    ! allocate workspace for rhs
-   allocate(rhs(ddCosmo%nylm, ddCosmo%nsph), stat=istatus)
-   if (istatus .ne. 0) then
+   allocate(rhs(ddCosmo%nylm, ddCosmo%nat), stat=istatus)
+   if (istatus /= 0) then
       write(*, *) ' cosmo: [2] failed allocation'
    endif
 
@@ -427,8 +428,8 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
    if (cart) then
 
       ! allocate workspace for weighted potential
-      allocate(g(ddCosmo%ngrid, ddCosmo%nsph) , stat=istatus)
-      if (istatus .ne. 0) then
+      allocate(g(ddCosmo%ngrid, ddCosmo%nat) , stat=istatus)
+      if (istatus /= 0) then
          write(*, *) ' cosmo: [3] failed allocation'
       endif
 
@@ -436,13 +437,13 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
       call wghpot(ddCosmo, phi, g)
 
       ! ... and compute its multipolar expansion
-      do isph = 1, ddCosmo%nsph
-         call intrhs(ddCosmo, isph, g(:, isph), rhs(:, isph))
+      do iat = 1, ddCosmo%nat
+         call intrhs(ddCosmo, iat, g(:, iat), rhs(:, iat))
       enddo
 
       ! deallocate workspace
       deallocate(g , stat=istatus)
-      if (istatus.ne.0) then
+      if (istatus /= 0) then
          write(*, *) 'cosmo: [1] failed deallocation'
       endif
 
@@ -453,8 +454,8 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
 
    ! 2. INITIAL GUESS
    if (.not.restart) then
-      do isph = 1, ddCosmo%nsph
-         sigma(:, isph) = ddCosmo%facl(:)*rhs(:, isph)
+      do iat = 1, ddCosmo%nat
+         sigma(:, iat) = ddCosmo%facl(:)*rhs(:, iat)
       end do
    end if
 
@@ -463,7 +464,7 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
    ! L X = (diag + offdiag) X = g   ==>    X = diag^-1 (g - offdiag X_guess)
    ! action of  diag^-1 :  ldm1x
    ! action of  offdiag :  lx
-   call jacobi_diis(ddCosmo, env, ddCosmo%nsph*ddCosmo%nylm, ddCosmo%iprint, &
+   call jacobi_diis(ddCosmo, env, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
       & ndiis, 4, tol, rhs, sigma, n_iter, ok, lx, ldm1x, hnorm)
 
    ! check solution
@@ -488,10 +489,10 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
    type(TddCosmo), intent(in) :: ddCosmo
 
    !> The psi vector. it is used as a right-hand side
-   real(wp), intent(in) :: psi(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(in) :: psi(ddCosmo%nylm, ddCosmo%nat)
 
    !> The solution to the COSMO (adjoint) equations
-   real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nat)
 
    !> Initial guess is provided on sigma
    logical, intent(in) :: restart
@@ -499,7 +500,7 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
    !> Overwrite accuracy
    integer, intent(in), optional :: accuracy
 
-   integer :: isph, istatus, n_iter, info, c1, c2, cr
+   integer :: iat, istatus, n_iter, info, c1, c2, cr
    real(wp) :: tol, r_norm
    logical :: ok
 
@@ -515,14 +516,14 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
 
    ! 1. INITIAL GUESS
    if (.not.restart) then
-      do isph = 1, ddCosmo%nsph
-         sigma(:, isph) = ddCosmo%facl(:)*psi(:, isph)
+      do iat = 1, ddCosmo%nat
+         sigma(:, iat) = ddCosmo%facl(:)*psi(:, iat)
       end do
    end if
 
    ! 2. SOLVER CALL
    ! Jacobi method : see above
-   call jacobi_diis(ddCosmo, env, ddCosmo%nsph*ddCosmo%nylm, ddCosmo%iprint, &
+   call jacobi_diis(ddCosmo, env, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
       & ndiis, 4, tol, psi, sigma, n_iter, ok, lstarx, ldm1x, hnorm)
 
    ! check solution
@@ -539,17 +540,17 @@ subroutine forces(ddCosmo, n, phi, sigma, s, fx)
    type(TddCosmo), intent(in) :: ddCosmo
    integer, intent(in) :: n
    real(wp), intent(in) :: phi(ddCosmo%ncav)
-   real(wp), intent(in) :: sigma(ddCosmo%nylm, ddCosmo%nsph)
-   real(wp), intent(in) :: s(ddCosmo%nylm, ddCosmo%nsph)
+   real(wp), intent(in) :: sigma(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: s(ddCosmo%nylm, ddCosmo%nat)
    real(wp), intent(inout) :: fx(3, n)
 
-   integer :: isph, ig, ii, c1, c2, cr
+   integer :: iat, ig, ii, c1, c2, cr
    real(wp) :: fep
 
    real(wp), allocatable :: xi(:, :), phiexp(:, :), zeta(:), ef(:, :)
    real(wp), allocatable :: basloc(:), dbsloc(:, :), vplm(:), vcos(:), vsin(:)
 
-   allocate (xi(ddCosmo%ngrid, ddCosmo%nsph), phiexp(ddCosmo%ngrid, ddCosmo%nsph))
+   allocate (xi(ddCosmo%ngrid, ddCosmo%nat), phiexp(ddCosmo%ngrid, ddCosmo%nat))
    allocate (basloc(ddCosmo%nylm), dbsloc(3, ddCosmo%nylm), vplm(ddCosmo%nylm), &
       & vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
@@ -558,52 +559,51 @@ subroutine forces(ddCosmo, n, phi, sigma, s, fx)
    call system_clock(count=c1)
 
    ! compute xi:
-   !$omp parallel do default(shared) private(isph, ig)
-   do isph = 1, ddCosmo%nsph
+   !$omp parallel do default(shared) private(iat, ig)
+   do iat = 1, ddCosmo%nat
       do ig = 1, ddCosmo%ngrid
-         xi(ig, isph) = dot_product(s(:, isph), ddCosmo%basis(:, ig))
+         xi(ig, iat) = dot_product(s(:, iat), ddCosmo%basis(:, ig))
       end do
    end do
-   !$omp end parallel do
 
-   if (ddCosmo%iprint.ge.4) call ptcart(ddCosmo, 'xi', ddCosmo%nsph, 0, xi)
+   if (ddCosmo%iprint >= 4) call ptcart(ddCosmo, 'xi', ddCosmo%nat, 0, xi)
 
    ! expand the potential on a sphere-by-sphere basis (needed for parallelism):
 
    ii = 0
    phiexp = 0.0_wp
-   do isph = 1, ddCosmo%nsph
+   do iat = 1, ddCosmo%nat
       do ig = 1, ddCosmo%ngrid
-         if (ddCosmo%ui(ig, isph).gt.0.0_wp) then
+         if (ddCosmo%ui(ig, iat) > 0.0_wp) then
             ii = ii + 1
-            phiexp(ig, isph) = phi(ii)
+            phiexp(ig, iat) = phi(ii)
          end if
       end do
    end do
 
    fx = 0.0_wp
-   do isph = 1, ddCosmo%nsph
-      call fdoka(ddCosmo, isph, sigma, xi(:, isph), basloc, dbsloc, vplm, &
-         & vcos, vsin, fx(:, isph))
-      call fdokb(ddCosmo, isph, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, &
-         & fx(:, isph))
-      call fdoga(ddCosmo, isph, xi, phiexp, fx(:, isph))
+   do iat = 1, ddCosmo%nat
+      call fdoka(ddCosmo, iat, sigma, xi(:, iat), basloc, dbsloc, vplm, &
+         & vcos, vsin, fx(:, iat))
+      call fdokb(ddCosmo, iat, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, &
+         & fx(:, iat))
+      call fdoga(ddCosmo, iat, xi, phiexp, fx(:, iat))
    end do
 
    2000 format(1x, 'ddCOSMO-only contributions to the forces (atomic units):', /, &
       1x, ' atom', 15x, 'x', 15x, 'y', 15x, 'z')
 
-   if (ddCosmo%iprint.ge.4) then
+   if (ddCosmo%iprint >= 4) then
       write(iout, 2000)
-      do isph = 1, ddCosmo%nsph
-         write(6, '(1x, i5, 3f16.8)') isph, fx(:, isph)
+      do iat = 1, ddCosmo%nat
+         write(6, '(1x, i5, 3f16.8)') iat, fx(:, iat)
       end do
    end if
 
    deallocate (basloc, dbsloc, vplm, vcos, vsin)
 
    call system_clock(count=c2)
-   if (ddCosmo%iprint.gt.0) then
+   if (ddCosmo%iprint > 0) then
       write(iout, 1010) dble(c2-c1)/dble(cr)
       1010 format(' the computation of the ddCOSMO part of the forces took ', f8.3, ' seconds.')
    end if
