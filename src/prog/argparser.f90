@@ -102,8 +102,10 @@ subroutine initArgument(self, iArg)
    integer, intent(in) :: iArg
 
    integer :: length
+   character(len=*), parameter :: numbers = &
+      '0123456789.eE+-'
    character(len=*), parameter :: flagchars = &
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-'
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-'
 
    self%unused = .true.
 
@@ -112,8 +114,9 @@ subroutine initArgument(self, iArg)
    call get_command_argument(iArg, self%raw)
 
    inquire(file=self%raw, exist=self%isFile)
-   self%isFlag = index(self%raw, '-') == 1 &
-      & .and. (len(self%raw) > 2 .or. verify(self%raw, flagchars) == 0)
+   self%isFlag = index(self%raw, '-') == 1 &  ! starts with a dash
+      & .and. verify(self%raw, flagchars) == 0 &  ! looks like a flag
+      & .and. verify(self%raw, numbers) > 0  ! but not like a number
 
 end subroutine initArgument
 

@@ -93,7 +93,7 @@ subroutine ff_ini(n,at,xyz,cn,s6)
 
    inquire(file='solvent',exist=exist)
    if(.not.exist) then
-      call raise('E','FF run requested but solvent file does not exist!',1)
+      call raise('E','FF run requested but solvent file does not exist!')
    endif
 
    write(output_unit,'("initializing FF ..")')

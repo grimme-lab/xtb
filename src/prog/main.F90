@@ -351,11 +351,13 @@ subroutine xtbMain(env, argParser)
    call init_constr(mol%n,mol%at)
    call init_scan
    call init_walls
+   call init_pcem
    if (runtyp.eq.p_run_bhess) then
       call init_bhess(mol%n)
    else
       call init_metadyn(mol%n,metaset%maxsave)
    end if
+   call load_rmsdbias(rmsdset,mol%n,mol%at,mol%xyz)
 
    ! ------------------------------------------------------------------------
    !> get some memory
@@ -450,7 +452,7 @@ subroutine xtbMain(env, argParser)
       call eval_define(veryverbose)
    endif
    call env%show('Please study the warnings concerning your input carefully')
-   call raise('F', 'Please study the warnings concerning your input carefully', 1)
+   call raise('F', 'Please study the warnings concerning your input carefully')
 
    ! ========================================================================
    !> From here we switch to the method setup
@@ -1023,7 +1025,7 @@ subroutine xtbMain(env, argParser)
    !  so we should tell the user, (s)he may want to know what went wrong
    call env%show("Runtime exception occurred")
    call raise('F','Some non-fatal runtime exceptions were caught,'// &
-      &           ' please check:',1)
+      &           ' please check:')
 
    ! ------------------------------------------------------------------------
    !  print all files xtb interacted with while running (for debugging mainly)
@@ -1169,8 +1171,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case(     '--define')
          call set_define
 
-   !$ case('-P','--parallel')
-   !$    call args%nextArg(sec)
+      case('-P','--parallel')
+   !$    if (.false.) then
+            call env%warning('Program compiled without threading support', source)
+   !$    endif
+         ! Always remove next argument to keep argument parsing consistent
+         call args%nextArg(sec)
    !$    if (allocated(sec)) then
    !$    if (getValue(env,sec,idum)) then
    !$       nproc = omp_get_num_threads()
@@ -1361,7 +1367,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--fod')
          call set_write(env,'fod','true')
-         call set_scc(env,'etemp','12500.0')
+         call set_scc(env,'temp','5000.0')
 
       case('--iterations')
          call args%nextArg(sec)
@@ -1515,6 +1521,14 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)
+         end if
+
+      case('--bias-input', '--gesc')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_metadyn(env, 'bias-input', sec)
+         else
+            call env%error("No input file for RMSD bias provided", source)
          end if
 
       end select

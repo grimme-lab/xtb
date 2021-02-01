@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine expire
-   use iso_fortran_env
+   use, intrinsic :: iso_fortran_env, only : output_unit
    implicit none
    intrinsic date_and_time
 

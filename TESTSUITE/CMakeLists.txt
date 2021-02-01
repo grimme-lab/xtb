@@ -1,6 +1,6 @@
 # This file is part of xtb.
 #
-# Copyright (C) 2019-2020 Sebastian Ehlert
+# Copyright (C) 2019-2021 Sebastian Ehlert
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
@@ -36,6 +36,7 @@ set(tests
   "${dir}/gfn1.f90"
   "${dir}/gfn0.f90"
   "${dir}/gfnff.f90"
+  "${dir}/hessian.f90"
   "${dir}/peeq.f90"
   "${dir}/repulsion.f90"
   "${dir}/symmetry.f90"
@@ -136,6 +137,7 @@ add_test("GFN2-xTB_API" ${XTB-TESTER} gfn2 api)
 add_test("GFN2-xTB_API_GBSA" ${XTB-TESTER} gfn2 gbsa)
 add_test("GFN2-xTB_API_GBSA_salt" ${XTB-TESTER} gfn2 salt)
 add_test("GFN2-xTB_d_Metal" ${XTB-TESTER} gfn2 d-metal)
+add_test("GFN2-xTB_freq" ${XTB-TESTER} hessian gfn2)
 #add_test("GFN2-xTB_API_PCEM" ${XTB-TESTER} gfn2 pcem)
 add_test("GFN1-xTB_Basic" ${XTB-TESTER} gfn1 basic)
 add_test("GFN1-xTB_Solvation" ${XTB-TESTER} gfn1 solvation)
@@ -145,6 +147,8 @@ add_test("GFN1-xTB_API_XB" ${XTB-TESTER} gfn1 xb)
 add_test("GFN1-xTB_API_PBC" ${XTB-TESTER} gfn1 pbc3d)
 add_test("GFN1-xTB_API_GBSA" ${XTB-TESTER} gfn1 gbsa)
 add_test("GFN1-xTB_API_PCEM" ${XTB-TESTER} gfn1 pcem)
+add_test("GFN1-xTB_freq" ${XTB-TESTER} hessian gfn1)
+add_test("GFN1-xTB_IPEA" ${XTB-TESTER} gfn1 ipea)
 add_test("GFN0-xTB_Basic" ${XTB-TESTER} gfn0 basic)
 add_test("GFN0-xTB_Solvation" ${XTB-TESTER} gfn0 solvation)
 add_test("GFN0-xTB_SP" ${XTB-TESTER} gfn0 sp)
@@ -176,6 +180,7 @@ set_tests_properties(EXE_Singlepoint
   "GFN2-xTB_API"
   "GFN2-xTB_API_GBSA"
   "GFN2-xTB_API_GBSA_salt"
+  "GFN2-xTB_freq"
   #"GFN2-xTB_API_PCEM"
   "GFN1-xTB_SCC"
   "GFN1-xTB_API"
@@ -183,6 +188,8 @@ set_tests_properties(EXE_Singlepoint
   "GFN1-xTB_API_PBC"
   "GFN1-xTB_API_GBSA"
   "GFN1-xTB_API_PCEM"
+  "GFN1-xTB_IPEA"
+  "GFN1-xTB_freq"
   "GFN0-xTB_Basic"
   "GFN0-xTB_Solvation"
   "GFN0-xTB_SP"

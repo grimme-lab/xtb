@@ -9,6 +9,8 @@ program peeq_tester
    use xtb_mctc_systools
    use xtb_mctc_convert
 
+   use test_hessian
+
    implicit none
 
 ! ------------------------------------------------------------------------
@@ -90,7 +92,10 @@ program peeq_tester
       case('pcem'); call test_gfn1_pcem_api
       case('xb'); call test_gfn1_xb
       case('pbc3d'); call test_gfn1_pbc3d
+      case('ipea'); call test_ipea_indole
       end select
+   case('hessian')
+      call run_hessian_test(sec)
    case('gfn0')
       select case(sec)
       case('basic'); call test_gfn0_mindless_basic

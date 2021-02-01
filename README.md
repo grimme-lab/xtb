@@ -4,7 +4,6 @@
 [![Latest Version](https://img.shields.io/github/v/release/grimme-lab/xtb)](https://github.com/grimme-lab/xtb/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1002%2Fwcms.1493-blue)](https://doi.org/10.1002/wcms.1493)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/grimme-lab/xtb/total)](https://github.com/grimme-lab/xtb/releases)
-[![Gitter](https://badges.gitter.im/xtb-dev/community.svg)](https://gitter.im/xtb-dev/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 This is the offical repository of the `xtb` program package developed by the Grimme group in Bonn.
 
@@ -12,20 +11,25 @@ This is the offical repository of the `xtb` program package developed by the Gri
 <img src="./assets/logo/xtb.svg" alt="Extended Tight Binding" width="220">
 </div>
 
+
 ## Installation
 
-[![Build Status](https://img.shields.io/travis/com/grimme-lab/xtb?logo=linux&logoColor=white)](https://travis-ci.com/grimme-lab/xtb)
-[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI?logo=apple&logoColor=white)](https://github.com/grimme-lab/xtb/actions)
+[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI)](https://github.com/grimme-lab/xtb/actions)
 
-Statically linked binaries (Intel Compiler 17.0.7) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
+Statically linked binaries (Intel Compiler 18.0.2) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
 There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
+Bleeding edge releases of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
 
-`xtb` is routinely compiled with Intel Parallel Studio 17 on our clusters in Bonn, successful builds on OSX have been performed as well.
-We have not tried to build `xtb` on Windows so far.
-It is also possible to compile `xtb` with GCC (version 8), but we recommend to use binaries compiled with Intel.
+`xtb` is routinely compiled with Intel Parallel Studio 18 and newer on our clusters in Bonn.
+It is also possible to compile `xtb` with GCC (version 7.5 or newer), but we recommend to use binaries compiled with Intel.
+Successful builds on OSX with GCC via homebrew have been performed as well.
+The NVHPC compilers (version 20.9, 20.11) can be used to compile for CPU and GPU.
+To compile on Windows we recommend the MinGW toolchain (installable with [MSYS2](https://msys2.org)) or, if a POSIX environment is preferred, [Cygwin](https://cygwin.com).
+It has been reported that `xtb` can be compiled using Intel Fortran on Windows as well, but official support is not yet established.
 
 This projects supports two build systems, meson and CMake.
 A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
+
 
 ### Meson
 
@@ -48,6 +52,7 @@ ninja -C build install
 
 For more information on the build with meson see the instructions [here](./meson/README.adoc).
 
+
 ### CMake
 
 The CMake build system requires both make and CMake to be installed, the latter has to be version 3.9 or newer.
@@ -55,12 +60,9 @@ The CMake build system requires both make and CMake to be installed, the latter 
 Building `xtb` with CMake works with the following chain of commands:
 
 ```bash
-mkdir build
-pushd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-ctest
-popd
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+make -C build
+make -C build test
 ```
 
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
@@ -70,6 +72,7 @@ make -C build install
 ```
 
 For more detailed information on the build with CMake see the instructions [here](./cmake/README.adoc).
+
 
 ### Conda
 
@@ -93,15 +96,60 @@ It is possible to list all of the versions of `xtb` available on your platform w
 conda search xtb --channel conda-forge
 ```
 
+
 ## Documentation
 
 [![Documentation Status](https://readthedocs.org/projects/xtb-docs/badge/?version=latest)](https://xtb-docs.readthedocs.io/en/latest/?badge=latest)
 
 The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
 
+
 ## Contributing
 
-See our [contributing guidelines](CONTRIBUTING.md).
+Please read our [contributing guidelines](CONTRIBUTING.md)
+before contributing to this project.
+
+
+### Contributors
+
+We are developing this program to make our research possible.
+Many of the features that `xtb` has today have been added because there
+was a dire need for them and we had many contributors who made these
+features reality:
+
+- P. Atkinson ([@patrickatkinson](https://github.com/patrickatkinson))
+- C. Bannwarth ([@cbannwarth](https://github.com/cbannwarth))
+- F. Bohle ([@fabothch](https://github.com/fabothch))
+- [G. Brandenburg](http://www.gerit-brandenburg.de/) ([@gbrandenburg](https://github.com/gbrandenburg))
+- [E. Caldeweyher](https://eikecaldeweyher.de/) ([@f3rmion](https://github.com/f3rmion))
+- M. Checinski
+- S. Dohm ([@thch-dohm](https://github.com/thch-dohm))
+- S. Ehlert ([@awvwgk](https://github.com/awvwgk))
+- S. Ehrlich
+- I. Gerasimov ([@FulgurIgor](https://github.com/fulgurigor))
+- [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
+- J. Koopman ([@JayTheDog](https://github.com/jaythedog))
+- C. Lavinge ([@clavinge](https://github.com/clavinge))
+- S. Lehtola ([@susilehtola](https://github.com/susilehtola))
+- F. März
+- M. Müller ([@marcelmbn](https://github.com/marcelmbn))
+- F. Musil ([@felixmusil](https://github.com/felixmusil))
+- H. Neugebauer ([@haneug](https://github.com/haneug))
+- J. Pisarek
+- P. Pracht ([@pprcht](https://github.com/pprcht))
+- J. Seibert ([@liljay42](https://github.com/liljay42))
+- P. Shushkov
+- S. Spicher ([@sespic](https://github.com/sespic))
+- M. Stahn ([@MtoLStoN](https://github.com/mtolston))
+- T. Strunk ([@timostrunk](https://github.com/timostrunk))
+- J. Stückrath ([@jbstueckrath](https://github.com/jbstueckrath))
+- T. Rose ([@Thomas3R](https://github.com/thomas3r))
+- J. Unsleber ([@nabbelbabbel](https://github.com/nabbelbabbel))
+
+Contributors are listed in alphabetical order.
+Some contributions predate the GitHub release of this project and are not visible in the repository commit history.
+For the contributor data from the commit history since then look [here](https://github.com/grimme-lab/xtb/graphs/contributors).
+
 
 ## Citations
 
@@ -146,6 +194,7 @@ for metadynamics refer to:
 
 All references are available in [bibtex format](./assets/references.bib).
 
+
 ## License
 
 `xtb` is free software: you can redistribute it and/or modify it under
@@ -157,3 +206,8 @@ the Free Software Foundation, either version 3 of the License, or
 but without any warranty; without even the implied warranty of
 merchantability or fitness for a particular purpose.  See the
 GNU Lesser General Public License for more details.
+
+Unless you explicitly state otherwise, any contribution intentionally
+submitted for inclusion in `xtb` by you, as defined in the
+GNU Lesser General Public license, shall be licensed as above, without any
+additional terms or conditions.

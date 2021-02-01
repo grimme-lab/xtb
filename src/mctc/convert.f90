@@ -59,4 +59,6 @@ module xtb_mctc_convert
 !  Debye to atomic units
    real(wp),public,parameter :: autod = autoc * lightspeed * autoaa**2 * fstoau * 1.0e+16_wp
    real(wp),public,parameter :: dtoau = 1.0_wp/autod
+!  Dipole derivatives along mass-weighted normal mode coordinates (a.u.) to km/mol (IR int.)
+   real(wp),public,parameter :: autokmmol = 1.7770969e+6_wp
 end module xtb_mctc_convert

@@ -722,7 +722,7 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
             ss = 0.0_wp
             dd2 = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)

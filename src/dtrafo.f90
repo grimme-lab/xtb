@@ -201,7 +201,7 @@ subroutine sao2cao(nbf,s,ncao,x,basis)
   i=i+1
   if(i.lt.ncao)goto 42
   ! sanity check
-  if(new.ne.j) call raise('E','in sao2cao trafo',1)
+  if(new.ne.j) call raise('E','in sao2cao trafo')
 
   x=0.0d0
 

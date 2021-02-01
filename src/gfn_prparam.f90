@@ -82,7 +82,7 @@ subroutine gfn1_prparam(iunit,n,at,par)
 end subroutine gfn1_prparam
 
 subroutine gfn2_prparam(iunit,n,at,par)
-   use iso_fortran_env, kdp => real64
+   use xtb_mctc_accuracy, only : kdp => wp
    use xtb_type_param
    use xtb_aoparam
    implicit none
@@ -140,7 +140,7 @@ subroutine gfn2_prparam(iunit,n,at,par)
 end subroutine gfn2_prparam
 
 subroutine gfn0_prparam(iunit,n,at,par)
-   use iso_fortran_env, kdp => real64
+   use xtb_mctc_accuracy, only : kdp => wp
    use xtb_type_param
    use xtb_aoparam
    implicit none

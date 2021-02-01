@@ -32,7 +32,7 @@ elif fc.get_id() == 'intel'
   add_project_arguments('-axAVX2',    language: 'fortran')
   add_project_arguments('-r8',        language: 'fortran')
   add_project_arguments('-traceback', language: 'fortran')
-elif fc.get_id() == 'pgi'
+elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
   add_project_arguments(
     '-Mpreprocess', '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
     language: 'fortran'
@@ -72,13 +72,22 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
 
   if fc.get_id() == 'gcc'
     libmkl_exe = [fc.find_library('mkl_gf_lp64')]
-    libmkl_exe += fc.find_library('mkl_gnu_thread')
+    if get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_gnu_thread')
+    endif
   elif fc.get_id() == 'intel'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_intel_thread')
-  elif fc.get_id() == 'pgi'
+    if get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_intel_thread')
+    endif
+  elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_pgi_thread')
+    if get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_pgi_thread')
+    endif
+  endif
+  if not get_option('openmp')
+    libmkl_exe += fc.find_library('mkl_sequential')
   endif
   libmkl_exe += fc.find_library('mkl_core')
   lib_deps += mkl_rt_dep
@@ -137,12 +146,21 @@ else
 endif
 
 if get_option('openmp')
-  omp_dep = dependency('openmp', required: fc.get_id() != 'intel')
+  omp_dep = dependency('openmp', required: fc.get_id() != 'intel' and fc.get_id() != 'nvidia_hpc')
   if not omp_dep.found()
-    omp_dep = declare_dependency(
-      compile_args: '-qopenmp',
-      link_args: '-qopenmp',
-    )
+    if fc.get_id() == 'intel'
+      message('Using -qopenmp to use OpenMP with Intel compilers')
+      omp_dep = declare_dependency(
+        compile_args: '-qopenmp',
+        link_args: '-qopenmp',
+      )
+    else
+      message('Using -mp to use OpenMP with NVHPC compilers')
+      omp_dep = declare_dependency(
+        compile_args: '-mp',
+        link_args: '-mp',
+      )
+    endif
   endif
   dependencies += omp_dep
 endif

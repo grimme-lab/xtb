@@ -156,6 +156,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    call constrpot   (mol%n,mol%at,mol%xyz,gradient,efix)
    call cavity_egrad(mol%n,mol%at,mol%xyz,efix,gradient)
    call metadynamic (metaset,mol%n,mol%at,mol%xyz,efix,gradient)
+   call metadynamic (rmsdset,mol%n,mol%at,mol%xyz,efix,gradient)
 
    ! ------------------------------------------------------------------------
    !  fixing of certain atoms

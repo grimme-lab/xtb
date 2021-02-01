@@ -53,6 +53,10 @@ subroutine xbpot(halData,n,at,xyz,xblist,nxb,a,exb,g)
    if(nxb.lt.1) return
 
    ! B-X...A
+   !$omp parallel do schedule(runtime) default(none) reduction(+:exb) &
+   !$omp shared(nxb, xblist, at, halData, xyz, lj2, alp, a) &
+   !$omp private(X, AA, B, ati, atj, cc, r0ax, dxa, dxb, dba, d2ax, &
+   !$omp& d2bx, d2ab, rax, XY, aterm, t13, t14, TERM)
    do k=1,nxb
       X =xblist(1,k)
       AA=xblist(2,k)
@@ -78,6 +82,11 @@ subroutine xbpot(halData,n,at,xyz,xblist,nxb,a,exb,g)
    enddo
 
    ! analytic gradient
+   !$omp parallel do schedule(runtime) default(none) reduction(+:g) &
+   !$omp shared(nxb, xblist, at, halData, xyz, lj2, alp) &
+   !$omp private(X, AA, B, ati, atj, cc, r0ax, dxa, dxb, dba, d2ax, &
+   !$omp& d2bx, d2ab, rax, XY, aterm, numerator, denominator, termLJ, &
+   !$omp& dtermlj, prefactor, dcosterm, t13, t14, rbx, TERM)
    do k=1,nxb
       X =xblist(1,k)
       AA=xblist(2,k)

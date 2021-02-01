@@ -283,7 +283,7 @@ subroutine solver_sdavidson(n,crite,Hp,C,e,fail,pr)
    e    = 0
 
    do i=1,n
-      adiag(i)=HP(i*(i-1)/2)
+      adiag(i)=HP(i*(i+1)/2)
    enddo
 
    av(1)=blas_dot(n,C(:,1),1,vecf2,1)

@@ -1,6 +1,6 @@
 # This file is part of xtb.
 #
-# Copyright (C) 2019-2020 Sebastian Ehlert
+# Copyright (C) 2019-2021 Sebastian Ehlert
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
@@ -18,6 +18,8 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/io.f90"
+  "${dir}/numdiff.f90"
   "${dir}/project.f90"
   "${dir}/utils.f90"
 )

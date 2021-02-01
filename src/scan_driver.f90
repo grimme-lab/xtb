@@ -108,7 +108,7 @@ subroutine relaxed_scan(env, mol, chk, calc)
    else if (scan_mode.eq.p_scan_concerted) then
       if (any(scan_list(1:nscan)%nscan.ne.scan_list(1)%nscan)) then
          ! I'm not happy doing this here, since it should be catched already
-         call raise('E','Wrong setup for concerted scan, aborting...',1)
+         call raise('E','Wrong setup for concerted scan, aborting...')
       endif
       do j = 1, scan_list(1)%nscan
          do i = 1, nscan
@@ -132,7 +132,7 @@ subroutine relaxed_scan(env, mol, chk, calc)
 !  BUGGY SCAN
 !  if you land here, you used it wrong. Fix it! Now!
    else
-      call raise('E','We screwed up in scan_driver.f90, blame us in a bug report',1)
+      call raise('E','We screwed up in scan_driver.f90, blame us in a bug report')
    endif
 
    call close_file(ilog)

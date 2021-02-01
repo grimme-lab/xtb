@@ -80,6 +80,7 @@ module xtb_intgrad
       & 0.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp,0.0_wp, &
       & 0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,1.0_wp /), shape(trafo))
 
+   integer, parameter, private :: itt(0:3) = [0,1,4,10]
 
 contains
 
@@ -88,7 +89,6 @@ contains
 !> calculates a partial overlap in one cartesian direction
 pure elemental function olapp(l,gama) result(s)
    !$acc routine seq
-   implicit none
    integer,intent(in) :: l
    real(wp),intent(in) :: gama
    real(wp) :: s
@@ -109,7 +109,6 @@ end function olapp
 !> returns center of product Gaussian from two Gaussians by GPT
 pure function gpcenter(alp,ra,bet,rb) result(rp)
   !$acc routine seq
-   implicit none
    real(wp),intent(in) :: alp,bet
    real(wp),intent(in) :: ra(3),rb(3)
    real(wp) :: rp(3)
@@ -122,7 +121,6 @@ end function gpcenter
 pure subroutine build_kab(ra,alp,rb,bet,gama,kab)
   !$acc routine seq
    use xtb_mctc_constants
-   implicit none
    !     this computes the center, exponent, and multiplying factor of
    !     a single gaussian which can replace the product of two gaussian
    !     centers a and b, and exponents alpha and beta.
@@ -140,7 +138,6 @@ end subroutine build_kab
 ! --------------------------------------------------------------[SAW1712]-
 !> not needed anymore, but the math was lengthy, so I rather keep it
 pure subroutine rhftce2(cfs,a,e,iff)
-   implicit none
    integer, intent(in)  :: iff
    real(wp),intent(in)  :: a(*),e(*)
    real(wp),intent(inout) :: cfs(*)
@@ -244,7 +241,6 @@ end subroutine rhftce2
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine dtrf2(s,li,lj)
    use xtb_mctc_blas, only : mctc_gemm
-   implicit none
    real(wp),intent(inout) :: s(6,6)
    integer, intent(in)    :: li,lj
    ! CAO-AO transformation
@@ -334,7 +330,6 @@ end subroutine dtrf2
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine build_hshift(cfs,a,e,l)
-   implicit none
    integer,intent(in)  :: l(3)
    real(wp), intent(in)  :: a(3),e(3)
    real(wp), intent(inout) :: cfs(3,*)
@@ -371,7 +366,6 @@ end subroutine build_hshift
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine build_hshift2(cfs,a,e,l)
    !$acc routine seq
-   implicit none
    integer,intent(in)  :: l
    real(wp), intent(in)  :: a,e
    real(wp), intent(inout) :: cfs(*)
@@ -495,7 +489,6 @@ end subroutine prod3
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine prod2(a,b,d,la,lb)
-   implicit none
    integer,intent(in)    :: la(3),lb(3)
    real(wp), intent(in)    :: a(3,*),b(3,*)
    real(wp), intent(inout) :: d(3,*)
@@ -589,7 +582,6 @@ end subroutine prod2
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine dsawab(l,ga,v,d)
-   implicit none
    integer,intent(in)  :: l
    real(wp), intent(in)  :: ga,d
    real(wp), intent(out) :: v(*)
@@ -610,16 +602,16 @@ end subroutine dsawab
 !     alpj: beta/exponent of b
 !     la/lb: defines l
 !     nt: dimension of g
-pure subroutine build_sdq_ints(a,b,c,alpi,alpj,la,lb,v)
-   implicit none
+pure subroutine build_sdq_ints(a,b,c,e,alpi,alpj,la,lb,t,v)
    !     aufpunkte,ref point,intarray
    integer,intent(in)  :: la,lb
    real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3),c(3)
+   real(wp), intent(in)  :: a(3),b(3),c(3),e(3)
+   real(wp), intent(in)  :: t(0:8)
    real(wp), intent(out) :: v(10)
    !     local variables
    real(wp)  :: d(3),dd(0:8,3),va(3),val(3,3)
-   real(wp)  :: e(3),aa(0:3,3),bb(0:3,3),t(0:8)
+   real(wp)  :: aa(0:3,3),bb(0:3,3)
    real(wp)  :: gama,kab
    integer :: i,j,ij(3),ii(3),jj(3),lmax
 
@@ -637,12 +629,9 @@ pure subroutine build_sdq_ints(a,b,c,alpi,alpj,la,lb,v)
    bb(jj(1),1)=1.0_wp
    bb(jj(2),2)=1.0_wp
    bb(jj(3),3)=1.0_wp
-   ! apply product theorem
-   ! e is center of product gaussian with exponent gama
-   e = gpcenter(alpi,a,alpj,b)
    ! c is reference point
    d = e - c
-   call build_kab(a,alpi,b,alpj,gama,kab)
+   gama = alpi + alpj
    do i = 1, 3
       ! calculate cartesian prefactor for first gaussian
       call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
@@ -650,24 +639,22 @@ pure subroutine build_sdq_ints(a,b,c,alpi,alpj,la,lb,v)
       call build_hshift2(bb(:,i),b(i),e(i),jj(i))    ! |b>
       ! form their product
       call prod3(aa(:,i),bb(:,i),dd(:,i),ii(i),jj(i))
-      lmax = ij(i)
-      t(:lmax+2) = olapp([(j,j=0,lmax+2)],gama)
-      do j = 0, lmax
+      do j = 0, ij(i)
          !    <a|b> <a|x|b>             <a|x²|b>
          va = [t(j), t(j+1) + d(i)*t(j), t(j+2) + 2*d(i)*t(j+1) + d(i)*d(i)*t(j)]
          val(i,1:3) = val(i,1:3) + dd(j,i)*va(1:3)
       enddo
    enddo
-   v( 1)=kab*(val(1,1)*val(2,1)*val(3,1))
-   v( 2)=kab*(val(1,2)*val(2,1)*val(3,1))
-   v( 3)=kab*(val(1,1)*val(2,2)*val(3,1))
-   v( 4)=kab*(val(1,1)*val(2,1)*val(3,2))
-   v( 5)=kab*(val(1,3)*val(2,1)*val(3,1))
-   v( 6)=kab*(val(1,1)*val(2,3)*val(3,1))
-   v( 7)=kab*(val(1,1)*val(2,1)*val(3,3))
-   v( 8)=kab*(val(1,2)*val(2,2)*val(3,1))
-   v( 9)=kab*(val(1,2)*val(2,1)*val(3,2))
-   v(10)=kab*(val(1,1)*val(2,2)*val(3,2))
+   v( 1)=(val(1,1)*val(2,1)*val(3,1))
+   v( 2)=(val(1,2)*val(2,1)*val(3,1))
+   v( 3)=(val(1,1)*val(2,2)*val(3,1))
+   v( 4)=(val(1,1)*val(2,1)*val(3,2))
+   v( 5)=(val(1,3)*val(2,1)*val(3,1))
+   v( 6)=(val(1,1)*val(2,3)*val(3,1))
+   v( 7)=(val(1,1)*val(2,1)*val(3,3))
+   v( 8)=(val(1,2)*val(2,2)*val(3,1))
+   v( 9)=(val(1,2)*val(2,1)*val(3,2))
+   v(10)=(val(1,1)*val(2,2)*val(3,2))
 
 end subroutine build_sdq_ints
 
@@ -680,16 +667,16 @@ end subroutine build_sdq_ints
 !     la/lb: defines l
 !     g: gradient
 !     nt: dimension of g
-pure subroutine build_dsdq_ints(a,b,c,alpi,alpj,la,lb,v,g)
-   implicit none
+pure subroutine build_dsdq_ints(a,b,c,e,alpi,alpj,la,lb,t,v,g)
    !     aufpunkte,ref point,intarray
    integer,intent(in)  :: la,lb
    real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3),c(3)
+   real(wp), intent(in)  :: a(3),b(3),c(3),e(3)
+   real(wp), intent(in)  :: t(0:8)
    real(wp), intent(out) :: v(10),g(3,10)
    !     local variables
    real(wp)  :: d(3),dd(0:8,3),gg(0:8,3),va(3),val(3,3),gra(3,3)
-   real(wp)  :: e(3),aa(0:3,3),aap(0:4,3),aam(0:4,3),bb(0:3,3),t(0:8)
+   real(wp)  :: aa(0:3,3),aap(0:4,3),aam(0:4,3),bb(0:3,3)
    real(wp)  :: gama,kab
    integer :: i,j,ij(3),ii(3),jj(3),lmax
 
@@ -718,12 +705,9 @@ pure subroutine build_dsdq_ints(a,b,c,alpi,alpj,la,lb,v,g)
    if(ii(1).gt.0) aam(ii(1)-1,1)=-ii(1)
    if(ii(2).gt.0) aam(ii(2)-1,2)=-ii(2)
    if(ii(3).gt.0) aam(ii(3)-1,3)=-ii(3)
-   ! apply product theorem
-   ! e is center of product gaussian with exponent gama
-   e = gpcenter(alpi,a,alpj,b)
    ! c is reference point
    d = e - c
-   call build_kab(a,alpi,b,alpj,gama,kab)
+   gama = alpi + alpj
    do i = 1, 3
       ! calculate cartesian prefactor for first gaussian
       call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
@@ -735,55 +719,53 @@ pure subroutine build_dsdq_ints(a,b,c,alpi,alpj,la,lb,v,g)
       call prod3(aa(:,i),bb(:,i),dd(:,i),ii(i),jj(i))
       aap(:,i) = aap(:,i) + aam(:,i)
       call prod3(aap(:,i),bb(:,i),gg(:,i),ii(i)+1,jj(i))
-      lmax = ij(i)+1
-      t(:lmax+2) = olapp([(j,j=0,lmax+2)],gama)
-      do j = 0, lmax
+      do j = 0, ij(i)+1
          !    <a|b> <a|x|b>             <a|x²|b>
          va = [t(j), t(j+1) + d(i)*t(j), t(j+2) + 2*d(i)*t(j+1) + d(i)*d(i)*t(j)]
          val(i,1:3) = val(i,1:3) + dd(j,i)*va(1:3)
          gra(i,1:3) = gra(i,1:3) + gg(j,i)*va(1:3)
       enddo
    enddo
-   v( 1)=kab*(val(1,1)*val(2,1)*val(3,1))
-   v( 2)=kab*(val(1,2)*val(2,1)*val(3,1))
-   v( 3)=kab*(val(1,1)*val(2,2)*val(3,1))
-   v( 4)=kab*(val(1,1)*val(2,1)*val(3,2))
-   v( 5)=kab*(val(1,3)*val(2,1)*val(3,1))
-   v( 6)=kab*(val(1,1)*val(2,3)*val(3,1))
-   v( 7)=kab*(val(1,1)*val(2,1)*val(3,3))
-   v( 8)=kab*(val(1,2)*val(2,2)*val(3,1))
-   v( 9)=kab*(val(1,2)*val(2,1)*val(3,2))
-   v(10)=kab*(val(1,1)*val(2,2)*val(3,2))
-   g(1, 1)=kab*(gra(1,1)*val(2,1)*val(3,1))
-   g(2, 1)=kab*(val(1,1)*gra(2,1)*val(3,1))
-   g(3, 1)=kab*(val(1,1)*val(2,1)*gra(3,1))
-   g(1, 2)=kab*(gra(1,2)*val(2,1)*val(3,1))
-   g(2, 2)=kab*(val(1,2)*gra(2,1)*val(3,1))
-   g(3, 2)=kab*(val(1,2)*val(2,1)*gra(3,1))
-   g(1, 3)=kab*(gra(1,1)*val(2,2)*val(3,1))
-   g(2, 3)=kab*(val(1,1)*gra(2,2)*val(3,1))
-   g(3, 3)=kab*(val(1,1)*val(2,2)*gra(3,1))
-   g(1, 4)=kab*(gra(1,1)*val(2,1)*val(3,2))
-   g(2, 4)=kab*(val(1,1)*gra(2,1)*val(3,2))
-   g(3, 4)=kab*(val(1,1)*val(2,1)*gra(3,2))
-   g(1, 5)=kab*(gra(1,3)*val(2,1)*val(3,1))
-   g(2, 5)=kab*(val(1,3)*gra(2,1)*val(3,1))
-   g(3, 5)=kab*(val(1,3)*val(2,1)*gra(3,1))
-   g(1, 6)=kab*(gra(1,1)*val(2,3)*val(3,1))
-   g(2, 6)=kab*(val(1,1)*gra(2,3)*val(3,1))
-   g(3, 6)=kab*(val(1,1)*val(2,3)*gra(3,1))
-   g(1, 7)=kab*(gra(1,1)*val(2,1)*val(3,3))
-   g(2, 7)=kab*(val(1,1)*gra(2,1)*val(3,3))
-   g(3, 7)=kab*(val(1,1)*val(2,1)*gra(3,3))
-   g(1, 8)=kab*(gra(1,2)*val(2,2)*val(3,1))
-   g(2, 8)=kab*(val(1,2)*gra(2,2)*val(3,1))
-   g(3, 8)=kab*(val(1,2)*val(2,2)*gra(3,1))
-   g(1, 9)=kab*(gra(1,2)*val(2,1)*val(3,2))
-   g(2, 9)=kab*(val(1,2)*gra(2,1)*val(3,2))
-   g(3, 9)=kab*(val(1,2)*val(2,1)*gra(3,2))
-   g(1,10)=kab*(gra(1,1)*val(2,2)*val(3,2))
-   g(2,10)=kab*(val(1,1)*gra(2,2)*val(3,2))
-   g(3,10)=kab*(val(1,1)*val(2,2)*gra(3,2))
+   v( 1)=(val(1,1)*val(2,1)*val(3,1))
+   v( 2)=(val(1,2)*val(2,1)*val(3,1))
+   v( 3)=(val(1,1)*val(2,2)*val(3,1))
+   v( 4)=(val(1,1)*val(2,1)*val(3,2))
+   v( 5)=(val(1,3)*val(2,1)*val(3,1))
+   v( 6)=(val(1,1)*val(2,3)*val(3,1))
+   v( 7)=(val(1,1)*val(2,1)*val(3,3))
+   v( 8)=(val(1,2)*val(2,2)*val(3,1))
+   v( 9)=(val(1,2)*val(2,1)*val(3,2))
+   v(10)=(val(1,1)*val(2,2)*val(3,2))
+   g(1, 1)=(gra(1,1)*val(2,1)*val(3,1))
+   g(2, 1)=(val(1,1)*gra(2,1)*val(3,1))
+   g(3, 1)=(val(1,1)*val(2,1)*gra(3,1))
+   g(1, 2)=(gra(1,2)*val(2,1)*val(3,1))
+   g(2, 2)=(val(1,2)*gra(2,1)*val(3,1))
+   g(3, 2)=(val(1,2)*val(2,1)*gra(3,1))
+   g(1, 3)=(gra(1,1)*val(2,2)*val(3,1))
+   g(2, 3)=(val(1,1)*gra(2,2)*val(3,1))
+   g(3, 3)=(val(1,1)*val(2,2)*gra(3,1))
+   g(1, 4)=(gra(1,1)*val(2,1)*val(3,2))
+   g(2, 4)=(val(1,1)*gra(2,1)*val(3,2))
+   g(3, 4)=(val(1,1)*val(2,1)*gra(3,2))
+   g(1, 5)=(gra(1,3)*val(2,1)*val(3,1))
+   g(2, 5)=(val(1,3)*gra(2,1)*val(3,1))
+   g(3, 5)=(val(1,3)*val(2,1)*gra(3,1))
+   g(1, 6)=(gra(1,1)*val(2,3)*val(3,1))
+   g(2, 6)=(val(1,1)*gra(2,3)*val(3,1))
+   g(3, 6)=(val(1,1)*val(2,3)*gra(3,1))
+   g(1, 7)=(gra(1,1)*val(2,1)*val(3,3))
+   g(2, 7)=(val(1,1)*gra(2,1)*val(3,3))
+   g(3, 7)=(val(1,1)*val(2,1)*gra(3,3))
+   g(1, 8)=(gra(1,2)*val(2,2)*val(3,1))
+   g(2, 8)=(val(1,2)*gra(2,2)*val(3,1))
+   g(3, 8)=(val(1,2)*val(2,2)*gra(3,1))
+   g(1, 9)=(gra(1,2)*val(2,1)*val(3,2))
+   g(2, 9)=(val(1,2)*gra(2,1)*val(3,2))
+   g(3, 9)=(val(1,2)*val(2,1)*gra(3,2))
+   g(1,10)=(gra(1,1)*val(2,2)*val(3,2))
+   g(2,10)=(val(1,1)*gra(2,2)*val(3,2))
+   g(3,10)=(val(1,1)*val(2,2)*gra(3,2))
 
 end subroutine build_dsdq_ints
 
@@ -792,7 +774,6 @@ end subroutine build_dsdq_ints
 !  might look complicated, but take it from me: integrals are usually complicated.
 pure subroutine shiftintg(g,s,r)
    !$acc routine seq
-   implicit none
    real(wp),intent(inout) :: g(3,19)
    real(wp),intent(in)    :: s(10),r(3)
    g(:,11)=g(:,2)-r(1)*g(:,1)
@@ -827,16 +808,16 @@ end subroutine shiftintg
 !     la/lb: defines l
 !     g: gradient
 !     nt: dimension of g
-pure subroutine build_ds_ints(a,b,alpi,alpj,la,lb,v,g)
-   implicit none
+pure subroutine build_ds_ints(a,b,e,alpi,alpj,la,lb,t,v,g)
    !     aufpunkte,ref point,intarray
    integer,intent(in)  :: la,lb
    real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3)
+   real(wp), intent(in)  :: a(3),b(3),e(3)
+   real(wp), intent(in)  :: t(0:8)
    real(wp), intent(out) :: v,g(3)
    !     local variables
-   real(wp)  :: d(3),dd(0:8,3),gg(0:8,3),va(3),val(3),gra(3),t
-   real(wp)  :: e(3),aa(0:3,3),aap(0:4,3),aam(0:4,3),bb(0:3,3)
+   real(wp)  :: d(3),dd(0:8,3),gg(0:8,3),va(3),val(3),gra(3)
+   real(wp)  :: aa(0:3,3),aap(0:4,3),aam(0:4,3),bb(0:3,3)
    real(wp)  :: gama,kab
    integer :: i,j,ij(3),ii(3),jj(3)
 
@@ -865,9 +846,7 @@ pure subroutine build_ds_ints(a,b,alpi,alpj,la,lb,v,g)
    if(ii(1).gt.0) aam(ii(1)-1,1)=-ii(1)
    if(ii(2).gt.0) aam(ii(2)-1,2)=-ii(2)
    if(ii(3).gt.0) aam(ii(3)-1,3)=-ii(3)
-   ! --- apply product theorem, not affected by gradient?
-   e = gpcenter(alpi,a,alpj,b)
-   call build_kab(a,alpi,b,alpj,gama,kab)
+   gama = alpi + alpj
    do i = 1, 3
       ! --- calculate cartesian prefactor for first gaussian
       call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
@@ -881,28 +860,166 @@ pure subroutine build_ds_ints(a,b,alpi,alpj,la,lb,v,g)
       call prod3(aap(:,i),bb(:,i),gg(:,i),ii(i)+1,jj(i))
       ! --- e is center of product gaussian with exponent gama
       do j=0,ij(i)+1
-         t = olapp(j,gama)
-         val(i) = val(i) + dd(j,i)*t
-         gra(i) = gra(i) + gg(j,i)*t
+         val(i) = val(i) + dd(j,i)*t(j)
+         gra(i) = gra(i) + gg(j,i)*t(j)
       enddo
    enddo
-   v=kab*(val(1)*val(2)*val(3))
-   g(1)=kab*(gra(1)*val(2)*val(3))
-   g(2)=kab*(val(1)*gra(2)*val(3))
-   g(3)=kab*(val(1)*val(2)*gra(3))
+   v=(val(1)*val(2)*val(3))
+   g(1)=(gra(1)*val(2)*val(3))
+   g(2)=(val(1)*gra(2)*val(3))
+   g(3)=(val(1)*val(2)*gra(3))
 
 end subroutine build_ds_ints
 
-
-pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut, &
-      &                       nprim,primcount,alp,cont,ss,dd,qq)
-   implicit none
+pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
+      &                nprim,primcount,alp,cont,sint)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
    integer, intent(in)  :: naoj
-   integer, intent(in)  :: iptyp
-   integer, intent(in)  :: jptyp
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: point(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: sint(:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
+   real(wp) :: ab,est,saw(10)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   sint = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
+
+   rij = ri - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   do ip = 1, nprim(icao+1)
+      iprim = ip + primcount(icao+1)
+      ! exponent the same for each l component
+      alpi = alp(iprim)
+      do jp = 1, nprim(jcao+1)
+         jprim=jp+primcount(jcao+1)
+         ! exponent the same for each l component
+         alpj=alp(jprim)
+         ab=1.0_wp/(alpi+alpj)
+         est=rij2*alpi*alpj*ab
+         if(est.gt.intcut) cycle
+         call build_kab(ri,alpi,rj,alpj,ab,kab)
+         rp = gpcenter(alpi,ri,alpj,rj)
+         do k = 0, ishtyp + jshtyp
+            t(k) = olapp(k, alpi+alpj)
+         end do
+         ! now compute integrals
+         do mli=1,naoi
+            iprim = ip + primcount(icao+mli)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci = cont(iprim)
+            do mlj=1,naoj
+               jprim = jp + primcount(jcao+mlj)
+               saw = 0.0_wp
+               ! prim-prim  integrals
+               call build_sdq_ints(ri,rj,point,rp,alpi,alpj,iptyp+mli,jptyp+mlj,t,saw)
+               cc = kab*cont(jprim)*ci
+               sint(mlj,mli) = sint(mlj,mli)+saw(1)*cc! pbc_w(jat,iat)
+            enddo ! mlj
+         enddo ! mli
+      enddo ! jp
+   enddo ! ip
+
+end subroutine get_overlap
+
+pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
+      &                     nprim,primcount,alp,cont,sdq,sdqg)
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
+   real(wp),intent(in)  :: ri(3)
+   real(wp),intent(in)  :: rj(3)
+   real(wp),intent(in)  :: point(3)
+   real(wp),intent(in)  :: intcut
+   real(wp),intent(out) :: sdq(:,:)
+   real(wp),intent(out) :: sdqg(:,:,:)
+
+   integer, intent(in)  :: nprim(:)
+   integer, intent(in)  :: primcount(:)
+   real(wp),intent(in)  :: alp(:)
+   real(wp),intent(in)  :: cont(:)
+
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
+   real(wp) :: ab,est,saw,sawg(3)
+
+   real(wp),parameter :: max_r2 = 2000.0_wp
+
+   sdqg = 0.0_wp
+   sdq  = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
+
+   rij = ri - rj
+   rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
+
+   if(rij2.gt.max_r2) return
+
+   do ip=1,nprim(icao+1)
+      iprim=ip+primcount(icao+1)
+      ! exponent the same for each l component
+      alpi=alp(iprim)
+      do jp=1,nprim(jcao+1)
+         jprim=jp+primcount(jcao+1)
+         ! exponent the same for each l component
+         alpj=alp(jprim)
+         ab = 1.0_wp/(alpi+alpj)
+         est=alpi*alpj*rij2*ab
+         if(est.gt.intcut) cycle
+         call build_kab(ri,alpi,rj,alpj,ab,kab)
+         rp = gpcenter(alpi,ri,alpj,rj)
+         do k = 0, ishtyp + jshtyp + 1
+            t(k) = olapp(k, alpi+alpj)
+         end do
+         !--------------- compute gradient ----------
+         ! now compute integrals  for different components of i(e.g., px,py,pz)
+         do mli=1,naoi
+            iprim=ip+primcount(icao+mli)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci=cont(iprim)
+            do mlj=1,naoj
+               jprim=jp+primcount(jcao+mlj)
+               cc=kab*cont(jprim)*ci
+               saw=0;sawg=0
+               call build_ds_ints(ri,rj,rp,alpi,alpj,iptyp+mli,jptyp+mlj,t,saw,sawg)
+               sdq(mlj,mli) = sdq(mlj,mli)+saw*cc
+               sdqg(:,mlj,mli) = sdqg(:,mlj,mli) &
+                  & + sawg(:)*cc
+            enddo ! mlj : Cartesian component of j prims
+         enddo  ! mli : Cartesian component of i prims
+      enddo ! jp : loop over j prims
+   enddo  ! ip : loop over i prims
+end subroutine get_grad_overlap
+
+pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
+      &                       nprim,primcount,alp,cont,ss,dd,qq)
+   integer, intent(in)  :: icao
+   integer, intent(in)  :: jcao
+   integer, intent(in)  :: naoi
+   integer, intent(in)  :: naoj
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
    real(wp),intent(in)  :: ri(3)
    real(wp),intent(in)  :: rj(3)
    real(wp),intent(in)  :: point(3)
@@ -916,8 +1033,8 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
    real(wp),intent(in)  :: alp(:)
    real(wp),intent(in)  :: cont(:)
 
-   integer  :: ip,iprim,mli,jp,jprim,mlj
-   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
+   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
    real(wp) :: ab,est,saw(10)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
@@ -925,6 +1042,8 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
    ss = 0.0_wp
    dd = 0.0_wp
    qq = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
 
    rij = rj - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
@@ -940,6 +1059,11 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
          ab = 1.0_wp/(alpi+alpj)
          est = rij2*alpi*alpj*ab
          if(est.gt.intcut) cycle
+         call build_kab(ri,alpi,rj,alpj,ab,kab)
+         rp = gpcenter(alpi,ri,alpj,rj)
+         do k = 0, ishtyp + jshtyp + 2
+            t(k) = olapp(k, alpi+alpj)
+         end do
          ! now compute integrals  for different components of i(e.g., px,py,pz)
          do mli = 1,naoi
             iprim = ip+primcount(icao+mli)
@@ -948,9 +1072,9 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
                jprim = jp+primcount(jcao+mlj)
                saw = 0.0_wp
                ! prim-prim quadrupole and dipole integrals
-               call build_sdq_ints(ri,rj,point,alpi,alpj, &
-                  & iptyp+mli,jptyp+mlj,saw)
-               cc = cont(jprim)*ci
+               call build_sdq_ints(ri,rj,point,rp,alpi,alpj, &
+                  & iptyp+mli,jptyp+mlj,t,saw)
+               cc = kab*cont(jprim)*ci
                ! from primitive integrals fill CAO-CAO matrix for ish-jsh block
                !                             ! overlap
                ss(mlj,mli) = ss(mlj,mli)+saw(1)*cc
@@ -966,15 +1090,14 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj,point,intcut
 end subroutine get_multiints
 
 
-pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
+pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
       &                           intcut,nprim,primcount,alp,cont,sdq,sdqg)
-   implicit none
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
    integer, intent(in)  :: naoj
-   integer, intent(in)  :: iptyp
-   integer, intent(in)  :: jptyp
+   integer, intent(in)  :: ishtyp
+   integer, intent(in)  :: jshtyp
    real(wp),intent(in)  :: ri(3)
    real(wp),intent(in)  :: rj(3)
    real(wp),intent(in)  :: intcut
@@ -986,14 +1109,16 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
    real(wp),intent(in)  :: alp(:)
    real(wp),intent(in)  :: cont(:)
 
-   integer  :: ip,iprim,mli,jp,jprim,mlj
-   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc
+   integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
+   real(wp) :: rij(3),rp(3),rij2,alpi,alpj,ci,cj,cc,kab,t(0:8)
    real(wp) :: ab,est,saw(10),sawg(3,10)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
 
    sdqg = 0.0_wp
    sdq  = 0.0_wp
+   iptyp = itt(ishtyp)
+   jptyp = itt(jshtyp)
 
    rij = ri - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
@@ -1009,8 +1134,14 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
          jprim = jp+primcount(jcao+1)
          ! exponent the same for each l component
          alpj = alp(jprim)
-         est = alpi*alpj*rij2/(alpi+alpj)
+         ab = 1.0_wp/(alpi+alpj)
+         est = alpi*alpj*rij2*ab
          if(est.gt.intcut) cycle
+         call build_kab(ri,alpi,rj,alpj,ab,kab)
+         rp = gpcenter(alpi,ri,alpj,rj)
+         do k = 0, ishtyp + jshtyp + 3
+            t(k) = olapp(k, alpi+alpj)
+         end do
          !--------------- compute gradient ----------
          ! now compute integrals  for different components of i(e.g., px,py,pz)
          do mli = 1,naoi
@@ -1019,9 +1150,9 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,iptyp,jptyp,ri,rj, &
             ci = cont(iprim)
             do mlj = 1,naoj
                jprim = jp+primcount(jcao+mlj)
-               cc = cont(jprim)*ci
+               cc = kab*cont(jprim)*ci
                saw = 0;sawg = 0
-               call build_dsdq_ints(ri,rj,rj,alpi,alpj,iptyp+mli,jptyp+mlj,saw,sawg)
+               call build_dsdq_ints(ri,rj,rj,rp,alpi,alpj,iptyp+mli,jptyp+mlj,t,saw,sawg)
                sdq(:,mlj,mli) = sdq(:,mlj,mli) + saw*cc
                sdqg(:,:10,mlj,mli) = sdqg(:,:10,mlj,mli) + sawg*cc
             enddo ! mlj : Cartesian component of j prims
@@ -1040,7 +1171,6 @@ end subroutine get_grad_multiint
 !  determine, which contribute to potential
 subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
       &           nprim,primcount,alp,cont,sint,dpint,qpint)
-   implicit none
    integer, intent(in) :: nShell(:)
    integer, intent(in) :: angShell(:,:)
    !> # of atoms
@@ -1094,13 +1224,13 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   !$OMP PARALLEL PRIVATE (iat,jat,izp,cc,ci,ra,rb,saw, &
+   !$OMP PARALLEL DO schedule(runtime) &
+   !$omp PRIVATE (iat,jat,izp,cc,ci,ra,rb,saw, &
    !$omp& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq, &
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij) &
    !$omp shared (sint,dpint,qpint)
-   !$OMP DO schedule(dynamic)
    do iat = 1,nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
@@ -1123,7 +1253,7 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
                ss = 0.0_wp
                dd = 0.0_wp
                qq = 0.0_wp
-               call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+               call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
                   &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
                !transform from CAO to SAO
                call dtrf2(ss,ishtyp,jshtyp)
@@ -1153,8 +1283,6 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
          enddo
       enddo
    enddo
-   !$OMP END DO
-   !$OMP END PARALLEL
 
    ! diagonal elements
    do iat = 1, nat
@@ -1178,7 +1306,7 @@ subroutine sdqint(nShell,angShell,nat,at,nbf,nao,xyz,intcut,caoshell,saoshell, &
             ss = 0.0_wp
             dd = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)
@@ -1216,7 +1344,6 @@ end subroutine sdqint
 
 pure subroutine build_sdq_ints_gpu(a,b,c,alpi,alpj,la,lb,kab,t,e,lx,ly,lz,v)
    !$acc routine seq
-   implicit none
    !     aufpunkte,ref point,intarray
    integer,intent(in)  :: la,lb
    real(wp), intent(in)  :: alpi,alpj
@@ -1275,7 +1402,6 @@ end subroutine build_sdq_ints_gpu
 subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
       & intcut, caoshell, saoshell, nprim, primcount, alp, cont, &
       & sint, dpint, qpint)
-   implicit none
    integer, intent(in) :: nShell(:)
    integer, intent(in) :: angShell(:,:)
    !> # of atoms
@@ -1325,7 +1451,9 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
 
    real(wp) s2(6,6),dum(6,6),sspher
 
-   !$acc enter data create(sint(:, :), dpint(:, :, :), qpint(:, :, :))
+   !$acc enter data create(sint(:, :), dpint(:, :, :), qpint(:, :, :)) &
+   !$acc copyin(xyz, at, nShell, trans, caoshell, saoshell, &
+   !$acc& nprim, primcount, alp, cont, intcut, point, angShell(:, :))
 
    !$acc kernels default(present)
    ! integrals
@@ -1335,9 +1463,6 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
    !$acc end kernels
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
-
-   !$acc enter data copyin(xyz, at, nShell, trans, caoshell, saoshell, &
-   !$acc& nprim, primcount, alp, cont, intcut, point, angShell(:, :))
 
    !$acc parallel vector_length(32) private(ss,dd,qq,rb,iat,jat,izp,ci,ra,& 
    !$acc& rab2,jzp,ish,ishtyp,icao,naoi,iptyp, &
@@ -1376,7 +1501,7 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
                   dd = 0.0_wp
                   qq = 0.0_wp
 
-                  !call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,rb,point, &
+                  !call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,rb,point, &
                   !   &               intcut,nprim,primcount,alp,cont,ss,dd,qq)
                   !$acc loop vector private(saw,t,e) independent collapse(2)
                   do ip = 1,nprim(icao+1)
@@ -1761,7 +1886,7 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
             ss = 0.0_wp
             dd2 = 0.0_wp
             qq = 0.0_wp
-            call get_multiints(icao,jcao,naoi,naoj,iptyp,jptyp,ra,ra,point, &
+            call get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ra,ra,point, &
                &               intcut,nprim,primcount,alp,cont,ss,dd2,qq)
             !transform from CAO to SAO
             !call dtrf2(ss,ishtyp,jshtyp)

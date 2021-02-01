@@ -225,6 +225,7 @@ subroutine write_set_opt(ictrl)
    write(ictrl,'(3x,"ts=",i0)') bool2int(tsopt)
    write(ictrl,'(3x,"tsroot=",i0)') tsroot
    write(ictrl,'(3x,"exact rf=",g0)') bool2string(optset%exact_rf)
+   write(ictrl,'(3x,"average conv=",g0)') bool2string(optset%average_conv)
 end subroutine write_set_opt
 
 subroutine write_set_thermo(ictrl)
@@ -494,7 +495,7 @@ subroutine write_set_constrain(ictrl)
       if (atconstr(4,i).gt.0) idum = 3
       select case(idum)
       case default ! this is bad, we don't want this to happen
-         call raise('E','This is an internal error, please report this!',1)
+         call raise('E','This is an internal error, please report this!')
       case(-2)
          write(ictrl,'(3x,"center:",1x,g0,1x,i0,1x,"# force constant")') &
             valconstr(i),iatf1
@@ -531,7 +532,7 @@ subroutine write_set_scan(ictrl)
    write(ictrl,'(a,"scan")') flag
    select case(scan_mode)
    case default ! this should never happen...
-      call raise('E','This is an internal error, please report this!',1)
+      call raise('E','This is an internal error, please report this!')
    case(p_scan_sequential)
       write(ictrl,'(3x,"mode=sequential")')
    case(p_scan_concerted)
@@ -901,7 +902,7 @@ subroutine set_exttyp(typ)
    if (.not.set) return
    select case(typ)
    case default ! do nothing
-      call raise('S',typ//' is no valid exttyp (internal error)',1)
+      call raise('S',typ//' is no valid exttyp (internal error)')
 
    case('vtb')
       mode_extrun = p_ext_vtb
@@ -921,7 +922,6 @@ subroutine set_exttyp(typ)
       mode_extrun = p_ext_mopac
    case('ff')
       mode_extrun = p_ext_gfnff
-
    end select
    set = .false.
 end subroutine set_exttyp
@@ -933,7 +933,7 @@ subroutine set_geopref(typ)
    if (.not.set) return
    select case(typ)
    case default ! do nothing
-      call raise('S',typ//' is no valid geometry format (internal error)',1)
+      call raise('S',typ//' is no valid geometry format (internal error)')
 
    case('sdf')
       geometry_inputfile = p_geo_sdf
@@ -949,7 +949,6 @@ subroutine set_geopref(typ)
 
    case('EIn', 'gaussian')
       geometry_inputfile = p_geo_gaussian
-
    end select
    set = .false.
 end subroutine set_geopref
@@ -959,12 +958,12 @@ subroutine set_runtyp(typ)
    character(len=*),intent(in) :: typ
    logical,save :: set = .true.
    if (.not.set) then
-      call raise('S','Runtyp already set and locked, please use a composite runtyp instead.',1)
+      call raise('S','Runtyp already set and locked, please use a composite runtyp instead.')
       return
    endif
    select case(typ)
    case default ! do nothing
-      call raise('E',typ//' is no valid runtyp (internal error)',1)
+      call raise('E',typ//' is no valid runtyp (internal error)')
 
    case('scc')
       runtyp = p_run_scc
@@ -1448,10 +1447,22 @@ subroutine set_opt(env,key,val)
       endif
       set1 = .false.
    case('microcycle')
-      if (getValue(env,val,idum).and.set2) optset%micro_opt = idum
+      if (getValue(env,val,idum).and.set2) then
+         if (idum > 0) then
+            optset%micro_opt = idum
+         else
+            call env%warning("Non-positive microcycle input rejected: '"//val//"'")
+         end if
+      end if
       set2 = .false.
    case('maxcycle')
-      if (getValue(env,val,idum).and.set3) optset%maxoptcycle = idum
+      if (getValue(env,val,idum).and.set3) then
+         if (idum >= 0) then
+            optset%maxoptcycle = idum
+         else
+            call env%warning("Negative optimization cycle input rejected: '"//val//"'")
+         end if
+      end if
       set3 = .false.
    case('maxdispl')
       if (getValue(env,val,ddum).and.set4) optset%maxdispl_opt = ddum
@@ -1518,6 +1529,9 @@ subroutine set_opt(env,key,val)
       if (.not.allocated(opt_outfile)) opt_outfile = val
    case('logfile')
       if (.not.allocated(opt_logfile)) opt_logfile = val
+   case('average conv')
+      if (getValue(env,val,ldum).and.set18) optset%average_conv = ldum
+      set18 = .false.
    end select
 end subroutine set_opt
 
@@ -1863,7 +1877,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
-      select case(key)
+   select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
    case('solvent')
@@ -2180,6 +2194,7 @@ subroutine set_metadyn(env,key,val)
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
+   logical,save :: set8 = .true.
 
    select case(key)
    case default ! do nothing
@@ -2188,7 +2203,7 @@ subroutine set_metadyn(env,key,val)
       if (getValue(env,val,idum).and.set1) metaset%maxsave = idum
       set1 = .false.
    case('width','alp')
-      if (getValue(env,val,ddum).and.set2) metaset%width = ddum
+      if (getValue(env,val,ddum).and.set2) metaset%global_width = ddum
       set2 = .false.
    case('factor','kpush')
       if (getValue(env,val,ddum).and.set3) metaset%global_factor = ddum
@@ -2205,6 +2220,9 @@ subroutine set_metadyn(env,key,val)
    case('bias_ramp_time','ramp')
       if (getValue(env,val,ddum).and.set7) metaset%ramp = ddum
       set7 = .false.
+   case('bias-input', 'bias_input', 'bias input')
+      if (set8) rmsdset%fname = val
+      set8 = .false.
    end select
 
 end subroutine set_metadyn

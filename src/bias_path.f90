@@ -200,8 +200,8 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
          ! set for metadyn routine (common)
          metaset%factor(1) = pathset%kpush * factor * fnat
          metaset%factor(2) = pathset%kpull * factor * fnat
-         metaset%width = pathset%alp - factor2
-         metaset%width = max(metaset%width,0.2_wp)
+         metaset%width(:) = pathset%alp - factor2
+         metaset%width(:) = max(metaset%width(:),0.2_wp)
 
          !! ------------------------------------------------------------------------
          ! make path
@@ -245,7 +245,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
          call rmsd(mol%n,mol%xyz,xyzp,0,U,x,y,rms,.false.,gtmp)
 
          write(env%unit,'(i3," # points, run ",i3," for k push/pull/alpha :",3f8.3,5x," prod-ed RMSD:",f8.3)')  &
-            &  npath(irun),run,metaset%factor(1:2)/fnat, metaset%width, rms
+            &  npath(irun),run,metaset%factor(1:2)/fnat, metaset%width(1), rms
 
          !! ------------------------------------------------------------------------
          ! save results
@@ -266,7 +266,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
          mempath(1,irun)=barr
          mempath(2,irun)=autokcal*(epath(npath(irun))-epath(1))
          mempath(3,irun)=rms
-         mempath(4,irun)=metaset%width
+         mempath(4,irun)=metaset%width(1)
          deallocate(xyzpath,epath)
 
          ! increase power
@@ -529,7 +529,7 @@ subroutine metadyn_tsmode(n,sn,its,xyzpath,xyzact,kpull)
    metaset%nstruc = 1
 
    metaset%factor(1) = -kpull * real(n)  ! pull point on path, 0.05 good choice
-   metaset%width = 1.3_wp
+   metaset%width(1) = 1.3_wp
 
    metaset%xyz(:,:,1) = xyzact(:,:)
 

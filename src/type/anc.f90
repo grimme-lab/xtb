@@ -214,7 +214,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
 
    if (fail) then
       write(*,*) 'nvar, selv%nvar',nvar,self%nvar
-      call raise('E',"ANC generation failed!",1)
+      call raise('E',"ANC generation failed!")
    end if
 
    call sort(self%n3,self%nvar,self%hess,self%B)
@@ -306,7 +306,7 @@ subroutine generate_anc_packed(self,xyz,hess,pr)
    enddo get_anc
 
    if (fail) &
-      call raise('E',"ANC generation failed!",1)
+      call raise('E',"ANC generation failed!")
 
    call sort(self%n3,self%nvar,self%hess,self%B)
 

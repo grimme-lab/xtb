@@ -87,6 +87,7 @@ module xtb_type_setvar
 !     lowest force constant in ANC generation (should be > 0.005)
       real(wp) :: hlow_opt = 0.0_wp
       logical  :: exact_rf = .false.
+      logical :: average_conv = .false.
    end type ancopt_setvar
 
    type modhess_setvar
@@ -239,7 +240,8 @@ module xtb_type_setvar
       integer  :: nstruc = 0
       real(wp) :: global_factor = 0.0_wp
       real(wp),allocatable :: factor(:)
-      real(wp) :: width = 1.0_wp
+      real(wp) :: global_width = 1.0_wp
+      real(wp),allocatable :: width(:)
       real(wp) :: ramp = 0.03_wp
       integer  :: nat = 0
       logical  :: static = .true.
@@ -310,6 +312,7 @@ subroutine allocate_metadyn(self,nat,nstruc)
    call self%deallocate
    allocate( self%atoms(nat),          source = 0 )
    allocate( self%factor(nstruc),      source = 0.0_wp )
+   allocate( self%width(nstruc),       source = 0.0_wp )
    allocate( self%xyz  (3,nat,nstruc), source = 0.0_wp )
 end subroutine allocate_metadyn
 
@@ -317,6 +320,7 @@ subroutine deallocate_metadyn(self)
    class(metadyn_setvar) :: self
    if(allocated(self%atoms))  deallocate( self%atoms )
    if(allocated(self%factor)) deallocate( self%factor )
+   if(allocated(self%width))  deallocate( self%width )
    if(allocated(self%xyz  ))  deallocate( self%xyz   )
 end subroutine deallocate_metadyn
 

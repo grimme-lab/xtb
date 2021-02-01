@@ -177,7 +177,7 @@ subroutine atomlist_read_formatted(self, unit, iotype, v_list, iostat, iomsg)
 contains
 
 subroutine get_line(unit, line, iostat)
-   use iso_fortran_env, only : iostat_eor
+   use, intrinsic :: iso_fortran_env, only : iostat_eor
    integer, intent(in) :: unit
    character(len=:), allocatable, intent(out) :: line
    integer, intent(out), optional :: iostat

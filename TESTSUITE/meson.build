@@ -1,6 +1,6 @@
 # This file is part of xtb.
 #
-# Copyright (C) 2019-2020 Sebastian Ehlert
+# Copyright (C) 2019-2021 Sebastian Ehlert
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
@@ -29,6 +29,7 @@ xtb_test = files(
   'gfn1.f90',
   'gfn2.f90',
   'gfnff.f90',
+  'hessian.f90',
   'latticepoint.f90',
   'pbc_tools.f90',
   'peeq.f90',
@@ -151,6 +152,7 @@ test('GFN2-xTB: API', xtb_test, args: ['gfn2', 'api'], env: xtbenv, timeout: tes
 test('GFN2-xTB: API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB: d-Metal', xtb_test, args: ['gfn2', 'd-metal'], env: xtbenv, timeout: test_timeout)
+test('GFN2-xTB: Freq', xtb_test, args: ['hessian', 'gfn2'], env: xtbenv, timeout: test_timeout)
 #test('GFN2-xTB: API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv, timeout: test_timeout)
 if cc.get_id() == 'intel'
   test(
@@ -172,6 +174,8 @@ test('GFN1-xTB: XB', xtb_test, args: ['gfn1', 'xb'], env: xtbenv, timeout: test_
 test('GFN1-xTB: PBC', xtb_test, args: ['gfn1', 'pbc3d'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB: API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv, timeout: test_timeout)
+test('GFN1-xTB: IPEA', xtb_test, args: ['gfn1', 'ipea'], env: xtbenv, timeout: test_timeout)
+test('GFN1-xTB: Freq', xtb_test, args: ['hessian', 'gfn1'], env: xtbenv, timeout: test_timeout)
 
 test('GFN0-xTB: Basic', xtb_test, args: ['gfn0', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB: Solvation', xtb_test, args: ['gfn0', 'solvation'], env: xtbenv, timeout: test_timeout)

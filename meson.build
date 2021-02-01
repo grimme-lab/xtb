@@ -113,7 +113,7 @@ xtb_dep_static = declare_dependency(
   version: meson.project_version(),
 )
 
-if fc.get_id() == 'pgi'
+if fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
    warning('Shared library extension cannot be compiled with PGI')
 else
    xtb_lib = library(

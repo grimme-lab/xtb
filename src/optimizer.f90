@@ -22,8 +22,22 @@ module xtb_optimizer
    use xtb_type_environment, only : TEnvironment
    use xtb_bfgs
    use xtb_david2
+   implicit none
 
    logical,private,parameter :: profile = .true.
+
+   type :: convergence_log
+      integer :: nlog
+      real(wp), allocatable :: elog(:)
+      real(wp), allocatable :: glog(:)
+   contains
+      procedure :: set_eg_log
+      procedure :: get_averaged_energy
+      procedure :: get_averaged_gradient
+   end type convergence_log
+   interface convergence_log
+      module procedure new_convergence_log
+   end interface convergence_log
 
 contains
 
@@ -58,7 +72,7 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
 !  for DCOSMO-RS opts with TM i.e. between loose and normal, keyword "lax"
    case(p_olev_lax)
       ethr   = 2.d-5
-      gthr   = 2.d-3
+      gthr   = 2.5d-3
       maxcycle=n*2
       acc=2.00d0
 !  normal
@@ -100,6 +114,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    use xtb_type_anc
    use xtb_type_restart
    use xtb_type_calculator
+   use xtb_type_dummycalc
    use xtb_type_data
    use xtb_type_timer
 
@@ -158,6 +173,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    integer, allocatable :: totsym(:)
    real(wp),allocatable :: pmode(:,:)
    real(wp),allocatable :: grmsd(:,:)
+   type(convergence_log), allocatable :: avconv
    real(wp) :: U(3,3), x_center(3), y_center(3), rmsdval
    integer :: modef
    logical :: restart,ex,converged,linear
@@ -202,6 +218,18 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       maxopt=maxcycle_in
    endif
    if(maxopt.lt.maxmicro) maxmicro=maxopt
+   if (optset%average_conv) then
+      select type(calc)
+      class is(TDummyCalculator)
+         avconv = load_turbomole_log(maxopt)
+         if (avconv%nlog > 0 .and. pr) then
+            write(env%unit, '(a, 1x, i0, 1x, a)') &
+               "Convergence averaging initialized with", avconv%nlog, "entries"
+         end if
+      class default
+         avconv = convergence_log(maxopt)
+      end select
+   end if
 
    call axis2(mol%n,mol%at,mol%xyz,aaa,bbb,ccc,dumi,dumj)
 
@@ -351,7 +379,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 ! now everything is prepared for the optimization
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
       & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
-      & converged,timer,optset%exact_rf)
+      & converged,timer,optset%exact_rf,avconv)
 
    call env%check(fail)
    if (fail) then
@@ -426,7 +454,7 @@ end subroutine ancopt
 subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       &          ii,chk,calc, &
       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
-      &          timer,exact)
+      &          timer,exact,avconv)
 
    use xtb_mctc_blas, only : blas_gemv
    use xtb_type_molecule
@@ -462,6 +490,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    real(wp),intent(inout) :: egap
    logical, intent(out)   :: converged
    logical, intent(in)    :: exact
+   type(convergence_log), intent(inout), optional :: avconv
 
    type(scc_results) :: res
    integer  :: nvar1,npvar,npvar1
@@ -553,6 +582,18 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       fail=.true.
       return
    endif
+
+   if (present(avconv)) then
+      call avconv%set_eg_log(energy, gnorm)
+      energy = avconv%get_averaged_energy()
+      gnorm = avconv%get_averaged_gradient()
+      if (pr) then
+         write(env%unit,'("av. E:",1x,f14.7,1x,"->",1x,f14.7)') &
+            avconv%elog(avconv%nlog), energy
+         write(env%unit,'("av. G:",1x,f14.7,1x,"->",1x,f14.7)') &
+            avconv%glog(avconv%nlog), gnorm
+      end if
+   end if
 
 ! adapt SCC acuracy
    if(gnorm    .lt.0.004)then
@@ -964,7 +1005,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
 
    !> Calculation environment
    type(TEnvironment), intent(inout) :: env
-   
+
    !> Calculator
    class(TCalculator), intent(inout) :: calc
 
@@ -1091,5 +1132,175 @@ subroutine read_hessian(ihess, ndim, hessian, error)
       endif
    enddo
 end subroutine read_hessian
-end module xtb_optimizer
 
+subroutine geoconvav(nc, e, g, val, deriv)
+   implicit none
+   !> total number of E/G points
+   integer nc
+   !> total energy in Eh
+   real*8  e(*)
+   !> norm of Cartesian gradient (in TM: |dE/dxyz|)
+   real*8  g(*)
+   !> av. energy in Eh to be used further
+   real*8  val
+   !> av. gradient
+   real*8  deriv
+
+   integer nav, low
+   integer i, j
+   parameter (nav=5)    ! average over last nav
+   real*8 eav,gav
+
+   ! only apply it if sufficient number of points i.e. a "tail" can exist
+   ! with the censo blockl = 8 default, this can first be effective in the second
+   if(nc.lt.3*nav)then
+      val = e(nc)
+      deriv = g(nc)
+      return
+   endif
+
+   low = max(1,nc-nav+1)
+   j = 0
+   eav = 0
+   do i=nc,low,-1
+      j = j + 1
+      eav = eav + e(i)
+      gav = gav + g(i)
+   enddo
+   val = eav / float(j)
+
+   low = max(1,nc-nav+1)
+   j = 0
+   gav = 0
+   do i=nc,low,-1
+      j = j + 1
+      gav = gav + g(i)
+   enddo
+   ! adjust the gradient norm to xtb "conventions" because e.g. a noisy
+   ! DCOSMO-RS gradient for large cases can never (even on average)
+   ! become lower than the "-opt normal" thresholds
+   deriv=gav / float(j) / 2.d0
+end subroutine geoconvav
+
+pure function new_convergence_log(nmax) result(self)
+   integer, intent(in) :: nmax
+   type(convergence_log) :: self
+   self%nlog = 0
+   allocate(self%elog(nmax))
+   allocate(self%glog(nmax))
+end function new_convergence_log
+
+function load_turbomole_log(nmax) result(self)
+   use xtb_mctc_resize, only : resize
+   use xtb_mctc_systools, only : getline
+   integer, intent(in) :: nmax
+   type(convergence_log) :: self
+   integer :: nlog, ilog
+   real(wp) :: etmp, gtmp
+   real(wp), allocatable :: elog(:), glog(:)
+   character(len=:), allocatable :: line
+   logical :: exist
+   integer, parameter :: initial_size = 50
+   integer :: unit, stat
+   nlog = 0
+   inquire(file="gradient", exist=exist)
+   if (exist) then
+      open(file="gradient", newunit=unit)
+      allocate(elog(initial_size), glog(initial_size))
+      call getline(unit, line, stat)
+      do while(stat == 0)
+         if (index(line, "cycle") > 0) then
+            if (tokenize_cycle(line, etmp, gtmp)) then
+               if (nlog >= size(elog)) then
+                  call resize(elog, size(elog)+size(elog)/2+1)
+                  call resize(glog, size(glog)+size(glog)/2+1)
+               end if
+               nlog = nlog + 1
+               elog(nlog) = etmp
+               glog(nlog) = gtmp
+            end if
+         end if
+         call getline(unit, line, stat)
+      end do
+      close(unit)
+   end if
+   self = convergence_log(nmax + nlog)
+   do ilog = 1, nlog
+      call self%set_eg_log(elog(ilog), glog(ilog))
+   end do
+end function load_turbomole_log
+
+function tokenize_cycle(line, e, g) result(stat)
+   character(len=*), intent(in) :: line
+   real(wp), intent(out) :: e
+   real(wp), intent(out) :: g
+   logical :: stat
+   integer :: stat1, stat2
+   read(line(33:51), *, iostat=stat1) e
+   read(line(66:), *, iostat=stat2) g
+   stat = stat1 == 0 .and. stat2 == 0
+end function tokenize_cycle
+
+pure function get_averaged_energy(self) result(val)
+   class(convergence_log), intent(in) :: self
+   real(wp) :: eav, val
+   integer :: i, j, low
+   integer, parameter :: nav = 5
+
+   ! only apply it if sufficient number of points i.e. a "tail" can exist
+   ! with the censo blockl = 8 default, this can first be effective in the second
+   if(self%nlog.lt.3*nav)then
+      val = self%elog(self%nlog)
+   else
+      low = max(1, self%nlog-nav+1)
+      j = 0
+      eav = 0
+      do i = self%nlog, low, -1
+         j = j + 1
+         eav = eav + self%elog(i)
+      enddo
+      val = eav / float(j)
+   end if
+
+end function get_averaged_energy
+
+pure function get_averaged_gradient(self) result(deriv)
+   class(convergence_log), intent(in) :: self
+   real(wp) :: gav, deriv
+   integer :: i, j, low
+   integer, parameter :: nav = 5
+
+   ! only apply it if sufficient number of points i.e. a "tail" can exist
+   ! with the censo blockl = 8 default, this can first be effective in the second
+   if(self%nlog.lt.3*nav) then
+      deriv = self%glog(self%nlog)
+   else
+      low = max(1, self%nlog-nav+1)
+      j = 0
+      gav = 0
+      do i = self%nlog, low, -1
+         j = j + 1
+         gav = gav + self%glog(i)
+      enddo
+      ! adjust the gradient norm to xtb "conventions" because e.g. a noisy
+      ! DCOSMO-RS gradient for large cases can never (even on average)
+      ! become lower than the "-opt normal" thresholds
+      deriv = gav / float(j) / 2.d0
+   end if
+
+end function get_averaged_gradient
+
+pure subroutine set_eg_log(self, e, g)
+   use xtb_mctc_resize, only : resize
+   class(convergence_log), intent(inout) :: self
+   real(wp), intent(in) :: e, g
+   if (self%nlog >= size(self%elog)) then
+      call resize(self%elog, size(self%elog)+size(self%elog)/2+1)
+      call resize(self%glog, size(self%glog)+size(self%glog)/2+1)
+   end if
+   self%nlog = self%nlog + 1
+   self%elog(self%nlog) = e
+   self%glog(self%nlog) = g
+end subroutine set_eg_log
+
+end module xtb_optimizer
