@@ -141,6 +141,7 @@ subroutine fire &
    use xtb_type_timer
 
    use xtb_setparam
+   use xtb_fixparam
 
    use xtb_single
    use xtb_optimizer
@@ -184,6 +185,7 @@ subroutine fire &
    logical :: linear
    integer :: iter
    integer :: nvar
+   integer :: nat3
    integer :: thisstep
    integer :: maxcycle
 
@@ -250,8 +252,14 @@ subroutine fire &
    endif
 
    ! get memory
-   nvar = 3*mol%n
-   allocate( velocities(3,mol%n), pmode(nvar,1), hessp(nvar*(nvar+1)/2), &
+   nat3 = 3*mol%n
+   nvar = nat3
+   if(fixset%n.gt.0) then ! exact fixing
+      nvar=nat3-3*fixset%n-3
+      if(nvar.le.0) nvar=1
+   endif
+
+   allocate( velocities(3,mol%n), pmode(nvar,1), hessp(nat3*(nat3+1)/2), &
       &      xyzopt(3,mol%n), source = 0.0_wp )
    ! set defaults
    iter = 0
@@ -312,7 +320,15 @@ subroutine fire &
    if (opt%precon) then
       if (minpr) write(env%unit,'(" * calculating model hessian...")')
       call modhes(env,calc,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
-      if (.not.linear) call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1)
+      if(fixset%n.gt.0)then
+         ! exact fixing
+         call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,-1,pmode,1)
+      else
+         if (.not.linear) &
+         ! normal
+         call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1) 
+      endif
+
    endif
    if (profile) call timer%measure(7)
    esave = energy
