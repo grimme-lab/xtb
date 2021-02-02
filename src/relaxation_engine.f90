@@ -395,6 +395,7 @@ subroutine l_ancopt &
    use xtb_type_timer
 
    use xtb_setparam
+   use xtb_fixparam
 
    use xtb_single
    use xtb_optimizer
@@ -559,6 +560,11 @@ subroutine l_ancopt &
    else
       nvar = nat3 - 6
       if(linear) nvar = nat3 - 5
+
+      if(fixset%n.gt.0) then ! exact fixing
+         nvar=nat3-3*fixset%n-3
+         if(nvar.le.0) nvar=1
+      endif
    end if
 
    ! print a nice summary with all settings and thresholds of ANCopt
@@ -596,7 +602,16 @@ subroutine l_ancopt &
    if (profile) call timer%measure(2,"model hessian")
    if (minpr) write(env%unit,'(" * calculating model hessian...")')
    call modhes(env,calc,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
-   if (.not.linear) call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,0,pmode,1)
+
+   ! Project translation, rotation and fixed atoms
+    if(fixset%n.gt.0)then
+        call trproj(molopt%n,nat3,molopt%xyz,hessp,.false., -1  ,pmode,1)     ! exact fixing
+    else
+        if (.not.linear) &
+        call trproj(molopt%n,nat3,molopt%xyz,hessp,.false.,0,pmode,1)     ! normal
+    endif
+
+
    if (profile) call timer%measure(2)
    if (profile) call timer%measure(3,"ANC generation")
    ! blowup hessian
