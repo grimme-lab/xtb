@@ -307,7 +307,7 @@ subroutine numhess( &
    if (geometry_inputfile .eq. p_geo_gaussian) then
       ! Store the raw dipole gradient in the intensity output,
       ! this we require a LHS reallocation of dipt from 3*n to 9*n
-      res%dipt = reshape(dipd, [shape(dipd)])
+      res%dipt = reshape(dipd, [size(dipd)])
       return
    end if
 
