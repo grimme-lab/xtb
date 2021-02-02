@@ -41,61 +41,65 @@ subroutine writeMoleculeGaussianExternal(mol, unit)
 end subroutine writeMoleculeGaussianExternal
 
 
-subroutine writeResultsGaussianExternal(mol, unit, energy, dipole, gradient, hess)
-   implicit none
-   type(TMolecule), intent(in) :: mol
+subroutine writeResultsGaussianExternal(unit, energy, dipole, gradient, hessian, dipgrad)
    integer, intent(in)  :: unit
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: dipole(:)
    real(wp), intent(in), optional :: gradient(:, :)
-   real(wp), intent(in), optional :: hess(:, :)
+   real(wp), intent(in), optional :: hessian(:, :)
+   real(wp), intent(in), optional :: dipgrad(:)
 
-   integer :: i,j,count
-   real(wp) :: buf(3)
+   integer :: i,j,ij,nat
+
+   if (present(gradient)) then
+      nat = size(gradient, 2)
+   else if (present(hessian)) then
+      nat = size(hessian, 2) / 3
+   else if (present(dipgrad)) then
+      nat = size(dipgrad) / 9
+   else
+      nat = 0
+   end if
 
    write(unit, '(4D20.12)') energy, dipole
 
    if (present(gradient)) then
       write(unit, '(3D20.12)') gradient
-   elseif (present(hess)) then
-      ! In case the gradient is not computed but the Hessian is, we output
-      ! gradients of zero. I don't know what would cause that to be honest...
-      write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
+   else
+      ! In case we have no gradient, but either hessian or dipole gradient
+      ! the gradient entry is padded with zeros
+      if (nat > 0) write(unit, '(3D20.12)') spread(0.0_wp, 1, 3*nat)
    endif
 
-   if (present(hess)) then
-      ! First, we fake the polarizability and the dipole derivatives, which the
-      ! Gaussian Manual says should be of this form,
-      !
-      ! Polar(I), I=1,6        3D20.12   2 rows of 3 x 0.0
-      ! DDip(I), I=1,9*NAtoms  3D20.12   9 x Natoms or 3 natoms rows of 3 x .0.0
-      do i=1,3*mol%n + 2
-         write(unit, '(3D20.12)') (/ 0.0, 0.0, 0.0 /)
-      enddo
+   ! First, we fake the polarizability and the dipole derivatives, which the
+   ! Gaussian Manual says should be of this form,
+   !
+   ! Polar(I), I=1,6        3D20.12   2 rows of 3 x 0.0
+   write(unit, '(3D20.12)') spread(0.0_wp, 1, 6)
 
+   ! DDip(I), I=1,9*NAtoms  3D20.12   9 x Natoms or 3 natoms rows of 3 x .0.0
+   if (present(dipgrad)) then
+      write(unit, '(3D20.12)') dipgrad
+   else
+      if (nat > 0) write(unit, '(3D20.12)') spread(0.0_wp, 1, 9*nat)
+   end if
+
+   if (present(hessian)) then
       ! Now we are iterating over Hessian matrix elements. We will
       ! append those to the output file in the correct format, given in
       ! the Gaussian manual as
       !
       ! FFX(I), I=1,(3*NAtoms*(3*NAtoms+1))/2      3D20.12
 
-      ! that is, we need to print in group of three numbers, which is why the
-      ! whole buffer / count thing is present
-      count = 1
-      do i=1,3*mol%n
-         do j=1,i
-            buf(count) = hess(i,j)
-
-            if (count .eq. 3) then
-               count = 1
-               write(unit, '(3D20.12)') buf
-            else
-               count = count + 1
-            end if
-
-         enddo
-      enddo
-   endif
+      ij = 0
+      do i = 1, size(hessian, 2)
+         do j = 1, i
+            ij = ij + 1
+            write(unit, '(D20.12)', advance='no') hessian(j, i)
+            if (mod(ij, 3) == 0) write(unit, '(a)')
+         end do
+      end do
+   end if
 
 end subroutine writeResultsGaussianExternal
 

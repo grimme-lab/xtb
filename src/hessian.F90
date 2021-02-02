@@ -305,6 +305,9 @@ subroutine numhess( &
    ! If we are currently computing a Hessian for Gaussian to use, we return it
    ! right here and now and skip all the post-processing.
    if (geometry_inputfile .eq. p_geo_gaussian) then
+      ! Store the raw dipole gradient in the intensity output,
+      ! this we require a LHS reallocation of dipt from 3*n to 9*n
+      res%dipt = reshape(dipd, [shape(dipd)])
       return
    end if
 
