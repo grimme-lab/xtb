@@ -825,7 +825,7 @@ subroutine xtbMain(env, argParser)
       call open_file(ich, cdum, 'w')
       if (allocated(fres%hess)) then
          call writeResultsGaussianExternal(ich, etot, res%dipole, gradient=g, &
-            & hess=fres%hess, dipgrad=fres%dipgrad)
+            & hessian=fres%hess, dipgrad=fres%dipt)
       else
          call writeResultsGaussianExternal(ich, etot, res%dipole, gradient=g)
       end if
