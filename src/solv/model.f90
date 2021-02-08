@@ -253,7 +253,7 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('thf');          param = gfn2_thf
          case('toluene');      param = gfn2_toluene
          case('dmf');          param = gfn2_dmf
-         case('nhexan','n-hexan','nhexane','n-hexane');
+         case('nhexan','n-hexan','nhexane','n-hexane','hexane');
             param = gfn2_nhexan
          end select
       else
@@ -307,7 +307,7 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('toluene');      param = gfn2_alpb_toluene
          case('dmf');          param = gfn2_alpb_dmf
          case('ethanol');      param = gfn2_alpb_ethanol
-         case('nhexan','n-hexan','nhexane','n-hexane');
+         case('nhexan','n-hexan','nhexane','n-hexane','hexane');
             param = gfn2_alpb_hexane
          end select
       elseif (level == 0) then
@@ -337,7 +337,7 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('thf');          param = gfnff_alpb_thf
          case('toluene');      param = gfnff_alpb_toluene
          case('dmf');          param = gfnff_alpb_dmf
-         case('nhexan','n-hexan','nhexane','n-hexane');
+         case('nhexan','n-hexan','nhexane','n-hexane','hexane');
             param = gfnff_alpb_hexane
       end select
       else
@@ -367,7 +367,7 @@ subroutine loadInternalParam(self, env, solvent, level)
          case('thf');          param = gfn1_alpb_thf
          case('toluene');      param = gfn1_alpb_toluene
          case('dmf');          param = gfn1_alpb_dmf
-         case('nhexan','n-hexan','nhexane','n-hexane');
+         case('nhexan','n-hexan','nhexane','n-hexane','hexane');
             param = gfn1_alpb_hexane
          end select
       end if
