@@ -136,7 +136,7 @@ subroutine projectHessian(hessian, mol, removeTrans, removeRot)
       end if
    end do
 
-   call mctc_syrk(projector, nullvec, alpha=-1.0_wp, beta=1.0_wp)
+   call mctc_syrk(nullvec, projector, alpha=-1.0_wp, beta=1.0_wp)
 
    deallocate(nullvec)
    allocate(scratch(ndim, ndim))
