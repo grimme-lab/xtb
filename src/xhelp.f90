@@ -59,7 +59,7 @@ write(iunit,'(3x,a)') &
    "* S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862", &
    "  DOI: 10.1021/acs.jctc.9b00143", &
    "",&
-      "for SPH calculations refer to:",&
+   "for SPH calculations refer to:",&
    "* S. Spicher and S. Grimme, J. Chem. Theory Comput., 2021,", &
    "  DOI: 10.1021/acs.jctc.0c01306", &
    "",&
