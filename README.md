@@ -191,6 +191,10 @@ in the mass-spec context:
 for metadynamics refer to:
 - S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
   DOI: [10.1021/acs.jctc.9b00143](https://dx.doi.org/10.1021/acs.jctc.9b00143)
+  
+for SPH calculations refer to:
+- S. Spicher and S. Grimme, *J. Chem. Theory Comput.*, **2021**.
+  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306)  
 
 All references are available in [bibtex format](./assets/references.bib).
 
