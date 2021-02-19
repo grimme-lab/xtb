@@ -155,7 +155,7 @@ For the contributor data from the commit history since then look [here](https://
 
 General Reference to `xtb` and the implemented GFN methods:
 - C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht, J. Seibert, S. Spicher, S. Grimme
-  *WIREs Comput. Mol. Sci.*, **2020**, e01493.
+  *WIREs Comput. Mol. Sci.*, **2020**, 11, e01493.
   DOI: [10.1002/wcms.1493](https://doi.org/10.1002/wcms.1493)
 
 for GFN-xTB:
