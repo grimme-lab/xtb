@@ -155,7 +155,7 @@ For the contributor data from the commit history since then look [here](https://
 
 General Reference to `xtb` and the implemented GFN methods:
 - C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht, J. Seibert, S. Spicher, S. Grimme
-  *WIREs Comput. Mol. Sci.*, **2020**, e01493.
+  *WIREs Comput. Mol. Sci.*, **2020**, 11, e01493.
   DOI: [10.1002/wcms.1493](https://doi.org/10.1002/wcms.1493)
 
 for GFN-xTB:
@@ -191,6 +191,10 @@ in the mass-spec context:
 for metadynamics refer to:
 - S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
   DOI: [10.1021/acs.jctc.9b00143](https://dx.doi.org/10.1021/acs.jctc.9b00143)
+  
+for SPH calculations refer to:
+- S. Spicher and S. Grimme, *J. Chem. Theory Comput.*, **2021**.
+  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306)  
 
 All references are available in [bibtex format](./assets/references.bib).
 

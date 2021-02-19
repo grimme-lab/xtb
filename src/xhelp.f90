@@ -20,7 +20,7 @@ integer,intent(in) :: iunit
 write(iunit,'(3x,a)') &
    "Cite this work as:", &
    "* C. Bannwarth, E. Caldeweyher, S. Ehlert, A. Hansen, P. Pracht,",&
-   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020,",&
+   "  J. Seibert, S. Spicher, S. Grimme, WIREs Comput. Mol. Sci., 2020, 11,",&
    "  e01493. DOI: 10.1002/wcms.1493",&
    "",&
    "for GFN2-xTB:",&
@@ -58,6 +58,10 @@ write(iunit,'(3x,a)') &
    "for metadynamics refer to:",&
    "* S. Grimme, J. Chem. Theory Comput., 2019, 155, 2847-2862", &
    "  DOI: 10.1021/acs.jctc.9b00143", &
+   "",&
+   "for SPH calculations refer to:",&
+   "* S. Spicher and S. Grimme, J. Chem. Theory Comput., 2021,", &
+   "  DOI: 10.1021/acs.jctc.0c01306", &
    "",&
    "with help from (in alphabetical order)",&
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
