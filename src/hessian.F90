@@ -50,6 +50,7 @@ subroutine numhess( &
    use xtb_axis, only : axis
 
    use xtb_gfnff_calculator, only : TGFFCalculator
+   use xtb_type_dummycalc, only : TDummyCalculator
 
    implicit none
 
@@ -178,6 +179,8 @@ subroutine numhess( &
    select type(calc)
    type is (TGFFCalculator)
       calc%update = .false.
+      parallize = .false.
+   type is (TDummyCalculator)
       parallize = .false.
    end select
 
