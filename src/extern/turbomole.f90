@@ -39,7 +39,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
          call rdtm(n,grd,eel,g,xyz_cached)
-         cache = any(abs(xyz_cached - xyz) < 1.e-10_wp)
+         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
@@ -60,7 +60,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
          call rdtm(n,grd,eel,g,xyz_cached)
-         cache = any(abs(xyz_cached - xyz) < 1.e-10_wp)
+         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
@@ -83,7 +83,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
          call rdtm(n,grd,eel,g,xyz_cached)
-         cache = any(abs(xyz_cached - xyz) < 1.e-10_wp)
+         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
