@@ -1,25 +1,43 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!  COPYRIGHT (C) 2015 by Filippo Lipparini, Benjamin Stamm, Paolo Gatto        !
+!  Eric Cancès, Yvon Maday, Jean-Philip Piquemal, Louis Lagardère and          !
+!  Benedetta Mennucci.                                                         !
+!                             ALL RIGHT RESERVED.                              !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+! A modular implementation of COSMO using a domain decomposition linear scaling
+! strategy.
+!
+! This code is governed by the LGPL license and abiding by the rules of
+! distribution of free software.
+! This program is distributed in the hope that it will be useful, but
+! WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+! or FITNESS FOR A PARTICULAR PURPOSE.
+! See the GNU Lesser General Public License for more details.
+
 module xtb_solv_ddcosmo_solver
-   use xtb_mctc_accuracy, only : wp
-   use xtb_solv_ddcosmo_core, only : TddCosmo, hsnorm
-   use xtb_type_environment, only : TEnvironment
+   use xtb_solv_ddcosmo_core, only : TDomainDecomposition, hsnorm, calcv, &
+      & intrhs, prtsph, adjrhs
    implicit none
+   private
+
+   public :: jacobi_diis, lx, lstarx, ldm1x, hnorm
+
+   integer, parameter :: wp = selected_real_kind(15)
 
 
 contains
 
 
 !> Jacobi/DIIS solver
-subroutine jacobi_diis(ddCosmo, env, n, lprint, diis_max, norm, tol, rhs, x, &
+subroutine jacobi_diis(ddCosmo, n, lprint, diis_max, norm, tol, rhs, x, &
       & n_iter, ok, matvec, dm1vec, u_norm)
 
-   !> Error source
-   character(len=*), parameter :: source = 'solv_ddcosmo_solver'
+   !  Error source
+   character(len=*), parameter :: source = 'ddcosmo_solver::jacobi_diis'
 
    !> Instance of the COSMO model
-   type(TddCosmo), intent(in) :: ddCosmo
-
-   !> Computation environment
-   type(TEnvironment), intent(inout) :: env
+   type(TDomainDecomposition), intent(in) :: ddCosmo
 
    !> Integer, input, size of the matrix
    integer, intent(in) :: n
@@ -43,11 +61,11 @@ subroutine jacobi_diis(ddCosmo, env, n, lprint, diis_max, norm, tol, rhs, x, &
    real(wp), intent(in) :: tol
 
    !> Real, dimension(n), input, right-hand side of the linear system
-   real(wp), intent(in) :: rhs(n)
+   real(wp), intent(in) :: rhs(:, :)
 
    !> Real, dimension(n). In input, a guess of the solution (can be zero).
    !  In output, the solution
-   real(wp), intent(inout) :: x(n)
+   real(wp), intent(inout), contiguous, target :: x(:, :)
 
    !> Integer, in input, the maximum number of iterations. In output,
    !  the number of iterations needed to converge.
@@ -72,20 +90,22 @@ subroutine jacobi_diis(ddCosmo, env, n, lprint, diis_max, norm, tol, rhs, x, &
    real(wp) :: rms_norm, max_norm, tol_max
    logical :: dodiis
 
-   real(wp), allocatable :: x_new(:), y(:), x_diis(:, :), e_diis(:, :), bmat(:, :)
+   real(wp), allocatable :: y(:, :), x_diis(:, :), e_diis(:, :), bmat(:, :)
+   real(wp), allocatable, target :: x_new(:, :)
+   real(wp), pointer :: xptr(:)
 
    character(len=*), parameter :: f100 = "(t3, 'iter=', i4, ' residual norm (rms, max): ', 2d14.4)"
    character(len=*), parameter :: f110 = "(t3, 'iter=', i4, ' residual norm (', a, '): ', d14.4)"
    character(len=*), parameter :: f120 = "(t3, 'iter=', i4, ' residual norm: ', d14.4)"
 
    ! check inputs
-   if ((norm.eq.4) .and. (.not.present(u_norm))) then
-      call env%error('must provide a function norm(n, x) to evaluate the norm of the increment', source)
+   if ((norm == 4) .and. (.not.present(u_norm))) then
+      error stop 'must provide a function norm(n, x) to evaluate the norm of the increment'
       return
    end if
 
    ! DIIS extrapolation flag
-   dodiis =  (diis_max.ne.0)
+   dodiis =  (diis_max /= 0)
 
    ! set tolerance
    tol_max = 10.0_wp * tol
@@ -95,22 +115,15 @@ subroutine jacobi_diis(ddCosmo, env, n, lprint, diis_max, norm, tol, rhs, x, &
 
       ! allocate workspaces
       lenb = diis_max + 1
-      allocate(x_diis(n, diis_max), e_diis(n, diis_max), bmat(lenb, lenb) , stat=istatus)
-      if (istatus .ne. 0) then
-         call env%error('failed allocation (diis)', source)
-         return
-      end if
+      allocate(x_diis(n, diis_max), e_diis(n, diis_max), bmat(lenb, lenb))
 
       ! an enigmatic constant
       nmat = 1
    end if
 
    ! allocate workspaces
-   allocate(x_new(n), y(n) , stat=istatus)
-   if (istatus .ne. 0) then
-      call env%error('failed allocation (scratch)', source)
-      return
-   end if
+   allocate(x_new, mold=rhs)
+   allocate(y, mold=rhs)
 
    ! Jacobi iterations
    do it = 1, n_iter
@@ -124,32 +137,34 @@ subroutine jacobi_diis(ddCosmo, env, n, lprint, diis_max, norm, tol, rhs, x, &
 
       ! DIIS extrapolation
       if (dodiis) then
-         x_diis(:, nmat) = x_new
-         e_diis(:, nmat) = x_new - x
+         x_diis(:, nmat) = reshape(x_new, [size(x_new)])
+         e_diis(:, nmat) = reshape(x_new - x, [size(x_new)])
 
-         call diis(n, nmat, diis_max, x_diis, e_diis, bmat, x_new)
+         xptr(1:size(x_new)) => x_new
+         call diis(n, nmat, diis_max, x_diis, e_diis, bmat, xptr)
       end if
 
       ! increment
       x = x_new - x
 
       ! rms/max norm of increment
-      if (norm.le.3) then
+      if (norm <= 3) then
 
          ! compute norm
-         call rmsvec(n, x, rms_norm, max_norm)
+         xptr(1:size(x)) => x
+         call rmsvec(n, xptr, rms_norm, max_norm)
 
          ! check norm
-         if (norm.eq.1) then
-            ok = (rms_norm.lt.tol)
-         elseif (norm.eq.2) then
-            ok = (max_norm.lt.tol)
+         if (norm == 1) then
+            ok = (rms_norm < tol)
+         elseif (norm == 2) then
+            ok = (max_norm < tol)
          else
-            ok = (rms_norm.lt.tol) .and. (max_norm.lt.tol_max)
+            ok = (rms_norm < tol) .and. (max_norm < tol_max)
          end if
 
          ! user-provided norm of increment
-      elseif (norm.eq.4) then
+      elseif (norm == 4) then
 
          ! just a placeholder for printing
          max_norm = -1.0_wp
@@ -158,19 +173,19 @@ subroutine jacobi_diis(ddCosmo, env, n, lprint, diis_max, norm, tol, rhs, x, &
          rms_norm = u_norm(ddCosmo, n, x)
 
          ! check norm
-         ok = (rms_norm.lt.tol)
+         ok = (rms_norm < tol)
 
       end if
 
       ! printing
-      if (lprint.gt.0) then
-         if (norm.eq.1) then
+      if (lprint > 0) then
+         if (norm == 1) then
             write(*, f110) it, 'max', max_norm
-         else if (norm.eq.2) then
+         else if (norm == 2) then
             write(*, f110) it, 'rms', rms_norm
-         else if (norm.eq.3) then
+         else if (norm == 3) then
             write(*, f100) it, rms_norm, max_norm
-         else if (norm.eq.4) then
+         else if (norm == 4) then
             write(*, f120) it, rms_norm
          end if
       end if
@@ -202,9 +217,9 @@ subroutine diis(n, nmat, ndiis, x, e, b, xnew)
    integer :: j, k
    logical :: ok
 
-   real(wp), allocatable :: bloc(:, :), cex(:)
+   real(wp), allocatable :: bloc(:, :), cex(:, :)
 
-   if (nmat.ge.ndiis) then
+   if (nmat >= ndiis) then
       do j = 2, nmat - 10
          do k = 2, nmat - 10
             b(j, k) = b(j+10, k+10)
@@ -217,24 +232,25 @@ subroutine diis(n, nmat, ndiis, x, e, b, xnew)
       nmat = nmat - 10
    end if
    nmat1 = nmat + 1
-   allocate(bloc(nmat1, nmat1), cex(nmat1), stat=istatus)
-   if (istatus.ne.0) then
+   allocate(bloc(nmat1, nmat1), cex(nmat1, 1), stat=istatus)
+   if (istatus /= 0) then
       nmat = 1
       return
    end if
 
    call makeb(n, nmat, ndiis, e, b)
    bloc = b(1:nmat1, 1:nmat1)
-   cex = 0.0_wp
-   cex(1) = 1.0_wp
+   cex(:, :) = 0.0_wp
+   cex(1, 1) = 1.0_wp
    call gjinv(nmat1, 1, bloc, cex, ok)
    if (.not. ok) then
       nmat = 1
+      error stop "Upps!"
       return
    end if
    xnew = 0.0_wp
    do i = 1, nmat
-      xnew = xnew + cex(i+1)*x(:, i)
+      xnew = xnew + cex(i+1, 1)*x(:, i)
    end do
    nmat = nmat + 1
 
@@ -250,7 +266,7 @@ pure subroutine makeb(n, nmat, ndiis, e, b)
    real(wp) :: bij
 
    ! 1st built
-   if (nmat.eq.1) then
+   if (nmat == 1) then
       !       [ 0 |  1  ]
       !   b = [ --+---- ]
       !       [ 1 | e*e ]
@@ -278,8 +294,8 @@ end subroutine makeb
 pure subroutine gjinv(n, nrhs, a, b, ok)
    integer, intent(in) :: n, nrhs
    logical, intent(inout) :: ok
-   real(wp), intent(inout) :: a(n, n)
-   real(wp), intent(inout) :: b(n, nrhs)
+   real(wp), intent(inout) :: a(:, :) ! [n, n]
+   real(wp), intent(inout) :: b(:, :) ! [n, nrhs]
 
    integer :: i, j, k, irow, icol, istatus
    real(wp) :: big, dum, pinv
@@ -290,11 +306,11 @@ pure subroutine gjinv(n, nrhs, a, b, ok)
    ok = .false.
 
    allocate(indxc(n), indxr(n), piv(n), stat=istatus)
-   if (istatus.ne.0) then
+   if (istatus /= 0) then
       return
    end if
    allocate (scr(n), stat=istatus)
-   if (istatus.ne.0) then
+   if (istatus /= 0) then
       return
    end if
 
@@ -305,10 +321,10 @@ pure subroutine gjinv(n, nrhs, a, b, ok)
    do i = 1, n
       big = 0.0_wp
       do j = 1, n
-         if (piv(j).ne.1) then
+         if (piv(j) /= 1) then
             do k = 1, n
-               if (piv(k).eq.0) then
-                  if (abs(a(j, k)).gt.big) then
+               if (piv(k) == 0) then
+                  if (abs(a(j, k)) > big) then
                      big  = abs(a(j, k))
                      irow = j
                      icol = k
@@ -319,11 +335,11 @@ pure subroutine gjinv(n, nrhs, a, b, ok)
       end do
 
       piv(icol) = piv(icol) + 1
-      if (piv(icol) .gt. 1) then
-         !call env%warning('singular matrix', source)
+      if (piv(icol) > 1) then
+         !call warning('singular matrix', source)
          return
       end if
-      if (irow.ne.icol) then
+      if (irow /= icol) then
          scr         = a(irow, :)
          a(irow, :)   = a(icol, :)
          a(icol, :)   = scr
@@ -335,8 +351,8 @@ pure subroutine gjinv(n, nrhs, a, b, ok)
       indxr(i) = irow
       indxc(i) = icol
 
-      if (a(icol, icol) .eq. 0.0_wp) then
-         !call env%warning('singular matrix', source)
+      if (a(icol, icol) == 0.0_wp) then
+         !call warning('singular matrix', source)
          return
       end if
 
@@ -346,7 +362,7 @@ pure subroutine gjinv(n, nrhs, a, b, ok)
       b(icol, :) = b(icol, :)*pinv
 
       do j = 1, n
-         if (j.ne.icol) then
+         if (j /= icol) then
             dum       = a(j, icol)
             a(j, icol) = 0.0_wp
             a(j, :)    = a(j, :) - a(icol, :)*dum
@@ -356,7 +372,7 @@ pure subroutine gjinv(n, nrhs, a, b, ok)
    end do
 
    do j = n, 1, -1
-      if (indxr(j) .ne. indxc(j)) then
+      if (indxr(j) /= indxc(j)) then
          scr           = a(:, indxr(j))
          a(:, indxr(j)) = a(:, indxc(j))
          a(:, indxc(j)) = scr
@@ -400,12 +416,11 @@ end subroutine rmsvec
 !> Given a vector x, compute y = Lx, where L is the ddCOSMO matrix
 !  (off-diagonal blocks only).
 subroutine lx(ddCosmo, n, x, y)
-   use xtb_solv_ddcosmo_core , only : TddCosmo, calcv, intrhs, prtsph
 
-   type(TddCosmo), intent(in) :: ddCosmo
+   type(TDomainDecomposition), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
-   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+   real(wp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
 
    integer :: iat, istatus
    real(wp), allocatable :: pot(:), vplm(:), basloc(:), vcos(:), vsin(:)
@@ -414,13 +429,13 @@ subroutine lx(ddCosmo, n, x, y)
    allocate(pot(ddCosmo%ngrid), vplm(ddCosmo%nylm), basloc(ddCosmo%nylm), &
       & vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
+   if (ddCosmo%iprint >= 5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
 
    ! initialize
-   y = 0.0_wp
+   y(:, :) = 0.0_wp
 
-   !$omp parallel do default(shared) private(iat, pot, basloc, vplm, vcos, vsin) &
-   !$omp schedule(dynamic)
+   !$omp parallel do default(none) schedule(runtime) shared(ddCosmo, y, x) &
+   !$omp private(iat, pot, basloc, vplm, vcos, vsin)
    ! loop over spheres
    do iat = 1, ddCosmo%nat
 
@@ -433,7 +448,7 @@ subroutine lx(ddCosmo, n, x, y)
 
    end do
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'LX (off diagonal)', ddCosmo%nat, 0, y)
+   if (ddCosmo%iprint >= 5) call prtsph(ddCosmo, 'LX (off diagonal)', ddCosmo%nat, 0, y)
 
 end subroutine lx
 
@@ -442,12 +457,11 @@ end subroutine lx
 !  if dodiag is set to .true., L includes the diagonal blocks, otherwise
 !  L only includes the off-diagonal ones.
 subroutine lstarx(ddCosmo, n, x, y)
-   use xtb_solv_ddcosmo_core , only : TddCosmo, adjrhs, prtsph
 
-   type(TddCosmo), intent(in) :: ddCosmo
+   type(TDomainDecomposition), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
-   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+   real(wp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
 
    integer :: iat, ig, istatus
    real(wp), allocatable :: xi(:, :), vplm(:), basloc(:), vcos(:), vsin(:)
@@ -456,24 +470,25 @@ subroutine lstarx(ddCosmo, n, x, y)
    allocate(xi(ddCosmo%ngrid, ddCosmo%nat), vplm(ddCosmo%nylm), &
       & basloc(ddCosmo%nylm), vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
+   if (ddCosmo%iprint >= 5) call prtsph(ddCosmo, 'X', ddCosmo%nat, 0, x)
 
    ! initilize
-   y = 0.0_wp
+   y(:, :) = 0.0_wp
 
    ! expand x over spherical harmonics
-   !$omp parallel do default(shared) private(iat, ig)
+   !$omp parallel do default(none) schedule(runtime) collapse(2) &
+   !$omp shared(ddCosmo, xi, x) private(iat, ig)
    ! loop over spheres
    do iat = 1, ddCosmo%nat
-      ! loop over gridpoints
+      ! loop over griwpoints
       do ig = 1, ddCosmo%ngrid
          xi(ig, iat) = dot_product(x(:, iat), ddCosmo%basis(:, ig))
       end do
    end do
 
    ! compute action
-   !$omp parallel do default(shared) private(iat, basloc, vplm, vcos, vsin) &
-   !$omp schedule(dynamic)
+   !$omp parallel do default(none) schedule(runtime) &
+   !$omp shared(ddCosmo, xi, y) private(iat, basloc, vplm, vcos, vsin)
    ! loop over spheres
    do iat = 1, ddCosmo%nat
 
@@ -485,17 +500,17 @@ subroutine lstarx(ddCosmo, n, x, y)
 
    end do
 
-   if (ddCosmo%iprint.ge.5) call prtsph(ddCosmo, 'L*X (off-diagonal)', ddCosmo%nat, 0, y)
+   if (ddCosmo%iprint >= 5) call prtsph(ddCosmo, 'L*X (off-diagonal)', ddCosmo%nat, 0, y)
 
 end subroutine lstarx
 
 
 !> Given a vector x, apply the inverse diagonal (block) of the L matrix:
 pure subroutine ldm1x(ddCosmo, n, x, y)
-   type(TddCosmo), intent(in) :: ddCosmo
+   type(TDomainDecomposition), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
-   real(wp), intent(inout) :: y(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+   real(wp), intent(inout) :: y(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
 
    integer :: iat
 
@@ -511,9 +526,9 @@ end subroutine ldm1x
 !> Compute the h^-1/2 norm of the increment on each sphere, then take the
 !  rms value.
 real(wp) function hnorm(ddCosmo, n, x)
-   type(TddCosmo), intent(in) :: ddCosmo
+   type(TDomainDecomposition), intent(in) :: ddCosmo
    integer, intent(in) :: n
-   real(wp), intent(in) :: x(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: x(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
    integer :: iat, istatus
    real(wp) :: vrms, vmax
    real(wp), allocatable :: u(:)

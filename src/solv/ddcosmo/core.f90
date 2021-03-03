@@ -77,12 +77,14 @@
 ! Written by Filippo Lipparini, October 2015.
 ! Adapted by Sebastian Ehlert, June 2020.
 module xtb_solv_ddcosmo_core
-   use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_blas, only : mctc_scal
-   use xtb_type_environment, only : TEnvironment
    implicit none
+   private
+
+   public :: TDomainDecomposition, TDomainDecompositionInput, initDomainDecomposition
+   public :: hsnorm, calcv, intrhs, prtsph, adjrhs, wghpot, ddupdate, fdoka, fdokb, fdoga
 
 
+   integer, parameter :: wp = selected_real_kind(15)
    integer, parameter :: ndiis=25, iout=6, nngmax=100
    real(wp), parameter :: zero=0._wp, pt5=0.5_wp, one=1._wp, two=2._wp, four=4._wp
    real(wp), parameter :: se = -1.0_wp
@@ -91,7 +93,22 @@ module xtb_solv_ddcosmo_core
 
 
    !> Quantities contained in control file
-   type :: TddControl
+   type :: TDomainDecompositionInput
+
+      !> Max angular momentum of spherical harmonics basis
+      integer :: lmax
+
+      !> Threshold for iterative solver
+      real(wp) :: conv
+
+      !> Regularization parameters
+      real(wp) :: eta
+
+   end type TDomainDecompositionInput
+
+
+   !> Cosmo calculator
+   type :: TDomainDecomposition
 
       !> Printing flag
       integer :: iprint
@@ -102,23 +119,14 @@ module xtb_solv_ddcosmo_core
       !> Desired number of Lebedev integration points
       integer :: ngrid
 
-      !> Threshold for iterative solver (10^-iconv)
-      integer :: iconv
+      !> Threshold for iterative solver
+      real(wp) :: conv
 
       !> 1) compute forces ; 0) do not compute forces
       integer :: igrad
 
-      !> Dielectric constant of the solvent
-      real(wp) :: eps
-
       !> Regularization parameters
       real(wp) :: eta
-
-   end type TddControl
-
-
-   !> Cosmo calculator
-   type, extends(TddControl) :: TddCosmo
 
       !> Number of spheres/atoms
       integer :: nat
@@ -137,7 +145,7 @@ module xtb_solv_ddcosmo_core
       real(wp), allocatable :: fact(:), facl(:), facs(:)
       real(wp), allocatable :: fi(:, :), ui(:, :), zi(:, :, :)
 
-   end type TddCosmo
+   end type TDomainDecomposition
 
 
 contains
@@ -147,15 +155,13 @@ contains
 !
 !  allocate the various arrays needed for ddcosmo,
 !  assemble the cavity and the various associated geometrical quantities.
-subroutine ddinit(self, env, n, xyz, rvdw)
-   use xtb_mctc_search, only : bisectSearch
-   use xtb_solv_lebedev, only : gridSize, getAngGrid
+subroutine initDomainDecomposition(self, input, rvdw, wang, grid)
 
-   character(len=*), parameter :: source = 'solv_ddcosmo_ddinit'
-   type(TEnvironment), intent(inout) :: env
-   type(TddCosmo), intent(inout) :: self
-   integer, intent(in) :: n
-   real(wp), intent(in) :: xyz(3, n), rvdw(n)
+   character(len=*), parameter :: source = 'ddcosmo_core::initDomainDecomposition'
+   type(TDomainDecomposition), intent(out) :: self
+   type(TDomainDecompositionInput), intent(in) :: input
+   real(wp), intent(in) :: rvdw(:)
+   real(wp), intent(in) :: wang(:), grid(:, :)
 
    integer :: iat, jat, i, ii, lnl, l, ind, m, igrid, inear, jnear
    integer :: istatus
@@ -163,18 +169,13 @@ subroutine ddinit(self, env, n, xyz, rvdw)
 
    real(wp), allocatable :: vcos(:), vsin(:), vplm(:)
 
-   character(len=*), parameter :: f1000 = "(t3, 'neighbours of sphere ', i6)"
-   character(len=*), parameter :: f1010 = "(t5, 12i6)"
-   character(len=*), parameter :: f1100 = "(t3, i8, 3f14.6)"
-
-   self%nat = n
-
-   ! choose the lebedev grid with number of points closest to ngrid:
-   call bisectSearch(igrid, gridSize, self%ngrid)
-   self%ngrid = gridSize(igrid)
-
-   ! print a nice header:
-   call header(self)
+   self%nat = size(rvdw)
+   self%ngrid = size(wang)
+   self%iprint = 0
+   self%lmax = input%lmax
+   self%conv = input%conv
+   self%eta = input%eta
+   self%igrad = 1
 
    ! allocate:
    self%grad   = self%igrad /= 0
@@ -184,16 +185,8 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       & self%inl(self%nat+1), self%nl(self%nat*nngmax), &
       & self%fi(self%ngrid, self%nat), self%ui(self%ngrid, self%nat), &
       & self%fact(max(2*self%lmax+1, 2)), self%facl(self%nylm), &
-      & self%facs(self%nylm), stat=istatus)
-   if (istatus /= 0) then
-      call env%error('allocation failed', source)
-      return
-   end if
-   if (self%grad) allocate(self%zi(3, self%ngrid, self%nat), stat=istatus)
-   if (istatus /= 0) then
-      call env%error('allocation failed', source)
-      return
-   end if
+      & self%facs(self%nylm))
+   if (self%grad) allocate(self%zi(3, self%ngrid, self%nat))
 
    ! precompute various quantities (diagonal blocks of ddcosmo matrix,
    ! normalization factors for spherical harmonics, factorials)
@@ -217,35 +210,22 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       end do
    end do
 
+   ! copy the angular grid:
+   self%grid = grid
+   ! scaling because the weights are normalised
+   self%w = wang * four*pi
+
    ! set the centers and radii of the spheres:
-   self%xyz(:, :) = xyz
    self%rvdw(:) = rvdw
 
-   ! load a lebedev grid:
-   call getAngGrid(igrid, self%grid, self%w, istatus)
-   if (istatus /= 0) then
-      call env%error('angular grid generation failed', source)
-      return
-   end if
-   ! scaling because the weights are normalised
-   call mctc_scal(self%w, four*pi)
-
-   ! build a basis of spherical harmonics at the gridpoints:
-   allocate(vplm(self%nylm), vcos(self%lmax+1), vsin(self%lmax+1), stat=istatus)
-   if (istatus /= 0) then
-      call env%error('allocation failed', source)
-      return
-   end if
-   !$omp parallel do default(shared) private(i, vplm, vcos, vsin)
+   ! build a basis of spherical harmonics at the griwpoints:
+   allocate(vplm(self%nylm), vcos(self%lmax+1), vsin(self%lmax+1))
+   !$omp parallel do default(none) schedule(runtime) &
+   !$omp shared(self) private(i, vplm, vcos, vsin)
    do i = 1, self%ngrid
       call ylmbas(self, self%grid(:, i), self%basis(:, i), vplm, vcos, vsin)
    end do
-   !$omp end parallel do
-   deallocate(vplm, vcos, vsin, stat=istatus)
-   if (istatus /= 0) then
-      call env%error('deallocation failed', source)
-      return
-   end if
+   deallocate(vplm, vcos, vsin)
 
    if (self%iprint >= 4) then
       call prtsph(self, 'facs', 1, 0, self%facs)
@@ -255,27 +235,54 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       call ptcart(self, 'weights', 1, 0, self%w)
    end if
 
-   ! build neighbors list (CSR format)
-   !
-   !  \\  jat  |
-   ! iat   \\  |  1   2   3   4   5   6
-   ! -----------------------------------
-   !         1 |      x       x   x
-   !         2 |  x       x       x   x
-   !         3 |      x       x       x
-   !         4 |  x       x       x   x
-   !         5 |  x   x       x
-   !         6 |      x   x   x
-   !
-   !
-   !  inl =  1,       4,          8,      11,         15,      18, 21        pointer to 1st neighbor
-   !
-   !         |        |           |        |           |        |
-   !         v        V           V        V           V        V
-   !
-   !         1| 2| 3| 4| 5| 6| 7| 8| 9|10|11|12|13|14|15|16|17|18|19|20
-   !
-   !  nl  =  2, 4, 5, 1, 3, 5, 6, 2, 4, 6, 1, 3, 5, 6, 1, 2, 4, 2, 3, 4     neighbors list
+end subroutine initDomainDecomposition
+
+
+subroutine ddupdate(self, xyz)
+
+   type(TDomainDecomposition), intent(inout) :: self
+
+   real(wp), intent(in) :: xyz(:, :)
+
+   self%xyz(:, :) = xyz
+
+   call mknnl(self)
+   call mkfiui(self)
+   call mkccav(self)
+
+end subroutine ddupdate
+
+
+! build neighbors list (CSR format)
+!
+!  \\  jat  |
+! iat   \\  |  1   2   3   4   5   6
+! -----------------------------------
+!         1 |      x       x   x
+!         2 |  x       x       x   x
+!         3 |      x       x       x
+!         4 |  x       x       x   x
+!         5 |  x   x       x
+!         6 |      x   x   x
+!
+!
+!  inl =  1,       4,          8,      11,         15,      18, 21        pointer to 1st neighbor
+!
+!         |        |           |        |           |        |
+!         v        V           V        V           V        V
+!
+!         1| 2| 3| 4| 5| 6| 7| 8| 9|10|11|12|13|14|15|16|17|18|19|20
+!
+!  nl  =  2, 4, 5, 1, 3, 5, 6, 2, 4, 6, 1, 3, 5, 6, 1, 2, 4, 2, 3, 4     neighbors list
+subroutine mknnl(self)
+
+   type(TDomainDecomposition), intent(inout) :: self
+
+   integer :: ii, lnl, iat, jat
+   real(wp) :: v(3), d2, r2
+
+   character(len=*), parameter :: f1000 = "(t3, 'neighbours of sphere ', i6)"
+   character(len=*), parameter :: f1010 = "(t5, 12i6)"
 
    ! index of nl
    ii  = 1
@@ -308,27 +315,37 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       write(iout, *)
    end if
 
-   ! Define :
-   !
-   !   N_i = list of neighbors of i-sphere [ excluding i-sphere ]
-   !
-   !            | r_i + rho_i s_n - r_j |
-   !   t_n^ij = -------------------------
-   !                      rho_j
-   !
-   !   fi(n, i) =    sum    \chi(t_n^ij)
-   !             j \in N_i
-   !
-   ! Notice that the derivative of fi(n, i) wrt to r_k is (possibly) nonzero
-   ! when either k = i, or k \in N_j .
+end subroutine mknnl
+
+
+! Define :
+!
+!   N_i = list of neighbors of i-sphere [ excluding i-sphere ]
+!
+!            | r_i + rho_i s_n - r_j |
+!   t_n^ij = -------------------------
+!                      rho_j
+!
+!   fi(n, i) =    sum    \chi(t_n^ij)
+!             j \in N_i
+!
+! Notice that the derivative of fi(n, i) wrt to r_k is (possibly) nonzero
+! when either k = i, or k \in N_j .
+subroutine mkfiui(self)
+
+   type(TDomainDecomposition), intent(inout) :: self
+
+   integer :: iat, i, ii, jat
+   real(wp) :: v(3), vv, t, xt, swthr, fac
+
 
    ! build arrays fi, ui, zi
    self%fi = 0.0_wp
    self%ui = 0.0_wp
    if (self%grad) self%zi = 0.0_wp
 
-   !$omp parallel do default(shared) &
-   !$omp private(iat, i, ii, jat, v, vv, t, xt, swthr, fac)
+   !$omp parallel do default(none) schedule(runtime) collapse(2) &
+   !$omp shared(self) private(iat, i, ii, jat, v, vv, t, xt, swthr, fac)
    ! loop over spheres
    do iat = 1, self%nat
 
@@ -369,14 +386,25 @@ subroutine ddinit(self, env, n, xyz, rvdw)
          if (self%fi(i, iat) <= 1.0_wp)  self%ui(i, iat) = 1.0_wp - self%fi(i, iat)
       end do
    end do
-   !$omp end parallel do
 
    if (self%iprint >= 4) then
       call ptcart(self, 'fi', self%nat, 0, self%fi)
       call ptcart(self, 'ui', self%nat, 0, self%ui)
    end if
 
-   ! build cavity array
+end subroutine mkfiui
+
+
+! build cavity array
+subroutine mkccav(self)
+
+   type(TDomainDecomposition), intent(inout) :: self
+
+   integer :: iat, i, ii
+   character(len=*), parameter :: f1100 = "(t3, i8, 3f14.6)"
+
+   if (allocated(self%ccav)) deallocate(self%ccav)
+
    ! initialize number of cavity points
    self%ncav=0
 
@@ -397,12 +425,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
    end do
 
    ! allocate cavity array
-   allocate(self%ccav(3, self%ncav), stat=istatus)
-   if (istatus  /=  0) then
-      call env%error('allocation failed', source)
-      return
-   end if
-
+   allocate(self%ccav(3, self%ncav))
 
    ! initialize cavity array index
    ii = 0
@@ -434,42 +457,7 @@ subroutine ddinit(self, env, n, xyz, rvdw)
       write(iout, *)
    end if
 
-end subroutine ddinit
-
-
-!> Free data structure
-subroutine memfree(self, env)
-   character(len=*), parameter :: source = 'solv_ddcosmo_memfree'
-   type(TEnvironment), intent(inout) :: env
-   type(TddCosmo), intent(inout) :: self
-   integer :: istatus, istatus0
-
-   ! initialize deallocation flags
-   istatus0 = 0
-   istatus = 0
-
-   ! deallocate the arrays
-   if (allocated(self%rvdw))  deallocate(self%rvdw, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%xyz))  deallocate(self%xyz, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%ccav))  deallocate(self%ccav, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%w))  deallocate(self%w, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%grid))  deallocate(self%grid, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%basis))  deallocate(self%basis, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%inl))  deallocate(self%inl, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%nl))  deallocate(self%nl, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%fact))  deallocate(self%fact, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%facl))  deallocate(self%facl, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%facs))  deallocate(self%facs, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%ui))  deallocate(self%ui, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%fi))  deallocate(self%fi, stat=istatus) ; istatus0 = istatus0 + istatus
-   if (allocated(self%zi))  deallocate(self%zi, stat=istatus) ; istatus0 = istatus0 + istatus
-
-   if (istatus0 /= 0) then
-      call env%error('deallocation failed', source)
-      return
-   end if
-
-end subroutine memfree
+end subroutine mkccav
 
 
 !> Scalar product
@@ -569,7 +557,7 @@ end function dfsw
 !> Dump an array (ngrid, ncol) or just a column.
 subroutine ptcart(self, label, ncol, icol, x)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    character(len=*), intent(in) :: label
    integer, intent(in) :: ncol, icol
    real(wp), intent(in) :: x(self%ngrid, ncol)
@@ -581,7 +569,7 @@ subroutine ptcart(self, label, ncol, icol, x)
 
    ! print header :
    if (ncol == 1) then
-      write (iout, '(3x, a, 1x, "(column ", i4")")') label, icol
+      write (iout, '(3x, a, 1x, "(column ", i4, ")")') label, icol
    else
       write (iout, '(3x, a)') label
    end if
@@ -613,7 +601,7 @@ end subroutine ptcart
 !> Dump an array (nylm, ncol) or just a column.
 subroutine prtsph(self, label, ncol, icol, x)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    character (len=*), intent(in) :: label
    integer, intent(in) :: ncol, icol
    real(wp), intent(in) :: x(self%nylm, ncol)
@@ -625,7 +613,7 @@ subroutine prtsph(self, label, ncol, icol, x)
 
    ! print header :
    if (ncol == 1) then
-      write (iout, '(3x, a, 1x, "(column ", i4")")') label, icol
+      write (iout, '(3x, a, 1x, "(column ", i4, ")")') label, icol
    else
       write (iout, '(3x, a)') label
    end if
@@ -666,10 +654,10 @@ end subroutine prtsph
 !> Integrate against spherical harmonics
 subroutine intrhs(self, iat, x, xlm)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    integer, intent(in) :: iat
-   real(wp), intent(in) :: x(self%ngrid)
-   real(wp), intent(inout) :: xlm(self%nylm)
+   real(wp), intent(in) :: x(:) ! [self%ngrid]
+   real(wp), intent(inout) :: xlm(:) ! [self%nylm]
 
    integer :: ig
 
@@ -693,10 +681,10 @@ end subroutine intrhs
 !> Compute spherical harmonics
 pure subroutine ylmbas(self, x, basloc, vplm, vcos, vsin)
 
-   type(TddCosmo), intent(in) :: self
-   real(wp), intent(in) :: x(3)
-   real(wp), intent(out) :: basloc(self%nylm), vplm(self%nylm)
-   real(wp), intent(out) :: vcos(self%lmax+1), vsin(self%lmax+1)
+   type(TDomainDecomposition), intent(in) :: self
+   real(wp), intent(in) :: x(:) ! [3]
+   real(wp), intent(out) :: basloc(:), vplm(:) ! [self%nylm]
+   real(wp), intent(out) :: vcos(:), vsin(:) ! [self%lmax+1]
 
    integer :: l, m, ind
    real(wp) :: cthe, sthe, cphi, sphi, plm
@@ -757,11 +745,11 @@ end subroutine ylmbas
 !> Compute first derivatives of spherical harmonics
 pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
 
-   type(TddCosmo), intent(in) :: self
-   real(wp), intent(in) :: x(3)
-   real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-   real(wp), intent(inout) :: dbsloc(3, self%nylm)
-   real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
+   type(TDomainDecomposition), intent(in) :: self
+   real(wp), intent(in) :: x(:) ! [3]
+   real(wp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+   real(wp), intent(inout) :: dbsloc(:, :) ! [3, self%nylm]
+   real(wp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
 
    integer :: l, m, ind, VC, VS
    real(wp) :: cthe, sthe, cphi, sphi, plm, fln, pp1, pm1, pp
@@ -808,8 +796,8 @@ pure subroutine dbasis(self, x, basloc, dbsloc, vplm, vcos, vsin)
       call trgev(self, cphi, sphi, vcos, vsin)
    else
       ! NORTH or SOUTH pole
-      vcos = 1.0_wp
-      vsin = 0.0_wp
+      vcos(:) = 1.0_wp
+      vsin(:) = 0.0_wp
    end if
    VC=0.0_wp
    VS=cthe
@@ -875,9 +863,9 @@ end subroutine dbasis
 !  (l-m)p(l, m) = x(2l-1)p(l-1, m) - (l+m-1)p(l-2, m)
 pure subroutine polleg(self, x, y, plm)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    real(wp), intent(in) :: x, y
-   real(wp), intent(inout) :: plm(self%nylm)
+   real(wp), intent(inout) :: plm(:) ! [self%nylm]
 
    integer :: m, ind, l, ind2
    real(wp) :: fact, pmm, somx2, pmm1, pmmo, pll, fm, fl
@@ -913,9 +901,9 @@ end subroutine polleg
 !> Service routine for computation of spherical harmonics
 pure subroutine trgev(self, x, y, cx, sx)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    real(wp), intent(in) :: x, y
-   real(wp), intent(inout) :: cx(max((self%lmax+1), 2)), sx(max((self%lmax+1), 2))
+   real(wp), intent(inout) :: cx(:), sx(:) ! [max((self%lmax+1), 2)]
 
    integer :: m
 
@@ -939,9 +927,9 @@ end subroutine trgev
 !  which is need to compute action of COSMO matrix L.
 pure function intmlp(self, t, sigma, basloc)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    real(wp), intent(in) :: t
-   real(wp), intent(in) :: sigma(self%nylm), basloc(self%nylm)
+   real(wp), intent(in) :: sigma(:), basloc(:) ! [self%nylm]
    real(wp) :: intmlp
 
    integer :: l, ind
@@ -977,9 +965,9 @@ end function intmlp
 !> Weigh potential at cavity points by characteristic function "ui"
 subroutine wghpot(self, phi, g)
 
-   type(TddCosmo), intent(in) :: self
-   real(wp), intent(in)  :: phi(self%ncav)
-   real(wp), intent(out) :: g(self%ngrid, self%nat)
+   type(TDomainDecomposition), intent(in) :: self
+   real(wp), intent(in)  :: phi(:) ! [self%ncav]
+   real(wp), intent(out) :: g(:, :) ! [self%ngrid, self%nat]
 
    integer :: iat, ig, ic
 
@@ -1013,7 +1001,7 @@ end subroutine wghpot
 !> Compute H-norm
 pure subroutine hsnorm(self, u, unorm)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    real(wp), intent(in) :: u(:) !< [nylm]
    real(wp), intent(inout) :: unorm
 
@@ -1069,12 +1057,12 @@ end subroutine hsnorm
 ! The auxiliary quantity [ \xi_j ]_l^m needs to be computed explicitly.
 pure subroutine adjrhs(self, iat, xi, vlm, basloc, vplm, vcos, vsin)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    integer, intent(in) :: iat
-   real(wp), intent(in) :: xi(self%ngrid, self%nat)
-   real(wp), intent(inout) :: vlm(self%nylm)
-   real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-   real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
+   real(wp), intent(in) :: xi(:, :) ! [self%ngrid, self%nat]
+   real(wp), intent(inout) :: vlm(:) ! [self%nylm]
+   real(wp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+   real(wp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
 
    integer :: ij, jat, ig, l, ind, m
    real(wp) :: vji(3), vvji, tji, sji(3), xji, oji, fac, ffac, t
@@ -1144,7 +1132,7 @@ end subroutine adjrhs
 
 subroutine header(self)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
 
    1000 format(/, &
       ' An implementation of COSMO using a domain decomposition linear scaling strategy.', /)
@@ -1153,13 +1141,12 @@ subroutine header(self)
       '   number of spheres:                      ', 8x, i8, /,   &
       '   lmax for the spherical harmonics basis: ', 8x, i8, /,   &
       '   convergence threshold:                  ', 8x, d8.1, /, &
-      '   regularization parameter (eta):         ', 8x, f8.3, /, &
-      '   dielectric constant:                    ', 8x, f8.4/)
+      '   regularization parameter (eta):         ', 8x, f8.3/)
 
    if (self%iprint > 0) then
 
       write(iout, 1000)
-      write(iout, 1010) self%ngrid, self%nat, self%lmax, 10.0_wp**(-self%iconv), self%eta, self%eps
+      write(iout, 1010) self%ngrid, self%nat, self%lmax, self%conv, self%eta
 
       if (self%igrad == 1)  write(iout, 1013)
       1013   format(' Compute forces.'//)
@@ -1172,14 +1159,14 @@ end subroutine header
 !> Compute the first part of <S, L^(x)X>
 pure subroutine fdoka(self, iat, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, fx)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    integer, intent(in) :: iat
-   real(wp), intent(in) :: sigma(self%nylm, self%nat)
-   real(wp), intent(in) :: xi(self%ngrid)
-   real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-   real(wp), intent(inout) :: dbsloc(3, self%nylm)
-   real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
-   real(wp), intent(inout) :: fx(3)
+   real(wp), intent(in) :: sigma(:, :) ! [self%nylm, self%nat]
+   real(wp), intent(in) :: xi(:) ! [self%ngrid]
+   real(wp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+   real(wp), intent(inout) :: dbsloc(:, :) ! [3, self%nylm]
+   real(wp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
+   real(wp), intent(inout) :: fx(:) ! [3]
 
    integer :: ig, ij, jat, l, ind, m
    real(wp) :: vvij, tij, xij, oij, t, fac, fl, f1, f2, f3, beta, tlow, thigh
@@ -1240,14 +1227,14 @@ end subroutine fdoka
 !> Compute the the second part of <S, L^(x)X>
 pure subroutine fdokb(self, iat, sigma, xi, basloc, dbsloc, vplm, vcos, vsin, fx)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    integer, intent(in) :: iat
-   real(wp), intent(in) :: sigma(self%nylm, self%nat)
-   real(wp), intent(in) :: xi(self%ngrid, self%nat)
-   real(wp), intent(inout) :: basloc(self%nylm), vplm(self%nylm)
-   real(wp), intent(inout) :: dbsloc(3, self%nylm)
-   real(wp), intent(inout) :: vcos(self%lmax+1), vsin(self%lmax+1)
-   real(wp), intent(inout) :: fx(3)
+   real(wp), intent(in) :: sigma(:, :) ! [self%nylm, self%nat]
+   real(wp), intent(in) :: xi(:, :) ! [self%ngrid, self%nat]
+   real(wp), intent(inout) :: basloc(:), vplm(:) ! [self%nylm]
+   real(wp), intent(inout) :: dbsloc(:, :) ! [3, self%nylm]
+   real(wp), intent(inout) :: vcos(:), vsin(:) ! [self%lmax+1]
+   real(wp), intent(inout) :: fx(:) ! [3]
 
    integer :: ig, ji, jat, l, ind, m, jk, kat
    logical :: proc
@@ -1342,10 +1329,10 @@ end subroutine fdokb
 !> Compute the U^(x)\Phi contribution to <S, g^(x)>
 pure subroutine fdoga(self, iat, xi, phi, fx)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    integer, intent(in) :: iat
-   real(wp), intent(in) :: xi(self%ngrid, self%nat), phi(self%ngrid, self%nat)
-   real(wp), intent(inout) :: fx(3)
+   real(wp), intent(in) :: xi(:, :), phi(:, :) ! [self%ngrid, self%nat]
+   real(wp), intent(inout) :: fx(:) ! [3]
 
    integer :: ig, ji, jat
    real(wp) :: vvji, tji, fac, swthr
@@ -1393,15 +1380,15 @@ end subroutine fdoga
 ! This second step is performed by routine "intrhs".
 pure subroutine calcv(self, first, iat, pot, sigma, basloc, vplm, vcos, vsin)
 
-   type(TddCosmo), intent(in) :: self
+   type(TDomainDecomposition), intent(in) :: self
    logical, intent(in) :: first
    integer, intent(in) :: iat
-   real(wp), intent(in) :: sigma(self%nylm, self%nat)
-   real(wp), intent(inout) :: pot(self%ngrid)
-   real(wp), intent(inout) :: basloc(self%nylm)
-   real(wp), intent(inout) :: vplm(self%nylm)
-   real(wp), intent(inout) :: vcos(self%lmax+1)
-   real(wp), intent(inout) :: vsin(self%lmax+1)
+   real(wp), intent(in) :: sigma(:, :) ! [self%nylm, self%nat]
+   real(wp), intent(inout) :: pot(:) ! [self%ngrid]
+   real(wp), intent(inout) :: basloc(:) ! [self%nylm]
+   real(wp), intent(inout) :: vplm(:) ! [self%nylm]
+   real(wp), intent(inout) :: vcos(:) ! [self%lmax+1]
+   real(wp), intent(inout) :: vsin(:) ! [self%lmax+1]
 
    integer :: its, ij, jat
    real(wp) :: vij(3), sij(3)
@@ -1474,9 +1461,9 @@ end subroutine calcv
 !
 pure subroutine ddmkxi(self, s, xi)
 
-   type(TddCosmo), intent(in) :: self
-   real(wp), intent(in) :: s(self%nylm, self%nat)
-   real(wp), intent(inout) :: xi(self%ncav)
+   type(TDomainDecomposition), intent(in) :: self
+   real(wp), intent(in) :: s(:, :) ! [self%nylm, self%nat]
+   real(wp), intent(inout) :: xi(:) ! [self%ncav]
 
    integer :: its, iat, ii
 
@@ -1492,36 +1479,6 @@ pure subroutine ddmkxi(self, s, xi)
    end do
 
 end subroutine ddmkxi
-
-
-!> Compute
-!
-! \zeta(n, i) =
-!
-!  1/2 f(\eps) sum w_n U_n^i Y_l^m(s_n) [S_i]_l^m
-!              l, m
-!
-pure subroutine ddmkzeta(self, s, zeta)
-   type(TddCosmo), intent(in) :: self
-   real(wp), intent(in) :: s(self%nylm, self%nat)
-   real(wp), intent(inout) :: zeta(self%ncav)
-
-   integer :: its, iat, ii
-
-   ii = 0
-   do iat = 1, self%nat
-      do its = 1, self%ngrid
-         if (self%ui(its, iat) > 0.0_wp) then
-            ii = ii + 1
-            zeta(ii) = self%w(its) * self%ui(its, iat) &
-               & * dot_product(self%basis(:, its), s(:, iat))
-         end if
-      end do
-   end do
-
-   zeta = 0.5_wp*((self%eps-1.0_wp)/self%eps)*zeta
-
-end subroutine ddmkzeta
 
 
 end module xtb_solv_ddcosmo_core

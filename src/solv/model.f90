@@ -646,7 +646,8 @@ subroutine newSolvationModel(self, env, model, num)
 
    if (self%cosmo) then
       allocate(cosmo)
-      call init_(cosmo, env, num, self%dielectricConst, self%nAng, self%bornScale)
+      call init_(cosmo, env, num, self%dielectricConst, self%nAng, self%bornScale, &
+         & self%vdwRad, self%surfaceTension, self%probeRad, srcut)
       call move_alloc(cosmo, model)
    else
       allocate(born)

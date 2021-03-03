@@ -19,10 +19,14 @@
 module xtb_solv_cosmo
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_blas, only : mctc_dot, mctc_gemv
-   use xtb_mctc_constants, only : fourpi
+   use xtb_mctc_constants, only : fourpi, pi
+   use xtb_mctc_convert, only : aatoau
+   use xtb_mctc_search, only : bisectSearch
    use xtb_param_vdwradd3, only : getVanDerWaalsRadD3
    use xtb_solv_ddcosmo_core
    use xtb_solv_ddcosmo_solver
+   use xtb_solv_lebedev, only : gridSize, getAngGrid
+   use xtb_solv_sasa, only : compute_numsa
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
    implicit none
@@ -38,7 +42,7 @@ module xtb_solv_cosmo
       integer :: nat
 
       !> Actual COSMO calculator
-      type(TddCosmo) :: ddCosmo
+      type(TDomainDecomposition) :: ddCosmo
 
       !> electrostatic potential phi(ncav)
       real(wp), allocatable :: phi(:)
@@ -64,6 +68,33 @@ module xtb_solv_cosmo
       !> Interaction matrix with surface charges jmat(ncav, n)
       real(wp), allocatable :: jmat(:, :)
 
+      !> angular grid
+      real(wp), allocatable :: angGrid(:, :)
+      real(wp), allocatable :: angWeight(:)
+
+      !> cut-off radius for the SASA NN list
+      real(wp) :: srcut
+
+      !> number of neighbors for SASA computation
+      integer, allocatable :: nnsas(:)
+
+      !> neighbors of an atom for SASA
+      integer, allocatable :: nnlists(:, :)
+
+      !> Atom specific surface data
+      real(wp), allocatable :: vdwsa(:)
+      real(wp), allocatable :: wrp(:)
+      real(wp), allocatable :: trj2(:, :)
+
+      !> Atomic surfaces
+      real(wp) :: gsasa
+      real(wp), allocatable :: gamsasa(:)
+      real(wp), allocatable :: sasa(:)
+
+      !> Molecular Surface gradient
+      real(wp), allocatable :: dsdr(:, :)
+      real(wp), allocatable :: dsdrt(:, :, :)
+
    contains
 
       !> Update coordinates and internal state
@@ -86,12 +117,27 @@ module xtb_solv_cosmo
       module procedure :: initCosmo
    end interface init
 
+   integer, parameter :: ndiis = 25
+
+   !> Smoothing dielectric function parameters
+   real(wp), parameter :: w = 0.3_wp*aatoau
+   real(wp), parameter :: w3 = w*(w*w)
+   real(wp), parameter :: ah0 = 0.5_wp
+   real(wp), parameter :: ah1 = 3._wp/(4.0_wp*w)
+   real(wp), parameter :: ah3 = -1._wp/(4.0_wp*w3)
+
+   !> Surface tension (in au)
+   real(wp), parameter :: gammas = 1.0e-5_wp
+
+   !> Salt screening
+   real(wp), parameter :: kappaConst = 0.7897e-3_wp
 
 contains
 
 
 !> Initialize data straucture
-subroutine initCosmo(self, env, num, dielectricConst, nAng, radScale)
+subroutine initCosmo(self, env, num, dielectricConst, nAng, radScale, vdwRad, &
+      & surfaceTension, probeRad, rOffset)
 
    !> Error source
    character(len=*), parameter :: source = 'solv_cosmo_initCosmo'
@@ -114,11 +160,77 @@ subroutine initCosmo(self, env, num, dielectricConst, nAng, radScale)
    !> Scale van-der-Waals radii
    real(wp), intent(in) :: radScale
 
+   !> Van-der-Waals Radii
+   real(wp), intent(in) :: vdwRad(:)
+
+   !> Surface tension scaling
+   real(wp), intent(in) :: surfaceTension(:)
+
+   !> Probe radius of the solvent
+   real(wp), intent(in) :: probeRad
+
+   !> Offset for surface integration cutoff
+   real(wp), intent(in) :: rOffset
+
+   integer :: igrid, stat, iat, izp
+   real(wp) :: r
+   real(wp), allocatable :: angGrid(:, :), angWeight(:)
+   type(TDomainDecompositionInput) :: input
+
    self%nat = size(num)
    allocate(self%rvdw(self%nat))
-   self%rvdw(:) = radScale*getVanDerWaalsRadD3(num)
+   self%rvdw(:) = radScale*vdwRad(num)
    self%dielectricConst = dielectricConst
-   self%nAng = nAng
+   ! choose the lebedev grid with number of points closest to nAng:
+   call bisectSearch(igrid, gridSize, nAng/2)
+   allocate(angGrid(3, gridSize(igrid)))
+   allocate(angWeight(gridSize(igrid)))
+   call getAngGrid(igrid, angGrid, angWeight, stat)
+   if (stat /= 0) then
+      call env%error("Could not initialize angular grid for COSMO model", source)
+      return
+   end if
+
+   input = TDomainDecompositionInput(lmax=6, conv=1.0e-8_wp, eta=0.2_wp)
+
+   call initDomainDecomposition(self%ddCosmo, input, self%rvdw, angWeight, angGrid)
+
+   allocate(self%nnsas(self%nat))
+   allocate(self%nnlists(self%nat, self%nat))
+   allocate(self%vdwsa(self%nat))
+   allocate(self%trj2(2, self%nat))
+   allocate(self%wrp(self%nat))
+   allocate(self%gamsasa(self%nat))
+   allocate(self%sasa(self%nat))
+   allocate(self%dsdr(3, self%nat))
+   allocate(self%dsdrt(3, self%nat, self%nat))
+   do iat = 1, self%nat
+      izp = num(iat)
+      self%vdwsa(iat) = vdwRad(izp) + probeRad
+      self%trj2(1, iat) = (self%vdwsa(iat)-w)**2
+      self%trj2(2, iat) = (self%vdwsa(iat)+w)**2
+      r=self%vdwsa(iat)+w
+      self%wrp(iat)=(0.25_wp/w+ &
+         &            3.0_wp*ah3*(0.2_wp*r*r-0.5_wp*r*self%vdwsa(iat)+ &
+         &            self%vdwsa(iat)*self%vdwsa(iat)/3.0_wp))*r*r*r
+      r=self%vdwsa(iat)-w
+      self%wrp(iat)=self%wrp(iat)-(0.25/w+ &
+         &    3.0_wp*ah3*(0.2_wp*r*r-0.5_wp*r*self%vdwsa(iat)+ &
+         &            self%vdwsa(iat)*self%vdwsa(iat)/3.0_wp))*r*r*r
+      self%gamsasa(iat) = surfaceTension(izp)
+   end do
+   self%srcut = 2 * (w + maxval(self%vdwsa)) + rOffset
+
+   ! choose the lebedev grid with number of points closest to nAng:
+   call bisectSearch(igrid, gridSize, nAng)
+   self%nAng = gridSize(igrid)
+   allocate(self%angGrid(3, gridSize(igrid)))
+   allocate(self%angWeight(gridSize(igrid)))
+   call getAngGrid(igrid, self%angGrid, self%angWeight, stat)
+   if (stat /= 0) then
+      call env%error("Could not initialize angular grid for SASA model", source)
+      return
+   end if
 
 end subroutine initCosmo
 
@@ -137,20 +249,29 @@ subroutine update(self, env, num, xyz)
    !> Cartesian coordinates
    real(wp), intent(in) :: xyz(:, :)
 
+   ! initialize the neighbor list
+   call update_nnlist_sasa(self%nat, xyz, self%srcut, self%nnsas, self%nnlists)
+
+   ! compute solvent accessible surface and its derivatives
+   call compute_numsa(self%nat, self%nnsas, self%nnlists, xyz, self%vdwsa, &
+      & self%wrp, self%trj2, self%angWeight, self%angGrid, &
+      & self%sasa, self%dsdrt)
+
+   ! contract surface gradient
+   call mctc_gemv(self%dsdrt, self%gamsasa, self%dsdr)
+   self%gsasa = mctc_dot(self%sasa, self%gamsasa)
+
    if (allocated(self%phi)) deallocate(self%phi)
    if (allocated(self%psi)) deallocate(self%psi)
    if (allocated(self%sigma)) deallocate(self%sigma)
    if (allocated(self%s)) deallocate(self%s)
 
-   self%ddCosmo%TddControl = TddControl(iprint=1, lmax=6, ngrid=self%nAng, &
-      & iconv=8, igrad=1, eps=self%dielectricConst, eta=0.2_wp)
-
-   call ddinit(self%ddCosmo, env, self%nat, xyz, self%rvdw)
+   call ddupdate(self%ddcosmo, xyz)
 
    allocate(self%phi(self%ddCosmo%ncav), self%psi(self%ddCosmo%nylm, self%nat))
    allocate(self%jmat(self%ddCosmo%ncav, self%nat))
 
-   call mkjmat(xyz, self%ddCosmo%ccav, self%jmat)
+   call getCoulombMatrix(xyz, self%ddCosmo%ccav, self%jmat)
 
 end subroutine update
 
@@ -179,7 +300,7 @@ subroutine addShift(self, env, qat, qsh, atomicShift, shellShift)
    !> Shell-resolved potential shift
    real(wp), intent(inout) :: shellShift(:)
 
-   real(wp) :: xx(1), keps
+   real(wp) :: xx(1, 1), keps
    logical :: restart
 
    restart = allocated(self%sigma)
@@ -187,26 +308,27 @@ subroutine addShift(self, env, qat, qsh, atomicShift, shellShift)
       allocate(self%sigma(self%ddCosmo%nylm, self%nat))
    end if
 
-   call mkrhs(self%nat, qat, self%ddCosmo%ncav, self%jmat, self%phi, &
-      & self%ddCosmo%nylm, self%psi)
+   call getPhi(qat, self%jmat, self%phi)
 
-   call cosmoSolv(self%ddCosmo, env, .true., self%phi, xx, self%sigma, restart)
+   call solveCosmoDirect(self%ddCosmo, env, .true., self%phi, xx, self%sigma, restart)
 
    restart = allocated(self%s)
    if (.not.allocated(self%s)) then
       allocate(self%s(self%ddCosmo%nylm, self%nat))
    end if
 
+   call getPsi(qat, self%psi)
+
    ! solve adjoint ddCOSMO equation to get full potential contributions
-   call cosmoStar(self%ddCosmo, env, self%psi, self%s, restart)
+   call solveCosmoAdjoint(self%ddCosmo, env, self%psi, self%s, restart)
 
    ! we abuse Phi to store the unpacked and scaled value of s
-   call ddmkzeta(self%ddCosmo, self%s, self%phi)
+   call getZeta(self%ddCosmo, keps, self%s, self%phi)
    ! and contract with the Coulomb matrix
    call mctc_gemv(self%jmat, self%phi, atomicShift, alpha=-1.0_wp, &
       & beta=1.0_wp, trans='t')
 
-   keps = 0.5_wp * ((self%ddCosmo%eps - 1.0_wp)/self%ddCosmo%eps) * sqrt(fourpi)
+   keps = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst) * sqrt(fourpi)
    atomicShift(:) = atomicShift + keps * self%sigma(1, :)
 
 end subroutine addShift
@@ -233,8 +355,8 @@ subroutine getEnergy(self, env, qat, qsh, energy)
    !> Total solvation energy
    real(wp), intent(out) :: energy
 
-   energy = 0.5_wp * ((self%ddCosmo%eps - 1.0_wp)/self%ddCosmo%eps) &
-      & * mctc_dot(self%sigma, self%psi)
+   energy = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst) &
+      & * mctc_dot(self%sigma, self%psi) + self%gsasa
 
 end subroutine getEnergy
 
@@ -267,24 +389,28 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
    real(wp), intent(inout) :: gradient(:, :)
 
    integer :: ii, iat, ig
-   real(wp) :: xx(1), esolv
+   real(wp) :: xx(1), esolv, keps
    real(wp), allocatable :: fx(:, :), zeta(:), ef(:, :)
+
+   gradient = gradient + self%dsdr
+
+   keps = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst)
 
    allocate(fx(3, self%nat), zeta(self%ddCosmo%ncav), &
       & ef(3, max(self%nat, self%ddCosmo%ncav)))
 
-   call cosmoStar(self%ddCosmo, env, self%psi, self%s, .true., &
-      & accuracy=self%ddCosmo%iconv+3)
+   call solveCosmoAdjoint(self%ddCosmo, env, self%psi, self%s, .true., &
+      & accuracy=self%ddCosmo%conv*1e-3_wp)
 
    ! reset Phi
-   call mctc_gemv(self%jmat, qat, self%phi)
+   call getPhi(qat, self%jmat, self%phi)
 
    ! now call the routine that computes the ddcosmo specific contributions
    ! to the forces.
-   call forces(self%ddCosmo, self%nat, self%phi, self%sigma, self%s, fx)
+   call forces(self%ddCosmo, keps, self%phi, self%sigma, self%s, fx)
 
    ! form the "zeta" intermediate
-   call ddmkzeta(self%ddCosmo, self%s, zeta)
+   call getZeta(self%ddCosmo, keps, self%s, zeta)
 
    ! 1. solute's electric field at the cav points times zeta:
    !    compute the electric field
@@ -317,46 +443,19 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
 end subroutine addGradient
 
 
-!> Routine to compute the potential and psi vector
-subroutine mkrhs(n, charge, ncav, jmat, phi, nylm, psi)
-   integer, intent(in) :: n, ncav, nylm
-   real(wp), intent(in) :: charge(n)
-   real(wp), intent(in) :: jmat(ncav, n)
-   real(wp), intent(inout) :: phi(ncav)
-   real(wp), intent(inout) :: psi(nylm, n)
-
-   integer :: iat, ic, j
-   real(wp) :: v
-   real(wp) :: vec(3), d2, d, pi, fac
-   real(wp), parameter :: zero=0.0_wp, one=1.0_wp, four=4.0_wp
-
-   fac = sqrt(fourpi)
-   phi = 0.0_wp
-   psi = 0.0_wp
-
-   call mctc_gemv(jmat, charge, phi)
-
-   ! psi vector:
-   do iat = 1, n
-      psi(1, iat) = fac*charge(iat)
-   end do
-
-end subroutine mkrhs
-
-
 !> Evaluate the Coulomb interactions between the atomic sides (xyz) and the
 !> surface elements of the cavity (ccav).
-subroutine mkjmat(xyz, ccav, jmat)
+subroutine getCoulombMatrix(xyz, ccav, jmat)
    real(wp), intent(in) :: xyz(:, :)
    real(wp), intent(in) :: ccav(:, :)
    real(wp), intent(inout) :: jmat(:, :)
 
-   integer :: iat, ic, j
-   real(wp) :: v
-   real(wp) :: vec(3), d2, d, pi, fac
-   real(wp), parameter :: zero=0.0_wp, one=1.0_wp, four=4.0_wp
+   integer :: ic, j
+   real(wp) :: vec(3), d2, d
 
-   !$omp parallel do default(shared) private(ic, j, vec, d2, d)
+   jmat(:, :) = 0.0_wp
+   !$omp parallel do default(none) schedule(runtime) collapse(2) &
+   !$omp shared(ccav, xyz, jmat) private(ic, j, vec, d2, d)
    do ic = 1, size(ccav, 2)
       do j = 1, size(xyz, 2)
          vec(:) = ccav(:, ic) - xyz(:, j)
@@ -366,7 +465,38 @@ subroutine mkjmat(xyz, ccav, jmat)
       end do
    end do
 
-end subroutine mkjmat
+end subroutine getCoulombMatrix
+
+
+!> Routine to compute the psi vector
+subroutine getPsi(charge, psi)
+   real(wp), intent(in) :: charge(:)
+   real(wp), intent(out) :: psi(:, :)
+
+   integer :: iat
+   real(wp) :: fac
+
+   fac = sqrt(fourpi)
+   psi(:,:) = 0.0_wp
+
+   do iat = 1, size(charge)
+      psi(1, iat) = fac*charge(iat)
+   end do
+
+end subroutine getPsi
+
+
+!> Routine to compute the potential vector
+subroutine getPhi(charge, jmat, phi)
+   real(wp), intent(in) :: charge(:)
+   real(wp), intent(in) :: jmat(:, :)
+   real(wp), intent(out) :: phi(:)
+
+   phi(:) = 0.0_wp
+
+   call mctc_gemv(jmat, charge, phi)
+
+end subroutine getPhi
 
 
 !> Wrapper for the linear solvers for COSMO equation
@@ -377,12 +507,14 @@ end subroutine mkjmat
 !     equations.
 !   - computes a guess for the solution (using the inverse diagonal);
 !   - calls the iterative solver;
-subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
+subroutine solveCosmoDirect(ddCosmo, env, cart, phi, glm, sigma, restart)
 
    !> Error source
-   character(len=*), parameter :: source = 'solv_cosmo_cosmo'
+   character(len=*), parameter :: source = 'cosmo::solveCosmoDirect'
+   type(TDomainDecomposition), intent(in) :: ddCosmo
+
+   !> Computation environment
    type(TEnvironment), intent(inout) :: env
-   type(TddCosmo), intent(in) :: ddCosmo
 
    !> true:  the right-hand side for the COSMO has to be assembled
    !         inside this routine and the unscaled potential at the
@@ -393,14 +525,14 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
 
    !> Contains the potential at the external cavity points if cart is true.
    !  phi is not referenced in any other case.
-   real(wp), intent(in) :: phi(ddCosmo%ncav)
+   real(wp), intent(in) :: phi(:)
 
    !> Contains the right-hand side for the COSMO equations if cart is false.
    !  glm is not referenced in any other case
-   real(wp), intent(in) :: glm(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: glm(:, :)
 
    !> The solution to the COSMO (adjoint) equations
-   real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(inout) :: sigma(:, :)
 
    !> Initial guess is provided on sigma
    logical, intent(in) :: restart
@@ -412,7 +544,7 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
    real(wp), allocatable  :: g(:, :), rhs(:, :), work(:, :)
 
    ! parameters for the solver and matvec routine
-   tol     = 10.0_wp**(-ddCosmo%iconv)
+   tol     = ddCosmo%conv
    n_iter  = 200
 
    ! DIRECT COSMO EQUATION L X = g
@@ -464,7 +596,7 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
    ! L X = (diag + offdiag) X = g   ==>    X = diag^-1 (g - offdiag X_guess)
    ! action of  diag^-1 :  ldm1x
    ! action of  offdiag :  lx
-   call jacobi_diis(ddCosmo, env, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
+   call jacobi_diis(ddCosmo, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
       & ndiis, 4, tol, rhs, sigma, n_iter, ok, lx, ldm1x, hnorm)
 
    ! check solution
@@ -473,32 +605,34 @@ subroutine cosmoSolv(ddCosmo, env, cart, phi, glm, sigma, restart)
       return
    endif
 
-end subroutine cosmoSolv
+end subroutine solveCosmoDirect
 
 
 !> Wrapper for the linear solvers for adjoint COSMO equation
-!    L^* sigma = Psi
-!  This routine performs the following operations :
-!   - allocates memory for the linear solvers
-!   - computes a guess for the solution (using the inverse diagonal);
-!   - calls the iterative solver;
-subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
-   !> Error source
-   character(len=*), parameter :: source = 'solv_cosmo_cosmoStar'
+!>   L^* sigma = Psi
+!> This routine performs the following operations :
+!>  - allocates memory for the linear solvers
+!>  - computes a guess for the solution (using the inverse diagonal);
+!>  - calls the iterative solver;
+subroutine solveCosmoAdjoint(ddCosmo, env, psi, sigma, restart, accuracy)
+   ! Error source
+   character(len=*), parameter :: source = 'cosmo::solveCosmoAdjoint'
+   type(TDomainDecomposition), intent(in) :: ddCosmo
+
+   !> Computation environment
    type(TEnvironment), intent(inout) :: env
-   type(TddCosmo), intent(in) :: ddCosmo
 
    !> The psi vector. it is used as a right-hand side
-   real(wp), intent(in) :: psi(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(in) :: psi(:, :)
 
    !> The solution to the COSMO (adjoint) equations
-   real(wp), intent(inout) :: sigma(ddCosmo%nylm, ddCosmo%nat)
+   real(wp), intent(inout) :: sigma(:, :)
 
    !> Initial guess is provided on sigma
    logical, intent(in) :: restart
 
    !> Overwrite accuracy
-   integer, intent(in), optional :: accuracy
+   real(wp), intent(in), optional :: accuracy
 
    integer :: iat, istatus, n_iter, info, c1, c2, cr
    real(wp) :: tol, r_norm
@@ -508,9 +642,9 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
 
    ! parameters for the solver and matvec routine
    if (present(accuracy)) then
-      tol = 10.0_wp**(-accuracy)
+      tol = accuracy
    else
-      tol = 10.0_wp**(-ddCosmo%iconv)
+      tol = ddCosmo%conv
    end if
    n_iter  = 200
 
@@ -523,7 +657,7 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
 
    ! 2. SOLVER CALL
    ! Jacobi method : see above
-   call jacobi_diis(ddCosmo, env, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
+   call jacobi_diis(ddCosmo, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
       & ndiis, 4, tol, psi, sigma, n_iter, ok, lstarx, ldm1x, hnorm)
 
    ! check solution
@@ -532,17 +666,46 @@ subroutine cosmoStar(ddCosmo, env, psi, sigma, restart, accuracy)
       return
    endif
 
-end subroutine cosmoStar
+end subroutine solveCosmoAdjoint
+
+
+!> Compute
+!
+! \zeta(n, i) =
+!
+!  1/2 f(\eps) sum w_n U_n^i Y_l^m(s_n) [S_i]_l^m
+!              l, m
+!
+subroutine getZeta(ddCosmo, keps, s, zeta)
+   type(TDomainDecomposition), intent(in) :: ddCosmo
+   real(wp), intent(in) :: keps
+   real(wp), intent(in) :: s(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+   real(wp), intent(inout) :: zeta(:) ! [ddCosmo%ncav]
+
+   integer :: its, iat, ii
+
+   ii = 0
+   do iat = 1, ddCosmo%nat
+      do its = 1, ddCosmo%ngrid
+         if (ddCosmo%ui(its, iat) > 0.0_wp) then
+            ii = ii + 1
+            zeta(ii) = keps * ddCosmo%w(its) * ddCosmo%ui(its, iat) &
+               & * dot_product(ddCosmo%basis(:, its), s(:, iat))
+         end if
+      end do
+   end do
+
+end subroutine getZeta
 
 
 !> Sample driver for the calculation of the ddCOSMO forces.
-subroutine forces(ddCosmo, n, phi, sigma, s, fx)
-   type(TddCosmo), intent(in) :: ddCosmo
-   integer, intent(in) :: n
-   real(wp), intent(in) :: phi(ddCosmo%ncav)
-   real(wp), intent(in) :: sigma(ddCosmo%nylm, ddCosmo%nat)
-   real(wp), intent(in) :: s(ddCosmo%nylm, ddCosmo%nat)
-   real(wp), intent(inout) :: fx(3, n)
+subroutine forces(ddCosmo, keps, phi, sigma, s, fx)
+   type(TDomainDecomposition), intent(in) :: ddCosmo
+   real(wp), intent(in) :: keps
+   real(wp), intent(in) :: phi(:)
+   real(wp), intent(in) :: sigma(:, :)
+   real(wp), intent(in) :: s(:, :)
+   real(wp), intent(inout) :: fx(:, :)
 
    integer :: iat, ig, ii, c1, c2, cr
    real(wp) :: fep
@@ -554,24 +717,18 @@ subroutine forces(ddCosmo, n, phi, sigma, s, fx)
    allocate (basloc(ddCosmo%nylm), dbsloc(3, ddCosmo%nylm), vplm(ddCosmo%nylm), &
       & vcos(ddCosmo%lmax+1), vsin(ddCosmo%lmax+1))
 
-   ! initialize the timer:
-   call system_clock(count_rate=cr)
-   call system_clock(count=c1)
-
    ! compute xi:
-   !$omp parallel do default(shared) private(iat, ig)
+   !$omp parallel do default(none) collapse(2) schedule(runtime) &
+   !$omp shared(ddCosmo, s, xi) private(iat, ig)
    do iat = 1, ddCosmo%nat
       do ig = 1, ddCosmo%ngrid
          xi(ig, iat) = dot_product(s(:, iat), ddCosmo%basis(:, ig))
       end do
    end do
 
-   if (ddCosmo%iprint >= 4) call ptcart(ddCosmo, 'xi', ddCosmo%nat, 0, xi)
-
    ! expand the potential on a sphere-by-sphere basis (needed for parallelism):
-
    ii = 0
-   phiexp = 0.0_wp
+   phiexp(:, :) = 0.0_wp
    do iat = 1, ddCosmo%nat
       do ig = 1, ddCosmo%ngrid
          if (ddCosmo%ui(ig, iat) > 0.0_wp) then
@@ -581,7 +738,7 @@ subroutine forces(ddCosmo, n, phi, sigma, s, fx)
       end do
    end do
 
-   fx = 0.0_wp
+   fx(:, :) = 0.0_wp
    do iat = 1, ddCosmo%nat
       call fdoka(ddCosmo, iat, sigma, xi(:, iat), basloc, dbsloc, vplm, &
          & vcos, vsin, fx(:, iat))
@@ -590,30 +747,11 @@ subroutine forces(ddCosmo, n, phi, sigma, s, fx)
       call fdoga(ddCosmo, iat, xi, phiexp, fx(:, iat))
    end do
 
-   2000 format(1x, 'ddCOSMO-only contributions to the forces (atomic units):', /, &
-      1x, ' atom', 15x, 'x', 15x, 'y', 15x, 'z')
-
-   if (ddCosmo%iprint >= 4) then
-      write(iout, 2000)
-      do iat = 1, ddCosmo%nat
-         write(6, '(1x, i5, 3f16.8)') iat, fx(:, iat)
-      end do
-   end if
-
    deallocate (basloc, dbsloc, vplm, vcos, vsin)
-
-   call system_clock(count=c2)
-   if (ddCosmo%iprint > 0) then
-      write(iout, 1010) dble(c2-c1)/dble(cr)
-      1010 format(' the computation of the ddCOSMO part of the forces took ', f8.3, ' seconds.')
-   end if
-
    deallocate (xi, phiexp)
 
    ! scale the forces time the cosmo factor:
-
-   fep = pt5*(ddCosmo%eps-1.0_wp)/ddCosmo%eps
-   fx  = fep*fx
+   fx  = keps*fx
 
 end subroutine forces
 
@@ -622,31 +760,67 @@ end subroutine forces
 !  with coordinates csrc) at the ntrg target points ctrg:
 subroutine efld(nsrc, src, csrc, ntrg, ctrg, ef)
    integer, intent(in) :: nsrc, ntrg
-   real(wp), intent(in) :: src(nsrc)
-   real(wp), intent(in) :: csrc(3, nsrc)
-   real(wp), intent(in) :: ctrg(3, ntrg)
-   real(wp), intent(inout) :: ef(3, ntrg)
+   real(wp), intent(in) :: src(:)
+   real(wp), intent(in) :: csrc(:, :)
+   real(wp), intent(in) :: ctrg(:, :)
+   real(wp), intent(inout) :: ef(:, :)
 
    integer :: i, j
-   real(wp) :: vec(3), r2, rr, r3, f, e(3)
+   real(wp) :: vec(3), r2, rr, r3, f
    real(wp), parameter :: zero=0.0_wp
 
    ef(:, :) = 0.0_wp
-   !$omp parallel do default(shared) private(j, i, vec, r2, rr, r3, e)
+   !$omp parallel do default(none) schedule(runtime) collapse(2) &
+   !$omp reduction(+:ef) shared(ntrg, nsrc, ctrg, csrc, src) &
+   !$omp private(j, i, f, vec, r2, rr, r3)
    do j = 1, ntrg
-      e(:) = 0.0_wp
       do i = 1, nsrc
          vec(:) = ctrg(:, j) - csrc(:, i)
          r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
          rr = sqrt(r2)
          r3 = r2*rr
          f = src(i)/r3
-         e(:) = e(:) + f*vec
+         ef(:, j) = ef(:, j) + f*vec
       end do
-      ef(:, j) = e
    end do
 
 end subroutine efld
+
+
+!> setup a pairlist and compute pair distances of all neighbors
+!  within thresholds lrcut and srcut.
+subroutine update_nnlist_sasa(nat, xyz, srcut, nnsas, nnlists)
+
+   integer, intent(in) :: nat
+   real(wp), intent(in) :: xyz(:, :)
+   real(wp), intent(in) :: srcut
+   integer, intent(out) :: nnsas(:)
+   integer, intent(out) :: nnlists(:, :)
+
+   integer i1, i2
+   real(wp) rcutn2, srcut2
+   real(wp) x, y, z, dr2
+
+   srcut2 = srcut*srcut
+
+   nnsas=0
+   nnlists=0
+   do i1 = 1, nat
+      do i2 = 1, i1-1
+         x=xyz(1,i1)-xyz(1,i2)
+         y=xyz(2,i1)-xyz(2,i2)
+         z=xyz(3,i1)-xyz(3,i2)
+         dr2=x**2+y**2+z**2
+         if(dr2.lt.srcut2) then
+            nnsas(i1) = nnsas(i1) + 1
+            nnsas(i2) = nnsas(i2) + 1
+            nnlists(nnsas(i1),i1)=i2
+            nnlists(nnsas(i2),i2)=i1
+         endif
+      end do
+   end do
+
+end subroutine update_nnlist_sasa
 
 
 end module xtb_solv_cosmo

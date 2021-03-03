@@ -25,6 +25,7 @@ module xtb_scf
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_disp_dftd3, only : d3_gradient
    use xtb_solv_cm5
+   use xtb_solv_cosmo, only : TCosmo
    use xtb_solv_gbsa, only : TBorn
    use xtb_type_basisset
    use xtb_type_coulomb, only : TCoulomb
@@ -773,6 +774,9 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          call solvation%getEnergyParts(env, cm5, wfn%qsh, gborn, ghb, gsasa, &
             & gshift)
          gsolv = gborn+gsasa+ghb+gshift
+      type is (TCosmo)
+         gborn = gsolv - solvation%gsasa
+         gsasa = solvation%gsasa
       end select
    endif
 
