@@ -854,7 +854,7 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
    real(wp) :: cosmoEnergy, keps
    real(wp), allocatable :: phi(:), zeta(:), area(:)
 
-   keps = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst)
+   keps = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst)
    cosmoEnergy = 0.0_wp
    do iat = 1, self%nat
       cosmoEnergy = cosmoEnergy + keps*dot_product(self%sigma(:, iat), self%psi(:, iat))
@@ -879,7 +879,7 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
 
    write(unit, '(a)') &
       & "$info", &
-      & "prog.: dftb+"
+      & "prog.: xtb"
 
    write(unit, '(a)') &
       & "$cosmo"
