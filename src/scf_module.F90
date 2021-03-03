@@ -843,6 +843,16 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
             & allocated(solvation), basis)
       endif
 
+      if (allocated(solvation)) then
+         select type(solvation)
+         type is (TCosmo)
+            call open_file(ich, "xtb.cosmo", 'w')
+            call solvation%writeCosmoFile(ich, mol%at, mol%sym, mol%xyz, &
+               & wfn%q, eel)
+            call close_file(ich)
+         end select
+      end if
+
    endif printing
 
    ! ------------------------------------------------------------------------
