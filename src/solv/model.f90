@@ -24,6 +24,7 @@ module xtb_solv_model
    use xtb_mctc_systools, only : rdpath
    use xtb_param_vdwradd3, only : vanDerWaalsRadD3
    use xtb_solv_gbsa, only : TBorn, init_ => init
+   use xtb_solv_cosmo, only : TCosmo, init_ => init
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
    use xtb_solv_state, only : solutionState, getStateShift
@@ -184,6 +185,10 @@ subroutine initSolvModel(self, env, input, level)
 
    if (input%alpb) then
       call getParamFile(env, solvent, 'alpb', level, self%paramFile)
+   end if
+
+   if (input%cosmo) then
+      call getParamFile(env, solvent, 'cosmo', level, self%paramFile)
    end if
 
    if (.not.allocated(self%paramFile)) then
@@ -538,10 +543,14 @@ subroutine info(self, unit)
    integer, intent(in) :: unit
 
    write(unit, '(6x, "*", 1x, a, ":", t40)', advance='no') "Solvation model"
-   if (self%alpb) then
-      write(unit, '(a)') "ALPB"
+   if (self%cosmo) then
+      write(unit, '(a)') "COSMO"
    else
-      write(unit, '(a)') "GBSA"
+      if (self%alpb) then
+         write(unit, '(a)') "ALPB"
+      else
+         write(unit, '(a)') "GBSA"
+      end if
    end if
 
    write(unit, '(8x, a, t40, a)') "Solvent", self%solvent
@@ -569,34 +578,39 @@ subroutine info(self, unit)
    write(unit, '(8x, a, t40, es14.4, 1x, a)') &
       & "Solvent mass", self%molarMass, "g/mol"
 
-   write(unit, '(8x, a, t40)', advance='no') "Interaction kernel"
-   select case(self%kernel)
-   case default
-      write(unit, '(i0, 1x, a)') self%kernel, '(internal error)'
-   case(gbKernel%still)
-      write(unit, '(a)') 'Still'
-   case(gbKernel%p16)
-      write(unit, '(a)') 'P16'
-   end select
-
-   write(unit, '(8x, a, t40, es14.4)') &
-      "Born radius scaling (c1)", self%bornScale
-   write(unit, '(8x, a, t40, a)') "Born radii integrator", "GBOBC"
-   write(unit, '(8x, a, t40, es14.4, 1x, a, t60, es14.4, 1x, a)') &
-      "Born offset", self%bornOffset, "a0", self%bornOffset/autoaa, "AA"
-
-   write(unit, '(8x, a, t40)', advance='no') "H-bond correction"
-   if (any(self%hBondStrength < 0.0_wp)) then
-      write(unit, '(a)') "true"
+   if (self%cosmo) then
+      write(unit, '(8x, a, t40, es14.4)') &
+         & "vdW Radii scaling", self%bornScale
    else
-      write(unit, '(a)') "false"
-   end if
+      write(unit, '(8x, a, t40)', advance='no') "Interaction kernel"
+      select case(self%kernel)
+      case default
+         write(unit, '(i0, 1x, a)') self%kernel, '(internal error)'
+      case(gbKernel%still)
+         write(unit, '(a)') 'Still'
+      case(gbKernel%p16)
+         write(unit, '(a)') 'P16'
+      end select
 
-   write(unit, '(8x, a, t40)', advance='no') "Ion screening"
-   if (self%ionStrength > 0.0_wp) then
-      write(unit, '(a)') "true"
-   else
-      write(unit, '(a)') "false"
+      write(unit, '(8x, a, t40, es14.4)') &
+         "Born radius scaling (c1)", self%bornScale
+      write(unit, '(8x, a, t40, a)') "Born radii integrator", "GBOBC"
+      write(unit, '(8x, a, t40, es14.4, 1x, a, t60, es14.4, 1x, a)') &
+         "Born offset", self%bornOffset, "a0", self%bornOffset/autoaa, "AA"
+
+      write(unit, '(8x, a, t40)', advance='no') "H-bond correction"
+      if (any(self%hBondStrength < 0.0_wp)) then
+         write(unit, '(a)') "true"
+      else
+         write(unit, '(a)') "false"
+      end if
+
+      write(unit, '(8x, a, t40)', advance='no') "Ion screening"
+      if (self%ionStrength > 0.0_wp) then
+         write(unit, '(a)') "true"
+      else
+         write(unit, '(a)') "false"
+      end if
    end if
 
    if (allocated(self%surfaceTension)) then
@@ -627,15 +641,23 @@ subroutine newSolvationModel(self, env, model, num)
    !> Atomic numbers
    integer, intent(in) :: num(:)
 
+   type(TCosmo), allocatable :: cosmo
    type(TBorn), allocatable :: born
 
-   allocate(born)
-   call init_(born, env, num, self%vdwRad, self%dielectricConst, &
-      & self%freeEnergyShift, self%descreening, self%bornScale, &
-      & self%bornOffset, self%surfaceTension, self%probeRad, lrcut, srcut, &
-      & self%nAng, self%hBondStrength, self%temperature, self%kernel, &
-      & self%alpb, self%ionStrength, self%ionRad)
-   call move_alloc(born, model)
+   if (self%cosmo) then
+      allocate(cosmo)
+      call init_(cosmo, env, num, self%dielectricConst, self%nAng, self%bornScale, &
+         & self%vdwRad, self%surfaceTension, self%probeRad, srcut)
+      call move_alloc(cosmo, model)
+   else
+      allocate(born)
+      call init_(born, env, num, self%vdwRad, self%dielectricConst, &
+         & self%freeEnergyShift, self%descreening, self%bornScale, &
+         & self%bornOffset, self%surfaceTension, self%probeRad, lrcut, srcut, &
+         & self%nAng, self%hBondStrength, self%temperature, self%kernel, &
+         & self%alpb, self%ionStrength, self%ionRad)
+      call move_alloc(born, model)
+   end if
 
 end subroutine newSolvationModel
 

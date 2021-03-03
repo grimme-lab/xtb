@@ -309,6 +309,7 @@ subroutine write_set_gbsa(ictrl)
       case(gbKernel%p16)
          write(ictrl,'(3x,"kernel=p16")')
       end select
+      write(ictrl,'(3x,"cosmo=",a)') bool2string(solvInput%cosmo)
    endif
 end subroutine write_set_gbsa
 
@@ -1874,6 +1875,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set4 = .true.
    logical,save :: set5 = .true.
    logical,save :: set6 = .true.
+   logical,save :: set7 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
@@ -1924,6 +1926,9 @@ subroutine set_gbsa(env,key,val)
          end select
       end if
       set6 = .false.
+   case('cosmo')
+      if (getValue(env,val,ldum).and.set7) solvInput%cosmo = ldum
+      set7 = .false.
    end select
 end subroutine set_gbsa
 

@@ -81,6 +81,7 @@ program peeq_tester
       case('salt'); call test_gfn2salt_api
       case('pcem'); call test_gfn2_pcem_api
       case('d-metal'); call test_gfn2_dmetal
+      case('cosmo'); call test_gfn2_mindless_cosmo
       end select
    case('gfn1')
       select case(sec)
@@ -93,6 +94,7 @@ program peeq_tester
       case('xb'); call test_gfn1_xb
       case('pbc3d'); call test_gfn1_pbc3d
       case('ipea'); call test_ipea_indole
+      case('cosmo'); call test_gfn1_mindless_cosmo
       end select
    case('hessian')
       call run_hessian_test(sec)

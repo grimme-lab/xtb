@@ -948,11 +948,6 @@ pure subroutine update_nnlist_gbsa_sequential(nat, ntpair, ppind, xyz, lrcut, &
    real(wp) rcutn2, lrcut2, srcut2
    real(wp) x, y, z, dr2
    integer ip, ip2
-   integer, allocatable :: nntmp(:)
-   integer, allocatable :: nnls(:, :)
-
-   allocate(nnls(nat, nat))
-   allocate(nntmp(nat))
 
    lrcut2 = lrcut*lrcut
    srcut2 = srcut*srcut
@@ -961,8 +956,7 @@ pure subroutine update_nnlist_gbsa_sequential(nat, ntpair, ppind, xyz, lrcut, &
    nnlists=0
    ip=0
    ip2=0
-   nntmp=0
-   nnls=0
+   nnlistr=0
    do kk=1,ntpair
       i1=ppind(1,kk)
       i2=ppind(2,kk)
@@ -980,22 +974,14 @@ pure subroutine update_nnlist_gbsa_sequential(nat, ntpair, ppind, xyz, lrcut, &
          nnlistr(2,ip)=i2
          nnlistr(3,ip)=kk
          if(dr2.lt.srcut2) then
-            nntmp(i1) = nntmp(i1) + 1
-            nntmp(i2) = nntmp(i2) + 1
-            nnls(nntmp(i1),i1)=i2
-            nnls(nntmp(i2),i2)=i1
+            nnsas(i1) = nnsas(i1) + 1
+            nnsas(i2) = nnsas(i2) + 1
+            nnlists(nnsas(i1),i1)=i2
+            nnlists(nnsas(i2),i2)=i1
          endif
       endif
    enddo
    nnrad = ip
-   do i1=1,nat
-      do i2=1,nntmp(i1)
-         nnlists(nnsas(i1)+i2,i1)=nnls(i2,i1)
-      enddo
-      nnsas(i1)=nnsas(i1)+nntmp(i1)
-   enddo
-
-   deallocate(nntmp,nnls)
 
 end subroutine update_nnlist_gbsa_sequential
 

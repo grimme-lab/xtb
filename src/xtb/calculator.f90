@@ -272,7 +272,7 @@ subroutine print_gfn1_results(iunit,res,verbose,lsolv)
    write(iunit,outfmt) "-> electrostatic  ", res%e_es,   "Eh   "
    if (lsolv) then
    write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
-   write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   "
+   write(iunit,outfmt) "   -> Gelec       ", res%g_born, "Eh   "
    write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
    write(iunit,outfmt) "   -> Ghb         ", res%g_hb,   "Eh   "
    write(iunit,outfmt) "   -> Gshift      ", res%g_shift,"Eh   "
@@ -294,7 +294,7 @@ subroutine print_gfn2_results(iunit,res,verbose,lsolv)
    write(iunit,outfmt) "-> dispersion     ", res%e_disp, "Eh   "
    if (lsolv) then
    write(iunit,outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
-   write(iunit,outfmt) "   -> Gborn       ", res%g_born, "Eh   "
+   write(iunit,outfmt) "   -> Gelec       ", res%g_born, "Eh   "
    write(iunit,outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
    write(iunit,outfmt) "   -> Ghb         ", res%g_hb,   "Eh   "
    write(iunit,outfmt) "   -> Gshift      ", res%g_shift,"Eh   "

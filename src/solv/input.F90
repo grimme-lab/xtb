@@ -39,6 +39,9 @@ module xtb_solv_input
       !> Generalized Born interaction kernel
       integer :: kernel = gbKernel%p16
 
+      !> Use COSMO solvation model instead of Born based one
+      logical :: cosmo = .false.
+
       !> Reference state
       integer :: state = solutionState%gsolv
 
