@@ -15,8 +15,11 @@ jobs:
         cc: [gcc-9]
         include:
           - os: ubuntu-latest
-            fc: gfortran-7
-            cc: gcc-7
+            fc: gfortran-10
+            cc: gcc-10
+          - os: ubuntu-latest
+            fc: gfortran-8
+            cc: gcc-8
 
     steps:
     - name: Checkout code
