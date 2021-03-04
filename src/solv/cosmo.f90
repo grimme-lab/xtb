@@ -303,6 +303,7 @@ subroutine addShift(self, env, qat, qsh, atomicShift, shellShift)
    real(wp) :: xx(1, 1), keps
    logical :: restart
 
+   keps = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst)
    restart = allocated(self%sigma)
    if (.not.allocated(self%sigma)) then
       allocate(self%sigma(self%ddCosmo%nylm, self%nat))
@@ -328,8 +329,7 @@ subroutine addShift(self, env, qat, qsh, atomicShift, shellShift)
    call mctc_gemv(self%jmat, self%phi, atomicShift, alpha=-1.0_wp, &
       & beta=1.0_wp, trans='t')
 
-   keps = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst) * sqrt(fourpi)
-   atomicShift(:) = atomicShift + keps * self%sigma(1, :)
+   atomicShift(:) = atomicShift + (keps * sqrt(fourpi)) * self%sigma(1, :)
 
 end subroutine addShift
 
@@ -355,7 +355,7 @@ subroutine getEnergy(self, env, qat, qsh, energy)
    !> Total solvation energy
    real(wp), intent(out) :: energy
 
-   energy = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst) &
+   energy = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst) &
       & * mctc_dot(self%sigma, self%psi) + self%gsasa
 
 end subroutine getEnergy
@@ -394,7 +394,7 @@ subroutine addGradient(self, env, num, xyz, qat, qsh, gradient)
 
    gradient = gradient + self%dsdr
 
-   keps = 0.5_wp * ((self%dielectricConst - 1.0_wp)/self%dielectricConst)
+   keps = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst)
 
    allocate(fx(3, self%nat), zeta(self%ddCosmo%ncav), &
       & ef(3, max(self%nat, self%ddCosmo%ncav)))
