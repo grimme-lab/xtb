@@ -851,14 +851,8 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
    real(wp), intent(in) :: energy
 
    integer :: ii, ig, iat
-   real(wp) :: cosmoEnergy, keps
+   real(wp) :: dielEnergy, keps
    real(wp), allocatable :: phi(:), zeta(:), area(:)
-
-   keps = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst)
-   cosmoEnergy = 0.0_wp
-   do iat = 1, self%nat
-      cosmoEnergy = cosmoEnergy + keps*dot_product(self%sigma(:, iat), self%psi(:, iat))
-   end do
 
    allocate(phi(self%ddCosmo%ncav), zeta(self%ddCosmo%ncav), area(self%ddCosmo%ncav))
    ! Reset potential on the cavity, note that the potential is expected in e/Å
@@ -877,6 +871,10 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
       end do
    end do
 
+    ! Dielectric energy is the energy on the dielectric continuum
+   keps = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst)
+   dielEnergy = keps * dot_product(zeta, phi)
+
    write(unit, '(a)') &
       & "$info", &
       & "prog.: xtb"
@@ -889,6 +887,7 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
    write(unit, '(a)') &
       & "$cosmo_data"
    write(unit, '(2x, a:, "=", g0)') &
+      & "fepsi", keps, &
       & "area", sum(area)
 
    write(unit, '(a)') &
@@ -925,8 +924,8 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
       & "Total energy [a.u.]            ", energy, &
       & "Total energy + OC corr. [a.u.] ", energy, &
       & "Total energy corrected [a.u.]  ", energy, &
-      & "Dielectric energy [a.u.]       ", cosmoEnergy, &
-      & "Diel. energy + OC corr. [a.u.] ", cosmoEnergy
+      & "Dielectric energy [a.u.]       ", dielEnergy, &
+      & "Diel. energy + OC corr. [a.u.] ", dielEnergy
 
    write(unit, '(a)') &
       & "$segment_information", &
