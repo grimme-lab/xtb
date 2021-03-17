@@ -20,4 +20,5 @@ srcs += files(
   'numdiff.f90',
   'project.f90',
   'utils.f90',
+  'turbomole.f90'
 )

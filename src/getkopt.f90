@@ -74,7 +74,7 @@ subroutine get_kopt( &
 ! set kopt boundaries
   ax         =0.0_wp
   cx         =0.005_wp*(dble(mol%n)/(target_rmsd+0.01_wp))
-
+          
   kbias = ax
   metaset%factor = -kbias
   call get_rmsd( &
