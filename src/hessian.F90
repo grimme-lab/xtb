@@ -21,6 +21,7 @@ module xtb_hessian
       & write_tm_vibspectrum, g98fake, g98fake2
    use xtb_freq_numdiff, only : numdiff2
    use xtb_freq_project, only : trproj
+   use xtb_freq_turbomole, only : aoforce_hessian
 
 contains
 
@@ -120,13 +121,12 @@ subroutine numhess( &
    call res%allocate(mol%n)
    res%n3true = n3-3*freezeset%n
 
+
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
       & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3))
 
-   rd=.false.
-   xyzsave = mol%xyz
 
    step=0.0001_wp
    call rotmol(mol%n,mol%xyz,step,2.*step,3.*step)
@@ -175,12 +175,20 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
+   !analytical hessian calculation
+   if(mode_extrun .eq. p_ext_turbomole) then    
+           dipd=0.0_wp
+           call aoforce_hessian(env,mol,h,dipd) 
+           freezeset%n=0
+           call writeHessianOut('hessian',h)
+   !numericalc hessian calculation
+   else
    parallize = .true.
    select type(calc)
    type is (TDummyCalculator)
       parallize = .false.
    end select
-
+   
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -217,10 +225,18 @@ subroutine numhess( &
       call numdiff2(env, mol, chk0, calc, step, h, dipd, parallize)
    endif
 
+   endif !From turbomole_exception
+
+
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
 
    if (runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
+
+   if(mode_extrun .eq. p_ext_turbomole .AND. runtyp.eq.p_run_bhess) then 
+        htb = h !htb equals unbiased hessian
+        h = h + hbias !h is biased
+   end if
 
    if(freezeset%n.gt.0)then
       ! inverse mass array
@@ -284,7 +300,7 @@ subroutine numhess( &
    endif
 
    if (pr_dftbp_hessian_out) then
-      call writeHessianOut('hessian.out', res%hess)
+      call writeHessianOut('hessian.out', h)
       write(env%unit, '(A)') "DFTB+ style hessian.out written"
    end if
 
@@ -319,6 +335,8 @@ subroutine numhess( &
    write(env%unit,'(a)')
    write(env%unit,'("writing file <",a,">.")') hname
    call wrhess(n3,hss,hname)
+
+
 
    ! include masses
    k=0
@@ -376,7 +394,7 @@ subroutine numhess( &
    if(res%linear)then
       write(env%unit,'(1x,a)') 'vibrational frequencies (cm⁻¹)'
    else
-      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
+      write(env%unit,'(1x,a)') 'Eprojected vibrational frequencies (cm⁻¹)'
    endif
    k=0
    do i=1,n3
@@ -483,6 +501,7 @@ subroutine numhess( &
       end do
       res%polt(i) = abs(sum2)
    end do
+
 
 end subroutine numhess
 
