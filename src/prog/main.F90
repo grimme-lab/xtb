@@ -1174,10 +1174,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    !$    if (allocated(sec)) then
    !$    if (getValue(env,sec,idum)) then
    !$       nproc = omp_get_num_threads()
-   !$       if (idum.gt.nproc) then
-   !$          call env%warning('Process number higher than OMP_NUM_THREADS, '//&
-   !$             & 'I hope you know what you are doing.', source)
-   !$       end if
    !$       call omp_set_num_threads(idum)
 #ifdef WITH_MKL
    !$       call mkl_set_num_threads(idum)
