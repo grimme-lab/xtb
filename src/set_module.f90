@@ -294,7 +294,7 @@ subroutine write_set_gbsa(ictrl)
       if (allocated(solvInput%solvent)) write(ictrl,'(3x,"solvent=",a)') solvInput%solvent
       write(ictrl,'(3x,"ion_st=",g0)') solvInput%ionStrength
       write(ictrl,'(3x,"ion_rad=",g0)') solvInput%ionRad * autoaa
-      write(ictrl,'(3x,"gbsagrid=")',advance='no')
+      write(ictrl,'(3x,"grid=")',advance='no')
       select case(solvInput%nAng)
       case(p_angsa_normal);   write(ictrl,'(a)') "normal"
       case(p_angsa_tight);    write(ictrl,'(a)') "tight"
@@ -1892,7 +1892,7 @@ subroutine set_gbsa(env,key,val)
    case('ion_rad')
       if (getValue(env,val,ddum).and.set3) solvInput%ionRad = ddum * aatoau
       set3 = .false.
-   case('gbsagrid')
+   case('gbsagrid', 'grid')
       if (set4) then
          select case(val)
          case default
