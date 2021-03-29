@@ -200,6 +200,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,'(a)')
+      if (.not.silent) then
+         call open_file(ich,'gfnff_charges','w')
+         call print_charges(ich,mol%n,self%topo%q)
+         call close_file(ich)
+      end if
    endif
 
 end subroutine singlepoint
@@ -249,6 +254,19 @@ subroutine writeInfo(self, unit, mol)
    end if
 
 end subroutine writeInfo
+
+subroutine print_charges(ifile,n,q)
+   implicit none
+   integer, intent(in)  :: ifile
+   integer, intent(in)  :: n
+   real(wp),intent(in)  :: q(n)
+   integer :: i
+   if (ifile.ne.-1) then
+      do i = 1, n
+         write(ifile,'(f14.8)') q(i)
+      end do
+   end if
+end subroutine print_charges
 
 
 end module xtb_gfnff_calculator
