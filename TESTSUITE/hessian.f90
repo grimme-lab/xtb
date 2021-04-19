@@ -127,7 +127,7 @@ subroutine test_gfn1_hessian
    dipgrad = 0.0_wp
    hessian = 0.0_wp
    ! omp parallel default(shared)
-   call numdiff2(env, mol, chk, calc, step, hessian, dipgrad)
+   call numdiff2(env, mol, chk, calc, step, hessian, dipgrad, .false.)
    ! omp end parallel
 
    do i = 1, size(dipgrad_ref, 2)
@@ -225,7 +225,7 @@ subroutine test_gfn2_hessian
    dipgrad = 0.0_wp
    hessian = 0.0_wp
    ! omp parallel default(shared)
-   call numdiff2(env, mol, chk, calc, step, hessian, dipgrad)
+   call numdiff2(env, mol, chk, calc, step, hessian, dipgrad, .false.)
    ! omp end parallel
 
    do i = 1, size(dipgrad_ref, 2)

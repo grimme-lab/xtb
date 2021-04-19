@@ -40,7 +40,7 @@ contains
 
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine numdiff2_all(env, mol0, chk0, calc, step, hessian, dipgrad)
+subroutine numdiff2_all(env, mol0, chk0, calc, step, hessian, dipgrad, parallelize)
    character(len=*), parameter :: source = "hessian_numdiff_numdiff2"
    !> Computation environment
    type(TEnvironment), intent(inout) :: env
@@ -56,6 +56,8 @@ subroutine numdiff2_all(env, mol0, chk0, calc, step, hessian, dipgrad)
    real(wp), intent(inout) :: hessian(:, :)
    !> Array to add dipole gradient to
    real(wp), intent(inout) :: dipgrad(:, :)
+   !> Parallelize over displacements
+   logical, intent(in) :: parallelize
 
    integer :: iat, jat, ic, jc, ii, jj
    type(TMolecule), allocatable :: mol
@@ -69,9 +71,12 @@ subroutine numdiff2_all(env, mol0, chk0, calc, step, hessian, dipgrad)
    step2 = 0.5_wp / step
    allocate(gr(3, mol0%n), gl(3, mol0%n))
 
-   !$omp do schedule(runtime) collapse(2) &
+! This OpenMP statements lead to invalid LLVM-IR with NVHPC (20.7 to 20.11)
+#ifndef __PGIC__
+   !$omp parallel do if(parallelize) schedule(runtime) collapse(2) &
    !$omp private(jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, &
    !$omp& mol, chk, t1, w1)
+#endif
    do iat = 1, mol0%n
       do ic = 1, 3
          ii = 3*(iat - 1) + ic
@@ -113,13 +118,12 @@ subroutine numdiff2_all(env, mol0, chk0, calc, step, hessian, dipgrad)
 
       end do
    end do
-   !$omp end do
 
 end subroutine numdiff2_all
 
 
 !> Evaluate hessian by finite difference for a list of atoms
-subroutine numdiff2_list(env, mol0, chk0, calc, list, step, hessian, dipgrad)
+subroutine numdiff2_list(env, mol0, chk0, calc, list, step, hessian, dipgrad, parallelize)
    character(len=*), parameter :: source = "hessian_numdiff_numdiff2"
    !> Computation environment
    type(TEnvironment), intent(inout) :: env
@@ -137,6 +141,8 @@ subroutine numdiff2_list(env, mol0, chk0, calc, list, step, hessian, dipgrad)
    real(wp), intent(inout) :: hessian(:, :)
    !> Array to add dipole gradient to
    real(wp), intent(inout) :: dipgrad(:, :)
+   !> Parallelize over displacements
+   logical, intent(in) :: parallelize
 
    integer :: iat, jat, kat, ic, jc, ii, jj
    type(TMolecule), allocatable :: mol
@@ -150,9 +156,12 @@ subroutine numdiff2_list(env, mol0, chk0, calc, list, step, hessian, dipgrad)
    step2 = 0.5_wp / step
    allocate(gr(3, mol0%n), gl(3, mol0%n))
 
-   !$omp do schedule(runtime) collapse(2) &
+! This OpenMP statements lead to invalid LLVM-IRwith NVHPC (20.7 to 20.11)
+#ifndef __PGIC__
+   !$omp parallel do if(parallelize) schedule(runtime) collapse(2) &
    !$omp private(jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, &
    !$omp& mol, chk, t1, w1)
+#endif
    do kat = 1, size(list)
       do ic = 1, 3
          iat = list(kat)
@@ -195,7 +204,6 @@ subroutine numdiff2_list(env, mol0, chk0, calc, list, step, hessian, dipgrad)
 
       end do
    end do
-   !$omp end do
 
 end subroutine numdiff2_list
 
