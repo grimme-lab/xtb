@@ -121,12 +121,13 @@ subroutine numhess( &
    call res%allocate(mol%n)
    res%n3true = n3-3*freezeset%n
 
-
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
       & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3))
 
+   rd=.false.
+   xyzsave = mol%xyz
 
    step=0.0001_wp
    call rotmol(mol%n,mol%xyz,step,2.*step,3.*step)
@@ -178,11 +179,10 @@ subroutine numhess( &
    !analytical hessian calculation
    if(mode_extrun .eq. p_ext_turbomole) then    
            dipd=0.0_wp
-           call aoforce_hessian(env,mol,h,dipd) 
            freezeset%n=0
+           call aoforce_hessian(env,mol,h,dipd) 
            call writeHessianOut('hessian',h)
-   !numericalc hessian calculation
-   else
+   else !numerical hessian calculation
    parallize = .true.
    select type(calc)
    type is (TGFFCalculator)
@@ -317,7 +317,7 @@ subroutine numhess( &
    endif
 
    if (pr_dftbp_hessian_out) then
-      call writeHessianOut('hessian.out', h)
+      call writeHessianOut('hessian.out', res%hess)
       write(env%unit, '(A)') "DFTB+ style hessian.out written"
    end if
 

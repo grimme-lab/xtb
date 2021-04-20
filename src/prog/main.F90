@@ -1051,8 +1051,10 @@ subroutine xtbMain(env, argParser)
    if (runtyp.eq.p_run_path) then
       call prtiming(4,'path finder')
    endif
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
+   if (((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) .and. (mode_extrun.ne.p_ext_turbomole)) then
       call prtiming(5,'numerical hessian')
+   else if (((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) .and. (mode_extrun.eq.p_ext_turbomole)) then
+      call prtiming(5,'analytical hessian')
    endif
    if ((runtyp.eq.p_run_md).or.(runtyp.eq.p_run_omd).or. &
       (runtyp.eq.p_run_metaopt)) then
