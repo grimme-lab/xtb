@@ -176,10 +176,10 @@ contains
       require_update = .not.nlist%initialized
       if (.not.nlist%initialized) then
          if (pr) then
-            write(env%unit,'(10x,"maxhb123",3x,i0,x,i0,x,i0)') &
+            write(env%unit,'(10x,"nhb123",3x,i0,x,i0,x,i0)') &
                & nhb1,nhb2,nxb
          end if
-         call new(nlist, n, nhb1, nhb2, nxb)
+         call new(nlist, n, 5*nhb1, 5*nhb2, 3*nxb)
          nlist%hbrefgeo(:, :) = xyz
       end if
       if (update .or. require_update) then

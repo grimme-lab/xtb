@@ -177,9 +177,6 @@ subroutine numhess( &
 
    parallize = .true.
    select type(calc)
-   type is (TGFFCalculator)
-      calc%update = .false.
-      parallize = .false.
    type is (TDummyCalculator)
       parallize = .false.
    end select

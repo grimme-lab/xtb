@@ -1113,14 +1113,6 @@ use xtb_mctc_accuracy, only : wp
          nxb=nxb+1
       enddo
 
-! the actual size can be larger, so make it save
-      nhb1=(nhb1*5)
-      nhb2=(nhb2*5)
-      nxb =(nxb *3)
-
-!     initialize the HB list check array
-
-
       end subroutine gfnff_hbset0
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
