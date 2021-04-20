@@ -66,7 +66,7 @@ write(iunit,'(3x,a)') &
    "with help from (in alphabetical order)",&
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, J. Koopman", &
-   "C. Lavinge, S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer", &
+   "C. Lavigne, S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer", &
    "J. Pisarek, P. Pracht, J. Seibert, P. Shushkov, S. Spicher, M. Stahn", &
    "T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
    ""
