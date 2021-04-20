@@ -30,6 +30,7 @@ srcs += files(
   'gfnff_setup.f90',
   'math.f',
   'mrec.f90',
+  'neighbourlist.f90',
   'shake_module.f90',
   'struc_converter.f90',
   'topology.f90',

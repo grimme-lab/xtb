@@ -20,7 +20,7 @@
 !  in the course of the calculation.
 module xtb_type_restart
    use xtb_type_wavefunction, only : TWavefunction
-   use xtb_gfnff_topology, only : TGFFTopology
+   use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    implicit none
    private
 
@@ -34,7 +34,7 @@ module xtb_type_restart
       type(TWavefunction) :: wfn
 
       !> Force field topology
-      type(TGFFTopology) :: topo
+      type(TGFFNeighbourList) :: nlist
 
    end type TRestart
 

@@ -148,7 +148,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       allocate( topo%zetac6(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( topo%xyze0(3,mol%n), source = 0.0d0 )
       allocate( nbf(20,mol%n), source = 0 )
-      if (.not.allocated(topo%hbrefgeo)) allocate( topo%hbrefgeo(3,mol%n), source = 0.0d0 )
 
       niel=0
       do i=1,mol%n
@@ -817,10 +816,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
             endif
          enddo
       enddo
-
-      call gfnff_hbset0(mol%n,mol%at,mol%xyz,sqrab,topo,hbthr1,hbthr2)
-      write(env%unit,'(10x,"maxhb123",3x,i0,x,i0,x,i0)') topo%nhb1,topo%nhb2,topo%nxb
-      allocate( topo%hblist1(3,topo%nhb1),topo%hblist2(3,topo%nhb2),topo%hblist3(3,topo%nxb), source = 0 )
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! do Hueckel

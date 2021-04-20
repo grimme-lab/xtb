@@ -32,9 +32,6 @@ module xtb_gfnff_topology
       integer  :: nbond
       integer  :: nangl
       integer  :: ntors
-      integer  :: nhb1
-      integer  :: nhb2
-      integer  :: nxb
       integer  :: nathbH
       integer  :: nathbAB
       integer  :: natxbAB
@@ -60,9 +57,6 @@ module xtb_gfnff_topology
       integer,allocatable ::  alist(:,:)   ! angles
       integer,allocatable ::  tlist(:,:)   ! torsions
       integer,allocatable :: b3list(:,:)   ! bond atm
-      integer,allocatable :: hblist1(:,:)  ! HBs loose
-      integer,allocatable :: hblist2(:,:)  ! HBs bonded
-      integer,allocatable :: hblist3(:,:)  ! XBs
       !-----------------------------------------------
       integer,allocatable :: nr_hb(:)      ! Nr. of H bonds per O-H or N-H bond
       integer,allocatable :: bond_hb_AH(:,:) ! A, H atoms in bonds that are also part of HBs
@@ -84,8 +78,6 @@ module xtb_gfnff_topology
       real(wp),allocatable:: alpeeq(:)     ! atomic alpha for EEQ, squared
       real(wp),allocatable:: alphanb(:)    ! non-bonded exponent for atom pairs
       real(wp),allocatable::    qa(:)      ! estimated atomic charges (fixed and obtained from topology EEQ)
-      real(wp),allocatable::     q(:)      ! atomic charges (obtained from EEQ)
-      real(wp),allocatable:: hbrefgeo(:,:) ! atom xyz, used to check for HB list update
       real(wp),allocatable::    xyze0(:,:) ! atom xyz, starting geom. (for Efield energy)
       real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
@@ -114,9 +106,6 @@ subroutine zero(self)
    self%nbond = 0
    self%nangl = 0
    self%ntors = 0
-   self%nhb1 = 0
-   self%nhb2 = 0
-   self%nxb = 0
    self%nathbH = 0
    self%nathbAB = 0
    self%natxbAB = 0

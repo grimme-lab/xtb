@@ -18,6 +18,7 @@
 module xtb_gfnff_eg
    use xtb_gfnff_ini2
    use xtb_gfnff_data, only : TGFFData
+   use xtb_gfnff_neighbourlist, only : TGFFNeighbourList, new
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_solv_gbsa, only : TBorn
    use xtb_type_environment, only : TEnvironment
@@ -59,7 +60,7 @@ contains
 !---------------------------------------------------
 
    subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
-         & param,topo,solvation,update,version,accuracy)
+         & param,topo,nlist,solvation,update,version,accuracy)
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
       use xtb_type_data
@@ -71,7 +72,8 @@ contains
       type(TEnvironment), intent(inout) :: env
       type(scc_results),intent(out) :: res_gff
       type(TGFFData), intent(in) :: param
-      type(TGFFTopology), intent(inout) :: topo
+      type(TGFFTopology), intent(in) :: topo
+      type(TGFFNeighbourList), intent(inout) :: nlist
       type(TBorn), allocatable, intent(inout) :: solvation
       logical, intent(in) :: update
       integer, intent(in) :: version
@@ -92,7 +94,8 @@ contains
       integer ati,atj,iat,jat
       integer hbA,hbB
       integer lin
-      logical ex
+      logical ex, require_update
+      integer nhb1, nhb2, nxb
       real*8  r2,rab,qq0,erff,dd,dum1,r3(3),t8,dum,t22,t39
       real*8  dx,dy,dz,yy,t4,t5,t6,alpha,t20
       real*8  repab,t16,t19,t26,t27,xa,ya,za,cosa,de,t28
@@ -158,6 +161,31 @@ contains
          srab(ij + i) = 0.0d0
       enddo
       if (pr) call timer%measure(1)
+
+!!!!!!!!!!!!
+! Setup HB
+!!!!!!!!!!!!
+
+      if (pr) call timer%measure(10,'HB/XB (incl list setup)')
+      if (allocated(nlist%q)) then
+         nlist%initialized = size(nlist%q) == n
+      end if
+      call gfnff_hbset0(n,at,xyz,sqrab,topo,nhb1,nhb2,nxb,hbthr1,hbthr2)
+      nlist%initialized = nlist%initialized .and. nhb1 <= nlist%nhb1 &
+         & .and. nhb2 <= nlist%nhb2 .and. nxb <= nlist%nxb
+      require_update = .not.nlist%initialized
+      if (.not.nlist%initialized) then
+         if (pr) then
+            write(env%unit,'(10x,"maxhb123",3x,i0,x,i0,x,i0)') &
+               & nhb1,nhb2,nxb
+         end if
+         call new(nlist, n, nhb1, nhb2, nxb)
+         nlist%hbrefgeo(:, :) = xyz
+      end if
+      if (update .or. require_update) then
+         call gfnff_hbset(n,at,xyz,sqrab,topo,nlist,hbthr1,hbthr2)
+      end if
+      if (pr) call timer%measure(10)
 
 !!!!!!!!!!!!!
 ! Setup
@@ -245,7 +273,7 @@ contains
 
       if (pr) call timer%measure(4,'EEQ energy and q')
       call goed_gfnff(env,accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
-     &                dfloat(ichrg),eeqtmp,cn,topo%q,ees,solvation,param,topo)  ! without dq/dr
+     &                dfloat(ichrg),eeqtmp,cn,nlist%q,ees,solvation,param,topo)  ! without dq/dr
       if (pr) call timer%measure(4)
 
 !!!!!!!!
@@ -265,7 +293,7 @@ contains
 !!!!!!!!
       if (pr) call timer%measure(6,'EEQ gradient')
       !$omp parallel do default(none) reduction (+:g) &
-      !$omp shared(topo,n,sqrab,srab,eeqtmp,xyz,at) &
+      !$omp shared(topo,nlist,n,sqrab,srab,eeqtmp,xyz,at) &
       !$omp private(i,j,k,ij,r3,r2,rab,gammij,erff,dd)
       do i=1,n
          k = i*(i-1)/2
@@ -276,7 +304,7 @@ contains
             gammij=eeqtmp(1,ij)
             erff  =eeqtmp(2,ij)
             dd=(2.0d0*gammij*exp(-gammij**2*r2) &
-               & /(sqrtpi*r2)-erff/(rab*r2))*topo%q(i)*topo%q(j)
+               & /(sqrtpi*r2)-erff/(rab*r2))*nlist%q(i)*nlist%q(j)
             r3=(xyz(:,i)-xyz(:,j))*dd
             g(:,i)=g(:,i)+r3
             g(:,j)=g(:,j)-r3
@@ -287,8 +315,8 @@ contains
 
       if (allocated(solvation)) then
          call timer%measure(11, "GBSA")
-         call solvation%addGradient(env, at, xyz, topo%q, topo%q, g)
-         call solvation%getEnergyParts(env, topo%q, topo%q, gborn, ghb, gsasa, &
+         call solvation%addGradient(env, at, xyz, nlist%q, nlist%q, g)
+         call solvation%getEnergyParts(env, nlist%q, nlist%q, gborn, ghb, gsasa, &
             & gshift)
          gsolv = gsasa + gborn + ghb + gshift
          call timer%measure(11)
@@ -298,7 +326,7 @@ contains
       endif
 
       do i=1,n
-         qtmp(i)=topo%q(i)*param%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
+         qtmp(i)=nlist%q(i)*param%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
       enddo
 
       call mctc_gemv(dcn, qtmp, g, alpha=-1.0_wp, beta=1.0_wp)
@@ -452,18 +480,15 @@ contains
 !!!!!!!!!!!!!!!!!!
 
       if (pr) call timer%measure(10,'HB/XB (incl list setup)')
-      if (update) then
-         call gfnff_hbset(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
-      end if
 
-      if(topo%nhb1.gt.0) then
+      if(nlist%nhb1.gt.0) then
          !$omp parallel do default(none) reduction(+:ehb, g) &
-         !$omp shared(topo, param, n, at, xyz, sqrab, srab) &
+         !$omp shared(topo, nlist, param, n, at, xyz, sqrab, srab) &
          !$omp private(i, j, k, l, etmp, g3tmp)
-         do i=1,topo%nhb1
-            j=topo%hblist1(1,i)
-            k=topo%hblist1(2,i)
-            l=topo%hblist1(3,i)
+         do i=1,nlist%nhb1
+            j=nlist%hblist1(1,i)
+            k=nlist%hblist1(2,i)
+            l=nlist%hblist1(3,i)
             call abhgfnff_eg1(n,j,k,l,at,xyz,topo%qa,sqrab,srab,etmp,g3tmp,param,topo)
             g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
             g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
@@ -474,14 +499,14 @@ contains
       endif
 
 
-      if(topo%nhb2.gt.0) then
+      if(nlist%nhb2.gt.0) then
          !$omp parallel do default(none) reduction(+:ehb, g) &
-         !$omp shared(topo, param, n, at, xyz, sqrab, srab) &
+         !$omp shared(topo, nlist, param, n, at, xyz, sqrab, srab) &
          !$omp private(i, j, k, l, etmp, g5tmp)
-         do i=1,topo%nhb2
-            j=topo%hblist2(1,i)
-            k=topo%hblist2(2,i)
-            l=topo%hblist2(3,i)
+         do i=1,nlist%nhb2
+            j=nlist%hblist2(1,i)
+            k=nlist%hblist2(2,i)
+            l=nlist%hblist2(3,i)
             !Carbonyl case R-C=O...H_A
             if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.6) then
                call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
@@ -509,13 +534,14 @@ contains
 ! EXB
 !!!!!!!!!!!!!!!!!!
 
-      if(topo%nxb.gt.0) then
+      if(nlist%nxb.gt.0) then
          !$omp parallel do default(none) reduction(+:exb, g) &
-         !$omp shared(topo, param, n, at, xyz) private(i, j, k, l, etmp, g3tmp)
-         do i=1,topo%nxb
-            j=topo%hblist3(1,i)
-            k=topo%hblist3(2,i)
-            l=topo%hblist3(3,i)
+         !$omp shared(topo, nlist, param, n, at, xyz) &
+         !$omp private(i, j, k, l, etmp, g3tmp)
+         do i=1,nlist%nxb
+            j=nlist%hblist3(1,i)
+            k=nlist%hblist3(2,i)
+            l=nlist%hblist3(3,i)
             call rbxgfnff_eg(n,j,k,l,at,xyz,topo%qa,etmp,g3tmp,param)
             g(1:3,j)=g(1:3,j)+g3tmp(1:3,1)
             g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
@@ -532,7 +558,7 @@ contains
 
       if(sum(abs(efield)).gt.1d-6)then
          do i=1,n
-            r3(:) =-topo%q(i)*efield(:)
+            r3(:) =-nlist%q(i)*efield(:)
             g(:,i)= g(:,i) + r3(:)
             eext = eext + r3(1)*(xyz(1,i)-topo%xyze0(1,i))+&
      &                    r3(2)*(xyz(2,i)-topo%xyze0(2,i))+&
@@ -552,15 +578,15 @@ contains
 !!!!!!!!!!!!!!!!!!
       if (pr) then
         call timer%write(6,'E+G')
-        if(abs(sum(topo%q)-ichrg).gt.1.d-1) then ! check EEQ only once
-          write(env%unit,*) topo%q
-          write(env%unit,*) sum(topo%q),ichrg
+        if(abs(sum(nlist%q)-ichrg).gt.1.d-1) then ! check EEQ only once
+          write(env%unit,*) nlist%q
+          write(env%unit,*) sum(nlist%q),ichrg
           call env%error('EEQ charge constrain error', source)
           return
         endif
         r3 = 0
         do i=1,n
-           r3(:) = r3(:)+topo%q(i)*xyz(:,i)
+           r3(:) = r3(:)+nlist%q(i)*xyz(:,i)
         enddo
 
 !       just for fit De calc
@@ -590,7 +616,7 @@ contains
       res_gff%g_solv  = gsolv
       res_gff%g_shift = gshift
       res_gff%g_sasa  = gsasa
-      call mctc_gemv(xyz, topo%q, res_gff%dipole)
+      call mctc_gemv(xyz, nlist%q, res_gff%dipole)
 
    end subroutine gfnff_eg
 

@@ -11,6 +11,7 @@ subroutine test_gfnff_sp
    use xtb_gfnff_setup
    use xtb_gfnff_eg
    use xtb_gfnff_ini
+   use xtb_gfnff_neighbourlist
    use xtb_setparam
    use xtb_setmod
    use xtb_disp_dftd3param
@@ -37,6 +38,7 @@ subroutine test_gfnff_sp
    type(TEnvironment)  :: env
    type(scc_results)   :: res_gff
    type(TGFFCalculator) :: calc
+   type(TGFFNeighbourList) :: nlist
    type(TBorn), allocatable :: solvation
 
    real(wp) :: etot
@@ -64,7 +66,7 @@ subroutine test_gfnff_sp
    gff_print=.true.
 
    call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,solvation,.true.,calc%version, &
+      & g,etot,res_gff,calc%param,calc%topo,nlist,solvation,.true.,calc%version, &
       & calc%accuracy)
 
    call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
