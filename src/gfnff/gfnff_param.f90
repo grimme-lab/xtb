@@ -33,9 +33,12 @@ module xtb_gfnff_param
 
       !> Version published in Angew. Chem. 2020
       integer :: angewChem2020 = 1
-      
+
       !> Adding improved amide description to Angew. Chem. 2020 version
       integer :: angewChem2020_1 = 2
+
+      !> Fixing generation of topological charges
+      integer :: angewChem2020_2 = 3
 
       !> Harmonic potential version of the Angew. Chem. 2020
       integer :: harmonic2020 = -1
@@ -480,7 +483,7 @@ module xtb_gfnff_param
      param%repz(:) = repz
 
      select case(version)
-     case(gffVersion%angewChem2020, gffVersion%angewChem2020_1, gffVersion%harmonic2020)
+     case(gffVersion%angewChem2020, gffVersion%angewChem2020_1, gffVersion%angewChem2020_2, gffVersion%harmonic2020)
         call loadGFNFFAngewChem2020(param)
         exist = .true.
      end select
@@ -558,8 +561,6 @@ module xtb_gfnff_param
      if (.not.allocated(topo%gameeq)) allocate( topo%gameeq(n), source = 0.0d0 )
      if (.not.allocated(topo%alpeeq)) allocate( topo%alpeeq(n), source = 0.0d0 )
      if (.not.allocated(topo%qa)) allocate( topo%qa(n), source = 0.0d0 )
-     if (.not.allocated(topo%q)) allocate( topo%q(n), source = 0.0d0 )
-     if (.not.allocated(topo%hbrefgeo)) allocate( topo%hbrefgeo(3,n), source = 0.0d0 )
      if (.not.allocated(topo%zetac6)) allocate( topo%zetac6(n*(n+1)/2), source = 0.0d0 )
      if (.not.allocated(topo%xyze0)) allocate( topo%xyze0(3,n), source = 0.0d0 )
      if (.not.allocated(topo%b3list)) allocate( topo%b3list(3,1000*n), source = 0 )
@@ -581,9 +582,6 @@ module xtb_gfnff_param
      if (.not.allocated(topo%vbond)) allocate( topo%vbond(3,topo%nbond_vbond), source = 0.0d0 )
      if (.not.allocated(topo%vangl)) allocate( topo%vangl(2,topo%nangl_alloc), source = 0.0d0 )
      if (.not.allocated(topo%vtors)) allocate( topo%vtors(2,topo%ntors_alloc), source = 0.0d0 )
-     if (.not.allocated(topo%hblist1)) allocate( topo%hblist1(3,topo%nhb1), source = 0 )
-     if (.not.allocated(topo%hblist2)) allocate( topo%hblist2(3,topo%nhb2), source = 0 )
-     if (.not.allocated(topo%hblist3)) allocate( topo%hblist3(3,topo%nxb), source = 0 )
 
    end subroutine gfnff_param_alloc
 
@@ -600,8 +598,6 @@ module xtb_gfnff_param
      if (allocated(topo%gameeq)) deallocate( topo%gameeq )
      if (allocated(topo%alpeeq)) deallocate( topo%alpeeq )
      if (allocated(topo%qa)) deallocate( topo%qa )
-     if (allocated(topo%q)) deallocate( topo%q )
-     if (allocated(topo%hbrefgeo)) deallocate( topo%hbrefgeo )
      if (allocated(topo%zetac6)) deallocate( topo%zetac6 )
      if (allocated(topo%xyze0)) deallocate( topo%xyze0 )
      if (allocated(topo%b3list)) deallocate( topo%b3list )
@@ -623,9 +619,6 @@ module xtb_gfnff_param
      if (allocated(topo%vbond)) deallocate( topo%vbond )
      if (allocated(topo%vangl)) deallocate( topo%vangl )
      if (allocated(topo%vtors)) deallocate( topo%vtors )
-     if (allocated(topo%hblist1)) deallocate( topo%hblist1 )
-     if (allocated(topo%hblist2)) deallocate( topo%hblist2 )
-     if (allocated(topo%hblist3)) deallocate( topo%hblist3 )
 
    end subroutine gfnff_param_dealloc
 

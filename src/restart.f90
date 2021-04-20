@@ -119,20 +119,19 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo)
             return
          else if (iver8.eq.int(version)) then
             success = .true.
-            read(ich) topo%nbond,topo%nangl,topo%ntors,topo%nhb1,topo%nhb2,topo%nxb,topo%nathbH,topo%nathbAB,  &
+            read(ich) topo%nbond,topo%nangl,topo%ntors,topo%nathbH,topo%nathbAB,  &
                     & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,topo%maxsystem
             read(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
             call gfnff_param_alloc(topo, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
             read(ich) topo%nb,topo%bpair,topo%blist,topo%alist, &
-               & topo%tlist,topo%b3list,topo%hblist1,topo%hblist2, &
-               & topo%hblist3,topo%fraglist,topo%hbatHl,topo%hbatABl, &
+               & topo%tlist,topo%b3list,topo%fraglist,topo%hbatHl,topo%hbatABl, &
                & topo%xbatABl,topo%ispinsyst,topo%nspinsyst,topo%bond_hb_AH, &
                & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
             read(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq, &
                & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
-               & topo%q,topo%xyze0,topo%zetac6,&
+               & topo%xyze0,topo%zetac6,&
                & topo%qfrag,topo%hbbas,topo%hbaci
          else
             if (verbose) &
@@ -186,15 +185,15 @@ subroutine write_restart_gff(env,fname,nat,version,topo)
    !Dimensions
    write(ich) int(version,i8),int(nat,i8)
    write(ich) topo%nbond,topo%nangl,topo%ntors,   &
-            & topo%nhb1,topo%nhb2,topo%nxb,topo%nathbH,topo%nathbAB,topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,  &
+            & topo%nathbH,topo%nathbAB,topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,  &
             & topo%maxsystem
    write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
    !Arrays Integers
-   write(ich) topo%nb,topo%bpair,topo%blist,topo%alist,topo%tlist,topo%b3list,topo%hblist1,topo%hblist2,topo%hblist3, &
+   write(ich) topo%nb,topo%bpair,topo%blist,topo%alist,topo%tlist,topo%b3list, &
       & topo%fraglist,topo%hbatHl,topo%hbatABl,topo%xbatABl,topo%ispinsyst,topo%nspinsyst,             &
       & topo%bond_hb_AH,topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
    !Arrays Reals
-   write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,topo%q,       &
+   write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,       &
       & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas,topo%hbaci
    call close_file(ich)
 end subroutine write_restart_gff

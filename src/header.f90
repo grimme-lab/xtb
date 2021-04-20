@@ -113,6 +113,8 @@ select case(version)
 case(gffVersion%angewChem2020, gffVersion%harmonic2020)
   nr="|                  Version 1.0.0                  |"
 case(gffVersion%angewChem2020_1)
+  nr="|                  Version 1.0.2                  |"
+case(gffVersion%angewChem2020_2)
   nr="|                  Version 1.0.3                  |"
 end select  
 

@@ -59,13 +59,10 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
 
   call gfnff_set_param(mol%n, gen, param)
   param%dispscale = dispscale
-  print*, dispscale
   if (restart) then
      inquire(file='gfnff_topo', exist=ex)
      if (ex) then
        call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
-       !hbrefgeo is usually set within gfnff_ini2/gfnff_hbset0 equal to initial xyz
-       topo%hbrefgeo=mol%xyz
        if (success) then
           write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
           return
@@ -128,7 +125,6 @@ subroutine gfnff_input(env, mol, topo)
   if (.not.allocated(topo%nb))       allocate( topo%nb(20,mol%n), source = 0 )
   if (.not.allocated(topo%qfrag))    allocate( topo%qfrag(mol%n), source = 0.0d0 )
   if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(mol%n), source = 0 )
-  if (.not.allocated(topo%q))        allocate( topo%q(mol%n), source = 0.0d0 )
 
   select case(mol%ftype)
   !--------------------------------------------------------------------

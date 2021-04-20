@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 module xtb_gfnff_ini2
    use xtb_gfnff_data, only : TGFFData
+   use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_type_environment, only : TEnvironment
    implicit none
@@ -693,11 +694,12 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
+subroutine gfnff_hbset(n,at,xyz,sqrab,topo,nlist,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
-      type(TGFFTopology), intent(inout) :: topo
+      type(TGFFTopology), intent(in) :: topo
+      type(TGFFNeighbourList), intent(inout) :: nlist
       integer n
       integer at(n)
       real(wp) sqrab(n*(n+1)/2)
@@ -708,12 +710,12 @@ use xtb_mctc_accuracy, only : wp
       real(wp) rab,rmsd
       logical ijnonbond
 
-      rmsd = sqrt(sum((xyz-topo%hbrefgeo)**2))/dble(n)
+      rmsd = sqrt(sum((xyz-nlist%hbrefgeo)**2))/dble(n)
 
       if(rmsd.lt.1.d-6 .or. rmsd.gt. 0.3d0) then ! update list if first call or substantial move occured
 
-      topo%nhb1=0
-      topo%nhb2=0
+      nlist%nhb1=0
+      nlist%nhb2=0
       do ix=1,topo%nathbAB
          i=topo%hbatABl(1,ix)
          j=topo%hbatABl(2,ix)
@@ -726,38 +728,38 @@ use xtb_mctc_accuracy, only : wp
             inh=lin(i,nh)
             jnh=lin(j,nh)
             if(topo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               topo%nhb2=topo%nhb2+1
-               topo%hblist2(1,topo%nhb2)=i
-               topo%hblist2(2,topo%nhb2)=j
-               topo%hblist2(3,topo%nhb2)=nh
+               nlist%nhb2=nlist%nhb2+1
+               nlist%hblist2(1,nlist%nhb2)=i
+               nlist%hblist2(2,nlist%nhb2)=j
+               nlist%hblist2(3,nlist%nhb2)=nh
             elseif(topo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               topo%nhb2=topo%nhb2+1
-               topo%hblist2(1,topo%nhb2)=j
-               topo%hblist2(2,topo%nhb2)=i
-               topo%hblist2(3,topo%nhb2)=nh
+               nlist%nhb2=nlist%nhb2+1
+               nlist%hblist2(1,nlist%nhb2)=j
+               nlist%hblist2(2,nlist%nhb2)=i
+               nlist%hblist2(3,nlist%nhb2)=nh
             elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
-               topo%nhb1=topo%nhb1+1
-               topo%hblist1(1,topo%nhb1)=i
-               topo%hblist1(2,topo%nhb1)=j
-               topo%hblist1(3,topo%nhb1)=nh
+               nlist%nhb1=nlist%nhb1+1
+               nlist%hblist1(1,nlist%nhb1)=i
+               nlist%hblist1(2,nlist%nhb1)=j
+               nlist%hblist1(3,nlist%nhb1)=nh
             endif
          enddo
       enddo
 
-      topo%nxb =0
+      nlist%nxb =0
       do ix=1,topo%natxbAB
          i =topo%xbatABl(1,ix)
          j =topo%xbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr2)cycle
-         topo%nxb=topo%nxb+1
-         topo%hblist3(1,topo%nxb)=i
-         topo%hblist3(2,topo%nxb)=j
-         topo%hblist3(3,topo%nxb)=topo%xbatABl(3,ix)
+         nlist%nxb=nlist%nxb+1
+         nlist%hblist3(1,nlist%nxb)=i
+         nlist%hblist3(2,nlist%nxb)=j
+         nlist%hblist3(3,nlist%nxb)=topo%xbatABl(3,ix)
       enddo
 
-      topo%hbrefgeo = xyz
+      nlist%hbrefgeo = xyz
 
       endif  ! else do nothing
 
@@ -1060,11 +1062,14 @@ end subroutine bond_hb_AHB_set0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,hbthr1,hbthr2)
+subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,nhb1,nhb2,nxb,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
-      type(TGFFTopology), intent(inout) :: topo
+      type(TGFFTopology), intent(in) :: topo
+      integer, intent(out) :: nhb1
+      integer, intent(out) :: nhb2
+      integer, intent(out) :: nxb
       integer n
       integer at(n)
       real(wp) sqrab(n*(n+1)/2)
@@ -1075,8 +1080,8 @@ use xtb_mctc_accuracy, only : wp
       logical ijnonbond
       real(wp) rab
 
-      topo%nhb1=0
-      topo%nhb2=0
+      nhb1=0
+      nhb2=0
       do ix=1,topo%nathbAB
          i=topo%hbatABl(1,ix)
          j=topo%hbatABl(2,ix)
@@ -1089,33 +1094,24 @@ use xtb_mctc_accuracy, only : wp
             inh=lin(i,nh)
             jnh=lin(j,nh)
             if(topo%bpair(inh).eq.1.and.ijnonbond)then
-               topo%nhb2=topo%nhb2+1
+               nhb2=nhb2+1
             elseif(topo%bpair(jnh).eq.1.and.ijnonbond)then
-               topo%nhb2=topo%nhb2+1
+               nhb2=nhb2+1
             elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
-               topo%nhb1=topo%nhb1+1
+               nhb1=nhb1+1
             endif
          enddo
       enddo
 
-      topo%nxb =0
+      nxb =0
       do ix=1,topo%natxbAB
          i =topo%xbatABl(1,ix)
          j =topo%xbatABl(2,ix)
          ij=j+i*(i-1)/2
          rab=sqrab(ij)
          if(rab.gt.hbthr2)cycle
-         topo%nxb=topo%nxb+1
+         nxb=nxb+1
       enddo
-
-! the actual size can be larger, so make it save
-      topo%nhb1=(topo%nhb1*5)
-      topo%nhb2=(topo%nhb2*5)
-      topo%nxb =(topo%nxb *3)
-
-!     initialize the HB list check array
-
-      topo%hbrefgeo = xyz
 
       end subroutine gfnff_hbset0
 

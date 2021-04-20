@@ -233,7 +233,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    if (present(version)) then
       calc%version = version
    else
-      calc%version = gffVersion%angewChem2020_1
+      calc%version = gffVersion%angewChem2020_2
    end if
 
    call calc%topo%zero

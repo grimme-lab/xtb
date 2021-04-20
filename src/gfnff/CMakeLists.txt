@@ -32,6 +32,7 @@ list(APPEND srcs
   "${dir}/gfnff_setup.f90"
   "${dir}/math.f"
   "${dir}/mrec.f90"
+  "${dir}/neighbourlist.f90"
   "${dir}/shake_module.f90"
   "${dir}/struc_converter.f90"
   "${dir}/topology.f90"

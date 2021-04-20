@@ -35,6 +35,7 @@ module xtb_gfnff_calculator
    use xtb_gfnff_param, only : make_chrg,gff_print
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
+   use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
    implicit none
@@ -140,8 +141,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! ------------------------------------------------------------------------
    !  actual calculation
    call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,self%param,self%topo,solvation,self%update, &
-      & self%version,self%accuracy)
+      & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
+      & self%update,self%version,self%accuracy)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -192,7 +193,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          write(env%unit,'(9x,"::",49("."),"::")')
          call print_gfnff_results(env%unit,results,verbose,allocated(solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
-         write(env%unit,outfmt) "total charge      ", sum(self%topo%q), "e    "
+         write(env%unit,outfmt) "total charge      ", sum(chk%nlist%q), "e    "
          if (verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
             write(env%unit,outfmt) "atomisation energy", results%e_atom, "Eh   "
@@ -202,7 +203,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       write(env%unit,'(a)')
       if (.not.silent) then
          call open_file(ich,'gfnff_charges','w')
-         call print_charges(ich,mol%n,self%topo%q)
+         call print_charges(ich,mol%n,chk%nlist%q)
          call close_file(ich)
       end if
    endif
