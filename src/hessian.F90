@@ -519,7 +519,6 @@ subroutine numhess( &
       res%polt(i) = abs(sum2)
    end do
 
-
 end subroutine numhess
 
 subroutine numhess_rmsd( &
