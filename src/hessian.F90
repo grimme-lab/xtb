@@ -191,7 +191,7 @@ subroutine numhess( &
    type is (TDummyCalculator)
       parallize = .false.
    end select
-   
+
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -352,8 +352,6 @@ subroutine numhess( &
    write(env%unit,'(a)')
    write(env%unit,'("writing file <",a,">.")') hname
    call wrhess(n3,hss,hname)
-
-
 
    ! include masses
    k=0
