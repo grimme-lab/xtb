@@ -260,16 +260,6 @@ write(iunit,'(10x,a)') &
    !< < < < < < < < < < < < < > > > > > > > > > > > > >!
 end subroutine numhess_header
 
-subroutine analyTMhess_header(iunit)
-integer, intent(in) :: iunit
-write(iunit,'(10x,a)') &
-   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
-   " ------------------------------------------------- ",&
-   "|             Analytical TM Hessian               |",&
-   " ------------------------------------------------- "
-   !< < < < < < < < < < < < < > > > > > > > > > > > > >!
-end subroutine analyTMhess_header
-
 subroutine md_header(iunit)
 integer,intent(in) :: iunit
 write(iunit,'(10x,a)') &

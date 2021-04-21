@@ -22,6 +22,7 @@ list(APPEND srcs
   "${dir}/numdiff.f90"
   "${dir}/project.f90"
   "${dir}/utils.f90"
+  "${dir}/turbomole.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

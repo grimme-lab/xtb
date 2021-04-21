@@ -52,7 +52,6 @@ subroutine aoforce_hessian(env, mol, h, dipd)
    call reader%open('hessian')
    call readHessian(env, mol, h, reader, fileType%tmol)
    call reader%close
-   call writeHessianOut('hessian',h)
 
    call open_file(idipd,'dipgrad','r')
    if(idipd == -1) then
@@ -69,33 +68,33 @@ subroutine aoforce_hessian(env, mol, h, dipd)
 
    call close_file(idipd)
 
-   end subroutine aoforce_hessian
+end subroutine aoforce_hessian
 
 
-   subroutine read_dipgrad(idipd, n, dipd, error)
-        use xtb_mctc_systools
+subroutine read_dipgrad(idipd, n, dipd, error)
+   use xtb_mctc_systools
 
-        implicit none
+   implicit none
 
-        integer, intent(out) :: error
-        character(len=:), allocatable :: line
-        integer, intent(in) :: n
-        real(wp), intent(inout) :: dipd(:,:)
-        integer, intent(in) :: idipd
-        integer :: i,j
+   integer, intent(out) :: error
+   character(len=:), allocatable :: line
+   integer, intent(in) :: n
+   real(wp), intent(inout) :: dipd(:,:)
+   integer, intent(in) :: idipd
+   integer :: i,j
 
-        error = 0
+   error = 0
 
-        do while(error == 0)
-                call getline(idipd, line, error)
-                if (index(line, '$dipgrad          cartesian dipole gradients') == 1) then
-                        do i=1, 3*n
-                                read(idipd,*) (dipd(j,i),j=1,3)
-                        end do
-                        exit 
-                end if
-        enddo
-   end subroutine read_dipgrad
+   do while(error == 0)
+      call getline(idipd, line, error)
+         if (index(line, '$dipgrad          cartesian dipole gradients') == 1) then
+            do i=1, 3*n
+               read(idipd,*) (dipd(j,i),j=1,3)
+            end do
+            exit 
+         end if
+   enddo
+end subroutine read_dipgrad
  
 
 end module xtb_freq_turbomole 

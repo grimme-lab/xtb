@@ -179,9 +179,7 @@ subroutine numhess( &
    !analytical hessian calculation
    if(mode_extrun .eq. p_ext_turbomole) then    
            dipd=0.0_wp
-           freezeset%n=0
            call aoforce_hessian(env,mol,h,dipd) 
-           call writeHessianOut('hessian',h)
    else !numerical hessian calculation
    parallize = .true.
    select type(calc)
@@ -251,7 +249,6 @@ subroutine numhess( &
    if (runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
 
    if(mode_extrun .eq. p_ext_turbomole .AND. runtyp.eq.p_run_bhess) then 
-        htb = h !htb equals unbiased hessian
         h = h + hbias !h is biased
    end if
 
@@ -409,7 +406,7 @@ subroutine numhess( &
    if(res%linear)then
       write(env%unit,'(1x,a)') 'vibrational frequencies (cm⁻¹)'
    else
-      write(env%unit,'(1x,a)') 'Eprojected vibrational frequencies (cm⁻¹)'
+      write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    endif
    k=0
    do i=1,n3
