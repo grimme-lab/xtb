@@ -136,6 +136,7 @@ features reality:
 - F. Musil ([@felixmusil](https://github.com/felixmusil))
 - H. Neugebauer ([@haneug](https://github.com/haneug))
 - J. Pisarek
+- C. Plett ([@cplett](https://github.com/cplett))
 - P. Pracht ([@pprcht](https://github.com/pprcht))
 - J. Seibert ([@liljay42](https://github.com/liljay42))
 - P. Shushkov

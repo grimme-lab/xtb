@@ -67,8 +67,8 @@ write(iunit,'(3x,a)') &
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, J. Koopman", &
    "C. Lavigne, S. Lehtola, F. März, M. Müller, F. Musil, H. Neugebauer", &
-   "J. Pisarek, P. Pracht, J. Seibert, P. Shushkov, S. Spicher, M. Stahn", &
-   "T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
+   "J. Pisarek, C. Plett, P. Pracht, J. Seibert, P. Shushkov, S. Spicher", &
+   "M. Stahn, T. Strunk, J. Stückrath, T. Rose, and J. Unsleber", &
    ""
 end subroutine citation
 
