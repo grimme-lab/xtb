@@ -756,8 +756,12 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> numerical hessian calculation
    if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
-      if (runtyp.eq.p_run_bhess) then
+      if (runtyp.eq.p_run_bhess .and. mode_extrun.ne.p_ext_turbomole) then
          call generic_header(env%unit,"Biased Numerical Hessian",49,10)
+      else if (runtyp.eq.p_run_bhess .and. mode_extrun.eq.p_ext_turbomole) then
+         call generic_header(env%unit,"Biased Analytical TM Hessian",49,10)
+      else if (mode_extrun.eq.p_ext_turbomole) then
+         call generic_header(env%unit,"Analytical TM Hessian",49,10)
       else
          call numhess_header(env%unit)
       end if
@@ -1047,9 +1051,13 @@ subroutine xtbMain(env, argParser)
    if (runtyp.eq.p_run_path) then
       call prtiming(4,'path finder')
    endif
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
-      call prtiming(5,'numerical hessian')
-   endif
+   if (((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess))) then
+      if (mode_extrun.ne.p_ext_turbomole) then
+         call prtiming(5,'analytical hessian')
+      else
+         call prtiming(5,'numerical hessian')
+      end if
+  end if
    if ((runtyp.eq.p_run_md).or.(runtyp.eq.p_run_omd).or. &
       (runtyp.eq.p_run_metaopt)) then
       call prtiming(6,'MD')

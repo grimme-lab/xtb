@@ -21,6 +21,7 @@ module xtb_hessian
       & write_tm_vibspectrum, g98fake, g98fake2
    use xtb_freq_numdiff, only : numdiff2
    use xtb_freq_project, only : trproj
+   use xtb_freq_turbomole, only : aoforce_hessian
 
 contains
 
@@ -175,6 +176,11 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
+   !analytical hessian calculation
+   if(mode_extrun .eq. p_ext_turbomole) then    
+           dipd=0.0_wp
+           call aoforce_hessian(env,mol,h,dipd) 
+   else !numerical hessian calculation
    parallize = .true.
    select type(calc)
    type is (TDummyCalculator)
@@ -217,10 +223,17 @@ subroutine numhess( &
       call numdiff2(env, mol, chk0, calc, step, h, dipd, parallize)
    endif
 
+   endif !From turbomole_exception
+
+
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
 
    if (runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
+
+   if(mode_extrun .eq. p_ext_turbomole .AND. runtyp.eq.p_run_bhess) then 
+        h = h + hbias !h is biased
+   end if
 
    if(freezeset%n.gt.0)then
       ! inverse mass array
