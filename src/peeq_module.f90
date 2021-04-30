@@ -866,15 +866,14 @@ subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
    sint = 0.0_wp
    h0   = 0.0_wp
 
-   !$omp parallel default(none) &
+   !$omp parallel do default(none) schedule(dynamic) &
    !$omp private(iat,jat,ij,ati,cc,ci,rab2,atj,ish,ishtyp,valaoi,valaoj, &
    !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp, &
    !$omp&        ss,saw,est,alpi,alpj,ab,iprim,jprim,ip,jp,km,shpoly, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,t) &
-   !$omp reduction (+:sint,h0) &
+   !$omp shared(sint,h0) &
    !$omp shared(wsc,basis,at,nShell,hData,xyz,lattice,intcut,nat,selfEnergy)
-   !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
       ati = at(iat)
@@ -958,7 +957,7 @@ subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
                         if (jao > iao) cycle
                         ij = lin(iao,jao)
                         ! add all WSC images
-                        sint(iao,jao) = sint(iao,jao) + ss(jj,ii)*wsc%w(jat,iat)
+                        !sint(iao,jao) = sint(iao,jao) + ss(jj,ii)*wsc%w(jat,iat)
                         sint(jao,iao) = sint(jao,iao) + ss(jj,ii)*wsc%w(jat,iat)
                         ! Hamiltonian
                         H0(ij) = H0(ij) + hav * shpoly * ss(jj,ii) * wsc%w(jat,iat)
@@ -970,8 +969,12 @@ subroutine ccm_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
          enddo ishells
       enddo
    enddo
-   !$OMP END DO
-   !$OMP END PARALLEL
+   !$omp parallel do default(none) shared(nao, sint) private(iao, jao)
+   do iao = 1, nao
+      do jao = 1, iao - 1
+         sint(iao, jao) = sint(jao, iao)
+      end do
+   end do
 
    ! diagonal elements
    do iat = 1, nat
@@ -1059,15 +1062,14 @@ subroutine pbc_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
    sint = 0.0_wp
    h0   = 0.0_wp
 
-   !$omp parallel default(none) &
+   !$omp parallel do default(none) schedule(dynamic) &
    !$omp private(iat,jat,ij,ati,cc,ci,rab2,atj,ish,ishtyp,valaoi,valaoj, &
    !$omp&        ri,rj,icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp, &
    !$omp&        ss,saw,est,alpi,alpj,ab,iprim,jprim,ip,jp,km,shpoly, &
    !$omp&        mli,mlj,tmp,zi,zj,zetaij,enpoly,iao,jao, &
    !$omp&        ii,jj,k,den,den2,den4,i,j,il,jl,hii,hjj,hav,itr,t) &
-   !$omp reduction (+:sint,h0) &
+   !$omp shared(sint,h0) &
    !$omp shared(basis,at,nShell,hData,xyz,intcut,nat,trans,w,selfEnergy)
-   !$omp do schedule(runtime)
    do iat = 1, nat
       ri  = xyz(:,iat)
       ati = at(iat)
@@ -1163,8 +1165,12 @@ subroutine pbc_build_SH0(nShell, hData, selfEnergy, nat, at, basis, nbf, nao, &
          enddo ishells
       enddo
    enddo
-   !$OMP END DO
-   !$OMP END PARALLEL
+   !$omp parallel do default(none) shared(nao, sint) private(iao, jao)
+   do iao = 1, nao
+      do jao = 1, iao - 1
+         sint(iao, jao) = sint(jao, iao)
+      end do
+   end do
 
    ! diagonal elements
    do iat = 1, nat

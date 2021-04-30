@@ -24,6 +24,9 @@ module xtb_intgrad
    use xtb_mctc_constants, only : pi
    implicit none
 
+   integer, parameter :: maxl = 6
+   integer, parameter :: maxl2 = maxl*2
+
    integer,private,parameter :: lx(84) = (/ &
       & 0, &
       & 1,0,0, &
@@ -48,6 +51,8 @@ module xtb_intgrad
       & 0,0,4,0,1,0,1,3,3,0,2,2,1,1,2, &
       & 0,0,5,0,2,0,3,2,3,0,1,0,1,4,4,3,1,1,1,2,2, &
       & 0,0,6,0,3,3,0,1,5,5,1,0,0,2,4,4,0,2,1,2,2,3,1,3,1,1,4,2/)
+   integer, private, parameter :: lxyz(3, 84) = reshape(&
+      & [lx, ly, lz], shape(lxyz), order=[2, 1])
    !     integer,parameter :: iall(4,4) = reshape( (/
    !     1,4,10,20,4,10,20,35,10,20,35,56,20,35,56,84 /), shape(iall) )
    !     s    px   py   pz    dx²   dy²   dz²   dxy   dxz   dyz
@@ -134,109 +139,6 @@ pure subroutine build_kab(ra,alp,rb,bet,gama,kab)
    est   = rab2*alp*bet*gm
    kab   = exp(-est)*(sqrtpi*sqrt(gm))**3
 end subroutine build_kab
-
-! --------------------------------------------------------------[SAW1712]-
-!> not needed anymore, but the math was lengthy, so I rather keep it
-pure subroutine rhftce2(cfs,a,e,iff)
-   integer, intent(in)  :: iff
-   real(wp),intent(in)  :: a(*),e(*)
-   real(wp),intent(inout) :: cfs(*)
-   real(wp),parameter   :: c2 = 2.0_wp
-   real(wp),parameter   :: c3 = 3.0_wp
-   real(wp)  :: aex,aey,aez
-   ! ---- e = center of product function, a = center of single gaussian
-   aex = e(1)-a(1)
-   aey = e(2)-a(2)
-   aez = e(3)-a(3)
-   select case(iff)
-   case(1) ! s
-      continue
-   case(2) ! x·s + px
-      cfs( 1)=aex*cfs(2)
-   case(3) ! y·s + py
-      cfs( 1)=aey*cfs(3)
-   case(4) ! z·s + pz
-      cfs( 1)=aez*cfs(4)
-   case(5) ! x²·s + 2x·px + dx²
-      cfs( 1)=aex*aex*cfs(5)
-      cfs( 2)=c2*aex*cfs(5)
-   case(6) ! y²·s + 2y·py + dy²
-      cfs( 1)=aey*aey*cfs(6)
-      cfs( 3)=c2*aey*cfs(6)
-   case(7) ! z²·s + 2z·pz + dz²
-      cfs( 1)=aez*aez*cfs(7)
-      cfs( 4)=c2*aez*cfs(7)
-   case(8) ! xy·s + y·px + x·py + dxy
-      cfs( 1)=aex*aey*cfs(8)
-      cfs( 2)=aey*cfs(8)
-      cfs( 3)=aex*cfs(8)
-   case(9) ! xz·s + z·px + x·pz + dxz
-      cfs( 1)=aex*aez*cfs(9)
-      cfs( 2)=aez*cfs(9)
-      cfs( 4)=aex*cfs(9)
-   case(10) ! yz·s + z·py + y·pz + dyz
-      cfs( 1)=aey*aez*cfs(10)
-      cfs( 3)=aez*cfs(10)
-      cfs( 4)=aey*cfs(10)
-   case(11) ! x³·s + 3x²·px + 3x·dx² + fx³
-      cfs( 1)=aex*aex*aex*cfs(11)
-      cfs( 2)=c3*aex*aex*cfs(11)
-      cfs( 5)=c3*aex*cfs(11)
-   case(12) ! y³·s + 3y²·py + 3y·dy² + fy³
-      cfs( 1)=aey*aey*aey*cfs(12)
-      cfs( 3)=c3*aey*aey*cfs(12)
-      cfs( 6)=c3*aey*cfs(12)
-   case(13) ! z³·s + 3z²·pz + 3z·dz² + fz³
-      cfs( 1)=aez*aez*aez*cfs(13)
-      cfs( 4)=c3*aez*aez*cfs(13)
-      cfs( 7)=c3*aez*cfs(13)
-   case(14) ! x²y·s + 2xy·px + x²·py + x·dx² + 2x·dxy + fx²y
-      cfs( 1)=aex*aex*aey*cfs(14)
-      cfs( 2)=c2*aex*aey*cfs(14)
-      cfs( 3)=aex*aex*cfs(14)
-      cfs( 5)=aey*cfs(14)
-      cfs( 8)=c2*aex*cfs(14)
-   case(15) ! x²z·s + 2xz·px + x²·pz + z·dx² + 2x·dxz + fx²z
-      cfs( 1)=aex*aex*aez*cfs(15)
-      cfs( 2)=c2*aex*aez*cfs(15)
-      cfs( 4)=aex*aex*cfs(15)
-      cfs( 5)=aez*cfs(15)
-      cfs( 9)=c2*aex*cfs(15)
-   case(16) ! y²x·s + y²·px + 2xy·py + x·dy² + 2y·dxy + fy²x
-      cfs( 1)=aey*aey*aex*cfs(16)
-      cfs( 2)=aey*aey*cfs(16)
-      cfs( 3)=c2*aey*aex*cfs(16)
-      cfs( 6)=aex*cfs(16)
-      cfs( 8)=c2*aey*cfs(16)
-   case(17) ! y²z·s + 2yz·py + y²·pz + z·dy² + 2y·dyz + fy²z
-      cfs( 1)=aey*aey*aez*cfs(17)
-      cfs( 3)=c2*aey*aez*cfs(17)
-      cfs( 4)=aey*aey*cfs(17)
-      cfs( 6)=aez*cfs(17)
-      cfs(10)=c2*aey*cfs(17)
-   case(18) ! xz²·s + z²·px + 2xz·pz + x·dz² + 2z·dxz + fxz²
-      cfs( 1)=aez*aez*aex*cfs(18)
-      cfs( 2)=aez*aez*cfs(18)
-      cfs( 4)=c2*aez*aex*cfs(18)
-      cfs( 7)=aex*cfs(18)
-      cfs( 9)=c2*aez*cfs(18)
-   case(19) ! yz²·s + z²·py + 2yz·pz + y·dz² + 2z·dyz + fyz²
-      cfs( 1)=aez*aez*aey*cfs(19)
-      cfs( 3)=aez*aez*cfs(19)
-      cfs( 4)=c2*aez*aey*cfs(19)
-      cfs( 7)=aey*cfs(19)
-      cfs(10)=c2*aez*cfs(19)
-   case(20) ! xyz·s + yz·px + xz·py + xy·pz + z·dxy + y·dxz + x·dyz + fxyz
-      cfs( 1)=aex*aey*aez*cfs(20)
-      cfs( 2)=aez*aey*cfs(20)
-      cfs( 3)=aex*aez*cfs(20)
-      cfs( 4)=aex*aey*cfs(20)
-      cfs( 8)=aez*cfs(20)
-      cfs( 9)=aey*cfs(20)
-      cfs(10)=aex*cfs(20)
-   end select
-   return
-end subroutine rhftce2
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine dtrf2(s,li,lj)
@@ -327,41 +229,6 @@ pure subroutine dtrf2(s,li,lj)
    return
 
 end subroutine dtrf2
-
-! --------------------------------------------------------------[SAW1801]-
-pure subroutine build_hshift(cfs,a,e,l)
-   integer,intent(in)  :: l(3)
-   real(wp), intent(in)  :: a(3),e(3)
-   real(wp), intent(inout) :: cfs(3,*)
-   real(wp), parameter   :: c2 = 2.0_wp
-   real(wp), parameter   :: c3 = 3.0_wp
-   real(wp), parameter   :: c4 = 4.0_wp
-   real(wp), parameter   :: c6 = 6.0_wp
-   integer :: i
-   real(wp)  :: ae
-   ! --- e = center of product function, a = center of single gaussian
-   do i = 1, 3
-      ae = e(i)-a(i)
-      select case(l(i))
-      case(0) ! s
-         continue
-      case(1) ! p
-         cfs(i,1)=ae*cfs(i,2)
-      case(2) ! d
-         cfs(i,1)=ae*ae*cfs(i,3)
-         cfs(i,2)=c2*ae*cfs(i,3)
-      case(3) ! f
-         cfs(i,1)=ae*ae*ae*cfs(i,4)
-         cfs(i,2)=c3*ae*ae*cfs(i,4)
-         cfs(i,3)=c3*ae*cfs(i,4)
-      case(4) ! g
-         cfs(i,1)=ae*ae*ae*ae*cfs(i,5)
-         cfs(i,2)=c4*ae*ae*ae*cfs(i,5)
-         cfs(i,3)=c6*ae*ae*cfs(i,5)
-         cfs(i,4)=c4*ae*cfs(i,5)
-      end select
-   enddo
-end subroutine build_hshift
 
 ! --------------------------------------------------------------[SAW1801]-
 pure subroutine build_hshift2(cfs,a,e,l)
@@ -487,287 +354,348 @@ pure subroutine prod3(a,b,d,la,lb)
 
 end subroutine prod3
 
-! --------------------------------------------------------------[SAW1801]-
-pure subroutine prod2(a,b,d,la,lb)
-   integer,intent(in)    :: la(3),lb(3)
-   real(wp), intent(in)    :: a(3,*),b(3,*)
-   real(wp), intent(inout) :: d(3,*)
+pure subroutine horizontal_shift(ae, l, cfs)
+   integer, intent(in) :: l
+   real(wp), intent(in) :: ae
+   real(wp), intent(inout) :: cfs(*)
    integer :: i
-   do i = 1, 3
-      if(la(i).ge.4.or.lb(i).ge.4) goto 40
-      if(la(i).ge.3.or.lb(i).ge.3) goto 30
-      if(la(i).ge.2.or.lb(i).ge.2) goto 20
-      ! <s|s> = <s>
-      d(i,1)=a(i,1)*b(i,1)
-      if(la(i).eq.0.and.lb(i).eq.0) cycle
-      ! <s|p> = <s|*(|s>+|p>)
-      !       = <s> + <p>
-      d(i,2)=a(i,1)*b(i,2)+a(i,2)*b(i,1)
-      if(la(i).eq.0.or.lb(i).eq.0) cycle
-      ! <p|p> = (<s|+<p|)*(|s>+|p>)
-      !       = <s> + <p> + <d>
-      d(i,3)=a(i,2)*b(i,2)
-      cycle
-   20 continue
-      ! <s|d> = <s|*(|s>+|p>+|d>)
-      !       = <s> + <p> + <d>
-      d(i,1)=a(i,1)*b(i,1)
-      d(i,2)=a(i,1)*b(i,2)+a(i,2)*b(i,1)
-      d(i,3)=a(i,1)*b(i,3)+a(i,3)*b(i,1)
-      if(la(i).eq.0.or.lb(i).eq.0) cycle
-      ! <p|d> = (<s|+<p|)*(|s>+|p>+|d>)
-      !       = <s> + <p> + <d> + <f>
-      d(i,3)=d(i,3)+a(i,2)*b(i,2)
-      d(i,4)=a(i,2)*b(i,3)+a(i,3)*b(i,2)
-      if(la(i).le.1.or.lb(i).le.1) cycle
-      ! <d|d> = (<s|+<p|+<d|)*(|s>+|p>+|d>)
-      !       = <s> + <p> + <d> + <f> + <g>
-      d(i,5)=a(i,3)*b(i,3)
-      cycle
-   30 continue
-      ! <s|f> = <s|*(|s>+|p>+|d>+|f>)
-      !       = <s> + <p> + <d> + <f>
-      d(i,1)=a(i,1)*b(i,1)
-      d(i,2)=a(i,1)*b(i,2)+a(i,2)*b(i,1)
-      d(i,3)=a(i,1)*b(i,3)+a(i,3)*b(i,1)
-      d(i,4)=a(i,1)*b(i,4)+a(i,4)*b(i,1)
-      if(la(i).eq.0.or.lb(i).eq.0) cycle
-      ! <p|f> = (<s|+<p|)*(|s>+|p>+|d>+|f>)
-      !       = <s> + <p> + <d> + <f> + <g>
-      d(i,3)=d(i,3)+a(i,2)*b(i,2)
-      d(i,4)=d(i,4)+a(i,2)*b(i,3)+a(i,3)*b(i,2)
-      d(i,5)=a(i,2)*b(i,4)+a(i,4)*b(i,2)
-      if(la(i).le.1.or.lb(i).le.1) cycle
-      ! <d|f> = (<s|+<p|+<d|)*(|s>+|p>+|d>+|f>)
-      !       = <s> + <p> + <d> + <f> + <g> + <h>
-      d(i,5)=d(i,5)+a(i,3)*b(i,3)
-      d(i,6)=a(i,3)*b(i,4)+a(i,4)*b(i,3)
-      if(la(i).le.2.or.lb(i).le.2) cycle
-      ! <f|f> = (<s|+<p|+<d|+<f|)*(|s>+|p>+|d>+|f>)
-      !       = <s> + <p> + <d> + <f> + <g> + <h> + <i>
-      d(i,7)=a(i,4)*b(i,4)
-      cycle
-   40 continue
-      ! <s|g> = <s|*(|s>+|p>+|d>+|f>+|g>)
-      !       = <s> + <p> + <d> + <f> + <g>
-      d(i,1)=a(i,1)*b(i,1)
-      d(i,2)=a(i,1)*b(i,2)+a(i,2)*b(i,1)
-      d(i,3)=a(i,1)*b(i,3)+a(i,3)*b(i,1)
-      d(i,4)=a(i,1)*b(i,4)+a(i,4)*b(i,1)
-      d(i,5)=a(i,1)*b(i,5)+a(i,5)*b(i,1)
-      if(la(i).eq.0.or.lb(i).eq.0) cycle
-      ! <p|g> = (<s|+<p|)*(|s>+|p>+|d>+|f>+|g>)
-      !       = <s> + <p> + <d> + <f> + <g> + <h>
-      d(i,3)=d(i,3)+a(i,2)*b(i,2)
-      d(i,4)=d(i,4)+a(i,2)*b(i,3)+a(i,3)*b(i,2)
-      d(i,5)=d(i,5)+a(i,2)*b(i,4)+a(i,4)*b(i,2)
-      d(i,6)=a(i,2)*b(i,5)+a(i,5)*b(i,2)
-      if(la(i).le.1.or.lb(i).le.1) cycle
-      ! <d|g> = (<s|+<p|+<d|)*(|s>+|p>+|d>+|f>+|g>)
-      !       = <s> + <p> + <d> + <f> + <g> + <h> + <i>
-      d(i,5)=d(i,5)+a(i,3)*b(i,3)
-      d(i,6)=d(i,5)+a(i,3)*b(i,4)+a(i,4)*b(i,3)
-      d(i,7)=a(i,3)*b(i,5)+a(i,5)*b(i,3)
-      if(la(i).le.2.or.lb(i).le.2) cycle
-      ! <f|g> = (<s|+<p|+<d|+<f|)*(|s>+|p>+|d>+|f>+|g>)
-      !       = <s> + <p> + <d> + <f> + <g> + <h> + <i> + <k>
-      d(i,7)=d(i,7)+a(i,4)*b(i,4)
-      d(i,8)=a(i,4)*b(i,5)+a(i,5)*b(i,4)
-      if(la(i).le.3.or.lb(i).le.3) cycle
-      ! <g|g> = (<s|+<p|+<d|+<f|+<g|)*(|s>+|p>+|d>+|f>+|g>)
-      !       = <s> + <p> + <d> + <f> + <g> + <h> + <i> + <k> + <l>
-      d(i,9)=a(i,5)*b(i,5)
-   enddo
-end subroutine prod2
+   select case(l)
+   case(0) ! s
+      continue
+   case(1) ! p
+      cfs(1)=cfs(1)+ae*cfs(2)
+   case(2) ! d
+      cfs(1)=cfs(1)+ae*ae*cfs(3)
+      cfs(2)=cfs(2)+ 2*ae*cfs(3)
+   case(3) ! f
+      cfs(1)=cfs(1)+ae*ae*ae*cfs(4)
+      cfs(2)=cfs(2)+ 3*ae*ae*cfs(4)
+      cfs(3)=cfs(3)+ 3*ae*cfs(4)
+   case(4) ! g
+      cfs(1)=cfs(1)+ae*ae*ae*ae*cfs(5)
+      cfs(2)=cfs(2)+ 4*ae*ae*ae*cfs(5)
+      cfs(3)=cfs(3)+ 6*ae*ae*cfs(5)
+      cfs(4)=cfs(4)+ 4*ae*cfs(5)
+   end select
+end subroutine horizontal_shift
 
-! --------------------------------------------------------------[SAW1801]-
-pure subroutine dsawab(l,ga,v,d)
-   integer,intent(in)  :: l
-   real(wp), intent(in)  :: ga,d
-   real(wp), intent(out) :: v(*)
-   real(wp)  :: t(3)
-   ! --- for overlap, first moment and second moment
-   t(1:3)=olapp((/l,l+1,l+2/),ga)
-   ! --- build everything together
-   v(1) = t(1)
-   v(2) = t(2)+d*t(1)
-   v(3) = t(3)+2*d*t(2)+d**2*t(1)
-end subroutine dsawab
+pure subroutine form_product(a, b, la, lb, d)
+   integer, intent(in) :: la, lb
+   real(wp), intent(in) :: a(*), b(*)
+   real(wp), intent(inout) :: d(*)
+   integer :: i
+   if(la.ge.4.or.lb.ge.4) goto 40
+   if(la.ge.3.or.lb.ge.3) goto 30
+   if(la.ge.2.or.lb.ge.2) goto 20
+   ! <s|s> = <s>
+   d(1)=a(1)*b(1)
+   if(la.eq.0.and.lb.eq.0) return
+   ! <s|p> = <s|*(|s>+|p>)
+   !       = <s> + <p>
+   d(2)=a(1)*b(2)+a(2)*b(1)
+   if(la.eq.0.or.lb.eq.0) return
+   ! <p|p> = (<s|+<p|)*(|s>+|p>)
+   !       = <s> + <p> + <d>
+   d(3)=a(2)*b(2)
+   return
+20 continue
+   ! <s|d> = <s|*(|s>+|p>+|d>)
+   !       = <s> + <p> + <d>
+   d(1)=a(1)*b(1)
+   d(2)=a(1)*b(2)+a(2)*b(1)
+   d(3)=a(1)*b(3)+a(3)*b(1)
+   if(la.eq.0.or.lb.eq.0) return
+   ! <p|d> = (<s|+<p|)*(|s>+|p>+|d>)
+   !       = <s> + <p> + <d> + <f>
+   d(3)=d(3)+a(2)*b(2)
+   d(4)=a(2)*b(3)+a(3)*b(2)
+   if(la.le.1.or.lb.le.1) return
+   ! <d|d> = (<s|+<p|+<d|)*(|s>+|p>+|d>)
+   !       = <s> + <p> + <d> + <f> + <g>
+   d(5)=a(3)*b(3)
+   return
+30 continue
+   ! <s|f> = <s|*(|s>+|p>+|d>+|f>)
+   !       = <s> + <p> + <d> + <f>
+   d(1)=a(1)*b(1)
+   d(2)=a(1)*b(2)+a(2)*b(1)
+   d(3)=a(1)*b(3)+a(3)*b(1)
+   d(4)=a(1)*b(4)+a(4)*b(1)
+   if(la.eq.0.or.lb.eq.0) return
+   ! <p|f> = (<s|+<p|)*(|s>+|p>+|d>+|f>)
+   !       = <s> + <p> + <d> + <f> + <g>
+   d(3)=d(3)+a(2)*b(2)
+   d(4)=d(4)+a(2)*b(3)+a(3)*b(2)
+   d(5)=a(2)*b(4)+a(4)*b(2)
+   if(la.le.1.or.lb.le.1) return
+   ! <d|f> = (<s|+<p|+<d|)*(|s>+|p>+|d>+|f>)
+   !       = <s> + <p> + <d> + <f> + <g> + <h>
+   d(5)=d(5)+a(3)*b(3)
+   d(6)=a(3)*b(4)+a(4)*b(3)
+   if(la.le.2.or.lb.le.2) return
+   ! <f|f> = (<s|+<p|+<d|+<f|)*(|s>+|p>+|d>+|f>)
+   !       = <s> + <p> + <d> + <f> + <g> + <h> + <i>
+   d(7)=a(4)*b(4)
+   return
+40 continue
+   ! <s|g> = <s|*(|s>+|p>+|d>+|f>+|g>)
+   !       = <s> + <p> + <d> + <f> + <g>
+   d(1)=a(1)*b(1)
+   d(2)=a(1)*b(2)+a(2)*b(1)
+   d(3)=a(1)*b(3)+a(3)*b(1)
+   d(4)=a(1)*b(4)+a(4)*b(1)
+   d(5)=a(1)*b(5)+a(5)*b(1)
+   if(la.eq.0.or.lb.eq.0) return
+   ! <p|g> = (<s|+<p|)*(|s>+|p>+|d>+|f>+|g>)
+   !       = <s> + <p> + <d> + <f> + <g> + <h>
+   d(3)=d(3)+a(2)*b(2)
+   d(4)=d(4)+a(2)*b(3)+a(3)*b(2)
+   d(5)=d(5)+a(2)*b(4)+a(4)*b(2)
+   d(6)=a(2)*b(5)+a(5)*b(2)
+   if(la.le.1.or.lb.le.1) return
+   ! <d|g> = (<s|+<p|+<d|)*(|s>+|p>+|d>+|f>+|g>)
+   !       = <s> + <p> + <d> + <f> + <g> + <h> + <i>
+   d(5)=d(5)+a(3)*b(3)
+   d(6)=d(5)+a(3)*b(4)+a(4)*b(3)
+   d(7)=a(3)*b(5)+a(5)*b(3)
+   if(la.le.2.or.lb.le.2) return
+   ! <f|g> = (<s|+<p|+<d|+<f|)*(|s>+|p>+|d>+|f>+|g>)
+   !       = <s> + <p> + <d> + <f> + <g> + <h> + <i> + <k>
+   d(7)=d(7)+a(4)*b(4)
+   d(8)=a(4)*b(5)+a(5)*b(4)
+   if(la.le.3.or.lb.le.3) return
+   ! <g|g> = (<s|+<p|+<d|+<f|+<g|)*(|s>+|p>+|d>+|f>+|g>)
+   !       = <s> + <p> + <d> + <f> + <g> + <h> + <i> + <k> + <l>
+   d(9)=a(5)*b(5)
 
-! --------------------------------------------------------------[SAW1907]-
-!     a: center of first gaussian
-!     b: center of second gaussian
-!     c: aufpunkt of moment operator
-!     alpi: alpha/exponent of a
-!     alpj: beta/exponent of b
-!     la/lb: defines l
-!     nt: dimension of g
-pure subroutine build_sdq_ints(a,b,c,e,alpi,alpj,la,lb,t,v)
-   !     aufpunkte,ref point,intarray
-   integer,intent(in)  :: la,lb
-   real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3),c(3),e(3)
-   real(wp), intent(in)  :: t(0:8)
-   real(wp), intent(out) :: v(10)
-   !     local variables
-   real(wp)  :: d(3),dd(0:8,3),va(3),val(3,3)
-   real(wp)  :: aa(0:3,3),bb(0:3,3)
-   real(wp)  :: gama,kab
-   integer :: i,j,ij(3),ii(3),jj(3),lmax
+end subroutine form_product
 
-   val = 0
 
-   aa = 0
-   bb = 0
-   dd = 0
-   ii = [lx(la),ly(la),lz(la)]
-   jj = [lx(lb),ly(lb),lz(lb)]
-   ij = ii+jj
-   aa(ii(1),1)=1.0_wp
-   aa(ii(2),2)=1.0_wp
-   aa(ii(3),3)=1.0_wp
-   bb(jj(1),1)=1.0_wp
-   bb(jj(2),2)=1.0_wp
-   bb(jj(3),3)=1.0_wp
-   ! c is reference point
-   d = e - c
-   gama = alpi + alpj
-   do i = 1, 3
-      ! calculate cartesian prefactor for first gaussian
-      call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
-      ! calculate cartesian prefactor for second gaussian
-      call build_hshift2(bb(:,i),b(i),e(i),jj(i))    ! |b>
-      ! form their product
-      call prod3(aa(:,i),bb(:,i),dd(:,i),ii(i),jj(i))
-      do j = 0, ij(i)
-         !    <a|b> <a|x|b>             <a|x²|b>
-         va = [t(j), t(j+1) + d(i)*t(j), t(j+2) + 2*d(i)*t(j+1) + d(i)*d(i)*t(j)]
-         val(i,1:3) = val(i,1:3) + dd(j,i)*va(1:3)
-      enddo
-   enddo
-   v( 1)=(val(1,1)*val(2,1)*val(3,1))
-   v( 2)=(val(1,2)*val(2,1)*val(3,1))
-   v( 3)=(val(1,1)*val(2,2)*val(3,1))
-   v( 4)=(val(1,1)*val(2,1)*val(3,2))
-   v( 5)=(val(1,3)*val(2,1)*val(3,1))
-   v( 6)=(val(1,1)*val(2,3)*val(3,1))
-   v( 7)=(val(1,1)*val(2,1)*val(3,3))
-   v( 8)=(val(1,2)*val(2,2)*val(3,1))
-   v( 9)=(val(1,2)*val(2,1)*val(3,2))
-   v(10)=(val(1,1)*val(2,2)*val(3,2))
+pure subroutine overlap_3d(ri, rj, rp, ai, aj, li, lj, s1d, s3d)
+   real(wp), intent(in) :: ri(3)
+   real(wp), intent(in) :: rj(3)
+   real(wp), intent(in) :: rp(3)
+   real(wp), intent(in) :: ai
+   real(wp), intent(in) :: aj
+   integer, intent(in) :: li(3)
+   integer, intent(in) :: lj(3)
+   real(wp), intent(in) :: s1d(0:)
+   real(wp), intent(out) :: s3d
 
-end subroutine build_sdq_ints
+   integer :: i, j, k, l
+   real(wp) :: vi(0:maxl), vj(0:maxl), vv(0:maxl2), val(3)
 
-! --------------------------------------------------------------[SAW1907]-
-!     a: center of first gaussian
-!     b: center of second gaussian
-!     c: aufpunkt of moment operator
-!     alpi: alpha/exponent of a
-!     alpj: beta/exponent of b
-!     la/lb: defines l
-!     g: gradient
-!     nt: dimension of g
-pure subroutine build_dsdq_ints(a,b,c,e,alpi,alpj,la,lb,t,v,g)
-   !     aufpunkte,ref point,intarray
-   integer,intent(in)  :: la,lb
-   real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3),c(3),e(3)
-   real(wp), intent(in)  :: t(0:8)
-   real(wp), intent(out) :: v(10),g(3,10)
-   !     local variables
-   real(wp)  :: d(3),dd(0:8,3),gg(0:8,3),va(3),val(3,3),gra(3,3)
-   real(wp)  :: aa(0:3,3),aap(0:4,3),aam(0:4,3),bb(0:3,3)
-   real(wp)  :: gama,kab
-   integer :: i,j,ij(3),ii(3),jj(3),lmax
+   val(:) = 0.0_wp
 
-   val = 0
-   gra = 0
+   do k = 1, 3
+      vv(:) = 0.0_wp
+      vi(:) = 0.0_wp
+      vj(:) = 0.0_wp
+      vi(li(k)) = 1.0_wp
+      vj(lj(k)) = 1.0_wp
 
-   aa = 0
-   bb = 0
-   dd = 0
-   gg = 0
-   ii = [lx(la),ly(la),lz(la)]
-   jj = [lx(lb),ly(lb),lz(lb)]
-   ij = ii+jj
-   aa(ii(1),1)=1.0_wp
-   aa(ii(2),2)=1.0_wp
-   aa(ii(3),3)=1.0_wp
-   bb(jj(1),1)=1.0_wp
-   bb(jj(2),2)=1.0_wp
-   bb(jj(3),3)=1.0_wp
-   !     d/dX<a|b> = alpi<a+1|b> - i<a-1|b> = -alpj<a|b+1> + j<a|b-1>
-   aap=0
-   aam=0
-   aap(ii(1)+1,1)=2*alpi
-   aap(ii(2)+1,2)=2*alpi
-   aap(ii(3)+1,3)=2*alpi
-   if(ii(1).gt.0) aam(ii(1)-1,1)=-ii(1)
-   if(ii(2).gt.0) aam(ii(2)-1,2)=-ii(2)
-   if(ii(3).gt.0) aam(ii(3)-1,3)=-ii(3)
-   ! c is reference point
-   d = e - c
-   gama = alpi + alpj
-   do i = 1, 3
-      ! calculate cartesian prefactor for first gaussian
-      call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
-      call build_hshift2(aap(:,i),a(i),e(i),ii(i)+1) ! <a+1|
-      call build_hshift2(aam(:,i),a(i),e(i),ii(i)-1) ! <a-1|
-      ! calculate cartesian prefactor for second gaussian
-      call build_hshift2(bb(:,i),b(i),e(i),jj(i))    ! |b>
-      ! form their product
-      call prod3(aa(:,i),bb(:,i),dd(:,i),ii(i),jj(i))
-      aap(:,i) = aap(:,i) + aam(:,i)
-      call prod3(aap(:,i),bb(:,i),gg(:,i),ii(i)+1,jj(i))
-      do j = 0, ij(i)+1
-         !    <a|b> <a|x|b>             <a|x²|b>
-         va = [t(j), t(j+1) + d(i)*t(j), t(j+2) + 2*d(i)*t(j+1) + d(i)*d(i)*t(j)]
-         val(i,1:3) = val(i,1:3) + dd(j,i)*va(1:3)
-         gra(i,1:3) = gra(i,1:3) + gg(j,i)*va(1:3)
-      enddo
-   enddo
-   v( 1)=(val(1,1)*val(2,1)*val(3,1))
-   v( 2)=(val(1,2)*val(2,1)*val(3,1))
-   v( 3)=(val(1,1)*val(2,2)*val(3,1))
-   v( 4)=(val(1,1)*val(2,1)*val(3,2))
-   v( 5)=(val(1,3)*val(2,1)*val(3,1))
-   v( 6)=(val(1,1)*val(2,3)*val(3,1))
-   v( 7)=(val(1,1)*val(2,1)*val(3,3))
-   v( 8)=(val(1,2)*val(2,2)*val(3,1))
-   v( 9)=(val(1,2)*val(2,1)*val(3,2))
-   v(10)=(val(1,1)*val(2,2)*val(3,2))
-   g(1, 1)=(gra(1,1)*val(2,1)*val(3,1))
-   g(2, 1)=(val(1,1)*gra(2,1)*val(3,1))
-   g(3, 1)=(val(1,1)*val(2,1)*gra(3,1))
-   g(1, 2)=(gra(1,2)*val(2,1)*val(3,1))
-   g(2, 2)=(val(1,2)*gra(2,1)*val(3,1))
-   g(3, 2)=(val(1,2)*val(2,1)*gra(3,1))
-   g(1, 3)=(gra(1,1)*val(2,2)*val(3,1))
-   g(2, 3)=(val(1,1)*gra(2,2)*val(3,1))
-   g(3, 3)=(val(1,1)*val(2,2)*gra(3,1))
-   g(1, 4)=(gra(1,1)*val(2,1)*val(3,2))
-   g(2, 4)=(val(1,1)*gra(2,1)*val(3,2))
-   g(3, 4)=(val(1,1)*val(2,1)*gra(3,2))
-   g(1, 5)=(gra(1,3)*val(2,1)*val(3,1))
-   g(2, 5)=(val(1,3)*gra(2,1)*val(3,1))
-   g(3, 5)=(val(1,3)*val(2,1)*gra(3,1))
-   g(1, 6)=(gra(1,1)*val(2,3)*val(3,1))
-   g(2, 6)=(val(1,1)*gra(2,3)*val(3,1))
-   g(3, 6)=(val(1,1)*val(2,3)*gra(3,1))
-   g(1, 7)=(gra(1,1)*val(2,1)*val(3,3))
-   g(2, 7)=(val(1,1)*gra(2,1)*val(3,3))
-   g(3, 7)=(val(1,1)*val(2,1)*gra(3,3))
-   g(1, 8)=(gra(1,2)*val(2,2)*val(3,1))
-   g(2, 8)=(val(1,2)*gra(2,2)*val(3,1))
-   g(3, 8)=(val(1,2)*val(2,2)*gra(3,1))
-   g(1, 9)=(gra(1,2)*val(2,1)*val(3,2))
-   g(2, 9)=(val(1,2)*gra(2,1)*val(3,2))
-   g(3, 9)=(val(1,2)*val(2,1)*gra(3,2))
-   g(1,10)=(gra(1,1)*val(2,2)*val(3,2))
-   g(2,10)=(val(1,1)*gra(2,2)*val(3,2))
-   g(3,10)=(val(1,1)*val(2,2)*gra(3,2))
+      call horizontal_shift(rp(k) - ri(k), li(k), vi)
+      call horizontal_shift(rp(k) - rj(k), lj(k), vj)
+      call form_product(vi, vj, li(k), lj(k), vv)
+      do l = 0, li(k) + lj(k)
+         val(k) = val(k) + s1d(l) * vv(l)
+      end do
+   end do
 
-end subroutine build_dsdq_ints
+   s3d = val(1) * val(2) * val(3)
+
+end subroutine overlap_3d
+
+pure subroutine multipole_3d(ri, rj, rc, rp, ai, aj, li, lj, s1d, s3d)
+   real(wp), intent(in) :: ri(3)
+   real(wp), intent(in) :: rj(3)
+   real(wp), intent(in) :: rp(3)
+   real(wp), intent(in) :: rc(3)
+   real(wp), intent(in) :: ai
+   real(wp), intent(in) :: aj
+   integer, intent(in) :: li(3)
+   integer, intent(in) :: lj(3)
+   real(wp), intent(in) :: s1d(0:)
+   real(wp), intent(out) :: s3d(10)
+
+   integer :: k, l
+   real(wp) :: vi(0:maxl), vj(0:maxl), vv(0:maxl2), val(3, 3), rpc
+
+   val(:, :) = 0.0_wp
+
+   do k = 1, 3
+      vv(:) = 0.0_wp
+      vi(:) = 0.0_wp
+      vj(:) = 0.0_wp
+      vi(li(k)) = 1.0_wp
+      vj(lj(k)) = 1.0_wp
+      rpc = rp(k) - rc(k)
+
+      call horizontal_shift(rp(k) - ri(k), li(k), vi)
+      call horizontal_shift(rp(k) - rj(k), lj(k), vj)
+      call form_product(vi, vj, li(k), lj(k), vv)
+      do l = 0, li(k) + lj(k)
+         val(k, 1) = val(k, 1) + s1d(l) * vv(l)
+         val(k, 2) = val(k, 2) + (s1d(l+1) + rpc*s1d(l)) * vv(l)
+         val(k, 3) = val(k, 3) + (s1d(l+2) + 2*rpc*s1d(l+1) + rpc*rpc*s1d(l)) * vv(l)
+      end do
+   end do
+
+   s3d( 1) = val(1, 1) * val(2, 1) * val(3, 1)
+   s3d( 2) = val(1, 2) * val(2, 1) * val(3, 1)
+   s3d( 3) = val(1, 1) * val(2, 2) * val(3, 1)
+   s3d( 4) = val(1, 1) * val(2, 1) * val(3, 2)
+   s3d( 5) = val(1, 3) * val(2, 1) * val(3, 1)
+   s3d( 6) = val(1, 1) * val(2, 3) * val(3, 1)
+   s3d( 7) = val(1, 1) * val(2, 1) * val(3, 3)
+   s3d( 8) = val(1, 2) * val(2, 2) * val(3, 1)
+   s3d( 9) = val(1, 2) * val(2, 1) * val(3, 2)
+   s3d(10) = val(1, 1) * val(2, 2) * val(3, 2)
+
+end subroutine multipole_3d
+
+pure subroutine overlap_grad_3d(ri, rj, rp, ai, aj, li, lj, s1d, s3d, ds3d)
+   real(wp), intent(in) :: ri(3)
+   real(wp), intent(in) :: rj(3)
+   real(wp), intent(in) :: rp(3)
+   real(wp), intent(in) :: ai
+   real(wp), intent(in) :: aj
+   integer, intent(in) :: li(3)
+   integer, intent(in) :: lj(3)
+   real(wp), intent(in) :: s1d(0:)
+   real(wp), intent(out) :: s3d
+   real(wp), intent(out) :: ds3d(3)
+
+   integer :: k, l
+   real(wp) :: vi(0:maxl), vj(0:maxl), vv(0:maxl2), val(3)
+   real(wp) :: gi(0:maxl), gg(0:maxl2), gra(3)
+
+   val(:) = 0.0_wp
+   gra(:) = 0.0_wp
+
+   do k = 1, 3
+      vv(:) = 0.0_wp
+      gg(:) = 0.0_wp
+      vi(:) = 0.0_wp
+      vj(:) = 0.0_wp
+      gi(:) = 0.0_wp
+
+      vi(li(k)) = 1.0_wp
+      vj(lj(k)) = 1.0_wp
+      gi(li(k)+1) = 2*ai
+      if (li(k) > 0) gi(li(k)-1) = -li(k)
+
+      call horizontal_shift(rp(k) - ri(k), li(k)-1, gi)
+      call horizontal_shift(rp(k) - ri(k), li(k)+1, gi)
+      call horizontal_shift(rp(k) - ri(k), li(k), vi)
+      call horizontal_shift(rp(k) - rj(k), lj(k), vj)
+      call form_product(vi, vj, li(k), lj(k), vv)
+      call form_product(gi, vj, li(k)+1, lj(k), gg)
+      do l = 0, li(k) + lj(k) + 1
+         val(k) = val(k) + s1d(l) * vv(l)
+         gra(k) = gra(k) + s1d(l) * gg(l)
+      end do
+   end do
+
+   s3d = val(1) * val(2) * val(3)
+   ds3d(1) = gra(1) * val(2) * val(3)
+   ds3d(2) = val(1) * gra(2) * val(3)
+   ds3d(3) = val(1) * val(2) * gra(3)
+
+end subroutine overlap_grad_3d
+
+pure subroutine multipole_grad_3d(ri, rj, rc, rp, ai, aj, li, lj, s1d, s3d, ds3d)
+   real(wp), intent(in) :: ri(3)
+   real(wp), intent(in) :: rj(3)
+   real(wp), intent(in) :: rc(3)
+   real(wp), intent(in) :: rp(3)
+   real(wp), intent(in) :: ai
+   real(wp), intent(in) :: aj
+   integer, intent(in) :: li(3)
+   integer, intent(in) :: lj(3)
+   real(wp), intent(in) :: s1d(0:)
+   real(wp), intent(out) :: s3d(10)
+   real(wp), intent(out) :: ds3d(3, 10)
+
+   integer :: k, l
+   real(wp) :: vi(0:maxl), vj(0:maxl), vv(0:maxl2), val(3, 3), rpc
+   real(wp) :: gi(0:maxl), gg(0:maxl2), gra(3, 3)
+
+   val(:, :) = 0.0_wp
+   gra(:, :) = 0.0_wp
+
+   do k = 1, 3
+      vv(:) = 0.0_wp
+      gg(:) = 0.0_wp
+      vi(:) = 0.0_wp
+      vj(:) = 0.0_wp
+      gi(:) = 0.0_wp
+      rpc = rp(k) - rc(k)
+
+      vi(li(k)) = 1.0_wp
+      vj(lj(k)) = 1.0_wp
+      gi(li(k)+1) = 2*ai
+      if (li(k) > 0) gi(li(k)-1) = -li(k)
+
+      call horizontal_shift(rp(k) - ri(k), li(k)-1, gi)
+      call horizontal_shift(rp(k) - ri(k), li(k)+1, gi)
+      call horizontal_shift(rp(k) - ri(k), li(k), vi)
+      call horizontal_shift(rp(k) - rj(k), lj(k), vj)
+      call form_product(vi, vj, li(k), lj(k), vv)
+      call form_product(gi, vj, li(k)+1, lj(k), gg)
+      do l = 0, li(k) + lj(k) + 1
+         val(k, 1) = val(k, 1) + s1d(l) * vv(l)
+         val(k, 2) = val(k, 2) + (s1d(l+1) + rpc*s1d(l)) * vv(l)
+         val(k, 3) = val(k, 3) + (s1d(l+2) + 2*rpc*s1d(l+1) + rpc*rpc*s1d(l)) * vv(l)
+         gra(k, 1) = gra(k, 1) + s1d(l) * gg(l)
+         gra(k, 2) = gra(k, 2) + (s1d(l+1) + rpc*s1d(l)) * gg(l)
+         gra(k, 3) = gra(k, 3) + (s1d(l+2) + 2*rpc*s1d(l+1) + rpc*rpc*s1d(l)) * gg(l)
+      end do
+   end do
+
+   s3d( 1) = val(1, 1) * val(2, 1) * val(3, 1)
+   s3d( 2) = val(1, 2) * val(2, 1) * val(3, 1)
+   s3d( 3) = val(1, 1) * val(2, 2) * val(3, 1)
+   s3d( 4) = val(1, 1) * val(2, 1) * val(3, 2)
+   s3d( 5) = val(1, 3) * val(2, 1) * val(3, 1)
+   s3d( 6) = val(1, 1) * val(2, 3) * val(3, 1)
+   s3d( 7) = val(1, 1) * val(2, 1) * val(3, 3)
+   s3d( 8) = val(1, 2) * val(2, 2) * val(3, 1)
+   s3d( 9) = val(1, 2) * val(2, 1) * val(3, 2)
+   s3d(10) = val(1, 1) * val(2, 2) * val(3, 2)
+   ds3d(1, 1) = gra(1, 1) * val(2, 1) * val(3, 1)
+   ds3d(2, 1) = val(1, 1) * gra(2, 1) * val(3, 1)
+   ds3d(3, 1) = val(1, 1) * val(2, 1) * gra(3, 1)
+   ds3d(1, 2) = gra(1, 2) * val(2, 1) * val(3, 1)
+   ds3d(2, 2) = val(1, 2) * gra(2, 1) * val(3, 1)
+   ds3d(3, 2) = val(1, 2) * val(2, 1) * gra(3, 1)
+   ds3d(1, 3) = gra(1, 1) * val(2, 2) * val(3, 1)
+   ds3d(2, 3) = val(1, 1) * gra(2, 2) * val(3, 1)
+   ds3d(3, 3) = val(1, 1) * val(2, 2) * gra(3, 1)
+   ds3d(1, 4) = gra(1, 1) * val(2, 1) * val(3, 2)
+   ds3d(2, 4) = val(1, 1) * gra(2, 1) * val(3, 2)
+   ds3d(3, 4) = val(1, 1) * val(2, 1) * gra(3, 2)
+   ds3d(1, 5) = gra(1, 3) * val(2, 1) * val(3, 1)
+   ds3d(2, 5) = val(1, 3) * gra(2, 1) * val(3, 1)
+   ds3d(3, 5) = val(1, 3) * val(2, 1) * gra(3, 1)
+   ds3d(1, 6) = gra(1, 1) * val(2, 3) * val(3, 1)
+   ds3d(2, 6) = val(1, 1) * gra(2, 3) * val(3, 1)
+   ds3d(3, 6) = val(1, 1) * val(2, 3) * gra(3, 1)
+   ds3d(1, 7) = gra(1, 1) * val(2, 1) * val(3, 3)
+   ds3d(2, 7) = val(1, 1) * gra(2, 1) * val(3, 3)
+   ds3d(3, 7) = val(1, 1) * val(2, 1) * gra(3, 3)
+   ds3d(1, 8) = gra(1, 2) * val(2, 2) * val(3, 1)
+   ds3d(2, 8) = val(1, 2) * gra(2, 2) * val(3, 1)
+   ds3d(3, 8) = val(1, 2) * val(2, 2) * gra(3, 1)
+   ds3d(1, 9) = gra(1, 2) * val(2, 1) * val(3, 2)
+   ds3d(2, 9) = val(1, 2) * gra(2, 1) * val(3, 2)
+   ds3d(3, 9) = val(1, 2) * val(2, 1) * gra(3, 2)
+   ds3d(1,10) = gra(1, 1) * val(2, 2) * val(3, 2)
+   ds3d(2,10) = val(1, 1) * gra(2, 2) * val(3, 2)
+   ds3d(3,10) = val(1, 1) * val(2, 2) * gra(3, 2)
+
+end subroutine multipole_grad_3d
+
 
 ! --------------------------------------------------------------[SAW1801]-
 !> move gradient operator from center a to center b
@@ -799,77 +727,6 @@ pure subroutine shiftintg(g,s,r)
    g(3,19)=g(3,19)-s(3)+r(2)*s(1)
 end subroutine shiftintg
 
-! --------------------------------------------------------------[SAW1805]-
-!     a: center of first gaussian
-!     b: center of second gaussian
-!     c: aufpunkt of moment operator
-!     alpi: alpha/exponent of a
-!     alpj: beta/exponent of b
-!     la/lb: defines l
-!     g: gradient
-!     nt: dimension of g
-pure subroutine build_ds_ints(a,b,e,alpi,alpj,la,lb,t,v,g)
-   !     aufpunkte,ref point,intarray
-   integer,intent(in)  :: la,lb
-   real(wp), intent(in)  :: alpi,alpj
-   real(wp), intent(in)  :: a(3),b(3),e(3)
-   real(wp), intent(in)  :: t(0:8)
-   real(wp), intent(out) :: v,g(3)
-   !     local variables
-   real(wp)  :: d(3),dd(0:8,3),gg(0:8,3),va(3),val(3),gra(3)
-   real(wp)  :: aa(0:3,3),aap(0:4,3),aam(0:4,3),bb(0:3,3)
-   real(wp)  :: gama,kab
-   integer :: i,j,ij(3),ii(3),jj(3)
-
-   val = 0
-   gra = 0
-
-   aa = 0
-   bb = 0
-   dd = 0
-   gg = 0
-   ii = [lx(la),ly(la),lz(la)]
-   jj = [lx(lb),ly(lb),lz(lb)]
-   ij = ii+jj
-   aa(ii(1),1)=1.0_wp
-   aa(ii(2),2)=1.0_wp
-   aa(ii(3),3)=1.0_wp
-   bb(jj(1),1)=1.0_wp
-   bb(jj(2),2)=1.0_wp
-   bb(jj(3),3)=1.0_wp
-   !     d/dX<a|b> = alpi<a+1|b> - i<a-1|b> = -alpj<a|b+1> + j<a|b-1>
-   aap=0
-   aam=0
-   aap(ii(1)+1,1)=2*alpi
-   aap(ii(2)+1,2)=2*alpi
-   aap(ii(3)+1,3)=2*alpi
-   if(ii(1).gt.0) aam(ii(1)-1,1)=-ii(1)
-   if(ii(2).gt.0) aam(ii(2)-1,2)=-ii(2)
-   if(ii(3).gt.0) aam(ii(3)-1,3)=-ii(3)
-   gama = alpi + alpj
-   do i = 1, 3
-      ! --- calculate cartesian prefactor for first gaussian
-      call build_hshift2(aa(:,i),a(i),e(i),ii(i))    ! <a|
-      call build_hshift2(aap(:,i),a(i),e(i),ii(i)+1) ! <a+1|
-      call build_hshift2(aam(:,i),a(i),e(i),ii(i)-1) ! <a-1|
-      ! --- calculate cartesian prefactor for second gaussian
-      call build_hshift2(bb(:,i),b(i),e(i),jj(i))    ! |b>
-      ! --- form their product
-      call prod3(aa(:,i),bb(:,i),dd(:,i),ii(i),jj(i))
-      aap(:,i) = aap(:,i) + aam(:,i)
-      call prod3(aap(:,i),bb(:,i),gg(:,i),ii(i)+1,jj(i))
-      ! --- e is center of product gaussian with exponent gama
-      do j=0,ij(i)+1
-         val(i) = val(i) + dd(j,i)*t(j)
-         gra(i) = gra(i) + gg(j,i)*t(j)
-      enddo
-   enddo
-   v=(val(1)*val(2)*val(3))
-   g(1)=(gra(1)*val(2)*val(3))
-   g(2)=(val(1)*gra(2)*val(3))
-   g(3)=(val(1)*val(2)*gra(3))
-
-end subroutine build_ds_ints
 
 pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
       &                nprim,primcount,alp,cont,sint)
@@ -895,6 +752,7 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut
    real(wp) :: ab,est,saw(10)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
+   real(wp),parameter :: sqrtpi = sqrt(pi)
 
    sint = 0.0_wp
    iptyp = itt(ishtyp)
@@ -916,8 +774,8 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut
          ab=1.0_wp/(alpi+alpj)
          est=rij2*alpi*alpj*ab
          if(est.gt.intcut) cycle
-         call build_kab(ri,alpi,rj,alpj,ab,kab)
-         rp = gpcenter(alpi,ri,alpj,rj)
+         kab = exp(-est)*(sqrtpi*sqrt(ab))**3
+         rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp
             t(k) = olapp(k, alpi+alpj)
          end do
@@ -930,7 +788,8 @@ pure subroutine get_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut
                jprim = jp + primcount(jcao+mlj)
                saw = 0.0_wp
                ! prim-prim  integrals
-               call build_sdq_ints(ri,rj,point,rp,alpi,alpj,iptyp+mli,jptyp+mlj,t,saw)
+               call multipole_3d(ri,rj,point,rp,alpi,alpj, &
+                  & lxyz(:,iptyp+mli),lxyz(:,jptyp+mlj),t,saw)
                cc = kab*cont(jprim)*ci
                sint(mlj,mli) = sint(mlj,mli)+saw(1)*cc! pbc_w(jat,iat)
             enddo ! mlj
@@ -965,6 +824,7 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
    real(wp) :: ab,est,saw,sawg(3)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
+   real(wp),parameter :: sqrtpi = sqrt(pi)
 
    sdqg = 0.0_wp
    sdq  = 0.0_wp
@@ -987,8 +847,8 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
          ab = 1.0_wp/(alpi+alpj)
          est=alpi*alpj*rij2*ab
          if(est.gt.intcut) cycle
-         call build_kab(ri,alpi,rj,alpj,ab,kab)
-         rp = gpcenter(alpi,ri,alpj,rj)
+         kab = exp(-est)*(sqrtpi*sqrt(ab))**3
+         rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp + 1
             t(k) = olapp(k, alpi+alpj)
          end do
@@ -1002,7 +862,7 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
                jprim=jp+primcount(jcao+mlj)
                cc=kab*cont(jprim)*ci
                saw=0;sawg=0
-               call build_ds_ints(ri,rj,rp,alpi,alpj,iptyp+mli,jptyp+mlj,t,saw,sawg)
+               call overlap_grad_3d(ri,rj,rp,alpi,alpj,lxyz(:,iptyp+mli),lxyz(:,jptyp+mlj),t,saw,sawg)
                sdq(mlj,mli) = sdq(mlj,mli)+saw*cc
                sdqg(:,mlj,mli) = sdqg(:,mlj,mli) &
                   & + sawg(:)*cc
@@ -1012,8 +872,9 @@ pure subroutine get_grad_overlap(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,i
    enddo  ! ip : loop over i prims
 end subroutine get_grad_overlap
 
-pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intcut, &
-      &                       nprim,primcount,alp,cont,ss,dd,qq)
+
+pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point, &
+      &                           intcut,nprim,primcount,alp,cont,ss,dd,qq)
    integer, intent(in)  :: icao
    integer, intent(in)  :: jcao
    integer, intent(in)  :: naoi
@@ -1034,10 +895,11 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intc
    real(wp),intent(in)  :: cont(:)
 
    integer  :: ip,iprim,mli,jp,jprim,mlj,k,iptyp,jptyp
-   real(wp) :: rij(3),rij2,alpi,alpj,ci,cj,cc,kab,rp(3),t(0:8)
-   real(wp) :: ab,est,saw(10)
+   real(wp) :: rij(3),rp(3),rij2,alpi,alpj,ci,cj,cc,kab,t(0:8)
+   real(wp) :: ab,est,saw(10),sawg(3,10)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
+   real(wp),parameter :: sqrtpi = sqrt(pi)
 
    ss = 0.0_wp
    dd = 0.0_wp
@@ -1045,48 +907,47 @@ pure subroutine get_multiints(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj,point,intc
    iptyp = itt(ishtyp)
    jptyp = itt(jshtyp)
 
-   rij = rj - rj
+   rij = ri - rj
    rij2 = rij(1)**2 + rij(2)**2 + rij(3)**2
 
    if(rij2.gt.max_r2) return
 
+   ! we go through the primitives (because the screening is the same for all of them)
    do ip = 1,nprim(icao+1)
       iprim = ip+primcount(icao+1)
-      alpi = alp(iprim) ! exponent the same for each l component
+      ! exponent the same for each l component
+      alpi = alp(iprim)
       do jp = 1,nprim(jcao+1)
          jprim = jp+primcount(jcao+1)
-         alpj = alp(jprim) ! exponent the same for each l component
+         ! exponent the same for each l component
+         alpj = alp(jprim)
          ab = 1.0_wp/(alpi+alpj)
-         est = rij2*alpi*alpj*ab
+         est = alpi*alpj*rij2*ab
          if(est.gt.intcut) cycle
-         call build_kab(ri,alpi,rj,alpj,ab,kab)
-         rp = gpcenter(alpi,ri,alpj,rj)
+         kab = exp(-est)*(sqrtpi*sqrt(ab))**3
+         rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp + 2
             t(k) = olapp(k, alpi+alpj)
          end do
+         !--------------- compute gradient ----------
          ! now compute integrals  for different components of i(e.g., px,py,pz)
          do mli = 1,naoi
             iprim = ip+primcount(icao+mli)
-            ci = cont(iprim) ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ! coefficients NOT the same (contain CAO2SAO lin. comb. coefficients)
+            ci = cont(iprim)
             do mlj = 1,naoj
                jprim = jp+primcount(jcao+mlj)
-               saw = 0.0_wp
-               ! prim-prim quadrupole and dipole integrals
-               call build_sdq_ints(ri,rj,point,rp,alpi,alpj, &
-                  & iptyp+mli,jptyp+mlj,t,saw)
                cc = kab*cont(jprim)*ci
-               ! from primitive integrals fill CAO-CAO matrix for ish-jsh block
-               !                             ! overlap
-               ss(mlj,mli) = ss(mlj,mli)+saw(1)*cc
-               ! dipole
-               dd(:,mlj,mli) = dd(:,mlj,mli)+saw(2:4)*cc
-               ! quadrupole
-               qq(:,mlj,mli) = qq(:,mlj,mli)+saw(5:10)*cc
-            enddo ! mlj
-         enddo ! mli
-      enddo ! jp
-   enddo ! ip
-
+               saw = 0;sawg = 0
+               call multipole_3d(ri,rj,point,rp,alpi,alpj, &
+                  & lxyz(:,iptyp+mli),lxyz(:,jptyp+mlj),t,saw)
+               ss(mlj,mli) = ss(mlj,mli) + saw(1)*cc
+               dd(:,mlj,mli) = dd(:,mlj,mli) + saw(2:4)*cc
+               qq(:,mlj,mli) = qq(:,mlj,mli) + saw(5:10)*cc
+            enddo ! mlj : Cartesian component of j prims
+         enddo  ! mli : Cartesian component of i prims
+      enddo ! jp : loop over j prims
+   enddo  ! ip : loop over i prims
 end subroutine get_multiints
 
 
@@ -1114,6 +975,7 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
    real(wp) :: ab,est,saw(10),sawg(3,10)
 
    real(wp),parameter :: max_r2 = 2000.0_wp
+   real(wp),parameter :: sqrtpi = sqrt(pi)
 
    sdqg = 0.0_wp
    sdq  = 0.0_wp
@@ -1137,8 +999,8 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
          ab = 1.0_wp/(alpi+alpj)
          est = alpi*alpj*rij2*ab
          if(est.gt.intcut) cycle
-         call build_kab(ri,alpi,rj,alpj,ab,kab)
-         rp = gpcenter(alpi,ri,alpj,rj)
+         kab = exp(-est)*(sqrtpi*sqrt(ab))**3
+         rp = (alpi*ri + alpj*rj)*ab
          do k = 0, ishtyp + jshtyp + 3
             t(k) = olapp(k, alpi+alpj)
          end do
@@ -1152,7 +1014,8 @@ pure subroutine get_grad_multiint(icao,jcao,naoi,naoj,ishtyp,jshtyp,ri,rj, &
                jprim = jp+primcount(jcao+mlj)
                cc = kab*cont(jprim)*ci
                saw = 0;sawg = 0
-               call build_dsdq_ints(ri,rj,rj,rp,alpi,alpj,iptyp+mli,jptyp+mlj,t,saw,sawg)
+               call multipole_grad_3d(ri,rj,rj,rp,alpi,alpj, &
+                  & lxyz(:,iptyp+mli),lxyz(:,jptyp+mlj),t,saw,sawg)
                sdq(:,mlj,mli) = sdq(:,mlj,mli) + saw*cc
                sdqg(:,:10,mlj,mli) = sdqg(:,:10,mlj,mli) + sawg*cc
             enddo ! mlj : Cartesian component of j prims
@@ -1447,7 +1310,7 @@ subroutine sdqint_gpu(nShell, angShell, nat, at, nbf, nao, xyz, trans, &
    real(wp) :: saw(10)
 
    real(wp) :: gama,kab,t(0:8),e(3)
-   real(wp),parameter ::  sqrtpi  = sqrt(pi)
+   real(wp),parameter :: sqrtpi = sqrt(pi)
 
    real(wp) s2(6,6),dum(6,6),sspher
 

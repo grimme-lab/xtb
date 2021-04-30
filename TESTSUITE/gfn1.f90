@@ -543,7 +543,7 @@ subroutine test_gfn1_pbc3d
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 7.5302549721955_wp,thr)
+   call assert_close(hl_gap, 7.5302549612743_wp,thr)
    call assert_close(energy,-11.069452578476_wp,thr)
    call assert_close(norm2(gradient), 0.28766497266274E-01_wp,thr)
 
