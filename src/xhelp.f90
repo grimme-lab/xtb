@@ -45,6 +45,10 @@ write(iunit,'(3x,a)') &
    "* E. Caldeweyher, J.-M. Mewes, S. Ehlert and S. Grimme, Phys. Chem. Chem. Phys.",&
    "  2020, 22, 8499-8512. DOI: 10.1039/D0CP00502A",&
    "",&
+   "for GBSA or ALPB solvation:",&
+   "* S. Ehlert, M. Stahn, S. Spicher, S. Grimme, ChemRxiv, 2021, preprint.", &
+   "  DOI: 10.26434/chemrxiv.14555355.v1", &
+   "",&
    "for sTDA-xTB:",&
    "* S. Grimme and C. Bannwarth, J. Chem. Phys., 2016, 145, 054103.",&
    "  DOI: 10.1063/1.4959605",&
