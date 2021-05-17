@@ -514,10 +514,10 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
                         do ixyz = 1,3
                            stmp = sdqg(ixyz,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
                               & -Pij*(ves(ish,iat)+ves(jsh,jat)) &
-                              & +Pij*(vs(iat)+vs(jat)))
-                           dtmp = Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
+                              & -Pij*(vs(iat)+vs(jat)))
+                           dtmp = -Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
                               & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
-                           qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
+                           qtmp = -Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
                               & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
                            g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
 
@@ -702,12 +702,12 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                      g_xyz(:) = g_xyz + 2*HPij*S(jao,iao)*dshpoly/shpoly &
                         & + sdqg(:,1,jj,ii)*(2*HPij - 2*Pew(jao, iao) &
                         & - Pij*(ves(ish,iat)+ves(jsh,jat)) &
-                        & + Pij*(vs(iat)+vs(jat)))
+                        & - Pij*(vs(iat)+vs(jat)))
 
                      do ixyz = 1,3
-                        dtmp = Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
+                        dtmp = -Pij*sum(sdqg(ixyz,11:13,jj,ii)*vd(1:3,iat) &
                            & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
-                        qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
+                        qtmp = -Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
                            & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
                         g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
 

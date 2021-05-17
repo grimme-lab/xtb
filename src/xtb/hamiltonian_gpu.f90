@@ -982,14 +982,14 @@ subroutine build_dSDQH0_gpu(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao,
                            g_xyz(ixyz) = g_xyz(ixyz) + 2*HPij*sdq(jj,ii,1)*dshpoly(ixyz)/shpoly
                            stmp = sdqg(jj,ii,ixyz,1)*(2*HPij - 2*Pew(jao, iao) &
                               & -Pij*(ves(ish,iat)+ves(jsh,jat)) &
-                              & +Pij*(vs(iat)+vs(jat)))
+                              & -Pij*(vs(iat)+vs(jat)))
                            !$acc atomic
                            g_xyz(ixyz) = g_xyz(ixyz)+stmp
-                           dtmp = Pij*sum(sdqg2(jj,ii,ixyz,1:3)*vd(1:3,iat) &
+                           dtmp = -Pij*sum(sdqg2(jj,ii,ixyz,1:3)*vd(1:3,iat) &
                               & +sdqg(jj,ii,ixyz,2:4)*vd(1:3,jat) )
                            !$acc atomic
                            g_xyz(ixyz) = g_xyz(ixyz)+dtmp
-                           qtmp = Pij*sum(sdqg2(jj,ii,ixyz,4:9)*vq(1:6,iat) &
+                           qtmp = -Pij*sum(sdqg2(jj,ii,ixyz,4:9)*vq(1:6,iat) &
                               & +sdqg(jj,ii,ixyz,5:10)*vq(1:6,jat) )
                            !$acc atomic
                            g_xyz(ixyz) = g_xyz(ixyz)+qtmp

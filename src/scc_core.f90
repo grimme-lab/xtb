@@ -186,7 +186,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
       dum=S(j,i)
       ! CAMM potential
       eh1=0.50d0*dum*(vs(ii)+vs(jj))*autoev
-      H(j,i)=H(j,i)+eh1
+      H(j,i)=H(j,i)-eh1
       H(i,j)=H(j,i)
    enddo
    !> dipolar terms
@@ -201,7 +201,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+dpint(l,i,j)*(vd(l,ii)+vd(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
-      H(i,j)=H(i,j)+eh1
+      H(i,j)=H(i,j)-eh1
       H(j,i)=H(i,j)
    enddo
    !> quadrupole-dependent terms
@@ -218,7 +218,7 @@ subroutine addAnisotropicH1(n,at,ndim,nshell,nmat,ndp,nqp,matlist,mdlst,mqlst,&
          eh1=eh1+qpint(l,i,j)*(vq(l,ii)+vq(l,jj))
       enddo
       eh1=0.50d0*eh1*autoev
-      H(i,j)=H(i,j)+eh1
+      H(i,j)=H(i,j)-eh1
       H(j,i)=H(i,j)
    enddo
 

@@ -518,9 +518,9 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
             qtmp(l1) = qtmp(l1)+0.50_wp*r2ab*q(j)*g5 !remove trace term
          enddo
       enddo
-      vs(i) = stmp                       ! q terms
-      vd(1:3,i) = dtmp(1:3)              ! dipints from atom i
-      vq(1:6,i) = qtmp(1:6)              ! qpints from atom i
+      vs(i) = -stmp                       ! q terms
+      vd(1:3,i) = -dtmp(1:3)              ! dipints from atom i
+      vq(1:6,i) = -qtmp(1:6)              ! qpints from atom i
       ! --- CT correction terms
       qs1 = aesData%dipKernel(at(i))*2.0_wp
       qs2 = aesData%quadKernel(at(i))*6.0_wp ! qpole pot prefactors
@@ -529,31 +529,31 @@ subroutine setvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
       do l1 = 1,3
          ! potential from dipoles
          t3a = t3a+ra(l1)*dipm(l1,i)*qs1  ! R_C * mu_C  : for diag. dip-dip
-         vd(l1,i) = vd(l1,i)-qs1*dipm(l1,i)
+         vd(l1,i) = vd(l1,i)+qs1*dipm(l1,i)
          do l2 = 1,l1-1
             ! potential from quadrupoles
             ll = lin(l1,l2)
             ki = l1+l2+1
-            vq(ki,i) = vq(ki,i)-qp(ll,i)*qs2
+            vq(ki,i) = vq(ki,i)+qp(ll,i)*qs2
             t3a = t3a-ra(l1)*ra(l2)*qp(ll,i)*qs2
-            vd(l1,i) = vd(l1,i)+ra(l2)*qp(ll,i)*qs2
-            vd(l2,i) = vd(l2,i)+ra(l1)*qp(ll,i)*qs2
+            vd(l1,i) = vd(l1,i)-ra(l2)*qp(ll,i)*qs2
+            vd(l2,i) = vd(l2,i)-ra(l1)*qp(ll,i)*qs2
          enddo
          ! diagonal
          ll = lin(l1,l1)
-         vq(l1,i) = vq(l1,i)-qp(ll,i)*qs2*0.50_wp
+         vq(l1,i) = vq(l1,i)+qp(ll,i)*qs2*0.50_wp
          t3a = t3a-ra(l1)*ra(l1)*qp(ll,i)*qs2*0.50_wp
-         vd(l1,i) = vd(l1,i)+ra(l1)*qp(ll,i)*qs2
+         vd(l1,i) = vd(l1,i)-ra(l1)*qp(ll,i)*qs2
          ! collect trace removal terms
          t2a = t2a+qp(ll,i)
       enddo
-      vs(i) = vs(i)+t3a
+      vs(i) = vs(i)-t3a
       ! trace removal
       t2a = t2a*aesData%quadKernel(at(i))
       do l1 = 1,3
-         vq(l1,i) = vq(l1,i)+t2a
-         vd(l1,i) = vd(l1,i)-2.0_wp*ra(l1)*t2a
-         vs(i) = vs(i)+t2a*ra(l1)*ra(l1)
+         vq(l1,i) = vq(l1,i)-t2a
+         vd(l1,i) = vd(l1,i)+2.0_wp*ra(l1)*t2a
+         vs(i) = vs(i)-t2a*ra(l1)*ra(l1)
       enddo
       ! ---
    enddo
@@ -631,31 +631,31 @@ subroutine setdvsdq(aesData,nat,at,xyz,q,dipm,qp,gab3,gab5,vs,vd,vq)
             qtmp(l1) = qtmp(l1)+0.50_wp*r2ab*q(j)*g5 !remove trace term
          enddo
       enddo
-      vs(i) = stmp
-      vd(1:3,i) = dtmp(1:3)
-      vq(1:6,i) = qtmp(1:6)
+      vs(i) = -stmp
+      vd(1:3,i) = -dtmp(1:3)
+      vq(1:6,i) = -qtmp(1:6)
       ! --- CT correction terms
       qs1 = aesData%dipKernel(at(i))*2.0_wp
       qs2 = aesData%quadKernel(at(i))*6.0_wp ! qpole pot prefactors
       t2a = 0.0_wp
       do l1 = 1,3
          ! potential from dipoles
-         vd(l1,i) = vd(l1,i)-qs1*dipm(l1,i)
+         vd(l1,i) = vd(l1,i)+qs1*dipm(l1,i)
          do l2 = 1,l1-1
             ! potential from quadrupoles
             ll = lin(l1,l2)
             ki = l1+l2+1
-            vq(ki,i) = vq(ki,i)-qp(ll,i)*qs2
+            vq(ki,i) = vq(ki,i)+qp(ll,i)*qs2
          enddo
          ll = lin(l1,l1)
-         vq(l1,i) = vq(l1,i)-qp(ll,i)*qs2*0.50_wp
+         vq(l1,i) = vq(l1,i)+qp(ll,i)*qs2*0.50_wp
          ! collect trace removal terms
          t2a = t2a+qp(ll,i)
       enddo
       ! trace removal
       t2a = t2a*aesData%quadKernel(at(i))
       do l1 = 1,3
-         vq(l1,i) = vq(l1,i)+t2a
+         vq(l1,i) = vq(l1,i)-t2a
       enddo
       ! ---
 
