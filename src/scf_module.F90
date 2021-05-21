@@ -634,18 +634,16 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    !$acc exit data delete(s, dpint, qpint)
 
-   ! check if something terrible happend in the SCC
+   ! check if something terrible happened in the SCC
    call env%check(exitRun)
    if (exitRun) then
       call env%error("Self consistent charge iterator terminated", source)
       return
    end if
 
-   ! check for convergence, only do this if printlevel is maximal (WHY?)
+   ! check for convergence
    res % converged = .not. fail
-   if (fail) then
-      call env%warning("Self consistent charge iterator did not converge", source)
-   end if
+   ! write convergence info depending on print setting
    if (pr) then
       if (fail) then
          call touch_file('.sccnotconverged')
@@ -661,6 +659,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (.not.pr.and.profile.and.minpr) &
       call timer%write_timing(env%unit,5,'SCC iter.')
    if (profile) call timer%measure(6,"molecular gradient")
+   
+   ! throw error for unconverged SCF
+   if (fail) then
+      call env%error("Self consistent charge iterator did not converge", source)
+   end if
 
    ! ========================================================================
    ! GRADIENT (finally 100% analytical)
