@@ -142,6 +142,7 @@ features reality:
 - P. Shushkov
 - S. Spicher ([@sespic](https://github.com/sespic))
 - M. Stahn ([@MtoLStoN](https://github.com/mtolston))
+- M. Steiner ([@steinmig](https://github.com/steinmig))
 - T. Strunk ([@timostrunk](https://github.com/timostrunk))
 - J. Stückrath ([@jbstueckrath](https://github.com/jbstueckrath))
 - T. Rose ([@Thomas3R](https://github.com/thomas3r))
