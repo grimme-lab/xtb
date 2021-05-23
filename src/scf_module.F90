@@ -660,11 +660,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call timer%write_timing(env%unit,5,'SCC iter.')
    if (profile) call timer%measure(6,"molecular gradient")
    
-   ! throw error for unconverged SCF
-   if (fail) then
-      call env%error("Self consistent charge iterator did not converge", source)
-   end if
-
    ! ========================================================================
    ! GRADIENT (finally 100% analytical)
    allocate(temp(basis%nao))
@@ -808,6 +803,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (.not.pr.and.profile.and.minpr) &
       call timer%write_timing(env%unit,6,'gradient')
    if (profile) call timer%measure(7,"printout")
+
+   ! throw error for unconverged SCF
+   if (fail) then
+      call env%error("Self consistent charge iterator did not converge", source)
+   end if
 
    ! ========================================================================
    ! PROPERTIES & PRINTOUT
