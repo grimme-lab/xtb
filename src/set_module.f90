@@ -1178,7 +1178,7 @@ subroutine set_write(env,key,val)
    case('orbital energies')
       if (getValue(env,val,ldum).and.set12) pr_eig = ldum
       set12 = .false.
-   case('gridfile')
+   case('gridfile', 'grid file')
        if (set13) esp_gridfile = val
       set13 = .false.
    case('stm')

@@ -520,7 +520,7 @@ $write
 *esp*='bool'::
     calculate and print electrostatic potential, this will create
     a data file and a cosmo file
-*grid file*='file'::
+*gridfile*='file'::
     read gridpoints for ESP calculation from 'file'.
 *mos*='bool'::
     print molden file
