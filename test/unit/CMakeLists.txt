@@ -61,14 +61,17 @@ add_executable(
 target_link_libraries(
   "${PROJECT_NAME}-tester"
   PRIVATE
-  lib-xtb-static
+  "lib-${PROJECT_NAME}-static"
   "test-drive::test-drive"
 )
 set_target_properties(
   "${PROJECT_NAME}-tester"
   PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
+  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include")
+  make_directory("${CMAKE_CURRENT_BINARY_DIR}/include")
+endif()
 
 foreach(t IN LISTS tests)
   add_test("${PROJECT_NAME}/${t}" "${PROJECT_NAME}-tester" "${t}")
@@ -80,16 +83,16 @@ foreach(t IN LISTS tests)
 endforeach()
 
 
-set(XTB-EXE ${PROJECT_BINARY_DIR}/xtb)
+set(XTB-EXE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}")
 
 add_test("EXE_Argparser_print_version" ${XTB-EXE} --version)
 add_test("EXE_Argparser_print_help" ${XTB-EXE} --help)
 add_test("EXE_Argparser_print_license" ${XTB-EXE} --license)
 add_test("EXE_Info" ${XTB-EXE} info
-  "${xtb-dir}/assets/inputs/coord/caffeine.coord"
-  "${xtb-dir}/assets/inputs/coord/quartz.3d.coord"
-  "${xtb-dir}/assets/inputs/vasp/ammonia.vasp"
-  "${xtb-dir}/assets/inputs/xyz/taxol.xyz"
+  "${PROJECT_SOURCE_DIR}/assets/inputs/coord/caffeine.coord"
+  "${PROJECT_SOURCE_DIR}/assets/inputs/coord/quartz.3d.coord"
+  "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp"
+  "${PROJECT_SOURCE_DIR}/assets/inputs/xyz/taxol.xyz"
 )
 add_test("EXE_Singlepoint" ${XTB-EXE} --coffee --strict --norestart --namespace test1)
 add_test("EXE_IP/EA" ${XTB-EXE} --coffee --gfn 2 --vipea --strict --norestart --namespace test2)
