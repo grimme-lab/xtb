@@ -206,11 +206,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          call print_charges(ich,mol%n,chk%nlist%q)
          call close_file(ich)
       end if
-      if (.not.silent) then
-         call open_file(ich,'gfnff_adjacency','w')
-         call print_adjacency(ich,self%topo)
-         call close_file(ich)
-      end if
    endif
 
 end subroutine singlepoint
@@ -273,25 +268,5 @@ subroutine print_charges(ifile,n,q)
       end do
    end if
 end subroutine print_charges
-
-
-subroutine print_adjacency(ifile, topo)
-   implicit none
-   integer, intent(in)  :: ifile
-   type(TGFFTopology) :: topo
-   integer :: i, j
-
-   ! looping over topology neighboring list
-   if (ifile.ne.-1) then
-      write(ifile, *) '# indices of neighbouring atoms (max seven); connectivity given by last entry;'  
-      do i = 1, size(topo%nb,2) ! #atoms
-         do j = 1, size(topo%nb,1) ! 20
-            write(ifile, '(I2,X)', advance='no') topo%nb(j,i)
-         end do
-         write(ifile, *) ''  ! line break
-      end do
-   end if
-
-end subroutine print_adjacency
 
 end module xtb_gfnff_calculator
