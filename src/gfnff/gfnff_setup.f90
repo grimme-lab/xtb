@@ -230,12 +230,9 @@ subroutine write_gfnff_adjacency(fname, topo)
    call open_file(ifile,fname,'w') 
    ! looping over topology neighboring list
    if (ifile.ne.-1) then
-      write(ifile, *) '# indices of neighbouring atoms (max seven); connectivity given by last entry;'  
-      do i = 1, size(topo%nb,2) ! #atoms
-         do j = 1, size(topo%nb,1) ! 20
-            write(ifile, '(I2,X)', advance='no') topo%nb(j,i)
-         end do
-         write(ifile, *) ''  ! line break
+      write(ifile, '(a)') '# indices of neighbouring atoms (max seven)'  
+      do i = 1, size(topo%nb, 2)
+        write(ifile, '(*(i0:, 1x))') (topo%nb(j, i), j = 1, topo%nb(size(topo%nb, 1), i))
       end do
    end if
    call close_file(ifile)
