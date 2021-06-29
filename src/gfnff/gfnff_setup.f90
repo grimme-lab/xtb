@@ -87,6 +87,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
 
   if (.not.mol%struc%two_dimensional) then
      call write_restart_gff(env,'gfnff_topo',mol%n,version,topo)
+     call write_gfnff_adjacency('gfnff_adjacency',topo)
   end if
 
 end subroutine gfnff_setup
@@ -217,5 +218,26 @@ subroutine gfnff_input(env, mol, topo)
   !-------------------------------------------------------------------
 
 end subroutine gfnff_input
+
+
+subroutine write_gfnff_adjacency(fname, topo)
+   implicit none
+   character(len=*),intent(in) :: fname
+   integer :: ifile ! file handle
+   type(TGFFTopology) :: topo
+   integer :: i, j
+
+   call open_file(ifile,fname,'w') 
+   ! looping over topology neighboring list
+   if (ifile.ne.-1) then
+      write(ifile, '(a)') '# indices of neighbouring atoms (max seven)'  
+      do i = 1, size(topo%nb, 2)
+        write(ifile, '(*(i0:, 1x))') (topo%nb(j, i), j = 1, topo%nb(size(topo%nb, 1), i))
+      end do
+   end if
+   call close_file(ifile)
+
+end subroutine write_gfnff_adjacency
+
 
 end module xtb_gfnff_setup

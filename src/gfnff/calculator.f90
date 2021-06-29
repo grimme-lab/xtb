@@ -269,5 +269,4 @@ subroutine print_charges(ifile,n,q)
    end if
 end subroutine print_charges
 
-
 end module xtb_gfnff_calculator
