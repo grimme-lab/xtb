@@ -36,6 +36,10 @@ write(iunit,'(3x,a)') &
    "* S. Spicher and S. Grimme, Angew. Chem. Int. Ed., 2020, 59, 15665-15673.",&
    "  DOI: 10.1002/anie.202004239", &
    "",&
+   "for ALPB and GBSA implicit solvation:",&
+   "* S. Ehlert, M. Stahn, S. Spicher, S. Grimme, J. Chem. Theory Comput.,", &
+   "  2021, 17, 4250-4261. DOI: 10.1021/acs.jctc.1c00471", &
+   "",&
    "for DFT-D4:",&
    "* E. Caldeweyher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2017,",&
    "  147, 034112. DOI: 10.1063/1.4993215", &
