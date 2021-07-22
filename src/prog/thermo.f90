@@ -110,11 +110,7 @@ subroutine xtbThermo(env, argParser)
          call massWeightHessian(hessian, mol%atmass)
       end if
 
-      if (hFormat == fileType%gen) then
-         call projectHessian(hessian, mol, .true., .true.)
-      end if
-
-      if (hFormat == fileType%orca) then
+      if (hFormat == fileType%gen .or. hFormat == fileType%orca) then
          call projectHessian(hessian, mol, .true., .true.)
       end if
 
