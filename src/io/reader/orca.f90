@@ -112,22 +112,21 @@ end subroutine readHessianOrca
 
 
 subroutine linelen(line,nline)
-character(len=*), intent(in) :: line
-integer, intent(out) :: nline
-integer :: istart, iend
+   character(len=*), intent(in) :: line
+   integer, intent(out) :: nline
+   integer :: istart, iend
 
-istart = 0
-iend = 0
-nline = 0
-do
-   istart = verify(line(iend+1:), " ") - 1 + iend
-   if (istart < iend) istart = len(line)
-   iend = scan(line(istart+1:), " ") - 1 + istart
-   if (iend < istart) iend = len(line)
-   if (iend == len(line)) exit
-   nline = nline +1
-end do
-
+   istart = 0
+   iend = 0
+   nline = 0
+   do
+      istart = verify(line(iend+1:), " ") - 1 + iend
+      if (istart < iend) istart = len(line)
+      iend = scan(line(istart+1:), " ") - 1 + istart
+      if (iend < istart) iend = len(line)
+      if (iend == len(line)) exit
+      nline = nline +1
+   end do
 end subroutine linelen
 
 end module xtb_io_reader_orca
