@@ -79,21 +79,21 @@ subroutine readHessianOrca(hessian, reader, mol, status, iomsg)
       call reader%read(line, error)
       iline = iline + 1
       if (error /= 0) exit rdlp
-      call linelen(line,nline)
-      list=spread(0,1,nline)
-      values=spread(0.0_wp,1,nline)
-      if (nline.eq.0) exit rdlp
-      read(line, *,iostat=error) list
+      call linelen(line, nline)
+      list=spread(0, 1, nline)
+      values=spread(0.0_wp, 1, nline)
+      if (nline == 0) exit rdlp
+      read(line, *, iostat=error) list
       if (error /= 0) exit rdlp
       do ii=1, ndim
          call reader%read(line, error)
          iline = iline + 1
          if (error /= 0) exit rdlp
-         read(line, *, iostat=error) jj,values
+         read(line, *, iostat=error) jj, values
          if (error /= 0) exit rdlp
-         hessian(list+1,jj+1) = values
+         hessian(list+1, jj+1) = values
       end do
-      if (nline.lt.5) exit rdlp
+      if (nline < 5) exit rdlp
    end do rdlp
 
    if (error /= 0) then
