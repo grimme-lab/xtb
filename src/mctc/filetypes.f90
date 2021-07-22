@@ -59,7 +59,10 @@ module xtb_mctc_filetypes
       !> Gaussian external format
       integer :: gaussian = 8
 
-   end type TFileTypeEnum
+      !> Orca Hessian format
+      integer :: orca = 9
+   
+    end type TFileTypeEnum
 
    !> File type enumerator
    type(TFileTypeEnum), parameter :: fileType = TFileTypeEnum()
