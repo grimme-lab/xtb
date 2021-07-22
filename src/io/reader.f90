@@ -21,6 +21,7 @@ module xtb_io_reader
    use xtb_io_reader_gaussian, only : readMoleculeGaussianExternal
    use xtb_io_reader_genformat, only : readMoleculeGenFormat, &
       & readHessianDFTBPlus
+   use xtb_io_reader_orca, only : readHessianOrca
    use xtb_io_reader_pdb, only : readMoleculePDB
    use xtb_io_reader_turbomole, only : readMoleculeCoord, readHessianTurbomole
    use xtb_io_reader_vasp, only : readMoleculeVasp
@@ -117,6 +118,9 @@ subroutine readHessian(env, mol, hessian, reader, format)
 
    case(fileType%tmol)
       call readHessianTurbomole(hessian, reader, mol, status, message)
+
+   case(fileType%orca)
+      call readHessianOrca(hessian, reader, mol, status, message)
 
    case(fileType%gen)
       call readHessianDFTBPlus(hessian, reader, mol, status, message)

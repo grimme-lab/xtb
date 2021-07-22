@@ -114,6 +114,10 @@ subroutine xtbThermo(env, argParser)
          call projectHessian(hessian, mol, .true., .true.)
       end if
 
+      if (hFormat == fileType%orca) then
+         call projectHessian(hessian, mol, .true., .true.)
+      end if
+
       call diagHessian(env, hessian, freq)
 
       call preigf(env%unit, freq, autorcm)
@@ -210,7 +214,10 @@ subroutine parseArguments(env, args, ftype, massWeighted)
       case('--turbomole')
          ftype = fileType%tmol
          massWeighted = .true.
-      
+     
+      case('--orca')
+         ftype = fileType%orca
+
       case('--scale')
          call args%nextArg(sec)
          if (allocated(sec)) then
@@ -310,6 +317,8 @@ subroutine thermoHelp(unit)
    "",&
    "   --turbomole         Read a Turbomole Hessian file",&
    "                       use this only when $nomw is not present in control",&
+   "",&
+   "   --orca         Read an Orca Hessian file",&
    "",&
    "Output Conventions:",&
    "",&
