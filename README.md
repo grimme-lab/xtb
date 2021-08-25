@@ -194,7 +194,7 @@ in the mass-spec context:
   DOI: [10.1039/c7sc00601b](https://dx.doi.org/10.1039/c7sc00601b)
 - J. Koopman and S. Grimme, *ACS Omega*, **2019**, 4, 12, 15120-15133.
   DOI: [10.1021/acsomega.9b02011](https://dx.doi.org/10.1021/acsomega.9b02011)
-- J. Koopman and S. Grimme, * J. Am. Soc. Mass Spectrom.*, **2021**, 32, 7, 1735-1751.
+- J. Koopman and S. Grimme, *J. Am. Soc. Mass Spectrom.*, **2021**, 32, 7, 1735-1751.
   DOI: [10.1021/jasms.1c00098](https://dx.doi.org/10.1021/jasms.1c00098)
 
 for metadynamics refer to:
