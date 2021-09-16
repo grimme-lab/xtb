@@ -21,8 +21,7 @@ module xtb_symparam
    private :: wp
    public
 
-   integer  :: ndi14,ntrans,ict
-   real(wp) :: trans
+   integer  :: ndi14,ntrans=0,ict(100000,120)=0
+   real(wp) :: trans(9,120) = 0
    parameter (ndi14=120)
-   dimension :: ict(100000,120),trans(9,120)
 end module xtb_symparam
