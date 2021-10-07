@@ -45,11 +45,6 @@ program peeq_tester
       case('cluster'); call test_repulsion_cluster
       case('pbc3d'); call test_repulsion_pbc3d
       end select
-   case('ncoord')
-      select case(sec)
-      case('pbc3dneighs'); call test_ncoord_pbc3d_neighbourlist
-      case('pbc3dlatp'); call test_ncoord_pbc3d_latticepoints
-      end select
    case('gfn2')
       select case(sec)
       case('basic'); call test_gfn2_mindless_basic
@@ -108,13 +103,6 @@ program peeq_tester
    case('xtb_type_atomlist')
       select case(sec)
       case('list'); call test_atomlist
-      end select
-   case('symmetry')
-      select case(sec)
-      case('water');  call test_symmetry_water
-      case('li8'); call test_symmetry_li8
-      case('pcl3'); call test_symmetry_pcl3
-      case('c20'); call test_symmetry_c20
       end select
    case('latticepoint')
       select case(sec)

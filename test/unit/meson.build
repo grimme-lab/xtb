@@ -32,6 +32,7 @@ endif
 testdrive_dep = testdrive_prj.get_variable('testdrive_dep')
 
 tests = [
+  'coordinationnumber',
   'coulomb',
   'dftd3',
   'dftd4',
@@ -39,6 +40,7 @@ tests = [
   'geometry-reader',
   'hessian',
   'molecule',
+  'symmetry',
   'thermo',
   'wsc',
 ]
@@ -64,7 +66,6 @@ endforeach
 xtb_test = files(
   'assertion.f90',
   'molstock.f90',
-  'coordinationnumber.f90',
   'gfn0.f90',
   'gfn1.f90',
   'gfn2.f90',
@@ -73,7 +74,6 @@ xtb_test = files(
   'pbc_tools.f90',
   'peeq.f90',
   'repulsion.f90',
-  'symmetry.f90',
   'tests_peeq.f90',
   'tbdef_atomlist.f90',
 )
@@ -120,16 +120,8 @@ endif
 test('PBC tools convert',xtb_test, args: ['pbc_tools', 'convert'], env: xtbenv, timeout: test_timeout)
 test('PBC tools cutoff', xtb_test, args: ['pbc_tools', 'cutoff'], env: xtbenv, timeout: test_timeout)
 
-test('Symmetry Water', xtb_test, args: ['symmetry', 'water'], env: xtbenv, timeout: test_timeout)
-test('Symmetry Li8', xtb_test, args: ['symmetry', 'li8'], env: xtbenv, timeout: test_timeout)
-test('Symmetry PCl3', xtb_test, args: ['symmetry', 'pcl3'], env: xtbenv, timeout: test_timeout)
-test('Symmetry large', xtb_test, args: ['symmetry', 'c20'], env: xtbenv, timeout: test_timeout)
-
 test('Repulsion 0D', xtb_test, args: ['repulsion', 'cluster'], env: xtbenv, timeout: test_timeout)
 test('Repulsion 3D', xtb_test, args: ['repulsion', 'pbc3d'], env: xtbenv, timeout: test_timeout)
-
-test('CN latticepoints', xtb_test, args: ['ncoord', 'pbc3dlatp'], env: xtbenv, timeout: test_timeout)
-test('CN neighbourlist', xtb_test, args: ['ncoord', 'pbc3dneighs'], env: xtbenv, timeout: test_timeout)
 
 test('GFN2-xTB Basic', xtb_test, args: ['gfn2', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB Solvation', xtb_test, args: ['gfn2', 'solvation'], env: xtbenv, timeout: test_timeout)

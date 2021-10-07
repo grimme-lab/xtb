@@ -19,6 +19,7 @@ program tester
    use, intrinsic :: iso_fortran_env, only : error_unit
    use testdrive, only : run_testsuite, new_testsuite, testsuite_type, &
       & select_suite, run_selected, get_argument
+   use test_coordinationnumber, only : collect_coordinationnumber
    use test_coulomb, only : collect_coulomb
    use test_dftd3, only : collect_dftd3
    use test_dftd4, only : collect_dftd4
@@ -26,6 +27,7 @@ program tester
    use test_geometry_reader, only : collect_geometry_reader
    use test_hessian, only : collect_hessian
    use test_molecule, only : collect_molecule
+   use test_symmetry, only : collect_symmetry
    use test_thermo, only : collect_thermo
    use test_wsc, only : collect_wsc
    implicit none
@@ -39,6 +41,7 @@ program tester
    stat = 0
 
    testsuites = [ &
+      new_testsuite("coordinationnumber", collect_coordinationnumber), &
       new_testsuite("coulomb", collect_coulomb), &
       new_testsuite("dftd3", collect_dftd3), &
       new_testsuite("dftd4", collect_dftd4), &
@@ -46,6 +49,7 @@ program tester
       new_testsuite("geometry-reader", collect_geometry_reader), &
       new_testsuite("hessian", collect_hessian), &
       new_testsuite("molecule", collect_molecule), &
+      new_testsuite("symmetry", collect_symmetry), &
       new_testsuite("thermo", collect_thermo), &
       new_testsuite("wsc", collect_wsc) &
       ]

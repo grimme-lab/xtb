@@ -23,6 +23,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(
   tests
+  "coordinationnumber"
   "coulomb"
   "dftd3"
   "dftd4"
@@ -30,6 +31,7 @@ set(
   "geometry-reader"
   "hessian"
   "molecule"
+  "symmetry"
   "thermo"
   "wsc"
 )
@@ -74,7 +76,6 @@ set(test-srcs2
   "${dir}/assertion.f90"
   "${dir}/molstock.f90"
   "${dir}/latticepoint.f90"
-  "${dir}/coordinationnumber.f90"
   "${dir}/pbc_tools.f90"
   "${dir}/gfn2.f90"
   "${dir}/gfn1.f90"
@@ -82,7 +83,6 @@ set(test-srcs2
   "${dir}/gfnff.f90"
   "${dir}/peeq.f90"
   "${dir}/repulsion.f90"
-  "${dir}/symmetry.f90"
   "${dir}/tbdef_atomlist.f90"
 )
 
@@ -118,14 +118,8 @@ add_test("EXE_GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namesp
 add_test("LatticePoint" ${XTB-TESTER} latticepoint pbc3d)
 add_test("PBC_tools_convert" ${XTB-TESTER} pbc_tools convert)
 add_test("PBC_tools_cutoff" ${XTB-TESTER} pbc_tools cutoff)
-add_test("Symmetry_Water" ${XTB-TESTER} symmetry water)
-add_test("Symmetry_Li8" ${XTB-TESTER} symmetry li8)
-add_test("Symmetry_PCl3" ${XTB-TESTER} symmetry pcl3)
-add_test("Symmetry_large" ${XTB-TESTER} symmetry c20)
 add_test("Repulsion_0d" ${XTB-TESTER} repulsion cluster)
 add_test("Repulsion_3d" ${XTB-TESTER} repulsion pbc3d)
-add_test("CN_latticepoints" ${XTB-TESTER} ncoord pbc3dlatp)
-add_test("CN_neighbourlist" ${XTB-TESTER} ncoord pbc3dneighs)
 add_test("GFN2-xTB_Basic" ${XTB-TESTER} gfn2 basic)
 add_test("GFN2-xTB_Solvation" ${XTB-TESTER} gfn2 solvation)
 add_test("GFN2-xTB_SCC" ${XTB-TESTER} gfn2 scc)
