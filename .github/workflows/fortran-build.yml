@@ -160,7 +160,6 @@ jobs:
         intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
         intel-oneapi-mkl
         intel-oneapi-mkl-devel
-        meson
         asciidoctor
 
     steps:
@@ -171,6 +170,8 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.x
+
+    - run: pip3 install meson --user
 
     - name: Add Intel repository
       if: contains(matrix.os, 'ubuntu')

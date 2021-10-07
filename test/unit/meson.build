@@ -15,6 +15,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+# Create test-drive as subproject for testing
+testdrive_prj = subproject(
+  'test-drive',
+  version: '>=0.3',
+  required: not meson.is_subproject(),
+  default_options: [
+    'default_library=static',
+  ],
+)
+# If we do not find test-drive and are a subproject, we just skip testing
+if not testdrive_prj.found()
+  subdir_done()
+endif
+testdrive_dep = testdrive_prj.get_variable('testdrive_dep')
+
 xtb_test = files(
   'assertion.f90',
   'molstock.f90',
@@ -45,7 +60,7 @@ xtb_test = files(
 xtb_test = executable(
   'xtb_test',
   sources: xtb_test,
-  dependencies: xtb_dep_static,
+  dependencies: [xtb_dep_static, testdrive_dep],
   link_language: 'fortran',
 )
 
@@ -56,10 +71,10 @@ test('Argparser print license', xtb_exe, args: '--license', env: xtbenv)
 test('Argparser no arguments', xtb_exe, should_fail: true, env: xtbenv)
 test('Info', xtb_exe, env: xtbenv, args: [
   'info',
-  files('../assets/inputs/coord/caffeine.coord'),
-  files('../assets/inputs/coord/quartz.3d.coord'),
-  files('../assets/inputs/vasp/ammonia.vasp'),
-  files('../assets/inputs/xyz/taxol.xyz'),
+  files('../../assets/inputs/coord/caffeine.coord'),
+  files('../../assets/inputs/coord/quartz.3d.coord'),
+  files('../../assets/inputs/vasp/ammonia.vasp'),
+  files('../../assets/inputs/xyz/taxol.xyz'),
 ])
 
 test_timeout = get_option('test_timeout')

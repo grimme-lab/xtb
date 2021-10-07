@@ -15,6 +15,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+if(NOT TARGET "test-drive::test-drive")
+  find_package("test-drive" REQUIRED)
+endif()
+
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(tests
@@ -49,25 +53,15 @@ add_executable(xtb_tests_static ${tests})
 target_link_libraries(xtb_tests_static
   PUBLIC
   lib-xtb-static
+  "test-drive::test-drive"
 )
 set_target_properties(xtb_tests_static PROPERTIES
   Fortran_MODULE_DIRECTORY ${xtb-mod}
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
 )
 
-add_executable(xtb_tests_capi "${xtb-dir}/TESTSUITE/c_api_example.c")
-target_link_libraries(xtb_tests_capi
-  PUBLIC
-  lib-xtb-shared
-)
-set_target_properties(xtb_tests_capi PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-set(XTB-EXE ${CMAKE_BINARY_DIR}/xtb)
-set(XTB-TESTER ${CMAKE_BINARY_DIR}/xtb_tests_static)
-set(XTB-CTESTER ${CMAKE_BINARY_DIR}/xtb_tests_capi)
+set(XTB-EXE ${PROJECT_BINARY_DIR}/xtb)
+set(XTB-TESTER ${PROJECT_BINARY_DIR}/xtb_tests_static)
 
 add_test("EXE_Argparser_print_version" ${XTB-EXE} --version)
 add_test("EXE_Argparser_print_help" ${XTB-EXE} --help)
@@ -168,15 +162,13 @@ add_test("GFN-FF_Scale_up" ${XTB-TESTER} gfnff scaleup)
 add_test("GFN-FF_PDB" ${XTB-TESTER} gfnff pdb)
 add_test("GFN-FF_SDF" ${XTB-TESTER} gfnff sdf)
 
-add_test("CAPI" ${XTB-CTESTER})
-
-set_tests_properties(EXE_Singlepoint
+set_tests_properties(
+  "EXE_Singlepoint"
   "EXE_GFN0-xTB"
   "EXE_IP/EA"
   "EXE_GFN1-xTB"
   "EXE_GFN2-xTB/GBSA"
   "EXE_GFN2-FF"
-  "CAPI"
   "GFN2-xTB_SCC"
   "GFN2-xTB_API"
   "GFN2-xTB_API_GBSA"
@@ -200,5 +192,5 @@ set_tests_properties(EXE_Singlepoint
   "GFN0-xTB_API_PBC"
   "GFN0-xTB_SRB_PBC"
   PROPERTIES
-  ENVIRONMENT XTBPATH=${CMAKE_CURRENT_SOURCE_DIR}/..
+  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )
