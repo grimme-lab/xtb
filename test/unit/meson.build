@@ -22,6 +22,7 @@ testdrive_prj = subproject(
   required: not meson.is_subproject(),
   default_options: [
     'default_library=static',
+    'openmp=false',
   ],
 )
 # If we do not find test-drive and are a subproject, we just skip testing
@@ -30,31 +31,51 @@ if not testdrive_prj.found()
 endif
 testdrive_dep = testdrive_prj.get_variable('testdrive_dep')
 
+tests = [
+  'coulomb',
+  'dftd3',
+  'dftd4',
+  'eeq',
+  'geometry-reader',
+  'hessian',
+  'molecule',
+  'thermo',
+  'wsc',
+]
+
+test_srcs = files(
+  'main.f90',
+)
+foreach t : tests
+  test_srcs += files('test_@0@.f90'.format(t.underscorify()))
+endforeach
+
+tester = executable(
+  'tester',
+  sources: test_srcs,
+  dependencies: [xtb_dep_static, testdrive_dep],
+  link_language: 'fortran',
+)
+
+foreach t : tests
+  test(t, tester, args: t, suite: 'unit', env: xtbenv)
+endforeach
+
 xtb_test = files(
   'assertion.f90',
   'molstock.f90',
   'coordinationnumber.f90',
-  'coulomb.f90',
-  'eeq.f90',
-  'eeq_model.f90',
-  'dftd3.f90',
-  'dftd4.f90',
-  'geometry_reader.f90',
   'gfn0.f90',
   'gfn1.f90',
   'gfn2.f90',
   'gfnff.f90',
-  'hessian.f90',
   'latticepoint.f90',
   'pbc_tools.f90',
   'peeq.f90',
   'repulsion.f90',
   'symmetry.f90',
   'tests_peeq.f90',
-  'thermo.f90',
   'tbdef_atomlist.f90',
-  'tbdef_molecule.f90',
-  'tbdef_wsc.f90',
 )
 
 xtb_test = executable(
@@ -90,34 +111,11 @@ test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--g
 test('GFN-FF', xtb_exe, args: ['--coffee', '--gfnff', '--strict', '--norestart', '--namespace', 'test7'], env: xtbenv, timeout: test_timeout)
 
 # more specific tests are implemented by the tester binary
-test('Molecule axis', xtb_test, args: ['xtb_type_molecule', 'axis'], env: xtbenv, timeout: test_timeout)
-test('Molecule MIC', xtb_test, args: ['xtb_type_molecule', 'mic'], env: xtbenv, timeout: test_timeout)
 test('Lattice points PBC-3D', xtb_test, args: ['latticepoint', 'pbc3d'], env: xtbenv, timeout: test_timeout)
-
-if fc.get_id() == 'intel'
-  test('Wigner-Seitz Cell (0D)', xtb_test, args: ['xtb_type_wsc', '0d'], env: xtbenv, timeout: test_timeout)
-endif
-test('Wigner-Seitz Cell (3D)', xtb_test, args: ['xtb_type_wsc', '3d'], env: xtbenv, timeout: test_timeout)
 
 if fc.get_id() == 'intel'
   test('IO atom list', xtb_test, args: ['xtb_type_atomlist', 'list'], env: xtbenv, timeout: test_timeout)
 endif
-
-test('coord 3D', xtb_test, args: ['geometry_reader', 'coord_3d_a'], env: xtbenv, timeout: test_timeout)
-test('coord 3D', xtb_test, args: ['geometry_reader', 'coord_3d_b'], env: xtbenv, timeout: test_timeout)
-test('coord 2D', xtb_test, args: ['geometry_reader', 'coord_2d'], env: xtbenv, timeout: test_timeout)
-test('coord 1D', xtb_test, args: ['geometry_reader', 'coord_1d'], env: xtbenv, timeout: test_timeout)
-test('coord 0D', xtb_test, args: ['geometry_reader', 'coord_0d'], env: xtbenv, timeout: test_timeout)
-test('Xmol  0D', xtb_test, args: ['geometry_reader', 'xmol_0d'], env: xtbenv, timeout: test_timeout)
-test('POSCAR', xtb_test, args: ['geometry_reader', 'poscar_3d'], env: xtbenv, timeout: test_timeout)
-test('molfile', xtb_test, args: ['geometry_reader', 'molfile'], env: xtbenv, timeout: test_timeout)
-test('molfile flat', xtb_test, args: ['geometry_reader', 'molfile_flat'], env: xtbenv, timeout: test_timeout)
-test('SDF', xtb_test, args: ['geometry_reader', 'sdfile'], env: xtbenv, timeout: test_timeout)
-test('SDF flat', xtb_test, args: ['geometry_reader', 'sdfile_flat'], env: xtbenv, timeout: test_timeout)
-test('SDF no H', xtb_test, should_fail: true, args: ['geometry_reader', 'sdfile_noh'], env: xtbenv, timeout: test_timeout)
-test('PDB', xtb_test, args: ['geometry_reader', 'pdb'], env: xtbenv, timeout: test_timeout)
-test('PDB no H', xtb_test, should_fail: true, args: ['geometry_reader', 'pdb_noh'], env: xtbenv, timeout: test_timeout)
-test('genFormat', xtb_test, args: ['geometry_reader', 'gen'], env: xtbenv, timeout: test_timeout)
 
 test('PBC tools convert',xtb_test, args: ['pbc_tools', 'convert'], env: xtbenv, timeout: test_timeout)
 test('PBC tools cutoff', xtb_test, args: ['pbc_tools', 'cutoff'], env: xtbenv, timeout: test_timeout)
@@ -127,38 +125,11 @@ test('Symmetry Li8', xtb_test, args: ['symmetry', 'li8'], env: xtbenv, timeout: 
 test('Symmetry PCl3', xtb_test, args: ['symmetry', 'pcl3'], env: xtbenv, timeout: test_timeout)
 test('Symmetry large', xtb_test, args: ['symmetry', 'c20'], env: xtbenv, timeout: test_timeout)
 
-test('Thermo axis', xtb_test, args: ['thermo', 'axis'], env: xtbenv, timeout: test_timeout)
-test('Thermo calculation', xtb_test, args: ['thermo', 'calc'], env: xtbenv, timeout: test_timeout)
-test('Thermo print', xtb_test, args: ['thermo', 'print'], env: xtbenv, timeout: test_timeout)
-
 test('Repulsion 0D', xtb_test, args: ['repulsion', 'cluster'], env: xtbenv, timeout: test_timeout)
 test('Repulsion 3D', xtb_test, args: ['repulsion', 'pbc3d'], env: xtbenv, timeout: test_timeout)
 
-test('Coulomb point (0D)', xtb_test, args: ['coulomb', 'point_0d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb point (3D)', xtb_test, args: ['coulomb', 'point_3d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb GFN1 (0D)', xtb_test, args: ['coulomb', 'gfn1_0d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb GFN1 (3D)', xtb_test, args: ['coulomb', 'gfn1_3d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb GFN2 (0D)', xtb_test, args: ['coulomb', 'gfn2_0d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb GFN2 (3D)', xtb_test, args: ['coulomb', 'gfn2_3d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb Gauss. (0D)', xtb_test, args: ['coulomb', 'gaussian_0d'], env: xtbenv, timeout: test_timeout)
-test('Coulomb Gauss. (3D)', xtb_test, args: ['coulomb', 'gaussian_3d'], env: xtbenv, timeout: test_timeout)
-
-test('EEQ model water', xtb_test,args: ['eeq_model', 'water'], env: xtbenv, timeout: test_timeout)
-test('EEQ model 3D Ewald', xtb_test,args: ['eeq_model', 'ewald'], env: xtbenv, timeout: test_timeout)
-test('EEQ model GBSA', xtb_test,args: ['eeq_model', 'gbsa'], env: xtbenv, timeout: test_timeout)
-test('EEQ model GBSA (salt)', xtb_test,args: ['eeq_model', 'salt'], env: xtbenv, timeout: test_timeout)
-test('EEQ model GBSA (H-bond)', xtb_test,args: ['eeq_model', 'hbond'], env: xtbenv, timeout: test_timeout)
-
 test('CN latticepoints', xtb_test, args: ['ncoord', 'pbc3dlatp'], env: xtbenv, timeout: test_timeout)
 test('CN neighbourlist', xtb_test, args: ['ncoord', 'pbc3dneighs'], env: xtbenv, timeout: test_timeout)
-test('DFT-D3 latticepoints', xtb_test, args: ['dftd3', 'pbc3dlatp'], env: xtbenv, timeout: test_timeout)
-test('DFT-D3 neighbourlist', xtb_test, args: ['dftd3', 'pbc3dneighs'], env: xtbenv, timeout: test_timeout)
-test('DFT-D3 threebody (LP)', xtb_test, args: ['dftd3', 'pbc3datmlatp'], env: xtbenv, timeout: test_timeout)
-test('DFT-D3 threebody (NL)', xtb_test, args: ['dftd3', 'pbc3datmneighs'], env: xtbenv, timeout: test_timeout)
-test('DFT-D4 latticepoints', xtb_test, args: ['dftd4', 'pbc3dlatp'], env: xtbenv, timeout: test_timeout)
-test('DFT-D4 neighbourlist', xtb_test, args: ['dftd4', 'pbc3dneighs'], env: xtbenv, timeout: test_timeout)
-test('DFT-D4 threebody (LP)', xtb_test, args: ['dftd4', 'pbc3datmlatp'], env: xtbenv, timeout: test_timeout)
-test('DFT-D4 threebody (NL)', xtb_test, args: ['dftd4', 'pbc3datmneighs'], env: xtbenv, timeout: test_timeout)
 
 test('GFN2-xTB Basic', xtb_test, args: ['gfn2', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB Solvation', xtb_test, args: ['gfn2', 'solvation'], env: xtbenv, timeout: test_timeout)
@@ -167,20 +138,8 @@ test('GFN2-xTB API', xtb_test, args: ['gfn2', 'api'], env: xtbenv, timeout: test
 test('GFN2-xTB API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB d-Metal', xtb_test, args: ['gfn2', 'd-metal'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB Freq', xtb_test, args: ['hessian', 'gfn2'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB COSMO', xtb_test, args: ['gfn2', 'cosmo'], env: xtbenv, timeout: test_timeout)
 #test('GFN2-xTB API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv, timeout: test_timeout)
-if cc.get_id() == 'intel'
-  test(
-    'GFN2-xTB C',
-    executable(
-      'xtb_c_test',
-      sources: files('c_api_example.c'),
-      dependencies: xtb_dep_static
-    ),
-    env: xtbenv, timeout: test_timeout,
-  )
-endif
 
 test('GFN1-xTB Basic', xtb_test, args: ['gfn1', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB Solvation', xtb_test, args: ['gfn1', 'solvation'], env: xtbenv, timeout: test_timeout)
@@ -191,7 +150,6 @@ test('GFN1-xTB PBC', xtb_test, args: ['gfn1', 'pbc3d'], env: xtbenv, timeout: te
 test('GFN1-xTB API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB IPEA', xtb_test, args: ['gfn1', 'ipea'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB Freq', xtb_test, args: ['hessian', 'gfn1'], env: xtbenv, timeout: test_timeout)
 test('GFN1-xTB COSMO', xtb_test, args: ['gfn1', 'cosmo'], env: xtbenv, timeout: test_timeout)
 
 test('GFN0-xTB Basic', xtb_test, args: ['gfn0', 'basic'], env: xtbenv, timeout: test_timeout)

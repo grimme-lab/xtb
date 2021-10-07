@@ -9,8 +9,6 @@ program peeq_tester
    use xtb_mctc_systools
    use xtb_mctc_convert
 
-   use test_hessian
-
    implicit none
 
 ! ------------------------------------------------------------------------
@@ -52,25 +50,6 @@ program peeq_tester
       case('pbc3dneighs'); call test_ncoord_pbc3d_neighbourlist
       case('pbc3dlatp'); call test_ncoord_pbc3d_latticepoints
       end select
-   case('coulomb')
-      select case(sec)
-      case('point_0d'); call test_coulomb_point_cluster
-      case('point_3d'); call test_coulomb_point_pbc3d
-      case('gfn1_0d'); call test_coulomb_gfn1_cluster
-      case('gfn1_3d'); call test_coulomb_gfn1_pbc3d
-      case('gfn2_0d'); call test_coulomb_gfn2_cluster
-      case('gfn2_3d'); call test_coulomb_gfn2_pbc3d
-      case('gaussian_0d'); call test_coulomb_gaussian_cluster
-      case('gaussian_3d'); call test_coulomb_gaussian_pbc3d
-      end select
-   case('eeq_model')
-      select case(sec)
-      case('water'); call test_eeq_water
-      case('ewald'); call test_eeq_ewald
-      case('gbsa');  call test_eeq_model_gbsa
-      case('hbond'); call test_eeq_model_hbond
-      case('salt');  call test_eeq_model_salt
-      end select
    case('gfn2')
       select case(sec)
       case('basic'); call test_gfn2_mindless_basic
@@ -96,8 +75,6 @@ program peeq_tester
       case('ipea'); call test_ipea_indole
       case('cosmo'); call test_gfn1_mindless_cosmo
       end select
-   case('hessian')
-      call run_hessian_test(sec)
    case('gfn0')
       select case(sec)
       case('basic'); call test_gfn0_mindless_basic
@@ -123,52 +100,10 @@ program peeq_tester
       case('api'); call test_peeq_api
       case('srb'); call test_peeq_api_srb
       end select
-   case('dftd3')
-      select case(sec)
-      case('pbc3dneighs'); call test_dftd3_pbc3d_neighbourlist
-      case('pbc3dlatp'); call test_dftd3_pbc3d_latticepoints
-      case('pbc3datmneighs'); call test_dftd3_pbc3d_threebody_neighs
-      case('pbc3datmlatp'); call test_dftd3_pbc3d_threebody_latp
-      end select
-   case('dftd4')
-      select case(sec)
-      case('pbc3dneighs'); call test_dftd4_pbc3d_neighbourlist
-      case('pbc3dlatp'); call test_dftd4_pbc3d_latticepoints
-      case('pbc3datmneighs'); call test_dftd4_pbc3d_threebody_neighs
-      case('pbc3datmlatp'); call test_dftd4_pbc3d_threebody_latp
-      end select
-   case('geometry_reader')
-      select case(sec)
-      case('coord_3d_a'); call test_geometry_reader_file_coord_CaMgCO_3d
-      case('coord_3d_b'); call test_geometry_reader_file_coord_CaF2_3d
-      case('coord_2d');   call test_geometry_reader_file_coord_C_2d
-      case('coord_1d');   call test_geometry_reader_file_coord_C_1d
-      case('coord_0d');   call test_geometry_reader_file_coord_general_0d
-      case('xmol_0d');    call test_geometry_reader_file_xmol_water_0d
-      case('poscar_3d');  call test_geometry_reader_file_poscar_sio2_3d
-      case('molfile'); call test_geometry_reader_molfile_benzen
-      case('molfile_flat'); call test_geometry_reader_molfile_benzen_flat
-      case('sdfile'); call test_geometry_reader_file_sdf_h2o
-      case('sdfile_flat'); call test_geometry_reader_file_sdf_h2o_flat
-      case('sdfile_noh'); call test_geometry_reader_file_sdf_benzen_hquery
-      case('pdb'); call test_geometry_reader_file_pdb_4qxx
-      case('pdb_noh'); call test_geometry_reader_file_pdb_4qxx_noh
-      case('gen'); call test_geometry_reader_file_gen
-      end select
    case('pbc_tools')
       select case(sec)
       case('convert'); call test_pbc_tools_convert
       case('cutoff');  call test_pbc_tools_cutoff
-      end select
-   case('xtb_type_molecule')
-      select case(sec)
-      case('mic');  call test_class_molecule_mic_distances
-      case('axis'); call test_class_molecule_axis_trafo
-      end select
-   case('xtb_type_wsc')
-      select case(sec)
-      case('0d'); call test_wigner_seitz_0d
-      case('3d'); call test_wigner_seitz_3d
       end select
    case('xtb_type_atomlist')
       select case(sec)
@@ -180,12 +115,6 @@ program peeq_tester
       case('li8'); call test_symmetry_li8
       case('pcl3'); call test_symmetry_pcl3
       case('c20'); call test_symmetry_c20
-      end select
-   case('thermo')
-      select case(sec)
-      case('axis'); call test_axis
-      case('calc'); call test_thermo_calc
-      case('print'); call test_print_thermo
       end select
    case('latticepoint')
       select case(sec)
