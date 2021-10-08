@@ -39,9 +39,14 @@ tests = [
   'dftd4',
   'eeq',
   'geometry-reader',
+  'gfn0',
+  'gfn1',
+  'gfn2',
+  'gfnff',
   'hessian',
   'latticepoint',
   'molecule',
+  'pbc-tools',
   'peeq',
   'repulsion',
   'symmetry',
@@ -51,6 +56,7 @@ tests = [
 
 test_srcs = files(
   'main.f90',
+  'molstock.f90',
 )
 foreach t : tests
   test_srcs += files('test_@0@.f90'.format(t.underscorify()))
@@ -67,24 +73,6 @@ foreach t : tests
   test(t, tester, args: t, suite: 'unit', env: xtbenv)
 endforeach
 
-xtb_test = files(
-  'assertion.f90',
-  'molstock.f90',
-  'gfn0.f90',
-  'gfn1.f90',
-  'gfn2.f90',
-  'gfnff.f90',
-  'pbc_tools.f90',
-  'tests_peeq.f90',
-)
-
-xtb_test = executable(
-  'xtb_test',
-  sources: xtb_test,
-  dependencies: [xtb_dep_static, testdrive_dep],
-  link_language: 'fortran',
-)
-
 # some very basic checks to see if the executable reacts at all
 test('Argparser print version', xtb_exe, args: '--version', env: xtbenv)
 test('Argparser print help', xtb_exe, args: '--help', env: xtbenv)
@@ -97,55 +85,3 @@ test('Info', xtb_exe, env: xtbenv, args: [
   files('../../assets/inputs/vasp/ammonia.vasp'),
   files('../../assets/inputs/xyz/taxol.xyz'),
 ])
-
-test_timeout = get_option('test_timeout')
-
-test('Singlepoint', xtb_exe, args: ['--coffee', '--strict', '--norestart', '--namespace', 'test1'], env: xtbenv, timeout: test_timeout)
-if get_option('la_backend') != 'netlib'
-  test('Geometry opt.', xtb_exe, args: ['--coffee', '--opt', '--strict', '--norestart', '--namespace', 'test2'], env: xtbenv, timeout: test_timeout)
-endif
-test('IP/EA', xtb_exe, args: ['--coffee', '--gfn', '2', '--vipea', '--strict', '--norestart', '--namespace', 'test3'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB', xtb_exe, args: ['--coffee', '--gfn', '0', '--strict', '--norestart', '--namespace', 'test4'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB', xtb_exe, args: ['--coffee', '--gfn', '1', '--strict', '--norestart', '--namespace', 'test5'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--gbsa', 'h2o', '--norestart', '--namespace', 'test6'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF', xtb_exe, args: ['--coffee', '--gfnff', '--strict', '--norestart', '--namespace', 'test7'], env: xtbenv, timeout: test_timeout)
-
-# more specific tests are implemented by the tester binary
-test('PBC tools convert',xtb_test, args: ['pbc_tools', 'convert'], env: xtbenv, timeout: test_timeout)
-test('PBC tools cutoff', xtb_test, args: ['pbc_tools', 'cutoff'], env: xtbenv, timeout: test_timeout)
-
-test('GFN2-xTB Basic', xtb_test, args: ['gfn2', 'basic'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB Solvation', xtb_test, args: ['gfn2', 'solvation'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB SCC', xtb_test, args: ['gfn2', 'scc'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB API', xtb_test, args: ['gfn2', 'api'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB API (GBSA)', xtb_test, args: ['gfn2', 'gbsa'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB API (GBSA+salt)', xtb_test, args: ['gfn2', 'salt'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB d-Metal', xtb_test, args: ['gfn2', 'd-metal'], env: xtbenv, timeout: test_timeout)
-test('GFN2-xTB COSMO', xtb_test, args: ['gfn2', 'cosmo'], env: xtbenv, timeout: test_timeout)
-#test('GFN2-xTB API (PCEM)', xtb_test, args: ['gfn2', 'pcem'], env: xtbenv, timeout: test_timeout)
-
-test('GFN1-xTB Basic', xtb_test, args: ['gfn1', 'basic'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB Solvation', xtb_test, args: ['gfn1', 'solvation'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB SCC', xtb_test, args: ['gfn1', 'scc'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB API', xtb_test, args: ['gfn1', 'api'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB XB', xtb_test, args: ['gfn1', 'xb'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB PBC', xtb_test, args: ['gfn1', 'pbc3d'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB API (GBSA)', xtb_test, args: ['gfn1', 'gbsa'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB API (PCEM)', xtb_test, args: ['gfn1', 'pcem'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB IPEA', xtb_test, args: ['gfn1', 'ipea'], env: xtbenv, timeout: test_timeout)
-test('GFN1-xTB COSMO', xtb_test, args: ['gfn1', 'cosmo'], env: xtbenv, timeout: test_timeout)
-
-test('GFN0-xTB Basic', xtb_test, args: ['gfn0', 'basic'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB Solvation', xtb_test, args: ['gfn0', 'solvation'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB SP', xtb_test, args: ['gfn0', 'sp'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB API', xtb_test, args: ['gfn0', 'api'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB SRB', xtb_test, args: ['gfn0', 'srb'], env: xtbenv, timeout: test_timeout)
-
-test('GFN-FF Basic', xtb_test, args: ['gfnff', 'basic'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF Solvation', xtb_test, args: ['gfnff', 'solvation'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF SP', xtb_test, args: ['gfnff', 'sp'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF HB', xtb_test, args: ['gfnff', 'hb'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF GBSA', xtb_test, args: ['gfnff', 'gbsa'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF Scale-up', xtb_test, args: ['gfnff', 'scaleup'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF PDB', xtb_test, args: ['gfnff', 'pdb'], env: xtbenv, timeout: test_timeout)
-test('GFN-FF SDF', xtb_test, args: ['gfnff', 'sdf'], env: xtbenv, timeout: test_timeout)

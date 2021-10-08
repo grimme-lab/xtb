@@ -51,36 +51,34 @@ subroutine test_pbc_tools_convert(error)
    real(wp) :: dlat(3,3),rlat(3,3),volume,cpar(6),center(3)
 
    call cell_to_dlat(cellpar,dlat)
-   call check(error, cellpar(1),dlat(1,1),thr)
-   call check(error, dlat(1,3),-13.648544412579_wp,thr)
-   call check(error, dlat(3,3), 26.878966813429_wp,thr)
+   call check(error, cellpar(1),dlat(1,1), thr=thr)
+   call check(error, dlat(1,3),-13.648544412579_wp, thr=thr)
+   call check(error, dlat(3,3), 26.878966813429_wp, thr=thr)
 
    call cell_to_rlat(cellpar,rlat)
-   call check(error, rlat(1,1), 0.69053343077018_wp,thr)
-   call check(error, rlat(2,1),-0.96832302603374_wp,thr)
-   call check(error, rlat(3,2), 0.19327597283376_wp,thr)
+   call check(error, rlat(1,1), 0.69053343077018_wp, thr=thr)
+   call check(error, rlat(2,1),-0.96832302603374_wp, thr=thr)
+   call check(error, rlat(3,2), 0.19327597283376_wp, thr=thr)
 
    volume = cell_to_dvol(cellpar)
-   call check(error, volume,1292.0766773144_wp,thr)
+   call check(error, volume,1292.0766773144_wp, thr=thr)
 
    call dlat_to_cell(lattice,cpar)
-   call check(error, cpar(1),cpar(2),thr)
-   call check(error, cpar(3),7.2993338808807_wp,thr)
-   call check(error, cpar(4),1.0471975511966_wp,thr)
+   call check(error, cpar(1),cpar(2), thr=thr)
+   call check(error, cpar(3),7.2993338808807_wp, thr=thr)
+   call check(error, cpar(4),1.0471975511966_wp, thr=thr)
 
    call dlat_to_rlat(lattice,rlat)
-   call check(error, rlat(1,1), 1.0542467445047_wp,thr)
-   call check(error, rlat(1,3),-.35141558150155_wp,thr)
-   call check(error, rlat(2,2), .99395336277746_wp,thr)
+   call check(error, rlat(1,1), 1.0542467445047_wp, thr=thr)
+   call check(error, rlat(1,3),-.35141558150155_wp, thr=thr)
+   call check(error, rlat(2,2), .99395336277746_wp, thr=thr)
 
    volume = dlat_to_dvol(lattice)
-   call check(error, volume, 275.00126402469_wp,thr)
+   call check(error, volume, 275.00126402469_wp, thr=thr)
 
    center = get_center_dlat(lattice)
-   call check(error, center(1),2.9799405783945_wp,thr)
-   call check(error, center(2),4.2142723810314_wp,thr)
-
-   call terminate(afail)
+   call check(error, center(1),2.9799405783945_wp, thr=thr)
+   call check(error, center(2),4.2142723810314_wp, thr=thr)
 
 end subroutine test_pbc_tools_convert
 
@@ -106,30 +104,30 @@ subroutine test_pbc_tools_cutoff(error)
    integer :: rep(3)
 
    call get_realspace_cutoff(lattice_1,rthr_1,rep)
-   call assert_eq(rep(1), 8)
-   call assert_eq(rep(3), 2)
+   call check(error, rep(1), 8)
+   call check(error, rep(3), 2)
 
    call get_realspace_cutoff(lattice_1,rthr_2,rep)
-   call assert_eq(rep(2),14)
-   call assert_eq(rep(3), 3)
+   call check(error, rep(2),14)
+   call check(error, rep(3), 3)
 
    call get_realspace_cutoff(lattice_1,rthr_3,rep)
-   call assert_eq(rep(1),20)
-   call assert_eq(rep(2),20)
-   call assert_eq(rep(3), 4)
+   call check(error, rep(1),20)
+   call check(error, rep(2),20)
+   call check(error, rep(3), 4)
 
    call get_realspace_cutoff(lattice_2,rthr_1,rep)
-   call assert_eq(rep(1),rep(2))
-   call assert_eq(rep(3), 7)
+   call check(error, rep(1),rep(2))
+   call check(error, rep(3), 7)
 
    call get_realspace_cutoff(lattice_2,rthr_2,rep)
-   call assert_eq(rep(1),rep(3))
-   call assert_eq(rep(2),12)
+   call check(error, rep(1),rep(3))
+   call check(error, rep(2),12)
 
    call get_realspace_cutoff(lattice_2,rthr_3,rep)
-   call assert_eq(rep(3),rep(2))
-   call assert_eq(rep(1),17)
-
-   call terminate(afail)
+   call check(error, rep(3),rep(2))
+   call check(error, rep(1),17)
 
 end subroutine test_pbc_tools_cutoff
+
+end module test_pbc_tools

@@ -26,10 +26,16 @@ program tester
    use test_dftd4, only : collect_dftd4
    use test_eeq, only : collect_eeq
    use test_geometry_reader, only : collect_geometry_reader
+   use test_gfn0, only : collect_gfn0
+   use test_gfn1, only : collect_gfn1
+   use test_gfn2, only : collect_gfn2
+   use test_gfnff, only : collect_gfnff
    use test_hessian, only : collect_hessian
    use test_latticepoint, only : collect_latticepoint
    use test_molecule, only : collect_molecule
+   use test_pbc_tools, only : collect_pbc_tools
    use test_peeq, only : collect_peeq
+   use test_repulsion, only : collect_repulsion
    use test_symmetry, only : collect_symmetry
    use test_thermo, only : collect_thermo
    use test_wsc, only : collect_wsc
@@ -51,10 +57,16 @@ program tester
       new_testsuite("dftd4", collect_dftd4), &
       new_testsuite("eeq", collect_eeq), &
       new_testsuite("geometry-reader", collect_geometry_reader), &
+      new_testsuite("gfn0", collect_gfn0), &
+      new_testsuite("gfn1", collect_gfn1), &
+      new_testsuite("gfn2", collect_gfn2), &
+      new_testsuite("gfnff", collect_gfnff), &
       new_testsuite("hessian", collect_hessian), &
       new_testsuite("latticepoint", collect_latticepoint), &
       new_testsuite("molecule", collect_molecule), &
+      new_testsuite("pbc-tools", collect_pbc_tools), &
       new_testsuite("peeq", collect_peeq), &
+      new_testsuite("repulsion", collect_repulsion), &
       new_testsuite("symmetry", collect_symmetry), &
       new_testsuite("thermo", collect_thermo), &
       new_testsuite("wsc", collect_wsc) &

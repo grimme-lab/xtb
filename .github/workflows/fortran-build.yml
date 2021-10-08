@@ -198,7 +198,7 @@ jobs:
     - name: Run unit tests
       run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
       env:
-        OMP_NUM_THREADS: 1,2,1
+        OMP_NUM_THREADS: 2,1
 
     - name: Install package
       run: |
