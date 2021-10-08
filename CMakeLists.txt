@@ -145,4 +145,4 @@ install(EXPORT xtbTargets FILE "xtbTargets.cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
-add_subdirectory("TESTSUITE")
+add_subdirectory("test")

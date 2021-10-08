@@ -66,7 +66,9 @@ Subroutine get_schoenflies (n, iat, xyz, sfsym, paramar)
    c_paramar = paramar
    symbol = C_NULL_CHAR
 
+   !$omp critical (schoenflies_)
    Call schoenflies (natoms, attypes, coord, symbol, c_paramar)
+   !$omp end critical (schoenflies_)
 
    sfsym = ""
    do i = 1, size(symbol)

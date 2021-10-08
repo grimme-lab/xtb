@@ -1,4 +1,35 @@
+# This file is part of xtb.
+# SPDX-Identifier: LGPL-3.0-or-later
+#
+# xtb is free software: you can redistribute it and/or modify it under
+# the terms of the Lesser GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# xtb is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# Lesser GNU General Public License for more details.
+#
+# You should have received a copy of the Lesser GNU General Public License
+# along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 cmake_minimum_required(VERSION 3.9)
+
+if(NOT DEFINED "${PROJECT_NAME}-dependeny-method")
+  set(
+    "${PROJECT_NAME}-dependency-method"
+    "subproject" "cmake" "pkgconf" "fetch"
+  )
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
+install(
+  DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}/modules/"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+)
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")

@@ -1,5 +1,42 @@
-subroutine test_ncoord_pbc3d_latticepoints
-   use assertion
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_coordinationnumber
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_coordinationnumber
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_coordinationnumber(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("lp-pbc3d", test_ncoord_pbc3d_latticepoints), &
+      new_unittest("lp-pbc3d", test_ncoord_pbc3d_neighbourlist) &
+      ]
+
+end subroutine collect_coordinationnumber
+
+
+subroutine test_ncoord_pbc3d_latticepoints(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
@@ -7,7 +44,7 @@ subroutine test_ncoord_pbc3d_latticepoints
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
    use xtb_type_latticepoint, only : TLatticePoint, init
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, &
@@ -71,54 +108,52 @@ subroutine test_ncoord_pbc3d_latticepoints
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%exp, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 1), 1.0644889257925_wp, thr)
-   call assert_close(cn( 2), 1.0631767469669_wp, thr)
-   call assert_close(cn(11), 3.1006970695816_wp, thr)
-   call assert_close(cn(18), 1.0075732171735_wp, thr)
-   call assert_close(cn(19), 1.0059732047433_wp, thr)
-   call assert_close(cn(26), 1.0076129647756_wp, thr)
-   call assert_close(norm2(dcndr), 1.0111771304250_wp, thr)
+   call check(error, cn( 1), 1.0644889257925_wp, thr=thr)
+   call check(error, cn( 2), 1.0631767469669_wp, thr=thr)
+   call check(error, cn(11), 3.1006970695816_wp, thr=thr)
+   call check(error, cn(18), 1.0075732171735_wp, thr=thr)
+   call check(error, cn(19), 1.0059732047433_wp, thr=thr)
+   call check(error, cn(26), 1.0076129647756_wp, thr=thr)
+   call check(error, norm2(dcndr), 1.0111771304250_wp, thr=thr)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%erf, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 4), 1.0017771035280_wp, thr)
-   call assert_close(cn( 8), 3.9823122257845_wp, thr)
-   call assert_close(cn(12), 3.9825267700108_wp, thr)
-   call assert_close(cn(14), 2.9944763199487_wp, thr)
-   call assert_close(cn(15), 3.9804643916712_wp, thr)
-   call assert_close(cn(16), 3.9809919526339_wp, thr)
-   call assert_close(cn(31), 0.9937992456497_wp, thr)
-   call assert_close(norm2(dcndr), 0.56981134655575_wp, thr)
+   call check(error, cn( 4), 1.0017771035280_wp, thr=thr)
+   call check(error, cn( 8), 3.9823122257845_wp, thr=thr)
+   call check(error, cn(12), 3.9825267700108_wp, thr=thr)
+   call check(error, cn(14), 2.9944763199487_wp, thr=thr)
+   call check(error, cn(15), 3.9804643916712_wp, thr=thr)
+   call check(error, cn(16), 3.9809919526339_wp, thr=thr)
+   call check(error, cn(31), 0.9937992456497_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.56981134655575_wp, thr=thr)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 9), 3.8048129507609_wp, thr)
-   call assert_close(cn(13), 3.8069332740701_wp, thr)
-   call assert_close(cn(20), 0.9239504636072_wp, thr)
-   call assert_close(cn(21), 0.9245161490576_wp, thr)
-   call assert_close(cn(22), 0.9236911432582_wp, thr)
-   call assert_close(cn(30), 0.9241833212868_wp, thr)
-   call assert_close(norm2(dcndr), 0.53663107191832_wp, thr)
+   call check(error, cn( 9), 3.8048129507609_wp, thr=thr)
+   call check(error, cn(13), 3.8069332740701_wp, thr=thr)
+   call check(error, cn(20), 0.9239504636072_wp, thr=thr)
+   call check(error, cn(21), 0.9245161490576_wp, thr=thr)
+   call check(error, cn(22), 0.9236911432582_wp, thr=thr)
+   call check(error, cn(30), 0.9241833212868_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.53663107191832_wp, thr=thr)
 
    call getCoordinationNumber(mol, trans, 40.0_wp, cnType%gfn, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 3), 1.1819234421527_wp, thr)
-   call assert_close(cn( 5), 4.2453004956734_wp, thr)
-   call assert_close(cn(10), 3.3142686980438_wp, thr)
-   call assert_close(cn(23), 1.0257176118018_wp, thr)
-   call assert_close(cn(24), 1.0254266219049_wp, thr)
-   call assert_close(cn(32), 1.0249293241088_wp, thr)
-   call assert_close(norm2(dcndr), 2.9659913317090_wp, thr)
+   call check(error, cn( 3), 1.1819234421527_wp, thr=thr)
+   call check(error, cn( 5), 4.2453004956734_wp, thr=thr)
+   call check(error, cn(10), 3.3142686980438_wp, thr=thr)
+   call check(error, cn(23), 1.0257176118018_wp, thr=thr)
+   call check(error, cn(24), 1.0254266219049_wp, thr=thr)
+   call check(error, cn(32), 1.0249293241088_wp, thr=thr)
+   call check(error, norm2(dcndr), 2.9659913317090_wp, thr=thr)
 
-   call terminate(afail)
 end subroutine test_ncoord_pbc3d_latticepoints
 
 
-subroutine test_ncoord_pbc3d_neighbourlist
-   use assertion
+subroutine test_ncoord_pbc3d_neighbourlist(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
@@ -126,7 +161,7 @@ subroutine test_ncoord_pbc3d_neighbourlist
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
    use xtb_type_latticepoint, only : TLatticePoint, init
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
    integer, parameter :: at(nat) = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, &
@@ -196,47 +231,48 @@ subroutine test_ncoord_pbc3d_neighbourlist
    call getCoordinationNumber(mol, neighs, neighList, cnType%exp, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 1), 1.0644889257925_wp, thr)
-   call assert_close(cn( 2), 1.0631767469669_wp, thr)
-   call assert_close(cn(11), 3.1006970695816_wp, thr)
-   call assert_close(cn(18), 1.0075732171735_wp, thr)
-   call assert_close(cn(19), 1.0059732047433_wp, thr)
-   call assert_close(cn(26), 1.0076129647756_wp, thr)
-   call assert_close(norm2(dcndr), 1.0111771304250_wp, thr)
+   call check(error, cn( 1), 1.0644889257925_wp, thr=thr)
+   call check(error, cn( 2), 1.0631767469669_wp, thr=thr)
+   call check(error, cn(11), 3.1006970695816_wp, thr=thr)
+   call check(error, cn(18), 1.0075732171735_wp, thr=thr)
+   call check(error, cn(19), 1.0059732047433_wp, thr=thr)
+   call check(error, cn(26), 1.0076129647756_wp, thr=thr)
+   call check(error, norm2(dcndr), 1.0111771304250_wp, thr=thr)
 
    call getCoordinationNumber(mol, neighs, neighList, cnType%erf, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 4), 1.0017771035280_wp, thr)
-   call assert_close(cn( 8), 3.9823122257845_wp, thr)
-   call assert_close(cn(12), 3.9825267700108_wp, thr)
-   call assert_close(cn(14), 2.9944763199487_wp, thr)
-   call assert_close(cn(15), 3.9804643916712_wp, thr)
-   call assert_close(cn(16), 3.9809919526339_wp, thr)
-   call assert_close(cn(31), 0.9937992456497_wp, thr)
-   call assert_close(norm2(dcndr), 0.56981134655575_wp, thr)
+   call check(error, cn( 4), 1.0017771035280_wp, thr=thr)
+   call check(error, cn( 8), 3.9823122257845_wp, thr=thr)
+   call check(error, cn(12), 3.9825267700108_wp, thr=thr)
+   call check(error, cn(14), 2.9944763199487_wp, thr=thr)
+   call check(error, cn(15), 3.9804643916712_wp, thr=thr)
+   call check(error, cn(16), 3.9809919526339_wp, thr=thr)
+   call check(error, cn(31), 0.9937992456497_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.56981134655575_wp, thr=thr)
 
    call getCoordinationNumber(mol, neighs, neighList, cnType%cov, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 9), 3.8048129507609_wp, thr)
-   call assert_close(cn(13), 3.8069332740701_wp, thr)
-   call assert_close(cn(20), 0.9239504636072_wp, thr)
-   call assert_close(cn(21), 0.9245161490576_wp, thr)
-   call assert_close(cn(22), 0.9236911432582_wp, thr)
-   call assert_close(cn(30), 0.9241833212868_wp, thr)
-   call assert_close(norm2(dcndr), 0.53663107191832_wp, thr)
+   call check(error, cn( 9), 3.8048129507609_wp, thr=thr)
+   call check(error, cn(13), 3.8069332740701_wp, thr=thr)
+   call check(error, cn(20), 0.9239504636072_wp, thr=thr)
+   call check(error, cn(21), 0.9245161490576_wp, thr=thr)
+   call check(error, cn(22), 0.9236911432582_wp, thr=thr)
+   call check(error, cn(30), 0.9241833212868_wp, thr=thr)
+   call check(error, norm2(dcndr), 0.53663107191832_wp, thr=thr)
 
    call getCoordinationNumber(mol, neighs, neighList, cnType%gfn, &
       & cn, dcndr, dcndL)
 
-   call assert_close(cn( 3), 1.1819234421527_wp, thr)
-   call assert_close(cn( 5), 4.2453004956734_wp, thr)
-   call assert_close(cn(10), 3.3142686980438_wp, thr)
-   call assert_close(cn(23), 1.0257176118018_wp, thr)
-   call assert_close(cn(24), 1.0254266219049_wp, thr)
-   call assert_close(cn(32), 1.0249293241088_wp, thr)
-   call assert_close(norm2(dcndr), 2.9659913317090_wp, thr)
+   call check(error, cn( 3), 1.1819234421527_wp, thr=thr)
+   call check(error, cn( 5), 4.2453004956734_wp, thr=thr)
+   call check(error, cn(10), 3.3142686980438_wp, thr=thr)
+   call check(error, cn(23), 1.0257176118018_wp, thr=thr)
+   call check(error, cn(24), 1.0254266219049_wp, thr=thr)
+   call check(error, cn(32), 1.0249293241088_wp, thr=thr)
+   call check(error, norm2(dcndr), 2.9659913317090_wp, thr=thr)
 
-   call terminate(afail)
 end subroutine test_ncoord_pbc3d_neighbourlist
+
+end module test_coordinationnumber

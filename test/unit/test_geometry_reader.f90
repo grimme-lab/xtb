@@ -1,11 +1,63 @@
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_geometry_reader
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed, &
+      & skip_test
+   implicit none
+   private
+
+   public :: collect_geometry_reader
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_geometry_reader(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("poscar-sio2-3d", test_geometry_reader_file_poscar_sio2_3d), &
+      new_unittest("xmol-water-0d", test_geometry_reader_file_xmol_water_0d), &
+      new_unittest("coord-0d", test_geometry_reader_file_coord_general_0d), &
+      new_unittest("coord-CaF2-3d", test_geometry_reader_file_coord_CaF2_3d), &
+      new_unittest("coord-CaMgCO-3d", test_geometry_reader_file_coord_CaMgCO_3d), &
+      new_unittest("coord-C-2d", test_geometry_reader_file_coord_C_2d), &
+      new_unittest("coord-C-1d", test_geometry_reader_file_coord_C_1d), &
+      new_unittest("molfile-benzen-flat", test_geometry_reader_molfile_benzen_flat), &
+      new_unittest("molfile-benzen", test_geometry_reader_molfile_benzen), &
+      new_unittest("sdf-h2o", test_geometry_reader_file_sdf_h2o), &
+      new_unittest("sdf-benzen-hquery", test_geometry_reader_file_sdf_benzen_hquery, should_fail=.true.), &
+      new_unittest("sdf-h2o-flat", test_geometry_reader_file_sdf_h2o_flat), &
+      new_unittest("pdb-4qxx-noh", test_geometry_reader_file_pdb_4qxx_noh, should_fail=.true.), &
+      new_unittest("pdb-4qxx", test_geometry_reader_file_pdb_4qxx), &
+      new_unittest("gen", test_geometry_reader_file_gen) &
+      ]
+
+end subroutine collect_geometry_reader
+
+
 !> @brief test disperion under 3D periodic boundary conditions
-subroutine test_geometry_reader_file_poscar_sio2_3d
+subroutine test_geometry_reader_file_poscar_sio2_3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_poscar_sio2_3d = &
       & '("Si  O ",/,&
@@ -33,36 +85,33 @@ subroutine test_geometry_reader_file_poscar_sio2_3d
    call readMolecule(env, mol, iunit, fileType%vasp)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_close(mol%volume,       667.92680030347_wp,thr)
-   call assert_close(mol%cellpar(1),8.7413053236641_wp,thr)
-   call assert_close(mol%cellpar(4),1.5707963267949_wp,thr)
-   call assert_close(mol%rec_lat(1,1),0.71879256867621_wp,thr)
+   call check_(error, mol%volume,       667.92680030347_wp,thr=thr)
+   call check_(error, mol%cellpar(1),8.7413053236641_wp,thr=thr)
+   call check_(error, mol%cellpar(4),1.5707963267949_wp,thr=thr)
+   call check_(error, mol%rec_lat(1,1),0.71879256867621_wp,thr=thr)
 
-   call assert_close(mol%abc(1,3),0.29843937068984_wp,thr)
-   call assert_close(mol%abc(2,6),0.28321754549582_wp,thr)
-   call assert_close(mol%abc(3,1),0.10160624337938_wp,thr)
+   call check_(error, mol%abc(1,3),0.29843937068984_wp,thr=thr)
+   call check_(error, mol%abc(2,6),0.28321754549582_wp,thr=thr)
+   call check_(error, mol%abc(3,1),0.10160624337938_wp,thr=thr)
 
-   call assert_close(mol%xyz(2,4),7.4866709068338_wp,thr)
-   call assert_close(mol%xyz(1,5),6.3156134163815_wp,thr)
-   call assert_close(mol%xyz(3,2),3.3797565299764_wp,thr)
+   call check_(error, mol%xyz(2,4),7.4866709068338_wp,thr=thr)
+   call check_(error, mol%xyz(1,5),6.3156134163815_wp,thr=thr)
+   call check_(error, mol%xyz(3,2),3.3797565299764_wp,thr=thr)
 
    call mol%deallocate
    close(iunit,status='delete')
 
-   call terminate(afail)
-
 end subroutine test_geometry_reader_file_poscar_sio2_3d
 
-subroutine test_geometry_reader_file_xmol_water_0d
+subroutine test_geometry_reader_file_xmol_water_0d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_xmol_water_0d = &
       & '("9",/,&
@@ -88,30 +137,27 @@ subroutine test_geometry_reader_file_xmol_water_0d
    call readMolecule(env, mol, iunit, fileType%xyz)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_eq(mol%n,9)
+   call check_(error, mol%n,9)
 
-   call assert_close(mol%xyz(1,2), .93335227594625_wp,thr)
-   call assert_close(mol%xyz(2,5),-.98873655304085_wp,thr)
-   call assert_close(mol%xyz(1,9),-1.0206234107641_wp,thr)
-   call assert_close(mol%xyz(3,3), .81284993236482_wp,thr)
+   call check_(error, mol%xyz(1,2), .93335227594625_wp,thr=thr)
+   call check_(error, mol%xyz(2,5),-.98873655304085_wp,thr=thr)
+   call check_(error, mol%xyz(1,9),-1.0206234107641_wp,thr=thr)
+   call check_(error, mol%xyz(3,3), .81284993236482_wp,thr=thr)
 
    call mol%deallocate
    close(iunit,status='delete')
 
-   call terminate(afail)
-
 end subroutine test_geometry_reader_file_xmol_water_0d
 
-subroutine test_geometry_reader_file_coord_general_0d
+subroutine test_geometry_reader_file_coord_general_0d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_general_0d_p1 = &
       & '("$coord",/,&
@@ -192,25 +238,22 @@ subroutine test_geometry_reader_file_coord_general_0d
    call readMolecule(env, mol, iunit, fileType%tmol)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert(.not.any(mol%pbc))
-   call assert_eq(mol%n, 59)
+   call check_(error, .not.any(mol%pbc))
+   call check_(error, mol%n, 59)
 
    call mol%deallocate; close(iunit,status='delete')
 
-   call terminate(afail)
-
 end subroutine test_geometry_reader_file_coord_general_0d
 
-subroutine test_geometry_reader_file_coord_CaF2_3d
+subroutine test_geometry_reader_file_coord_CaF2_3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaF2_3d = &
       & '("$coord frac",/,&
@@ -237,41 +280,38 @@ subroutine test_geometry_reader_file_coord_CaF2_3d
    call readMolecule(env, mol, iunit, fileType%tmol)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert(all(mol%pbc))
-   call assert_eq(mol%npbc,3)
+   call check_(error, all(mol%pbc))
+   call check_(error, mol%npbc,3)
 
-   call assert_eq(mol%n, 3)
+   call check_(error, mol%n, 3)
 
-   call assert_close(mol%volume,       275.00126402469_wp,thr)
+   call check_(error, mol%volume,       275.00126402469_wp,thr=thr)
 
-   call assert_close(mol%xyz(1,1),1.4899702891972_wp,thr)
-   call assert_close(mol%xyz(2,1),2.1071361905157_wp,thr)
-   call assert_close(mol%xyz(2,2),6.3214085715472_wp,thr)
+   call check_(error, mol%xyz(1,1),1.4899702891972_wp,thr=thr)
+   call check_(error, mol%xyz(2,1),2.1071361905157_wp,thr=thr)
+   call check_(error, mol%xyz(2,2),6.3214085715472_wp,thr=thr)
 
-   call assert_close(mol%rec_lat(1,2),-0.35141558150155_wp,thr)
-   call assert_close(mol%rec_lat(3,3), 0.86078886234226_wp,thr)
+   call check_(error, mol%rec_lat(1,2),-0.35141558150155_wp,thr=thr)
+   call check_(error, mol%rec_lat(3,3), 0.86078886234226_wp,thr=thr)
 
-   call assert_close(mol%cellpar(1),mol%cellpar(2),thr)
-   call assert_close(mol%cellpar(4),mol%cellpar(6),thr)
-   call assert_close(mol%cellpar(3),7.2993338808807_wp,thr)
-   call assert_close(mol%cellpar(5),1.0471975511966_wp,thr)
+   call check_(error, mol%cellpar(1),mol%cellpar(2),thr=thr)
+   call check_(error, mol%cellpar(4),mol%cellpar(6),thr=thr)
+   call check_(error, mol%cellpar(3),7.2993338808807_wp,thr=thr)
+   call check_(error, mol%cellpar(5),1.0471975511966_wp,thr=thr)
 
    call mol%deallocate; close(iunit,status='delete')
 
-   call terminate(afail)
-
 end subroutine test_geometry_reader_file_coord_CaF2_3d
 
-subroutine test_geometry_reader_file_coord_CaMgCO_3d
+subroutine test_geometry_reader_file_coord_CaMgCO_3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    character(len=*),parameter :: file_coord_CaMgCO_3d = &
       & '("$cell",/,&
@@ -296,37 +336,34 @@ subroutine test_geometry_reader_file_coord_CaMgCO_3d
    call readMolecule(env, mol, iunit, fileType%tmol)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert(all(mol%pbc))
-   call assert_eq(mol%npbc,3)
+   call check_(error, all(mol%pbc))
+   call check_(error, mol%npbc,3)
 
-   call assert_eq(mol%n, 4)
+   call check_(error, mol%n, 4)
 
-   call assert_close(mol%volume,       2184.02656187534_wp,thr)
-   call assert_close(mol%lattice(1,2),-4.54951567002654_wp,thr)
-   call assert_close(mol%lattice(2,2), 7.87999224997948_wp,thr)
-   call assert_close(mol%rec_lat(1,1),0.690533429252363_wp,thr)
-   call assert_close(mol%rec_lat(2,1),0.398679663304106_wp,thr)
-   call assert_close(mol%rec_lat(3,3),0.206273246164110_wp,thr)
+   call check_(error, mol%volume,       2184.02656187534_wp,thr=thr)
+   call check_(error, mol%lattice(1,2),-4.54951567002654_wp,thr=thr)
+   call check_(error, mol%lattice(2,2), 7.87999224997948_wp,thr=thr)
+   call check_(error, mol%rec_lat(1,1),0.690533429252363_wp,thr=thr)
+   call check_(error, mol%rec_lat(2,1),0.398679663304106_wp,thr=thr)
+   call check_(error, mol%rec_lat(3,3),0.206273246164110_wp,thr=thr)
 
    ! this value should get's wrapped back from -7.51993484
-   call assert_close(mol%xyz(1,3),    8.5195367720000_wp,thr)
+   call check_(error, mol%xyz(1,3),    8.5195367720000_wp,thr=thr)
 
    call mol%deallocate; close(iunit,status='delete')
 
-   call terminate(afail)
-
 end subroutine test_geometry_reader_file_coord_CaMgCO_3d
 
-subroutine test_geometry_reader_file_coord_C_2d
+subroutine test_geometry_reader_file_coord_C_2d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_2d = &
@@ -345,17 +382,17 @@ subroutine test_geometry_reader_file_coord_C_2d
    type(TEnvironment) :: env
    logical :: fail
 
-   stop 77
+   call skip_test(error, "Not implemented")
 
 end subroutine test_geometry_reader_file_coord_C_2d
 
-subroutine test_geometry_reader_file_coord_C_1d
+subroutine test_geometry_reader_file_coord_C_1d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
 
    character(len=*),parameter :: file_coord_C_1d = &
@@ -401,9 +438,8 @@ subroutine test_geometry_reader_file_coord_C_1d
    type(TMolecule) :: mol
    type(TEnvironment) :: env
    logical :: fail
-!
 
-   stop 77
+   call skip_test(error, "Not implemented")
 
    !write(iunit,file_coord_C_1d); rewind(iunit)
    !call read_coord(iunit,mol)
@@ -412,13 +448,13 @@ subroutine test_geometry_reader_file_coord_C_1d
 
 end subroutine test_geometry_reader_file_coord_C_1D
 
-subroutine test_geometry_reader_molfile_benzen_flat
+subroutine test_geometry_reader_molfile_benzen_flat(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_mol_benzen_2d = '(/,&
       & "  Mrv1823 10191918342D          ",/,/,&
@@ -460,20 +496,18 @@ subroutine test_geometry_reader_molfile_benzen_flat
    call readMolecule(env, mol, iunit, fileType%molfile)
 
    call env%check(fail)
-   call assert(.not.fail)
-   call env%checkpoint("Failed to read geometry")
-   call assert(mol%struc%two_dimensional)
+   call check_(error, .not.fail)
+   call check_(error, mol%struc%two_dimensional)
 
-   call terminate(afail)
 end subroutine
 
-subroutine test_geometry_reader_molfile_benzen
+subroutine test_geometry_reader_molfile_benzen(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_mol_benzen = '(/,&
       & "  Mrv1823 10191918163D          ",/,/,&
@@ -515,26 +549,24 @@ subroutine test_geometry_reader_molfile_benzen
    call readMolecule(env, mol, iunit, fileType%molfile)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_eq(len(mol), 12)
-   call assert_eq(len(mol%bonds), 12)
-   call assert_eq(len(mol%info), 0)
+   call check_(error, len(mol), 12)
+   call check_(error, len(mol%bonds), 12)
+   call check_(error, len(mol%info), 0)
 
-   call assert_close(mol%xyz(1,1), -0.17007533543675E-01_wp, thr)
-   call assert_close(mol%xyz(2,8), 2.2748520977640_wp, thr)
+   call check_(error, mol%xyz(1,1), -0.17007533543675E-01_wp, thr=thr)
+   call check_(error, mol%xyz(2,8), 2.2748520977640_wp, thr=thr)
 
-   call terminate(afail)
 end subroutine
 
-subroutine test_geometry_reader_file_sdf_h2o
+subroutine test_geometry_reader_file_sdf_h2o(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_h2o = '(&
       & "962",/,&
@@ -582,25 +614,23 @@ subroutine test_geometry_reader_file_sdf_h2o
    call readMolecule(env, mol, iunit, fileType%sdf)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_eq(len(mol), 3)
-   call assert_eq(len(mol%bonds), 2)
-   call assert_eq(len(mol%info), 22)
+   call check_(error, len(mol), 3)
+   call check_(error, len(mol%bonds), 2)
+   call check_(error, len(mol%info), 22)
 
-   call assert_close(mol%xyz(1,1), -0.43633772169273_wp, thr)
+   call check_(error, mol%xyz(1,1), -0.43633772169273_wp, thr=thr)
 
-   call terminate(afail)
 end subroutine
 
-subroutine test_geometry_reader_file_sdf_benzen_hquery
+subroutine test_geometry_reader_file_sdf_benzen_hquery(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_benzen = '(&
       & "benzen",/,&
@@ -633,19 +663,17 @@ subroutine test_geometry_reader_file_sdf_benzen_hquery
    call readMolecule(env, mol, iunit, fileType%sdf)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call terminate(0) ! should fail
 end subroutine
 
-subroutine test_geometry_reader_file_sdf_h2o_flat
+subroutine test_geometry_reader_file_sdf_h2o_flat(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_sdf_h2o = '(&
       & "water",/,&
@@ -674,20 +702,18 @@ subroutine test_geometry_reader_file_sdf_h2o_flat
    call readMolecule(env, mol, iunit, fileType%sdf)
 
    call env%check(fail)
-   call assert(.not.fail)
-   call env%checkpoint("Failed to read geometry")
-   call assert(mol%struc%two_dimensional)
+   call check_(error, .not.fail)
+   call check_(error, mol%struc%two_dimensional)
 
-   call terminate(afail)
 end subroutine
 
-subroutine test_geometry_reader_file_pdb_4qxx_noh
+subroutine test_geometry_reader_file_pdb_4qxx_noh(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_pdb_4qxx_p1 = '(&
       & "HEADER    PROTEIN FIBRIL                          22-JUL-14   4QXX",/,&
@@ -758,20 +784,18 @@ subroutine test_geometry_reader_file_pdb_4qxx_noh
    call readMolecule(env, mol, iunit, fileType%pdb)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call terminate(0) ! should fail
 end subroutine
 
 
-subroutine test_geometry_reader_file_pdb_4qxx
+subroutine test_geometry_reader_file_pdb_4qxx(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_pdb_4qxx_p1 = '(&
       & "HEADER    PROTEIN FIBRIL                          22-JUL-14   4QXX",/,&
@@ -886,32 +910,30 @@ subroutine test_geometry_reader_file_pdb_4qxx
    call readMolecule(env, mol, iunit, fileType%pdb)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert(allocated(mol%pdb))
+   call check_(error, allocated(mol%pdb))
 
-   call assert_eq(len(mol), 79)
+   call check_(error, len(mol), 79)
 
-   call assert_eq(mol%at(14), 6)
-   call assert_eq(mol%at(42), 1)
-   call assert_eq(mol%at(71), 8)
+   call check_(error, mol%at(14), 6)
+   call check_(error, mol%at(42), 1)
+   call check_(error, mol%at(71), 8)
 
-   call assert_close(mol%xyz(1,3),  -1.8292547189197_wp, thr)
-   call assert_close(mol%xyz(2,21), -11.393157748313_wp, thr)
-   call assert_close(mol%xyz(3,35),  15.166940469059_wp, thr)
-   call assert_close(mol%xyz(1,79), -1.7517759549985_wp, thr)
+   call check_(error, mol%xyz(1,3),  -1.8292547189197_wp, thr=thr)
+   call check_(error, mol%xyz(2,21), -11.393157748313_wp, thr=thr)
+   call check_(error, mol%xyz(3,35),  15.166940469059_wp, thr=thr)
+   call check_(error, mol%xyz(1,79), -1.7517759549985_wp, thr=thr)
 
-   call terminate(afail) ! should fail
 end subroutine
 
-subroutine test_geometry_reader_file_gen
+subroutine test_geometry_reader_file_gen(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule
    use xtb_type_environment
    use xtb_io_reader
-   use assertion
    use xtb_mctc_filetypes
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-9_wp
    character(len=*),parameter :: file_gen_3518_40 = '(&
       & "11 C",/,&
@@ -965,21 +987,20 @@ subroutine test_geometry_reader_file_gen
    call readMolecule(env, mol, iunit, fileType%gen)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_eq(len(mol), 11)
-   call assert_eq(count(mol%pbc), 0)
-   call assert_eq(mol%npbc, 0)
+   call check_(error, len(mol), 11)
+   call check_(error, count(mol%pbc), 0)
+   call check_(error, mol%npbc, 0)
 
-   call assert_eq(mol%at(1), 1)
-   call assert_eq(mol%at(4), 1)
-   call assert_eq(mol%at(7), 17)
+   call check_(error, mol%at(1), 1)
+   call check_(error, mol%at(4), 1)
+   call check_(error, mol%at(7), 17)
 
-   call assert_close(mol%xyz(1,3), 1.7271235729215_wp, thr)
-   call assert_close(mol%xyz(2,2),-0.0001915237250_wp, thr)
-   call assert_close(mol%xyz(3,5), 3.2575621824717_wp, thr)
-   call assert_close(mol%xyz(1,7), 2.6696690632549_wp, thr)
+   call check_(error, mol%xyz(1,3), 1.7271235729215_wp, thr=thr)
+   call check_(error, mol%xyz(2,2),-0.0001915237250_wp, thr=thr)
+   call check_(error, mol%xyz(3,5), 3.2575621824717_wp, thr=thr)
+   call check_(error, mol%xyz(1,7), 2.6696690632549_wp, thr=thr)
 
    rewind(iunit)
    write(iunit, file_gen_gaas)
@@ -988,20 +1009,19 @@ subroutine test_geometry_reader_file_gen
    call readMolecule(env, mol, iunit, fileType%gen)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_eq(len(mol), 2)
-   call assert_eq(count(mol%pbc), 3)
-   call assert_eq(mol%npbc, 3)
+   call check_(error, len(mol), 2)
+   call check_(error, count(mol%pbc), 3)
+   call check_(error, mol%npbc, 3)
 
-   call assert_eq(mol%at(1), 31)
-   call assert_eq(mol%at(2), 33)
+   call check_(error, mol%at(1), 31)
+   call check_(error, mol%at(2), 33)
 
-   call assert_close(mol%xyz(2,2), 2.5639291454058_wp, thr)
+   call check_(error, mol%xyz(2,2), 2.5639291454058_wp, thr=thr)
 
-   call assert_close(mol%lattice(1,3), 5.1278582908117_wp, thr)
-   call assert_close(mol%lattice(2,2), 5.1278582908117_wp, thr)
+   call check_(error, mol%lattice(1,3), 5.1278582908117_wp, thr=thr)
+   call check_(error, mol%lattice(2,2), 5.1278582908117_wp, thr=thr)
 
    rewind(iunit)
    write(iunit, file_gen_diamond)
@@ -1010,25 +1030,25 @@ subroutine test_geometry_reader_file_gen
    call readMolecule(env, mol, iunit, fileType%gen)
 
    call env%check(fail)
-   if (fail) call terminate(1)
-   call assert(.not.fail)
+   call check_(error, .not.fail)
 
-   call assert_eq(len(mol), 8)
-   call assert_eq(count(mol%pbc), 3)
-   call assert_eq(mol%npbc, 3)
+   call check_(error, len(mol), 8)
+   call check_(error, count(mol%pbc), 3)
+   call check_(error, mol%npbc, 3)
 
-   call assert_eq(mol%at(2), 6)
-   call assert_eq(mol%at(5), 6)
+   call check_(error, mol%at(2), 6)
+   call check_(error, mol%at(5), 6)
 
-   call assert_close(mol%xyz(1,3), 3.3701183607172_wp, thr)
-   call assert_close(mol%xyz(2,2), 3.3701183607172_wp, thr)
-   call assert_close(mol%xyz(3,5), 5.0551869897055_wp, thr)
-   call assert_close(mol%xyz(1,7), 1.6850686289883_wp, thr)
+   call check_(error, mol%xyz(1,3), 3.3701183607172_wp, thr=thr)
+   call check_(error, mol%xyz(2,2), 3.3701183607172_wp, thr=thr)
+   call check_(error, mol%xyz(3,5), 5.0551869897055_wp, thr=thr)
+   call check_(error, mol%xyz(1,7), 1.6850686289883_wp, thr=thr)
 
-   call assert_close(mol%lattice(1,3), 0.0000000000000_wp, thr)
-   call assert_close(mol%lattice(2,2), 6.7406524611432_wp, thr)
+   call check_(error, mol%lattice(1,3), 0.0000000000000_wp, thr=thr)
+   call check_(error, mol%lattice(2,2), 6.7406524611432_wp, thr=thr)
 
    close(iunit)
 
-   call terminate(afail)
 end subroutine
+
+end module test_geometry_reader

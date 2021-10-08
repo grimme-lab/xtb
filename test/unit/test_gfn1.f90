@@ -1,8 +1,52 @@
-subroutine test_gfn1_scc
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_gfn1
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed
+   implicit none
+   private
+
+   public :: collect_gfn1
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_gfn1(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("scc", test_gfn1_scc), &
+      new_unittest("api", test_gfn1_api), &
+      new_unittest("gbsa", test_gfn1gbsa_api), &
+      new_unittest("pcem", test_gfn1_pcem_api), &
+      new_unittest("xb", test_gfn1_xb), &
+      new_unittest("pbc3d", test_gfn1_pbc3d), &
+      new_unittest("mindless-basic", test_gfn1_mindless_basic), &
+      new_unittest("mindless-solvation", test_gfn1_mindless_solvation), &
+      new_unittest("ipea-indole", test_ipea_indole), &
+      new_unittest("mindless-cosmo", test_gfn1_mindless_cosmo) &
+      ]
+
+end subroutine collect_gfn1
+
+
+subroutine test_gfn1_scc(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-
-   use assertion
 
    use xtb_type_environment
    use xtb_type_molecule
@@ -23,7 +67,7 @@ subroutine test_gfn1_scc
    use xtb_xtb_data
    use xtb_xtb_gfn1
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-7_wp
    real(wp),parameter :: thr2 = 1.0e-5_wp
    integer, parameter :: nat = 3
@@ -66,14 +110,14 @@ subroutine test_gfn1_scc
    allocate( g(3,mol%n), source = 0.0_wp )
 
    call use_parameterset('param_gfn1-xtb.txt',globpar,xtbData,okpar)
-   call assert(okpar)
+   call check_(error, okpar)
 
    call newBasisset(xtbData,mol%n,mol%at,basis,okbas)
-   call assert(okbas)
+   call check_(error, okbas)
 
-   call assert_eq(basis%nshell,6)
-   call assert_eq(basis%nbf,   8)
-   call assert_eq(basis%nao,   8)
+   call check_(error, basis%nshell,6)
+   call check_(error, basis%nbf,   8)
+   call check_(error, basis%nao,   8)
 
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%q = mol%chrg/real(mol%n,wp)
@@ -86,42 +130,39 @@ subroutine test_gfn1_scc
       &   egap,et,maxiter,prlevel,restart,lgrad,acc,etot,g,res)
 
    call env%check(exitRun)
-   call assert(.not.exitRun)
+   call check_(error, .not.exitRun)
 
-   call assert(res%converged)
+   call check_(error, res%converged)
 
-   call assert_close(res%e_total,-5.768694907835_wp,thr)
-   call assert_close(res%gnorm,   0.006990472552_wp,thr*10)
+   call check_(error, res%e_total,-5.768694907835_wp, thr=thr)
+   call check_(error, res%gnorm,   0.006990472552_wp, thr=thr*10)
    ! value in electron volt
-   call assert_close(res%hl_gap,  9.314571212134_wp,1.0e-4_wp)
-   call assert_close(res%e_elec, -5.805476374506_wp,thr)
-   call assert_close(res%e_es,    0.050114150158_wp,thr)
-   call assert_close(res%e_disp, -0.000137581088_wp,thr)
-   call assert_close(res%e_rep,   0.036919047759_wp,thr)
+   call check_(error, res%hl_gap,  9.314571212134_wp, thr=1.0e-4_wp)
+   call check_(error, res%e_elec, -5.805476374506_wp, thr=thr)
+   call check_(error, res%e_es,    0.050114150158_wp, thr=thr)
+   call check_(error, res%e_disp, -0.000137581088_wp, thr=thr)
+   call check_(error, res%e_rep,   0.036919047759_wp, thr=thr)
 
-   call assert_close(wfn%q(2),0.33430923478162_wp,thr2)
-   call assert_close(wfn%q(3),wfn%q(2),thr2)
-   call assert_close(wfn%qsh(1),0.30697460552546_wp,thr2)
-   call assert_close(wfn%qsh(4),-0.31974031743775E-01_wp,thr2)
+   call check_(error, wfn%q(2),0.33430923478162_wp, thr=thr2)
+   call check_(error, wfn%q(3),wfn%q(2), thr=thr2)
+   call check_(error, wfn%qsh(1),0.30697460552546_wp, thr=thr2)
+   call check_(error, wfn%qsh(4),-0.31974031743775E-01_wp, thr=thr2)
 
-   call assert_eq(wfn%ihomo,4)
-   call assert_eq(wfn%ihomoa,wfn%ihomob)
-   call assert_close(wfn%emo(wfn%ihomo),-13.612017816475_wp,thr2)
-   call assert_close(wfn%focca(wfn%ihomo),wfn%foccb(wfn%ihomo),thr2)
-   call assert_close(wfn%focc(wfn%ihomo),2.0_wp,thr2)
+   call check_(error, wfn%ihomo,4)
+   call check_(error, wfn%ihomoa,wfn%ihomob)
+   call check_(error, wfn%emo(wfn%ihomo),-13.612017816475_wp, thr=thr2)
+   call check_(error, wfn%focca(wfn%ihomo),wfn%foccb(wfn%ihomo), thr=thr2)
+   call check_(error, wfn%focc(wfn%ihomo),2.0_wp, thr=thr2)
 
    call mol%deallocate
    call wfn%deallocate
    call basis%deallocate
 
-   call terminate(afail)
 end subroutine test_gfn1_scc
 
-subroutine test_gfn1_api
+subroutine test_gfn1_api(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-
-   use assertion
 
    use xtb_type_options
    use xtb_type_molecule
@@ -133,7 +174,7 @@ subroutine test_gfn1_api
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
@@ -174,24 +215,20 @@ subroutine test_gfn1_api
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 5.6067613073468_wp,thr)
-   call assert_close(energy,-8.4156335928615_wp,thr)
-   call assert_close(norm2(gradient),0.95790240549503E-02_wp,thr)
+   call check_(error, hl_gap, 5.6067613073468_wp, thr=thr)
+   call check_(error, energy,-8.4156335928615_wp, thr=thr)
+   call check_(error, norm2(gradient),0.95790240549503E-02_wp, thr=thr)
 
-   call assert_close(gradient(1,5), 0.18116310445596E-02_wp,thr)
-   call assert_close(gradient(2,2), 0.00000000000000E+00_wp,thr)
-   call assert_close(gradient(1,4),-0.18116310445594E-02_wp,thr)
-   call assert_close(gradient(3,6),-0.76256813454808E-03_wp,thr)
-
-   call terminate(afail)
+   call check_(error, gradient(1,5), 0.18116310445596E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.00000000000000E+00_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.18116310445594E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.76256813454808E-03_wp, thr=thr)
 
 end subroutine test_gfn1_api
 
-subroutine test_gfn1gbsa_api
+subroutine test_gfn1gbsa_api(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-
-   use assertion
 
    use xtb_type_options
    use xtb_type_molecule
@@ -205,7 +242,7 @@ subroutine test_gfn1gbsa_api
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
    use xtb_solv_kernel, only : gbKernel
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-7_wp
    integer, parameter :: nat = 8
@@ -249,23 +286,19 @@ subroutine test_gfn1gbsa_api
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 6.641641300724_wp,1e-4_wp)
-   call assert_close(energy,-14.215790820910_wp,thr)
-   call assert_close(norm2(gradient),0.14758139345468E-01_wp,thr)
-   call assert_close(gradient(2,3),0.1002863160985e-01_wp,thr)
-   call assert_close(gradient(3,5),-gradient(3,7),thr)
-   call assert_close(gradient(1,7),-0.6983782950712e-03_wp,thr)
-   call assert_close(gradient(3,8),0.9313074280892e-03_wp,thr)
-
-   call terminate(afail)
+   call check_(error, hl_gap, 6.641641300724_wp, thr=1e-4_wp)
+   call check_(error, energy,-14.215790820910_wp, thr=thr)
+   call check_(error, norm2(gradient),0.14758139345468E-01_wp, thr=thr)
+   call check_(error, gradient(2,3),0.1002863160985e-01_wp, thr=thr)
+   call check_(error, gradient(3,5),-gradient(3,7), thr=thr)
+   call check_(error, gradient(1,7),-0.6983782950712e-03_wp, thr=thr)
+   call check_(error, gradient(3,8),0.9313074280892e-03_wp, thr=thr)
 
 end subroutine test_gfn1gbsa_api
 
-subroutine test_gfn1_pcem_api
+subroutine test_gfn1_pcem_api(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-
-   use assertion
 
    use xtb_type_options
    use xtb_type_molecule
@@ -277,7 +310,7 @@ subroutine test_gfn1_pcem_api
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 12, nat2 = nat/2
@@ -328,14 +361,14 @@ subroutine test_gfn1_pcem_api
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 9.0155275960407_wp,thr*10)
-   call assert_close(energy,-23.113490914998_wp,thr)
-   call assert_close(norm2(gradient),0.11143014174684E-01_wp,thr)
+   call check_(error, hl_gap, 9.0155275960407_wp, thr=thr*10)
+   call check_(error, energy,-23.113490914998_wp, thr=thr)
+   call check_(error, norm2(gradient),0.11143014174684E-01_wp, thr=thr)
 
-   call assert_close(gradient(1,5),-0.17083259496397E-02_wp,thr)
-   call assert_close(gradient(2,2), 0.17083259496398E-02_wp,thr)
-   call assert_close(gradient(1,4), 0.27992413917387E-02_wp,thr)
-   call assert_close(gradient(3,6),-0.10966149569550E-02_wp,thr)
+   call check_(error, gradient(1,5),-0.17083259496397E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.17083259496398E-02_wp, thr=thr)
+   call check_(error, gradient(1,4), 0.27992413917387E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.10966149569550E-02_wp, thr=thr)
 
    ! reset
    call mol%deallocate
@@ -357,20 +390,20 @@ subroutine test_gfn1_pcem_api
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 8.7253450652232_wp,thr)
-   call assert_close(energy,-11.559896105984_wp,thr)
-   call assert_close(norm2(gradient),0.24211484942219E-01_wp,thr)
+   call check_(error, hl_gap, 8.7253450652232_wp, thr=thr)
+   call check_(error, energy,-11.559896105984_wp, thr=thr)
+   call check_(error, norm2(gradient),0.24211484942219E-01_wp, thr=thr)
 
-   call assert_close(gradient(1,5),-0.16368872701817E-02_wp,thr)
-   call assert_close(gradient(2,2), 0.34511834874966E-02_wp,thr)
-   call assert_close(gradient(1,4),-0.27846344196073E-02_wp,thr)
-   call assert_close(gradient(3,6),-0.12174494093948E-02_wp,thr)
+   call check_(error, gradient(1,5),-0.16368872701817E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.34511834874966E-02_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.27846344196073E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.12174494093948E-02_wp, thr=thr)
 
-   call assert_close(norm2(calc%pcem%grd),0.12965281862178E-01_wp,thr)
-   call assert_close(calc%pcem%grd(1,5),-0.65532598920592E-03_wp,thr)
-   call assert_close(calc%pcem%grd(2,2), 0.17820246510446E-02_wp,thr)
-   call assert_close(calc%pcem%grd(1,4), 0.60888638785130E-02_wp,thr)
-   call assert_close(calc%pcem%grd(3,6), 0.86753094430381E-03_wp,thr)
+   call check_(error, norm2(calc%pcem%grd),0.12965281862178E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,5),-0.65532598920592E-03_wp, thr=thr)
+   call check_(error, calc%pcem%grd(2,2), 0.17820246510446E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,4), 0.60888638785130E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(3,6), 0.86753094430381E-03_wp, thr=thr)
 
    ! reset
    energy = 0.0_wp
@@ -382,30 +415,26 @@ subroutine test_gfn1_pcem_api
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 8.9183046283326_wp,thr)
-   call assert_close(energy,-11.565012263827_wp,thr)
-   call assert_close(norm2(gradient),0.23134284179991E-01_wp,thr)
+   call check_(error, hl_gap, 8.9183046283326_wp, thr=thr)
+   call check_(error, energy,-11.565012263827_wp, thr=thr)
+   call check_(error, norm2(gradient),0.23134284179991E-01_wp, thr=thr)
 
-   call assert_close(gradient(1,5),-0.63000570838230E-03_wp,thr)
-   call assert_close(gradient(2,2), 0.28673054867063E-02_wp,thr)
-   call assert_close(gradient(1,4),-0.75488974649673E-02_wp,thr)
-   call assert_close(gradient(3,6),-0.12128428341685E-02_wp,thr)
+   call check_(error, gradient(1,5),-0.63000570838230E-03_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.28673054867063E-02_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.75488974649673E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.12128428341685E-02_wp, thr=thr)
 
-   call assert_close(norm2(calc%pcem%grd),0.18251544072073E-01_wp,thr)
-   call assert_close(calc%pcem%grd(1,5),-0.16079631752423E-02_wp,thr)
-   call assert_close(calc%pcem%grd(2,2), 0.23749979339001E-02_wp,thr)
-   call assert_close(calc%pcem%grd(1,4), 0.10140193991067E-01_wp,thr)
-   call assert_close(calc%pcem%grd(3,6), 0.11833638475792E-02_wp,thr)
-
-   call terminate(afail)
+   call check_(error, norm2(calc%pcem%grd),0.18251544072073E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,5),-0.16079631752423E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(2,2), 0.23749979339001E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,4), 0.10140193991067E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(3,6), 0.11833638475792E-02_wp, thr=thr)
 
 end subroutine test_gfn1_pcem_api
 
-subroutine test_gfn1_xb
+subroutine test_gfn1_xb(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-
-   use assertion
 
    use xtb_type_options
    use xtb_type_molecule
@@ -417,7 +446,7 @@ subroutine test_gfn1_xb
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 6
@@ -457,25 +486,21 @@ subroutine test_gfn1_xb
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 2.4991941159068_wp,thr)
-   call assert_close(energy,-15.606233877972_wp,thr)
-   call assert_close(norm2(gradient),0.23014320345408E-01_wp,thr)
+   call check_(error, hl_gap, 2.4991941159068_wp, thr=thr)
+   call check_(error, energy,-15.606233877972_wp, thr=thr)
+   call check_(error, norm2(gradient),0.23014320345408E-01_wp, thr=thr)
 
-   call assert_close(gradient(1,5),-0.39000047348209E-02_wp,thr)
-   call assert_close(gradient(2,2),-0.49294645520340E-02_wp,thr)
-   call assert_close(gradient(1,4), 0.17228152301357E-01_wp,thr)
-   call assert_close(gradient(3,6), 0.00000000000000E+00_wp,thr)
-
-
-   call terminate(afail)
+   call check_(error, gradient(1,5),-0.39000047348209E-02_wp, thr=thr)
+   call check_(error, gradient(2,2),-0.49294645520340E-02_wp, thr=thr)
+   call check_(error, gradient(1,4), 0.17228152301357E-01_wp, thr=thr)
+   call check_(error, gradient(3,6), 0.00000000000000E+00_wp, thr=thr)
 
 end subroutine test_gfn1_xb
 
 
-subroutine test_gfn1_pbc3d
+subroutine test_gfn1_pbc3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
 
    use xtb_mctc_convert
    use xtb_type_options
@@ -491,7 +516,7 @@ subroutine test_gfn1_pbc3d
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    ! CaF2
@@ -543,23 +568,20 @@ subroutine test_gfn1_pbc3d
    call calc%singlepoint(env, mol, wfn, 2, .false., energy, gradient, sigma, &
       & hl_gap, res)
 
-   call assert_close(hl_gap, 7.5302549612743_wp,thr)
-   call assert_close(energy,-11.069452578476_wp,thr)
-   call assert_close(norm2(gradient), 0.28766497266274E-01_wp,thr)
+   call check_(error, hl_gap, 7.5302549612743_wp, thr=thr)
+   call check_(error, energy,-11.069452578476_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.28766497266274E-01_wp, thr=thr)
 
-   call assert_close(gradient(1,1),-0.18972454825631E-03_wp,thr)
-   call assert_close(gradient(1,2),-0.66834750631031E-02_wp,thr)
-   call assert_close(gradient(1,3), 0.68731996113594E-02_wp,thr)
-   call assert_close(gradient(2,1),-0.26831102888425E-03_wp,thr)
-   call assert_close(gradient(3,3), 0.16835831947879E-01_wp,thr)
-
-   call terminate(afail)
+   call check_(error, gradient(1,1),-0.18972454825631E-03_wp, thr=thr)
+   call check_(error, gradient(1,2),-0.66834750631031E-02_wp, thr=thr)
+   call check_(error, gradient(1,3), 0.68731996113594E-02_wp, thr=thr)
+   call check_(error, gradient(2,1),-0.26831102888425E-03_wp, thr=thr)
+   call check_(error, gradient(3,3), 0.16835831947879E-01_wp, thr=thr)
 
 end subroutine test_gfn1_pbc3d
 
 
-subroutine test_gfn1_mindless_basic
-   use assertion
+subroutine test_gfn1_mindless_basic(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -573,7 +595,7 @@ subroutine test_gfn1_mindless_basic
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -609,7 +631,6 @@ subroutine test_gfn1_mindless_basic
 
    call init(env)
    do iMol = 1, 10
-      if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
 
@@ -620,29 +641,26 @@ subroutine test_gfn1_mindless_basic
       call newWavefunction(env, mol, calc, chk)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
-      call assert_close(hl_gap, ref_hlgaps(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
+      call check_(error, hl_gap, ref_hlgaps(iMol), thr=thr)
 
    end do
-
-   call terminate(afail)
 
 end subroutine test_gfn1_mindless_basic
 
 
-subroutine test_gfn1_mindless_solvation
-   use assertion
+subroutine test_gfn1_mindless_solvation(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -658,7 +676,7 @@ subroutine test_gfn1_mindless_solvation
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -698,7 +716,6 @@ subroutine test_gfn1_mindless_solvation
 
    call init(env)
    do iMol = 1, 10
-      if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
 
@@ -711,29 +728,26 @@ subroutine test_gfn1_mindless_solvation
          & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
-      call assert_close(hl_gap, ref_hlgaps(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
+      call check_(error, hl_gap, ref_hlgaps(iMol), thr=thr)
 
    end do
-
-   call terminate(afail)
 
 end subroutine test_gfn1_mindless_solvation
 
 
-subroutine test_ipea_indole
-   use assertion
+subroutine test_ipea_indole(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
    use xtb_mctc_systools, only : rdpath
@@ -750,7 +764,7 @@ subroutine test_ipea_indole
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -799,7 +813,7 @@ subroutine test_ipea_indole
 
    call newXTBCalculator(env, mol, calc, paramfile, 1)
    call env%check(exitRun)
-   call assert(.not.exitRun)
+   call check_(error, .not.exitRun)
    if (.not.exitRun) then
 
       call newWavefunction(env, mol, calc, chk)
@@ -807,7 +821,7 @@ subroutine test_ipea_indole
    end if
 
    call env%check(exitRun)
-   call assert(.not.exitRun)
+   call check_(error, .not.exitRun)
    if (.not.exitRun) then
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
@@ -816,21 +830,19 @@ subroutine test_ipea_indole
    end if
 
    call env%check(exitRun)
-   call assert(.not.exitRun)
+   call check_(error, .not.exitRun)
    if (.not.exitRun) then
 
-      call assert_close(energy, -26.590861716652_wp, thr)
-      call assert_close(norm2(gradient), 0.84641833840045E-01_wp, thr)
-      call assert_close(hl_gap, 2.5955961749533_wp, thr)
+      call check_(error, energy, -26.590861716652_wp, thr=thr)
+      call check_(error, norm2(gradient), 0.84641833840045E-01_wp, thr=thr)
+      call check_(error, hl_gap, 2.5955961749533_wp, thr=thr)
 
    end if
 
-   call terminate(afail)
 end subroutine test_ipea_indole
 
 
-subroutine test_gfn1_mindless_cosmo
-   use assertion
+subroutine test_gfn1_mindless_cosmo(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -845,7 +857,7 @@ subroutine test_gfn1_mindless_cosmo
    use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
    use xtb_solv_input, only : TSolvInput
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -884,7 +896,6 @@ subroutine test_gfn1_mindless_cosmo
 
    call init(env)
    do iMol = 1, 2
-      if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
 
@@ -897,22 +908,22 @@ subroutine test_gfn1_mindless_cosmo
          & cosmo=.true., nang=170))
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
-      call assert_close(hl_gap, ref_hlgaps(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
+      call check_(error, hl_gap, ref_hlgaps(iMol), thr=thr)
 
    end do
 
-   call terminate(afail)
-
 end subroutine test_gfn1_mindless_cosmo
+
+end module test_gfn1

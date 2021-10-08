@@ -1,45 +1,91 @@
-subroutine test_symmetry_water
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_symmetry
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_symmetry
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_symmetry(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("water", test_symmetry_water), &
+      new_unittest("li8", test_symmetry_li8), &
+      new_unittest("pcl3", test_symmetry_pcl3), &
+      new_unittest("c20", test_symmetry_c20) &
+      ]
+
+end subroutine collect_symmetry
+
+
+subroutine test_symmetry_water(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
    use xtb_thermo
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    integer, parameter :: nat = 3
    integer, parameter :: at(nat) = [8,1,1]
-   real(wp)           :: xyz(3,nat) = reshape(&
+   real(wp), allocatable :: xyz(:, :)
+   real(wp),parameter :: desy = 0.1_wp
+   integer, parameter :: maxatdesy = 200
+   character(len= 4)  :: pgroup
+   integer, parameter :: iunit = stdout
+   logical, parameter :: pr = .true.
+
+   xyz = reshape(&
       [ 0.00000000000000_wp,  0.00000000000000_wp, -0.73578586109551_wp, &
       & 1.44183152868459_wp,  0.00000000000000_wp,  0.36789293054775_wp, &
       &-1.44183152868459_wp,  0.00000000000000_wp,  0.36789293054775_wp  &
-      & ],shape(xyz))
-   real(wp),parameter :: desy = 0.1_wp
-   integer, parameter :: maxatdesy = 200
-   character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = stdout
-   logical, parameter :: pr = .true.
+      & ],[3,nat])
+   pgroup = 'C1  '
 
    call rattle(nat,xyz,0.025_wp)
 
    call getsymmetry(pr,iunit,nat,at,xyz,desy,maxatdesy,pgroup)
 
-   if (pgroup.ne."c2v") stop 1
-
-   call terminate(afail)
+   call check(error, pgroup, "c2v")
 
 end subroutine test_symmetry_water
 
-subroutine test_symmetry_li8
+subroutine test_symmetry_li8(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
    use xtb_thermo
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    integer, parameter :: nat = 8
    integer, parameter :: at(nat) = [3,3,3,3,3,3,3,3]
-   real(wp)           :: xyz(3,nat) = reshape(&
+   real(wp), allocatable :: xyz(:, :)
+   real(wp),parameter :: desy = 0.1_wp
+   integer, parameter :: maxatdesy = 200
+   character(len= 4)  :: pgroup
+   integer, parameter :: iunit = stdout
+   logical, parameter :: pr = .true.
+
+   xyz = reshape(&
       &[3.44376028745523_wp,-3.44376028745523_wp, 3.44376028745523_wp, &
       &-3.44376028745523_wp, 3.44376028745523_wp, 3.44376028745523_wp, &
       & 3.44376028745523_wp, 3.44376028745523_wp,-3.44376028745523_wp, &
@@ -48,68 +94,69 @@ subroutine test_symmetry_li8
       &-1.96829703889624_wp, 1.96829703889624_wp,-1.96829703889624_wp, &
       &-1.96829703889624_wp,-1.96829703889624_wp, 1.96829703889624_wp, &
       & 1.96829703889624_wp,-1.96829703889624_wp,-1.96829703889624_wp  &
-      & ],shape(xyz))
-   real(wp),parameter :: desy = 0.1_wp
-   integer, parameter :: maxatdesy = 200
-   character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = stdout
-   logical, parameter :: pr = .true.
+      & ],[3,nat])
+   pgroup = 'C1  '
 
    call rattle(nat,xyz,0.025_wp)
 
    call getsymmetry(pr,iunit,nat,at,xyz,desy,maxatdesy,pgroup)
 
-   if (pgroup.ne."td") stop 1
-
-   call terminate(afail)
+   call check(error, pgroup, "td")
 
 end subroutine test_symmetry_li8
 
-subroutine test_symmetry_pcl3
+subroutine test_symmetry_pcl3(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
    use xtb_thermo
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    integer, parameter :: nat = 4
    integer, parameter :: at(nat) = [15,17,17,17]
-   real(wp)           :: xyz(3,nat) = reshape([&
+   real(wp), allocatable :: xyz(:, :)
+   real(wp),parameter :: desy = 0.1_wp
+   integer, parameter :: maxatdesy = 200
+   character(len= 4)  :: pgroup
+   integer, parameter :: iunit = stdout
+   logical, parameter :: pr = .true.
+
+   xyz = reshape([&
       &-0.3927247746_wp,    3.3399945638_wp,    0.0000000000_wp, &
       & 2.0622241137_wp,    3.7182629335_wp,    2.9906068785_wp, &
       & 2.0622241137_wp,    3.7182629335_wp,   -2.9906068785_wp, &
       &-2.0622241137_wp,    6.8478421617_wp,    0.0000000000_wp  &
-      & ],shape(xyz))
-   real(wp),parameter :: desy = 0.1_wp
-   integer, parameter :: maxatdesy = 200
-   character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = stdout
-   logical, parameter :: pr = .true.
+      & ],[3,nat])
+   pgroup = 'C1  '
 
    call rattle(nat,xyz,0.025_wp)
 
    call getsymmetry(pr,iunit,nat,at,xyz,desy,maxatdesy,pgroup)
 
-   if (pgroup.ne."c3v") stop 1
-
-   call terminate(afail)
+   call check(error, pgroup, "c3v")
 
 end subroutine test_symmetry_pcl3
 
-subroutine test_symmetry_c20
+subroutine test_symmetry_c20(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
    use xtb_thermo
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    integer, parameter :: nat = 60
    integer, parameter :: at(nat) = [6,6,1,6,6,6,6,6,1,6,6,6,1,6,6,6,1,6, &
       & 6,6,1,6,1,6,6,1,6,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, &
       & 1,1,1,1,1,1,1,1,1,1]
-   real(wp)           :: xyz(3,nat) = reshape(&
+   real(wp), allocatable :: xyz(:, :)
+   real(wp),parameter :: desy = 0.25_wp
+   integer, parameter :: maxatdesy = 200
+   character(len= 4)  :: pgroup
+   integer, parameter :: iunit = stdout
+   logical, parameter :: pr = .true.
+
+   pgroup = 'C1  '
+   xyz = reshape(&
       &[2.41219194492747_wp,-4.91851303826010_wp,-0.22758538736182_wp, &
       & 4.82472026110659_wp,-5.14171048154136_wp, 1.32760630767135_wp, &
       & 4.77295499314845_wp,-3.75166762243947_wp, 2.85870210478409_wp, &
@@ -170,31 +217,23 @@ subroutine test_symmetry_c20
       & 4.86034915761601_wp,-6.98837353531080_wp, 2.25830209729592_wp, &
       & 2.33516859747718_wp,-3.06384888404402_wp,-1.14234889596004_wp, &
       & 2.44560041323075_wp,-6.30719907399858_wp,-1.76302566485406_wp  &
-      & ],shape(xyz))
-   real(wp),parameter :: desy = 0.25_wp
-   integer, parameter :: maxatdesy = 200
-   character(len= 4)  :: pgroup = 'C1  '
-   integer, parameter :: iunit = stdout
-   logical, parameter :: pr = .true.
+      & ],[3,nat])
 
    call rattle(nat,xyz,0.010_wp)
 
    call getsymmetry(pr,iunit,nat,at,xyz,0.1_wp,maxatdesy,pgroup)
 
-   if (pgroup.ne."c2") stop 1
+   call check(error, pgroup, "c2")
 
    call getsymmetry(pr,iunit,nat,at,xyz,0.2_wp,maxatdesy,pgroup)
 
-   if (pgroup.ne."c2v") stop 1
-
-   call terminate(afail)
+   call check(error, pgroup, "c2v")
 
 end subroutine test_symmetry_c20
 
 subroutine rattle(nat,xyz,magnitude)
    use xtb_mctc_accuracy, only : wp
 
-   implicit none
    integer, intent(in) :: nat
    real(wp), intent(out) :: xyz(3,nat)
    real(wp), intent(in) :: magnitude
@@ -209,3 +248,5 @@ subroutine rattle(nat,xyz,magnitude)
    enddo
 
 end subroutine rattle
+
+end module test_symmetry
