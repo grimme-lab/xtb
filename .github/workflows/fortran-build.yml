@@ -53,7 +53,7 @@ jobs:
       run: meson compile -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120
       env:
         OMP_NUM_THREADS: 2,1
 
@@ -140,7 +140,7 @@ jobs:
       run: meson compile -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120
       env:
         OMP_NUM_THREADS: 2,1
 
@@ -196,7 +196,7 @@ jobs:
       run: ninja -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120
       env:
         OMP_NUM_THREADS: 2,1
 
