@@ -1,5 +1,42 @@
-subroutine test_repulsion_cluster
-   use assertion
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_repulsion
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_repulsion
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_repulsion(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("cluster", test_repulsion_cluster), &
+      new_unittest("pbc3d", test_repulsion_pbc3d) &
+      ]
+
+end subroutine collect_repulsion
+
+
+subroutine test_repulsion_cluster(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : sqrtpi
    use xtb_mctc_la, only : contract
@@ -8,7 +45,7 @@ subroutine test_repulsion_cluster
    use xtb_xtb_data
    use xtb_xtb_gfn2
    use xtb_xtb_repulsion
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp), parameter :: thr = 1.0e-9_wp
    real(wp), parameter :: thr2 = 1.0e-8_wp
    integer, parameter :: nat = 24
@@ -69,7 +106,7 @@ subroutine test_repulsion_cluster
 
    call repulsionEnGrad(mol, rep, trans, 40.0_wp, energy, gradient, sigma)
 
-   call assert_close(energy, 0.49222837261241_wp, thr)
+   call check(error, energy, 0.49222837261241_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat
@@ -85,7 +122,7 @@ subroutine test_repulsion_cluster
          call repulsionEnGrad(mol, rep, trans, 40.0_wp, el, gdum, sdum)
 
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -106,15 +143,13 @@ subroutine test_repulsion_cluster
          call repulsionEnGrad(mol, rep, trans, 40.0_wp, el, gdum, sdum)
 
          eps(jj, ii) = eps(jj, ii) + step
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr2)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_repulsion_cluster
 
-subroutine test_repulsion_pbc3d
-   use assertion
+subroutine test_repulsion_pbc3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
@@ -126,7 +161,7 @@ subroutine test_repulsion_pbc3d
    use xtb_xtb_data
    use xtb_xtb_gfn1
    use xtb_xtb_repulsion
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    real(wp),parameter :: thr2 = 1.0e-8_wp
@@ -210,7 +245,7 @@ subroutine test_repulsion_pbc3d
 
    call repulsionEnGrad(mol, rep, trans, 40.0_wp, energy, gradient, sigma)
 
-   call assert_close(energy, 0.58472111816325_wp, thr)
+   call check(error, energy, 0.58472111816325_wp, thr=thr)
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp
@@ -218,7 +253,7 @@ subroutine test_repulsion_pbc3d
 
    call repulsionEnGrad(mol, rep, neighs, neighList, energy, gradient, sigma)
 
-   call assert_close(energy, 0.58472111816325_wp, thr)
+   call check(error, energy, 0.58472111816325_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat, 5
@@ -234,7 +269,7 @@ subroutine test_repulsion_pbc3d
          call repulsionEnGrad(mol, rep, trans, 40.0_wp, el, gdum, sdum)
 
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -258,9 +293,10 @@ subroutine test_repulsion_pbc3d
          call repulsionEnGrad(mol, rep, trans, 40.0_wp, el, gdum, sdum)
 
          eps(jj, ii) = eps(jj, ii) + step
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr2)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_repulsion_pbc3d
+
+end module test_repulsion

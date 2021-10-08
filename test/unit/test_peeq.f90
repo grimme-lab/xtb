@@ -1,7 +1,45 @@
-subroutine test_peeq_sp
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_peeq
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed
+   implicit none
+   private
+
+   public :: collect_peeq
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_peeq(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("sp", test_peeq_sp), &
+      new_unittest("api", test_peeq_api), &
+      new_unittest("srb", test_peeq_api_srb) &
+      ]
+
+end subroutine collect_peeq
+
+
+subroutine test_peeq_sp(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
 
    use xtb_mctc_systools
 
@@ -25,7 +63,7 @@ subroutine test_peeq_sp
    use xtb_xtb_data
    use xtb_xtb_gfn0
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-7_wp
    ! SiO2
@@ -95,10 +133,7 @@ subroutine test_peeq_sp
       if (.not.exist) fnv = p_fnv_gfn0
       call open_file(ipar,fnv,'r')
       if (ipar.eq.-1) then
-         ! at this point there is no chance to recover from this error
-         ! THEREFORE, we have to kill the program
-         call env%error("Parameter file '"//fnv//"' not found!")
-         call terminate(1)
+         call test_failed(error, "Parameter file '"//fnv//"' not found!")
          return
       endif
       call readParam(env,ipar,globpar,xtbData,.true.)
@@ -117,21 +152,21 @@ subroutine test_peeq_sp
    call peeq(env,mol,wfn,basis,xtbData,gbsa,hl_gap,et,prlevel,lgrad,.true.,acc, &
       &      energy,gradient,sigma,res)
 
-   call assert_close(energy,-7.3570001012578_wp,thr)
-   call assert_close(hl_gap, 2.1170422163611_wp,1.0e-4_wp)
-   call assert_close(norm2(gradient),4.6531382100157_wp,thr)
-   call assert_close(gradient(1,1),0.0171831109909_wp,thr)
-   call assert_close(gradient(3,2),3.1002099423654_wp,thr)
+   call check_(error, energy,-7.3570001012578_wp, thr=thr)
+   call check_(error, hl_gap, 2.1170422163611_wp, thr=1.0e-4_wp)
+   call check_(error, norm2(gradient),4.6531382100157_wp, thr=thr)
+   call check_(error, gradient(1,1),0.0171831109909_wp, thr=thr)
+   call check_(error, gradient(3,2),3.1002099423654_wp, thr=thr)
 
-   call assert_close(sigma(1,1),-0.48669769112351_wp,thr)
-   call assert_close(sigma(2,1),-0.33613693973170_wp,thr)
-   call assert_close(sigma(2,3), -1.3504590911322_wp,thr)
+   call check_(error, sigma(1,1),-0.48669769112351_wp, thr=thr)
+   call check_(error, sigma(2,1),-0.33613693973170_wp, thr=thr)
+   call check_(error, sigma(2,3), -1.3504590911322_wp, thr=thr)
 
-   call assert_close(res%e_elec,-8.303090012925_wp,thr)
-   call assert_close(res%e_es,  -0.126523327000_wp,thr)
-   call assert_close(res%e_disp,-0.004101334765_wp,thr)
-   call assert_close(res%e_rep,  1.076714573432_wp,thr)
-   call assert_close(res%e_xb,   0.000000000000_wp,thr)
+   call check_(error, res%e_elec,-8.303090012925_wp, thr=thr)
+   call check_(error, res%e_es,  -0.126523327000_wp, thr=thr)
+   call check_(error, res%e_disp,-0.004101334765_wp, thr=thr)
+   call check_(error, res%e_rep,  1.076714573432_wp, thr=thr)
+   call check_(error, res%e_xb,   0.000000000000_wp, thr=thr)
 
    ! reset for reevaluatuation without CCM
    energy = 0.0_wp
@@ -141,30 +176,27 @@ subroutine test_peeq_sp
    call peeq(env,mol,wfn,basis,xtbData,gbsa,hl_gap,et,prlevel,lgrad,.false.,acc, &
       &      energy,gradient,sigma,res)
 
-   call assert_close(energy,-7.3514275392244_wp,thr)
-   call assert_close(hl_gap, 2.2269146636198_wp,1.0e-4_wp)
-   call assert_close(norm2(gradient),4.6440176418778_wp,thr)
-   call assert_close(gradient(1,1),0.0078432890861_wp,thr)
-   call assert_close(gradient(3,2),3.0969842115048_wp,thr)
+   call check_(error, energy,-7.3514275392244_wp, thr=thr)
+   call check_(error, hl_gap, 2.2269146636198_wp, thr=1.0e-4_wp)
+   call check_(error, norm2(gradient),4.6440176418778_wp, thr=thr)
+   call check_(error, gradient(1,1),0.0078432890861_wp, thr=thr)
+   call check_(error, gradient(3,2),3.0969842115048_wp, thr=thr)
 
-   call assert_close(sigma(1,1),-0.51138347441108_wp,thr)
-   call assert_close(sigma(2,1),-0.31805950090099_wp,thr)
-   call assert_close(sigma(2,3), -1.3396127658627_wp,thr)
+   call check_(error, sigma(1,1),-0.51138347441108_wp, thr=thr)
+   call check_(error, sigma(2,1),-0.31805950090099_wp, thr=thr)
+   call check_(error, sigma(2,3), -1.3396127658627_wp, thr=thr)
 
-   call assert_close(res%e_elec,-8.297517450892_wp,thr)
-   call assert_close(res%e_es,  -0.126523327000_wp,thr)
-   call assert_close(res%e_disp,-0.004101334765_wp,thr)
-   call assert_close(res%e_rep,  1.076714573432_wp,thr)
-   call assert_close(res%e_xb,   0.000000000000_wp,thr)
-
-   call terminate(afail)
+   call check_(error, res%e_elec,-8.297517450892_wp, thr=thr)
+   call check_(error, res%e_es,  -0.126523327000_wp, thr=thr)
+   call check_(error, res%e_disp,-0.004101334765_wp, thr=thr)
+   call check_(error, res%e_rep,  1.076714573432_wp, thr=thr)
+   call check_(error, res%e_xb,   0.000000000000_wp, thr=thr)
 
 end subroutine test_peeq_sp
 
-subroutine test_peeq_api
+subroutine test_peeq_api(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
 
    use xtb_type_options
    use xtb_type_molecule
@@ -178,7 +210,7 @@ subroutine test_peeq_api
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    ! CaF2
@@ -202,6 +234,7 @@ subroutine test_peeq_api
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
+   logical :: failed
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp) :: gradlatt(3,3)
@@ -224,7 +257,11 @@ subroutine test_peeq_api
    call mctc_mute
 
    call newXTBCalculator(env, mol, calc, method=0)
-   call env%checkpoint("failed setup")
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Setup failed")
+      return
+   end if
    call newWavefunction(env, mol, calc, chk)
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
@@ -232,19 +269,16 @@ subroutine test_peeq_api
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,gradlatt)
 
-   call assert_close(hl_gap, 4.9685235017906_wp,thr)
-   call assert_close(energy,-8.4863996084661_wp,thr)
-   call assert_close(norm2(gradient),0.33507483384363E-04_wp,thr)
-   call assert_close(norm2(gradlatt),0.33064163041261E-02_wp,thr)
-
-   call terminate(afail)
+   call check_(error, hl_gap, 4.9685235017906_wp, thr=thr)
+   call check_(error, energy,-8.4863996084661_wp, thr=thr)
+   call check_(error, norm2(gradient),0.33507483384363E-04_wp, thr=thr)
+   call check_(error, norm2(gradlatt),0.33064163041261E-02_wp, thr=thr)
 
 end subroutine test_peeq_api
 
-subroutine test_peeq_api_srb
+subroutine test_peeq_api_srb(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
 
    use xtb_mctc_convert
    use xtb_type_options
@@ -259,7 +293,7 @@ subroutine test_peeq_api_srb
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    ! CaF2
@@ -314,6 +348,7 @@ subroutine test_peeq_api_srb
    type(scc_results) :: res
    type(TxTBCalculator) :: calc
 
+   logical :: failed
    real(wp) :: energy
    real(wp) :: hl_gap
    real(wp) :: gradlatt(3,3)
@@ -333,7 +368,11 @@ subroutine test_peeq_api_srb
    call mctc_mute
 
    call newXTBCalculator(env, mol, calc, method=0)
-   call env%checkpoint("failed setup")
+   call env%check(failed)
+   if (failed) then
+      call test_failed(error, "Setup failed")
+      return
+   end if
    call newWavefunction(env, mol, calc, chk)
 
    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
@@ -341,21 +380,21 @@ subroutine test_peeq_api_srb
    inv_lat = mat_inv_3x3(mol%lattice)
    call sigma_to_latgrad(sigma,inv_lat,gradlatt)
 
-   call assert_close(hl_gap, 3.2452476555284_wp,thr)
-   call assert_close(energy,-47.338099017467_wp,thr)
-   call assert_close(norm2(gradient),0.60674690405096E-01_wp,thr)
-   call assert_close(norm2(gradlatt),0.25787608030965E-01_wp,thr)
+   call check_(error, hl_gap, 3.2452476555284_wp, thr=thr)
+   call check_(error, energy,-47.338099017467_wp, thr=thr)
+   call check_(error, norm2(gradient),0.60674690405096E-01_wp, thr=thr)
+   call check_(error, norm2(gradlatt),0.25787608030965E-01_wp, thr=thr)
 
-   call assert_close(gradient(1, 3), 0.15527599551578E-02_wp,thr)
-   call assert_close(gradient(2,11), 0.14689883866846E-01_wp,thr)
-   call assert_close(gradient(1, 6),-0.18911924607680E-02_wp,thr)
-   call assert_close(gradient(3, 5), 0.15935221260425E-02_wp,thr)
-   call assert_close(gradient(1, 8), 0.25516596273654E-02_wp,thr)
+   call check_(error, gradient(1, 3), 0.15527599551578E-02_wp, thr=thr)
+   call check_(error, gradient(2,11), 0.14689883866846E-01_wp, thr=thr)
+   call check_(error, gradient(1, 6),-0.18911924607680E-02_wp, thr=thr)
+   call check_(error, gradient(3, 5), 0.15935221260425E-02_wp, thr=thr)
+   call check_(error, gradient(1, 8), 0.25516596273654E-02_wp, thr=thr)
 
-   call assert_close(gradlatt(1,3), 0.24324041066017E-03_wp,thr)
-   call assert_close(gradlatt(2,2), 0.11757572269151E-01_wp,thr)
-   call assert_close(gradlatt(1,2), 0.60490544331116E-03_wp,thr)
-
-   call terminate(afail)
+   call check_(error, gradlatt(1,3), 0.24324041066017E-03_wp, thr=thr)
+   call check_(error, gradlatt(2,2), 0.11757572269151E-01_wp, thr=thr)
+   call check_(error, gradlatt(1,2), 0.60490544331116E-03_wp, thr=thr)
 
 end subroutine test_peeq_api_srb
+
+end module test_peeq

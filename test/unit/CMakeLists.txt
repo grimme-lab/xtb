@@ -23,6 +23,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(
   tests
+  "atomlist"
   "coordinationnumber"
   "coulomb"
   "dftd3"
@@ -30,7 +31,10 @@ set(
   "eeq"
   "geometry-reader"
   "hessian"
+  "latticepoint"
   "molecule"
+  "peeq"
+  "repulsion"
   "symmetry"
   "thermo"
   "wsc"
@@ -75,15 +79,11 @@ set(test-srcs2
   "${dir}/tests_peeq.f90"
   "${dir}/assertion.f90"
   "${dir}/molstock.f90"
-  "${dir}/latticepoint.f90"
   "${dir}/pbc_tools.f90"
   "${dir}/gfn2.f90"
   "${dir}/gfn1.f90"
   "${dir}/gfn0.f90"
   "${dir}/gfnff.f90"
-  "${dir}/peeq.f90"
-  "${dir}/repulsion.f90"
-  "${dir}/tbdef_atomlist.f90"
 )
 
 add_executable(xtb_tests_static ${test-srcs2})
@@ -115,11 +115,8 @@ add_test("EXE_GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart --names
 add_test("EXE_GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart --namespace test5)
 add_test("EXE_GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 
-add_test("LatticePoint" ${XTB-TESTER} latticepoint pbc3d)
 add_test("PBC_tools_convert" ${XTB-TESTER} pbc_tools convert)
 add_test("PBC_tools_cutoff" ${XTB-TESTER} pbc_tools cutoff)
-add_test("Repulsion_0d" ${XTB-TESTER} repulsion cluster)
-add_test("Repulsion_3d" ${XTB-TESTER} repulsion pbc3d)
 add_test("GFN2-xTB_Basic" ${XTB-TESTER} gfn2 basic)
 add_test("GFN2-xTB_Solvation" ${XTB-TESTER} gfn2 solvation)
 add_test("GFN2-xTB_SCC" ${XTB-TESTER} gfn2 scc)
@@ -143,9 +140,6 @@ add_test("GFN0-xTB_Solvation" ${XTB-TESTER} gfn0 solvation)
 add_test("GFN0-xTB_SP" ${XTB-TESTER} gfn0 sp)
 add_test("GFN0-xTB_API" ${XTB-TESTER} gfn0 api)
 add_test("GFN0-xTB_SRB" ${XTB-TESTER} gfn0 srb)
-add_test("GFN0-xTB_SP_PBC" ${XTB-TESTER} peeq sp)
-add_test("GFN0-xTB_API_PBC" ${XTB-TESTER} peeq api)
-add_test("GFN0-xTB_SRB_PBC" ${XTB-TESTER} peeq srb)
 
 add_test("GFN-FF_Basic" ${XTB-TESTER} gfnff basic)
 add_test("GFN-FF_Solvation" ${XTB-TESTER} gfnff solvation)
@@ -180,9 +174,6 @@ set_tests_properties(
   "GFN0-xTB_SP"
   "GFN0-xTB_API"
   "GFN0-xTB_SRB"
-  "GFN0-xTB_SP_PBC"
-  "GFN0-xTB_API_PBC"
-  "GFN0-xTB_SRB_PBC"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )

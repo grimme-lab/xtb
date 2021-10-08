@@ -32,6 +32,7 @@ endif
 testdrive_dep = testdrive_prj.get_variable('testdrive_dep')
 
 tests = [
+  'atomlist',
   'coordinationnumber',
   'coulomb',
   'dftd3',
@@ -39,7 +40,10 @@ tests = [
   'eeq',
   'geometry-reader',
   'hessian',
+  'latticepoint',
   'molecule',
+  'peeq',
+  'repulsion',
   'symmetry',
   'thermo',
   'wsc',
@@ -70,12 +74,8 @@ xtb_test = files(
   'gfn1.f90',
   'gfn2.f90',
   'gfnff.f90',
-  'latticepoint.f90',
   'pbc_tools.f90',
-  'peeq.f90',
-  'repulsion.f90',
   'tests_peeq.f90',
-  'tbdef_atomlist.f90',
 )
 
 xtb_test = executable(
@@ -111,17 +111,8 @@ test('GFN2-xTB/GBSA', xtb_exe, args: ['--coffee', '--gfn', '2', '--strict', '--g
 test('GFN-FF', xtb_exe, args: ['--coffee', '--gfnff', '--strict', '--norestart', '--namespace', 'test7'], env: xtbenv, timeout: test_timeout)
 
 # more specific tests are implemented by the tester binary
-test('Lattice points PBC-3D', xtb_test, args: ['latticepoint', 'pbc3d'], env: xtbenv, timeout: test_timeout)
-
-if fc.get_id() == 'intel'
-  test('IO atom list', xtb_test, args: ['xtb_type_atomlist', 'list'], env: xtbenv, timeout: test_timeout)
-endif
-
 test('PBC tools convert',xtb_test, args: ['pbc_tools', 'convert'], env: xtbenv, timeout: test_timeout)
 test('PBC tools cutoff', xtb_test, args: ['pbc_tools', 'cutoff'], env: xtbenv, timeout: test_timeout)
-
-test('Repulsion 0D', xtb_test, args: ['repulsion', 'cluster'], env: xtbenv, timeout: test_timeout)
-test('Repulsion 3D', xtb_test, args: ['repulsion', 'pbc3d'], env: xtbenv, timeout: test_timeout)
 
 test('GFN2-xTB Basic', xtb_test, args: ['gfn2', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN2-xTB Solvation', xtb_test, args: ['gfn2', 'solvation'], env: xtbenv, timeout: test_timeout)
@@ -149,9 +140,6 @@ test('GFN0-xTB Solvation', xtb_test, args: ['gfn0', 'solvation'], env: xtbenv, t
 test('GFN0-xTB SP', xtb_test, args: ['gfn0', 'sp'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB API', xtb_test, args: ['gfn0', 'api'], env: xtbenv, timeout: test_timeout)
 test('GFN0-xTB SRB', xtb_test, args: ['gfn0', 'srb'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB SP  (PBC)', xtb_test, args: ['peeq', 'sp'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB API (PBC)', xtb_test, args: ['peeq', 'api'], env: xtbenv, timeout: test_timeout)
-test('GFN0-xTB SRB (PBC)', xtb_test, args: ['peeq', 'srb'], env: xtbenv, timeout: test_timeout)
 
 test('GFN-FF Basic', xtb_test, args: ['gfnff', 'basic'], env: xtbenv, timeout: test_timeout)
 test('GFN-FF Solvation', xtb_test, args: ['gfnff', 'solvation'], env: xtbenv, timeout: test_timeout)

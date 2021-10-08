@@ -40,11 +40,6 @@ program peeq_tester
    call rdarg(2,sec)
 
    select case(arg)
-   case('repulsion')
-      select case(sec)
-      case('cluster'); call test_repulsion_cluster
-      case('pbc3d'); call test_repulsion_pbc3d
-      end select
    case('gfn2')
       select case(sec)
       case('basic'); call test_gfn2_mindless_basic
@@ -89,24 +84,10 @@ program peeq_tester
       case('hb');  call test_gfnff_hb
       case('gbsa');call test_gfnff_gbsa
       end select
-   case('peeq')
-      select case(sec)
-      case('sp');  call test_peeq_sp
-      case('api'); call test_peeq_api
-      case('srb'); call test_peeq_api_srb
-      end select
    case('pbc_tools')
       select case(sec)
       case('convert'); call test_pbc_tools_convert
       case('cutoff');  call test_pbc_tools_cutoff
-      end select
-   case('xtb_type_atomlist')
-      select case(sec)
-      case('list'); call test_atomlist
-      end select
-   case('latticepoint')
-      select case(sec)
-      case('pbc3d'); call test_latticepoint_pbc3d
       end select
    end select
 
