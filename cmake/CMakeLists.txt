@@ -14,12 +14,30 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.9)
-
+option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
 if(NOT DEFINED "${PROJECT_NAME}-dependeny-method")
   set(
     "${PROJECT_NAME}-dependency-method"
     "subproject" "cmake" "pkgconf" "fetch"
+  )
+endif()
+
+set(
+  module-dir
+  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
+)
+set(module-dir "${module-dir}" PARENT_SCOPE)
+
+# Set build type as CMake does not provide defaults
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(
+    CMAKE_BUILD_TYPE "RelWithDebInfo"
+    CACHE STRING "Build type to be used."
+    FORCE
+  )
+  message(
+    STATUS
+    "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified."
   )
 endif()
 
@@ -34,9 +52,6 @@ install(
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
   set(bounds "-fbounds-check")
-  if(NOT CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0.0)
-    set(DISABLE_OMP ON PARENT_SCOPE)
-  endif()
 endif()
 if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(dialect "-axAVX2 -r8 -traceback")
@@ -47,13 +62,6 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
 endif()
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
-
-
-# Program version, split to get major version for SOVERSION
-string(REGEX MATCHALL "[0-9]+" version-split "${PROJECT_VERSION}")
-list(GET version-split 0 XTB_VERSION_MAJOR)
-set(XTB_VERSION_MAJOR "${XTB_VERSION_MAJOR}" PARENT_SCOPE)
-
 
 # Populate xtb_version.fh
 set(version ${PROJECT_VERSION})
@@ -69,9 +77,7 @@ string(TIMESTAMP date "%m/%d/%Y")
 set(author $ENV{USERNAME})
 set(origin ${CMAKE_HOST_SYSTEM_NAME})
 configure_file(
-  "${xtb-dir}/assets/templates/version.f90"
-  "${CMAKE_CURRENT_BINARY_DIR}/xtb_version.fh"
+  "${PROJECT_SOURCE_DIR}/assets/templates/version.f90"
+  "${PROJECT_BINARY_DIR}/xtb_version.fh"
   @ONLY
 )
-
-set(xtb-config-dir "${CMAKE_CURRENT_BINARY_DIR}" PARENT_SCOPE)

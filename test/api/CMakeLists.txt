@@ -14,23 +14,22 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
-
-add_executable(xtb_tests_capi "${dir}/c_api_example.c")
-target_link_libraries(xtb_tests_capi
+add_executable(
+  "${PROJECT_NAME}_tests_capi"
+  "c_api_example.c"
+)
+target_link_libraries(
+  "${PROJECT_NAME}_tests_capi"
   PUBLIC
-  lib-xtb-shared
-)
-set_target_properties(xtb_tests_capi PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
-  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+  "lib-${PROJECT_NAME}-shared"
 )
 
-set(XTB-CTESTER ${PROJECT_BINARY_DIR}/xtb_tests_capi)
-
-add_test("${PROJECT_NAME}/CAPI" ${XTB-CTESTER})
+add_test(
+  "${PROJECT_NAME}/CAPI"
+  "${PROJECT_NAME}_tests_capi"
+)
 set_tests_properties(
-   "${PROJECT_NAME}/CAPI"
+  "${PROJECT_NAME}/CAPI"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )
