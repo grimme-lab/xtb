@@ -904,7 +904,6 @@ end subroutine prdechng
 
 
 subroutine trfp2xyz(nvar,nat3,p,xyz0,h,dspl)
-   use xtb_symparam
    implicit none
    integer, intent(in)  :: nat3
    integer, intent(in)  :: nvar
@@ -929,18 +928,6 @@ subroutine trfp2xyz(nvar,nat3,p,xyz0,h,dspl)
          enddo
       enddo
    enddo
-
-!     do i=1,nat
-!        write(*,*) dspl(1:3,i)
-!     enddo
-
-! symmetrize displ
-   if(ntrans.gt.1) call grdsym(dspl,nat)
-
-!     write(*,*) ntrans
-!     do i=1,nat
-!        write(*,*) dspl(1:3,i)
-!     enddo
 
    dspl=dspl + xyz0
 
