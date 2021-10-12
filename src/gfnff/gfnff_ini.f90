@@ -72,6 +72,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
 
       parameter (bohr=1.0_wp/0.52917726_wp)
 
+      real(wp), parameter :: rabd_cutoff = 13.0_wp
+
       logical lring,picon,notpicon,bridge,sp3ij,ccij,success
       logical heavy,triple,piat,sp3kl,ex,cnij,frag_charges_known
 
@@ -385,7 +387,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       call nbondmat(mol%n,topo%nb,topo%bpair)  ! get number of cov. bonds between atoms up to 4 bonds
       write(env%unit,'(10x,"computing topology distances matrix with Floyd-Warshall algo ...")')
       allocate( rabd(mol%n,mol%n), source = 0.0e0_sp)
-      rabd = 1.0d+12
+      rabd = rabd_cutoff
 !     determine topology distances by Floyd-Warshall algo
 !     they are used in the EEQ to determine qa (approximate topology charges)
       do i = 1, mol%n
@@ -411,7 +413,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       do i=1,mol%n
          do j=1,i-1
             ij=lin(j,i)
-            if(rabd(j,i).gt.gen%tdist_thr) rabd(j,i)=1.0d+12 ! values not properly considered
+            if(rabd(j,i).gt.gen%tdist_thr) rabd(j,i)=rabd_cutoff ! values not properly considered
             rtmp(ij) = gen%rfgoed1* rabd(j,i) / 0.52917726d0
          enddo
       enddo

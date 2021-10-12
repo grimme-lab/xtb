@@ -490,11 +490,11 @@ subroutine test_gfnff_scaleup(error)
    character(len=*), parameter :: solvents(5) = [character(len=20) ::&
       & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
    real(wp), parameter :: ref_energies(5) = &
-      &[-4.6919926039901_wp, -8.8777443374228_wp, -13.337202405627_wp, &
-      & -13.812533050807_wp, -20.571609956531_wp]
+      &[-4.6919926039901_wp, -8.8807760138817_wp, -13.311107073100_wp, &
+      & -13.822994859730_wp, -20.577952329212_wp]
    real(wp), parameter :: ref_gnorms(5) = &
-      &[0.05947676640487_wp, 0.09579843444240_wp, 0.16441091067186_wp, &
-      & 0.12794843205402_wp, 0.19531423406795_wp]
+      &[0.05947676640487_wp, 0.09522104624089_wp, 0.16195989065950_wp, &
+      & 0.12496592222660_wp, 0.19366599743810_wp]
 
    call init(env)
    do iMol = 1, 5
@@ -559,9 +559,9 @@ subroutine test_gfnff_pdb(error)
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-12.384444510462_wp, -12.467791388867_wp, -12.467334223942_wp]
+      &[-12.358885277947_wp, -12.442589851697_wp, -12.442131341448_wp]
    real(wp), parameter :: ref_gnorms(3) = &
-      &[0.15858916978951_wp, 0.15170112960820_wp, 0.15172293684027_wp]
+      &[0.15855661051730_wp, 0.15148957207346_wp, 0.15151167424491_wp]
 
    call init(env)
    do iMol = 1, 3
