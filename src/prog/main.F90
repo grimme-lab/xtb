@@ -34,7 +34,6 @@ module xtb_prog_main
    use xtb_sphereparam
    use xtb_scanparam
    use xtb_splitparam
-   use xtb_symparam
    use xtb_fixparam
    use xtb_constrain_param, only : read_userdata
    use xtb_shake, only: init_shake

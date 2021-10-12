@@ -142,8 +142,6 @@ list(APPEND srcs
   "${dir}/splitparam.f90"
   "${dir}/stm.f"
   "${dir}/surfac.f"
-  "${dir}/symparam.f90"
-  "${dir}/symtranslib.f90"
   "${dir}/thermo.f90"
   "${dir}/timing.f90"
   "${dir}/topology.f90"

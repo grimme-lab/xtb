@@ -140,8 +140,6 @@ srcs += files(
   'splitparam.f90',
   'stm.f',
   'surfac.f',
-  'symparam.f90',
-  'symtranslib.f90',
   'thermo.f90',
   'timing.f90',
   'topology.f90',
