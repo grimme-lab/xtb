@@ -32,10 +32,8 @@
 *.app
 
 # directories
-bin
-build
-modules
-CODECHECK
+/build*/
+/_*/
 
 # files produces by the documentation
 man/*.pdf

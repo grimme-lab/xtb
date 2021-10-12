@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_hessian
-   use assertion
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
    use xtb_type_options
@@ -32,24 +32,25 @@ module test_hessian
    implicit none
    private
 
-   public :: run_hessian_test
+   public :: collect_hessian
 
 
 contains
 
-subroutine run_hessian_test(arg)
-   character(len=*), intent(in) :: arg
+!> Collect all exported unit tests
+subroutine collect_hessian(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
-   select case(arg)
-   case("gfn1")
-      call test_gfn1_hessian
-   case("gfn2")
-      call test_gfn2_hessian
-   end select
+   testsuite = [ &
+      new_unittest("gfn1", test_gfn1_hessian), &
+      new_unittest("gfn2", test_gfn2_hessian) &
+      ]
 
-end subroutine run_hessian_test
+end subroutine collect_hessian
 
-subroutine test_gfn1_hessian
+subroutine test_gfn1_hessian(error)
+   type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
    real(wp),parameter :: thr = 1.0e-7_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
@@ -132,21 +133,20 @@ subroutine test_gfn1_hessian
 
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
-         call assert_close(dipgrad(j, i), dipgrad_ref(j, i), thr)
+         call check(error, dipgrad(j, i), dipgrad_ref(j, i), thr=thr)
       end do
    end do
 
    do i = 1, size(hessian_ref, 2)
       do j = 1, size(hessian_ref, 1)
-         call assert_close(hessian(j, i), hessian_ref(j, i), thr)
+         call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
       end do
    end do
 
-   call terminate(afail)
-
 end subroutine test_gfn1_hessian
 
-subroutine test_gfn2_hessian
+subroutine test_gfn2_hessian(error)
+   type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
    real(wp),parameter :: thr = 1.0e-7_wp
    character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
@@ -230,17 +230,15 @@ subroutine test_gfn2_hessian
 
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
-         call assert_close(dipgrad(j, i), dipgrad_ref(j, i), thr)
+         call check(error, dipgrad(j, i), dipgrad_ref(j, i), thr=thr)
       end do
    end do
 
    do i = 1, size(hessian_ref, 2)
       do j = 1, size(hessian_ref, 1)
-         call assert_close(hessian(j, i), hessian_ref(j, i), thr)
+         call check(error, hessian(j, i), hessian_ref(j, i), thr=thr)
       end do
    end do
-
-   call terminate(afail)
 
 end subroutine test_gfn2_hessian
 

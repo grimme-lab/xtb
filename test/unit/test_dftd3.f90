@@ -1,6 +1,45 @@
-subroutine test_dftd3_pbc3d_neighbourlist
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_dftd3
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_dftd3
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_dftd3(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("2b-nl-pbc3d", test_dftd3_pbc3d_neighbourlist), &
+      new_unittest("2b-lp-pbc3d", test_dftd3_pbc3d_latticepoints), &
+      new_unittest("3b-nl-pbc3d", test_dftd3_pbc3d_threebody_neighs), &
+      new_unittest("3b-lp-pbc3d", test_dftd3_pbc3d_threebody_latp) &
+      ]
+
+end subroutine collect_dftd3
+
+
+subroutine test_dftd3_pbc3d_neighbourlist(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
 
    use xtb_mctc_convert, only : aatoau
 
@@ -14,7 +53,7 @@ subroutine test_dftd3_pbc3d_neighbourlist
    use xtb_disp_dftd3, only : d3_gradient
    use xtb_disp_dftd3param, only : copy_c6, reference_c6
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
@@ -105,16 +144,16 @@ subroutine test_dftd3_pbc3d_neighbourlist
    call d3_gradient(mol, neighs, neighList, dparam_pbe, 4.0_wp, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call assert_close(energy, -0.70956131647955E-01_wp, thr)
-   call assert_close(norm2(gradient), 0.80967207004742E-03_wp, thr)
+   call check(error, energy, -0.70956131647955E-01_wp, thr=thr)
+   call check(error, norm2(gradient), 0.80967207004742E-03_wp, thr=thr)
 
-   call assert_close(gradient(1, 3), -0.36750795547191E-04_wp, thr)
-   call assert_close(gradient(2, 7),  0.97188478756351E-04_wp, thr)
-   call assert_close(gradient(3,12), -0.46581766272258E-04_wp, thr)
+   call check(error, gradient(1, 3), -0.36750795547191E-04_wp, thr=thr)
+   call check(error, gradient(2, 7),  0.97188478756351E-04_wp, thr=thr)
+   call check(error, gradient(3,12), -0.46581766272258E-04_wp, thr=thr)
 
-   call assert_close(sigma(1,1),  0.75334721374086E-01_wp, thr)
-   call assert_close(sigma(2,1), -0.62270444669135E-05_wp, thr)
-   call assert_close(sigma(3,2),  0.23549303643349E-03_wp, thr)
+   call check(error, sigma(1,1),  0.75334721374086E-01_wp, thr=thr)
+   call check(error, sigma(2,1), -0.62270444669135E-05_wp, thr=thr)
+   call check(error, sigma(3,2),  0.23549303643349E-03_wp, thr=thr)
 
    ! check numerical gradient
    ! reduce the number of numerical gradient evaluations significantly
@@ -143,7 +182,7 @@ subroutine test_dftd3_pbc3d_neighbourlist
             & cn, dcndr, dcndL, el, gdum, sdum)
 
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -175,18 +214,15 @@ subroutine test_dftd3_pbc3d_neighbourlist
 !
 !         eps(jj, ii) = eps(jj, ii) + step
 !
-!         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+!         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
 !      end do
 !   end do
-
-   call terminate(afail)
 
 end subroutine test_dftd3_pbc3d_neighbourlist
 
 
-subroutine test_dftd3_pbc3d_latticepoints
+subroutine test_dftd3_pbc3d_latticepoints(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
 
    use xtb_mctc_convert, only : aatoau
 
@@ -201,7 +237,7 @@ subroutine test_dftd3_pbc3d_latticepoints
    use xtb_disp_dftd3, only : d3_gradient
    use xtb_disp_dftd3param, only : copy_c6, reference_c6
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    real(wp),parameter :: thr2 = 1.0e-9_wp
@@ -297,16 +333,16 @@ subroutine test_dftd3_pbc3d_latticepoints
    call d3_gradient(mol, trans, dparam_pbe, 4.0_wp, 60.0_wp, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call assert_close(energy, -0.70957467834973E-01_wp, thr)
-   call assert_close(norm2(gradient), 0.80953440515160E-03_wp, thr)
+   call check(error, energy, -0.70957467834973E-01_wp, thr=thr)
+   call check(error, norm2(gradient), 0.80953440515160E-03_wp, thr=thr)
 
-   call assert_close(gradient(1, 3), -0.36750229627472E-04_wp, thr)
-   call assert_close(gradient(2, 7),  0.97133121226048E-04_wp, thr)
-   call assert_close(gradient(3,12), -0.46580608745602E-04_wp, thr)
+   call check(error, gradient(1, 3), -0.36750229627472E-04_wp, thr=thr)
+   call check(error, gradient(2, 7),  0.97133121226048E-04_wp, thr=thr)
+   call check(error, gradient(3,12), -0.46580608745602E-04_wp, thr=thr)
 
-   call assert_close(sigma(1,1),  0.75336316933972E-01_wp, thr)
-   call assert_close(sigma(2,1), -0.61981535450274E-05_wp, thr)
-   call assert_close(sigma(3,2),  0.23588761667468E-03_wp, thr)
+   call check(error, sigma(1,1),  0.75336316933972E-01_wp, thr=thr)
+   call check(error, sigma(2,1), -0.61981535450274E-05_wp, thr=thr)
+   call check(error, sigma(3,2),  0.23588761667468E-03_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat, 9
@@ -332,7 +368,7 @@ subroutine test_dftd3_pbc3d_latticepoints
             & cn, dcndr, dcndL, el, gdum, sdum)
 
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr2)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr2)
       end do
    end do
 
@@ -369,18 +405,15 @@ subroutine test_dftd3_pbc3d_latticepoints
 !
 !         eps(jj, ii) = eps(jj, ii) + step
 !
-!         call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
+!         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr2)
 !      end do
 !   end do
-
-   call terminate(afail)
 
 end subroutine test_dftd3_pbc3d_latticepoints
 
 
-subroutine test_dftd3_pbc3d_threebody_neighs
+subroutine test_dftd3_pbc3d_threebody_neighs(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
 
    use xtb_mctc_convert, only : aatoau
 
@@ -395,7 +428,7 @@ subroutine test_dftd3_pbc3d_threebody_neighs
    use xtb_disp_dftd3, only : d3_atm_gradient
    use xtb_disp_dftd3param, only : copy_c6, reference_c6
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
@@ -485,16 +518,16 @@ subroutine test_dftd3_pbc3d_threebody_neighs
    call d3_atm_gradient(mol, neighs, neighlist, dparam_pbe, 4.0_wp, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call assert_close(energy, 0.82278010088603E-02_wp, thr)
-   call assert_close(norm2(gradient), 0.23010015730368E-02_wp, thr)
+   call check(error, energy, 0.82278010088603E-02_wp, thr=thr)
+   call check(error, norm2(gradient), 0.23010015730368E-02_wp, thr=thr)
 
-   call assert_close(gradient(1, 3),  0.43946166128195E-03_wp, thr)
-   call assert_close(gradient(2, 7),  0.13253569511538E-03_wp, thr)
-   call assert_close(gradient(3,12), -0.57499662722386E-04_wp, thr)
+   call check(error, gradient(1, 3),  0.43946166128195E-03_wp, thr=thr)
+   call check(error, gradient(2, 7),  0.13253569511538E-03_wp, thr=thr)
+   call check(error, gradient(3,12), -0.57499662722386E-04_wp, thr=thr)
 
-   call assert_close(sigma(1,1), -0.55966219802469E-02_wp, thr)
-   call assert_close(sigma(2,1), -0.99936312640867E-03_wp, thr)
-   call assert_close(sigma(3,2),  0.67158553483908E-03_wp, thr)
+   call check(error, sigma(1,1), -0.55966219802469E-02_wp, thr=thr)
+   call check(error, sigma(2,1), -0.99936312640867E-03_wp, thr=thr)
+   call check(error, sigma(3,2),  0.67158553483908E-03_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat, 5
@@ -516,7 +549,7 @@ subroutine test_dftd3_pbc3d_threebody_neighs
          call d3_atm_gradient(mol, neighs, neighlist, dparam_pbe, 4.0_wp, &
             & cn, dcndr, dcndL, el, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -548,17 +581,15 @@ subroutine test_dftd3_pbc3d_threebody_neighs
 !
 !         eps(jj, ii) = eps(jj, ii) + step
 !
-!         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+!         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
 !      end do
 !   end do
 
-   call terminate(afail)
 end subroutine test_dftd3_pbc3d_threebody_neighs
 
 
-subroutine test_dftd3_pbc3d_threebody_latp
+subroutine test_dftd3_pbc3d_threebody_latp(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
 
    use xtb_mctc_convert, only : aatoau
 
@@ -573,7 +604,7 @@ subroutine test_dftd3_pbc3d_threebody_latp
    use xtb_disp_dftd3, only : d3_atm_gradient
    use xtb_disp_dftd3param, only : copy_c6, reference_c6
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 32
@@ -663,16 +694,16 @@ subroutine test_dftd3_pbc3d_threebody_latp
    call d3_atm_gradient(mol, trans, dparam_pbe, 4.0_wp, 15.0_wp, &
       & cn, dcndr, dcndL, energy, gradient, sigma)
 
-   call assert_close(energy, 0.82282776910965E-02_wp, thr)
-   call assert_close(norm2(gradient), 0.23008499292227E-02_wp, thr)
+   call check(error, energy, 0.82282776910965E-02_wp, thr=thr)
+   call check(error, norm2(gradient), 0.23008499292227E-02_wp, thr=thr)
 
-   call assert_close(gradient(1, 3),  0.43949930795013E-03_wp, thr)
-   call assert_close(gradient(2, 7),  0.13251725802574E-03_wp, thr)
-   call assert_close(gradient(3,12), -0.57506040392065E-04_wp, thr)
+   call check(error, gradient(1, 3),  0.43949930795013E-03_wp, thr=thr)
+   call check(error, gradient(2, 7),  0.13251725802574E-03_wp, thr=thr)
+   call check(error, gradient(3,12), -0.57506040392065E-04_wp, thr=thr)
 
-   call assert_close(sigma(1,1), -0.55971082405750E-02_wp, thr)
-   call assert_close(sigma(2,1), -0.99942421059516E-03_wp, thr)
-   call assert_close(sigma(3,2),  0.67209092938839E-03_wp, thr)
+   call check(error, sigma(1,1), -0.55971082405750E-02_wp, thr=thr)
+   call check(error, sigma(2,1), -0.99942421059516E-03_wp, thr=thr)
+   call check(error, sigma(3,2),  0.67209092938839E-03_wp, thr=thr)
 
    ! check numerical gradient
    do ii = 1, nat, 5
@@ -694,7 +725,7 @@ subroutine test_dftd3_pbc3d_threebody_latp
          call d3_atm_gradient(mol, trans, dparam_pbe, 4.0_wp, 15.0_wp, &
             & cn, dcndr, dcndL, el, gdum, sdum)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -726,9 +757,11 @@ subroutine test_dftd3_pbc3d_threebody_latp
 !
 !         eps(jj, ii) = eps(jj, ii) + step
 !
-!         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+!         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
 !      end do
 !   end do
 
-   call terminate(afail)
 end subroutine test_dftd3_pbc3d_threebody_latp
+
+
+end module test_dftd3

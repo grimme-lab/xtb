@@ -1,9 +1,26 @@
+# This file is part of xtb.
+# SPDX-Identifier: LGPL-3.0-or-later
+#
+# xtb is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# xtb is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
 cmake_minimum_required(VERSION 3.9)
 
 # Setup the XTB Project
-project(xtb
-  VERSION 6.4.1
-  LANGUAGES C Fortran
+project(
+  "xtb"
+  VERSION "6.4.1"
+  LANGUAGES "C" "Fortran"
 )
 enable_testing()
 
@@ -11,7 +28,6 @@ enable_testing()
 include(GNUInstallDirs)
 
 # Include CMake specific configurations
-set(xtb-dir "${CMAKE_CURRENT_SOURCE_DIR}")
 add_subdirectory("cmake")
 
 # Sources: initialize program sources (prog) and library sources (srcs) empty
@@ -22,95 +38,142 @@ add_subdirectory("src")
 add_subdirectory("symmetry")
 
 # Find dependencies
-if (NOT DISABLE_OMP)
-  find_package(OpenMP REQUIRED)
+if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
+  find_package("OpenMP" REQUIRED)
 endif()
-find_package(LAPACK REQUIRED)
-find_package(BLAS REQUIRED)
+find_package("LAPACK" REQUIRED)
+find_package("BLAS" REQUIRED)
 
 # Object library
-set(xtb-mod "${CMAKE_CURRENT_BINARY_DIR}/xtb-mod")
-add_library(xtb-object OBJECT ${srcs})
-set_target_properties(xtb-object PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
+if(NOT EXISTS "${PROJECT_BINARY_DIR}/include")
+  make_directory("${PROJECT_BINARY_DIR}/include")
+endif()
+add_library(
+  "${PROJECT_NAME}-object"
+  OBJECT
+  ${srcs}
+)
+set_target_properties(
+  "${PROJECT_NAME}-object"
+  PROPERTIES
+  Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
   POSITION_INDEPENDENT_CODE ON
 )
-target_include_directories(xtb-object
+target_include_directories(
+  "${PROJECT_NAME}-object"
   PUBLIC
   ${xtb-config-dir}
-  ${CMAKE_CURRENT_BINARY_DIR}
-  $<BUILD_INTERFACE:${xtb-dir}/include>
+  ${PROJECT_BINARY_DIR}
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
+)
+target_compile_definitions(
+  "${PROJECT_NAME}-object"
+  PRIVATE
 )
 
 # Static Library
-add_library(lib-xtb-static STATIC $<TARGET_OBJECTS:xtb-object> )
-target_link_libraries(lib-xtb-static
+add_library(
+  "lib-${PROJECT_NAME}-static"
+  STATIC
+  $<TARGET_OBJECTS:${PROJECT_NAME}-object>
+)
+target_link_libraries(
+  "lib-${PROJECT_NAME}-static"
   PUBLIC
   ${BLAS_LIBRARIES}
   ${LAPACK_LIBRARIES}
   $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
 )
-set_target_properties(lib-xtb-static PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
-  ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+set_target_properties(
+  "lib-${PROJECT_NAME}-static"
+  PROPERTIES
+  Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
+  ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
   POSITION_INDEPENDENT_CODE ON
   OUTPUT_NAME "${PROJECT_NAME}"
 )
-target_include_directories(lib-xtb-static
+target_include_directories(
+  "lib-${PROJECT_NAME}-static"
   PUBLIC
-  $<BUILD_INTERFACE:${xtb-dir}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 # Shared Library
-add_library(lib-xtb-shared SHARED $<TARGET_OBJECTS:xtb-object> )
-target_link_libraries(lib-xtb-shared
+add_library(
+  "lib-${PROJECT_NAME}-shared"
+  SHARED
+  $<TARGET_OBJECTS:${PROJECT_NAME}-object>
+)
+target_link_libraries(
+  "lib-${PROJECT_NAME}-shared"
   PUBLIC
   ${BLAS_LIBRARIES}
   ${LAPACK_LIBRARIES}
   $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
 )
-set_target_properties(lib-xtb-shared PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+set_target_properties(
+  "lib-${PROJECT_NAME}-shared"
+  PROPERTIES
+  Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
+  LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
   OUTPUT_NAME "${PROJECT_NAME}"
   VERSION "${PROJECT_VERSION}"
-  SOVERSION "${XTB_VERSION_MAJOR}"
+  SOVERSION "${PROJECT_VERSION_MAJOR}"
 )
-target_include_directories(lib-xtb-shared
+target_include_directories(
+  "lib-${PROJECT_NAME}-shared"
   PUBLIC
-  $<BUILD_INTERFACE:${xtb-dir}/include>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
   $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
 # Executables
-add_executable(xtb-exe ${prog})
-target_link_libraries(xtb-exe
-  PRIVATE
-  lib-xtb-static
+add_executable(
+  "${PROJECT_NAME}-exe"
+  ${prog}
 )
-set_target_properties(xtb-exe PROPERTIES
-  Fortran_MODULE_DIRECTORY ${xtb-mod}
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+target_link_libraries(
+  "${PROJECT_NAME}-exe"
+  PRIVATE
+  "lib-${PROJECT_NAME}-static"
+)
+set_target_properties(
+  ${PROJECT_NAME}-exe
+  PROPERTIES
+  Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include
+  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
   OUTPUT_NAME "${PROJECT_NAME}"
 )
-target_include_directories(xtb-exe PRIVATE "${xtb-dir}/include")
+target_include_directories(${PROJECT_NAME}-exe PRIVATE "${PROJECT_SOURCE_DIR}/include")
 
 # Install
-install(FILES "${xtb-dir}/include/xtb.h"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+install(
+  FILES
+  "${PROJECT_SOURCE_DIR}/include/xtb.h"
+  DESTINATION
+  "${CMAKE_INSTALL_INCLUDEDIR}"
 )
-install(FILES
-  "${xtb-dir}/param_gfn0-xtb.txt"
-  "${xtb-dir}/param_gfn1-xtb.txt"
-  "${xtb-dir}/param_gfn2-xtb.txt"
-  "${xtb-dir}/param_ipea-xtb.txt"
-  "${xtb-dir}/.param_gfnff.xtb"
-  DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
+install(
+  FILES
+  "${PROJECT_SOURCE_DIR}/param_gfn0-xtb.txt"
+  "${PROJECT_SOURCE_DIR}/param_gfn1-xtb.txt"
+  "${PROJECT_SOURCE_DIR}/param_gfn2-xtb.txt"
+  "${PROJECT_SOURCE_DIR}/param_ipea-xtb.txt"
+  "${PROJECT_SOURCE_DIR}/.param_gfnff.xtb"
+  DESTINATION
+  "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 )
-install(TARGETS lib-xtb-static lib-xtb-shared xtb-exe
-  EXPORT xtbTargets
+install(
+  TARGETS
+  "lib-${PROJECT_NAME}-static"
+  "lib-${PROJECT_NAME}-shared"
+  "${PROJECT_NAME}-exe"
+  EXPORT "${PROJECT_NAME}-targets"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
@@ -120,29 +183,34 @@ install(TARGETS lib-xtb-static lib-xtb-shared xtb-exe
 include(CMakePackageConfigHelpers)
 # -- Config version file
 write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
+  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+  VERSION "${PROJECT_VERSION}"
   COMPATIBILITY AnyNewerVersion
 )
 # -- Config file
 configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfig.cmake"
+  "${PROJECT_SOURCE_DIR}/cmake/config.cmake.in"
+  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
   INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 # -- Install config and configVersion
 install(
   FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/xtbConfigVersion.cmake"
+  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+  "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 # -- Targets file
 # -- This makes the project importable from the build directory
-export(EXPORT xtbTargets FILE "${CMAKE_CURRENT_BINARY_DIR}/xtbTargets.cmake")
+export(
+  EXPORT "${PROJECT_NAME}-targets"
+  FILE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-targets.cmake"
+)
 # -- This makes the project importable from the install directory
-install(EXPORT xtbTargets FILE "xtbTargets.cmake"
+install(
+  EXPORT "${PROJECT_NAME}-targets"
+  FILE "${PROJECT_NAME}-targets.cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
-add_subdirectory("TESTSUITE")
+add_subdirectory("test")

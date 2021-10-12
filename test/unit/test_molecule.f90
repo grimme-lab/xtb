@@ -1,12 +1,49 @@
-subroutine test_class_molecule_mic_distances
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_molecule
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_molecule
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_molecule(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("mic-distances", test_class_molecule_mic_distances), &
+      new_unittest("axis-trafo", test_class_molecule_axis_trafo) &
+      ]
+
+end subroutine collect_molecule
+
+
+subroutine test_class_molecule_mic_distances(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
    use xtb_type_molecule
    use xtb_type_param
    use xtb_eeq
    use xtb_disp_ncoord
    use xtb_pbc_tools
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    ! SiO2 (random, no symmetry)
    integer, parameter :: nat = 6
@@ -33,25 +70,22 @@ subroutine test_class_molecule_mic_distances
    call coord_trafo(nat,lattice,abc,xyz)
    call init(mol, at, xyz, lattice=lattice)
 
-   call assert_close(mol%dist(1,1),8.7413053236641_wp,thr)
-   call assert_close(mol%dist(3,6),3.9480992656526_wp,thr)
-   call assert_close(mol%dist(2,3),2.9411012169549_wp,thr)
-   call assert_close(mol%dist(1,4),2.8120981086302_wp,thr)
+   call check(error, mol%dist(1,1),8.7413053236641_wp, thr=thr)
+   call check(error, mol%dist(3,6),3.9480992656526_wp, thr=thr)
+   call check(error, mol%dist(2,3),2.9411012169549_wp, thr=thr)
+   call check(error, mol%dist(1,4),2.8120981086302_wp, thr=thr)
 
    call mol%deallocate
 
-   call terminate(afail)
-
 end subroutine test_class_molecule_mic_distances
 
-subroutine test_class_molecule_axis_trafo
+subroutine test_class_molecule_axis_trafo(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
    use xtb_type_molecule
    use xtb_type_param
    use xtb_disp_ncoord
    use xtb_eeq
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
    integer, parameter :: at(nat) = [6,8,1,6,1,1,1]
@@ -73,38 +107,38 @@ subroutine test_class_molecule_axis_trafo
    call init(mol, at, xyz)
 
    center = mol%center_of_geometry()
-   call assert_close(center(1),-1.2501984620000_wp,thr)
-   call assert_close(center(2), .18174541428571_wp,thr)
-   call assert_close(center(3), 0.0000000000000_wp,thr)
+   call check(error, center(1),-1.2501984620000_wp, thr=thr)
+   call check(error, center(2), .18174541428571_wp, thr=thr)
+   call check(error, center(3), 0.0000000000000_wp, thr=thr)
 
    call mol%shift_to_center_of_geometry
-   call assert_close(mol%xyz(2,1),.61319025771429_wp,thr)
-   call assert_close(mol%xyz(1,3),1.5797166910000_wp,thr)
-   call assert_close(mol%xyz(3,6),1.6600108990000_wp,thr)
+   call check(error, mol%xyz(2,1),.61319025771429_wp, thr=thr)
+   call check(error, mol%xyz(1,3),1.5797166910000_wp, thr=thr)
+   call check(error, mol%xyz(3,6),1.6600108990000_wp, thr=thr)
 
    molmass = sum(mol%atmass)
-   call assert_close(molmass,80303.049694083_wp,1.0e-5_wp) ! in au
+   call check(error, molmass,80303.049694083_wp, thr=1.0e-5_wp) ! in au
    center = mol%center_of_mass()
-   call assert_close(center(1),1.2502034210661_wp,thr)
+   call check(error, center(1),1.2502034210661_wp, thr=thr)
 
    call mol%shift_to_center_of_mass
-   call assert_close(mol%xyz(2,4),-0.31302884934293_wp,thr)
-   call assert_close(mol%xyz(1,1), 0.23699038193392_wp,thr)
+   call check(error, mol%xyz(2,4),-0.31302884934293_wp, thr=thr)
+   call check(error, mol%xyz(1,1), 0.23699038193392_wp, thr=thr)
 
    moments = mol%moments_of_inertia()
-   call assert_close(moments(1),57768.744315301_wp,1.0e-5_wp)
-   call assert_close(moments(3),361019.51690412_wp,1.0e-5_wp)
+   call check(error, moments(1),57768.744315301_wp, thr=1.0e-5_wp)
+   call check(error, moments(3),361019.51690412_wp, thr=1.0e-5_wp)
 
 !   call mol%align_to_principal_axes(break_symmetry = .false.)
-!   call assert_close(mol%xyz(2,1),-.79493732581159_wp,thr)
-!   call assert_close(mol%xyz(1,7), 3.4059059117382_wp,thr)
+!   call check(error, mol%xyz(2,1),-.79493732581159_wp, thr=thr)
+!   call check(error, mol%xyz(1,7), 3.4059059117382_wp, thr=thr)
 !
 !   call mol%align_to_principal_axes(break_symmetry = .true.)
-!   call assert_close(mol%xyz(2,1),-.79493703211973_wp,thr)
-!   call assert_close(mol%xyz(1,7), 3.4059054710786_wp,thr)
+!   call check(error, mol%xyz(2,1),-.79493703211973_wp, thr=thr)
+!   call check(error, mol%xyz(1,7), 3.4059054710786_wp, thr=thr)
 
    call mol%deallocate
 
-   call terminate(afail)
-
 end subroutine test_class_molecule_axis_trafo
+
+end module test_molecule

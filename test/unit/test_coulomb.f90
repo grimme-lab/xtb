@@ -1,11 +1,54 @@
-subroutine test_coulomb_point_cluster
-   use assertion
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_coulomb
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_coulomb
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_coulomb(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("point-cluster", test_coulomb_point_cluster), &
+      new_unittest("point-pbc3d", test_coulomb_point_pbc3d), &
+      new_unittest("gfn1-cluster", test_coulomb_gfn1_cluster), &
+      new_unittest("gfn1-pbc3d", test_coulomb_gfn1_pbc3d), &
+      new_unittest("gfn2-cluster", test_coulomb_gfn2_cluster), &
+      new_unittest("gfn2-pbc3d", test_coulomb_gfn2_pbc3d), &
+      new_unittest("gaussian-cluster", test_coulomb_gaussian_cluster), &
+      new_unittest("gaussian-pbc3d", test_coulomb_gaussian_pbc3d) &
+      ]
+
+end subroutine collect_coulomb
+
+
+subroutine test_coulomb_point_cluster(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_type_coulomb
    use xtb_type_environment
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp), parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 24
    integer, parameter :: at(nat) = [6,7,6,7,6,6,6,8,7,6,8,7,6,6, &
@@ -76,23 +119,23 @@ subroutine test_coulomb_point_cluster
    call coulomb%getCoulombMatrix(mol, jmat)
 
    do ii = 1, nat
-      call assert_close(jmat(ii,ii), 0.0_wp, thr)
+      call check(error, jmat(ii,ii), 0.0_wp, thr=thr)
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), 0.21100723251445_wp, thr)
-   call assert_close(jmat( 2, 3), 0.38630364669842_wp, thr)
-   call assert_close(jmat( 4, 6), 0.23442574831659_wp, thr)
-   call assert_close(jmat( 3,10), 0.11824472153399_wp, thr)
-   call assert_close(jmat( 6, 3), 0.24063746843517_wp, thr)
-   call assert_close(jmat( 7,18), 0.11492593111318_wp, thr)
-   call assert_close(jmat(12,20), 0.25392041646803_wp, thr)
+   call check(error, jmat( 1, 3), 0.21100723251445_wp, thr=thr)
+   call check(error, jmat( 2, 3), 0.38630364669842_wp, thr=thr)
+   call check(error, jmat( 4, 6), 0.23442574831659_wp, thr=thr)
+   call check(error, jmat( 3,10), 0.11824472153399_wp, thr=thr)
+   call check(error, jmat( 6, 3), 0.24063746843517_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.11492593111318_wp, thr=thr)
+   call check(error, jmat(12,20), 0.25392041646803_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, -0.16130778864155_wp, thr)
+   call check(error, energy, -0.16130778864155_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -114,7 +157,7 @@ subroutine test_coulomb_point_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -140,15 +183,13 @@ subroutine test_coulomb_point_cluster
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_point_cluster
 
-subroutine test_coulomb_point_pbc3d
-   use assertion
+subroutine test_coulomb_point_pbc3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
@@ -156,7 +197,7 @@ subroutine test_coulomb_point_pbc3d
    use xtb_type_coulomb
    use xtb_type_environment
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
@@ -237,9 +278,9 @@ subroutine test_coulomb_point_pbc3d
    call init(mol, at, xyz, lattice=lattice)
    call init(coulomb, env, mol, tolerance=1.0e-8_wp)
 
-   call assert_close(coulomb%rCutoff, 18.11939328_wp, thr)
-   call assert_close(coulomb%gCutoff, 1.4680064_wp, thr)
-   call assert_close(coulomb%alpha, 0.2097152_wp, thr)
+   call check(error, coulomb%rCutoff, 18.11939328_wp, thr=thr)
+   call check(error, coulomb%gCutoff, 1.4680064_wp, thr=thr)
+   call check(error, coulomb%alpha, 0.2097152_wp, thr=thr)
 
    allocate(shift(nat))
    allocate(jMat(nat, nat))
@@ -251,22 +292,22 @@ subroutine test_coulomb_point_pbc3d
    call coulomb%getCoulombMatrix(mol, jmat)
 
    do ii = 1, nat
-      call assert_close(jmat(ii,ii), -0.22693841283719_wp, thr)
+      call check(error, jmat(ii,ii), -0.22693841283719_wp, thr=thr)
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call assert_close(jmat( 1, 3),-0.11073168961581E-01_wp, thr)
-   call assert_close(jmat( 2, 3),-0.59052463388022E-01_wp, thr)
-   call assert_close(jmat( 4, 6),-0.21264008600309E-01_wp, thr)
-   call assert_close(jmat( 3,10),-0.24000444326437E-02_wp, thr)
-   call assert_close(jmat( 6, 3),-0.36037976935086E-01_wp, thr)
-   call assert_close(jmat( 7,18), 0.45116733777831E-01_wp, thr)
-   call assert_close(jmat(12,20),-0.47663492130087E-01_wp, thr)
+   call check(error, jmat( 1, 3),-0.11073168961581E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.59052463388022E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.21264008600309E-01_wp, thr=thr)
+   call check(error, jmat( 3,10),-0.24000444326437E-02_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.36037976935086E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.45116733777831E-01_wp, thr=thr)
+   call check(error, jmat(12,20),-0.47663492130087E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy,-0.19871381077095_wp, thr)
+   call check(error, energy,-0.19871381077095_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -288,7 +329,7 @@ subroutine test_coulomb_point_pbc3d
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -316,22 +357,20 @@ subroutine test_coulomb_point_pbc3d
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_point_pbc3d
 
 
-subroutine test_coulomb_gfn1_cluster
-   use assertion
+subroutine test_coulomb_gfn1_cluster(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp), parameter :: thr = 1.0e-10_wp
    real(wp), parameter :: thr2 = 1.0e-7_wp
    integer, parameter :: nat = 24
@@ -423,23 +462,23 @@ subroutine test_coulomb_gfn1_cluster
    call coulomb%getCoulombMatrix(mol, jmat)
 
    do ii = 1, nat
-      call assert_close(jmat(ii,ii), atomicHardness(1, mol%id(ii)), thr)
+      call check(error, jmat(ii,ii), atomicHardness(1, mol%id(ii)), thr=thr)
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), 0.19316589570303_wp, thr)
-   call assert_close(jmat( 2, 3), 0.30046155646117_wp, thr)
-   call assert_close(jmat( 4, 6), 0.21047957782049_wp, thr)
-   call assert_close(jmat( 3,10), 0.11481217301814_wp, thr)
-   call assert_close(jmat( 6, 3), 0.21511721746087_wp, thr)
-   call assert_close(jmat( 7,18), 0.11170281004947_wp, thr)
-   call assert_close(jmat(12,20), 0.22373063680923_wp, thr)
+   call check(error, jmat( 1, 3), 0.19316589570303_wp, thr=thr)
+   call check(error, jmat( 2, 3), 0.30046155646117_wp, thr=thr)
+   call check(error, jmat( 4, 6), 0.21047957782049_wp, thr=thr)
+   call check(error, jmat( 3,10), 0.11481217301814_wp, thr=thr)
+   call check(error, jmat( 6, 3), 0.21511721746087_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.11170281004947_wp, thr=thr)
+   call check(error, jmat(12,20), 0.22373063680923_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, 0.74487442026461E-01_wp, thr)
+   call check(error, energy, 0.74487442026461E-01_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -461,7 +500,7 @@ subroutine test_coulomb_gfn1_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -488,7 +527,7 @@ subroutine test_coulomb_gfn1_cluster
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr2)
       end do
    end do
 
@@ -509,26 +548,26 @@ subroutine test_coulomb_gfn1_cluster
 
    do ii = 1, nsh, 2
       jj = ii/2+1
-      call assert_close(jmat(ii,ii), shellHardness(1, mol%id(jj)), thr)
-      call assert_close(jmat(ii+1,ii+1), shellHardness(2, mol%id(jj)), thr)
+      call check(error, jmat(ii,ii), shellHardness(1, mol%id(jj)), thr=thr)
+      call check(error, jmat(ii+1,ii+1), shellHardness(2, mol%id(jj)), thr=thr)
    end do
    do ii = 1, nsh
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), 0.29122779054758_wp, thr)
-   call assert_close(jmat( 2, 3), 0.28857037810257_wp, thr)
-   call assert_close(jmat( 4, 6), 0.29936008553464_wp, thr)
-   call assert_close(jmat( 3,10), 0.21662900538106_wp, thr)
-   call assert_close(jmat( 6, 3), 0.29754583720422_wp, thr)
-   call assert_close(jmat( 7,18), 0.12567214529183_wp, thr)
-   call assert_close(jmat(12,20), 0.17601945603238_wp, thr)
+   call check(error, jmat( 1, 3), 0.29122779054758_wp, thr=thr)
+   call check(error, jmat( 2, 3), 0.28857037810257_wp, thr=thr)
+   call check(error, jmat( 4, 6), 0.29936008553464_wp, thr=thr)
+   call check(error, jmat( 3,10), 0.21662900538106_wp, thr=thr)
+   call check(error, jmat( 6, 3), 0.29754583720422_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.12567214529183_wp, thr=thr)
+   call check(error, jmat(12,20), 0.17601945603238_wp, thr=thr)
 
    shift(:) = matmul(jmat, shellCharges)
    energy = 0.5_wp*dot_product(shellCharges, shift)
-   call assert_close(energy, 0.15670711466457_wp, thr)
+   call check(error, energy, 0.15670711466457_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
    call contract(djdr, shellCharges, gradient)
@@ -550,7 +589,7 @@ subroutine test_coulomb_gfn1_cluster
          shift(:) = matmul(jmat, shellCharges)
          el = 0.5_wp*dot_product(shellCharges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -576,15 +615,13 @@ subroutine test_coulomb_gfn1_cluster
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr2)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr2)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_gfn1_cluster
 
-subroutine test_coulomb_gfn1_pbc3d
-   use assertion
+subroutine test_coulomb_gfn1_pbc3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
@@ -592,7 +629,7 @@ subroutine test_coulomb_gfn1_pbc3d
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
@@ -676,9 +713,9 @@ subroutine test_coulomb_gfn1_pbc3d
    call init(coulomb, env, mol, gamAverage%harmonic, atomicHardness, 2.0_wp, &
       & tolerance=1.0e-8_wp)
 
-   call assert_close(coulomb%rCutoff, 18.11939328_wp, thr)
-   call assert_close(coulomb%gCutoff, 1.4680064_wp, thr)
-   call assert_close(coulomb%alpha, 0.2097152_wp, thr)
+   call check(error, coulomb%rCutoff, 18.11939328_wp, thr=thr)
+   call check(error, coulomb%gCutoff, 1.4680064_wp, thr=thr)
+   call check(error, coulomb%alpha, 0.2097152_wp, thr=thr)
 
    allocate(shift(nat))
    allocate(jMat(nat, nat))
@@ -691,26 +728,26 @@ subroutine test_coulomb_gfn1_pbc3d
 
    do ii = 1, nat
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call assert_close(jmat( 1, 3),-0.26692685831907E-01_wp, thr)
-   call assert_close(jmat( 2, 3),-0.68773950642218E-01_wp, thr)
-   call assert_close(jmat( 4, 6),-0.38988468002079E-01_wp, thr)
-   call assert_close(jmat( 3,10),-0.23000529589385E-01_wp, thr)
-   call assert_close(jmat( 6, 3),-0.51594544630953E-01_wp, thr)
-   call assert_close(jmat( 7,18), 0.41437913557408E-02_wp, thr)
-   call assert_close(jmat(12,20),-0.64306568194767E-01_wp, thr)
+   call check(error, jmat( 1, 3),-0.26692685831907E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.68773950642218E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.38988468002079E-01_wp, thr=thr)
+   call check(error, jmat( 3,10),-0.23000529589385E-01_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.51594544630953E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.41437913557408E-02_wp, thr=thr)
+   call check(error, jmat(12,20),-0.64306568194767E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, 0.10334568151034_wp, thr)
+   call check(error, energy, 0.10334568151034_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
    call contract(djdL, charges, sigma)
 
-   if (afail > 0) call terminate(afail)
+   if (allocated(error)) return
 
    ! check numerical gradient
    do ii = 1, nat, 5
@@ -728,11 +765,11 @@ subroutine test_coulomb_gfn1_pbc3d
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   if (afail > 0) call terminate(afail)
+   if (allocated(error)) return
 
    ! check numerical strain derivatives
    eps = unity
@@ -758,7 +795,7 @@ subroutine test_coulomb_gfn1_pbc3d
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -770,33 +807,31 @@ subroutine test_coulomb_gfn1_pbc3d
 
    do ii = 1, nat
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call assert_close(jmat( 1, 3),-0.13464382457757E-01_wp, thr)
-   call assert_close(jmat( 2, 3),-0.60078828891465E-01_wp, thr)
-   call assert_close(jmat( 4, 6),-0.24046964967552E-01_wp, thr)
-   call assert_close(jmat( 3,10),-0.60407457734382E-02_wp, thr)
-   call assert_close(jmat( 6, 3),-0.38251294880785E-01_wp, thr)
-   call assert_close(jmat( 7,18), 0.32150302911807E-01_wp, thr)
-   call assert_close(jmat(12,20),-0.50061175269104E-01_wp, thr)
+   call check(error, jmat( 1, 3),-0.13464382457757E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.60078828891465E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.24046964967552E-01_wp, thr=thr)
+   call check(error, jmat( 3,10),-0.60407457734382E-02_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.38251294880785E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.32150302911807E-01_wp, thr=thr)
+   call check(error, jmat(12,20),-0.50061175269104E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, 0.86046710402599E-01_wp, thr)
+   call check(error, energy, 0.86046710402599E-01_wp, thr=thr)
 
-   call terminate(afail)
 end subroutine test_coulomb_gfn1_pbc3d
 
 
-subroutine test_coulomb_gfn2_cluster
-   use assertion
+subroutine test_coulomb_gfn2_cluster(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp), parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 24
    integer, parameter :: at(nat) = [6,7,6,7,6,6,6,8,7,6,8,7,6,6, &
@@ -885,23 +920,23 @@ subroutine test_coulomb_gfn2_cluster
    call coulomb%getCoulombMatrix(mol, jmat)
 
    do ii = 1, nat
-      call assert_close(jmat(ii,ii), atomicHardness(1, mol%id(ii)), thr)
+      call check(error, jmat(ii,ii), atomicHardness(1, mol%id(ii)), thr=thr)
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), 0.19643947717683_wp, thr)
-   call assert_close(jmat( 2, 3), 0.30530133574756_wp, thr)
-   call assert_close(jmat( 4, 6), 0.21212302738038_wp, thr)
-   call assert_close(jmat( 3,10), 0.11548839173240_wp, thr)
-   call assert_close(jmat( 6, 3), 0.21966640779889_wp, thr)
-   call assert_close(jmat( 7,18), 0.11159957571378_wp, thr)
-   call assert_close(jmat(12,20), 0.21900194564411_wp, thr)
+   call check(error, jmat( 1, 3), 0.19643947717683_wp, thr=thr)
+   call check(error, jmat( 2, 3), 0.30530133574756_wp, thr=thr)
+   call check(error, jmat( 4, 6), 0.21212302738038_wp, thr=thr)
+   call check(error, jmat( 3,10), 0.11548839173240_wp, thr=thr)
+   call check(error, jmat( 6, 3), 0.21966640779889_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.11159957571378_wp, thr=thr)
+   call check(error, jmat(12,20), 0.21900194564411_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, 0.54562180505117E-01_wp, thr)
+   call check(error, energy, 0.54562180505117E-01_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -923,7 +958,7 @@ subroutine test_coulomb_gfn2_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -949,7 +984,7 @@ subroutine test_coulomb_gfn2_cluster
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -970,26 +1005,26 @@ subroutine test_coulomb_gfn2_cluster
 
    do ii = 1, 14, 2
       jj = ii/2+1
-      call assert_close(jmat(ii,ii), shellHardness(1, mol%id(jj)), thr)
-      call assert_close(jmat(ii+1,ii+1), shellHardness(2, mol%id(jj)), thr)
+      call check(error, jmat(ii,ii), shellHardness(1, mol%id(jj)), thr=thr)
+      call check(error, jmat(ii+1,ii+1), shellHardness(2, mol%id(jj)), thr=thr)
    end do
    do ii = 1, nsh
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), 0.29593390363812_wp, thr)
-   call assert_close(jmat( 2, 3), 0.30152111619404_wp, thr)
-   call assert_close(jmat( 4, 6), 0.31707000700913_wp, thr)
-   call assert_close(jmat( 3,10), 0.22194971747742_wp, thr)
-   call assert_close(jmat( 6, 3), 0.31180455546450_wp, thr)
-   call assert_close(jmat( 7,18), 0.12575667968267_wp, thr)
-   call assert_close(jmat(12,20), 0.18160321973606_wp, thr)
+   call check(error, jmat( 1, 3), 0.29593390363812_wp, thr=thr)
+   call check(error, jmat( 2, 3), 0.30152111619404_wp, thr=thr)
+   call check(error, jmat( 4, 6), 0.31707000700913_wp, thr=thr)
+   call check(error, jmat( 3,10), 0.22194971747742_wp, thr=thr)
+   call check(error, jmat( 6, 3), 0.31180455546450_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.12575667968267_wp, thr=thr)
+   call check(error, jmat(12,20), 0.18160321973606_wp, thr=thr)
 
    shift(:) = matmul(jmat, shellCharges)
    energy = 0.5_wp*dot_product(shellCharges, shift)
-   call assert_close(energy, 0.76930095102192E-01_wp, thr)
+   call check(error, energy, 0.76930095102192E-01_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
    call contract(djdr, shellCharges, gradient)
@@ -1011,7 +1046,7 @@ subroutine test_coulomb_gfn2_cluster
          shift(:) = matmul(jmat, shellCharges)
          el = 0.5_wp*dot_product(shellCharges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -1037,15 +1072,13 @@ subroutine test_coulomb_gfn2_cluster
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_gfn2_cluster
 
-subroutine test_coulomb_gfn2_pbc3d
-   use assertion
+subroutine test_coulomb_gfn2_pbc3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
@@ -1053,7 +1086,7 @@ subroutine test_coulomb_gfn2_pbc3d
    use xtb_type_environment
    use xtb_coulomb_klopmanohno
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
@@ -1157,9 +1190,9 @@ subroutine test_coulomb_gfn2_pbc3d
    call init(coulomb, env, mol, gamAverage%arithmetic, shellHardness, 2.0_wp, &
       & nshell=nshell)
 
-   call assert_close(coulomb%rCutoff, 18.11939328_wp, thr)
-   call assert_close(coulomb%gCutoff, 1.4680064_wp, thr)
-   call assert_close(coulomb%alpha, 0.2097152_wp, thr)
+   call check(error, coulomb%rCutoff, 18.11939328_wp, thr=thr)
+   call check(error, coulomb%gCutoff, 1.4680064_wp, thr=thr)
+   call check(error, coulomb%alpha, 0.2097152_wp, thr=thr)
 
    allocate(shift(nsh))
    allocate(jMat(nsh, nsh))
@@ -1172,27 +1205,27 @@ subroutine test_coulomb_gfn2_pbc3d
 
    do ii = 1, nsh
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), -0.65948223431173E-01_wp, thr)
-   call assert_close(jmat( 2, 3), -0.63531253417773E-01_wp, thr)
-   call assert_close(jmat( 4, 6), -0.71249446497053E-01_wp, thr)
-   call assert_close(jmat( 3,10), -0.47826859938370E-01_wp, thr)
-   call assert_close(jmat( 6, 3), -0.72960918626276E-01_wp, thr)
-   call assert_close(jmat( 7,18), -0.57502477782259E-01_wp, thr)
-   call assert_close(jmat(12,20), -0.13191548797843E-01_wp, thr)
+   call check(error, jmat( 1, 3), -0.65948223431173E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3), -0.63531253417773E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6), -0.71249446497053E-01_wp, thr=thr)
+   call check(error, jmat( 3,10), -0.47826859938370E-01_wp, thr=thr)
+   call check(error, jmat( 6, 3), -0.72960918626276E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), -0.57502477782259E-01_wp, thr=thr)
+   call check(error, jmat(12,20), -0.13191548797843E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, shellCharges)
    energy = 0.5_wp*dot_product(shellCharges, shift)
-   call assert_close(energy, 0.93929971020624E-01_wp, thr)
+   call check(error, energy, 0.93929971020624E-01_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, shellCharges, djdr, djdtr, djdL)
    call contract(djdr, shellCharges, gradient)
    call contract(djdL, shellCharges, sigma)
 
-   if (afail > 0) call terminate(afail)
+   if (allocated(error)) return
 
    ! check numerical gradient
    do ii = 1, nat, 5
@@ -1210,11 +1243,11 @@ subroutine test_coulomb_gfn2_pbc3d
          shift(:) = matmul(jmat, shellCharges)
          el = 0.5_wp*dot_product(shellCharges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   if (afail > 0) call terminate(afail)
+   if (allocated(error)) return
 
    ! check numerical strain derivatives
    eps = unity
@@ -1240,23 +1273,21 @@ subroutine test_coulomb_gfn2_pbc3d
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_gfn2_pbc3d
 
 
-subroutine test_coulomb_gaussian_cluster
-   use assertion
+subroutine test_coulomb_gaussian_cluster(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : sqrtpi
    use xtb_mctc_la, only : contract
    use xtb_coulomb_gaussian
    use xtb_type_environment
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp), parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 24
    integer, parameter :: at(nat) = [6,7,6,7,6,6,6,8,7,6,8,7,6,6, &
@@ -1329,23 +1360,23 @@ subroutine test_coulomb_gaussian_cluster
    call coulomb%getCoulombMatrix(mol, jmat)
 
    do ii = 1, nat
-      call assert_close(jmat(ii,ii), sqrt(2.0_wp)/sqrtpi/rad(1, mol%id(ii)), thr)
+      call check(error, jmat(ii,ii), sqrt(2.0_wp)/sqrtpi/rad(1, mol%id(ii)), thr=thr)
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
 
-   call assert_close(jmat( 1, 3), 0.20845479968556_wp, thr)
-   call assert_close(jmat( 2, 3), 0.34290971840222_wp, thr)
-   call assert_close(jmat( 4, 6), 0.23234316136565_wp, thr)
-   call assert_close(jmat( 3,10), 0.11824383006732_wp, thr)
-   call assert_close(jmat( 6, 3), 0.23395190326154_wp, thr)
-   call assert_close(jmat( 7,18), 0.11492593106728_wp, thr)
-   call assert_close(jmat(12,20), 0.25389462706068_wp, thr)
+   call check(error, jmat( 1, 3), 0.20845479968556_wp, thr=thr)
+   call check(error, jmat( 2, 3), 0.34290971840222_wp, thr=thr)
+   call check(error, jmat( 4, 6), 0.23234316136565_wp, thr=thr)
+   call check(error, jmat( 3,10), 0.11824383006732_wp, thr=thr)
+   call check(error, jmat( 6, 3), 0.23395190326154_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.11492593106728_wp, thr=thr)
+   call check(error, jmat(12,20), 0.25389462706068_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, 0.10159878036650_wp, thr)
+   call check(error, energy, 0.10159878036650_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -1367,7 +1398,7 @@ subroutine test_coulomb_gaussian_cluster
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -1393,16 +1424,14 @@ subroutine test_coulomb_gaussian_cluster
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_gaussian_cluster
 
 
-subroutine test_coulomb_gaussian_pbc3d
-   use assertion
+subroutine test_coulomb_gaussian_pbc3d(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants, only : pi, sqrtpi
    use xtb_mctc_convert
@@ -1410,7 +1439,7 @@ subroutine test_coulomb_gaussian_pbc3d
    use xtb_coulomb_gaussian
    use xtb_type_environment
    use xtb_type_molecule
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp),parameter :: thr = 1.0e-9_wp
    integer, parameter :: nat = 32
@@ -1493,9 +1522,9 @@ subroutine test_coulomb_gaussian_pbc3d
    call init(mol, at, xyz, lattice=lattice)
    call init(coulomb, env, mol, rad, tolerance=1.0e-8_wp)
 
-   call assert_close(coulomb%rCutoff, 18.11939328_wp, thr)
-   call assert_close(coulomb%gCutoff, 1.4680064_wp, thr)
-   call assert_close(coulomb%alpha, 0.2097152_wp, thr)
+   call check(error, coulomb%rCutoff, 18.11939328_wp, thr=thr)
+   call check(error, coulomb%gCutoff, 1.4680064_wp, thr=thr)
+   call check(error, coulomb%alpha, 0.2097152_wp, thr=thr)
 
    allocate(shift(nat))
    allocate(jMat(nat, nat))
@@ -1508,20 +1537,20 @@ subroutine test_coulomb_gaussian_pbc3d
 
    do ii = 1, nat
       do jj = 1, ii-1
-         call assert_close(jmat(jj,ii), jmat(ii,jj), thr)
+         call check(error, jmat(jj,ii), jmat(ii,jj), thr=thr)
       end do
    end do
-   call assert_close(jmat( 1, 3),-0.11073244345567E-01_wp, thr)
-   call assert_close(jmat( 2, 3),-0.59052463388029E-01_wp, thr)
-   call assert_close(jmat( 4, 6),-0.21273998758336E-01_wp, thr)
-   call assert_close(jmat( 3,10),-0.24405713033154E-02_wp, thr)
-   call assert_close(jmat( 6, 3),-0.36042624892326E-01_wp, thr)
-   call assert_close(jmat( 7,18), 0.43960420991048E-01_wp, thr)
-   call assert_close(jmat(12,20),-0.47663494495435E-01_wp, thr)
+   call check(error, jmat( 1, 3),-0.11073244345567E-01_wp, thr=thr)
+   call check(error, jmat( 2, 3),-0.59052463388029E-01_wp, thr=thr)
+   call check(error, jmat( 4, 6),-0.21273998758336E-01_wp, thr=thr)
+   call check(error, jmat( 3,10),-0.24405713033154E-02_wp, thr=thr)
+   call check(error, jmat( 6, 3),-0.36042624892326E-01_wp, thr=thr)
+   call check(error, jmat( 7,18), 0.43960420991048E-01_wp, thr=thr)
+   call check(error, jmat(12,20),-0.47663494495435E-01_wp, thr=thr)
 
    shift(:) = matmul(jmat, charges)
    energy = 0.5_wp*dot_product(charges, shift)
-   call assert_close(energy, 0.17261986036367_wp, thr)
+   call check(error, energy, 0.17261986036367_wp, thr=thr)
 
    call coulomb%getCoulombDerivs(mol, charges, djdr, djdtr, djdL)
    call contract(djdr, charges, gradient)
@@ -1543,7 +1572,7 @@ subroutine test_coulomb_gaussian_pbc3d
          shift(:) = matmul(jmat, charges)
          el = 0.5_wp*dot_product(charges, shift)
          mol%xyz(jj, ii) = mol%xyz(jj, ii) + step
-         call assert_close(gradient(jj, ii), (er - el)*step2, thr)
+         call check(error, gradient(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
@@ -1571,9 +1600,10 @@ subroutine test_coulomb_gaussian_pbc3d
 
          eps(jj, ii) = eps(jj, ii) + step
 
-         call assert_close(sigma(jj, ii), (er - el)*step2, thr)
+         call check(error, sigma(jj, ii), (er - el)*step2, thr=thr)
       end do
    end do
 
-   call terminate(afail)
 end subroutine test_coulomb_gaussian_pbc3d
+
+end module test_coulomb

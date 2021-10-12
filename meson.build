@@ -206,4 +206,4 @@ xtbenv.prepend('PYTHONPATH', meson.current_source_dir() / 'python')
 xtbenv.set('XTBPATH', meson.current_source_dir())
 
 # all tests are defined in a separate meson.build
-subdir('TESTSUITE')
+subdir('test')

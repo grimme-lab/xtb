@@ -1,6 +1,49 @@
-subroutine test_gfnff_sp
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_gfnff
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed
+   implicit none
+   private
+
+   public :: collect_gfnff
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_gfnff(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("sp", test_gfnff_sp), &
+      new_unittest("hb", test_gfnff_hb), &
+      new_unittest("gbsa", test_gfnff_gbsa), &
+      new_unittest("mindless", test_gfnff_mindless_basic), &
+      new_unittest("mindless-solvation", test_gfnff_mindless_solvation), &
+      new_unittest("scaleup", test_gfnff_scaleup), &
+      new_unittest("pdb", test_gfnff_pdb), &
+      new_unittest("sdf", test_gfnff_sdf) &
+      ]
+
+end subroutine collect_gfnff
+
+
+subroutine test_gfnff_sp(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
    use xtb_mctc_systools
    use xtb_solv_gbsa
    use xtb_type_environment
@@ -18,7 +61,7 @@ subroutine test_gfnff_sp
    use xtb_disp_dftd4
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 8
    integer, parameter :: at(nat) = [7,15,9,9,1,1,1,1]
@@ -58,9 +101,9 @@ subroutine test_gfnff_sp
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call assert_eq(calc%topo%nbond,6)
-   call assert_eq(calc%topo%nangl,6)
-   call assert_eq(calc%topo%ntors,1)
+   call check_(error, calc%topo%nbond,6)
+   call check_(error, calc%topo%nangl,6)
+   call check_(error, calc%topo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
@@ -69,26 +112,24 @@ subroutine test_gfnff_sp
       & g,etot,res_gff,calc%param,calc%topo,nlist,solvation,.true.,calc%version, &
       & calc%accuracy)
 
-   call assert_close(res_gff%e_total,-0.76480130317838_wp,thr)
-   call assert_close(res_gff%gnorm,   0.06237477492373_wp,thr)
-   call assert_close(res_gff%e_bond, -0.74131049663951_wp,thr)
-   call assert_close(res_gff%e_angl,  0.00633910404059_wp,thr)
-   call assert_close(res_gff%e_tors,  0.00004724445432_wp,thr)
-   call assert_close(res_gff%e_es,   -0.05070333390156_wp,thr*10)
-   call assert_close(res_gff%e_disp, -0.00224146422313_wp,thr)
-   call assert_close(res_gff%e_rep,   0.03086605590295_wp,thr)
-   call assert_close(res_gff%e_hb,   -0.00003142616658_wp,thr)
-   call assert_close(res_gff%e_xb,   -0.00776698664545_wp,thr)
-   call assert_close(res_gff%e_batm, -0.00000000000000_wp,thr)
+   call check_(error, res_gff%e_total,-0.76480130317838_wp, thr=thr)
+   call check_(error, res_gff%gnorm,   0.06237477492373_wp, thr=thr)
+   call check_(error, res_gff%e_bond, -0.74131049663951_wp, thr=thr)
+   call check_(error, res_gff%e_angl,  0.00633910404059_wp, thr=thr)
+   call check_(error, res_gff%e_tors,  0.00004724445432_wp, thr=thr)
+   call check_(error, res_gff%e_es,   -0.05070333390156_wp, thr=thr*10)
+   call check_(error, res_gff%e_disp, -0.00224146422313_wp, thr=thr)
+   call check_(error, res_gff%e_rep,   0.03086605590295_wp, thr=thr)
+   call check_(error, res_gff%e_hb,   -0.00003142616658_wp, thr=thr)
+   call check_(error, res_gff%e_xb,   -0.00776698664545_wp, thr=thr)
+   call check_(error, res_gff%e_batm, -0.00000000000000_wp, thr=thr)
 
    call mol%deallocate
 
-   call terminate(afail)
 end subroutine test_gfnff_sp
 
-subroutine test_gfnff_hb
+subroutine test_gfnff_hb(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
    use xtb_mctc_systools
    use xtb_type_environment
    use xtb_type_options
@@ -105,7 +146,7 @@ subroutine test_gfnff_hb
    use xtb_disp_dftd4
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
    integer, parameter :: at(nat) = [6,8,1,1,8,1,1]
@@ -143,35 +184,33 @@ subroutine test_gfnff_hb
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call assert_eq(calc%topo%nbond,5)
-   call assert_eq(calc%topo%nangl,4)
-   call assert_eq(calc%topo%ntors,1)
+   call check_(error, calc%topo%nbond,5)
+   call check_(error, calc%topo%nangl,4)
+   call check_(error, calc%topo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
    call calc%singlepoint(env, mol, chk, 1, .false., etot, g, sigma, gap, res_gff)
 
-   call assert_close(res_gff%e_total,-0.949706677118_wp,thr)
-   call assert_close(res_gff%gnorm,   0.001152720923_wp,thr)
-   call assert_close(res_gff%e_bond, -0.856707643513_wp,thr)
-   call assert_close(res_gff%e_angl,  0.000579711773_wp,thr)
-   call assert_close(res_gff%e_tors,  0.000000008811_wp,thr)
-   call assert_close(res_gff%e_es,   -0.152313816530_wp,thr*10)
-   call assert_close(res_gff%e_disp, -0.001251669186_wp,thr)
-   call assert_close(res_gff%e_rep,   0.066881023899_wp,thr)
-   call assert_close(res_gff%e_hb,   -0.006894292337_wp,thr)
-   call assert_close(res_gff%e_xb,   -0.000000000000_wp,thr)
-   call assert_close(res_gff%e_batm, -0.000000000000_wp,thr)
+   call check_(error, res_gff%e_total,-0.949706677118_wp, thr=thr)
+   call check_(error, res_gff%gnorm,   0.001152720923_wp, thr=thr)
+   call check_(error, res_gff%e_bond, -0.856707643513_wp, thr=thr)
+   call check_(error, res_gff%e_angl,  0.000579711773_wp, thr=thr)
+   call check_(error, res_gff%e_tors,  0.000000008811_wp, thr=thr)
+   call check_(error, res_gff%e_es,   -0.152313816530_wp, thr=thr*10)
+   call check_(error, res_gff%e_disp, -0.001251669186_wp, thr=thr)
+   call check_(error, res_gff%e_rep,   0.066881023899_wp, thr=thr)
+   call check_(error, res_gff%e_hb,   -0.006894292337_wp, thr=thr)
+   call check_(error, res_gff%e_xb,   -0.000000000000_wp, thr=thr)
+   call check_(error, res_gff%e_batm, -0.000000000000_wp, thr=thr)
 
    call mol%deallocate
 
-   call terminate(afail)
 end subroutine test_gfnff_hb
 
-subroutine test_gfnff_gbsa
+subroutine test_gfnff_gbsa(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
    use xtb_mctc_systools
    use xtb_solv_input
    use xtb_type_environment
@@ -189,7 +228,7 @@ subroutine test_gfnff_gbsa
    use xtb_disp_dftd4
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator, addSolvationModel
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
    integer, parameter :: at(nat) = [6,8,1,1,8,1,1]
@@ -231,40 +270,38 @@ subroutine test_gfnff_gbsa
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call assert_eq(calc%topo%nbond,5)
-   call assert_eq(calc%topo%nangl,4)
-   call assert_eq(calc%topo%ntors,1)
+   call check_(error, calc%topo%nbond,5)
+   call check_(error, calc%topo%nangl,4)
+   call check_(error, calc%topo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
    call calc%singlepoint(env, mol, chk, 1, .false., etot, g, sigma, gap, res_gff)
 
-   call assert_close(res_gff%e_total,-0.964158677062_wp,thr)
-   call assert_close(res_gff%gnorm,   0.013624276205_wp,thr)
-   call assert_close(res_gff%e_bond, -0.856707643513_wp,thr)
-   call assert_close(res_gff%e_angl,  0.000579711773_wp,thr)
-   call assert_close(res_gff%e_tors,  0.000000008811_wp,thr)
-   call assert_close(res_gff%e_es,   -0.150043166563_wp,thr*10)
-   call assert_close(res_gff%e_disp, -0.001251669186_wp,thr)
-   call assert_close(res_gff%e_rep,   0.066881023899_wp,thr)
-   call assert_close(res_gff%e_hb,   -0.006894292337_wp,thr)
-   call assert_close(res_gff%e_xb,   -0.000000000000_wp,thr)
-   call assert_close(res_gff%e_batm, -0.000000000000_wp,thr)
-   call assert_close(res_gff%g_solv, -0.016722649876_wp,thr)
-   call assert_close(res_gff%g_sasa,  0.000126368690_wp,thr)
-   call assert_close(res_gff%g_hb,   -0.009238122476_wp,thr)
-   call assert_close(res_gff%g_born, -0.009468339217_wp,thr)
-   call assert_close(res_gff%g_shift, 0.001857443126_wp,thr)
+   call check_(error, res_gff%e_total,-0.964158677062_wp, thr=thr)
+   call check_(error, res_gff%gnorm,   0.013624276205_wp, thr=thr)
+   call check_(error, res_gff%e_bond, -0.856707643513_wp, thr=thr)
+   call check_(error, res_gff%e_angl,  0.000579711773_wp, thr=thr)
+   call check_(error, res_gff%e_tors,  0.000000008811_wp, thr=thr)
+   call check_(error, res_gff%e_es,   -0.150043166563_wp, thr=thr*10)
+   call check_(error, res_gff%e_disp, -0.001251669186_wp, thr=thr)
+   call check_(error, res_gff%e_rep,   0.066881023899_wp, thr=thr)
+   call check_(error, res_gff%e_hb,   -0.006894292337_wp, thr=thr)
+   call check_(error, res_gff%e_xb,   -0.000000000000_wp, thr=thr)
+   call check_(error, res_gff%e_batm, -0.000000000000_wp, thr=thr)
+   call check_(error, res_gff%g_solv, -0.016722649876_wp, thr=thr)
+   call check_(error, res_gff%g_sasa,  0.000126368690_wp, thr=thr)
+   call check_(error, res_gff%g_hb,   -0.009238122476_wp, thr=thr)
+   call check_(error, res_gff%g_born, -0.009468339217_wp, thr=thr)
+   call check_(error, res_gff%g_shift, 0.001857443126_wp, thr=thr)
 
    call mol%deallocate
 
-   call terminate(afail)
 end subroutine test_gfnff_gbsa
 
 
-subroutine test_gfnff_mindless_basic
-   use assertion
+subroutine test_gfnff_mindless_basic(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -278,7 +315,7 @@ subroutine test_gfnff_mindless_basic
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -309,7 +346,6 @@ subroutine test_gfnff_mindless_basic
 
    call init(env)
    do iMol = 1, 10
-      if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
 
@@ -320,28 +356,25 @@ subroutine test_gfnff_mindless_basic
       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
 
    end do
-
-   call terminate(afail)
 
 end subroutine test_gfnff_mindless_basic
 
 
-subroutine test_gfnff_mindless_solvation
-   use assertion
+subroutine test_gfnff_mindless_solvation(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -357,7 +390,7 @@ subroutine test_gfnff_mindless_solvation
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -391,7 +424,6 @@ subroutine test_gfnff_mindless_solvation
 
    call init(env)
    do iMol = 1, 10
-      if (afail > 0) exit
 
       call getMolecule(mol, mindless(iMol))
 
@@ -404,28 +436,25 @@ subroutine test_gfnff_mindless_solvation
          & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
 
    end do
-
-   call terminate(afail)
 
 end subroutine test_gfnff_mindless_solvation
 
 
-subroutine test_gfnff_scaleup
-   use assertion
+subroutine test_gfnff_scaleup(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -441,7 +470,7 @@ subroutine test_gfnff_scaleup
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -461,15 +490,14 @@ subroutine test_gfnff_scaleup
    character(len=*), parameter :: solvents(5) = [character(len=20) ::&
       & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
    real(wp), parameter :: ref_energies(5) = &
-      &[-4.6919926039901_wp, -8.8777443374228_wp, -13.337202405627_wp, &
-      & -13.812533050807_wp, -20.571609956531_wp]
+      &[-4.6919926039901_wp, -8.8807760138817_wp, -13.311107073100_wp, &
+      & -13.822994859730_wp, -20.577952329212_wp]
    real(wp), parameter :: ref_gnorms(5) = &
-      &[0.05947676640487_wp, 0.09579843444240_wp, 0.16441091067186_wp, &
-      & 0.12794843205402_wp, 0.19531423406795_wp]
+      &[0.05947676640487_wp, 0.09522104624089_wp, 0.16195989065950_wp, &
+      & 0.12496592222660_wp, 0.19366599743810_wp]
 
    call init(env)
    do iMol = 1, 5
-      if (afail > 0) exit
 
       call getMolecule(mol, trim(molecules(iMol)))
 
@@ -482,29 +510,25 @@ subroutine test_gfnff_scaleup
          & alpb=mod(iMol, 2)==0, kernel=gbKernel%still))
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
 
    end do
-
-   call terminate(afail)
-
 
 end subroutine test_gfnff_scaleup
 
 
-subroutine test_gfnff_pdb
-   use assertion
+subroutine test_gfnff_pdb(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -520,7 +544,7 @@ subroutine test_gfnff_pdb
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -535,13 +559,12 @@ subroutine test_gfnff_pdb
    real(wp) :: energy, hl_gap, sigma(3, 3)
    real(wp), allocatable :: gradient(:, :)
    real(wp), parameter :: ref_energies(3) = &
-      &[-12.384444510462_wp, -12.467791388867_wp, -12.467334223942_wp]
+      &[-12.358885277947_wp, -12.442589851697_wp, -12.442131341448_wp]
    real(wp), parameter :: ref_gnorms(3) = &
-      &[0.15858916978951_wp, 0.15170112960820_wp, 0.15172293684027_wp]
+      &[0.15855661051730_wp, 0.15148957207346_wp, 0.15151167424491_wp]
 
    call init(env)
    do iMol = 1, 3
-      if (afail > 0) exit
 
       call getMolecule(mol, 'pdb-4qxx')
 
@@ -556,28 +579,25 @@ subroutine test_gfnff_pdb
       end if
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
 
    end do
-
-   call terminate(afail)
 
 end subroutine test_gfnff_pdb
 
 
-subroutine test_gfnff_sdf
-   use assertion
+subroutine test_gfnff_sdf(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_test_molstock, only : getMolecule
 
@@ -595,7 +615,7 @@ subroutine test_gfnff_sdf
 
    use xtb_setparam, only : ichrg
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
 
@@ -616,7 +636,6 @@ subroutine test_gfnff_sdf
 
    call init(env)
    do iMol = 1, 3
-      if (afail > 0) exit
 
       call getMolecule(mol, 'bug332')
       ichrg = nint(mol%chrg)
@@ -632,21 +651,21 @@ subroutine test_gfnff_sdf
       end if
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
          & hl_gap, res)
 
       call env%check(exitRun)
-      call assert(.not.exitRun)
+      call check_(error, .not.exitRun)
       if (exitRun) exit
 
-      call assert_close(energy, ref_energies(iMol), thr)
-      call assert_close(norm2(gradient), ref_gnorms(iMol), thr)
+      call check_(error, energy, ref_energies(iMol), thr=thr)
+      call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
 
    end do
 
-   call terminate(afail)
-
 end subroutine test_gfnff_sdf
+
+end module test_gfnff

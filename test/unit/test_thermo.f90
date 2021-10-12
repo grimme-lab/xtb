@@ -1,6 +1,44 @@
-subroutine test_axis
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+module test_thermo
+   use testdrive, only : new_unittest, unittest_type, error_type, check, test_failed
+   implicit none
+   private
+
+   public :: collect_thermo
+
+contains
+
+!> Collect all exported unit tests
+subroutine collect_thermo(testsuite)
+   !> Collection of tests
+   type(unittest_type), allocatable, intent(out) :: testsuite(:)
+
+   testsuite = [ &
+      new_unittest("axis", test_axis), &
+      new_unittest("calc", test_thermo_calc), &
+      new_unittest("print", test_print_thermo) &
+      ]
+
+end subroutine collect_thermo
+
+
+subroutine test_axis(error)
    use xtb_mctc_accuracy, only : wp
-   use assertion
 
    use xtb_mctc_convert
    use xtb_type_molecule
@@ -8,7 +46,7 @@ subroutine test_axis
 
    use xtb_axis
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
    real(wp), parameter :: thr2 = 1.0e-5_wp
@@ -38,83 +76,81 @@ subroutine test_axis
 
    moments = mol%moments_of_inertia()
 
-   call assert_close(moments(1), 15649.5560990126_wp, thr2)
-   call assert_close(moments(2), 484991.786527778_wp, thr2)
-   call assert_close(moments(3), 485024.382510520_wp, thr2)
+   call check(error, moments(1), 15649.5560990126_wp, thr=thr2)
+   call check(error, moments(2), 484991.786527778_wp, thr=thr2)
+   call check(error, moments(3), 485024.382510520_wp, thr=thr2)
 
    rot = 0.5_wp*autorcm/[moments(3), moments(2), moments(1)]
 
-   call assert_close(rot(1), .226251131473004_wp, thr)
-   call assert_close(rot(2), .226266337664493_wp, thr)
-   call assert_close(rot(3), 7.01216792608729_wp, thr)
+   call check(error, rot(1), .226251131473004_wp, thr=thr)
+   call check(error, rot(2), .226266337664493_wp, thr=thr)
+   call check(error, rot(3), 7.01216792608729_wp, thr=thr)
 
    atmass = ams
 
    call axis(mol%n, mol%at, mol%xyz, rot1(1), rot1(2), rot1(3))
 
-   call assert_close(rot1(1), .226251131473004_wp, thr2)
-   call assert_close(rot1(2), .226266337664493_wp, thr2)
-   call assert_close(rot1(3), 7.01216792608729_wp, thr2)
+   call check(error, rot1(1), .226251131473004_wp, thr=thr2)
+   call check(error, rot1(2), .226266337664493_wp, thr=thr2)
+   call check(error, rot1(3), 7.01216792608729_wp, thr=thr2)
 
    call axis2(mol%n, mol%at, mol%xyz, rot2(1), rot2(2), rot2(3), avmom2, mass2)
 
-   call assert_close(rot2(1), .226251131473004_wp, thr2)
-   call assert_close(rot2(2), .226266337664493_wp, thr2)
-   call assert_close(rot2(3), 7.01216792608729_wp, thr2)
+   call check(error, rot2(1), .226251131473004_wp, thr=thr2)
+   call check(error, rot2(2), .226266337664493_wp, thr=thr2)
+   call check(error, rot2(3), 7.01216792608729_wp, thr=thr2)
 
    call axisvec(mol%n, mol%at, mol%xyz, rot4(1), rot4(2), rot4(3), evec4)
 
-   call assert_close(rot4(1), .226251131473004_wp, thr2)
-   call assert_close(rot4(2), .226266337664493_wp, thr2)
-   call assert_close(rot4(3), 7.01216792608729_wp, thr2)
+   call check(error, rot4(1), .226251131473004_wp, thr=thr2)
+   call check(error, rot4(2), .226266337664493_wp, thr=thr2)
+   call check(error, rot4(3), 7.01216792608729_wp, thr=thr2)
 
    mol%atmass = iso * amutoau
 
    moments = mol%moments_of_inertia()
 
-   call assert_close(moments(1), 23062.951395017_wp, thr2)
-   call assert_close(moments(2), 569661.08474644_wp, thr2)
-   call assert_close(moments(3), 577041.88473780_wp, thr2)
+   call check(error, moments(1), 23062.951395017_wp, thr=thr2)
+   call check(error, moments(2), 569661.08474644_wp, thr=thr2)
+   call check(error, moments(3), 577041.88473780_wp, thr=thr2)
 
    rot = 0.5_wp*autorcm/[moments(3), moments(2), moments(1)]
 
-   call assert_close(rot(1), .19017218374861_wp, thr)
-   call assert_close(rot(2), .19263614502269_wp, thr)
-   call assert_close(rot(3), 4.7581644454539_wp, thr)
+   call check(error, rot(1), .19017218374861_wp, thr=thr)
+   call check(error, rot(2), .19263614502269_wp, thr=thr)
+   call check(error, rot(3), 4.7581644454539_wp, thr=thr)
 
    atmass = iso
 
    call axis(mol%n, mol%at, mol%xyz, rot1(1), rot1(2), rot1(3))
 
-   call assert_close(rot1(1), .19017218374861_wp, thr2)
-   call assert_close(rot1(2), .19263614502269_wp, thr2)
-   call assert_close(rot1(3), 4.7581644454539_wp, thr2)
+   call check(error, rot1(1), .19017218374861_wp, thr=thr2)
+   call check(error, rot1(2), .19263614502269_wp, thr=thr2)
+   call check(error, rot1(3), 4.7581644454539_wp, thr=thr2)
 
    call axis2(mol%n, mol%at, mol%xyz, rot2(1), rot2(2), rot2(3), avmom2, mass2)
 
-   call assert_close(rot2(1), .19017218374861_wp, thr2)
-   call assert_close(rot2(2), .19263614502269_wp, thr2)
-   call assert_close(rot2(3), 4.7581644454539_wp, thr2)
+   call check(error, rot2(1), .19017218374861_wp, thr=thr2)
+   call check(error, rot2(2), .19263614502269_wp, thr=thr2)
+   call check(error, rot2(3), 4.7581644454539_wp, thr=thr2)
 
    call axisvec(mol%n, mol%at, mol%xyz, rot4(1), rot4(2), rot4(3), evec4)
 
-   call assert_close(rot4(1), .19017218374861_wp, thr2)
-   call assert_close(rot4(2), .19263614502269_wp, thr2)
-   call assert_close(rot4(3), 4.7581644454539_wp, thr2)
+   call check(error, rot4(1), .19017218374861_wp, thr=thr2)
+   call check(error, rot4(2), .19263614502269_wp, thr=thr2)
+   call check(error, rot4(3), 4.7581644454539_wp, thr=thr2)
 
-   call terminate(afail)
 
 end subroutine test_axis
 
-subroutine test_thermo_calc
+subroutine test_thermo_calc(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
 
    use xtb_mctc_convert
    use xtb_thermo
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: thr = 1.0e-8_wp
    integer,  parameter :: nat = 6
@@ -151,18 +187,16 @@ subroutine test_thermo_calc
       &           symmetry_number,sum(ams),vibs,nvibs,energy,temperature, &
       &           rotor_cutoff,et,ht,g,ts,0.5_wp*sum(vibs),pr)
 
-   call assert_close(et, 0.50275771916811E-01_wp, thr)
-   call assert_close(ht, 0.67528241233247E-02_wp, thr)
-   call assert_close(g,  0.17417501635698E-01_wp, thr)
-   call assert_close(ts, 0.32858270281112E-01_wp, thr)
+   call check(error, et, 0.50275771916811E-01_wp, thr=thr)
+   call check(error, ht, 0.67528241233247E-02_wp, thr=thr)
+   call check(error, g,  0.17417501635698E-01_wp, thr=thr)
+   call check(error, ts, 0.32858270281112E-01_wp, thr=thr)
 
-   call terminate(afail)
 end subroutine test_thermo_calc
 
-subroutine test_print_thermo
+subroutine test_print_thermo(error)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stdout
-   use assertion
 
    use xtb_mctc_convert
    use xtb_splitparam
@@ -170,7 +204,7 @@ subroutine test_print_thermo
    use xtb_axis
    use xtb_propertyoutput
 
-   implicit none
+   type(error_type), allocatable, intent(out) :: error
    
    real(wp) :: zp
    real(wp), parameter :: thr = 1.0e-8_wp
@@ -213,19 +247,20 @@ subroutine test_print_thermo
    call print_thermo(stdout,nat,nvibs,at,xyz,vibs,energy, &
       &              htot,gtot,nimag,.true.,zp)
 
-   call assert_eq(nimag, 0)
-   call assert_close(htot, 0.50275771916811E-01_wp, thr)
-   call assert_close(gtot, 0.17337250373280E-01_wp, thr)
+   call check(error, nimag, 0)
+   call check(error, htot, 0.50275771916811E-01_wp, thr=thr)
+   call check(error, gtot, 0.17337250373280E-01_wp, thr=thr)
 
    atmass = iso
 
    call print_thermo(stdout,nat,nvibs,at,xyz,vibs_iso,energy, &
       &              htot,gtot,nimag,.true.,zp)
 
-   call assert_eq(nimag, 0)
-   call assert_close(htot, 0.43308512037251E-01_wp, thr)
-   call assert_close(gtot, 0.88976699718681E-02_wp, thr)
+   call check(error, nimag, 0)
+   call check(error, htot, 0.43308512037251E-01_wp, thr=thr)
+   call check(error, gtot, 0.88976699718681E-02_wp, thr=thr)
 
-   call terminate(afail)
 
 end subroutine test_print_thermo
+
+end module test_thermo
