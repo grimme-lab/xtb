@@ -336,7 +336,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    ! fill levels
    if(wfn%nel.ne.0) then
-      if (wfn%nel > 2*size(basis%nao)) then
+      if (wfn%nel > 2*basis%nao) then
          call env%error("Not enough basis functions for filling orbitals", source)
          return
       end if
