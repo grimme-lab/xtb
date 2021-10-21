@@ -292,15 +292,11 @@ subroutine newWavefunction_(env, mol, calc, wfn)
    allocate(cn(mol%n))
    call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
-   wfn%nel = idint(sum(mol%z)) - nint(mol%chrg)
-   wfn%nopen = mol%uhf
-   if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
-
    if (mol%npbc > 0) then
       wfn%q = mol%chrg/real(mol%n,wp)
    else
       if (guess_charges.eq.p_guess_gasteiger) then
-         call iniqcn(mol%n,wfn%nel,mol%at,mol%z,mol%xyz,nint(mol%chrg),1.0_wp, &
+         call iniqcn(mol%n,mol%at,mol%z,mol%xyz,nint(mol%chrg),1.0_wp, &
             & wfn%q,cn,calc%xtbData%level,.true.)
       else if (guess_charges.eq.p_guess_goedecker) then
          call new_charge_model_2019(chrgeq,mol%n,mol%at)
