@@ -328,6 +328,10 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    allocate(selfEnergy(maxval(xtbData%nshell), mol%n))
    allocate(dSEdcn(maxval(xtbData%nshell), mol%n))
 
+   wfn%nel = nint(sum(mol%z) - mol%chrg)
+   wfn%nopen = mol%uhf
+   if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
+
    call setzshell(xtbData,mol%n,mol%at,basis%nshell,mol%z,zsh,eatoms,xtbData%level)
 
    ! fill levels

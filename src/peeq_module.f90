@@ -283,6 +283,10 @@ subroutine peeq &
    allocate(dqdr(3,mol%n,mol%n)); dqdr = 0.0_wp
    allocate(dqdL(3,3,mol%n));     dqdL = 0.0_wp
 
+   wfn%nel = nint(sum(mol%z) - mol%chrg)
+   wfn%nopen = mol%uhf
+   if(wfn%nopen == 0 .and. mod(wfn%nel,2) /= 0) wfn%nopen=1
+
 ! ---------------------------------------
 !  Fill levels
 ! ---------------------------------------

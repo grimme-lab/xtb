@@ -35,7 +35,6 @@ contains
 !  the coordination number is taken into account.
 !  INPUT
 !  nat  :: number of atoms
-!  nel  :: number of electrons
 !  at   :: ordinal number of atoms
 !  xyz  :: coordinates in Bohr
 !  z    :: nuclear charges
@@ -48,13 +47,12 @@ contains
 !  OPTIONS
 !  version :: vTB(=0),GFN1(=1),GFN2(>1)
 !  verbose :: prints some header and makes a bit of analysis in the end
-subroutine iniqcn(nat,nel,at,z,xyz,chrg,kchrg1,q,cn,version,verbose)
+subroutine iniqcn(nat,at,z,xyz,chrg,kchrg1,q,cn,version,verbose)
    use, intrinsic :: iso_fortran_env, only : id => output_unit
 
    implicit none
 
    integer, intent(in)  :: nat
-   integer, intent(in)  :: nel
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: z(nat)
    real(wp),intent(in)  :: xyz(3,nat)
@@ -83,13 +81,13 @@ subroutine iniqcn(nat,nel,at,z,xyz,chrg,kchrg1,q,cn,version,verbose)
 
 !  select the variant of Grimme-Gasteiger charges based on the version number
    if (version.le.0) then
-      call iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
+      call iniqcn_vtb(nat,at,z,xyz,chrg,q,cn)
    else if (version.eq.1) then
       if (pr) write(id,'(''using D3 CN'')')
-      call iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
+      call iniqcn_gfn1(nat,at,z,xyz,chrg,kchrg1,q,cn)
    else
       if (pr) write(id,'(''using GFN CN'')')
-      call iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
+      call iniqcn_gfn2(nat,at,z,xyz,chrg,q,cn)
    endif
 
 
@@ -116,7 +114,6 @@ end subroutine iniqcn
 !  for the vTB part in sTDA-xTB calculations
 !  INPUT
 !  nat  :: number of atoms
-!  nel  :: number of electrons
 !  at   :: ordinal number of atoms
 !  xyz  :: coordinates in Bohr
 !  z    :: nuclear charges
@@ -125,7 +122,7 @@ end subroutine iniqcn
 !  OUTPUT
 !  q    :: partial charges
 !  cn   :: coordination number
-pure subroutine iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
+pure subroutine iniqcn_vtb(nat,at,z,xyz,chrg,q,cn)
 
 !  get interface to ncoord
    use xtb_disp_ncoord, only : ncoord_d3
@@ -133,7 +130,6 @@ pure subroutine iniqcn_vtb(nat,nel,at,z,xyz,chrg,q,cn)
    implicit none
 
    integer, intent(in)  :: nat
-   integer, intent(in)  :: nel
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: z(nat)
    real(wp),intent(in)  :: xyz(3,nat)
@@ -181,7 +177,6 @@ end subroutine iniqcn_vtb
 !  for GFN1-xTB calculations
 !  INPUT
 !  nat  :: number of atoms
-!  nel  :: number of electrons
 !  at   :: ordinal number of atoms
 !  xyz  :: coordinates in Bohr
 !  z    :: nuclear charges
@@ -192,7 +187,7 @@ end subroutine iniqcn_vtb
 !  cn   :: coordination number
 !  PARAMETER:
 !  kchrg1 (via INPUT)
-pure subroutine iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
+pure subroutine iniqcn_gfn1(nat,at,z,xyz,chrg,kchrg1,q,cn)
 
 !  get interface to ncoord
    use xtb_disp_ncoord, only : ncoord_d3
@@ -200,7 +195,6 @@ pure subroutine iniqcn_gfn1(nat,nel,at,z,xyz,chrg,kchrg1,q,cn)
    implicit none
 
    integer, intent(in)  :: nat
-   integer, intent(in)  :: nel
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: z(nat)
    real(wp),intent(in)  :: xyz(3,nat)
@@ -252,7 +246,6 @@ end subroutine iniqcn_gfn1
 !  for GFN2-xTB calculations
 !  INPUT
 !  nat  :: number of atoms
-!  nel  :: number of electrons
 !  at   :: ordinal number of atoms
 !  xyz  :: coordinates in Bohr
 !  z    :: nuclear charges
@@ -261,7 +254,7 @@ end subroutine iniqcn_gfn1
 !  OUTPUT
 !  q    :: partial charges
 !  cn   :: coordination number
-pure subroutine iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
+pure subroutine iniqcn_gfn2(nat,at,z,xyz,chrg,q,cn)
 
 !  get interface to ncoord
    use xtb_disp_ncoord, only : ncoord_gfn
@@ -269,7 +262,6 @@ pure subroutine iniqcn_gfn2(nat,nel,at,z,xyz,chrg,q,cn)
    implicit none
 
    integer, intent(in)  :: nat
-   integer, intent(in)  :: nel
    integer, intent(in)  :: at(nat)
    real(wp),intent(in)  :: z(nat)
    real(wp),intent(in)  :: xyz(3,nat)

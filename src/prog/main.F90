@@ -385,9 +385,6 @@ subroutine xtbMain(env, argParser)
 
    mol%chrg = real(ichrg, wp)
    mol%uhf = nalphabeta
-   chk%wfn%nel = idint(sum(mol%z)) - ichrg
-   chk%wfn%nopen = nalphabeta
-   if(chk%wfn%nopen == 0 .and. mod(chk%wfn%nel,2) /= 0) chk%wfn%nopen=1
    call initrand
 
    call setup_summary(env%unit,mol%n,fname,xcontrol,chk%wfn,xrc,exist)
@@ -532,7 +529,7 @@ subroutine xtbMain(env, argParser)
          chk%wfn%q = real(ichrg,wp)/real(mol%n,wp)
       else
          if (guess_charges.eq.p_guess_gasteiger) then
-            call iniqcn(mol%n,chk%wfn%nel,mol%at,mol%z,mol%xyz,ichrg,1.0_wp,chk%wfn%q,cn,gfn_method,.true.)
+            call iniqcn(mol%n,mol%at,mol%z,mol%xyz,ichrg,1.0_wp,chk%wfn%q,cn,gfn_method,.true.)
          else if (guess_charges.eq.p_guess_goedecker) then
             call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
             call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(ichrg,wp),cn,dcn,chk%wfn%q,dq,er,g,&
@@ -671,6 +668,7 @@ subroutine xtbMain(env, argParser)
       & .or.runtyp.eq.p_run_vomega) then
       call start_timing(2)
       call vip_header(env%unit)
+      mol%chrg = mol%chrg + 1
       chk%wfn%nel = chk%wfn%nel-1
       if (mod(chk%wfn%nel,2).ne.0) chk%wfn%nopen = 1
       call singlepoint &
@@ -682,6 +680,7 @@ subroutine xtbMain(env, argParser)
          &                  autoev*ipeashift
       write(env%unit,'("delta SCC IP (eV):",f10.4)') autoev*ip
       write(env%unit,'(72("-"))')
+      mol%chrg = mol%chrg - 1
       chk%wfn%nel = chk%wfn%nel+1
       call stop_timing(2)
    endif
@@ -690,6 +689,7 @@ subroutine xtbMain(env, argParser)
       & .or.runtyp.eq.p_run_vomega) then
       call start_timing(2)
       call vea_header(env%unit)
+      mol%chrg = mol%chrg - 1
       chk%wfn%nel = chk%wfn%nel+1
       if (mod(chk%wfn%nel,2).ne.0) chk%wfn%nopen = 1
       call singlepoint &
@@ -702,6 +702,7 @@ subroutine xtbMain(env, argParser)
       write(env%unit,'("delta SCC EA (eV):",f10.4)') autoev*ea
       write(env%unit,'(72("-"))')
 
+      mol%chrg = mol%chrg + 1
       chk%wfn%nel = chk%wfn%nel-1
       call stop_timing(2)
    endif
@@ -730,6 +731,7 @@ subroutine xtbMain(env, argParser)
       write(env%unit,'("Fukui index Calculation")')
       wf_p%wfn=chk%wfn
       wf_m%wfn=chk%wfn
+      mol%chrg = mol%chrg + 1
       wf_p%wfn%nel = wf_p%wfn%nel+1
       if (mod(wf_p%wfn%nel,2).ne.0) wf_p%wfn%nopen = 1
       call singlepoint &
@@ -737,6 +739,7 @@ subroutine xtbMain(env, argParser)
          &        egap,etemp,maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
       f_plus=wf_p%wfn%q-chk%wfn%q
 
+      mol%chrg = mol%chrg - 2
       wf_m%wfn%nel = wf_m%wfn%nel-1
       if (mod(wf_m%wfn%nel,2).ne.0) wf_m%wfn%nopen = 1
       call singlepoint &
@@ -748,6 +751,7 @@ subroutine xtbMain(env, argParser)
       do i=1,mol%n
          write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), f_plus(i), f_minus(i), 0.5d0*(wf_p%wfn%q(i)-wf_m%wfn%q(i))
       enddo
+      mol%chrg = mol%chrg + 1
       deallocate(f_plus,f_minus)
    endif
 
