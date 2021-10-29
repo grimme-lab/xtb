@@ -132,12 +132,12 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    write(*,*)nx,ny,nz
 
    ! calculate step size and number of steps (step size approx 0.2-0.5)
-   xst=floor((abs(px)+abs(nx))/step)
-   xinc=(abs(px)+abs(nx))/xst
-   yst=floor((abs(py)+abs(ny))/step)
-   yinc=(abs(py)+abs(ny))/yst
-   zst=floor((abs(pz)+abs(nz))/step)
-   zinc=(abs(pz)+abs(nz))/zst
+   xst=floor(abs(px-nx)/step)
+   xinc=abs(px-nx)/xst
+   yst=floor(abs(py-ny)/step)
+   yinc=abs(py-ny)/yst
+   zst=floor(abs(pz-nz)/step)
+   zinc=abs(pz-nz)/zst
    write(*,*)'Total # of points', (xst+1)*(yst+1)*(zst+1)
    dr3=xinc*yinc*zinc
 
