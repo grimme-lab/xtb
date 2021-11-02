@@ -23,20 +23,58 @@ if fc.get_id() != cc.get_id()
   warning('FC and CC are not from the same vendor')
 endif
 
+fopts = []
 if fc.get_id() == 'gcc'
-  add_project_arguments('-fdefault-real-8', language: 'fortran')
-  add_project_arguments('-fdefault-double-8', language: 'fortran')
-  add_project_arguments('-ffree-line-length-none', language: 'fortran')
-  add_project_arguments('-fbacktrace', language: 'fortran')
+  fopts = [
+    '-fdefault-real-8',
+    '-fdefault-double-8',
+    '-ffree-line-length-none',
+    '-fbacktrace',
+  ]
 elif fc.get_id() == 'intel'
-  add_project_arguments('-axAVX2',    language: 'fortran')
-  add_project_arguments('-r8',        language: 'fortran')
-  add_project_arguments('-traceback', language: 'fortran')
+  if get_option('buildtype') == 'release'
+    opt_level = [
+      '-Ofast',
+      '-ip',
+      '-axAVX2',
+      '-mtune=core-avx2',
+      '-fma',
+    ]
+  else
+    opt_level = [
+      '-axAVX2',
+    ]
+  endif
+  fopts = opt_level + [
+    '-r8',
+    '-traceback',
+  ]
+elif fc.get_id() == 'intel-cl'
+  if get_option('buildtype') == 'release'
+    opt_level = [
+      '/O3',
+      '/Qip',
+      '/QaxAVX2',
+      '/Qtune:core-avx2',
+      '/Qfma',
+    ]
+  else
+    opt_level = [
+      '/QaxAVX2',
+    ]
+  endif
+  fopts = opt_level + [
+    '/4R8',
+    '/traceback',
+  ]
 elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
-  add_project_arguments(
-    '-Mpreprocess', '-Mbackslash', '-Mallocatable=03', '-traceback', '-r8',
-    language: 'fortran'
-  )
+  fopts = [
+    '-Mpreprocess',
+    '-Mbackslash',
+    '-Mallocatable=03',
+    '-traceback',
+    '-r8',
+  ]
 
   if get_option('gpu')
     add_project_arguments('-acc', '-Minfo=accel', '-DXTB_GPU', language: 'fortran')
@@ -52,6 +90,7 @@ elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
     endif
   endif
 endif
+add_project_arguments(fopts, language: 'fortran')
 
 # fix compiliation problems with of symmetry/symmetry_i.c
 add_project_arguments('-D_Float128=__float128', language: 'c')
@@ -75,7 +114,7 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
     if get_option('openmp')
       libmkl_exe += fc.find_library('mkl_gnu_thread')
     endif
-  elif fc.get_id() == 'intel'
+  elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
     libmkl_exe = [fc.find_library('mkl_intel_lp64')]
     if get_option('openmp')
       libmkl_exe += fc.find_library('mkl_intel_thread')
@@ -112,7 +151,7 @@ elif la_backend == 'openblas'
   dependencies += blas_dep
   # some OpenBLAS versions can provide lapack, check if we can find dsygvd
   openblas_provides_lapack = fc.links(
-    files('openblas_lapack_test.f90'),
+    'external dsygvd; call dsygvd(); end',
     dependencies: blas_dep,
   )
   # otherwise we fall back to LAPACK

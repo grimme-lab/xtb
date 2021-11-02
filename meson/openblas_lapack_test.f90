@@ -1,2 +1,0 @@
-call sygvd()
-end
