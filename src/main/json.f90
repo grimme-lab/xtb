@@ -234,7 +234,7 @@ subroutine write_json_reduced_masses(ijson,freqres)
    integer,intent(in) :: ijson
    type(freq_results),intent(in) :: freqres
    character(len=*),parameter :: jfmta = '(3x,''"'',a,''": ['')'
-   write(ijson,jfmta) 'IR intensities/amu'
+   write(ijson,jfmta) 'reduced masses'
    write(ijson,'(3x,f15.8,",")') (freqres%rmass(i),i=1,freqres%n3true-1)
    write(ijson,'(3x,f15.8,"],")') freqres%rmass(freqres%n3true)
 end subroutine write_json_reduced_masses
