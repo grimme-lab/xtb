@@ -602,8 +602,13 @@ subroutine print_wiberg(iunit,n,at,sym,wbo,thr)
          if (wbr(i,j).gt.thr) ibmax=j
          xsum=xsum+wbr(i,j)
       enddo
-      write(iunit,'(i6,1x,i3,1x,a4,f6.3,1x,"--")',advance='no') &
-         & i,at(i),sym(i),xsum
+      if (ibmax > 0) then
+         write(iunit,'(i6,1x,i3,1x,a4,f6.3,1x,"--")',advance='no') &
+            & i,at(i),sym(i),xsum
+      else
+         write(iunit,'(i6,1x,i3,1x,a4,f6.3)') &
+            & i,at(i),sym(i),xsum
+      end if
       do j = 1, ibmax, 3
          if (j > 1) then
             write(iunit,'(t25)', advance='no')
