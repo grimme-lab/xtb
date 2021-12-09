@@ -84,6 +84,7 @@ module xtb_prog_main
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
    use xtb_gfnff_param, only : gff_print
+   use xtb_gfnff_topology, only : doPrintTopo
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
    use xtb_kopt
@@ -193,6 +194,7 @@ subroutine xtbMain(env, argParser)
    integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
    integer :: nproc
 
+   type(doPrintTopo) :: printTopo ! gfnff topology printout list
 
    xenv%home = env%xtbhome
    xenv%path = env%xtbpath
@@ -201,7 +203,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo)
 
    nFiles = argParser%countFiles()
    select case(nFiles)
@@ -854,7 +856,12 @@ subroutine xtbMain(env, argParser)
          call close_file(ich)
       end select
    endif
-
+   if(printTopo%anything) then
+     select type(calc)
+       type is(TGFFCalculator)
+         call write_json_gfnff_lists(mol%n,calc%topo,printTopo)
+     end select
+   endif
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
       (runtyp.eq.p_run_metaopt).or.(runtyp.eq.p_run_bhess)) then
@@ -1084,7 +1091,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1117,6 +1124,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    !> Debugging with a lot of caffeine
    logical, intent(out) :: coffee
 
+   !> topology printout list
+   type(doPrintTopo) :: printTopo
+
    !> Print the gradient to file
    logical, intent(out) :: lgrad
 
@@ -1125,7 +1135,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
 !$ integer :: omp_get_num_threads, nproc
    integer :: nFlags
-   integer :: idum
+   integer :: idum, ndum
    real(wp) :: ddum
    character(len=:), allocatable :: flag, sec
 
@@ -1551,11 +1561,56 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("No input file for RMSD bias provided", source)
          end if
 
+      case('--wrtopo')
+         do
+           call args%nextArg(sec)
+           if (allocated(sec)) then
+             ndum = len(sec)
+             call assWRtopo(ndum,sec,printTopo)
+           else
+             exit
+           endif
+         enddo
       end select
       call args%nextFlag(flag)
    end do
 
 end subroutine parseArguments
 
+! assign topology lists boolean to be written at end of gfnff_setup
+subroutine assWRtopo(ndum,sec,printTopo)
+   ! argument string length
+   integer, intent(in) :: ndum
+   ! command line argument
+   character(len=ndum), intent(in) :: sec
+   ! vector with corresponding numbers of to be printed topology lists
+   type(doPrintTopo) :: printTopo
+
+   if(sec=='nb')then
+     printTopo%nb = .true.
+     printTopo%anything = .true.
+   elseif(sec=='bpair')then
+     printTopo%bpair = .true.
+     printTopo%anything = .true.
+   elseif(sec=='alist')then
+     printTopo%alist = .true.
+     printTopo%anything = .true.
+   elseif(sec=='blist')then
+     printTopo%blist = .true.
+     printTopo%anything = .true.
+   elseif(sec=='tlist')then
+     printTopo%tlist = .true.
+     printTopo%anything = .true.
+   elseif(sec=='vtors')then
+     printTopo%vtors = .true.
+     printTopo%anything = .true.
+   elseif(sec=='vbond')then
+     printTopo%vbond = .true.
+     printTopo%anything = .true.
+   elseif(sec=='vangl')then
+     printTopo%vangl = .true.
+     printTopo%anything = .true.
+   endif
+end subroutine assWRtopo
 
 end module xtb_prog_main
