@@ -1609,6 +1609,6 @@ subroutine setWRtopo(sec,printTopo)
      printTopo%vangl = .true.
      printTopo%anything = .true.
    endif
-end subroutine assWRtopo
+end subroutine setWRtopo
 
 end module xtb_prog_main
