@@ -1584,31 +1584,32 @@ subroutine setWRtopo(sec,printTopo)
    ! vector with corresponding numbers of to be printed topology lists
    type(doPrintTopo) :: printTopo
 
-   if(sec=='nb')then
+   select case(sec)
+   case("nb")
      printTopo%nb = .true.
      printTopo%anything = .true.
-   elseif(sec=='bpair')then
+   case("bpair")
      printTopo%bpair = .true.
      printTopo%anything = .true.
-   elseif(sec=='alist')then
+   case("alist")
      printTopo%alist = .true.
      printTopo%anything = .true.
-   elseif(sec=='blist')then
+   case("blist")
      printTopo%blist = .true.
      printTopo%anything = .true.
-   elseif(sec=='tlist')then
+   case("tlist")
      printTopo%tlist = .true.
      printTopo%anything = .true.
-   elseif(sec=='vtors')then
+   case("vtors")
      printTopo%vtors = .true.
      printTopo%anything = .true.
-   elseif(sec=='vbond')then
+   case("vbond")
      printTopo%vbond = .true.
      printTopo%anything = .true.
-   elseif(sec=='vangl')then
+   case("vangl")
      printTopo%vangl = .true.
      printTopo%anything = .true.
-   endif
+   end select
 end subroutine setWRtopo
 
 end module xtb_prog_main
