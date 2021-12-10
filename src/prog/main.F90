@@ -1565,8 +1565,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          do
            call args%nextArg(sec)
            if (allocated(sec)) then
-             ndum = len(sec)
-             call assWRtopo(ndum,sec,printTopo)
+             call setWRtopo(sec,printTopo)
            else
              exit
            endif
