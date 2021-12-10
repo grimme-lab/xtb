@@ -1578,11 +1578,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 end subroutine parseArguments
 
 ! assign topology lists boolean to be written at end of gfnff_setup
-subroutine assWRtopo(ndum,sec,printTopo)
-   ! argument string length
-   integer, intent(in) :: ndum
+subroutine setWRtopo(sec,printTopo)
    ! command line argument
-   character(len=ndum), intent(in) :: sec
+   character(len=*), intent(in) :: sec
    ! vector with corresponding numbers of to be printed topology lists
    type(doPrintTopo) :: printTopo
 
