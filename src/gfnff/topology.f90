@@ -22,7 +22,7 @@ module xtb_gfnff_topology
    implicit none
    private
 
-   public :: TGFFTopology, doPrintTopo
+   public :: TGFFTopology, TPrintTopo
 
 
    !> Topology information for a given system
@@ -97,17 +97,22 @@ module xtb_gfnff_topology
    end type TGFFTopology
 
    ! logicals for GFN-FF topology list printout
-   type :: doPrintTopo
-     logical :: anything = .false.
-     logical :: nb       = .false.
-     logical :: bpair    = .false.
-     logical :: alist    = .false.
-     logical :: blist    = .false.
-     logical :: tlist    = .false.
-     logical :: vtors    = .false.
-     logical :: vbond    = .false.
-     logical :: vangl    = .false.
-   end type doPrintTopo
+   type :: TPrintTopo
+     logical :: nb      = .false.
+     logical :: bpair   = .false.
+     logical :: alist   = .false.
+     logical :: blist   = .false.
+     logical :: tlist   = .false.
+     logical :: vtors   = .false.
+     logical :: vbond   = .false.
+     logical :: vangl   = .false.
+     logical :: warning = .false.
+
+   contains
+
+   procedure :: any
+
+   end type TPrintTopo
 
 contains
 
@@ -136,5 +141,12 @@ subroutine zero(self)
 
 end subroutine zero
 
+function any(self) result(tf)
+  class(TPrintTopo), intent(in) :: self
+  logical :: tf
+
+  tf = self%nb.or.self%bpair.or.self%alist.or.self%blist.or. &
+     & self%tlist.or.self%vtors.or.self%vbond.or.self%vangl
+end function any
 
 end module xtb_gfnff_topology

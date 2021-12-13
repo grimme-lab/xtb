@@ -241,12 +241,12 @@ end subroutine write_json_reduced_masses
 
 subroutine write_json_gfnff_lists(n, topo, printTopo)
   use xtb_gfnff_topology, only : TGFFTopology
-  use xtb_gfnff_topology, only : doPrintTopo
+  use xtb_gfnff_topology, only : TPrintTopo
   include 'xtb_version.fh'
   !> gfnff topology lists
   type(TGFFTopology), intent(in) :: topo
   !> topology printout booleans
-  type(doPrintTopo), intent(in) :: printTopo
+  type(TPrintTopo), intent(in) :: printTopo
   character(len=:),allocatable :: cmdline
   integer :: iunit, j, n
 
