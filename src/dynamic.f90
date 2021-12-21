@@ -176,7 +176,7 @@ subroutine md(env,mol,chk,calc, &
    real(wp) :: Ekin,tmass,f,mintime
    real(wp) :: Tinit,Tav,T,epav,ekav,dav,cma(3),bave,bavt,dum2
    real(wp) :: dum,edum,eerror,xx(10),molmass,slope,maxtime
-   real(wp) :: tstep0,tmax,nfreedom,t0,w0,t1,w1,ep_prec,rege(1000)
+   real(wp) :: tstep0,tmax,nfreedom,t0,w0,t1,w1,ep_prec,rege(4)
    real(wp) :: tors(mol%n),be(3),b0(3),tor,dip(3)
    logical  :: ex,thermostat,restart,confdump,equi,gmd,ldum
 
@@ -480,10 +480,10 @@ subroutine md(env,mol,chk,calc, &
          nblock=nblock+1
          iblock=0
          call blocksd(mol%n,blockl,blocke,blockt,bave,bavt)
-         nreg=nreg+1
-         rege(nreg)=bave
+         nreg = nreg + 1
+         rege(:) = [rege(2:), bave]
          if(nreg.ge.4)then
-            call regress(nreg-3,nreg,rege,slope)
+            call regress(1,4,rege,slope)
          else
             slope=99.
          endif
@@ -686,11 +686,13 @@ subroutine md(env,mol,chk,calc, &
 end subroutine md
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-      subroutine regress(n1,n2,rege,slope)
+      pure subroutine regress(n1,n2,rege,slope)
       implicit none
-      real(wp) rege(*),slope
-      integer n1,n2,n,i
-      real(wp) sx,sy,sxx,sxy,x
+      real(wp), intent(in) :: rege(:)
+      real(wp), intent(out) :: slope
+      integer, intent(in) :: n1,n2
+      integer :: n,i
+      real(wp) :: sx,sy,sxx,sxy,x
 
       n=n2-n1+1
       sx=0
@@ -706,9 +708,9 @@ end subroutine md
          sxy=sxy+x*rege(i)
       enddo
 
-      slope=(dble(n)*sxy-sx*sy)/(dble(n)*sxx-sx*sx)
+      slope=(real(n, wp)*sxy-sx*sy)/(real(n, wp)*sxx-sx*sx)
 
-      end
+      end subroutine regress
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine blocksd(n,nbl,ebl,tbl,esd,tsd)
