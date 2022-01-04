@@ -176,8 +176,12 @@ contains
       require_update = .not.nlist%initialized
       if (.not.nlist%initialized) then
          if (pr) then
-            write(env%unit,'(10x,"nhb123",3x,i0,x,i0,x,i0)') &
-               & nhb1,nhb2,nxb
+            write(env%unit,'(10x,"Number of HB bonds (bound hydrogen)",5x,i0,x,i0,x,i0)') &
+               & nhb1
+            write(env%unit,'(10x,"Number of HB bonds (unbound hydrogen)",3x,i0,x,i0,x,i0)') &
+               & nhb2
+            write(env%unit,'(10x,"Number of XB bonds",22x,i0,x,i0,x,i0)') &
+               & nxb
          end if
          call new(nlist, n, 5*nhb1, 5*nhb2, 3*nxb)
          nlist%hbrefgeo(:, :) = xyz
