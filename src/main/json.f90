@@ -332,7 +332,7 @@ subroutine write_json_gfnff_lists(n, topo, nlist, printTopo)
     write(iunit,'("]")')
     write(iunit,'(3x,"],")')
   endif
-  if(printTopo%hbbond)then ! hbbond
+  if(printTopo%hbbond)then ! hbbond: 3x(3,nhb) energies: 3x(1,nhb)
    write(iunit,'(3x,''"hbl":'',"[")') !> HBs loose
    if (nlist%nhb1.ge.1) then
     do j=1, nlist%nhb1-1
@@ -406,7 +406,7 @@ subroutine write_json_gfnff_lists(n, topo, nlist, printTopo)
    write(iunit,'("]")')
    write(iunit,'(3x,"],")')
   endif
-  if(printTopo%eeq)then ! eeq charges
+  if(printTopo%eeq)then ! eeq(3,n)
    write(iunit,'(3x,''"eeq":'',"[")') !> EEQ charges
    do j=1, size(nlist%q)-1
      write(iunit,'(3x,"[",*(f25.15,:,","))',advance='no') nlist%q(j)
