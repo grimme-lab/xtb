@@ -406,6 +406,16 @@ subroutine write_json_gfnff_lists(n, topo, nlist, printTopo)
    write(iunit,'("]")')
    write(iunit,'(3x,"],")')
   endif
+  if(printTopo%eeq)then ! eeq charges
+   write(iunit,'(3x,''"eeq":'',"[")') !> EEQ charges
+   do j=1, size(nlist%q)-1
+     write(iunit,'(3x,"[",*(f25.15,:,","))',advance='no') nlist%q(j)
+     write(iunit,'("],")')
+   enddo
+   write(iunit,'(3x,"[",*(f25.15,:,","),"]",/)',advance='no')nlist%q(size(nlist%q))
+   write(iunit,'("]")')
+   write(iunit,'(3x,"],")')
+  endif
   ! footer
   call get_command(length=l)
   allocate( character(len=l) :: cmdline )
