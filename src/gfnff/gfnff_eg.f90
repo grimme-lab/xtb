@@ -494,6 +494,7 @@ contains
             g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
             g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
             ehb=ehb+etmp
+            nlist%hbe1(i)=etmp ! HB energies  
          enddo
          !$omp end parallel do
       endif
@@ -526,6 +527,7 @@ contains
             end if
             g=g+g5tmp
             ehb=ehb+etmp
+            nlist%hbe2(i)=etmp
          enddo
          !$omp end parallel do
       endif
@@ -547,6 +549,7 @@ contains
             g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
             g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
             exb=exb+etmp
+            nlist%hbe3(i)=etmp
          enddo
          !$omp end parallel do
       endif

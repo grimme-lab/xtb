@@ -35,10 +35,13 @@ module xtb_gfnff_neighbourlist
       real(wp), allocatable :: hbrefgeo(:, :)
       !> HBs loose
       integer, allocatable :: hblist1(:, :)
+      real(wp), allocatable :: hbe1(:) ! energies of HB bonds
       !> HBs bonded
       integer, allocatable :: hblist2(:, :)
+      real(wp), allocatable :: hbe2(:)
       !> XBs
       integer, allocatable :: hblist3(:, :)
+      real(wp), allocatable :: hbe3(:)
    end type TGFFNeighbourList
 
    interface new
@@ -64,6 +67,9 @@ subroutine newGFFNeighbourList(self, n, nhb1, nhb2, nxb)
    allocate(self%hblist1(3, self%nhb1), source=0)
    allocate(self%hblist2(3, self%nhb2), source=0)
    allocate(self%hblist3(3, self%nxb), source=0)
+   allocate(self%hbe1(self%nhb1), source=0.0_wp)
+   allocate(self%hbe2(self%nhb2), source=0.0_wp)
+   allocate(self%hbe3(self%nxb), source=0.0_wp)
 end subroutine newGFFNeighbourList
 
 

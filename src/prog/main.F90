@@ -860,7 +860,7 @@ subroutine xtbMain(env, argParser)
    if(printTopo%any()) then
      select type(calc)
        type is(TGFFCalculator)
-         call write_json_gfnff_lists(mol%n,calc%topo,printTopo)
+         call write_json_gfnff_lists(mol%n,calc%topo,chk%nlist,printTopo)
          if(printTopo%warning) call env%warning("One or more arguments of wrtopo are misspelled.",source)
      end select
    endif
@@ -1627,6 +1627,8 @@ subroutine selectList(secSplit, printTopo)
      printTopo%vbond = .true.
    case("vangl")
      printTopo%vangl = .true.
+   case("hbbond")
+      printTopo%hbbond = .true.
    case default
      printTopo%warning = .true.
    end select
