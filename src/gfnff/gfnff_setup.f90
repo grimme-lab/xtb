@@ -31,7 +31,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule
   use xtb_gfnff_param, only : ini, gfnff_set_param
-  use xtb_setparam, only : ichrg, dispscale
+  use xtb_setparam, only : dispscale
   implicit none
   character(len=*), parameter :: source = 'gfnff_setup'
 ! Dummy
@@ -77,7 +77,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
      end if
   end if
 
-  call gfnff_ini(env,verbose,ini,mol,ichrg,gen,param,topo,accuracy)
+  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,accuracy)
 
   call env%check(exitRun)
   if (exitRun) then
@@ -98,7 +98,6 @@ subroutine gfnff_input(env, mol, topo)
   use xtb_type_molecule
   use xtb_mctc_filetypes, only : fileType
   use xtb_gfnff_param
-  use xtb_setparam, only : ichrg
   implicit none
   ! Dummy
   type(TMolecule),intent(in) :: mol
@@ -149,8 +148,14 @@ subroutine gfnff_input(env, mol, topo)
         & + dble(mol%pdb(iatom)%charge)
       topo%qpdb(iatom) = mol%pdb(iatom)%charge
     end do
-    ichrg=idint(sum(topo%qfrag(1:topo%nfrag)))
-    write(env%unit,'(10x,"charge from pdb residues: ",i0)') ichrg
+    if (abs(mol%chrg - sum(topo%qfrag(1:topo%nfrag))) < sqrt(epsilon(1.0_wp))) then
+       write(env%unit,'(10x,"charge from pdb residues: ",i0)') &
+          & nint(sum(topo%qfrag(1:topo%nfrag)))
+    else
+       if (allocated(topo%qpdb)) deallocate(topo%qpdb)
+       topo%qfrag(1:topo%nfrag) = 0.0_wp
+       topo%nfrag = 0
+    end if
   !--------------------------------------------------------------------
   ! SDF case
   case(fileType%sdf,fileType%molfile)
@@ -203,12 +208,18 @@ subroutine gfnff_input(env, mol, topo)
     ini = .true.
     call open_file(ich,'.CHRG','r')
     if (ich.ne.-1) then
-      read(ich,'(a)')atmp
+      read(ich,'(a)')  ! first line contains total charge
+      read(ich,'(a)')atmp  ! second line contains fragment charges
       call close_file(ich)
       call readline(atmp,floats,s,ns,nf)
       topo%qfrag(1:nf)=floats(1:nf)
-      ichrg=int(sum(topo%qfrag(1:nf)))
-      topo%qfrag(nf+1:mol%n)=9999
+      if (abs(mol%chrg - sum(topo%qfrag(1:nf))) < sqrt(epsilon(1.0_wp))) then
+         write(env%unit,'(10x,"charge from .CHRG file: ",i0)') &
+            & nint(sum(topo%qfrag(1:nf)))
+      else
+         ! ignore fragment charges if they are not consistent with the total charge
+         topo%qfrag(1:nf) = 0.0_wp
+      end if
     else
       topo%qfrag(1)=mol%chrg
       topo%qfrag(2:mol%n)=0
