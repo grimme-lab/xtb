@@ -861,7 +861,6 @@ subroutine xtbMain(env, argParser)
      select type(calc)
        type is(TGFFCalculator)
          call write_json_gfnff_lists(mol%n,calc%topo,printTopo)
-         if(printTopo%warning) call env%warning("One or more arguments of wrtopo are misspelled.",source)
      end select
    endif
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
@@ -1567,8 +1566,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
            call setWRtopo(sec,printTopo)
+           if(printTopo%warning) call env%error("A wrtopo argument has been misspelled.",source)
          else
-           printTopo%warning = .true.
+           call env%error("The wrtopo keyword is missing an argument.",source)
          endif
       end select
       call args%nextFlag(flag)
