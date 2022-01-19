@@ -1126,7 +1126,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    logical, intent(out) :: coffee
 
    !> topology printout list
-   type(TPrintTopo) :: printTopo
+   type(TPrintTopo), intent(out) :: printTopo
 
    !> Print the gradient to file
    logical, intent(out) :: lgrad
