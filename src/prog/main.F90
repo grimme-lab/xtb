@@ -84,6 +84,7 @@ module xtb_prog_main
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
    use xtb_gfnff_param, only : gff_print
+   use xtb_gfnff_topology, only : TPrintTopo
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
    use xtb_kopt
@@ -193,6 +194,7 @@ subroutine xtbMain(env, argParser)
    integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
    integer :: nproc
 
+   type(TPrintTopo) :: printTopo ! gfnff topology printout list
 
    xenv%home = env%xtbhome
    xenv%path = env%xtbpath
@@ -201,12 +203,13 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo)
 
    nFiles = argParser%countFiles()
    select case(nFiles)
    case(0)
       if (.not.coffee) then
+         if(printTopo%warning) call env%error("Eventually the input file was given to wrtopo as an argument.",source)
          call env%error("No input file given, so there is nothing to do", source)
       else
          fname = 'coffee'
@@ -854,7 +857,12 @@ subroutine xtbMain(env, argParser)
          call close_file(ich)
       end select
    endif
-
+   if(printTopo%any()) then
+     select type(calc)
+       type is(TGFFCalculator)
+         call write_json_gfnff_lists(mol%n,calc%topo,printTopo)
+     end select
+   endif
    if ((runtyp.eq.p_run_opt).or.(runtyp.eq.p_run_ohess).or. &
       (runtyp.eq.p_run_omd).or.(runtyp.eq.p_run_screen).or. &
       (runtyp.eq.p_run_metaopt).or.(runtyp.eq.p_run_bhess)) then
@@ -1084,7 +1092,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1117,6 +1125,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    !> Debugging with a lot of caffeine
    logical, intent(out) :: coffee
 
+   !> topology printout list
+   type(TPrintTopo), intent(out) :: printTopo
+
    !> Print the gradient to file
    logical, intent(out) :: lgrad
 
@@ -1125,7 +1136,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
 !$ integer :: omp_get_num_threads, nproc
    integer :: nFlags
-   integer :: idum
+   integer :: idum, ndum
    real(wp) :: ddum
    character(len=:), allocatable :: flag, sec
 
@@ -1551,11 +1562,74 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("No input file for RMSD bias provided", source)
          end if
 
+      case('--wrtopo')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+           call setWRtopo(sec,printTopo)
+           if(printTopo%warning) call env%error("A wrtopo argument has been misspelled.",source)
+         else
+           call env%error("The wrtopo keyword is missing an argument.",source)
+         endif
       end select
       call args%nextFlag(flag)
    end do
 
 end subroutine parseArguments
 
+! set booleans for requested topology list printout
+subroutine setWRtopo(sec,printTopo)
+   ! command line argument
+   character(len=*), intent(in) :: sec
+   ! type holds booleans of to be printed topology lists
+   type(TPrintTopo), intent(inout) :: printTopo
+   ! seperator for lists is ","
+   character, parameter :: sep = ","
+   ! current and old position of seperator
+   integer :: curr_pos, old_pos
+   integer :: lenSec, i
+
+   curr_pos = 0
+   old_pos = 0
+   lenSec = len(sec)
+   do i=1, lenSec
+     curr_pos = scan(sec(curr_pos+1:lenSec),sep)+old_pos
+     if(curr_pos.ne.old_pos) then
+       call selectList(sec(old_pos+1:curr_pos-1),printTopo)
+     else
+       call selectList(sec(old_pos+1:lenSec),printTopo)
+       exit
+     endif
+     old_pos=curr_pos
+   enddo
+
+end subroutine setWRtopo
+
+subroutine selectList(secSplit, printTopo)
+   ! part of command line argument
+   character(len=*), intent(in) :: secSplit
+   ! holds booleans of to be printed topology lists
+   type(TPrintTopo), intent(inout) :: printTopo
+
+   select case(secSplit)
+   case("nb")
+     printTopo%nb = .true.
+   case("bpair")
+     printTopo%bpair = .true.
+   case("alist")
+     printTopo%alist = .true.
+   case("blist")
+     printTopo%blist = .true.
+   case("tlist")
+     printTopo%tlist = .true.
+   case("vtors")
+     printTopo%vtors = .true.
+   case("vbond")
+     printTopo%vbond = .true.
+   case("vangl")
+     printTopo%vangl = .true.
+   case default
+     printTopo%warning = .true.
+   end select
+end subroutine selectList
 
 end module xtb_prog_main
