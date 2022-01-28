@@ -41,14 +41,65 @@ subroutine writeMoleculeGaussianExternal(mol, unit)
 end subroutine writeMoleculeGaussianExternal
 
 
-subroutine writeResultsGaussianExternal(unit, energy, dipole, gradient)
-   integer, intent(in) :: unit
+subroutine writeResultsGaussianExternal(unit, energy, dipole, gradient, hessian, dipgrad)
+   integer, intent(in)  :: unit
    real(wp), intent(in) :: energy
    real(wp), intent(in) :: dipole(:)
-   real(wp), intent(in) :: gradient(:, :)
+   real(wp), intent(in), optional :: gradient(:, :)
+   real(wp), intent(in), optional :: hessian(:, :)
+   real(wp), intent(in), optional :: dipgrad(:)
+
+   integer :: i,j,ij,nat
+
+   if (present(gradient)) then
+      nat = size(gradient, 2)
+   else if (present(hessian)) then
+      nat = size(hessian, 2) / 3
+   else if (present(dipgrad)) then
+      nat = size(dipgrad) / 9
+   else
+      nat = 0
+   end if
 
    write(unit, '(4D20.12)') energy, dipole
-   write(unit, '(3D20.12)') gradient
+
+   if (present(gradient)) then
+      write(unit, '(3D20.12)') gradient
+   else
+      ! In case we have no gradient, but either hessian or dipole gradient
+      ! the gradient entry is padded with zeros
+      if (nat > 0) write(unit, '(3D20.12)') spread(0.0_wp, 1, 3*nat)
+   endif
+
+   ! First, we fake the polarizability and the dipole derivatives, which the
+   ! Gaussian Manual says should be of this form,
+   !
+   ! Polar(I), I=1,6        3D20.12   2 rows of 3 x 0.0
+   write(unit, '(3D20.12)') spread(0.0_wp, 1, 6)
+
+   ! DDip(I), I=1,9*NAtoms  3D20.12   9 x Natoms or 3 natoms rows of 3 x .0.0
+   if (present(dipgrad)) then
+      write(unit, '(3D20.12)') dipgrad
+   else
+      if (nat > 0) write(unit, '(3D20.12)') spread(0.0_wp, 1, 9*nat)
+   end if
+
+   if (present(hessian)) then
+      ! Now we are iterating over Hessian matrix elements. We will
+      ! append those to the output file in the correct format, given in
+      ! the Gaussian manual as
+      !
+      ! FFX(I), I=1,(3*NAtoms*(3*NAtoms+1))/2      3D20.12
+
+      ij = 0
+      do i = 1, size(hessian, 2)
+         do j = 1, i
+            ij = ij + 1
+            write(unit, '(D20.12)', advance='no') hessian(j, i)
+            if (mod(ij, 3) == 0) write(unit, '(a)')
+         end do
+      end do
+   end if
 
 end subroutine writeResultsGaussianExternal
 

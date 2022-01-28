@@ -59,10 +59,11 @@ module xtb_setparam
    logical  :: periodic = .false.
 
 !  Geometry input type
-   integer,parameter :: p_geo_coord  = 1
-   integer,parameter :: p_geo_xmol   = 2
-   integer,parameter :: p_geo_sdf    = 3
-   integer,parameter :: p_geo_poscar = 4
+   integer,parameter :: p_geo_coord     = 1
+   integer,parameter :: p_geo_xmol      = 2
+   integer,parameter :: p_geo_sdf       = 3
+   integer,parameter :: p_geo_poscar    = 4
+   integer,parameter :: p_geo_gaussian  = 5
    integer  :: geometry_inputfile = p_geo_coord
 
 !! ------------------------------------------------------------------------

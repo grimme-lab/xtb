@@ -29,6 +29,7 @@ contains
 
 subroutine readMoleculeGaussianExternal(mol, unit, status, iomsg)
    use xtb_mctc_accuracy, only : wp
+   use xtb_setmod, only : set_geopref
    logical, parameter :: debug = .false.
    class(TMolecule), intent(out) :: mol
    integer, intent(in) :: unit
@@ -43,6 +44,8 @@ subroutine readMoleculeGaussianExternal(mol, unit, status, iomsg)
    real(wp) :: conv
 
    status = .false.
+
+   call set_geopref('gaussian')
 
    read(unit, '(4i10)', iostat=err) n, mode, chrg, spin
    if (err.ne.0) then

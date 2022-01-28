@@ -831,8 +831,14 @@ subroutine xtbMain(env, argParser)
       else
          cdum = 'xtb-gaussian.EOu'
       end if
+
       call open_file(ich, cdum, 'w')
-      call writeResultsGaussianExternal(ich, etot, res%dipole, g)
+      if (allocated(fres%hess)) then
+         call writeResultsGaussianExternal(ich, etot, res%dipole, gradient=g, &
+            & hessian=fres%hess, dipgrad=fres%dipt)
+      else
+         call writeResultsGaussianExternal(ich, etot, res%dipole, gradient=g)
+      end if
       call close_file(ich)
    end if
 
@@ -869,7 +875,8 @@ subroutine xtbMain(env, argParser)
       call main_geometry(iprop,mol)
    endif
 
-   if ((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) then
+   if (((runtyp.eq.p_run_hess).or.(runtyp.eq.p_run_ohess).or.(runtyp.eq.p_run_bhess)) &
+      .and.(geometry_inputfile.ne.p_geo_gaussian)) then
       call generic_header(iprop,'Frequency Printout',49,10)
       call main_freq(iprop,mol,chk%wfn,fres)
    endif
@@ -1336,7 +1343,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call set_write(env,'json','true')
        
       case('--ceasefiles')
-         restart = .false. 
+         restart = .false.
          verbose=.false.
          ceasefiles = .true.
          call set_write(env,'wiberg','false')
