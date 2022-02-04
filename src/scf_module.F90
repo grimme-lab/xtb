@@ -476,7 +476,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       write(env%unit,scifmt) "-> integral neglect",neglect, "    "
       write(env%unit,scifmt) "-> SCF convergence ",scfconv, "Eh  "
       write(env%unit,scifmt) "-> wf. convergence ",qconv,   "e   "
-      write(env%unit,dblfmt) "Broyden damping    ",broydamp,"    "
+      write(env%unit,dblfmt) "Broyden damping    ",set%broydamp,"    "
       write(env%unit,'(10x,51("."))')
    endif
 
@@ -630,7 +630,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       &     mol%xyz,aes, &
       &     cm5,cm5a,gsolv,solvation, &
       &     scD4, &
-      &     broy,broydamp,damp0, &
+      &     broy,set%broydamp,damp0, &
       &     lpcem,ves,vpc, &
       &     et,wfn%focc,wfn%focca,wfn%foccb,wfn%efa,wfn%efb, &
       &     eel,ees,eaes,epol,ed,epcem,egap, &
@@ -823,7 +823,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    printing: if (pr) then
       ! ---------------------------------------------------------------------
       ! print orbital energies and occupation numbers
-      if (pr_eig) then
+      if (set%pr_eig) then
          call print_orbital_eigenvalues(env%unit, wfn, 5)
       endif
 
@@ -836,7 +836,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
       ! ---------------------------------------------------------------------
       ! LMO /xTB-IFF
-      if (pr_lmo) then
+      if (set%pr_lmo) then
          tmp=wfn%emo*evtoau
          call local(mol%n, mol%at, basis%nbf, basis%nao, wfn%ihomoa, mol%xyz, &
             & mol%z, wfn%focc, S, wfn%P, wfn%C, tmp, wfn%q, eel, &

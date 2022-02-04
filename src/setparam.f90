@@ -52,6 +52,101 @@ module xtb_setparam
    integer,parameter :: p_method_gfn0xtb = 0
    integer,parameter :: p_method_gfn1xtb = 1
    integer,parameter :: p_method_gfn2xtb = 2
+
+!  Geometry input type
+   integer,parameter :: p_geo_coord  = 1
+   integer,parameter :: p_geo_xmol   = 2
+   integer,parameter :: p_geo_sdf    = 3
+   integer,parameter :: p_geo_poscar = 4
+
+   ! Initial guess charges
+   integer, parameter :: p_guess_sad = 0
+   integer, parameter :: p_guess_gasteiger = 1
+   integer, parameter :: p_guess_goedecker = 2
+   integer, parameter :: p_guess_multieq = 3
+
+   integer, parameter :: p_olev_crude   = -3
+   integer, parameter :: p_olev_sloppy  = -2
+   integer, parameter :: p_olev_loose   = -1
+   integer, parameter :: p_olev_lax     = -4
+   integer, parameter :: p_olev_normal  =  0
+   integer, parameter :: p_olev_tight   =  1
+   integer, parameter :: p_olev_vtight  =  2
+   integer, parameter :: p_olev_extreme =  3
+   ! geometry optimization backend
+   integer, parameter :: p_engine_rf       = 1
+   integer, parameter :: p_engine_lbfgs    = 2
+   integer, parameter :: p_engine_inertial = 3
+
+   integer, parameter :: p_modh_read     = -2
+   integer, parameter :: p_modh_unit     = -1
+   integer, parameter :: p_modh_lindh    =  1
+   integer, parameter :: p_modh_lindh_d2 =  2
+   integer, parameter :: p_modh_swart    =  3
+   integer, parameter :: p_modh_old      =  4
+   integer, parameter :: p_modh_gff      =  5
+
+!  Choose the grid for the GBSA
+   integer, parameter :: ldgrids(32) = &
+      &[  6,  14,  26,  38,  50,  74,  86, 110, 146, 170, &
+      & 194, 230, 266, 302, 350, 434, 590, 770, 974,1202, &
+      &1454,1730,2030,2354,2702,3074,3470,3890,4334,4802, &
+      &5294,5810]
+   integer, parameter :: p_angsa_normal    = ldgrids(12)
+   integer, parameter :: p_angsa_tight     = ldgrids(19)
+   integer, parameter :: p_angsa_verytight = ldgrids(23)
+   integer, parameter :: p_angsa_extreme   = ldgrids(32)
+
+   ! interface mode
+   integer,parameter :: p_pcem_legacy = 1
+   integer,parameter :: p_pcem_orca = 2
+
+   type qm_external
+      character(len=:),allocatable :: path
+      character(len=:),allocatable :: executable
+      character(len=:),allocatable :: input_file
+      character(len=:),allocatable :: input_string
+      logical :: exist
+   end type qm_external
+
+   integer, parameter :: p_ext_vtb       = -1
+   integer, parameter :: p_ext_eht       =  0
+   integer, parameter :: p_ext_xtb       =  1
+   integer, parameter :: p_ext_qmdff     =  2
+   integer, parameter :: p_ext_driver    =  3
+   integer, parameter :: p_ext_turbomole =  4
+   integer, parameter :: p_ext_orca      =  5
+   integer, parameter :: p_ext_terachem  =  6
+   integer, parameter :: p_ext_qchem     =  7
+   integer, parameter :: p_ext_nwchem    =  8
+   integer, parameter :: p_ext_molpro    =  9
+   integer, parameter :: p_ext_psi4      = 10
+   integer, parameter :: p_ext_adf       = 11
+   integer, parameter :: p_ext_mopac     = 12
+   integer, parameter :: p_ext_gfnff     = 13
+
+   integer, parameter :: p_run_scc    =   2
+   integer, parameter :: p_run_grad   =   3
+   integer, parameter :: p_run_opt    =   4
+   integer, parameter :: p_run_hess   =   5
+   integer, parameter :: p_run_ohess  =   7
+   integer, parameter :: p_run_bhess  =  71
+   integer, parameter :: p_run_md     =   6
+   integer, parameter :: p_run_omd    =   8
+   integer, parameter :: p_run_path   =  10
+   integer, parameter :: p_run_screen =  11
+   integer, parameter :: p_run_modef  =  13
+   integer, parameter :: p_run_mdopt  =  14
+   integer, parameter :: p_run_metaopt=  15
+   integer, parameter :: p_run_vip    = 100
+   integer, parameter :: p_run_vea    = 101
+   integer, parameter :: p_run_vipea  = 102
+   integer, parameter :: p_run_vfukui = 103
+   integer, parameter :: p_run_vomega = 104
+
+   integer,private :: idum
+
+   type :: TSet
    integer  :: gfn_method = -1
    integer  :: maxscciter = 250
    logical  :: newdisp = .true.
@@ -59,10 +154,6 @@ module xtb_setparam
    logical  :: periodic = .false.
 
 !  Geometry input type
-   integer,parameter :: p_geo_coord  = 1
-   integer,parameter :: p_geo_xmol   = 2
-   integer,parameter :: p_geo_sdf    = 3
-   integer,parameter :: p_geo_poscar = 4
    integer  :: geometry_inputfile = p_geo_coord
 
 !! ------------------------------------------------------------------------
@@ -72,10 +163,6 @@ module xtb_setparam
    real(wp) :: broydamp = 0.40_wp
    real(wp) :: dispscale = 1.0_wp
 
-   integer, parameter :: p_guess_sad = 0
-   integer, parameter :: p_guess_gasteiger = 1
-   integer, parameter :: p_guess_goedecker = 2
-   integer, parameter :: p_guess_multieq = 3
    integer  :: guess_charges = p_guess_goedecker
 
 !  shift molecule to center of mass
@@ -90,18 +177,6 @@ module xtb_setparam
 !  tight = 1,      verytight = 2,    extreme = 3
    character(len=:), allocatable :: opt_outfile
    character(len=:), allocatable :: opt_logfile
-   integer, parameter :: p_olev_crude   = -3
-   integer, parameter :: p_olev_sloppy  = -2
-   integer, parameter :: p_olev_loose   = -1
-   integer, parameter :: p_olev_lax     = -4
-   integer, parameter :: p_olev_normal  =  0
-   integer, parameter :: p_olev_tight   =  1
-   integer, parameter :: p_olev_vtight  =  2
-   integer, parameter :: p_olev_extreme =  3
-   ! geometry optimization backend
-   integer, parameter :: p_engine_rf       = 1
-   integer, parameter :: p_engine_lbfgs    = 2
-   integer, parameter :: p_engine_inertial = 3
    integer, allocatable :: opt_engine
    type(ancopt_setvar) :: optset = ancopt_setvar (&
       optlev = p_olev_normal, &
@@ -114,13 +189,6 @@ module xtb_setparam
 !  lowest force constant in ANC generation (should be > 0.005)
       hlow_opt = 0.010_wp, &
       average_conv = .false.)
-   integer, parameter :: p_modh_read     = -2
-   integer, parameter :: p_modh_unit     = -1
-   integer, parameter :: p_modh_lindh    =  1
-   integer, parameter :: p_modh_lindh_d2 =  2
-   integer, parameter :: p_modh_swart    =  3
-   integer, parameter :: p_modh_old      =  4
-   integer, parameter :: p_modh_gff      =  5
    type(modhess_setvar) :: mhset = modhess_setvar (&
       model = p_modh_old, &
 !  force constants for stretch, bend and torsion
@@ -137,9 +205,8 @@ module xtb_setparam
 
 !! ------------------------------------------------------------------------
 !  temp. for thermostatistical calc. (could be more than just one T)
-   integer,private :: idum
    integer  :: nthermo = 1
-   real(wp) :: thermotemp(50) = (/298.15_wp,(0.0_wp,idum=2,50)/)
+   real(wp) :: thermotemp(50) = [298.15_wp, spread(0.0_wp, 1, 49)]
 !  rotor cut-off (cm-1) in thermo  (was 100 cm-1 previously)
    real(wp) :: thermo_sthr = 50.0_wp
 !  threshold (cm-1) for inverting imaginary modes
@@ -204,16 +271,6 @@ module xtb_setparam
 
 !  switch on gbsa for solvent if second argument is a valid solvent name
    type(TSolvInput) :: solvInput
-!  Choose the grid for the GBSA
-   integer, parameter :: ldgrids(32) = &
-      &[  6,  14,  26,  38,  50,  74,  86, 110, 146, 170, &
-      & 194, 230, 266, 302, 350, 434, 590, 770, 974,1202, &
-      &1454,1730,2030,2354,2702,3074,3470,3890,4334,4802, &
-      &5294,5810]
-   integer, parameter :: p_angsa_normal    = ldgrids(12)
-   integer, parameter :: p_angsa_tight     = ldgrids(19)
-   integer, parameter :: p_angsa_verytight = ldgrids(23)
-   integer, parameter :: p_angsa_extreme   = ldgrids(32)
 
 !! ------------------------------------------------------------------------
 !  of points along normal mode path scan
@@ -299,9 +356,6 @@ module xtb_setparam
 !  (point) charge embedding stuff
 !! ------------------------------------------------------------------------
    integer  :: pcem_dummyatom = 7 ! nitrogen
-   ! interface mode
-   integer,parameter :: p_pcem_legacy = 1
-   integer,parameter :: p_pcem_orca = 2
    integer  :: pcem_interface = p_pcem_legacy
    ! pcharge input file
    character(len=:),allocatable :: pcem_file
@@ -338,13 +392,6 @@ module xtb_setparam
    real(wp) :: ex_open ! set to 0.5/-0.5 in .xtbrc, respectively
 
 !! ------------------------------------------------------------------------
-   type qm_external
-      character(len=:),allocatable :: path
-      character(len=:),allocatable :: executable
-      character(len=:),allocatable :: input_file
-      character(len=:),allocatable :: input_string
-      logical :: exist
-   end type qm_external
 
    type(qm_external) :: ext_orca
    type(qm_external) :: ext_turbo
@@ -362,41 +409,8 @@ module xtb_setparam
    integer  :: extcode = 0
    integer  :: extmode = 0
    integer  :: mode_extrun = 1 ! xtb is default
-   integer, parameter :: p_ext_vtb       = -1
-   integer, parameter :: p_ext_eht       =  0
-   integer, parameter :: p_ext_xtb       =  1
-   integer, parameter :: p_ext_qmdff     =  2
-   integer, parameter :: p_ext_driver    =  3
-   integer, parameter :: p_ext_turbomole =  4
-   integer, parameter :: p_ext_orca      =  5
-   integer, parameter :: p_ext_terachem  =  6
-   integer, parameter :: p_ext_qchem     =  7
-   integer, parameter :: p_ext_nwchem    =  8
-   integer, parameter :: p_ext_molpro    =  9
-   integer, parameter :: p_ext_psi4      = 10
-   integer, parameter :: p_ext_adf       = 11
-   integer, parameter :: p_ext_mopac     = 12
-   integer, parameter :: p_ext_gfnff     = 13
 !  integer  :: dummyint ! not used
    integer  :: runtyp = 2 ! SCC by default
-   integer, parameter :: p_run_scc    =   2
-   integer, parameter :: p_run_grad   =   3
-   integer, parameter :: p_run_opt    =   4
-   integer, parameter :: p_run_hess   =   5
-   integer, parameter :: p_run_ohess  =   7
-   integer, parameter :: p_run_bhess  =  71
-   integer, parameter :: p_run_md     =   6
-   integer, parameter :: p_run_omd    =   8
-   integer, parameter :: p_run_path   =  10
-   integer, parameter :: p_run_screen =  11
-   integer, parameter :: p_run_modef  =  13
-   integer, parameter :: p_run_mdopt  =  14
-   integer, parameter :: p_run_metaopt=  15
-   integer, parameter :: p_run_vip    = 100
-   integer, parameter :: p_run_vea    = 101
-   integer, parameter :: p_run_vipea  = 102
-   integer, parameter :: p_run_vfukui = 103
-   integer, parameter :: p_run_vomega = 104
    logical  :: rdset = .false.
 
    ! ENSO (ENergic SOrting something algorithm) compatibility mode
@@ -419,6 +433,9 @@ module xtb_setparam
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
 
+   end type
+   type(TSet) :: set
+
    type(env_setvar) :: xenv
 
    character(len=:),allocatable :: molnameline
@@ -431,7 +448,7 @@ subroutine initrand
    integer :: i,j
    integer,allocatable :: iseed(:)
    integer :: imagic = 41
-   if (samerand) then
+   if (set%samerand) then
       call random_seed(size=j)
       allocate(iseed(j), source = imagic)
       do i = 1, j

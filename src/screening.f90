@@ -80,7 +80,7 @@ subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
    inquire(file='solvent',exist=ex)
    if(ex)then ! use QMDFF to generate ensemble
-      nall=ntemp_siman*time_md*1000/50  ! number of qmdff write outs
+      nall=set%ntemp_siman*set%time_md*1000/50  ! number of qmdff write outs
       nall=nall/40 ! take every 40th step from qmdff trj
       allocate(xyznew(3,mol0%n,nall),rot(3,0:nall),de(nall), &
          &         ecnf(0:nall),double(0:nall), &
@@ -96,7 +96,7 @@ subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
       call cqpath_read_pathfile(atmp,iz1,iz2,nall,xyznew,mol0%at,eread)
    endif
 
-   T     =temp_md
+   T     =set%temp_md
    beta  =1./(T*8.314510/4.184/1000.+1.d-14)
    ! consider two struc. equal if dE(kcal) < this value
    ethr=0.1
@@ -125,16 +125,16 @@ subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
       maxoptiter=0
       if(icyc.eq.1)then
          maxoptiter=10
-         ethr2=ewin_conf*2
+         ethr2=set%ewin_conf*2
          olev=-99
       endif
       if(icyc.eq.2)then
          olev=-1
-         ethr2=ewin_conf
+         ethr2=set%ewin_conf
       endif
       if(icyc.eq.3)then
          olev=0
-         ethr2=ewin_conf
+         ethr2=set%ewin_conf
       endif
 
       i=1
@@ -146,7 +146,7 @@ subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
          call geometry_optimization &
             &       (env, mol,chk,calc, &
-            &        egap,et,maxiter,maxoptiter,ecnf(i),grd,sigma,optset%optlev, &
+            &        egap,et,maxiter,maxoptiter,ecnf(i),grd,sigma,set%optset%optlev, &
             &        .false.,.true.,fail)
 
          if(.not.fail)then
@@ -166,7 +166,7 @@ subroutine screen(env, mol0, chk, calc, egap, et, maxiter, epot, grd, sigma)
       do i=0,ncnf
          do j=0,i-1
             e=(ecnf(i)-ecnf(j))*autokcal
-            if(check_rmsd) then
+            if(set%check_rmsd) then
                call heavyrmsdfile(i,j,dum)
                if(dum.lt.0.2) double(i)=1
             else
@@ -284,21 +284,21 @@ subroutine qmdfftoscreen(n,at,xyz,nall,xyzall,lsolv)
    call wrc('coord',n,xyz,at)
    write(*,*) 'moving hessian to hessian.save'
 
-   temp  =Tend_siman
-   tstart=temp_md
+   temp  =set%Tend_siman
+   tstart=set%temp_md
    temp2 =tstart
    dumpstep=40
 
    k=0
-   do i=1,ntemp_siman
+   do i=1,set%ntemp_siman
       write(atmp,'(''qmdff coord -rd -md '',i4,'' -temp '',F6.1, &
-         &   '' > tmp'')') idint(time_md),temp2
+         &   '' > tmp'')') idint(set%time_md),temp2
       if(lsolv) &
          &   write(atmp,'(''qmdff coord -rd -md '',i4,'' -temp '',F6.1, &
-         &   '' -gbsa '',a20,'' > tmp'')') idint(time_md),temp2,solvInput%solvent
+         &   '' -gbsa '',a20,'' > tmp'')') idint(set%time_md),temp2,set%solvInput%solvent
       write(*,*)'QMDFF call:',trim(atmp)
       call execute_command_line(atmp)                                ! run qmdff
-      temp2=temp2+(temp-tstart)/(ntemp_siman-1.)
+      temp2=temp2+(temp-tstart)/(set%ntemp_siman-1.)
       write(atmp,'(''cp qmdff.trj qmdff.trj.T.'',i1)') i
       call execute_command_line(atmp)                                ! save qmdff trj
       call open_file(ilog,'qmdff.trj','r')

@@ -99,7 +99,7 @@ subroutine test_gfn1_scc(error)
    type(TxTBParameter) :: globpar
    logical  :: okpar,okbas,diff,exitRun
 
-   gfn_method = 1
+   set%gfn_method = 1
    call init(env)
 
    call init(mol, at, xyz)
@@ -122,7 +122,7 @@ subroutine test_gfn1_scc(error)
    call wfn%allocate(mol%n,basis%nshell,basis%nao)
    wfn%q = mol%chrg/real(mol%n,wp)
 
-   call iniqshell(xtbData,mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,gfn_method)
+   call iniqshell(xtbData,mol%n,mol%at,mol%z,basis%nshell,wfn%q,wfn%qsh,set%gfn_method)
 
    g = 0.0_wp
 

@@ -55,11 +55,11 @@ subroutine relaxed_scan(env, mol, chk, calc)
    logical  :: exist
    integer  :: i,j,k
 
-   pr = verbose
+   pr = set%verbose
    reset = .false.
-   optlevel = optset%optlev
-   maxcycle = optset%maxoptcycle
-   maxiter = maxscciter
+   optlevel = set%optset%optlev
+   maxcycle = set%optset%maxoptcycle
+   maxiter = set%maxscciter
 
    allocate ( g(3,mol%n), source = 0.0_wp )
    allocate ( xyzsave(3,mol%n), source = mol%xyz )
@@ -83,14 +83,14 @@ subroutine relaxed_scan(env, mol, chk, calc)
 !           write(env%unit,'(1x,"valconstr:",1x,f12.8)') scan_list%valscan(j)
             valconstr(scan_list(i)%iconstr) = scan_list(i)%valscan(j)
 !           write(env%unit,'(i0,1x,i0)') i,j
-            if (.not.verbose) &
+            if (.not.set%verbose) &
                write(env%unit,'("... step",1x,i0,1x,"...")') k
             call geometry_optimization &
                &(env, mol,chk,calc, &
-               & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
+               & egap,set%etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
             efix = 0.0_wp
             call constrpot(mol%n,mol%at,mol%xyz,g,efix)
-            if (.not.verbose) then
+            if (.not.set%verbose) then
                write(env%unit,'(" current energy:",1x,f20.8)') etot
                write(env%unit,'("    bias energy:",1x,f20.8)') efix
                write(env%unit,'("unbiased energy:",1x,f20.8)') etot-efix
@@ -114,14 +114,14 @@ subroutine relaxed_scan(env, mol, chk, calc)
          do i = 1, nscan
             valconstr(scan_list(i)%iconstr) = scan_list(i)%valscan(j)
          enddo
-         if (.not.verbose) &
+         if (.not.set%verbose) &
             write(env%unit,'("... step",1x,i0,1x,"...")')   j
          call geometry_optimization &
             &(env, mol,chk,calc, &
-            & egap,etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
+            & egap,set%etemp,maxiter,maxcycle,etot,g,sigma,optlevel,pr,.true.,fail)
          efix = 0.0_wp
          call constrpot(mol%n,mol%at,mol%xyz,g,efix)
-         if (.not.verbose) then
+         if (.not.set%verbose) then
             write(env%unit,'(" current energy:",1x,f20.8)') etot
             write(env%unit,'("    bias energy:",1x,f20.8)') efix
             write(env%unit,'("unbiased energy:",1x,f20.8)') etot-efix

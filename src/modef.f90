@@ -100,33 +100,33 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
    call delete_file('xtbmodefok')
 
-   mode=mode_follow
+   mode=set%mode_follow
    tag=tag+100000*mode
    intermol=iatf2.gt.0.and.mode.lt.7
 
    imod=mode
    fname='xtb_normalmodes'
-   if(mode_local.gt.0) then    ! file changed to local modes
+   if(set%mode_local.gt.0) then    ! file changed to local modes
       fname='xtb_localmodes'
       imod=mode+1000
    endif
 
    nprj=1
-   if(mode_prj.gt.0) nprj=2
+   if(set%mode_prj.gt.0) nprj=2
 
    write(*,*) 'intermolecular mode : ',intermol
-   if(mode_follow.ne.0)then
+   if(set%mode_follow.ne.0)then
       write(*,*) 'normal mode file    : ',trim(fname)
       write(*,*) '# of projected modes: ',nprj
    endif
 
    ! error section
    inquire(file=fname,exist=ex)
-   if(.not.ex.and.mode_follow.ne.0) &
+   if(.not.ex.and.set%mode_follow.ne.0) &
       & call raise('E','Hessian not found! run -hess first!')
 
    if(mode.lt.6.and.(.not.intermol)) call raise('E','mode <7(6) makes no sense!')
-   if(mode_follow.gt.3*mol%n) call raise('E','mode >3N makes no sense!')
+   if(set%mode_follow.gt.3*mol%n) call raise('E','mode >3N makes no sense!')
 
 
    n3=3*mol%n
@@ -135,7 +135,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
 
    ! mode_follow=0: do rotations within pockets
-   if(mode_follow.eq.0) then
+   if(set%mode_follow.eq.0) then
       call pocketscan(mol%n,mol%at,mol%xyz,nstp)
       xyza=0.0d0
       ! read and re-opt
@@ -156,7 +156,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
          mol%xyz(1:3,1:mol%n)=xyza(1:3,1:mol%n,ii)/aatoau
          call geometry_optimization &
          &          (env, mol,chk,calc, &
-         &           egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
+         &           egap,et,maxiter,maxoptiter,ee,grd,sigma,set%optset%optlev, &
          &           .false.,.true.,fail)
          kk=k
          call modeminname(imod,kk,ctmp)
@@ -204,7 +204,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
       u(1:n3,m)=u(1:n3,m)/(sqrt(norm)+1.d-12)
    enddo
 
-   if(intermol.and.mode_follow.lt.7) then
+   if(intermol.and.set%mode_follow.lt.7) then
       write(*,*) 'normal mode file    : xtb_inormalmodes'
       call open_binary(ich,'xtb_inormalmodes','r')
       !        read intermolecular modes and put them on 1-6
@@ -215,35 +215,35 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    endif
 
    if(nprj.eq.2)then
-      uu(1:3*mol%n,2)=u(1:3*mol%n,mode_prj) ! assume that the additional mode which should be projected out is nr. mode_prj
-      if(mode.eq.mode_prj) call raise('E','bad choice of options') ! ie, normally the TS one
+      uu(1:3*mol%n,2)=u(1:3*mol%n,set%mode_prj) ! assume that the additional mode which should be projected out is nr. mode_prj
+      if(mode.eq.set%mode_prj) call raise('E','bad choice of options') ! ie, normally the TS one
    endif
 
-   maxoptiter=optset%maxoptcycle
-   isave=optset%micro_opt
-   optset%micro_opt=1000 ! no coordinate update in ancopt
+   maxoptiter=set%optset%maxoptcycle
+   isave=set%optset%micro_opt
+   set%optset%micro_opt=1000 ! no coordinate update in ancopt
 
-   if(mod(mode_nscan,2).eq.0) mode_nscan=mode_nscan+1 ! make it odd
-   nstep=(mode_nscan-1)/2
+   if(mod(set%mode_nscan,2).eq.0) set%mode_nscan=set%mode_nscan+1 ! make it odd
+   nstep=(set%mode_nscan-1)/2
 
    fc=0.5*(rmass(mode)*amutoau)*(freq(mode)/autorcm)**2  ! force constant
-   step=mode_step*sqrt(2*0.04/fc)/nstep               ! to get 0.04 Eh energy i.e. consistent paths
+   step=set%mode_step*sqrt(2*0.04/fc)/nstep               ! to get 0.04 Eh energy i.e. consistent paths
    step=min(step,3.0d0)                               ! for stiff and floppy systems
    step=max(step,0.08d0)
-   if(mode_local.gt.0) step=mode_step                 ! freq. has no meaning for loc modes
+   if(set%mode_local.gt.0) step=set%mode_step                 ! freq. has no meaning for loc modes
 
-   updscal=mode_updat
+   updscal=set%mode_updat
 
    scfonly=.false.
    if(mol%n.eq.2.or.maxoptiter.lt.1) scfonly=.true.
-   write(*,'(''# steps              :'',i5   )')mode_nscan
+   write(*,'(''# steps              :'',i5   )')set%mode_nscan
    write(*,'(''along normal mode    :'',i5   )')mode
    write(*,'(''frequency /cm-1      :'',F12.3)')freq(mode)
    write(*,'(''force constant       :'',F10.5)')fc
    write(*,'(''mode vector mixing   :'',F10.5)')updscal
    write(*,'(''step length          :'',F10.5)')step
    write(*,'(''maxiter (opt)        :'',i5   )')maxoptiter
-   write(*,'(''optlevel for minima  :'',i5   )')optset%optlev
+   write(*,'(''optlevel for minima  :'',i5   )')set%optset%optlev
 
 
    np=2*nstep+1    ! total # of points on path
@@ -297,7 +297,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
       else
          call geometry_optimization &
          &       (env, mol,chk,calc, &
-         &        egap,et,maxiter,maxoptiter,e(nstep-ss+1),grd,sigma,optset%optlev, &
+         &        egap,et,maxiter,maxoptiter,e(nstep-ss+1),grd,sigma,set%optset%optlev, &
          &        .false.,.true.,fail)
       endif
       xyza(1:3,1:mol%n,nstep-ss+1)=mol%xyz(1:3,1:mol%n)
@@ -340,7 +340,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
       else
          call geometry_optimization &
          &       (env, mol,chk,calc, &
-         &        egap,et,maxiter,maxoptiter,e(nstep+ss+1),grd,sigma,optset%optlev, &
+         &        egap,et,maxiter,maxoptiter,e(nstep+ss+1),grd,sigma,set%optset%optlev, &
          &        .false.,.true.,fail)
       endif
       xyza(:,:,nstep+ss+1)=mol%xyz
@@ -434,10 +434,10 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
    !call system('rm .xtbtmpmode') ! switch off projection mode in opt
    call delete_file('.xtbtmpmode')
-   optset%micro_opt =isave   ! back to default
+   set%optset%micro_opt =isave   ! back to default
    maxoptiter=0       ! because we need accurate structures which allow comparison
 
-   if(nstp.gt.1.and.mode_local.ge.0)then  ! good, there are new minima and its not a anharm run
+   if(nstp.gt.1.and.set%mode_local.ge.0)then  ! good, there are new minima and its not a anharm run
       !        at which point on the curve is the min?
       k=0
       thr=0.1 ! different from input ie RK off the min at 0 ?
@@ -454,7 +454,7 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
                mol%xyz = xyza(:,:,map(ii))
                call geometry_optimization &
                &          (env, mol,chk,calc, &
-               &           egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
+               &           egap,et,maxiter,maxoptiter,ee,grd,sigma,set%optset%optlev, &
                &           .false.,.true.,fail)
                kk=k
                call modeminname(imod,kk,ctmp)
@@ -481,16 +481,16 @@ subroutine modefollow(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    endif
    ! local searches often generate no new minima but lets try anyway a few opts
    ! if no minimum is found, the endpoints sometimes lead to one in a full opt
-   ldum=nstp.le.2.and.mode_local.ge.0.and.mode.gt.6 ! exclude anharm case and intermol one
-   if(mode_local.gt.0.or.ldum) then
+   ldum=nstp.le.2.and.set%mode_local.ge.0.and.mode.gt.6 ! exclude anharm case and intermol one
+   if(set%mode_local.gt.0.or.ldum) then
       minpos=nstep+1
-      do k=1,mode_nscan,5
+      do k=1,set%mode_nscan,5
          if(abs(k-minpos).lt.5) cycle
          write(*,'(''re-opt at point '',i2)') k
          mol%xyz=xyza(:,:,k)
          call geometry_optimization &
          &       (env, mol,chk,calc, &
-         &        egap,et,maxiter,maxoptiter,ee,grd,sigma,optset%optlev, &
+         &        egap,et,maxiter,maxoptiter,ee,grd,sigma,set%optset%optlev, &
          &        .false.,.true.,fail)
          kk=k
          call modeminname(imod,kk,ctmp)

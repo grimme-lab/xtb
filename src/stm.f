@@ -51,22 +51,22 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       write(*,*)
       write(*,*)'STM picture simulation routine'
       write(*,*)'in constant current mode'
-      write(*,'('' tip DOS energy broadening (eV):'',f9.1)')stm_alp
-      write(*,'('' tip potential (V)             :'',f9.6)')stm_pot
-      write(*,'('' constant current value (a.u.) :'',f9.6)')stm_targ
-      write(*,'('' grid width (Bohr)             :'',f9.6)')stm_grid
-      write(*,'('' int and Pmat neglect stm_thr  :'',f9.6)')stm_thr
+      write(*,'('' tip DOS energy broadening (eV):'',f9.1)')set%stm_alp
+      write(*,'('' tip potential (V)             :'',f9.6)')set%stm_pot
+      write(*,'('' constant current value (a.u.) :'',f9.6)')set%stm_targ
+      write(*,'('' grid width (Bohr)             :'',f9.6)')set%stm_grid
+      write(*,'('' int and Pmat neglect stm_thr  :'',f9.6)')set%stm_thr
 
 c prog parameters (should be made a user input)
-      alp =stm_alp  !1.500 ! width of tip DOS energy broadening (eV)
-      targ=stm_targ !1.d-4 ! constant current value (a.u.)
-      stepr=stm_grid!0.5d0! grid width (Bohr), half that value along Z
-      pot  =stm_pot ! potential of tip vs. molecule, negative values let e flow from mol to tip
+      alp =set%stm_alp  !1.500 ! width of tip DOS energy broadening (eV)
+      targ=set%stm_targ !1.d-4 ! constant current value (a.u.)
+      stepr=set%stm_grid!0.5d0! grid width (Bohr), half that value along Z
+      pot  =set%stm_pot ! potential of tip vs. molecule, negative values let e flow from mol to tip
                     ! ie occ space of mol is probed
 c fix
       bord=4.5d0                    ! Z-limit (Bohr), max Z of molecule added
-      intcut=20.-3.0*log10(stm_thr) ! primitive cut-off, =20 makes a factor of 2 compared to =10
-      pthr=1.d-5*stm_thr            ! dmat neglect threshold
+      intcut=20.-3.0*log10(set%stm_thr) ! primitive cut-off, =20 makes a factor of 2 compared to =10
+      pthr=1.d-5*set%stm_thr            ! dmat neglect threshold
       write(*,'('' incut                         :'',f9.6)')intcut
       write(*,'('' Pthr                          :'',e9.3)')pthr
 

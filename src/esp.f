@@ -23,7 +23,7 @@
       use xtb_type_basisset
       use xtb_intpack
       use xtb_printout, only : writecosmofile
-      use xtb_setparam, only : esp_gridfile, get_namespace
+      use xtb_setparam, only : set, get_namespace
       implicit none
       type(TBasisset), intent(in) :: basis
       integer nproc,n,nbf,nmo,at(n)
@@ -48,8 +48,8 @@
                  ! errors are around 1e-4 Eh for Etoposid
       pthr=1.d-4 ! -4 def
 
-      if (allocated(esp_gridfile)) then
-          grid_file = esp_gridfile
+      if (allocated(set%esp_gridfile)) then
+          grid_file = set%esp_gridfile
       else
           grid_file = get_namespace('esp_coord')
       endif

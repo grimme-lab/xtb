@@ -34,7 +34,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
 
 
    ! TM (RI)
-   if(extcode.eq.1)then
+   if(set%extcode.eq.1)then
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
@@ -43,11 +43,11 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
-         if(extmode.eq.1)then
+         if(set%extmode.eq.1)then
             call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
             if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
          endif
-         call extcodeok(extcode)
+         call extcodeok(set%extcode)
          call rdtm(n,grd,eel,g,xyz_cached)
       end if
       !$omp end critical (turbo_lock)
@@ -55,7 +55,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    endif
 
    ! TM+d3+gcp
-   if(extcode.eq.2)then
+   if(set%extcode.eq.2)then
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
@@ -64,13 +64,13 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
-         if(extmode.le.2)then
+         if(set%extmode.le.2)then
             call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
             call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
             call execute_command_line('exec dftd3 coord -grad >> job.last 2>> /dev/null')
             call execute_command_line('exec gcp coord -file -grad >>job.last 2>>/dev/null')
          endif
-         call extcodeok(extcode)
+         call extcodeok(set%extcode)
          call rdtm(n,.true.,eel,g,xyz_cached)
       end if
       !$omp end critical (turbo_lock)
@@ -78,7 +78,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
    endif
 
    ! TM (NORI)
-   if(extcode.eq.3)then
+   if(set%extcode.eq.3)then
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
@@ -87,11 +87,11 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,grd,eel,g,dip,lsolv)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
-         if(extmode.eq.1)then
+         if(set%extmode.eq.1)then
             call execute_command_line('exec dscf  > job.last 2>> /dev/null')
             if(grd)call execute_command_line('exec grad >> job.last 2>> /dev/null')
          endif
-         call extcodeok(extcode)
+         call extcodeok(set%extcode)
          call rdtm(n,grd,eel,g,xyz_cached)
       end if
       !$omp end critical (turbo_lock)

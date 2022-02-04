@@ -314,7 +314,7 @@ subroutine rdsdf(fname,n,xyz,iat)
    if (idum.ne.0) then
       write(chdum,'(i0)') idum
       call set_chrg(persistentEnv, trim(chdum))
-      if (idum.ne.ichrg) then
+      if (idum.ne.set%ichrg) then
          call persistentEnv%warning('sdf input attempted to set charge, '//&
             &'but variables is already locked')
       endif

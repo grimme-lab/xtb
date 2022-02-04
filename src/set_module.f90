@@ -120,12 +120,12 @@ subroutine write_set(ictrl)
    integer,intent(in) :: ictrl
 
 !  write the coord file, charge and spin information first
-   write(ictrl,'(a,"chrg",1x,i0)') flag,ichrg
-   write(ictrl,'(a,"spin",1x,i0)') flag,nalphabeta
+   write(ictrl,'(a,"chrg",1x,i0)') flag,set%ichrg
+   write(ictrl,'(a,"spin",1x,i0)') flag,set%nalphabeta
 
 !  was the fit-flag set?
-   if (fit) write(ictrl,'(a,"fit")') flag
-   if (samerand) write(ictrl,'(a,"samerand")') flag
+   if (set%fit) write(ictrl,'(a,"fit")') flag
+   if (set%samerand) write(ictrl,'(a,"samerand")') flag
 
    call write_set_gfn(ictrl)
    call write_set_scc(ictrl)
@@ -159,26 +159,26 @@ subroutine write_set_gfn(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"gfn")') flag
-   write(ictrl,'(3x,"method=",i0)') gfn_method
+   write(ictrl,'(3x,"method=",i0)') set%gfn_method
 !   select case(gfn_method)
 !   case(p_method_gfn0xtb); write(ictrl,'(3x,"method=gfn0-xtb")')
 !   case(p_method_gfn1xtb); write(ictrl,'(3x,"method=gfn1-xtb")')
 !   case(p_method_gfn2xtb); write(ictrl,'(3x,"method=gfn2-xtb")')
 !   end select
-   if (gfn_method.gt.2) &
-      write(ictrl,'(3x,"d4=",a)') bool2string(newdisp)
-   write(ictrl,'(3x,"scc=",a)') bool2string(solve_scc)
-   write(ictrl,'(3x,"periodic=",a)') bool2string(periodic)
-   write(ictrl,'(3x,"dispscale=",g0)') dispscale
+   if (set%gfn_method.gt.2) &
+      write(ictrl,'(3x,"d4=",a)') bool2string(set%newdisp)
+   write(ictrl,'(3x,"scc=",a)') bool2string(set%solve_scc)
+   write(ictrl,'(3x,"periodic=",a)') bool2string(set%periodic)
+   write(ictrl,'(3x,"dispscale=",g0)') set%dispscale
 end subroutine write_set_gfn
 
 subroutine write_set_scc(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"scc")') flag
-   write(ictrl,'(3x,"maxiterations=",i0)') maxscciter
-   write(ictrl,'(3x,"temp=",g0)') eTemp
-   write(ictrl,'(3x,"broydamp=",g0)') broydamp
+   write(ictrl,'(3x,"maxiterations=",i0)') set%maxscciter
+   write(ictrl,'(3x,"temp=",g0)') set%eTemp
+   write(ictrl,'(3x,"broydamp=",g0)') set%broydamp
 end subroutine write_set_scc
 
 subroutine write_set_opt(ictrl)
@@ -186,26 +186,26 @@ subroutine write_set_opt(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"opt")') flag
-   if (allocated(opt_engine)) then
+   if (allocated(set%opt_engine)) then
       write(ictrl,'(3x,"engine=")',advance='no')
-      select case(opt_engine)
+      select case(set%opt_engine)
       case default;            write(ictrl,'("unknown")')
       case(p_engine_rf);       write(ictrl,'("rf")')
       case(p_engine_lbfgs);    write(ictrl,'("lbfgs")')
       case(p_engine_inertial); write(ictrl,'("inertial")')
       end select
    end if
-   if (allocated(opt_outfile)) &
-      write(ictrl,'(3x,"output=",a)')  opt_outfile
-   if (allocated(opt_logfile)) &
-      write(ictrl,'(3x,"logfile=",a)') opt_logfile
-   write(ictrl,'(3x,"optlevel=",a)') int2optlevel(optset%optlev)
-   write(ictrl,'(3x,"microcycle=",i0)') optset%micro_opt
-   write(ictrl,'(3x,"maxcycle=",i0)') optset%maxoptcycle
-   write(ictrl,'(3x,"maxdispl=",g0)') optset%maxdispl_opt
-   write(ictrl,'(3x,"hlow=",g0)') optset%hlow_opt
+   if (allocated(set%opt_outfile)) &
+      write(ictrl,'(3x,"output=",a)')  set%opt_outfile
+   if (allocated(set%opt_logfile)) &
+      write(ictrl,'(3x,"logfile=",a)') set%opt_logfile
+   write(ictrl,'(3x,"optlevel=",a)') int2optlevel(set%optset%optlev)
+   write(ictrl,'(3x,"microcycle=",i0)') set%optset%micro_opt
+   write(ictrl,'(3x,"maxcycle=",i0)') set%optset%maxoptcycle
+   write(ictrl,'(3x,"maxdispl=",g0)') set%optset%maxdispl_opt
+   write(ictrl,'(3x,"hlow=",g0)') set%optset%hlow_opt
    write(ictrl,'(3x,"hessian=")',advance='no')
-   select case(mhset%model)
+   select case(set%mhset%model)
    case default;          write(ictrl,'("lindh-d2")')
    case(p_modh_read);     write(ictrl,'("read")')
    case(p_modh_unit);     write(ictrl,'("unit")')
@@ -214,35 +214,34 @@ subroutine write_set_opt(ictrl)
    case(p_modh_lindh_d2); write(ictrl,'("lindh-d2")')
    case(p_modh_swart);    write(ictrl,'("swart")')
    end select
-   write(ictrl,'(3x,"s6=",g0)') mhset%s6
-   write(ictrl,'(3x,"kstretch=",g0)') mhset%kr
-   write(ictrl,'(3x,"kbend   =",g0)') mhset%kf
-   write(ictrl,'(3x,"ktorsion=",g0)') mhset%kt
-   write(ictrl,'(3x,"koutofp =",g0)') mhset%ko
-   write(ictrl,'(3x,"kvdw    =",g0)') mhset%kd
-   write(ictrl,'(3x,"kes     =",g0)') mhset%kq
-   write(ictrl,'(3x,"rcut    =",g0)') sqrt(mhset%rcut)
-   write(ictrl,'(3x,"ts=",i0)') bool2int(tsopt)
-   write(ictrl,'(3x,"tsroot=",i0)') tsroot
-   write(ictrl,'(3x,"exact rf=",g0)') bool2string(optset%exact_rf)
-   write(ictrl,'(3x,"average conv=",g0)') bool2string(optset%average_conv)
+   write(ictrl,'(3x,"s6=",g0)') set%mhset%s6
+   write(ictrl,'(3x,"kstretch=",g0)') set%mhset%kr
+   write(ictrl,'(3x,"kbend   =",g0)') set%mhset%kf
+   write(ictrl,'(3x,"ktorsion=",g0)') set%mhset%kt
+   write(ictrl,'(3x,"koutofp =",g0)') set%mhset%ko
+   write(ictrl,'(3x,"kvdw    =",g0)') set%mhset%kd
+   write(ictrl,'(3x,"kes     =",g0)') set%mhset%kq
+   write(ictrl,'(3x,"rcut    =",g0)') sqrt(set%mhset%rcut)
+   write(ictrl,'(3x,"ts=",i0)') bool2int(set%tsopt)
+   write(ictrl,'(3x,"tsroot=",i0)') set%tsroot
+   write(ictrl,'(3x,"exact rf=",g0)') bool2string(set%optset%exact_rf)
+   write(ictrl,'(3x,"average conv=",g0)') bool2string(set%optset%average_conv)
 end subroutine write_set_opt
 
 subroutine write_set_thermo(ictrl)
    implicit none
    integer,intent(in) :: ictrl
-   integer :: i,idum
+   integer :: i
    write(ictrl,'(a,"thermo")') flag
-   if (thermotemp(idum+1).ne.0.0_wp) idum = size(thermotemp,1)
    write(ictrl,'(3x,"temp=")',advance='no')
    ! now we print all but the last argument to avoid a trailing comma
-   do i = 1, nthermo-1
-      write(ictrl,'(g0,",")',advance='no') thermotemp(i)
+   do i = 1, set%nthermo-1
+      write(ictrl,'(g0,",")',advance='no') set%thermotemp(i)
    enddo
-   write(ictrl,'(g0)') thermotemp(nthermo)
-   write(ictrl,'(3x,"sthr=",g0)') thermo_sthr
-   write(ictrl,'(3x,"imagthr=",g0)') thermo_ithr
-   write(ictrl,'(3x,"scale=",g0)') thermo_fscal
+   write(ictrl,'(g0)') set%thermotemp(set%nthermo)
+   write(ictrl,'(3x,"sthr=",g0)') set%thermo_sthr
+   write(ictrl,'(3x,"imagthr=",g0)') set%thermo_ithr
+   write(ictrl,'(3x,"scale=",g0)') set%thermo_fscal
 end subroutine write_set_thermo
 
 subroutine write_set_md(ictrl)
@@ -250,16 +249,16 @@ subroutine write_set_md(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"md")') flag
-   write(ictrl,'(3x,"temp=",g0)') temp_md
-   write(ictrl,'(3x,"time=",g0)') time_md
-   write(ictrl,'(3x,"dump=",g0)') dump_md2
-   write(ictrl,'(3x,"velo=",i0)') bool2int(velodump)
-   write(ictrl,'(3x,"nvt=",i0)') bool2int(nvt_md)
-   write(ictrl,'(3x,"skip=",g0)') skip_md
-   write(ictrl,'(3x,"step=",g0)') tstep_md
-   write(ictrl,'(3x,"hmass=",i0)') md_hmass
-   write(ictrl,'(3x,"shake=",i0)') shake_mode
-   write(ictrl,'(3x,"sccacc=",g0)') accu_md
+   write(ictrl,'(3x,"temp=",g0)') set%temp_md
+   write(ictrl,'(3x,"time=",g0)') set%time_md
+   write(ictrl,'(3x,"dump=",g0)') set%dump_md2
+   write(ictrl,'(3x,"velo=",i0)') bool2int(set%velodump)
+   write(ictrl,'(3x,"nvt=",i0)') bool2int(set%nvt_md)
+   write(ictrl,'(3x,"skip=",g0)') set%skip_md
+   write(ictrl,'(3x,"step=",g0)') set%tstep_md
+   write(ictrl,'(3x,"hmass=",i0)') set%md_hmass
+   write(ictrl,'(3x,"shake=",i0)') set%shake_mode
+   write(ictrl,'(3x,"sccacc=",g0)') set%accu_md
 end subroutine write_set_md
 
 subroutine write_set_siman(ictrl)
@@ -267,21 +266,21 @@ subroutine write_set_siman(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"siman")') flag
-   write(ictrl,'(3x,"dump=",g0)') dump_md
-   write(ictrl,'(3x,"n=",i0)') ntemp_siman
-   write(ictrl,'(3x,"ewin=",g0)') ewin_conf
-   write(ictrl,'(3x,"temp=",g0)') Tend_siman
-   write(ictrl,'(3x,"enan=",i0)') bool2int(enan_siman)
-   write(ictrl,'(3x,"check=",i0)') bool2int(.not.check_rmsd)
+   write(ictrl,'(3x,"dump=",g0)') set%dump_md
+   write(ictrl,'(3x,"n=",i0)') set%ntemp_siman
+   write(ictrl,'(3x,"ewin=",g0)') set%ewin_conf
+   write(ictrl,'(3x,"temp=",g0)') set%Tend_siman
+   write(ictrl,'(3x,"enan=",i0)') bool2int(set%enan_siman)
+   write(ictrl,'(3x,"check=",i0)') bool2int(.not.set%check_rmsd)
 end subroutine write_set_siman
 
 subroutine write_set_hess(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"hess")') flag
-   write(ictrl,'(3x,"sccacc=",g0)') accu_hess
-   write(ictrl,'(3x,"step=",g0)') step_hess
-   write(ictrl,'(3x,"scale=",g0)') scale_hess
+   write(ictrl,'(3x,"sccacc=",g0)') set%accu_hess
+   write(ictrl,'(3x,"step=",g0)') set%step_hess
+   write(ictrl,'(3x,"scale=",g0)') set%scale_hess
 end subroutine write_set_hess
 
 subroutine write_set_gbsa(ictrl)
@@ -289,27 +288,27 @@ subroutine write_set_gbsa(ictrl)
    use xtb_mctc_convert, only : autoaa
    implicit none
    integer,intent(in) :: ictrl
-   if (len_trim(solvInput%solvent).gt.0 .and. solvInput%solvent.ne."none") then
+   if (len_trim(set%solvInput%solvent).gt.0 .and. set%solvInput%solvent.ne."none") then
       write(ictrl,'(a,"solvation")') flag
-      if (allocated(solvInput%solvent)) write(ictrl,'(3x,"solvent=",a)') solvInput%solvent
-      write(ictrl,'(3x,"ion_st=",g0)') solvInput%ionStrength
-      write(ictrl,'(3x,"ion_rad=",g0)') solvInput%ionRad * autoaa
+      if (allocated(set%solvInput%solvent)) write(ictrl,'(3x,"solvent=",a)') set%solvInput%solvent
+      write(ictrl,'(3x,"ion_st=",g0)') set%solvInput%ionStrength
+      write(ictrl,'(3x,"ion_rad=",g0)') set%solvInput%ionRad * autoaa
       write(ictrl,'(3x,"grid=")',advance='no')
-      select case(solvInput%nAng)
+      select case(set%solvInput%nAng)
       case(p_angsa_normal);   write(ictrl,'(a)') "normal"
       case(p_angsa_tight);    write(ictrl,'(a)') "tight"
       case(p_angsa_verytight);write(ictrl,'(a)') "verytight"
       case(p_angsa_extreme);  write(ictrl,'(a)') "extreme"
-      case default;           write(ictrl,'(i0)') solvInput%nAng
+      case default;           write(ictrl,'(i0)') set%solvInput%nAng
       end select
-      write(ictrl,'(3x,"alpb=",a)') bool2string(solvInput%alpb)
-      select case(solvInput%kernel)
+      write(ictrl,'(3x,"alpb=",a)') bool2string(set%solvInput%alpb)
+      select case(set%solvInput%kernel)
       case(gbKernel%still)
          write(ictrl,'(3x,"kernel=still")')
       case(gbKernel%p16)
          write(ictrl,'(3x,"kernel=p16")')
       end select
-      write(ictrl,'(3x,"cosmo=",a)') bool2string(solvInput%cosmo)
+      write(ictrl,'(3x,"cosmo=",a)') bool2string(set%solvInput%cosmo)
    endif
 end subroutine write_set_gbsa
 
@@ -317,29 +316,29 @@ subroutine write_set_modef(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"modef")') flag
-   write(ictrl,'(3x,"n=",i0)') mode_nscan
-   write(ictrl,'(3x,"step=",g0)') mode_step
-   write(ictrl,'(3x,"updat=",g0)') mode_updat
-   write(ictrl,'(3x,"local=",i0)') mode_local
-   write(ictrl,'(3x,"vthr=",g0)') mode_vthr
-   write(ictrl,'(3x,"prj=",g0)') mode_prj
-   write(ictrl,'(3x,"mode=",g0)') mode_follow
+   write(ictrl,'(3x,"n=",i0)') set%mode_nscan
+   write(ictrl,'(3x,"step=",g0)') set%mode_step
+   write(ictrl,'(3x,"updat=",g0)') set%mode_updat
+   write(ictrl,'(3x,"local=",i0)') set%mode_local
+   write(ictrl,'(3x,"vthr=",g0)') set%mode_vthr
+   write(ictrl,'(3x,"prj=",g0)') set%mode_prj
+   write(ictrl,'(3x,"mode=",g0)') set%mode_follow
 end subroutine write_set_modef
 
 subroutine write_set_cube(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"cube")') flag
-   write(ictrl,'(3x,"step=",g0)') cube_step
-   write(ictrl,'(3x,"pthr=",g0)') cube_pthr
+   write(ictrl,'(3x,"step=",g0)') set%cube_step
+   write(ictrl,'(3x,"pthr=",g0)') set%cube_pthr
 end subroutine write_set_cube
 
 subroutine write_set_symmetry(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"symmetry")') flag
-   write(ictrl,'(3x,"desy=",g0)') desy
-   write(ictrl,'(3x,"maxat=",i0)') maxatdesy
+   write(ictrl,'(3x,"desy=",g0)') set%desy
+   write(ictrl,'(3x,"maxat=",i0)') set%maxatdesy
 end subroutine write_set_symmetry
 
 subroutine write_set_embedding(ictrl)
@@ -347,8 +346,8 @@ subroutine write_set_embedding(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"embedding")') flag
-   write(ictrl,'(3x,"at=",i0)')  pcem_dummyatom
-   write(ictrl,'(3x,"es=",a)')   bool2string(pcem_l_es)
+   write(ictrl,'(3x,"at=",i0)')  set%pcem_dummyatom
+   write(ictrl,'(3x,"es=",a)')   bool2string(set%pcem_l_es)
    !write(ictrl,'(3x,"aes=",a)')  bool2string(pcem_l_aes)
    !write(ictrl,'(3x,"disp=",a)') bool2string(pcem_l_disp)
    !write(ictrl,'(3x,"dipm=",a)') bool2string(pcem_l_dipm)
@@ -362,69 +361,69 @@ subroutine write_set_write(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"write")') flag
-   if (allocated(property_file)) &
-   write(ictrl,'(3x,"output file=",a)')      property_file
-   write(ictrl,'(3x,"esp=",a)')              bool2string(pr_esp)
-   if (allocated(esp_gridfile)) write(ictrl,'(3x,"gridfile=",a)')         esp_gridfile
-   write(ictrl,'(3x,"mos=",a)')              bool2string(pr_molden_input)
-   write(ictrl,'(3x,"gbw=",a)')              bool2string(pr_gbw)
-   write(ictrl,'(3x,"tm mos=",a)')           bool2string(pr_tmmos)
-   write(ictrl,'(3x,"tm basis=",a)')         bool2string(pr_tmbas)
-   write(ictrl,'(3x,"lmo=",a)')              bool2string(pr_lmo)
-   write(ictrl,'(3x,"density=",a)')          bool2string(pr_density)
-   write(ictrl,'(3x,"spin population=",a)')  bool2string(pr_spin_population)
-   write(ictrl,'(3x,"spin density=",a)')     bool2string(pr_spin_density)
-   write(ictrl,'(3x,"fod=",a)')              bool2string(pr_fod)
-   write(ictrl,'(3x,"fod population=",a)')   bool2string(pr_fod_pop)
-   write(ictrl,'(3x,"wiberg=",a)')           bool2string(pr_wiberg)
-   write(ictrl,'(3x,"wbo fragments=",a)')    bool2string(pr_wbofrag)
-   write(ictrl,'(3x,"dipole=",a)')           bool2string(pr_dipole)
-   write(ictrl,'(3x,"charges=",a)')          bool2string(pr_charges)
-   write(ictrl,'(3x,"mulliken=",a)')         bool2string(pr_mulliken)
-   write(ictrl,'(3x,"orbital energies=",a)') bool2string(pr_eig)
-   write(ictrl,'(3x,"inertia=",a)')          bool2string(pr_moments)
-   write(ictrl,'(3x,"distances=",a)')        bool2string(pr_distances)
-   write(ictrl,'(3x,"angles=",a)')           bool2string(pr_angles)
-   write(ictrl,'(3x,"torsions=",a)')         bool2string(pr_torsions)
-   write(ictrl,'(3x,"final struct=",a)')     bool2string(pr_finalstruct)
-   write(ictrl,'(3x,"geosum=",a)')           bool2string(pr_geosum)
-   write(ictrl,'(3x,"stm=",a)')              bool2string(pr_stm)
-   write(ictrl,'(3x,"modef=",a)')            bool2string(pr_modef)
-   write(ictrl,'(3x,"gbsa=",a)')             bool2string(pr_gbsa)
-   write(ictrl,'(3x,"vib_normal_modes=",a)') bool2string(pr_nmtm)
-   write(ictrl,'(3x,"hessian.out=",a)')      bool2string(pr_dftbp_hessian_out)
+   if (allocated(set%property_file)) &
+   write(ictrl,'(3x,"output file=",a)')      set%property_file
+   write(ictrl,'(3x,"esp=",a)')              bool2string(set%pr_esp)
+   if (allocated(set%esp_gridfile)) write(ictrl,'(3x,"gridfile=",a)')         set%esp_gridfile
+   write(ictrl,'(3x,"mos=",a)')              bool2string(set%pr_molden_input)
+   write(ictrl,'(3x,"gbw=",a)')              bool2string(set%pr_gbw)
+   write(ictrl,'(3x,"tm mos=",a)')           bool2string(set%pr_tmmos)
+   write(ictrl,'(3x,"tm basis=",a)')         bool2string(set%pr_tmbas)
+   write(ictrl,'(3x,"lmo=",a)')              bool2string(set%pr_lmo)
+   write(ictrl,'(3x,"density=",a)')          bool2string(set%pr_density)
+   write(ictrl,'(3x,"spin population=",a)')  bool2string(set%pr_spin_population)
+   write(ictrl,'(3x,"spin density=",a)')     bool2string(set%pr_spin_density)
+   write(ictrl,'(3x,"fod=",a)')              bool2string(set%pr_fod)
+   write(ictrl,'(3x,"fod population=",a)')   bool2string(set%pr_fod_pop)
+   write(ictrl,'(3x,"wiberg=",a)')           bool2string(set%pr_wiberg)
+   write(ictrl,'(3x,"wbo fragments=",a)')    bool2string(set%pr_wbofrag)
+   write(ictrl,'(3x,"dipole=",a)')           bool2string(set%pr_dipole)
+   write(ictrl,'(3x,"charges=",a)')          bool2string(set%pr_charges)
+   write(ictrl,'(3x,"mulliken=",a)')         bool2string(set%pr_mulliken)
+   write(ictrl,'(3x,"orbital energies=",a)') bool2string(set%pr_eig)
+   write(ictrl,'(3x,"inertia=",a)')          bool2string(set%pr_moments)
+   write(ictrl,'(3x,"distances=",a)')        bool2string(set%pr_distances)
+   write(ictrl,'(3x,"angles=",a)')           bool2string(set%pr_angles)
+   write(ictrl,'(3x,"torsions=",a)')         bool2string(set%pr_torsions)
+   write(ictrl,'(3x,"final struct=",a)')     bool2string(set%pr_finalstruct)
+   write(ictrl,'(3x,"geosum=",a)')           bool2string(set%pr_geosum)
+   write(ictrl,'(3x,"stm=",a)')              bool2string(set%pr_stm)
+   write(ictrl,'(3x,"modef=",a)')            bool2string(set%pr_modef)
+   write(ictrl,'(3x,"gbsa=",a)')             bool2string(set%pr_gbsa)
+   write(ictrl,'(3x,"vib_normal_modes=",a)') bool2string(set%pr_nmtm)
+   write(ictrl,'(3x,"hessian.out=",a)')      bool2string(set%pr_dftbp_hessian_out)
 end subroutine write_set_write
 
 subroutine write_set_external(ictrl)
    implicit none
    integer,intent(in) :: ictrl
    write(ictrl,'(a,"external")') flag
-   if (allocated(ext_orca%path))          &
-      write(ictrl,'(3x,"orca bin=",a)')        ext_orca%executable
-   if (allocated(ext_orca%input_string))  &
-      write(ictrl,'(3x,"orca input line=",a)') ext_orca%input_string
-   if (allocated(ext_orca%input_file))    &
-      write(ictrl,'(3x,"orca input file=",a)') ext_orca%input_file
-   if (allocated(ext_mopac%path))         &
-      write(ictrl,'(3x,"mopac bin=",a)')       ext_mopac%executable
-   if (allocated(ext_mopac%input_string)) &
-      write(ictrl,'(3x,"mopac input=",a)')     ext_mopac%input_string
-   if (allocated(ext_mopac%input_file))   &
-      write(ictrl,'(3x,"mopac file=",a)')      ext_mopac%input_file
-   if (allocated(ext_turbo%path))         &
-      write(ictrl,'(3x,"turbodir=",a)')        ext_turbo%path
+   if (allocated(set%ext_orca%path))          &
+      write(ictrl,'(3x,"orca bin=",a)')        set%ext_orca%executable
+   if (allocated(set%ext_orca%input_string))  &
+      write(ictrl,'(3x,"orca input line=",a)') set%ext_orca%input_string
+   if (allocated(set%ext_orca%input_file))    &
+      write(ictrl,'(3x,"orca input file=",a)') set%ext_orca%input_file
+   if (allocated(set%ext_mopac%path))         &
+      write(ictrl,'(3x,"mopac bin=",a)')       set%ext_mopac%executable
+   if (allocated(set%ext_mopac%input_string)) &
+      write(ictrl,'(3x,"mopac input=",a)')     set%ext_mopac%input_string
+   if (allocated(set%ext_mopac%input_file))   &
+      write(ictrl,'(3x,"mopac file=",a)')      set%ext_mopac%input_file
+   if (allocated(set%ext_turbo%path))         &
+      write(ictrl,'(3x,"turbodir=",a)')        set%ext_turbo%path
 end subroutine write_set_external
 
 subroutine write_set_stm(ictrl)
    implicit none
    integer,intent(in) :: ictrl
-   if (.not.pr_stm) return
+   if (.not.set%pr_stm) return
    write(ictrl,'(a,"stm")') flag
-   write(ictrl,'(3x,"broadening=",g0,1x,"#",1x,a)') stm_alp,"in eV"
-   write(ictrl,'(3x,"current=",g0,1x,"#")')         stm_targ
-   write(ictrl,'(3x,"grid=",g0,1x,"#",1x,a)')       stm_grid,"in au"
-   write(ictrl,'(3x,"thr=",g0)')                    stm_thr
-   write(ictrl,'(3x,"potential=",g0,1x,"#",1x,a)')  stm_pot,"in V"
+   write(ictrl,'(3x,"broadening=",g0,1x,"#",1x,a)') set%stm_alp,"in eV"
+   write(ictrl,'(3x,"current=",g0,1x,"#")')         set%stm_targ
+   write(ictrl,'(3x,"grid=",g0,1x,"#",1x,a)')       set%stm_grid,"in au"
+   write(ictrl,'(3x,"thr=",g0)')                    set%stm_thr
+   write(ictrl,'(3x,"potential=",g0,1x,"#",1x,a)')  set%stm_pot,"in V"
 end subroutine write_set_stm
 
 subroutine write_set_path(ictrl)
@@ -435,17 +434,17 @@ subroutine write_set_path(ictrl)
    character(len=:), allocatable :: string
    integer :: i
    write(ictrl,'(a,"path")') flag
-   write(ictrl,'(3x,"nrun=",i0)')  pathset%nrun
-   write(ictrl,'(3x,"npoint=",i0)')  pathset%nopt
-   write(ictrl,'(3x,"anopt=",i0)') pathset%anopt
-   write(ictrl,'(3x,"kpush=",g0)') pathset%kpush
-   write(ictrl,'(3x,"kpull=",g0)') pathset%kpull
-   write(ictrl,'(3x,"ppull=",g0)') pathset%ppull
-   write(ictrl,'(3x,"alp=",g0)')   pathset%alp
-   if (allocated(pathset%fname)) &
-      write(ictrl,'(3x,"product=",a)') pathset%fname
-   if (pathset%nat > 0) then
-      call atl%new(pathset%atoms(:pathset%nat))
+   write(ictrl,'(3x,"nrun=",i0)')  set%pathset%nrun
+   write(ictrl,'(3x,"npoint=",i0)')  set%pathset%nopt
+   write(ictrl,'(3x,"anopt=",i0)') set%pathset%anopt
+   write(ictrl,'(3x,"kpush=",g0)') set%pathset%kpush
+   write(ictrl,'(3x,"kpull=",g0)') set%pathset%kpull
+   write(ictrl,'(3x,"ppull=",g0)') set%pathset%ppull
+   write(ictrl,'(3x,"alp=",g0)')   set%pathset%alp
+   if (allocated(set%pathset%fname)) &
+      write(ictrl,'(3x,"product=",a)') set%pathset%fname
+   if (set%pathset%nat > 0) then
+      call atl%new(set%pathset%atoms(:set%pathset%nat))
       call atl%to_string(string)
       write(ictrl,'(3x,"atoms:",1x,a)') string
    endif
@@ -460,13 +459,13 @@ subroutine write_set_reactor(ictrl)
    character(len=:), allocatable :: string
    integer :: i
    write(ictrl,'(a,"reactor")') flag
-   write(ictrl,'(3x,"max=",i0)')     reactset%nmax
+   write(ictrl,'(3x,"max=",i0)')     set%reactset%nmax
    write(ictrl,'(3x,"density=",g0,1x,"# in kg/L")') &
-                                     reactset%dens
-   write(ictrl,'(3x,"kpush=",g0)')   reactset%kpush
-   write(ictrl,'(3x,"alp=",g0)')     reactset%alp
-   if (reactset%nat > 0) then
-      call atl%new(reactset%atoms(:reactset%nat))
+                                     set%reactset%dens
+   write(ictrl,'(3x,"kpush=",g0)')   set%reactset%kpush
+   write(ictrl,'(3x,"alp=",g0)')     set%reactset%alp
+   if (set%reactset%nat > 0) then
+      call atl%new(set%reactset%atoms(:set%reactset%nat))
       call atl%to_string(string)
       write(ictrl,'(3x,"atoms:",1x,a)') string
    endif
@@ -899,63 +898,63 @@ end subroutine rdblock
 subroutine set_exttyp(typ)
    implicit none
    character(len=*),intent(in) :: typ
-   logical,save :: set = .true.
-   if (.not.set) return
+   logical,save :: set1 = .true.
+   if (.not.set1) return
    select case(typ)
    case default ! do nothing
       call raise('S',typ//' is no valid exttyp (internal error)')
 
    case('vtb')
-      mode_extrun = p_ext_vtb
+      set%mode_extrun = p_ext_vtb
    case('eht')
-      mode_extrun = p_ext_eht
+      set%mode_extrun = p_ext_eht
    case('xtb')
-      mode_extrun = p_ext_xtb
+      set%mode_extrun = p_ext_xtb
    case('qmdff')
-      mode_extrun = p_ext_qmdff
+      set%mode_extrun = p_ext_qmdff
    case('orca')
-      mode_extrun = p_ext_orca
+      set%mode_extrun = p_ext_orca
    case('turbomole')
-      mode_extrun = p_ext_turbomole
-      extcode = 1
-      extmode = 1
+      set%mode_extrun = p_ext_turbomole
+      set%extcode = 1
+      set%extmode = 1
    case('mopac')
-      mode_extrun = p_ext_mopac
+      set%mode_extrun = p_ext_mopac
    case('ff')
-      mode_extrun = p_ext_gfnff
+      set%mode_extrun = p_ext_gfnff
    end select
-   set = .false.
+   set1 = .false.
 end subroutine set_exttyp
 
 subroutine set_geopref(typ)
    implicit none
    character(len=*),intent(in) :: typ
-   logical,save :: set = .true.
-   if (.not.set) return
+   logical,save :: set1 = .true.
+   if (.not.set1) return
    select case(typ)
    case default ! do nothing
       call raise('S',typ//' is no valid geometry format (internal error)')
 
    case('sdf')
-      geometry_inputfile = p_geo_sdf
+      set%geometry_inputfile = p_geo_sdf
 
    case('xmol','xyz')
-      geometry_inputfile = p_geo_xmol
+      set%geometry_inputfile = p_geo_xmol
 
    case('coord','tm','turbomole')
-      geometry_inputfile = p_geo_coord
+      set%geometry_inputfile = p_geo_coord
 
    case('vasp','poscar')
-      geometry_inputfile = p_geo_poscar
+      set%geometry_inputfile = p_geo_poscar
    end select
-   set = .false.
+   set1 = .false.
 end subroutine set_geopref
 
 subroutine set_runtyp(typ)
    implicit none
    character(len=*),intent(in) :: typ
-   logical,save :: set = .true.
-   if (.not.set) then
+   logical,save :: set1 = .true.
+   if (.not.set1) then
       call raise('S','Runtyp already set and locked, please use a composite runtyp instead.')
       return
    endif
@@ -964,77 +963,77 @@ subroutine set_runtyp(typ)
       call raise('E',typ//' is no valid runtyp (internal error)')
 
    case('scc')
-      runtyp = p_run_scc
+      set%runtyp = p_run_scc
 
    case('grad')
-      runtyp = p_run_grad
+      set%runtyp = p_run_grad
    case('opt')
-      runtyp = p_run_opt
+      set%runtyp = p_run_opt
 
    case('hess')
-      runtyp = p_run_hess
+      set%runtyp = p_run_hess
    case('ohess')
-      runtyp = p_run_ohess
+      set%runtyp = p_run_ohess
    case('bhess')
-      runtyp = p_run_bhess
+      set%runtyp = p_run_bhess
 
    case('md')
-      runtyp = p_run_md
+      set%runtyp = p_run_md
    case('omd')
-      runtyp = p_run_omd
+      set%runtyp = p_run_omd
 
    case('path')
-      runtyp = p_run_path
+      set%runtyp = p_run_path
 
    case('screen')
-      runtyp = p_run_screen
+      set%runtyp = p_run_screen
 
    case('modef')
-      runtyp = p_run_modef
+      set%runtyp = p_run_modef
 
    case('mdopt')
-      runtyp = p_run_mdopt
+      set%runtyp = p_run_mdopt
 
    case('metaopt')
-      runtyp = p_run_metaopt
+      set%runtyp = p_run_metaopt
 
    case('vip')
-      runtyp = p_run_vip
+      set%runtyp = p_run_vip
    case('vea')
-      runtyp = p_run_vea
+      set%runtyp = p_run_vea
    case('vipea')
-      runtyp = p_run_vipea
+      set%runtyp = p_run_vipea
    case('vomega')
-      runtyp = p_run_vomega
+      set%runtyp = p_run_vomega
    case('vfukui')
-      runtyp = p_run_vfukui
+      set%runtyp = p_run_vfukui
    end select
-   set = .false.
+   set1 = .false.
 end subroutine set_runtyp
 
 subroutine set_fit
    implicit none
-   fit = .true.
+   set%fit = .true.
 end subroutine set_fit
 
 subroutine set_cma
    implicit none
-   do_cma_trafo = .true.
+   set%do_cma_trafo = .true.
 end subroutine set_cma
 
 subroutine set_enso_mode
    implicit none
-   enso_mode = .true.
+   set%enso_mode = .true.
 end subroutine set_enso_mode
 
 subroutine set_samerand
    implicit none
-   samerand = .true.
+   set%samerand = .true.
 end subroutine set_samerand
 
 subroutine set_define
    implicit none
-   define = .true.
+   set%define = .true.
 end subroutine set_define
 
 subroutine set_chrg(env,val)
@@ -1047,7 +1046,7 @@ subroutine set_chrg(env,val)
    logical,save :: set1 = .true.
    if (set1) then
       if (getValue(env,val,idum)) then
-         ichrg = idum
+         set%ichrg = idum
       else
          call env%error('Charge could not be read from your argument',source)
       endif
@@ -1065,7 +1064,7 @@ subroutine set_spin(env,val)
    logical,save :: set1 = .true.
    if (set1) then
       if (getValue(env,val,idum)) then
-         nalphabeta = idum
+         set%nalphabeta = idum
       else
          call env%error('Spin could not be read from your argument',source)
       endif
@@ -1140,100 +1139,100 @@ subroutine set_write(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by write",source)
    case('esp')
-      if (getValue(env,val,ldum).and.set1)  pr_esp = ldum
+      if (getValue(env,val,ldum).and.set1)  set%pr_esp = ldum
       set1 = .false.
    case('mos')
-      if (getValue(env,val,ldum).and.set2)  pr_molden_input = ldum
+      if (getValue(env,val,ldum).and.set2)  set%pr_molden_input = ldum
       set2 = .false.
    case('lmo')
-      if (getValue(env,val,ldum).and.set3)  pr_lmo = ldum
+      if (getValue(env,val,ldum).and.set3)  set%pr_lmo = ldum
       set3 = .false.
    case('density')
-      if (getValue(env,val,ldum).and.set4)  pr_density = ldum
+      if (getValue(env,val,ldum).and.set4)  set%pr_density = ldum
       set4 = .false.
    case('spin population')
-      if (getValue(env,val,ldum).and.set5)  pr_spin_population = ldum
+      if (getValue(env,val,ldum).and.set5)  set%pr_spin_population = ldum
       set5 = .false.
    case('spin density')
-      if (getValue(env,val,ldum).and.set6)  pr_spin_density = ldum
+      if (getValue(env,val,ldum).and.set6)  set%pr_spin_density = ldum
       set6 = .false.
    case('fod')
       if (getValue(env,val,ldum).and.set7) then
-         pr_fod = ldum
-         pr_fod_pop = ldum
+         set%pr_fod = ldum
+         set%pr_fod_pop = ldum
       endif
       set7 = .false.
    case('wiberg')
-      if (getValue(env,val,ldum).and.set8)  pr_wiberg = ldum
+      if (getValue(env,val,ldum).and.set8)  set%pr_wiberg = ldum
       set8 = .false.
    case('dipole')
-      if (getValue(env,val,ldum).and.set9)  pr_dipole = ldum
+      if (getValue(env,val,ldum).and.set9)  set%pr_dipole = ldum
       set9 = .false.
    case('charges')
-      if (getValue(env,val,ldum).and.set10) pr_charges = ldum
+      if (getValue(env,val,ldum).and.set10) set%pr_charges = ldum
       set10 = .false.
    case('mulliken')
-      if (getValue(env,val,ldum).and.set11) pr_mulliken = ldum
+      if (getValue(env,val,ldum).and.set11) set%pr_mulliken = ldum
       set11 = .false.
    case('orbital energies')
-      if (getValue(env,val,ldum).and.set12) pr_eig = ldum
+      if (getValue(env,val,ldum).and.set12) set%pr_eig = ldum
       set12 = .false.
    case('gridfile', 'grid file')
-       if (set13) esp_gridfile = val
+       if (set13) set%esp_gridfile = val
       set13 = .false.
    case('stm')
-      if (getValue(env,val,ldum).and.set14) pr_stm = ldum
+      if (getValue(env,val,ldum).and.set14) set%pr_stm = ldum
       set14 = .false.
    case('gbw')
-      if (getValue(env,val,ldum).and.set15) pr_gbw = ldum
+      if (getValue(env,val,ldum).and.set15) set%pr_gbw = ldum
       set15 = .false.
    case('tm mos')
-      if (getValue(env,val,ldum).and.set16) pr_tmmos = ldum
+      if (getValue(env,val,ldum).and.set16) set%pr_tmmos = ldum
       set16 = .false.
    case('tm basis')
-      if (getValue(env,val,ldum).and.set17) pr_tmbas = ldum
+      if (getValue(env,val,ldum).and.set17) set%pr_tmbas = ldum
       set17 = .false.
    case('json')
-      if (getValue(env,val,ldum).and.set18) pr_json = ldum
+      if (getValue(env,val,ldum).and.set18) set%pr_json = ldum
       set18 = .false.
    case('distances')
-      if (getValue(env,val,ldum).and.set19) pr_distances = ldum
+      if (getValue(env,val,ldum).and.set19) set%pr_distances = ldum
       set19 = .false.
    case('angles')
-      if (getValue(env,val,ldum).and.set20) pr_angles = ldum
+      if (getValue(env,val,ldum).and.set20) set%pr_angles = ldum
       set20 = .false.
    case('torsions')
-      if (getValue(env,val,ldum).and.set21) pr_torsions = ldum
+      if (getValue(env,val,ldum).and.set21) set%pr_torsions = ldum
       set21 = .false.
    case('final struct')
-      if (getValue(env,val,ldum).and.set22) pr_finalstruct = ldum
+      if (getValue(env,val,ldum).and.set22) set%pr_finalstruct = ldum
       set22 = .false.
    case('geosum')
-      if (getValue(env,val,ldum).and.set23) pr_geosum = ldum
+      if (getValue(env,val,ldum).and.set23) set%pr_geosum = ldum
       set23 = .false.
    case('moments','inertia')
-      if (getValue(env,val,ldum).and.set24) pr_moments = ldum
+      if (getValue(env,val,ldum).and.set24) set%pr_moments = ldum
       set24 = .false.
    case('modef')
-      if (getValue(env,val,ldum).and.set25) pr_modef = ldum
+      if (getValue(env,val,ldum).and.set25) set%pr_modef = ldum
       set25 = .false.
    case('wbo fragments')
-      if (getValue(env,val,ldum).and.set26) pr_wbofrag = ldum
+      if (getValue(env,val,ldum).and.set26) set%pr_wbofrag = ldum
       set26 = .false.
    case('output file')
-      if (set27) property_file = val
+      if (set27) set%property_file = val
       set27 = .false.
    case('fod population')
-      if (getValue(env,val,ldum).and.set28) pr_fod_pop = ldum
+      if (getValue(env,val,ldum).and.set28) set%pr_fod_pop = ldum
       set28 = .false.
    case('gbsa')
-      if (getValue(env,val,ldum).and.set29) pr_gbsa = ldum
+      if (getValue(env,val,ldum).and.set29) set%pr_gbsa = ldum
       set29 = .false.
    case('vib_normal_modes', 'nmtm')
-      if (getValue(env,val,ldum).and.set30) pr_nmtm = ldum
+      if (getValue(env,val,ldum).and.set30) set%pr_nmtm = ldum
       set30 = .false.
    case('hessian.out')
-      if (getValue(env,val,ldum).and.set31) pr_dftbp_hessian_out = ldum
+      if (getValue(env,val,ldum).and.set31) set%pr_dftbp_hessian_out = ldum
       set31 = .false.
    end select
 end subroutine set_write
@@ -1263,28 +1262,28 @@ subroutine set_pcem(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by embedding",source)
    case('at')
-      if (getValue(env,val,idum).and.set1) pcem_dummyatom = idum
+      if (getValue(env,val,idum).and.set1) set%pcem_dummyatom = idum
       set1 = .false.
    case('es')
-      if (getValue(env,val,ldum).and.set2) pcem_l_es = ldum
+      if (getValue(env,val,ldum).and.set2) set%pcem_l_es = ldum
       set2 = .false.
    case('aes')
-      if (getValue(env,val,ldum).and.set3) pcem_l_aes = ldum
+      if (getValue(env,val,ldum).and.set3) set%pcem_l_aes = ldum
       set3 = .false.
    case('disp')
-      if (getValue(env,val,ldum).and.set4) pcem_l_disp = ldum
+      if (getValue(env,val,ldum).and.set4) set%pcem_l_disp = ldum
       set4 = .false.
    case('dipm')
-      if (getValue(env,val,ldum).and.set5) pcem_l_dipm = ldum
+      if (getValue(env,val,ldum).and.set5) set%pcem_l_dipm = ldum
       set5 = .false.
    case('qp')
-      if (getValue(env,val,ldum).and.set6) pcem_l_qp = ldum
+      if (getValue(env,val,ldum).and.set6) set%pcem_l_qp = ldum
       set6 = .false.
    case('cn')
-      if (getValue(env,val,ldum).and.set7) pcem_l_cn = ldum
+      if (getValue(env,val,ldum).and.set7) set%pcem_l_cn = ldum
       set7 = .false.
    case('atm')
-      if (getValue(env,val,ldum).and.set8) pcem_l_atm = ldum
+      if (getValue(env,val,ldum).and.set8) set%pcem_l_atm = ldum
       set8 = .false.
    case('interface')
       if (set9) then
@@ -1292,18 +1291,18 @@ subroutine set_pcem(env,key,val)
       case default
          call env%warning("Unknown interface value '"//val//"' is ignored",source)
       case('legacy')
-         pcem_interface = p_pcem_legacy
+         set%pcem_interface = p_pcem_legacy
       case('orca')
-         pcem_interface = p_pcem_orca
-         pcem_orca = .true.
+         set%pcem_interface = p_pcem_orca
+         set%pcem_orca = .true.
       end select
       endif
       set9 = .false.
    case('input')
-      if (set10) pcem_file = val
+      if (set10) set%pcem_file = val
       set10 = .false.
    case('gradient')
-      if (set11) pcem_grad = val
+      if (set11) set%pcem_grad = val
       set11 = .false.
    end select
 end subroutine set_pcem
@@ -1336,9 +1335,9 @@ subroutine set_gfn(env,key,val)
       endif
       if (getValue(env,val,idum).and.set1) then
          if ((idum.ge.0).and.(idum.le.2)) then ! actually, this looks stupid...
-            gfn_method = idum
+            set%gfn_method = idum
          elseif (idum.eq.3) then
-            gfn_method = 2
+            set%gfn_method = 2
             call env%warning('Please, request GFN2-xTB with method=2!',source)
          else
             call env%warning('We have not yet made a GFN'//val//'-xTB method',source)
@@ -1346,16 +1345,16 @@ subroutine set_gfn(env,key,val)
       endif
       set1 = .false.
    case('d4')
-      if (getValue(env,val,ldum).and.set2) newdisp = ldum
+      if (getValue(env,val,ldum).and.set2) set%newdisp = ldum
       set2 = .false.
    case('scc')
-      if (getValue(env,val,ldum).and.set3) solve_scc = ldum
+      if (getValue(env,val,ldum).and.set3) set%solve_scc = ldum
       set3 = .false.
    case('periodic')
-      if (getValue(env,val,ldum).and.set4) periodic = ldum
+      if (getValue(env,val,ldum).and.set4) set%periodic = ldum
       set4 = .false.
    case('dispscale')
-      if (getValue(env,val,ddum).and.set5) dispscale = ddum
+      if (getValue(env,val,ddum).and.set5) set%dispscale = ddum
       set5 = .false.
    end select
 end subroutine set_gfn
@@ -1378,21 +1377,21 @@ subroutine set_scc(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by scc",source)
    case('temp')
-      if (getValue(env,val,ddum).and.set1) eTemp = ddum
+      if (getValue(env,val,ddum).and.set1) set%eTemp = ddum
       set1 = .false.
    case('broydamp')
-      if (getValue(env,val,ddum).and.set2) broydamp = ddum
+      if (getValue(env,val,ddum).and.set2) set%broydamp = ddum
       set2 = .false.
    case('guess')
       if (.not.set3) return
       if (val.eq.'gasteiger') then
-         guess_charges = p_guess_gasteiger
+         set%guess_charges = p_guess_gasteiger
       else if (val.eq.'goedecker') then
-         guess_charges = p_guess_goedecker
+         set%guess_charges = p_guess_goedecker
       else if (val.eq.'sad') then
-         guess_charges = p_guess_sad
+         set%guess_charges = p_guess_sad
       else if (val.eq.'multieq') then
-         guess_charges = p_guess_multieq
+         set%guess_charges = p_guess_multieq
       endif
       set3 = .false.
    case('maxiterations')
@@ -1400,7 +1399,7 @@ subroutine set_scc(env,key,val)
          if (idum.le.0) then
             call env%warning('negative SCC-Iterations make no sense',source)
          else
-            maxscciter = idum
+            set%maxscciter = idum
          endif
       endif
       set4 = .false.
@@ -1441,13 +1440,13 @@ subroutine set_opt(env,key,val)
       call env%warning("the key '"//key//"' is not recognized by opt",source)
    case('optlevel')
       if (set1) then
-         optset%optlev = optlevel2int(val)
+         set%optset%optlev = optlevel2int(val)
       endif
       set1 = .false.
    case('microcycle')
       if (getValue(env,val,idum).and.set2) then
          if (idum > 0) then
-            optset%micro_opt = idum
+            set%optset%micro_opt = idum
          else
             call env%warning("Non-positive microcycle input rejected: '"//val//"'")
          end if
@@ -1456,79 +1455,79 @@ subroutine set_opt(env,key,val)
    case('maxcycle')
       if (getValue(env,val,idum).and.set3) then
          if (idum >= 0) then
-            optset%maxoptcycle = idum
+            set%optset%maxoptcycle = idum
          else
             call env%warning("Negative optimization cycle input rejected: '"//val//"'")
          end if
       end if
       set3 = .false.
    case('maxdispl')
-      if (getValue(env,val,ddum).and.set4) optset%maxdispl_opt = ddum
+      if (getValue(env,val,ddum).and.set4) set%optset%maxdispl_opt = ddum
       set4 = .false.
    case('hlow')
-      if (getValue(env,val,ddum).and.set5) optset%hlow_opt = ddum
+      if (getValue(env,val,ddum).and.set5) set%optset%hlow_opt = ddum
       set5 = .false.
    case('s6','s6opt')
-      if (getValue(env,val,ddum).and.set6) mhset%s6 = ddum
+      if (getValue(env,val,ddum).and.set6) set%mhset%s6 = ddum
       set6 = .false.
    case('ts')
-      if (getValue(env,val,ldum).and.set7) tsopt = ldum
+      if (getValue(env,val,ldum).and.set7) set%tsopt = ldum
       set7 = .false.
    case('tsroot')
-      if (getValue(env,val,idum).and.set8) tsroot = idum
+      if (getValue(env,val,idum).and.set8) set%tsroot = idum
       set8 = .false.
    case('kstretch','kr')
-      if (getValue(env,val,ddum).and.set9)  mhset%kr = ddum
+      if (getValue(env,val,ddum).and.set9)  set%mhset%kr = ddum
       set9 = .false.
    case('kbend',   'kf')
-      if (getValue(env,val,ddum).and.set10) mhset%kf = ddum
+      if (getValue(env,val,ddum).and.set10) set%mhset%kf = ddum
       set10 = .false.
    case('ktorsion','kt')
-      if (getValue(env,val,ddum).and.set11) mhset%kt = ddum
+      if (getValue(env,val,ddum).and.set11) set%mhset%kt = ddum
       set11 = .false.
    case('koutofp','ko')
-      if (getValue(env,val,ddum).and.set12) mhset%ko = ddum
+      if (getValue(env,val,ddum).and.set12) set%mhset%ko = ddum
       set12 = .false.
    case('kvdw','kd')
-      if (getValue(env,val,ddum).and.set13) mhset%kd = ddum
+      if (getValue(env,val,ddum).and.set13) set%mhset%kd = ddum
       set13 = .false.
    case('hessian')
       if (set14) then
          select case(val)
-         case("lindh");    mhset%model = p_modh_lindh
-         case("lindh-d2"); mhset%model = p_modh_lindh_d2
-         case("swart");    mhset%model = p_modh_swart
-         case("old");      mhset%model = p_modh_old
-         case("unit");     mhset%model = p_modh_unit
-         case("read");     mhset%model = p_modh_read
-         case("gfnff");    mhset%model = p_modh_gff
+         case("lindh");    set%mhset%model = p_modh_lindh
+         case("lindh-d2"); set%mhset%model = p_modh_lindh_d2
+         case("swart");    set%mhset%model = p_modh_swart
+         case("old");      set%mhset%model = p_modh_old
+         case("unit");     set%mhset%model = p_modh_unit
+         case("read");     set%mhset%model = p_modh_read
+         case("gfnff");    set%mhset%model = p_modh_gff
          end select
       endif
       set14 = .false.
    case('kes','kq')
-      if (getValue(env,val,ddum).and.set15) mhset%kq = ddum
+      if (getValue(env,val,ddum).and.set15) set%mhset%kq = ddum
       set15 = .false.
    case('rcut')
-      if (getValue(env,val,ddum).and.set16) mhset%rcut = ddum*ddum
+      if (getValue(env,val,ddum).and.set16) set%mhset%rcut = ddum*ddum
       set16 = .false.
    case('exact rf')
-      if (getValue(env,val,ldum).and.set17) optset%exact_rf = ldum
+      if (getValue(env,val,ldum).and.set17) set%optset%exact_rf = ldum
       set17 = .false.
    case('engine')
-      if (.not.allocated(opt_engine)) then
+      if (.not.allocated(set%opt_engine)) then
          select case(lowercase(val))
          case default; call env%warning("engine '"//val//"' is not implemented",source)
-         case('rf','ancopt');      opt_engine = p_engine_rf
-         case('lbfgs','l-ancopt'); opt_engine = p_engine_lbfgs
-         case('inertial','fire');  opt_engine = p_engine_inertial
+         case('rf','ancopt');      set%opt_engine = p_engine_rf
+         case('lbfgs','l-ancopt'); set%opt_engine = p_engine_lbfgs
+         case('inertial','fire');  set%opt_engine = p_engine_inertial
          end select
       end if
    case('output')
-      if (.not.allocated(opt_outfile)) opt_outfile = val
+      if (.not.allocated(set%opt_outfile)) set%opt_outfile = val
    case('logfile')
-      if (.not.allocated(opt_logfile)) opt_logfile = val
+      if (.not.allocated(set%opt_logfile)) set%opt_logfile = val
    case('average conv')
-      if (getValue(env,val,ldum).and.set18) optset%average_conv = ldum
+      if (getValue(env,val,ldum).and.set18) set%optset%average_conv = ldum
       set18 = .false.
    end select
 end subroutine set_opt
@@ -1612,8 +1611,8 @@ subroutine set_thermo(env,key,val)
       call env%warning("the key '"//key//"' is not recognized by thermo",source)
    case('temp')
       if (.not.set1) return ! we could read this twice... but we don't do
-      thermotemp = 0.0
-      nthermo = 0
+      set%thermotemp = 0.0
+      set%nthermo = 0
       call parse(val,comma,argv,narg)
       idum = 0
       do i = 1, narg
@@ -1623,24 +1622,24 @@ subroutine set_thermo(env,key,val)
                cycle
             endif
             idum = idum + 1 ! use only readable arguments
-            if (idum.gt.size(thermotemp,1)) exit ! don't overflow
-            thermotemp(nthermo+idum) = ddum
+            if (idum.gt.size(set%thermotemp,1)) exit ! don't overflow
+            set%thermotemp(set%nthermo+idum) = ddum
          endif
       enddo
-      nthermo = nthermo+idum
+      set%nthermo = set%nthermo+idum
       set1 = .false.
-      if (nthermo == 0) then
+      if (set%nthermo == 0) then
          call env%warning("No valid temperatures found in input: '"//val//"'",source)
          return
       endif
    case('sthr')
-      if (getValue(env,val,ddum).and.set2) thermo_sthr = ddum
+      if (getValue(env,val,ddum).and.set2) set%thermo_sthr = ddum
       set2 = .false.
    case('imagthr')
-      if (getValue(env,val,ddum).and.set3) thermo_ithr = ddum
+      if (getValue(env,val,ddum).and.set3) set%thermo_ithr = ddum
       set3 = .false.
    case('scale')
-      if (getValue(env,val,ddum).and.set4) thermo_fscal = ddum
+      if (getValue(env,val,ddum).and.set4) set%thermo_fscal = ddum
       set4 = .false.
    end select
 end subroutine set_thermo
@@ -1672,19 +1671,19 @@ subroutine set_md(env,key,val)
       call env%warning("the key '"//key//"' is not recognized by md",source)
    case('temp')
       if (getValue(env,val,ddum).and.set1) then
-         temp_md = ddum
-         solvInput%temperature = ddum
+         set%temp_md = ddum
+         set%solvInput%temperature = ddum
       end if
       set1 = .false.
    case('time')
-      if (getValue(env,val,ddum).and.set2) time_md = ddum
+      if (getValue(env,val,ddum).and.set2) set%time_md = ddum
       set2 = .false.
    case('dump','dumpxyz','dumptrj')
-      if (getValue(env,val,ddum).and.set3) dump_md2 = ddum
+      if (getValue(env,val,ddum).and.set3) set%dump_md2 = ddum
       set3 = .false.
    case('sdump','dumpcoord')
       call set_siman(env,'dump',val)
-      if (getValue(env,val,ddum).and.set12) dump_md = ddum
+      if (getValue(env,val,ddum).and.set12) set%dump_md = ddum
       set12 = .false. 
    case('velo')
 !      if (getValue(env,val,idum).and.set4) then
@@ -1694,7 +1693,7 @@ subroutine set_md(env,key,val)
 !            velodump = .false.
 !         endif
 !      endif
-      if (getValue(env,val,ldum).and.set4) velodump = ldum
+      if (getValue(env,val,ldum).and.set4) set%velodump = ldum
       set4 = .false.
    case('nvt')
 !      if (getValue(env,val,idum).and.set5) then
@@ -1704,42 +1703,42 @@ subroutine set_md(env,key,val)
 !            nvt_md = .false.
 !         endif
 !      endif
-      if (getValue(env,val,ldum).and.set5) nvt_md = ldum
+      if (getValue(env,val,ldum).and.set5) set%nvt_md = ldum
       set5 = .false.
    case('skip')
-      if (getValue(env,val,idum).and.set6) skip_md = idum
+      if (getValue(env,val,idum).and.set6) set%skip_md = idum
       set6 = .false.
    case('step')
-      if (getValue(env,val,ddum).and.set7) tstep_md = ddum
+      if (getValue(env,val,ddum).and.set7) set%tstep_md = ddum
       set7 = .false.
    case('hmass')
-      if (getValue(env,val,idum).and.set8) md_hmass = idum
+      if (getValue(env,val,idum).and.set8) set%md_hmass = idum
       set8 = .false.
    case('shake')
       if (getValue(env,val,idum).and.set9) then
          if (idum.eq.2) then
-            shake_md = .true.
-            xhonly = .false.
-            shake_mode = 2
+            set%shake_md = .true.
+            set%xhonly = .false.
+            set%shake_mode = 2
          else if (idum.eq.1) then
-            shake_md = .true.
-            xhonly = .true.
-            shake_mode = 1
+            set%shake_md = .true.
+            set%xhonly = .true.
+            set%shake_mode = 1
          else if (idum.eq.0) then
-            shake_md = .false.
-            xhonly = .false.
-            shake_mode = 0
+            set%shake_md = .false.
+            set%xhonly = .false.
+            set%shake_mode = 0
          else if(idum.eq.3) then
-            shake_md = .true.
-            shake_mode = 3
+            set%shake_md = .true.
+            set%shake_mode = 3
          endif
       endif
       set9 = .false.
    case('sccacc')
-      if (getValue(env,val,ddum).and.set10) accu_md = ddum
+      if (getValue(env,val,ddum).and.set10) set%accu_md = ddum
       set10 = .false.
    case('restart')
-      if (getValue(env,val,ldum).and.set11) restart_md = ldum
+      if (getValue(env,val,ldum).and.set11) set%restart_md = ldum
       set11 = .false.
    end select
 end subroutine set_md
@@ -1764,16 +1763,16 @@ subroutine set_siman(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by siman",source)
    case('dump')
-      if (getValue(env,val,ddum).and.set1) dump_md = ddum
+      if (getValue(env,val,ddum).and.set1) set%dump_md = ddum
       set1 = .false.
    case('n')
-      if (getValue(env,val,idum).and.set2) ntemp_siman = idum
+      if (getValue(env,val,idum).and.set2) set%ntemp_siman = idum
       set2 = .false.
    case('ewin')
-      if (getValue(env,val,ddum).and.set3) ewin_conf = ddum
+      if (getValue(env,val,ddum).and.set3) set%ewin_conf = ddum
       set3 = .false.
    case('temp')
-      if (getValue(env,val,ddum).and.set4) Tend_siman = ddum
+      if (getValue(env,val,ddum).and.set4) set%Tend_siman = ddum
       set4 = .false.
    case('enan')
 !      if (getValue(env,val,idum).and.set5) then
@@ -1783,14 +1782,14 @@ subroutine set_siman(env,key,val)
 !            enan_siman = .false.
 !         endif
 !      endif
-      if (getValue(env,val,ldum).and.set5) enan_siman = ldum
+      if (getValue(env,val,ldum).and.set5) set%enan_siman = ldum
       set5 = .false.
    case('check')
       if (getValue(env,val,idum).and.set6) then
          if (idum.eq.1) then
-            check_rmsd = .false.
+            set%check_rmsd = .false.
          else if (idum.eq.0) then
-            check_rmsd = .true.
+            set%check_rmsd = .true.
          endif
       endif
       set6 = .false.
@@ -1814,13 +1813,13 @@ subroutine set_hess(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by hess",source)
    case('sccacc')
-      if (getValue(env,val,ddum).and.set1) accu_hess = ddum
+      if (getValue(env,val,ddum).and.set1) set%accu_hess = ddum
       set1 = .false.
    case('step')
-      if (getValue(env,val,ddum).and.set2) step_hess = ddum
+      if (getValue(env,val,ddum).and.set2) set%step_hess = ddum
       set2 = .false.
    case('scale')
-      if (getValue(env,val,ddum).and.set3) scale_hess = ddum
+      if (getValue(env,val,ddum).and.set3) set%scale_hess = ddum
       set3 = .false.
    end select
 end subroutine set_hess
@@ -1843,16 +1842,16 @@ subroutine set_reactor(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by reactor",source)
    case('kpush')
-      if (getValue(env,val,ddum).and.set1) reactset%kpush = ddum
+      if (getValue(env,val,ddum).and.set1) set%reactset%kpush = ddum
       set1 = .false.
    case('alp')
-      if (getValue(env,val,ddum).and.set2) reactset%alp   = ddum
+      if (getValue(env,val,ddum).and.set2) set%reactset%alp   = ddum
       set2 = .false.
    case('max')
-      if (getValue(env,val,idum).and.set3) reactset%nmax  = idum
+      if (getValue(env,val,idum).and.set3) set%reactset%nmax  = idum
       set3 = .false.
    case('density')
-      if (getValue(env,val,ddum).and.set4) reactset%dens  = ddum
+      if (getValue(env,val,ddum).and.set4) set%reactset%dens  = ddum
       set4 = .false.
    end select
 end subroutine set_reactor
@@ -1881,16 +1880,16 @@ subroutine set_gbsa(env,key,val)
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
    case('solvent')
       if (set1 .and. val.ne.'none') then
-         solvInput%solvent = val
+         set%solvInput%solvent = val
       endif
       set1 = .false.
    case('ion_st')
       if (getValue(env,val,ddum).and.set2) then
-         solvInput%ionStrength = ddum
+         set%solvInput%ionStrength = ddum
       endif
       set2 = .false.
    case('ion_rad')
-      if (getValue(env,val,ddum).and.set3) solvInput%ionRad = ddum * aatoau
+      if (getValue(env,val,ddum).and.set3) set%solvInput%ionRad = ddum * aatoau
       set3 = .false.
    case('gbsagrid', 'grid')
       if (set4) then
@@ -1900,20 +1899,20 @@ subroutine set_gbsa(env,key,val)
                if (any(idum.eq.ldgrids)) then
                   if (idum < p_angsa_normal) &
                      call env%warning("Small SASA grids can lead to numerical instabilities",source)
-                  solvInput%nAng = idum
+                  set%solvInput%nAng = idum
                else
                   call env%warning("There is no "//val//" Lebedev grid",source)
                endif
             endif
-         case('normal');    solvInput%nAng = p_angsa_normal
-         case('tight');     solvInput%nAng = p_angsa_tight
-         case('verytight'); solvInput%nAng = p_angsa_verytight
-         case('extreme');   solvInput%nAng = p_angsa_extreme
+         case('normal');    set%solvInput%nAng = p_angsa_normal
+         case('tight');     set%solvInput%nAng = p_angsa_tight
+         case('verytight'); set%solvInput%nAng = p_angsa_verytight
+         case('extreme');   set%solvInput%nAng = p_angsa_extreme
          endselect
       endif
       set4 = .false.
    case('alpb')
-      if (getValue(env,val,ldum).and.set5) solvInput%alpb = ldum
+      if (getValue(env,val,ldum).and.set5) set%solvInput%alpb = ldum
       set5 = .false.
    case('kernel')
       if (set6) then
@@ -1921,13 +1920,13 @@ subroutine set_gbsa(env,key,val)
          case default
             call env%warning("Unknown solvation kernel '"//val//"' requested", &
                & source)
-         case('still'); solvInput%kernel = gbKernel%still
-         case('p16');   solvInput%kernel = gbKernel%p16
+         case('still'); set%solvInput%kernel = gbKernel%still
+         case('p16');   set%solvInput%kernel = gbKernel%p16
          end select
       end if
       set6 = .false.
    case('cosmo')
-      if (getValue(env,val,ldum).and.set7) solvInput%cosmo = ldum
+      if (getValue(env,val,ldum).and.set7) set%solvInput%cosmo = ldum
       set7 = .false.
    end select
 end subroutine set_gbsa
@@ -1953,25 +1952,25 @@ subroutine set_modef(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by modef",source)
    case('n')
-      if (getValue(env,val,idum).and.set1) mode_nscan = idum
+      if (getValue(env,val,idum).and.set1) set%mode_nscan = idum
       set1 = .false.
    case('step')
-      if (getValue(env,val,ddum).and.set2) mode_step = ddum
+      if (getValue(env,val,ddum).and.set2) set%mode_step = ddum
       set2 = .false.
    case('updat')
-      if (getValue(env,val,ddum).and.set3) mode_updat = ddum
+      if (getValue(env,val,ddum).and.set3) set%mode_updat = ddum
       set3 = .false.
    case('local')
-      if (getValue(env,val,idum).and.set4) mode_local = idum
+      if (getValue(env,val,idum).and.set4) set%mode_local = idum
       set4 = .false.
    case('vthr')
-      if (getValue(env,val,ddum).and.set5) mode_vthr = ddum
+      if (getValue(env,val,ddum).and.set5) set%mode_vthr = ddum
       set5 = .false.
    case('prj')
-      if (getValue(env,val,idum).and.set6) mode_prj = idum
+      if (getValue(env,val,idum).and.set6) set%mode_prj = idum
       set6 = .false.
    case('mode')
-      if (getValue(env,val,idum).and.set7) mode_follow = idum
+      if (getValue(env,val,idum).and.set7) set%mode_follow = idum
       set7 = .false.
    end select
 end subroutine set_modef
@@ -1993,10 +1992,10 @@ subroutine set_cube(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by cube",source)
    case('step')
-      if (getValue(env,val,ddum).and.set1) cube_step = ddum
+      if (getValue(env,val,ddum).and.set1) set%cube_step = ddum
       set1 = .false.
    case('pthr')
-      if (getValue(env,val,ddum).and.set2) cube_pthr = ddum
+      if (getValue(env,val,ddum).and.set2) set%cube_pthr = ddum
       set2 = .false.
    case('cal')
       call env%warning("the key 'cal' has been removed",source)
@@ -2024,19 +2023,19 @@ subroutine set_stm(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by stm",source)
    case('broadening')
-      if (getValue(env,val,ddum).and.set1) stm_alp = ddum
+      if (getValue(env,val,ddum).and.set1) set%stm_alp = ddum
       set1 = .false.
    case('current')
-      if (getValue(env,val,ddum).and.set2) stm_targ = ddum
+      if (getValue(env,val,ddum).and.set2) set%stm_targ = ddum
       set2 = .false.
    case('grid')
-      if (getValue(env,val,ddum).and.set3) stm_grid = ddum
+      if (getValue(env,val,ddum).and.set3) set%stm_grid = ddum
       set3 = .false.
    case('thr')
-      if (getValue(env,val,ddum).and.set4) stm_thr = ddum
+      if (getValue(env,val,ddum).and.set4) set%stm_thr = ddum
       set4 = .false.
    case('potential')
-      if (getValue(env,val,ddum).and.set5) stm_pot = ddum
+      if (getValue(env,val,ddum).and.set5) set%stm_pot = ddum
       set5 = .false.
    end select
 end subroutine set_stm
@@ -2057,10 +2056,10 @@ subroutine set_symmetry(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by symmetry",source)
    case('desy')
-      if (getValue(env,val,ddum).and.set1) desy = ddum
+      if (getValue(env,val,ddum).and.set1) set%desy = ddum
       set1 = .false.
    case('maxat')
-      if (getValue(env,val,idum).and.set2) maxatdesy = idum
+      if (getValue(env,val,idum).and.set2) set%maxatdesy = idum
       set2 = .false.
    end select
 end subroutine set_symmetry
@@ -2087,25 +2086,25 @@ subroutine set_external(env,key,val)
    case default
       call env%warning("the key '"//key//"' is not recognized by external",source)
    case('orca bin')
-      if (set1) ext_orca%executable = val
+      if (set1) set%ext_orca%executable = val
       set1 = .false.
    case('orca input line')
-      if (set2) ext_orca%input_string = val
+      if (set2) set%ext_orca%input_string = val
       set2 = .false.
    case('orca input file')
-      if (set3) ext_orca%input_file = val
+      if (set3) set%ext_orca%input_file = val
       set3 = .false.
    case('mopac bin')
-      if (set4) ext_mopac%executable = val
+      if (set4) set%ext_mopac%executable = val
       set4 = .false.
    case('mopac input')
-      if (set5) ext_mopac%input_string = val
+      if (set5) set%ext_mopac%input_string = val
       set5 = .false.
    case('mopac file')
-      if (set6) ext_mopac%input_file = val
+      if (set6) set%ext_mopac%input_file = val
       set6 = .false.
    case('turbodir')
-      if (set7) ext_turbo%path = val
+      if (set7) set%ext_turbo%path = val
       set7 = .false.
    end select
 end subroutine set_external
@@ -2217,7 +2216,7 @@ subroutine set_metadyn(env,key,val)
       if (getValue(env,val,ldum).and.set5) metaset%static = ldum
       set5 = .false.
    case('rmsd')
-      if (getValue(env,val,ddum).and.set6) target_rmsd = ddum
+      if (getValue(env,val,ddum).and.set6) set%target_rmsd = ddum
       set6 = .false.
    case('bias_ramp_time','ramp')
       if (getValue(env,val,ddum).and.set7) metaset%ramp = ddum
@@ -2253,22 +2252,22 @@ subroutine set_path(env,key,val)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by path",source)
    case('nrun')
-      if (getValue(env,val,idum).and.set1) pathset%nrun = idum
+      if (getValue(env,val,idum).and.set1) set%pathset%nrun = idum
       set1 = .false.
    case('nopt', 'npoint')
-      if (getValue(env,val,idum).and.set2) pathset%nopt = idum
+      if (getValue(env,val,idum).and.set2) set%pathset%nopt = idum
       set2 = .false.
    case('anopt')
-      if (getValue(env,val,idum).and.set3) pathset%anopt = idum
+      if (getValue(env,val,idum).and.set3) set%pathset%anopt = idum
       set3 = .false.
    case('kpush')
-      if (getValue(env,val,ddum).and.set4) pathset%kpush = ddum
+      if (getValue(env,val,ddum).and.set4) set%pathset%kpush = ddum
       set4 = .false.
    case('kpull')
-      if (getValue(env,val,ddum).and.set5) pathset%kpull = ddum
+      if (getValue(env,val,ddum).and.set5) set%pathset%kpull = ddum
       set5 = .false.
    case('alp')
-      if (getValue(env,val,ddum).and.set6) pathset%alp = ddum
+      if (getValue(env,val,ddum).and.set6) set%pathset%alp = ddum
       set6 = .false.
    case('product')
       if (set7) then
@@ -2276,11 +2275,11 @@ subroutine set_path(env,key,val)
          if (.not.ldum) then
             call env%error("Could not find: '"//val//"' in $path/product",source)
          endif
-         pathset%fname = val
+         set%pathset%fname = val
       endif
       set7 = .false.
    case('ppull')
-      if (getValue(env,val,ddum).and.set7) pathset%ppull = ddum
+      if (getValue(env,val,ddum).and.set7) set%pathset%ppull = ddum
       set7 = .false.
    end select
 

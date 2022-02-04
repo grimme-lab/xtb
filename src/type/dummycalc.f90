@@ -126,7 +126,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  actual calculation
-   select case(mode_extrun)
+   select case(set%mode_extrun)
    case(p_ext_qmdff)
       call ff_eg  (mol%n,mol%at,mol%xyz,energy,gradient)
       call ff_nonb(mol%n,mol%at,mol%xyz,energy,gradient)
@@ -174,7 +174,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    if (printlevel.ge.2) then
       ! start with summary header
-      if (.not.silent) then
+      if (.not.set%silent) then
          write(env%unit,'(9x,53(":"))')
          write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
       endif
@@ -200,7 +200,7 @@ subroutine writeInfo(self, unit, mol)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
-   select case(mode_extrun)
+   select case(set%mode_extrun)
    case(p_ext_qmdff)
       call qmdff_header(unit)
    case(p_ext_orca, p_ext_mopac, p_ext_turbomole)

@@ -44,103 +44,103 @@ subroutine checkMopac(env)
    logical :: exist
 
    ! check for MOPAC executable
-   if (allocated(ext_mopac%executable)) then ! user input
-      if (ext_mopac%executable(1:1).eq.'~') then
+   if (allocated(set%ext_mopac%executable)) then ! user input
+      if (set%ext_mopac%executable(1:1).eq.'~') then
          ! this is relative to the users home, expand it
          call rdvar('HOME',homedir)
-         ext_mopac%executable = homedir // ext_mopac%executable(2:)
-         if (verbose) then
+         set%ext_mopac%executable = homedir // set%ext_mopac%executable(2:)
+         if (set%verbose) then
             write(stdout,'(a,1x,a)') &
                "user home directory        :",homedir
          endif
       endif
-      inquire(file=ext_mopac%executable,exist=exist)
+      inquire(file=set%ext_mopac%executable,exist=exist)
       if (.not.exist) then
-         call env%error("'"//ext_mopac%executable//"' was not found, please check",source)
+         call env%error("'"//set%ext_mopac%executable//"' was not found, please check",source)
          return
       endif
    else ! no executable provided, lets find it
       call rdvar('PATH',syspath)
-      if (verbose) then
+      if (set%verbose) then
          write(stdout,'(a,1x,a)') &
             "system path                :",syspath
       endif
-      call rdpath(syspath,'mopac',ext_mopac%executable,exist)
+      call rdpath(syspath,'mopac',set%ext_mopac%executable,exist)
       if (.not.exist) then
          call env%error('Could not locate mopac executable',source)
          return
       endif
    endif
-   if (verbose) then
+   if (set%verbose) then
       write(stdout,'(a,1x,a)') &
-         "mopac executable           :",ext_mopac%executable
+         "mopac executable           :",set%ext_mopac%executable
    endif
 
    ! see if there is a preference for an input file
-   if (allocated(ext_mopac%input_file)) then
-      inquire(file=ext_mopac%input_file,exist=exist)
-      ext_mopac%exist = exist
+   if (allocated(set%ext_mopac%input_file)) then
+      inquire(file=set%ext_mopac%input_file,exist=exist)
+      set%ext_mopac%exist = exist
    else
-      ext_mopac%input_file = 'GCOORD'
-      inquire(file=ext_mopac%input_file,exist=exist)
+      set%ext_mopac%input_file = 'GCOORD'
+      inquire(file=set%ext_mopac%input_file,exist=exist)
    endif
-   if (verbose) then
+   if (set%verbose) then
       write(stdout,'(a,1x,a)') &
-         "mopac input file           :",ext_mopac%input_file,&
+         "mopac input file           :",set%ext_mopac%input_file,&
          "mopac input present        :",bool2string(exist)
-         !"mopac input override       :",bool2string(.not.ext_mopac%exist)
+         !"mopac input override       :",bool2string(.not.set%ext_mopac%exist)
    endif
 
    ! check for the input line
-   if (allocated(ext_mopac%input_string)) then
-      if (index(ext_mopac%input_string,'grad') == 0) then
+   if (allocated(set%ext_mopac%input_string)) then
+      if (index(set%ext_mopac%input_string,'grad') == 0) then
          call env%warning('added grad keyword to mopac input', source)
-         ext_mopac%input_string = ext_mopac%input_string //' grad'
+         set%ext_mopac%input_string = set%ext_mopac%input_string //' grad'
       end if
-      if (index(ext_mopac%input_string,'charge=') == 0) then
-         write(chdum,'(i5)') ichrg
+      if (index(set%ext_mopac%input_string,'charge=') == 0) then
+         write(chdum,'(i5)') set%ichrg
          ! add total charge
-         ext_mopac%input_string = ext_mopac%input_string //' charge='//trim(adjustl(chdum))
+         set%ext_mopac%input_string = set%ext_mopac%input_string //' charge='//trim(adjustl(chdum))
       endif
-      if (nalphabeta > 0) then
-         if (index(ext_mopac%input_string,'uhf') == 0) then
+      if (set%nalphabeta > 0) then
+         if (index(set%ext_mopac%input_string,'uhf') == 0) then
             ! write spin state if necessary
-            select case(nalphabeta)
+            select case(set%nalphabeta)
             case default ! skip
-            case(1); ext_mopac%input_string = ext_mopac%input_string // ' uhf doublet'
-            case(2); ext_mopac%input_string = ext_mopac%input_string // ' uhf triplet'
-            case(3); ext_mopac%input_string = ext_mopac%input_string // ' uhf quartet'
-            case(4); ext_mopac%input_string = ext_mopac%input_string // ' uhf quintet'
-            case(5); ext_mopac%input_string = ext_mopac%input_string // ' uhf sextet'
-            case(6); ext_mopac%input_string = ext_mopac%input_string // ' uhf septet'
-            case(7); ext_mopac%input_string = ext_mopac%input_string // ' uhf octet'
+            case(1); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf doublet'
+            case(2); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf triplet'
+            case(3); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf quartet'
+            case(4); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf quintet'
+            case(5); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf sextet'
+            case(6); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf septet'
+            case(7); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf octet'
             end select
          endif
       endif
    else
       ! general input
-      ext_mopac%input_string = '1scf pm6-d3h4 aux(42,PRECISION=12,MOS=-99999,COMP)'
+      set%ext_mopac%input_string = '1scf pm6-d3h4 aux(42,PRECISION=12,MOS=-99999,COMP)'
       ! write spin state if necessary
-      select case(nalphabeta)
+      select case(set%nalphabeta)
       case default ! skip
-      case(1); ext_mopac%input_string = ext_mopac%input_string // ' uhf doublet'
-      case(2); ext_mopac%input_string = ext_mopac%input_string // ' uhf triplet'
-      case(3); ext_mopac%input_string = ext_mopac%input_string // ' uhf quartet'
-      case(4); ext_mopac%input_string = ext_mopac%input_string // ' uhf quintet'
-      case(5); ext_mopac%input_string = ext_mopac%input_string // ' uhf sextet'
-      case(6); ext_mopac%input_string = ext_mopac%input_string // ' uhf septet'
-      case(7); ext_mopac%input_string = ext_mopac%input_string // ' uhf octet'
+      case(1); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf doublet'
+      case(2); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf triplet'
+      case(3); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf quartet'
+      case(4); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf quintet'
+      case(5); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf sextet'
+      case(6); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf septet'
+      case(7); set%ext_mopac%input_string = set%ext_mopac%input_string // ' uhf octet'
       end select
       ! convergence criterium in kcal/mol
-      ext_mopac%input_string = ext_mopac%input_string // &
+      set%ext_mopac%input_string = set%ext_mopac%input_string // &
          ' scfcrt=6.d-5 geo-ok mmok grad xyz charge='
-      write(chdum,'(i5)') ichrg
+      write(chdum,'(i5)') set%ichrg
       ! add total charge
-      ext_mopac%input_string = ext_mopac%input_string // trim(adjustl(chdum))
+      set%ext_mopac%input_string = set%ext_mopac%input_string // trim(adjustl(chdum))
    endif
-   if (verbose) then
+   if (set%verbose) then
       write(stdout,'(a,1x,a)') &
-         "mopac input line           :",ext_mopac%input_string
+         "mopac input line           :",set%ext_mopac%input_string
    endif
 
 end subroutine checkMopac
@@ -164,8 +164,8 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient,dipole)
    real(wp) :: dum(10),edum
 
    !$omp critical(mopac_lock)
-   call open_file(imopac,ext_mopac%input_file,'w')
-   write(imopac,'(a,/,/)') ext_mopac%input_string
+   call open_file(imopac,set%ext_mopac%input_file,'w')
+   write(imopac,'(a,/,/)') set%ext_mopac%input_string
    do i = 1, nat
       write(imopac,'(3x,a2,3(f20.14,i5))') &
          toSymbol(at(i)),autoaa*xyz(1,i),1,autoaa*xyz(2,i),1,autoaa*xyz(3,i),1
@@ -175,15 +175,15 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient,dipole)
    write(stdout,'(72("="))')
    write(stdout,'(1x,"*",1x,a)') &
       "handing control over to mopac..."
-   call execute_command_line('exec 2>&1 '//ext_mopac%executable//' '// &
-                             ext_mopac%input_file,exitstat=err)
+   call execute_command_line('exec 2>&1 '//set%ext_mopac%executable//' '// &
+                             set%ext_mopac%input_file,exitstat=err)
    if (err.ne.0) then
       call env%error('mopac returned with non-zero exit status, following this',source)
    else
-      if (verbose) then
-         inquire(file=ext_mopac%input_file//'.arc',exist=exist)
+      if (set%verbose) then
+         inquire(file=set%ext_mopac%input_file//'.arc',exist=exist)
          if (exist) then
-            call open_file(imopac,ext_mopac%input_file//'.arc','r')
+            call open_file(imopac,set%ext_mopac%input_file//'.arc','r')
             print_mopac_output: do
                call getline(imopac,line,iostat=err)
                if (is_iostat_end(err)) exit print_mopac_output
@@ -197,9 +197,9 @@ subroutine runMopac(env,nat,at,xyz,energy,gradient,dipole)
    endif
    write(stdout,'(72("="))')
 
-   call open_file(imopac,ext_mopac%input_file//'.aux','r')
+   call open_file(imopac,set%ext_mopac%input_file//'.aux','r')
    if (imopac.eq.-1) then
-      call env%error("Could not find '"//ext_mopac%input_file//".aux'",source)
+      call env%error("Could not find '"//set%ext_mopac%input_file//".aux'",source)
    else
       read_mopac_output: do
          call getline(imopac,line,iostat=err)
