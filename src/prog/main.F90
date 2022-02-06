@@ -53,8 +53,6 @@ module xtb_prog_main
    use xtb_restart
    use xtb_readparam
    use xtb_scc_core, only : iniqshell
-   use xtb_extern_orca, only : checkOrca
-   use xtb_extern_mopac, only : checkMopac
    use xtb_single, only : singlepoint
    use xtb_aespot, only : get_radcn
    use xtb_iniq, only : iniqcn
@@ -552,10 +550,6 @@ subroutine xtbMain(env, argParser)
    select case(set%mode_extrun)
    case(p_ext_qmdff)
       call ff_ini(mol%n,mol%at,mol%xyz,cn,qmdff_s6)
-   case(p_ext_orca)
-      call checkOrca(env)
-   case(p_ext_mopac)
-      call checkMopac(env)
    end select
 
    call delete_file('.sccnotconverged')

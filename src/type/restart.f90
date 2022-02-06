@@ -29,15 +29,11 @@ module xtb_type_restart
 
    !> Restart wrapper type
    type :: TRestart
-
       !> Tight binding wavefunction
       type(TWavefunction) :: wfn
-
       !> Force field topology
       type(TGFFNeighbourList) :: nlist
-
    end type TRestart
-
 
 contains
 

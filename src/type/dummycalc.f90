@@ -30,8 +30,6 @@ module xtb_type_dummycalc
    use xtb_scanparam
    use xtb_sphereparam
    use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
-   use xtb_extern_mopac, only : runMopac
-   use xtb_extern_orca, only : runOrca
    use xtb_metadynamic
    use xtb_constrainpot
    implicit none
@@ -132,15 +130,9 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       call ff_nonb(mol%n,mol%at,mol%xyz,energy,gradient)
       call ff_hb  (mol%n,mol%at,mol%xyz,energy,gradient)
 
-   case(p_ext_orca)
-      call runOrca(env,mol,energy,gradient)
-
    case(p_ext_turbomole)
       call external_turbomole(mol%n,mol%at,mol%xyz,chk%wfn%nel,chk%wfn%nopen, &
          & .true.,energy,gradient,results%dipole,self%lSolv)
-
-   case(p_ext_mopac)
-      call runMopac(env,mol%n,mol%at,mol%xyz,energy,gradient,dipole)
 
    end select
 
@@ -203,7 +195,7 @@ subroutine writeInfo(self, unit, mol)
    select case(set%mode_extrun)
    case(p_ext_qmdff)
       call qmdff_header(unit)
-   case(p_ext_orca, p_ext_mopac, p_ext_turbomole)
+   case(p_ext_turbomole)
       call driver_header(unit)
    end select
 

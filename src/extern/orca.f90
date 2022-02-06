@@ -33,17 +33,22 @@ module xtb_extern_orca
    use xtb_setparam
    use xtb_readin
    use xtb_mctc_convert
+   use xtb_fixparam
+   use xtb_scanparam
+   use xtb_sphereparam
+   use xtb_metadynamic
+   use xtb_constrainpot
    implicit none
    private
 
-   public :: checkOrca, runOrca
+   public :: TOrcaCalculator, newOrcaCalculator
 
 
    type, extends(TCalculator) :: TOrcaCalculator
+      type(qm_external) :: ext
    contains
       !> Perform single point calculation
       procedure :: singlepoint
-
       !> Write informative printout
       procedure :: writeInfo
    end type TOrcaCalculator
@@ -52,9 +57,10 @@ module xtb_extern_orca
 contains
 
 
-subroutine checkOrca(env)
+subroutine checkOrca(env, ext)
    character(len=*), parameter :: source = 'extern_orca_checkOrca'
    type(TEnvironment), intent(inout) :: env
+   type(qm_external), intent(inout) :: ext
    character(len=:),allocatable :: homedir,syspath
    character(len=:),allocatable :: line
    character(len=5) :: chdum
@@ -67,19 +73,19 @@ subroutine checkOrca(env)
 !$ integer,external :: omp_get_num_threads
 
    ! check for ORCA executable
-   if (allocated(set%ext_orca%executable)) then ! user input
-      if (set%ext_orca%executable(1:1).eq.'~') then
+   if (allocated(ext%executable)) then ! user input
+      if (ext%executable(1:1).eq.'~') then
          ! this is relative to the users home, expand it
          call rdvar('HOME',homedir)
-         set%ext_orca%executable = homedir // set%ext_orca%executable(2:)
+         ext%executable = homedir // ext%executable(2:)
          if (set%verbose) then
             write(stdout,'(a,1x,a)') &
                "user home directory        :",homedir
          endif
       endif
-      inquire(file=set%ext_orca%executable,exist=exist)
+      inquire(file=ext%executable,exist=exist)
       if (.not.exist) then
-         call env%error("'"//set%ext_orca%executable//"' was not found, please check",source)
+         call env%error("'"//ext%executable//"' was not found, please check",source)
          return
       endif
    else ! no executable provided, lets find it
@@ -88,7 +94,7 @@ subroutine checkOrca(env)
          write(stdout,'(a,1x,a)') &
             "system path                :",syspath
       endif
-      call rdpath(syspath,'orca',set%ext_orca%executable,exist)
+      call rdpath(syspath,'orca',ext%executable,exist)
       if (.not.exist) then
          call env%error('Could not locate orca executable',source)
          return
@@ -96,32 +102,32 @@ subroutine checkOrca(env)
    endif
    if (set%verbose) then
       write(stdout,'(a,1x,a)') &
-         "orca executable           :",set%ext_orca%executable
-      if (index(set%ext_orca%executable,'/usr') == 1) then
+         "orca executable           :",ext%executable
+      if (index(ext%executable,'/usr') == 1) then
          write(stdout,'(a)') &
             "are you attempting to perform a calculation with the GNOME screen reader?"
       endif
    endif
 
    ! see if there is a preference for an input file
-   if (allocated(set%ext_orca%input_file)) then
-      inquire(file=set%ext_orca%input_file,exist=exist)
-      set%ext_orca%exist = exist
+   if (allocated(ext%input_file)) then
+      inquire(file=ext%input_file,exist=exist)
+      ext%exist = exist
    else
-      set%ext_orca%input_file = 'orca.inp'
-         inquire(file=set%ext_orca%input_file,exist=exist)
+      ext%input_file = 'orca.inp'
+         inquire(file=ext%input_file,exist=exist)
    endif
    if (set%verbose) then
       write(stdout,'(a,1x,a)') &
-         "orca input file           :",set%ext_orca%input_file,&
+         "orca input file           :",ext%input_file,&
          "orca input present        :",bool2string(exist),&
-         "orca input override       :",bool2string(.not.set%ext_orca%exist)
+         "orca input override       :",bool2string(.not.ext%exist)
    endif
    ! sanity check
-   if (set%ext_orca%exist) then
-      call open_file(iorca,set%ext_orca%input_file,'r')
+   if (ext%exist) then
+      call open_file(iorca,ext%input_file,'r')
       if (iorca.eq.-1) then
-         call env%error("ORCA input file '"//set%ext_orca%input_file//"' just vanished!",source)
+         call env%error("ORCA input file '"//ext%input_file//"' just vanished!",source)
          return
       endif
       chk_engrad = .false.
@@ -140,40 +146,55 @@ subroutine checkOrca(env)
          if (idx_star.gt.0 .and. idx_file.gt.0 .and. idx_xmol.gt.0 .and. &
             &idx_file.gt.idx_star .and. idx_xmol.gt.idx_file) then
             chk_xyzfile = .true.
-            set%ext_orca%input_string = trim(adjustl(line(idx_spce:)))
+            ext%input_string = trim(adjustl(line(idx_spce:)))
          endif
       enddo
       call close_file(iorca)
       if (.not.(chk_engrad.and.chk_xyzfile)) then
          call env%error("Please add '! ENGRAD' and/or '* xyzfile' to '"//&
-         & set%ext_orca%input_file //"'!",source)
+         & ext%input_file //"'!",source)
          return
       endif
 
    else
       ! check for the input line
-      if (allocated(set%ext_orca%input_string)) then
-         if (index(set%ext_orca%input_string,'!') == 1) then
-            set%ext_orca%input_string = set%ext_orca%input_string(2:)
+      if (allocated(ext%input_string)) then
+         if (index(ext%input_string,'!') == 1) then
+            ext%input_string = ext%input_string(2:)
          endif
       else
          ! general input
-         set%ext_orca%input_string = 'b97-3c'
+         ext%input_string = 'b97-3c'
       endif
    endif
    if (set%verbose) then
       write(stdout,'(a,1x,a)') &
       !$ "orca parallel             :",bool2string(omp_get_num_threads() > 1),&
       !$ "orca number of threads    :",omp_get_num_threads(),&
-         "orca input line           :",set%ext_orca%input_string
+         "orca input line           :",ext%input_string
    endif
 
 end subroutine checkOrca
 
 
-subroutine runOrca(env,mol,energy,gradient)
+!> Create a new calculator for driving the Orca program
+subroutine newOrcaCalculator(self, env, ext)
+   !> Instance of the Orca calculator
+   type(TOrcaCalculator), intent(out) :: self
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Settings for the Orca calculator
+   type(qm_external), intent(in) :: ext
+
+   self%ext = ext
+   call checkOrca(env, self%ext)
+end subroutine newOrcaCalculator
+
+
+subroutine runOrca(env,ext,mol,energy,gradient)
    character(len=*), parameter :: source = 'extern_orca_runOrca'
    type(TEnvironment), intent(inout) :: env
+   type(qm_external), intent(in) :: ext
    type(TMolecule), intent(in) :: mol
    real(wp),intent(out) :: energy
    real(wp),intent(out) :: gradient(:, :)
@@ -186,13 +207,13 @@ subroutine runOrca(env,mol,energy,gradient)
 !$ integer,external :: omp_get_num_threads
 
    !$omp critical (orca_lock)
-   if (set%ext_orca%exist) then
+   if (ext%exist) then
       ! we dump the name of the external xyz file to input_string... not cool
-      call open_file(iorca,set%ext_orca%input_string,'w')
+      call open_file(iorca,ext%input_string,'w')
       call writeMolecule(mol, iorca, format=fileType%xyz)
       call close_file(iorca)
    else
-      call open_file(iorca,set%ext_orca%input_file,'w')
+      call open_file(iorca,ext%input_file,'w')
       write(iorca,'("#",1x,a)') &
          "orca input generated by xtb, this is not the right way of using orca!"
       !$ write(iorca,'("%",a,/,3x,a,1x,i0,/,a)') &
@@ -200,7 +221,7 @@ subroutine runOrca(env,mol,energy,gradient)
       write(iorca,'("%",a,1x,i0)') &
          "MaxCore",3000 ! hard coded, might be replaced at some point
       write(iorca,'("!",1x,a)') &
-      set%ext_orca%input_string
+      ext%input_string
 !      if(index(solv,'h2o').ne.0)   solv='water'
 !      if(index(solv,'chcl3').ne.0) solv='chloroform'
 !      if(index(solv,'ether').ne.0) solv='diethyl ether'
@@ -227,8 +248,8 @@ subroutine runOrca(env,mol,energy,gradient)
    write(stdout,'(72("="))')
    write(stdout,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
-   call execute_command_line('exec 2>&1 '//set%ext_orca%executable//' '// &
-                             set%ext_orca%input_file,exitstat=err)
+   call execute_command_line('exec 2>&1 '//ext%executable//' '// &
+                             ext%input_file,exitstat=err)
    if (err.ne.0) then
       call env%error('orca returned with non-zero exit status, doing the same',source)
    else
@@ -237,11 +258,11 @@ subroutine runOrca(env,mol,energy,gradient)
    endif
    write(stdout,'(72("="))')
 
-   i = index(set%ext_orca%input_file,'.inp')
+   i = index(ext%input_file,'.inp')
    if (i > 0) then
-      outfile = set%ext_orca%input_file(:i-1)//'.engrad'
+      outfile = ext%input_file(:i-1)//'.engrad'
    else
-      outfile = set%ext_orca%input_file//'.engrad'
+      outfile = ext%input_file//'.engrad'
    endif
    inquire(file=outfile,exist=exist)
    if (.not.exist) then
@@ -273,43 +294,94 @@ end subroutine runOrca
 
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
-
    !> Source of the generated errors
-   character(len=*), parameter :: source = 'type_calculator_singlepoint'
-
+   character(len=*), parameter :: source = 'extern_orca_singlepoint'
    !> Calculator instance
    class(TOrcaCalculator), intent(inout) :: self
-
    !> Computational environment
    type(TEnvironment), intent(inout) :: env
-
    !> Molecular structure data
    type(TMolecule), intent(inout) :: mol
-
    !> Wavefunction data
    type(TRestart), intent(inout) :: chk
-
    !> Print level for IO
    integer, intent(in) :: printlevel
-
    !> Restart from previous results
    logical, intent(in) :: restart
-
    !> Total energy
    real(wp), intent(out) :: energy
-
    !> Molecular gradient
    real(wp), intent(out) :: gradient(:, :)
-
    !> Strain derivatives
    real(wp), intent(out) :: sigma(:, :)
-
    !> HOMO-LUMO gap
    real(wp), intent(out) :: hlgap
-
    !> Detailed results
    type(scc_results), intent(out) :: results
 
+   integer :: i,ich
+   integer :: mode_sp_run = 1
+   real(wp) :: efix
+   real(wp) :: dipole(3)
+   logical :: inmol
+   logical, parameter :: ccm = .true.
+   logical :: exitRun
+   character(len=*),parameter :: outfmt = &
+      '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
+
+   call mol%update
+   if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
+
+   energy = 0.0_wp
+   gradient(:, :) = 0.0_wp
+   sigma(:, :) = 0.0_wp
+   hlgap = 0.0_wp
+   efix = 0.0_wp
+   dipole(:) = 0.0_wp
+
+   call runOrca(env,self%ext,mol,energy,gradient)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Electronic structure method terminated", source)
+      return
+   end if
+
+   ! ------------------------------------------------------------------------
+   !  various external potentials
+   call constrain_pot(potset,mol%n,mol%at,mol%xyz,gradient,efix)
+   call constrpot   (mol%n,mol%at,mol%xyz,gradient,efix)
+   call cavity_egrad(mol%n,mol%at,mol%xyz,efix,gradient)
+   call metadynamic (metaset,mol%n,mol%at,mol%xyz,efix,gradient)
+   call metadynamic (rmsdset,mol%n,mol%at,mol%xyz,efix,gradient)
+
+   ! ------------------------------------------------------------------------
+   !  fixing of certain atoms
+   !  print*,abs(efix/etot)
+   energy = energy + efix
+   results%e_total = energy
+   results%gnorm = norm2(gradient)
+   results%dipole = dipole
+   if (fixset%n.gt.0) then
+      do i=1, fixset%n
+         !print*,i,fixset%atoms(i)
+         gradient(1:3,fixset%atoms(i))=0
+      enddo
+   endif
+
+   if (printlevel.ge.2) then
+      ! start with summary header
+      if (.not.set%silent) then
+         write(env%unit,'(9x,53(":"))')
+         write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
+      endif
+      write(env%unit,'(9x,53(":"))')
+      write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
+      write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
+      write(env%unit,outfmt) "HOMO-LUMO gap     ", results%hl_gap, "eV   "
+      write(env%unit,'(9x,53(":"))')
+      write(env%unit,'(a)')
+   endif
 end subroutine singlepoint
 
 subroutine writeInfo(self, unit, mol)
@@ -323,6 +395,7 @@ subroutine writeInfo(self, unit, mol)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
+   call generic_header(unit,"Orca driver",49,10)
 end subroutine writeInfo
 
 end module xtb_extern_orca

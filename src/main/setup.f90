@@ -21,6 +21,8 @@ module xtb_main_setup
    use xtb_mctc_systools, only : rdpath
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_model, only : init
+   use xtb_extern_orca, only : TOrcaCalculator, newOrcaCalculator
+   use xtb_extern_mopac, only : TMopacCalculator, newMopacCalculator
    use xtb_type_calculator, only : TCalculator
    use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
@@ -68,6 +70,8 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
 
    type(TxTBCalculator), allocatable :: xtb
    type(TGFFCalculator), allocatable :: gfnff
+   type(TOrcaCalculator), allocatable :: orca
+   type(TMopacCalculator), allocatable :: mopac
    
    logical :: exitRun
 
@@ -98,7 +102,15 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
       end if
 
       call move_alloc(gfnff, calc)
-   case(p_ext_qmdff, p_ext_orca, p_ext_turbomole, p_ext_mopac)
+   case(p_ext_orca)
+      allocate(orca)
+      call newOrcaCalculator(orca, env, set%ext_orca)
+      call move_alloc(orca, calc)
+   case(p_ext_mopac)
+      allocate(mopac)
+      call newMopacCalculator(mopac, env, set%ext_mopac)
+      call move_alloc(mopac, calc)
+   case(p_ext_qmdff, p_ext_turbomole)
       allocate(TDummyCalculator :: calc)
       calc%accuracy = accuracy
    end select
