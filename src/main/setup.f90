@@ -23,8 +23,8 @@ module xtb_main_setup
    use xtb_solv_model, only : init
    use xtb_extern_orca, only : TOrcaCalculator, newOrcaCalculator
    use xtb_extern_mopac, only : TMopacCalculator, newMopacCalculator
+   use xtb_extern_turbomole, only : TTMCalculator, newTMCalculator
    use xtb_type_calculator, only : TCalculator
-   use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : TxTBParameter, chrg_parameter
@@ -72,6 +72,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
    type(TGFFCalculator), allocatable :: gfnff
    type(TOrcaCalculator), allocatable :: orca
    type(TMopacCalculator), allocatable :: mopac
+   type(TTMCalculator), allocatable :: turbo
    
    logical :: exitRun
 
@@ -110,9 +111,10 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
       allocate(mopac)
       call newMopacCalculator(mopac, env, set%ext_mopac)
       call move_alloc(mopac, calc)
-   case(p_ext_qmdff, p_ext_turbomole)
-      allocate(TDummyCalculator :: calc)
-      calc%accuracy = accuracy
+   case(p_ext_turbomole)
+      allocate(turbo)
+      call newTMCalculator(turbo, set%extcode, set%extmode)
+      call move_alloc(turbo, calc)
    end select
 
 end subroutine newCalculator

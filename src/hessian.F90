@@ -51,7 +51,9 @@ subroutine numhess( &
    use xtb_axis, only : axis
 
    use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_type_dummycalc, only : TDummyCalculator
+   use xtb_extern_turbomole, only : TTMCalculator
+   use xtb_extern_orca, only : TOrcaCalculator
+   use xtb_extern_mopac, only : TMopacCalculator
 
    implicit none
 
@@ -183,7 +185,11 @@ subroutine numhess( &
    else !numerical hessian calculation
    parallize = .true.
    select type(calc)
-   type is (TDummyCalculator)
+   type is (TTMCalculator)
+      parallize = .false.
+   type is (TMopacCalculator)
+      parallize = .false.
+   type is (TOrcaCalculator)
       parallize = .false.
    end select
 

@@ -406,7 +406,7 @@ subroutine l_ancopt &
    use xtb_type_calculator
    use xtb_xtb_calculator
    use xtb_gfnff_calculator
-   use xtb_type_dummycalc
+   use xtb_extern_turbomole, only : TTMCalculator
    use xtb_type_data
    use xtb_type_timer
 
@@ -521,7 +521,7 @@ subroutine l_ancopt &
    ! Activate averaged convergence criterium
    if (set%optset%average_conv) then
       select type(calc)
-      class is(TDummyCalculator)
+      class is(TTMCalculator)
          avconv = load_turbomole_log(maxcycle)
          if (avconv%nlog > 0 .and. pr) then
             write(env%unit, '(a, 1x, i0, 1x, a)') &

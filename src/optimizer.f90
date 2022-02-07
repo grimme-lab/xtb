@@ -20,6 +20,7 @@ module xtb_optimizer
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
+   use xtb_extern_turbomole, only : TTMCalculator
    use xtb_bfgs
    use xtb_david2
    implicit none
@@ -114,7 +115,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    use xtb_type_anc
    use xtb_type_restart
    use xtb_type_calculator
-   use xtb_type_dummycalc
    use xtb_type_data
    use xtb_type_timer
 
@@ -220,7 +220,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if(maxopt.lt.maxmicro) maxmicro=maxopt
    if (set%optset%average_conv) then
       select type(calc)
-      class is(TDummyCalculator)
+      class is(TTMCalculator)
          avconv = load_turbomole_log(maxopt)
          if (avconv%nlog > 0 .and. pr) then
             write(env%unit, '(a, 1x, i0, 1x, a)') &
