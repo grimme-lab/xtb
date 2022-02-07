@@ -53,7 +53,6 @@ module xtb_prog_main
    use xtb_restart
    use xtb_readparam
    use xtb_scc_core, only : iniqshell
-   use xtb_single, only : singlepoint
    use xtb_aespot, only : get_radcn
    use xtb_iniq, only : iniqcn
    use xtb_eeq
@@ -562,9 +561,7 @@ subroutine xtbMain(env, argParser)
    ! ========================================================================
    !> the SP energy which is always done
    call start_timing(2)
-   call singlepoint &
-      &       (env,mol,chk,calc, &
-      &        egap,set%etemp,set%maxscciter,2,exist,lgrad,acc,etot,g,sigma,res)
+   call calc%singlepoint(env,mol,chk,2,exist,etot,g,sigma,egap,res)
    call stop_timing(2)
    select type(calc)
    type is(TGFFCalculator)
@@ -604,14 +601,10 @@ subroutine xtbMain(env, argParser)
          do j = 1, 3
             mol%xyz(j,i) = mol%xyz(j,i) + step
             chk = wf0
-            call singlepoint &
-               &       (env,mol,chk,calc, &
-               &        egap,set%etemp,set%maxscciter,0,.true.,.true.,acc,er,gdum,sdum,res)
+            call calc%singlepoint(env,mol,chk,0,.true.,er,gdum,sdum,egap,res)
             mol%xyz(j,i) = mol%xyz(j,i) - 2*step
             chk = wf0
-            call singlepoint &
-               &       (env,mol,chk,calc, &
-               &        egap,set%etemp,set%maxscciter,0,.true.,.true.,acc,el,gdum,sdum,res)
+            call calc%singlepoint(env,mol,chk,0,.true.,el,gdum,sdum,egap,res)
             mol%xyz(j,i) = mol%xyz(j,i) + step
             numg(j,i) = step2 * (er - el)
          enddo
@@ -661,9 +654,7 @@ subroutine xtbMain(env, argParser)
       mol%chrg = mol%chrg + 1
       chk%wfn%nel = chk%wfn%nel-1
       if (mod(chk%wfn%nel,2).ne.0) chk%wfn%nopen = 1
-      call singlepoint &
-         &       (env,mol,chk,calc, &
-         &        egap,set%etemp,set%maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
+      call calc%singlepoint(env,mol,chk,1,exist,etot2,g,sigma,egap,res)
       ip=etot2-etot-ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical IP shift (eV):",f10.4)') &
@@ -682,9 +673,7 @@ subroutine xtbMain(env, argParser)
       mol%chrg = mol%chrg - 1
       chk%wfn%nel = chk%wfn%nel+1
       if (mod(chk%wfn%nel,2).ne.0) chk%wfn%nopen = 1
-      call singlepoint &
-         &       (env,mol,chk,calc, &
-         &        egap,set%etemp,set%maxscciter,2,.true.,.false.,acc,etot2,g,sigma,res)
+      call calc%singlepoint(env,mol,chk,1,exist,etot2,g,sigma,egap,res)
       ea=etot-etot2-ipeashift
       write(env%unit,'(72("-"))')
       write(env%unit,'("empirical EA shift (eV):",f10.4)') &
@@ -724,17 +713,13 @@ subroutine xtbMain(env, argParser)
       mol%chrg = mol%chrg + 1
       wf_p%wfn%nel = wf_p%wfn%nel+1
       if (mod(wf_p%wfn%nel,2).ne.0) wf_p%wfn%nopen = 1
-      call singlepoint &
-         &       (env,mol,wf_p,calc, &
-         &        egap,set%etemp,set%maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
+      call calc%singlepoint(env,mol,wf_p,1,exist,etot2,g,sigma,egap,res)
       f_plus=wf_p%wfn%q-chk%wfn%q
 
       mol%chrg = mol%chrg - 2
       wf_m%wfn%nel = wf_m%wfn%nel-1
       if (mod(wf_m%wfn%nel,2).ne.0) wf_m%wfn%nopen = 1
-      call singlepoint &
-         &       (env,mol,wf_m,calc, &
-         &        egap,set%etemp,set%maxscciter,1,.true.,.false.,acc,etot2,g,sigma,res)
+      call calc%singlepoint(env,mol,wf_m,1,exist,etot2,g,sigma,egap,res)
       f_minus=chk%wfn%q-wf_m%wfn%q
       write(env%unit,'(a)')
       write(env%unit, '(1x,"    #        f(+)     f(-)     f(0)")')

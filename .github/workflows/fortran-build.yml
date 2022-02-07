@@ -132,10 +132,8 @@ jobs:
           mingw-w64-${{ matrix.arch }}-lapack
           mingw-w64-${{ matrix.arch }}-python
           mingw-w64-${{ matrix.arch }}-python-pip
+          mingw-w64-${{ matrix.arch }}-meson
           mingw-w64-${{ matrix.arch }}-ninja
-
-    - name: Install meson
-      run: pip install meson==0.56
 
     - name: Configure build
       run: meson setup ${{ env.BUILD_DIR }} -Dla_backend=netlib --warnlevel=0

@@ -123,7 +123,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 
    use xtb_setmod, only : int2optlevel
 
-   use xtb_single, only : singlepoint
    use xtb_axis, only : axis2
    use xtb_hessian, only : trproj,rdhess
    use xtb_readin
@@ -464,8 +463,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_data
    use xtb_type_timer
 
-   use xtb_single, only : singlepoint
-
    implicit none
 
    !> Source of errors in the main program unit
@@ -551,9 +548,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
-   call singlepoint &
-         (env,mol,chk,calc, &
-          egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res)
+   call calc%singlepoint(env,mol,chk,prlevel,iter.eq.1,energy,g,sigma,egap,res)
    if (profile) call timer%measure(5)
 
    ! something went wrong in SCC or diag
