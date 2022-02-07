@@ -19,9 +19,12 @@ module xtb_hessian
    use xtb_mctc_accuracy, only : wp
    use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
       & write_tm_vibspectrum, g98fake, g98fake2
-   use xtb_freq_numdiff, only : numdiff2
    use xtb_freq_project, only : trproj
-   use xtb_freq_turbomole, only : aoforce_hessian
+   implicit none
+   private
+
+   public :: numhess
+   public :: trproj, rdhess, g98fake2, distort, write_tm_vibspectrum
 
 contains
 
@@ -47,13 +50,7 @@ subroutine numhess( &
    use xtb_fixparam
    use xtb_metadynamic
 
-   use xtb_single, only : singlepoint
    use xtb_axis, only : axis
-
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_extern_turbomole, only : TTMCalculator
-   use xtb_extern_orca, only : TOrcaCalculator
-   use xtb_extern_mopac, only : TMopacCalculator
 
    implicit none
 
@@ -90,7 +87,6 @@ subroutine numhess( &
    real(wp),allocatable :: bond(:,:)
 
 !$ integer  :: nproc
-   logical :: parallize
 
    real(wp),allocatable :: h (:,:)
    real(wp),allocatable :: htb (:,:)
@@ -141,9 +137,7 @@ subroutine numhess( &
    acc=set%accu_hess
    scalh=set%scale_hess
 
-   call singlepoint &
-      & (env,mol,chk0,calc, &
-      &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
+   call calc%singlepoint(env, mol, chk0, 0, .true., res%etot, res%grad, sr, egap, sccr)
 
    if (set%runtyp.eq.p_run_bhess) then
    write(env%unit,'(''kpush                :'',F10.5)') metaset%factor(metaset%nstruc)
@@ -178,21 +172,6 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
-   !analytical hessian calculation
-   if(set%mode_extrun .eq. p_ext_turbomole) then    
-           dipd=0.0_wp
-           call aoforce_hessian(env,mol,h,dipd) 
-   else !numerical hessian calculation
-   parallize = .true.
-   select type(calc)
-   type is (TTMCalculator)
-      parallize = .false.
-   type is (TMopacCalculator)
-      parallize = .false.
-   type is (TOrcaCalculator)
-      parallize = .false.
-   end select
-
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -217,7 +196,7 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
-      call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd, parallize)
+      call calc%hessian(env, mol, chk0, indx(:nonfrozh), step, h, dipd)
 
    else
 !! ------------------------------------------------------------------------
@@ -226,10 +205,9 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
-      call numdiff2(env, mol, chk0, calc, step, h, dipd, parallize)
+      indx = [(i, i = 1, mol%n)]
+      call calc%hessian(env, mol, chk0, indx, step, h, dipd)
    endif
-
-   endif !From turbomole_exception
 
 
 !  Hessian done -----------------------------------------------------------

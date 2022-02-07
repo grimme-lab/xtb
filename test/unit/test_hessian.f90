@@ -28,7 +28,6 @@ module test_hessian
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
-   use xtb_freq_numdiff, only : numdiff2
    implicit none
    private
 
@@ -111,6 +110,7 @@ subroutine test_gfn1_hessian(error)
    real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:), dipgrad(:,:), hessian(:,:)
+   integer, allocatable :: list(:)
 
    call init(env)
    call init(mol, sym, xyz)
@@ -127,9 +127,12 @@ subroutine test_gfn1_hessian(error)
 
    dipgrad = 0.0_wp
    hessian = 0.0_wp
-   ! omp parallel default(shared)
-   call numdiff2(env, mol, chk, calc, step, hessian, dipgrad, .false.)
-   ! omp end parallel
+   list = [(i, i = 1, mol%n)]
+   !$omp parallel
+   !$omp single
+   call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
+   !$omp end single
+   !$omp end parallel
 
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
@@ -208,6 +211,7 @@ subroutine test_gfn2_hessian(error)
    real(wp) :: energy, sigma(3, 3)
    real(wp) :: hl_gap
    real(wp),allocatable :: gradient(:,:), dipgrad(:,:), hessian(:,:)
+   integer, allocatable :: list(:)
 
    call init(env)
    call init(mol, sym, xyz)
@@ -224,9 +228,12 @@ subroutine test_gfn2_hessian(error)
 
    dipgrad = 0.0_wp
    hessian = 0.0_wp
-   ! omp parallel default(shared)
-   call numdiff2(env, mol, chk, calc, step, hessian, dipgrad, .false.)
-   ! omp end parallel
+   list = [(i, i = 1, mol%n)]
+   !$omp parallel
+   !$omp single
+   call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
+   !$omp end single
+   !$omp end parallel
 
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)

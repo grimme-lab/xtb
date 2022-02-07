@@ -28,6 +28,9 @@ module xtb_extern_turbomole
    use xtb_type_restart, only : TRestart
    use xtb_type_wsc, only : tb_wsc
    use xtb_io_writer, only : writeMolecule
+   use xtb_io_reader, only : readHessian
+   use xtb_type_reader, only : TReader
+   use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_systools
    use xtb_mctc_strings
    use xtb_setparam
@@ -50,6 +53,8 @@ module xtb_extern_turbomole
    contains
       !> Perform single point calculation
       procedure :: singlepoint
+      !> Calculate hessian
+      procedure :: hessian
       !> Write informative printout
       procedure :: writeInfo
    end type TTMCalculator
@@ -62,6 +67,7 @@ subroutine newTMCalculator(self, extcode, extmode)
    type(TTMCalculator), intent(out) :: self
    integer, intent(in) :: extcode, extmode
 
+   self%threadsafe = .false.
    self%extcode = extcode
    self%extmode = extmode
 end subroutine newTMCalculator
@@ -328,19 +334,6 @@ subroutine rdtm(n,grd,e,g,xyz)
 
 end subroutine rdtm
 
-subroutine rijcheck(extcode)
-   implicit none
-   integer, intent (inout) :: extcode
-   integer icheck,ich
-   icheck=1
-   call execute_command_line('exec sdg rij | wc -l > TmPfIlE')
-   open(newunit=ich,file='TmPfIlE',status='old')
-   read(ich,*)icheck
-   close(ich,status='delete')
-   if(icheck.lt.1) extcode=3
-   return
-end subroutine rijcheck
-
 subroutine extcodeok(extcode)
    implicit none
    integer, intent (in) :: extcode
@@ -372,5 +365,81 @@ subroutine writeInfo(self, unit, mol)
 
    call generic_header(unit,"Orca driver",49,10)
 end subroutine writeInfo
+
+!> Evaluate hessian by finite difference for all atoms
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
+   character(len=*), parameter :: source = "extern_turbomole_hessian"
+   !> Single point calculator
+   class(TTMCalculator), intent(inout) :: self
+   !> Computation environment
+   type(TEnvironment), intent(inout) :: env
+   !> Molecular structure data
+   type(TMolecule), intent(in) :: mol0
+   !> Restart data
+   type(TRestart), intent(in) :: chk0
+   !> List of atoms to displace
+   integer, intent(in) :: list(:)
+   !> Step size for numerical differentiation
+   real(wp), intent(in) :: step
+   !> Array to add Hessian to
+   real(wp), intent(inout) :: hess(:, :)
+   !> Array to add dipole gradient to
+   real(wp), intent(inout) :: dipgrad(:, :)
+
+   integer :: idipd, stat
+   type(TMolecule), allocatable :: mol
+   type(TRestart), allocatable :: chk
+   real(wp) :: er, el, dr(3), dl(3), sr(3, 3), sl(3, 3), egap, step2
+   real(wp) :: t0, t1, w0, w1
+   real(wp), allocatable :: gr(:, :), gl(:, :)
+   type(scc_results) :: rr, rl
+   type(TReader) :: reader
+
+   call wrtm(mol%n,mol%at,mol%xyz) !Overwrite coord with RAM-xyz file
+   call execute_command_line('exec aoforce > job.last2>> /dev/null')
+   call reader%open('hessian')
+   call readHessian(env, mol, hess, reader, fileType%tmol)
+   call reader%close
+
+   call open_file(idipd,'dipgrad','r')
+   if(idipd == -1) then
+      call env%error("No dipolegradient found", source)
+      return
+   end if
+
+   call read_dipgrad(idipd, mol%n, dipgrad, stat)
+
+   if(stat /=0 ) then
+      call env%error('An error occurred while reading the dipolegradient', source)
+      return
+   end if
+
+   call close_file(idipd)
+end subroutine hessian
+
+subroutine read_dipgrad(idipd, n, dipd, error)
+   use xtb_mctc_systools
+
+   implicit none
+
+   integer, intent(out) :: error
+   character(len=:), allocatable :: line
+   integer, intent(in) :: n
+   real(wp), intent(inout) :: dipd(:,:)
+   integer, intent(in) :: idipd
+   integer :: i,j
+
+   error = 0
+
+   do while(error == 0)
+      call getline(idipd, line, error)
+      if (index(line, '$dipgrad          cartesian dipole gradients') == 1) then
+         do i=1, 3*n
+            read(idipd,*) (dipd(j,i),j=1,3)
+         end do
+         exit
+      end if
+   enddo
+end subroutine read_dipgrad
 
 end module xtb_extern_turbomole

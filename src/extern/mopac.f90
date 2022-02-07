@@ -179,6 +179,7 @@ subroutine newMopacCalculator(self, env, ext)
    type(qm_external), intent(in) :: ext
 
    self%ext = ext
+   self%threadsafe = .false.
    call checkMopac(env, self%ext)
 end subroutine newMopacCalculator
 

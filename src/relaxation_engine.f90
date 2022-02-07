@@ -143,7 +143,6 @@ subroutine fire &
    use xtb_setparam
    use xtb_fixparam
 
-   use xtb_single
    use xtb_optimizer
    use xtb_axis
    use xtb_hessian
@@ -413,7 +412,6 @@ subroutine l_ancopt &
    use xtb_setparam
    use xtb_fixparam
 
-   use xtb_single
    use xtb_optimizer
    use xtb_axis
    use xtb_hessian
@@ -877,7 +875,6 @@ subroutine lbfgs_relax &
 
    use xtb_setparam
 
-   use xtb_single
    use xtb_optimizer
 
    implicit none
@@ -1065,10 +1062,7 @@ subroutine lbfgs_relax &
 
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
-      call singlepoint &
-         &(env,mol,chk,calc, &
-         & egap,set%etemp,set%maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
-         & energy,g_xyz,sigma,res)
+      call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,g_xyz,sigma,egap,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
       if (profile) call timer%measure(6)
       call env%check(fail)
@@ -1157,7 +1151,6 @@ subroutine inertial_relax &
 
    use xtb_setparam
 
-   use xtb_single
    use xtb_pbc_tools
 
    implicit none
@@ -1391,10 +1384,7 @@ subroutine inertial_relax &
       if (profile) call timer%measure(3)
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
-      call singlepoint &
-         &(env,mol,chk,calc, &
-         & egap,set%etemp,set%maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
-         & energy,gradient,sigma,res)
+      call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,gradient,sigma,egap,res)
       if (profile) call timer%measure(4)
       call env%check(fail)
       if (fail) then

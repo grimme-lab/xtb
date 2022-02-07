@@ -17,8 +17,6 @@
 
 srcs += files(
   'io.f90',
-  'numdiff.F90',
   'project.f90',
   'utils.f90',
-  'turbomole.f90'
 )
