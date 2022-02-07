@@ -910,8 +910,6 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_eht
    case('xtb')
       set%mode_extrun = p_ext_xtb
-   case('qmdff')
-      set%mode_extrun = p_ext_qmdff
    case('orca')
       set%mode_extrun = p_ext_orca
    case('turbomole')

@@ -112,7 +112,6 @@ module xtb_setparam
    integer, parameter :: p_ext_vtb       = -1
    integer, parameter :: p_ext_eht       =  0
    integer, parameter :: p_ext_xtb       =  1
-   integer, parameter :: p_ext_qmdff     =  2
    integer, parameter :: p_ext_driver    =  3
    integer, parameter :: p_ext_turbomole =  4
    integer, parameter :: p_ext_orca      =  5

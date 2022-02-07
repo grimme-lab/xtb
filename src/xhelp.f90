@@ -88,123 +88,178 @@ subroutine help(iunit)
    "",&
    "Options:",&
    "",&
-   "   -c,--chrg INT     specify molecular charge as INT,",&
-   "                     overrides .CHRG file and xcontrol option",&
-   "   -u,--uhf INT      specify Nalpha-Nbeta as INT,",&
-   "                     overrides .UHF file and xcontrol option",&
+   "-c, --chrg INT",&
+   "    specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
    "",&
-   "   -a,--acc REAL     accuracy for SCC calculation, lower is better (default = 1.0)",&
+   "-u, --uhf INT",&
+   "    specify Nalpha-Nbeta as INT, overrides .UHF file and xcontrol option",&
    "",&
-   "      --iterations INT number of iterations in SCC (default = 250)",&
+   "--gfn INT",&
+   "    specify parametrisation of GFN-xTB (default = 2)",&
    "",&
-   "      --cycles       number of cycles in ANCopt (default = automatic)",&
+   "--gfnff, --gff",&
+   "    specify parametrisation of GFN-FF",&
    "",&
-   "      --gfn INT      specify parametrisation of GFN-xTB (default = 2)",&
+   "--etemp REAL",&
+   "    electronic temperature (default = 300K)",&
    "",&
-   "      --gfnff        use the GFN-FF",&
+   "--esp",&
+   "    calculate electrostatic potential on VdW-grid",&
    "",&
-   "      --qmdff        use QMDFF for single point (needs solvent-file)",&
+   "--stm",&
+   "    calculate STM image",&
    "",&
-   "      --tm           use TURBOMOLE for single point (needs control-file)",&
+   "-a, --acc REAL",&
+   "    accuracy for SCC calculation, lower is better (default = 1.0)",&
    "",&
-   "      --orca         use ORCA for single point (writes ORCA input)",&
+   "--vparam FILE",&
+   "    Parameter file for vTB calculation",&
    "",&
-   "      --mopac        use MOPAC for single point (writes MOPAC input)",&
+   "--xparam FILE",&
+   "    Parameter file for xTB calculation (not used)",&
    "",&
-   "      --etemp REAL   electronic temperature (default = 300K)",&
+   "--alpb SOLVENT [STATE]",&
+   "    analytical linearized Poisson-Boltzmann (ALPB) model,",&
+   "    available solvents are acetone, acetonitrile, aniline, benzaldehyde,",&
+   "    benzene, ch2cl2, chcl3, cs2, dioxane, dmf, dmso, ether, ethylacetate, furane,", &
+   "    hexandecane, hexane, methanol, nitromethane, octanol, woctanol, phenol, toluene,",&
+   "    thf, water.",&
+   "    The solvent input is not case-sensitive. The Gsolv",&
+   "    reference state can be chosen as reference or bar1M (default).",&
    "",&
-   "      --vparam FILE  Path to parameter file, must match requested model",&
+   "-g, --gbsa SOLVENT [STATE]",&
+   "    generalized born (GB) model with solvent accessable surface (SASA) model,",&
+   "    available solvents are acetone, acetonitrile, benzene (only GFN1-xTB), CH2Cl2,",&
+   "    CHCl3, CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol,",&
+   "    n-hexane (only GFN2-xTB), THF and toluene.",&
+   "    The solvent input is not case-sensitive.", &
+   "    The Gsolv reference state can be chosen as reference or bar1M (default).",&
    "",&
-   "      --alpb SOLVENT [STATE] analytical linearized Poisson-Boltzmann (ALPB)", &
-   "                     solvation model",&
+   "--cma",&
+   "    shifts molecule to center of mass and transforms cartesian coordinates into the",&
+   "    coordinate system of the principle axis (not affected by ‘isotopes’-file).",&
    "",&
-   "   -g,--gbsa SOLVENT [STATE] generalized born (GB) model with",&
-   "                     solvent accessable surface area (SASA) model",&
-   "                     (use --alpb instead)",&
+   "--pop",&
+   "    requests printout of Mulliken population analysis",&
    "",&
-   "      --pop          requests printout of Mulliken population analysis",&
+   "--molden",&
+   "    requests printout of molden file",&
    "",&
-   "      --molden       requests printout of molden file",&
+   "--dipole",&
+   "    requests dipole printout",&
    "",&
-   "      --dipole       requests dipole printout",&
+   "--wbo",&
+   "    requests Wiberg bond order printout",&
    "",&
-   "      --wbo          requests Wiberg bond order printout",&
+   "--lmo",&
+   "    requests localization of orbitals",&
    "",&
-   "      --lmo          requests localization of orbitals",&
+   "--fod",&
+   "    requests FOD calculation",&
    "",&
-   "      --fod          requests FOD calculation, adjusts",&
-   "                     electronic temperature to 12500 K if possible",&
+   "--scc, --sp",&
+   "    performs a single point calculation",&
    "",&
-   "      --scc, --sp    performs a single point calculation",&
+   "--vip",&
+   "    performs calculation of ionisation potential. This needs the param_ipea-xtb.txt",&
+   "    parameters and a GFN1 Hamiltonian.",&
    "",&
-   "      --vip          performs calculation of ionisation potential",&
+   "--vea",&
+   "    performs calculation of electron affinity. This needs the param_ipea-xtb.txt",&
+   "    parameters and a GFN1 Hamiltonian.",&
    "",&
-   "      --vea          performs calculation of electron affinity",&
+   "--vipea",&
+   "    performs calculation of electron affinity and ionisation potential.",&
+   "    This needs the param_ipea-xtb.txt parameters and a GFN1 Hamiltonian.",&
    "",&
-   "      --vipea        performs calculation of IP and EA",&
+   "--vfukui",&
+   "    performs calculation of Fukui indices.",&
    "",&
-   "      --vomega       performs calculation of electrophilicity index",&
+   "--vomega",&
+   "    performs calculation of electrophilicity index. This needs the param_ipea-xtb.txt",&
+   "    parameters and a GFN1 Hamiltonian.",&
    "",&
-   "      --vfukui       calculate Fukui indicies using GFN-xTB",&
+   "--grad",&
+   "    performs a gradient calculation",&
    "",&
-   "      --esp          calculate electrostatic potential on VdW-grid",&
+   "-o, --opt [LEVEL]",&
+   "    call ancopt(3) to perform a geometry optimization, levels from crude, sloppy,", &
+   "    loose, normal (default), tight, verytight to extreme can be chosen",&
    "",&
-   "      --stm          calculate STM image",&
+   "--hess",&
+   "    perform a numerical hessian calculation on input geometry",&
    "",&
-   "      --grad         performs a gradient calculation",&
+   "--ohess [LEVEL]",&
+   "    perform a numerical hessian calculation on an ancopt(3) optimized geometry",&
    "",&
-   "   -o,--opt [LEVEL]  call ancopt(3) to perform a geometry optimization,",&
-   "                     levels from crude, sloppy, loose, normal (default),",&
-   "                     tight, verytight to extreme can be chosen",&
+   "--bhess [LEVEL]",&
+   "    perform a biased numerical hessian calculation on an ancopt(3) optimized geometry",&
    "",&
-   "      --optts [LEVEL] [ROOT] call ancopt(3) to perform a transition state",&
-   "                     optimization, may need to perform a hessian calculation first",&
+   "--md",&
+   "    molecular dynamics simulation on start geometry",&
    "",&
-   "      --hess         perform a numerical hessian calculation on input geometry",&
+   "--metadyn [int]",&
+   "    meta dynamics simulation on start geometry, saving int snapshots of the", &
+   "    trajectory to bias the simulation",&
    "",&
-   "      --ohess [LEVEL] perform a numerical hessian calculation on",&
-   "                     an ancopt(3) optimized geometry",&
+   "--omd",&
+   "    molecular dynamics simulation on ancopt(3) optimized geometry,", &
+   "    a loose optimization level will be chosen",&
    "",&
-   "      --bhess [LEVEL] perform a numerical biased hessian calculation on",&
-   "                     an ancopt(3) optimized geometry",&
+   "--metaopt [LEVEL]",&
+   "    call ancopt(3) to perform a geometry optimization, then try to find other", &
+   "    minimas by meta dynamics",&
    "",&
-   "      --md           molecular dynamics simulation on start geometry",&
+   "--path [FILE]",&
+   "    use meta dynamics to calculate a path from the input geometry to the given", &
+   "    product structure",&
    "",&
-   "      --omd          molecular dynamics simulation on ancopt(3) optimized",&
-   "                     geometry, a loose optimization level will be chosen.",&
+   "--modef INT",&
+   "    modefollowing algorithm. INT specifies the mode that should be used for the", &
+   "    modefollowing.",&
    "",&
-   "      --metadyn [INT] meta dynamics simulation on start geometry",&
-   "                     saving INT snapshots to bias the simulation",&
+   "-I, --input FILE",&
+   "    use FILE as input source for xcontrol(7) instructions",&
    "",&
-   "      --modef INT    modefollowing algorithm.  INT specifies the mode",&
-   "                     that should be used for the modefollowing.",&
+   "--namespace STRING",&
+   "    give this xtb(1) run a namespace. All files, even temporary ones, will be named",&
+   "    according to STRING (might not work everywhere).",&
    "",&
-   "   -I,--input FILE   use FILE as input source for xcontrol(7) instructions",&
+   "--[no]copy",&
+   "    copies the xcontrol file at startup (default = true)",&
    "",&
-   "      --namespace STRING give this xtb(1) run a namespace.",&
-   "                     All files, even temporary ones, will be named accordingly",&
+   "--[no]restart",&
+   "    restarts calculation from xtbrestart (default = true)",&
    "",&
-   "      --[no]copy     copies the xcontrol file at startup (default = false)",&
+   "-P, --parallel INT",&
+   "    number of parallel processes",&
    "",&
-   "      --[no]restart  restarts calculation from xtbrestart (default = true)",&
+   "--define",&
+   "    performs automatic check of input and terminate",&
    "",&
-!$ "   -P,--parallel INT number of parallel processes",&
-!$ "",&
-   "      --define       performs automatic check of input and terminate",&
+   "--json",&
+   "    write xtbout.json file",&
    "",&
-   "      --json         write a JSON file",&
+   "--citation",&
+   "    print citation and terminate",&
    "",&
-   "      --strict       turn warnings into fatal errors",&
+   "--license",&
+   "    print license and terminate",&
    "",&
-   "      --version      print version and terminate",&
+   "-v, --verbose",&
+   "    be more verbose (not supported in every unit)",&
    "",&
-   "      --citation     print citation and terminate",&
+   "-s, --silent",&
+   "    clutter the screen less (not supported in every unit)",&
    "",&
-   "      --license      print license and terminate",&
+   "--ceasefiles",&
+   "    reduce the amount of output and files written",&
    "",&
-   "   -v,--verbose      be more verbose (not supported in every unit)",&
+   "--strict",&
+   "    turns all warnings into hard errors",&
    "",&
-   "   -h,--help         show this message",&
+   "-h, --help",&
+   "    show help page",&
    "",&
    "Useful Maschine Settings:",&
    "",&

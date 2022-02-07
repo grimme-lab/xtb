@@ -36,7 +36,6 @@ module xtb_xtb_calculator
    use xtb_scanparam
    use xtb_sphereparam
    use xtb_scf, only : scf
-   use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
    use xtb_peeq, only : peeq
    use xtb_embedding, only : read_pcem
    use xtb_metadynamic

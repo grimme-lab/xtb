@@ -61,7 +61,6 @@ module xtb_prog_main
       & ncoord_d3
    use xtb_basis
    use xtb_axis, only : axis3
-   use xtb_qmdff, only : ff_ini
    use xtb_hessian, only : numhess
    use xtb_dynamic, only : md
    use xtb_modef, only : modefollow
@@ -170,7 +169,7 @@ subroutine xtbMain(env, argParser)
    integer  :: rohf,err
    real(wp) :: dum5,egap,etot,ipeashift
    real(wp) :: zero,t0,t1,w0,w1,acc,etot2,g298
-   real(wp) :: qmdff_s6,one,two
+   real(wp) :: one,two
    real(wp) :: ea,ip
    real(wp) :: vomega,vfukui
    real(wp),allocatable :: f_plus(:), f_minus(:)
@@ -295,8 +294,6 @@ subroutine xtbMain(env, argParser)
    !> FIXME: some settings that are still not automatic
    !> Make sure GFN0-xTB uses the correct exttyp
    if(set%gfn_method == 0)  call set_exttyp('eht')
-   !> C6 scaling of QMDFF dispersion to simulate solvent
-   qmdff_s6 = 1.0_wp
    rohf = 1 ! HS default
    egap = 0.0_wp
    ipeashift = 0.0_wp
@@ -547,10 +544,6 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> printout a header for the exttyp
    call calc%writeInfo(env%unit, mol)
-   select case(set%mode_extrun)
-   case(p_ext_qmdff)
-      call ff_ini(mol%n,mol%at,mol%xyz,cn,qmdff_s6)
-   end select
 
    call delete_file('.sccnotconverged')
 
@@ -1317,9 +1310,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--cma')
          call set_cma
-
-      case('--qmdff')
-         call set_exttyp('qmdff')
 
       case('--tm')
          call set_exttyp('turbomole')
