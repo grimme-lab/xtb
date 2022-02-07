@@ -159,16 +159,16 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
    call approx_bonds(n,at,xyz,cn,bond,0.0537_wp)
    !call get_bonds(n,at,xyz,bond)
 
-   if (pr_moments.or.pr_distances.or.pr_angles.or.pr_torsions) then
+   if (set%pr_moments.or.set%pr_distances.or.set%pr_angles.or.set%pr_torsions) then
       call generic_header(iunit,"Geometry Summary",49,10)
       write(iunit,'(a)')
    endif
 
-   if (pr_moments) then
+   if (set%pr_moments) then
       call print_moments(iunit,n,atmass,xyz)
    endif
 
-   if (pr_distances) then
+   if (set%pr_distances) then
       allocate( dist(maxdist),distel(maxelem,maxelem), &
          maxdel(maxelem,maxelem),mindel(maxelem,maxelem), source = 0.0_wp )
       allocate( id(2,maxdist),ndel(maxelem,maxelem), source = 0 )
@@ -181,7 +181,7 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
       deallocate( dist,distel,maxdel,mindel,id,ndel)
    endif
 
-   if (pr_angles) then
+   if (set%pr_angles) then
       allocate( bend(maxbend), source = 0.0_wp )
       allocate( ib(3,maxbend), source = 0 )
       call calc_angles(n,at,xyz,bond,maxbend,nbend,bend,ib)
@@ -191,7 +191,7 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
       deallocate( bend,ib )
    endif
 
-   if (pr_torsions) then
+   if (set%pr_torsions) then
       allocate( trsn(maxtrsn), source = 0.0_wp )
       allocate( it(4,maxtrsn), source = 0 )
       call calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)

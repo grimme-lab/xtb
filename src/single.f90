@@ -18,7 +18,6 @@
 !! ========================================================================
 !  DRIVER FOR SINGLEPOINT CALCULATIONS
 !  => call on (mini)scf to perform GFN-xTB single point calculations
-!  => call on qmdff to run the QMDFF on a solvent file
 !  => call on external driver library, interfaces
 !     -> Turbomole, ORCA, driver (which is by itself an interface)
 !  use the singlepoint function to get the appropiate call on the necessary

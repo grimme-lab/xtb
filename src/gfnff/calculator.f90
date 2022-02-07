@@ -140,7 +140,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  actual calculation
-   call gfnff_eg(env,gff_print,mol%n,ichrg,mol%at,mol%xyz,make_chrg, &
+   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
       & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy)
 
@@ -176,32 +176,32 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    if (printlevel.ge.2) then
       ! start with summary header
-      if (.not.silent) then
+      if (.not.set%silent) then
          write(env%unit,'(9x,53(":"))')
          write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.allocated(solvation)) then
+      if (.not.set%silent.and.allocated(solvation)) then
          write(env%unit,outfmt) "total w/o Gsolv   ", &
             &  results%e_total-results%g_solv, "Eh   "
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
       write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
-      if (.not.silent) then
+      if (.not.set%silent) then
          write(env%unit,'(9x,"::",49("."),"::")')
-         call print_gfnff_results(env%unit,results,verbose,allocated(solvation))
+         call print_gfnff_results(env%unit,results,set%verbose,allocated(solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          write(env%unit,outfmt) "total charge      ", sum(chk%nlist%q), "e    "
-         if (verbose) then
+         if (set%verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
             write(env%unit,outfmt) "atomisation energy", results%e_atom, "Eh   "
          endif
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,'(a)')
-      if (.not.silent) then
+      if (.not.set%silent) then
          call open_file(ich,'gfnff_charges','w')
          call print_charges(ich,mol%n,chk%nlist%q)
          call close_file(ich)
@@ -245,7 +245,7 @@ subroutine writeInfo(self, unit, mol)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
 
-   select case(mode_extrun)
+   select case(set%mode_extrun)
    case(p_ext_gfnff)
      call gfnff_header(unit,self%version)
    end select

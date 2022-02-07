@@ -21,8 +21,10 @@ module xtb_main_setup
    use xtb_mctc_systools, only : rdpath
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_model, only : init
+   use xtb_extern_orca, only : TOrcaCalculator, newOrcaCalculator
+   use xtb_extern_mopac, only : TMopacCalculator, newMopacCalculator
+   use xtb_extern_turbomole, only : TTMCalculator, newTMCalculator
    use xtb_type_calculator, only : TCalculator
-   use xtb_type_dummycalc, only : TDummyCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_param, only : TxTBParameter, chrg_parameter
@@ -68,16 +70,19 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
 
    type(TxTBCalculator), allocatable :: xtb
    type(TGFFCalculator), allocatable :: gfnff
+   type(TOrcaCalculator), allocatable :: orca
+   type(TMopacCalculator), allocatable :: mopac
+   type(TTMCalculator), allocatable :: turbo
    
    logical :: exitRun
 
-   select case(mode_extrun)
+   select case(set%mode_extrun)
    case default
       call env%error("Unknown calculator type", source)
    case(p_ext_eht, p_ext_xtb)
       allocate(xtb)
 
-      call newXTBCalculator(env, mol, xtb, fname, gfn_method, accuracy)
+      call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy)
 
       call env%check(exitRun)
       if (exitRun) then
@@ -98,9 +103,18 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy)
       end if
 
       call move_alloc(gfnff, calc)
-   case(p_ext_qmdff, p_ext_orca, p_ext_turbomole, p_ext_mopac)
-      allocate(TDummyCalculator :: calc)
-      calc%accuracy = accuracy
+   case(p_ext_orca)
+      allocate(orca)
+      call newOrcaCalculator(orca, env, set%ext_orca)
+      call move_alloc(orca, calc)
+   case(p_ext_mopac)
+      allocate(mopac)
+      call newMopacCalculator(mopac, env, set%ext_mopac)
+      call move_alloc(mopac, calc)
+   case(p_ext_turbomole)
+      allocate(turbo)
+      call newTMCalculator(turbo, set%extcode, set%extmode)
+      call move_alloc(turbo, calc)
    end select
 
 end subroutine newCalculator
@@ -196,8 +210,8 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
    end if
 
    !> check for external point charge field
-   if (allocated(pcem_file)) then
-      call open_file(ich, pcem_file, 'r')
+   if (allocated(set%pcem_file)) then
+      call open_file(ich, set%pcem_file, 'r')
       if (ich /= -1) then
          call read_pcem(ich, env, calc%pcem, calc%xtbData%coulomb)
          call close_file(ich)
@@ -260,7 +274,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 
    call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
-   call gfnff_setup(env, verbose, restart, mol, &
+   call gfnff_setup(env, set%verbose, restart, mol, &
       & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)
 
    call env%check(exitRun)
@@ -295,10 +309,10 @@ subroutine newWavefunction_(env, mol, calc, wfn)
    if (mol%npbc > 0) then
       wfn%q = mol%chrg/real(mol%n,wp)
    else
-      if (guess_charges.eq.p_guess_gasteiger) then
+      if (set%guess_charges.eq.p_guess_gasteiger) then
          call iniqcn(mol%n,mol%at,mol%z,mol%xyz,nint(mol%chrg),1.0_wp, &
             & wfn%q,cn,calc%xtbData%level,.true.)
-      else if (guess_charges.eq.p_guess_goedecker) then
+      else if (set%guess_charges.eq.p_guess_goedecker) then
          call new_charge_model_2019(chrgeq,mol%n,mol%at)
          call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
          call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)

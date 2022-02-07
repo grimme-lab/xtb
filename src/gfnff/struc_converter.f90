@@ -83,35 +83,35 @@ subroutine struc_convert( &
 !------------------------------------------------------------------------------
 ! set up force field
   call struc_convert_header
-  if (allocated(opt_engine)) then
-    opt_in = opt_engine
+  if (allocated(set%opt_engine)) then
+    opt_in = set%opt_engine
   end if
-  opt_engine = p_engine_rf
-  mode_input = mode_extrun
-  mode_extrun = p_ext_gfnff
+  set%opt_engine = p_engine_rf
+  mode_input = set%mode_extrun
+  set%mode_extrun = p_ext_gfnff
   if (.not.allocated(fnv)) fnv=xfind(p_fname_param_gfnff)
   call newGFFCalculator(env, mol, calc, fnv, restart, gffVersion%harmonic2020)
 
 !===============================
 ! Set Block
-  time_in  = time_md
-  time_md  = 5.0_wp              ! short 5 ps MD to move it in 3D
-  temp_in  = temp_md
-  temp_md  = 298.0_wp            ! md temperature 298 K
-  step_in  = tstep_md
-  tstep_md = 2.5_wp              ! md time step 2.5 fs
-  dump_in  = dump_md2
-  dump_md2 = 100.0_wp            ! md dump 100 fs
-  hmass_in = md_hmass
-  md_hmass = 4.0_wp              ! md hydrogen mass
-  nvt_md = .true.                ! md thermostat
+  time_in  = set%time_md
+  set%time_md  = 5.0_wp              ! short 5 ps MD to move it in 3D
+  temp_in  = set%temp_md
+  set%temp_md  = 298.0_wp            ! md temperature 298 K
+  step_in  = set%tstep_md
+  set%tstep_md = 2.5_wp              ! md time step 2.5 fs
+  dump_in  = set%dump_md2
+  set%dump_md2 = 100.0_wp            ! md dump 100 fs
+  hmass_in = set%md_hmass
+  set%md_hmass = 4.0_wp              ! md hydrogen mass
+  set%nvt_md = .true.                ! md thermostat
 !===============================
-  if (allocated(opt_logfile)) then
-    fnv = opt_logfile
+  if (allocated(set%opt_logfile)) then
+    fnv = set%opt_logfile
   else
     deallocate(fnv)
   endif
-  opt_logfile = 'convert.log'
+  set%opt_logfile = 'convert.log'
 !------------------------------------------------------------------------------
 ! force field geometry optimization
   ! loop runs 3 geoopt with different shifts in the new 3rd coordinate
@@ -132,7 +132,7 @@ subroutine struc_convert( &
     
     call geometry_optimization &
         &     (env,mol_shifted,chk,calc,   &
-        &      egap,etemp,maxiter,maxcycle,etot,g,sigma,p_olev_crude,.false.,.true.,fail)
+        &      egap,set%etemp,maxiter,maxcycle,etot,g,sigma,p_olev_crude,.false.,.true.,fail)
     mol_xyz_arr(:,:,i) = mol_shifted%xyz  ! store optimized xyz
     etot_arr(i) = etot                    ! store energy etot
   enddo
@@ -140,9 +140,9 @@ subroutine struc_convert( &
   mol%xyz(:,:) = mol_xyz_arr(:,:,minloc(etot_arr, DIM=1))  ! keep xyz with lowest etot
 
     if (allocated(fnv)) then
-      opt_logfile = fnv
+      set%opt_logfile = fnv
     else
-      deallocate(opt_logfile)
+      deallocate(set%opt_logfile)
     endif
     write(*,*)
 !------------------------------------------------------------------------------
@@ -150,18 +150,18 @@ subroutine struc_convert( &
   idum = 0
   call md                &
       &   (env,mol,chk,calc, &
-      &    egap,etemp,maxiter,etot,g,sigma,0,temp_md,idum)
+      &    egap,set%etemp,maxiter,etot,g,sigma,0,set%temp_md,idum)
 !------------------------------------------------------------------------------
 ! set all back to input
-  time_md  = time_in
-  temp_md  = temp_in
-  tstep_md = step_in
-  dump_md2 = dump_in
-  md_hmass = hmass_in
+  set%time_md  = time_in
+  set%temp_md  = temp_in
+  set%tstep_md = step_in
+  set%dump_md2 = dump_in
+  set%md_hmass = hmass_in
   if (allocated(opt_in)) then
-    opt_engine = opt_in
+    set%opt_engine = opt_in
   else
-    deallocate(opt_engine)
+    deallocate(set%opt_engine)
   end if
 !------------------------------------------------------------------------------
   write(*,*)
@@ -169,7 +169,7 @@ subroutine struc_convert( &
   write(*,'(10x,"|           2D => 3D conversion done!             |")')
   write(*,'(10x," ------------------------------------------------- ")')
   write(*,*)
-  mode_extrun = mode_input
+  set%mode_extrun = mode_input
   mol%struc%two_dimensional=.false.
   call gfnff_param_dealloc(calc%topo)
 

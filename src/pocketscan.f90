@@ -32,7 +32,7 @@ subroutine pocketscan(n,at,xyz,nout)
    character*2 dummy
    integer :: ich
 
-   npath=mode_nscan
+   npath=set%mode_nscan
    if(mod(npath,2).eq.0) npath=npath+1 ! make it odd
    ierr=0
    nout=0

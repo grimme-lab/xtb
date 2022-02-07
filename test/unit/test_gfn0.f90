@@ -103,7 +103,7 @@ subroutine test_gfn0_sp(error)
 
    call init(env)
 
-   gfn_method = 0
+   set%gfn_method = 0
 
    call init(mol, at, xyz)
 

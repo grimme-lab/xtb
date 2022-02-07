@@ -56,10 +56,10 @@ contains
 subroutine init_pcem
    use xtb_setparam
    implicit none
-   select case(pcem_interface)
+   select case(set%pcem_interface)
    case default
-      if (.not.allocated(pcem_file)) pcem_file = "pcharge"
-      if (.not.allocated(pcem_grad)) pcem_grad = "pcgrad"
+      if (.not.allocated(set%pcem_file)) set%pcem_file = "pcharge"
+      if (.not.allocated(set%pcem_grad)) set%pcem_grad = "pcgrad"
    end select
 end subroutine init_pcem
 
@@ -86,7 +86,7 @@ subroutine read_pcem(iunit,env,pcem,jData)
    real(wp) :: conv
 
    conv = 1.0_wp ! input is usually in *Bohr*
-   if (pcem_orca) then
+   if (set%pcem_orca) then
       conv = aatoau ! except when we try to read ORCA's pc-files
    endif
 
@@ -167,7 +167,7 @@ subroutine read_pcem(iunit,env,pcem,jData)
       else
          ! we trust the dummy atom from xcontrol, since xcontrol could already
          ! have handled potential errors, which is usually not the case...
-         gami = jData%chemicalHardness(pcem_dummyatom)
+         gami = jData%chemicalHardness(set%pcem_dummyatom)
       endif
       pcem%xyz(:,n) = xyz*conv
       pcem%q(n) = q

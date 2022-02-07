@@ -145,57 +145,57 @@ subroutine main_property &
 #endif
 
 !! orbital energies and occupation
-    if (pr_eig) then
+    if (set%pr_eig) then
        write(iunit,'(/,4x,"*",1x,a)') "Orbital Energies and Occupations"
        call print_orbital_eigenvalues(iunit,wfx,11)
     endif
 
 !! Mulliken and CM5 charges
-   if (pr_mulliken.and.gfn_method.eq.1) then
+   if (set%pr_mulliken.and.set%gfn_method.eq.1) then
       call print_mulliken(iunit,mol%n,mol%at,mol%sym,mol%xyz,mol%z, &
          & basis%nao,S,wfx%P,basis%aoat2,basis%lao2)
    end if
-   if (pr_charges) then
+   if (set%pr_charges) then
       call open_file(ifile,'charges','w')
       call print_charges(ifile,mol%n,wfx%q)
       call close_file(ifile)
    endif
 
    ! GBSA information
-   if (allocated(solvModel).and.pr_gbsa) then
+   if (allocated(solvModel).and.set%pr_gbsa) then
       call newBornModel(solvModel, env, gbsa, mol%at)
       call gbsa%update(env, mol%at, mol%xyz)
       call print_gbsa_info(iunit, mol%sym, gbsa)
    endif
 
 !! D4 molecular dispersion printout
-   if ((newdisp.and.gfn_method.eq.2).and.pr_mulliken) then
+   if ((set%newdisp.and.set%gfn_method.eq.2).and.set%pr_mulliken) then
       call print_molpol(iunit,mol%n,mol%at,mol%sym,mol%xyz,wfx%q, &
          & xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c, &
          & xtbData%dispersion%dispm)
    end if
-   if (gfn_method.eq.0.and.pr_mulliken) then
+   if (set%gfn_method.eq.0.and.set%pr_mulliken) then
       call print_molpol(iunit,mol%n,mol%at,mol%sym,mol%xyz,wfx%q, &
          & xtbData%dispersion%wf,xtbData%dispersion%g_a,xtbData%dispersion%g_c,&
          & xtbData%dispersion%dispm)
    end if
 
 !! Spin population
-   if (pr_spin_population .and. wfx%nopen.ne.0) then
+   if (set%pr_spin_population .and. wfx%nopen.ne.0) then
       call print_spin_population(iunit,mol%n,mol%at,mol%sym,basis%nao,wfx%focca,&
          & wfx%foccb,S,wfx%C,basis%aoat2,basis%lao2)
    end if
 
-   if (pr_fod_pop) then
+   if (set%pr_fod_pop) then
       call open_file(ifile,'fod','w')
       call print_fod_population(iunit,ifile,mol%n,mol%at,mol%sym,basis%nao,S, &
-         & wfx%C,etemp,wfx%emo,wfx%ihomoa,wfx%ihomob,basis%aoat2,basis%lao2)
+         & wfx%C,set%etemp,wfx%emo,wfx%ihomoa,wfx%ihomob,basis%aoat2,basis%lao2)
       call close_file(ifile)
    endif
 
 
 !! wiberg bond orders
-   if (pr_wiberg) then
+   if (set%pr_wiberg) then
       call open_file(ifile,'wbo','w')
       call print_wbofile(ifile,mol%n,wfx%wbo,0.1_wp)
       call close_file(ifile)
@@ -204,11 +204,11 @@ subroutine main_property &
       call checkTopology(iunit, mol, wfx%wbo, 1)
    endif
 
-   if (pr_wbofrag) &
+   if (set%pr_wbofrag) &
    call print_wbo_fragment(iunit,mol%n,mol%at,wfx%wbo,0.1_wp)
 
 !! molden file
-   if (pr_molden_input) then
+   if (set%pr_molden_input) then
       allocate(C(basis%nbf,basis%nao),focc(basis%nao),emo(basis%nao), source = 0.0_wp)
       if (basis%nbf.eq.basis%nao) then
          C = wfx%C
@@ -222,24 +222,24 @@ subroutine main_property &
       deallocate(C,focc,emo)
    endif
 
-   if (pr_gbw) &
+   if (set%pr_gbw) &
    call wrgbw(xtbData,mol%n,mol%at,mol%xyz,mol%z,basis,wfx)
 
-   if (pr_tmbas .or. pr_tmmos) then
+   if (set%pr_tmbas .or. set%pr_tmmos) then
       call open_file(ifile,'basis','w')
       call write_tm_basis(ifile,xtbData,mol%n,mol%at,basis,wfx)
       call close_file(ifile)
    endif
 
-   if (pr_tmmos) then
+   if (set%pr_tmmos) then
       call open_file(ifile,'mos','w')
       call write_tm_mos(ifile,mol%n,mol%at,basis,wfx)
       call close_file(ifile)
    endif
 
 !! multipole moment prinout
-   if (pr_dipole) then
-      if (gfn_method.gt.1) then
+   if (set%pr_dipole) then
+      if (set%gfn_method.gt.1) then
          ! print overall multipole moment
          call molmom(iunit,mol%n,mol%xyz,wfx%q,wfx%dipm,wfx%qp,dip,dipol)
          write(iunit,'(a)')
@@ -296,13 +296,13 @@ subroutine main_cube &
 
 !! ------------------------------------------------------------------------
 !  FOD
-   if (pr_fod) then
+   if (set%pr_fod) then
       allocate( C(basis%nbf,basis%nao), focca(basis%nao), foccb(basis%nao), focc(basis%nao), emo(basis%nao), &
                 source = 0.0_wp )
       if(wfx%ihomoa+1.le.basis%nao) &
-         call fermismear(.false.,basis%nao,wfx%ihomoa,etemp,wfx%emo,focca,nfoda,efa,ga)
+         call fermismear(.false.,basis%nao,wfx%ihomoa,set%etemp,wfx%emo,focca,nfoda,efa,ga)
       if(wfx%ihomob+1.le.basis%nao) &
-         call fermismear(.false.,basis%nao,wfx%ihomob,etemp,wfx%emo,foccb,nfodb,efb,gb)
+         call fermismear(.false.,basis%nao,wfx%ihomob,set%etemp,wfx%emo,foccb,nfodb,efb,gb)
       emo = wfx%emo * evtoau
       call fodenmak(.true.,basis%nao,emo,focca,efa)
       call fodenmak(.true.,basis%nao,emo,foccb,efb)
@@ -320,7 +320,7 @@ subroutine main_cube &
 
 !! ------------------------------------------------------------------------
 !  print spin density to cube file
-   if (pr_spin_density.and.wfx%nopen.ne.0) then
+   if (set%pr_spin_density.and.wfx%nopen.ne.0) then
       allocate( C(basis%nbf,basis%nao), focc(basis%nao), emo(basis%nao), source = 0.0_wp )
       if(basis%nbf.eq.basis%nao) then
          C = wfx%C
@@ -337,7 +337,7 @@ subroutine main_cube &
 
 !! ------------------------------------------------------------------------
 !  print density to cube file
-   if (pr_density) then
+   if (set%pr_density) then
       allocate( C(basis%nbf,basis%nao), emo(basis%nao), source = 0.0_wp )
       if(basis%nbf.eq.basis%nao) then
          C = wfx%C
@@ -353,7 +353,7 @@ subroutine main_cube &
 
 !! ------------------------------------------------------------------------
 !  make an ESP plot
-   if (pr_esp) then
+   if (set%pr_esp) then
       allocate( C(basis%nbf,basis%nao), source = 0.0_wp )
       if(basis%nbf.eq.basis%nao) then
          C = wfx%C
@@ -366,7 +366,7 @@ subroutine main_cube &
 
 !! ------------------------------------------------------------------------
 !  make a STM image
-   if (pr_stm) then
+   if (set%pr_stm) then
       allocate( C(basis%nbf,basis%nao), focc(basis%nao), source = 0.0_wp )
       if(basis%nbf.eq.basis%nao) then
          C = wfx%C
@@ -374,9 +374,9 @@ subroutine main_cube &
          call sao2cao(basis%nao,wfx%C,basis%nbf,C,basis)
       endif
       if(wfx%ihomoa+1.le.wfx%nao) &
-         call fermismear(.false.,basis%nao,wfx%ihomoa,etemp,wfx%emo,focc,nfoda,efa,ga)
+         call fermismear(.false.,basis%nao,wfx%ihomoa,set%etemp,wfx%emo,focc,nfoda,efa,ga)
       if(wfx%ihomob+1.le.wfx%nao) &
-         call fermismear(.false.,basis%nao,wfx%ihomob,etemp,wfx%emo,focc,nfodb,efb,gb)
+         call fermismear(.false.,basis%nao,wfx%ihomob,set%etemp,wfx%emo,focc,nfodb,efb,gb)
       call stmpic(mol%n,basis%nao,basis%nbf,mol%at,mol%xyz,C,0.5_wp*(efa+efb),wfx%emo,basis)
       deallocate(C, focc)
    endif
@@ -454,7 +454,7 @@ subroutine main_freq &
       & 'recommended (thermochemical) frequency scaling factor: 1.0'
    call g98fake2('g98.out',mol%n,mol%at,mol%xyz,res%freq,res%rmass,res%dipt,res%hess)
 
-   if (pr_nmtm) then
+   if (set%pr_nmtm) then
       call open_file(ifile, "vib_normal_modes", 'w')
       if (ifile .ne. -1) then
          call writeNormalModesTurbomole(ifile, atmass, res%hess)
@@ -465,9 +465,9 @@ subroutine main_freq &
    call generic_header(iunit,"Thermodynamic Functions",49,10)
    call print_thermo(iunit,mol%n,res%n3true,mol%at,mol%xyz,res%freq,res%etot,res%htot,res%gtot, &
                      res%nimag,.true.,res%zp)
-   res%pg = trim(pgroup)
-   res%temp = thermotemp(nthermo)
-   if (enso_mode) then
+   res%pg = trim(set%pgroup)
+   res%temp = set%thermotemp(set%nthermo)
+   if (set%enso_mode) then
       call open_file(ifile,"xtb_enso.json",'w')
       if (ifile .ne. -1) then
          call enso_printout(ifile,res)
@@ -478,23 +478,23 @@ subroutine main_freq &
    ! distort along imags if present
    call distort(mol,res%freq,res%hess)
 
-   if(pr_modef .and. (mol%n.gt.3)) then
+   if(set%pr_modef .and. (mol%n.gt.3)) then
 
       ! do analysis and write mode following file
-      call wrmodef(0,mol%n,mol%at,mol%xyz,wfx%wbo,res%rmass,res%freq,res%hess,h,mode_vthr,res%linear)
+      call wrmodef(0,mol%n,mol%at,mol%xyz,wfx%wbo,res%rmass,res%freq,res%hess,h,set%mode_vthr,res%linear)
 
       ! localize the modes
-      if(mode_vthr.gt.1.d-6)then
+      if(set%mode_vthr.gt.1.d-6)then
          ! determine molecular fragments
          call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
          call cutcov(mol%n,mol%at,mol%xyz,cn,wfx%wbo,bond)
          call mrec(i,mol%xyz,cn,bond,mol%n,mol%at,molvec)
-         call locmode(mol%n,res%n3,mol%at,mol%xyz,mode_vthr,res%freq,res%rmass,res%hess, &
+         call locmode(mol%n,res%n3,mol%at,mol%xyz,set%mode_vthr,res%freq,res%rmass,res%hess, &
                       i,molvec)
          call PREIGF0(iunit,res%freq,res%n3true)
          write(iunit,'("written to xtb_localmodes and g98l.out")')
          call wrmodef(1,mol%n,mol%at,mol%xyz,wfx%wbo,res%rmass,res%freq,res%hess, &
-                      h,mode_vthr+200.0_wp,res%linear)
+                      h,set%mode_vthr+200.0_wp,res%linear)
       endif
 
       call open_file(ifile,'.tmpxtbmodef','w')
@@ -993,22 +993,22 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
 
    logical linear,atom,da
 
-   allocate( et(nthermo), ht(nthermo), gt(nthermo), ts(nthermo), &
+   allocate( et(set%nthermo), ht(set%nthermo), gt(set%nthermo), ts(set%nthermo), &
       &      vibs(3*nat), tmp(3*nat), source = 0.0_wp )
 
    ! frequencies read in are considered
    ! as being real if .gt. this value in cm-1
    ! this threshold requires projected freqs.!
    vibthr=1.0
-   ithr=thermo_ithr
+   ithr=set%thermo_ithr
 
    atom=.false.
    linear=.false.
-   sthr=thermo_sthr
-   if (abs(thermo_fscal - 1.0_wp) > 1.0e-8_wp) then
-      scale_factor=thermo_fscal
+   sthr=set%thermo_sthr
+   if (abs(set%thermo_fscal - 1.0_wp) > 1.0e-8_wp) then
+      scale_factor=set%thermo_fscal
    else
-      if (mode_extrun.eq.p_ext_gfnff) then
+      if (set%mode_extrun.eq.p_ext_gfnff) then
          scale_factor = 1.03_wp
       else
          scale_factor = 1.0_wp
@@ -1030,8 +1030,8 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    endif
 
    ! the rotational number
-   call getsymmetry(pr,iunit,nat,at,xyz,desy,maxatdesy,pgroup)
-   call getsymnum(pgroup,linear,symnum)
+   call getsymmetry(pr,iunit,nat,at,xyz,set%desy,set%maxatdesy,set%pgroup)
+   call getsymnum(set%pgroup,linear,symnum)
 
    vibs=0
    do i=1,3*nat
@@ -1056,12 +1056,12 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    k=nvib
    nvib=0
    j=0
-   diff = abs(maxval(vibs) - thermo_sthr)
+   diff = abs(maxval(vibs) - set%thermo_sthr)
    do i=1,k
       if(tmp(i).gt.0) then
          nvib=nvib+1
-         if (abs(tmp(i) - thermo_sthr) < diff) then
-            diff = abs(tmp(i) - thermo_sthr)
+         if (abs(tmp(i) - set%thermo_sthr) < diff) then
+            diff = abs(tmp(i) - set%thermo_sthr)
             isthr = nvib
          endif
          vibs(nvib)=tmp(i)*rcmtoau ! work in atomic units, seriously
@@ -1080,20 +1080,20 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
       write(iunit,intfmt) "# imaginary freq.",nimag
       write(iunit,chrfmt) "linear?          ",bool2string(linear)
       write(iunit,chrfmt) "only rotor calc. ",bool2string(nvib.eq.0)
-      write(iunit,chrfmt) "symmetry         ",trim(pgroup)
+      write(iunit,chrfmt) "symmetry         ",trim(set%pgroup)
       write(iunit,intfmt) "rotational number",int(symnum)
       write(iunit,dblfmt) "scaling factor   ",scale_factor,"    "
-      write(iunit,dblfmt) "rotor cutoff     ",thermo_sthr, "cm⁻¹"
+      write(iunit,dblfmt) "rotor cutoff     ",set%thermo_sthr, "cm⁻¹"
       write(iunit,dblfmt) "imag. cutoff     ",ithr, "cm⁻¹"
       write(iunit,'(10x,":",49("."),":")')
    endif
 
-   call print_thermo_sthr_ts(iunit,nvib,vibs,avmom,thermo_sthr,thermotemp(nthermo))
+   call print_thermo_sthr_ts(iunit,nvib,vibs,avmom,set%thermo_sthr,set%thermotemp(set%nthermo))
 
    ! do calc.
    zp = 0.5_wp * sum(vibs(1:nvib))
-   do i = 1, nthermo
-      temp=thermotemp(i)
+   do i = 1, set%nthermo
+      temp=set%thermotemp(i)
       call thermodyn(iunit,aa,bb,cc,avmom,linear,atom,symnum,wt,vibs,nvib,escf, &
          & temp,sthr,et(i),ht(i),gt(i),ts(i),zp,pr)
       !call oldthermo(aa,bb,cc,avmom,linear,atom,symnum,wt,vibs,nvib,escf, &
@@ -1108,13 +1108,13 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    write(iunit,'(a16)',advance='no') "G(T)/Eh"
    write(iunit,'(a)')
    write(iunit,'(3x,72("-"))')
-   do i = 1, nthermo
-      write(iunit,'(3f10.2)',advance='no') thermotemp(i)
+   do i = 1, set%nthermo
+      write(iunit,'(3f10.2)',advance='no') set%thermotemp(i)
       write(iunit,'(3e16.6)',advance='no') ht(i)
       write(iunit,'(3e16.6)',advance='no') et(i)
       write(iunit,'(3e16.6)',advance='no') ts(i)
       write(iunit,'(3e16.6)',advance='no') gt(i)
-      if (i.eq.nthermo .and. nthermo.gt.1) then
+      if (i.eq.set%nthermo .and. set%nthermo.gt.1) then
          write(iunit,'(1x,"(used)")')
       else
          write(iunit,'(a)')
@@ -1122,8 +1122,8 @@ subroutine print_thermo(iunit,nat,nvib_in,at,xyz,freq,etot,htot,gtot,nimag,pr,zp
    enddo
    write(iunit,'(3x,72("-"))')
 
-   gtot = gt(nthermo)
-   htot = et(nthermo)
+   gtot = gt(set%nthermo)
+   htot = et(set%nthermo)
 
    write(iunit,'(a)')
    write(iunit,'(9x,53(":"))')

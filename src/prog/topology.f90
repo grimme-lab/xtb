@@ -29,7 +29,7 @@ module xtb_prog_topology
    use xtb_prog_argparser, only : TArgParser
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_main_setup, only : newGFFCalculator
-   use xtb_setparam, only : xenv, ichrg
+   use xtb_setparam, only : xenv, set
    use xtb_setmod, only : set_chrg
    implicit none
    private
@@ -95,7 +95,7 @@ subroutine xtbTopology(env, argParser)
          call env%error('.CHRG is empty!', source)
       else
          call set_chrg(env, line)
-         mol%chrg = ichrg
+         mol%chrg = set%ichrg
          call close_file(unit)
       end if
    end if

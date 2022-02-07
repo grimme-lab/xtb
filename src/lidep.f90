@@ -33,7 +33,7 @@
 module xtb_lineardep
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_lapack, only : lapack_sygvd, lapack_syev
-   use xtb_setparam, only: lidethr
+   use xtb_setparam, only: set
    use xtb_mctc_blas, only : blas_gemm, blas_symm
    implicit none
 
@@ -377,7 +377,7 @@ subroutine lidepcut(iunit,ndim,s,U,sisq,newdim,printl)
     & write(iunit,'(2x,a)',advance='no')'Cutting off small eigenvalues    ...'
     do i=1,ndim
       eigen = s(i)
-      if(eigen > lidethr) then
+      if(eigen > set%lidethr) then
         eigen = sqrt(eigen)
         s(i) = eigen
         sisq(i) = 1.0d0 / eigen
@@ -394,7 +394,7 @@ subroutine lidepcut(iunit,ndim,s,U,sisq,newdim,printl)
     write(iunit,'(2x,a)')'Maximum eigenvalues of the overlap:'
     write(iunit,'(4x,a,f10.4)')'Largest eigenvalue              : ',ehig
     write(iunit,'(4x,a,f10.4)')'Smallest eigenvalue             : ',elow
-    write(iunit,'(2x,a,e14.4)')'Eigenvalue cut-off threshold      : ',lidethr
+    write(iunit,'(2x,a,e14.4)')'Eigenvalue cut-off threshold      : ',set%lidethr
     write(iunit,'(2x,a,i6)')   'Initial number of eigenvectors    : ',ndim
     write(iunit,'(2x,a,i6)')   'Removed eigenvectors              : ',ndim-newdim
     write(iunit,'(2x,a,i6)')   'Number of remaining eigenvectors  : ',newdim

@@ -69,8 +69,8 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
    call timing(t0,w0)
    write(*,*)
    write(*,*)'cube file module (SG, 7/16)'
-   thr = cube_pthr ! Dmat pre-screen
-   step= cube_step ! grid step (Bohr)
+   thr = set%cube_pthr ! Dmat pre-screen
+   step= set%cube_step ! grid step (Bohr)
    intcut=8.00d0   ! primitive cut
    intcut2=2.0d0*intcut
 
@@ -116,8 +116,8 @@ subroutine cube(n,nmo,nbf,xyz,at,cmo,eval,occ,fname,basis)
          endif
       enddo
    enddo
-   write(*,'('' cube_pthr     : '',f7.3)')cube_pthr
-   write(*,'('' cube_step     : '',f7.3)')cube_step
+   write(*,'('' cube_pthr     : '',f7.3)')set%cube_pthr
+   write(*,'('' cube_step     : '',f7.3)')set%cube_step
    write(*,'('' non-zero P (%): '',f7.3,''   nmat:'',i8)') &
    & 100.*float(nm)/float(nbf*(nbf+1)/2),nm
 

@@ -21,6 +21,7 @@ module xtb_freq_turbomole
    use xtb_mctc_accuracy, only : wp
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
+   use xtb_extern_turbomole, only : wrtm
 
    implicit none
 

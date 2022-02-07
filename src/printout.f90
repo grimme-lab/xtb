@@ -90,7 +90,7 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
    ! ----------------------------------------------------------------------
    !  print the home and path to check if there are set correctly
    write(iunit,'(10x,a,":",1x,a)') 'coordinate file            ',fname
-   if (verbose) then
+   if (set%verbose) then
       write(iunit,'(10x,a,":",1x,a)') 'xtbhome directory          ',xenv%home
       write(iunit,'(10x,a,":",1x,a)') 'path for xtb               ',xenv%path
       write(iunit,'(10x,a,":",1x,a)') 'xcontrol input file        ',xcontrol
@@ -108,15 +108,15 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
    !  print more specific calculation data
    write(iunit,'(10x,a,":",6x,i16)')   'number of atoms            ',n
    write(iunit,'(10x,a,":",6x,i16)')   'number of electrons        ',wfx%nel
-   write(iunit,'(10x,a,":",6x,i16)')   'charge                     ',ichrg
+   write(iunit,'(10x,a,":",6x,i16)')   'charge                     ',set%ichrg
    write(iunit,'(10x,a,":",6x,f16.1)') 'spin                       ',0.5_wp*wfx%nopen
    call random_number(dum5)
    write(iunit,'(10x,a,":",6x,f16.14)') 'first test random number   ',dum5
-   if (verbose) then
+   if (set%verbose) then
       write(iunit,'(10x,a,":",12x,"0x",z8)') 'a pointer address          ',real(dum5,sp)
       write(iunit,'(10x,a,":",6x,z16)') 'random memory content      ',dum5
    endif
-   if (veryverbose) then
+   if (set%veryverbose) then
       write(iunit,'(10x,a,":",20x,a)') 'is this your card?         ',"🃓"
       write(iunit,'(10x,a,":",15x,"so true")')'this was released?         '
    endif

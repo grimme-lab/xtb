@@ -95,12 +95,12 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    !  some parameters
    !! ------------------------------------------------------------------------
 
-   nrefine =pathset%nrun! # of refinement (full path opt) steps (usually 1)
+   nrefine =set%pathset%nrun! # of refinement (full path opt) steps (usually 1)
    nalp    =4           ! # of test runs with different alpha bias
    nk      =6           ! # of test runs with different k bias
    maxpath =nalp*nk
 
-   ppull= pathset%ppull ! default pull strength on path point
+   ppull= set%pathset%ppull ! default pull strength on path point
 
    pthr = 0.00_wp       ! include points on path depending on overlap of approx TS modes
    gthr = 0.01_wp       ! Gnorm at TS exit thr
@@ -110,8 +110,8 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    alp_change= 0.2_wp   ! decrease alpha in each alp try by this
    scc       = 2.0_wp   ! high accuracy not important in SP
 
-   optset%maxdispl_opt=0.50_wp ! don't make it too small (more points, erratic behavior)
-   optset%hlow_opt    =0.03_wp ! too small values can cause spikes
+   set%optset%maxdispl_opt=0.50_wp ! don't make it too small (more points, erratic behavior)
+   set%optset%hlow_opt    =0.03_wp ! too small values can cause spikes
 
    ilog =14
    ilog2=142
@@ -121,12 +121,12 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    allocate(xyze(3,mol%n),xyzp(3,mol%n),bo(mol%n,mol%n),atp(mol%n),cn(mol%n))
    allocate(npath(maxpath),mempath(4,maxpath))
 
-   if (.not.allocated(pathset%fname)) then
+   if (.not.allocated(set%pathset%fname)) then
       call env%error('No product structure given!', source)
       return
    endif
-   write(env%unit,*) 'reading reference structures from '//pathset%fname//' ...'
-   call rdcoord(pathset%fname,mol%n,xyzp,atp) ! product
+   write(env%unit,*) 'reading reference structures from '//set%pathset%fname//' ...'
+   call rdcoord(set%pathset%fname,mol%n,xyzp,atp) ! product
    if (any(atp.ne.mol%at)) then
       call env%error('Atom type missmatch between reactant and product!', source)
    endif
@@ -135,20 +135,20 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    call rmsd(mol%n,xyze,xyzp,0,U,x,y,rms,.false.,gtmp)
    write(env%unit,'("reactant product RMSD :",f9.3)')rms
 
-   if (pathset%nat.gt.0) then
-      metaset%nat = pathset%nat
-      metaset%atoms = pathset%atoms
+   if (set%pathset%nat.gt.0) then
+      metaset%nat = set%pathset%nat
+      metaset%atoms = set%pathset%atoms
       fnat=real(metaset%nat,wp)   ! # atoms used in RMSD
    else
       metaset%nat = 0
       fnat= mol%n  ! all atoms used in RMSD
    endif
 
-   write(env%unit,'("initial k push/pull (in code xNat) :",2f9.3)')pathset%kpush,pathset%kpull
-   write(env%unit,'("initial Gaussian width (1/Bohr)    :",f9.3)')pathset%alp
+   write(env%unit,'("initial k push/pull (in code xNat) :",2f9.3)')set%pathset%kpush,set%pathset%kpull
+   write(env%unit,'("initial Gaussian width (1/Bohr)    :",f9.3)')set%pathset%alp
    write(env%unit,'("# refinement runs                  :",i4)')nrefine
-   write(env%unit,'("# of ''an''-optimization steps       :",i4)')pathset%anopt
-   write(env%unit,'("# optlevel                         :",i4)')optset%optlev
+   write(env%unit,'("# of ''an''-optimization steps       :",i4)')set%pathset%anopt
+   write(env%unit,'("# optlevel                         :",i4)')set%optset%optlev
    write(env%unit,*)
 
    !! ------------------------------------------------------------------------
@@ -198,9 +198,9 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
          irun = irun + 1
          ! set for metadyn routine (common)
-         metaset%factor(1) = pathset%kpush * factor * fnat
-         metaset%factor(2) = pathset%kpull * factor * fnat
-         metaset%width(:) = pathset%alp - factor2
+         metaset%factor(1) = set%pathset%kpush * factor * fnat
+         metaset%factor(2) = set%pathset%kpull * factor * fnat
+         metaset%width(:) = set%pathset%alp - factor2
          metaset%width(:) = max(metaset%width(:),0.2_wp)
 
          !! ------------------------------------------------------------------------
@@ -222,7 +222,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
          metaset%nstruc = 2
          maxoptiter     = 0
-         olev           = optset%optlev       ! opt level
+         olev           = set%optset%optlev       ! opt level
          mol%xyz        = xyze
 
          atmp='xtbopt.log'
@@ -336,9 +336,9 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    !! ------------------------------------------------------------------------
 
    write(env%unit,'("screening points ...")')
-   if(np.gt.pathset%nopt)then
+   if(np.gt.set%pathset%nopt)then
       allocate(xyzdum(3,mol%n,np))
-      call screenpath(np,pathset%nopt,idum,mol%n,xyzpath,epath,xyzdum)
+      call screenpath(np,set%pathset%nopt,idum,mol%n,xyzpath,epath,xyzdum)
       xyzdum(:,:,1:idum)=xyzpath(1:,:,1:idum)
       deallocate(xyzpath,epath)
       np=idum
@@ -372,7 +372,7 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    !  new section for path refinment by restricted (path biased) opt.
    !! ------------------------------------------------------------------------
 
-   maxoptiter=pathset%anopt
+   maxoptiter=set%pathset%anopt
 
    allocate(xyzdum(3,mol%n,np))
    call open_file(ilog,'xtbopt.log','w')
