@@ -29,6 +29,12 @@ jobs:
       uses: actions/setup-python@v1
       with:
         python-version: 3.x
+
+    - name: Install OpenBLAS (OSX)
+      if: ${{ contains(matrix.os, 'macos') }}
+      run: |
+        brew install openblas
+        echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
         
     - name: Install GCC 8 (Ubuntu)
       if: contains(matrix.fc, 'gfortran-8') && contains(matrix.os, 'ubuntu')
@@ -44,10 +50,11 @@ jobs:
         --buildtype=debug
         --warnlevel=0
         -Db_coverage=true
-        -Dla_backend=netlib
+        ${{ env.MESON_ARGS }}
       env:
         FC: ${{ matrix.fc }}
         CC: ${{ matrix.cc }}
+        MESON_ARGS: ${{ contains(matrix.os, 'macos') && '-Dla_backend=openblas' || '-Dla_backend=netlib' }}
 
     - name: Build project
       run: meson compile -C ${{ env.BUILD_DIR }}
@@ -128,7 +135,7 @@ jobs:
           mingw-w64-${{ matrix.arch }}-ninja
 
     - name: Install meson
-      run: pip install meson==0.57.2
+      run: pip install meson==0.56
 
     - name: Configure build
       run: meson setup ${{ env.BUILD_DIR }} -Dla_backend=netlib --warnlevel=0
