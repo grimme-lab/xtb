@@ -27,8 +27,7 @@ module xtb_prog_topology
    use xtb_type_molecule, only : TMolecule
    use xtb_type_reader, only : TReader
    use xtb_prog_argparser, only : TArgParser
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
    use xtb_setparam, only : xenv, set
    use xtb_setmod, only : set_chrg
    implicit none

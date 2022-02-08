@@ -84,6 +84,7 @@ module xtb_prog_main
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
    use xtb_kopt
+   use xtb_oniom, only : oniom_input
    implicit none
    private
 
@@ -110,6 +111,7 @@ subroutine xtbMain(env, argParser)
    type(freq_results) :: fres
    type(TRestart) :: chk
    type(chrg_parameter) :: chrgeq
+   type(oniom_input) :: oniom
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
    character(len=:),allocatable :: xcontrol ! instruction file
@@ -199,7 +201,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom)
 
    nFiles = argParser%countFiles()
    select case(nFiles)
@@ -503,7 +505,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
-   call newCalculator(env, mol, calc, fnv, restart, acc)
+   call newCalculator(env, mol, calc, fnv, restart, acc, oniom)
    call env%checkpoint("Could not setup parameterisation")
 
    call initDefaults(env, calc, mol, gsolvstate)
@@ -869,7 +871,7 @@ subroutine xtbMain(env, argParser)
    type is(TxTBCalculator)
       call write_energy(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))
-   type is(TGFFCalculator)
+   class default
       call write_energy_gff(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))
    end select  
@@ -1065,7 +1067,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1106,6 +1108,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
    !> Copy the detailed input file
    logical, intent(out) :: copycontrol
+
+   !> Input for ONIOM model
+   type(oniom_input), intent(out) :: oniom
 
 !$ integer :: omp_get_num_threads, nproc
    integer :: nFlags
@@ -1276,6 +1281,22 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       
       case('--gff')
          call set_exttyp('ff')
+
+      case('--oniom')
+         call set_exttyp('oniom')
+         call args%nextArg(sec) ! 'gfn2:gfnff'
+         if (.not.allocated(sec)) then
+            call env%error("No method provided for ONIOM", source)
+            cycle
+         end if
+         call move_alloc(sec, oniom%method)
+
+         call args%nextArg(sec)
+         if (.not.allocated(sec)) then
+            call env%error("No inner region provided for ONIOM", source)
+            cycle
+         end if
+         call move_alloc(sec, oniom%list)
 
       case('--etemp')
          call args%nextArg(sec)

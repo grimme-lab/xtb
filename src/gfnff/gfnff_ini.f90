@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 module xtb_gfnff_ini
+
 contains
 
 subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
@@ -31,6 +32,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       use xtb_gfnff_fraghess
       use xtb_restart
       use xtb_mctc_constants
+
       implicit none
       character(len=*), parameter :: source = 'gfnff_ini'
 !--------------------------------------------------------------------------------------------------
@@ -77,13 +79,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       logical heavy,triple,piat,sp3kl,ex,cnij,frag_charges_known
 
       integer,allocatable :: btyp(:),imetal(:),nbm(:,:),nbf(:,:)
-      integer,allocatable :: hyb(:),itag(:)
+      integer,allocatable :: itag(:)
       integer,allocatable :: piadr(:),piadr2(:),piadr3(:),piadr4(:)
       integer,allocatable :: itmp(:),sring(:,:),cring(:,:,:)
       integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:),piel(:)
       integer,allocatable :: lin_AHB(:)
       integer,allocatable :: bond_hbl(:,:)
-
       real(wp),allocatable:: rab  (:)
       real(wp),allocatable:: sqrab(:)
       real(wp),allocatable:: cn   (:)
@@ -121,7 +122,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       allocate( rab(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( cn(mol%n), source = 0.0d0 )
       allocate( sqrab(mol%n*(mol%n+1)/2), source = 0.0d0 )
-      allocate( hyb(mol%n), source = 0 )
+      allocate( topo%hyb(mol%n), source = 0 )
       allocate( topo%alphanb(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( rtmp(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( pbo(mol%n*(mol%n+1)/2), source = 0.0d0 )
@@ -227,7 +228,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       write(env%unit,'(10x,"----------------------------------------")')
       write(env%unit,'(10x,"generating topology and atomic info file ...")')
       call gfnff_neigh(env,makeneighbor,mol%n,mol%at,mol%xyz,rab,gen%rqshrink, &
-         & gen%rthr,gen%rthr2,gen%linthr,mchar,hyb,itag,nbm,nbf,param,topo)
+         & gen%rthr,gen%rthr2,gen%linthr,mchar,topo%hyb,itag,nbm,nbf,param,topo)
 
       do i=1,mol%n
          imetal(i)=param%metal(mol%at(i))
@@ -275,19 +276,19 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       piadr =0
       piadr2=0
       do i=1,mol%n ! setup loop
-         piat =(hyb(i).eq.1.or.hyb(i).eq.2).and.pilist(mol%at(i)) ! sp or sp2 and CNOFS
+         piat =(topo%hyb(i).eq.1.or.topo%hyb(i).eq.2).and.pilist(mol%at(i)) ! sp or sp2 and CNOFS
          kk=0
          do j=1,topo%nb(20,i)
             jj=topo%nb(j,i)
-            if(mol%at(i).eq.8.and.mol%at(jj).eq.16.and.hyb(jj).eq.5) then
+            if(mol%at(i).eq.8.and.mol%at(jj).eq.16.and.topo%hyb(jj).eq.5) then
                                                              piat=.false.
                                                              cycle ! SO3   is not a pi
                                                              endif
-            if(hyb(jj).eq.1.or.hyb(jj).eq.2)  kk=kk+1         ! attached to sp2 or sp
+            if(topo%hyb(jj).eq.1.or.topo%hyb(jj).eq.2)  kk=kk+1         ! attached to sp2 or sp
          enddo
          picon=kk.gt.0.and.nofs(mol%at(i))                     ! an N,O,F (sp3) on sp2
          if(mol%at(i).eq. 7.and.topo%nb(20,i).gt.3) cycle           ! NR3-X is not a pi
-         if(mol%at(i).eq.16.and.hyb(i).eq.5  ) cycle           ! SO3   is not a pi
+         if(mol%at(i).eq.16.and.topo%hyb(i).eq.5  ) cycle           ! SO3   is not a pi
          if(picon.or.piat) then
             k=k+1
             piadr (k)=i
@@ -564,6 +565,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       if(qloop_count.eq.0) itmp(1:mol%n)=topo%nb(20,1:mol%n)
       qloop_count=qloop_count+1
       if(qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
+
          deallocate(topo%blist,btyp,pibo,pimvec)
 !         goto 111
       endif
@@ -580,17 +582,17 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          if(mol%at(i).eq. 5)                 ff=-0.05 ! B
          if(mol%at(i).eq. 6)                 then
                                          ff=-0.27 ! C
-                         if(hyb(i).lt.3) ff=-0.45 ! unsat
-                         if(hyb(i).lt.2) ff=-0.34 ! unsat
+                         if(topo%hyb(i).lt.3) ff=-0.45 ! unsat
+                         if(topo%hyb(i).lt.2) ff=-0.34 ! unsat
          endif
          if(mol%at(i).eq. 7)                 then
                                          ff=-0.13 ! N
            if(piadr(i).ne.0)             ff=-0.14
-           if(amide(mol%n,mol%at,hyb,topo%nb,piadr,i))ff=-0.16
+           if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))ff=-0.16
          endif
          if(mol%at(i).eq. 8)                 then
                                          ff=-0.15 ! O
-                         if(hyb(i).lt.3) ff=-0.08 ! unsat
+                         if(topo%hyb(i).lt.3) ff=-0.08 ! unsat
          endif
          if(mol%at(i).eq. 9)                 ff= 0.10 ! F
          if(mol%at(i).gt.10)                 ff=-0.02 ! heavy
@@ -608,7 +610,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !                   base val   spec. corr.
          topo%chieeq(i)=-param%chi(mol%at(i)) + dxi(i)
          topo%gameeq(i)= param%gam(mol%at(i)) +dgam(i)
-         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%chieeq(i) = topo%chieeq(i) - 0.02
+         if (amideH(mol%n,mol%at,topo%hyb,topo%nb,piadr2,i)) topo%chieeq(i) = topo%chieeq(i) - 0.02
          ff = 0
          if(mol%at(i).eq.6)       ff= 0.09
          if(mol%at(i).eq.7)       ff=-0.21
@@ -731,7 +733,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          nn=topo%nb(1,i)
          topo%hbaci(i)=param%xhaci(mol%at(i))
          ! AmideH:
-         if (amideH(mol%n,mol%at,hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.80
+         if (amideH(mol%n,mol%at,topo%hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.80
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -743,12 +745,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       topo%nathbH=0
       do i=1,mol%n
          if(mol%at(i).ne.1)  cycle
-         if(hyb(i).eq.1) cycle      ! exclude bridging hydrogens from HB correction
+         if(topo%hyb(i).eq.1) cycle      ! exclude bridging hydrogens from HB correction
          ff=gen%hqabthr
          j=topo%nb(1,i)
          if(j.le.0) cycle
          if(mol%at(j).gt.10) ff=ff-0.20                ! H on heavy atoms may be negatively charged
-         if(mol%at(j).eq.6.and.hyb(j).eq.3) ff=ff+0.05 ! H on sp3 C must be really positive 0.05
+         if(mol%at(j).eq.6.and.topo%hyb(j).eq.3) ff=ff+0.05 ! H on sp3 C must be really positive 0.05
          if(topo%qa(i).gt.ff)then                       ! make list of HB H atoms but only if they have a positive charge
             topo%nathbH=topo%nathbH+1
             topo%hbatHl(topo%nathbH)=i
@@ -845,7 +847,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          if(pimvec(k).eq.pis) then
             npi=npi+1
             ati =mol%at (piadr(k))
-            hybi=hyb(piadr(k))
+            hybi=topo%hyb(piadr(k))
             ii  =nelpi
             if(ati.eq.5.and.hybi.eq.1)           nelpi=nelpi+1  ! B in borine
             if(ati.eq.6.and.itag(piadr(k)).ne.1) nelpi=nelpi+1  ! skip if its a carbene (tag itag=1)
@@ -892,8 +894,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
             dum=sqrt(gen%hoffdiag(mol%at(ii))*gen%hoffdiag(mol%at(jj)))-dum           ! better than arithmetic
             dum2=gen%hiter
-            if(hyb(ii).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different
-            if(hyb(jj).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different
+            if(topo%hyb(ii).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different
+            if(topo%hyb(jj).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different
             Api(ja,ia)=-dum  * (1.0d0-dum2*(2.0d0/3.0d0-Pold(ja,ia))) ! Pmat scaling with benzene as reference
             Api(ia,ja)=Api(ja,ia)
          endif
@@ -919,7 +921,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          if(pisip(pis).gt.0.40) then
             write(env%unit,*)'WARNING: probably wrong pi occupation. Second attempt with Nel=Nel-1!'
             do i=1,mol%n
-               if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,hyb,Npiel:', i,mol%sym(i),topo%nb(20,i),hyb(i),piel(i)
+               if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),topo%nb(20,i),topo%hyb(i),piel(i)
             enddo
             nelpi=nelpi-1
             Api = Apisave
@@ -954,12 +956,12 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       do i=1,mol%n
-         if(hyb(i).eq.2 .and. piadr(i).eq.0 .and. topo%nb(20,i).eq.3 .and. param%group(mol%at(i)).eq.4)then ! C,Si,Ge... CN=3, no pi
+         if(topo%hyb(i).eq.2 .and. piadr(i).eq.0 .and. topo%nb(20,i).eq.3 .and. param%group(mol%at(i)).eq.4)then ! C,Si,Ge... CN=3, no pi
             jj=topo%nb(1,i)
             kk=topo%nb(2,i)
             ll=topo%nb(3,i)
             phi=omega(mol%n,mol%xyz,i,jj,kk,ll)  ! the shitty second geom. dep. term GEODEP
-            if(abs(phi)*180./pi.gt.40.d0) hyb(i) = 3  ! change to sp^3
+            if(abs(phi)*180./pi.gt.40.d0) topo%hyb(i) = 3  ! change to sp^3
          endif
       enddo
 
@@ -967,9 +969,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       write(env%unit,*)
       write(env%unit,'(2x,"atom   neighbors  erfCN metchar sp-hybrid imet pi  qest     coordinates")')
       do i=1,mol%n
-         j = hyb(i)
-         if(amide(mol%n,mol%at,hyb,topo%nb,piadr,i))  j=-hyb(i)
-         if(mol%at(i).eq.6.and.itag(i).eq.1) j=-hyb(i)
+         j = topo%hyb(i)
+         if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))  j=-topo%hyb(i)
+         if(mol%at(i).eq.6.and.itag(i).eq.1) j=-topo%hyb(i)
          write(env%unit,'(i5,2x,a2,3x,i4,3x,f5.2,2x,f5.2,8x,i2,3x,i2,3x,i2,2x,f6.3,3f12.6)') &
      &             i,mol%sym(i),topo%nb(20,i),cn(i),mchar(i),j,imetal(i),piadr(i),topo%qa(i),mol%xyz(1:3,i)
       enddo
@@ -1033,19 +1035,19 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          shift =0.d0
 ! assign bond type
                                                                   btyp(i)=1 ! single
-         if(hyb(ii).eq.2.and.hyb(jj).eq.2)                        btyp(i)=2 ! sp2-sp2 = pi
-         if(hyb(ii).eq.3.and.hyb(jj).eq.2.and.ia.eq.7)            btyp(i)=2 ! N-sp2
-         if(hyb(jj).eq.3.and.hyb(ii).eq.2.and.ja.eq.7)            btyp(i)=2 ! N-sp2
-         if(hyb(ii).eq.1.or. hyb(jj).eq.1)                        btyp(i)=3 ! sp-X i.e. no torsion
-         if((param%group(ia).eq.7.or.ia.eq.1).and.hyb(ii).eq.1)then
+         if(topo%hyb(ii).eq.2.and.topo%hyb(jj).eq.2)                        btyp(i)=2 ! sp2-sp2 = pi
+         if(topo%hyb(ii).eq.3.and.topo%hyb(jj).eq.2.and.ia.eq.7)            btyp(i)=2 ! N-sp2
+         if(topo%hyb(jj).eq.3.and.topo%hyb(ii).eq.2.and.ja.eq.7)            btyp(i)=2 ! N-sp2
+         if(topo%hyb(ii).eq.1.or. topo%hyb(jj).eq.1)                        btyp(i)=3 ! sp-X i.e. no torsion
+         if((param%group(ia).eq.7.or.ia.eq.1).and.topo%hyb(ii).eq.1)then
                                                                   btyp(i)=3 ! linear halogen i.e. no torsion
                                                                   bridge=.true.
          endif
-         if((param%group(ja).eq.7.or.ja.eq.1).and.hyb(jj).eq.1)then
+         if((param%group(ja).eq.7.or.ja.eq.1).and.topo%hyb(jj).eq.1)then
                                                                   btyp(i)=3 ! linear halogen i.e. no torsion
                                                                   bridge=.true.
          endif
-         if(hyb(ii).eq.5.or. hyb(jj).eq.5)                        btyp(i)=4 ! hypervalent
+         if(topo%hyb(ii).eq.5.or. topo%hyb(jj).eq.5)                        btyp(i)=4 ! hypervalent
          if(imetal(ii).gt.0.or.imetal(jj).gt.0)                   btyp(i)=5 ! metal
          if(imetal(ii).eq.2.and.imetal(jj).eq.2)                  btyp(i)=7 ! TM metal-metal
          if(imetal(jj).eq.2.and.itag(ii).eq.-1.and.piadr(ii).gt.0)btyp(i)=6 ! eta
@@ -1053,8 +1055,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          bbtyp=btyp(i)
 ! normal bond
          if(bbtyp.lt.5)then
-            hybi=max(hyb(ii),hyb(jj))
-            hybj=min(hyb(ii),hyb(jj))
+            hybi=max(topo%hyb(ii),topo%hyb(jj))
+            hybj=min(topo%hyb(ii),topo%hyb(jj))
             if(hybi.eq.5.or.hybj.eq.5) then
             bstrength=gen%bstren(4)                                       ! base value hypervalent
             else
@@ -1072,10 +1074,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             if(bbtyp.eq.4)                  shift=gen%hyper_shift          ! hypervalent
             if(ia.eq.1.or.ja.eq.1)          shift=gen%rabshifth            ! XH
             if(ia.eq.9.and.ja.eq.9)         shift=0.22                 ! f2
-            if(hyb(ii).eq.3.and.hyb(jj).eq.0)shift=shift-0.022         ! X-sp3
-            if(hyb(ii).eq.0.and.hyb(jj).eq.3)shift=shift-0.022         ! X-sp3
-            if(hyb(ii).eq.1.and.hyb(jj).eq.0)shift=shift+0.14          ! X-sp
-            if(hyb(ii).eq.0.and.hyb(jj).eq.1)shift=shift+0.14          ! X-sp
+            if(topo%hyb(ii).eq.3.and.topo%hyb(jj).eq.0)shift=shift-0.022         ! X-sp3
+            if(topo%hyb(ii).eq.0.and.topo%hyb(jj).eq.3)shift=shift-0.022         ! X-sp3
+            if(topo%hyb(ii).eq.1.and.topo%hyb(jj).eq.0)shift=shift+0.14          ! X-sp
+            if(topo%hyb(ii).eq.0.and.topo%hyb(jj).eq.1)shift=shift+0.14          ! X-sp
             if( (ia.eq.1.and.ja.eq.6) )then
                            call ringsatom(mol%n,jj,cring,sring,ringsj)
                            if(ringsj.eq.3)                 fxh=1.05    ! 3-ring CH
@@ -1095,9 +1097,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             if(bbtyp.eq.3.and.ia.eq.6.and.ja.eq.8) bstrength=gen%bstren(3)*0.90d0 ! makes CO right and M-CO reasonable
             if(bbtyp.eq.3.and.ia.eq.8.and.ja.eq.6) bstrength=gen%bstren(3)*0.90d0 !
 !           modify locally for triple bonds
-            if( bbtyp.eq.3.and. (hyb(ii).eq.0.or.hyb(jj).eq.0) ) bbtyp=1 ! sp-sp3
-            if( bbtyp.eq.3.and. (hyb(ii).eq.3.or.hyb(jj).eq.3) ) bbtyp=1 ! sp-sp3
-            if( bbtyp.eq.3.and. (hyb(ii).eq.2.or.hyb(jj).eq.2) ) bbtyp=2 ! sp-sp2
+            if( bbtyp.eq.3.and. (topo%hyb(ii).eq.0.or.topo%hyb(jj).eq.0) ) bbtyp=1 ! sp-sp3
+            if( bbtyp.eq.3.and. (topo%hyb(ii).eq.3.or.topo%hyb(jj).eq.3) ) bbtyp=1 ! sp-sp3
+            if( bbtyp.eq.3.and. (topo%hyb(ii).eq.2.or.topo%hyb(jj).eq.2) ) bbtyp=2 ! sp-sp2
 !           Pi stuff
             if(pibo(i).gt.0) then
                           shift=gen%hueckelp*(gen%bzref - pibo(i)) ! ref value = no correction is benzene, P=2/3
@@ -1152,7 +1154,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             if(imetal(jj).eq.2.and.ia.eq.1.and.itabrow6(ja).gt.5) fxh =1.00d0 ! hydrogen 5d
             if(imetal(ii).eq.1.and.ja.eq. 1)      fxh   =1.20d0
             if(imetal(jj).eq.1.and.ia.eq. 1)      fxh   =1.20d0
-            if(imetal(jj).eq.2.and.hyb(ii).eq.1) then !CO/CN/NC...
+            if(imetal(jj).eq.2.and.topo%hyb(ii).eq.1) then !CO/CN/NC...
                                        if(ia.eq.6)then
                                                   fpi   =1.5d0
                                                   shift=-0.45d0
@@ -1162,7 +1164,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                                   shift= 0.47d0
                                        endif
             endif
-            if(imetal(ii).eq.2.and.hyb(jj).eq.1) then !CO/CN/NC...
+            if(imetal(ii).eq.2.and.topo%hyb(jj).eq.1) then !CO/CN/NC...
                                        if(ja.eq.6)then
                                                   fpi   =1.5d0
                                                   shift=-0.45d0
@@ -1350,8 +1352,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                topo%alist(2,topo%nangl)=jj
                topo%alist(3,topo%nangl)=kk
                call ringsbend(mol%n,ii,jj,kk,cring,sring,rings)
-               triple=(hyb(ii).eq.1 .or. hyb(jj).eq.1) .or. &
-     &                (hyb(ii).eq.1 .or. hyb(kk).eq.1)
+               triple=(topo%hyb(ii).eq.1 .or. topo%hyb(jj).eq.1) .or. &
+     &                (topo%hyb(ii).eq.1 .or. topo%hyb(kk).eq.1)
                if(imetal(ii).eq.0.and.imetal(jj).eq.0.and.imetal(kk).eq.0) then
                fqq=1.0d0-(topo%qa(ii)*topo%qa(jj)+topo%qa(ii)*topo%qa(kk))*gen%qfacBEN      ! weaken it
                else
@@ -1369,10 +1371,10 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 !!!!!!!!!!
                r0=100.0
 
-               if(hyb(i).eq.1)                                   r0=180.
-               if(hyb(i).eq.2)                                   r0=120.
-               if(hyb(i).eq.3)                                   r0=109.5
-               if(hyb(i).eq.3.and.mol%at(i).gt.10) then
+               if(topo%hyb(i).eq.1)                                   r0=180.
+               if(topo%hyb(i).eq.2)                                   r0=120.
+               if(topo%hyb(i).eq.3)                                   r0=109.5
+               if(topo%hyb(i).eq.3.and.mol%at(i).gt.10) then
                                                if(nn.le.3)       r0=gen%aheavy3    ! heavy maingroup three coordinated
                                                if(nn.ge.4)       r0=gen%aheavy4    ! heavy maingroup four  coordinated
                                 if(nn.eq.4.and.param%group(ati).eq.5)  r0=109.5      ! four coordinated group 5
@@ -1381,7 +1383,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                            if(param%group(ati).eq.5)   r0=r0-nh*5.   ! smaller angles for XHn P..
                                            if(param%group(ati).eq.6)   r0=r0-nh*5.   ! smaller angles for XHn S..
                endif
-               if(hyb(i).eq.5)                                   then
+               if(topo%hyb(i).eq.5)                                   then
                                                                  r0=90.
                                                                  f2=0.11       ! not very important
                                        if(phi*180./pi.gt.gen%linthr) r0=180.       ! hypervalent coordination can be linear GEODEP
@@ -1390,22 +1392,22 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 ! B
 !!!!!!!!!!
                if(ati.eq.5)then
-                  if(hyb(i).eq.3)                                r0=115.
-                  if(hyb(i).eq.2)                                r0=115.
+                  if(topo%hyb(i).eq.3)                                r0=115.
+                  if(topo%hyb(i).eq.2)                                r0=115.
                endif
 !!!!!!!!!!
 ! C cases
 !!!!!!!!!!
                if(ati.eq.6)then
-                  if(hyb(i).eq.3.and.nh.eq.2)                    r0=108.6  ! CHH
-                  if(hyb(i).eq.3.and.no.eq.1)                    r0=108.5  ! COR
-                  if(hyb(i).eq.2.and.no.eq.2)                    r0=122.   ! COO
-                  if(hyb(i).eq.2.and.no.eq.1)                    f2=0.7    ! C=O
-                  if(hyb(i).eq.1.and.no.eq.2)                    then
+                  if(topo%hyb(i).eq.3.and.nh.eq.2)                    r0=108.6  ! CHH
+                  if(topo%hyb(i).eq.3.and.no.eq.1)                    r0=108.5  ! COR
+                  if(topo%hyb(i).eq.2.and.no.eq.2)                    r0=122.   ! COO
+                  if(topo%hyb(i).eq.2.and.no.eq.1)                    f2=0.7    ! C=O
+                  if(topo%hyb(i).eq.1.and.no.eq.2)                    then
                                                                  triple=.false.   ! CO2
                                                                  f2=2.0
                   endif
-                  if(hyb(i).eq.3.and.nn.gt.4)                    then
+                  if(topo%hyb(i).eq.3.and.nn.gt.4)                    then
                                        if(phi*180./pi.gt.gen%linthr) r0=180.       ! hypervalent coordination can be linear GEODEP
                   endif
                endif
@@ -1438,15 +1440,15 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                     if(rings.ne.0)                r0=105.
                                     if(mol%at(kk).eq.8.or.mol%at(jj).eq.8)r0=103.
                                     if(mol%at(kk).eq.9.or.mol%at(jj).eq.9)r0=102.
-                                    if(hyb(i).eq.1)               r0=180.   ! NC or NNN
-               if(imetal(jj).eq.2.and.hyb(i).eq.1.and.mol%at(kk).eq.7)r0=135.   ! NN on M
-               if(imetal(kk).eq.2.and.hyb(i).eq.1.and.mol%at(jj).eq.7)r0=135.   ! NN on M
+                                    if(topo%hyb(i).eq.1)               r0=180.   ! NC or NNN
+               if(imetal(jj).eq.2.and.topo%hyb(i).eq.1.and.mol%at(kk).eq.7)r0=135.   ! NN on M
+               if(imetal(kk).eq.2.and.topo%hyb(i).eq.1.and.mol%at(jj).eq.7)r0=135.   ! NN on M
                endif
 ! NR3
-               if(ati.eq.7.and.hyb(i).eq.3)then
+               if(ati.eq.7.and.topo%hyb(i).eq.3)then
 !                 in pi system
                   if(npi.gt.0)then
-                                                                 if(amide(mol%n,mol%at,hyb,topo%nb,piadr,i))then
+                                                                 if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))then
                                                                    r0=115.
                                                                    f2=1.2d0
                                                                  else
@@ -1508,7 +1510,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 ! SO3X
                if(param%group(ati).eq.6.and.nn.eq.4.and.no.ge.1)       r0=115.
 ! halogens CN=2
-               if(param%group(ati).eq.7.and.hyb(i).eq.1)               then
+               if(param%group(ati).eq.7.and.topo%hyb(i).eq.1)               then
                                                                  if(ati.eq.9)  r0= 90.
                                                                  if(ati.eq.17) r0= 90.
                                                                  if(ati.eq.35) r0= 90.
@@ -1517,7 +1519,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                                                  f2=0.6/dble(ati)**0.15
                endif
 ! PB or Sn can be pyramidal
-               if(hyb(i).eq.3.and.param%group(ati).eq.4.and.ati.gt.32.and.topo%qa(i).gt.0.4)then
+               if(topo%hyb(i).eq.3.and.param%group(ati).eq.4.and.ati.gt.32.and.topo%qa(i).gt.0.4)then
                   if(phi*180./pi.gt.140.) then
                      r0=180. ! change to linear
                   endif
@@ -1528,13 +1530,13 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                endif
 ! METAL
                if(imetal(ii).gt.0) then
-                                   if(hyb(i).eq.0)               then
+                                   if(topo%hyb(i).eq.0)               then
                                                                  r0=90.
                                                                  f2=1.35  ! important difference to other bends, big effect 1.15,1.25,1.35
                                    endif
-                                   if(hyb(i).eq.1)               r0=180.
-                                   if(hyb(i).eq.2)               r0=120.
-                                   if(hyb(i).eq.3)               r0=109.5
+                                   if(topo%hyb(i).eq.1)               r0=180.
+                                   if(topo%hyb(i).eq.2)               r0=120.
+                                   if(topo%hyb(i).eq.3)               r0=109.5
                                    if(phi*180./pi.gt.gen%linthr)     r0=180. ! change to linear
                endif
 
@@ -1592,7 +1594,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          lring=.false.
          ccij =.false.
          if(rings.gt.0) lring=.true.
-         sp3ij=hyb(ii).eq.3.and.hyb(jj).eq.3
+         sp3ij=topo%hyb(ii).eq.3.and.topo%hyb(jj).eq.3
          if(mol%at(ii).eq.6.and.mol%at(jj).eq.6) ccij=.true.
          nhi=1
          nhj=1
@@ -1604,9 +1606,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          enddo
          fij=fij*(dble(nhi)*dble(nhj))**0.07 ! n H term
          ! amides and alpha carbons in peptides/proteins
-         if (alphaCO(mol%n,mol%at,hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.3d0
-         if (amide(mol%n,mol%at,hyb,topo%nb,piadr,ii).and.hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
-         if (amide(mol%n,mol%at,hyb,topo%nb,piadr,jj).and.hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
+         if (alphaCO(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii).and.topo%hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,jj).and.topo%hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
          ! hypervalent
          if(btyp(m).eq.4)                                                                   fij = fij * 0.2d0
 !        loop over neighbors of ij
@@ -1651,21 +1653,21 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                     if ( rings4.eq.0 .and. btyp(m).eq.1 .and. &
                                  topo%nb(20,kk).eq.1.and.topo%nb(20,ll).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
                     if(btyp(m).eq.2 .and. rings.eq.5 .and. mol%at(ii)*mol%at(jj).eq.42) then
-                       if(amide(mol%n,mol%at,hyb,topo%nb,piadr,ii).or.amide(mol%n,mol%at,hyb,topo%nb,piadr,jj)) f1=5.  ! improving CB7
+                       if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii).or.amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,jj)) f1=5.  ! improving CB7
                     endif
                else
 ! ACYCLIC
                                                       phi  = 180.d0 ! trans
                                                       nrot = 1
-                    if(hyb(ii).eq.3.and.hyb(jj).eq.3) nrot = 3 ! Me case
+                    if(topo%hyb(ii).eq.3.and.topo%hyb(jj).eq.3) nrot = 3 ! Me case
                     if(btyp(m).eq.2)                  nrot = 2 ! max at 90 for pi and symmetric at 0,-180,180
-                    if(piadr(ii).gt.0.and.(piadr(jj).eq.0.and.hyb(jj).eq.3))then  ! pi-sp3
+                    if(piadr(ii).gt.0.and.(piadr(jj).eq.0.and.topo%hyb(jj).eq.3))then  ! pi-sp3
                                                          f1=0.5d0
                                          if(mol%at(ii).eq.7) f1=0.2d0 ! important for CB7 conf.
                                                          phi  =180.d0
                                                          nrot = 3
                     endif
-                    if(piadr(jj).gt.0.and.(piadr(ii).eq.0.and.hyb(ii).eq.3))then
+                    if(piadr(jj).gt.0.and.(piadr(ii).eq.0.and.topo%hyb(ii).eq.3))then
                                                          f1=0.5d0
                                          if(mol%at(jj).eq.7) f1=0.2d0 ! important for CB7 conf.
                                                          phi  =180.d0
@@ -1673,7 +1675,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                     endif
                endif
 ! SP3 specials
-               if(hyb(ii).eq.3.and.hyb(jj).eq.3) then
+               if(topo%hyb(ii).eq.3.and.topo%hyb(jj).eq.3) then
 ! N-N, P-P ...
                if(param%group(mol%at(ii)).eq.5.and.param%group(mol%at(jj)).eq.5) then
                                                              nrot=3
@@ -1706,7 +1708,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                                 f1 = f1 * 0.55
                endif
 
-               if(hyb(kk).eq.5.or.hyb(ll).eq.5) fkl = fkl * 1.5 ! hypervalent corr.
+               if(topo%hyb(kk).eq.5.or.topo%hyb(ll).eq.5) fkl = fkl * 1.5 ! hypervalent corr.
 !--------------------
 ! end of definitions
 !-------------------
@@ -1734,7 +1736,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
                endif
 
 ! extra rot=1 torsion potential for sp3-sp3 to get gauche conf energies well
-               sp3kl=hyb(kk).eq.3.and.hyb(ll).eq.3
+               sp3kl=topo%hyb(kk).eq.3.and.topo%hyb(ll).eq.3
                if(sp3kl.and.sp3ij.and.(.not.lring).and.btyp(m).lt.5) then
                   topo%ntors=topo%ntors+1
                   if (topo%ntors.gt.maxtors) then

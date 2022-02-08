@@ -178,8 +178,7 @@ subroutine test_gfn2_api(error)
    use xtb_type_data
    use xtb_type_environment
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
 
    type(error_type), allocatable, intent(out) :: error
 
@@ -245,8 +244,8 @@ subroutine test_gfn2gbsa_api(error)
    use xtb_type_environment
    use xtb_solv_input
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_kernel, only : gbKernel
 
    type(error_type), allocatable, intent(out) :: error
@@ -319,8 +318,8 @@ subroutine test_gfn2salt_api(error)
    use xtb_type_environment
    use xtb_solv_input
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_kernel, only : gbKernel
 
    type(error_type), allocatable, intent(out) :: error
@@ -391,8 +390,8 @@ subroutine test_gfn2_pcem_api(error)
    use xtb_type_pcem
    use xtb_type_environment
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
 
    type(error_type), allocatable, intent(out) :: error
 
@@ -531,8 +530,7 @@ subroutine test_gfn2_mindless_basic(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
 
    type(error_type), allocatable, intent(out) :: error
 
@@ -610,8 +608,8 @@ subroutine test_gfn2_mindless_solvation(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
@@ -696,8 +694,8 @@ subroutine test_gfn2_dmetal(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
@@ -769,8 +767,8 @@ subroutine test_gfn2_mindless_cosmo(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction, addSolvationModel
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
 
    type(error_type), allocatable, intent(out) :: error

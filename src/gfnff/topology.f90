@@ -52,6 +52,7 @@ module xtb_gfnff_topology
 
       !lists
       integer,allocatable ::     nb(:,:)   ! neighbors nb(20,i) is the # neigbors
+      integer,allocatable ::     hyb(:)   ! hybridization of every atom
       integer,allocatable ::    bpair(:)   ! # of cov. between atoms
       integer,allocatable ::  blist(:,:)   ! bonded atoms
       integer,allocatable ::  alist(:,:)   ! angles
@@ -89,6 +90,8 @@ module xtb_gfnff_topology
       integer               :: nsystem
 
       type(TDispersionModel) :: dispm
+
+
 
    contains
 

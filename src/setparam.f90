@@ -112,17 +112,11 @@ module xtb_setparam
    integer, parameter :: p_ext_vtb       = -1
    integer, parameter :: p_ext_eht       =  0
    integer, parameter :: p_ext_xtb       =  1
-   integer, parameter :: p_ext_driver    =  3
    integer, parameter :: p_ext_turbomole =  4
    integer, parameter :: p_ext_orca      =  5
-   integer, parameter :: p_ext_terachem  =  6
-   integer, parameter :: p_ext_qchem     =  7
-   integer, parameter :: p_ext_nwchem    =  8
-   integer, parameter :: p_ext_molpro    =  9
-   integer, parameter :: p_ext_psi4      = 10
-   integer, parameter :: p_ext_adf       = 11
    integer, parameter :: p_ext_mopac     = 12
    integer, parameter :: p_ext_gfnff     = 13
+   integer, parameter :: p_ext_oniom     = 14
 
    integer, parameter :: p_run_scc    =   2
    integer, parameter :: p_run_grad   =   3

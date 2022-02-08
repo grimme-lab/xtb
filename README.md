@@ -129,6 +129,7 @@ features reality:
 - I. Gerasimov ([@FulgurIgor](https://github.com/fulgurigor))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
+- A. Katbashev ([@Albkat](https://github.com/albkat))
 - J. Koopman ([@JayTheDog](https://github.com/jaythedog))
 - C. Lavinge ([@clavigne](https://github.com/clavigne))
 - S. Lehtola ([@susilehtola](https://github.com/susilehtola))

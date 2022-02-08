@@ -28,6 +28,7 @@ module xtb_topology
 
    public :: checkTopology
    public :: makeBondTopology, compareBondTopology
+   public :: topologyToNeighbourList
 
 
 contains

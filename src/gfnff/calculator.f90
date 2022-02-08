@@ -48,7 +48,7 @@ module xtb_gfnff_calculator
    end interface
    private
 
-   public :: TGFFCalculator
+   public :: TGFFCalculator, newGFFCalculator
 
 
    !> Calculator interface for xTB based methods
@@ -75,6 +75,72 @@ module xtb_gfnff_calculator
 
 
 contains
+
+
+subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
+   use xtb_gfnff_param
+   use xtb_gfnff_setup, only : gfnff_setup
+   use xtb_disp_dftd4, only : newD3Model
+
+   character(len=*), parameter :: source = 'main_setup_newGFFCalculator'
+
+   type(TEnvironment), intent(inout) :: env
+
+   type(TMolecule), intent(in) :: mol
+
+   type(TGFFCalculator), intent(out) :: calc
+
+   character(len=*), intent(in) :: fname
+
+   logical, intent(in) :: restart
+
+   integer, intent(in), optional :: version
+
+   integer :: ich
+   logical :: exist, okbas
+   logical :: exitRun
+
+   if (present(version)) then
+      calc%version = version
+   else
+      calc%version = gffVersion%angewChem2020_2
+   end if
+
+   call calc%topo%zero
+   calc%update = .true.
+   ! global accuracy factor similar to acc in xtb used in SCF
+   calc%accuracy = 0.1_wp
+   if (mol%n > 10000) then
+      calc%accuracy = 2.0_wp
+   end if
+
+   !> Obtain the parameter file
+   call open_file(ich, fname, 'r')
+   exist = ich /= -1
+   if (exist) then
+      call gfnff_read_param(ich, calc%param)
+      call close_file(ich)
+   else ! no parameter file, try to load internal version
+      call gfnff_load_param(calc%version, calc%param, exist)
+      if (.not.exist) then
+         call env%error('Parameter file '//fname//' not found!', source)
+         return
+      end if
+   endif
+
+   call newD3Model(calc%topo%dispm, mol%n, mol%at)
+
+   call gfnff_setup(env, set%verbose, restart, mol, &
+      & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not create force field calculator", source)
+      return
+   end if
+
+end subroutine newGFFCalculator
+
 
 
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
@@ -123,6 +189,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: inmol
    logical, parameter :: ccm = .true.
    logical :: exitRun
+   logical :: pr
 
    call mol%update
    if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
@@ -140,7 +207,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  actual calculation
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
+   pr = gff_print .and. printlevel > 0
+   call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
       & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy)
 

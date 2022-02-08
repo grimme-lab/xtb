@@ -25,7 +25,6 @@ module xtb_api_calculator
    use xtb_api_molecule
    use xtb_api_utils
    use xtb_gfnff_calculator
-   use xtb_main_setup
    use xtb_solv_kernel
    use xtb_solv_input
    use xtb_solv_state
@@ -33,6 +32,7 @@ module xtb_api_calculator
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_xtb_calculator
+   use xtb_main_setup, only : addSolvationModel
    implicit none
    private
 

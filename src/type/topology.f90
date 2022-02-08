@@ -23,7 +23,7 @@ module xtb_type_topology
 
 
    type :: TTopology
-      private
+      !private
       integer :: order = 2
       integer :: length = 0
       integer, allocatable :: list(:,:)
