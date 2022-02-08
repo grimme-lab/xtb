@@ -479,7 +479,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
 
    !> Actual bond cutting and creating linked atom
    do i = 1, size(self%idx)
-      do j = 1, size(bonded, 2)
+      do j = 1, len(topo)
          if (bonded(1, j) == self%idx(i)) then
             do k = 1, size(self%idx)
                if (self%idx(k) == bonded(2, j)) then
@@ -654,12 +654,14 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
    warning = "You are cutting a bond with the order higher than 1 between "//dummy1//" and "//dummy2
    if (present(bond)) then
       if (bond > 1) then
-         call env%warning(warning, source)
+         call env%error(warning, source)
+         stop
       end if
    else
       if (hybrid(idx1) /= 0 .and. hybrid(idx1) < 3) then
          if (hybrid(idx2) /= 0 .and. hybrid(idx2) < 3) then
-            call env%warning(warning, source)
+            call env%warning(error, source)
+            stop
          end if
       end if
    end if
