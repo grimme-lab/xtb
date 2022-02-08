@@ -655,13 +655,13 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
    if (present(bond)) then
       if (bond > 1) then
          call env%error(warning, source)
-         stop
+         return
       end if
    else
       if (hybrid(idx1) /= 0 .and. hybrid(idx1) < 3) then
          if (hybrid(idx2) /= 0 .and. hybrid(idx2) < 3) then
-            call env%warning(error, source)
-            stop
+            call env%error(warning, source)
+            return
          end if
       end if
    end if
