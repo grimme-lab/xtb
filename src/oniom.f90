@@ -219,6 +219,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not create linked atoms")
+      return
+   end if
    inner_mol%chrg = float(self%chrg_model)
 
    ! Inner region, low method
