@@ -52,7 +52,7 @@ subroutine test_peeq_sp(error)
    use xtb_type_environment
    use xtb_solv_gbsa
 
-   use xtb_setparam, only : gfn_method
+   use xtb_setparam, only : set
 
    use xtb_pbc_tools
    use xtb_basis
@@ -109,7 +109,7 @@ subroutine test_peeq_sp(error)
 
    logical  :: okbas,diff
 
-   gfn_method = 0
+   set%gfn_method = 0
    call init(env)
 
    call init(mol, at, xyz, lattice=lattice)

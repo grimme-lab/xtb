@@ -613,7 +613,7 @@ subroutine test_gfnff_sdf(error)
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
-   use xtb_setparam, only : ichrg
+   use xtb_setparam, only : set
 
    type(error_type), allocatable, intent(out) :: error
 
@@ -638,7 +638,7 @@ subroutine test_gfnff_sdf(error)
    do iMol = 1, 3
 
       call getMolecule(mol, 'bug332')
-      ichrg = nint(mol%chrg)
+      set%ichrg = nint(mol%chrg)
 
       if (allocated(gradient)) deallocate(gradient)
       allocate(gradient(3, len(mol)))

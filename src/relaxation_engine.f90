@@ -143,7 +143,6 @@ subroutine fire &
    use xtb_setparam
    use xtb_fixparam
 
-   use xtb_single
    use xtb_optimizer
    use xtb_axis
    use xtb_hessian
@@ -225,8 +224,8 @@ subroutine fire &
    ! settings for optimizer, defaults from ase/optimize/precon/fire.py
    opt = fire_options(logstep = 1, &
       &               dtmax = 1.25_wp * fstoau, time_step = 0.25_wp * fstoau, &
-      &               micro_cycle = optset%micro_opt, &
-      &               max_displacement = optset%maxdispl_opt, &
+      &               micro_cycle = set%optset%micro_opt, &
+      &               max_displacement = set%optset%maxdispl_opt, &
       &               printlevel = printlevel, &
       &               precon = .false., update = .false.)
 
@@ -319,7 +318,7 @@ subroutine fire &
    if (profile) call timer%measure(7,"model hessian")
    if (opt%precon) then
       if (minpr) write(env%unit,'(" * calculating model hessian...")')
-      call modhes(env,calc,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
+      call modhes(env,calc,set%mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
       if(fixset%n.gt.0)then
          ! exact fixing
          call trproj(molopt%n,molopt%n*3,molopt%xyz,hessp,.false.,-1,pmode,1)
@@ -406,14 +405,13 @@ subroutine l_ancopt &
    use xtb_type_calculator
    use xtb_xtb_calculator
    use xtb_gfnff_calculator
-   use xtb_type_dummycalc
+   use xtb_extern_turbomole, only : TTMCalculator
    use xtb_type_data
    use xtb_type_timer
 
    use xtb_setparam
    use xtb_fixparam
 
-   use xtb_single
    use xtb_optimizer
    use xtb_axis
    use xtb_hessian
@@ -508,10 +506,10 @@ subroutine l_ancopt &
    ! settings for optimizer, defaults from opt.f
    opt = lbfgs_options(logstep = 1, &
       &                printlevel = printlevel, &
-      &                micro_cycle = optset%micro_opt, &
-      &                memory = optset%micro_opt, &
-      &                max_displacement = optset%maxdispl_opt, &
-      &                hlow = optset%hlow_opt )
+      &                micro_cycle = set%optset%micro_opt, &
+      &                memory = set%optset%micro_opt, &
+      &                max_displacement = set%optset%maxdispl_opt, &
+      &                hlow = set%optset%hlow_opt )
 
    ! obtain the thresholds from the optlevel, possible optlevels are currently
    call get_optthr(mol%n,optlevel,opt%e_thr,opt%g_thr,maxcycle,opt%acc)
@@ -519,9 +517,9 @@ subroutine l_ancopt &
    if (maxcycle_in > 0) maxcycle = maxcycle_in
 
    ! Activate averaged convergence criterium
-   if (optset%average_conv) then
+   if (set%optset%average_conv) then
       select type(calc)
-      class is(TDummyCalculator)
+      class is(TTMCalculator)
          avconv = load_turbomole_log(maxcycle)
          if (avconv%nlog > 0 .and. pr) then
             write(env%unit, '(a, 1x, i0, 1x, a)') &
@@ -558,9 +556,9 @@ subroutine l_ancopt &
    minpr = opt%printlevel > 0
    pr    = opt%printlevel > 1
    debug = opt%printlevel > 2
-   fragmented_hessian = mode_extrun.eq.p_ext_gfnff.and.mol%n.gt.500
+   fragmented_hessian = set%mode_extrun.eq.p_ext_gfnff.and.mol%n.gt.500
 
-   if (mode_extrun.eq.p_ext_gfnff) opt%hlow = 0.02
+   if (set%mode_extrun.eq.p_ext_gfnff) opt%hlow = 0.02
    if (fragmented_hessian) then
       if (mol%n .gt. 2000) opt%hlow = 2.0e-2_wp + (mol%n - 2000.0_wp) * 5.0e-6_wp
       opt%hlow=min(opt%hlow,0.05_wp)
@@ -617,7 +615,7 @@ subroutine l_ancopt &
 ! ======================================================================
    if (profile) call timer%measure(2,"model hessian")
    if (minpr) write(env%unit,'(" * calculating model hessian...")')
-   call modhes(env,calc,mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
+   call modhes(env,calc,set%mhset,molopt%n,molopt%xyz,molopt%at,hessp,pr)
 
    ! Project translation, rotation and fixed atoms
     if(fixset%n.gt.0)then
@@ -877,7 +875,6 @@ subroutine lbfgs_relax &
 
    use xtb_setparam
 
-   use xtb_single
    use xtb_optimizer
 
    implicit none
@@ -1065,10 +1062,7 @@ subroutine lbfgs_relax &
 
       ! get singlepoint energy
       if (profile) call timer%measure(6,"singlepoint calculation")
-      call singlepoint &
-         &(env,mol,chk,calc, &
-         & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
-         & energy,g_xyz,sigma,res)
+      call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,g_xyz,sigma,egap,res)
       !call gfnff_eg(.false.,mol%n,charge,attyp,xyz,q,.true.,g_xyz,energy)
       if (profile) call timer%measure(6)
       call env%check(fail)
@@ -1157,7 +1151,6 @@ subroutine inertial_relax &
 
    use xtb_setparam
 
-   use xtb_single
    use xtb_pbc_tools
 
    implicit none
@@ -1391,10 +1384,7 @@ subroutine inertial_relax &
       if (profile) call timer%measure(3)
       if (profile) call timer%measure(4,"singlepoint calculation")
       ! get singlepoint energy
-      call singlepoint &
-         &(env,mol,chk,calc, &
-         & egap,etemp,maxscciter,opt%printlevel-1,.true.,.true.,opt%acc, &
-         & energy,gradient,sigma,res)
+      call calc%singlepoint(env,mol,chk,opt%printlevel-1,.true.,energy,gradient,sigma,egap,res)
       if (profile) call timer%measure(4)
       call env%check(fail)
       if (fail) then

@@ -172,6 +172,7 @@ xtb_parameter_files = [
   'param_gfn0-xtb.txt',
   'param_gfn2-xtb.txt',
   'param_gfn1-xtb.txt',
+  'param_gfn1-si-xtb.txt',
   'param_ipea-xtb.txt',
   '.param_gfnff.xtb',
 ]

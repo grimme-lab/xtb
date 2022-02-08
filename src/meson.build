@@ -111,7 +111,6 @@ srcs += files(
   'printout.f90',
   'prmat.f90',
   'pseudodiag.f90',
-  'qmdff.f90',
   'qpot.f90',
   'qsort.f90',
   'rdcoord2.f90',

@@ -36,7 +36,6 @@ module xtb_xtb_calculator
    use xtb_scanparam
    use xtb_sphereparam
    use xtb_scf, only : scf
-   use xtb_qmdff, only : ff_eg,ff_nonb,ff_hb
    use xtb_peeq, only : peeq
    use xtb_embedding, only : read_pcem
    use xtb_metadynamic
@@ -179,8 +178,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !  post processing of gradient and energy
 
    ! point charge embedding gradient file
-   if (allocated(pcem_grad) .and. self%pcem%n > 0) then
-      call open_file(ich,pcem_grad,'w')
+   if (allocated(set%pcem_grad) .and. self%pcem%n > 0) then
+      call open_file(ich,set%pcem_grad,'w')
       do i=1,self%pcem%n
          write(ich,'(3f12.8)')self%pcem%grd(1:3,i)
       enddo
@@ -210,31 +209,31 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    if (printlevel.ge.2) then
       ! start with summary header
-      if (.not.silent) then
+      if (.not.set%silent) then
          write(env%unit,'(9x,53(":"))')
          write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
       endif
       write(env%unit,'(9x,53(":"))')
       write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
-      if (.not.silent.and.allocated(self%solvation)) then
+      if (.not.set%silent.and.allocated(self%solvation)) then
          write(env%unit,outfmt) "total w/o Gsasa/hb", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
       write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
       write(env%unit,outfmt) "HOMO-LUMO gap     ", results%hl_gap, "eV   "
-      if (.not.silent) then
-         if (verbose) then
+      if (.not.set%silent) then
+         if (set%verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
             write(env%unit,outfmt) "HOMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo),  "eV   "
             write(env%unit,outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo+1),"eV   "
          endif
          write(env%unit,'(9x,"::",49("."),"::")')
-         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,verbose,allocated(self%solvation))
-         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,verbose,allocated(self%solvation))
-         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,verbose,allocated(self%solvation))
+         if (self%xtbData%level.eq.2) call print_gfn2_results(env%unit,results,set%verbose,allocated(self%solvation))
+         if (self%xtbData%level.eq.1) call print_gfn1_results(env%unit,results,set%verbose,allocated(self%solvation))
+         if (self%xtbData%level.eq.0) call print_gfn0_results(env%unit,results,set%verbose,allocated(self%solvation))
          write(env%unit,outfmt) "add. restraining  ", efix,       "Eh   "
          write(env%unit,outfmt) "total charge      ", sum(chk%wfn%q), "e    "
-         if (verbose) then
+         if (set%verbose) then
             write(env%unit,'(9x,"::",49("."),"::")')
             write(env%unit,outfmt) "atomisation energy", results%e_atom, "Eh   "
          endif

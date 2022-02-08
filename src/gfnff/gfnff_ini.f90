@@ -17,7 +17,7 @@
 module xtb_gfnff_ini
 contains
 
-subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
+subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       use xtb_mctc_accuracy, only : wp, sp
       use xtb_type_molecule
       use xtb_type_environment, only : TEnvironment
@@ -41,7 +41,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
       type(TGFFData), intent(in) :: param
       real(wp), intent(in) :: accuracy
 
-      integer, intent(in) :: ichrg         ! mol. charge
       logical, intent(in) :: pr            ! print flag
       logical, intent(in) :: makeneighbor  ! make a neigbor list or use existing one?
 !--------------------------------------------------------------------------------------------------
@@ -445,7 +444,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
          if (is_iostat_end(err) .and. i == mol%n) err = 0
          call close_file(ich)
          if (err == 0) then
-            if (i < mol%n .or. abs(sum(qtmp) - ichrg) > 1.0e-3_wp) then
+            if (i < mol%n .or. abs(sum(qtmp) - mol%chrg) > 1.0e-3_wp) then
                call env%warning("Rejecting external charges input due to missmatch", source)
             else
                topo%qfrag=dnint(qtmp)
@@ -460,7 +459,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
             return
          end if
       endif
-      if(mol%n.lt.100.and.topo%nfrag.gt.2.and.ichrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
+      if(mol%n.lt.100.and.topo%nfrag.gt.2.and.mol%chrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
          itmp=0
          do i=1,mol%n
             itmp(topo%fraglist(i))=itmp(topo%fraglist(i))+1
@@ -471,14 +470,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
          call env%error('fragment charge input required', source)
          return
       endif
-      if(mol%n.ge.100.and.topo%nfrag.gt.2.and.ichrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
-         topo%qfrag(1)=ichrg
+      if(mol%n.ge.100.and.topo%nfrag.gt.2.and.mol%chrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
+         topo%qfrag(1)=mol%chrg
          topo%qfrag(2:topo%nfrag)=0
       endif
-      if(topo%nfrag.eq.2.and.ichrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
+      if(topo%nfrag.eq.2.and.mol%chrg.ne.0.and.sum(topo%qfrag(2:topo%nfrag)).gt.999) then
          write(env%unit,*) 'trying auto detection of charge on 2 fragments:'
          topo%qfrag(1)=0
-         topo%qfrag(2)=dble(ichrg)
+         topo%qfrag(2)=mol%chrg
          call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,dum1,topo)
          call env%check(exitRun)
          if (exitRun) then
@@ -486,7 +485,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
             return
          end if
          topo%qfrag(2)=0
-         topo%qfrag(1)=dble(ichrg)
+         topo%qfrag(1)=mol%chrg
          call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,dum2,topo)
          call env%check(exitRun)
          if (exitRun) then
@@ -495,7 +494,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,ichrg,gen,param,topo,accuracy)
          end if
          if(dum1.lt.dum2) then
             topo%qfrag(1)=0
-            topo%qfrag(2)=dble(ichrg)
+            topo%qfrag(2)=mol%chrg
          endif
          write(env%unit,*) 'dEes      :',dum1-dum2
          write(env%unit,*) 'charge 1/2:',topo%qfrag(1:2)

@@ -73,18 +73,18 @@ subroutine get_kopt( &
 
 ! set kopt boundaries
   ax         =0.0_wp
-  cx         =0.005_wp*(dble(mol%n)/(target_rmsd+0.01_wp))
+  cx         =0.005_wp*(dble(mol%n)/(set%target_rmsd+0.01_wp))
 
   kbias = ax
   metaset%factor = -kbias
   call get_rmsd( &
                  & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
                  & etot,g,sigma,current_rmsd)
-  write(env%unit,'("target rmsd / Å        ",f9.6)') target_rmsd  
+  write(env%unit,'("target rmsd / Å        ",f9.6)') set%target_rmsd  
   write(env%unit,'("unbiased initial rmsd  ",f9.6)') current_rmsd  
   write(env%unit,*)
   write(env%unit,'("iter. min.        max.        rmsd       kpush")') 
-  if ( current_rmsd.gt.target_rmsd ) then
+  if ( current_rmsd.gt.set%target_rmsd ) then
      do i = 1,10
         mol=tmol
         kbias = 0.5_wp * (cx +ax)
@@ -94,12 +94,12 @@ subroutine get_kopt( &
                        & etot,g,sigma,current_rmsd)
         write(*,'(i2,4f12.6)') i,&
         &ax,cx,current_rmsd,metaset%factor(metaset%nstruc)
-        if ( current_rmsd.gt.target_rmsd ) then
+        if ( current_rmsd.gt.set%target_rmsd ) then
            ax = kbias
         else
            cx = kbias
         end if
-        if ( abs(current_rmsd-target_rmsd) .lt. 1.0d-3 ) exit
+        if ( abs(current_rmsd-set%target_rmsd) .lt. 1.0d-3 ) exit
      end do
   end if
   kopt = kbias
@@ -141,7 +141,7 @@ subroutine get_rmsd( &
 ! geometry optimization
   call geometry_optimization &
       &     (env,mol,chk,calc,   &
-      &      egap,etemp,maxiter,maxcycle,etot,g,sigma,optlev,.false.,.true.,fail)
+      &      egap,set%etemp,maxiter,maxcycle,etot,g,sigma,optlev,.false.,.true.,fail)
 
   allocate( grad(3,mol%n), source = 0.0_wp )
   call rmsd(mol%n,mol%xyz,tmol%xyz,1,U,x_center,y_center,rmsdval,.true.,grad)

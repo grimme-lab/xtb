@@ -87,7 +87,7 @@ subroutine main_json &
    call write_json_thermo(ijson,freqres)
    endif
    call write_json_charges(ijson,wfx)
-   if (gfn_method.eq.2) then
+   if (set%gfn_method.eq.2) then
    call write_json_dipole_moments(ijson,wfx)
    call write_json_quadrupole_moments(ijson,wfx)
    endif
@@ -416,6 +416,7 @@ subroutine write_json_gfnff_lists(n, topo, nlist, printTopo)
    write(iunit,'("]")')
    write(iunit,'(3x,"],")')
   endif
+
   ! footer
   call get_command(length=l)
   allocate( character(len=l) :: cmdline )

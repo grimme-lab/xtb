@@ -16,7 +16,7 @@ DESCRIPTION
 The `xtb(1)` program performs semiempirical quantummechanical calculations.
 The underlying effective Hamiltonian is derived from density functional
 tight binding (DFTB). This implementation of the xTB Hamiltonian is currently
-compatible with the zeroth (6.1 only), first and second level parametrisation for
+compatible with the zeroth, first and second level parametrisation for
 geometries, frequencies and non-covalent interactions (GFN)
 as well as with the ionisation potential and
 electron affinity (IPEA) parametrisation of the GFN1 Hamiltonian.
@@ -183,7 +183,7 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 
 *--metadyn* ['int']::
     meta dynamics simulation on start geometry, saving 'int' snapshots
-    of the trajectory to bias the simulation (6.1 only)
+    of the trajectory to bias the simulation
 
 *--omd*::
     molecular dynamics simulation on `ancopt(3)` optimized geometry,
@@ -191,14 +191,14 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
 
 *--metaopt* ['LEVEL']::
     call `ancopt(3)` to perform a geometry optimization,
-    then try to find other minimas by meta dynamics (6.1 only)
+    then try to find other minimas by meta dynamics
 
 *--path* ['FILE']::
     use meta dynamics to calculate a path from the input geometry
-    to the given product structure (6.1 only)
+    to the given product structure
 
 *--reactor*::
-    experimental (6.1 only)
+    experimental
 
 *--modef* 'INT'::
     modefollowing algorithm. 'INT' specifies the mode that should be
@@ -290,9 +290,6 @@ INPUT
    Note that the point charge input is not affected by a CMA transformation.
    Also parallel Hessian calculations will fail due to I/O errors when using
    point charge embedding.
-
-*solvent*::
-   `qmdff(1)` input file
 
 *xcontrol*::
    default input file in *--copy* mode, see `xcontrol(7)` for details,

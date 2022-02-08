@@ -17,7 +17,7 @@
 
 module xtb_shake
    use xtb_mctc_accuracy, only : wp
-   use xtb_setparam, only: xhonly,shake_mode
+   use xtb_setparam, only: set
    use xtb_param_atomicrad, only : atomicRad
    implicit none
    private :: atomicRad
@@ -73,7 +73,7 @@ subroutine init_shake(nat,at,xyz,wbo)
    endif
 
    ! constrain X-H only
-   if(shake_mode.eq.1)then
+   if(set%shake_mode.eq.1)then
       do i = 1, nat
          if(at(i).eq.1) then
             minrij=1000.d0
@@ -101,7 +101,7 @@ subroutine init_shake(nat,at,xyz,wbo)
       enddo
    endif
    ! all bonds
-   if(shake_mode.eq.2)then
+   if(set%shake_mode.eq.2)then
       list=0
       do i = 1, nat
          do j =1, nat

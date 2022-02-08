@@ -71,15 +71,15 @@ subroutine geometry_optimization &
       printlevel = 0
    endif
 
-   if (.not.allocated(opt_logfile)) then
+   if (.not.allocated(set%opt_logfile)) then
       call open_file(ilog,'xtbopt.log','w')
    else
-      if (opt_logfile == '-') then
+      if (set%opt_logfile == '-') then
          ilog = stdout
       else
-         call open_file(ilog,opt_logfile,'w')
+         call open_file(ilog,set%opt_logfile,'w')
          if (pr) write(stdout,'(/,a)') &
-            "Optimization log is written to '"//opt_logfile//"'"
+            "Optimization log is written to '"//set%opt_logfile//"'"
       endif
    endif
 
@@ -91,7 +91,7 @@ subroutine geometry_optimization &
          & egap,et,maxiter,printlevel-1,.false.,.false.,1.0_wp,etot,g,sigma,res)
    endif
 
-   select case(opt_engine)
+   select case(set%opt_engine)
    case(p_engine_rf)
       call ancopt &
          &(env,ilog,mol,wfn,calc, &
@@ -123,13 +123,13 @@ subroutine geometry_optimization &
       fail = .true.
    end if
 
-   if (pr.and.pr_finalstruct) then
+   if (pr.and.set%pr_finalstruct) then
       write(env%unit,'(''================'')')
       write(env%unit,*) 'final structure:'
       write(env%unit,'(''================'')')
       call writeMolecule(mol, env%unit)
    endif
-   if (pr.and.pr_geosum) call geosum(mol%n,mol%at,mol%xyz)
+   if (pr.and.set%pr_geosum) call geosum(mol%n,mol%at,mol%xyz)
 
    if (final_sp) then
       if (pr) call generic_header(env%unit,'Final Singlepoint',49,10)

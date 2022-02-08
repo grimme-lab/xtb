@@ -19,9 +19,12 @@ module xtb_hessian
    use xtb_mctc_accuracy, only : wp
    use xtb_freq_io, only : rdhess, wrhess, writeHessianOut, &
       & write_tm_vibspectrum, g98fake, g98fake2
-   use xtb_freq_numdiff, only : numdiff2
    use xtb_freq_project, only : trproj
-   use xtb_freq_turbomole, only : aoforce_hessian
+   implicit none
+   private
+
+   public :: numhess
+   public :: trproj, rdhess, g98fake2, distort, write_tm_vibspectrum
 
 contains
 
@@ -47,11 +50,7 @@ subroutine numhess( &
    use xtb_fixparam
    use xtb_metadynamic
 
-   use xtb_single, only : singlepoint
    use xtb_axis, only : axis
-
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_type_dummycalc, only : TDummyCalculator
 
    implicit none
 
@@ -88,7 +87,6 @@ subroutine numhess( &
    real(wp),allocatable :: bond(:,:)
 
 !$ integer  :: nproc
-   logical :: parallize
 
    real(wp),allocatable :: h (:,:)
    real(wp),allocatable :: htb (:,:)
@@ -133,17 +131,15 @@ subroutine numhess( &
    call rotmol(mol%n,mol%xyz,step,2.*step,3.*step)
 
    ! step length
-   step=step_hess
-   if(extcode.eq.5) step=step*2.0_wp ! MOPAC is not very accurate
+   step=set%step_hess
+   if(set%extcode.eq.5) step=step*2.0_wp ! MOPAC is not very accurate
    ! SCC accuraccy
-   acc=accu_hess
-   scalh=scale_hess
+   acc=set%accu_hess
+   scalh=set%scale_hess
 
-   call singlepoint &
-      & (env,mol,chk0,calc, &
-      &  egap,et,maxiter,0,.true.,.true.,acc,res%etot,res%grad,sr,sccr)
+   call calc%singlepoint(env, mol, chk0, 0, .true., res%etot, res%grad, sr, egap, sccr)
 
-   if (runtyp.eq.p_run_bhess) then
+   if (set%runtyp.eq.p_run_bhess) then
    write(env%unit,'(''kpush                :'',F10.5)') metaset%factor(metaset%nstruc)
    write(env%unit,'(''alpha                :'',F10.5)') metaset%global_width
    end if
@@ -176,17 +172,6 @@ subroutine numhess( &
 !! ========================================================================
 !  Hessian part -----------------------------------------------------------
 
-   !analytical hessian calculation
-   if(mode_extrun .eq. p_ext_turbomole) then    
-           dipd=0.0_wp
-           call aoforce_hessian(env,mol,h,dipd) 
-   else !numerical hessian calculation
-   parallize = .true.
-   select type(calc)
-   type is (TDummyCalculator)
-      parallize = .false.
-   end select
-
    if(freezeset%n.gt.0) then
       ! for frozfc of about 10 the frozen modes
       ! approach 5000 cm-1, i.e., come too close to
@@ -211,7 +196,7 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
-      call numdiff2(env, mol, chk0, calc, indx(:nonfrozh), step, h, dipd, parallize)
+      call calc%hessian(env, mol, chk0, indx(:nonfrozh), step, h, dipd)
 
    else
 !! ------------------------------------------------------------------------
@@ -220,18 +205,17 @@ subroutine numhess( &
       h = 0.0_wp
       dipd = 0.0_wp
       pold = 0.0_wp
-      call numdiff2(env, mol, chk0, calc, step, h, dipd, parallize)
+      indx = [(i, i = 1, mol%n)]
+      call calc%hessian(env, mol, chk0, indx, step, h, dipd)
    endif
-
-   endif !From turbomole_exception
 
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
 
-   if (runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
+   if (set%runtyp.eq.p_run_bhess) call numhess_rmsd(env,mol,hbias)
 
-   if(mode_extrun .eq. p_ext_turbomole .AND. runtyp.eq.p_run_bhess) then 
+   if(set%mode_extrun .eq. p_ext_turbomole .AND. set%runtyp.eq.p_run_bhess) then 
         h = h + hbias !h is biased
    end if
 
@@ -296,7 +280,7 @@ subroutine numhess( &
       enddo
    endif
 
-   if (pr_dftbp_hessian_out) then
+   if (set%pr_dftbp_hessian_out) then
       call writeHessianOut('hessian.out', res%hess)
       write(env%unit, '(A)') "DFTB+ style hessian.out written"
    end if
@@ -311,7 +295,7 @@ subroutine numhess( &
       enddo
    enddo
    ! same for bhess run
-   if (runtyp.eq.p_run_bhess) then
+   if (set%runtyp.eq.p_run_bhess) then
       k=0
       do i=1,n3
          do j=1,i
@@ -322,7 +306,7 @@ subroutine numhess( &
    end if
    ! project
    if(.not.res%linear)then ! projection does not work for linear mol.
-      if (runtyp.eq.p_run_bhess) then
+      if (set%runtyp.eq.p_run_bhess) then
          call trproj(mol%n,n3,mol%xyz,hsb,.false.,0,res%freq,1) ! freq is dummy
       end if
       call trproj(mol%n,n3,mol%xyz,hss,.false.,0,res%freq,1) ! freq is dummy
@@ -343,7 +327,7 @@ subroutine numhess( &
       enddo
    enddo
    ! same for bhess run
-   if (runtyp.eq.p_run_bhess) then
+   if (set%runtyp.eq.p_run_bhess) then
       k=0
       do i=1,n3
          do j=1,i
@@ -354,7 +338,7 @@ subroutine numhess( &
       enddo
    end if
    ! calcualte htb without RMSD bias
-   if (runtyp.eq.p_run_bhess) htb=res%hess-hbias
+   if (set%runtyp.eq.p_run_bhess) htb=res%hess-hbias
    ! diag
    lwork  = 1 + 6*n3 + 2*n3**2
    allocate(aux(lwork))
@@ -367,7 +351,7 @@ subroutine numhess( &
    ! calculate fc_tb and fc_bias
    alp1=1.27_wp
    alp2=1.5d-4
-   if (runtyp.eq.p_run_bhess) then
+   if (set%runtyp.eq.p_run_bhess) then
       do j=1,n3
          v(1:n3) = res%hess(1:n3,j) ! modes
          call mctc_gemv(htb,v,fc_tmp)
@@ -402,13 +386,13 @@ subroutine numhess( &
    enddo
 
    ! scale frequencies
-   if (runtyp.eq.p_run_bhess) then
+   if (set%runtyp.eq.p_run_bhess) then
       do j=1,n3
          res%freq(j)=freq_scal(j)*res%freq(j)
       end do
    end if
 
-   if (verbose.and.runtyp.eq.p_run_bhess) then
+   if (set%verbose.and.set%runtyp.eq.p_run_bhess) then
       write(env%unit,'(4x,"freq   fc_tb      fc_bias    scal")')
       do i=1,n3
          write(env%unit,'(f8.2,2x,f9.6,2x,f9.6,2x,f7.4)') &
@@ -450,7 +434,7 @@ subroutine numhess( &
    res%lowmode=1
    k=0
    do i=1,n3
-      if(res%freq(i).lt.mode_vthr) res%lowmode=i
+      if(res%freq(i).lt.set%mode_vthr) res%lowmode=i
       xsum=0
       k=k+1
       do ia=1,mol%n
@@ -539,7 +523,7 @@ subroutine numhess_rmsd( &
 
    ! step length
    step=0.0001_wp
-   step=step_hess
+   step=set%step_hess
    step2=0.5_wp/step
 
 !! ========================================================================

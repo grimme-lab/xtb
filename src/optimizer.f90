@@ -20,6 +20,7 @@ module xtb_optimizer
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_fileTypes, only : fileType
    use xtb_type_environment, only : TEnvironment
+   use xtb_extern_turbomole, only : TTMCalculator
    use xtb_bfgs
    use xtb_david2
    implicit none
@@ -114,7 +115,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    use xtb_type_anc
    use xtb_type_restart
    use xtb_type_calculator
-   use xtb_type_dummycalc
    use xtb_type_data
    use xtb_type_timer
 
@@ -123,7 +123,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 
    use xtb_setmod, only : int2optlevel
 
-   use xtb_single, only : singlepoint
    use xtb_axis, only : axis2
    use xtb_hessian, only : trproj,rdhess
    use xtb_readin
@@ -195,17 +194,17 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    fail =.false.
    modef=0
    hmax =  5.0_wp
-   maxdispl=optset%maxdispl_opt
-   hlow = optset%hlow_opt!0.01 in ancopt, 0.002 too small
-   s6   = mhset%s6  !slightly better than 30 for various proteins
+   maxdispl=set%optset%maxdispl_opt
+   hlow = set%optset%hlow_opt!0.01 in ancopt, 0.002 too small
+   s6   = set%mhset%s6  !slightly better than 30 for various proteins
 ! initial number of steps before new ANC are made by model Hessian
 ! increased during opt.
-   maxmicro=optset%micro_opt
+   maxmicro=set%optset%micro_opt
    estart = etot
 
    iupdat=0 !0=BFGS, 1=Powell
 
-   if(tsopt)then
+   if(set%tsopt)then
       hlow=max(hlow,0.250d0)
       iupdat=1
    endif
@@ -218,9 +217,9 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       maxopt=maxcycle_in
    endif
    if(maxopt.lt.maxmicro) maxmicro=maxopt
-   if (optset%average_conv) then
+   if (set%optset%average_conv) then
       select type(calc)
-      class is(TDummyCalculator)
+      class is(TTMCalculator)
          avconv = load_turbomole_log(maxopt)
          if (avconv%nlog > 0 .and. pr) then
             write(env%unit, '(a, 1x, i0, 1x, a)') &
@@ -270,7 +269,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       write(env%unit,intfmt) "# mode follow     ",modef
       endif
       write(env%unit,'(10x,":",49("."),":")')
-      if (optset%exact_rf) then
+      if (set%optset%exact_rf) then
       write(env%unit,chrfmt) "RF solver         ","spevx"
       else
       write(env%unit,chrfmt) "RF solver         ","davidson"
@@ -295,7 +294,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 
    allocate(h(nat3,nat3),fc(nat3*(nat3+1)/2),eig(nat3))
 
-   if (mhset%model == p_modh_read) then
+   if (set%mhset%model == p_modh_read) then
       call open_file(ihess, 'hessian', 'r')
       if (ihess == -1) then
          call env%error("Could not read in hessian as requested.", source)
@@ -326,7 +325,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    if (profile) call timer%measure(2,'model hessian')
    if (.not.ex)then ! normal case
      if(pr)write(env%unit,'(/,''generating ANC from model Hessian ...'')')
-     call modhes(env, calc, mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
+     call modhes(env, calc, set%mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
      call env%check(fail)
      if (fail) then
         call env%error("Calculation of model hessian failed", source)
@@ -379,7 +378,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 ! now everything is prepared for the optimization
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
       & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
-      & converged,timer,optset%exact_rf,avconv)
+      & converged,timer,set%optset%exact_rf,avconv)
 
    call env%check(fail)
    if (fail) then
@@ -387,7 +386,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       return
    endif
 
-   maxmicro=min(int(maxmicro*1.1),2*optset%micro_opt)
+   maxmicro=min(int(maxmicro*1.1),2*set%optset%micro_opt)
 
    call rmsd(molopt%n,anc%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
 
@@ -463,8 +462,6 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    use xtb_type_calculator
    use xtb_type_data
    use xtb_type_timer
-
-   use xtb_single, only : singlepoint
 
    implicit none
 
@@ -551,9 +548,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    if (profile) call timer%measure(4)
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
-   call singlepoint &
-         (env,mol,chk,calc, &
-          egap,et,maxiter,prlevel,iter.eq.1,.true.,acc,energy,g,sigma,res)
+   call calc%singlepoint(env,mol,chk,prlevel,iter.eq.1,energy,g,sigma,egap,res)
    if (profile) call timer%measure(5)
 
    ! something went wrong in SCC or diag

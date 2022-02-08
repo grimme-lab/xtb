@@ -57,7 +57,7 @@ module xtb_constrain_param
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_strings, only : parse
    use xtb_readin, only : getline => strip_line,getValue,getListValue
-   use xtb_setparam, only : verbose
+   use xtb_setparam, only : set
    use xtb_type_environment, only : TEnvironment
    use xtb_type_identitymap, only : TIdentityMap, init
    use xtb_type_molecule, only : TMolecule
@@ -120,7 +120,7 @@ subroutine read_userdata(fname,env,mol)
    integer :: err
    logical :: exist
 
-   if (verbose) then
+   if (set%verbose) then
       write(env%unit,'(72("$"))')
       write(env%unit,'(1x,"CONSTRAINTS & SCANS: DEBUG SECTION")')
       write(env%unit,'(72("$"))')
@@ -145,35 +145,35 @@ subroutine read_userdata(fname,env,mol)
       if (index(line,flag).eq.1) then
          select case(line(2:))
          case('fix'      )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_fix,    line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('split'    )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_split,  line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('constrain')
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             if (allocated(potset%xyz)) then
                call rdblock(env,set_constr, line,id,mol%n,mol%at,idMap,potset%xyz,err)
             else
                call rdblock(env,set_constr, line,id,mol%n,mol%at,idMap,mol%xyz,err)
             endif
          case('scan'     )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_scan,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('wall'     )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_wall,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('metadyn'  )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_metadyn,line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('hess'     )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_hess,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('path'     )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_path,   line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('reactor'  )
-            if (verbose) write(env%unit,'(">",1x,a)') line(2:)
+            if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
             call rdblock(env,set_reactor,line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case('set'      ); call rdsetbl(env,set_legacy,line,id,mol%n,mol%at,idMap,mol%xyz,err)
          case default ! unknown keyword -> ignore, we don't raise them
@@ -187,7 +187,7 @@ subroutine read_userdata(fname,env,mol)
 !     if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
    enddo readflags
 
-   if (verbose) write(env%unit,'(72("$"))')
+   if (set%verbose) write(env%unit,'(72("$"))')
    call close_file(id)
 end subroutine read_userdata
 
@@ -211,7 +211,7 @@ subroutine rdsetbl(env,handler,line,id,nat,at,idMap,xyz,err)
       call getline(id,line,err)
       if (is_iostat_end(err)) exit
       if (index(line,flag).ne.0) exit
-      if (verbose) write(env%unit,'("->",1x,a)') line
+      if (set%verbose) write(env%unit,'("->",1x,a)') line
 
       ! find the first colon
       ie = index(line,space)
@@ -248,7 +248,7 @@ subroutine rdblock(env,handler,line,id,nat,at,idMap,xyz,err)
       call getline(id,line,err)
       if (is_iostat_end(err)) exit
       if (index(line,flag).ne.0) exit
-      if (verbose) write(env%unit,'("->",1x,a)') line
+      if (set%verbose) write(env%unit,'("->",1x,a)') line
 
       ! find the first colon
       ie = index(line,colon)
@@ -296,7 +296,7 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
 
    call parse(val,comma,argv,narg)
 !  some debug xtb_printout
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -361,7 +361,7 @@ subroutine set_fix(env,key,val,nat,at,idMap,xyz)
          call env%warning("too many SHAKE constraints!",source)
          return
       endif
-      if (.not.shake_md) shake_md = .true.
+      if (.not.set%shake_md) set%shake_md = .true.
       do idum = 1, narg
          if (getValue(env,trim(argv(idum)),iat)) then
             if (iat.gt.nat) then
@@ -414,7 +414,7 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    call atl%resize(nat)
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -852,7 +852,7 @@ subroutine set_scan(env,key,val,nat,at,idMap,xyz)
    endif
 
    call parse(temp,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -900,7 +900,7 @@ subroutine set_scan(env,key,val,nat,at,idMap,xyz)
    do i = 1, scan_list(nscan)%nscan
       scan_list(nscan)%valscan(i) = start_value + (end_value-start_value) &
          &                       * real(i-1,wp)/real(scan_list(nscan)%nscan-1,wp)
-      if (verbose) write(env%unit,'(i5,1x,f12.8)') i,scan_list(nscan)%valscan(i)
+      if (set%verbose) write(env%unit,'(i5,1x,f12.8)') i,scan_list(nscan)%valscan(i)
    enddo
 
 end subroutine set_scan
@@ -939,7 +939,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
    center = 0.0_wp
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -1065,7 +1065,7 @@ subroutine set_split(env,key,val,nat,at,idMap,xyz)
    character(len=p_str_length),dimension(p_arg_length) :: argv
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -1143,7 +1143,7 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    character(len=p_str_length),dimension(p_arg_length) :: argv
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -1232,7 +1232,7 @@ subroutine set_reactor(env,key,val,nat,at,idMap,xyz)
    character(len=p_str_length),dimension(p_arg_length) :: argv
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -1245,10 +1245,10 @@ subroutine set_reactor(env,key,val,nat,at,idMap,xyz)
          call env%warning('something is wrong in the reactor atom list',source)
          return
       endif
-      if (reactset%nat > 0) call atl%add(reactset%atoms(:reactset%nat))
+      if (set%reactset%nat > 0) call atl%add(set%reactset%atoms(:set%reactset%nat))
       call atl%to_list(list)
-      reactset%atoms = list
-      reactset%nat = size(list)
+      set%reactset%atoms = list
+      set%reactset%nat = size(list)
    end select
 
 end subroutine set_reactor
@@ -1279,7 +1279,7 @@ subroutine set_path(env,key,val,nat,at,idMap,xyz)
    character(len=p_str_length),dimension(p_arg_length) :: argv
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -1292,10 +1292,10 @@ subroutine set_path(env,key,val,nat,at,idMap,xyz)
          call env%warning('something is wrong in the bias path atom list',source)
          return
       endif
-      if (pathset%nat > 0) call atl%add(pathset%atoms(:pathset%nat))
+      if (set%pathset%nat > 0) call atl%add(set%pathset%atoms(:set%pathset%nat))
       call atl%to_list(list)
-      pathset%atoms = list
-      pathset%nat = size(list)
+      set%pathset%atoms = list
+      set%pathset%nat = size(list)
    end select
 
 end subroutine set_path
@@ -1326,7 +1326,7 @@ subroutine set_metadyn(env,key,val,nat,at,idMap,xyz)
    character(len=p_str_length),dimension(p_arg_length) :: argv
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo
@@ -1436,7 +1436,7 @@ subroutine set_freeze(env,key,val,nat,at,idMap,xyz)
    character(len=p_str_length),dimension(p_arg_length) :: argv
 
    call parse(val,comma,argv,narg)
-   if (verbose) then
+   if (set%verbose) then
       do idum = 1, narg
          write(env%unit,'("-->",1x,i0,":",1x,a)') idum, trim(argv(idum))
       enddo

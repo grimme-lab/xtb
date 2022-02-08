@@ -65,8 +65,8 @@ subroutine mdopt(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    write(*,'(7x,''|    optimizations along trajectory   |'')')
    write(*,'(7x,''======================================='')')
    write(*,*)
-   write(*,*)'skipping interval            :',skip_md
-   write(*,*)'opt level                    :',optset%optlev
+   write(*,*)'skipping interval            :',set%skip_md
+   write(*,*)'opt level                    :',set%optset%optlev
 
    atmp='xtb.trj'
    call cqpath_read_pathfile_parameter(atmp,iz1,iz2,nall)
@@ -74,7 +74,7 @@ subroutine mdopt(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
    allocate(xyznew(3,mol%n,nall),eread(nall))
    call cqpath_read_pathfile(atmp,iz1,iz2,nall,xyznew,mol%at,eread)
    write(*,*)'total number of points on trj:',nall
-   write(*,*)'total number of optimizations:',nall/skip_md
+   write(*,*)'total number of optimizations:',nall/set%skip_md
 
    call open_file(ich,'xtb_ensemble.xyz','w')
 
@@ -83,13 +83,13 @@ subroutine mdopt(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
 
       j = j +1
 
-      if(mod(j,skip_md).eq.0)then
+      if(mod(j,set%skip_md).eq.0)then
          mol%xyz=xyznew(:,:,i)*angtoau
 
          call geometry_optimization &
             &      (env, mol,chk,calc, &
-            &       egap,etemp,maxscciter,optset%maxoptcycle,epot,grd,sigma, &
-            &       optset%optlev,.false.,.true.,fail)
+            &       egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,epot,grd,sigma, &
+            &       set%optset%optlev,.false.,.true.,fail)
 
          if(.not.fail)then
             call writeMolecule(mol, ich, fileType%xyz, energy=epot)

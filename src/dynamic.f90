@@ -116,8 +116,8 @@ subroutine wrc(fname,n,xyz,at)
    enddo
    write(ich,'(''$end'')')
    write(ich,'(''$set'')')
-   write(ich,'('' chrg     '',i2)') ichrg
-   write(ich,'('' uhf      '',i2)') nalphabeta
+   write(ich,'('' chrg     '',i2)') set%ichrg
+   write(ich,'('' uhf      '',i2)') set%nalphabeta
    write(ich,'(''$end'')')
    call close_file(ich)
 
@@ -147,7 +147,7 @@ subroutine md(env,mol,chk,calc, &
    use xtb_type_calculator
    use xtb_type_restart
    use xtb_type_data
-   use xtb_shake, only: do_shake,ncons,xhonly
+   use xtb_shake, only: do_shake,ncons
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -176,7 +176,7 @@ subroutine md(env,mol,chk,calc, &
    real(wp) :: Ekin,tmass,f,mintime
    real(wp) :: Tinit,Tav,T,epav,ekav,dav,cma(3),bave,bavt,dum2
    real(wp) :: dum,edum,eerror,xx(10),molmass,slope,maxtime
-   real(wp) :: tstep0,tmax,nfreedom,t0,w0,t1,w1,ep_prec,rege(1000)
+   real(wp) :: tstep0,tmax,nfreedom,t0,w0,t1,w1,ep_prec,rege(4)
    real(wp) :: tors(mol%n),be(3),b0(3),tor,dip(3)
    logical  :: ex,thermostat,restart,confdump,equi,gmd,ldum
 
@@ -214,7 +214,7 @@ subroutine md(env,mol,chk,calc, &
    endif
 
    ! special equi and GMD settings
-   tmax=time_md
+   tmax=set%time_md
    equi=.false.
    gmd=.false.
    if(icall.eq.-1) equi = .true.   ! equilibration
@@ -234,21 +234,21 @@ subroutine md(env,mol,chk,calc, &
    ! real coord dump to e.g. scoord.n in siman
    confdump=.false.
    if(nscan.eq.0.and.cdump2.ge.0) confdump=.true.
-   if(ceasefiles) confdump=.false.
+   if(set%ceasefiles) confdump=.false.
    ! just screen
    screendump=200
 
    ! blocklength for SD of energy and T
-   blockl=min(5000,idint(5000/tstep_md))
+   blockl=min(5000,idint(5000/set%tstep_md))
    allocate(blocke(blockl),blockt(blockl))
 
    ! take paramters from common
-   tstep0=tstep_md
-   cdump0=dump_md/tstep_md    ! scoord
-   dumpstep=dump_md2/tstep_md ! xyz
-   thermostat=nvt_md
-   restart=restart_md
-   accu=accu_md
+   tstep0=set%tstep_md
+   cdump0=set%dump_md/set%tstep_md    ! scoord
+   dumpstep=set%dump_md2/set%tstep_md ! xyz
+   thermostat=set%nvt_md
+   restart=set%restart_md
+   accu=set%accu_md
 
    allocate(velo(3,mol%n),vel(3,mol%n),veln(3,mol%n),xyzo(3,mol%n),acc(3,mol%n),mass(mol%n))
 
@@ -260,8 +260,8 @@ subroutine md(env,mol,chk,calc, &
    enddo
    tmass=molmass*amutoau
    do i=1,mol%n
-      if(mol%at(i).eq.1.and.md_hmass.gt.0) then
-         mass(i)=dble(md_hmass)*amutoau
+      if(mol%at(i).eq.1.and.set%md_hmass.gt.0) then
+         mass(i)=dble(set%md_hmass)*amutoau
          ! k=nbo(1,i) ! atom to which H is bonded
          ! mass(k)=mass(k)-mass(i)+ams(1)*amutoau ! reduce by the increase H mass
       endif
@@ -278,18 +278,18 @@ subroutine md(env,mol,chk,calc, &
    write(*,'('' temperature /K     :'',f8.2)')Tsoll
    write(*,'('' max steps          :'',i6  )')nmax
    write(*,'('' block length (av.) :'',i6  )')blockl
-   write(*,'('' dumpstep(trj) /fs  :'',f8.2,i6)')dump_md2,dumpstep
-   write(*,'('' dumpstep(coords)/fs:'',f8.2,i6)')dump_md,cdump0
+   write(*,'('' dumpstep(trj) /fs  :'',f8.2,i6)')set%dump_md2,dumpstep
+   write(*,'('' dumpstep(coords)/fs:'',f8.2,i6)')set%dump_md,cdump0
    if(equi.or.gmd)then
       write(*,'('' minimum runtime(ps):'',f6.1)')mintime
       write(*,'('' maximum runtime(ps):'',f6.1)')maxtime
    endif
-   if(md_hmass.gt.0) &
-      &write(*,'('' H atoms mass (amu) :'',i6  )')md_hmass
+   if(set%md_hmass.gt.0) &
+      &write(*,'('' H atoms mass (amu) :'',i6  )')set%md_hmass
 
    nfreedom = 3._wp*real(mol%n,wp)
-   if(mdrtrconstr ) nfreedom = nfreedom - 6.0d0
-   if(shake_md    ) nfreedom = nfreedom - dble(ncons)
+   if(set%mdrtrconstr ) nfreedom = nfreedom - 6.0d0
+   if(set%shake_md    ) nfreedom = nfreedom - dble(ncons)
    if(zconstr.eq.1) nfreedom = nfreedom - dble(iatf1)  ! fragment 1 in Z plane
    write(*,'('' # deg. of freedom  :'',i6  )')idint(nfreedom)
 
@@ -308,8 +308,8 @@ subroutine md(env,mol,chk,calc, &
       call rdmdrestart(mol%n,mol%xyz,velo)
    endif
 
-   if(shake_md) then
-      write(*,*) 'SHAKE on. # bonds  :',ncons,' all:',.not.xhonly
+   if(set%shake_md) then
+      write(*,*) 'SHAKE on. # bonds  :',ncons,' all:',.not.set%xhonly
    else
       write(*,*) 'SHAKE off'
    endif
@@ -413,7 +413,7 @@ subroutine md(env,mol,chk,calc, &
       !ccccccccccccccccccc
       ! calc E and forces                                       STEP 1
       !ccccccccccccccccccc
-      accu=accu_md
+      accu=set%accu_md
       if(acount.eq.10)then  ! accurate SCC
          accu=1.0d0
          acount=0
@@ -480,10 +480,10 @@ subroutine md(env,mol,chk,calc, &
          nblock=nblock+1
          iblock=0
          call blocksd(mol%n,blockl,blocke,blockt,bave,bavt)
-         nreg=nreg+1
-         rege(nreg)=bave
+         nreg = nreg + 1
+         rege(:) = [rege(2:), bave]
          if(nreg.ge.4)then
-            call regress(nreg-3,nreg,rege,slope)
+            call regress(1,4,rege,slope)
          else
             slope=99.
          endif
@@ -523,7 +523,7 @@ subroutine md(env,mol,chk,calc, &
       if(ndump.gt.dumpstep-1)then
          ndump=0
          call writeMolecule(mol, trj, fileType%xyz, energy=epot, gnorm=res%gnorm)
-         if(velodump)then
+         if(set%velodump)then
             do i=1,mol%n
                write(trj,'(3f20.14)')velo(1:3,i)
             enddo
@@ -599,7 +599,7 @@ subroutine md(env,mol,chk,calc, &
       ! SHAKE (apply constraint at t+dt)
       !ccccccccccccccccccc
 
-      if(shake_md) call do_shake(mol%n,xyzo,mol%xyz,vel,acc,mass,tstep)
+      if(set%shake_md) call do_shake(mol%n,xyzo,mol%xyz,vel,acc,mass,tstep)
 
       ! update velocities
       velo = vel
@@ -686,11 +686,13 @@ subroutine md(env,mol,chk,calc, &
 end subroutine md
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-      subroutine regress(n1,n2,rege,slope)
+      pure subroutine regress(n1,n2,rege,slope)
       implicit none
-      real(wp) rege(*),slope
-      integer n1,n2,n,i
-      real(wp) sx,sy,sxx,sxy,x
+      real(wp), intent(in) :: rege(:)
+      real(wp), intent(out) :: slope
+      integer, intent(in) :: n1,n2
+      integer :: n,i
+      real(wp) :: sx,sy,sxx,sxy,x
 
       n=n2-n1+1
       sx=0
@@ -706,9 +708,9 @@ end subroutine md
          sxy=sxy+x*rege(i)
       enddo
 
-      slope=(dble(n)*sxy-sx*sy)/(dble(n)*sxx-sx*sx)
+      slope=(real(n, wp)*sxy-sx*sy)/(real(n, wp)*sxx-sx*sx)
 
-      end
+      end subroutine regress
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine blocksd(n,nbl,ebl,tbl,esd,tsd)
@@ -908,7 +910,7 @@ subroutine zero3n6(n,v,a)
    integer n
    real(wp) a(3,n),v(3,n)
 
-   if(.not.mdrtrconstr) return
+   if(.not.set%mdrtrconstr) return
 
    a(1:3,n)=0.d0
    a(1:2,n-1)=0.d0

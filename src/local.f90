@@ -328,7 +328,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             write(icoord,'(3F24.10,5x,a2)') ecent(i,1:3),toSymbol(1)
             write(icoord,'(''$end'')')
             write(icoord,'(''$set'')')
-            write(icoord,'('' chrg '',i2)')ichrg+1
+            write(icoord,'('' chrg '',i2)')set%ichrg+1
             write(icoord,'('' ewin_conf 50.0 '')')
             write(icoord,'(''$end'')')
             call close_file(icoord)

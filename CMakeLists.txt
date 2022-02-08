@@ -162,6 +162,7 @@ install(
   FILES
   "${PROJECT_SOURCE_DIR}/param_gfn0-xtb.txt"
   "${PROJECT_SOURCE_DIR}/param_gfn1-xtb.txt"
+  "${PROJECT_SOURCE_DIR}/param_gfn1-si-xtb.txt"
   "${PROJECT_SOURCE_DIR}/param_gfn2-xtb.txt"
   "${PROJECT_SOURCE_DIR}/param_ipea-xtb.txt"
   "${PROJECT_SOURCE_DIR}/.param_gfnff.xtb"
