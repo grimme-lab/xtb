@@ -25,7 +25,7 @@ module xtb_xtb_calculator
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
-   use xtb_type_param, only : scc_parameter
+   use xtb_type_param, only : scc_parameter, TxTBParameter, chrg_parameter
    use xtb_type_pcem
    use xtb_type_solvation, only : TSolvation
    use xtb_type_restart, only : TRestart
@@ -40,6 +40,15 @@ module xtb_xtb_calculator
    use xtb_embedding, only : read_pcem
    use xtb_metadynamic
    use xtb_constrainpot
+   use xtb_basis, only : newBasisset
+   use xtb_mctc_systools, only : rdpath
+   use xtb_readparam, only : readParam
+   use xtb_paramset, only : use_parameterset
+   use xtb_chargemodel, only : new_charge_model_2019
+   use xtb_disp_ncoord, only : ncoord_erf
+   use xtb_eeq, only : eeq_chrgeq
+   use xtb_iniq, only : iniqcn
+   use xtb_scc_core, only : iniqshell
    implicit none
    interface
       subroutine generate_wsc(mol,wsc)
@@ -51,7 +60,7 @@ module xtb_xtb_calculator
 
    private
 
-   public :: TxTBCalculator
+   public :: TxTBCalculator, newXTBCalculator, newWavefunction
 
 
    !> Calculator interface for xTB based methods
@@ -87,6 +96,107 @@ module xtb_xtb_calculator
 
 
 contains
+
+
+subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
+
+   character(len=*), parameter :: source = 'xtb_calculator_newXTBCalculator'
+
+   type(TEnvironment), intent(inout) :: env
+
+   type(TMolecule), intent(in) :: mol
+
+   type(TxTBCalculator), intent(out) :: calc
+
+   integer, intent(in), optional :: method
+
+   real(wp), intent(in), optional :: accuracy
+
+   character(len=*), intent(in), optional :: fname
+
+   character(len=:), allocatable :: filename
+   type(TxTBParameter) :: globpar
+   integer :: ich
+   logical :: exist, okbas
+   logical :: exitRun
+
+   if (present(fname)) then
+      filename = fname
+   else
+      if (present(method)) then
+         select case(method)
+         case(0)
+            call rdpath(env%xtbpath, 'param_gfn0-xtb.txt', filename, exist)
+            if (.not.exist) filename = 'param_gfn0-xtb.txt'
+         case(1)
+            call rdpath(env%xtbpath, 'param_gfn1-xtb.txt', filename, exist)
+            if (.not.exist) filename = 'param_gfn1-xtb.txt'
+         case(2)
+            call rdpath(env%xtbpath, 'param_gfn2-xtb.txt', filename, exist)
+            if (.not.exist) filename = 'param_gfn2-xtb.txt'
+         end select
+      end if
+   end if
+   if (.not.allocated(filename)) then
+      call env%error("No parameter file or parametrisation info provided", source)
+      return
+   end if
+
+   if (present(accuracy)) then
+      calc%accuracy = accuracy
+   else
+      calc%accuracy = 1.0_wp
+   end if
+
+   calc%etemp = 300.0_wp
+   calc%maxiter = 250
+
+   !> Obtain the parameter file
+   allocate(calc%xtbData)
+   call open_file(ich, filename, 'r')
+   exist = ich /= -1
+   if (exist) then
+      call readParam(env, ich, globpar, calc%xtbData, .true.)
+      call close_file(ich)
+   else ! no parameter file, check if we have one compiled into the code
+      call use_parameterset(filename, globpar, calc%xtbData, exist)
+      if (.not.exist) then
+         call env%error('Parameter file '//filename//' not found!', source)
+         return
+      end if
+   endif
+
+   if (present(method)) then
+      if (method /= calc%xtbData%level) then
+         call env%error("Requested method does not match loaded method", source)
+         return
+      end if
+   end if
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not load parameters", source)
+      return
+   end if
+
+   !> set up the basis set for the tb-Hamiltonian
+   allocate(calc%basis)
+   call newBasisset(calc%xtbData, mol%n, mol%at, calc%basis, okbas)
+   if (.not.okbas) then
+      call env%error('basis set could not be setup completely', source)
+      return
+   end if
+
+   !> check for external point charge field
+   if (allocated(set%pcem_file)) then
+      call open_file(ich, set%pcem_file, 'r')
+      if (ich /= -1) then
+         call read_pcem(ich, env, calc%pcem, calc%xtbData%coulomb)
+         call close_file(ich)
+      end if
+   end if
+
+end subroutine newXTBCalculator
 
 
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
@@ -321,5 +431,45 @@ subroutine writeInfo(self, unit, mol)
 
 end subroutine writeInfo
 
+
+subroutine newWavefunction(env, mol, calc, chk)
+   character(len=*), parameter :: source = 'xtb_calculator_newWavefunction'
+   type(TEnvironment), intent(inout) :: env
+   type(TRestart), intent(inout) :: chk
+   type(TxTBCalculator), intent(in) :: calc
+   type(TMolecule), intent(in) :: mol
+   real(wp), allocatable :: cn(:)
+   type(chrg_parameter) :: chrgeq
+   logical :: exitRun
+
+   associate(wfn => chk%wfn)
+      allocate(cn(mol%n))
+      call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
+
+      if (mol%npbc > 0) then
+         wfn%q = mol%chrg/real(mol%n,wp)
+      else
+         if (set%guess_charges.eq.p_guess_gasteiger) then
+            call iniqcn(mol%n,mol%at,mol%z,mol%xyz,nint(mol%chrg),1.0_wp, &
+               & wfn%q,cn,calc%xtbData%level,.true.)
+         else if (set%guess_charges.eq.p_guess_goedecker) then
+            call new_charge_model_2019(chrgeq,mol%n,mol%at)
+            call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+            call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
+
+            call env%check(exitRun)
+            if (exitRun) then
+               call env%rescue("EEQ guess failed, falling back to SAD guess", source)
+               wfn%q = mol%chrg/real(mol%n,wp)
+            end if
+         else
+            wfn%q = mol%chrg/real(mol%n,wp)
+         end if
+      end if
+
+      call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell, &
+         & wfn%q,wfn%qsh,calc%xtbData%level)
+   end associate
+end subroutine newWavefunction
 
 end module xtb_xtb_calculator

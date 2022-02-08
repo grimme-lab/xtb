@@ -59,8 +59,7 @@ subroutine test_gfnff_sp(error)
    use xtb_setmod
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
    type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 8
@@ -144,8 +143,7 @@ subroutine test_gfnff_hb(error)
    use xtb_setmod
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
    type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
@@ -226,8 +224,8 @@ subroutine test_gfnff_gbsa(error)
    use xtb_setmod
    use xtb_disp_dftd3param
    use xtb_disp_dftd4
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_main_setup, only : addSolvationModel
    type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
    integer, parameter :: nat = 7
@@ -312,8 +310,7 @@ subroutine test_gfnff_mindless_basic(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
 
    type(error_type), allocatable, intent(out) :: error
 
@@ -385,8 +382,8 @@ subroutine test_gfnff_mindless_solvation(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
@@ -465,8 +462,8 @@ subroutine test_gfnff_scaleup(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
@@ -539,8 +536,8 @@ subroutine test_gfnff_pdb(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 
@@ -608,8 +605,8 @@ subroutine test_gfnff_sdf(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
 
-   use xtb_gfnff_calculator, only : TGFFCalculator
-   use xtb_main_setup, only : newGFFCalculator, addSolvationModel
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_main_setup, only : addSolvationModel
    use xtb_solv_input, only : TSolvInput
    use xtb_solv_kernel, only : gbKernel
 

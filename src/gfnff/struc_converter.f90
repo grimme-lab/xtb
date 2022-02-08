@@ -32,7 +32,7 @@ subroutine struc_convert( &
   use xtb_type_environment
   use xtb_type_molecule
   use xtb_type_restart
-  use xtb_gfnff_calculator
+  use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
   use xtb_type_data
   use xtb_restart
   use xtb_setmod
@@ -40,7 +40,6 @@ subroutine struc_convert( &
   use xtb_dynamic
   use xtb_geoopt
   use xtb_readin, only : xfind
-  use xtb_main_setup, only : newGFFCalculator
   implicit none
 ! Dummy -----------------------------------------------------------------------
   type(TEnvironment),intent(inout)            :: env

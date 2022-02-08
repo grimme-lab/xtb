@@ -27,8 +27,7 @@ module xtb_api_interface
    use xtb_gfnff_calculator, only : TGFFCalculator
    use xtb_scc_core, only : iniqshell
    use xtb_type_data, only : scc_results
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newWavefunction
+   use xtb_xtb_calculator, only : TxTBCalculator, newWavefunction
    implicit none
    private
 

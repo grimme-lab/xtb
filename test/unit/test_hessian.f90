@@ -128,11 +128,7 @@ subroutine test_gfn1_hessian(error)
    dipgrad = 0.0_wp
    hessian = 0.0_wp
    list = [(i, i = 1, mol%n)]
-   !$omp parallel
-   !$omp single
    call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
-   !$omp end single
-   !$omp end parallel
 
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)
@@ -229,11 +225,7 @@ subroutine test_gfn2_hessian(error)
    dipgrad = 0.0_wp
    hessian = 0.0_wp
    list = [(i, i = 1, mol%n)]
-   !$omp parallel
-   !$omp single
    call calc%hessian(env, mol, chk, list, step, hessian, dipgrad)
-   !$omp end single
-   !$omp end parallel
 
    do i = 1, size(dipgrad_ref, 2)
       do j = 1, size(dipgrad_ref, 1)

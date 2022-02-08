@@ -207,8 +207,7 @@ subroutine test_peeq_api(error)
 
    use xtb_pbc_tools
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
 
    type(error_type), allocatable, intent(out) :: error
 
@@ -290,8 +289,7 @@ subroutine test_peeq_api_srb(error)
 
    use xtb_pbc_tools
 
-   use xtb_xtb_calculator, only : TxTBCalculator
-   use xtb_main_setup, only : newXTBCalculator, newWavefunction
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
 
    type(error_type), allocatable, intent(out) :: error
 

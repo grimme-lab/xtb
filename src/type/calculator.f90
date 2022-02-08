@@ -144,9 +144,9 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    step2 = 0.5_wp / step
    allocate(gr(3, mol0%n), gl(3, mol0%n))
 
-! This OpenMP statements lead to invalid LLVM-IRwith NVHPC (20.7 to 20.11)
-   !$omp parallel do if(self%threadsafe) schedule(runtime) collapse(2) &
-   !$omp private(jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, &
+   !$omp parallel do if(self%threadsafe) schedule(runtime) collapse(2) default(none) &
+   !$omp shared(self, env, mol0, chk0, list, step, hess, dipgrad, egap, step2, t0, w0) &
+   !$omp private(kat, iat, jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, &
    !$omp& mol, chk, t1, w1)
    do kat = 1, size(list)
       do ic = 1, 3

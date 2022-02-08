@@ -101,6 +101,7 @@ srcs += files(
   'model_hessian.f90',
   'neighbor.f90',
   'onetri.f90',
+  'oniom.f90',
   'optimizer.f90',
   'pbc.f90',
   'pbc_tools.f90',
