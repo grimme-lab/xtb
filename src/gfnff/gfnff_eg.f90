@@ -176,8 +176,12 @@ contains
       require_update = .not.nlist%initialized
       if (.not.nlist%initialized) then
          if (pr) then
-            write(env%unit,'(10x,"nhb123",3x,i0,x,i0,x,i0)') &
-               & nhb1,nhb2,nxb
+            write(env%unit,'(10x,"Number of HB bonds (bound hydrogen)",5x,i0,x,i0,x,i0)') &
+               & nhb1
+            write(env%unit,'(10x,"Number of HB bonds (unbound hydrogen)",3x,i0,x,i0,x,i0)') &
+               & nhb2
+            write(env%unit,'(10x,"Number of XB bonds",22x,i0,x,i0,x,i0)') &
+               & nxb
          end if
          call new(nlist, n, 5*nhb1, 5*nhb2, 3*nxb)
          nlist%hbrefgeo(:, :) = xyz
@@ -494,6 +498,7 @@ contains
             g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
             g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
             ehb=ehb+etmp
+            nlist%hbe1(i)=etmp ! HB energies  
          enddo
          !$omp end parallel do
       endif
@@ -526,6 +531,7 @@ contains
             end if
             g=g+g5tmp
             ehb=ehb+etmp
+            nlist%hbe2(i)=etmp
          enddo
          !$omp end parallel do
       endif
@@ -547,6 +553,7 @@ contains
             g(1:3,k)=g(1:3,k)+g3tmp(1:3,2)
             g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
             exb=exb+etmp
+            nlist%hbe3(i)=etmp
          enddo
          !$omp end parallel do
       endif

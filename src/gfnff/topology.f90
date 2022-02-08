@@ -106,6 +106,8 @@ module xtb_gfnff_topology
      logical :: vtors   = .false.
      logical :: vbond   = .false.
      logical :: vangl   = .false.
+     logical :: hbbond  = .false.
+     logical :: eeq  = .false.
      logical :: warning = .false.
 
    contains
@@ -146,7 +148,8 @@ function any(self) result(tf)
   logical :: tf
 
   tf = self%nb.or.self%bpair.or.self%alist.or.self%blist.or. &
-     & self%tlist.or.self%vtors.or.self%vbond.or.self%vangl
+     & self%tlist.or.self%vtors.or.self%vbond.or.self%vangl.or. &
+     & self%hbbond.or.self%eeq
 end function any
 
 end module xtb_gfnff_topology

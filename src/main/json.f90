@@ -239,12 +239,15 @@ subroutine write_json_reduced_masses(ijson,freqres)
    write(ijson,'(3x,f15.8,"],")') freqres%rmass(freqres%n3true)
 end subroutine write_json_reduced_masses
 
-subroutine write_json_gfnff_lists(n, topo, printTopo)
+subroutine write_json_gfnff_lists(n, topo, nlist, printTopo)
   use xtb_gfnff_topology, only : TGFFTopology
+  use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
   use xtb_gfnff_topology, only : TPrintTopo
   include 'xtb_version.fh'
   !> gfnff topology lists
   type(TGFFTopology), intent(in) :: topo
+  !> gfnff neighbourlist
+  type(TGFFNeighbourList), intent(in) :: nlist
   !> topology printout booleans
   type(TPrintTopo), intent(in) :: printTopo
   character(len=:),allocatable :: cmdline
@@ -329,6 +332,91 @@ subroutine write_json_gfnff_lists(n, topo, printTopo)
     write(iunit,'("]")')
     write(iunit,'(3x,"],")')
   endif
+  if(printTopo%hbbond)then ! hbbond: 3x(3,nhb) energies: 3x(1,nhb)
+   write(iunit,'(3x,''"hbl":'',"[")') !> HBs loose
+   if (nlist%nhb1.ge.1) then
+    do j=1, nlist%nhb1-1
+      write(iunit,'(3x,"[",*(i7,:,","))',advance='no') nlist%hblist1(:,j)
+      write(iunit,'("],")')
+    enddo
+    write(iunit,'(3x,"[",*(i7,:,","),"]",/)',advance='no') nlist%hblist1(:,nlist%nhb1)
+    write(iunit,'("]")')
+    write(iunit,'(3x,"],")')
+   else
+     write(iunit,'(3x,"[",*(i7,:,""))',advance='no') 0
+     write(iunit,'("]")')
+     write(iunit,'(3x,"],")')
+   end if
+
+   write(iunit,'(3x,''"hbb":'',"[")') !> HBs bonded
+   if (nlist%nhb2.ge.1) then
+    do j=1, nlist%nhb2-1
+      write(iunit,'(3x,"[",*(i7,:,","))',advance='no') nlist%hblist2(:,j)
+      write(iunit,'("],")')
+    enddo
+    write(iunit,'(3x,"[",*(i7,:,","),"]",/)',advance='no') nlist%hblist2(:,nlist%nhb2)
+    write(iunit,'("]")')
+    write(iunit,'(3x,"],")')
+   else
+     write(iunit,'(3x,"[",*(i7,:,""))',advance='no') 0
+     write(iunit,'("]")')
+     write(iunit,'(3x,"],")')
+   end if
+
+   write(iunit,'(3x,''"xb":'',"[")') !> XBs
+   if (nlist%nxb.ge.1) then
+    do j=1, nlist%nxb-1
+      write(iunit,'(3x,"[",*(i7,:,","))',advance='no') nlist%hblist3(:,j)
+      write(iunit,'("],")')
+    enddo
+    write(iunit,'(3x,"[",*(i7,:,","),"]",/)',advance='no') nlist%hblist3(:,nlist%nxb)
+    write(iunit,'("]")')
+    write(iunit,'(3x,"],")')
+   else
+     write(iunit,'(3x,"[",*(i7,:,""))',advance='no') 0
+     write(iunit,'("]")')
+     write(iunit,'(3x,"],")')
+   end if
+
+   ! energies
+   write(iunit,'(3x,''"hbl_e":'',"[")') 
+   do j=1, nlist%nhb1-1
+     write(iunit,'(3x,"[",*(f25.15,:,","))',advance='no') nlist%hbe1(j)
+     write(iunit,'("],")')
+   enddo
+   write(iunit,'(3x,"[",*(f25.15,:,","),"]",/)',advance='no') nlist%hbe1(nlist%nhb1)
+   write(iunit,'("]")')
+   write(iunit,'(3x,"],")')
+
+   write(iunit,'(3x,''"hbb_e":'',"[")') 
+   do j=1, nlist%nhb2-1
+     write(iunit,'(3x,"[",*(f25.15,:,","))',advance='no') nlist%hbe2(j)
+     write(iunit,'("],")')
+   enddo
+   write(iunit,'(3x,"[",*(f25.15,:,","),"]",/)',advance='no') nlist%hbe2(nlist%nhb2)
+   write(iunit,'("]")')
+   write(iunit,'(3x,"],")')
+
+   write(iunit,'(3x,''"xb_e":'',"[")') 
+   do j=1, nlist%nxb-1
+     write(iunit,'(3x,"[",*(f25.15,:,","))',advance='no') nlist%hbe3(j)
+     write(iunit,'("],")')
+   enddo
+   write(iunit,'(3x,"[",*(f25.15,:,","),"]",/)',advance='no') nlist%hbe3(nlist%nxb)
+   write(iunit,'("]")')
+   write(iunit,'(3x,"],")')
+  endif
+  if(printTopo%eeq)then ! eeq(3,n)
+   write(iunit,'(3x,''"eeq":'',"[")') !> EEQ charges
+   do j=1, size(nlist%q)-1
+     write(iunit,'(3x,"[",*(f25.15,:,","))',advance='no') nlist%q(j)
+     write(iunit,'("],")')
+   enddo
+   write(iunit,'(3x,"[",*(f25.15,:,","),"]",/)',advance='no')nlist%q(size(nlist%q))
+   write(iunit,'("]")')
+   write(iunit,'(3x,"],")')
+  endif
+
   ! footer
   call get_command(length=l)
   allocate( character(len=l) :: cmdline )

@@ -1597,6 +1597,10 @@ subroutine selectList(secSplit, printTopo)
      printTopo%vbond = .true.
    case("vangl")
      printTopo%vangl = .true.
+   case("hbbond")
+      printTopo%hbbond = .true.
+   case("eeq")
+      printTopo%eeq = .true.
    case default
      printTopo%warning = .true.
    end select
