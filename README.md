@@ -118,7 +118,7 @@ was a dire need for them and we had many contributors who made these
 features reality:
 
 - P. Atkinson ([@patrickatkinson](https://github.com/patrickatkinson))
-- C. Bannwarth ([@cbannwarth](https://github.com/cbannwarth))
+- [C. Bannwarth](https://www.ipc.rwth-aachen.de/cms/IPC/Das-Institut/IPC-Arbeitsgruppen/~onnkh) ([@cbannwarth](https://github.com/cbannwarth))
 - F. Bohle ([@fabothch](https://github.com/fabothch))
 - [G. Brandenburg](http://www.gerit-brandenburg.de/) ([@gbrandenburg](https://github.com/gbrandenburg))
 - [E. Caldeweyher](https://eikecaldeweyher.de/) ([@f3rmion](https://github.com/f3rmion))
@@ -128,6 +128,7 @@ features reality:
 - S. Ehrlich
 - I. Gerasimov ([@FulgurIgor](https://github.com/fulgurigor))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
+- C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
 - J. Koopman ([@JayTheDog](https://github.com/jaythedog))
 - C. Lavinge ([@clavigne](https://github.com/clavigne))
 - S. Lehtola ([@susilehtola](https://github.com/susilehtola))
