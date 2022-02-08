@@ -93,7 +93,7 @@ subroutine help(iunit)
    "    specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
    "",&
    "-u, --uhf INT",&
-   "    specify Nalpha-Nbeta as INT, overrides .UHF file and xcontrol option",&
+   "    specify number of unpaired electrons as INT, overrides .UHF file and xcontrol option",&
    "",&
    "--gfn INT",&
    "    specify parametrisation of GFN-xTB (default = 2)",&
