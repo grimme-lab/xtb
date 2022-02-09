@@ -101,6 +101,12 @@ subroutine help(iunit)
    "--gfnff, --gff",&
    "    specify parametrisation of GFN-FF",&
    "",&
+   "--oniom METHOD LIST", &
+   "    use subtractive embedding via ONIOM method. 'METHOD' is given as 'outer:inner'", &
+   "    where 'inner' can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and", &
+   "    'outer' can be 'gfn2', 'gfn1', or 'gfnff'.", &
+   "    The inner region is given as a comma separated indices.", &
+   "",&
    "--etemp REAL",&
    "    electronic temperature (default = 300K)",&
    "",&
