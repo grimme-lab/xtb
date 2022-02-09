@@ -1296,6 +1296,20 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("No inner region provided for ONIOM", source)
             cycle
          end if
+         from_file: block
+            logical :: exist
+            integer :: io, stat
+            character(len=:), allocatable :: line
+            inquire(file=sec, exist=exist)
+            if (.not.exist) exit from_file
+            open(newunit=io, file=sec, iostat=stat)
+            call getline(io, sec, stat)
+            do while(stat == 0)
+               call getline(io, line, stat)
+               if (stat == 0) sec = sec // "," // line
+            end do
+            close(io, iostat=stat)
+         end block from_file
          call move_alloc(sec, oniom%list)
 
       case('--etemp')
