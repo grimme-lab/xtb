@@ -18,6 +18,7 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/driver.f90"
   "${dir}/mopac.f90"
   "${dir}/orca.f90"
   "${dir}/turbomole.f90"

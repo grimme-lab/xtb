@@ -16,6 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+  'driver.f90',
   'mopac.f90',
   'orca.f90',
   'turbomole.f90',

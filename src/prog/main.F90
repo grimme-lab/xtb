@@ -1347,6 +1347,13 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case('--orca')
          call set_exttyp('orca')
 
+      case('--driver')
+         call set_exttyp('driver')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            set%ext_driver%executable = sec
+         end if
+
       case('--mopac')
          call set_exttyp('mopac')
 
