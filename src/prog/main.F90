@@ -1117,6 +1117,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    integer :: idum, ndum
    real(wp) :: ddum
    character(len=:), allocatable :: flag, sec
+   logical :: exist
 
    set%gfn_method = 2
    coffee = .false.
@@ -1296,20 +1297,10 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("No inner region provided for ONIOM", source)
             cycle
          end if
-         from_file: block
-            logical :: exist
-            integer :: io, stat
-            character(len=:), allocatable :: line
-            inquire(file=sec, exist=exist)
-            if (.not.exist) exit from_file
-            open(newunit=io, file=sec, iostat=stat)
-            call getline(io, sec, stat)
-            do while(stat == 0)
-               call getline(io, line, stat)
-               if (stat == 0) sec = sec // "," // line
-            end do
-            close(io, iostat=stat)
-         end block from_file
+         inquire(file=sec, exist=exist)
+         if (exist) then
+            sec = read_whole_file(sec)
+         end if
          call move_alloc(sec, oniom%list)
 
       case('--etemp')
@@ -1580,6 +1571,20 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    end do
 
 end subroutine parseArguments
+
+function read_whole_file(fname) result(list)
+   character(len=*), intent(in) :: fname
+   character(len=:), allocatable :: list
+   integer :: io, stat
+   character(len=:), allocatable :: line
+   open(newunit=io, file=fname, iostat=stat)
+   call getline(io, list, stat)
+   do while(stat == 0)
+      call getline(io, line, stat)
+      if (stat == 0) list = list // "," // line
+   end do
+   close(io, iostat=stat)
+end function read_whole_file
 
 ! set booleans for requested topology list printout
 subroutine setWRtopo(sec,printTopo)
