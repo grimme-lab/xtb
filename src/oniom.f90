@@ -128,6 +128,11 @@ subroutine newOniomCalculator(self, env, mol, input)
    self%list = TAtomList(list=input%list)
    call self%list%to_list(self%idx)
 
+   if (len(self%list) == 0) then
+      call env%error("No atoms in inner region '"//input%list//"'")
+      return
+   end if
+
    ! Check if the user-defined inner region is valid
    if (any(self%idx < 1) .or. any(self%idx > mol%n)) then
       call env%error('The inner region specification is not correct')
@@ -219,6 +224,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol)
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error("Could not create linked atoms")
+      return
+   end if
    inner_mol%chrg = float(self%chrg_model)
 
    ! Inner region, low method
