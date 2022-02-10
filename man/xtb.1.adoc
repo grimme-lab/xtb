@@ -61,7 +61,7 @@ OPTIONS
     specify molecular charge as 'INT', overrides `.CHRG` file and `xcontrol` option
 
 *-u, --uhf* 'INT'::
-    specify Nalpha-Nbeta as 'INT', overrides `.UHF` file and `xcontrol` option
+    specify number of unpaired electrons as 'INT', overrides `.UHF` file and `xcontrol` option
 
 *--gfn* 'INT'::
     specify parametrisation of GFN-xTB (default = 2)
@@ -285,7 +285,7 @@ INPUT
    molecular charge as 'int'
 
 *.UHF*::
-   Nalpha-Nbeta as 'int'
+   Number of unpaired electrons as 'int'
 
 *mdrestart*::
    contains restart information for MD, *--namespace* compatible.
