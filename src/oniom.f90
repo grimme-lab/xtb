@@ -449,7 +449,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
 
    type(TNeighbourList) :: neighList
 
-   integer :: i, j, n, k, pre_last
+   integer :: i, j, n, k, pre_last,iterator
    integer, allocatable :: at(:), at2(:)
    real(wp), allocatable :: xyz(:, :), xyz2(:, :)
    logical :: inside
@@ -474,6 +474,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
    select type (calc => self%real_low)
    type is (TGFFCalculator)
       bonded = calc%topo%blist
+      iterator = size(bonded,2)
 
    type is (TxTBCalculator)
       if (.not. allocated(topo)) then
@@ -485,11 +486,12 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
       do i = 1, len(topo)
          bonded(:, i) = topo%list(1:2, i)
       end do
+      iterator = len(topo)
    end select
 
    !> Actual bond cutting and creating linked atom
    do i = 1, size(self%idx)
-      do j = 1, len(topo)
+      do j = 1, iterator
          if (bonded(1, j) == self%idx(i)) then
             do k = 1, size(self%idx)
                if (self%idx(k) == bonded(2, j)) then

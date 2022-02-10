@@ -102,7 +102,7 @@ subroutine help(iunit)
    "    specify parametrisation of GFN-FF",&
    "",&
    "--oniom METHOD LIST", &
-   "    use subtractive embedding via ONIOM method. 'METHOD' is given as 'outer:inner'", &
+   "    use subtractive embedding via ONIOM method. 'METHOD' is given as 'inner:outer'", &
    "    where 'inner' can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and", &
    "    'outer' can be 'gfn2', 'gfn1', or 'gfnff'.", &
    "    The inner region is given as a comma separated indices directly in the commandline", &
