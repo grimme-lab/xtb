@@ -18,7 +18,6 @@
 module xtb_extern_orca
 !$ use omp_lib
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_io, only : stdout
    use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_symbols, only : toSymbol
    use xtb_type_calculator, only : TCalculator
@@ -81,10 +80,6 @@ subroutine checkOrca(env, ext)
          ! this is relative to the users home, expand it
          call rdvar('HOME',homedir)
          ext%executable = homedir // ext%executable(2:)
-         if (set%verbose) then
-            write(stdout,'(a,1x,a)') &
-               "user home directory        :",homedir
-         endif
       endif
       inquire(file=ext%executable,exist=exist)
       if (.not.exist) then
@@ -93,23 +88,17 @@ subroutine checkOrca(env, ext)
       endif
    else ! no executable provided, lets find it
       call rdvar('PATH',syspath)
-      if (set%verbose) then
-         write(stdout,'(a,1x,a)') &
-            "system path                :",syspath
-      endif
       call rdpath(syspath,'orca',ext%executable,exist)
       if (.not.exist) then
          call env%error('Could not locate orca executable',source)
          return
       endif
    endif
-   if (set%verbose) then
-      write(stdout,'(a,1x,a)') &
-         "orca executable           :",ext%executable
-      if (index(ext%executable,'/usr') == 1) then
-         write(stdout,'(a)') &
-            "are you attempting to perform a calculation with the GNOME screen reader?"
-      endif
+
+   if (index(ext%executable,'/usr') == 1) then
+      call env%error("Executable '"//ext%executable//"' is in the system path, "//&
+         & "is this the GNOME screen reader?")
+      return
    endif
 
    ! see if there is a preference for an input file
@@ -117,14 +106,8 @@ subroutine checkOrca(env, ext)
       inquire(file=ext%input_file,exist=exist)
       ext%exist = exist
    else
-      ext%input_file = 'orca.inp'
+      ext%input_file = "orca-"//get_random_name()//'.inp'
          inquire(file=ext%input_file,exist=exist)
-   endif
-   if (set%verbose) then
-      write(stdout,'(a,1x,a)') &
-         "orca input file           :",ext%input_file,&
-         "orca input present        :",bool2string(exist),&
-         "orca input override       :",bool2string(.not.ext%exist)
    endif
    ! sanity check
    if (ext%exist) then
@@ -170,12 +153,6 @@ subroutine checkOrca(env, ext)
          ext%input_string = 'b97-3c'
       endif
    endif
-   if (set%verbose) then
-      write(stdout,'(a,1x,a)') &
-      !$ "orca parallel             :",bool2string(omp_get_num_threads() > 1),&
-      !$ "orca number of threads    :",omp_get_num_threads(),&
-         "orca input line           :",ext%input_string
-   endif
 
 end subroutine checkOrca
 
@@ -214,7 +191,7 @@ subroutine writeOrcaInp(io, mol, input, mode)
    write(io,'("%",a,1x,i0)') &
       "MaxCore",3000 ! hard coded, might be replaced at some point
    write(io,'("!",1x,a)') &
-      input, mode
+      "nopop", "miniprint", input, mode
    !      if(index(solv,'h2o').ne.0)   solv='water'
    !      if(index(solv,'chcl3').ne.0) solv='chloroform'
    !      if(index(solv,'ether').ne.0) solv='diethyl ether'
@@ -332,18 +309,18 @@ subroutine runOrca(env,ext,mol,energy,gradient)
       call close_file(iorca)
    endif
 
-   write(stdout,'(72("="))')
-   write(stdout,'(1x,"*",1x,a)') &
+   write(env%unit,'(72("="))')
+   write(env%unit,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
    call execute_command_line('exec 2>&1 '//ext%executable//' '// &
                              ext%input_file,exitstat=err)
    if (err.ne.0) then
       call env%error('orca returned with non-zero exit status, doing the same',source)
    else
-      write(stdout,'(1x,"*",1x,a)') &
+      write(env%unit,'(1x,"*",1x,a)') &
          "successful orca run, taking over control again..."
    endif
-   write(stdout,'(72("="))')
+   write(env%unit,'(72("="))')
 
    i = index(ext%input_file,'.inp')
    if (i > 0) then
@@ -495,18 +472,18 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
       call close_file(iorca)
    endif
 
-   write(stdout,'(72("="))')
-   write(stdout,'(1x,"*",1x,a)') &
+   write(env%unit,'(72("="))')
+   write(env%unit,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
    call execute_command_line('exec 2>&1 '//self%ext%executable//' '// &
                              self%ext%input_file,exitstat=err)
    if (err.ne.0) then
       call env%error('orca returned with non-zero exit status, doing the same',source)
    else
-      write(stdout,'(1x,"*",1x,a)') &
+      write(env%unit,'(1x,"*",1x,a)') &
          "successful orca run, taking over control again..."
    endif
-   write(stdout,'(72("="))')
+   write(env%unit,'(72("="))')
 
    i = index(self%ext%input_file,'.inp')
    if (i > 0) then
@@ -538,6 +515,62 @@ subroutine writeInfo(self, unit, mol)
    type(TMolecule), intent(in) :: mol
 
    call generic_header(unit,"Orca driver",49,10)
+
+   write(unit,'(a,1x,a)') &
+      "orca executable           :",self%ext%executable, &
+      "orca input file           :",self%ext%input_file,&
+      "orca input line           :",self%ext%input_string
+   !$omp parallel
+   !$omp master
+   !$ write(unit,'(a,1x,g0)') &
+   !$ "orca parallel             :",bool2string(omp_get_num_threads() > 1),&
+   !$ "orca number of threads    :",omp_get_num_threads()
+   !$omp end master
+   !$omp end parallel
 end subroutine writeInfo
+
+function get_random_name() result(str)
+   character(len=:), allocatable :: str
+   real :: rnd
+   integer :: irnd
+
+   call random_number(rnd)
+   irnd = transfer(rnd, irnd)
+   str = to_hex(abs(irnd))
+end function
+
+pure function to_hex(val, width) result(string)
+   integer, intent(in) :: val
+   integer, intent(in), optional :: width
+   character(len=:), allocatable :: string
+   integer, parameter :: buffer_len = range(val)+2
+   character(len=buffer_len) :: buffer
+   integer :: pos
+   integer :: n
+   integer, parameter :: base = 16
+   character(len=1), parameter :: numbers(0:base-1) = &
+      ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+
+   if (val == 0) then
+      string = numbers(0)
+      return
+   end if
+
+   n = abs(val)
+   buffer = ""
+
+   pos = buffer_len + 1
+   do while (n > 0)
+      pos = pos - 1
+      buffer(pos:pos) = numbers(mod(n, base))
+      n = n/base
+   end do
+   if (val < 0) then
+      pos = pos - 1
+      buffer(pos:pos) = '-'
+   end if
+
+   string = buffer(pos:)
+end function to_hex
 
 end module xtb_extern_orca

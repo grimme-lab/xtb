@@ -506,7 +506,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
    call newCalculator(env, mol, calc, fnv, restart, acc, oniom)
-   call env%checkpoint("Could not setup parameterisation")
+   call env%checkpoint("Could not setup single-point calculator")
 
    call initDefaults(env, calc, mol, gsolvstate)
    call env%checkpoint("Could not setup defaults")
