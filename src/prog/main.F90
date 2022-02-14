@@ -73,6 +73,7 @@ module xtb_prog_main
    use xtb_xtb_gfn2
    use xtb_main_setup
    use xtb_main_defaults, only : initDefaults
+   use xtb_main_json, only : main_json, write_json_gfnff_lists
    use xtb_geoopt
    use xtb_metadynamic
    use xtb_biaspath
@@ -834,7 +835,7 @@ subroutine xtbMain(env, argParser)
    if(printTopo%any()) then
      select type(calc)
        type is(TGFFCalculator)
-         call write_json_gfnff_lists(mol%n,calc%topo,printTopo)
+         call write_json_gfnff_lists(mol%n,calc%topo,chk%nlist,printTopo)
      end select
    endif
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
