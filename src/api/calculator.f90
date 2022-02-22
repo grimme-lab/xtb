@@ -25,6 +25,8 @@ module xtb_api_calculator
    use xtb_api_molecule
    use xtb_api_utils
    use xtb_gfnff_calculator
+   use xtb_type_pcem
+   use xtb_main_setup
    use xtb_solv_kernel
    use xtb_solv_input
    use xtb_solv_state
@@ -42,6 +44,7 @@ module xtb_api_calculator
    public :: setSolvent_api, releaseSolvent_api
    public :: setExternalCharges_api, releaseExternalCharges_api
    public :: setAccuracy_api, setElectronicTemp_api, setMaxIter_api
+   public :: getPCGradient_api
 
 
    !> Void pointer to single point calculator
@@ -649,5 +652,22 @@ subroutine setElectronicTemp_api(venv, vcalc, temperature) &
 
 end subroutine setElectronicTemp_api
 
+!> Query singlepoint results object for pc gradient
+
+subroutine getPCGradient_api(vcalc, dptr) &
+      & bind(C, name="xtb_getPCGradient")
+   character(len=*), parameter :: source = "xtb_api_getPCGradient"
+   type(c_ptr), value :: vcalc
+   type(VCalculator), pointer :: calc
+   real(c_double), intent(inout) :: dptr(3, *)
+   call c_f_pointer(vcalc, calc)
+   select type(xtb => calc%ptr)
+
+   type is(TxTBCalculator)
+   dptr(1:3, 1:size(xtb%pcem%grd, 2)) = xtb%pcem%grd
+
+   end select
+
+end subroutine getPCGradient_api
 
 end module xtb_api_calculator
