@@ -402,30 +402,32 @@ subroutine numhess( &
    end if
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
-   kend=6
-   if(res%linear)then
-      kend=5
-      do i=1,kend
-         izero(i)=i
-      enddo
-      res%freq(1:5)=0
-   endif
-   do k=1,kend
-      h(1:n3,k)=res%hess(1:n3,izero(k))
-      isqm(  k)=res%freq(izero(k))
-   enddo
-   j=kend
-   do k=1,n3
-      if(abs(res%freq(k)).gt.0.01_wp)then
-         j=j+1
-         if(j.gt.n3) then
-            call env%error('internal error while sorting hessian', source)
-            return
-         end if
-         h(1:n3,j)=res%hess(1:n3,k)
-         isqm(  j)=res%freq(   k)
+   if (mol%n > 1) then
+      kend=6
+      if(res%linear)then
+         kend=5
+         do i=1,kend
+            izero(i)=i
+         enddo
+         res%freq(1:5)=0
       endif
-   enddo
+      do k=1,kend
+         h(1:n3,k)=res%hess(1:n3,izero(k))
+         isqm(  k)=res%freq(izero(k))
+      enddo
+      j=kend
+      do k=1,n3
+         if(abs(res%freq(k)).gt.0.01_wp)then
+            j=j+1
+            if(j.gt.n3) then
+               call env%error('internal error while sorting hessian', source)
+               return
+            end if
+            h(1:n3,j)=res%hess(1:n3,k)
+            isqm(  j)=res%freq(   k)
+         endif
+      enddo
+   end if
    res%hess = h
    res%freq = isqm
    call PREIGF(env%unit,res%freq,res%n3true)
