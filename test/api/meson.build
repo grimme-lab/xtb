@@ -14,7 +14,7 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-if cc.get_id() == 'intel'
+if cc.get_id() == 'intel' or cc.get_id() == 'gcc' or cc.get_id() == 'clang'
   test(
     'GFN2-xTB C',
     executable(
