@@ -16,7 +16,7 @@
 
 if cc.get_id() == 'intel' or cc.get_id() == 'gcc' or cc.get_id() == 'clang'
   test(
-    'GFN2-xTB C',
+    'C API',
     executable(
       'xtb_c_test',
       sources: files('c_api_example.c'),
