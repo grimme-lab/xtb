@@ -107,6 +107,10 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          allocate(res%egap)
       end if
 
+      if (allocated(res%pcgradient)) then
+         deallocate(res%pcgradient)
+      end if
+
       if (allocated(res%gradient)) then
          if (any(shape(res%gradient) /= [3, mol%ptr%n])) then
             call env%ptr%warning("Shape missmatch in gradient, reallocating", source)
@@ -115,16 +119,6 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
       end if
       if (.not.allocated(res%gradient)) then
          allocate(res%gradient(3, mol%ptr%n))
-      end if
-
-      if (allocated(res%pcgradient)) then
-         if (any(shape(res%pcgradient) /= [3, spRes%pcem%n])) then
-            call env%ptr%warning("Shape missmatch in pcgradient, reallocating", source)
-            deallocate(res%pcgradient)
-         end if
-      end if
-      if (.not.allocated(res%pcgradient)) then
-         allocate(res%pcgradient(3, spRes%pcem%n))
       end if
 
       if (allocated(res%sigma)) then
@@ -147,18 +141,12 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          deallocate(res%chk)
          deallocate(res%egap)
          deallocate(res%sigma)
-         deallocate(res%pcgradient)
       end select
 
-      ! check if point charge gradients have been calculated
-      select type(xtb => calc%ptr)
-      class default
-         deallocate(res%pcgradient)
-      type is(TxTBCalculator)
-         if (allocated(spRes%pcem%grd) .and. spRes%pcem%n > 0) then
-            res%pcgradient = spRes%pcem%grd
-         end if
-      end select
+      ! check if external charge gradients have been calculated
+      if (allocated(spRes%pcem%grd) .and. spRes%pcem%n > 0) then
+         res%pcgradient = spRes%pcem%grd
+      end if
 
       res%dipole = spRes%dipole
 
