@@ -153,15 +153,10 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
       ! check if point charge gradients have been calculated
       select type(xtb => calc%ptr)
       class default
-         call env%ptr%error("Calculator does not support point charge gradient", &
-            & source)
          deallocate(res%pcgradient)
       type is(TxTBCalculator)
-         if (allocated(spRes%pcem%grd)) then
+         if (allocated(spRes%pcem%grd) .and. spRes%pcem%n > 0) then
             res%pcgradient = spRes%pcem%grd
-         else
-            call env%ptr%error("No point charges associated with calculator", &
-               & source)
          end if
       end select
 
