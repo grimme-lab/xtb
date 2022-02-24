@@ -289,7 +289,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call qsh2qat(basis%ash,wfn%qsh,wfn%q)
 
 !  # atom arrays
-   allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),sqrab(mol%n*(mol%n+1)/2))
+   allocate(qq(mol%n),qlmom(3,mol%n),cm5(mol%n),cm5a(mol%n),sqrab(mol%n*(mol%n+1)/2))
    allocate(dcndr(3,mol%n,mol%n),cn(mol%n),dcndL(3,3,mol%n))
 
 !  initialize the GBSA module (GBSA works with CM5 charges)
@@ -299,7 +299,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          return
       end if
       call solvation%update(env, mol%at, mol%xyz)
-      allocate(cm5a(mol%n),dcm5a(3,mol%n,mol%n))
+      allocate(dcm5a(3,mol%n,mol%n))
       gborn=0._wp
       gsasa=0._wp
       ghb=0._wp

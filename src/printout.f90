@@ -56,7 +56,7 @@ subroutine writecosmofile(np,pa,espe,fname,nat,at,xyz,atom_weight)
 
 end subroutine writecosmofile
 
-subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
+subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_global, only : persistentEnv
    use xtb_mctc_systools
@@ -66,12 +66,11 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
    implicit none
    type(TWavefunction),intent(in) :: wfx
    integer, intent(in) :: iunit
-   character(len=*),intent(in) :: xrc
+   character(len=*),intent(in),optional :: xrc
    character(len=*),intent(in) :: xcontrol
    character(len=*),intent(in) :: fname
    integer :: i,l,err
    integer,intent(in) :: n
-   logical,intent(in) :: exist
    real(wp) :: dum5
    character(len=:),allocatable :: cdum
    write(iunit,'(a)')
@@ -94,7 +93,7 @@ subroutine setup_summary(iunit,n,fname,xcontrol,wfx,xrc,exist)
       write(iunit,'(10x,a,":",1x,a)') 'xtbhome directory          ',xenv%home
       write(iunit,'(10x,a,":",1x,a)') 'path for xtb               ',xenv%path
       write(iunit,'(10x,a,":",1x,a)') 'xcontrol input file        ',xcontrol
-      if (exist) &
+      if (present(xrc)) &
          write(iunit,'(10x,a,":",1x,a)') 'global configurations file ',xrc
    endif
    ! ----------------------------------------------------------------------

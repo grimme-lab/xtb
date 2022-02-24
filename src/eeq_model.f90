@@ -350,17 +350,17 @@ subroutine goedecker_chrgeq(n,at,xyz,chrg,cn,dcndr,q,dqdr,energy,gradient,&
    real(wp),intent(in)    :: xyz(3,n)      ! geometry
    real(wp),intent(in)    :: chrg          ! total charge
    real(wp),intent(in)    :: cn(n)         ! erf-CN
-   real(wp),intent(in)    :: dcndr(3,n,n)  ! derivative of erf-CN
+   real(wp),intent(in),optional :: dcndr(3,n,n)  ! derivative of erf-CN
    logical, intent(in)    :: lverbose      ! toggles printout
    logical, intent(in)    :: lgrad         ! flag for gradient calculation
    logical, intent(in)    :: lcpq          ! do partial charge derivative
-!! ------------------------------------------------------------------------
+!! --------
 !  Output
 !! ------------------------------------------------------------------------
-   real(wp),intent(out)   :: q(n)          ! partial charges
-   real(wp),intent(out)   :: dqdr(3,n,n) ! derivative of partial charges
-   real(wp),intent(inout) :: energy        ! electrostatic energy
-   real(wp),intent(inout) :: gradient(3,n) ! molecular gradient of IES
+   real(wp),intent(out), optional   :: q(n)          ! partial charges
+   real(wp),intent(out), optional   :: dqdr(3,n,n) ! derivative of partial charges
+   real(wp),intent(inout), optional :: energy        ! electrostatic energy
+   real(wp),intent(inout), optional :: gradient(3,n) ! molecular gradient of IES
 !
 !! ------------------------------------------------------------------------
 !  charge model

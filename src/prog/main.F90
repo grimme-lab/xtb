@@ -387,7 +387,7 @@ subroutine xtbMain(env, argParser)
    mol%uhf = set%nalphabeta
    call initrand
 
-   call setup_summary(env%unit,mol%n,fname,xcontrol,chk%wfn,xrc,exist)
+   call setup_summary(env%unit,mol%n,fname,xcontrol,chk%wfn,xrc)
 
    if(set%fit) acc=0.2 ! higher SCF accuracy during fit
 
