@@ -25,6 +25,8 @@ module xtb_api_calculator
    use xtb_api_molecule
    use xtb_api_utils
    use xtb_gfnff_calculator
+   use xtb_type_pcem
+   use xtb_main_setup
    use xtb_solv_kernel
    use xtb_solv_input
    use xtb_solv_state

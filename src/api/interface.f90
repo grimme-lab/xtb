@@ -107,6 +107,10 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          allocate(res%egap)
       end if
 
+      if (allocated(res%pcgradient)) then
+         deallocate(res%pcgradient)
+      end if
+
       if (allocated(res%gradient)) then
          if (any(shape(res%gradient) /= [3, mol%ptr%n])) then
             call env%ptr%warning("Shape missmatch in gradient, reallocating", source)
@@ -127,6 +131,7 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          allocate(res%sigma(3, 3))
       end if
 
+      ! singlepoint calculation
       call calc%ptr%singlepoint(env%ptr, mol%ptr, res%chk, env%verbosity, .true., &
          & res%energy, res%gradient, res%sigma, res%egap, spRes)
 
@@ -137,6 +142,11 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          deallocate(res%egap)
          deallocate(res%sigma)
       end select
+
+      ! check if external charge gradients have been calculated
+      if (allocated(spRes%pcem%grd) .and. spRes%pcem%n > 0) then
+         res%pcgradient = spRes%pcem%grd
+      end if
 
       res%dipole = spRes%dipole
 

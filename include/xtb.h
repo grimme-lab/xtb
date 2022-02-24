@@ -251,6 +251,12 @@ xtb_getGradient(xtb_TEnvironment /* env */,
                 xtb_TResults /* res */,
                 double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
 
+/// Query singlepoint results object for pc gradient in Hartree / Bohr
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getPCGradient(xtb_TEnvironment /* env */,
+                  xtb_TResults /* res */,
+                  double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+
 /// Query singlepoint results object for virial in Hartree
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getVirial(xtb_TEnvironment /* env */,

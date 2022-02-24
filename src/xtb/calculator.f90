@@ -317,6 +317,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       enddo
    endif
 
+   ! save point charge gradients in results
+   if (self%pcem%n > 0) then
+      results%pcem = self%pcem
+   endif
+
    if (printlevel.ge.2) then
       ! start with summary header
       if (.not.set%silent) then

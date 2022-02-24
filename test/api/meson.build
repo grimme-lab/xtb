@@ -14,14 +14,12 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-if cc.get_id() == 'intel'
-  test(
-    'GFN2-xTB C',
-    executable(
-      'xtb_c_test',
-      sources: files('c_api_example.c'),
-      dependencies: xtb_dep_static
-    ),
-    env: xtbenv,
-  )
-endif
+test(
+  'C API',
+  executable(
+    'xtb_c_test',
+    sources: files('c_api_example.c'),
+    dependencies: xtb_dep_static
+  ),
+  env: xtbenv,
+)

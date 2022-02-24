@@ -140,6 +140,7 @@ features reality:
 - J. Pisarek
 - C. Plett ([@cplett](https://github.com/cplett))
 - P. Pracht ([@pprcht](https://github.com/pprcht))
+- F. Pultar ([@pultar](https://github.com/pultar))
 - J. Seibert ([@liljay42](https://github.com/liljay42))
 - P. Shushkov
 - S. Spicher ([@sespic](https://github.com/sespic))
