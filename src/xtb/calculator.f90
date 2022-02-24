@@ -319,9 +319,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! save point charge gradients in results
    if (self%pcem%n > 0) then
-      do i=1,self%pcem%n
-         write(*,'(3f12.8)')self%pcem%grd(1:3,i)
-      enddo
       results%pcem = self%pcem
    endif
 
