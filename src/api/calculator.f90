@@ -44,7 +44,6 @@ module xtb_api_calculator
    public :: setSolvent_api, releaseSolvent_api
    public :: setExternalCharges_api, releaseExternalCharges_api
    public :: setAccuracy_api, setElectronicTemp_api, setMaxIter_api
-   public :: getPCGradient_api
 
 
    !> Void pointer to single point calculator
@@ -652,42 +651,5 @@ subroutine setElectronicTemp_api(venv, vcalc, temperature) &
 
 end subroutine setElectronicTemp_api
 
-!> Query singlepoint results object for pc gradient
-
-subroutine getPCGradient_api(venv, vcalc, dptr) &
-   & bind(C, name="xtb_getPCGradient")
-character(len=*), parameter :: source = "xtb_api_getPCGradient"
-type(c_ptr), value :: venv
-type(VEnvironment), pointer :: env
-type(c_ptr), value :: vcalc
-type(VCalculator), pointer :: calc
-real(c_double), intent(inout) :: dptr(3, *)
-if (c_associated(venv)) then
-   call c_f_pointer(venv, env)
-   call checkGlobalEnv
-   if (.not.c_associated(vcalc)) then
-      call env%ptr%error("Singlepoint calculator is not allocated", source)
-      return
-   end if
-   call c_f_pointer(vcalc, calc)
-   if (.not.allocated(calc%ptr)) then
-      call env%ptr%error("Setting accuracy not possible, no calculator loaded", &
-         & source)
-      return
-   end if
-   select type(xtb => calc%ptr)
-   class default
-      call env%ptr%error("Calculator does not support point charge gradient", &
-         & source)
-   type is(TxTBCalculator)
-      if (allocated(xtb%pcem%grd)) then
-         dptr(1:3, 1:size(xtb%pcem%grd, 2)) = xtb%pcem%grd
-      else
-         call env%ptr%error("No point charges associated with calculator", &
-            & source)
-      end if
-   end select
-end if
-end subroutine getPCGradient_api
 
 end module xtb_api_calculator

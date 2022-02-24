@@ -28,9 +28,9 @@ module xtb_api_results
 
    public :: VResults
    public :: newResults_api, delResults_api, getEnergy_api, getGradient_api, &
-      & getVirial_api, getDipole_api, getCharges_api, getBondOrders_api, &
-      & getNao_api, getOrbitalEigenvalues_api, getOrbitalOccupations_api, &
-      & getOrbitalCoefficients_api, copyResults_api
+      & getPCGradient_api, getVirial_api, getDipole_api, getCharges_api, &
+      & getBondOrders_api, getNao_api, getOrbitalEigenvalues_api, &
+      & getOrbitalOccupations_api, getOrbitalCoefficients_api, copyResults_api
 
 
    !> Void pointer to wavefunction and result objects
@@ -38,6 +38,7 @@ module xtb_api_results
       type(TRestart), allocatable :: chk
       real(wp), allocatable :: energy
       real(wp), allocatable :: gradient(:, :)
+      real(wp), allocatable :: pcgradient(:, :)
       real(wp), allocatable :: sigma(:, :)
       real(wp), allocatable :: dipole(:)
       real(wp), allocatable :: egap
@@ -161,6 +162,38 @@ subroutine getGradient_api(venv, vres, dptr) &
    end if
 
 end subroutine getGradient_api
+
+
+!> Query singlepoint results object for gradients on point charges
+subroutine getPCGradient_api(venv, vres, dptr) &
+   & bind(C, name="xtb_getPCGradient")
+character(len=*), parameter :: source = "xtb_api_getGradient"
+type(c_ptr), value :: venv
+type(VEnvironment), pointer :: env
+type(c_ptr), value :: vres
+type(VResults), pointer :: res
+real(c_double), intent(inout) :: dptr(3, *)
+
+if (c_associated(venv)) then
+   call c_f_pointer(venv, env)
+   call checkGlobalEnv
+
+   if (.not.c_associated(vres)) then
+      call env%ptr%error("Results object is not allocated", source)
+      return
+   end if
+   call c_f_pointer(vres, res)
+
+   if (.not.allocated(res%pcgradient)) then
+      call env%ptr%error("Point charge gradients are not available in results", source)
+      return
+   end if
+
+   dptr(1:3, 1:size(res%pcgradient, 2)) = res%pcgradient
+
+end if
+
+end subroutine getPCGradient_api
 
 
 !> Query singlepoint results object for virial

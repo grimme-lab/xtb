@@ -117,6 +117,16 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          allocate(res%gradient(3, mol%ptr%n))
       end if
 
+      if (allocated(res%pcgradient)) then
+         if (any(shape(res%pcgradient) /= [3, spRes%pcem%n])) then
+            call env%ptr%warning("Shape missmatch in pcgradient, reallocating", source)
+            deallocate(res%pcgradient)
+         end if
+      end if
+      if (.not.allocated(res%pcgradient)) then
+         allocate(res%pcgradient(3, spRes%pcem%n))
+      end if
+
       if (allocated(res%sigma)) then
          if (any(shape(res%sigma) /= [3, 3])) then
             call env%ptr%warning("Shape missmatch in virial, reallocating", source)
@@ -127,6 +137,7 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          allocate(res%sigma(3, 3))
       end if
 
+      ! singlepoint calculation
       call calc%ptr%singlepoint(env%ptr, mol%ptr, res%chk, env%verbosity, .true., &
          & res%energy, res%gradient, res%sigma, res%egap, spRes)
 
@@ -136,6 +147,22 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
          deallocate(res%chk)
          deallocate(res%egap)
          deallocate(res%sigma)
+         deallocate(res%pcgradient)
+      end select
+
+      ! check if point charge gradients have been calculated
+      select type(xtb => calc%ptr)
+      class default
+         call env%ptr%error("Calculator does not support point charge gradient", &
+            & source)
+         deallocate(res%pcgradient)
+      type is(TxTBCalculator)
+         if (allocated(spRes%pcem%grd)) then
+            res%pcgradient = spRes%pcem%grd
+         else
+            call env%ptr%error("No point charges associated with calculator", &
+               & source)
+         end if
       end select
 
       res%dipole = spRes%dipole
