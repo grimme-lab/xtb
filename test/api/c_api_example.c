@@ -300,8 +300,8 @@ int testSecond() {
   xtb_delMolecule(&mol);
   xtb_delEnvironment(&env);
 
-  assert(fabs(pcgrad[0] + 0.00001022) < 1.0e-6);
-  assert(fabs(pcgrad[95] - 0.00001225) < 1.0e-6);
+  assert(fabs(pcgrad[0] - 0.00000755) < 1.0e-6);
+  assert(fabs(pcgrad[95] - 0.00001312) < 1.0e-6);
 }
 
 int main(int argc, char **argv) {
