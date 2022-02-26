@@ -29,7 +29,6 @@ set(
   "dftd3"
   "dftd4"
   "eeq"
-  "geometry-reader"
   "gfn0"
   "gfn1"
   "gfn2"
@@ -85,29 +84,29 @@ endforeach()
 
 set(XTB-EXE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}")
 
-add_test("EXE_Argparser_print_version" ${XTB-EXE} --version)
-add_test("EXE_Argparser_print_help" ${XTB-EXE} --help)
-add_test("EXE_Argparser_print_license" ${XTB-EXE} --license)
-add_test("EXE_Info" ${XTB-EXE} info
+add_test("xtb/Argparser_print_version" ${XTB-EXE} --version)
+add_test("xtb/Argparser_print_help" ${XTB-EXE} --help)
+add_test("xtb/Argparser_print_license" ${XTB-EXE} --license)
+add_test("xtb/Info" ${XTB-EXE} info
   "${PROJECT_SOURCE_DIR}/assets/inputs/coord/caffeine.coord"
   "${PROJECT_SOURCE_DIR}/assets/inputs/coord/quartz.3d.coord"
   "${PROJECT_SOURCE_DIR}/assets/inputs/vasp/ammonia.vasp"
   "${PROJECT_SOURCE_DIR}/assets/inputs/xyz/taxol.xyz"
 )
-add_test("EXE_Singlepoint" ${XTB-EXE} --coffee --strict --norestart --namespace test1)
-add_test("EXE_IP/EA" ${XTB-EXE} --coffee --gfn 2 --vipea --strict --norestart --namespace test2)
-add_test("EXE_GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart --namespace test3)
-add_test("EXE_GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart --namespace test4)
-add_test("EXE_GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart --namespace test5)
-add_test("EXE_GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
+add_test("xtb/Singlepoint" ${XTB-EXE} --coffee --strict --norestart --namespace test1)
+add_test("xtb/IP/EA" ${XTB-EXE} --coffee --gfn 2 --vipea --strict --norestart --namespace test2)
+add_test("xtb/GFN0-xTB" ${XTB-EXE} --coffee --gfn 0 --strict --norestart --namespace test3)
+add_test("xtb/GFN1-xTB" ${XTB-EXE} --coffee --gfn 1 --strict --norestart --namespace test4)
+add_test("xtb/GFN2-xTB/GBSA" ${XTB-EXE} --coffee --gfn 2 --strict --gbsa h2o --norestart --namespace test5)
+add_test("xtb/GFN2-FF" ${XTB-EXE} --coffee --gfnff --strict --norestart --namespace test6)
 
 set_tests_properties(
-  "EXE_Singlepoint"
-  "EXE_GFN0-xTB"
-  "EXE_IP/EA"
-  "EXE_GFN1-xTB"
-  "EXE_GFN2-xTB/GBSA"
-  "EXE_GFN2-FF"
+  "xtb/Singlepoint"
+  "xtb/GFN0-xTB"
+  "xtb/IP/EA"
+  "xtb/GFN1-xTB"
+  "xtb/GFN2-xTB/GBSA"
+  "xtb/GFN2-FF"
   PROPERTIES
   ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
 )

@@ -32,6 +32,7 @@
 !  be kept as light-weighted as possible and the user of the structure class
 !  is not required to care about it existence
 module xtb_type_molecule
+   use mctc_io_structure, only : structure_type, new_structure
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength, getIdentity
@@ -42,7 +43,7 @@ module xtb_type_molecule
    use xtb_type_vendordata
    implicit none
 
-   public :: TMolecule, new_molecule_api, init
+   public :: TMolecule, new_molecule_api, init, assignment(=)
    public :: len, size
 
    private
@@ -187,6 +188,12 @@ module xtb_type_molecule
    interface len
       module procedure :: mol_length
    end interface
+
+
+   interface assignment(=)
+      module procedure :: structure_to_molecule
+      module procedure :: molecule_to_structure
+   end interface assignment(=)
 
 
 contains
@@ -389,6 +396,36 @@ type(TMolecule) function new_molecule_api &
    call generate_wsc(mol, mol%wsc)
 
 end function new_molecule_api
+
+
+subroutine structure_to_molecule(mol, struc)
+   type(TMolecule), intent(inout) :: mol
+   type(structure_type), intent(in) :: struc
+
+   call initMolecule(mol, struc%num(struc%id), struc%sym(struc%id), struc%xyz, &
+      & chrg=struc%charge, uhf=struc%uhf, &
+      & pbc=struc%periodic, lattice=struc%lattice)
+   if (allocated(struc%sdf)) then
+      mol%sdf = struc%sdf
+   end if
+   if (allocated(struc%pdb)) then
+      mol%pdb = struc%pdb
+   end if
+end subroutine structure_to_molecule
+
+subroutine molecule_to_structure(struc, mol)
+   type(structure_type), intent(inout) :: struc
+   type(TMolecule), intent(in) :: mol
+
+   call new_structure(struc, mol%at, mol%sym, mol%xyz, charge=mol%chrg, uhf=mol%uhf, &
+      & periodic=mol%pbc, lattice=mol%lattice)
+   if (allocated(mol%sdf)) then
+      struc%sdf = mol%sdf
+   end if
+   if (allocated(mol%pdb)) then
+      struc%pdb = mol%pdb
+   end if
+end subroutine molecule_to_structure
 
 
 !> obtain number of atoms for molecular structure

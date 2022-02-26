@@ -17,126 +17,29 @@
 
 !> Supported file types in this program
 module xtb_mctc_filetypes
+   use mctc_io_filetype, only : filetype, getFileType => get_filetype
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_chartools, only : toLowercase
    implicit none
    private
 
    public :: fileType, getFileType, generateFileMetaInfo, generateFileName
+   public :: hessType
 
 
-   !> Generate file type from file name
-   interface getFileType
-      module procedure :: getFileTypeFromName
-      module procedure :: getFileTypeFromMetaInfo
-   end interface getFileType
+   type :: hessEnum
+      integer :: tmol = 1
+      integer :: orca = 2
+      integer :: dftbplus = 3
+   end type hessEnum
+   type(hessEnum), parameter :: hessType = hessEnum()
 
-
-   !> Possible file types
-   type :: TFileTypeEnum
-
-      !> xyz-format
-      integer :: xyz = 1
-
-      !> Turbomole coordinate format
-      integer :: tmol = 2
-
-      !> mol-format
-      integer :: molfile = 3
-
-      !> Vasp coordinate input
-      integer :: vasp = 4
-
-      !> Protein database format
-      integer :: pdb = 5
-
-      !> Structure data format
-      integer :: sdf = 6
-
-      !> GenFormat of DFTB+
-      integer :: gen = 7
-
-      !> Gaussian external format
-      integer :: gaussian = 8
-
-      !> Orca Hessian format
-      integer :: orca = 9
-   
-    end type TFileTypeEnum
-
-   !> File type enumerator
-   type(TFileTypeEnum), parameter :: fileType = TFileTypeEnum()
 
    !> Default file type
    integer, parameter :: defaultFileType = fileType%tmol
 
 
 contains
-
-
-!> Generate file type from file name
-function getFileTypeFromName(name) result(ftype)
-
-   !> File name
-   character(len=*), intent(in) :: name
-
-   !> File type
-   integer :: ftype
-
-   character(len=:), allocatable :: basename, extension, path
-
-   call generateFileMetaInfo(name, path, basename, extension)
-
-   ftype = getFileType(basename, extension)
-
-end function getFileTypeFromName
-
-
-!> Generate file type from file name
-function getFileTypeFromMetaInfo(basename, extension) result(ftype)
-
-   !> File name
-   character(len=*), intent(in) :: basename
-
-   !> File extension
-   character(len=*), intent(in) :: extension
-
-   !> File type
-   integer :: ftype
-
-   ftype = defaultfileType
-
-   if (len(basename) > 0) then
-      select case(toLowercase(basename))
-      case('coord')
-         ftype = fileType%tmol
-      case('poscar', 'contcar')
-         ftype = fileType%vasp
-      end select
-   endif
-
-   if (len(extension) > 0) then
-      select case(toLowercase(extension))
-      case('coord', 'tmol')
-         ftype = fileType%tmol
-      case('xyz')
-         ftype = fileType%xyz
-      case('mol')
-         ftype = fileType%molfile
-      case('sdf')
-         ftype = fileType%sdf
-      case('poscar', 'contcar', 'vasp')
-         ftype = fileType%vasp
-      case('pdb')
-         ftype = fileType%pdb
-      case('gen')
-         ftype = fileType%gen
-      case('ein')
-         ftype = fileType%gaussian
-      end select
-   end if
-
-end function getFileTypeFromMetaInfo
 
 
 !> Split file name into path, basename and extension

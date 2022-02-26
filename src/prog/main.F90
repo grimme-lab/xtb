@@ -322,7 +322,7 @@ subroutine xtbMain(env, argParser)
       call generateFileMetaInfo(fname, directory, basename, extension)
    else                                                              
       call generateFileMetaInfo(fname, directory, basename, extension)
-      ftype = getFileType(basename, extension)
+      ftype = getFileType(fname)
       call open_file(ich, fname, 'r')
       call readMolecule(env, mol, ich, ftype)
       call close_file(ich)

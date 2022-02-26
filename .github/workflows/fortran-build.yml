@@ -11,12 +11,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        fc: [gfortran-9]
-        cc: [gcc-9]
+        fc: [gfortran-10]
+        cc: [gcc-10]
         include:
           - os: ubuntu-latest
-            fc: gfortran-10
-            cc: gcc-10
+            fc: gfortran-9
+            cc: gcc-9
           - os: ubuntu-latest
             fc: gfortran-8
             cc: gcc-8
@@ -60,7 +60,7 @@ jobs:
       run: meson compile -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
       env:
         OMP_NUM_THREADS: 2,1
 
@@ -73,8 +73,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        fc: [gfortran-9]
-        cc: [gcc-9]
+        fc: [gfortran-10]
+        cc: [gcc-10]
 
     steps:
     - name: Checkout code
@@ -98,7 +98,7 @@ jobs:
       run: cmake --build ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: ctest --parallel --output-on-failure
+      run: ctest --parallel --output-on-failure -R 'xtb/*'
       working-directory: ${{ env.BUILD_DIR }}
       env:
         OMP_NUM_THREADS: 2,1
@@ -145,7 +145,7 @@ jobs:
       run: meson compile -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
       env:
         OMP_NUM_THREADS: 2,1
 
@@ -201,7 +201,13 @@ jobs:
       run: ninja -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests
-      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120
+      run: >-
+        meson test -C ${{ env.BUILD_DIR }}
+        --print-errorlogs
+        --num-processes 1
+        --no-rebuild
+        --suite xtb
+        -t 120
       env:
         OMP_NUM_THREADS: 2,1
 

@@ -17,6 +17,8 @@
 
 !> TODO
 module xtb_io_writer
+   use mctc_env, only : error_type
+   use mctc_io, only : structure_type, read_structure
    use xtb_io_writer_ctfile, only : writeMoleculeMolfile, writeMoleculeSDF
    use xtb_io_writer_gaussian, only : writeMoleculeGaussianExternal
    use xtb_io_writer_genformat, only : writeMoleculeGenFormat
@@ -27,7 +29,7 @@ module xtb_io_writer
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_version, only : version
-   use xtb_type_molecule, only : TMolecule
+   use xtb_type_molecule, only : TMolecule, assignment(=)
    implicit none
    private
 

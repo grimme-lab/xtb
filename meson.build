@@ -21,7 +21,7 @@ project(
   'fortran', 'c',
   version: '6.4.1',
   license: 'LGPL3',
-  meson_version: '>=0.51',
+  meson_version: '>=0.55',
   default_options: [
     'includedir=include/xtb',
     'buildtype=debugoptimized',
@@ -69,7 +69,6 @@ configure_file(
 ## ========================================== ##
 ## Configuration and dependencies
 ## ========================================== ##
-exe_deps = []
 lib_deps = []
 
 subdir('meson')
@@ -94,44 +93,30 @@ xtb_inc = meson.current_source_dir() / 'include'
 incdir = include_directories('include')
 
 # Build target
-
-# create a static library from all sources,
-# this is the common base of all targets created for xtb
-xtb_common = static_library(
-  '_@0@'.format(meson.project_name()),
+xtb_lib = library(
+  meson.project_name(),
   sources: srcs,
+  version: meson.project_version(),
+  dependencies: lib_deps,
   include_directories: incdir,
-  dependencies: exe_deps,
-  install: false,
-  pic: true,
+  install: install,
 )
 
-xtb_dep_static = declare_dependency(
-  link_with: xtb_common,
-  include_directories: [incdir, xtb_common.private_dir_include()],
-  dependencies: exe_deps,
+xtb_dep = declare_dependency(
+  link_with: xtb_lib,
+  include_directories: [incdir, xtb_lib.private_dir_include()],
+  dependencies: lib_deps,
   version: meson.project_version(),
 )
 
-if fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
-   warning('Shared library extension cannot be compiled with PGI')
-else
-   xtb_lib = library(
-     meson.project_name(),
-     version: meson.project_version(),
-     dependencies: lib_deps,
-     include_directories: incdir,
-     link_whole: xtb_common,
-     install: install,
-   )
+xtb_common = get_option('default_library') == 'both' ? xtb_lib.get_static_lib() : xtb_lib
 
-   xtb_dep = declare_dependency(
-     link_with: xtb_lib,
-     include_directories: incdir,
-     dependencies: lib_deps,
-     version: meson.project_version(),
-   )
-endif
+xtb_dep_static = declare_dependency(
+  link_with: xtb_common,
+  include_directories: [incdir, xtb_lib.private_dir_include()],
+  dependencies: lib_deps,
+  version: meson.project_version(),
+)
 
 xtb_exe = executable(
   meson.project_name(),

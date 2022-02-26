@@ -30,6 +30,10 @@ include(GNUInstallDirs)
 # Include CMake specific configurations
 add_subdirectory("cmake")
 
+if(NOT TARGET "mctc-lib::mctc-lib")
+  find_package("mctc-lib" REQUIRED)
+endif()
+
 # Sources: initialize program sources (prog) and library sources (srcs) empty
 set(prog)
 set(srcs)
@@ -59,6 +63,11 @@ set_target_properties(
   Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
   POSITION_INDEPENDENT_CODE ON
 )
+target_link_libraries(
+  "${PROJECT_NAME}-object"
+  PUBLIC
+  "mctc-lib::mctc-lib"
+)
 target_include_directories(
   "${PROJECT_NAME}-object"
   PUBLIC
@@ -85,6 +94,7 @@ target_link_libraries(
   ${BLAS_LIBRARIES}
   ${LAPACK_LIBRARIES}
   $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
+  "mctc-lib::mctc-lib"
 )
 set_target_properties(
   "lib-${PROJECT_NAME}-static"
@@ -114,6 +124,7 @@ target_link_libraries(
   ${BLAS_LIBRARIES}
   ${LAPACK_LIBRARIES}
   $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
+  "mctc-lib::mctc-lib"
 )
 set_target_properties(
   "lib-${PROJECT_NAME}-shared"
