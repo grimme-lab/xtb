@@ -126,17 +126,8 @@ module xtb_type_molecule
       !> SDF specific information about atom types
       type(sdf_data), allocatable :: sdf(:)
 
-      !> VASP specific information about input type
-      type(vasp_info) :: vasp = vasp_info()
-
-      !> Turbomole specific information about input type
-      type(turbo_info) :: turbo = turbo_info()
-
-      !> Specific information about input structure
-      type(struc_info) :: struc = struc_info()
-
-      !> Raw input buffer
-      type(tb_buffer) :: info
+      !> Information on vendor specific data
+      type(structure_info) :: info = structure_info()
 
    contains
 
@@ -387,8 +378,8 @@ subroutine structure_to_molecule(mol, struc)
    type(structure_type), intent(in) :: struc
 
    call initMolecule(mol, struc%num(struc%id), struc%sym(struc%id), struc%xyz, &
-      & chrg=struc%charge, uhf=struc%uhf, &
-      & pbc=struc%periodic, lattice=struc%lattice)
+      & chrg=struc%charge, uhf=struc%uhf, pbc=struc%periodic, lattice=struc%lattice)
+   mol%info = struc%info
    if (allocated(struc%sdf)) then
       mol%sdf = struc%sdf
    end if
@@ -402,7 +393,7 @@ subroutine molecule_to_structure(struc, mol)
    type(TMolecule), intent(in) :: mol
 
    call new_structure(struc, mol%at, mol%sym, mol%xyz, charge=mol%chrg, uhf=mol%uhf, &
-      & periodic=mol%pbc, lattice=mol%lattice)
+      & periodic=mol%pbc, lattice=mol%lattice, info=mol%info)
    if (allocated(mol%sdf)) then
       struc%sdf = mol%sdf
    end if
@@ -464,7 +455,6 @@ subroutine deallocate_molecule(self)
    if (allocated(self%name))   deallocate(self%name)
    call self%bonds%deallocate
    call self%frag%deallocate
-   call self%info%deallocate
 end subroutine deallocate_molecule
 
 subroutine update(self)

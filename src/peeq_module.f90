@@ -228,7 +228,8 @@ subroutine peeq &
          &    naop => basis%nao*(basis%nao+1)/2, &
          &    nbfp => basis%nbf*(basis%nbf+1)/2)
 
-   call generate_wsc(mol, wsc)
+   if (ccm) &
+      call generate_wsc(mol, wsc)
 
    if (profile) then
       if (allocated(gbsa)) then

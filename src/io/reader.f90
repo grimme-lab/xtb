@@ -64,6 +64,35 @@ subroutine readMolecule(env, mol, unit, ftype)
    status = .not.allocated(error)
    if (allocated(error)) message = error%message
 
+   if (count(struc%periodic) == 1) then
+      status = .false.
+      message = "1D periodic structures are currently unsupported"
+      return
+   end if
+
+   if (count(struc%periodic) == 2) then
+      status = .false.
+      message = "2D periodic structures are currently unsupported"
+      return
+   end if
+
+   if (allocated(struc%sdf)) then
+      if (any(struc%sdf%hydrogens > 0)) then
+         status = .false.
+         message = "Hydrogen atom queries in ctfiles are currently unsupported"
+         return
+      end if
+   end if
+
+   if (allocated(struc%pdb)) then
+      if (.not.any(struc%num == 1)) then
+         status = .false.
+         message = "PDB structure without hydrogen atoms found, "//&
+            &"aborting due to incomplete input geometry"
+         return
+      end if
+   end if
+
    mol = struc
    mol%ftype = ftype
 

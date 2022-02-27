@@ -21,24 +21,10 @@ module xtb_io_writer_gaussian
    implicit none
    private
 
-   public :: writeMoleculeGaussianExternal
    public :: writeResultsGaussianExternal
 
 
 contains
-
-
-subroutine writeMoleculeGaussianExternal(mol, unit)
-   type(TMolecule), intent(in) :: mol
-   integer, intent(in) :: unit
-   integer :: iat
-
-   write(unit, '(4i10)') len(mol), 1, nint(mol%chrg), mol%uhf
-   do iat = 1, len(mol)
-      write(unit, '(i10,4f20.12)') mol%at(iat), mol%xyz(:, iat), 0.0_wp
-   end do
-
-end subroutine writeMoleculeGaussianExternal
 
 
 subroutine writeResultsGaussianExternal(unit, energy, dipole, gradient)

@@ -18,14 +18,8 @@
 !> TODO
 module xtb_io_writer
    use mctc_env, only : error_type
-   use mctc_io, only : structure_type, read_structure
-   use xtb_io_writer_ctfile, only : writeMoleculeMolfile, writeMoleculeSDF
-   use xtb_io_writer_gaussian, only : writeMoleculeGaussianExternal
-   use xtb_io_writer_genformat, only : writeMoleculeGenFormat
-   use xtb_io_writer_pdb, only : writeMoleculePDB
-   use xtb_io_writer_turbomole, only : writeMoleculeCoord, writeResultsTurbomole
-   use xtb_io_writer_vasp, only : writeMoleculeVasp
-   use xtb_io_writer_xyz, only : writeMoleculeXYZ
+   use mctc_io, only : structure_type, write_structure
+   use xtb_io_writer_turbomole, only : writeResultsTurbomole
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_version, only : version
@@ -49,6 +43,8 @@ subroutine writeMolecule(self, unit, format, energy, gnorm, number)
    character(len=:), allocatable :: comment_line
    character(len=20) :: energy_line
    character(len=20) :: gnorm_line
+   type(structure_type) :: struc
+   type(error_type), allocatable :: error
    integer :: ftype
    if (present(format)) then
       ftype = format
@@ -67,28 +63,9 @@ subroutine writeMolecule(self, unit, format, energy, gnorm, number)
    endif
    comment_line = comment_line // " xtb: " // version
 
-   select case(ftype)
-   case(fileType%xyz)
-      call writeMoleculeXYZ(self, unit, trim(comment_line))
-   case(fileType%tmol)
-      call writeMoleculeCoord(self, unit)
-   case(fileType%molfile)
-      call writeMoleculeMolfile(self, unit, trim(comment_line))
-   case(fileType%sdf)
-      call writeMoleculeSDF(self, unit, energy, gnorm)
-   case(fileType%vasp)
-      call writeMoleculeVasp(self, unit, trim(comment_line))
-   case(fileType%gen)
-      call writeMoleculeGenFormat(self, unit, trim(comment_line))
-   case(fileType%gaussian)
-      call writeMoleculeGaussianExternal(self, unit)
-   case(fileType%pdb)
-      if (present(number)) then
-         call writeMoleculePDB(self, unit, number)
-      else
-         call writeMoleculePDB(self, unit)
-      endif
-   end select
+   struc = self
+   struc%comment = trim(comment_line)
+   call write_structure(struc, unit, ftype, error)
 
    ! Flush file so that the output file can be visualized during optimization
    flush(unit)

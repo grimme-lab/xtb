@@ -169,7 +169,7 @@ subroutine struc_convert( &
   write(*,'(10x," ------------------------------------------------- ")')
   write(*,*)
   set%mode_extrun = mode_input
-  mol%struc%two_dimensional=.false.
+  mol%info%two_dimensional=.false.
   call gfnff_param_dealloc(calc%topo)
 
 end subroutine struc_convert
