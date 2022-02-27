@@ -26,6 +26,7 @@ module xtb_eeq
    use xtb_coulomb_ewald, only : ewaldMatPBC3D, ewaldDerivPBC3D => ewaldDerivPBC3D_alp
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_param
+   use xtb_type_wsc, only : tb_wsc
    implicit none
 
    public :: eeq_chrgeq
@@ -78,10 +79,11 @@ subroutine get_coulomb_matrix_0d(mol, chrgeq, amat)
    !$omp end parallel do
 end subroutine get_coulomb_matrix_0d
 
-subroutine get_coulomb_matrix_3d(mol, chrgeq, rTrans, gTrans, cf, amat)
+subroutine get_coulomb_matrix_3d(mol, wsc, chrgeq, rTrans, gTrans, cf, amat)
    use xtb_type_molecule
    use xtb_type_param
    type(TMolecule), intent(in) :: mol
+   type(tb_wsc), intent(in) :: wsc
    type(chrg_parameter), intent(in) :: chrgeq
    real(wp), intent(in) :: rTrans(:, :)
    real(wp), intent(in) :: gTrans(:, :)
@@ -95,7 +97,7 @@ subroutine get_coulomb_matrix_3d(mol, chrgeq, rTrans, gTrans, cf, amat)
 
    amat = 0.0_wp
    !$omp parallel do default(none) reduction(+:amat) &
-   !$omp shared(mol, chrgeq, cf, gTrans, rTrans) &
+   !$omp shared(mol, wsc, chrgeq, cf, gTrans, rTrans) &
    !$omp private(iat, jat, wscAt, gamii, gamij, riw)
    do iat = 1, len(mol)
       gamii = 1.0_wp/(sqrt(2.0_wp)*chrgeq%alpha(iat))
@@ -106,19 +108,19 @@ subroutine get_coulomb_matrix_3d(mol, chrgeq, rTrans, gTrans, cf, amat)
          + eeq_ewald_3d_dir(zero, rTrans, gamii, cf, 1.0_wp)
       do jat = 1, iat-1
          gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2+chrgeq%alpha(jat)**2)
-         do wscAt = 1, mol%wsc%itbl(jat,iat)
+         do wscAt = 1, wsc%itbl(jat,iat)
             ! PGI 20.7 fails with `ICE: Errors in Lowering' for
-            ! - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
+            ! - matmul(mol%lattice,wsc%lattr(:,wscAt,jat,iat))
             riw = mol%xyz(:,iat) - mol%xyz(:,jat) &
-               & - (mol%lattice(:,1) * mol%wsc%lattr(1,wscAt,jat,iat) &
-               &  + mol%lattice(:,2) * mol%wsc%lattr(2,wscAt,jat,iat) &
-               &  + mol%lattice(:,3) * mol%wsc%lattr(3,wscAt,jat,iat))
+               & - (mol%lattice(:,1) * wsc%lattr(1,wscAt,jat,iat) &
+               &  + mol%lattice(:,2) * wsc%lattr(2,wscAt,jat,iat) &
+               &  + mol%lattice(:,3) * wsc%lattr(3,wscAt,jat,iat))
             amat(iat,jat) = Amat(iat,jat) &
                ! reciprocal lattice sums
                + ewaldMatPBC3D(riw, gTrans, 0.0_wp, mol%volume, cf, &
-                  & mol%wsc%w(jat,iat)) &
+                  & wsc%w(jat,iat)) &
                ! direct lattice sums
-               + eeq_ewald_3d_dir(riw, rTrans, gamij, cf, mol%wsc%w(jat,iat))
+               + eeq_ewald_3d_dir(riw, rTrans, gamij, cf, wsc%w(jat,iat))
          end do
          amat(jat,iat) = amat(iat,jat)
       end do
@@ -159,11 +161,12 @@ subroutine get_coulomb_derivs_0d(mol, chrgeq, qvec, amatdr, atrace)
    !$omp end parallel do
 end subroutine get_coulomb_derivs_0d
 
-subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, rTrans, gTrans, cf, &
+subroutine get_coulomb_derivs_3d(mol, wsc, chrgeq, qvec, rTrans, gTrans, cf, &
       & amatdr, amatdL, atrace)
    use xtb_type_molecule
    use xtb_type_param
    type(TMolecule), intent(in) :: mol
+   type(tb_wsc), intent(in) :: wsc
    type(chrg_parameter), intent(in) :: chrgeq
    real(wp), intent(in) :: cf
    real(wp), intent(in) :: qvec(:)
@@ -187,28 +190,28 @@ subroutine get_coulomb_derivs_3d(mol, chrgeq, qvec, rTrans, gTrans, cf, &
    atrace = 0.0_wp
    !$omp parallel do default(none) schedule(runtime) &
    !$omp reduction(+:atrace,amatdr,amatdL) &
-   !$omp shared(mol, chrgeq, qvec, cf, gTrans, rTrans) &
+   !$omp shared(mol, wsc, chrgeq, qvec, cf, gTrans, rTrans) &
    !$omp private(iat, jat, ii, wscAt, riw, gamij, dG, dS)
    do iat = 1, len(mol)
       do jat = 1, iat-1
          ! over WSC partner
          gamij = 1.0_wp/sqrt(chrgeq%alpha(iat)**2 + chrgeq%alpha(jat)**2)
-         do wscAt = 1, mol%wsc%itbl(jat,iat)
+         do wscAt = 1, wsc%itbl(jat,iat)
             ! PGI 20.7 fails with `ICE: Errors in Lowering' for
-            ! - matmul(mol%lattice,mol%wsc%lattr(:,wscAt,jat,iat))
+            ! - matmul(mol%lattice,wsc%lattr(:,wscAt,jat,iat))
             riw = mol%xyz(:,iat) - mol%xyz(:,jat) &
-               & - (mol%lattice(:,1) * mol%wsc%lattr(1,wscAt,jat,iat) &
-               &  + mol%lattice(:,2) * mol%wsc%lattr(2,wscAt,jat,iat) &
-               &  + mol%lattice(:,3) * mol%wsc%lattr(3,wscAt,jat,iat))
+               & - (mol%lattice(:,1) * wsc%lattr(1,wscAt,jat,iat) &
+               &  + mol%lattice(:,2) * wsc%lattr(2,wscAt,jat,iat) &
+               &  + mol%lattice(:,3) * wsc%lattr(3,wscAt,jat,iat))
             call ewaldDerivPBC3D(riw, gTrans, 0.0_wp, mol%volume, cf, &
-               & mol%wsc%w(jat,iat), dG, dS)
+               & wsc%w(jat,iat), dG, dS)
             amatdr(:, iat, jat) = amatdr(:, iat, jat) + dG*qvec(iat)
             amatdr(:, jat, iat) = amatdr(:, jat, iat) - dG*qvec(jat)
             atrace(:, iat) = atrace(:, iat) + dG*qvec(jat)
             atrace(:, jat) = atrace(:, jat) - dG*qvec(iat)
             amatdL(:, :, iat) = amatdL(:, :, iat) + dS*qvec(jat)
             amatdL(:, :, jat) = amatdL(:, :, jat) + dS*qvec(iat)
-            call eeq_ewald_dx_3d_dir(riw, rTrans, gamij, cf, mol%wsc%w(jat,iat), &
+            call eeq_ewald_dx_3d_dir(riw, rTrans, gamij, cf, wsc%w(jat,iat), &
                &                     dG,dS)
             amatdr(:, iat, jat) = amatdr(:, iat, jat) + dG*qvec(iat)
             amatdr(:, jat, iat) = amatdr(:, jat, iat) - dG*qvec(jat)
@@ -745,6 +748,16 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    real(wp), allocatable :: rTrans(:, :)
    integer :: iG1, iG2, iG3, iT1, iT2, iT3, iRp
 
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(in) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
+
+   type(tb_wsc) :: wsc
+
 ! ------------------------------------------------------------------------
 !  scratch variables
 ! ------------------------------------------------------------------------
@@ -794,6 +807,7 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
    !$omp end parallel do
 
    if (mol%npbc > 0) then
+      call generate_wsc(mol, wsc)
 
       iRp = 0
       allocate(gTrans(3, product(2*ewaldCutR+1)-1))
@@ -822,7 +836,7 @@ subroutine eeq_chrgeq_core(mol,env,chrgeq,cn,dcndr,dcndL,q,dqdr,dqdL, &
 
       cf = sqrtpi/mol%volume**(1.0_wp/3.0_wp)
       ! build Ewald matrix
-      call get_coulomb_matrix(mol, chrgeq, rTrans, gTrans, cf, amat)
+      call get_coulomb_matrix(mol, wsc, chrgeq, rTrans, gTrans, cf, amat)
    else
       call get_coulomb_matrix(mol, chrgeq, amat)
    endif
@@ -898,7 +912,7 @@ do_molecular_gradient: if (lgrad .or. lcpq) then
    allocate( dAmatdr(3,mol%n,m), dXvecdr(3,mol%n,m), Afac(3,mol%n), source = 0.0_wp )
    if (mol%npbc > 0) then
       allocate( dAmatdL(3,3,m), dXvecdL(3,3,m), source = 0.0_wp )
-      call get_coulomb_derivs(mol, chrgeq, Xtmp, rTrans, gTrans, cf, &
+      call get_coulomb_derivs(mol, wsc, chrgeq, Xtmp, rTrans, gTrans, cf, &
          & dAmatdr, dAmatdL, Afac)
       do i = 1, mol%n
          dXvecdr(:,:,i) = -dcndr(:,:,i)*Xfac(i)

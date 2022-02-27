@@ -36,7 +36,6 @@ module xtb_type_molecule
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength, getIdentity
-   use xtb_type_wsc
    use xtb_type_topology
    use xtb_type_fragments
    use xtb_type_buffer
@@ -111,9 +110,6 @@ module xtb_type_molecule
 
       !> Volume of unit cell
       real(wp) :: volume = 0.0_wp
-
-      !> Wigner--Seitz cell
-      type(tb_wsc) :: wsc
 
       !> File type of the input
       integer  :: ftype = 0
@@ -203,14 +199,6 @@ contains
 subroutine initMolecule &
      & (mol, at, sym, xyz, chrg, uhf, lattice, pbc)
 
-   interface
-      subroutine generate_wsc(mol,wsc)
-         import :: TMolecule, tb_wsc
-         type(TMolecule), intent(inout) :: mol
-         type(tb_wsc),    intent(inout) :: wsc
-      end subroutine generate_wsc
-   end interface
-
    type(TMolecule), intent(out) :: mol
    integer, intent(in) :: at(:)
    character(len=*), intent(in) :: sym(:)
@@ -274,8 +262,6 @@ subroutine initMolecule &
    call mol%set_atomic_masses
 
    call mol%update
-
-   call generate_wsc(mol, mol%wsc)
 
 end subroutine initMolecule
 
@@ -392,8 +378,6 @@ type(TMolecule) function new_molecule_api &
    call mol%set_atomic_masses
 
    call mol%update
-
-   call generate_wsc(mol, mol%wsc)
 
 end function new_molecule_api
 

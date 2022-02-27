@@ -22,7 +22,7 @@ subroutine generate_wsc(mol,wsc)
    use xtb_type_wsc
    implicit none
    !> molecular structure informtion
-   type(TMolecule),intent(inout) :: mol
+   type(TMolecule),intent(in) :: mol
    !> Wigner--Seitz cell data type (might be contained in mol)
    type(tb_wsc),     intent(inout) :: wsc
 ! ------------------------------------------------------------------------

@@ -25,7 +25,6 @@ module xtb_gfnff_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart
-   use xtb_type_wsc, only : tb_wsc
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -39,13 +38,6 @@ module xtb_gfnff_calculator
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
    implicit none
-   interface
-      subroutine generate_wsc(mol,wsc)
-         import :: TMolecule, tb_wsc
-         type(TMolecule), intent(inout) :: mol
-         type(tb_wsc),    intent(inout) :: wsc
-      end subroutine generate_wsc
-   end interface
    private
 
    public :: TGFFCalculator, newGFFCalculator
@@ -192,7 +184,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: pr
 
    call mol%update
-   if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp
