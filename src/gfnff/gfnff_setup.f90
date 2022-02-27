@@ -85,7 +85,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
      return
   end if
 
-  if (.not.mol%struc%two_dimensional) then
+  if (.not.mol%info%two_dimensional) then
      call write_restart_gff(env,'gfnff_topo',mol%n,version,topo)
      call write_gfnff_adjacency('gfnff_adjacency',topo)
   end if

@@ -18,14 +18,9 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/ctfile.f90"
-  "${dir}/gaussian.f90"
   "${dir}/genformat.f90"
   "${dir}/orca.f90"
-  "${dir}/pdb.f90"
   "${dir}/turbomole.f90"
-  "${dir}/vasp.f90"
-  "${dir}/xyz.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

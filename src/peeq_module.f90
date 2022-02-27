@@ -30,6 +30,7 @@ module xtb_peeq
    use xtb_intgrad, only : get_grad_overlap, get_overlap
    use xtb_xtb_eeq
    use xtb_xtb_hamiltonian, only : getSelfEnergy
+   use xtb_type_wsc, only : tb_wsc
    implicit none
    private
 
@@ -206,6 +207,16 @@ subroutine peeq &
    character(len=*),parameter :: chrfmt = &
       '(10x,":",2x,a,a18,      10x,":")'
 
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(in) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
+
+   type(tb_wsc) :: wsc
+
 ! ---------------------------------------
 !  EEQ/GBSA information
 ! ---------------------------------------
@@ -216,6 +227,9 @@ subroutine peeq &
          &    nshell => basis%nshell, &
          &    naop => basis%nao*(basis%nao+1)/2, &
          &    nbfp => basis%nbf*(basis%nbf+1)/2)
+
+   if (ccm) &
+      call generate_wsc(mol, wsc)
 
    if (profile) then
       if (allocated(gbsa)) then
@@ -426,7 +440,7 @@ subroutine peeq &
    if (ccm) then
       call ccm_build_SH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
          & mol%n, mol%at, basis, nbf, nao, mol%xyz, mol%lattice, intcut, &
-         & s, h0, mol%wsc)
+         & s, h0, wsc)
    else
       call latp%getLatticePoints(trans, sqrt(800.0_wp))
       call pbc_build_SH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
@@ -525,7 +539,7 @@ subroutine peeq &
    if (ccm) then
       call ccm_build_dSH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
          & dSEdcn, dSEdq, mol%n, basis, intcut, nao, nbf, mol%at, mol%xyz, &
-         & mol%lattice, wfn%P, Pew, gradient, sigma, dhdcn, dhdq, mol%wsc)
+         & mol%lattice, wfn%P, Pew, gradient, sigma, dhdcn, dhdq, wsc)
    else
       call latp%getLatticePoints(trans, sqrt(800.0_wp))
       call pbc_build_dSH0(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &

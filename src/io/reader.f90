@@ -17,19 +17,15 @@
 
 !> Generic wrappers for all the readers implemented
 module xtb_io_reader
-   use xtb_io_reader_ctfile, only : readMoleculeMolfile, readMoleculeSDF
-   use xtb_io_reader_gaussian, only : readMoleculeGaussianExternal
-   use xtb_io_reader_genformat, only : readMoleculeGenFormat, &
-      & readHessianDFTBPlus
+   use mctc_env, only : error_type
+   use mctc_io, only : structure_type, read_structure
+   use xtb_io_reader_genformat, only : readHessianDFTBPlus
    use xtb_io_reader_orca, only : readHessianOrca
-   use xtb_io_reader_pdb, only : readMoleculePDB
-   use xtb_io_reader_turbomole, only : readMoleculeCoord, readHessianTurbomole
-   use xtb_io_reader_vasp, only : readMoleculeVasp
-   use xtb_io_reader_xyz, only : readMoleculeXYZ
+   use xtb_io_reader_turbomole, only : readHessianTurbomole
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_filetypes, only : fileType
+   use xtb_mctc_filetypes, only : fileType, hessType
    use xtb_type_environment, only : TEnvironment
-   use xtb_type_molecule, only : TMolecule
+   use xtb_type_molecule, only : TMolecule, assignment(=)
    use xtb_type_reader, only : TReader
    implicit none
    private
@@ -59,38 +55,41 @@ subroutine readMolecule(env, mol, unit, ftype)
    !> Idenitifier for file type
    integer, intent(in) :: ftype
 
-   character(len=:), allocatable :: message
-   logical :: status
+   type(structure_type) :: struc
+   type(error_type), allocatable :: error
 
-   select case(ftype)
-   case(fileType%xyz)
-      call readMoleculeXYZ(mol, unit, status, iomsg=message)
-   case(fileType%tmol)
-      call readMoleculeCoord(mol, unit, status, iomsg=message)
-   case(fileType%molfile)
-      call readMoleculeMolfile(mol, unit, status, iomsg=message)
-   case(fileType%sdf)
-      call readMoleculeSDF(mol, unit, status, iomsg=message)
-   case(fileType%vasp)
-      call readMoleculeVasp(mol, unit, status, iomsg=message)
-   case(fileType%pdb)
-      call readMoleculePDB(mol, unit, status, iomsg=message)
-   case(fileType%gen)
-      call readMoleculeGenFormat(mol, unit, status, iomsg=message)
-   case(fileType%gaussian)
-      call readMoleculeGaussianExternal(mol, unit, status, iomsg=message)
-   case default
-      status = .false.
-      message = "coordinate format not known"
-   end select
-
-   if (.not.status) then
-      call env%error(message, source)
+   call read_structure(struc, unit, ftype, error)
+   if (allocated(error)) then
+      call env%error(error%message)
       return
    end if
 
-   call mol%update
+   if (count(struc%periodic) == 1) then
+      call env%error("1D periodic structures are currently unsupported", source)
+      return
+   end if
 
+   if (count(struc%periodic) == 2) then
+      call env%error("2D periodic structures are currently unsupported", source)
+      return
+   end if
+
+   if (allocated(struc%sdf)) then
+      if (any(struc%sdf%hydrogens > 0)) then
+         call env%error("Hydrogen atom queries in ctfiles are currently unsupported", source)
+         return
+      end if
+   end if
+
+   if (allocated(struc%pdb)) then
+      if (.not.any(struc%num == 1)) then
+         call env%error("PDB structure without hydrogen atoms found, "//&
+            &"aborting due to incomplete input geometry", source)
+         return
+      end if
+   end if
+
+   mol = struc
    mol%ftype = ftype
 
 end subroutine readMolecule
@@ -116,13 +115,13 @@ subroutine readHessian(env, mol, hessian, reader, format)
       message = "Unknown hessian format"
       status = .false.
 
-   case(fileType%tmol)
+   case(hessType%tmol)
       call readHessianTurbomole(hessian, reader, mol, status, message)
 
-   case(fileType%orca)
+   case(hessType%orca)
       call readHessianOrca(hessian, reader, mol, status, message)
 
-   case(fileType%gen)
+   case(hessType%dftbplus)
       call readHessianDFTBPlus(hessian, reader, mol, status, message)
 
    end select

@@ -322,11 +322,11 @@ subroutine xtbMain(env, argParser)
       call generateFileMetaInfo(fname, directory, basename, extension)
    else                                                              
       call generateFileMetaInfo(fname, directory, basename, extension)
-      ftype = getFileType(basename, extension)
+      ftype = getFileType(fname)
       call open_file(ich, fname, 'r')
       call readMolecule(env, mol, ich, ftype)
       call close_file(ich)
-      if (mol%struc%two_dimensional) then
+      if (mol%info%two_dimensional) then
          call env%warning("Two dimensional input structure detected", source)
       end if
 
@@ -394,11 +394,11 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> 2D => 3D STRUCTURE CONVERTER
    ! ------------------------------------------------------------------------
-   if (mol%struc%two_dimensional) then
+   if (mol%info%two_dimensional) then
       call struc_convert (env,restart,mol,chk,egap,set%etemp,set%maxscciter, &
                        &  set%optset%maxoptcycle,etot,g,sigma)
       struc_conversion_done = .true.
-      mol%struc%two_dimensional = .false.
+      mol%info%two_dimensional = .false.
     end if
 
    ! ------------------------------------------------------------------------

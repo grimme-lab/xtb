@@ -17,7 +17,6 @@
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
-dependencies = []
 
 if fc.get_id() != cc.get_id()
   warning('FC and CC are not from the same vendor')
@@ -107,40 +106,42 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
     add_project_link_arguments('-static', language: 'c') # icc will do linking
   endif
 
-  mkl_rt_dep = fc.find_library('mkl_rt', required: true)
-
-  if fc.get_id() == 'gcc'
-    libmkl_exe = [fc.find_library('mkl_gf_lp64')]
-    if get_option('openmp')
-      libmkl_exe += fc.find_library('mkl_gnu_thread')
+  if get_option('default_library') == 'dynamic'
+    mkl_rt_dep = fc.find_library('mkl_rt', required: true)
+    lib_deps += libmkl_exe
+  else
+    if fc.get_id() == 'gcc'
+      libmkl_exe = [fc.find_library('mkl_gf_lp64')]
+      if get_option('openmp')
+        libmkl_exe += fc.find_library('mkl_gnu_thread')
+      endif
+    elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
+      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      if get_option('openmp')
+        libmkl_exe += fc.find_library('mkl_intel_thread')
+      endif
+    elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
+      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      if get_option('openmp')
+        libmkl_exe += fc.find_library('mkl_pgi_thread')
+      endif
     endif
-  elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
-    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    if get_option('openmp')
-      libmkl_exe += fc.find_library('mkl_intel_thread')
+    if not get_option('openmp')
+      libmkl_exe += fc.find_library('mkl_sequential')
     endif
-  elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
-    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    if get_option('openmp')
-      libmkl_exe += fc.find_library('mkl_pgi_thread')
-    endif
+    libmkl_exe += fc.find_library('mkl_core')
+    lib_deps += libmkl_exe
   endif
-  if not get_option('openmp')
-    libmkl_exe += fc.find_library('mkl_sequential')
-  endif
-  libmkl_exe += fc.find_library('mkl_core')
-  lib_deps += mkl_rt_dep
-  exe_deps += libmkl_exe
 
 elif la_backend == 'mkl-rt'
   add_project_arguments('-DWITH_MKL', language: 'fortran')
 
   mkl_rt_dep = fc.find_library('mkl_rt', required: true)
   if fc.get_id() == 'intel'
-    exe_deps += fc.find_library('ifcore')
+    lib_deps += fc.find_library('ifcore')
   endif
 
-  dependencies += mkl_rt_dep
+  lib_deps += mkl_rt_dep
 
 elif la_backend == 'openblas'
   # search for OpenBLAS
@@ -148,7 +149,7 @@ elif la_backend == 'openblas'
   if not blas_dep.found()
     blas_dep = fc.find_library('openblas', required: true)
   endif
-  dependencies += blas_dep
+  lib_deps += blas_dep
   # some OpenBLAS versions can provide lapack, check if we can find dsygvd
   openblas_provides_lapack = fc.links(
     'external dsygvd; call dsygvd(); end',
@@ -160,12 +161,12 @@ elif la_backend == 'openblas'
     if not lapack_dep.found()
       lapack_dep = fc.find_library('lapack', required: true)
     endif
-    dependencies += lapack_dep
+    lib_deps += lapack_dep
   endif
 
 elif la_backend == 'custom'
   foreach lib: get_option('custom_libraries')
-    dependencies += fc.find_library(lib)
+    lib_deps += fc.find_library(lib)
   endforeach
 
 else
@@ -174,13 +175,13 @@ else
   if not blas_dep.found()
     blas_dep = fc.find_library('blas', required: true)
   endif
-  dependencies += blas_dep
+  lib_deps += blas_dep
   # Find LAPACK (usually netlib, but in conda also MKL)
   lapack_dep = dependency('lapack', required: false)
   if not lapack_dep.found()
     lapack_dep = fc.find_library('lapack', required: true)
   endif
-  dependencies += lapack_dep
+  lib_deps += lapack_dep
 
 endif
 
@@ -201,15 +202,19 @@ if get_option('openmp')
       )
     endif
   endif
-  dependencies += omp_dep
+  lib_deps += omp_dep
 endif
 
-dependencies += dependency('threads')
+lib_deps += dependency('threads')
 
 if get_option('nvtx')
-  dependencies += fc.find_library('nvToolsExt', required: true)
+  lib_deps += fc.find_library('nvToolsExt', required: true)
 endif
 
-# distribute dependencies for shared object and static executable
-lib_deps += dependencies
-exe_deps += dependencies
+# Create the tool chain library as subproject
+mctc_dep = dependency(
+  'mctc-lib',
+  fallback: ['mctc-lib', 'mctc_dep'],
+  default_options: ['default_library=static'],
+)
+lib_deps += mctc_dep

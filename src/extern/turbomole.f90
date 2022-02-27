@@ -26,7 +26,6 @@ module xtb_extern_turbomole
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_param, only : scc_parameter
    use xtb_type_restart, only : TRestart
-   use xtb_type_wsc, only : tb_wsc
    use xtb_io_writer, only : writeMolecule
    use xtb_io_reader, only : readHessian
    use xtb_type_reader, only : TReader
@@ -110,7 +109,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
 
    call mol%update
-   if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp

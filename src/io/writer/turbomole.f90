@@ -22,31 +22,11 @@ module xtb_io_writer_turbomole
    implicit none
    private
 
-   public :: writeMoleculeCoord
    public :: writeResultsTurbomole
    public :: writeNormalModesTurbomole
 
 
 contains
-
-
-subroutine writeMoleculeCoord(mol, unit)
-   class(TMolecule), intent(in) :: mol
-   integer, intent(in) :: unit
-   integer :: i
-
-   write(unit,'(a)') "$coord"
-   do i = 1, len(mol)
-      write(unit,'(3f20.14,6x,a)') mol%xyz(:,i), trim(mol%sym(i))
-   enddo
-   write(unit,'(a,1x,i0)') "$periodic", mol%npbc
-   if (mol%npbc > 0) then
-      write(unit,'(a)') "$lattice bohr"
-      write(unit,'(3f20.14)') mol%lattice
-   endif
-   write(unit,'(a)') "$end"
-
-end subroutine writeMoleculeCoord
 
 
 subroutine writeResultsTurbomole(mol, unit, energy, gradient, sigma)

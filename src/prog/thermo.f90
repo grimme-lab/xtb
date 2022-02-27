@@ -19,7 +19,7 @@
 module xtb_prog_thermo
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : autorcm, autoamu
-   use xtb_mctc_filetypes, only : getFileType, fileType
+   use xtb_mctc_filetypes, only : getFileType, hessType
    use xtb_mctc_timings
    use xtb_mctc_version, only : version, author, date
    use xtb_io_reader, only : readMolecule, readHessian
@@ -110,7 +110,7 @@ subroutine xtbThermo(env, argParser)
          call massWeightHessian(hessian, mol%atmass)
       end if
 
-      if (hFormat == fileType%gen .or. hFormat == fileType%orca) then
+      if (hFormat == hessType%dftbplus .or. hFormat == hessType%orca) then
          call projectHessian(hessian, mol, .true., .true.)
       end if
 
@@ -165,7 +165,7 @@ end subroutine preigf
 
 
 !> Parse command line arguments
-subroutine parseArguments(env, args, ftype, massWeighted)
+subroutine parseArguments(env, args, htype, massWeighted)
 
    !> Name of error producer
    character(len=*), parameter :: source = "prog_thermo_parseArguments"
@@ -177,7 +177,7 @@ subroutine parseArguments(env, args, ftype, massWeighted)
    type(TArgParser) :: args
 
    !> File type of the hessian
-   integer, intent(out) :: ftype
+   integer, intent(out) :: htype
 
    !> Hessian is already mass weighted
    logical, intent(out) :: massWeighted
@@ -185,7 +185,7 @@ subroutine parseArguments(env, args, ftype, massWeighted)
    integer :: nFlags
    character(len=:), allocatable :: flag, sec
 
-   ftype = fileType%tmol
+   htype = hessType%tmol
    massWeighted = .false.
 
    nFlags = args%countFlags()
@@ -205,14 +205,14 @@ subroutine parseArguments(env, args, ftype, massWeighted)
          call terminate(0)
 
       case('--dftb+')
-         ftype = fileType%gen
+         htype = hessType%dftbplus
 
       case('--turbomole')
-         ftype = fileType%tmol
+         htype = hessType%tmol
          massWeighted = .true.
      
       case('--orca')
-         ftype = fileType%orca
+         htype = hessType%orca
 
       case('--scale')
          call args%nextArg(sec)

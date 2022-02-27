@@ -25,7 +25,6 @@ program tester
    use test_dftd3, only : collect_dftd3
    use test_dftd4, only : collect_dftd4
    use test_eeq, only : collect_eeq
-   use test_geometry_reader, only : collect_geometry_reader
    use test_gfn0, only : collect_gfn0
    use test_gfn1, only : collect_gfn1
    use test_gfn2, only : collect_gfn2
@@ -56,7 +55,6 @@ program tester
       new_testsuite("dftd3", collect_dftd3), &
       new_testsuite("dftd4", collect_dftd4), &
       new_testsuite("eeq", collect_eeq), &
-      new_testsuite("geometry-reader", collect_geometry_reader), &
       new_testsuite("gfn0", collect_gfn0), &
       new_testsuite("gfn1", collect_gfn1), &
       new_testsuite("gfn2", collect_gfn2), &

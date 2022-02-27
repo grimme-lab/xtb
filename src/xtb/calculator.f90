@@ -29,7 +29,6 @@ module xtb_xtb_calculator
    use xtb_type_pcem
    use xtb_type_solvation, only : TSolvation
    use xtb_type_restart, only : TRestart
-   use xtb_type_wsc, only : tb_wsc
    use xtb_xtb_data, only : TxTBData
    use xtb_setparam
    use xtb_fixparam
@@ -50,13 +49,6 @@ module xtb_xtb_calculator
    use xtb_iniq, only : iniqcn
    use xtb_scc_core, only : iniqshell
    implicit none
-   interface
-      subroutine generate_wsc(mol,wsc)
-         import :: TMolecule, tb_wsc
-         type(TMolecule), intent(inout) :: mol
-         type(tb_wsc),    intent(inout) :: wsc
-      end subroutine generate_wsc
-   end interface
 
    private
 
@@ -248,7 +240,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical :: exitRun
 
    call mol%update
-   if (mol%npbc > 0) call generate_wsc(mol,mol%wsc)
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp
