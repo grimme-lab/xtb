@@ -4,15 +4,18 @@ XTB(1)
 
 NAME
 ----
+
 xtb - performs semiempirical quantummechanical calculations,
       for version 6.0 and newer
 
 SYNOPSIS
 --------
+
 *xtb* ['OPTIONS'] 'FILE' ['OPTIONS']
 
 DESCRIPTION
 -----------
+
 The `xtb(1)` program performs semiempirical quantummechanical calculations.
 The underlying effective Hamiltonian is derived from density functional
 tight binding (DFTB). This implementation of the xTB Hamiltonian is currently
@@ -27,20 +30,22 @@ with the vTB model are currently not implemented.
 
 GEOMETRY INPUT
 ~~~~~~~~~~~~~~
-The input coordinates can be presented in XMOL format and
-in Turbomole format. For most calculations no specific changes
-to these formats have to be made.
-The file type is determined automatically and the file extension
-can be freely chosen. XMOL coordinates must be given in Ångström,
-while in Turbomole format they can be given in Ångström as well
-as in Bohr (default). The corresponding keyword is given in the
-first line as `ang` or `bohr` instead of the `$coord` keyword.
 
-NOTE: This implementation of `xtb(1)` can only identify and read coordinate
-      files in Turbomole, if the `$coord` is in the first line of the
-      file, valid Turbomole coordinate files with the `$coord` datagroup
-      elsewhere will not be read in correctly and lead to abnormal termination
-      of the program.
+The wide variety of input formats for the geometry are supported by using
+the mctc-lib. Supported formats are:
+
+- Xmol/xyz files (xyz, log)
+- Turbomole's coord, riper's periodic coord (tmol, coord)
+- DFTB+ genFormat geometry inputs as cluster, supercell or fractional (gen)
+- VASP's POSCAR/CONTCAR input files (vasp, poscar, contcar)
+- Protein Database files, only single files (pdb)
+- Connection table files, molfile (mol) and structure data format (sdf)
+- Gaussian's external program input (ein)
+- JSON input with `qcschema_molecule` or `qcschema_input` structure (json)
+- FHI-AIMS' input files (geometry.in)
+- Q-Chem molecule block inputs (qchem)
+
+For a full list visit: https://grimme-lab.github.io/mctc-lib/page/index.html
 
 `xtb(1)` reads additionally `.CHRG` and `.UHF` files if present.
 
@@ -57,6 +62,7 @@ and the global configuration file found in the `XTBPATH`.
 
 OPTIONS
 -------
+
 *-c, --chrg* 'INT':: 
     specify molecular charge as 'INT', overrides `.CHRG` file and `xcontrol` option
 

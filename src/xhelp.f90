@@ -87,6 +87,8 @@ subroutine help(iunit)
    "in xmol format (*.xyz in Ångström), sdf or mol file format, PDB format",&
    "genFormat input or Vasp's POSCAR format.",&
    "",&
+   "For a full list visit: https://grimme-lab.github.io/mctc-lib/page/index.html", &
+   "",&
    "Options:",&
    "",&
    "-c, --chrg INT",&
