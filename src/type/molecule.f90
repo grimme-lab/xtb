@@ -196,8 +196,8 @@ subroutine initMolecule &
    real(wp), intent(in) :: xyz(:, :)
    real(wp), intent(in), optional :: chrg
    integer, intent(in), optional :: uhf
-   real(wp), intent(in), optional :: lattice(3, 3)
-   logical, intent(in), optional :: pbc(3)
+   real(wp), intent(in), optional :: lattice(:, :)
+   logical, intent(in), optional :: pbc(:)
 
    integer, allocatable :: id(:)
    character(len=symbolLength), allocatable :: sTmp(:)
