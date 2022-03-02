@@ -60,20 +60,14 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   call gfnff_set_param(mol%n, gen, param)
   param%dispscale = set%dispscale
   if (restart) then
-     inquire(file='gfnff_topo', exist=ex)
-     if (ex) then
-       call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
-       if (success) then
-          write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
-          return
-       else
-          call env%warning("Could not read topology file.", source)
-          call env%check(exitRun)
-          if (exitRun) then
-             return
-          end if
-
-       end if
+     call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
+     if (success) then
+        write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
+        return
+     else
+        call env%warning("Could not read topology file.", source)
+        call env%check(exitRun)
+        if (exitRun) return
      end if
   end if
 
