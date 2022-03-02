@@ -57,8 +57,11 @@ subroutine readMolecule(env, mol, unit, ftype)
 
    type(structure_type) :: struc
    type(error_type), allocatable :: error
+   integer :: ft
 
-   call read_structure(struc, unit, ftype, error)
+
+   ft = merge(filetype%tmol, ftype, ftype == filetype%unknown)
+   call read_structure(struc, unit, ft, error)
    if (allocated(error)) then
       call env%error(error%message)
       return
@@ -90,7 +93,7 @@ subroutine readMolecule(env, mol, unit, ftype)
    end if
 
    mol = struc
-   mol%ftype = ftype
+   mol%ftype = ft
 
 end subroutine readMolecule
 
