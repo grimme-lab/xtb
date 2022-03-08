@@ -481,6 +481,11 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    !  part 2: get the distance between those atoms
       i = potset%dist%atoms(ioffset+1)
       j = potset%dist%atoms(ioffset+2)
+      if (any([i, j] > nat .or. [i, j] < 1)) then
+         call env%warning("Atomic index is out of bounds for distance constraint",source)
+         potset%dist%n = potset%dist%n-1 ! remove invalid contrain
+         return
+      end if
       dist = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
       if (trim(argv(3)).eq.'auto') then
          potset%dist%val(potset%dist%n) = dist
@@ -537,6 +542,11 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       i = potset%angle%atoms(ioffset+1)
       j = potset%angle%atoms(ioffset+2)
       k = potset%angle%atoms(ioffset+3)
+      if (any([i, j, k] > nat .or. [i, j, k] < 1)) then
+         call env%warning("Atomic index is out of bounds for angle constraint",source)
+         potset%angle%n = potset%angle%n-1 ! remove invalid contrain
+         return
+      end if
       call bangl(xyz,i,j,k,phi)
       if (trim(argv(narg)).eq.'auto') then
          potset%angle%val(potset%angle%n) = phi
@@ -576,6 +586,11 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       j = potset%dihedral%atoms(ioffset+2)
       k = potset%dihedral%atoms(ioffset+3)
       l = potset%dihedral%atoms(ioffset+4)
+      if (any([i, j, k, l] > nat .or. [i, j, k, l] < 1)) then
+         call env%warning("Atomic index is out of bounds for dihedral constraint",source)
+         potset%dihedral%n = potset%dihedral%n-1 ! remove invalid contrain
+         return
+      end if
       phi=valijkl(nat,xyz,i,j,k,l)
       if (trim(argv(narg)).eq.'auto') then
          potset%dihedral%val(potset%dihedral%n) = phi
@@ -612,6 +627,11 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
    !  part 2: get the distance between those atoms
       i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
+      if (any([i, j] > nat .or. [i, j] < 1)) then
+         call env%warning("Atomic index is out of bounds for distance constraint",source)
+         nconstr = nconstr-1 ! remove invalid contrain
+         return
+      end if
       dist = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
       if (trim(argv(narg)).eq.'auto') then
          valconstr(nconstr) = dist
@@ -652,6 +672,11 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       i = atconstr(1,nconstr)
       j = atconstr(2,nconstr)
       k = atconstr(3,nconstr)
+      if (any([i, j, k] > nat .or. [i, j, k] < 1)) then
+         call env%warning("Atomic index is out of bounds for angle constraint",source)
+         nconstr = nconstr-1 ! remove invalid contrain
+         return
+      end if
       call bangl(xyz,i,j,k,phi)
       if (trim(argv(narg)).eq.'auto') then
          valconstr(nconstr) = phi
@@ -693,6 +718,11 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       j = atconstr(2,nconstr)
       k = atconstr(3,nconstr)
       l = atconstr(4,nconstr)
+      if (any([i, j, k, l] > nat .or. [i, j, k, l] < 1)) then
+         call env%warning("Atomic index is out of bounds for dihedral constraint",source)
+         nconstr = nconstr-1 ! remove invalid contrain
+         return
+      end if
       phi=valijkl(nat,xyz,i,j,k,l)
       if (trim(argv(narg)).eq.'auto') then
          valconstr(nconstr) = phi
