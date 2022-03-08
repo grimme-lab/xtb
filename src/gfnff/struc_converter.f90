@@ -81,7 +81,7 @@ subroutine struc_convert( &
   etot_arr = 0.0_wp
 !------------------------------------------------------------------------------
 ! set up force field
-  call struc_convert_header
+  call struc_convert_header(env%unit)
   if (allocated(set%opt_engine)) then
     opt_in = set%opt_engine
   end if

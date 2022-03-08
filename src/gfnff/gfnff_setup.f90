@@ -178,6 +178,7 @@ subroutine gfnff_input(env, mol, topo)
     do i=1,mol%n
       if(topo%nb(20,i).eq.0)then
         dum1=1.d+42
+        k = 0
         do j=1,i
           r=sqrt(sum((mol%xyz(:,i)-mol%xyz(:,j))**2))
           if(r.lt.dum1.and.r.gt.0.001)then
@@ -185,8 +186,10 @@ subroutine gfnff_input(env, mol, topo)
             k=j
           endif
         enddo
-        topo%nb(20,i)=1
-        topo%nb(1,i)=k
+        if (k > 0) then
+          topo%nb(20,i)=1
+          topo%nb(1,i)=k
+        end if
       endif
     end do
     ! initialize qfrag as in the default case
