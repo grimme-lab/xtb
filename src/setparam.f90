@@ -426,8 +426,8 @@ module xtb_setparam
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
 
-!  detetministic 2D3D structurcte converter
-   logical  :: strucdet = .true.
+!  detetministic 2D3D structure converter
+   logical  :: strucdet = .false.
 
    end type
    type(TSet) :: set
