@@ -396,7 +396,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    if (mol%info%two_dimensional) then
       call struc_convert (env,restart,mol,chk,egap,set%etemp,set%maxscciter, &
-                       &  set%optset%maxoptcycle,etot,g,sigma)
+                       &  set%optset%maxoptcycle,etot,g,sigma,set%strucdet)
       struc_conversion_done = .true.
       mol%info%two_dimensional = .false.
     end if

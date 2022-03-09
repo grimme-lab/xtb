@@ -24,7 +24,7 @@ contains
 
 subroutine struc_convert( &
          & env,restart,mol,chk,egap,et,maxiter,maxcycle,&
-         & etot,g,sigma)
+         & etot,g,sigma,deterministic)
   use xtb_mctc_accuracy, only : wp
   use xtb_gfnff_param
   use xtb_gfnff_setup
@@ -54,7 +54,7 @@ subroutine struc_convert( &
   real(wp),intent(inout)                      :: sigma(3,3)
   logical,intent(in)                          :: restart
   character(len=:),allocatable                :: fnv
-! Stack -----------------------------------------------------------------------
+  ! Stack -----------------------------------------------------------------------
   type(TGFFCalculator)                        :: calc
   integer                                     :: ich
   integer                                     :: idum
@@ -68,7 +68,8 @@ subroutine struc_convert( &
   logical                                     :: fail
   integer, allocatable :: opt_in
   character(len=*),parameter                  :: p_fname_param_gfnff = '.param_gfnff.xtb'
-! loop geoopt -----------------------------------------------------------------
+  logical                                     :: deterministic
+  ! loop geoopt -----------------------------------------------------------------
   integer                                     :: i, j
   integer, parameter                          :: num_shift_runs = 3
   real(wp), allocatable                       :: shift(:)
@@ -96,7 +97,11 @@ subroutine struc_convert( &
   time_in  = set%time_md
   set%time_md  = 5.0_wp              ! short 5 ps MD to move it in 3D
   temp_in  = set%temp_md
-  set%temp_md  = 298.0_wp            ! md temperature 298 K
+  if (deterministic) then
+    set%temp_md  = 0.0_wp
+  else
+    set%temp_md  = 298.0_wp            ! md temperature 298 K
+  endif
   step_in  = set%tstep_md
   set%tstep_md = 2.5_wp              ! md time step 2.5 fs
   dump_in  = set%dump_md2
@@ -126,7 +131,9 @@ subroutine struc_convert( &
         call RANDOM_NUMBER(sign_threshold)
         if (sign_threshold.lt.0.5_wp) shift(j) = -1.0_wp*shift(j)
       enddo
-      mol_shifted%xyz(3,:) = mol_shifted%xyz(3,:) + shift  ! apply shifts
+      if (.not.deterministic) then
+        mol_shifted%xyz(3,:) = mol_shifted%xyz(3,:) + shift  ! apply shifts
+      endif
     endif
     
     call geometry_optimization &
