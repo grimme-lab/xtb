@@ -112,9 +112,11 @@ subroutine gfnff_input(env, mol, topo)
   real(wp)          :: dum1
   real(wp)          :: floats(10)
   logical           :: ex
-  character(len=80) :: atmp
+  character(len=80) :: atmp, atmp_0
   character(len=80) :: s(10)
   integer, allocatable :: rn(:)
+  ! IO Error
+  integer :: err
 
   if (.not.allocated(topo%nb))       allocate( topo%nb(20,mol%n), source = 0 )
   if (.not.allocated(topo%qfrag))    allocate( topo%qfrag(mol%n), source = 0.0d0 )
@@ -205,8 +207,9 @@ subroutine gfnff_input(env, mol, topo)
     ini = .true.
     call open_file(ich,'.CHRG','r')
     if (ich.ne.-1) then
-      read(ich,'(a)')  ! first line contains total charge
-      read(ich,'(a)')atmp  ! second line contains fragment charges
+      read(ich,'(a)') atmp_0 ! first line contains total charge
+      read(ich,'(a)',iostat=err)atmp  ! second line contains fragment charges
+      if (err .ne. 0) atmp=atmp_0
       call close_file(ich)
       call readline(atmp,floats,s,ns,nf)
       topo%qfrag(1:nf)=floats(1:nf)
