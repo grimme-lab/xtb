@@ -23,6 +23,7 @@ module xtb_main_setup
    use xtb_extern_orca, only : TOrcaCalculator, newOrcaCalculator
    use xtb_extern_mopac, only : TMopacCalculator, newMopacCalculator
    use xtb_extern_turbomole, only : TTMCalculator, newTMCalculator
+   use xtb_extern_driver, only : TDriverCalculator, newDriverCalculator
    use xtb_type_calculator, only : TCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
@@ -66,6 +67,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input)
    type(TMopacCalculator), allocatable :: mopac
    type(TTMCalculator), allocatable :: turbo
    type(TOniomCalculator), allocatable :: oniom
+   type(TDriverCalculator), allocatable :: driver
    
    logical :: exitRun
 
@@ -108,7 +110,10 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input)
       allocate(turbo)
       call newTMCalculator(turbo, set%extcode, set%extmode)
       call move_alloc(turbo, calc)
-
+   case(p_ext_driver)
+      allocate(driver)
+      call newDriverCalculator(driver, env, set%ext_driver)
+      call move_alloc(driver, calc)
    case(p_ext_oniom)
       allocate(oniom)
       call newOniomCalculator(oniom, env, mol, input)
