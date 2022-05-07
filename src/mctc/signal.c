@@ -10,7 +10,8 @@
 
 typedef void (*sighandler_t)(int);
 
-void signal_( int* signum, sighandler_t handler)
+void
+xtb_signal_handler(int signum, sighandler_t handler)
 {
-   signal(*signum, handler);
+   signal(signum, handler);
 }
