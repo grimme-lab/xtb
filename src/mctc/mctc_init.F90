@@ -16,6 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine mctc_init(progname,ntimer,verbose)
+   use, intrinsic :: iso_c_binding, only : c_int, c_funptr, c_funloc
    use xtb_mctc_global
    use xtb_mctc_timings
    use xtb_mctc_filetools
@@ -30,17 +31,26 @@ subroutine mctc_init(progname,ntimer,verbose)
 
 !! ========================================================================
 !  signal processing
-   external :: wSIGTERM
-   external :: wSIGINT
+   interface
+      subroutine xtb_wsigint(signal) bind(C)
+         import :: c_int
+         integer(c_int), value :: signal
+      end subroutine xtb_wsigint
+      subroutine xtb_wsigterm(signal) bind(C)
+         import :: c_int
+         integer(c_int), value :: signal
+      end subroutine xtb_wsigterm
+      subroutine xtb_signal_handler(signal, handler) bind(C)
+         import :: c_int, c_funptr
+         integer(c_int), value :: signal
+         type(c_funptr), value :: handler
+      end subroutine xtb_signal_handler
+   end interface
 !  here two important signal handlers are installed, it seems that
 !  FORTRAN by itself cannot handle signals in the way I expected it
 !  to do, but this will force it to die when I hit CTRL^C.
-!  UPDATE: Since the FORTRAN standard does not specify which signals
-!          are handled by the language, some compilers may handle no
-!          signals at all. This is *non-standard* so it will break
-!          your program on some platforms with some compilers!
-   call signal(2,wSIGINT)
-   call signal(15,wSIGTERM)
+   call xtb_signal_handler(2_c_int, c_funloc(xtb_wsigint))
+   call xtb_signal_handler(15_c_int, c_funloc(xtb_wsigterm))
 
 !  initialize the timing system
    call start_timing_run
