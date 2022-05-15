@@ -21,7 +21,7 @@ project(
   'fortran', 'c',
   version: '6.5.1',
   license: 'LGPL3-3.0-or-later',
-  meson_version: '>=0.55',
+  meson_version: '>=0.57.2',
   default_options: [
     'buildtype=debugoptimized',
     'default_library=both',
@@ -108,6 +108,10 @@ xtb_lib = library(
   dependencies: lib_deps,
   include_directories: incdir,
   install: install,
+  fortran_args: [
+    '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
+  ],
+  link_language: 'fortran',
 )
 
 xtb_dep = declare_dependency(

@@ -15,10 +15,17 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> This data types wraps common restart data for calculator, the main purpose
 !  of this data type is to keep the calculator free from data that is changed
 !  in the course of the calculation.
 module xtb_type_restart
+#if WITH_TBLITE
+   use tblite_wavefunction, only : wavefunction_type
+#endif
    use xtb_type_wavefunction, only : TWavefunction
    use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    implicit none
@@ -33,6 +40,10 @@ module xtb_type_restart
       type(TWavefunction) :: wfn
       !> Force field topology
       type(TGFFNeighbourList) :: nlist
+#if WITH_TBLITE
+      !> TBLite cache
+      type(wavefunction_type) :: tblite
+#endif
    end type TRestart
 
 contains

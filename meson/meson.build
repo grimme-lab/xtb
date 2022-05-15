@@ -17,6 +17,7 @@
 
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
+fc_id = fc.get_id()
 
 if fc.get_id() != cc.get_id()
   warning('FC and CC are not from the same vendor')
@@ -99,91 +100,63 @@ add_project_arguments('-D_Float128=__float128', language: 'c')
 ## LIBRARIES
 ## ========================================== ##
 
-la_backend = get_option('la_backend')
-if la_backend == 'mkl' or la_backend == 'mkl-static'
-  add_project_arguments('-DWITH_MKL', language: 'fortran')
-  if la_backend == 'mkl-static'
-    add_project_link_arguments('-static', language: 'fortran')
-    add_project_link_arguments('-static', language: 'c') # icc will do linking
+lapack_vendor = get_option('lapack')
+if lapack_vendor == 'auto'
+  if fc_id == 'intel'
+    lapack_vendor = 'mkl'
   endif
+endif
 
-  if get_option('default_library') == 'dynamic'
-    mkl_rt_dep = cc.find_library('mkl_rt', required: true)
-    lib_deps += libmkl_exe
+if lapack_vendor == 'mkl'
+  mkl_dep = []
+  if fc_id == 'intel'
+    mkl_dep += cc.find_library('mkl_intel_lp64')
+    if get_option('openmp')
+      mkl_dep += cc.find_library('mkl_intel_thread')
+    endif
+  elif fc_id == 'gcc'
+    mkl_dep += cc.find_library('mkl_gf_lp64')
+    if get_option('openmp')
+      mkl_dep += cc.find_library('mkl_gnu_thread')
+    endif
   else
-    if fc.get_id() == 'gcc'
-      libmkl_exe = [cc.find_library('mkl_gf_lp64')]
-      if get_option('openmp')
-        libmkl_exe += cc.find_library('mkl_gnu_thread')
-      endif
-    elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
-      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
-      if get_option('openmp')
-        libmkl_exe += cc.find_library('mkl_intel_thread')
-      endif
-    elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
-      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
-      if get_option('openmp')
-        libmkl_exe += cc.find_library('mkl_pgi_thread')
-      endif
-    endif
-    if not get_option('openmp')
-      libmkl_exe += cc.find_library('mkl_sequential')
-    endif
-    libmkl_exe += cc.find_library('mkl_core')
-    lib_deps += libmkl_exe
+    error('MKL not supported for this compiler')
   endif
-
-elif la_backend == 'mkl-rt'
-  add_project_arguments('-DWITH_MKL', language: 'fortran')
-
-  mkl_rt_dep = fc.find_library('mkl_rt', required: true)
-  if fc.get_id() == 'intel'
-    lib_deps += fc.find_library('ifcore')
+  if not get_option('openmp')
+    mkl_dep += cc.find_library('mkl_tbb_thread')
   endif
+  mkl_dep += cc.find_library('mkl_core')
+  lib_deps += mkl_dep
 
-  lib_deps += mkl_rt_dep
+elif lapack_vendor == 'mkl-rt'
+  mkl_dep = fc.find_library('mkl_rt')
+  lib_deps += mkl_dep
 
-elif la_backend == 'openblas'
-  # search for OpenBLAS
-  blas_dep = dependency('openblas', required: false)
-  if not blas_dep.found()
-    blas_dep = fc.find_library('openblas', required: true)
+elif lapack_vendor == 'openblas'
+  openblas_dep = dependency('openblas', required: false)
+  if not openblas_dep.found()
+    openblas_dep = fc.find_library('openblas')
   endif
-  lib_deps += blas_dep
-  # some OpenBLAS versions can provide lapack, check if we can find dsygvd
-  openblas_provides_lapack = fc.links(
-    'external dsygvd; call dsygvd(); end',
-    dependencies: blas_dep,
-  )
-  # otherwise we fall back to LAPACK
-  if not openblas_provides_lapack
+  lib_deps += openblas_dep
+  if not fc.links('external dsytrs; call dsytrs(); end', dependencies: openblas_dep)
     lapack_dep = dependency('lapack', required: false)
     if not lapack_dep.found()
-      lapack_dep = fc.find_library('lapack', required: true)
+      lapack_dep = fc.find_library('lapack')
     endif
     lib_deps += lapack_dep
   endif
 
-elif la_backend == 'custom'
-  foreach lib: get_option('custom_libraries')
-    lib_deps += fc.find_library(lib)
-  endforeach
-
 else
-  # Find BLAS (usually netlib, but in conda also OpenBLAS/MKL)
-  blas_dep = dependency('blas', required: false)
-  if not blas_dep.found()
-    blas_dep = fc.find_library('blas', required: true)
-  endif
-  lib_deps += blas_dep
-  # Find LAPACK (usually netlib, but in conda also MKL)
   lapack_dep = dependency('lapack', required: false)
   if not lapack_dep.found()
-    lapack_dep = fc.find_library('lapack', required: true)
+    lapack_dep = fc.find_library('lapack')
   endif
   lib_deps += lapack_dep
-
+  blas_dep = dependency('blas', required: false)
+  if not blas_dep.found()
+    blas_dep = fc.find_library('blas')
+  endif
+  lib_deps += blas_dep
 endif
 
 if get_option('openmp')
@@ -219,3 +192,12 @@ mctc_dep = dependency(
   default_options: ['default_library=static'],
 )
 lib_deps += mctc_dep
+
+# Get light-weight tight-binding framework dependency
+tblite_dep = dependency(
+  'tblite',
+  fallback: ['tblite', 'tblite_dep'],
+  default_options: ['default_library=static', 'api=false'],
+  required: get_option('tblite')
+)
+lib_deps += tblite_dep

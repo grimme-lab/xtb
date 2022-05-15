@@ -54,7 +54,7 @@ jobs:
       env:
         FC: ${{ matrix.fc }}
         CC: ${{ matrix.cc }}
-        MESON_ARGS: ${{ contains(matrix.os, 'macos') && '-Dla_backend=openblas' || '-Dla_backend=netlib' }}
+        MESON_ARGS: ${{ contains(matrix.os, 'macos') && '-Dlapack=openblas' || '-Dlapack=netlib' }}
 
     - name: Build project
       run: meson compile -C ${{ env.BUILD_DIR }}
@@ -136,7 +136,7 @@ jobs:
           mingw-w64-${{ matrix.arch }}-ninja
 
     - name: Configure build
-      run: meson setup ${{ env.BUILD_DIR }} -Dla_backend=netlib --warnlevel=0
+      run: meson setup ${{ env.BUILD_DIR }} -Dlapack=netlib --warnlevel=0
       env:
         FC: gfortran
         CC: gcc
@@ -195,7 +195,12 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Configure meson build
-      run: meson setup ${{ env.BUILD_DIR }} --prefix=/
+      run: >-
+        meson setup ${{ env.BUILD_DIR }}
+        --prefix=/ --libdir=lib
+        -Dfortran_link_args="-lifcoremt -static"
+        -Ddefault_library=static
+        -Dlapack=mkl
 
     - name: Build project
       run: ninja -C ${{ env.BUILD_DIR }}

@@ -16,22 +16,35 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 option(
-  'la_backend',
+  'lapack',
   type: 'combo',
-  value: 'mkl-static',
-  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
+  value: 'auto',
+  yield: true,
+  choices: ['auto', 'mkl', 'mkl-rt', 'openblas', 'netlib', 'custom'],
   description: 'Linear algebra backend for program.',
 )
+
 option(
   'custom_libraries',
   type: 'array',
   value: [],
+  yield: true,
   description: 'libraries to load for custom linear algebra backend',
 )
+
+option(
+  'tblite',
+  type: 'feature',
+  value: 'auto',
+  yield: true,
+  description: 'use tblite library as backend for xTB',
+)
+
 option(
   'openmp',
   type: 'boolean',
   value: true,
+  yield: true,
   description: 'use OpenMP parallelisation',
 )
 option(
