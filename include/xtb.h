@@ -33,6 +33,14 @@
 #define XTB_VERBOSITY_MINIMAL 1
 #define XTB_VERBOSITY_MUTED   0
 
+/// Convencience macro for deleting a handle
+#define xtb_delete(ptr) _Generic((ptr), \
+                xtb_TEnvironment: xtb_delEnvironment, \
+                   xtb_TMolecule: xtb_delMolecule, \
+                 xtb_TCalculator: xtb_delCalculator, \
+                    xtb_TResults: xtb_delResults \
+                                )(&ptr)
+
 #ifdef __cplusplus
 extern "C" {
 #else

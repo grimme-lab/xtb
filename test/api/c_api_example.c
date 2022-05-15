@@ -126,10 +126,10 @@ int testFirst() {
   if (!check(wbo[9], +2.89453979224265, 1.0e-8, "Bond order does not match"))
     goto error;
 
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
 
   if (!check(!res, 1, "Results not deleted"))
     goto error;
@@ -144,10 +144,10 @@ int testFirst() {
 
 error:
   xtb_showEnvironment(env, NULL);
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
   return 1;
 }
 
@@ -260,10 +260,10 @@ int testSecond() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
 
   if (!check(pcgrad[0], 0.00000755, 1.0e-6, "pcgrad[0] does not match"))
     goto error;
@@ -274,10 +274,10 @@ int testSecond() {
 
 error:
   xtb_showEnvironment(env, NULL);
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
   return 1;
 }
 

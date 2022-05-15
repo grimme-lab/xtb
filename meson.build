@@ -23,10 +23,10 @@ project(
   license: 'LGPL3',
   meson_version: '>=0.55',
   default_options: [
-    'includedir=include/xtb',
     'buildtype=debugoptimized',
     'default_library=both',
     'optimization=2',
+    'c_std=c11',
   ],
 )
 
