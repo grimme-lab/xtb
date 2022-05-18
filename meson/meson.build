@@ -54,7 +54,7 @@ elif fc.get_id() == 'intel-cl'
       '/O3',
       '/Qip',
       '/QaxAVX2',
-      '/Qtune:core-avx2',
+      '/tune:core-avx2',
       '/Qfma',
     ]
   else
@@ -63,6 +63,7 @@ elif fc.get_id() == 'intel-cl'
     ]
   endif
   fopts = opt_level + [
+    '/fpp',
     '/4R8',
     '/traceback',
   ]
