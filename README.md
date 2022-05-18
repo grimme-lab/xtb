@@ -16,16 +16,11 @@ This is the offical repository of the `xtb` program package developed by the Gri
 
 [![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI)](https://github.com/grimme-lab/xtb/actions)
 
-Statically linked binaries (Intel Compiler 18.0.2) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest).
-There is also a version of the shared library, which requires the Math Kernel Library and additional Intel specific libraries to be installed.
-Bleeding edge releases of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
+Statically linked binaries (Intel Compiler) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), a version for Linux (Intel 18.0.2, GLIBC 2.19) and Windows (Intel 2022) is provided.
+The `xtb` program and library are packaged on conda-forge for Linux (x86\_64, aarch64, ppc64le) and MacOS (x86\_64, arm64).
+For homebrew users a custom tap is available at [grimme-lab/homebrew-qc](https://github.com/grimme-lab/homebrew-qc) providing prebuilt MacOS/x86\_64 binaries, for MacOS/arm64 binaries will be compiled on installation automatically.
 
-`xtb` is routinely compiled with Intel Parallel Studio 18 and newer on our clusters in Bonn.
-It is also possible to compile `xtb` with GCC (version 7.5 or newer), but we recommend to use binaries compiled with Intel.
-Successful builds on OSX with GCC via homebrew have been performed as well.
-The NVHPC compilers (version 20.9, 20.11) can be used to compile for CPU and GPU.
-To compile on Windows we recommend the MinGW toolchain (installable with [MSYS2](https://msys2.org)) or, if a POSIX environment is preferred, [Cygwin](https://cygwin.com).
-It has been reported that `xtb` can be compiled using Intel Fortran on Windows as well, but official support is not yet established.
+Bleeding edge releases (Linux only) of the latest source from this repository are available on the [continuous release tag](https://github.com/grimme-lab/xtb/releases/tag/bleed).
 
 This projects supports two build systems, meson and CMake.
 A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).

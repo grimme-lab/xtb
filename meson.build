@@ -42,6 +42,11 @@ if git.found()
   endif
 endif
 
+# We rely on the existence of Python since meson will need a Python interpreter to run,
+# this way we have a cross-platform way to obtain relevant data for our build.
+pymod = import('python')
+python = pymod.find_installation('python3')
+
 # build a configuration data containing all the important data to propagate
 # it to the automatically generated files
 config = configuration_data({
@@ -49,9 +54,9 @@ config = configuration_data({
   'description': 'Semiempirical Extended Tight-Binding Program Package',
   'version': meson.project_version(),
   'commit': commit,
-  'date': run_command(find_program('date'),'-I').stdout().strip(),
-  'author': run_command(find_program('whoami')).stdout().strip(),
-  'origin': run_command(find_program('hostname')).stdout().strip(),
+  'date': run_command(python, '-c', 'import datetime; datetime.today().strftime("%Y-%m-%d")').stdout().strip(),
+  'author': run_command(python, '-c', 'import getpass; getpass.getuser()').stdout().strip(),
+  'origin': run_command(python, '-c', 'import socket; socket.gethostname()').stdout().strip(),
   'prefix': get_option('prefix'),
   'mandir': get_option('mandir'),
   'bindir': get_option('bindir'),
