@@ -410,6 +410,7 @@ subroutine molecule_to_structure(struc, mol)
    end if
    if (len(mol%bonds) > 0) then
       allocate(struc%bond(3, len(mol%bonds)))
+      struc%nbd = len(mol%bonds)
       do ibd = 1, len(mol%bonds)
          call mol%bonds%get_item(ibd, idx)
          struc%bond(:, ibd) = idx
