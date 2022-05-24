@@ -51,10 +51,10 @@ function newMolecule_api(venv, natoms, numbers, positions, charge, uhf, lattice,
    integer(c_int), intent(in) :: natoms
    integer(c_int), intent(in) :: numbers(natoms)
    real(c_double), intent(in) :: positions(3, natoms)
-   real(c_double), intent(in) :: charge
-   integer(c_int), intent(in) :: uhf
-   real(c_double), intent(in) :: lattice(3, 3)
-   logical(c_bool), intent(in) :: periodic(3)
+   real(c_double), intent(in), optional :: charge
+   integer(c_int), intent(in), optional :: uhf
+   real(c_double), intent(in), optional :: lattice(3, 3)
+   logical(c_bool), intent(in), optional :: periodic(3)
    type(VMolecule), pointer :: mol
    type(c_ptr) :: vmol
    integer(c_int) :: status
