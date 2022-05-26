@@ -45,7 +45,10 @@ endif
 # We rely on the existence of Python since meson will need a Python interpreter to run,
 # this way we have a cross-platform way to obtain relevant data for our build.
 pymod = import('python')
-python = pymod.find_installation('python3')
+python = pymod.find_installation('python3', required: false)
+if not python.found()
+  python = find_program('python3', 'python')
+endif
 
 # build a configuration data containing all the important data to propagate
 # it to the automatically generated files
