@@ -118,6 +118,7 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    real(wp) :: beta,sthr,avmom,A,B,C
    real(wp) :: ewj,omega,e,xxmom,xmom,mu
    real(wp) :: wofrot,RT
+   real(wp) :: cp_ho,cp_rr
    real(wp) :: sv_ho,sv_rr
    !*******************************************************************
 
@@ -139,6 +140,10 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    h_rot = 0.0_wp
    cprot = 0.0_wp
    s_rot = 0.0_wp
+   ! free rotor heat capacity is constant 0.5*R
+   ! we use the below to work with Eh² units 
+   ! conversion to cal/mol/K is done later
+   cp_rr = 0.5_wp/(beta**2) 
 
    ! construct the frequency dependent parts of partition function
    do i=1,nvibs
@@ -148,8 +153,8 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
       q_vib=q_vib/(1.0_wp-ewj)
       ! h_vib in Eh
       h_vib=h_vib+omega*ewj/(1.0_wp-ewj)
-      ! cpvib in Eh²
-      cpvib=cpvib+omega**2 * ewj/(1.0_wp-ewj)/(1.0_wp-ewj)
+      ! cp_ho in Eh²
+      cp_ho=omega**2 * ewj/(1.0_wp-ewj)/(1.0_wp-ewj)
       ! replace low-lying vibs for S by rotor approx.
       mu = 0.5_wp / (omega + 1.0e-14_wp)
       ! this reduced moment limits the rotational moment of inertia for
@@ -173,7 +178,9 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
       ! wofrot=1./(1.+exp( (omega-sthr)/20.0 ) )
       ! Head-Gordon weighting
       wofrot=1.0_wp-chg_switching(omega,sthr)
-      ! now convert everything to cal/mol/K... by multiplying with R
+      ! heat capacity (cp_rr is a constant), all in Eh²
+      cpvib = cpvib + ((1.0_wp-wofrot)*cp_ho + wofrot*cp_rr)
+      ! entropy s_vib is converted to cal/mol/K... by multiplying with R
       s_vib=s_vib+R*((1.0_wp-wofrot)*sv_ho + wofrot*sv_rr)
    enddo
    !   ***   FINISH CALCULATION OF VIBRATIONAL PARTS   ***
