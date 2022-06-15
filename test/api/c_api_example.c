@@ -28,9 +28,15 @@ static inline bool check_double(double actual, double expected, double tol,
 
 int testFirst() {
   // first molecule
+  double* q;
+  char* buffer;
+  double* wbo;
 
+  int buffersize = 512;
+  int tester = 0;
   double const thr = 1.0e-10;
   int const natoms = 7;
+  int const natsq = 49;
   int const attyp[7] = {6, 6, 6, 1, 1, 1, 1};
   double const charge = 0.0;
   int const uhf = 0;
@@ -49,10 +55,9 @@ int testFirst() {
   xtb_TResults res = NULL;
   double energy;
   double dipole[3];
-  double q[natoms];
-  double wbo[natoms * natoms];
-  int buffersize = 512;
-  char buffer[buffersize];
+  q = (double*) malloc(natoms * sizeof(double));
+  wbo = (double*) malloc(natsq * sizeof(double));
+  buffer = (char*) malloc(buffersize *sizeof(char));
   char solvent[] = "h2o";
 
   if (!check(XTB_API_VERSION, xtb_getAPIVersion(), "API version does not match"))
@@ -131,13 +136,21 @@ int testFirst() {
   xtb_delete(mol);
   xtb_delete(env);
 
-  if (!check(!res, 1, "Results not deleted"))
+  free(q);
+  free(wbo);
+  free(buffer);
+
+  tester = !res;
+  if (!check(tester, 1, "Results not deleted"))
     goto error;
-  if (!check(!calc, 1, "Calculator not deleted"))
+  tester = !calc;
+  if (!check(tester, 1, "Calculator not deleted"))
     goto error;
-  if (!check(!mol, 1, "Molecule not deleted"))
+  tester = !mol;
+  if (!check(tester, 1, "Molecule not deleted"))
     goto error;
-  if (!check(!env, 1, "Environment not deleted"))
+  tester = !env;
+  if (!check(tester, 1, "Environment not deleted"))
     goto error;
 
   return 0;
