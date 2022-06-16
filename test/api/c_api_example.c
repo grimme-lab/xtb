@@ -34,12 +34,9 @@ int testFirst() {
 
   int buffersize = 512;
   int tester = 0;
-  double const thr = 1.0e-10;
   int const natoms = 7;
   int const natsq = 49;
   int const attyp[7] = {6, 6, 6, 1, 1, 1, 1};
-  double const charge = 0.0;
-  int const uhf = 0;
   double const coord[3 * 7] = {
       +0.00000000000000, +0.00000000000000, -1.79755622305860,
       +0.00000000000000, +0.00000000000000, +0.95338756106749,
@@ -192,8 +189,6 @@ int testSecond() {
       32.94292201,  -1.094745099, 11.448025710, 28.96323675,  0.563579412,
       11.458509150, 27.70991388,  -1.947354387, 8.933606299,  29.46637609,
       -0.489290309, 7.918137207,  29.92393411};
-
-  double energy = 0;
 
   int npc = 32;
 
