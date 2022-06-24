@@ -1028,6 +1028,9 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    type is(TGFFCalculator)
       select case(modh%model)
       case default
+         call env%error("internal error in model hessian!", source)
+         return
+      case(p_modh_old, p_modh_gff)
          if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
          call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, calc%param, calc%topo)
       case(p_modh_lindh_d2)
