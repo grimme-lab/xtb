@@ -208,20 +208,23 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    end if
 
    ! Check whether the low-level calculator needs a wavefunction
-   if (chk%wfn%nel == 0) then
+   if (.not.allocated(chk%wfn%qsh)) then
+      print *, 'overwritten'
       select type(xtb => self%real_low)
       type is(TxTBCalculator)
          call newWavefunction(env, mol, xtb, chk)
       end select
    end if
-
+   
+   print*, "Single point"
    ! Perform calculation on outer region
    call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
        & energy, gradient, sigma, hlgap, results)
 
    !> check for charges
    call calculateCharge(self, env, mol, chk)
-
+   
+   print*,"cut bound"
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol)
    call env%check(exitRun)
@@ -372,7 +375,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    ! Compute complete hessian for outer region
    call self%real_low%hessian(env, mol0, chk0, list, step, &
        & hess, dipgrad)
-
+      call chk%wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
+   print*,"cutbond"
    ! Creating Linked atoms
    call self%cutbond(env, mol0, chk0, self%topo, mol_model)
    mol_model%chrg = float(self%chrg_model)
@@ -383,6 +387,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
 
    hess_model(:, :) = 0.0_wp
    dipgrad_model(:, :) = 0.0_wp
+
    call self%model_low%hessian(env, mol_model, self%chk_low, list_model, step, &
        & hess_model, dipgrad_model)
 
@@ -461,7 +466,6 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
    allocate (xyz2(3, size(self%idx)))
    allocate (at(n))
    allocate (xyz(3, n))
-   allocate (bonded(2, mol%n))
 
    !> Assignment of initial inner region
    do i = 1, size(self%idx)
@@ -483,6 +487,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
 
          call topologyToNeighbourList(topo, neighList, mol) !> return neighList
       end if
+      allocate (bonded(2, len(topo)))
       do i = 1, len(topo)
          bonded(:, i) = topo%list(1:2, i)
       end do
@@ -535,18 +540,18 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
          end if
       end do
    end do
-
-   ! call init(cash,at2,xyz2)
+   print *, "cut_bound"
+    call init(cash,at2,xyz2)
    call init(inner_mol, at, xyz)
-   ! block
-   ! use xtb_io_writer
-   ! use xtb_mctc_filetypes, only : fileType
-   ! integer :: io
-   ! call open_file(io, "inner-region_without_h.xyz", "w")
-   ! call writeMolecule(cash, io, filetype%xyz)
-   ! call close_file(io)
-   ! stop
-   ! end block
+    block
+    use xtb_io_writer
+    use xtb_mctc_filetypes, only : fileType
+    integer :: io
+    call open_file(io, "inner-region_without_h.xyz", "w")
+    call writeMolecule(cash, io, filetype%xyz)
+    call close_file(io)
+    stop
+    end block
 
 end subroutine cutbond
 
@@ -563,16 +568,19 @@ end subroutine new_atom
 
 subroutine new_coordinates(xyz)
 
-   real, allocatable, intent(inout) :: xyz(:, :)
-   real, allocatable :: tmp(:, :)
+   real, allocatable :: xyz(:, :)
+   real, allocatable :: tmp1(:, :)
    integer :: atom_num
 
    !coord_num = size(xyz,1)
+   !deallocate(tmp1)
    atom_num = size(xyz, 2)
-   allocate (tmp(3, atom_num + 1))
-   tmp(:, :atom_num) = xyz(:, :atom_num)
+   allocate (tmp1(size(xyz,1), atom_num + 1))
+   tmp1(:, :size(xyz,2)) = xyz(:, :size(xyz,2))
+   print*,"tmp1"
    deallocate (xyz)
-   call move_alloc(tmp, xyz)
+   print*,"allocatable"
+   call move_alloc(tmp1, xyz)
 
 end subroutine new_coordinates
 
@@ -718,7 +726,6 @@ subroutine calculateCharge(self, env, mol, chk)
    end select
 
    self%chrg_model = nint(charge)
-
 end subroutine calculateCharge
 
 end module xtb_oniom
