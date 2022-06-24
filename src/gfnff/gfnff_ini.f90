@@ -1839,7 +1839,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 
          if (set%mhset%model == p_modh_old) then
             call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb, &
-               & topo%ispinsyst,topo%nspinsyst,topo%nsystem)
+               & topo%ispinsyst,topo%nspinsyst,topo%nsystem,env)
          else
             topo%nsystem=1
          endif
