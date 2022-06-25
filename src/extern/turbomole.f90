@@ -190,7 +190,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       call rdpath(syspath, "cefine", cefine, exist)
       if (exist) then
          call wrtm(n,at,xyz)
-         call execute_command_line("exec "//cefine//" -sym c1")
+         call execute_command_line("exec "//cefine//" --tpss --def2/SVP --cosmo2.38 --d4 -sym c1")
       end if
    end if
 
