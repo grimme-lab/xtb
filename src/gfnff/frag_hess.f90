@@ -307,7 +307,7 @@ module xtb_gfnff_fraghess
            ass = maxloc(nspinsyst, 1)
 
             if (nsystem .ge. nspin) then
-               call env%warning("Created more Fragments than atoms. This does not look good. Turning off fragmentization.")
+               call env%warning("Created more fragments than atoms. This does not look good. Turning off fragmentation.")
                nsystem=1
                return
             end if
