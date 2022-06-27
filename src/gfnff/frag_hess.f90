@@ -61,8 +61,9 @@ module xtb_gfnff_fraghess
 
    contains
 
-     subroutine fragmentize(nspin, at, xyz, maxsystem, maxmagnat, jab, neigh, ispinsyst, nspinsyst, nsystem)
+     subroutine fragmentize(nspin, at, xyz, maxsystem, maxmagnat, jab, neigh, ispinsyst, nspinsyst, nsystem, env)
         use xtb_mctc_accuracy, only : wp, sp
+        use xtb_type_environment, only: TEnvironment
         implicit none
 
         !Dummy Arguments:
@@ -110,6 +111,8 @@ module xtb_gfnff_fraghess
         logical  :: assigned(nspin, nspin)
 
         integer, allocatable  :: ifrag_ini(:)
+
+        type(TEnvironment), intent(inout) :: env
 
         allocate( ispinsyst(nspin,maxsystem), source = 0)
         allocate( nspinsyst(maxsystem), source = 0)
@@ -303,6 +306,11 @@ module xtb_gfnff_fraghess
            end do ! End Loop over  i from 1 to count(visited)
            ass = maxloc(nspinsyst, 1)
 
+            if (nsystem .ge. nspin) then
+               call env%warning("Created more fragments than atoms. This does not look good. Turning off fragmentation.")
+               nsystem=1
+               return
+            end if
         end do ! End loop: while nspinsyst(ass) > maxmagnat
 
 
