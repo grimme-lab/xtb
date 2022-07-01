@@ -95,9 +95,12 @@ subroutine checkOrca(env, ext)
    endif
 
    if (index(ext%executable,'/usr') == 1) then
-      call env%error("Executable '"//ext%executable//"' is in the system path, "//&
-         & "is this the GNOME screen reader?")
-      return
+      inquire(file=ext%executable//'_scf',exist=exist)
+      if (.not. exist) then
+         call env%error("Executable '"//ext%executable//"' is in the system path, "//&
+            & "is this the GNOME screen reader?")
+         return
+      endif
    endif
 
    ! see if there is a preference for an input file
