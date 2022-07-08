@@ -85,7 +85,7 @@ module xtb_prog_main
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
    use xtb_kopt
-   use xtb_oniom, only : oniom_input
+   use xtb_oniom, only : oniom_input, TOniomCalculator
    implicit none
    private
 
@@ -564,6 +564,14 @@ subroutine xtbMain(env, argParser)
       calc%etemp = set%etemp
       calc%maxiter = set%maxscciter
       ipeashift = calc%xtbData%ipeashift
+   type is(TOniomCalculator)
+      select type(xtb => calc%real_low)
+      type is(TxTBCalculator)
+         call chk%wfn%allocate(mol%n,xtb%basis%nshell,xtb%basis%nao)
+         if (restart) then ! only in first run
+            call readRestart(env,chk%wfn,'xtbrestart',mol%n,mol%at,set%gfn_method,exist,.true.)
+         endif
+      end select
    end select
 
    ! ========================================================================

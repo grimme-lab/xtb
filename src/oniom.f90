@@ -208,12 +208,14 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    end if
 
    ! Check whether the low-level calculator needs a wavefunction
-   if (chk%wfn%nel == 0) then
+   if (.not.allocated(chk%wfn%qsh)) then
+   !   print *, 'overwritten' - for restart
       select type(xtb => self%real_low)
       type is(TxTBCalculator)
          call newWavefunction(env, mol, xtb, chk)
       end select
    end if
+
 
    ! Perform calculation on outer region
    call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
@@ -221,6 +223,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    !> check for charges
    call calculateCharge(self, env, mol, chk)
+
 
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol)
@@ -373,6 +376,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    call self%real_low%hessian(env, mol0, chk0, list, step, &
        & hess, dipgrad)
 
+   !call chk0%wfn%allocate(mol0%n,chk0%basis%nshell,chk0%real_low%basis%nao)
+   print*,"cutbond"
    ! Creating Linked atoms
    call self%cutbond(env, mol0, chk0, self%topo, mol_model)
    mol_model%chrg = float(self%chrg_model)
@@ -383,6 +388,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
 
    hess_model(:, :) = 0.0_wp
    dipgrad_model(:, :) = 0.0_wp
+
    call self%model_low%hessian(env, mol_model, self%chk_low, list_model, step, &
        & hess_model, dipgrad_model)
 
@@ -429,27 +435,39 @@ end subroutine writeInfo
 
 subroutine cutbond(self, env, mol, chk, topo, inner_mol)
 
+   !> to initialize mol object
    use xtb_type_molecule, only: init
 
+   !> To get topology info from wfn
    use xtb_topology, only: makeBondTopology, topologyToNeighbourList
 
+   !> actual calculator
    class(TOniomCalculator), intent(in) :: self
 
+   !> Environment
    type(TEnvironment), intent(inout) :: env
 
+   !> Wavefunction
    type(TRestart), intent(in) :: chk
 
+   !>  Molecular data storage
    type(TMolecule), intent(in) :: mol
 
+   !> Inner region geometry
    type(TMolecule), intent(inout) :: inner_mol
 
+   !> Some buffer geometry
    type(TMolecule) :: cash
 
+   !> topology info
    type(TTopology), allocatable, intent(inout) :: topo
 
+   !> neighbour lists
    type(TNeighbourList) :: neighList
 
    integer :: i, j, n, k, pre_last,iterator
+
+   !> Arrays for inner region atoms and their atomic numbers
    integer, allocatable :: at(:), at2(:)
    real(wp), allocatable :: xyz(:, :), xyz2(:, :)
    logical :: inside
@@ -461,7 +479,6 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
    allocate (xyz2(3, size(self%idx)))
    allocate (at(n))
    allocate (xyz(3, n))
-   allocate (bonded(2, mol%n))
 
    !> Assignment of initial inner region
    do i = 1, size(self%idx)
@@ -471,9 +488,10 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
       xyz2(:, i) = mol%xyz(:, self%idx(i))
    end do
 
+   !> To identify bonded atoms and save them into an array + iterator
    select type (calc => self%real_low)
    type is (TGFFCalculator)
-      bonded = calc%topo%blist
+      bonded = calc%topo%blist !> automatic allocation
       iterator = size(bonded,2)
 
    type is (TxTBCalculator)
@@ -483,12 +501,12 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
 
          call topologyToNeighbourList(topo, neighList, mol) !> return neighList
       end if
+      allocate (bonded(2, len(topo)))
       do i = 1, len(topo)
          bonded(:, i) = topo%list(1:2, i)
       end do
-      iterator = len(topo)
+      iterator = size(bonded,2)
    end select
-
    !> Actual bond cutting and creating linked atom
    do i = 1, size(self%idx)
       do j = 1, iterator
@@ -509,7 +527,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
                call resize(at)
                at(pre_last + 1) = 1
                call resize(xyz)
-               call coord(mol, xyz, pre_last, at(self%idx(i)), self%idx(i), bonded(2, j))
+               call coord(mol, xyz, at(pre_last), self%idx(i), bonded(2, j))
             end if
             inside = .FALSE.
          else if (bonded(2, j) == self%idx(i)) then
@@ -529,61 +547,59 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
                call resize(at)
                at(pre_last + 1) = 1
                call resize(xyz)
-               call coord(mol, xyz, pre_last, at(self%idx(i)), self%idx(i), bonded(1, j))
+               call coord(mol, xyz, at(pre_last), self%idx(i), bonded(1, j))
             end if
             inside = .FALSE.
          end if
       end do
    end do
-
-   ! call init(cash,at2,xyz2)
+    !call init(cash,at2,xyz2)
    call init(inner_mol, at, xyz)
-   ! block
-   ! use xtb_io_writer
-   ! use xtb_mctc_filetypes, only : fileType
-   ! integer :: io
-   ! call open_file(io, "inner-region_without_h.xyz", "w")
-   ! call writeMolecule(cash, io, filetype%xyz)
-   ! call close_file(io)
-   ! stop
-   ! end block
+    !block
+    !use xtb_io_writer
+    !use xtb_mctc_filetypes, only : fileType
+    !integer :: io
+    !call open_file(io, "inner-region_with_h.xyz", "w")
+    !call writeMolecule(inner_mol, io, filetype%xyz)
+    !call close_file(io)
+    !stop
+    !end block
 
 end subroutine cutbond
 
 subroutine new_atom(at)
 
    integer, allocatable, intent(inout) :: at(:)
-   integer, allocatable :: tmp(:)
-   allocate (tmp(size(at) + 1))
-   tmp(:size(at)) = at(:size(at))
+   integer, allocatable :: tmp2(:)
+   allocate (tmp2(size(at) + 1))
+   tmp2(:size(at)) = at(:size(at))
    deallocate (at)
-   call move_alloc(tmp, at)
+   call move_alloc(tmp2, at)
 
 end subroutine new_atom
 
 subroutine new_coordinates(xyz)
 
-   real, allocatable, intent(inout) :: xyz(:, :)
-   real, allocatable :: tmp(:, :)
+   real, allocatable :: xyz(:, :)
+   real, allocatable :: tmp1(:, :)
    integer :: atom_num
 
-   !coord_num = size(xyz,1)
    atom_num = size(xyz, 2)
-   allocate (tmp(3, atom_num + 1))
-   tmp(:, :atom_num) = xyz(:, :atom_num)
+   allocate (tmp1(size(xyz,1), atom_num + 1))
+   tmp1(:, :size(xyz,2)) = xyz(:, :size(xyz,2))
    deallocate (xyz)
-   call move_alloc(tmp, xyz)
+   call move_alloc(tmp1, xyz)
 
 end subroutine new_coordinates
 
-!call coord(neighList, xyz, pre_last, at(idx(i)), idx(i), topo%list(1,j))
-subroutine newcoord(mol, xyz, pre_last, at, idx1, idx2)
+!call coord(mol, xyz, pre_last, at(self%idx(i)), self%idx(i), bonded(1, j))
+subroutine newcoord(mol, xyz,  at, idx1, idx2)
 
    type(TMolecule), intent(in) :: mol
 
    real(wp), intent(inout) :: xyz(:, :)
 
-   integer, intent(in) :: pre_last
+   !integer, intent(in) :: pre_last
 
    integer, intent(in) :: at, idx1, idx2
 
@@ -614,7 +630,8 @@ subroutine newcoord(mol, xyz, pre_last, at, idx1, idx2)
    xyz2 = mol%xyz(:, idx2)
    prefactor = dist/sqrt(sum((xyz1 - xyz2)**2))
 
-   xyz(:, size(xyz, 2)) = xyz1 + (xyz2 - xyz1)*prefactor
+   !> new H coordinates
+   xyz(:, size(xyz, 2)) = xyz1 + (xyz2 - xyz1) * prefactor
 
 end subroutine newcoord
 
@@ -705,19 +722,17 @@ subroutine calculateCharge(self, env, mol, chk)
          charge = charge + calc%topo%qa(self%idx(i))
 
       end do
-
-   type is (TxTBCalculator)
-      do i = 1, size(self%idx)
+     type is (TxTBCalculator)
+     do i = 1, size(self%idx)
          charge = charge + chk%wfn%q(self%idx(i))
+     end do
 
-      end do
+    class default
+        call env%error("Not possible to calculate with external methods for real region", source)
+        return
+    end select
 
-   class default
-      call env%error("Not possible to calculate with external methods for real region", source)
-      return
-   end select
-
-   self%chrg_model = nint(charge)
+    self%chrg_model = nint(charge)
 
 end subroutine calculateCharge
 

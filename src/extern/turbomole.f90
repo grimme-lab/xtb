@@ -117,7 +117,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    efix = 0.0_wp
    dipole(:) = 0.0_wp
 
-   call external_turbomole(mol%n,mol%at,mol%xyz,chk%wfn%nel,chk%wfn%nopen, &
+   call external_turbomole(env,mol%n,mol%at,mol%xyz,chk%wfn%nel,chk%wfn%nopen, &
       & self%extcode,self%extmode,.true.,energy,gradient,results%dipole,self%lSolv)
 
    call env%check(exitRun)
@@ -163,10 +163,12 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    endif
 end subroutine singlepoint
 
-subroutine external_turbomole(n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,lsolv)
+subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,lsolv)
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam
    implicit none
+   !> Computational environment
+   type(TEnvironment), intent(inout) :: env
    integer n, at(n), nel, nopen
    logical grd,lsolv
    integer, intent(in) :: extcode, extmode
@@ -176,11 +178,26 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,l
    real(wp) eel
    real(wp) dip(3)
    character(len=255) atmp
+   character(len=:), allocatable :: syspath, cefine
    logical :: cache, exist
 
    cache = .false.
    dip=0
 
+   inquire(file="control", exist=exist)
+   if (.not.exist) then
+      call rdvar("PATH", syspath)
+      call rdpath(syspath, "cefine", cefine, exist)
+      if (exist) then
+         call wrtm(n,at,xyz)
+         call execute_command_line("exec "//cefine//" --func tpss --def2/SVP --cosmo 2.38 --d4 -sym c1 --noopt")
+      end if
+   end if
+
+   if (.not.exist) then
+      call env%error("No 'control' file in current directory")
+      return
+   end if
 
    ! TM (RI)
    if(extcode.eq.1)then
@@ -194,7 +211,7 @@ subroutine external_turbomole(n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,l
          call wrtm(n,at,xyz)
          if(extmode.eq.1)then
             call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
-            if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null')
+            if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null ')
          endif
          call extcodeok(extcode)
          call rdtm(n,grd,eel,g,xyz_cached)
@@ -385,18 +402,13 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    real(wp), intent(inout) :: dipgrad(:, :)
 
    integer :: idipd, stat
-   type(TMolecule), allocatable :: mol
-   type(TRestart), allocatable :: chk
-   real(wp) :: er, el, dr(3), dl(3), sr(3, 3), sl(3, 3), egap, step2
-   real(wp) :: t0, t1, w0, w1
-   real(wp), allocatable :: gr(:, :), gl(:, :)
-   type(scc_results) :: rr, rl
    type(TReader) :: reader
 
-   call wrtm(mol%n,mol%at,mol%xyz) !Overwrite coord with RAM-xyz file
+   call wrtm(mol0%n,mol0%at,mol0%xyz) !Overwrite coord with RAM-xyz file
+
    call execute_command_line('exec aoforce > job.last2>> /dev/null')
    call reader%open('hessian')
-   call readHessian(env, mol, hess, reader, fileType%tmol)
+   call readHessian(env, mol0, hess, reader, fileType%tmol)
    call reader%close
 
    call open_file(idipd,'dipgrad','r')
@@ -405,7 +417,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
       return
    end if
 
-   call read_dipgrad(idipd, mol%n, dipgrad, stat)
+   call read_dipgrad(idipd, mol0%n, dipgrad, stat)
 
    if(stat /=0 ) then
       call env%error('An error occurred while reading the dipolegradient', source)
