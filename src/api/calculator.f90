@@ -34,7 +34,7 @@ module xtb_api_calculator
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_xtb_calculator
-   !use xtb_main_setup, only : addSolvationModel
+   use xtb_main_setup, only : addSolvationModel
    implicit none
    private
 

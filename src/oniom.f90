@@ -215,16 +215,16 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
          call newWavefunction(env, mol, xtb, chk)
       end select
    end if
-   
-   
+
+
    ! Perform calculation on outer region
    call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
        & energy, gradient, sigma, hlgap, results)
 
    !> check for charges
    call calculateCharge(self, env, mol, chk)
-   
-  
+
+
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol)
    call env%check(exitRun)
@@ -375,7 +375,7 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    ! Compute complete hessian for outer region
    call self%real_low%hessian(env, mol0, chk0, list, step, &
        & hess, dipgrad)
-      
+
    !call chk0%wfn%allocate(mol0%n,chk0%basis%nshell,chk0%real_low%basis%nao)
    print*,"cutbond"
    ! Creating Linked atoms
@@ -434,40 +434,40 @@ subroutine writeInfo(self, unit, mol)
 end subroutine writeInfo
 
 subroutine cutbond(self, env, mol, chk, topo, inner_mol)
-   
+
    !> to initialize mol object
    use xtb_type_molecule, only: init
 
    !> To get topology info from wfn
    use xtb_topology, only: makeBondTopology, topologyToNeighbourList
-   
+
    !> actual calculator
    class(TOniomCalculator), intent(in) :: self
-   
-   !> Environment 
+
+   !> Environment
    type(TEnvironment), intent(inout) :: env
-   
+
    !> Wavefunction
    type(TRestart), intent(in) :: chk
 
    !>  Molecular data storage
    type(TMolecule), intent(in) :: mol
-   
+
    !> Inner region geometry
    type(TMolecule), intent(inout) :: inner_mol
-   
+
    !> Some buffer geometry
    type(TMolecule) :: cash
-   
+
    !> topology info
    type(TTopology), allocatable, intent(inout) :: topo
-   
+
    !> neighbour lists
    type(TNeighbourList) :: neighList
 
    integer :: i, j, n, k, pre_last,iterator
-   
-   !> Arrays for inner region atoms and their atomic numbers 
+
+   !> Arrays for inner region atoms and their atomic numbers
    integer, allocatable :: at(:), at2(:)
    real(wp), allocatable :: xyz(:, :), xyz2(:, :)
    logical :: inside
@@ -479,7 +479,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
    allocate (xyz2(3, size(self%idx)))
    allocate (at(n))
    allocate (xyz(3, n))
-   
+
    !> Assignment of initial inner region
    do i = 1, size(self%idx)
       at(i) = mol%at(self%idx(i))
@@ -487,7 +487,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol)
       xyz(:, i) = mol%xyz(:, self%idx(i))
       xyz2(:, i) = mol%xyz(:, self%idx(i))
    end do
-   
+
    !> To identify bonded atoms and save them into an array + iterator
    select type (calc => self%real_low)
    type is (TGFFCalculator)
@@ -605,7 +605,7 @@ subroutine newcoord(mol, xyz,  at, idx1, idx2)
 
    real(wp) :: dist, prefactor
    real(wp) :: xyz1(3), xyz2(3)
-   
+
    select case (at)
    case default
       dist = 1.09*aatoau
@@ -629,7 +629,7 @@ subroutine newcoord(mol, xyz,  at, idx1, idx2)
    xyz1 = mol%xyz(:, idx1)
    xyz2 = mol%xyz(:, idx2)
    prefactor = dist/sqrt(sum((xyz1 - xyz2)**2))
-   
+
    !> new H coordinates
    xyz(:, size(xyz, 2)) = xyz1 + (xyz2 - xyz1) * prefactor
 
@@ -726,14 +726,14 @@ subroutine calculateCharge(self, env, mol, chk)
      do i = 1, size(self%idx)
          charge = charge + chk%wfn%q(self%idx(i))
      end do
-    
+
     class default
         call env%error("Not possible to calculate with external methods for real region", source)
         return
     end select
-    
+
     self%chrg_model = nint(charge)
-    
+
 end subroutine calculateCharge
 
 end module xtb_oniom
