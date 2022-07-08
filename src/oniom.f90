@@ -722,19 +722,18 @@ subroutine calculateCharge(self, env, mol, chk)
          charge = charge + calc%topo%qa(self%idx(i))
 
       end do
-
-   type is (TxTBCalculator)
-      do i = 1, size(self%idx)
+     type is (TxTBCalculator)
+     do i = 1, size(self%idx)
          charge = charge + chk%wfn%q(self%idx(i))
-
-      end do
-
-   class default
-      call env%error("Not possible to calculate with external methods for real region", source)
-      return
-   end select
-
-   self%chrg_model = nint(charge)
+     end do
+    
+    class default
+        call env%error("Not possible to calculate with external methods for real region", source)
+        return
+    end select
+    
+    self%chrg_model = nint(charge)
+    
 end subroutine calculateCharge
 
 end module xtb_oniom
