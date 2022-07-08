@@ -28,12 +28,15 @@ static inline bool check_double(double actual, double expected, double tol,
 
 int testFirst() {
   // first molecule
+  double* q;
+  char* buffer;
+  double* wbo;
 
-  double const thr = 1.0e-10;
+  int buffersize = 512;
+  int tester = 0;
   int const natoms = 7;
+  int const natsq = 49;
   int const attyp[7] = {6, 6, 6, 1, 1, 1, 1};
-  double const charge = 0.0;
-  int const uhf = 0;
   double const coord[3 * 7] = {
       +0.00000000000000, +0.00000000000000, -1.79755622305860,
       +0.00000000000000, +0.00000000000000, +0.95338756106749,
@@ -49,10 +52,9 @@ int testFirst() {
   xtb_TResults res = NULL;
   double energy;
   double dipole[3];
-  double q[natoms];
-  double wbo[natoms * natoms];
-  int buffersize = 512;
-  char buffer[buffersize];
+  q = (double*) malloc(natoms * sizeof(double));
+  wbo = (double*) malloc(natsq * sizeof(double));
+  buffer = (char*) malloc(buffersize *sizeof(char));
   char solvent[] = "h2o";
 
   if (!check(XTB_API_VERSION, xtb_getAPIVersion(), "API version does not match"))
@@ -126,28 +128,36 @@ int testFirst() {
   if (!check(wbo[9], +2.89453979224265, 1.0e-8, "Bond order does not match"))
     goto error;
 
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
 
-  if (!check(!res, 1, "Results not deleted"))
+  free(q);
+  free(wbo);
+  free(buffer);
+
+  tester = !res;
+  if (!check(tester, 1, "Results not deleted"))
     goto error;
-  if (!check(!calc, 1, "Calculator not deleted"))
+  tester = !calc;
+  if (!check(tester, 1, "Calculator not deleted"))
     goto error;
-  if (!check(!mol, 1, "Molecule not deleted"))
+  tester = !mol;
+  if (!check(tester, 1, "Molecule not deleted"))
     goto error;
-  if (!check(!env, 1, "Environment not deleted"))
+  tester = !env;
+  if (!check(tester, 1, "Environment not deleted"))
     goto error;
 
   return 0;
 
 error:
   xtb_showEnvironment(env, NULL);
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
   return 1;
 }
 
@@ -179,8 +189,6 @@ int testSecond() {
       32.94292201,  -1.094745099, 11.448025710, 28.96323675,  0.563579412,
       11.458509150, 27.70991388,  -1.947354387, 8.933606299,  29.46637609,
       -0.489290309, 7.918137207,  29.92393411};
-
-  double energy = 0;
 
   int npc = 32;
 
@@ -260,10 +268,10 @@ int testSecond() {
   if (xtb_checkEnvironment(env))
     goto error;
 
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
 
   if (!check(pcgrad[0], 0.00000755, 1.0e-6, "pcgrad[0] does not match"))
     goto error;
@@ -274,10 +282,10 @@ int testSecond() {
 
 error:
   xtb_showEnvironment(env, NULL);
-  xtb_delResults(&res);
-  xtb_delCalculator(&calc);
-  xtb_delMolecule(&mol);
-  xtb_delEnvironment(&env);
+  xtb_delete(res);
+  xtb_delete(calc);
+  xtb_delete(mol);
+  xtb_delete(env);
   return 1;
 }
 

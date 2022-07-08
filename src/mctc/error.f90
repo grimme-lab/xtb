@@ -66,14 +66,20 @@ subroutine terminate(signal)
    end select
 end subroutine terminate
 
-subroutine wsigint
+subroutine xtb_wsigint(signal) bind(c)
+   use, intrinsic :: iso_c_binding, only : c_int
    use xtb_mctc_io, only : stderr
+   implicit none
+   integer(c_int), value :: signal
    write(stderr,'("recieved SIGINT, terminating...")')
    call terminate(-1)
-end subroutine wsigint
+end subroutine xtb_wsigint
 
-subroutine wsigterm
+subroutine xtb_wsigterm(signal) bind(c)
+   use, intrinsic :: iso_c_binding, only : c_int
    use xtb_mctc_io, only : stderr
+   implicit none
+   integer(c_int), value :: signal
    write(stderr,'("recieved SIGTERM, terminating...")')
    call terminate(-1)
-end subroutine wsigterm
+end subroutine xtb_wsigterm

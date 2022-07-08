@@ -60,20 +60,14 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   call gfnff_set_param(mol%n, gen, param)
   param%dispscale = set%dispscale
   if (restart) then
-     inquire(file='gfnff_topo', exist=ex)
-     if (ex) then
-       call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
-       if (success) then
-          write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
-          return
-       else
-          call env%warning("Could not read topology file.", source)
-          call env%check(exitRun)
-          if (exitRun) then
-             return
-          end if
-
-       end if
+     call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
+     if (success) then
+        write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
+        return
+     else
+        call env%warning("Could not read topology file.", source)
+        call env%check(exitRun)
+        if (exitRun) return
      end if
   end if
 
@@ -118,9 +112,11 @@ subroutine gfnff_input(env, mol, topo)
   real(wp)          :: dum1
   real(wp)          :: floats(10)
   logical           :: ex
-  character(len=80) :: atmp
+  character(len=80) :: atmp, atmp_0
   character(len=80) :: s(10)
   integer, allocatable :: rn(:)
+  ! IO Error
+  integer :: err
 
   if (.not.allocated(topo%nb))       allocate( topo%nb(20,mol%n), source = 0 )
   if (.not.allocated(topo%qfrag))    allocate( topo%qfrag(mol%n), source = 0.0d0 )
@@ -184,6 +180,7 @@ subroutine gfnff_input(env, mol, topo)
     do i=1,mol%n
       if(topo%nb(20,i).eq.0)then
         dum1=1.d+42
+        k = 0
         do j=1,i
           r=sqrt(sum((mol%xyz(:,i)-mol%xyz(:,j))**2))
           if(r.lt.dum1.and.r.gt.0.001)then
@@ -191,8 +188,10 @@ subroutine gfnff_input(env, mol, topo)
             k=j
           endif
         enddo
-        topo%nb(20,i)=1
-        topo%nb(1,i)=k
+        if (k > 0) then
+          topo%nb(20,i)=1
+          topo%nb(1,i)=k
+        end if
       endif
     end do
     ! initialize qfrag as in the default case
@@ -208,8 +207,9 @@ subroutine gfnff_input(env, mol, topo)
     ini = .true.
     call open_file(ich,'.CHRG','r')
     if (ich.ne.-1) then
-      read(ich,'(a)')  ! first line contains total charge
-      read(ich,'(a)')atmp  ! second line contains fragment charges
+      read(ich,'(a)') atmp_0 ! first line contains total charge
+      read(ich,'(a)',iostat=err)atmp  ! second line contains fragment charges
+      if (err .ne. 0) atmp=atmp_0
       call close_file(ich)
       call readline(atmp,floats,s,ns,nf)
       topo%qfrag(1:nf)=floats(1:nf)

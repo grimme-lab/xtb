@@ -54,7 +54,7 @@ elif fc.get_id() == 'intel-cl'
       '/O3',
       '/Qip',
       '/QaxAVX2',
-      '/Qtune:core-avx2',
+      '/tune:core-avx2',
       '/Qfma',
     ]
   else
@@ -63,6 +63,7 @@ elif fc.get_id() == 'intel-cl'
     ]
   endif
   fopts = opt_level + [
+    '/fpp',
     '/4R8',
     '/traceback',
   ]
@@ -107,29 +108,29 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
   endif
 
   if get_option('default_library') == 'dynamic'
-    mkl_rt_dep = fc.find_library('mkl_rt', required: true)
+    mkl_rt_dep = cc.find_library('mkl_rt', required: true)
     lib_deps += libmkl_exe
   else
     if fc.get_id() == 'gcc'
-      libmkl_exe = [fc.find_library('mkl_gf_lp64')]
+      libmkl_exe = [cc.find_library('mkl_gf_lp64')]
       if get_option('openmp')
-        libmkl_exe += fc.find_library('mkl_gnu_thread')
+        libmkl_exe += cc.find_library('mkl_gnu_thread')
       endif
     elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
-      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
       if get_option('openmp')
-        libmkl_exe += fc.find_library('mkl_intel_thread')
+        libmkl_exe += cc.find_library('mkl_intel_thread')
       endif
     elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
-      libmkl_exe = [fc.find_library('mkl_intel_lp64')]
+      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
       if get_option('openmp')
-        libmkl_exe += fc.find_library('mkl_pgi_thread')
+        libmkl_exe += cc.find_library('mkl_pgi_thread')
       endif
     endif
     if not get_option('openmp')
-      libmkl_exe += fc.find_library('mkl_sequential')
+      libmkl_exe += cc.find_library('mkl_sequential')
     endif
-    libmkl_exe += fc.find_library('mkl_core')
+    libmkl_exe += cc.find_library('mkl_core')
     lib_deps += libmkl_exe
   endif
 

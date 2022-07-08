@@ -1833,12 +1833,18 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
 ! all done
 
       topo%maxsystem = 5000
-      !if(mol%n.gt.500)then
-      call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb, &
-         & topo%ispinsyst,topo%nspinsyst,topo%nsystem)
-      !else
-      !   nsystem=1
-      !endif
+      !if(mol%n.gt.800)then
+      block
+         use xtb_setparam, only : set, p_modh_old
+
+         if (set%mhset%model == p_modh_old) then
+            call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb, &
+               & topo%ispinsyst,topo%nspinsyst,topo%nsystem,env)
+         else
+            topo%nsystem=1
+         endif
+      end block
+
 
       write(env%unit,'(10x,"#optfrag :",3x,i0)') topo%nfrag
       !write(env%unit,*) '#optfrag :',nsystem

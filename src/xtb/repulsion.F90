@@ -149,7 +149,7 @@ subroutine repulsionEnGrad_latp(mol, repData, trans, cutoff, energy, gradient, &
 
    !$acc exit data copyout(energies, gradient, sigma) delete(mol, mol%at, &
    !$acc& mol%xyz, repData, repData%alpha, repData%zeff, rij, dG, dS, trans)
-#endif XTB_GPU
+#endif
 
    energy = energy + sum(energies)
 

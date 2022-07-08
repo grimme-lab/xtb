@@ -15,10 +15,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-# Create test-drive as subproject for testing
-testdrive_prj = subproject(
+# Find test-drive dependency for testing
+testdrive_dep = dependency(
   'test-drive',
   version: '>=0.3',
+  fallback: ['test-drive', 'testdrive_dep'],
   required: not meson.is_subproject(),
   default_options: [
     'default_library=static',
@@ -26,10 +27,9 @@ testdrive_prj = subproject(
   ],
 )
 # If we do not find test-drive and are a subproject, we just skip testing
-if not testdrive_prj.found()
+if not testdrive_dep.found()
   subdir_done()
 endif
-testdrive_dep = testdrive_prj.get_variable('testdrive_dep')
 
 tests = [
   'atomlist',

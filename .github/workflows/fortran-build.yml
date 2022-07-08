@@ -195,7 +195,7 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Configure meson build
-      run: meson setup ${{ env.BUILD_DIR }} --prefix=/ -Dfortran_args=-qopenmp
+      run: meson setup ${{ env.BUILD_DIR }} --prefix=/
 
     - name: Build project
       run: ninja -C ${{ env.BUILD_DIR }}

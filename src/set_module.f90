@@ -912,6 +912,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_xtb
    case('orca')
       set%mode_extrun = p_ext_orca
+   case('driver')
+      set%mode_extrun = p_ext_driver
    case('oniom')
       set%mode_extrun = p_ext_oniom
    case('turbomole')

@@ -376,6 +376,7 @@ end function new_molecule_api
 subroutine structure_to_molecule(mol, struc)
    type(TMolecule), intent(inout) :: mol
    type(structure_type), intent(in) :: struc
+   integer :: ibd
 
    call initMolecule(mol, struc%num(struc%id), struc%sym(struc%id), struc%xyz, &
       & chrg=struc%charge, uhf=struc%uhf, pbc=struc%periodic, lattice=struc%lattice)
@@ -386,11 +387,18 @@ subroutine structure_to_molecule(mol, struc)
    if (allocated(struc%pdb)) then
       mol%pdb = struc%pdb
    end if
+   if (struc%nbd > 0) then
+      call mol%bonds%allocate(3, struc%nbd)
+      do ibd = 1, struc%nbd
+         call mol%bonds%push_back(struc%bond(:, ibd))
+      end do
+   end if
 end subroutine structure_to_molecule
 
 subroutine molecule_to_structure(struc, mol)
    type(structure_type), intent(inout) :: struc
    type(TMolecule), intent(in) :: mol
+   integer :: ibd, idx(3)
 
    call new_structure(struc, mol%at, mol%sym, mol%xyz, charge=mol%chrg, uhf=mol%uhf, &
       & periodic=mol%pbc, lattice=mol%lattice, info=mol%info)
@@ -399,6 +407,14 @@ subroutine molecule_to_structure(struc, mol)
    end if
    if (allocated(mol%pdb)) then
       struc%pdb = mol%pdb
+   end if
+   if (len(mol%bonds) > 0) then
+      allocate(struc%bond(3, len(mol%bonds)))
+      struc%nbd = len(mol%bonds)
+      do ibd = 1, len(mol%bonds)
+         call mol%bonds%get_item(ibd, idx)
+         struc%bond(:, ibd) = idx
+      end do
    end if
 end subroutine molecule_to_structure
 

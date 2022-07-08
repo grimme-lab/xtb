@@ -43,7 +43,7 @@ module xtb_extern_turbomole
    implicit none
    private
 
-   public :: wrtm
+   public :: wrtm, rdtm
    public :: TTMCalculator, newTMCalculator
 
    type, extends(TCalculator) :: TTMCalculator

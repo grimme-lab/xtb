@@ -519,6 +519,11 @@ subroutine xtbMain(env, argParser)
    type is(TxTBCalculator)
       call chk%wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
 
+      ! Make sure number of electrons is initialized an multiplicity is consistent
+      chk%wfn%nel = nint(sum(mol%z) - mol%chrg)
+      chk%wfn%nopen = mol%uhf
+      if(chk%wfn%nopen == 0 .and. mod(chk%wfn%nel,2) /= 0) chk%wfn%nopen=1
+
       !> EN charges and CN
       if (set%gfn_method.lt.2) then
          call ncoord_d3(mol%n,mol%at,mol%xyz,cn)
@@ -1354,6 +1359,13 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--orca')
          call set_exttyp('orca')
+
+      case('--driver')
+         call set_exttyp('driver')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            set%ext_driver%executable = sec
+         end if
 
       case('--mopac')
          call set_exttyp('mopac')

@@ -112,6 +112,7 @@ module xtb_setparam
    integer, parameter :: p_ext_vtb       = -1
    integer, parameter :: p_ext_eht       =  0
    integer, parameter :: p_ext_xtb       =  1
+   integer, parameter :: p_ext_driver    =  3
    integer, parameter :: p_ext_turbomole =  4
    integer, parameter :: p_ext_orca      =  5
    integer, parameter :: p_ext_mopac     = 12
@@ -386,6 +387,7 @@ module xtb_setparam
 
 !! ------------------------------------------------------------------------
 
+   type(qm_external) :: ext_driver
    type(qm_external) :: ext_orca
    type(qm_external) :: ext_turbo
    type(qm_external) :: ext_mopac
