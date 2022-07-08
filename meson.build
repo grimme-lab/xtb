@@ -57,7 +57,7 @@ config = configuration_data({
   'description': 'Semiempirical Extended Tight-Binding Program Package',
   'version': meson.project_version(),
   'commit': commit,
-  'date': run_command(python, '-c', 'import datetime; print(datetime.today().strftime("%Y-%m-%d"))').stdout().strip(),
+  'date': run_command(python, '-c', 'import datetime; print(datetime.date.today().strftime("%Y-%m-%d"))').stdout().strip(),
   'author': run_command(python, '-c', 'import getpass; print(getpass.getuser())').stdout().strip(),
   'origin': run_command(python, '-c', 'import socket; print(socket.gethostname())').stdout().strip(),
   'prefix': get_option('prefix'),
