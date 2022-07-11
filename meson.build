@@ -19,7 +19,7 @@
 project(
   'xtb',
   'fortran', 'c',
-  version: '6.5.0',
+  version: '6.5.1',
   license: 'LGPL3-3.0-or-later',
   meson_version: '>=0.55',
   default_options: [
@@ -57,9 +57,9 @@ config = configuration_data({
   'description': 'Semiempirical Extended Tight-Binding Program Package',
   'version': meson.project_version(),
   'commit': commit,
-  'date': run_command(python, '-c', 'import datetime; datetime.today().strftime("%Y-%m-%d")').stdout().strip(),
-  'author': run_command(python, '-c', 'import getpass; getpass.getuser()').stdout().strip(),
-  'origin': run_command(python, '-c', 'import socket; socket.gethostname()').stdout().strip(),
+  'date': run_command(python, '-c', 'import datetime; print(datetime.date.today().strftime("%Y-%m-%d"))').stdout().strip(),
+  'author': run_command(python, '-c', 'import getpass; print(getpass.getuser())').stdout().strip(),
+  'origin': run_command(python, '-c', 'import socket; print(socket.gethostname())').stdout().strip(),
   'prefix': get_option('prefix'),
   'mandir': get_option('mandir'),
   'bindir': get_option('bindir'),
