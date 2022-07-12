@@ -39,6 +39,7 @@ contains
 
 subroutine singlepoint_api(venv, vmol, vcalc, vres) &
       & bind(C, name="xtb_singlepoint")
+   !DEC$ ATTRIBUTES DLLEXPORT :: singlepoint_api
    character(len=*), parameter :: source = 'xtb_api_singlepoint'
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env

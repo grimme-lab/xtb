@@ -51,6 +51,7 @@ contains
 !> Create new singlepoint results object
 function newResults_api() result(vres) &
       & bind(C, name="xtb_newResults")
+   !DEC$ ATTRIBUTES DLLEXPORT :: newResults_api
    type(VResults), pointer :: res
    type(c_ptr) :: vres
 
@@ -65,6 +66,7 @@ end function newResults_api
 !> Delete singlepoint results object
 subroutine delResults_api(vres) &
       & bind(C, name="xtb_delResults")
+   !DEC$ ATTRIBUTES DLLEXPORT :: delResults_api
    type(c_ptr), intent(inout) :: vres
    type(VResults), pointer :: res
 
@@ -82,6 +84,7 @@ end subroutine delResults_api
 !> Create copy from a singlepoint results object
 function copyResults_api(vold) result(vres) &
       & bind(C, name="xtb_copyResults")
+   !DEC$ ATTRIBUTES DLLEXPORT :: copyResults_api
    type(VResults), pointer :: res
    type(c_ptr) :: vres
    type(VResults), pointer :: old
@@ -103,6 +106,7 @@ end function copyResults_api
 !> Query singlepoint results object for energy
 subroutine getEnergy_api(venv, vres, dptr) &
       & bind(C, name="xtb_getEnergy")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getEnergy_api
    character(len=*), parameter :: source = "xtb_api_getEnergy"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -135,6 +139,7 @@ end subroutine getEnergy_api
 !> Query singlepoint results object for gradient
 subroutine getGradient_api(venv, vres, dptr) &
       & bind(C, name="xtb_getGradient")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getGradient_api
    character(len=*), parameter :: source = "xtb_api_getGradient"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -167,6 +172,7 @@ end subroutine getGradient_api
 !> Query singlepoint results object for gradients on external charges
 subroutine getPCGradient_api(venv, vres, dptr) &
       & bind(C, name="xtb_getPCGradient")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getPCGradient_api
    character(len=*), parameter :: source = "xtb_api_getGradient"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -199,6 +205,7 @@ end subroutine getPCGradient_api
 !> Query singlepoint results object for virial
 subroutine getVirial_api(venv, vres, dptr) &
       & bind(C, name="xtb_getVirial")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getVirial_api
    character(len=*), parameter :: source = "xtb_api_getVirial"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -231,6 +238,7 @@ end subroutine getVirial_api
 !> Query singlepoint results object for dipole moment
 subroutine getDipole_api(venv, vres, dptr) &
       & bind(C, name="xtb_getDipole")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getDipole_api
    character(len=*), parameter :: source = "xtb_api_getDipole"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -263,6 +271,7 @@ end subroutine getDipole_api
 !> Query singlepoint results object for partial charges
 subroutine getCharges_api(venv, vres, dptr) &
       & bind(C, name="xtb_getCharges")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getCharges_api
    character(len=*), parameter :: source = "xtb_api_getCharges"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -295,6 +304,7 @@ end subroutine getCharges_api
 !> Query singlepoint results object for bond orders
 subroutine getBondOrders_api(venv, vres, dptr) &
       & bind(C, name="xtb_getBondOrders")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getBondOrders_api
    character(len=*), parameter :: source = "xtb_api_getBondOrders"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -327,6 +337,7 @@ end subroutine getBondOrders_api
 !> Query singlepoint results object for bond orders
 subroutine getNao_api(venv, vres, iptr) &
       & bind(C, name="xtb_getNao")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getNao_api
    character(len=*), parameter :: source = "xtb_api_getNao"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -358,6 +369,7 @@ end subroutine getNao_api
 !> Query singlepoint results object for orbital energies
 subroutine getOrbitalEigenvalues_api(venv, vres, dptr) &
       & bind(C, name="xtb_getOrbitalEigenvalues")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getOrbitalEigenvalues_api
    character(len=*), parameter :: source = "xtb_api_getOrbitalEigenvalues"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -391,6 +403,7 @@ end subroutine getOrbitalEigenvalues_api
 !> Query singlepoint results object for occupation numbers
 subroutine getOrbitalOccupations_api(venv, vres, dptr) &
       & bind(C, name="xtb_getOrbitalOccupations")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getOrbitalOccupations_api 
    character(len=*), parameter :: source = "xtb_api_getOrbitalOccupations"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
@@ -424,6 +437,7 @@ end subroutine getOrbitalOccupations_api
 !> Query singlepoint results object for orbital coefficients
 subroutine getOrbitalCoefficients_api(venv, vres, dptr) &
       & bind(C, name="xtb_getOrbitalCoefficients")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getOrbitalCoefficients_api 
    character(len=*), parameter :: source = "xtb_api_getOrbitalCoefficients"
    type(c_ptr), value :: venv
    type(VEnvironment), pointer :: env
