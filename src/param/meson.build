@@ -20,4 +20,5 @@ srcs += files(
   'paulingen.f90',
   'sqrtzr4r2.f90',
   'vdwradd3.f90',
+  'vdwradcosmo.f90',
 )
