@@ -1,3 +1,4 @@
+
 ! This file is part of xtb.
 !
 ! Copyright (C) 2019-2020 Sebastian Ehlert
@@ -23,6 +24,7 @@ module xtb_solv_model
    use xtb_mctc_strings, only : lowercase
    use xtb_mctc_systools, only : rdpath
    use xtb_param_vdwradd3, only : vanDerWaalsRadD3
+   use xtb_param_vdwradcosmo, only : vanDerWaalsRadCosmo
    use xtb_solv_gbsa, only : TBorn, init_ => init
    use xtb_solv_cosmo, only : TCosmo, init_ => init
    use xtb_solv_input, only : TSolvInput
@@ -30,6 +32,7 @@ module xtb_solv_model
    use xtb_solv_state, only : solutionState, getStateShift
    use xtb_type_environment, only : TEnvironment
    use xtb_type_solvation, only : TSolvation
+   use ieee_arithmetic, only : ieee_value,ieee_positive_inf
    implicit none
    private
 
@@ -143,6 +146,8 @@ module xtb_solv_model
    include 'param_alpb_methanol.fh'
    include 'param_alpb_ethanol.fh'
 
+   include 'param_cosmo.fh'
+
    !> Solvent density (g/cm^3) and molar mass (g/mol)
    real(wp), parameter :: molcm3toau = 8.92388e-2_wp
 
@@ -191,7 +196,7 @@ subroutine initSolvModel(self, env, input, level)
       call getParamFile(env, solvent, 'cosmo', level, self%paramFile)
    end if
 
-   if (.not.allocated(self%paramFile)) then
+   if (.not.allocated(self%paramFile) .and. (.not.input%cosmo)) then
       call getParamFile(env, solvent, 'gbsa', level, self%paramFile)
    end if
 
@@ -238,7 +243,12 @@ subroutine loadInternalParam(self, env, solvent, level)
    !> Method level for solvation model
    integer, intent(in) :: level
 
-   type(gbsa_parameter), allocatable :: param
+   !> I/O handling
+
+   integer :: iostat
+
+   type(gbsa_parameter), allocatable :: param, stub
+
 
    select case(self%kernel)
    case (gbKernel%still)
@@ -376,6 +386,34 @@ subroutine loadInternalParam(self, env, solvent, level)
             param = gfn1_alpb_hexane
          end select
       end if
+      
+      if (self%cosmo) then
+         if (allocated(param)) then
+            self%paramFile = self%paramFile//"+COSMO"
+            stub = param
+            param = gfn_cosmo
+            param%epsv = stub%epsv
+            param%smass = stub%smass
+            param%rhos = stub%rhos
+            param%gamscale = stub%gamscale
+         else if ((solvent .eq. "inf") .or. (solvent .eq. "infinity")) then
+            self%paramFile = "internal GFN-xTB/COSMO"
+            param = gfn_cosmo
+            param%epsv = ieee_value(param%epsv,ieee_positive_inf)
+         else
+            self%paramFile = "internal GFN-xTB/COSMO"
+            param = gfn_cosmo
+            read(solvent,*,iostat=iostat) param%epsv
+            if (iostat .ne. 0) then
+               Call env%error(solvent// " is neither a solvent name nor a dielectric constant.",source)
+               return
+            end if
+            if (param%epsv .eq. 0) then
+               Call env%error("You really chose 0 as your dielectric constant?",source)
+               return
+            end if
+         end if
+      end if
 
       if (.not.allocated(param)) then
          call env%error("solvent: '"//solvent//"' is not parametrized", source)
@@ -459,7 +497,12 @@ subroutine paramToModel(self, param)
    self%bornOffset = param%soset * 0.1_wp*aatoau
    self%probeRad = param%rprobe * aatoau
 
-   self%vdwRad = vanDerWaalsRadD3
+   if (self%cosmo) then
+      self%vdwRad=vanDerWaalsRadCosmo
+   else
+      self%vdwRad=vanDerWaalsRadD3
+   end if
+
    self%surfaceTension = param%gamscale * fourpi*surfaceTension
    self%descreening = param%sx
    allocate(self%hBondStrength(size(param%tmp)))
