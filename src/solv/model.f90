@@ -243,6 +243,10 @@ subroutine loadInternalParam(self, env, solvent, level)
    !> Method level for solvation model
    integer, intent(in) :: level
 
+   !> I/O handling
+
+   integer :: iostat
+
    type(gbsa_parameter), allocatable :: param, stub
 
 
@@ -384,12 +388,8 @@ subroutine loadInternalParam(self, env, solvent, level)
       end if
       
       if (self%cosmo) then
-         if (verify(solvent,'0123456789.') .eq. 0) then
-            if (index(solvent,'.') .eq. index(solvent,'.',back=.true.)) then
-               param = gfn_cosmo
-               read(solvent,*) param%epsv
-            end if
-         else if (allocated(param)) then
+         if (allocated(param)) then
+            self%paramFile = self%paramFile//"+COSMO"
             stub = param
             param = gfn_cosmo
             param%epsv = stub%epsv
@@ -397,8 +397,21 @@ subroutine loadInternalParam(self, env, solvent, level)
             param%rhos = stub%rhos
             param%gamscale = stub%gamscale
          else if ((solvent .eq. "inf") .or. (solvent .eq. "infinity")) then
+            self%paramFile = "internal GFN-xTB/COSMO"
             param = gfn_cosmo
             param%epsv = ieee_value(param%epsv,ieee_positive_inf)
+         else
+            self%paramFile = "internal GFN-xTB/COSMO"
+            param = gfn_cosmo
+            read(solvent,*,iostat=iostat) param%epsv
+            if (iostat .ne. 0) then
+               Call env%error(solvent// " is neither a solvent name nor a dielectric constant.",source)
+               return
+            end if
+            if (param%epsv .eq. 0) then
+               Call env%error("You really chose 0 as your dielectric constant?",source)
+               return
+            end if
          end if
       end if
 
