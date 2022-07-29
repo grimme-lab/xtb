@@ -257,6 +257,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
          call move_alloc(gff, self%model_low)
 
       end select
+      
+      if (allocated(self%real_low%solvation)) then
+         self%model_low%solvation=self%real_low%solvation
+      end if
       call env%check(exitRun)
       if (exitRun) then
          call env%error("Could not setup low level method")
@@ -300,6 +304,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
          call move_alloc(turbo, self%model_high)
 
       end select
+      
+      if (allocated(self%real_low%solvation)) then
+         self%model_high%solvation=self%real_low%solvation
+      end if
       call env%check(exitRun)
       if (exitRun) then
          call env%error("Could not setup high level method")
