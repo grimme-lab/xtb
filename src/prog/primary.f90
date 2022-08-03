@@ -18,6 +18,7 @@
 !> The primary driver for the xtb program package
 program xtb_prog_primary
    use xtb_prog_argparser
+   use xtb_prog_dock, only : xtbDock
    use xtb_prog_info, only : xtbInfo
    use xtb_prog_main, only : xtbMain
    use xtb_prog_thermo, only : xtbThermo
@@ -65,6 +66,10 @@ program xtb_prog_primary
    case(xtbSubmodule%topo)
       !> Run the thermo submodule
       call xtbTopology(env, argParser)
+
+   case(xtbSubmodule%dock)
+      !> Run the docking submodule
+      call xtbDock(env, argParser)
 
    end select
 

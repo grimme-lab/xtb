@@ -85,6 +85,7 @@ module xtb_prog_main
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
    use xtb_kopt
+   use xtb_iff_iffprepare, only : prepare_IFF
    use xtb_oniom, only : oniom_input, TOniomCalculator
    implicit none
    private
@@ -503,6 +504,12 @@ subroutine xtbMain(env, argParser)
       end select
    endif
 
+   !-------------------------------------------------------------------------
+   !> Perform a precomputation of electronic properties for xTB-IFF
+   if(set%mode_extrun == p_ext_iff) then
+     call prepare_IFF(env,mol)
+     call env%checkpoint("Could not generate electronic properties")
+   end if
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
@@ -1297,6 +1304,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case('--gff')
          call set_exttyp('ff')
 
+      case('--iff')
+         call set_exttyp('iff')
+
       case('--oniom')
          call set_exttyp('oniom')
          call args%nextArg(sec) ! 'gfn2:gfnff'
@@ -1569,6 +1579,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)
+         end if
+
+      case('--nat')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_natom(env,sec)
          end if
 
       case('--bias-input', '--gesc')
