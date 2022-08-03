@@ -924,6 +924,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_mopac
    case('ff')
       set%mode_extrun = p_ext_gfnff
+   case('iff')
+      set%mode_extrun = p_ext_iff
    end select
    set1 = .false.
 end subroutine set_exttyp
@@ -2385,6 +2387,18 @@ subroutine set_wall(env,key,val)
    end select
 
 end subroutine set_wall
+
+subroutine set_natom(env,arg)
+   use xtb_docking_param
+   implicit none
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in) :: arg
+   integer :: ios, natom
+   read(arg,'(i)',iostat=ios) natom
+   if (ios /= 0) call terminate(1)
+   natom_molA=natom
+   write(*,*) 'setting', natom_molA
+end subroutine set_natom
 
 ! this is a dummy routine
 subroutine set_split(env,key,val)

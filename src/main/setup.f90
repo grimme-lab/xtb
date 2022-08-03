@@ -31,6 +31,7 @@ module xtb_main_setup
    use xtb_type_wavefunction, only : TWavefunction
    use xtb_xtb_calculator, only : TxTBCalculator, newXTBcalculator, newWavefunction
    use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+   use xtb_iff_calculator, only : TIFFCalculator, newIFFCalculator
    use xtb_oniom, only : TOniomCalculator, newOniomCalculator, oniom_input
    use xtb_setparam
    implicit none
@@ -59,10 +60,11 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input)
 
    real(wp), intent(in) :: accuracy
 
-   type(oniom_input), intent(in) :: input
+   type(oniom_input), intent(in), optional :: input
 
    type(TxTBCalculator), allocatable :: xtb
    type(TGFFCalculator), allocatable :: gfnff
+   type(TIFFCalculator), allocatable :: iff
    type(TOrcaCalculator), allocatable :: orca
    type(TMopacCalculator), allocatable :: mopac
    type(TTMCalculator), allocatable :: turbo
@@ -98,6 +100,19 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input)
       end if
 
       call move_alloc(gfnff, calc)
+   case(p_ext_iff)
+      allocate(iff)
+
+      call newIFFCalculator(env, mol, iff)
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
+
+      call move_alloc(iff, calc)
+
    case(p_ext_orca)
       allocate(orca)
       call newOrcaCalculator(orca, env, set%ext_orca)
