@@ -118,6 +118,7 @@ module xtb_setparam
    integer, parameter :: p_ext_mopac     = 12
    integer, parameter :: p_ext_gfnff     = 13
    integer, parameter :: p_ext_oniom     = 14
+   integer, parameter :: p_ext_iff       = 15
 
    integer, parameter :: p_run_scc    =   2
    integer, parameter :: p_run_grad   =   3
@@ -307,8 +308,10 @@ module xtb_setparam
    character(len=:),allocatable  :: property_file
    logical  :: pr_esp = .false.
    character(len=:),allocatable  :: esp_gridfile
+   character(len=10) :: lmoinfo_fname='xtblmoinfo'
    logical  :: pr_molden_input = .false.
    logical  :: pr_lmo = .false.
+   logical  :: pr_local = .true.
    logical  :: pr_density = .false.
    logical  :: pr_spin_population = .false.
    logical  :: pr_spin_density = .false.

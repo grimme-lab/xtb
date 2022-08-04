@@ -74,8 +74,10 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    integer :: iscreen,icoord,ilmoi,icent ! file handles
 
    call timing(t0,w0)
-   write(*,*)
-   write(*,*)'localization/xTB-IFF output generation'
+   if(set%pr_local) then
+      write(*,*)
+      write(*,*)'localization/xTB-IFF output generation'
+   end if
    n=ihomo
    ilumo=n+1
 
@@ -117,7 +119,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
       dum=1./float(klev)
       ehomo=ehomo*dum
       qhl(1:nat,1)=qhl(1:nat,1)*dum
-      write(*,*)'averaging CT terms over ',klev,' occ. levels'
+      if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' occ. levels'
    endif
 
    klev=0
@@ -141,7 +143,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    dum=1./float(klev)
    elumo=elumo*dum
    qhl(1:nat,2)=qhl(1:nat,2)*dum
-   write(*,*)'averaging CT terms over ',klev,' virt. levels'
+   if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' virt. levels'
    if(ilumo.gt.nao)then
       elumo=1000.
       qhl(1:nat,2)=0
@@ -201,18 +203,20 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
       dtot(3)=dtot(3)+op(k,3)*focc(i)
    enddo
    diptot=sqrt(dtot(1)**2+dtot(2)**2+dtot(3)**2)
-   write(*,*)'dipole moment from electron density (au)'
-   write(*,*)'    X       Y       Z   '
-   write(*,'(3f9.4,''  total (Debye): '',f8.3)') &
-   &      dtot(1),dtot(2),dtot(3),diptot*2.5418
+   if(set%pr_local) then
+      write(*,*)'dipole moment from electron density (au)'
+      write(*,*)'    X       Y       Z   '
+      write(*,'(3f9.4,''  total (Debye): '',f8.3)') &
+      &      dtot(1),dtot(2),dtot(3),diptot*2.5418
+   end if
 
    call timing(t1,w1)
-   call prtime(6,t1-t0,w1-w0,'init local')
+   if(set%pr_local) call prtime(6,t1-t0,w1-w0,'init local')
    ! do optimization
-   write(*,*) 'doing rotations ...'
+   if(set%pr_local) write(*,*) 'doing rotations ...'
    call lopt(.true.,n,3,1.d-6,op,d)
 
-   write(*,*) 'doing transformations ...'
+   if(set%pr_local) write(*,*) 'doing transformations ...'
    ! MO charge center
    k=0
    do i=1,n
@@ -265,9 +269,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    call mocent(nat,nao,n,cmo,s,qmo,xcen,basis%aoat2)
 
    allocate(rklmo(5,2*n))
-   write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
-   write(*,*) 'LMO Fii/eV  ncent    charge center   contributions...'
-   call open_file(iscreen,'xtbscreen.xyz','w')
+   if(set%pr_local) write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
+   if(set%pr_local) write(*,*) 'LMO Fii/eV  ncent    charge center   contributions...'
+   if(set%pr_local) call open_file(iscreen,'xtbscreen.xyz','w')
 
    allocate(tmpq(nat,n))
    tmpq(1:nat,1:n)=qmo(1:nat,1:n)
@@ -313,32 +317,34 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
          call lmotype(nat,at,xyz,ecent(i,1),ecent(i,2),ecent(i,3), &
          &                imem(1),imem(2),xcen(i),.true.,pithr,jdum)
       endif
-      write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,a2,'':'',f6.2))')  &
+      if(set%pr_local) write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,a2,'':'',f6.2))')  &
       &   i,lmostring(jdum),autoev*f(i),xcen(i),ecent(i,1:3), &
       &   (imem(j),toSymbol(at(imem(j))),qmo(j,i),j=1,idum)
 
       !        write + LP/pi as H for protonation search
-      if(jdum.gt.1) then
-         if( i.eq.maxlp .or. (i.eq.maxpi.and.maxlp.eq.0) )then
-            call open_file(icoord,'coordprot.0','w')
-            write(icoord,'(''$coord'')')
-            do ii=1,nat
-               write(icoord,'(3F24.10,5x,a2)') xyz(1:3,ii),toSymbol(at(ii))
-            enddo
-            write(icoord,'(3F24.10,5x,a2)') ecent(i,1:3),toSymbol(1)
-            write(icoord,'(''$end'')')
-            write(icoord,'(''$set'')')
-            write(icoord,'('' chrg '',i2)')set%ichrg+1
-            write(icoord,'('' ewin_conf 50.0 '')')
-            write(icoord,'(''$end'')')
-            call close_file(icoord)
-         else
-            write(iscreen,*) nat+1
-            write(iscreen,*)
-            do ii=1,nat
-               write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
-            enddo
-            write(iscreen,'(a2,3F24.10)') toSymbol(1),ecent(i,1:3)*autoaa
+      if(set%pr_local) then
+         if(jdum.gt.1) then
+            if( i.eq.maxlp .or. (i.eq.maxpi.and.maxlp.eq.0) )then
+               call open_file(icoord,'coordprot.0','w')
+               write(icoord,'(''$coord'')')
+               do ii=1,nat
+                  write(icoord,'(3F24.10,5x,a2)') xyz(1:3,ii),toSymbol(at(ii))
+               enddo
+               write(icoord,'(3F24.10,5x,a2)') ecent(i,1:3),toSymbol(1)
+               write(icoord,'(''$end'')')
+               write(icoord,'(''$set'')')
+               write(icoord,'('' chrg '',i2)')set%ichrg+1
+               write(icoord,'('' ewin_conf 50.0 '')')
+               write(icoord,'(''$end'')')
+               call close_file(icoord)
+            else
+               write(iscreen,*) nat+1
+               write(iscreen,*)
+               do ii=1,nat
+                  write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
+               enddo
+               write(iscreen,'(a2,3F24.10)') toSymbol(1),ecent(i,1:3)*autoaa
+            endif
          endif
       endif
 
@@ -348,7 +354,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
 
    new=0
    if(maxval(rklmo(5,1:n)).ge.3.)then
-      write(*,*) 'starting deloc pi regularization ...'
+      if(set%pr_local) write(*,*) 'starting deloc pi regularization ...'
 
       call atomneigh(n,nat,xyz,ecent,aneigh) ! the nearest  atom neighbors for each LMO
       call lmoneigh (n,rklmo,ecent,aneigh,lneigh)   ! the nearest LMO neighbor but not LP
@@ -417,7 +423,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
          enddo
       enddo
 
-      write(*,*) 'thr ',pithr, '# pi deloc LMO',npi
+      if(set%pr_local) write(*,*) 'thr ',pithr, '# pi deloc LMO',npi
 
 
       allocate(wbo(nat,nat))
@@ -454,12 +460,14 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             rklmo(1:3,n+k)= dtot(1:3)
             rklmo(4:5,n+k)=rklmo(4:5,pmo)
             !        add to screen file, protomer search
-            write(iscreen,*) nat+1
-            write(iscreen,*)
-            do ii=1,nat
-               write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
-            enddo
-            write(iscreen,'(a2,3F24.10)') toSymbol(1),dtot(1:3)*autoaa
+            if(set%pr_local) then
+               write(iscreen,*) nat+1
+               write(iscreen,*)
+               do ii=1,nat
+                  write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
+               enddo
+               write(iscreen,'(a2,3F24.10)') toSymbol(1),dtot(1:3)*autoaa
+            endif
             imo=lneigh(1,pmo)
             vec1(1:3)=xyz(1:3,nm)
             vec2(1:3)=(xyz(1:3,nl)+xyz(1:3,nr))*0.5
@@ -470,18 +478,20 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
             rklmo(4:5,n+k)=rklmo(4:5,imo)
             rklmo(  5,smo)=0 ! remove sigma
             !        add to screen file, protomer search
-            write(iscreen,*) nat+1
-            write(iscreen,*)
-            do ii=1,nat
-               write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
-            enddo
-            write(iscreen,'(a2,3F24.10)') toSymbol(1),dtot(1:3)*autoaa
+            if(set%pr_local) then 
+               write(iscreen,*) nat+1
+               write(iscreen,*)
+               do ii=1,nat
+                  write(iscreen,'(a2,3F24.10)')toSymbol(at(ii)),xyz(1:3,ii)*autoaa
+               enddo
+               write(iscreen,'(a2,3F24.10)') toSymbol(1),dtot(1:3)*autoaa
+            end if
             m=m+1
          enddo
       enddo
       new=k
 
-      call close_file(iscreen)
+      if(set%pr_local) call close_file(iscreen)
 
       deallocate(wbo)
 
@@ -490,39 +500,39 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
    !     all LMO on file
-   call open_file(ilmoi,'xtblmoinfo','w')
-   call open_file(icent,'lmocent.coord','w')
-   write(icent,'(''$coord'')')
+   call open_file(ilmoi,set%lmoinfo_fname,'w')
    write(ilmoi,*) nat
+
+   if(set%pr_local) call open_file(icent,'lmocent.coord','w')
+   if(set%pr_local) write(icent,'(''$coord'')')
    do i=1,nat
       write(ilmoi,'(i2,3F20.10,E18.10)') at(i),xyz(1:3,i),q(i)
-      write(icent,'(3F24.10,5x,a2)') xyz(1:3,i),toSymbol(at(i))
+      if(set%pr_local) write(icent,'(3F24.10,5x,a2)') xyz(1:3,i),toSymbol(at(i))
    enddo
    k=0
    do i=1,n+new
       if(int(rklmo(5,i)).gt.0)k=k+1
    enddo
-   !     dum=dble(m)/dble(m+npi)
-   !     if(dum.lt.0.01) dum=1.0d0
    write(ilmoi,'(i5,5f14.8)')k,diptot,elumo,ehomo,etot
    do i=1,n+new
       if(int(rklmo(5,i)).gt.0)then
          write(ilmoi,'(i2,3F20.10,f14.8)')int(rklmo(5,i)),rklmo(1:3,i)
-         write(icent,'(3F24.10,5x,a2)') rklmo(1:3,i),toSymbol(2)
+         if(set%pr_local) write(icent,'(3F24.10,5x,a2)') rklmo(1:3,i),toSymbol(2)
       endif
    enddo
    write(ilmoi,'(10(F10.6))') (qhl(i,1),i=1,nat)  ! HOMO atom pop
    write(ilmoi,'(10(F10.6))') (qhl(i,2),i=1,nat)  ! LUMO atom pop
-   write(icent,'(''$end'')')
+   if(set%pr_local) write(icent,'(''$end'')')
    call close_file(ilmoi)
-   call close_file(icent)
-   !     call camm(nat,at,nbf,nao,xyz,s,p)
+   if(set%pr_local) call close_file(icent)
 
-   write(*,*)'files:'
-   write(*,*)'coordprot.0/xtbscreen.xyz/xtblmoinfo/lmocent.coord'
-   write(*,*)'with protonation site input, xtbdock and'
-   write(*,*)'LMO center info written'
-   write(*,*)
+   if(set%pr_local) then
+      write(*,*)'files:'
+      write(*,*)'coordprot.0/xtbscreen.xyz/xtblmoinfo/lmocent.coord'
+      write(*,*)'with protonation site input, xtbdock and'
+      write(*,*)'LMO center info written'
+      write(*,*)
+   end if
 
    deallocate(xcen,cca,d,f,qmo,ecent,rklmo)
 
