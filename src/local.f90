@@ -17,7 +17,7 @@
 module xtb_local
 contains
 
-subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
+subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,results)
    use xtb_mctc_accuracy, only : wp, sp
    use xtb_mctc_constants, only : pi
    use xtb_mctc_convert, only : autoev,autoaa
@@ -29,6 +29,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    use xtb_dtrafo
    use xtb_onetri
    use xtb_dipole
+   use xtb_type_data, only : scc_results
+   use xtb_docking_param, only : dipol, ehomo, elumo
+
    implicit none
    type(TBasisset), intent(in) :: basis
    integer, intent(in) :: nao,ihomo,nat,at(nat),nbf
@@ -36,6 +39,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    real(wp),intent(in) :: s(nao,nao),xyz(3,nat),z(nat),q(nat)
    real(wp),intent(in) :: p(nao,nao),etot
    logical, intent(in) :: gbsa
+   type(scc_results), intent(inout) :: results
 
    real(wp),allocatable :: op(:,:)
    real(wp),allocatable :: oc(:,:,:)
@@ -64,7 +68,7 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    integer i1,i2,i3,is3,ipi,piset(nat),ncyc,j1,j2,smo,pmo,nl,nm,nr
    integer imo,new
    real(wp) :: dd,dum,det,pp,dtot(3),diptot,thr,t0,w0,t1,w1,vec1(3),v(6)
-   real(wp) :: elumo,ehomo,qhl(nat,2),ps,efh,efl,r1,r2,pithr,vec2(3)
+   real(wp) :: enlumo,enhomo,qhl(nat,2),ps,efh,efl,r1,r2,pithr,vec2(3)
    real(wp) :: praxis(3,3),aa,bb,cc
    character(len=80) :: atmp
    character(len=5) :: lmostring(4)
@@ -82,12 +86,12 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    ilumo=n+1
 
    if(ilumo.gt.nao)then
-      elumo=1000.
+      enlumo=1000.
    else
-      elumo=eig(ilumo)
+      enlumo=eig(ilumo)
    endif
    efh=eig(n)
-   efl=elumo
+   efl=enlumo
 
    !     HOMO/LUMO populations for xTB FF (CT terms)
    qhl = 0
@@ -95,15 +99,15 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
 
    if(ihomo.eq.0) then
       ! the HOMO is non-existing, place at unrealistically low energy
-      ehomo=-999.999999990d0
+      enhomo=-999.999999990d0
       qhl(1:nat,1)=0.0d0
    else
       klev=0
-      ehomo=0
+      enhomo=0
       do nlev=ihomo,1,-1 ! loop over highest levels
          if(efh-eig(nlev).gt.thr) exit
          klev=klev+1
-         ehomo=ehomo+eig(nlev)
+         enhomo=enhomo+eig(nlev)
          do i=1,nao
             ii=basis%aoat2(i)
             do j=1,i-1
@@ -117,17 +121,17 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
          enddo
       enddo
       dum=1./float(klev)
-      ehomo=ehomo*dum
+      enhomo=enhomo*dum
       qhl(1:nat,1)=qhl(1:nat,1)*dum
       if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' occ. levels'
    endif
 
    klev=0
-   elumo=0
+   enlumo=0
    do nlev=ilumo,nao ! loop over highest levels
       if(eig(nlev)-efl.gt.thr) exit
       klev=klev+1
-      elumo=elumo+eig(nlev)
+      enlumo=enlumo+eig(nlev)
       do i=1,nao
          ii=basis%aoat2(i)
          do j=1,i-1
@@ -141,11 +145,11 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
       enddo
    enddo
    dum=1./float(klev)
-   elumo=elumo*dum
+   enlumo=enlumo*dum
    qhl(1:nat,2)=qhl(1:nat,2)*dum
    if(set%pr_local) write(*,*)'averaging CT terms over ',klev,' virt. levels'
    if(ilumo.gt.nao)then
-      elumo=1000.
+      enlumo=1000.
       qhl(1:nat,2)=0
    endif
 
@@ -499,32 +503,57 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis)
    endif
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-   !     all LMO on file
-   call open_file(ilmoi,set%lmoinfo_fname,'w')
-   write(ilmoi,*) nat
+   !> If the normal xtb mode is used with --lmo, set%pr_local is true and
+   !  a file with all information is written.
+   !  If the docking mode is used, information are stored intrenally
 
-   if(set%pr_local) call open_file(icent,'lmocent.coord','w')
-   if(set%pr_local) write(icent,'(''$coord'')')
-   do i=1,nat
-      write(ilmoi,'(i2,3F20.10,E18.10)') at(i),xyz(1:3,i),q(i)
-      if(set%pr_local) write(icent,'(3F24.10,5x,a2)') xyz(1:3,i),toSymbol(at(i))
-   enddo
+   if(set%pr_local) then
+      call open_file(ilmoi,set%lmoinfo_fname,'w')
+      write(ilmoi,*) nat
+      if(set%pr_local) call open_file(icent,'lmocent.coord','w')
+      if(set%pr_local) write(icent,'(''$coord'')')
+      do i=1,nat
+         write(ilmoi,'(i2,3F20.10,E18.10)') at(i),xyz(1:3,i),q(i)
+         if(set%pr_local) write(icent,'(3F24.10,5x,a2)') xyz(1:3,i),toSymbol(at(i))
+      enddo
+      k=0
+      do i=1,n+new
+         if(int(rklmo(5,i)).gt.0)k=k+1
+      enddo
+      write(ilmoi,'(i5,5f14.8)')k,diptot,enlumo,enhomo,etot
+      do i=1,n+new
+         if(int(rklmo(5,i)).gt.0)then
+            write(ilmoi,'(i2,3F20.10,f14.8)')int(rklmo(5,i)),rklmo(1:3,i)
+            if(set%pr_local) write(icent,'(3F24.10,5x,a2)') rklmo(1:3,i),toSymbol(2)
+         endif
+      enddo
+      write(ilmoi,'(10(F10.6))') (qhl(i,1),i=1,nat)  ! HOMO atom pop
+      write(ilmoi,'(10(F10.6))') (qhl(i,2),i=1,nat)  ! LUMO atom pop
+      if(set%pr_local) write(icent,'(''$end'')')
+      call close_file(ilmoi)
+      if(set%pr_local) call close_file(icent)
+   end if 
+
+   !> Saving results
    k=0
    do i=1,n+new
       if(int(rklmo(5,i)).gt.0)k=k+1
    enddo
-   write(ilmoi,'(i5,5f14.8)')k,diptot,elumo,ehomo,etot
+   results%iff_results%at = at
+   results%iff_results%xyz = xyz
+   results%iff_results%q = q
+   results%iff_results%nlmo = k
+   results%iff_results%dipol = diptot
+   results%iff_results%elumo = enlumo
+   results%iff_results%ehomo = enhomo
+   results%iff_results%qct(1:nat,1) = qhl(1:nat,1)
+   results%iff_results%qct(1:nat,2) = qhl(1:nat,2)
    do i=1,n+new
-      if(int(rklmo(5,i)).gt.0)then
-         write(ilmoi,'(i2,3F20.10,f14.8)')int(rklmo(5,i)),rklmo(1:3,i)
-         if(set%pr_local) write(icent,'(3F24.10,5x,a2)') rklmo(1:3,i),toSymbol(2)
+      if(int(rklmo(5,i)).gt.0) then
+         results%iff_results%lmo(i) = int(rklmo(5,i))
+         results%iff_results%rlmo(1:3,i) = rklmo(1:3,i)
       endif
-   enddo
-   write(ilmoi,'(10(F10.6))') (qhl(i,1),i=1,nat)  ! HOMO atom pop
-   write(ilmoi,'(10(F10.6))') (qhl(i,2),i=1,nat)  ! LUMO atom pop
-   if(set%pr_local) write(icent,'(''$end'')')
-   call close_file(ilmoi)
-   if(set%pr_local) call close_file(icent)
+   end do
 
    if(set%pr_local) then
       write(*,*)'files:'

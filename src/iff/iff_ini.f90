@@ -19,6 +19,20 @@ module xtb_iff_iffini
    use xtb_mctc_accuracy, only: wp
    use xtb_docking_param
    use xtb_iff_ifflmo
+   use xtb_sphereparam
+   use xtb_disp_ncoord
+   use xtb_type_environment, only: TEnvironment
+   use xtb_setmod
+   use xtb_type_param
+   use xtb_disp_dftd4param
+   use xtb_disp_dftd4, only : newD4Model, zeta, weight_references, get_atomic_c6, d4, d4dim
+   use xtb_type_dispersionmodel, only: TDispersionModel
+   use xtb_mctc_param, only: gamma => chemical_hardness
+   use xtb_type_molecule, only: TMolecule, init
+   implicit none
+
+   private
+   public :: init_iff
 
 contains
    subroutine init_iff(env,n1,n2,at1,at2,neigh,xyz1,xyz2,q1,q2,c6ab,z1,z2,&
@@ -28,13 +42,6 @@ contains
    &                   den1, den2, gab1, gab2, qcm1, qcm2,&
    &                   n, at, xyz, q, icoord, icoord0,&
    &                   pr)
-
-      use xtb_sphereparam
-      use xtb_disp_ncoord
-      use xtb_type_environment, only: TEnvironment
-      use xtb_setmod
-
-      implicit none
 
       type(TEnvironment), intent(inout) :: env
       integer, intent(in) :: n, n1, n2
@@ -73,15 +80,14 @@ contains
       real(wp) :: dum_array(3, 1)
       integer, allocatable :: dum_at(:)
       real(wp) :: distance, max_distanceA, max_distanceB
-      !real(wp) :: shift !How much molB is shifted away from molA for disp coeff
       integer :: i, j, k, nfreq, np
       real(wp) :: edum, r(3), rr, rrr, r42, c6d4, tmp, thr, a1, a2, s8, ai, aj, p1, fc
-      real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn  !  thermo stuff
+      real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn 
       real(wp) :: freq1(3*n1), freq2(3*n2), dum(n), dum1(n1), dum2(n2)
       real(wp) :: cn(n), alp0(n), c6ab1(n1, n1), c6ab2(n2, n2), gsolv_inf
       real(wp) :: f,fall,fhyd,c6(94),qt1(1),qt2(1),r0,e1(4),c1(4),c6aad4,boxoffset
-
-      data c6/& ! D3 CAA(CNmax) coefficients
+      !> D3 CAA(CNmax) coefficients
+      data c6/& 
       &  3.03, 1.56, 85.32, 55.14, 28.03, 18.21, 15.58, 10.37,&
       &  7.13, 6.29, 186.11, 175.56, 153.59, 149.77, 151.69, 125.81,&
       & 90.40, 64.65, 338.02, 343.33, 313.98, 321.59, 269.33, 153.34,&
@@ -171,6 +177,7 @@ contains
       end do
 
       !> All C6 and alp0 coefficients for molA and molB
+      write(*,*) n,at,xyz,cn
       call ncoord_d4(n, at, xyz, cn, 500.d0)
       call c6_alp0(n, at, xyz, cn, q, alp0, c6ab)
       c6aad4 = 0
@@ -359,7 +366,6 @@ contains
    end subroutine
 
    subroutine setsto4(nprim, n, l, zeta, expo, cont)
-      implicit none
       integer, intent(in) :: n, l
       integer, intent(inout) :: nprim
       real(wp), intent(in) :: zeta
@@ -514,16 +520,9 @@ contains
          cont(j) = cont(j)*xnorm
       END DO
 
-   end subroutine
+   end subroutine setsto4
 
    subroutine c6_alp0(nat, at, xyz, cn, q, azero, c6ab)
-      use xtb_type_param
-      use xtb_disp_dftd4param
-      use xtb_disp_dftd4, only : newD4Model, zeta, weight_references, get_atomic_c6, d4, d4dim
-      use xtb_type_dispersionmodel, only: TDispersionModel
-      use xtb_mctc_param, only: gam => chemical_hardness
-      use xtb_type_molecule, only: TMolecule, init
-      implicit none
 
       integer, intent(in) :: nat, at(nat)
       real(wp), intent(in) :: xyz(3, nat)
@@ -570,7 +569,7 @@ contains
       &         dc6dcn(nat, nat), dc6dq(nat, nat), gw(dispdim), c6ref(dispdim, dispdim), &
       &         zetvec(dispdim), source=0.0_wp)
 
-      call weight_references(dispm, nat, at, g_a, g_c, wf, q, cn, zeff, gam, &
+      call weight_references(dispm, nat, at, g_a, g_c, wf, q, cn, zeff, gamma, &
          & zetavec, zerovec, zetadcn, zerodcn, zetadq) !generated zetavecotrs
       call get_atomic_c6(dispm, nat, mol%at, zetavec, zetadcn, zetadq, &
          & c6ab, dc6dcn, dc6dq) !c6ab are generated here
@@ -582,7 +581,7 @@ contains
          iz = zeff(ia)
          do ii = 1, dispm%nref(ia)
             k = k + 1
-            zetvec(k) = gw(k)*zeta(g_a, gam(ia)*g_c, dispm%q(ii, ia) + iz, q(i) + iz)
+            zetvec(k) = gw(k)*zeta(g_a, gamma(ia)*g_c, dispm%q(ii, ia) + iz, q(i) + iz)
             aw(:, i) = aw(:, i) + zetvec(k)*dispm%alpha(:, ii, ia)
          end do
       end do
@@ -597,4 +596,4 @@ contains
 
    end subroutine c6_alp0
 
-end module
+end module xtb_iff_iffini

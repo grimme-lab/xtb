@@ -17,9 +17,45 @@
 
 module xtb_docking_search_nci
    use xtb_mctc_accuracy, only: wp
+   use xtb_type_environment, only: TEnvironment
    use xtb_docking_param
-   use xtb_iff_iffenergy, only: iff_e
+   use xtb_iff_iffenergy, only: iff_e, intermole_probe, alignmol
    use xtb_scanparam
+   use xtb_mctc_symbols, only: toSymbol
+   use xtb_type_molecule, only: TMolecule
+   use xtb_type_restart, only: TRestart
+   use xtb_setparam
+   use xtb_gfnff_calculator, only: TGFFCalculator,newGFFCalculator
+   use xtb_xtb_calculator, only: TxTBCalculator
+   use xtb_type_calculator, only: TCalculator
+   use xtb_main_setup, only: newCalculator
+   use xtb_geoopt
+   use xtb_main_defaults, only: initDefaults
+   use xtb_solv_state, only: solutionState
+   use xtb_dynamic, only: xyzsort2
+   use xtb_gfnff_setup, only: gfnff_setup, gfnff_input
+   use xtb_disp_dftd4, only: newD3Model
+   use xtb_single, only: singlepoint
+   use xtb_type_data, only: scc_results
+   use xtb_readin, only: xfind
+   use xtb_mctc_timings
+   use xtb_gfnff_topology, only: TGFFTopology
+   use xtb_type_topology, only: TTopology
+   use xtb_gfnff_ini, only: gfnff_ini
+   use xtb_topology, only: makeBondTopology
+   use xtb_sphereparam, only : number_walls, cavity_egrad
+   use xtb_gfnff_param, only: ini, gfnff_set_param, gfnff_param_alloc,&
+   & gff_print, gfnff_param_dealloc
+   use xtb_constrain_param, only: read_userdata
+   use xtb_fixparam
+   use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf
+   use xtb_scc_core, only: iniqshell
+   use xtb_eeq, only: goedecker_chrgeq
+   use xtb_basis, only: newBasisset
+   implicit none
+
+   private
+   public :: docking_search
 
 contains
 
@@ -30,34 +66,7 @@ contains
                        &        z1, z2, nl1, nl2, l1, l2, cl1, cl2, qdr1, qdr2,&
                        &        cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
                        &        den1, den2, gab1, gab2, molA_e, molB_e, cprob, emin, coord, comb)
-      use xtb_type_environment, only: TEnvironment
-      use xtb_iff_iffenergy
-      use xtb_mctc_symbols, only: toSymbol
-      use xtb_type_molecule, only: TMolecule
-      use xtb_type_restart, only: TRestart
-      use xtb_setparam
-      use xtb_gfnff_calculator, only: TGFFCalculator,newGFFCalculator
-      use xtb_xtb_calculator, only: TxTBCalculator
-      use xtb_type_calculator, only: TCalculator
-      use xtb_main_setup, only: newCalculator
-      use xtb_geoopt
-      use xtb_main_defaults, only: initDefaults
-      use xtb_solv_state, only: solutionState
-      use xtb_gfnff_param, only: gff_print, gfnff_param_dealloc!,gfnff_param_alloc
-      use xtb_dynamic, only: xyzsort2
-      use xtb_gfnff_setup, only: gfnff_setup, gfnff_input
-      use xtb_disp_dftd4, only: newD3Model
-      use xtb_single, only: singlepoint
-      use xtb_type_data, only: scc_results
-      use xtb_readin, only: xfind
-      use xtb_mctc_timings
-      use xtb_gfnff_topology, only: TGFFTopology
-      use xtb_gfnff_param, only: ini
-      use xtb_type_topology, only: TTopology
-      use xtb_gfnff_ini, only: gfnff_ini
-      use xtb_topology, only: makeBondTopology
-      use xtb_sphereparam, only : number_walls
-      implicit none
+
       INTERFACE
          RECURSIVE SUBROUTINE Quicksort(Item, First, Last, Indices)
             REAL, DIMENSION(:), INTENT(INOUT) :: Item       ! array of values
@@ -132,7 +141,7 @@ contains
       class(TCalculator), allocatable :: calc
       type(TGFFCalculator) :: gff_calc
       type(TGFFTopology) :: topo_backup, topo_xTB
-      type(TTopology) :: bonds !xTB topology
+      type(TTopology) :: bonds 
       !> Parameterfile
       character(len=:), allocatable :: pfile
       character(len=:), allocatable :: fnv
@@ -969,12 +978,11 @@ contains
       end if
       deallocate (xyz_opt, final_e)
 
-   end subroutine
+   end subroutine docking_search
 
 !Sorts xyz according to an energy (minimum first)
 !Necessary as the xyzsort and xyzsort2 does somehow not work
    subroutine sortxyz_e(n, nall, e, xyz)
-      implicit none
 
       INTERFACE
          RECURSIVE SUBROUTINE Quicksort(Item, First, Last, Indices)
@@ -1005,20 +1013,10 @@ contains
          end do
       end do
 
-   end subroutine
+   end subroutine sortxyz_e
 
    subroutine restart_gff(env, mol, calc)
-      use xtb_type_environment, only: TEnvironment
-      use xtb_gfnff_calculator, only: TGFFCalculator,newGFFCalculator
-      use xtb_gfnff_param, only: gff_print, gfnff_param_dealloc
-      use xtb_setparam
-      use xtb_gfnff_param, only: ini, gfnff_set_param, gfnff_param_alloc
-      use xtb_gfnff_ini, only: gfnff_ini
-      use xtb_disp_dftd4, only: newD3Model
-      use xtb_type_molecule, only: TMolecule
-      use xtb_constrain_param, only: read_userdata
 
-      implicit none
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
       type(TMolecule), intent(inout) :: mol
@@ -1058,18 +1056,7 @@ contains
    end subroutine restart_gff
 
    subroutine restart_xTB(env, mol, chk, calc, basisset)
-      use xtb_type_environment, only: TEnvironment
-      use xtb_type_molecule, only: TMolecule
-      use xtb_setparam
-      use xtb_type_restart, only: TRestart
-      use xtb_xtb_calculator, only: TxTBCalculator
-      use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf
-      use xtb_scc_core, only: iniqshell
-      use xtb_eeq, only: goedecker_chrgeq
-      use xtb_basis, only: newBasisset
-      use xtb_constrain_param, only: read_userdata
 
-      implicit none
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
       type(TMolecule), intent(inout) :: mol
@@ -1119,12 +1106,7 @@ contains
    end subroutine restart_xTB
 
    subroutine constrain_xTB_gff(env, mol)
-      use xtb_scanparam
-      use xtb_type_environment, only: TEnvironment
-      use xtb_type_molecule, only: TMolecule
-      use xtb_fixparam
 
-      implicit none
       type(TEnvironment), intent(inout) :: env
 
       type(TMolecule) :: mol
@@ -1153,7 +1135,6 @@ contains
    end subroutine constrain_xTB_gff
 
    subroutine doubles(nlow, ndim, rthr, ethr, found)
-      implicit none
       integer, intent(in) :: nlow, ndim
       real(wp), intent(in) :: rthr
       real(wp), intent(in) :: ethr
@@ -1179,6 +1160,6 @@ contains
 
       found = scr
 
-   end subroutine
+   end subroutine doubles
 
-end module
+end module xtb_docking_search_nci

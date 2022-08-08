@@ -241,5 +241,5 @@ subroutine lopt(init, n, no, accr, op, d)
    return
    300 format (/' not converged in',i7,' iterations, threshold :',d16.8)
    310 format (/' converged in',i7,' iterations, threshold : ',d16.8)
-end subroutine
+end subroutine lopt
 

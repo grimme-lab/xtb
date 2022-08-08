@@ -47,6 +47,7 @@ subroutine test_iff_sp(error)
    use xtb_docking_param
    use xtb_type_restart, only: TRestart
    use xtb_iff_calculator, only : TIFFCalculator, newIFFCalculator
+   use xtb_iff_data, only : TIFFData
    use xtb_iff_iffprepare, only : prepare_IFF
    type(error_type), allocatable, intent(out) :: error
    real(wp),parameter :: thr = 1.0e-10_wp
@@ -64,6 +65,7 @@ subroutine test_iff_sp(error)
    type(TMolecule)     :: mol
    type(TEnvironment)  :: env
    type(TIFFCalculator) :: calc
+   type(TIFFData) :: iff_data
 
    real(wp) :: etot,egap
    real(wp), allocatable :: g(:,:)
@@ -77,17 +79,17 @@ subroutine test_iff_sp(error)
    call init(env)
    call init(mol,at,xyz)
 
-   natom_molA=3
-   call prepare_IFF(env,mol)
+   natom_arg = '1-3'
+   call prepare_IFF(env, mol, iff_data)
    call env%checkpoint("Could not generate electronic properties for IFF")
 
-   call newIFFCalculator(env, mol, calc)
+   call newIFFCalculator(env, mol, iff_data, calc)
 
    call env%checkpoint("xtb-IFF parameter setup failed")
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call calc%singlepoint(env,mol,chk,2,exist,etot,g,sigma,egap,res)
+   call calc%singlepoint(env, mol, chk, 2, exist, etot, g, sigma, egap, res)
    write(*,*) 'WW', etot
 
    call check_(error, etot,-0.002628051951328639_wp, thr=thr)

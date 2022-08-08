@@ -31,7 +31,6 @@ module xtb_prog_dock
    use xtb_mctc_timings
    use xtb_mctc_version, only: version, author, date
    use xtb_io_reader, only: readMolecule
-   use xtb_type_environment, only: TEnvironment
    use xtb_type_molecule
    use xtb_type_reader, only: TReader
    use xtb_setparam, only: initrand
@@ -41,23 +40,30 @@ module xtb_prog_dock
    use xtb_docking_set_module
    use xtb_docking_param
    use xtb_mctc_convert, only: autokcal
-
+   use xtb_iff_data, only: TIFFData
+   use xtb_iff_iffini, only: init_iff
+   use xtb_iff_iffprepare, only: precomp
+   use xtb_iff_iffenergy, only : iff_e
+   use xtb_docking_search_nci, only: docking_search
+   use xtb_sphereparam, only: sphere, rabc, boxr, init_walls, wpot, maxwalls
+   use xtb_constrain_param, only: read_userdata
+   use xtb_fixparam, only: init_fix
+   use xtb_scanparam, only: init_constr, init_scan, maxconstr, maxscan
+   use xtb_embedding, only: init_pcem
+   use xtb_splitparam, only: init_split, maxfrag
+   use xtb_readin, only : find_new_name, mirror_line, getValue
+   use xtb_mctc_global, only : persistentEnv
+   use xtb_solv_state
+   use xtb_type_identitymap, only : TIdentityMap,init
    implicit none
+
+   private
+   public :: xtbDock
 
 contains
 
 !> Entry point for performing non-covalent docking
    subroutine xtbDock(env, argParser)
-      use xtb_iff_iffini, only: init_iff
-      use xtb_iff_iffprepare, only: precomp
-      use xtb_iff_iffenergy
-      use xtb_docking_search_nci, only: docking_search
-      use xtb_sphereparam, only: sphere, rabc, boxr, init_walls, wpot
-      use xtb_constrain_param, only: read_userdata
-      use xtb_fixparam, only: init_fix
-      use xtb_scanparam, only: init_constr, init_scan
-      use xtb_embedding, only: init_pcem
-      use xtb_splitparam, only: init_split
 
       !> Source of errors in the main program unit
       character(len=*), parameter :: source = "prog_dock"
@@ -73,6 +79,9 @@ contains
 
       !> Combined structure
       type(TMolecule) :: comb
+
+      !> All important variables stored here
+      type(TIFFData) :: iff_data
 
       !> Storage of translational difference of molB and molA (1:3) and rotation angles of molB (4:6)
       real(wp) :: icoord(6)
@@ -91,46 +100,6 @@ contains
 
       logical :: exist
 
-      !> Data of Molecules
-      integer :: n, n1, n2
-      integer :: nlmo1, nlmo2
-      real(wp), allocatable :: xyz1(:, :)
-      real(wp), allocatable :: rlmo1(:, :)
-      real(wp), allocatable :: q1(:)
-      real(wp), allocatable :: qdr1(:)
-      real(wp), allocatable ::xyzdr1(:, :)
-      real(wp), allocatable :: cn1(:)
-      real(wp), allocatable :: z1(:)
-      real(wp), allocatable :: alp1(:)
-      real(wp), allocatable :: qct1(:, :)
-      integer, allocatable :: at1(:)
-      integer, allocatable :: lmo1(:)
-      real(wp), allocatable :: xyz2(:, :)
-      real(wp), allocatable :: rlmo2(:, :)
-      real(wp), allocatable :: q2(:)
-      real(wp), allocatable :: qdr2(:)
-      real(wp), allocatable ::xyzdr2(:, :)
-      real(wp), allocatable :: cn2(:)
-      real(wp), allocatable :: z2(:)
-      real(wp), allocatable :: alp2(:)
-      real(wp), allocatable :: qct2(:, :)
-      integer, allocatable :: at2(:)
-      integer, allocatable :: lmo2(:)
-      real(wp), allocatable :: c6ab(:, :)
-      real(wp), allocatable :: alpab(:, :)
-      real(wp), allocatable :: cprob(:)
-      real(wp), allocatable :: xyz(:, :)
-      real(wp), allocatable :: q(:)
-      real(wp), allocatable :: cn(:)
-      real(wp), allocatable :: alp0(:)
-      real(wp), allocatable :: gab1(:, :)
-      real(wp), allocatable :: gab2(:, :)
-      real(wp), allocatable :: den1(:, :, :)
-      real(wp), allocatable :: den2(:, :, :)
-      real(wp), allocatable :: qcm1(:)
-      real(wp), allocatable :: qcm2(:)
-      integer, allocatable :: at(:)
-      integer, allocatable :: neigh(:, :)
       real(wp) :: e, dum, xx(10), zeffqmdff(86) ! various
       real(wp) :: icoord0(6) ! internal coords
       real(wp) :: r(3)
@@ -203,35 +172,24 @@ contains
       !> Printout Settings
       call dockingPrintout(env%unit, fnameA, fnameB, molA, molB)
 
+      !> Allocate stuff
+      call iff_data%allocateIFFData(molA%n, molB%n)
+
       !> Get IFF required properties with GFN2 singlepoints
       set%pr_local = .false.
       call start_timing(2)
       write(*,*)
+      !MolA
       write (env%unit, *) 'Precomputation of electronic porperties'
       write (env%unit, *) ' For Molecule 1'
-      call precomp(env, molA, molA_e, 1)
+      call precomp(env, iff_data, molA, molA_e, 1)
       write (env%unit, *) ' Successful'
       call stop_timing(2)
-      !MolA
-      call rd0(1, trim(fnam), n1, nlmo1)
-      allocate (at1(n1), lmo1(10*n1), source=0)
-      allocate (xyz1(3, n1), rlmo1(4, 10*n1), q1(n1),&
-      &cn1(n1), alp1(n1), qct1(n1, 2), qdr1(n1), xyzdr1(3, n1),&
-      &z1(n1), den1(2, 4, n1), gab1(n1, n1), qcm1(n1), cprob(n1), source=0.0_wp)
-      call rd(trim(fnam), 1, n1, xyz1, at1, nlmo1, lmo1, rlmo1, q1, qct1)
-      call delete_file(trim(fnam))
 
       !MolB
       write (env%unit, *) ' For Molecule 2'
-      call precomp(env, molB, molB_e, 2)
+      call precomp(env, iff_data, molB, molB_e, 2)
       write (env%unit, *) ' Successful'
-      call rd0(2, trim(fnam), n2, nlmo2)
-      allocate (at2(n2), lmo2(10*n2), source=0)
-      allocate (xyz2(3, n2), rlmo2(4, 10*n2), q2(n2),&
-      & cn2(n2), alp2(n2), qct2(n2, 2), qdr2(n2), xyzdr2(3, n2),&
-      & z2(n2), den2(2, 4, n2), gab2(n2, n2), qcm2(n2), source=0.0_wp)
-      call rd(trim(fnam), 2, n2, xyz2, at2, nlmo2, lmo2, rlmo2, q2, qct2)
-      call delete_file(trim(fnam))
 
       !> Special Docking CMA shift
       call cmadock(molA%n, molA%n, molA%at, molA%xyz, r)
@@ -243,34 +201,27 @@ contains
          molB%xyz(i, 1:molB%n) = molB%xyz(i, 1:molB%n) - r(i)
       end do
 
-      !>  Combined Structure
-      n = n1 + n2
-      allocate (at(n), neigh(0:n, n), source=0)
-      allocate (xyz(3, n), q(n), c6ab(n, n), alp0(n), cn(n),&
-      &        alpab(n2, n1), source=0.0_wp)
-
-!  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  Initialize the IFF energy stuff
-!  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-      call init_iff(env, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab, z1, z2,&
-         &          cprob, nlmo1, nlmo2, lmo1, lmo2,&
-         &          qdr1, qdr2, rlmo1, rlmo2, cn1, cn2, alp1, alp2, alpab,&
-         &          den1, den2, gab1, gab2, qcm1, qcm2, n, at, xyz, q, icoord, icoord0,&
+      !> Initialize the IFF energy stuff
+      call init_iff(env, iff_data%n1, iff_data%n2, iff_data%at1, iff_data%at2,&
+         &          iff_data%neigh, iff_data%xyz1, iff_data%xyz2, iff_data%q1, &
+         &          iff_data%q2, iff_data%c6ab, iff_data%z1, iff_data%z2, iff_data%cprob,&
+         &          iff_data%nlmo1, iff_data%nlmo2, iff_data%lmo1, iff_data%lmo2,&
+         &          iff_data%qdr1, iff_data%qdr2, iff_data%rlmo1, iff_data%rlmo2,&
+         &          iff_data%cn1, iff_data%cn2, iff_data%alp1, iff_data%alp2, iff_data%alpab,&
+         &          iff_data%den1, iff_data%den2, iff_data%gab1, iff_data%gab2, iff_data%qcm1,&
+         &          iff_data%qcm2, iff_data%n, iff_data%at, iff_data%xyz, iff_data%q, icoord, icoord0,&
          &          .false.)
 
 
       !> CONSTRAINTS & SCANS
-      call init_fix(n)
-      call init_split(n)
-      call init_constr(n, at)
+      call init_fix(iff_data%n)
+      call init_split(iff_data%n)
+      call init_constr(iff_data%n, iff_data%at)
       call init_scan
       call init_walls
       call init_pcem
       !> Read the constrain
-      call init(comb,at,xyz)
-      !comb%n = n
-      !comb%at = at
+      call init(comb,iff_data%at,iff_data%xyz)
       if (allocated(xcontrol)) then
          call read_userdata(xcontrol, env, comb)
          call read_userdata_iff(xcontrol, env, comb)
@@ -282,40 +233,46 @@ contains
       if(directedset%n > 0) then
          if(directedset%n > molA%n) call env%error(&
            &"More atoms for directed docking defined than in molecule A", source)
-         if (directed_type == p_atom_pot) call get_repulsive_pot(env,xyz,comb)
+         if (directed_type == p_atom_pot) call get_repulsive_pot(env,iff_data%xyz,comb)
          if (directed_type == p_atom_att) call get_attractive_pot(env,comb)
       end if
 
       deallocate (comb%at, comb%xyz)
 
-!  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  Single Point energy of first 'Cold fusion' structure
-!  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      !------------------------------------------------------
+      !> Single Point energy of first 'Cold fusion' structure
+      !------------------------------------------------------
       call start_timing(3)
-      call iff_e(env, n, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab, z1, z2,&
-                       & nlmo1, nlmo2, lmo1, lmo2, rlmo1, rlmo2,&
-                       & qdr1, qdr2, cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
-                       & den1, den2, gab1, gab2,&
-                       & set%verbose, 0, e, icoord)
+      call iff_e(env, iff_data%n, iff_data%n1, iff_data%n2, iff_data%at1, iff_data%at2,&
+                &  iff_data%neigh, iff_data%xyz1, iff_data%xyz2, iff_data%q1, iff_data%q2,&
+                & iff_data%c6ab, iff_data%z1, iff_data%z2,&
+                & iff_data%nlmo1, iff_data%nlmo2, iff_data%lmo1, iff_data%lmo2, &
+                & iff_data%rlmo1, iff_data%rlmo2,&
+                & iff_data%qdr1, iff_data%qdr2, iff_data%cn1, iff_data%cn2, iff_data%alp1, &
+                & iff_data%alp2, iff_data%alpab, iff_data%qct1, iff_data%qct2, &
+                & iff_data%den1, iff_data%den2, iff_data%gab1, iff_data%gab2, &
+                & set%verbose, 0, e, icoord)
       write(*,*)
       write(*, '(''Energy of cold fusion in kcal/mol:'', F8.2)') e * autokcal
       call stop_timing(3)
-!  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  Real docking search
-!  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      call set_optlvl(env) !Sets the optimization level for search in global parameters
-      call docking_search(env, molA, molB, n, n1, n2, at1, at2, neigh, xyz1,&
-                    & xyz2, q1, q2, c6ab, z1, z2,&
-                    &nlmo1, nlmo2, lmo1, lmo2, rlmo1, rlmo2,&
-                    &qdr1, qdr2, cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
-                    &den1, den2, gab1, gab2, molA_e, molB_e,&
-                    &cprob, e, icoord, comb)
-      if(debug) call wrc('screening.coord', n1, n2, at1, at2, xyz1, xyz2, icoord)
 
-      deallocate (at1, xyz1, rlmo1, q1, lmo1, cn1, alp1, qct1, qdr1, xyzdr1,&
-     &           at2, xyz2, rlmo2, q2, lmo2, cn2, alp2, qct2, qdr2, xyzdr2,&
-     &           den1, den2, gab1, gab2, at, xyz, q, c6ab, alp0, cn, neigh,&
-     &           z1, z2, alpab, cprob)
+      !----------------
+      !> Docking search
+      !----------------
+      !> First set optimization level in global parameters
+      call set_optlvl(env) 
+      call docking_search(env, molA, molB, iff_data%n, iff_data%n1, iff_data%n2,&
+       iff_data%at1, iff_data%at2, iff_data%neigh, iff_data%xyz1,&
+                    & iff_data%xyz2, iff_data%q1, iff_data%q2, iff_data%c6ab,&
+                    & iff_data%z1, iff_data%z2,&
+                    & iff_data%nlmo1, iff_data%nlmo2, iff_data%lmo1,&
+                    & iff_data%lmo2, iff_data%rlmo1, iff_data%rlmo2,&
+                    & iff_data%qdr1, iff_data%qdr2, iff_data%cn1, iff_data%cn2, iff_data%alp1,&
+                    & iff_data%alp2, iff_data%alpab, iff_data%qct1, iff_data%qct2,&
+                    & iff_data%den1, iff_data%den2, iff_data%gab1, iff_data%gab2, molA_e, molB_e,&
+                    & iff_data%cprob, e, icoord, comb)
+      if(debug) call wrc('screening.coord', iff_data%n1, iff_data%n2, iff_data%at1,&
+                        & iff_data%at2, iff_data%xyz1, iff_data%xyz2, icoord)
 
       call env%checkpoint("Docking submodule")
 
@@ -326,7 +283,7 @@ contains
       call raise('F', 'Some non-fatal runtime exceptions were caught,'// &
          &           ' please check:')
 
-      !  make some post processing afterward, show some timings and stuff
+      !> make some post processing afterward, show some timings and stuff
       write (env%unit, '(a)')
       write (env%unit, '(72("-"))')
       call stop_timing_run
@@ -345,8 +302,6 @@ contains
    end subroutine xtbDock
 
    subroutine parseArguments(env, args, inputFile)
-      use xtb_readin, only: getValue
-      use xtb_solv_state
 
       !> Name of error producer
       character(len=*), parameter :: source = "prog_docking_parseArguments"
@@ -629,7 +584,7 @@ contains
                call env%error("Filename for detailed input is missing", source)
             end if
 
-!Implicit solvation is missing, but shows bugs
+         !> Implicit solvation only works for final optimizations
          case ('-g', '--gbsa')
             call args%nextArg(sec)
             if (allocated(sec)) then
@@ -677,7 +632,7 @@ contains
 
    end subroutine parseArguments
 
-!> Header for this submodule
+   !> Header for this submodule
    subroutine dockingHeader(unit)
 
       !> IO unit
@@ -699,12 +654,8 @@ contains
    end subroutine dockingHeader
 
    subroutine dockingPrintout(iunit, fnameA, fnameB, molA, molB)
-      use xtb_mctc_accuracy, only: wp
-      use xtb_mctc_systools, only: rdvar
-      use xtb_mctc_global, only : persistentEnv
       !$ use omp_lib
 
-      implicit none
       integer, intent(in) :: iunit
       type(TMolecule), intent(in) :: molA, molB
       character(len=:), allocatable, intent(in) :: fnameA, fnameB
@@ -752,7 +703,6 @@ contains
 
    subroutine dockingHelp(iunit)
 
-      implicit none
       !> IO unit
       integer, intent(in) :: iunit
 
@@ -795,8 +745,7 @@ contains
    end subroutine dockingHelp
 
    subroutine check_for_files(env, molA, molB)
-      use xtb_readin, only: getValue
-      implicit none
+
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
       !> Molecular structure data
@@ -869,12 +818,7 @@ contains
    end subroutine check_for_files
 
    subroutine rdcontrol_iff(fname, env, copy_file)
-      use xtb_readin, only: find_new_name
-      use xtb_splitparam, only: maxfrag
-      use xtb_scanparam, only: maxconstr, maxscan
-      use xtb_sphereparam, only: maxwalls
-      use xtb_readin, only: mirror_line
-      implicit none
+   
       character(len=*), parameter :: source = 'set_rdcontrol'
       character(len=*), intent(in)  :: fname
       type(TEnvironment), intent(inout) :: env
@@ -961,12 +905,8 @@ contains
       call close_file(id)
    end subroutine rdcontrol_iff
 
-
    subroutine read_userdata_iff(fname,env,mol)
-      use xtb_readin, only : find_new_name
-      !use xtb_scanparam
-      use xtb_type_identitymap, only : TIdentityMap,init
-      implicit none
+
       character(len=*), parameter :: source = 'userdata_read'
       type(TEnvironment), intent(inout) :: env
       type(TMolecule), intent(inout) :: mol
@@ -1025,7 +965,7 @@ contains
    end subroutine read_userdata_iff
 
    subroutine get_repulsive_pot(env,xyz,comb)
-      implicit none
+
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
 
@@ -1061,7 +1001,6 @@ contains
       do i=1, comb%n
          if(any(i == directedset%atoms)) cycle !Potential zero for atoms in defined docking region
          dist = directedset%val(i)
-         !rep_pot = exp(dist - 8) * (1 / (8000 + exp(dist - 8))) !Damped to a Max of 1 Hartree
          rep_pot = 0.1*erf(0.07 * dist - 0.28) !Potential starts at distance of 4
          if(rep_pot < 0.0_wp) rep_pot = 0.0_wp
          directedset%val(i) = rep_pot !Overwrite distance with repulsive Potential
@@ -1069,7 +1008,7 @@ contains
    end subroutine get_repulsive_pot
 
    subroutine get_attractive_pot(env,comb)
-      implicit none
+
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
 

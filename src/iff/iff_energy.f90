@@ -19,6 +19,12 @@ module xtb_iff_iffenergy
    use xtb_mctc_accuracy, only: wp
    use xtb_type_environment, only: TEnvironment
    use xtb_docking_param
+   !use xtb_sphereparam
+   use xtb_sphereparam, only : sphere_alpha, wpot, polynomial_cavity_list, sphere, cavity_egrad
+   implicit none
+
+   private
+   public :: iff_e, intermole_probe, alignmol
 
 contains
 
@@ -28,8 +34,6 @@ contains
                             & cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
                             & den1, den2, gab1, gab2,&
                             & pr, mode, e, icoord)
-      use xtb_sphereparam
-      implicit none
       type(TEnvironment), intent(inout) :: env
       integer, intent(in) :: n, n1, n2
       integer, intent(in) :: nl1, nl2
@@ -37,10 +41,14 @@ contains
       integer, intent(in) :: at2(n2)
       integer, intent(in) :: mode
       integer, intent(in) :: neigh(0:n, n)
-      real(wp), intent(in) :: A1(3, n1)    ! mol1 xyz
-      real(wp), intent(in) :: c02(3, n2)    ! mol2 xyz
-      real(wp), intent(in) :: AL1(4, n1*10)! mol1 LMO
-      real(wp), intent(in) :: c0l2(4, n2*10)! mol2 LMO
+      !> mol1 xyz
+      real(wp), intent(in) :: A1(3, n1)    
+      !> mol2 xyz
+      real(wp), intent(in) :: c02(3, n2)   
+      !> mol1 LMO
+      real(wp), intent(in) :: AL1(4, n1*10)
+      !> mol2 LMO
+      real(wp), intent(in) :: c0l2(4, n2*10)
       real(wp), intent(in) :: q01(n1)
       real(wp), intent(in) :: qdr1(n1)
       real(wp), intent(in) :: q02(n2)
@@ -69,7 +77,8 @@ contains
       real(wp) :: c2(3, n2), cl2(4, 10*n2), dip(3), h, zz1, zz2, nn1, nn2, ees
       real(wp) :: rab(n2, n1), rotm(3, 3), q1(n1), q2(n2), AL2(4, n2*10), A2(3, n2)
       real(wp) :: r2ab(n2, n1), r0tmp(n2, n1), r0tmp2(n2, n1), r, oner, sab(n2, n1)
-      real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn, freq(3*n)  !  thermo stuff
+      !> Thermo stuff
+      real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn, freq(3*n)
       real(wp) :: xyz(3, n)
       real(wp) :: cavgrad(3) = 0.0_wp
       real(wp), parameter ::autoang = 0.52917726d0
@@ -298,17 +307,16 @@ contains
          write (env%unit, '(''E ES total    :'',F10.3)') (es + esl)*au
          write (env%unit, '(''E induction   :'',F10.3)') ei*au
          write (env%unit, '(''E CT          :'',F10.3)') ect*au
-      if (sphere .ne. 0) write (env%unit, '(''E cavity      :'',F10.3)') esph*au
+         if (sphere .ne. 0) write (env%unit, '(''E cavity      :'',F10.3)') esph*au
          write (env%unit, '(''Eint total,gas:'',F10.3)') (e - gsolv)*au
         write (env%unit, '(''              '',F14.8,''  <== Gint total'')') e*au
       end if
 
 
-   end subroutine
+   end subroutine iff_e
 
    subroutine drudescf(n1,n2,nl1,nl2,at1,at2,npair,pair,xyz1,qat1,qdr1,xyz2,&
                       &qat2, qdr2, alpab, r0, edr)
-      implicit none
       integer, intent(in) :: n1, n2, npair, pair(2, n1*n2), nl1, nl2
       real(wp), intent(in) :: xyz1(3, n1)
       real(wp), intent(in) :: xyz2(3, n2)
@@ -360,13 +368,12 @@ contains
          edr = edr - e0
 
       end do
-   end subroutine
+   end subroutine drudescf
 
 ! Drude SCF gradient
    subroutine indeg(n1, n2, nl1, nl2, npair, pair, xyz1, q1, xyzdr1, qdr1,&
                    &xyz2, q2, xyzdr2, qdr2, at1, at2, alpab, r0, kode,&
                   & ec, gdr1, gdr2)
-      implicit none
       integer, intent(in) :: n1, n2, nl1, nl2, npair, pair(2, n1*n2), kode
       real(wp), intent(in) :: xyz1(3, n1)
       real(wp), intent(in) :: xyzdr1(3, n1)
@@ -531,7 +538,7 @@ contains
 
       ec = edr + espring
 
-   end subroutine
+   end subroutine indeg
 
 !************************************************************************
 !* true electrostatic interaction for two atoms with squared distance
@@ -542,7 +549,6 @@ contains
 !* the density is assumed to be spherical
 !************************************************************************
    subroutine truees(m1, m2, i, j, r, r2, den1, den2, z1, z2, n1, n2, es)
-      implicit none
       integer, intent(in) :: i, j, m1, m2 ! atoms, atom numbers
       real(wp), intent(in) :: r, r2
       real(wp), intent(in) :: z1, z2, n1, n2  ! val charge, val number of el
@@ -617,10 +623,9 @@ contains
       end do
       es = es + n1*n2*vv
 
-   end subroutine
+   end subroutine truees
 
    subroutine ovlp(n1, n2, r2ab, den1, den2, sab)
-      implicit none
       integer, intent(in) :: n1, n2
       real(wp), intent(in) :: r2ab(n2, n1)
       real(wp), intent(in) :: den1(2, 4, n1), den2(2, 4, n2)
@@ -650,14 +655,13 @@ contains
          end do
       end do
 
-   end subroutine
+   end subroutine ovlp
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! CT corrections
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
    subroutine chrgtransfer(env, n1, n2, at1, at2, q1, q2, qct1, qct2,&
                           &gab1, gab2, alpab, rab, pr, ect)
-      implicit none
       type(TEnvironment), intent(inout) :: env
       integer, intent(in) :: n1, n2
       integer, intent(in) :: at1(n1), at2(n2)
@@ -754,11 +758,10 @@ contains
          write (env%unit, *) ' De MO       /kcal ', 627.51*emo
       end if
 
-   end subroutine
+   end subroutine chrgtransfer
 
 ! xtb intramolecular ES
    subroutine esxtb(n, at, gab, q, es)
-      implicit none
       integer, intent(in) :: n, at(n)
       real(wp), intent(in) :: q(n), gab(n, n)
       real(wp), intent(out) :: es
@@ -797,10 +800,9 @@ contains
       end do
       es = es*0.5d0 + t/3.0d0
 
-   end subroutine
+   end subroutine esxtb
 
    subroutine get_f02(ARG, f02)
-      implicit none
       real(wp), intent(in) :: ARG
       real(wp), intent(out) :: f02
 
@@ -814,14 +816,12 @@ contains
          RETURN
       end if
 
-   end subroutine
+   end subroutine get_f02
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! RG atom as probe for possible sites in R space
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
    subroutine intermole_probe(n1, nl1, at1, q1, c1, cl1, c2, l1, cn1, c6xx, e, eqp)
-      use xtb_sphereparam, only : sphere_alpha, wpot, polynomial_cavity_list
-      implicit none
       integer, intent(in) :: n1, nl1
       integer, intent(in) :: at1(n1)
       integer, intent(in) :: l1(n1*10)
@@ -877,13 +877,12 @@ contains
 
       eqp = eqp*0.1  ! 0.1=probe charge
 
-   end subroutine
+   end subroutine intermole_probe
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 ! align xyz2(mol2) on xyz1(gridpoint cluster) by minimizing a dispersion type model potential
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
    subroutine alignmol(n1, n2, at1, at2, xyz1, xyz2, coord)
-      implicit none
       integer, intent(in) :: n1, n2
       integer, intent(in) :: at1(n1)
       integer, intent(in) :: at2(n2)
@@ -955,6 +954,6 @@ contains
 
       deallocate (found, found2)
 
-   end subroutine
+   end subroutine alignmol
 
-end module
+end module xtb_iff_iffenergy

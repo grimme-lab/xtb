@@ -25,10 +25,14 @@ module xtb_docking_set_module
    use xtb_docking_param
    use xtb_type_environment, only: TEnvironment
    use xtb_type_identitymap, only : TIdentityMap
+   use xtb_type_atomlist
+   use xtb_mctc_strings, only : parse
+   use xtb_setmod
 
    implicit none
 
    private :: wp, mirror_line, getValue
+
    character, private, parameter :: flag = '$'
    character, private, parameter :: colon = ':'
    character, private, parameter :: space = ' '
@@ -47,14 +51,14 @@ module xtb_docking_set_module
 
    public
 
-      abstract interface
-         subroutine handlerInterface(env, key, val)
-            import TEnvironment
-            type(TEnvironment), intent(inout) :: env
-            character(len=*), intent(in) :: key
-            character(len=*), intent(in) :: val
-         end subroutine handlerInterface
-      end interface
+      !abstract interface
+      !   subroutine handlerInterface(env, key, val)
+      !      import TEnvironment
+      !      type(TEnvironment), intent(inout) :: env
+      !      character(len=*), intent(in) :: key
+      !      character(len=*), intent(in) :: val
+      !   end subroutine handlerInterface
+      !end interface
 
       abstract interface
          subroutine handlerInterface2(env,key,val,nat,at,idMap,xyz)
@@ -73,7 +77,6 @@ contains
 
    subroutine rdblock_docking(env, handler, line, id, copy, err, ncount)
       !use xtb_setmod, only : handlerInterface
-      implicit none
       character(len=*), parameter :: source = 'set_rdblock'
       type(TEnvironment), intent(inout) :: env
       procedure(handlerInterface) :: handler
@@ -114,7 +117,6 @@ contains
    subroutine rdblock_docking2(env,handler,line,id,nat,at,idMap,xyz,err)
       !use xtb_constrain_param, only : handlerInterface
       use xtb_readin, only : getline => strip_line,getValue,getListValue
-      implicit none
       character(len=*), parameter :: source = 'userdata_rdblock'
       type(TEnvironment), intent(inout) :: env
       integer,intent(in) :: id
@@ -155,7 +157,6 @@ contains
    end subroutine rdblock_docking2
 
    subroutine set_docking(env, key, val)
-      implicit none
       character(len=*), parameter :: source = 'set_docking'
       type(TEnvironment), intent(inout) :: env
       character(len=*), intent(in) :: key
@@ -200,7 +201,6 @@ contains
 
    subroutine write_set_directed(ictrl)
       use xtb_type_atomlist
-      implicit none
       integer, intent(in) :: ictrl
       type(TAtomList) :: atl
       character(len=:), allocatable :: string
@@ -217,9 +217,6 @@ contains
    end subroutine write_set_directed
 
    subroutine set_directed(env,key,val,nat,at,idMap,xyz)
-      use xtb_type_atomlist
-      use xtb_mctc_strings, only : parse
-      implicit none
       character(len=*), parameter :: source = 'userdata_directed'
       type(TEnvironment), intent(inout) :: env
       character(len=*),intent(in) :: key
@@ -297,7 +294,6 @@ contains
    end subroutine set_directed
 
    subroutine set_logicals(env, key)
-      implicit none
       character(len=*), parameter :: source = 'set_logicals'
       type(TEnvironment), intent(inout) :: env
       character(len=*), intent(in) :: key
@@ -379,9 +375,7 @@ contains
    end subroutine set_logicals
 
    subroutine set_optlvl(env)
-      use xtb_type_environment, only: TEnvironment
-      use xtb_setmod
-      implicit none
+
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
 

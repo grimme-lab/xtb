@@ -2395,11 +2395,7 @@ subroutine set_natom(env,arg)
    character(len=*),intent(in) :: arg
    integer :: idum
    character(len=*), parameter :: source = 'set_natom'
-   if (getValue(env,arg,idum)) then
-      natom_molA = idum
-   else
-      call env%error('Number of atoms could not be read from your argument',source)
-   endif
+   natom_arg = arg
 end subroutine set_natom
 
 ! this is a dummy routine

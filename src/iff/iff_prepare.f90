@@ -17,63 +17,85 @@
 
 module xtb_iff_iffprepare
    use xtb_mctc_accuracy, only: wp
+   use xtb_type_environment, only: TEnvironment
    use xtb_splitparam
    use xtb_iff_calculator, only: TIFFCalculator
+   use xtb_iff_data, only: TIFFData
+   use xtb_type_atomlist
+   use xtb_type_molecule, only: TMolecule
+   use xtb_setparam
+   use xtb_type_restart, only: TRestart
+   use xtb_type_calculator, only: TCalculator
+   use xtb_xtb_calculator, only: TxTBCalculator
+   use xtb_setmod, only: set_gfn
+   use xtb_readin, only: xfind
+   use xtb_solv_state, only: solutionState
+   use xtb_type_data, only: scc_results
+   use xtb_main_defaults, only: initDefaults
+   use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf
+   use xtb_scc_core, only: iniqshell
+   use xtb_eeq, only: goedecker_chrgeq
+   use xtb_main_setup, only: newCalculator
+   use xtb_single, only: singlepoint
+   use xtb_docking_param, only: chrg, uhf, gsolvstate_iff, pre_e_A, &
+                              & pre_e_B, optlvl, ehomo, elumo, dipol, &
+                              & natom_molA, natom_arg, split_mol
+
    implicit none
+
+   private
+   public :: prepare_IFF, precomp
 
 contains
 
-   subroutine prepare_IFF(env, comb)
-      use xtb_docking_param
-      use xtb_type_environment, only: TEnvironment
-      use xtb_type_molecule, only: TMolecule
-      use xtb_setparam
+   subroutine prepare_IFF(env, comb, iff_data)
 
       type(TEnvironment), intent(inout) :: env
-      type(TMolecule), intent(in) :: comb!Combined structure of molA and molB (molA has to be first)
+      !> Combined structure of molA and molB (molA has to be first)
+      type(TMolecule), intent(in) :: comb
+      !> IFF data
+      type(TIFFData) :: iff_data
 
       character(len=*), parameter :: source = 'preperation_IFFCalculator'
       type(TMolecule) :: molA, molB
       integer, allocatable :: at(:)
       real(wp), allocatable :: xyz(:, :)
       real(wp) :: molA_e, molB_e
+      integer, allocatable :: list(:)
+      type(TAtomList) :: atl
 
-      if (natom_molA == 0) call env%error('No atoms of Molecule A given') !Not given as input => Crash
-      if(natom_molA > comb%n) call env%error('More atoms of Molecule A than contained in structure')
-      molA%n = natom_molA
-      molB%n = comb%n - natom_molA
-      call split_mol(molA, molB, comb)
-      set%lmoinfo_fname = 'xtblmoinfA'
-      call precomp(env, molA, molA_e, 1)
-      set%lmoinfo_fname = 'xtblmoinfB'
-      call precomp(env, molB, molB_e, 2)
-      set%lmoinfo_fname = 'xtblmoinfo'
+      call atl%resize(comb%n)
+
+      !> First make the argument natom_arg to a list of number of atoms
+      call atl%new(natom_arg)
+      if (atl%get_error()) then
+         call env%warning('something is wrong in the fixing list',source)
+         return
+      endif
+      call atl%to_list(list)
+
+      molA%n = size(list)
+      natom_molA = molA%n
+      molB%n = comb%n - molA%n
+
+      if (natom_molA == 0) call env%error('No atoms of Molecule A given')
+      if(natom_molA > comb%n) &
+              & call env%error('More atoms of Molecule A than contained in structure')
+
+      call split_mol(molA, molB, size(list), list, comb)
+      call iff_data%allocateIFFData(molA%n, molB%n)
+
+      call precomp(env, iff_data, molA, molA_e, 1)
+      call precomp(env, iff_data, molB, molB_e, 2)
 
    end subroutine prepare_IFF
 
-   subroutine precomp(env, mol, etot, mol_num)
-      use xtb_type_restart, only: TRestart
-      use xtb_type_calculator, only: TCalculator
-      use xtb_xtb_calculator, only: TxTBCalculator
-      use xtb_setparam
-      use xtb_setmod, only: set_gfn
-      use xtb_type_environment, only: TEnvironment
-      use xtb_readin, only: xfind
-      use xtb_solv_state, only: solutionState
-      use xtb_type_data, only: scc_results
-      use xtb_main_defaults, only: initDefaults
-      use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf
-      use xtb_scc_core, only: iniqshell
-      use xtb_eeq, only: goedecker_chrgeq
-      use xtb_main_setup, only: newCalculator
-      use xtb_single, only: singlepoint
-      use xtb_type_molecule, only: TMolecule
-      use xtb_docking_param, only: chrg, uhf, gsolvstate_iff, pre_e_A, pre_e_B, optlvl
-
-      implicit none
+   subroutine precomp(env, iff_data, mol, etot, mol_num)
 
       !> Molecular structure data
       type(TMolecule), intent(inout) :: mol
+      !> IFF data
+      type(TIFFData), intent(inout) :: iff_data
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
       integer, intent(in) :: mol_num
@@ -166,6 +188,8 @@ contains
 
       call env%checkpoint("Setup for calculation failed")
 
+      allocate(res%iff_results)
+
       !> the SP
       call singlepoint &
          &       (env, mol, chk, calc, egap, set%etemp, set%maxscciter, 2,&
@@ -173,10 +197,33 @@ contains
 
       set%pr_lmo = .false.
 
+      !> Save the results
       if (mol_num .eq. 1) then
          pre_e_A = etot
+         iff_data%n1 = res%iff_results%n
+         iff_data%at1 = res%iff_results%at
+         iff_data%xyz1 = res%iff_results%xyz
+         iff_data%q1 = res%iff_results%q
+         iff_data%nlmo1 = res%iff_results%nlmo
+         iff_data%rlmo1 = res%iff_results%rlmo
+         iff_data%lmo1 = res%iff_results%lmo
+         iff_data%qct1 = res%iff_results%qct
+         ehomo(1) = res%iff_results%ehomo
+         elumo(1) = res%iff_results%elumo
+         dipol(1) = res%iff_results%dipol
       elseif (mol_num .eq. 2) then
          pre_e_B = etot
+         iff_data%n2 = res%iff_results%n
+         iff_data%at2 = res%iff_results%at
+         iff_data%xyz2 = res%iff_results%xyz
+         iff_data%q2 = res%iff_results%q
+         iff_data%nlmo2 = res%iff_results%nlmo
+         iff_data%rlmo2 = res%iff_results%rlmo
+         iff_data%lmo2 = res%iff_results%lmo
+         iff_data%qct2 = res%iff_results%qct
+         ehomo(2) = res%iff_results%ehomo
+         elumo(2) = res%iff_results%elumo
+         dipol(2) = res%iff_results%dipol
       end if
 
       if (optlvl /= 'gfn1') then
@@ -191,4 +238,4 @@ contains
 
    end subroutine precomp
 
-end module
+end module xtb_iff_iffprepare

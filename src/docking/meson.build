@@ -1,6 +1,6 @@
 # This file is part of xtb.
 #
-# Copyright (C) 22022 Sebastian Ehlert, Christoph Plett
+# Copyright (C) 2022 Sebastian Ehlert, Christoph Plett
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by

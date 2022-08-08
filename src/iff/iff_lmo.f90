@@ -17,11 +17,18 @@
 
 module xtb_iff_ifflmo
    use xtb_docking_param
+   use xtb_axis, only: axisvec
+   use xtb_splitparam, only: atmass
+   use mctcpar_atomic_masses
+   use xtb_setmod
+   implicit none
+
+   private
+   public :: setlmo
 
 contains
 
    subroutine trflmo(mol, n, nl, c, cl)
-      implicit none
       integer, intent(in) :: n
       integer, intent(in) :: nl
       integer, intent(in) :: mol
@@ -62,18 +69,13 @@ contains
          end if
       end do
 
-   end subroutine
+   end subroutine trflmo
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! important LMO prep routine for anisotropic ES
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
    subroutine setlmo(mol, n, nl, at, xyz, alp0, q, cn, c, lmo)
-      use xtb_axis, only: axisvec
-      use xtb_splitparam, only: atmass
-      use mctcpar_atomic_masses
-      use xtb_setmod
 
-      implicit none
       integer, intent(in) :: mol, n
       real(wp), intent(in) :: xyz(3, n)
       real(wp), intent(in) :: alp0(n)
@@ -341,7 +343,7 @@ contains
       di = sqrt(dip(1)**2 + dip(2)**2 + dip(3)**2)
       if(set%verbose) write (*, '(''dipole moment (read/calc):'',2F8.3)') dipol(mol), di
 
-   end subroutine
+   end subroutine setlmo
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! internal coords (R,angle,dihedral) for LP and pi LMO center
@@ -350,7 +352,6 @@ contains
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
    subroutine internal4(n, xyz, c, j, k, l, r, alp, bet)
-      implicit none
       integer, intent(in) :: n, j, k, l
       real(wp), intent(in) :: xyz(3, n), c(3)
       real(wp), intent(out) :: r, alp, bet
@@ -374,12 +375,11 @@ contains
          end if
       end if
 
-   end subroutine
+   end subroutine internal4
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
    subroutine trflp(n, coord, nai, nbi, nci, geo1i, geo2i, geo3i, ci)
-      implicit none
       integer, intent(in) :: n, nai, nbi, nci
       real(wp), intent(in) :: coord(3, n)
       real(wp), intent(in) :: geo1i, geo2i, geo3i
@@ -467,11 +467,10 @@ contains
       CI(2) = YQD + COORD(2, MC)
       CI(3) = ZQD + COORD(3, MC)
 
-   end subroutine
+   end subroutine trflp
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-   SUBROUTINE xBANGLE(XYZ, I, J, K, ANGLE)
-      implicit none
+   subroutine xBANGLE(XYZ, I, J, K, ANGLE)
       integer, intent(in) :: I, J, K
       real(wp), intent(in) :: XYZ(3, *)
       real(wp), intent(out) :: ANGLE
@@ -494,10 +493,9 @@ contains
       IF (TEMP .LT. -1.0D0) TEMP = -1.0D0
       ANGLE = ACOS(TEMP)
       RETURN
-   END SUBROUTINE
+   end subroutine xBANGLE
 
-   SUBROUTINE xDIHED(XYZ, I, J, K, L, ANGLE)
-      implicit none
+   subroutine xDIHED(XYZ, I, J, K, L, ANGLE)
       real(wp), intent(in) :: XYZ(3, 4)
       integer, intent(in) :: I, J, K, L
       real(wp), intent(out) :: ANGLE
@@ -553,10 +551,9 @@ contains
       IF (ANGLE .LT. 0.) ANGLE = 2.0D0*PI + ANGLE
       IF (ANGLE .GE. 2.0d0*PI) ANGLE = 0.D0
       RETURN
-   end subroutine
+   end subroutine xDIHED
 
-   SUBROUTINE xDANG(A1, A2, B1, B2, RCOS)
-      implicit none
+   subroutine xDANG(A1, A2, B1, B2, RCOS)
       real(wp), intent(inout) :: A1, A2, B1, B2
       real(wp), intent(out) :: RCOS
 
@@ -589,6 +586,6 @@ contains
       END IF
       RCOS = 0.0D0
       RETURN
-   END SUBROUTINE
+   end subroutine xDANG
 
-end module
+end module xtb_iff_ifflmo

@@ -51,7 +51,10 @@ subroutine test_dock_eth_wat(error)
    use xtb_iff_iffenergy
    use xtb_docking_search_nci, only: docking_search
    use xtb_mctc_systools
+   use xtb_iff_data, only: TIFFData
    type(error_type), allocatable, intent(out) :: error
+   !> All important variables stored here
+   type(TIFFData) :: iff_data
    real(wp),parameter :: thr = 1.0e-6_wp
    real(wp) :: icoord0(6),icoord(6) 
    integer :: n1 
@@ -64,40 +67,6 @@ subroutine test_dock_eth_wat(error)
    integer :: at(n)
    real(wp) :: xyz(3,n)
    real(wp) :: molA_e, molB_e
-
-   integer :: nlmo1, nlmo2
-   real(wp), allocatable :: rlmo1(:, :)
-   real(wp), allocatable :: q1(:)
-   real(wp), allocatable :: qdr1(:)
-   real(wp), allocatable ::xyzdr1(:, :)
-   real(wp), allocatable :: cn1(:)
-   real(wp), allocatable :: z1(:)
-   real(wp), allocatable :: alp1(:)
-   real(wp), allocatable :: qct1(:, :)
-   integer, allocatable :: lmo1(:)
-   real(wp), allocatable :: rlmo2(:, :)
-   real(wp), allocatable :: q2(:)
-   real(wp), allocatable :: qdr2(:)
-   real(wp), allocatable ::xyzdr2(:, :)
-   real(wp), allocatable :: cn2(:)
-   real(wp), allocatable :: z2(:)
-   real(wp), allocatable :: alp2(:)
-   real(wp), allocatable :: qct2(:, :)
-   integer, allocatable :: lmo2(:)
-   real(wp), allocatable :: c6ab(:, :)
-   real(wp), allocatable :: alpab(:, :)
-   real(wp), allocatable :: cprob(:)
-   real(wp), allocatable :: q(:)
-   real(wp), allocatable :: cn(:)
-   real(wp), allocatable :: alp0(:)
-   real(wp), allocatable :: gab1(:, :)
-   real(wp), allocatable :: gab2(:, :)
-   real(wp), allocatable :: den1(:, :, :)
-   real(wp), allocatable :: den2(:, :, :)
-   real(wp), allocatable :: qcm1(:)
-   real(wp), allocatable :: qcm2(:)
-   integer, allocatable :: neigh(:, :)
-
 
    logical, parameter :: restart = .false.
 
@@ -132,8 +101,9 @@ subroutine test_dock_eth_wat(error)
      & shape(xyz2))
 
    call init(env)
-   call init(molA,at1,xyz1)
-   call init(molB,at2,xyz2)
+   call init(molA, at1, xyz1)
+   call init(molB, at2, xyz2)
+   call iff_data%allocateIFFData(molA%n, molB%n)
 
    call initrand
 
@@ -141,26 +111,9 @@ subroutine test_dock_eth_wat(error)
    fnam = 'xtblmoinfo'
    set%pr_local = .false.
 
-   call precomp(env, molA, molA_e, 1)
+   call precomp(env, iff_data, molA, molA_e, 1)
    call check_(error, molA_e,-11.3943358674_wp, thr=thr)
-
-   call rd0(1, trim(fnam), n1, nlmo1)
-   allocate (lmo1(10*n1), source=0)
-   allocate (rlmo1(4, 10*n1), q1(n1),&
-   &cn1(n1), alp1(n1), qct1(n1, 2), qdr1(n1), xyzdr1(3, n1),&
-   &z1(n1), den1(2, 4, n1), gab1(n1, n1), qcm1(n1), cprob(n1), source=0.0_wp)
-   call rd(trim(fnam), 1, n1, xyz1, at1, nlmo1, lmo1, rlmo1, q1, qct1)
-   call delete_file(trim(fnam))
-
-   call precomp(env, molB, molB_e, 2)
-
-   call rd0(2, trim(fnam), n2, nlmo2)
-   allocate (lmo2(10*n2), source=0)
-   allocate (rlmo2(4, 10*n2), q2(n2),&
-   & cn2(n2), alp2(n2), qct2(n2, 2), qdr2(n2), xyzdr2(3, n2),&
-   & z2(n2), den2(2, 4, n2), gab2(n2, n2), qcm2(n2), source=0.0_wp)
-   call rd(trim(fnam), 2, n2, xyz2, at2, nlmo2, lmo2, rlmo2, q2, qct2)
-   call delete_file(trim(fnam))
+   call precomp(env, iff_data, molB, molB_e, 2)
 
    call env%checkpoint("LMO computation failed")
 
@@ -173,26 +126,30 @@ subroutine test_dock_eth_wat(error)
       molB%xyz(i, 1:molB%n) = molB%xyz(i, 1:molB%n) - r(i)
    end do
 
-   allocate (neigh(0:n, n), source=0)
-   allocate (q(n), c6ab(n, n), alp0(n), cn(n),&
-   &        alpab(n2, n1), source=0.0_wp)
-
-   call init_iff(env, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab, z1, z2,&
-      &          cprob, nlmo1, nlmo2, lmo1, lmo2,&
-      &          qdr1, qdr2, rlmo1, rlmo2, cn1, cn2, alp1, alp2, alpab,&
-      &          den1, den2, gab1, gab2, qcm1, qcm2, n, at, xyz, q, icoord, icoord0,&
+   call init_iff(env, iff_data%n1, iff_data%n2, iff_data%at1, iff_data%at2,&
+      &          iff_data%neigh, iff_data%xyz1, iff_data%xyz2, iff_data%q1, &
+      &          iff_data%q2, iff_data%c6ab, iff_data%z1, iff_data%z2,&
+      &          iff_data%cprob, iff_data%nlmo1, iff_data%nlmo2, iff_data%lmo1, iff_data%lmo2,&
+      &          iff_data%qdr1, iff_data%qdr2, iff_data%rlmo1, iff_data%rlmo2,&
+      &          iff_data%cn1, iff_data%cn2, iff_data%alp1, iff_data%alp2, iff_data%alpab,&
+      &          iff_data%den1, iff_data%den2, iff_data%gab1, iff_data%gab2, iff_data%qcm1,&
+      &          iff_data%qcm2, iff_data%n, iff_data%at, iff_data%xyz, iff_data%q, icoord, icoord0,&
       &          .false.)
 
    call check_(error, icoord(1) ,-4.5265_wp, thr=1.0e-3_wp)
 
-
    call env%checkpoint("Initializing xtb-IFF failed.")
 
-   call iff_e(env, n, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab, z1, z2,&
-                    & nlmo1, nlmo2, lmo1, lmo2, rlmo1, rlmo2,&
-                    & qdr1, qdr2, cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
-                    & den1, den2, gab1, gab2,&
-                    & .true., 0, e, icoord)
+   call iff_e(env, iff_data%n, iff_data%n1, iff_data%n2, iff_data%at1, iff_data%at2,&
+             &  iff_data%neigh, iff_data%xyz1, iff_data%xyz2, iff_data%q1, iff_data%q2,&
+             & iff_data%c6ab, iff_data%z1, iff_data%z2,&
+             & iff_data%nlmo1, iff_data%nlmo2, iff_data%lmo1, iff_data%lmo2, &
+             & iff_data%rlmo1, iff_data%rlmo2,&
+             & iff_data%qdr1, iff_data%qdr2, iff_data%cn1, iff_data%cn2, iff_data%alp1, &
+             & iff_data%alp2, iff_data%alpab, iff_data%qct1, iff_data%qct2, &
+             & iff_data%den1, iff_data%den2, iff_data%gab1, iff_data%gab2, &
+             & set%verbose, 0, e, icoord)
+
    call check_(error, e,0.07745330953243718_wp, thr=thr)
 
    call env%checkpoint("xtb-IFF sp computation failed")

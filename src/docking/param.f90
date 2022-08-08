@@ -19,57 +19,84 @@ module xtb_docking_param
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_symbols, only: toSymbol
    use xtb_type_setvar
-
+   use xtb_type_molecule, only: TMolecule, init
+   use xtb_param_covalentRadD3, only: covalentRadD3
+   use xtb_mctc_param, only: sqrt_z_r4_over_r2
+   use xtb_splitparam, only: atmass
    implicit none
 
+   private :: toSymbol
+
+   !> Parameter
    real(wp) :: par_rep_scal,par_d3_a1,par_d3_a2,par_d3_s8,par_chrg_lp,par_chrg_sig,&
-    & par_chrg_pi,par_pos1_lp,par_pos2_lp,par_pos_sig,par_es_damp,par_drude_fc,&
+             & par_chrg_pi,par_pos1_lp,par_pos2_lp,par_pos_sig,par_es_damp,par_drude_fc,&
              & par_drude_damp, par_xh1, par_xh2
    real(wp) :: r0ab,r0ab6(94,94),r0ab8(94,94),rrab(94,94),r0scal(94),val_e(86),r0_atom(86),rcov(94),r2r4(94)
    integer :: lpatom(86), sigatom(86)
-   integer :: maxgen = 10         ! # of generations
-   integer :: maxparent = 100     ! # of parents in gene pool
-   real(wp) :: stepr = 2.5         ! R grid step in Bohr
-   real(wp) :: stepa = 45          ! angular grid size in deg.
-   integer :: mxcma = 1000        ! R points in CMA search
-   integer :: mxcent_clust = 500  ! size of R point space for clustering in mol alignment (pockets)
-   logical :: incl_org = .false.  ! do not incl. input structure in gene pool
-   logical :: stack_only = .false.! only use stack search algo for initial global search structures
-   logical :: pocket_only = .false.!only use pocket search algo for initial global search structures
-   logical :: no_pocket = .true.! don't use pocket search algo for initial global search structures
-   integer :: probe_atom_type = 36! probe atom type for R grid
-   integer :: maxopt = 15         ! # of final grad opts
-   real(wp) :: s6scal = 0.70       ! D2 in modhes
-   real(wp) :: r6scal = 0.62       ! radii scal in modhes
-   real(wp) :: freqthr = 35.0      ! low freq cut-off
-   real(wp) :: scalh = 1.00        ! freq scal     "      "
-   real(wp) :: sthr = 100.        ! rotor cut-off, normally 100 cm-1
-   real(wp) :: symthr = 0.1        ! symmetryzation thr
-   integer :: mode = 0            ! full calc
-   logical :: cssym = .false.     ! cs symmetric system (remove a 1/6 of search space)
+
+   !> # of generations
+   integer :: maxgen = 10
+
+   !> # of parents for genetic algo
+   integer :: maxparent = 100 
+
+   !> step size for RG grid
+   real(wp) :: stepr = 2.5    
+
+   !> Step size for angular grid
+   real(wp) :: stepa = 45    
+
+   !> Maximal number of points CMA search
+   integer :: mxcma = 1000    
+
+   !> Size for pocket clusteing
+   integer :: mxcent_clust = 500  
+
+   !> Include input in gene pool?
+   logical :: incl_org = .false.  
+
+   !> Search types
+   logical :: stack_only = .false.
+   logical :: pocket_only = .false.
+   logical :: no_pocket = .true.
+
+   !> Probe atom type
+   integer :: probe_atom_type = 36
+
+   !> # of final geo. opts
+   integer :: maxopt = 15         
+
+   !> Mode
+   integer :: mode = 0            
+
+   !> CS symmetric molecule A?
+   logical :: cssym = .false.     
+
    character*80 :: solvent, XTBHOME
+   character(len=:), allocatable :: natom_arg
    integer :: natom_molA = 0
-   real(wp) :: acc = 1.0_wp !Optimization accuracy
+
+   !> Optimization accuracy
+   real(wp) :: acc = 1.0_wp
    real(wp) :: shift_geo !How much molB is shifted away from molA to determine Topo and D4 coefficients
    real(wp) :: pre_e_A = 0.0_wp
    real(wp) :: pre_e_B = 0.0_wp
 
-   !Settings
+   !>Settings
    logical :: fulle = .false.
    logical :: hess = .false.
    logical :: debug = .false.
-   logical :: lgbsa = .false.
-   integer :: nfrag1 = 0          ! new: 1:number of atoms in mol1 which interact with mol2 by an add. rep. pot.
+   integer :: nfrag1 = 0
    logical :: samerand = .false.
    logical :: test = .false.
    character(len=:), allocatable :: optlvl
 
-   !docklmocommon
+   !>docklmocommon
    integer :: maxlmo = 50000
    real(wp) :: lmoint(3, 50000, 2) = 0.0_wp
    integer :: lmoatom(4, 50000, 2) = 0
 
-   !dockmolcommon
+   !>dockmolcommon
    real(wp) :: dipol(2) = 0.0_wp
    real(wp) :: grotrav(2) = 0.0_wp
    real(wp) :: hrotrav(2) = 0.0_wp
@@ -81,15 +108,15 @@ module xtb_docking_param
    real(wp) :: elumo(2) = 0.0_wp
    real(wp) :: ehomo(2) = 0.0_wp
 
-   !Stuff for constraints
+   !>Stuff for constraints
    logical :: constraint_xyz = .false.
    logical :: auto_wall = .false.
-   character(len=:), allocatable :: xcontrol ! instruction file
+   character(len=:), allocatable :: xcontrol
 
    !> Options
-   logical :: pocket_grid = .false.     !perform pocket grid search
-   logical :: angular_grid = .true.     !perform angular grid search
-   logical :: stack_grid = .true.       !perform stack grid search
+   logical :: pocket_grid = .false.
+   logical :: angular_grid = .true.
+   logical :: stack_grid = .true.  
 
    !> General Control
    integer :: gsolvstate_iff
@@ -97,16 +124,22 @@ module xtb_docking_param
 
    !> Fixing for Directed Docking
    type(fix_setvar) :: directedset
-   real(wp),parameter :: pot_scal = 1.0_wp !Scaling factor for repulsive potential
-   real(wp),parameter :: pot_expo = 2.0_wp !Exponent for repulsive potential
-   real(wp) :: attractive_pot = -0.032_wp !20 kcal/mol attractive potential
+   !> Scaling factor for repulstive potential
+   real(wp),parameter :: pot_scal = 1.0_wp
+   !> Exponent for repulsitve potential
+   real(wp),parameter :: pot_expo = 2.0_wp
+   !> 20 kcal/mol attractive potential
+   real(wp) :: attractive_pot = -0.032_wp
    integer :: directed_type = 3
-   integer, parameter :: p_atom_pot = 2 !Repulsive atom-centered potential
-   integer, parameter :: p_atom_att = 3 !Attractive atom-centered potential
-   integer, parameter :: p_wall_pot = 1 !Wall pot for directed docking (didn't work)
+   !> Repulsive atom-centered potential
+   integer, parameter :: p_atom_pot = 2
+   !> Attractive atom-centered potential
+   integer, parameter :: p_atom_att = 3 
+   !Wall pot for directed docking (didn't work so far)
+   integer, parameter :: p_wall_pot = 1 
    integer :: place_wall_pot
 
-   !Drude
+   !> Drude
    real(wp) :: gam(94)
    data gam/&
   &0.47259288, 0.92203391, 0.17452888, 0.25700733, 0.33949086, 0.42195412,&
@@ -129,10 +162,7 @@ module xtb_docking_param
 contains
 
    subroutine set_iff_param
-      use xtb_param_covalentRadD3, only: covalentRadD3
-      use xtb_mctc_param, only: sqrt_z_r4_over_r2
 
-      implicit none
       character(len=80) :: fname
       logical :: ex
       integer :: i, j
@@ -288,10 +318,9 @@ contains
       sigatom(53) = 1
       sigatom(85) = 1
 
-   end subroutine
+   end subroutine set_iff_param
 
    subroutine diptot(n1, n2, nl1, nl2, c1, c2, cl1, cl2, l1, l2, q1, q2, dipol)
-      implicit none
       integer, intent(in) :: n1, n2
       integer, intent(in) :: nl1, nl2
       real(wp), intent(in) :: c1(3, n1)
@@ -320,15 +349,14 @@ contains
          dipol(1:3) = dipol(1:3) + c2(1:3, i)*q2(i)
       end do
 
-   end subroutine
+   end subroutine diptot
 
 ! compute center of mass(sum3) and moment of intertia and corresponding
 ! axis
 ! molw is the weigth, sum3 the CMA (all in a.u.)
 
    subroutine axis(numat, nat, coord, sum3, sumw, eig, evec)
-      use xtb_mctc_accuracy, only: wp
-      implicit none
+
       integer, intent(in) ::numat, nat(numat)
       real(wp), intent(in) :: coord(3, *)
       real(wp), intent(out) :: sum3(3), sumw, eig(3), evec(3, 3)
@@ -398,11 +426,10 @@ contains
       call rsp(t, 3, 3, eig, evec)
       eig = eig/sumw
 
-   end subroutine
+   end subroutine axis
 
    subroutine cmadock(n, numat, nat, coord, sum3)
-      use xtb_splitparam, only: atmass
-      implicit none
+
       integer, intent(in) :: n, numat, nat(numat)
       real(wp), intent(in) :: coord(3, numat)
       real(wp), intent(out) :: sum3(3)
@@ -445,10 +472,10 @@ contains
       sum3(2) = sumwy/sumw
       sum3(3) = sumwz/sumw
 
-   end subroutine
+   end subroutine cmadock
 
    subroutine rcma(n1, xyz1, iz1, n2, xyz2, iz2, r, rmin)
-      implicit none
+
       integer, intent(in) :: n1, n2
       real(wp), intent(in) :: xyz1(3, n1)
       real(wp), intent(in) :: xyz2(3, n2)
@@ -476,7 +503,7 @@ contains
          end do
       end do
 
-   end subroutine
+   end subroutine rcma
 
 ! xtbdock version
    subroutine rotmat(rxyz, rot)
@@ -521,11 +548,11 @@ contains
       tmp = matmul(r2, r3)
       rot = matmul(r1, tmp)
 
-   end subroutine
+   end subroutine rotmat
 
 ! rotate 3D-vector array around Euler angles ang
    subroutine rot3(n, xyz, rotm)
-      implicit none
+
       integer, intent(in) :: n
       real(wp), intent(inout) :: xyz(3, n)
       real(wp), intent(in) :: rotm(3, 3)
@@ -534,10 +561,10 @@ contains
 
       xyz = matmul(rotm, xyz)
 
-   end subroutine
+   end subroutine rot3
 
    subroutine rot4(n, xyz, rotm)
-      implicit none
+
       integer, intent(in) :: n
       real(wp), intent(inout) :: xyz(4, 10*n)
       real(wp), intent(in) :: rotm(3, 3)
@@ -549,11 +576,10 @@ contains
       tmp = matmul(rotm, tmp)
       xyz(1:3, 1:n) = tmp(1:3, 1:n)
 
-   end subroutine
+   end subroutine rot4
 
    subroutine wrc0(fname, n1, at1, xyz1)
-      use xtb_mctc_symbols
-      implicit none
+
       character(len=*), intent(in) :: fname
       integer, intent(in) :: n1, at1(n1)
       real(wp), intent(in) :: xyz1(3, n1)
@@ -568,10 +594,10 @@ contains
       write (1, '(''$end'')')
       close (1)
 
-   end subroutine
+   end subroutine wrc0
 
    subroutine wrc(fname, n1, n2, at1, at2, xyz1, xyz2, icoord)
-      implicit none
+
       character(len=*), intent(in) :: fname
       integer, intent(in) :: n1, at1(n1)
       integer, intent(in) :: n2, at2(n2)
@@ -595,10 +621,10 @@ contains
       write (1, '(''$end'')')
       close (1)
 
-   end subroutine
+   end subroutine wrc
 
    subroutine wrc2(fname, mode, n1, n2, at1, at2, xyz1, xyz2, nf, found)
-      implicit none
+
       character(len=*), intent(in) :: fname
       integer, intent(in) :: nf, mode
       integer, intent(in) :: n1, at1(n1)
@@ -631,10 +657,10 @@ contains
       end do
       close (33)
 
-   end subroutine
+   end subroutine wrc2
 
    subroutine wrc3(fname, n1, n2, at1, at2, xyz1, xyz2, i, found)
-      implicit none
+
       character(len=*), intent(in) :: fname
       integer, intent(in) :: i
       integer, intent(in) :: n1, at1(n1)
@@ -665,10 +691,10 @@ contains
       end do
       close (33)
 
-   end subroutine
+   end subroutine wrc3
 
    subroutine wr_grid(fname, n1, n2, at1, element, xyz1, xyz2)
-      implicit none
+
       character(len=*), intent(in) :: fname
       integer, intent(in) :: n1, at1(n1)
       integer, intent(in) :: n2
@@ -690,12 +716,12 @@ contains
       end do
       close (33)
 
-   end subroutine
+   end subroutine wr_grid
 
 ! new cartesian cooordinates from internals
 ! move coordinates and LP centers
    subroutine move(n2, nl2, xyz, cl, xyznew, clnew, rotm, coord)
-      implicit none
+
       integer, intent(in) :: n2, nl2
       real(wp), intent(in) :: xyz(3, n2)
       real(wp), intent(out) :: xyznew(3, n2)
@@ -720,11 +746,11 @@ contains
          clnew(k, 1:nl2) = clnew(k, 1:nl2) + coord(k)
       end do
 
-   end subroutine
+   end subroutine move
 
 ! move just coordinates
    subroutine move2(n2, xyz, xyznew, coord)
-      implicit none
+
       integer, intent(in) :: n2
       real(wp), intent(in) :: xyz(3, n2)
       real(wp), intent(out) :: xyznew(3, n2)
@@ -743,10 +769,10 @@ contains
          xyznew(k, 1:n2) = xyznew(k, 1:n2) + coord(k)
       end do
 
-   end subroutine
+   end subroutine move2
 
    subroutine rnorm(i, j, found, r)
-      implicit none
+
       integer, intent(in) :: i, j
       real(wp), intent(in) :: found(7, *)
       real(wp), intent(out) :: r
@@ -765,11 +791,11 @@ contains
 
       r = sqrt(r)
 
-   end subroutine
+   end subroutine rnorm
 
 ! random stuff
    subroutine rand6(mut, r1, r2, d) !Currently mut=0.5, r1=r2=1.0
-      implicit none
+
       real(wp), intent(in) :: mut, r1, r2
       real(wp), intent(inout) :: d(6)
 
@@ -807,7 +833,7 @@ contains
          if (d(j) .lt. 0) d(j) = d(j) + pi2   !To not get larger than 360°
       end do
 
-   end subroutine
+   end subroutine rand6
 
 ! integer random number n=<irand<=1
    subroutine irand(n, k)
@@ -821,7 +847,7 @@ contains
       k = int(nx)
       if (k .gt. n) k = n
 
-   end subroutine
+   end subroutine irand
 
    subroutine crossover(r, d)
       real(wp), intent(in) :: r
@@ -839,11 +865,11 @@ contains
          end if
       end do
 
-   end subroutine
+   end subroutine crossover
 
 ! sorts
    subroutine sort6(n, e)
-      implicit none
+
       integer, intent(in) :: n
       real(wp), intent(inout) :: e(7, n)
 
@@ -862,84 +888,12 @@ contains
          e(1:7, i) = ftmp(1:7, ind(i))
       end do
 
-   end subroutine
-
-! read stuff
-   subroutine rd0(ii, fname, n, nlmo)
-      implicit none
-      character(len=*), intent(in) :: fname
-      integer, intent(in) :: ii
-      integer, intent(out) :: n, nlmo
-
-      character(len=80) :: atmp
-      integer :: i
-
-      open (unit=1, file=fname)
-      read (1, *) n
-      do i = 1, n
-         read (1, '(a)') atmp
-      end do
-      read (1, *) nlmo
-      close (1)
-      write (*, '('' System'',i0,'': Nat:'',i0,'' Nlmo:'',i0)')&
-     & ii, n, nlmo
-
-   end subroutine
-
-   subroutine rd(fname, mol, n, xyz, at, nlmo, lmo, rlmo, q, qct)
-      implicit none
-      character(len=*), intent(in) :: fname
-      integer, intent(in) :: mol
-      integer, intent(inout) :: n, nlmo
-      integer, intent(out) :: at(n), lmo(n*10)
-      real(wp), intent(out) :: xyz(3, n), q(n), rlmo(4, n*10), qct(n, 2)
-
-      real(wp) :: tmp(4)
-      logical :: gbsa
-
-      character(len=80) :: atmp
-      integer :: i, j, l, k, nn
-      real(wp) :: xx(10)
-
-      dipol(mol) = 0
-      elumo(mol) = 1.d+42
-      ehomo(mol) = -1.d+42
-
-      open (unit=1, file=fname)
-      read (1, *) n
-      do i = 1, n
-         read (1, *) at(i), xyz(1:3, i), q(i)
-      end do
-      read (1, '(a)') atmp
-      call readl(atmp, xx, nn)
-      nlmo = idint(xx(1))
-      dipol(mol) = xx(2)
-      elumo(mol) = xx(3)
-      ehomo(mol) = xx(4)
-      !extb (mol)=xx(5)
-
-      k = 0
-      do i = 1, nlmo
-         read (1, *) l, tmp(1:3)
-         if (l .gt. 0) then
-            k = k + 1
-            rlmo(1:3, k) = tmp(1:3)
-            lmo(k) = l             ! sig = 1, LP =2, pi=3, deloc pi=4
-         end if
-      end do
-      nlmo = k
-
-      read (1, '(10F10.6)') (qct(i, 1), i=1, n)  !HOMO
-      read (1, '(10F10.6)') (qct(i, 2), i=1, n)  !LUMO
-
-      close (1)
-
-   end subroutine
+   end subroutine sort6
 
 ! write complex coord file
    subroutine wrlmocoord(fname, n1, n2, xyz1, xyz2, at1, at2, nlmo1, nlmo2,&
   &                      lmo1, lmo2, rlmo1, rlmo2)
-      implicit none
+
       character(len=*), intent(in) :: fname
       integer, intent(in) :: n1, nlmo1, at1(n1), lmo1(n1*10)
       integer, intent(in) :: n2, nlmo2, at2(n2), lmo2(n2*10)
@@ -965,7 +919,7 @@ contains
       write (32, '(''$end'')')
       close (32)
 
-   end subroutine
+   end subroutine wrlmocoord
 
    ! recursively split molecule xyz,at into non-cov. bound fragments
    subroutine mrec(molcount, xyz, nat, at, molvec)
@@ -976,7 +930,6 @@ contains
       ! at: atomic number array
       ! molvec: assignment vector of atom to fragment
 
-      implicit none
       real(wp), intent(in) :: xyz(3, nat)
       integer, intent(in) :: nat, at(nat)
       integer, intent(out) :: molvec(nat), molcount
@@ -1000,11 +953,11 @@ contains
          end if
       end do
       molcount = molcount - 1
-   end subroutine
+   end subroutine mrec
 
    recursive subroutine neighbours(i, xyz, iat, taken, nat, cn, bond,&
         &                                molvec, molcnt)
-      implicit none
+
       real(wp), intent(in) :: xyz(3, nat)
       real(wp), intent(inout) :: cn(nat), bond(nat, nat)
       integer, intent(in) :: i, nat, molcnt
@@ -1028,11 +981,11 @@ contains
             call neighbours(j, xyz, iat, taken, nat, cn, bond, molvec, molcnt)
          end if
       end do
-   end subroutine
+   end subroutine neighbours
 
    ! compute coordination numbers by adding an inverse damping function
    subroutine xcoord(natoms, iz, xyz, cn, bond)
-      implicit none
+
       integer, intent(in) :: iz(natoms), natoms
       real(wp), intent(in) :: xyz(3, natoms)
       real(wp), intent(out) :: bond(natoms, natoms), cn(natoms)
@@ -1048,10 +1001,10 @@ contains
          cn(i) = xn
       end do
 
-   end subroutine
+   end subroutine xcoord
 
    subroutine xdamp(natoms, i, xyz, iz, rcv, xn, bond)
-      implicit none
+
       integer, intent(in) :: natoms, iz(natoms), i
       real(wp), intent(in) :: xyz(3, natoms), rcv(94)
       real(wp), intent(out) :: bond(natoms, natoms), xn
@@ -1075,10 +1028,10 @@ contains
          xn = xn + damp
       end do
 
-   end subroutine
+   end subroutine xdamp
 
    subroutine valel(z)
-      implicit none
+
       real(wp), intent(out) :: z(86)
       z(1) = 1.0
       z(2) = 2.0
@@ -1167,11 +1120,9 @@ contains
       z(85) = 7.0
       z(86) = 8.0
 
-   end subroutine
+   end subroutine valel
 
    subroutine get_mol(istart, iend, comb, mol)
-      use xtb_type_molecule, only: TMolecule, init
-      implicit none
 
       integer, intent(in) :: istart, iend
 
@@ -1198,30 +1149,34 @@ contains
       deallocate (at, xyz)
    end subroutine get_mol
 
-   subroutine split_mol(molA, molB, comb)
-      use xtb_type_molecule, only: TMolecule, init
-      implicit none
+   subroutine split_mol(molA, molB, size_list, list, comb)
 
       type(TMolecule), intent(in) :: comb
+      integer, intent(in) :: size_list, list(size_list)
 
       type(TMolecule), intent(inout) :: molA, molB
 
       integer :: at1(molA%n), at2(molB%n)
+      integer :: i
       real(wp) :: xyz1(3, molA%n), xyz2(3, molB%n)
 
-      at1 = comb%at(1:molA%n)
-      xyz1(1:3, :) = comb%xyz(1:3, 1:molA%n)
-      call init(molA, at1, xyz1)
+      do i=1, comb%n
+         if(any(list == i)) then
+            at1 = comb%at(1:molA%n)
+            xyz1(1:3, :) = comb%xyz(1:3, 1:molA%n)
+         else
+            at2 = comb%at(molA%n + 1:molA%n + molB%n)
+            xyz2(1:3, :) = comb%xyz(1:3, molA%n + 1:molA%n + molB%n)
+         end if
+      end do
 
-      at2 = comb%at(molA%n + 1:molA%n + molB%n)
-      xyz2(1:3, :) = comb%xyz(1:3, molA%n + 1:molA%n + molB%n)
+      call init(molA, at1, xyz1)
       call init(molB, at2, xyz2)
+
    end subroutine split_mol
 
    subroutine combine_mol(comb, molA, molB)
-      use xtb_type_molecule, only: TMolecule, init
 
-      implicit none
       !> Molecular structure data
       type(TMolecule), intent(in) :: molA, molB
       type(TMolecule), intent(inout) :: comb

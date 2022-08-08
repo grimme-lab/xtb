@@ -24,19 +24,22 @@ module xtb_iff_calculator
    use xtb_type_restart
    use xtb_iff_data, only: TIFFData
    use xtb_type_data, only: scc_results
+   use xtb_iff_iffenergy, only: iff_e
+   use xtb_docking_param
+   use xtb_iff_iffini, only : init_iff
 
    implicit none
 
    private
 
-   public :: TIFFCalculator,newIFFCalculator
+   public :: TIFFCalculator, newIFFCalculator
 
    !> Calculator interface for xTB based methods
    type, extends(TCalculator) :: TIFFCalculator
 
       type(TIFFData) :: dat
 
-contains
+   contains
 
       !> Perform xTB single point calculationV
       procedure :: singlepoint
@@ -51,19 +54,16 @@ contains
 
 contains
 
-   subroutine newIFFCalculator(env, comb, calc)
-
-      use xtb_docking_param
-      use xtb_type_environment, only : TEnvironment
-      use xtb_type_molecule, only : TMolecule
-      use xtb_iff_iffini, only : init_iff!, precomp
-      use xtb_iff_data, only : TIFFData
+   subroutine newIFFCalculator(env, comb, iff_data, calc)
 
       character(len=*), parameter :: source = 'main_setup_newIFFCalculator'
 
       type(TEnvironment), intent(inout) :: env
 
-      type(TMolecule), intent(in) :: comb!Combined structure of molA and molB (molA has to be first)
+      !> Combined structure of molA and molB (molA has to be first)
+      type(TMolecule), intent(in) :: comb
+
+      type(TIFFData), intent(in) :: iff_data
 
       type(TIFFCalculator), intent(out) :: calc
 
@@ -77,18 +77,7 @@ contains
 
       call set_iff_param
       call calc%dat%allocateIFFData(natom_molA,comb%n-natom_molA)
-
-      fnam='xtblmoinfA'
-      call rd0(1,trim(fnam),calc%dat%n1,calc%dat%nlmo1)
-      call rd(trim(fnam),1,calc%dat%n1,calc%dat%xyz1,calc%dat%at1&
-         &,calc%dat%nlmo1,calc%dat%lmo1,calc%dat%rlmo1,calc%dat%q1,&
-         & calc%dat%qct1)
-
-      fnam='xtblmoinfB'
-      call rd0(2,trim(fnam),calc%dat%n2,calc%dat%nlmo2)
-      call rd(trim(fnam),2,calc%dat%n2,calc%dat%xyz2,calc%dat%at2,&
-         & calc%dat%nlmo2,calc%dat%lmo2,calc%dat%rlmo2,calc%dat%q2,&
-         & calc%dat%qct2)
+      calc%dat = iff_data
 
       xyz=calc%dat%xyz2
       rlmo2=calc%dat%rlmo2
@@ -115,8 +104,6 @@ contains
 
    subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          & energy, gradient, sigma, hlgap, results)
-
-      use xtb_iff_iffenergy, only: iff_e
 
       !> Source of the generated errors
       character(len=*), parameter :: source = 'iff_calculator_singlepoint'
