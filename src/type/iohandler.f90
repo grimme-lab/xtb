@@ -135,12 +135,14 @@ subroutine pushBack(self, fileHandle)
    class(TIOHandler), intent(inout) :: self
    type(TFileHandle), intent(in) :: fileHandle
    type(TFileHandle), allocatable :: tmp(:)
-   integer :: n
+   integer :: n, istat
+   character(len=132) :: msg
 
    self%count = self%count + 1
    if (self%count > size(self%log)) then
       n = size(self%log)
-      call move_alloc(self%log, tmp)
+      call move_alloc(self%log, tmp, stat=istat, errmsg=msg)
+      write(*,*) 'istat=',istat,'   errmsg=',msg
       allocate(self%log(n + n/2 + 1))
       self%log(1:n) = tmp(1:n)
       deallocate(tmp)
