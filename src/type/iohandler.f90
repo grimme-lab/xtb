@@ -142,7 +142,7 @@ subroutine pushBack(self, fileHandle)
       n = size(self%log)
       call move_alloc(self%log, tmp)
       allocate(self%log(n + n/2 + 1))
-      self%log(1:n) = tmp
+      self%log(1:n) = tmp(1:n)
       deallocate(tmp)
    end if
    self%log(self%count) = fileHandle
