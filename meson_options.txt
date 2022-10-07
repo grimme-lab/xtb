@@ -18,8 +18,8 @@
 option(
   'la_backend',
   type: 'combo',
-  value: 'qmkl-static',
-  choices: ['qmkl', 'qmkl-rt', 'qmkl-static', 'openblas', 'netlib', 'custom'],
+  value: 'mkl-static',
+  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
   description: 'Linear algebra backend for program.',
 )
 option(
