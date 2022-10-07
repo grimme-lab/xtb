@@ -140,7 +140,9 @@ subroutine pushBack(self, fileHandle)
    self%count = self%count + 1
    if (self%count > size(self%log)) then
       n = size(self%log)
-      call move_alloc(self%log, tmp)
+      allocate(tmp(n))
+      tmp=self%log
+      deallocate(self%log)
       allocate(self%log(n + n/2 + 1))
       self%log(1:n) = tmp
       deallocate(tmp)
