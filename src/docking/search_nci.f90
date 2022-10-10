@@ -123,7 +123,7 @@ contains
       real(wp) :: dx_rg, dy_rg, dz_rg, xx1_rg, yy1_rg, zz1_rg
       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
       real(wp) :: dum3(3, 3), dum2(3), dum(3), pmass, rmin, mvec(3, 14)
-      real(wp) :: rmsd(maxopt*(maxopt + 1)/2)
+      real(wp) :: rmsd(n_opt*(n_opt + 1)/2)
       real(wp) :: dx2, dy2, dz2
       real*4   :: r4
       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
@@ -205,7 +205,7 @@ contains
       write (env%unit, '('' Method for final opts.    :'',1x,a  )') optlvl
       write (env%unit, '('' # of genetic optimizations:'',1x,i0  )') maxgen
       write (env%unit, '('' # of parents              :'',1x,i0  )') maxparent
-      write (env%unit, '('' # of final geo. opts.     :'',1x,i0  )') maxopt
+      write (env%unit, '('' # of final geo. opts.     :'',1x,i0  )') n_opt
       write (env%unit, '('' Rare gas grid step size   :'',F8.2)') stepr
       write (env%unit, '('' ang step size /deg        :'',F8.2)') stepa
       write (env%unit, '('' # angular grid points     :'',1x,i0  )') (360/int(stepa))**3
@@ -825,10 +825,10 @@ contains
 
          av = sum(found(7, 1:maxparent))/float(maxparent)
          sig = 0
-         do i = 1, maxopt
+         do i = 1, n_opt
             sig = sig + (found(7, i) - av)**2
          end do
-         sig = sqrt(sig/float(maxopt - 1))
+         sig = sqrt(sig/float(n_opt - 1))
          write(*,'(4x,i0,7x,F7.1,5x,F8.1,5x)')&
          &icycle, found(7, 1), av
          if (sig .lt. 0.3d0) exit
@@ -839,11 +839,11 @@ contains
 
       !> Check if ensemble runtype is requested
       if (docking_ens) then
-         maxopt = 0
+         n_opt = 0
          do i = 1, ii
             !> Increase number of optimizations for each structure with an Eint of lower than -0.1 kcal/mol
             if (found(7, i) < -0.1) then
-               maxopt = maxopt + 1
+               n_opt = n_opt + 1
             else
                exit
             end if
@@ -861,16 +861,16 @@ contains
       set%opt_logfile = 'final_opt.xyz'
 
       if (pocket_grid) then !include pocket search
-         allocate (xyz_opt(3, n, maxopt + kk), source=0.0_wp)
-         allocate (final_e(maxopt + kk), source=0.0_wp)
+         allocate (xyz_opt(3, n, n_opt + kk), source=0.0_wp)
+         allocate (final_e(n_opt + kk), source=0.0_wp)
       else
-         allocate (xyz_opt(3, n, maxopt), source=0.0_wp)
-         allocate (final_e(maxopt), source=0.0_wp)
+         allocate (xyz_opt(3, n, n_opt), source=0.0_wp)
+         allocate (final_e(n_opt), source=0.0_wp)
       end if
 
       write (*, *)
-      write (*, '(''Optimizing '',i0,'' best structures with '',a )') maxopt, optlvl
-      do icycle = 1, maxopt
+      write (*, '(''Optimizing '',i0,'' best structures with '',a )') n_opt, optlvl
+      do icycle = 1, n_opt
          found_tmp = found2(1:6, icycle)
          call move2(molB%n, molB%xyz, xyz_tmp, found_tmp) !return xyz_tmp that is with found_tmp transformed molB%xyz
          do j = 1, molA%n
@@ -927,19 +927,19 @@ contains
       !> Include pocket structure if present
       if (pocket_grid) then
          do k = 1, kk
-            final_e(maxopt + k) = pocket_e(k)
+            final_e(n_opt + k) = pocket_e(k)
             do j = 1, comb%n
                do i = 1, 3
-                  xyz_opt(i, j, maxopt + k) = xyz_pocket(i, j, k)
+                  xyz_opt(i, j, n_opt + k) = xyz_pocket(i, j, k)
                end do
             end do
          end do
       end if
 
       !>Sorting strucutures
-      call sortxyz_e(n, maxopt+kk, final_e, xyz_opt)
+      call sortxyz_e(n, n_opt+kk, final_e, xyz_opt)
       call open_file(ifinal, 'final_structures.xyz', 'w')
-      do i = 1, maxopt + kk !kk=0 if no pocket search
+      do i = 1, n_opt + kk !kk=0 if no pocket search
          write (ifinal, '(i0)') comb%n
          write (ifinal, '(f20.14)') final_e(i)
          do j = 1, comb%n
@@ -966,9 +966,12 @@ contains
       write (env%unit, *) '  ---------------------------'
       write (env%unit, *) 'Attention: monomers are not optimized'
       write (env%unit, *) 'Interaction energies are not physical'
-      write (env%unit, *) '  #   E_int (kcal/mol)'
+      write(*,*) 
+      write (env%unit, '(2x,''Lowest Interaction Energy:'',1x, F10.2, 1x, ''kcal/mol'' )') &
+              & (final_e(1) - molA_e - molB_e)*au
 
-      do i = 1, maxopt + kk
+      write (env%unit, *) ' #   E_int (kcal/mol)'
+      do i = 1, n_opt + kk
          E_int = (final_e(i) - molA_e - molB_e)*au
          write (*, '(2x,i0,3x,F10.2)') i, E_int
       end do

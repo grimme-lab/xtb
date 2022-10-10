@@ -37,7 +37,7 @@ module xtb_sphereparam
 
    integer  :: maxwalls = 0
 
-!  old, not needed anymore
+!  old, only needed for QCG mode of docking
    real(wp) :: boxr = -1.0_wp
    real(wp) :: rabc(3) = (/-1.0_wp,-1.0_wp,-1.0_wp/)
    integer  :: sphere = -1

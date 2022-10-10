@@ -20,7 +20,8 @@ module xtb_iff_iffenergy
    use xtb_type_environment, only: TEnvironment
    use xtb_docking_param
    !use xtb_sphereparam
-   use xtb_sphereparam, only : sphere_alpha, wpot, polynomial_cavity_list, sphere, cavity_egrad
+   use xtb_sphereparam, only : sphere_alpha, wpot, polynomial_cavity_list, sphere, cavity_egrad,&
+           & cavitye, maxwalls, rabc, sphere
    implicit none
 
    private
@@ -279,11 +280,23 @@ contains
 
 !     Cavity Energies (For Wall Potentials)
       esph = 0.0_wp
-      at(1:n1) = at1(1:n1)
-      at(n1+1:n) = at2(1:n2)
-      xyz(1:3, 1:n1) = A1(1:3, 1:n1)
-      xyz(1:3, n1+1:n) = A2(1:3, 1:n2)
-      call cavity_egrad(n, at, xyz, esph, cavgrad)
+      if(qcg) then
+         do i=1, maxwalls
+            if(.not. allocated(wpot(i)%list)) then
+               rabc(1:3) = wpot(i)%radius(1:3)
+               exit
+            end if
+         end do
+         sphere = 2
+         call cavitye(n1,A1,esph)
+         call cavitye(n2,A2,esph)
+      else
+         at(1:n1) = at1(1:n1)
+         at(n1+1:n) = at2(1:n2)
+         xyz(1:3, 1:n1) = A1(1:3, 1:n1)
+         xyz(1:3, n1+1:n) = A2(1:3, 1:n2)
+         call cavity_egrad(n, at, xyz, esph, cavgrad)
+     end if
 
       !> Final Energies
       ep = ep*par_rep_scal + ep2*par_xh2*0.01

@@ -170,6 +170,7 @@ contains
       logical, save :: set3 = .true.
       logical, save :: set4 = .true.
       logical, save :: set5 = .true.
+      logical, save :: set6 = .true.
       select case (key)
       case default ! do nothing
         call env%warning("the key '"//key//"' is not recognized by scc", source)
@@ -188,7 +189,7 @@ contains
          end if
          set2 = .false.
       case ('nfinal')
-         if (getValue(env, val, idum) .and. set3) maxopt = idum
+         if (getValue(env, val, idum) .and. set3) n_opt = idum
          set3 = .false.
       case ('maxgen')
          if (getValue(env, val, idum) .and. set4) maxgen = idum
@@ -196,6 +197,9 @@ contains
       case ('maxparent')
          if (getValue(env, val, idum) .and. set5) maxparent = idum
          set5 = .false.
+      case ('nstack')
+         if (getValue(env, val, idum) .and. set6) mxcma = idum
+         set6 = .false.
       end select
    end subroutine set_docking
 
@@ -340,14 +344,25 @@ contains
       case ('atm')
          if (set7) fulle = .true.
          set7 = .false.
-      case ('fast', 'qcg')
+      case ('fast')
          if (set8) then
-            maxparent = 28      ! # of parents in gene pool 100
+            maxparent = 30      ! # of parents in gene pool 100
             maxgen = 7          ! # of generations 10
             mxcma = 250         ! R points in CMA search 1000
             stepr = 4.0         ! R grid step in Bohr 2.5
             stepa = 60          ! angular grid size in deg. 45
-            maxopt = 4          ! # of final grad opts 15
+            n_opt = 4          ! # of final grad opts 15
+         end if
+         set8 = .false.
+      case('qcg')
+         if (set8) then
+            maxparent = 50      ! # of parents in gene pool 100
+            maxgen = 7          ! # of generations 10
+!            mxcma = 250         ! R points in CMA search 1000
+!            stepr = 4.0         ! R grid step in Bohr 2.5
+!            stepa = 60          ! angular grid size in deg. 45
+            n_opt = 5          ! # of final grad opts 15
+            qcg = .true.
          end if
          set8 = .false.
       case ('noind')

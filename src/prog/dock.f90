@@ -192,7 +192,11 @@ contains
       write (env%unit, *) ' Successful'
 
       !> Special Docking CMA shift
-      call cmadock(molA%n, molA%n, molA%at, molA%xyz, r)
+      if (nfrag1 .eq. 0) then
+         call cmadock(molA%n, molA%n, molA%at, molA%xyz, r)
+      else
+         call cmadock(nfrag1, molA%n, molA%at, molA%xyz, r)
+      end if
       do i = 1, 3
          molA%xyz(i, 1:molA%n) = molA%xyz(i, 1:molA%n) - r(i)
       end do
@@ -387,8 +391,11 @@ contains
          case ('--org')
             call set_logicals(env, 'org')
 
-         case ('--qcg ', '--fast')  ! fast version
+         case ('--fast')  ! fast version
             call set_logicals(env, 'fast')
+
+         case ('--qcg')
+            call set_logicals(env, 'qcg')
 
          case ('--noind')
             call set_logicals(env, 'noind')
@@ -437,6 +444,14 @@ contains
                call set_docking(env, 'maxparent', sec)
             else
             call env%error("Maxparent in --maxparent option is missing", source)
+            end if
+
+         case ('--nstack')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_docking(env, 'nstack', sec)
+            else
+            call env%error("Argument in --nstack option is missing", source)
             end if
 
          case ('--etemp')
@@ -641,7 +656,7 @@ contains
       write (unit, '(a)') &
          "      -----------------------------------------------------------", &
          "     |                   =====================                   |", &
-         "     |                          g I S S                          |", &
+         "     |                          a I S S                          |", &
          "     |                   =====================                   |", &
          "     |               S. Ehlert, S. Grimme, C.Plett               |", &
          "     |          Mulliken Center for Theoretical Chemistry        |", &
@@ -734,8 +749,9 @@ contains
     "    --nfinal <INT>    : Number of structures that are finally optimized", &
          "    --optlvl <method> : Defines the Method of final optimizations", &
          "    --maxgen <INT>    : Number of structure generation cycles", &
+         "    --nstack <INT>    : Number of grid points in one direction of stack search", &
          "    --maxparent <INT> : Number of parents for structure generation", &
-        "    --cs              : Decreases the computational costs, if first", &
+         "    --cs              : Decreases the computational costs, if first", &
          "                        geometry is CS symmetric", &
          !   "    --sphere <REAL>   : Spherical wall potential with radius",&
          !   "    --ellips <REAL> <REAL> <REAL> : Ellipsoid wall potential given",&

@@ -177,7 +177,6 @@ contains
       end do
 
       !> All C6 and alp0 coefficients for molA and molB
-      write(*,*) n,at,xyz,cn
       call ncoord_d4(n, at, xyz, cn, 500.d0)
       call c6_alp0(n, at, xyz, cn, q, alp0, c6ab)
       c6aad4 = 0

@@ -64,7 +64,7 @@ module xtb_docking_param
    integer :: probe_atom_type = 36
 
    !> # of final geo. opts
-   integer :: maxopt = 15         
+   integer :: n_opt = 15 
 
    !> Mode
    integer :: mode = 0            
@@ -135,9 +135,11 @@ module xtb_docking_param
    integer, parameter :: p_atom_pot = 2
    !> Attractive atom-centered potential
    integer, parameter :: p_atom_att = 3 
-   !Wall pot for directed docking (didn't work so far)
+   !Wall pot for directed docking
    integer, parameter :: p_wall_pot = 1 
    integer :: place_wall_pot
+   !QCG mode (special treatment of wall potentials)
+   logical :: qcg = .false.
 
    !> Drude
    real(wp) :: gam(94)
