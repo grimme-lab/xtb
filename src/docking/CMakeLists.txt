@@ -1,6 +1,6 @@
 # This file is part of xtb.
 #
-# Copyright (C) 2019-2020 Sebastian Ehlert
+# Copyright (C) 2022 Sebastian Ehlert, Christoph Plett
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
@@ -17,15 +17,10 @@
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
-list(APPEND prog
-  "${dir}/argparser.f90"
-  "${dir}/dock.f90"
-  "${dir}/info.f90"
-  "${dir}/main.F90"
-  "${dir}/primary.f90"
-  "${dir}/submodules.f90"
-  "${dir}/thermo.f90"
-  "${dir}/topology.f90"
+list(APPEND srcs
+  "${dir}/param.f90"
+  "${dir}/search_nci.f90"
+  "${dir}/set_module.f90"
 )
 
-set(prog ${prog} PARENT_SCOPE)
+set(srcs ${srcs} PARENT_SCOPE)

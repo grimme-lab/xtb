@@ -67,6 +67,7 @@ module xtb_prog_main
    use xtb_screening, only : screen
    use xtb_xtb_calculator
    use xtb_gfnff_calculator
+   use xtb_iff_calculator, only : TIFFCalculator
    use xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
@@ -85,6 +86,8 @@ module xtb_prog_main
    use xtb_gfnff_convert, only : struc_convert
    use xtb_scan
    use xtb_kopt
+   use xtb_iff_iffprepare, only : prepare_IFF
+   use xtb_iff_data, only : TIFFData
    use xtb_oniom, only : oniom_input, TOniomCalculator
    implicit none
    private
@@ -112,6 +115,7 @@ subroutine xtbMain(env, argParser)
    type(freq_results) :: fres
    type(TRestart) :: chk
    type(chrg_parameter) :: chrgeq
+   type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -503,10 +507,17 @@ subroutine xtbMain(env, argParser)
       end select
    endif
 
+   !-------------------------------------------------------------------------
+   !> Perform a precomputation of electronic properties for xTB-IFF
+   if(set%mode_extrun == p_ext_iff) then
+      allocate(iff_data)
+      call prepare_IFF(env, mol, iff_data)
+      call env%checkpoint("Could not generate electronic properties")
+   end if
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
-   call newCalculator(env, mol, calc, fnv, restart, acc, oniom)
+   call newCalculator(env, mol, calc, fnv, restart, acc, oniom, iff_data)
    call env%checkpoint("Could not setup single-point calculator")
 
    call initDefaults(env, calc, mol, gsolvstate)
@@ -1126,6 +1137,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    !> Input for ONIOM model
    type(oniom_input), intent(out) :: oniom
 
+   !> Stuff for second argument parser
+!   integer  :: narg
+!   character(len=p_str_length), dimension(p_arg_length) :: argv
+!   type(TAtomList) :: atl
+!   integer, allocatable :: list(:)
+
 !$ integer :: omp_get_num_threads, nproc
    integer :: nFlags
    integer :: idum, ndum
@@ -1296,6 +1313,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       
       case('--gff')
          call set_exttyp('ff')
+
+      case('--iff')
+         call set_exttyp('iff')
 
       case('--oniom')
          call set_exttyp('oniom')
@@ -1569,6 +1589,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_opt(env,'optlevel',sec)
+         end if
+
+      case('--nat')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_natom(env,sec)
          end if
 
       case('--bias-input', '--gesc')

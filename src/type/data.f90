@@ -18,6 +18,7 @@
 module xtb_type_data
    use xtb_mctc_accuracy, only : wp
    use xtb_type_pcem
+   use xtb_iff_data, only : TIFFData
 
    implicit none
 
@@ -25,6 +26,35 @@ module xtb_type_data
    public :: freq_results
 
    private
+
+   type :: TIFFResults
+      !> Number of atoms
+      integer :: n       
+      !> Ordinary numbers
+      integer, allocatable :: at(:)
+      !> Coordinates 
+      real(wp), allocatable :: xyz(:, :)
+      !> Charges
+      real(wp), allocatable :: q(:)
+      !> Number of LMOs 
+      integer :: nlmo
+      !> LMO positions 
+      real(wp), allocatable :: rlmo(:, :)
+      !> LMO values
+      integer, allocatable :: lmo(:)
+      !> Charge related stuff
+      real(wp), allocatable :: qct(:, :)
+      !> HOMO, LUMO, Dipol
+      real(wp) :: elumo
+      real(wp) :: ehomo
+      real(wp) :: dipol
+
+   contains
+
+      procedure :: delete
+      procedure :: allocateIFFResults
+
+   end type TIFFResults
 
    type :: scc_results
       real(wp) :: e_atom = 0.0_wp
@@ -54,6 +84,7 @@ module xtb_type_data
       real(wp) :: e_hb = 0.0_wp
       real(wp) :: e_batm = 0.0_wp
       real(wp) :: e_ext = 0.0_wp
+      type(TIFFResults), allocatable :: iff_results
    end type scc_results
 
    type freq_results
@@ -83,6 +114,27 @@ module xtb_type_data
    end type freq_results
 
 contains
+   
+subroutine delete(self)
+   class(TIFFResults), intent(out) :: self
+   if (allocated(self%at)) deallocate (self%at)
+   if (allocated(self%xyz)) deallocate (self%xyz)
+   if (allocated(self%q)) deallocate (self%q)
+   if (allocated(self%lmo)) deallocate (self%lmo)
+   if (allocated(self%rlmo)) deallocate (self%rlmo)
+   if (allocated(self%qct)) deallocate (self%qct)
+end subroutine delete
+
+subroutine allocateIFFResults(self, n)
+   use xtb_type_molecule, only: TMolecule
+   class(TIFFResults), intent(out) :: self
+   integer, intent(in) :: n
+   self%n = n
+   allocate(self%at(n), self%lmo(10*n), source = 0)
+
+   allocate(self%xyz(3,n), self%q(n), self%rlmo(4,10*n),&
+           & self%qct(n,2), source= 0.0_wp)
+end subroutine allocateIFFResults
 
 subroutine allocate_freq_results(self,n)
    implicit none

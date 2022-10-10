@@ -31,6 +31,8 @@ subroutine lopt(init, n, no, accr, op, d)
    !     sum(k) op(ij,k)*(op(ii,k)-op(jj,k)) = 0 all i.ne.j
    !
    use xtb_mctc_accuracy, only : wp
+   use xtb_setparam
+
    implicit real(wp)(a-h,o-z)
 
    logical init
@@ -75,7 +77,7 @@ subroutine lopt(init, n, no, accr, op, d)
    !     set d to unit matrix
    !
    if(init)then
-      write(*,*) 'initialization of trafo matrix to unity'
+      if(set%pr_local) write(*,*) 'initialization of trafo matrix to unity'
       do i=1,n
          do j=1,n
             10              d(j,i)=a0-accr*i+accr*i*j
@@ -228,16 +230,16 @@ subroutine lopt(init, n, no, accr, op, d)
       if (thsw.le.th) go to 210
       ths=dmin1(thsw**2,ths*aqu)
       ths=dmax1(th,ths)
-      if(mod(isw,50).eq.0)&
+      if(mod(isw,50).eq.0 .AND. set%pr_local)&
          &write(*,'(''iteration'',i7,2x,''convergence'',d16.8)')isw,thsw
       200 continue
    end do
-   write (*,300) isw,thsw
+   if(set%pr_local) write (*,300) isw,thsw
    return
-   210 write (*,310) isw,thsw
+   210 if(set%pr_local) write (*,310) isw,thsw
 
    return
    300 format (/' not converged in',i7,' iterations, threshold :',d16.8)
    310 format (/' converged in',i7,' iterations, threshold : ',d16.8)
-end subroutine
+end subroutine lopt
 
