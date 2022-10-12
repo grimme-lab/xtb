@@ -20,7 +20,7 @@ module xtb_solv_cosmo
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_blas, only : mctc_dot, mctc_gemv
    use xtb_mctc_constants, only : fourpi, pi
-   use xtb_mctc_convert, only : aatoau
+   use xtb_mctc_convert, only : aatoau, autoaa
    use xtb_mctc_search, only : bisectSearch
    use xtb_param_vdwradd3, only : getVanDerWaalsRadD3
    use xtb_solv_ddcosmo_core
@@ -109,6 +109,9 @@ module xtb_solv_cosmo
       !> Calculate derivatives of solvation energy
       procedure :: addGradient
 
+      !> Write cavity information as cosmo file
+      procedure :: writeCosmoFile
+
    end type TCosmo
 
 
@@ -158,7 +161,7 @@ subroutine initCosmo(self, env, num, dielectricConst, nAng, radScale, vdwRad, &
    integer, intent(in) :: nAng
 
    !> Scale van-der-Waals radii
-   real(wp), intent(in) :: radScale
+   real(wp), intent(in) :: radScale 
 
    !> Van-der-Waals Radii
    real(wp), intent(in) :: vdwRad(:)
@@ -822,5 +825,132 @@ subroutine update_nnlist_sasa(nat, xyz, srcut, nnsas, nnlists)
 
 end subroutine update_nnlist_sasa
 
+!> Write a COSMO file output
+subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
+
+   !> COSMO container
+   class(TCosmo), intent(in) :: self
+
+   !> Formatted unit for output
+   integer, intent(in) :: unit
+
+   !> Atomic numbers for each atom
+   integer, intent(in) :: num(:)
+
+   !> Element symbols for each atom
+   character(len=*), intent(in) :: sym(:)
+
+   !> Atomic coordinates
+   real(wp), intent(in) :: xyz(:,:)
+
+   !> Atomic partial charges
+   real(wp), intent(in) :: qat(:)
+
+   !> Total energy
+   real(wp), intent(in) :: energy
+
+   integer :: ii, ig, iat
+   real(wp) :: dielEnergy, keps
+   real(wp), allocatable :: phi(:), zeta(:), area(:)
+
+   allocate(phi(self%ddCosmo%ncav), zeta(self%ddCosmo%ncav), area(self%ddCosmo%ncav))
+   ! Reset potential on the cavity, note that the potential is expected in e/Å
+   call getPhi(qat, self%jmat, phi)
+   ii = 0
+   do iat = 1, self%ddCosmo%nat
+      do ig = 1, self%ddCosmo%ngrid
+         if (self%ddCosmo%ui(ig, iat) > 0.0_wp) then
+            ii = ii + 1
+            ! Calculate surface charge per area
+            zeta(ii) = self%ddCosmo%w(ig) * self%ddCosmo%ui(ig, iat) &
+               & * dot_product(self%ddCosmo%basis(:, ig), self%s(:, iat))
+            ! Save surface area in Ångström²
+            area(ii) = self%ddCosmo%w(ig) * autoaa**2 * self%rvdw(iat)**2
+         end if
+      end do
+   end do
+
+
+    ! Dielectric energy is the energy on the dielectric continuum
+   keps = 0.5_wp * (1.0_wp - 1.0_wp/self%dielectricConst)
+   dielEnergy = keps * dot_product(zeta, phi)
+
+   write(unit, '(a)') &
+      & "$info", &
+      & "prog.: xtb"
+
+   write(unit, '(a)') &
+      & "$cosmo"
+   write(unit, '(2x, a:, "=", g0)') &
+      & "epsilon", self%dielectricConst
+
+   write(unit, '(a)') &
+      & "$cosmo_data"
+   write(unit, '(2x, a:, "=", g0)') &
+      & "fepsi", keps, &
+      & "area", sum(area)
+
+   write(unit, '(a)') &
+      & "$coord_rad", &
+      & "#atom   x                  y                  z             element  radius [A]"
+   do iat = 1, size(xyz, 2)
+      write(unit, '(i4, 3(1x, f18.14), 2x, a4, 1x, f9.5)') &
+         & iat, xyz(:, iat), sym(iat), self%rvdw(iat)*autoaa
+   end do
+
+   write(unit, '(a)') &
+      & "$coord_car", &
+      & "!BIOSYM archive 3", &
+   & "PBC=OFF", &
+      & "coordinates from COSMO calculation", &
+      & "!DATE"
+   do iat = 1, size(xyz, 2)
+      write(unit, '(a, i0, t5, 3(1x, f14.9), 1x, "COSM 1", 2(6x, a2), 1x, f6.3)') &
+         & trim(sym(iat)), iat, xyz(:, iat)*autoaa, sym(iat), sym(iat), 0.0_wp
+   end do
+   write(unit, '(a)') &
+      & "end", "end"
+
+   write(unit, '(a)') &
+      & "$screening_charge"
+   write(unit, '(2x, a:, "=", g0)') &
+      & "cosmo", sum(zeta), &
+      & "correction", 0.0_wp, &
+      & "total", sum(zeta)
+
+   write(unit, '(a)') &
+      & "$cosmo_energy"
+   write(unit, '(2x, a:, "=", f21.10)') &
+      & "Total energy [a.u.]            ", energy, &
+      & "Total energy + OC corr. [a.u.] ", energy, &
+      & "Total energy corrected [a.u.]  ", energy, &
+      & "Dielectric energy [a.u.]       ", dielEnergy, &
+      & "Diel. energy + OC corr. [a.u.] ", dielEnergy
+
+   write(unit, '(a)') &
+      & "$segment_information", &
+      & "# n             - segment number", &
+      & "# atom          - atom associated with segment n", &
+      & "# position      - segment coordinates [a.u.]", &
+      & "# charge        - segment charge (corrected)", &
+      & "# area          - segment area [A**2]", &
+      & "# potential     - solute potential on segment (A length scale)", &
+      & "#", &
+      & "#  n   atom              position (X, Y, Z)                   charge         area        charge/area     potential", &
+      & "#", &
+      & "#"
+
+   ii = 0
+   do iat = 1, self%ddCosmo%nat
+      do ig = 1, self%ddCosmo%ngrid
+         if (self%ddCosmo%ui(ig, iat) > 0.0_wp) then
+            ii = ii + 1
+            write(unit, '(2i5, 7(1x, f14.9))') &
+               & ii, iat, self%ddCosmo%ccav(:, ii), &
+               & zeta(ii), area(ii), zeta(ii)/area(ii), phi(ii)/autoaa
+         end if
+      end do
+   end do
+end subroutine writeCosmoFile
 
 end module xtb_solv_cosmo

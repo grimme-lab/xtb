@@ -147,6 +147,7 @@ module xtb_solv_model
    include 'param_alpb_ethanol.fh'
 
    include 'param_cosmo.fh'
+   include 'param_cosmo_inf.fh'
 
    !> Solvent density (g/cm^3) and molar mass (g/mol)
    real(wp), parameter :: molcm3toau = 8.92388e-2_wp
@@ -398,7 +399,7 @@ subroutine loadInternalParam(self, env, solvent, level)
             param%gamscale = stub%gamscale
          else if ((solvent .eq. "inf") .or. (solvent .eq. "infinity")) then
             self%paramFile = "internal GFN-xTB/COSMO"
-            param = gfn_cosmo
+            param = gfn_cosmo_inf
             param%epsv = ieee_value(param%epsv,ieee_positive_inf)
          else
             self%paramFile = "internal GFN-xTB/COSMO"
@@ -421,6 +422,7 @@ subroutine loadInternalParam(self, env, solvent, level)
       end if
 
    end select
+
    call paramToModel(self, param)
 
 end subroutine loadInternalParam
@@ -498,7 +500,7 @@ subroutine paramToModel(self, param)
    self%probeRad = param%rprobe * aatoau
 
    if (self%cosmo) then
-      self%vdwRad=vanDerWaalsRadCosmo
+      self%vdwRad=vanDerWaalsRadCosmo*param%sx
    else
       self%vdwRad=vanDerWaalsRadD3
    end if
