@@ -21,6 +21,7 @@ list(APPEND prog
   "${dir}/argparser.f90"
   "${dir}/dock.f90"
   "${dir}/info.f90"
+  "${dir}/irmod.f90"
   "${dir}/main.F90"
   "${dir}/primary.f90"
   "${dir}/submodules.f90"
