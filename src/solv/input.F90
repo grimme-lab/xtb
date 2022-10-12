@@ -49,7 +49,7 @@ module xtb_solv_input
       real(wp) :: temperature = 298.15_wp
 
       !> Number of grid points
-      integer :: nAng = 272
+      integer :: nAng = 230
 
       !> Ion strength
       real(wp) :: ionStrength = 0.0_wp
