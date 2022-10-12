@@ -45,6 +45,9 @@ module xtb_prog_submodules
       !> Fragment docking
       integer :: dock = 5
 
+      !> IR spectra from DFTB+ output
+      integer :: ir = 6
+
    end type TSubmoduleEnum
 
    !> Actual enumerator for the submodules
@@ -78,6 +81,9 @@ function getSubmodule(argument) result(submod)
 
    case('dock')
       submod = xtbSubmodule%dock
+
+   case('ir')
+      submod = xtbSubmodule%ir
 
    end select
 

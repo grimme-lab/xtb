@@ -23,6 +23,7 @@ program xtb_prog_primary
    use xtb_prog_main, only : xtbMain
    use xtb_prog_thermo, only : xtbThermo
    use xtb_prog_topology, only : xtbTopology
+   use xtb_prog_ir, only: xtbIR
    use xtb_prog_submodules
    use xtb_type_environment
 
@@ -71,6 +72,9 @@ program xtb_prog_primary
       !> Run the docking submodule
       call xtbDock(env, argParser)
 
+   case(xtbSubmodule%ir)
+      !> Run the IR submodule
+      call xtbIR(env, argParser)
    end select
 
 contains
