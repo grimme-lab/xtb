@@ -175,7 +175,7 @@ subroutine initCosmo(self, env, num, dielectricConst, nAng, radScale, vdwRad, &
    !> Offset for surface integration cutoff
    real(wp), intent(in) :: rOffset
 
-   integer :: igrid, stat, iat, izp, irad
+   integer :: igrid, stat, iat, izp
    real(wp) :: r
    real(wp), allocatable :: angGrid(:, :), angWeight(:)
    type(TDomainDecompositionInput) :: input
