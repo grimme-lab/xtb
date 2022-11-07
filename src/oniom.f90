@@ -259,6 +259,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       end select
       
       if (allocated(self%real_low%solvation)) then
+         allocate(self%model_low%solvation)
          self%model_low%solvation = self%real_low%solvation
       end if
       call env%check(exitRun)
@@ -306,6 +307,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       end select
       
       if (allocated(self%real_low%solvation)) then
+         
+         allocate(self%model_high%solvation)
          self%model_high%solvation = self%real_low%solvation
       end if
       call env%check(exitRun)
