@@ -37,8 +37,8 @@ module xtb_oniom
    public :: TOniomCalculator, newOniomCalculator, oniom_input
 
    type :: oniom_input
-      character(len=:), allocatable :: method
-      character(len=:), allocatable :: list
+      character(len=:), allocatable :: first_arg
+      character(len=:), allocatable :: second_arg
       character(len=:), allocatable :: chrg
    end type oniom_input
 
@@ -107,29 +107,38 @@ subroutine newOniomCalculator(self, env, mol, input)
    type(TGFFCalculator), allocatable :: gff
    integer :: icol
    integer :: i
+   
+   
+   !> Method identification
+   if (allocated(input%first_arg)) then
+      !! if methods specified
+      icol = index(input%first_arg, ':')
+      if (icol == 0) then
+         call env%error("Invalid method '"//input%first_arg//"' provided")
+         return
+      end if
+      self%method_high = string_to_id(input%first_arg(:icol - 1))
+      self%method_low = string_to_id(input%first_arg(icol + 1:))
+      if (self%method_high < 0 .or. self%method_high > 5) then
+         call env%error("Invalid inner method")
+         return
+      end if
+      if (self%method_low < 0 .or. self%method_low > 3) then
+         call env%error("Invalid outer method")
+         return
+      end if
+   else
+      !! default, gfn2:gfnff
+      self%method_high = 2
+      self%method_low = 3
+   end if
 
-   ! Method identification
-   icol = index(input%method, ':')
-   if (icol == 0) then
-      call env%error("Invalid method '"//input%method//"' provided")
-      return
-   end if
-   self%method_high = string_to_id(input%method(:icol - 1))
-   self%method_low = string_to_id(input%method(icol + 1:))
-   if (self%method_high < 0 .or. self%method_high > 5) then
-      call env%error("Invalid inner method")
-      return
-   end if
-   if (self%method_low < 0 .or. self%method_low > 3) then
-      call env%error("Invalid outer method")
-      return
-   end if
 
-   self%list = TAtomList(list=input%list)
+   self%list = TAtomList(list=input%second_arg)
    call self%list%to_list(self%idx)
 
    if (len(self%list) == 0) then
-      call env%error("No atoms in inner region '"//input%list//"'")
+      call env%error("No atoms in inner region '"//input%second_arg//"'")
       return
    end if
 
