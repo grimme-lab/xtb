@@ -34,7 +34,7 @@
 # directories
 /build*/
 /_*/
-/check/
+
 
 # files produces by the documentation
 man/*.pdf
@@ -59,7 +59,6 @@ xtbopt.sdf
 xtbopt.coord
 xtbopt.log
 
-release-build.sh
 
 # python build artefacts
 __pycache__/
