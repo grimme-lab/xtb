@@ -33,7 +33,7 @@ To use the default backend of meson you have to install [ninja](https://ninja-bu
 
 ```bash
 export FC=ifort CC=icc
-meson setup build --buildtype release --optimization 2
+meson setup build --buildtype release --optimization 2 -Dfortran_link_args="-qopenmp"
 ninja -C build test
 ```
 
