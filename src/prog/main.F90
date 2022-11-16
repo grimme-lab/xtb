@@ -1319,23 +1319,26 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--oniom')
          call set_exttyp('oniom')
-         call args%nextArg(sec) ! 'gfn2:gfnff'
-         if (.not.allocated(sec)) then
-            call env%error("No method provided for ONIOM", source)
-            cycle
-         end if
-         call move_alloc(sec, oniom%method)
+         call args%nextArg(sec) 
 
-         call args%nextArg(sec)
+         !> To handle no argument case
          if (.not.allocated(sec)) then
             call env%error("No inner region provided for ONIOM", source)
-            cycle
+            return
+         end if
+         call move_alloc(sec, oniom%first_arg)
+
+         call args%nextArg(sec)
+         if (.not.allocated(sec)) then 
+            call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
+            call move_alloc(oniom%first_arg, sec)
+            !return
          end if
          inquire(file=sec, exist=exist)
          if (exist) then
             sec = read_whole_file(sec)
          end if
-         call move_alloc(sec, oniom%list)
+         call move_alloc(sec, oniom%second_arg)
 
       case('--etemp')
          call args%nextArg(sec)
