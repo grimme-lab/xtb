@@ -296,7 +296,7 @@ int smallEmbeddingTestGFN1() {
 
   if (!check(grad[0], -0.001992796604, 1.0e-8, "grad[0] does not match"))
     goto error;
-  if (!check(grad[92], 0.000601316395, 1.0e-8, "grad[95] does not match"))
+  if (!check(grad[95], 0.000601316395, 1.0e-8, "grad[95] does not match"))
     goto error;
   
   if (!check(pcgrad[0], 0.000000366847, 1.0e-8, "pcgrad[0] does not match"))
