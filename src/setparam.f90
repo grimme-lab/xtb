@@ -357,7 +357,7 @@ module xtb_setparam
    ! pcharge input file
    character(len=:),allocatable :: pcem_file
    character(len=:),allocatable :: pcem_grad
-   logical  :: pcem_orca   = .true.
+   logical  :: pcem_orca   = .false.
 !  controls which interactions included in the Fockian depend on the
 !  external point charges
    logical  :: pcem_l_es   = .true.
