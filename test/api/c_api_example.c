@@ -227,6 +227,15 @@ int testSecond() {
                      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7};
 
   // results will live in here
+  double energy = 0.0;
+  double grad[3 * 31] = {
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
   double pcgrad[3 * 32] = {
       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -260,6 +269,14 @@ int testSecond() {
   if (xtb_checkEnvironment(env))
     goto error;
 
+  xtb_getEnergy(env, res, &energy);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_getGradient(env, res, grad);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
   xtb_getPCGradient(env, res, pcgrad);
   if (xtb_checkEnvironment(env))
     goto error;
@@ -273,9 +290,17 @@ int testSecond() {
   xtb_delete(mol);
   xtb_delete(env);
 
-  if (!check(pcgrad[0], 0.00000755, 1.0e-6, "pcgrad[0] does not match"))
+  if (!check(energy, -36.669892958754, 1.0e-9, "Energy does not match"))
     goto error;
-  if (!check(pcgrad[95], 0.00001312, 1.0e-6, "pcgrad[95] does not match"))
+
+  if (!check(grad[0], -0.001992161613, 1.0e-8, "grad[0] does not match"))
+    goto error;
+  if (!check(grad[92], 0.000556642950, 1.0e-8, "grad[92] does not match"))
+    goto error;
+
+  if (!check(pcgrad[0], 0.000007545625, 1.0e-8, "pcgrad[0] does not match"))
+    goto error;
+  if (!check(pcgrad[95], 0.000013117708, 1.0e-8, "pcgrad[95] does not match"))
     goto error;
 
   return 0;
