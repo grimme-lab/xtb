@@ -24,8 +24,8 @@ geometries, frequencies and non-covalent interactions (GFN)
 as well as with the ionisation potential and
 electron affinity (IPEA) parametrisation of the GFN1 Hamiltonian.
 The generalized born (GB) model with solvent accessable surface area (SASA)
-is also available available in this version.
-Ground state calculations for the simplified Tamm-Danceoff approximation (sTDA)
+is also available in this version.
+Ground state calculations for the simplified Tamm-Dancoff approximation (sTDA)
 with the vTB model are currently not implemented.
 
 GEOMETRY INPUT
@@ -421,7 +421,7 @@ After `xtb(1)` has evaluated the all input sources it immediately enters
 the production mode. Severe errors will lead to an abnormal termination
 which is signalled by the printout to STDERR and a non-zero return value
 (usually 128). All non-fatal errors are summerized in the end of the calculation
-in one block, right bevor the timing analysis.
+in one block, right before the timing analysis.
 
 To aid the user to fix the problems generating these warnings a brief
 summary of each warning with its respective string representation in the
@@ -460,4 +460,12 @@ Main web site: http://grimme.uni-bonn.de/software/xtb
 
 COPYING
 -------
-Copyright \(C) 2015-2018 S. Grimme. For non-commerical, academia use only.
+xtb is free software: you can redistribute it and/or modify it under
+the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+            
+xtb is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
