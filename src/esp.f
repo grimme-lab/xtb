@@ -129,7 +129,7 @@
       write(*,'('' estimated wall time (s) '',f6.1)') np*(w1-w0)/nproc
       write(*,*)'computing ESP ...'
 
-!$OMP  PARALLEL PRIVATE(i,rx,ry,rz,r,point)
+!$OMP  PARALLEL PRIVATE(i,j,rx,ry,rz,r,point)
 !$OMP& SHARED(espe,pa,basis)
 !$OMP& DEFAULT(SHARED)
 !$OMP DO
