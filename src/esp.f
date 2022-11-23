@@ -124,7 +124,7 @@
       call timing(t0,w0)
       point=0
       call espints(n,nbf,xyz,intcut,point,pthr,P,
-     &             mprim,npp,nnn,indp,efact,gama,ee,dd,espe(i),basis)
+     &             mprim,npp,nnn,indp,efact,gama,ee,dd,espe(1),basis)
       call timing(t1,w1)
       write(*,'('' estimated wall time (s) '',f6.1)') np*(w1-w0)/nproc
       write(*,*)'computing ESP ...'
