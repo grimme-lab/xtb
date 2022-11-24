@@ -430,7 +430,9 @@ module xtb_setparam
 
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
-
+   
+   logical :: g_fixed = .false.
+      !! To set ONIOM optimization parameter g to fixed value
    end type
    type(TSet) :: set
 

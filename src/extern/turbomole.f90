@@ -190,7 +190,11 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       call rdpath(syspath, "cefine", cefine, exist)
       if (exist) then
          call wrtm(n,at,xyz)
-         call execute_command_line("exec "//cefine//" --func tpss --def2/SVP --cosmo 2.38 --d4 -sym c1 --noopt")
+         if (allocated(set%ext_turbo%input_string)) then 
+            call execute_command_line("exec "//cefine//" "//set%ext_turbo%input_string)
+         else
+            call execute_command_line("exec "//cefine//" --func tpss --bas def2-SVP --cosmo 2.38 --d4 -sym c1 --noopt")
+         endif
       end if
    end if
 
@@ -205,7 +209,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
          call rdtm(n,grd,eel,g,xyz_cached)
-         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
+         cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
@@ -226,7 +230,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
          call rdtm(n,grd,eel,g,xyz_cached)
-         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
+         cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
@@ -249,7 +253,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
          call rdtm(n,grd,eel,g,xyz_cached)
-         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
+         cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)

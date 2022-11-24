@@ -1332,12 +1332,13 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          if (.not.allocated(sec)) then 
             call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
             call move_alloc(oniom%first_arg, sec)
-            !return
          end if
+         
          inquire(file=sec, exist=exist)
          if (exist) then
             sec = read_whole_file(sec)
          end if
+         
          call move_alloc(sec, oniom%second_arg)
 
       case('--etemp')
