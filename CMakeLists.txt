@@ -50,7 +50,7 @@ find_package("BLAS" REQUIRED)
 
 # Object library
 if(NOT EXISTS "${PROJECT_BINARY_DIR}/include")
-  make_directory("${PROJECT_BINARY_DIR}/include")
+  file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
 endif()
 add_library(
   "${PROJECT_NAME}-object"
