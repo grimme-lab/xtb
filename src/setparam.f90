@@ -119,6 +119,7 @@ module xtb_setparam
    integer, parameter :: p_ext_gfnff     = 13
    integer, parameter :: p_ext_oniom     = 14
    integer, parameter :: p_ext_iff       = 15
+   integer, parameter :: p_ext_tblite    = 16
 
    integer, parameter :: p_run_scc    =   2
    integer, parameter :: p_run_grad   =   3

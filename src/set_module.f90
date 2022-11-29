@@ -910,6 +910,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_eht
    case('xtb')
       set%mode_extrun = p_ext_xtb
+   case('tblite')
+      set%mode_extrun = p_ext_tblite
    case('orca')
       set%mode_extrun = p_ext_orca
    case('driver')

@@ -75,6 +75,9 @@ OPTIONS
 *--gfnff, --gff* ::
     specify parametrisation of GFN-FF
 
+*--tblite*::
+    use tblite library as implementation of for xTB
+
 *--oniom* 'METHOD' 'LIST'::
     use subtractive embedding via ONIOM method. 'METHOD' is given as `inner:outer`
     where `inner` can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and
@@ -95,10 +98,7 @@ OPTIONS
     accuracy for SCC calculation, lower is better (default = 1.0)
 
 *--vparam* 'FILE'::
-    Parameter file for vTB calculation
-
-*--xparam* 'FILE'::
-    Parameter file for xTB calculation (not used)
+    Parameter file for xTB calculation
 
 *--alpb* 'SOLVENT' ['STATE']::
     analytical linearized Poisson-Boltzmann (ALPB) model,

@@ -34,6 +34,14 @@ if(NOT TARGET "mctc-lib::mctc-lib")
   find_package("mctc-lib" REQUIRED)
 endif()
 
+if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
+  find_package("tblite" REQUIRED)
+endif()
+
+if(NOT TARGET "test-drive::test-drive")
+  find_package("test-drive" REQUIRED)
+endif()
+
 # Sources: initialize program sources (prog) and library sources (srcs) empty
 set(prog)
 set(srcs)
@@ -67,6 +75,8 @@ target_link_libraries(
   "${PROJECT_NAME}-object"
   PUBLIC
   "mctc-lib::mctc-lib"
+  "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
+  "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
 )
 target_include_directories(
   "${PROJECT_NAME}-object"
@@ -93,8 +103,9 @@ target_link_libraries(
   PUBLIC
   ${BLAS_LIBRARIES}
   ${LAPACK_LIBRARIES}
-  $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
+  "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
   "mctc-lib::mctc-lib"
+  "tblite::tblite"
 )
 set_target_properties(
   "lib-${PROJECT_NAME}-static"
@@ -123,8 +134,9 @@ target_link_libraries(
   PUBLIC
   ${BLAS_LIBRARIES}
   ${LAPACK_LIBRARIES}
-  $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
+  "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
   "mctc-lib::mctc-lib"
+  "tblite::tblite"
 )
 set_target_properties(
   "lib-${PROJECT_NAME}-shared"

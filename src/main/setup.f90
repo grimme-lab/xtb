@@ -24,6 +24,7 @@ module xtb_main_setup
    use xtb_extern_mopac, only : TMopacCalculator, newMopacCalculator
    use xtb_extern_turbomole, only : TTMCalculator, newTMCalculator
    use xtb_extern_driver, only : TDriverCalculator, newDriverCalculator
+   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator
    use xtb_type_calculator, only : TCalculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
@@ -45,7 +46,7 @@ module xtb_main_setup
 contains
 
 
-subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_data)
+subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_data, tblite_input)
 
    character(len=*), parameter :: source = 'main_setup_newCalculator'
 
@@ -65,7 +66,11 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
 
    type(TIFFData), intent(in), optional, allocatable :: iff_data
 
+   !> Input for TBLite calculator
+   type(TTBLiteInput), intent(in), optional :: tblite_input
+
    type(TxTBCalculator), allocatable :: xtb
+   type(TTBLiteCalculator), allocatable :: tblite
    type(TGFFCalculator), allocatable :: gfnff
    type(TIFFCalculator), allocatable :: iff
    type(TOrcaCalculator), allocatable :: orca
@@ -91,6 +96,22 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       end if
 
       call move_alloc(xtb, calc)
+   case(p_ext_tblite)
+      if (.not.present(tblite_input)) then
+         call env%error("TBLite calculator requires input", source)
+         return
+      end if
+      allocate(tblite)
+
+      call newTBLiteCalculator(env, mol, tblite, tblite_input)
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
+
+      call move_alloc(tblite, calc)
    case(p_ext_gfnff)
       allocate(gfnff)
 
@@ -104,6 +125,10 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
 
       call move_alloc(gfnff, calc)
    case(p_ext_iff)
+      if (.not.present(iff_data)) then
+         call env%error("IFF calculator requires input", source)
+         return
+      end if
       allocate(iff)
 
       if (.not. allocated(iff_data)) then
@@ -137,6 +162,10 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       call newDriverCalculator(driver, env, set%ext_driver)
       call move_alloc(driver, calc)
    case(p_ext_oniom)
+      if (.not.present(input)) then
+         call env%error("ONIOM calculator requires input", source)
+         return
+      end if
       allocate(oniom)
       call newOniomCalculator(oniom, env, mol, input)
       call move_alloc(oniom, calc)

@@ -15,6 +15,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
+option(WITH_TBLITE "Use tblite library as backend for xTB" TRUE)
 if(NOT DEFINED "${PROJECT_NAME}-dependeny-method")
   set(
     "${PROJECT_NAME}-dependency-method"

@@ -51,6 +51,7 @@ tests = [
   'peeq',
   'repulsion',
   'symmetry',
+  'tblite',
   'thermo',
   'wsc',
 ]

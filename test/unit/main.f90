@@ -38,6 +38,7 @@ program tester
    use test_peeq, only : collect_peeq
    use test_repulsion, only : collect_repulsion
    use test_symmetry, only : collect_symmetry
+   use test_tblite, only : collect_tblite
    use test_thermo, only : collect_thermo
    use test_wsc, only : collect_wsc
    implicit none
@@ -70,6 +71,7 @@ program tester
       new_testsuite("peeq", collect_peeq), &
       new_testsuite("repulsion", collect_repulsion), &
       new_testsuite("symmetry", collect_symmetry), &
+      new_testsuite("tblite", collect_tblite), &
       new_testsuite("thermo", collect_thermo), &
       new_testsuite("wsc", collect_wsc) &
       ]
