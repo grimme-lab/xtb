@@ -92,7 +92,7 @@ contains
 
       integer i,j,k,l,m,ij,nd3
       integer ati,atj,iat,jat
-      integer hbA,hbB
+      integer hbA,hbB,nbk,nbnbk
       integer lin
       logical ex, require_update
       integer nhb1, nhb2, nxb
@@ -507,17 +507,25 @@ contains
       if(nlist%nhb2.gt.0) then
          !$omp parallel do default(none) reduction(+:ehb, g) &
          !$omp shared(topo, nlist, param, n, at, xyz, sqrab, srab) &
-         !$omp private(i, j, k, l, etmp, g5tmp)
+         !$omp private(i, j, k, l, nbk, nbnbk, etmp, g5tmp)
          do i=1,nlist%nhb2
             j=nlist%hblist2(1,i)
             k=nlist%hblist2(2,i)
             l=nlist%hblist2(3,i)
+            ! prepare variables for check in carbonyl/nitro case
+            ! Number neighbors of C/N should be > 1 for carbonyl/nitro
+            nbk=topo%nb(1,k) ! index of first neighbor of k
+            ! get number neighbors of neighbor of k
+            nbnbk=0
+            if(nbk.ne.0) nbnbk=topo%nb(20,nbk) 
             !Carbonyl case R-C=O...H_A
-            if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.6) then
+            if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.6 &
+                    & .and.nbnbk.gt.1) then
                call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
                   & etmp,g5tmp,param,topo)
                !Nitro case R-N=O...H_A
-            else if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.7) then
+            else if(at(k).eq.8.and.topo%nb(20,k).eq.1.and.at(topo%nb(1,k)).eq.7 &
+                    &  .and.nbnbk.gt.1) then
                call abhgfnff_eg3(n,j,k,l,at,xyz,topo%qa,sqrab,srab, &
                   & etmp,g5tmp,param,topo)
                !N hetero aromat
