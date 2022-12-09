@@ -1365,6 +1365,16 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("No color scheme provided for --color option", source)
          end if
 
+      case('--spinpol')
+         if (get_xtb_feature('tblite')) then
+            call env%warning("Employing tblite library for spin-polarization", source)
+            call set_exttyp('tblite')
+            tblite%spin_polarized = .true.
+         else
+            call env%error("Compiled without support for tblite library. This is required for spin-polarization", source)
+            cycle
+         end if
+
       case('--oniom')
          call set_exttyp('oniom')
          call args%nextArg(sec) 
