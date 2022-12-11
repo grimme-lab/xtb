@@ -103,6 +103,12 @@ subroutine help(iunit)
    "--gfnff, --gff",&
    "    specify parametrisation of GFN-FF",&
    "",&
+   "--tblite,",&
+   "    use tblite library as implementation for xTB",&
+   "",&
+   "--spinpol,",&
+   "    enables spin-polarization for xTB methods (tblite required)",&
+   "",&
    "--oniom METHOD LIST", &
    "    use subtractive embedding via ONIOM method. 'METHOD' is given as 'inner:outer'", &
    "    where 'inner' can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and", &
