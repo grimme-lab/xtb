@@ -18,6 +18,8 @@ jobs:
             fc: gfortran-9
             cc: gcc-9
           - os: ubuntu-latest
+            fc: gfortran-11
+            cc: gcc-11
 
     steps:
     - name: Checkout code
