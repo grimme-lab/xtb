@@ -242,7 +242,7 @@ jobs:
 
     - name: Install github-release
       run: |
-        go get github.com/github-release/github-release
+        go install github.com/github-release/github-release
         echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
