@@ -11,15 +11,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        fc: [gfortran-10]
-        cc: [gcc-10]
+        fc: [gfortran-11]
+        cc: [gcc-11]
         include:
           - os: ubuntu-latest
             fc: gfortran-9
             cc: gcc-9
           - os: ubuntu-latest
-            fc: gfortran-11
-            cc: gcc-11
+            fc: gfortran-10
+            cc: gcc-10
 
     steps:
     - name: Checkout code
