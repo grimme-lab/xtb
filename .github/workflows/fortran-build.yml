@@ -11,15 +11,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        fc: [gfortran-10]
-        cc: [gcc-10]
+        fc: [gfortran-11]
+        cc: [gcc-11]
         include:
           - os: ubuntu-latest
             fc: gfortran-9
             cc: gcc-9
           - os: ubuntu-latest
-            fc: gfortran-11
-            cc: gcc-11
+            fc: gfortran-10
+            cc: gcc-10
 
     steps:
     - name: Checkout code
@@ -156,10 +156,10 @@ jobs:
       FC: ${{ matrix.fc }}
       CC: ${{ matrix.cc }}
       APT_PACKAGES: >-
-        intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
-        intel-oneapi-mkl
-        intel-oneapi-mkl-devel
+        intel-oneapi-compiler-fortran-2022.2.1
+        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2022.2.1
+        intel-oneapi-mkl-2022.2.1
+        intel-oneapi-mkl-devel-2022.2.1
         asciidoctor
 
     steps:
@@ -242,7 +242,7 @@ jobs:
 
     - name: Install github-release
       run: |
-        go get github.com/github-release/github-release
+        go install github.com/github-release/github-release@latest
         echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
