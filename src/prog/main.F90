@@ -856,7 +856,6 @@ subroutine xtbMain(env, argParser)
          call main_cube(set%verbose,mol,chk%wfn,calc%basis,res)
       end select
    endif
-   
 
    if (set%pr_json) then
       select type(calc)

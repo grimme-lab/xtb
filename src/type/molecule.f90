@@ -157,6 +157,8 @@ module xtb_type_molecule
 
       procedure :: align_to_principal_axes
 
+      procedure ::  copy => copyMolecule
+
    end type TMolecule
 
 
@@ -185,6 +187,16 @@ module xtb_type_molecule
 
 contains
 
+
+!> Copy molecule type
+subroutine copyMolecule(self,mol0)
+
+   class(TMolecule), intent(out) :: self
+   type(TMolecule), intent(in) :: mol0
+
+      Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
+           & mol0%lattice, mol0%pbc)
+end subroutine copyMolecule
 
 !> Constructor for the molecular structure type
 subroutine initMolecule &
