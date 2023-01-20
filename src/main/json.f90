@@ -269,10 +269,10 @@ contains
     write (iunit, '("{")')
     ! lists printout
     if (printTopo%etot) then ! total energy is scalar
-      write (iunit, '(3x,''"etot":'',f25.15,",")') etot
+      write (iunit, '(3x,''"total energy":'',f25.15,",")') etot
     end if
     if (printTopo%gnorm) then ! gradient norm is scalar
-      write (iunit, '(3x,''"gnorm":'',f25.15,",")') gnorm
+      write (iunit, '(3x,''"gradient norm":'',f25.15,",")') gnorm
     end if
     if (printTopo%nb) then ! nb(20,n)
       write (iunit, '(3x,''"nb":'',"[")')
