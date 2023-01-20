@@ -44,9 +44,22 @@ module xtb_type_restart
       !> TBLite cache
       type(wavefunction_type) :: tblite
 #endif
+   contains
+      procedure :: copy => copyRestartType
    end type TRestart
 
 contains
+
+subroutine copyRestartType(self, other)
+   class(TRestart), intent(out) :: self
+   class(TRestart), intent(in) :: other
+
+   self%wfn = other%wfn
+   self%nlist = other%nlist
+#if WITH_TBLITE
+   self%tblite = other%tblite
+#endif
+end subroutine copyRestartType
 
 
 end module xtb_type_restart

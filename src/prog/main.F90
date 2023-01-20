@@ -857,7 +857,6 @@ subroutine xtbMain(env, argParser)
       end select
    endif
 
-
    if (set%pr_json) then
       select type(calc)
       type is(TxTBCalculator)
@@ -1415,6 +1414,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--json')
          call set_write(env,'json','true')
+         Call setWRtopo("json",printTopo)
        
       case('--ceasefiles')
          restart = .false. 
@@ -1738,6 +1738,17 @@ subroutine selectList(secSplit, printTopo)
    case("hbbond")
       printTopo%hbbond = .true.
    case("eeq")
+      printTopo%eeq = .true.
+   case("json")
+      printTopo%nb = .true.
+      printTopo%bpair = .true.
+      printTopo%alist = .true.
+      printTopo%blist = .true.
+      printTopo%tlist = .true.
+      printTopo%vtors = .true.
+      printTopo%vbond = .true.
+      printTopo%vangl = .true.
+      printTopo%hbbond = .true.
       printTopo%eeq = .true.
    case default
      printTopo%warning = .true.

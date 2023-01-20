@@ -68,7 +68,7 @@ set_target_properties(
   Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/include")
-  make_directory("${CMAKE_CURRENT_BINARY_DIR}/include")
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
 endif()
 
 foreach(t IN LISTS tests)

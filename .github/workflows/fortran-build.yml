@@ -11,15 +11,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        fc: [gfortran-10]
-        cc: [gcc-10]
+        fc: [gfortran-11]
+        cc: [gcc-11]
         include:
           - os: ubuntu-latest
             fc: gfortran-9
             cc: gcc-9
           - os: ubuntu-latest
-            fc: gfortran-8
-            cc: gcc-8
+            fc: gfortran-10
+            cc: gcc-10
 
     steps:
     - name: Checkout code
@@ -36,11 +36,6 @@ jobs:
         brew install openblas
         echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
         
-    - name: Install GCC 8 (Ubuntu)
-      if: contains(matrix.fc, 'gfortran-8') && contains(matrix.os, 'ubuntu')
-      run: |
-        sudo apt-get install gfortran-8
-
     - name: Install meson
       run: pip3 install meson==0.57.2 ninja cmake
 
@@ -247,7 +242,7 @@ jobs:
 
     - name: Install github-release
       run: |
-        go get github.com/github-release/github-release
+        go install github.com/github-release/github-release@latest
         echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
