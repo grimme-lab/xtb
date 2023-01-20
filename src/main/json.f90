@@ -247,10 +247,11 @@ contains
     write (ijson, '(3x,f15.8,"],")') freqres%rmass(freqres%n3true)
   end subroutine write_json_reduced_masses
 
-  subroutine write_json_gfnff_lists(n, topo, nlist, printTopo)
+  subroutine write_json_gfnff_lists(n, etot, gnorm, topo, nlist, printTopo)
     use xtb_gfnff_topology, only: TGFFTopology
     use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
     use xtb_gfnff_topology, only: TPrintTopo
+    use xtb_mctc_accuracy, only : wp
     include 'xtb_version.fh'
     !> gfnff topology lists
     type(TGFFTopology), intent(in) :: topo
@@ -258,6 +259,8 @@ contains
     type(TGFFNeighbourList), intent(in) :: nlist
     !> topology printout booleans
     type(TPrintTopo), intent(in) :: printTopo
+    !> total energy and gradient norm
+    real(wp), intent(in) :: etot, gnorm
     character(len=:), allocatable :: cmdline
     integer :: iunit, j, n, l
 
@@ -265,6 +268,12 @@ contains
     ! header
     write (iunit, '("{")')
     ! lists printout
+    if (printTopo%etot) then ! total energy is scalar
+      write (iunit, '(3x,''"total energy":'',f25.15,",")') etot
+    end if
+    if (printTopo%gnorm) then ! gradient norm is scalar
+      write (iunit, '(3x,''"gradient norm":'',f25.15,",")') gnorm
+    end if
     if (printTopo%nb) then ! nb(20,n)
       write (iunit, '(3x,''"nb":'',"[")')
       do j = 1, n - 1

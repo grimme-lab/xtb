@@ -869,7 +869,7 @@ subroutine xtbMain(env, argParser)
    if(printTopo%any()) then
      select type(calc)
        type is(TGFFCalculator)
-         call write_json_gfnff_lists(mol%n,calc%topo,chk%nlist,printTopo)
+         call write_json_gfnff_lists(mol%n,res%e_total,res%gnorm,calc%topo,chk%nlist,printTopo)
      end select
    endif
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
@@ -1719,6 +1719,10 @@ subroutine selectList(secSplit, printTopo)
    type(TPrintTopo), intent(inout) :: printTopo
 
    select case(secSplit)
+   case("etot")
+     printTopo%etot = .true.
+   case("gnorm")
+     printTopo%gnorm = .true.
    case("nb")
      printTopo%nb = .true.
    case("bpair")
@@ -1740,6 +1744,8 @@ subroutine selectList(secSplit, printTopo)
    case("eeq")
       printTopo%eeq = .true.
    case("json")
+      printTopo%etot = .true.
+      printTopo%gnorm = .true.
       printTopo%nb = .true.
       printTopo%bpair = .true.
       printTopo%alist = .true.
