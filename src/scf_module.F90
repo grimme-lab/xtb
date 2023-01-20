@@ -448,7 +448,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       endif
    endif
 
-   if (prlevel > 1) then
+   if (pr) then
       write(env%unit,'(/,10x,51("."))')
       write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
       write(env%unit,'(10x,":",49("."),":")')
@@ -615,7 +615,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! ========================================================================
    ! SCC iterations
 
-   if(pr)then
+   if (minpr) then
       write(env%unit,'(a)')
       write(env%unit,*) 'iter      E             dE          RMSdq', &
       &'      gap      omega  full diag'
