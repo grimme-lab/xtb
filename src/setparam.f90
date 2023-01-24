@@ -238,6 +238,7 @@ module xtb_setparam
    logical  :: shake_md = .true.
    logical  :: xhonly = .true.
    logical  :: honly = .false.
+   logical :: forcewrrestart = .false.
 
 !! ------------------------------------------------------------------------
 !  target rmsd value for bhess run in Ångström

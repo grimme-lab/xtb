@@ -302,6 +302,8 @@ $md
     SCC accuracy level in MD. Every 10th step the SCC is properly converged
     at sccconv=1.0. sccmd should be < 5 in critical cases, effects may show
     up as bad thermostating
+*forcewrrestart*='logical'::
+    forces the writing of a restart file at each dump step
 
 $modef
 ~~~~~~
