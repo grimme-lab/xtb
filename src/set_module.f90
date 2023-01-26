@@ -951,6 +951,7 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_iff
    end select
    set1 = .false.
+
 end subroutine set_exttyp
 
 subroutine set_geopref(typ)

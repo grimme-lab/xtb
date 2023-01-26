@@ -479,6 +479,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       write(env%unit,dblfmt) "Broyden damping    ",set%broydamp,"    "
       write(env%unit,'(10x,51("."))')
    endif
+   
+
 
    qq    =wfn%q
    damp  =damp0

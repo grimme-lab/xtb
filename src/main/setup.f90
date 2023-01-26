@@ -75,6 +75,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    type(TDriverCalculator), allocatable :: driver
    
    logical :: exitRun
+   
 
    select case(set%mode_extrun)
    case default
@@ -124,22 +125,27 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       allocate(orca)
       call newOrcaCalculator(orca, env, set%ext_orca)
       call move_alloc(orca, calc)
+   
    case(p_ext_mopac)
       allocate(mopac)
       call newMopacCalculator(mopac, env, set%ext_mopac)
       call move_alloc(mopac, calc)
+   
    case(p_ext_turbomole)
       allocate(turbo)
       call newTMCalculator(turbo, set%extcode, set%extmode)
       call move_alloc(turbo, calc)
+   
    case(p_ext_driver)
       allocate(driver)
       call newDriverCalculator(driver, env, set%ext_driver)
       call move_alloc(driver, calc)
+   
    case(p_ext_oniom)
       allocate(oniom)
       call newOniomCalculator(oniom, env, mol, input)
       call move_alloc(oniom, calc)
+   
    end select
 
 end subroutine newCalculator

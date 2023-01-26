@@ -69,19 +69,23 @@ function xfind(name) result(fname)
 end function xfind
 
 !! ------------------------------------------------------------------[SAW]-
-!  wrapper around getline from the MCTC lib that strips comments
-!  automatically und removes all leading and trailing whitespace
+!>  wrapper around getline from the MCTC lib that strips comments
+!>  automatically und removes all leading and trailing whitespace
 subroutine strip_line(in,line,err)
+   
    use xtb_mctc_systools, only : getline
    implicit none
    integer,intent(in)  :: in
+      !! input file unit
    character(len=:),allocatable,intent(out) :: line
+      !! output line
    integer,intent(out) :: err
    integer :: ic
 
    call getline(in,line,iostat=err)
    if (err.ne.0) return
-!  check for comment characters
+   
+   !> check for comment characters
    ic = index(line,hash)
    if (ic.eq.1) then
       line = ''
@@ -89,6 +93,7 @@ subroutine strip_line(in,line,err)
    else if (ic.gt.1) then
       line = line(:ic-1)
    endif
+   !> to remove all leading and trailing whitespaces
    line = trim(adjustl(line))
 
 end subroutine strip_line
