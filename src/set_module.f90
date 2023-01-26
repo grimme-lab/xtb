@@ -772,7 +772,7 @@ subroutine rdcontrol(fname,env,copy_file)
          select case(line(2:))
          !> logical
          case('fit'     ); call set_fit;      call mirror_line(id,copy,line,err)
-         case('g_fixed'     ); call set_g_fixed;      call mirror_line(id,copy,line,err)
+         case('derived'     ); call set_derived;      call mirror_line(id,copy,line,err)
          case('samerand'); call set_samerand; call mirror_line(id,copy,line,err)
          case('cma'     ); call set_cma;      call mirror_line(id,copy,line,err)
          !> data
@@ -1039,10 +1039,10 @@ subroutine set_runtyp(typ)
    set1 = .false.
 end subroutine set_runtyp
 
-subroutine set_g_fixed
+subroutine set_derived
    implicit none
-   set%g_fixed = .true.
-end subroutine set_g_fixed
+   set%derived = .true.
+end subroutine set_derived
 
 subroutine set_fit
    implicit none
@@ -1069,22 +1069,62 @@ subroutine set_define
    set%define = .true.
 end subroutine set_define
 
+!-----------------------------------
+! Specify charge
+!-----------------------------------
+subroutine set_cut
+   implicit none
+   set%cut_inner = .true.
+end subroutine set_cut
+
+!-----------------------------------
+! Specify charge
+!-----------------------------------
 subroutine set_chrg(env,val)
+
    implicit none
    character(len=*), parameter :: source = 'set_chrg'
+      !! Name of error producer routine
    type(TEnvironment), intent(inout) :: env
+      !! Calculation environment to handle I/O stream and error log
    character(len=*),intent(in) :: val
+      !! Charge as character
    integer  :: err
    integer  :: idum
+   integer  :: ind, idum1, idum2
    logical,save :: set1 = .true.
+   
+
    if (set1) then
-      if (getValue(env,val,idum)) then
-         set%ichrg = idum
+      ind = index(val,":")
+      
+      
+      if (ind.ne.0) then
+         !! inner:outer
+         if (getValue(env,val(:ind-1),idum1) .and. &
+            & getValue(env,val(ind+1:),idum2)) then
+            set%fixed_chrgs = .true.
+            set%innerchrg = idum1
+            set%ichrg = idum2
+         else
+            call env%error('Charge could not be read from your argument',source)
+         endif
+      
       else
-         call env%error('Charge could not be read from your argument',source)
+         !! usual case
+         if (getValue(env,val,idum)) then
+            !! to transform character into int
+            set%ichrg = idum
+         else
+            call env%error('Charge could not be read from your argument',source)
+         endif
+         
+     
       endif
    endif
+
    set1 = .false.
+
 end subroutine set_chrg
 
 subroutine set_spin(env,val)
