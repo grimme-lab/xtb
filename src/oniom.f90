@@ -138,7 +138,14 @@ subroutine newOniomCalculator(self, env, mol, input)
    end if
    self%fixed = input%g
 
+<<<<<<< HEAD
    self%list = TAtomList(list=input%second_arg)
+||||||| merged common ancestors
+   self%list = TAtomList(list=input%list)
+=======
+
+   self%list = TAtomList(list=input%second_arg)
+>>>>>>> cb55e0e4437895012fd40587f268221cbb2f437d
    call self%list%to_list(self%idx)
 
    if (len(self%list) == 0) then
@@ -275,6 +282,17 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       
       end select
       
+<<<<<<< HEAD
+||||||| merged common ancestors
+      if (allocated(self%real_low%solvation)) then
+         self%model_low%solvation = self%real_low%solvation
+      end if
+=======
+      if (allocated(self%real_low%solvation)) then
+         allocate(self%model_low%solvation)
+         self%model_low%solvation = self%real_low%solvation
+      end if
+>>>>>>> cb55e0e4437895012fd40587f268221cbb2f437d
       call env%check(exitRun)
       if (exitRun) then
          call env%error("Could not setup low level method")

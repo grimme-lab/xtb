@@ -1329,17 +1329,34 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call move_alloc(sec, oniom%first_arg)
 
          call args%nextArg(sec)
+<<<<<<< HEAD
          if (.not.allocated(sec)) then 
             call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
             call move_alloc(oniom%first_arg, sec)
+||||||| merged common ancestors
+         if (.not.allocated(sec)) then
+            call env%error("No inner region provided for ONIOM", source)
+            cycle
+=======
+         if (.not.allocated(sec)) then 
+            call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
+            call move_alloc(oniom%first_arg, sec)
+            !return
+>>>>>>> cb55e0e4437895012fd40587f268221cbb2f437d
          end if
          
          inquire(file=sec, exist=exist)
          if (exist) then
             sec = read_whole_file(sec)
          end if
+<<<<<<< HEAD
          
          call move_alloc(sec, oniom%second_arg)
+||||||| merged common ancestors
+         call move_alloc(sec, oniom%list)
+=======
+         call move_alloc(sec, oniom%second_arg)
+>>>>>>> cb55e0e4437895012fd40587f268221cbb2f437d
 
       case('--etemp')
          call args%nextArg(sec)

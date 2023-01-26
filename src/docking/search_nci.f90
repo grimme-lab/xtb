@@ -43,7 +43,7 @@ module xtb_docking_search_nci
    use xtb_type_topology, only: TTopology
    use xtb_gfnff_ini, only: gfnff_ini
    use xtb_topology, only: makeBondTopology
-   use xtb_sphereparam, only : number_walls, cavity_egrad
+   use xtb_sphereparam, only : number_walls, cavity_egrad, maxwalls, wpot
    use xtb_gfnff_param, only: ini, gfnff_set_param, gfnff_param_alloc,&
    & gff_print, gfnff_param_dealloc
    use xtb_constrain_param, only: read_userdata
@@ -1070,11 +1070,17 @@ contains
       real(wp), allocatable :: cn(:), dcn(:, :, :), dq(:, :, :), g(:, :)
       real(wp) :: er
       logical :: okbas
+      integer :: i
 
       allocate (cn(mol%n), g(3, mol%n))
 
       !> Read the constrain again with new xyz only if necessary
       if (constraint_xyz) then
+         number_walls = 0 !Reset wall potentials
+         do i=1, maxwalls
+!            deallocate(wpot(i)%list)
+            if(allocated(wpot(i)%list)) deallocate(wpot(i)%list)
+         end do
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if

@@ -282,7 +282,6 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
       enddo
       factor2= factor2 + alp_change
    enddo bias_loop
-
    !! ------------------------------------------------------------------------
    ! output and find path yielding product
    !! ------------------------------------------------------------------------
@@ -455,7 +454,8 @@ subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
       write(env%unit,'(i4,3f10.3,f10.5)') i,dum,(epath(i)-epath(1))*autokcal,gdum,dum1
       dum=dum+rms
    enddo
-
+   
+   
 end subroutine bias_path
 
 !! ========================================================================
