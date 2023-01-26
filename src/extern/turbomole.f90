@@ -47,6 +47,7 @@ module xtb_extern_turbomole
    public :: TTMCalculator, newTMCalculator
 
    type, extends(TCalculator) :: TTMCalculator
+      type(qm_external) :: ext
       integer :: extcode
       integer :: extmode
    contains
@@ -60,16 +61,26 @@ module xtb_extern_turbomole
 
 contains
 
-!> Create a new calculator for driving the Turbomole program
-subroutine newTMCalculator(self, extcode, extmode)
-   !> Instance of the Turbomole calculator
+!----------------------------------------------------------
+! Create a new calculator for driving the Turbomole program
+!----------------------------------------------------------
+subroutine newTMCalculator(self,extcode,extmode)
+   
+   implicit none
    type(TTMCalculator), intent(out) :: self
-   integer, intent(in) :: extcode, extmode
+      !! Instance of the Turbomole calculator
+   integer, intent(in) :: extcode
+      !! RI, RI+d3+gCP,NoRI
+   integer, intent(in) :: extmode
+      !! ridft+rdgrad, ridft+rdgrad+dftd3+gcp
 
    self%threadsafe = .false.
+      !! No parallelization
    self%extcode = extcode
    self%extmode = extmode
+
 end subroutine newTMCalculator
+
 
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
@@ -118,7 +129,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    dipole(:) = 0.0_wp
 
    call external_turbomole(env,mol%n,mol%at,mol%xyz,chk%wfn%nel,chk%wfn%nopen, &
-      & self%extcode,self%extmode,.true.,energy,gradient,results%dipole,self%lSolv)
+      & self%extcode,self%extmode,.true.,energy,gradient,results%dipole,self%lSolv,mol%chrg,mol%uhf)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -163,46 +174,82 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    endif
 end subroutine singlepoint
 
-subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,lsolv)
+!---------------------------------------------------------
+! To run TURBOMOLE, and cefine if needed 
+!---------------------------------------------------------
+subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,lsolv,chrg,uhf)
+   
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam
+   
    implicit none
-   !> Computational environment
    type(TEnvironment), intent(inout) :: env
-   integer n, at(n), nel, nopen
-   logical grd,lsolv
+      !! Calculation environment to handle I/O stream and error log
+   integer :: n, at(n), nel, nopen
+      !! structural information from mol(Tmolecule) and chk(TRestart) 
+   logical ::  grd
+      !! if gradient calcultion is needed
+   logical :: lsolv
+      !! if solvated
    integer, intent(in) :: extcode, extmode
-   real(wp) xyz(3,n)
-   real(wp) xyz_cached(3,n)
-   real(wp) g  (3,n)
-   real(wp) eel
-   real(wp) dip(3)
+      !! turbomole settings
+   real(wp) :: xyz(3,n)
+      !! coordinates
+   real(wp) :: xyz_cached(3,n)
+      !! to save xyz values
+   real(wp) :: g (3,n)
+      !! gradients
+   real(wp) :: eel
+      !! electronic energy
+   real(wp) :: dip(3)
+      !! dipole moments
+   real(wp), intent(in) :: chrg
+      !! charge
+   integer, intent(in) :: uhf
+      !! multiplicity, number of unpaired electrons
+
    character(len=255) atmp
    character(len=:), allocatable :: syspath, cefine
-   logical :: cache, exist
+   logical :: cache
+      !! to check if molecule moves b/n optimization runs
+   logical :: exist
+   logical :: runCefine
 
    cache = .false.
    dip=0
-
+   
+   !> TM input
    inquire(file="control", exist=exist)
+      !! if control file present in the calc dir
    if (.not.exist) then
-      call rdvar("PATH", syspath)
-      call rdpath(syspath, "cefine", cefine, exist)
-      if (exist) then
-         call wrtm(n,at,xyz)
-         if (allocated(set%ext_turbo%input_string)) then 
-            call execute_command_line("exec "//cefine//" "//set%ext_turbo%input_string)
-         else
-            call execute_command_line("exec "//cefine//" --func tpss --bas def2-SVP --cosmo 2.38 --d4 -sym c1 --noopt")
-         endif
-      end if
+      
+      !> cefine 
+      if(len(set%ext_turbo%input_string).ne.0) then      
+         call rdvar("PATH", syspath)
+         call rdpath(syspath, "cefine", cefine, exist)
+         if (exist) then
+            call wrtm(n,at,xyz)
+            if (allocated(set%ext_turbo%input_string)) then 
+               call execute_command_line("exec "//cefine//" "//set%ext_turbo%input_string)
+            else
+               call execute_command_line("exec "//cefine//" --func tpss --bas def2-SVP --d4 -sym c1 --noopt")
+            endif
+         end if
+
+      !> default control file
+      else
+         call writeControl(chrg,uhf)
+      endif
+
    end if
 
+   inquire(file="control", exist=exist)
    if (.not.exist) then
       call env%error("No 'control' file in current directory")
       return
    end if
-
+   
+  
    ! TM (RI)
    if(extcode.eq.1)then
       !$omp critical (turbo_lock)
@@ -214,8 +261,8 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       if (.not.cache) then
          call wrtm(n,at,xyz)
          if(extmode.eq.1)then
-            call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
-            if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null ')
+            call execute_command_line('exec ridft  | tee  job.last 2>> /dev/null')
+            if(grd)call execute_command_line('exec rdgrad |tee -a job.last 2>> /dev/null ')
          endif
          call extcodeok(extcode)
          call rdtm(n,grd,eel,g,xyz_cached)
@@ -224,6 +271,8 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       return
    endif
 
+  print*, "That is all for today"
+   stop
    ! TM+d3+gcp
    if(extcode.eq.2)then
       !$omp critical (turbo_lock)
@@ -273,9 +322,41 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
 
 end subroutine external_turbomole
 
-!ccccccccccccccccccccccccccccccccc
-! TM
-!ccccccccccccccccccccccccccccccccc
+!----------------------------------------
+! create default TM control
+!----------------------------------------
+subroutine writeControl(chrg,uhf)
+
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_symbols, only : toSymbol
+   implicit none
+   real(wp), intent(in) :: chrg
+      !! charge
+   integer, intent(in) :: uhf
+      !! number of unpaired electrons
+   integer :: iunit
+      !! number of electrins
+
+   iunit=39
+   open(newunit=iunit,file='control')
+
+   write(iunit,'(a)')'$coord file=coord'
+   write(iunit,'(a,i0,a,i0)')'$eht charge=',nint(chrg),' unpaired=',uhf
+   write(iunit,'(a)')'$symmetry c1'
+   write(iunit,'(a)')'$atoms'
+   write(iunit,'(3x,a)')'basis =def2-mTZVP'
+   write(iunit,'(a)')'$dft'
+   write(iunit,'(3x,a)')'functional b97-3c'
+   write(iunit,'(3x,a)')'gridsize m4'
+   write(iunit,'(a)')'$rij'
+   write(iunit,'(a)')'$energy file=energy'
+   write(iunit,'(a)')'$grad file=gradient'
+   write(iunit,'(a)')'$disp3 -bj -abc'
+   write(iunit,'(a)')'$end'
+
+   close(iunit)
+
+end subroutine writeControl
 
 subroutine wrtm(n,at,xyz)
    use xtb_mctc_accuracy, only : wp
