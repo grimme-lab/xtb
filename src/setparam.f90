@@ -107,6 +107,9 @@ module xtb_setparam
       character(len=:),allocatable :: input_file
       character(len=:),allocatable :: input_string
       logical :: exist
+         !! if input_file exist
+      logical :: oniom=.false.
+         !! special case of the oniom embedding 
    end type qm_external
 
    integer, parameter :: p_ext_vtb       = -1
@@ -399,6 +402,7 @@ module xtb_setparam
 !  information about molecule
 !! ------------------------------------------------------------------------
    integer  :: ichrg = 0
+   integer  :: innerchrg 
    integer  :: nalphabeta = 0
 
 !  cannot be set by .xtbrc/setblock
@@ -430,10 +434,19 @@ module xtb_setparam
 
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
+!! ------------------------------------------------------------------------
+!  ONIOM
+!! ------------------------------------------------------------------------
+   logical :: derived = .false.
+      !! set ONIOM optimization parameter g to derived value
+   logical :: cut_inner = .false. 
+      !! to execute xtb just for checking inner region cut
+   logical :: fixed_chrgs = .false.
+      !! if charges for oniom explicitely given
    
-   logical :: g_fixed = .false.
-      !! To set ONIOM optimization parameter g to fixed value
    end type
+   
+
    type(TSet) :: set
 
    type(env_setvar) :: xenv
