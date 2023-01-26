@@ -14,7 +14,7 @@ This is the offical repository of the `xtb` program package developed by the Gri
 
 ## Installation
 
-[![Build Status](https://img.shields.io/github/workflow/status/grimme-lab/xtb/CI)](https://github.com/grimme-lab/xtb/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/grimme-lab/xtb/fortran-build.yml?branch=main)](https://github.com/grimme-lab/xtb/actions)
 
 Statically linked binaries (Intel Compiler) can be found at the [latest release page](https://github.com/grimme-lab/xtb/releases/latest), a version for Linux (Intel 18.0.2, GLIBC 2.19) and Windows (Intel 2022) is provided.
 The `xtb` program and library are packaged on conda-forge for Linux (x86\_64, aarch64, ppc64le) and MacOS (x86\_64, arm64).
@@ -33,7 +33,7 @@ To use the default backend of meson you have to install [ninja](https://ninja-bu
 
 ```bash
 export FC=ifort CC=icc
-meson setup build --buildtype release --optimization 2
+meson setup build --buildtype release --optimization 2 -Dfortran_link_args="-qopenmp"
 ninja -C build test
 ```
 

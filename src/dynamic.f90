@@ -533,7 +533,9 @@ subroutine md(env,mol,chk,calc, &
             call writeMolecule(mol, pdb, fileType%pdb, number=imdl, &
                & energy=epot, gnorm=res%gnorm)
          end if
-         !call wrmdrestart(mol%n,mol%xyz,velo)
+         if (set%forcewrrestart) then
+            call wrmdrestart(mol%n,mol%xyz,velo)
+         endif
       endif
       !! ========================================================================
 

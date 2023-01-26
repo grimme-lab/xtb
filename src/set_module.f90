@@ -259,6 +259,7 @@ subroutine write_set_md(ictrl)
    write(ictrl,'(3x,"hmass=",i0)') set%md_hmass
    write(ictrl,'(3x,"shake=",i0)') set%shake_mode
    write(ictrl,'(3x,"sccacc=",g0)') set%accu_md
+   write(ictrl,'(3x,"forcewrrestart=",i0)') bool2int(set%forcewrrestart)
 end subroutine write_set_md
 
 subroutine write_set_siman(ictrl)
@@ -933,6 +934,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_eht
    case('xtb')
       set%mode_extrun = p_ext_xtb
+   case('tblite')
+      set%mode_extrun = p_ext_tblite
    case('orca')
       set%mode_extrun = p_ext_orca
    case('driver')
@@ -1739,6 +1742,7 @@ subroutine set_md(env,key,val)
    logical,save :: set10= .true.
    logical,save :: set11= .true.
    logical,save :: set12= .true.
+   logical,save :: set13= .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by md",source)
@@ -1813,6 +1817,9 @@ subroutine set_md(env,key,val)
    case('restart')
       if (getValue(env,val,ldum).and.set11) set%restart_md = ldum
       set11 = .false.
+   case('forcewrrestart')
+      if (getValue(env,val,ldum).and.set13) set%forcewrrestart = ldum
+      set13 = .false.
    end select
 end subroutine set_md
 

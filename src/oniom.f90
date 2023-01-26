@@ -136,7 +136,7 @@ subroutine newOniomCalculator(self, env, mol, input)
       !! default, gfn2:gfnff
       self%method_high = 2
       self%method_low = 3
-   end if
+   endif
    self%fixed = input%g
 
    self%list = TAtomList(list=input%second_arg)

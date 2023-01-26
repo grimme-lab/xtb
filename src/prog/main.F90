@@ -25,6 +25,7 @@ module xtb_prog_main
    use xtb_type_molecule
    use xtb_type_calculator
    use xtb_type_restart
+   use xtb_tblite_restart, only : loadRestart, dumpRestart
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment, only : TEnvironment, init
@@ -35,6 +36,7 @@ module xtb_prog_main
    use xtb_scanparam
    use xtb_splitparam
    use xtb_fixparam
+   use xtb_features, only : get_xtb_feature
    use xtb_constrain_param, only : read_userdata
    use xtb_shake, only: init_shake
    use xtb_gfnff_shake, only: gff_init_shake => init_shake
@@ -88,7 +90,14 @@ module xtb_prog_main
    use xtb_kopt
    use xtb_iff_iffprepare, only : prepare_IFF
    use xtb_iff_data, only : TIFFData
+<<<<<<< HEAD
    use xtb_oniom, only : oniom_input, TOniomCalculator, calculateCharge
+||||||| merged common ancestors
+   use xtb_oniom, only : oniom_input, TOniomCalculator
+=======
+   use xtb_oniom, only : oniom_input, TOniomCalculator
+   use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+>>>>>>> c6e56db7e7453024e64d6c7e1fb7ba74b0a7120c
    implicit none
    private
 
@@ -117,6 +126,7 @@ subroutine xtbMain(env, argParser)
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
+   type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
    character(len=:),allocatable :: xcontrol ! instruction file
@@ -206,7 +216,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
 
    nFiles = argParser%countFiles()
    select case(nFiles)
@@ -518,7 +528,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
-   call newCalculator(env, mol, calc, fnv, restart, acc, oniom, iff_data)
+   call newCalculator(env, mol, calc, fnv, restart, acc, oniom, iff_data, tblite)
    call env%checkpoint("Could not setup single-point calculator")
 
    call initDefaults(env, calc, mol, gsolvstate)
@@ -558,6 +568,8 @@ subroutine xtbMain(env, argParser)
       end if
       !> initialize shell charges from gasteiger charges
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,chk%wfn%q,chk%wfn%qsh,set%gfn_method)
+   type is(TTBLiteCalculator)
+      call newTBLiteWavefunction(env, mol, calc, chk)
    end select
 
    ! ------------------------------------------------------------------------
@@ -576,6 +588,11 @@ subroutine xtbMain(env, argParser)
       calc%etemp = set%etemp
       calc%maxiter = set%maxscciter
       ipeashift = calc%xtbData%ipeashift
+   type is(TTBLiteCalculator)
+      if (restart) then
+         call loadRestart(env, chk, 'xtbrestart', exist)
+         if (exist) write(env%unit, "(a)") "Wavefunction read from restart file"
+      end if
    type is(TOniomCalculator)
       select type(xtb => calc%real_low)
       type is(TxTBCalculator)
@@ -867,7 +884,6 @@ subroutine xtbMain(env, argParser)
       end select
    endif
 
-
    if (set%pr_json) then
       select type(calc)
       type is(TxTBCalculator)
@@ -880,7 +896,7 @@ subroutine xtbMain(env, argParser)
    if(printTopo%any()) then
      select type(calc)
        type is(TGFFCalculator)
-         call write_json_gfnff_lists(mol%n,calc%topo,chk%nlist,printTopo)
+         call write_json_gfnff_lists(mol%n,res%e_total,res%gnorm,calc%topo,chk%nlist,printTopo)
      end select
    endif
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
@@ -1047,6 +1063,8 @@ subroutine xtbMain(env, argParser)
       if (restart) then
          call writeRestart(env,chk%wfn,'xtbrestart',set%gfn_method)
       endif
+   type is(TTBLiteCalculator)
+      if (restart) call dumpRestart(env, chk, 'xtbrestart')
    end select
 
 
@@ -1113,7 +1131,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1164,6 +1182,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 !   type(TAtomList) :: atl
 !   integer, allocatable :: list(:)
 
+   !> Input for TBLite calculator
+   type(TTBLiteInput), intent(out) :: tblite
+
 !$ integer :: omp_get_num_threads, nproc
    integer :: nFlags
    integer :: idum, ndum
@@ -1180,6 +1201,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    lgrad = .false.
    accuracy = 1.0_wp
    gsolvstate = solutionState%gsolv
+   tblite%color = get_xtb_feature('color')
 
    nFlags = args%countFlags()
    call args%nextFlag(flag)
@@ -1265,6 +1287,8 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call args%nextArg(paramFile)
          if (.not.allocated(paramFile)) then
             call env%error("Filename for --vparam is missing", source)
+         else
+            tblite%param = paramFile
          end if
 
       case('--coffee')
@@ -1286,6 +1310,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
                   accuracy = ddum
                endif
             end if
+            tblite%accuracy = accuracy
          else
             call env%error("Accuracy is not provided", source)
          end if
@@ -1311,6 +1336,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          if (allocated(sec)) then
             call set_gfn(env,'method',sec)
             if (sec=='0') call set_exttyp('eht')
+            tblite%method = "gfn"//sec
          else
             call env%error("No method provided for --gfn option", source)
          end if
@@ -1319,10 +1345,12 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          call set_gfn(env,'method','1')
          call env%warning("The use of '"//flag//"' is discouraged, " //&
             & "please use '--gfn 1' next time", source)
+         tblite%method = "gfn1"
 
       case('--gfn2')
          call set_gfn(env,'method','2')
          call set_gfn(env,'d4','true')
+         tblite%method = "gfn2"
 
       case('--gfn0')
          call set_gfn(env,'method','0')
@@ -1339,36 +1367,55 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case('--iff')
          call set_exttyp('iff')
 
+      case('--tblite')
+         if (get_xtb_feature('tblite')) then
+            call set_exttyp('tblite')
+         else
+            call env%error("Compiled without support for tblite library", source)
+            cycle
+      
+      case('--color')
+         if (allocated(sec)) then
+            select case(sec)
+            case('auto')
+               tblite%color = get_xtb_feature('color')
+            case('always')
+               tblite%color = .true.
+            case('never')
+               tblite%color = .false.
+            case default
+               call env%warning("Unknown color option '"//sec//"' provided", source)
+            end select
+         else
+            call env%error("No color scheme provided for --color option", source)
+         end if
+      
       case('--oniom')
-         
          call set_exttyp('oniom')
          call args%nextArg(sec) 
 
          !> To handle no argument case
          if (.not.allocated(sec)) then
-            call env%error("No inner region provided for ONIOM", source)
+            call env%error("No inner region is  provided for ONIOM", source)
             return
          end if
          call move_alloc(sec, oniom%first_arg)
 
          call args%nextArg(sec)
          if (.not.allocated(sec)) then 
-            
             call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
             call move_alloc(oniom%first_arg, sec)
-         
          end if
          
          inquire(file=sec, exist=exist)
          if (exist) then
             sec = read_whole_file(sec)
          end if
-         
          call move_alloc(sec, oniom%second_arg)
-      
+
       case('--cut')
          call set_cut
-
+      
       case('--etemp')
          call args%nextArg(sec)
          if (allocated(sec)) then
@@ -1396,6 +1443,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--json')
          call set_write(env,'json','true')
+         Call setWRtopo("json",printTopo)
        
       case('--ceasefiles')
          restart = .false. 
@@ -1700,6 +1748,10 @@ subroutine selectList(secSplit, printTopo)
    type(TPrintTopo), intent(inout) :: printTopo
 
    select case(secSplit)
+   case("etot")
+     printTopo%etot = .true.
+   case("gnorm")
+     printTopo%gnorm = .true.
    case("nb")
      printTopo%nb = .true.
    case("bpair")
@@ -1719,6 +1771,19 @@ subroutine selectList(secSplit, printTopo)
    case("hbbond")
       printTopo%hbbond = .true.
    case("eeq")
+      printTopo%eeq = .true.
+   case("json")
+      printTopo%etot = .true.
+      printTopo%gnorm = .true.
+      printTopo%nb = .true.
+      printTopo%bpair = .true.
+      printTopo%alist = .true.
+      printTopo%blist = .true.
+      printTopo%tlist = .true.
+      printTopo%vtors = .true.
+      printTopo%vbond = .true.
+      printTopo%vangl = .true.
+      printTopo%hbbond = .true.
       printTopo%eeq = .true.
    case default
      printTopo%warning = .true.

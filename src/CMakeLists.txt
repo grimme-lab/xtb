@@ -28,8 +28,9 @@ add_subdirectory("main")
 add_subdirectory("mctc")
 add_subdirectory("param")
 add_subdirectory("prog")
-add_subdirectory("type")
 add_subdirectory("solv")
+add_subdirectory("tblite")
+add_subdirectory("type")
 add_subdirectory("xtb")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -67,6 +68,7 @@ list(APPEND srcs
   "${dir}/eqrot.f90"
   "${dir}/esp.f"
   "${dir}/expire.f90"
+  "${dir}/features.F90"
   "${dir}/filetools.F90"
   "${dir}/fixparam.f90"
   "${dir}/foden.f90"

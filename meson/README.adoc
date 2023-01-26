@@ -54,7 +54,7 @@ For this example we additonally choose to change the linear algebra backend to O
 [source,bash]
 ----
 export FC=gfortran CC=gcc
-meson setup build --buildtype release --optimization 2 -Dla_backend=openblas
+meson setup build --buildtype release --optimization 2 -Dlapack=openblas
 ----
 
 To compile and run `xtb` with GCC 7 (especially 7.3.0) the source code has to be patched at several placed, for appropriate patches visit the https://github.com/grimme-lab/xtb-feedstock[conda-forge feedstock repository].
@@ -168,7 +168,7 @@ When configuring the build the wanted linear algebra backend can be specified wi
 
 [source,bash]
 ----
-meson setup build -Dla_backend=<option>
+meson setup build -Dlapack=<option>
 ----
 
 The following options are available:

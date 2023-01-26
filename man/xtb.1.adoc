@@ -75,6 +75,9 @@ OPTIONS
 *--gfnff, --gff* ::
     specify parametrisation of GFN-FF
 
+*--tblite*::
+    use tblite library as implementation of for xTB
+
 *--oniom* 'METHOD' 'LIST'::
     use subtractive embedding via ONIOM method. 'METHOD' is given as `inner:outer`
     where `inner` can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and
@@ -95,10 +98,7 @@ OPTIONS
     accuracy for SCC calculation, lower is better (default = 1.0)
 
 *--vparam* 'FILE'::
-    Parameter file for vTB calculation
-
-*--xparam* 'FILE'::
-    Parameter file for xTB calculation (not used)
+    Parameter file for xTB calculation
 
 *--alpb* 'SOLVENT' ['STATE']::
     analytical linearized Poisson-Boltzmann (ALPB) model,
@@ -460,12 +460,17 @@ Main web site: http://grimme.uni-bonn.de/software/xtb
 
 COPYING
 -------
+Copyright (C) 2017-2023 Stefan Grimme
+
 xtb is free software: you can redistribute it and/or modify it under
 the terms of the GNU Lesser General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-            
+
 xtb is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with xtb.  If not, see <https://www.gnu.org/licenses/>.
