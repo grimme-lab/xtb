@@ -774,6 +774,7 @@ subroutine rdcontrol(fname,env,copy_file)
          !> logical
          case('fit'     ); call set_fit;      call mirror_line(id,copy,line,err)
          case('derived'     ); call set_derived;      call mirror_line(id,copy,line,err)
+         !case('logs'     ); call set_logs;      call mirror_line(id,copy,line,err)
          case('samerand'); call set_samerand; call mirror_line(id,copy,line,err)
          case('cma'     ); call set_cma;      call mirror_line(id,copy,line,err)
          !> data
@@ -1044,7 +1045,7 @@ end subroutine set_runtyp
 
 subroutine set_derived
    implicit none
-   set%derived = .true.
+   set%oniom_settings%derived = .true.
 end subroutine set_derived
 
 subroutine set_fit
@@ -1073,12 +1074,20 @@ subroutine set_define
 end subroutine set_define
 
 !-----------------------------------
-! Specify charge
+! Just cut molecule in ONIOM rotuine
 !-----------------------------------
 subroutine set_cut
    implicit none
-   set%cut_inner = .true.
+   set%oniom_settings%cut_inner = .true.
 end subroutine set_cut
+
+!-----------------------------------
+! logs for inner region geoopt
+!-----------------------------------
+subroutine set_logs
+   implicit none
+   set%oniom_settings%logs = .true.
+end subroutine set_logs
 
 !-----------------------------------
 ! Specify charge
@@ -1106,8 +1115,8 @@ subroutine set_chrg(env,val)
          !! inner:outer
          if (getValue(env,val(:ind-1),idum1) .and. &
             & getValue(env,val(ind+1:),idum2)) then
-            set%fixed_chrgs = .true.
-            set%innerchrg = idum1
+            set%oniom_settings%fixed_chrgs = .true.
+            set%oniom_settings%innerchrg = idum1
             set%ichrg = idum2
          else
             call env%error('Charge could not be read from your argument',source)

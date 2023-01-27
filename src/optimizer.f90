@@ -109,7 +109,7 @@ end subroutine get_optthr
 !----------------------------------------
 ! Approximate Normal Coordinate Optimizer
 !----------------------------------------
-subroutine ancopt(env,iloa,mol,chk,calc, &
+subroutine ancopt(env,ilog,mol,chk,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
    use xtb_mctc_convert
    use xtb_mctc_la
@@ -397,6 +397,8 @@ subroutine ancopt(env,iloa,mol,chk,calc, &
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
       & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
       & converged,timer,set%optset%exact_rf,avconv)
+   
+
 
    call env%check(fail)
    if (fail) then
@@ -581,8 +583,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       return
    endif
    if (profile) call timer%measure(6,'optimization log')
+   
    call writeMolecule(mol, ilog, format=fileType%xyz, energy=res%e_total, &
       & gnorm=res%gnorm)
+      !! to write log file
    if (profile) call timer%measure(6)
 ! transform xyz to internal gradient
    if (profile) call timer%measure(4)

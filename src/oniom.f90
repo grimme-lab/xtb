@@ -234,7 +234,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       call move_alloc(self%solvation, self%real_low%solvation)
    end if
 
-   if (.not.set%cut_inner) then
+   if (.not.set%oniom_settings%cut_inner) then
       call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
          & energy, gradient, sigma, hlgap, results)
    endif
@@ -243,10 +243,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol,jacobian,idx2)
    
-   inner_mol%chrg = real(set%innerchrg)
+   inner_mol%chrg = real(set%oniom_settings%innerchrg)
  
    !> to display the inner region charge with --cut flag and terminate
-   if (set%cut_inner) then
+   if (set%oniom_settings%cut_inner) then
       
       write(env%unit,'(a)')
       write(env%unit,'(2x,72("-"))')
@@ -374,6 +374,12 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
    call self%model_high%singlepoint(env, inner_mol, self%chk_high, printlevel, restart, &
        & energy_model_high, gradient_high, sigma_high, hlgap_high, results_high)
+   
+
+   !> Write opt logs 
+  ! if (set%logs)then
+   !   call writeMolecule
+
 
    results%dipole = results%dipole + results_high%dipole - results_low%dipole 
    sigma=sigma- sigma_low + sigma_high
@@ -657,7 +663,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
       use xtb_io_writer
       use xtb_mctc_filetypes, only : fileType
       integer :: io
-      call open_file(io, "inner-region_with_h.xyz", "w")
+      call open_file(io, "inner-region.xyz", "w")
       call writeMolecule(inner_mol, io, filetype%xyz)
       call close_file(io)
    end block
@@ -959,7 +965,7 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
    end select 
    
    !> different ways of computing scaling parameter
-   if (set%derived) then
+   if (set%oniom_settings%derived) then
       !! prefactor is fixed
       prefactor = dist/dist2 
       if(def.and. .not.rep) then
@@ -977,10 +983,10 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
    !> To determine if the difference between the coordinates of LA and LAH is small
    xyz_difference=xyz2-xyz(:,size(xyz,2))
    if (all(xyz_difference<1.0E-5)) then 
-      set%derived=.true.
+      set%oniom_settings%derived=.true.
    endif
 
-   call derivative(jacobian,connectorPosition,size(xyz,2),prefactor,mol%xyz,idx1,idx2,dist_13,set%derived)
+   call derivative(jacobian,connectorPosition,size(xyz,2),prefactor,mol%xyz,idx1,idx2,dist_13,set%oniom_settings%derived)
 
 end subroutine newcoord
 
@@ -1102,6 +1108,9 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
 
 end subroutine checkfororder
 
+! -------------------------------------------------
+! Automatic ONIOM inner region charge determination
+!--------------------------------------------------
 function calculateCharge(self, env, mol, chk) result(chrg_model)
 
    character(len=*), parameter :: source = 'charge for inner region'

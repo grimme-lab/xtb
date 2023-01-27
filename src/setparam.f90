@@ -100,6 +100,19 @@ module xtb_setparam
    ! interface mode
    integer,parameter :: p_pcem_legacy = 1
    integer,parameter :: p_pcem_orca = 2
+   
+   type oniom_settings
+      integer  :: innerchrg
+         !! inner region charge
+      logical :: logs = .false.
+         !! if optimization logs of inner regions are needed
+      logical :: derived = .false.
+         !! set ONIOM optimization parameter g to derived value
+      logical :: cut_inner = .false.
+         !! to execute xtb just for checking inner region cut
+      logical :: fixed_chrgs= .false.
+         !! if charges for oniom explicitely given
+   end type oniom_settings
 
    type qm_external
       character(len=:),allocatable :: path
@@ -394,7 +407,13 @@ module xtb_setparam
    real(wp) :: ex_open ! set to 0.5/-0.5 in .xtbrc, respectively
 
 !! ------------------------------------------------------------------------
+!  ONIOM
+!! ------------------------------------------------------------------------
+   type(oniom_settings) :: oniom_settings
 
+!! ------------------------------------------------------------------------
+!  External settings
+!! ------------------------------------------------------------------------
    type(qm_external) :: ext_driver
    type(qm_external) :: ext_orca
    type(qm_external) :: ext_turbo
@@ -404,7 +423,6 @@ module xtb_setparam
 !  information about molecule
 !! ------------------------------------------------------------------------
    integer  :: ichrg = 0
-   integer  :: innerchrg 
    integer  :: nalphabeta = 0
 
 !  cannot be set by .xtbrc/setblock
@@ -437,15 +455,7 @@ module xtb_setparam
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
 !! ------------------------------------------------------------------------
-!  ONIOM
-!! ------------------------------------------------------------------------
-   logical :: derived = .false.
-      !! set ONIOM optimization parameter g to derived value
-   logical :: cut_inner = .false. 
-      !! to execute xtb just for checking inner region cut
-   logical :: fixed_chrgs = .false.
-      !! if charges for oniom explicitely given
-   
+    
    end type
    
 
@@ -457,6 +467,7 @@ module xtb_setparam
    character(len=:),allocatable :: commentline
 
 contains
+
 
 subroutine initrand
    implicit none

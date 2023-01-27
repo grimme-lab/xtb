@@ -85,6 +85,16 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    select case(set%mode_extrun)
    case default
       call env%error("Unknown calculator type", source)
+   
+   case(p_ext_oniom)
+      if (.not.present(input)) then
+         call env%error("ONIOM calculator requires input", source)
+         return
+      end if
+      allocate(oniom)
+      call newOniomCalculator(oniom, env, mol, input)
+      call move_alloc(oniom, calc)
+   
    case(p_ext_eht, p_ext_xtb)
       allocate(xtb)
 
@@ -165,16 +175,6 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       allocate(driver)
       call newDriverCalculator(driver, env, set%ext_driver)
       call move_alloc(driver, calc)
-   
-   case(p_ext_oniom)
-      if (.not.present(input)) then
-         call env%error("ONIOM calculator requires input", source)
-         return
-      end if
-      allocate(oniom)
-      call newOniomCalculator(oniom, env, mol, input)
-      call move_alloc(oniom, calc)
-   
    end select
 
 end subroutine newCalculator

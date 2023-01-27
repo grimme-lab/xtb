@@ -90,14 +90,8 @@ module xtb_prog_main
    use xtb_kopt
    use xtb_iff_iffprepare, only : prepare_IFF
    use xtb_iff_data, only : TIFFData
-<<<<<<< HEAD
    use xtb_oniom, only : oniom_input, TOniomCalculator, calculateCharge
-||||||| merged common ancestors
-   use xtb_oniom, only : oniom_input, TOniomCalculator
-=======
-   use xtb_oniom, only : oniom_input, TOniomCalculator
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
->>>>>>> c6e56db7e7453024e64d6c7e1fb7ba74b0a7120c
    implicit none
    private
 
@@ -485,6 +479,8 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Print the method header and select the parameter file
+   !print*,set%runtyp
+   !stop
    if (.not.allocated(fnv)) then
       select case(set%runtyp)
       case default
@@ -603,9 +599,9 @@ subroutine xtbMain(env, argParser)
             call readRestart(env,chk%wfn,'xtbrestart',mol%n,mol%at,set%gfn_method,exist,.true.)
          endif
       end select 
-      if (set%fixed_chrgs) then
+      if (set%oniom_settings%fixed_chrgs) then
       else
-         set%innerchrg = calculateCharge(calc,env,mol,chk)
+         set%oniom_settings%innerchrg = calculateCharge(calc,env,mol,chk)
       endif
   
 
@@ -1373,7 +1369,8 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          else
             call env%error("Compiled without support for tblite library", source)
             cycle
-      
+         endif
+
       case('--color')
          if (allocated(sec)) then
             select case(sec)
