@@ -33,7 +33,7 @@ contains
 !------------------------------------------------------------------
 !   To write molecular structure data into a file
 !------------------------------------------------------------------
-subroutine writeMolecule(self, unit, format, energy, gnorm, number)
+subroutine writeMolecule(self, unit, format, energy, gnorm)!, number)
    
    class(TMolecule), intent(in) :: self
       !! dynamic type of TMolecule 
@@ -45,8 +45,8 @@ subroutine writeMolecule(self, unit, format, energy, gnorm, number)
       !! energy output for comment line
    real(wp), intent(in), optional :: gnorm
       !! gradient norm output for comment line
-   integer, intent(in), optional :: number
-      !!i
+!   integer, intent(in), optional :: number
+!      !!i
    
    character(len=:), allocatable :: comment_line
    character(len=20) :: energy_line

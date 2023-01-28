@@ -101,6 +101,11 @@ subroutine geometry_optimization &
             "Optimization log is written to '"//set%opt_logfile//"'"
       endif
    endif
+   
+   if (set%oniom_settings%logs) then
+      call open_file(set%oniom_settings%ilog1,"low.inner_region.log",'w')
+      call open_file(set%oniom_settings%ilog2,"high.inner_region.log",'w')
+   endif
 
    call mol%update
       !! update interatomic and minimum image(periodic) distances 
@@ -162,6 +167,11 @@ subroutine geometry_optimization &
    
    if (ilog .ne.stdout) call close_file(ilog)
       !! close log file if it is not printed out on stdout
+   
+   if (set%oniom_settings%logs) then
+      call close_file(set%oniom_settings%ilog1)
+      call close_file(set%oniom_settings%ilog2)
+   endif
 
 end subroutine geometry_optimization
 

@@ -594,7 +594,7 @@ subroutine xtbMain(env, argParser)
       type is(TxTBCalculator)
          call chk%wfn%allocate(mol%n,xtb%basis%nshell,xtb%basis%nao)
          call newWavefunction(env,mol,xtb,chk)
-        
+            !! assigns only partial charges q and shell charges
          if (restart) then ! only in first run
             call readRestart(env,chk%wfn,'xtbrestart',mol%n,mol%at,set%gfn_method,exist,.true.)
          endif
@@ -666,7 +666,8 @@ subroutine xtbMain(env, argParser)
 
 
    ! ------------------------------------------------------------------------
-   !> Geometry optimization(ANCopt,L_ANCopt,FIRE)  
+   !> Geometry optimization(ANCopt,L_ANCopt,FIRE)   
+   ! ------------------------------------------------------------------------
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then

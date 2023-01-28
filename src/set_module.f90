@@ -774,7 +774,6 @@ subroutine rdcontrol(fname,env,copy_file)
          !> logical
          case('fit'     ); call set_fit;      call mirror_line(id,copy,line,err)
          case('derived'     ); call set_derived;      call mirror_line(id,copy,line,err)
-         !case('logs'     ); call set_logs;      call mirror_line(id,copy,line,err)
          case('samerand'); call set_samerand; call mirror_line(id,copy,line,err)
          case('cma'     ); call set_cma;      call mirror_line(id,copy,line,err)
          !> data
@@ -782,6 +781,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
          case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
          case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
+         case('oniom'    ); call rdblock(env,set_oniom,    line,id,copy,err,ncount)
          case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
          case('hess'     ); call rdblock(env,set_hess,    line,id,copy,err,ncount)
          case('md'       ); call rdblock(env,set_md,      line,id,copy,err,ncount)
@@ -1081,13 +1081,6 @@ subroutine set_cut
    set%oniom_settings%cut_inner = .true.
 end subroutine set_cut
 
-!-----------------------------------
-! logs for inner region geoopt
-!-----------------------------------
-subroutine set_logs
-   implicit none
-   set%oniom_settings%logs = .true.
-end subroutine set_logs
 
 !-----------------------------------
 ! Specify charge
@@ -1443,6 +1436,37 @@ subroutine set_gfn(env,key,val)
       set5 = .false.
    end select
 end subroutine set_gfn
+
+!-----------------------------------
+! set ONIOM functionality
+!-----------------------------------
+subroutine set_oniom(env,key,val)
+   implicit none
+   character(len=*), parameter :: source =  'set_oniom'
+      !! pointer to the error routine
+   type(TEnvironment), intent(inout) :: env
+      !! Calculation environment to handle IO stream and error log
+   character(len=*), intent(in) :: key
+   character(len=*), intent(in) :: val
+      !! key=val
+   logical :: ldum
+   logical, save :: set1 = .true.
+   logical, save :: set2 = .true.
+   
+   select case(key)
+   case default
+      call env%warning("the key '"//key//"' is not recognized by oniom",source)
+   case('inner logs')
+      if (getValue(env,val,ldum).and.set1) set%oniom_settings%logs = .true.
+      set1=.false.
+   
+   case('derived k')
+      if (getValue(env,val,ldum).and.set2) set%oniom_settings%derived = .true.
+      set2=.false.
+
+   end select
+
+end subroutine set_oniom
 
 subroutine set_scc(env,key,val)
    implicit none

@@ -104,15 +104,17 @@ module xtb_setparam
    type oniom_settings
       integer  :: innerchrg
          !! inner region charge
-      logical :: logs = .false.
-         !! if optimization logs of inner regions are needed
       logical :: derived = .false.
          !! set ONIOM optimization parameter g to derived value
       logical :: cut_inner = .false.
          !! to execute xtb just for checking inner region cut
       logical :: fixed_chrgs= .false.
          !! if charges for oniom explicitely given
-   end type oniom_settings
+      logical :: logs = .false.
+         !! if optimization logs of inner regions are needed
+      integer:: ilog1, ilog2
+         !! log units
+  end type oniom_settings
 
    type qm_external
       character(len=:),allocatable :: path

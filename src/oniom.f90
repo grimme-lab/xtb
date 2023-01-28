@@ -175,8 +175,9 @@ end subroutine newOniomCalculator
 !---------------------------------------------------------
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradient, sigma, hlgap, results)
 
+   use xtb_io_writer
+   use xtb_mctc_filetypes, only : fileType
    use xtb_xtb_calculator, only: TxTBCalculator
-   !ue xtb_setmod
 
    implicit none
    class(TOniomCalculator), intent(inout) :: self
@@ -217,11 +218,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    real(wp) :: energy_model_low, energy_model_high, hlgap_low, hlgap_high
    real(wp) :: sigma_low(3, 3), sigma_high(3, 3)
    integer :: i, coord_unit
+
    integer,allocatable :: idx2(:)
 
    real(wp),allocatable :: arr_gh(:), arr_gl(:)
       !! 1-dim arrays for matmul of gradient matrix and jacobian  
-   
 
    !> Check whether the calculator is initialized
    if (.not. allocated(self%real_low)) then
@@ -239,7 +240,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
          & energy, gradient, sigma, hlgap, results)
    endif
    
- 
    !> Creating Linked atoms
    call self%cutbond(env, mol, chk, self%topo, inner_mol,jacobian,idx2)
    
@@ -377,8 +377,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    
 
    !> Write opt logs 
-  ! if (set%logs)then
-   !   call writeMolecule
+   if (set%oniom_settings%logs)then
+      call writeMolecule(inner_mol, set%oniom_settings%ilog1, format=filetype%xyz,energy=energy_model_low)
+      call writeMolecule(inner_mol, set%oniom_settings%ilog2, format=filetype%xyz,energy=energy_model_high)
+   endif
 
 
    results%dipole = results%dipole + results_high%dipole - results_low%dipole 
@@ -507,6 +509,8 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
    !> To get topology info from wfn
    use xtb_topology, only: makeBondTopology, topologyToNeighbourList
    
+   use xtb_io_writer
+   use xtb_mctc_filetypes, only : fileType
 
    !> actual calculator
    class(TOniomCalculator), intent(in) :: self
@@ -544,11 +548,14 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
    real(wp), allocatable :: xyz(:, :), xyz2(:, :)
    logical :: inside
    integer, allocatable :: bonded(:, :)
-   
-   
+   integer :: io
+   character(len=:),allocatable :: fname_inner
+
    !> The pair-wise indices for cutbound  
    integer, allocatable :: brokenBondPairs(:,:)
    
+
+
    
    inside = .FALSE.
 
@@ -591,7 +598,6 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
       end do
       iterator = size(bonded,2)
    end select
-   
    !> Algorithm to identify broken covalent bonds due to the ONIOM boundary
    do i = 1, size(self%idx)
       do j = 1, iterator
@@ -659,15 +665,14 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
 
    call init(inner_mol, at, xyz)
    
-   block
-      use xtb_io_writer
-      use xtb_mctc_filetypes, only : fileType
-      integer :: io
-      call open_file(io, "inner-region.xyz", "w")
-      call writeMolecule(inner_mol, io, filetype%xyz)
-      call close_file(io)
-   end block
-
+   if (set%oniom_settings%cut_inner) then
+      fname_inner = "inner_region_without_h.xyz" 
+   else
+      fname_inner = "inner_region.xyz"
+   endif
+   call open_file(io, fname_inner, "w")
+   call writeMolecule(inner_mol, io, filetype%xyz)
+   call close_file(io)
 
 end subroutine cutbond
 
