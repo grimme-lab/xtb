@@ -774,6 +774,8 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
       !! coordinates of the cleaved atom pair
    character(len=:), allocatable :: warning
       !! message showed in case of default parameter usage
+   character(len=:), allocatable :: warning2
+      !! message showed in case of the switcing between derived and fixed prefactor values 
    logical :: def
       !! to check if default is used
    logical, save :: rep=.false.
@@ -787,6 +789,8 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
 
    def = .false.
    warning = "Atoms "//dummy1//" and "//dummy2//" are not accounted in the parameter suite(S,P,N,C,O), the default distance values will be used."
+   warning2 = "The distance between atoms "//dummy1//" and "//dummy2//" is almost the same, switching to fixed regime"
+   
    
    xyz1 = mol%xyz(:, idx1)
    xyz2 = mol%xyz(:, idx2) 
@@ -971,15 +975,17 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
    
    !> different ways of computing scaling parameter
    if (set%oniom_settings%derived) then
+      !! prefactor can change
+      prefactor = dist/sqrt(dist_13)
+      print *, "derived"
+   else
       !! prefactor is fixed
       prefactor = dist/dist2 
       if(def.and. .not.rep) then
          rep=.true.
          call env%warning(warning,source)
       endif
-   else
-      !! prefactor can change
-      prefactor = dist/sqrt(dist_13)
+      print *,"fixed"
    endif
    
    !> LA (linked atom) coordinates
@@ -987,8 +993,11 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
    
    !> To determine if the difference between the coordinates of LA and LAH is small
    xyz_difference=xyz2-xyz(:,size(xyz,2))
-   if (all(xyz_difference<1.0E-5)) then 
-      set%oniom_settings%derived=.true.
+   if (all(xyz_difference<1.0E-5).and.set%oniom_settings%derived) then 
+      set%oniom_settings%derived=.false.
+      call env%warning(warning2,source)
+      prefactor = dist/dist2 
+
    endif
 
    call derivative(jacobian,connectorPosition,size(xyz,2),prefactor,mol%xyz,idx1,idx2,dist_13,set%oniom_settings%derived)

@@ -81,7 +81,6 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    
    logical :: exitRun
    
-
    select case(set%mode_extrun)
    case default
       call env%error("Unknown calculator type", source)
