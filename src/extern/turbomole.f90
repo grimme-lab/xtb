@@ -183,6 +183,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
    use xtb_setparam
    
    implicit none
+   character(len=*),parameter :: source = 'external_turbomole'
    type(TEnvironment), intent(inout) :: env
       !! Calculation environment to handle I/O stream and error log
    integer :: n, at(n), nel, nopen
@@ -255,7 +256,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
          cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
@@ -265,20 +266,26 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
             if(grd)call execute_command_line('exec rdgrad |tee -a job.last 2>> /dev/null ')
          endif
          call extcodeok(extcode)
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         if (set%ceasefiles) then
+            call env%io%deleteFile('job.last') 
+            call env%io%deleteFile('mos') 
+            call env%io%deleteFile('statistics') 
+            call env%io%deleteFile('basis') 
+            call env%io%deleteFile('auxbasis') 
+            call env%io%deleteFile('coord') 
+         endif
       end if
       !$omp end critical (turbo_lock)
       return
    endif
 
-  print*, "That is all for today"
-   stop
    ! TM+d3+gcp
    if(extcode.eq.2)then
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
          cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
@@ -290,7 +297,16 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
             call execute_command_line('exec gcp coord -file -grad >>job.last 2>>/dev/null')
          endif
          call extcodeok(extcode)
-         call rdtm(n,.true.,eel,g,xyz_cached)
+         call rdtm(env,n,.true.,eel,g,xyz_cached)
+         
+         if (set%ceasefiles) then
+            call env%io%deleteFile('job.last') 
+            call env%io%deleteFile('mos') 
+            call env%io%deleteFile('statistics') 
+            call env%io%deleteFile('basis') 
+            call env%io%deleteFile('auxbasis') 
+            call env%io%deleteFile('coord') 
+         endif
       end if
       !$omp end critical (turbo_lock)
       return
@@ -301,7 +317,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
          cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
@@ -311,7 +327,15 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
             if(grd)call execute_command_line('exec grad >> job.last 2>> /dev/null')
          endif
          call extcodeok(extcode)
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         if (set%ceasefiles) then
+            call env%io%deleteFile('job.last') 
+            call env%io%deleteFile('mos') 
+            call env%io%deleteFile('statistics') 
+            call env%io%deleteFile('basis') 
+            call env%io%deleteFile('auxbasis') 
+            call env%io%deleteFile('coord') 
+         endif
       end if
       !$omp end critical (turbo_lock)
       return
@@ -395,8 +419,14 @@ subroutine rdtm(n,grd,e,g,xyz)
       101   read(iunit,'(a)',end=102)a1
       call readl(a1,xx,nn)
       if(nn.ge.4) e=xx(2)
+         !! to assign the last entry 
       goto 101
-      102   close(iunit)
+      102 continue
+      if (set%ceasefiles) then
+         call env%io%deleteFile('energy') 
+      else
+         close(iunit)
+      endif
       return
    endif
 
@@ -429,8 +459,12 @@ subroutine rdtm(n,grd,e,g,xyz)
    do i=1,n
       read(iunit,*)g(1,i),g(2,i),g(3,i)
    enddo
-
-   close(iunit)
+   if (set%ceasefiles) then
+      call env%io%deleteFile('energy') 
+      call env%io%deleteFile('gradient') 
+   else
+      close(iunit)
+   endif
 
 end subroutine rdtm
 

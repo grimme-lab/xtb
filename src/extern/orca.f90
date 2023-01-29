@@ -341,6 +341,7 @@ subroutine runOrca(env,ext,mol,energy,gradient)
    logical :: exist
    character(len=:),allocatable :: line
    character(len=:),allocatable :: outfile
+   character(len=:),allocatable :: tmpfile
 
    !$omp critical (orca_lock)
    
@@ -372,10 +373,13 @@ subroutine runOrca(env,ext,mol,energy,gradient)
    
    !> find output .engrad file
    i = index(ext%input_file,'.inp')
+   
    if (i > 0) then
       outfile = ext%input_file(:i-1)//'.engrad'
+      tmpfile = ext%input_file(:i-1)
    else
       outfile = ext%input_file//'.engrad'
+      tmpfile = ext%input_file
    endif
    inquire(file=outfile,exist=exist)
    if (.not.exist) then
@@ -383,7 +387,16 @@ subroutine runOrca(env,ext,mol,energy,gradient)
    else
       call open_file(iorca,outfile,'r')
       call readOrcaEngrad(iorca, energy, gradient)
-      call close_file(iorca)
+      if (set%ceasefiles) then
+         call remove_file(iorca)
+         call env%io%deleteFile(tmpfile//".gbw")
+         call env%io%deleteFile(tmpfile//".densities")
+         call env%io%deleteFile(tmpfile//".rr")
+         call env%io%deleteFile(tmpfile//"_property.txt")
+         call env%io%deleteFile("orca.out")
+      else
+         call close_file(iorca)
+      endif
    endif
 
    !$omp end critical (orca_lock)
