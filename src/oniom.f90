@@ -391,7 +391,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    energy = energy + energy_model_high - energy_model_low
    results%e_total = energy
    
-   
    !> [gradient*Jacobian] with forward and backward transformation
    call matrix_to_array(gradient_high,arr_gh)
    call matrix_to_array(gradient_low,arr_gl)
@@ -673,6 +672,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
    call open_file(io, fname_inner, "w")
    call writeMolecule(inner_mol, io, filetype%xyz)
    call close_file(io)
+      
 
 end subroutine cutbond
 
@@ -977,7 +977,6 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
    if (set%oniom_settings%derived) then
       !! prefactor can change
       prefactor = dist/sqrt(dist_13)
-      print *, "derived"
    else
       !! prefactor is fixed
       prefactor = dist/dist2 
@@ -985,9 +984,7 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
          rep=.true.
          call env%warning(warning,source)
       endif
-      print *,"fixed"
    endif
-   
    !> LA (linked atom) coordinates
    xyz(:, size(xyz, 2)) = xyz1 + (xyz2 - xyz1) * prefactor
    
@@ -997,7 +994,6 @@ subroutine newcoord(env,mol,xyz,idx1,idx2,jacobian,connectorPosition)
       set%oniom_settings%derived=.false.
       call env%warning(warning2,source)
       prefactor = dist/dist2 
-
    endif
 
    call derivative(jacobian,connectorPosition,size(xyz,2),prefactor,mol%xyz,idx1,idx2,dist_13,set%oniom_settings%derived)
@@ -1006,7 +1002,7 @@ end subroutine newcoord
 
 !> To take derivative of model system coordinates wrt real system coordinates
 !> see https://xtb-docs.readthedocs.io/ for more info
-subroutine derivative(jacobian,con,link,prefactor,xyz,idx1,idx2,dist_13,fixed)
+subroutine derivative(jacobian,con,link,prefactor,xyz,idx1,idx2,dist_13,derived)
    
    implicit none
    real(wp), intent(inout) :: jacobian(:,:)
@@ -1016,8 +1012,9 @@ subroutine derivative(jacobian,con,link,prefactor,xyz,idx1,idx2,dist_13,fixed)
       !! position of linked atom in the model system atom list
    real(wp),intent(in) :: prefactor,dist_13
    real(wp),intent(in) :: xyz(:,:)
+      !! coordinates of whole molecule
    integer, intent(in) :: idx1, idx2
-   logical, intent(in) :: fixed
+   logical, intent(in) :: derived
       !! To fix value of prefactor variable
    integer :: i, j
    integer :: con3, link3
@@ -1041,16 +1038,26 @@ subroutine derivative(jacobian,con,link,prefactor,xyz,idx1,idx2,dist_13,fixed)
    !> Algorithm to find non-zero elements of the matrix
    do i=1,3
       
-      if(fixed) then
+      if(.not.derived) then
          !> Fixed Jacobian
          jacobian(counter1(i),counter2(i))=1-prefactor
          jacobian(counter2(i),counter2(i))=prefactor
       
       else
          !> Derived Jacobian
+         if (i==1) then
+            !> x coordinate
+            jacobian(counter2(i),counter2(i)) =(prefactor*(   (xyz(2,idx1)**2) - 2*xyz(2,idx1)*xyz(2,idx2) + (xyz(2,idx2)**2) + ((xyz(3,idx1)-xyz(3,idx2))**2)  ))/(dist_13**(3.0_wp/2.0_wp))
+         else if (i==2) then
+            !> y coordinate
+            jacobian(counter2(i),counter2(i)) =(prefactor*(   (xyz(1,idx1)**2) - 2*xyz(1,idx1)*xyz(1,idx2) + (xyz(1,idx2)**2) + ((xyz(3,idx1)-xyz(3,idx2))**2)  ))/(dist_13**(3.0_wp/2.0_wp))
+         else
+            !> z coordinate
+            jacobian(counter2(i),counter2(i)) =(prefactor*(   (xyz(1,idx1)**2) - 2*xyz(1,idx1)*xyz(1,idx2) + (xyz(1,idx2)**2) + ((xyz(2,idx1)-xyz(2,idx2))**2)  ))/(dist_13**(3.0_wp/2.0_wp))
+         endif
+         
          jacobian(counter1(i),counter2(i)) = (prefactor*((xyz(i,idx2)-xyz(i,idx1))**2))/(dist_13**(3.0_wp/2.0_wp)) - (prefactor/(sqrt(dist_13))) + 1.0_wp 
-         jacobian(counter2(i),counter2(i)) = (prefactor*(sqrt(dist_13)-xyz(i,idx2)+xyz(i,idx1))*(sqrt(dist_13)+xyz(i,idx2)-xyz(i,idx1)))/(dist_13**(3.0_wp/2.0_wp))
-
+      
       endif
    
    enddo
@@ -1213,6 +1220,7 @@ subroutine protectCoord(env)
    
    use xtb_readin, only : mirror_line
    implicit none
+   character(len=*),parameter :: source = "xtb_oniom_protectCoord"
    type(TEnvironment),intent(inout) :: env
    integer :: cunit, new_cunit, err
    character(len=:),allocatable :: line
@@ -1226,10 +1234,11 @@ subroutine protectCoord(env)
          call mirror_line(cunit,new_cunit,line,err)
          if(is_iostat_end(err)) exit
       enddo
-      call env%warning("Your input structure file coord will be renamed as unopt.coord")
+      call env%warning("coord file will be renamed as unopt.coord",source)
+      
 
    endif
-   !stop
+   !sop
 
 end subroutine protectCoord
 
