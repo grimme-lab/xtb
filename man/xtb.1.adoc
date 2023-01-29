@@ -66,6 +66,9 @@ OPTIONS
 *-c, --chrg* 'INT':: 
     specify molecular charge as 'INT', overrides `.CHRG` file and `xcontrol` option
 
+*-c, --chrg* 'INT:INT':: 
+    specify charges for 'inner region:outer region' for `oniom` calculation, overrides `.CHRG` file and `xcontrol` option
+
 *-u, --uhf* 'INT'::
     specify number of unpaired electrons as 'INT', overrides `.UHF` file and `xcontrol` option
 
@@ -79,9 +82,9 @@ OPTIONS
     use tblite library as implementation of for xTB
 
 *--oniom* 'METHOD' 'LIST'::
-    use subtractive embedding via ONIOM method. 'METHOD' is given as `inner:outer`
-    where `inner` can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and
-    `outer` can be 'gfn2', 'gfn1', or 'gfnff'.
+    use subtractive embedding via ONIOM method. 'METHOD' is given as `high:low`
+    where `high` can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and
+    `low` can be 'gfn2', 'gfn1', or 'gfnff'.
     The inner region is given as a comma separated indices directly in the commandline
     or in a file with each index on a separate line.
 
@@ -262,6 +265,9 @@ GENERAL
 
 *-h, --help*::
      show help page
+
+*--cut*::
+      create inner region for `oniom` calculation without performing any calcultion
 
 ENVIRONMENT VARIABLES
 ---------------------
