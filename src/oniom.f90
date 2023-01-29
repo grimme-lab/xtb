@@ -236,6 +236,15 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    end if
 
    if (.not.set%oniom_settings%cut_inner) then
+      
+      if (printlevel > 0) then
+         write(env%unit,'(a)')
+         write(env%unit,'(2x,72("-"))')
+         write (env%unit, '(/6x,a/)') "Singlepoint calculation of whole system with low-level method"
+         write(env%unit,'(2x,72("-"))')
+         write(env%unit,'(a)')
+      endif
+
       call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
          & energy, gradient, sigma, hlgap, results)
    endif
@@ -267,8 +276,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    !> Inner region, low method
    if (.not. allocated(self%model_low)) then
 
-      if (printlevel > 0) &
-         write (env%unit, '(/a/)') "Initializing low level method"
 
       select case (self%method_low)
       case default
@@ -304,9 +311,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    
    ! Inner region, high method
    if (.not. allocated(self%model_high)) then
-
-      if (printlevel > 0) &
-         write (env%unit, '(/a/)') "Initializing high level method"
 
       select case (self%method_high)
       case (1, 2)
@@ -352,8 +356,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    
 
    !> Inner region low method, actual calculatoin
-   if (printlevel > 0) &
-      write (env%unit, '(/a/)') "SP of inner region with low method"
+   if (printlevel > 0) then
+      write(env%unit,'(a)')
+      write(env%unit,'(2x,72("-"))')
+      write (env%unit, '(/6x,a/)') "Singlepoint calculation of inner region with low-level method"
+      write(env%unit,'(2x,72("-"))')
+      write(env%unit,'(a)')
+   endif
 
    allocate (gradient_low(3, inner_mol%n))
    energy_model_low = 0.0_wp
@@ -364,9 +373,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
 
    !> Inner region high method, actual calculatoin
-
-   if (printlevel > 0) &
-      write (env%unit, '(/a/)') "SP of inner region with high method"
+   if (printlevel > 0) then
+      write(env%unit,'(a)')
+      write(env%unit,'(2x,72("-"))')
+      write (env%unit, '(/6x,a/)') "Singlepoint calculation of inner region with high-level method"
+      write(env%unit,'(2x,72("-"))')
+      write(env%unit,'(a)')
+   endif
 
    allocate (gradient_high(3, inner_mol%n))
    energy_model_high = 0.0_wp
