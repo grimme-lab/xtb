@@ -1452,6 +1452,7 @@ subroutine set_oniom(env,key,val)
    logical :: ldum
    logical, save :: set1 = .true.
    logical, save :: set2 = .true.
+   logical, save :: set3 = .true.
    
    select case(key)
    case default
@@ -1464,6 +1465,10 @@ subroutine set_oniom(env,key,val)
       if (getValue(env,val,ldum).and.set2) set%oniom_settings%derived = .true.
       set2=.false.
 
+   case('silent')
+      if (getValue(env,val,ldum).and.set2) set%oniom_settings%silent = .true.
+      set3=.false.
+   
    end select
 
 end subroutine set_oniom

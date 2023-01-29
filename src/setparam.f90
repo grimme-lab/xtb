@@ -110,6 +110,8 @@ module xtb_setparam
          !! to execute xtb just for checking inner region cut
       logical :: fixed_chrgs= .false.
          !! if charges for oniom explicitely given
+      logical :: silent = .false.
+         !! zo mute external output
       logical :: logs = .false.
          !! if optimization logs of inner regions are needed
       integer:: ilog1, ilog2
