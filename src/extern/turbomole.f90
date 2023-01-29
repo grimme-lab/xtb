@@ -215,6 +215,7 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       !! to check if molecule moves b/n optimization runs
    logical :: exist
    logical :: runCefine
+   integer :: err
 
    cache = .false.
    dip=0
@@ -262,9 +263,27 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       if (.not.cache) then
          call wrtm(n,at,xyz)
          if(extmode.eq.1)then
-            call execute_command_line('exec ridft  | tee  job.last 2>> /dev/null')
-            if(grd)call execute_command_line('exec rdgrad |tee -a job.last 2>> /dev/null ')
-         endif
+            
+            write(env%unit,'(72("="))')
+            write(env%unit,'(1x,"*",1x,a)') &
+               "letting TURBOMOLE take over the control..."
+            
+            if (set%oniom_settings%silent) then
+               call execute_command_line('exec ridft >  job.last 2>> /dev/null',exitstat=err)
+               if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null ',exitstat=err)
+            else
+               call execute_command_line('exec ridft  | tee  job.last 2>> /dev/null',exitstat=err)
+               if(grd)call execute_command_line('exec rdgrad |tee -a job.last 2>> /dev/null ',exitstat=err)
+            endif
+
+            if (err.ne.0) then
+               call env%error('TURBOMOLE returned with non-zero exit status, doing the same',source)
+            else
+               write(env%unit,'(1x,"*",1x,a)') &
+               "successful TURBOMOLE run, taking over control again..."
+            endif
+               write(env%unit,'(72("="))')
+       endif
          call extcodeok(extcode)
          call rdtm(env,n,grd,eel,g,xyz_cached)
          if (set%ceasefiles) then
@@ -403,9 +422,46 @@ subroutine wrtm(n,at,xyz)
 
 end subroutine wrtm
 
-subroutine rdtm(n,grd,e,g,xyz)
+!----------------------------------------
+! read TM energy and gradient files 
+!----------------------------------------
+!subroutine readTM(n,ifgrd,energy,gradient,xyz)
+   
+ !  use xtb_mctc_accuracy, only : wp
+   !use xtb_filetools, only : open_file, close_file, remove_file
+ !  use xtb_readin , only : strip_line,getValue
+
+!   implicit none
+!   integer, intent(in) :: n
+      !! number of atoms
+!   logical, intent(in) :: ifgrd
+      !! if gradient fileshould be read
+!   real(wp), intent(out) :: energy, gradient(3,n), xyz(3,n)
+      !! TM output
+   
+!   integer :: grd, e
+      !! file units for 'gradient' and 'energy' files
+!   character(len=:), allocatable :: line
+      !! tmp line
+!   logical :: exist
+
+
+!   if (.not.ifgrd) then
+!      call open_file(e,'energy','r')
+!      do
+!         call strip_line(e,line,exist)
+!         if (exist)
+!            call readline()
+!      enddo
+!   endif
+!
+!
+!end subroutine readTM
+subroutine rdtm(env,n,grd,e,g,xyz)
+   
    use xtb_mctc_accuracy, only : wp
    implicit none
+   type(TEnvironment), intent(inout) :: env
    integer n, iunit, i, nl, j, nn
    logical grd
    real(wp) g(3,n), e, xx(10), x, y, z, xyz(3,n)

@@ -361,8 +361,14 @@ subroutine runOrca(env,ext,mol,energy,gradient)
    write(env%unit,'(72("="))')
    write(env%unit,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
-   call execute_command_line('exec 2>&1 '//ext%executable//' '// &
+   if (set%oniom_settings%silent) then 
+      call execute_command_line('exec 2>&1 '//ext%executable//' '// &
+                             ext%input_file//'>orca.out',exitstat=err)
+   else
+      call execute_command_line('exec 2>&1 '//ext%executable//' '// &
                              ext%input_file,exitstat=err)
+   endif
+
    if (err.ne.0) then
       call env%error('orca returned with non-zero exit status, doing the same',source)
    else
