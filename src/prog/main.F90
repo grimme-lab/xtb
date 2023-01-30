@@ -479,8 +479,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Print the method header and select the parameter file
-   !print*,set%runtyp
-   !stop
+
    if (.not.allocated(fnv)) then
       select case(set%runtyp)
       case default
