@@ -299,6 +299,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       select case (self%method_low)
       case default
          call env%error("Invalid low-level inner method")
+         return
 
       case (1, 2)
          !! GFN1/2
@@ -326,6 +327,10 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    if (.not. allocated(self%model_high)) then
 
       select case (self%method_high)
+      case default
+         call env%error("Invalid high-level inner method")
+         return
+      
       case (1, 2)
          !! GFN1/2
          allocate (tmp)
@@ -609,7 +614,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
    
    !> To identify bonded atoms and save them into an array + assign iterator
    select type (calc => self%real_low)
-   case default
+   class default
       call env%error("Topology information could not be derived from the given calculator",source)
       return
 
