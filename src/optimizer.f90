@@ -397,8 +397,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
       & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
       & converged,timer,set%optset%exact_rf,avconv)
-   
-
 
    call env%check(fail)
    if (fail) then
