@@ -214,7 +214,6 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
    logical :: cache
       !! to check if molecule moves b/n optimization runs
    logical :: exist
-   logical :: runCefine
    integer :: err
 
    cache = .false.
@@ -234,13 +233,16 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
             if (allocated(set%ext_turbo%input_string)) then 
                call execute_command_line("exec "//cefine//" "//set%ext_turbo%input_string)
             else
-               call execute_command_line("exec "//cefine//" --func tpss --bas def2-SVP --d4 -sym c1 --noopt")
+               call execute_command_line("exec "//cefine//" --func b97-3c")
             endif
+         else
+            call env%error("No cefine binary is found", source)
+            return
          end if
 
-      !> default control file
       else
          call writeControl(chrg,uhf)
+            !! default control file
       endif
 
    end if
@@ -365,9 +367,9 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
 
 end subroutine external_turbomole
 
-!----------------------------------------
-! create default TM control
-!----------------------------------------
+!-------------------------------------------------------
+! create default TM control -> future TMprep
+!-------------------------------------------------------
 subroutine writeControl(chrg,uhf)
 
    use xtb_mctc_accuracy, only : wp

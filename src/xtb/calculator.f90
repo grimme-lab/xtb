@@ -465,6 +465,7 @@ subroutine newWavefunction(env, mol, calc, chk)
                & wfn%q,cn,calc%xtbData%level,.true.)
          else if (set%guess_charges.eq.p_guess_goedecker) then
             !! default
+            
             call new_charge_model_2019(chrgeq,mol%n,mol%at)
                !! to get parametrized values for q (en,gam,kappa,alpha)
 

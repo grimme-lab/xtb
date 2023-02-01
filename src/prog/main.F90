@@ -598,8 +598,7 @@ subroutine xtbMain(env, argParser)
             call readRestart(env,chk%wfn,'xtbrestart',mol%n,mol%at,set%gfn_method,exist,.true.)
          endif
       end select 
-      if (set%oniom_settings%fixed_chrgs) then
-      else
+      if (.not.set%oniom_settings%fixed_chrgs) then
          set%oniom_settings%innerchrg = calculateCharge(calc,env,mol,chk)
       endif
   

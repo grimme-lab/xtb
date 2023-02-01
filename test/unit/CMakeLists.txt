@@ -34,6 +34,7 @@ set(
   "iff"
   "latticepoint"
   "molecule"
+  "oniom"
   "pbc-tools"
   "peeq"
   "repulsion"

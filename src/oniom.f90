@@ -44,8 +44,8 @@ module xtb_oniom
    type :: oniom_input
       character(len=:), allocatable :: first_arg
       character(len=:), allocatable :: second_arg
-      character(len=:), allocatable :: chrg
-      logical :: g
+      !character(len=:), allocatable :: chrg
+      !logical :: g
    end type oniom_input
    
    !> ONIOM calculator 
@@ -446,7 +446,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    do i = 1, size(idx2)
       gradient(:, idx2(i)) = gradient(:, idx2(i)) + gradient_high(:, i) - gradient_low(:, i) 
    end do 
-
+   results%gnorm=norm2(gradient)   
    deallocate(gradient_high)
    deallocate(gradient_low)
 
@@ -1279,6 +1279,7 @@ function calculateCharge(self, env, mol, chk) result(chrg_model)
       !! GFN1/2
       do i = 1, size(self%idx)
          charge = charge + chk%wfn%q(self%idx(i))
+         
       end do
 
     class default
