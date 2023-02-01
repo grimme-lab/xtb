@@ -161,11 +161,11 @@ subroutine checkOrca(env, ext)
          endif
       enddo
       call close_file(iorca)
-         if (.not.(chk_engrad.and.chk_xyzfile)) then
-            call env%error("Please add '! ENGRAD' and/or '* xyzfile' to '"//&
-            & ext%input_file //"'!",source)
-            return
-         endif
+      if (.not.(chk_engrad.and.chk_xyzfile)) then
+         call env%error("Please add '! ENGRAD' and/or '* xyzfile' to '"//&
+         & ext%input_file //"'!",source)
+         return
+      endif
 
    else
       !! if not exist, check for the input line
