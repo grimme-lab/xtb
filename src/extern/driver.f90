@@ -117,7 +117,7 @@ contains
     !$omp critical (turbo_lock)
     inquire (file='gradient', exist=exist)
     if (exist) then
-      call rdtm(mol%n, .true., energy, gradient, xyz_cached)
+      call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
       cache = all(abs(xyz_cached - mol%xyz) < 1.e-10_wp)
     end if
     if (.not. cache) then
@@ -135,7 +135,7 @@ contains
       end if
       write (env%unit, '(72("="))')
 
-      call rdtm(mol%n, .true., energy, gradient, xyz_cached)
+      call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
     end if
     !$omp end critical (turbo_lock)
 

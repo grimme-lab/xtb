@@ -25,23 +25,41 @@ module xtb_type_wavefunction
 
    type :: TWavefunction
       integer :: n = 0
+         !! Number of atoms 
       integer :: nel = 0
+         !! Number of elctrons
       integer :: nopen = 0
+         !! Number of unpaired electrons
       integer :: nao = 0
+         !! Number of atomic orbitals
       integer :: nshell = 0
-      real(wp),allocatable :: P(:,:)    ! density matrix
-      real(wp),allocatable :: q(:)      ! partial charges
-      real(wp),allocatable :: qsh(:)    ! shell charges
-      real(wp),allocatable :: dipm(:,:) ! dipole moments
-      real(wp),allocatable :: qp(:,:)   ! quadrupole moments
-      real(wp),allocatable :: wbo(:,:)  ! wiberg bond orders
-      integer :: ihomo = 0,ihomoa = 0,ihomob = 0 ! HOMO position
+         !! Number of shells
+      real(wp),allocatable :: P(:,:)    
+         !! Density matrix
+      real(wp),allocatable :: q(:)      
+         !! Partial charges
+      real(wp),allocatable :: qsh(:)    
+         !! Shell charges
+      real(wp),allocatable :: dipm(:,:) 
+         !! Dipole moments
+      real(wp),allocatable :: qp(:,:)   
+         !! Quadrupole moments
+      real(wp),allocatable :: wbo(:,:)  
+         !! Wiberg bond orders
+      integer :: ihomo = 0,ihomoa = 0,ihomob = 0 
+         !! HOMO position
       real(wp) :: efa = 0.0_wp, efb = 0.0_wp
-      real(wp),allocatable :: focc(:)   ! fractional occupation
-      real(wp),allocatable :: focca(:)  ! for alpha space
-      real(wp),allocatable :: foccb(:)  ! for beta space
-      real(wp),allocatable :: emo(:)    ! orbital energies
-      real(wp),allocatable :: C(:,:)    ! molecular orbitals
+      real(wp),allocatable :: focc(:)   
+         !! Fractional occupation
+      real(wp),allocatable :: focca(:)  
+         !! For alpha space
+      real(wp),allocatable :: foccb(:)  
+         !! For beta space
+      real(wp),allocatable :: emo(:)    
+         !! Orbital energies
+      real(wp),allocatable :: C(:,:)    
+         !! Molecular orbitals
+   
    contains
    procedure :: allocate => allocate_wavefunction
    procedure :: deallocate => deallocate_wavefunction

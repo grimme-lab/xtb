@@ -427,33 +427,58 @@ subroutine writeInfo(self, unit, mol)
 
 end subroutine writeInfo
 
-
+!---------------------------------------------
+! Initialize new wavefunction
+!---------------------------------------------
 subroutine newWavefunction(env, mol, calc, chk)
+   
+   implicit none
    character(len=*), parameter :: source = 'xtb_calculator_newWavefunction'
+      !! Name of error producer routine
    type(TEnvironment), intent(inout) :: env
+      !! Calculation environment to handle I/O stream and error log
    type(TRestart), intent(inout) :: chk
+      !! Restart data wrapper for wfn and nlist      
    type(TxTBCalculator), intent(in) :: calc
+      !! Instance of xTB Calculator
    type(TMolecule), intent(in) :: mol
+      !! Molecular structure data
    real(wp), allocatable :: cn(:)
+      !! Coordination number
    type(chrg_parameter) :: chrgeq
+      !! guess charges(gasteiger/goedecker/sad) 
    logical :: exitRun
+      !! if it is recommended to terminate the run 
 
    associate(wfn => chk%wfn)
       allocate(cn(mol%n))
       call wfn%allocate(mol%n,calc%basis%nshell,calc%basis%nao)
-
+      
+      !> find partial charges
       if (mol%npbc > 0) then
+         !! if periodic
          wfn%q = mol%chrg/real(mol%n,wp)
+            !! evenly distribute charge with the equal partial charges 
       else
          if (set%guess_charges.eq.p_guess_gasteiger) then
             call iniqcn(mol%n,mol%at,mol%z,mol%xyz,nint(mol%chrg),1.0_wp, &
                & wfn%q,cn,calc%xtbData%level,.true.)
          else if (set%guess_charges.eq.p_guess_goedecker) then
+            !! default
+            
             call new_charge_model_2019(chrgeq,mol%n,mol%at)
+               !! to get parametrized values for q (en,gam,kappa,alpha)
+
             call ncoord_erf(mol%n,mol%at,mol%xyz,cn)
+               !! to obtain CN
+               !! (49) Extended Tight-Binding Quantum Chemistry Mehods 2020
+            
             call eeq_chrgeq(mol,env,chrgeq,cn,wfn%q)
+               !! to obtain partial charges q
+               !! (47) Extended Tight-Binding Quantum Chemistry Mehods 2020
 
             call env%check(exitRun)
+               !! to check status of environment
             if (exitRun) then
                call env%rescue("EEQ guess failed, falling back to SAD guess", source)
                wfn%q = mol%chrg/real(mol%n,wp)
@@ -462,10 +487,13 @@ subroutine newWavefunction(env, mol, calc, chk)
             wfn%q = mol%chrg/real(mol%n,wp)
          end if
       end if
-
+      
+      !> find shell charges
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell, &
          & wfn%q,wfn%qsh,calc%xtbData%level)
+   
    end associate
+
 end subroutine newWavefunction
 
 end module xtb_xtb_calculator

@@ -488,9 +488,12 @@ end subroutine deallocate_molecule
 subroutine update(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
-   implicit none
-   class(TMolecule),intent(inout) :: self  !< molecular structure information
 
+   implicit none
+   class(TMolecule),intent(inout) :: self  
+      !! molecular structure information
+   
+   !> For periodic calculations
    if (self%npbc > 0) then
       call dlat_to_cell(self%lattice,self%cellpar)
       call dlat_to_rlat(self%lattice,self%rec_lat)
@@ -498,19 +501,22 @@ subroutine update(self)
 
       call self%wrap_back
    endif
-
+   
    call self%calculate_distances
 
 end subroutine update
 
 !> calculates all distances for molecular structures and minimum
-!  image distances for peridic structures
+!> image distances for periodic structures
 subroutine mol_calculate_distances(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
+   
    implicit none
-   class(TMolecule),intent(inout) :: self !< molecular structure information
+   class(TMolecule),intent(inout) :: self 
+      !! molecular structure information
    integer :: i,j
+   
    if (self%npbc > 0) then
       do i = 1, self%n
          do j = 1, i-1
@@ -530,6 +536,7 @@ subroutine mol_calculate_distances(self)
          self%dist(i,i) = 0.0_wp
       enddo
    endif
+
 end subroutine mol_calculate_distances
 
 !> get all nuclear charges

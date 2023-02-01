@@ -326,6 +326,19 @@ $modef
 *mode*='int'::
     can set by --modef via cmdline
 
+$oniom
+~~~~~~
+*inner logs*='bool'::
+   to print optimization log files for model region geometry (`high.inner_region.log` and `low.inner_region.log`)
+
+*derived k*='bool'::
+   to calculate prefactor *k* and create jacobian dynamically (see more )
+
+*silent*='bool'::
+   to hide the execution runs of external software 
+
+
+
 $opt
 ~~~~
 *engine*='method'::

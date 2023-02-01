@@ -90,7 +90,7 @@ module xtb_prog_main
    use xtb_kopt
    use xtb_iff_iffprepare, only : prepare_IFF
    use xtb_iff_data, only : TIFFData
-   use xtb_oniom, only : oniom_input, TOniomCalculator
+   use xtb_oniom, only : oniom_input, TOniomCalculator, calculateCharge
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
    implicit none
    private
@@ -392,6 +392,7 @@ subroutine xtbMain(env, argParser)
    endif
 
    mol%chrg = real(set%ichrg, wp)
+      !! To assign charge 
    mol%uhf = set%nalphabeta
    call initrand
 
@@ -478,6 +479,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Print the method header and select the parameter file
+
    if (.not.allocated(fnv)) then
       select case(set%runtyp)
       case default
@@ -590,10 +592,17 @@ subroutine xtbMain(env, argParser)
       select type(xtb => calc%real_low)
       type is(TxTBCalculator)
          call chk%wfn%allocate(mol%n,xtb%basis%nshell,xtb%basis%nao)
+         call newWavefunction(env,mol,xtb,chk)
+            !! assigns only partial charges q and shell charges
          if (restart) then ! only in first run
             call readRestart(env,chk%wfn,'xtbrestart',mol%n,mol%at,set%gfn_method,exist,.true.)
          endif
-      end select
+      end select 
+      if (.not.set%oniom_settings%fixed_chrgs) then
+         set%oniom_settings%innerchrg = calculateCharge(calc,env,mol,chk)
+      endif
+  
+
    end select
 
    ! ========================================================================
@@ -655,21 +664,32 @@ subroutine xtbMain(env, argParser)
 
 
    ! ------------------------------------------------------------------------
-   !  ANCopt
+   !> Geometry optimization(ANCopt,L_ANCopt,FIRE)   
+   ! ------------------------------------------------------------------------
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then
+      
       if (set%opt_engine.eq.p_engine_rf) &
          call ancopt_header(env%unit,set%veryverbose)
+         !! Print ANCopt header
+
       call start_timing(3)
+         !! the system_clock and cpu_time calls for the optimization start
+
       call geometry_optimization &
          &     (env, mol,chk,calc, &
          &      egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,etot,g,sigma,set%optset%optlev,.true.,.false.,murks)
+         !! Optimization
+
+      !> write results
       res%e_total = etot
       res%gnorm = norm2(g)
       if (nscan.gt.0) then
          call relaxed_scan(env,mol,chk,calc)
       endif
+      
+      !> if geo opt fails -> xtblast file
       if (murks) then
          call generateFileName(tmpname, 'xtblast', extension, mol%ftype)
          write(env%unit,'(/,a,1x,a,/)') &
@@ -679,8 +699,10 @@ subroutine xtbMain(env, argParser)
          call close_file(ich)
          call env%terminate("Geometry optimization failed")
       end if
-      call stop_timing(3)
-   endif
+
+      call stop_timing(3) 
+         !! the system_clock and cpu_time calls for the optimization end
+  endif
 
 
    ! ------------------------------------------------------------------------
@@ -1164,6 +1186,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    real(wp) :: ddum
    character(len=:), allocatable :: flag, sec
    logical :: exist
+   
 
    set%gfn_method = 2
    coffee = .false.
@@ -1345,10 +1368,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          else
             call env%error("Compiled without support for tblite library", source)
             cycle
-         end if
+         endif
 
       case('--color')
-         call args%nextArg(sec)
          if (allocated(sec)) then
             select case(sec)
             case('auto')
@@ -1363,14 +1385,14 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          else
             call env%error("No color scheme provided for --color option", source)
          end if
-
+      
       case('--oniom')
          call set_exttyp('oniom')
          call args%nextArg(sec) 
 
          !> To handle no argument case
          if (.not.allocated(sec)) then
-            call env%error("No inner region provided for ONIOM", source)
+            call env%error("No inner region is  provided for ONIOM", source)
             return
          end if
          call move_alloc(sec, oniom%first_arg)
@@ -1379,14 +1401,17 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          if (.not.allocated(sec)) then 
             call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
             call move_alloc(oniom%first_arg, sec)
-            !return
          end if
+         
          inquire(file=sec, exist=exist)
          if (exist) then
             sec = read_whole_file(sec)
          end if
          call move_alloc(sec, oniom%second_arg)
 
+      case('--cut')
+         call set_cut
+      
       case('--etemp')
          call args%nextArg(sec)
          if (allocated(sec)) then

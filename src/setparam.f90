@@ -100,6 +100,23 @@ module xtb_setparam
    ! interface mode
    integer,parameter :: p_pcem_legacy = 1
    integer,parameter :: p_pcem_orca = 2
+   
+   type oniom_settings
+      integer  :: innerchrg
+         !! inner region charge
+      logical :: derived = .false.
+         !! set ONIOM optimization parameter g to derived value
+      logical :: cut_inner = .false.
+         !! to execute xtb just for checking inner region cut
+      logical :: fixed_chrgs= .false.
+         !! if charges for oniom explicitely given
+      logical :: silent = .false.
+         !! zo mute external output
+      logical :: logs = .false.
+         !! if optimization logs of inner regions are needed
+      integer:: ilog1, ilog2
+         !! log units
+  end type oniom_settings
 
    type qm_external
       character(len=:),allocatable :: path
@@ -107,6 +124,9 @@ module xtb_setparam
       character(len=:),allocatable :: input_file
       character(len=:),allocatable :: input_string
       logical :: exist
+         !! if input_file exist
+      logical :: oniom=.false.
+         !! special case of the oniom embedding 
    end type qm_external
 
    integer, parameter :: p_ext_vtb       = -1
@@ -391,7 +411,13 @@ module xtb_setparam
    real(wp) :: ex_open ! set to 0.5/-0.5 in .xtbrc, respectively
 
 !! ------------------------------------------------------------------------
+!  ONIOM
+!! ------------------------------------------------------------------------
+   type(oniom_settings) :: oniom_settings
 
+!! ------------------------------------------------------------------------
+!  External settings
+!! ------------------------------------------------------------------------
    type(qm_external) :: ext_driver
    type(qm_external) :: ext_orca
    type(qm_external) :: ext_turbo
@@ -432,8 +458,11 @@ module xtb_setparam
 
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
-
+!! ------------------------------------------------------------------------
+    
    end type
+   
+
    type(TSet) :: set
 
    type(env_setvar) :: xenv
@@ -442,6 +471,7 @@ module xtb_setparam
    character(len=:),allocatable :: commentline
 
 contains
+
 
 subroutine initrand
    implicit none

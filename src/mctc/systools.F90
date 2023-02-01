@@ -29,8 +29,13 @@ module xtb_mctc_systools
 
 contains
 
+!> To read line
 subroutine getline(unit,line,iostat)
+   
    use, intrinsic :: iso_fortran_env, only : iostat_eor
+      !! iostat_eor - assigned to the iostat variable if eof occurs
+   implicit none
+
    integer,intent(in) :: unit
    character(len=:),allocatable,intent(out) :: line
    integer,intent(out),optional :: iostat

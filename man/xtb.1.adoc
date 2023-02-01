@@ -24,8 +24,8 @@ geometries, frequencies and non-covalent interactions (GFN)
 as well as with the ionisation potential and
 electron affinity (IPEA) parametrisation of the GFN1 Hamiltonian.
 The generalized born (GB) model with solvent accessable surface area (SASA)
-is also available available in this version.
-Ground state calculations for the simplified Tamm-Danceoff approximation (sTDA)
+is also available in this version.
+Ground state calculations for the simplified Tamm-Dancoff approximation (sTDA)
 with the vTB model are currently not implemented.
 
 GEOMETRY INPUT
@@ -66,6 +66,9 @@ OPTIONS
 *-c, --chrg* 'INT':: 
     specify molecular charge as 'INT', overrides `.CHRG` file and `xcontrol` option
 
+*-c, --chrg* 'INT:INT':: 
+    specify charges for 'inner region:outer region' for `oniom` calculation, overrides `.CHRG` file and `xcontrol` option
+
 *-u, --uhf* 'INT'::
     specify number of unpaired electrons as 'INT', overrides `.UHF` file and `xcontrol` option
 
@@ -79,10 +82,10 @@ OPTIONS
     use tblite library as implementation of for xTB
 
 *--oniom* 'METHOD' 'LIST'::
-    use subtractive embedding via ONIOM method. 'METHOD' is given as `inner:outer`
-    where `inner` can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and
-    `outer` can be 'gfn2', 'gfn1', or 'gfnff'.
-    The inner region is given as a comma separated indices directly in the commandline
+    use subtractive embedding via ONIOM method. 'METHOD' is given as `high:low`
+    where `high` can be 'orca', 'turbomole', 'gfn2', 'gfn1', or 'gfnff' and
+    `low` can be 'gfn2', 'gfn1', or 'gfnff'.
+    The inner region is given as comma-separated indices directly in the commandline
     or in a file with each index on a separate line.
 
 *--etemp* 'REAL'::
@@ -263,6 +266,9 @@ GENERAL
 *-h, --help*::
      show help page
 
+*--cut*::
+      create inner region for `oniom` calculation without performing any calcultion
+
 ENVIRONMENT VARIABLES
 ---------------------
 `xtb(1)` accesses a path-like variable to determine the location of its
@@ -421,7 +427,7 @@ After `xtb(1)` has evaluated the all input sources it immediately enters
 the production mode. Severe errors will lead to an abnormal termination
 which is signalled by the printout to STDERR and a non-zero return value
 (usually 128). All non-fatal errors are summerized in the end of the calculation
-in one block, right bevor the timing analysis.
+in one block, right before the timing analysis.
 
 To aid the user to fix the problems generating these warnings a brief
 summary of each warning with its respective string representation in the

@@ -172,7 +172,7 @@ subroutine generate_anc_blowup(self,iunit,xyz,hess,pr,linear)
 !      if (abs(self%eigv(i)) > thr1 ) elow = min(elow,self%eigv(i))
 !   enddo
 
-   damp = max(self%hlow - elow,0.0_wp)
+   damp = max(self%hlow - elow,0.0_wp) 
    where(abs(self%eigv) > thr2) self%eigv = self%eigv + damp
 !   do i = 1, self%n3
 !      if (abs(self%eigv(i)) > thr2 ) self%eigv(i) = self%eigv(i) + damp

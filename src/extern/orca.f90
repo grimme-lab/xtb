@@ -57,27 +57,38 @@ module xtb_extern_orca
 
 contains
 
-
+!-----------------------------------------------------
+! Check the ORCA execution settings 
+!-----------------------------------------------------
 subroutine checkOrca(env, ext)
    character(len=*), parameter :: source = 'extern_orca_checkOrca'
+      !! the name of the error producer routine
+   
    type(TEnvironment), intent(inout) :: env
+      !! Calculation environment to handle I/O stream and error log
    type(qm_external), intent(inout) :: ext
+      !! Settings for the Orca calculation
+
    character(len=:),allocatable :: homedir,syspath
    character(len=:),allocatable :: line
    character(len=5) :: chdum
    logical :: exist
    logical :: chk_xyzfile
    logical :: chk_engrad
-   integer :: iorca ! file handle
+   integer :: iorca 
+      !! file handle
    integer :: err
    integer :: idx_bang,idx_star,idx_engr,idx_file,idx_xmol,idx_spce
 !$ integer,external :: omp_get_num_threads
 
-   ! check for ORCA executable
-   if (allocated(ext%executable)) then ! user input
+   !> check if the ORCA executable exist
+   if (allocated(ext%executable)) then 
+      !! user input
+      
       if (ext%executable(1:1).eq.'~') then
-         ! this is relative to the users home, expand it
-         call rdvar('HOME',homedir)
+         !! this is relative to the users home, expand it
+         call rdvar('HOME',homedir) 
+            !! read environment variable  
          ext%executable = homedir // ext%executable(2:)
       endif
       inquire(file=ext%executable,exist=exist)
@@ -85,15 +96,19 @@ subroutine checkOrca(env, ext)
          call env%error("'"//ext%executable//"' was not found, please check",source)
          return
       endif
-   else ! no executable provided, lets find it
+   
+   else 
+      !! no executable provided, lets find it 
       call rdvar('PATH',syspath)
       call rdpath(syspath,'orca',ext%executable,exist)
+         !! find ORCA excutable in PATH variable
       if (.not.exist) then
          call env%error('Could not locate orca executable',source)
          return
       endif
    endif
-
+   
+   !> check for wrong executable with the same name
    if (index(ext%executable,'/usr') == 1) then
       inquire(file=ext%executable//'_scf',exist=exist)
       if (.not. exist) then
@@ -103,25 +118,31 @@ subroutine checkOrca(env, ext)
       endif
    endif
 
-   ! see if there is a preference for an input file
+   !> see if there is a preference for an input file
    if (allocated(ext%input_file)) then
       inquire(file=ext%input_file,exist=exist)
       ext%exist = exist
    else
       ext%input_file = "orca-"//get_random_name()//'.inp'
-         inquire(file=ext%input_file,exist=exist)
+         !! Create random file for the ORCA input file
+      inquire(file=ext%input_file,exist=exist)
    endif
-   ! sanity check
+
+   !> sanity check
    if (ext%exist) then
+      
       call open_file(iorca,ext%input_file,'r')
+      !> if exists, but empty
       if (iorca.eq.-1) then
          call env%error("ORCA input file '"//ext%input_file//"' just vanished!",source)
          return
       endif
+
       chk_engrad = .false.
       chk_xyzfile = .false.
       do
          call strip_line(iorca,line,err)
+            !! to read line from iorca unit
          if (err.ne.0) exit
          idx_bang = index(line,'!')
          idx_star = index(line,'*')
@@ -131,10 +152,12 @@ subroutine checkOrca(env, ext)
          idx_spce = index(trim(line),' ',back=.true.)
          if (idx_bang.gt.0 .and. idx_engr.gt.0 .and. idx_engr.gt.idx_bang) &
             chk_engrad = .true.
+
          if (idx_star.gt.0 .and. idx_file.gt.0 .and. idx_xmol.gt.0 .and. &
             &idx_file.gt.idx_star .and. idx_xmol.gt.idx_file) then
             chk_xyzfile = .true.
             ext%input_string = trim(adjustl(line(idx_spce:)))
+               !! calculation method
          endif
       enddo
       call close_file(iorca)
@@ -145,7 +168,7 @@ subroutine checkOrca(env, ext)
       endif
 
    else
-      ! check for the input line
+      !! if not exist, check for the input line
       if (allocated(ext%input_string)) then
          if (index(ext%input_string,'!') == 1) then
             ext%input_string = ext%input_string(2:)
@@ -158,28 +181,39 @@ subroutine checkOrca(env, ext)
 
 end subroutine checkOrca
 
-
-!> Create a new calculator for driving the Orca program
-subroutine newOrcaCalculator(self, env, ext)
-   !> Instance of the Orca calculator
+!-----------------------------------------------------
+! Create a new calculator for driving the Orca program
+!-----------------------------------------------------
+subroutine newOrcaCalculator(self, env, ext,oniom)
+   
+   implicit none
    type(TOrcaCalculator), intent(out) :: self
-   !> Calculation environment
+      !! Instance of the Orca calculator
    type(TEnvironment), intent(inout) :: env
-   !> Settings for the Orca calculator
+      !! Calculation environment
    type(qm_external), intent(in) :: ext
+      !! Settings for the Orca calculator
+   logical, intent(in),optional :: oniom
 
    self%ext = ext
+      !! to save external settings from TSet%ext_orca to the new caluclator
    self%threadsafe = .false.
+      !! not to call orca in parallel
+   self%ext%oniom=oniom
+      !! if oniom calc
    call checkOrca(env, self%ext)
+
+
 end subroutine newOrcaCalculator
 
-
-subroutine writeOrcaInp(io, mol, input, mode)
+!-----------------------------------------------------
+! Create *.inp for the ORCA run
+!-----------------------------------------------------
+subroutine writeOrcaInp(io,mol,input,mode)
    integer, intent(in) :: io
    type(TMolecule), intent(in) :: mol
    character(len=*), intent(in) :: input
    character(len=*), intent(in) :: mode
-
    integer :: i, nel, mult
 
    write(io,'("#",1x,a)') &
@@ -187,7 +221,7 @@ subroutine writeOrcaInp(io, mol, input, mode)
    !$omp parallel
    !$omp master
    !$ write(io,'("%",a,/,3x,a,1x,i0,/,a)') &
-   !$    "pal","nprocs",omp_get_num_threads(),"end"
+   !$    "pal","nprocs",omp_get_num_threads()-1,"end"
    !$omp end master
    !$omp end parallel
    write(io,'("%",a,1x,i0)') &
@@ -215,6 +249,7 @@ subroutine writeOrcaInp(io, mol, input, mode)
       write(io,'(3x,a2,3(2x,F20.14))') toSymbol(mol%at(i)), mol%xyz(:,i)*autoaa
    end do
    write(io,'("*",/)')
+
 end subroutine writeOrcaInp
 
 
@@ -274,7 +309,7 @@ subroutine readOrcaHess(io, hess, dipgrad)
       end if
 
       if (line == "$dipole_derivatives") then
-         call getline(io, line, stat)
+        call getline(io, line, stat)
          read(line, *) ndim
          do ii = 1, ndim
             read(io, *) dipgrad(:, ii)
@@ -284,38 +319,56 @@ subroutine readOrcaHess(io, hess, dipgrad)
    end do
 end subroutine readOrcaHess
 
-
+!-----------------------------------------------------
+! To create or modify input file and execute the ORCA
+!-----------------------------------------------------
 subroutine runOrca(env,ext,mol,energy,gradient)
+
    character(len=*), parameter :: source = 'extern_orca_runOrca'
+      !! the name of the error producer routine
    type(TEnvironment), intent(inout) :: env
+      !! Calculation environment to handle I/O stream and error log
    type(qm_external), intent(in) :: ext
+      !! Settings for the Orca calculation
    type(TMolecule), intent(in) :: mol
+      !! Molecular structure data 
    real(wp),intent(out) :: energy
    real(wp),intent(out) :: gradient(:, :)
 
    integer :: i,j,err
-   integer :: iorca ! file handle
+   integer :: iorca 
+      !! file IO unit
    logical :: exist
    character(len=:),allocatable :: line
    character(len=:),allocatable :: outfile
+   character(len=:),allocatable :: tmpfile
 
    !$omp critical (orca_lock)
+   
+   !> To decide whether to create or modify the input_file
    if (ext%exist) then
-      ! we dump the name of the external xyz file to input_string... not cool
+      !! we dump the name of the external xyz file to input_string... not cool
       call open_file(iorca,ext%input_string,'w')
       call writeMolecule(mol, iorca, format=fileType%xyz)
       call close_file(iorca)
    else
+      !! create new.inp file 
       call open_file(iorca,ext%input_file,'w')
       call writeOrcaInp(iorca,mol,ext%input_string, "engrad")
       call close_file(iorca)
    endif
-
+   !> Actual orca cml run 
    write(env%unit,'(72("="))')
    write(env%unit,'(1x,"*",1x,a)') &
       "letting orca take over the control..."
-   call execute_command_line('exec 2>&1 '//ext%executable//' '// &
+   if (set%oniom_settings%silent) then 
+      call execute_command_line('exec 2>&1 '//ext%executable//' '// &
+                             ext%input_file//'>orca.out',exitstat=err)
+   else
+      call execute_command_line('exec 2>&1 '//ext%executable//' '// &
                              ext%input_file,exitstat=err)
+   endif
+
    if (err.ne.0) then
       call env%error('orca returned with non-zero exit status, doing the same',source)
    else
@@ -323,12 +376,16 @@ subroutine runOrca(env,ext,mol,energy,gradient)
          "successful orca run, taking over control again..."
    endif
    write(env%unit,'(72("="))')
-
+   
+   !> find output .engrad file
    i = index(ext%input_file,'.inp')
+   
    if (i > 0) then
       outfile = ext%input_file(:i-1)//'.engrad'
+      tmpfile = ext%input_file(:i-1)
    else
       outfile = ext%input_file//'.engrad'
+      tmpfile = ext%input_file
    endif
    inquire(file=outfile,exist=exist)
    if (.not.exist) then
@@ -336,8 +393,18 @@ subroutine runOrca(env,ext,mol,energy,gradient)
    else
       call open_file(iorca,outfile,'r')
       call readOrcaEngrad(iorca, energy, gradient)
-      call close_file(iorca)
+      if (set%ceasefiles) then
+         call remove_file(iorca)
+         call env%io%deleteFile(tmpfile//".gbw")
+         call env%io%deleteFile(tmpfile//".densities")
+         call env%io%deleteFile(tmpfile//".rr")
+         call env%io%deleteFile(tmpfile//"_property.txt")
+         call env%io%deleteFile("orca.out")
+      else
+         call close_file(iorca)
+      endif
    endif
+
    !$omp end critical (orca_lock)
 
 end subroutine runOrca
