@@ -37,7 +37,7 @@ jobs:
         echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
         
     - name: Install meson
-      run: pip3 install meson==0.57.2 ninja cmake
+      run: pip3 install meson==0.62.0 ninja cmake
 
     - name: Configure build
       run: >-
