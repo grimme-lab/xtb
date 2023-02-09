@@ -1532,6 +1532,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--alpb')
          call args%nextArg(sec)
+         call set_gbsa(env, 'alpb', 'true')
          if (allocated(sec)) then
             call set_gbsa(env, 'solvent', sec)
             call args%nextArg(sec)
