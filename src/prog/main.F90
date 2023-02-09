@@ -1546,7 +1546,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
                end if
             end if
          else
-            call env%error("No solvent name provided for GBSA", source)
+            call env%error("No solvent name provided for ALPB", source)
          end if
 
       case('--cosmo')
