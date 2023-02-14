@@ -109,6 +109,9 @@ contains
       !> Print an informative banner
       call dockingHeader(env%unit)
 
+      !> Check .CHRG, .UHF
+      call check_for_files(env)
+
       !> Parse arguments
       call parseArguments(env, argParser, fname)
       if (optlvl == 'gfn0') call env%error('GFN0 is not supported for docking')
@@ -156,6 +159,10 @@ contains
       call reader%close
       call env%checkpoint("Could not read geometry from '"//fnameB//"'")
 
+      !> Set molecular charges
+      molA%chrg = chrg(1)
+      molB%chrg = chrg(2)
+
       !> Print current time
       call prdate('S')
 
@@ -165,9 +172,6 @@ contains
       !> Set some parameter
       call set_iff_param
       fnam = 'xtblmoinfo'
-
-      !> Check .CHRG, .UHF and xcontrol
-      call check_for_files(env, molA, molB)
 
       !> Printout Settings
       call dockingPrintout(env%unit, fnameA, fnameB, molA, molB)
@@ -760,12 +764,10 @@ contains
 
    end subroutine dockingHelp
 
-   subroutine check_for_files(env, molA, molB)
+   subroutine check_for_files(env)
 
       !> Calculation environment
       type(TEnvironment), intent(inout) :: env
-      !> Molecular structure data
-      type(TMolecule), intent(inout) :: molA, molB
 
       character(len=*), parameter :: source = "iff_file_read"
 
@@ -791,7 +793,7 @@ contains
             call env%warning('.CHRG has only one line!')
          else
             if (getValue(env, cdum, charge)) then
-               molA%chrg = charge
+               chrg(1) = charge
             end if
          end if
          !> Charge molB
@@ -800,7 +802,7 @@ contains
             call env%warning('.CHRG has only two lines!')
          else
             if (getValue(env, cdum, charge)) then
-               molB%chrg = charge
+               chrg(2) = charge
             end if
          end if
 
@@ -817,7 +819,7 @@ contains
             call env%error('.UHF is empty!', source)
          else
             if (getValue(env, cdum, elect)) then
-               molA%uhf = elect
+               uhf(1) = elect
             end if
          end if
          call getline(ich, cdum, iostat=err)
@@ -825,7 +827,7 @@ contains
             call env%warning('.UHF has only one line!')
          else
             if (getValue(env, cdum, elect)) then
-               molB%uhf = elect
+               uhf(2) = elect
             end if
          end if
          call close_file(ich)
