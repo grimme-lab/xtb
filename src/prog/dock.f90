@@ -163,6 +163,10 @@ contains
       molA%chrg = chrg(1)
       molB%chrg = chrg(2)
 
+      !> Set molecular charges
+      molA%uhf = uhf(1)
+      molB%uhf = uhf(2)
+
       !> Print current time
       call prdate('S')
 
@@ -814,6 +818,11 @@ contains
       !> Number of unpaired electrons
       call open_file(ich, '.UHF', 'r')
       if (ich .ne. -1) then
+         !> Total number
+         call getline(ich, cdum, iostat=err)
+         if (err /= 0) then
+            call env%error('.UHF is empty!', source)
+         end if
          call getline(ich, cdum, iostat=err)
          if (err /= 0) then
             call env%error('.UHF is empty!', source)
