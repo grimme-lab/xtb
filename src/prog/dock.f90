@@ -108,6 +108,14 @@ contains
 
       !> Print an informative banner
       call dockingHeader(env%unit)
+      !> make sure you cannot blame us for destroying your computer
+      call disclamer(env%unit)
+      !> Citations
+      write(env%unit,'(3x,a)') &
+        "Cite this work as:", &
+        "* C. Plett, S. Grimme, Angew. Chem. Int. Ed. 2023, 62, e202214477.",&
+        "DOI: 10.1002/anie.202214477",&
+        ""
 
       !> Check .CHRG, .UHF
       call check_for_files(env)
