@@ -226,7 +226,11 @@ subroutine initMolecule &
    end if
 
    if (present(pbc)) then
-      mol%pbc = pbc
+      if (size(pbc) == 1) then
+         mol%pbc = (/pbc, pbc, pbc/)
+      else
+         mol%pbc = pbc
+      end if
       mol%npbc = count(pbc)
       if (any(pbc)) then
          mol%boundaryCondition = boundaryCondition%pbc3d
