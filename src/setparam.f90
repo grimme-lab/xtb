@@ -104,6 +104,8 @@ module xtb_setparam
    type oniom_settings
       integer  :: innerchrg
          !! inner region charge
+      logical :: ignore_topo = .false.
+         !! to cut high order covalent bonds
       logical :: derived = .false.
          !! set ONIOM optimization parameter g to derived value
       logical :: cut_inner = .false.

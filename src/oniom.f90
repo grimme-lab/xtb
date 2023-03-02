@@ -661,15 +661,18 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
 
             if (.not. inside) then
                !! if bond is broken
-
-               !> Check if single bond is broken 
-               select type (calc => self%real_low)
-               class default
-                  call checkfororder(env, mol, self%idx(i), bonded(2, j), bond=topo%list(3, j))
-               type is (TGFFCalculator)
-                  call checkfororder(env, mol, self%idx(i), bonded(2, j), hybrid=calc%topo%hyb)
-               end select
                
+               if (.not.set%oniom_settings%ignore_topo) then
+
+                  !> Check if single bond is broken 
+                  select type (calc => self%real_low)
+                  class default
+                     call checkfororder(env, mol, self%idx(i), bonded(2, j), bond=topo%list(3, j))
+                  type is (TGFFCalculator)
+                     call checkfororder(env, mol, self%idx(i), bonded(2, j), hybrid=calc%topo%hyb)
+                  end select
+                endif
+                  
                !> Increase no of corresponding arrays by 1
                pre_last = size(at)
                call resize(at)
@@ -698,15 +701,17 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol,jacobian,idx2)
             end do
             if (.not. inside) then
                !! if bond is broken
-               select type (calc => self%real_low)
                
-               !> Check if single bond is broken 
-               class default
-                  call checkfororder(env, mol, self%idx(i), bonded(1, j), bond=topo%list(3, j))
-               type is (TGFFCalculator)
-                  call checkfororder(env, mol, self%idx(i), bonded(1, j), hybrid=calc%topo%hyb)
-               end select
-               
+               if (.not.set%oniom_settings%ignore_topo) then
+                  select type (calc => self%real_low)   
+                  !> Check if single bond is broken 
+                  class default
+                     call checkfororder(env, mol, self%idx(i), bonded(1, j), bond=topo%list(3, j))
+                  type is (TGFFCalculator)
+                     call checkfororder(env, mol, self%idx(i), bonded(1, j), hybrid=calc%topo%hyb)
+                  end select
+               endif
+
                !> Increase no of corresponding arrays by 1
                pre_last = size(at)
                call resize(at)
@@ -1201,7 +1206,7 @@ subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
    
    implicit none
    !> Dummy-argument list
-   character(len=*), parameter :: source = 'xtb_oniom_checkorder' 
+   character(len=*), parameter :: source = 'xtb_oniom_checkfororder' 
       !! name of error producer routine
    integer, intent(in), optional :: hybrid(:)
       !! hybridization from GFN-FF; topo%hyb

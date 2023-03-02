@@ -1453,6 +1453,7 @@ subroutine set_oniom(env,key,val)
    logical, save :: set1 = .true.
    logical, save :: set2 = .true.
    logical, save :: set3 = .true.
+   logical, save :: set4 = .true.
    
    select case(key)
    case default
@@ -1466,9 +1467,12 @@ subroutine set_oniom(env,key,val)
       set2=.false.
 
    case('silent')
-      if (getValue(env,val,ldum).and.set2) set%oniom_settings%silent = .true.
+      if (getValue(env,val,ldum).and.set3) set%oniom_settings%silent = .true.
       set3=.false.
    
+   case('ignore topo')
+      if (getValue(env,val,ldum).and.set4) set%oniom_settings%ignore_topo = .true.
+      set4=.false.
    end select
 
 end subroutine set_oniom
