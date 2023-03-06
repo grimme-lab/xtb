@@ -106,6 +106,9 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
 
 end subroutine get_optthr
 
+!----------------------------------------
+! Approximate Normal Coordinate Optimizer
+!----------------------------------------
 subroutine ancopt(env,ilog,mol,chk,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
    use xtb_mctc_convert
@@ -130,27 +133,40 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
 
    implicit none
 
-   !> Source of errors in the main program unit
    character(len=*), parameter :: source = "optimizer_ancopt"
-
-   !> Calculation environment
+      !! source of errors in the main program unit
    type(TEnvironment), intent(inout) :: env
-
+      !! calculation environment
    type(TMolecule), intent(inout) :: mol
+      !! molecular structure data
    integer, intent(in)    :: tight
+      !! optimization level
    integer, intent(in)    :: maxiter
+      !! max SCC cycles
    integer, intent(in)    :: maxcycle_in
+      !! max GEOOPT cycles
    type(TRestart),intent(inout) :: chk
+      !! wrapper for changing info during SCC
    class(TCalculator), intent(inout) :: calc
+      !! calculator instance
    real(wp) :: eel
+      !! electronic energy
    real(wp),intent(inout) :: etot
+      !! total energy
    real(wp),intent(in)    :: et
+      !! electronic temperature
    real(wp),intent(inout) :: egap
+      !! HOMO-LUMO gap
    real(wp),intent(inout) :: g(3,mol%n)
+      !! gradients
    real(wp),intent(inout) :: sigma(3,3)
+      !! strain derivatives
    logical, intent(in)    :: pr
+      !! if printed
    logical, intent(out)   :: fail
-
+      !! if failed
+   
+   !> local variables
    type(TMolecule) :: molopt
    type(scc_results) :: res
    type(tb_anc) :: anc
@@ -185,8 +201,10 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       '(10x,":",3x,a,i18,      10x,":")'
    character(len=*),parameter :: chrfmt = &
       '(10x,":",3x,a,a18,      10x,":")'
+   
 
    if(mol%n.eq.1) return
+      !! do not optimize for 1 molecule
    if (profile) call timer%new(8,.false.)
    if (profile) call timer%measure(1,'optimizer setup')
 
@@ -282,7 +300,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       endif
       write(env%unit,scifmt) "energy convergence",ethr,    "Eh  "
       write(env%unit,scifmt) "grad. convergence ",gthr,    "Eh/α"
-      write(env%unit,dblfmt) "maximium RF displ.",maxdispl,"    "
+      write(env%unit,dblfmt) "maxmium RF displ. ",maxdispl,"    "
       write(env%unit,scifmt) "Hlow (freq-cutoff)",hlow,    "    "
       write(env%unit,dblfmt) "Hmax (freq-cutoff)",hmax,    "    "
       write(env%unit,dblfmt) "S6 in model hess. ",s6,      "    "
@@ -563,8 +581,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       return
    endif
    if (profile) call timer%measure(6,'optimization log')
+   
    call writeMolecule(mol, ilog, format=fileType%xyz, energy=res%e_total, &
       & gnorm=res%gnorm)
+      !! to write log file
    if (profile) call timer%measure(6)
 ! transform xyz to internal gradient
    if (profile) call timer%measure(4)

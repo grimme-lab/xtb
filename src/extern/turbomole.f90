@@ -47,6 +47,7 @@ module xtb_extern_turbomole
    public :: TTMCalculator, newTMCalculator
 
    type, extends(TCalculator) :: TTMCalculator
+      type(qm_external) :: ext
       integer :: extcode
       integer :: extmode
    contains
@@ -60,16 +61,26 @@ module xtb_extern_turbomole
 
 contains
 
-!> Create a new calculator for driving the Turbomole program
-subroutine newTMCalculator(self, extcode, extmode)
-   !> Instance of the Turbomole calculator
+!----------------------------------------------------------
+! Create a new calculator for driving the Turbomole program
+!----------------------------------------------------------
+subroutine newTMCalculator(self,extcode,extmode)
+   
+   implicit none
    type(TTMCalculator), intent(out) :: self
-   integer, intent(in) :: extcode, extmode
+      !! Instance of the Turbomole calculator
+   integer, intent(in) :: extcode
+      !! RI, RI+d3+gCP,NoRI
+   integer, intent(in) :: extmode
+      !! ridft+rdgrad, ridft+rdgrad+dftd3+gcp
 
    self%threadsafe = .false.
+      !! No parallelization
    self%extcode = extcode
    self%extmode = extmode
+
 end subroutine newTMCalculator
+
 
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
@@ -118,7 +129,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    dipole(:) = 0.0_wp
 
    call external_turbomole(env,mol%n,mol%at,mol%xyz,chk%wfn%nel,chk%wfn%nopen, &
-      & self%extcode,self%extmode,.true.,energy,gradient,results%dipole,self%lSolv)
+      & self%extcode,self%extmode,.true.,energy,gradient,results%dipole,self%lSolv,mol%chrg,mol%uhf)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -163,58 +174,128 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    endif
 end subroutine singlepoint
 
-subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,lsolv)
+!---------------------------------------------------------
+! To run TURBOMOLE, and cefine if needed 
+!---------------------------------------------------------
+subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,dip,lsolv,chrg,uhf)
+   
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam
+   
    implicit none
-   !> Computational environment
+   character(len=*),parameter :: source = 'external_turbomole'
    type(TEnvironment), intent(inout) :: env
-   integer n, at(n), nel, nopen
-   logical grd,lsolv
+      !! Calculation environment to handle I/O stream and error log
+   integer :: n, at(n), nel, nopen
+      !! structural information from mol(Tmolecule) and chk(TRestart) 
+   logical ::  grd
+      !! if gradient calcultion is needed
+   logical :: lsolv
+      !! if solvated
    integer, intent(in) :: extcode, extmode
-   real(wp) xyz(3,n)
-   real(wp) xyz_cached(3,n)
-   real(wp) g  (3,n)
-   real(wp) eel
-   real(wp) dip(3)
+      !! turbomole settings
+   real(wp) :: xyz(3,n)
+      !! coordinates
+   real(wp) :: xyz_cached(3,n)
+      !! to save xyz values
+   real(wp) :: g (3,n)
+      !! gradients
+   real(wp) :: eel
+      !! electronic energy
+   real(wp) :: dip(3)
+      !! dipole moments
+   real(wp), intent(in) :: chrg
+      !! charge
+   integer, intent(in) :: uhf
+      !! multiplicity, number of unpaired electrons
+
    character(len=255) atmp
    character(len=:), allocatable :: syspath, cefine
-   logical :: cache, exist
+   logical :: cache
+      !! to check if molecule moves b/n optimization runs
+   logical :: exist
+   integer :: err
 
    cache = .false.
    dip=0
-
+   
+   !> TM input
    inquire(file="control", exist=exist)
+      !! if control file present in the calc dir
    if (.not.exist) then
-      call rdvar("PATH", syspath)
-      call rdpath(syspath, "cefine", cefine, exist)
-      if (exist) then
-         call wrtm(n,at,xyz)
-         call execute_command_line("exec "//cefine//" --func tpss --def2/SVP --cosmo 2.38 --d4 -sym c1 --noopt")
-      end if
+      
+      !> cefine 
+      if(len(set%ext_turbo%input_string).ne.0) then      
+         call rdvar("PATH", syspath)
+         call rdpath(syspath, "cefine", cefine, exist)
+         if (exist) then
+            call wrtm(n,at,xyz)
+            if (allocated(set%ext_turbo%input_string)) then 
+               call execute_command_line("exec "//cefine//" "//set%ext_turbo%input_string)
+            else
+               call execute_command_line("exec "//cefine//" --func b97-3c")
+            endif
+         else
+            call env%error("No cefine binary is found", source)
+            return
+         end if
+
+      else
+         call writeControl(chrg,uhf)
+            !! default control file
+      endif
+
    end if
 
+   inquire(file="control", exist=exist)
    if (.not.exist) then
       call env%error("No 'control' file in current directory")
       return
    end if
-
+   
+  
    ! TM (RI)
    if(extcode.eq.1)then
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
-         call rdtm(n,grd,eel,g,xyz_cached)
-         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
          if(extmode.eq.1)then
-            call execute_command_line('exec ridft  >  job.last 2>> /dev/null')
-            if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null ')
-         endif
+            
+            write(env%unit,'(72("="))')
+            write(env%unit,'(1x,"*",1x,a)') &
+               "letting TURBOMOLE take over the control..."
+            
+            if (set%oniom_settings%silent) then
+               call execute_command_line('exec ridft >  job.last 2>> /dev/null',exitstat=err)
+               if(grd)call execute_command_line('exec rdgrad >> job.last 2>> /dev/null ',exitstat=err)
+            else
+               call execute_command_line('exec ridft  | tee  job.last 2>> /dev/null',exitstat=err)
+               if(grd)call execute_command_line('exec rdgrad |tee -a job.last 2>> /dev/null ',exitstat=err)
+            endif
+
+            if (err.ne.0) then
+               call env%error('TURBOMOLE returned with non-zero exit status, doing the same',source)
+            else
+               write(env%unit,'(1x,"*",1x,a)') &
+               "successful TURBOMOLE run, taking over control again..."
+            endif
+               write(env%unit,'(72("="))')
+       endif
          call extcodeok(extcode)
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         if (set%ceasefiles) then
+            call env%io%deleteFile('job.last') 
+            call env%io%deleteFile('mos') 
+            call env%io%deleteFile('statistics') 
+            call env%io%deleteFile('basis') 
+            call env%io%deleteFile('auxbasis') 
+            call env%io%deleteFile('coord') 
+         endif
       end if
       !$omp end critical (turbo_lock)
       return
@@ -225,8 +306,8 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
-         call rdtm(n,grd,eel,g,xyz_cached)
-         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
@@ -237,7 +318,16 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
             call execute_command_line('exec gcp coord -file -grad >>job.last 2>>/dev/null')
          endif
          call extcodeok(extcode)
-         call rdtm(n,.true.,eel,g,xyz_cached)
+         call rdtm(env,n,.true.,eel,g,xyz_cached)
+         
+         if (set%ceasefiles) then
+            call env%io%deleteFile('job.last') 
+            call env%io%deleteFile('mos') 
+            call env%io%deleteFile('statistics') 
+            call env%io%deleteFile('basis') 
+            call env%io%deleteFile('auxbasis') 
+            call env%io%deleteFile('coord') 
+         endif
       end if
       !$omp end critical (turbo_lock)
       return
@@ -248,8 +338,8 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
       !$omp critical (turbo_lock)
       inquire(file='gradient', exist=exist)
       if (exist .and. grd) then
-         call rdtm(n,grd,eel,g,xyz_cached)
-         cache = all(abs(xyz_cached - xyz) < 1.e-10_wp)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         cache = all(abs(xyz_cached - xyz) < 1.e-7_wp)
       end if
       if (.not.cache) then
          call wrtm(n,at,xyz)
@@ -258,7 +348,15 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
             if(grd)call execute_command_line('exec grad >> job.last 2>> /dev/null')
          endif
          call extcodeok(extcode)
-         call rdtm(n,grd,eel,g,xyz_cached)
+         call rdtm(env,n,grd,eel,g,xyz_cached)
+         if (set%ceasefiles) then
+            call env%io%deleteFile('job.last') 
+            call env%io%deleteFile('mos') 
+            call env%io%deleteFile('statistics') 
+            call env%io%deleteFile('basis') 
+            call env%io%deleteFile('auxbasis') 
+            call env%io%deleteFile('coord') 
+         endif
       end if
       !$omp end critical (turbo_lock)
       return
@@ -269,9 +367,41 @@ subroutine external_turbomole(env,n,at,xyz,nel,nopen,extcode,extmode,grd,eel,g,d
 
 end subroutine external_turbomole
 
-!ccccccccccccccccccccccccccccccccc
-! TM
-!ccccccccccccccccccccccccccccccccc
+!-------------------------------------------------------
+! create default TM control -> future TMprep
+!-------------------------------------------------------
+subroutine writeControl(chrg,uhf)
+
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_symbols, only : toSymbol
+   implicit none
+   real(wp), intent(in) :: chrg
+      !! charge
+   integer, intent(in) :: uhf
+      !! number of unpaired electrons
+   integer :: iunit
+      !! number of electrins
+
+   iunit=39
+   open(newunit=iunit,file='control')
+
+   write(iunit,'(a)')'$coord file=coord'
+   write(iunit,'(a,i0,a,i0)')'$eht charge=',nint(chrg),' unpaired=',uhf
+   write(iunit,'(a)')'$symmetry c1'
+   write(iunit,'(a)')'$atoms'
+   write(iunit,'(3x,a)')'basis =def2-mTZVP'
+   write(iunit,'(a)')'$dft'
+   write(iunit,'(3x,a)')'functional b97-3c'
+   write(iunit,'(3x,a)')'gridsize m4'
+   write(iunit,'(a)')'$rij'
+   write(iunit,'(a)')'$energy file=energy'
+   write(iunit,'(a)')'$grad file=gradient'
+   write(iunit,'(a)')'$disp3 -bj -abc'
+   write(iunit,'(a)')'$end'
+
+   close(iunit)
+
+end subroutine writeControl
 
 subroutine wrtm(n,at,xyz)
    use xtb_mctc_accuracy, only : wp
@@ -294,9 +424,46 @@ subroutine wrtm(n,at,xyz)
 
 end subroutine wrtm
 
-subroutine rdtm(n,grd,e,g,xyz)
+!----------------------------------------
+! read TM energy and gradient files 
+!----------------------------------------
+!subroutine readTM(n,ifgrd,energy,gradient,xyz)
+   
+ !  use xtb_mctc_accuracy, only : wp
+   !use xtb_filetools, only : open_file, close_file, remove_file
+ !  use xtb_readin , only : strip_line,getValue
+
+!   implicit none
+!   integer, intent(in) :: n
+      !! number of atoms
+!   logical, intent(in) :: ifgrd
+      !! if gradient fileshould be read
+!   real(wp), intent(out) :: energy, gradient(3,n), xyz(3,n)
+      !! TM output
+   
+!   integer :: grd, e
+      !! file units for 'gradient' and 'energy' files
+!   character(len=:), allocatable :: line
+      !! tmp line
+!   logical :: exist
+
+
+!   if (.not.ifgrd) then
+!      call open_file(e,'energy','r')
+!      do
+!         call strip_line(e,line,exist)
+!         if (exist)
+!            call readline()
+!      enddo
+!   endif
+!
+!
+!end subroutine readTM
+subroutine rdtm(env,n,grd,e,g,xyz)
+   
    use xtb_mctc_accuracy, only : wp
    implicit none
+   type(TEnvironment), intent(inout) :: env
    integer n, iunit, i, nl, j, nn
    logical grd
    real(wp) g(3,n), e, xx(10), x, y, z, xyz(3,n)
@@ -310,8 +477,14 @@ subroutine rdtm(n,grd,e,g,xyz)
       101   read(iunit,'(a)',end=102)a1
       call readl(a1,xx,nn)
       if(nn.ge.4) e=xx(2)
+         !! to assign the last entry 
       goto 101
-      102   close(iunit)
+      102 continue
+      if (set%ceasefiles) then
+         call env%io%deleteFile('energy') 
+      else
+         close(iunit)
+      endif
       return
    endif
 
@@ -344,8 +517,12 @@ subroutine rdtm(n,grd,e,g,xyz)
    do i=1,n
       read(iunit,*)g(1,i),g(2,i),g(3,i)
    enddo
-
-   close(iunit)
+   if (set%ceasefiles) then
+      call env%io%deleteFile('energy') 
+      call env%io%deleteFile('gradient') 
+   else
+      close(iunit)
+   endif
 
 end subroutine rdtm
 

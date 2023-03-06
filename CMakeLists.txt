@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 3.9)
 # Setup the XTB Project
 project(
   "xtb"
-  VERSION "6.5.1"
+  VERSION "6.6.0"
   LANGUAGES "C" "Fortran"
 )
 enable_testing()
@@ -58,7 +58,7 @@ find_package("BLAS" REQUIRED)
 
 # Object library
 if(NOT EXISTS "${PROJECT_BINARY_DIR}/include")
-  make_directory("${PROJECT_BINARY_DIR}/include")
+  file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
 endif()
 add_library(
   "${PROJECT_NAME}-object"

@@ -34,6 +34,7 @@ subroutine collect_gfn2(testsuite)
       new_unittest("gbsa", test_gfn2gbsa_api), &
       new_unittest("salt", test_gfn2salt_api), &
       new_unittest("pcem", test_gfn2_pcem_api), &
+      new_unittest("pcem_io", test_gfn2_pcem_io), &
       new_unittest("mindless-basic", test_gfn2_mindless_basic), &
       new_unittest("mindless-solvation", test_gfn2_mindless_solvation), &
       new_unittest("dmetal", test_gfn2_dmetal), &
@@ -518,6 +519,149 @@ subroutine test_gfn2_pcem_api(error)
 
 end subroutine test_gfn2_pcem_api
 
+subroutine test_gfn2_pcem_io(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_io, only : stdout
+
+   use xtb_type_options
+   use xtb_type_molecule
+   use xtb_type_restart
+   use xtb_type_param
+   use xtb_type_data
+   use xtb_type_pcem
+   use xtb_type_environment
+   use xtb_embedding, only: read_pcem
+
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
+
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp),parameter :: thr = 1.0e-10_wp
+   integer, parameter :: nat = 12, nat2 = nat/2
+   integer, parameter :: at(nat) = [8,1,1, 8,1,1, 8,1,1, 8,1,1]
+   real(wp),parameter :: xyz(3,nat) = reshape([&
+      &-2.75237178376284_wp, 2.43247309226225_wp,-0.01392519847964_wp, &
+      &-0.93157260886974_wp, 2.79621404458590_wp,-0.01863384029005_wp, &
+      &-3.43820531288547_wp, 3.30583608421060_wp, 1.42134539425148_wp, &
+      &-2.43247309226225_wp,-2.75237178376284_wp, 0.01392519847964_wp, &
+      &-2.79621404458590_wp,-0.93157260886974_wp, 0.01863384029005_wp, &
+      &-3.30583608421060_wp,-3.43820531288547_wp,-1.42134539425148_wp, &
+      & 2.75237178376284_wp,-2.43247309226225_wp,-0.01392519847964_wp, &
+      & 0.93157260886974_wp,-2.79621404458590_wp,-0.01863384029005_wp, &
+      & 3.43820531288547_wp,-3.30583608421060_wp, 1.42134539425148_wp, &
+      & 2.43247309226225_wp, 2.75237178376284_wp, 0.01392519847964_wp, &
+      & 2.79621404458590_wp, 0.93157260886974_wp, 0.01863384029005_wp, &
+      & 3.30583608421060_wp, 3.43820531288547_wp,-1.42134539425148_wp], shape(xyz))
+   type(scc_options),parameter :: opt = scc_options( &
+      &  prlevel = 2, maxiter = 30, acc = 1.0_wp, etemp = 300.0_wp, grad = .true. )
+
+   type(TMolecule)    :: mol
+   type(TRestart) :: chk
+   type(TEnvironment) :: env
+   type(scc_results) :: res
+   type(TxTBCalculator) :: calc
+
+   real(wp) :: energy, sigma(3,3)
+   real(wp) :: hl_gap
+   real(wp),allocatable :: gradient(:,:)
+
+   integer :: tmp_unit
+
+   ! setup the environment variables
+   call init(env)
+
+   call init(mol, at, xyz)
+
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=2)
+   call newWavefunction(env, mol, calc, chk)
+
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 12.391144584178_wp, thr=thr)
+   call check_(error, energy,-20.323978512117_wp, thr=thr)
+   call check_(error, norm2(gradient),0.78119239557115E-02_wp, thr=thr)
+
+   call check_(error, gradient(1,5),-0.22192122053513E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.22192122053512E-02_wp, thr=thr)
+   call check_(error, gradient(1,4), 0.95621597761913E-03_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.11904153838296E-02_wp, thr=thr)
+
+   ! reset
+   call mol%deallocate
+   deallocate(gradient)
+
+   call init(mol, at(:nat2), xyz(:, :nat2))
+   allocate(gradient(3,mol%n))
+   energy = 0.0_wp
+   gradient = 0.0_wp
+
+   call newXTBCalculator(env, mol, calc, method=2)
+
+   open(newunit=tmp_unit, Status="Scratch")
+      write(tmp_unit,'(a)') &
+      "6",&
+      "-0.69645733    2.75237178376284    -2.43247309226225    -0.01392519847964  O", &
+      " 0.36031084    0.93157260886974    -2.79621404458590    -0.01863384029005  H", &
+      " 0.33614649    3.43820531288547    -3.30583608421060     1.42134539425148  H", &
+      "-0.69645733    2.43247309226225     2.75237178376284     0.01392519847964  O", &
+      " 0.36031084    2.79621404458590     0.93157260886974     0.01863384029005  H", &
+      " 0.33614649    3.30583608421060     3.43820531288547    -1.42134539425148  H"
+   Call read_pcem(tmp_unit,env,calc%pcem,calc%xtbData%coulomb)
+   close(tmp_unit,Status="Delete")
+
+   calc%pcem%grd = 0.0_wp
+
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 12.718203165741_wp, thr=thr)
+   call check_(error, energy,-10.160927754235_wp, thr=thr)
+   call check_(error, norm2(gradient),0.21549557655285E-01_wp, thr=thr)
+
+   call check_(error, gradient(1,5),-0.20326749264006E-02_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.33125459724368E-02_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.11929405659085E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.16607682747438E-02_wp, thr=thr)
+
+   call check_(error, norm2(calc%pcem%grd),0.10043976337709E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,5),-0.24831958012524E-03_wp, thr=thr)
+   call check_(error, calc%pcem%grd(2,2), 0.14208444722973E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,4), 0.37466852704082E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(3,6), 0.65161344334732E-03_wp, thr=thr)
+
+   ! reset
+   energy = 0.0_wp
+   gradient = 0.0_wp
+   calc%pcem%grd = 0.0_wp
+   calc%pcem%gam = 999.0_wp ! point charges
+
+   call newWavefunction(env, mol, calc, chk)
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+      & hl_gap, res)
+
+   call check_(error, hl_gap, 13.024345612330_wp, thr=thr)
+   call check_(error, energy,-10.168788268962_wp, thr=thr)
+   call check_(error, norm2(gradient),0.18113624400926E-01_wp, thr=thr)
+
+   call check_(error, gradient(1,5),-0.50646289499094E-03_wp, thr=thr)
+   call check_(error, gradient(2,2), 0.25468320656932E-02_wp, thr=thr)
+   call check_(error, gradient(1,4),-0.74927880093291E-02_wp, thr=thr)
+   call check_(error, gradient(3,6),-0.13248514654811E-02_wp, thr=thr)
+
+   call check_(error, norm2(calc%pcem%grd),0.18721791896294E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,5),-0.21573703225712E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(2,2), 0.25653662154150E-02_wp, thr=thr)
+   call check_(error, calc%pcem%grd(1,4), 0.12124342986218E-01_wp, thr=thr)
+   call check_(error, calc%pcem%grd(3,6), 0.12140575062433E-02_wp, thr=thr)
+
+end subroutine test_gfn2_pcem_io
 
 subroutine test_gfn2_mindless_basic(error)
    use xtb_mctc_accuracy, only : wp

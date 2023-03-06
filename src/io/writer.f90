@@ -24,28 +24,37 @@ module xtb_io_writer
    use xtb_mctc_filetypes, only : fileType
    use xtb_mctc_version, only : version
    use xtb_type_molecule, only : TMolecule, assignment(=)
+   
    implicit none
    private
-
    public :: writeMolecule
 
-
 contains
-
-
+!------------------------------------------------------------------
+!   To write molecular structure data into a file
+!------------------------------------------------------------------
 subroutine writeMolecule(self, unit, format, energy, gnorm, number)
+   
    class(TMolecule), intent(in) :: self
+      !! dynamic type of TMolecule 
    integer, intent(in) :: unit
+      !! IO unit for file
    integer, intent(in), optional :: format
+      !! the format: xyz, pdb, sdf, etc. 
    real(wp), intent(in), optional :: energy
+      !! energy output for comment line
    real(wp), intent(in), optional :: gnorm
+      !! gradient norm output for comment line
    integer, intent(in), optional :: number
+      !!
+   
    character(len=:), allocatable :: comment_line
    character(len=20) :: energy_line
    character(len=20) :: gnorm_line
    type(structure_type) :: struc
    type(error_type), allocatable :: error
    integer :: ftype
+   
    if (present(format)) then
       ftype = format
    else

@@ -82,7 +82,7 @@ macro(
 
         # We need the module directory in the subproject before we finish the configure stage
         if(NOT EXISTS "${${_pkg_uc}_BINARY_DIR}/include")
-          make_directory("${${_pkg_uc}_BINARY_DIR}/include")
+          file(MAKE_DIRECTORY "${${_pkg_uc}_BINARY_DIR}/include")
         endif()
 
         break()
@@ -106,7 +106,7 @@ macro(
       FetchContent_GetProperties("${_pkg_lc}" SOURCE_DIR "${_pkg_uc}_SOURCE_DIR")
       FetchContent_GetProperties("${_pkg_lc}" BINARY_DIR "${_pkg_uc}_BINARY_DIR")
       if(NOT EXISTS "${${_pkg_uc}_BINARY_DIR}/include")
-        make_directory("${${_pkg_uc}_BINARY_DIR}/include")
+        file(MAKE_DIRECTORY "${${_pkg_uc}_BINARY_DIR}/include")
       endif()
 
       break()

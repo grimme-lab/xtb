@@ -302,6 +302,8 @@ $md
     SCC accuracy level in MD. Every 10th step the SCC is properly converged
     at sccconv=1.0. sccmd should be < 5 in critical cases, effects may show
     up as bad thermostating
+*forcewrrestart*='logical'::
+    forces the writing of a restart file at each dump step
 
 $modef
 ~~~~~~
@@ -323,6 +325,19 @@ $modef
     (normally = 7 ie the TS mode which is fixed then)
 *mode*='int'::
     can set by --modef via cmdline
+
+$oniom
+~~~~~~
+*inner logs*='bool'::
+   to print optimization log files for model region geometry (`high.inner_region.log` and `low.inner_region.log`)
+
+*derived k*='bool'::
+   to calculate prefactor *k* and create jacobian dynamically (see more )
+
+*silent*='bool'::
+   to hide the execution runs of external software 
+
+
 
 $opt
 ~~~~

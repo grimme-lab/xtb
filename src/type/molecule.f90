@@ -157,6 +157,8 @@ module xtb_type_molecule
 
       procedure :: align_to_principal_axes
 
+      procedure ::  copy => copyMolecule
+
    end type TMolecule
 
 
@@ -186,6 +188,16 @@ module xtb_type_molecule
 contains
 
 
+!> Copy molecule type
+subroutine copyMolecule(self,mol0)
+
+   class(TMolecule), intent(out) :: self
+   type(TMolecule), intent(in) :: mol0
+
+      Call init(self, mol0%at, mol0%sym, mol0%xyz, mol0%chrg, mol0%uhf, &
+           & mol0%lattice, mol0%pbc)
+end subroutine copyMolecule
+
 !> Constructor for the molecular structure type
 subroutine initMolecule &
      & (mol, at, sym, xyz, chrg, uhf, lattice, pbc)
@@ -214,7 +226,11 @@ subroutine initMolecule &
    end if
 
    if (present(pbc)) then
-      mol%pbc = pbc
+      if (size(pbc) == 1) then
+         mol%pbc = (/pbc, pbc, pbc/)
+      else
+         mol%pbc = pbc
+      end if
       mol%npbc = count(pbc)
       if (any(pbc)) then
          mol%boundaryCondition = boundaryCondition%pbc3d
@@ -476,9 +492,12 @@ end subroutine deallocate_molecule
 subroutine update(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
-   implicit none
-   class(TMolecule),intent(inout) :: self  !< molecular structure information
 
+   implicit none
+   class(TMolecule),intent(inout) :: self  
+      !! molecular structure information
+   
+   !> For periodic calculations
    if (self%npbc > 0) then
       call dlat_to_cell(self%lattice,self%cellpar)
       call dlat_to_rlat(self%lattice,self%rec_lat)
@@ -486,19 +505,22 @@ subroutine update(self)
 
       call self%wrap_back
    endif
-
+   
    call self%calculate_distances
 
 end subroutine update
 
 !> calculates all distances for molecular structures and minimum
-!  image distances for peridic structures
+!> image distances for periodic structures
 subroutine mol_calculate_distances(self)
    use xtb_mctc_accuracy, only : wp
    use xtb_pbc_tools
+   
    implicit none
-   class(TMolecule),intent(inout) :: self !< molecular structure information
+   class(TMolecule),intent(inout) :: self 
+      !! molecular structure information
    integer :: i,j
+   
    if (self%npbc > 0) then
       do i = 1, self%n
          do j = 1, i-1
@@ -518,6 +540,7 @@ subroutine mol_calculate_distances(self)
          self%dist(i,i) = 0.0_wp
       enddo
    endif
+
 end subroutine mol_calculate_distances
 
 !> get all nuclear charges

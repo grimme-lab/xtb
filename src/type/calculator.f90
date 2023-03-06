@@ -133,8 +133,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    real(wp), intent(inout) :: dipgrad(:, :)
 
    integer :: iat, jat, kat, ic, jc, ii, jj
-   type(TMolecule), allocatable :: mol
-   type(TRestart), allocatable :: chk
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
    real(wp) :: er, el, dr(3), dl(3), sr(3, 3), sl(3, 3), egap, step2
    real(wp) :: t0, t1, w0, w1
    real(wp), allocatable :: gr(:, :), gl(:, :)
@@ -157,15 +157,15 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
          gr = 0.0_wp
          gl = 0.0_wp
 
-         mol = mol0
+         call mol%copy(mol0)
          mol%xyz(ic, iat) = mol0%xyz(ic, iat) + step
-         chk = chk0
+         call chk%copy(chk0)
          call self%singlepoint(env, mol, chk, -1, .true., er, gr, sr, egap, rr)
          dr = rr%dipole
 
-         mol = mol0
+         call mol%copy(mol0)
          mol%xyz(ic, iat) = mol0%xyz(ic, iat) - step
-         chk = chk0
+         call chk%copy(chk0)
          call self%singlepoint(env, mol, chk, -1, .true., el, gl, sl, egap, rl)
          dl = rl%dipole
 
