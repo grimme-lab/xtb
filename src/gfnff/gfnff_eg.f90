@@ -136,8 +136,11 @@ contains
      &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
      &         hb_dcn(3,n,n),hb_cn(n))
 
-      if (pr) call timer%new(10 + count([allocated(solvation)]),.false.)
-
+      if (pr) then   
+         call timer%new(10 + count([allocated(solvation)]),.false.)
+      else
+         call timer%new(1, .false.)
+      endif
       if (pr) call timer%measure(1,'distance/D3 list')
       nd3=0
       do i=1,n
@@ -629,7 +632,10 @@ contains
 !       which is computed here to get the atomization energy De,n,at(n)
         call goed_gfnff(env,.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,solvation,param,topo)
         de=-(etot - eesinf)
+      else
+         call timer%write(6)
       endif
+
 !     write resusts to res type
       res_gff%e_total = etot
       res_gff%gnorm   = sqrt(sum(g**2))

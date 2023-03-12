@@ -198,8 +198,12 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
 
    ! ------------------------------------------------------------------------
    !  actual calculation
-   pr = gff_print .and. printlevel > 0
-   call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
+   if (set%mode_extrun .eq. p_ext_oniom .and. set%runtyp .eq. p_run_opt) then
+      pr = .not.gff_print
+   else
+      pr = gff_print .and. printlevel > 0
+   endif
+   call gfnff_eg(env,pr!,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
       & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy)
 
@@ -233,7 +237,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       enddo
    endif
 
-   if (printlevel.ge.2) then
+   if (printlevel.ge.2)  then
       ! start with summary header
       if (.not.set%silent) then
          write(env%unit,'(9x,53(":"))')
@@ -265,7 +269,12 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          call print_charges(ich,mol%n,chk%nlist%q)
          call close_file(ich)
       end if
-   endif
+    
+    else if (set%mode_extrun .eq. p_ext_oniom) then
+      write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
+      write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
+    
+    endif
 
 end subroutine singlepoint
 
