@@ -203,7 +203,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    else
       pr = gff_print .and. printlevel > 0
    endif
-   call gfnff_eg(env,pr!,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
+   call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
       & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy)
 
