@@ -267,7 +267,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 
       call self%real_low%singlepoint(env, mol, chk, printlevel, restart, &
          & energy, gradient, sigma, hlgap, results)
-      
    endif
    
    call self%cutbond(env, mol, chk, self%topo, inner_mol,jacobian,idx2)
