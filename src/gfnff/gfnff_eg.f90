@@ -456,6 +456,20 @@ contains
       endif
       if (pr) call timer%measure(8)
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! triple bonded carbon torsion potential
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+m = size(topo%sTorsl(1,:))
+if (m.ne.0) then
+  do i=1, m
+    call sTors_eg(m, n, xyz, topo, etmp, g5tmp)
+    etors = etors + etmp
+    g = g + g5tmp
+  enddo
+endif
+
+
 !!!!!!!!!!!!!!!!!!
 ! BONDED ATM
 !!!!!!!!!!!!!!!!!!
@@ -566,6 +580,9 @@ contains
          !$omp end parallel do
       endif
       if (pr) call timer%measure(10)
+
+
+
 
 !!!!!!!!!!!!!!!!!!
 ! external stuff
@@ -3095,6 +3112,46 @@ subroutine batmgfnff_eg(n,iat,jat,kat,at,xyz,q,sqrab,srab,energy,g,param)
       g(:,3  )=g(:,3  )-drjk*rjk/srab(linjk)
 
       end subroutine batmgfnff_eg
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! torsion term for rotation around triple bonded carbon
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine sTors_eg(m, n, xyz, topo, energy, dg)
+use xtb_mctc_accuracy, only : wp
+  integer, intent(in) :: m
+  integer, intent(in) :: n
+  real(wp), intent(in) :: xyz(3,n)
+  type(TGFFTopology), intent(in) :: topo
+  real(wp), intent(out) :: energy
+  real(wp), intent(out) :: dg(3,n)
+  integer :: c1,c2,c3,c4
+  integer :: i
+  real(wp) :: phi, valijklff  ! torsion angle between C1-C4
+  real(wp) :: dp1(3),dp2(3),dp3(3),dp4(3)
+
+  energy = 0.0_wp
+  dg(:,:) = 0.0_wp
+
+  if ( .not. any(topo%sTorsl(:,m) .eq. 0)) then
+    c1 = topo%sTorsl(1,m)
+    c2 = topo%sTorsl(2,m)
+    c3 = topo%sTorsl(5,m)
+    c4 = topo%sTorsl(6,m)
+
+    ! dihedral angle in radians
+    phi=valijklff(n,xyz,c1,c2,c3,c4)
+    call dphidr(n,xyz,c1,c2,c3,c4,phi,dp1,dp2,dp3,dp4)
+    energy = -4.609_wp*1.0e-4_wp*cos(2.0_wp*phi) + 4.609_wp*1.0e-4_wp
+    do i=1, 3
+      dg(i, c1) = dg(i, c1) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp1(i)
+      dg(i, c2) = dg(i, c2) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp2(i)
+      dg(i, c3) = dg(i, c3) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp3(i)
+      dg(i, c4) = dg(i, c4) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp4(i)
+    enddo
+  endif
+
+end subroutine sTors_eg
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! CN routines
