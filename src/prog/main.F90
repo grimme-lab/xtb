@@ -1389,8 +1389,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--spinpol')
          if (get_xtb_feature('tblite')) then
-            call env%warning("Employing tblite library for spin-polarization", source)
-            call set_exttyp('tblite')
             tblite%spin_polarized = .true.
          else
             call env%error("Compiled without support for tblite library. This is required for spin-polarization", source)
