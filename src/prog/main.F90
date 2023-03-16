@@ -212,6 +212,12 @@ subroutine xtbMain(env, argParser)
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
       & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
 
+   !> Spin-polarization is only available in the tblite library
+   if(set%mode_extrun.ne.p_ext_tblite .and. tblite%spin_polarized) then
+     call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
+   endif
+
+
    nFiles = argParser%countFiles()
    select case(nFiles)
    case(0)
