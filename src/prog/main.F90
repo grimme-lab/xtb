@@ -212,6 +212,12 @@ subroutine xtbMain(env, argParser)
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
       & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
 
+   !> Spin-polarization is only available in the tblite library
+   if(set%mode_extrun.ne.p_ext_tblite .and. tblite%spin_polarized) then
+     call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
+   endif
+
+
    nFiles = argParser%countFiles()
    select case(nFiles)
    case(0)
@@ -1385,7 +1391,16 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          else
             call env%error("No color scheme provided for --color option", source)
          end if
-      
+
+
+      case('--spinpol')
+         if (get_xtb_feature('tblite')) then
+            tblite%spin_polarized = .true.
+         else
+            call env%error("Compiled without support for tblite library. This is required for spin-polarization", source)
+            cycle
+         end if
+
       case('--oniom')
          call set_exttyp('oniom')
          call args%nextArg(sec) 
