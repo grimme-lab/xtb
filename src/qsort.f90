@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 recursive subroutine qsort(a, first, last, ind)
-   use xtb_mctc_accuracy, only : wp
+  use xtb_mctc_accuracy, only : wp
   implicit none
   real(wp) :: a(*), x, t
   integer  :: ind(*)
