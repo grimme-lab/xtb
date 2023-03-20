@@ -3127,6 +3127,7 @@ use xtb_mctc_accuracy, only : wp
   integer :: c1,c2,c3,c4
   integer :: i
   real(wp) :: phi, valijklff  ! torsion angle between C1-C4
+  real(wp) :: erefhalf  
   real(wp) :: dp1(3),dp2(3),dp3(3),dp4(3)
 
   energy = 0.0_wp
@@ -3141,12 +3142,14 @@ use xtb_mctc_accuracy, only : wp
     ! dihedral angle in radians
     phi=valijklff(n,xyz,c1,c2,c3,c4)
     call dphidr(n,xyz,c1,c2,c3,c4,phi,dp1,dp2,dp3,dp4)
-    energy = -4.609_wp*1.0e-4_wp*cos(2.0_wp*phi) + 4.609_wp*1.0e-4_wp
+    ! reference energy for torsion of 90° calculated with DLPNO-CCSD(T) CBS on diphenylacetylene
+    erefhalf = 3.75_wp*1.0e-4_wp  ! approx 1.97 kJ/mol
+    energy = -erefhalf*cos(2.0_wp*phi) + erefhalf 
     do i=1, 3
-      dg(i, c1) = dg(i, c1) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp1(i)
-      dg(i, c2) = dg(i, c2) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp2(i)
-      dg(i, c3) = dg(i, c3) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp3(i)
-      dg(i, c4) = dg(i, c4) + 4.609_wp*1.0e-4_wp*2.0_wp*sin(2.0_wp*phi)*dp4(i)
+      dg(i, c1) = dg(i, c1) + erefhalf*2.0_wp*sin(2.0_wp*phi)*dp1(i)
+      dg(i, c2) = dg(i, c2) + erefhalf*2.0_wp*sin(2.0_wp*phi)*dp2(i)
+      dg(i, c3) = dg(i, c3) + erefhalf*2.0_wp*sin(2.0_wp*phi)*dp3(i)
+      dg(i, c4) = dg(i, c4) + erefhalf*2.0_wp*sin(2.0_wp*phi)*dp4(i)
     enddo
   endif
 

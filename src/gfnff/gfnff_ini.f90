@@ -1885,6 +1885,7 @@ contains
 ! special treatment for rotation around carbon triple bonds
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! requested for obtaining diphenylacetylene torsion potential
+! also applied for e.g. divinylacetylene
 
 ! Check for triple bonded carbon (Ci and Cnbi) and setup list for calculating
 !  torsion potential using dehidral angle between C1 C2 C3 C4
@@ -1958,8 +1959,8 @@ subroutine specialTorsList(nst, mol, topo, sTorsList)
             endif ! C1-C4 are sp2 carbon
           endif  ! CC distance
         endif  ! other carbon
-      enddo  ! is carbon with nnb=2
-    endif
+      enddo
+    endif ! is carbon with nnb=2
   enddo
 end subroutine specialTorsList
 
