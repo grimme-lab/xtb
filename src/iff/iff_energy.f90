@@ -303,6 +303,8 @@ contains
 
       e = -ed + es + ep + esl + ei + gsolv + eabc + ect + esph
 
+      if(isnan(e)) e = 1.0_wp**42
+
 ! all done now output
       if (pr .and. e .lt. 10000.2) then ! only if it makes sense to print
          call rcma(n1, A1, at1, n2, A2, at2, r, rmin)

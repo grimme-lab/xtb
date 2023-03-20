@@ -802,9 +802,9 @@ contains
             do j = 1, maxparent
                ii = (i - 1)*maxparent + j
                call crossover(0.00d0, f)
-              displ(1:6) = found(1:6, i)*f(1:6) + found(1:6, j)*(1.0d0 - f(1:6))
+               displ(1:6) = found(1:6, i)*f(1:6) + found(1:6, j)*(1.0d0 - f(1:6))
                if (i .ne. j) call rand6(0.5d0, 1.0d0, 1.0d0, displ)   ! mutation only on childs
-          call iff_e(env, n, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab,&
+               call iff_e(env, n, n1, n2, at1, at2, neigh, xyz1, xyz2, q1, q2, c6ab,&
                                &z1, z2, nl1, nl2, l1, l2, cl1, cl2,&
                                &qdr1, qdr2,&
                                &cn1, cn2, alp1, alp2, alpab, qct1, qct2,&
