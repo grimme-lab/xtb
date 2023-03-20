@@ -39,6 +39,7 @@ module xtb_tblite_calculator
    use tblite_xtb_gfn1, only : new_gfn1_calculator, export_gfn1_param
    use tblite_xtb_ipea1, only : new_ipea1_calculator, export_ipea1_param
    use tblite_xtb_singlepoint, only : xtb_singlepoint
+   use tblite_data_spin, only : get_spin_constant
 #endif
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
@@ -86,6 +87,8 @@ module xtb_tblite_calculator
 #if WITH_TBLITE
       !> Instance of tblite calculator
       type(xtb_calculator) :: tblite
+      !> Perform a spin-polarized calculation
+      logical :: spin_polarized = .false.
 #endif
    contains
       !> Perform calculator for a singlepoint
@@ -127,6 +130,7 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
    calc%guess = "sad"
    calc%accuracy = input%accuracy
    calc%color = input%color
+   calc%spin_polarized = input%spin_polarized
 
    if (allocated(input%param)) then
       call param%load(input%param, error)
@@ -160,18 +164,18 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
 !      end block
 !   end if
 !
-!   if (config%spin_polarized) then
-!      block
-!         class(container_type), allocatable :: cont
-!         type(spin_polarization), allocatable :: spin
-!         real(wp), allocatable :: wll(:, :, :)
-!         allocate(spin)
-!         ! TODO: get_spin_constants(wll, struc, calc%tblite%bas)
-!         call new_spin_polarization(spin, struc, wll, calc%tblite%bas%nsh_id)
-!         call move_alloc(spin, cont)
-!         call calc%tblite%push_back(cont)
-!      end block
-!   end if
+   if (calc%spin_polarized) then
+      block
+         class(container_type), allocatable :: cont
+         type(spin_polarization), allocatable :: spin
+         real(wp), allocatable :: wll(:, :, :)
+         allocate(spin)
+         call get_spin_constants(wll, struc, calc%tblite%bas)
+         call new_spin_polarization(spin, struc, wll, calc%tblite%bas%nsh_id)
+         call move_alloc(spin, cont)
+         call calc%tblite%push_back(cont)
+      end block
+   end if
 !
 !   if (allocated(config%solvation)) then
 !      block
@@ -336,6 +340,27 @@ subroutine get_qat_from_qsh(bas, qsh, qat)
 end subroutine get_qat_from_qsh
 #endif
 
+#if WITH_TBLITE
+subroutine get_spin_constants(wll, mol, bas)
+   real(wp), allocatable, intent(out) :: wll(:, :, :)
+   type(structure_type), intent(in) :: mol
+   type(basis_type), intent(in) :: bas
+
+   integer :: izp, ish, jsh, il, jl
+
+   allocate(wll(bas%nsh, bas%nsh, mol%nid), source=0.0_wp)
+
+   do izp = 1, mol%nid
+      do ish = 1, bas%nsh_id(izp)
+         il = bas%cgto(ish, izp)%ang
+         do jsh = 1, bas%nsh_id(izp)
+            jl = bas%cgto(jsh, izp)%ang
+            wll(jsh, ish, izp) = get_spin_constant(jl, il, mol%num(izp))
+         end do
+      end do
+   end do
+end subroutine get_spin_constants
+#endif
 
 #if ! WITH_TBLITE
 subroutine feature_not_implemented(env)
