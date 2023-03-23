@@ -1867,9 +1867,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
         nn = nn/2
         allocate(topo%sTorsl(6, nn), source=0)
         call specialTorsList(nn, mol, topo, topo%sTorsl)
-      else
-        ! allocate with size() = 0
-        allocate(topo%sTorsl(6, nn), source=0)
       endif
 
 
