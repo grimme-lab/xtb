@@ -1911,7 +1911,7 @@ subroutine specialTorsList(nst, mol, topo, sTorsList)
         nbi=topo%nb(j,i)
         if (mol%at(nbi).eq.6.and.topo%nb(20,nbi).eq.2) then  ! *other carbon
           ! check carbon triple bond distance
-          if (NORM2(mol%xyz(1:3,i)-mol%xyz(1:3,nbi)).le.2.47) then
+          if (NORM2(mol%xyz(1:3,i)-mol%xyz(1:3,nbi)).le.2.37) then
             ! at this point we know that i and nbi are carbons bonded through triple bond
             ! check C2 and C3
             do k=1, 2  ! C2 is other nb of Ci
