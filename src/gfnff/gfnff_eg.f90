@@ -454,21 +454,19 @@ contains
          enddo
          !$omp end parallel do
       endif
-      if (pr) call timer%measure(8)
-
-
+      
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! triple bonded carbon torsion potential
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-m = size(topo%sTorsl(1,:))
-if (m.ne.0) then
-  do i=1, m
-    call sTors_eg(m, n, xyz, topo, etmp, g5tmp)
-    etors = etors + etmp
-    g = g + g5tmp
-  enddo
-endif
-
+      m = size(topo%sTorsl(1,:))
+      if (m.ne.0) then
+         do i=1, m
+            call sTors_eg(m, n, xyz, topo, etmp, g5tmp)
+            etors = etors + etmp
+            g = g + g5tmp
+         enddo
+      endif
+      if (pr) call timer%measure(8)
 
 !!!!!!!!!!!!!!!!!!
 ! BONDED ATM
