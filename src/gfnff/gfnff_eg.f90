@@ -458,7 +458,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! triple bonded carbon torsion potential
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      if allocated(topo%sTorsl) then
+      if (allocated(topo%sTorsl)) then
         m = size(topo%sTorsl(1,:))
         if (m.ne.0) then
           do i=1, m
