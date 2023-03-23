@@ -458,13 +458,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! triple bonded carbon torsion potential
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      m = size(topo%sTorsl(1,:))
-      if (m.ne.0) then
-         do i=1, m
+      if allocated(topo%sTorsl) then
+        m = size(topo%sTorsl(1,:))
+        if (m.ne.0) then
+          do i=1, m
             call sTors_eg(m, n, xyz, topo, etmp, g5tmp)
             etors = etors + etmp
             g = g + g5tmp
-         enddo
+          enddo
+        endif
       endif
       if (pr) call timer%measure(8)
 
