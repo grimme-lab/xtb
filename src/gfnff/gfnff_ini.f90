@@ -1912,12 +1912,12 @@ subroutine specialTorsList(nst, mol, topo, sTorsList)
             ! at this point we know that i and nbi are carbons bonded through triple bond
             ! check C2 and C3
             do k=1, 2  ! C2 is other nb of Ci
-              if (topo%nb(k,i).ne.nbi) then
+              if (topo%nb(k,i).ne.nbi.and.mol%at(topo%nb(k,i)).eq.6) then
                 jj=topo%nb(k,i)
               endif
             enddo
             do k=1, 2  ! C3 is other nb of Cnbi
-              if (topo%nb(k,nbi).ne.i) then
+              if (topo%nb(k,nbi).ne.i.and.mol%at(topo%nb(k,nbi)).eq.6) then
                 kk=topo%nb(k,nbi)
               endif
             enddo
