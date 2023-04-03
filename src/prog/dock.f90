@@ -674,7 +674,7 @@ contains
          "     |                   =====================                   |", &
          "     |                          a I S S                          |", &
          "     |                   =====================                   |", &
-         "     |               S. Ehlert, S. Grimme, C.Plett               |", &
+         "     |               C. Plett, S. Ehlert, S. Grimme              |", &
          "     |          Mulliken Center for Theoretical Chemistry        |", &
          "     |                    University of Bonn                     |", &
          "      -----------------------------------------------------------", ""

@@ -765,7 +765,7 @@ contains
 
       call doubles(ll, ndim, 3.0d0, 0.1d0, found)    ! Sorting out doubles
       call sort6(ll, found)
-      if(debug) call wrc3('xtbiff_best_before_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
+      if(debug) call wrc3('best_before_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
 
       write (*, *)
       write (*, *) '  Interaction energy of lowest structures so far in kcal/mol:'
@@ -780,7 +780,7 @@ contains
 !      end do
 
       if (debug) then
-         call wrc2('xtbiff_genstart.xyz', 1, n1, n2, at1, at2, xyz1, xyz2,&
+         call wrc2('genstart.xyz', 1, n1, n2, at1, at2, xyz1, xyz2,&
                    &maxparent, found)
       end if
 
@@ -821,7 +821,9 @@ contains
          call sort6(ii, found2)
 
          found = found2
-         if (debug) call wrc3('xtbiff_best_after_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
+         if (debug) call wrc2('structures_after_gen.xyz', 0, n1, n2, at1, at2, xyz1,&
+         & xyz2, n_opt, found)
+         call wrc3('best_after_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
 
          av = sum(found(7, 1:maxparent))/float(maxparent)
          sig = 0
@@ -852,9 +854,7 @@ contains
 
 !-------------------------------------------------------------- final optimization
 
-      if (debug) then
-         call open_file(iopt, 'optimizing_structures.xyz', 'w')
-      end if
+      call open_file(iopt, 'optimized_structures.xyz', 'w')
       call open_file(itemp, 'opt_tmp', 'w')
       tmp_unit = env%unit
       env%unit = itemp
@@ -907,22 +907,17 @@ contains
          end do
          final_e(icycle) = etot
 
-         if (debug) then
-            write (iopt, '(i0)') comb%n
-            write (iopt, '(f20.14)') etot
-            do j = 1, comb%n
-               write (iopt, '(a4,2x,3f20.14)') comb%sym(j), comb%xyz(:, j)*autoang
-            end do
-         end if
+         write (iopt, '(i0)') comb%n
+         write (iopt, '(f20.14)') etot
+         do j = 1, comb%n
+            write (iopt, '(a4,2x,3f20.14)') comb%sym(j), comb%xyz(:, j)*autoang
+         end do
          found(7, i) = etot
       end do
 
       env%unit = tmp_unit
       call remove_file(itemp)
-
-      if (debug) then
-         call close_file(iopt)
-      end if
+      call close_file(iopt)
 
       !> Include pocket structure if present
       if (pocket_grid) then
@@ -948,6 +943,8 @@ contains
          end do
       end do
       call close_file(ifinal)
+
+      call remove_file(iopt)
 
       call open_file(ifinal, 'best.xyz', 'w')
       write (ifinal, '(i0)') comb%n
