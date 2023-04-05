@@ -37,7 +37,7 @@ contains
 !--------------------------------------------------
 ! Calculate Fukui indices
 !--------------------------------------------------
-subroutine vfukui(env,mol,chk,calc)
+subroutine vfukui(env, mol, chk, calc, fukui)
    
    implicit none
    !> Dummy-argument list
@@ -49,6 +49,8 @@ subroutine vfukui(env,mol,chk,calc)
       !! molecular information
    type(TRestart), intent(inout) :: chk
    type(TRestart) :: wf_p, wf_m
+   
+   real(wp), intent(out) :: fukui(3,mol%n)
  
    type(scc_results) :: res
    real(wp) :: sigma(3,3)
@@ -63,24 +65,24 @@ subroutine vfukui(env,mol,chk,calc)
    
    write(env%unit,'(a)')
    write(env%unit,'("Fukui index Calculation")')
-   wf_p%wfn=chk%wfn
-   wf_m%wfn=chk%wfn
+   wf_p%wfn = chk%wfn
+   wf_m%wfn = chk%wfn
    mol%chrg = mol%chrg - 1
    if (mod(wf_p%wfn%nel,2).ne.0) wf_p%wfn%nopen = 1
    call calc%singlepoint(env,mol,wf_p,1,exist,etot2,g,sigma,egap,res)
-   f_plus=wf_p%wfn%q-chk%wfn%q
+   fukui(1,:) = wf_p%wfn%q-chk%wfn%q
 
    mol%chrg = mol%chrg + 2
    if (mod(wf_m%wfn%nel,2).ne.0) wf_m%wfn%nopen = 1
    call calc%singlepoint(env,mol,wf_m,1,exist,etot2,g,sigma,egap,res)
-   f_minus=chk%wfn%q-wf_m%wfn%q
+   fukui(2,:) = chk%wfn%q-wf_m%wfn%q
+   fukui(3,:) = 0.5d0*(wf_p%wfn%q-wf_m%wfn%q)
    write(env%unit,'(a)')
    write(env%unit, '(1x,"    #        f(+)     f(-)     f(0)")')
    do i=1,mol%n
-      write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), f_plus(i), f_minus(i), 0.5d0*(wf_p%wfn%q(i)-wf_m%wfn%q(i))
+      write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), fukui(1,i), fukui(2,i), fukui(3,i)
    enddo
    mol%chrg = mol%chrg + 1
-   deallocate(f_plus,f_minus)
 
 end subroutine vfukui
 

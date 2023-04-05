@@ -148,6 +148,7 @@ subroutine xtbMain(env, argParser)
    real(wp),allocatable :: cn  (:)
    real(wp),allocatable :: sat (:)
    real(wp),allocatable :: g   (:,:)
+   real(wp),allocatable :: fukui   (:,:)
    real(wp) :: vec3(3)
    type(TxTBParameter) :: globpar
    real(wp),allocatable :: dcn (:,:,:)
@@ -510,7 +511,7 @@ subroutine xtbMain(env, argParser)
             fnv=xfind(p_fname_param_gfn0)
          endif
          if(set%gfn_method.eq.1) then
-            fnv=xfind(p_fname_param_ipea)
+            fnv=xfind(p_fname_param_gfn1)
          endif
          if(set%gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
@@ -770,7 +771,8 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> Fukui Index from Mulliken population analysis
    if (set%runtyp.eq.p_run_vfukui) then
-     call vfukui(env,mol,chk,calc)
+     allocate(fukui(3,mol%n))
+     call vfukui(env,mol,chk,calc,fukui)
    endif
 
 
