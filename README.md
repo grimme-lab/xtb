@@ -28,7 +28,7 @@ A short guide on the usage of each is given here, follow the linked instructions
 
 ### Meson
 
-Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.51 or newer.
+Using [meson](https://mesonbuild.com/) as build system requires you to install a fairly new version like 0.62 or newer.
 To use the default backend of meson you have to install [ninja](https://ninja-build.org/) version 1.7 or newer.
 
 ```bash
