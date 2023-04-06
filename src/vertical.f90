@@ -31,7 +31,6 @@ module xtb_vertical
 
    public :: vfukui
    
-  
 contains
 
 !--------------------------------------------------
@@ -58,10 +57,6 @@ subroutine vfukui(env, mol, chk, calc, fukui)
    real(wp) :: g(3,mol%n)
    logical :: exist
    integer :: i
-
-   real(wp),allocatable :: f_plus(:), f_minus(:)
-   
-   allocate(f_plus(mol%n),f_minus(mol%n))
    
    write(env%unit,'(a)')
    write(env%unit,'("Fukui index Calculation")')
@@ -69,12 +64,12 @@ subroutine vfukui(env, mol, chk, calc, fukui)
    wf_m%wfn = chk%wfn
    mol%chrg = mol%chrg - 1
    if (mod(wf_p%wfn%nel,2).ne.0) wf_p%wfn%nopen = 1
-   call calc%singlepoint(env,mol,wf_p,1,exist,etot2,g,sigma,egap,res)
+   call calc%singlepoint(env, mol, wf_p, 1, exist, etot2, g, sigma, egap, res)
    fukui(1,:) = wf_p%wfn%q-chk%wfn%q
 
    mol%chrg = mol%chrg + 2
    if (mod(wf_m%wfn%nel,2).ne.0) wf_m%wfn%nopen = 1
-   call calc%singlepoint(env,mol,wf_m,1,exist,etot2,g,sigma,egap,res)
+   call calc%singlepoint(env, mol, wf_m, 1, exist, etot2, g, sigma, egap, res)
    fukui(2,:) = chk%wfn%q-wf_m%wfn%q
    fukui(3,:) = 0.5d0*(wf_p%wfn%q-wf_m%wfn%q)
    write(env%unit,'(a)')
