@@ -77,7 +77,7 @@ subroutine vfukui(env, mol, chk, calc, fukui)
    do i=1,mol%n
       write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), fukui(1,i), fukui(2,i), fukui(3,i)
    enddo
-   mol%chrg = mol%chrg + 1
+   mol%chrg = mol%chrg - 1
 
 end subroutine vfukui
 
