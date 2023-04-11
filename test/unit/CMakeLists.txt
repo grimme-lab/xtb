@@ -41,6 +41,7 @@ set(
   "symmetry"
   "tblite"
   "thermo"
+  "vertical"
   "wsc"
 )
 set(

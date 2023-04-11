@@ -41,6 +41,7 @@ program tester
    use test_symmetry, only : collect_symmetry
    use test_tblite, only : collect_tblite
    use test_thermo, only : collect_thermo
+   use test_vertical, only : collect_fukui
    use test_wsc, only : collect_wsc
    implicit none
    integer :: stat, is
@@ -75,6 +76,7 @@ program tester
       new_testsuite("symmetry", collect_symmetry), &
       new_testsuite("tblite", collect_tblite), &
       new_testsuite("thermo", collect_thermo), &
+      new_testsuite("vertical", collect_fukui), &
       new_testsuite("wsc", collect_wsc) &
       ]
 
