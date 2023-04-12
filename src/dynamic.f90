@@ -337,9 +337,7 @@ subroutine md(env,mol,chk,calc, &
       write(env%unit,'(" kpush  :",f9.3)') metasetlocal%global_factor
       write(env%unit,'(" alpha  :",f9.3)') metasetlocal%global_width
       write(env%unit,'(" update :",i8)')   metasetlocal%maxsave
-      if((metasetlocal%ramp - 0.03_wp) .ne. 0.0_wp)then
       write(env%unit,'(" ramp   :",f9.3)') metasetlocal%ramp
-      endif
       if (metasetlocal%nstruc.eq.0) then
          do i = 1, mol%n
             do j = 1, 3
