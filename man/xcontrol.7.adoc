@@ -105,6 +105,8 @@ $cube
     grid spacing for cube file
 *pthr*='real'::
     density matrix neglect threshold
+*boff*='real'::
+    grid boundary offset (default: 3.0)
 *cal*='int'::
     =1 switches on cube-file output (=0 means writing molden file
     instead, -1=do nothing)
