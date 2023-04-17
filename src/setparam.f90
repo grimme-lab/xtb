@@ -324,6 +324,8 @@ module xtb_setparam
    real(wp) :: cube_step = 0.4_wp
 !  density matrix neglect threshold
    real(wp) :: cube_pthr = 0.05_wp
+!  cube boundary offset
+   real(wp) :: cube_boff = 3.0_wp
 !! ------------------------------------------------------------------------
 !  PRINTOUT
 !! ------------------------------------------------------------------------

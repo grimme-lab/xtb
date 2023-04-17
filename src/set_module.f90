@@ -2106,6 +2106,7 @@ subroutine set_cube(env,key,val)
    logical,save :: set1 = .true.
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
+   logical,save :: set4 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by cube",source)
@@ -2119,6 +2120,9 @@ subroutine set_cube(env,key,val)
       call env%warning("the key 'cal' has been removed",source)
 !      if (getValue(env,val,idum).and.set3) cube_cal = idum
 !      set3 = .false.
+   case('boff')
+      if (getValue(env,val,ddum).and.set4) set%cube_boff = ddum
+      set4 = .false.
    end select
 end subroutine set_cube
 
