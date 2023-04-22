@@ -202,10 +202,8 @@ subroutine md(env,mol,chk,calc, &
 
    type(metadyn_setvar) :: metasetlocal
    real(wp) :: emtd
-   real(wp) :: metatime
-   metatime = 0.0_wp
-
-
+   integer :: imetatime
+   imetatime = 0
 
    call delete_file('xtbmdok')
 
@@ -337,9 +335,7 @@ subroutine md(env,mol,chk,calc, &
       write(env%unit,'(" kpush  :",f9.3)') metasetlocal%global_factor
       write(env%unit,'(" alpha  :",f9.3)') metasetlocal%global_width
       write(env%unit,'(" update :",i8)')   metasetlocal%maxsave
-      if((metasetlocal%ramp - 0.03_wp) .ne. 0.0_wp)then
       write(env%unit,'(" ramp   :",f9.3)') metasetlocal%ramp
-      endif
       if (metasetlocal%nstruc.eq.0) then
          do i = 1, mol%n
             do j = 1, 3
@@ -427,13 +423,13 @@ subroutine md(env,mol,chk,calc, &
          &      egap,et,maxiter,0,.true.,.true.,accu,epot,grd,sigma,res)
 
       if (metasetlocal%maxsave.ne.0) then
-         metatime = metatime + 1.0_wp
+         imetatime = imetatime + 1
          metasetlocal%factor(1:metasetlocal%nstruc) = metasetlocal%global_factor
          metasetlocal%factor(metasetlocal%nstruc) = metasetlocal%factor(metasetlocal%nstruc) &
-            &    * (2.0_wp/(1.0_wp+exp(-metasetlocal%ramp*metatime))-1.0_wp)
+            &    * (2.0_wp/(1.0_wp+exp(-metasetlocal%ramp*imetatime*tstep))-1.0_wp)
          if (cdump.gt.cdump0) then
             if (metasetlocal%nstruc.lt.metasetlocal%maxsave) then
-               metatime = 0.0
+               imetatime = 0
                metasetlocal%nstruc = metasetlocal%nstruc + 1
                metasetlocal%xyz(:,:,metasetlocal%nstruc) = mol%xyz
             else

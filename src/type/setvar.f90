@@ -242,7 +242,7 @@ module xtb_type_setvar
       real(wp),allocatable :: factor(:)
       real(wp) :: global_width = 1.0_wp
       real(wp),allocatable :: width(:)
-      real(wp) :: ramp = 0.03_wp
+      real(wp) :: ramp = 0.0075_wp
       integer  :: nat = 0
       logical  :: static = .true.
       integer, allocatable :: atoms(:)
