@@ -345,7 +345,7 @@ subroutine md(env,mol,chk,calc, &
       if (metasetlocal%nstruc.eq.0) then
          do i = 1, mol%n
             ! Generate randomly displaced geometry
-            do while(.true.)
+            do
                rnorm = 0.0_wp
                do j = 1, 3
                   call random_number(rcoord(j))
