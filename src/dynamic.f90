@@ -353,7 +353,7 @@ subroutine md(env,mol,chk,calc, &
                enddo
                ! Ensure that displacement is large enough so that it
                ! can be normalized to the unit sphere
-               if(rnorm .ge. 1e-8) then
+               if(rnorm >= 1e-8) then
                   exit
                endif
             enddo
