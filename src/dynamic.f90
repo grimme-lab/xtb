@@ -178,7 +178,7 @@ subroutine md(env,mol,chk,calc, &
    real(wp) :: dum,edum,eerror,xx(10),molmass,slope,maxtime
    real(wp) :: tstep0,tmax,nfreedom,t0,w0,t1,w1,ep_prec,rege(4)
    real(wp) :: tors(mol%n),be(3),b0(3),tor,dip(3)
-   real(wp) :: rcoord(3), rnorm
+   real(wp) :: rcoord(3)
    logical  :: ex,thermostat,restart,confdump,equi,gmd,ldum
 
    integer :: i,j,k,ic,jc,ia,ja,ii,jj,ndum,cdump,nmax,ibin
@@ -346,19 +346,18 @@ subroutine md(env,mol,chk,calc, &
          do i = 1, mol%n
             ! Generate randomly displaced geometry
             do
-               rnorm = 0.0_wp
-               do j = 1, 3
-                  call random_number(rcoord(j))
-                  rnorm = rnorm + rcoord(j)**2
-               enddo
+               ! Generate numbers in [0,1]
+               call random_number(rcoord)
+               ! Convert numbers to [-1, 1]
+               rcoord = 2.0_wp*rcoord-1.0_wp
                ! Ensure that displacement is large enough so that it
                ! can be normalized to the unit sphere
-               if(rnorm >= 1e-8) then
+               if(norm2(rcoord) >= 1e-8) then
                   exit
                endif
             enddo
             ! Normalize displacement to the unit sphere
-            rcoord = rcoord/sqrt(rnorm)
+            rcoord = rcoord/norm2(rcoord)
             ! Assign displaced geometry
             metasetlocal%xyz(j,i,1) = mol%xyz(j,i) + atom_displacement*rcoord(j)
          enddo
