@@ -359,7 +359,7 @@ subroutine md(env,mol,chk,calc, &
             ! Normalize displacement to the unit sphere
             rcoord = rcoord/norm2(rcoord)
             ! Assign displaced geometry
-            metasetlocal%xyz(j,i,1) = mol%xyz(j,i) + atom_displacement*rcoord(j)
+            metasetlocal%xyz(:,i,1) = mol%xyz(:,i) + atom_displacement*rcoord
          enddo
          metasetlocal%nstruc = 1
       else
