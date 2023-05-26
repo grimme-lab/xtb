@@ -60,7 +60,8 @@ contains
 !---------------------------------------------------
 
    subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
-         & param,topo,nlist,solvation,update,version,accuracy)
+         & param,topo,nlist,solvation,update,version,accuracy,minpr)
+      
       use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
       use xtb_type_data
@@ -68,6 +69,8 @@ contains
       use xtb_gfnff_gdisp0
       use xtb_mctc_constants
       implicit none
+      
+      !> dummy args list 
       character(len=*), parameter :: source = 'gfnff_eg'
       type(TEnvironment), intent(inout) :: env
       type(scc_results),intent(out) :: res_gff
@@ -78,6 +81,9 @@ contains
       logical, intent(in) :: update
       integer, intent(in) :: version
       real(wp), intent(in) :: accuracy
+      logical, intent(in), optional :: minpr
+
+      !>local vars
       integer n
       integer ichrg
       integer at(n)
@@ -137,10 +143,13 @@ contains
      &         hb_dcn(3,n,n),hb_cn(n))
 
       if (pr) then   
-         call timer%new(10 + count([allocated(solvation)]),.false.)
-      else
-         call timer%new(1, .false.)
+          call timer%new(10 + count([allocated(solvation)]),.false.)
+      else if (present(minpr) .and. minpr) then
+          !! to measure time for single cycle  
+          call timer%new(1, .false.)
+          call timer%measure(1,'iter. time')
       endif
+
       if (pr) call timer%measure(1,'distance/D3 list')
       nd3=0
       do i=1,n
@@ -632,8 +641,12 @@ contains
 !       which is computed here to get the atomization energy De,n,at(n)
         call goed_gfnff(env,.true.,n,at,sqrab,srab,dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,solvation,param,topo)
         de=-(etot - eesinf)
-      else
-         call timer%write(6)
+      
+      !> if geometry optimization
+      else if (present(minpr) .and. minpr) then
+         call timer%measure(1)
+            !! stop timer and add tag
+         call timer%write_timing(env%unit,1)
       endif
 
 !     write resusts to res type

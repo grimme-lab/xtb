@@ -182,6 +182,9 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical, parameter :: ccm = .true.
    logical :: exitRun
    logical :: pr
+   logical :: optpr
+      !! for the case of the geometry optimization
+
 
    call mol%update
 
@@ -196,16 +199,28 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       call newBornModel(self%solvation, env, solvation, mol%at)
    end if
 
+   !> To distinguish optimization, final sp and sp  
+   if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
+      &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
+      &   (set%runtyp.eq.p_run_metaopt)) then
+      if (printlevel < 2) then
+         optpr = .true.
+      else 
+         optpr = .false.
+      endif
+   else
+      optpr = .false.
+   endif
+   
+   pr = gff_print .and. printlevel > 0
+   
+
    ! ------------------------------------------------------------------------
    !  actual calculation
-   if (set%mode_extrun .eq. p_ext_oniom .and. set%runtyp .eq. p_run_opt) then
-      pr = .not.gff_print
-   else
-      pr = gff_print .and. printlevel > 0
-   endif
+   ! ------------------------------------------------------------------------
    call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
       & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
-      & self%update,self%version,self%accuracy)
+      & self%update,self%version,self%accuracy,minpr=optpr)
 
    call env%check(exitRun)
    if (exitRun) then
