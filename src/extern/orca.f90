@@ -199,7 +199,7 @@ subroutine newOrcaCalculator(self, env, ext,oniom)
       !! to save external settings from TSet%ext_orca to the new caluclator
    self%threadsafe = .false.
       !! not to call orca in parallel
-   self%ext%oniom=oniom
+   if (present(oniom)) self%ext%oniom=oniom
       !! if oniom calc
    call checkOrca(env, self%ext)
 
