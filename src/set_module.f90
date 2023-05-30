@@ -1089,6 +1089,7 @@ end subroutine set_cut
 
 
 !> charge initialization
+!> Priority: cml -> xcontrol -> .CHRG
 subroutine set_chrg(env,val)
 
    implicit none
