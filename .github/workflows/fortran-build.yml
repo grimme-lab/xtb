@@ -142,7 +142,7 @@ jobs:
     - name: Run unit tests
       run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
       env:
-        OMP_NUM_THREADS: 2,1
+        OMP_NUM_THREADS: 1
 
   intel-meson-build:
     runs-on: ${{ matrix.os }}
