@@ -17,7 +17,7 @@
 module xtb_extern_driver
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_io, only: stdout
-  use xtb_mctc_filetypes, only: fileType
+  use xtb_mctc_filetypes, only: fileType, generateFileName
   use xtb_mctc_symbols, only: toSymbol
   use xtb_type_calculator, only: TCalculator
   use xtb_type_data, only: scc_results
@@ -104,6 +104,8 @@ contains
                                    '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
     real(wp) :: xyz_cached(3, mol%n)
     integer :: err
+    character(len=:),allocatable :: extension
+    character(len=:),allocatable :: tmpname
 
     call mol%update
 
@@ -122,6 +124,14 @@ contains
     end if
     if (.not. cache) then
       call wrtm(mol%n, mol%at, mol%xyz)
+      write(env%unit,'(/,a,/)') &
+         "updated geometry written to: coord"
+      call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
+      write(env%unit,'(/,a,1x,a,/)') &
+         "updated geometry written to:",tmpname
+      call open_file(ich,tmpname,'w')
+      call writeMolecule(mol, ich, format=1)
+      call close_file(ich)
 
       write (env%unit, '(72("="))')
       write (env%unit, '(1x,"*",1x,a)') &
