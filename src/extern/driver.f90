@@ -119,18 +119,21 @@ contains
     !$omp critical (turbo_lock)
     inquire (file='gradient', exist=exist)
     if (exist) then
+      ! ### only TM output is supported for now ###
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
       cache = all(abs(xyz_cached - mol%xyz) < 1.e-10_wp)
     end if
     if (.not. cache) then
-      call wrtm(mol%n, mol%at, mol%xyz)
-      write(env%unit,'(/,a)') &
-         "updated geometry written to: coord"
       call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
-      write(env%unit,'(a,1x,a,/)') &
+      write(env%unit,'(/,a,1x,a,/)') &
          "updated geometry written to:",tmpname
       call open_file(ich,tmpname,'w')
-      call writeMolecule(mol, ich, format=1)
+      if (exist) then
+        call writeMolecule(mol, ich, format=mol%ftype, energy=energy, &
+              & gnorm=norm2(gradient))
+      else
+        call writeMolecule(mol, ich, format=mol%ftype)
+      end if
       call close_file(ich)
 
       write (env%unit, '(72("="))')
@@ -145,6 +148,7 @@ contains
       end if
       write (env%unit, '(72("="))')
 
+      ! ### only TM output is supported for now ###
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
     end if
     !$omp end critical (turbo_lock)
