@@ -124,10 +124,10 @@ contains
     end if
     if (.not. cache) then
       call wrtm(mol%n, mol%at, mol%xyz)
-      write(env%unit,'(/,a,/)') &
+      write(env%unit,'(/,a)') &
          "updated geometry written to: coord"
       call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
-      write(env%unit,'(/,a,1x,a,/)') &
+      write(env%unit,'(a,1x,a,/)') &
          "updated geometry written to:",tmpname
       call open_file(ich,tmpname,'w')
       call writeMolecule(mol, ich, format=1)
