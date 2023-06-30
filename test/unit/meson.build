@@ -54,6 +54,7 @@ tests = [
   'symmetry',
   'tblite',
   'thermo',
+  'vertical',
   'wsc',
 ]
 
