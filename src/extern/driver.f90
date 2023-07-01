@@ -109,6 +109,7 @@ contains
 
     call mol%update
 
+    cache = .false.
     energy = 0.0_wp
     gradient(:, :) = 0.0_wp
     sigma(:, :) = 0.0_wp
@@ -122,6 +123,11 @@ contains
       ! ### only TM output is supported for now ###
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
       cache = all(abs(xyz_cached - mol%xyz) < 1.e-10_wp)
+      if (cache) then
+        write(env%unit,'(/,a,/)') &
+         "Geometry is equivalent to the one in &
+         'gradient'. Reading gradient from: 'gradient'."
+      endif
     end if
     if (.not. cache) then
       call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
