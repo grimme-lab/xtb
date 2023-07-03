@@ -203,11 +203,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then
-      if (printlevel < 2) then
-         optpr = .true.
-      else 
-         optpr = .false.
-      endif
+      optpr = printlevel < 2
    else
       optpr = .false.
    endif

@@ -47,13 +47,10 @@ module xtb_type_timer
 
 contains
 
-!--------------------------------------------
 !> To initialize timer
-!--------------------------------------------
 subroutine allocate_timer(self,n,verbose)
    
    implicit none
-   !> dummy arg list
    class(tb_timer),intent(inout) :: self
       !! instance of timer
    integer, intent(in)           :: n
@@ -61,7 +58,6 @@ subroutine allocate_timer(self,n,verbose)
    logical, intent(in), optional :: verbose
       !! if verbose
 
-   !> local vars
    real(wp) :: time_cpu
    real(wp) :: time_wall
 
