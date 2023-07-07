@@ -102,22 +102,29 @@ module xtb_setparam
    integer,parameter :: p_pcem_orca = 2
    
    type oniom_settings
+      !> inner region charge
       integer  :: innerchrg
-         !! inner region charge
+      
+      !> cut high order(>1) covalent bonds
       logical :: ignore_topo = .false.
-         !! to cut high order covalent bonds
+      
+      !> derived mode
       logical :: derived = .false.
-         !! set ONIOM optimization parameter g to derived value
+      
+      !> dummy execution to check inner region geo and chrg
       logical :: cut_inner = .false.
-         !! to execute xtb just for checking inner region cut
+
+      !> explicite charges (inner:outer)
       logical :: fixed_chrgs= .false.
-         !! if charges for oniom explicitely given
+      
+      !> mute external output (ORCA,TURBOMOLE)
       logical :: silent = .false.
-         !! zo mute external output
+      
+      !> print optimization logs for inner region calculations
       logical :: logs = .false.
-         !! if optimization logs of inner regions are needed
+      
+      !> log units
       integer:: ilog1, ilog2
-         !! log units
   end type oniom_settings
 
    type qm_external

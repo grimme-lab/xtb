@@ -23,26 +23,32 @@ module xtb_type_timer
    private
 
    type :: tb_timer
+      
+      !> number of timers
       integer, private :: n = 0
-         !! number of timers
+      
+      !> printlevel 
       logical, private :: verbose = .false.
-         !! printlevel 
+      
       real(wp),private :: totwall = 0.0_wp
       real(wp),private :: totcpu = 0.0_wp
       logical, private,allocatable :: running(:)
       real(wp),private,allocatable :: twall(:)
       real(wp),private,allocatable :: tcpu(:)
       character(len=40),private,allocatable :: tag(:)
+   
    contains
-   procedure :: new => allocate_timer
-   procedure :: allocate => allocate_timer
-   procedure :: deallocate => deallocate_timer
-   procedure :: measure => timer
-   procedure :: write_timing
-   procedure :: write => write_all_timings
-   procedure :: get => get_timer
-   procedure,private :: start_timing
-   procedure,private :: stop_timing
+   
+      procedure :: new => allocate_timer
+      procedure :: allocate => allocate_timer
+      procedure :: deallocate => deallocate_timer
+      procedure :: measure => timer
+      procedure :: write_timing
+      procedure :: write => write_all_timings
+      procedure :: get => get_timer
+      procedure,private :: start_timing
+      procedure,private :: stop_timing
+   
    end type tb_timer
 
 contains
@@ -51,19 +57,23 @@ contains
 subroutine allocate_timer(self,n,verbose)
    
    implicit none
+   
+   !> instance of timer
    class(tb_timer),intent(inout) :: self
-      !! instance of timer
+
+   !> number of timers
    integer, intent(in)           :: n
-      !! number of timers
+   
+   !> if verbose
    logical, intent(in), optional :: verbose
-      !! if verbose
 
    real(wp) :: time_cpu
    real(wp) :: time_wall
 
    call self%deallocate
+   
+   ! capture negative values !
    if (n < 1) return
-      !! capture negative values
    
    self%n = n
    if (present(verbose)) self%verbose = verbose
@@ -72,20 +82,18 @@ subroutine allocate_timer(self,n,verbose)
    allocate( self%running(n), source =.false. )
    allocate( self%tag(n) ); self%tag = ' '
 
+   ! launch timer !
    call self%start_timing(0)
-      !! launch timer
 
 end subroutine allocate_timer
 
-!--------------------------------------------
 !> To deallocate memory
-!--------------------------------------------
 subroutine deallocate_timer(self)
    
    implicit none
-   !> dummy arg list
+   
+   !> instance of timer
    class(tb_timer),intent(inout) :: self
-      !! instance of timer
    
    self%n = 0
    self%totwall = 0
@@ -97,24 +105,21 @@ subroutine deallocate_timer(self)
 
 end subroutine deallocate_timer
 
-!--------------------------------------------
 !> To obtain current elapsed time
-!--------------------------------------------
 function get_timer(self,i) result(time)
 
-   !> dummy arg list
+   !> instance of timer
    class(tb_timer),intent(inout) :: self
-      !! instance of timer
+   
+   !> if specific timer
    integer,intent(in),optional :: i
-      !! specific timer
 
-   !> local vars
    integer  :: it
    real(wp) :: tcpu,twall
    real(wp) :: time
    logical  :: running
    
-   !> if i is not given, calculate overall elapsed time
+   ! if i is not given, calculate overall elapsed time !
    if (present(i)) then
       it = i
    else
@@ -136,25 +141,26 @@ function get_timer(self,i) result(time)
 
 end function get_timer
 
-!--------------------------------------------
 !> To write timing for specific timer 
-!--------------------------------------------
 subroutine write_timing(self,iunit,i,inmsg,verbose)
 
    implicit none
-   !> dummy arg list
-   class(tb_timer),intent(inout) :: self
-      !! instance of timer
-   integer,intent(in) :: iunit
-      !! I/O unit
-   integer,intent(in) :: i
-      !! index 
-   character(len=*),intent(in),optional :: inmsg
-      !! raw message text 
-   logical,intent(in),optional :: verbose
-      !! if verbose
    
-   !> local vars
+   !> instance of timer
+   class(tb_timer),intent(inout) :: self
+   
+   !> I/O unit
+   integer,intent(in) :: iunit
+   
+   !> index 
+   integer,intent(in) :: i
+   
+   !> raw message text 
+   character(len=*),intent(in),optional :: inmsg
+   
+   !> if verbose
+   logical,intent(in),optional :: verbose
+   
    character(len=26) :: msg
    real(wp) :: cputime,walltime
    integer(int64) ::  cpudays, cpuhours, cpumins
@@ -162,14 +168,14 @@ subroutine write_timing(self,iunit,i,inmsg,verbose)
    logical :: lverbose
 
 !  '(1x,a,1x,"time:",1x,a)'
-   !> check if a tag should be added
+   ! check if tag should be added !
    if (present(inmsg)) then
       msg = inmsg
    else
       msg = self%tag(i)
    endif
    
-   !> verbosity settings
+   ! verbosity settings !
    if (present(verbose)) then
       lverbose = verbose
    else
@@ -182,7 +188,7 @@ subroutine write_timing(self,iunit,i,inmsg,verbose)
    ! MINUTES   1440    60        1        1/60
    ! SECONDS  86400   3600      60         1
    
-   !> convert elapsed CPU time into days, hours, minutes
+   ! convert elapsed CPU time into days, hours, minutes !
    cputime = self%tcpu (i)
    cpudays = int(cputime/86400._wp)
    cputime = cputime - cpudays*86400._wp
@@ -191,7 +197,7 @@ subroutine write_timing(self,iunit,i,inmsg,verbose)
    cpumins = int(cputime/60._wp)
    cputime = cputime - cpumins*60._wp
 
-   !> convert elapsed wall time into days, hours, minutes
+   ! convert elapsed wall time into days, hours, minutes !
    walltime = self%twall(i)
    walldays = int(walltime/86400._wp)
    walltime = walltime - walldays*86400._wp
@@ -200,7 +206,10 @@ subroutine write_timing(self,iunit,i,inmsg,verbose)
    wallmins = int(walltime/60._wp)
    walltime = walltime - wallmins*60._wp
    
-   !> printout
+   !----------!
+   ! printout !
+   !----------!
+   
    if (lverbose) then
       write(iunit,'(1x,a)') msg
       write(iunit,'(" * wall-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
@@ -215,21 +224,20 @@ subroutine write_timing(self,iunit,i,inmsg,verbose)
 
 end subroutine write_timing
 
-!--------------------------------------------
 !> To write timing for all timers
-!--------------------------------------------
 subroutine write_all_timings(self,iunit,inmsg)
    
    implicit none
-   !> dummy args list
+   
+   !> instance of timer
    class(tb_timer),intent(inout) :: self
-      !! instance of timer
+   
+   !> I/O unit
    integer,intent(in) :: iunit
-      !! I/O unit
+   
+   !> raw message 
    character(len=*),intent(in),optional :: inmsg
-      !! message 
 
-   !> local vars
    character(len=26) :: msg
    real(wp) :: cputime,walltime
    integer  :: i
@@ -239,19 +247,20 @@ subroutine write_all_timings(self,iunit,inmsg)
    call self%stop_timing(0)
 
 !  '(1x,a,1x,"time:",1x,a)'
-   !> check if an external message should be added
+   ! check if an external message should be added !
    if (present(inmsg)) then
       msg = inmsg // " (total)"
    else
       msg = "total time"
    endif
+   
    !           DAYS   HOURS   MINUTES   SECONDS
    ! DAYS        1     1/24    1/1440   1/86400
    ! HOURS      24      1       1/60     1/3600
    ! MINUTES   1440    60        1        1/60
    ! SECONDS  86400   3600      60         1
    
-   !> convert overall elapsed CPU time into days, hours, minutes
+   ! convert overall elapsed CPU time into days, hours, minutes !
    cputime = self%tcpu (0)
    cpudays = int(cputime/86400._wp)
    cputime = cputime - cpudays*86400._wp
@@ -260,7 +269,7 @@ subroutine write_all_timings(self,iunit,inmsg)
    cpumins = int(cputime/60._wp)
    cputime = cputime - cpumins*60._wp
 
-   !> convert overall elapsed wall time into days, hours, minutes
+   ! convert overall elapsed wall time into days, hours, minutes !
    walltime = self%twall(0)
    walldays = int(walltime/86400._wp)
    walltime = walltime - walldays*86400._wp
@@ -269,7 +278,10 @@ subroutine write_all_timings(self,iunit,inmsg)
    wallmins = int(walltime/60._wp)
    walltime = walltime - wallmins*60._wp
    
-   !> overall printout
+   !----------!
+   ! printout !
+   !----------!
+   
    write(iunit,'(a)')
    if (self%verbose) then
       write(iunit,'(1x,a,":")') msg
@@ -283,7 +295,7 @@ subroutine write_all_timings(self,iunit,inmsg)
          msg,walldays,wallhours,wallmins,walltime
    endif
 
-   !> printout every timer and corresponding speedup
+   ! printout every timer and corresponding speedup !
    do i = 1, self%n
       walltime = self%twall(i)
       wallmins = int(walltime/60._wp)
@@ -295,50 +307,50 @@ subroutine write_all_timings(self,iunit,inmsg)
    
 end subroutine write_all_timings
 
-!--------------------------------------------
 !> start/stop button
-!--------------------------------------------
 subroutine timer(self,i,inmsg)
    
    implicit none
-   !> dummy arg list
-   class(tb_timer),intent(inout) :: self
-      !! instance of timer
-   integer,intent(in) :: i
-      !! index
-   character(len=*),intent(in),optional :: inmsg
-      !! raw message text
-
-   if (i > self%n .or. i < 1) return
-      !! check if appropriate index is given
    
-   !> switcher between start/stop status
+   !> instance of timer
+   class(tb_timer),intent(inout) :: self
+
+   !> index
+   integer,intent(in) :: i
+   
+   !> raw message text
+   character(len=*),intent(in),optional :: inmsg
+
+
+   ! check if appropriate index is given !
+   if (i > self%n .or. i < 1) return
+   
+   ! switcher between start/stop status !
    if (self%running(i)) then
       call self%stop_timing(i)
    else
       call self%start_timing(i)
    endif
-   self%running(i) = .not.self%running(i)
-      !! update status
    
+   ! update status !
+   self%running(i) = .not.self%running(i)
+   
+   ! assign tag to specific timer !
    if (present(inmsg)) self%tag(i) = trim(inmsg)
-      !! assign tag to specific timer 
 
 end subroutine timer
 
-!--------------------------------------------
 !> To start counting
-!--------------------------------------------
 subroutine start_timing(self,i)
    
    implicit none
-   !> dummy arg list
+
+   !> instance of timer
    class(tb_timer),intent(inout) :: self
-      !! instance of timer
-   integer,intent(in) :: i
-      !! specific timer index 
    
-   !> local vars
+   !> index 
+   integer,intent(in) :: i
+   
    real(wp) :: time_cpu
    real(wp) :: time_wall
    
@@ -348,19 +360,17 @@ subroutine start_timing(self,i)
 
 end subroutine start_timing
 
-!--------------------------------------------
 !> To stop counting
-!--------------------------------------------
 subroutine stop_timing(self,i)
    
    implicit none
-   !> dummy arg list
+ 
+   !> instance of timer
    class(tb_timer),intent(inout) :: self
-      !! instance of timer
+  
+   !> index
    integer,intent(in) :: i
-      !! specific timer index
    
-   !> local vars
    real(wp) :: time_cpu
    real(wp) :: time_wall
    
@@ -370,28 +380,26 @@ subroutine stop_timing(self,i)
 
 end subroutine stop_timing
 
-!--------------------------------------------
 !> To retrieve the current CPU and wall time
-!--------------------------------------------
 subroutine timing(time_cpu,time_wall)
    
    implicit none
-   !> dummy arg list
+
    real(wp),intent(out) :: time_cpu
    real(wp),intent(out) :: time_wall
    
-   !> local vars
+   !> current value of system clock (time passed from arbitary point)
    integer(int64) :: time_count
-      !! current value of system clock (time passed from arbitary point)
+   
+   !> number of clock ticks per second (conversion factor b/n ticks and seconds)
    integer(int64) :: time_rate
-      !! number of clock ticks per second (conversion factor b/n ticks and seconds)
    integer(int64) :: time_max
    
    call system_clock(time_count,time_rate,time_max)
    call cpu_time(time_cpu)
 
+   ! elapsed time in seconds !
    time_wall = real(time_count,wp)/real(time_rate,wp)
-      !! elapsed time in seconds
 
 end subroutine timing
 
