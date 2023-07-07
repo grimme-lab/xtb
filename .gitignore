@@ -71,4 +71,4 @@ python/build
 *.egg-info
 
 # external directory
-ext
+ext/
