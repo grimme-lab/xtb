@@ -810,21 +810,25 @@ subroutine rdcontrol(fname,env,copy_file)
                             maxfrag = maxfrag + ncount
          !> legacy
          case('set'      ); call rdsetbl(env,set_legacy,line,id,copy,err)
+         
+         ! unknown keyword -> ignore, we don't raise them !
+         ! except for chrg and spin which you actually can set here !
+         ! read them here because select case might not catch them that easy !
          case default 
-            !! unknown keyword -> ignore, we don't raise them
-            !! except for chrg and spin which you actually can set here
-            !! read them here because select case might not catch them that easy
             if (index(line(2:),'chrg').eq.1) call set_chrg(env,line(7:))
             if (index(line(2:),'spin').eq.1) call set_spin(env,line(7:))
+            
+            ! get a new line !
             call mirror_line(id,copy,line,err)
-               !! get a new line
          end select
+      
+      ! not a keyword -> ignore !
       else 
-         !! not a keyword -> ignore
          call mirror_line(id,copy,line,err)
       endif
+      
+      ! check for end of file (= $end)
       if (is_iostat_end(err)) exit readflags
-         !! check for end of file, which I will tolerate as alternative to $end
 !     if (index(line,flag_end).ne.0) exit readflags ! compatibility reasons
       call env%check(exitRun)
       if (exitRun) then
@@ -897,25 +901,27 @@ subroutine rdblock(env,handler,line,id,copy,err,ncount)
    ncount = 0
    do
       call mirror_line(id,copy,line,err)
-      if (is_iostat_end(err)) return
-         !! to check if EOF 
-      if (index(line,flag).ne.0) return
-         !! to check if new flag
-      ie = index(line,equal)
-         !! find the equal sign
-      if (line.eq.'') cycle 
-         !! skip empty lines
-      ncount = ncount + 1   
-         !! but count non-empty lines first
+      
+      if (is_iostat_end(err)) return      ! check if EOF !
+      if (index(line,flag).ne.0) return   ! check if new flag !
+      
+      ie = index(line,equal)              ! find the equal sign !
+      if (line.eq.'') cycle               ! skip empty lines !
+      ncount = ncount + 1                 ! but count non-empty lines first !
+      
       if (ie.eq.0) cycle
+      
       key = trim(line(:ie-1))
       val = trim(adjustl(line(ie+1:)))
+      
       call handler(env,key,val)
       call env%check(exitRun)
+      
       if (exitRun) then
          call env%error("handler could not process input", source)
          return
       end if
+   
    enddo
 
 end subroutine rdblock
@@ -926,7 +932,7 @@ subroutine set_exttyp(typ)
    logical,save :: set1 = .true.
    if (.not.set1) return
    select case(typ)
-   case default ! do nothing
+   case default ! do nothing !
       call raise('S',typ//' is no valid exttyp (internal error)')
 
    case('vtb')
@@ -964,7 +970,7 @@ subroutine set_geopref(typ)
    logical,save :: set1 = .true.
    if (.not.set1) return
    select case(typ)
-   case default ! do nothing
+   case default ! do nothing !
       call raise('S',typ//' is no valid geometry format (internal error)')
 
    case('sdf')
@@ -991,7 +997,7 @@ subroutine set_runtyp(typ)
       return
    endif
    select case(typ)
-   case default ! do nothing
+   case default ! do nothing !
       call raise('E',typ//' is no valid runtyp (internal error)')
 
    case('scc')
@@ -1082,18 +1088,20 @@ subroutine set_cut
 end subroutine set_cut
 
 
-!-----------------------------------
-! Specify charge
-!-----------------------------------
+!> charge initialization
 subroutine set_chrg(env,val)
 
    implicit none
+   
+   !> name of error producer routine
    character(len=*), parameter :: source = 'set_chrg'
-      !! Name of error producer routine
+   
+   !> calculation environment 
    type(TEnvironment), intent(inout) :: env
-      !! Calculation environment to handle I/O stream and error log
+   
+   !> charge value
    character(len=*),intent(in) :: val
-      !! Charge as character
+   
    integer  :: err
    integer  :: idum
    integer  :: ind, idum1, idum2
@@ -1103,9 +1111,8 @@ subroutine set_chrg(env,val)
    if (set1) then
       ind = index(val,":")
       
-      
+      ! inner:outer !
       if (ind.ne.0) then
-         !! inner:outer
          if (getValue(env,val(:ind-1),idum1) .and. &
             & getValue(env,val(ind+1:),idum2)) then
             set%oniom_settings%fixed_chrgs = .true.
@@ -1115,10 +1122,11 @@ subroutine set_chrg(env,val)
             call env%error('Charge could not be read from your argument',source)
          endif
       
+      ! normal single chrg !
       else
-         !! usual case
+         
+         ! transform character into int !
          if (getValue(env,val,idum)) then
-            !! to transform character into int
             set%ichrg = idum
          else
             call env%error('Charge could not be read from your argument',source)
@@ -1437,22 +1445,25 @@ subroutine set_gfn(env,key,val)
    end select
 end subroutine set_gfn
 
-!-----------------------------------
-! set ONIOM functionality
-!-----------------------------------
+!> set ONIOM functionality
 subroutine set_oniom(env,key,val)
    implicit none
+   !> pointer to the error routine
    character(len=*), parameter :: source =  'set_oniom'
-      !! pointer to the error routine
+   
+   !> calculation environment
    type(TEnvironment), intent(inout) :: env
-      !! Calculation environment to handle IO stream and error log
+   
    character(len=*), intent(in) :: key
+   
+   !> key=val
    character(len=*), intent(in) :: val
-      !! key=val
+   
    logical :: ldum
    logical, save :: set1 = .true.
    logical, save :: set2 = .true.
    logical, save :: set3 = .true.
+   logical, save :: set4 = .true.
    
    select case(key)
    case default
@@ -1466,9 +1477,12 @@ subroutine set_oniom(env,key,val)
       set2=.false.
 
    case('silent')
-      if (getValue(env,val,ldum).and.set2) set%oniom_settings%silent = .true.
+      if (getValue(env,val,ldum).and.set3) set%oniom_settings%silent = .true.
       set3=.false.
    
+   case('ignore topo')
+      if (getValue(env,val,ldum).and.set4) set%oniom_settings%ignore_topo = .true.
+      set4=.false.
    end select
 
 end subroutine set_oniom
