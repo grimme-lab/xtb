@@ -1155,7 +1155,7 @@ subroutine dmat(ndim,focc,C,P)
 
 end subroutine dmat
 
-
+! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.35)
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
@@ -1190,6 +1190,7 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
 
 end subroutine get_wiberg
 
+! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.36)
 subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
@@ -1221,7 +1222,7 @@ subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
          if(rab < 100.0_wp)then
             do k = fila2(1,i), fila2(2,i) ! AOs on atom i
                do m = fila2(1,j), fila2(2,j) ! AOs on atom j
-                  xsum = xsum + Ptmp_a(k,m)*Ptmp_a(m,k) + Ptmp_b(k,m)*Ptmp_b(m,k)
+                  xsum = xsum + Ptmp_a(k,m)*Ptmp_a(m,k) + Ptmp_b(k,m)*Ptmp_b(m,k) 
                enddo
             enddo
          endif

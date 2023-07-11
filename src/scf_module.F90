@@ -861,22 +861,22 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    endif printing
    
-   !--------------------!
-   ! Wiberg bond orders !
-   !--------------------!
+   !--------------------------!
+   ! Wiberg-Mayer bond orders !
+   !--------------------------!
    
-   ! restricted case !
+   ! closed-shell !
    if (wfn%nopen == 0) then
       
       call get_wiberg(mol%n, basis%nao, mol%at, mol%xyz,wfn%P, S, wfn%wbo,basis%fila2)
    
-   ! unrestricted case !
+   ! (restricted) open-shell !
    else if (wfn%nopen > 0) then   
       
       allocate(Pa(basis%nao,basis%nao))
       allocate(Pb(basis%nao,basis%nao))
       
-      ! obtain "unrestricted" spin densities !
+      ! obtain alpha and beta spin densities !
       call dmat(basis%nao, wfn%focca, wfn%C, Pa) 
       call dmat(basis%nao, wfn%foccb, wfn%C, Pb) 
       
