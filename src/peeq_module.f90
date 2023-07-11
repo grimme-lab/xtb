@@ -116,6 +116,8 @@ subroutine peeq &
    real(wp), allocatable :: selfEnergy(:, :)
    real(wp), allocatable :: dSEdcn(:, :)
    real(wp), allocatable :: dSEdq(:, :)
+   real(wp), allocatable :: Pa   (:,:)
+   real(wp), allocatable :: Pb   (:,:)
    integer :: rep_cn(3)
    integer :: nid
    integer, allocatable :: idnum(:)
@@ -586,8 +588,21 @@ subroutine peeq &
 
 ! ------------------------------------------------------------------------
 !  get Wiberg bond orders
-   call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
+   if (wfn%nopen == 0) then
+      call get_wiberg(mol%n,basis%nao,mol%at,mol%xyz,wfn%P,S,wfn%wbo,basis%fila2)
+   else if (wfn%nopen > 0) then   
+         
+      allocate(Pa(basis%nao,basis%nao))
+      allocate(Pb(basis%nao,basis%nao))
+      
+      ! obtain "unrestricted" spin densities !
+      call dmat(basis%nao, wfn%focca, wfn%C, Pa) 
+      call dmat(basis%nao, wfn%foccb, wfn%C, Pb) 
+      
+      call get_unrestricted_wiberg(mol%n, basis%nao, mol%at, mol%xyz, Pa, Pb ,S, wfn%wbo, &
+         & basis%fila2)
 
+   endif
 ! ---------------------------------------
 !  Save all the energy contributions
 ! ---------------------------------------

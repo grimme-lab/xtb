@@ -142,6 +142,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    real(wp),allocatable :: dSEdcn(:, :)
    real(wp),allocatable :: shellShift(:, :)
    real(wp),allocatable :: temp(:)
+   real(wp),allocatable :: Pa(:, :)
+   real(wp),allocatable :: Pb(:, :)
    real(wp),allocatable :: Pew(:, :)
    real(wp),allocatable :: H(:, :)
    integer :: nid
@@ -858,11 +860,29 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       end if
 
    endif printing
-
-   ! ------------------------------------------------------------------------
-   ! get Wiberg bond orders
-   call get_wiberg(mol%n, basis%nao, mol%at, mol%xyz, wfn%P, S, wfn%wbo, &
-      & basis%fila2)
+   
+   !--------------------!
+   ! Wiberg bond orders !
+   !--------------------!
+   
+   ! restricted case !
+   if (wfn%nopen == 0) then
+      
+      call get_wiberg(mol%n, basis%nao, mol%at, mol%xyz,wfn%P, S, wfn%wbo,basis%fila2)
+   
+   ! unrestricted case !
+   else if (wfn%nopen > 0) then   
+      
+      allocate(Pa(basis%nao,basis%nao))
+      allocate(Pb(basis%nao,basis%nao))
+      
+      ! obtain "unrestricted" spin densities !
+      call dmat(basis%nao, wfn%focca, wfn%C, Pa) 
+      call dmat(basis%nao, wfn%foccb, wfn%C, Pb) 
+      
+      call get_unrestricted_wiberg(mol%n, basis%nao, mol%at, mol%xyz, Pa, Pb ,S, wfn%wbo, &
+         & basis%fila2)
+   endif
 
    ! ------------------------------------------------------------------------
    ! dipole calculation (always done because its free)
