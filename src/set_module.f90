@@ -1109,9 +1109,11 @@ subroutine set_chrg(env,val)
    
 
    if (set1) then
+
+      set%clichrg = .true.
       ind = index(val,":")
       
-      ! inner:outer !
+      ! oniom inner:outer !
       if (ind.ne.0) then
          if (getValue(env,val(:ind-1),idum1) .and. &
             & getValue(env,val(ind+1:),idum2)) then
@@ -1122,10 +1124,10 @@ subroutine set_chrg(env,val)
             call env%error('Charge could not be read from your argument',source)
          endif
       
-      ! normal single chrg !
+      ! conventional !
       else
          
-         ! transform character into int !
+         ! char into int !
          if (getValue(env,val,idum)) then
             set%ichrg = idum
          else
