@@ -346,10 +346,10 @@ subroutine xtbMain(env, argParser)
 
       ! Special CT input file case
       if (mol%chrg /= 0.0_wp) then
-         if (set%ichrg == 0) then
-            set%ichrg = nint(mol%chrg)
-         else
+         if (set%clichrg) then
             call env%warning("Charge in sdf/mol input was overwritten", source)
+         else
+            set%ichrg = nint(mol%chrg)
          end if
       end if
 

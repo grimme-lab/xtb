@@ -438,6 +438,7 @@ module xtb_setparam
 !  information about molecule
 !! ------------------------------------------------------------------------
    integer  :: ichrg = 0
+   logical  :: clichrg = .false.
    integer  :: nalphabeta = 0
 
 !  cannot be set by .xtbrc/setblock
