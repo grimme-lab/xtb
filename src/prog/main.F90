@@ -93,6 +93,7 @@ module xtb_prog_main
    use xtb_oniom, only : oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only : vfukui
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_solv_cpx, only: TCpcmx
    implicit none
    private
 
@@ -115,12 +116,13 @@ subroutine xtbMain(env, argParser)
 !  use some wrapper types to bundle information together
    type(TMolecule) :: mol
    type(scc_results) :: res
-   class(TCalculator), allocatable :: calc
+   class(TCalculator), allocatable :: calc, cpxcalc
    type(freq_results) :: fres
    type(TRestart) :: chk
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
+   type(TCpcmx) :: cpx
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -675,6 +677,8 @@ subroutine xtbMain(env, argParser)
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then
+
+      if (allocated(calc%solvation%cpxsolvent)) call env%terminate("CPCM-X not implemented for geometry optimization")
       
       if (set%opt_engine.eq.p_engine_rf) &
          call ancopt_header(env%unit,set%veryverbose)
@@ -805,7 +809,24 @@ subroutine xtbMain(env, argParser)
       res%hl_gap = chk%wfn%emo(chk%wfn%ihomo+1)-chk%wfn%emo(chk%wfn%ihomo)
    end if
 
+   !> CPCM-X post-SCF solvation
+   if (allocated(calc%solvation)) then
+      if (allocated(calc%solvation%cpxsolvent)) then
+         call generic_header(env%unit,"CPCM-X post-SCF solvation evaluation",49,10)
+         Call cpx%setup(env,calc%solvation%cpxsolvent)
+         Call env%checkpoint("CPCM-X setup terminated")
+         cpxcalc=calc
+         deallocate(cpxcalc%solvation)
+         call cpxcalc%singlepoint(env,mol,chk,0,.false.,cpx%solute%energy_gas,g,sigma,egap,res)
+         Call cpx%calc_solv(env,calc%solvation%cpxsolvent,0.4_wp,298.15_wp,500,0.0001_wp)
+         Call cpx%print(set%verbose)
+         res%e_total = cpx%dG()+cpx%solute%energy_gas
+         Call env%checkpoint("CPCM-X post-SCF solvation evaluation terminated")
+      end if
+   end if
+
    call env%checkpoint("Calculation terminated")
+
 
    ! ========================================================================
    !> PRINTOUT SECTION
@@ -1101,10 +1122,6 @@ subroutine xtbMain(env, argParser)
    if (set%runtyp.eq.p_run_mdopt) then
       call prtiming(10,'MD opt.')
    endif
-
-   write(env%unit,'(a)')
-   call terminate(0)
-
 
 end subroutine xtbMain
 
@@ -1561,6 +1578,17 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          else
             call env%error("No solvent name provided for COSMO", source)
          end if
+      
+      case('--cpcmx')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_gbsa(env, 'solvent', 'infinity')
+            call set_gbsa(env,'cosmo','true')
+            call set_gbsa(env,'cpcmx',sec)
+         else
+            call env%error("No solvent name provided for CPCM-X", source)
+         end if
+
 
       case('--scc', '--sp')
          call set_runtyp('scc')
