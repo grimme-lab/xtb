@@ -817,7 +817,7 @@ subroutine xtbMain(env, argParser)
          Call env%checkpoint("CPCM-X setup terminated")
          cpxcalc=calc
          deallocate(cpxcalc%solvation)
-         call cpxcalc%singlepoint(env,mol,chk,0,.false.,cpx%solute%energy_gas,g,sigma,egap,res)
+         call cpxcalc%singlepoint(env,mol,chk,1,.false.,cpx%solute%energy_gas,g,sigma,egap,res)
          Call cpx%calc_solv(env,calc%solvation%cpxsolvent,0.4_wp,298.15_wp,500,0.0001_wp)
          Call cpx%print(set%verbose)
          res%e_total = cpx%dG()+cpx%solute%energy_gas
