@@ -94,6 +94,8 @@ module xtb_prog_main
    use xtb_vertical, only : vfukui
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
    use xtb_solv_cpx, only: TCpcmx
+   use xtb_dipro
+   
    implicit none
    private
 
@@ -196,6 +198,7 @@ subroutine xtbMain(env, argParser)
    logical :: exist
    logical :: lgrad,restart
    logical :: copycontrol
+   logical :: diprocalc
    logical :: newreader
    logical :: strict
    logical :: exitRun
@@ -214,7 +217,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, diprocalc, coffee, printTopo, oniom, tblite)
 
    !> Spin-polarization is only available in the tblite library
    if(set%mode_extrun.ne.p_ext_tblite .and. tblite%spin_polarized) then
@@ -621,6 +624,12 @@ subroutine xtbMain(env, argParser)
   
 
    end select
+
+   !-------------------------------------------------------------------------
+   !> DIPRO calculation of coupling integrals for dimers
+    if (diprocalc.eqv..true.) then 
+       call get_jab(env,mol,splitlist,err)
+    end if        
 
    ! ========================================================================
    !> the SP energy which is always done
@@ -1143,7 +1152,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, diprocalc, coffee, printTopo, oniom, tblite)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1185,6 +1194,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    !> Copy the detailed input file
    logical, intent(out) :: copycontrol
 
+   !> Calculation of DIPRO
+   logical, intent(out) :: diprocalc
+
    !> Input for ONIOM model
    type(oniom_input), intent(out) :: oniom
 
@@ -1206,6 +1218,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    
 
    set%gfn_method = 2
+   diprocalc= .false.
    coffee = .false.
    strict = .false.
    restart = .true.
@@ -1411,6 +1424,14 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call env%error("Compiled without support for tblite library. This is required for spin-polarization", source)
             cycle
          end if
+
+      case('--dipro')
+         if (get_xtb_feature('tblite')) then
+            diprocalc = .true.
+         else
+            call env%error("Compiled without support for tblite library. This is required for DIPRO", source)
+            cycle
+         end if   
 
       case('--oniom')
          call set_exttyp('oniom')
