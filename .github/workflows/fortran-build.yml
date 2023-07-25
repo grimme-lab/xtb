@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -73,7 +73,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -95,8 +95,8 @@ jobs:
     - name: Run unit tests
       run: ctest --parallel --output-on-failure -R 'xtb/*'
       working-directory: ${{ env.BUILD_DIR }}
-      env:
-        OMP_NUM_THREADS: 2,1
+      #env:
+        #OMP_NUM_THREADS: 2,1
 
   # Test native MinGW Windows build
   mingw-meson-build:
@@ -113,7 +113,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup MSYS2 toolchain
       uses: msys2/setup-msys2@v2
@@ -164,7 +164,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -238,7 +238,7 @@ jobs:
       OUTPUT_INTEL: xtb-bleed.tar.xz
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install github-release
       run: |
