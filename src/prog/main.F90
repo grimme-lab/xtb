@@ -165,6 +165,7 @@ subroutine xtbMain(env, argParser)
 
 !! ------------------------------------------------------------------------
    logical :: struc_conversion_done = .false.
+   logical :: anyopt
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -244,6 +245,12 @@ subroutine xtbMain(env, argParser)
          xcontrol = fname
       end if
    end if
+
+   anyopt = ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
+      &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
+      &   (set%runtyp.eq.p_run_metaopt))
+
+   if (allocated(calc%solvation%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization")
 
    call env%checkpoint("Command line argument parsing failed")
 
@@ -677,9 +684,7 @@ subroutine xtbMain(env, argParser)
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then
-
-      if (allocated(calc%solvation%cpxsolvent)) call env%terminate("CPCM-X not implemented for geometry optimization")
-      
+ 
       if (set%opt_engine.eq.p_engine_rf) &
          call ancopt_header(env%unit,set%veryverbose)
          !! Print ANCopt header
@@ -826,7 +831,6 @@ subroutine xtbMain(env, argParser)
    end if
 
    call env%checkpoint("Calculation terminated")
-
 
    ! ========================================================================
    !> PRINTOUT SECTION
