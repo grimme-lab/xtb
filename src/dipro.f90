@@ -19,7 +19,7 @@ module xtb_dipro
    use mctc_io, only : structure_type, new
    use mctc_io_convert, only : autoev
    use xtb_type_environment, only : TEnvironment
-   use xtb_type_molecule, only : TMolecule
+   use xtb_type_molecule, only : TMolecule, assignment(=)
    use xtb_type_calculator, only : TCalculator
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator
    use xtb_setparam
@@ -92,7 +92,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:)
    integer, allocatable :: fragment(:), spinfrag(:)
 
-   call molecule_to_structure(struc,mol)
+   struc=mol
    call get_calculator(xcalc, struc, tblite%method, error)  !mol
    if (allocated(error)) return
 

@@ -18,6 +18,7 @@
 module xtb_prog_main
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stderr
+   use mctc_env, only : error_type
    use xtb_mctc_timings
    use xtb_mctc_systools
    use xtb_mctc_convert
@@ -111,6 +112,8 @@ subroutine xtbMain(env, argParser)
    character(len=*), parameter :: source = "prog_main"
 
    type(TEnvironment), intent(inout) :: env
+
+   type(error_type), allocatable :: TError
 
    type(TArgParser), intent(inout) :: argParser
 
@@ -628,7 +631,7 @@ subroutine xtbMain(env, argParser)
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
     if (diprocalc.eqv..true.) then 
-       call get_jab(set,tblite,mol,splitlist,err)
+       call get_jab(set,tblite,mol,splitlist,TError)
     end if        
 
    ! ========================================================================
