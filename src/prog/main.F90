@@ -1127,6 +1127,9 @@ subroutine xtbMain(env, argParser)
       call prtiming(10,'MD opt.')
    endif
 
+   write(env%unit,'(a)')
+   call terminate(0)
+
 end subroutine xtbMain
 
 
