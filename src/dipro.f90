@@ -79,11 +79,11 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
 
    integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no
-!   real(wp) :: verbosity=2
    logical :: exist
    real(wp) :: energy, cutoff, jab, sab, jeff
-   real(wp), allocatable :: gradient(:, :), sigma(:, :), loc(:,:)
+   real(wp), allocatable :: loc(:,:)
    type(context_type) :: ctx
+   type(basis_type) :: bas
    type(xtb_calculator) :: xcalc, fcalc
    type(structure_type), allocatable :: mfrag(:)
    type(wavefunction_type) :: wfn
@@ -91,22 +91,35 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:)
    integer, allocatable :: fragment(:), spinfrag(:)
+   !> Molecular gradient
+   real(wp), allocatable :: gradient(:, :)
+   !> Strain derivatives
+   real(wp), allocatable :: sigma(:, :)
 
+   write(*,*) "debugger marker 1.1"
    struc=mol
+   write(*,*) "debugger marker 1.2"
    call get_calculator(xcalc, struc, tblite%method, error)  !mol
-   if (allocated(error)) return
-
+   write(*,*) "debugger marker 1.3"
+!   if (allocated(error)) return
+   write(*,*) "debugger marker 1.4"
    call new_wavefunction(wfn, struc%nat, xcalc%bas%nsh, xcalc%bas%nao, &   !mol%nat
       & 1, set%etemp * ktoau)
-
+   write(*,*) "size bas%ish_at",size(bas%ish_at)
+   write(*,*) "xcalc%bas%nsh",xcalc%bas%nsh
+   write(*,*) "xcalc%bas%nao",xcalc%bas%nao
+   write(*,*) "bas%nao",bas%nao
+   write(*,*) "debugger marker 1.5"
    wfn%nspin=1 !XXXX  das ist number of spins, nicht spin S, warum hat das überhaupt eine dimension, xtb kann doch gar nicht mehrere spinkanäle
                !parallel speichern und rechnen wie zb singlet triplet dublet
-   call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy) !, &  !mol
+   call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2) !, &  !mol
  !     & verbosity-1) !input%verbosity-1
+   write(*,*) "debugger marker 1.6"
    if (ctx%failed()) then
       call ctx%get_error(error)
       return
    end if
+   write(*,*) "debugger marker 1.7"
 
    allocate(overlap(xcalc%bas%nao, xcalc%bas%nao))
    cutoff = get_cutoff(xcalc%bas)

@@ -630,9 +630,11 @@ subroutine xtbMain(env, argParser)
 
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
+   write(*,*) "debugger marker 1"
     if (diprocalc.eqv..true.) then 
        call get_jab(set,tblite,mol,splitlist,TError)
     end if        
+   write(*,*) "debugger marker 2"
 
    ! ========================================================================
    !> the SP energy which is always done
