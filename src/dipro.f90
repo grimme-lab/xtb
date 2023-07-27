@@ -159,7 +159,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    end select
 
    nao = size(wfn%emo)
-   allocate(orbital(nao, nfrag,4), efrag(nfrag), scmat(nao, nao), fdim(nao, nao), &
+   allocate(orbital(nao, nfrag,nao), efrag(nfrag), scmat(nao, nao), fdim(nao, nao), &
       & scratch(nao), mfrag(nfrag), wfx(nfrag), chrg(nfrag), spinfrag(nfrag))
 
    !--------------------------------------------------------------------------------------
@@ -230,12 +230,12 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 !write(*,*) "emo von wfx homo", wfx(ifr)%emo(no,1)  !geht
 !---------------------------------------------------------
 
-      do j = 1, 4
+      do j = 1, nao
          !> for homo,homo-1,lumo,lumo+
-         no = wfx(ifr)%homo(max(2,1))+(j-2)
+!         no = wfx(ifr)%homo(max(2,1))+(j-2)
          !> coeff(homo) stored in orbital(:,ifr,orb)
          call unpack_coeff(xcalc%bas, fcalc%bas, orbital(:, ifr, j), &
-         & wfx(ifr)%coeff(:, no,1), fragment == ifr)  !coeff hat dimension [nao,nao,spin]
+         & wfx(ifr)%coeff(:, j,1), fragment == ifr)  !coeff hat dimension [nao,nao,spin]
       end do 
    end do
 
@@ -250,8 +250,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
    call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
-   do j = 1, 4
-
+   do j = 1, nao
    y=0
       do ifr = 1, nfrag
       !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
@@ -266,7 +265,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    jeff = (jab - sum(efrag) / nfrag * sab) / (1.0_wp - sab**2)
 
-   call ctx%message("HOMO + "//format_string(j-2, '(i0)')//" orbital") 
+   call ctx%message("HOMO + "//format_string(j, '(i0)')//" orbital") 
    call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
            &format_string(efrag(2)*autoev, '(f20.3)')//" eV")
    !> abs = absolute values
