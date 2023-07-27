@@ -109,6 +109,11 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       & 1, set%etemp * ktoau)
    wfn%nspin=1 !XXXX  das ist number of spins, nicht spin S, warum hat das überhaupt eine dimension, xtb kann doch gar nicht mehrere spinkanäle
                !parallel speichern und rechnen wie zb singlet triplet dublet
+
+   call ctx%message("Calculation for dimer ")
+   call ctx%message("charge for dimer="//format_string(mol%chrg, '(f7.0)'))
+   call ctx%message("unpaired e- for dimer="//format_string(wfn%nuhf, '(f7.0)'))
+
    call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2) !, &  !mol
  !     & verbosity-1) !input%verbosity-1
    if (ctx%failed()) then
@@ -169,20 +174,34 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       spinfrag=0
    end if
 
+   inquire(file='.CHRGfrag', exist=exist)
+   if (exist) then
+      open(file='.CHRGfrag', newunit=unit)
+      write(output_unit, '(a)') "[Info] Fragment charge read from .CHRGfrag"
+      read(unit,*,iostat=stat) chrg(1),chrg(2)
+      close(unit)
+   else
+      chrg=0
+   end if
+
    do ifr = 1, nfrag 
       call ctx%message("Calculation for fragment "//to_string(ifr))
       call get_structure_fragment(mfrag(ifr), struc, fragment == ifr) !mol
 
       !------------------summation of fragment charges stored in chrg(nfrag)-------
-      chrg(ifr)=0
-      !> fragment mask generated on the fly 
-      chrg(ifr)=sum(pack(wfn%qat(:,1), fragment == ifr)) !wfn%qat ist [nat,nspin=1]
-      mfrag(ifr)%charge=nint(chrg(ifr))
-      call ctx%message("charge for fragment="//format_string(mfrag(ifr)%charge , '(f7.0)'))
-
+      if ( all(chrg.eq.0) ) then
+         chrg(ifr)=0
+         !> fragment mask generated on the fly 
+         chrg(ifr)=sum(pack(wfn%qat(:,1), fragment == ifr)) !wfn%qat ist [nat,nspin=1]
+         mfrag(ifr)%charge=nint(chrg(ifr))
+      else
+         mfrag(ifr)%charge=nint(chrg(ifr))
+      end if
+      call ctx%message("charge of fragment : "//format_string(mfrag(ifr)%charge , '(f7.0)'))
       !---------------------uhf fragments spins------------------------------------
       mfrag(ifr)%uhf = spinfrag(ifr)
-      write(*,*) "unpaired e- for fragment = ", mfrag(ifr)%uhf
+!      call ctx%message("unpaired e- of fragment : "//format_string(mfrag(ifr)%uhf , '(f7.0)'))
+      write(*,*) "unpaired e- of fragment : ", mfrag(ifr)%uhf
       !----------------------------------------------------------------------------
 
       call get_calculator(fcalc, mfrag(ifr), tblite%method, error)
