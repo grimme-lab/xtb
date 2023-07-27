@@ -73,7 +73,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    !> Acc, Etemp, guess, chrg Input
    type(TSet), intent(in) :: set
    !requested gfn method for calculations Input
-   type(TTBLiteInput), intent(in) :: tblite
+   type(TTBLiteInput), intent(inout) :: tblite
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
@@ -98,6 +98,13 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    write(*,*) "debugger marker 1.1"
    struc=mol
+
+   if ( tblite%method == '' ) then 
+      tblite%method = 'gfn2'
+      write(*,*) "==> No method provided, falling back to default GFN2-xTB."
+   end if
+
+   write(*,*) "method", tblite%method
    write(*,*) "debugger marker 1.2"
    call get_calculator(xcalc, struc, tblite%method, error)  !mol
    write(*,*) "debugger marker 1.3"
@@ -105,7 +112,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    write(*,*) "debugger marker 1.4"
    call new_wavefunction(wfn, struc%nat, xcalc%bas%nsh, xcalc%bas%nao, &   !mol%nat
       & 1, set%etemp * ktoau)
-   write(*,*) "size bas%ish_at",size(bas%ish_at)
+   write(*,*) "size bas%ish_at",size(bas%ish_at) !still not alloc here !!!!!
    write(*,*) "xcalc%bas%nsh",xcalc%bas%nsh
    write(*,*) "xcalc%bas%nao",xcalc%bas%nao
    write(*,*) "bas%nao",bas%nao
