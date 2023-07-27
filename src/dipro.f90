@@ -78,7 +78,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    type(error_type), allocatable, intent(out) :: error
 
 
-   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no
+   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no, start_index,end_index
    logical :: exist
    real(wp) :: energy, cutoff, jab, sab, jeff
    real(wp), allocatable :: loc(:,:)
@@ -246,6 +246,22 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       do j=1,nao
          coeff2(i,j)=wfn%coeff(i,j,1) 
       end do
+   end do
+
+   start_index = -1
+   end_index = -1
+
+   do ifr=1,nfrag
+      do j = 1, nao
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - 0.1d0/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + 0.1d0/autoev)) then
+              if (start_index.eq.-1) then 
+                 start_index = j
+              end if
+              end_index = j
+         endif
+      end do
+      write(*,*) "orbitals within energy window of frag", start_index, end_index 
    end do
 
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
