@@ -39,17 +39,12 @@ subroutine get_calculator(xcalc, mol, method, error)
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
-   write(*,*) "debugger marker 1.2.1"
    select case(method)
    case default
       call fatal_error(error, "Unknown method '"//method//"' requested")
-      write(*,*) "debugger marker 1.2.2"
 !      error stop
-      write(*,*) "debugger marker 1.2.3"
    case("gfn2")
-      write(*,*) "debugger marker 1.2.4"
       call new_gfn2_calculator(xcalc, mol)
-      write(*,*) "debugger marker 1.2.5"
    case("gfn1")
       call new_gfn1_calculator(xcalc, mol)
    case("ipea1")

@@ -630,11 +630,9 @@ subroutine xtbMain(env, argParser)
 
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
-   write(*,*) "debugger marker 1"
     if (diprocalc.eqv..true.) then 
        call get_jab(set,tblite,mol,splitlist,TError)
     end if        
-   write(*,*) "debugger marker 2"
 
    ! ========================================================================
    !> the SP energy which is always done
@@ -1433,6 +1431,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
       case('--dipro')
          if (get_xtb_feature('tblite')) then
             diprocalc = .true.
+            call set_runtyp('scc')
          else
             call env%error("Compiled without support for tblite library. This is required for DIPRO", source)
             cycle

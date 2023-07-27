@@ -96,7 +96,6 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    !> Strain derivatives
    real(wp), allocatable :: sigma(:, :)
 
-   write(*,*) "debugger marker 1.1"
    struc=mol
 
    if ( tblite%method == '' ) then 
@@ -104,37 +103,25 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       write(*,*) "==> No method provided, falling back to default GFN2-xTB."
    end if
 
-   write(*,*) "method", tblite%method
-   write(*,*) "debugger marker 1.2"
    call get_calculator(xcalc, struc, tblite%method, error)  !mol
-   write(*,*) "debugger marker 1.3"
 !   if (allocated(error)) return
-   write(*,*) "debugger marker 1.4"
    call new_wavefunction(wfn, struc%nat, xcalc%bas%nsh, xcalc%bas%nao, &   !mol%nat
       & 1, set%etemp * ktoau)
-   write(*,*) "size bas%ish_at",size(bas%ish_at) !still not alloc here !!!!!
-   write(*,*) "xcalc%bas%nsh",xcalc%bas%nsh
-   write(*,*) "xcalc%bas%nao",xcalc%bas%nao
-   write(*,*) "bas%nao",bas%nao
-   write(*,*) "debugger marker 1.5"
    wfn%nspin=1 !XXXX  das ist number of spins, nicht spin S, warum hat das überhaupt eine dimension, xtb kann doch gar nicht mehrere spinkanäle
                !parallel speichern und rechnen wie zb singlet triplet dublet
    call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2) !, &  !mol
  !     & verbosity-1) !input%verbosity-1
-   write(*,*) "debugger marker 1.6"
    if (ctx%failed()) then
       call ctx%get_error(error)
       return
    end if
-   write(*,*) "debugger marker 1.7"
 
    allocate(overlap(xcalc%bas%nao, xcalc%bas%nao))
    cutoff = get_cutoff(xcalc%bas)
    call get_lattice_points(struc%periodic, struc%lattice, cutoff, trans)  !mol,mol
    call get_overlap(struc, trans, cutoff, xcalc%bas, overlap)  !mol
 
-   if (allocated(fragment)) then  !hier für externe fragment liste
-      write(*,*) "fragments successfully read from xcontrol file" 
+   if (allocated(fragment)) then
    else
       allocate(wbo(struc%nat, struc%nat),p2mat(xcalc%bas%nao,xcalc%bas%nao)) !mol,mol
       do i=1,xcalc%bas%nao
