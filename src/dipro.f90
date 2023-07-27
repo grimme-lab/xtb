@@ -89,7 +89,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    type(wavefunction_type) :: wfn
    type(wavefunction_type), allocatable :: wfx(:)
    real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:)
-   real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:)
+   real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
    integer, allocatable :: fragment(:), spinfrag(:)
    !> Molecular gradient
    real(wp), allocatable :: gradient(:, :)
@@ -121,7 +121,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       return
    end if
 
-   allocate(overlap(xcalc%bas%nao, xcalc%bas%nao))
+   allocate(overlap(xcalc%bas%nao, xcalc%bas%nao),y(xcalc%bas%nao,2))
    cutoff = get_cutoff(xcalc%bas)
    call get_lattice_points(struc%periodic, struc%lattice, cutoff, trans)  !mol,mol
    call get_overlap(struc, trans, cutoff, xcalc%bas, overlap)  !mol
@@ -239,37 +239,30 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       end do 
    end do
 
-   allocate(coeff2(nao,nao))
+   allocate(coeff2(nao,nao),Edim(nao,nao))
+   Edim=0
    do i=1,nao
+      Edim(i,i)=wfn%emo(i,1)
       do j=1,nao
          coeff2(i,j)=wfn%coeff(i,j,1) 
       end do
    end do
 
-   do j = 1, 4
-   call gemm(overlap, coeff2, scmat) !wfn%coeff hat dimension [nao,nao,spin], gemm brauch aber [nao,nao] deshalb coeff2
-   !> blas=basic lin algebra subprogram operations  
-   !> S*C_dim=scmat
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
-   do ifr = 1, nfrag
-      call gemv(scmat, orbital(:, ifr, j), scratch, trans="t") 
-      !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
-      !> scmat*C_mon=scratch(=y1) --> (projection y1_mon=<C_mon|S*C_dim>)
-      !> orbital gets overwritten (from C_mon_homo to y1) !transa = "transpose matrix A"
-      orbital(:, ifr, j) = scratch  
-    
-      scratch = orbital(:, ifr, j) * wfn%emo(:,1)  
-      !> y1*E_dim (first half of y1*E*y2=Jab)
-      efrag(ifr) = dot(orbital(:, ifr, j), scratch) 
-      !> y1*(y1*E_dim)=E_mon
-   end do
+   call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
+   do j = 1, 4
 
-   scratch = orbital(:, 2, j) * wfn%emo(:,1)  
-   !> y2*E_dim
-   jab = dot(orbital(:, 1, j), scratch) 
-   !> y1*(y2*E_dim)   
-   !> dimension of C is (number of MOs, number of monomers)
-   sab = dot(orbital(:, 1, j), orbital(:, 2, j)) !y1*y2 
+   y=0
+      do ifr = 1, nfrag
+      !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
+         call gemv( scmat, orbital(:, ifr, j), y(:,ifr), trans="t" ) !y_mon(ifr)=C_mon(j)*S_dim*C_dim
+         call gemv( Edim, y(:,ifr), scratch ) !scratch=E_dim*y(ifr)
+         efrag(ifr)=dot( y(:,ifr), scratch) !E_mon=y(ifr)*E_dim*y(ifr)
+      end do
+
+      sab=dot( y(:,1), y(:,2) )
+      call gemv( Edim, y(:,2), scratch ) !scratch=E_dim*y(2)
+      jab=dot( y(:,1), scratch ) !jab=y(1)*E_dim*y(2)
 
    jeff = (jab - sum(efrag) / nfrag * sab) / (1.0_wp - sab**2)
 
