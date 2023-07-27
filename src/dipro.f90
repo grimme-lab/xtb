@@ -111,8 +111,8 @@ subroutine get_jab(set, tblite, mol, fragment, error)
                !parallel speichern und rechnen wie zb singlet triplet dublet
 
    call ctx%message("Calculation for dimer ")
-   call ctx%message("charge for dimer="//format_string(mol%chrg, '(f7.0)'))
-   call ctx%message("unpaired e- for dimer="//format_string(wfn%nuhf, '(f7.0)'))
+   call ctx%message("charge of dimer : "//format_string(mol%chrg, '(f7.0)'))
+   write(*,*) "unpaired e- of dimer : ", set%nalphabeta
 
    call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2) !, &  !mol
  !     & verbosity-1) !input%verbosity-1
@@ -170,6 +170,12 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       write(output_unit, '(a)') "[Info] Fragment spin read from .UHFfrag"
       read(unit,*,iostat=stat) spinfrag(1),spinfrag(2)
       close(unit)
+   else if (set%nalphabeta .ne. 0) then
+      call ctx%message("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+      call ctx%message("Total spin specified but no fragment spins. Spins are not determined &
+              &automatically by xtb. Please set up .UHFfrag or use total spin =0." )
+      call ctx%message("Aborting...")
+      stop
    else
       spinfrag=0
    end if
