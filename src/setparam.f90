@@ -193,8 +193,6 @@ module xtb_setparam
 !! ------------------------------------------------------------------------
 !  electronic SCC temperature
    real(wp) :: etemp = 300.0_wp
-! orbital threshold for near-degeneracy   
-   real(wp) :: othr = 0.1_wp
 !  damping in Broyden SCC procedure (0.05 for critical cases, autoadjusted)
    real(wp) :: broydamp = 0.40_wp
    real(wp) :: dispscale = 1.0_wp

@@ -40,12 +40,14 @@ module xtb_dipro
    implicit none
    private
 
-   public :: get_jab, jab_input
+   public :: get_jab, dipro
 
    !> Configuration data for calculation
    type :: jab_input
       !> Flag for evoking DIPRO
       logical :: diprocalc
+      !>Orbital degeneracy threshold
+      real(wp) :: othr
       !> Name of the requested tight binding method
       character(len=:), allocatable :: method
       !> List of fragments, generated if not given here
@@ -59,6 +61,8 @@ module xtb_dipro
       !> Electronic temperature in Kelvin
       real(wp) :: etemp = 300.0_wp
    end type jab_input
+   
+   type(jab_input) :: dipro
 
    !> Conversion factor from temperature to energy (Boltzmann's constant in atomic units)
    real(wp), parameter :: ktoau = 3.166808578545117e-06_wp
@@ -71,7 +75,6 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol  !structure_type
    type(structure_type) :: struc
-
    !> Acc, Etemp, guess, chrg Input
    type(TSet), intent(in) :: set
    !requested gfn method for calculations Input
@@ -254,12 +257,12 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    end_index = -1
 
    call ctx%message("energy threshhold for near-degenerate orbitals near HOMO and LUMO &
-           &considered for DIPRO: "//format_string(set%othr, '(f20.3)')//" eV")
+           &considered for DIPRO: "//format_string(dipro%othr, '(f20.3)')//" eV")
 
    do ifr=1,nfrag
       do j = 1, nao
-         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - set%othr/autoev) .and.&
-           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + set%othr/autoev)) then
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - dipro%othr/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + dipro%othr/autoev)) then
               if (start_index.eq.-1) then 
                  start_index = j
               end if
@@ -271,7 +274,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
    call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
-   do j = 1, nao
+   do j = start_index, end_index
    y=0
       do ifr = 1, nfrag
       !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
