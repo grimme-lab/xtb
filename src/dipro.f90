@@ -44,6 +44,8 @@ module xtb_dipro
 
    !> Configuration data for calculation
    type :: jab_input
+      !> Flag for evoking DIPRO
+      logical :: diprocalc
       !> Name of the requested tight binding method
       character(len=:), allocatable :: method
       !> List of fragments, generated if not given here
@@ -56,6 +58,8 @@ module xtb_dipro
       integer :: verbosity = 2
       !> Electronic temperature in Kelvin
       real(wp) :: etemp = 300.0_wp
+      !> Threshold in eV for consideration of near degenerate orbitals
+      real(wp) :: ethresh = 0.1_wp
    end type jab_input
 
    !> Conversion factor from temperature to energy (Boltzmann's constant in atomic units)
@@ -64,11 +68,12 @@ module xtb_dipro
 contains
 
 !> Entry point for calculation of dipole projection related properties
-subroutine get_jab(set, tblite, mol, fragment, error)
+subroutine get_jab(set, tblite, mol, Tjab, fragment, error)
    use, intrinsic :: iso_fortran_env, only : output_unit
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol  !structure_type
    type(structure_type) :: struc
+   type(jab_input), intent(in) :: Tjab
 
    !> Acc, Etemp, guess, chrg Input
    type(TSet), intent(in) :: set
@@ -80,7 +85,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no, start_index,end_index, orbprint
    logical :: exist
-   real(wp) :: energy, cutoff, jab, sab, jeff, ethresh
+   real(wp) :: energy, cutoff, jab, sab, jeff !, ethresh
    real(wp), allocatable :: loc(:,:)
    type(context_type) :: ctx
    type(basis_type) :: bas
@@ -251,13 +256,12 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    start_index = -1
    end_index = -1
 
-   ethresh=0.1d0
    call ctx%message("energy threshhold for near-degenerate orbitals near HOMO and LUMO &
-           &considered for DIPRO: "//format_string(ethresh, '(f20.3)')//" eV")
+           &considered for DIPRO: "//format_string(Tjab%ethresh, '(f20.3)')//" eV")
    do ifr=1,nfrag
       do j = 1, nao
-         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - ethresh/autoev) .and.&
-           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + ethresh/autoev)) then
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - Tjab%ethresh/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + Tjab%ethresh/autoev)) then
               if (start_index.eq.-1) then 
                  start_index = j
               end if

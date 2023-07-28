@@ -127,7 +127,11 @@ subroutine xtbMain(env, argParser)
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
+<<<<<<< HEAD
    type(TCpcmx) :: cpx
+=======
+   type(jab_input) :: Tjab
+>>>>>>> Applied near degeneracy orbital ethresh for output write. next: flag or readin for that e-thresh. accidentally used git reset. try to recover this commuit.
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -201,7 +205,6 @@ subroutine xtbMain(env, argParser)
    logical :: exist
    logical :: lgrad,restart
    logical :: copycontrol
-   logical :: diprocalc
    logical :: newreader
    logical :: strict
    logical :: exitRun
@@ -220,7 +223,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, diprocalc, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, Tjab, coffee, printTopo, oniom, tblite)
 
    !> Spin-polarization is only available in the tblite library
    if(set%mode_extrun.ne.p_ext_tblite .and. tblite%spin_polarized) then
@@ -630,8 +633,8 @@ subroutine xtbMain(env, argParser)
 
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
-    if (diprocalc.eqv..true.) then 
-       call get_jab(set,tblite,mol,splitlist,TError)
+    if (Tjab%diprocalc.eqv..true.) then 
+       call get_jab(set,tblite,mol,Tjab,splitlist,TError)
     end if        
 
    ! ========================================================================
@@ -1155,7 +1158,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, diprocalc, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, Tjab, coffee, printTopo, oniom, tblite)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1198,7 +1201,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    logical, intent(out) :: copycontrol
 
    !> Calculation of DIPRO
-   logical, intent(out) :: diprocalc
+   type(jab_input), intent(out) :: Tjab
 
    !> Input for ONIOM model
    type(oniom_input), intent(out) :: oniom
@@ -1213,7 +1216,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    type(TTBLiteInput), intent(out) :: tblite
 
 !$ integer :: omp_get_num_threads, nproc
-   integer :: nFlags
+   integer :: nFlags,stat
    integer :: idum, ndum
    real(wp) :: ddum
    character(len=:), allocatable :: flag, sec
@@ -1221,7 +1224,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    
 
    set%gfn_method = 2
-   diprocalc= .false.
+   Tjab%diprocalc= .false.
    coffee = .false.
    strict = .false.
    restart = .true.
@@ -1430,8 +1433,13 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
       case('--dipro')
          if (get_xtb_feature('tblite')) then
-            diprocalc = .true.
+            Tjab%diprocalc = .true.
             call set_runtyp('scc')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               read(sec, *) Tjab%ethresh
+!               Tjab%ethresh=sec
+            end if
          else
             call env%error("Compiled without support for tblite library. This is required for DIPRO", source)
             cycle
