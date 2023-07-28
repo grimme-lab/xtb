@@ -632,7 +632,7 @@ subroutine xtbMain(env, argParser)
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
     if (dipro%diprocalc.eqv..true.) then 
-       call get_jab(set,tblite,mol,splitlist,TError)
+       call get_jab(tblite,mol,splitlist,TError)
     end if        
 
    ! ========================================================================

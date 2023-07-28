@@ -58,10 +58,9 @@ module xtb_dipro
       real(wp) :: accuracy = 1.0_wp
       !> Output verbosity
       integer :: verbosity = 2
-      !> Electronic temperature in Kelvin
-      real(wp) :: etemp = 300.0_wp
    end type jab_input
    
+   !> global instance
    type(jab_input) :: dipro
 
    !> Conversion factor from temperature to energy (Boltzmann's constant in atomic units)
@@ -69,37 +68,41 @@ module xtb_dipro
 
 contains
 
-!> Entry point for calculation of dipole projection related properties
-subroutine get_jab(set, tblite, mol, fragment, error)
+!> Entry point for calculation of dimer projection (DIPRO) related properties
+subroutine get_jab(tblite, mol, fragment, error)
    use, intrinsic :: iso_fortran_env, only : output_unit
    !> Molecular structure data
-   type(TMolecule), intent(in) :: mol  !structure_type
+   type(TMolecule), intent(in) :: mol  
+   !> structure_type /= molecular structure
    type(structure_type) :: struc
-   !> Acc, Etemp, guess, chrg Input
-   type(TSet), intent(in) :: set
    !requested gfn method for calculations Input
    type(TTBLiteInput), intent(inout) :: tblite
    !> Error handling
    type(error_type), allocatable, intent(out) :: error
 
-
-   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, k
-   logical :: exist
-   real(wp) :: energy, cutoff, jab, sab, jeff, Vtot(3)
-   real(wp), allocatable :: loc(:,:)
    type(context_type) :: ctx
    type(basis_type) :: bas
+   !> fcalc is =xcalc just for fragments
    type(xtb_calculator) :: xcalc, fcalc
+   !> mfrag is =struc just for fragments
    type(structure_type), allocatable :: mfrag(:)
    type(wavefunction_type) :: wfn
+   !> wfx is =wfn just for fragments
    type(wavefunction_type), allocatable :: wfx(:)
-   real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:)
+
+   !> Molecular gradient, strain derivatives
+   real(wp), allocatable :: gradient(:, :), sigma(:,:)
+   real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:),loc(:,:)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
    integer, allocatable :: fragment(:), spinfrag(:), start_index(:),end_index(:),orbprint(:)
-   !> Molecular gradient
-   real(wp), allocatable :: gradient(:, :)
-   !> Strain derivatives
-   real(wp), allocatable :: sigma(:, :)
+
+   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, k
+
+   logical :: exist
+
+   real(wp) :: energy, cutoff, jab, sab, jeff, Vtot(3)
+
+!======================================================================================
 
    struc=mol
 
@@ -108,19 +111,20 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       write(*,*) "==> No method provided, falling back to default GFN2-xTB."
    end if
 
-   call get_calculator(xcalc, struc, tblite%method, error)  !mol
-!   if (allocated(error)) return
-   call new_wavefunction(wfn, struc%nat, xcalc%bas%nsh, xcalc%bas%nao, &   !mol%nat
+!=========================set up calculator===========================================   
+
+   call get_calculator(xcalc, struc, tblite%method, error)  
+   call new_wavefunction(wfn, struc%nat, xcalc%bas%nsh, xcalc%bas%nao, & 
       & 1, set%etemp * ktoau)
-   wfn%nspin=1 !XXXX  das ist number of spins, nicht spin S, warum hat das überhaupt eine dimension, xtb kann doch gar nicht mehrere spinkanäle
-               !parallel speichern und rechnen wie zb singlet triplet dublet
+   wfn%nspin=1
+
+!=========================calculation for dimer======================================               
 
    call ctx%message("Calculation for dimer ")
    call ctx%message("charge of dimer : "//format_string(mol%chrg, '(f7.0)'))
    write(*,*) "unpaired e- of dimer : ", set%nalphabeta
 
-   call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2) !, &  !mol
- !     & verbosity-1) !input%verbosity-1
+   call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2)
    if (ctx%failed()) then
       call ctx%get_error(error)
       return
@@ -128,20 +132,23 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    allocate(overlap(xcalc%bas%nao, xcalc%bas%nao),y(xcalc%bas%nao,2))
    cutoff = get_cutoff(xcalc%bas)
-   call get_lattice_points(struc%periodic, struc%lattice, cutoff, trans)  !mol,mol
-   call get_overlap(struc, trans, cutoff, xcalc%bas, overlap)  !mol
+   call get_lattice_points(struc%periodic, struc%lattice, cutoff, trans) 
+   call get_overlap(struc, trans, cutoff, xcalc%bas, overlap)  
+
+!==================set up fragments if not given by xcontrol=========================
 
    if (allocated(fragment)) then
    else
-      allocate(wbo(struc%nat, struc%nat),p2mat(xcalc%bas%nao,xcalc%bas%nao)) !mol,mol
+      !> wfn%density is [nao,nao,spin], pmat in wiberg bondorder is [nao,nao], thus pmat2 is introduced here     
+      allocate(wbo(struc%nat, struc%nat),p2mat(xcalc%bas%nao,xcalc%bas%nao))
       do i=1,xcalc%bas%nao
          do j=1,xcalc%bas%nao
             p2mat(i,j)=wfn%density(i,j,1)
          end do
       end do
-      call get_wiberg_bondorder(xcalc%bas, overlap, p2mat, wbo) !wfn%density hat [nao,nao,spin], pmat in wiberg bondorder nur [nao,nao]
+      call get_wiberg_bondorder(xcalc%bas, overlap, p2mat, wbo)
 
-      allocate(fragment(struc%nat)) !mol
+      allocate(fragment(struc%nat))
       call get_wiberg_fragment(fragment, wbo, 0.1_wp)
    end if
 
@@ -168,7 +175,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       & scratch(nao), mfrag(nfrag), wfx(nfrag), chrg(nfrag), spinfrag(nfrag), &
       & start_index(nfrag),end_index(nfrag),orbprint(nfrag))
 
-   !--------------------------------------------------------------------------------------
+!==================================external files CHRG & UHF read-in====================================
 
    inquire(file='.UHFfrag', exist=exist)
    if (exist) then
@@ -196,49 +203,46 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       chrg=0
    end if
 
+!=================================fragment calculations=============================================   
+
    do ifr = 1, nfrag 
       call ctx%message("Calculation for fragment "//to_string(ifr))
-      call get_structure_fragment(mfrag(ifr), struc, fragment == ifr) !mol
+      call get_structure_fragment(mfrag(ifr), struc, fragment == ifr)
 
-      !------------------summation of fragment charges stored in chrg(nfrag)-------
+      !> summation of fragment charges stored in chrg(nfrag)
       if ( all(chrg.eq.0) ) then
          chrg(ifr)=0
          !> fragment mask generated on the fly 
-         chrg(ifr)=sum(pack(wfn%qat(:,1), fragment == ifr)) !wfn%qat ist [nat,nspin=1]
+         chrg(ifr)=sum(pack(wfn%qat(:,1), fragment == ifr)) !> wfn%qat is [nat,nspin=1]
          mfrag(ifr)%charge=nint(chrg(ifr))
       else
          mfrag(ifr)%charge=nint(chrg(ifr))
       end if
       call ctx%message("charge of fragment : "//format_string(mfrag(ifr)%charge , '(f7.0)'))
-      !---------------------uhf fragments spins------------------------------------
+
+      !> uhf fragments spins
       mfrag(ifr)%uhf = spinfrag(ifr)
-!      call ctx%message("unpaired e- of fragment : "//format_string(mfrag(ifr)%uhf , '(f7.0)'))
       write(*,*) "unpaired e- of fragment : ", mfrag(ifr)%uhf
-      !----------------------------------------------------------------------------
 
       call get_calculator(fcalc, mfrag(ifr), tblite%method, error)
       !> mol%charge is updated automatically from wfn by tblite library 
-!     if (allocated(error)) return
       call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc%bas%nsh, fcalc%bas%nao, &
          & 1, set%etemp * ktoau)
 
-         !> mol%type (dimer) == mfrag%type (fragments), wfn (dimer) == wfx (fragments), calc (dimer)==fcalc(fragments)
-      wfx%nspin=1 !XXXX
+     !> mol%type (dimer) == mfrag%type (fragments), wfn (dimer) == wfx (fragments), calc (dimer)==fcalc(fragments)
+      wfx%nspin=1
       call xtb_singlepoint(ctx, mfrag(ifr), fcalc, wfx(ifr), tblite%accuracy, energy)
       if (ctx%failed()) then
          call ctx%get_error(error)
          return
       end if
-!---------------------------------------------------------
-!write(*,*) "emo von wfx homo", wfx(ifr)%emo(no,1)  !geht
-!---------------------------------------------------------
+
+!==================================DIPRO==================================================
 
       do j = 1, nao
-         !> for homo,homo-1,lumo,lumo+
-!         no = wfx(ifr)%homo(max(2,1))+(j-2)
-         !> coeff(homo) stored in orbital(:,ifr,orb)
+         !> coeff is [nao,nao,spin=1]
          call unpack_coeff(xcalc%bas, fcalc%bas, orbital(:, ifr, j), &
-         & wfx(ifr)%coeff(:, j,1), fragment == ifr)  !coeff hat dimension [nao,nao,spin]
+         & wfx(ifr)%coeff(:, j,1), fragment == ifr)
       end do 
    end do
 
@@ -254,6 +258,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    start_index = -1
    end_index = -1
 
+   !> find out which orbitals are within [HOMO-othr,LUMO+othr] and should be considered for DIPRO
    call ctx%message("energy threshhold for near-degenerate orbitals near HOMO and LUMO &
            &considered for DIPRO: "//format_string(dipro%othr, '(f20.3)')//" eV")
 
@@ -267,34 +272,57 @@ subroutine get_jab(set, tblite, mol, fragment, error)
               end_index(ifr) = j
          endif
       end do
-      write(*,*) "orbitals within energy window of frag", start_index(ifr), end_index(ifr) 
+      write(*,*) "no. of orbitals within energy window of frag", end_index(ifr)-start_index(ifr)+1
    end do
+
+!========================================DIPRO equations===========================================
+!> equations after B. Baumeier, J. Kirkpatrick, D. Andrienko, PCCP 2010, 12, 11103.
+!> y_A^i = C_A^i * S_AB * C_AB                  orbital projection of monomer A onto dimer
+!> y_B^j = C_B^j * S_AB * C_AB                  orbital projection of monomer B onto dimer
+!> S_ab^ij = y_A^i * y_B^j                      projected overlap
+!> E_A^i = y_A^i * E_AB * y_A^i                 site energy monomer A
+!> E_B^j = y_B^j * E_AB * y_B^j                 site energy monomer B
+!> J_AB^ij = y_A^i * E_AB * y_B^j               coupling integral J_AB
+!> J_AB^ij effective = (J_AB^ij - (E_A^i + E_B^j) / 2 * S_ab^ij) / (1 - S_ab^ij * S_ab^ij)            
+!> A,B: monomers   AB: dimer
+!> i,j: orbitals of the monomers
+!> C: orbital coefficients     S: overlap matrix      E: orbital energy of the dimer
 
    Vtot=0
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
-   call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
+   !> scmat=S_dim*C_dim
+   call gemm(overlap, coeff2, scmat)
    do j = start_index(1), end_index(1)
       orbprint(1)=wfx(1)%homo(max(2,1))-j
 
       y(:,1)=0
-      call gemv( scmat, orbital(:, 1, j), y(:,1), trans="t" ) !y_mon1(ifr)=C_mon1(j)*S_dim*C_dim
-      call gemv( Edim, y(:,1), scratch ) !scratch=E_dim*y1(j)
-      efrag(1)=dot( y(:,1), scratch) !E_mon=y1(j)*E_dim*y1(j)
+      !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
+      !> y_mon1(ifr)=C_mon1(j)*S_dim*C_dim
+      call gemv( scmat, orbital(:, 1, j), y(:,1), trans="t" )
+      !> scratch=E_dim*y1(j)
+      call gemv( Edim, y(:,1), scratch )
+      !> E_mon=y1(j)*E_dim*y1(j)
+      efrag(1)=dot( y(:,1), scratch)
 
       do k = start_index(2), end_index(2)
          orbprint(2)=wfx(2)%homo(max(2,1))-k
 
          y(:,2)=0
-         !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
-         call gemv( scmat, orbital(:, 2, k), y(:,2), trans="t" ) !y_mon2(ifr)=C_mon2(k)*S_dim*C_dim
+         !> y_mon2(ifr)=C_mon2(k)*S_dim*C_dim
+         call gemv( scmat, orbital(:, 2, k), y(:,2), trans="t" )
+         !> scratch=E_dim*y2(k)
+         call gemv( Edim, y(:,2), scratch )
+         !> E_mon=y(ifr)*E_dim*y2(k)
+         efrag(2)=dot( y(:,2), scratch)
 
-         call gemv( Edim, y(:,2), scratch ) !scratch=E_dim*y2(k)
-         efrag(2)=dot( y(:,2), scratch) !E_mon=y(ifr)*E_dim*y2(k)
-
+         !> sab=y1(j)*y2(k)
          sab=dot( y(:,1), y(:,2) )
-         jab=dot( y(:,1), scratch ) !jab=y1(j)*E_dim*y2(k)
+         !> jab=y1(j)*E_dim*y2(k)
+         jab=dot( y(:,1), scratch )
 
          jeff = (jab - sum(efrag) / nfrag * sab) / (1.0_wp - sab**2)
+
+!=======================================Printout============================================         
 
          do ifr=1,2
             if (orbprint(ifr).gt.0) then
@@ -310,11 +338,11 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
          call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
            &format_string(efrag(2)*autoev, '(f20.3)')//" eV")
-         !> abs = absolute values
          call ctx%message("|J(AB)|: "//format_string(abs(jab)*autoev, '(f20.3)')//" eV")    
-!        call ctx%message("S(AB): "//format_string(sab, '(f20.8)'))
+         call ctx%message("S(AB): "//format_string(sab, '(f20.8)')//" Eh")
          call ctx%message("|J(AB,eff)|: "//format_string(abs(jeff)*autoev, '(f16.3)')//" eV")
 
+         !> Vtotal=sqrt(sum(jeff^2)) for 1. occ-->occ; 2. virt-->virt; 3. occ-->virt/virt-->occ transitions
          if(orbprint(1).ge.0.and.orbprint(2).ge.0) then
             Vtot(1)=Vtot(1)+jeff**2
          else if (orbprint(1).le.-1.and.orbprint(2).le.-1) then
@@ -325,7 +353,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
       end do
    end do
-
+   
    call ctx%message("total |J(AB,eff)| for hole transport (occ. MOs) :"//format_string(sqrt(Vtot(1))*autoev, '(f20.3)')//" eV")
    call ctx%message("total |J(AB,eff)| for charge transport (unocc. MOs) :"//format_string(sqrt(Vtot(2))*autoev, '(f20.3)')//" eV")
    call ctx%message("total |J(AB,eff)| for charge transfer (CT) :"//format_string(sqrt(Vtot(3))*autoev, '(f20.3)')//" eV")
@@ -373,11 +401,6 @@ end subroutine unpack_coeff
 
 
 !> Extract a the fragment structure from the full structure
-!>
-!> Todo: This routine can currently only create neutral fragments,
-!>       charge and spin information is not partition or transferred to fragments
-!> Done: Fragment charges added in get_jab routine after get_structure_fragment call
-!>       Fragment spin separate read-in in get_jab routine after fragment charges
 subroutine get_structure_fragment(frag, struc, mask) !mol
    !> Molecular structure data of the fragment
    type(structure_type), intent(out) :: frag
@@ -391,8 +414,8 @@ subroutine get_structure_fragment(frag, struc, mask) !mol
    real(wp), allocatable :: xyz(:, :)
 
    nat = count(mask)
-   num = pack(struc%num(struc%id), mask)  !mol,mol
-   xyz = reshape(pack(struc%xyz, spread(mask, 1, 3)), [3, nat]) !mol
+   num = pack(struc%num(struc%id), mask)
+   xyz = reshape(pack(struc%xyz, spread(mask, 1, 3)), [3, nat])
    call new(frag, num, xyz)
 end subroutine get_structure_fragment
 
