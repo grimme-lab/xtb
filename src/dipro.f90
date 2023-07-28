@@ -83,7 +83,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    type(error_type), allocatable, intent(out) :: error
 
 
-   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no, start_index,end_index
+   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, k, no
    logical :: exist
    real(wp) :: energy, cutoff, jab, sab, jeff
    real(wp), allocatable :: loc(:,:)
@@ -95,7 +95,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    type(wavefunction_type), allocatable :: wfx(:)
    real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
-   integer, allocatable :: fragment(:), spinfrag(:)
+   integer, allocatable :: fragment(:), spinfrag(:), start_index(:),end_index(:),orbprint(:)
    !> Molecular gradient
    real(wp), allocatable :: gradient(:, :)
    !> Strain derivatives
@@ -165,7 +165,8 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    nao = size(wfn%emo)
    allocate(orbital(nao, nfrag,nao), efrag(nfrag), scmat(nao, nao), fdim(nao, nao), &
-      & scratch(nao), mfrag(nfrag), wfx(nfrag), chrg(nfrag), spinfrag(nfrag))
+      & scratch(nao), mfrag(nfrag), wfx(nfrag), chrg(nfrag), spinfrag(nfrag), &
+      & start_index(nfrag),end_index(nfrag),orbprint(nfrag))
 
    !--------------------------------------------------------------------------------------
 
@@ -217,20 +218,17 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
       call get_calculator(fcalc, mfrag(ifr), tblite%method, error)
       !> mol%charge is updated automatically from wfn by tblite library 
-      if (allocated(error)) return
-         call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc%bas%nsh, fcalc%bas%nao, &
+!     if (allocated(error)) return
+      call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc%bas%nsh, fcalc%bas%nao, &
          & 1, set%etemp * ktoau)
 
          !> mol%type (dimer) == mfrag%type (fragments), wfn (dimer) == wfx (fragments), calc (dimer)==fcalc(fragments)
-         wfx%nspin=1 !XXXX
-         call xtb_singlepoint(ctx, mfrag(ifr), fcalc, wfx(ifr), tblite%accuracy, energy) !, &
-!         & verbosity-1)  !=input%verbosity-1)
-         if (ctx%failed()) then
+      wfx%nspin=1 !XXXX
+      call xtb_singlepoint(ctx, mfrag(ifr), fcalc, wfx(ifr), tblite%accuracy, energy)
+      if (ctx%failed()) then
          call ctx%get_error(error)
          return
       end if
-
-      no = wfx(ifr)%homo(max(2,1))  !homo hat dimension [nao]
 !---------------------------------------------------------
 !write(*,*) "emo von wfx homo", wfx(ifr)%emo(no,1)  !geht
 !---------------------------------------------------------
@@ -263,39 +261,59 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       do j = 1, nao
          if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - dipro%othr/autoev) .and.&
            & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + dipro%othr/autoev)) then
-              if (start_index.eq.-1) then 
-                 start_index = j
+           if (start_index(ifr).eq.-1) then 
+                   start_index(ifr) = j
               end if
-              end_index = j
+              end_index(ifr) = j
          endif
       end do
-      write(*,*) "orbitals within energy window of frag", start_index, end_index 
+      write(*,*) "orbitals within energy window of frag", start_index(ifr), end_index(ifr) 
    end do
 
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
    call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
-   do j = start_index, end_index
-   y=0
-      do ifr = 1, nfrag
-      !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
-         call gemv( scmat, orbital(:, ifr, j), y(:,ifr), trans="t" ) !y_mon(ifr)=C_mon(j)*S_dim*C_dim
-         call gemv( Edim, y(:,ifr), scratch ) !scratch=E_dim*y(ifr)
-         efrag(ifr)=dot( y(:,ifr), scratch) !E_mon=y(ifr)*E_dim*y(ifr)
-      end do
+   do j = start_index(1), end_index(1)
+      orbprint(1)=wfx(1)%homo(max(2,1))-j
 
-      sab=dot( y(:,1), y(:,2) )
-      call gemv( Edim, y(:,2), scratch ) !scratch=E_dim*y(2)
-      jab=dot( y(:,1), scratch ) !jab=y(1)*E_dim*y(2)
+      y(:,1)=0
+      call gemv( scmat, orbital(:, 1, j), y(:,1), trans="t" ) !y_mon1(ifr)=C_mon1(j)*S_dim*C_dim
+      call gemv( Edim, y(:,1), scratch ) !scratch=E_dim*y1(j)
+      efrag(1)=dot( y(:,1), scratch) !E_mon=y1(j)*E_dim*y1(j)
 
-   jeff = (jab - sum(efrag) / nfrag * sab) / (1.0_wp - sab**2)
+      do k = start_index(2), end_index(2)
+         orbprint(2)=wfx(2)%homo(max(2,1))-k
 
-   call ctx%message("HOMO + "//format_string(j, '(i0)')//" orbital") 
-   call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
+         y(:,2)=0
+         !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
+         call gemv( scmat, orbital(:, 2, k), y(:,2), trans="t" ) !y_mon2(ifr)=C_mon2(k)*S_dim*C_dim
+
+         call gemv( Edim, y(:,2), scratch ) !scratch=E_dim*y2(k)
+         efrag(2)=dot( y(:,2), scratch) !E_mon=y(ifr)*E_dim*y2(k)
+
+         sab=dot( y(:,1), y(:,2) )
+         jab=dot( y(:,1), scratch ) !jab=y1(j)*E_dim*y2(k)
+
+         jeff = (jab - sum(efrag) / nfrag * sab) / (1.0_wp - sab**2)
+
+         do ifr=1,2
+            if (orbprint(ifr).gt.0) then
+               call ctx%message("HOMO - "//format_string(orbprint(ifr), '(i0)'))
+            else if (orbprint(ifr).eq.0) then
+               call ctx%message("HOMO ")
+            else if (orbprint(ifr).eq.-1) then
+               call ctx%message("LUMO ")
+            else if (orbprint(ifr).lt.-1) then
+               call ctx%message("LUMO + "//format_string(abs(orbprint(ifr))-1, '(i0)'))
+            end if
+         end do
+
+         call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
            &format_string(efrag(2)*autoev, '(f20.3)')//" eV")
-   !> abs = absolute values
-   call ctx%message("|J(AB)|: "//format_string(abs(jab)*autoev, '(f20.3)')//" eV")    
-!   call ctx%message("S(AB): "//format_string(sab, '(f20.8)'))
-   call ctx%message("|J(AB,eff)|: "//format_string(abs(jeff)*autoev, '(f16.3)')//" eV")
+         !> abs = absolute values
+         call ctx%message("|J(AB)|: "//format_string(abs(jab)*autoev, '(f20.3)')//" eV")    
+!        call ctx%message("S(AB): "//format_string(sab, '(f20.8)'))
+         call ctx%message("|J(AB,eff)|: "//format_string(abs(jeff)*autoev, '(f16.3)')//" eV")
+      end do
    end do
 
 end subroutine get_jab
