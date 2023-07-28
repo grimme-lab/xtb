@@ -78,9 +78,9 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    type(error_type), allocatable, intent(out) :: error
 
 
-   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no, start_index,end_index
+   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, no, start_index,end_index, orbprint
    logical :: exist
-   real(wp) :: energy, cutoff, jab, sab, jeff
+   real(wp) :: energy, cutoff, jab, sab, jeff, ethresh
    real(wp), allocatable :: loc(:,:)
    type(context_type) :: ctx
    type(basis_type) :: bas
@@ -251,22 +251,26 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    start_index = -1
    end_index = -1
 
+   ethresh=0.1d0
+   call ctx%message("energy threshhold for near-degenerate orbitals near HOMO and LUMO &
+           &considered for DIPRO: "//format_string(ethresh, '(f20.3)')//" eV")
    do ifr=1,nfrag
       do j = 1, nao
-         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - 0.1d0/autoev) .and.&
-           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + 0.1d0/autoev)) then
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - ethresh/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + ethresh/autoev)) then
               if (start_index.eq.-1) then 
                  start_index = j
               end if
               end_index = j
          endif
       end do
-      write(*,*) "orbitals within energy window of frag", start_index, end_index 
+      call ctx%message("fragment no. "//format_string(ifr, '(i0)'))
+      call ctx%message("no. of orbitals considered within energy window: "//format_string(end_index-start_index+1, '(i4)'))
    end do
 
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
    call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
-   do j = 1, nao
+   do j = start_index, end_index !1, nao
    y=0
       do ifr = 1, nfrag
       !> gemv(amat, xvec,yvec,a1,a2,transa): X=a1*Amat*xvec+a2*yvec
@@ -281,7 +285,18 @@ subroutine get_jab(set, tblite, mol, fragment, error)
 
    jeff = (jab - sum(efrag) / nfrag * sab) / (1.0_wp - sab**2)
 
-   call ctx%message("HOMO + "//format_string(j, '(i0)')//" orbital") 
+   orbprint=wfx(1)%homo(max(2,1))-j
+
+   if (orbprint.gt.0) then
+      call ctx%message("HOMO - "//format_string(orbprint, '(i0)')//" orbital") 
+      else if (orbprint.eq.0) then
+      call ctx%message("HOMO orbital")
+      else if (orbprint.eq.-1) then
+      call ctx%message("LUMO orbital")
+      else if (orbprint.lt.-1) then
+      call ctx%message("LUMO + "//format_string(abs(orbprint)-1, '(i0)')//" orbital")
+   end if
+
    call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
            &format_string(efrag(2)*autoev, '(f20.3)')//" eV")
    !> abs = absolute values
