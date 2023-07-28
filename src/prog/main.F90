@@ -127,15 +127,9 @@ subroutine xtbMain(env, argParser)
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
-<<<<<<< HEAD
-<<<<<<< HEAD
    type(TCpcmx) :: cpx
-=======
    type(jab_input) :: Tjab
->>>>>>> Applied near degeneracy orbital ethresh for output write. next: flag or readin for that e-thresh. accidentally used git reset. try to recover this commuit.
-=======
-!   type(jab_input) :: Tjab
->>>>>>> Restored last working commit.
+   type(TSet) :: set
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -1440,11 +1434,10 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          if (get_xtb_feature('tblite')) then
             diprocalc = .true.
             call set_runtyp('scc')
-!            call args%nextArg(sec)
-!            if (allocated(sec)) then
-!               read(sec, *) Tjab%ethresh
-!               Tjab%ethresh=sec
-!            end if
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_scc(env,'othresh',sec)
+            end if
          else
             call env%error("Compiled without support for tblite library. This is required for DIPRO", source)
             cycle
