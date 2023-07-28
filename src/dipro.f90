@@ -83,9 +83,9 @@ subroutine get_jab(set, tblite, mol, fragment, error)
    type(error_type), allocatable, intent(out) :: error
 
 
-   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, k, no
+   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, k
    logical :: exist
-   real(wp) :: energy, cutoff, jab, sab, jeff
+   real(wp) :: energy, cutoff, jab, sab, jeff, Vtot(3)
    real(wp), allocatable :: loc(:,:)
    type(context_type) :: ctx
    type(basis_type) :: bas
@@ -270,6 +270,7 @@ subroutine get_jab(set, tblite, mol, fragment, error)
       write(*,*) "orbitals within energy window of frag", start_index(ifr), end_index(ifr) 
    end do
 
+   Vtot=0
    !> gemm(amat,bmat,cmat,transa,transb,a1,a2): X=a1*Amat*Bmat+a2*Cmat
    call gemm(overlap, coeff2, scmat)  !scmat=S_dim*C_dim
    do j = start_index(1), end_index(1)
@@ -313,8 +314,21 @@ subroutine get_jab(set, tblite, mol, fragment, error)
          call ctx%message("|J(AB)|: "//format_string(abs(jab)*autoev, '(f20.3)')//" eV")    
 !        call ctx%message("S(AB): "//format_string(sab, '(f20.8)'))
          call ctx%message("|J(AB,eff)|: "//format_string(abs(jeff)*autoev, '(f16.3)')//" eV")
+
+         if(orbprint(1).ge.0.and.orbprint(2).ge.0) then
+            Vtot(1)=Vtot(1)+jeff**2
+         else if (orbprint(1).le.-1.and.orbprint(2).le.-1) then
+            Vtot(2)=Vtot(2)+jeff**2
+         else 
+            Vtot(3)=Vtot(3)+jeff**2
+         end if
+
       end do
    end do
+
+   call ctx%message("total |J(AB,eff)| for hole transport (occ. MOs) :"//format_string(sqrt(Vtot(1))*autoev, '(f20.3)')//" eV")
+   call ctx%message("total |J(AB,eff)| for charge transport (unocc. MOs) :"//format_string(sqrt(Vtot(2))*autoev, '(f20.3)')//" eV")
+   call ctx%message("total |J(AB,eff)| for charge transfer (CT) :"//format_string(sqrt(Vtot(3))*autoev, '(f20.3)')//" eV")
 
 end subroutine get_jab
 
