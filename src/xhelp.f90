@@ -40,6 +40,10 @@ write(iunit,'(3x,a)') &
    "* S. Ehlert, M. Stahn, S. Spicher, S. Grimme, J. Chem. Theory Comput.,", &
    "  2021, 17, 4250-4261. DOI: 10.1021/acs.jctc.1c00471", &
    "",&
+   "for ddCOSMO and CPCM-X implicit solvation:",&
+   "* M. Stahn, S. Ehlert, S. Grimme, J. Phys. Chem. A,", &
+   "  2023, XX, XXXX-XXXX. DOI: XXXXXXXXXX", &
+   "",&
    "for DFT-D4:",&
    "* E. Caldeweyher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2017,",&
    "  147, 034112. DOI: 10.1063/1.4993215", &
@@ -150,6 +154,16 @@ subroutine help(iunit)
    "    n-hexane (only GFN2-xTB), THF and toluene.",&
    "    The solvent input is not case-sensitive.", &
    "    The Gsolv reference state can be chosen as reference or bar1M (default).",&
+   "",&
+   "--cosmo SOLVENT/EPSILON",&
+   "    domain decomposition conductor-like screening model (ddCOSMO),",&
+   "    available solvents are all solvents that are available for alpb.",&
+   "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
+   "    can be chosen by setting epsilon to infinity.",&
+   "",&
+   "--cpcmx SOLVENT",&
+   "    extended conduction-like polarizable continuum solvation model (CPCM-X),",&
+   "    available solvents are all solvents included in the Minnesota Solvation Database.",&
    "",&
    "--cma",&
    "    shifts molecule to center of mass and transforms cartesian coordinates into the",&

@@ -249,8 +249,8 @@ subroutine xtbMain(env, argParser)
    anyopt = ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt))
-
-   if (allocated(calc%solvation%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization")
+   
+   if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization")
 
    call env%checkpoint("Command line argument parsing failed")
 
