@@ -926,7 +926,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          enddo
          nelpi=nelpi-1
          Api = Apisave
-         call gfnffqmsolve(.false.,Api,S,.false.,300.0d0,npi,0,nelpi,dum,occ,eps)  !diagonalize
+         call gfnffqmsolve(.false.,Api,S,.false.,4000.0d0,npi,0,nelpi,dum,occ,eps)  !diagonalize
          call PREIG(6,occ,1.0d0,eps,1,npi)
       endif
 ! save BO
