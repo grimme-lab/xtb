@@ -81,7 +81,7 @@ jobs:
         python-version: 3.x
 
     - name: Install CMake
-      run: pip3 install ninja cmake
+      run: pip3 install ninja cmake==3.26.4
 
     - name: Configure build
       run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
