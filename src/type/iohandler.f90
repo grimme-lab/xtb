@@ -108,7 +108,7 @@ elemental function initFileHandle(name, status, unit, open) result(self)
 
 end function initFileHandle
 
-
+!> check for namespace and, if present, add it accordingly to the file name
 subroutine getName(self, file, filename)
    class(TIOHandler), intent(inout) :: self
    character(len=*), intent(in) :: file
