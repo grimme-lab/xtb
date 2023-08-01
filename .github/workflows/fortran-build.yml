@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -73,15 +73,15 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: 3.x
 
     - name: Install CMake
-      run: pip3 install ninja cmake
+      run: pip3 install ninja cmake==3.26.4
 
     - name: Configure build
       run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
@@ -113,7 +113,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup MSYS2 toolchain
       uses: msys2/setup-msys2@v2
@@ -164,7 +164,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -238,7 +238,7 @@ jobs:
       OUTPUT_INTEL: xtb-bleed.tar.xz
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install github-release
       run: |
