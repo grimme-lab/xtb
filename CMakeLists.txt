@@ -38,6 +38,10 @@ if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
   find_package("tblite" REQUIRED)
 endif()
 
+if(NOT TARGET "cpcmx::cpcmx")
+  find_package("cpcmx" REQUIRED)
+endif()
+
 if(NOT TARGET "test-drive::test-drive")
   find_package("test-drive" REQUIRED)
 endif()
@@ -75,6 +79,7 @@ target_link_libraries(
   "${PROJECT_NAME}-object"
   PUBLIC
   "mctc-lib::mctc-lib"
+  "cpcmx::cpcmx"
   "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
   "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
 )
@@ -105,6 +110,7 @@ target_link_libraries(
   ${LAPACK_LIBRARIES}
   "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
   "mctc-lib::mctc-lib"
+  "cpcmx::cpcmx"
   "tblite::tblite"
 )
 set_target_properties(
@@ -136,6 +142,7 @@ target_link_libraries(
   ${LAPACK_LIBRARIES}
   "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
   "mctc-lib::mctc-lib"
+  "cpcmx::cpcmx"
   "tblite::tblite"
 )
 set_target_properties(
