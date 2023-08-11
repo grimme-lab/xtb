@@ -68,6 +68,8 @@ module xtb_solv_cpx
         !> TODO: SETUP solute directly from TCosmo instead of reading COSMO file
         Call read_cosmo('xtb.cosmo',self%solute,'NONE',error)
         if (allocated(error)) Call env%error(error%message, source)
+#else
+        Call no_cpcmx_here(env)
 #endif
     end subroutine setup_cpcmx
 
@@ -103,6 +105,8 @@ module xtb_solv_cpx
         call self%state_correction(density(solvent),atomicmass(self%solvent%element),T)
         call self%cds(probe,solvent)
         total_energy= self%dG()+energy_gas
+#else
+        Call no_cpcmx_here(env)
 #endif
     end subroutine calculate_cpcmx
 
@@ -146,5 +150,14 @@ module xtb_solv_cpx
         write(output_unit,*) ""
 #endif
     end subroutine print_cpcmx
+
+
+#if ! WITH_CPCMX
+    subroutine no_cpcmx_here(env)
+        type(TEnvironment), intent(inout) :: env
+
+        call env%error('CPCM-X is not available in this version of xtb.', source)
+    end subroutine no_cpcmx_here
+#endif
 
 end module xtb_solv_cpx

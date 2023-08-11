@@ -111,7 +111,7 @@ target_link_libraries(
   "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
   "mctc-lib::mctc-lib"
   "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-  "tblite::tblite"
+  "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
 )
 set_target_properties(
   "lib-${PROJECT_NAME}-static"
@@ -143,7 +143,7 @@ target_link_libraries(
   "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
   "mctc-lib::mctc-lib"
   "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-  "tblite::tblite"
+  "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
 )
 set_target_properties(
   "lib-${PROJECT_NAME}-shared"
