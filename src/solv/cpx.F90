@@ -1,6 +1,30 @@
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
+!
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef WITH_CPCMX
+#define WITH_CPCMX 0
+#endif
+
+!> This module implements the CPCM-X solvation library for xTB.
+
 module xtb_solv_cpx
+#if WITH_CPCMX
     use cpx, only: calculation_type, parameter_type, atomicmass, density,&
     &initialize_param,load_solvent,read_cosmo
+#endif
     use xtb_solv_cosmo, only: TCosmo
     use xtb_type_environment, only: TEnvironment
     use iso_fortran_env, only: input_unit, output_unit
@@ -11,8 +35,14 @@ module xtb_solv_cpx
 
     character(len=*), parameter :: source = 'xtb_solv_cpx'
 
+
     !> CPCM-X calculation type
+#if WITH_CPCMX
     type, extends(calculation_type) :: TCpcmx
+#endif
+#if ! WITH_CPCMX
+    type :: TCpcmx
+#endif
         contains
 
         procedure :: setup => setup_cpcmx
@@ -30,7 +60,7 @@ module xtb_solv_cpx
         character(len=*), intent(in) :: solvent
         !> Error handling
         type(error_type), allocatable :: error
-
+#if WITH_CPCMX
         !> Load xTB parameters from internal CPCM-X database
         call initialize_param('xtb',solvent,self,error)
         if (allocated(error)) Call env%error(error%message, source)
@@ -39,13 +69,16 @@ module xtb_solv_cpx
         !> TODO: SETUP solute directly from TCosmo instead of reading COSMO file
         Call read_cosmo('xtb.cosmo',self%solute,'NONE',error)
         if (allocated(error)) Call env%error(error%message, source)
+#endif
     end subroutine setup_cpcmx
 
-    subroutine calculate_cpcmx(self,env,solvent,probe,T,max_cycle,conv_crit)
+    subroutine calculate_cpcmx(self,env,solvent,energy_gas,probe,T,max_cycle,conv_crit,total_energy)
         implicit none
         class(Tcpcmx), intent(inout) :: self
         type(TEnvironment), intent(inout) :: env
         !> Solvent name for solvent properties (density, atomic mass) from internal CPCM-X database
+        !> xTB gas phase energy
+        real(wp), intent(in) :: energy_gas
         character(len=*), intent(in) :: solvent
         !> Error handling
         type(error_type), allocatable :: error
@@ -56,7 +89,10 @@ module xtb_solv_cpx
         !> Convergence criteria for restoring free energy
         integer, intent(in) :: max_cycle
         real(wp), intent(in) :: conv_crit
-
+        !> Final Total Energy
+        real(wp), intent(out) :: total_energy
+#if WITH_CPCMX
+        self%solute%energy_gas=energy_gas
         !> Charge averaging
         call self%average_charge(error)
         if (allocated(error)) Call env%error(error%message, source)
@@ -67,6 +103,8 @@ module xtb_solv_cpx
         !> Calculate SMD contribution and state correction
         call self%state_correction(density(solvent),atomicmass(self%solvent%element),T)
         call self%cds(probe,solvent)
+        total_energy= self%dG()+energy_gas
+#endif
     end subroutine calculate_cpcmx
 
     !> Print CPCM-X results
@@ -84,7 +122,7 @@ module xtb_solv_cpx
         else
             pr=.false.
         end if
-
+#if WITH_CPCMX
         write(output_unit,*) ""
         write(output_unit,'(5x,a,t55,a,t66,a)') &
             "Free Energy contributions:", "[Eh]", " [kcal/mol]"
@@ -107,7 +145,7 @@ module xtb_solv_cpx
         write(output_unit,'(5x,a,t50,E13.5,t65,F10.5)') &
         "total free energy (dG)", self%dG()+self%solute%energy_gas
         write(output_unit,*) ""
-
+#endif
     end subroutine print_cpcmx
 
 end module xtb_solv_cpx

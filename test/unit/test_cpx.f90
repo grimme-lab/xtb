@@ -1,5 +1,7 @@
+
 module test_cpx
-   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed, skip_test
+   use xtb_features, only : get_xtb_feature
    implicit none
    private
 
@@ -20,7 +22,6 @@ end subroutine collect_cpx
 
 subroutine test_cpx_solv(error)
    use xtb_solv_cpx, only : TCpcmx
-   use cpx, only : initialize_param, load_solvent
    use mctc_env, only: err_type => error_type, wp
 
    use xtb_type_options
@@ -45,6 +46,7 @@ subroutine test_cpx_solv(error)
 
    real(wp) :: energy, sigma(3,3)
    real(wp) :: hl_gap
+   real(wp) :: energy_gas, total_energy
    real(wp),allocatable :: gradient(:,:)
    real(wp),parameter :: thr = 5.0e-5_wp
    integer, parameter :: nat = 11
@@ -68,6 +70,10 @@ subroutine test_cpx_solv(error)
 
    character(len=*), parameter :: cpxsolvent="water"
 
+   if (.not.get_xtb_feature('cpcmx')) then
+      call skip_test(error, 'CPCM-X libary not available.')
+      return
+   end if
    call init(env)
 
    call init(mol, at, xyz)
@@ -84,13 +90,12 @@ subroutine test_cpx_solv(error)
       & hl_gap, res)
    call cpcmx%setup(env,cpxsolvent)
    deallocate(calc%solvation)
-   call calc%singlepoint(env, mol, chk, 0, .false., cpcmx%solute%energy_gas, gradient, sigma, &
+   call calc%singlepoint(env, mol, chk, 0, .false., energy_gas, gradient, sigma, &
       & hl_gap, res)
-   call cpcmx%calc_solv(env,cpxsolvent,0.4_wp,298.15_wp,500,0.0001_wp)
+   call cpcmx%calc_solv(env,cpxsolvent,energy_gas,0.4_wp,298.15_wp,500,0.0001_wp,total_energy)
    call cpcmx%print(.true.)
-   call check_(error, cpcmx%dG_is, -0.1277469E-01_wp, thr=thr)
-   call check_(error, cpcmx%dG_smd, -0.6892670E-02_wp, thr=thr)
-   call check_(error, cpcmx%dG(), -0.1555665E-01_wp, thr=thr)
+   call check_(error, total_energy-energy_gas, -0.1555665E-01_wp, thr=thr)
+   call check_(error, total_energy, -22.00017093824971, thr=thr)
 
 end subroutine test_cpx_solv
 end module test_cpx

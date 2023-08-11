@@ -212,5 +212,6 @@ cpx_dep = dependency(
   'cpx',
   fallback: ['cpx', 'cpx_dep'],
   default_options: ['default_library=static'],
+  required: get_option('cpcmx')
 )
 lib_deps += cpx_dep

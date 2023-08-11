@@ -187,6 +187,7 @@ subroutine xtbMain(env, argParser)
    real(wp) :: one,two
    real(wp) :: ea,ip
    real(wp) :: vomega
+   real(wp) :: energy_gas
    parameter (zero=0.0_wp)
    parameter (one =1.0_wp)
    parameter (two =2.0_wp)
@@ -827,10 +828,9 @@ subroutine xtbMain(env, argParser)
             Call env%checkpoint("CPCM-X setup terminated")
             cpxcalc=calc
             deallocate(cpxcalc%solvation)
-            call cpxcalc%singlepoint(env,mol,chk,1,.false.,cpx%solute%energy_gas,g,sigma,egap,res)
-            Call cpx%calc_solv(env,calc%solvation%cpxsolvent,0.4_wp,298.15_wp,500,0.0001_wp)
+            call cpxcalc%singlepoint(env,mol,chk,1,.false.,energy_gas,g,sigma,egap,res)
+            Call cpx%calc_solv(env,calc%solvation%cpxsolvent,energy_gas,0.4_wp,298.15_wp,500,0.0001_wp,res%e_total)
             Call cpx%print(set%verbose)
-            res%e_total = cpx%dG()+cpx%solute%energy_gas
             Call env%checkpoint("CPCM-X post-SCF solvation evaluation terminated")
          type is(TGFFCalculator)
             call env%error("CPCM-X is not possible with a force field.",source)
@@ -1595,13 +1595,17 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          end if
       
       case('--cpcmx')
-         call args%nextArg(sec)
-         if (allocated(sec)) then
-            call set_gbsa(env, 'solvent', 'infinity')
-            call set_gbsa(env,'cosmo','true')
-            call set_gbsa(env,'cpcmx',sec)
+         if (get_xtb_feature('cpcmx')) then
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_gbsa(env, 'solvent', 'infinity')
+               call set_gbsa(env,'cosmo','true')
+               call set_gbsa(env,'cpcmx',sec)
+            else
+               call env%error("No solvent name provided for CPCM-X", source)
+            end if
          else
-            call env%error("No solvent name provided for CPCM-X", source)
+            call env%error("The CPCM-X library was not included in this version of xTB.", source)
          end if
 
 
