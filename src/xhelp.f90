@@ -42,7 +42,7 @@ write(iunit,'(3x,a)') &
    "",&
    "for ddCOSMO and CPCM-X implicit solvation:",&
    "* M. Stahn, S. Ehlert, S. Grimme, J. Phys. Chem. A,", &
-   "  2023, XX, XXXX-XXXX. DOI: XXXXXXXXXX", &
+   "  2023, XX, XXXX-XXXX. DOI: 10.1021/acs.jpca.3c04382", &
    "",&
    "for DFT-D4:",&
    "* E. Caldeweyher, C. Bannwarth and S. Grimme, J. Chem. Phys., 2017,",&

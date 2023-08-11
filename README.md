@@ -175,6 +175,11 @@ for GBSA and ALPB implicit solvation:
   *J. Chem. Theory Comput.*, **2021**, 17, 4250-4261
   DOI: [10.1021/acs.jctc.1c00471](https://doi.org/10.1021/acs.jctc.1c00471)
 
+for ddCOSMO and CPCM-X implicit solvation:
+- M.Stahn, S. Ehlert, S. Grimme,
+  *J. Phys. Chem. A*, **2023**, XX, XXX-XXX
+  DOI: [10.1021/acs.jpca.3c04382](https://doi.org/10.1021/acs.jpca.3c04385)
+
 for DFT-D4:
 - E. Caldeweyher, C. Bannwarth and S. Grimme, *J. Chem. Phys.*, **2017**, 147, 034112.
   DOI: [10.1063/1.4993215](https://dx.doi.org/10.1063/1.4993215)

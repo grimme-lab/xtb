@@ -250,7 +250,8 @@ subroutine xtbMain(env, argParser)
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt))
    
-   if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization")
+   if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization. &
+      &Please use another solvation model for optimization instead.")
 
    call env%checkpoint("Command line argument parsing failed")
 
@@ -817,16 +818,23 @@ subroutine xtbMain(env, argParser)
    !> CPCM-X post-SCF solvation
    if (allocated(calc%solvation)) then
       if (allocated(calc%solvation%cpxsolvent)) then
-         call generic_header(env%unit,"CPCM-X post-SCF solvation evaluation",49,10)
-         Call cpx%setup(env,calc%solvation%cpxsolvent)
-         Call env%checkpoint("CPCM-X setup terminated")
-         cpxcalc=calc
-         deallocate(cpxcalc%solvation)
-         call cpxcalc%singlepoint(env,mol,chk,1,.false.,cpx%solute%energy_gas,g,sigma,egap,res)
-         Call cpx%calc_solv(env,calc%solvation%cpxsolvent,0.4_wp,298.15_wp,500,0.0001_wp)
-         Call cpx%print(set%verbose)
-         res%e_total = cpx%dG()+cpx%solute%energy_gas
-         Call env%checkpoint("CPCM-X post-SCF solvation evaluation terminated")
+         select type(calc)
+         type is(TxTBCalculator)
+            call generic_header(env%unit,"CPCM-X post-SCF solvation evaluation",49,10)
+            if (set%gfn_method.ne.2) call env%warning("CPCM-X was parametrized for GFN2-xTB. &
+               &The results are probably inaccurate with other methods.")
+            Call cpx%setup(env,calc%solvation%cpxsolvent)
+            Call env%checkpoint("CPCM-X setup terminated")
+            cpxcalc=calc
+            deallocate(cpxcalc%solvation)
+            call cpxcalc%singlepoint(env,mol,chk,1,.false.,cpx%solute%energy_gas,g,sigma,egap,res)
+            Call cpx%calc_solv(env,calc%solvation%cpxsolvent,0.4_wp,298.15_wp,500,0.0001_wp)
+            Call cpx%print(set%verbose)
+            res%e_total = cpx%dG()+cpx%solute%energy_gas
+            Call env%checkpoint("CPCM-X post-SCF solvation evaluation terminated")
+         type is(TGFFCalculator)
+            call env%error("CPCM-X is not possible with a force field.",source)
+         end select
       end if
    end if
 
