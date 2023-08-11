@@ -39,8 +39,7 @@ module xtb_solv_cpx
     !> CPCM-X calculation type
 #if WITH_CPCMX
     type, extends(calculation_type) :: TCpcmx
-#endif
-#if ! WITH_CPCMX
+#else
     type :: TCpcmx
 #endif
         contains
