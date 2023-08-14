@@ -43,6 +43,7 @@ program tester
    use test_thermo, only : collect_thermo
    use test_vertical, only : collect_fukui
    use test_wsc, only : collect_wsc
+   use test_cpx, only : collect_cpx
    implicit none
    integer :: stat, is
    character(len=:), allocatable :: suite_name, test_name
@@ -77,7 +78,8 @@ program tester
       new_testsuite("tblite", collect_tblite), &
       new_testsuite("thermo", collect_thermo), &
       new_testsuite("vertical", collect_fukui), &
-      new_testsuite("wsc", collect_wsc) &
+      new_testsuite("wsc", collect_wsc), &
+      new_testsuite("cpx", collect_cpx) &
       ]
 
    call get_argument(1, suite_name)

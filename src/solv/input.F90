@@ -41,6 +41,9 @@ module xtb_solv_input
 
       !> Use COSMO solvation model instead of Born based one
       logical :: cosmo = .false.
+      
+      !> Additional CPCM-X mode
+      character(len=:),allocatable :: cpxsolvent
 
       !> Reference state
       integer :: state = solutionState%gsolv
