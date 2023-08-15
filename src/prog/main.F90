@@ -93,6 +93,7 @@ module xtb_prog_main
    use xtb_oniom, only : oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only : vfukui
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_solv_cpx, only: TCpcmx
    implicit none
    private
 
@@ -115,12 +116,13 @@ subroutine xtbMain(env, argParser)
 !  use some wrapper types to bundle information together
    type(TMolecule) :: mol
    type(scc_results) :: res
-   class(TCalculator), allocatable :: calc
+   class(TCalculator), allocatable :: calc, cpxcalc
    type(freq_results) :: fres
    type(TRestart) :: chk
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
+   type(TCpcmx) :: cpx
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -163,6 +165,7 @@ subroutine xtbMain(env, argParser)
 
 !! ------------------------------------------------------------------------
    logical :: struc_conversion_done = .false.
+   logical :: anyopt
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -184,6 +187,7 @@ subroutine xtbMain(env, argParser)
    real(wp) :: one,two
    real(wp) :: ea,ip
    real(wp) :: vomega
+   real(wp) :: energy_gas
    parameter (zero=0.0_wp)
    parameter (one =1.0_wp)
    parameter (two =2.0_wp)
@@ -242,6 +246,13 @@ subroutine xtbMain(env, argParser)
          xcontrol = fname
       end if
    end if
+
+   anyopt = ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
+      &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
+      &   (set%runtyp.eq.p_run_metaopt))
+   
+   if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization. &
+      &Please use another solvation model for optimization instead.")
 
    call env%checkpoint("Command line argument parsing failed")
 
@@ -675,7 +686,7 @@ subroutine xtbMain(env, argParser)
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then
-      
+ 
       if (set%opt_engine.eq.p_engine_rf) &
          call ancopt_header(env%unit,set%veryverbose)
          !! Print ANCopt header
@@ -803,6 +814,28 @@ subroutine xtbMain(env, argParser)
    ! reset the gap, since it is currently not updated in ancopt and numhess
    if (allocated(chk%wfn%emo)) then
       res%hl_gap = chk%wfn%emo(chk%wfn%ihomo+1)-chk%wfn%emo(chk%wfn%ihomo)
+   end if
+
+   !> CPCM-X post-SCF solvation
+   if (allocated(calc%solvation)) then
+      if (allocated(calc%solvation%cpxsolvent)) then
+         select type(calc)
+         type is(TxTBCalculator)
+            call generic_header(env%unit,"CPCM-X post-SCF solvation evaluation",49,10)
+            if (set%gfn_method.ne.2) call env%warning("CPCM-X was parametrized for GFN2-xTB. &
+               &The results are probably inaccurate with other methods.")
+            Call cpx%setup(env,calc%solvation%cpxsolvent)
+            Call env%checkpoint("CPCM-X setup terminated")
+            cpxcalc=calc
+            deallocate(cpxcalc%solvation)
+            call cpxcalc%singlepoint(env,mol,chk,1,.false.,energy_gas,g,sigma,egap,res)
+            Call cpx%calc_solv(env,calc%solvation%cpxsolvent,energy_gas,0.4_wp,298.15_wp,500,0.0001_wp,res%e_total)
+            Call cpx%print(set%verbose)
+            Call env%checkpoint("CPCM-X post-SCF solvation evaluation terminated")
+         type is(TGFFCalculator)
+            call env%error("CPCM-X is not possible with a force field.",source)
+         end select
+      end if
    end if
 
    call env%checkpoint("Calculation terminated")
@@ -1104,7 +1137,6 @@ subroutine xtbMain(env, argParser)
 
    write(env%unit,'(a)')
    call terminate(0)
-
 
 end subroutine xtbMain
 
@@ -1561,6 +1593,21 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
          else
             call env%error("No solvent name provided for COSMO", source)
          end if
+      
+      case('--cpcmx')
+         if (get_xtb_feature('cpcmx')) then
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_gbsa(env, 'solvent', 'infinity')
+               call set_gbsa(env,'cosmo','true')
+               call set_gbsa(env,'cpcmx',sec)
+            else
+               call env%error("No solvent name provided for CPCM-X", source)
+            end if
+         else
+            call env%error("The CPCM-X library was not included in this version of xTB.", source)
+         end if
+
 
       case('--scc', '--sp')
          call set_runtyp('scc')
