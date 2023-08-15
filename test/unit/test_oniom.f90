@@ -179,8 +179,8 @@ subroutine test_oniom_cutbond(error)
    type(TOniomCalculator)   :: calc
    type(oniom_input)        :: oniom_input3
    type(scc_results)        :: results
-   real(wp),allocatable :: jacobian(:,:)
-   integer,allocatable  :: idx_orig(:)
+   real(wp), allocatable :: jacobian(:,:)
+   integer, allocatable  :: idx2(:)
    real(wp) :: energy, hlgap, sigma(3,3)
    real(wp), allocatable :: gradient(:,:)
 
@@ -220,13 +220,13 @@ subroutine test_oniom_cutbond(error)
    call check_(error,norm2(gradient), 0.000327194200_wp, thr=thr)
    
    !> cutbond
-   call calc%cutbond(env,mol,chk,calc%topo,inner_mol,jacobian,idx_orig)
+   call calc%cutbond(env,mol,chk,calc%topo,inner_mol,jacobian,idx2)
    
-   call check_(error,idx_orig(5),2)
+   call check_(error,idx2(5),2)
    call check_(error,inner_mol%xyz(1,5),-4.38055107024201_wp,thr=thr)
    call check_(error,inner_mol%xyz(2,5),4.42017847630110_wp,thr=thr)
    call check_(error,inner_mol%xyz(3,5),0.00000120013337_wp,thr=thr)
-
+   
 end subroutine test_oniom_cutbond
 
 !---------------------------------------------
