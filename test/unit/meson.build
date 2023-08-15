@@ -56,6 +56,7 @@ tests = [
   'thermo',
   'vertical',
   'wsc',
+  'cpx',
 ]
 
 test_srcs = files(

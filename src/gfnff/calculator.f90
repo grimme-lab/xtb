@@ -43,7 +43,7 @@ module xtb_gfnff_calculator
    public :: TGFFCalculator, newGFFCalculator
 
 
-   !> Calculator interface for xTB based methods
+   !> calculator interface for xTB based methods
    type, extends(TCalculator) :: TGFFCalculator
 
       type(TGFFData) :: param
@@ -70,6 +70,7 @@ contains
 
 
 subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
+   
    use xtb_gfnff_param
    use xtb_gfnff_setup, only : gfnff_setup
    use xtb_disp_dftd4, only : newD3Model
@@ -100,19 +101,22 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 
    call calc%topo%zero
    calc%update = .true.
-   ! global accuracy factor similar to acc in xtb used in SCF
+
+   ! global accuracy factor similar to acc in xtb used in SCF !
    calc%accuracy = 0.1_wp
    if (mol%n > 10000) then
       calc%accuracy = 2.0_wp
    end if
 
-   !> Obtain the parameter file
+   ! obtain the parameter file !
    call open_file(ich, fname, 'r')
    exist = ich /= -1
    if (exist) then
       call gfnff_read_param(ich, calc%param)
-      call close_file(ich)
-   else ! no parameter file, try to load internal version
+      call close_file(ich) 
+      
+   ! no parameter file, try to load internal version !
+   else
       call gfnff_load_param(calc%version, calc%param, exist)
       if (.not.exist) then
          call env%error('Parameter file '//fname//' not found!', source)
@@ -134,7 +138,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
 end subroutine newGFFCalculator
 
 
-
+!> GFN-FF wrapper for the single point energy evaluation  
 subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       & energy, gradient, sigma, hlgap, results)
 
@@ -182,6 +186,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    logical, parameter :: ccm = .true.
    logical :: exitRun
    logical :: pr
+   
+   !> GFN-FF geometry optimization
+   logical :: optpr
+
+   !-------!
+   ! setup !
+   !-------!
 
    call mol%update
 
@@ -196,12 +207,24 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       call newBornModel(self%solvation, env, solvation, mol%at)
    end if
 
-   ! ------------------------------------------------------------------------
-   !  actual calculation
+   ! to distinguish optimization, final sp and sp ! 
+   if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
+      &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
+      &   (set%runtyp.eq.p_run_metaopt)) then
+      optpr = printlevel < 2
+   else
+      optpr = .false.
+   endif
+   
    pr = gff_print .and. printlevel > 0
+   
+   !--------------------!
+   ! actual calculation !
+   !--------------------!
+
    call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
       & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
-      & self%update,self%version,self%accuracy)
+      & self%update,self%version,self%accuracy,minpr=optpr)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -209,19 +232,18 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       return
    end if
 
-   ! ------------------------------------------------------------------------
-   !  post processing of gradient and energy
-
-   ! ------------------------------------------------------------------------
-   !  various external potentials
+   ! ---------------------------------------!
+   ! post processing of gradient and energy !
+   !----------------------------------------!
+   
+   ! various external potentials !
    call constrain_pot(potset,mol%n,mol%at,mol%xyz,gradient,efix)
    call constrpot   (mol%n,mol%at,mol%xyz,gradient,efix)
    call cavity_egrad(mol%n,mol%at,mol%xyz,efix,gradient)
    call metadynamic (metaset,mol%n,mol%at,mol%xyz,efix,gradient)
    call metadynamic (rmsdset,mol%n,mol%at,mol%xyz,efix,gradient)
 
-   ! ------------------------------------------------------------------------
-   !  fixing of certain atoms
+   ! fixing of certain atoms !
    !  print*,abs(efix/etot)
    energy = energy + efix
    results%e_total = energy
@@ -233,8 +255,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       enddo
    endif
 
-   if (printlevel.ge.2) then
-      ! start with summary header
+   if (printlevel.ge.2)  then
+      ! start with summary header !
       if (.not.set%silent) then
          write(env%unit,'(9x,53(":"))')
          write(env%unit,'(9x,"::",21x,a,21x,"::")') "SUMMARY"
@@ -265,15 +287,24 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
          call print_charges(ich,mol%n,chk%nlist%q)
          call close_file(ich)
       end if
-   endif
+    
+    else if (set%mode_extrun .eq. p_ext_oniom) then
+      write(env%unit,outfmt) "total energy      ", results%e_total,"Eh   "
+      write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
+    
+    endif
 
 end subroutine singlepoint
 
 subroutine print_gfnff_results(iunit,res_gff,verbose,lsolv)
+   
    use xtb_type_data
-   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
+   
+   !> file handle (usually output_unit=6)
+   integer, intent(in) :: iunit 
    type(scc_results),    intent(in) :: res_gff
    logical,intent(in) :: verbose,lsolv
+   
    write(iunit,outfmt) "bond energy       ", res_gff%e_bond, "Eh   "
    write(iunit,outfmt) "angle energy      ", res_gff%e_angl, "Eh   "
    write(iunit,outfmt) "torsion energy    ", res_gff%e_tors, "Eh   "
