@@ -1,4 +1,4 @@
 [wrap-git]
 directory = test-drive
 url = https://github.com/fortran-lang/test-drive
-revision = v0.3.0
+revision = v0.4.0
