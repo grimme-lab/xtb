@@ -204,7 +204,7 @@ subroutine parseArguments(env, args, htype, massWeighted)
          call thermoHelp(env%unit)
          call terminate(0)
 
-      case('--dftb+')
+      case('--dftb+','--dftbplus')
          htype = hessType%dftbplus
 
       case('--turbomole')
@@ -309,7 +309,7 @@ subroutine thermoHelp(unit)
    "   --temp REAL[,...]   Temperature for thermodynamic functions in K,",&
    "                       takes a comma separated list of temperatures",&
    "",&
-   "   --dftb+             Read a DFTB+ hessian.out file, implies projection",&
+   "   --dftbplus             Read a DFTB+ hessian.out file, implies projection",&
    "",&
    "   --turbomole         Read a Turbomole Hessian file",&
    "                       use this only when $nomw is not present in control",&
