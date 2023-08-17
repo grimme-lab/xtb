@@ -637,12 +637,11 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    integer :: i, j, k, pre_last, pre_last_out, iterator
    integer :: io
 
-   !> initial number of atoms in inner and outer regions
+   !> initial no. atoms in inner & outer regions
    integer :: in, out
 
-   !> Loop indices
+   !> loop indices
    integer :: in_itr, out_itr
-
 
    !-------!
    ! SETUP !
@@ -770,7 +769,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
                
                endif
 
-               ! adust ordinal numbers !
+               ! adjust ordinal numbers !
                call resize(at)
                call resize(idx2)
                call resize(at_out)
@@ -824,6 +823,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
                
                endif
 
+               ! adjust ordinal numbers !
                call resize(at)
                call resize(at_out)
                call resize(idx2)
@@ -868,6 +868,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
       call open_file(io, "outer_region.xyz", "w")
       call writeMolecule(outer_mol, io, filetype%xyz)
       call close_file(io)
+   
    end if
    
    ! initialize inner region mol !
