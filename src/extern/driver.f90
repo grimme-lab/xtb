@@ -124,7 +124,8 @@ contains
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
       cache = all(abs(xyz_cached - mol%xyz) < 1.e-10_wp)
       if (cache) then
-        write(env%unit,'(/,a,/)') &
+       if (printlevel > 0) &
+         write(env%unit,'(/,a,/)') &
          "Geometry is equivalent to the one in &
          'gradient'. Reading gradient from: 'gradient'."
       endif
