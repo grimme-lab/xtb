@@ -117,6 +117,8 @@ contains
     efix = 0.0_wp
     dipole(:) = 0.0_wp
 
+    write(*,*) printlevel
+
     !$omp critical (turbo_lock)
     inquire (file='gradient', exist=exist)
     if (exist) then
@@ -131,9 +133,11 @@ contains
       endif
     end if
     if (.not. cache) then
-      call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
-      write(env%unit,'(/,a,1x,a,/)') &
-         "updated geometry written to:",tmpname
+      call generateFileName(tmpname, 'xtbdriver', extension, mol%ftype)
+      if (printlevel > 0) then
+        write(env%unit,'(/,a,1x,a,/)') &
+           "updated geometry written to:",tmpname
+      endif
       call open_file(ich,tmpname,'w')
       if (exist) then
         call writeMolecule(mol, ich, format=mol%ftype, energy=energy, &
