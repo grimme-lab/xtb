@@ -634,6 +634,13 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    !> if the both bonded atoms are inside the inner region
    logical :: inside
    
+   !> control output
+   logical :: set1 = .true.
+   logical :: set2 = .true.
+
+   !> number of LAs
+   integer :: nla
+
    integer :: i, j, k, pre_last, pre_last_out, iterator
    integer :: io
 
@@ -648,19 +655,20 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    !-------!
 
    inside = .FALSE.
-
-   ! initial number of atoms in inner region without LAs !
+   
+   ! initial number of atoms in inner/outer region without LAs !
    in = len(self%list)
    out = mol%n - in 
    in_itr = 1
    out_itr = 1
+   nla = 0
 
    ! allocate accordingly the basic molecular data !
    allocate (at(in))
    allocate (xyz(3, in))
    allocate (at_out(out))
    allocate (xyz_out(3, out))
-   
+
    ! save inner region list in the matching array !
    idx2=self%idx
    
@@ -781,6 +789,9 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
                at(size(at)) = 1
                at_out(size(at_out)) = 1
                
+               ! number of LAs !
+               nla = nla + 1
+               
                ! adjust coordinate matrix !
                call resize(xyz)
                call resize(xyz_out)
@@ -835,6 +846,9 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
                at(size(at)) = 1
                at_out(size(at_out)) = 1
                
+               ! number of LAs !
+               nla = nla + 1
+               
                ! adjust coordinate matrix !
                call resize(xyz)
                call resize(xyz_out)
@@ -869,24 +883,95 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
       call writeMolecule(outer_mol, io, filetype%xyz)
       call close_file(io)
    
+      ! check LAs postions !
+      if (set2) call check_dist(outer_mol,env,nla)
+   
    end if
    
    ! initialize inner region mol !
    call init(inner_mol, at, xyz)
    
-   ! create Xmol file for inner region !
+   ! check LAs postions !
+   if (set1) call check_dist(inner_mol,env,nla)
+  
+   ! to distinguish cases with/without SP !
    if (set%oniom_settings%cut_inner) then
       fname_inner = "inner_region_without_h.xyz" 
    else
       fname_inner = "inner_region.xyz"
    endif
 
+   ! create Xmol file for inner region !
    call open_file(io, fname_inner, "w")
    call writeMolecule(inner_mol, io, filetype%xyz)
    call close_file(io) 
+   
+   call env%checkpoint("ONIOM is terminated")
 
+   set1 = .false.
+   set2 = .false.  
 
 end subroutine cutbond
+
+subroutine check_dist(mol, env, nla)
+
+   use xtb_mctc_convert, only : aatoau
+
+   !> source
+   character(len=*), parameter :: source = "check_dist"
+
+   !> molecular structure
+   type(TMolecule), intent(in) :: mol 
+
+   !> calculation environment 
+   type(TEnvironment), intent(inout) :: env
+
+   !> LA's  indices
+   integer, intent(in) :: nla
+
+
+   !> warning message
+   character(len=:), allocatable :: warn
+   
+   !> ordinal numbers as characters 
+   character(len=3) :: dummy1, dummy2
+
+   !> minimal allowed distance
+   real(wp) :: min_dist
+
+   !> loop indices
+   integer :: i,j
+
+   !> inner/outer region with LA's
+   integer :: regsize_saturated
+
+   !> inner/outer region without LA's 
+   integer :: regsize_raw
+
+   ! calculate the start and end iterator for loop !
+   regsize_raw = mol%n - nla + 1
+   regsize_saturated = mol%n
+
+   ! H2 bond length !
+   min_dist = 0.74 * aatoau   
+
+   ! check all LA's !
+   do i = regsize_raw, regsize_saturated
+      do j = 1, regsize_saturated
+         if (i.ne.j) then
+            if (mol%dist(j,i) < min_dist) then
+               write (dummy1, '(I3)') i
+               write (dummy2, '(I3)') j
+               warn = "The distance b/n atoms "//dummy1//" (LA) and " &
+                     & //dummy2//" is less then min," &
+                     & //achar(10) //"please examine carefully your cutout region"  
+               call env%warning(warn,source)
+            endif
+         endif
+      enddo
+   enddo
+
+end subroutine check_dist
 
 !> increase atomic number array by 1 
 subroutine new_atom(at)
@@ -895,10 +980,14 @@ subroutine new_atom(at)
    integer, allocatable, intent(inout) :: at(:)
    integer, allocatable :: tmp2(:)
 
-   allocate (tmp2(size(at) + 1))
-   tmp2(:size(at)) = at(:size(at))
-   deallocate (at)
-   call move_alloc(tmp2, at)
+   if (.not. allocated(at)) then
+      allocate(at(1))
+   else
+      allocate (tmp2(size(at) + 1))
+      tmp2(:size(at)) = at(:size(at))
+      deallocate (at)
+      call move_alloc(tmp2, at)
+   endif
 
 end subroutine new_atom
 
