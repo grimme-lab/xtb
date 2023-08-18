@@ -102,6 +102,7 @@ module xtb_setparam
    integer,parameter :: p_pcem_orca = 2
    
    type oniom_settings
+      
       !> inner region charge
       integer  :: innerchrg
       
@@ -122,20 +123,28 @@ module xtb_setparam
       
       !> print optimization logs for inner region calculations
       logical :: logs = .false.
+
+      !> if saturate outer region
+      logical :: outer = .false.
       
       !> log units
       integer:: ilog1, ilog2
-  end type oniom_settings
+  
+   end type oniom_settings
 
    type qm_external
+      
       character(len=:),allocatable :: path
       character(len=:),allocatable :: executable
       character(len=:),allocatable :: input_file
       character(len=:),allocatable :: input_string
+      
+      !> if input_file exist
       logical :: exist
-         !! if input_file exist
+      
+      !> special case of the oniom embedding 
       logical :: oniom=.false.
-         !! special case of the oniom embedding 
+
    end type qm_external
 
    integer, parameter :: p_ext_vtb       = -1

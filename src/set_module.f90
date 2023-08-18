@@ -781,7 +781,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
          case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
          case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
-         case('oniom'    ); call rdblock(env,set_oniom,    line,id,copy,err,ncount)
+         case('oniom'    ); call rdblock(env,set_oniom,   line,id,copy,err,ncount)
          case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
          case('hess'     ); call rdblock(env,set_hess,    line,id,copy,err,ncount)
          case('md'       ); call rdblock(env,set_md,      line,id,copy,err,ncount)
@@ -1450,13 +1450,16 @@ end subroutine set_gfn
 
 !> set ONIOM functionality
 subroutine set_oniom(env,key,val)
+   
    implicit none
+   
    !> pointer to the error routine
    character(len=*), parameter :: source =  'set_oniom'
    
    !> calculation environment
    type(TEnvironment), intent(inout) :: env
    
+   !> parsed key
    character(len=*), intent(in) :: key
    
    !> key=val
@@ -1467,6 +1470,7 @@ subroutine set_oniom(env,key,val)
    logical, save :: set2 = .true.
    logical, save :: set3 = .true.
    logical, save :: set4 = .true.
+   logical, save :: set5 = .true.
    
    select case(key)
    case default
@@ -1486,6 +1490,11 @@ subroutine set_oniom(env,key,val)
    case('ignore topo')
       if (getValue(env,val,ldum).and.set4) set%oniom_settings%ignore_topo = .true.
       set4=.false.
+
+   case('outer')
+      if (getValue(env,val,ldum).and.set5) set%oniom_settings%outer = .true.
+      set5 = .false.
+   
    end select
 
 end subroutine set_oniom
