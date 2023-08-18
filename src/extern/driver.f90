@@ -117,19 +117,16 @@ contains
     efix = 0.0_wp
     dipole(:) = 0.0_wp
 
-    write(*,*) printlevel
-
     !$omp critical (turbo_lock)
     inquire (file='gradient', exist=exist)
     if (exist) then
       ! ### only TM output is supported for now ###
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
       cache = all(abs(xyz_cached - mol%xyz) < 1.e-10_wp)
-      if (cache) then
-       if (printlevel > 0) &
+      if (cache .and. printlevel > 0) then 
          write(env%unit,'(/,a,/)') &
-         "Geometry is equivalent to the one in &
-         'gradient'. Reading gradient from: 'gradient'."
+         & "Geometry is equivalent to the one in &
+         & 'gradient'. Reading gradient from: 'gradient'."
       endif
     end if
     if (.not. cache) then
