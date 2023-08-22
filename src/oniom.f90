@@ -161,13 +161,13 @@ subroutine newOniomCalculator(self, env, mol, input)
    call self%list%to_list(self%idx)
 
    if (len(self%list) == 0) then
-      call env%error("No atoms in inner region '"//input%second_arg//"'")
+      call env%error("Invalid inner region: '"//input%second_arg//"'")
       return
    end if
 
    ! check inner region !
    if (any(self%idx < 1) .or. any(self%idx > mol%n)) then
-      call env%error('The specification of inner region is not correct')
+      call env%error('Out of bound inner region')
       return
    end if
 
