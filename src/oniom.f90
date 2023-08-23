@@ -15,7 +15,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Implementaion of the ONIOM method
-!> publication: https://doi.org/10.1039/D3CP02178E (further refered as reference) 
+!> publication: https://doi.org/10.1039/D3CP02178E (further reference) 
 module xtb_oniom
 
    use xtb_mctc_accuracy, only: wp
