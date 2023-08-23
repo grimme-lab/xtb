@@ -14,9 +14,8 @@
 ! You should have received a copy of the GNU Lesser General Public Licen
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!-----------------------------------------------------------------------
-!> ONIOM implementaion
-!-----------------------------------------------------------------------
+!> Implementaion of the ONIOM method
+!> publication: https://doi.org/10.1039/D3CP02178E (further refered as reference) 
 module xtb_oniom
 
    use xtb_mctc_accuracy, only: wp
@@ -160,7 +159,7 @@ subroutine newOniomCalculator(self, env, mol, input)
    self%list = TAtomList(list=input%second_arg)
    call self%list%to_list(self%idx)
 
-   if (len(self%list) == 0) then
+   if (len(self%list) .eq. 0 .or. self%list%error) then
       call env%error("Invalid inner region: '"//input%second_arg//"'")
       return
    end if
@@ -456,7 +455,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
    ! Postprocessing !
    !----------------!
 
-   ! ONIOM energy !
+   ! ONIOM energy / reference formula (1,2) !
    energy = energy + energy_model_high - energy_model_low
    results%e_total = energy
    
@@ -1338,7 +1337,7 @@ subroutine newcoord(env,mol,xyz,xyz_out,idx1,idx2,jacobian,connectorPosition)
       endif
    endif
 
-   ! LA coordinates !
+   ! LA coordinates / reference formula (3) !
    xyz(:, size(xyz, 2)) = xyz1 + (xyz2 - xyz1) * prefactor
    xyz_out(:,size(xyz_out,2)) = xyz2 + (xyz1 - xyz2) * prefactor 
       
@@ -1415,30 +1414,34 @@ subroutine derivative(jacobian,con,link,prefactor,xyz,idx1,idx2,dist_12,derived)
    !-------------------------!
    ! JACOBIAN INCREMENTATION !
    !-------------------------!
-
    do i=1,3
       
-      ! fixed mode !
+      ! fixed mode / reference ESI formula (3,4) !
       if(.not.derived) then
-         jacobian(counter1(i),counter2(i))=1-prefactor
-         jacobian(counter2(i),counter2(i))=prefactor
+         jacobian(counter1(i),counter2(i)) = 1 - prefactor
+         jacobian(counter2(i),counter2(i)) = prefactor
       
-      ! derived mode !
+      ! derived mode / reference ESI formula (6,7) !
       else
+
          ! x coordinate !
          if (i==1) then
-            jacobian(counter2(i),counter2(i)) =(prefactor*(   (xyz(2,idx1)**2) - 2*xyz(2,idx1)*xyz(2,idx2) + (xyz(2,idx2)**2) + ((xyz(3,idx1)-xyz(3,idx2))**2)  ))/(dist_12**(3.0_wp/2.0_wp))
+            jacobian(counter2(i),counter2(i)) = prefactor * ( (xyz(2,idx1)-xyz(2,idx2)**2) & 
+                                                            & + ((xyz(3,idx1)-xyz(3,idx2))**2)  ) / dist_12
          
          ! y coordinate !
          else if (i==2) then
-            jacobian(counter2(i),counter2(i)) =(prefactor*(   (xyz(1,idx1)**2) - 2*xyz(1,idx1)*xyz(1,idx2) + (xyz(1,idx2)**2) + ((xyz(3,idx1)-xyz(3,idx2))**2)  ))/(dist_12**(3.0_wp/2.0_wp))
+            jacobian(counter2(i),counter2(i)) = prefactor * ( (xyz(1,idx1)-xyz(1,idx2)**2) & 
+                                                            & + ((xyz(3,idx1)-xyz(3,idx2))**2)  ) / dist_12
          
          ! z coordinate !
          else
-            jacobian(counter2(i),counter2(i)) =(prefactor*(   (xyz(1,idx1)**2) - 2*xyz(1,idx1)*xyz(1,idx2) + (xyz(1,idx2)**2) + ((xyz(2,idx1)-xyz(2,idx2))**2)  ))/(dist_12**(3.0_wp/2.0_wp))
+            jacobian(counter2(i),counter2(i)) = prefactor * ( (xyz(1,idx1)-xyz(1,idx2)**2) & 
+                                                            & + ((xyz(2,idx1)-xyz(2,idx2))**2)  ) / dist_12
+         
          endif
          
-         jacobian(counter1(i),counter2(i)) = (prefactor*((xyz(i,idx2)-xyz(i,idx1))**2))/(dist_12**(3.0_wp/2.0_wp)) - (prefactor/(sqrt(dist_12))) + 1.0_wp 
+         jacobian(counter1(i),counter2(i)) = 1.0_wp - prefactor * (1.0_wp - (((xyz(i,idx2)-xyz(i,idx1))**2) / dist_12 ))
       
       endif
    
