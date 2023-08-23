@@ -1425,7 +1425,8 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
          call args%nextArg(sec)
          if (.not.allocated(sec)) then 
-            call env%warning("No method is specified for the ONIOM calculation, default gfn2:gfnff combination will be used", source)
+            call env%warning("No method is specified for ONIOM," &
+                  &//achar(10)// " default gfn2:gfnff combination will be used", source)
             call move_alloc(oniom%first_arg, sec)
          end if
          
