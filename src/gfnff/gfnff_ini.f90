@@ -1910,7 +1910,13 @@ subroutine specialTorsList(nst, mol, topo, sTorsList)
   integer, intent(inout) :: sTorsList(6, nst)
   integer :: i,j,k,ii,jj,kk,ll,idx
   logical :: iiok, llok
+  ! initialize variables
   idx=0
+  ii=-1
+  jj=-1
+  kk=-1
+  ll=-1
+
   do i=1, mol%n
     ! carbon with two neighbors bonded to other carbon* with two neighbors
     if (mol%at(i).eq.6.and.topo%nb(20,i).eq.2) then
@@ -1931,6 +1937,9 @@ subroutine specialTorsList(nst, mol, topo, sTorsList)
                 kk=topo%nb(k,nbi)
               endif
             enddo
+            if (jj.eq.-1.or.kk.eq.-1) then
+              exit ! next atom i
+            endif
             ! check C1 through C4 are sp2 carbon
             if (topo%hyb(jj).eq.2.and.topo%hyb(kk).eq.2 &
             &   .and.mol%at(jj).eq.6.and.mol%at(kk).eq.6) then
