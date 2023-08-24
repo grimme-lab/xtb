@@ -100,6 +100,8 @@ subroutine get_jab(tblite, mol, fragment, error)
 
    logical :: exist
 
+   character(3) :: adv='NO '
+
    real(wp) :: energy, cutoff, jab, sab, jeff, Vtot(3)
 
 !======================================================================================
@@ -118,11 +120,23 @@ subroutine get_jab(tblite, mol, fragment, error)
       & 1, set%etemp * ktoau)
    wfn%nspin=1
 
-!=========================calculation for dimer======================================               
+!=========================print Header===============================================
 
-   call ctx%message("Calculation for dimer ")
-   call ctx%message("charge of dimer : "//format_string(mol%chrg, '(f7.0)'))
-   write(*,*) "unpaired e- of dimer : ", set%nalphabeta
+   write(*,*) "  "
+   write(*,*) "          -------------------------------------------------"
+   write(*,*) "         |                    D I P R O                    |"
+   write(*,*) "          -------------------------------------------------"
+   write(*,*) "  "
+
+!=========================calculation for dimer======================================             
+
+   write(*,*) "Calculation for dimer "
+   write(*,*) "--------------------- "
+   write(*,*) "  "
+
+!   call ctx%message("charge of dimer : "//format_string(mol%chrg, '(f7.0)'))
+   write(*,'(A,F4.0)') "charge of fragment : ", mol%chrg
+   write(*,'(A,I2)') "unpaired e- of dimer : ", set%nalphabeta
 
    call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2)
    if (ctx%failed()) then
@@ -158,7 +172,7 @@ subroutine get_jab(tblite, mol, fragment, error)
       call fatal_error(error, "Found no fragments in the input structure")
       return
    case(2:)
-      call ctx%message("Found "//to_string(nfrag)//" fragments:")
+      call ctx%message("Found "//to_string(nfrag)//" fragments!")
       do ifr = 1, nfrag
          call ctx%message("Fragment "//to_string(ifr)//":  "//format_list(fragment == ifr))
       end do
@@ -207,6 +221,8 @@ subroutine get_jab(tblite, mol, fragment, error)
 
    do ifr = 1, nfrag 
       call ctx%message("Calculation for fragment "//to_string(ifr))
+      write(*,*) "------------------------------"
+      write(*,*) "  "
       call get_structure_fragment(mfrag(ifr), struc, fragment == ifr)
 
       !> summation of fragment charges stored in chrg(nfrag)
@@ -218,11 +234,11 @@ subroutine get_jab(tblite, mol, fragment, error)
       else
          mfrag(ifr)%charge=nint(chrg(ifr))
       end if
-      call ctx%message("charge of fragment : "//format_string(mfrag(ifr)%charge , '(f7.0)'))
+      write(*,'(A,F4.0)') "charge of fragment : ", mfrag(ifr)%charge
 
       !> uhf fragments spins
       mfrag(ifr)%uhf = spinfrag(ifr)
-      write(*,*) "unpaired e- of fragment : ", mfrag(ifr)%uhf
+      write(*,'(A,I2)') "unpaired e- of fragment : ", mfrag(ifr)%uhf
 
       call get_calculator(fcalc, mfrag(ifr), tblite%method, error)
       !> mol%charge is updated automatically from wfn by tblite library 
@@ -259,8 +275,14 @@ subroutine get_jab(tblite, mol, fragment, error)
    end_index = -1
 
    !> find out which orbitals are within [HOMO-othr,LUMO+othr] and should be considered for DIPRO
+   write(*,*) "  "
+   write(*,*) "  ::::::::::::::::::::::::::::::::::::::::::::::"
+   write(*,*) "  ::     D I P R O      C O U P L I N G S     ::"
+   write(*,*) "  ::::::::::::::::::::::::::::::::::::::::::::::"
+   write(*,*) "  "
+
    call ctx%message("energy threshhold for near-degenerate orbitals near HOMO and LUMO &
-           &considered for DIPRO: "//format_string(dipro%othr, '(f20.3)')//" eV")
+           &considered for DIPRO: "//format_string(dipro%othr, '(f6.3)')//" eV")
 
    do ifr=1,nfrag
       do j = 1, nao
@@ -272,15 +294,16 @@ subroutine get_jab(tblite, mol, fragment, error)
               end_index(ifr) = j
          endif
       end do
-      write(*,*) "no. of orbitals within energy window of frag", end_index(ifr)-start_index(ifr)+1
+      write(*,'(A, I2, I10)') "no. of orbitals within energy window of frag", ifr, end_index(ifr)-start_index(ifr)+1
    end do
+   write(*,*) "  "
 
 !========================================DIPRO equations===========================================
 !> equations after B. Baumeier, J. Kirkpatrick, D. Andrienko, PCCP 2010, 12, 11103.
 !> y_A^i = C_A^i * S_AB * C_AB                  orbital projection of monomer A onto dimer
 !> y_B^j = C_B^j * S_AB * C_AB                  orbital projection of monomer B onto dimer
 !> S_ab^ij = y_A^i * y_B^j                      projected overlap
-!> E_A^i = y_A^i * E_AB * y_A^i                 site energy monomer A
+!> E_A^i = y_A^i * E_AB * y_A^i                 site energy monomeCALL execute_command_line('wc -l < file.txt > wc.txt' )r A
 !> E_B^j = y_B^j * E_AB * y_B^j                 site energy monomer B
 !> J_AB^ij = y_A^i * E_AB * y_B^j               coupling integral J_AB
 !> J_AB^ij effective = (J_AB^ij - (E_A^i + E_B^j) / 2 * S_ab^ij) / (1 - S_ab^ij * S_ab^ij)            
@@ -325,22 +348,32 @@ subroutine get_jab(tblite, mol, fragment, error)
 !=======================================Printout============================================         
 
          do ifr=1,2
+
+            !> both coupling monomer orbitals are printed in the same line
+            if (ifr.eq.2) then 
+               adv='YES'
+            else
+               adv='NO '
+            end if
+
             if (orbprint(ifr).gt.0) then
-               call ctx%message("HOMO - "//format_string(orbprint(ifr), '(i0)'))
+                    write(*, '( "Fragment ", I1, " HOMO-", I1 )', ADVANCE=adv ) ifr, orbprint(ifr)
             else if (orbprint(ifr).eq.0) then
-               call ctx%message("HOMO ")
+                    write(*, '( "Fragment ", I1, " HOMO ")', ADVANCE=adv ) ifr
             else if (orbprint(ifr).eq.-1) then
-               call ctx%message("LUMO ")
+                    write(*, '( "Fragment ", I1, " LUMO ")', ADVANCE=adv ) ifr
             else if (orbprint(ifr).lt.-1) then
-               call ctx%message("LUMO + "//format_string(abs(orbprint(ifr))-1, '(i0)'))
+                    write(*, '( "Fragment ", I1, " LUMO+", I1 )', ADVANCE=adv ) ifr, abs(orbprint(ifr))-1
             end if
          end do
+         write(*,*) "---------------------------------"
 
          call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
-           &format_string(efrag(2)*autoev, '(f20.3)')//" eV")
+           &format_string(efrag(2)*autoev, '(f10.3)')//" eV")
          call ctx%message("|J(AB)|: "//format_string(abs(jab)*autoev, '(f20.3)')//" eV")    
-         call ctx%message("S(AB): "//format_string(sab, '(f20.8)')//" Eh")
+         call ctx%message("S(AB): "//format_string(sab, '(f22.8)')//" Eh")
          call ctx%message("|J(AB,eff)|: "//format_string(abs(jeff)*autoev, '(f16.3)')//" eV")
+         write(*,*) "  "
 
          !> Vtotal=sqrt(sum(jeff^2)) for 1. occ-->occ; 2. virt-->virt; 3. occ-->virt/virt-->occ transitions
          if(orbprint(1).ge.0.and.orbprint(2).ge.0) then
@@ -354,9 +387,24 @@ subroutine get_jab(tblite, mol, fragment, error)
       end do
    end do
    
-   call ctx%message("total |J(AB,eff)| for hole transport (occ. MOs) :"//format_string(sqrt(Vtot(1))*autoev, '(f20.3)')//" eV")
-   call ctx%message("total |J(AB,eff)| for charge transport (unocc. MOs) :"//format_string(sqrt(Vtot(2))*autoev, '(f20.3)')//" eV")
-   call ctx%message("total |J(AB,eff)| for charge transfer (CT) :"//format_string(sqrt(Vtot(3))*autoev, '(f20.3)')//" eV")
+   write(*,'(A)') ".............................................................................."
+   call ctx%message(":  total |J(AB,eff)| for hole transport (occ. MOs) :"//format_string(sqrt(Vtot(1))*autoev, '(f20.3)')//" eV  :")
+   call ctx%message(":  total |J(AB,eff)| for charge transport (unocc. MOs) :"//format_string(sqrt(Vtot(2))*autoev,& 
+          &'(f16.3)')//" eV  :")
+   call ctx%message(":  total |J(AB,eff)| for charge transfer (CT) :"//format_string(sqrt(Vtot(3))*autoev, '(f25.3)')//" eV  :")
+   write(*,'(A)') ".............................................................................."
+
+!   call execute_command_line('rm xtbrestart')
+   write(*,*) " "
+   write(*,*) "Please remember, DIPRO is not available for restart!"
+
+   write(*,*) "  "
+ !  write(*,*) "          -------------------------------------------------"
+ !  write(*,*) "         |                D I P R O   E N D                |"
+ !  write(*,*) "          -------------------------------------------------"
+ !  write(*,'(A)') "=================================================================================="
+ !  write(*,'(A)') "=================================================================================="
+ !  write(*,*) "  "
 
 end subroutine get_jab
 
