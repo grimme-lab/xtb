@@ -102,31 +102,49 @@ module xtb_setparam
    integer,parameter :: p_pcem_orca = 2
    
    type oniom_settings
+      
+      !> inner region charge
       integer  :: innerchrg
-         !! inner region charge
+      
+      !> cut high order(>1) covalent bonds
+      logical :: ignore_topo = .false.
+      
+      !> derived mode
       logical :: derived = .false.
-         !! set ONIOM optimization parameter g to derived value
+      
+      !> dummy execution to check inner region geo and chrg
       logical :: cut_inner = .false.
-         !! to execute xtb just for checking inner region cut
+
+      !> explicite charges (inner:outer)
       logical :: fixed_chrgs= .false.
-         !! if charges for oniom explicitely given
+      
+      !> mute external output (ORCA,TURBOMOLE)
       logical :: silent = .false.
-         !! zo mute external output
+      
+      !> print optimization logs for inner region calculations
       logical :: logs = .false.
-         !! if optimization logs of inner regions are needed
+
+      !> if saturate outer region
+      logical :: outer = .false.
+      
+      !> log units
       integer:: ilog1, ilog2
-         !! log units
-  end type oniom_settings
+  
+   end type oniom_settings
 
    type qm_external
+      
       character(len=:),allocatable :: path
       character(len=:),allocatable :: executable
       character(len=:),allocatable :: input_file
       character(len=:),allocatable :: input_string
+      
+      !> if input_file exist
       logical :: exist
-         !! if input_file exist
+      
+      !> special case of the oniom embedding 
       logical :: oniom=.false.
-         !! special case of the oniom embedding 
+
    end type qm_external
 
    integer, parameter :: p_ext_vtb       = -1
@@ -429,6 +447,7 @@ module xtb_setparam
 !  information about molecule
 !! ------------------------------------------------------------------------
    integer  :: ichrg = 0
+   logical  :: clichrg = .false.
    integer  :: nalphabeta = 0
 
 !  cannot be set by .xtbrc/setblock

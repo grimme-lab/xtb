@@ -206,3 +206,12 @@ tblite_dep = dependency(
   required: get_option('tblite')
 )
 lib_deps += tblite_dep
+
+# Get CPCM-X
+cpx_dep = dependency(
+  'cpx',
+  fallback: ['cpx', 'cpx_dep'],
+  default_options: ['default_library=static'],
+  required: get_option('cpcmx')
+)
+lib_deps += cpx_dep

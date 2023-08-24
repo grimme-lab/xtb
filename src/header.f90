@@ -16,8 +16,12 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 subroutine xtb_header(iunit)
-integer,intent(in) :: iunit
-write(iunit,'(a)') &
+   
+   implicit none
+   integer,intent(in) :: iunit
+      !! I/O unit
+
+   write(iunit,'(a)') &
    !< < < < < < < < < < < < < < < < < < > > > > > > > > > > > > > > > > > >!
    "      -----------------------------------------------------------      ",&
    "     |                   =====================                   |     ",&
@@ -30,14 +34,20 @@ write(iunit,'(a)') &
    "      -----------------------------------------------------------      ",""
    !< < < < < < < < < < < < < < < < < < > > > > > > > > > > > > > > > > > >!
    call xtb_version(iunit)
+
 end subroutine xtb_header
 
 subroutine xtb_version(iunit)
-integer,intent(in) :: iunit
-include 'xtb_version.fh'
-write(iunit,'(3x,"*",*(1x,a))') &
-   & "xtb version", version, "compiled by", author, "on", date
-write(iunit,'(a)')
+
+   implicit none
+   integer,intent(in) :: iunit
+      !! I/O unit
+   
+   include 'xtb_version.fh'
+   write(iunit,'(3x,"*",*(1x,a))') &
+      & "xtb version", version, "compiled by", author, "on", date
+   write(iunit,'(a)')
+
 end subroutine xtb_version
 
 subroutine disclamer(iunit)

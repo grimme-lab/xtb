@@ -84,7 +84,6 @@ subroutine close_file(unit)
    use xtb_mctc_global, only : persistentEnv
    implicit none
    integer,intent(in) :: unit
-   logical :: opened
 
    call persistentEnv%io%closeFile(unit)
 

@@ -19,7 +19,7 @@
 project(
   'xtb',
   'fortran', 'c',
-  version: '6.6.0',
+  version: '6.6.1',
   license: 'LGPL3-3.0-or-later',
   meson_version: '>=0.62.0',
   default_options: [
@@ -110,6 +110,7 @@ xtb_lib = library(
   install: install,
   fortran_args: [
     '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
+    '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
   ],
   link_language: 'fortran',
 )

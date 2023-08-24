@@ -38,7 +38,8 @@ subroutine collect_gfn2(testsuite)
       new_unittest("mindless-basic", test_gfn2_mindless_basic), &
       new_unittest("mindless-solvation", test_gfn2_mindless_solvation), &
       new_unittest("dmetal", test_gfn2_dmetal), &
-      new_unittest("mindless-cosmo", test_gfn2_mindless_cosmo) &
+      new_unittest("mindless-cosmo", test_gfn2_mindless_cosmo), &
+      new_unittest("wbo", test_gfn2_wbo) &
       ]
 
 end subroutine collect_gfn2
@@ -981,7 +982,112 @@ subroutine test_gfn2_mindless_cosmo(error)
       call check_(error, hl_gap, ref_hlgaps(iMol), thr=thr)
 
    end do
-
 end subroutine test_gfn2_mindless_cosmo
+
+subroutine test_gfn2_wbo(error)
+   use xtb_mctc_accuracy, only : wp
+   use mctc_io_convert, only : aatoau
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+
+   use xtb_xtb_calculator, only : TxTBCalculator, newXTBCalculator, newWavefunction
+   use xtb_main_setup, only : addSolvationModel
+   use xtb_solv_input, only : TSolvInput
+   use xtb_solv_kernel, only : gbKernel
+
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TxTBCalculator) :: calc
+   type(scc_results) :: res
+
+   integer :: iMol
+   logical :: exitRun
+   real(wp) :: energy, hl_gap, sigma(3, 3)
+   real(wp), allocatable :: gradient(:, :)
+
+   energy=0.0_wp
+   call init(env)
+   
+   !-----!
+   ! RHF !
+   !-----!
+   
+   ! initialization of mol str !
+   call getMolecule(mol, 'co_cnx6')
+   mol%xyz = mol%xyz*aatoau
+
+   ! allocate GFN2 calculator !
+   if (allocated(gradient)) deallocate(gradient)
+   allocate(gradient(3, len(mol)))
+   call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
+   call newWavefunction(env, mol, calc, chk)
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+
+   ! actual SP !
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+   
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+
+   ! check  scc !
+   call check_(error, energy, -34.191439852632_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.041770673817_wp, thr=thr)
+   call check_(error, hl_gap, 3.769023080904_wp, thr=thr)
+
+   ! check wbo !
+   call check_(error, chk%wfn%wbo(1,2), 0.889766438284303_wp,thr=thr) 
+   call check_(error, chk%wfn%wbo(3,4), 1.728632460261216E-002_wp,thr=thr) 
+   call check_(error, chk%wfn%wbo(2,10), 2.73380919723017_wp,thr=thr) 
+
+   !-----!
+   ! UHF !
+   !-----!
+   
+   ! initialization of mol str !
+   call getMolecule(mol, 'fe_cnx6')
+   mol%xyz = mol%xyz*aatoau
+   
+   ! allocate GFN2 calculator !
+   if (allocated(gradient)) deallocate(gradient)
+   allocate(gradient(3, len(mol)))
+   call newXTBCalculator(env, mol, calc, 'param_gfn2-xtb.txt', 2)
+   call newWavefunction(env, mol, calc, chk)
+
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+  
+   ! actual SP !
+   call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+         & hl_gap, res)
+ 
+   call env%check(exitRun)
+   call check_(error, .not.exitRun)
+
+   ! check  scc !
+   call check_(error, energy, -33.314958144107_wp, thr=thr)
+   call check_(error, norm2(gradient), 0.018945181484_wp, thr=thr)
+   call check_(error, hl_gap, 1.805948277212_wp, thr=thr)
+
+
+   ! check wbo !
+   call check_(error, chk%wfn%wbo(1,2), 0.587095913328687_wp,thr=thr) 
+   call check_(error, chk%wfn%wbo(3,4), 3.798539382576892E-002_wp,thr=thr) 
+   call check_(error, chk%wfn%wbo(2,10), 2.81892857328157_wp,thr=thr) 
+
+end subroutine test_gfn2_wbo
 
 end module test_gfn2

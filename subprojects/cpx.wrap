@@ -1,0 +1,4 @@
+[wrap-git]
+directory = cpx
+url = https://github.com/grimme-lab/CPCM-X
+revision = head

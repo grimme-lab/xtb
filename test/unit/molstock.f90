@@ -53,6 +53,8 @@ subroutine getMolecule(mol, name)
    case('manganese');   call manganese(mol)
    case('vcpco4');      call vcpco4(mol)
    case('feco5');       call feco5(mol)
+   case('co_cnx6');       call co_cnx6(mol)
+   case('fe_cnx6');       call fe_cnx6(mol)
    end select
 
 end subroutine getMolecule
@@ -1078,5 +1080,53 @@ subroutine bug332(mol)
 
 end subroutine bug332
 
+subroutine co_cnx6(mol)
+   type(TMolecule), intent(out) :: mol
+   integer, parameter :: nat = 13
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
+      & "co", "c", "c", "c", "c", "c", "c","n", "n", "n", "n", "n","n"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      &  1.94877666423787_wp,  0.19317347093307_wp, -0.18341814349628_wp, &
+      &  1.81797069098334_wp,  2.09322297545391_wp, -0.13557960699323_wp, &
+      &  3.84410529185707_wp,  0.32638512462790_wp, -0.32326617548606_wp, &
+      &  0.05351867320654_wp,  0.05921970587159_wp, -0.04456772850566_wp, &
+      &  2.07888638555554_wp, -1.70686814314262_wp, -0.23025590574619_wp, &
+      &  2.09136372684550_wp,  0.15595598873397_wp,  1.71598181170762_wp, &
+      &  1.80637191292446_wp,  0.23061626304675_wp, -2.08282495154360_wp, &
+      &  5.00922648908409_wp,  0.40491540990094_wp, -0.40959258032660_wp, &
+      & -1.11165037804906_wp, -0.02302956650778_wp,  0.03747983755938_wp, &
+      &  1.73422256026807_wp,  3.26080060741577_wp, -0.10606602566732_wp, &
+      &  2.15910094532487_wp, -2.87478868845240_wp, -0.25552216296531_wp, &
+      &  2.18240567286263_wp,  0.13350207175117_wp,  2.88316823771709_wp, &
+      &  1.71548136489902_wp,  0.25339478036763_wp, -3.25001660625405_wp],&
+      & shape(xyz))
+   real(wp), parameter :: charge = -3.0_wp
+   call init(mol, sym, xyz, chrg=charge)
+end subroutine co_cnx6
+
+subroutine fe_cnx6(mol)
+   type(TMolecule), intent(out) :: mol
+   integer, parameter :: nat = 13
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
+      & "fe", "c", "c", "c", "c", "c", "c", "n", "n", "n", "n", "n", "n"]
+   real(wp), parameter :: xyz(3, nat) = reshape([&
+      &  1.94840992315069_wp,  0.19244055581557_wp, -0.18393767617093_wp, &
+      &  1.78272604464510_wp,  2.62293683490692_wp, -0.10723975007002_wp, &
+      &  4.32689647736570_wp,  0.35980495482330_wp, -0.35944563157517_wp, &
+      & -0.43003654695118_wp,  0.02471213925081_wp, -0.00863311985379_wp, &
+      &  2.11416222449034_wp, -2.23778736891213_wp, -0.26000826782577_wp, &
+      &  2.12989310575441_wp,  0.16148305276099_wp,  2.24615988473859_wp, &
+      &  1.76690913095287_wp,  0.22401331347493_wp, -2.61356432743079_wp, &
+      &  5.49819068007791_wp,  0.44208319690825_wp, -0.44642524573858_wp, &
+      & -1.60132363118181_wp, -0.05824176614676_wp,  0.07779983551021_wp, &
+      &  1.70181293250445_wp,  3.79667254862885_wp, -0.08319943830802_wp, &
+      &  2.19561869833960_wp, -3.41158489904539_wp, -0.27871155631627_wp, &
+      &  2.21856307276739_wp,  0.13465068747712_wp,  3.41927390294530_wp, &
+      &  1.67795788808459_wp,  0.25531675005748_wp, -3.78654860990502_wp],&
+      & shape(xyz))
+   real(wp), parameter :: charge = -4.0_wp
+   integer, parameter  :: uhf = 4
+   call init(mol, sym, xyz, chrg=charge, uhf=4)
+end subroutine fe_cnx6
 
 end module xtb_test_molstock

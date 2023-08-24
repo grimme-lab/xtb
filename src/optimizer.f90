@@ -739,7 +739,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    anc%coord = anc%coord + displ * alp
 
 ! conv ?
-   if(abs(echng).lt.ethr.and.gnorm.lt.gthr.and.echng.lt.0) then
+   if(abs(echng).lt.ethr.and.gnorm.lt.gthr.and.echng.lt.1.0e-10_wp) then
       restart=.false.
       converged = .true.
       etot=energy

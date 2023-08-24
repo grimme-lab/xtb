@@ -17,7 +17,7 @@
 module xtb_extern_driver
   use xtb_mctc_accuracy, only: wp
   use xtb_mctc_io, only: stdout
-  use xtb_mctc_filetypes, only: fileType
+  use xtb_mctc_filetypes, only: fileType, generateFileName
   use xtb_mctc_symbols, only: toSymbol
   use xtb_type_calculator, only: TCalculator
   use xtb_type_data, only: scc_results
@@ -104,9 +104,12 @@ contains
                                    '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
     real(wp) :: xyz_cached(3, mol%n)
     integer :: err
+    character(len=:),allocatable :: extension
+    character(len=:),allocatable :: tmpname
 
     call mol%update
 
+    cache = .false.
     energy = 0.0_wp
     gradient(:, :) = 0.0_wp
     sigma(:, :) = 0.0_wp
@@ -117,11 +120,29 @@ contains
     !$omp critical (turbo_lock)
     inquire (file='gradient', exist=exist)
     if (exist) then
+      ! ### only TM output is supported for now ###
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
       cache = all(abs(xyz_cached - mol%xyz) < 1.e-10_wp)
+      if (cache .and. printlevel > 0) then 
+         write(env%unit,'(/,a,/)') &
+         & "Geometry is equivalent to the one in &
+         & 'gradient'. Reading gradient from: 'gradient'."
+      endif
     end if
     if (.not. cache) then
-      call wrtm(mol%n, mol%at, mol%xyz)
+      call generateFileName(tmpname, 'xtbdriver', extension, mol%ftype)
+      if (printlevel > 0) then
+        write(env%unit,'(/,a,1x,a,/)') &
+           "updated geometry written to:",tmpname
+      endif
+      call open_file(ich,tmpname,'w')
+      if (exist) then
+        call writeMolecule(mol, ich, format=mol%ftype, energy=energy, &
+              & gnorm=norm2(gradient))
+      else
+        call writeMolecule(mol, ich, format=mol%ftype)
+      end if
+      call close_file(ich)
 
       write (env%unit, '(72("="))')
       write (env%unit, '(1x,"*",1x,a)') &
@@ -135,6 +156,7 @@ contains
       end if
       write (env%unit, '(72("="))')
 
+      ! ### only TM output is supported for now ###
       call rdtm(env,mol%n, .true., energy, gradient, xyz_cached)
     end if
     !$omp end critical (turbo_lock)

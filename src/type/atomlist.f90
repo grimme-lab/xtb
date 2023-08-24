@@ -372,24 +372,24 @@ pure subroutine atomlist_parse_string(self, string)
    pos = index(string,self%skip)
    if (pos.eq.0) then
       read(string,*,iostat=err) item
-      if (err.ne.0) then
-         self%error = .false.
+      if (err.ne.0 .or.item.eq.0) then
+         self%error = .true.
          return
       endif
       call self%add(item)
    else
       read(string(:pos-1),*,iostat=err) begin
-      if (err.ne.0) then
-         self%error = .false.
+      if (err.ne.0 .or. begin.eq.0) then
+         self%error = .true.
          return
       endif
       read(string(pos+1:),*,iostat=err) last
-      if (err.ne.0) then
-         self%error = .false.
+      if (err.ne.0 .or. last.eq.0) then
+         self%error = .true.
          return
       endif
       if (last.lt.begin) then
-         self%error = .false.
+         self%error = .true.
          return
       endif
       do item = begin, last

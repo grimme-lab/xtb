@@ -487,10 +487,10 @@ subroutine test_gfnff_scaleup(error)
    character(len=*), parameter :: solvents(5) = [character(len=20) ::&
       & "h2o", "acetonitrile", "toluene", "ether", "dmso"]
    real(wp), parameter :: ref_energies(5) = &
-      &[-4.6919926039901_wp, -8.8807760138817_wp, -13.311107073100_wp, &
+      &[-4.6919926039901_wp, -8.8807760138817_wp, -13.40715596616603_wp, &
       & -13.822994859730_wp, -20.577952329212_wp]
    real(wp), parameter :: ref_gnorms(5) = &
-      &[0.05947676640487_wp, 0.09522104624089_wp, 0.16195989065950_wp, &
+      &[0.05947676640487_wp, 0.09522104624089_wp, 0.1753769495334539_wp, &
       & 0.12496592222660_wp, 0.19366599743810_wp]
 
    call init(env)

@@ -31,6 +31,10 @@
 *.out
 *.app
 
+# Editor specific metadata
+.vscode
+*f90.swp
+
 # directories
 /build*/
 /_*/
@@ -41,7 +45,7 @@ man/*.pdf
 man/*.xml
 man/*.html
 
-# files produces by the program
+# files produced by the program
 xtbrestart
 .EDISP
 energy
@@ -65,3 +69,6 @@ __pycache__/
 python/dist
 python/build
 *.egg-info
+
+# external directory
+ext/

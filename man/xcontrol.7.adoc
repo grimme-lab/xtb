@@ -336,10 +336,14 @@ $oniom
 *derived k*='bool'::
    to calculate prefactor *k* and create jacobian dynamically (see more )
 
+*ignore topo*='bool'::
+   to bypass topology check when breaking bonds
+
+*outer*='bool'::
+   to saturate outer region  
+
 *silent*='bool'::
    to hide the execution runs of external software 
-
-
 
 $opt
 ~~~~

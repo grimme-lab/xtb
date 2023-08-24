@@ -41,6 +41,14 @@ option(
 )
 
 option(
+  'cpcmx',
+  type: 'feature',
+  value: 'auto',
+  yield: true,
+  description: 'include CPCM-X library for solvation evaluation',
+)
+
+option(
   'openmp',
   type: 'boolean',
   value: true,

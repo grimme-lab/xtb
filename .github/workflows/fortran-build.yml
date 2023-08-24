@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -73,18 +73,94 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.x
+
+    - name: Install CMake
+      run: pip3 install ninja cmake==3.26.4
+
+    - name: Configure build
+      run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
+      env:
+        FC: ${{ matrix.fc }}
+        CC: ${{ matrix.cc }}
+
+    - name: Build project
+      run: cmake --build ${{ env.BUILD_DIR }}
+
+    - name: Run unit tests
+      run: ctest --parallel --output-on-failure -R 'xtb/*'
+      working-directory: ${{ env.BUILD_DIR }}
+      env:
+        OMP_NUM_THREADS: 2,1
+  
+  xtb-lightweight-meson-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        fc: [gfortran-11]
+        cc: [gcc-11]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
       with:
         python-version: 3.x
-
-    - name: Install CMake
-      run: pip3 install ninja cmake
+ 
+    - name: Install meson
+      run: pip3 install meson==0.62.0 ninja cmake
 
     - name: Configure build
-      run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
+      run: >-
+        meson setup ${{ env.BUILD_DIR }}
+        --buildtype=debug
+        --warnlevel=0
+        ${{ env.MESON_ARGS }}
+      env:
+        FC: ${{ matrix.fc }}
+        CC: ${{ matrix.cc }}
+        MESON_ARGS: ${{ '-Dlapack=netlib -Dtblite=disabled -Dcpcmx=disabled' }}
+
+    - name: Build project
+      run: meson compile -C ${{ env.BUILD_DIR }}
+
+    - name: Run unit tests
+      run: meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --no-rebuild -t 120 --suite xtb
+      env:
+        OMP_NUM_THREADS: 2,1
+
+  xtb-lightweight-cmake-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        fc: [gfortran-10]
+        cc: [gcc-10]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.x
+
+    - name: Install CMake
+      run: pip3 install ninja cmake==3.26.4
+
+    - name: Configure build
+      run: cmake -B ${{ env.BUILD_DIR }} -DWITH_CPCMX=false -DWITH_TBLITE=false -G Ninja
       env:
         FC: ${{ matrix.fc }}
         CC: ${{ matrix.cc }}
@@ -113,7 +189,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup MSYS2 toolchain
       uses: msys2/setup-msys2@v2
@@ -164,7 +240,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
       uses: actions/setup-python@v1
@@ -238,7 +314,7 @@ jobs:
       OUTPUT_INTEL: xtb-bleed.tar.xz
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Install github-release
       run: |

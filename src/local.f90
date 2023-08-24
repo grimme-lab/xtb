@@ -276,7 +276,6 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
    if(set%pr_local) write(*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
    if(set%pr_local) write(*,*) 'LMO Fii/eV  ncent    charge center   contributions...'
    if(set%pr_local) call open_file(iscreen,'xtbscreen.xyz','w')
-
    allocate(tmpq(nat,n))
    tmpq(1:nat,1:n)=qmo(1:nat,1:n)
    maxlp=0
@@ -321,10 +320,11 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          call lmotype(nat,at,xyz,ecent(i,1),ecent(i,2),ecent(i,3), &
          &                imem(1),imem(2),xcen(i),.true.,pithr,jdum)
       endif
-      if(set%pr_local) write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,a2,'':'',f6.2))')  &
+      if(set%pr_local) then 
+      write(*,'(i5,1x,a5,2f7.2,3f10.5,12(i5,2x,a2,'':'',f6.2))')  &
       &   i,lmostring(jdum),autoev*f(i),xcen(i),ecent(i,1:3), &
       &   (imem(j),toSymbol(at(imem(j))),qmo(j,i),j=1,idum)
-
+      end if
       !        write + LP/pi as H for protonation search
       if(set%pr_local) then
          if(jdum.gt.1) then
@@ -495,8 +495,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       enddo
       new=k
 
-      if(set%pr_local) call close_file(iscreen)
-
+      if(set%pr_local) then 
+      call close_file(iscreen)
+      end if
       deallocate(wbo)
 
 

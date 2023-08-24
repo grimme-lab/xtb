@@ -33,7 +33,7 @@ module xtb_scc_core
    private
 
    public :: build_h0, scc, electro, solve, solve4
-   public :: fermismear, occ, occu, dmat
+   public :: fermismear, occ, occu, dmat, get_unrestricted_wiberg
    public :: get_wiberg, mpopall, mpop0, mpopao, mpop, mpopsh, qsh2qat, lpop
    public :: iniqshell, setzshell
    public :: shellPoly, h0scal
@@ -1155,7 +1155,7 @@ subroutine dmat(ndim,focc,C,P)
 
 end subroutine dmat
 
-
+! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.35)
 subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
    integer, intent(in)  :: n,ndim,at(n)
    real(wp),intent(in)  :: xyz(3,n)
@@ -1190,6 +1190,50 @@ subroutine get_wiberg(n,ndim,at,xyz,P,S,wb,fila2)
 
 end subroutine get_wiberg
 
+! Reference: I. Mayer, "Simple Theorems, Proofs, and Derivations in Quantum Chemistry", formula (7.36)
+subroutine get_unrestricted_wiberg(n,ndim,at,xyz,Pa,Pb,S,wb,fila2)
+   integer, intent(in)  :: n,ndim,at(n)
+   real(wp),intent(in)  :: xyz(3,n)
+   real(wp),intent(in)  :: Pa(ndim,ndim)
+   real(wp),intent(in)  :: Pb(ndim,ndim)
+   real(wp),intent(in)  :: S(ndim,ndim)
+   real(wp),intent(out) :: wb (n,n)
+   integer, intent(in)  :: fila2(:,:)
+
+   real(wp),allocatable :: Ptmp_a(:,:)
+   real(wp),allocatable :: Ptmp_b(:,:)
+   real(wp) xsum,rab
+   integer i,j,k,m
+
+   allocate(Ptmp_a(ndim,ndim))
+   allocate(Ptmp_b(ndim,ndim))
+
+   ! P^(alpha) * S !
+   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,Pa,ndim,S,ndim,0.0d0,Ptmp_a,ndim)
+   
+   ! P^(beta) * S !
+   call blas_gemm('N','N',ndim,ndim,ndim,1.0d0,Pb,ndim,S,ndim,0.0d0,Ptmp_b,ndim)
+   
+   wb = 0
+   do i = 1, n
+      do j = 1, i-1
+         xsum = 0.0_wp
+         rab = sum((xyz(:,i) - xyz(:,j))**2)
+         if(rab < 100.0_wp)then
+            do k = fila2(1,i), fila2(2,i) ! AOs on atom i
+               do m = fila2(1,j), fila2(2,j) ! AOs on atom j
+                  xsum = xsum + Ptmp_a(k,m)*Ptmp_a(m,k) + Ptmp_b(k,m)*Ptmp_b(m,k) 
+               enddo
+            enddo
+         endif
+         wb(i,j) = 2*xsum
+         wb(j,i) = 2*xsum
+      enddo
+   enddo
+   deallocate(Ptmp_a)
+   deallocate(Ptmp_b)
+
+end subroutine get_unrestricted_wiberg
 
 !> Mulliken pop + AO pop
 subroutine mpopall(n,nao,aoat,S,P,qao,q)

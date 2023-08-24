@@ -918,16 +918,26 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       if(pr)then
          write(env%unit,'(''Hueckel system :'',i3,'' charge : '',i3,'' ndim/Nel :'',2i5, &
      &         3x, ''eps(HOMO/LUMO)'',2f12.6)')pis,ipis(pis),npi,nelpi,pisip(pis),pisea(pis)
-         if(pisip(pis).gt.0.40) then
-            write(env%unit,*)'WARNING: probably wrong pi occupation. Second attempt with Nel=Nel-1!'
-            do i=1,mol%n
-               if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),topo%nb(20,i),topo%hyb(i),piel(i)
-            enddo
-            nelpi=nelpi-1
-            Api = Apisave
-            call gfnffqmsolve(.false.,Api,S,.false.,300.0d0,npi,0,nelpi,dum,occ,eps)  !diagonalize
-            call PREIG(6,occ,1.0d0,eps,1,npi)
-         endif
+      end if
+      if(pisip(pis).gt.0.40) then
+         write(env%unit,'(a,i0,a)')'WARNING: probably wrong pi occupation for system ',pis,'. Second attempt with Nel=Nel-1!'
+         do i=1,mol%n
+            if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),topo%nb(20,i),topo%hyb(i),piel(i)
+         enddo
+         nelpi=nelpi-1
+         Api = Apisave
+         call gfnffqmsolve(.false.,Api,S,.false.,4000.0d0,npi,0,nelpi,dum,occ,eps)  !diagonalize
+         call PREIG(6,occ,1.0d0,eps,1,npi)
+         do i=1,npi  ! save IP/EA
+            if(occ(i).gt.0.5) then
+               pisip(pis)=eps(i)   ! IP
+               if(i+1.lt.npi)pisea(pis)=eps(i+1) ! EA
+            endif
+         enddo
+      if(pr)then
+         write(env%unit,'(''Hueckel system :'',i3,'' charge : '',i3,'' ndim/Nel :'',2i5, &
+     &         3x, ''eps(HOMO/LUMO)'',2f12.6)')pis,ipis(pis),npi,nelpi,pisip(pis),pisea(pis)
+      end if
       endif
 ! save BO
       do i=1,topo%nbond

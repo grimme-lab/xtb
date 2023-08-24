@@ -175,6 +175,11 @@ for GBSA and ALPB implicit solvation:
   *J. Chem. Theory Comput.*, **2021**, 17, 4250-4261
   DOI: [10.1021/acs.jctc.1c00471](https://doi.org/10.1021/acs.jctc.1c00471)
 
+for ddCOSMO and CPCM-X implicit solvation:
+- M.Stahn, S. Ehlert, S. Grimme,
+  *J. Phys. Chem. A*, **2023**, XX, XXX-XXX
+  DOI: [10.1021/acs.jpca.3c04382](https://doi.org/10.1021/acs.jpca.3c04382)
+
 for DFT-D4:
 - E. Caldeweyher, C. Bannwarth and S. Grimme, *J. Chem. Phys.*, **2017**, 147, 034112.
   DOI: [10.1063/1.4993215](https://dx.doi.org/10.1063/1.4993215)
@@ -201,7 +206,11 @@ for metadynamics refer to:
   
 for SPH calculations refer to:
 - S. Spicher and S. Grimme, *J. Chem. Theory Comput.*, **2021**, 17, 1701–1714.
-  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306)  
+  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306) 
+
+for ONIOM refer to:
+- C. Plett, A. Katbashev, S. Ehlert, S. Grimme, M. Bursch, *Phys. Chem. Chem. Phys.*, **2023**, 25, 17860-17868.
+  DOI: [10.1039/D3CP02178E](https://doi.org/10.1039/D3CP02178E)
 
 All references are available in [bibtex format](./assets/references.bib).
 
