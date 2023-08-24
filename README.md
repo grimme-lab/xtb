@@ -206,7 +206,11 @@ for metadynamics refer to:
   
 for SPH calculations refer to:
 - S. Spicher and S. Grimme, *J. Chem. Theory Comput.*, **2021**, 17, 1701–1714.
-  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306)  
+  DOI: [10.1021/acs.jctc.0c01306](https://doi.org/10.1021/acs.jctc.0c01306) 
+
+for ONIOM refer to:
+- C. Plett, A. Katbashev, S. Ehlert, S. Grimme, M. Bursch, *Phys. Chem. Chem. Phys.*, **2023**, 25, 17860-17868.
+  DOI: [10.1039/D3CP02178E](https://doi.org/10.1039/D3CP02178E)
 
 All references are available in [bibtex format](./assets/references.bib).
 
