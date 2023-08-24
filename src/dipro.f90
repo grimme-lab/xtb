@@ -397,14 +397,8 @@ subroutine get_jab(tblite, mol, fragment, error)
 !   call execute_command_line('rm xtbrestart')
    write(*,*) " "
    write(*,*) "Please remember, DIPRO is not available for restart!"
-
    write(*,*) "  "
- !  write(*,*) "          -------------------------------------------------"
- !  write(*,*) "         |                D I P R O   E N D                |"
- !  write(*,*) "          -------------------------------------------------"
- !  write(*,'(A)') "=================================================================================="
- !  write(*,'(A)') "=================================================================================="
- !  write(*,*) "  "
+   write(*,'(A)') "normal termination of dipro"
 
 end subroutine get_jab
 
