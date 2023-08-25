@@ -71,6 +71,7 @@ contains
 !> Entry point for calculation of dimer projection (DIPRO) related properties
 subroutine get_jab(tblite, mol, fragment, error)
    use, intrinsic :: iso_fortran_env, only : output_unit
+   implicit none
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol  
    !> structure_type /= molecular structure
@@ -91,12 +92,12 @@ subroutine get_jab(tblite, mol, fragment, error)
    type(wavefunction_type), allocatable :: wfx(:)
 
    !> Molecular gradient, strain derivatives
-   real(wp), allocatable :: gradient(:, :), sigma(:,:)
+   real(wp), allocatable :: gradient(:, :), sigma(:,:), nel(:)
    real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:),loc(:,:)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
    integer, allocatable :: fragment(:), spinfrag(:), start_index(:),end_index(:),orbprint(:)
 
-   integer :: spin, charge, stat, unit, ifr, nfrag, nao, i, j, k
+   integer :: charge, stat, unit, ifr, nfrag, nao, i, j, k
 
    logical :: exist
 
@@ -187,7 +188,7 @@ subroutine get_jab(tblite, mol, fragment, error)
    nao = size(wfn%emo)
    allocate(orbital(nao, nfrag,nao), efrag(nfrag), scmat(nao, nao), fdim(nao, nao), &
       & scratch(nao), mfrag(nfrag), wfx(nfrag), chrg(nfrag), spinfrag(nfrag), &
-      & start_index(nfrag),end_index(nfrag),orbprint(nfrag))
+      & start_index(nfrag),end_index(nfrag),orbprint(nfrag),nel(nfrag))
 
 !==================================external files CHRG & UHF read-in====================================
 
@@ -252,6 +253,8 @@ subroutine get_jab(tblite, mol, fragment, error)
          call ctx%get_error(error)
          return
       end if
+
+      nel(ifr)=wfx(ifr)%nel(1)+wfx(ifr)%nel(2)
 
 !==================================DIPRO==================================================
 
@@ -356,17 +359,30 @@ subroutine get_jab(tblite, mol, fragment, error)
                adv='NO '
             end if
 
-            if (orbprint(ifr).gt.0) then
-                    write(*, '( "Fragment ", I1, " HOMO-", I1 )', ADVANCE=adv ) ifr, orbprint(ifr)
-            else if (orbprint(ifr).eq.0) then
-                    write(*, '( "Fragment ", I1, " HOMO ")', ADVANCE=adv ) ifr
-            else if (orbprint(ifr).eq.-1) then
-                    write(*, '( "Fragment ", I1, " LUMO ")', ADVANCE=adv ) ifr
-            else if (orbprint(ifr).lt.-1) then
-                    write(*, '( "Fragment ", I1, " LUMO+", I1 )', ADVANCE=adv ) ifr, abs(orbprint(ifr))-1
+            !> if the number of electrons is odd, the SOMO is the new HOMO
+            if (mod(nint(nel(ifr)),2).eq.1) then
+               if (orbprint(ifr).gt.0) then
+                    write(*, '( "  Fragment ", I1, " SOMO-", I1 )', ADVANCE=adv ) ifr, orbprint(ifr)
+                  else if (orbprint(ifr).eq.0) then
+                    write(*, '( "  Fragment ", I1, " SOMO ")', ADVANCE=adv ) ifr
+                  else if (orbprint(ifr).eq.-1) then
+                    write(*, '( "  Fragment ", I1, " LUMO ")', ADVANCE=adv ) ifr
+                  else if (orbprint(ifr).lt.-1) then
+                    write(*, '( "  Fragment ", I1, " LUMO+", I1 )', ADVANCE=adv ) ifr, abs(orbprint(ifr))-1
+               end if
+            else if (mod(nint(nel(ifr)),2).eq.0) then
+               if (orbprint(ifr).gt.0) then
+                    write(*, '( "  Fragment ", I1, " HOMO-", I1 )', ADVANCE=adv ) ifr, orbprint(ifr)
+                  else if (orbprint(ifr).eq.0) then
+                    write(*, '( "  Fragment ", I1, " HOMO ")', ADVANCE=adv ) ifr
+                  else if (orbprint(ifr).eq.-1) then
+                    write(*, '( "  Fragment ", I1, " LUMO ")', ADVANCE=adv ) ifr
+                  else if (orbprint(ifr).lt.-1) then
+                    write(*, '( "  Fragment ", I1, " LUMO+", I1 )', ADVANCE=adv ) ifr, abs(orbprint(ifr))-1
+               end if
             end if
          end do
-         write(*,*) "---------------------------------"
+         write(*,'(A)') "--------------------------------------"
 
          call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
            &format_string(efrag(2)*autoev, '(f10.3)')//" eV")
@@ -394,7 +410,6 @@ subroutine get_jab(tblite, mol, fragment, error)
    call ctx%message(":  total |J(AB,eff)| for charge transfer (CT) :"//format_string(sqrt(Vtot(3))*autoev, '(f25.3)')//" eV  :")
    write(*,'(A)') ".............................................................................."
 
-!   call execute_command_line('rm xtbrestart')
    write(*,*) " "
    write(*,*) "Please remember, DIPRO is not available for restart!"
    write(*,*) "  "
