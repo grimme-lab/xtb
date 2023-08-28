@@ -40,7 +40,7 @@ module xtb_dipro
    implicit none
    private
 
-   public :: get_jab, dipro
+   public :: get_jab, dipro, jab_input
 
    !> Configuration data for calculation
    type :: jab_input
