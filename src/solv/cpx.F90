@@ -26,6 +26,7 @@ module xtb_solv_cpx
     &initialize_param,load_solvent,read_cosmo
 #endif
     use xtb_solv_cosmo, only: TCosmo
+    use xtb_setparam, only: get_namespace
     use xtb_type_environment, only: TEnvironment
     use iso_fortran_env, only: input_unit, output_unit
     use mctc_env, only: error_type, fatal_error, wp
@@ -66,7 +67,7 @@ module xtb_solv_cpx
         call load_solvent(solvent,self%solvent,error)
         if (allocated(error)) Call env%error(error%message, source)
         !> TODO: SETUP solute directly from TCosmo instead of reading COSMO file
-        Call read_cosmo('xtb.cosmo',self%solute,'NONE',error)
+        Call read_cosmo(get_namespace('xtb.cosmo'),self%solute,'NONE',error)
         if (allocated(error)) Call env%error(error%message, source)
 #else
         Call no_cpcmx_here(env)
