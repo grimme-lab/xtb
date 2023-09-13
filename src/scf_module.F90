@@ -854,7 +854,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          type is (TCosmo)
             call open_file(ich, "xtb.cosmo", 'w')
             call solvation%writeCosmoFile(ich, mol%at, mol%sym, mol%xyz, &
-               & wfn%q, eel + ep + exb + merge(embd, ed + embd, allocated(scD4)))
+               & wfn%q, eel + ep + exb + merge(embd, ed + embd, allocated(scD4)),solvation%tmcosmo)
             call close_file(ich)
          end select
       end if

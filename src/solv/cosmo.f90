@@ -95,6 +95,9 @@ module xtb_solv_cosmo
       real(wp), allocatable :: dsdr(:, :)
       real(wp), allocatable :: dsdrt(:, :, :)
 
+      !> TM convention?
+      logical :: tmcosmo = .false.
+
    contains
 
       !> Update coordinates and internal state
@@ -826,7 +829,7 @@ subroutine update_nnlist_sasa(nat, xyz, srcut, nnsas, nnlists)
 end subroutine update_nnlist_sasa
 
 !> Write a COSMO file output
-subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
+subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy, tmcosmo)
 
    !> COSMO container
    class(TCosmo), intent(in) :: self
@@ -849,11 +852,20 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
    !> Total energy
    real(wp), intent(in) :: energy
 
+   !> Switch to TM convention for cosmo file output
+   logical, intent(in), optional :: tmcosmo
+
    integer :: ii, ig, iat
    real(wp) :: dielEnergy, keps
    real(wp), allocatable :: phi(:), zeta(:), area(:)
+   logical :: tm
 
    allocate(phi(self%ddCosmo%ncav), zeta(self%ddCosmo%ncav), area(self%ddCosmo%ncav))
+   if (present(tmcosmo)) then
+      tm = tmcosmo
+   else
+      tm = .false.
+   end if
    ! Reset potential on the cavity, note that the potential is expected in e/Å
    call getPhi(qat, self%jmat, phi)
    ii = 0
@@ -869,6 +881,9 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
          end if
       end do
    end do
+
+   !! Switch convention for TM mode
+   if (tm) zeta=-zeta
 
 
     ! Dielectric energy is the energy on the dielectric continuum
@@ -939,6 +954,7 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
       & "#  n   atom              position (X, Y, Z)                   charge         area        charge/area     potential", &
       & "#", &
       & "#"
+
 
    ii = 0
    do iat = 1, self%ddCosmo%nat
