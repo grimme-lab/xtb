@@ -18,7 +18,6 @@
 module xtb_prog_main
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_io, only : stderr
-   use mctc_env, only : error_type
    use xtb_mctc_timings
    use xtb_mctc_systools
    use xtb_mctc_convert
@@ -95,7 +94,7 @@ module xtb_prog_main
    use xtb_vertical, only : vfukui
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
    use xtb_solv_cpx, only: TCpcmx
-   use xtb_dipro
+   use xtb_dipro, only: get_jab,jab_input
    
    implicit none
    private
@@ -113,8 +112,6 @@ subroutine xtbMain(env, argParser)
 
    type(TEnvironment), intent(inout) :: env
 
-   type(error_type), allocatable :: TError
-
    type(TArgParser), intent(inout) :: argParser
 
 !! ========================================================================
@@ -127,8 +124,8 @@ subroutine xtbMain(env, argParser)
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
+   type(jab_input) :: dipro
    type(TCpcmx) :: cpx
-   type(jab_input) :: Tjab
    type(TSet) :: set
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
@@ -221,7 +218,7 @@ subroutine xtbMain(env, argParser)
    ! ------------------------------------------------------------------------
    !> read the command line arguments
    call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
    !> Spin-polarization is only available in the tblite library
    if(set%mode_extrun.ne.p_ext_tblite .and. tblite%spin_polarized) then
@@ -263,13 +260,11 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Command line argument parsing failed")
 
-
    ! ------------------------------------------------------------------------
    !> read the detailed input file
    call rdcontrol(xcontrol, env, copy_file=copycontrol)
 
    call env%checkpoint("Reading '"//xcontrol//"' failed")
-
 
    ! ------------------------------------------------------------------------
    !> read dot-Files before reading the rc and after reading the xcontrol
@@ -313,7 +308,6 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Reading multiplicity from file failed")
 
-
    ! ------------------------------------------------------------------------
    !> read the xtbrc if you can find it (use rdpath directly instead of xfind)
    call rdpath(env%xtbpath, p_fname_rc, xrc, exist)
@@ -323,7 +317,6 @@ subroutine xtbMain(env, argParser)
       call env%checkpoint("Reading '"//xrc//"' failed")
    endif
 
-
    ! ------------------------------------------------------------------------
    !> FIXME: some settings that are still not automatic
    !> Make sure GFN0-xTB uses the correct exttyp
@@ -331,7 +324,7 @@ subroutine xtbMain(env, argParser)
    rohf = 1 ! HS default
    egap = 0.0_wp
    ipeashift = 0.0_wp
-
+ 
 
    ! ========================================================================
    !> no user interaction up to now, time to show off!
@@ -344,7 +337,6 @@ subroutine xtbMain(env, argParser)
    call citation(env%unit)
    !> print current time
    call prdate('S')
-
 
    ! ------------------------------------------------------------------------
    !> get molecular structure
@@ -373,7 +365,6 @@ subroutine xtbMain(env, argParser)
 
       call env%checkpoint("reading geometry input '"//fname//"' failed")
    endif
-
 
    ! ------------------------------------------------------------------------
    !> initialize the global storage
@@ -553,7 +544,6 @@ subroutine xtbMain(env, argParser)
    call initDefaults(env, calc, mol, gsolvstate)
    call env%checkpoint("Could not setup defaults")
 
-
    ! ------------------------------------------------------------------------
    !> initial guess, setup wavefunction
    select type(calc)
@@ -631,9 +621,10 @@ subroutine xtbMain(env, argParser)
 
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
-    if (dipro%diprocalc.eqv..true.) then 
+    if (dipro%diprocalc) then 
        call start_timing(11)
-       call get_jab(tblite,mol,splitlist,TError)
+       call get_jab(env,tblite,mol,splitlist,dipro)
+       call env%checkpoint("Something in your DIPRO calculation went wrong.")
        call stop_timing_run
        call stop_timing(11)
        write(*,'(A)') "----------------------------------------------------------"
@@ -1164,7 +1155,7 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro,tblite)
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1209,6 +1200,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    !> Input for ONIOM model
    type(oniom_input), intent(out) :: oniom
 
+   !> Input for DIPRO
+   type(jab_input), intent(inout) :: dipro
+
    !> Stuff for second argument parser
 !   integer  :: narg
 !   character(len=p_str_length), dimension(p_arg_length) :: argv
@@ -1219,7 +1213,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    type(TTBLiteInput), intent(out) :: tblite
 
 !$ integer :: omp_get_num_threads, nproc
-   integer :: nFlags,stat
+   integer :: nFlags
    integer :: idum, ndum
    real(wp) :: ddum
    character(len=:), allocatable :: flag, sec
@@ -1440,7 +1434,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call set_runtyp('scc')
             call args%nextArg(sec)
             if (allocated(sec)) then
-               call set_scc(env,'othresh',sec)
+               read(sec,'(f10.3)')  dipro%othr
             else
                dipro%othr = 0.1_wp
             end if

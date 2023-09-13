@@ -78,8 +78,6 @@ module xtb_setmod
 
    use xtb_setparam
 
-   use xtb_dipro
-
    use xtb_type_environment, only : TEnvironment
 
    implicit none
@@ -1546,9 +1544,6 @@ subroutine set_scc(env,key,val)
          endif
       endif
       set4 = .false.
-   case('othresh')
-      if (getValue(env,val,ddum).and.set5) dipro%othr = ddum
-      set5 = .false.   
    end select
 end subroutine set_scc
 

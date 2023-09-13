@@ -14,7 +14,7 @@
 ! limitations under the License.
 
 !> Helper routines to handle calculations with the tblite library
-module dipro_xtb
+module xtb_dipro_xtb
    use mctc_env, only : error_type, fatal_error, wp
    use mctc_io, only : structure_type
    use tblite_xtb_calculator, only : xtb_calculator
@@ -52,4 +52,4 @@ subroutine get_calculator(xcalc, mol, method, error)
    end select
 end subroutine get_calculator
 
-end module dipro_xtb
+end module xtb_dipro_xtb

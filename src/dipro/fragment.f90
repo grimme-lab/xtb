@@ -14,7 +14,7 @@
 ! limitations under the License.
 
 !> Fragmentation based on bond orders found for a system
-module dipro_fragment
+module xtb_dipro_fragment
    use mctc_env, only : wp
    implicit none
    private
@@ -85,4 +85,4 @@ recursive subroutine find_neighbours(i, cn, taken, bond, fragment, this_fragment
    end do
 end subroutine find_neighbours
 
-end module dipro_fragment
+end module xtb_dipro_fragment

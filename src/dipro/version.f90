@@ -14,7 +14,7 @@
 ! limitations under the License.
 
 !> Version information for this project
-module dipro_version
+module xtb_dipro_version
    implicit none
    private
 
@@ -56,4 +56,4 @@ subroutine get_dipro_version(major, minor, patch, string)
 
 end subroutine get_dipro_version
 
-end module dipro_version
+end module xtb_dipro_version
