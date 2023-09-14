@@ -39,7 +39,6 @@ module xtb_dipro
    use tblite_xtb_singlepoint, only : xtb_singlepoint
    implicit none
    private
-
    public :: get_jab, jab_input
 
    !> Configuration data for calculation
