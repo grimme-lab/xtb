@@ -14,7 +14,7 @@
 ! limitations under the License.
 
 !> Calculation of Wiberg/Mayer type bond orders
-module dipro_bondorder
+module xtb_dipro_bondorder
    use mctc_env, only : wp
    use tblite_basis_type, only : basis_type
    use tblite_blas, only : gemm
@@ -57,4 +57,4 @@ subroutine get_wiberg_bondorder(bas, smat, pmat, wbo)
 end subroutine get_wiberg_bondorder
 
 
-end module dipro_bondorder
+end module xtb_dipro_bondorder

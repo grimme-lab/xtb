@@ -224,7 +224,7 @@ NOTE: You can only select *one* runtyp, only the first runtyp will be used
     used for the modefollowing.
 
 *--dipro* ['REAL']:: 
-    the dimer projection method for the calculation of electronic couopling integrals between two fragments.
+    the dimer projection method for the calculation of electronic coupling integrals between two fragments.
     'REAL' sets the threshold for nearly degenerate orbitals to still be considered (default = 0.1 eV).
     
 

@@ -23,10 +23,10 @@ module xtb_dipro
    use xtb_type_calculator, only : TCalculator
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator
    use xtb_setparam
-   use dipro_bondorder, only : get_wiberg_bondorder
-   use dipro_fragment, only : get_wiberg_fragment
-   use dipro_output, only : format_list, to_string
-   use dipro_xtb, only : get_calculator
+   use xtb_dipro_bondorder, only : get_wiberg_bondorder
+   use xtb_dipro_fragment, only : get_wiberg_fragment
+   use xtb_dipro_output, only : format_list, to_string
+   use xtb_dipro_xtb, only : get_calculator
    use tblite_basis_type, only : get_cutoff, basis_type
    use tblite_blas, only : dot, gemv, gemm
    use tblite_context_type, only : context_type
@@ -39,8 +39,7 @@ module xtb_dipro
    use tblite_xtb_singlepoint, only : xtb_singlepoint
    implicit none
    private
-
-   public :: get_jab, dipro, jab_input
+   public :: get_jab, jab_input
 
    !> Configuration data for calculation
    type :: jab_input
@@ -59,17 +58,15 @@ module xtb_dipro
       !> Output verbosity
       integer :: verbosity = 2
    end type jab_input
-   
-   !> global instance
-   type(jab_input) :: dipro
 
+   character(len=*), parameter :: source = 'xtb_dipro'
    !> Conversion factor from temperature to energy (Boltzmann's constant in atomic units)
    real(wp), parameter :: ktoau = 3.166808578545117e-06_wp
 
 contains
 
 !> Entry point for calculation of dimer projection (DIPRO) related properties
-subroutine get_jab(tblite, mol, fragment, error)
+subroutine get_jab(env, tblite, mol, fragment, dipro)
    use, intrinsic :: iso_fortran_env, only : output_unit
    implicit none
    !> Molecular structure data
@@ -78,8 +75,11 @@ subroutine get_jab(tblite, mol, fragment, error)
    type(structure_type) :: struc
    !requested gfn method for calculations Input
    type(TTBLiteInput), intent(inout) :: tblite
-   !> Error handling
-   type(error_type), allocatable, intent(out) :: error
+
+   type(jab_input),intent(inout) :: dipro
+
+   type(TEnvironment),intent(inout) :: env
+   type(error_type),allocatable :: error
 
    type(context_type) :: ctx
    type(basis_type) :: bas
@@ -111,6 +111,7 @@ subroutine get_jab(tblite, mol, fragment, error)
 
    if ( tblite%method == '' ) then 
       tblite%method = 'gfn2'
+      call env%warning("No method provided, falling back to default GFN2-xTB.", source)
       write(*,*) "==> No method provided, falling back to default GFN2-xTB."
    end if
 
@@ -123,25 +124,20 @@ subroutine get_jab(tblite, mol, fragment, error)
 
 !=========================print Header===============================================
 
-   write(*,*) "  "
-   write(*,*) "          -------------------------------------------------"
-   write(*,*) "         |                    D I P R O                    |"
-   write(*,*) "          -------------------------------------------------"
-   write(*,*) "  "
+   call generic_header(6,'D I P R O',49,10)
 
 !=========================calculation for dimer======================================             
 
-   write(*,*) "Calculation for dimer "
-   write(*,*) "--------------------- "
-   write(*,*) "  "
+   write(*,'(A)') "Calculation for dimer "
+   write(*,'(A)') "--------------------- "
+   write(*,'(A)') "  "
 
-!   call ctx%message("charge of dimer : "//format_string(mol%chrg, '(f7.0)'))
-   write(*,'(A,F4.0)') "charge of fragment : ", mol%chrg
+   write(*,'(A,F4.0)') "charge of dimer : ", mol%chrg
    write(*,'(A,I2)') "unpaired e- of dimer : ", set%nalphabeta
 
    call xtb_singlepoint(ctx, struc, xcalc, wfn, tblite%accuracy, energy,gradient,sigma,2)
    if (ctx%failed()) then
-      call ctx%get_error(error)
+       call env%error("Single point calculation for dimer failed.", source)
       return
    end if
 
@@ -170,7 +166,10 @@ subroutine get_jab(tblite, mol, fragment, error)
    nfrag = maxval(fragment)
    select case(nfrag)
    case(:1)
-      call fatal_error(error, "Found no fragments in the input structure")
+      call ctx%message("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+      call ctx%message("Found no fragments in the input structure.")
+      call ctx%message("Aborting...")
+      call env%error("Found no fragments in input structure.", source)
       return
    case(2:)
       call ctx%message("Found "//to_string(nfrag)//" fragments!")
@@ -179,8 +178,11 @@ subroutine get_jab(tblite, mol, fragment, error)
       end do
       call ctx%message("")
       if (nfrag > 2) then
-         call fatal_error(error, "Found "//to_string(nfrag)// &
+         call ctx%message("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+         call ctx%message("Found "//to_string(nfrag)// &
             & " fragments in the input structure, too many fragments.")
+         call ctx%message("Aborting...")
+         call env%error("Found too many fragments in input structure.", source)
          return
       end if
    end select
@@ -203,7 +205,8 @@ subroutine get_jab(tblite, mol, fragment, error)
       call ctx%message("Total spin specified but no fragment spins. Spins are not determined &
               &automatically by xtb. Please set up .UHFfrag or use total spin =0." )
       call ctx%message("Aborting...")
-      stop
+      call env%error("Total spin specified but no fragment spins.", source)
+      return
    else
       spinfrag=0
    end if
@@ -250,7 +253,7 @@ subroutine get_jab(tblite, mol, fragment, error)
       wfx%nspin=1
       call xtb_singlepoint(ctx, mfrag(ifr), fcalc, wfx(ifr), tblite%accuracy, energy)
       if (ctx%failed()) then
-         call ctx%get_error(error)
+         call env%error("Single point calculation for fragment failed.", source)
          return
       end if
 
@@ -386,7 +389,7 @@ subroutine get_jab(tblite, mol, fragment, error)
 
          call ctx%message("E_mon(orb) frag1 frag2"//format_string(efrag(1)*autoev, '(f20.3)')// &
            &format_string(efrag(2)*autoev, '(f10.3)')//" eV")
-         call ctx%message("|J(AB)|: "//format_string(abs(jab)*autoev, '(f20.3)')//" eV")    
+         call ctx%message("J(AB): "//format_string(jab*autoev, '(f20.3)')//" eV")    
          call ctx%message("S(AB): "//format_string(sab, '(f22.8)')//" Eh")
          call ctx%message("|J(AB,eff)|: "//format_string(abs(jeff)*autoev, '(f16.3)')//" eV")
          write(*,*) "  "
