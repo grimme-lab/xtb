@@ -1057,6 +1057,7 @@ end subroutine set_derived
 subroutine set_fit
    implicit none
    set%fit = .true.
+   set%acc = 0.2_wp
 end subroutine set_fit
 
 subroutine set_cma
