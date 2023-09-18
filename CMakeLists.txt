@@ -14,14 +14,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.24)
 
-# Setup the XTB Project
+# Buggy CMake versions
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0 AND CMAKE_VERSION VERSION_LESS 3.27.7)
+   message(WARNING "The project build could be unstable with your current version")
+endif()
+
+# Setup the xtb Project
 project(
   "xtb"
-  VERSION "6.6.1"
+  VERSION "6.6.1" 
   LANGUAGES "C" "Fortran"
 )
+
 enable_testing()
 
 # Follow GNU conventions for installing directories
@@ -29,6 +35,8 @@ include(GNUInstallDirs)
 
 # Include CMake specific configurations
 add_subdirectory("cmake")
+
+#message(FATAL_ERROR "STOP: ${CMAKE_Fortran_FLAGS_DEBUG}")
 
 if(NOT TARGET "mctc-lib::mctc-lib")
   find_package("mctc-lib" REQUIRED)
@@ -45,6 +53,7 @@ endif()
 if(NOT TARGET "test-drive::test-drive")
   find_package("test-drive" REQUIRED)
 endif()
+
 
 # Sources: initialize program sources (prog) and library sources (srcs) empty
 set(prog)
@@ -69,6 +78,7 @@ add_library(
   OBJECT
   ${srcs}
 )
+
 set_target_properties(
   "${PROJECT_NAME}-object"
   PROPERTIES

@@ -14,21 +14,24 @@
 # You should have received a copy of the Lesser GNU General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+# Some user-configurable features
 option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
 option(WITH_TBLITE "Use tblite library as backend for xTB" TRUE)
 option(WITH_CPCMX "Use CPCM-X solvation library for xTB" TRUE)
-if(NOT DEFINED "${PROJECT_NAME}-dependeny-method")
-  set(
-    "${PROJECT_NAME}-dependency-method"
-    "subproject" "cmake" "pkgconf" "fetch"
-  )
-endif()
 
-set(
-  module-dir
-  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
-)
-set(module-dir "${module-dir}" PARENT_SCOPE)
+
+#if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
+#  set(
+#    "${PROJECT_NAME}-dependency-method"
+#    "subproject" "cmake" "pkgconf" "fetch"
+#  )
+#endif()
+
+#set(
+#  module-dir
+#  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
+#)
+#set(module-dir "${module-dir}" PARENT_SCOPE)
 
 # Set build type as CMake does not provide defaults
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -43,27 +46,34 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   )
 endif()
 
+# Add modules to the CMake build 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
+
+# specify module installation directory
 install(
   DIRECTORY
   "${CMAKE_CURRENT_SOURCE_DIR}/modules/"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
+# Compiler-specific configurations 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
-  set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
-  set(bounds "-fbounds-check")
+  set(dialects "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
+  set(bounds "-fbounds-check -ffpe-trap=invalid,zero,overflow")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+  set(dialects "-axAVX2 -r8 -traceback")
+  set(bounds "-check bounds -fpe0")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
+  set(dialects "-Mbackslash -Mallocatable=03 -r8 -traceback")
 endif()
-if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
-  set(dialect "-axAVX2 -r8 -traceback")
-  set(bounds "-check bounds")
-endif()
-if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
-  set(dialect "-Mbackslash -Mallocatable=03 -r8 -traceback")
-endif()
+
+# Customize compiler flags
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialects}" PARENT_SCOPE)
+
+#message(FATAL_ERROR "STOP: ${dialect} dist ${CMAKE_Fortran_FLAGS}")
+
 
 # Populate xtb_version.fh
 set(version ${PROJECT_VERSION})
