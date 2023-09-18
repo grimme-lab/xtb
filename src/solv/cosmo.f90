@@ -95,8 +95,11 @@ module xtb_solv_cosmo
       real(wp), allocatable :: dsdr(:, :)
       real(wp), allocatable :: dsdrt(:, :, :)
 
-      !> TM convention?
+      !> TM convention? 
       logical :: tmcosmo = .false.
+      !> Write volume in COSMO file? Volume resolution in Angstrom.
+      logical :: wrvolume = .false.
+      real(wp) :: volumeres = 0.1_wp
 
    contains
 
@@ -829,7 +832,8 @@ subroutine update_nnlist_sasa(nat, xyz, srcut, nnsas, nnlists)
 end subroutine update_nnlist_sasa
 
 !> Write a COSMO file output
-subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy, tmcosmo)
+subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy)
+   use xtb_solv_ddvolume, only: ddvolume
 
    !> COSMO container
    class(TCosmo), intent(in) :: self
@@ -852,20 +856,11 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy, tmcosmo)
    !> Total energy
    real(wp), intent(in) :: energy
 
-   !> Switch to TM convention for cosmo file output
-   logical, intent(in), optional :: tmcosmo
-
    integer :: ii, ig, iat
    real(wp) :: dielEnergy, keps
-   real(wp), allocatable :: phi(:), zeta(:), area(:)
-   logical :: tm
+   real(wp), allocatable :: phi(:), zeta(:), area(:), volume(:)
 
    allocate(phi(self%ddCosmo%ncav), zeta(self%ddCosmo%ncav), area(self%ddCosmo%ncav))
-   if (present(tmcosmo)) then
-      tm = tmcosmo
-   else
-      tm = .false.
-   end if
    ! Reset potential on the cavity, note that the potential is expected in e/Å
    call getPhi(qat, self%jmat, phi)
    ii = 0
@@ -883,7 +878,8 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy, tmcosmo)
    end do
 
    !! Switch convention for TM mode
-   if (tm) zeta=-zeta
+   if (self%tmcosmo) zeta=-zeta
+   if (self%wrvolume) call ddvolume(xyz,self%rvdw,(self%volumeres)/autoaa,volume)
 
 
     ! Dielectric energy is the energy on the dielectric continuum
@@ -901,9 +897,16 @@ subroutine writeCosmoFile(self, unit, num, sym, xyz, qat, energy, tmcosmo)
 
    write(unit, '(a)') &
       & "$cosmo_data"
-   write(unit, '(2x, a:, "=", g0)') &
-      & "fepsi", keps, &
-      & "area", sum(area)
+   if (self%wrvolume) then
+      write(unit, '(2x, a:, "=", g0)') &
+         & "fepsi", keps, &
+         & "area", sum(area), &
+         & "volume", sum(volume)
+   else
+      write(unit, '(2x, a:, "=", g0)') &
+         & "fepsi", keps, &
+         & "area", sum(area)
+   end if
 
    write(unit, '(a)') &
       & "$coord_rad", &

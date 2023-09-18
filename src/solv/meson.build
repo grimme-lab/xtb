@@ -29,4 +29,5 @@ srcs += files(
   'model.f90',
   'sasa.f90',
   'state.f90',
+  'ddvolume.f90',
 )
