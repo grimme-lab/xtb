@@ -57,14 +57,6 @@ contains
         integer :: i,s,x,y,z
         real(wp) :: x_min,x_max,y_min,y_max,z_min,z_max
     
-        !! Check if xyz and r have the same size
-        if (size(xyz,2) /= size(r)) then
-            write(*,*) "Error: xyz and r must have the same size"
-            write(*,*) "size(xyz,2) = ", size(xyz,2)
-            write(*,*) "size(r) = ", size(r)
-            stop
-        end if
-
         allocate(spheres(size(xyz,2)))
         allocate(volume(size(xyz,2)))
         volume = 0.0_wp
