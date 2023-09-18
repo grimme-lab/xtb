@@ -66,7 +66,7 @@ contains
         end do
 
         call find_neighbours(spheres)
-
+        !$OMP PARALLEL DO DEFAULT(NONE) SHARED(spheres, volume,resolution) PRIVATE(s,x,y,z,x_min,x_max,y_min,y_max,z_min,z_max)
         do s=1,size(spheres)
             x_min=(spheres(s)%x-spheres(s)%r)
             x_max=(spheres(s)%x+spheres(s)%r)
@@ -85,6 +85,7 @@ contains
             end do
             volume(s) = spheres(s)%volume
       end do
+      !$OMP END PARALLEL DO
     end subroutine ddvolume
 
     !> Initializes a sphere
