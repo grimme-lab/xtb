@@ -16,10 +16,10 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'bondorder.f90',
+  'bondorder.F90',
   'fragment.f90',
   'version.f90',
-  'xtb.f90',
+  'xtb.F90',
   'output.f90',
 )
 

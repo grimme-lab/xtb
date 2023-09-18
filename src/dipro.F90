@@ -1,17 +1,22 @@
-! This file is part of dipro.
-! SPDX-Identifier: Apache-2.0
+! This file is part of xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
 !
-! Licensed under the Apache License, Version 2.0 (the "License");
-! you may not use this file except in compliance with the License.
-! You may obtain a copy of the License at
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
 !
-!     http://www.apache.org/licenses/LICENSE-2.0
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
 !
-! Unless required by applicable law or agreed to in writing, software
-! distributed under the License is distributed on an "AS IS" BASIS,
-! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-! See the License for the specific language governing permissions and
-! limitations under the License.
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
 
 !> Implementation of the dimer projection method for extended tight binding methods.
 module xtb_dipro
@@ -23,6 +28,7 @@ module xtb_dipro
    use xtb_type_calculator, only : TCalculator
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator
    use xtb_setparam
+#if WITH_TBLITE
    use xtb_dipro_bondorder, only : get_wiberg_bondorder
    use xtb_dipro_fragment, only : get_wiberg_fragment
    use xtb_dipro_output, only : format_list, to_string
@@ -37,6 +43,7 @@ module xtb_dipro
       & get_density_matrix
    use tblite_xtb_calculator, only : xtb_calculator
    use tblite_xtb_singlepoint, only : xtb_singlepoint
+#endif
    implicit none
    private
    public :: get_jab, jab_input
@@ -71,14 +78,17 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    implicit none
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol  
-   !> structure_type /= molecular structure
-   type(structure_type) :: struc
    !requested gfn method for calculations Input
    type(TTBLiteInput), intent(inout) :: tblite
 
    type(jab_input),intent(inout) :: dipro
 
    type(TEnvironment),intent(inout) :: env
+
+   integer, allocatable, intent(inout) :: fragment(:)
+#if WITH_TBLITE
+   !> structure_type /= molecular structure
+   type(structure_type) :: struc
    type(error_type),allocatable :: error
 
    type(context_type) :: ctx
@@ -95,7 +105,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    real(wp), allocatable :: gradient(:, :), sigma(:,:), nel(:)
    real(wp), allocatable :: overlap(:, :), trans(:, :), wbo(:, :), chrg(:), p2mat(:,:), coeff2(:,:),loc(:,:)
    real(wp), allocatable :: orbital(:, :, :), scmat(:, :), fdim(:, :), scratch(:), efrag(:),y(:,:),Edim(:,:)
-   integer, allocatable :: fragment(:), spinfrag(:), start_index(:),end_index(:),orbprint(:)
+   integer, allocatable :: spinfrag(:), start_index(:),end_index(:),orbprint(:)
 
    integer :: charge, stat, unit, ifr, nfrag, nao, i, j, k
 
@@ -112,7 +122,6 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    if ( tblite%method == '' ) then 
       tblite%method = 'gfn2'
       call env%warning("No method provided, falling back to default GFN2-xTB.", source)
-      write(*,*) "==> No method provided, falling back to default GFN2-xTB."
    end if
 
 !=========================set up calculator===========================================   
@@ -417,10 +426,13 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    write(*,*) "Please remember, DIPRO is not available for restart!"
    write(*,*) "  "
    write(*,'(A)') "normal termination of dipro"
+#else
+   Call env%error("DIPRO is not available without TBLite.", source)
+#endif
 
 end subroutine get_jab
 
-
+#if WITH_TBLITE
 !> Unpack coefficients from a fragment orbital space in the full orbital space
 subroutine unpack_coeff(full_bas, frag_bas, full, frag, mask)
    !> Basis set information for full system
@@ -478,6 +490,6 @@ subroutine get_structure_fragment(frag, struc, mask) !mol
    xyz = reshape(pack(struc%xyz, spread(mask, 1, 3)), [3, nat])
    call new(frag, num, xyz)
 end subroutine get_structure_fragment
-
+#endif
 
 end module xtb_dipro

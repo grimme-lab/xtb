@@ -18,11 +18,11 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/bondorder.f90"
+  "${dir}/bondorder.F90"
   "${dir}/fragment.f90"
   "${dir}/output.f90"
   "${dir}/version.f90"
-  "${dir}/xtb.f90"
+  "${dir}/xtb.F90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

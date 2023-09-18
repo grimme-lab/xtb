@@ -1,22 +1,28 @@
-! This file is part of dipro.
-! SPDX-Identifier: Apache-2.0
+! This file is part of the dipro module in xtb.
+! SPDX-Identifier: LGPL-3.0-or-later
 !
-! Licensed under the Apache License, Version 2.0 (the "License");
-! you may not use this file except in compliance with the License.
-! You may obtain a copy of the License at
+! xtb is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
 !
-!     http://www.apache.org/licenses/LICENSE-2.0
+! xtb is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
 !
-! Unless required by applicable law or agreed to in writing, software
-! distributed under the License is distributed on an "AS IS" BASIS,
-! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-! See the License for the specific language governing permissions and
-! limitations under the License.
+! You should have received a copy of the GNU Lesser General Public License
+! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
 
 !> Helper routines to handle calculations with the tblite library
 module xtb_dipro_xtb
    use mctc_env, only : error_type, fatal_error, wp
    use mctc_io, only : structure_type
+#if WITH_TBLITE
    use tblite_xtb_calculator, only : xtb_calculator
    use tblite_xtb_gfn2, only : new_gfn2_calculator
    use tblite_xtb_gfn1, only : new_gfn1_calculator
@@ -51,5 +57,6 @@ subroutine get_calculator(xcalc, mol, method, error)
       call new_ipea1_calculator(xcalc, mol)
    end select
 end subroutine get_calculator
+#endif
 
 end module xtb_dipro_xtb

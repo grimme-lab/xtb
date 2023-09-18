@@ -13,9 +13,14 @@
 ! See the License for the specific language governing permissions and
 ! limitations under the License.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Calculation of Wiberg/Mayer type bond orders
 module xtb_dipro_bondorder
    use mctc_env, only : wp
+#if WITH_TBLITE
    use tblite_basis_type, only : basis_type
    use tblite_blas, only : gemm
    implicit none
@@ -55,6 +60,6 @@ subroutine get_wiberg_bondorder(bas, smat, pmat, wbo)
    end do
 
 end subroutine get_wiberg_bondorder
-
+#endif
 
 end module xtb_dipro_bondorder

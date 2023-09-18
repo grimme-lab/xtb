@@ -1513,7 +1513,6 @@ subroutine set_scc(env,key,val)
    logical,save :: set2 = .true.
    logical,save :: set3 = .true.
    logical,save :: set4 = .true.
-   logical,save :: set5 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by scc",source)

@@ -126,7 +126,6 @@ subroutine xtbMain(env, argParser)
    type(oniom_input) :: oniom
    type(jab_input) :: dipro
    type(TCpcmx) :: cpx
-   type(TSet) :: set
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
    character(len=:),allocatable :: fname    ! geometry input file
@@ -1400,7 +1399,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             call set_exttyp('tblite')
          else
             call env%error("Compiled without support for tblite library", source)
-            cycle
+            return
          endif
 
       case('--color')
@@ -1425,7 +1424,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             tblite%spin_polarized = .true.
          else
             call env%error("Compiled without support for tblite library. This is required for spin-polarization", source)
-            cycle
+            return
          end if
 
       case('--dipro')
@@ -1440,7 +1439,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
             end if
          else
             call env%error("Compiled without support for tblite library. This is required for DIPRO", source)
-            cycle
+            return
          end if   
 
       case('--oniom')
