@@ -250,6 +250,25 @@ subroutine main_property &
 
 end subroutine main_property
 
+subroutine gfnff_property(iunit, n, xyz, topo, nlist)
+  use xtb_gfnff_topology, only: TGFFTopology 
+  use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
+  use xtb_aespot, only: molqdip
+  !! ========================================================================
+  !  global storage of options, parameters and basis set
+  use xtb_setparam
+  integer, intent(in) :: iunit, n
+  real(wp), intent(in) :: xyz(3,n)
+  type(TGFFTopology), intent(in) :: topo
+  type(TGFFNeighbourList), intent(in) :: nlist
+
+  ! dipole moment from charge
+   if (set%pr_dipole) then
+     call molqdip(iunit, n, xyz, nlist%q)
+   endif
+
+end subroutine gfnff_property
+
 subroutine main_cube &
       (lverbose,mol,wfx,basis,res)
 

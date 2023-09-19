@@ -892,6 +892,8 @@ subroutine xtbMain(env, argParser)
          call main_property(iprop,env,mol,chk%wfn,calc%basis,calc%xtbData,res, &
             & calc%solvation,set%acc)
          call main_cube(set%verbose,mol,chk%wfn,calc%basis,res)
+      type is(TGFFCalculator)
+         call gfnff_property(iprop,mol%n,mol%xyz,calc%topo,chk%nlist)
       end select
    endif
 
