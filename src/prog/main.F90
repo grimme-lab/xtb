@@ -183,7 +183,7 @@ subroutine xtbMain(env, argParser)
    integer  :: nFiles, iFile
    integer  :: rohf,err
    real(wp) :: dum5,egap,etot,ipeashift
-   real(wp) :: zero,t0,t1,w0,w1,acc,etot2,g298
+   real(wp) :: zero,t0,t1,w0,w1,etot2,g298
    real(wp) :: one,two
    real(wp) :: ea,ip
    real(wp) :: vomega
@@ -213,7 +213,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> read the command line arguments
-   call parseArguments(env, argParser, xcontrol, fnv, acc, lgrad, &
+   call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
       & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
 
    !> Spin-polarization is only available in the tblite library
@@ -415,8 +415,6 @@ subroutine xtbMain(env, argParser)
 
    call setup_summary(env%unit,mol%n,fname,xcontrol,chk%wfn,xrc)
 
-   if(set%fit) acc=0.2 ! higher SCF accuracy during fit
-
    ! ------------------------------------------------------------------------
    !> 2D => 3D STRUCTURE CONVERTER
    ! ------------------------------------------------------------------------
@@ -540,7 +538,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
-   call newCalculator(env, mol, calc, fnv, restart, acc, oniom, iff_data, tblite)
+   call newCalculator(env, mol, calc, fnv, restart, set%acc, oniom, iff_data, tblite)
    call env%checkpoint("Could not setup single-point calculator")
 
    call initDefaults(env, calc, mol, gsolvstate)
@@ -648,7 +646,7 @@ subroutine xtbMain(env, argParser)
    if (set%runtyp.eq.p_run_bhess) then
       call set_metadynamic(metaset,mol%n,mol%at,mol%xyz)
       call get_kopt (metaset,env,restart,mol,chk,calc,egap,set%etemp,set%maxscciter, &
-         & set%optset%maxoptcycle,set%optset%optlev,etot,g,sigma,acc)
+         & set%optset%maxoptcycle,set%optset%optlev,etot,g,sigma,set%acc)
    end if
 
    ! ------------------------------------------------------------------------
@@ -892,7 +890,7 @@ subroutine xtbMain(env, argParser)
       select type(calc)
       type is(TxTBCalculator)
          call main_property(iprop,env,mol,chk%wfn,calc%basis,calc%xtbData,res, &
-            & calc%solvation,acc)
+            & calc%solvation,set%acc)
          call main_cube(set%verbose,mol,chk%wfn,calc%basis,res)
       end select
    endif
@@ -1142,7 +1140,7 @@ end subroutine xtbMain
 
 
 !> Parse command line arguments and forward them to settings
-subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
+subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
       & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
    use xtb_mctc_global, only : persistentEnv
 
@@ -1160,9 +1158,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
 
    !> Parameter file name
    character(len=:),allocatable,intent(out) :: paramFile
-
-   !> Accuracy number for numerical thresholds
-   real(wp), intent(out) :: accuracy
 
    !> Reference state for solvation free energies
    integer, intent(out) :: gsolvstate
@@ -1211,7 +1206,6 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
    restart = .true.
    copycontrol = .false.
    lgrad = .false.
-   accuracy = 1.0_wp
    gsolvstate = solutionState%gsolv
    tblite%color = get_xtb_feature('color')
 
@@ -1313,16 +1307,16 @@ subroutine parseArguments(env, args, inputFile, paramFile, accuracy, lgrad, &
                if (ddum.lt.1.e-4_wp) then
                   call env%warning("We cannot provide this level of accuracy, "//&
                      & "resetted accuracy to 0.0001", source)
-                  accuracy = 1.e-4_wp
+                  set%acc = 1.e-4_wp
                else if (ddum.gt.1.e+3_wp) then
                   call env%warning("We cannot provide this level of accuracy, "//&
                      & "resetted accuracy to 1000", source)
-                  accuracy = 1.e+3_wp
+                  set%acc = 1.e+3_wp
                else
-                  accuracy = ddum
+                  set%acc = ddum
                endif
             end if
-            tblite%accuracy = accuracy
+            tblite%accuracy = set%acc
          else
             call env%error("Accuracy is not provided", source)
          end if
