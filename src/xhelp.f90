@@ -165,6 +165,9 @@ subroutine help(iunit)
    "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
    "    can be chosen by setting epsilon to infinity.",&
    "",&
+   "--tmcosmo SOLVENT/EPSILON",&
+   "    same as --cosmo, but uses TM convention for writing the .cosmo files.",&
+   "",&
    "--cpcmx SOLVENT",&
    "    extended conduction-like polarizable continuum solvation model (CPCM-X),",&
    "    available solvents are all solvents included in the Minnesota Solvation Database.",&
