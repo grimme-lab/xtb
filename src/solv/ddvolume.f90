@@ -17,7 +17,7 @@
 ! MS, 09/2023: Initial implementation
 
 
-!> domain-decomposited volume calculation for molecule
+!> domain-decomposed volume calculation for molecule
 module xtb_solv_ddvolume
     use xtb_mctc_accuracy, only: wp
     implicit none
