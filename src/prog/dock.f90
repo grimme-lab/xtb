@@ -1032,7 +1032,7 @@ contains
       end do
       !> Changing the distance to a repulsive potential sitting on every atom other then
       !  the defined docking atoms. This potentail is a damped exponential increase.
-      !  It is later in the energy calculation and RG screening added in ditance depdence to
+      !  It is later in the energy calculation and RG screening added in distance depdence to
       !  docked molecule via 1/r²
       do i=1, comb%n
          if(any(i == directedset%atoms)) cycle !Potential zero for atoms in defined docking region
