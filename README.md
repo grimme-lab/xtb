@@ -96,7 +96,7 @@ conda search xtb --channel conda-forge
 
 [![Documentation Status](https://readthedocs.org/projects/xtb-docs/badge/?version=latest)](https://xtb-docs.readthedocs.io/en/latest/?badge=latest)
 
-The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/contents.html).
+The `xtb` documentation is hosted at [read-the-docs](https://xtb-docs.readthedocs.io/en/latest/).
 
 
 ## Contributing

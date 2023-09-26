@@ -1572,11 +1572,11 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
             call env%error("No solvent name provided for ALPB", source)
          end if
 
-      case('--cosmo')
+      case('--cosmo','--tmcosmo')
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_gbsa(env, 'solvent', sec)
-            call set_gbsa(env, 'cosmo', 'true')
+            call set_gbsa(env, flag(3:), 'true')
             call args%nextArg(sec)
             if (allocated(sec)) then
                if (sec == 'reference') then
