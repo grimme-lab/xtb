@@ -192,6 +192,7 @@ subroutine write_set_opt(ictrl)
       case default;            write(ictrl,'("unknown")')
       case(p_engine_rf);       write(ictrl,'("rf")')
       case(p_engine_lbfgs);    write(ictrl,'("lbfgs")')
+      case(p_engine_pbc_lbfgs);    write(ictrl,'("pbc_lbfgs")')
       case(p_engine_inertial); write(ictrl,'("inertial")')
       end select
    end if
@@ -1660,6 +1661,7 @@ subroutine set_opt(env,key,val)
          case default; call env%warning("engine '"//val//"' is not implemented",source)
          case('rf','ancopt');      set%opt_engine = p_engine_rf
          case('lbfgs','l-ancopt'); set%opt_engine = p_engine_lbfgs
+         case('pbc_lbfgs');        set%opt_engine = p_engine_pbc_lbfgs
          case('inertial','fire');  set%opt_engine = p_engine_inertial
          end select
       end if
