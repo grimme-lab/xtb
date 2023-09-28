@@ -31,7 +31,7 @@ module xtb_scf
    use xtb_type_coulomb, only : TCoulomb
    use xtb_type_data
    use xtb_type_environment
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_molecule, only : TMolecule
    use xtb_type_solvation, only : TSolvation
    use xtb_type_param
@@ -282,7 +282,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 !  do the first SCC by full diag
    if(egap.eq.0) startpdiag=1000
 
-   call init(latp, env, mol, 60.0_wp)
+   call init_l(latp, env, mol, 60.0_wp)
 
 !ccccccccccccccccccc
 ! note: H is in eV!

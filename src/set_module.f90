@@ -958,6 +958,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_mopac
    case('ff')
       set%mode_extrun = p_ext_gfnff
+   case('mcff')
+      set%mode_extrun = p_ext_mcgfnff
    case('iff')
       set%mode_extrun = p_ext_iff
    end select

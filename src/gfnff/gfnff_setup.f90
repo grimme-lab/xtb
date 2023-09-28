@@ -20,6 +20,7 @@ module xtb_gfnff_setup
   use xtb_gfnff_data, only : TGFFData
   use xtb_gfnff_topology, only : TGFFTopology
   use xtb_gfnff_generator, only : TGFFGenerator
+  use xtb_gfnff_neighbor
   implicit none
   private
   public :: gfnff_setup, gfnff_input

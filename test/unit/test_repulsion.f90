@@ -156,7 +156,7 @@ subroutine test_repulsion_pbc3d(error)
    use xtb_mctc_la, only : contract
    use xtb_type_environment
    use xtb_type_molecule
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_neighbourlist, only : TNeighbourList, init
    use xtb_xtb_data
    use xtb_xtb_gfn1
@@ -229,7 +229,7 @@ subroutine test_repulsion_pbc3d(error)
    call init(env)
    call init(mol, at, xyz, lattice=lattice)
    call initGFN1(rep)
-   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 40.0_wp)  ! Fixed cutoff
    call init(neighList, len(mol))
 
    allocate(neighs(nat))
