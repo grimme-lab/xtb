@@ -36,6 +36,7 @@ module xtb_type_molecule
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_symbols, only : toNumber, toSymbol, symbolLength, getIdentity
+   use xtb_type_wsc
    use xtb_type_topology
    use xtb_type_fragments
    use xtb_type_buffer
@@ -110,6 +111,9 @@ module xtb_type_molecule
 
       !> Volume of unit cell
       real(wp) :: volume = 0.0_wp
+
+      !> Wigner--Seitz cell
+      type(tb_wsc) :: wsc
 
       !> File type of the input
       integer  :: ftype = 0

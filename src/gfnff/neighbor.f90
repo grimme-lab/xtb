@@ -242,7 +242,6 @@ if(NORM2(sVec).eq.0.0_wp) write(*,*) 'Error: A lattice vector for a periodic axi
                     !
                     if(abs(ix).ne.i.and.abs(iy).ne.i.and.abs(iz).ne.i) cycle
                     indx=indx+1
-if(indx.gt.d) write(*,*) 'I messed up. See neighbor%getTransVec' !@thomas delete comment write
                     self%trVecInt(:,indx)=[ix,iy,iz]
 !if(i.le.2) write(*,'(i4,a,3i4)') indx,' trInt:',[ix,iy,iz]
                   enddo
@@ -266,7 +265,6 @@ if(indx.gt.d) write(*,*) 'I messed up. See neighbor%getTransVec' !@thomas delete
                       if(abs(ix).ne.i.and.abs(iy).ne.i) cycle
                     endif
                     indx=indx+1
-if(indx.gt.d) write(*,*) 'I messed up. See neighbor%getTransVec' !@thomas delete comment write
                     if(mol%pbc(1)) self%trVecInt(1,indx)= ix
                     if(mol%pbc(2)) self%trVecInt(2,indx)= iy
                     if(mol%pbc(3)) self%trVecInt(3,indx)= iz
@@ -291,7 +289,6 @@ if(indx.gt.d) write(*,*) 'I messed up. See neighbor%getTransVec' !@thomas delete
                       if(abs(iz).ne.i) cycle
                     endif
                     indx=indx+1
-if(indx.gt.d) write(*,*) 'I messed up. See neighbor%getTransVec' !@thomas delete comment write
                     if(mol%pbc(1)) self%trVecInt(1,indx)= ix
                     if(mol%pbc(2)) self%trVecInt(2,indx)= iy
                     if(mol%pbc(3)) self%trVecInt(3,indx)= iz
@@ -819,37 +816,6 @@ write(*,*) ''
         write(*,'(a,i8)') 'neigh%numctr  =',self%numctr
         write(*,'(a,i8)') 'Counted numctr=',cntCen
         write(*,*)
-        !@thomas delete start
-        do i=1, d      !i=3   0  0 -18.9
-          inCenTrans=.false.
-          do j=1, nctr !j=14
-            if (dum(1,i).eq.nTrV(1,j).and.dum(2,i).eq.nTrV(2,j).and.dum(3,i).eq.nTrV(3,j)) then
-              inCenTrans=.true.
-            else
-              if(norm2(dum(:,i)).lt.cenMaxDist) then
-                !
-                write(*,'(a,2i4)') 'dum(i) trV(j) :',i,j
-                write(*,'(3f18.8)') dum(:,i)
-                write(*,'(3f18.8)') nTrV(:,j)
-                write(*,*)
-              endif
-            endif
-          enddo
-        enddo
-        write(*,*) ''
-      do i=1, d
-        do j=1, d
-          if(i.eq.j) cycle
-          if (trV(1,i).eq.trV(1,j).and.trV(2,i).eq.trV(2,j).and.trV(3,i).eq.trV(3,j)) then
-            write(*,*) 'Found doublicate in trV:'
-            write(*,'(2i6)') i,j
-            write(*,'(3f18.8)') trV(:,i)
-            write(*,'(3f18.8)') trV(:,j)
-            write(*,*) ''
-          endif
-        enddo
-      enddo
-        !@thomas delete end
         endif
 
     end subroutine sortTransVec

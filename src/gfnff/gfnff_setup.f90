@@ -27,7 +27,7 @@ module xtb_gfnff_setup
 
 contains
 
-subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
+subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,version)
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule
@@ -39,6 +39,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   !integer,intent(in) :: ich
   type(TGFFTopology), intent(inout) :: topo
   type(TGFFGenerator), intent(inout) :: gen
+  type(TNeigh), intent(inout) :: neigh
   type(TGFFData), intent(inout) :: param
   integer,intent(in) :: version
   logical,intent(in) :: restart
@@ -51,7 +52,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   logical            :: success
   logical :: exitRun
 
-  call gfnff_input(env, mol, topo)
+  call gfnff_input(env, mol, topo, neigh)
   call env%check(exitRun)
   if (exitRun) then
      call env%error("Failed to prepare topology from geometry input", source)
@@ -61,7 +62,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   call gfnff_set_param(mol%n, gen, param)
   param%dispscale = set%dispscale
   if (restart) then
-     call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo)
+     call read_restart_gff(env,'gfnff_topo',mol%n,version,success,.true.,topo,neigh)
      if (success) then
         write(env%unit,'(10x,"GFN-FF topology read from file successfully!")')
         return
@@ -72,7 +73,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
      end if
   end if
 
-  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,accuracy)
+  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,neigh,accuracy)
 
   call env%check(exitRun)
   if (exitRun) then
@@ -81,13 +82,13 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   end if
 
   if (.not.mol%info%two_dimensional) then
-     call write_restart_gff(env,'gfnff_topo',mol%n,version,topo)
+     call write_restart_gff(env,'gfnff_topo',mol%n,version,topo,neigh)
      call write_gfnff_adjacency('gfnff_adjacency',topo)
   end if
 
 end subroutine gfnff_setup
 
-subroutine gfnff_input(env, mol, topo)
+subroutine gfnff_input(env, mol, topo, neigh)
   use xtb_mctc_accuracy, only : wp
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule
@@ -96,6 +97,7 @@ subroutine gfnff_input(env, mol, topo)
   implicit none
   ! Dummy
   type(TMolecule),intent(in) :: mol
+  type(TNeigh), intent(inout) :: neigh
   type(TEnvironment), intent(inout) :: env
   type(TGFFTopology), intent(inout) :: topo
   ! Stack
@@ -201,10 +203,6 @@ subroutine gfnff_input(env, mol, topo)
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
   case default
-    if (mol%npbc > 0) then
-      call env%error("Input file format not suitable for GFN-FF!")
-      return
-    end if
     ini = .true.
     call open_file(ich,'.CHRG','r')
     if (ich.ne.-1) then

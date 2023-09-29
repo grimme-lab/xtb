@@ -78,7 +78,7 @@ module xtb_gfnff_topology
       real(wp),allocatable:: chieeq(:)     ! atomic ENs for EEQ
       real(wp),allocatable:: gameeq(:)     ! atomic gamma for EEQ
       real(wp),allocatable:: alpeeq(:)     ! atomic alpha for EEQ, squared
-      real(wp),allocatable:: alphanb(:)    ! non-bonded exponent for atom pairs
+      real(wp),allocatable:: alphanb(:,:,:)    ! non-bonded exponent for atom pairs
       real(wp),allocatable::    qa(:)      ! estimated atomic charges (fixed and obtained from topology EEQ)
       real(wp),allocatable::    xyze0(:,:) ! atom xyz, starting geom. (for Efield energy)
       real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product

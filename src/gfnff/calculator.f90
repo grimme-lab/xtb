@@ -37,6 +37,8 @@ module xtb_gfnff_calculator
    use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
+   use xtb_type_latticepoint
+   use xtb_gfnff_neighbor
    implicit none
    private
 
@@ -49,6 +51,7 @@ module xtb_gfnff_calculator
       type(TGFFData) :: param
       type(TGFFGenerator) :: gen
       type(TGFFTopology) :: topo
+      type(TNeigh) :: neigh
       logical :: update
       integer :: version
 
@@ -127,7 +130,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
    call gfnff_setup(env, set%verbose, restart, mol, &
-      & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)
+      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, calc%version)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -222,8 +225,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! actual calculation !
    !--------------------!
 
-   call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
+   call gfnff_eg(env,mol,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,sigma, &
+      & gradient,energy,results,self%param,self%topo,self%neigh,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy,minpr=optpr)
 
    call env%check(exitRun)

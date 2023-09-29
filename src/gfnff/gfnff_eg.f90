@@ -24,11 +24,77 @@ module xtb_gfnff_eg
    use xtb_solv_gbsa, only : TBorn
    use xtb_type_environment, only : TEnvironment
    use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
+   use xtb_mctc_la , only : contract323
    use xtb_mctc_blas, only : mctc_gemv
    use xtb_param_sqrtzr4r2, only : sqrtZr4r2
+   use xtb_mctc_constants, only : pi
+   use xtb_param_covalentradd3, only : covalentRadD3
+   use xtb_param_paulingen, only : paulingEN
+   use xtb_type_neighbourlist, only : TNeighbourList
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
+   use xtb_gfnff_neighbor
    implicit none
    private
-   public :: gfnff_eg, gfnff_dlogcoord
+   public :: gfnff_eg, gfnff_dlogcoord, cnType, getCoordinationNumber
+
+   interface getCoordinationNumber
+      module procedure :: getCoordinationNumberLP
+   end interface getCoordinationNumber
+
+   !> Possible counting functions for calculating coordination numbers
+   type :: TCNTypeEnum
+
+      !> Counting function not specified
+      integer :: invalid = 0
+
+      !> Original DFT-D3 coordination number
+      integer :: exp = 1
+
+      !> Faster decaying error function CN, better for dense systems
+      integer :: erf = 2
+
+      !> Error function CN with covalency correction
+      integer :: cov = 3
+
+      !> Particular long-ranged version of the DFT-D3 coordination number
+      integer :: gfn = 4
+
+      !> log CN, erf fct capped at max value cnmax
+      integer :: log = 5
+
+   end type TCNTypeEnum
+
+   !> Enumerator for different coordination number types
+   type(TCNTypeEnum), parameter :: cnType = TCNTypeEnum()
+
+   abstract interface
+   !> Abstract interface for the counting function (and its derivative)
+   pure function countingFunction(k, r, r0)
+      import :: wp
+
+      !> Constant for counting function
+      real(wp), intent(in) :: k
+
+      !> Actual distance
+      real(wp), intent(in) :: r
+
+      !> Critical distance
+      real(wp), intent(in) :: r0
+
+      !> Value of the counting function in the range of [0,1]
+      real(wp) :: countingFunction
+
+   end function countingFunction
+   end interface
+
+   !> Parameter for electronegativity scaling
+   real(wp),parameter :: k4=4.10451_wp
+
+   !> Parameter for electronegativity scaling
+   real(wp),parameter :: k5=19.08857_wp
+
+   !> Parameter for electronegativity scaling
+   real(wp),parameter :: k6=2*11.28174_wp**2
 
 contains
 
@@ -60,8 +126,8 @@ contains
 !
 !---------------------------------------------------
 
-subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
-      & param,topo,nlist,solvation,update,version,accuracy,minpr)
+subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
+      & param,topo,neigh,nlist,solvation,update,version,accuracy,minpr)
 
    use xtb_mctc_accuracy, only : wp
    use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
@@ -69,9 +135,18 @@ subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
    use xtb_type_timer
    use xtb_gfnff_gdisp0
    use xtb_mctc_constants
+   use xtb_type_latticepoint
+   use xtb_type_param, only : dftd_parameter 
+   use xtb_type_molecule, only : TMolecule
+   use xtb_gfnff_neighbor, only: TNeigh
    implicit none
 
    character(len=*), parameter :: source = 'gfnff_eg'
+   real(wp),allocatable :: transVec(:,:)
+   real(wp),allocatable :: rec_tVec(:,:)
+   type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
+   type(dftd_parameter) :: disp_par, mcdisp_par 
+   type(TMolecule), intent(in) :: mol
    type(TEnvironment), intent(inout) :: env
    type(scc_results),intent(out) :: res_gff
    type(TGFFData), intent(in) :: param
@@ -87,6 +162,7 @@ subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
    integer ichrg
    integer at(n)
    real*8 xyz(3,n)
+   real(wp), intent(out) :: sigma(3,3) ! stress tensor
    real*8 g  (3,n)
    real*8 etot
    logical pr
@@ -95,13 +171,14 @@ subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
    real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext
    real*8 :: gsolv, gborn, ghb, gsasa, gshift
 
-   integer i,j,k,l,m,ij,nd3
+   integer i,j,k,l,m,ij,nd3,iTr,iTri,iTrj,iTrk,iTrl,iTrDum,wscAt,atnb,inb,nbb
+
    integer ati,atj,iat,jat
    integer hbA,hbB,nbk,nbnbk
    integer lin
    logical ex, require_update
    integer nhb1, nhb2, nxb
-   real*8  r2,rab,qq0,erff,dd,dum1,r3(3),t8,dum,t22,t39
+   real*8  r2,rab,qq0,erff,dd,dum1,r3(3),t8,dum,t22,t39,vec(3)
    real*8  dx,dy,dz,yy,t4,t5,t6,alpha,t20
    real*8  repab,t16,t19,t26,t27,xa,ya,za,cosa,de,t28
    real*8  gammij,eesinf,etmp,phi,valijklff
@@ -111,11 +188,28 @@ subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
    real*8, allocatable :: grab0(:,:,:), rab0(:), eeqtmp(:,:)
    real*8, allocatable :: cn(:), dcn(:,:,:), qtmp(:)
    real*8, allocatable :: hb_cn(:), hb_dcn(:,:,:)
+   real(wp), allocatable :: gTrans(:,:), rTrans(:,:) ! reciprocal, direct translation vector for ES
    real*8, allocatable :: sqrab(:), srab(:)
    real*8, allocatable :: g5tmp(:,:)
    integer,allocatable :: d3list(:,:)
+   real(wp),allocatable :: xtmp(:)
    type(tb_timer) :: timer
    real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
+   real(wp) :: mcf_ees, mcf_ehb, mcf_nrep, mcf_s8
+      if (version == gffVersion%mcgfnff2023) then
+        mcf_nrep = 1.343608_wp        
+        mcf_ees  = 0.800222_wp        
+        mcf_ehb  = 0.727406_wp        
+        mcf_s8   = 2.858671_wp
+        mcdisp_par = dftd_parameter(s6=1.0_wp, s8=mcf_s8, a1=0.58_wp, a2=4.8_wp, s9=0.0_wp)
+        disp_par   = dftd_parameter(s6=1.0_wp, s8=2.0_wp, a1=0.58_wp, a2=4.8_wp, s9=0.0_wp)
+      else
+        mcdisp_par = dftd_parameter(s6=1.0_wp, s8=2.0_wp, a1=0.58_wp, a2=4.8_wp, s9=0.0_wp)
+        disp_par   = dftd_parameter(s6=1.0_wp, s8=2.0_wp, a1=0.58_wp, a2=4.8_wp, s9=0.0_wp)
+        mcf_nrep = 1.0_wp        
+        mcf_ees = 1.0_wp        
+        mcf_ehb = 1.0_wp        
+      endif
 
    call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
@@ -225,29 +319,42 @@ subroutine gfnff_eg(env,pr,n,ichrg,at,xyz,makeq,g,etot,res_gff, &
    !------------!
 
    if (pr) call timer%measure(2,'non bonded repulsion')
-   !$omp parallel do default(none) reduction(+:erep, g) &
-   !$omp shared(n, at, xyz, srab, sqrab, repthr, topo, param) &
-   !$omp private(iat, jat, m, ij, ati, atj, rab, r2, r3, t8, t16, t19, t26, t27)
+   !$omp parallel do default(none) reduction(+:erep, g, sigma) &
+   !$omp shared(n, at, xyz, srab, sqrab, transVec, repthr, &
+   !$omp topo, param, vec, neigh, mcf_nrep) &
+   !$omp private(iat, jat, iTr, iTrDum, m, ij, ati, atj, rab, r2, r3, t8, t16, t19, t26, t27)
    do iat=1,n
-      m=iat*(iat-1)/2
-      do jat=1,iat-1
-         ij=m+jat
-         r2=sqrab(ij)
-         if(r2.gt.repthr)   cycle ! cut-off !
-         if(topo%bpair(ij).eq.1) cycle ! list avoided because of memory !
+     do jat=1,iat
+       do iTr=1, neigh%nTrans
+
+         !First calculate erep, g and sigma
+         r2=NORM2(xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr))**2 !neigh%distances(iat,jat,iTr)**2
+         
+         ! cycle when above cut-off and when atom would interact with itself
+         if(r2.gt.repthr .OR. r2.lt.1.0e-8_wp) cycle
+        
+         ! bonded repulsion is calculated seperately and therefore cycled here
+         if(iTr.le.neigh%numctr) then
+           if(neigh%bpair(iat,jat,iTr).eq.1) cycle ! list avoided because of memory
+         endif
          ati=at(iat)
          atj=at(jat)
-         rab=srab(ij)
+         rab=sqrt(r2)
          t16=r2**0.75
          t19=t16*t16
-         t8 =t16*topo%alphanb(ij)
-         t26=exp(-t8)*param%repz(ati)*param%repz(atj)*param%repscaln
-         erep=erep+t26/rab !energy
+         iTrDum=iTr
+         if (iTr.gt.neigh%numctr) iTrDum = neigh%numctr+1 ! alphanb is the same for all iTr>numctr
+         t8 =t16*topo%alphanb(iat,jat,iTrDum)
+         t26=exp(-t8)*param%repz(ati)*param%repz(atj)*param%repscaln*mcf_nrep
+         erep=erep+(t26/rab) !energy
          t27=t26*(1.5d0*t8+1.0d0)/t19
-         r3 =(xyz(:,iat)-xyz(:,jat))*t27
+         r3 =(xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr))*t27 
+         vec = xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr)
+         sigma = sigma -(spread(r3, 1, 3)*spread(vec, 2, 3))
          g(:,iat)=g(:,iat)-r3
          g(:,jat)=g(:,jat)+r3
-      enddo
+       enddo
+     enddo
    enddo
    !$omp end parallel do
    if (pr) call timer%measure(2)
@@ -3502,5 +3609,801 @@ pure elemental function create_dexpCN(k,r,r0) result(count)
 end function create_dexpCN
 
 end subroutine gfnff_dlogcoord
+
+!> Actual implementation of the coordination number, takes a generic counting
+!  function to return the respective CN.
+subroutine ncoordNeighs(mol, neighs, neighlist, kcn, cfunc, dfunc, enscale, &
+      & rcov, en, cn, dcndr, dcndL)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Number of interacting neighbours
+   integer, intent(in) :: neighs(:)
+
+   !> Neighbourlist
+   type(TNeighbourList), target, intent(in) :: neighlist
+
+   !> Function implementing the counting function
+   procedure(countingFunction) :: cfunc
+
+   !> Function implementing the derivative of counting function w.r.t. distance
+   procedure(countingFunction) :: dfunc
+
+   !> Use a covalency criterium by Pauling EN's
+   logical, intent(in) :: enscale
+
+   !> Steepness of counting function
+   real(wp), intent(in) :: kcn
+
+   !> Covalent radius
+   real(wp), intent(in) :: rcov(:)
+
+   !> Electronegativity
+   real(wp), intent(in) :: en(:)
+
+   !> Error function coordination number
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   integer :: iat, jat, ati, atj, ij, img
+   real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den
+
+   cn = 0.0_wp
+   dcndr = 0.0_wp
+   dcndL = 0.0_wp
+
+   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
+   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, neighlist, neighs) &
+   !$omp private(ij, img, jat, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   do iat = 1, mol%n
+      ati = mol%at(iat)
+      do ij = 1, neighs(iat)
+         img = neighlist%iNeigh(ij, iat)
+         r2 = neighlist%dist2(ij, iat)
+         rij = neighlist%coords(:, iat) - neighlist%coords(:, img)
+         jat = neighlist%image(img)
+         atj = mol%at(jat)
+         r1 = sqrt(r2)
+
+         rc = rcov(ati) + rcov(atj)
+
+         if (enscale) then
+            den = k4*exp(-(abs(en(ati)-en(atj)) + k5)**2/k6)
+         else
+            den = 1.0_wp
+         endif
+
+         countf = den * cfunc(kcn, r1, rc)
+         countd = den * dfunc(kcn, r1, rc) * rij/r1
+
+         cn(iat) = cn(iat) + countf
+         if (iat /= jat) then
+            cn(jat) = cn(jat) + countf
+         endif
+
+         dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
+         dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
+         dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
+         dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+
+         stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+
+         dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+         if (iat /= jat) then
+            dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+         endif
+
+      enddo
+   enddo
+   !$omp end parallel do
+
+end subroutine ncoordNeighs
+
+
+!> Geometric fractional coordination number, supports both error function
+!  and exponential counting functions.
+subroutine getCoordinationNumberLP(mol, ntrans, trans, cutoff, cf, cn, dcndr, dcndL, param)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Number of lattice points
+   integer, intent(in) :: ntrans
+
+   !> Lattice points
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Coordination number type (by counting function)
+   integer, intent(in) :: cf
+
+   ! parameter type, holds cnmax
+   type(TGFFData), intent(in) :: param
+
+   !> Error function coordination number
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   real(wp), parameter :: kcn_exp = 16.0_wp
+   real(wp), parameter :: kcn_erf =  7.5_wp
+   real(wp), parameter :: kcn_gfn = 10.0_wp
+
+   select case(cf)
+   case(cnType%exp)
+      call ncoordLatP(mol, ntrans, trans, cutoff, kcn_exp, expCount, dexpCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%erf)
+      call ncoordLatP(mol, ntrans, trans, cutoff, kcn_erf, erfCount, derfCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%cov)
+      call ncoordLatP(mol, ntrans, trans, cutoff, kcn_erf, erfCount, derfCount, &
+         & .true., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%gfn)
+      call ncoordLatP(mol, ntrans, trans, cutoff, kcn_gfn, gfnCount, dgfnCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+   case(cnType%log)
+      call ncoordLatP(mol, ntrans, trans, cutoff, kcn_erf, erfCount, derfCount, &
+         & .false., covalentRadD3, paulingEN, cn, dcndr, dcndL)
+      ! calculate modified CN and derivatives
+      call cutCoordinationNumber(mol%n, cn, dcndr, dcndL, param%cnmax)
+
+   end select
+
+
+end subroutine getCoordinationNumberLP
+
+
+!> Actual implementation of the coordination number, takes a generic counting
+!  function to return the respective CN.
+subroutine ncoordLatP(mol, ntrans, trans, cutoff, kcn, cfunc, dfunc, enscale, &
+      & rcov, en, cn, dcndr, dcndL)
+
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Number of lattice points
+   integer, intent(in) :: ntrans
+
+   !> Lattice points
+   real(wp), intent(in) :: trans(:, :)
+
+   !> Real space cutoff
+   real(wp), intent(in) :: cutoff
+
+   !> Function implementing the counting function
+   procedure(countingFunction) :: cfunc
+
+   !> Function implementing the derivative of counting function w.r.t. distance
+   procedure(countingFunction) :: dfunc
+
+   !> Use a covalency criterium by Pauling EN's
+   logical, intent(in) :: enscale
+
+   !> Steepness of counting function
+   real(wp), intent(in) :: kcn
+
+   !> Covalent radius
+   real(wp), intent(in) :: rcov(:)
+
+   !> Electronegativity
+   real(wp), intent(in) :: en(:)
+
+   !> Error function coordination number.
+   real(wp), intent(out) :: cn(:)
+
+   !> Derivative of the CN with respect to the Cartesian coordinates.
+   real(wp), intent(out) :: dcndr(:, :, :)
+
+   !> Derivative of the CN with respect to strain deformations.
+   real(wp), intent(out) :: dcndL(:, :, :)
+
+   integer :: iat, jat, ati, atj, itr 
+   real(wp) :: r2, r1, rc, rij(3), countf, countd(3), stress(3, 3), den, cutoff2
+
+   cn = 0.0_wp
+   dcndr = 0.0_wp
+   dcndL = 0.0_wp
+   cutoff2 = cutoff**2
+   !$omp parallel do default(none) private(den) shared(enscale, rcov, en)&
+   !$omp reduction(+:cn, dcndr, dcndL) shared(mol, kcn, trans, cutoff2, ntrans) &
+   !$omp private(jat, itr, ati, atj, r2, rij, r1, rc, countf, countd, stress)
+   do iat = 1, mol%n
+      ati = mol%at(iat)
+      do jat = 1, iat
+         atj = mol%at(jat)
+
+         if (enscale) then
+            den = k4*exp(-(abs(en(ati)-en(atj)) + k5)**2/k6)
+         else
+            den = 1.0_wp
+         end if
+
+         do itr = 1, ntrans
+            rij = mol%xyz(:, iat) - (mol%xyz(:, jat) + trans(:, itr))
+            r2 = sum(rij**2)
+            if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
+            r1 = sqrt(r2)
+
+            rc = rcov(ati) + rcov(atj)
+
+            countf = den * cfunc(kcn, r1, rc)
+            countd = den * dfunc(kcn, r1, rc) * rij/r1
+
+            cn(iat) = cn(iat) + countf
+            if (iat.ne.jat.or.itr.ne.1) then
+               cn(jat) = cn(jat) + countf
+            end if
+
+            dcndr(:, iat, iat) = dcndr(:, iat, iat) + countd
+            dcndr(:, jat, jat) = dcndr(:, jat, jat) - countd
+            dcndr(:, iat, jat) = dcndr(:, iat, jat) + countd
+            dcndr(:, jat, iat) = dcndr(:, jat, iat) - countd
+
+            stress = spread(countd, 1, 3) * spread(rij, 2, 3)
+
+            dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+            if (iat.ne.jat.or.itr.ne.1) then
+               dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+            end if
+         end do
+     end do
+   end do
+
+   !$omp end parallel do
+
+end subroutine ncoordLatP
+
+
+!> Error function counting function for coordination number contributions.
+pure function erfCount(k, r, r0) result(count)
+
+   !> Steepness of the counting function.
+   real(wp), intent(in) :: k
+
+   !> Current distance.
+   real(wp), intent(in) :: r
+
+   !> Cutoff radius.
+   real(wp), intent(in) :: r0
+
+   real(wp) :: count
+
+   count = 0.5_wp * (1.0_wp + erf(-k*(r-r0)/r0))
+
+end function erfCount
+
+
+!> Derivative of the counting function w.r.t. the distance.
+pure function derfCount(k, r, r0) result(count)
+
+   !> Steepness of the counting function.
+   real(wp), intent(in) :: k
+
+   !> Current distance.
+   real(wp), intent(in) :: r
+
+   !> Cutoff radius.
+   real(wp), intent(in) :: r0
+
+   real(wp), parameter :: sqrtpi = sqrt(pi)
+
+   real(wp) :: count
+
+   count = -k/sqrtpi/r0*exp(-k**2*(r-r0)**2/r0**2)
+
+end function derfCount
+
+
+!> Exponential counting function for coordination number contributions.
+pure function expCount(k, r, r0) result(count)
+
+   !> Steepness of the counting function.
+   real(wp), intent(in) :: k
+
+   !> Current distance.
+   real(wp), intent(in) :: r
+
+   !> Cutoff radius.
+   real(wp), intent(in) :: r0
+
+   real(wp) :: count
+
+   count =1.0_wp/(1.0_wp+exp(-k*(r0/r-1.0_wp)))
+
+end function expCount
+
+
+!> Derivative of the counting function w.r.t. the distance.
+pure function dexpCount(k, r, r0) result(count)
+
+   !> Steepness of the counting function.
+   real(wp), intent(in) :: k
+
+   !> Current distance.
+   real(wp), intent(in) :: r
+
+   !> Cutoff radius.
+   real(wp), intent(in) :: r0
+
+   real(wp) :: count
+   real(wp) :: expterm
+
+   expterm = exp(-k*(r0/r-1._wp))
+
+   count = (-k*r0*expterm)/(r**2*((expterm+1._wp)**2))
+
+end function dexpCount
+
+
+!> Exponential counting function for coordination number contributions.
+pure function gfnCount(k, r, r0) result(count)
+
+   !> Steepness of the counting function.
+   real(wp), intent(in) :: k
+
+   !> Current distance.
+   real(wp), intent(in) :: r
+
+   !> Cutoff radius.
+   real(wp), intent(in) :: r0
+
+   real(wp) :: count
+
+   count = expCount(k, r, r0) * expCount(2*k, r, r0+2)
+
+end function gfnCount
+
+
+!> Derivative of the counting function w.r.t. the distance.
+pure function dgfnCount(k, r, r0) result(count)
+
+   !> Steepness of the counting function.
+   real(wp), intent(in) :: k
+
+   !> Current distance.
+   real(wp), intent(in) :: r
+
+   !> Cutoff radius.
+   real(wp), intent(in) :: r0
+
+   real(wp) :: count
+
+   count = dexpCount(k, r, r0) * expCount(2*k, r, r0+2) &
+      &  + expCount(k, r, r0) * dexpCount(2*k, r, r0+2)
+
+end function dgfnCount
+
+
+!> Cutoff function for large coordination numbers
+pure subroutine cutCoordinationNumber(nAtom, cn, dcndr, dcndL, maxCN)
+
+   !> number of atoms
+   integer, intent(in) :: nAtom
+
+   !> on input coordination number, on output modified CN
+   real(wp), intent(inout) :: cn(:)
+
+   !> on input derivative of CN w.r.t. cartesian coordinates,
+   !> on output derivative of modified CN
+   real(wp), intent(inout), optional :: dcndr(:, :, :)
+
+   !> on input derivative of CN w.r.t. strain deformation,
+   !> on output derivative of modified CN
+   real(wp), intent(inout), optional :: dcndL(:, :, :)
+
+   !> maximum CN (not strictly obeyed)
+   real(wp), intent(in), optional :: maxCN
+
+   real(wp) :: cnmax
+   integer :: iAt
+
+   if (present(maxCN)) then
+      cnmax = maxCN
+   else
+      cnmax = 4.5_wp
+   end if
+
+   if (cnmax <= 0.0_wp) return
+
+   if (present(dcndL)) then
+      do iAt = 1, nAtom
+         dcndL(:, :, iAt) = dcndL(:, :, iAt) * dCutCN(cn(iAt), cnmax)
+      end do
+   end if
+
+   if (present(dcndr)) then
+      do iAt = 1, nAtom
+         dcndr(:, :, iAt) = dcndr(:, :, iAt) * dCutCN(cn(iAt), cnmax)
+      end do
+   end if
+
+   do iAt = 1, nAtom
+      cn(iAt) = cutCN(cn(iAt), cnmax)
+   end do
+
+end subroutine cutCoordinationNumber
+
+
+!> Cutting function for the coordination number.
+elemental function cutCN(cn, cut) result(cnp)
+
+   !> Current coordination number.
+   real(wp), intent(in) :: cn
+
+   !> Cutoff for the CN, this is not the maximum value.
+   real(wp), intent(in) :: cut
+
+   !> Cuting function vlaue
+   real(wp) :: cnp
+
+   cnp = log(1.0_wp + exp(cut)) - log(1.0_wp + exp(cut - cn))
+
+end function cutCN
+
+
+!> Derivative of the cutting function w.r.t. coordination number
+elemental function dCutCN(cn, cut) result(dcnpdcn)
+
+   !> Current coordination number.
+   real(wp), intent(in) :: cn
+
+   !> Cutoff for the CN, this is not the maximum value.
+   real(wp), intent(in) :: cut
+
+   !> Derivative of the cutting function
+   real(wp) :: dcnpdcn
+
+   dcnpdcn = exp(cut)/(exp(cut) + exp(cn))
+
+end function dCutCn
+
+function get_cf(rTrans,gTrans,vol,avgAlp) result(cf)
+  ! output the ewald splitting parameter
+  real(wp) :: cf
+  ! parameter from goed_pbc_gfnff ewaldCutD and ewaldCutR
+  integer, parameter :: ewaldCutD(3) = 2
+  integer, parameter :: ewaldCutR(3) = 2
+  ! real space lattice vectors
+  real(wp), intent(in) :: rTrans( 3, product(2*ewaldCutD+1))
+  ! reciprocal space lattice vectors
+  real(wp), intent(in) :: gTrans(3, product(2*ewaldCutR+1)-1)
+  ! unit cell volume 
+  real(wp), intent(in) :: vol
+  ! average alphaEEQ value
+  real(wp), intent(in) :: avgAlp
+  ! smallest reciprocal and real space Vectors
+  real(wp) :: minG, minR
+  ! approx Value of reciprocal and real part electrostatics
+  real(wp) :: gPart, rPart
+  ! 
+  real(wp) :: gam
+  ! current cf
+  real(wp) :: cfCurr
+  !
+  real(wp) :: lenR, minTmp, gr_diff,diffMin
+  ! real(wp), parameter :: a(14) = (/ 1.0_wp, 1.1_wp, 1.2_wp, 1.3_wp, 1.4_wp, 1.5_wp, &
+  !                                 & 1.6_wp, 1.7_wp, 1.8_wp, 1.9_wp, 2.0_wp, 2.5_wp, &
+  !                                 & 5.0_wp, 7.5_wp /)
+  real(wp) :: a(100)
+  ! tolerance for golden-section search
+  real(wp), parameter :: tol = 1.0e-4_wp
+  ! golden ratio
+  real(wp), parameter :: goldr = (1.0_wp+sqrt(2.0_wp))/2.0_wp
+  ! evaluation points for gss
+  real(wp) :: x1, x2, x3, x4
+  ! 
+  integer :: i,j,iter
+
+
+  cf = 0.14999_wp !@thomas delete default
+  gam = 1.0_wp/sqrt(2*avgAlp)
+
+  ! get smallest real and reciprocal vector
+  minG = sqrt(minval(sum(gTrans(:,:)**2, dim=1)))
+  minR = huge(1.0_wp)
+  do i=1, size(rTrans, dim=2)
+    lenR = sqrt(sum(rTrans(:,i)**2))
+    if(lenR.ne.0.0_wp)then
+      minR=min(minR, lenR)
+    endif
+  enddo
+
+  ! golden-section search algorithm for convergence factor
+  iter = 0
+  x1 = 1.0e-8_wp  ! left margin
+  x4 = 2.0e+0_wp  ! right margin
+  x2 = x4 - (x4 - x1)/goldr
+  x3 = x1 + (x4 - x1)/goldr
+  do while ((x4-x1) > tol)
+    iter = iter + 1
+    if(grFct(x2,minG,minR,vol,gam).lt.grFct(x3,minG,minR,vol,gam))then
+      x4 = x3
+    else
+      x1 = x2
+    endif
+    ! recalculate x2 and x3
+    x2 = x4 - (x4 - x1)/goldr
+    x3 = x1 + (x4 - x1)/goldr
+  enddo
+
+  cf = (x1 + x4)/2.0_wp
+end function get_cf
+
+
+function grFct(cfCurr, minG, minR, vol, gam) result(gr_diff)
+  real(wp) :: gr_diff
+  ! smallest reciprocal and real space Vectors
+  real(wp), intent(in) :: cfCurr,minG, minR, vol, gam
+  ! approx Value of reciprocal and real part electrostatics
+  real(wp) :: gPart, rPart
+  
+  gPart = 4.0_wp*pi*exp(-minG**2 /(4.0_wp*cfCurr**2))/(vol*minG**2)
+  rPart = -erf(cfCurr*minR)/minR + erf(gam*minR)/minR
+  gr_diff = abs(gPart-rPart)
+end function grFct
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! @thomas important ripped code from dftd4 BELOW
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
+   type(TMolecule), intent(in) :: mol
+   type(TGFFTopology), intent(in) :: topo
+   real(wp), intent(in) :: alpha
+   real(wp), intent(in) :: rTrans(:, :)
+   real(wp), intent(in) :: gTrans(:, :)
+   real(wp), intent(out) :: amat(:, :)
+
+   integer :: iat, jat, izp, jzp, img
+   real(wp) :: vec(3), gam, wsw, dtmp, rtmp, vol
+   real(wp), parameter :: zero(3) = 0.0_wp
+   real(wp),parameter :: sqrt2pi = sqrt(2.0_wp/pi)
+   real(wp), parameter :: sqrtpi = 1.772453850905516_wp
+!   real(wp), allocatable :: dtrans(:, :), rtrans(:, :)
+
+   amat(:, :) = 0.0_wp
+
+   vol = mol%volume ! abs(matdet_3x3(mol%lattice))
+   
+
+   !$omp parallel do default(none) schedule(runtime) &
+   !$omp reduction(+:amat) shared(mol, topo, rTrans, gTrans, alpha, vol) &
+   !$omp private(iat, jat, gam, wsw, vec, dtmp, rtmp)
+   do iat = 1, mol%n
+      !izp = mol%id(iat)
+      do jat = 1, iat-1
+         !jzp = mol%id(jat)
+         gam = 1.0_wp / sqrt(topo%alpeeq(iat) + topo%alpeeq(jat))
+         wsw = mol%wsc%w(jat,iat)
+         do img = 1, mol%wsc%itbl(jat,iat)
+!            vec = mol%xyz(:, iat) - mol%xyz(:, jat) - wsc%trans(:, wsc%tridx(img, jat, iat))
+            vec = mol%xyz(:,iat) - mol%xyz(:,jat) &
+               & - (mol%lattice(:,1) * mol%wsc%lattr(1,img,jat,iat) &
+               &  + mol%lattice(:,2) * mol%wsc%lattr(2,img,jat,iat) &
+               &  + mol%lattice(:,3) * mol%wsc%lattr(3,img,jat,iat))
+            call get_amat_dir_3d(vec, gam, alpha, rTrans, dtmp)
+            call get_amat_rec_3d(vec, vol, alpha, gTrans, rtmp)
+            amat(jat, iat) = amat(jat, iat) + (dtmp + rtmp) * wsw
+            amat(iat, jat) = amat(iat, jat) + (dtmp + rtmp) * wsw
+         end do
+      end do
+
+      gam = 1.0_wp / sqrt(2.0_wp * topo%alpeeq(iat))
+      wsw = mol%wsc%w(iat,iat)
+      do img = 1, mol%wsc%itbl(iat, iat)
+         vec = zero
+
+         call get_amat_dir_3d(vec, gam, alpha, rTrans, dtmp)
+         call get_amat_rec_3d(vec, vol, alpha, gTrans, rtmp)
+         amat(iat, iat) = amat(iat, iat) + (dtmp + rtmp) * wsw
+      end do
+
+      dtmp = topo%gameeq(iat) + sqrt2pi / sqrt(topo%alpeeq(iat)) - 2 * alpha/sqrtpi
+      amat(iat, iat) = amat(iat, iat) + dtmp
+   end do
+
+   amat(mol%n+1, 1:mol%n+1) = 1.0_wp
+   amat(1:mol%n+1, mol%n+1) = 1.0_wp
+   amat(mol%n+1, mol%n+1) = 0.0_wp
+
+end subroutine get_amat_3d
+
+subroutine get_amat_dir_3d(rij, gam, alp, trans, amat)
+   real(wp), intent(in) :: rij(3)
+   real(wp), intent(in) :: gam
+   real(wp), intent(in) :: alp
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(out) :: amat
+
+   integer :: itr
+   real(wp) :: vec(3), r1, tmp
+   real(wp),parameter :: eps = 1.0e-9_wp
+
+   amat = 0.0_wp
+
+   do itr = 1, size(trans, 2)
+      vec(:) = rij + trans(:, itr)
+      r1 = norm2(vec)
+      if (r1 < eps) cycle
+      tmp = erf(gam*r1)/r1 - erf(alp*r1)/r1
+      amat = amat + tmp
+   end do
+
+end subroutine get_amat_dir_3d
+
+subroutine get_amat_rec_3d(rij, vol, alp, trans, amat)
+   real(wp), intent(in) :: rij(3)
+   real(wp), intent(in) :: vol
+   real(wp), intent(in) :: alp
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(out) :: amat
+
+   integer :: itr
+   real(wp) :: fac, vec(3), g2, tmp
+   real(wp),parameter :: eps = 1.0e-9_wp
+
+   amat = 0.0_wp
+   fac = 4*pi/vol
+
+   do itr = 1, size(trans, 2)
+      vec(:) = trans(:, itr)
+      g2 = dot_product(vec, vec)
+      if (g2 < eps) cycle
+      tmp = cos(dot_product(rij, vec)) * fac * exp(-0.25_wp*g2/(alp*alp))/g2
+      amat = amat + tmp
+   end do
+
+end subroutine get_amat_rec_3d
+
+subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atrace)
+   type(TMolecule), intent(in) :: mol
+   type(TGFFTopology), intent(in) :: topo
+   real(wp), intent(in) :: alpha
+   real(wp), intent(in) :: qvec(:)
+   real(wp), intent(in) :: rTrans(:, :)
+   real(wp), intent(in) :: gTrans(:, :)
+   real(wp), intent(out) :: dadr(:, :, :)
+   real(wp), intent(out) :: dadL(:, :, :)
+   real(wp), intent(out) :: atrace(:, :)
+
+   integer :: iat, jat, izp, jzp, img
+   real(wp) :: vol, gam, wsw, vec(3), dG(3), dS(3, 3)
+   real(wp) :: dGd(3), dSd(3, 3), dGr(3), dSr(3, 3)
+   real(wp), parameter :: zero(3) = 0.0_wp
+
+   atrace(:, :) = 0.0_wp
+   dadr(:, :, :) = 0.0_wp
+   dadL(:, :, :) = 0.0_wp
+
+   vol = mol%volume ! abs(matdet_3x3(mol%lattice))
+
+   !$omp parallel do default(none) schedule(runtime) &
+   !$omp reduction(+:atrace, dadr, dadL) &
+   !$omp shared(mol, topo, alpha, vol, rTrans, gTrans, qvec) &
+   !$omp private(iat, jat, img, gam, wsw, vec, dG, dS, &
+   !$omp& dGr, dSr, dGd, dSd)
+   do iat = 1, mol%n
+      !izp = mol%id(iat)
+      do jat = 1, iat-1
+         !jzp = mol%id(jat)
+         dG(:) = 0.0_wp
+         dS(:, :) = 0.0_wp
+!         gam = 1.0_wp / sqrt(self%rad(izp)**2 + self%rad(jzp)**2)
+         gam = 1.0_wp / sqrt(topo%alpeeq(iat) + topo%alpeeq(jat))
+         !wsw = 1.0_wp / real(wsc%nimg(jat, iat), wp)
+         wsw = mol%wsc%w(jat,iat)
+         !do img = 1, wsc%nimg(jat, iat)
+         do img = 1, mol%wsc%itbl(jat,iat)
+            !vec = mol%xyz(:, iat) - mol%xyz(:, jat) - wsc%trans(:, wsc%tridx(img, jat, iat))
+            vec = mol%xyz(:,iat) - mol%xyz(:,jat) &
+               & - (mol%lattice(:,1) * mol%wsc%lattr(1,img,jat,iat) &
+               &  + mol%lattice(:,2) * mol%wsc%lattr(2,img,jat,iat) &
+               &  + mol%lattice(:,3) * mol%wsc%lattr(3,img,jat,iat))
+            call get_damat_dir_3d(vec, gam, alpha, rTrans, dGd, dSd)
+            call get_damat_rec_3d(vec, vol, alpha, gTrans, dGr, dSr)
+            dG = dG + (dGd + dGr) * wsw
+            dS = dS + (dSd + dSr) * wsw
+         end do
+         atrace(:, iat) = +dG*qvec(jat) + atrace(:, iat)
+         atrace(:, jat) = -dG*qvec(iat) + atrace(:, jat)
+         dadr(:, iat, jat) = +dG*qvec(iat) + dadr(:, iat, jat)
+         dadr(:, jat, iat) = -dG*qvec(jat) + dadr(:, jat, iat)
+         dadL(:, :, jat) = +dS*qvec(iat) + dadL(:, :, jat)
+         dadL(:, :, iat) = +dS*qvec(jat) + dadL(:, :, iat)
+      end do
+
+      dS(:, :) = 0.0_wp
+      gam = 1.0_wp / sqrt(2.0_wp * topo%alpeeq(iat))
+      wsw = mol%wsc%w(iat,iat)
+      do img = 1, mol%wsc%itbl(iat, iat)
+         vec = zero
+         call get_damat_dir_3d(vec, gam, alpha, rTrans, dGd, dSd)
+         call get_damat_rec_3d(vec, vol, alpha, gTrans, dGr, dSr)
+         dS = dS + (dSd + dSr) * wsw
+      end do
+      dadL(:, :, iat) = +dS*qvec(iat) + dadL(:, :, iat)
+   end do
+
+end subroutine get_damat_3d
+
+subroutine get_damat_dir_3d(rij, gam, alp, trans, dg, ds)
+   real(wp), intent(in) :: rij(3)
+   real(wp), intent(in) :: gam
+   real(wp), intent(in) :: alp
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(out) :: dg(3)
+   real(wp), intent(out) :: ds(3, 3)
+
+   integer :: itr
+   real(wp) :: vec(3), r1, r2, gtmp, atmp, gam2, alp2
+   real(wp),parameter :: eps = 1.0e-9_wp
+   real(wp), parameter :: sqrtpi = 1.772453850905516_wp
+
+   dg(:) = 0.0_wp
+   ds(:, :) = 0.0_wp
+
+   gam2 = gam*gam
+   alp2 = alp*alp
+
+   do itr = 1, size(trans, 2)
+      vec(:) = rij + trans(:, itr)
+      r1 = norm2(vec)
+      if (r1 < eps) cycle
+      r2 = r1*r1
+      gtmp = +2*gam*exp(-r2*gam2)/(sqrtpi*r2) - erf(r1*gam)/(r2*r1)
+      atmp = -2*alp*exp(-r2*alp2)/(sqrtpi*r2) + erf(r1*alp)/(r2*r1)
+      dg(:) = dg + (gtmp + atmp) * vec
+      ds(:, :) = ds + (gtmp + atmp) * spread(vec, 1, 3) * spread(vec, 2, 3)
+   end do
+
+end subroutine get_damat_dir_3d
+
+subroutine get_damat_rec_3d(rij, vol, alp, trans, dg, ds)
+   real(wp), intent(in) :: rij(3)
+   real(wp), intent(in) :: vol
+   real(wp), intent(in) :: alp
+   real(wp), intent(in) :: trans(:, :)
+   real(wp), intent(out) :: dg(3)
+   real(wp), intent(out) :: ds(3, 3)
+
+   integer :: itr
+   real(wp) :: fac, vec(3), g2, gv, etmp, dtmp, alp2
+   real(wp), parameter :: unity(3, 3) = reshape(&
+      & [1, 0, 0, 0, 1, 0, 0, 0, 1], shape(unity))
+   real(wp),parameter :: eps = 1.0e-9_wp
+
+   dg(:) = 0.0_wp
+   ds(:, :) = 0.0_wp
+   fac = 4*pi/vol
+   alp2 = alp*alp
+
+   do itr = 1, size(trans, 2)
+      vec(:) = trans(:, itr)
+      g2 = dot_product(vec, vec)
+      if (g2 < eps) cycle
+      gv = dot_product(rij, vec)
+      etmp = fac * exp(-0.25_wp*g2/alp2)/g2
+      dtmp = -sin(gv) * etmp
+      dg(:) = dg + dtmp * vec
+      ds(:, :) = ds + etmp * cos(gv) &
+         & * ((2.0_wp/g2 + 0.5_wp/alp2) * spread(vec, 1, 3)*spread(vec, 2, 3) - unity)
+   end do
+
+end subroutine get_damat_rec_3d
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! @thomas important ripped code from dftd4 ABOVE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end module xtb_gfnff_eg

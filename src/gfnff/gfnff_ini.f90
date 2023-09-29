@@ -18,7 +18,7 @@ module xtb_gfnff_ini
 
 contains
 
-subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
+subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       use xtb_mctc_accuracy, only : wp, sp
       use xtb_type_molecule
       use xtb_type_environment, only : TEnvironment
@@ -32,12 +32,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       use xtb_gfnff_fraghess
       use xtb_restart
       use xtb_mctc_constants
-
+      use xtb_type_latticepoint
+      use xtb_gfnff_neighbor
       implicit none
       character(len=*), parameter :: source = 'gfnff_ini'
 !--------------------------------------------------------------------------------------------------
       type(TEnvironment), intent(inout) :: env
       type(TMolecule), intent(in) :: mol   ! # molecule type
+      type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
       type(TGFFTopology), intent(inout) :: topo
       type(TGFFGenerator), intent(in) :: gen
       type(TGFFData), intent(in) :: param
@@ -56,6 +58,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       integer hbA,hbH,Bat,atB,Aat,Hat
       integer AHB_nr
       integer bond_hbn
+      integer iTr, iTr2, iTri,iTrj,iTrk,iTrDum,iTrlDum,iTrl,iTrtmp
       interface
          integer function itabrow6(i)
             integer i
@@ -123,7 +126,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
       allocate( cn(mol%n), source = 0.0d0 )
       allocate( sqrab(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( topo%hyb(mol%n), source = 0 )
-      allocate( topo%alphanb(mol%n*(mol%n+1)/2), source = 0.0d0 )
+      allocate( topo%alphanb(mol%n,mol%n,neigh%numctr+1), source = 0.0d0 )
       allocate( rtmp(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( pbo(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( piadr(mol%n), source = 0 )
@@ -697,7 +700,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
             if((ati.eq.1.and.param%metal(atj).gt.0).or.(atj.eq.1.and.param%metal(ati).gt.0)) ff=0.85 ! M...H
             if((ati.eq.1.and.atj.eq.6).or.(atj.eq.1.and.ati.eq.6))               ff=0.91 ! C...H, good effect
             if((ati.eq.1.and.atj.eq.8).or.(atj.eq.1.and.ati.eq.8))               ff=1.04 ! O...H, good effect
-            topo%alphanb(ij)=sqrt(dum1*dum2)*ff
+            topo%alphanb(i,j,iTr)=sqrt(dum1*dum2)*ff
             topo%zetac6(ij)=f1*f2  ! D4 zeta scaling using qref=0
          enddo
       enddo

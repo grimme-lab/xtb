@@ -20,6 +20,7 @@ module xtb_restart
    use xtb_mctc_io, only : stdout
    use xtb_type_environment, only : TEnvironment
    use xtb_type_wavefunction, only : TWavefunction
+   use xtb_gfnff_neighbor
    implicit none
 
    public :: readRestart, writeRestart
@@ -85,13 +86,14 @@ subroutine readRestart(env,wfx,fname,n,at,gfn_method,success,verbose)
 end subroutine readRestart
 
 
-subroutine read_restart_gff(env,fname,n,version,success,verbose,topo)
+subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
    use xtb_gfnff_param
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
    character(len=*), parameter :: source = 'restart_read_restart_gff'
    type(TEnvironment), intent(inout) :: env
    type(TGFFTopology), intent(inout) :: topo
+   type(TNeigh), intent(inout) :: neigh
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: n
    integer,intent(in)  :: version
@@ -122,7 +124,8 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo)
             read(ich) topo%nbond,topo%nangl,topo%ntors,topo%nathbH,topo%nathbAB,  &
                     & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,topo%maxsystem
             read(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
-            call gfnff_param_alloc(topo, n)
+            read(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
+            call gfnff_param_alloc(topo,neigh, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
             read(ich) topo%nb,topo%bpair,topo%blist,topo%alist, &
@@ -133,6 +136,15 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo)
                & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
                & topo%xyze0,topo%zetac6,&
                & topo%qfrag,topo%hbbas,topo%hbaci
+            if (.not.allocated(neigh%nb)) allocate (neigh%nb(neigh%numnb,n,neigh%numctr))
+            if (.not.allocated(neigh%blist)) allocate (neigh%blist(3,neigh%nbond))
+            if (.not.allocated(neigh%nr_hb)) allocate(neigh%nr_hb(neigh%nbond))
+            if (.not.allocated(neigh%vbond)) allocate(neigh%vbond(3,neigh%nbond))
+            if (.not.allocated(neigh%bpair)) allocate(neigh%bpair(n,n,neigh%numctr))
+            if (.not.allocated(neigh%iTrSum)) allocate(neigh%iTrSum(neigh%iTrDim*(neigh%iTrDim+1)/2))
+            if (.not.allocated(neigh%iTrNeg)) allocate(neigh%iTrNeg(neigh%iTrDim))
+            read(ich) neigh%nb, neigh%blist, neigh%nr_hb, neigh%vbond, &
+                    & neigh%bpair, neigh%iTrSum, neigh%iTrNeg
          else
             if (verbose) &
                call env%warning("Dimension missmatch in restart file.",source)
@@ -170,12 +182,13 @@ subroutine writeRestart(env,wfx,fname,gfn_method)
 end subroutine writeRestart
 
 
-subroutine write_restart_gff(env,fname,nat,version,topo)
+subroutine write_restart_gff(env,fname,nat,version,topo,neigh)
    use xtb_gfnff_param
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
    type(TEnvironment), intent(inout) :: env
    type(TGFFTopology), intent(in) :: topo
+   type(TNeigh), intent(inout) :: neigh
    character(len=*),intent(in) :: fname
    integer,intent(in)  :: nat
    integer,intent(in)  :: version
@@ -188,6 +201,7 @@ subroutine write_restart_gff(env,fname,nat,version,topo)
             & topo%nathbH,topo%nathbAB,topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,  &
             & topo%maxsystem
    write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
+   write(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
    !Arrays Integers
    write(ich) topo%nb,topo%bpair,topo%blist,topo%alist,topo%tlist,topo%b3list, &
       & topo%fraglist,topo%hbatHl,topo%hbatABl,topo%xbatABl,topo%ispinsyst,topo%nspinsyst,             &
@@ -195,6 +209,8 @@ subroutine write_restart_gff(env,fname,nat,version,topo)
    !Arrays Reals
    write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,       &
       & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas,topo%hbaci
+   write(ich)neigh%nb, neigh%blist, neigh%nr_hb, neigh%vbond, &
+           & neigh%bpair, neigh%iTrSum, neigh%iTrNeg
    call close_file(ich)
 end subroutine write_restart_gff
 
