@@ -15,7 +15,8 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 module test_dipro
-   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed
+   use testdrive, only : new_unittest, unittest_type, error_type, check_ => check, test_failed, skip_test
+   use xtb_features, only : get_xtb_feature
    implicit none
    private
 
@@ -95,6 +96,11 @@ subroutine test_dipro_jabeff(error)
       &   2.47280_wp,  2.62117_wp,  1.74468_wp, &
       &   3.50640_wp,  0.83800_wp,  1.74471_wp], shape(xyz))
    
+   if (.not.get_xtb_feature('tblite')) then
+      call skip_test(error, 'tblite libary not available.')
+      return
+   end if
+
    call init(env)
       !! construct calculation environment
 
