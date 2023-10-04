@@ -148,6 +148,8 @@ subroutine gfnff_input(env, mol, topo)
        write(env%unit,'(10x,"charge from pdb residues: ",i0)') &
           & nint(sum(topo%qfrag(1:topo%nfrag)))
     else
+       ! ignore fragment charges if they are not consistent with the total charge
+       call env%warning("Fragment charges from PDB file are not consistent with the total charge (is this a manual override?)", source)
        if (allocated(topo%qpdb)) deallocate(topo%qpdb)
        topo%qfrag(1) = mol%chrg
        topo%qfrag(2:topo%nfrag) = 0.0_wp
