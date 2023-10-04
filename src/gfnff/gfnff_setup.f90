@@ -149,7 +149,8 @@ subroutine gfnff_input(env, mol, topo)
           & nint(sum(topo%qfrag(1:topo%nfrag)))
     else
        if (allocated(topo%qpdb)) deallocate(topo%qpdb)
-       topo%qfrag(1:topo%nfrag) = 0.0_wp
+       topo%qfrag(1) = mol%chrg
+       topo%qfrag(2:topo%nfrag) = 0.0_wp
        topo%nfrag = 0
     end if
   !--------------------------------------------------------------------
