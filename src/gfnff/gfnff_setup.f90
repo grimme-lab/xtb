@@ -21,6 +21,7 @@ module xtb_gfnff_setup
   use xtb_gfnff_topology, only : TGFFTopology
   use xtb_gfnff_generator, only : TGFFGenerator
   implicit none
+  character(len=*), parameter :: source = 'gfnff_setup'
   private
   public :: gfnff_setup, gfnff_input
 
@@ -33,7 +34,6 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   use xtb_gfnff_param, only : ini, gfnff_set_param
   use xtb_setparam, only : set
   implicit none
-  character(len=*), parameter :: source = 'gfnff_setup'
 ! Dummy
   !integer,intent(in) :: ich
   type(TGFFTopology), intent(inout) :: topo
@@ -148,8 +148,11 @@ subroutine gfnff_input(env, mol, topo)
        write(env%unit,'(10x,"charge from pdb residues: ",i0)') &
           & nint(sum(topo%qfrag(1:topo%nfrag)))
     else
+       ! ignore fragment charges if they are not consistent with the total charge
+       call env%warning("Fragment charges from PDB file are not consistent with the total charge (is this a manual override?)", source)
        if (allocated(topo%qpdb)) deallocate(topo%qpdb)
-       topo%qfrag(1:topo%nfrag) = 0.0_wp
+       topo%qfrag(1) = mol%chrg
+       topo%qfrag(2:topo%nfrag) = 0.0_wp
        topo%nfrag = 0
     end if
   !--------------------------------------------------------------------

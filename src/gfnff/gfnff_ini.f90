@@ -500,7 +500,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,accuracy)
          write(env%unit,*) 'dEes      :',dum1-dum2
          write(env%unit,*) 'charge 1/2:',topo%qfrag(1:2)
       endif
-      else if (allocated(mol%pdb)) then ! frag_charges_known
+      else if (allocated(mol%pdb).and.qloop_count.eq.0) then ! frag_charges_known
          write(env%unit,'(10x,"#fragments for EEQ constrain from pdb file: ",i0)') topo%nfrag
          frag_charges_known=.true.
       endif
