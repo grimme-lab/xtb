@@ -21,6 +21,7 @@ module xtb_gfnff_setup
   use xtb_gfnff_topology, only : TGFFTopology
   use xtb_gfnff_generator, only : TGFFGenerator
   implicit none
+  character(len=*), parameter :: source = 'gfnff_setup'
   private
   public :: gfnff_setup, gfnff_input
 
@@ -33,7 +34,6 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,accuracy,version)
   use xtb_gfnff_param, only : ini, gfnff_set_param
   use xtb_setparam, only : set
   implicit none
-  character(len=*), parameter :: source = 'gfnff_setup'
 ! Dummy
   !integer,intent(in) :: ich
   type(TGFFTopology), intent(inout) :: topo
