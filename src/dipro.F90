@@ -64,6 +64,8 @@ module xtb_dipro
       real(wp) :: accuracy = 1.0_wp
       !> Output verbosity
       integer :: verbosity = 2
+      !> total j_ab,eff in eV for test module
+      real(wp) :: totjab(3)
    end type jab_input
 
    character(len=*), parameter :: source = 'xtb_dipro'
@@ -414,6 +416,10 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
 
       end do
    end do
+
+   dipro%totjab(1)=sqrt(Vtot(1))*autoev
+   dipro%totjab(2)=sqrt(Vtot(2))*autoev
+   dipro%totjab(3)=sqrt(Vtot(3))*autoev
    
    write(*,'(A)') ".............................................................................."
    call ctx%message(":  total |J(AB,eff)| for hole transport (occ. MOs) :"//format_string(sqrt(Vtot(1))*autoev, '(f20.3)')//" eV  :")
