@@ -96,7 +96,8 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
    type(context_type) :: ctx
    type(basis_type) :: bas
    !> fcalc is =xcalc just for fragments
-   type(xtb_calculator) :: xcalc, fcalc
+   type(xtb_calculator) :: xcalc
+   type(xtb_calculator), allocatable :: fcalc(:)
    !> mfrag is =struc just for fragments
    type(structure_type), allocatable :: mfrag(:)
    type(wavefunction_type) :: wfn
@@ -234,6 +235,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
 
 !=================================fragment calculations=============================================   
 
+   allocate(fcalc(nfrag))
    do ifr = 1, nfrag 
       call ctx%message("Calculation for fragment "//to_string(ifr))
       write(*,*) "------------------------------"
@@ -255,14 +257,14 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       mfrag(ifr)%uhf = spinfrag(ifr)
       write(*,'(A,I2)') "unpaired e- of fragment : ", mfrag(ifr)%uhf
 
-      call get_calculator(fcalc, mfrag(ifr), tblite%method, error)
+      call get_calculator(fcalc(ifr), mfrag(ifr), tblite%method, error)
       !> mol%charge is updated automatically from wfn by tblite library 
-      call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc%bas%nsh, fcalc%bas%nao, &
+      call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc(ifr)%bas%nsh, fcalc(ifr)%bas%nao, &
          & 1, set%etemp * ktoau)
 
      !> mol%type (dimer) == mfrag%type (fragments), wfn (dimer) == wfx (fragments), calc (dimer)==fcalc(fragments)
       wfx%nspin=1
-      call xtb_singlepoint(ctx, mfrag(ifr), fcalc, wfx(ifr), tblite%accuracy, energy)
+      call xtb_singlepoint(ctx, mfrag(ifr), fcalc(ifr), wfx(ifr), tblite%accuracy, energy)
       if (ctx%failed()) then
          call env%error("Single point calculation for fragment failed.", source)
          return
@@ -272,9 +274,9 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
 
 !==================================DIPRO==================================================
 
-      do j = 1, nao
+   do j = 1, fcalc(ifr)%bas%nao
          !> coeff is [nao,nao,spin=1]
-         call unpack_coeff(xcalc%bas, fcalc%bas, orbital(:, ifr, j), &
+         call unpack_coeff(xcalc%bas, fcalc(ifr)%bas, orbital(:, ifr, j), &
          & wfx(ifr)%coeff(:, j,1), fragment == ifr)
       end do 
    end do
@@ -302,9 +304,9 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
            &considered for DIPRO: "//format_string(dipro%othr, '(f6.3)')//" eV")
 
    do ifr=1,nfrag
-      do j = 1, nao
-         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1)),1) - dipro%othr/autoev) .and.&
-           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(max(2,1))+1,1) + dipro%othr/autoev)) then
+   do j = 1, fcalc(ifr)%bas%nao
+         if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(2),1) - dipro%othr/autoev) .and.&
+           & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(2)+1,1) + dipro%othr/autoev)) then
            if (start_index(ifr).eq.-1) then 
                    start_index(ifr) = j
               end if
