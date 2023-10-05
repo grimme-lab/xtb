@@ -274,7 +274,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
 
 !==================================DIPRO==================================================
 
-   do j = 1, fcalc(ifr)%bas%nao
+      do j = 1, fcalc(ifr)%bas%nao
          !> coeff is [nao,nao,spin=1]
          call unpack_coeff(xcalc%bas, fcalc(ifr)%bas, orbital(:, ifr, j), &
          & wfx(ifr)%coeff(:, j,1), fragment == ifr)
@@ -304,7 +304,7 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
            &considered for DIPRO: "//format_string(dipro%othr, '(f6.3)')//" eV")
 
    do ifr=1,nfrag
-   do j = 1, fcalc(ifr)%bas%nao
+      do j = 1, fcalc(ifr)%bas%nao
          if (wfx(ifr)%emo(j,1) .ge. (wfx(ifr)%emo(wfx(ifr)%homo(2),1) - dipro%othr/autoev) .and.&
            & wfx(ifr)%emo(j,1) .le. (wfx(ifr)%emo(wfx(ifr)%homo(2)+1,1) + dipro%othr/autoev)) then
            if (start_index(ifr).eq.-1) then 
