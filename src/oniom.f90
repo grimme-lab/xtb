@@ -994,8 +994,8 @@ end subroutine new_atom
 subroutine new_coordinates(xyz)
    
    implicit none
-   real, allocatable :: xyz(:,:)
-   real, allocatable :: tmp1(:,:)
+   real(wp), allocatable :: xyz(:,:)
+   real(wp), allocatable :: tmp1(:,:)
    integer :: atom_num
 
    atom_num = size(xyz, 2)
