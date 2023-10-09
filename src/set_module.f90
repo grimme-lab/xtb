@@ -959,6 +959,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_gfnff
    case('iff')
       set%mode_extrun = p_ext_iff
+   case('ptb')
+      set%mode_extrun = p_ext_ptb
    end select
    set1 = .false.
 

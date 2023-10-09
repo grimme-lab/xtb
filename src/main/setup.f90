@@ -31,6 +31,7 @@ module xtb_main_setup
    use xtb_type_restart, only : TRestart
    use xtb_type_wavefunction, only : TWavefunction
    use xtb_xtb_calculator, only : TxTBCalculator, newXTBcalculator, newWavefunction
+   use xtb_ptb_calculator, only : TPTBCalculator, newPTBcalculator
    use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
    use xtb_iff_calculator, only : TIFFCalculator, newIFFCalculator
    use xtb_iff_data, only : TIFFData
@@ -78,6 +79,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    type(TTMCalculator), allocatable :: turbo
    type(TOniomCalculator), allocatable :: oniom
    type(TDriverCalculator), allocatable :: driver
+   type(TPTBCalculator), allocatable :: ptb
    
    logical :: exitRun
     
@@ -154,6 +156,19 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       end if
 
       call move_alloc(iff, calc)
+   
+   case(p_ext_ptb)
+      allocate(ptb)
+
+      call newPTBCalculator(env, mol, ptb, fname, set%gfn_method, accuracy)
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
+
+      call move_alloc(ptb, calc)
 
    case(p_ext_orca)
       allocate(orca)
