@@ -93,6 +93,7 @@ module xtb_prog_main
    use xtb_oniom, only : oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only : vfukui
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab,jab_input
    
@@ -577,6 +578,9 @@ subroutine xtbMain(env, argParser)
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,chk%wfn%q,chk%wfn%qsh,set%gfn_method)
    type is(TTBLiteCalculator)
       call newTBLiteWavefunction(env, mol, calc, chk)
+   type is(TPTBCalculator)
+      write(*,*) "Setup PTB."
+      stop
    end select
 
    ! ------------------------------------------------------------------------
@@ -1391,6 +1395,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
 
       case('--iff')
          call set_exttyp('iff')
+
+      case('--ptb')
+         call set_exttyp('ptb')
 
       case('--tblite')
          if (get_xtb_feature('tblite')) then
