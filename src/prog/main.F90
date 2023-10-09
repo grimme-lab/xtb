@@ -146,6 +146,7 @@ subroutine xtbMain(env, argParser)
    character(len=*),parameter :: p_fname_param_gfn2  = 'param_gfn2-xtb.txt'
    character(len=*),parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
    character(len=*),parameter :: p_fname_param_ipea  = 'param_ipea-xtb.txt'
+   character(len=*),parameter :: p_fname_param_ptb   = 'param_ptb.txt'
 
    integer :: gsolvstate
    integer :: i,j,k,l,idum
@@ -258,6 +259,8 @@ subroutine xtbMain(env, argParser)
    
    if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization. &
       &Please use another solvation model for optimization instead.")
+   if ((set%mode_extrun == p_ext_ptb) .and. anyopt) call env%terminate("PTB not implemented for geometry optimization. &
+      &Please use another method for optimization instead.")
 
    call env%checkpoint("Command line argument parsing failed")
 
@@ -488,7 +491,7 @@ subroutine xtbMain(env, argParser)
 
    !> check if someone is still using GFN3...
    if (set%gfn_method.eq.3) then
-      call env%terminate('This is an internal error, please use gfn_method=2!')
+      call env%terminate('Wait for some months - for now, please use gfn_method=2!')
    end if
 
    ! ------------------------------------------------------------------------
@@ -503,6 +506,8 @@ subroutine xtbMain(env, argParser)
             p_run_modef,p_run_mdopt,p_run_metaopt)
         if (set%mode_extrun.eq.p_ext_gfnff) then
             fnv=xfind(p_fname_param_gfnff)
+        elseif (set%mode_extrun.eq.p_ext_ptb) then
+            fnv=xfind(p_fname_param_ptb)
         else
            if(set%gfn_method.eq.0) then
               fnv=xfind(p_fname_param_gfn0)
@@ -524,6 +529,7 @@ subroutine xtbMain(env, argParser)
          if(set%gfn_method.eq.2) then
             fnv=xfind(p_fname_param_gfn2)
          endif
+         if (set%mode_extrun.eq.p_ext_ptb) fnv=xfind(p_fname_param_ptb)
       end select
    endif
 
