@@ -79,6 +79,10 @@ write(iunit,'(3x,a)') &
    "* J. Kohn, N. Gildemeister, S. Grimme, D. Fazzi, A. Hansen,",&
    "  J. Chem. Phys., 2023, just accepted.",&
    "",&
+   "for PTB refer to:",&
+   "* S. Grimme, M. Mueller, A. Hansen, J. Chem. Phys., 2023, 158, 124111.",&
+   "  DOI: 10.1063/5.0137838",&
+   "",&
    "with help from (in alphabetical order)",&
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, C. Hölzer", &
