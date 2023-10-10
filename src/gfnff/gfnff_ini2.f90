@@ -1204,11 +1204,11 @@ use xtb_mctc_accuracy, only : wp
 ! ring analysis routine, don't touch ;-)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine getring36(n,at,nbin,a0_in,cout,irout)
+subroutine getring36(n,at,numnb,numctr,nbin,a0_in,cout,irout)
       implicit none
-      integer cout(10,20),irout(20)  ! output: atomlist, ringsize, # of rings in irout(20)
-      integer at(n)
-      integer n,nbin(20,n),a0,i,nb(20,n),a0_in
+      integer, intent(out) :: cout(10,20),irout(20)  ! output: atomlist, ringsize, # of rings in irout(20)
+      integer, intent(in) :: n,at(n),numnb,numctr,nbin(numnb,n),a0_in
+      integer :: i,nb(numnb,n), a0
       integer    i1,i2,i3,i4,i5,i6,i7,i8,i9,i10
       integer n0,n1,n2,n3,n4,n5,n6,n7,n8,n9,n10
       integer    a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
@@ -1221,18 +1221,19 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       cout = 0
       irout= 0
 !     if(n.le.2.or.at(a0_in).gt.10.or.nbin(19,a0_in).eq.1) return
-      if(n.le.2.                  .or.nbin(19,a0_in).eq.1) return
+      if(n.le.2.                  .or.nbin(numnb-1,a0_in).eq.1) return
 
-      nn=nbin(20,a0_in)
+      nn=nbin(numnb,a0_in)
 
       cdum=0
       kk=0
       do m=1,nn
 !     if(nb(m,a0_in).eq.1) cycle ! check (comment out)
       nb=nbin
+      ! ring search only in unit cell -> adjusted nbin to include neighbors from other cells
       if(nb(m,a0_in).eq.1) cycle ! check (comment out)
       do i=1,n
-         if(nb(20,i).eq.1)nb(20,i)=0
+         if(nb(numnb,i).eq.1)nb(numnb,i)=0 !@thomas why not entire row? nb(:,i,1)=0
       enddo
 
       do mm=1,nn
@@ -1249,19 +1250,19 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
       c     =0
 
       a0=a0_in
-      n0=nb(20,a0)
+      n0=nb(numnb,a0)
 
       do i1=1,n0
          a1=nb(i1,a0)
          if(a1.eq.a0) cycle
-         n1=nb(20,a1)
+         n1=nb(numnb,a1)
          do i2=1,n1
             a2=nb(i2,a1)
             if(a2.eq.a1) cycle
-            n2=nb(20,a2)
+            n2=nb(numnb,a2)
             do i3=1,n2
                a3=nb(i3,a2)
-               n3=nb(20,a3)
+               n3=nb(numnb,a3)
                if(a3.eq.a2) cycle
                c(1)=a1
                c(2)=a2
@@ -1275,7 +1276,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
                endif
                do i4=1,n3
                   a4=nb(i4,a3)
-                  n4=nb(20,a4)
+                  n4=nb(numnb,a4)
                   if(a4.eq.a3) cycle
                   c(4)=a4
                   if(a4.eq.a0.and.chkrng(n,4,c))then
@@ -1287,7 +1288,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
                   endif
                   do i5=1,n4
                      a5=nb(i5,a4)
-                     n5=nb(20,a5)
+                     n5=nb(numnb,a5)
                      if(a5.eq.a4) cycle
                      c(5)=a5
                      if(a5.eq.a0.and.chkrng(n,5,c))then
@@ -1299,7 +1300,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
                      endif
                      do i6=1,n5
                         a6=nb(i6,a5)
-                        n6=nb(20,a6)
+                        n6=nb(numnb,a6)
                         if(a6.eq.a5) cycle
                         c(6)=a6
                         if(a6.eq.a0.and.chkrng(n,6,c))then

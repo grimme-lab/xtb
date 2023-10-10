@@ -50,6 +50,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !--------------------------------------------------------------------------------------------------
 
       integer ati,atj,atk,i,j,k,l,lin,nn,ii,jj,kk,ll,m,rings,ia,ja,ij,ix,nnn,idum,ip,ji,no,nbi
+      integer nni, nnj
       integer ineig,jneig,nrot,bbtyp,ringtyp,nn1,nn2,hybi,hybj,pis,ka,nh,jdum,hcalc,nc
       integer ringsi,ringsj,ringsk,ringl,npi,nelpi,picount,npiall,maxtors,rings4,nheav
       integer nm,maxhb,ki,n13,current,ncarbo,mtyp1,mtyp2
@@ -130,7 +131,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       allocate( cn(mol%n), source = 0.0d0 )
       allocate( sqrab(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( topo%hyb(mol%n), source = 0 )
-      allocate( topo%alphanb(mol%n,mol%n,neigh%numctr+1), source = 0.0d0 )
       allocate( rtmp(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( pbo(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( piadr(mol%n), source = 0 )
@@ -178,6 +178,16 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       write(env%unit,'(10x," ------------------------------------------------- ")')
       write(env%unit,*)
 
+      ! get translation vectors within maximum cutoff (at least central 27)
+      ! routine for generating the lattice vectors                 
+      call neigh%getTransVec(mol,60.0_wp)  ! needed for neigh%init_n -> filliTrSum
+      !  initialize neighbor type
+      call neigh%init_n(mol, env) !@thomas important limited iTrDim to 343 to limit comp time...
+
+      ! allocate bond pair matrix and non bonded pair exponents 
+      allocate(neigh%bpair(mol%n,mol%n,neigh%numctr), source=0)
+      allocate(topo%alphanb(mol%n,mol%n,neigh%numctr+1), source = 0.0d0 )
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! distances and bonds
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -187,21 +197,31 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       pbo   = 0
       rab   = 0
       sqrab = 0
-      do i=1,mol%n
-         ati=mol%at(i)
-         kk=i*(i-1)/2
-         do j=1,i-1
-            atj=mol%at(j)
-            k=kk+j
-            sqrab(k)=(mol%xyz(1,i)-mol%xyz(1,j))**2+(mol%xyz(2,i)-mol%xyz(2,j))**2+(mol%xyz(3,i)-mol%xyz(3,j))**2
-            rab(k)  =sqrt(sqrab(k))
-            if(rab(k).lt.1.d-3) then
-               write(env%unit,*) i,j,ati,atj,rab(k)
-               call env%error("Particular close distance present", source)
-               exit
-            endif
-         enddo
-      enddo
+      !Get all distances
+      call neigh%getTransVec(mol,sqrt(hbthr2))
+      if (.not. allocated(neigh%distances)) then
+        call getDistances(neigh%distances, mol, neigh)
+      endif
+
+      ! Transfer calculated distances in central cell to rab and sqrab 
+      ! want to change to neigh%distances
+      do i=1, mol%n
+        ati=mol%at(i)
+        kk=i*(i-1)/2
+        do j=1, i-1 
+          atj=mol%at(j)
+          k=kk+j
+          rab(k) =  neigh%distances(j,i,1)            
+          sqrab(k) = rab(k)**2 
+          if(rab(k).lt.1.d-3) then
+            write(env%unit,*) i,j,ati,atj,rab(k)
+            call env%error("Particular close distance present", source)
+            exit
+          endif
+        enddo                                                          
+      enddo                                                          
+
+
 
       call env%check(exitRun)
       if (exitRun) then
@@ -686,17 +706,38 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! get ring info (smallest ring size)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!@thomas introducing PBC quick and dirty
+!  by making atoms in central cell neighbors if they are nb in any other cell
+!  resulting mistake: wrong distances/positions -> not needed in getring36
+allocate(nbrngs(neigh%numnb,mol%n), source=0)
+nbrngs=neigh%nbm(:,:,1)
+if (mol%npbc.ne.0) then
+  do i=1, mol%n
+    nni = neigh%nbm(neigh%numnb,i,1)
+    do iTr=2, neigh%numctr
+      do j=1, neigh%nbm(neigh%numnb,i,iTr)
+        ! append neighbors from other cells to cell one
+        nbrngs(nni+j,i) = neigh%nbm(j,i,iTr)
+        ! adjust number of nb
+        nbrngs(neigh%numnb,i)=nbrngs(neigh%numnb,i)+1
+        !@thomas TODO? if I actually need distances:
+        ! -> save idx=nni+j and iTr to array for mapping back after getring36 call
+      enddo
+      nni = nni + neigh%nbm(neigh%numnb,i,iTr)
+    enddo
+  enddo
+endif
       write(env%unit,'(10x,"rings ...")')
-!$omp parallel default(none) private(i,cr,sr) shared(mol,nbm,cring,sring)
+!$omp parallel default(none) private(i,cr,sr) shared(mol,neigh,nbrngs,cring,sring)
 !$omp do
       do i=1,mol%n
-         call getring36(mol%n,mol%at,nbm,i,cr,sr)
+         call getring36(mol%n,mol%at,neigh%numnb,neigh%numctr,nbrngs,i,cr,sr)
          cring(1:10,1:20,i)=cr(1:10,1:20)
          sring(     1:20,i)=sr(1:20)
       enddo
 !$omp end do
 !$omp end parallel
-      deallocate(nbm)
+      deallocate(neigh%nbm, nbrngs) !@thomas added nbrings
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! bonded atom triples not included in
