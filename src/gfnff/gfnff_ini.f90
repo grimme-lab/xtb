@@ -59,13 +59,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       integer AHB_nr
       integer bond_hbn
       integer iTr, iTr2, iTri,iTrj,iTrk,iTrDum,iTrlDum,iTrl,iTrtmp
+      real(wp) vTrl(3), vTrj(3), vTrk(3), vec(3), MaxCutOff
       interface
          integer function itabrow6(i)
             integer i
          end function
       end interface
 
-      real(wp) r0,ff,omega,f1,f2,phi,valijklff,ringf,fcn
+      real(wp) r0,ff,omega,omegaPBC,f1,f2,phi,valijklff,ringf,fcn
       real(wp) shift,dum,dum1,dum2,dum4,qafac,fqq,feta
       real(wp) sumppi,fpi,fxh,fijk,fsrb2,ees
       real(wp) fheavy,fn,eold,fctot,fij
@@ -85,7 +86,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       integer,allocatable :: itag(:)
       integer,allocatable :: piadr(:),piadr2(:),piadr3(:),piadr4(:)
       integer,allocatable :: itmp(:),sring(:,:),cring(:,:,:)
-      integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:),piel(:)
+      integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:,:),piel(:)
       integer,allocatable :: lin_AHB(:)
       integer,allocatable :: bond_hbl(:,:)
       real(wp),allocatable:: rab  (:)
@@ -100,11 +101,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       real(wp),allocatable:: Api(:,:),S(:,:),Pold(:,:),pibo(:),occ(:),eps(:)
       real(wp),allocatable:: pispop(:),pisea(:),pisip(:),apisave(:,:)
       real(sp),allocatable:: rabd(:,:)
+      real(wp),allocatable:: transVec(:,:)
+      type(TLatticePoint)  :: latPoint
+      integer, allocatable:: locarr(:,:), nbrngs(:,:)
 
       character(len=255) atmp
       integer  :: ich, err
       real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
-      logical :: exitRun
+      logical :: exitRun, nb_call
 
       call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
@@ -231,30 +235,36 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       write(env%unit,'(10x,"----------------------------------------")')
       write(env%unit,'(10x,"generating topology and atomic info file ...")')
       call gfnff_neigh(env,makeneighbor,mol%n,mol%at,mol%xyz,rab,gen%rqshrink, &
-         & gen%rthr,gen%rthr2,gen%linthr,mchar,topo%hyb,itag,nbm,nbf,param,topo)
+         & gen%rthr,gen%rthr2,gen%linthr,mchar,topo%hyb,itag,param,topo,mol,neigh,nb_call)
+      nb_call = .true.
 
       do i=1,mol%n
          imetal(i)=param%metal(mol%at(i))
-         if(topo%nb(20,i).le.4.and.param%group(mol%at(i)).gt.3) imetal(i)=0 ! Sn,Pb,Bi, with small CN are better described as non-metals
-      enddo
-
+         ! Sn,Pb,Bi, with small CN are better described as non-metals
+         ! The number of neighbors can only decrease from first to second qloop
+         if(sum(neigh%nb(neigh%numnb,i,:)).le.4.and.param%group(mol%at(i)).gt.3) imetal(i)=0     
+      enddo   
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! bonds (non bonded directly in EG)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-      topo%bpair=0
+!@thomas delete when everything moved to periodic setup variables, see below delete_start
+      neigh%molbpair=0 !@thomas why use molbpair??
       do i=1,mol%n
-         do j=1,topo%nb(20,i)
-            k=topo%nb(j,i)
-            topo%bpair(lin(k,i))=1
-         enddo
+        do iTr=1, neigh%numctr
+          do j=1,neigh%nb(neigh%numnb,i,iTr)
+            k=neigh%nb(j,i,iTr)
+            neigh%molbpair(lin(k,i))=1 !@thomas mit Bindung zu anderen Zellen wird hier falsch
+            if (lin(k,i).gt.mol%n*(mol%n+1)/2) call env%error('Check neigh%molbpair',source)!@thomas delete
+          enddo
+        enddo
       enddo
-      topo%nbond = sum(topo%bpair)
+      topo%nbond = sum(neigh%molbpair)
       topo%nbond_blist = topo%nbond
       allocate( topo%blist(2,topo%nbond), source = 0 )
       allocate( btyp(topo%nbond), source = 0 )
       allocate( pibo(topo%nbond), source = 0.0d0 )
+
 
       pibo  = -99.
       topo%nbond = 0
@@ -262,35 +272,94 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          kk=i*(i-1)/2
          do j=1,i-1
             k=kk+j
-            if ( topo%bpair(k) .eq. 1 ) then  ! bonds
+            if ( neigh%molbpair(k) .eq. 1 ) then  ! bonds
                 topo%nbond = topo%nbond +1
                 topo%blist(1,topo%nbond)=i
                 topo%blist(2,topo%nbond)=j
             endif
          enddo
       enddo
+!@thomas delete_end
+      ! periodic setup
+      ! Get number of bonds, all bonds should be paired
+      ! For bonds to other cells only cells with translation vectors
+      !    with "positive" sign (in direction of axes) are considered 
+      neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
+      ! check for wrong bonds, can occur for close atoms 
+      !@thomas TODO need to rework? for pbc also??
+      if (mod(sum(neigh%nb(neigh%numnb,:,:)),2).ne.0.or.neigh%nbond.ne.topo%nbond) then
+        write(*,*)
+        write(*,*) 'Trying to correct wrong bonds in topology.'
+        if(mol%npbc.ne.0) write(*,*) 'In periodic cases better check your input.&
+                                & Not sure if bonds will be corrected.'
+        write(*,*) 'mod=', mod(sum(neigh%nb(neigh%numnb,:,:)),2), '   sum=', sum(neigh%nb(neigh%numnb,:,:))
+        write(*,*) 'neigh%nbond=',neigh%nbond, '   topo%nbond=', topo%nbond
+        call correct_bonds(mol,neigh) !@thomas important TODO
+        write(*,*)
+      endif  
+      ! setup blist
+      allocate( neigh%blist(3,neigh%nbond), source = 0 ) !first dim now 3 for saving iTr
+      k=0
+      do i=1, mol%n
+        do iTr=1, neigh%numctr
+          do j=1, neigh%nb(neigh%numnb,i,iTr)
+            if (iTr.eq.1) then
+              ! Do not count bonds twice 
+              if (neigh%nb(j,i,1).gt.i) cycle 
+              k=k+1
+              neigh%blist(1,k) = neigh%nb(j,i,1)
+              neigh%blist(2,k) = i
+              neigh%blist(3,k) = iTr
+            else
+              !though not the same bond only calculate energy for one molecule->use half of iTr
+              if (neigh%iTrUsed(iTr)) then
+                if (neigh%nb(j,i,iTr).gt.i) then !want same order as in molecular case
+                  k=k+1
+                  neigh%blist(1,k) = i
+                  neigh%blist(2,k) = neigh%nb(j,i,iTr)
+                  neigh%blist(3,k) = neigh%iTrNeg(iTr) !@thomas important why iTrNeg??
+                else
+                  k=k+1
+                  neigh%blist(1,k) = neigh%nb(j,i,iTr)
+                  neigh%blist(2,k) = i
+                  neigh%blist(3,k) = iTr
+                endif
+              endif
+            endif
+          enddo  
+        enddo
+      enddo
+      !check blist
+      if (k.ne.neigh%nbond) then
+        write(*,*)
+        write(*,*) 'Warning: neigh%blist might be corrupted.'
+        write(*,*) 'Max index:', k, '    Neigh%nbond:', neigh%nbond
+        write(*,*)
+      endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Hueckel setup for all first-row sp2 and sp atoms
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! setup list of all possible pi atoms
-      k=0
+      k=0  ! counts number of possible pi atoms
       piadr =0
       piadr2=0
       do i=1,mol%n ! setup loop
          piat =(topo%hyb(i).eq.1.or.topo%hyb(i).eq.2).and.pilist(mol%at(i)) ! sp or sp2 and CNOFS
          kk=0
-         do j=1,topo%nb(20,i)
-            jj=topo%nb(j,i)
-            if(mol%at(i).eq.8.and.mol%at(jj).eq.16.and.topo%hyb(jj).eq.5) then
-                                                             piat=.false.
-                                                             cycle ! SO3   is not a pi
-                                                             endif
-            if(topo%hyb(jj).eq.1.or.topo%hyb(jj).eq.2)  kk=kk+1         ! attached to sp2 or sp
+         do iTr=1, neigh%numctr
+           do j=1,neigh%nb(neigh%numnb,i,iTr)
+             jj=neigh%nb(j,i,iTr)
+             if(mol%at(i).eq.8.and.mol%at(jj).eq.16.and.topo%hyb(jj).eq.5) then
+               piat=.false.
+               cycle        ! SO3   is not a pi
+             endif
+             if(topo%hyb(jj).eq.1.or.topo%hyb(jj).eq.2)  kk=kk+1         ! attached to sp2 or sp
+           enddo
          enddo
          picon=kk.gt.0.and.nofs(mol%at(i))                     ! an N,O,F (sp3) on sp2
-         if(mol%at(i).eq. 7.and.topo%nb(20,i).gt.3) cycle           ! NR3-X is not a pi
+         if(mol%at(i).eq. 7.and.sum(neigh%nb(neigh%numnb,i,:)).gt.3) cycle           ! NR3-X is not a pi
          if(mol%at(i).eq.16.and.topo%hyb(i).eq.5  ) cycle           ! SO3   is not a pi
          if(picon.or.piat) then
             k=k+1
@@ -300,18 +369,20 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       enddo
       npiall=k
 ! make pi neighbor list
-      allocate( nbpi(20,npiall),pimvec(npiall), source = 0 )
+      allocate( nbpi(neigh%numnb,npiall,neigh%numctr),pimvec(npiall), source = 0 )
       nbpi=0
       do i=1,mol%n
          if(piadr2(i).eq.0) cycle
          ii=piadr2(i)
-         nbpi(20,ii)=0
-         do j=1,topo%nb(20,i)
-            k=topo%nb(j,i)
-            if(piadr2(k).gt.0)then
-               nbpi(20,ii)=nbpi(20,ii)+1
-               nbpi(nbpi(20,ii),ii)=piadr2(k)
-            endif
+         nbpi(neigh%numnb,ii,:)=0
+         do iTr=1, neigh%numctr
+           do j=1,neigh%nb(neigh%numnb,i,iTr)
+             k=neigh%nb(j,i,iTr)
+             if(piadr2(k).gt.0)then
+               nbpi(neigh%numnb,ii,iTr)=nbpi(neigh%numnb,ii,iTr)+1
+               nbpi(nbpi(neigh%numnb,ii,iTr),ii,iTr)=piadr2(k)
+             endif
+           enddo
          enddo
       enddo
 
@@ -591,7 +662,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          if(mol%at(i).eq. 7)                 then
                                          ff=-0.13 ! N
            if(piadr(i).ne.0)             ff=-0.14
-           if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))ff=-0.16
+           if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))ff=-0.16
          endif
          if(mol%at(i).eq. 8)                 then
                                          ff=-0.15 ! O
@@ -613,7 +684,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !                   base val   spec. corr.
          topo%chieeq(i)=-param%chi(mol%at(i)) + dxi(i)
          topo%gameeq(i)= param%gam(mol%at(i)) +dgam(i)
-         if (amideH(mol%n,mol%at,topo%hyb,topo%nb,piadr2,i)) topo%chieeq(i) = topo%chieeq(i) - 0.02
+         if (amideH(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i,neigh)) topo%chieeq(i) = topo%chieeq(i) - 0.02
          ff = 0
          if(mol%at(i).eq.6)       ff= 0.09
          if(mol%at(i).eq.7)       ff=-0.21
@@ -732,11 +803,13 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       do i = 1,mol%n
          topo%hbaci(i)=param%xhaci(mol%at(i))
       end do
-      do i = 1,mol%n
-         nn=topo%nb(1,i)
-         topo%hbaci(i)=param%xhaci(mol%at(i))
-         ! AmideH:
-         if (amideH(mol%n,mol%at,topo%hyb,topo%nb,piadr2,i)) topo%hbaci(nn) = topo%hbaci(nn) * 0.80
+      do i = 1,mol%n       
+         ! get first nb, iTr expected to be irrelevant since same in each cell
+         call neigh%jth_nb(nn,1,i,iTr)          !  R - N/C/O - H  ! terminal  H
+         if(nn.le.0) cycle  ! cycle if there is no nb
+         topo%hbaci(i)=param%xhaci(mol%at(i))   ! only first neighbor of interest
+         if (amideH(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i,neigh)) &
+                 &topo%hbaci(nn) = topo%hbaci(nn) * 0.80
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -969,11 +1042,47 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       do i=1,mol%n
-         if(topo%hyb(i).eq.2 .and. piadr(i).eq.0 .and. topo%nb(20,i).eq.3 .and. param%group(mol%at(i)).eq.4)then ! C,Si,Ge... CN=3, no pi
-            jj=topo%nb(1,i)
-            kk=topo%nb(2,i)
-            ll=topo%nb(3,i)
-            phi=omega(mol%n,mol%xyz,i,jj,kk,ll)  ! the shitty second geom. dep. term GEODEP
+         if(topo%hyb(i).eq.2 .and. piadr(i).eq.0 .and. sum(neigh%nb(neigh%numnb,i,:)).eq.3 &
+                 &.and. param%group(mol%at(i)).eq.4)then ! C,Si,Ge... CN=3, no pi
+            ! get those 3 neighbors
+            call neigh%nbLoc(mol%n, neigh%nb, i, locarr)     
+            jj=0
+            kk=0
+            ll=0
+            if (size(locarr,dim=2).eq.1) then     ! all 3 in same cell
+              jj=locarr(1,1)
+              kk=locarr(2,1)
+              ll=locarr(3,1)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,1)
+              iTrl=locarr(neigh%numnb,1)
+            elseif (size(locarr,dim=2).eq.2) then ! in 2 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(2,1)             !  guess its here
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,1)
+              if(ll.eq.0) then  ! if ll is still zero then it is in the other cell
+                ll=locarr(2,2) 
+                iTrl=locarr(neigh%numnb,2)
+              endif
+            else                                  ! in 3 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(1,3)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,3)
+            endif
+            ! @thomas remove warning when omega is calculated with iTr
+            if (sum(locarr(neigh%numnb-1,:)).ne.3) write(*,*) 'Warning: Mistake in hybridization.'
+            deallocate(locarr)
+            !@thomas important TODO omega needs to consider iTr -> see omegaPBC ../constr.f90
+            vTrl=neigh%transVec(:,iTrl)
+            vTrj=neigh%transVec(:,iTrj)
+            vTrk=neigh%transVec(:,iTrk)
+            phi=omegaPBC(mol%n,mol%xyz,i,jj,kk,ll,vTrl,vTrj,vTrk)  ! the shitty second geom. dep. term GEODEP !@thomas language?
             if(abs(phi)*180./pi.gt.40.d0) topo%hyb(i) = 3  ! change to sp^3
          endif
       enddo
@@ -983,7 +1092,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       write(env%unit,'(2x,"atom   neighbors  erfCN metchar sp-hybrid imet pi  qest     coordinates")')
       do i=1,mol%n
          j = topo%hyb(i)
-         if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))  j=-topo%hyb(i)
+         if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))  j=-topo%hyb(i)
          if(mol%at(i).eq.6.and.itag(i).eq.1) j=-topo%hyb(i)
          write(env%unit,'(i5,2x,a2,3x,i4,3x,f5.2,2x,f5.2,8x,i2,3x,i2,3x,i2,2x,f6.3,3f12.6)') &
      &             i,mol%sym(i),topo%nb(20,i),cn(i),mchar(i),j,imetal(i),piadr(i),topo%qa(i),mol%xyz(1:3,i)
@@ -1461,7 +1570,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                if(ati.eq.7.and.topo%hyb(i).eq.3)then
 !                 in pi system
                   if(npi.gt.0)then
-                                                                 if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,i))then
+                                                               if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))then
                                                                    r0=115.
                                                                    f2=1.2d0
                                                                  else
@@ -1620,19 +1729,23 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          fij=fij*(dble(nhi)*dble(nhj))**0.07 ! n H term
          ! amides and alpha carbons in peptides/proteins
          if (alphaCO(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.3d0
-         if (amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii).and.topo%hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
-         if (amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,jj).and.topo%hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).and.topo%hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
+         if (amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj).and.topo%hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
          ! hypervalent
          if(btyp(m).eq.4)                                                                   fij = fij * 0.2d0
-!        loop over neighbors of ij
-         do ineig=1,topo%nb(20,ii)
-            kk=topo%nb(ineig,ii)
-            if(kk.eq.jj) cycle
-            do jneig=1,topo%nb(20,jj)
-               ll=topo%nb(jneig,jj)
-               if(ll.eq.ii) cycle
-               if(ll.eq.kk) cycle
-               if(chktors(mol%n,mol%xyz,ii,jj,kk,ll)) cycle  ! near 180
+!     loop over neighbors of ij
+       do iTrk=1, neigh%numctr
+         do ineig=1,neigh%nb(neigh%numnb,ii,iTrk) 
+           kk=neigh%nb(ineig,ii,iTrk)  !neighbors of ii that are not jj
+           if(kk.eq.jj.and.iTrk.eq.iTrj) cycle
+           do iTrlDum=1, neigh%numctr 
+             do jneig=1,neigh%nb(neigh%numnb,jj,iTrlDum)
+               ll=neigh%nb(jneig,jj,iTrlDum)   !neighbors of jj that are neither ii or kk
+               iTrl=neigh%fTrSum(iTrlDum,iTrj) ! ll has to be shifted if jj is shifted
+               if(iTrl.eq.-1.or.iTrl.gt.neigh%numctr) cycle !@thomas when introducing full PBC this could be wrong 
+               if(ll.eq.ii.and.iTrl.eq.1) cycle
+               if(ll.eq.kk.and.iTrl.eq.iTrk) cycle
+               if(chktors(mol%n,mol%xyz,ii,jj,kk,ll,iTrj,iTrk,iTrl,neigh)) cycle  ! near 180
                fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))       ! outer kl term
                if(mol%at(kk).eq.7.and.piadr(kk).eq.0) fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*0.5
                if(mol%at(ll).eq.7.and.piadr(ll).eq.0) fkl=param%tors2(mol%at(kk))*param%tors2(mol%at(ll))*0.5
@@ -1640,7 +1753,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                if(param%tors(mol%at(kk)).lt.0.or.param%tors(mol%at(ll)).lt.0) cycle ! no negative values
                f1 = gen%torsf(1)
                f2 = 0.0d0
-               fkl=fkl*(dble(topo%nb(20,kk))*dble(topo%nb(20,ll)))**(-0.14)  ! CN term
+               fkl=fkl*(dble(sum(neigh%nb(neigh%numnb,kk,:)))*dble(sum(neigh%nb(neigh%numnb,ll,:))))**(-0.14)  ! CN term
 
 !-----------------------
 ! definitions come here
@@ -1663,10 +1776,11 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                       if ( rings4 .eq. 5 .and. ringl.eq.rings4 .and.notpicon) then; nrot=6; phi =30.d0; f1=gen%fr5; endif
                       if ( rings4 .eq. 6 .and. ringl.eq.rings4 .and.notpicon) then; nrot=3; phi =60.d0; f1=gen%fr6; endif
                     endif
-                    if ( rings4.eq.0 .and. btyp(m).eq.1 .and. &
-                                 topo%nb(20,kk).eq.1.and.topo%nb(20,ll).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
+                    if ( rings4.eq.0 .and. btyp(m).eq.1 .and. sum(neigh%nb(neigh%numnb,kk,:)).eq.1&
+                            &.and.sum(neigh%nb(neigh%numnb,ll,:)).eq.1) then; nrot=6; phi =30.d0; f1=0.30; endif
                     if(btyp(m).eq.2 .and. rings.eq.5 .and. mol%at(ii)*mol%at(jj).eq.42) then
-                       if(amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii).or.amide(mol%n,mol%at,topo%hyb,topo%nb,piadr,jj)) f1=5.  ! improving CB7
+                       if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).or.&
+                               &amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj)) f1=5.  ! improving CB7
                     endif
                else
 ! ACYCLIC
@@ -1740,6 +1854,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                   topo%tlist(3,topo%ntors)=jj
                   topo%tlist(4,topo%ntors)=kk
                   topo%tlist(5,topo%ntors)=nrot
+                  topo%tlist(6,topo%ntors)=iTrl
+                  topo%tlist(7,topo%ntors)=iTrj
+                  topo%tlist(8,topo%ntors)=iTrk
                   topo%vtors(1,topo%ntors)=phi*pi/180.0d0
                   topo%vtors(2,topo%ntors)=fctot
 !                 printout
@@ -1763,6 +1880,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                   topo%tlist(2,topo%ntors)=ii
                   topo%tlist(3,topo%ntors)=jj
                   topo%tlist(4,topo%ntors)=kk
+                  topo%tlist(6,topo%ntors)=iTrl
+                  topo%tlist(7,topo%ntors)=iTrj
+                  topo%tlist(8,topo%ntors)=iTrk
                   topo%tlist(5,topo%ntors)=1
                   topo%vtors(1,topo%ntors)=pi
                   topo%vtors(2,topo%ntors)= ff * fij * fkl *fqq
@@ -1770,9 +1890,11 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
      &            ii,jj,kk,ll,topo%tlist(5,topo%ntors),rings,topo%vtors(1,topo%ntors)*180./pi,phi*180./pi,topo%vtors(2,topo%ntors)
                endif
 
-            enddo ! neighbors ij
-         enddo
-      enddo ! bond loop
+               enddo ! neighbors ij
+             enddo
+           enddo
+         enddo ! bond loop
+       enddo  
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -2038,6 +2160,74 @@ use xtb_mctc_accuracy, only : wp
    endif
 
 end function zeta
+
+
+subroutine correct_bonds(mol,neigh)
+  
+  type(TMolecule), intent(in) :: mol   ! # 
+  type(TNeigh), intent(inout) :: neigh !@th
+  integer :: i,j,k,idx, kk, numWrong, origNumNB(mol%n)
+  logical :: nbWrong, Fixed
+  integer :: wrong_save(2,2*mol%n) ! dont expect more than 2*n wrong neighbors
+  integer :: nb_orig(neigh%numnb,mol%n,neigh%numctr)
+  
+  nb_orig = neigh%nb
+  origNumNB=neigh%nb(neigh%numnb,:,1)
+  !go through nb and check if all bonds are paired
+  idx=0
+  do i=1, mol%n
+  !   ii=neigh%nb(neigh%numnb,i,1)
+    do j=1, neigh%nb(neigh%numnb,i,1)
+      !
+      nbWrong=.true.
+      k=neigh%nb(j,i,1) ! k is neighbor of i -> i should be neighbor of k
+      ! go through nb of k -> search for i
+      do kk=1, neigh%nb(neigh%numnb,k,1)
+        if(i.eq.neigh%nb(kk,k,1)) nbWrong=.false.
+      enddo
+      ! save unpaired / wrong neighbors in wrong_save
+      if(nbWrong) then
+        idx=idx+1
+        wrong_save(1,idx)=j
+        wrong_save(2,idx)=i
+      endif
+    enddo
+  enddo
+  ! set wrong neighbors to zero, adjust number of neighbors
+  numWrong=idx
+  do k=1, numWrong
+    j=wrong_save(1,k)
+    i=wrong_save(2,k)
+    neigh%nb(j,i,1)=0
+    neigh%nb(neigh%numnb,i,1)=neigh%nb(neigh%numnb,i,1)-1
+  enddo
+  ! shift the neighbors so that there are no zero entries in the list
+  do i=1, mol%n
+    if (neigh%numnb.lt.18) write(*,*) 'Warning: Neighbor correction might need to be revisited.'
+    if (neigh%nb(neigh%numnb,i,1).gt.18) write(*,*) 'Warning: System is too highly coordinated.'
+    Fixed=.false.
+    do while (.not.Fixed)
+      Fixed=.true.
+      do j=1, origNumNB(i)
+        if (neigh%nb(j,i,1).eq.0) then
+          neigh%nb(j,i,1)=neigh%nb(j+1,i,1)
+          neigh%nb(j+1,i,1)=0
+        endif
+        do k=1, neigh%nb(neigh%numnb,i,1)
+          if(neigh%nb(k,i,1).eq.0) Fixed=.false.
+        enddo      
+      enddo
+    enddo
+  enddo
+ 
+  neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2 
+  if (sum(nb_orig-neigh%nb).eq.0) then
+    write(*,*) 'Did not change neigh%nb.'
+  else
+    write(*,*) 'Changed neigh%nb.'
+  endif
+
+end subroutine correct_bonds
 
 end subroutine gfnff_ini
 

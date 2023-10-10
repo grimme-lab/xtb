@@ -19,6 +19,7 @@ module xtb_gfnff_ini2
    use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_type_environment, only : TEnvironment
+   use xtb_gfnff_neighbor
    implicit none
    private
    public :: gfnff_neigh, getnb, nbondmat
@@ -30,19 +31,20 @@ module xtb_gfnff_ini2
 
 contains
 
-subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mchar,hyb,itag,nbm,nbf,param,topo)
+subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
+                      & mchar,hyb,itag,param,topo,mol,neigh,nb_call)
       use xtb_gfnff_param
       implicit none
       character(len=*), parameter :: source = 'gfnff_ini2_neigh'
       type(TEnvironment), intent(inout) :: env
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(inout) :: topo
-      logical makeneighbor
+      type(TMolecule), intent(in) :: mol
+      type(TNeigh), intent(inout) :: neigh ! contains nb, nbf and nbm
+      logical, intent(in) :: makeneighbor, nb_call
       integer at(natoms),natoms
       integer hyb (natoms)
       integer itag(natoms)
-      integer nbm(20,natoms)                 ! needed for ring assignment (done without metals)
-      integer nbf(20,natoms)                 ! full needed for fragment assignment
       real*8  rab   (natoms*(natoms+1)/2)
       real*8  xyz(3,natoms)
       real*8  mchar(natoms)
@@ -51,10 +53,10 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
       real*8  lintr                    ! threshold for linearity
 
       logical etacoord,da,strange_iat,metal_iat
-      integer,allocatable :: nbdum(:,:)
+      integer,allocatable :: nbdum(:,:,:), nbdum2(:,:), locarr(:,:)
       real*8 ,allocatable :: cn(:),rtmp(:)
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm
-      integer ai,aj,nn,im,ncm,l,no
+      integer ai,aj,nn,im,ncm,l,no, iTr, iTr2, numnbf, numnbm, numnb, idx, idxdum, idxdum2, numctr
       real*8 r,pi,a1,f,f1,phi,f2,rco,fat(86)
       data pi/3.1415926535897932384626433832795029d0/
       data fat   / 86 * 1.0d0 /
@@ -83,14 +85,11 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
       fat(82)=1.06
       fat(83)=0.95
 
-      allocate(cn(natoms),rtmp(natoms*(natoms+1)/2),nbdum(20,natoms))
+      allocate(cn(natoms),rtmp(natoms*(natoms+1)/2),nbdum2(20,natoms))
+      rtmp = 0.0
 
 ! determine the neighbor list
       if(makeneighbor) then
-
-        topo%nb =0  ! without highly coordinates atoms
-        nbm=0  ! without any metal
-        nbf=0  ! full
 
         do i=1,natoms
            cn(i)=dble(param%normcn(at(i)))
@@ -100,7 +99,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
            ai=at(i)
            f1=fq
            if(param%metal(ai) > 0) f1 = f1 * 2.0d0
-           do j=1,i-1
+           do j=1,i
               f2=fq
               aj=at(j)
               if(param%metal(aj) > 0) f2 = f2 * 2.0d0
@@ -112,94 +111,112 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
            enddo
         enddo
 
-        call getnb(natoms,at,rtmp,rab,mchar,1,f_in,f2_in,nbdum,nbf,param) ! full
-        call getnb(natoms,at,rtmp,rab,mchar,2,f_in,f2_in,nbf  ,topo%nb,param) ! no highly coordinates atoms
-        call getnb(natoms,at,rtmp,rab,mchar,3,f_in,f2_in,nbf  ,nbm,param) ! no metals and unusually coordinated stuff
+        call neigh%get_nb(mol, rab, rtmp, mchar, 1, f_in, f2_in, param) ! nbf
+        ! neigh%nb only used for hyb states, then overwritten with nbf
+        call neigh%get_nb(mol, rab, rtmp, mchar, 2, f_in, f2_in, param) ! nb 
+        call neigh%get_nb(mol, rab, rtmp, mchar, 3, f_in, f2_in, param) ! nbm
 
-! take the input
+      ! take the input
       else
 
-        nbf = topo%nb
-        nbm = topo%nb
+         neigh%nbf = neigh%nb !@thomas_important wird so in orig gemacht
+         neigh%nbm = neigh%nb 
 
       endif
 ! done
 
       itag = 0 ! save special hyb info
+      numctr = neigh%numctr ! number of central cells considered (e.g. 1 for molec case)
 
 ! tag atoms in nb(19,i) if they belong to a cluster (which avoids the ring search)
       do i=1,natoms
-         if(nbf(20,i).eq.0.and.param%group(at(i)).ne.8)then
+         if(sum(neigh%nbf(neigh%numnb,i,:)).eq.0.and.param%group(at(i)).ne.8)then
             write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
             write(env%unit,'(''  warning: no bond partners for atom'',i4)')i
             write(env%unit,'(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
          endif
-         if(at(i).lt.11.and.nbf(20,i).gt.2)then
-            do k=1,nbf(20,i)
-               kk=nbf(k,i)
-               if(param%metal(at(kk)).ne.0.or.topo%nb(20,kk).gt.4) then
-                  topo%nb (19,i)=1
-                  nbf(19,i)=1
-                  nbm(19,i)=1
-               endif
-            enddo
+         if(at(i).lt.11.and.sum(neigh%nbf(neigh%numnb,i,:)).gt.2)then
+           do iTr=1, numctr 
+             do k=1,neigh%nbf(neigh%numnb,i,iTr)
+                 kk=neigh%nbf(k,i,iTr)
+                 if(param%metal(at(kk)).ne.0.or.sum(neigh%nb(neigh%numnb,kk,:)).gt.4) then
+                    neigh%nb(neigh%numnb-1,i,1) =1  ! ring search is limited to unit cell.
+                    neigh%nbf(neigh%numnb-1,i,1)=1  ! I assume: If the conditions are true
+                    neigh%nbm(neigh%numnb-1,i,1)=1  ! in one cell they are true in all cells
+                 endif
+             enddo
+           enddo
          endif
-!        write(env%unit,*) i,(topo%nb(j,i),j=1,topo%nb(20,i))
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! hybridization states
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      if(.not. allocated(nbdum)) &
+        & allocate(nbdum(neigh%numnb, mol%n, numctr), source=0)
       do i=1,natoms
          ati  = at(i)
+         numnbf=sum(neigh%nbf(neigh%numnb,i,:))
+         numnbm=sum(neigh%nbm(neigh%numnb,i,:))
 !        important: determine cases where atom is pi bonded to a metal and thus
 !        the hyb must be obtained from the reduced (wo metals) neighbor list
          etacoord=.false.
          if(ati.le.10)then
-            if(ati.eq.6.and.nbf(20,i).ge.4.and.nbm(20,i).eq.3) etacoord=.true.  ! CP case
-            if(ati.eq.6.and.nbf(20,i).eq.3.and.nbm(20,i).eq.2) etacoord=.true.  ! alkyne case
+            if(ati.eq.6.and.numnbf.ge.4.and.numnbm.eq.3) etacoord=.true.  ! CP case
+            if(ati.eq.6.and.numnbf.eq.3.and.numnbm.eq.2) etacoord=.true.  ! alkyne case
             nm=0
-            do k=1,nbf(20,i)  ! how many metals ? and which
-               kk=nbf(k,i)
+           do iTr=1, numctr 
+            do k=1, neigh%nbf(neigh%numnb,i,iTr)  ! how many metals ? and which
+               kk=neigh%nbf(k,i,iTr)
                if(param%metal(at(kk)).ne.0) then
                   nm=nm+1
                   im=kk
                endif
             enddo
-            if(nm.eq.0) then
+           enddo
+           if(nm.eq.0) then
                etacoord=.false.  ! etacoord makes no sense without metals!
             elseif(nm.eq.1)then  ! distinguish M-CR2-R i.e. not an eta coord.
-               ncm=0
-               do k=1,nbf(20,i)  !
-                  if(nbf(k,i).ne.im)then ! all neighbors that are not the metal im
-                     kk=nbf(k,i)
-                     do l=1,nbf(20,kk)
-                        if(nbf(l,kk).eq.im) ncm=ncm+1 ! ncm=1 is alkyne, =2 is cp
-                     enddo
+              ncm=0
+              do iTr=1, numctr
+                do k=1,numnbf  !
+                  if(neigh%nbf(k,i,iTr).ne.im)then ! all neighbors that are not the metal im
+                    kk=neigh%nbf(k,i,iTr)
+                    do l=1,sum(neigh%nbf(neigh%numnb,kk,:))
+                      if(neigh%nbf(l,kk,iTr).eq.im) ncm=ncm+1 ! ncm=1 is alkyne, =2 is cp
+                    enddo
                   endif
-               enddo
-               if(ncm.eq.0) etacoord=.false.
+                enddo
+              enddo
+              if(ncm.eq.0) etacoord=.false.
             endif
          endif
          if(etacoord)then
           itag(i)=-1
-          nbdum(1:20,i)=nbm(1:20,i)
+          nbdum(:,i,:)=neigh%nbm(:,i,:)
          else
-          nbdum(1:20,i)=nbf(1:20,i) ! take full set of neighbors by default
-         endif
+          nbdum(:,i,:)=neigh%nbf(:,i,:) ! take full set of neighbors by default
+        endif
       enddo
 
       do i=1,natoms
          ati  = at(i)
-         hyb(i)=0    ! don't know it
-         nbdiff =nbf(20,i)-topo%nb (20,i)
-         nbmdiff=nbf(20,i)-nbm(20,i)
-         nb20i=nbdum(20,i)
+         hyb(i)=0    ! don't know it 
+         numnbm=sum(neigh%nbm(neigh%numnb,i,:))
+         numnbf=sum(neigh%nbf(neigh%numnb,i,:))
+         numnb =sum(neigh%nb (neigh%numnb,i,:))
+         nbdiff =numnbf-numnb
+         nbmdiff=numnbf-numnbm
+         nb20i =sum(nbdum(neigh%numnb,i,:))
+         ! go over all nb's of i, count number nb's that are H or O 
          nh=0
          no=0
-         do j=1,nb20i
-            if(at(nbdum(j,i)).eq.1) nh=nh+1
-            if(at(nbdum(j,i)).eq.8) no=no+1
+         do iTr=1, numctr
+           do j=1,nb20i
+             if(nbdum(j,i,iTr).eq.0) cycle
+             if(at(nbdum(j,i,iTr)).eq.1) nh=nh+1
+             if(at(nbdum(j,i,iTr)).eq.8) no=no+1
+           enddo
          enddo
 ! H
          if(param%group(ati).eq.1) then
@@ -227,7 +244,24 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
             if(nb20i.gt.4.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.3)                               hyb(i)=2
             if(nb20i.eq.2) then
-              call bangl(xyz,nbdum(1,i),i,nbdum(2,i),phi)
+              ! get the right neighbors for bangl call
+              call neigh%nbLoc(natoms, nbdum, i, locarr)
+              if (size(locarr,dim=2).eq.1) then
+                idxdum  = locarr(1,1)
+                idxdum2 = locarr(2,1)
+                iTr = locarr(neigh%numnb,1)
+                iTr2 = locarr(neigh%numnb,1)
+                deallocate(locarr)
+              elseif(size(locarr,dim=2).eq.2) then
+                idxdum  = locarr(1,1)
+                idxdum2 = locarr(1,2)
+                iTr = locarr(neigh%numnb,1)
+                iTr2 = locarr(neigh%numnb,2)
+                deallocate(locarr)
+              else
+                call env%error(' Hybridization failed. Neighbors could not be located.', source)
+              endif
+              call banglPBC(1,xyz,idxdum,i,idxdum2,iTr,iTr2,neigh,phi)
               if(phi*180./pi.lt.150.0)then                         ! geometry dep. setup! GEODEP
                                                          hyb(i)=2  ! otherwise, carbenes will not be recognized
                                                         itag(i)=1  ! tag for Hueckel and HB routines
@@ -250,11 +284,14 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
                kk=0
                ll=0
                nn=0
-               do j=1,3
-                  jj=nbdum(j,i)
-                  if(at(jj).eq. 8.and.topo%nb(20,jj).eq.1) kk=kk+1 ! check for NO2 or R2-N=O
-                  if(at(jj).eq. 5.and.topo%nb(20,jj).eq.4) ll=ll+1 ! check for B-N, if the CN(B)=4 the N is loosely bound and sp2
-                  if(at(jj).eq.16.and.topo%nb(20,jj).eq.4) nn=nn+1 ! check for N-SO2-
+               do iTr=1, numctr
+                 do j=1,3
+                   jj= nbdum(j,i,iTr)
+                   if(jj.eq.0) exit !@thomas if there is no 1st nb there is no nb 
+                   if(at(jj).eq. 8.and.sum(neigh%nb(neigh%numnb,jj,:)).eq.1) kk=kk+1 ! check for NO2 or R2-N=O
+                   if(at(jj).eq. 5.and.sum(neigh%nb(neigh%numnb,jj,:)).eq.4) ll=ll+1 ! check for B-N, if the CN(B)=4 the N is loosely bound and sp2
+                   if(at(jj).eq.16.and.sum(neigh%nb(neigh%numnb,jj,:)).eq.4) nn=nn+1 ! check for N-SO2-
+                 enddo
                enddo
                if(nn.eq.1.and.ll.eq.0.and.kk.eq.0)       hyb(i)=3
                if(ll.eq.1.and.nn.eq.0)                   hyb(i)=2
@@ -266,17 +303,35 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
             endif
             if(nb20i.eq.2) then
                                                          hyb(i)=2
-               call bangl(xyz,nbdum(1,i),i,nbdum(2,i),phi)
-               jj=nbdum(1,i)
-               kk=nbdum(2,i)
-               if(nbdum(20,jj).eq.1.and.at(jj).eq.6)     hyb(i)=1  ! R-N=C
-               if(nbdum(20,kk).eq.1.and.at(kk).eq.6)     hyb(i)=1  ! R-N=C
-               if(nbdum(20,jj).eq.1.and.at(jj).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
-               if(nbdum(20,kk).eq.1.and.at(kk).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
-               if(nbdum(1,i).gt.0.and.param%metal(at(nbdum(1,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
-               if(nbdum(2,i).gt.0.and.param%metal(at(nbdum(2,i))).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
+               ! get the two neighbors for bangl call 
+               !>> idxdum and idxdum2 are the indices of the two neighbors
+               call neigh%nbLoc(natoms, nbdum, i, locarr)
+               if (size(locarr,dim=2).eq.1) then
+                 idxdum  = locarr(1,1)
+                 idxdum2 = locarr(2,1)
+                 iTr = locarr(neigh%numnb,1)
+                 iTr2 = locarr(neigh%numnb,1)
+                 deallocate(locarr)
+               elseif(size(locarr,dim=2).eq.2) then
+                 idxdum  = locarr(1,1)
+                 idxdum2 = locarr(1,2)
+                 iTr = locarr(neigh%numnb,1)
+                 iTr2 = locarr(neigh%numnb,2)
+                 deallocate(locarr)
+               else
+                 call env%error(' Hybridization failed. Neighbors could not be located.', source)
+               endif
+               call banglPBC(1,xyz,idxdum,i,idxdum2,iTr,iTr2,neigh,phi)
+               jj=idxdum
+               kk=idxdum2
+               if(sum(nbdum(neigh%numnb,jj,:)).eq.1.and.at(jj).eq.6)     hyb(i)=1  ! R-N=C
+               if(sum(nbdum(neigh%numnb,kk,:)).eq.1.and.at(kk).eq.6)     hyb(i)=1  ! R-N=C
+               if(sum(nbdum(neigh%numnb,jj,:)).eq.1.and.at(jj).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
+               if(sum(nbdum(neigh%numnb,kk,:)).eq.1.and.at(kk).eq.7)     hyb(i)=1  ! R-N=N in e.g. diazomethane
+               if(idxdum.gt.0.and.param%metal(at(idxdum)).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
+               if(idxdum2.gt.0.and.param%metal(at(idxdum2)).gt.0) hyb(i)=1 ! M-NC-R in e.g. nitriles
                if(at(jj).eq.7.and.at(kk).eq.7.and. &
-     &          nbdum(20,jj).le.2.and.nbdum(20,kk).le.2) hyb(i)=1  ! N=N=N
+     &         sum(nbdum(neigh%numnb,jj,:)).le.2.and.sum(nbdum(neigh%numnb,kk,:)).le.2) hyb(i)=1  ! N=N=N
                if(phi*180./pi.gt.lintr)                 hyb(i)=1  ! geometry dep. setup! GEODEP
             endif
             if(nb20i.eq.1)                               hyb(i)=1
@@ -287,13 +342,16 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
             if(nb20i.gt.3.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.2)                               hyb(i)=3
             if(nb20i.eq.2.and.nbmdiff.gt.0) then
-               call nn_nearest_noM(i,natoms,at,topo%nb,rab,j,param) ! CN of closest non-M atom
+              call nn_nearest_noM(i,natoms,at,neigh,rab,j,param) ! CN of closest non-M atom
                                         if(j.eq.3)       hyb(i)=2 ! M-O-X konj
                                         if(j.eq.4)       hyb(i)=3 ! M-O-X non
             endif
             if(nb20i.eq.1)                               hyb(i)=2
             if(nb20i.eq.1.and.nbdiff.eq.0) then
-            if(topo%nb(20,topo%nb(1,i)).eq.1)                      hyb(i)=1 ! CO
+            call neigh%nbLoc(natoms,neigh%nb,i,locarr)     
+            iTr = locarr(neigh%numnb,1)
+            deallocate(locarr)
+            if(sum(neigh%nb(neigh%numnb,neigh%nb(1,i,iTr),:)).eq.1)      hyb(i)=1 ! CO
             endif
          endif
 ! F
@@ -319,23 +377,25 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
          endif
       enddo
 
-      topo%nb = nbdum ! list is complete but hyb determination is based only on reduced (without metals) list
-
+      neigh%nb = nbdum ! list is complete but hyb determination is based only on reduced (without metals) list
       deallocate(nbdum)
 
       j = 0
       do i=1,natoms
-         if(topo%nb(20,i).gt.12) j = j +1
-         do k=1,topo%nb(20,i)
-            kk=topo%nb(k,i)
+        numnb = sum(neigh%nb(neigh%numnb,i,:))
+        if(numnb.gt.12) j = j +1
+        do iTr=1, neigh%numctr
+          do k=1, neigh%nb(neigh%numnb,i,iTr)
+            kk=neigh%nb(k,i,iTr)
             if(at(kk).eq.6.and.at(i).eq.6.and.itag(i).eq.1.and.itag(kk).eq.1) then ! check the very special situation of
-               itag(i) =0                                                          ! two carbene C bonded which is an arine
-               itag(kk)=0
+              itag(i) =0                                                           ! two carbene C bonded which is an arine
+              itag(kk)=0
             endif
-         enddo
+          enddo
+        enddo
       enddo
-      if(dble(j)/dble(natoms).gt.0.3) then
-         call env%error(' too many atoms with extreme high CN', source)
+      if(dble(j)/dble(natoms).gt.0.3.and.nb_call) then
+        call env%error(' too many atoms with extreme high CN', source)
       end if
 
       end subroutine gfnff_neigh
@@ -408,28 +468,33 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
 ! find the CN of nearest non metal of atom i
 !ccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine nn_nearest_noM(ii,n,at,nb,r,nn,param)
+      subroutine nn_nearest_noM(ii,n,at,neigh,r,nn,param)
       implicit none
       type(TGFFData), intent(in) :: param
-      integer ii,n,at(n),nn,nb(20,n)
-      real*8 r(n*(n+1)/2)
+      type(TNeigh), intent(in) :: neigh
+      integer, intent(in) :: ii,n,at(n)
+      integer, intent(inout) :: nn
+      real*8, intent(in) :: r(n*(n+1)/2)
 
-      integer jmin,j,jj,lin
+      integer jmin,j,jj,lin, numnb, iTr
       real*8 rmin
 
+      numnb=neigh%numnb
       nn=0
       rmin=1.d+42
       jmin=0
-      do j=1,nb(20,ii)
-         jj=nb(j,ii)
-         if(param%metal(at(jj)).ne.0) cycle
-         if(r(lin(jj,ii)).lt.rmin)then
-            rmin=r(lin(jj,ii))
+      do iTr=1, neigh%numctr
+        do j=1,neigh%nb(numnb,ii,iTr)
+          jj=neigh%nb(j,ii,iTr)
+          if(param%metal(at(jj)).ne.0) cycle
+          if(neigh%distances(jj,ii,iTr).lt.rmin)then
+            rmin=neigh%distances(jj,ii,iTr)
             jmin=jj
-         endif
+          endif
+        enddo
       enddo
 
-      if(jmin.gt.0) nn=nb(20,jmin)
+      if(jmin.gt.0) nn=sum(neigh%nb(numnb,jmin,:))
 
       end subroutine nn_nearest_noM
 
@@ -465,7 +530,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
             endif
          enddo
       enddo
-      do k=1,s(20,j)    ! all rings of atom i
+      do k=1,s(20,j)    ! all rings of atom j
          do l=1,s(k,j)  ! all atoms of ring k
             if(c(l,k,j).eq.i.and.s(k,j).lt.rings2)then
                rings2=s(k,j)
@@ -659,17 +724,19 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr,mc
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      logical function chktors(n,xyz,i,j,k,l)  ! true if dihedral angle is bad i.e. near 180
+      logical function chktors(n,xyz,i,j,k,l,iTrj,iTrk,iTrl,neigh)  ! true if dihedral angle is bad i.e. near 180
+      use xtb_gfnff_neighbor
       implicit none
-      integer n,i,j,k,l
+      type(TNeigh), intent(in) :: neigh
+      integer n,i,j,k,l,iTrj,iTrk,iTrl
       real*8 xyz(3,n),phi
 
       chktors=.true.
 
-      call bangl(xyz,j,i,k,phi)
+      call banglPBC(1,xyz,j,i,k,iTrj,iTrk,neigh,phi)
 !     write(env%unit,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
-      call bangl(xyz,i,j,l,phi)
+      call banglPBC(2,xyz,i,j,l,iTrj,iTrl,neigh,phi)
 !     write(env%unit,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
 
@@ -1636,28 +1703,32 @@ end subroutine goedeckera
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      logical function amide(n,at,hyb,nb,pi,a)
-      integer n,a,at(n),hyb(n),nb(20,n),pi(n)
-      integer i,j,no,nc,ic
+      logical function amide(n,at,hyb,numnb,numctr,nb,pi,a)
+      integer n,a,at(n),hyb(n),numnb,numctr,nb(numnb,n,numctr),pi(n)
+      integer i,j,no,nc,ic,iTr
 
       amide = .false. ! don't know
       if(pi(a).eq.0.or.hyb(a).ne.3.or.at(a).ne.7) return
 
       nc=0
       no=0
-      do i=1,nb(20,a)
-         j=nb(i,a)
-         if(at(j).eq.6.and.pi(j).ne.0) then  ! a pi C on N?
+      do iTr=1, numctr
+        do i=1,nb(numnb,a,iTr)
+          j=nb(i,a,iTr)
+          if(at(j).eq.6.and.pi(j).ne.0) then  ! a pi C on N?
             nc = nc + 1
             ic = j
-         endif
+          endif
+        enddo
       enddo
 
       if(nc.eq.1)then
-         do i=1,nb(20,ic)
-            j=nb(i,ic)
-            if(at(j).eq. 8.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =O on the C?
-!           if(at(j).eq.16.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =S on the C?
+         do iTr=1, numctr      
+           do i=1,nb(numnb,ic,iTr)
+             j=nb(i,ic,iTr)
+             if(at(j).eq. 8.and.pi(j).ne.0.and.nb(numnb,j,iTr).eq.1) no = no +1 ! a pi =O on the C?
+!            if(at(j).eq.16.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =S on the C?
+           enddo
          enddo
       endif
 
@@ -1667,22 +1738,29 @@ end subroutine goedeckera
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      logical function amideH(n,at,hyb,nb,pi,a)
-      integer n,a,at(n),hyb(n),nb(20,n),pi(n)
-      integer i,j,nc,nn
+      logical function amideH(n,at,hyb,numnb,numctr,nb,pi,a,neigh)
+      type(TNeigh), intent(in) :: neigh ! for locating neighbor
+      integer n,a,at(n),hyb(n),numnb,numctr,nb(numnb,n,numctr),pi(n)
+      integer, allocatable :: locarr(:,:)
+      integer i,j,nc,nn,iTr
       !logical amide
 
       amideH = .false. ! don't know
-      if(nb(20,a).ne.1               )  return
-      nn=nb(1,a)       ! the N
-      if(.not.amide(n,at,hyb,nb,pi,nn)) return
+      if(sum(nb(numnb,a,:)).ne.1               )  return
+      call neigh%nbLoc(n,nb,a,locarr) ! locarr gives iTr of cell with the neighbor
+      if(size(locarr, dim=2).gt.1) write(*,*) 'WARNING: Neighbors in more cells than expected! source: ini2, amideH'
+      nn=nb(1,a,locarr(numnb,1))       ! the N
+      deallocate(locarr)
+      if(.not.amide(n,at,hyb,numnb,numctr,nb,pi,nn)) return
 
       nc=0
-      do i=1,nb(20,nn)
-         j=nb(i,nn)
+      do iTr=1, numctr
+      do i=1,nb(numnb,nn,iTr)
+         j=nb(i,nn,iTr)
          if(at(j).eq.6.and.hyb(j).eq.3) then  ! a sp3 C on N?
             nc = nc + 1
          endif
+      enddo
       enddo
 
       if( nc .eq. 1 ) amideH = .true.
