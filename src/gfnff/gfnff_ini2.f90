@@ -22,10 +22,10 @@ module xtb_gfnff_ini2
    use xtb_gfnff_neighbor
    implicit none
    private
-   public :: gfnff_neigh, getnb, nbondmat
+   public :: gfnff_neigh, getnb, nbondmat, nbondmat_pbc
    public :: pairsbond, pilist, nofs, xatom, ctype, amide, amideH, alphaCO
    public :: ringsatom, ringsbond, ringsbend, ringstors, ringstorl
-   public :: chktors, chkrng, hbonds, getring36, ssort, goedeckera, qheavy
+   public :: chktors, chkrng, hbonds, getring36, ssort, goedeckera, goedeckera_PBC, qheavy
    public :: gfnff_hbset, gfnff_hbset0, bond_hbset, bond_hbset0
    public :: bond_hb_AHB_set, bond_hb_AHB_set1, bond_hb_AHB_set0
 
@@ -141,7 +141,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                  kk=neigh%nbf(k,i,iTr)
                  if(param%metal(at(kk)).ne.0.or.sum(neigh%nb(neigh%numnb,kk,:)).gt.4) then
                     neigh%nb(neigh%numnb-1,i,1) =1  ! ring search is limited to unit cell.
-                    neigh%nbf(neigh%numnb-1,i,1)=1  ! I assume: If the conditions are true
+                    neigh%nbf(neigh%numnb-1,i,1)=1  ! Assumption: If the conditions are true
                     neigh%nbm(neigh%numnb-1,i,1)=1  ! in one cell they are true in all cells
                  endif
              enddo
@@ -1390,7 +1390,7 @@ subroutine getring36(n,at,nbin,a0_in,cout,irout)
 ! included up to 1,4 interactions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
+subroutine goedeckera(env,n,at,pair,q,es,topo)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
    implicit none
@@ -1399,7 +1399,6 @@ subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
    type(TGFFTopology), intent(in) :: topo
    integer, intent(in)  :: n          ! number of atoms
    integer, intent(in)  :: at(n)      ! ordinal numbers
-   integer, intent(in)  :: nb(20,n)   ! neighbors
    real(wp),intent(in)  :: pair(n*(n+1)/2)
    real(wp),intent(out) :: q(n)       ! output charges
    real(wp),intent(out) :: es         ! ES energy
@@ -1424,7 +1423,6 @@ subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
    m=n+topo%nfrag ! # atoms frag constrain
    allocate(A(m,m),x(m),ipiv(m))
 
-!  call prmati(6,pair,n,0,'pair')
 
    A = 0
 
@@ -1441,7 +1439,7 @@ subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
          rij=pair(ij)
          r2 = rij*rij
          gammij=1.d0/sqrt(topo%alpeeq(i)+topo%alpeeq(j)) ! squared above
-         tmp = erf(gammij*rij)/rij
+         tmp = erf(gammij*rij)/rij  ! apart from diagonal(=0), if ij non-bonded rij=1.0d+12 
          A(j,i) = tmp
          A(i,j) = tmp
       enddo
@@ -1457,7 +1455,6 @@ subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
          endif
       enddo
    enddo
-!  call prmat(6,A,m,m,'A ini')
 
    call mctc_sytrf(env, a, ipiv)
    call mctc_sytrs(env, a, x, ipiv)
@@ -1489,6 +1486,141 @@ subroutine goedeckera(env,n,at,nb,pair,q,es,topo)
 
 end subroutine goedeckera
 
+
+!> version of EEQ
+subroutine goedeckera_PBC(env,mol,pair,topo,q,es)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_mctc_lapack, only : mctc_sytrf, mctc_sytrs
+   implicit none
+   character(len=*), parameter :: source = 'gfnff_ini2_goedeckera'
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol 
+   real(wp),intent(in)  :: pair(mol%n*(mol%n+1)/2) !estimate bond distances =1.0d+12 if no bond
+   type(TGFFTopology), intent(in) :: topo
+   real(wp),intent(out) :: q(mol%n)       ! output charges
+   real(wp),intent(out) :: es         ! ES energy
+
+!  local variables
+   logical :: exitRun
+   integer  :: m,i,j,k,l,ii,jj,kk,n
+   integer  :: ij,lj
+   integer,allocatable :: ipiv(:)
+
+   real(wp) :: gammij,sief1,sief2
+   real(wp) :: r2,r0
+   real(wp) :: rij
+   real(wp) :: tsqrt2pi,bohr
+   real(wp) :: tmp
+   real(wp),allocatable :: A (:,:)
+   real(wp),allocatable :: x(:)
+   !@thomas new vars
+   real(wp), allocatable :: rTrans(:,:)
+   real(wp), allocatable :: gTrans(:,:)
+   real(wp) :: vec(3)
+   integer :: iRp,iT1,iT2,iT3,iG1,iG2,iG3
+   integer, parameter :: ewaldCutD(3) = 2 !@thomas chang
+   integer, parameter :: ewaldCutR(3) = 2 !@thomas with 
+   real(wp), parameter :: sqrtpi = 1.772453850905516_wp 
+   real(wp) :: cf !convergence factor                   
+!  parameter
+   parameter (tsqrt2pi = 0.797884560802866_wp)
+   
+   n=mol%n
+
+   m=n+topo%nfrag ! # atoms frag constrain
+   allocate(A(m,m),x(m),ipiv(m))
+
+   !@thomas calc rTrans, gTrans                                             
+   iRp = 0                                                                  
+   allocate(gTrans(3, product(2*ewaldCutR+1)-1))                            
+   do iG1 = -ewaldCutR(1), ewaldCutR(1)                                     
+     do iG2 = -ewaldCutR(2), ewaldCutR(2)                                  
+       do iG3 = -ewaldCutR(3), ewaldCutR(3)                               
+         if (iG1 == 0 .and. iG2 == 0 .and. iG3 == 0) cycle               
+         iRp = iRp + 1                                                   
+         vec(:) = [iG1, iG2, iG3]                                        
+         gTrans(:, iRp) = matmul(mol%rec_lat, vec)                       
+       end do                                                             
+     end do                                                                
+   end do                                                                   
+                                                                                
+   iRp = 0                                                                  
+   allocate(rTrans(3, product(2*ewaldCutD+1)))                              
+   do iT1 = -ewaldCutD(1), ewaldCutD(1)                                     
+     do iT2 = -ewaldCutD(2), ewaldCutD(2)                                  
+       do iT3 = -ewaldCutD(3), ewaldCutD(3)                               
+         iRp = iRp + 1                                                   
+         vec(:) = [iT1, iT2, iT3]                                        
+         !@thomas_important mal für latP oder mol%lattice entscheiden!!  
+         rTrans(:, iRp) = matmul(mol%lattice, vec)                       
+       end do                                                             
+     end do                                                                
+   end do                                                                   
+   
+   ! cf, aka ewald parameter              
+   cf = sqrtpi/mol%volume**(1.0_wp/3.0_wp)
+
+   A = 0
+!  setup RHS
+   do i=1,n
+      x(i)    =topo%chieeq(i) ! EN of atom
+      A(i,i)  =topo%gameeq(i)+tsqrt2pi/sqrt(topo%alpeeq(i))
+   enddo
+
+!  setup A matrix
+   do i=1,n
+      do j=1,i-1
+         ij = i*(i-1)/2+j
+         rij=pair(ij)
+         r2 = rij*rij
+         gammij=1.d0/sqrt(topo%alpeeq(i)+topo%alpeeq(j)) ! squared above
+         tmp = erf(gammij*rij)/rij! apart from diagonal(=0), if ij non-bonded rij=1.0d+12 
+         A(j,i) = tmp
+         A(i,j) = tmp
+      enddo
+   enddo
+
+!  fragment charge constrain
+   do i=1,topo%nfrag
+      x(n+i)=topo%qfrag(i)
+      do j=1,n
+         if(topo%fraglist(j).eq.i) then
+            A(n+i,j)=1
+            A(j,n+i)=1
+         endif
+      enddo
+   enddo
+
+   call mctc_sytrf(env, a, ipiv)
+   call mctc_sytrs(env, a, x, ipiv)
+
+   call env%check(exitRun)
+   if (exitRun) then
+      call env%error('Solving linear equations failed', source)
+      return
+   end if
+
+   q(1:n) = x(1:n)
+
+   if(n.eq.1) q(1)=topo%qfrag(1)
+
+!  energy
+      es = 0.0_wp
+      do i=1,n
+      ii = i*(i-1)/2
+      do j=1,i-1
+         ij = ii+j
+         rij=pair(ij)
+         gammij=1.d0/sqrt(topo%alpeeq(i)+topo%alpeeq(j)) ! squared above
+         tmp = erf(gammij*rij)/rij
+         es = es + q(i)*q(j)*tmp/rij
+      enddo
+      es = es - q(i)* topo%chieeq(i) &
+     &        + q(i)*q(i)*0.5d0*(topo%gameeq(i)+tsqrt2pi/sqrt(topo%alpeeq(i)))
+      enddo
+
+end subroutine goedeckera_PBC
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! condense charges to heavy atoms based on topology
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1519,11 +1651,11 @@ end subroutine goedeckera
 ! determine number of cov. bonds between atoms
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine nbondmat(n,nb,pair)
+      subroutine nbondmat(n,numnb,numctr,nb,pair)
       implicit none
 !     Dummy
-      integer,intent(in)  :: n
-      integer,intent(in)  :: nb(20,n)
+      integer,intent(in)  :: n, numnb, numctr
+      integer,intent(in)  :: nb(numnb,n,numctr)
       integer,intent(out) ::  pair(n*(n+1)/2)
 !     Stack
       integer i,ni,newi,j,newatom,tag,d,i1,ni1,iii,ii,jj,k,lin
@@ -1532,21 +1664,21 @@ end subroutine goedeckera
 
       allocate(nnn(n),nn(n),list(5*n,n),nlist(5*n,n))
 
-      nn(1:n)=nb(20,1:n)
+      nn(1:n)=nb(numnb,1:n,1)
 
       pair=0
       list=0
       do i=1,n
          ni=nn(i)
-         list(1:ni,i)=nb(1:ni,i)
+         list(1:ni,i)=nb(1:ni,i,1)
       enddo
 
       nlist=list
 
       pair=0
       do i=1,n
-         do j=1,nb(20,i)
-            k=nb(j,i)
+         do j=1,nb(numnb,i,1)
+            k=nb(j,i,1)
             pair(lin(k,i))=1
          enddo
       enddo
@@ -1565,10 +1697,10 @@ end subroutine goedeckera
 !        all neighbors of i
          do ii=1,ni
             i1=list(ii,i)
-            ni1=nb(20,i1)
+            ni1=nb(numnb,i1,1)
 !           all neighbors of neighbors of i
             do iii=1,ni1
-               newatom=nb(iii,i1)
+               newatom=nb(iii,i1,1)
                da=.false.
                do j=1,newi
                   if(newatom.eq.list(j,i))da=.true.
@@ -1627,7 +1759,159 @@ end subroutine goedeckera
 
       end subroutine pairsbond
 
+
+      subroutine nbondmat_pbc(n,numnb,numctr,nb,iTrNeg,neigh,pair)
+      implicit none
+!     
+      type(TNeigh), intent(in) :: neigh ! for locating neighbor
+      integer,intent(in)  :: n, numnb, numctr
+      integer,intent(in)  :: nb(numnb,n,numctr)
+      integer,intent(in)  :: iTrNeg(numctr)
+      integer,allocatable,intent(out) ::  pair(:,:,:)
+      integer :: nnbi, nbi(2,numnb), cval
+      integer :: i,inew,j,inb,ixnb,xnb,iTr,iTrnew,sumiTr,k,iTr2,l
+      allocate(pair(n,n,numctr), source=0)
+      do i=1, n
+        ! all first neighbors of i
+        do iTr=1, numctr
+          do inb=1, nb(numnb, i, iTr)
+            j = nb(inb,i,iTr)
+            pair(j,i,iTr) = 1
+          enddo
+        enddo
+! Can only detect bond paths that lie in at most two cells
+! To get num bonds between atoms i&j, which are connected over atoms that lie in
+! different cells than i AND j, then first nb() would have to be expanded
+! to track cells that i lies in.
+        !2nd-4th neighbors
+        do cval=1,3
+          call countf(n,numctr,numnb,pair,i,cval,nnbi,nbi)
+          ! go over i's xth neighbors (x=cval)
+          do ixnb=1, nnbi
+            ! go over the xth neighbors neighbors
+            inew  = nbi(1,ixnb)
+            iTrnew= nbi(2,ixnb)
+            if (iTrnew.eq.1) then
+              !
+              do iTr=1, numctr
+                do inb=1, nb(numnb, inew, iTr)
+                  j = nb(inb,inew,iTr)
+                  if (pair(j,i,iTr).ne.0) cycle ! take shortest path only
+                  if (j.eq.i.AND.iTr.eq.1) cycle ! dont count to-self-bonds
+                  pair(j,i,iTr) = cval+1
+                enddo
+              enddo
+            else
+                ! idx of neighbors in same cell are the same in every cell
+                ! therefore first only consider nb(numnb,inew,iTr=1) 
+                do inb=1, nb(numnb, inew, 1) 
+                j = nb(inb,inew,1)
+                  if (pair(j,i,iTrnew).ne.0) cycle ! take shortest path only
+                  ! to-self-bonds not possible since iTr.ne.1
+                  pair(j,i,iTrnew) = cval+1
+                enddo
+                ! now consider neighbors in other cells (iTr=2,...)
+                do iTr=2, numctr
+                  do inb=1, nb(numnb, inew, iTr) 
+                    j = nb(inb,inew,iTr)       ! obtain nb index j with iTr
+                    sumiTr=neigh%fTrSum(iTr,iTrnew)  ! but for pair get correct iTr=sumiTr here
+                    if (sumiTr.eq.-1.or.(sumiTr.eq.1.and.j.eq.i)) cycle
+                                            ! sumiTr=-1 is outside of 27 centr cells
+                                            ! sumiTr= 1 would be to-self-bond
+                    if (sumiTr.gt.27) cycle ! 
+                    if (pair(j,i,sumiTr).ne.0) cycle ! take shortest path only
+                    
+                    pair(j,i,sumiTr) = cval+1
+                  enddo
+                enddo
+            endif
+          enddo ! ixnb 
+        enddo ! cval
+      enddo ! i
+      ! set pair to 5 for atoms that are even further apart (unless atoms i and j are the same)
+      do i=1, n
+        do j=1, n
+          do iTr=1, numctr
+            if(pair(j,i,iTr).eq.0.and.(j.ne.i.or.iTr.ne.1)) pair(j,i,iTr)=5
+          enddo
+        enddo
+      enddo
+      !@thomas find connections over other cells
+      ! if (numctr.gt.1) then
+      !   do i=1, n
+      !     ! go through nb that are not in central cell
+      !     do iTr=2, numctr
+      !       do inb=1, nb(numnb, i, iTr)
+      !         j = nb(inb,i,iTr)
+      !         ! go through nb of those nb
+      !         do iTr2=1, numctr
+      !           do k=1, nb(numnb, j,iTr2)
+      !             l = nb(k,j,iTr2)
+      !             if(l.eq.i.and.iTr.eq.iTrNeg(iTr2)) cycle ! dont count to-self-bonds
+      !               sumiTr=iTrSum(iTr,iTr2)
+
+      !           enddo
+      !         enddo
+      !       enddo
+      !     enddo
+      !   enddo
+      ! endif
+
+      end subroutine nbondmat_pbc
+
+      subroutine pairsbond_pbc(n,nn,list,pair,tag)
+      implicit none
+      integer n,nn(n),list(5*n,n),tag
+      integer i,j,k,ni,nj,ii,jj,ij
+      integer pair(n*(n+1)/2)
+      logical dai,daj
+
+      do i=1,n
+         ni=nn(i)
+         ij= i*(i-1)/2
+         do j=1,i-1
+            k = ij+j
+            nj=nn(j)
+            dai=.false.
+            daj=.false.
+            do ii=1,ni
+               if(list(ii,i).eq.j)daj=.true.
+            enddo
+            do jj=1,nj
+               if(list(jj,j).eq.i)dai=.true.
+            enddo
+            if(dai.and.daj.and.pair(k).eq.0) then
+               pair(k)=tag
+            endif
+         enddo
+      enddo
+
+      end subroutine pairsbond_pbc
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      subroutine countf(n,numctr,numnb,pair,i,cval,nnbi,nbi)
+        ! n atoms, numctr central cells, search for cval e.g. 1st, 2nd beighbors
+        integer, intent(in) :: n, numctr, numnb, i, cval
+        ! number of cov bonds between atoms
+        integer, intent(in) :: pair(n,n,numctr)
+        ! nnbi number of neighbors, nbi idx and cell of nb
+        integer, intent(inout) :: nnbi, nbi(2,numnb) 
+        integer :: k, l, m
+        !
+        nnbi = 0
+        nbi = 0
+          do l=1, n
+            do m=1, numctr
+              if(pair(l,i,m).eq.cval) then
+                ! number of 1st, 2nd, ... neighbors depending on cval
+                nnbi = nnbi + 1  
+                nbi(1, nnbi) = l  ! idx of nb,  j
+                nbi(2, nnbi) = m  ! which cell, iTr
+              endif
+            enddo
+        enddo
+      end subroutine countf  
 
       logical function pilist(ati)
       integer ati

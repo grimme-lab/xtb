@@ -27,8 +27,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_generator, only : TGFFGenerator
       use xtb_gfnff_ini2
-      use xtb_gfnff_eg, only : gfnff_dlogcoord
-      use xtb_gfnff_mrec, only : mrecgff
+      use xtb_gfnff_eg, only : gfnff_dlogcoord, getCoordinationNumber
+      use xtb_gfnff_mrec, only : mrecgff, mrecgffPBC
       use xtb_gfnff_fraghess
       use xtb_restart
       use xtb_mctc_constants
@@ -248,38 +248,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! bonds (non bonded directly in EG)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!@thomas delete when everything moved to periodic setup variables, see below delete_start
-      neigh%molbpair=0 !@thomas why use molbpair??
-      do i=1,mol%n
-        do iTr=1, neigh%numctr
-          do j=1,neigh%nb(neigh%numnb,i,iTr)
-            k=neigh%nb(j,i,iTr)
-            neigh%molbpair(lin(k,i))=1 !@thomas mit Bindung zu anderen Zellen wird hier falsch
-            if (lin(k,i).gt.mol%n*(mol%n+1)/2) call env%error('Check neigh%molbpair',source)!@thomas delete
-          enddo
-        enddo
-      enddo
-      topo%nbond = sum(neigh%molbpair)
-      topo%nbond_blist = topo%nbond
-      allocate( topo%blist(2,topo%nbond), source = 0 )
-      allocate( btyp(topo%nbond), source = 0 )
-      allocate( pibo(topo%nbond), source = 0.0d0 )
-
-
-      pibo  = -99.
-      topo%nbond = 0
-      do i=1,mol%n
-         kk=i*(i-1)/2
-         do j=1,i-1
-            k=kk+j
-            if ( neigh%molbpair(k) .eq. 1 ) then  ! bonds
-                topo%nbond = topo%nbond +1
-                topo%blist(1,topo%nbond)=i
-                topo%blist(2,topo%nbond)=j
-            endif
-         enddo
-      enddo
-!@thomas delete_end
       ! periodic setup
       ! Get number of bonds, all bonds should be paired
       ! For bonds to other cells only cells with translation vectors
@@ -387,7 +355,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       enddo
 
 ! assign pi atoms to fragments
-      call mrecgff(npiall,nbpi,picount,pimvec)
+      call mrecgffPBC(npiall,neigh%numctr,neigh%numnb,nbpi,picount,pimvec) !@thomas hope it works as expected
       deallocate(nbpi)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -397,16 +365,18 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       dxi = 0 ! default none
       do i=1,mol%n
          ati=mol%at(i)
-         nn =topo%nb(20,i)
+         nn =sum(neigh%nb(neigh%numnb,i,:))
          if(nn.eq.0) cycle
-         ip =piadr2(i)
-         ji =topo%nb(1,i) ! first neighbor
-         nh =0
-         nm =0
-         do j=1,nn
-            if(mol%at(topo%nb(j,i)).eq.1)        nh=nh+1
-            if(imetal(  topo%nb(j,i) ).ne.0) nm=nm+1
-         enddo
+           ip =piadr2(i)
+           call neigh%jth_nb(ji,1,i,iTrtmp)  ! ji is the first nb of i in cell iTr
+           nh =0
+           nm =0
+           do iTr=1, neigh%numctr
+             do j=1, neigh%nb(neigh%numnb,i,iTr)
+               if(mol%at(neigh%nb(j,i,iTr)).eq.1)  nh=nh+1
+               if(imetal(neigh%nb(j,i,iTr)).ne.0)  nm=nm+1
+             enddo
+           enddo
 !     hydrogen
 !        if(ati.eq.1.and.nn.gt.1)                                                 dxi(i)=dxi(i)-nn*0.01
 !     boron
@@ -420,13 +390,15 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !                                                                                 dxi(ji)=0.19 !  "    "   "  "
 !           endif
 !        endif
-         if(ati.eq.6.and.nn.eq.1.and.mol%at(ji).eq.8.and.topo%nb(20,ji).eq.1)              dxi(ji)=0.15! free CO
+         if(ati.eq.6.and.nn.eq.1.and.mol%at(ji).eq.8.and.neigh%nb(neigh%numnb,ji,iTrtmp).eq.1) then
+           dxi(ji)=0.15! free CO
+         endif
 !     nitrogen
 !        if(ati.eq.7.and.nn.eq.1.and.mol%at(ji).eq.6)                                 dxi(i)=0.00  !CN
 !     oxygen / group 6
          if(ati.eq.8.and.nn.eq.1.and.ip.ne.0.and.mol%at(ji).eq.7.and.piadr2(ji).ne.0) dxi(i)= 0.05    ! nitro oxygen, otherwise NO2 HBs are too strong
          if(ati.eq.8.and.nn.eq.2.and.nh.eq.2)                                     dxi(i)=-0.02    ! H2O
-         if(param%group(ati).eq.6.and.nn.gt.2)                                          dxi(i)=dxi(i)+nn*0.005! good effect
+         if(param%group(ati).eq.6.and.nn.gt.2)                                    dxi(i)=dxi(i)+nn*0.005! good effect
          if(ati.eq.8.or.ati.eq.16)                                                dxi(i)=dxi(i)-nh*0.005
 !    fluorine / group 7
          if(param%group(ati).eq.7.and.ati.gt.9.and.nn.gt.1) then ! polyvalent Cl,Br ...
@@ -442,7 +414,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !     at this point for the non-geom. dep. charges qa with CN = nb
       do i=1,mol%n
          ati=mol%at(i)
-         dum =min(dble(topo%nb(20,i)),gen%cnmax)  ! limits it
+         dum =min(dble(sum(neigh%nb(neigh%numnb,i,:))),gen%cnmax)  ! limits it
 !                   base val  spec. corr.    CN dep.
          topo%chieeq(i)=-param%chi(ati) + dxi(i) + param%cnf(ati)*sqrt(dum)
          topo%gameeq(i)= param%gam(ati)
@@ -458,7 +430,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       write(env%unit,'(10x,"pair mat ...")')
-      call nbondmat(mol%n,topo%nb,topo%bpair)  ! get number of cov. bonds between atoms up to 4 bonds
+      !@thomas TODO do I need the non-periodic nbondmat call here?
+     !call nbondmat(mol%n,neigh%numnb,neigh%numctr,neigh%nb,neigh%molbpair)  ! get number of cov. bonds between atoms up to 4 bonds
+      ! get number of cov. bonds between atoms up to 4 bonds with pbc
+      if (qloop_count.eq.1) then
+      call nbondmat_pbc(mol%n,neigh%numnb,neigh%numctr,neigh%nb,&
+              & neigh%iTrNeg,neigh,neigh%bpair)
+      endif
+
       write(env%unit,'(10x,"computing topology distances matrix with Floyd-Warshall algo ...")')
       allocate( rabd(mol%n,mol%n), source = 0.0e0_sp)
       rabd = rabd_cutoff
@@ -466,38 +445,47 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !     they are used in the EEQ to determine qa (approximate topology charges)
       do i = 1, mol%n
         rabd(i, i) = 0.0
-        do j = 1, topo%nb(20, i)
-           k=topo%nb(j,i)
-           rabd(k, i) = param%rad(mol%at(i)) + param%rad(mol%at(k))
-           rabd(i, k) = rabd(k, i)
-        end do
+        do iTr=1, neigh%numctr !@thomas_imp molecule in box case only
+          do k = 1, neigh%nb(neigh%numnb,i,iTr)
+            j=neigh%nb(k,i,iTr)
+            ! interaction indifferent w.r.t. cell that j is from
+            ! by not keeping track of iTr the 1,4 distances can be retrieved as before
+            ! does not work for small unit cells like 2 atom graphene !@thomas important
+            !  -> then Floyd-algo cannot find 1,4 dist since only 2 atoms present
+            !  -> images are not iterated over below... but bigger unit cell will solve this
+            rabd(j, i) = param%rad(mol%at(i)) + param%rad(mol%at(j))
+          end do
+        enddo
       end do
+      ! get the other 1,x neighbors with the direct neighbors from above
       do k = 1, mol%n
-      do i = 1, mol%n
-         if (rabd(i, k) > gen%tdist_thr) cycle
-         do j = 1, mol%n
-            if (rabd(k, j) >  gen%tdist_thr) cycle
-            if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
-                rabd(i, j) =  rabd(i, k) + rabd(k, j)
-            end if
-         end do
-      end do
+        do i = 1, mol%n
+            if (rabd(k, i) > gen%tdist_thr) cycle
+            do j = 1, mol%n
+              if (rabd(k, j) >  gen%tdist_thr) cycle !tdist_thr = 12.0
+              if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
+                  rabd(i, j) =  rabd(i, k) + rabd(k, j) ! get at least 1,4 distances
+              end if
+            end do
+        end do
       end do
 
       do i=1,mol%n
-         do j=1,i-1
-            ij=lin(j,i)
-            if(rabd(j,i).gt.gen%tdist_thr) rabd(j,i)=rabd_cutoff ! values not properly considered
-            rtmp(ij) = gen%rfgoed1* rabd(j,i) / 0.52917726d0
-         enddo
+        do j=1,i-1
+          ij=lin(j,i)
+          if(rabd(j,i).gt.gen%tdist_thr) rabd(j,i)=rabd_cutoff ! values not properly considered
+          rtmp(ij) = gen%rfgoed1* rabd(j,i) / 0.52917726d0
+        enddo
       enddo
       deallocate(rabd)
 
       frag_charges_known=.false.
       write(env%unit,'(10x,"making topology EEQ charges ...")')
       if(topo%nfrag.le.1) then                           ! nothing is known
-!     first check for fragments
-      call mrecgff(mol%n,nbf,topo%nfrag,topo%fraglist)
+!     first check for fragments 
+! @thomas periodic fragment search, fragments in central cell assigned to same fragment
+!  if bound through translation. If iTr needed retrieve from nb or save and pass on
+      call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nbf,topo%nfrag,topo%fraglist) 
       write(env%unit,'(10x,"#fragments for EEQ constrain: ",i0)') topo%nfrag
 !     read QM info if it exists
       call open_file(ich, 'charges', 'r')
@@ -553,7 +541,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          write(env%unit,*) 'trying auto detection of charge on 2 fragments:'
          topo%qfrag(1)=0
          topo%qfrag(2)=mol%chrg
-         call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,dum1,topo)
+         call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,dum1,topo)
          call env%check(exitRun)
          if (exitRun) then
             call env%error("Failed to generate charges", source)
@@ -561,7 +549,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          end if
          topo%qfrag(2)=0
          topo%qfrag(1)=mol%chrg
-         call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,dum2,topo)
+         call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,dum2,topo)
          call env%check(exitRun)
          if (exitRun) then
             call env%error("Failed to generate charges", source)
@@ -580,7 +568,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       endif
 
 !     make estimated, topology only EEQ charges from rabd values, including "right" fragment charge
-      call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,ees,topo)
+      call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo)
       call env%check(exitRun)
       if (exitRun) then
          call env%error("Failed to generate charges", source)
@@ -614,7 +602,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
             enddo
             dum2=topo%qfrag(ifrag) ! save
             topo%qfrag(ifrag) = 0 ! make only this EEQ fragment neutral
-            call goedeckera(env,mol%n,mol%at,topo%nb,rtmp,topo%qa,ees,topo) ! for neutral
+            call goedeckera(env,mol%n,mol%at,rtmp,topo%qa,ees,topo) ! for neutral
             call env%check(exitRun)
             if (exitRun) then
                call env%error("Failed to generate charges", source)
@@ -639,8 +627,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       if(qloop_count.eq.0) itmp(1:mol%n)=topo%nb(20,1:mol%n)
       qloop_count=qloop_count+1
       if(qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
-
-         deallocate(topo%blist,btyp,pibo,pimvec)
+         deallocate(pimvec,neigh%blist)
 !         goto 111
       endif
    end do
