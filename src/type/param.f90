@@ -20,7 +20,7 @@ module xtb_type_param
    implicit none
 
    public :: dftd_parameter
-   public :: TxTBParameter
+   public :: TxTBParameter, TPTBParameter
    public ::  scc_parameter
 
    public :: chrg_parameter
@@ -69,6 +69,50 @@ module xtb_type_param
       real(wp) :: ipeashift = 0.0_wp
       real(wp) :: renscale = 0.0_wp
    end type TxTBParameter
+
+   type :: TPTBParameter
+      real(wp) :: kshell(0:3) = 0.0_wp
+      real(wp) :: ksp = 0.0_wp
+      real(wp) :: ksd = 0.0_wp
+      real(wp) :: kpd = 0.0_wp
+      real(wp) :: kdiff = 0.0_wp
+      real(wp) :: kdiffa = 0.0_wp
+      real(wp) :: kdiffb = 0.0_wp
+      real(wp) :: enshell(0:3) = 0.0_wp
+      real(wp) :: enscale4 = 0.0_wp
+      real(wp) :: cnshell(2, 0:3) = 0.0_wp
+      real(wp) :: gam3shell(2, 0:3) = 0.0_wp
+      real(wp) :: srbshift = 0.0_wp
+      real(wp) :: srbpre = 0.0_wp
+      real(wp) :: srbexp = 0.0_wp
+      real(wp) :: srbken = 0.0_wp
+      real(wp) :: wllscal = 0.0_wp
+      real(wp) :: gscal = 0.0_wp
+      real(wp) :: zcnf = 0.0_wp
+      real(wp) :: tscal = 0.0_wp
+      real(wp) :: kcn = 0.0_wp
+      real(wp) :: fpol = 0.0_wp
+      real(wp) :: ken = 0.0_wp
+      real(wp) :: lshift = 0.0_wp
+      real(wp) :: lshifta = 0.0_wp
+      real(wp) :: split = 0.0_wp
+      real(wp) :: zqf = 0.0_wp
+      real(wp) :: alphaj = 0.0_wp
+      real(wp) :: kexpo = 0.0_wp
+      real(wp) :: dispa = 0.0_wp
+      real(wp) :: dispb = 0.0_wp
+      real(wp) :: dispc = 0.0_wp
+      real(wp) :: dispatm = 0.0_wp
+      real(wp) :: xbdamp = 0.0_wp
+      real(wp) :: xbrad = 0.0_wp
+      real(wp) :: aesshift = 0.0_wp
+      real(wp) :: aesexp = 0.0_wp
+      real(wp) :: aesrmax = 0.0_wp
+      real(wp) :: aesdmp3 = 0.0_wp
+      real(wp) :: aesdmp5 = 0.0_wp
+      real(wp) :: ipeashift = 0.0_wp
+      real(wp) :: renscale = 0.0_wp
+   end type TPTBParameter
 
    type :: dftd_parameter
       real(wp) :: s6  = -1.0_wp
