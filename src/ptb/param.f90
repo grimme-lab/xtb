@@ -23,7 +23,7 @@ module xtb_ptb_param
    implicit none
    private
 
-   public :: initPTB, gfn2Globals
+   public :: initPTB, ptbGlobals
    public :: setPTBReferenceOcc, setPTBNumberOfPrimitives
 
 
@@ -39,7 +39,7 @@ module xtb_ptb_param
 
    real(wp), parameter :: kshell(4) = [1.85_wp, 2.23_wp, 2.23_wp, 2.23_wp]
 
-   type(TPTBParameter), parameter :: gfn2Globals = TPTBParameter( &
+   type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
       kshell = kshell, &
       enshell = 2.0_wp, &
       ksd = 2.0_wp, &
@@ -725,13 +725,12 @@ subroutine initData(self)
    self%doi = '10.1063/5.0137838'
    self%level = 2
    self%nShell = nShell(:maxElem)
-   self%ipeashift = gfn2Globals%ipeashift * 0.1_wp
+   self%ipeashift = ptbGlobals%ipeashift * 0.1_wp
 
    ! call initGFN2(self%coulomb, self%nShell)
    ! allocate(self%multipole, source = 0.0_wp)
    ! call initGFN2(self%multipole)
    ! call initGFN2(self%hamiltonian, self%nShell)
-
 end subroutine initData
 
 
@@ -752,22 +751,22 @@ subroutine initHamiltonian(self, nShell)
 
    do iSh = 0, 3
       do jSh = 0, 3
-         self%kScale(jSh, iSh) = 0.5_wp * (gfn2Globals%kShell(iSh) &
-            & + gfn2Globals%kShell(jSh))
+         self%kScale(jSh, iSh) = 0.5_wp * (ptbGlobals%kShell(iSh) &
+            & + ptbGlobals%kShell(jSh))
       end do
    end do
-   self%kScale(0,2) = gfn2Globals%ksd
-   self%kScale(2,0) = gfn2Globals%ksd
-   self%kScale(1,2) = gfn2Globals%kpd
-   self%kScale(2,1) = gfn2Globals%kpd
-   self%kDiff = gfn2Globals%kDiff
+   self%kScale(0,2) = ptbGlobals%ksd
+   self%kScale(2,0) = ptbGlobals%ksd
+   self%kScale(1,2) = ptbGlobals%kpd
+   self%kScale(2,1) = ptbGlobals%kpd
+   self%kDiff = ptbGlobals%kDiff
    do iSh = 0, 3
       do jSh = 0, 3
-         self%enScale(jSh, iSh) = 0.005_wp * (gfn2Globals%enshell(iSh) &
-            & + gfn2Globals%enshell(jSh))
+         self%enScale(jSh, iSh) = 0.005_wp * (ptbGlobals%enshell(iSh) &
+            & + ptbGlobals%enshell(jSh))
       end do
    end do
-   self%enScale4 = gfn2Globals%enscale4
+   self%enScale4 = ptbGlobals%enscale4
    self%wExp = 0.5_wp
 
    self%shellPoly = shellPoly(:, :maxElem)
