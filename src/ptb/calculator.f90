@@ -43,7 +43,7 @@ module xtb_ptb_calculator
    use xtb_iniq, only: iniqcn
    use xtb_scc_core, only: iniqshell
 
-   use xtb_ptb_param, only: initPTB
+   use xtb_ptb_param, only: initPTB, ptbGlobals
    implicit none
 
    private
@@ -83,7 +83,7 @@ module xtb_ptb_calculator
 
 contains
 
-   subroutine newPTBCalculator(env, mol, calc, fname, method, accuracy)
+   subroutine newPTBCalculator(env, mol, calc, fname, accuracy)
 
       character(len=*), parameter :: source = 'xtb_ptb_calculator_newPTBCalculator'
 
@@ -92,8 +92,6 @@ contains
       type(TMolecule), intent(in) :: mol
 
       type(TPTBCalculator), intent(out) :: calc
-
-      integer, intent(in), optional :: method
 
       real(wp), intent(in), optional :: accuracy
 
@@ -131,10 +129,10 @@ contains
          ! call readParam(env, ich, globpar, calc%xtbData, .true.)
       else ! no parameter file, check if we have one compiled into the code
          call initPTB(calc%ptbData)
-         if (.not. exist) then
-            call env%error('Parameter file '//filename//' not found!', source)
-            return
-         end if
+         ! if (.not. exist) then
+         !    call env%error('Parameter file '//filename//' not found!', source)
+         !    return
+         ! end if
       end if
 
       call env%check(exitRun)

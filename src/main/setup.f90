@@ -160,7 +160,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    case(p_ext_ptb)
       allocate(ptb)
 
-      call newPTBCalculator(env, mol, ptb, fname, set%gfn_method, accuracy)
+      call newPTBCalculator(env, mol, ptb)
 
       call env%check(exitRun)
       if (exitRun) then
