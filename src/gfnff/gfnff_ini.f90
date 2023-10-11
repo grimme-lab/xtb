@@ -88,7 +88,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       integer,allocatable :: piadr(:),piadr2(:),piadr3(:),piadr4(:)
       integer,allocatable :: itmp(:),sring(:,:),cring(:,:,:)
       integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:,:),piel(:)
-      integer,allocatable :: lin_AHB(:)
+      integer,allocatable :: lin_AHB(:,:)
       integer,allocatable :: bond_hbl(:,:)
       real(wp),allocatable:: rab  (:)
       real(wp),allocatable:: sqrab(:)
@@ -273,15 +273,17 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       ! For bonds to other cells only cells with translation vectors
       !    with "positive" sign (in direction of axes) are considered 
       neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
+      allocate( btyp(topo%nbond), source = 0 )
+      allocate( pibo(neigh%nbond), source = 0.0d0 )
       ! check for wrong bonds, can occur for close atoms 
       !@thomas TODO need to rework? for pbc also??
-      if (mod(sum(neigh%nb(neigh%numnb,:,:)),2).ne.0.or.neigh%nbond.ne.topo%nbond) then
+      if (mod(sum(neigh%nb(neigh%numnb,:,:)),2).ne.0) then
         write(*,*)
         write(*,*) 'Trying to correct wrong bonds in topology.'
         if(mol%npbc.ne.0) write(*,*) 'In periodic cases better check your input.&
                                 & Not sure if bonds will be corrected.'
         write(*,*) 'mod=', mod(sum(neigh%nb(neigh%numnb,:,:)),2), '   sum=', sum(neigh%nb(neigh%numnb,:,:))
-        write(*,*) 'neigh%nbond=',neigh%nbond, '   topo%nbond=', topo%nbond
+        write(*,*) 'neigh%nbond=',neigh%nbond
         call correct_bonds(mol,neigh) !@thomas important TODO
         write(*,*)
       endif  
@@ -611,7 +613,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          else                                               ! general case
          qtmp = topo%qa ! save the "right" ones
          qah  = topo%qa
-         call qheavy(mol%n,mol%at,topo%nb,qah) ! heavy atoms only ie H condensed to neighbor
+         ! heavy atoms only ie H condensed to neighbor
+         call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,qah) 
          do pis=1,picount ! loop over pi systems
             do k=1,npiall
                if(pimvec(k).eq.pis) then
@@ -629,7 +632,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                return
             end if
             topo%qfrag(ifrag) = dum2 ! back
-            call qheavy(mol%n,mol%at,topo%nb,topo%qa)
+            call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,topo%qa) !@thomas removed qah now topo%qa 
             dqa =qah-topo%qa ! difference charges upon ionization
             dum1=0
             dum=0
@@ -644,10 +647,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
          endif
       endif
 
-      if(qloop_count.eq.0) itmp(1:mol%n)=topo%nb(20,1:mol%n)
+      if(qloop_count.eq.0) then
+        do i=1, mol%n
+        itmp(i)=sum(neigh%nb(neigh%numnb,i,:))
+        enddo
+      endif
       qloop_count=qloop_count+1
       if(qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
-         deallocate(pimvec,neigh%blist)
+         deallocate(btyp,pibo,pimvec,neigh%blist)
 !         goto 111
       endif
    end do
@@ -745,28 +752,38 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       idum=1000*mol%n
-      allocate( topo%b3list(3,idum), source = 0 )
+      allocate( topo%b3list(5,idum), source = 0 )
       topo%nbatm=0
       do i=1,mol%n
-         do j=1,i-1
-            ij=lin(j,i)
-            if(topo%bpair(ij).eq.3) then  ! 1,4 exclusion of back-pair makes it worse, 1,3 makes little effect
-            do m=1,topo%nb(20,j)
-               k=topo%nb(m,j)
-               topo%nbatm=topo%nbatm+1
-               topo%b3list(1,topo%nbatm)=i
-               topo%b3list(2,topo%nbatm)=j
-               topo%b3list(3,topo%nbatm)=k
-            enddo
-            do m=1,topo%nb(20,i)
-               k=topo%nb(m,i)
-               topo%nbatm=topo%nbatm+1
-               topo%b3list(1,topo%nbatm)=i
-               topo%b3list(2,topo%nbatm)=j
-               topo%b3list(3,topo%nbatm)=k
-            enddo
+        do j=1,i ! 
+          do iTr=1,neigh%numctr
+            if(iTr.eq.1.and.j.eq.i) cycle
+            if(neigh%bpair(j,i,iTr).eq.3) then  ! 1,4 exclusion of back-pair makes it worse, 1,3 makes little effect
+              do iTr2=1, neigh%numctr     
+                do m=1,neigh%nb(neigh%numnb,j,iTr2)
+                  k=neigh%nb(m,j,iTr2)
+                  topo%nbatm=topo%nbatm+1
+                  topo%b3list(1,topo%nbatm)=i                      !in central cell
+                  topo%b3list(2,topo%nbatm)=j
+                  topo%b3list(3,topo%nbatm)=k
+                  topo%b3list(4,topo%nbatm)=iTr                    !iTrj
+                  topo%b3list(5,topo%nbatm)=neigh%fTrSum(iTr,iTr2) !iTrk
+if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)&
+&write(*,*) '   Warning: ATM term corrupted.' !@thomas
+                enddo
+                do m=1,neigh%nb(neigh%numnb,i,iTr2)
+                  k=neigh%nb(m,i,iTr2)
+                  topo%nbatm=topo%nbatm+1
+                  topo%b3list(1,topo%nbatm)=i
+                  topo%b3list(2,topo%nbatm)=j
+                  topo%b3list(3,topo%nbatm)=k
+                  topo%b3list(4,topo%nbatm)=iTr
+                  topo%b3list(5,topo%nbatm)=iTr2
+                enddo
+              enddo
             endif
-         enddo
+          enddo  
+        enddo
       enddo
       if(topo%nbatm.gt.idum) then
          write(env%unit,*) idum,topo%nbatm
@@ -779,29 +796,43 @@ endif
 ! non bonded pair exponents
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!@thomas delete comment: The pair exponents are correct (with pbc) just vimdiff cause indent level
       do i=1,mol%n
-         ati=mol%at(i)
-         fn=1.0d0 + gen%nrepscal/(1.0d0+dble(topo%nb(20,i))**2)
-         dum1=param%repan(ati)*(1.d0 + topo%qa(i)*gen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
-         f1=zeta(ati,topo%qa(i))
-         do j=1,i-1
-            atj=mol%at(j)
-            fn=1.0d0 + gen%nrepscal/(1.0d0+dble(topo%nb(20,j))**2)
-            dum2=param%repan(atj)*(1.d0 + topo%qa(j)*gen%qrepscal)*fn
-            f2=zeta(atj,topo%qa(j))
-            ij=lin(j,i)
+        ati=mol%at(i)
+        fn=1.0d0 + gen%nrepscal/(1.0d0+dble(sum(neigh%nb(neigh%numnb,i,:)))**2)
+        dum1=param%repan(ati)*(1.d0 + topo%qa(i)*gen%qrepscal)*fn ! a small but physically correct decrease of repulsion with q
+        f1=zeta(ati,topo%qa(i))
+        do j=1,i
+          atj=mol%at(j)
+          fn=1.0d0 + gen%nrepscal/(1.0d0+dble(sum(neigh%nb(neigh%numnb,j,:))**2))
+          dum2=param%repan(atj)*(1.d0 + topo%qa(j)*gen%qrepscal)*fn
+          f2=zeta(atj,topo%qa(j))
+          ij=lin(j,i) ! for zetac6
+          do iTr=1, neigh%numctr !@thomas added 12.05.2021 
             ff = 1.0d0
             if(ati.eq.1.and.atj.eq.1) then
                ff = 1.0d0*gen%hhfac                     ! special H ... H case (for other pairs there is no good effect of this)
-               if(topo%bpair(ij).eq.3) ff=ff*gen%hh14rep     ! 1,4 case important for right torsion pot.
-               if(topo%bpair(ij).eq.2) ff=ff*gen%hh13rep     ! 1,3 case
+                 if(neigh%bpair(i,j,iTr).eq.3) ff=ff*gen%hh14rep     ! 1,4 case important for right torsion pot.
+                 if(neigh%bpair(i,j,iTr).eq.2) ff=ff*gen%hh13rep     ! 1,3 case
             endif
             if((ati.eq.1.and.param%metal(atj).gt.0).or.(atj.eq.1.and.param%metal(ati).gt.0)) ff=0.85 ! M...H
             if((ati.eq.1.and.atj.eq.6).or.(atj.eq.1.and.ati.eq.6))               ff=0.91 ! C...H, good effect
             if((ati.eq.1.and.atj.eq.8).or.(atj.eq.1.and.ati.eq.8))               ff=1.04 ! O...H, good effect
             topo%alphanb(i,j,iTr)=sqrt(dum1*dum2)*ff
             topo%zetac6(ij)=f1*f2  ! D4 zeta scaling using qref=0
-         enddo
+          enddo
+          ! setup alphanb for all i j that are "far" apart (at least one cell in between)
+          if (mol%npbc.ne.0) then
+            ff = 1.0d0
+            if(ati.eq.1.and.atj.eq.1) then
+               ff = 1.0d0*gen%hhfac       ! special H ... H case
+           endif
+           if((ati.eq.1.and.param%metal(atj).gt.0).or.(atj.eq.1.and.param%metal(ati).gt.0)) ff=0.85 ! M...H
+           if((ati.eq.1.and.atj.eq.6).or.(atj.eq.1.and.ati.eq.6))               ff=0.91 ! C...H, good effect
+           if((ati.eq.1.and.atj.eq.8).or.(atj.eq.1.and.ati.eq.8))               ff=1.04 ! O...H, good effect
+            topo%alphanb(i,j,neigh%numctr+1) = sqrt(dum1*dum2)*ff
+          endif
+        enddo
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -811,22 +842,29 @@ endif
       !atom specific (not element) basicity parameters
       allocate( topo%hbbas(mol%n), source =1.0d0 )
       do i = 1,mol%n
-         nn=topo%nb(20,i)
+         nn=sum(neigh%nb(neigh%numnb,i,:))
          ati=mol%at(i)
          topo%hbbas(i)=param%xhbas(mol%at(i))
          ! Carbene:
          if(ati.eq.6.and.nn.eq.2.and.itag(i).eq.1) topo%hbbas(i) = 1.46
+         iTr=0
+         if (ati.eq.8.and.nn.eq.1) then !@thomas get iTr for if below
+           call neigh%nbLoc(mol%n, neigh%nb, i, locarr)
+           iTr = locarr(neigh%numnb,1)
+           deallocate(locarr)
+         endif
+         if(iTr.eq.0) cycle
          ! Carbonyl R-C=O
-         if(ati.eq.8.and.nn.eq.1.and.mol%at(topo%nb(nn,i)).eq.6) topo%hbbas(i) = 0.68
+         if(ati.eq.8.and.nn.eq.1.and.mol%at(neigh%nb(nn,i,iTr)).eq.6) topo%hbbas(i) = 0.68
          ! Nitro R-N=O
-         if(ati.eq.8.and.nn.eq.1.and.mol%at(topo%nb(nn,i)).eq.7) topo%hbbas(i) = 0.47
+         if(ati.eq.8.and.nn.eq.1.and.mol%at(neigh%nb(nn,i,iTr)).eq.7) topo%hbbas(i) = 0.47
       end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! make list of HB donor acidity
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      !atom specific (not element) basicity parameters
+      !atom specific (not element) acidity parameters
       allocate( topo%hbaci(mol%n), source =1.0d0 )
       do i = 1,mol%n
          topo%hbaci(i)=param%xhaci(mol%at(i))
@@ -844,20 +882,21 @@ endif
 ! make list of ABs for HAB
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      allocate( topo%hbatHl(mol%n),topo%hbatABl(2,mol%n*(mol%n+1)/2), source = 0 )
+      allocate( topo%hbatHl(2,mol%n),topo%hbatABl(2,mol%n*(mol%n+1)/2), source = 0 )
 
       topo%nathbH=0
       do i=1,mol%n
          if(mol%at(i).ne.1)  cycle
          if(topo%hyb(i).eq.1) cycle      ! exclude bridging hydrogens from HB correction
          ff=gen%hqabthr
-         j=topo%nb(1,i)
+         call neigh%jth_nb(j,1,i,iTr)  ! get j, first neighbor of H when j is shifted to iTr
          if(j.le.0) cycle
          if(mol%at(j).gt.10) ff=ff-0.20                ! H on heavy atoms may be negatively charged
          if(mol%at(j).eq.6.and.topo%hyb(j).eq.3) ff=ff+0.05 ! H on sp3 C must be really positive 0.05
          if(topo%qa(i).gt.ff)then                       ! make list of HB H atoms but only if they have a positive charge
             topo%nathbH=topo%nathbH+1
-            topo%hbatHl(topo%nathbH)=i
+            topo%hbatHl(1,topo%nathbH)=i
+            topo%hbatHl(2,topo%nathbH)=iTr
          endif
       enddo
       write(env%unit,'(10x,"# H in HB",3x,i0)') topo%nathbH
@@ -883,46 +922,63 @@ endif
 
 ! make ABX list
       m=0
-      do i=1,mol%n
-         do ia=1,topo%nb(20,i)
-            ix=topo%nb(ia,i)
+      do i=1,mol%n  ! potential A
+        do iTr=1, neigh%numctr
+          do ia=1,neigh%nb(neigh%numnb,i,iTr)
+            ix=neigh%nb(ia,i,iTr) ! potential X (P,S,Cl,As,Se,Br,Sb,Te and I)
             if(xatom(mol%at(ix))) then
-            if(mol%at(ix).eq.16.and.topo%nb(20,ix).gt.2) cycle ! no sulphoxide etc S
-            do j=1,mol%n
-               if(i.eq.j.or.j.eq.ix) cycle
-               if(topo%bpair(lin(j,ix)).le.3) cycle   ! must be A...B and not X-B i.e. A-X...B
-               if(param%xhbas(mol%at(j)).lt.1.d-6) cycle   ! B must be O,N,...
-               if(param%group(mol%at(j)).eq.4    ) then
-                  if(piadr2(j).eq.0.or.topo%qa(j).gt.0.05) cycle   ! must be a (pi)base
-               endif
-               m=m+1
-            enddo
+              if(mol%at(ix).eq.16.and.sum(neigh%nb(neigh%numnb,ix,:)).gt.2) cycle ! no sulphoxide etc S
+              do iTrj=1,neigh%numctr
+                do j=1,mol%n  ! loop over B:  from group 15 - group 17| in code group 5,6 or 7
+                   if((i.eq.j.and.iTrj.eq.1).or.(j.eq.ix.and.iTrj.eq.iTr)) cycle
+                   iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTr) ! j and ix shifted -> need dummy
+                   if(iTrDum.gt.neigh%numctr.or.iTrDum.eq.-1) cycle  ! bpair cant handle this
+                   if(neigh%bpair(ix,j,iTrDum).le.3) cycle ! must be A...B and not X-B i.e. A-X...B
+                   if(param%xhbas(mol%at(j)).lt.1.d-6) cycle   ! B must be O,N,...
+                   if(param%group(mol%at(j)).eq.4    ) then
+                      if(piadr2(j).eq.0.or.topo%qa(j).gt.0.05) cycle   ! must be a (pi)base
+                   endif
+                   m=m+1
+                enddo
+              enddo
             endif
          enddo
+        enddo
       enddo
       topo%natxbAB=m
-      allocate(topo%xbatABl(3,topo%natxbAB), source = 0 )
+      allocate(topo%xbatABl(5,topo%natxbAB), source = 0 )
       m=0
       do i=1,mol%n
-         do ia=1,topo%nb(20,i)
-            ix=topo%nb(ia,i)
+        do iTr=1, neigh%numctr
+         do ia=1,neigh%nb(neigh%numnb,i,iTr)
+            ix=neigh%nb(ia,i,iTr)
             if(xatom(mol%at(ix))) then
-            if(mol%at(ix).eq.16.and.topo%nb(20,ix).gt.2) cycle ! no sulphoxide etc S
+            if(mol%at(ix).eq.16.and.sum(neigh%nb(neigh%numnb,ix,:)).gt.2) cycle ! no sulphoxide etc S
+            do iTrj=1,neigh%numctr
             do j=1,mol%n
-               if(i.eq.j.or.j.eq.ix) cycle
-               if(topo%bpair(lin(j,ix)).le.3) cycle  ! must be A...B and not X-B i.e. A-X...B
+               if(i.eq.j.and.iTrj.eq.1.or.j.eq.ix.and.iTrj.eq.iTr) cycle
+               iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTr) ! j and ix shifted -> need dummy
+               if(iTrDum.gt.neigh%numctr.or.iTrDum.le.0) cycle  ! bpair cant handle this
+               if(neigh%bpair(ix,j,iTrDum).le.3) cycle  ! must be A...B and not X-B i.e. A-X...B
                if(param%xhbas(mol%at(j)).lt.1.d-6) cycle  ! B must be O,N,...
                if(param%group(mol%at(j)).eq.4    ) then
                   if(piadr2(j).eq.0.or.topo%qa(j).gt.0.05) cycle   ! must be a (pi)base
                endif
                m=m+1
-               topo%xbatABl(1,m)=i
-               topo%xbatABl(2,m)=j
-               topo%xbatABl(3,m)=ix
+               topo%xbatABl(1,m)=i    ! A
+               topo%xbatABl(2,m)=j    ! B
+               topo%xbatABl(3,m)=ix   ! X
+               topo%xbatABl(4,m)=iTrj ! iTrB
+               topo%xbatABl(5,m)=iTr  ! iTrX !@thomas now (5,m not (4,m !!
+            enddo
             enddo
             endif
          enddo
+        enddo 
       enddo
+      call neigh%getTransVec(mol,sqrt(hbthr2))
+!@thomas this was moved to gfnff_eg
+!      call gfnff_hbset0(mol%n,mol%at,mol%xyz,topo,neigh,nlist,hbthr1,hbthr2)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! do Hueckel
@@ -989,9 +1045,10 @@ endif
          Api(i,i)=gen%hdiag(mol%at(ii))+topo%qa(ii)*gen%hueckelp3-dble(piel(ii)-1)*gen%pilpf
       enddo
 !     loop over bonds for pair interactions
-      do i=1,topo%nbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+      do i=1,neigh%nbond
+         jj =neigh%blist(1,i)
+         ii =neigh%blist(2,i)
+         iTr=neigh%blist(3,i)
          ia=piadr4(ii)
          ja=piadr4(jj)
          if(ia.gt.0.and.ja.gt.0) then
@@ -1044,11 +1101,11 @@ endif
       end if
       endif
 ! save BO
-      do i=1,topo%nbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
-         ia=piadr4(ii)
+      do i=1,neigh%nbond
+         jj =neigh%blist(1,i)
+         ii =neigh%blist(2,i)
          ja=piadr4(jj)
+         ia=piadr4(ii)
          if(ia.gt.0.and.ja.gt.0) then
             pibo(i)=Api(ja,ia)
             pbo(lin(ii,jj))=Api(ja,ia)
@@ -1154,20 +1211,22 @@ endif
 
       call gfnffrab(mol%n,mol%at,cn,rtmp)           ! guess RAB for output
 
-      topo%nbond_vbond = topo%nbond
-      allocate( topo%vbond(3,topo%nbond), source = 0.0d0 )
+      topo%nbond_vbond = neigh%nbond
+      allocate( neigh%vbond(3,neigh%nbond), source = 0.0d0)
 
       write(env%unit,*)
       write(env%unit,'(10x,"#atoms :",3x,i0)') mol%n
-      write(env%unit,'(10x,"#bonds :",3x,i0)') topo%nbond
+      write(env%unit,'(10x,"#bonds :",3x,i0)') neigh%nbond
       if(pr)then
       write(env%unit,*)
       write(env%unit,*) 'bond atoms        type  in ring    R      R0    piBO    fqq  kbond(tot)  alp'
       endif
 
-      do i=1,topo%nbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+      do i=1,neigh%nbond
+         jj=neigh%blist(1,i)
+         ii=neigh%blist(2,i)
+         nni = sum(neigh%nb(neigh%numnb,ii,:))
+         nnj = sum(neigh%nb(neigh%numnb,jj,:))
          ij=lin(ii,jj)
          ia=mol%at(ii)
          ja=mol%at(jj)
@@ -1231,12 +1290,12 @@ endif
             if( (ia.eq.1.and.ja.eq.6) )then
                            call ringsatom(mol%n,jj,cring,sring,ringsj)
                            if(ringsj.eq.3)                 fxh=1.05    ! 3-ring CH
-                           if(ctype(mol%n,mol%at,topo%nb,piadr,jj).eq.1)fxh=0.95    ! aldehyd CH
+                           if(ctype(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj).eq.1)fxh=0.95    ! aldehyd CH
             endif
             if( (ia.eq.6.and.ja.eq.1) )then
                            call ringsatom(mol%n,ii,cring,sring,ringsi)
                            if(ringsi.eq.3)                 fxh=1.05    ! 3-ring CH
-                           if(ctype(mol%n,mol%at,topo%nb,piadr,ii).eq.1)fxh=0.95    ! aldehyd CH
+                           if(ctype(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).eq.1)fxh=0.95    ! aldehyd CH
             endif
             if( (ia.eq.1.and.ja.eq.5) )                    fxh=1.10    ! BH
             if( (ja.eq.1.and.ia.eq.5) )                    fxh=1.10    !
@@ -1354,49 +1413,27 @@ endif
          endif
 
 ! shift
-         topo%vbond(1,i) = gen%rabshift + shift   ! value for all bonds + special part
+         neigh%vbond(1,i) = gen%rabshift + shift   ! value for all bonds + special part
 
 ! RINGS prefactor
          if(rings.gt.0) ringf = 1.0d0 + gen%fringbo*(6.0d0-dble(rings))**2  ! max ring size is 6
 
 ! steepness
-         topo%vbond(2,i) =  gen%srb1*( 1.0d0 + fsrb2*(param%en(ia)-param%en(ja))**2 + gen%srb3*bstrength )
+         neigh%vbond(2,i) =  gen%srb1*( 1.0d0 + fsrb2*(param%en(ia)-param%en(ja))**2 + gen%srb3*bstrength )
 
 ! tot prefactor        atoms              spec     typ       qterm    heavy-M  pi   XH(3ring,OH...) CN for M
-         topo%vbond(3,i) = -param%bond(ia)*param%bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
+         neigh%vbond(3,i) = -param%bond(ia)*param%bond(ja) * ringf * bstrength * fqq * fheavy * fpi * fxh * fcn
 !        write(env%unit,*) bond(ia),bond(ja),ringf,bstrength,fqq,fheavy,fpi,fxh
 
 ! output
-         r0 = (rtmp(ij)+topo%vbond(1,i))*0.529167
+         r0 = (rtmp(ij)+neigh%vbond(1,i))*0.529167
          if(pr) write(env%unit,'(2a3,2i5,2x,2i5,2x,6f8.3)') &
-     &   mol%sym(ii),mol%sym(jj),ii,jj,bbtyp,rings,0.529167*rab(ij),r0,pibo(i),fqq,topo%vbond(3,i),topo%vbond(2,i)
+     &   mol%sym(ii),mol%sym(jj),ii,jj,bbtyp,rings,0.529167*rab(ij),r0,pibo(i),fqq,neigh%vbond(3,i),neigh%vbond(2,i)
       enddo
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !     scale FC if bond is part of hydrogen bridge
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!      do i=1,topo%nbond
-!         ii=topo%blist(1,i)
-!         jj=topo%blist(2,i)
-!         ia=mol%at(ii)
-!         ja=mol%at(jj)
-!         do j=1,topo%nathbAB
-!            hbA=topo%hbatABl(2,j)
-!            !O-H case:
-!            if (ia.eq.8.and.ja.eq.1.or.ia.eq.1.and.ja.eq.8) then
-!               if (ii.eq.hbA.or.jj.eq.hbA) then
-!                  topo%vbond(2,i) = topo%vbond(2,i) * 1.00
-!                  !topo%vbond(1,i) = topo%vbond(1,i) * 1.00
-!               end if
-!            !N-H case
-!          else if (ia.eq.7.and.ja.eq.1.or.ia.eq.1.and.ja.eq.7) then
-!               if (ii.eq.hbA.or.jj.eq.hbA) then
-!                  topo%vbond(2,i) = topo%vbond(2,i) * 1.00
-!                  !topo%vbond(1,i) = topo%vbond(1,i) * 1.00
-!               end if
-!            end if
-!         end do
-!      end do
 
       deallocate(rtmp)
 
@@ -1405,19 +1442,19 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       !Set up fix hblist just like for the HB term
-      call bond_hbset0(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,topo,hbthr1,hbthr2)
-      allocate(bond_hbl(3,bond_hbn))
-      allocate(topo%nr_hb(topo%nbond), source=0)
-      call bond_hbset(mol%n,mol%at,mol%xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
-
+      call bond_hbset0(mol%n,mol%at,mol%xyz,mol%npbc,bond_hbn,topo,neigh,hbthr1,hbthr2)
+      allocate(bond_hbl(6,bond_hbn))
+      allocate(neigh%nr_hb(neigh%nbond), source=0)
+      call bond_hbset(mol%n,mol%at,mol%xyz,mol%npbc,bond_hbn,bond_hbl,&
+           &           topo,neigh,hbthr1,hbthr2)
       !Set up AH, B and nr. of B list
-      call bond_hb_AHB_set0(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,topo)
-      allocate( lin_AHB(0:AHB_nr), source=0  )
-      call bond_hb_AHB_set1(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo%bond_hb_nr,topo%b_max,topo)
-      allocate( topo%bond_hb_AH(2,topo%bond_hb_nr), source = 0 )
-      allocate( topo%bond_hb_B(topo%b_max,topo%bond_hb_nr), source = 0 )
+      call bond_hb_AHB_set0(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,neigh)
+      allocate( lin_AHB(4,0:AHB_nr), source=0  )
+      call bond_hb_AHB_set1(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo%bond_hb_nr,topo%b_max,neigh)
+      allocate( topo%bond_hb_AH(4,topo%bond_hb_nr), source = 0 )
+      allocate( topo%bond_hb_B(2,topo%b_max,topo%bond_hb_nr), source = 0 )
       allocate( topo%bond_hb_Bn(topo%bond_hb_nr), source = 0 )
-      call bond_hb_AHB_set(mol%n,mol%at,topo%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo)
+      call bond_hb_AHB_set(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo,neigh)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1713,9 +1750,9 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       topo%ntors=sum(piadr)+mol%n
-      do m=1,topo%nbond
-         ii=topo%blist(1,m)
-         jj=topo%blist(2,m)
+      do m=1,neigh%nbond
+         ii=neigh%blist(1,m)
+         jj=neigh%blist(2,m)
          if(btyp(m).eq.3.or.btyp(m).eq.6)           cycle ! no sp-sp or metal eta
          if(param%tors(mol%at(ii)).lt.0.or.param%tors(mol%at(jj)).lt.0) cycle ! no negative values
          if(param%tors(mol%at(ii))*param%tors(mol%at(jj)).lt.1.d-3)     cycle ! no small values
@@ -1730,9 +1767,9 @@ endif
       allocate( topo%tlist(5,topo%ntors), source = 0 )
       allocate( topo%vtors(2,topo%ntors), source = 0.0d0 )
       topo%ntors=0
-      do m=1,topo%nbond
-         ii=topo%blist(1,m)
-         jj=topo%blist(2,m)
+      do m=1,neigh%nbond
+         ii=neigh%blist(1,m)
+         jj=neigh%blist(2,m)
          if(btyp(m).eq.3.or.btyp(m).eq.6) cycle    ! metal eta or triple
          fij=param%tors(mol%at(ii))*param%tors(mol%at(jj))             ! atom contribution, central bond
          if(fij.lt.gen%fcthr)                 cycle
@@ -1756,7 +1793,7 @@ endif
          enddo
          fij=fij*(dble(nhi)*dble(nhj))**0.07 ! n H term
          ! amides and alpha carbons in peptides/proteins
-         if (alphaCO(mol%n,mol%at,topo%hyb,topo%nb,piadr,ii,jj)) fij = fij * 1.3d0
+         if (alphaCO(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii,jj)) fij = fij * 1.3d0
          if (amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,ii).and.topo%hyb(jj).eq.3.and.mol%at(jj).eq.6) fij = fij * 1.3d0
          if (amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,jj).and.topo%hyb(ii).eq.3.and.mol%at(ii).eq.6) fij = fij * 1.3d0
          ! hypervalent

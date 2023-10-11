@@ -282,7 +282,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    if (allocated(nlist%q)) then
       nlist%initialized = size(nlist%q) == n
    end if
-   call gfnff_hbset0(n,at,xyz,sqrab,topo,nhb1,nhb2,nxb,hbthr1,hbthr2)
+   call gfnff_hbset0(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
    nlist%initialized = nlist%initialized .and. nhb1 <= nlist%nhb1 &
       & .and. nhb2 <= nlist%nhb2 .and. nxb <= nlist%nxb
    require_update = .not.nlist%initialized
@@ -299,7 +299,8 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
       nlist%hbrefgeo(:, :) = xyz
    end if
    if (update .or. require_update) then
-      call gfnff_hbset(n,at,xyz,sqrab,topo,nlist,hbthr1,hbthr2)
+      !call gfnff_hbset(n,at,xyz,sqrab,topo,nlist,hbthr1,hbthr2) !@thomas old delete
+      call gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
    end if
    if (pr) call timer%measure(10)
 
@@ -912,7 +913,7 @@ subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g,param,topo
       if (jH.eq.hbH.and.jA.eq.hbA) then
          g(:,hbH)=g(:,hbH)+hb_dcn(:,hbH,hbH)*zz
          do k=1,topo%bond_hb_Bn(j)
-               hbB = topo%bond_hb_B(k,j)
+               hbB = topo%bond_hb_B(1,k,j)
                g(:,hbB)=g(:,hbB)-hb_dcn(:,hbB,hbH)*zz
          end do
       end if
@@ -956,7 +957,7 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo)
       ati = at(iat)
       iA  = topo%bond_hb_AH(1,i)
       do j = 1, topo%bond_hb_Bn(i)
-         jat = topo%bond_hb_B(j,i)
+         jat = topo%bond_hb_B(1,j,i)
          atj = at(jat)
          rij = xyz(:,jat) - xyz(:,iat)
          r2  = sum( rij**2 )

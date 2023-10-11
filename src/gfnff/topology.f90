@@ -62,12 +62,12 @@ module xtb_gfnff_topology
       !-----------------------------------------------
       integer,allocatable :: nr_hb(:)      ! Nr. of H bonds per O-H or N-H bond
       integer,allocatable :: bond_hb_AH(:,:) ! A, H atoms in bonds that are also part of HBs
-      integer,allocatable :: bond_hb_B(:,:)  ! B atoms in bonds that are also part of HBs
+      integer,allocatable :: bond_hb_B(:,:,:)  ! B atoms in bonds that are also part of HBs
       integer,allocatable :: bond_hb_Bn(:)   ! Nr. of B atoms for one AH bond pair
       !-----------------------------------------------
       integer,allocatable :: hbatABl(:,:)  ! AB atoms for HB
       integer,allocatable :: xbatABl(:,:)  ! AB atoms for XB
-      integer,allocatable :: hbatHl (:)    ! H  atoms for HB
+      integer,allocatable :: hbatHl (:,:)    ! H  atoms for HB
       integer,allocatable :: fraglist(:)   ! atoms in molecular fragments (for EEQ)
       integer,allocatable :: qpdb  (:)     ! atomic charge in residues from PDB file
 

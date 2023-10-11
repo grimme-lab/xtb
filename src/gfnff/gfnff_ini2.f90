@@ -462,11 +462,11 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          nb(20,i) = nn
       enddo
 
-      end subroutine getnb 
+      end subroutine getnb
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccc
-! find the CN of nearest non metal of atom i
-!ccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+! find the CN of the non metal atom that is closest to atom i
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine nn_nearest_noM(ii,n,at,neigh,r,nn,param)
       implicit none
@@ -761,190 +761,291 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset(n,at,xyz,sqrab,topo,nlist,hbthr1,hbthr2)
+subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
+      type(TNeigh), intent(inout) :: neigh 
       type(TGFFNeighbourList), intent(inout) :: nlist
       integer n
       integer at(n)
-      real(wp) sqrab(n*(n+1)/2)
       real(wp) xyz(3,n)
       real(wp), intent(in) :: hbthr1, hbthr2
 
-      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
-      real(wp) rab,rmsd
-      logical ijnonbond
+      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh, iTri,iTrj,iTrDum
+      real(wp) rab,rmsd, rih,rjh
+      logical ijnonbond,free
+
 
       rmsd = sqrt(sum((xyz-nlist%hbrefgeo)**2))/dble(n)
 
       if(rmsd.lt.1.d-6 .or. rmsd.gt. 0.3d0) then ! update list if first call or substantial move occured
-
       nlist%nhb1=0
       nlist%nhb2=0
-      do ix=1,topo%nathbAB
-         i=topo%hbatABl(1,ix)
-         j=topo%hbatABl(2,ix)
-         ij=j+i*(i-1)/2
-         rab=sqrab(ij)
-         if(rab.gt.hbthr1)cycle
-         ijnonbond=topo%bpair(ij).ne.1
-         do k=1,topo%nathbH
-            nh=topo%hbatHl(k)
-            inh=lin(i,nh)
-            jnh=lin(j,nh)
-            if(topo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               nlist%nhb2=nlist%nhb2+1
-               nlist%hblist2(1,nlist%nhb2)=i
-               nlist%hblist2(2,nlist%nhb2)=j
-               nlist%hblist2(3,nlist%nhb2)=nh
-            elseif(topo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               nlist%nhb2=nlist%nhb2+1
-               nlist%hblist2(1,nlist%nhb2)=j
-               nlist%hblist2(2,nlist%nhb2)=i
-               nlist%hblist2(3,nlist%nhb2)=nh
-            elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
-               nlist%nhb1=nlist%nhb1+1
-               nlist%hblist1(1,nlist%nhb1)=i
-               nlist%hblist1(2,nlist%nhb1)=j
-               nlist%hblist1(3,nlist%nhb1)=nh
+      ! loop over hb-relevant AB atoms
+      do ix=1,topo%nathbAB  
+        i=topo%hbatABl(1,ix) 
+        j=topo%hbatABl(2,ix)
+        do iTri=1, neigh%nTrans ! go through i shifts
+          do iTrj=1, neigh%nTrans ! go through j shifts
+            ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
+            iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj) 
+            if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle ! cycle nonsense 
+            if(iTrDum.eq.-1) then
+              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+              if(rab.gt.hbthr1) cycle
+              ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
+            else
+              ! check ij distance
+              rab=neigh%distances(j,i,iTrDum)**2 ! %distances are generated up to hbthr2 
+              if(rab.gt.hbthr1) cycle
+              ! check if ij bonded
+              if(iTrDum.le.neigh%numctr) then
+                ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
+              else
+                ! i and j are not in neighboring cells
+                ijnonbond=.true. 
+              endif
             endif
-         enddo
-      enddo
+            ! loop over relevant H atoms
+            do k=1,topo%nathbH
+              free=.true. ! tripplet not assigned yet
+              nh  =topo%hbatHl(1,k) ! nh always in central cell
+              ! distances for non-cov bonded case
+              rih=neigh%distances(i,nh,iTri)**2
+              rjh=neigh%distances(j,nh,iTrj)**2
+              ! check if i is the bonded A    
+              if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
+                if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
+                  nlist%nhb2=nlist%nhb2+1
+                  nlist%hblist2(1,nlist%nhb2)=i
+                  nlist%hblist2(2,nlist%nhb2)=j
+                  nlist%hblist2(3,nlist%nhb2)=nh
+                  nlist%hblist2(4,nlist%nhb2)=iTri
+                  nlist%hblist2(5,nlist%nhb2)=iTrj
+                  free=.false. ! not available for nhb1 !!!
+                endif 
+              endif  
+              ! check if j is the bonded A
+              if(iTrj.le.neigh%numctr.and.free) then
+                if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond) then
+                  nlist%nhb2=nlist%nhb2+1
+                  nlist%hblist2(1,nlist%nhb2)=j
+                  nlist%hblist2(2,nlist%nhb2)=i
+                  nlist%hblist2(3,nlist%nhb2)=nh
+                  nlist%hblist2(4,nlist%nhb2)=iTrj
+                  nlist%hblist2(5,nlist%nhb2)=iTri
+                  free=.false. ! not available for nhb1 !!!
+                endif
+              endif  
+              ! check for non-cov bonded A  
+              if(rab+rih+rjh.lt.hbthr2.and.free) then ! sum of rAB,rAH,rBH is below threshold
+                nlist%nhb1=nlist%nhb1+1
+                nlist%hblist1(1,nlist%nhb1)=i 
+                nlist%hblist1(2,nlist%nhb1)=j 
+                nlist%hblist1(3,nlist%nhb1)=nh
+                nlist%hblist1(4,nlist%nhb1)=iTri
+                nlist%hblist1(5,nlist%nhb1)=iTrj
+              endif
+            enddo ! k: relevant H atoms
+          enddo ! iTrj
+        enddo ! iTri
+      enddo ! ix: relevant AB atoms 
 
+      ! for nxb list only i is not shifted
       nlist%nxb =0
       do ix=1,topo%natxbAB
-         i =topo%xbatABl(1,ix)
-         j =topo%xbatABl(2,ix)
-         ij=j+i*(i-1)/2
-         rab=sqrab(ij)
-         if(rab.gt.hbthr2)cycle
-         nlist%nxb=nlist%nxb+1
-         nlist%hblist3(1,nlist%nxb)=i
-         nlist%hblist3(2,nlist%nxb)=j
-         nlist%hblist3(3,nlist%nxb)=topo%xbatABl(3,ix)
+        !do iTrj=1, neigh%nTrans !@thomas this would be double counting
+          i =topo%xbatABl(1,ix)   ! A
+          j =topo%xbatABl(2,ix)   ! B
+          iTrj=topo%xbatABl(4,ix) ! iTrB
+          if(iTrj.gt.neigh%nTrans.or.iTrj.lt.-1.or.iTrj.eq.0) cycle ! cycle nonsense 
+          rab=NORM2(xyz(:,j)-xyz(:,i)+neigh%transVec(:,iTrj))**2 !@thomas changed order but should be same as gfnff_hbset0 now
+          !rab=neigh%distances(j,i,iTrj)**2 ! %distances are generated up to hbthr2 
+          if(rab.gt.hbthr2)cycle
+          nlist%nxb=nlist%nxb+1
+          nlist%hblist3(1,nlist%nxb)=i                  ! A
+          nlist%hblist3(2,nlist%nxb)=j                  ! B
+          nlist%hblist3(3,nlist%nxb)=topo%xbatABl(3,ix) ! X
+          nlist%hblist3(4,nlist%nxb)=iTrj
+          nlist%hblist3(5,nlist%nxb)=topo%xbatABl(5,ix) ! iTrX
+        !enddo
       enddo
 
       nlist%hbrefgeo = xyz
 
       endif  ! else do nothing
 
+
       end subroutine gfnff_hbset
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine bond_hbset(n,at,xyz,sqrab,bond_hbn,bond_hbl,topo,hbthr1,hbthr2)
+subroutine bond_hbset(n,at,xyz,npbc,bond_hbn,bond_hbl,topo,neigh,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
+      type(TNeigh), intent(inout) :: neigh
       integer,intent(in) :: n
       integer,intent(in) :: at(n)
       integer,intent(in) :: bond_hbn
-      integer,intent(out) :: bond_hbl(3,bond_hbn)
-      real(wp),intent(in) :: sqrab(n*(n+1)/2)
+      integer,intent(out) :: bond_hbl(6,bond_hbn)  ! A-H...B Tripletts
       real(wp),intent(in) :: xyz(3,n)
+      integer, intent(in) :: npbc
       real(wp),intent(in) :: hbthr1, hbthr2
 
-      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
+      integer i,j,k,nh,ia,ix,iTri,iTrj,iTrH,iTrDum
       integer bond_nr
-      real(wp) rab
+      real(wp) dum, rab
       logical ijnonbond
-
 
       bond_nr=0
       bond_hbl=0
-      do ix=1,topo%nathbAB
-         i=topo%hbatABl(1,ix)
-         j=topo%hbatABl(2,ix)
-         ij=j+i*(i-1)/2
-         rab=sqrab(ij)
-         if(rab.gt.hbthr1)cycle
-         ijnonbond=topo%bpair(ij).ne.1
-         do k=1,topo%nathbH
-            nh=topo%hbatHl(k)
-            inh=lin(i,nh)
-            jnh=lin(j,nh)
-            if(topo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               bond_nr=bond_nr+1
-               bond_hbl(1,bond_nr)=i
-               bond_hbl(2,bond_nr)=j
-               bond_hbl(3,bond_nr)=nh
-            elseif(topo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               bond_nr=bond_nr+1
-               bond_hbl(1,bond_nr)=j
-               bond_hbl(2,bond_nr)=i
-               bond_hbl(3,bond_nr)=nh
+      do ix=1,topo%nathbAB  ! loop over hb-relevant AB atoms
+        if (bond_nr.gt.bond_hbn) write(*,*) 'Error: Out of bound. Too many hb tripletts.' !@thomas DEBUG delete
+        !get i and j from AB list, it is not decided who is A and who is B yet
+        i=topo%hbatABl(1,ix)
+        j=topo%hbatABl(2,ix)
+        do iTri=1,neigh%nTrans
+          do iTrj=1,neigh%nTrans
+            iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
+            if(iTrDum.eq.-1.or.iTrDum.gt.neigh%numctr) then 
+              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+              if(rab.gt.hbthr1) cycle
+              ijnonbond=.true. ! i and j are not in neighboring cells for this range of iTrDum
+            else  
+              ! check ij distance
+              rab=neigh%distances(j,i,iTrDum)**2  ! %distances are generated up to hbthr2 
+              if(rab.gt.hbthr1) cycle
+              ! check if ij bonded
+                ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
             endif
-         enddo
-      enddo
+            ! loop over relevant H atoms
+            do k=1,topo%nathbH  
+              nh  =topo%hbatHl(1,k)  ! ALWAYS in central cell
+              !i is the A (only possible if A is adjacent to central cell, since H always there)
+              if(iTri.le.neigh%numctr) then ! check if a in or adjacent to central cell
+                if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
+                  bond_nr=bond_nr+1
+                  bond_hbl(1,bond_nr)=i     ! 1=A
+                  bond_hbl(2,bond_nr)=j     ! 2=B
+                  bond_hbl(3,bond_nr)=nh    ! 3=H
+                  bond_hbl(4,bond_nr)=iTri  ! 4=iTrA
+                  bond_hbl(5,bond_nr)=iTrj  ! 5=iTrB
+                  bond_hbl(6,bond_nr)=1     ! 6=iTrH
+                endif
+              endif  
+              ! j is the A
+              if(iTrj.le.neigh%numctr) then
+                if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond)then
+                  bond_nr=bond_nr+1
+                  bond_hbl(1,bond_nr)=j     ! 1=A
+                  bond_hbl(2,bond_nr)=i     ! 2=B
+                  bond_hbl(3,bond_nr)=nh    ! 3=H
+                  bond_hbl(4,bond_nr)=iTrj  ! 4=iTrA
+                  bond_hbl(5,bond_nr)=iTri  ! 5=iTrB
+                  bond_hbl(6,bond_nr)=1     ! 6=iTrH
+                endif
+              endif  
+            enddo
+          enddo
+        enddo
+      enddo        
 
 end subroutine bond_hbset
 
-subroutine bond_hbset0(n,at,xyz,sqrab,bond_hbn,topo,hbthr1,hbthr2)
+
+subroutine bond_hbset0(n,at,xyz,npbc,bond_hbn,topo,neigh,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
+      type(TNeigh), intent(inout) :: neigh
       integer,intent(in) :: n
       integer,intent(in) :: at(n)
       integer,intent(out) :: bond_hbn
-      real(wp),intent(in) :: sqrab(n*(n+1)/2)
       real(wp),intent(in) :: xyz(3,n)
+      integer, intent(in) :: npbc
       real(wp),intent(in) :: hbthr1, hbthr2
 
-      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
+      integer i,j,k,nh,ix,iTri,iTrj,iTrH,iTrDum
+      !integer bond_nr
       real(wp) rab
       logical ijnonbond
+      !
+      real(wp) :: vec1, vec2
 
-
-      bond_hbn=0
-      do ix=1,topo%nathbAB
-         i=topo%hbatABl(1,ix)
-         j=topo%hbatABl(2,ix)
-         ij=j+i*(i-1)/2
-         rab=sqrab(ij)
-         if(rab.gt.hbthr1)cycle
-         ijnonbond=topo%bpair(ij).ne.1
-         do k=1,topo%nathbH
-            nh=topo%hbatHl(k)
-            inh=lin(i,nh)
-            jnh=lin(j,nh)
-            if(topo%bpair(inh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               bond_hbn=bond_hbn+1
-            elseif(topo%bpair(jnh).eq.1.and.ijnonbond)then ! exclude cases where A and B are bonded
-               bond_hbn=bond_hbn+1
+      ! get size of bond_hbl, for more comments see bond_hbset
+      bond_hbn=0 
+      do ix=1,topo%nathbAB  ! loop over hb-relevant AB atoms
+        !get i and j from AB list, it is not decided who is A and who is B yet
+        i=topo%hbatABl(1,ix)
+        j=topo%hbatABl(2,ix)
+        do iTri=1,neigh%nTrans
+          do iTrj=1,neigh%nTrans
+            iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
+            if(iTrDum.eq.-1.or.iTrDum.gt.neigh%numctr) then
+              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+              if(rab.gt.hbthr1) cycle
+              ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
+            else
+              ! check ij distance
+              rab=neigh%distances(j,i,iTrDum)**2
+              if(rab.gt.hbthr1) cycle
+              ! check if ij bonded
+              ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
             endif
-         enddo
-      enddo
+            ! loop over relevant H atoms
+            do k=1,topo%nathbH  
+              nh  =topo%hbatHl(1,k)  ! ALWAYS in central cell
+              ! i is the A
+              if(iTri.le.neigh%numctr) then
+                if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
+                  bond_hbn = bond_hbn + 1
+                endif
+              endif  
+              ! j is the A
+              if(iTrj.le.neigh%numctr) then
+                if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond)then!
+                  bond_hbn = bond_hbn + 1
+                endif
+              endif  
+            enddo
+          enddo
+        enddo
+      enddo       
 
 end subroutine bond_hbset0
 
-subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,topo)
+
+subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,topo,neigh)
       use xtb_gfnff_param
       implicit none
       !Dummy
+      type(TNeigh), intent(inout) :: neigh
       type(TGFFTopology), intent(inout) :: topo
       integer,intent(in)  :: n
       integer,intent(in)  :: numbond
       integer,intent(in)  :: at(n)
       integer,intent(in)  :: bond_hbn
-      integer,intent(in)  :: bond_hbl(3,bond_hbn)
+      integer,intent(in)  :: bond_hbl(6,bond_hbn)
       integer,intent(in)  :: tot_AHB_nr
-      integer,intent(inout) :: lin_AHB(0:tot_AHB_nr)
+      integer,intent(inout) :: lin_AHB(4,0:tot_AHB_nr)
       !Stack
       integer :: i,j
-      integer :: ii,jj
+      integer :: ii,jj,iTr,iTrA,iTrH,iTrB
       integer :: ia,ja
       integer :: lin
       integer :: hbH,hbA
       integer :: Hat,Aat
       integer :: Bat,atB
-      integer :: tot_count
+      integer :: tot_count,t
       integer :: AH_count
       integer :: B_count
       integer :: lin_diff
+      logical :: iTr_same, AH_diff, ldum(4)
 
       tot_count=0
       AH_count=0
@@ -952,8 +1053,9 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,top
       lin_diff=0
 
       do i=1,numbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+         jj=neigh%blist(1,i)
+         ii=neigh%blist(2,i)
+         iTr=neigh%blist(3,i)
          ia=at(ii)
          ja=at(jj)
          if (ia.eq.1) then
@@ -968,27 +1070,43 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,top
          if (at(hbA).eq.7.or.at(hbA).eq.8) then
             do j = 1, bond_hbn
                Bat = bond_hbl(2,j)
+               iTrB= bond_hbl(5,j)
                atB = at(Bat)
                Aat  = bond_hbl(1,j)
+               iTrA = bond_hbl(4,j)
                Hat  = bond_hbl(3,j)
-               if (hbA.eq.Aat.and.hbH.eq.Hat) then
+               iTrH = bond_hbl(6,j) ! always 1
+               if ((hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrA.and.iTrH.eq.1).or.&
+                   &hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrH.and.iTrA.eq.1) then
                   if (atB.eq.7.or.atB.eq.8) then
                      tot_count = tot_count + 1
-                     lin_AHB(tot_count) = lin(hbA,hbH)
-                     lin_diff=lin_AHB(tot_count)-lin_AHB(tot_count-1)
-                     if (lin_diff.eq.0) then
-                        B_count = B_count + 1
-                     end if
-                     !Next AH pair
-                     if (lin_diff.ne.0) then
+                     t=tot_count
+                     !lin_AHB(1,tot_count) = lin(hbA,hbH)
+                     lin_AHB(1,tot_count) = hbA
+                     lin_AHB(2,tot_count) = hbH
+                     lin_AHB(3,tot_count) = iTrA
+                     lin_AHB(4,tot_count) = iTrH
+                     if (lin_AHB(1,tot_count)-lin_AHB(1,tot_count-1).eq.0.and.&
+                        &lin_AHB(2,tot_count)-lin_AHB(2,tot_count-1).eq.0) then
+                       lin_diff=0
+                     else
+                       lin_diff=1
+                     endif
+                     iTr_same=iTrA.eq.lin_AHB(3,tot_count-1).and.iTrH.eq.lin_AHB(4,tot_count-1)
+                     if (lin_diff.eq.0.and.iTr_same) B_count = B_count + 1
+                     !@thomas important added 29.07.21 if(.or..not.iTr_same) changed see 565600
+                     if (lin_diff.ne.0.or..not.iTr_same) then
                         AH_count = AH_count + 1
                         topo%bond_hb_AH(1,AH_count) = hbA
                         topo%bond_hb_AH(2,AH_count) = hbH
+                        topo%bond_hb_AH(3,AH_count) = iTrA
+                        topo%bond_hb_AH(4,AH_count) = iTrH
                         !Reset B count
                         B_count = 1
                      end if
                      topo%bond_hb_Bn(AH_count) = B_count
-                     topo%bond_hb_B(B_count,AH_count) = Bat
+                     topo%bond_hb_B(1,B_count,AH_count) = Bat
+                     topo%bond_hb_B(2,B_count,AH_count) = iTrB
                   end if
                else
                  cycle
@@ -999,31 +1117,33 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,top
 
 end subroutine bond_hb_AHB_set
 
-subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH_count,bmax,topo)
+subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH_count,bmax,neigh)
       use xtb_gfnff_param
+      use xtb_gfnff_neighbor
       implicit none
       !Dummy
-      type(TGFFTopology), intent(inout) :: topo
+      type(TNeigh), intent(inout) :: neigh
       integer,intent(in)  :: n
       integer,intent(in)  :: numbond
       integer,intent(in)  :: at(n)
       integer,intent(in)  :: bond_hbn
-      integer,intent(in)  :: bond_hbl(3,bond_hbn)
+      integer,intent(in)  :: bond_hbl(6,bond_hbn)
       integer,intent(in)  :: tot_AHB_nr
-      integer,intent(inout) :: lin_AHB(0:tot_AHB_nr)
+      integer,intent(inout) :: lin_AHB(4,0:tot_AHB_nr)
       integer,intent(out) :: AH_count
       integer,intent(out) :: bmax
       !Stack
       integer :: i,j
-      integer :: ii,jj
+      integer :: ii,jj,iTr,iTrA,iTrH,iTrB
       integer :: ia,ja
       integer :: lin
       integer :: hbH,hbA
       integer :: Hat,Aat
       integer :: Bat,atB
-      integer :: tot_count
+      integer :: tot_count,t
       integer :: B_count
       integer :: lin_diff
+      logical :: iTr_same, AH_diff, ldum(4)
 
       tot_count=0
       AH_count=0
@@ -1031,9 +1151,10 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
       bmax=1
       lin_diff=0
 
-      do i=1,numbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+      do i=1,numbond ! loop over blist to get same order as blist
+         jj=neigh%blist(1,i)
+         ii=neigh%blist(2,i)
+         iTr=neigh%blist(3,i)
          ia=at(ii)
          ja=at(jj)
          if (ia.eq.1) then
@@ -1050,14 +1171,28 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                Bat = bond_hbl(2,j)
                atB = at(Bat)
                Aat  = bond_hbl(1,j)
+               iTrA = bond_hbl(4,j)
                Hat  = bond_hbl(3,j)
-               if (hbA.eq.Aat.and.hbH.eq.Hat) then
+               iTrH = bond_hbl(6,j) ! always 1
+!@thomas important do I need to check this if again?
+               if ((hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrA.and.iTrH.eq.1).or.&
+                   &(hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrH.and.iTrA.eq.1)) then
                  if (atB.eq.7.or.atB.eq.8) then
                      tot_count = tot_count + 1
-                     lin_AHB(tot_count) = lin(hbA,hbH)
-                     lin_diff=lin_AHB(tot_count)-lin_AHB(tot_count-1)
-                     if (lin_diff.eq.0) B_count = B_count + 1
-                     if (lin_diff.ne.0) then
+                     lin_AHB(1,tot_count) = hbA
+                     lin_AHB(2,tot_count) = hbH
+                     lin_AHB(3,tot_count) = iTrA
+                     lin_AHB(4,tot_count) = iTrH
+                     if (lin_AHB(1,tot_count)-lin_AHB(1,tot_count-1).eq.0.and.&
+                        &lin_AHB(2,tot_count)-lin_AHB(2,tot_count-1).eq.0) then
+                       lin_diff=0
+                     else
+                       lin_diff=1
+                     endif
+                     iTr_same=iTrA.eq.lin_AHB(3,tot_count-1).and.iTrH.eq.lin_AHB(4,tot_count-1)
+                     if (lin_diff.eq.0.and.iTr_same) B_count = B_count + 1
+                     !@thomas important added 29.07.21 if(.or..not.iTr_same) changed see 565600
+                     if (lin_diff.ne.0.or..not.iTr_same) then
                         AH_count = AH_count + 1
                         B_count = 1
                      end if
@@ -1067,36 +1202,37 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                  cycle
                end if
             end do
-            topo%nr_hb(i) = B_count
+            neigh%nr_hb(i) = B_count
          end if
       end do
 
 end subroutine bond_hb_AHB_set1
 
-subroutine bond_hb_AHB_set0(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,topo)
+subroutine bond_hb_AHB_set0(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,neigh)
       use xtb_gfnff_param
       implicit none
       !Dummy
-      type(TGFFTopology), intent(in) :: topo
+      !type(TGFFTopology), intent(in) :: topo
+      type(TNeigh), intent(inout) :: neigh
       integer,intent(in)  :: n
       integer,intent(in)  :: numbond
       integer,intent(in)  :: at(n)
       integer,intent(in)  :: bond_hbn
-      integer,intent(in)  :: bond_hbl(3,bond_hbn)
+      integer,intent(in)  :: bond_hbl(6,bond_hbn)
       integer,intent(out) :: tot_AHB_nr
       !Stack
-      integer :: i,j
-      integer :: ii,jj
+      integer :: i,j,k
+      integer :: ii,jj,iTr,iTrA,iTrH,iTrB
       integer :: ia,ja
       integer :: hbH,hbA
       integer :: Hat,Aat
       integer :: Bat,atB
 
       tot_AHB_nr=0
-
-      do i=1,numbond
-         ii=topo%blist(1,i)
-         jj=topo%blist(2,i)
+      do i=1,numbond ! loop over blist to get same order as blist, more important in set1
+         jj= neigh%blist(1,i)
+         ii= neigh%blist(2,i)
+         iTr=neigh%blist(3,i)
          ia=at(ii)
          ja=at(jj)
          if (ia.eq.1) then
@@ -1113,8 +1249,11 @@ subroutine bond_hb_AHB_set0(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,topo)
                Bat = bond_hbl(2,j)
                atB = at(Bat)
                Aat  = bond_hbl(1,j)
+               iTrA = bond_hbl(4,j)
                Hat  = bond_hbl(3,j)
-               if (hbA.eq.Aat.and.hbH.eq.Hat) then
+               iTrH = bond_hbl(6,j) ! always 1
+               if ((hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrA.and.iTrH.eq.1).or.&
+                   &hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrH.and.iTrA.eq.1) then
                  if (atB.eq.7.or.atB.eq.8) then
                      tot_AHB_nr = tot_AHB_nr + 1
                   end if
@@ -1129,56 +1268,108 @@ end subroutine bond_hb_AHB_set0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset0(n,at,xyz,sqrab,topo,nhb1,nhb2,nxb,hbthr1,hbthr2)
+subroutine gfnff_hbset0(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
-      integer, intent(out) :: nhb1
-      integer, intent(out) :: nhb2
-      integer, intent(out) :: nxb
+      type(TNeigh), intent(inout) :: neigh 
+      type(TGFFNeighbourList), intent(inout) :: nlist
       integer n
       integer at(n)
-      real(wp) sqrab(n*(n+1)/2)
       real(wp) xyz(3,n)
       real(wp),intent(in) :: hbthr1, hbthr2
 
-      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh
-      logical ijnonbond
-      real(wp) rab
+      integer i,j,k,nh,ia,ix,lin,ij,inh,jnh 
+      integer :: iTri,iTrj,iTrDum !iTrA,iTrH,iTrDum2,iTrAH,sw,nsw,shift
+      logical ijnonbond, free
+      real(wp) rab,rih,rjh
 
-      nhb1=0
-      nhb2=0
-      do ix=1,topo%nathbAB
-         i=topo%hbatABl(1,ix)
-         j=topo%hbatABl(2,ix)
-         ij=j+i*(i-1)/2
-         rab=sqrab(ij)
-         if(rab.gt.hbthr1)cycle
-         ijnonbond=topo%bpair(ij).ne.1
-         do k=1,topo%nathbH
-            nh=topo%hbatHl(k)
-            inh=lin(i,nh)
-            jnh=lin(j,nh)
-            if(topo%bpair(inh).eq.1.and.ijnonbond)then
-               nhb2=nhb2+1
-            elseif(topo%bpair(jnh).eq.1.and.ijnonbond)then
-               nhb2=nhb2+1
-            elseif(rab+sqrab(inh)+sqrab(jnh).lt.hbthr2) then
-               nhb1=nhb1+1
+      nlist%nhb1=0
+      nlist%nhb2=0
+      ! loop over hb-relevant AB atoms
+      do ix=1,topo%nathbAB  
+        i=topo%hbatABl(1,ix) 
+        j=topo%hbatABl(2,ix)
+        do iTri=1, neigh%nTrans ! go through i shifts
+          do iTrj=1, neigh%nTrans ! go through j shifts
+            ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
+            iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
+            if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle !@thomas 
+            if(iTrDum.eq.-1) then
+              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+              if(rab.gt.hbthr1) cycle
+              ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
+            else
+              ! check ij distance
+              rab=neigh%distances(j,i,iTrDum)**2  ! %distances are generated up to hbthr2 
+              if(rab.gt.hbthr1) cycle
+              ! check if ij bonded
+              if(iTrDum.le.neigh%numctr) then
+                ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
+              else
+                ! i and j are not in neighboring cells
+                ijnonbond=.true. 
+              endif
             endif
-         enddo
+            ! loop over relevant H atoms
+            do k=1,topo%nathbH  
+              free=.true.
+              nh  =topo%hbatHl(1,k) ! nh always in central cell
+              ! distances for non-cov bonded case
+              rih=neigh%distances(i,nh,iTri)**2
+              rjh=neigh%distances(j,nh,iTrj)**2
+              ! check if i is the bonded A    
+              if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
+                if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
+                  nlist%nhb2=nlist%nhb2+1
+                  free=.false.
+                endif  
+              endif  
+              ! check if j is the bonded A
+              if(iTrj.le.neigh%numctr.and.free) then
+                if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond) then
+                  nlist%nhb2=nlist%nhb2+1
+                  free=.false.
+                endif  
+              endif  
+              ! check for non-cov bonded A  
+              if(rab+rih+rjh.lt.hbthr2.and.free) then ! sum of rAB,rAH,rBH is below threshold
+                nlist%nhb1=nlist%nhb1+1
+              endif
+            enddo ! k: relevant H atoms
+          enddo ! iTrj
+        enddo ! iTri
+      enddo ! ix: relevant AB atoms 
+      nlist%nxb =0
+      do ix=1,topo%natxbAB
+        !do iTrj=1, neigh%numctr
+          i =topo%xbatABl(1,ix)
+          j =topo%xbatABl(2,ix)
+          iTrj=topo%xbatABl(4,ix)
+          rab=neigh%distances(j,i,iTrj)**2 ! %distances are generated up to hbthr2 
+          if(rab.gt.hbthr2)cycle
+          nlist%nxb=nlist%nxb+1
+        !enddo
       enddo
 
-      nxb =0
-      do ix=1,topo%natxbAB
-         i =topo%xbatABl(1,ix)
-         j =topo%xbatABl(2,ix)
-         ij=j+i*(i-1)/2
-         rab=sqrab(ij)
-         if(rab.gt.hbthr2)cycle
-         nxb=nxb+1
-      enddo
+! the actual size can be larger, so make it save
+      if(neigh%numctr.gt.1)then
+        nlist%nhb1=(nlist%nhb1*27)
+        nlist%nhb2=(nlist%nhb2*27)
+      else
+        nlist%nhb1=(nlist%nhb1*6)
+        nlist%nhb2=(nlist%nhb2*6)
+      endif
+      if (nlist%nxb.gt.1000) then
+        nlist%nxb =(nlist%nxb *25)
+      else
+        nlist%nxb =(nlist%nxb *10)
+      endif        
+
+!     initialize the HB list check array
+
+      nlist%hbrefgeo = xyz
 
       end subroutine gfnff_hbset0
 
@@ -1626,21 +1817,23 @@ end subroutine goedeckera_PBC
 ! condense charges to heavy atoms based on topology
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      subroutine qheavy(n,at,nb,q)
+      subroutine qheavy(n,at,numnb,numctr,nb,q)
       implicit none
-      integer,intent(in)   ::  n,nb(20,n),at(n)
+      integer, intent(in)  :: numnb, numctr
+      integer,intent(in)   ::  n,nb(numnb,n,numctr),at(n)
       real*8,intent(inout) ::  q(n)
 
-      integer i,j,k
+      integer i,j,k,iTr
       real*8 qtmp(n)
-
       qtmp = q
       do i=1,n
          if(at(i).ne.1) cycle
          qtmp(i)=0
-         do j=1,nb(20,i)
-            k=nb(j,i)
-            qtmp(k)=qtmp(k)+q(i)/dble(nb(20,i))  ! could be a bridging H
+         do iTr=1, numctr
+           do j=1,nb(numnb,i,iTr)
+             k=nb(j,i,iTr)
+             qtmp(k)=qtmp(k)+q(i)/dble(sum(nb(numnb,i,:)))  ! could be a bridging H
+           enddo
          enddo
       enddo
 
@@ -1837,26 +2030,6 @@ end subroutine goedeckera_PBC
           enddo
         enddo
       enddo
-      !@thomas find connections over other cells
-      ! if (numctr.gt.1) then
-      !   do i=1, n
-      !     ! go through nb that are not in central cell
-      !     do iTr=2, numctr
-      !       do inb=1, nb(numnb, i, iTr)
-      !         j = nb(inb,i,iTr)
-      !         ! go through nb of those nb
-      !         do iTr2=1, numctr
-      !           do k=1, nb(numnb, j,iTr2)
-      !             l = nb(k,j,iTr2)
-      !             if(l.eq.i.and.iTr.eq.iTrNeg(iTr2)) cycle ! dont count to-self-bonds
-      !               sumiTr=iTrSum(iTr,iTr2)
-
-      !           enddo
-      !         enddo
-      !       enddo
-      !     enddo
-      !   enddo
-      ! endif
 
       end subroutine nbondmat_pbc
 
@@ -1938,16 +2111,18 @@ end subroutine goedeckera_PBC
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      integer function ctype(n,at,nb,pi,a)
-      integer n,a,at(n),nb(20,n),pi(n)
-      integer i,no,j
+      integer function ctype(n,at,numnb,numctr,nb,pi,a)
+      integer n,a,at(n),numnb,numctr,nb(numnb,n,numctr),pi(n)
+      integer i,no,j, iTr
 
       ctype = 0 ! don't know
 
       no=0
-      do i=1,nb(20,a)
-         j=nb(i,a)
-         if(at(j).eq.8.and.pi(j).ne.0) no = no + 1
+      do iTr=1, numctr
+        do i=1,nb(numnb,a,iTr)
+          j=nb(i,a,iTr)
+          if(at(j).eq.8.and.pi(j).ne.0) no = no + 1
+        enddo
       enddo
 
       if(no.eq.1.and.pi(a).ne.0) ctype = 1 ! a C=O carbon
@@ -1956,34 +2131,38 @@ end subroutine goedeckera_PBC
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-      logical function alphaCO(n,at,hyb,nb,pi,a,b)
-      integer n,a,b,at(n),hyb(n),nb(20,n),pi(n)
-      integer i,j,no,nc
+      logical function alphaCO(n,at,hyb,numnb,numctr,nb,pi,a,b)
+      integer n,a,b,at(n),hyb(n),numnb,numctr,nb(numnb,n,numctr),pi(n)
+      integer i,j,no,nc,iTr
 
-      alphaCO = .false. 
-      if(pi(a).ne.0.and.hyb(b).eq.3.and.at(a).eq.6.and.at(b).eq.6) then  
+      alphaCO = .false.
+      if(pi(a).ne.0.and.hyb(b).eq.3.and.at(a).eq.6.and.at(b).eq.6) then
          no = 0
-         do i=1,nb(20,a)
-            j=nb(i,a)
-            if(at(j).eq. 8.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =O on the C?
+         do iTr=1, numctr
+           do i=1,nb(numnb,a,iTr)
+             j=nb(i,a,iTr)
+             if(at(j).eq. 8.and.pi(j).ne.0.and.sum(nb(numnb,j,:)).eq.1) no = no +1 ! a pi =O on the C?
+           enddo
          enddo
          if(no.eq.1) then
             alphaCO = .true.
             return
          endif
       endif
-      if(pi(b).ne.0.and.hyb(a).eq.3.and.at(b).eq.6.and.at(a).eq.6) then  
+      if(pi(b).ne.0.and.hyb(a).eq.3.and.at(b).eq.6.and.at(a).eq.6) then
          no = 0
-         do i=1,nb(20,b)
-            j=nb(i,b)
-            if(at(j).eq. 8.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =O on the C?
+         do iTr=1, numctr
+           do i=1,nb(numnb,b,iTr)
+             j=nb(i,b,iTr)
+             if(at(j).eq. 8.and.pi(j).ne.0.and.sum(nb(numnb,j,:)).eq.1) no = no +1 ! a pi =O on the C?
+           enddo
          enddo
          if(no.eq.1) then
             alphaCO = .true.
             return
          endif
       endif
- 
+
       end function alphaCO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
