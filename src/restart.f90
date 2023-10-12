@@ -128,14 +128,15 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             call gfnff_param_alloc(topo,neigh, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
-            read(ich) topo%nb,topo%bpair,topo%blist,topo%alist, &
+            read(ich) topo%nb,topo%bpair,neigh%blist,topo%alist, &
                & topo%tlist,topo%b3list,topo%fraglist,topo%hbatHl,topo%hbatABl, &
                & topo%xbatABl,topo%ispinsyst,topo%nspinsyst,topo%bond_hb_AH, &
                & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
-            read(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq, &
+            read(ich) topo%vangl,topo%vtors,topo%chieeq, &
                & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
                & topo%xyze0,topo%zetac6,&
                & topo%qfrag,topo%hbbas,topo%hbaci
+            if (.not.allocated(neigh%vbond)) allocate (neigh%vbond(3,neigh%nbond))
             if (.not.allocated(neigh%nb)) allocate (neigh%nb(neigh%numnb,n,neigh%numctr))
             if (.not.allocated(neigh%blist)) allocate (neigh%blist(3,neigh%nbond))
             if (.not.allocated(neigh%nr_hb)) allocate(neigh%nr_hb(neigh%nbond))
@@ -143,7 +144,7 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             if (.not.allocated(neigh%bpair)) allocate(neigh%bpair(n,n,neigh%numctr))
             if (.not.allocated(neigh%iTrSum)) allocate(neigh%iTrSum(neigh%iTrDim*(neigh%iTrDim+1)/2))
             if (.not.allocated(neigh%iTrNeg)) allocate(neigh%iTrNeg(neigh%iTrDim))
-            read(ich) neigh%nb, neigh%blist, neigh%nr_hb, neigh%vbond, &
+            read(ich) neigh%vbond, neigh%nb, neigh%blist, neigh%nr_hb, neigh%vbond, &
                     & neigh%bpair, neigh%iTrSum, neigh%iTrNeg
          else
             if (verbose) &
@@ -197,19 +198,21 @@ subroutine write_restart_gff(env,fname,nat,version,topo,neigh)
    call open_binary(ich,fname,'w')
    !Dimensions
    write(ich) int(version,i8),int(nat,i8)
-   write(ich) topo%nbond,topo%nangl,topo%ntors,   &
-            & topo%nathbH,topo%nathbAB,topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,  &
-            & topo%maxsystem
+   write(ich) topo%nbond,topo%nangl,topo%ntors, topo%nathbH,topo%nathbAB, &
+            & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem, topo%maxsystem
    write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
    write(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
    !Arrays Integers
-   write(ich) topo%nb,topo%bpair,topo%blist,topo%alist,topo%tlist,topo%b3list, &
-      & topo%fraglist,topo%hbatHl,topo%hbatABl,topo%xbatABl,topo%ispinsyst,topo%nspinsyst,             &
-      & topo%bond_hb_AH,topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
+   write(ich) topo%nb,topo%bpair,neigh%blist,topo%alist, &
+           & topo%tlist,topo%b3list, topo%fraglist,topo%hbatHl,topo%hbatABl, &
+           & topo%xbatABl,topo%ispinsyst,topo%nspinsyst, topo%bond_hb_AH, &
+           & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
    !Arrays Reals
-   write(ich) topo%vbond,topo%vangl,topo%vtors,topo%chieeq,topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa,       &
-      & topo%xyze0,topo%zetac6,topo%qfrag,topo%hbbas,topo%hbaci
-   write(ich)neigh%nb, neigh%blist, neigh%nr_hb, neigh%vbond, &
+   write(ich) topo%vangl,topo%vtors,topo%chieeq,&
+           & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
+           & topo%xyze0,topo%zetac6, &
+           & topo%qfrag,topo%hbbas,topo%hbaci
+   write(ich) neigh%vbond, neigh%nb, neigh%blist, neigh%nr_hb, neigh%vbond, &
            & neigh%bpair, neigh%iTrSum, neigh%iTrNeg
    call close_file(ich)
 end subroutine write_restart_gff

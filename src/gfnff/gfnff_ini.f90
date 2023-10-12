@@ -105,6 +105,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       real(wp),allocatable:: transVec(:,:)
       type(TLatticePoint)  :: latPoint
       integer, allocatable:: locarr(:,:), nbrngs(:,:)
+      integer :: cDbl(4,42), cd, cdi ! for checking double counting
+      logical :: tDbl
 
       character(len=255) atmp
       integer  :: ich, err
@@ -632,7 +634,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                return
             end if
             topo%qfrag(ifrag) = dum2 ! back
-            call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,topo%qa) !@thomas removed qah now topo%qa 
+            call qheavy(mol%n,mol%at,neigh%numnb,neigh%numctr,neigh%nb,topo%qa)
             dqa =qah-topo%qa ! difference charges upon ionization
             dum1=0
             dum=0
@@ -1464,20 +1466,44 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
 
       topo%nangl=0
       do i=1,mol%n
-         nn=topo%nb(20,i)                 ! take full set to include M-X-Y
-         if(nn.le.1) cycle
-         if(topo%nb(20,i).gt.6) cycle     ! no highly coordinated atom
+         nn=sum(neigh%nb(neigh%numnb,i,:))                  ! take full set to include M-X-Y
+         if(nn.le.1) cycle                                  !
+         if(nn.gt.6) cycle     ! no highly coordinated atom !@thomas why not use nn in original code??
+         cDbl=0 ! cDbl stores j,k,iTr,iTr2 that were already considered
+         cdi=0
          ati=mol%at(i)
-         do j=1,nn
-            do k=1,j-1
-               jj=topo%nb(j,i)
-               kk=topo%nb(k,i)
-               atj=mol%at(jj)
-               atk=mol%at(kk)
-               fijk=param%angl(ati)*param%angl2(atj)*param%angl2(atk)
-               if(fijk.lt.gen%fcthr) cycle     ! too small
-               topo%nangl=topo%nangl+1
-            enddo
+         do iTr=1, neigh%numctr
+           do j=1,neigh%nb(neigh%numnb,i,iTr)
+             do iTr2=1, neigh%numctr !
+             !if (.not.neigh%iTrUsed(iTr2)) cycle  !avoid double counting
+               do k=1, j ! 
+               if (iTr.eq.iTr2.and.k.eq.j) cycle  !dont use same atom as both neighbors
+                 jj=neigh%nb(j,i,iTr)
+                 kk=neigh%nb(k,i,iTr2)
+                 if (kk.eq.0) cycle  !only j goes over nb so k or kk might be "out of bounds"
+                 atj=mol%at(jj)
+                 atk=mol%at(kk)
+                 fijk=param%angl(ati)*param%angl2(atj)*param%angl2(atk)
+                 if(fijk.lt.gen%fcthr) cycle     ! too small
+                 ! check for double counting
+                 tDbl=.false.
+                 do cd=1, 42
+                   if(cDbl(1,cd).eq.0) exit
+                   if(cDbl(1,cd).eq.kk.and.cDbl(2,cd).eq.jj.and.cDbl(3,cd).eq.iTr2.and.cDbl(4,cd).eq.iTr) then
+                     tDbl=.true.
+                     exit
+                   endif
+                 enddo
+                 if(tDbl) cycle
+                 cdi=cdi+1
+                 cDbl(1,cdi)=jj
+                 cDbl(2,cdi)=kk
+                 cDbl(3,cdi)=iTr
+                 cDbl(4,cdi)=iTr2
+                 topo%nangl=topo%nangl+1
+               enddo
+             enddo
+           enddo
          enddo
       enddo
 
@@ -1488,24 +1514,45 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       endif
 
       topo%nangl_alloc = topo%nangl
-      allocate( topo%alist(3,topo%nangl), source = 0 )
+      allocate( topo%alist(5,topo%nangl), source = 0 )
       allocate( topo%vangl(2,topo%nangl), source = 0.0d0 )
       topo%nangl=0
-      do i=1,mol%n
-         nn=topo%nb(20,i)
-         if(nn.le.1) cycle
-         if(topo%nb(20,i).gt.6) cycle
-         ii=i
-         ati=mol%at(i)
-         do j=1,nn
-            do k=1,j-1
-               jj=topo%nb(j,i)
-               kk=topo%nb(k,i)
+      do i=1,mol%n  ! start angl_loop
+        nn=sum(neigh%nb(neigh%numnb,i,:)) !@thomas for real pbc sum(nb(nb,i,:))
+        if(nn.le.1) cycle  !no angle with only one neighbor
+        if(nn.gt.6) cycle  !@thomas no highly coordinated systems
+        cDbl=0 !@thomas cDbl(j,k,iTr,iTr2) !iTr->j and iTr2->k
+        cdi=0
+        ii=i
+        ati=mol%at(i)
+        do iTr=1, neigh%numctr
+          do j=1,nn
+            do iTr2=1, neigh%numctr
+              do k=1,j
+               if (iTr.eq.iTr2.and.k.eq.j) cycle !dont use same atom as both neighbors
+               jj=neigh%nb(j,i,iTr) !@thomas only molecule in box case
+               kk=neigh%nb(k,i,iTr2)
+               if (kk.eq.0.or.jj.eq.0) cycle !only j goes over nb so k or kk might be "out of bounds"
                atj=mol%at(jj)
                atk=mol%at(kk)
                fijk=param%angl(ati)*param%angl2(atj)*param%angl2(atk)
                if(fijk.lt.gen%fcthr) cycle     ! too small
-               call bangl(mol%xyz,jj,i,kk,phi)
+               ! check for double counting
+               tDbl=.false.
+               do cd=1, 42
+                 if(cDbl(1,cd).eq.0) exit
+                 if(cDbl(1,cd).eq.kk.and.cDbl(2,cd).eq.jj.and.cDbl(3,cd).eq.iTr2.and.cDbl(4,cd).eq.iTr) then
+                   tDbl=.true.
+                   exit
+                 endif
+               enddo
+               if(tDbl) cycle
+               cdi=cdi+1
+               cDbl(1,cdi)=jj
+               cDbl(2,cdi)=kk
+               cDbl(3,cdi)=iTr
+               cDbl(4,cdi)=iTr2
+               call banglPBC(1,mol%xyz,jj,i,kk,iTr,iTr2,neigh,phi)
                if(param%metal(ati).gt.0.and.phi*180./pi.lt.60.) cycle ! skip eta cases even if CN < 6 (e.g. CaCp+)
                feta=1.0d0
                if(imetal(ii).eq.2.and.itag(jj).eq.-1.and.piadr(jj).gt.0) feta=0.3d0       ! eta coord.
@@ -1536,8 +1583,10 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                if(piadr(kk).ne.0)npi=npi+1
                topo%nangl=topo%nangl+1
                topo%alist(1,topo%nangl)=ii
-               topo%alist(2,topo%nangl)=jj
-               topo%alist(3,topo%nangl)=kk
+               topo%alist(2,topo%nangl)=jj  ! jj is shifted to iTr
+               topo%alist(3,topo%nangl)=kk  ! kk is shifted to iTr2
+               topo%alist(4,topo%nangl)=iTr  
+               topo%alist(5,topo%nangl)=iTr2 
                call ringsbend(mol%n,ii,jj,kk,cring,sring,rings)
                triple=(topo%hyb(ii).eq.1 .or. topo%hyb(jj).eq.1) .or. &
      &                (topo%hyb(ii).eq.1 .or. topo%hyb(kk).eq.1)
@@ -1638,11 +1687,11 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                                                                if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))then
                                                                    r0=115.
                                                                    f2=1.2d0
-                                                                 else
+                                                               else
                                                                    sumppi=pbo(lin(ii,jj))+pbo(lin(ii,kk))
                                                                    r0=113.
                                                                    f2=1.d0-sumppi*0.7d0 ! must be -!
-                                                                 endif
+                                                               endif
                   else
                                                                  r0=104. ! sat. pyr. N, steep around 106
                                                                  f2=0.40 ! 1.0 is better for NH3
@@ -1739,9 +1788,11 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                topo%vangl(2,topo%nangl)= fijk * fqq * f2 * fn * fbsmall * feta
 !              write(env%unit,*) param%angl(ati),param%angl2(atj),param%angl2(atk), param%angl(ati)*param%angl2(atj)*param%angl2(atk), fqq,f2,fn,fbsmall
                if(pr)write(env%unit,'(3i5,2x,3f8.3,l2,i4)') ii,jj,kk,r0,phi*180./pi,topo%vangl(2,topo%nangl),picon,rings
+              enddo
             enddo
-         enddo
-      enddo
+          enddo
+        enddo
+      enddo  ! end angl_loop 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -1753,29 +1804,35 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       do m=1,neigh%nbond
          ii=neigh%blist(1,m)
          jj=neigh%blist(2,m)
+         nni=sum(neigh%nb(neigh%numnb,ii,:))
+         nnj=sum(neigh%nb(neigh%numnb,jj,:))
          if(btyp(m).eq.3.or.btyp(m).eq.6)           cycle ! no sp-sp or metal eta
          if(param%tors(mol%at(ii)).lt.0.or.param%tors(mol%at(jj)).lt.0) cycle ! no negative values
          if(param%tors(mol%at(ii))*param%tors(mol%at(jj)).lt.1.d-3)     cycle ! no small values
-         if(param%metal(mol%at(ii)).gt.1.and.topo%nb(20,ii).gt.4)  cycle ! no HC metals
-         if(param%metal(mol%at(jj)).gt.1.and.topo%nb(20,jj).gt.4)  cycle !
-         topo%ntors=topo%ntors+topo%nb(20,ii)*topo%nb(20,jj)*2 ! upper limit
+         if(param%metal(mol%at(ii)).gt.1.and.nni.gt.4)  cycle ! no HC metals
+         if(param%metal(mol%at(jj)).gt.1.and.nnj.gt.4)  cycle !
+         topo%ntors=topo%ntors+nni*nnj*2 ! upper limit
       enddo
       maxtors=topo%ntors
       if(pr) write(env%unit,*) 'torsion atoms        nrot   rings    phi0    phi      FC'
 
       topo%ntors_alloc = topo%ntors
-      allocate( topo%tlist(5,topo%ntors), source = 0 )
+      allocate( topo%tlist(8,topo%ntors), source = 0 )
       allocate( topo%vtors(2,topo%ntors), source = 0.0d0 )
       topo%ntors=0
       do m=1,neigh%nbond
-         ii=neigh%blist(1,m)
-         jj=neigh%blist(2,m)
+         jj=neigh%blist(1,m)
+         ii=neigh%blist(2,m)
+         iTrj=neigh%blist(3,m)
+       ! iTri=1
+         nni=sum(neigh%nb(neigh%numnb,ii,:))
+         nnj=sum(neigh%nb(neigh%numnb,jj,:))
          if(btyp(m).eq.3.or.btyp(m).eq.6) cycle    ! metal eta or triple
          fij=param%tors(mol%at(ii))*param%tors(mol%at(jj))             ! atom contribution, central bond
          if(fij.lt.gen%fcthr)                 cycle
          if(param%tors(mol%at(ii)).lt.0.or.param%tors(mol%at(jj)).lt.0) cycle ! no negative values
-         if(param%metal(mol%at(ii)).gt.1.and.topo%nb(20,ii).gt.4)  cycle ! no HC metals
-         if(param%metal(mol%at(jj)).gt.1.and.topo%nb(20,jj).gt.4)  cycle !
+         if(param%metal(mol%at(ii)).gt.1.and.nni.gt.4)  cycle ! no HC metals
+         if(param%metal(mol%at(jj)).gt.1.and.nnj.gt.4)  cycle !
          fqq=1.0d0+abs(topo%qa(ii)*topo%qa(jj))*gen%qfacTOR      ! weaken it for e.g. CF-CF and similar
          call ringsbond(mol%n,ii,jj,cring,sring,rings) ! i and j in same ring
          lring=.false.
@@ -1785,11 +1842,15 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
          if(mol%at(ii).eq.6.and.mol%at(jj).eq.6) ccij=.true.
          nhi=1
          nhj=1
-         do ineig=1,topo%nb(20,ii)
-            if(mol%at(topo%nb(ineig,ii)).eq.1) nhi=nhi+1
+         do iTr=1, neigh%numctr
+           do ineig=1, neigh%nb(neigh%numnb,ii,iTr)
+             if(mol%at(neigh%nb(ineig,ii,iTr)).eq.1) nhi=nhi+1
+           enddo
          enddo
-         do jneig=1,topo%nb(20,jj)
-            if(mol%at(topo%nb(jneig,jj)).eq.1) nhj=nhj+1
+         do iTr=1, neigh%numctr
+           do jneig=1, neigh%nb(neigh%numnb,jj,iTr)
+             if(mol%at(neigh%nb(jneig,jj,iTr)).eq.1) nhj=nhj+1
+           enddo
          enddo
          fij=fij*(dble(nhi)*dble(nhj))**0.07 ! n H term
          ! amides and alpha carbons in peptides/proteins
@@ -1968,46 +2029,95 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       if(pr) write(env%unit,*) 'out-of-plane atoms          phi0    phi      FC'
       do i=1,mol%n
-         if(topo%nb(20,i).ne.3) cycle
+         if(sum(neigh%nb(neigh%numnb,i,:)).ne.3) cycle
          if(piadr(i).eq.0) then
             if(      mol%at(i) .ne.7) cycle
          endif
          topo%ntors=topo%ntors+1
-         jj=topo%nb(1,i)
-         kk=topo%nb(2,i)
-         ll=topo%nb(3,i)
+            ! get those 3 neighbors
+            call neigh%nbLoc(mol%n, neigh%nb, i, locarr)     
+            jj=0
+            kk=0
+            ll=0
+            iTrl=0
+            if (size(locarr,dim=2).eq.1) then     ! all 3 in same cell
+              jj=locarr(1,1)
+              kk=locarr(2,1)
+              ll=locarr(3,1)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,1)
+              iTrl=locarr(neigh%numnb,1)
+            elseif (size(locarr,dim=2).eq.2) then ! in 2 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(2,1)             !  guess its here
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,1)
+              if(ll.eq.0) then
+                ll=locarr(2,2) ! if ll was zero its in this cell
+                iTrl=locarr(neigh%numnb,2)
+              endif
+            else                                  ! in 3 cells
+              jj=locarr(1,1)
+              kk=locarr(1,2)
+              ll=locarr(1,3)
+              iTrj=locarr(neigh%numnb,1)
+              iTrk=locarr(neigh%numnb,2)
+              iTrl=locarr(neigh%numnb,3)
+            endif
+            deallocate(locarr)
 !        sort atoms according to distance to central atom such that the same inversion angle def. always results
-         sdum3(1)=rab(lin(i,jj))
-         sdum3(2)=rab(lin(i,kk))
-         sdum3(3)=rab(lin(i,ll))
+         sdum3(1)=neigh%distances(jj,i,iTrj)
+         sdum3(2)=neigh%distances(kk,i,iTrk)
+         sdum3(3)=neigh%distances(ll,i,iTrl)
          ind3(1)=jj
          ind3(2)=kk
          ind3(3)=ll
-         call ssort(3,sdum3,ind3)
-         jj=ind3(1)
-         kk=ind3(2)
+         call ssort(3,sdum3,ind3) 
+         sdum3(1)=neigh%distances(jj,i,iTrj)  ! need old indices for sorting iTr's
+         sdum3(2)=neigh%distances(kk,i,iTrk)
+         sdum3(3)=neigh%distances(ll,i,iTrl)
+         jj=ind3(1)  ! assign sorted indices
+         kk=ind3(2) 
          ll=ind3(3)
+         ! now sort iTr's
+         ind3(1)=iTrj
+         ind3(2)=iTrk
+         ind3(3)=iTrl
+         call ssort(3,sdum3,ind3) 
+         iTrj=ind3(1)
+         iTrk=ind3(2)
+         iTrl=ind3(3)
+         ! save to tlist
          topo%tlist(1,topo%ntors)=i
          topo%tlist(2,topo%ntors)=jj
          topo%tlist(3,topo%ntors)=kk
          topo%tlist(4,topo%ntors)=ll
+         topo%tlist(6,topo%ntors)=iTrl
+         topo%tlist(7,topo%ntors)=iTrj
+         topo%tlist(8,topo%ntors)=iTrk
          if(piadr(i).eq.0.and.mol%at(i).eq.7) then  ! sat N case
            r0=80.0d0
            ff=0.60d0
            topo%tlist(5,topo%ntors)=-1
            topo%vtors(1,topo%ntors)=r0*pi/180. ! double min at +/- phi0
            topo%vtors(2,topo%ntors)=0.0d0
-           do m=1,topo%nb(20,i)
-              idum=topo%nb(m,i)
-              topo%vtors(2,topo%ntors)=topo%vtors(2,topo%ntors)+ff*sqrt(param%repz(mol%at(idum)))  ! NX3 has higher inv barr. than NH3
+           do iTr=1, neigh%numctr
+             do m=1,neigh%nb(neigh%numnb,i,iTr)
+               idum=neigh%nb(m,i,iTr)
+               topo%vtors(2,topo%ntors)=topo%vtors(2,topo%ntors)+ff*sqrt(param%repz(mol%at(idum)))  ! NX3 has higher inv barr. than NH3
+             enddo
            enddo
          else
            ncarbo=0
            nf    =0
-           do m=1,topo%nb(20,i)
-              idum=topo%nb(m,i)
-              if(mol%at(idum).eq.8.or.mol%at(idum).eq.16) ncarbo=ncarbo+1
-              if(param%group(mol%at(idum)).eq.7           ) nf    =nf    +1
+           do iTr=1, neigh%numctr
+             do m=1,neigh%nb(neigh%numnb,i,iTr)
+               idum=neigh%nb(m,i,iTr)
+               if(mol%at(idum).eq.8.or.mol%at(idum).eq.16) ncarbo=ncarbo+1
+               if(param%group(mol%at(idum)).eq.7           ) nf    =nf    +1
+             enddo
            enddo
            fqq=1.0d0+topo%qa(i)*5.0d0
            topo%tlist(5,topo%ntors)=0         ! phi0=0 case (pi)
@@ -2023,7 +2133,10 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
            if(mol%at(i).eq.7.and.ncarbo.gt.0)             topo%vtors(2,topo%ntors)=topo%vtors(2,topo%ntors)*10./f2 ! no pi dep
          endif
 !        printout
-         phi=omega(mol%n,mol%xyz,i,jj,kk,ll)
+         vTrl=neigh%transVec(:,iTrl)
+         vTrj=neigh%transVec(:,iTrj)
+         vTrk=neigh%transVec(:,iTrk)
+         phi=omegaPBC(mol%n,mol%xyz,i,jj,kk,ll,vTrl,vTrj,vTrk)
          if(pr)write(env%unit,'(4i5,7x,3f8.3)') i,jj,kk,ll,topo%vtors(1,topo%ntors)*180./pi,phi*180./pi,topo%vtors(2,topo%ntors)
       enddo
 
@@ -2038,8 +2151,8 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
          use xtb_setparam, only : set, p_modh_old
 
          if (set%mhset%model == p_modh_old) then
-            call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,topo%nb, &
-               & topo%ispinsyst,topo%nspinsyst,topo%nsystem,env)
+         call fragmentize(mol%n,mol%at,mol%xyz,topo%maxsystem,500,rab,neigh%numnb,neigh%numctr,neigh%nb, &
+            & topo%ispinsyst,topo%nspinsyst,topo%nsystem,env)
          else
             topo%nsystem=1
          endif
