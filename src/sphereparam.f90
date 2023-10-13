@@ -53,6 +53,7 @@ module xtb_sphereparam
       integer,allocatable :: list(:)
       real(wp) :: radius(3) = 0.0_wp
       real(wp) :: center(3) = 0.0_wp
+      logical  :: sandwich = .false.
    end type tb_wall
 
    integer :: number_walls
@@ -438,7 +439,50 @@ subroutine logfermi_cavity_all(nat,at,xyz,temp,alpha,center,radius,&
       gfix(:,i) = gfix(:,i) + kB*temp * alpha*expterm*fermi * (r*w)/(dist+1.0e-14_wp)
    enddo
 
-end subroutine logfermi_cavity_all
+end subroutine logfermi_cavity_all 
+
+subroutine logfermi_cavity_sandwich(nat,at,xyz,temp,alpha,center,radius,&
+   &                           efix,gfix)
+   use xtb_mctc_constants, only : kB
+   use xtb_mctc_convert, only : autoaa
+   implicit none
+   integer, intent(in)  :: nat
+   integer, intent(in)  :: at(nat)
+   real(wp),intent(in)  :: xyz(3,nat)
+
+   real(wp),intent(in)  :: temp      ! temperature
+   real(wp),intent(in)  :: alpha     ! potential steepness
+   real(wp),intent(in)  :: center(3) ! aufpunkt of wall potential
+   real(wp),intent(in)  :: radius(3) ! distance of sandwiches in Angstroem
+
+   integer  :: i
+   real(wp) :: r1,r2,R0,expterm1,expterm2,fermi1,fermi2,efix1,efix2,gfix1(3,nat),gfix2(3,nat)
+
+   real(wp),intent(inout) :: efix
+   real(wp),intent(inout) :: gfix(3,nat)
+
+   efix1=0
+   efix2=0
+   gfix1=0
+   gfix2=0
+   R0 = minval(radius)/2+(4.0_wp/autoaa) !4.0A buffer 
+
+   do i = 1, nat
+      r1 = (xyz(3,i) - R0 )
+      r2 = (xyz(3,i) + R0 )
+      expterm1 = exp(alpha*r1)
+      expterm2 = exp(alpha*r2)
+      fermi1 = 1.0_wp/(1.0_wp+expterm1)
+      fermi2 = 1.0_wp/(1.0_wp+expterm2)
+      efix1 = efix1 + kB*temp * log( 1.0_wp+expterm1 )
+      efix2 = efix2 + kB*temp * log( 1.0_wp+expterm2 )
+      efix=efix1+efix2
+      gfix1(:,i) = gfix1(:,i) + kB*temp * alpha*expterm1*fermi1 *(r1/abs(r1)) 
+      gfix2(:,i) = gfix2(:,i) + kB*temp * alpha*expterm2*fermi2 *(r2/abs(r2))
+      gfix(:,i)=gfix1(:,i)+gfix2(:,i)
+   enddo
+
+end subroutine logfermi_cavity_sandwich
 
 !! ========================================================================
 subroutine polynomial_cavity_list(nat,at,xyz,nlist,list,alpha,center,radius,&
@@ -580,6 +624,9 @@ subroutine cavity_egrad(nat,at,xyz,efix,gfix)
             nlist = size(wpot(i)%list,1)
             call logfermi_cavity(nat,at,xyz,nlist,wpot(i)%list,sphere_temp, &
                  sphere_beta,wpot(i)%center,wpot(i)%radius,efix,gfix)
+         else if (wpot(i)%sandwich) then
+            call logfermi_cavity_sandwich(nat,at,xyz,sphere_temp,sphere_beta, &
+                 wpot(i)%center,wpot(i)%radius,efix,gfix)
          else
             call logfermi_cavity(nat,at,xyz,sphere_temp,sphere_beta, &
                  wpot(i)%center,wpot(i)%radius,efix,gfix)
