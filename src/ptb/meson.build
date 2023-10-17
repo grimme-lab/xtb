@@ -19,4 +19,5 @@ srcs += files(
   'calculator.f90',
   'param.f90',
   'data.f90',
+  'vdzp.f90',
 )
