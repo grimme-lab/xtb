@@ -165,7 +165,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    real(wp), intent(out) :: sigma(3,3) ! stress tensor
    real*8 g  (3,n)
    real*8 etot
-   logical pr
+   logical pr, exitRun
    logical makeq
 
    real*8 edisp,ees,ebond,eangl,etors,erep,ehb,exb,ebatm,eext
@@ -183,11 +183,11 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    real*8  repab,t16,t19,t26,t27,xa,ya,za,cosa,de,t28
    real*8  gammij,eesinf,etmp,phi,valijklff
    real*8  omega,rn,dr,g3tmp(3,3),g4tmp(3,4)
-   real*8 rij,drij(3,n)
+   real*8 rij,drij(3,n),drijdcn(2)
 
-   real*8, allocatable :: grab0(:,:,:), rab0(:), eeqtmp(:,:)
-   real*8, allocatable :: cn(:), dcn(:,:,:), qtmp(:)
-   real*8, allocatable :: hb_cn(:), hb_dcn(:,:,:)
+   real*8, allocatable :: grab0(:,:,:), rab0(:), eeqtmp(:,:), rabdcn(:,:)
+   real*8, allocatable :: cn(:), dcn(:,:,:), dcndr(:,:,:), dcndL(:,:,:), qtmp(:), dEdcn(:)
+   real*8, allocatable :: hb_cn(:), hb_dcn(:,:,:), dhbcndL(:,:,:)
    real(wp), allocatable :: gTrans(:,:), rTrans(:,:) ! reciprocal, direct translation vector for ES
    real*8, allocatable :: sqrab(:), srab(:)
    real*8, allocatable :: g5tmp(:,:)
@@ -195,6 +195,9 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    real(wp),allocatable :: xtmp(:)
    type(tb_timer) :: timer
    real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
+   real(wp) :: ds(3,3)
+   real(wp) :: convF  !convergence factor alpha, aka ewald parameter 
+   logical, allocatable :: considered_ABH(:,:,:)
    real(wp) :: mcf_ees, mcf_ehb, mcf_nrep, mcf_s8
       if (version == gffVersion%mcgfnff2023) then
         mcf_nrep = 1.343608_wp        
@@ -212,6 +215,31 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
       endif
 
    call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
+
+      !@thomas_ Init of latPoint uses diagonal, not correct for cell with angle.ne.90°
+      vec=mol%lattice(:,1)+mol%lattice(:,2)
+      ! get translation vectors within maximum cutoff (at least central 27)
+      !@thomas TODO in the end this should be the only 
+      ! routine for generating the lattice vectors
+      !@thomas pass calc from first SP to optimization?? -> not general since calc is extended
+      neigh%oldCutOff=0.0_wp !@thomas optimization does not call gfnff_ini ...no init_n
+      call neigh%getTransVec(mol,60.0_wp)
+
+      if (mol%boundaryCondition.ne.0) then
+        if(size(transVec,dim=2).le.neigh%numctr)then
+          ! want at least 27 cells
+          if(allocated(transVec)) deallocate(transVec)
+          allocate(transVec(3,neigh%numctr))
+          transVec=neigh%transVec(:,1:neigh%numctr)
+        endif
+      endif
+
+      ! Get all the distances !@thomas TODO rethink this and eventually remove %dist from topo file
+      ! get Distances
+      call neigh%getTransVec(mol,sqrt(repthr))
+      if(allocated(neigh%distances)) deallocate(neigh%distances)
+      call getDistances(neigh%distances, mol, neigh)
+
 
    g  =  0
    exb = 0
@@ -231,9 +259,11 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    ghb = 0.0d0
    gshift = 0.0d0
 
+   sigma = 0.0_wp 
+
    allocate(sqrab(n*(n+1)/2),srab(n*(n+1)/2),qtmp(n),g5tmp(3,n), &
    &         eeqtmp(2,n*(n+1)/2),d3list(2,n*(n+1)/2),dcn(3,n,n),cn(n), &
-   &         hb_dcn(3,n,n),hb_cn(n))
+   &         dcndr(3,n,n), dcndL(3,3,n), hb_dcn(3,n,n),hb_cn(n),dhbcndL(3,3,n))
 
    if (pr) then   
    
@@ -253,7 +283,8 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    nd3=0
    do i=1,n
       ij = i*(i-1)/2
-      do j=1,i-1
+      do j=1,i
+         if (j.eq.i) cycle ! dont calc distance to self for non-periodic distances (below)
          k = ij+j
          sqrab(k)=(xyz(1,i)-xyz(1,j))**2+&
          &  (xyz(2,i)-xyz(2,j))**2+&
@@ -282,7 +313,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    if (allocated(nlist%q)) then
       nlist%initialized = size(nlist%q) == n
    end if
-   call gfnff_hbset0(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
+   call gfnff_hbset0(n,at,xyz,topo,nhb1,nhb2,nxb,neigh,nlist,hbthr1,hbthr2)
    nlist%initialized = nlist%initialized .and. nhb1 <= nlist%nhb1 &
       & .and. nhb2 <= nlist%nhb2 .and. nxb <= nlist%nxb
    require_update = .not.nlist%initialized
@@ -299,7 +330,6 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
       nlist%hbrefgeo(:, :) = xyz
    end if
    if (update .or. require_update) then
-      !call gfnff_hbset(n,at,xyz,sqrab,topo,nlist,hbthr1,hbthr2) !@thomas old delete
       call gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
    end if
    if (pr) call timer%measure(10)
@@ -387,31 +417,59 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    ! erf CN and gradient for disp !
    !------------------------------!
 
-   if (pr) call timer%measure(3,'dCN')
-   call gfnff_dlogcoord(n,at,xyz,srab,cn,dcn,cnthr,param) ! new erf used in GFN0
-   if (sum(topo%nr_hb).gt.0) call dncoord_erf(n,at,xyz,param%rcov,hb_cn,hb_dcn,900.0d0,topo) ! HB erf CN
-   if (pr) call timer%measure(3)
+   if (mol%boundaryCondition.eq.0) then
+     if (pr) call timer%measure(3,'dCN')
+     call gfnff_dlogcoord(n,at,xyz,srab,cn,dcn,cnthr,param) ! new erf used in GFN0
+     dhbcndL=0.0_wp
+     if (sum(neigh%nr_hb).gt.0) call dncoord_erf(n,at,xyz,param%rcov,hb_cn,hb_dcn,900.0d0,topo,neigh,dhbcndL) ! HB erf CN
+     if (pr) call timer%measure(3)
+
+   else
+     if (pr) call timer%measure(3,'dCN')
+     if (sum(neigh%nr_hb).gt.0) call dncoord_erf(n,at,xyz,param%rcov,hb_cn,hb_dcn,900.0d0,topo,neigh,dhbcndL) ! HB erf CN
+     call getCoordinationNumber(mol, neigh%nTrans, neigh%transVec, 60.0_wp, 5, cn, dcndr, dcndL, param)   
+     if (pr) call timer%measure(3)
+   endif
 
    !-----!
    ! EEQ !
    !-----!
 
-   if (pr) call timer%measure(4,'EEQ energy and q')
-   call goed_gfnff(env,accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
-   &                dfloat(ichrg),eeqtmp,cn,nlist%q,ees,solvation,param,topo)  ! without dq/dr
-   if (pr) call timer%measure(4)
+   if (mol%boundaryCondition.eq.0) then
+     if (pr) call timer%measure(4,'EEQ energy and q')
+     call goed_gfnff(env,accuracy.gt.1,n,at,sqrab,srab,&         ! modified version
+     &                dfloat(ichrg),eeqtmp,cn,nlist%q,ees,solvation,param,topo)  ! without dq/dr
+     if (pr) call timer%measure(4)
+   else
+     if (pr) call timer%measure(4,'EEQ energy and q')
+     call goed_pbc_gfnff(env,mol,accuracy.gt.1,n,at,neigh%distances(:,:,1), &
+     & dfloat(ichrg),eeqtmp,cn,nlist%q,ees,solvation,param,topo, gTrans, &
+     & rTrans, xtmp, convF)  ! without dq/dr
+     ees = ees*mcf_ees 
+     if (pr) call timer%measure(4)
+   endif  
 
    !--------!
    ! D3(BJ) !
    !--------!
 
-   if (pr) call timer%measure(5,'D3')
-   if(nd3.gt.0) then
-      call d3_gradient(topo%dispm, n, at, xyz, nd3, d3list, topo%zetac6, &
-      & param%d3r0, sqrtZr4r2, 4.0d0, param%dispscale, cn, dcn, edisp, g)
+   if (mol%boundaryCondition.eq.0) then
+     if (pr) call timer%measure(5,'D3')
+     if(nd3.gt.0) then
+        call d3_gradient(topo%dispm, n, at, xyz, nd3, d3list, topo%zetac6, &
+        & param%d3r0, sqrtZr4r2, 4.0d0, param%dispscale, cn, dcn, edisp, g)
+     endif
+     deallocate(d3list)
+     if (pr) call timer%measure(5)
+    else
+      ! use adjusted dispersion parameters for inter-molecular interactions
+      ! calculate inter-molecular dispersion
+      call d3_gradientPBC(topo%dispm, mol, topo%fraglist, neigh%nTrans, neigh%transVec, mcdisp_par, 4.0_wp, topo%zetac6, &
+           & param%d3r0, 60.0_wp, .true., cn, dcndr, dcndL, edisp, g, sigma)
+      ! calculate intra-molecular dispersion
+      call d3_gradientPBC(topo%dispm, mol, topo%fraglist, neigh%nTrans, neigh%transVec, disp_par, 4.0_wp, topo%zetac6, &
+           & param%d3r0, 60.0_wp, .false., cn, dcndr, dcndL, edisp, g, sigma)
    endif
-   deallocate(d3list)
-   if (pr) call timer%measure(5)
 
    !---------!
    ! ES part !
@@ -725,7 +783,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    !--------------!
    ! total energy !
    !--------------!
-   
+
    etot = ees + edisp + erep + ebond &
    &           + eangl + etors + ehb + exb + ebatm + eext &
    &           + gsolv
@@ -921,28 +979,32 @@ subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g,param,topo
 
 end subroutine egbond_hb
 
-subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo)
+!@thomas for vimdiff
+subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo,neigh,dcndL)
     
    use xtb_mctc_accuracy, only : wp
    
    implicit none
    
    type(TGFFTopology), intent(in) :: topo
+   type(TNeigh), intent(in) :: neigh
    integer,intent(in)   :: nat
    integer,intent(in)   :: at(nat)
    real(wp),intent(in)  :: xyz(3,nat)
    real(wp),intent(in)  :: rcov(:)
    real(wp),intent(out) :: cn(nat)
    real(wp),intent(out) :: dcn(3,nat,nat)
+   !> Derivative of the CN with respect to strain deformations.
+   real(wp), intent(out) :: dcndL(:, :, :)
    real(wp),intent(in),optional :: thr
    real(wp) :: cn_thr
    
-   integer  :: i, j
+   integer  :: i, j, iTrB, iTrH
    integer  :: lin,linAH
    integer  :: iat, jat
    integer  :: iA,jA,jH
    integer  :: ati, atj
-   real(wp) :: r, r2, rij(3)
+   real(wp) :: r, r2, rij(3), stress(3,3)
    real(wp) :: rcovij
    real(wp) :: dtmp, tmp
    real(wp),parameter :: hlfosqrtpi = 1.0_wp/1.77245385091_wp
@@ -951,15 +1013,20 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo)
 
    cn  = 0._wp
    dcn = 0._wp
+   dcndL = 0.0_wp
 
    do i = 1,topo%bond_hb_nr
-      iat = topo%bond_hb_AH(2,i)
+      iat = topo%bond_hb_AH(2,i) ! H atom
+      iTrH = topo%bond_hb_AH(4,i)
       ati = at(iat)
-      iA  = topo%bond_hb_AH(1,i)
+      iA  = topo%bond_hb_AH(1,i) ! A atom
+      ! iTrA is not needed, actually iA is not even used
       do j = 1, topo%bond_hb_Bn(i)
-         jat = topo%bond_hb_B(1,j,i)
+         jat = topo%bond_hb_B(1,j,i) ! B atom
+         iTrB = topo%bond_hb_B(2,j,i)
          atj = at(jat)
-         rij = xyz(:,jat) - xyz(:,iat)
+         if(iTrB.gt.neigh%nTrans.or.iTrH.gt.neigh%nTrans) cycle
+         rij = (xyz(:,jat)+neigh%transVec(:,iTrB)) - (xyz(:,iat)+neigh%transVec(:,iTrH)) 
          r2  = sum( rij**2 )
          if (r2.gt.thr) cycle
          r = sqrt(r2)
@@ -969,9 +1036,15 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo)
          cn(iat) = cn(iat) + tmp
          cn(jat) = cn(jat) + tmp
          dcn(:,jat,jat)= dtmp*rij/r + dcn(:,jat,jat)
-         dcn(:,iat,jat)= dtmp*rij/r
-         dcn(:,jat,iat)=-dtmp*rij/r
+         dcn(:,iat,jat)= dtmp*rij/r + dcn(:,iat,jat)
+         dcn(:,jat,iat)=-dtmp*rij/r + dcn(:,jat,iat)
          dcn(:,iat,iat)=-dtmp*rij/r + dcn(:,iat,iat)
+        
+         stress = spread(dtmp*rij/r, 1, 3) * spread(rij, 2, 3)
+         dcndL(:, :, iat) = dcndL(:, :, iat) + stress
+         if (iat.ne.jat.or.iTrH.ne.iTrB) then
+           dcndL(:, :, jat) = dcndL(:, :, jat) + stress
+         end if
       end do
    end do
 
@@ -1608,9 +1681,177 @@ subroutine goed_gfnff(env,single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,top
 
 end subroutine goed_gfnff
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+subroutine goed_pbc_gfnff(env,mol,single,n,at,r,chrg,eeqtmp,cn,q,es,&
+                      & gbsa,param,topo, gTrans, rTrans, x, cf)
+   use xtb_mctc_accuracy, only : wp, sp
+   use xtb_mctc_la
+   use xtb_mctc_blas, only: mctc_symv
+   implicit none
+   character(len=*), parameter :: source = 'gfnff_eg_goed'
+   ! Molecular structure information
+   type(TMolecule), intent(in) :: mol
+   type(TEnvironment), intent(inout) :: env
+   type(TGFFData), intent(in) :: param
+   type(TGFFTopology), intent(in) :: topo
+   logical, intent(in)  :: single     ! real*4 flag for solver
+   integer, intent(in)  :: n          ! number of atoms
+   !integer, intent(in)  :: numctr
+   integer, intent(in)  :: at(n)      ! ordinal numbers
+   real(wp),intent(in)  :: r(n,n)       ! dist
+   real(wp),intent(in)  :: chrg       ! total charge on system
+   real(wp),intent(in)  :: cn(n)      ! CN
+   real(wp),intent(out) :: q(n)       ! output charges
+   real(wp),intent(out) :: es         ! ES energyi
+   real(wp),allocatable,intent(out) :: x(:)
+   real(wp),intent(out) :: eeqtmp(2,n*(n+1)/2)    ! intermediates !@thomas need to calc diff here??
+   real(wp), intent(out) :: cf !convergence factor
+   type(TBorn), allocatable, intent(in) :: gbsa
+
+   ! local variables
+   integer  :: m,i,j,k,ii,ij
+   integer,allocatable :: ipiv(:)
+   real(wp) :: gammij,tsqrt2pi,r2,tmp
+   real(wp),allocatable :: A (:,:), x_right(:)
+   real(sp),allocatable :: A4(:,:),x4(:)
+
+   ! for calc of Coulomb matrix Amat
+   real(wp), allocatable :: Amat(:,:), Amat_or(:,:)
+   real(wp), allocatable, intent(out) :: rTrans(:,:)
+   real(wp), allocatable, intent(out) :: gTrans(:,:)
+   real(wp) :: vec(3)
+   integer :: iRp, iG1, iG2, iG3, iT1, iT2, iT3
+   integer, parameter :: ewaldCutD(3) = 2  !@thomas original was 2 !!!! important
+   integer, parameter :: ewaldCutR(3) = 2  
+   real(wp), parameter :: sqrtpi = 1.772453850905516_wp
+   real(wp) :: avgAlpeeq
+
+   ! parameter
+   parameter (tsqrt2pi = 0.797884560802866_wp)
+   logical :: exitRun
+
+      m=n+topo%nfrag ! # atoms + chrg constrain + frag constrain
+      
+      allocate(Amat(m,m), Amat_or(m,m), x(m), x_right(m), source=0.0_wp) ! matrix contains constrains -> linear equations
+
+      !@thomas calc rTrans, gTrans
+      iRp = 0
+      allocate(gTrans(3, product(2*ewaldCutR+1)-1), source=0.0_wp)
+      do iG1 = -ewaldCutR(1), ewaldCutR(1)
+         do iG2 = -ewaldCutR(2), ewaldCutR(2)
+            do iG3 = -ewaldCutR(3), ewaldCutR(3)
+               if (iG1 == 0 .and. iG2 == 0 .and. iG3 == 0) cycle
+               iRp = iRp + 1
+               vec(:) = [iG1, iG2, iG3]
+               gTrans(:, iRp) = matmul(mol%rec_lat, vec)
+            end do
+         end do
+      end do
+
+      iRp = 0
+      allocate(rTrans(3, product(2*ewaldCutD+1)))
+      do iT1 = -ewaldCutD(1), ewaldCutD(1)
+         do iT2 = -ewaldCutD(2), ewaldCutD(2)
+            do iT3 = -ewaldCutD(3), ewaldCutD(3)
+               iRp = iRp + 1
+               vec(:) = [iT1, iT2, iT3]
+               !@thomas_important mal für latP oder mol%lattice entscheiden!!
+               rTrans(:, iRp) = matmul(mol%lattice, vec) 
+            end do
+         end do
+      end do
+!  calc eeqtmp
+ !$omp parallel default(none) &
+ !$omp shared(topo,n,r,eeqtmp) &
+ !$omp private(i,j,k,ij,gammij,tmp)
+ !$omp do schedule(dynamic)
+      do i=1,n
+      k = i*(i-1)/2
+      do j=1,i-1
+         ij = k+j
+         gammij=1./sqrt(topo%alpeeq(i)+topo%alpeeq(j)) ! squared above
+         tmp = erf(gammij*r(i,j))
+         eeqtmp(1,ij)=gammij
+         eeqtmp(2,ij)=tmp
+      enddo
+      enddo
+ !$omp enddo
+ !$omp end parallel
+
+      ! cf, aka ewald parameter
+      avgAlpeeq=sum(topo%alpeeq)/mol%n
+      cf = get_cf(rTrans,gTrans, mol%volume, avgAlpeeq)
+
+      ! build Ewald matrix
+      call get_amat_3d(mol, topo, cf, rTrans, gTrans, Amat) 
+      
+
+      !  setup RHS
+      do i=1,n
+         x(i) = topo%chieeq(i) + param%cnf(at(i))*sqrt(cn(i))
+      enddo
+
+!  fragment charge constrain
+      do i=1,topo%nfrag
+        x(n+i)=topo%qfrag(i)
+        do j=1,n
+         if(topo%fraglist(j).eq.i) then
+            Amat(n+i,j)=1
+            Amat(j,n+i)=1
+         endif
+        enddo
+      enddo
+
+      if (allocated(gbsa)) then
+         Amat(:n, :n) = Amat(:n, :n) + gbsa%bornMat(:, :)
+      end if
+
+      allocate(ipiv(m))
+
+      Amat_or = Amat
+      if(single) then
+         allocate(A4(m,m),x4(m))
+         A4=Amat
+         x4=x
+         x_right(1:n)=x(1:n)
+         deallocate(Amat)
+         call mctc_sytrf(env, a4, ipiv)
+         call mctc_sytrs(env, a4, x4, ipiv)
+         q(1:n)=x4(1:n)
+         x = x4
+         deallocate(A4,x4)
+      else
+         x_right(1:n)=x(1:n)
+         call mctc_sytrf(env, Amat, ipiv)
+         call mctc_sytrs(env, Amat, x, ipiv)
+         q(1:n)=x(1:n)
+         deallocate(Amat)
+      endif
+
+      call env%check(exitRun)
+      if(exitRun) then
+         call env%error('Solving linear equations failed', source)
+         return
+      end if
+
+      if(n.eq.1) q(1)=chrg
+
+      !@thomas calc ES= q^T*(0.5*A*q-X) | ^T transpose
+      ! First calc bracket term with mctc_symv, result is saved in x_right
+      ! now the x is used as q to save memory
+      call mctc_symv(Amat_or, x, x_right, alpha=0.5_wp, beta=-1.0_wp)
+      ! from src/mctc/blas/level2.F90 about mctc_symv similar to mctc_gemv
+      ! y := alpha*A*x + beta*y,   or   y := alpha*A**T*x + beta*y
+
+      !Calc ES as dot product (=matrix product) since q and x are vectors 
+      !es = dot_product(x, x_right)
+      es = mctc_dot(x, x_right)!*1.05_wp
+!!!  es = mctc_dot(x(1:n), x_right(1:n))
+end subroutine goed_pbc_gfnff
+
+
+!cccccccccccccccccccccccccccccccccccc
 ! HB energy and analytical gradient
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccc
 
 !> Case 1: A...H...B
 subroutine abhgfnff_eg1(n,A,B,H,at,xyz,q,sqrab,srab,energy,gdr,param,topo)
@@ -4178,7 +4419,6 @@ subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
 
    vol = mol%volume ! abs(matdet_3x3(mol%lattice))
    
-
    !$omp parallel do default(none) schedule(runtime) &
    !$omp reduction(+:amat) shared(mol, topo, rTrans, gTrans, alpha, vol) &
    !$omp private(iat, jat, gam, wsw, vec, dtmp, rtmp)
@@ -4214,6 +4454,7 @@ subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
       dtmp = topo%gameeq(iat) + sqrt2pi / sqrt(topo%alpeeq(iat)) - 2 * alpha/sqrtpi
       amat(iat, iat) = amat(iat, iat) + dtmp
    end do
+   !$omp end parallel do
 
    amat(mol%n+1, 1:mol%n+1) = 1.0_wp
    amat(1:mol%n+1, mol%n+1) = 1.0_wp
@@ -4336,6 +4577,7 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
       end do
       dadL(:, :, iat) = +dS*qvec(iat) + dadL(:, :, iat)
    end do
+   !$omp end parallel do
 
 end subroutine get_damat_3d
 

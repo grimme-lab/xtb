@@ -206,6 +206,14 @@ end subroutine copyMolecule
 subroutine initMolecule &
      & (mol, at, sym, xyz, chrg, uhf, lattice, pbc)
 
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
+
    type(TMolecule), intent(out) :: mol
    integer, intent(in) :: at(:)
    character(len=*), intent(in) :: sym(:)
@@ -273,6 +281,8 @@ subroutine initMolecule &
    call mol%set_atomic_masses
 
    call mol%update
+
+   call generate_wsc(mol, mol%wsc)
 
 end subroutine initMolecule
 

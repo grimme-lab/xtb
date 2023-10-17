@@ -93,7 +93,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       real(wp),allocatable:: rab  (:)
       real(wp),allocatable:: sqrab(:)
       real(wp),allocatable:: cn   (:)
-      real(wp),allocatable:: dcn(:,:,:)
+      real(wp),allocatable:: dcn(:,:,:), dcndL(:,:,:)
       real(wp),allocatable:: dgam(:), dxi(:)
       real(wp),allocatable:: mchar(:)
       real(wp),allocatable:: rtmp (:)
@@ -232,7 +232,21 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 
 !     Calculate CN and derivative
       allocate(dcn(3,mol%n,mol%n), source = 0.0d0 )
-      call gfnff_dlogcoord(mol%n,mol%at,mol%xyz,rab,cn,dcn,cnthr,param) ! dcn needed
+      if (mol%boundaryCondition.eq.0) then 
+        call gfnff_dlogcoord(mol%n,mol%at,mol%xyz,rab,cn,dcn,cnthr,param) ! dcn needed
+     
+      else
+        vec=mol%lattice(:,1)+mol%lattice(:,2)                       
+        MaxCutOff = sqrt(norm2(vec)**2 +norm2(mol%lattice(:,3))**2 &
+          & -2*dot_product(vec, mol%lattice(:,3))) + 1.0_wp ! 
+        MaxCutOff = max(MaxCutoff, 60.0_wp) ! at least 60           
+     
+        call init_l(latPoint, env, mol%lattice, mol%boundaryCondition, MaxCutOff)
+        call latPoint%getLatticepoints(transVec, MaxCutOff) !@thomas
+        allocate(dcndL(3,3,mol%n),source = 0.0d0)
+        call getCoordinationNumber(mol, latPoint%nTrans, transVec, 40.0_wp, 5, cn, dcn, dcndL, param)   
+        deallocate(dcndL)
+      endif
       do i=1,mol%n
          dum2=0
          do j=1,mol%n
@@ -1182,7 +1196,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
          if(amide(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr,i))  j=-topo%hyb(i)
          if(mol%at(i).eq.6.and.itag(i).eq.1) j=-topo%hyb(i)
          write(env%unit,'(i5,2x,a2,3x,i4,3x,f5.2,2x,f5.2,8x,i2,3x,i2,3x,i2,2x,f6.3,3f12.6)') &
-     &             i,mol%sym(i),topo%nb(20,i),cn(i),mchar(i),j,imetal(i),piadr(i),topo%qa(i),mol%xyz(1:3,i)
+     &             i,mol%sym(i),sum(neigh%nb(neigh%numnb,i,:)),cn(i),mchar(i),j,imetal(i),piadr(i),topo%qa(i),mol%xyz(1:3,i)
       enddo
 
 !     compute fragments and charges for output (check for CT)

@@ -341,6 +341,8 @@ subroutine writeInfo(self, unit, mol)
    select case(set%mode_extrun)
    case(p_ext_gfnff)
      call gfnff_header(unit,self%version)
+   case(p_ext_mcgfnff)
+     call gfnff_header(unit,self%version)
    end select
 
    if (allocated(self%solvation)) then

@@ -119,7 +119,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       ! take the input
       else
 
-         neigh%nbf = neigh%nb !@thomas_important wird so in orig gemacht
+         neigh%nbf = neigh%nb
          neigh%nbm = neigh%nb 
 
       endif
@@ -287,7 +287,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
                do iTr=1, numctr
                  do j=1,3
                    jj= nbdum(j,i,iTr)
-                   if(jj.eq.0) exit !@thomas if there is no 1st nb there is no nb 
+                   if(jj.eq.0) exit ! if there is no 1st nb there is no nb at all
                    if(at(jj).eq. 8.and.sum(neigh%nb(neigh%numnb,jj,:)).eq.1) kk=kk+1 ! check for NO2 or R2-N=O
                    if(at(jj).eq. 5.and.sum(neigh%nb(neigh%numnb,jj,:)).eq.4) ll=ll+1 ! check for B-N, if the CN(B)=4 the N is loosely bound and sp2
                    if(at(jj).eq.16.and.sum(neigh%nb(neigh%numnb,jj,:)).eq.4) nn=nn+1 ! check for N-SO2-
@@ -856,13 +856,11 @@ use xtb_mctc_accuracy, only : wp
       ! for nxb list only i is not shifted
       nlist%nxb =0
       do ix=1,topo%natxbAB
-        !do iTrj=1, neigh%nTrans !@thomas this would be double counting
           i =topo%xbatABl(1,ix)   ! A
           j =topo%xbatABl(2,ix)   ! B
           iTrj=topo%xbatABl(4,ix) ! iTrB
           if(iTrj.gt.neigh%nTrans.or.iTrj.lt.-1.or.iTrj.eq.0) cycle ! cycle nonsense 
-          rab=NORM2(xyz(:,j)-xyz(:,i)+neigh%transVec(:,iTrj))**2 !@thomas changed order but should be same as gfnff_hbset0 now
-          !rab=neigh%distances(j,i,iTrj)**2 ! %distances are generated up to hbthr2 
+          rab=NORM2(xyz(:,j)-xyz(:,i)+neigh%transVec(:,iTrj))**2
           if(rab.gt.hbthr2)cycle
           nlist%nxb=nlist%nxb+1
           nlist%hblist3(1,nlist%nxb)=i                  ! A
@@ -904,7 +902,6 @@ use xtb_mctc_accuracy, only : wp
       bond_nr=0
       bond_hbl=0
       do ix=1,topo%nathbAB  ! loop over hb-relevant AB atoms
-        if (bond_nr.gt.bond_hbn) write(*,*) 'Error: Out of bound. Too many hb tripletts.' !@thomas DEBUG delete
         !get i and j from AB list, it is not decided who is A and who is B yet
         i=topo%hbatABl(1,ix)
         j=topo%hbatABl(2,ix)
@@ -1094,7 +1091,6 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,top
                      endif
                      iTr_same=iTrA.eq.lin_AHB(3,tot_count-1).and.iTrH.eq.lin_AHB(4,tot_count-1)
                      if (lin_diff.eq.0.and.iTr_same) B_count = B_count + 1
-                     !@thomas important added 29.07.21 if(.or..not.iTr_same) changed see 565600
                      if (lin_diff.ne.0.or..not.iTr_same) then
                         AH_count = AH_count + 1
                         topo%bond_hb_AH(1,AH_count) = hbA
@@ -1174,7 +1170,6 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                iTrA = bond_hbl(4,j)
                Hat  = bond_hbl(3,j)
                iTrH = bond_hbl(6,j) ! always 1
-!@thomas important do I need to check this if again?
                if ((hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrA.and.iTrH.eq.1).or.&
                    &(hbA.eq.Aat.and.hbH.eq.Hat.and.iTr.eq.iTrH.and.iTrA.eq.1)) then
                  if (atB.eq.7.or.atB.eq.8) then
@@ -1191,7 +1186,6 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                      endif
                      iTr_same=iTrA.eq.lin_AHB(3,tot_count-1).and.iTrH.eq.lin_AHB(4,tot_count-1)
                      if (lin_diff.eq.0.and.iTr_same) B_count = B_count + 1
-                     !@thomas important added 29.07.21 if(.or..not.iTr_same) changed see 565600
                      if (lin_diff.ne.0.or..not.iTr_same) then
                         AH_count = AH_count + 1
                         B_count = 1
@@ -1268,11 +1262,14 @@ end subroutine bond_hb_AHB_set0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-subroutine gfnff_hbset0(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
+subroutine gfnff_hbset0(n,at,xyz,topo,nhb1,nhb2,nxb,neigh,nlist,hbthr1,hbthr2)
 use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo
+      integer, intent(out) :: nhb1
+      integer, intent(out) :: nhb2
+      integer, intent(out) :: nxb
       type(TNeigh), intent(inout) :: neigh 
       type(TGFFNeighbourList), intent(inout) :: nlist
       integer n
@@ -1284,9 +1281,8 @@ use xtb_mctc_accuracy, only : wp
       integer :: iTri,iTrj,iTrDum !iTrA,iTrH,iTrDum2,iTrAH,sw,nsw,shift
       logical ijnonbond, free
       real(wp) rab,rih,rjh
-
-      nlist%nhb1=0
-      nlist%nhb2=0
+      nhb1=0
+      nhb2=0
       ! loop over hb-relevant AB atoms
       do ix=1,topo%nathbAB  
         i=topo%hbatABl(1,ix) 
@@ -1295,7 +1291,7 @@ use xtb_mctc_accuracy, only : wp
           do iTrj=1, neigh%nTrans ! go through j shifts
             ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
             iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
-            if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle !@thomas 
+            if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle 
             if(iTrDum.eq.-1) then
               rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
               if(rab.gt.hbthr1) cycle
@@ -1322,26 +1318,26 @@ use xtb_mctc_accuracy, only : wp
               ! check if i is the bonded A    
               if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
                 if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
-                  nlist%nhb2=nlist%nhb2+1
+                  nhb2=nhb2+1
                   free=.false.
                 endif  
               endif  
               ! check if j is the bonded A
               if(iTrj.le.neigh%numctr.and.free) then
                 if(neigh%bpair(j,nh,iTrj).eq.1.and.ijnonbond) then
-                  nlist%nhb2=nlist%nhb2+1
+                  nhb2=nhb2+1
                   free=.false.
                 endif  
               endif  
               ! check for non-cov bonded A  
               if(rab+rih+rjh.lt.hbthr2.and.free) then ! sum of rAB,rAH,rBH is below threshold
-                nlist%nhb1=nlist%nhb1+1
+                nhb1=nhb1+1
               endif
             enddo ! k: relevant H atoms
           enddo ! iTrj
         enddo ! iTri
       enddo ! ix: relevant AB atoms 
-      nlist%nxb =0
+      nxb =0
       do ix=1,topo%natxbAB
         !do iTrj=1, neigh%numctr
           i =topo%xbatABl(1,ix)
@@ -1349,27 +1345,23 @@ use xtb_mctc_accuracy, only : wp
           iTrj=topo%xbatABl(4,ix)
           rab=neigh%distances(j,i,iTrj)**2 ! %distances are generated up to hbthr2 
           if(rab.gt.hbthr2)cycle
-          nlist%nxb=nlist%nxb+1
+          nxb=nxb+1
         !enddo
       enddo
 
 ! the actual size can be larger, so make it save
       if(neigh%numctr.gt.1)then
-        nlist%nhb1=(nlist%nhb1*27)
-        nlist%nhb2=(nlist%nhb2*27)
+        nhb1=(nhb1*27)
+        nhb2=(nhb2*27)
       else
-        nlist%nhb1=(nlist%nhb1*6)
-        nlist%nhb2=(nlist%nhb2*6)
+        nhb1=(nhb1*6)
+        nhb2=(nhb2*6)
       endif
-      if (nlist%nxb.gt.1000) then
-        nlist%nxb =(nlist%nxb *25)
+      if (nxb.gt.1000) then
+        nxb =(nxb *25)
       else
-        nlist%nxb =(nlist%nxb *10)
+        nxb =(nxb *10)
       endif        
-
-!     initialize the HB list check array
-
-      nlist%hbrefgeo = xyz
 
       end subroutine gfnff_hbset0
 
@@ -1424,7 +1416,7 @@ subroutine getring36(n,at,numnb,numctr,nbin,a0_in,cout,irout)
       ! ring search only in unit cell -> adjusted nbin to include neighbors from other cells
       if(nb(m,a0_in).eq.1) cycle ! check (comment out)
       do i=1,n
-         if(nb(numnb,i).eq.1)nb(numnb,i)=0 !@thomas why not entire row? nb(:,i,1)=0
+         if(nb(numnb,i).eq.1)nb(numnb,i)=0
       enddo
 
       do mm=1,nn
@@ -1705,13 +1697,12 @@ subroutine goedeckera_PBC(env,mol,pair,topo,q,es)
    real(wp) :: tmp
    real(wp),allocatable :: A (:,:)
    real(wp),allocatable :: x(:)
-   !@thomas new vars
    real(wp), allocatable :: rTrans(:,:)
    real(wp), allocatable :: gTrans(:,:)
    real(wp) :: vec(3)
    integer :: iRp,iT1,iT2,iT3,iG1,iG2,iG3
-   integer, parameter :: ewaldCutD(3) = 2 !@thomas chang
-   integer, parameter :: ewaldCutR(3) = 2 !@thomas with 
+   integer, parameter :: ewaldCutD(3) = 2
+   integer, parameter :: ewaldCutR(3) = 2
    real(wp), parameter :: sqrtpi = 1.772453850905516_wp 
    real(wp) :: cf !convergence factor                   
 !  parameter
@@ -1722,7 +1713,6 @@ subroutine goedeckera_PBC(env,mol,pair,topo,q,es)
    m=n+topo%nfrag ! # atoms frag constrain
    allocate(A(m,m),x(m),ipiv(m))
 
-   !@thomas calc rTrans, gTrans                                             
    iRp = 0                                                                  
    allocate(gTrans(3, product(2*ewaldCutR+1)-1))                            
    do iG1 = -ewaldCutR(1), ewaldCutR(1)                                     
@@ -1743,7 +1733,6 @@ subroutine goedeckera_PBC(env,mol,pair,topo,q,es)
        do iT3 = -ewaldCutD(3), ewaldCutD(3)                               
          iRp = iRp + 1                                                   
          vec(:) = [iT1, iT2, iT3]                                        
-         !@thomas_important mal für latP oder mol%lattice entscheiden!!  
          rTrans(:, iRp) = matmul(mol%lattice, vec)                       
        end do                                                             
      end do                                                                
