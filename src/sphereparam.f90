@@ -427,16 +427,25 @@ subroutine logfermi_cavity_all(nat,at,xyz,temp,alpha,center,radius,&
    real(wp),intent(inout) :: efix
    real(wp),intent(inout) :: gfix(3,nat)
 
+   write(*,*) "starting radius", radius
+   write(*,*) "alpha", alpha
+   write(*,*) "center", center
+
    R0 = maxval(radius)
    w  = R0/radius ! for anisotropy
 
    do i = 1, nat
       r = w*(xyz(:,i) - center)
       dist = sqrt(sum(r**2))
+      write(*,*) "r1 = ", abs(xyz(3,i)-R0)
+      write(*,*) "r2 = ", abs(xyz(3,i)+R0)
       expterm = exp(alpha*(dist-R0))
+      write(*,*) "expterm = ", expterm
       fermi = 1.0_wp/(1.0_wp+expterm)
       efix = efix + kB*temp * log( 1.0_wp+expterm )
       gfix(:,i) = gfix(:,i) + kB*temp * alpha*expterm*fermi * (r*w)/(dist+1.0e-14_wp)
+      write(*,*) "efix = ", efix
+      write(*,*) "gfix = ", gfix(3,i)
    enddo
 
 end subroutine logfermi_cavity_all 
@@ -461,25 +470,56 @@ subroutine logfermi_cavity_sandwich(nat,at,xyz,temp,alpha,center,radius,&
    real(wp),intent(inout) :: efix
    real(wp),intent(inout) :: gfix(3,nat)
 
+   efix=0
    efix1=0
-   efix2=0
-   gfix1=0
+   efix2=0 !efixe machen keinen unterschied. Efix ist ja auch ok wenn print
+   gfix1=0 !es macht einen unterschied, ob ich gfix1/2 nulle oder nicht! und auch, ob ich gfix nulle.
    gfix2=0
-   R0 = minval(radius)/2+(4.0_wp/autoaa) !4.0A buffer 
+   gfix=0
+   write(*,*) "starting radius", radius
+   R0 = minval(radius)+(4.164601823_wp/autoaa) !4.1646 A buffer 
+   write(*,*) "starting radius with buffer", R0
+   write(*,*) "alpha", alpha
+   write(*,*) "center", center
 
    do i = 1, nat
-      r1 = (xyz(3,i) - R0 )
-      r2 = (xyz(3,i) + R0 )
+
+      if (xyz(3,i).gt.R0) then
+         r1 = abs(xyz(3,i) - R0 ) !oberhalb vom Sandwich muss pos
+         r2 = abs(xyz(3,i) + R0 )*(-1.0_wp)  
+      elseif (xyz(3,i).lt.-R0) then        
+         r1 = abs(xyz(3,i) - R0 )*(-1.0_wp) !unterhalb vom Sandwich muss pos
+         r2 = abs(xyz(3,i) + R0 )
+      else
+         r1 = abs(xyz(3,i) - R0 )*(-1.0_wp) !innerhalb vom Sandwich muss neg
+         r2 = abs(xyz(3,i) + R0 )*(-1.0_wp)
+      end if
+
+      write(*,*) "r1 = ", r1
+      write(*,*) "r2 = ", r2
       expterm1 = exp(alpha*r1)
       expterm2 = exp(alpha*r2)
+      write(*,*) "expterm1 = ", expterm1
+      write(*,*) "expterm2 = ", expterm2
       fermi1 = 1.0_wp/(1.0_wp+expterm1)
       fermi2 = 1.0_wp/(1.0_wp+expterm2)
       efix1 = efix1 + kB*temp * log( 1.0_wp+expterm1 )
       efix2 = efix2 + kB*temp * log( 1.0_wp+expterm2 )
       efix=efix1+efix2
-      gfix1(:,i) = gfix1(:,i) + kB*temp * alpha*expterm1*fermi1 *(r1/abs(r1)) 
-      gfix2(:,i) = gfix2(:,i) + kB*temp * alpha*expterm2*fermi2 *(r2/abs(r2))
+      write(*,*) "efix = ", efix
+!      if (xyz(3,i).lt.0) then
+         gfix1(:,i) = gfix1(:,i) + kB*temp * alpha*expterm1*fermi1* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))
+!         gfix2(:,i) = gfix2(:,i) + kB*temp * alpha*expterm2*fermi2*(-1.0_wp)* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))
+!      else 
+!         gfix1(:,i) = gfix1(:,i) + kB*temp * alpha*expterm1*fermi1*(-1.0_wp)* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))
+         gfix2(:,i) = gfix2(:,i) + kB*temp * alpha*expterm2*fermi2* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))  
+!      end if
       gfix(:,i)=gfix1(:,i)+gfix2(:,i)
+      write(*,*) "gfix = ", gfix(3,i)
+      write(*,*) "gfix1 = ", gfix1(3,i)
+      write(*,*) "gfix2 = ", gfix2(3,i)
+      gfix(1,i)=0
+      gfix(2,i)=0
    enddo
 
 end subroutine logfermi_cavity_sandwich
