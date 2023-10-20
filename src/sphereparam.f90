@@ -477,8 +477,8 @@ subroutine logfermi_cavity_sandwich(nat,at,xyz,temp,alpha,center,radius,&
    gfix2=0
    gfix=0
    write(*,*) "starting radius", radius
-   R0 = minval(radius)+(4.164601823_wp/autoaa) !4.1646 A buffer 
-   write(*,*) "starting radius with buffer", R0
+   R0 = minval(radius)+(4.0_wp/autoaa) !4A safety buffer auf auto und manuell wert (^= > 1 NCI bond)
+   write(*,*) "starting radius with buffer", R0 !diameter=2*radius
    write(*,*) "alpha", alpha
    write(*,*) "center", center
 
@@ -639,7 +639,6 @@ subroutine cavity_egrad(nat,at,xyz,efix,gfix)
    integer :: i,nlist
 
    if (.not.allocated(wpot)) return
-
    do i = 1, number_walls
       select case(spherepot_type)
       case default ! make sure that this never happens, REALLY!
