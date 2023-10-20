@@ -27,10 +27,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/xtb-utils.cmake")
 
 xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
 
-if(DEFINED "_${_pkg}_FIND_METHOD")
-  unset("${_pkg}_FIND_METHOD")
-  unset("_${_pkg}_FIND_METHOD")
-endif()
 unset(_lib)
 unset(_pkg)
 unset(_url)

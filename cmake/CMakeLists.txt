@@ -1,4 +1,4 @@
-# This file is part of xtb.
+# Thi file is part of xtb.
 # SPDX-Identifier: LGPL-3.0-or-later
 #
 # xtb is free software: you can redistribute it and/or modify it under
@@ -19,19 +19,6 @@ option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP
 option(WITH_TBLITE "Use tblite library as backend for xTB" TRUE)
 option(WITH_CPCMX "Use CPCM-X solvation library for xTB" TRUE)
 
-
-#if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
-#  set(
-#    "${PROJECT_NAME}-dependency-method"
-#    "subproject" "cmake" "pkgconf" "fetch"
-#  )
-#endif()
-
-#set(
-#  module-dir
-#  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
-#)
-#set(module-dir "${module-dir}" PARENT_SCOPE)
 
 # Set build type as CMake does not provide defaults
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -63,7 +50,7 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   set(bounds "-fbounds-check -ffpe-trap=invalid,zero,overflow")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(dialects "-axAVX2 -r8 -traceback")
-  set(bounds "-check bounds -fpe0")
+  set(bounds "-check all -fpe0")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
   set(dialects "-Mbackslash -Mallocatable=03 -r8 -traceback")
 endif()
@@ -72,10 +59,8 @@ endif()
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialects}" PARENT_SCOPE)
 
-#message(FATAL_ERROR "STOP: ${dialect} dist ${CMAKE_Fortran_FLAGS}")
 
-
-# Populate xtb_version.fh
+# Populate xtb_version.fh with metadata
 set(version ${PROJECT_VERSION})
 execute_process(COMMAND git rev-parse HEAD
   RESULT_VARIABLE git_return
@@ -85,7 +70,7 @@ if(git_return)
 else()
   string(REGEX REPLACE "\n$" "" commit ${commit})
 endif()
-string(TIMESTAMP date "%m/%d/%Y")
+string(TIMESTAMP date "%Y/%m/%d")
 set(author $ENV{USERNAME})
 set(origin ${CMAKE_HOST_SYSTEM_NAME})
 configure_file(

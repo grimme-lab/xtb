@@ -36,8 +36,7 @@ include(GNUInstallDirs)
 # Include CMake specific configurations
 add_subdirectory("cmake")
 
-#message(FATAL_ERROR "STOP: ${CMAKE_Fortran_FLAGS_DEBUG}")
-
+# Check a specific CMake targets for xtb build & execute corresponding Find scripts
 if(NOT TARGET "mctc-lib::mctc-lib")
   find_package("mctc-lib" REQUIRED)
 endif()
@@ -45,6 +44,8 @@ endif()
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
   find_package("tblite" REQUIRED)
 endif()
+
+
 
 if(NOT TARGET "cpcmx::cpcmx" AND WITH_CPCMX)
   find_package("cpcmx" REQUIRED)
@@ -54,12 +55,12 @@ if(NOT TARGET "test-drive::test-drive")
   find_package("test-drive" REQUIRED)
 endif()
 
-
 # Sources: initialize program sources (prog) and library sources (srcs) empty
 set(prog)
 set(srcs)
 
 add_subdirectory("src")
+message(FATAL_ERROR "STOP: ${srcs}")
 add_subdirectory("symmetry")
 
 # Find dependencies
