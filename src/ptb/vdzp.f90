@@ -18,13 +18,13 @@
 !> PTB basis set data
 
 module xtb_ptb_vdzp
-   use xtb_ptb_param, only: max_elem, highest_elem, max_shell
+   use xtb_ptb_param, only: max_elem, highest_elem, max_shell, nshell
 
    !> mctc-lib
-   use mctc_env, only : error_type, wp
+   use mctc_env, only: error_type, wp
    use mctc_io, only: structure_type
 
-   use tblite_basis_type, only : cgto_type, new_basis, get_cutoff, basis_type
+   use tblite_basis_type, only: cgto_type, new_basis, get_cutoff, basis_type
 
    implicit none
    private
@@ -34,15 +34,8 @@ module xtb_ptb_vdzp
    !> Maximal number of primitives per CGTO
    integer, parameter :: max_prim = 5
 
-   integer, parameter :: nshell(highest_elem) = [ &
-   & 3, 3, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 5, 5, 5, 5, 5, 5, 6, 6, &   ! 1-20
-   & 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 6, 6, 7, 7, &   ! 21-40
-   & 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 6, 6, 7, 0, 0, 0, &   ! 41-60
-   & 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, &   ! 61-80
-   & 5, 5, 5, 5, 5, 5]                                               ! 81-86
-
    !> Angular momenta of basis functions (-> CGTOs)
-   integer, parameter :: angmom(highest_elem, max_shell) = reshape([&
+   integer, parameter :: ang_shell(highest_elem, max_shell) = reshape([&
    & 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, & ! up to element: 3
    & 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, & ! up to element: 6
    & 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, & ! up to element: 9
@@ -71,7 +64,7 @@ module xtb_ptb_vdzp
    & 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 1, 1, 2, 2, & ! up to element: 78
    & 0, 0, 0, 1, 1, 2, 2, 0, 0, 0, 1, 1, 2, 2, 0, 0, 1, 1, 2, 0, 0, & ! up to element: 81
    & 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, & ! up to element: 84
-   & 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0], shape(angmom))
+   & 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0], shape(ang_shell))
 
    !> Contraction length (n_prim) of basis functions (-> CGTOs)
    integer, parameter :: n_prim(highest_elem, max_shell) = reshape([&
@@ -119,8 +112,32 @@ contains
       type(structure_type), intent(in) :: mol
       !> Basis set type
       type(basis_type), intent(inout) :: bas
+      !> Array of CGTOs
+      type(cgto_type), allocatable :: cgto(:, :)
+      !> Array of nshells per atom ID
+      integer, allocatable :: nsh_id(:)
+      !> help integers
+      integer :: isp, izp, ish, ng, il
+
+      !> Only initialize full parameter set
       call initvDZP()
-      ! call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)
+
+      nsh_id = nshell(mol%num)
+      allocate (cgto(maxval(nsh_id), mol%nid))
+      do isp = 1, mol%nid
+         izp = mol%num(isp)
+         do ish = 1, nsh_id(isp)
+            il = ang_shell(ish, izp)
+            ng = n_prim(ish, izp)
+
+            cgto(ish, isp)%ang = il
+            cgto(ish, isp)%nprim = ng
+            cgto(ish, isp)%alpha = exponents(1:ng, ish, izp)
+            cgto(ish, isp)%coeff = coefficients(1:ng, ish, izp)
+
+         end do
+      end do
+      call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)
 
    end subroutine add_vDZP_basis
 
