@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+! #ifndef WITH_TBLITE
+! #define WITH_TBLITE 0
+! #endif
+
 !> Extended tight binding calculator
 module xtb_ptb_calculator
    use xtb_mctc_accuracy, only: wp
@@ -43,6 +47,9 @@ module xtb_ptb_calculator
    use xtb_iniq, only: iniqcn
    use xtb_scc_core, only: iniqshell
 
+   use mctc_io, only: structure_type, new
+   use tblite_basis_type, only: basis_type
+
    use xtb_ptb_param, only: initPTB, ptbGlobals
    implicit none
 
@@ -52,6 +59,9 @@ module xtb_ptb_calculator
 
    !> Calculator interface for PTB method
    type, extends(TCalculator) :: TPTBCalculator
+
+      !> Structure type
+      type(structure_type), allocatable :: struc
 
       !> Tight binding basis set
       type(TBasisset), allocatable :: basis
@@ -83,7 +93,7 @@ module xtb_ptb_calculator
 
 contains
 
-   subroutine newPTBCalculator(env, mol, calc, fname, accuracy)
+   subroutine newPTBCalculator(env, mol, calc, accuracy)
 
       character(len=*), parameter :: source = 'xtb_ptb_calculator_newPTBCalculator'
 
@@ -95,20 +105,22 @@ contains
 
       real(wp), intent(in), optional :: accuracy
 
-      character(len=*), intent(in), optional :: fname
-
       character(len=:), allocatable :: filename
       type(TPTBParameter) :: globpar
       integer :: ich
       logical :: exist, okbas
       logical :: exitRun
 
-      if (present(fname)) then
-         filename = fname
-      else
-         call rdpath(env%xtbpath, 'param_ptb.txt', filename, exist)
-         if (.not. exist) filename = 'param_ptb.txt'
-      end if
+! #if WITH_TBLITE
+      type(structure_type) :: struc
+
+      call new(struc, mol%at, mol%xyz, mol%chrg, mol%uhf, mol%lattice)
+      if (allocated(mol%pdb)) struc%pdb = mol%pdb
+      if (allocated(mol%sdf)) struc%sdf = mol%sdf
+      calc%struc = struc
+
+      call rdpath(env%xtbpath, 'param_ptb.txt', filename, exist)
+      if (.not. exist) filename = 'param_ptb.txt'
 
       if (present(accuracy)) then
          calc%accuracy = accuracy
@@ -126,13 +138,8 @@ contains
       if (exist) then
          error stop "Parameter file not supported yet."
          call close_file(ich)
-         ! call readParam(env, ich, globpar, calc%xtbData, .true.)
       else ! no parameter file, check if we have one compiled into the code
          call initPTB(calc%ptbData)
-         ! if (.not. exist) then
-         !    call env%error('Parameter file '//filename//' not found!', source)
-         !    return
-         ! end if
       end if
 
       call env%check(exitRun)
@@ -157,6 +164,9 @@ contains
       !       call close_file(ich)
       !    end if
       ! end if
+! #else
+    call feature_not_implemented(env)
+! #endif
 
    end subroutine newPTBCalculator
 
@@ -410,4 +420,13 @@ contains
 
    end subroutine newWavefunction
 
+
+! #if ! WITH_TBLITE
+subroutine feature_not_implemented(env)
+   !> Computational environment
+   type(TEnvironment), intent(inout) :: env
+
+   call env%error("Compiled without support for tblite library")
+end subroutine feature_not_implemented
+! #endif
 end module xtb_ptb_calculator

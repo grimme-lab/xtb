@@ -16,7 +16,7 @@
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'calculator.f90',
+  'calculator.F90',
   'param.f90',
   'data.f90',
   'vdzp.f90',

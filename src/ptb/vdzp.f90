@@ -18,12 +18,18 @@
 !> PTB basis set data
 
 module xtb_ptb_vdzp
-   use xtb_mctc_accuracy, only: wp
    use xtb_ptb_param, only: max_elem, highest_elem, max_shell
+
+   !> mctc-lib
+   use mctc_env, only : error_type, wp
+   use mctc_io, only: structure_type
+
+   use tblite_basis_type, only : cgto_type, new_basis, get_cutoff, basis_type
+
    implicit none
    private
 
-   public :: initvDZP
+   public :: add_vDZP_basis
 
    !> Maximal number of primitives per CGTO
    integer, parameter :: max_prim = 5
@@ -107,6 +113,16 @@ module xtb_ptb_vdzp
    real(wp), protected :: coefficients(max_prim, max_shell, highest_elem) = 0.0_wp
 
 contains
+
+   subroutine add_vDZP_basis(mol, bas)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Basis set type
+      type(basis_type), intent(inout) :: bas
+      call initvDZP()
+      ! call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)
+
+   end subroutine add_vDZP_basis
 
    subroutine initvDZP()
       ! set up the array of CGTOs for the molecule of interest
