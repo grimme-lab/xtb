@@ -109,8 +109,10 @@ contains
       character(len=:), allocatable :: filename
       type(TPTBParameter) :: globpar
       integer :: ich
-      logical :: exist, okbas
+      logical :: exist
       logical :: exitRun
+
+      integer :: i, j
 
 ! #if WITH_TBLITE
       type(structure_type) :: struc
@@ -133,7 +135,7 @@ contains
       calc%maxiter = 250
 
       !> Obtain the parameter file
-      allocate(calc%ptbData)
+      allocate (calc%ptbData)
       call open_file(ich, filename, 'r')
       exist = ich /= -1
       if (exist) then
@@ -151,10 +153,21 @@ contains
 
       !> set up the basis set for the tb-Hamiltonian
       call add_vDZP_basis(calc%struc, calc%bas)
-      ! if (.not. okbas) then
-      !    call env%error('basis set could not be setup completely', source)
-      !    return
-      ! end if
+
+      ! --- DEV PRINTOUT
+      ! loop over all atoms and print the number of shells and primitives
+      ! write (*, *) "Number of atoms: ", struc%nat
+      ! write (*, *) "Number of shells: ", calc%bas%nsh
+      ! write (*, *) calc%bas%nsh_id
+      ! do i = 1, struc%nat
+      !    write (*, *) "i: ", i
+      !    write (*, *) "ID(i): ", struc%id(i)
+      !    write(*,*) "num(ID(i)): ", struc%num(struc%id(i))
+      !    do j = 1, calc%bas%nsh_id(struc%id(i))
+      !       write (*, *) "  shell: ", j, "  prim: ", calc%bas%cgto(j, struc%id(i))%nprim
+      !    end do
+      ! end do
+      ! --- END DEV PRINTOUT
 
       !> check for external point charge field
       ! if (allocated(set%pcem_file)) then
@@ -165,7 +178,7 @@ contains
       !    end if
       ! end if
 ! #else
-    call feature_not_implemented(env)
+      ! call feature_not_implemented(env)
 ! #endif
 
    end subroutine newPTBCalculator
@@ -420,13 +433,12 @@ contains
 
    end subroutine newWavefunction
 
-
 ! #if ! WITH_TBLITE
-subroutine feature_not_implemented(env)
-   !> Computational environment
-   type(TEnvironment), intent(inout) :: env
+   subroutine feature_not_implemented(env)
+      !> Computational environment
+      type(TEnvironment), intent(inout) :: env
 
-   call env%error("Compiled without support for tblite library")
-end subroutine feature_not_implemented
+      call env%error("Compiled without support for tblite library")
+   end subroutine feature_not_implemented
 ! #endif
 end module xtb_ptb_calculator

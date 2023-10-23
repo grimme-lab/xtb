@@ -25,7 +25,7 @@ module xtb_ptb_param
 
    public :: initPTB, ptbGlobals, max_shell, max_elem, highest_elem
    public :: nshell
-   public :: setPTBReferenceOcc, setPTBNumberOfPrimitives
+   public :: setPTBReferenceOcc
 
    interface initPTB
       module procedure :: initData
@@ -2024,7 +2024,6 @@ contains
       call setPTBReferenceOcc(self, nShell)
 
       allocate (self%numberOfPrimitives(mShell, highest_elem))
-      call setPTBNumberOfPrimitives(self, nShell)
 
    end subroutine initHamiltonian
 
@@ -2050,51 +2049,5 @@ contains
       ! end do
 
    end subroutine setPTBReferenceOcc
-
-   subroutine setPTBNumberOfPrimitives(self, nShell)
-
-      !> Data instance
-      type(THamiltonianData), intent(inout) :: self
-
-      !> Number of shells
-      integer, intent(in) :: nShell(:)
-
-      integer :: nPrim, iZp, iSh
-
-      do iZp = 1, highest_elem
-         do iSh = 1, nShell(iZp)
-            nPrim = 0
-            if (iZp <= 2) then
-               select case (self%angShell(iSh, iZp))
-               case (0)
-                  nPrim = 3
-               case (1)
-                  nPrim = 4
-               end select
-            else
-               select case (self%angShell(iSh, iZp))
-               case (0)
-                  if (self%principalQuantumNumber(iSh, iZp) > 5) then
-                     nPrim = 6
-                  else
-                     nPrim = 4
-                  end if
-               case (1)
-                  if (self%principalQuantumNumber(iSh, iZp) > 5) then
-                     nPrim = 6
-                  else
-                     nPrim = 4
-                  end if
-               case (2)
-                  nPrim = 3
-               case (3)
-                  nPrim = 4
-               end select
-            end if
-            self%numberOfPrimitives(iSh, iZp) = nPrim
-         end do
-      end do
-
-   end subroutine setPTBNumberOfPrimitives
 
 end module xtb_ptb_param
