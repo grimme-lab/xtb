@@ -51,6 +51,7 @@ module xtb_ptb_calculator
    use tblite_basis_type, only: basis_type
 
    use xtb_ptb_param, only: initPTB, ptbGlobals
+   use xtb_ptb_vdzp, only: add_vDZP_basis
    implicit none
 
    private
@@ -64,7 +65,7 @@ module xtb_ptb_calculator
       type(structure_type), allocatable :: struc
 
       !> Tight binding basis set
-      type(TBasisset), allocatable :: basis
+      type(basis_type) :: bas
 
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
@@ -149,8 +150,7 @@ contains
       end if
 
       !> set up the basis set for the tb-Hamiltonian
-      ! allocate (calc%basis)
-      ! call newBasisset(calc%ptbData, mol%n, mol%at, calc%basis, okbas)
+      call add_vDZP_basis(calc%struc, calc%bas)
       ! if (.not. okbas) then
       !    call env%error('basis set could not be setup completely', source)
       !    return
@@ -376,7 +376,7 @@ contains
 
       associate (wfn => chk%wfn)
          allocate (cn(mol%n))
-         call wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
+         ! call wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
 
          !> find partial charges
          if (mol%npbc > 0) then
