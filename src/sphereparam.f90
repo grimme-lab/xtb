@@ -427,25 +427,16 @@ subroutine logfermi_cavity_all(nat,at,xyz,temp,alpha,center,radius,&
    real(wp),intent(inout) :: efix
    real(wp),intent(inout) :: gfix(3,nat)
 
-   write(*,*) "starting radius", radius
-   write(*,*) "alpha", alpha
-   write(*,*) "center", center
-
    R0 = maxval(radius)
    w  = R0/radius ! for anisotropy
 
    do i = 1, nat
       r = w*(xyz(:,i) - center)
       dist = sqrt(sum(r**2))
-      write(*,*) "r1 = ", abs(xyz(3,i)-R0)
-      write(*,*) "r2 = ", abs(xyz(3,i)+R0)
       expterm = exp(alpha*(dist-R0))
-      write(*,*) "expterm = ", expterm
       fermi = 1.0_wp/(1.0_wp+expterm)
       efix = efix + kB*temp * log( 1.0_wp+expterm )
       gfix(:,i) = gfix(:,i) + kB*temp * alpha*expterm*fermi * (r*w)/(dist+1.0e-14_wp)
-      write(*,*) "efix = ", efix
-      write(*,*) "gfix = ", gfix(3,i)
    enddo
 
 end subroutine logfermi_cavity_all 
@@ -460,67 +451,46 @@ subroutine logfermi_cavity_sandwich(nat,at,xyz,temp,alpha,center,radius,&
    real(wp),intent(in)  :: xyz(3,nat)
 
    real(wp),intent(in)  :: temp      ! temperature
-   real(wp),intent(in)  :: alpha     ! potential steepness
-   real(wp),intent(in)  :: center(3) ! aufpunkt of wall potential
-   real(wp),intent(in)  :: radius(3) ! distance of sandwiches in Angstroem
+   real(wp),intent(in)  :: alpha     ! potential steepness (modified via "beta" in $wall block in xcontrol)
+   real(wp),intent(in)  :: center(3) ! aufpunkt of wall potential (=0 after center-of-mass transformation)
+   real(wp),intent(in)  :: radius(3) ! radius of sandwiches in Angstroem, sandwich diameter is 2*radius
 
    integer  :: i
-   real(wp) :: r1,r2,R0,expterm1,expterm2,fermi1,fermi2,efix1,efix2,gfix1(3,nat),gfix2(3,nat)
+   real(wp) :: r(3),r1,r2,R0,expterm1,expterm2,fermi1,fermi2,dist
 
    real(wp),intent(inout) :: efix
    real(wp),intent(inout) :: gfix(3,nat)
 
-   efix=0
-   efix1=0
-   efix2=0 !efixe machen keinen unterschied. Efix ist ja auch ok wenn print
-   gfix1=0 !es macht einen unterschied, ob ich gfix1/2 nulle oder nicht! und auch, ob ich gfix nulle.
-   gfix2=0
-   gfix=0
-   write(*,*) "starting radius", radius
-   R0 = minval(radius)+(4.0_wp/autoaa) !4A safety buffer auf auto und manuell wert (^= > 1 NCI bond)
-   write(*,*) "starting radius with buffer", R0 !diameter=2*radius
-   write(*,*) "alpha", alpha
-   write(*,*) "center", center
+   !!!!! don't reduce radius to less than "auto radius + 1.5A safety buffer" !!!!!
+   !==============================================================================
+
+   R0 = minval(radius)+(4.0_wp/autoaa) !4A safety buffer equals >=1 NCI bond   !~4A buffer also used for sphere and ellipsoid pot
 
    do i = 1, nat
-
-      if (xyz(3,i).gt.R0) then
-         r1 = abs(xyz(3,i) - R0 ) !oberhalb vom Sandwich muss pos
-         r2 = abs(xyz(3,i) + R0 )*(-1.0_wp)  
-      elseif (xyz(3,i).lt.-R0) then        
-         r1 = abs(xyz(3,i) - R0 )*(-1.0_wp) !unterhalb vom Sandwich muss pos
-         r2 = abs(xyz(3,i) + R0 )
-      else
-         r1 = abs(xyz(3,i) - R0 )*(-1.0_wp) !innerhalb vom Sandwich muss neg
-         r2 = abs(xyz(3,i) + R0 )*(-1.0_wp)
+      r = xyz(:,i) - center   !$cma must be set in xcontrol because sandwich pot is anisotropic and needs 
+                              !preferred z-axis in absolute coordinates
+      dist = r(3)
+   
+      if (dist.gt.R0) then        !above sandwich border          !constraining potential magnitude: 
+         r1=dist-R0                                               !>0
+         r2=abs(dist+R0)*(-1.0_wp)                                !<<0
+      elseif (dist.lt.-R0) then   !below sandwich border
+         r1=abs(dist-R0)*(-1.0_wp)                                !<<0 
+         r2=abs(dist+R0)                                          !>0
+      else                        !in between sandwich borders
+         r1=abs(dist-R0)*(-1.0_wp)                                !<0
+         r2=abs(dist+R0)*(-1.0_wp)                                !<0
       end if
 
-      write(*,*) "r1 = ", r1
-      write(*,*) "r2 = ", r2
       expterm1 = exp(alpha*r1)
       expterm2 = exp(alpha*r2)
-      write(*,*) "expterm1 = ", expterm1
-      write(*,*) "expterm2 = ", expterm2
       fermi1 = 1.0_wp/(1.0_wp+expterm1)
       fermi2 = 1.0_wp/(1.0_wp+expterm2)
-      efix1 = efix1 + kB*temp * log( 1.0_wp+expterm1 )
-      efix2 = efix2 + kB*temp * log( 1.0_wp+expterm2 )
-      efix=efix1+efix2
-      write(*,*) "efix = ", efix
-!      if (xyz(3,i).lt.0) then
-         gfix1(:,i) = gfix1(:,i) + kB*temp * alpha*expterm1*fermi1* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))
-!         gfix2(:,i) = gfix2(:,i) + kB*temp * alpha*expterm2*fermi2*(-1.0_wp)* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))
-!      else 
-!         gfix1(:,i) = gfix1(:,i) + kB*temp * alpha*expterm1*fermi1*(-1.0_wp)* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))
-         gfix2(:,i) = gfix2(:,i) + kB*temp * alpha*expterm2*fermi2* (xyz(3,i)/(sqrt(sum(xyz**2)+1.0e-14_wp)))  
-!      end if
-      gfix(:,i)=gfix1(:,i)+gfix2(:,i)
-      write(*,*) "gfix = ", gfix(3,i)
-      write(*,*) "gfix1 = ", gfix1(3,i)
-      write(*,*) "gfix2 = ", gfix2(3,i)
-      gfix(1,i)=0
-      gfix(2,i)=0
+      efix = efix + kB*temp * (log(1.0_wp+expterm1)+log(1.0_wp+expterm2))    !efix=efix1+efix2
+      gfix(:,i) = gfix(:,i) + kB*temp * alpha * r/(sqrt(sum(r**2))+1.0e-14_wp) *&
+              &(expterm1*fermi1+expterm2*fermi2)                             !gfix=gfix1+gfix2
    enddo
+
 
 end subroutine logfermi_cavity_sandwich
 
