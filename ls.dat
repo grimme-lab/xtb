@@ -1,0 +1,2660 @@
+ninja: Entering directory `build'
+[1/67] Compiling Fortran object libxtb.so.6.6.1.p/src_iff_iff_ini.f90.o
+../src/iff/iff_ini.f90:580:14:
+
+  580 |          iz = zeff(ia)
+      |              1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/iff/iff_ini.f90:551:41:
+
+  551 |       real(wp) :: aw(23, nat), covcn(nat)
+      |                                         1
+Warning: Unused variable ‘covcn’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:35:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                   1
+Warning: Unused variable ‘avmom’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:24:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                        1
+Warning: Unused variable ‘bb’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:88:82:
+
+   88 |       real(wp) :: f,fall,fhyd,c6(94),qt1(1),qt2(1),r0,e1(4),c1(4),c6aad4,boxoffset
+      |                                                                                  1
+Warning: Unused variable ‘boxoffset’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:87:47:
+
+   87 |       real(wp) :: cn(n), alp0(n), c6ab1(n1, n1), c6ab2(n2, n2), gsolv_inf
+      |                                               1
+Warning: Unused variable ‘c6ab1’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:87:62:
+
+   87 |       real(wp) :: cn(n), alp0(n), c6ab1(n1, n1), c6ab2(n2, n2), gsolv_inf
+      |                                                              1
+Warning: Unused variable ‘c6ab2’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:28:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                            1
+Warning: Unused variable ‘cc’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:86:50:
+
+   86 |       real(wp) :: freq1(3*n1), freq2(3*n2), dum(n), dum1(n1), dum2(n2)
+      |                                                  1
+Warning: Unused variable ‘dum’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:81:39:
+
+   81 |       integer, allocatable :: dum_at(:)
+      |                                       1
+Warning: Unused variable ‘dum_at’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:84:22:
+
+   84 |       real(wp) :: edum, r(3), rr, rrr, r42, c6d4, tmp, thr, a1, a2, s8, ai, aj, p1, fc
+      |                      1
+Warning: Unused variable ‘edum’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:86:29:
+
+   86 |       real(wp) :: freq1(3*n1), freq2(3*n2), dum(n), dum1(n1), dum2(n2)
+      |                             1
+Warning: Unused variable ‘freq1’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:86:42:
+
+   86 |       real(wp) :: freq1(3*n1), freq2(3*n2), dum(n), dum1(n1), dum2(n2)
+      |                                          1
+Warning: Unused variable ‘freq2’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:51:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                                   1
+Warning: Unused variable ‘g298’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:87:73:
+
+   87 |       real(wp) :: cn(n), alp0(n), c6ab1(n1, n1), c6ab2(n2, n2), gsolv_inf
+      |                                                                         1
+Warning: Unused variable ‘gsolv_inf’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:45:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                             1
+Warning: Unused variable ‘h298’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:105:23:
+
+  105 |       logical :: linear
+      |                       1
+Warning: Unused variable ‘linear’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:83:31:
+
+   83 |       integer :: i, j, k, nfreq, np
+      |                               1
+Warning: Unused variable ‘nfreq’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:104:24:
+
+  104 |       character*4 pgroup
+      |                        1
+Warning: Unused variable ‘pgroup’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:44:25:
+
+   44 |    &                   pr)
+      |                         1
+Warning: Unused dummy argument ‘pr’ at (1) [-Wunused-dummy-argument]
+../src/iff/iff_ini.f90:42:51:
+
+   42 |    &                   den1, den2, gab1, gab2, qcm1, qcm2,&
+      |                                                   1
+Warning: Unused dummy argument ‘qcm1’ at (1) [-Wunused-dummy-argument]
+../src/iff/iff_ini.f90:42:57:
+
+   42 |    &                   den1, den2, gab1, gab2, qcm1, qcm2,&
+      |                                                         1
+Warning: Unused dummy argument ‘qcm2’ at (1) [-Wunused-dummy-argument]
+../src/iff/iff_ini.f90:85:68:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                                                    1
+Warning: Unused variable ‘symn’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:58:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                                          1
+Warning: Unused variable ‘ts298’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:39:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                       1
+Warning: Unused variable ‘wt’ declared at (1) [-Wunused-variable]
+../src/iff/iff_ini.f90:85:62:
+
+   85 |       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn
+      |                                                              1
+Warning: Unused variable ‘zp’ declared at (1) [-Wunused-variable]
+[2/67] Compiling Fortran object libxtb.so.6.6.1.p/src_gfnff_calculator.f90.o
+../src/gfnff/calculator.f90:327:36:
+
+  327 | subroutine writeInfo(self, unit, mol)
+      |                                    1
+Warning: Unused dummy argument ‘mol’ at (1) [-Wunused-dummy-argument]
+../src/gfnff/calculator.f90:299:52:
+
+  299 | subroutine print_gfnff_results(iunit,res_gff,verbose,lsolv)
+      |                                                    1
+Warning: Unused dummy argument ‘verbose’ at (1) [-Wunused-dummy-argument]
+../src/gfnff/calculator.f90:185:19:
+
+  185 |    logical :: inmol
+      |                   1
+Warning: Unused variable ‘inmol’ declared at (1) [-Wunused-variable]
+../src/gfnff/calculator.f90:183:25:
+
+  183 |    integer :: mode_sp_run = 1
+      |                         1
+Warning: Unused variable ‘mode_sp_run’ declared at (1) [-Wunused-variable]
+../src/gfnff/calculator.f90:142:63:
+
+  142 | subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
+      |                                                               1
+Warning: Unused dummy argument ‘restart’ at (1) [-Wunused-dummy-argument]
+../src/gfnff/calculator.f90:93:26:
+
+   93 |    logical :: exist, okbas
+      |                          1
+Warning: Unused variable ‘okbas’ declared at (1) [-Wunused-variable]
+[3/67] Compiling Fortran object libxtb.so.6.6.1.p/src_xtb_calculator.f90.o
+../src/xtb/calculator.f90:391:47:
+
+  391 | subroutine print_gfn2_results(iunit,res,verbose,lsolv)
+      |                                               1
+Warning: Unused dummy argument ‘verbose’ at (1) [-Wunused-dummy-argument]
+../src/xtb/calculator.f90:372:47:
+
+  372 | subroutine print_gfn1_results(iunit,res,verbose,lsolv)
+      |                                               1
+Warning: Unused dummy argument ‘verbose’ at (1) [-Wunused-dummy-argument]
+../src/xtb/calculator.f90:355:53:
+
+  355 | subroutine print_gfn0_results(iunit,res,verbose,lsolv)
+      |                                                     1
+Warning: Unused dummy argument ‘lsolv’ at (1) [-Wunused-dummy-argument]
+../src/xtb/calculator.f90:355:47:
+
+  355 | subroutine print_gfn0_results(iunit,res,verbose,lsolv)
+      |                                               1
+Warning: Unused dummy argument ‘verbose’ at (1) [-Wunused-dummy-argument]
+../src/xtb/calculator.f90:239:19:
+
+  239 |    logical :: inmol
+      |                   1
+Warning: Unused variable ‘inmol’ declared at (1) [-Wunused-variable]
+../src/xtb/calculator.f90:237:25:
+
+  237 |    integer :: mode_sp_run = 1
+      |                         1
+Warning: Unused variable ‘mode_sp_run’ declared at (1) [-Wunused-variable]
+[4/67] Compiling Fortran object libxtb.so.6.6.1.p/src_constrain_param.f90.o
+../src/constrain_param.f90:1514:19:
+
+ 1514 |    real(wp) :: ddum
+      |                   1
+Warning: Unused variable ‘ddum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1512:18:
+
+ 1512 |    integer  :: err
+      |                  1
+Warning: Unused variable ‘err’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1513:19:
+
+ 1513 |    integer  :: idum
+      |                   1
+Warning: Unused variable ‘idum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1515:19:
+
+ 1515 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1468:40:
+
+ 1468 | subroutine set_freeze(env,key,val,nat,at,idMap,xyz)
+      |                                        1
+Warning: Unused dummy argument ‘at’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1480:19:
+
+ 1480 |    real(wp) :: ddum
+      |                   1
+Warning: Unused variable ‘ddum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1483:16:
+
+ 1483 |    integer  :: i,j
+      |                1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1468:46:
+
+ 1468 | subroutine set_freeze(env,key,val,nat,at,idMap,xyz)
+      |                                              1
+Warning: Unused dummy argument ‘idmap’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1483:18:
+
+ 1483 |    integer  :: i,j
+      |                  1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1481:19:
+
+ 1481 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1482:24:
+
+ 1482 |    integer  :: list(nat),nlist
+      |                        1
+Warning: Unused variable ‘list’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1482:30:
+
+ 1482 |    integer  :: list(nat),nlist
+      |                              1
+Warning: Unused variable ‘nlist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1468:50:
+
+ 1468 | subroutine set_freeze(env,key,val,nat,at,idMap,xyz)
+      |                                                  1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1371:20:
+
+ 1371 |    integer  :: nlist
+      |                    1
+Warning: Unused variable ‘nlist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1353:51:
+
+ 1353 | subroutine set_metadyn(env,key,val,nat,at,idMap,xyz)
+      |                                                   1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1306:38:
+
+ 1306 | subroutine set_path(env,key,val,nat,at,idMap,xyz)
+      |                                      1
+Warning: Unused dummy argument ‘at’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1322:19:
+
+ 1322 |    real(wp) :: ddum
+      |                   1
+Warning: Unused variable ‘ddum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1326:16:
+
+ 1326 |    integer  :: i,j
+      |                1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1306:44:
+
+ 1306 | subroutine set_path(env,key,val,nat,at,idMap,xyz)
+      |                                            1
+Warning: Unused dummy argument ‘idmap’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1326:18:
+
+ 1326 |    integer  :: i,j
+      |                  1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1323:19:
+
+ 1323 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1324:20:
+
+ 1324 |    integer  :: nlist
+      |                    1
+Warning: Unused variable ‘nlist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1306:48:
+
+ 1306 | subroutine set_path(env,key,val,nat,at,idMap,xyz)
+      |                                                1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1259:41:
+
+ 1259 | subroutine set_reactor(env,key,val,nat,at,idMap,xyz)
+      |                                         1
+Warning: Unused dummy argument ‘at’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1275:19:
+
+ 1275 |    real(wp) :: ddum
+      |                   1
+Warning: Unused variable ‘ddum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1279:16:
+
+ 1279 |    integer  :: i,j
+      |                1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1259:47:
+
+ 1259 | subroutine set_reactor(env,key,val,nat,at,idMap,xyz)
+      |                                               1
+Warning: Unused dummy argument ‘idmap’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1279:18:
+
+ 1279 |    integer  :: i,j
+      |                  1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1276:19:
+
+ 1276 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1277:20:
+
+ 1277 |    integer  :: nlist
+      |                    1
+Warning: Unused variable ‘nlist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1259:51:
+
+ 1259 | subroutine set_reactor(env,key,val,nat,at,idMap,xyz)
+      |                                                   1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1188:19:
+
+ 1188 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1190:34:
+
+ 1190 |    integer, allocatable :: list(:)
+      |                                  1
+Warning: Unused variable ‘list’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1174:48:
+
+ 1174 | subroutine set_hess(env,key,val,nat,at,idMap,xyz)
+      |                                                1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1096:39:
+
+ 1096 | subroutine set_split(env,key,val,nat,at,idMap,xyz)
+      |                                       1
+Warning: Unused dummy argument ‘at’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1109:19:
+
+ 1109 |    real(wp) :: ddum
+      |                   1
+Warning: Unused variable ‘ddum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1096:45:
+
+ 1096 | subroutine set_split(env,key,val,nat,at,idMap,xyz)
+      |                                             1
+Warning: Unused dummy argument ‘idmap’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:1110:19:
+
+ 1110 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:1096:49:
+
+ 1096 | subroutine set_split(env,key,val,nat,at,idMap,xyz)
+      |                                                 1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:952:29:
+
+  952 |    real(wp) :: ddum,darray(3)
+      |                             1
+Warning: Unused variable ‘darray’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:938:44:
+
+  938 | subroutine set_wall(env,key,val,nat,at,idMap,xyz)
+      |                                            1
+Warning: Unused dummy argument ‘idmap’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:953:19:
+
+  953 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:849:19:
+
+  849 |    logical  :: ldum
+      |                   1
+Warning: Unused variable ‘ldum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:404:20:
+
+  404 |    integer  :: nlist
+      |                    1
+Warning: Unused variable ‘nlist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:289:19:
+
+  289 |    real(wp) :: ddum
+      |                   1
+Warning: Unused variable ‘ddum’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:284:16:
+
+  284 |    integer  :: i
+      |                1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:287:20:
+
+  287 |    integer  :: nlist
+      |                    1
+Warning: Unused variable ‘nlist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:268:47:
+
+  268 | subroutine set_fix(env,key,val,nat,at,idMap,xyz)
+      |                                               1
+Warning: Unused dummy argument ‘xyz’ at (1) [-Wunused-dummy-argument]
+../src/constrain_param.f90:121:19:
+
+  121 |    logical :: exist
+      |                   1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:116:15:
+
+  116 |    integer :: i
+      |               1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:118:16:
+
+  118 |    integer :: ic
+      |                1
+Warning: Unused variable ‘ic’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:119:16:
+
+  119 |    integer :: ie
+      |                1
+Warning: Unused variable ‘ie’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:112:38:
+
+  112 |    character(len=:),allocatable :: key
+      |                                      1
+Warning: Unused variable ‘key’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:114:42:
+
+  114 |    character(len=:),allocatable :: newname
+      |                                          1
+Warning: Unused variable ‘newname’ declared at (1) [-Wunused-variable]
+../src/constrain_param.f90:113:38:
+
+  113 |    character(len=:),allocatable :: val
+      |                                      1
+Warning: Unused variable ‘val’ declared at (1) [-Wunused-variable]
+[5/67] Compiling Fortran object libxtb.so.6.6.1.p/src_iff_calculator.f90.o
+../src/iff/calculator.f90:161:39:
+
+  161 |    subroutine writeInfo(self, unit, mol)
+      |                                       1
+Warning: Unused dummy argument ‘mol’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:161:28:
+
+  161 |    subroutine writeInfo(self, unit, mol)
+      |                            1
+Warning: Unused dummy argument ‘self’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:161:34:
+
+  161 |    subroutine writeInfo(self, unit, mol)
+      |                                  1
+Warning: Unused dummy argument ‘unit’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:105:45:
+
+  105 |    subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
+      |                                             1
+Warning: Unused dummy argument ‘chk’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:105:40:
+
+  105 |    subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
+      |                                        1
+Warning: Unused dummy argument ‘mol’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:105:57:
+
+  105 |    subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
+      |                                                         1
+Warning: Unused dummy argument ‘printlevel’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:105:66:
+
+  105 |    subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
+      |                                                                  1
+Warning: Unused dummy argument ‘restart’ at (1) [-Wunused-dummy-argument]
+../src/iff/calculator.f90:70:35:
+
+   70 |       integer, allocatable :: at(:)
+      |                                   1
+Warning: Unused variable ‘at’ declared at (1) [-Wunused-variable]
+../src/iff/calculator.f90:74:43:
+
+   74 |       character(len=:), allocatable :: fnam
+      |                                           1
+Warning: Unused variable ‘fnam’ declared at (1) [-Wunused-variable]
+../src/iff/calculator.f90:73:24:
+
+   73 |       real(wp) :: molA_e,molB_e
+      |                        1
+Warning: Unused variable ‘mola_e’ declared at (1) [-Wunused-variable]
+../src/iff/calculator.f90:73:31:
+
+   73 |       real(wp) :: molA_e,molB_e
+      |                               1
+Warning: Unused variable ‘molb_e’ declared at (1) [-Wunused-variable]
+[6/67] Compiling Fortran object libxtb.so.6.6.1.p/src_api_environment.f90.o
+../src/api/environment.f90:191:43:
+
+  191 | subroutine setVerbosity_api(venv, verbosity) &
+      |                                           1
+Warning: Variable ‘verbosity’ at (1) is a dummy argument of the BIND(C) procedure ‘setverbosity_api’ but may not be C interoperable [-Wc-binding-type]
+../src/api/environment.f90:102:0:
+
+  102 | end function checkEnvironment_api
+      | 
+Warning: ‘status’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/api/environment.f90:82:0:
+
+   82 | function checkEnvironment_api(venv) result(status) &
+      | 
+note: ‘status’ was declared here
+[7/67] Compiling Fortran object libxtb.so.6.6.1.p/src_api_molecule.f90.o
+../src/api/molecule.f90:124:28:
+
+  124 |    real(wp) :: latvecs(3, 3)
+      |                            1
+Warning: Unused variable ‘latvecs’ declared at (1) [-Wunused-variable]
+[8/67] Compiling Fortran object libxtb.so.6.6.1.p/src_api_results.f90.o
+[9/67] Compiling Fortran object libxtb.so.6.6.1.p/src_optimizer.f90.o
+../src/optimizer.f90:527:20:
+
+  527 |    parameter (r4dum=1.e-8)
+      |                    1
+Warning: Change of value in conversion from ‘REAL(8)’ to ‘REAL(4)’ at (1) [-Wconversion]
+../src/optimizer.f90:683:28:
+
+  683 |    Aaug(1:npvar)          = anc%hess
+      |                            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/optimizer.f90:684:28:
+
+  684 |    Aaug(npvar+1:npvar1-1) = gint
+      |                            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/optimizer.f90:694:17:
+
+  694 |          Uaug  = Uaug/dsnrm
+      |                 1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/optimizer.f90:1018:16:
+
+ 1018 |    integer  :: i
+      |                1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:799:19:
+
+  799 |    integer :: i,j,k
+      |                   1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:771:19:
+
+  771 |    integer :: i,j,k
+      |                   1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:519:33:
+
+  519 |    real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
+      |                                 1
+Warning: Unused variable ‘dnorm’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:520:33:
+
+  520 |    real(wp) :: depred,echng,dummy,maxd,alp,gchng,smallreal,gnold
+      |                                 1
+Warning: Unused variable ‘dummy’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:473:31:
+
+  473 |       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
+      |                               1
+Warning: Unused dummy argument ‘et’ at (1) [-Wunused-dummy-argument]
+../src/optimizer.f90:517:16:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:517:52:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                                                    1
+Warning: Unused variable ‘idum’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:517:43:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                                           1
+Warning: Unused variable ‘info’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:517:27:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                           1
+Warning: Unused variable ‘jj’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:517:30:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                              1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:519:21:
+
+  519 |    real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
+      |                     1
+Warning: Unused variable ‘lambda’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:517:37:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                                     1
+Warning: Unused variable ‘lwork’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:517:46:
+
+  517 |    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
+      |                                              1
+Warning: Unused variable ‘m’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:473:39:
+
+  473 |       &          egap,acc_in,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail,converged, &
+      |                                       1
+Warning: Unused dummy argument ‘maxiter’ at (1) [-Wunused-dummy-argument]
+../src/optimizer.f90:518:49:
+
+  518 |    real(wp) :: energy,ethr,gthr,dsnrm,maxdispl,t0,w0,t1,w1
+      |                                                 1
+Warning: Unused variable ‘t0’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:518:55:
+
+  518 |    real(wp) :: energy,ethr,gthr,dsnrm,maxdispl,t0,w0,t1,w1
+      |                                                       1
+Warning: Unused variable ‘t1’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:518:52:
+
+  518 |    real(wp) :: energy,ethr,gthr,dsnrm,maxdispl,t0,w0,t1,w1
+      |                                                    1
+Warning: Unused variable ‘w0’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:518:58:
+
+  518 |    real(wp) :: energy,ethr,gthr,dsnrm,maxdispl,t0,w0,t1,w1
+      |                                                          1
+Warning: Unused variable ‘w1’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:519:48:
+
+  519 |    real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
+      |                                                1
+Warning: Unused variable ‘xdum’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:174:26:
+
+  174 |    real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr,aaa,bbb
+      |                          1
+Warning: Unused variable ‘amu2au’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:174:32:
+
+  174 |    real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr,aaa,bbb
+      |                                1
+Warning: Unused variable ‘au2cm’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:185:33:
+
+  185 |    real(wp),allocatable :: aux(:)
+      |                                 1
+Warning: Unused variable ‘aux’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:182:34:
+
+  182 |    real(wp),allocatable :: b (:,:)
+      |                                  1
+Warning: Unused variable ‘b’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:174:47:
+
+  174 |    real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr,aaa,bbb
+      |                                               1
+Warning: Unused variable ‘damp’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:174:57:
+
+  174 |    real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr,aaa,bbb
+      |                                                         1
+Warning: Unused variable ‘edum’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:152:18:
+
+  152 |    real(wp) :: eel
+      |                  1
+Warning: Unused variable ‘eel’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:175:45:
+
+  175 |    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
+      |                                             1
+Warning: Unused variable ‘energy’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:186:34:
+
+  186 |    real(wp),allocatable :: hess(:)
+      |                                  1
+Warning: Unused variable ‘hess’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:38:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                      1
+Warning: Unused variable ‘ia’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:32:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                1
+Warning: Unused variable ‘ic’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:44:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                            1
+Warning: Unused variable ‘ii’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:52:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                                    1
+Warning: Unused variable ‘info’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:177:53:
+
+  177 |    integer  :: nvar,iter,nread,maxcycle,maxmicro,itry,maxopt,iupdat,iii
+      |                                                     1
+Warning: Unused variable ‘itry’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:187:35:
+
+  187 |    integer, allocatable :: iwork(:)
+      |                                   1
+Warning: Unused variable ‘iwork’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:41:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                         1
+Warning: Unused variable ‘ja’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:35:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                   1
+Warning: Unused variable ‘jc’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:47:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                                               1
+Warning: Unused variable ‘jj’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:29:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                             1
+Warning: Unused variable ‘jjj’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:25:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                         1
+Warning: Unused variable ‘l’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:176:17:
+
+  176 |    integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
+      |                 1
+Warning: Unused variable ‘n3’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:177:30:
+
+  177 |    integer  :: nvar,iter,nread,maxcycle,maxmicro,itry,maxopt,iupdat,iii
+      |                              1
+Warning: Unused variable ‘nread’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:171:27:
+
+  171 |    type(scc_results) :: res
+      |                           1
+Warning: Unused variable ‘res’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:175:56:
+
+  175 |    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
+      |                                                        1
+Warning: Unused variable ‘rij’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:174:19:
+
+  174 |    real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr,aaa,bbb
+      |                   1
+Warning: Unused variable ‘step’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:175:62:
+
+  175 |    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
+      |                                                              1
+Warning: Unused variable ‘t0’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:175:59:
+
+  175 |    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
+      |                                                           1
+Warning: Unused variable ‘t1’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:188:36:
+
+  188 |    integer, allocatable :: totsym(:)
+      |                                    1
+Warning: Unused variable ‘totsym’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:175:68:
+
+  175 |    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
+      |                                                                    1
+Warning: Unused variable ‘w0’ declared at (1) [-Wunused-variable]
+../src/optimizer.f90:175:65:
+
+  175 |    real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
+      |                                                                 1
+Warning: Unused variable ‘w1’ declared at (1) [-Wunused-variable]
+[10/67] Compiling Fortran object libxtb.so.6.6.1.p/src_oniom.f90.o
+../src/oniom.f90:1552:32:
+
+ 1552 |    integer, allocatable :: at(:)
+      |                                1
+Warning: Unused variable ‘at’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1550:18:
+
+ 1550 |    integer :: i, j, n, k, pre_last
+      |                  1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1550:24:
+
+ 1550 |    integer :: i, j, n, k, pre_last
+      |                        1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1528:39:
+
+ 1528 | function calculateCharge(self, env, mol, chk) result(chrg_model)
+      |                                       1
+Warning: Unused dummy argument ‘mol’ at (1) [-Wunused-dummy-argument]
+../src/oniom.f90:1550:21:
+
+ 1550 |    integer :: i, j, n, k, pre_last
+      |                     1
+Warning: Unused variable ‘n’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1550:34:
+
+ 1550 |    integer :: i, j, n, k, pre_last
+      |                                  1
+Warning: Unused variable ‘pre_last’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1504:15:
+
+ 1504 |    integer :: b
+      |               1
+Warning: Unused variable ‘b’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1478:33:
+
+ 1478 | subroutine checkfororder(env, mol, idx1, idx2, bond, hybrid)
+      |                                 1
+Warning: Unused dummy argument ‘mol’ at (1) [-Wunused-dummy-argument]
+../src/oniom.f90:1396:18:
+
+ 1396 |    integer :: i, j
+      |                  1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1117:15:
+
+ 1117 |    integer :: i,j,k
+      |               1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1117:17:
+
+ 1117 |    integer :: i,j,k
+      |                 1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1117:19:
+
+ 1117 |    integer :: i,j,k
+      |                   1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:626:47:
+
+  626 |    integer, allocatable :: brokenBondPairs(:,:)
+      |                                               1
+Warning: Unused variable ‘brokenbondpairs’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:643:31:
+
+  643 |    integer :: i, j, k, pre_last, pre_last_out, iterator
+      |                               1
+Warning: Unused variable ‘pre_last’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:643:45:
+
+  643 |    integer :: i, j, k, pre_last, pre_last_out, iterator
+      |                                             1
+Warning: Unused variable ‘pre_last_out’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:571:36:
+
+  571 | subroutine writeInfo(self, unit, mol)
+      |                                    1
+Warning: Unused dummy argument ‘mol’ at (1) [-Wunused-dummy-argument]
+../src/oniom.f90:571:25:
+
+  571 | subroutine writeInfo(self, unit, mol)
+      |                         1
+Warning: Unused dummy argument ‘self’ at (1) [-Wunused-dummy-argument]
+../src/oniom.f90:571:31:
+
+  571 | subroutine writeInfo(self, unit, mol)
+      |                               1
+Warning: Unused dummy argument ‘unit’ at (1) [-Wunused-dummy-argument]
+../src/oniom.f90:256:27:
+
+  256 |    integer :: i, coord_unit
+      |                           1
+Warning: Unused variable ‘coord_unit’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:122:15:
+
+  122 |    integer :: i
+      |               1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:119:45:
+
+  119 |    type(TOrcaCalculator), allocatable :: orca
+      |                                             1
+Warning: Unused variable ‘orca’ declared at (1) [-Wunused-variable]
+../src/oniom.f90:1572:0:
+
+ 1572 |       return
+      | 
+Warning: ‘chrg_model’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+[11/67] Compiling Fortran object libxtb.so.6.6.1.p/src_main_setup.f90.o
+[12/67] Compiling Fortran object libxtb.so.6.6.1.p/src_main_defaults.f90.o
+[13/67] Compiling Fortran object libxtb.so.6.6.1.p/src_api_calculator.f90.o
+[14/67] Compiling Fortran object libxtb.so.6.6.1.p/src_iff_iff_prepare.f90.o
+../src/iff/iff_prepare.f90:150:41:
+
+  150 |          if (uhf(1) /= 0.0_wp) mol%uhf = uhf(1)
+      |                                         1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/iff/iff_prepare.f90:153:41:
+
+  153 |          if (uhf(2) /= 0.0_wp) mol%uhf = uhf(2)
+      |                                         1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/iff/iff_prepare.f90:109:27:
+
+  109 |       integer :: gsolvstate !Should be gas
+      |                           1
+Warning: Unused variable ‘gsolvstate’ declared at (1) [-Wunused-variable]
+../src/iff/iff_prepare.f90:61:35:
+
+   61 |       integer, allocatable :: at(:)
+      |                                   1
+Warning: Unused variable ‘at’ declared at (1) [-Wunused-variable]
+../src/iff/iff_prepare.f90:62:40:
+
+   62 |       real(wp), allocatable :: xyz(:, :)
+      |                                        1
+Warning: Unused variable ‘xyz’ declared at (1) [-Wunused-variable]
+../src/iff/iff_prepare.f90:231:0:
+
+  231 |          set%newdisp = newdisp_tmp
+      | 
+Warning: ‘newdisp_tmp’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/iff/iff_prepare.f90:230:0:
+
+  230 |          set%mode_extrun = extrun_tmp
+      | 
+Warning: ‘extrun_tmp’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+[15/67] Compiling Fortran object libxtb.so.6.6.1.p/src_api_interface.f90.o
+[16/67] Compiling Fortran object libxtb.so.6.6.1.p/src_relaxation_engine.f90.o
+../src/relaxation_engine.f90:1003:24:
+
+ 1003 |       Aaug(i*(1+i)/2) = 1.0_wp / hdiag(i)
+      |                        1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/relaxation_engine.f90:1005:28:
+
+ 1005 |    Aaug(npvar+1:npvar1-1) = g_anc
+      |                            1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/relaxation_engine.f90:635:21:
+
+  635 |          hess(i,j) = hessp(ij)
+      |                     1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/relaxation_engine.f90:636:21:
+
+  636 |          hess(j,i) = hessp(ij)
+      |                     1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/relaxation_engine.f90:676:35:
+
+  676 |       where(abs(eig).gt.thr) eig = eig+damp
+      |                                   1
+Warning: Possible change of value in conversion from REAL(8) to REAL(4) at (1) [-Wconversion]
+../src/relaxation_engine.f90:940:21:
+
+  940 |    real(wp) :: depred
+      |                     1
+Warning: Unused variable ‘depred’ declared at (1) [-Wunused-variable]
+../src/relaxation_engine.f90:934:20:
+
+  934 |    integer :: i,j,ij
+      |                    1
+Warning: Unused variable ‘ij’ declared at (1) [-Wunused-variable]
+../src/relaxation_engine.f90:934:17:
+
+  934 |    integer :: i,j,ij
+      |                 1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/relaxation_engine.f90:941:31:
+
+  941 |    real(wp) :: max_displacement
+      |                               1
+Warning: Unused variable ‘max_displacement’ declared at (1) [-Wunused-variable]
+../src/relaxation_engine.f90:826:22:
+
+  826 |    integer :: lastiter
+      |                      1
+Warning: Unused variable ‘lastiter’ declared at (1) [-Wunused-variable]
+../src/relaxation_engine.f90:193:19:
+
+  193 |    real(wp) :: time
+      |                   1
+Warning: Unused variable ‘time’ declared at (1) [-Wunused-variable]
+../src/relaxation_engine.f90:1320:0:
+
+ 1320 |                &       - lat_apar * lat_gradient/lat_gnorm * lat_speed
+      | 
+Warning: ‘lat_gnorm’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/relaxation_engine.f90:1322:0:
+
+ 1322 |                lat_time_step = min(lat_time_step * opt%finc, max_tstep)
+      | 
+Warning: ‘lat_time_step’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/relaxation_engine.f90:1320:0:
+
+ 1320 |                &       - lat_apar * lat_gradient/lat_gnorm * lat_speed
+      | 
+Warning: ‘lat_apar’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/relaxation_engine.f90:524:0:
+
+  524 |          if (avconv%nlog > 0 .and. pr) then
+      | 
+Warning: ‘pr’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+[17/67] Compiling Fortran object libxtb.so.6.6.1.p/src_geoopt_driver.f90.o
+[18/67] Compiling Fortran object libxtb.so.6.6.1.p/src_scan_driver.f90.o
+../src/scan_driver.f90:55:20:
+
+   55 |    logical  :: exist
+      |                    1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+[19/67] Compiling Fortran object libxtb.so.6.6.1.p/src_mdoptim.f90.o
+../src/mdoptim.f90:55:16:
+
+   55 |    real(wp) :: e,angtoau
+      |                1
+Warning: Unused variable ‘e’ declared at (1) [-Wunused-variable]
+../src/mdoptim.f90:40:46:
+
+   40 | subroutine mdopt(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
+      |                                              1
+Warning: Unused dummy argument ‘et’ at (1) [-Wunused-dummy-argument]
+../src/mdoptim.f90:59:13:
+
+   59 |    logical ex, fail
+      |             1
+Warning: Unused variable ‘ex’ declared at (1) [-Wunused-variable]
+../src/mdoptim.f90:48:20:
+
+   48 |    integer  :: icall,maxiter
+      |                    1
+Warning: Unused variable ‘icall’ declared at (1) [-Wunused-variable]
+../src/mdoptim.f90:40:55:
+
+   40 | subroutine mdopt(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
+      |                                                       1
+Warning: Unused dummy argument ‘maxiter’ at (1) [-Wunused-dummy-argument]
+../src/mdoptim.f90:57:30:
+
+   57 |    integer i,j,iz1,iz2,nall,ol
+      |                              1
+Warning: Unused variable ‘ol’ declared at (1) [-Wunused-variable]
+../src/mdoptim.f90:52:27:
+
+   52 |    type(scc_results) :: res
+      |                           1
+Warning: Unused variable ‘res’ declared at (1) [-Wunused-variable]
+[20/67] Compiling Fortran object libxtb.so.6.6.1.p/src_getkopt.f90.o
+../src/getkopt.f90:112:43:
+
+  112 |          & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
+      |                                           1
+Warning: Unused dummy argument ‘et’ at (1) [-Wunused-dummy-argument]
+../src/getkopt.f90:132:53:
+
+  132 |   integer                                     :: idum
+      |                                                     1
+Warning: Unused variable ‘idum’ declared at (1) [-Wunused-variable]
+../src/getkopt.f90:112:27:
+
+  112 |          & calc,env,restart,mol,chk,egap,et,maxiter,maxcycle,optlev,&
+      |                           1
+Warning: Unused dummy argument ‘restart’ at (1) [-Wunused-dummy-argument]
+../src/getkopt.f90:41:27:
+
+   41 |          & etot,g,sigma,acc)
+      |                           1
+Warning: Unused dummy argument ‘acc’ at (1) [-Wunused-dummy-argument]
+../src/getkopt.f90:67:53:
+
+   67 |   logical                                     :: fail
+      |                                                     1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../src/getkopt.f90:62:53:
+
+   62 |   integer                                     :: idum
+      |                                                     1
+Warning: Unused variable ‘idum’ declared at (1) [-Wunused-variable]
+[21/67] Compiling Fortran object libxtb.so.6.6.1.p/src_gfnff_struc_converter.f90.o
+../src/gfnff/struc_converter.f90:159:17:
+
+  159 |   set%md_hmass = hmass_in
+      |                 1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/gfnff/struc_converter.f90:26:38:
+
+   26 |          & env,restart,mol,chk,egap,et,maxiter,maxcycle,&
+      |                                      1
+Warning: Unused dummy argument ‘et’ at (1) [-Wunused-dummy-argument]
+../src/gfnff/struc_converter.f90:67:54:
+
+   67 |   logical                                     :: exist
+      |                                                      1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../src/gfnff/struc_converter.f90:59:52:
+
+   59 |   integer                                     :: ich
+      |                                                    1
+Warning: Unused variable ‘ich’ declared at (1) [-Wunused-variable]
+[22/67] Compiling Fortran object libxtb.so.6.6.1.p/src_screening.f90.o
+../src/screening.f90:222:2:
+
+  222 | 99 write(*,*)
+      |  1
+Warning: Label 99 at (1) defined but not used [-Wunused-label]
+../src/screening.f90:83:11:
+
+   83 |       nall=set%ntemp_siman*set%time_md*1000/50  ! number of qmdff write outs
+      |           1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/screening.f90:279:22:
+
+  279 |    integer  :: i,j,k,l,m,ndum,nstep,dumpstep
+      |                      1
+Warning: Unused variable ‘l’ declared at (1) [-Wunused-variable]
+../src/screening.f90:279:35:
+
+  279 |    integer  :: i,j,k,l,m,ndum,nstep,dumpstep
+      |                                   1
+Warning: Unused variable ‘nstep’ declared at (1) [-Wunused-variable]
+../src/screening.f90:66:32:
+
+   66 |    real(wp) :: xx(10),r,rmsd,acc,T,beta,A,dum
+      |                                1
+Warning: Unused variable ‘acc’ declared at (1) [-Wunused-variable]
+../src/screening.f90:71:23:
+
+   71 |    logical :: checkrmsd
+      |                       1
+Warning: Unused variable ‘checkrmsd’ declared at (1) [-Wunused-variable]
+../src/screening.f90:65:27:
+
+   65 |    real(wp) :: e,gnorm,dens,emin,ethr,ethr2,gg,ss
+      |                           1
+Warning: Unused variable ‘dens’ declared at (1) [-Wunused-variable]
+../src/screening.f90:70:55:
+
+   70 |    logical :: fail,equalrot2,ohbonded,include_enan,enan,ex
+      |                                                       1
+Warning: Unused variable ‘enan’ declared at (1) [-Wunused-variable]
+../src/screening.f90:65:22:
+
+   65 |    real(wp) :: e,gnorm,dens,emin,ethr,ethr2,gg,ss
+      |                      1
+Warning: Unused variable ‘gnorm’ declared at (1) [-Wunused-variable]
+../src/screening.f90:67:24:
+
+   67 |    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
+      |                        1
+Warning: Unused variable ‘i1’ declared at (1) [-Wunused-variable]
+../src/screening.f90:67:27:
+
+   67 |    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
+      |                           1
+Warning: Unused variable ‘i2’ declared at (1) [-Wunused-variable]
+../src/screening.f90:49:16:
+
+   49 |    integer icall,maxiter
+      |                1
+Warning: Unused variable ‘icall’ declared at (1) [-Wunused-variable]
+../src/screening.f90:67:19:
+
+   67 |    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
+      |                   1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/screening.f90:67:39:
+
+   67 |    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
+      |                                       1
+Warning: Unused variable ‘lin’ declared at (1) [-Wunused-variable]
+../src/screening.f90:67:53:
+
+   67 |    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
+      |                                                     1
+Warning: Unused variable ‘ndum’ declared at (1) [-Wunused-variable]
+../src/screening.f90:67:43:
+
+   67 |    integer :: i,j,k,m,i1,i2,iz1,iz2,lin,nst,ncnf,ndum,olev
+      |                                           1
+Warning: Unused variable ‘nst’ declared at (1) [-Wunused-variable]
+../src/screening.f90:68:24:
+
+   68 |    integer :: nall,ntemp,ncnf1,icyc,maxoptiter
+      |                        1
+Warning: Unused variable ‘ntemp’ declared at (1) [-Wunused-variable]
+../src/screening.f90:70:37:
+
+   70 |    logical :: fail,equalrot2,ohbonded,include_enan,enan,ex
+      |                                     1
+Warning: Unused variable ‘ohbonded’ declared at (1) [-Wunused-variable]
+../src/screening.f90:66:23:
+
+   66 |    real(wp) :: xx(10),r,rmsd,acc,T,beta,A,dum
+      |                       1
+Warning: Unused variable ‘r’ declared at (1) [-Wunused-variable]
+../src/screening.f90:59:34:
+
+   59 |    real(wp),allocatable :: rmat(:),eread(:)
+      |                                  1
+Warning: Unused variable ‘rmat’ declared at (1) [-Wunused-variable]
+../src/screening.f90:66:28:
+
+   66 |    real(wp) :: xx(10),r,rmsd,acc,T,beta,A,dum
+      |                            1
+Warning: Unused variable ‘rmsd’ declared at (1) [-Wunused-variable]
+../src/screening.f90:66:21:
+
+   66 |    real(wp) :: xx(10),r,rmsd,acc,T,beta,A,dum
+      |                     1
+Warning: Unused variable ‘xx’ declared at (1) [-Wunused-variable]
+[23/67] Compiling Fortran object libxtb.so.6.6.1.p/src_modef.f90.o
+../src/modef.f90:98:7:
+
+   98 |    tag=365*val(1) + 30.5*val(2) + val(3) ! actual date
+      |       1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/modef.f90:561:15:
+
+  561 |    integer n3,i,nprj
+      |               1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:34:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                  1
+Warning: Unused variable ‘aa1’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:46:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                              1
+Warning: Unused variable ‘aa2’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:38:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                      1
+Warning: Unused variable ‘bb1’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:50:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                                  1
+Warning: Unused variable ‘bb2’ declared at (1) [-Wunused-variable]
+../src/modef.f90:67:71:
+
+   67 |    real(wp),allocatable:: coord0(:,:), displ(:), xyzmin(:,:), bmat(:,:)
+      |                                                                       1
+Warning: Unused variable ‘bmat’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:42:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                          1
+Warning: Unused variable ‘cc1’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:54:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                                      1
+Warning: Unused variable ‘cc2’ declared at (1) [-Wunused-variable]
+../src/modef.f90:71:68:
+
+   71 |    real(wp) :: norm,fc,updscal,aa1,bb1,cc1,aa2,bb2,cc2,ee,thr,dip(3)
+      |                                                                    1
+Warning: Unused variable ‘dip’ declared at (1) [-Wunused-variable]
+../src/modef.f90:59:19:
+
+   59 |    integer :: icall,maxiter
+      |                   1
+Warning: Unused variable ‘icall’ declared at (1) [-Wunused-variable]
+../src/modef.f90:74:36:
+
+   74 |    integer :: m,ifind,isave,imod,kkk,minpos,tag,n36
+      |                                    1
+Warning: Unused variable ‘kkk’ declared at (1) [-Wunused-variable]
+../src/modef.f90:74:51:
+
+   74 |    integer :: m,ifind,isave,imod,kkk,minpos,tag,n36
+      |                                                   1
+Warning: Unused variable ‘n36’ declared at (1) [-Wunused-variable]
+../src/modef.f90:80:31:
+
+   80 |    logical :: ex,fail,vecupdate,scfonly,ldum,intermol
+      |                               1
+Warning: Unused variable ‘vecupdate’ declared at (1) [-Wunused-variable]
+[24/67] Compiling Fortran object libxtb.so.6.6.1.p/src_bias_path.f90.o
+../src/bias_path.f90:862:31:
+
+  862 |    real(wp)              :: dum, ddot
+      |                               1
+Warning: Unused variable ‘dum’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:863:31:
+
+  863 |    integer               :: i,j,k,l
+      |                               1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:852:34:
+
+  852 | subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
+      |                                  1
+Warning: Unused dummy argument ‘xyz0’ at (1) [-Wunused-dummy-argument]
+../src/bias_path.f90:852:39:
+
+  852 | subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
+      |                                       1
+Warning: Unused dummy argument ‘xyz1’ at (1) [-Wunused-dummy-argument]
+../src/bias_path.f90:770:17:
+
+  770 |    real(wp) fs_x0,fs_x1,fss_x0,fss_x1
+      |                 1
+Warning: Unused variable ‘fs_x0’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:770:23:
+
+  770 |    real(wp) fs_x0,fs_x1,fss_x0,fss_x1
+      |                       1
+Warning: Unused variable ‘fs_x1’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:776:17:
+
+  776 |    integer :: i,j,nf
+      |                 1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:771:14:
+
+  771 |    real(wp) x0,x1,x2,y0,y1,y2
+      |              1
+Warning: Unused variable ‘x0’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:771:17:
+
+  771 |    real(wp) x0,x1,x2,y0,y1,y2
+      |                 1
+Warning: Unused variable ‘x1’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:771:20:
+
+  771 |    real(wp) x0,x1,x2,y0,y1,y2
+      |                    1
+Warning: Unused variable ‘x2’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:771:23:
+
+  771 |    real(wp) x0,x1,x2,y0,y1,y2
+      |                       1
+Warning: Unused variable ‘y0’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:771:26:
+
+  771 |    real(wp) x0,x1,x2,y0,y1,y2
+      |                          1
+Warning: Unused variable ‘y1’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:771:29:
+
+  771 |    real(wp) x0,x1,x2,y0,y1,y2
+      |                             1
+Warning: Unused variable ‘y2’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:602:28:
+
+  602 |    real(wp) :: strecke_X_inc,temp_strecke_X,xyz_0(3),xyz_1(3),xyz_diff(3)
+      |                            1
+Warning: Unused variable ‘strecke_x_inc’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:602:43:
+
+  602 |    real(wp) :: strecke_X_inc,temp_strecke_X,xyz_0(3),xyz_1(3),xyz_diff(3)
+      |                                           1
+Warning: Unused variable ‘temp_strecke_x’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:564:43:
+
+  564 |    real(wp), allocatable, dimension(:) :: v
+      |                                           1
+Warning: Unused variable ‘v’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:525:15:
+
+  525 |    integer :: i,j,k
+      |               1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:526:25:
+
+  526 |    integer :: modef, idat
+      |                         1
+Warning: Unused variable ‘idat’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:514:34:
+
+  514 | subroutine metadyn_tsmode(n,sn,its,xyzpath,xyzact,kpull)
+      |                                  1
+Warning: Unused dummy argument ‘its’ at (1) [-Wunused-dummy-argument]
+../src/bias_path.f90:525:17:
+
+  525 |    integer :: i,j,k
+      |                 1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:525:19:
+
+  525 |    integer :: i,j,k
+      |                   1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:526:19:
+
+  526 |    integer :: modef, idat
+      |                   1
+Warning: Unused variable ‘modef’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:524:36:
+
+  524 |    real(wp), allocatable :: pvec1(:), pvec2(:)
+      |                                    1
+Warning: Unused variable ‘pvec1’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:524:46:
+
+  524 |    real(wp), allocatable :: pvec1(:), pvec2(:)
+      |                                              1
+Warning: Unused variable ‘pvec2’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:514:42:
+
+  514 | subroutine metadyn_tsmode(n,sn,its,xyzpath,xyzact,kpull)
+      |                                          1
+Warning: Unused dummy argument ‘xyzpath’ at (1) [-Wunused-dummy-argument]
+../src/bias_path.f90:88:18:
+
+   88 |    real(wp) de_min,grad_min,e_ed,e_pr,de,ddot,gthr
+      |                  1
+Warning: Unused variable ‘de_min’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:49:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                                                 1
+Warning: Unused variable ‘distort’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:84:42:
+
+   84 |    real(wp) U(3,3),x(3),y(3),rms,barr,drms,gnew,e1,dum0,r,rco,rms2,factor2
+      |                                          1
+Warning: Unused variable ‘drms’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:84:55:
+
+   84 |    real(wp) U(3,3),x(3),y(3),rms,barr,drms,gnew,e1,dum0,r,rco,rms2,factor2
+      |                                                       1
+Warning: Unused variable ‘dum0’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:84:50:
+
+   84 |    real(wp) U(3,3),x(3),y(3),rms,barr,drms,gnew,e1,dum0,r,rco,rms2,factor2
+      |                                                  1
+Warning: Unused variable ‘e1’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:88:32:
+
+   88 |    real(wp) de_min,grad_min,e_ed,e_pr,de,ddot,gthr
+      |                                1
+Warning: Unused variable ‘e_ed’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:88:37:
+
+   88 |    real(wp) de_min,grad_min,e_ed,e_pr,de,ddot,gthr
+      |                                     1
+Warning: Unused variable ‘e_pr’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:86:57:
+
+   86 |    real(wp) fnat,rmsd_prod_thr,alp_change,k_change,edrmsd,ppull
+      |                                                         1
+Warning: Unused variable ‘edrmsd’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:30:65:
+
+   30 | subroutine bias_path(env, mol, chk, calc, egap, et, maxiter, epot, grd, sigma)
+      |                                                                 1
+Warning: Unused dummy argument ‘epot’ at (1) [-Wunused-dummy-argument]
+../src/bias_path.f90:91:18:
+
+   91 |    logical fail,ex,done,degen
+      |                  1
+Warning: Unused variable ‘ex’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:84:47:
+
+   84 |    real(wp) U(3,3),x(3),y(3),rms,barr,drms,gnew,e1,dum0,r,rco,rms2,factor2
+      |                                               1
+Warning: Unused variable ‘gnew’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:55:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                                                       1
+Warning: Unused variable ‘gnorm’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:88:27:
+
+   88 |    real(wp) de_min,grad_min,e_ed,e_pr,de,ddot,gthr
+      |                           1
+Warning: Unused variable ‘grad_min’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:82:26:
+
+   82 |    integer ilog,ilog2,idat ! file handle
+      |                          1
+Warning: Unused variable ‘idat’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:80:60:
+
+   80 |    integer i,j,k,ii,nn,olev,skip,irun,maxoptiter,nk,maxcycle,idum,maxpath
+      |                                                            1
+Warning: Unused variable ‘maxcycle’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:81:28:
+
+   81 |    integer np,iter,its,modef,run,npathk,tsmodeav,ialp,nrefine,nalp,imem(100)
+      |                            1
+Warning: Unused variable ‘modef’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:80:22:
+
+   80 |    integer i,j,k,ii,nn,olev,skip,irun,maxoptiter,nk,maxcycle,idum,maxpath
+      |                      1
+Warning: Unused variable ‘nn’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:84:66:
+
+   84 |    real(wp) U(3,3),x(3),y(3),rms,barr,drms,gnew,e1,dum0,r,rco,rms2,factor2
+      |                                                                  1
+Warning: Unused variable ‘rms2’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:80:32:
+
+   80 |    integer i,j,k,ii,nn,olev,skip,irun,maxoptiter,nk,maxcycle,idum,maxpath
+      |                                1
+Warning: Unused variable ‘skip’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:23:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                       1
+Warning: Unused variable ‘t3’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:64:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                                                                1
+Warning: Unused variable ‘thr’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:81:48:
+
+   81 |    integer np,iter,its,modef,run,npathk,tsmodeav,ialp,nrefine,nalp,imem(100)
+      |                                                1
+Warning: Unused variable ‘tsmodeav’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:71:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                                                                       1
+Warning: Unused variable ‘w1’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:74:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                                                                          1
+Warning: Unused variable ‘w2’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:17:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                 1
+Warning: Unused variable ‘x3’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:85:30:
+
+   85 |    real(wp) x3(3),t3(3),xx(10),dum,factor,distort,gnorm,dum1,thr,scc,w1,w2
+      |                              1
+Warning: Unused variable ‘xx’ declared at (1) [-Wunused-variable]
+../src/bias_path.f90:665:0:
+
+  665 | subroutine cqpath_repos_asym(n,x1,x2)
+      | 
+Warning: ‘cqpath_repos_asym’ defined but not used [-Wunused-function]
+../src/bias_path.f90:698:0:
+
+  698 | subroutine cqpath_cube_spline(n,x,y,x2,y2)
+      | 
+Warning: ‘cqpath_cube_spline’ defined but not used [-Wunused-function]
+../src/bias_path.f90:852:0:
+
+  852 | subroutine cleanpath(np,n,xyz,xyz0,xyz1,pthr)
+      | 
+Warning: ‘cleanpath’ defined but not used [-Wunused-function]
+../src/bias_path.f90:746:0:
+
+  746 |       y2(i) = y_wert
+      | 
+Warning: ‘y_wert’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/bias_path.f90:737:0:
+
+  737 |    real(wp) y_wert
+      | 
+note: ‘y_wert’ was declared here
+[25/67] Compiling Fortran object libxtb.so.6.6.1.p/src_docking_search_nci.f90.o
+../src/docking/search_nci.f90:41:7:
+
+   41 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘kind’ at (1) is ignored [-Wsurprising]
+../src/docking/search_nci.f90:41:7:
+
+   41 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘present’ at (1) is ignored [-Wsurprising]
+../src/docking/search_nci.f90:1150:24:
+
+ 1150 |       integer :: i, j, k
+      |                        1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:1114:35:
+
+ 1114 |    subroutine constrain_xTB_gff(env, mol)
+      |                                   1
+Warning: Unused dummy argument ‘env’ at (1) [-Wunused-dummy-argument]
+../src/docking/search_nci.f90:999:29:
+
+  999 |       real(wp) :: e_tmp(nall), xyz_tmp(3, n, nall)
+      |                             1
+Warning: Unused variable ‘e_tmp’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:32:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                1
+Warning: Unused variable ‘a1’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:36:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                    1
+Warning: Unused variable ‘a2’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:40:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                        1
+Warning: Unused variable ‘a3’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:181:23:
+
+  181 |       character*80 atmp
+      |                       1
+Warning: Unused variable ‘atmp’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:144:30:
+
+  144 |       type(TTopology) :: bonds
+      |                              1
+Warning: Unused variable ‘bonds’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:121:51:
+
+  121 |       real(wp) :: found_tmp(6), displ(6), c2(3, n2), f(6), bestsofar
+      |                                                   1
+Warning: Unused variable ‘c2’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:68:90:
+
+   68 |                        &        den1, den2, gab1, gab2, molA_e, molB_e, cprob, emin, coord, comb)
+      |                                                                                          1
+Warning: Unused dummy argument ‘coord’ at (1) [-Wunused-dummy-argument]
+../src/docking/search_nci.f90:68:83:
+
+   68 |                        &        den1, den2, gab1, gab2, molA_e, molB_e, cprob, emin, coord, comb)
+      |                                                                                   1
+Warning: Unused dummy argument ‘emin’ at (1) [-Wunused-dummy-argument]
+../src/docking/search_nci.f90:122:79:
+
+  122 |       real(wp) :: r,e,dx,dy,dz,xx1,yy1,zz1,bord,bord_rg,stepr3(3),stepr4,eshift
+      |                                                                               1
+Warning: Unused variable ‘eshift’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:157:26:
+
+  157 |       real(wp) :: egap, et, etot, grad(3, n), sigma(3, 3)
+      |                          1
+Warning: Unused variable ‘et’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:142:38:
+
+  142 |       type(TGFFCalculator) :: gff_calc
+      |                                      1
+Warning: Unused variable ‘gff_calc’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:164:47:
+
+  164 |       integer :: itopo = 32, ipocket = 53, ichr = 33, iscreen = 34
+      |                                               1
+Warning: Unused variable ‘ichr’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:131:84:
+
+  131 |       integer :: m1, m2, m3, l, nn, ndim, ll, kkk, kkkk, mfrag, maxlow, nclust, ierr
+      |                                                                                    1
+Warning: Unused variable ‘ierr’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:163:45:
+
+  163 |       integer :: itemp = 64, iopt = 96, iprob = 30, ifinal = 31
+      |                                             1
+Warning: Unused variable ‘iprob’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:164:61:
+
+  164 |       integer :: itopo = 32, ipocket = 53, ichr = 33, iscreen = 34
+      |                                                             1
+Warning: Unused variable ‘iscreen’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:129:70:
+
+  129 |       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
+      |                                                                      1
+Warning: Unused variable ‘iseed’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:164:22:
+
+  164 |       integer :: itopo = 32, ipocket = 53, ichr = 33, iscreen = 34
+      |                      1
+Warning: Unused variable ‘itopo’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:129:42:
+
+  129 |       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
+      |                                          1
+Warning: Unused variable ‘jj’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:131:49:
+
+  131 |       integer :: m1, m2, m3, l, nn, ndim, ll, kkk, kkkk, mfrag, maxlow, nclust, ierr
+      |                                                 1
+Warning: Unused variable ‘kkk’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:131:55:
+
+  131 |       integer :: m1, m2, m3, l, nn, ndim, ll, kkk, kkkk, mfrag, maxlow, nclust, ierr
+      |                                                       1
+Warning: Unused variable ‘kkkk’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:129:60:
+
+  129 |       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
+      |                                                            1
+Warning: Unused variable ‘maxs’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:136:25:
+
+  136 |       integer :: maxstruc
+      |                         1
+Warning: Unused variable ‘maxstruc’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:174:23:
+
+  174 |       integer :: minpos
+      |                       1
+Warning: Unused variable ‘minpos’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:129:30:
+
+  129 |       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
+      |                              1
+Warning: Unused variable ‘nang’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:129:34:
+
+  129 |       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
+      |                                  1
+Warning: Unused variable ‘nr’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:129:46:
+
+  129 |       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
+      |                                              1
+Warning: Unused variable ‘ns’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:146:44:
+
+  146 |       character(len=:), allocatable :: pfile
+      |                                            1
+Warning: Unused variable ‘pfile’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:28:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                            1
+Warning: Unused variable ‘r3’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:128:20:
+
+  128 |       real*4   :: r4
+      |                    1
+Warning: Unused variable ‘r4’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:126:43:
+
+  126 |       real(wp) :: rmsd(n_opt*(n_opt + 1)/2)
+      |                                           1
+Warning: Unused variable ‘rmsd’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:68:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                                                    1
+Warning: Unused variable ‘t0’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:72:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                                                        1
+Warning: Unused variable ‘t1’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:172:23:
+
+  172 |       real(wp) :: tmp_e
+      |                       1
+Warning: Unused variable ‘tmp_e’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:64:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                                                1
+Warning: Unused variable ‘tmpx’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:135:25:
+
+  135 |       logical :: tooclose
+      |                         1
+Warning: Unused variable ‘tooclose’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:143:49:
+
+  143 |       type(TGFFTopology) :: topo_backup, topo_xTB
+      |                                                 1
+Warning: Unused variable ‘topo_xtb’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:76:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                                                            1
+Warning: Unused variable ‘w0’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:124:80:
+
+  124 |       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
+      |                                                                                1
+Warning: Unused variable ‘w1’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:137:35:
+
+  137 |       character(len=100) :: warning
+      |                                   1
+Warning: Unused variable ‘warning’ declared at (1) [-Wunused-variable]
+../src/docking/search_nci.f90:649:0:
+
+  649 |             if (rprob(1)*au .lt. bestsofar) then
+      | 
+Warning: ‘bestsofar’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:166:0:
+
+  166 |       real(wp), allocatable :: xyz_pocket(:, :, :)
+      | 
+Warning: ‘xyz_pocket.offset’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:166:0: Warning: ‘xyz_pocket.dim[2].stride’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:541:0:
+
+  541 |                calc%topo%qfrag = topo_backup%qfrag
+      | 
+Warning: ‘topo_backup.qfrag.dim[0].ubound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:541:0: Warning: ‘topo_backup.qfrag.dim[0].lbound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0:
+
+  143 |       type(TGFFTopology) :: topo_backup, topo_xTB
+      | 
+Warning: ‘topo_backup.qfrag.offset’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:542:0:
+
+  542 |                calc%topo%qa = topo_backup%qa
+      | 
+Warning: ‘topo_backup.qa.dim[0].ubound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:542:0: Warning: ‘topo_backup.qa.dim[0].lbound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0:
+
+  143 |       type(TGFFTopology) :: topo_backup, topo_xTB
+      | 
+Warning: ‘topo_backup.qa.offset’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:543:0:
+
+  543 |                calc%topo%fraglist = topo_backup%fraglist
+      | 
+Warning: ‘topo_backup.fraglist.dim[0].ubound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:543:0: Warning: ‘topo_backup.fraglist.dim[0].lbound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0:
+
+  143 |       type(TGFFTopology) :: topo_backup, topo_xTB
+      | 
+Warning: ‘topo_backup.fraglist.offset’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:888:0:
+
+  888 |             calc%topo%nb = topo_backup%nb
+      | 
+Warning: ‘topo_backup.nb.dim[1].ubound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0:
+
+  143 |       type(TGFFTopology) :: topo_backup, topo_xTB
+      | 
+Warning: ‘topo_backup.nb.dim[1].lbound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0: Warning: ‘topo_backup.nb.dim[1].stride’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0: Warning: ‘topo_backup.nb.dim[0].ubound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:540:0:
+
+  540 |                calc%topo%nb = topo_backup%nb
+      | 
+Warning: ‘topo_backup.nb.dim[0].lbound’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:143:0:
+
+  143 |       type(TGFFTopology) :: topo_backup, topo_xTB
+      | 
+Warning: ‘topo_backup.nb.offset’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:892:0:
+
+  892 |             calc%topo%nfrag = topo_backup%nfrag
+      | 
+Warning: ‘topo_backup.nfrag’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:887:0:
+
+  887 |             calc%topo%nbond = topo_backup%nbond
+      | 
+Warning: ‘topo_backup.nbond’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:981:0:
+
+  981 |    end subroutine docking_search
+      | 
+Warning: ‘.fnv’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+../src/docking/search_nci.f90:1016:0:
+
+ 1016 |    end subroutine sortxyz_e
+      | 
+note: ‘.fnv’ was declared here
+[26/67] Linking static target libxtb.a
+[27/67] Compiling Fortran object test/unit/tester.p/test_symmetry.f90.o
+../test/unit/test_symmetry.f90:220:0:
+
+  220 |       & ],[3,nat])
+      | 
+Warning: ‘xyz.offset’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:220:0: Warning: ‘xyz.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:220:0: Warning: ‘xyz.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:220:0: Warning: ‘xyz.dim[1].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:220:0: Warning: ‘xyz.dim[1].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:129:0:
+
+  129 |       & ],[3,nat])
+      | 
+Warning: ‘xyz.offset’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:129:0: Warning: ‘xyz.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:129:0: Warning: ‘xyz.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:129:0: Warning: ‘xyz.dim[1].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:129:0: Warning: ‘xyz.dim[1].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:97:0:
+
+   97 |       & ],[3,nat])
+      | 
+Warning: ‘xyz.offset’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:97:0: Warning: ‘xyz.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:97:0: Warning: ‘xyz.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:97:0: Warning: ‘xyz.dim[1].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:97:0: Warning: ‘xyz.dim[1].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:61:0:
+
+   61 |       & ],[3,nat])
+      | 
+Warning: ‘xyz.offset’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:61:0: Warning: ‘xyz.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:61:0: Warning: ‘xyz.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:61:0: Warning: ‘xyz.dim[1].lbound’ is used uninitialized in this function [-Wuninitialized]
+../test/unit/test_symmetry.f90:61:0: Warning: ‘xyz.dim[1].ubound’ is used uninitialized in this function [-Wuninitialized]
+[28/67] Compiling Fortran object test/unit/tester.p/test_atomlist.f90.o
+../test/unit/test_atomlist.f90:108:34:
+
+  108 |    integer, allocatable :: list(:)
+      |                                  1
+Warning: Unused variable ‘list’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:93:42:
+
+   93 |    character(len=:), allocatable :: string
+      |                                          1
+Warning: Unused variable ‘string’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:82:34:
+
+   82 |    integer, allocatable :: list(:)
+      |                                  1
+Warning: Unused variable ‘list’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:81:42:
+
+   81 |    character(len=:), allocatable :: string
+      |                                          1
+Warning: Unused variable ‘string’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:70:34:
+
+   70 |    integer, allocatable :: list(:)
+      |                                  1
+Warning: Unused variable ‘list’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:69:42:
+
+   69 |    character(len=:), allocatable :: string
+      |                                          1
+Warning: Unused variable ‘string’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:57:34:
+
+   57 |    integer, allocatable :: list(:)
+      |                                  1
+Warning: Unused variable ‘list’ declared at (1) [-Wunused-variable]
+../test/unit/test_atomlist.f90:56:42:
+
+   56 |    character(len=:), allocatable :: string
+      |                                          1
+Warning: Unused variable ‘string’ declared at (1) [-Wunused-variable]
+[29/67] Compiling Fortran object test/unit/tester.p/test_latticepoint.f90.o
+[30/67] Linking target test/api/xtb_c_test
+[31/67] Linking target libxtb.so.6.6.1
+[32/67] Compiling Fortran object test/unit/tester.p/test_molecule.f90.o
+[33/67] Compiling Fortran object test/unit/tester.p/test_pbc_tools.f90.o
+[34/67] Compiling Fortran object xtb.p/src_prog_submodules.f90.o
+[35/67] Compiling Fortran object test/unit/tester.p/test_dipro.f90.o
+[36/67] Compiling Fortran object xtb.p/src_prog_argparser.f90.o
+[37/67] Compiling Fortran object test/unit/tester.p/test_wsc.f90.o
+[38/67] Compiling Fortran object test/unit/tester.p/test_thermo.f90.o
+../test/unit/test_thermo.f90:242:19:
+
+  242 |    real(wp) :: etot, htot, gtot
+      |                   1
+Warning: Unused variable ‘etot’ declared at (1) [-Wunused-variable]
+../test/unit/test_thermo.f90:71:38:
+
+   71 |    real(wp) :: eval3(3), coord3(3,nat)
+      |                                      1
+Warning: Unused variable ‘coord3’ declared at (1) [-Wunused-variable]
+../test/unit/test_thermo.f90:71:23:
+
+   71 |    real(wp) :: eval3(3), coord3(3,nat)
+      |                       1
+Warning: Unused variable ‘eval3’ declared at (1) [-Wunused-variable]
+[39/67] Compiling Fortran object test/unit/tester.p/test_docking.f90.o
+../test/unit/test_docking.f90:67:19:
+
+   67 |    integer :: at(n)
+      |                   1
+Warning: Unused variable ‘at’ declared at (1) [-Wunused-variable]
+../test/unit/test_docking.f90:73:40:
+
+   73 |    type(TMolecule)     :: molA,molB,comb
+      |                                        1
+Warning: Unused variable ‘comb’ declared at (1) [-Wunused-variable]
+../test/unit/test_docking.f90:79:20:
+
+   79 |    logical  :: exist
+      |                    1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../test/unit/test_docking.f90:75:18:
+
+   75 |    integer :: i, j, k
+      |                  1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../test/unit/test_docking.f90:75:21:
+
+   75 |    integer :: i, j, k
+      |                     1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../test/unit/test_docking.f90:68:23:
+
+   68 |    real(wp) :: xyz(3,n)
+      |                       1
+Warning: Unused variable ‘xyz’ declared at (1) [-Wunused-variable]
+[40/67] Compiling Fortran object test/unit/tester.p/test_iff.f90.o
+[41/67] Compiling Fortran object xtb.p/src_prog_info.f90.o
+[42/67] Compiling Fortran object test/unit/tester.p/test_coordinationnumber.f90.o
+[43/67] Compiling Fortran object test/unit/tester.p/test_repulsion.f90.o
+../test/unit/test_repulsion.f90:218:18:
+
+  218 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_repulsion.f90:86:18:
+
+   86 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+[44/67] Compiling Fortran object test/unit/tester.p/molstock.f90.o
+[45/67] Compiling Fortran object xtb.p/src_prog_thermo.f90.o
+../src/prog/thermo.f90:23:7:
+
+   23 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘kind’ at (1) is ignored [-Wsurprising]
+../src/prog/thermo.f90:23:7:
+
+   23 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘present’ at (1) is ignored [-Wsurprising]
+[46/67] Compiling Fortran object test/unit/tester.p/test_cpx.f90.o
+../test/unit/test_cpx.f90:39:37:
+
+   39 |    type(err_type), allocatable :: err
+      |                                     1
+Warning: Unused variable ‘err’ declared at (1) [-Wunused-variable]
+../test/unit/test_cpx.f90:69:17:
+
+   69 |    integer :: ich
+      |                 1
+Warning: Unused variable ‘ich’ declared at (1) [-Wunused-variable]
+[47/67] Compiling Fortran object xtb.p/src_prog_irmod.f90.o
+../src/prog/irmod.f90:23:7:
+
+   23 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘kind’ at (1) is ignored [-Wsurprising]
+../src/prog/irmod.f90:23:7:
+
+   23 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘present’ at (1) is ignored [-Wsurprising]
+../src/prog/irmod.f90:123:0:
+
+  123 |    write(env%unit,*) "Dipole derivatives (DFTB+) read in from file '"//born//"' "
+      | 
+Warning: ‘.born’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+[48/67] Compiling Fortran object test/unit/tester.p/test_dftd3.f90.o
+../test/unit/test_dftd3.f90:664:32:
+
+  664 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd3.f90:661:53:
+
+  661 |    real(wp), allocatable :: trans(:, :), trans2(:, :)
+      |                                                     1
+Warning: Unused variable ‘trans2’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd3.f90:488:32:
+
+  488 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd3.f90:485:53:
+
+  485 |    real(wp), allocatable :: trans(:, :), trans2(:, :)
+      |                                                     1
+Warning: Unused variable ‘trans2’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd3.f90:298:32:
+
+  298 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd3.f90:295:53:
+
+  295 |    real(wp), allocatable :: trans(:, :), trans2(:, :)
+      |                                                     1
+Warning: Unused variable ‘trans2’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd3.f90:113:32:
+
+  113 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+[49/67] Compiling Fortran object test/unit/tester.p/test_hessian.f90.o
+[50/67] Compiling Fortran object xtb.p/src_prog_topology.f90.o
+../src/prog/topology.f90:23:7:
+
+   23 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘kind’ at (1) is ignored [-Wsurprising]
+../src/prog/topology.f90:23:7:
+
+   23 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘present’ at (1) is ignored [-Wsurprising]
+../src/prog/topology.f90:149:45:
+
+  149 |    character(len=:), allocatable :: flag, sec
+      |                                             1
+Warning: Unused variable ‘sec’ declared at (1) [-Wunused-variable]
+[51/67] Compiling Fortran object test/unit/tester.p/test_vertical.f90.o
+[52/67] Compiling Fortran object test/unit/tester.p/test_dftd4.f90.o
+../test/unit/test_dftd4.f90:741:58:
+
+  741 |    real(wp), allocatable :: q(:), dqdr(:,:,:), dqdL(:,:,:)
+      |                                                          1
+Warning: Unused variable ‘dqdl’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:741:45:
+
+  741 |    real(wp), allocatable :: q(:), dqdr(:,:,:), dqdL(:,:,:)
+      |                                             1
+Warning: Unused variable ‘dqdr’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:733:32:
+
+  733 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:741:32:
+
+  741 |    real(wp), allocatable :: q(:), dqdr(:,:,:), dqdL(:,:,:)
+      |                                1
+Warning: Unused variable ‘q’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:730:53:
+
+  730 |    real(wp), allocatable :: trans(:, :), trans2(:, :)
+      |                                                     1
+Warning: Unused variable ‘trans2’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:558:58:
+
+  558 |    real(wp), allocatable :: q(:), dqdr(:,:,:), dqdL(:,:,:)
+      |                                                          1
+Warning: Unused variable ‘dqdl’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:558:45:
+
+  558 |    real(wp), allocatable :: q(:), dqdr(:,:,:), dqdL(:,:,:)
+      |                                             1
+Warning: Unused variable ‘dqdr’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:550:32:
+
+  550 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:558:32:
+
+  558 |    real(wp), allocatable :: q(:), dqdr(:,:,:), dqdL(:,:,:)
+      |                                1
+Warning: Unused variable ‘q’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:547:53:
+
+  547 |    real(wp), allocatable :: trans(:, :), trans2(:, :)
+      |                                                     1
+Warning: Unused variable ‘trans2’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:335:32:
+
+  335 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:332:53:
+
+  332 |    real(wp), allocatable :: trans(:, :), trans2(:, :)
+      |                                                     1
+Warning: Unused variable ‘trans2’ declared at (1) [-Wunused-variable]
+../test/unit/test_dftd4.f90:120:32:
+
+  120 |    real(wp) :: er, el, eps(3, 3)
+      |                                1
+Warning: Unused variable ‘eps’ declared at (1) [-Wunused-variable]
+[53/67] Compiling Fortran object xtb.p/src_prog_dock.f90.o
+../src/prog/dock.f90:31:7:
+
+   31 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘kind’ at (1) is ignored [-Wsurprising]
+../src/prog/dock.f90:31:7:
+
+   31 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘present’ at (1) is ignored [-Wsurprising]
+../src/prog/dock.f90:175:17:
+
+  175 |       molA%uhf = uhf(1)
+      |                 1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/prog/dock.f90:176:17:
+
+  176 |       molB%uhf = uhf(2)
+      |                 1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../src/prog/dock.f90:1047:36:
+
+ 1047 |    subroutine get_attractive_pot(env,comb)
+      |                                    1
+Warning: Unused dummy argument ‘env’ at (1) [-Wunused-dummy-argument]
+../src/prog/dock.f90:1003:35:
+
+ 1003 |    subroutine get_repulsive_pot(env,xyz,comb)
+      |                                   1
+Warning: Unused dummy argument ‘env’ at (1) [-Wunused-dummy-argument]
+../src/prog/dock.f90:959:22:
+
+  959 |       logical :: exist
+      |                      1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:954:18:
+
+  954 |       integer :: i
+      |                  1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:956:19:
+
+  956 |       integer :: ic
+      |                   1
+Warning: Unused variable ‘ic’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:957:19:
+
+  957 |       integer :: ie
+      |                   1
+Warning: Unused variable ‘ie’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:950:41:
+
+  950 |       character(len=:),allocatable :: key
+      |                                         1
+Warning: Unused variable ‘key’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:952:45:
+
+  952 |       character(len=:),allocatable :: newname
+      |                                             1
+Warning: Unused variable ‘newname’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:951:41:
+
+  951 |       character(len=:),allocatable :: val
+      |                                         1
+Warning: Unused variable ‘val’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:873:22:
+
+  873 |       logical :: exist
+      |                      1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:866:18:
+
+  866 |       integer :: i
+      |                  1
+Warning: Unused variable ‘i’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:868:19:
+
+  868 |       integer :: ic
+      |                   1
+Warning: Unused variable ‘ic’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:869:19:
+
+  869 |       integer :: ie
+      |                   1
+Warning: Unused variable ‘ie’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:861:42:
+
+  861 |       character(len=:), allocatable :: key
+      |                                          1
+Warning: Unused variable ‘key’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:862:42:
+
+  862 |       character(len=:), allocatable :: val
+      |                                          1
+Warning: Unused variable ‘val’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:338:29:
+
+  338 |       integer :: nFlags, idum
+      |                             1
+Warning: Unused variable ‘idum’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:103:24:
+
+  103 |       real(wp) :: e, dum, xx(10), zeffqmdff(86) ! various
+      |                        1
+Warning: Unused variable ‘dum’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:95:44:
+
+   95 |       integer :: nFiles, ftypeA, ftypeB, ich
+      |                                            1
+Warning: Unused variable ‘ich’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:106:21:
+
+  106 |       integer :: i, j, k
+      |                     1
+Warning: Unused variable ‘j’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:106:24:
+
+  106 |       integer :: i, j, k
+      |                        1
+Warning: Unused variable ‘k’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:103:32:
+
+  103 |       real(wp) :: e, dum, xx(10), zeffqmdff(86) ! various
+      |                                1
+Warning: Unused variable ‘xx’ declared at (1) [-Wunused-variable]
+../src/prog/dock.f90:103:47:
+
+  103 |       real(wp) :: e, dum, xx(10), zeffqmdff(86) ! various
+      |                                               1
+Warning: Unused variable ‘zeffqmdff’ declared at (1) [-Wunused-variable]
+[54/67] Compiling Fortran object test/unit/tester.p/test_eeq.f90.o
+../test/unit/test_eeq.f90:554:35:
+
+  554 |    real(wp),allocatable :: fgb(:,:),fhb(:)
+      |                                   1
+Warning: Unused variable ‘fgb’ declared at (1) [-Wunused-variable]
+../test/unit/test_eeq.f90:554:42:
+
+  554 |    real(wp),allocatable :: fgb(:,:),fhb(:)
+      |                                          1
+Warning: Unused variable ‘fhb’ declared at (1) [-Wunused-variable]
+../test/unit/test_eeq.f90:185:21:
+
+  185 |    logical :: exitRun
+      |                     1
+Warning: Unused variable ‘exitrun’ declared at (1) [-Wunused-variable]
+../test/unit/test_eeq.f90:77:21:
+
+   77 |    logical :: exitRun
+      |                     1
+Warning: Unused variable ‘exitrun’ declared at (1) [-Wunused-variable]
+[55/67] Compiling Fortran object test/unit/tester.p/test_oniom.f90.o
+../test/unit/test_oniom.f90:282:38:
+
+  282 |    integer,allocatable  :: idx_orig(:)
+      |                                      1
+Warning: Unused variable ‘idx_orig’ declared at (1) [-Wunused-variable]
+../test/unit/test_oniom.f90:275:37:
+
+  275 |    type(TMolecule)  :: mol, inner_mol
+      |                                     1
+Warning: Unused variable ‘inner_mol’ declared at (1) [-Wunused-variable]
+../test/unit/test_oniom.f90:281:40:
+
+  281 |    real(wp),allocatable :: jacobian(:,:)
+      |                                        1
+Warning: Unused variable ‘jacobian’ declared at (1) [-Wunused-variable]
+[56/67] Compiling Fortran object test/unit/tester.p/test_peeq.f90.o
+../test/unit/test_peeq.f90:146:13:
+
+  146 |    wfn%nel = idint(sum(mol%z)) - mol%chrg
+      |             1
+Warning: Possible change of value in conversion from REAL(8) to INTEGER(4) at (1) [-Wconversion]
+../test/unit/test_peeq.f90:110:25:
+
+  110 |    logical  :: okbas,diff
+      |                         1
+Warning: Unused variable ‘diff’ declared at (1) [-Wunused-variable]
+[57/67] Compiling Fortran object test/unit/tester.p/test_tblite.f90.o
+../test/unit/test_tblite.f90:238:0:
+
+  238 | subroutine test_gfn1_mindless_basic(error)
+      | 
+Warning: ‘test_gfn1_mindless_basic’ defined but not used [-Wunused-function]
+[58/67] Compiling Fortran object test/unit/tester.p/test_gfn0.f90.o
+../test/unit/test_gfn0.f90:102:37:
+
+  102 |    logical  :: okpar,okbas,exist,diff
+      |                                     1
+Warning: Unused variable ‘diff’ declared at (1) [-Wunused-variable]
+[59/67] Compiling Fortran object test/unit/tester.p/test_coulomb.f90.o
+../test/unit/test_coulomb.f90:1507:18:
+
+ 1507 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:1335:18:
+
+ 1335 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:1174:18:
+
+ 1174 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:895:18:
+
+  895 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:697:18:
+
+  697 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:437:18:
+
+  437 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:263:18:
+
+  263 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+../test/unit/test_coulomb.f90:94:18:
+
+   94 |    logical :: fail
+      |                  1
+Warning: Unused variable ‘fail’ declared at (1) [-Wunused-variable]
+[60/67] Compiling Fortran object test/unit/tester.p/test_gfnff.f90.o
+../test/unit/test_gfnff.f90:258:20:
+
+  258 |    logical  :: exist
+      |                    1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:255:38:
+
+  255 |    character(len=:),allocatable :: fnv
+      |                                      1
+Warning: Unused variable ‘fnv’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:256:19:
+
+  256 |    integer  :: ipar
+      |                   1
+Warning: Unused variable ‘ipar’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:173:20:
+
+  173 |    logical  :: exist
+      |                    1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:170:38:
+
+  170 |    character(len=:),allocatable :: fnv
+      |                                      1
+Warning: Unused variable ‘fnv’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:171:19:
+
+  171 |    integer  :: ipar
+      |                   1
+Warning: Unused variable ‘ipar’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:91:20:
+
+   91 |    logical  :: exist
+      |                    1
+Warning: Unused variable ‘exist’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:88:38:
+
+   88 |    character(len=:),allocatable :: fnv
+      |                                      1
+Warning: Unused variable ‘fnv’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfnff.f90:89:19:
+
+   89 |    integer  :: ipar
+      |                   1
+Warning: Unused variable ‘ipar’ declared at (1) [-Wunused-variable]
+[61/67] Compiling Fortran object xtb.p/src_prog_main.F90.o
+../src/prog/main.F90:21:7:
+
+   21 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘kind’ at (1) is ignored [-Wsurprising]
+../src/prog/main.F90:21:7:
+
+   21 |    use xtb_mctc_timings
+      |       1
+Warning: Type specified for intrinsic function ‘present’ at (1) is ignored [-Wsurprising]
+../src/prog/main.F90:1215:24:
+
+ 1215 |    integer :: idum, ndum
+      |                        1
+Warning: Unused variable ‘ndum’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:124:33:
+
+  124 |    type(chrg_parameter) :: chrgeq
+      |                                 1
+Warning: Unused variable ‘chrgeq’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:198:22:
+
+  198 |    logical :: epr,diff,murks
+      |                      1
+Warning: Unused variable ‘diff’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:188:19:
+
+  188 |    real(wp) :: dum5,egap,etot,ipeashift
+      |                   1
+Warning: Unused variable ‘dum5’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:161:45:
+
+  161 |    real(wp),allocatable :: dumdumdum  (:,:,:)
+      |                                             1
+Warning: Unused variable ‘dumdumdum’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:198:17:
+
+  198 |    logical :: epr,diff,murks
+      |                 1
+Warning: Unused variable ‘epr’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:197:16:
+
+  197 |    logical :: ex,okbas
+      |                1
+Warning: Unused variable ‘ex’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:204:21:
+
+  204 |    logical :: exitRun
+      |                     1
+Warning: Unused variable ‘exitrun’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:189:42:
+
+  189 |    real(wp) :: zero,t0,t1,w0,w1,etot2,g298
+      |                                          1
+Warning: Unused variable ‘g298’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:158:33:
+
+  158 |    type(TxTBParameter) :: globpar
+      |                                 1
+Warning: Unused variable ‘globpar’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:202:23:
+
+  202 |    logical :: newreader
+      |                       1
+Warning: Unused variable ‘newreader’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:209:19:
+
+  209 |    integer :: nproc
+      |                   1
+Warning: Unused variable ‘nproc’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:197:22:
+
+  197 |    logical :: ex,okbas
+      |                      1
+Warning: Unused variable ‘okbas’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:208:38:
+
+  208 |    integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
+      |                                      1
+Warning: Unused variable ‘omp_get_num_threads’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:208:58:
+
+  208 |    integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
+      |                                                          1
+Warning: Unused variable ‘omp_get_thread_num’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:162:33:
+
+  162 |    real(wp),allocatable :: q  (:)
+      |                                 1
+Warning: Unused variable ‘q’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:163:34:
+
+  163 |    real(wp),allocatable :: ql  (:)
+      |                                  1
+Warning: Unused variable ‘ql’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:164:34:
+
+  164 |    real(wp),allocatable :: qr  (:)
+      |                                  1
+Warning: Unused variable ‘qr’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:189:22:
+
+  189 |    real(wp) :: zero,t0,t1,w0,w1,etot2,g298
+      |                      1
+Warning: Unused variable ‘t0’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:189:25:
+
+  189 |    real(wp) :: zero,t0,t1,w0,w1,etot2,g298
+      |                         1
+Warning: Unused variable ‘t1’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:208:17:
+
+  208 |    integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
+      |                 1
+Warning: Unused variable ‘tid’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:189:28:
+
+  189 |    real(wp) :: zero,t0,t1,w0,w1,etot2,g298
+      |                            1
+Warning: Unused variable ‘w0’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:189:31:
+
+  189 |    real(wp) :: zero,t0,t1,w0,w1,etot2,g298
+      |                               1
+Warning: Unused variable ‘w1’ declared at (1) [-Wunused-variable]
+../src/prog/main.F90:785:0:
+
+  785 |       vomega=(ip+ea)**2/(8*(ip-ea))
+      | 
+Warning: ‘ip’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+[62/67] Compiling Fortran object xtb.p/src_prog_primary.f90.o
+[63/67] Linking target xtb
+[64/67] Compiling Fortran object test/unit/tester.p/test_gfn1.f90.o
+../test/unit/test_gfn1.f90:795:18:
+
+  795 |    integer :: iMol
+      |                  1
+Warning: Unused variable ‘imol’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfn1.f90:535:29:
+
+  535 |    type(tb_pcem)      :: pcem
+      |                             1
+Warning: Unused variable ‘pcem’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfn1.f90:543:26:
+
+  543 |    real(wp) :: stress(3,3)
+      |                          1
+Warning: Unused variable ‘stress’ declared at (1) [-Wunused-variable]
+../test/unit/test_gfn1.f90:100:31:
+
+  100 |    logical  :: okpar,okbas,diff,exitRun
+      |                               1
+Warning: Unused variable ‘diff’ declared at (1) [-Wunused-variable]
+[65/67] Compiling Fortran object test/unit/tester.p/test_gfn2.f90.o
+../test/unit/test_gfn2.f90:1014:18:
+
+ 1014 |    integer :: iMol
+      |                  1
+Warning: Unused variable ‘imol’ declared at (1) [-Wunused-variable]
+[66/67] Compiling Fortran object test/unit/tester.p/main.f90.o
+[67/67] Linking target test/unit/tester
