@@ -23,8 +23,10 @@ module xtb_ptb_vdzp
    !> mctc-lib
    use mctc_env, only: error_type, wp
    use mctc_io, only: structure_type
+   use mctc_io_constants, only: pi
 
    use tblite_basis_type, only: cgto_type, new_basis, basis_type
+   use tblite_basis_ortho, only: orthogonalize
 
    implicit none
    private
@@ -117,7 +119,13 @@ contains
       !> Array of nshells per atom ID
       integer, allocatable :: nsh_id(:)
       !> help integers
-      integer :: isp, izp, ish, nprim
+      integer :: isp, izp, ish, nprim, il
+
+      !> Two over pi
+      real(wp), parameter :: top = 2.0_wp/pi
+      !> Double factorial, see OEIS A001147
+      real(wp), parameter :: dfactorial(8) = &
+         & [1.0_wp, 1.0_wp, 3.0_wp, 15.0_wp, 105.0_wp, 945.0_wp, 10395.0_wp, 135135.0_wp]
 
       !> Initialize full parameter set
       !> set up the array of CGTOs for the molecule of interest
@@ -136,17 +144,21 @@ contains
          izp = mol%num(isp)
          do ish = 1, nsh_id(isp)
 
-            cgto(ish, isp)%ang = ang_shell(ish, izp)
+            il = ang_shell(ish, izp)
             nprim = n_prim(ish, izp)
+
+            cgto(ish, isp)%ang = il
             cgto(ish, isp)%nprim = nprim
             cgto(ish, isp)%alpha(1:nprim) = exponents(1:nprim, ish, izp)
             cgto(ish, isp)%coeff(1:nprim) = coefficients(1:nprim, ish, izp)
 
+            cgto(ish, isp)%coeff(1:nprim) = cgto(ish, isp)%coeff(1:nprim)* &
+                        & (top*exponents(1:nprim, ish, izp))**0.75_wp * &
+                        & sqrt(4*exponents(1:nprim, ish, izp))**(il/sqrt(dfactorial(il + 1)))
             ! --- DEV PRINTOUT
             ! write (*, *) 'CGTOs for atom ', isp, ' shell ', ish, ' with ', nprim, ' primitives'
             ! write (*, *) cgto(ish, isp)%alpha
             ! --- END DEV PRINTOUT
-
          end do
       end do
       call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)
