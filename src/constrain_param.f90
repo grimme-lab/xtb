@@ -49,6 +49,10 @@
 !>    ellipsoid: auto,<list>
 !>    ellipsoid: <real>,<real>,<real>,all
 !>    ellipsoid: <real>,<real>,<real>,<list>
+!>    sandwich: auto,all
+!>    sandwich: auto,<list>
+!>    sandwich: <real>,all
+!>    sandwich: <real>,<list>
 !> $scan
 !>    ...
 !> $end
@@ -948,8 +952,8 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
    type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
-   integer  :: idum
-   real(wp) :: ddum,darray(3)
+   integer  :: idum,i
+   real(wp) :: ddum,darray(3),min_z,max_z
    logical  :: ldum
    integer  :: list(nat),nlist
    integer  :: tlist(nat),ntlist
@@ -978,7 +982,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
    case default ! ignore, don't even think about raising them
    case('sphere')
       if (narg.lt.2) then
-         call env%warning("Not enough arguments to set up a spherical wall",source)
+         call env%error("Not enough arguments to set up a spherical wall",source)
          return
       endif
    !  part 1: get the sphere radius
@@ -1000,11 +1004,11 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          do iarg = 2, narg
             if (getListValue(env,trim(argv(iarg)),tlist,ntlist)) then
                if (nlist+ntlist.gt.nat) then
-                  call env%warning("Too many atoms in list for spherical wall.",source)
+                  call env%error("Too many atoms in list for spherical wall.",source)
                   return ! something went wrong
                endif
                if (maxval(tlist(:ntlist)).gt.nat) then
-                  call env%warning("Attempted to wall in a non-existing atom",source)
+                  call env%error("Attempted to wall in a non-existing atom",source)
                   cycle ! skip crappy input
                endif
                list(nlist+1:nlist+ntlist) = tlist
@@ -1021,7 +1025,7 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
 
    case('ellipsoid')
       if (narg.lt.4) then
-         call env%warning("Not enough arguments to set up an ellipsoidal wall",source)
+         call env%error("Not enough arguments to set up an ellipsoidal wall",source)
          return
       endif
    !  part 1: get ellipsoid axis
@@ -1050,11 +1054,11 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          do iarg = 4, narg
             if (getListValue(env,trim(argv(iarg)),tlist,ntlist)) then
                if (nlist+ntlist.gt.nat) then
-                  call env%warning("Too many atoms in list for spherical wall.",source)
+                  call env%error("Too many atoms in list for spherical wall.",source)
                   return ! something went wrong
                endif
                if (maxval(tlist(:ntlist)).gt.nat) then
-                  call env%warning("Attempted to wall in a non-existing atom",source)
+                  call env%error("Attempted to wall in a non-existing atom",source)
                   cycle ! skip crappy input
                endif
                list(nlist+1:nlist+ntlist) = tlist
@@ -1070,30 +1074,67 @@ subroutine set_wall(env,key,val,nat,at,idMap,xyz)
          '3(1x,f12.7,1x,"Å"))') radii*autoaa
 
    case('sandwich')
-      if (narg.lt.1) then
-         call env%warning("Not enough arguments to set up sandwich walls",source)
+      if (narg.lt.2) then
+         call env%error("Not enough arguments to set up sandwich walls",source)
          return
       endif
    !  part 1: get the sandwich distance
       wpot%sandwich = .true.
       set%do_cma_trafo = .true.
       center = 0.0_wp
-      number_walls=1
+!      number_walls=1
       call get_sphere_radius(nat,at,xyz,center,radius,do_trafo=.true.)
       if (trim(argv(1)).eq.'auto') then
-            radius=(maxval(xyz(3,:))-minval(xyz(3,:)))/2.0_wp !no need to set $cma in xcontrol, done automatically
+            radius=(maxval(xyz(3,:))-minval(xyz(3,:)))/2.0_wp ! need to set $cma in xcontrol, not done automatically
             wpot(1)%radius=radius
       else
             if (getValue(env,trim(argv(1)),ddum)) then
                 radius = ddum !in Bohr!!!
                 wpot(1)%radius=radius
             else
-                call env%warning("Undefined arguments for sandwich: ... in your xcontrol file!",source)
+                call env%error("Undefined arguments for sandwich: ... in your xcontrol file!",source)
                 return ! something went wrong
             endif
       endif
-      call set_sphere_radius(radius,center)
-      write(env%unit,'("sandwich wallpotential with radius in A (diameter=2*radius) ",'//&
+   
+   !  part 2: get atoms 
+      if (trim(argv(2)).eq.'all') then
+         call set_sphere_radius(radius,center)
+      else
+         do iarg = 2, narg
+            if (getListValue(env,trim(argv(iarg)),tlist,ntlist)) then
+               if (nlist+ntlist.gt.nat) then
+                  call env%error("Too many atoms in list for spherical wall.",source)
+                  return ! something went wrong
+               endif
+               if (maxval(tlist(:ntlist)).gt.nat) then
+                  call env%error("Attempted to wall in a non-existing atom.",source)
+                  cycle ! skip crappy input
+               endif
+               list(nlist+1:nlist+ntlist) = tlist
+               nlist = nlist + ntlist
+
+               !get auto sandwich distance for list of atoms
+               max_z = 0.0_wp
+               min_z = 0.0_wp
+               do i = 1, nat
+                  if (any(list == i)) then
+                     max_z = max(max_z, xyz(3,i))
+                     min_z = min(min_z, xyz(3,i))
+                  end if
+               end do
+               radius=(max_z - min_z)/2.0_wp
+               wpot(1)%radius=radius
+
+            else
+               ! warning already generated by get_list_value
+               return ! something went wrong
+            endif
+         enddo
+         call set_sphere_radius(radius,center,nlist,list)
+      endif
+
+      write(env%unit,'("sandwich wallpotential with radius in A (diameter=2*radius+2*4A safety buffer) ",'//&
          '1x,f12.7,1x,"Å")') radius*autoaa
 
    end select

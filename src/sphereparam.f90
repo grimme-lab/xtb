@@ -96,6 +96,12 @@ module xtb_sphereparam
       module procedure logfermi_cavity_all
    end interface logfermi_cavity
 
+   interface logfermi_cavity_sandwich
+      module procedure logfermi_cavity_sandwich_list
+      module procedure logfermi_cavity_sandwich_frag
+      module procedure logfermi_cavity_sandwich_all
+   end interface logfermi_cavity_sandwich
+
 contains
 
 !! ========================================================================
@@ -441,7 +447,7 @@ subroutine logfermi_cavity_all(nat,at,xyz,temp,alpha,center,radius,&
 
 end subroutine logfermi_cavity_all 
 
-subroutine logfermi_cavity_sandwich(nat,at,xyz,temp,alpha,center,radius,&
+subroutine logfermi_cavity_sandwich_all(nat,at,xyz,temp,alpha,center,radius,&
    &                           efix,gfix)
    use xtb_mctc_constants, only : kB
    use xtb_mctc_convert, only : autoaa
@@ -492,7 +498,119 @@ subroutine logfermi_cavity_sandwich(nat,at,xyz,temp,alpha,center,radius,&
    enddo
 
 
-end subroutine logfermi_cavity_sandwich
+end subroutine logfermi_cavity_sandwich_all
+
+subroutine logfermi_cavity_sandwich_frag(nat,at,xyz,fragment,temp,alpha,center,radius,&
+   &                           efix,gfix)
+   use xtb_mctc_constants, only : kB
+   use xtb_mctc_convert, only : autoaa
+   use xtb_splitparam
+   implicit none
+   integer, intent(in)  :: nat
+   integer, intent(in)  :: at(nat)
+   integer, intent(in)  :: fragment
+   real(wp),intent(in)  :: xyz(3,nat)
+
+   real(wp),intent(in)  :: temp      ! temperature
+   real(wp),intent(in)  :: alpha     ! potential steepness (modified via "beta" in $wall block in xcontrol)
+   real(wp),intent(in)  :: center(3) ! aufpunkt of wall potential (=0 after center-of-mass transformation)
+   real(wp),intent(in)  :: radius(3) ! radius of sandwiches in Angstroem, sandwich diameter is 2*radius
+
+   integer  :: i
+   real(wp) :: r(3),r1,r2,R0,expterm1,expterm2,fermi1,fermi2,dist
+
+   real(wp),intent(inout) :: efix
+   real(wp),intent(inout) :: gfix(3,nat)
+
+   !!!!! don't reduce radius to less than "auto radius + 1.5A safety buffer" !!!!!
+   !==============================================================================
+
+   R0 = minval(radius)+(4.0_wp/autoaa) !4A safety buffer equals >=1 NCI bond   !~4A buffer also used for sphere and ellipsoid pot
+
+   do i = 1, nat
+      if (splitlist(i).ne.fragment) cycle
+      r = xyz(:,i) - center   !$cma must be set in xcontrol because sandwich pot is anisotropic and needs
+                              !preferred z-axis in absolute coordinates
+      dist = r(3)
+
+      if (dist.gt.R0) then        !above sandwich border          !constraining potential magnitude:
+         r1=dist-R0                                               !>0
+         r2=abs(dist+R0)*(-1.0_wp)                                !<<0
+      elseif (dist.lt.-R0) then   !below sandwich border
+         r1=abs(dist-R0)*(-1.0_wp)                                !<<0
+         r2=abs(dist+R0)                                          !>0
+      else                        !in between sandwich borders
+         r1=abs(dist-R0)*(-1.0_wp)                                !<0
+         r2=abs(dist+R0)*(-1.0_wp)                                !<0
+      end if
+
+      expterm1 = exp(alpha*r1)
+      expterm2 = exp(alpha*r2)
+      fermi1 = 1.0_wp/(1.0_wp+expterm1)
+      fermi2 = 1.0_wp/(1.0_wp+expterm2)
+      efix = efix + kB*temp * (log(1.0_wp+expterm1)+log(1.0_wp+expterm2))    !efix=efix1+efix2
+      gfix(:,i) = gfix(:,i) + kB*temp * alpha * r/(sqrt(sum(r**2))+1.0e-14_wp) *&
+              &(expterm1*fermi1+expterm2*fermi2)                             !gfix=gfix1+gfix2
+   enddo
+
+
+end subroutine logfermi_cavity_sandwich_frag
+
+subroutine logfermi_cavity_sandwich_list(nat,at,xyz,nlist,list,temp,alpha,center,radius,&
+   &                                     efix,gfix)
+   use xtb_mctc_constants, only : kB
+   use xtb_mctc_convert, only : autoaa
+   implicit none
+   integer, intent(in)  :: nat
+   integer, intent(in)  :: at(nat)
+   real(wp),intent(in)  :: xyz(3,nat)
+   integer, intent(in)  :: nlist
+   integer, intent(in)  :: list(nlist)
+
+   real(wp),intent(in)  :: temp      ! temperature
+   real(wp),intent(in)  :: alpha     ! potential steepness (modified via "beta" in $wall block in xcontrol)
+   real(wp),intent(in)  :: center(3) ! aufpunkt of wall potential (=0 after center-of-mass transformation)
+   real(wp),intent(in)  :: radius(3) ! radius of sandwiches in Angstroem, sandwich diameter is 2*radius
+
+   integer  :: i,iat
+   real(wp) :: r(3),r1,r2,R0,expterm1,expterm2,fermi1,fermi2,dist
+
+   real(wp),intent(inout) :: efix
+   real(wp),intent(inout) :: gfix(3,nat)
+
+   !!!!! don't reduce radius to less than "auto radius + 1.5A safety buffer" !!!!!
+   !==============================================================================
+
+   R0 = minval(radius)+(4.0_wp/autoaa) !4A safety buffer equals >=1 NCI bond   !~4A buffer also used for sphere and ellipsoid pot
+
+   do i = 1, nlist
+      iat=list(i)
+      r = xyz(:,iat) - center   !$cma must be set in xcontrol because sandwich pot is anisotropic and needs
+                                !preferred z-axis in absolute coordinates
+      dist = r(3)
+
+      if (dist.gt.R0) then        !above sandwich border          !constraining potential magnitude:
+         r1=dist-R0                                               !>0
+         r2=abs(dist+R0)*(-1.0_wp)                                !<<0
+      elseif (dist.lt.-R0) then   !below sandwich border
+         r1=abs(dist-R0)*(-1.0_wp)                                !<<0
+         r2=abs(dist+R0)                                          !>0
+      else                        !in between sandwich borders
+         r1=abs(dist-R0)*(-1.0_wp)                                !<0
+         r2=abs(dist+R0)*(-1.0_wp)                                !<0
+      end if
+
+      expterm1 = exp(alpha*r1)
+      expterm2 = exp(alpha*r2)
+      fermi1 = 1.0_wp/(1.0_wp+expterm1)
+      fermi2 = 1.0_wp/(1.0_wp+expterm2)
+      efix = efix + kB*temp * (log(1.0_wp+expterm1)+log(1.0_wp+expterm2))    !efix=efix1+efix2
+      gfix(:,iat) = gfix(:,iat) + kB*temp * alpha * r/(sqrt(sum(r**2))+1.0e-14_wp) *&
+              &(expterm1*fermi1+expterm2*fermi2)                             !gfix=gfix1+gfix2
+   enddo
+
+
+end subroutine logfermi_cavity_sandwich_list
 
 !! ========================================================================
 subroutine polynomial_cavity_list(nat,at,xyz,nlist,list,alpha,center,radius,&
@@ -634,8 +752,17 @@ subroutine cavity_egrad(nat,at,xyz,efix,gfix)
             call logfermi_cavity(nat,at,xyz,nlist,wpot(i)%list,sphere_temp, &
                  sphere_beta,wpot(i)%center,wpot(i)%radius,efix,gfix)
          else if (wpot(i)%sandwich) then
-            call logfermi_cavity_sandwich(nat,at,xyz,sphere_temp,sphere_beta, &
-                 wpot(i)%center,wpot(i)%radius,efix,gfix)
+              if (wpot(i)%fragment.gt.0) then      
+                 call logfermi_cavity_sandwich(nat,at,xyz,wpot(i)%fragment,sphere_temp,sphere_beta, &
+                      wpot(i)%center,wpot(i)%radius,efix,gfix)
+              else if (allocated(wpot(i)%list)) then
+                 nlist = size(wpot(i)%list,1)
+                 call logfermi_cavity_sandwich(nat,at,xyz,nlist,wpot(i)%list,sphere_temp, &
+                      sphere_beta,wpot(i)%center,wpot(i)%radius,efix,gfix)
+              else
+                 call logfermi_cavity_sandwich(nat,at,xyz,sphere_temp,sphere_beta, &
+                      wpot(i)%center,wpot(i)%radius,efix,gfix)
+              end if
          else
             call logfermi_cavity(nat,at,xyz,sphere_temp,sphere_beta, &
                  wpot(i)%center,wpot(i)%radius,efix,gfix)

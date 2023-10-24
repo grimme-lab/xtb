@@ -427,6 +427,7 @@ subroutine xtbMain(env, argParser)
    !> CONSTRAINTS & SCANS
    !> now we are at a point that we can check for requested constraints
    call read_userdata(xcontrol,env,mol)
+   call env%checkpoint("Improper Setup of Constraints&Scans ... job terminated")
 
    !> initialize metadynamics
    call load_metadynamic(metaset,mol%n,mol%at,mol%xyz)
