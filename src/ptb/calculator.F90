@@ -52,6 +52,7 @@ module xtb_ptb_calculator
 
    use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
+   use xtb_ptb_scf, only: twostepscf 
    implicit none
 
    private
@@ -111,8 +112,6 @@ contains
       integer :: ich
       logical :: exist
       logical :: exitRun
-
-      integer :: i, j
 
 ! #if WITH_TBLITE
       type(structure_type) :: struc
@@ -237,26 +236,7 @@ contains
       hlgap = 0.0_wp
       efix = 0.0_wp
 
-      ! ------------------------------------------------------------------------
-      !  actual calculation
-      ! select case (self%ptbData%level)
-      ! case (1, 2)
-      !    ! if (allocated(self%solvation)) then
-      !    !    call newSolvationModel(self%solvation, env, solvation, mol%at)
-      !    ! end if
-      !    call scf(env, mol, chk%wfn, self%basis, self%pcem, self%xtbData, solvation, &
-      !       &   hlgap, self%etemp, self%maxiter, printlevel, restart, .true., &
-      !       &   self%accuracy, energy, gradient, results)
-
-      ! case (0)
-      !    if (allocated(self%solvation)) then
-      !       allocate (gbsa)
-      !       call newBornModel(self%solvation, env, gbsa, mol%at)
-      !    end if
-      !    call peeq &
-      !       & (env, mol, chk%wfn, self%basis, self%xtbData, gbsa, hlgap, self%etemp, &
-      !       &  printlevel, .true., ccm, self%accuracy, energy, gradient, sigma, results)
-      ! end select
+      call twostepscf(self%struc, self%bas)
 
       call env%check(exitRun)
       if (exitRun) then

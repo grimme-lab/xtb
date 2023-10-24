@@ -20,4 +20,5 @@ srcs += files(
   'param.f90',
   'data.f90',
   'vdzp.f90',
+  'twostepscf.f90',
 )

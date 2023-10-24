@@ -22,6 +22,7 @@ list(APPEND srcs
   "${dir}/param.f90"
   "${dir}/data.f90"
   "${dir}/vdzp.f90"
+  "${dir}/twostepscf.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
