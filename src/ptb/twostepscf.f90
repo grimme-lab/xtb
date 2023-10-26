@@ -18,12 +18,14 @@
 !> Two-step SCF of the PTB method
 
 module xtb_ptb_scf
-   use mctc_io, only: structure_type, new
+   use mctc_io, only: structure_type
    use mctc_env, only: wp
 
-   use tblite_basis_type, only: basis_type, get_cutoff
-   use tblite_integral_dipole, only: get_dipole_integrals
-   use tblite_cutoff, only: get_lattice_points
+   use tblite_basis_type, only: basis_type
+
+   use xtb_ptb_vdzp, only: add_vDZP_basis
+   use xtb_ptb_param, only: kalphah0l, nshell, max_shell
+   use xtb_ptb_overlaps, only: get_scaled_integrals
 
    implicit none
    private
@@ -34,56 +36,56 @@ contains
 
    subroutine twostepscf(mol, bas)
       !> Molecular structure data
-      type(structure_type), intent(inout) :: mol
+      type(structure_type), intent(in) :: mol
       !> Basis set data
       type(basis_type), intent(in) :: bas
-      real(wp), allocatable :: lattr(:, :), overlap(:, :)
+      !> Array of nshells per atom ID
+      integer, allocatable :: nsh_id(:)
+
+      real(wp), allocatable :: overlap(:, :), overlap_scaled(:, :)
       real(wp), allocatable :: dipole(:, :, :)
-      real(wp) :: cutoff
 
-      real(wp) :: norm(bas%nao), tmp1
+      real(wp), allocatable :: expscal(:, :)
 
-      integer :: i,j,ij
+      integer :: i, j, isp, izp
 
-      cutoff = get_cutoff(bas)
-      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      allocate (expscal(max_shell, mol%nid), source=0.0_wp)
+      call get_scaled_integrals(mol, overlap, dipole)
 
-      allocate (overlap(bas%nao, bas%nao))
-      allocate (dipole(3, bas%nao, bas%nao))
-      call get_dipole_integrals(mol, lattr, cutoff, bas, overlap, dipole)
-
-      ij = 0
-      do i=1,bas%nao
-         norm(i)=1./sqrt(overlap(i,i))
-      enddo
-
-      ij = 0
-      do i=1,bas%nao
-         do j=1,i
-            tmp1=norm(i)*norm(j)
-            overlap(i,j)=overlap(i,j)*tmp1 
-            overlap(j,i)=overlap(i,j)
-         enddo
-      enddo
-      
-      write(*,*) "Overlap:"
+      !##### DEV WRITE #####
+      write (*, *) "Overlap:"
       do i = 1, bas%nao
          do j = 1, bas%nao
-            write(*,'(f10.6)', advance="no") overlap(i, j)
+            write (*, '(f10.6)', advance="no") overlap(i, j)
          end do
-         write(*,*) ""
+         write (*, *) ""
       end do
+      !#####################
 
+      !> Set up a new basis set with using the scaled exponents
+      nsh_id = nshell(mol%num)
+      do isp = 1, mol%nid
+         izp = mol%num(isp)
+         expscal(:, isp) = kalphah0l(:, izp)
+      end do
+      call get_scaled_integrals(mol, overlap_scaled, expscal)
 
-      write(*,*) "Dipole:"
+      !##### DEV WRITE #####
+      write (*, *) "Overlap H0 scaled (SS):"
       do i = 1, bas%nao
          do j = 1, bas%nao
-            write(*,'(f12.6)', advance="no") dipole(1, i, j)
+            write (*, '(f10.6)', advance="no") overlap_scaled(i, j)
          end do
-         write(*,*) ""
+         write (*, *) ""
       end do
-
-      stop
+      !#####################
+      ! write (*, *) "Dipole:"
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f12.6)', advance="no") dipole(1, i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
 
    end subroutine twostepscf
 

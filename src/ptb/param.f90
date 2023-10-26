@@ -27,6 +27,9 @@ module xtb_ptb_param
    public :: nshell
    public :: setPTBReferenceOcc
 
+   !> public parameters:
+   public :: kalphah0l, klalphaxc
+
    interface initPTB
       module procedure :: initData
       module procedure :: initHamiltonian

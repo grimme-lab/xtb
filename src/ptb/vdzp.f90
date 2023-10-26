@@ -107,13 +107,32 @@ module xtb_ptb_vdzp
    !> might contain normalization)
    real(wp), protected :: coefficients(max_prim, max_shell, highest_elem) = 0.0_wp
 
-contains
+   interface add_vDZP_basis
+      module procedure :: add_vDZP_basis_scaling
+      module procedure :: add_vDZP_basis_noscaling
+   end interface add_vDZP_basis
 
-   subroutine add_vDZP_basis(mol, bas)
+contains
+   
+   subroutine add_vDZP_basis_noscaling(mol, bas)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set type
-      type(basis_type), intent(inout) :: bas
+      type(basis_type), intent(out) :: bas
+      real(wp), allocatable :: expscal(:,:)
+
+      allocate(expscal(max_shell, mol%nid), source=1.0_wp)
+      call add_vDZP_basis_scaling(mol, expscal, bas)
+
+   end subroutine add_vDZP_basis_noscaling
+
+   subroutine add_vDZP_basis_scaling(mol, expscal, bas)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Exponent scaling factor
+      real(wp), intent(in) :: expscal(:,:)
+      !> Basis set type
+      type(basis_type), intent(out) :: bas
       !> Array of CGTOs
       type(cgto_type), allocatable :: cgto(:, :)
       !> Array of nshells per atom ID
@@ -149,7 +168,7 @@ contains
 
             cgto(ish, isp)%ang = il
             cgto(ish, isp)%nprim = nprim
-            cgto(ish, isp)%alpha(1:nprim) = exponents(1:nprim, ish, izp)
+            cgto(ish, isp)%alpha(1:nprim) = exponents(1:nprim, ish, izp) * expscal(ish, isp)
             cgto(ish, isp)%coeff(1:nprim) = coefficients(1:nprim, ish, izp)
 
             cgto(ish, isp)%coeff(1:nprim) = cgto(ish, isp)%coeff(1:nprim)* &
@@ -163,7 +182,7 @@ contains
       end do
       call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)
 
-   end subroutine add_vDZP_basis
+   end subroutine add_vDZP_basis_scaling
 
    subroutine setCGTOexponents()
       ! set up the array of CGTOs during initialization of the basis set data

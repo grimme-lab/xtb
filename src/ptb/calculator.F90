@@ -237,6 +237,7 @@ contains
       efix = 0.0_wp
 
       call twostepscf(self%struc, self%bas)
+      stop
 
       call env%check(exitRun)
       if (exitRun) then
