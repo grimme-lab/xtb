@@ -21,4 +21,5 @@ srcs += files(
   'data.f90',
   'vdzp.f90',
   'twostepscf.f90',
+  'overlaps.f90',
 )

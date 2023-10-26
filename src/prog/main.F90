@@ -581,7 +581,6 @@ contains
          call newTBLiteWavefunction(env, mol, calc, chk)
       type is (TPTBCalculator)
          write (*, *) "Setup PTB."
-         stop
       end select
 
       ! ------------------------------------------------------------------------
