@@ -137,7 +137,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    case(p_ext_mcgfnff)
       allocate(gfnff)
 
-      call newGFFCalculator(env, mol, gfnff, fname, restart, 3) ! mcgfnff2023 version
+      call newGFFCalculator(env, mol, gfnff, fname, restart, 4) ! mcgfnff2023 version
 
       call env%check(exitRun)
       if (exitRun) then

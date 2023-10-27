@@ -475,9 +475,10 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
    ! ES part !
    !---------!
 
+if (mol%boundaryCondition.eq.0) then
    if (pr) call timer%measure(6,'EEQ gradient')
    !$omp parallel do default(none) reduction (+:g) &
-   !$omp shared(topo,nlist,n,sqrab,srab,eeqtmp,xyz,at) &
+   !$omp shared(nlist,n,sqrab,srab,eeqtmp,xyz,at) &
    !$omp private(i,j,k,ij,r3,r2,rab,gammij,erff,dd)
    do i=1,n
       k = i*(i-1)/2
@@ -515,6 +516,37 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,makeq,sigma,g,etot,res_gff, &
 
    call mctc_gemv(dcn, qtmp, g, alpha=-1.0_wp, beta=1.0_wp)
    if (pr) call timer%measure(6)
+else ! periodic case
+   if (pr) call timer%measure(6,'EEQ gradient')
+
+   call es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, convF, &
+              & dcndr, dcndL, sigma, g, mcf_ees) 
+     
+   if(.not.pr) deallocate(eeqtmp)
+
+   if (allocated(solvation)) then
+      call timer%measure(11, "GBSA")
+      call solvation%addGradient(env, at, xyz, nlist%q, nlist%q, g)
+      call solvation%getEnergyParts(env, nlist%q, nlist%q, gborn, ghb, gsasa, &
+      & gshift)
+      gsolv = gsasa + gborn + ghb + gshift
+      call timer%measure(11)
+   else
+      gborn = 0.0d0
+      ghb = 0.0d0
+   endif
+
+   ! qtmp =  q * dXdcn | where X is the right-hand side
+   do i=1,n
+      qtmp(i)=nlist%q(i)*param%cnf(at(i))/(2.0d0*sqrt(cn(i))+1.d-16)
+   enddo
+
+   call mctc_gemv(dcndr, qtmp, g, alpha=-mcf_ees, beta=1.0_wp)
+   ! sigma = sigma - q * dXdcn * dcndL
+   call mctc_gemv(dcndL, qtmp, sigma, alpha=-mcf_ees, beta=1.0_wp)
+   
+   if (pr) call timer%measure(6)
+endif
 
    !-----------------!
    ! SRB bonded part !
@@ -979,7 +1011,6 @@ subroutine egbond_hb(i,iat,jat,rab,rij,drij,hb_cn,hb_dcn,n,at,xyz,e,g,param,topo
 
 end subroutine egbond_hb
 
-!@thomas for vimdiff
 subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo,neigh,dcndL)
     
    use xtb_mctc_accuracy, only : wp
@@ -4396,6 +4427,53 @@ function grFct(cfCurr, minG, minR, vol, gam) result(gr_diff)
   rPart = -erf(cfCurr*minR)/minR + erf(gam*minR)/minR
   gr_diff = abs(gPart-rPart)
 end function grFct
+
+
+subroutine es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, cf, &
+         &  dcndr, dcndL, sigma, gradient, mcf_ees)
+   use xtb_type_molecule
+   use xtb_type_param
+   type(TMolecule), intent(in) :: mol
+   type(TGFFTopology), intent(in) :: topo
+   type(TGFFNeighbourList), intent(in) :: nlist
+   real(wp), intent(in) :: cf
+   !real(wp), intent(in) :: qvec(:)
+   real(wp), intent(in) :: gTrans(:, :)
+   real(wp), intent(in) :: rTrans(:, :)
+   real(wp), intent(in) :: xtmp(mol%n+topo%nfrag)
+   real(wp), intent(inout) :: sigma(3,3)
+   real(wp), intent(inout) :: gradient(3,mol%n)
+   real(wp), intent(in) :: dcndr(3,mol%n, mol%n) !@thomas brauch ich nicht?!
+   real(wp), intent(in) :: dcndL(3,3,mol%n) !@thomas brauch ich nicht?!
+   real(wp), intent(in) :: mcf_ees
+!   real(wp), intent(in) :: cn(mol%n) !@thomas brauch ich nicht?!
+   real(wp), allocatable :: dXvecdr(:,:,:)
+   real(wp), allocatable :: amatdr(:, :, :)
+   real(wp), allocatable :: amatdL(:, :, :)
+   integer :: m
+   real(wp), allocatable :: atrace(:, :)
+   m = mol%n+topo%nfrag
+   allocate(amatdr(3,mol%n,m), amatdL(3,3,m), source = 0.0_wp)
+   allocate(atrace(3, mol%n))
+   amatdr = 0.0_wp
+   amatdL = 0.0_wp
+
+   ! new routine from D4 for calculating derivatives
+   call get_damat_3d(mol, topo, cf, xtmp, rTrans, gTrans, amatdr, amatdL, atrace)
+
+
+   !@thomas hier dann direkt sigma und grad berechnen
+   !Aus mctc/blas/level2.f90: y := alpha*A*x + beta*y,   or   y := alpha*A**T*x + beta*y
+   call mctc_gemv(amatdr, nlist%q, gradient, alpha=mcf_ees, beta=1.0_wp)
+   
+   ! Ees=q^T*(0.5*A*q-X)  here is the 0.5qA'q part. The -qX' part is below the es_grad_sigma call
+   ! sigma = sigma + 0.5 * q * dAdL * q  | where amatdL = dAdL * q and q=xtmp
+   call mctc_gemv(amatdL, nlist%q, sigma, alpha=0.5_wp*mcf_ees, beta=1.0_wp)
+
+
+end subroutine es_grad_sigma
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! @thomas important ripped code from dftd4 BELOW

@@ -120,7 +120,7 @@ integer,intent(in) :: iunit
 integer,intent(in) :: version
 character(len=52)  :: nr
 select case(version)
-case(gffVersion%angewChem2020, gffVersion%harmonic2020)
+case(gffVersion%angewChem2020, gffVersion%harmonic2020,gffVersion%mcgfnff2023)
   nr="|                  Version 1.0.0                  |"
 case(gffVersion%angewChem2020_1)
   nr="|                  Version 1.0.2                  |"
