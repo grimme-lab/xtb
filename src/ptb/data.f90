@@ -17,11 +17,11 @@
 
 !> Parametrisation data for the PTB method
 module xtb_ptb_data
-   use xtb_mctc_accuracy, only : wp
-   use xtb_param_atomicrad, only : atomicRad
-   use xtb_param_paulingen, only : paulingEN
-   use xtb_type_param, only : dftd_parameter
-   use xtb_type_dispersionmodel, only : TDispersionModel
+   use xtb_mctc_accuracy, only: wp
+   use xtb_param_atomicrad, only: atomicRad
+   use xtb_param_paulingen, only: paulingEN
+   use xtb_type_param, only: dftd_parameter
+   use xtb_type_dispersionmodel, only: TDispersionModel
    implicit none
    private
 
@@ -31,18 +31,15 @@ module xtb_ptb_data
    public :: newData, getData
    public :: generateValenceShellData, angToShellData
 
-
    interface newData
       module procedure :: newAtomicData
       module procedure :: newShellData
    end interface newData
 
-
    interface getData
       module procedure :: getAtomicData
       module procedure :: getShellData
    end interface getData
-
 
    !> Data for the dispersion contribution
    type :: TDispersionData
@@ -63,7 +60,6 @@ module xtb_ptb_data
       type(TDispersionModel) :: dispm
 
    end type TDispersionData
-
 
    !> Data for the repulsion contribution
    type :: TRepulsionData
@@ -93,7 +89,6 @@ module xtb_ptb_data
       real(wp) :: cutoff
 
    end type TRepulsionData
-
 
    !> Data for the evaluation of the PTB core Hamiltonian
    type :: THamiltonianData
@@ -157,7 +152,6 @@ module xtb_ptb_data
 
    end type THamiltonianData
 
-
    !> Data for the evalutation of the Coulomb interactions
    type :: TCoulombData
 
@@ -199,7 +193,6 @@ module xtb_ptb_data
 
    end type TCoulombData
 
-
    !> Data for the evaluation of the multipole electrostatics
    type :: TMultipoleData
 
@@ -232,7 +225,6 @@ module xtb_ptb_data
 
    end type TMultipoleData
 
-
    !> Data for halogen bond correction
    type :: THalogenData
 
@@ -250,7 +242,6 @@ module xtb_ptb_data
 
    end type THalogenData
 
-
    !> Short range basis correction
    type TShortRangeData
 
@@ -267,7 +258,6 @@ module xtb_ptb_data
       real(wp) :: enScale
 
    end type TShortRangeData
-
 
    !> Parametrisation data for the PTB method
    type :: TPTBData
@@ -315,7 +305,6 @@ module xtb_ptb_data
 
    end type TPTBData
 
-
    !> Default constructor for the data types
    interface init
       module procedure :: initRepulsion
@@ -323,7 +312,6 @@ module xtb_ptb_data
       module procedure :: initMultipole
       module procedure :: initCoulomb
    end interface init
-
 
    ! ========================================================================
    ! MULTIPOLE DATA
@@ -361,417 +349,404 @@ module xtb_ptb_data
       & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
       & 5.0_wp]
 
-
 contains
 
+   subroutine writeInfo(self, unit, num)
 
-subroutine writeInfo(self, unit, num)
+      !> Instance of the parametrisation data
+      class(TPTBData), intent(in) :: self
 
-   !> Instance of the parametrisation data
-   class(TPTBData), intent(in) :: self
+      !> Unit for I/O
+      integer, intent(in) :: unit
 
-   !> Unit for I/O
-   integer, intent(in) :: unit
+      !> Atomic numbers
+      integer, intent(in), optional :: num(:)
 
-   !> Atomic numbers
-   integer, intent(in), optional :: num(:)
+      character(len=*), parameter :: rnum = '(f12.6)'
+      character(len=*), parameter :: offset = '(8x)'
+      character(len=*), parameter :: head = '(6x,"*",1x,a,":")'
+      character(len=*), parameter :: rfmt = '('//offset//',a,t36,'//rnum//')'
+      character(len=*), parameter :: afmt = '('//offset//',a,t36,4x,a)'
+      character(len=:), allocatable :: name
+      integer :: ii, jj
 
-   character(len=*), parameter :: rnum = '(f12.6)'
-   character(len=*), parameter :: offset = '(8x)'
-   character(len=*), parameter :: head = '(6x,"*",1x,a,":")'
-   character(len=*), parameter :: rfmt = '('//offset//',a,t36,'//rnum//')'
-   character(len=*), parameter :: afmt = '('//offset//',a,t36,4x,a)'
-   character(len=:), allocatable :: name
-   integer :: ii, jj
+      write (unit, '(a)')
+      if (allocated(self%name)) then
+         allocate (character(len=2*len(self%name) - 1) :: name)
+         name = repeat(' ', len(name))
+         do ii = 1, len(self%name)
+            jj = 2*ii - 1
+            name(jj:jj) = self%name(ii:ii)
+         end do
+      else
+         name = repeat(' ', 10)
+         write (name, '(i0)') self%level
+         name = 'PTB level '//trim(name)
+      end if
+      call generic_header(unit, name, 49, 10)
 
-   write(unit, '(a)')
-   if (allocated(self%name)) then
-      allocate(character(len=2*len(self%name)-1) :: name)
-      name = repeat(' ', len(name))
-      do ii = 1, len(self%name)
-         jj = 2*ii-1
-         name(jj:jj) = self%name(ii:ii)
+      write (unit, '(a)')
+      if (allocated(self%doi)) then
+         write (unit, afmt) "Reference", self%doi
+      end if
+
+      write (unit, head) "Hamiltonian"
+      write (unit, rfmt, advance='no') "H0-scaling (s, p, d)"
+      do ii = 0, 2
+         write (unit, rnum, advance='no') self%hamiltonian%kScale(ii, ii)
       end do
-   else
-      name = repeat(' ', 10)
-      write(name, '(i0)') self%level
-      name = 'PTB level '//trim(name)
-   end if
-   call generic_header(unit, name, 49, 10)
+      write (unit, '(a)')
+      write (unit, rfmt) "zeta-weighting", self%hamiltonian%wExp
 
-   write(unit, '(a)')
-   if (allocated(self%doi)) then
-      write(unit, afmt) "Reference", self%doi
-   end if
+      write (unit, head) "Dispersion"
+      write (unit, rfmt) "s8", self%dispersion%dpar%s8
+      write (unit, rfmt) "a1", self%dispersion%dpar%a1
+      write (unit, rfmt) "a2", self%dispersion%dpar%a2
+      write (unit, rfmt) "s9", self%dispersion%dpar%s9
 
-   write(unit, head) "Hamiltonian"
-   write(unit, rfmt, advance='no') "H0-scaling (s, p, d)"
-   do ii = 0, 2
-      write(unit, rnum, advance='no') self%hamiltonian%kScale(ii, ii)
-   end do
-   write(unit, '(a)')
-   write(unit, rfmt) "zeta-weighting", self%hamiltonian%wExp
+      write (unit, head) "Repulsion"
+      write (unit, rfmt, advance='no') "kExp", self%repulsion%kExp
+      if (self%repulsion%kExpLight /= self%repulsion%kExp) then
+         write (unit, rnum, advance='no') self%repulsion%kExpLight
+      end if
+      write (unit, '(a)')
+      write (unit, rfmt) "rExp", self%repulsion%rExp
 
-   write(unit, head) "Dispersion"
-   write(unit, rfmt) "s8", self%dispersion%dpar%s8
-   write(unit, rfmt) "a1", self%dispersion%dpar%a1
-   write(unit, rfmt) "a2", self%dispersion%dpar%a2
-   write(unit, rfmt) "s9", self%dispersion%dpar%s9
+      write (unit, head) "Coulomb"
+      write (unit, rfmt) "alpha", self%coulomb%gExp
+      if (allocated(self%coulomb%thirdOrderShell)) then
+         write (unit, afmt) "third order", "shell-resolved"
+      else if (allocated(self%coulomb%thirdOrderAtom)) then
+         write (unit, afmt) "third order", "atomic"
+      else
+         write (unit, afmt) "third order", "false"
+      end if
 
-   write(unit, head) "Repulsion"
-   write(unit, rfmt, advance='no') "kExp", self%repulsion%kExp
-   if (self%repulsion%kExpLight /= self%repulsion%kExp) then
-      write(unit, rnum, advance='no') self%repulsion%kExpLight
-   end if
-   write(unit, '(a)')
-   write(unit, rfmt) "rExp", self%repulsion%rExp
+      if (allocated(self%multipole)) then
+         write (unit, afmt) "anisotropic", "true"
+         write (unit, rfmt) "a3", self%multipole%dipDamp
+         write (unit, rfmt) "a5", self%multipole%quadDamp
+         write (unit, rfmt) "cn-shift", self%multipole%cnShift
+         write (unit, rfmt) "cn-exp", self%multipole%cnExp
+         write (unit, rfmt) "max-rad", self%multipole%cnRMax
+      else
+         write (unit, afmt) "anisotropic", "false"
+      end if
 
-   write(unit, head) "Coulomb"
-   write(unit, rfmt) "alpha", self%coulomb%gExp
-   if (allocated(self%coulomb%thirdOrderShell)) then
-      write(unit, afmt) "third order", "shell-resolved"
-   else if (allocated(self%coulomb%thirdOrderAtom)) then
-      write(unit, afmt) "third order", "atomic"
-   else
-      write(unit, afmt) "third order", "false"
-   end if
+      if (allocated(self%halogen)) then
+         write (unit, head) "Halogen bond correction"
+         write (unit, rfmt) "rad-scale", self%halogen%radScale
+         write (unit, rfmt) "damping", self%halogen%dampingPar
+      end if
 
-   if (allocated(self%multipole)) then
-      write(unit, afmt) "anisotropic", "true"
-      write(unit, rfmt) "a3", self%multipole%dipDamp
-      write(unit, rfmt) "a5", self%multipole%quadDamp
-      write(unit, rfmt) "cn-shift", self%multipole%cnShift
-      write(unit, rfmt) "cn-exp", self%multipole%cnExp
-      write(unit, rfmt) "max-rad", self%multipole%cnRMax
-   else
-      write(unit, afmt) "anisotropic", "false"
-   end if
+      if (allocated(self%srb)) then
+         write (unit, head) "Polar bond correction"
+         write (unit, rfmt) "rad-shift", self%srb%shift
+         write (unit, rfmt) "strength", self%srb%prefactor
+         write (unit, rfmt) "en-exp", self%srb%steepness
+         write (unit, rfmt) "en-scale", self%srb%enScale
+      end if
+      write (unit, '(a)')
 
-   if (allocated(self%halogen)) then
-      write(unit, head) "Halogen bond correction"
-      write(unit, rfmt) "rad-scale", self%halogen%radScale
-      write(unit, rfmt) "damping", self%halogen%dampingPar
-   end if
-
-   if (allocated(self%srb)) then
-      write(unit, head) "Polar bond correction"
-      write(unit, rfmt) "rad-shift", self%srb%shift
-      write(unit, rfmt) "strength", self%srb%prefactor
-      write(unit, rfmt) "en-exp", self%srb%steepness
-      write(unit, rfmt) "en-scale", self%srb%enScale
-   end if
-   write(unit, '(a)')
-
-end subroutine writeInfo
-
+   end subroutine writeInfo
 
 !> Generator for valence shell data from the angular momenta of the shells
-subroutine generateValenceShellData(valenceShell, nShell, angShell)
+   subroutine generateValenceShellData(valenceShell, nShell, angShell)
 
-   !> Valency character of each shell
-   integer, intent(out) :: valenceShell(:, :)
+      !> Valency character of each shell
+      integer, intent(out) :: valenceShell(:, :)
 
-   !> Number of shells for each atom
-   integer, intent(in) :: nShell(:)
+      !> Number of shells for each atom
+      integer, intent(in) :: nShell(:)
 
-   !> Angular momenta of each shell
-   integer, intent(in) :: angShell(:, :)
+      !> Angular momenta of each shell
+      integer, intent(in) :: angShell(:, :)
 
-   integer :: lAng, iZp, iSh
-   logical :: valShell(0:3)
+      integer :: lAng, iZp, iSh
+      logical :: valShell(0:3)
 
-   valenceShell(:, :) = 0
-   do iZp = 1, size(nShell, dim=1)
-      valShell(:) = .true.
-      do iSh = 1, nShell(iZp)
-         lAng = angShell(iSh, iZp)
-         if (valShell(lAng)) then
-            valShell(lAng) = .false.
-            valenceShell(iSh, iZp) = 1
-         end if
+      valenceShell(:, :) = 0
+      do iZp = 1, size(nShell, dim=1)
+         valShell(:) = .true.
+         do iSh = 1, nShell(iZp)
+            lAng = angShell(iSh, iZp)
+            if (valShell(lAng)) then
+               valShell(lAng) = .false.
+               valenceShell(iSh, iZp) = 1
+            end if
+         end do
       end do
-   end do
 
-end subroutine generateValenceShellData
-
+   end subroutine generateValenceShellData
 
 !> Initialize halogen bond data
-subroutine initHalogen(self, radScale, dampingPar, halogenBond)
+   subroutine initHalogen(self, radScale, dampingPar, halogenBond)
 
-   !> Data instance
-   type(THalogenData), intent(out) :: self
+      !> Data instance
+      type(THalogenData), intent(out) :: self
 
-   !> Scaling parameter for the atomic radii
-   real(wp), intent(in) :: radScale
+      !> Scaling parameter for the atomic radii
+      real(wp), intent(in) :: radScale
 
-   !> Damping parameter
-   real(wp), intent(in) :: dampingPar
+      !> Damping parameter
+      real(wp), intent(in) :: dampingPar
 
-   !> Halogen bond strength
-   real(wp), intent(in) :: halogenBond(:)
+      !> Halogen bond strength
+      real(wp), intent(in) :: halogenBond(:)
 
-   integer :: maxElem
+      integer :: maxElem
 
-   maxElem = size(halogenBond)
+      maxElem = size(halogenBond)
 
-   self%radScale = radScale
-   self%dampingPar = dampingPar
-   self%atomicRad = atomicRad(:maxElem)
-   self%bondStrength = halogenBond(:maxElem)
+      self%radScale = radScale
+      self%dampingPar = dampingPar
+      self%atomicRad = atomicRad(:maxElem)
+      self%bondStrength = halogenBond(:maxElem)
 
-end subroutine initHalogen
+   end subroutine initHalogen
 
+   subroutine initMultipole(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
+         & dipKernel, quadKernel)
 
-subroutine initMultipole(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
-      & dipKernel, quadKernel)
+      !> Data instance
+      type(TMultipoleData), intent(out) :: self
 
-   !> Data instance
-   type(TMultipoleData), intent(out) :: self
+      !>
+      real(wp), intent(in) :: cnShift
 
-   !>
-   real(wp), intent(in) :: cnShift
+      !>
+      real(wp), intent(in) :: cnExp
 
-   !>
-   real(wp), intent(in) :: cnExp
+      !>
+      real(wp), intent(in) :: cnRMax
 
-   !>
-   real(wp), intent(in) :: cnRMax
+      !>
+      real(wp), intent(in) :: dipDamp
 
-   !>
-   real(wp), intent(in) :: dipDamp
+      !>
+      real(wp), intent(in) :: quadDamp
 
-   !>
-   real(wp), intent(in) :: quadDamp
+      !>
+      real(wp), intent(in) :: dipKernel(:)
 
-   !>
-   real(wp), intent(in) :: dipKernel(:)
+      !>
+      real(wp), intent(in) :: quadKernel(:)
 
-   !>
-   real(wp), intent(in) :: quadKernel(:)
+      integer :: maxElem
 
-   integer :: maxElem
+      maxElem = min(size(dipKernel), size(quadKernel))
 
-   maxElem = min(size(dipKernel), size(quadKernel))
+      self%cnShift = cnShift
+      self%cnExp = cnExp
+      self%cnRMax = cnRMax
+      self%dipDamp = dipDamp
+      self%quadDamp = quadDamp
+      self%dipKernel = dipKernel(:maxElem)
+      self%quadKernel = quadKernel(:maxElem)
+      self%valenceCN = valenceCN(:maxElem)
+      self%multiRad = multiRad(:maxElem)
 
-   self%cnShift = cnShift
-   self%cnExp = cnExp
-   self%cnRMax = cnRMax
-   self%dipDamp = dipDamp
-   self%quadDamp = quadDamp
-   self%dipKernel = dipKernel(:maxElem)
-   self%quadKernel = quadKernel(:maxElem)
-   self%valenceCN = valenceCN(:maxElem)
-   self%multiRad = multiRad(:maxElem)
+   end subroutine initMultipole
 
-end subroutine initMultipole
+   subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
+         & electronegativity)
 
+      !> Data instance
+      type(TRepulsionData), intent(out) :: self
 
-subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
-      & electronegativity)
+      !>
+      real(wp), intent(in) :: kExp
 
-   !> Data instance
-   type(TRepulsionData), intent(out) :: self
+      !>
+      real(wp), intent(in) :: kExpLight
 
-   !>
-   real(wp), intent(in) :: kExp
+      !>
+      real(wp), intent(in) :: rExp
 
-   !>
-   real(wp), intent(in) :: kExpLight
+      !>
+      real(wp), intent(in) :: enScale
 
-   !>
-   real(wp), intent(in) :: rExp
+      !>
+      real(wp), intent(in) :: alpha(:)
 
-   !>
-   real(wp), intent(in) :: enScale
+      !>
+      real(wp), intent(in) :: zeff(:)
 
-   !>
-   real(wp), intent(in) :: alpha(:)
+      !>
+      real(wp), intent(in), optional :: electronegativity(:)
 
-   !>
-   real(wp), intent(in) :: zeff(:)
+      integer :: maxElem
 
-   !>
-   real(wp), intent(in), optional :: electronegativity(:)
+      maxElem = min(size(alpha), size(zeff))
+      if (present(electronegativity)) then
+         maxElem = min(maxElem, size(electronegativity))
+      end if
 
-   integer :: maxElem
+      self%cutoff = 40.0_wp
+      self%kExp = kExp
+      self%kExpLight = kExpLight
+      self%rExp = rExp
+      self%enScale = enScale
+      self%alpha = alpha(:maxElem)
+      self%zeff = zeff(:maxElem)
+      if (present(electronegativity)) then
+         self%electronegativity = electronegativity(:maxElem)
+      else
+         self%electronegativity = paulingEN(:maxElem)
+      end if
 
-   maxElem = min(size(alpha), size(zeff))
-   if (present(electronegativity)) then
-      maxElem = min(maxElem, size(electronegativity))
-   end if
+   end subroutine initRepulsion
 
-   self%cutoff = 40.0_wp
-   self%kExp = kExp
-   self%kExpLight = kExpLight
-   self%rExp = rExp
-   self%enScale = enScale
-   self%alpha = alpha(:maxElem)
-   self%zeff = zeff(:maxElem)
-   if (present(electronegativity)) then
-      self%electronegativity = electronegativity(:maxElem)
-   else
-      self%electronegativity = paulingEN(:maxElem)
-   end if
+   subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
+         & thirdOrderAtom, electronegativity, kCN, chargeWidth)
 
-end subroutine initRepulsion
+      !> Data instance
+      type(TCoulombData), intent(out) :: self
 
+      !>
+      integer, intent(in) :: nShell(:)
 
-subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
-      & thirdOrderAtom, electronegativity, kCN, chargeWidth)
+      !>
+      real(wp), intent(in) :: chemicalHardness(:)
 
-   !> Data instance
-   type(TCoulombData), intent(out) :: self
+      !>
+      real(wp), intent(in), optional :: shellHardness(:, :)
 
-   !>
-   integer, intent(in) :: nShell(:)
+      !>
+      real(wp), intent(in), optional :: thirdOrderAtom(:)
 
-   !>
-   real(wp), intent(in) :: chemicalHardness(:)
+      !>
+      real(wp), intent(in), optional :: electronegativity(:)
 
-   !>
-   real(wp), intent(in), optional :: shellHardness(:, :)
+      !>
+      real(wp), intent(in), optional :: kCN(:)
 
-   !>
-   real(wp), intent(in), optional :: thirdOrderAtom(:)
+      !>
+      real(wp), intent(in), optional :: chargeWidth(:)
 
-   !>
-   real(wp), intent(in), optional :: electronegativity(:)
+      integer :: maxElem
 
-   !>
-   real(wp), intent(in), optional :: kCN(:)
+      maxElem = size(chemicalHardness)
+      if (present(shellHardness)) then
+         maxElem = min(maxElem, size(shellHardness, dim=2))
+      end if
+      if (present(thirdOrderAtom)) then
+         maxElem = min(maxElem, size(thirdOrderAtom))
+      end if
+      if (present(electronegativity) .and. present(kCN) .and. present(chargeWidth)) then
+         maxElem = min(maxElem, size(electronegativity), size(kCN), size(chargeWidth))
+      end if
 
-   !>
-   real(wp), intent(in), optional :: chargeWidth(:)
+      self%chemicalHardness = chemicalHardness(:maxElem)
+      if (present(shellHardness)) then
+         self%shellHardness = shellHardness(:, :maxElem)
+      end if
+      if (present(thirdOrderAtom)) then
+         self%thirdOrderAtom = thirdOrderAtom(:maxElem)
+      end if
+      if (present(electronegativity) .and. present(kCN) .and. present(chargeWidth)) then
+         self%electronegativity = electronegativity(:maxElem)
+         self%kCN = kCN(:maxElem)
+         self%chargeWidth = chargeWidth(:maxElem)
+      end if
 
-   integer :: maxElem
-
-   maxElem = size(chemicalHardness)
-   if (present(shellHardness)) then
-      maxElem = min(maxElem, size(shellHardness, dim=2))
-   end if
-   if (present(thirdOrderAtom)) then
-      maxElem = min(maxElem, size(thirdOrderAtom))
-   end if
-   if (present(electronegativity).and.present(kCN).and.present(chargeWidth)) then
-      maxElem = min(maxElem, size(electronegativity), size(kCN), size(chargeWidth))
-   end if
-
-   self%chemicalHardness = chemicalHardness(:maxElem)
-   if (present(shellHardness)) then
-      self%shellHardness = shellHardness(:, :maxElem)
-   end if
-   if (present(thirdOrderAtom)) then
-      self%thirdOrderAtom = thirdOrderAtom(:maxElem)
-   end if
-   if (present(electronegativity).and.present(kCN).and.present(chargeWidth)) then
-      self%electronegativity = electronegativity(:maxElem)
-      self%kCN = kCN(:maxElem)
-      self%chargeWidth = chargeWidth(:maxElem)
-   end if
-
-end subroutine initCoulomb
-
+   end subroutine initCoulomb
 
 !> Transform a data array from angular momenta to shell number references
-subroutine angToShellData(kDat, nShell, angShell, angDat)
+   subroutine angToShellData(kDat, nShell, angShell, angDat)
 
-   !> Data in terms of shell number of each species
-   real(wp), intent(out) :: kDat(:, :)
+      !> Data in terms of shell number of each species
+      real(wp), intent(out) :: kDat(:, :)
 
-   !> Number of shells for each species
-   integer, intent(in) :: nShell(:)
+      !> Number of shells for each species
+      integer, intent(in) :: nShell(:)
 
-   !> Angular momenta of each shell
-   integer, intent(in) :: angShell(:, :)
+      !> Angular momenta of each shell
+      integer, intent(in) :: angShell(:, :)
 
-   !> Data in terms of angular momenta of each shell
-   real(wp), intent(in) :: angDat(0:, :)
+      !> Data in terms of angular momenta of each shell
+      real(wp), intent(in) :: angDat(0:, :)
 
-   integer :: nElem, iZp, iSh, lAng, iKind
+      integer :: nElem, iZp, iSh, lAng, iKind
 
-   nElem = min(size(kDat, dim=2), size(nShell), size(angShell, dim=2), &
-      & size(angDat, dim=2))
+      nElem = min(size(kDat, dim=2), size(nShell), size(angShell, dim=2), &
+         & size(angDat, dim=2))
 
-   kDat(:, :) = 0.0_wp
-   do iZp = 1, nElem
-      do iSh = 1, nShell(iZp)
-         lAng = angShell(iSh, iZp)
-         kDat(iSh, iZp) = angDat(lAng, iZp)
+      kDat(:, :) = 0.0_wp
+      do iZp = 1, nElem
+         do iSh = 1, nShell(iZp)
+            lAng = angShell(iSh, iZp)
+            kDat(iSh, iZp) = angDat(lAng, iZp)
+         end do
       end do
-   end do
 
-end subroutine angToShellData
+   end subroutine angToShellData
 
+   subroutine newAtomicData(vec, num, data)
 
-subroutine newAtomicData(vec, num, data)
+      real(wp), allocatable, intent(out) :: vec(:)
 
-   real(wp), allocatable, intent(out) :: vec(:)
+      integer, intent(in) :: num(:)
 
-   integer, intent(in) :: num(:)
+      real(wp), intent(in) :: data(:)
 
-   real(wp), intent(in) :: data(:)
+      allocate (vec(size(num)))
+      call getAtomicData(vec, num, data)
 
-   allocate(vec(size(num)))
-   call getAtomicData(vec, num, data)
+   end subroutine newAtomicData
 
-end subroutine newAtomicData
+   subroutine getAtomicData(vec, num, data)
 
+      real(wp), intent(out) :: vec(:)
 
-subroutine getAtomicData(vec, num, data)
+      integer, intent(in) :: num(:)
 
-   real(wp), intent(out) :: vec(:)
+      real(wp), intent(in) :: data(:)
 
-   integer, intent(in) :: num(:)
+      integer :: ii, izp
 
-   real(wp), intent(in) :: data(:)
-
-   integer :: ii, izp
-
-   do ii = 1, size(vec, dim=1)
-      izp = num(ii)
-      vec(ii) = data(izp)
-   end do
-
-end subroutine getAtomicData
-
-
-subroutine newShellData(vec, num, nshell, data)
-
-   real(wp), allocatable, intent(out) :: vec(:, :)
-
-   integer, intent(in) :: num(:)
-
-   integer, intent(in) :: nshell(:)
-
-   real(wp), intent(in) :: data(:, :)
-
-   allocate(vec(maxval(nshell), size(num)))
-   call getShellData(vec, num, nshell, data)
-
-end subroutine newShellData
-
-
-subroutine getShellData(vec, num, nshell, data)
-
-   real(wp), intent(out) :: vec(:, :)
-
-   integer, intent(in) :: num(:)
-
-   integer, intent(in) :: nshell(:)
-
-   real(wp), intent(in) :: data(:, :)
-
-   integer :: ii, ish, izp
-
-   vec(:, :) = 0.0_wp
-   do ii = 1, size(vec, dim=2)
-      izp = num(ii)
-      do ish = 1, nshell(izp)
-         vec(ish, ii) = data(ish, izp)
+      do ii = 1, size(vec, dim=1)
+         izp = num(ii)
+         vec(ii) = data(izp)
       end do
-   end do
 
-end subroutine getShellData
+   end subroutine getAtomicData
 
+   subroutine newShellData(vec, num, nshell, data)
+
+      real(wp), allocatable, intent(out) :: vec(:, :)
+
+      integer, intent(in) :: num(:)
+
+      integer, intent(in) :: nshell(:)
+
+      real(wp), intent(in) :: data(:, :)
+
+      allocate (vec(maxval(nshell), size(num)))
+      call getShellData(vec, num, nshell, data)
+
+   end subroutine newShellData
+
+   subroutine getShellData(vec, num, nshell, data)
+
+      real(wp), intent(out) :: vec(:, :)
+
+      integer, intent(in) :: num(:)
+
+      integer, intent(in) :: nshell(:)
+
+      real(wp), intent(in) :: data(:, :)
+
+      integer :: ii, ish, izp
+
+      vec(:, :) = 0.0_wp
+      do ii = 1, size(vec, dim=2)
+         izp = num(ii)
+         do ish = 1, nshell(izp)
+            vec(ish, ii) = data(ish, izp)
+         end do
+      end do
+
+   end subroutine getShellData
 
 end module xtb_ptb_data
