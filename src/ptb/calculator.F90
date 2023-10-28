@@ -49,10 +49,12 @@ module xtb_ptb_calculator
 
    use mctc_io, only: structure_type, new
    use tblite_basis_type, only: basis_type
+   use tblite_context, only: context_type
+   use tblite_lapack_solver, only: lapack_solver
 
    use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
-   use xtb_ptb_scf, only: twostepscf 
+   use xtb_ptb_scf, only: twostepscf
    implicit none
 
    private
@@ -119,6 +121,7 @@ contains
       call new(struc, mol%at, mol%xyz, mol%chrg, mol%uhf, mol%lattice)
       if (allocated(mol%pdb)) struc%pdb = mol%pdb
       if (allocated(mol%sdf)) struc%sdf = mol%sdf
+      struc%periodic = .false.
       calc%struc = struc
 
       call rdpath(env%xtbpath, 'param_ptb.txt', filename, exist)
@@ -153,7 +156,7 @@ contains
       !> set up the basis set for the tb-Hamiltonian
       call add_vDZP_basis(calc%struc, calc%bas)
 
-      ! --- DEV PRINTOUT
+      !##### DEV WRITE #####
       ! loop over all atoms and print the number of shells and primitives
       ! write (*, *) "Number of atoms: ", struc%nat
       ! write (*, *) "Number of shells: ", calc%bas%nsh
@@ -166,7 +169,7 @@ contains
       !       write (*, *) "  shell: ", j, "  prim: ", calc%bas%cgto(j, struc%id(i))%nprim
       !    end do
       ! end do
-      ! --- END DEV PRINTOUT
+      !#####################
 
       !> check for external point charge field
       ! if (allocated(set%pcem_file)) then
@@ -221,14 +224,20 @@ contains
       !> Detailed results
       type(scc_results), intent(out) :: results
 
+      type(context_type) :: ctx
+
       integer :: i, ich
-      integer :: mode_sp_run = 1
       real(wp) :: efix
-      logical :: inmol
       logical, parameter :: ccm = .true.
       logical :: exitRun
+      !> Divide-and-conquer solver
+      integer :: gvd = 1
+      !> Relatively robust solver
+      integer :: gvr = 2
 
       call mol%update
+
+      ctx%solver = lapack_solver(gvd)
 
       energy = 0.0_wp
       gradient(:, :) = 0.0_wp
@@ -236,7 +245,7 @@ contains
       hlgap = 0.0_wp
       efix = 0.0_wp
 
-      call twostepscf(self%struc, self%bas)
+      call twostepscf(ctx, self%struc, self%bas)
       stop
 
       call env%check(exitRun)

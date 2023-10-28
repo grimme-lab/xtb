@@ -63,12 +63,14 @@ contains
          call add_vDZP_basis(mol, bas)
       end if
 
-      allocate (overlap(bas%nao, bas%nao), source=0.0_wp)
+      !> Allocate overlap matrix based on basis set dimension
+      allocate (overlap(bas%nao, bas%nao), norm(bas%nao), source=0.0_wp)
 
+      !> Calculate cutoff and lattice points (with PTB generally turned off)
       cutoff = get_cutoff(bas)
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
-      allocate (norm(bas%nao), source=0.0_wp)
 
+      !> Calculate overlap matrix
       call get_overlap(mol, lattr, cutoff, bas, overlap)
 
       !> Normalize overlap
@@ -100,6 +102,9 @@ contains
       real(wp), allocatable :: lattr(:, :)
       integer :: i, j, ij
       real(wp), allocatable :: norm(:)
+      !##### DEV WRITE #####
+      integer :: isp, izp, ish, nsh_id(mol%nid)
+      !#####################
 
       !> Set up a new basis set with using the scaled exponents
       if (present(alpha_scal)) then
@@ -107,6 +112,20 @@ contains
       else
          call add_vDZP_basis(mol, bas)
       end if
+
+      !##### DEV WRITE #####
+      ! nsh_id = nshell(mol%num)
+      ! write (*, *) "Basis set properties:", bas%nao
+      ! do isp = 1, mol%nid
+      !    izp = mol%num(isp)
+      !    do ish = 1, nsh_id(isp)
+      !       write(*,*) bas%cgto(ish, isp)%ang
+      !       write(*,*) bas%cgto(ish, isp)%nprim
+      !       write(*,*) bas%cgto(ish, isp)%alpha(:)
+      !       write(*,*) bas%cgto(ish, isp)%coeff(:)
+      !    end do
+      ! end do
+      !#####################
 
       allocate (overlap(bas%nao, bas%nao), dipole(3, bas%nao, bas%nao), &
       & source=0.0_wp)
