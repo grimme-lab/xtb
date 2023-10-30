@@ -25,6 +25,7 @@ list(APPEND srcs
   "${dir}/twostepscf.f90"
   "${dir}/overlaps.f90"
   "${dir}/mmlpopanalysis.f90"
+  "${dir}/ncoord.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

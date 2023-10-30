@@ -27,14 +27,17 @@ module xtb_ptb_scf
 
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_param, only: kalphah0l, klalphaxc, &
-   & nshell, max_shell, ptbGlobals
+   & nshell, max_shell, ptbGlobals, rf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
+   use xtb_ptb_ncoord, only: ncoord_erf
 
    implicit none
    private
 
    public :: twostepscf
+
+   real(wp), parameter :: default_cutoff = 25.0_wp
 
 contains
 
@@ -49,14 +52,20 @@ contains
       class(solver_type), allocatable :: solver
       !> Error type
       type(error_type), allocatable :: error
-
+      !> (Scaled) overlap matrix
       real(wp), allocatable :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
+      !> Mulliken-Loewdin overlap matrices
       real(wp) :: overlap_sx(bas%nao, bas%nao), overlap_soneminusx(bas%nao, bas%nao)
+      !> Dipole integrals
       real(wp), allocatable :: dipole(:, :, :)
-
+      !> Temporary array for exponent scaling factors specific to
+      !> unique atoms in the molecule
       real(wp), allocatable :: expscal(:, :)
-
+      !> Loop variables
       integer :: i, j, isp, izp
+      !> Coordination numbers
+      real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
+      real(wp) :: radii(mol%nid)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -81,7 +90,8 @@ contains
       ! end do
       !#####################
 
-      !> Set up a new basis set with using the scaled exponents for H0
+      !> Set up a exponent scaling factors for
+      !> new basis set for "H0 overlap"
       do isp = 1, mol%nid
          izp = mol%num(isp)
          expscal(:, isp) = kalphah0l(:, izp)
@@ -97,7 +107,8 @@ contains
       end do
       !#####################
 
-      !> Set up a new basis set with using the scaled exponents for VXC
+      !> Set up a exponent scaling factors for
+      !> new basis set for "V_XC overlap"
       do isp = 1, mol%nid
          izp = mol%num(isp)
          expscal(:, isp) = klalphaxc(:, izp)
@@ -131,6 +142,44 @@ contains
          write (*, *) ""
       end do
       !#####################
+
+      !> Get first coordination number (" CN' ")
+      call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn_star)
+
+      !##### DEV WRITE #####
+      write (*, *) "CN star:"
+      do i = 1, mol%nat
+         write (*, *) "Atom ", i, ":", cn_star(i)
+      end do
+      !#####################
+
+      !> Get radii from PTB parameters for second coordination number (" CN ")
+      do isp = 1, mol%nid
+         izp = mol%num(isp)
+         radii(isp) = rf(izp)
+      end do
+      !> Get second coordination number (" CN ")
+      call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn, radii)
+
+      !##### DEV WRITE #####
+      write (*, *) "CN:"
+      do i = 1, mol%nat
+         write (*, *) "Atom ", i, ":", cn(i)
+      end do
+      !#####################
+
+      !> Get third coordination number for EEQ model (" CN-EEQ ")
+      call ncoord_erf(mol, ptbGlobals%kerfcn_eeq, default_cutoff, cn_eeq)
+
+      !##### DEV WRITE #####
+      write (*, *) "CN-EEQ:"
+      do i = 1, mol%nat
+         write (*, *) "Atom ", i, ":", cn_eeq(i)
+      end do
+      !#####################
+
+      !> EEQ call
+      ! ...
 
    end subroutine twostepscf
 
