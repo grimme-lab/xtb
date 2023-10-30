@@ -42,7 +42,8 @@ module xtb_ptb_param
       geps0=1.2209123751_wp, &
       kitocod=1.0926562388_wp, &
       geps=-0.1771695250_wp, &
-      kerfcn=2.0_wp)
+      kerfcn=2.0_wp, &
+      mlmix = 0.33333333333333_wp)
 
    !> Highest element supported by PTB
    integer, parameter :: highest_elem = 86
