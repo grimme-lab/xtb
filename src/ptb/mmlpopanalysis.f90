@@ -18,12 +18,12 @@
 !> Module for the mixed Mulliken-Loewdin population analysis
 
 module xtb_ptb_mmlpopanalysis
-   use mctc_env, only: wp, error_type
+   use mctc_env, only: wp
 
    use xtb_mctc_lapack, only: lapack_syev
 
    use tblite_basis_type, only: basis_type
-   use tblite_blas, only: gemm, gemv
+   use tblite_blas, only: gemm
    implicit none
    private
 
@@ -38,6 +38,7 @@ contains
       real(wp), intent(in) :: overlap(:, :)
       !> Ratio of Mulliken to Loewdin population
       real(wp), intent(in) :: ratio
+      !> Overlap matrix for Mulliken-Lowdin population analysis
       real(wp), intent(out) :: sx(bas%nao, bas%nao), soneminusx(bas%nao, bas%nao)
       !> Variables for ML-pop:
       !> Eigenvalues of overlap matrix (exponentiated)
@@ -63,7 +64,7 @@ contains
       call lapack_syev('V', 'U', bas%nao, tmps, bas%nao, seig, aux, lwork, info)
       ! write (*, *) "Eigenvalues:"
       do i = 1, bas%nao
-          !write (*, '(a,f10.6)') "Eigenvalues: ", seig(i)
+         !write (*, '(a,f10.6)') "Eigenvalues: ", seig(i)
          seig1(i) = seig(i)**(1.0_wp - ratio)
          seig2(i) = seig(i)**ratio
          ! write (*, '(a,f10.6)') "Eigenvalues (1-x): ", seig1(i)

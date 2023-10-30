@@ -20,12 +20,14 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data
    use xtb_type_param, only: TPTBParameter
+   use xtb_mctc_convert, only: aatoau
    implicit none
    private
 
    public :: initPTB, ptbGlobals, max_shell, max_elem, highest_elem
    public :: nshell
    public :: setPTBReferenceOcc
+   public :: rf
 
    !> public parameters:
    public :: kalphah0l, klalphaxc
@@ -43,6 +45,7 @@ module xtb_ptb_param
       kitocod=1.0926562388_wp, &
       geps=-0.1771695250_wp, &
       kerfcn=2.0_wp, &
+      kerfcn_eeq=7.5_wp, &
       mlmix = 0.33333333333333_wp)
 
    !> Highest element supported by PTB

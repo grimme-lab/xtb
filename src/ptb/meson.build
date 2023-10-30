@@ -22,5 +22,6 @@ srcs += files(
   'vdzp.f90',
   'twostepscf.f90',
   'overlaps.f90',
-  'mmlpopanalysis.f90'
+  'mmlpopanalysis.f90',
+  'ncoord.f90',
 )

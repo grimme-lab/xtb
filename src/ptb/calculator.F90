@@ -19,34 +19,20 @@
 ! #define WITH_TBLITE 0
 ! #endif
 
-!> Extended tight binding calculator
+!> Density matrix (P) tight binding (TB) calculator
 module xtb_ptb_calculator
-   use xtb_mctc_accuracy, only: wp
-   use xtb_type_basisset, only: TBasisset
    use xtb_type_calculator, only: TCalculator
    use xtb_type_data
    use xtb_type_environment, only: TEnvironment
    use xtb_type_molecule, only: TMolecule
-   use xtb_type_param, only: scc_parameter, chrg_parameter, &
-   & TPTBParameter
-   use xtb_type_pcem
+   use xtb_type_param, only: TPTBParameter
    use xtb_type_restart, only: TRestart
    use xtb_ptb_data, only: TPTBData
    use xtb_setparam
    use xtb_fixparam
-   use xtb_scf, only: scf
-   use xtb_peeq, only: peeq
-   use xtb_embedding, only: read_pcem
-   use xtb_basis, only: newBasisset
    use xtb_mctc_systools, only: rdpath
-   use xtb_readparam, only: readParam
-   use xtb_paramset, only: use_parameterset
-   use xtb_chargemodel, only: new_charge_model_2019
-   use xtb_disp_ncoord, only: ncoord_erf
-   use xtb_eeq, only: eeq_chrgeq
-   use xtb_iniq, only: iniqcn
-   use xtb_scc_core, only: iniqshell
 
+   use mctc_env, only: wp
    use mctc_io, only: structure_type, new
    use tblite_basis_type, only: basis_type
    use tblite_context, only: context_type
@@ -78,9 +64,6 @@ module xtb_ptb_calculator
 
       !> Maximum number of cycles for SCC convergence
       integer :: maxiter
-
-      !> External potential
-      type(tb_pcem) :: pcem
 
    contains
 
@@ -153,7 +136,7 @@ contains
          return
       end if
 
-      !> set up the basis set for the tb-Hamiltonian
+      !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(calc%struc, calc%bas)
 
       !##### DEV WRITE #####
@@ -258,13 +241,13 @@ contains
       !  post processing of gradient and energy
 
       ! point charge embedding gradient file
-      if (allocated(set%pcem_grad) .and. self%pcem%n > 0) then
-         call open_file(ich, set%pcem_grad, 'w')
-         do i = 1, self%pcem%n
-            write (ich, '(3f12.8)') self%pcem%grd(1:3, i)
-         end do
-         call close_file(ich)
-      end if
+      ! if (allocated(set%pcem_grad) .and. self%pcem%n > 0) then
+      !    call open_file(ich, set%pcem_grad, 'w')
+      !    do i = 1, self%pcem%n
+      !       write (ich, '(3f12.8)') self%pcem%grd(1:3, i)
+      !    end do
+      !    call close_file(ich)
+      ! end if
 
       ! ------------------------------------------------------------------------
       !  fixing of certain atoms
@@ -280,9 +263,9 @@ contains
       end if
 
       ! save point charge gradients in results
-      if (self%pcem%n > 0) then
-         results%pcem = self%pcem
-      end if
+      ! if (self%pcem%n > 0) then
+      !    results%pcem = self%pcem
+      ! end if
 
       if (printlevel .ge. 2) then
          ! start with summary header
@@ -320,7 +303,6 @@ contains
    end subroutine singlepoint
 
    subroutine print_ptb_results(iunit, res, verbose, lsolv)
-      use xtb_type_data
       integer, intent(in) :: iunit ! file handle (usually output_unit=6)
       type(scc_results), intent(in) :: res
       logical, intent(in) :: verbose, lsolv
@@ -372,54 +354,54 @@ contains
       !! Molecular structure data
       real(wp), allocatable :: cn(:)
       !! Coordination number
-      type(chrg_parameter) :: chrgeq
+      ! type(chrg_parameter) :: chrgeq
       !! guess charges(gasteiger/goedecker/sad)
       logical :: exitRun
       !! if it is recommended to terminate the run
 
-      associate (wfn => chk%wfn)
-         allocate (cn(mol%n))
-         ! call wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
+      ! associate (wfn => chk%wfn)
+      !    allocate (cn(mol%n))
+      !    ! call wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
 
-         !> find partial charges
-         if (mol%npbc > 0) then
-         !! if periodic
-            wfn%q = mol%chrg/real(mol%n, wp)
-            !! evenly distribute charge with the equal partial charges
-         else
-            if (set%guess_charges .eq. p_guess_gasteiger) then
-               call iniqcn(mol%n, mol%at, mol%z, mol%xyz, nint(mol%chrg), 1.0_wp, &
-                  & wfn%q, cn, calc%ptbData%level, .true.)
-            else if (set%guess_charges .eq. p_guess_goedecker) then
-            !! default
+      !    !> find partial charges
+      !    if (mol%npbc > 0) then
+      !    !! if periodic
+      !       wfn%q = mol%chrg/real(mol%n, wp)
+      !       !! evenly distribute charge with the equal partial charges
+      !    else
+      !       if (set%guess_charges .eq. p_guess_gasteiger) then
+      !          !call iniqcn(mol%n, mol%at, mol%z, mol%xyz, nint(mol%chrg), 1.0_wp, &
+      !          !   & wfn%q, cn, calc%ptbData%level, .true.)
+      !       else if (set%guess_charges .eq. p_guess_goedecker) then
+      !       !! default
 
-               call new_charge_model_2019(chrgeq, mol%n, mol%at)
-               !! to get parametrized values for q (en,gam,kappa,alpha)
+      !          ! call new_charge_model_2019(chrgeq, mol%n, mol%at)
+      !          !! to get parametrized values for q (en,gam,kappa,alpha)
 
-               call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
-               !! to obtain CN
-               !! (49) Extended Tight-Binding Quantum Chemistry Mehods 2020
+      !          ! call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
+      !          !! to obtain CN
+      !          !! (49) Extended Tight-Binding Quantum Chemistry Mehods 2020
 
-               call eeq_chrgeq(mol, env, chrgeq, cn, wfn%q)
-               !! to obtain partial charges q
-               !! (47) Extended Tight-Binding Quantum Chemistry Mehods 2020
+      !           !call eeq_chrgeq(mol, env, chrgeq, cn, wfn%q)
+      !          !! to obtain partial charges q
+      !          !! (47) Extended Tight-Binding Quantum Chemistry Mehods 2020
 
-               call env%check(exitRun)
-               !! to check status of environment
-               if (exitRun) then
-                  call env%rescue("EEQ guess failed, falling back to SAD guess", source)
-                  wfn%q = mol%chrg/real(mol%n, wp)
-               end if
-            else
-               wfn%q = mol%chrg/real(mol%n, wp)
-            end if
-         end if
+      !          call env%check(exitRun)
+      !          !! to check status of environment
+      !          if (exitRun) then
+      !             call env%rescue("EEQ guess failed, falling back to SAD guess", source)
+      !             wfn%q = mol%chrg/real(mol%n, wp)
+      !          end if
+      !       else
+      !          wfn%q = mol%chrg/real(mol%n, wp)
+      !       end if
+      !    end if
 
-         !> find shell charges
-         ! call iniqshell(calc%ptbData, mol%n, mol%at, mol%z, calc%basis%nshell, &
-         !    & wfn%q, wfn%qsh, calc%ptbData%level)
+      !    !> find shell charges
+      !    ! call iniqshell(calc%ptbData, mol%n, mol%at, mol%z, calc%basis%nshell, &
+      !    !    & wfn%q, wfn%qsh, calc%ptbData%level)
 
-      end associate
+      ! end associate
 
    end subroutine newWavefunction
 
