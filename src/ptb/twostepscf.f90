@@ -21,16 +21,15 @@ module xtb_ptb_scf
    use mctc_io, only: structure_type
    use mctc_env, only: wp, error_type
 
-   use xtb_mctc_lapack, only: lapack_syev
-
    use tblite_basis_type, only: basis_type
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
 
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_param, only: kalphah0l, klalphaxc, &
-   & nshell, max_shell
+   & nshell, max_shell, ptbGlobals
    use xtb_ptb_overlaps, only: get_scaled_integrals
+   use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
 
    implicit none
    private
@@ -52,16 +51,12 @@ contains
       type(error_type), allocatable :: error
 
       real(wp), allocatable :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
+      real(wp) :: overlap_sx(bas%nao, bas%nao), overlap_soneminusx(bas%nao, bas%nao)
       real(wp), allocatable :: dipole(:, :, :)
 
       real(wp), allocatable :: expscal(:, :)
 
       integer :: i, j, isp, izp
-
-      !> Variables for ML-pop
-      real(wp), allocatable :: seig(:)
-      integer :: lwork, info
-      real(wp), allocatable :: aux(:)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -116,19 +111,26 @@ contains
          end do
          write (*, *) ""
       end do
+      !#####################
 
-      allocate (aux(1))
-      lwork = -1
-      call lapack_syev('V', 'U', bas%nao, overlap, bas%nao, seig, aux, lwork, info)
-      lwork = int(aux(1))
-      deallocate (aux)
-      allocate (aux(lwork))
-      allocate (seig(bas%nao))
-      call lapack_syev('V', 'U', bas%nao, overlap, bas%nao, seig, aux, lwork, info)
-      write (*, *) "Eigenvalues:"
+      call get_mml_overlaps(bas, overlap, ptbGlobals%mlmix, overlap_sx, &
+      & overlap_soneminusx)
+      !##### DEV WRITE #####
+      write (*, *) "Overlap S(1-x):"
       do i = 1, bas%nao
-         write (*, '(f10.6)') seig(i)
+         do j = 1, bas%nao
+            write (*, '(f10.6)', advance="no") overlap_soneminusx(i, j)
+         end do
+         write (*, *) ""
       end do
+      write (*, *) "Overlap S(x):"
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.6)', advance="no") overlap_sx(i, j)
+         end do
+         write (*, *) ""
+      end do
+      !#####################
 
    end subroutine twostepscf
 

@@ -78,6 +78,7 @@ module xtb_type_param
       real(wp) :: kitocod = 0.0_wp
       real(wp) :: geps = 0.0_wp
       real(wp) :: kerfcn = 0.0_wp
+      real(wp) :: mlmix = 0.0_wp
    end type TPTBParameter
 
    type :: dftd_parameter
