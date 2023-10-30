@@ -903,7 +903,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (.not.allocated(scD4)) then
       energy = energy + ed
    endif
-   res%e_elec  = eel
+   res%e_elec  = eel+embd
    res%e_atom  = eat
    res%e_rep   = ep
    res%e_es    = ees
@@ -928,6 +928,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 ! ========================================================================
    if (profile) call timer%deallocate
 
+   print*,"res1",res%e_total
+   print*,"ENERGY 1",energy
 end subroutine scf
 
 
