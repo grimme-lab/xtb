@@ -34,11 +34,15 @@ module xtb_ptb_calculator
 
    use mctc_env, only: wp
    use mctc_io, only: structure_type, new
+
+   use multicharge_model, only: new_mchrg_model, mchrg_model_type
+
    use tblite_basis_type, only: basis_type
    use tblite_context, only: context_type
    use tblite_lapack_solver, only: lapack_solver
 
-   use xtb_ptb_param, only: initPTB, ptbGlobals
+   use xtb_ptb_param, only: initPTB, ptbGlobals, &
+      & alpeeq, chieeq, gameeq, cnfeeq !> EEQ parameters
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_scf, only: twostepscf
    implicit none
@@ -51,10 +55,13 @@ module xtb_ptb_calculator
    type, extends(TCalculator) :: TPTBCalculator
 
       !> Structure type
-      type(structure_type), allocatable :: struc
+      type(structure_type), allocatable :: mol
 
-      !> Tight binding basis set
+      !> PTB vDZP basis set
       type(basis_type) :: bas
+
+      !> EEQ Model
+      type(mchrg_model_type) :: eeqmodel
 
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
@@ -80,13 +87,13 @@ module xtb_ptb_calculator
 
 contains
 
-   subroutine newPTBCalculator(env, mol, calc, accuracy)
+   subroutine newPTBCalculator(env, struc, calc, accuracy)
 
       character(len=*), parameter :: source = 'xtb_ptb_calculator_newPTBCalculator'
 
       type(TEnvironment), intent(inout) :: env
 
-      type(TMolecule), intent(in) :: mol
+      type(TMolecule), intent(in) :: struc
 
       type(TPTBCalculator), intent(out) :: calc
 
@@ -94,18 +101,20 @@ contains
 
       character(len=:), allocatable :: filename
       type(TPTBParameter) :: globpar
-      integer :: ich
+      integer :: ich, isp, izp
       logical :: exist
       logical :: exitRun
 
-! #if WITH_TBLITE
-      type(structure_type) :: struc
+      real(wp), allocatable :: chi(:), gam(:), cnf(:), alp(:)
 
-      call new(struc, mol%at, mol%xyz, mol%chrg, mol%uhf, mol%lattice)
-      if (allocated(mol%pdb)) struc%pdb = mol%pdb
-      if (allocated(mol%sdf)) struc%sdf = mol%sdf
-      struc%periodic = .false.
-      calc%struc = struc
+! #if WITH_TBLITE
+      type(structure_type) :: mol
+
+      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
+      if (allocated(mol%pdb)) mol%pdb = struc%pdb
+      if (allocated(mol%sdf)) mol%sdf = struc%sdf
+      mol%periodic = .false.
+      calc%mol = mol
 
       call rdpath(env%xtbpath, 'param_ptb.txt', filename, exist)
       if (.not. exist) filename = 'param_ptb.txt'
@@ -137,8 +146,17 @@ contains
       end if
 
       !> set up the basis set for the PTB-Hamiltonian
-      call add_vDZP_basis(calc%struc, calc%bas)
+      call add_vDZP_basis(calc%mol, calc%bas)
 
+      allocate (chi(calc%mol%nid), gam(calc%mol%nid), cnf(calc%mol%nid), alp(calc%mol%nid))
+      do isp = 1, mol%nid
+         izp = mol%num(isp)
+         chi(isp) = chieeq(izp)
+         gam(isp) = gameeq(izp)
+         cnf(isp) = cnfeeq(izp)
+         alp(isp) = alpeeq(izp)
+      end do
+      call new_mchrg_model(calc%eeqmodel, chi=chi, rad=alp, eta=gam, kcn=cnf)
       !##### DEV WRITE #####
       ! loop over all atoms and print the number of shells and primitives
       ! write (*, *) "Number of atoms: ", struc%nat
@@ -228,7 +246,7 @@ contains
       hlgap = 0.0_wp
       efix = 0.0_wp
 
-      call twostepscf(ctx, self%struc, self%bas)
+      call twostepscf(ctx, self%mol, self%bas, self%eeqmodel)
       stop
 
       call env%check(exitRun)

@@ -25,6 +25,8 @@ module xtb_ptb_scf
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
 
+   use multicharge_model, only: mchrg_model_type
+
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_param, only: kalphah0l, klalphaxc, &
    & nshell, max_shell, ptbGlobals, rf
@@ -41,13 +43,15 @@ module xtb_ptb_scf
 
 contains
 
-   subroutine twostepscf(ctx, mol, bas)
+   subroutine twostepscf(ctx, mol, bas, eeqmodel)
       !> Calculation context
-      type(context_type) :: ctx
+      type(context_type), intent(inout) :: ctx
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set data
       type(basis_type), intent(in) :: bas
+      !> Initialized EEQ model
+      type(mchrg_model_type), intent(in) :: eeqmodel
       !> Electronic solver
       class(solver_type), allocatable :: solver
       !> Error type
@@ -66,6 +70,8 @@ contains
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
+      !> EEQ charges
+      real(wp), allocatable :: q_eeq(:)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -179,7 +185,14 @@ contains
       !#####################
 
       !> EEQ call
-      ! ...
+      allocate(q_eeq(mol%nat))
+      call eeqmodel%solve(mol, cn_eeq, qvec=q_eeq)
+      !##### DEV WRITE #####
+      write(*, *) "EEQ charges:"
+      do i = 1, mol%nat
+         write(*, '(a,i0,a,f12.6)') "Atom ", i, ":", q_eeq(i)
+      end do
+      !#####################
 
    end subroutine twostepscf
 
