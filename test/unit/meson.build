@@ -51,6 +51,7 @@ tests = [
   'dipro',
   'pbc-tools',
   'peeq',
+  'ptb',
   'repulsion',
   'symmetry',
   'tblite',
