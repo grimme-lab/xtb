@@ -54,6 +54,7 @@ contains
       case ('co_cnx6'); call co_cnx6(mol)
       case ('fe_cnx6'); call fe_cnx6(mol)
       case ('h2o'); call h2o(mol)
+      case ('mgh2'); call MgH2(mol)
       end select
 
    end subroutine getMolecule
@@ -1122,5 +1123,20 @@ contains
       integer, parameter  :: uhf = 0
       call init(mol, sym, xyz, chrg=charge, uhf=4)
    end subroutine h2o
+
+   subroutine MgH2(mol)
+      type(TMolecule), intent(out) :: mol
+      integer, parameter :: nat = 3
+      character(len=*), parameter :: sym(nat) = [character(len=4)::&
+         & "Mg", "H", "H"]
+      real(wp), parameter :: xyz(3, nat) = reshape([&
+         &  0.00000000000000_wp,  0.00000000000000_wp,  0.00000000000000_wp, &
+         & -0.00000000000000_wp, -0.00000000000000_wp, -3.22563797588364_wp, &
+         & -0.00000000000000_wp,  0.00000000000000_wp,  3.22563797588364_wp],&
+         & shape(xyz))
+      real(wp), parameter :: charge = 0.0_wp
+      integer, parameter  :: uhf = 0
+      call init(mol, sym, xyz, chrg=charge, uhf=4)
+   end subroutine MgH2
 
 end module xtb_test_molstock
