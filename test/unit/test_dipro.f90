@@ -112,7 +112,7 @@ subroutine test_dipro_jabeff(error)
    dipro%othr = 0.1_wp
    
    call get_jab(env,tblite,mol,splitlist,dipro)
-   call check_(error,dipro%totjab(1),0.119, thr=thr)
+   call check_(error,dipro%totjab(1),0.119_wp, thr=thr)
 
 endsubroutine test_dipro_jabeff
 
