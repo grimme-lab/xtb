@@ -27,15 +27,17 @@ module xtb_ptb_param
    !> Global and essential parameters
    public :: initPTB, ptbGlobals, max_shell, max_elem, highest_elem
    public :: nshell
-   public :: setPTBReferenceOcc
    !> Atomic radii for CN
    public :: rf
    !> EEQ parameters
    public :: alpeeq, chieeq, gameeq, cnfeeq
-
-   !> public parameters:
+   !> Exponent scaling parameters for overlap matrices
    public :: kalphah0l, klalphaxc
+   !> Slater exponents of core basis functions
+   public :: cbas_nshell, cbas_angshell, cbas_pqn, &
+      & cbas_sl_exp, max_core_shell, max_core_prim
 
+   public :: setPTBReferenceOcc
    interface initPTB
       module procedure :: initData
       module procedure :: initHamiltonian
@@ -1258,6 +1260,32 @@ module xtb_ptb_param
    &  0.0459298324_wp,  0.4442052314_wp,  0.2779168214_wp,  0.0141363077_wp,  0.2370368904_wp, &
    &  0.1613809443_wp,  0.2026459983_wp]
 
+   !> Maximum core shell supported by PTB
+   integer, parameter :: max_core_shell = 12
+
+   integer, parameter :: max_core_prim = 6
+
+   integer, parameter :: cbas_nshell(highest_elem) = [ &
+   & 0,  0,  0,  0,  1,  1,  1,  1,  1,  1, &
+   & 1,  1,  3,  3,  3,  3,  3,  3,  3,  3, &
+   & 3,  3,  3,  3,  3,  3,  3,  3,  3,  3, &
+   & 6,  6,  6,  6,  6,  6,  6,  6,  6,  6, &
+   & 6,  6,  6,  6,  6,  6,  6,  6,  9,  9, &
+   & 9,  9,  9,  9,  9,  9,  9,  9,  9,  9, &
+   & 9,  9,  9,  9,  9,  9,  9,  9,  9,  9, &
+   & 9,  9,  9,  9,  9,  9,  9,  9,  9,  9, &
+   &12, 12, 12, 12, 12, 12 ]
+
+   !> Core basis Slater exponents
+   !> Clementi's SZ Slater exponents from JCP 38 (1963), 2686 ibid 47 (1967), 1300.
+   real(wp), protected :: cbas_sl_exp(max_core_shell, highest_elem) = 0.0_wp
+
+   !> Core basis principal quantum numbers
+   integer, protected :: cbas_pqn(max_core_shell, highest_elem) = 0
+
+   !> Core basis angular momentum quantum numbers
+   integer, protected :: cbas_angshell(max_core_shell, highest_elem) = 0
+   
 
    !---------- ELECTROSTATICS ------------------------------
 
@@ -2047,6 +2075,7 @@ contains
       ! self%nShell = nShell(:maxElem)
       ! self%ipeashift = ptbGlobals%ipeashift*0.1_wp
 
+      call set_cbas_exp()
       ! call initGFN2(self%coulomb, self%nShell)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
@@ -2131,5 +2160,767 @@ contains
       ! end do
 
    end subroutine setPTBReferenceOcc
+
+   subroutine set_cbas_exp()
+
+      !> Slater exponents
+      cbas_sl_exp(1,1) =   1.0000_wp 
+      cbas_sl_exp(1,2) =   1.6250_wp
+      cbas_sl_exp(1,3) =   2.6906_wp
+      cbas_sl_exp(1,4) =   3.6848_wp
+      cbas_sl_exp(1,5) =   4.6795_wp
+      cbas_sl_exp(1,6) =   5.6727_wp
+      cbas_sl_exp(1,7) =   6.6651_wp
+      cbas_sl_exp(1,8) =   7.6579_wp
+      cbas_sl_exp(1,9) =   8.6501_wp
+      cbas_sl_exp(1,10)=   9.6421_wp
+      cbas_sl_exp(1,11)=  10.6259_wp
+      cbas_sl_exp(2,11)=   3.2857_wp
+      cbas_sl_exp(3,11)=   3.4409_wp
+      cbas_sl_exp(1,12)=  11.6089_wp
+      cbas_sl_exp(2,12)=   3.6960_wp
+      cbas_sl_exp(3,12)=   3.9129_wp
+      cbas_sl_exp(1,13)=  12.5910_wp
+      cbas_sl_exp(2,13)=   4.1068_wp
+      cbas_sl_exp(3,13)=   4.4817_wp
+      cbas_sl_exp(1,14)=  13.5745_wp
+      cbas_sl_exp(2,14)=   5.5100_wp
+      cbas_sl_exp(3,14)=   4.9725_wp
+      cbas_sl_exp(1,15)=  14.5578_wp
+      cbas_sl_exp(2,15)=   4.9125_wp
+      cbas_sl_exp(3,15)=   5.4806_wp
+      cbas_sl_exp(1,16)=  15.5409_wp
+      cbas_sl_exp(2,16)=   5.3144_wp
+      cbas_sl_exp(3,16)=   5.9855_wp
+      cbas_sl_exp(1,17)=  16.5239_wp
+      cbas_sl_exp(2,17)=   5.7152_wp
+      cbas_sl_exp(3,17)=   6.4966_wp
+      cbas_sl_exp(1,18)=  17.5075_wp
+      cbas_sl_exp(2,18)=   6.1152_wp
+      cbas_sl_exp(3,18)=   7.0041_wp
+      cbas_sl_exp(1,19)=  18.4895_wp
+      cbas_sl_exp(2,19)=   6.5031_wp
+      cbas_sl_exp(3,19)=   7.5136_wp
+      cbas_sl_exp(4,19)=   2.8933_wp
+      cbas_sl_exp(5,19)=   2.5752_wp
+      cbas_sl_exp(1,20)=  19.4730_wp
+      cbas_sl_exp(2,20)=   6.8882_wp
+      cbas_sl_exp(3,20)=   8.0207_wp
+      cbas_sl_exp(4,20)=   3.2005_wp
+      cbas_sl_exp(5,20)=   2.8861_wp
+      cbas_sl_exp(1,21)=  20.4566_wp
+      cbas_sl_exp(2,21)=   7.2868_wp
+      cbas_sl_exp(3,21)=   8.5273_wp
+      cbas_sl_exp(1,22)=  21.4409_wp
+      cbas_sl_exp(2,22)=   7.6883_wp
+      cbas_sl_exp(3,22)=   9.0324_wp
+      cbas_sl_exp(1,23)=  22.4256_wp
+      cbas_sl_exp(2,23)=   8.0907_wp
+      cbas_sl_exp(3,23)=   9.5364_wp
+      cbas_sl_exp(1,24)=  23.4138_wp
+      cbas_sl_exp(2,24)=   8.4919_wp
+      cbas_sl_exp(3,24)=  10.0376_wp
+      cbas_sl_exp(1,25)=  24.3957_wp
+      cbas_sl_exp(2,25)=   8.8969_wp
+      cbas_sl_exp(3,25)=  10.5420_wp
+      cbas_sl_exp(1,26)=  25.3810_wp
+      cbas_sl_exp(2,26)=   9.2995_wp
+      cbas_sl_exp(3,26)=  11.0444_wp
+      cbas_sl_exp(1,27)=  26.3668_wp
+      cbas_sl_exp(2,27)=   9.7025_wp
+      cbas_sl_exp(3,27)=  11.5462_wp
+      cbas_sl_exp(1,28)=  27.3526_wp
+      cbas_sl_exp(2,28)=  10.1063_wp
+      cbas_sl_exp(3,28)=  12.0476_wp
+      cbas_sl_exp(1,29)=  28.3386_wp
+      cbas_sl_exp(2,29)=  10.5099_wp
+      cbas_sl_exp(3,29)=  12.5485_wp
+      cbas_sl_exp(1,30)=  29.3245_wp
+      cbas_sl_exp(2,30)=  10.9140_wp
+      cbas_sl_exp(3,30)=  13.0490_wp
+      cbas_sl_exp(1,31)=  30.3094_wp
+      cbas_sl_exp(2,31)=  11.2995_wp
+      cbas_sl_exp(3,31)=  13.5454_wp
+      cbas_sl_exp(4,31)=   5.6654_wp
+      cbas_sl_exp(5,31)=   5.4012_wp
+      cbas_sl_exp(6,31)=   5.0311_wp
+      cbas_sl_exp(1,32)=  31.2937_wp
+      cbas_sl_exp(2,32)=  11.6824_wp
+      cbas_sl_exp(3,32)=  14.0411_wp
+      cbas_sl_exp(4,32)=   5.9299_wp
+      cbas_sl_exp(5,32)=   5.6712_wp
+      cbas_sl_exp(6,32)=   5.4171_wp
+      cbas_sl_exp(1,33)=  32.2783_wp
+      cbas_sl_exp(2,33)=  12.0635_wp
+      cbas_sl_exp(3,33)=  14.5368_wp
+      cbas_sl_exp(4,33)=   6.1985_wp
+      cbas_sl_exp(5,33)=   5.9499_wp
+      cbas_sl_exp(6,33)=   5.7928_wp
+      cbas_sl_exp(1,34)=  33.2622_wp
+      cbas_sl_exp(2,34)=  12.4442_wp
+      cbas_sl_exp(3,34)=  15.0326_wp
+      cbas_sl_exp(4,34)=   6.4678_wp
+      cbas_sl_exp(5,34)=   6.2350_wp
+      cbas_sl_exp(6,34)=   6.1590_wp
+      cbas_sl_exp(1,35)=  34.2471_wp
+      cbas_sl_exp(2,35)=  12.8217_wp
+      cbas_sl_exp(3,35)=  15.5282_wp
+      cbas_sl_exp(4,35)=   6.7395_wp
+      cbas_sl_exp(5,35)=   6.5236_wp
+      cbas_sl_exp(6,35)=   6.5197_wp
+      cbas_sl_exp(1,36)=  35.2316_wp
+      cbas_sl_exp(2,36)=  13.1990_wp
+      cbas_sl_exp(3,36)=  16.0235_wp
+      cbas_sl_exp(4,36)=   7.0109_wp
+      cbas_sl_exp(5,36)=   6.8114_wp
+      cbas_sl_exp(6,36)=   6.8753_wp
+      cbas_sl_exp(1,37)=  36.2078_wp
+      cbas_sl_exp(2,37)=  13.5784_wp
+      cbas_sl_exp(3,37)=  16.5194_wp
+      cbas_sl_exp(4,37)=   7.2809_wp
+      cbas_sl_exp(5,37)=   7.1011_wp
+      cbas_sl_exp(6,37)=   7.2264_wp
+      cbas_sl_exp(7,37)=   3.0970_wp
+      cbas_sl_exp(8,37)=   2.7202_wp
+      cbas_sl_exp(1,38)=  37.1911_wp
+      cbas_sl_exp(2,38)=  13.9509_wp
+      cbas_sl_exp(3,38)=  17.0152_wp
+      cbas_sl_exp(4,38)=   7.5546_wp
+      cbas_sl_exp(5,38)=   7.3892_wp
+      cbas_sl_exp(6,38)=   7.5754_wp
+      cbas_sl_exp(7,38)=   3.3611_wp
+      cbas_sl_exp(8,38)=   2.9830_wp
+      cbas_sl_exp(1,39)=  38.1756_wp
+      cbas_sl_exp(2,39)=  14.3111_wp
+      cbas_sl_exp(3,39)=  17.5016_wp
+      cbas_sl_exp(4,39)=   7.8505_wp
+      cbas_sl_exp(5,39)=   7.6975_wp
+      cbas_sl_exp(6,39)=   8.4657_wp
+      cbas_sl_exp(1,40)=  39.1590_wp
+      cbas_sl_exp(2,40)=  14.6869_wp
+      cbas_sl_exp(3,40)=  17.9964_wp
+      cbas_sl_exp(4,40)=   8.1205_wp
+      cbas_sl_exp(5,40)=   7.9485_wp
+      cbas_sl_exp(6,40)=   8.5223_wp
+      cbas_sl_exp(1,41)=  40.1423_wp
+      cbas_sl_exp(2,41)=  15.0626_wp
+      cbas_sl_exp(3,41)=  18.4911_wp
+      cbas_sl_exp(4,41)=   8.3905_wp
+      cbas_sl_exp(5,41)=   8.2184_wp
+      cbas_sl_exp(6,41)=   8.7847_wp
+      cbas_sl_exp(1,42)=  41.1256_wp
+      cbas_sl_exp(2,42)=  15.4384_wp
+      cbas_sl_exp(3,42)=  18.9859_wp
+      cbas_sl_exp(4,42)=   8.6605_wp
+      cbas_sl_exp(5,42)=   8.4912_wp
+      cbas_sl_exp(6,42)=   9.0761_wp
+      cbas_sl_exp(1,43)=  42.1090_wp
+      cbas_sl_exp(2,43)=  15.8141_wp
+      cbas_sl_exp(3,43)=  19.4704_wp
+      cbas_sl_exp(4,43)=   8.9304_wp
+      cbas_sl_exp(5,43)=   8.7947_wp
+      cbas_sl_exp(6,43)=   9.4510_wp
+      cbas_sl_exp(1,44)=  43.0923_wp
+      cbas_sl_exp(2,44)=  16.1899_wp
+      cbas_sl_exp(3,44)=  19.9754_wp
+      cbas_sl_exp(4,44)=   9.2004_wp
+      cbas_sl_exp(5,44)=   9.0844_wp
+      cbas_sl_exp(6,44)=   9.7981_wp
+      cbas_sl_exp(1,45)=  44.0756_wp
+      cbas_sl_exp(2,45)=  16.5656_wp
+      cbas_sl_exp(3,45)=  20.4702_wp
+      cbas_sl_exp(4,45)=   9.4704_wp
+      cbas_sl_exp(5,45)=   9.3724_wp
+      cbas_sl_exp(6,45)=  10.1478_wp
+      cbas_sl_exp(1,46)=  45.0589_wp
+      cbas_sl_exp(2,46)=  16.9414_wp
+      cbas_sl_exp(3,46)=  20.9650_wp
+      cbas_sl_exp(4,46)=   9.7404_wp
+      cbas_sl_exp(5,46)=   9.6616_wp
+      cbas_sl_exp(6,46)=  10.4989_wp
+      cbas_sl_exp(1,47)=  46.0423_wp
+      cbas_sl_exp(2,47)=  17.3171_wp
+      cbas_sl_exp(3,47)=  21.4597_wp
+      cbas_sl_exp(4,47)=  10.0104_wp
+      cbas_sl_exp(5,47)=   9.9476_wp
+      cbas_sl_exp(6,47)=  10.8503_wp
+      cbas_sl_exp(1,48)=  47.0256_wp
+      cbas_sl_exp(2,48)=  17.6929_wp
+      cbas_sl_exp(3,48)=  21.9545_wp
+      cbas_sl_exp(4,48)=  10.2804_wp
+      cbas_sl_exp(5,48)=  10.2305_wp
+      cbas_sl_exp(6,48)=  11.2023_wp
+      cbas_sl_exp(1,49)=  48.0097_wp
+      cbas_sl_exp(2,49)=  18.0618_wp
+      cbas_sl_exp(3,49)=  22.4490_wp
+      cbas_sl_exp(4,49)=  10.5436_wp
+      cbas_sl_exp(5,49)=  10.5069_wp
+      cbas_sl_exp(6,49)=  11.5594_wp
+      cbas_sl_exp(7,49)=   5.4403_wp
+      cbas_sl_exp(8,49)=   5.0922_wp
+      cbas_sl_exp(9,49)=   4.2354_wp
+      cbas_sl_exp(1,50)=  48.9920_wp
+      cbas_sl_exp(2,50)=  18.4297_wp
+      cbas_sl_exp(3,50)=  22.9427_wp
+      cbas_sl_exp(4,50)=  10.8066_wp
+      cbas_sl_exp(5,50)=  10.7844_wp
+      cbas_sl_exp(6,50)=  11.9139_wp
+      cbas_sl_exp(7,50)=   5.6645_wp
+      cbas_sl_exp(8,50)=   5.3163_wp
+      cbas_sl_exp(9,50)=   4.4925_wp
+      cbas_sl_exp(1,51)=  49.9744_wp
+      cbas_sl_exp(2,51)=  18.7977_wp
+      cbas_sl_exp(3,51)=  23.4363_wp
+      cbas_sl_exp(4,51)=  11.0697_wp
+      cbas_sl_exp(5,51)=  11.0613_wp
+      cbas_sl_exp(6,51)=  12.2666_wp
+      cbas_sl_exp(7,51)=   5.8859_wp
+      cbas_sl_exp(8,51)=   5.5453_wp
+      cbas_sl_exp(9,51)=   4.7436_wp
+      cbas_sl_exp(1,52)=  50.9568_wp
+      cbas_sl_exp(2,52)=  19.1656_wp
+      cbas_sl_exp(3,52)=  23.9300_wp
+      cbas_sl_exp(4,52)=  11.3327_wp
+      cbas_sl_exp(5,52)=  11.3363_wp
+      cbas_sl_exp(6,52)=  12.6131_wp
+      cbas_sl_exp(7,52)=   6.1021_wp
+      cbas_sl_exp(8,52)=   5.7805_wp
+      cbas_sl_exp(9,52)=   4.9900_wp
+      cbas_sl_exp(1,53)=  51.9391_wp
+      cbas_sl_exp(2,53)=  19.5335_wp
+      cbas_sl_exp(3,53)=  24.4237_wp
+      cbas_sl_exp(4,53)=  11.5958_wp
+      cbas_sl_exp(5,53)=  11.6138_wp
+      cbas_sl_exp(6,53)=  12.9669_wp
+      cbas_sl_exp(7,53)=   6.3243_wp
+      cbas_sl_exp(8,53)=   6.0074_wp
+      cbas_sl_exp(9,53)=   5.2335_wp
+      cbas_sl_exp(1,54)=  52.9215_wp
+      cbas_sl_exp(2,54)=  19.9015_wp
+      cbas_sl_exp(3,54)=  24.9173_wp
+      cbas_sl_exp(4,54)=  11.8588_wp
+      cbas_sl_exp(5,54)=  11.8892_wp
+      cbas_sl_exp(6,54)=  13.3156_wp
+      cbas_sl_exp(7,54)=   6.5432_wp
+      cbas_sl_exp(8,54)=   6.2393_wp
+      cbas_sl_exp(9,54)=   5.4733_wp
+      cbas_sl_exp(1,55)=  53.9043_wp
+      cbas_sl_exp(2,55)=  20.2558_wp
+      cbas_sl_exp(3,55)=  25.4098_wp
+      cbas_sl_exp(4,55)=  12.1258_wp
+      cbas_sl_exp(5,55)=  12.1926_wp
+      cbas_sl_exp(6,55)=  13.6602_wp
+      cbas_sl_exp(7,55)=   6.7606_wp
+      cbas_sl_exp(8,55)=   6.4644_wp
+      cbas_sl_exp(9,55)=   5.7096_wp
+      cbas_sl_exp(10,55)=  3.0889_wp
+      cbas_sl_exp(11,55)=  2.7302_wp
+      cbas_sl_exp(1, 56)= 54.8861_wp
+      cbas_sl_exp(2, 56)= 20.6234_wp
+      cbas_sl_exp(3, 56)= 25.9048_wp
+      cbas_sl_exp(4, 56)= 12.3852_wp
+      cbas_sl_exp(5, 56)= 12.4388_wp
+      cbas_sl_exp(6, 56)= 14.0081_wp
+      cbas_sl_exp(7, 56)=  6.9800_wp
+      cbas_sl_exp(8, 56)=  6.7008_wp
+      cbas_sl_exp(9, 56)=  5.9460_wp
+      cbas_sl_exp(10,56)=  3.3239_wp
+      cbas_sl_exp(11,56)=  2.9601_wp
+      cbas_sl_exp(1, 57)= 55.8683_wp
+      cbas_sl_exp(2, 57)= 20.9767_wp
+      cbas_sl_exp(3, 57)= 26.3978_wp
+      cbas_sl_exp(4, 57)= 12.6477_wp
+      cbas_sl_exp(5, 57)= 12.7132_wp
+      cbas_sl_exp(6, 57)= 14.3534_wp
+      cbas_sl_exp(7, 57)=  7.1991_wp
+      cbas_sl_exp(8, 57)=  6.9266_wp
+      cbas_sl_exp(9, 57)=  6.1813_wp
+      cbas_sl_exp(1, 72)= 70.6016_wp
+      cbas_sl_exp(2, 72)= 26.5949_wp
+      cbas_sl_exp(3, 72)= 33.7994_wp
+      cbas_sl_exp(4, 72)= 16.7705_wp
+      cbas_sl_exp(5, 72)= 16.9944_wp
+      cbas_sl_exp(6, 72)= 19.4766_wp
+      cbas_sl_exp(7, 72)=  9.7443_wp
+      cbas_sl_exp(8, 72)=  9.4824_wp
+      cbas_sl_exp(9, 72)=  8.8810_wp
+      cbas_sl_exp(1, 73)= 71.5837_wp
+      cbas_sl_exp(2, 73)= 26.9649_wp
+      cbas_sl_exp(3, 73)= 34.2932_wp
+      cbas_sl_exp(4, 73)= 17.0305_wp
+      cbas_sl_exp(5, 73)= 17.2668_wp
+      cbas_sl_exp(6, 73)= 19.8137_wp
+      cbas_sl_exp(7, 73)=  9.9397_wp
+      cbas_sl_exp(8, 73)=  9.6837_wp
+      cbas_sl_exp(9, 73)=  9.0810_wp
+      cbas_sl_exp(1, 74)= 72.5657_wp
+      cbas_sl_exp(2, 74)= 27.3349_wp
+      cbas_sl_exp(3, 74)= 34.7871_wp
+      cbas_sl_exp(4, 74)= 17.2900_wp
+      cbas_sl_exp(5, 74)= 17.5392_wp
+      cbas_sl_exp(6, 74)= 20.1508_wp
+      cbas_sl_exp(7, 74)= 10.1397_wp
+      cbas_sl_exp(8, 74)=  9.8871_wp
+      cbas_sl_exp(9, 74)=  9.2933_wp
+      cbas_sl_exp(1, 75)= 73.5478_wp
+      cbas_sl_exp(2, 75)= 27.7049_wp
+      cbas_sl_exp(3, 75)= 35.2810_wp
+      cbas_sl_exp(4, 75)= 17.5495_wp
+      cbas_sl_exp(5, 75)= 17.8115_wp
+      cbas_sl_exp(6, 75)= 20.4849_wp
+      cbas_sl_exp(7, 75)= 10.3391_wp
+      cbas_sl_exp(8, 75)= 10.0933_wp
+      cbas_sl_exp(9, 75)=  9.5136_wp
+      cbas_sl_exp(1, 76)= 74.5299_wp
+      cbas_sl_exp(2, 76)= 28.0749_wp
+      cbas_sl_exp(3, 76)= 35.7749_wp
+      cbas_sl_exp(4, 76)= 17.8091_wp
+      cbas_sl_exp(5, 76)= 18.0839_wp
+      cbas_sl_exp(6, 76)= 20.8249_wp
+      cbas_sl_exp(7, 76)= 10.5238_wp
+      cbas_sl_exp(8, 76)= 10.2860_wp
+      cbas_sl_exp(9, 76)=  9.7145_wp
+      cbas_sl_exp(1, 77)= 75.5119_wp
+      cbas_sl_exp(2, 77)= 28.4449_wp
+      cbas_sl_exp(3, 77)= 36.2688_wp
+      cbas_sl_exp(4, 77)= 18.0686_wp
+      cbas_sl_exp(5, 77)= 18.3563_wp
+      cbas_sl_exp(6, 77)= 21.1620_wp
+      cbas_sl_exp(7, 77)= 10.7120_wp
+      cbas_sl_exp(8, 77)= 10.4785_wp
+      cbas_sl_exp(9, 77)=  9.9343_wp
+      cbas_sl_exp(1, 78)= 76.4940_wp
+      cbas_sl_exp(2, 78)= 28.8149_wp
+      cbas_sl_exp(3, 78)= 36.7627_wp
+      cbas_sl_exp(4, 78)= 18.3281_wp
+      cbas_sl_exp(5, 78)= 18.6287_wp
+      cbas_sl_exp(6, 78)= 21.4991_wp
+      cbas_sl_exp(7, 78)= 10.9097_wp
+      cbas_sl_exp(8, 78)= 10.6826_wp
+      cbas_sl_exp(9, 78)= 10.1575_wp
+      cbas_sl_exp(1, 79)= 77.4761_wp
+      cbas_sl_exp(2, 79)= 29.1849_wp
+      cbas_sl_exp(3, 79)= 37.2566_wp
+      cbas_sl_exp(4, 79)= 18.5876_wp
+      cbas_sl_exp(5, 79)= 18.9010_wp
+      cbas_sl_exp(6, 79)= 21.8361_wp
+      cbas_sl_exp(7, 79)= 11.1033_wp
+      cbas_sl_exp(8, 79)= 10.8867_wp
+      cbas_sl_exp(9, 79)= 10.3820_wp
+      cbas_sl_exp(1, 80)= 78.4581_wp
+      cbas_sl_exp(2, 80)= 29.5547_wp
+      cbas_sl_exp(3, 80)= 37.7505_wp
+      cbas_sl_exp(4, 80)= 18.8471_wp
+      cbas_sl_exp(5, 80)= 19.1734_wp
+      cbas_sl_exp(6, 80)= 22.1732_wp
+      cbas_sl_exp(7, 80)= 11.3112_wp
+      cbas_sl_exp(8, 80)= 11.1015_wp
+      cbas_sl_exp(9, 80)= 10.6170_wp
+      cbas_sl_exp(1, 81)= 79.4409_wp
+      cbas_sl_exp(2, 81)= 29.8421_wp
+      cbas_sl_exp(3, 81)= 38.2431_wp
+      cbas_sl_exp(4, 81)= 19.1397_wp
+      cbas_sl_exp(5, 81)= 19.4555_wp
+      cbas_sl_exp(6, 81)= 22.5114_wp
+      cbas_sl_exp(7, 81)= 11.5197_wp
+      cbas_sl_exp(8, 81)= 11.3042_wp
+      cbas_sl_exp(9, 81)= 10.8472_wp
+      cbas_sl_exp(10,81)=  5.8244_wp
+      cbas_sl_exp(11,81)=  5.4177_wp
+      cbas_sl_exp(12,81)=  4.4050_wp
+      cbas_sl_exp(1, 82)= 80.4195_wp
+      cbas_sl_exp(2, 82)= 30.2150_wp
+      cbas_sl_exp(3, 82)= 38.7383_wp
+      cbas_sl_exp(4, 82)= 19.3841_wp
+      cbas_sl_exp(5, 82)= 19.7165_wp
+      cbas_sl_exp(6, 82)= 22.8489_wp
+      cbas_sl_exp(7, 82)= 11.7232_wp
+      cbas_sl_exp(8, 82)= 11.5084_wp
+      cbas_sl_exp(9, 82)= 11.0799_wp
+      cbas_sl_exp(10,82)=  6.0263_wp
+      cbas_sl_exp(11,82)=  5.6060_wp
+      cbas_sl_exp(12,82)=  4.6304_wp
+      cbas_sl_exp(1, 83)= 81.3982_wp
+      cbas_sl_exp(2, 83)= 30.5880_wp
+      cbas_sl_exp(3, 83)= 39.2335_wp
+      cbas_sl_exp(4, 83)= 19.6285_wp
+      cbas_sl_exp(5, 83)= 19.9774_wp
+      cbas_sl_exp(6, 83)= 23.1805_wp
+      cbas_sl_exp(7, 83)= 11.9268_wp
+      cbas_sl_exp(8, 83)= 11.7126_wp
+      cbas_sl_exp(9, 83)= 11.3098_wp
+      cbas_sl_exp(10,83)=  6.2058_wp
+      cbas_sl_exp(11,83)=  5.8042_wp
+      cbas_sl_exp(12,83)=  4.8488_wp
+      cbas_sl_exp(1, 84)= 82.3768_wp
+      cbas_sl_exp(2, 84)= 30.9609_wp
+      cbas_sl_exp(3, 84)= 39.7286_wp
+      cbas_sl_exp(4, 84)= 19.8729_wp
+      cbas_sl_exp(5, 84)= 20.2383_wp
+      cbas_sl_exp(6, 84)= 23.5240_wp
+      cbas_sl_exp(7, 84)= 12.1304_wp
+      cbas_sl_exp(8, 84)= 11.9168_wp
+      cbas_sl_exp(9, 84)= 11.9168_wp
+      cbas_sl_exp(10,84)=  6.4046_wp
+      cbas_sl_exp(11,84)=  6.0049_wp
+      cbas_sl_exp(12,84)=  5.0608_wp
+      cbas_sl_exp(1, 85)= 83.3554_wp
+      cbas_sl_exp(2, 85)= 31.3338_wp
+      cbas_sl_exp(3, 85)= 40.2238_wp
+      cbas_sl_exp(4, 85)= 20.1173_wp
+      cbas_sl_exp(5, 85)= 20.4992_wp
+      cbas_sl_exp(6, 85)= 23.8615_wp
+      cbas_sl_exp(7, 85)= 12.3339_wp
+      cbas_sl_exp(8, 85)= 12.1210_wp
+      cbas_sl_exp(9, 85)= 11.7624_wp
+      cbas_sl_exp(10,85)=  6.5867_wp
+      cbas_sl_exp(11,85)=  6.2080_wp
+      cbas_sl_exp(12,85)=  5.2678_wp
+      cbas_sl_exp(1,86) = 84.3341_wp
+      cbas_sl_exp(2,86) = 31.7068_wp
+      cbas_sl_exp(3,86) = 40.7190_wp
+      cbas_sl_exp(4,86) = 20.3617_wp
+      cbas_sl_exp(5,86) = 20.7602_wp
+      cbas_sl_exp(6,86) = 24.1991_wp
+      cbas_sl_exp(7,86) = 12.5375_wp
+      cbas_sl_exp(8,86) = 12.3253_wp
+      cbas_sl_exp(9,86) = 11.9857_wp
+      cbas_sl_exp(10,86)=  6.7786_wp
+      cbas_sl_exp(11,86)=  6.3942_wp
+      cbas_sl_exp(12,86)=  5.4700_wp
+
+      !> Principal quantum numbers
+      cbas_pqn(1:cbas_nshell(5), 5) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(6), 6) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(7), 7) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(8), 8) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(9), 9) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(10), 10) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(11), 11) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(12), 12) = [ &
+      &  1 ]
+      cbas_pqn(1:cbas_nshell(13), 13) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(14), 14) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(15), 15) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(16), 16) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(17), 17) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(18), 18) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(19), 19) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(20), 20) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(21), 21) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(22), 22) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(23), 23) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(24), 24) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(25), 25) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(26), 26) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(27), 27) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(28), 28) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(29), 29) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(30), 30) = [ &
+      &  1, 2, 2 ]
+      cbas_pqn(1:cbas_nshell(31), 31) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(32), 32) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(33), 33) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(34), 34) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(35), 35) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(36), 36) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(37), 37) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(38), 38) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(39), 39) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(40), 40) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(41), 41) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(42), 42) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(43), 43) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(44), 44) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(45), 45) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(46), 46) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(47), 47) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(48), 48) = [ &
+      &  1, 2, 2, 3, 3, 3 ]
+      cbas_pqn(1:cbas_nshell(49), 49) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(50), 50) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(51), 51) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(52), 52) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(53), 53) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(54), 54) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(55), 55) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(56), 56) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(57), 57) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(58), 58) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(59), 59) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(60), 60) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(61), 61) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(62), 62) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(63), 63) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(64), 64) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(65), 65) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(66), 66) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(67), 67) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(68), 68) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(69), 69) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(70), 70) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(71), 71) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(72), 72) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(73), 73) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(74), 74) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(75), 75) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(76), 76) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(77), 77) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(78), 78) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(79), 79) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(80), 80) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4 ]
+      cbas_pqn(1:cbas_nshell(81), 81) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5 ]
+      cbas_pqn(1:cbas_nshell(82), 82) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5 ]
+      cbas_pqn(1:cbas_nshell(83), 83) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5 ]
+      cbas_pqn(1:cbas_nshell(84), 84) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5 ]
+      cbas_pqn(1:cbas_nshell(85), 85) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5 ]
+      cbas_pqn(1:cbas_nshell(86), 86) = [ &
+      &  1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5 ]
+
+      !> Angular momentum quantum numbers
+      cbas_angshell(1:cbas_nshell(5), 5) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(6), 6) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(7), 7) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(8), 8) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(9), 9) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(10), 10) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(11), 11) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(12), 12) = [ &
+      &  0 ]
+      cbas_angshell(1:cbas_nshell(13), 13) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(14), 14) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(15), 15) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(16), 16) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(17), 17) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(18), 18) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(19), 19) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(20), 20) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(21), 21) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(22), 22) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(23), 23) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(24), 24) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(25), 25) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(26), 26) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(27), 27) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(28), 28) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(29), 29) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(30), 30) = [ &
+      &  0, 0, 1 ]
+      cbas_angshell(1:cbas_nshell(31), 31) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(32), 32) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(33), 33) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(34), 34) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(35), 35) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(36), 36) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(37), 37) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(38), 38) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(39), 39) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(40), 40) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(41), 41) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(42), 42) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(43), 43) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(44), 44) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(45), 45) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(46), 46) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(47), 47) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(48), 48) = [ &
+      &  0, 0, 1, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(49), 49) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(50), 50) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(51), 51) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(52), 52) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(53), 53) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(54), 54) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(55), 55) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(56), 56) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(57), 57) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(58), 58) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(59), 59) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(60), 60) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(61), 61) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(62), 62) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(63), 63) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(64), 64) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(65), 65) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(66), 66) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(67), 67) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(68), 68) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(69), 69) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(70), 70) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(71), 71) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(72), 72) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(73), 73) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(74), 74) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(75), 75) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(76), 76) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(77), 77) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(78), 78) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(79), 79) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(80), 80) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(81), 81) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(82), 82) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(83), 83) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(84), 84) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(85), 85) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2 ]
+      cbas_angshell(1:cbas_nshell(86), 86) = [ &
+      &  0, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2 ]
+
+   end subroutine set_cbas_exp
 
 end module xtb_ptb_param

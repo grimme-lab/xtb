@@ -24,4 +24,5 @@ srcs += files(
   'overlaps.f90',
   'mmlpopanalysis.f90',
   'ncoord.f90',
+  'corebasis.f90',
 )
