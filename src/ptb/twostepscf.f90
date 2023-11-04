@@ -33,6 +33,7 @@ module xtb_ptb_scf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
+   use xtb_ptb_corebasis, only: add_PTBcore_basis
 
    implicit none
    private
@@ -66,12 +67,14 @@ contains
       !> unique atoms in the molecule
       real(wp), allocatable :: expscal(:, :)
       !> Loop variables
-      integer :: i, j, isp, izp
+      integer :: i, j, isp, izp, k
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
       !> EEQ charges
       real(wp), allocatable :: q_eeq(:)
+      !> Basis set data
+      type(basis_type) :: cbas
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -193,6 +196,22 @@ contains
          write(*, '(a,i0,a,f12.6)') "Atom ", i, ":", q_eeq(i)
       end do
       !#####################
+
+      !> V_ECP via PTB core basis
+      call add_PTBcore_basis(mol, cbas)
+
+      !##### DEV WRITE #####
+      ! write(*,*) "PTB core basis:"
+      ! do isp = 1, mol%nid
+      !    write(*,*) "Atom :", mol%num(isp)
+      !    write(*,*) "Number of shells :", cbas%nsh_id(isp)
+      !    do j = 1, cbas%nsh_id(isp)
+      !       write(*,*) "N_prim: ", cbas%cgto(j,isp)%nprim
+      !       do k = 1, cbas%cgto(j,isp)%nprim
+      !          write(*, *) cbas%cgto(j,isp)%alpha(k)
+      !       enddo
+      !    enddo
+      ! end do
 
    end subroutine twostepscf
 
