@@ -23,11 +23,13 @@ module xtb_ptb_corebasis
 
    use xtb_ptb_param, only: max_elem, highest_elem, &  !> General parameters
       & max_core_shell, max_core_prim, cbas_nshell, &  !> PTB core basis parameters
-      & cbas_pqn, cbas_sl_exp, cbas_angshell !> PTB core basis parameters
+      & cbas_pqn, cbas_sl_exp, cbas_angshell, cbas_hflev, & !> PTB core basis parameters
+      & kecpepsilon
 
    use tblite_basis_type, only: cgto_type, new_basis, basis_type
    use tblite_basis_slater, only: slater_to_gauss
    use tblite_integral_overlap, only: overlap_cgto, msao
+   use tblite_blas, only: gemm
 
    implicit none
    private
@@ -50,7 +52,7 @@ contains
       !> Intermediate core valence overlap matrix (scaled)
       real(wp), allocatable :: secptmp(:, :)
       !> tmp indices
-      integer :: i, jat, jzp, js, jsh, jj, jao
+      integer :: i, jat, jzp, js, jsh, jj, jao, jati, j
 
       allocate (vecp(bas%nao, bas%nao), secptmp(cbas%nao, bas%nao), source=0.0_wp)
 
@@ -58,26 +60,37 @@ contains
       do i = 1, bas%nao
          do jat = 1, mol%nat
             jzp = mol%id(jat)
-            js = bas%ish_at(jat)
-            do jsh = 1, cbas%nsh_id(jzp) ! core shells of atom nn
+            jati = mol%num(jzp)
+            js = cbas%ish_at(jat)
+            do jsh = 1, cbas%nsh_id(jzp) !> Iteration over core shells of atom jat
                jj = cbas%iao_sh(js + jsh)
                do jao = 1, msao(cbas%cgto(jsh, jzp)%ang)
-                  ! secptmp(m, i) = -clev(jsh, atn)*Scv(m, i)*shell_cnf1(10, atn)
-                  secptmp(jj + jao, i) = overlap_cv(jj + jao, i)
+
+                  !##### DEV WRITE #####
+                  write (*, *) "jsh, cbas_hflev(jsh,jati), kecpepsilon(jati): ", jsh, cbas_hflev(jsh, jati), kecpepsilon(jati)
+                  write (*, *) "overlap_cv(jj + jao, i): ", overlap_cv(jj + jao, i)
+                  write (*, *) "jj + jao, i: ", jj + jao, i
+                  !#####################
+                  
+                  secptmp(jj + jao, i) = -cbas_hflev(jsh, jati)*overlap_cv(jj + jao, i)* &
+                     & kecpepsilon(jati)
                end do
             end do
          end do
       end do
 
-      ! N^3 step
-      ! call la_gemm('T','N',nao,nao,cnsao,1.0d0,Scv,cnsao,stmp,cnsao,0.0d0,xtmp,nao)
-      ! k = 0
-      ! do i=1, nao
-      !    do j=1, i
-      !       k = k + 1
-      !       v(k) = xtmp(j,i)
-      !    enddo
-      ! enddo
+      !##### DEV WRITE #####
+      write (*, *) "Overlap_CV_scaled:"
+      do i = 1, bas%nao
+         do j = 1, cbas%nao
+            write (*, '(f10.6)', advance="no") secptmp(j, i)
+         end do
+         write (*, *) ""
+      end do
+      !#####################
+
+      !> SG: N^3 step
+      call gemm(overlap_cv, secptmp, vecp, 'T', 'N')
 
    end subroutine get_Vecp
 
@@ -141,10 +154,12 @@ contains
       write (*, *) "valence basis NAOs: ", bas%nao
       do i = 1, bas%nao
          do j = 1, cbas%nao
-            write (*, '(f10.6)', advance="no") cv_overlap(j, i)*bas_overlap_norm(i)
+            cv_overlap(j, i) = cv_overlap(j, i)*bas_overlap_norm(i)
+            write (*, '(f10.6)', advance="no") cv_overlap(j, i)
          end do
          write (*, *) ""
       end do
+      !#####################
 
    end subroutine core_valence_overlap
 
@@ -202,6 +217,7 @@ contains
          end do
       end do
       write (*, *) "----------------------------------------"
+      !#####################
 
       call new_basis(cbas, mol, nsh_id, cgto, 1.0_wp)
 

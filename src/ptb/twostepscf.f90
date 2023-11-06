@@ -210,6 +210,16 @@ contains
       allocate(vecp(cbas%nao, bas%nao), source=0.0_wp)
       call get_Vecp(mol, bas, cbas, overlap_cv, vecp)
 
+      !##### DEV WRITE #####
+      write (*, *) "V_ECP:"
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.6)', advance="no") vecp(i, j)
+         end do
+         write (*, *) ""
+      end do
+
+
    end subroutine twostepscf
 
 end module xtb_ptb_scf
