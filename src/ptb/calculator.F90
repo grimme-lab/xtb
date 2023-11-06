@@ -24,7 +24,7 @@ module xtb_ptb_calculator
    use xtb_type_calculator, only: TCalculator
    use xtb_type_data
    use xtb_type_environment, only: TEnvironment
-   use xtb_type_molecule, only: TMolecule
+   use xtb_type_molecule, only : TMolecule, assignment(=)
    use xtb_type_param, only: TPTBParameter
    use xtb_type_restart, only: TRestart
    use xtb_ptb_data, only: TPTBData
@@ -110,10 +110,7 @@ contains
 ! #if WITH_TBLITE
       type(structure_type) :: mol
 
-      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
-      if (allocated(mol%pdb)) mol%pdb = struc%pdb
-      if (allocated(mol%sdf)) mol%sdf = struc%sdf
-      mol%periodic = .false.
+      mol = struc
       calc%mol = mol
 
       call rdpath(env%xtbpath, 'param_ptb.txt', filename, exist)

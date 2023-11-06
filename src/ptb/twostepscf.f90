@@ -33,7 +33,7 @@ module xtb_ptb_scf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
-   use xtb_ptb_corebasis, only: add_PTBcore_basis
+   use xtb_ptb_corebasis, only: add_PTBcore_basis, core_valence_overlap
 
    implicit none
    private
@@ -61,6 +61,8 @@ contains
       real(wp), allocatable :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
       !> Mulliken-Loewdin overlap matrices
       real(wp) :: overlap_sx(bas%nao, bas%nao), overlap_soneminusx(bas%nao, bas%nao)
+      !> Core-valence overlap matrix
+      real(wp), allocatable :: overlap_cv(:, :)
       !> Dipole integrals
       real(wp), allocatable :: dipole(:, :, :)
       !> Temporary array for exponent scaling factors specific to
@@ -73,14 +75,16 @@ contains
       real(wp) :: radii(mol%nid)
       !> EEQ charges
       real(wp), allocatable :: q_eeq(:)
-      !> Basis set data
+      !> Core-valence basis set data
       type(basis_type) :: cbas
+      !> Normalization factors
+      real(wp), allocatable :: norm_overlap(:)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
 
       allocate (expscal(max_shell, mol%nid), source=0.0_wp)
-      call get_scaled_integrals(mol, overlap, dipole)
+      call get_scaled_integrals(mol, overlap, dipole, norm=norm_overlap)
 
       !##### DEV WRITE #####
       write (*, *) "Standard overlap:"
@@ -105,7 +109,7 @@ contains
          izp = mol%num(isp)
          expscal(:, isp) = kalphah0l(:, izp)
       end do
-      call get_scaled_integrals(mol, overlap_h0, expscal)
+      call get_scaled_integrals(mol, overlap_h0, alpha_scal=expscal)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS):"
       do i = 1, bas%nao
@@ -122,7 +126,7 @@ contains
          izp = mol%num(isp)
          expscal(:, isp) = klalphaxc(:, izp)
       end do
-      call get_scaled_integrals(mol, overlap_xc, expscal)
+      call get_scaled_integrals(mol, overlap_xc, alpha_scal=expscal)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS):"
       do i = 1, bas%nao
@@ -199,19 +203,7 @@ contains
 
       !> V_ECP via PTB core basis
       call add_PTBcore_basis(mol, cbas)
-
-      !##### DEV WRITE #####
-      ! write(*,*) "PTB core basis:"
-      ! do isp = 1, mol%nid
-      !    write(*,*) "Atom :", mol%num(isp)
-      !    write(*,*) "Number of shells :", cbas%nsh_id(isp)
-      !    do j = 1, cbas%nsh_id(isp)
-      !       write(*,*) "N_prim: ", cbas%cgto(j,isp)%nprim
-      !       do k = 1, cbas%cgto(j,isp)%nprim
-      !          write(*, *) cbas%cgto(j,isp)%alpha(k)
-      !       enddo
-      !    enddo
-      ! end do
+      call core_valence_overlap(mol, bas, cbas, overlap_cv, norm_overlap)
 
    end subroutine twostepscf
 
