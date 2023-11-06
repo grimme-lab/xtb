@@ -41,19 +41,21 @@ module xtb_ptb_overlaps
 contains
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_overlap(mol, overlap, alpha_scal)
+   subroutine get_scaled_integrals_overlap(mol, overlap, alpha_scal, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Overlap matrix as output
       real(wp), intent(out), allocatable :: overlap(:, :)
       !> Scaling factors as input
       real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nid)
+      !> Normalization factors as output
+      real(wp), allocatable, intent(out), optional :: norm(:)
+      real(wp), allocatable :: normlocal(:)
       !> Basis set data
       type(basis_type) :: bas
       real(wp) :: cutoff
       real(wp), allocatable :: lattr(:, :)
       integer :: i, j, ij
-      real(wp), allocatable :: norm(:)
 
       !> Set up a new basis set with using the scaled exponents
       if (present(alpha_scal)) then
@@ -63,7 +65,7 @@ contains
       end if
 
       !> Allocate overlap matrix based on basis set dimension
-      allocate (overlap(bas%nao, bas%nao), norm(bas%nao), source=0.0_wp)
+      allocate (overlap(bas%nao, bas%nao), normlocal(bas%nao), source=0.0_wp)
 
       !> Calculate cutoff and lattice points (with PTB generally turned off)
       cutoff = get_cutoff(bas)
@@ -75,32 +77,37 @@ contains
       !> Normalize overlap
       ij = 0
       do i = 1, bas%nao
-         norm(i) = 1.0_wp/sqrt(overlap(i, i))
+         normlocal(i) = 1.0_wp/sqrt(overlap(i, i))
       end do
       ij = 0
       do i = 1, bas%nao
          do j = 1, i
-            overlap(i, j) = overlap(i, j)*norm(i)*norm(j)
+            overlap(i, j) = overlap(i, j)*normlocal(i)*normlocal(j)
             overlap(j, i) = overlap(i, j)
          end do
       end do
+      if (present(norm)) then
+         norm = normlocal
+      end if
 
    end subroutine get_scaled_integrals_overlap
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_dipole(mol, overlap, dipole, alpha_scal)
+   subroutine get_scaled_integrals_dipole(mol, overlap, dipole, alpha_scal, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Overlap matrix as output
       real(wp), intent(out), allocatable :: overlap(:, :), dipole(:, :, :)
       !> Scaling factors as input
       real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nid)
+      !> Normalization factors as output
+      real(wp), allocatable, intent(out), optional :: norm(:)
+      real(wp), allocatable :: normlocal(:)
       !> Basis set data
       type(basis_type) :: bas
       real(wp) :: cutoff
       real(wp), allocatable :: lattr(:, :)
       integer :: i, j, ij
-      real(wp), allocatable :: norm(:)
       !##### DEV WRITE #####
       integer :: isp, izp, ish, nsh_id(mol%nid)
       !#####################
@@ -131,22 +138,25 @@ contains
 
       cutoff = get_cutoff(bas)
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
-      allocate (norm(bas%nao), source=0.0_wp)
+      allocate (normlocal(bas%nao), source=0.0_wp)
 
       call get_dipole_integrals(mol, lattr, cutoff, bas, overlap, dipole)
 
       !> Normalize overlap
       ij = 0
       do i = 1, bas%nao
-         norm(i) = 1.0_wp/sqrt(overlap(i, i))
+         normlocal(i) = 1.0_wp/sqrt(overlap(i, i))
       end do
       ij = 0
       do i = 1, bas%nao
          do j = 1, i
-            overlap(i, j) = overlap(i, j)*norm(i)*norm(j)
+            overlap(i, j) = overlap(i, j)*normlocal(i)*normlocal(j)
             overlap(j, i) = overlap(i, j)
          end do
       end do
+      if (present(norm)) then
+         norm = normlocal
+      end if
 
       !> ########### AND DIPOLE!! #############
 

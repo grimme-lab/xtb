@@ -18,7 +18,7 @@ module test_ptb
 
    use mctc_env, only: wp
 
-   use xtb_type_molecule, only: TMolecule
+   use xtb_type_molecule, only: TMolecule, assignment(=)
    use xtb_test_molstock, only: getMolecule
 
    use testdrive, only: new_unittest, unittest_type, error_type, check_ => check, test_failed
@@ -67,11 +67,7 @@ contains
       integer :: maxl_exp = 2
 
       call getMolecule(struc, "h2o")
-
-      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
-      if (allocated(mol%pdb)) mol%pdb = struc%pdb
-      if (allocated(mol%sdf)) mol%sdf = struc%sdf
-      mol%periodic = .false.
+      mol = struc
 
       call add_vDZP_basis(mol, bas)
 
@@ -122,6 +118,7 @@ contains
       & -0.298790960_wp]
 
       call getMolecule(struc, "mindless01")
+      mol = struc
 
       call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
       if (allocated(mol%pdb)) mol%pdb = struc%pdb
@@ -171,10 +168,7 @@ contains
       message = "Overlap matrix element not matching to expected value."
 
       call getMolecule(struc, "mgh2")
-      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
-      if (allocated(mol%pdb)) mol%pdb = struc%pdb
-      if (allocated(mol%sdf)) mol%sdf = struc%sdf
-      mol%periodic = .false.
+      mol = struc
 
       call get_scaled_integrals(mol, overlap)
       call check_(error, overlap(1, 2), overlap_exp(1), thr=thr, &
@@ -220,10 +214,7 @@ contains
       message = "Scaled overlap matrix element not matching to expected value."
 
       call getMolecule(struc, "mgh2")
-      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
-      if (allocated(mol%pdb)) mol%pdb = struc%pdb
-      if (allocated(mol%sdf)) mol%sdf = struc%sdf
-      mol%periodic = .false.
+      mol = struc
 
       allocate (expscal(max_shell, mol%nid), source=0.0_wp)
       do isp = 1, mol%nid
@@ -276,10 +267,7 @@ contains
       message = "Solved overlap matrix (^(1-x)) element not matching to expected value."
 
       call getMolecule(struc, "mgh2")
-      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
-      if (allocated(mol%pdb)) mol%pdb = struc%pdb
-      if (allocated(mol%sdf)) mol%sdf = struc%sdf
-      mol%periodic = .false.
+      mol = struc
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
