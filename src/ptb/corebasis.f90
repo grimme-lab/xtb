@@ -32,13 +32,56 @@ module xtb_ptb_corebasis
    implicit none
    private
 
-   public :: add_PTBcore_basis, core_valence_overlap
+   public :: add_PTBcore_basis, core_valence_overlap, get_Vecp
 
    real(wp), parameter :: cutoff = 20.0_wp
 
 contains
 
-   subroutine core_valence_overlap(mol, bas, cbas, cv_overlap, bas_overlap_norm)
+   subroutine get_Vecp(mol, bas, cbas, overlap_cv, vecp)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Basis set type
+      type(basis_type), intent(in) :: bas, cbas
+      !> Core-valence overlap matrix
+      real(wp), intent(in) :: overlap_cv(:, :)
+      !> Approximated effective core potential
+      real(wp), allocatable, intent(out) :: vecp(:, :)
+      !> Intermediate core valence overlap matrix (scaled)
+      real(wp), allocatable :: secptmp(:, :)
+      !> tmp indices
+      integer :: i, jat, jzp, js, jsh, jj, jao
+
+      allocate (vecp(bas%nao, bas%nao), secptmp(cbas%nao, bas%nao), source=0.0_wp)
+
+      !> SG: N^2 step
+      do i = 1, bas%nao
+         do jat = 1, mol%nat
+            jzp = mol%id(jat)
+            js = bas%ish_at(jat)
+            do jsh = 1, cbas%nsh_id(jzp) ! core shells of atom nn
+               jj = cbas%iao_sh(js + jsh)
+               do jao = 1, msao(cbas%cgto(jsh, jzp)%ang)
+                  ! secptmp(m, i) = -clev(jsh, atn)*Scv(m, i)*shell_cnf1(10, atn)
+                  secptmp(jj + jao, i) = overlap_cv(jj + jao, i)
+               end do
+            end do
+         end do
+      end do
+
+      ! N^3 step
+      ! call la_gemm('T','N',nao,nao,cnsao,1.0d0,Scv,cnsao,stmp,cnsao,0.0d0,xtmp,nao)
+      ! k = 0
+      ! do i=1, nao
+      !    do j=1, i
+      !       k = k + 1
+      !       v(k) = xtmp(j,i)
+      !    enddo
+      ! enddo
+
+   end subroutine get_Vecp
+
+   subroutine core_valence_overlap(mol, bas, cbas, bas_overlap_norm, cv_overlap)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set type
@@ -77,7 +120,6 @@ contains
                   jj = cbas%iao_sh(js + jsh)
                   call overlap_cgto(cbas%cgto(jsh, jzp), bas%cgto(ish, izp), &
                      & r2, vec, bas%intcut, stmp)
-                  write(*,*) "overlapelements stmp: ", stmp
 
                   nao = msao(cbas%cgto(jsh, jzp)%ang)
                   do iao = 1, msao(bas%cgto(ish, izp)%ang)
@@ -95,11 +137,11 @@ contains
 
       !##### DEV WRITE #####
       write (*, *) "Core-valence overlap matrix:"
-      write(*,*) "core basis NAOs: ", cbas%nao
-      write(*,*) "valence basis NAOs: ", bas%nao
+      write (*, *) "core basis NAOs: ", cbas%nao
+      write (*, *) "valence basis NAOs: ", bas%nao
       do i = 1, bas%nao
          do j = 1, cbas%nao
-            write (*, '(f10.6)', advance="no") cv_overlap(j, i) * bas_overlap_norm(i)
+            write (*, '(f10.6)', advance="no") cv_overlap(j, i)*bas_overlap_norm(i)
          end do
          write (*, *) ""
       end do
