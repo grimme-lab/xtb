@@ -33,7 +33,8 @@ module xtb_ptb_scf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
-   use xtb_ptb_corebasis, only: add_PTBcore_basis, core_valence_overlap
+   use xtb_ptb_corebasis, only: add_PTBcore_basis, core_valence_overlap, &
+   & get_Vecp
 
    implicit none
    private
@@ -79,6 +80,8 @@ contains
       type(basis_type) :: cbas
       !> Normalization factors
       real(wp), allocatable :: norm_overlap(:)
+      !> Effective core potential
+      real(wp), allocatable :: vecp(:, :)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -172,7 +175,7 @@ contains
          radii(isp) = rf(izp)
       end do
       !> Get second coordination number (" CN ")
-      call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn, radii)
+      call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn, covrad=radii)
 
       !##### DEV WRITE #####
       write (*, *) "CN:"
@@ -203,7 +206,9 @@ contains
 
       !> V_ECP via PTB core basis
       call add_PTBcore_basis(mol, cbas)
-      call core_valence_overlap(mol, bas, cbas, overlap_cv, norm_overlap)
+      call core_valence_overlap(mol, bas, cbas, norm_overlap, overlap_cv)
+      allocate(vecp(cbas%nao, bas%nao), source=0.0_wp)
+      call get_Vecp(mol, bas, cbas, overlap_cv, vecp)
 
    end subroutine twostepscf
 
