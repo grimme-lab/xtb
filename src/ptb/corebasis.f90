@@ -34,28 +34,34 @@ module xtb_ptb_corebasis
    implicit none
    private
 
-   public :: add_PTBcore_basis, core_valence_overlap, get_Vecp
+   public :: add_PTBcore_basis, get_Vecp
 
    real(wp), parameter :: cutoff = 20.0_wp
 
 contains
 
-   subroutine get_Vecp(mol, bas, cbas, overlap_cv, vecp)
+   subroutine get_Vecp(mol, bas, cbas, norm_s, vecp)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set type
-      type(basis_type), intent(in) :: bas, cbas
+      type(basis_type), intent(in) :: bas
+      !> Core basis set type
+      type(basis_type), intent(in) :: cbas
       !> Core-valence overlap matrix
-      real(wp), intent(in) :: overlap_cv(:, :)
+      real(wp), intent(in) :: norm_s(:)
       !> Approximated effective core potential
       real(wp), allocatable, intent(out) :: vecp(:, :)
+      !> Core-valence overlap matrix
+      real(wp), allocatable :: overlap_cv(:, :)
       !> Intermediate core valence overlap matrix (scaled)
       real(wp), allocatable :: secptmp(:, :)
       !> tmp indices
       integer :: i, jat, jzp, js, jsh, jj, jao, jati, j
 
-      allocate (vecp(bas%nao, bas%nao), secptmp(cbas%nao, bas%nao), source=0.0_wp)
+      !> Calculate the core-valence overlap matrix
+      call core_valence_overlap(mol, bas, cbas, norm_s, overlap_cv)
 
+      allocate (vecp(bas%nao, bas%nao), secptmp(cbas%nao, bas%nao), source=0.0_wp)
       !> SG: N^2 step
       do i = 1, bas%nao
          do jat = 1, mol%nat
@@ -67,9 +73,9 @@ contains
                do jao = 1, msao(cbas%cgto(jsh, jzp)%ang)
 
                   !##### DEV WRITE #####
-                  write (*, *) "jsh, cbas_hflev(jsh,jati), kecpepsilon(jati): ", jsh, cbas_hflev(jsh, jati), kecpepsilon(jati)
-                  write (*, *) "overlap_cv(jj + jao, i): ", overlap_cv(jj + jao, i)
-                  write (*, *) "jj + jao, i: ", jj + jao, i
+                  ! write (*, *) "jsh, cbas_hflev(jsh,jati), kecpepsilon(jati): ", jsh, cbas_hflev(jsh, jati), kecpepsilon(jati)
+                  ! write (*, *) "overlap_cv(jj + jao, i): ", overlap_cv(jj + jao, i)
+                  ! write (*, *) "jj + jao, i: ", jj + jao, i
                   !#####################
                   
                   secptmp(jj + jao, i) = -cbas_hflev(jsh, jati)*overlap_cv(jj + jao, i)* &
@@ -80,13 +86,13 @@ contains
       end do
 
       !##### DEV WRITE #####
-      write (*, *) "Overlap_CV_scaled:"
-      do i = 1, bas%nao
-         do j = 1, cbas%nao
-            write (*, '(f10.6)', advance="no") secptmp(j, i)
-         end do
-         write (*, *) ""
-      end do
+      ! write (*, *) "Overlap_CV_scaled:"
+      ! do i = 1, bas%nao
+      !    do j = 1, cbas%nao
+      !       write (*, '(f10.6)', advance="no") secptmp(j, i)
+      !    end do
+      !    write (*, *) ""
+      ! end do
       !#####################
 
       !> SG: N^3 step
@@ -149,17 +155,21 @@ contains
       end do
 
       !##### DEV WRITE #####
-      write (*, *) "Core-valence overlap matrix:"
-      write (*, *) "core basis NAOs: ", cbas%nao
-      write (*, *) "valence basis NAOs: ", bas%nao
+      ! write (*, *) "Core-valence overlap matrix:"
+      ! write (*, *) "core basis NAOs: ", cbas%nao
+      ! write (*, *) "valence basis NAOs: ", bas%nao
+      !#####################
       do i = 1, bas%nao
          do j = 1, cbas%nao
             cv_overlap(j, i) = cv_overlap(j, i)*bas_overlap_norm(i)
-            write (*, '(f10.6)', advance="no") cv_overlap(j, i)
+            !##### DEV WRITE #####
+            ! write (*, '(f10.6)', advance="no") cv_overlap(j, i)
+            !#####################
          end do
-         write (*, *) ""
+         !##### DEV WRITE #####
+         ! write (*, *) ""
+         !#####################
       end do
-      !#####################
 
    end subroutine core_valence_overlap
 
@@ -173,50 +183,53 @@ contains
       integer, allocatable :: nsh_id(:)
       type(cgto_type), allocatable :: cgto(:, :)
 
-      integer :: j, k
+      !##### DEV WRITE #####
+      ! integer :: j, k
+      !#####################
 
       nsh_id = cbas_nshell(mol%num)
       allocate (cgto(maxval(nsh_id), mol%nid))
       do isp = 1, mol%nid
          izp = mol%num(isp)
          !##### DEV WRITE #####
-         write (*, *) "number of shells: ", nsh_id(isp)
+         ! write (*, *) "number of shells: ", nsh_id(isp)
          !#####################
          do ish = 1, nsh_id(isp)
             il = cbas_angshell(ish, izp)
 
             !##### DEV WRITE #####
-            write (*, *) "number of primitives: ", max_core_prim
-            write (*, *) "shell type: ", cbas_pqn(ish, izp), cbas_angshell(ish, izp), cbas_sl_exp(ish, izp)
+            ! write (*, *) "shell: ", ish
+            ! write (*, *) "number of primitives: ", max_core_prim
+            ! write (*, *) "shell type: ", cbas_pqn(ish, izp), cbas_angshell(ish, izp), cbas_sl_exp(ish, izp)
             !#####################
 
             call slater_to_gauss(max_core_prim, cbas_pqn(ish, izp), il, &
             & cbas_sl_exp(ish, izp), cgto(ish, isp), .true., stat)
 
             !##### DEV WRITE #####
-            write (*, *) "N_prim: ", cgto(ish, isp)%nprim
-            do k = 1, cgto(ish, isp)%nprim
-               write (*, *) cgto(ish, isp)%alpha(k)
-            end do
+            ! write (*, *) "N_prim: ", cgto(ish, isp)%nprim
+            ! do k = 1, cgto(ish, isp)%nprim
+            !    write (*, *) cgto(ish, isp)%alpha(k)
+            ! end do
             !#####################
          end do
 
       end do
 
       !##### DEV WRITE #####
-      write (*, *) "---------FINAL PTB core basis-----------"
-      do isp = 1, mol%nid
-         write (*, *) "Atom :", mol%num(isp)
-         write (*, *) "Number of shells :", nsh_id(isp)
-         do j = 1, nsh_id(isp)
-            write (*, *) "N_prim: ", cgto(j, isp)%nprim
-            write (*, *) "Exponents:"
-            write (*, *) cgto(j, isp)%alpha
-            write (*, *) "Coefficients:"
-            write (*, *) cgto(j, isp)%coeff
-         end do
-      end do
-      write (*, *) "----------------------------------------"
+      ! write (*, *) "---------FINAL PTB core basis-----------"
+      ! do isp = 1, mol%nid
+      !    write (*, *) "Atom :", mol%num(isp)
+      !    write (*, *) "Number of shells :", nsh_id(isp)
+      !    do j = 1, nsh_id(isp)
+      !       write (*, *) "N_prim: ", cgto(j, isp)%nprim
+      !       write (*, *) "Exponents:"
+      !       write (*, *) cgto(j, isp)%alpha
+      !       write (*, *) "Coefficients:"
+      !       write (*, *) cgto(j, isp)%coeff
+      !    end do
+      ! end do
+      ! write (*, *) "----------------------------------------"
       !#####################
 
       call new_basis(cbas, mol, nsh_id, cgto, 1.0_wp)
