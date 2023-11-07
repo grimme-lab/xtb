@@ -109,13 +109,13 @@ contains
       end do
       call get_scaled_integrals(mol, overlap_h0, alpha_scal=expscal)
       !##### DEV WRITE #####
-      write (*, *) "Overlap H0 scaled (SS):"
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") overlap_h0(i, j)
-         end do
-         write (*, *) ""
-      end do
+      write (*, *) "Overlap H0 scaled (SS) ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") overlap_h0(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
       !#####################
 
       !> Set up a exponent scaling factors for
@@ -126,32 +126,32 @@ contains
       end do
       call get_scaled_integrals(mol, overlap_xc, alpha_scal=expscal)
       !##### DEV WRITE #####
-      write (*, *) "Overlap XC scaled (SS):"
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") overlap_xc(i, j)
-         end do
-         write (*, *) ""
-      end do
+      write (*, *) "Overlap XC scaled (SS) ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") overlap_xc(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
       !#####################
 
       call get_mml_overlaps(bas, overlap, ptbGlobals%mlmix, overlap_sx, &
       & overlap_soneminusx)
       !##### DEV WRITE #####
-      write (*, *) "Overlap S(1-x):"
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") overlap_soneminusx(i, j)
-         end do
-         write (*, *) ""
-      end do
-      write (*, *) "Overlap S(x):"
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") overlap_sx(i, j)
-         end do
-         write (*, *) ""
-      end do
+      write (*, *) "Overlap S(1-x) ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") overlap_soneminusx(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
+      write (*, *) "Overlap S(x) ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") overlap_sx(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
       !#####################
 
       !> Get first coordination number (" CN' ")
@@ -201,18 +201,17 @@ contains
 
       !> V_ECP via PTB core basis
       allocate(vecp(cbas%nao, bas%nao), source=0.0_wp)
-      !##### DEV WRITE #####
-      write(*,*) "Entering get_Vecp"
       call get_Vecp(mol, bas, cbas, norm_overlap, vecp)
 
       !##### DEV WRITE #####
-      write (*, *) "V_ECP:"
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") vecp(i, j)
-         end do
-         write (*, *) ""
-      end do
+      write (*, *) "V_ECP ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") vecp(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
+      !#####################
 
 
    end subroutine twostepscf
