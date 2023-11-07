@@ -33,8 +33,7 @@ module xtb_ptb_scf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
-   use xtb_ptb_corebasis, only: add_PTBcore_basis, core_valence_overlap, &
-   & get_Vecp
+   use xtb_ptb_corebasis, only: get_Vecp
 
    implicit none
    private
@@ -45,13 +44,13 @@ module xtb_ptb_scf
 
 contains
 
-   subroutine twostepscf(ctx, mol, bas, eeqmodel)
+   subroutine twostepscf(ctx, mol, bas, cbas, eeqmodel)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
-      !> Basis set data
-      type(basis_type), intent(in) :: bas
+      !> Basis set and core-valence basis set data
+      type(basis_type), intent(in) :: bas, cbas
       !> Initialized EEQ model
       type(mchrg_model_type), intent(in) :: eeqmodel
       !> Electronic solver
@@ -62,22 +61,18 @@ contains
       real(wp), allocatable :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
       !> Mulliken-Loewdin overlap matrices
       real(wp) :: overlap_sx(bas%nao, bas%nao), overlap_soneminusx(bas%nao, bas%nao)
-      !> Core-valence overlap matrix
-      real(wp), allocatable :: overlap_cv(:, :)
       !> Dipole integrals
       real(wp), allocatable :: dipole(:, :, :)
       !> Temporary array for exponent scaling factors specific to
       !> unique atoms in the molecule
       real(wp), allocatable :: expscal(:, :)
       !> Loop variables
-      integer :: i, j, isp, izp, k
+      integer :: i, j, isp, izp
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
       !> EEQ charges
       real(wp), allocatable :: q_eeq(:)
-      !> Core-valence basis set data
-      type(basis_type) :: cbas
       !> Normalization factors
       real(wp), allocatable :: norm_overlap(:)
       !> Effective core potential
@@ -205,10 +200,10 @@ contains
       !#####################
 
       !> V_ECP via PTB core basis
-      call add_PTBcore_basis(mol, cbas)
-      call core_valence_overlap(mol, bas, cbas, norm_overlap, overlap_cv)
       allocate(vecp(cbas%nao, bas%nao), source=0.0_wp)
-      call get_Vecp(mol, bas, cbas, overlap_cv, vecp)
+      !##### DEV WRITE #####
+      write(*,*) "Entering get_Vecp"
+      call get_Vecp(mol, bas, cbas, norm_overlap, vecp)
 
       !##### DEV WRITE #####
       write (*, *) "V_ECP:"

@@ -45,7 +45,8 @@ contains
                   new_unittest("eeq", test_ptb_eeq), &
                   new_unittest("overlap", test_ptb_overlap), &
                   new_unittest("overlap_h0", test_ptb_overlap_h0), &
-                  new_unittest("overlap_sx", test_ptb_overlap_SX) &
+                  new_unittest("overlap_sx", test_ptb_overlap_SX), &
+                  new_unittest("v_ecp", test_ptb_V_ECP) &
                   ]
 
    end subroutine collect_ptb
@@ -291,4 +292,66 @@ contains
       & message=message)
 
    end subroutine test_ptb_overlap_SX
+
+   subroutine test_ptb_V_ECP(error)
+      !> tblite basis set type
+      use tblite_basis_type, only: basis_type
+      !> PTB core basis set generation
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      use xtb_ptb_corebasis, only: add_PTBcore_basis, get_Vecp
+      !> PTB overlap matrix calculation
+      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
+
+      !> PTB vDZP basis set and core basis set
+      type(basis_type) :: bas, cbas
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> (Scaled) overlap matrix
+      real(wp), allocatable :: overlap(:, :)
+      !> Normalization factors
+      real(wp), allocatable :: norm_overlap(:)
+      !> Effective core potential
+      real(wp), allocatable :: vecp(:, :)
+      type(error_type), allocatable, intent(out) :: error
+      character(len=:), allocatable :: message
+      real(wp), parameter :: vecp_ref(4) = [ &
+      &  0.077719_wp, & ! 1,1 ; diffferent because of tblite ordering
+      & -0.059122_wp, & ! 1,3 ; diffferent because of tblite ordering
+      &  0.052775_wp, & ! 3,5 ; diffferent because of tblite ordering
+      &  0.117176_wp]   ! 9,9 ; diffferent because of tblite ordering
+      real(wp), parameter :: xyz(3, 2) = reshape([ &
+      & 2.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
+      integer, parameter :: nat = 2
+      integer, parameter :: at(nat) = [5, 17]
+
+      call new(mol, at, xyz)
+      allocate (ptbData)
+      call initPTB(ptbData)
+
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+      !> Add the core basis set to 'cbas' basis set type
+      call add_PTBcore_basis(mol, cbas)
+      !> -> for normalization factors
+      call get_scaled_integrals(mol, overlap, norm=norm_overlap)
+      !> V_ECP via PTB core basis
+      allocate (vecp(cbas%nao, bas%nao), source=0.0_wp)
+      call get_Vecp(mol, bas, cbas, norm_overlap, vecp)
+
+      message = "V_ecp matrix element not matching to expected value."
+      call check_(error, vecp(1, 1), vecp_ref(1), thr=thr2, &
+      & message=message)
+      call check_(error, vecp(1, 5), vecp_ref(2), thr=thr2, &
+      & message=message)
+      call check_(error, vecp(5, 8), vecp_ref(3), thr=thr2, &
+      & message=message)
+      call check_(error, vecp(12, 12), vecp_ref(4), thr=thr2, &
+      & message=message)
+   end subroutine test_ptb_V_ECP
+
 end module test_ptb

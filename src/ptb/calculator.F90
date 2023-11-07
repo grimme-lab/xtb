@@ -45,6 +45,7 @@ module xtb_ptb_calculator
       & alpeeq, chieeq, gameeq, cnfeeq !> EEQ parameters
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_scf, only: twostepscf
+   use xtb_ptb_corebasis, only: add_PTBcore_basis
    implicit none
 
    private
@@ -58,7 +59,7 @@ module xtb_ptb_calculator
       type(structure_type), allocatable :: mol
 
       !> PTB vDZP basis set
-      type(basis_type) :: bas
+      type(basis_type) :: bas, cbas
 
       !> EEQ Model
       type(mchrg_model_type) :: eeqmodel
@@ -144,6 +145,8 @@ contains
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(calc%mol, calc%bas)
+      !> Add the core basis set to 'cbas' basis set type
+      call add_PTBcore_basis(calc%mol, calc%cbas)
 
       allocate (chi(calc%mol%nid), gam(calc%mol%nid), cnf(calc%mol%nid), alp(calc%mol%nid))
       do isp = 1, mol%nid
@@ -243,7 +246,7 @@ contains
       hlgap = 0.0_wp
       efix = 0.0_wp
 
-      call twostepscf(ctx, self%mol, self%bas, self%eeqmodel)
+      call twostepscf(ctx, self%mol, self%bas, self%cbas, self%eeqmodel)
       stop
 
       call env%check(exitRun)
