@@ -336,7 +336,7 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
       !> Add the core basis set to 'cbas' basis set type
-      call add_PTBcore_basis(mol, cbas)
+      call add_PTBcore_basis(mol, ptbData%corepotential, cbas)
       !> -> for normalization factors
       call get_scaled_integrals(mol, overlap, norm=norm_overlap)
       !> V_ECP via PTB core basis
