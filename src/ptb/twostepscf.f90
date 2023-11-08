@@ -88,13 +88,13 @@ contains
       call get_scaled_integrals(mol, overlap, dipole, norm=norm_overlap)
 
       !##### DEV WRITE #####
-      write (*, *) "Standard overlap:"
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") overlap(i, j)
-         end do
-         write (*, *) ""
-      end do
+      write (*, *) "Standard overlap ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") overlap(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
       ! write (*, *) "Dipole:"
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao

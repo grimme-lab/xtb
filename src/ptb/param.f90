@@ -20,7 +20,7 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
-   generateValenceShellData
+   generateValenceShellData, TEEQData
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
    implicit none
@@ -31,20 +31,15 @@ module xtb_ptb_param
    public :: nshell
    !> Atomic radii for CN
    public :: rf
-   !> EEQ parameters
-   public :: alpeeq, chieeq, gameeq, cnfeeq
    !> Exponent scaling parameters for overlap matrices
    public :: kalphah0l, klalphaxc
-   !> Slater exponents of core basis functions
-   public :: cbas_nshell, cbas_angshell, cbas_pqn, &
-      & cbas_sl_exp, max_core_shell, max_core_prim, cbas_hflev, &
-      & kecpepsilon
 
    public :: setPTBReferenceOcc
    interface initPTB
       module procedure :: initData
       module procedure :: initHamiltonian
       module procedure :: initCorePotential
+      module procedure :: initEEQ
    end interface initPTB
 
    type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
@@ -2070,10 +2065,13 @@ module xtb_ptb_param
 
 contains
 
-   subroutine initData(self)
+   subroutine initData(self, num)
 
       !> Data instance
       type(TPTBData), intent(out) :: self
+
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
 
       self%name = 'PTB'
       self%doi = '10.1063/5.0137838'
@@ -2083,7 +2081,7 @@ contains
 
       call set_cbas()
       call initPTB(self%corepotential)
-      ! call initPTB(self%)
+      call initPTB(self%eeq, num)
       ! call initGFN2(self%coulomb, self%nShell)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
@@ -2100,6 +2098,18 @@ contains
       & kecpepsilon)
 
    end subroutine initCorepotential
+
+   subroutine initEEQ(self, num)
+
+      !> Data instance
+      type(TEEQData), intent(out) :: self
+
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
+
+      call init(self, num, alpeeq, chieeq, cnfeeq, gameeq)
+
+   end subroutine initEEQ
 
    subroutine initHamiltonian(self, nShell)
 

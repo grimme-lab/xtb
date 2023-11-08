@@ -27,7 +27,7 @@ module xtb_ptb_data
 
    public :: TPTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
-   public :: THalogenData, TMultipoleData, TShortRangeData, TCorePotentialData
+   public :: TShortRangeData, TCorePotentialData, TEEQData
    public :: newData, getData
    public :: generateValenceShellData, angToShellData
 
@@ -88,6 +88,23 @@ module xtb_ptb_data
       real(wp), allocatable :: kecpepsilon(:)
 
    end type TCorePotentialData
+
+   !> EEQ parameters
+   type :: TEEQData
+
+      !> Alpha parameter for EEQ model
+      real(wp), allocatable :: alp(:)
+
+      !> EN parameter for EEQ model
+      real(wp), allocatable :: chi(:)
+
+      !> CN dependency parameter of EEQ model
+      real(wp), allocatable :: cnf(:)
+
+      !> Chemical hardness parameters for EEQ model
+      real(wp), allocatable :: gam(:)
+
+   end type TEEQData
 
    !> Data for the repulsion contribution
    type :: TRepulsionData
@@ -221,55 +238,6 @@ module xtb_ptb_data
 
    end type TCoulombData
 
-   !> Data for the evaluation of the multipole electrostatics
-   type :: TMultipoleData
-
-      !> Coordination number shift
-      real(wp) :: cnShift
-
-      !> Coordination number exponent for radii
-      real(wp) :: cnExp
-
-      !> Maximum radius
-      real(wp) :: cnRMax
-
-      !> Damping parameter for charge-dipole interactions
-      real(wp) :: dipDamp
-
-      !> Damping parameter for dipole-dipole, charge-quadrupole interactions
-      real(wp) :: quadDamp
-
-      !> Valence coordination number for radii
-      real(wp), allocatable :: valenceCN(:)
-
-      !> Cutoff radii for multipole electrostatics
-      real(wp), allocatable :: multiRad(:)
-
-      !> Dipole exchange-correlation kernel
-      real(wp), allocatable :: dipKernel(:)
-
-      !> Quadrupole exchange-correlation kernel
-      real(wp), allocatable :: quadKernel(:)
-
-   end type TMultipoleData
-
-   !> Data for halogen bond correction
-   type :: THalogenData
-
-      !> Scaling factor of the atomic radii
-      real(wp) :: radScale
-
-      !> Damping parameter for the halogen bond interactions
-      real(wp) :: dampingPar
-
-      !> Strength of the halogen bond
-      real(wp), allocatable :: bondStrength(:)
-
-      !> Atomic radii
-      real(wp), allocatable :: atomicRad(:)
-
-   end type THalogenData
-
    !> Short range basis correction
    type TShortRangeData
 
@@ -314,17 +282,15 @@ module xtb_ptb_data
       !> Parametrisation data for dispersion interactions
       type(TDispersionData) :: dispersion
 
-      !> Parametrisation data for multipole electrostatics (optional)
-      type(TMultipoleData), allocatable :: multipole
+      !> Parametrisation data for the effective core potential
+      type(TCorePotentialData) :: corepotential
 
-      !> Parametrisation data for halogen bond correction (optional)
-      type(THalogenData), allocatable :: halogen
+      !> Parametrisation data for the EEQ model
+      type(TEEQData) :: eeq
 
       !> Parametrisation data for the short range basis correction (optional)
       type(TShortRangeData), allocatable :: srb
 
-      !> Parametrisation data for the effective core potential (optional)
-      type(TCorePotentialData) :: corepotential
 
       !> Shift for IP/EA calculations
       real(wp) :: ipeashift
@@ -339,10 +305,9 @@ module xtb_ptb_data
    !> Default constructor for the data types
    interface init
       module procedure :: initRepulsion
-      module procedure :: initHalogen
-      module procedure :: initMultipole
       module procedure :: initCoulomb
       module procedure :: initCorepotential
+      module procedure :: initEEQ
    end interface init
 
    ! ========================================================================
@@ -363,23 +328,6 @@ module xtb_ptb_data
       & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
       & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
       & 0.0_wp]
-
-   !> Cutoff radii for multipole electrostatics
-   real(wp), parameter :: multiRad(1:118) = [&
-      & 1.4_wp, 3.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.0_wp, 1.9_wp, 1.8_wp, 2.4_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 2.1_wp, 3.1_wp, 2.5_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 3.9_wp, 4.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, 5.0_wp, &
-      & 5.0_wp]
 
 contains
 
@@ -454,23 +402,6 @@ contains
          write (unit, afmt) "third order", "false"
       end if
 
-      if (allocated(self%multipole)) then
-         write (unit, afmt) "anisotropic", "true"
-         write (unit, rfmt) "a3", self%multipole%dipDamp
-         write (unit, rfmt) "a5", self%multipole%quadDamp
-         write (unit, rfmt) "cn-shift", self%multipole%cnShift
-         write (unit, rfmt) "cn-exp", self%multipole%cnExp
-         write (unit, rfmt) "max-rad", self%multipole%cnRMax
-      else
-         write (unit, afmt) "anisotropic", "false"
-      end if
-
-      if (allocated(self%halogen)) then
-         write (unit, head) "Halogen bond correction"
-         write (unit, rfmt) "rad-scale", self%halogen%radScale
-         write (unit, rfmt) "damping", self%halogen%dampingPar
-      end if
-
       if (allocated(self%srb)) then
          write (unit, head) "Polar bond correction"
          write (unit, rfmt) "rad-shift", self%srb%shift
@@ -510,75 +441,6 @@ contains
       end do
 
    end subroutine generateValenceShellData
-
-!> Initialize halogen bond data
-   subroutine initHalogen(self, radScale, dampingPar, halogenBond)
-
-      !> Data instance
-      type(THalogenData), intent(out) :: self
-
-      !> Scaling parameter for the atomic radii
-      real(wp), intent(in) :: radScale
-
-      !> Damping parameter
-      real(wp), intent(in) :: dampingPar
-
-      !> Halogen bond strength
-      real(wp), intent(in) :: halogenBond(:)
-
-      integer :: maxElem
-
-      maxElem = size(halogenBond)
-
-      self%radScale = radScale
-      self%dampingPar = dampingPar
-      self%atomicRad = atomicRad(:maxElem)
-      self%bondStrength = halogenBond(:maxElem)
-
-   end subroutine initHalogen
-
-   subroutine initMultipole(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
-         & dipKernel, quadKernel)
-
-      !> Data instance
-      type(TMultipoleData), intent(out) :: self
-
-      !>
-      real(wp), intent(in) :: cnShift
-
-      !>
-      real(wp), intent(in) :: cnExp
-
-      !>
-      real(wp), intent(in) :: cnRMax
-
-      !>
-      real(wp), intent(in) :: dipDamp
-
-      !>
-      real(wp), intent(in) :: quadDamp
-
-      !>
-      real(wp), intent(in) :: dipKernel(:)
-
-      !>
-      real(wp), intent(in) :: quadKernel(:)
-
-      integer :: maxElem
-
-      maxElem = min(size(dipKernel), size(quadKernel))
-
-      self%cnShift = cnShift
-      self%cnExp = cnExp
-      self%cnRMax = cnRMax
-      self%dipDamp = dipDamp
-      self%quadDamp = quadDamp
-      self%dipKernel = dipKernel(:maxElem)
-      self%quadKernel = quadKernel(:maxElem)
-      self%valenceCN = valenceCN(:maxElem)
-      self%multiRad = multiRad(:maxElem)
-
-   end subroutine initMultipole
 
    subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
          & electronegativity)
@@ -651,6 +513,33 @@ contains
       self%kecpepsilon = kecpepsilon(:)
 
    end subroutine initCorepotential
+
+   subroutine initEEQ(self, num, alp, chi, cnf, gam)
+
+      !> Data instance
+      type(TEEQData), intent(out) :: self
+
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+
+      !> Alpha parameter for EEQ model
+      real(wp), intent(in) :: alp(:)
+
+      !> EN parameter for EEQ model
+      real(wp), intent(in) :: chi(:)
+
+      !> CN dependency parameter of EEQ model
+      real(wp), intent(in) :: cnf(:)
+
+      !> Chemical hardness parameters for EEQ model
+      real(wp), intent(in) :: gam(:)
+
+      call newData(self%alp, num, alp)
+      call newData(self%chi, num, chi)
+      call newData(self%cnf, num, cnf)
+      call newData(self%gam, num, gam)
+
+   end subroutine initEEQ
 
    subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
          & thirdOrderAtom, electronegativity, kCN, chargeWidth)
@@ -745,7 +634,7 @@ contains
 
       real(wp), intent(in) :: data(:)
 
-      allocate (vec(size(num)))
+      allocate (vec(size(num)), source=0.0_wp)
       call getAtomicData(vec, num, data)
 
    end subroutine newAtomicData

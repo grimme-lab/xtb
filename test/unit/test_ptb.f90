@@ -81,13 +81,14 @@ contains
    end subroutine test_ptb_basis
 
    subroutine test_ptb_eeq(error)
-      use xtb_ptb_param, only: ptbGlobals, &
-      & alpeeq, chieeq, gameeq, cnfeeq !> EEQ parameters
+      use xtb_ptb_param, only: ptbGlobals, initPTB
       use xtb_ptb_ncoord, only: ncoord_erf
       use multicharge_model, only: new_mchrg_model, mchrg_model_type
+      use xtb_ptb_data, only: TPTBData
 
       type(error_type), allocatable, intent(out) :: error
-
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
       !> Structure type (xtb)
       type(TMolecule) :: struc
       !> Structure type (mctc-lib)
@@ -120,23 +121,12 @@ contains
 
       call getMolecule(struc, "mindless01")
       mol = struc
-
-      call new(mol, struc%at, struc%xyz, struc%chrg, struc%uhf, struc%lattice)
-      if (allocated(mol%pdb)) mol%pdb = struc%pdb
-      if (allocated(mol%sdf)) mol%sdf = struc%sdf
-      mol%periodic = .false.
-
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
       allocate (cn_eeq(mol%nat))
       call ncoord_erf(mol, ptbGlobals%kerfcn_eeq, 25.0_wp, cn_eeq)
-      allocate (chi(mol%nid), gam(mol%nid), cnf(mol%nid), alp(mol%nid))
-      do isp = 1, mol%nid
-         izp = mol%num(isp)
-         chi(isp) = chieeq(izp)
-         gam(isp) = gameeq(izp)
-         cnf(isp) = cnfeeq(izp)
-         alp(isp) = alpeeq(izp)
-      end do
-      call new_mchrg_model(eeqmodel, chi=chi, rad=alp, eta=gam, kcn=cnf)
+      call new_mchrg_model(eeqmodel, chi=ptbData%eeq%chi, &
+      & rad=ptbData%eeq%alp, eta=ptbData%eeq%gam, kcn=ptbData%eeq%cnf)
       allocate (q_eeq(mol%nat))
       call eeqmodel%solve(mol, cn_eeq, qvec=q_eeq)
 
@@ -331,7 +321,7 @@ contains
 
       call new(mol, at, xyz)
       allocate (ptbData)
-      call initPTB(ptbData)
+      call initPTB(ptbData, mol%num)
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
