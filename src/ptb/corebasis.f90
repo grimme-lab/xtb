@@ -21,10 +21,7 @@ module xtb_ptb_corebasis
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
-   use xtb_ptb_param, only: max_elem, highest_elem, &  !> General parameters
-      & max_core_shell, max_core_prim, cbas_nshell, &  !> PTB core basis parameters
-      & cbas_pqn, cbas_sl_exp, cbas_angshell, cbas_hflev, & !> PTB core basis parameters
-      & kecpepsilon
+   use xtb_ptb_param, only: max_elem, highest_elem  !> General parameters
    use xtb_ptb_data, only: TCorePotentialData
 
    use tblite_basis_type, only: cgto_type, new_basis, basis_type
@@ -81,8 +78,8 @@ contains
                   ! write (*, *) "jj + jao, i: ", jj + jao, i
                   !#####################
                   
-                  secptmp(jj + jao, i) = -cbas_hflev(jsh, jati)*overlap_cv(jj + jao, i)* &
-                     & kecpepsilon(jati)
+                  secptmp(jj + jao, i) = - ecpdata%hflev(jsh, jati) * overlap_cv(jj + jao, i) * &
+                     & ecpdata%kecpepsilon(jati)
                end do
             end do
          end do
@@ -176,9 +173,11 @@ contains
 
    end subroutine core_valence_overlap
 
-   subroutine add_PTBcore_basis(mol, cbas)
+   subroutine add_PTBcore_basis(mol, ecpdata, cbas)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
+      !> Effective core potential PTB parameters
+      type(TCorePotentialData), intent(in) :: ecpdata
       !> Basis set type
       type(basis_type), intent(out) :: cbas
 
@@ -190,7 +189,7 @@ contains
       ! integer :: j, k
       !#####################
 
-      nsh_id = cbas_nshell(mol%num)
+      nsh_id = ecpdata%nshell(mol%num)
       allocate (cgto(maxval(nsh_id), mol%nid))
       do isp = 1, mol%nid
          izp = mol%num(isp)
@@ -198,7 +197,7 @@ contains
          ! write (*, *) "number of shells: ", nsh_id(isp)
          !#####################
          do ish = 1, nsh_id(isp)
-            il = cbas_angshell(ish, izp)
+            il = ecpdata%angshell(ish, izp)
 
             !##### DEV WRITE #####
             ! write (*, *) "shell: ", ish
@@ -206,8 +205,8 @@ contains
             ! write (*, *) "shell type: ", cbas_pqn(ish, izp), cbas_angshell(ish, izp), cbas_sl_exp(ish, izp)
             !#####################
 
-            call slater_to_gauss(max_core_prim, cbas_pqn(ish, izp), il, &
-            & cbas_sl_exp(ish, izp), cgto(ish, isp), .true., stat)
+            call slater_to_gauss(ecpdata%max_prim, ecpdata%pqn(ish, izp), il, &
+            & ecpdata%sl_exp(ish, izp), cgto(ish, isp), .true., stat)
 
             !##### DEV WRITE #####
             ! write (*, *) "N_prim: ", cgto(ish, isp)%nprim

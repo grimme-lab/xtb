@@ -146,7 +146,7 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(calc%mol, calc%bas)
       !> Add the core basis set to 'cbas' basis set type
-      call add_PTBcore_basis(calc%mol, calc%cbas)
+      call add_PTBcore_basis(calc%mol, calc%ptbData%corepotential, calc%cbas)
 
       allocate (chi(calc%mol%nid), gam(calc%mol%nid), cnf(calc%mol%nid), alp(calc%mol%nid))
       do isp = 1, mol%nid
