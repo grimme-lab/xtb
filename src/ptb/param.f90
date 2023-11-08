@@ -18,7 +18,9 @@
 !> PTB parametrization data
 module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
-   use xtb_ptb_data
+   use xtb_ptb_data, only: init, &
+   & TPTBData, TCorePotentialData, THamiltonianData, &
+   generateValenceShellData
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
    implicit none
@@ -42,6 +44,7 @@ module xtb_ptb_param
    interface initPTB
       module procedure :: initData
       module procedure :: initHamiltonian
+      module procedure :: initCorePotential
    end interface initPTB
 
    type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
@@ -2079,11 +2082,24 @@ contains
       ! self%ipeashift = ptbGlobals%ipeashift*0.1_wp
 
       call set_cbas()
+      call initPTB(self%corepotential)
+      ! call initPTB(self%)
       ! call initGFN2(self%coulomb, self%nShell)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
       ! call initGFN2(self%hamiltonian, self%nShell)
    end subroutine initData
+
+   subroutine initCorepotential(self)
+
+      !> Data instance
+      type(TCorePotentialData), intent(out) :: self
+
+      call init(self, max_core_prim, max_core_shell, &
+      & cbas_sl_exp, cbas_nshell, cbas_pqn, cbas_angshell, cbas_hflev, &
+      & kecpepsilon)
+
+   end subroutine initCorepotential
 
    subroutine initHamiltonian(self, nShell)
 

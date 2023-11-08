@@ -34,6 +34,7 @@ module xtb_ptb_scf
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
+   use xtb_ptb_data, only: TPTBData
 
    implicit none
    private
@@ -44,11 +45,13 @@ module xtb_ptb_scf
 
 contains
 
-   subroutine twostepscf(ctx, mol, bas, cbas, eeqmodel)
+   subroutine twostepscf(ctx, data, mol, bas, cbas, eeqmodel)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
+      !> PTB parameterization data
+      type(TPTBData), intent(in) :: data
       !> Basis set and core-valence basis set data
       type(basis_type), intent(in) :: bas, cbas
       !> Initialized EEQ model
@@ -201,7 +204,7 @@ contains
 
       !> V_ECP via PTB core basis
       allocate(vecp(cbas%nao, bas%nao), source=0.0_wp)
-      call get_Vecp(mol, bas, cbas, norm_overlap, vecp)
+      call get_Vecp(mol, data%corepotential, bas, cbas, norm_overlap, vecp)
 
       !##### DEV WRITE #####
       write (*, *) "V_ECP ..."

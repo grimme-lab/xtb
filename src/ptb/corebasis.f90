@@ -25,6 +25,7 @@ module xtb_ptb_corebasis
       & max_core_shell, max_core_prim, cbas_nshell, &  !> PTB core basis parameters
       & cbas_pqn, cbas_sl_exp, cbas_angshell, cbas_hflev, & !> PTB core basis parameters
       & kecpepsilon
+   use xtb_ptb_data, only: TCorePotentialData
 
    use tblite_basis_type, only: cgto_type, new_basis, basis_type
    use tblite_basis_slater, only: slater_to_gauss
@@ -40,9 +41,11 @@ module xtb_ptb_corebasis
 
 contains
 
-   subroutine get_Vecp(mol, bas, cbas, norm_s, vecp)
+   subroutine get_Vecp(mol, ecpdata, bas, cbas, norm_s, vecp)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
+      !> Effective core potential data
+      type(TCorePotentialData), intent(in) :: ecpdata
       !> Basis set type
       type(basis_type), intent(in) :: bas
       !> Core basis set type

@@ -27,7 +27,7 @@ module xtb_ptb_data
 
    public :: TPTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
-   public :: THalogenData, TMultipoleData, TShortRangeData
+   public :: THalogenData, TMultipoleData, TShortRangeData, TCorePotentialData
    public :: newData, getData
    public :: generateValenceShellData, angToShellData
 
@@ -60,6 +60,34 @@ module xtb_ptb_data
       type(TDispersionModel) :: dispm
 
    end type TDispersionData
+
+   !> Data for the effective core potential
+   type :: TCorePotentialData
+      !> Maximum number of core shells
+      integer :: max_shell
+
+      !> Maximum number of core primitives
+      integer :: max_prim
+      
+      !> Number of core shells for each atom
+      integer, allocatable :: nshell(:)
+
+      !> Principal quantum number of each shell
+      integer, allocatable :: pqn(:,:)
+
+      !> Angular momentum of each shell
+      integer, allocatable :: angshell(:,:)
+      
+      !> HF level of each shell
+      real(wp), allocatable :: hflev(:,:)
+
+      !> Slater exponents of each shell
+      real(wp), allocatable :: sl_exp(:,:)
+
+      !> Effective core potential scaling factors
+      real(wp), allocatable :: kecpepsilon(:)
+
+   end type TCorePotentialData
 
    !> Data for the repulsion contribution
    type :: TRepulsionData
@@ -295,6 +323,9 @@ module xtb_ptb_data
       !> Parametrisation data for the short range basis correction (optional)
       type(TShortRangeData), allocatable :: srb
 
+      !> Parametrisation data for the effective core potential (optional)
+      type(TCorePotentialData) :: corepotential
+
       !> Shift for IP/EA calculations
       real(wp) :: ipeashift
 
@@ -311,6 +342,7 @@ module xtb_ptb_data
       module procedure :: initHalogen
       module procedure :: initMultipole
       module procedure :: initCoulomb
+      module procedure :: initCorepotential
    end interface init
 
    ! ========================================================================
@@ -596,6 +628,29 @@ contains
       end if
 
    end subroutine initRepulsion
+
+   subroutine initCorepotential(self, max_core_prim, max_core_shell, & !> Array sizes
+      & cbas_sl_exp, cbas_nshell, & !> Slater exponents, number of shells
+      & cbas_pqn, cbas_angshell, cbas_hflev, & !> Principal quantum number, angular momentum, HF level
+      & kecpepsilon) !> Effective core potential scaling factors
+
+      integer, intent(in) :: max_core_prim, max_core_shell
+      integer, intent(in) :: cbas_nshell(:), cbas_pqn(:,:), cbas_angshell(:,:)
+      real(wp), intent(in) :: cbas_sl_exp(:,:), cbas_hflev(:, :), kecpepsilon(:)
+
+      !> Data instance
+      type(TCorePotentialData), intent(out) :: self
+
+      self%max_prim = max_core_prim
+      self%max_shell = max_core_shell
+      self%nshell = cbas_nshell(:)
+      self%pqn = cbas_pqn(:, :)
+      self%angshell = cbas_angshell(:, :)
+      self%sl_exp = cbas_sl_exp(:, :)
+      self%hflev = cbas_hflev(:, :)
+      self%kecpepsilon = kecpepsilon(:)
+
+   end subroutine initCorepotential
 
    subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
          & thirdOrderAtom, electronegativity, kCN, chargeWidth)
