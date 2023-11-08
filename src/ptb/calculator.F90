@@ -246,7 +246,7 @@ contains
       hlgap = 0.0_wp
       efix = 0.0_wp
 
-      call twostepscf(ctx, self%mol, self%bas, self%cbas, self%eeqmodel)
+      call twostepscf(ctx, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel)
       stop
 
       call env%check(exitRun)
