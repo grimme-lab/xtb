@@ -24,7 +24,7 @@ module xtb_ptb_calculator
    use xtb_type_calculator, only: TCalculator
    use xtb_type_data
    use xtb_type_environment, only: TEnvironment
-   use xtb_type_molecule, only : TMolecule, assignment(=)
+   use xtb_type_molecule, only: TMolecule, assignment(=)
    use xtb_type_param, only: TPTBParameter
    use xtb_type_restart, only: TRestart
    use xtb_ptb_data, only: TPTBData
@@ -41,8 +41,7 @@ module xtb_ptb_calculator
    use tblite_context, only: context_type
    use tblite_lapack_solver, only: lapack_solver
 
-   use xtb_ptb_param, only: initPTB, ptbGlobals, &
-      & alpeeq, chieeq, gameeq, cnfeeq !> EEQ parameters
+   use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_scf, only: twostepscf
    use xtb_ptb_corebasis, only: add_PTBcore_basis
@@ -134,7 +133,7 @@ contains
          error stop "Parameter file not supported yet."
          call close_file(ich)
       else ! no parameter file, check if we have one compiled into the code
-         call initPTB(calc%ptbData)
+         call initPTB(calc%ptbData, mol%num)
       end if
 
       call env%check(exitRun)
@@ -147,16 +146,9 @@ contains
       call add_vDZP_basis(calc%mol, calc%bas)
       !> Add the core basis set to 'cbas' basis set type
       call add_PTBcore_basis(calc%mol, calc%ptbData%corepotential, calc%cbas)
-
-      allocate (chi(calc%mol%nid), gam(calc%mol%nid), cnf(calc%mol%nid), alp(calc%mol%nid))
-      do isp = 1, mol%nid
-         izp = mol%num(isp)
-         chi(isp) = chieeq(izp)
-         gam(isp) = gameeq(izp)
-         cnf(isp) = cnfeeq(izp)
-         alp(isp) = alpeeq(izp)
-      end do
-      call new_mchrg_model(calc%eeqmodel, chi=chi, rad=alp, eta=gam, kcn=cnf)
+      !> set up the EEQ model
+      call new_mchrg_model(calc%eeqmodel, chi=calc%ptbData%eeq%chi, &
+      & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)
       !##### DEV WRITE #####
       ! loop over all atoms and print the number of shells and primitives
       ! write (*, *) "Number of atoms: ", struc%nat
