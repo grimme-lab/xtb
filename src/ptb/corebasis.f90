@@ -32,7 +32,7 @@ module xtb_ptb_corebasis
    implicit none
    private
 
-   public :: add_PTBcore_basis, get_Vecp
+   public :: add_core_basis, get_Vecp
 
    real(wp), parameter :: cutoff = 20.0_wp
 
@@ -173,7 +173,7 @@ contains
 
    end subroutine core_valence_overlap
 
-   subroutine add_PTBcore_basis(mol, ecpdata, cbas)
+   subroutine add_core_basis(mol, ecpdata, cbas)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Effective core potential PTB parameters
@@ -236,7 +236,7 @@ contains
 
       call new_basis(cbas, mol, nsh_id, cgto, 1.0_wp)
 
-   end subroutine add_PTBcore_basis
+   end subroutine add_core_basis
 
 end module xtb_ptb_corebasis
 
