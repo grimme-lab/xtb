@@ -288,7 +288,7 @@ contains
       use tblite_basis_type, only: basis_type
       !> PTB core basis set generation
       use xtb_ptb_vdzp, only: add_vDZP_basis
-      use xtb_ptb_corebasis, only: add_PTBcore_basis, get_Vecp
+      use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
       !> PTB overlap matrix calculation
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_data, only: TPTBData
@@ -326,7 +326,7 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
       !> Add the core basis set to 'cbas' basis set type
-      call add_PTBcore_basis(mol, ptbData%corepotential, cbas)
+      call add_core_basis(mol, ptbData%corepotential, cbas)
       !> -> for normalization factors
       call get_scaled_integrals(mol, overlap, norm=norm_overlap)
       !> V_ECP via PTB core basis

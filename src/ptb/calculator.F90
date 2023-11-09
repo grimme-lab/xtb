@@ -32,7 +32,7 @@ module xtb_ptb_calculator
    use xtb_fixparam
    use xtb_mctc_systools, only: rdpath
 
-   use mctc_env, only: wp
+   use mctc_env, only: wp, error_type
    use mctc_io, only: structure_type, new
 
    use multicharge_model, only: new_mchrg_model, mchrg_model_type
@@ -40,16 +40,17 @@ module xtb_ptb_calculator
    use tblite_basis_type, only: basis_type
    use tblite_context, only: context_type
    use tblite_lapack_solver, only: lapack_solver
+   use tblite_wavefunction, only: wavefunction_type, new_wavefunction
 
    use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_scf, only: twostepscf
-   use xtb_ptb_corebasis, only: add_PTBcore_basis
+   use xtb_ptb_corebasis, only: add_core_basis
    implicit none
 
    private
 
-   public :: TPTBCalculator, newPTBCalculator, newWavefunction
+   public :: TPTBCalculator, newPTBCalculator
 
    !> Calculator interface for PTB method
    type, extends(TCalculator) :: TPTBCalculator
@@ -84,6 +85,8 @@ module xtb_ptb_calculator
 
    character(len=*), private, parameter :: outfmt = &
                                            '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
+   !> Conversion factor from temperature to energy
+   real(wp), parameter :: kt = 3.166808578545117e-06_wp
 
 contains
 
@@ -145,7 +148,7 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(calc%mol, calc%bas)
       !> Add the core basis set to 'cbas' basis set type
-      call add_PTBcore_basis(calc%mol, calc%ptbData%corepotential, calc%cbas)
+      call add_core_basis(calc%mol, calc%ptbData%corepotential, calc%cbas)
       !> set up the EEQ model
       call new_mchrg_model(calc%eeqmodel, chi=calc%ptbData%eeq%chi, &
       & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)
@@ -227,6 +230,8 @@ contains
       integer :: gvd = 1
       !> Relatively robust solver
       integer :: gvr = 2
+      !> Wavefunction data
+      type(wavefunction_type) :: wfn
 
       call mol%update
 
@@ -237,6 +242,8 @@ contains
       sigma(:, :) = 0.0_wp
       hlgap = 0.0_wp
       efix = 0.0_wp
+
+      call newPTBWavefunction(env, self, wfn)
 
       call twostepscf(ctx, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel)
       stop
@@ -349,71 +356,32 @@ contains
 !---------------------------------------------
 ! Initialize new wavefunction
 !---------------------------------------------
-   subroutine newWavefunction(env, mol, calc, chk)
-
-      implicit none
-      character(len=*), parameter :: source = 'xtb_ptb_calculator_newWavefunction'
-      !! Name of error producer routine
+!> Create new wavefunction restart data for tblite library
+   subroutine newPTBWavefunction(env, calc, wfn)
+      !> Source of the generated errors
+      character(len=*), parameter :: source = 'ptb_calculator_newPTBWavefunction'
+      !> Calculation environment
       type(TEnvironment), intent(inout) :: env
-      !! Calculation environment to handle I/O stream and error log
-      type(TRestart), intent(inout) :: chk
-      !! Restart data wrapper for wfn and nlist
+      !> Instance of the new calculator
       type(TPTBCalculator), intent(in) :: calc
-      !! Instance of PTB Calculator
-      type(TMolecule), intent(in) :: mol
-      !! Molecular structure data
-      real(wp), allocatable :: cn(:)
-      !! Coordination number
-      ! type(chrg_parameter) :: chrgeq
-      !! guess charges(gasteiger/goedecker/sad)
-      logical :: exitRun
-      !! if it is recommended to terminate the run
 
-      ! associate (wfn => chk%wfn)
-      !    allocate (cn(mol%n))
-      !    ! call wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
+      !#if WITH_TBLITE
+      !> Wavefunction data
+      type(wavefunction_type) :: wfn
+      type(error_type), allocatable :: error
+      call new_wavefunction(wfn, calc%mol%nat, calc%bas%nsh, calc%bas%nao, &
+         & nspin=1, kt=300.0_wp * kt)
 
-      !    !> find partial charges
-      !    if (mol%npbc > 0) then
-      !    !! if periodic
-      !       wfn%q = mol%chrg/real(mol%n, wp)
-      !       !! evenly distribute charge with the equal partial charges
-      !    else
-      !       if (set%guess_charges .eq. p_guess_gasteiger) then
-      !          !call iniqcn(mol%n, mol%at, mol%z, mol%xyz, nint(mol%chrg), 1.0_wp, &
-      !          !   & wfn%q, cn, calc%ptbData%level, .true.)
-      !       else if (set%guess_charges .eq. p_guess_goedecker) then
-      !       !! default
+      ! call eeq_guess(struc, calc%tblite, wfn)
 
-      !          ! call new_charge_model_2019(chrgeq, mol%n, mol%at)
-      !          !! to get parametrized values for q (en,gam,kappa,alpha)
-
-      !          ! call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
-      !          !! to obtain CN
-      !          !! (49) Extended Tight-Binding Quantum Chemistry Mehods 2020
-
-      !           !call eeq_chrgeq(mol, env, chrgeq, cn, wfn%q)
-      !          !! to obtain partial charges q
-      !          !! (47) Extended Tight-Binding Quantum Chemistry Mehods 2020
-
-      !          call env%check(exitRun)
-      !          !! to check status of environment
-      !          if (exitRun) then
-      !             call env%rescue("EEQ guess failed, falling back to SAD guess", source)
-      !             wfn%q = mol%chrg/real(mol%n, wp)
-      !          end if
-      !       else
-      !          wfn%q = mol%chrg/real(mol%n, wp)
-      !       end if
-      !    end if
-
-      !    !> find shell charges
-      !    ! call iniqshell(calc%ptbData, mol%n, mol%at, mol%z, calc%basis%nshell, &
-      !    !    & wfn%q, wfn%qsh, calc%ptbData%level)
-
-      ! end associate
-
-   end subroutine newWavefunction
+      if (allocated(error)) then
+         call env%error(error%message, source)
+         return
+      end if
+      !#else
+      ! call feature_not_implemented(env)
+      !#endif
+   end subroutine newPTBWavefunction
 
 ! #if ! WITH_TBLITE
    subroutine feature_not_implemented(env)
