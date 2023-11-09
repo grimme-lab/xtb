@@ -222,7 +222,7 @@ contains
 
       type(context_type) :: ctx
 
-      integer :: i, ich
+      integer :: i
       real(wp) :: efix
       logical, parameter :: ccm = .true.
       logical :: exitRun
@@ -368,7 +368,9 @@ contains
       !#if WITH_TBLITE
       !> Wavefunction data
       type(wavefunction_type) :: wfn
+      !> mctc-env error type
       type(error_type), allocatable :: error
+
       call new_wavefunction(wfn, calc%mol%nat, calc%bas%nsh, calc%bas%nao, &
          & nspin=1, kt=300.0_wp * kt)
 

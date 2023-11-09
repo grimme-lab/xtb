@@ -35,6 +35,7 @@ module xtb_ptb_scf
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
    use xtb_ptb_data, only: TPTBData
+   use xtb_ptb_hamiltonian, only: get_hamiltonian
 
    implicit none
    private
@@ -80,6 +81,8 @@ contains
       real(wp), allocatable :: norm_overlap(:)
       !> Effective core potential
       real(wp), allocatable :: vecp(:, :)
+      !> Effective Hamiltonian
+      real(wp), allocatable :: hmat(:, :)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -193,17 +196,17 @@ contains
       !#####################
 
       !> EEQ call
-      allocate(q_eeq(mol%nat))
+      allocate (q_eeq(mol%nat))
       call eeqmodel%solve(mol, cn_eeq, qvec=q_eeq)
       !##### DEV WRITE #####
-      write(*, *) "EEQ charges:"
+      write (*, *) "EEQ charges:"
       do i = 1, mol%nat
-         write(*, '(a,i0,a,f12.6)') "Atom ", i, ":", q_eeq(i)
+         write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", q_eeq(i)
       end do
       !#####################
 
       !> V_ECP via PTB core basis
-      allocate(vecp(cbas%nao, bas%nao), source=0.0_wp)
+      allocate (vecp(cbas%nao, bas%nao), source=0.0_wp)
       call get_Vecp(mol, data%corepotential, bas, cbas, norm_overlap, vecp)
 
       !##### DEV WRITE #####
@@ -216,6 +219,9 @@ contains
       ! end do
       !#####################
 
+      !> Set up the effective Hamiltonian in the first iteration
+      call get_hamiltonian(mol, bas, overlap, overlap_h0, overlap_xc, &
+      & vecp, hmat)
 
    end subroutine twostepscf
 
