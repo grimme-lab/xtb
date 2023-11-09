@@ -27,6 +27,7 @@ list(APPEND srcs
   "${dir}/mmlpopanalysis.f90"
   "${dir}/ncoord.f90"
   "${dir}/corebasis.f90"
+  "${dir}/hamiltonian.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

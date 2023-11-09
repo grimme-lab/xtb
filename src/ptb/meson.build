@@ -25,4 +25,5 @@ srcs += files(
   'mmlpopanalysis.f90',
   'ncoord.f90',
   'corebasis.f90',
+  'hamiltonian.f90',
 )
