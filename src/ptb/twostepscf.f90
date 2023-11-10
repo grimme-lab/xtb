@@ -35,7 +35,7 @@ module xtb_ptb_scf
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
    use xtb_ptb_data, only: TPTBData
-   use xtb_ptb_hamiltonian, only: get_hamiltonian
+   use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy
 
    implicit none
    private
@@ -83,6 +83,8 @@ contains
       real(wp), allocatable :: vecp(:, :)
       !> Effective Hamiltonian
       real(wp), allocatable :: hmat(:, :)
+      !> Effective self-energies
+      real(wp), allocatable :: levels(:)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -219,9 +221,11 @@ contains
       ! end do
       !#####################
 
+      !> Get the effective self-energies
+      call get_selfenergy(mol, bas, data%hamiltonian, cn, cn_star, levels)
       !> Set up the effective Hamiltonian in the first iteration
-      call get_hamiltonian(mol, bas, overlap, overlap_h0, overlap_xc, &
-      & vecp, hmat)
+      ! call get_hamiltonian(mol, bas, overlap, overlap_h0, overlap_xc, &
+      ! & vecp, hmat)
 
    end subroutine twostepscf
 

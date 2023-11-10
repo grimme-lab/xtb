@@ -168,14 +168,8 @@ module xtb_ptb_data
       !> Exponent of the Slater function
       real(wp), allocatable :: slaterExponent(:, :)
 
-      !> Atomic level information
-      real(wp), allocatable :: selfEnergy(:, :)
-
       !> Reference occupation of the atom
       real(wp), allocatable :: referenceOcc(:, :)
-
-      !> Coordination number dependence of the atomic levels
-      real(wp), allocatable :: kCN(:, :)
 
       !> Electronegativity used in the shell polynomials
       real(wp), allocatable :: electronegativity(:)
@@ -194,6 +188,18 @@ module xtb_ptb_data
 
       !> Charge dependence of the atomic levels
       real(wp), allocatable :: kQAtom(:)
+
+      !----------------
+      !> H0 information
+      !----------------
+      !> Atomic level information
+      real(wp), allocatable :: selfEnergy(:, :)
+      !> Coordination number dependence of the atomic levels
+      real(wp), allocatable :: klh(:, :)
+      !> Coordination number-star dependence of the atomic levels
+      real(wp), allocatable :: kcnstar(:)
+      !> Shift of atomic levels depending only on coordination number-star
+      real(wp), allocatable :: kshift(:)
 
    end type THamiltonianData
 
@@ -268,7 +274,7 @@ module xtb_ptb_data
       integer :: level
 
       !> Number of shells
-      integer, allocatable :: nShell(:)
+      integer, allocatable :: nshell(:)
 
       !> Parametrisation data for repulsive interactions
       type(TRepulsionData) :: repulsion
@@ -308,6 +314,7 @@ module xtb_ptb_data
       module procedure :: initCoulomb
       module procedure :: initCorepotential
       module procedure :: initEEQ
+      module procedure :: initHamiltonian
    end interface init
 
    ! ========================================================================
@@ -540,6 +547,31 @@ contains
       call newData(self%gam, num, gam)
 
    end subroutine initEEQ
+
+   subroutine initHamiltonian(self, num, nshell, h0_levels, &
+      & cn_dependency, cnstar_dependency, cnstar_shift)
+
+      !> Data instance
+      type(THamiltonianData), intent(out) :: self
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+      !> Number of shells for each atom
+      integer, intent(in) :: nshell(:)
+      !> Atomic level information
+      real(wp), intent(in) :: h0_levels(:, :)
+      !> Coordination number dependence of the atomic levels
+      real(wp), intent(in) :: cn_dependency(:,:)
+      !> Coordination number-star dependence of the atomic levels
+      real(wp), intent(in) :: cnstar_dependency(:)
+      !> Shift of atomic levels depending only on coordination number-star
+      real(wp), intent(in) :: cnstar_shift(:)
+
+      call newData(self%selfEnergy, num, nshell, h0_levels)
+      call newData(self%klh, num, nshell, cn_dependency)
+      call newData(self%kcnstar, num, cnstar_dependency)
+      call newData(self%kshift, num, cnstar_shift)
+
+   end subroutine initHamiltonian
 
    subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
          & thirdOrderAtom, electronegativity, kCN, chargeWidth)

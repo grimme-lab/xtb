@@ -23,11 +23,13 @@ module xtb_ptb_hamiltonian
 
    use tblite_basis_type, only: basis_type
 
+   use xtb_ptb_data, only: THamiltonianData
+
    implicit none
 
    private
 
-   public :: get_hamiltonian
+   public :: get_hamiltonian, get_selfenergy
 
 contains
 
@@ -46,5 +48,32 @@ contains
       allocate (hamiltonian(bas%nao, bas%nao))
 
    end subroutine get_hamiltonian
+
+   subroutine get_selfenergy(mol, bas, hData, cn_normal, cn_star, selfenergies)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
+      !> THamiltonian data
+      type(THamiltonianData), intent(in) :: hData
+      !> Coordination number with fitted (normal) and literature (star) radii
+      real(wp), intent(in) :: cn_normal(:), cn_star(:)
+      !> Self-energies after taking into account CN dependencies
+      real(wp), allocatable, intent(out) :: selfenergies(:)
+      !> Loop variables
+      integer :: iat, iid, ii, ish
+
+      allocate (selfenergies(bas%nao), source=0.0_wp)
+
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         ii = bas%ish_at(iat)
+         do ish = 1, bas%nsh_at(iid)
+            selfenergies(ii + ish) = hData%selfEnergy(ish, iid)
+            write(*,*) 'selfenergies', ii + ish, selfenergies(ii + ish)
+         end do
+      end do
+
+   end subroutine get_selfenergy
 
 end module xtb_ptb_hamiltonian
