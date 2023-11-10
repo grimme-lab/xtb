@@ -2075,17 +2075,16 @@ contains
 
       self%name = 'PTB'
       self%doi = '10.1063/5.0137838'
-      self%level = 2
-      ! self%nShell = nShell(:maxElem)
+      self%nshell = nshell
       ! self%ipeashift = ptbGlobals%ipeashift*0.1_wp
 
       call set_cbas()
       call initPTB(self%corepotential)
       call initPTB(self%eeq, num)
+      call initPTB(self%hamiltonian, num)
       ! call initGFN2(self%coulomb, self%nShell)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
-      ! call initGFN2(self%hamiltonian, self%nShell)
    end subroutine initData
 
    subroutine initCorepotential(self)
@@ -2111,19 +2110,13 @@ contains
 
    end subroutine initEEQ
 
-   subroutine initHamiltonian(self, nShell)
+   subroutine initHamiltonian(self, num)
 
       !> Data instance
       type(THamiltonianData), intent(out) :: self
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
 
-      !> Number of shells
-      integer, intent(in) :: nShell(:)
-
-      integer :: mShell, nPrim, lAng
-      integer :: iZp, iSh, jSh
-      logical :: valShell(0:3)
-
-      mShell = maxval(nShell)
       ! self%angShell = angShell(:mShell, :maxElem)
 
       ! do iSh = 0, 3
@@ -2144,26 +2137,21 @@ contains
       !    end do
       ! end do
       ! self%enScale4 = ptbGlobals%enscale4
-      self%wExp = 0.5_wp
 
       ! self%shellPoly = shellPoly(:, :maxElem)
-      ! self%selfEnergy = selfEnergy(:mShell, :maxElem)
-      ! self%slaterExponent = slaterExponent(:mShell, :maxElem)
-      ! self%principalQuantumNumber = principalQuantumNumber(:mShell, :maxElem)
+      ! self%selfEnergy = selfEnergy(max_shell, highest_elem)
 
-      allocate (self%kCN(mShell, highest_elem))
+      ! allocate (self%kCN(mShell, highest_elem))
       ! call angToShellData(self%kCN, nShell, self%angShell, kCN)
+      call init(self, num, nshell, hla, klh, kcnstar, kshift)
 
-      allocate (self%pairParam(highest_elem, highest_elem))
-      self%pairParam = 1.0_wp
+      ! allocate (self%valenceShell(max_shell, highest_elem))
+      ! call generateValenceShellData(self%valenceShell, nShell, self%angShell)
 
-      allocate (self%valenceShell(mShell, highest_elem))
-      call generateValenceShellData(self%valenceShell, nShell, self%angShell)
+      ! allocate (self%referenceOcc(max_shell, highest_elem))
+      ! call setPTBReferenceOcc(self, nShell)
 
-      allocate (self%referenceOcc(mShell, highest_elem))
-      call setPTBReferenceOcc(self, nShell)
-
-      allocate (self%numberOfPrimitives(mShell, highest_elem))
+      ! allocate (self%numberOfPrimitives(max_shell, highest_elem))
 
    end subroutine initHamiltonian
 
