@@ -331,7 +331,6 @@ contains
       !> -> for normalization factors
       call get_scaled_integrals(mol, overlap, norm=norm_overlap)
       !> V_ECP via PTB core basis
-      allocate (vecp(cbas%nao, bas%nao), source=0.0_wp)
       call get_Vecp(mol, ptbData%corepotential, bas, cbas, norm_overlap, vecp)
 
       message = "V_ecp matrix element not matching to expected value."
