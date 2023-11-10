@@ -208,7 +208,6 @@ contains
       !#####################
 
       !> V_ECP via PTB core basis
-      allocate (vecp(cbas%nao, bas%nao), source=0.0_wp)
       call get_Vecp(mol, data%corepotential, bas, cbas, norm_overlap, vecp)
 
       !##### DEV WRITE #####
