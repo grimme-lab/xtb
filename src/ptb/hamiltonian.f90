@@ -62,15 +62,33 @@ contains
       real(wp), allocatable, intent(out) :: selfenergies(:)
       !> Loop variables
       integer :: iat, iid, ii, ish
+      !> tmp reals
+      real(wp) :: combinedcn
 
       allocate (selfenergies(bas%nao), source=0.0_wp)
 
       do iat = 1, mol%nat
          iid = mol%id(iat)
+         combinedcn = ( cn_normal(iat) + cn_star(iat) * hData%kcnstar(iid) )
+
+         !##### DEV WRITE #####
+         ! write(*,*) 'cn_normal', cn_normal(iat)
+         ! write(*,*) 'cn_star', cn_star(iat)
+         ! write(*,*) 'hData%kcnstar', hData%kcnstar(iid)
+         ! write(*,*) "atom: ", iat, "id: ", iid, "type: ", mol%num(iid)
+         ! write(*,*) "number of shells: ", bas%nsh_id(iid)
+         !#####################
+
          ii = bas%ish_at(iat)
-         do ish = 1, bas%nsh_at(iid)
-            selfenergies(ii + ish) = hData%selfEnergy(ish, iid)
-            write(*,*) 'selfenergies', ii + ish, selfenergies(ii + ish)
+         do ish = 1, bas%nsh_id(iid)
+            selfenergies(ii + ish) = hData%selfEnergy(ish, iid) + &
+               & hData%klh(ish,iid) * combinedcn + &
+               & cn_star(iat) * hData%kshift(iid)
+
+            !##### DEV WRITE #####
+            ! write(*,*) 'selfenergies', ii + ish, selfenergies(ii + ish)
+            !#####################
+
          end do
       end do
 

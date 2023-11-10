@@ -46,7 +46,8 @@ contains
                   new_unittest("overlap", test_ptb_overlap), &
                   new_unittest("overlap_h0", test_ptb_overlap_h0), &
                   new_unittest("overlap_sx", test_ptb_overlap_SX), &
-                  new_unittest("v_ecp", test_ptb_V_ECP) &
+                  new_unittest("v_ecp", test_ptb_V_ECP), &
+                  new_unittest("selfenergies", test_ptb_selfenergies) &
                   ]
 
    end subroutine collect_ptb
@@ -343,5 +344,153 @@ contains
       call check_(error, vecp(12, 12), vecp_ref(4), thr=thr2, &
       & message=message)
    end subroutine test_ptb_V_ECP
+
+   subroutine test_ptb_selfenergies(error)
+      use tblite_basis_type, only: basis_type
+      use xtb_ptb_param, only: initPTB
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_hamiltonian, only: get_selfenergy
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> Basis set type
+      type(basis_type) :: bas
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> Self-energies
+      real(wp), allocatable :: selfenergies(:)
+      !> Loop indices
+      integer :: i
+      real(wp), parameter :: cn_normal(16) = [ &
+      &     0.029861202_wp, &
+      &     0.000001336_wp, &
+      &     0.130180690_wp, &
+      &     0.000001491_wp, &
+      &     0.045177881_wp, &
+      &     0.033255113_wp, &
+      &     0.000001968_wp, &
+      &     0.092410992_wp, &
+      &     0.218995650_wp, &
+      &     0.043474970_wp, &
+      &     0.032456272_wp, &
+      &     0.113876443_wp, &
+      &     0.054029961_wp, &
+      &     0.186931056_wp, &
+      &     0.222153392_wp, &
+      &     0.154564877_wp &
+      & ]
+
+      real(wp), parameter :: cn_star(16) = [ &
+      &     4.180004755_wp, &
+      &     0.803964926_wp, &
+      &     1.830423819_wp, &
+      &     1.291529751_wp, &
+      &     1.254518733_wp, &
+      &     0.976661010_wp, &
+      &     1.524506244_wp, &
+      &     1.645124982_wp, &
+      &     3.435549964_wp, &
+      &     1.012204252_wp, &
+      &     1.002889652_wp, &
+      &     2.106643916_wp, &
+      &     3.669906182_wp, &
+      &     3.358227639_wp, &
+      &     3.430865101_wp, &
+      &     5.328552015_wp &
+      & ]
+
+      real(wp), parameter :: selfenergies_exp(69) = [ &
+      &    -0.979211416_wp, &
+      &    -0.322921123_wp, &
+      &    -0.697551918_wp, &
+      &    -1.023303502_wp, &
+      &    -0.527093446_wp, &
+      &    -0.514468061_wp, &
+      &    -0.663960241_wp, &
+      &    -0.281743767_wp, &
+      &    -0.225076174_wp, &
+      &    -1.383725200_wp, &
+      &    -0.320247843_wp, &
+      &    -0.673454332_wp, &
+      &    -0.380112291_wp, &
+      &    -0.359748390_wp, &
+      &    -0.691229491_wp, &
+      &    -0.286971656_wp, &
+      &    -0.231757459_wp, &
+      &    -1.205066048_wp, &
+      &    -0.457780964_wp, &
+      &    -0.711328979_wp, &
+      &    -0.424791274_wp, &
+      &    -0.315612564_wp, &
+      &    -0.670965339_wp, &
+      &    -0.283512863_wp, &
+      &    -0.227190530_wp, &
+      &    -0.704259715_wp, &
+      &    -0.289469733_wp, &
+      &    -0.234950020_wp, &
+      &    -1.369436961_wp, &
+      &    -0.319173701_wp, &
+      &    -0.666351872_wp, &
+      &    -0.375372836_wp, &
+      &    -0.357968581_wp, &
+      &    -1.200385286_wp, &
+      &    -0.309750483_wp, &
+      &    -0.624221535_wp, &
+      &    -0.327315414_wp, &
+      &    -0.350288899_wp, &
+      &    -0.672137693_wp, &
+      &    -0.283868580_wp, &
+      &    -0.227600095_wp, &
+      &    -0.672496043_wp, &
+      &    -0.283796084_wp, &
+      &    -0.227556008_wp, &
+      &    -1.025588207_wp, &
+      &    -0.388417755_wp, &
+      &    -0.718646241_wp, &
+      &    -0.447066846_wp, &
+      &    -0.571777637_wp, &
+      &    -0.794691589_wp, &
+      &    -0.268730643_wp, &
+      &    -0.574208389_wp, &
+      &    -0.289554304_wp, &
+      &    -0.194234001_wp, &
+      &    -0.795098088_wp, &
+      &    -0.268832436_wp, &
+      &    -0.580445264_wp, &
+      &    -0.290173217_wp, &
+      &    -0.197401138_wp, &
+      &    -1.200410535_wp, &
+      &    -0.309694149_wp, &
+      &    -0.624487718_wp, &
+      &    -0.327397806_wp, &
+      &    -0.350251414_wp, &
+      &    -0.737447660_wp, &
+      &    -0.274291608_wp, &
+      &    -0.488598371_wp, &
+      &    -0.279699675_wp, &
+      &    -0.270934337_wp &
+      & ]
+
+      call getMolecule(struc, "mindless01")
+      mol = struc
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+
+      !> Get self-energies
+      call get_selfenergy(mol, bas, ptbData%hamiltonian, cn_normal, cn_star, selfenergies)
+
+      do i = 1, size(selfenergies_exp)
+         call check_(error, selfenergies(i), selfenergies_exp(i), thr=thr, &
+         & message="Self-energies not matching to expected value.")
+      end do
+
+   end subroutine test_ptb_selfenergies
 
 end module test_ptb
