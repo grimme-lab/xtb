@@ -21,9 +21,11 @@ module xtb_ptb_scf
    use mctc_io, only: structure_type
    use mctc_env, only: wp, error_type
 
-   use tblite_basis_type, only: basis_type
+   use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
+   use tblite_adjlist, only : adjacency_list, new_adjacency_list
+   use tblite_cutoff, only : get_lattice_points
 
    use multicharge_model, only: mchrg_model_type
 
@@ -61,6 +63,8 @@ contains
       class(solver_type), allocatable :: solver
       !> Error type
       type(error_type), allocatable :: error
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> (Scaled) overlap matrix
       real(wp), allocatable :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
       !> Mulliken-Loewdin overlap matrices
@@ -85,6 +89,10 @@ contains
       real(wp), allocatable :: hmat(:, :)
       !> Effective self-energies
       real(wp), allocatable :: levels(:)
+      !> Lattice points
+      real(wp), allocatable :: lattr(:, :)
+      !> Cutoff for lattice points
+      real(wp) :: cutoff
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -222,9 +230,14 @@ contains
 
       !> Get the effective self-energies
       call get_selfenergy(mol, bas, data%hamiltonian, cn, cn_star, levels)
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
       !> Set up the effective Hamiltonian in the first iteration
-      ! call get_hamiltonian(mol, bas, overlap, overlap_h0, overlap_xc, &
-      ! & vecp, hmat)
+      call get_hamiltonian(mol, list, bas, overlap, overlap_h0, overlap_xc, &
+      & vecp, levels, hmat)
 
    end subroutine twostepscf
 

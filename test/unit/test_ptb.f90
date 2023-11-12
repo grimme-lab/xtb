@@ -96,9 +96,8 @@ contains
       type(structure_type) :: mol
       !> EEQ Model
       type(mchrg_model_type) :: eeqmodel
-      real(wp), allocatable :: chi(:), gam(:), cnf(:), alp(:)
       real(wp), allocatable :: cn_eeq(:)
-      integer :: isp, izp, i
+      integer :: i
       !> EEQ charges
       real(wp), allocatable :: q_eeq(:)
 
