@@ -1,4 +1,4 @@
-# Thi file is part of xtb.
+# This file is part of xtb.
 # SPDX-Identifier: LGPL-3.0-or-later
 #
 # xtb is free software: you can redistribute it and/or modify it under
