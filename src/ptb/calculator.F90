@@ -243,9 +243,10 @@ contains
       hlgap = 0.0_wp
       efix = 0.0_wp
 
+      !> Set new PTB wavefunction in tblite format
       call newPTBWavefunction(env, self, wfn)
 
-      call twostepscf(ctx, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel)
+      call twostepscf(ctx, wfn, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel)
       stop
 
       call env%check(exitRun)
@@ -372,9 +373,7 @@ contains
       type(error_type), allocatable :: error
 
       call new_wavefunction(wfn, calc%mol%nat, calc%bas%nsh, calc%bas%nao, &
-         & nspin=1, kt=300.0_wp * kt)
-
-      ! call eeq_guess(struc, calc%tblite, wfn)
+         & nspin=1, kt=300.0_wp*kt)
 
       if (allocated(error)) then
          call env%error(error%message, source)

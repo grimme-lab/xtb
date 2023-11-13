@@ -20,7 +20,7 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
-   generateValenceShellData, TEEQData
+      TEEQData
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
 
@@ -2067,7 +2067,6 @@ contains
       self%nshell = nshell
       ! self%ipeashift = ptbGlobals%ipeashift*0.1_wp
 
-      call set_cbas()
       call initPTB(self%corepotential)
       call initPTB(self%eeq, num)
       call initPTB(self%hamiltonian, num)
@@ -2081,6 +2080,7 @@ contains
       !> Data instance
       type(TCorePotentialData), intent(out) :: self
 
+      call set_cbas()
       call init(self, max_core_prim, max_core_shell, &
       & cbas_sl_exp, cbas_nshell, cbas_pqn, cbas_angshell, cbas_hflev, &
       & kecpepsilon)
@@ -2136,43 +2136,36 @@ contains
       & hla, klh, kcnstar, kshift, kla, kr, kocod, &
       & ksla)
 
-      ! allocate (self%valenceShell(max_shell, highest_elem))
-      ! call generateValenceShellData(self%valenceShell, nShell, self%angShell)
-
-      ! allocate (self%referenceOcc(max_shell, highest_elem))
-      ! call setPTBReferenceOcc(self, nShell)
-
-      ! allocate (self%numberOfPrimitives(max_shell, highest_elem))
+      allocate (self%refocc(max_shell, max_elem))
+      call setPTBReferenceOcc(self,num)
 
    end subroutine initHamiltonian
 
-   subroutine setPTBReferenceOcc(self, nShell)
+   subroutine setPTBReferenceOcc(self,num)
 
       !> Data instance
       type(THamiltonianData), intent(inout) :: self
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
+      real(wp), allocatable :: refocc(:)
 
-      !> Number of shells
-      integer, intent(in) :: nShell(:)
+      integer :: isp, izp
 
-      integer :: lAng, iZp, iSh
-      logical :: valShell(0:3)
+      self%refocc(:, :) = 0.0_wp
 
-      self%referenceOcc(:, :) = 0.0_wp
-      ! do iZp = 1, maxElem
-      !    do iSh = 1, nShell(iZp)
-      !       lAng = self%angShell(iSh, iZp)
-      !       if (self%valenceShell(iSh, iZp) /= 0) then
-      !          self%referenceOcc(iSh, iZp) = referenceOcc(lAng, iZp)
-      !       end if
-      !    end do
-      ! end do
+      do isp = 1, size(num)
+         izp = num(isp)
+         call shellocc_ref(izp, nshell(izp), refocc)
+         self%refocc(1:nshell(izp), isp) = refocc(1:nshell(izp))
+         deallocate(refocc)
+      end do
 
    end subroutine setPTBReferenceOcc
 
    subroutine set_cbas()
 
       !> Slater exponents
-      cbas_sl_exp(1,1) =   1.0000_wp 
+      cbas_sl_exp(1,1) =   1.0000_wp
       cbas_sl_exp(1,2) =   1.6250_wp
       cbas_sl_exp(1,3) =   2.6906_wp
       cbas_sl_exp(1,4) =   3.6848_wp
@@ -3362,5 +3355,516 @@ contains
       cbas_hflev(12,86)=    -2.327901_wp
 
    end subroutine set_cbas
+
+   pure subroutine shellocc_ref(at,nsh,refocc)
+      integer, intent(in) :: at
+      integer, intent(in) :: nsh
+      real(wp), allocatable, intent(out) :: refocc(:)
+      real(wp) :: socc(max_shell)
+
+      allocate(refocc(nsh),source=0.0_wp)
+
+      select case (at)
+       case (1)
+         socc( 1)=  0.69264222808434_wp
+         socc( 2)=  0.14159955297977_wp
+         socc( 3)=  0.16575821893589_wp
+       case (2)
+         socc( 1)=  1.30320944384752_wp
+         socc( 2)=  0.67445566751767_wp
+         socc( 3)=  0.02233488863481_wp
+       case (3)
+         socc( 1)=  1.95899377872121_wp
+         socc( 2)=  0.25267315485192_wp
+         socc( 3)=  0.11620627212046_wp
+         socc( 4)=  0.41258386001878_wp
+         socc( 5)=  0.25954293428763_wp
+       case (4)
+         socc( 1)=  1.97111378215842_wp
+         socc( 2)=  0.45810747906670_wp
+         socc( 3)=  0.15300493595427_wp
+         socc( 4)=  0.94930693774026_wp
+         socc( 5)=  0.46846686508036_wp
+       case (5)
+         socc( 1)=  0.48354388386042_wp
+         socc( 2)=  0.15681644999964_wp
+         socc( 3)=  1.47322175838681_wp
+         socc( 4)=  0.38482788015938_wp
+         socc( 5)=  0.50159002759375_wp
+       case (6)
+         socc( 1)=  0.55666397324469_wp
+         socc( 2)=  0.25120261811235_wp
+         socc( 3)=  2.10755997506139_wp
+         socc( 4)=  0.75746522555791_wp
+         socc( 5)=  0.32710820802367_wp
+       case (7)
+         socc( 1)=  0.79624139865659_wp
+         socc( 2)=  0.31749496440959_wp
+         socc( 3)=  2.73635251741813_wp
+         socc( 4)=  0.98096348058478_wp
+         socc( 5)=  0.16894763893091_wp
+       case (8)
+         socc( 1)=  1.08460674785680_wp
+         socc( 2)=  0.38134064737674_wp
+         socc( 3)=  3.32762843994261_wp
+         socc( 4)=  1.12937855100283_wp
+         socc( 5)=  0.07704561382102_wp
+       case (9)
+         socc( 1)=  1.26298582965783_wp
+         socc( 2)=  0.45839005699390_wp
+         socc( 3)=  3.83052034186561_wp
+         socc( 4)=  1.40814828911248_wp
+         socc( 5)=  0.03995548237017_wp
+       case (10)
+         socc( 1)=  1.46505363326007_wp
+         socc( 2)=  0.52503448452191_wp
+         socc( 3)=  3.79760668215486_wp
+         socc( 4)=  2.19277651011192_wp
+         socc( 5)=  0.01952868995124_wp
+       case (11)
+         socc( 1)=  1.44272104623990_wp
+         socc( 2)=  0.56147696803778_wp
+         socc( 3)=  0.30286795060414_wp
+         socc( 4)=  5.15471618358905_wp
+         socc( 5)=  1.23531381129067_wp
+         socc( 6)=  0.30290404023845_wp
+       case (12)
+         socc( 1)=  1.41118194136168_wp
+         socc( 2)=  0.60257450561694_wp
+         socc( 3)=  0.58202476396721_wp
+         socc( 4)=  5.90203159422521_wp
+         socc( 5)=  0.88913520405121_wp
+         socc( 6)=  0.61305199077774_wp
+       case (13)
+         socc( 1)=  0.55409123445529_wp
+         socc( 2)=  0.18700939319552_wp
+         socc( 3)=  1.14200108985144_wp
+         socc( 4)=  0.36773005186021_wp
+         socc( 5)=  0.74916823063754_wp
+       case (14)
+         socc( 1)=  0.78489160465251_wp
+         socc( 2)=  0.22437622129695_wp
+         socc( 3)=  1.89887560555902_wp
+         socc( 4)=  0.54518793303536_wp
+         socc( 5)=  0.54666863545615_wp
+       case (15)
+         socc( 1)=  0.99441180454863_wp
+         socc( 2)=  0.38348294255053_wp
+         socc( 3)=  2.42166885021688_wp
+         socc( 4)=  0.62108522469704_wp
+         socc( 5)=  0.57935117798692_wp
+       case (16)
+         socc( 1)=  1.16875462402413_wp
+         socc( 2)=  0.42250722184002_wp
+         socc( 3)=  3.18695750632506_wp
+         socc( 4)=  0.93092404067175_wp
+         socc( 5)=  0.29085660713904_wp
+       case (17)
+         socc( 1)=  1.26904700169420_wp
+         socc( 2)=  0.50124825150823_wp
+         socc( 3)=  3.96697497126814_wp
+         socc( 4)=  1.15243762904417_wp
+         socc( 5)=  0.11029214648526_wp
+       case (18)
+         socc( 1)=  1.36124497167220_wp
+         socc( 2)=  0.63500946581722_wp
+         socc( 3)=  4.81587227054938_wp
+         socc( 4)=  1.06582014894422_wp
+         socc( 5)=  0.12205314301698_wp
+       case (19)
+         socc( 1)=  1.53522663338979_wp
+         socc( 2)=  0.51632834060987_wp
+         socc( 3)=  0.14469017236935_wp
+         socc( 4)=  5.81075185616811_wp
+         socc( 5)=  0.70558219720276_wp
+         socc( 6)=  0.28742080026012_wp
+       case (20)
+         socc( 1)=  1.79844483420962_wp
+         socc( 2)=  0.27675907011070_wp
+         socc( 3)=  0.56912010580096_wp
+         socc( 4)=  5.78388493742262_wp
+         socc( 5)=  0.97402936072941_wp
+         socc( 6)=  0.59776169172669_wp
+       case (21)
+         socc( 1)=  1.05624132296618_wp
+         socc( 2)=  0.86464541756055_wp
+         socc( 3)=  0.36326980759719_wp
+         socc( 4)=  5.89679098392234_wp
+         socc( 5)=  0.36452506454090_wp
+         socc( 6)=  1.44469536638604_wp
+         socc( 7)=  1.00983203702680_wp
+       case (22)
+         socc( 1)=  0.96375901454332_wp
+         socc( 2)=  0.95827024977728_wp
+         socc( 3)=  0.30602127120364_wp
+         socc( 4)=  5.68047605524000_wp
+         socc( 5)=  0.95761406606174_wp
+         socc( 6)=  1.71990673440951_wp
+         socc( 7)=  1.41395260876451_wp
+       case (23)
+         socc( 1)=  0.79929332407016_wp
+         socc( 2)=  1.12033730632854_wp
+         socc( 3)=  0.25672107345614_wp
+         socc( 4)=  5.85964123820359_wp
+         socc( 5)=  0.77931057740872_wp
+         socc( 6)=  2.23857038294087_wp
+         socc( 7)=  1.94612609759199_wp
+       case (24)
+         socc( 1)=  0.82462845140315_wp
+         socc( 2)=  1.09418941812312_wp
+         socc( 3)=  0.27451288721349_wp
+         socc( 4)=  5.89703484799000_wp
+         socc( 5)=  0.44878161103213_wp
+         socc( 6)=  3.14653845696373_wp
+         socc( 7)=  2.31431432727439_wp
+       case (25)
+         socc( 1)=  1.08108361907627_wp
+         socc( 2)=  0.83075965228288_wp
+         socc( 3)=  0.23005700106202_wp
+         socc( 4)=  5.73086784715238_wp
+         socc( 5)=  1.02936636175660_wp
+         socc( 6)=  3.43462102064233_wp
+         socc( 7)=  2.66324449802751_wp
+       case (26)
+         socc( 1)=  1.22593630105257_wp
+         socc( 2)=  0.69723140299320_wp
+         socc( 3)=  0.26753120338196_wp
+         socc( 4)=  5.74501886069775_wp
+         socc( 5)=  0.98523486849461_wp
+         socc( 6)=  4.06455486747179_wp
+         socc( 7)=  3.01449249590812_wp
+       case (27)
+         socc( 1)=  1.21903505020363_wp
+         socc( 2)=  0.71617078781128_wp
+         socc( 3)=  0.29865787302788_wp
+         socc( 4)=  5.82268044144608_wp
+         socc( 5)=  0.95032956216758_wp
+         socc( 6)=  4.59872624986471_wp
+         socc( 7)=  3.39440003547883_wp
+       case (28)
+         socc( 1)=  1.20548003361775_wp
+         socc( 2)=  0.74543920617837_wp
+         socc( 3)=  0.40683509440805_wp
+         socc( 4)=  5.76626888605264_wp
+         socc( 5)=  0.81076059239549_wp
+         socc( 6)=  5.11651654687471_wp
+         socc( 7)=  3.94869964047298_wp
+       case (29)
+         socc( 1)=  1.20406871070405_wp
+         socc( 2)=  0.75784029468091_wp
+         socc( 3)=  0.49742209666322_wp
+         socc( 4)=  5.80300045156193_wp
+         socc( 5)=  0.60450334809067_wp
+         socc( 6)=  5.86388958363827_wp
+         socc( 7)=  4.26927551466095_wp
+       case (30)
+         socc( 1)=  1.12234938727773_wp
+         socc( 2)=  0.84672965854406_wp
+         socc( 3)=  0.72400604003908_wp
+         socc( 4)=  5.89216762262842_wp
+         socc( 5)=  0.77667440854275_wp
+         socc( 6)=  6.12511364494980_wp
+         socc( 7)=  4.51295923801816_wp
+       case (31)
+         socc( 1)=  0.66219163255453_wp
+         socc( 2)=  0.25657241747323_wp
+         socc( 3)=  1.11150909382464_wp
+         socc( 4)=  0.33620459465314_wp
+         socc( 5)=  0.63352226149446_wp
+       case (32)
+         socc( 1)=  0.85984908336581_wp
+         socc( 2)=  0.26060780725228_wp
+         socc( 3)=  1.67044240548229_wp
+         socc( 4)=  0.66685034189601_wp
+         socc( 5)=  0.54225036200361_wp
+       case (33)
+         socc( 1)=  1.07398807439989_wp
+         socc( 2)=  0.41816854255620_wp
+         socc( 3)=  2.25303762419483_wp
+         socc( 4)=  0.70112654135950_wp
+         socc( 5)=  0.55367921748958_wp
+       case (34)
+         socc( 1)=  1.27903270513343_wp
+         socc( 2)=  0.39984240042723_wp
+         socc( 3)=  3.03138286397761_wp
+         socc( 4)=  0.90378034037950_wp
+         socc( 5)=  0.38596169008223_wp
+       case (35)
+         socc( 1)=  1.40434899781744_wp
+         socc( 2)=  0.42022034962529_wp
+         socc( 3)=  3.94291335821524_wp
+         socc( 4)=  1.12941461820133_wp
+         socc( 5)=  0.10310267614070_wp
+       case (36)
+         socc( 1)=  1.54065315393567_wp
+         socc( 2)=  0.48393306127598_wp
+         socc( 3)=  4.38005513779559_wp
+         socc( 4)=  1.36203924680094_wp
+         socc( 5)=  0.23331940019183_wp
+       case (37)
+         socc( 1)=  1.16316957848310_wp
+         socc( 2)=  0.77396207237532_wp
+         socc( 3)=  0.35983295313118_wp
+         socc( 4)=  5.84628732578992_wp
+         socc( 5)=  0.54124987542056_wp
+         socc( 6)=  0.31549819479992_wp
+       case (38)
+         socc( 1)=  1.78170365219315_wp
+         socc( 2)=  0.14376890876641_wp
+         socc( 3)=  0.63779482765893_wp
+         socc( 4)=  5.66476954768101_wp
+         socc( 5)=  1.09162275855392_wp
+         socc( 6)=  0.68034030514658_wp
+       case (39)
+         socc( 1)=  0.86282319345063_wp
+         socc( 2)=  1.01405042367016_wp
+         socc( 3)=  0.32985729489430_wp
+         socc( 4)=  5.70344110701582_wp
+         socc( 5)=  0.84245592374814_wp
+         socc( 6)=  1.42454727573665_wp
+         socc( 7)=  0.82282478148430_wp
+       case (40)
+         socc( 1)=  0.67435167245118_wp
+         socc( 2)=  1.20342585264918_wp
+         socc( 3)=  0.34601231372147_wp
+         socc( 4)=  5.53238142398467_wp
+         socc( 5)=  1.11086040916148_wp
+         socc( 6)=  2.44933491569741_wp
+         socc( 7)=  0.68363341233460_wp
+       case (41)
+         socc( 1)=  0.50287232383163_wp
+         socc( 2)=  1.37134964592689_wp
+         socc( 3)=  0.30190012907732_wp
+         socc( 4)=  5.64743868967073_wp
+         socc( 5)=  0.99359570886050_wp
+         socc( 6)=  3.31220428462917_wp
+         socc( 7)=  0.87063921800376_wp
+       case (42)
+         socc( 1)=  0.87261576286637_wp
+         socc( 2)=  1.00425501802180_wp
+         socc( 3)=  0.25130110590710_wp
+         socc( 4)=  5.71428271095351_wp
+         socc( 5)=  0.83658232692674_wp
+         socc( 6)=  4.03217966641299_wp
+         socc( 7)=  1.28878340891149_wp
+       case (43)
+         socc( 1)=  1.26586774575342_wp
+         socc( 2)=  0.61353672533920_wp
+         socc( 3)=  0.26452085786135_wp
+         socc( 4)=  5.81864082075886_wp
+         socc( 5)=  0.48460244840837_wp
+         socc( 6)=  4.62486720062715_wp
+         socc( 7)=  1.92796420125166_wp
+       case (44)
+         socc( 1)=  1.20126149901804_wp
+         socc( 2)=  0.69449186606227_wp
+         socc( 3)=  0.26071233998777_wp
+         socc( 4)=  5.67965818913478_wp
+         socc( 5)=  0.90345795952935_wp
+         socc( 6)=  5.38350854797263_wp
+         socc( 7)=  1.87690959829517_wp
+       case (45)
+         socc( 1)=  1.20797741909822_wp
+         socc( 2)=  0.70089251858493_wp
+         socc( 3)=  0.29796640283600_wp
+         socc( 4)=  5.78766562168797_wp
+         socc( 5)=  0.81506857231596_wp
+         socc( 6)=  5.93396731971260_wp
+         socc( 7)=  2.25646214576433_wp
+       case (46)
+         socc( 1)=  1.14953967553598_wp
+         socc( 2)=  0.77639261749056_wp
+         socc( 3)=  0.34493408116223_wp
+         socc( 4)=  5.73173722691006_wp
+         socc( 5)=  0.74227886758343_wp
+         socc( 6)=  7.05728018989357_wp
+         socc( 7)=  2.19783734142418_wp
+       case (47)
+         socc( 1)=  1.47715411867414_wp
+         socc( 2)=  0.46112075991231_wp
+         socc( 3)=  0.46976828745373_wp
+         socc( 4)=  5.83681422266467_wp
+         socc( 5)=  0.56839763037875_wp
+         socc( 6)=  8.25936505136489_wp
+         socc( 7)=  1.92737992955151_wp
+       case (48)
+         socc( 1)=  1.44744227031352_wp
+         socc( 2)=  0.50321505137676_wp
+         socc( 3)=  0.76605254697916_wp
+         socc( 4)=  5.84237560645286_wp
+         socc( 5)=  0.73805996216542_wp
+         socc( 6)=  8.86501958024778_wp
+         socc( 7)=  1.83783498246450_wp
+       case (49)
+         socc( 1)=  0.70140157508278_wp
+         socc( 2)=  0.17354305838454_wp
+         socc( 3)=  1.04740931228563_wp
+         socc( 4)=  0.35347741827462_wp
+         socc( 5)=  0.72416863597243_wp
+       case (50)
+         socc( 1)=  0.88138857934851_wp
+         socc( 2)=  0.30270792750431_wp
+         socc( 3)=  1.70765743210573_wp
+         socc( 4)=  0.56001837529799_wp
+         socc( 5)=  0.54822768574346_wp
+       case (51)
+         socc( 1)=  1.07923018725516_wp
+         socc( 2)=  0.48702839024217_wp
+         socc( 3)=  2.07653831010358_wp
+         socc( 4)=  0.87014657518830_wp
+         socc( 5)=  0.48705653721079_wp
+       case (52)
+         socc( 1)=  1.07764207628998_wp
+         socc( 2)=  0.64644728669200_wp
+         socc( 3)=  2.50901541843569_wp
+         socc( 4)=  1.26324679714389_wp
+         socc( 5)=  0.50364842143843_wp
+       case (53)
+         socc( 1)=  1.30238990024541_wp
+         socc( 2)=  0.55688322008723_wp
+         socc( 3)=  3.88262669174735_wp
+         socc( 4)=  1.13614684343849_wp
+         socc( 5)=  0.12195334448153_wp
+       case (54)
+         socc( 1)=  1.49117207162071_wp
+         socc( 2)=  0.56093418226970_wp
+         socc( 3)=  4.53368436069951_wp
+         socc( 4)=  1.12237345264925_wp
+         socc( 5)=  0.29183593276083_wp
+       case (55)
+         socc( 1)=  1.20018212883561_wp
+         socc( 2)=  0.66979530958272_wp
+         socc( 3)=  0.52027546654330_wp
+         socc( 4)=  5.88465637946255_wp
+         socc( 5)=  0.37991495530054_wp
+         socc( 6)=  0.34517576027529_wp
+       case (56)
+         socc( 1)=  1.72761522363496_wp
+         socc( 2)=  0.20769891987911_wp
+         socc( 3)=  0.54523299736967_wp
+         socc( 4)=  5.17593075925072_wp
+         socc( 5)=  1.64479764094805_wp
+         socc( 6)=  0.69872444771662_wp
+       case (57)
+         socc( 1)=  1.46529473169990_wp
+         socc( 2)=  0.35684994359811_wp
+         socc( 3)=  0.30050414785488_wp
+         socc( 4)=  5.65562158477479_wp
+         socc( 5)=  0.47339987795626_wp
+         socc( 6)=  1.94126626446140_wp
+         socc( 7)=  0.80706344965465_wp
+       case (72)
+         socc( 1)=  1.02888520395055_wp
+         socc( 2)=  0.86766041482196_wp
+         socc( 3)=  0.49634867713150_wp
+         socc( 4)=  5.81775995212443_wp
+         socc( 5)=  0.38607398667741_wp
+         socc( 6)=  2.55936780222997_wp
+         socc( 7)=  0.84390396306419_wp
+       case (73)
+         socc( 1)=  1.14684318757690_wp
+         socc( 2)=  0.74184181626919_wp
+         socc( 3)=  0.37576199210298_wp
+         socc( 4)=  5.65817508760807_wp
+         socc( 5)=  0.96009271251448_wp
+         socc( 6)=  2.90642094143716_wp
+         socc( 7)=  1.21086426249122_wp
+       case (74)
+         socc( 1)=  1.08250965966898_wp
+         socc( 2)=  0.80853928654802_wp
+         socc( 3)=  0.35218957244199_wp
+         socc( 4)=  5.62687129950991_wp
+         socc( 5)=  0.99645393669446_wp
+         socc( 6)=  3.93350253188128_wp
+         socc( 7)=  1.19993371325537_wp
+       case (75)
+         socc( 1)=  1.23755244004358_wp
+         socc( 2)=  0.65059008487721_wp
+         socc( 3)=  0.31310114116509_wp
+         socc( 4)=  5.66081470189635_wp
+         socc( 5)=  1.01994427206965_wp
+         socc( 6)=  4.53555935561923_wp
+         socc( 7)=  1.58243800432889_wp
+       case (76)
+         socc( 1)=  1.15351477996358_wp
+         socc( 2)=  0.74317562636339_wp
+         socc( 3)=  0.34534774171001_wp
+         socc( 4)=  5.59762937280367_wp
+         socc( 5)=  0.97786153395086_wp
+         socc( 6)=  5.52677596562903_wp
+         socc( 7)=  1.65569497957946_wp
+       case (77)
+         socc( 1)=  0.95700328114132_wp
+         socc( 2)=  0.94974278534452_wp
+         socc( 3)=  0.38613265161768_wp
+         socc( 4)=  5.75686633214355_wp
+         socc( 5)=  0.87019632783512_wp
+         socc( 6)=  6.68281234310795_wp
+         socc( 7)=  1.39724627880986_wp
+       case (78)
+         socc( 1)=  1.62396906180815_wp
+         socc( 2)=  0.27135616269979_wp
+         socc( 3)=  0.49722855302172_wp
+         socc( 4)=  5.55802102341796_wp
+         socc( 5)=  0.87132355327770_wp
+         socc( 6)=  7.65933830284699_wp
+         socc( 7)=  1.51876334292769_wp
+       case (79)
+         socc( 1)=  1.19971391814096_wp
+         socc( 2)=  0.73584211247308_wp
+         socc( 3)=  0.61639472645522_wp
+         socc( 4)=  5.71716576508113_wp
+         socc( 5)=  0.65941930341563_wp
+         socc( 6)=  8.77099785810800_wp
+         socc( 7)=  1.30046631632598_wp
+       case (80)
+         socc( 1)=  0.80989406331215_wp
+         socc( 2)=  1.14406917132244_wp
+         socc( 3)=  0.93849154566692_wp
+         socc( 4)=  5.77696867557387_wp
+         socc( 5)=  0.72647677151064_wp
+         socc( 6)=  9.31903323367983_wp
+         socc( 7)=  1.28506653893413_wp
+       case (81)
+         socc( 1)=  0.84549117650825_wp
+         socc( 2)=  0.27623273506597_wp
+         socc( 3)=  0.99814605463893_wp
+         socc( 4)=  0.33711577835634_wp
+         socc( 5)=  0.54301425543051_wp
+       case (82)
+         socc( 1)=  0.95746591128469_wp
+         socc( 2)=  0.42149251532093_wp
+         socc( 3)=  1.58930771841450_wp
+         socc( 4)=  0.55141264480076_wp
+         socc( 5)=  0.48032121017912_wp
+       case (83)
+         socc( 1)=  0.94547616956564_wp
+         socc( 2)=  0.72870343620536_wp
+         socc( 3)=  1.96188878715981_wp
+         socc( 4)=  0.89319491934738_wp
+         socc( 5)=  0.47073668772181_wp
+       case (84)
+         socc( 1)=  0.99760576293602_wp
+         socc( 2)=  0.81343627348347_wp
+         socc( 3)=  2.30864520742057_wp
+         socc( 4)=  1.45482731964036_wp
+         socc( 5)=  0.42548543651957_wp
+       case (85)
+         socc( 1)=  1.32802176831061_wp
+         socc( 2)=  0.58020111845373_wp
+         socc( 3)=  3.45775985791178_wp
+         socc( 4)=  1.50842171014431_wp
+         socc( 5)=  0.12559554517957_wp
+       case (86)
+         socc( 1)=  1.40549915956233_wp
+         socc( 2)=  0.67064049817754_wp
+         socc( 3)=  4.25809761136944_wp
+         socc( 4)=  1.50416161699423_wp
+         socc( 5)=  0.16160111389646_wp
+      end select
+
+      refocc(1:nsh) = socc(1:nsh)
+
+   end subroutine shellocc_ref
 
 end module xtb_ptb_param

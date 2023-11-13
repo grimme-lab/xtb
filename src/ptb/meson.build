@@ -26,4 +26,5 @@ srcs += files(
   'ncoord.f90',
   'corebasis.f90',
   'hamiltonian.f90',
+  'guess.f90',
 )

@@ -32,7 +32,7 @@ module xtb_ptb_hamiltonian
 
    private
 
-   public :: get_hamiltonian, get_selfenergy
+   public :: get_hamiltonian, get_selfenergy, get_occupation
 
 contains
 
@@ -73,14 +73,16 @@ contains
          call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol)
       end if
 
+      hamiltonian = hamiltonian + h0
+
       !##### DEV WRITE #####
       write (*, *) "H0 ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") h0(i, j)
-         end do
-         write (*, *) ""
-      end do
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") h0(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
       !#####################
 
    end subroutine get_hamiltonian
@@ -236,19 +238,19 @@ contains
          is = bas%ish_at(iat)
          do ish = 1, bas%nsh_id(izp)
             ii = bas%iao_sh(is + ish)
-            do jsh = 1, ish-1
+            do jsh = 1, ish - 1
                jj = bas%iao_sh(is + jsh)
                nao = msao(bas%cgto(jsh, izp)%ang)
                do iao = 1, msao(bas%cgto(ish, izp)%ang)
                   do jao = 1, nao
                      sum_levels = levels(is + jsh) + levels(is + ish)
-                     ocodterm = hData%ksla(ish, izp) * ocod_param
-                     ssquraedterm = sh0(jj + jao, ii + iao)**2 * &
-                        & sum_levels * &
-                        & hData%kocod(izp) * &
+                     ocodterm = hData%ksla(ish, izp)*ocod_param
+                     ssquraedterm = sh0(jj + jao, ii + iao)**2* &
+                        & sum_levels* &
+                        & hData%kocod(izp)* &
                         & ocodterm
-                     sterm = sh0(jj + jao, ii + iao) * &
-                        & sum_levels * &
+                     sterm = sh0(jj + jao, ii + iao)* &
+                        & sum_levels* &
                         & ocodterm
                      h0mat(jj + jao, ii + iao) = sterm + &
                         & ssquraedterm
@@ -273,7 +275,7 @@ contains
          do ish = 1, bas%nsh_id(izp)
             ii = bas%iao_sh(is + ish)
             do iao = 1, msao(bas%cgto(ish, izp)%ang)
-               h0mat(ii + iao, ii + iao) = 2.0_wp * levels(is + ish)
+               h0mat(ii + iao, ii + iao) = 2.0_wp*levels(is + ish)
                !##### DEV WRITE #####
                ! write(*,*) "i, j, tmp: ", ii+iao, ii+iao, h0mat(ii + iao, ii + iao)
                !#####################
@@ -282,5 +284,36 @@ contains
       end do
 
    end subroutine get_h0
+
+   subroutine get_occupation(mol, bas, refocc, nocc, n0at, n0sh)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Basis set information
+      type(basis_type), intent(in) :: bas
+      !> Reference occupation
+      real(wp), intent(in) :: refocc(:,:)
+      !> Occupation number
+      real(wp), intent(out) :: nocc
+      !> Reference occupation for each atom
+      real(wp), intent(out) :: n0at(:)
+      !> Reference occupation for each shell
+      real(wp), intent(out) :: n0sh(:)
+
+      integer :: iat, ish, izp, ii
+
+      nocc = -mol%charge
+      n0at(:) = 0.0_wp
+      n0sh(:) = 0.0_wp
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         ii = bas%ish_at(iat)
+         do ish = 1, bas%nsh_id(izp)
+            nocc = nocc + refocc(ish, izp)
+            n0at(iat) = n0at(iat) + refocc(ish, izp)
+            n0sh(ii + ish) = n0sh(ii + ish) + refocc(ish, izp)
+         end do
+      end do
+
+   end subroutine get_occupation
 
 end module xtb_ptb_hamiltonian

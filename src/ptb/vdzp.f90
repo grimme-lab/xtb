@@ -111,6 +111,20 @@ module xtb_ptb_vdzp
    & 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0, & ! up to element: 84
    & 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0], shape(n_prim))
 
+   real(wp), parameter :: val_el(max_elem) = [ &
+     & 1.0_wp, 2.0_wp, & !He
+     & 3.0_wp, 4.0_wp, 3.0_wp, 4.0_wp, 5.0_wp, 6.0_wp, 7.0_wp, 8.0_wp, & !Ne
+     & 9.0_wp, 10.0_wp, 3.0_wp, 4.0_wp, 5.0_wp, 6.0_wp, 7.0_wp, 8.0_wp, & !Ar
+     & 9.0_wp, 10.0_wp, 11.0_wp, 12.0_wp, 13.0_wp, 14.0_wp, 15.0_wp, 16.0_wp, 17.0_wp, 18.0_wp, 19.0_wp, 20.0_wp, &
+     & 3.0_wp, 4.0_wp, 5.0_wp, 6.0_wp, 7.0_wp, 8.0_wp, &  !Kr
+     & 9.0_wp, 10.0_wp, 11.0_wp, 12.0_wp, 13.0_wp, 14.0_wp, 15.0_wp, 16.0_wp, 17.0_wp, 18.0_wp, 19.0_wp, 20.0_wp, &
+     & 3.0_wp, 4.0_wp, 5.0_wp, 6.0_wp, 7.0_wp, 8.0_wp, &  !Xe
+     & 9.0_wp, 10.0_wp, 11.0_wp, &
+     & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
+     & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, & !LNs
+     & 12.0_wp, 13.0_wp, 14.0_wp, 15.0_wp, 16.0_wp, 17.0_wp, 18.0_wp, 19.0_wp, 20.0_wp, &
+     & 3.0_wp, 4.0_wp, 5.0_wp, 6.0_wp, 7.0_wp, 8.0_wp]  !Rn
+
    !> CGTO exponents (Exponent of the primitive Gaussian functions)
    real(wp), protected :: exponents(max_prim, max_shell, max_elem) = 0.0_wp
 
