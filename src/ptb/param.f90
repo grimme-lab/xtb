@@ -23,12 +23,14 @@ module xtb_ptb_param
    generateValenceShellData, TEEQData
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
+
+   use xtb_ptb_vdzp, only: max_elem, nshell, max_shell, ang_shell
+
    implicit none
    private
 
    !> Global and essential parameters
-   public :: initPTB, ptbGlobals, max_shell, max_elem, highest_elem
-   public :: nshell
+   public :: initPTB, ptbGlobals
    !> Atomic radii for CN
    public :: rf
    !> Exponent scaling parameters for overlap matrices
@@ -53,27 +55,14 @@ module xtb_ptb_param
       kerfcn_eeq=7.5_wp, &
       mlmix = 0.33333333333333_wp)
 
-   !> Highest element supported by PTB
-   integer, parameter :: highest_elem = 86
-
-   !> Maximum number of elements supported by PTB
-   integer, parameter :: max_elem = 72
-
-   !> Maximum number of shells supported by PTB
-   integer, parameter :: max_shell = 7
-
-   integer, parameter :: nshell(highest_elem) = [ &
-   & 3, 3, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 5, 5, 5, 5, 5, 5, 6, 6, &   ! 1-20
-   & 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 6, 6, 7, 7, &   ! 21-40
-   & 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 6, 6, 7, 0, 0, 0, &   ! 41-60
-   & 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, &   ! 61-80
-   & 5, 5, 5, 5, 5, 5]                                               ! 81-86
+   !> Maximum angular momentum supported by PTB
+   integer, parameter :: max_angmom = 2
 
    !----------- H0 DATA --------------
 
    !> Radius-like parameter in H0
    !> see Eq. 7 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kr(highest_elem) = [&
+   real(wp), parameter :: kr(max_elem) = [&
    &  0.0526621033_wp, -0.1259789251_wp, -0.0009919449_wp, 0.1038653034_wp, -0.0013797952_wp, &
    & -0.0105524688_wp, 0.0305573244_wp, 0.0399300788_wp, -0.0000776731_wp, -0.0554411947_wp, &
    & -0.0856156068_wp, 0.0273394800_wp, 0.0017285337_wp, -0.2070450754_wp, -0.1544716111_wp, &
@@ -97,7 +86,7 @@ module xtb_ptb_param
 
    !> Wolfsberg parameter in H0
    !> see Eq. 7 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kala(highest_elem, 3) = reshape([&
+   real(wp), parameter :: kla(max_angmom, max_elem) = reshape([&
    &  2.3456350394_wp, 2.5867439077_wp, 0.0000000000_wp, &
    &  1.8790862592_wp, 2.2362835825_wp, 0.0000000000_wp, &
    &  2.1034538375_wp, 2.0807166747_wp, 2.3889199775_wp, &
@@ -178,11 +167,11 @@ module xtb_ptb_param
    &  1.7660303983_wp, 2.2763235506_wp, 2.2620396823_wp, &
    &  1.5612264003_wp, 1.9549754244_wp, 1.7260013615_wp, &
    &  1.7732987911_wp, 1.7970606069_wp, 1.6560069382_wp, &
-   &  1.5276643927_wp, 1.5596596971_wp, 2.8644541356_wp], shape(kala))
+   &  1.5276643927_wp, 1.5596596971_wp, 2.8644541356_wp], shape(kla))
 
    !> Scale one-center-off-diagonal elements of H0
    !> see Eq. 8 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: ksla(highest_elem, 3) = reshape([&
+   real(wp), parameter :: ksla(max_elem, 3) = reshape([&
    &  2.6278779271_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  2.6548058980_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  2.7971693029_wp,  0.0000000000_wp,  0.0000000000_wp, &
@@ -267,7 +256,7 @@ module xtb_ptb_param
 
    !>  OCOD scaling in HO
    !> see Eq. 8 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kocod(highest_elem) = [&
+   real(wp), parameter :: kocod(max_elem) = [&
    &  0.0000000000_wp,  0.0000000000_wp, -0.0009968994_wp, -0.0125826604_wp,  0.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    & -0.0351623755_wp, -0.1083543693_wp,  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
@@ -291,7 +280,7 @@ module xtb_ptb_param
 
    !> H0 parameter in H0
    !> see Eq. 10 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: hla(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: hla(max_shell, max_elem) = reshape([&
    & -0.6189949819_wp, -0.2731232971_wp, -0.2140591474_wp,  0.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    & -0.5147194542_wp, -0.3080371362_wp, -0.2986812848_wp,  0.0000000000_wp, &
@@ -455,7 +444,7 @@ module xtb_ptb_param
 
    !> CN dependence in H0
    !> see Eq. 10 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: klh(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: klh(max_shell, max_elem) = reshape([&
    &  0.0798017435_wp,  0.0024847884_wp,  0.0075830283_wp,  0.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    & -0.8177539033_wp, -0.0000309929_wp, -0.0184556453_wp,  0.0000000000_wp, &
@@ -619,7 +608,7 @@ module xtb_ptb_param
 
    !> K_CN' - scales the CN' in H0
    !> see Eq. 10 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kcnstar(highest_elem) = [&
+   real(wp), parameter :: kcnstar(max_elem) = [&
    & -0.5846979150_wp,  0.0140884357_wp,  0.0266390147_wp,  0.0758494067_wp,  0.1309832428_wp, &
    & -0.0161789724_wp, -0.0057925311_wp,  0.4608250620_wp,  0.0951339460_wp,  0.2397739102_wp, &
    &  0.0090344647_wp,  0.0720324870_wp,  0.1668571747_wp,  0.0235901339_wp,  0.1310445989_wp, &
@@ -643,7 +632,7 @@ module xtb_ptb_param
 
    !> k_shift - scales the additional CN' dependence in H0
    !> see Eq. 10 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kshift(highest_elem) = [&
+   real(wp), parameter :: kshift(max_elem) = [&
    & -0.0092695988_wp, -0.0265952987_wp,  0.0026109185_wp, -0.0014531059_wp,  0.0004100136_wp, &
    & -0.0060810427_wp, -0.0092582164_wp,  0.0154629366_wp,  0.0001201342_wp, -0.0138199419_wp, &
    &  0.0002737244_wp,  0.0001499417_wp,  0.0022276101_wp, -0.0034527645_wp, -0.0007854979_wp, &
@@ -667,7 +656,7 @@ module xtb_ptb_param
 
    !> Atomic radii r_f for CN calculation
    !> see Eq. 11 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: rf(highest_elem) = [&
+   real(wp), parameter :: rf(max_elem) = [&
    &  0.1159873118_wp, -0.0000262447_wp, -0.1979977296_wp,  0.7164493573_wp,  0.6828926032_wp, &
    &  0.9229984410_wp,  1.0526756706_wp,  1.0180198722_wp,  0.9549483164_wp,  0.5944195588_wp, &
    &  1.3748594260_wp,  1.5010279743_wp,  1.0107903073_wp,  1.5866269160_wp,  1.4736201698_wp, &
@@ -692,7 +681,7 @@ module xtb_ptb_param
    !----------- APPROXIMATED VXC SCALING --------------
 
    !> kxc1 - scales the GGA exchange-correlation potential in iteration 1
-   real(wp), parameter :: kxc1(highest_elem) = [&
+   real(wp), parameter :: kxc1(max_elem) = [&
    &  0.4737591670_wp,  3.4791079720_wp,  0.9425101911_wp,  1.4088951834_wp,  0.9533042982_wp, &
    &  1.1824710671_wp,  0.8999267113_wp,  0.8184983656_wp,  0.6732945612_wp,  0.3207262862_wp, &
    &  0.2192192026_wp,  0.5101373141_wp,  1.5567149210_wp,  0.5757036996_wp,  1.3521795960_wp, &
@@ -717,7 +706,7 @@ module xtb_ptb_param
 
    !> kxc2l - scales the ECP-like exchange-correlation potential in iteration 2
    !> see Eq. 12 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kxc2l(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: kxc2l(max_shell, max_elem) = reshape([&
    &  0.0224227250_wp,  2.2534752584_wp,  5.2849740124_wp,  0.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  1.2787165702_wp,  0.7653176998_wp,  0.0039186389_wp,  0.0000000000_wp, &
@@ -883,7 +872,7 @@ module xtb_ptb_param
 
    !> Basic exponent scaling parameter for the modified overlap matrix
    !> see Eq. 13 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kalphah0l(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: kalphah0l(max_shell, max_elem) = reshape([&
    &  1.2148553604_wp,  0.8784379294_wp,  0.9292666347_wp,  1.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  0.7289129128_wp,  0.8175679692_wp,  0.9608607570_wp,  1.0000000000_wp, &
@@ -1047,7 +1036,7 @@ module xtb_ptb_param
 
    !> Exponent scaling for overlap integrals
    !> see Eq. 14 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: klalphaxc(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: klalphaxc(max_shell, max_elem) = reshape([&
    &  1.4260939011_wp, 1.1354702797_wp, 1.1469455922_wp, 1.0000000000_wp, &
    &  1.0000000000_wp, 1.0000000000_wp, 1.0000000000_wp, &
    &  0.8042973327_wp, 1.0065148665_wp, 0.8510026526_wp, 1.0000000000_wp, &
@@ -1211,7 +1200,7 @@ module xtb_ptb_param
 
    !> Iteration- and charge-dependent exponent scaling for modified overlap
    !> see Eq. 13 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kits0(highest_elem) = [&
+   real(wp), parameter :: kits0(max_elem) = [&
    &  0.0345563416_wp,  0.2490759409_wp,  0.0096921344_wp,  0.0052688847_wp,  0.0000927567_wp, &
    &  0.0049265913_wp,  0.0060303400_wp,  0.0044399052_wp,  0.0013813016_wp,  0.0002090231_wp, &
    &  0.0059579091_wp,  0.0049482940_wp,  0.0038703596_wp,  0.0031487403_wp,  0.0040479582_wp, &
@@ -1237,7 +1226,7 @@ module xtb_ptb_param
 
    !> Scaling of effective core potential epsilon
    !> see Eq. 15 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kecpepsilon(highest_elem) = [&
+   real(wp), parameter :: kecpepsilon(max_elem) = [&
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp,  0.1889593705_wp, &
    &  0.6715207621_wp,  0.7318094493_wp,  0.7908518047_wp,  0.0830118354_wp,  0.1765793578_wp, &
    &  0.0178867991_wp,  0.0675824505_wp,  0.2850009706_wp,  0.8784424412_wp,  0.2696488475_wp, &
@@ -1264,7 +1253,7 @@ module xtb_ptb_param
 
    integer, parameter :: max_core_prim = 6
 
-   integer, parameter :: cbas_nshell(highest_elem) = [ &
+   integer, parameter :: cbas_nshell(max_elem) = [ &
    & 0,  0,  0,  0,  1,  1,  1,  1,  1,  1, &
    & 1,  1,  3,  3,  3,  3,  3,  3,  3,  3, &
    & 3,  3,  3,  3,  3,  3,  3,  3,  3,  3, &
@@ -1277,21 +1266,21 @@ module xtb_ptb_param
 
    !> Core basis Slater exponents
    !> Clementi's SZ Slater exponents from JCP 38 (1963), 2686 ibid 47 (1967), 1300.
-   real(wp), protected :: cbas_sl_exp(max_core_shell, highest_elem) = 0.0_wp
+   real(wp), protected :: cbas_sl_exp(max_core_shell, max_elem) = 0.0_wp
 
    !> Core basis principal quantum numbers
-   integer, protected :: cbas_pqn(max_core_shell, highest_elem) = 0
+   integer, protected :: cbas_pqn(max_core_shell, max_elem) = 0
 
    !> Core basis angular momentum quantum numbers
-   integer, protected :: cbas_angshell(max_core_shell, highest_elem) = 0
+   integer, protected :: cbas_angshell(max_core_shell, max_elem) = 0
 
    !> HF levels for core basis
-   real(wp), protected :: cbas_hflev(max_core_shell, highest_elem) = 0.0_wp
+   real(wp), protected :: cbas_hflev(max_core_shell, max_elem) = 0.0_wp
 
    !---------- ELECTROSTATICS ------------------------------
 
    !> Alpha parameter for EEQ model
-   real(wp), parameter :: alpeeq(highest_elem) = [&
+   real(wp), parameter :: alpeeq(max_elem) = [&
    &  0.5657758564_wp,  0.5264324358_wp,  0.4076876973_wp,  0.8430348778_wp,  1.8417990011_wp, &
    &  1.2356870476_wp,  1.8227023952_wp,  0.9910065813_wp,  1.2171879303_wp,  0.9864571581_wp, &
    &  2.6376549487_wp,  0.7032651749_wp,  0.9495021748_wp,  1.0750637030_wp,  1.4156643264_wp, &
@@ -1312,7 +1301,7 @@ module xtb_ptb_param
    &  1.3184427268_wp ]
 
    !> EN parameter for EEQ model
-   real(wp), parameter :: chieeq(highest_elem) = [&
+   real(wp), parameter :: chieeq(max_elem) = [&
    &  1.3324387940_wp,  0.8733576310_wp,  1.3505444112_wp,  1.2895941036_wp,  1.4259709044_wp, &
    &  1.6158437446_wp,  1.5781155782_wp,  1.5741332611_wp,  1.4957861964_wp,  0.6316393544_wp, &
    &  1.0172830975_wp,  0.6629374146_wp,  1.4025565964_wp,  1.0300183391_wp,  1.5220526900_wp, &
@@ -1333,7 +1322,7 @@ module xtb_ptb_param
    &  0.9614477363_wp ]
 
    !> CN dependency parameter of EEQ model
-   real(wp), parameter :: cnfeeq(highest_elem) = [&
+   real(wp), parameter :: cnfeeq(max_elem) = [&
    &  0.0429433473_wp,  0.5224987110_wp, -0.0401414718_wp, -0.0280908302_wp, -0.0015137481_wp, &
    &  0.1408744650_wp,  0.1457845869_wp,  0.1690574187_wp,  0.1545931807_wp,  0.0612532325_wp, &
    & -0.1107215184_wp, -0.0942861034_wp, -0.0119730354_wp, -0.0081478459_wp,  0.0652698836_wp, &
@@ -1354,7 +1343,7 @@ module xtb_ptb_param
    &  0.0035852141_wp ]
 
    !> Chemical hardness parameters for EEQ model
-   real(wp), parameter :: gameeq(highest_elem) = [&
+   real(wp), parameter :: gameeq(max_elem) = [&
    & -0.3501586000_wp,  0.1636673223_wp,  0.1237051131_wp,  0.0344412672_wp,  0.1874706313_wp, &
    &  0.2245967420_wp,  0.0884788849_wp,  0.1041840532_wp,  0.0292877327_wp,  0.3015023459_wp, &
    &  0.1971100591_wp,  0.0371707619_wp, -0.0407255207_wp,  0.1701912888_wp,  0.0248530164_wp, &
@@ -1376,7 +1365,7 @@ module xtb_ptb_param
 
    !> Scaling of third-order electrostatics contribution
    !> see Eq. 18 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kto(highest_elem) = [&
+   real(wp), parameter :: kto(max_elem) = [&
    &  0.1345540888_wp, -0.1721884044_wp, -0.0028282186_wp,  0.0170199168_wp, -0.0061401571_wp, &
    &  0.0089395630_wp,  0.0052029478_wp,  0.0181154137_wp,  0.0007501486_wp, -0.0785632658_wp, &
    & -0.0003227058_wp, -0.0003250842_wp, -0.0016913248_wp,  0.0291527052_wp,  0.0122897182_wp, &
@@ -1400,7 +1389,7 @@ module xtb_ptb_param
 
    !> Scaling of chemical hardness parameter eta from EEQ model in iteration 1
    !> see Eq. 19 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: keta1(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: keta1(max_shell, max_elem) = reshape([&
    &  1.4462087478_wp,  0.0278008485_wp,  2.9829828470_wp,  0.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  0.5705246669_wp,  2.1566715380_wp,  0.4846193957_wp,  1.0010000000_wp, &
@@ -1564,7 +1553,7 @@ module xtb_ptb_param
 
    !> Scaling of chemical hardness parameter eta from EEQ model in iteration 2
    !> see Eq. 21 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: keta2(max_shell, highest_elem) = reshape([&
+   real(wp), parameter :: keta2(max_shell, max_elem) = reshape([&
    &  1.2679904344_wp,  0.7250220171_wp,  2.4223440988_wp,  0.0000000000_wp, &
    &  0.0000000000_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  1.9073009109_wp,  0.3580079079_wp,  1.2926506971_wp,  1.0010000000_wp, &
@@ -1894,7 +1883,7 @@ module xtb_ptb_param
 
    !> Hubbard parameter scaling for DFT+U in the diagonal case
    !> see Eq. 20 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: cud(highest_elem) = [&
+   real(wp), parameter :: cud(max_elem) = [&
    &  4.1408024976_wp,  0.9632071978_wp,  5.0337790754_wp,  0.4098174275_wp,  0.6321492446_wp, &
    &  1.1129161397_wp,  1.2921841802_wp,  1.0043813929_wp,  1.0172130414_wp,  1.1780459263_wp, &
    &  0.6784257431_wp,  1.8966763783_wp,  2.0539776469_wp,  0.5526824853_wp,  0.7154926953_wp, &
@@ -1918,7 +1907,7 @@ module xtb_ptb_param
 
    !> First-order charge dependence of +U Hamiltonian elements
    !> see Eq. 22 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: cu1(highest_elem) = [&
+   real(wp), parameter :: cu1(max_elem) = [&
    &  1.0562096820_wp,  4.2513918919_wp, -0.0529592544_wp,  0.8721574145_wp,  0.0000042235_wp, &
    &  0.0564914874_wp,  0.1831156438_wp,  0.2439417025_wp,  0.0156850844_wp, -0.5178970697_wp, &
    & -0.0454996959_wp, -0.0082847432_wp,  0.5281089113_wp, -0.0061179561_wp,  0.5097593117_wp, &
@@ -1942,7 +1931,7 @@ module xtb_ptb_param
 
    !> Second-order charge dependence of +U Hamiltonian elements
    !> see Eq. 22 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: cu2(highest_elem) = [&
+   real(wp), parameter :: cu2(max_elem) = [&
    &  1.3525995992_wp, -1.4516871715_wp, -0.0000572628_wp,  0.4032354601_wp, -0.8336564414_wp, &
    &  0.0243755779_wp,  0.0689852936_wp,  0.0204538409_wp,  0.0687599339_wp, -0.0394658916_wp, &
    & -0.0018148200_wp, -0.0071978001_wp,  0.0001015111_wp, -0.0055569698_wp,  0.0086391927_wp, &
@@ -1966,7 +1955,7 @@ module xtb_ptb_param
 
    !> Empirical atomic radius for +U damping function
    !> see Eq. 24 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: ar(highest_elem) = [&
+   real(wp), parameter :: ar(max_elem) = [&
    &  3.3392528850_wp,  1.9259592984_wp,  7.3381422285_wp,  4.3135659457_wp,  7.9691261380_wp, &
    &  4.5207384982_wp,  2.6850382750_wp,  3.6785810016_wp,  2.5133987301_wp,  0.9873346860_wp, &
    & 15.6283943037_wp,  9.5944382403_wp,  5.1906593322_wp,  9.9161767845_wp,  8.6374217428_wp, &
@@ -1990,7 +1979,7 @@ module xtb_ptb_param
 
    !> Scaling of CN correction for +U damping function
    !> see Eq. 24 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: arcn(highest_elem) = [&
+   real(wp), parameter :: arcn(max_elem) = [&
    & -0.4639203632_wp, -3.4485126405_wp,  0.5112055932_wp,  0.1277231370_wp, -2.5836929728_wp, &
    & -0.1117214812_wp, -1.8967433399_wp, -0.6057453510_wp, -0.0785691898_wp,  0.0001592952_wp, &
    &  0.5353420432_wp, -0.0506697501_wp, -0.0000000031_wp, -2.9876209160_wp, -0.8531838111_wp, &
@@ -2017,7 +2006,7 @@ module xtb_ptb_param
 
    !> SCaling of +U Hamiltonian contributions in the response approximation
    !> see Eq. 27 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kueffres(highest_elem) = [&
+   real(wp), parameter :: kueffres(max_elem) = [&
    &  1.0863599879_wp, 16.9812685688_wp,  8.6420038476_wp,  0.5484484631_wp,  0.2577436503_wp, &
    &  0.3210333975_wp,  0.5562396695_wp,  0.7742792877_wp,  1.3002008951_wp,  2.3568951691_wp, &
    &  2.8372990464_wp, -3.6933029996_wp,  1.7678107153_wp,  0.0000363495_wp, -0.0000157508_wp, &
@@ -2041,7 +2030,7 @@ module xtb_ptb_param
 
    !> Scaling of IES+TO+U elements in the response case
    !> see Eq. 26 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: cvesres(highest_elem) = [&
+   real(wp), parameter :: cvesres(max_elem) = [&
    &  0.5699276681_wp, -0.9303039725_wp,  1.1589279019_wp,  0.7451568313_wp,  0.5381649334_wp, &
    &  0.7181178607_wp,  0.6920744852_wp,  0.6742096930_wp,  0.3937865767_wp,  1.5783943459_wp, &
    & 16.7381529578_wp,  1.2041305914_wp,  0.8036230577_wp,  0.7726690167_wp,  0.5671786712_wp, &
@@ -2143,7 +2132,8 @@ contains
 
       ! allocate (self%kCN(mShell, highest_elem))
       ! call angToShellData(self%kCN, nShell, self%angShell, kCN)
-      call init(self, num, nshell, hla, klh, kcnstar, kshift)
+      call init(self, num, nshell, ang_shell, &
+      & hla, klh, kcnstar, kshift, kla, kr)
 
       ! allocate (self%valenceShell(max_shell, highest_elem))
       ! call generateValenceShellData(self%valenceShell, nShell, self%angShell)

@@ -179,7 +179,8 @@ contains
 
    subroutine test_ptb_overlap_h0(error)
       use xtb_ptb_overlaps, only: get_scaled_integrals
-      use xtb_ptb_param, only: kalphah0l, max_shell
+      use xtb_ptb_param, only: kalphah0l
+      use xtb_ptb_vdzp, only: max_shell
 
       !> Structure type (xtb)
       type(TMolecule) :: struc

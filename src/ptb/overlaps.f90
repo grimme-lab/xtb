@@ -25,8 +25,7 @@ module xtb_ptb_overlaps
    use tblite_cutoff, only: get_lattice_points
    use tblite_basis_type, only: basis_type, get_cutoff
 
-   use xtb_ptb_vdzp, only: add_vDZP_basis
-   use xtb_ptb_param, only: nshell, max_shell
+   use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    implicit none
 
    private
