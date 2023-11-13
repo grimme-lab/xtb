@@ -31,7 +31,7 @@ module xtb_gfnff_calculator
    use xtb_sphereparam
    use xtb_metadynamic
    use xtb_constrainpot
-   use xtb_gfnff_param, only : make_chrg,gff_print
+   use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
@@ -225,7 +225,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! actual calculation !
    !--------------------!
 
-   call gfnff_eg(env,mol,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg,sigma, &
+   call gfnff_eg(env,mol,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
       & gradient,energy,results,self%param,self%topo,self%neigh,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy,minpr=optpr)
 

@@ -28,9 +28,6 @@ module xtb_gfnff_gdisp0
    private
 
    interface d3_gradientPBC
-      module procedure :: d3_full_gradient_neigh
-      module procedure :: d3_full_gradient_latp
-      module procedure :: d3_gradient_neigh
       module procedure :: d3_gradient_latp
    end interface d3_gradientPBC
 
@@ -351,66 +348,6 @@ subroutine d3_gradient(dispm, nat, at, xyz, npair, pairlist, zeta_scale, radii, 
 
 end subroutine d3_gradient
 
-subroutine d3_full_gradient_latp &
-      & (dispm, mol, ntrans, trans, par, weighting_factor, zeta_scale, radii, cutoff, cutoff3, &
-      &  cn, dcndr, dcndL, energy, gradient, sigma, e2, e3)
-   use xtb_type_dispersionmodel, only : TDispersionModel
-
-   type(TDispersionModel), intent(in) :: dispm
-   !> Molecular structure data
-   type(TMolecule), intent(in) :: mol
-
-   !> Damping parameters
-   type(dftd_parameter), intent(in) :: par
-
-   integer, intent(in) :: ntrans
-   real(wp), intent(in) :: trans(:, :)
-   real(wp), intent(in) :: weighting_factor
-   real(wp), intent(in) :: zeta_scale(:)
-   real(wp), intent(in) :: radii(:)
-   real(wp), intent(in) :: cutoff
-   real(wp), intent(in) :: cutoff3
-   real(wp), intent(in) :: cn(:)
-   real(wp), intent(in) :: dcndr(:, :, :)
-   real(wp), intent(in) :: dcndL(:, :, :)
-
-   real(wp), intent(inout) :: energy
-   real(wp), intent(inout) :: gradient(:, :)
-   real(wp), intent(inout) :: sigma(:, :)
-   real(wp), intent(out), optional :: e2
-   real(wp), intent(out), optional :: e3
-
-   integer :: nat, max_ref
-   real(wp), allocatable :: gw(:, :), dgwdcn(:, :)
-   real(wp), allocatable :: c6(:, :), dc6dcn(:, :)
-   real(wp), allocatable :: energies(:), energies3(:), dEdcn(:)
-
-   nat = len(mol)
-   max_ref = maxval(number_of_references(mol%at))
-   allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
-      & dc6dcn(nat, nat), energies(nat), energies3(nat), &
-      & dEdcn(nat), source=0.0_wp)
-
-   call weight_references_d4(dispm, nat, mol%at, weighting_factor, cn, gw, dgwdcn)
-
-   call get_atomic_c6_d4(dispm, nat, mol%at, gw, dgwdcn, c6, dc6dcn)
-
-   call disp_gradient_latp(mol, ntrans, trans, zeta_scale, radii, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
-      &  energies, gradient, sigma, dEdcn)
-
-   if (present(e2)) e2 = sum(energies)
-   if (par%s9 /= 0.0_wp) then
-      write(*,*) '@thomas delete this write and put call back in code!' !@thomas important
-      !call atm_gradient_latp(mol, trans, cutoff3, par, sqrtZr4r2, c6, dc6dcn, &
-      !   &  energies3, gradient, sigma, dEdcn)
-   end if
-   if (present(e3)) e3 = sum(energies3)
-
-   call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
-   call contract(dcndL, dEdcn, sigma, beta=1.0_wp)
-   energy = energy + sum(energies) + sum(energies3)
-end subroutine d3_full_gradient_latp
-
 
 subroutine d3_gradient_latp &
       & (dispm, mol, fraglist, ntrans, trans, par, weighting_factor, zeta_scale, radii, cutoff, &
@@ -463,14 +400,9 @@ subroutine d3_gradient_latp &
    call disp_gradient_latp_intra(mol, fraglist, ntrans, trans, zeta_scale, radii, cutoff, par, sqrtZr4r2, c6, dc6dcn, &
       &  energies, gradient, sigma, dEdcn)
    endif
-!write(*,*) '1) gradient(:,15)=',gradient(:,15) !@thomas 
-!write(*,*) '1) gradient(:,16)=',gradient(:,16) !@thomas 
-!write(*,'(5f22.15)') dEdcn !@thomas
 
    call contract(dcndr, dEdcn, gradient, beta=1.0_wp)
    call contract(dcndL, dEdcn, sigma, beta=1.0_wp)  ! = dcndL*dEdcn + sigma
-!write(*,*) '2) gradient(:,15)=',gradient(:,15) !@thomas 
-!write(*,*) '2) gradient(:,16)=',gradient(:,16) !@thomas 
 
    energy = energy + sum(energies)
 

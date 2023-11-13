@@ -989,7 +989,7 @@ subroutine xtbMain(env, argParser)
    if(printTopo%any()) then
      select type(calc)
        type is(TGFFCalculator)
-         call write_json_gfnff_lists(mol%n,res%e_total,res%gnorm,calc%topo,chk%nlist,printTopo)
+         call write_json_gfnff_lists(mol%n,res%e_total,res%gnorm,calc%topo,calc%neigh,chk%nlist,printTopo)
      end select
    endif
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &

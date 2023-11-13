@@ -247,14 +247,17 @@ contains
     write (ijson, '(3x,f15.8,"],")') freqres%rmass(freqres%n3true)
   end subroutine write_json_reduced_masses
 
-  subroutine write_json_gfnff_lists(n, etot, gnorm, topo, nlist, printTopo)
+  subroutine write_json_gfnff_lists(n, etot, gnorm, topo, neigh, nlist, printTopo)
     use xtb_gfnff_topology, only: TGFFTopology
     use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
     use xtb_gfnff_topology, only: TPrintTopo
     use xtb_mctc_accuracy, only : wp
+    use xtb_gfnff_neighbor
     include 'xtb_version.fh'
     !> gfnff topology lists
     type(TGFFTopology), intent(in) :: topo
+    !> gfnff neighbourlist
+    type(TNeigh) :: neigh
     !> gfnff neighbourlist
     type(TGFFNeighbourList), intent(in) :: nlist
     !> topology printout booleans
@@ -301,11 +304,11 @@ contains
     end if
     if (printTopo%blist) then ! blist(2,nbond)
       write (iunit, '(3x,''"blist":'',"[")')
-      do j = 1, topo%nbond - 1
+      do j = 1, neigh%nbond - 1
         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%blist(:, j)
         write (iunit, '("],")')
       end do
-      write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, topo%nbond)
+      write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, neigh%nbond)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
     end if
@@ -331,11 +334,11 @@ contains
     end if
     if (printTopo%vbond) then ! vbond(3,nbond)
       write (iunit, '(3x,''"vbond":'',"[")')
-      do j = 1, topo%nbond - 1
+      do j = 1, neigh%nbond - 1
         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vbond(:, j)
         write (iunit, '("],")')
       end do
-      write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, topo%nbond)
+      write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, neigh%nbond)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
     end if

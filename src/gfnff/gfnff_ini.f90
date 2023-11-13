@@ -242,7 +242,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
         MaxCutOff = max(MaxCutoff, 60.0_wp) ! at least 60           
      
         call init_l(latPoint, env, mol%lattice, mol%boundaryCondition, MaxCutOff)
-        call latPoint%getLatticepoints(transVec, MaxCutOff) !@thomas
+        call latPoint%getLatticepoints(transVec, MaxCutOff)
         allocate(dcndL(3,3,mol%n),source = 0.0d0)
         call getCoordinationNumber(mol, latPoint%nTrans, transVec, 40.0_wp, 5, cn, dcn, dcndL, param)   
         deallocate(dcndL)
@@ -289,10 +289,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       ! For bonds to other cells only cells with translation vectors
       !    with "positive" sign (in direction of axes) are considered 
       neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
-      allocate( btyp(topo%nbond), source = 0 )
+      allocate( btyp(neigh%nbond), source = 0 )
       allocate( pibo(neigh%nbond), source = 0.0d0 )
-      ! check for wrong bonds, can occur for close atoms 
-      !@thomas TODO need to rework? for pbc also??
+      ! check for wrong bonds, can occur for close atoms !@thomas 
       if (mod(sum(neigh%nb(neigh%numnb,:,:)),2).ne.0) then
         write(*,*)
         write(*,*) 'Trying to correct wrong bonds in topology.'
@@ -300,7 +299,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                                 & Not sure if bonds will be corrected.'
         write(*,*) 'mod=', mod(sum(neigh%nb(neigh%numnb,:,:)),2), '   sum=', sum(neigh%nb(neigh%numnb,:,:))
         write(*,*) 'neigh%nbond=',neigh%nbond
-        call correct_bonds(mol,neigh) !@thomas important TODO
+        call correct_bonds(mol,neigh)
         write(*,*)
       endif  
       ! setup blist
@@ -323,7 +322,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                   k=k+1
                   neigh%blist(1,k) = i
                   neigh%blist(2,k) = neigh%nb(j,i,iTr)
-                  neigh%blist(3,k) = neigh%iTrNeg(iTr) !@thomas important why iTrNeg??
+                  neigh%blist(3,k) = neigh%iTrNeg(iTr)
                 else
                   k=k+1
                   neigh%blist(1,k) = neigh%nb(j,i,iTr)

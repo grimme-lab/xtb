@@ -121,10 +121,11 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             return
          else if (iver8.eq.int(version)) then
             success = .true.
-            read(ich) topo%nbond,topo%nangl,topo%ntors,topo%nathbH,topo%nathbAB,  &
+            read(ich) topo%nangl,topo%ntors,topo%nathbH,topo%nathbAB,  &
                     & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,topo%maxsystem
             read(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
             read(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
+            topo%nbond = neigh%nbond
             call gfnff_param_alloc(topo,neigh, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
@@ -198,7 +199,7 @@ subroutine write_restart_gff(env,fname,nat,version,topo,neigh)
    call open_binary(ich,fname,'w')
    !Dimensions
    write(ich) int(version,i8),int(nat,i8)
-   write(ich) topo%nbond,topo%nangl,topo%ntors, topo%nathbH,topo%nathbAB, &
+   write(ich) topo%nangl,topo%ntors, topo%nathbH,topo%nathbAB, &
             & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem, topo%maxsystem
    write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
    write(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
