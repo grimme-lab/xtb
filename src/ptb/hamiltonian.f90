@@ -75,12 +75,12 @@ contains
 
       !##### DEV WRITE #####
       write (*, *) "H0 ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") h0(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.6)', advance="no") h0(i, j)
+         end do
+         write (*, *) ""
+      end do
       !#####################
 
    end subroutine get_hamiltonian
@@ -156,7 +156,7 @@ contains
       integer :: iat, jat, izp, jzp, itr, k, img, inl
       integer :: ish, jsh, is, js, ii, jj, iao, jao, nao
       real(wp) :: wolfsberg, polarized_levels, sum_levels, ocod_param, rscal
-      real(wp) :: radii_dependence
+      real(wp) :: radii_dependence, ssquraedterm, ocodterm, sterm
       !> Interatomic vector
       real(wp) :: vec(3) = 0.0_wp
       real(wp) :: r2, rab
@@ -176,13 +176,15 @@ contains
       !> Loop over all neighbours (iat =/= jat) and set the Hamiltonian for off-center elements
       k = 0
       do iat = 1, mol%nat
-         write (*, *) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
+         !##### DEV WRITE #####
+         ! write (*, *) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
          izp = mol%id(iat)
          is = bas%ish_at(iat)
          inl = list%inl(iat)
          do img = 1, list%nnl(iat)
             jat = list%nlat(img + inl)
-            write (*, *) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat))
+            !##### DEV WRITE #####
+            ! write (*, *) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat))
             itr = list%nltr(img + inl)
             jzp = mol%id(jat)
             js = bas%ish_at(jat)
@@ -190,7 +192,8 @@ contains
             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
             rab = sqrt(r2)
             k = k + 1
-            write (*, *) "iteration: ", k, "distance: ", sqrt(r2)
+            !##### DEV WRITE #####
+            ! write (*, *) "iteration: ", k, "distance: ", sqrt(r2)
             do ish = 1, bas%nsh_id(izp)
                ii = bas%iao_sh(is + ish)
                do jsh = 1, bas%nsh_id(jzp)
@@ -200,17 +203,17 @@ contains
                   do iao = 1, msao(bas%cgto(ish, izp)%ang)
                      do jao = 1, nao
                         !> Single contributions to H0
-                        sum_levels = levels(js+jsh) + levels(is+ish)
-                        wolfsberg =  hData%kla(ish, izp) + hData%kla(jsh, jzp)
-                        polarized_levels = 1.0_wp - kpol*((levels(js + jsh) - levels(is + ish)) / &
-                        & sum_levels )**2
-                        radii_dependence = 1.0_wp + & 
-                        & (hData%kr(izp) + hData%kr(jzp))*rscal / rab
+                        sum_levels = levels(js + jsh) + levels(is + ish)
+                        wolfsberg = hData%kla(ish, izp) + hData%kla(jsh, jzp)
+                        polarized_levels = 1.0_wp - kpol*((levels(js + jsh) - levels(is + ish))/ &
+                        & sum_levels)**2
+                        radii_dependence = 1.0_wp + &
+                        & (hData%kr(izp) + hData%kr(jzp))*rscal/rab
                         !> Set H0
-                        h0mat(jj + jao, ii + iao) = 0.5_wp * sh0(jj + jao, ii + iao) * &
-                           & sum_levels * &
-                           & wolfsberg * &
-                           & polarized_levels * &
+                        h0mat(jj + jao, ii + iao) = 0.5_wp*sh0(jj + jao, ii + iao)* &
+                           & sum_levels* &
+                           & wolfsberg* &
+                           & polarized_levels* &
                            & radii_dependence
                         h0mat(ii + iao, jj + jao) = h0mat(jj + jao, ii + iao)
                         !##### DEV WRITE #####
@@ -227,7 +230,56 @@ contains
          end do
       end do
 
-      !> Loop over all atoms and set the Hamiltonian for on-center elements
+      !> Loop over all atoms and set the Hamiltonian for one-center off(-shell)-diagonal elements
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         is = bas%ish_at(iat)
+         do ish = 1, bas%nsh_id(izp)
+            ii = bas%iao_sh(is + ish)
+            do jsh = 1, ish-1
+               jj = bas%iao_sh(is + jsh)
+               nao = msao(bas%cgto(jsh, izp)%ang)
+               do iao = 1, msao(bas%cgto(ish, izp)%ang)
+                  do jao = 1, nao
+                     sum_levels = levels(is + jsh) + levels(is + ish)
+                     ocodterm = hData%ksla(ish, izp) * ocod_param
+                     ssquraedterm = sh0(jj + jao, ii + iao)**2 * &
+                        & sum_levels * &
+                        & hData%kocod(izp) * &
+                        & ocodterm
+                     sterm = sh0(jj + jao, ii + iao) * &
+                        & sum_levels * &
+                        & ocodterm
+                     h0mat(jj + jao, ii + iao) = sterm + &
+                        & ssquraedterm
+                     h0mat(ii + iao, jj + jao) = h0mat(jj + jao, ii + iao)
+                     !##### DEV WRITE #####
+                     ! write(*,'(a,i3,i3,f8.4,f8.4,f8.4,f8.4,f8.4)') "i, j, tmp, ssquraedterm, sterm, ocodterm: ",&
+                     ! & ii+iao, jj+jao, h0mat(jj + jao, ii + iao), ssquraedterm, sterm, ocodterm, &
+                     ! & sh0(jj + jao, ii + iao) * sum_levels
+                     !#####################
+                  end do
+               end do
+            end do
+         end do
+      end do
+
+      !> Loop over all atoms and set the Hamiltonian for one-center diagonal elements (same AO!)
+      !> CAUTION: Loop doesn't run over one-center diagonal elements of different AOs in the same shell
+      !> (Overlap matrix elements are zero for these elements)
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         is = bas%ish_at(iat)
+         do ish = 1, bas%nsh_id(izp)
+            ii = bas%iao_sh(is + ish)
+            do iao = 1, msao(bas%cgto(ish, izp)%ang)
+               h0mat(ii + iao, ii + iao) = 2.0_wp * levels(is + ish)
+               !##### DEV WRITE #####
+               ! write(*,*) "i, j, tmp: ", ii+iao, ii+iao, h0mat(ii + iao, ii + iao)
+               !#####################
+            end do
+         end do
+      end do
 
    end subroutine get_h0
 
