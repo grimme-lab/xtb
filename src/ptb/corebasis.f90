@@ -21,7 +21,6 @@ module xtb_ptb_corebasis
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
-   use xtb_ptb_param, only: max_elem, highest_elem  !> General parameters
    use xtb_ptb_data, only: TCorePotentialData
 
    use tblite_basis_type, only: cgto_type, new_basis, basis_type

@@ -29,9 +29,9 @@ module xtb_ptb_scf
 
    use multicharge_model, only: mchrg_model_type
 
-   use xtb_ptb_vdzp, only: add_vDZP_basis
+   use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: kalphah0l, klalphaxc, &
-   & nshell, max_shell, ptbGlobals, rf
+   & ptbGlobals, rf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
@@ -93,6 +93,8 @@ contains
       real(wp), allocatable :: lattr(:, :)
       !> Cutoff for lattice points
       real(wp) :: cutoff
+      !> Iteration counter
+      integer :: iter
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -236,8 +238,9 @@ contains
       !> Get the adjacency list for iteration through the Hamiltonian
       call new_adjacency_list(list, mol, lattr, cutoff)
       !> Set up the effective Hamiltonian in the first iteration
-      call get_hamiltonian(mol, list, bas, overlap, overlap_h0, overlap_xc, &
-      & vecp, levels, hmat)
+      iter = 1
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
+      & vecp, levels, iter, hmat)
 
    end subroutine twostepscf
 

@@ -34,11 +34,13 @@ module xtb_ptb_data
    interface newData
       module procedure :: newAtomicData
       module procedure :: newShellData
+      module procedure :: newAngShellData
    end interface newData
 
    interface getData
       module procedure :: getAtomicData
       module procedure :: getShellData
+      module procedure :: getAngShellData
    end interface getData
 
    !> Data for the dispersion contribution
@@ -200,6 +202,10 @@ module xtb_ptb_data
       real(wp), allocatable :: kcnstar(:)
       !> Shift of atomic levels depending only on coordination number-star
       real(wp), allocatable :: kshift(:)
+      !> Wolfsberg parameter for EHT
+      real(wp), allocatable :: kla(:,:)
+      !> Atomic radii for H0
+      real(wp), allocatable :: kr(:)
 
    end type THamiltonianData
 
@@ -548,8 +554,8 @@ contains
 
    end subroutine initEEQ
 
-   subroutine initHamiltonian(self, num, nshell, h0_levels, &
-      & cn_dependency, cnstar_dependency, cnstar_shift)
+   subroutine initHamiltonian(self, num, nshell, ang_shell, h0_levels, &
+      & cn_dependency, cnstar_dependency, cnstar_shift, wolfsberg_par, atom_radii_h0)
 
       !> Data instance
       type(THamiltonianData), intent(out) :: self
@@ -557,6 +563,8 @@ contains
       integer, intent(in) :: num(:)
       !> Number of shells for each atom
       integer, intent(in) :: nshell(:)
+      !> Angular momenta of each shell
+      integer, intent(in) :: ang_shell(:, :)
       !> Atomic level information
       real(wp), intent(in) :: h0_levels(:, :)
       !> Coordination number dependence of the atomic levels
@@ -565,11 +573,17 @@ contains
       real(wp), intent(in) :: cnstar_dependency(:)
       !> Shift of atomic levels depending only on coordination number-star
       real(wp), intent(in) :: cnstar_shift(:)
+      !> Wolfsberg parameter for EHT
+      real(wp), intent(in) :: wolfsberg_par(:, :)
+      !> Atomic radii for H0
+      real(wp), intent(in) :: atom_radii_h0(:)
 
       call newData(self%selfEnergy, num, nshell, h0_levels)
       call newData(self%klh, num, nshell, cn_dependency)
       call newData(self%kcnstar, num, cnstar_dependency)
       call newData(self%kshift, num, cnstar_shift)
+      call newData(self%kla, num, nshell, ang_shell, wolfsberg_par)
+      call newData(self%kr, num, atom_radii_h0)
 
    end subroutine initHamiltonian
 
@@ -643,7 +657,7 @@ contains
       !> Data in terms of angular momenta of each shell
       real(wp), intent(in) :: angDat(0:, :)
 
-      integer :: nElem, iZp, iSh, lAng, iKind
+      integer :: nElem, iZp, iSh, lAng
 
       nElem = min(size(kDat, dim=2), size(nShell), size(angShell, dim=2), &
          & size(angDat, dim=2))
@@ -724,5 +738,47 @@ contains
       end do
 
    end subroutine getShellData
+
+   subroutine newAngShellData(vec, num, nshell, angmompershell, data)
+
+      real(wp), allocatable, intent(out) :: vec(:, :)
+
+      integer, intent(in) :: num(:)
+
+      integer, intent(in) :: nshell(:)
+
+      integer, intent(in) :: angmompershell(:,:)
+
+      real(wp), intent(in) :: data(:, :)
+
+      allocate (vec(maxval(nshell), size(num)))
+      call getAngShellData(vec, num, nshell, angmompershell, data)
+
+   end subroutine newAngShellData
+
+   subroutine getAngShellData(vec, num, nshell, angmompershell, data)
+
+      real(wp), intent(out) :: vec(:, :)
+
+      integer, intent(in) :: num(:)
+
+      integer, intent(in) :: nshell(:)
+
+      integer, intent(in) :: angmompershell(:,:)
+
+      real(wp), intent(in) :: data(:, :)
+
+      integer :: ii, ish, izp, angmom
+
+      vec(:, :) = 0.0_wp
+      do ii = 1, size(vec, dim=2)
+         izp = num(ii)
+         do ish = 1, nshell(izp)
+            angmom = angmompershell(ish, izp)
+            vec(ish, ii) = data(angmom, izp)
+         end do
+      end do
+
+   end subroutine getAngShellData
 
 end module xtb_ptb_data

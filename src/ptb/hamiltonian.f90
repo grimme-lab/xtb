@@ -23,9 +23,10 @@ module xtb_ptb_hamiltonian
 
    use tblite_basis_type, only: basis_type
    use tblite_adjlist, only: adjacency_list
-   use tblite_integral_multipole, only : msao
+   use tblite_integral_multipole, only: msao
 
    use xtb_ptb_data, only: THamiltonianData
+   use xtb_ptb_param, only: ptbGlobals
 
    implicit none
 
@@ -35,22 +36,27 @@ module xtb_ptb_hamiltonian
 
 contains
 
-   subroutine get_hamiltonian(mol, list, bas, overlap, overlap_h0, overlap_xc, &
-      & vecp, selfenergies, hamiltonian)
+   subroutine get_hamiltonian(mol, list, bas, hData, overlap, overlap_h0, overlap_xc, &
+      & vecp, selfenergies, iteration, hamiltonian)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Neighbour list
       type(adjacency_list), intent(in) :: list
       !> Basis set data
       type(basis_type), intent(in) :: bas
+      !> THamiltonian data
+      type(THamiltonianData), intent(in) :: hData
       !> (Scaled) overlap matrix
       real(wp), intent(in) :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
       !> Effective core potential
       real(wp), intent(in) :: vecp(:, :)
       !> Self-energies
       real(wp), intent(in) :: selfenergies(:)
+      !> Iteration
+      integer, intent(in) :: iteration
       !> Effective Hamiltonian
       real(wp), allocatable, intent(out) :: hamiltonian(:, :)
+
       !> H0 matrix
       real(wp), allocatable :: h0(:, :)
 
@@ -58,7 +64,12 @@ contains
 
       hamiltonian = vecp
 
-      call get_h0(mol, list, bas, overlap_h0, selfenergies, h0)
+      if (iteration == 1) then
+         call get_h0(mol, list, bas, hData, overlap_xc, selfenergies, h0, ptbGlobals%kpol, &
+            & ptbGlobals%kitr, ptbGlobals%kitocod)
+      else
+         call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol)
+      end if
 
    end subroutine get_hamiltonian
 
@@ -107,44 +118,67 @@ contains
 
    end subroutine get_selfenergy
 
-   subroutine get_h0(mol, list, bas, sh0, levels, h0mat)
+   subroutine get_h0(mol, list, bas, hData, sh0, levels, h0mat, kpol, kitr, kitocod)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Neighbour list
       type(adjacency_list), intent(in) :: list
       !> Basis set data
       type(basis_type), intent(in) :: bas
+      !> THamiltonian data
+      type(THamiltonianData), intent(in) :: hData
       !> (Scaled) overlap matrix
       real(wp), intent(in) :: sh0(:, :)
       !> Levels
       real(wp), intent(in) :: levels(:)
       !> H0 matrix
       real(wp), intent(out) :: h0mat(:, :)
+      !> Level polarization scaling in H0
+      real(wp), intent(in) :: kpol
+      !> Optional, iteration-dependent parameters:
+      !> Radii scaling in H0
+      real(wp), optional, intent(in) :: kitr
+      !> One-center-off-center distance scaling in H0
+      real(wp), optional, intent(in) :: kitocod
       !> Loop variables
       integer :: iat, jat, izp, jzp, itr, k, img, inl
-      integer :: ish, jsh, is, js, ii, jj, iao, jao, nao, ij
+      integer :: ish, jsh, is, js, ii, jj, iao, jao, nao
+      real(wp) :: wolfsberg, polarized_levels, sum_levels, ocod_param, rscal
+      real(wp) :: radii_dependence
       !> Interatomic vector
       real(wp) :: vec(3) = 0.0_wp
-      real(wp) :: r2
+      real(wp) :: r2, rab
 
-      !> EXPLANATION:
+      if (present(kitocod)) then
+         ocod_param = kitocod
+      else
+         ocod_param = 1.0_wp
+      end if
+
+      if (present(kitr)) then
+         rscal = kitr
+      else
+         rscal = 1.0_wp
+      end if
+
       !> Loop over all neighbours (iat =/= jat) and set the Hamiltonian for off-center elements
-      k=0
+      k = 0
       do iat = 1, mol%nat
-         write(*,*) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
+         write (*, *) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
          izp = mol%id(iat)
          is = bas%ish_at(iat)
          inl = list%inl(iat)
          do img = 1, list%nnl(iat)
             jat = list%nlat(img + inl)
-            write(*,*) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat))
+            write (*, *) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat))
             itr = list%nltr(img + inl)
             jzp = mol%id(jat)
             js = bas%ish_at(jat)
             vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat)
             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+            rab = sqrt(r2)
             k = k + 1
-            write(*,*) "iteration: ", k, "distance: ", sqrt(r2)
+            write (*, *) "iteration: ", k, "distance: ", sqrt(r2)
             do ish = 1, bas%nsh_id(izp)
                ii = bas%iao_sh(is + ish)
                do jsh = 1, bas%nsh_id(jzp)
@@ -153,7 +187,19 @@ contains
                   nao = msao(bas%cgto(jsh, jzp)%ang)
                   do iao = 1, msao(bas%cgto(ish, izp)%ang)
                      do jao = 1, nao
-                        ij = jao + nao*(iao - 1)
+                        !> ### Single contributions to H0 ###
+                        sum_levels = levels(jj + jao) + levels(ii + iao)
+                        wolfsberg = 0.5_wp * ( hData%kla(ish, izp) + hData%kla(jsh, jzp) )
+                        polarized_levels = 1.0_wp - kpol*((levels(jj + jao) - levels(ii + iao)) / &
+                        & sum_levels )**2
+                        radii_dependence = 1.0_wp + & 
+                        & (hData%kr(izp) + hData%kr(jzp))*rscal / rab
+                        ! ####################################
+                        !> Set H0
+                        h0mat(jj + jao, ii + iao) = sh0(jj + jao, ii + iao) * &
+                           & wolfsberg * &
+                           & polarized_levels * &
+                           & radii_dependence
                      end do
                   end do
 
@@ -163,7 +209,6 @@ contains
          end do
       end do
 
-      !> EXPLANATION:
       !> Loop over all atoms and set the Hamiltonian for on-center elements
 
    end subroutine get_h0

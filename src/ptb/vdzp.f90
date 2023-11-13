@@ -18,8 +18,6 @@
 !> PTB basis set data
 
 module xtb_ptb_vdzp
-   use xtb_ptb_param, only: max_elem, highest_elem, max_shell, nshell
-
    !> mctc-lib
    use mctc_env, only: error_type, wp
    use mctc_io, only: structure_type
@@ -31,13 +29,26 @@ module xtb_ptb_vdzp
    implicit none
    private
 
-   public :: add_vDZP_basis
+   public :: add_vDZP_basis, nshell, max_shell, max_elem, ang_shell
+
+   !> Maximum number of shells supported by PTB/vDZP
+   integer, parameter :: max_shell = 7
+
+   !> Highest element supported by PTB/vDZP
+   integer, parameter :: max_elem = 86
 
    !> Maximal number of primitives per CGTO
    integer, parameter :: max_prim = 5
 
+   integer, parameter :: nshell(max_elem) = [ &
+   & 3, 3, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 5, 5, 5, 5, 5, 5, 6, 6, &   ! 1-20
+   & 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 6, 6, 7, 7, &   ! 21-40
+   & 7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 6, 6, 7, 0, 0, 0, &   ! 41-60
+   & 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, &   ! 61-80
+   & 5, 5, 5, 5, 5, 5]                                               ! 81-86
+
    !> Angular momenta of basis functions (-> CGTOs)
-   integer, parameter :: ang_shell(max_shell, highest_elem) = reshape([&
+   integer, parameter :: ang_shell(max_shell, max_elem) = reshape([&
    & 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, & ! up to element: 3
    & 0, 0, 0, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, & ! up to element: 6
    & 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0, & ! up to element: 9
@@ -69,7 +80,7 @@ module xtb_ptb_vdzp
    & 0, 0, 1, 1, 2, 0, 0, 0, 0, 1, 1, 2, 0, 0], shape(ang_shell))
 
    !> Contraction length (n_prim) of basis functions (-> CGTOs)
-   integer, parameter :: n_prim(max_shell, highest_elem) = reshape([&
+   integer, parameter :: n_prim(max_shell, max_elem) = reshape([&
    & 5, 3, 2, 0, 0, 0, 0, 5, 3, 2, 0, 0, 0, 0, 5, 3, 2, 3, 2, 0, 0, & ! up to element: 3
    & 5, 3, 2, 3, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0, & ! up to element: 6
    & 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0, & ! up to element: 9
@@ -101,11 +112,11 @@ module xtb_ptb_vdzp
    & 4, 2, 4, 2, 2, 0, 0, 4, 2, 4, 2, 2, 0, 0], shape(n_prim))
 
    !> CGTO exponents (Exponent of the primitive Gaussian functions)
-   real(wp), protected :: exponents(max_prim, max_shell, highest_elem) = 0.0_wp
+   real(wp), protected :: exponents(max_prim, max_shell, max_elem) = 0.0_wp
 
    !> CGTO coefficients (Contraction coefficients of the primitive Gaussian functions,
    !> might contain normalization)
-   real(wp), protected :: coefficients(max_prim, max_shell, highest_elem) = 0.0_wp
+   real(wp), protected :: coefficients(max_prim, max_shell, max_elem) = 0.0_wp
 
    interface add_vDZP_basis
       module procedure :: add_vDZP_basis_scaling
