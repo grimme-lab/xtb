@@ -171,7 +171,7 @@ module xtb_ptb_param
 
    !> Scale one-center-off-diagonal elements of H0
    !> see Eq. 8 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: ksla(max_elem, 3) = reshape([&
+   real(wp), parameter :: ksla(max_angmom+1, max_elem) = reshape([&
    &  2.6278779271_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  2.6548058980_wp,  0.0000000000_wp,  0.0000000000_wp, &
    &  2.7971693029_wp,  0.0000000000_wp,  0.0000000000_wp, &
@@ -2133,7 +2133,8 @@ contains
       ! allocate (self%kCN(mShell, highest_elem))
       ! call angToShellData(self%kCN, nShell, self%angShell, kCN)
       call init(self, num, nshell, ang_shell, &
-      & hla, klh, kcnstar, kshift, kla, kr)
+      & hla, klh, kcnstar, kshift, kla, kr, kocod, &
+      & ksla)
 
       ! allocate (self%valenceShell(max_shell, highest_elem))
       ! call generateValenceShellData(self%valenceShell, nShell, self%angShell)

@@ -206,6 +206,10 @@ module xtb_ptb_data
       real(wp), allocatable :: kla(:,:)
       !> Atomic radii for H0
       real(wp), allocatable :: kr(:)
+      !> One-center off-diagonal scaling of S_H0 (squared)
+      real(wp), allocatable :: kocod(:)
+      !> OCOD scaling fo s-s', p-p', d-d'...
+      real(wp), allocatable :: ksla(:,:)
 
    end type THamiltonianData
 
@@ -555,7 +559,8 @@ contains
    end subroutine initEEQ
 
    subroutine initHamiltonian(self, num, nshell, ang_shell, h0_levels, &
-      & cn_dependency, cnstar_dependency, cnstar_shift, wolfsberg_par, atom_radii_h0)
+      & cn_dependency, cnstar_dependency, cnstar_shift, wolfsberg_par, &
+      & atom_radii_h0, onecenteroffdiagonal, ocod_l)
 
       !> Data instance
       type(THamiltonianData), intent(out) :: self
@@ -577,6 +582,10 @@ contains
       real(wp), intent(in) :: wolfsberg_par(:, :)
       !> Atomic radii for H0
       real(wp), intent(in) :: atom_radii_h0(:)
+      !> One-center off-diagonal scaling of S_H0 (squared)
+      real(wp), intent(in) :: onecenteroffdiagonal(:)
+      !> Ang-mom-dependent OCOD scaling for s-s', p-p', d-d'...
+      real(wp), intent(in) :: ocod_l(:,:)
 
       call newData(self%selfEnergy, num, nshell, h0_levels)
       call newData(self%klh, num, nshell, cn_dependency)
@@ -584,6 +593,8 @@ contains
       call newData(self%kshift, num, cnstar_shift)
       call newData(self%kla, num, nshell, ang_shell, wolfsberg_par)
       call newData(self%kr, num, atom_radii_h0)
+      call newData(self%kocod, num, onecenteroffdiagonal)
+      call newData(self%ksla, num, nshell, ang_shell, ocod_l)
 
    end subroutine initHamiltonian
 
