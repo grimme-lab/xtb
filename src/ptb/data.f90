@@ -29,7 +29,7 @@ module xtb_ptb_data
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
    public :: TShortRangeData, TCorePotentialData, TEEQData
    public :: newData, getData
-   public :: generateValenceShellData, angToShellData
+   public :: angToShellData
 
    interface newData
       module procedure :: newAtomicData
@@ -155,35 +155,17 @@ module xtb_ptb_data
       !> Exponent for shell exponent weighting
       real(wp) :: wExp
 
-      !> Principal quantum number of each shell
-      integer, allocatable :: principalQuantumNumber(:, :)
-
-      !> Angular momentum of each shell
-      integer, allocatable :: angShell(:, :)
-
-      !> Valence character of each shell
-      integer, allocatable :: valenceShell(:, :)
-
       !> Number of primitives for expansion of Slater functions
       integer, allocatable :: numberOfPrimitives(:, :)
 
-      !> Exponent of the Slater function
-      real(wp), allocatable :: slaterExponent(:, :)
-
       !> Reference occupation of the atom
-      real(wp), allocatable :: referenceOcc(:, :)
+      real(wp), allocatable :: refocc(:, :)
 
       !> Electronegativity used in the shell polynomials
       real(wp), allocatable :: electronegativity(:)
 
       !> Atomic radii used in the shell polynomials
       real(wp), allocatable :: atomicRad(:)
-
-      !> Shell polynomials to scale Hamiltonian elements
-      real(wp), allocatable :: shellPoly(:, :)
-
-      !> Pair parameters to scale Hamiltonian elements
-      real(wp), allocatable :: pairParam(:, :)
 
       !> Charge dependence of the atomic levels
       real(wp), allocatable :: kQShell(:, :)
@@ -327,25 +309,6 @@ module xtb_ptb_data
       module procedure :: initHamiltonian
    end interface init
 
-   ! ========================================================================
-   ! MULTIPOLE DATA
-   !> Valence coordination number for radii
-   real(wp), parameter :: valenceCN(1:118) = [&
-      & 1.0_wp, 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 2.0_wp, 1.0_wp, &
-      & 1.0_wp, 1.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
-      & 1.0_wp, 2.0_wp, 4.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
-      & 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
-      & 1.0_wp, 2.0_wp, 4.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
-      & 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, &
-      & 1.0_wp, 2.0_wp, 4.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, &
-      & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, &
-      & 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 6.0_wp, 4.0_wp, 4.0_wp, 2.0_wp, 3.0_wp, &
-      & 3.0_wp, 3.0_wp, 3.0_wp, 1.0_wp, 1.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
-      & 0.0_wp]
-
 contains
 
    subroutine writeInfo(self, unit, num)
@@ -429,35 +392,6 @@ contains
       write (unit, '(a)')
 
    end subroutine writeInfo
-
-!> Generator for valence shell data from the angular momenta of the shells
-   subroutine generateValenceShellData(valenceShell, nShell, angShell)
-
-      !> Valency character of each shell
-      integer, intent(out) :: valenceShell(:, :)
-
-      !> Number of shells for each atom
-      integer, intent(in) :: nShell(:)
-
-      !> Angular momenta of each shell
-      integer, intent(in) :: angShell(:, :)
-
-      integer :: lAng, iZp, iSh
-      logical :: valShell(0:3)
-
-      valenceShell(:, :) = 0
-      do iZp = 1, size(nShell, dim=1)
-         valShell(:) = .true.
-         do iSh = 1, nShell(iZp)
-            lAng = angShell(iSh, iZp)
-            if (valShell(lAng)) then
-               valShell(lAng) = .false.
-               valenceShell(iSh, iZp) = 1
-            end if
-         end do
-      end do
-
-   end subroutine generateValenceShellData
 
    subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
          & electronegativity)

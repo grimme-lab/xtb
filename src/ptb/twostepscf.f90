@@ -19,13 +19,14 @@
 
 module xtb_ptb_scf
    use mctc_io, only: structure_type
-   use mctc_env, only: wp, error_type
+   use mctc_env, only: wp, error_type, fatal_error
 
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
    use tblite_adjlist, only : adjacency_list, new_adjacency_list
    use tblite_cutoff, only : get_lattice_points
+   use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
 
    use multicharge_model, only: mchrg_model_type
 
@@ -37,7 +38,8 @@ module xtb_ptb_scf
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
    use xtb_ptb_data, only: TPTBData
-   use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy
+   use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy, get_occupation
+   use xtb_ptb_guess, only: guess_shell_pop
 
    implicit none
    private
@@ -48,9 +50,11 @@ module xtb_ptb_scf
 
 contains
 
-   subroutine twostepscf(ctx, data, mol, bas, cbas, eeqmodel)
+   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, eeqmodel)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
+      !> Wavefunction of tblite type
+      type(wavefunction_type), intent(inout) :: wfn
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> PTB parameterization data
@@ -79,8 +83,6 @@ contains
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
-      !> EEQ charges
-      real(wp), allocatable :: q_eeq(:)
       !> Normalization factors
       real(wp), allocatable :: norm_overlap(:)
       !> Effective core potential
@@ -95,6 +97,8 @@ contains
       real(wp) :: cutoff
       !> Iteration counter
       integer :: iter
+      !> Number of electrons
+      real(wp) :: nel
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -208,12 +212,11 @@ contains
       !#####################
 
       !> EEQ call
-      allocate (q_eeq(mol%nat))
-      call eeqmodel%solve(mol, cn_eeq, qvec=q_eeq)
+      call eeqmodel%solve(mol, cn_eeq, qvec=wfn%qat(:, 1))
       !##### DEV WRITE #####
       write (*, *) "EEQ charges:"
       do i = 1, mol%nat
-         write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", q_eeq(i)
+         write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", wfn%qat(i, 1)
       end do
       !#####################
 
@@ -241,6 +244,24 @@ contains
       iter = 1
       call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
       & vecp, levels, iter, hmat)
+
+      !> Project reference occupation on wavefunction and use EEQ charges as guess
+      call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
+      !> wfn%qsh contains shell populations, NOT shell charges
+      call guess_shell_pop(wfn, bas)
+
+      !> Project occupations on alpha and beta orbitals
+      nel = sum(wfn%n0at) - mol%charge
+      if (mod(mol%uhf, 2) == mod(nint(nel), 2)) then
+         wfn%nuhf = mol%uhf
+      else
+         call fatal_error(error, "Number of electrons and spin multiplicity do not match.")
+      end if
+      if (allocated(error)) then
+         call ctx%set_error(error)
+         return
+      end if
+      call get_alpha_beta_occupation(wfn%nocc, wfn%nuhf, wfn%nel(1), wfn%nel(2))
 
    end subroutine twostepscf
 
