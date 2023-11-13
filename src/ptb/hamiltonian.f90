@@ -59,17 +59,29 @@ contains
 
       !> H0 matrix
       real(wp), allocatable :: h0(:, :)
+      !> tmp loop variables
+      integer :: i, j
 
       allocate (hamiltonian(bas%nao, bas%nao), h0(bas%nao, bas%nao), source=0.0_wp)
 
       hamiltonian = vecp
 
       if (iteration == 1) then
-         call get_h0(mol, list, bas, hData, overlap_xc, selfenergies, h0, ptbGlobals%kpol, &
+         call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
             & ptbGlobals%kitr, ptbGlobals%kitocod)
       else
          call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol)
       end if
+
+      !##### DEV WRITE #####
+      write (*, *) "H0 ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") h0(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
+      !#####################
 
    end subroutine get_hamiltonian
 
@@ -89,7 +101,7 @@ contains
       !> tmp reals
       real(wp) :: combinedcn
 
-      allocate (selfenergies(bas%nao), source=0.0_wp)
+      allocate (selfenergies(bas%nsh), source=0.0_wp)
 
       do iat = 1, mol%nat
          iid = mol%id(iat)
@@ -187,19 +199,25 @@ contains
                   nao = msao(bas%cgto(jsh, jzp)%ang)
                   do iao = 1, msao(bas%cgto(ish, izp)%ang)
                      do jao = 1, nao
-                        !> ### Single contributions to H0 ###
-                        sum_levels = levels(jj + jao) + levels(ii + iao)
-                        wolfsberg = 0.5_wp * ( hData%kla(ish, izp) + hData%kla(jsh, jzp) )
-                        polarized_levels = 1.0_wp - kpol*((levels(jj + jao) - levels(ii + iao)) / &
+                        !> Single contributions to H0
+                        sum_levels = levels(js+jsh) + levels(is+ish)
+                        wolfsberg =  hData%kla(ish, izp) + hData%kla(jsh, jzp)
+                        polarized_levels = 1.0_wp - kpol*((levels(js + jsh) - levels(is + ish)) / &
                         & sum_levels )**2
                         radii_dependence = 1.0_wp + & 
                         & (hData%kr(izp) + hData%kr(jzp))*rscal / rab
-                        ! ####################################
                         !> Set H0
-                        h0mat(jj + jao, ii + iao) = sh0(jj + jao, ii + iao) * &
+                        h0mat(jj + jao, ii + iao) = 0.5_wp * sh0(jj + jao, ii + iao) * &
+                           & sum_levels * &
                            & wolfsberg * &
                            & polarized_levels * &
                            & radii_dependence
+                        h0mat(ii + iao, jj + jao) = h0mat(jj + jao, ii + iao)
+                        !##### DEV WRITE #####
+                        ! write(*,'(a,i3,i3,f8.4,f8.4,f8.4,f8.4,f8.4)') "i, j, tmp, keav, pol, xk, ssh: ",&
+                        ! & ii+iao, jj+jao, h0mat(jj + jao, ii + iao), wolfsberg*0.5_wp, &
+                        ! & polarized_levels, radii_dependence, sh0(jj + jao, ii + iao)*sum_levels
+                        !#####################
                      end do
                   end do
 

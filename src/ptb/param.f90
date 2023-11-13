@@ -56,7 +56,7 @@ module xtb_ptb_param
       mlmix = 0.33333333333333_wp)
 
    !> Maximum angular momentum supported by PTB
-   integer, parameter :: max_angmom = 2
+   integer, parameter :: max_angmom = maxval(ang_shell)
 
    !----------- H0 DATA --------------
 
@@ -86,7 +86,7 @@ module xtb_ptb_param
 
    !> Wolfsberg parameter in H0
    !> see Eq. 7 in J. Chem. Phys. 158, 124111 (2023)
-   real(wp), parameter :: kla(max_angmom, max_elem) = reshape([&
+   real(wp), parameter :: kla(max_angmom+1, max_elem) = reshape([&
    &  2.3456350394_wp, 2.5867439077_wp, 0.0000000000_wp, &
    &  1.8790862592_wp, 2.2362835825_wp, 0.0000000000_wp, &
    &  2.1034538375_wp, 2.0807166747_wp, 2.3889199775_wp, &

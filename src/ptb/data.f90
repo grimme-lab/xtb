@@ -775,7 +775,7 @@ contains
          izp = num(ii)
          do ish = 1, nshell(izp)
             angmom = angmompershell(ish, izp)
-            vec(ish, ii) = data(angmom, izp)
+            vec(ish, ii) = data(angmom+1, izp)
          end do
       end do
 
