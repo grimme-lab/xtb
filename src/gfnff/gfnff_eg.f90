@@ -350,8 +350,8 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    if (pr) call timer%measure(2,'non bonded repulsion')
    !$omp parallel do default(none) reduction(+:erep, g, sigma) &
    !$omp shared(n, at, xyz, srab, sqrab, transVec, repthr, &
-   !$omp topo, param, vec, neigh, mcf_nrep) &
-   !$omp private(iat, jat, iTr, iTrDum, m, ij, ati, atj, rab, r2, r3, t8, t16, t19, t26, t27)
+   !$omp topo, param, neigh, mcf_nrep) &
+   !$omp private(iat, jat, iTr, iTrDum, m, ij, ati, atj, rab, r2, r3, vec, t8, t16, t19, t26, t27)
    do iat=1,n
      do jat=1,iat
        do iTr=1, neigh%nTrans
