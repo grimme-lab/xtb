@@ -47,7 +47,8 @@ contains
                   new_unittest("overlap_h0", test_ptb_overlap_h0), &
                   new_unittest("overlap_sx", test_ptb_overlap_SX), &
                   new_unittest("v_ecp", test_ptb_V_ECP), &
-                  new_unittest("selfenergies", test_ptb_selfenergies) &
+                  new_unittest("selfenergies", test_ptb_selfenergies), &
+                  new_unittest("hamiltonian_h0", test_ptb_hamiltonian_h0) &
                   ]
 
    end subroutine collect_ptb
@@ -491,5 +492,60 @@ contains
       end do
 
    end subroutine test_ptb_selfenergies
+
+   subroutine test_ptb_hamiltonian_h0(error)
+      !> tblite basis set type
+      use tblite_basis_type, only: basis_type
+      !> PTB core basis set generation
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
+
+      !> PTB vDZP basis set and core basis set
+      type(basis_type) :: bas
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> (Scaled) overlap matrix
+      real(wp), allocatable :: overlap_h0(:, :)
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      character(len=:), allocatable :: message
+      !> Structure
+      real(wp), parameter :: xyz(3, 2) = reshape([ &
+      & 2.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
+      integer, parameter :: nat = 2
+      integer, parameter :: at(nat) = [5, 17]
+
+      real(wp), parameter :: h0_ref(4) = [ &
+      &  0.0_wp, & ! 1,1 ; diffferent because of tblite ordering
+      &  0.0_wp, & ! 1,3 ; diffferent because of tblite ordering
+      &  0.0_wp, & ! 3,5 ; diffferent because of tblite ordering
+      &  0.0_wp]   ! 9,9 ; diffferent because of tblite ordering
+
+      !> Hamiltonian matrix
+      real(wp), allocatable :: hamiltonian(:, :)
+
+      call new(mol, at, xyz)
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+
+      allocate (hamiltonian(bas%nao, bas%nao), source=0.0_wp)
+
+      message = "H0 matrix element not matching to expected value."
+      call check_(error, hamiltonian(1, 1),  h0_ref(1), thr=thr2, &
+      & message=message)
+      call check_(error, hamiltonian(1, 5),  h0_ref(2), thr=thr2, &
+      & message=message)
+      call check_(error, hamiltonian(5, 8),  h0_ref(3), thr=thr2, &
+      & message=message)
+      call check_(error, hamiltonian(12, 12),h0_ref(4), thr=thr2, &
+      & message=message)
+   end subroutine test_ptb_hamiltonian_h0
 
 end module test_ptb

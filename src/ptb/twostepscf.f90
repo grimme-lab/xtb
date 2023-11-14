@@ -240,15 +240,16 @@ contains
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
       !> Get the adjacency list for iteration through the Hamiltonian
       call new_adjacency_list(list, mol, lattr, cutoff)
-      !> Set up the effective Hamiltonian in the first iteration
-      iter = 1
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
-      & vecp, levels, iter, hmat)
 
       !> Project reference occupation on wavefunction and use EEQ charges as guess
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
       call guess_shell_pop(wfn, bas)
+
+      !> Set up the effective Hamiltonian in the first iteration
+      iter = 1
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
+      & vecp, levels, iter, hmat)
 
       !> Project occupations on alpha and beta orbitals
       nel = sum(wfn%n0at) - mol%charge

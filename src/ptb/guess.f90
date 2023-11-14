@@ -52,7 +52,7 @@ contains
                & ( wfn%n0at(iat) - wfn%qat(iat, spin) ) / wfn%n0at(iat)
                !> wfn%qsh on output are the shell POPULATIONS
                !##### DEV WRITE #####
-               write(*,*) ii + ish, wfn%qsh(ii + ish, spin)
+               ! write(*,*) ii + ish, wfn%qsh(ii + ish, spin)
                !#####################
             end do
          end do
