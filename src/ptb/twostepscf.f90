@@ -40,6 +40,7 @@ module xtb_ptb_scf
    use xtb_ptb_data, only: TPTBData
    use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy, get_occupation
    use xtb_ptb_guess, only: guess_shell_pop
+   use xtb_ptb_paulixc, only: calc_Vxc_pauli
 
    implicit none
    private
@@ -99,6 +100,8 @@ contains
       integer :: iter
       !> Number of electrons
       real(wp) :: nel
+      !> Pauli XC potential
+      real(wp), allocatable :: Vxc(:, :)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -149,12 +152,12 @@ contains
       call get_scaled_integrals(mol, overlap_xc, alpha_scal=expscal)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") overlap_xc(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.6)', advance="no") overlap_xc(i, j)
+         end do
+         write (*, '(/)',advance="no")
+      end do
       !#####################
 
       call get_mml_overlaps(bas, overlap, ptbGlobals%mlmix, overlap_sx, &
@@ -250,6 +253,23 @@ contains
       iter = 1
       call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
       & vecp, levels, iter, hmat)
+      !##### DEV WRITE #####
+      write (*, *) "Shell populations ..."
+      ! do i = 1, bas%nsh
+      !    write(*,*) wfn%qsh(i, 1)
+      ! enddo
+      !#####################
+      !> Get Pauli XC potential
+      call calc_Vxc_pauli(mol, bas, wfn%qsh(:,1), overlap_xc, levels, data%pauli%kxc1, Vxc)
+      !##### DEV WRITE #####
+      write (*, *) "V_XC ..."
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f8.4)', advance="no") Vxc(i, j)
+         end do
+         write (*, '(/)', advance="no")
+      end do
+      !#####################
 
       !> Project occupations on alpha and beta orbitals
       nel = sum(wfn%n0at) - mol%charge

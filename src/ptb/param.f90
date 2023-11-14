@@ -20,7 +20,7 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
-      TEEQData
+      TEEQData, TPauliXCData
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
 
@@ -42,6 +42,7 @@ module xtb_ptb_param
       module procedure :: initHamiltonian
       module procedure :: initCorePotential
       module procedure :: initEEQ
+      module procedure :: init_PauliXC
    end interface initPTB
 
    type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
@@ -2070,6 +2071,7 @@ contains
       call initPTB(self%corepotential)
       call initPTB(self%eeq, num)
       call initPTB(self%hamiltonian, num)
+      call initPTB(self%pauli, num)
       ! call initGFN2(self%coulomb, self%nShell)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
@@ -2098,6 +2100,17 @@ contains
       call init(self, num, alpeeq, chieeq, cnfeeq, gameeq)
 
    end subroutine initEEQ
+
+   subroutine init_PauliXC(self, num)
+
+      !> Data instance
+      type(TPauliXCData), intent(out) :: self
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
+
+      call init(self, num, nshell, kxc1, kxc2l)
+
+   end subroutine init_PauliXC
 
    subroutine initHamiltonian(self, num)
 
