@@ -27,4 +27,5 @@ srcs += files(
   'corebasis.f90',
   'hamiltonian.f90',
   'guess.f90',
+  'paulixc.f90',
 )

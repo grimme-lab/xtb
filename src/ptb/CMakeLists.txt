@@ -29,6 +29,7 @@ list(APPEND srcs
   "${dir}/corebasis.f90"
   "${dir}/hamiltonian.f90"
   "${dir}/guess.f90"
+  "${dir}/paulixc.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

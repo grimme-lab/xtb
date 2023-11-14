@@ -79,9 +79,9 @@ contains
       write (*, *) "H0 ..."
       do i = 1, bas%nao
          do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") h0(i, j)
+            write (*, '(f8.4)', advance="no") h0(i, j)
          end do
-         write (*, *) ""
+         write (*, '(/)', advance="no")
       end do
       !#####################
 

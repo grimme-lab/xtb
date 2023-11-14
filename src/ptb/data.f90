@@ -27,7 +27,7 @@ module xtb_ptb_data
 
    public :: TPTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
-   public :: TShortRangeData, TCorePotentialData, TEEQData
+   public :: TShortRangeData, TCorePotentialData, TEEQData, TPauliXCData
    public :: newData, getData
    public :: angToShellData
 
@@ -70,26 +70,37 @@ module xtb_ptb_data
 
       !> Maximum number of core primitives
       integer :: max_prim
-      
+
       !> Number of core shells for each atom
       integer, allocatable :: nshell(:)
 
       !> Principal quantum number of each shell
-      integer, allocatable :: pqn(:,:)
+      integer, allocatable :: pqn(:, :)
 
       !> Angular momentum of each shell
-      integer, allocatable :: angshell(:,:)
-      
+      integer, allocatable :: angshell(:, :)
+
       !> HF level of each shell
-      real(wp), allocatable :: hflev(:,:)
+      real(wp), allocatable :: hflev(:, :)
 
       !> Slater exponents of each shell
-      real(wp), allocatable :: sl_exp(:,:)
+      real(wp), allocatable :: sl_exp(:, :)
 
       !> Effective core potential scaling factors
       real(wp), allocatable :: kecpepsilon(:)
 
    end type TCorePotentialData
+
+   !> Vxc parameters
+
+   type :: TPauliXCData
+      !> Scaling factor for the Pauli repulsion in first iteration
+      real(wp), allocatable :: kxc1(:)
+
+      !> Scaling factor for the Pauli repulsion in second iteration
+      real(wp), allocatable :: kxc2l(:,:)
+
+   end type TPauliXCData
 
    !> EEQ parameters
    type :: TEEQData
@@ -185,13 +196,13 @@ module xtb_ptb_data
       !> Shift of atomic levels depending only on coordination number-star
       real(wp), allocatable :: kshift(:)
       !> Wolfsberg parameter for EHT
-      real(wp), allocatable :: kla(:,:)
+      real(wp), allocatable :: kla(:, :)
       !> Atomic radii for H0
       real(wp), allocatable :: kr(:)
       !> One-center off-diagonal scaling of S_H0 (squared)
       real(wp), allocatable :: kocod(:)
       !> OCOD scaling fo s-s', p-p', d-d'...
-      real(wp), allocatable :: ksla(:,:)
+      real(wp), allocatable :: ksla(:, :)
 
    end type THamiltonianData
 
@@ -286,9 +297,11 @@ module xtb_ptb_data
       !> Parametrisation data for the EEQ model
       type(TEEQData) :: eeq
 
+      !> Pauli-XC data
+      type(TPauliXCData) :: pauli
+
       !> Parametrisation data for the short range basis correction (optional)
       type(TShortRangeData), allocatable :: srb
-
 
       !> Shift for IP/EA calculations
       real(wp) :: ipeashift
@@ -307,6 +320,7 @@ module xtb_ptb_data
       module procedure :: initCorepotential
       module procedure :: initEEQ
       module procedure :: initHamiltonian
+      module procedure :: initPauli
    end interface init
 
 contains
@@ -448,8 +462,8 @@ contains
       & kecpepsilon) !> Effective core potential scaling factors
 
       integer, intent(in) :: max_core_prim, max_core_shell
-      integer, intent(in) :: cbas_nshell(:), cbas_pqn(:,:), cbas_angshell(:,:)
-      real(wp), intent(in) :: cbas_sl_exp(:,:), cbas_hflev(:, :), kecpepsilon(:)
+      integer, intent(in) :: cbas_nshell(:), cbas_pqn(:, :), cbas_angshell(:, :)
+      real(wp), intent(in) :: cbas_sl_exp(:, :), cbas_hflev(:, :), kecpepsilon(:)
 
       !> Data instance
       type(TCorePotentialData), intent(out) :: self
@@ -492,6 +506,27 @@ contains
 
    end subroutine initEEQ
 
+   subroutine initPauli(self, num, nshell, kxc1, kxc2l)
+
+      !> Data instance
+      type(TPauliXCData), intent(out) :: self
+      !> Number of shells for each atom
+      integer, intent(in) :: nshell(:)
+
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+
+      !> Scaling factor for the Pauli repulsion in first iteration
+      real(wp), intent(in) :: kxc1(:)
+
+      !> Scaling factor for the Pauli repulsion in second iteration
+      real(wp), intent(in) :: kxc2l(:, :)
+
+      call newData(self%kxc1, num, kxc1)
+      call newData(self%kxc2l, num, nshell, kxc2l)
+
+   end subroutine initPauli
+
    subroutine initHamiltonian(self, num, nshell, ang_shell, h0_levels, &
       & cn_dependency, cnstar_dependency, cnstar_shift, wolfsberg_par, &
       & atom_radii_h0, onecenteroffdiagonal, ocod_l)
@@ -507,7 +542,7 @@ contains
       !> Atomic level information
       real(wp), intent(in) :: h0_levels(:, :)
       !> Coordination number dependence of the atomic levels
-      real(wp), intent(in) :: cn_dependency(:,:)
+      real(wp), intent(in) :: cn_dependency(:, :)
       !> Coordination number-star dependence of the atomic levels
       real(wp), intent(in) :: cnstar_dependency(:)
       !> Shift of atomic levels depending only on coordination number-star
@@ -519,7 +554,7 @@ contains
       !> One-center off-diagonal scaling of S_H0 (squared)
       real(wp), intent(in) :: onecenteroffdiagonal(:)
       !> Ang-mom-dependent OCOD scaling for s-s', p-p', d-d'...
-      real(wp), intent(in) :: ocod_l(:,:)
+      real(wp), intent(in) :: ocod_l(:, :)
 
       call newData(self%selfEnergy, num, nshell, h0_levels)
       call newData(self%klh, num, nshell, cn_dependency)
@@ -692,7 +727,7 @@ contains
 
       integer, intent(in) :: nshell(:)
 
-      integer, intent(in) :: angmompershell(:,:)
+      integer, intent(in) :: angmompershell(:, :)
 
       real(wp), intent(in) :: data(:, :)
 
@@ -709,7 +744,7 @@ contains
 
       integer, intent(in) :: nshell(:)
 
-      integer, intent(in) :: angmompershell(:,:)
+      integer, intent(in) :: angmompershell(:, :)
 
       real(wp), intent(in) :: data(:, :)
 
@@ -720,7 +755,7 @@ contains
          izp = num(ii)
          do ish = 1, nshell(izp)
             angmom = angmompershell(ish, izp)
-            vec(ish, ii) = data(angmom+1, izp)
+            vec(ish, ii) = data(angmom + 1, izp)
          end do
       end do
 
