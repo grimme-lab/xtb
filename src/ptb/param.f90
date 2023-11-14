@@ -2108,7 +2108,7 @@ contains
       !> Atomic numbers for unique elements
       integer, intent(in) :: num(:)
 
-      call init(self, num, nshell, kxc1, kxc2l)
+      call init(self, num, nshell, kxc1, kxc2l, klalphaxc)
 
    end subroutine init_PauliXC
 
@@ -2147,7 +2147,7 @@ contains
       ! call angToShellData(self%kCN, nShell, self%angShell, kCN)
       call init(self, num, nshell, ang_shell, &
       & hla, klh, kcnstar, kshift, kla, kr, kocod, &
-      & ksla)
+      & ksla, kalphah0l)
 
       allocate (self%refocc(max_shell, max_elem))
       call setPTBReferenceOcc(self,num)

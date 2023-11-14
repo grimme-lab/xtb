@@ -98,7 +98,10 @@ module xtb_ptb_data
       real(wp), allocatable :: kxc1(:)
 
       !> Scaling factor for the Pauli repulsion in second iteration
-      real(wp), allocatable :: kxc2l(:,:)
+      real(wp), allocatable :: kxc2l(:, :)
+
+      !> Exponent scaling for the Overlap_XC
+      real(wp), allocatable :: klalphaxc(:, :)
 
    end type TPauliXCData
 
@@ -203,6 +206,8 @@ module xtb_ptb_data
       real(wp), allocatable :: kocod(:)
       !> OCOD scaling fo s-s', p-p', d-d'...
       real(wp), allocatable :: ksla(:, :)
+      !> Exponent scaling for H0 overlap matrix
+      real(wp), allocatable :: kalphah0l(:, :)
 
    end type THamiltonianData
 
@@ -506,7 +511,7 @@ contains
 
    end subroutine initEEQ
 
-   subroutine initPauli(self, num, nshell, kxc1, kxc2l)
+   subroutine initPauli(self, num, nshell, kxc1, kxc2l, klalphaxc)
 
       !> Data instance
       type(TPauliXCData), intent(out) :: self
@@ -522,14 +527,18 @@ contains
       !> Scaling factor for the Pauli repulsion in second iteration
       real(wp), intent(in) :: kxc2l(:, :)
 
+      !> Exponent scaling for the Overlap_XC
+      real(wp), intent(in) :: klalphaxc(:, :)
+
       call newData(self%kxc1, num, kxc1)
       call newData(self%kxc2l, num, nshell, kxc2l)
+      call newData(self%klalphaxc, num, nshell, klalphaxc)
 
    end subroutine initPauli
 
    subroutine initHamiltonian(self, num, nshell, ang_shell, h0_levels, &
       & cn_dependency, cnstar_dependency, cnstar_shift, wolfsberg_par, &
-      & atom_radii_h0, onecenteroffdiagonal, ocod_l)
+      & atom_radii_h0, onecenteroffdiagonal, ocod_l, expscal_h0)
 
       !> Data instance
       type(THamiltonianData), intent(out) :: self
@@ -555,6 +564,8 @@ contains
       real(wp), intent(in) :: onecenteroffdiagonal(:)
       !> Ang-mom-dependent OCOD scaling for s-s', p-p', d-d'...
       real(wp), intent(in) :: ocod_l(:, :)
+      !> Exponent scaling for H0 overlap matrix
+      real(wp), intent(in) :: expscal_h0(:, :)
 
       call newData(self%selfEnergy, num, nshell, h0_levels)
       call newData(self%klh, num, nshell, cn_dependency)
@@ -564,6 +575,7 @@ contains
       call newData(self%kr, num, atom_radii_h0)
       call newData(self%kocod, num, onecenteroffdiagonal)
       call newData(self%ksla, num, nshell, ang_shell, ocod_l)
+      call newData(self%kalphah0l, num, nshell, expscal_h0)
 
    end subroutine initHamiltonian
 
