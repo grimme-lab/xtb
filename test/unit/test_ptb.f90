@@ -48,7 +48,8 @@ contains
                   new_unittest("overlap_sx", test_ptb_overlap_SX), &
                   new_unittest("v_ecp", test_ptb_V_ECP), &
                   new_unittest("selfenergies", test_ptb_selfenergies), &
-                  new_unittest("hamiltonian_h0", test_ptb_hamiltonian_h0) &
+                  new_unittest("hamiltonian_h0", test_ptb_hamiltonian_h0), &
+                  new_unittest("v_xc", test_ptb_V_XC) &
                   ]
 
    end subroutine collect_ptb
@@ -547,5 +548,84 @@ contains
       call check_(error, hamiltonian(12, 12),h0_ref(4), thr=thr2, &
       & message=message)
    end subroutine test_ptb_hamiltonian_h0
+
+   subroutine test_ptb_V_XC(error)
+      !> tblite basis set type
+      use tblite_basis_type, only: basis_type
+      !> PTB core basis set generation
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
+      !> PTB overlap matrix calculation
+      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
+      use xtb_ptb_paulixc, only: calc_Vxc_pauli
+
+      !> PTB vDZP basis set
+      type(basis_type) :: bas
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> (Scaled) overlap matrix
+      real(wp), allocatable :: overlap(:, :)
+      character(len=:), allocatable :: message
+      real(wp), parameter :: Vxc_ref(4) = [ &
+      & -0.92793357_wp, & ! 1,1
+      & -0.85981333_wp, & ! 1,2
+      &  0.06632750_wp, & ! 1,23 ; diffferent because of tblite ordering
+      &  0.00151880_wp]   ! 11,24 ; diffferent because of tblite ordering
+      real(wp), parameter :: xyz(3, 2) = reshape([ &
+      & 2.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
+      integer, parameter :: nat = 2
+      integer, parameter :: at(nat) = [5, 17]
+      !> (Scaled) overlap matrix
+      real(wp), allocatable :: overlap_xc(:, :), Vxc(:, :)
+      real(wp), parameter :: shellpops(10) = [ &
+      &     0.562668128_wp, &
+      &     0.182476968_wp, &
+      &     1.714291065_wp, &
+      &     0.447798837_wp, &
+      &     0.583667232_wp, &
+      &     1.180050163_wp, &
+      &     0.466096258_wp, &
+      &     3.688775422_wp, &
+      &     1.071618511_wp, &
+      &     0.102557478_wp ]
+      real(wp), parameter :: levels(10) = [ &
+      &    -0.796651404_wp, &
+      &    -0.269771638_wp, &
+      &    -0.593749262_wp, &
+      &    -0.292154638_wp, &
+      &    -0.204518309_wp, &
+      &    -1.022956257_wp, &
+      &    -0.356719004_wp, &
+      &    -0.736092857_wp, &
+      &    -0.464644474_wp, &
+      &    -0.572539094_wp ]
+
+      call new(mol, at, xyz)
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+      call get_scaled_integrals(mol, overlap_xc, alpha_scal=ptbData%pauli%klalphaxc)
+      call calc_Vxc_pauli(mol, bas, shellpops, overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
+
+      message = "V_XC matrix element not matching to expected value."
+      call check_(error, Vxc(1, 1),  Vxc_ref(1), thr=thr, &
+      & message=message)
+      call check_(error, Vxc(1, 2),  Vxc_ref(2), thr=thr, &
+      & message=message)
+      call check_(error, Vxc(1, 22), Vxc_ref(3), thr=thr, &
+      & message=message)
+      call check_(error, Vxc(13, 26),Vxc_ref(4), thr=thr, &
+      & message=message)
+
+   end subroutine test_ptb_V_XC
 
 end module test_ptb

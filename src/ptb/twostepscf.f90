@@ -126,13 +126,7 @@ contains
       ! end do
       !#####################
 
-      !> Set up a exponent scaling factors for
-      !> new basis set for "H0 overlap"
-      do isp = 1, mol%nid
-         izp = mol%num(isp)
-         expscal(:, isp) = kalphah0l(:, izp)
-      end do
-      call get_scaled_integrals(mol, overlap_h0, alpha_scal=expscal)
+      call get_scaled_integrals(mol, overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -143,13 +137,7 @@ contains
       ! end do
       !#####################
 
-      !> Set up a exponent scaling factors for
-      !> new basis set for "V_XC overlap"
-      do isp = 1, mol%nid
-         izp = mol%num(isp)
-         expscal(:, isp) = klalphaxc(:, izp)
-      end do
-      call get_scaled_integrals(mol, overlap_xc, alpha_scal=expscal)
+      call get_scaled_integrals(mol, overlap_xc, alpha_scal=data%pauli%klalphaxc)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
       do i = 1, bas%nao
