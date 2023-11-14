@@ -24,8 +24,8 @@ module xtb_ptb_scf
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
-   use tblite_adjlist, only : adjacency_list, new_adjacency_list
-   use tblite_cutoff, only : get_lattice_points
+   use tblite_adjlist, only: adjacency_list, new_adjacency_list
+   use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
 
    use multicharge_model, only: mchrg_model_type
@@ -144,7 +144,7 @@ contains
          do j = 1, bas%nao
             write (*, '(f10.6)', advance="no") overlap_xc(i, j)
          end do
-         write (*, '(/)',advance="no")
+         write (*, '(/)', advance="no")
       end do
       !#####################
 
@@ -236,19 +236,16 @@ contains
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
       call guess_shell_pop(wfn, bas)
-
-      !> Set up the effective Hamiltonian in the first iteration
-      iter = 1
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
-      & vecp, levels, iter, hmat)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."
       ! do i = 1, bas%nsh
       !    write(*,*) wfn%qsh(i, 1)
       ! enddo
       !#####################
-      !> Get Pauli XC potential
-      call calc_Vxc_pauli(mol, bas, wfn%qsh(:,1), overlap_xc, levels, data%pauli%kxc1, Vxc)
+
+      !> Set up the effective Hamiltonian in the first iteration
+      iter = 1
+      call calc_Vxc_pauli(mol, bas, wfn%qsh(:, 1), overlap_xc, levels, data%pauli%kxc1, Vxc)
       !##### DEV WRITE #####
       write (*, *) "V_XC ..."
       do i = 1, bas%nao
@@ -258,6 +255,9 @@ contains
          write (*, '(/)', advance="no")
       end do
       !#####################
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
+      & vecp, levels, iter, hmat)
+      !> Get Pauli XC potential
 
       !> Project occupations on alpha and beta orbitals
       nel = sum(wfn%n0at) - mol%charge

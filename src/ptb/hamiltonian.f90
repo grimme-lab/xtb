@@ -84,7 +84,6 @@ contains
       hamiltonian = hamiltonian + h0
       deallocate (h0)
 
-
    end subroutine get_hamiltonian
 
    subroutine get_selfenergy(mol, bas, hData, cn_normal, cn_star, selfenergies)
@@ -107,7 +106,7 @@ contains
 
       do iat = 1, mol%nat
          iid = mol%id(iat)
-         combinedcn = (cn_normal(iat) + cn_star(iat)*hData%kcnstar(iid))
+         combinedcn = (cn_normal(iat) + cn_star(iat) * hData%kcnstar(iid))
 
          !##### DEV WRITE #####
          ! write(*,*) 'cn_normal', cn_normal(iat)
@@ -120,8 +119,8 @@ contains
          ii = bas%ish_at(iat)
          do ish = 1, bas%nsh_id(iid)
             selfenergies(ii + ish) = hData%selfEnergy(ish, iid) + &
-               & hData%klh(ish, iid)*combinedcn + &
-               & cn_star(iat)*hData%kshift(iid)
+               & hData%klh(ish, iid) * combinedcn + &
+               & cn_star(iat) * hData%kshift(iid)
 
             !##### DEV WRITE #####
             ! write(*,*) 'selfenergies', ii + ish, selfenergies(ii + ish)
@@ -207,15 +206,15 @@ contains
                         !> Single contributions to H0
                         sum_levels = levels(js + jsh) + levels(is + ish)
                         wolfsberg = hData%kla(ish, izp) + hData%kla(jsh, jzp)
-                        polarized_levels = 1.0_wp - kpol*((levels(js + jsh) - levels(is + ish))/ &
+                        polarized_levels = 1.0_wp - kpol * ((levels(js + jsh) - levels(is + ish)) / &
                         & sum_levels)**2
                         radii_dependence = 1.0_wp + &
-                        & (hData%kr(izp) + hData%kr(jzp))*rscal/rab
+                        & (hData%kr(izp) + hData%kr(jzp)) * rscal / rab
                         !> Set H0
-                        h0mat(jj + jao, ii + iao) = 0.5_wp*sh0(jj + jao, ii + iao)* &
-                           & sum_levels* &
-                           & wolfsberg* &
-                           & polarized_levels* &
+                        h0mat(jj + jao, ii + iao) = 0.5_wp * sh0(jj + jao, ii + iao) * &
+                           & sum_levels * &
+                           & wolfsberg * &
+                           & polarized_levels * &
                            & radii_dependence
                         h0mat(ii + iao, jj + jao) = h0mat(jj + jao, ii + iao)
                         !##### DEV WRITE #####
@@ -244,13 +243,13 @@ contains
                do iao = 1, msao(bas%cgto(ish, izp)%ang)
                   do jao = 1, nao
                      sum_levels = levels(is + jsh) + levels(is + ish)
-                     ocodterm = hData%ksla(ish, izp)*ocod_param
-                     ssquraedterm = sh0(jj + jao, ii + iao)**2* &
-                        & sum_levels* &
-                        & hData%kocod(izp)* &
+                     ocodterm = hData%ksla(ish, izp) * ocod_param
+                     ssquraedterm = sh0(jj + jao, ii + iao)**2 * &
+                        & sum_levels * &
+                        & hData%kocod(izp) * &
                         & ocodterm
-                     sterm = sh0(jj + jao, ii + iao)* &
-                        & sum_levels* &
+                     sterm = sh0(jj + jao, ii + iao) * &
+                        & sum_levels * &
                         & ocodterm
                      h0mat(jj + jao, ii + iao) = sterm + &
                         & ssquraedterm
@@ -275,7 +274,7 @@ contains
          do ish = 1, bas%nsh_id(izp)
             ii = bas%iao_sh(is + ish)
             do iao = 1, msao(bas%cgto(ish, izp)%ang)
-               h0mat(ii + iao, ii + iao) = 2.0_wp*levels(is + ish)
+               h0mat(ii + iao, ii + iao) = 2.0_wp * levels(is + ish)
                !##### DEV WRITE #####
                ! write(*,*) "i, j, tmp: ", ii+iao, ii+iao, h0mat(ii + iao, ii + iao)
                !#####################
@@ -291,7 +290,7 @@ contains
       !> Basis set information
       type(basis_type), intent(in) :: bas
       !> Reference occupation
-      real(wp), intent(in) :: refocc(:,:)
+      real(wp), intent(in) :: refocc(:, :)
       !> Occupation number
       real(wp), intent(out) :: nocc
       !> Reference occupation for each atom

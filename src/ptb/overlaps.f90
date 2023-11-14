@@ -76,12 +76,12 @@ contains
       !> Normalize overlap
       ij = 0
       do i = 1, bas%nao
-         normlocal(i) = 1.0_wp/sqrt(overlap(i, i))
+         normlocal(i) = 1.0_wp / sqrt(overlap(i, i))
       end do
       ij = 0
       do i = 1, bas%nao
          do j = 1, i
-            overlap(i, j) = overlap(i, j)*normlocal(i)*normlocal(j)
+            overlap(i, j) = overlap(i, j) * normlocal(i) * normlocal(j)
             overlap(j, i) = overlap(i, j)
          end do
       end do
@@ -144,12 +144,12 @@ contains
       !> Normalize overlap
       ij = 0
       do i = 1, bas%nao
-         normlocal(i) = 1.0_wp/sqrt(overlap(i, i))
+         normlocal(i) = 1.0_wp / sqrt(overlap(i, i))
       end do
       ij = 0
       do i = 1, bas%nao
          do j = 1, i
-            overlap(i, j) = overlap(i, j)*normlocal(i)*normlocal(j)
+            overlap(i, j) = overlap(i, j) * normlocal(i) * normlocal(j)
             overlap(j, i) = overlap(i, j)
          end do
       end do

@@ -354,7 +354,7 @@ contains
          allocate (character(len=2*len(self%name) - 1) :: name)
          name = repeat(' ', len(name))
          do ii = 1, len(self%name)
-            jj = 2*ii - 1
+            jj = 2 * ii - 1
             name(jj:jj) = self%name(ii:ii)
          end do
       else

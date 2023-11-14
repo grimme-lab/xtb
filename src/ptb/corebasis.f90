@@ -76,8 +76,8 @@ contains
                   ! write (*, *) "overlap_cv(jj + jao, i): ", overlap_cv(jj + jao, i)
                   ! write (*, *) "jj + jao, i: ", jj + jao, i
                   !#####################
-                  
-                  secptmp(jj + jao, i) = - ecpdata%hflev(jsh, jati) * overlap_cv(jj + jao, i) * &
+
+                  secptmp(jj + jao, i) = -ecpdata%hflev(jsh, jati) * overlap_cv(jj + jao, i) * &
                      & ecpdata%kecpepsilon(jati)
                end do
             end do
@@ -143,7 +143,7 @@ contains
                   do iao = 1, msao(bas%cgto(ish, izp)%ang)
                      do jao = 1, msao(cbas%cgto(jsh, jzp)%ang)
                         cv_overlap(jj + jao, ii + iao) = cv_overlap(jj + jao, ii + iao) &
-                           & + stmp(jao + nao*(iao - 1))
+                           & + stmp(jao + nao * (iao - 1))
                      end do
                   end do
 
@@ -160,7 +160,7 @@ contains
       !#####################
       do i = 1, bas%nao
          do j = 1, cbas%nao
-            cv_overlap(j, i) = cv_overlap(j, i)*bas_overlap_norm(i)
+            cv_overlap(j, i) = cv_overlap(j, i) * bas_overlap_norm(i)
             !##### DEV WRITE #####
             ! write (*, '(f10.6)', advance="no") cv_overlap(j, i)
             !#####################
