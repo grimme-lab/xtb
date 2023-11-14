@@ -82,7 +82,7 @@ contains
       !#####################
       do i = 1, bas%nao
          do j = 1, bas%nao
-            tmp2s(j, i) = tmps(j, i)*seig1(i)
+            tmp2s(j, i) = tmps(j, i) * seig1(i)
          end do
       end do
       !##### DEV WRITE #####
@@ -98,7 +98,7 @@ contains
 
       do i = 1, bas%nao
          do j = 1, bas%nao
-            tmp2s(j, i) = tmps(j, i)*seig2(i)
+            tmp2s(j, i) = tmps(j, i) * seig2(i)
          end do
       end do
       call gemm(tmps, tmp2s, sx, 'N', 'T')

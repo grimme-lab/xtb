@@ -103,7 +103,7 @@ contains
       !> EEQ charges
       real(wp), allocatable :: q_eeq(:)
 
-      real(wp), parameter  :: q_exp(16) = [ &
+      real(wp), parameter :: q_exp(16) = [ &
       &  0.191209985_wp, &
       &  0.093681828_wp, &
       &  0.013831373_wp, &
@@ -539,13 +539,13 @@ contains
       allocate (hamiltonian(bas%nao, bas%nao), source=0.0_wp)
 
       message = "H0 matrix element not matching to expected value."
-      call check_(error, hamiltonian(1, 1),  h0_ref(1), thr=thr2, &
+      call check_(error, hamiltonian(1, 1), h0_ref(1), thr=thr2, &
       & message=message)
-      call check_(error, hamiltonian(1, 5),  h0_ref(2), thr=thr2, &
+      call check_(error, hamiltonian(1, 5), h0_ref(2), thr=thr2, &
       & message=message)
-      call check_(error, hamiltonian(5, 8),  h0_ref(3), thr=thr2, &
+      call check_(error, hamiltonian(5, 8), h0_ref(3), thr=thr2, &
       & message=message)
-      call check_(error, hamiltonian(12, 12),h0_ref(4), thr=thr2, &
+      call check_(error, hamiltonian(12, 12), h0_ref(4), thr=thr2, &
       & message=message)
    end subroutine test_ptb_hamiltonian_h0
 
@@ -594,7 +594,7 @@ contains
       &     0.466096258_wp, &
       &     3.688775422_wp, &
       &     1.071618511_wp, &
-      &     0.102557478_wp ]
+      &     0.102557478_wp]
       real(wp), parameter :: levels(10) = [ &
       &    -0.796651404_wp, &
       &    -0.269771638_wp, &
@@ -605,7 +605,7 @@ contains
       &    -0.356719004_wp, &
       &    -0.736092857_wp, &
       &    -0.464644474_wp, &
-      &    -0.572539094_wp ]
+      &    -0.572539094_wp]
 
       call new(mol, at, xyz)
       allocate (ptbData)
@@ -617,13 +617,13 @@ contains
       call calc_Vxc_pauli(mol, bas, shellpops, overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
 
       message = "V_XC matrix element not matching to expected value."
-      call check_(error, Vxc(1, 1),  Vxc_ref(1), thr=thr, &
+      call check_(error, Vxc(1, 1), Vxc_ref(1), thr=thr, &
       & message=message)
-      call check_(error, Vxc(1, 2),  Vxc_ref(2), thr=thr, &
+      call check_(error, Vxc(1, 2), Vxc_ref(2), thr=thr, &
       & message=message)
       call check_(error, Vxc(1, 22), Vxc_ref(3), thr=thr, &
       & message=message)
-      call check_(error, Vxc(13, 26),Vxc_ref(4), thr=thr, &
+      call check_(error, Vxc(13, 26), Vxc_ref(4), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_V_XC

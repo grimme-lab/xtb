@@ -104,7 +104,7 @@ contains
             do jsh = 1, bas%nsh_id(jzp) !> Iteration over core shells of atom jat
                jj = bas%iao_sh(js + jsh)
                ml = msao(bas%cgto(jsh, jzp)%ang)
-               f1 = psh(js + jsh)*kshell(jsh, jzp)/dble(ml) ! shell wise scaling
+               f1 = psh(js + jsh) * kshell(jsh, jzp) / dble(ml) ! shell wise scaling
 
                !##### DEV WRITE #####
                ! if (i == 1) then
@@ -112,8 +112,8 @@ contains
                ! & " psh: ", psh(js + jsh), " cnf2: ", kshell(jsh, jzp), " nl: ", dble(ml)
                ! end if
                !#####################
-               do jao = 1, ml 
-                  stmp(jj + jao, i) = selfenergies(js + jsh)*Sxc(jj + jao, i)*f1
+               do jao = 1, ml
+                  stmp(jj + jao, i) = selfenergies(js + jsh) * Sxc(jj + jao, i) * f1
                   !##### DEV WRITE #####
                   ! write(*,*) "stmp: ", jj + jao, i, stmp(jj + jao, i)
                   !#####################
