@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.17)
 option(WITH_OBJECT "To build using object library" TRUE)
 
 # Buggy CMake versions
