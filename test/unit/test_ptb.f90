@@ -141,14 +141,21 @@ contains
 
    subroutine test_ptb_overlap(error)
       use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_integral_types, only: integral_type, new_integral
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      use tblite_basis_type, only: basis_type
 
       !> Structure type (xtb)
       type(TMolecule) :: struc
+      !> PTB vDZP basis set
+      type(basis_type) :: bas
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
+      !> Integral type
+      type(integral_type) :: ints
+      !> Error type
       type(error_type), allocatable, intent(out) :: error
       !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap(:, :)
       character(len=:), allocatable :: message
       real(wp), parameter :: overlap_exp(6) = [ &
       & 0.93209460_wp, & ! 1,2
@@ -163,18 +170,21 @@ contains
       call getMolecule(struc, "mgh2")
       mol = struc
 
-      call get_scaled_integrals(mol, overlap)
-      call check_(error, overlap(1, 2), overlap_exp(1), thr=thr, &
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+      call new_integral(ints, bas%nao)
+      call get_scaled_integrals(mol, bas, ints%overlap)
+      call check_(error, ints%overlap(1, 2), overlap_exp(1), thr=thr, &
       & message=message)
-      call check_(error, overlap(1, 3), overlap_exp(2), thr=thr, &
+      call check_(error, ints%overlap(1, 3), overlap_exp(2), thr=thr, &
       & message=message)
-      call check_(error, overlap(2, 3), overlap_exp(3), thr=thr, &
+      call check_(error, ints%overlap(2, 3), overlap_exp(3), thr=thr, &
       & message=message)
-      call check_(error, overlap(1, 15), overlap_exp(4), thr=thr, &
+      call check_(error, ints%overlap(1, 15), overlap_exp(4), thr=thr, &
       & message=message)
-      call check_(error, overlap(1, 23), overlap_exp(5), thr=thr, &
+      call check_(error, ints%overlap(1, 23), overlap_exp(5), thr=thr, &
       & message=message)
-      call check_(error, overlap(12, 22), overlap_exp(6), thr=thr, &
+      call check_(error, ints%overlap(12, 22), overlap_exp(6), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_overlap
@@ -182,20 +192,24 @@ contains
    subroutine test_ptb_overlap_h0(error)
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_param, only: kalphah0l
-      use xtb_ptb_vdzp, only: max_shell
+      use xtb_ptb_vdzp, only: max_shell, add_vDZP_basis
+      use xtb_ptb_integral_types, only: integral_type, new_integral
+      use tblite_basis_type, only: basis_type
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
 
       !> Structure type (xtb)
       type(TMolecule) :: struc
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
+      !> PTB vDZP basis set
+      type(basis_type) :: bas
+      !> Integral type
+      type(integral_type) :: ints
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> Error type
       type(error_type), allocatable, intent(out) :: error
-      !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap(:, :)
-      !> Temporary array for exponent scaling factors specific to
-      !> unique atoms in the molecule
-      real(wp), allocatable :: expscal(:, :)
-      !> Loop variables
-      integer :: isp, izp
       character(len=:), allocatable :: message
       real(wp), parameter :: overlap_exp(6) = [ &
       & 0.95689468_wp, & ! 1,2
@@ -210,33 +224,36 @@ contains
       call getMolecule(struc, "mgh2")
       mol = struc
 
-      allocate (expscal(max_shell, mol%nid), source=0.0_wp)
-      do isp = 1, mol%nid
-         izp = mol%num(isp)
-         expscal(:, isp) = kalphah0l(:, izp)
-      end do
-      call get_scaled_integrals(mol, overlap, expscal)
-      call check_(error, overlap(1, 2), overlap_exp(1), thr=thr, &
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, ptbData%hamiltonian%kalphah0l, bas)
+      call new_integral(ints, bas%nao)
+      call get_scaled_integrals(mol, bas, ints%overlap_h0)
+      call check_(error, ints%overlap_h0(1, 2), overlap_exp(1), thr=thr, &
       & message=message)
-      call check_(error, overlap(1, 3), overlap_exp(2), thr=thr, &
+      call check_(error, ints%overlap_h0(1, 3), overlap_exp(2), thr=thr, &
       & message=message)
-      call check_(error, overlap(2, 3), overlap_exp(3), thr=thr, &
+      call check_(error, ints%overlap_h0(2, 3), overlap_exp(3), thr=thr, &
       & message=message)
-      call check_(error, overlap(1, 15), overlap_exp(4), thr=thr, &
+      call check_(error, ints%overlap_h0(1, 15), overlap_exp(4), thr=thr, &
       & message=message)
-      call check_(error, overlap(1, 23), overlap_exp(5), thr=thr, &
+      call check_(error, ints%overlap_h0(1, 23), overlap_exp(5), thr=thr, &
       & message=message)
-      call check_(error, overlap(12, 22), overlap_exp(6), thr=thr, &
+      call check_(error, ints%overlap_h0(12, 22), overlap_exp(6), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_overlap_h0
 
    subroutine test_ptb_overlap_SX(error)
+      !> PTB dependencies
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
       use xtb_ptb_param, only: ptbGlobals
-      use tblite_basis_type, only: basis_type
       use xtb_ptb_vdzp, only: add_vDZP_basis
+      use xtb_ptb_integral_types, only: integral_type, new_integral
+      !> tblite dependencies
+      use tblite_basis_type, only: basis_type
 
       !> PTB vDZP basis set
       type(basis_type) :: bas
@@ -244,9 +261,10 @@ contains
       type(TMolecule) :: struc
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
+      !> Integral type
+      type(integral_type) :: ints
+      !> Error type
       type(error_type), allocatable, intent(out) :: error
-      !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap(:, :)
       !> Mulliken-Loewdin overlap matrices
       real(wp), allocatable :: overlap_sx(:, :), overlap_oneminusx(:, :)
       character(len=:), allocatable :: message
@@ -265,9 +283,10 @@ contains
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
-      call get_scaled_integrals(mol, overlap)
+      call new_integral(ints, bas%nao)
+      call get_scaled_integrals(mol, bas, ints%overlap)
       allocate (overlap_sx(bas%nao, bas%nao), overlap_oneminusx(bas%nao, bas%nao))
-      call get_mml_overlaps(bas, overlap, ptbGlobals%mlmix, overlap_sx, &
+      call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, overlap_sx, &
          & overlap_oneminusx)
 
       write (*, *) overlap_oneminusx(1, 2), overlap_oneminusx_exp(1)
@@ -287,26 +306,24 @@ contains
    end subroutine test_ptb_overlap_SX
 
    subroutine test_ptb_V_ECP(error)
-      !> tblite basis set type
+      !> tblite dependencies
       use tblite_basis_type, only: basis_type
-      !> PTB core basis set generation
+      !> PTB dependencies
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
-      !> PTB overlap matrix calculation
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
+      use xtb_ptb_integral_types, only: integral_type, new_integral
 
       !> PTB vDZP basis set and core basis set
       type(basis_type) :: bas, cbas
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
+      !> Integral type
+      type(integral_type) :: ints
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
-      !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap(:, :)
-      !> Normalization factors
-      real(wp), allocatable :: norm_overlap(:)
       !> Effective core potential
       real(wp), allocatable :: vecp(:, :)
       type(error_type), allocatable, intent(out) :: error
@@ -328,12 +345,14 @@ contains
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
+      !> New integrals
+      call new_integral(ints, bas%nao)
       !> Add the core basis set to 'cbas' basis set type
       call add_core_basis(mol, ptbData%corepotential, cbas)
       !> -> for normalization factors
-      call get_scaled_integrals(mol, overlap, norm=norm_overlap)
+      call get_scaled_integrals(mol, bas, ints%overlap, norm=ints%norm)
       !> V_ECP via PTB core basis
-      call get_Vecp(mol, ptbData%corepotential, bas, cbas, norm_overlap, vecp)
+      call get_Vecp(mol, ptbData%corepotential, bas, cbas, ints%norm, vecp)
 
       message = "V_ecp matrix element not matching to expected value."
       call check_(error, vecp(1, 1), vecp_ref(1), thr=thr2, &
@@ -560,17 +579,18 @@ contains
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_paulixc, only: calc_Vxc_pauli
+      use xtb_ptb_integral_types, only: integral_type, new_integral
 
       !> PTB vDZP basis set
       type(basis_type) :: bas
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
+      !> Integral type
+      type(integral_type) :: ints
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Error type
       type(error_type), allocatable, intent(out) :: error
-      !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap(:, :)
       character(len=:), allocatable :: message
       real(wp), parameter :: Vxc_ref(4) = [ &
       & -0.92793357_wp, & ! 1,1
@@ -583,7 +603,7 @@ contains
       integer, parameter :: nat = 2
       integer, parameter :: at(nat) = [5, 17]
       !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap_xc(:, :), Vxc(:, :)
+      real(wp), allocatable :: Vxc(:, :)
       real(wp), parameter :: shellpops(10) = [ &
       &     0.562668128_wp, &
       &     0.182476968_wp, &
@@ -612,9 +632,11 @@ contains
       call initPTB(ptbData, mol%num)
 
       !> set up the basis set for the PTB-Hamiltonian
-      call add_vDZP_basis(mol, bas)
-      call get_scaled_integrals(mol, overlap_xc, alpha_scal=ptbData%pauli%klalphaxc)
-      call calc_Vxc_pauli(mol, bas, shellpops, overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
+      call add_vDZP_basis(mol, ptbData%pauli%klalphaxc, bas)
+      !> New integrals
+      call new_integral(ints, bas%nao)
+      call get_scaled_integrals(mol, bas, ints%overlap_xc)
+      call calc_Vxc_pauli(mol, bas, shellpops, ints%overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
 
       message = "V_XC matrix element not matching to expected value."
       call check_(error, Vxc(1, 1), Vxc_ref(1), thr=thr, &

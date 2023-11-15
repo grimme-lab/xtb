@@ -27,6 +27,7 @@ module xtb_ptb_scf
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
+   use tblite_scf, only: potential_type, new_potential
 
    use multicharge_model, only: mchrg_model_type
 
@@ -41,6 +42,7 @@ module xtb_ptb_scf
    use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy, get_occupation
    use xtb_ptb_guess, only: guess_shell_pop
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
+   use xtb_ptb_integral_types, only: integral_type, new_integral
 
    implicit none
    private
@@ -70,26 +72,19 @@ contains
       type(error_type), allocatable :: error
       !> Adjacency list
       type(adjacency_list) :: list
-      !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
+      !> Integral type
+      type(integral_type) :: ints
+      !> Potential type
+      type(potential_type) :: pot
       !> Mulliken-Loewdin overlap matrices
       real(wp) :: overlap_sx(bas%nao, bas%nao), overlap_soneminusx(bas%nao, bas%nao)
-      !> Dipole integrals
-      real(wp), allocatable :: dipole(:, :, :)
-      !> Temporary array for exponent scaling factors specific to
-      !> unique atoms in the molecule
-      real(wp), allocatable :: expscal(:, :)
       !> Loop variables
       integer :: i, j, isp, izp
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
-      !> Normalization factors
-      real(wp), allocatable :: norm_overlap(:)
       !> Effective core potential
       real(wp), allocatable :: vecp(:, :)
-      !> Effective Hamiltonian
-      real(wp), allocatable :: hmat(:, :)
       !> Effective self-energies
       real(wp), allocatable :: levels(:)
       !> Lattice points
@@ -106,8 +101,8 @@ contains
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
 
-      allocate (expscal(max_shell, mol%nid), source=0.0_wp)
-      call get_scaled_integrals(mol, overlap, dipole, norm=norm_overlap)
+      call new_integral(ints, bas%nao)
+      call get_scaled_integrals(mol, bas, ints%overlap, ints%dipole, norm=ints%norm)
 
       !##### DEV WRITE #####
       write (*, *) "Standard overlap ..."
@@ -126,7 +121,7 @@ contains
       ! end do
       !#####################
 
-      call get_scaled_integrals(mol, overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
+      call get_scaled_integrals(mol, ints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -137,18 +132,18 @@ contains
       ! end do
       !#####################
 
-      call get_scaled_integrals(mol, overlap_xc, alpha_scal=data%pauli%klalphaxc)
+      call get_scaled_integrals(mol, ints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.6)', advance="no") overlap_xc(i, j)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") ints%overlap_xc(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       !#####################
 
-      call get_mml_overlaps(bas, overlap, ptbGlobals%mlmix, overlap_sx, &
+      call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, overlap_sx, &
       & overlap_soneminusx)
       !##### DEV WRITE #####
       write (*, *) "Overlap S(1-x) ..."
@@ -212,7 +207,7 @@ contains
       !#####################
 
       !> V_ECP via PTB core basis
-      call get_Vecp(mol, data%corepotential, bas, cbas, norm_overlap, vecp)
+      call get_Vecp(mol, data%corepotential, bas, cbas, ints%norm, vecp)
 
       !##### DEV WRITE #####
       write (*, *) "V_ECP ..."
@@ -243,9 +238,35 @@ contains
       ! enddo
       !#####################
 
+      !           _____                    _____                    _____
+      !         /\    \                  /\    \                  /\    \
+      !        /::\    \                /::\    \                /::\    \
+      !       /::::\    \              /::::\    \              /::::\    \
+      !      /::::::\    \            /::::::\    \            /::::::\    \
+      !     /:::/\:::\    \          /:::/\:::\    \          /:::/\:::\    \
+      !    /:::/__\:::\    \        /:::/  \:::\    \        /:::/__\:::\    \
+      !    \:::\   \:::\    \      /:::/    \:::\    \      /::::\   \:::\    \
+      !  ___\:::\   \:::\    \    /:::/    / \:::\    \    /::::::\   \:::\    \
+      ! /\   \:::\   \:::\    \  /:::/    /   \:::\    \  /:::/\:::\   \:::\    \
+      !/::\   \:::\   \:::\____\/:::/____/     \:::\____\/:::/  \:::\   \:::\____\
+      !\:::\   \:::\   \::/    /\:::\    \      \::/    /\::/    \:::\   \::/    /
+      ! \:::\   \:::\   \/____/  \:::\    \      \/____/  \/____/ \:::\   \/____/
+      !  \:::\   \:::\    \       \:::\    \                       \:::\    \
+      !   \:::\   \:::\____\       \:::\    \                       \:::\____\
+      !    \:::\  /:::/    /        \:::\    \                       \::/    /
+      !     \:::\/:::/    /          \:::\    \                       \/____/
+      !      \::::::/    /            \:::\    \
+      !       \::::/    /              \:::\____\
+      !        \::/    /                \::/    /
+      !         \/____/                  \/____/
+
       !> Set up the effective Hamiltonian in the first iteration
       iter = 1
-      call calc_Vxc_pauli(mol, bas, wfn%qsh(:, 1), overlap_xc, levels, data%pauli%kxc1, Vxc)
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, ints%overlap_h0, &
+      & vecp, levels, iter, ints%hamiltonian)
+      !> Get Pauli XC potential
+      call new_potential(pot, mol, bas, wfn%nspin)
+      call calc_Vxc_pauli(mol, bas, wfn%qsh(:, 1), ints%overlap_xc, levels, data%pauli%kxc1, Vxc)
       !##### DEV WRITE #####
       write (*, *) "V_XC ..."
       do i = 1, bas%nao
@@ -255,9 +276,6 @@ contains
          write (*, '(/)', advance="no")
       end do
       !#####################
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, overlap, overlap_h0, overlap_xc, &
-      & vecp, levels, iter, hmat)
-      !> Get Pauli XC potential
 
       !> Project occupations on alpha and beta orbitals
       nel = sum(wfn%n0at) - mol%charge

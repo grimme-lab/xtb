@@ -104,11 +104,9 @@ contains
 
       character(len=:), allocatable :: filename
       type(TPTBParameter) :: globpar
-      integer :: ich, isp, izp
+      integer :: ich
       logical :: exist
       logical :: exitRun
-
-      real(wp), allocatable :: chi(:), gam(:), cnf(:), alp(:)
 
 ! #if WITH_TBLITE
       type(structure_type) :: mol
