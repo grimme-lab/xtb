@@ -262,20 +262,24 @@ contains
 
       !> Set up the effective Hamiltonian in the first iteration
       iter = 1
+      ints%hamiltonian = 0.0_wp
+      !> Get H0 (wavefunction-independent)
       call get_hamiltonian(mol, list, bas, data%hamiltonian, ints%overlap_h0, &
       & vecp, levels, iter, ints%hamiltonian)
-      !> Get Pauli XC potential
+      !> Get potential (wavefunction-dependent)
       call new_potential(pot, mol, bas, wfn%nspin)
       call calc_Vxc_pauli(mol, bas, wfn%qsh(:, 1), ints%overlap_xc, levels, data%pauli%kxc1, Vxc)
       !##### DEV WRITE #####
-      write (*, *) "V_XC ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f8.4)', advance="no") Vxc(i, j)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! write (*, *) "V_XC ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f8.4)', advance="no") Vxc(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       !#####################
+
+      !> Get additional potentials
 
       !> Project occupations on alpha and beta orbitals
       nel = sum(wfn%n0at) - mol%charge

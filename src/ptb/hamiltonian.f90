@@ -55,14 +55,14 @@ contains
       !> Iteration
       integer, intent(in) :: iteration
       !> Effective Hamiltonian
-      real(wp), allocatable, intent(out) :: hamiltonian(:, :)
+      real(wp), intent(out) :: hamiltonian(:, :)
 
       !> H0 matrix
       real(wp), allocatable :: h0(:, :)
       !> tmp loop variables
       integer :: i, j
 
-      allocate (hamiltonian(bas%nao, bas%nao), h0(bas%nao, bas%nao), source=0.0_wp)
+      allocate (h0(bas%nao, bas%nao), source=0.0_wp)
 
       hamiltonian = vecp
 
