@@ -55,7 +55,7 @@ contains
       !> Intermediate core valence overlap matrix (scaled)
       real(wp), allocatable :: secptmp(:, :)
       !> tmp indices
-      integer :: i, jat, jzp, js, jsh, jj, jao, jati, j
+      integer :: i, jat, jzp, js, jsh, jj, jao, jati
 
       !> Calculate the core-valence overlap matrix
       call core_valence_overlap(mol, bas, cbas, norm_s, overlap_cv)

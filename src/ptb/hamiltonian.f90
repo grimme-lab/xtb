@@ -36,7 +36,7 @@ module xtb_ptb_hamiltonian
 
 contains
 
-   subroutine get_hamiltonian(mol, list, bas, hData, overlap, overlap_h0, overlap_xc, &
+   subroutine get_hamiltonian(mol, list, bas, hData, overlap_h0, &
       & vecp, selfenergies, iteration, hamiltonian)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
@@ -47,7 +47,7 @@ contains
       !> THamiltonian data
       type(THamiltonianData), intent(in) :: hData
       !> (Scaled) overlap matrix
-      real(wp), intent(in) :: overlap(:, :), overlap_h0(:, :), overlap_xc(:, :)
+      real(wp), intent(in) :: overlap_h0(:, :)
       !> Effective core potential
       real(wp), intent(in) :: vecp(:, :)
       !> Self-energies

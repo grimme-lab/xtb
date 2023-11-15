@@ -33,39 +33,30 @@ module xtb_ptb_overlaps
    public :: get_scaled_integrals
 
    interface get_scaled_integrals
-      module procedure get_scaled_integrals_overlap
-      module procedure get_scaled_integrals_dipole
+      module procedure get_scaled_integrals_overlap_existbasis
+      module procedure get_scaled_integrals_overlap_newbasis
+      module procedure get_scaled_integrals_dipole_existbasis
+      module procedure get_scaled_integrals_dipole_newbasis
    end interface get_scaled_integrals
 
 contains
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_overlap(mol, overlap, alpha_scal, norm)
+   subroutine get_scaled_integrals_overlap_existbasis(mol, bas, overlap, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
-      !> Overlap matrix as output
-      real(wp), intent(out), allocatable :: overlap(:, :)
-      !> Scaling factors as input
-      real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nid)
-      !> Normalization factors as output
-      real(wp), allocatable, intent(out), optional :: norm(:)
-      real(wp), allocatable :: normlocal(:)
       !> Basis set data
-      type(basis_type) :: bas
+      type(basis_type), intent(in) :: bas
+      !> Overlap matrix as output
+      real(wp), intent(out) :: overlap(:, :)
+      !> Normalization factors as output
+      real(wp), intent(out), optional :: norm(:)
+      real(wp), allocatable :: normlocal(:)
       real(wp) :: cutoff
       real(wp), allocatable :: lattr(:, :)
       integer :: i, j, ij
 
-      !> Set up a new basis set with using the scaled exponents
-      if (present(alpha_scal)) then
-         call add_vDZP_basis(mol, alpha_scal, bas)
-      else
-         call add_vDZP_basis(mol, bas)
-      end if
-
-      !> Allocate overlap matrix based on basis set dimension
-      allocate (overlap(bas%nao, bas%nao), normlocal(bas%nao), source=0.0_wp)
-
+      allocate (normlocal(bas%nao), source=0.0_wp)
       !> Calculate cutoff and lattice points (with PTB generally turned off)
       cutoff = get_cutoff(bas)
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
@@ -89,27 +80,20 @@ contains
          norm = normlocal
       end if
 
-   end subroutine get_scaled_integrals_overlap
+   end subroutine get_scaled_integrals_overlap_existbasis
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_dipole(mol, overlap, dipole, alpha_scal, norm)
+   subroutine get_scaled_integrals_overlap_newbasis(mol, overlap, alpha_scal, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Overlap matrix as output
-      real(wp), intent(out), allocatable :: overlap(:, :), dipole(:, :, :)
+      real(wp), intent(out) :: overlap(:, :)
       !> Scaling factors as input
       real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nid)
       !> Normalization factors as output
-      real(wp), allocatable, intent(out), optional :: norm(:)
-      real(wp), allocatable :: normlocal(:)
+      real(wp), intent(out), optional :: norm(:)
       !> Basis set data
       type(basis_type) :: bas
-      real(wp) :: cutoff
-      real(wp), allocatable :: lattr(:, :)
-      integer :: i, j, ij
-      !##### DEV WRITE #####
-      integer :: isp, izp, ish, nsh_id(mol%nid)
-      !#####################
 
       !> Set up a new basis set with using the scaled exponents
       if (present(alpha_scal)) then
@@ -118,22 +102,25 @@ contains
          call add_vDZP_basis(mol, bas)
       end if
 
-      !##### DEV WRITE #####
-      ! nsh_id = nshell(mol%num)
-      ! write (*, *) "Basis set properties:", bas%nao
-      ! do isp = 1, mol%nid
-      !    izp = mol%num(isp)
-      !    do ish = 1, nsh_id(isp)
-      !       write(*,*) bas%cgto(ish, isp)%ang
-      !       write(*,*) bas%cgto(ish, isp)%nprim
-      !       write(*,*) bas%cgto(ish, isp)%alpha(:)
-      !       write(*,*) bas%cgto(ish, isp)%coeff(:)
-      !    end do
-      ! end do
-      !#####################
+      call get_scaled_integrals(mol, bas, overlap, norm=norm)
 
-      allocate (overlap(bas%nao, bas%nao), dipole(3, bas%nao, bas%nao), &
-      & source=0.0_wp)
+
+   end subroutine get_scaled_integrals_overlap_newbasis
+
+   !> Calculate the overlap matrix for a given scaling factor
+   subroutine get_scaled_integrals_dipole_existbasis(mol, bas, overlap, dipole, norm)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
+      !> Overlap matrix as output
+      real(wp), intent(out) :: overlap(:, :), dipole(:, :, :)
+      !> Normalization factors as output
+      real(wp), intent(out), optional :: norm(:)
+      real(wp), allocatable :: normlocal(:)
+      real(wp) :: cutoff
+      real(wp), allocatable :: lattr(:, :)
+      integer :: i, j, ij
 
       cutoff = get_cutoff(bas)
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
@@ -159,5 +146,45 @@ contains
 
       !> ########### AND DIPOLE!! #############
 
-   end subroutine get_scaled_integrals_dipole
+   end subroutine get_scaled_integrals_dipole_existbasis
+
+   !> Calculate the overlap matrix for a given scaling factor
+   subroutine get_scaled_integrals_dipole_newbasis(mol, overlap, dipole, alpha_scal, norm)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Overlap matrix as output
+      real(wp), intent(out) :: overlap(:, :), dipole(:, :, :)
+      !> Scaling factors as input
+      real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nid)
+      !> Normalization factors as output
+      real(wp), intent(out), optional :: norm(:)
+      !> Basis set data
+      type(basis_type) :: bas
+      integer :: isp, izp, ish, nsh_id(mol%nid)
+      !#####################
+
+      !> Set up a new basis set with using the scaled exponents
+      if (present(alpha_scal)) then
+         call add_vDZP_basis(mol, alpha_scal, bas)
+      else
+         call add_vDZP_basis(mol, bas)
+      end if
+
+      !##### DEV WRITE #####
+      ! nsh_id = nshell(mol%num)
+      ! write (*, *) "Basis set properties:", bas%nao
+      ! do isp = 1, mol%nid
+      !    izp = mol%num(isp)
+      !    do ish = 1, nsh_id(isp)
+      !       write(*,*) bas%cgto(ish, isp)%ang
+      !       write(*,*) bas%cgto(ish, isp)%nprim
+      !       write(*,*) bas%cgto(ish, isp)%alpha(:)
+      !       write(*,*) bas%cgto(ish, isp)%coeff(:)
+      !    end do
+      ! end do
+      !#####################
+
+      call get_scaled_integrals(mol, bas, overlap, dipole, norm)
+
+   end subroutine get_scaled_integrals_dipole_newbasis
 end module xtb_ptb_overlaps

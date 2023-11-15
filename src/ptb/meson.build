@@ -28,4 +28,5 @@ srcs += files(
   'hamiltonian.f90',
   'guess.f90',
   'paulixc.f90',
+  'integral_types.f90',
 )
