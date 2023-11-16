@@ -656,11 +656,16 @@ contains
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_coulomb, only: coulomb_potential
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      !> tblite basis set type
+      use tblite_basis_type, only: basis_type
 
       !> Structure type (mctc-lib)
       type(structure_type) :: mol
       !> Coulomb potential
       type(coulomb_potential) :: coulomb
+      !> PTB vDZP basis set
+      type(basis_type) :: bas
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Error type
@@ -708,7 +713,9 @@ contains
       mol = struc
       mol%charge = 2
 
-      call coulomb%init(mol, q, 0.25_wp)
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+      call coulomb%init(mol, bas, q, 0.25_wp)
 
       do i = 1, size(gam_ref)
          call check_(error, coulomb%gam(i), gam_ref(i), thr=thr, &

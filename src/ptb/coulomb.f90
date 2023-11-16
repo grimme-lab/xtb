@@ -21,6 +21,8 @@ module xtb_ptb_coulomb
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
+   use tblite_basis_type, only: basis_type
+
    use dftd4_data_hardness, only: get_hardness
 
    implicit none
@@ -33,6 +35,8 @@ module xtb_ptb_coulomb
       real(wp), allocatable :: hubbard(:, :, :, :)
       !> effective gams (chemical hardness)
       real(wp), allocatable :: gam(:)
+      !> Coulomb matrix
+      real(wp), allocatable :: coulomb_mat(:, :)
    contains
       procedure :: init => init_hubbard
       procedure :: update => get_coulomb_matrix
@@ -41,17 +45,17 @@ module xtb_ptb_coulomb
 
 contains
 
-   subroutine get_coulomb_matrix(self, mol)
+   subroutine get_coulomb_matrix(self, mol, bas)
       !> Coulomb type
       class(coulomb_potential), intent(inout) :: self
       !> Molecular structure
       type(structure_type), intent(in) :: mol
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
+      integer :: iat, jat, izp, jzp, ii, jj, ish, jsh
+      real(wp) :: vec(3), r1, r1g, gam, tmp
 
-      ! do i = 1, n
-      !    geff(i) = (1d0 + gsc * q(i)) * gam(at(i))
-      ! end do
-
-!     ! DFTB second order term J matrix
+!     DFTB second order term J matrix
       ! ii = 0
       ! do i = 1, n
       !    ati = at(i)
@@ -75,13 +79,51 @@ contains
       !    end do
       ! end do
 
+      !##  !$omp parallel do default(none) schedule(runtime) &
+      !##  !$omp shared(amat, mol, nshell, offset, hubbard, gexp) &
+      !##  !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam, vec, r1, r1g, tmp)
+      ! do iat = 1, mol%nat
+      !    izp = mol%id(iat)
+      !    ii = offset(iat)
+      !    do jat = 1, iat - 1
+      !       jzp = mol%id(jat)
+      !       jj = offset(jat)
+      !       vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+      !       r1 = norm2(vec)
+      !       r1g = r1**gexp
+      !       do ish = 1, nshell(iat)
+      !          do jsh = 1, nshell(jat)
+      !             gam = hubbard(jsh, ish, jzp, izp)
+      !             tmp = 1.0_wp / (r1g + gam**(-gexp))**(1.0_wp / gexp)
+      !             !$omp atomic
+      !             amat(jj + jsh, ii + ish) = amat(jj + jsh, ii + ish) + tmp
+      !             !$omp atomic
+      !             amat(ii + ish, jj + jsh) = amat(ii + ish, jj + jsh) + tmp
+      !          end do
+      !       end do
+      !    end do
+      !    do ish = 1, nshell(iat)
+      !       do jsh = 1, ish - 1
+      !          gam = hubbard(jsh, ish, izp, izp)
+      !          !$omp atomic
+      !          amat(ii + jsh, ii + ish) = amat(ii + jsh, ii + ish) + gam
+      !          !$omp atomic
+      !          amat(ii + ish, ii + jsh) = amat(ii + ish, ii + jsh) + gam
+      !       end do
+      !       !$omp atomic
+      !       amat(ii + ish, ii + ish) = amat(ii + ish, ii + ish) + hubbard(ish, ish, izp, izp)
+      !    end do
+      ! end do
+
    end subroutine get_coulomb_matrix
 
-   subroutine init_hubbard(self, mol, q, gsc)
+   subroutine init_hubbard(self, mol, bas, q, gsc)
       !> Effective Hubbard parameters
       class(coulomb_potential), intent(inout) :: self
       !> Molecular structure
       type(structure_type), intent(in) :: mol
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
       !> Atomic charges
       real(wp), intent(in) :: q(:)
       !> Charge dependent scaling factor
@@ -89,13 +131,18 @@ contains
 
       integer :: izp, iat, iid
 
-      allocate (self%gam(mol%nat))
+      if (.not. allocated(self%gam)) allocate (self%gam(mol%nat))
+      if (.not. allocated(self%hubbard)) then
+         allocate (self%hubbard(maxval(bas%nsh_id), maxval(bas%nsh_id), mol%nid, mol%nid))
+      end if
       do iat = 1, mol%nat
          iid = mol%id(iat)
          izp = mol%num(iid)
          self%gam(iat) = (1.0_wp + gsc * q(iat)) * get_hardness(izp)
-         write(*,*) 'gam', self%gam(iat)
       end do
+
+      !> Initialize effective Hubbard parameters
+      !!! TO-DO !!!
 
    end subroutine init_hubbard
 

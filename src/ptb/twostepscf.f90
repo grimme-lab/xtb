@@ -31,8 +31,7 @@ module xtb_ptb_scf
    use multicharge_model, only: mchrg_model_type
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
-   use xtb_ptb_param, only: kalphah0l, klalphaxc, &
-   & ptbGlobals, rf
+   use xtb_ptb_param, only: ptbGlobals, rf
    use xtb_ptb_overlaps, only: get_scaled_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
@@ -278,7 +277,8 @@ contains
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
       call guess_shell_pop(wfn, bas)
-      call coulomb%init(mol, wfn%qat(:, 1), 0.25_wp)
+      call coulomb%init(mol, bas, wfn%qat(:, 1), 0.25_wp)
+      call coulomb%update(mol, bas)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."
       ! do i = 1, bas%nsh
