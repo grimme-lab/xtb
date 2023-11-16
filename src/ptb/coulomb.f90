@@ -26,8 +26,6 @@ module xtb_ptb_coulomb
 
    use dftd4_data_hardness, only: get_hardness
 
-   use xtb_ptb_data, only: TCoulombData
-
    implicit none
    private
 
@@ -39,7 +37,9 @@ module xtb_ptb_coulomb
       !> effective gams (chemical hardness)
       real(wp), allocatable :: gam(:, :)
       !> Coulomb matrix
-      real(wp), allocatable :: coulomb_mat(:, :)
+      real(wp), allocatable :: cmat(:, :)
+      !> Ohno-Klopman contribution
+      real(wp) :: cok
    contains
       procedure :: init => init_hubbard
       procedure :: update => get_coulomb_matrix
@@ -55,72 +55,50 @@ contains
       type(structure_type), intent(in) :: mol
       !> Basis set data
       type(basis_type), intent(in) :: bas
+      !> tmp variables
       integer :: iat, jat, izp, jzp, ii, jj, ish, jsh
-      real(wp) :: vec(3), r1, r1g, gam, tmp
-
-!     DFTB second order term J matrix
-      ! ii = 0
-      ! do i = 1, n
-      !    ati = at(i)
-      !    do ish = 1, bas_nsh(ati)
-      !       ii = ii + 1
-      !       gish = shell_resp(ish, ati, 2) * geff(i) ! important higher-order effect
-      !       jj = 0
-      !       do j = 1, n
-      !          k = lin(j, i)
-      !          r2 = rab(k)**2
-      !          atj = at(j)
-      !          do jsh = 1, bas_nsh(atj)
-      !             jj = jj + 1
-      !             if (jj > ii) cycle
-      !             gjsh = shell_resp(jsh, atj, 2) * geff(j)
-      !             xk = 2d0 / (1d0 / gish + 1d0 / gjsh)    ! harm. av.
-      !             gab(jj, ii) = cok / sqrt(r2 + 1d0 / xk**2) + cmn / (rab(k) + 1d0 / xk) !Ohno-Klopman-Mataga average
-      !             gab(ii, jj) = gab(jj, ii)
-      !          end do
-      !       end do
-      !    end do
-      ! end do
+      real(wp) :: vec(3), r1, gam, tmp, r12
 
       !##  !$omp parallel do default(none) schedule(runtime) &
       !##  !$omp shared(amat, mol, nshell, offset, hubbard, gexp) &
       !##  !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam, vec, r1, r1g, tmp)
-      ! do iat = 1, mol%nat
-      !    izp = mol%id(iat)
-      !    ii = offset(iat)
-      !    do jat = 1, iat - 1
-      !       jzp = mol%id(jat)
-      !       jj = offset(jat)
-      !       vec = mol%xyz(:, jat) - mol%xyz(:, iat)
-      !       r1 = norm2(vec)
-      !       r1g = r1**gexp
-      !       do ish = 1, nshell(iat)
-      !          do jsh = 1, nshell(jat)
-      !             gam = hubbard(jsh, ish, jzp, izp)
-      !             tmp = 1.0_wp / (r1g + gam**(-gexp))**(1.0_wp / gexp)
-      !             !$omp atomic
-      !             amat(jj + jsh, ii + ish) = amat(jj + jsh, ii + ish) + tmp
-      !             !$omp atomic
-      !             amat(ii + ish, jj + jsh) = amat(ii + ish, jj + jsh) + tmp
-      !          end do
-      !       end do
-      !    end do
-      !    do ish = 1, nshell(iat)
-      !       do jsh = 1, ish - 1
-      !          gam = hubbard(jsh, ish, izp, izp)
-      !          !$omp atomic
-      !          amat(ii + jsh, ii + ish) = amat(ii + jsh, ii + ish) + gam
-      !          !$omp atomic
-      !          amat(ii + ish, ii + jsh) = amat(ii + ish, ii + jsh) + gam
-      !       end do
-      !       !$omp atomic
-      !       amat(ii + ish, ii + ish) = amat(ii + ish, ii + ish) + hubbard(ish, ish, izp, izp)
-      !    end do
-      ! end do
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         ii = bas%ish_at(iat)
+         do jat = 1, iat - 1
+            jzp = mol%id(jat)
+            jj = bas%ish_at(jat)
+            vec = mol%xyz(:, jat) - mol%xyz(:, iat)
+            r1 = norm2(vec)
+            r12 = r1**2
+            do ish = 1, bas%nsh_at(iat)
+               do jsh = 1, bas%nsh_at(jat)
+                  gam = self%hubbard(jsh, ish, jat, iat)
+                  tmp = ( self%cok / sqrt(r12 + gam**(-2)) ) + &  !> Ohno-Klopman average 
+                     & ( (1.0_wp - self%cok) / ( r1 + gam**(-1) ) ) !> Mataga-Nishimoto average
+                  !## !$omp atomic
+                  self%cmat(jj + jsh, ii + ish) = self%cmat(jj + jsh, ii + ish) + tmp
+                  !## !$omp atomic
+                  self%cmat(ii + ish, jj + jsh) = self%cmat(ii + ish, jj + jsh) + tmp
+               end do
+            end do
+         end do
+         do ish = 1, bas%nsh_at(iat)
+            do jsh = 1, ish - 1
+               gam = self%hubbard(jsh, ish, iat, iat)
+               !## !$omp atomic
+               self%cmat(ii + jsh, ii + ish) = self%cmat(ii + jsh, ii + ish) + gam
+               !## !$omp atomic
+               self%cmat(ii + ish, ii + jsh) = self%cmat(ii + ish, ii + jsh) + gam
+            end do
+            !## !$omp atomic
+            self%cmat(ii + ish, ii + ish) = self%cmat(ii + ish, ii + ish) + self%hubbard(ish, ish, iat, iat)
+         end do
+      end do
 
    end subroutine get_coulomb_matrix
 
-   subroutine init_hubbard(self, mol, bas, q, cdata)
+   subroutine init_hubbard(self, mol, bas, q, gamsh, kqhubb, kok)
       !> Effective Hubbard parameters
       class(coulomb_potential), intent(inout) :: self
       !> Molecular structure
@@ -129,22 +107,32 @@ contains
       type(basis_type), intent(in) :: bas
       !> Atomic charges
       real(wp), intent(in) :: q(:)
-      !> Coulomb parameterization data
-      type(TCoulombData), intent(in) :: cdata
+      !> Shell-wise gamma scaling factors
+      real(wp), intent(in) :: gamsh(:,:)
+      !> Scaling factor for the charge dependent part of the Hubbard parameters
+      real(wp), intent(in) :: kqhubb
+      !> Ohno-Klopman contribution
+      real(wp), intent(in) :: kok
 
       integer :: izp, iat, iid, ish, jsh, jat
 
+      !> Initialize variables
       if (.not. allocated(self%gam)) allocate (self%gam(maxval(bas%nsh_id), mol%nat), source=0.0_wp)
       if (.not. allocated(self%hubbard)) then
          allocate (self%hubbard(maxval(bas%nsh_id), maxval(bas%nsh_id), mol%nat, mol%nat), source=0.0_wp)
       end if
+      if (.not. allocated(self%cmat)) then
+         allocate (self%cmat(bas%nsh, bas%nsh), source=0.0_wp)
+      end if
+      self%cok = kok
+
       !> Atom-individual chemical hardnesses per shell; Eq. 19
       do iat = 1, mol%nat
          iid = mol%id(iat)
          izp = mol%num(iid)
          do ish = 1, bas%nsh_id(iid)
-            self%gam(ish, iat) = (1.0_wp + cdata%kQHubbard * q(iat)) * get_hardness(izp) * &
-               & cdata%shellHardnessFirstIter(ish, iid)
+            self%gam(ish, iat) = (1.0_wp + kqhubb * q(iat)) * get_hardness(izp) * &
+               & gamsh(ish, iid)
          end do
       end do
 

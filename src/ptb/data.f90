@@ -240,9 +240,13 @@ module xtb_ptb_data
 
       !> Coordination number dependence of the EN
       real(wp), allocatable :: kCN(:)
-      
+
       !> Scaling factor for charge dependence of the Hubbard parameter in the first iter.
       real(wp) :: kQHubbard
+
+      !> Ohno-Klopman contribution in the first and second iteration
+      real(wp) :: kOK1
+      real(wp) :: kOK2
 
    end type TCoulombData
 

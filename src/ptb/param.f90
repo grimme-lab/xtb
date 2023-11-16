@@ -2138,6 +2138,8 @@ contains
 
       call init(self, num, nshell, keta1)
       self%kQHubbard = 0.25_wp
+      self%kOK1 = 1.6_wp
+      self%kOK2 = 1.0_wp
 
    end subroutine initCoulomb
 

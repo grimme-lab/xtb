@@ -277,14 +277,23 @@ contains
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
       call guess_shell_pop(wfn, bas)
-      call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb)
-      call coulomb%update(mol, bas)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."
       ! do i = 1, bas%nsh
       !    write(*,*) wfn%qsh(i, 1)
       ! enddo
       !#####################
+      call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessFirstIter, &
+         & data%coulomb%kQHubbard, data%coulomb%kOK1)
+      call coulomb%update(mol, bas)
+      !##### DEV WRITE #####
+      write (*, *) "Coulomb matrix ..."
+      do i = 1, bas%nsh
+         do j = 1, bas%nsh
+            write (*, '(f10.6)', advance="no") coulomb%cmat(i, j)
+         end do
+         write (*, *) ""
+      end do
 
       !           _____                    _____                    _____
       !         /\    \                  /\    \                  /\    \
