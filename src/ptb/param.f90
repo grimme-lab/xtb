@@ -20,7 +20,7 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
-      TEEQData, TPauliXCData
+      TEEQData, TPauliXCData, TCoulombData
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
 
@@ -43,6 +43,7 @@ module xtb_ptb_param
       module procedure :: initCorePotential
       module procedure :: initEEQ
       module procedure :: init_PauliXC
+      module procedure :: initCoulomb
    end interface initPTB
 
    type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
@@ -2072,7 +2073,7 @@ contains
       call initPTB(self%eeq, num)
       call initPTB(self%hamiltonian, num)
       call initPTB(self%pauli, num)
-      ! call initGFN2(self%coulomb, self%nShell)
+      call initPTB(self%coulomb, num)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
    end subroutine initData
@@ -2119,32 +2120,6 @@ contains
       !> Atomic numbers for unique elements
       integer, intent(in) :: num(:)
 
-      ! self%angShell = angShell(:mShell, :maxElem)
-
-      ! do iSh = 0, 3
-      !    do jSh = 0, 3
-      !       self%kScale(jSh, iSh) = 0.5_wp*(ptbGlobals%kShell(iSh) &
-      !          & + ptbGlobals%kShell(jSh))
-      !    end do
-      ! end do
-      ! self%kScale(0, 2) = ptbGlobals%ksd
-      ! self%kScale(2, 0) = ptbGlobals%ksd
-      ! self%kScale(1, 2) = ptbGlobals%kpd
-      ! self%kScale(2, 1) = ptbGlobals%kpd
-      ! self%kDiff = ptbGlobals%kDiff
-      ! do iSh = 0, 3
-      !    do jSh = 0, 3
-      !       self%enScale(jSh, iSh) = 0.005_wp*(ptbGlobals%enshell(iSh) &
-      !          & + ptbGlobals%enshell(jSh))
-      !    end do
-      ! end do
-      ! self%enScale4 = ptbGlobals%enscale4
-
-      ! self%shellPoly = shellPoly(:, :maxElem)
-      ! self%selfEnergy = selfEnergy(max_shell, highest_elem)
-
-      ! allocate (self%kCN(mShell, highest_elem))
-      ! call angToShellData(self%kCN, nShell, self%angShell, kCN)
       call init(self, num, nshell, ang_shell, &
       & hla, klh, kcnstar, kshift, kla, kr, kocod, &
       & ksla, kalphah0l)
@@ -2153,6 +2128,18 @@ contains
       call setPTBReferenceOcc(self,num)
 
    end subroutine initHamiltonian
+
+   subroutine initCoulomb(self, num)
+
+      !> Data instance
+      type(TCoulombData), intent(out) :: self
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
+
+      call init(self, num, nshell, keta1)
+      self%kQHubbard = 0.25_wp
+
+   end subroutine initCoulomb
 
    subroutine setPTBReferenceOcc(self,num)
 

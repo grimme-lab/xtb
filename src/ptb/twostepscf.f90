@@ -277,7 +277,7 @@ contains
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
       call guess_shell_pop(wfn, bas)
-      call coulomb%init(mol, bas, wfn%qat(:, 1), 0.25_wp)
+      call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb)
       call coulomb%update(mol, bas)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."

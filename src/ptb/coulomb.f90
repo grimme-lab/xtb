@@ -22,8 +22,11 @@ module xtb_ptb_coulomb
    use mctc_io, only: structure_type
 
    use tblite_basis_type, only: basis_type
+   use tblite_coulomb_charge_effective, only: harmonic_average
 
    use dftd4_data_hardness, only: get_hardness
+
+   use xtb_ptb_data, only: TCoulombData
 
    implicit none
    private
@@ -34,7 +37,7 @@ module xtb_ptb_coulomb
       !> Effective Hubbard parameters
       real(wp), allocatable :: hubbard(:, :, :, :)
       !> effective gams (chemical hardness)
-      real(wp), allocatable :: gam(:)
+      real(wp), allocatable :: gam(:, :)
       !> Coulomb matrix
       real(wp), allocatable :: coulomb_mat(:, :)
    contains
@@ -117,7 +120,7 @@ contains
 
    end subroutine get_coulomb_matrix
 
-   subroutine init_hubbard(self, mol, bas, q, gsc)
+   subroutine init_hubbard(self, mol, bas, q, cdata)
       !> Effective Hubbard parameters
       class(coulomb_potential), intent(inout) :: self
       !> Molecular structure
@@ -126,23 +129,37 @@ contains
       type(basis_type), intent(in) :: bas
       !> Atomic charges
       real(wp), intent(in) :: q(:)
-      !> Charge dependent scaling factor
-      real(wp), intent(in) :: gsc
+      !> Coulomb parameterization data
+      type(TCoulombData), intent(in) :: cdata
 
-      integer :: izp, iat, iid
+      integer :: izp, iat, iid, isp, jsp, ish, jsh, jat
 
-      if (.not. allocated(self%gam)) allocate (self%gam(mol%nat))
+      if (.not. allocated(self%gam)) allocate (self%gam(maxval(bas%nsh_id), mol%nat), source=0.0_wp)
       if (.not. allocated(self%hubbard)) then
-         allocate (self%hubbard(maxval(bas%nsh_id), maxval(bas%nsh_id), mol%nid, mol%nid))
+         allocate (self%hubbard(maxval(bas%nsh_id), maxval(bas%nsh_id), mol%nat, mol%nat), source=0.0_wp)
       end if
+      !> Atom-individual chemical hardnesses per shell; Eq. 19
       do iat = 1, mol%nat
          iid = mol%id(iat)
          izp = mol%num(iid)
-         self%gam(iat) = (1.0_wp + gsc * q(iat)) * get_hardness(izp)
+         do ish = 1, bas%nsh_id(iid)
+            self%gam(ish, iat) = (1.0_wp + cdata%kQHubbard * q(iat)) * get_hardness(izp) * &
+               & cdata%shellHardnessFirstIter(ish, iid)
+         end do
       end do
 
-      !> Initialize effective Hubbard parameters
-      !!! TO-DO !!!
+      !> Effective Hubbard parameters; Eq. 16
+      do iat = 1, mol%nat
+         do jat = 1, mol%nat
+            self%hubbard(:, :, jat, iat) = 0.0_wp
+            do ish = 1, bas%nsh_at(isp)
+               do jsh = 1, bas%nsh_at(jsp)
+                  self%hubbard(jsh, ish, jat, iat) = &
+                     & harmonic_average(self%gam(ish, iat), self%gam(jsh, jat))
+               end do
+            end do
+         end do
+      end do
 
    end subroutine init_hubbard
 
