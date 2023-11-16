@@ -772,6 +772,7 @@ contains
       call add_vDZP_basis(mol, bas)
       call coulomb%init(mol, bas, q, ptbData%coulomb)
 
+      !> Check the shell gammas
       ii = 0
       do iat = 1, mol%nat
          do ish = 1, bas%nsh_at(iat)
@@ -779,6 +780,10 @@ contains
             call check_(error, coulomb%gam(ish, iat), gam_ref(ii), thr=thr2)
          end do
       end do
+
+      !> Check the Hubbard matrix
+      call check_(error, coulomb%hubbard(4, 5,12,16), 0.490990522465014_wp, thr=thr2)
+      call check_(error, coulomb%hubbard(1, 2, 6, 9), 0.393374820246109_wp, thr=thr2)
 
    end subroutine test_ptb_hubbard
 

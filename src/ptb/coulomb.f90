@@ -132,7 +132,7 @@ contains
       !> Coulomb parameterization data
       type(TCoulombData), intent(in) :: cdata
 
-      integer :: izp, iat, iid, isp, jsp, ish, jsh, jat
+      integer :: izp, iat, iid, ish, jsh, jat
 
       if (.not. allocated(self%gam)) allocate (self%gam(maxval(bas%nsh_id), mol%nat), source=0.0_wp)
       if (.not. allocated(self%hubbard)) then
@@ -152,8 +152,8 @@ contains
       do iat = 1, mol%nat
          do jat = 1, mol%nat
             self%hubbard(:, :, jat, iat) = 0.0_wp
-            do ish = 1, bas%nsh_at(isp)
-               do jsh = 1, bas%nsh_at(jsp)
+            do ish = 1, bas%nsh_at(iat)
+               do jsh = 1, bas%nsh_at(jat)
                   self%hubbard(jsh, ish, jat, iat) = &
                      & harmonic_average(self%gam(ish, iat), self%gam(jsh, jat))
                end do
