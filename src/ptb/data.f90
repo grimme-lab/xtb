@@ -226,14 +226,11 @@ module xtb_ptb_data
       !> Third order electrostatics is shell resolved
       logical :: shellResolved
 
-      !> Exponent of the generalized gamma function
-      real(wp) :: gExp
-
       !> Atomic hardnesses used in second order electrostatics
       real(wp), allocatable :: chemicalHardness(:)
 
       !> Scaling factors for shell electrostatics
-      real(wp), allocatable :: shellHardness(:, :)
+      real(wp), allocatable :: shellHardnessFirstIter(:, :)
 
       !> Third order Hubbard derivatives
       real(wp), allocatable :: thirdOrderAtom(:)
@@ -241,14 +238,11 @@ module xtb_ptb_data
       !> Shell resolved third order Hubbard derivatives
       real(wp), allocatable :: thirdOrderShell(:, :)
 
-      !> Charge widths for EEQ model
-      real(wp), allocatable :: chargeWidth(:)
-
-      !> Electronegativity for EEQ model
-      real(wp), allocatable :: electronegativity(:)
-
       !> Coordination number dependence of the EN
       real(wp), allocatable :: kCN(:)
+      
+      !> Scaling factor for charge dependence of the Hubbard parameter in the first iter.
+      real(wp) :: kQHubbard
 
    end type TCoulombData
 
@@ -392,7 +386,6 @@ contains
       write (unit, rfmt) "rExp", self%repulsion%rExp
 
       write (unit, head) "Coulomb"
-      write (unit, rfmt) "alpha", self%coulomb%gExp
       if (allocated(self%coulomb%thirdOrderShell)) then
          write (unit, afmt) "third order", "shell-resolved"
       else if (allocated(self%coulomb%thirdOrderAtom)) then
@@ -579,58 +572,18 @@ contains
 
    end subroutine initHamiltonian
 
-   subroutine initCoulomb(self, nShell, chemicalHardness, shellHardness, &
-         & thirdOrderAtom, electronegativity, kCN, chargeWidth)
+   subroutine initCoulomb(self, num, nshell, shellHardnessFirstIter) 
 
       !> Data instance
       type(TCoulombData), intent(out) :: self
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+      !> Number of shells for each atom
+      integer, intent(in) :: nshell(:)
 
-      !>
-      integer, intent(in) :: nShell(:)
+      real(wp), intent(in) :: shellHardnessFirstIter(:, :)
 
-      !>
-      real(wp), intent(in) :: chemicalHardness(:)
-
-      !>
-      real(wp), intent(in), optional :: shellHardness(:, :)
-
-      !>
-      real(wp), intent(in), optional :: thirdOrderAtom(:)
-
-      !>
-      real(wp), intent(in), optional :: electronegativity(:)
-
-      !>
-      real(wp), intent(in), optional :: kCN(:)
-
-      !>
-      real(wp), intent(in), optional :: chargeWidth(:)
-
-      integer :: maxElem
-
-      maxElem = size(chemicalHardness)
-      if (present(shellHardness)) then
-         maxElem = min(maxElem, size(shellHardness, dim=2))
-      end if
-      if (present(thirdOrderAtom)) then
-         maxElem = min(maxElem, size(thirdOrderAtom))
-      end if
-      if (present(electronegativity) .and. present(kCN) .and. present(chargeWidth)) then
-         maxElem = min(maxElem, size(electronegativity), size(kCN), size(chargeWidth))
-      end if
-
-      self%chemicalHardness = chemicalHardness(:maxElem)
-      if (present(shellHardness)) then
-         self%shellHardness = shellHardness(:, :maxElem)
-      end if
-      if (present(thirdOrderAtom)) then
-         self%thirdOrderAtom = thirdOrderAtom(:maxElem)
-      end if
-      if (present(electronegativity) .and. present(kCN) .and. present(chargeWidth)) then
-         self%electronegativity = electronegativity(:maxElem)
-         self%kCN = kCN(:maxElem)
-         self%chargeWidth = chargeWidth(:maxElem)
-      end if
+      call newData(self%shellHardnessFirstIter, num, nshell, shellHardnessFirstIter)
 
    end subroutine initCoulomb
 
