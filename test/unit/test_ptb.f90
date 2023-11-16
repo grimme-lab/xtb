@@ -49,7 +49,8 @@ contains
                   new_unittest("v_ecp", test_ptb_V_ECP), &
                   new_unittest("selfenergies", test_ptb_selfenergies), &
                   new_unittest("hamiltonian_h0", test_ptb_hamiltonian_h0), &
-                  new_unittest("v_xc", test_ptb_V_XC) &
+                  new_unittest("v_xc", test_ptb_V_XC), &
+                  new_unittest("hubbard", test_ptb_hubbard) &
                   ]
 
    end subroutine collect_ptb
@@ -649,5 +650,71 @@ contains
       & message=message)
 
    end subroutine test_ptb_V_XC
+
+   subroutine test_ptb_hubbard(error)
+      !> PTB overlap matrix calculation
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
+      use xtb_ptb_coulomb, only: coulomb_potential
+
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> Coulomb potential
+      type(coulomb_potential) :: coulomb
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      integer :: i
+
+      real(wp), parameter :: q(16) = [ &
+      &     0.525110608_wp, &
+      &     0.226518002_wp, &
+      &     0.135805793_wp, &
+      &     0.167826445_wp, &
+      &     0.262687883_wp, &
+      &     0.060654738_wp, &
+      &     0.175123290_wp, &
+      &     0.080703797_wp, &
+      &     0.229782498_wp, &
+      &     0.164197571_wp, &
+      &     0.078011391_wp, &
+      &     0.700084564_wp, &
+      &    -0.475187427_wp, &
+      &    -0.298628390_wp, &
+      &     0.225129585_wp, &
+      &    -0.257820347_wp]
+      real(wp), parameter :: gam_ref(16) = [ &
+      &     0.203223909_wp, &
+      &     0.499355590_wp, &
+      &     0.606845390_wp, &
+      &     0.492421286_wp, &
+      &     0.713268626_wp, &
+      &     0.479759140_wp, &
+      &     0.493283396_wp, &
+      &     0.598760293_wp, &
+      &     0.533356491_wp, &
+      &     0.491992541_wp, &
+      &     0.481809797_wp, &
+      &     0.506618232_wp, &
+      &     0.299160414_wp, &
+      &     0.314145458_wp, &
+      &     0.532769780_wp, &
+      &     0.246502790_wp ]
+
+      call getMolecule(struc, "mindless01")
+      mol = struc
+      mol%charge = 2
+
+      call coulomb%init(mol, q, 0.25_wp)
+
+      do i = 1, size(gam_ref)
+         call check_(error, coulomb%gam(i), gam_ref(i), thr=thr, &
+         & message="Effective Hubbard parameters not matching to expected value.")
+      end do
+
+   end subroutine test_ptb_hubbard
 
 end module test_ptb

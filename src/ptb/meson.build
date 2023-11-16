@@ -30,4 +30,5 @@ srcs += files(
   'paulixc.f90',
   'integral_types.f90',
   'potentials.f90',
+  'coulomb.f90',
 )

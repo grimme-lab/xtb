@@ -27,7 +27,6 @@ module xtb_ptb_scf
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
-   use tblite_scf, only: potential_type, new_potential
 
    use multicharge_model, only: mchrg_model_type
 
@@ -43,6 +42,8 @@ module xtb_ptb_scf
    use xtb_ptb_guess, only: guess_shell_pop
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
    use xtb_ptb_integral_types, only: integral_type, new_integral
+   use xtb_ptb_potential, only: potential_type, new_potential
+   use xtb_ptb_coulomb, only: coulomb_potential
 
    implicit none
    private
@@ -70,6 +71,8 @@ contains
       class(solver_type), allocatable :: solver
       !> Error type
       type(error_type), allocatable :: error
+      !> Coulomb potential
+      type(coulomb_potential) :: coulomb
       !> Adjacency list
       type(adjacency_list) :: list
       !> Integral type
@@ -101,9 +104,42 @@ contains
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
 
+      !            _____                    _____                _____                    _____                    _____
+      !           /\    \                  /\    \              /\    \                  /\    \                  /\    \
+      !          /::\    \                /::\    \            /::\    \                /::\____\                /::\    \
+      !         /::::\    \              /::::\    \           \:::\    \              /:::/    /               /::::\    \
+      !        /::::::\    \            /::::::\    \           \:::\    \            /:::/    /               /::::::\    \
+      !       /:::/\:::\    \          /:::/\:::\    \           \:::\    \          /:::/    /               /:::/\:::\    \
+      !      /:::/__\:::\    \        /:::/__\:::\    \           \:::\    \        /:::/    /               /:::/__\:::\    \
+      !      \:::\   \:::\    \      /::::\   \:::\    \          /::::\    \      /:::/    /               /::::\   \:::\    \
+      !    ___\:::\   \:::\    \    /::::::\   \:::\    \        /::::::\    \    /:::/    /      _____    /::::::\   \:::\    \
+      !   /\   \:::\   \:::\    \  /:::/\:::\   \:::\    \      /:::/\:::\    \  /:::/____/      /\    \  /:::/\:::\   \:::\____\
+      !  /::\   \:::\   \:::\____\/:::/__\:::\   \:::\____\    /:::/  \:::\____\|:::|    /      /::\____\/:::/  \:::\   \:::|    |
+      !  \:::\   \:::\   \::/    /\:::\   \:::\   \::/    /   /:::/    \::/    /|:::|____\     /:::/    /\::/    \:::\  /:::|____|
+      !   \:::\   \:::\   \/____/  \:::\   \:::\   \/____/   /:::/    / \/____/  \:::\    \   /:::/    /  \/_____/\:::\/:::/    /
+      !    \:::\   \:::\    \       \:::\   \:::\    \      /:::/    /            \:::\    \ /:::/    /            \::::::/    /
+      !     \:::\   \:::\____\       \:::\   \:::\____\    /:::/    /              \:::\    /:::/    /              \::::/    /
+      !      \:::\  /:::/    /        \:::\   \::/    /    \::/    /                \:::\__/:::/    /                \::/____/
+      !       \:::\/:::/    /          \:::\   \/____/      \/____/                  \::::::::/    /                  ~~
+      !        \::::::/    /            \:::\    \                                    \::::::/    /
+      !         \::::/    /              \:::\____\                                    \::::/    /
+      !          \::/    /                \::/    /                                     \::/____/
+      !           \/____/                  \/____/                                       ~~
+
+
+
+
+      !    _____           _                                   _
+      !   |_   _|         | |                                 | |
+      !     | |    _ __   | |_    ___    __ _   _ __    __ _  | |  ___
+      !     | |   | '_ \  | __|  / _ \  / _` | | '__|  / _` | | | / __|
+      !    _| |_  | | | | | |_  |  __/ | (_| | | |    | (_| | | | \__ \
+      !   |_____| |_| |_|  \__|  \___|  \__, | |_|     \__,_| |_| |___/
+      !                                  __/ |
+      !                                 |___/
+
       call new_integral(ints, bas%nao)
       call get_scaled_integrals(mol, bas, ints%overlap, ints%dipole, norm=ints%norm)
-
       !##### DEV WRITE #####
       write (*, *) "Standard overlap ..."
       ! do i = 1, bas%nao
@@ -120,7 +156,6 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-
       call get_scaled_integrals(mol, ints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
@@ -131,7 +166,6 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-
       call get_scaled_integrals(mol, ints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
@@ -142,7 +176,6 @@ contains
       !    write (*, '(/)', advance="no")
       ! end do
       !#####################
-
       call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, overlap_sx, &
       & overlap_soneminusx)
       !##### DEV WRITE #####
@@ -162,16 +195,21 @@ contains
       ! end do
       !#####################
 
+      !     _____   _   _
+      !    / ____| | \ | |
+      !   | |      |  \| |
+      !   | |      | . ` |
+      !   | |____  | |\  |
+      !    \_____| |_| \_|
+
       !> Get first coordination number (" CN' ")
       call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn_star)
-
       !##### DEV WRITE #####
       write (*, *) "CN star:"
       do i = 1, mol%nat
          write (*, *) "Atom ", i, ":", cn_star(i)
       end do
       !#####################
-
       !> Get radii from PTB parameters for second coordination number (" CN ")
       do isp = 1, mol%nid
          izp = mol%num(isp)
@@ -179,14 +217,12 @@ contains
       end do
       !> Get second coordination number (" CN ")
       call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn, covrad=radii)
-
       !##### DEV WRITE #####
       write (*, *) "CN:"
       do i = 1, mol%nat
          write (*, *) "Atom ", i, ":", cn(i)
       end do
       !#####################
-
       !> Get third coordination number for EEQ model (" CN-EEQ ")
       call ncoord_erf(mol, ptbGlobals%kerfcn_eeq, default_cutoff, cn_eeq)
 
@@ -197,18 +233,15 @@ contains
       end do
       !#####################
 
-      !> EEQ call
-      call eeqmodel%solve(mol, cn_eeq, qvec=wfn%qat(:, 1))
-      !##### DEV WRITE #####
-      write (*, *) "EEQ charges:"
-      do i = 1, mol%nat
-         write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", wfn%qat(i, 1)
-      end do
-      !#####################
+      !    _    _    ___
+      !   | |  | |  / _ \
+      !   | |__| | | | | |
+      !   |  __  | | | | |
+      !   | |  | | | |_| |
+      !   |_|  |_|  \___/
 
       !> V_ECP via PTB core basis
       call get_Vecp(mol, data%corepotential, bas, cbas, ints%norm, vecp)
-
       !##### DEV WRITE #####
       write (*, *) "V_ECP ..."
       ! do i = 1, bas%nao
@@ -218,7 +251,6 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-
       !> Get the effective self-energies
       call get_selfenergy(mol, bas, data%hamiltonian, cn, cn_star, levels)
       !> Get the cutoff for the lattice points
@@ -227,10 +259,26 @@ contains
       !> Get the adjacency list for iteration through the Hamiltonian
       call new_adjacency_list(list, mol, lattr, cutoff)
 
+      !    ______   _                 _
+      !   |  ____| | |               | |
+      !   | |__    | |   ___    ___  | |_   _ __    ___
+      !   |  __|   | |  / _ \  / __| | __| | '__|  / _ \
+      !   | |____  | | |  __/ | (__  | |_  | |    | (_) |
+      !   |______| |_|  \___|  \___|  \__| |_|     \___/
+
+      !> EEQ call
+      call eeqmodel%solve(mol, cn_eeq, qvec=wfn%qat(:, 1))
+      !##### DEV WRITE #####
+      write (*, *) "EEQ charges:"
+      do i = 1, mol%nat
+         write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", wfn%qat(i, 1)
+      end do
+      !#####################
       !> Project reference occupation on wavefunction and use EEQ charges as guess
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
       call guess_shell_pop(wfn, bas)
+      call coulomb%init(mol, wfn%qat(:, 1), 0.25_wp)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."
       ! do i = 1, bas%nsh
@@ -263,12 +311,13 @@ contains
       !> Set up the effective Hamiltonian in the first iteration
       iter = 1
       ints%hamiltonian = 0.0_wp
-      !> Get H0 (wavefunction-independent)
+      !>  --------- Get H0 (wavefunction-independent) ----------
       call get_hamiltonian(mol, list, bas, data%hamiltonian, ints%overlap_h0, &
       & vecp, levels, iter, ints%hamiltonian)
-      !> Get potential (wavefunction-dependent)
+      !>  --------- Get potential (wavefunction-dependent) -----
       call new_potential(pot, mol, bas, wfn%nspin)
       call calc_Vxc_pauli(mol, bas, wfn%qsh(:, 1), ints%overlap_xc, levels, data%pauli%kxc1, Vxc)
+      pot%vaoshift(:,:,1) = pot%vaoshift(:,:,1) + Vxc
       !##### DEV WRITE #####
       ! write (*, *) "V_XC ..."
       ! do i = 1, bas%nao
