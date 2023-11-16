@@ -32,6 +32,7 @@ list(APPEND srcs
   "${dir}/paulixc.f90"
   "${dir}/integral_types.f90"
   "${dir}/potentials.f90"
+  "${dir}/coulomb.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
