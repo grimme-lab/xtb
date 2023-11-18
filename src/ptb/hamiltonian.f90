@@ -72,15 +72,6 @@ contains
       else
          call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol)
       end if
-      !##### DEV WRITE #####
-      write (*, *) "H0 ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f8.4)', advance="no") h0(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      !#####################
       hamiltonian = hamiltonian + h0
       deallocate (h0)
 
