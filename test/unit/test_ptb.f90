@@ -142,9 +142,10 @@ contains
 
    subroutine test_ptb_overlap(error)
       use xtb_ptb_overlaps, only: get_scaled_integrals
-      use xtb_ptb_integral_types, only: integral_type, new_integral
+      use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use tblite_basis_type, only: basis_type
+      use tblite_integral_type, only: integral_type, new_integral
 
       !> Structure type (xtb)
       type(TMolecule) :: struc
@@ -194,10 +195,11 @@ contains
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_param, only: kalphah0l
       use xtb_ptb_vdzp, only: max_shell, add_vDZP_basis
-      use xtb_ptb_integral_types, only: integral_type, new_integral
-      use tblite_basis_type, only: basis_type
+      use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
+      use tblite_basis_type, only: basis_type
+      use tblite_integral_type, only: integral_type, new_integral
 
       !> Structure type (xtb)
       type(TMolecule) :: struc
@@ -207,6 +209,8 @@ contains
       type(basis_type) :: bas
       !> Integral type
       type(integral_type) :: ints
+      !> Auxiliary integral type
+      type(aux_integral_type) :: auxints
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Error type
@@ -230,18 +234,19 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, ptbData%hamiltonian%kalphah0l, bas)
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, ints%overlap_h0)
-      call check_(error, ints%overlap_h0(1, 2), overlap_exp(1), thr=thr, &
+      call new_aux_integral(auxints, bas%nao)
+      call get_scaled_integrals(mol, bas, auxints%overlap_h0)
+      call check_(error, auxints%overlap_h0(1, 2), overlap_exp(1), thr=thr, &
       & message=message)
-      call check_(error, ints%overlap_h0(1, 3), overlap_exp(2), thr=thr, &
+      call check_(error, auxints%overlap_h0(1, 3), overlap_exp(2), thr=thr, &
       & message=message)
-      call check_(error, ints%overlap_h0(2, 3), overlap_exp(3), thr=thr, &
+      call check_(error, auxints%overlap_h0(2, 3), overlap_exp(3), thr=thr, &
       & message=message)
-      call check_(error, ints%overlap_h0(1, 15), overlap_exp(4), thr=thr, &
+      call check_(error, auxints%overlap_h0(1, 15), overlap_exp(4), thr=thr, &
       & message=message)
-      call check_(error, ints%overlap_h0(1, 23), overlap_exp(5), thr=thr, &
+      call check_(error, auxints%overlap_h0(1, 23), overlap_exp(5), thr=thr, &
       & message=message)
-      call check_(error, ints%overlap_h0(12, 22), overlap_exp(6), thr=thr, &
+      call check_(error, auxints%overlap_h0(12, 22), overlap_exp(6), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_overlap_h0
@@ -252,9 +257,9 @@ contains
       use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
       use xtb_ptb_param, only: ptbGlobals
       use xtb_ptb_vdzp, only: add_vDZP_basis
-      use xtb_ptb_integral_types, only: integral_type, new_integral
       !> tblite dependencies
       use tblite_basis_type, only: basis_type
+      use tblite_integral_type, only: integral_type, new_integral
 
       !> PTB vDZP basis set
       type(basis_type) :: bas
@@ -309,13 +314,14 @@ contains
    subroutine test_ptb_V_ECP(error)
       !> tblite dependencies
       use tblite_basis_type, only: basis_type
+      use tblite_integral_type, only: integral_type, new_integral
       !> PTB dependencies
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
-      use xtb_ptb_integral_types, only: integral_type, new_integral
+      use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
 
       !> PTB vDZP basis set and core basis set
       type(basis_type) :: bas, cbas
@@ -323,6 +329,8 @@ contains
       type(structure_type) :: mol
       !> Integral type
       type(integral_type) :: ints
+      !> Auxiliary integral type
+      type(aux_integral_type) :: auxints
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Effective core potential
@@ -348,12 +356,13 @@ contains
       call add_vDZP_basis(mol, bas)
       !> New integrals
       call new_integral(ints, bas%nao)
+      call new_aux_integral(auxints, bas%nao)
       !> Add the core basis set to 'cbas' basis set type
       call add_core_basis(mol, ptbData%corepotential, cbas)
       !> -> for normalization factors
-      call get_scaled_integrals(mol, bas, ints%overlap, norm=ints%norm)
+      call get_scaled_integrals(mol, bas, ints%overlap, norm=auxints%norm)
       !> V_ECP via PTB core basis
-      call get_Vecp(mol, ptbData%corepotential, bas, cbas, ints%norm, vecp)
+      call get_Vecp(mol, ptbData%corepotential, bas, cbas, auxints%norm, vecp)
 
       message = "V_ecp matrix element not matching to expected value."
       call check_(error, vecp(1, 1), vecp_ref(1), thr=thr2, &
@@ -572,6 +581,7 @@ contains
    subroutine test_ptb_V_XC(error)
       !> tblite basis set type
       use tblite_basis_type, only: basis_type
+      use tblite_integral_type, only: integral_type, new_integral
       !> PTB core basis set generation
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
@@ -580,7 +590,7 @@ contains
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_paulixc, only: calc_Vxc_pauli
-      use xtb_ptb_integral_types, only: integral_type, new_integral
+      use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
 
       !> PTB vDZP basis set
       type(basis_type) :: bas
@@ -588,6 +598,8 @@ contains
       type(structure_type) :: mol
       !> Integral type
       type(integral_type) :: ints
+      !> Auxiliary integral type
+      type(aux_integral_type) :: auxints
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Error type
@@ -636,8 +648,9 @@ contains
       call add_vDZP_basis(mol, ptbData%pauli%klalphaxc, bas)
       !> New integrals
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, ints%overlap_xc)
-      call calc_Vxc_pauli(mol, bas, shellpops, ints%overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
+      call new_aux_integral(auxints, bas%nao)
+      call get_scaled_integrals(mol, bas, auxints%overlap_xc)
+      call calc_Vxc_pauli(mol, bas, shellpops, auxints%overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
 
       message = "V_XC matrix element not matching to expected value."
       call check_(error, Vxc(1, 1), Vxc_ref(1), thr=thr, &

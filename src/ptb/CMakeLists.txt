@@ -31,7 +31,6 @@ list(APPEND srcs
   "${dir}/guess.f90"
   "${dir}/paulixc.f90"
   "${dir}/integral_types.f90"
-  "${dir}/potentials.f90"
   "${dir}/coulomb.f90"
 )
 

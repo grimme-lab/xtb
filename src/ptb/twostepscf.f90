@@ -27,6 +27,8 @@ module xtb_ptb_scf
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
+   use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
+   use tblite_integral_type, only: new_integral, integral_type
 
    use multicharge_model, only: mchrg_model_type
 
@@ -38,10 +40,9 @@ module xtb_ptb_scf
    use xtb_ptb_corebasis, only: get_Vecp
    use xtb_ptb_data, only: TPTBData
    use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy, get_occupation
-   use xtb_ptb_guess, only: guess_shell_pop
+   use xtb_ptb_guess, only: guess_qsh, get_psh
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
-   use xtb_ptb_integral_types, only: integral_type, new_integral
-   use xtb_ptb_potential, only: potential_type, new_potential
+   use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
    use xtb_ptb_coulomb, only: coulomb_potential
 
    implicit none
@@ -76,6 +77,8 @@ contains
       type(adjacency_list) :: list
       !> Integral type
       type(integral_type) :: ints
+      !> Auxiliary integral type
+      type(aux_integral_type) :: auxints
       !> Potential type
       type(potential_type) :: pot
       !> Mulliken-Loewdin overlap matrices
@@ -98,7 +101,7 @@ contains
       !> Number of electrons
       real(wp) :: nel
       !> Pauli XC potential
-      real(wp), allocatable :: Vxc(:, :)
+      real(wp), allocatable :: Vxc(:, :), psh(:, :)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -125,9 +128,6 @@ contains
       !          \::/    /                \::/    /                                     \::/____/
       !           \/____/                  \/____/                                       ~~
 
-
-
-
       !    _____           _                                   _
       !   |_   _|         | |                                 | |
       !     | |    _ __   | |_    ___    __ _   _ __    __ _  | |  ___
@@ -138,7 +138,8 @@ contains
       !                                 |___/
 
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, ints%overlap, ints%dipole, norm=ints%norm)
+      call new_aux_integral(auxints, bas%nao)
+      call get_scaled_integrals(mol, bas, ints%overlap, ints%dipole, norm=auxints%norm)
       !##### DEV WRITE #####
       write (*, *) "Standard overlap ..."
       ! do i = 1, bas%nao
@@ -155,7 +156,7 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_scaled_integrals(mol, ints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
+      call get_scaled_integrals(mol, auxints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -165,7 +166,7 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_scaled_integrals(mol, ints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
+      call get_scaled_integrals(mol, auxints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -240,7 +241,7 @@ contains
       !   |_|  |_|  \___/
 
       !> V_ECP via PTB core basis
-      call get_Vecp(mol, data%corepotential, bas, cbas, ints%norm, vecp)
+      call get_Vecp(mol, data%corepotential, bas, cbas, auxints%norm, vecp)
       !##### DEV WRITE #####
       write (*, *) "V_ECP ..."
       ! do i = 1, bas%nao
@@ -276,7 +277,7 @@ contains
       !> Project reference occupation on wavefunction and use EEQ charges as guess
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       !> wfn%qsh contains shell populations, NOT shell charges
-      call guess_shell_pop(wfn, bas)
+      call guess_qsh(wfn, bas)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."
       ! do i = 1, bas%nsh
@@ -288,12 +289,13 @@ contains
       call coulomb%update(mol, bas)
       !##### DEV WRITE #####
       write (*, *) "Coulomb matrix ..."
-      do i = 1, bas%nsh
-         do j = 1, bas%nsh
-            write (*, '(f10.6)', advance="no") coulomb%cmat(i, j)
-         end do
-         write (*, *) ""
-      end do
+      ! do i = 1, bas%nsh
+      !    do j = 1, bas%nsh
+      !       write (*, '(f10.6)', advance="no") coulomb%cmat(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
+      !#####################
 
       !           _____                    _____                    _____
       !         /\    \                  /\    \                  /\    \
@@ -320,21 +322,70 @@ contains
       !> Set up the effective Hamiltonian in the first iteration
       iter = 1
       ints%hamiltonian = 0.0_wp
-      !>  --------- Get H0 (wavefunction-independent) ----------
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, ints%overlap_h0, &
-      & vecp, levels, iter, ints%hamiltonian)
-      !>  --------- Get potential (wavefunction-dependent) -----
       call new_potential(pot, mol, bas, wfn%nspin)
-      call calc_Vxc_pauli(mol, bas, wfn%qsh(:, 1), ints%overlap_xc, levels, data%pauli%kxc1, Vxc)
-      pot%vaoshift(:,:,1) = pot%vaoshift(:,:,1) + Vxc
+      !    _    _  ___
+      !   | |  | |/ _ \
+      !   | |__| | | | |
+      !   |  __  | | | |
+      !   | |  | | |_| |
+      !   |_|  |_|\___/
+      !
+      !>  --------- Get H0 (wavefunction-independent) ----------
+
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0, &
+      & vecp, levels, iter, ints%hamiltonian)
       !##### DEV WRITE #####
-      ! write (*, *) "V_XC ..."
+      write (*, *) "H0 ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f8.4)', advance="no") ints%hamiltonian(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      !#####################
+
+      !    _____      _             _   _       _
+      !   |  __ \    | |           | | (_)     | |
+      !   | |__) |__ | |_ ___ _ __ | |_ _  __ _| |
+      !   |  ___/ _ \| __/ _ \ '_ \| __| |/ _` | |
+      !   | |  | (_) | ||  __/ | | | |_| | (_| | |
+      !   |_|   \___/ \__\___|_| |_|\__|_|\__,_|_|
+      !
+      !>  --------- Get potential (wavefunction-dependent) -----
+
+      call pot%reset()
+      allocate (psh(bas%nsh, wfn%nspin))
+      psh = get_psh(wfn, bas)
+      call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc1, Vxc)
+      !##### DEV WRITE #####
+      write (*, *) "V_XC ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f8.4)', advance="no") Vxc(i, j)
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
+      !#####################
+
+      call coulomb%get_potential(wfn, pot)
+      call add_pot_to_h1(bas, ints, pot, wfn%coeff)
+      !##### DEV WRITE #####
+      write (*, *) "V_Coulomb ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
+      !##### DEV WRITE #####
+      write (*, *) "Hamiltonian matrix to solve ..."
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
+         end do
+         write (*, '(/)', advance="no")
+      end do
       !#####################
 
       !> Get additional potentials

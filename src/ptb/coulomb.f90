@@ -23,6 +23,9 @@ module xtb_ptb_coulomb
 
    use tblite_basis_type, only: basis_type
    use tblite_coulomb_charge_effective, only: harmonic_average
+   use tblite_blas, only: symv
+   use tblite_wavefunction, only: wavefunction_type
+   use tblite_scf_potential, only: potential_type
 
    use dftd4_data_hardness, only: get_hardness
 
@@ -74,8 +77,8 @@ contains
             do ish = 1, bas%nsh_at(iat)
                do jsh = 1, bas%nsh_at(jat)
                   gam = self%hubbard(jsh, ish, jat, iat)
-                  tmp = ( self%cok / sqrt(r12 + gam**(-2)) ) + &  !> Ohno-Klopman average 
-                     & ( (1.0_wp - self%cok) / ( r1 + gam**(-1) ) ) !> Mataga-Nishimoto average
+                  tmp = (self%cok / sqrt(r12 + gam**(-2))) + &  !> Ohno-Klopman average
+                     & ((1.0_wp - self%cok) / (r1 + gam**(-1))) !> Mataga-Nishimoto average
                   !## !$omp atomic
                   self%cmat(jj + jsh, ii + ish) = self%cmat(jj + jsh, ii + ish) + tmp
                   !## !$omp atomic
@@ -108,7 +111,7 @@ contains
       !> Atomic charges
       real(wp), intent(in) :: q(:)
       !> Shell-wise gamma scaling factors
-      real(wp), intent(in) :: gamsh(:,:)
+      real(wp), intent(in) :: gamsh(:, :)
       !> Scaling factor for the charge dependent part of the Hubbard parameters
       real(wp), intent(in) :: kqhubb
       !> Ohno-Klopman contribution
@@ -151,11 +154,24 @@ contains
 
    end subroutine init_hubbard
 
-   subroutine get_potential(self, mol)
+   subroutine get_potential(self, wfn, pot)
       !> Coulomb type
       class(coulomb_potential), intent(inout) :: self
-      !> Molecular structure
-      type(structure_type), intent(in) :: mol
+      !> Wavefunction of tblite type
+      type(wavefunction_type), intent(in) :: wfn
+      !> Instance of the density dependent potential
+      type(potential_type), intent(inout) :: pot
+      !> tmp variables
+      integer :: i
+
+      call symv(self%cmat, wfn%qsh(:, 1), pot%vsh(:, 1), beta=1.0_wp)
+
+      !##### DEV WRITE #####
+      ! write (*, *) "V_Coulomb ..."
+      ! do i = 1, size(pot%vsh, 1)
+      !    write (*, *) i, pot%vsh(i,1)
+      ! end do
+      !#####################
 
    end subroutine get_potential
 

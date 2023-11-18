@@ -29,13 +29,11 @@ module xtb_ptb_guess
 
    private
 
-   public :: guess_shell_pop
+   public :: guess_qsh, get_psh
 
 contains
 
-   !> Guesses the shell POPULATIONS for the first iteration of PTB.
-   !> NOT the shell CHARGES.
-   subroutine guess_shell_pop(wfn, bas)
+   subroutine guess_qsh(wfn, bas)
       !> Wavefunction of tblite type
       type(wavefunction_type), intent(inout) :: wfn
       !> Basis set and core-valence basis set data
@@ -48,14 +46,42 @@ contains
             ii = bas%ish_at(iat)
             do ish = 1, bas%nsh_at(iat)
                !> wfn%qat on input are actually the atomic CHARGES
-               wfn%qsh(ii + ish, spin) = wfn%n0sh(ii + ish) * &
-               & ( wfn%n0at(iat) - wfn%qat(iat, spin) ) / wfn%n0at(iat)
+               !### POP version
+               ! wfn%qsh(ii + ish, spin) = wfn%n0sh(ii + ish) * &
+               ! & ( wfn%n0at(iat) - wfn%qat(iat, spin) ) / wfn%n0at(iat)
                !> wfn%qsh on output are the shell POPULATIONS
+               !### CHRG version
+               wfn%qsh(ii+ish, spin) = (wfn%n0sh(ii+ish) / wfn%n0at(iat)) * wfn%qat(iat, spin)
+               !> wfn%qsh on output are the shell CHARGES
                !##### DEV WRITE #####
                ! write(*,*) ii + ish, wfn%qsh(ii + ish, spin)
                !#####################
             end do
          end do
       end do
-   end subroutine guess_shell_pop
+   end subroutine guess_qsh
+
+   function get_psh(wfn, bas) result(psh)
+      !> Wavefunction of tblite type
+      type(wavefunction_type), intent(in) :: wfn
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
+      !> Shell populations
+      real(wp) :: psh(bas%nsh,wfn%nspin)
+
+      integer :: ish, iat, ii, spin
+
+      psh = 0.0_wp
+      do spin = 1, size(wfn%qat, 2)
+         do iat = 1, size(wfn%qat, 1)
+            ii = bas%ish_at(iat)
+            do ish = 1, bas%nsh_at(iat)
+               !> wfn%qat on input are actually the atomic CHARGES
+               psh(ii + ish, spin) = wfn%n0sh(ii + ish) * &
+               & ( wfn%n0at(iat) - wfn%qat(iat, spin) ) / wfn%n0at(iat)
+               !### POP version
+            end do
+         end do
+      end do
+   end function get_psh
 end module xtb_ptb_guess
