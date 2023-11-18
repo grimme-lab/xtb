@@ -244,6 +244,9 @@ module xtb_ptb_data
       !> Scaling factor for charge dependence of the Hubbard parameter in the first iter.
       real(wp) :: kQHubbard
 
+      !> Third-Order scaling parameter
+      real(wp), allocatable :: kTO(:)
+
       !> Ohno-Klopman contribution in the first and second iteration
       real(wp) :: kOK1
       real(wp) :: kOK2
@@ -576,7 +579,8 @@ contains
 
    end subroutine initHamiltonian
 
-   subroutine initCoulomb(self, num, nshell, shellHardnessFirstIter) 
+   subroutine initCoulomb(self, num, nshell, shellHardnessFirstIter, &
+      & thirdOrderAtomWise)
 
       !> Data instance
       type(TCoulombData), intent(out) :: self
@@ -584,10 +588,14 @@ contains
       integer, intent(in) :: num(:)
       !> Number of shells for each atom
       integer, intent(in) :: nshell(:)
-
+      !> Scaling factors for shell electrostatic hardness
       real(wp), intent(in) :: shellHardnessFirstIter(:, :)
+      !> Scaling factors for third-order electrostatics
+      real(wp), intent(in) :: thirdOrderAtomWise(:)
+
 
       call newData(self%shellHardnessFirstIter, num, nshell, shellHardnessFirstIter)
+      call newData(self%kTO, num, thirdOrderAtomWise)
 
    end subroutine initCoulomb
 

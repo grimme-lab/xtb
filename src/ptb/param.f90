@@ -2136,7 +2136,7 @@ contains
       !> Atomic numbers for unique elements
       integer, intent(in) :: num(:)
 
-      call init(self, num, nshell, keta1)
+      call init(self, num, nshell, keta1, kto)
       self%kQHubbard = 0.25_wp
       self%kOK1 = 1.6_wp
       self%kOK2 = 1.0_wp
