@@ -43,8 +43,10 @@ module xtb_ptb_coulomb
       real(wp), allocatable :: cmat(:, :)
       !> Ohno-Klopman contribution
       real(wp) :: cok
+      !> Effective Hubbard-Derivatives for third-order contribution
+      real(wp), allocatable :: hubbard_derivs(:)
    contains
-      procedure :: init => init_hubbard
+      procedure :: init
       procedure :: update => get_coulomb_matrix
       procedure :: get_potential
    end type coulomb_potential
@@ -101,6 +103,29 @@ contains
 
    end subroutine get_coulomb_matrix
 
+   subroutine init(self, mol, bas, q, gamsh, kqhubb, kok, kthirdoder)
+      !> Effective Hubbard parameters
+      class(coulomb_potential), intent(inout) :: self
+      !> Molecular structure
+      type(structure_type), intent(in) :: mol
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
+      !> Atomic charges
+      real(wp), intent(in) :: q(:)
+      !> Shell-wise gamma scaling factors
+      real(wp), intent(in) :: gamsh(:, :)
+      !> Scaling factor for the charge dependent part of the Hubbard parameters
+      real(wp), intent(in) :: kqhubb
+      !> Ohno-Klopman contribution
+      real(wp), intent(in) :: kok
+      !> Scaling for third-order contributions
+      real(wp), intent(in) :: kthirdoder(:)
+
+      call init_hubbard(self, mol, bas, q, gamsh, kqhubb, kok)
+      call init_hubbard_derivs(self, mol, kthirdoder)
+
+   end subroutine init
+
    subroutine init_hubbard(self, mol, bas, q, gamsh, kqhubb, kok)
       !> Effective Hubbard parameters
       class(coulomb_potential), intent(inout) :: self
@@ -154,7 +179,39 @@ contains
 
    end subroutine init_hubbard
 
+   subroutine init_hubbard_derivs(self, mol, kthirdoder)
+      !> Effective Hubbard parameters
+      class(coulomb_potential), intent(inout) :: self
+      !> Molecular structure
+      type(structure_type), intent(in) :: mol
+      !> Scaling for third-order contributions
+      real(wp), intent(in) :: kthirdoder(:)
+
+      integer :: iat, iid
+
+      !> Third-order on-center electrostatics; Eq. 17
+      allocate (self%hubbard_derivs(mol%nat), source=0.0_wp)
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         self%hubbard_derivs(iat) = 2.0_wp * kthirdoder(iid)
+      end do
+
+   end subroutine init_hubbard_derivs
+
    subroutine get_potential(self, wfn, pot)
+      !> Coulomb type
+      class(coulomb_potential), intent(inout) :: self
+      !> Wavefunction of tblite type
+      type(wavefunction_type), intent(in) :: wfn
+      !> Instance of the density dependent potential
+      type(potential_type), intent(inout) :: pot
+
+      call get_potential_secondorder(self, wfn, pot)
+      call get_potential_thirdorder(self, wfn, pot)
+
+   end subroutine get_potential
+
+   subroutine get_potential_secondorder(self, wfn, pot)
       !> Coulomb type
       class(coulomb_potential), intent(inout) :: self
       !> Wavefunction of tblite type
@@ -173,6 +230,25 @@ contains
       ! end do
       !#####################
 
-   end subroutine get_potential
+   end subroutine get_potential_secondorder
+
+   subroutine get_potential_thirdorder(self, wfn, pot)
+      !> Coulomb type
+      class(coulomb_potential), intent(inout) :: self
+      !> Wavefunction of tblite type
+      type(wavefunction_type), intent(in) :: wfn
+      !> Instance of the density dependent potential
+      type(potential_type), intent(inout) :: pot
+      !> tmp variables
+      integer :: iat
+
+      do iat = 1, size(wfn%qat, 1)
+         pot%vat(iat, 1) = pot%vat(iat, 1) + wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
+         !##### DEV WRITE #####
+         ! write (*, *) wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
+         !#####################
+      end do
+
+   end subroutine get_potential_thirdorder
 
 end module xtb_ptb_coulomb

@@ -784,7 +784,7 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
       call coulomb%init(mol, bas, q, ptbData%coulomb%shellHardnessFirstIter, &
-      & ptbData%coulomb%kQHubbard, ptbData%coulomb%kOK1)
+      & ptbData%coulomb%kQHubbard, ptbData%coulomb%kOK1, ptbData%coulomb%kTO)
 
       !> Check the shell gammas
       ii = 0

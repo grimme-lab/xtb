@@ -285,7 +285,7 @@ contains
       ! enddo
       !#####################
       call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessFirstIter, &
-         & data%coulomb%kQHubbard, data%coulomb%kOK1)
+         & data%coulomb%kQHubbard, data%coulomb%kOK1, data%coulomb%kTO)
       call coulomb%update(mol, bas)
       !##### DEV WRITE #####
       write (*, *) "Coulomb matrix ..."
@@ -377,6 +377,7 @@ contains
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
+      !> Add Pauli XC potential "manually" to Hamiltonian matrix (same purpose as add_pot_to_h1)
       wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."
