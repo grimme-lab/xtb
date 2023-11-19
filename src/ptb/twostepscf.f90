@@ -34,7 +34,7 @@ module xtb_ptb_scf
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: ptbGlobals, rf
-   use xtb_ptb_overlaps, only: get_scaled_integrals
+   use xtb_ptb_overlaps, only: get_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
@@ -143,7 +143,7 @@ contains
 
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, bas, lattr, ints%overlap, ints%dipole, norm=auxints%norm)
+      call get_integrals(mol, bas, lattr, list, ints%overlap, ints%dipole, norm=auxints%norm)
       !##### DEV WRITE #####
       write (*, *) "Standard overlap ..."
       ! do i = 1, bas%nao
@@ -160,7 +160,7 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_scaled_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
+      call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -170,7 +170,7 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_scaled_integrals(mol, lattr, list, auxints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
+      call get_integrals(mol, lattr, list, auxints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
       ! do i = 1, bas%nao

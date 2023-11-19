@@ -24,6 +24,7 @@ module xtb_ptb_overlaps
    use tblite_cutoff, only: get_lattice_points
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_integral_overlap, only: overlap_cgto, maxl, msao
+   use tblite_integral_dipole, only: dipole_cgto
    use tblite_adjlist, only: adjacency_list
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
@@ -31,19 +32,19 @@ module xtb_ptb_overlaps
 
    private
 
-   public :: get_scaled_integrals
+   public :: get_integrals
 
-   interface get_scaled_integrals
-      module procedure get_scaled_integrals_overlap_existbasis
-      module procedure get_scaled_integrals_overlap_newbasis
-      module procedure get_scaled_integrals_dipole_existbasis
-      module procedure get_scaled_integrals_dipole_newbasis
-   end interface get_scaled_integrals
+   interface get_integrals
+      module procedure get_integrals_overlap_existbasis
+      module procedure get_integrals_overlap_newbasis
+      module procedure get_integrals_dipole_existbasis
+      module procedure get_integrals_dipole_newbasis
+   end interface get_integrals
 
 contains
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_overlap_existbasis(mol, bas, lattr, list, overlap, norm)
+   subroutine get_integrals_overlap_existbasis(mol, bas, lattr, list, overlap, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set data
@@ -80,10 +81,10 @@ contains
          norm = normlocal
       end if
 
-   end subroutine get_scaled_integrals_overlap_existbasis
+   end subroutine get_integrals_overlap_existbasis
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_overlap_newbasis(mol, lattr, list, overlap, alpha_scal, norm)
+   subroutine get_integrals_overlap_newbasis(mol, lattr, list, overlap, alpha_scal, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Lattice points within a given realspace cutoff
@@ -106,16 +107,18 @@ contains
          call add_vDZP_basis(mol, bas)
       end if
 
-      call get_scaled_integrals(mol, bas, lattr, list, overlap, norm=norm)
+      call get_integrals(mol, bas, lattr, list, overlap, norm=norm)
 
-   end subroutine get_scaled_integrals_overlap_newbasis
+   end subroutine get_integrals_overlap_newbasis
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_dipole_existbasis(mol, bas, lattr, overlap, dipole, norm)
+   subroutine get_integrals_dipole_existbasis(mol, bas, lattr, list, overlap, dipole, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set data
       type(basis_type), intent(in) :: bas
+      !> Adjacency list
+      type(adjacency_list), intent(in) :: list
       !> Lattice points within a given realspace cutoff
       real(wp), intent(in) :: lattr(:, :)
       !> Overlap matrix as output
@@ -129,7 +132,7 @@ contains
       cutoff = get_cutoff(bas)
       allocate (normlocal(bas%nao), source=0.0_wp)
 
-      call get_dipole_integrals(mol, lattr, cutoff, bas, overlap, dipole)
+      call get_dpint(mol, lattr, list, bas, overlap, dipole)
 
       !> Normalize overlap
       ij = 0
@@ -149,14 +152,16 @@ contains
 
       !> ########### AND DIPOLE!! #############
 
-   end subroutine get_scaled_integrals_dipole_existbasis
+   end subroutine get_integrals_dipole_existbasis
 
    !> Calculate the overlap matrix for a given scaling factor
-   subroutine get_scaled_integrals_dipole_newbasis(mol, lattr, overlap, dipole, alpha_scal, norm)
+   subroutine get_integrals_dipole_newbasis(mol, lattr, list, overlap, dipole, alpha_scal, norm)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Lattice points within a given realspace cutoff
       real(wp), intent(in) :: lattr(:, :)
+      !> Adjacency list
+      type(adjacency_list), intent(in) :: list
       !> Overlap matrix as output
       real(wp), intent(out) :: overlap(:, :), dipole(:, :, :)
       !> Scaling factors as input
@@ -189,9 +194,9 @@ contains
       ! end do
       !#####################
 
-      call get_scaled_integrals(mol, bas, lattr, overlap, dipole, norm)
+      call get_integrals(mol, bas, lattr, list, overlap, dipole, norm)
 
-   end subroutine get_scaled_integrals_dipole_newbasis
+   end subroutine get_integrals_dipole_newbasis
 
    subroutine get_overlap(mol, trans, list, bas, overlap)
       !> Molecular structure data
@@ -287,5 +292,140 @@ contains
       end do
 
    end subroutine get_overlap
+
+   subroutine get_dpint(mol, trans, list, bas, overlap, dpint)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Lattice points within a given realspace cutoff
+      real(wp), intent(in) :: trans(:, :)
+      !> Neighbour list
+      type(adjacency_list), intent(in) :: list
+      !> Basis set information
+      type(basis_type), intent(in) :: bas
+      !> Overlap integral matrix
+      real(wp), intent(out) :: overlap(:, :)
+      !> Dipole moment integral matrix
+      real(wp), intent(out) :: dpint(:, :, :)
+
+      integer :: iat, jat, izp, jzp, itr, img, inl, k
+      integer :: ish, jsh, is, js, ii, jj, iao, jao, nao, ij
+      real(wp) :: r2, vec(3), dtmpj(3)
+      real(wp), allocatable :: stmp(:), dtmpi(:, :)
+
+      overlap(:, :) = 0.0_wp
+      dpint(:, :, :) = 0.0_wp
+
+      allocate (stmp(msao(bas%maxl)**2), dtmpi(3, msao(bas%maxl)**2))
+
+      !$omp parallel do schedule(runtime) default(none) &
+      !$omp shared(mol, bas, trans, list, overlap, dpint) &
+      !$omp private(iat, jat, izp, jzp, itr, is, js, ish, jsh, ii, jj, iao, jao, nao, ij, k) &
+      !$omp private(r2, vec, stmp, dtmpi, dtmpj, inl, img)
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         is = bas%ish_at(iat)
+         inl = list%inl(iat)
+         do img = 1, list%nnl(iat)
+            jat = list%nlat(img + inl)
+            itr = list%nltr(img + inl)
+            jzp = mol%id(jat)
+            js = bas%ish_at(jat)
+            vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
+            r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+            do ish = 1, bas%nsh_id(izp)
+               ii = bas%iao_sh(is + ish)
+               do jsh = 1, bas%nsh_id(jzp)
+                  jj = bas%iao_sh(js + jsh)
+                  call dipole_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
+                     & r2, vec, bas%intcut, stmp, dtmpi)
+
+                  nao = msao(bas%cgto(jsh, jzp)%ang)
+                  do iao = 1, msao(bas%cgto(ish, izp)%ang)
+                     do jao = 1, nao
+                        ij = jao + nao * (iao - 1)
+                        call shift_operator(vec, stmp(ij), dtmpi(:, ij), &
+                           & dtmpj)
+                        !$omp atomic
+                        overlap(jj + jao, ii + iao) = overlap(jj + jao, ii + iao) &
+                           & + stmp(ij)
+
+                        !$omp atomic
+                        overlap(ii + iao, jj + jao) = overlap(ii + iao, jj + jao) &
+                           & + stmp(ij)
+
+                        do k = 1, 3
+                           !$omp atomic
+                           dpint(k, jj + jao, ii + iao) = dpint(k, jj + jao, ii + iao) &
+                              & + dtmpi(k, ij)
+                        end do
+                        do k = 1, 3
+                           !$omp atomic
+                           dpint(k, ii + iao, jj + jao) = dpint(k, ii + iao, jj + jao) &
+                              & + dtmpj(k)
+                        end do
+                     end do
+                  end do
+
+               end do
+            end do
+
+         end do
+      end do
+
+      !$omp parallel do schedule(runtime) default(none) &
+      !$omp shared(mol, bas, overlap, dpint) &
+      !$omp private(iat, izp, itr, is, ish, jsh, ii, jj, iao, jao, nao, ij) &
+      !$omp private(r2, vec, stmp, dtmpi)
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         is = bas%ish_at(iat)
+         vec(:) = 0.0_wp
+         r2 = 0.0_wp
+         do ish = 1, bas%nsh_id(izp)
+            ii = bas%iao_sh(is + ish)
+            do jsh = 1, bas%nsh_id(izp)
+               jj = bas%iao_sh(is + jsh)
+               call overlap_cgto(bas%cgto(jsh, izp), bas%cgto(ish, izp), &
+                     & r2, vec, bas%intcut, stmp)
+
+               nao = msao(bas%cgto(jsh, izp)%ang)
+               do iao = 1, msao(bas%cgto(ish, izp)%ang)
+                  do jao = 1, nao
+                     ij = jao + nao * (iao - 1)
+                     overlap(jj + jao, ii + iao) = overlap(jj + jao, ii + iao) &
+                        & + stmp(ij)
+                     dpint(:, jj + jao, ii + iao) = dpint(:, jj + jao, ii + iao) &
+                        & + dtmpi(:, ij)
+                  end do
+               end do
+
+            end do
+         end do
+
+      end do
+
+   end subroutine get_dpint
+
+   !> TAKEN OVER FROM TBLITE
+   !> Shift multipole operator from Ket function (center i) to Bra function (center j),
+   !> the multipole operator on the Bra function can be assembled from the lower moments
+   !> on the Ket function and the displacement vector using horizontal shift rules.
+   pure subroutine shift_operator(vec, s, di, dj)
+      !> Displacement vector of center i and j
+      real(wp), intent(in) :: vec(:)
+      !> Overlap integral between basis functions
+      real(wp), intent(in) :: s
+      !> Dipole integral with operator on Ket function (center i)
+      real(wp), intent(in) :: di(:)
+      !> Dipole integral with operator on Bra function (center j)
+      real(wp), intent(out) :: dj(:)
+
+      ! Create dipole operator on Bra function from Ket function and shift contribution
+      ! due to monopol displacement
+      dj(1) = di(1) + vec(1) * s
+      dj(2) = di(2) + vec(2) * s
+      dj(3) = di(3) + vec(3) * s
+
+   end subroutine shift_operator
 
 end module xtb_ptb_overlaps

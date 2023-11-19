@@ -141,7 +141,7 @@ contains
    end subroutine test_ptb_eeq
 
    subroutine test_ptb_overlap(error)
-      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_overlaps, only: get_integrals
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use tblite_basis_type, only: basis_type, get_cutoff
@@ -187,7 +187,7 @@ contains
       call new_adjacency_list(list, mol, lattr, cutoff)
 
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, lattr, list, ints%overlap)
+      call get_integrals(mol, bas, lattr, list, ints%overlap)
       call check_(error, ints%overlap(1, 2), overlap_exp(1), thr=thr)
       call check_(error, ints%overlap(1, 3), overlap_exp(2), thr=thr)
       call check_(error, ints%overlap(2, 3), overlap_exp(3), thr=thr)
@@ -198,7 +198,7 @@ contains
    end subroutine test_ptb_overlap
 
    subroutine test_ptb_overlap_h0(error)
-      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_overlaps, only: get_integrals
       use xtb_ptb_param, only: kalphah0l
       use xtb_ptb_vdzp, only: max_shell, add_vDZP_basis
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
@@ -253,7 +253,7 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, bas, lattr, list, auxints%overlap_h0)
+      call get_integrals(mol, bas, lattr, list, auxints%overlap_h0)
       call check_(error, auxints%overlap_h0(1, 2), overlap_exp(1), thr=thr, &
       & message=message)
       call check_(error, auxints%overlap_h0(1, 3), overlap_exp(2), thr=thr, &
@@ -271,7 +271,7 @@ contains
 
    subroutine test_ptb_overlap_SX(error)
       !> PTB dependencies
-      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_overlaps, only: get_integrals
       use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
       use xtb_ptb_param, only: ptbGlobals
       use xtb_ptb_vdzp, only: add_vDZP_basis
@@ -319,7 +319,7 @@ contains
       call new_adjacency_list(list, mol, lattr, cutoff)
 
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, lattr, list, ints%overlap)
+      call get_integrals(mol, bas, lattr, list, ints%overlap)
       allocate (overlap_sx(bas%nao, bas%nao), overlap_oneminusx(bas%nao, bas%nao))
       call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, overlap_sx, &
          & overlap_oneminusx)
@@ -348,7 +348,7 @@ contains
       !> PTB dependencies
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
-      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_overlaps, only: get_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
@@ -401,7 +401,7 @@ contains
       !> Add the core basis set to 'cbas' basis set type
       call add_core_basis(mol, ptbData%corepotential, cbas)
       !> -> for normalization factors
-      call get_scaled_integrals(mol, bas, lattr, list, ints%overlap, norm=auxints%norm)
+      call get_integrals(mol, bas, lattr, list, ints%overlap, norm=auxints%norm)
       !> V_ECP via PTB core basis
       call get_Vecp(mol, ptbData%corepotential, bas, cbas, auxints%norm, vecp)
 
@@ -572,7 +572,7 @@ contains
       use tblite_adjlist, only: adjacency_list, new_adjacency_list
       !> PTB core basis set generation
       use xtb_ptb_vdzp, only: add_vDZP_basis
-      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_overlaps, only: get_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB, ptbGlobals
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
@@ -639,7 +639,7 @@ contains
       call new_adjacency_list(list, mol, lattr, cutoff)
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
+      call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
       allocate(vecp(bas%nao, bas%nao), source=0.0_wp)
 
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
@@ -663,7 +663,7 @@ contains
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
       !> PTB overlap matrix calculation
-      use xtb_ptb_overlaps, only: get_scaled_integrals
+      use xtb_ptb_overlaps, only: get_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_paulixc, only: calc_Vxc_pauli
@@ -737,7 +737,7 @@ contains
       !> New integrals
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, bas, lattr, list, auxints%overlap_xc)
+      call get_integrals(mol, bas, lattr, list, auxints%overlap_xc)
       call calc_Vxc_pauli(mol, bas, shellpops, auxints%overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
 
       message = "V_XC matrix element not matching to expected value."
