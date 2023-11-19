@@ -144,8 +144,10 @@ contains
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_vdzp, only: add_vDZP_basis
-      use tblite_basis_type, only: basis_type
+      use tblite_basis_type, only: basis_type, get_cutoff
       use tblite_integral_type, only: integral_type, new_integral
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
+      use tblite_cutoff, only: get_lattice_points
 
       !> Structure type (xtb)
       type(TMolecule) :: struc
@@ -155,6 +157,8 @@ contains
       type(structure_type) :: mol
       !> Integral type
       type(integral_type) :: ints
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> Error type
       type(error_type), allocatable, intent(out) :: error
       !> (Scaled) overlap matrix
@@ -166,28 +170,30 @@ contains
       & 0.05627743_wp, & ! 1,15
       & -0.14217162_wp, &  ! 1,24; diffferent because of tblite ordering
       & 0.41844087_wp] ! 14,23; diffferent because of tblite ordering
+      real(wp), allocatable :: lattr(:, :)
+      real(wp) :: cutoff
 
       message = "Overlap matrix element not matching to expected value."
 
       call getMolecule(struc, "mgh2")
       mol = struc
-
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
+
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
+
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, ints%overlap)
-      call check_(error, ints%overlap(1, 2), overlap_exp(1), thr=thr, &
-      & message=message)
-      call check_(error, ints%overlap(1, 3), overlap_exp(2), thr=thr, &
-      & message=message)
-      call check_(error, ints%overlap(2, 3), overlap_exp(3), thr=thr, &
-      & message=message)
-      call check_(error, ints%overlap(1, 15), overlap_exp(4), thr=thr, &
-      & message=message)
-      call check_(error, ints%overlap(1, 23), overlap_exp(5), thr=thr, &
-      & message=message)
-      call check_(error, ints%overlap(12, 22), overlap_exp(6), thr=thr, &
-      & message=message)
+      call get_scaled_integrals(mol, bas, lattr, list, ints%overlap)
+      call check_(error, ints%overlap(1, 2), overlap_exp(1), thr=thr)
+      call check_(error, ints%overlap(1, 3), overlap_exp(2), thr=thr)
+      call check_(error, ints%overlap(2, 3), overlap_exp(3), thr=thr)
+      call check_(error, ints%overlap(1, 15), overlap_exp(4), thr=thr)
+      call check_(error, ints%overlap(1, 23), overlap_exp(5), thr=thr)
+      call check_(error, ints%overlap(12, 22), overlap_exp(6), thr=thr)
 
    end subroutine test_ptb_overlap
 
@@ -198,8 +204,10 @@ contains
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
-      use tblite_basis_type, only: basis_type
+      use tblite_basis_type, only: basis_type, get_cutoff
       use tblite_integral_type, only: integral_type, new_integral
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
+      use tblite_cutoff, only: get_lattice_points
 
       !> Structure type (xtb)
       type(TMolecule) :: struc
@@ -211,6 +219,8 @@ contains
       type(integral_type) :: ints
       !> Auxiliary integral type
       type(aux_integral_type) :: auxints
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Error type
@@ -223,19 +233,27 @@ contains
       & 0.03782850_wp, & ! 1,15
       &-0.13826216_wp, &  ! 1,24; diffferent because of tblite ordering
       & 0.43334922_wp] ! 14,23; diffferent because of tblite ordering
+      real(wp), allocatable :: lattr(:, :)
+      real(wp) :: cutoff
 
       message = "Scaled overlap matrix element not matching to expected value."
 
       call getMolecule(struc, "mgh2")
       mol = struc
-
       allocate (ptbData)
       call initPTB(ptbData, mol%num)
-      !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, ptbData%hamiltonian%kalphah0l, bas)
+
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
+
+      !> set up the basis set for the PTB-Hamiltonian
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, bas, auxints%overlap_h0)
+      call get_scaled_integrals(mol, bas, lattr, list, auxints%overlap_h0)
       call check_(error, auxints%overlap_h0(1, 2), overlap_exp(1), thr=thr, &
       & message=message)
       call check_(error, auxints%overlap_h0(1, 3), overlap_exp(2), thr=thr, &
@@ -258,8 +276,10 @@ contains
       use xtb_ptb_param, only: ptbGlobals
       use xtb_ptb_vdzp, only: add_vDZP_basis
       !> tblite dependencies
-      use tblite_basis_type, only: basis_type
+      use tblite_basis_type, only: basis_type, get_cutoff
       use tblite_integral_type, only: integral_type, new_integral
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
+      use tblite_cutoff, only: get_lattice_points
 
       !> PTB vDZP basis set
       type(basis_type) :: bas
@@ -269,6 +289,8 @@ contains
       type(structure_type) :: mol
       !> Integral type
       type(integral_type) :: ints
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> Error type
       type(error_type), allocatable, intent(out) :: error
       !> Mulliken-Loewdin overlap matrices
@@ -281,21 +303,27 @@ contains
       & 0.01449_wp, & ! 1,15
       &-0.07203_wp, &  ! 1,24; diffferent because of tblite ordering
       & 0.28751_wp] ! 14,23; diffferent because of tblite ordering
+      real(wp), allocatable :: lattr(:, :)
+      real(wp) :: cutoff
 
       message = "Solved overlap matrix (^(1-x)) element not matching to expected value."
 
       call getMolecule(struc, "mgh2")
       mol = struc
-
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
+
       call new_integral(ints, bas%nao)
-      call get_scaled_integrals(mol, bas, ints%overlap)
+      call get_scaled_integrals(mol, bas, lattr, list, ints%overlap)
       allocate (overlap_sx(bas%nao, bas%nao), overlap_oneminusx(bas%nao, bas%nao))
       call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, overlap_sx, &
          & overlap_oneminusx)
 
-      write (*, *) overlap_oneminusx(1, 2), overlap_oneminusx_exp(1)
       call check_(error, overlap_oneminusx(1, 2), overlap_oneminusx_exp(1), thr=thr2, &
       & message=message)
       call check_(error, overlap_oneminusx(1, 3), overlap_oneminusx_exp(2), thr=thr2, &
@@ -313,8 +341,10 @@ contains
 
    subroutine test_ptb_V_ECP(error)
       !> tblite dependencies
-      use tblite_basis_type, only: basis_type
+      use tblite_basis_type, only: basis_type, get_cutoff
       use tblite_integral_type, only: integral_type, new_integral
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
+      use tblite_cutoff, only: get_lattice_points
       !> PTB dependencies
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
@@ -329,6 +359,8 @@ contains
       type(structure_type) :: mol
       !> Integral type
       type(integral_type) :: ints
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> Auxiliary integral type
       type(aux_integral_type) :: auxints
       !> Parametrisation data base
@@ -347,20 +379,29 @@ contains
       & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
       integer, parameter :: nat = 2
       integer, parameter :: at(nat) = [5, 17]
+      real(wp), allocatable :: lattr(:, :)
+      real(wp) :: cutoff
 
       call new(mol, at, xyz)
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+
       allocate (ptbData)
       call initPTB(ptbData, mol%num)
 
-      !> set up the basis set for the PTB-Hamiltonian
-      call add_vDZP_basis(mol, bas)
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
+
       !> New integrals
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
       !> Add the core basis set to 'cbas' basis set type
       call add_core_basis(mol, ptbData%corepotential, cbas)
       !> -> for normalization factors
-      call get_scaled_integrals(mol, bas, ints%overlap, norm=auxints%norm)
+      call get_scaled_integrals(mol, bas, lattr, list, ints%overlap, norm=auxints%norm)
       !> V_ECP via PTB core basis
       call get_Vecp(mol, ptbData%corepotential, bas, cbas, auxints%norm, vecp)
 
@@ -585,19 +626,22 @@ contains
       &    -0.572539094_wp]
 
       call new(mol, at, xyz)
-      allocate (ptbData)
-      call initPTB(ptbData, mol%num)
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
-      call new_integral(ints, bas%nao)
-      call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
-      allocate(vecp(bas%nao, bas%nao), source=0.0_wp)
 
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+
+      !> Get the cutoff for the lattice points
       cutoff = get_cutoff(bas)
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
       !> Get the adjacency list for iteration through the Hamiltonian
       call new_adjacency_list(list, mol, lattr, cutoff)
+      call new_integral(ints, bas%nao)
+      call new_aux_integral(auxints, bas%nao)
+      call get_scaled_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
+      allocate(vecp(bas%nao, bas%nao), source=0.0_wp)
+
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       message = "H0 matrix element not matching to expected value."
@@ -611,8 +655,10 @@ contains
 
    subroutine test_ptb_V_XC(error)
       !> tblite basis set type
-      use tblite_basis_type, only: basis_type
+      use tblite_basis_type, only: basis_type, get_cutoff
       use tblite_integral_type, only: integral_type, new_integral
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
+      use tblite_cutoff, only: get_lattice_points
       !> PTB core basis set generation
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
@@ -631,6 +677,8 @@ contains
       type(integral_type) :: ints
       !> Auxiliary integral type
       type(aux_integral_type) :: auxints
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
       !> Error type
@@ -670,17 +718,26 @@ contains
       &    -0.736092857_wp, &
       &    -0.464644474_wp, &
       &    -0.572539094_wp]
+      real(wp), allocatable :: lattr(:, :)
+      real(wp) :: cutoff
 
       call new(mol, at, xyz)
+
       allocate (ptbData)
       call initPTB(ptbData, mol%num)
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, ptbData%pauli%klalphaxc, bas)
+
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
       !> New integrals
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, bas, auxints%overlap_xc)
+      call get_scaled_integrals(mol, bas, lattr, list, auxints%overlap_xc)
       call calc_Vxc_pauli(mol, bas, shellpops, auxints%overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
 
       message = "V_XC matrix element not matching to expected value."

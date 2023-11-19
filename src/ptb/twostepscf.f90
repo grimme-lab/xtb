@@ -103,6 +103,12 @@ contains
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
+      
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
 
       !            _____                    _____                _____                    _____                    _____
       !           /\    \                  /\    \              /\    \                  /\    \                  /\    \
@@ -137,16 +143,16 @@ contains
 
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_scaled_integrals(mol, bas, ints%overlap, ints%dipole, norm=auxints%norm)
+      call get_scaled_integrals(mol, bas, lattr, ints%overlap, ints%dipole, norm=auxints%norm)
       !##### DEV WRITE #####
       write (*, *) "Standard overlap ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") overlap(i, j)
+      !       write (*, '(f8.5)', advance="no") ints%overlap(i, j)
       !    end do
       !    write (*, *) ""
       ! end do
-      ! write (*, *) "Dipole:"
+      write (*, *) "Dipole:"
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f12.6)', advance="no") dipole(1, i, j)
@@ -154,7 +160,7 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_scaled_integrals(mol, auxints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
+      call get_scaled_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -164,7 +170,7 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_scaled_integrals(mol, auxints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
+      call get_scaled_integrals(mol, lattr, list, auxints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
       ! do i = 1, bas%nao
@@ -251,11 +257,6 @@ contains
       !#####################
       !> Get the effective self-energies
       call get_selfenergy(mol, bas, data%hamiltonian, cn, cn_star, levels)
-      !> Get the cutoff for the lattice points
-      cutoff = get_cutoff(bas)
-      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
-      !> Get the adjacency list for iteration through the Hamiltonian
-      call new_adjacency_list(list, mol, lattr, cutoff)
 
       !    ______   _                 _
       !   |  ____| | |               | |

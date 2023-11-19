@@ -63,8 +63,6 @@ contains
       else
          rcov(:) = get_covalent_rad(mol%num)
       end if
-      write(*,*) "Covalent radii used for coordination number calculation:"
-      write(*,*) rcov(:)
 
       !$omp parallel do default(none) reduction(+:cn) &
       !$omp shared(mol, cutoff2, rcov, kcn) &
