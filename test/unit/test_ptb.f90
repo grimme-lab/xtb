@@ -525,12 +525,17 @@ contains
 
    subroutine test_ptb_hamiltonian_h0(error)
       !> tblite basis set type
-      use tblite_basis_type, only: basis_type
+      use tblite_basis_type, only: basis_type, get_cutoff
+      use tblite_integral_type, only: new_integral, integral_type
+      use tblite_cutoff, only: get_lattice_points
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
       !> PTB core basis set generation
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
+      use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
+      use xtb_ptb_hamiltonian, only: get_hamiltonian
 
       !> PTB vDZP basis set and core basis set
       type(basis_type) :: bas
@@ -538,10 +543,18 @@ contains
       type(structure_type) :: mol
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
-      !> (Scaled) overlap matrix
-      real(wp), allocatable :: overlap_h0(:, :)
+      !> Integral type
+      type(integral_type) :: ints
+      !> Auxiliary integral type
+      type(aux_integral_type) :: auxints
+      !> Adjacency list
+      type(adjacency_list) :: list
       !> Error type
       type(error_type), allocatable, intent(out) :: error
+      !> Cutoff for lattice points
+      real(wp) :: cutoff
+      !> Lattice points
+      real(wp), allocatable :: lattr(:, :)
       character(len=:), allocatable :: message
       !> Structure
       real(wp), parameter :: xyz(3, 2) = reshape([ &
@@ -549,32 +562,56 @@ contains
       & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
       integer, parameter :: nat = 2
       integer, parameter :: at(nat) = [5, 17]
+      !> Dummy vecp
+      real(wp), allocatable :: vecp(:, :)
 
-      real(wp), parameter :: h0_ref(4) = [ &
-      &  0.0_wp, & ! 1,1 ; diffferent because of tblite ordering
-      &  0.0_wp, & ! 1,3 ; diffferent because of tblite ordering
-      &  0.0_wp, & ! 3,5 ; diffferent because of tblite ordering
-      &  0.0_wp]   ! 9,9 ; diffferent because of tblite ordering
-
-      !> Hamiltonian matrix
-      real(wp), allocatable :: hamiltonian(:, :)
+      real(wp), parameter :: h0_ref(6) = [ &
+      &  -1.59330281_wp, & ! 1,1
+      &  -2.24996207_wp, & ! 1,2
+      &   0.34974782_wp, & ! 1,23 ; diffferent because of tblite ordering
+      &   0.0_wp       , & ! 7,11 ; different because of tblite ordering
+      &  -1.17757007_wp, & ! 3,6 ; different because of tblite ordering
+      &   0.48301561_wp]   ! 11,24 ; diffferent because of tblite ordering
+      real(wp), parameter :: levels(10) = [ &
+      &    -0.796651404_wp, &
+      &    -0.269771638_wp, &
+      &    -0.593749262_wp, &
+      &    -0.292154638_wp, &
+      &    -0.204518309_wp, &
+      &    -1.022956257_wp, &
+      &    -0.356719004_wp, &
+      &    -0.736092857_wp, &
+      &    -0.464644474_wp, &
+      &    -0.572539094_wp]
 
       call new(mol, at, xyz)
       allocate (ptbData)
       call initPTB(ptbData, mol%num)
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, bas)
+      call new_integral(ints, bas%nao)
+      call new_aux_integral(auxints, bas%nao)
+      call get_scaled_integrals(mol, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
+      allocate(vecp(bas%nao, bas%nao), source=0.0_wp)
 
-      allocate (hamiltonian(bas%nao, bas%nao), source=0.0_wp)
-
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
+      call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
+      & vecp, levels, 1, ints%hamiltonian)
       message = "H0 matrix element not matching to expected value."
-      call check_(error, hamiltonian(1, 1), h0_ref(1), thr=thr2, &
+      call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr, &
       & message=message)
-      call check_(error, hamiltonian(1, 5), h0_ref(2), thr=thr2, &
+      call check_(error, ints%hamiltonian(1, 2), h0_ref(2), thr=thr, &
       & message=message)
-      call check_(error, hamiltonian(5, 8), h0_ref(3), thr=thr2, &
+      call check_(error, ints%hamiltonian(1, 22), h0_ref(3), thr=thr, &
       & message=message)
-      call check_(error, hamiltonian(12, 12), h0_ref(4), thr=thr2, &
+      call check_(error, ints%hamiltonian(13, 6), h0_ref(4), thr=thr, &
+      & message=message)
+      call check_(error, ints%hamiltonian(8, 5), h0_ref(5), thr=thr, &
+      & message=message)
+      call check_(error, ints%hamiltonian(13, 26), h0_ref(6), thr=thr, &
       & message=message)
    end subroutine test_ptb_hamiltonian_h0
 
