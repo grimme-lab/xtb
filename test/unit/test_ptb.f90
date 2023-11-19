@@ -533,7 +533,7 @@ contains
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_overlaps, only: get_scaled_integrals
       use xtb_ptb_data, only: TPTBData
-      use xtb_ptb_param, only: initPTB
+      use xtb_ptb_param, only: initPTB, ptbGlobals
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_hamiltonian, only: get_hamiltonian
 
@@ -599,20 +599,14 @@ contains
       !> Get the adjacency list for iteration through the Hamiltonian
       call new_adjacency_list(list, mol, lattr, cutoff)
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
-      & vecp, levels, 1, ints%hamiltonian)
+      & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       message = "H0 matrix element not matching to expected value."
-      call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr, &
-      & message=message)
-      call check_(error, ints%hamiltonian(1, 2), h0_ref(2), thr=thr, &
-      & message=message)
-      call check_(error, ints%hamiltonian(1, 22), h0_ref(3), thr=thr, &
-      & message=message)
-      call check_(error, ints%hamiltonian(13, 6), h0_ref(4), thr=thr, &
-      & message=message)
-      call check_(error, ints%hamiltonian(8, 5), h0_ref(5), thr=thr, &
-      & message=message)
-      call check_(error, ints%hamiltonian(13, 26), h0_ref(6), thr=thr, &
-      & message=message)
+      call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr)
+      call check_(error, ints%hamiltonian(1, 2), h0_ref(2), thr=thr)
+      call check_(error, ints%hamiltonian(1, 22), h0_ref(3), thr=thr)
+      call check_(error, ints%hamiltonian(13, 6), h0_ref(4), thr=thr)
+      call check_(error, ints%hamiltonian(8, 5), h0_ref(5), thr=thr)
+      call check_(error, ints%hamiltonian(13, 26), h0_ref(6), thr=thr)
    end subroutine test_ptb_hamiltonian_h0
 
    subroutine test_ptb_V_XC(error)

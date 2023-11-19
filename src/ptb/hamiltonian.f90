@@ -36,47 +36,6 @@ module xtb_ptb_hamiltonian
 
 contains
 
-   subroutine get_hamiltonian(mol, list, bas, hData, overlap_h0, &
-      & vecp, selfenergies, iteration, hamiltonian)
-      !> Molecular structure data
-      type(structure_type), intent(in) :: mol
-      !> Neighbour list
-      type(adjacency_list), intent(in) :: list
-      !> Basis set data
-      type(basis_type), intent(in) :: bas
-      !> THamiltonian data
-      type(THamiltonianData), intent(in) :: hData
-      !> (Scaled) overlap matrix
-      real(wp), intent(in) :: overlap_h0(:, :)
-      !> Effective core potential
-      real(wp), intent(in) :: vecp(:, :)
-      !> Self-energies
-      real(wp), intent(in) :: selfenergies(:)
-      !> Iteration
-      integer, intent(in) :: iteration
-      !> Effective Hamiltonian
-      real(wp), intent(out) :: hamiltonian(:, :)
-
-      !> H0 matrix
-      real(wp), allocatable :: h0(:, :)
-      !> tmp loop variables
-      integer :: i, j
-
-      allocate (h0(bas%nao, bas%nao), source=0.0_wp)
-
-      hamiltonian = vecp
-
-      if (iteration == 1) then
-         call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
-            & ptbGlobals%kitr, ptbGlobals%kitocod)
-      else
-         call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol)
-      end if
-      hamiltonian = hamiltonian + h0
-      deallocate (h0)
-
-   end subroutine get_hamiltonian
-
    subroutine get_selfenergy(mol, bas, hData, cn_normal, cn_star, selfenergies)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
@@ -122,7 +81,7 @@ contains
 
    end subroutine get_selfenergy
 
-   subroutine get_h0(mol, list, bas, hData, sh0, levels, h0mat, kpol, kitr, kitocod)
+   subroutine get_hamiltonian(mol, list, bas, hData, sh0, levels, h0mat, kpol, kitr, kitocod)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Neighbour list
@@ -273,7 +232,7 @@ contains
          end do
       end do
 
-   end subroutine get_h0
+   end subroutine get_hamiltonian
 
    subroutine get_occupation(mol, bas, refocc, nocc, n0at, n0sh)
       !> Molecular structure data
