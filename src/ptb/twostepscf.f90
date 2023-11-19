@@ -96,8 +96,6 @@ contains
       real(wp), allocatable :: lattr(:, :)
       !> Cutoff for lattice points
       real(wp) :: cutoff
-      !> Iteration counter
-      integer :: iter
       !> Number of electrons
       real(wp) :: nel
       !> Pauli XC potential
@@ -320,8 +318,6 @@ contains
       !         \/____/                  \/____/
 
       !> Set up the effective Hamiltonian in the first iteration
-      iter = 1
-      ints%hamiltonian = 0.0_wp
       call new_potential(pot, mol, bas, wfn%nspin)
       !    _    _  ___
       !   | |  | |/ _ \
@@ -330,10 +326,12 @@ contains
       !   | |  | | |_| |
       !   |_|  |_|\___/
       !
-      !>  --------- Get H0 (wavefunction-independent) ----------
+      !>  --------- Get H0 (wavefunction-independent (but iteration-dependent)) ----------
 
+      ints%hamiltonian = 0.0_wp
       call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0, &
-      & vecp, levels, iter, ints%hamiltonian)
+      & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
+      ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
       write (*, *) "H0 ..."
       ! do i = 1, bas%nao
@@ -403,6 +401,10 @@ contains
          return
       end if
       call get_alpha_beta_occupation(wfn%nocc, wfn%nuhf, wfn%nel(1), wfn%nel(2))
+
+
+     ! IN SECOND ITERATION, USE THE FOLLOWING:
+     !    call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
 
    end subroutine twostepscf
 
