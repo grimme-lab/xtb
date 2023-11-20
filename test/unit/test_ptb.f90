@@ -50,7 +50,8 @@ contains
                   new_unittest("selfenergies", test_ptb_selfenergies), &
                   new_unittest("hamiltonian_h0", test_ptb_hamiltonian_h0), &
                   new_unittest("v_xc", test_ptb_V_XC), &
-                  new_unittest("hubbard", test_ptb_hubbard) &
+                  new_unittest("hubbard", test_ptb_hubbard), &
+                  new_unittest("coulomb_pot", test_ptb_coulomb_potential) &
                   ]
 
    end subroutine collect_ptb
@@ -141,7 +142,7 @@ contains
    end subroutine test_ptb_eeq
 
    subroutine test_ptb_overlap(error)
-      use xtb_ptb_overlaps, only: get_integrals
+      use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use tblite_basis_type, only: basis_type, get_cutoff
@@ -198,7 +199,7 @@ contains
    end subroutine test_ptb_overlap
 
    subroutine test_ptb_overlap_h0(error)
-      use xtb_ptb_overlaps, only: get_integrals
+      use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_param, only: kalphah0l
       use xtb_ptb_vdzp, only: max_shell, add_vDZP_basis
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
@@ -271,7 +272,7 @@ contains
 
    subroutine test_ptb_overlap_SX(error)
       !> PTB dependencies
-      use xtb_ptb_overlaps, only: get_integrals
+      use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
       use xtb_ptb_param, only: ptbGlobals
       use xtb_ptb_vdzp, only: add_vDZP_basis
@@ -348,7 +349,7 @@ contains
       !> PTB dependencies
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
-      use xtb_ptb_overlaps, only: get_integrals
+      use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
@@ -572,7 +573,7 @@ contains
       use tblite_adjlist, only: adjacency_list, new_adjacency_list
       !> PTB core basis set generation
       use xtb_ptb_vdzp, only: add_vDZP_basis
-      use xtb_ptb_overlaps, only: get_integrals
+      use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB, ptbGlobals
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
@@ -610,7 +611,7 @@ contains
       &  -1.59330281_wp, & ! 1,1
       &  -2.24996207_wp, & ! 1,2
       &   0.34974782_wp, & ! 1,23 ; diffferent because of tblite ordering
-      &   0.0_wp       , & ! 7,11 ; different because of tblite ordering
+      &   0.0_wp, & ! 7,11 ; different because of tblite ordering
       &  -1.17757007_wp, & ! 3,6 ; different because of tblite ordering
       &   0.48301561_wp]   ! 11,24 ; diffferent because of tblite ordering
       real(wp), parameter :: levels(10) = [ &
@@ -640,7 +641,7 @@ contains
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
       call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
-      allocate(vecp(bas%nao, bas%nao), source=0.0_wp)
+      allocate (vecp(bas%nao, bas%nao), source=0.0_wp)
 
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
@@ -663,7 +664,7 @@ contains
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_corebasis, only: add_core_basis, get_Vecp
       !> PTB overlap matrix calculation
-      use xtb_ptb_overlaps, only: get_integrals
+      use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
       use xtb_ptb_paulixc, only: calc_Vxc_pauli
@@ -884,9 +885,100 @@ contains
       end do
 
       !> Check the Hubbard matrix
-      call check_(error, coulomb%hubbard(4, 5,12,16), 0.490990522465014_wp, thr=thr2)
+      call check_(error, coulomb%hubbard(4, 5, 12, 16), 0.490990522465014_wp, thr=thr2)
       call check_(error, coulomb%hubbard(1, 2, 6, 9), 0.393374820246109_wp, thr=thr2)
 
    end subroutine test_ptb_hubbard
+
+   subroutine test_ptb_coulomb_potential(error)
+      !> PTB overlap matrix calculation
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
+      use xtb_ptb_coulomb, only: coulomb_potential
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      use xtb_ptb_guess, only: guess_qsh
+      use xtb_ptb_hamiltonian, only: get_occupation
+      use xtb_ptb_integrals, only: get_integrals
+      !> tblite basis set type
+      use tblite_basis_type, only: basis_type, get_cutoff
+      use tblite_wavefunction, only: wavefunction_type, new_wavefunction
+      use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
+      use tblite_integral_type, only: integral_type, new_integral
+      use tblite_adjlist, only: adjacency_list, new_adjacency_list
+      use tblite_cutoff, only: get_lattice_points
+
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> Coulomb potential
+      type(coulomb_potential) :: coulomb
+      !> PTB vDZP basis set
+      type(basis_type) :: bas
+      !> Wavefunction data
+      type(wavefunction_type) :: wfn
+      !> Potential type
+      type(potential_type) :: pot
+      !> Integral type
+      type(integral_type) :: ints
+      !> Adjacency list
+      type(adjacency_list) :: list
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      real(wp), parameter :: q(3) = [ &
+      &    0.42739211_wp, &
+      &    -0.21369606_wp, &
+      &    -0.21369606_wp]
+      !> Conversion factor from temperature to energy
+      real(wp), parameter :: kt = 3.166808578545117e-06_wp
+      real(wp), parameter :: coulomb_pot_ref(4) = [ &
+      &  -0.05693153_wp, & ! 1,1
+      &  -0.33917531_wp, & ! 1,2
+      &  -0.00539212_wp, & ! 1,21 ; diffferent because of tblite ordering
+      &   0.01305793_wp]   ! 6,24 ; diffferent because of tblite ordering
+      real(wp), allocatable :: lattr(:, :)
+      real(wp) :: cutoff
+
+      call getMolecule(struc, "mgh2")
+      mol = struc
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+      !> Get the cutoff for the lattice points
+      cutoff = get_cutoff(bas)
+      call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
+      !> Get the adjacency list for iteration through the Hamiltonian
+      call new_adjacency_list(list, mol, lattr, cutoff)
+      !> New integrals
+      call new_integral(ints, bas%nao)
+      call get_integrals(mol, bas, lattr, list, ints%overlap)
+
+      call new_wavefunction(wfn, mol%nat, bas%nsh, bas%nao, &
+         & nspin=1, kt=300.0_wp * kt)
+      call new_potential(pot, mol, bas, wfn%nspin)
+      call pot%reset()
+
+      wfn%qat(:, 1) = q
+      !> Project reference occupation on wavefunction and use EEQ charges as guess
+      call get_occupation(mol, bas, ptbData%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
+      call guess_qsh(wfn, bas)
+
+      call coulomb%init(mol, bas, wfn%qat(:, 1), ptbData%coulomb%shellHardnessFirstIter, &
+      & ptbData%coulomb%kQHubbard, ptbData%coulomb%kOK1, ptbData%coulomb%kTO)
+      call coulomb%update(mol, bas)
+      call coulomb%get_potential(wfn, pot)
+      ints%hamiltonian = 0.0_wp
+      call add_pot_to_h1(bas, ints, pot, wfn%coeff)
+
+      call check_(error, wfn%coeff(1, 1, 1), coulomb_pot_ref(1), thr=thr)
+      call check_(error, wfn%coeff(1, 2, 1), coulomb_pot_ref(2), thr=thr)
+      call check_(error, wfn%coeff(1, 21, 1), coulomb_pot_ref(3), thr=thr)
+      call check_(error, wfn%coeff(5, 23, 1), coulomb_pot_ref(4), thr=thr)
+
+   end subroutine test_ptb_coulomb_potential
 
 end module test_ptb

@@ -224,7 +224,7 @@ contains
       call symv(self%cmat, wfn%qsh(:, 1), pot%vsh(:, 1), beta=1.0_wp)
 
       !##### DEV WRITE #####
-      ! write (*, *) "V_Coulomb ..."
+      ! write (*, *) "pot%vsh ..."
       ! do i = 1, size(pot%vsh, 1)
       !    write (*, *) i, pot%vsh(i,1)
       ! end do
