@@ -34,7 +34,7 @@ module xtb_ptb_scf
 
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: ptbGlobals, rf
-   use xtb_ptb_overlaps, only: get_integrals
+   use xtb_ptb_integrals, only: get_integrals
    use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
@@ -275,7 +275,6 @@ contains
       !#####################
       !> Project reference occupation on wavefunction and use EEQ charges as guess
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
-      !> wfn%qsh contains shell populations, NOT shell charges
       call guess_qsh(wfn, bas)
       !##### DEV WRITE #####
       write (*, *) "Shell populations ..."
@@ -317,6 +316,14 @@ contains
       !       \::::/    /              \:::\____\
       !        \::/    /                \::/    /
       !         \/____/                  \/____/
+
+
+
+      !   _     _     _ _                 _   _
+      !  / |___| |_  (_) |_ ___ _ __ __ _| |_(_) ___  _ __
+      !  | / __| __| | | __/ _ \ '__/ _` | __| |/ _ \| '_ \
+      !  | \__ \ |_  | | ||  __/ | | (_| | |_| | (_) | | | |
+      !  |_|___/\__| |_|\__\___|_|  \__,_|\__|_|\___/|_| |_|
 
       !> Set up the effective Hamiltonian in the first iteration
       call new_potential(pot, mol, bas, wfn%nspin)
@@ -404,8 +411,15 @@ contains
       call get_alpha_beta_occupation(wfn%nocc, wfn%nuhf, wfn%nel(1), wfn%nel(2))
 
 
-     ! IN SECOND ITERATION, USE THE FOLLOWING:
-     !    call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
+      !   ____            _   _ _                 _   _
+      !  |___ \ _ __   __| | (_) |_ ___ _ __ __ _| |_(_) ___  _ __
+      !    __) | '_ \ / _` | | | __/ _ \ '__/ _` | __| |/ _ \| '_ \
+      !   / __/| | | | (_| | | | ||  __/ | | (_| | |_| | (_) | | | |
+      !  |_____|_| |_|\__,_| |_|\__\___|_|  \__,_|\__|_|\___/|_| |_|
+
+
+      ! IN SECOND ITERATION, USE THE FOLLOWING:
+      !    call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
 
    end subroutine twostepscf
 

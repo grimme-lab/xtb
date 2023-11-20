@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Calculation of all required overlap matrices
-module xtb_ptb_overlaps
+module xtb_ptb_integrals
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
@@ -428,4 +428,4 @@ contains
 
    end subroutine shift_operator
 
-end module xtb_ptb_overlaps
+end module xtb_ptb_integrals
