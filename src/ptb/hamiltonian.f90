@@ -104,7 +104,7 @@ contains
       !> One-center-off-center distance scaling in H0
       real(wp), optional, intent(in) :: kitocod
       !> Loop variables
-      integer :: iat, jat, izp, jzp, itr, k, img, inl
+      integer :: iat, jat, izp, jzp, img, inl
       integer :: ish, jsh, is, js, ii, jj, iao, jao, nao
       real(wp) :: wolfsberg, polarized_levels, sum_levels, ocod_param, rscal
       real(wp) :: radii_dependence, ssquraedterm, ocodterm, sterm
@@ -125,7 +125,11 @@ contains
       end if
 
       !> Loop over all neighbours (iat =/= jat) and set the Hamiltonian for off-center elements
-      k = 0
+      !$omp parallel do schedule(runtime) default(none) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal) &
+      !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao) &
+      !$omp private(r2, vec, inl, img, wolfsberg, polarized_levels, sum_levels) &
+      !$omp private(radii_dependence, ssquraedterm, ocodterm, sterm, rab)
       do iat = 1, mol%nat
          !##### DEV WRITE #####
          ! write (*, *) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
@@ -136,13 +140,11 @@ contains
             jat = list%nlat(img + inl)
             !##### DEV WRITE #####
             ! write (*, *) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat))
-            itr = list%nltr(img + inl)
             jzp = mol%id(jat)
             js = bas%ish_at(jat)
             vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat)
             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
             rab = sqrt(r2)
-            k = k + 1
             !##### DEV WRITE #####
             ! write (*, *) "iteration: ", k, "distance: ", sqrt(r2)
             do ish = 1, bas%nsh_id(izp)
@@ -182,6 +184,11 @@ contains
       end do
 
       !> Loop over all atoms and set the Hamiltonian for one-center off(-shell)-diagonal elements
+      !$omp parallel do schedule(runtime) default(none) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal) &
+      !$omp private(iat, izp, is, ish, jsh, ii, jj, iao, jao, nao) &
+      !$omp private(sum_levels) &
+      !$omp private(ssquraedterm, ocodterm, sterm)
       do iat = 1, mol%nat
          izp = mol%id(iat)
          is = bas%ish_at(iat)
@@ -218,6 +225,7 @@ contains
       !> Loop over all atoms and set the Hamiltonian for one-center diagonal elements (same AO!)
       !> CAUTION: Loop doesn't run over one-center diagonal elements of different AOs in the same shell
       !> (Overlap matrix elements are zero for these elements)
+      !> NO PARALLELIZATION YET SINCE LOOP IS QUITE SMALL
       do iat = 1, mol%nat
          izp = mol%id(iat)
          is = bas%ish_at(iat)
