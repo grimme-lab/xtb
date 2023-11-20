@@ -24,6 +24,7 @@ module xtb_ptb_scf
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
+   use tblite_scf_iterator, only: get_density
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
@@ -100,10 +101,12 @@ contains
       real(wp) :: nel
       !> Pauli XC potential
       real(wp), allocatable :: Vxc(:, :), psh(:, :)
+      !> Electronic entropy
+      real(wp) :: ts
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
-      
+
       !> Get the cutoff for the lattice points
       cutoff = get_cutoff(bas)
       call get_lattice_points(mol%periodic, mol%lattice, cutoff, lattr)
@@ -317,8 +320,6 @@ contains
       !        \::/    /                \::/    /
       !         \/____/                  \/____/
 
-
-
       !   _     _     _ _                 _   _
       !  / |___| |_  (_) |_ ___ _ __ __ _| |_(_) ___  _ __
       !  | / __| __| | | __/ _ \ '__/ _` | __| |/ _ \| '_ \
@@ -387,15 +388,22 @@ contains
       wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       !#####################
 
       !> Get additional potentials
+      !> TODO
+
+      !   __       _
+      !  / _\ ___ | |_   _____
+      !  \ \ / _ \| \ \ / / _ \
+      !  _\ \ (_) | |\ V /  __/
+      !  \__/\___/|_| \_/ \___|
 
       !> Project occupations on alpha and beta orbitals
       nel = sum(wfn%n0at) - mol%charge
@@ -409,14 +417,31 @@ contains
          return
       end if
       call get_alpha_beta_occupation(wfn%nocc, wfn%nuhf, wfn%nel(1), wfn%nel(2))
+      call get_density(wfn, solver, ints, ts, error)
+      if (allocated(error)) return
 
+      !##### DEV WRITE #####
+      write (*, *) "Coefficients after 1st iteration ..."
+      ! do i = 1, size(wfn%coeff, 1)
+      !    do j = 1, size(wfn%coeff, 2)
+      !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      write (*, *) "Density matrix after 1st iteration ..."
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f8.4)', advance="no") wfn%density(i, j, 1)
+         end do
+         write (*, '(/)', advance="no")
+      end do
+      !#####################
 
       !   ____            _   _ _                 _   _
       !  |___ \ _ __   __| | (_) |_ ___ _ __ __ _| |_(_) ___  _ __
       !    __) | '_ \ / _` | | | __/ _ \ '__/ _` | __| |/ _ \| '_ \
       !   / __/| | | | (_| | | | ||  __/ | | (_| | |_| | (_) | | | |
       !  |_____|_| |_|\__,_| |_|\__\___|_|  \__,_|\__|_|\___/|_| |_|
-
 
       ! IN SECOND ITERATION, USE THE FOLLOWING:
       !    call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &

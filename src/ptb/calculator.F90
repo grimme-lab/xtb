@@ -371,7 +371,7 @@ contains
       type(error_type), allocatable :: error
 
       call new_wavefunction(wfn, calc%mol%nat, calc%bas%nsh, calc%bas%nao, &
-         & nspin=1, kt=300.0_wp*kt)
+         & nspin=1, kt=calc%etemp*kt)
 
       if (allocated(error)) then
          call env%error(error%message, source)
