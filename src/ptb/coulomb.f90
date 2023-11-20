@@ -64,9 +64,10 @@ contains
       integer :: iat, jat, izp, jzp, ii, jj, ish, jsh
       real(wp) :: vec(3), r1, gam, tmp, r12
 
-      !##  !$omp parallel do default(none) schedule(runtime) &
-      !##  !$omp shared(amat, mol, nshell, offset, hubbard, gexp) &
-      !##  !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam, vec, r1, r1g, tmp)
+      !$omp parallel do default(none) schedule(runtime) &
+      !$omp shared(mol, self, bas) &
+      !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam) &
+      !$omp private(vec, r1, tmp, r12)
       do iat = 1, mol%nat
          izp = mol%id(iat)
          ii = bas%ish_at(iat)
@@ -81,9 +82,9 @@ contains
                   gam = self%hubbard(jsh, ish, jat, iat)
                   tmp = (self%cok / sqrt(r12 + gam**(-2))) + &  !> Ohno-Klopman average
                      & ((1.0_wp - self%cok) / (r1 + gam**(-1))) !> Mataga-Nishimoto average
-                  !## !$omp atomic
+                  !$omp atomic
                   self%cmat(jj + jsh, ii + ish) = self%cmat(jj + jsh, ii + ish) + tmp
-                  !## !$omp atomic
+                  !$omp atomic
                   self%cmat(ii + ish, jj + jsh) = self%cmat(ii + ish, jj + jsh) + tmp
                end do
             end do
@@ -91,13 +92,14 @@ contains
          do ish = 1, bas%nsh_at(iat)
             do jsh = 1, ish - 1
                gam = self%hubbard(jsh, ish, iat, iat)
-               !## !$omp atomic
+               !$omp atomic
                self%cmat(ii + jsh, ii + ish) = self%cmat(ii + jsh, ii + ish) + gam
-               !## !$omp atomic
+               !$omp atomic
                self%cmat(ii + ish, ii + jsh) = self%cmat(ii + ish, ii + jsh) + gam
             end do
-            !## !$omp atomic
-            self%cmat(ii + ish, ii + ish) = self%cmat(ii + ish, ii + ish) + self%hubbard(ish, ish, iat, iat)
+            gam = self%hubbard(ish, ish, iat, iat)
+            !$omp atomic
+            self%cmat(ii + ish, ii + ish) = self%cmat(ii + ish, ii + ish) + gam 
          end do
       end do
 
