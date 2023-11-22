@@ -73,15 +73,15 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
-
+      uses: actions/checkout@v4
+    
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.x
 
     - name: Install CMake
-      run: pip3 install ninja cmake==3.26.4
+      run: pip3 install ninja cmake
 
     - name: Configure build
       run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
@@ -157,7 +157,7 @@ jobs:
         python-version: 3.x
 
     - name: Install CMake
-      run: pip3 install ninja cmake==3.26.4
+      run: pip3 install ninja cmake
 
     - name: Configure build
       run: cmake -B ${{ env.BUILD_DIR }} -DWITH_CPCMX=false -DWITH_TBLITE=false -G Ninja
