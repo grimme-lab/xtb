@@ -154,7 +154,8 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       end if
 
       call move_alloc(iff, calc)
-
+   
+   ! ORCA => https://orcaforum.kofo.mpg.de/app.php/portal !
    case(p_ext_orca)
       allocate(orca)
       call newOrcaCalculator(orca, env, set%ext_orca)
