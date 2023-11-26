@@ -24,7 +24,7 @@ module xtb_ptb_scf
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
-   use tblite_scf_iterator, only: get_density
+   use tblite_scf_iterator, only: get_density, get_qat_from_qsh
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
@@ -36,7 +36,7 @@ module xtb_ptb_scf
    use xtb_ptb_vdzp, only: add_vDZP_basis, nshell, max_shell
    use xtb_ptb_param, only: ptbGlobals, rf
    use xtb_ptb_integrals, only: get_integrals
-   use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps
+   use xtb_ptb_mmlpopanalysis, only: get_mml_overlaps, get_mml_shell_charges
    use xtb_ptb_ncoord, only: ncoord_erf
    use xtb_ptb_corebasis, only: get_Vecp
    use xtb_ptb_data, only: TPTBData
@@ -82,8 +82,6 @@ contains
       type(aux_integral_type) :: auxints
       !> Potential type
       type(potential_type) :: pot
-      !> Mulliken-Loewdin overlap matrices
-      real(wp) :: overlap_sx(bas%nao, bas%nao), overlap_soneminusx(bas%nao, bas%nao)
       !> Loop variables
       integer :: i, j, isp, izp
       !> Coordination numbers
@@ -183,8 +181,8 @@ contains
       !    write (*, '(/)', advance="no")
       ! end do
       !#####################
-      call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, overlap_sx, &
-      & overlap_soneminusx)
+      call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, auxints%overlap_to_x, &
+      & auxints%overlap_to_1_x)
       !##### DEV WRITE #####
       write (*, *) "Overlap S(1-x) ..."
       ! do i = 1, bas%nao
@@ -434,6 +432,20 @@ contains
             write (*, '(f8.4)', advance="no") wfn%density(i, j, 1)
          end do
          write (*, '(/)', advance="no")
+      end do
+      !#####################
+
+      call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
+         & wfn%density, wfn%n0sh, wfn%qsh)
+      call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
+      !##### DEV WRITE #####
+      write (*, *) "Shell charges after 1st iteration ..."
+      do i = 1, bas%nsh
+         write (*, '(f8.4)') wfn%qsh(i, 1)
+      end do
+      write (*, *) "Atom charges after 1st iteration ..."
+      do i = 1, mol%nat
+         write (*, '(f8.4)') wfn%qat(i, 1)
       end do
       !#####################
 

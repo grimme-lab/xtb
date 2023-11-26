@@ -27,6 +27,8 @@ module xtb_ptb_integral_types
    type, public :: aux_integral_type
       !> Overlap integrals
       real(wp), allocatable :: overlap_h0(:, :), overlap_xc(:, :)
+      !> Overlap^(x) and Overlap^(1-x) integrals
+      real(wp), allocatable :: overlap_to_x(:, :), overlap_to_1_x(:, :)
       !> Norm of overlap matrix (Normalization factors)
       real(wp), allocatable :: norm(:)
    end type aux_integral_type
@@ -43,6 +45,8 @@ contains
       allocate (self%norm(nao), source=0.0_wp)
       allocate (self%overlap_h0(nao, nao), source=0.0_wp)
       allocate (self%overlap_xc(nao, nao), source=0.0_wp)
+      allocate (self%overlap_to_x(nao, nao), source=0.0_wp)
+      allocate (self%overlap_to_1_x(nao, nao), source=0.0_wp)
    end subroutine new_aux_integral
 
 end module xtb_ptb_integral_types
