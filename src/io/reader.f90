@@ -86,9 +86,8 @@ subroutine readMolecule(env, mol, unit, ftype)
 
    if (allocated(struc%pdb)) then
       if (.not.any(struc%num == 1)) then
-         call env%error("PDB structure without hydrogen atoms found, "//&
-            &"aborting due to incomplete input geometry", source)
-         return
+         call env%warning("PDB structure without hydrogen atoms found, "//&
+            &"this is most likely an incomplete geometry!", source)
       end if
    end if
 

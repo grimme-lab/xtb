@@ -218,11 +218,10 @@ subroutine initMolecule &
    nAt = min(size(at, dim=1), size(xyz, dim=2), size(sym, dim=1))
 
    call mol%allocate(nAt)
-
+   
+   mol%lattice = 0.0_wp
    if (present(lattice)) then
-      mol%lattice = lattice
-   else
-      mol%lattice = 0.0_wp
+      if (size(lattice).ne.0) mol%lattice = lattice
    end if
 
    if (present(pbc)) then

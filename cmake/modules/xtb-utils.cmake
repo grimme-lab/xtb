@@ -16,124 +16,113 @@
 
 # Handling of subproject dependencies
 macro(
-  "xtb_find_package"
-  package
-  methods
-  url
+   "xtb_find_package"
+   package
+   methods
+   url
 )
-  string(TOLOWER "${package}" _pkg_lc)
-  string(TOUPPER "${package}" _pkg_uc)
+string(TOLOWER "${package}" _pkg_lc)
+string(TOUPPER "${package}" _pkg_uc)
 
-  foreach(method ${methods})
+# iterate through all methods
+foreach(method ${methods})
 
-    if(TARGET "${package}::${package}")
+   if(TARGET "${package}::${package}")
       break()
-    endif()
+   endif()
 
-    if("${method}" STREQUAL "cmake")
+   # cmake case
+   if("${method}" STREQUAL "cmake")
       if(DEFINED "${_pkg_uc}_DIR")
-        set("_${_pkg_uc}_DIR")
-        set("${package}_DIR" "${_pkg_uc}_DIR")
+         set("_${_pkg_uc}_DIR")
+         set("${package}_DIR" "${_pkg_uc}_DIR")
       endif()
-      find_package("${package}" CONFIG)
+      find_package("${package}" CONFIG QUIET)
       if("${package}_FOUND")
-        message(STATUS "Found ${package} via CMake config")
-        break()
+         message(STATUS "Found ${package} via CMake config")
+         break()
       endif()
-    endif()
 
-    if("${method}" STREQUAL "pkgconf")
-      find_package(PkgConfig QUIET)
-      pkg_check_modules("${_pkg_uc}" QUIET "${package}")
+   # pkgconf case
+   elseif("${method}" STREQUAL "pkgconf")
+      find_package("PkgConfig" QUIET) # built-in Find script 
+      pkg_check_modules("${_pkg_uc}" QUIET "${package}") # check if it is a pkg-config module
       if("${_pkg_uc}_FOUND")
-        message(STATUS "Found ${package} via pkg-config")
-
-        add_library("${package}::${package}" INTERFACE IMPORTED)
-        target_link_libraries(
-          "${package}::${package}"
-          INTERFACE
-          "${${_pkg_uc}_LINK_LIBRARIES}"
-        )
-        target_include_directories(
-          "${package}::${package}"
-          INTERFACE
-          "${${_pkg_uc}_INCLUDE_DIRS}"
-        )
-        break()
+         message(STATUS "Found ${package} via pkg-config")
+         add_library("${package}::${package}" INTERFACE IMPORTED) # interface library
+         target_link_libraries(
+            "${package}::${package}"
+            INTERFACE
+            "${${_pkg_uc}_LINK_LIBRARIES}"
+         )
+         target_include_directories(
+            "${package}::${package}"
+            INTERFACE
+            "${${_pkg_uc}_INCLUDE_DIRS}"
+         )
+         break()
       endif()
-    endif()
 
-    if("${method}" STREQUAL "subproject")
+   # subproject case
+   elseif("${method}" STREQUAL "subproject")
       if(NOT DEFINED "${_pkg_uc}_SUBPROJECT")
-        set("_${_pkg_uc}_SUBPROJECT")
-        set("${_pkg_uc}_SUBPROJECT" "subprojects/${package}")
+         set("${_pkg_uc}_SUBPROJECT" "subprojects/${package}")
       endif()
       set("${_pkg_uc}_SOURCE_DIR" "${PROJECT_SOURCE_DIR}/${${_pkg_uc}_SUBPROJECT}")
       set("${_pkg_uc}_BINARY_DIR" "${PROJECT_BINARY_DIR}/${${_pkg_uc}_SUBPROJECT}")
+      
+      # if can be configured from the subprojects dir
       if(EXISTS "${${_pkg_uc}_SOURCE_DIR}/CMakeLists.txt")
-        message(STATUS "Include ${package} from ${${_pkg_uc}_SUBPROJECT}")
-        add_subdirectory(
-          "${${_pkg_uc}_SOURCE_DIR}"
-          "${${_pkg_uc}_BINARY_DIR}"
-        )
+         message(STATUS "Include ${package} from ${${_pkg_uc}_SUBPROJECT}")
+         
+         add_subdirectory(
+            "${${_pkg_uc}_SOURCE_DIR}"
+            "${${_pkg_uc}_BINARY_DIR}"
+         )
 
-        add_library("${package}::${package}" INTERFACE IMPORTED)
-        target_link_libraries("${package}::${package}" INTERFACE "${package}")
+         # create interface directory and manage it's dependencies
+         add_library("${package}::${package}" INTERFACE IMPORTED)
+         target_link_libraries("${package}::${package}" INTERFACE "${package}")
 
-        # We need the module directory in the subproject before we finish the configure stage
-        if(NOT EXISTS "${${_pkg_uc}_BINARY_DIR}/include")
-          file(MAKE_DIRECTORY "${${_pkg_uc}_BINARY_DIR}/include")
-        endif()
+         # We need the module directory in the subproject before we finish the configure stage
+         if(NOT EXISTS "${${_pkg_uc}_BINARY_DIR}/include")
+            file(MAKE_DIRECTORY "${${_pkg_uc}_BINARY_DIR}/include")
+         endif()
 
-        break()
+         break()
       endif()
-    endif()
 
-    if("${method}" STREQUAL "fetch")
+   # fetch from url case
+   elseif("${method}" STREQUAL "fetch")
       message(STATUS "Retrieving ${package} from ${url}")
-      include(FetchContent)
+      include(FetchContent) # module for fetching from repo
+      if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(FETCHCONTENT_QUIET FALSE)
+      endif()
       FetchContent_Declare(
-        "${_pkg_lc}"
-        GIT_REPOSITORY "${url}"
-        GIT_TAG "HEAD"
+         "${_pkg_lc}"
+         GIT_REPOSITORY "${url}"
+         GIT_TAG "HEAD"
       )
       FetchContent_MakeAvailable("${_pkg_lc}")
-
+      
       add_library("${package}::${package}" INTERFACE IMPORTED)
       target_link_libraries("${package}::${package}" INTERFACE "${package}")
 
-      # We need the module directory in the subproject before we finish the configure stage
-      FetchContent_GetProperties("${_pkg_lc}" SOURCE_DIR "${_pkg_uc}_SOURCE_DIR")
-      FetchContent_GetProperties("${_pkg_lc}" BINARY_DIR "${_pkg_uc}_BINARY_DIR")
-      if(NOT EXISTS "${${_pkg_uc}_BINARY_DIR}/include")
-        file(MAKE_DIRECTORY "${${_pkg_uc}_BINARY_DIR}/include")
+      if(NOT EXISTS "${${_pkg_lc}_BINARY_DIR}/include")
+         file(MAKE_DIRECTORY "${${_pkg_lc}_BINARY_DIR}/include")
       endif()
 
       break()
-    endif()
+   endif()
 
-  endforeach()
+endforeach()
 
-  if(TARGET "${package}::${package}")
-    set("${_pkg_uc}_FOUND" TRUE)
-  else()
-    set("${_pkg_uc}_FOUND" FALSE)
-  endif()
+unset(_pkg_lc)
+unset(_pkg_uc)
 
-  unset(_pkg_lc)
-  unset(_pkg_uc)
-
-  if(DEFINED "_${_pkg_uc}_SUBPROJECT")
-    unset("${_pkg_uc}_SUBPROJECT")
-    unset("_${_pkg_uc}_SUBPROJECT")
-  endif()
-  
-  if(DEFINED "_${_pkg_pc}_DIR")
-    unset("${package}_DIR")
-    unset("_${_pkg_pc}_DIR")
-  endif()
-
-  if(NOT TARGET "${package}::${package}")
-    message(FATAL_ERROR "Could not find dependency ${package}")
-  endif()
+# sanity check
+if(NOT TARGET "${package}::${package}")
+   message(FATAL_ERROR "Could not find dependency ${package}")
+endif()
 endmacro()
