@@ -24,10 +24,11 @@ module xtb_ptb_mmlpopanalysis
 
    use tblite_basis_type, only: basis_type
    use tblite_blas, only: gemm
+   use tblite_wavefunction_spin, only: updown_to_magnet
    implicit none
    private
 
-   public :: get_mml_overlaps
+   public :: get_mml_overlaps, get_mml_shell_charges
 
 contains
 
@@ -39,7 +40,7 @@ contains
       !> Ratio of Mulliken to Loewdin population
       real(wp), intent(in) :: ratio
       !> Overlap matrix for Mulliken-Lowdin population analysis
-      real(wp), intent(out) :: sx(bas%nao, bas%nao), soneminusx(bas%nao, bas%nao)
+      real(wp), intent(out) :: sx(:, :), soneminusx(:, :)
       !> Variables for ML-pop:
       !> Eigenvalues of overlap matrix (exponentiated)
       real(wp), allocatable :: seig(:), seig1(:), seig2(:)
@@ -104,5 +105,44 @@ contains
       call gemm(tmps, tmp2s, sx, 'N', 'T')
 
    end subroutine get_mml_overlaps
+
+   subroutine get_mml_shell_charges(bas, sx, soneminusx, density, &
+   & n0sh, qsh)
+      !> Basis set data
+      type(basis_type), intent(in) :: bas
+      !> Overlap matrix for Mulliken-Lowdin population analysis
+      real(wp), intent(in) :: sx(:, :), soneminusx(:, :), &
+         & density(:, :, :)
+      !> Reference occupations
+      real(wp), intent(in) :: n0sh(:)
+      !> Shell charges
+      real(wp), intent(out) :: qsh(:, :)
+      !> Auxiliary variables for the matrix multiplication
+      real(wp), allocatable :: cc(:, :), pmix(:, :)
+      integer :: iao, ish, spin, ii, i, j
+      real(wp) :: pao
+
+      allocate (cc(bas%nao, bas%nao), pmix(bas%nao, bas%nao))
+      call gemm(density(:, :, 1), soneminusx, cc, 'N', 'N')
+      call gemm(sx, cc, pmix, 'N', 'N')
+
+      qsh(:, :) = 0.0_wp
+      !$omp parallel do default(none) collapse(2) schedule(runtime) reduction(+:qsh) &
+      !$omp shared(bas, density, pmix) private(spin, iao, ii, ish, pao)
+      do spin = 1, size(density, 3)
+         do ish = 1, bas%nsh
+            ii = bas%iao_sh(ish)
+            pao = 0.0_wp
+            do iao = 1, bas%nao_sh(ish)
+               pao = pao + pmix(ii + iao, ii + iao)
+            end do
+            qsh(ish, spin) = qsh(ish, spin) - pao
+         end do
+      end do
+
+      call updown_to_magnet(qsh)
+      qsh(:, 1) = qsh(:, 1) + n0sh
+
+   end subroutine get_mml_shell_charges
 
 end module xtb_ptb_mmlpopanalysis
