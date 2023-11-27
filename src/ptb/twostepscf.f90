@@ -41,7 +41,7 @@ module xtb_ptb_scf
    use xtb_ptb_corebasis, only: get_Vecp
    use xtb_ptb_data, only: TPTBData
    use xtb_ptb_hamiltonian, only: get_hamiltonian, get_selfenergy, get_occupation
-   use xtb_ptb_guess, only: guess_qsh, get_psh
+   use xtb_ptb_guess, only: guess_qsh, get_psh_from_qat, get_psh_from_qsh
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
    use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
    use xtb_ptb_coulomb, only: coulomb_potential
@@ -362,8 +362,8 @@ contains
       !>  --------- Get potential (wavefunction-dependent) -----
 
       call pot%reset()
-      allocate (psh(bas%nsh, wfn%nspin))
-      psh = get_psh(wfn, bas)
+      allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
+      psh = get_psh_from_qat(wfn, bas)
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc1, Vxc)
       !##### DEV WRITE #####
       write (*, *) "V_XC ..."
@@ -461,6 +461,14 @@ contains
       !   / __/| | | | (_| | | | ||  __/ | | (_| | |_| | (_) | | | |
       !  |_____|_| |_|\__,_| |_|\__\___|_|  \__,_|\__|_|\___/|_| |_|
 
+      !    _    _  ___
+      !   | |  | |/ _ \
+      !   | |__| | | | |
+      !   |  __  | | | |
+      !   | |  | | |_| |
+      !   |_|  |_|\___/
+
+      !>  --------- Get H0 (wavefunction-independent (but iteration-dependent)) ----------
       !> Allocate temporary basis set and charge-dependent scaling factors
       !> Consequently, the basis set is not equal for same atom ids but different 
       !> for each symmetry-unique atom
@@ -494,8 +502,44 @@ contains
       ! end do
       !#####################
 
-      ! IN SECOND ITERATION, USE THE FOLLOWING:
-      !    call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
+      ints%hamiltonian = 0.0_wp
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0, &
+      & levels, ints%hamiltonian, ptbGlobals%kpol)
+      ints%hamiltonian = ints%hamiltonian + vecp
+      !##### DEV WRITE #####
+      write (*, *) "H0 ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f8.4)', advance="no") ints%hamiltonian(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      !#####################
+
+      !    _____      _             _   _       _
+      !   |  __ \    | |           | | (_)     | |
+      !   | |__) |__ | |_ ___ _ __ | |_ _  __ _| |
+      !   |  ___/ _ \| __/ _ \ '_ \| __| |/ _` | |
+      !   | |  | (_) | ||  __/ | | | |_| | (_| | |
+      !   |_|   \___/ \__\___|_| |_|\__|_|\__,_|_|
+      !
+      !>  --------- Get potential (wavefunction-dependent) -----
+      psh = 0.0_wp
+      psh = get_psh_from_qsh(wfn, bas)
+      call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, Vxc)
+      !##### DEV WRITE #####
+      ! write (*, *) "psh ..."
+      ! do i = 1, bas%nsh
+      !    write (*, '(f12.6)') psh(i, 1)
+      ! end do
+      write (*, *) "V_XC ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f8.4)', advance="no") Vxc(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      !#####################
 
    end subroutine twostepscf
 
@@ -518,4 +562,3 @@ contains
    end function id_to_atom
 
 end module xtb_ptb_scf
-
