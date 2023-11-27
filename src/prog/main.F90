@@ -958,6 +958,9 @@ subroutine xtbMain(env, argParser)
    type is(TxTBCalculator)
       call write_energy(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))
+   type is(TOniomCalculator)
+      call write_energy_oniom(env%unit,res,fres, &
+         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess.or.(set%runtyp.eq.p_run_bhess)))
    class default
       call write_energy_gff(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))
