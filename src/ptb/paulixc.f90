@@ -103,7 +103,7 @@ contains
             js = bas%ish_at(jat)
             do jsh = 1, bas%nsh_id(jzp) !> Iteration over core shells of atom jat
                jj = bas%iao_sh(js + jsh)
-               ml = msao(bas%cgto(jsh, jzp)%ang)
+               ml = msao(bas%cgto(jsh, jat)%ang)
                f1 = psh(js + jsh) * kshell(jsh, jzp) / dble(ml) ! shell wise scaling
 
                !##### DEV WRITE #####

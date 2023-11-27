@@ -22,8 +22,9 @@ module xtb_ptb_corebasis
    use mctc_io, only: structure_type
 
    use xtb_ptb_data, only: TCorePotentialData
+   use xtb_ptb_vdzp, only: new_basis
 
-   use tblite_basis_type, only: cgto_type, new_basis, basis_type
+   use tblite_basis_type, only: cgto_type, basis_type
    use tblite_basis_slater, only: slater_to_gauss
    use tblite_integral_overlap, only: overlap_cgto, msao
    use tblite_blas, only: gemm
@@ -42,10 +43,8 @@ contains
       type(structure_type), intent(in) :: mol
       !> Effective core potential data
       type(TCorePotentialData), intent(in) :: ecpdata
-      !> Basis set type
-      type(basis_type), intent(in) :: bas
-      !> Core basis set type
-      type(basis_type), intent(in) :: cbas
+      !> Basis set type and core basis set type
+      type(basis_type), intent(in) :: bas, cbas
       !> Core-valence overlap matrix
       real(wp), intent(in) :: norm_s(:)
       !> Approximated effective core potential
@@ -69,7 +68,7 @@ contains
             js = cbas%ish_at(jat)
             do jsh = 1, cbas%nsh_id(jzp) !> Iteration over core shells of atom jat
                jj = cbas%iao_sh(js + jsh)
-               do jao = 1, msao(cbas%cgto(jsh, jzp)%ang)
+               do jao = 1, msao(cbas%cgto(jsh, jat)%ang)
 
                   !##### DEV WRITE #####
                   ! write (*, *) "jsh, cbas_hflev(jsh,jati), kecpepsilon(jati): ", jsh, cbas_hflev(jsh, jati), kecpepsilon(jati)
@@ -136,12 +135,12 @@ contains
                ii = bas%iao_sh(is + ish)
                do jsh = 1, cbas%nsh_id(jzp)
                   jj = cbas%iao_sh(js + jsh)
-                  call overlap_cgto(cbas%cgto(jsh, jzp), bas%cgto(ish, izp), &
+                  call overlap_cgto(cbas%cgto(jsh, jat), bas%cgto(ish, iat), &
                      & r2, vec, bas%intcut, stmp)
 
-                  nao = msao(cbas%cgto(jsh, jzp)%ang)
-                  do iao = 1, msao(bas%cgto(ish, izp)%ang)
-                     do jao = 1, msao(cbas%cgto(jsh, jzp)%ang)
+                  nao = msao(cbas%cgto(jsh, jat)%ang)
+                  do iao = 1, msao(bas%cgto(ish, iat)%ang)
+                     do jao = 1, msao(cbas%cgto(jsh, jat)%ang)
                         cv_overlap(jj + jao, ii + iao) = cv_overlap(jj + jao, ii + iao) &
                            & + stmp(jao + nao * (iao - 1))
                      end do
@@ -180,7 +179,7 @@ contains
       !> Basis set type
       type(basis_type), intent(out) :: cbas
 
-      integer :: isp, izp, ish, stat, il
+      integer :: isp, izp, ish, stat, il, iat
       integer, allocatable :: nsh_id(:)
       type(cgto_type), allocatable :: cgto(:, :)
 
@@ -189,8 +188,9 @@ contains
       !#####################
 
       nsh_id = ecpdata%nshell(mol%num)
-      allocate (cgto(maxval(nsh_id), mol%nid))
-      do isp = 1, mol%nid
+      allocate (cgto(maxval(nsh_id), mol%nat))
+      do iat = 1, mol%nat
+         isp = mol%id(iat)
          izp = mol%num(isp)
          !##### DEV WRITE #####
          ! write (*, *) "number of shells: ", nsh_id(isp)
@@ -205,12 +205,12 @@ contains
             !#####################
 
             call slater_to_gauss(ecpdata%max_prim, ecpdata%pqn(ish, izp), il, &
-            & ecpdata%sl_exp(ish, izp), cgto(ish, isp), .true., stat)
+            & ecpdata%sl_exp(ish, izp), cgto(ish, iat), .true., stat)
 
             !##### DEV WRITE #####
-            ! write (*, *) "N_prim: ", cgto(ish, isp)%nprim
-            ! do k = 1, cgto(ish, isp)%nprim
-            !    write (*, *) cgto(ish, isp)%alpha(k)
+            ! write (*, *) "N_prim: ", cgto(ish, iat)%nprim
+            ! do k = 1, cgto(ish, iat)%nprim
+            !    write (*, *) cgto(ish, iat)%alpha(k)
             ! end do
             !#####################
          end do
@@ -219,15 +219,16 @@ contains
 
       !##### DEV WRITE #####
       ! write (*, *) "---------FINAL PTB core basis-----------"
-      ! do isp = 1, mol%nid
+      ! do iat = 1, mol%nat
+      !    isp = mol%id(iat)
       !    write (*, *) "Atom :", mol%num(isp)
       !    write (*, *) "Number of shells :", nsh_id(isp)
       !    do j = 1, nsh_id(isp)
-      !       write (*, *) "N_prim: ", cgto(j, isp)%nprim
+      !       write (*, *) "N_prim: ", cgto(j, iat)%nprim
       !       write (*, *) "Exponents:"
-      !       write (*, *) cgto(j, isp)%alpha
+      !       write (*, *) cgto(j, iat)%alpha
       !       write (*, *) "Coefficients:"
-      !       write (*, *) cgto(j, isp)%coeff
+      !       write (*, *) cgto(j, iat)%coeff
       !    end do
       ! end do
       ! write (*, *) "----------------------------------------"

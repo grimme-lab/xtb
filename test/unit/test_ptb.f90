@@ -201,7 +201,7 @@ contains
    subroutine test_ptb_overlap_h0(error)
       use xtb_ptb_integrals, only: get_integrals
       use xtb_ptb_param, only: kalphah0l
-      use xtb_ptb_vdzp, only: max_shell, add_vDZP_basis
+      use xtb_ptb_vdzp, only: add_vDZP_basis
       use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
       use xtb_ptb_data, only: TPTBData
       use xtb_ptb_param, only: initPTB
@@ -243,7 +243,7 @@ contains
       mol = struc
       allocate (ptbData)
       call initPTB(ptbData, mol%num)
-      call add_vDZP_basis(mol, ptbData%hamiltonian%kalphah0l, bas)
+      call add_vDZP_basis(mol, id_to_atom(mol, ptbData%hamiltonian%kalphah0l), bas)
 
       !> Get the cutoff for the lattice points
       cutoff = get_cutoff(bas)
@@ -640,7 +640,8 @@ contains
       call new_adjacency_list(list, mol, lattr, cutoff)
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=ptbData%hamiltonian%kalphah0l)
+      call get_integrals(mol, lattr, list, auxints%overlap_h0, &
+         & alpha_scal=id_to_atom(mol, ptbData%hamiltonian%kalphah0l))
       allocate (vecp(bas%nao, bas%nao), source=0.0_wp)
 
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
@@ -728,7 +729,7 @@ contains
       call initPTB(ptbData, mol%num)
 
       !> set up the basis set for the PTB-Hamiltonian
-      call add_vDZP_basis(mol, ptbData%pauli%klalphaxc, bas)
+      call add_vDZP_basis(mol, id_to_atom(mol, ptbData%pauli%klalphaxc), bas)
 
       !> Get the cutoff for the lattice points
       cutoff = get_cutoff(bas)
@@ -980,5 +981,23 @@ contains
       call check_(error, wfn%coeff(5, 23, 1), coulomb_pot_ref(4), thr=thr)
 
    end subroutine test_ptb_coulomb_potential
+
+   pure function id_to_atom(mol, idparam) result(atomparam)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> PTB parameterization data for each species
+      real(wp), intent(in) :: idparam(:, :)
+      !> PTB parameterization data for each atom
+      real(wp), allocatable :: atomparam(:, :)
+
+      integer :: iat, iid
+
+      allocate (atomparam(size(idparam, 1), mol%nat), source=0.0_wp)
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         atomparam(:, iat) = idparam(:, iid)
+      end do
+
+   end function id_to_atom
 
 end module test_ptb

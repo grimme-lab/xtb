@@ -152,8 +152,8 @@ contains
                do jsh = 1, bas%nsh_id(jzp)
                   jj = bas%iao_sh(js + jsh)
 
-                  nao = msao(bas%cgto(jsh, jzp)%ang)
-                  do iao = 1, msao(bas%cgto(ish, izp)%ang)
+                  nao = msao(bas%cgto(jsh, jat)%ang)
+                  do iao = 1, msao(bas%cgto(ish, iat)%ang)
                      do jao = 1, nao
                         !> Single contributions to H0
                         sum_levels = levels(js + jsh) + levels(is + ish)
@@ -196,8 +196,8 @@ contains
             ii = bas%iao_sh(is + ish)
             do jsh = 1, ish - 1
                jj = bas%iao_sh(is + jsh)
-               nao = msao(bas%cgto(jsh, izp)%ang)
-               do iao = 1, msao(bas%cgto(ish, izp)%ang)
+               nao = msao(bas%cgto(jsh, iat)%ang)
+               do iao = 1, msao(bas%cgto(ish, iat)%ang)
                   do jao = 1, nao
                      sum_levels = levels(is + jsh) + levels(is + ish)
                      ocodterm = hData%ksla(ish, izp) * ocod_param
@@ -231,7 +231,7 @@ contains
          is = bas%ish_at(iat)
          do ish = 1, bas%nsh_id(izp)
             ii = bas%iao_sh(is + ish)
-            do iao = 1, msao(bas%cgto(ish, izp)%ang)
+            do iao = 1, msao(bas%cgto(ish, iat)%ang)
                h0mat(ii + iao, ii + iao) = 2.0_wp * levels(is + ish)
                !##### DEV WRITE #####
                ! write(*,*) "i, j, tmp: ", ii+iao, ii+iao, h0mat(ii + iao, ii + iao)
