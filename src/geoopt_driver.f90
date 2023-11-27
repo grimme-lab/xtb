@@ -32,6 +32,11 @@ subroutine geometry_optimization &
    use xtb_optimizer
    use xtb_relaxation_engine
    use xtb_single
+   ! modules for PBC opt with LBFGS including lattice optimization
+   use xtb_pbc_optimizer_driver, only : relax_pbc
+   use xtb_pbc_optimizer_lbfgs, only : optimizer_type, lbfgs_optimizer, new_lbfgs_optimizer
+   use xtb_pbc_optimizer_lbfgs, only : lbfgs_input
+   use xtb_pbc_optimizer_filter_cart, only : cartesian_filter, new_cartesian_filter
 
    use xtb_setparam
 
@@ -77,6 +82,11 @@ subroutine geometry_optimization &
    logical :: final_sp, exitRun
    integer :: printlevel
    integer :: ilog
+   ! for PBC optimization with lbfgs (including lattice optimization)
+   logical :: optcell
+   type(lbfgs_optimizer) :: lbfgs_opt
+   type(lbfgs_input) :: opt_input
+   type(cartesian_filter)  :: filter
 
    final_sp = pr
 
@@ -87,7 +97,7 @@ subroutine geometry_optimization &
    else
       printlevel = 0
    endif
-   
+
    !> create optimization log file
    if (.not.allocated(set%opt_logfile)) then
       call open_file(ilog,'xtbopt.log','w')
@@ -126,12 +136,22 @@ subroutine geometry_optimization &
       call l_ancopt &
          &(env,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
+   case(p_engine_pbc_lbfgs)
+     ! get number of unique species; used in precond_lindh
+     !call get_identity(mol%nid, mol%id, mol%at)
+     ! create new anc filter
+     optcell = mol%npbc > 0  ! optimize cell parameters if present
+     call new_cartesian_filter(filter, mol, optcell)
+     ! create new Limited-memory BFGS optimizer 
+     call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)
+     ! run optimization
+     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel)
    case(p_engine_inertial)
       call fire &
          &(env,ilog,mol,wfn,calc, &
          & tight,maxcycle_in,etot,egap,g,sigma,printlevel,fail)
    end select
-    
+
    if (pr) then
       if (fail) then
          call touch_file('NOT_CONVERGED')

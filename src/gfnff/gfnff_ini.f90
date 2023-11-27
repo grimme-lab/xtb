@@ -234,13 +234,13 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       allocate(dcn(3,mol%n,mol%n), source = 0.0d0 )
       if (mol%boundaryCondition.eq.0) then 
         call gfnff_dlogcoord(mol%n,mol%at,mol%xyz,rab,cn,dcn,cnthr,param) ! dcn needed
-     
+ 
       else
         vec=mol%lattice(:,1)+mol%lattice(:,2)                       
         MaxCutOff = sqrt(norm2(vec)**2 +norm2(mol%lattice(:,3))**2 &
           & -2*dot_product(vec, mol%lattice(:,3))) + 1.0_wp ! 
         MaxCutOff = max(MaxCutoff, 60.0_wp) ! at least 60           
-     
+
         call init_l(latPoint, env, mol%lattice, mol%boundaryCondition, MaxCutOff)
         call latPoint%getLatticepoints(transVec, MaxCutOff)
         allocate(dcndL(3,3,mol%n),source = 0.0d0)
@@ -263,6 +263,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 
       topo%qa = 0
       qloop_count = 0
+      nb_call = .false. ! gfnff_neigh was (already) called
 
 !111   continue
 !  do the loop only if factor is significant
@@ -1067,7 +1068,8 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
          ia=piadr4(ii)
          ja=piadr4(jj)
          if(ia.gt.0.and.ja.gt.0) then
-            dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
+            !dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
+            dum=1.d-9*neigh%distances(jj,ii,iTr)  ! distort so that Huckel for e.g. COT localizes to right bonds
             dum=sqrt(gen%hoffdiag(mol%at(ii))*gen%hoffdiag(mol%at(jj)))-dum           ! better than arithmetic
             dum2=gen%hiter
             if(topo%hyb(ii).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different

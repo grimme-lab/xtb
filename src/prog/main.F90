@@ -754,7 +754,7 @@ subroutine xtbMain(env, argParser)
 
 
    ! ------------------------------------------------------------------------
-   !> Geometry optimization(ANCopt,L_ANCopt,FIRE)   
+   !> Geometry optimization(ANCopt,L_ANCopt,FIRE,L-BFGS)   
    ! ------------------------------------------------------------------------
    if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &

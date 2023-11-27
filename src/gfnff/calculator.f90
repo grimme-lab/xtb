@@ -25,6 +25,7 @@ module xtb_gfnff_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart
+   use xtb_type_wsc, only : tb_wsc
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
@@ -39,7 +40,15 @@ module xtb_gfnff_calculator
    use xtb_gfnff_eg
    use xtb_type_latticepoint
    use xtb_gfnff_neighbor
+   use xtb_pbc_tools
    implicit none
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
    private
 
    public :: TGFFCalculator, newGFFCalculator
@@ -197,7 +206,15 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! setup !
    !-------!
 
-   call mol%update
+   ! call mol%update !@thomas important check if ommiting this works as expected
+   ! replacement for above call
+   if (mol%npbc > 0) then  !@thomas check, added dlat_ and calc_dist
+     call dlat_to_cell(mol%lattice,mol%cellpar)
+     call dlat_to_rlat(mol%lattice,mol%rec_lat)
+     mol%volume = dlat_to_dvol(mol%lattice) !@thomas added
+     call generate_wsc(mol,mol%wsc)
+   endif
+   call mol%calculate_distances   !@thomas end for replacement s
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp

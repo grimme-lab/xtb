@@ -902,7 +902,7 @@ endif
       sqrab = 1.d+12
       srab = 1.d+6
       cn = 0
-      neigh%distances(:,:,1)=1.d+6
+      !neigh%distances(:,:,1)=1.d+6
       
       ! asymtotically for R=inf, Etot is the SIE contaminted EES !
       ! which is computed here to get the atomization energy De,n,at(n) !
