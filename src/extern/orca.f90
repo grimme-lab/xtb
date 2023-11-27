@@ -514,6 +514,7 @@ subroutine runOrca(env,ext,mol,energy,gradient)
    else
       write(env%unit,'(10x,"*",1x,a)') &
          "successful ORCA run, taking over control again..."
+      call env%io%deleteFile("err")
    endif
    
    ! find output .engrad file !

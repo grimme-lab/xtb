@@ -125,6 +125,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    character(len=:),allocatable :: extension
    character(len=:),allocatable :: tmpname
 
+   !> executable
+   character(len=50), allocatable :: exe(:)
+   character(len=:), allocatable :: buff
+
+   !> number of arguments
+   integer :: nargs
+
    call mol%update
 
    cache = .false.
@@ -172,11 +179,23 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       write (env%unit, '(72("="))')
       write (env%unit, '(1x,"*",1x,a)') &
       "letting driver take over the control..."
+
+      ! check driver executable !
+      allocate(exe(1))
+      call parse(self%ext%executable,' ',exe,nargs)
       
+      ! if absolute path is given !
+      if (index(exe(1),"/").ne.0) then 
+         buff = exe(1)
+         call checkExe(env,buff)
+      else 
+         call checkExe(env,buff,exe(1))
+      endif
+
       call execute_command_line('exec 2>&1 '//self%ext%executable, exitstat=err)
       
       if (err /= 0) then
-         call env%error('driver returned with non-zero exit status, doing the same', source)
+         call raise('E','driver returned with non-zero exit status, doing the same')
       else
          write (env%unit, '(1x,"*",1x,a)') &
             "successful driver run, taking over control again..."
@@ -216,11 +235,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    end if
 
    if (printlevel .ge. 2) then
-      ! start with summary header
+      
+      ! start with summary header !
       if (.not. set%silent) then
          write (env%unit, '(9x,53(":"))')
          write (env%unit, '(9x,"::",21x,a,21x,"::")') "SUMMARY"
       end if
+
       write (env%unit, '(9x,53(":"))')
       write (env%unit, outfmt) "total energy      ", results%e_total, "Eh   "
       write (env%unit, outfmt) "gradient norm     ", results%gnorm, "Eh/a0"
@@ -259,7 +280,7 @@ subroutine checkExe(env,name,prog)
    character(len=:), allocatable, intent(inout) :: name
 
    !> exe name to search for
-   character(len=*), intent(in) :: prog
+   character(len=*), intent(in), optional :: prog
 
    !> absolute path to home dir
    character(len=:),allocatable :: homedir
@@ -270,33 +291,39 @@ subroutine checkExe(env,name,prog)
    !> file existence bool 
    logical :: exists
 
+
+   
    ! user-provided executable name !
    if (allocated(name)) then    
-
+ 
       if (name(1:1).eq.tilde) then ! relative -> absolute path convertion !
          call rdvar('HOME',homedir)   
          name = homedir // name(2:)
-      endif
-      
+      endif 
+
       ! system search !
       inquire(file=name,exist=exists)
       
       if (.not.exists) then
-         call env%error("'"//name//"' was not found, please check",source)
-         return
+         call raise('E',"'"//trim(name)//"' was not found, please check")
       endif
 
-   ! no executable provided !
+   ! no exe !
    else
+      
+      ! search for prog executable in $PATH !
+      if (present(prog)) then
 
-      call rdvar('PATH',syspath)
+         call rdvar('PATH',syspath)
+         call rdpath(syspath,prog,name,exists)
 
-      ! search for ORCA executable in $PATH !
-      call rdpath(syspath,'orca',name,exists)
-      if (.not.exists) then
-         call env%error('Could not locate ORCA executable',source)
-         return
-      endif
+         if (.not.exists) then
+            call raise('E','Could not locate '//trim(prog)//' executable')
+         endif
+      
+      else
+         call raise('E','No executable specified')  
+      endif  
 
    endif
    
