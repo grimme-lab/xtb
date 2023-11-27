@@ -208,6 +208,8 @@ module xtb_ptb_data
       real(wp), allocatable :: ksla(:, :)
       !> Exponent scaling for H0 overlap matrix
       real(wp), allocatable :: kalphah0l(:, :)
+      !> Exponent scaling for H0 overlap matrix in second iteration; charge-dependency
+      real(wp), allocatable :: kits0(:)
 
    end type THamiltonianData
 
@@ -538,7 +540,7 @@ contains
 
    subroutine initHamiltonian(self, num, nshell, ang_shell, h0_levels, &
       & cn_dependency, cnstar_dependency, cnstar_shift, wolfsberg_par, &
-      & atom_radii_h0, onecenteroffdiagonal, ocod_l, expscal_h0)
+      & atom_radii_h0, onecenteroffdiagonal, ocod_l, expscal_h0, charge_scal_h0_overlap)
 
       !> Data instance
       type(THamiltonianData), intent(out) :: self
@@ -566,6 +568,8 @@ contains
       real(wp), intent(in) :: ocod_l(:, :)
       !> Exponent scaling for H0 overlap matrix
       real(wp), intent(in) :: expscal_h0(:, :)
+      !> Exponent scaling for H0 overlap matrix in second iteration; charge-dependency
+      real(wp), intent(in) :: charge_scal_h0_overlap(:)
 
       call newData(self%selfEnergy, num, nshell, h0_levels)
       call newData(self%klh, num, nshell, cn_dependency)
@@ -576,6 +580,7 @@ contains
       call newData(self%kocod, num, onecenteroffdiagonal)
       call newData(self%ksla, num, nshell, ang_shell, ocod_l)
       call newData(self%kalphah0l, num, nshell, expscal_h0)
+      call newData(self%kits0, num, charge_scal_h0_overlap)
 
    end subroutine initHamiltonian
 

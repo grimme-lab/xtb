@@ -82,8 +82,11 @@ contains
       type(aux_integral_type) :: auxints
       !> Potential type
       type(potential_type) :: pot
+      !> H0 basis in second iteration
+      type(basis_type), allocatable :: bas_h0
+      real(wp), allocatable :: expscal_h0_2nditer(:, :)
       !> Loop variables
-      integer :: i, j, isp, izp
+      integer :: i, j, isp, izp, iat, ish, iid, is
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
@@ -161,22 +164,22 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=data%hamiltonian%kalphah0l)
+      call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=id_to_atom(mol, data%hamiltonian%kalphah0l))
       !##### DEV WRITE #####
       write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") overlap_h0(i, j)
+      !       write (*, '(f10.6)', advance="no") auxints%overlap_h0(i, j)
       !    end do
       !    write (*, *) ""
       ! end do
       !#####################
-      call get_integrals(mol, lattr, list, auxints%overlap_xc, alpha_scal=data%pauli%klalphaxc)
+      call get_integrals(mol, lattr, list, auxints%overlap_xc, alpha_scal=id_to_atom(mol, data%pauli%klalphaxc))
       !##### DEV WRITE #####
       write (*, *) "Overlap XC scaled (SS) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") ints%overlap_xc(i, j)
+      !       write (*, '(f10.6)', advance="no") auxints%overlap_xc(i, j)
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
@@ -416,7 +419,10 @@ contains
       end if
       call get_alpha_beta_occupation(wfn%nocc, wfn%nuhf, wfn%nel(1), wfn%nel(2))
       call get_density(wfn, solver, ints, ts, error)
-      if (allocated(error)) return
+      if (allocated(error)) then
+         call ctx%set_error(error)
+         return
+      end if
 
       !##### DEV WRITE #####
       write (*, *) "Coefficients after 1st iteration ..."
@@ -455,10 +461,61 @@ contains
       !   / __/| | | | (_| | | | ||  __/ | | (_| | |_| | (_) | | | |
       !  |_____|_| |_|\__,_| |_|\__\___|_|  \__,_|\__|_|\___/|_| |_|
 
+      !> Allocate temporary basis set and charge-dependent scaling factors
+      !> Consequently, the basis set is not equal for same atom ids but different 
+      !> for each symmetry-unique atom
+      allocate (bas_h0)
+      allocate (expscal_h0_2nditer(max_shell, mol%nat), source=1.0_wp)
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         is = bas%ish_at(iat)
+         do ish = 1, bas%nsh_at(iat)
+            expscal_h0_2nditer(ish, iat) = data%hamiltonian%kalphah0l(ish, iid) * &
+               & (1.0_wp + data%hamiltonian%kits0(iid) * wfn%qsh(is + ish, 1))
+            !##### DEV WRITE #####
+            ! write(*,*) "qsh: ", wfn%qsh(is + ish, 1)
+            ! write (*, *) "Atom ", iat, ":", expscal_h0_2nditer(ish, iat)
+            !#####################
+         end do
+      end do
+      !> Get temporary basis set with charge-dependent scaled exponents
+      call add_vDZP_basis(mol, expscal_h0_2nditer, bas_h0)
+      !> Get integrals with temporary basis set
+      call get_integrals(mol, bas_h0, lattr, list, auxints%overlap_h0)
+      !> Deallocate temporary basis set and charge-dependent scaling factors
+      deallocate (bas_h0, expscal_h0_2nditer)
+      !##### DEV WRITE #####
+      write (*, *) "Overlap H0 scaled (SS) ..."
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.6)', advance="no") auxints%overlap_h0(i, j)
+      !    end do
+      !    write (*, *) ""
+      ! end do
+      !#####################
+
       ! IN SECOND ITERATION, USE THE FOLLOWING:
       !    call get_h0(mol, list, bas, hData, overlap_h0, selfenergies, h0, ptbGlobals%kpol, &
 
    end subroutine twostepscf
+
+   pure function id_to_atom(mol, idparam) result(atomparam)
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> PTB parameterization data for each species
+      real(wp), intent(in) :: idparam(:, :)
+      !> PTB parameterization data for each atom
+      real(wp), allocatable :: atomparam(:, :)
+
+      integer :: iat, iid
+
+      allocate (atomparam(size(idparam, 1), mol%nat), source=0.0_wp)
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         atomparam(:, iat) = idparam(:, iid)
+      end do
+
+   end function id_to_atom
 
 end module xtb_ptb_scf
 

@@ -23,13 +23,13 @@ module xtb_ptb_vdzp
    use mctc_io, only: structure_type
    use mctc_io_constants, only: pi
 
-   use tblite_basis_type, only: cgto_type, new_basis, basis_type
+   use tblite_basis_type, only: cgto_type, basis_type
    use tblite_basis_ortho, only: orthogonalize
 
    implicit none
    private
 
-   public :: add_vDZP_basis, nshell, max_shell, max_elem, ang_shell
+   public :: add_vDZP_basis, nshell, max_shell, max_elem, ang_shell, new_basis
 
    !> Maximum number of shells supported by PTB/vDZP
    integer, parameter :: max_shell = 7
@@ -146,7 +146,7 @@ contains
       type(basis_type), intent(out) :: bas
       real(wp), allocatable :: expscal(:, :)
 
-      allocate (expscal(max_shell, mol%nid), source=1.0_wp)
+      allocate (expscal(max_shell, mol%nat), source=1.0_wp)
       call add_vDZP_basis_scaling(mol, expscal, bas)
 
    end subroutine add_vDZP_basis_noscaling
@@ -163,7 +163,7 @@ contains
       !> Array of nshells per atom ID
       integer, allocatable :: nsh_id(:)
       !> help integers
-      integer :: isp, izp, ish, nprim, il, ng
+      integer :: iat, izp, ish, nprim, il, ng, iid
 
       !> Two over pi
       real(wp), parameter :: top = 2.0_wp/pi
@@ -178,19 +178,20 @@ contains
       call setCGTOcoefficients()
 
       nsh_id = nshell(mol%num)
-      allocate (cgto(maxval(nsh_id), mol%nid))
+      allocate (cgto(maxval(nsh_id), mol%nat))
 
-      do isp = 1, mol%nid
-         izp = mol%num(isp)
-         do ish = 1, nsh_id(isp)
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         izp = mol%num(iid)
+         do ish = 1, nsh_id(iid)
 
             il = ang_shell(ish, izp)
             nprim = n_prim(ish, izp)
 
-            cgto(ish, isp)%ang = il
-            cgto(ish, isp)%nprim = nprim
-            cgto(ish, isp)%alpha(1:nprim) = exponents(1:nprim, ish, izp)*expscal(ish, isp)
-            cgto(ish, isp)%coeff(1:nprim) = coefficients(1:nprim, ish, izp)
+            cgto(ish, iat)%ang = il
+            cgto(ish, iat)%nprim = nprim
+            cgto(ish, iat)%alpha(1:nprim) = exponents(1:nprim, ish, izp) * expscal(ish, iat)
+            cgto(ish, iat)%coeff(1:nprim) = coefficients(1:nprim, ish, izp)
 
             do ng = 1, nprim
                norm = (top*exponents(ng, ish, izp))**0.75_wp* &
@@ -198,17 +199,118 @@ contains
                !##### DEV WRITE #####
                ! write(*,*) "norm: ", norm
                !#####################
-               cgto(ish, isp)%coeff(ng) = cgto(ish, isp)%coeff(ng)*norm
+               cgto(ish, iat)%coeff(ng) = cgto(ish, iat)%coeff(ng)*norm
             end do
             !##### DEV WRITE #####
-            ! write (*, *) 'CGTOs for atom ', isp, ' shell ', ish, ' with ', nprim, ' primitives'
-            ! write (*, *) cgto(ish, isp)%alpha
+            ! write (*, *) 'CGTOs for atom ', iat, ' shell ', ish, ' with ', nprim, ' primitives'
+            ! write (*, *) cgto(ish, iat)%alpha
             !#####################
          end do
       end do
       call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)
 
    end subroutine add_vDZP_basis_scaling
+
+   !> Create a new basis set
+   !> TAKEN OVER FROM TBLITE BUT MODIFIED FOR ATOM-IN-MOLECULE SPECIFIC BASIS SETS
+   !> Central change is basically that CGTO is not species specific but atom specific
+   subroutine new_basis(self, mol, nshell_id, cgto, acc)
+      !> Instance of the basis set data
+      type(basis_type), intent(out) :: self
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Number of shells per species
+      integer, intent(in) :: nshell_id(:)
+      !> Contracted Gaussian basis functions for each shell and atom (not species)
+      type(cgto_type), intent(in) :: cgto(:, :)
+      !> Calculation accuracy
+      real(wp), intent(in) :: acc
+
+      integer :: iat, isp, ish, iao, ii
+      real(wp) :: min_alpha
+
+      self%nsh_id = nshell_id
+      self%cgto = cgto
+      self%intcut = integral_cutoff(acc)
+
+      ! Make count of shells for each atom
+      self%nsh_at = nshell_id(mol%id)
+
+      ! Create mapping between atoms and shells
+      self%nsh = sum(self%nsh_at)
+      allocate(self%ish_at(mol%nat), self%sh2at(self%nsh))
+      ii = 0
+      do iat = 1, mol%nat
+         self%ish_at(iat) = ii
+         do ish = 1, self%nsh_at(iat)
+            self%sh2at(ii+ish) = iat
+         end do
+         ii = ii + self%nsh_at(iat)
+      end do
+
+      ! Make count of spherical orbitals for each shell
+      allocate(self%nao_sh(self%nsh))
+      do iat = 1, mol%nat
+         isp = mol%id(iat)
+         ii = self%ish_at(iat)
+         do ish = 1, self%nsh_at(iat)
+            self%nao_sh(ii+ish) = 2*cgto(ish, iat)%ang + 1
+         end do
+      end do
+
+      ! Create mapping between shells and spherical orbitals, also map directly back to atoms
+      self%nao = sum(self%nao_sh)
+      allocate(self%iao_sh(self%nsh), self%ao2sh(self%nao), self%ao2at(self%nao))
+      ii = 0
+      do ish = 1, self%nsh
+         self%iao_sh(ish) = ii
+         do iao = 1, self%nao_sh(ish)
+            self%ao2sh(ii+iao) = ish
+            self%ao2at(ii+iao) = self%sh2at(ish)
+         end do
+         ii = ii + self%nao_sh(ish)
+      end do
+
+      ii = 0
+      do iat = 1, mol%nat
+         isp = mol%id(iat)
+         do ish = 1, nshell_id(isp)
+            self%iao_sh(ish+self%ish_at(iat)) = ii
+            ii = ii + 2*cgto(ish, iat)%ang + 1
+         end do
+      end do
+
+      min_alpha = huge(acc)
+      do iat = 1, mol%nat
+         isp = mol%id(iat)
+         do ish = 1, nshell_id(isp)
+            self%maxl = max(self%maxl, cgto(ish, iat)%ang)
+            min_alpha = min(min_alpha, minval(cgto(ish, iat)%alpha(:cgto(ish, iat)%nprim)))
+         end do
+      end do
+
+      self%min_alpha = min_alpha
+
+   end subroutine new_basis
+
+   !> Create integral cutoff from accuracy value
+   pure function integral_cutoff(acc) result(intcut)
+      !> Accuracy for the integral cutoff
+      real(wp), intent(in) :: acc
+      !> Integral cutoff
+      real(wp) :: intcut
+
+      real(wp), parameter :: min_intcut = 5.0_wp, max_intcut = 25.0_wp, &
+         & max_acc = 1.0e-4_wp, min_acc = 1.0e+3_wp
+
+      intcut = clip(max_intcut - 10*log10(clip(acc, min_acc, max_acc)), min_intcut, max_intcut)
+   end function integral_cutoff
+
+   pure function clip(val, min_val, max_val) result(res)
+      real(wp), intent(in) :: val, min_val, max_val
+      real(wp) :: res
+      res = min(max(val, min_val), max_val)
+   end function clip
 
    subroutine setCGTOexponents()
       ! set up the array of CGTOs during initialization of the basis set data

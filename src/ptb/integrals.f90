@@ -94,7 +94,7 @@ contains
       !> Overlap matrix as output
       real(wp), intent(out) :: overlap(:, :)
       !> Scaling factors as input
-      real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nid)
+      real(wp), intent(in), optional :: alpha_scal(max_shell, mol%nat)
       !> Normalization factors as output
       real(wp), intent(out), optional :: norm(:)
       !> Basis set data
@@ -183,13 +183,14 @@ contains
       !##### DEV WRITE #####
       ! nsh_id = nshell(mol%num)
       ! write (*, *) "Basis set properties:", bas%nao
-      ! do isp = 1, mol%nid
+      ! do iat = 1, mol%nat
+      !    isp = mol%id(iat)
       !    izp = mol%num(isp)
       !    do ish = 1, nsh_id(isp)
-      !       write(*,*) bas%cgto(ish, isp)%ang
-      !       write(*,*) bas%cgto(ish, isp)%nprim
-      !       write(*,*) bas%cgto(ish, isp)%alpha(:)
-      !       write(*,*) bas%cgto(ish, isp)%coeff(:)
+      !       write(*,*) bas%cgto(ish, iat)%ang
+      !       write(*,*) bas%cgto(ish, iat)%nprim
+      !       write(*,*) bas%cgto(ish, iat)%alpha(:)
+      !       write(*,*) bas%cgto(ish, iat)%coeff(:)
       !    end do
       ! end do
       !#####################
@@ -238,11 +239,11 @@ contains
                ii = bas%iao_sh(is + ish)
                do jsh = 1, bas%nsh_id(jzp)
                   jj = bas%iao_sh(js + jsh)
-                  call overlap_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
+                  call overlap_cgto(bas%cgto(jsh, jat), bas%cgto(ish, iat), &
                      & r2, vec, bas%intcut, stmp)
 
-                  nao = msao(bas%cgto(jsh, jzp)%ang)
-                  do iao = 1, msao(bas%cgto(ish, izp)%ang)
+                  nao = msao(bas%cgto(jsh, jat)%ang)
+                  do iao = 1, msao(bas%cgto(ish, iat)%ang)
                      do jao = 1, nao
                         ij = jao + nao * (iao - 1)
                         !$omp atomic
@@ -274,11 +275,11 @@ contains
             ii = bas%iao_sh(is + ish)
             do jsh = 1, bas%nsh_id(izp)
                jj = bas%iao_sh(is + jsh)
-               call overlap_cgto(bas%cgto(jsh, izp), bas%cgto(ish, izp), &
+               call overlap_cgto(bas%cgto(jsh, iat), bas%cgto(ish, iat), &
                      & r2, vec, bas%intcut, stmp)
 
-               nao = msao(bas%cgto(jsh, izp)%ang)
-               do iao = 1, msao(bas%cgto(ish, izp)%ang)
+               nao = msao(bas%cgto(jsh, iat)%ang)
+               do iao = 1, msao(bas%cgto(ish, iat)%ang)
                   do jao = 1, nao
                      ij = jao + nao * (iao - 1)
                      overlap(jj + jao, ii + iao) = overlap(jj + jao, ii + iao) &
@@ -336,11 +337,11 @@ contains
                ii = bas%iao_sh(is + ish)
                do jsh = 1, bas%nsh_id(jzp)
                   jj = bas%iao_sh(js + jsh)
-                  call dipole_cgto(bas%cgto(jsh, jzp), bas%cgto(ish, izp), &
+                  call dipole_cgto(bas%cgto(jsh, jat), bas%cgto(ish, iat), &
                      & r2, vec, bas%intcut, stmp, dtmpi)
 
-                  nao = msao(bas%cgto(jsh, jzp)%ang)
-                  do iao = 1, msao(bas%cgto(ish, izp)%ang)
+                  nao = msao(bas%cgto(jsh, jat)%ang)
+                  do iao = 1, msao(bas%cgto(ish, iat)%ang)
                      do jao = 1, nao
                         ij = jao + nao * (iao - 1)
                         call shift_operator(vec, stmp(ij), dtmpi(:, ij), &
@@ -385,11 +386,11 @@ contains
             ii = bas%iao_sh(is + ish)
             do jsh = 1, bas%nsh_id(izp)
                jj = bas%iao_sh(is + jsh)
-               call overlap_cgto(bas%cgto(jsh, izp), bas%cgto(ish, izp), &
+               call overlap_cgto(bas%cgto(jsh, iat), bas%cgto(ish, iat), &
                      & r2, vec, bas%intcut, stmp)
 
-               nao = msao(bas%cgto(jsh, izp)%ang)
-               do iao = 1, msao(bas%cgto(ish, izp)%ang)
+               nao = msao(bas%cgto(jsh, iat)%ang)
+               do iao = 1, msao(bas%cgto(ish, iat)%ang)
                   do jao = 1, nao
                      ij = jao + nao * (iao - 1)
                      overlap(jj + jao, ii + iao) = overlap(jj + jao, ii + iao) &

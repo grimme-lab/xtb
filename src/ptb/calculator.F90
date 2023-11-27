@@ -160,7 +160,7 @@ contains
       !    write (*, *) "ID(i): ", struc%id(i)
       !    write(*,*) "num(ID(i)): ", struc%num(struc%id(i))
       !    do j = 1, calc%bas%nsh_id(struc%id(i))
-      !       write (*, *) "  shell: ", j, "  prim: ", calc%bas%cgto(j, struc%id(i))%nprim
+      !       write (*, *) "  shell: ", j, "  prim: ", calc%bas%cgto(j, i)%nprim
       !    end do
       ! end do
       !#####################

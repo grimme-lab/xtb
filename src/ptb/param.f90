@@ -2122,7 +2122,7 @@ contains
 
       call init(self, num, nshell, ang_shell, &
       & hla, klh, kcnstar, kshift, kla, kr, kocod, &
-      & ksla, kalphah0l)
+      & ksla, kalphah0l, kits0)
 
       allocate (self%refocc(max_shell, max_elem))
       call setPTBReferenceOcc(self,num)
