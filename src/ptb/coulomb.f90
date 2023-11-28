@@ -103,6 +103,16 @@ contains
          end do
       end do
 
+      !##### DEV WRITE #####
+      ! write (*, *) "cmat ..."
+      ! do ish = 1, bas%nsh
+      !    do jsh = 1, bas%nsh
+      !       write (*, '(f13.9)', advance="no") self%cmat(ish, jsh)
+      !    end do
+      !    write (*, *)
+      ! end do
+      !#####################
+
    end subroutine get_coulomb_matrix
 
    subroutine init(self, mol, bas, q, gamsh, kqhubb, kok, kthirdoder)
@@ -153,6 +163,8 @@ contains
       end if
       if (.not. allocated(self%cmat)) then
          allocate (self%cmat(bas%nsh, bas%nsh), source=0.0_wp)
+      else
+         self%cmat = 0.0_wp
       end if
       self%cok = kok
 
@@ -192,7 +204,9 @@ contains
       integer :: iat, iid
 
       !> Third-order on-center electrostatics; Eq. 17
-      allocate (self%hubbard_derivs(mol%nat), source=0.0_wp)
+      if (.not. allocated(self%hubbard_derivs)) then
+         allocate (self%hubbard_derivs(mol%nat), source=0.0_wp)
+      end if
       do iat = 1, mol%nat
          iid = mol%id(iat)
          self%hubbard_derivs(iat) = 2.0_wp * kthirdoder(iid)
@@ -247,7 +261,8 @@ contains
       do iat = 1, size(wfn%qat, 1)
          pot%vat(iat, 1) = pot%vat(iat, 1) + wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
          !##### DEV WRITE #####
-         ! write (*, *) wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
+         ! write (*, *) "q^2 * self_hubbard_derivs: ",  wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
+         ! write (*, *) "qat: ", wfn%qat(iat, 1)
          !#####################
       end do
 

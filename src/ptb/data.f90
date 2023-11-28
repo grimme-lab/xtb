@@ -26,7 +26,7 @@ module xtb_ptb_data
    private
 
    public :: TPTBData, init
-   public :: TRepulsionData, TCoulombData, THamiltonianData, TDispersionData
+   public :: TRepulsionData, TCoulombData, THamiltonianData
    public :: TShortRangeData, TCorePotentialData, TEEQData, TPauliXCData
    public :: newData, getData
    public :: angToShellData
@@ -42,26 +42,6 @@ module xtb_ptb_data
       module procedure :: getShellData
       module procedure :: getAngShellData
    end interface getData
-
-   !> Data for the dispersion contribution
-   type :: TDispersionData
-
-      !> Damping parameters
-      type(dftd_parameter) :: dpar
-
-      !> Weighting factor for Gaussian interpolation
-      real(wp) :: wf
-
-      !> Charge steepness
-      real(wp) :: g_a
-
-      !> Charge height
-      real(wp) :: g_c
-
-      !> Reference data for the dispersion
-      type(TDispersionModel) :: dispm
-
-   end type TDispersionData
 
    !> Data for the effective core potential
    type :: TCorePotentialData
@@ -231,8 +211,11 @@ module xtb_ptb_data
       !> Atomic hardnesses used in second order electrostatics
       real(wp), allocatable :: chemicalHardness(:)
 
-      !> Scaling factors for shell electrostatics
+      !> Scaling factors for shell electrostatics in first iteration
       real(wp), allocatable :: shellHardnessFirstIter(:, :)
+
+      !> Scaling factors for shell electrostatics in second iteration
+      real(wp), allocatable :: shellHardnessSecondIter(:, :)
 
       !> Third order Hubbard derivatives
       real(wp), allocatable :: thirdOrderAtom(:)
@@ -295,9 +278,6 @@ module xtb_ptb_data
 
       !> Parametrisation data for Coulombic interactions
       type(TCoulombData) :: coulomb
-
-      !> Parametrisation data for dispersion interactions
-      type(TDispersionData) :: dispersion
 
       !> Parametrisation data for the effective core potential
       type(TCorePotentialData) :: corepotential
@@ -379,12 +359,6 @@ contains
       end do
       write (unit, '(a)')
       write (unit, rfmt) "zeta-weighting", self%hamiltonian%wExp
-
-      write (unit, head) "Dispersion"
-      write (unit, rfmt) "s8", self%dispersion%dpar%s8
-      write (unit, rfmt) "a1", self%dispersion%dpar%a1
-      write (unit, rfmt) "a2", self%dispersion%dpar%a2
-      write (unit, rfmt) "s9", self%dispersion%dpar%s9
 
       write (unit, head) "Repulsion"
       write (unit, rfmt, advance='no') "kExp", self%repulsion%kExp
@@ -585,7 +559,7 @@ contains
    end subroutine initHamiltonian
 
    subroutine initCoulomb(self, num, nshell, shellHardnessFirstIter, &
-      & thirdOrderAtomWise)
+      & shellHardnessSecondIter, thirdOrderAtomWise)
 
       !> Data instance
       type(TCoulombData), intent(out) :: self
@@ -593,13 +567,16 @@ contains
       integer, intent(in) :: num(:)
       !> Number of shells for each atom
       integer, intent(in) :: nshell(:)
-      !> Scaling factors for shell electrostatic hardness
+      !> Scaling factors for shell electrostatic hardness in first iteration
       real(wp), intent(in) :: shellHardnessFirstIter(:, :)
+      !> Scaling factors for shell electrostatic hardness in second iteration
+      real(wp), intent(in) :: shellHardnessSecondIter(:, :)
       !> Scaling factors for third-order electrostatics
       real(wp), intent(in) :: thirdOrderAtomWise(:)
 
 
       call newData(self%shellHardnessFirstIter, num, nshell, shellHardnessFirstIter)
+      call newData(self%shellHardnessSecondIter, num, nshell, shellHardnessSecondIter)
       call newData(self%kTO, num, thirdOrderAtomWise)
 
    end subroutine initCoulomb
