@@ -70,6 +70,29 @@ contains
       write (iunit, '(11x,49("-"))')
    end subroutine write_energy_gff
 
+subroutine write_energy_oniom(iunit,sccres,frqres,hess)
+   use xtb_type_data
+   implicit none
+   integer, intent(in) :: iunit ! file handle (usually output_unit=6)
+   logical, intent(in) :: hess
+   type(scc_results), intent(in) :: sccres
+   type(freq_results),intent(in) :: frqres
+   character(len=*),parameter :: outfmt = '(10x,"|",1x,a,f18.12,1x,a,1x,"|")'
+
+   write(iunit,'(a)')
+   write(iunit,'(11x,49("-"))')
+   if (hess) then
+      write(iunit,outfmt) "ONIOM TOTAL ENERGY      ", frqres%etot,            "Eh  "
+      write(iunit,outfmt) "ONIOM TOTAL ENTHALPY    ", frqres%etot+frqres%htot,"Eh  "
+      write(iunit,outfmt) "ONIOM TOTAL FREE ENERGY ", frqres%etot+frqres%gtot,"Eh  "
+      write(iunit,outfmt) "ONIOM GRADIENT NORM     ", frqres%gnorm,           "Eh/α"
+   else
+      write(iunit,outfmt) "ONIOM TOTAL ENERGY      ", sccres%e_total,"Eh  "
+      write(iunit,outfmt) "ONIOM GRADIENT NORM     ", sccres%gnorm,  "Eh/α"
+   endif
+   write(iunit,'(11x,49("-"))')
+end subroutine write_energy_oniom
+
    subroutine main_property &
       (iunit, env, mol, wfx, basis, xtbData, res, solvModel, acc)
 
