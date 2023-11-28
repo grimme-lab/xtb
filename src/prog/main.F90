@@ -1281,6 +1281,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
 #endif
    !$    endif
    !$    endif
+
       case('--restart')
          restart = .true.
 
@@ -1444,8 +1445,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
          call set_exttyp('oniom')
          call args%nextArg(sec) 
 
-         !> To handle no argument case
-         if (.not.allocated(sec)) then
+         if (.not.allocated(sec)) then ! handle no argument case ! 
             call env%error("No inner region is  provided for ONIOM", source)
             return
          end if
