@@ -435,7 +435,7 @@ contains
       write (*, *) "Density matrix after 1st iteration ..."
       do i = 1, bas%nao
          do j = 1, bas%nao
-            write (*, '(f8.4)', advance="no") wfn%density(i, j, 1)
+            write (*, '(f10.5)', advance="no") wfn%density(i, j, 1)
          end do
          write (*, '(/)', advance="no")
       end do
@@ -508,12 +508,12 @@ contains
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
       write (*, *) "H0 ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f8.4)', advance="no") ints%hamiltonian(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.5)', advance="no") ints%hamiltonian(i, j)
+         end do
+         write (*, '(/)', advance="no")
+      end do
       !#####################
 
       !    _____      _             _   _       _
@@ -524,6 +524,7 @@ contains
       !   |_|   \___/ \__\___|_| |_|\__|_|\__,_|_|
       !
       !>  --------- Get potential (wavefunction-dependent) -----
+      call pot%reset()
       psh = 0.0_wp
       psh = get_psh_from_qsh(wfn, bas)
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, Vxc)
@@ -533,12 +534,29 @@ contains
       !    write (*, '(f12.6)') psh(i, 1)
       ! end do
       write (*, *) "V_XC ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f8.4)', advance="no") Vxc(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.5)', advance="no") Vxc(i, j)
+         end do
+         write (*, '(/)', advance="no")
+      end do
+      !#####################
+      call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessSecondIter, &
+         & 0.0_wp, data%coulomb%kOK2, data%coulomb%kTO)
+      call coulomb%update(mol, bas)
+      call coulomb%get_potential(wfn, pot)
+      call add_pot_to_h1(bas, ints, pot, wfn%coeff)
+      !> Add Pauli XC potential "manually" to Hamiltonian matrix (same purpose as add_pot_to_h1)
+      wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
+
+      !##### DEV WRITE #####
+      write (*, *) "Hamiltonian matrix to solve ..."
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f10.5)', advance="no") wfn%coeff(i, j, 1)
+         end do
+         write (*, '(/)', advance="no")
+      end do
       !#####################
 
    end subroutine twostepscf
