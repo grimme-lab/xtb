@@ -168,7 +168,8 @@ contains
 
          call move_alloc(ptb, calc)
 
-      case (p_ext_orca)
+      ! ORCA => https://orcaforum.kofo.mpg.de/app.php/portal !
+   case (p_ext_orca)
          allocate (orca)
          call newOrcaCalculator(orca, env, set%ext_orca)
          call move_alloc(orca, calc)

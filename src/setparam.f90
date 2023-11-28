@@ -134,16 +134,26 @@ module xtb_setparam
 
    type qm_external
       
-      character(len=:),allocatable :: path
-      character(len=:),allocatable :: executable
-      character(len=:),allocatable :: input_file
-      character(len=:),allocatable :: input_string
+      character(len=:), allocatable :: path
+      
+      !> absolute path to executable
+      character(len=:), allocatable :: executable
+      
+      !> external input
+      character(len=:), allocatable :: input_file
+      
+      !> alternative for input_file
+      character(len=:), allocatable :: input_string
+      
+      !> molecular structure file
+      character(len=:), allocatable :: str_file
       
       !> if input_file exist
       logical :: exist
       
       !> special case of the oniom embedding 
       logical :: oniom=.false.
+
 
    end type qm_external
 
