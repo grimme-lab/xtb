@@ -153,7 +153,7 @@ contains
       !> Density matrix
       real(wp), intent(in) :: density(:, :)
       !> Potential matrix (nao x nao)
-      real(wp), intent(out) :: potential(:, :)
+      real(wp), intent(inout) :: potential(:, :)
       !> Loop variables
       integer :: iat, jat, izp, jzp, ii, ish, jsh, jj
       integer :: is, js, iao, jao

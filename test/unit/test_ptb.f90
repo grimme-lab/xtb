@@ -740,6 +740,7 @@ contains
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
       call get_integrals(mol, bas, lattr, list, auxints%overlap_xc)
+      allocate (Vxc(bas%nao, bas%nao), source=0.0_wp)
       call calc_Vxc_pauli(mol, bas, shellpops, auxints%overlap_xc, levels, ptbData%pauli%kxc1, Vxc)
 
       message = "V_XC matrix element not matching to expected value."
