@@ -552,7 +552,7 @@ contains
       !> Add Pauli XC potential "manually" to Hamiltonian matrix (same purpose as add_pot_to_h1)
       wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
 
-      call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), cn)
+      call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), cn_star)
 
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."

@@ -256,6 +256,12 @@ module xtb_ptb_data
       !> Shell level for +U matrix
       real(wp), allocatable :: cueffl(:,:)
 
+      !> Atomic radii for +U
+      real(wp), allocatable :: ar(:)
+
+      !> Scaling factor for the atomic radii dependent on the coordination number
+      real(wp), allocatable :: arcn(:)
+
    end type TPlusU
 
    !> Short range basis correction
@@ -606,7 +612,7 @@ contains
    end subroutine initCoulomb
 
    subroutine initPlusU(self, num, nshell, avcn, diagonal_scal, simple_q_scal,  &
-         & quadratic_q_scal, shell_level)
+         & quadratic_q_scal, shell_level, atomic_radius, at_radius_cn_scal)
 
       !> Data instance
       type(TPlusU), intent(out) :: self
@@ -624,12 +630,18 @@ contains
       real(wp), intent(in) :: quadratic_q_scal(:)
       !> Shell level for +U matrix
       real(wp), intent(in) :: shell_level(:,:)
+      !> Atomic radii for +U
+      real(wp), intent(in) :: atomic_radius(:)
+      !> Scaling factor for the atomic radii dependent on the coordination number
+      real(wp), intent(in) :: at_radius_cn_scal(:)
 
       call newData(self%avcn, num, avcn)
       call newData(self%cud, num, diagonal_scal)
       call newData(self%cu1, num, simple_q_scal)
       call newData(self%cu2, num, quadratic_q_scal)
       call newData(self%cueffl, num, nshell, shell_level)
+      call newData(self%ar, num, atomic_radius)
+      call newData(self%arcn, num, at_radius_cn_scal)
 
    end subroutine initPlusU
 

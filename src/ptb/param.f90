@@ -2177,7 +2177,8 @@ contains
       integer, intent(in) :: num(:)
 
       call init(self, num, nshell, &
-      & avcn, cud, cu1, cu2, cueffl)
+      & avcn, cud, cu1, cu2, cueffl, &
+      & ar, arcn)
 
    end subroutine initPlusU
 
