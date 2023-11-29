@@ -105,7 +105,7 @@ contains
             self%damping(jat, iat) = 0.5_wp * (1.0_wp + erf(-1.8_wp * (rij - (ra + rb)) / (ra + rb)))
             self%damping(iat, jat) = self%damping(jat, iat)
             !##### DEV WRITE #####
-            write (*, *) 'damping', iat, jat, self%damping(iat, jat)
+            ! write (*, *) 'damping', iat, jat, self%damping(iat, jat)
             !#####################
          end do
       end do
@@ -136,7 +136,7 @@ contains
             self%selfenergies(ish, iat) = shell_level(ish, iid) * &
                & (1.0_wp - (q_scal(iid) * q(iat) + q2_scal(iid) * q(iat)**2))
             !##### DEV WRITE #####
-            write (*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
+            ! write (*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
             !#####################
          end do
       end do
@@ -157,7 +157,7 @@ contains
       !> Loop variables
       integer :: iat, jat, izp, jzp, ii, ish, jsh, jj
       integer :: is, js, iao, jao
-      real(wp) :: sum_levels
+      real(wp) :: sum_levels, tmp
 
       !> Different atom
       do iat = 1, mol%nat
@@ -173,8 +173,9 @@ contains
                   sum_levels = self%selfenergies(ish, iat) + self%selfenergies(jsh, jat)
                   do iao = 1, msao(bas%cgto(ish, iat)%ang)
                      do jao = 1, msao(bas%cgto(jsh, jat)%ang)
-                        potential(ii + iao, jj + jao) = potential(ii + iao, jj + jao) + &
-                           & density(ii + iao, jj + jao) * sum_levels * self%damping(jat, iat)
+                        tmp = density(jj + jao, ii + iao) * sum_levels * self%damping(jat, iat)
+                        potential(jj + jao, ii + iao) = potential(jj + jao, ii + iao) + tmp
+                        potential(ii + iao, jj + jao) = potential(ii + iao, jj + jao) + tmp
                      end do
                   end do
                end do
@@ -184,12 +185,13 @@ contains
          do ish = 1, bas%nsh_at(iat)
             ii = bas%iao_sh(is + ish)
             do jsh = 1, ish - 1
-               jj = bas%iao_sh(js + jsh)
+               jj = bas%iao_sh(is + jsh)
                sum_levels = self%selfenergies(ish, iat) + self%selfenergies(jsh, iat)
                do iao = 1, msao(bas%cgto(ish, iat)%ang)
                   do jao = 1, msao(bas%cgto(jsh, iat)%ang)
-                     potential(ii + iao, jj + jao) = potential(ii + iao, jj + jao) + &
-                        & density(ii + iao, jj + jao) * sum_levels * self%damping(iat, iat)
+                     tmp = density(jj + jao, ii + iao) * sum_levels * self%damping(iat, iat)
+                     potential(jj + jao, ii + iao) = potential(jj + jao, ii + iao) + tmp
+                     potential(ii + iao, jj + jao) = potential(ii + iao, jj + jao) + tmp
                   end do
                end do
             end do
@@ -197,8 +199,9 @@ contains
             sum_levels = 2.0_wp * self%selfenergies(ish, iat)
             do iao = 1, msao(bas%cgto(ish, iat)%ang)
                do jao = 1, iao - 1
-                  potential(ii + iao, ii + jao) = potential(ii + iao, ii + jao) + &
-                     & density(ii + iao, ii + jao) * sum_levels * self%damping(iat, iat)
+                  tmp = density(ii + jao, ii + iao) * sum_levels * self%damping(iat, iat)
+                  potential(ii + jao, ii + iao) = potential(ii + jao, ii + iao) + tmp
+                  potential(ii + iao, ii + jao) = potential(ii + iao, ii + jao) + tmp
                end do
                !> Same atom, same shell, same AO
                potential(ii + iao, ii + iao) = potential(ii + iao, ii + iao) + &
@@ -207,32 +210,6 @@ contains
             end do
          end do
       end do
-
-      !> OLD CODE
-      ! do i = 1, bas%nao
-      !    do jat = 1, mol%nat
-      !       jzp = mol%id(jat)
-      !       js = bas%ish_at(jat)
-      !       do jsh = 1, bas%nsh_id(jzp) !> Iteration over core shells of atom jat
-      !          jj = bas%iao_sh(js + jsh)
-      !          ! ia = aoat(i)
-      !          ! ati = at(ia)
-      !          ! ish = shell2ao(i)
-      !          ! hi = shell_cnf2(ish, ati) * gq(ia)
-      !          do j = 1, i - 1
-      !             k = k + 1
-      !             ib = aoat(j)
-      !             atj = at(ib)
-      !             jsh = shell2ao(j)
-      !             hj = shell_cnf2(jsh, atj) * gq(ib)
-      !             !                            this part is INDO two-c like
-      !             Hmat(k) = Hmat(k) + P(k) * (hi + hj) * xab(lin(ib, ia))
-      !          end do
-      !          k = k + 1
-      !          Hmat(k) = Hmat(k) + 2d0 * P(k) * shell_xi(8, ati) * hi * xab(lin(ia, ia)) ! scaled diag
-      !       end do
-      !    end do
-      ! end do
 
    end subroutine calc_V_plusU
 

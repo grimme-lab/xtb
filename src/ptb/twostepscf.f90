@@ -104,7 +104,7 @@ contains
       !> Number of electrons
       real(wp) :: nel
       !> Pauli XC potential
-      real(wp), allocatable :: Vxc(:, :), psh(:, :)
+      real(wp), allocatable :: Vxc(:, :), psh(:, :), plusUpot(:, :)
       !> Electronic entropy
       real(wp) :: ts
 
@@ -553,6 +553,9 @@ contains
       wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
 
       call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), cn_star)
+      allocate (plusUpot(bas%nao, bas%nao), source=0.0_wp)
+      call plusu%get_potential(mol, bas, wfn%density(:,:,1), plusUpot)
+      wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + plusUpot
 
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."
