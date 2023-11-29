@@ -26,7 +26,7 @@ module xtb_ptb_data
    private
 
    public :: TPTBData, init
-   public :: TRepulsionData, TCoulombData, THamiltonianData
+   public :: TRepulsionData, TCoulombData, THamiltonianData, TPlusU
    public :: TShortRangeData, TCorePotentialData, TEEQData, TPauliXCData
    public :: newData, getData
    public :: angToShellData
@@ -238,6 +238,26 @@ module xtb_ptb_data
 
    end type TCoulombData
 
+   !> DFT +U contribution to the Hamiltonian in the second iteration
+   type :: TPlusU
+
+      !> Average coordination number
+      real(wp), allocatable :: avcn(:)
+
+      !> Scaling factor for the diagonal element of the +U matrix
+      real(wp), allocatable :: cud(:)
+
+      !> Scaling factor for the simple charge dependence of the +U matrix
+      real(wp), allocatable :: cu1(:)
+
+      !> Scaling factor for the quadratic charge dependence of the +U matrix
+      real(wp), allocatable :: cu2(:)
+
+      !> Shell level for +U matrix
+      real(wp), allocatable :: cueffl(:,:)
+
+   end type TPlusU
+
    !> Short range basis correction
    type TShortRangeData
 
@@ -288,6 +308,9 @@ module xtb_ptb_data
       !> Pauli-XC data
       type(TPauliXCData) :: pauli
 
+      !> Parametrisation data for the DFT+U contribution
+      type(TPlusU) :: plusU
+
       !> Parametrisation data for the short range basis correction (optional)
       type(TShortRangeData), allocatable :: srb
 
@@ -308,6 +331,7 @@ module xtb_ptb_data
       module procedure :: initCorepotential
       module procedure :: initEEQ
       module procedure :: initHamiltonian
+      module procedure :: initPlusU
       module procedure :: initPauli
    end interface init
 
@@ -580,6 +604,34 @@ contains
       call newData(self%kTO, num, thirdOrderAtomWise)
 
    end subroutine initCoulomb
+
+   subroutine initPlusU(self, num, nshell, avcn, diagonal_scal, simple_q_scal,  &
+         & quadratic_q_scal, shell_level)
+
+      !> Data instance
+      type(TPlusU), intent(out) :: self
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+      !> Number of shells for each atom
+      integer, intent(in) :: nshell(:)
+      !> Average coordination number
+      real(wp), intent(in) :: avcn(:)
+      !> Scaling factor for the diagonal element of the +U matrix
+      real(wp), intent(in) :: diagonal_scal(:)
+      !> Scaling factor for the simple charge dependence of the +U matrix
+      real(wp), intent(in) :: simple_q_scal(:)
+      !> Scaling factor for the quadratic charge dependence of the +U matrix
+      real(wp), intent(in) :: quadratic_q_scal(:)
+      !> Shell level for +U matrix
+      real(wp), intent(in) :: shell_level(:,:)
+
+      call newData(self%avcn, num, avcn)
+      call newData(self%cud, num, diagonal_scal)
+      call newData(self%cu1, num, simple_q_scal)
+      call newData(self%cu2, num, quadratic_q_scal)
+      call newData(self%cueffl, num, nshell, shell_level)
+
+   end subroutine initPlusU
 
 !> Transform a data array from angular momenta to shell number references
    subroutine angToShellData(kDat, nShell, angShell, angDat)

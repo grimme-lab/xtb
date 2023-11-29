@@ -20,7 +20,7 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
-      TEEQData, TPauliXCData, TCoulombData
+      TEEQData, TPauliXCData, TCoulombData, TPlusU
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
 
@@ -42,8 +42,9 @@ module xtb_ptb_param
       module procedure :: initHamiltonian
       module procedure :: initCorePotential
       module procedure :: initEEQ
-      module procedure :: init_PauliXC
+      module procedure :: initPauliXC
       module procedure :: initCoulomb
+      module procedure :: initPlusU
    end interface initPTB
 
    type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
@@ -2003,6 +2004,30 @@ module xtb_ptb_param
    & -0.0213573127_wp,  0.0000000014_wp, -0.0001092631_wp, -0.0013482778_wp, -0.0153551917_wp, &
    & -0.0347689705_wp,  0.1053436128_wp]
 
+   !> Average coordination number for +U damping function
+   !> see Eq. 24 in J. Chem. Phys. 158, 124111 (2023)
+   real(wp), parameter :: avcn(max_elem) = [ &
+   & 0.8571_wp, 0.5576_wp, 2.5636_wp, 2.2666_wp, 2.7596_wp, &
+   & 3.1576_wp, 2.6221_wp, 1.5218_wp, 1.1580_wp, 0.6325_wp, &
+   & 2.4115_wp, 2.8134_wp, 3.4564_wp, 3.1467_wp, 3.4848_wp, &
+   & 2.2996_wp, 1.6193_wp, 0.9971_wp, 2.7819_wp, 4.0839_wp, &
+   & 4.6882_wp, 4.1372_wp, 5.2103_wp, 4.8825_wp, 5.1648_wp, &
+   & 5.4032_wp, 4.6666_wp, 3.3283_wp, 2.3970_wp, 2.4055_wp, &
+   & 3.3721_wp, 3.1015_wp, 3.1793_wp, 2.2906_wp, 1.7517_wp, &
+   & 1.2780_wp, 3.0927_wp, 2.8011_wp, 5.3701_wp, 4.4574_wp, &
+   & 5.2953_wp, 5.7108_wp, 5.1423_wp, 5.5080_wp, 5.1645_wp, &
+   & 3.3691_wp, 2.5553_wp, 2.5331_wp, 3.4365_wp, 3.3329_wp, &
+   & 3.1065_wp, 2.3380_wp, 1.9027_wp, 1.4142_wp, 3.2766_wp, &
+   & 2.5869_wp, 5.7731_wp, &
+   ! Include 14 f-element dummy parameters initially set to zero
+   &  0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
+   &  0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
+   ! ----------------------------------------------------------
+   & 4.3281_wp, 5.1258_wp, 5.4683_wp, 5.1728_wp, &
+   & 5.5049_wp, 4.9224_wp, 3.5058_wp, 2.4969_wp, 2.5980_wp, &
+   & 3.2478_wp, 3.0994_wp, 3.1497_wp, 2.3199_wp, 1.6944_wp, &
+   & 1.4813_wp ]
+
 
    !------------- RESPONSE APPROXIMATION -----------------------------------
 
@@ -2074,6 +2099,7 @@ contains
       call initPTB(self%hamiltonian, num)
       call initPTB(self%pauli, num)
       call initPTB(self%coulomb, num)
+      call initPTB(self%plusu, num)
       ! allocate(self%multipole, source = 0.0_wp)
       ! call initGFN2(self%multipole)
    end subroutine initData
@@ -2102,7 +2128,7 @@ contains
 
    end subroutine initEEQ
 
-   subroutine init_PauliXC(self, num)
+   subroutine initPauliXC(self, num)
 
       !> Data instance
       type(TPauliXCData), intent(out) :: self
@@ -2111,7 +2137,7 @@ contains
 
       call init(self, num, nshell, kxc1, kxc2l, klalphaxc)
 
-   end subroutine init_PauliXC
+   end subroutine initPauliXC
 
    subroutine initHamiltonian(self, num)
 
@@ -2142,6 +2168,18 @@ contains
       self%kOK2 = 1.0_wp
 
    end subroutine initCoulomb
+
+   subroutine initPlusU(self, num)
+
+      !> Data instance
+      type(TPlusU), intent(out) :: self
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
+
+      call init(self, num, nshell, &
+      & avcn, cud, cu1, cu2, cueffl)
+
+   end subroutine initPlusU
 
    subroutine setPTBReferenceOcc(self,num)
 
