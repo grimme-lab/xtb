@@ -104,7 +104,7 @@ contains
       !> Number of electrons
       real(wp) :: nel
       !> Pauli XC potential
-      real(wp), allocatable :: Vxc(:, :), psh(:, :), plusUpot(:, :)
+      real(wp), allocatable :: Vxc(:, :), psh(:, :)
       !> Electronic entropy
       real(wp) :: ts
 
@@ -365,19 +365,6 @@ contains
       !>  --------- Get potential (wavefunction-dependent) -----
 
       call pot%reset()
-      allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
-      psh = get_psh_from_qat(wfn, bas)
-      call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc1, Vxc)
-      !##### DEV WRITE #####
-      write (*, *) "V_XC ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f8.4)', advance="no") Vxc(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      !#####################
-
       call coulomb%get_potential(wfn, pot)
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
       !##### DEV WRITE #####
@@ -388,8 +375,12 @@ contains
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
-      !> Add Pauli XC potential "manually" to Hamiltonian matrix (same purpose as add_pot_to_h1)
-      wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
+      !#####################
+
+      allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
+      psh = get_psh_from_qat(wfn, bas)
+      call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc1, wfn%coeff(:, :, 1))
+
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."
       ! do i = 1, bas%nao
@@ -527,35 +518,17 @@ contains
       !   |_|   \___/ \__\___|_| |_|\__|_|\__,_|_|
       !
       !>  --------- Get potential (wavefunction-dependent) -----
-      call pot%reset()
-      psh = 0.0_wp
-      psh = get_psh_from_qsh(wfn, bas)
-      call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, Vxc)
-      !##### DEV WRITE #####
-      ! write (*, *) "psh ..."
-      ! do i = 1, bas%nsh
-      !    write (*, '(f12.6)') psh(i, 1)
-      ! end do
-      write (*, *) "V_XC ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.5)', advance="no") Vxc(i, j)
-         end do
-         write (*, '(/)', advance="no")
-      end do
-      !#####################
       call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessSecondIter, &
          & 0.0_wp, data%coulomb%kOK2, data%coulomb%kTO)
+      call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), cn_star)
+
+      call pot%reset()
       call coulomb%update(mol, bas)
       call coulomb%get_potential(wfn, pot)
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
-      !> Add Pauli XC potential "manually" to Hamiltonian matrix (same purpose as add_pot_to_h1)
-      wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
-
-      call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), cn_star)
-      allocate (plusUpot(bas%nao, bas%nao), source=0.0_wp)
-      call plusu%get_potential(mol, bas, wfn%density(:,:,1), plusUpot)
-      wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + plusUpot
+      psh = get_psh_from_qsh(wfn, bas)
+      call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
+      call plusu%get_potential(mol, bas, wfn%density(:,:,1), wfn%coeff(:,:,1))
 
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."

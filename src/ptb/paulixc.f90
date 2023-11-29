@@ -39,7 +39,7 @@ module xtb_ptb_paulixc
 
 contains
 
-   subroutine calc_Vxc_pauli_atomscaling(mol, bas, psh, Sxc, selfenergies, katom, Vxc)
+   subroutine calc_Vxc_pauli_atomscaling(mol, bas, psh, Sxc, selfenergies, katom, potential)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set data
@@ -53,7 +53,7 @@ contains
       !> Atom-specific scaling factors
       real(wp), intent(in) :: katom(:)
       !> Vxc potential
-      real(wp), allocatable, intent(out) :: Vxc(:, :)
+      real(wp), intent(inout) :: potential(:, :)
 
       !> shell-specific scaling factors
       real(wp), allocatable :: kshell(:, :)
@@ -71,10 +71,10 @@ contains
          end do
       end do
 
-      call calc_Vxc_pauli(mol, bas, psh, Sxc, selfenergies, kshell, Vxc)
+      call calc_Vxc_pauli(mol, bas, psh, Sxc, selfenergies, kshell, potential)
    end subroutine calc_Vxc_pauli_atomscaling
 
-   subroutine calc_Vxc_pauli_shellscaling(mol, bas, psh, Sxc, selfenergies, kshell, Vxc)
+   subroutine calc_Vxc_pauli_shellscaling(mol, bas, psh, Sxc, selfenergies, kshell, potential)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Basis set data
@@ -88,13 +88,13 @@ contains
       !> Shell-specific scaling factors
       real(wp), intent(in) :: kshell(:, :)
       !> Vxc potential
-      real(wp), allocatable, intent(out) :: Vxc(:, :)
+      real(wp), intent(inout) :: potential(:, :)
 
       real(wp) :: f1
       real(wp), allocatable :: stmp(:, :)
       integer :: i, jat, jzp, js, jsh, jj, jao, ml
 
-      allocate (stmp(bas%nao, bas%nao), Vxc(bas%nao, bas%nao))
+      allocate (stmp(bas%nao, bas%nao))
 
       !> N^2 step
       do i = 1, bas%nao
@@ -122,8 +122,8 @@ contains
          end do
       end do
 
-!     N^3 step
-      call gemm(Sxc, stmp, Vxc)
+      !> N^3 step
+      call gemm(Sxc, stmp, potential, beta=1.0_wp)
 
    end subroutine calc_Vxc_pauli_shellscaling
 
