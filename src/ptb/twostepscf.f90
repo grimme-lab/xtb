@@ -45,6 +45,7 @@ module xtb_ptb_scf
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
    use xtb_ptb_integral_types, only: aux_integral_type, new_aux_integral
    use xtb_ptb_coulomb, only: coulomb_potential
+   use xtb_ptb_plusu, only: plusu_potential_type
 
    implicit none
    private
@@ -74,6 +75,8 @@ contains
       type(error_type), allocatable :: error
       !> Coulomb potential
       type(coulomb_potential) :: coulomb
+      !> +U potential
+      type(plusu_potential_type) :: plusu
       !> Adjacency list
       type(adjacency_list) :: list
       !> Integral type
@@ -548,6 +551,8 @@ contains
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
       !> Add Pauli XC potential "manually" to Hamiltonian matrix (same purpose as add_pot_to_h1)
       wfn%coeff(:, :, 1) = wfn%coeff(:, :, 1) + Vxc
+
+      call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), cn)
 
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."
