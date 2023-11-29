@@ -65,30 +65,51 @@ contains
       real(wp), intent(in) :: cn(:)
 
       !> Allocate the self energies and damping matrix
-      allocate(self%selfenergies(maxval(bas%nsh_id), mol%nat))
-      allocate(self%damping(mol%nat, mol%nat))
-      allocate(self%diag_scaling(mol%nid))
+      allocate (self%selfenergies(maxval(bas%nsh_id), mol%nat))
+      allocate (self%damping(mol%nat, mol%nat))
+      allocate (self%diag_scaling(mol%nid))
 
       !> Initialize the parameters with the data from the parameterization
       self%diag_scaling = plusudata%cud
 
-      call init_damping_matrix()
+      call init_damping_matrix(self, mol, cn, plusudata%avcn, plusudata%ar, plusudata%arcn)
       call init_selfenergies(self, mol, bas, q, &
          & plusudata%cu1, plusudata%cu2, plusudata%cueffl)
 
    end subroutine init
 
-   subroutine init_damping_matrix()
+   subroutine init_damping_matrix(self, mol, cn, average_cn, atomic_radii, atomic_radii_cn)
+      !> Self type
+      class(plusu_potential_type), intent(inout) :: self
+      !> Structure type
+      type(structure_type), intent(in) :: mol
+      !> Coordination numbers
+      real(wp), intent(in) :: cn(:)
+      !> Average coordination numbers
+      real(wp), intent(in) :: average_cn(:)
+      !> Atomic radii
+      real(wp), intent(in) :: atomic_radii(:)
+      !> Atomic radii for coordination numbers
+      real(wp), intent(in) :: atomic_radii_cn(:)
+      !> Loop variables
+      integer :: iat, jat, izp, jzp
+      real(wp) :: ra, rb, rij
 
-      ! do i = 1, n
-      !    hi = shell_cnf3(10, at(i)) + (cn(i) - avcn(at(i))) * shell_resp(10, at(i), 1)
-      !    do j = 1, i
-      !       k = k + 1
-      !       r = hi + shell_cnf3(10, at(j)) + (cn(j) - avcn(at(j))) * shell_resp(10, at(j), 1)  ! sum of special radii
-      !       t8 = (rab(k) - r) / r
-      !       xab(k) = 0.5_wp * (1_wp + erf(-1.8_wp * t8)) ! parameter not important due to redundancy with shell_cnf3(10,)
-      !    end do
-      ! end do
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         ra = atomic_radii(izp) + (cn(iat) - average_cn(izp)) * atomic_radii_cn(izp)
+         do jat = 1, iat
+            jzp = mol%id(jat)
+            rb = atomic_radii(jzp) + (cn(jat) - average_cn(jzp)) * atomic_radii_cn(jzp)
+            rij = norm2(mol%xyz(:, iat) - (mol%xyz(:, jat)))
+            self%damping(jat, iat) = 0.5_wp * (1.0_wp + erf(-1.8_wp * (rij - (ra + rb)) / (ra + rb)))
+            self%damping(iat, jat) = self%damping(jat, iat)
+            !##### DEV WRITE #####
+            write (*, *) 'damping', iat, jat, self%damping(iat, jat)
+            !#####################
+         end do
+      end do
+
    end subroutine init_damping_matrix
 
    subroutine init_selfenergies(self, mol, bas, q, q_scal, q2_scal, shell_level)
@@ -115,7 +136,7 @@ contains
             self%selfenergies(ish, iat) = shell_level(ish, iid) * &
                & (1.0_wp - (q_scal(iid) * q(iat) + q2_scal(iid) * q(iat)**2))
             !##### DEV WRITE #####
-            write(*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
+            write (*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
             !#####################
          end do
       end do
