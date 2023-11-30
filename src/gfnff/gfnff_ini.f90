@@ -137,7 +137,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       allocate( pbo(mol%n*(mol%n+1)/2), source = 0.0d0 )
       allocate( piadr(mol%n), source = 0 )
       allocate( piadr2(mol%n), source = 0 )
-      allocate( topo%bpair(mol%n*(mol%n+1)/2), source = 0 )
       allocate( itmp(mol%n), source = 0 )
       allocate( itag(mol%n), source = 0 )
       allocate( sring(20,mol%n), source = 0 )
@@ -415,24 +414,13 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
                if(imetal(neigh%nb(j,i,iTr)).ne.0)  nm=nm+1
              enddo
            enddo
-!     hydrogen
-!        if(ati.eq.1.and.nn.gt.1)                                                 dxi(i)=dxi(i)-nn*0.01
 !     boron
          if(ati.eq.5)                                                             dxi(i)=dxi(i)+nh*0.015
 !     carbon
          if(ati.eq.6.and.nn.eq.2.and.itag(i).eq.1)                                dxi(i)=-0.15 ! make carbene more negative
-!        if(ati.eq.6.and.nn.eq.2)then
-!           ki=topo%nb(2,i)
-!           if(mol%at(ki).eq.8.and.mol%at(ji).eq.8.and.topo%nb(20,ji).eq.1.and.topo%nb(20,ki).eq.1)then          ! free CO2
-!                                                                                 dxi(ki)=0.19 ! lower EN for O
-!                                                                                 dxi(ji)=0.19 !  "    "   "  "
-!           endif
-!        endif
          if(ati.eq.6.and.nn.eq.1.and.mol%at(ji).eq.8.and.neigh%nb(neigh%numnb,ji,iTrtmp).eq.1) then
            dxi(ji)=0.15! free CO
          endif
-!     nitrogen
-!        if(ati.eq.7.and.nn.eq.1.and.mol%at(ji).eq.6)                                 dxi(i)=0.00  !CN
 !     oxygen / group 6
          if(ati.eq.8.and.nn.eq.1.and.ip.ne.0.and.mol%at(ji).eq.7.and.piadr2(ji).ne.0) dxi(i)= 0.05    ! nitro oxygen, otherwise NO2 HBs are too strong
          if(ati.eq.8.and.nn.eq.2.and.nh.eq.2)                                     dxi(i)=-0.02    ! H2O
@@ -1100,7 +1088,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       if(pisip(pis).gt.0.40) then
          write(env%unit,'(a,i0,a)')'WARNING: probably wrong pi occupation for system ',pis,'. Second attempt with Nel=Nel-1!'
          do i=1,mol%n
-            if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),topo%nb(20,i),topo%hyb(i),piel(i)
+            if(piadr4(i).ne.0) write(env%unit,*) 'at,nb,topo%hyb,Npiel:', i,mol%sym(i),sum(neigh%nb(neigh%numnb,i,:)),topo%hyb(i),piel(i)
          enddo
          nelpi=nelpi-1
          Api = Apisave
@@ -1201,8 +1189,6 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       enddo
 
 !     compute fragments and charges for output (check for CT)
-!     call mrecgff(mol%n,topo%nb,nmol,piadr3)
-!     write(env%unit,*) 'Nmol',nmol
       if(pr)then
       write(env%unit,'(/,''molecular fragment  # atoms  topo charge'')')
       do i=1,topo%nfrag
@@ -1336,8 +1322,8 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                           fpi=1.0d0-gen%hueckelp2*(gen%bzref2 - pibo(i)) ! deepness
             endif
             if(ia.gt.10.and.ja.gt.10)then
-              fcn=fcn/(1.0d0+0.007*dble(topo%nb(20,ii))**2)
-              fcn=fcn/(1.0d0+0.007*dble(topo%nb(20,jj))**2)
+              fcn=fcn/(1.0d0+0.007*dble(nni)**2)
+              fcn=fcn/(1.0d0+0.007*dble(nnj)**2)
             endif
             qafac=topo%qa(ii)*topo%qa(jj)*70.0d0
             fqq=1.0d0+gen%qfacbm0*exp(-15.d0*qafac)/(1.0d0+exp(-15.d0*qafac))
@@ -1385,7 +1371,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                                                   fpi   =1.5d0
                                                   shift=-0.45d0
                                        endif
-                                       if(ia.eq.7.and.topo%nb(20,ii).ne.1)then
+                                       if(ia.eq.7.and.nni.ne.1)then
                                                   fpi   =0.4d0
                                                   shift= 0.47d0
                                        endif
@@ -1395,7 +1381,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                                                   fpi   =1.5d0
                                                   shift=-0.45d0
                                        endif
-                                       if(ja.eq.7.and.topo%nb(20,jj).ne.1)then
+                                       if(ja.eq.7.and.nnj.ne.1)then
                                                   fpi   =0.4d0
                                                   shift= 0.47d0
                                        endif
@@ -1406,14 +1392,14 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
             if(imetal(jj).eq.1.and.param%group(ja).le.2)shift=shift+gen%metal1_shift   !
             if(mtyp1     .eq.3)                   shift=shift+gen%metal3_shift   ! metal shift MG
             if(mtyp2     .eq.3)                   shift=shift+gen%metal3_shift   !
-            if(bbtyp.eq.6.and.param%metal(ia).eq.2)     shift=shift+gen%eta_shift*topo%nb(20,ii)! eta coordinated
-            if(bbtyp.eq.6.and.param%metal(ja).eq.2)     shift=shift+gen%eta_shift*topo%nb(20,jj)! eta coordinated
-            if(mtyp1.gt.0.and.mtyp1.lt.3) fcn=fcn/(1.0d0+0.100*dble(topo%nb(20,ii))**2)
-            if(mtyp2.gt.0.and.mtyp2.lt.3) fcn=fcn/(1.0d0+0.100*dble(topo%nb(20,jj))**2)
-            if(mtyp1.eq.3)                fcn=fcn/(1.0d0+0.030*dble(topo%nb(20,ii))**2)
-            if(mtyp2.eq.3)                fcn=fcn/(1.0d0+0.030*dble(topo%nb(20,jj))**2)
-            if(mtyp1.eq.4)                fcn=fcn/(1.0d0+0.036*dble(topo%nb(20,ii))**2)
-            if(mtyp2.eq.4)                fcn=fcn/(1.0d0+0.036*dble(topo%nb(20,jj))**2)
+            if(bbtyp.eq.6.and.param%metal(ia).eq.2)     shift=shift+gen%eta_shift*nni! eta coordinated
+            if(bbtyp.eq.6.and.param%metal(ja).eq.2)     shift=shift+gen%eta_shift*nnj! eta coordinated
+            if(mtyp1.gt.0.and.mtyp1.lt.3) fcn=fcn/(1.0d0+0.100*dble(nni)**2)
+            if(mtyp2.gt.0.and.mtyp2.lt.3) fcn=fcn/(1.0d0+0.100*dble(nnj)**2)
+            if(mtyp1.eq.3)                fcn=fcn/(1.0d0+0.030*dble(nni)**2)
+            if(mtyp2.eq.3)                fcn=fcn/(1.0d0+0.030*dble(nnj)**2)
+            if(mtyp1.eq.4)                fcn=fcn/(1.0d0+0.036*dble(nni)**2)
+            if(mtyp2.eq.4)                fcn=fcn/(1.0d0+0.036*dble(nnj)**2)
             if(mtyp1.eq.4.or.mtyp2.eq.4)then
               fsrb2=-gen%srb2*0.22! weaker, inverse EN dep. for TM metals
             else
@@ -2181,20 +2167,23 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       ! check if triple bonded carbon is present (for torsion term)
       nn=0
       do i=1, mol%n
-        if (mol%at(i).eq.6.and.topo%nb(20,i).eq.2) then
+        if (mol%at(i).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.2) then
           do j=1, 2
-            nbi=topo%nb(j,i)
-            if (mol%at(nbi).eq.6.and.topo%nb(20,nbi).eq.2) then
+            nbi=0
+            call neigh%jth_nb(nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
+            if (nbi.eq.0) cycle
+            if (mol%at(nbi).eq.6.and.sum(neigh%nb(neigh%numnb,nbi,:)).eq.2) then
               nn = nn + 1
             endif
           enddo
         endif
       enddo
+      nn = nn/2
+      allocate(topo%sTorsl(6, nn), source=0)
+      topo%nstors = nn
       if (nn.ne.0) then
         ! fix double counting
-        nn = nn/2
-        allocate(topo%sTorsl(6, nn), source=0)
-        call specialTorsList(nn, mol, topo, topo%sTorsl)
+        call specialTorsList(nn, mol, topo, neigh, topo%sTorsl)
       endif
 
 
@@ -2221,12 +2210,13 @@ contains
 ! C-- C               C4--C
 !
 ! using C1=ii, C2=jj, C3=kk, C4=ll
-subroutine specialTorsList(nst, mol, topo, sTorsList)
+subroutine specialTorsList(nst, mol, topo, neigh, sTorsList)
   integer, intent(in) :: nst
   type(TMolecule), intent(in) :: mol   ! # molecule type
   type(TGFFTopology), intent(in) :: topo
+  type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
   integer, intent(inout) :: sTorsList(6, nst)
-  integer :: i,j,k,ii,jj,kk,ll,idx
+  integer :: i,j,k,ii,jj,kk,ll,idx,iTr,nbi,nbk
   logical :: iiok, llok
   ! initialize variables
   idx=0
@@ -2237,63 +2227,72 @@ subroutine specialTorsList(nst, mol, topo, sTorsList)
 
   do i=1, mol%n
     ! carbon with two neighbors bonded to other carbon* with two neighbors
-    if (mol%at(i).eq.6.and.topo%nb(20,i).eq.2) then
-      do j=1, 2
-        nbi=topo%nb(j,i)
-        if (mol%at(nbi).eq.6.and.topo%nb(20,nbi).eq.2) then  ! *other carbon
-          ! check carbon triple bond distance
-          if (NORM2(mol%xyz(1:3,i)-mol%xyz(1:3,nbi)).le.2.37) then
-            ! at this point we know that i and nbi are carbons bonded through triple bond
-            ! check C2 and C3
-            do k=1, 2  ! C2 is other nb of Ci
-              if (topo%nb(k,i).ne.nbi.and.mol%at(topo%nb(k,i)).eq.6) then
-                jj=topo%nb(k,i)
-              endif
-            enddo
-            do k=1, 2  ! C3 is other nb of Cnbi
-              if (topo%nb(k,nbi).ne.i.and.mol%at(topo%nb(k,nbi)).eq.6) then
-                kk=topo%nb(k,nbi)
-              endif
-            enddo
-            if (jj.eq.-1.or.kk.eq.-1) then
-              exit ! next atom i
-            endif
-            ! check C1 through C4 are sp2 carbon
-            if (topo%hyb(jj).eq.2.and.topo%hyb(kk).eq.2 &
-            &   .and.mol%at(jj).eq.6.and.mol%at(kk).eq.6) then
-              iiok=.false.
-              llok=.false.
-              ! which of the two valid neighbors is picked as C1 depends
-              !  on atom sorting in input file !!! The last one in file.
-              do k=1, topo%nb(20,jj)
-                if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.topo%nb(20,k).eq.3.and. &
-                   & topo%nb(k,jj).ne.i) then
-                  ii=topo%nb(k,jj)
-                  iiok=.true.
+    if (mol%at(i).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.2) then
+        do j=1, 2
+          call neigh%jth_nb(nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
+          if (nbi.eq.0.or.iTr.eq.0) cycle
+          if (mol%at(nbi).eq.6.and.sum(neigh%nb(neigh%numnb,nbi,:)).eq.2) then  ! *other carbon
+            ! check carbon triple bond distance
+            if (NORM2(mol%xyz(1:3,i)-mol%xyz(1:3,nbi)).le.2.37) then
+              ! at this point we know that i and nbi are carbons bonded through triple bond
+              ! check C2 and C3
+              do k=1, 2  ! C2 is other nb of Ci
+                nbk=0
+                call neigh%jth_nb(nbk,k,i,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                if (nbk.ne.nbi.and.nbk.ne.0.and.mol%at(nbk).eq.6) then
+                  jj=nbk ! C2 index
                 endif
               enddo
-              ! which of the two valid neighbors is picked as C4 depends
-              !  on atom sorting in input file !!! The last one in file.
-              do k=1, topo%nb(20,kk)
-                if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.topo%nb(20,k).eq.3.and. &
-                   & topo%nb(k,kk).ne.nbi) then
-                  ll=topo%nb(k,kk)
-                  llok=.true.
+              do k=1, 2  ! C3 is other nb of Cnbi
+                nbk=0
+                call neigh%jth_nb(nbk,k,nbi,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                if (nbk.ne.i.and.nbk.ne.0.and.mol%at(nbk).eq.6) then
+                  kk=nbk ! C3 index
                 endif
               enddo
-              if (nbi.gt.i.and.iiok.and.llok) then ! to avoid double counting
-                idx = idx + 1
-                sTorsList(1, idx) = ii  ! C1
-                sTorsList(2, idx) = jj  ! C2
-                sTorsList(3, idx) = i   ! Ci
-                sTorsList(4, idx) = nbi ! Cnbi
-                sTorsList(5, idx) = kk  ! C3
-                sTorsList(6, idx) = ll  ! C4
+              if (jj.eq.-1.or.kk.eq.-1) then
+                exit ! next atom i
               endif
-            endif ! C1-C4 are sp2 carbon
-          endif  ! CC distance
-        endif  ! other carbon
-      enddo
+              ! check C1 through C4 are sp2 carbon
+              if (topo%hyb(jj).eq.2.and.topo%hyb(kk).eq.2 &
+              &   .and.mol%at(jj).eq.6.and.mol%at(kk).eq.6) then
+                iiok=.false.
+                llok=.false.
+                ! which of the two valid neighbors is picked as C1 depends
+                !  on atom sorting in input file !!! The last one in file.
+                do k=1, sum(neigh%nb(neigh%numnb,jj,:))
+                  nbk=0
+                  call neigh%jth_nb(nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                  if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.sum(neigh%nb(neigh%numnb,k,:)).eq.3.and. &
+                     & nbk.ne.i.and.nbk.ne.0) then
+                    ii=nbk
+                    iiok=.true.
+                  endif
+                enddo
+                ! which of the two valid neighbors is picked as C4 depends
+                !  on atom sorting in input file !!! The last one in file.
+                do k=1, sum(neigh%nb(neigh%numnb,kk,:))
+                  nbk=0
+                  call neigh%jth_nb(nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                  if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.3.and. &
+                     & nbk.ne.nbi.and.nbk.ne.0) then
+                    ll=nbk
+                    llok=.true.
+                  endif
+                enddo
+                if (nbi.gt.i.and.iiok.and.llok) then ! to avoid double counting
+                  idx = idx + 1
+                  sTorsList(1, idx) = ii  ! C1
+                  sTorsList(2, idx) = jj  ! C2
+                  sTorsList(3, idx) = i   ! Ci
+                  sTorsList(4, idx) = nbi ! Cnbi
+                  sTorsList(5, idx) = kk  ! C3
+                  sTorsList(6, idx) = ll  ! C4
+                endif
+              endif ! C1-C4 are sp2 carbon
+            endif  ! CC distance
+          endif  ! other carbon
+        enddo
     endif ! is carbon with nnb=2
   enddo
 end subroutine specialTorsList

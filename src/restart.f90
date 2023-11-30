@@ -121,7 +121,7 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             return
          else if (iver8.eq.int(version)) then
             success = .true.
-            read(ich) topo%nangl,topo%ntors,topo%nathbH,topo%nathbAB,  &
+            read(ich) topo%nangl,topo%ntors,topo%nstors,topo%nathbH,topo%nathbAB,  &
                     & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem,topo%maxsystem
             read(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
             read(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
@@ -129,8 +129,8 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             call gfnff_param_alloc(topo,neigh, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
-            read(ich) topo%nb,topo%bpair,neigh%blist,topo%alist, &
-               & topo%tlist,topo%b3list,topo%fraglist,topo%hbatHl,topo%hbatABl, &
+            read(ich) neigh%blist,topo%alist, &
+               & topo%tlist,topo%b3list,topo%sTorsl,topo%fraglist,topo%hbatHl,topo%hbatABl, &
                & topo%xbatABl,topo%ispinsyst,topo%nspinsyst,topo%bond_hb_AH, &
                & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
             read(ich) topo%vangl,topo%vtors,topo%chieeq, &
@@ -199,13 +199,13 @@ subroutine write_restart_gff(env,fname,nat,version,topo,neigh)
    call open_binary(ich,fname,'w')
    !Dimensions
    write(ich) int(version,i8),int(nat,i8)
-   write(ich) topo%nangl,topo%ntors, topo%nathbH,topo%nathbAB, &
+   write(ich) topo%nangl,topo%ntors,topo%nstors, topo%nathbH,topo%nathbAB, &
             & topo%natxbAB,topo%nbatm,topo%nfrag,topo%nsystem, topo%maxsystem
    write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
    write(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
    !Arrays Integers
-   write(ich) topo%nb,topo%bpair,neigh%blist,topo%alist, &
-           & topo%tlist,topo%b3list, topo%fraglist,topo%hbatHl,topo%hbatABl, &
+   write(ich) neigh%blist,topo%alist, &
+           & topo%tlist,topo%b3list, topo%sTorsl, topo%fraglist,topo%hbatHl,topo%hbatABl, &
            & topo%xbatABl,topo%ispinsyst,topo%nspinsyst, topo%bond_hb_AH, &
            & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
    !Arrays Reals

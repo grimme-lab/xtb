@@ -83,7 +83,6 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,ver
 
   if (.not.mol%info%two_dimensional) then
      call write_restart_gff(env,'gfnff_topo',mol%n,version,topo,neigh)
-     call write_gfnff_adjacency('gfnff_adjacency',topo)
   end if
 
 end subroutine gfnff_setup
@@ -118,10 +117,10 @@ subroutine gfnff_input(env, mol, topo, neigh)
   character(len=80) :: atmp, atmp_0
   character(len=80) :: s(10)
   integer, allocatable :: rn(:)
+  character(len=*), parameter :: source = 'gfnff_input'
   ! IO Error
   integer :: err
 
-  if (.not.allocated(topo%nb))       allocate( topo%nb(20,mol%n), source = 0 )
   if (.not.allocated(topo%qfrag))    allocate( topo%qfrag(mol%n), source = 0.0d0 )
   if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(mol%n), source = 0 )
 
@@ -158,48 +157,51 @@ subroutine gfnff_input(env, mol, topo, neigh)
   !--------------------------------------------------------------------
   ! SDF case
   case(fileType%sdf,fileType%molfile)
-    ini = .false.
-    topo%nb=0
-    topo%nfrag=0
-    do ibond = 1, len(mol%bonds)
-      call mol%bonds%get_item(ibond,bond_ij)
-      i = bond_ij(1)
-      j = bond_ij(2)
-      ni=topo%nb(20,i)
-      ex=.false.
-      do k=1,ni
-        if(topo%nb(k,i).eq.j) then
-          ex=.true.
-          exit
-        endif
-      enddo
-      if(.not.ex)then
-        topo%nb(20,i)=topo%nb(20,i)+1
-        topo%nb(topo%nb(20,i),i)=j
-        topo%nb(20,j)=topo%nb(20,j)+1
-        topo%nb(topo%nb(20,j),j)=i
-      endif
-    end do
-    do i=1,mol%n
-      if(topo%nb(20,i).eq.0)then
-        dum1=1.d+42
-        k = 0
-        do j=1,i
-          r=sqrt(sum((mol%xyz(:,i)-mol%xyz(:,j))**2))
-          if(r.lt.dum1.and.r.gt.0.001)then
-            dum1=r
-            k=j
+    if(neigh%numctr.ne.1) then
+      call env%error("SDF case is not implemented with periodic boundary conditions", source)
+    else
+      ini = .false.
+      topo%nfrag=0
+      do ibond = 1, len(mol%bonds)
+        call mol%bonds%get_item(ibond,bond_ij)
+        i = bond_ij(1)
+        j = bond_ij(2)
+        ni=sum(neigh%nb(neigh%numnb,i,:))
+        ex=.false.
+        do k=1,ni
+          if(neigh%nb(k,i,1).eq.j) then
+            ex=.true.
+            exit
           endif
         enddo
-        if (k > 0) then
-          topo%nb(20,i)=1
-          topo%nb(1,i)=k
-        end if
-      endif
-    end do
-    ! initialize qfrag as in the default case
-    topo%qfrag(1)=mol%chrg
-    topo%qfrag(2:mol%n)=0
+        if(.not.ex)then
+          neigh%nb(neigh%numnb,i,1)=neigh%nb(neigh%numnb,i,1)+1
+          neigh%nb(neigh%nb(neigh%numnb,i,1),i,1)=j
+          neigh%nb(neigh%numnb,j,1)=neigh%nb(neigh%numnb,i,1)+1
+          neigh%nb(neigh%nb(neigh%numnb,j,1),j,1)=i
+        endif
+      end do
+      do i=1,mol%n
+        if(neigh%nb(neigh%numnb,i,1).eq.0)then
+          dum1=1.d+42
+          k = 0
+          do j=1,i
+            r=sqrt(sum((mol%xyz(:,i)-mol%xyz(:,j))**2))
+            if(r.lt.dum1.and.r.gt.0.001)then
+              dum1=r
+              k=j
+            endif
+          enddo
+          if (k > 0) then
+            neigh%nb(neigh%numnb,i,1)=1
+            neigh%nb(1,i,1)=k
+          end if
+        endif
+      end do
+      ! initialize qfrag as in the default case
+      topo%qfrag(1)=mol%chrg
+      topo%qfrag(2:mol%n)=0
+    endif
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
   case default
@@ -228,26 +230,6 @@ subroutine gfnff_input(env, mol, topo, neigh)
   !-------------------------------------------------------------------
 
 end subroutine gfnff_input
-
-
-subroutine write_gfnff_adjacency(fname, topo)
-   implicit none
-   character(len=*),intent(in) :: fname
-   integer :: ifile ! file handle
-   type(TGFFTopology) :: topo
-   integer :: i, j
-
-   call open_file(ifile,fname,'w') 
-   ! looping over topology neighboring list
-   if (ifile.ne.-1) then
-      write(ifile, '(a)') '# indices of neighbouring atoms (max seven)'  
-      do i = 1, size(topo%nb, 2)
-        write(ifile, '(*(i0:, 1x))') (topo%nb(j, i), j = 1, topo%nb(size(topo%nb, 1), i))
-      end do
-   end if
-   call close_file(ifile)
-
-end subroutine write_gfnff_adjacency
 
 
 end module xtb_gfnff_setup

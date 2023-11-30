@@ -32,6 +32,7 @@ module xtb_gfnff_topology
       integer  :: nbond
       integer  :: nangl
       integer  :: ntors
+      integer  :: nstors
       integer  :: nathbH
       integer  :: nathbAB
       integer  :: natxbAB
@@ -51,9 +52,7 @@ module xtb_gfnff_topology
       integer  :: read_file_type
 
       !lists
-      integer,allocatable ::     nb(:,:)   ! neighbors nb(20,i) is the # neigbors
       integer,allocatable ::     hyb(:)   ! hybridization of every atom
-      integer,allocatable ::    bpair(:)   ! # of cov. between atoms
       integer,allocatable ::  blist(:,:)   ! bonded atoms
       integer,allocatable ::  alist(:,:)   ! angles
       integer,allocatable ::  tlist(:,:)   ! torsions

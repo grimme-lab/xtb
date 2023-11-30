@@ -560,8 +560,6 @@ module xtb_gfnff_param
      type(TNeigh), intent(inout) :: neigh
      integer,intent(in) :: n
 
-     if (.not.allocated(topo%nb)) allocate( topo%nb(20,n), source = 0 )
-     if (.not.allocated(topo%bpair)) allocate( topo%bpair(n*(n+1)/2), source = 0 )
      if (.not.allocated(topo%alphanb)) allocate( topo%alphanb(n,n,neigh%numctr+1), source = 0.0d0 )
      if (.not.allocated(topo%chieeq)) allocate( topo%chieeq(n), source = 0.0d0 )
      if (.not.allocated(topo%gameeq)) allocate( topo%gameeq(n), source = 0.0d0 )
@@ -569,7 +567,8 @@ module xtb_gfnff_param
      if (.not.allocated(topo%qa)) allocate( topo%qa(n), source = 0.0d0 )
      if (.not.allocated(topo%zetac6)) allocate( topo%zetac6(n*(n+1)/2), source = 0.0d0 )
      if (.not.allocated(topo%xyze0)) allocate( topo%xyze0(3,n), source = 0.0d0 )
-     if (.not.allocated(topo%b3list)) allocate( topo%b3list(3,1000*n), source = 0 )
+     if (.not.allocated(topo%b3list)) allocate( topo%b3list(5,1000*n), source = 0 )
+     if (.not.allocated(topo%sTorsl)) allocate( topo%sTorsl(6,topo%nstors), source = 0 )
      if (.not.allocated(topo%fraglist)) allocate( topo%fraglist(n), source = 0 )
      if (.not.allocated(topo%qfrag)) allocate( topo%qfrag(n), source = 0.0d0 )
      if (.not.allocated(topo%hbatHl)) allocate( topo%hbatHl(2,n), source = 0 )
@@ -578,13 +577,13 @@ module xtb_gfnff_param
      if (.not.allocated(topo%hbatABl)) allocate( topo%hbatABl(2,n*(n+1)/2), source = 0 )
      if (.not.allocated(topo%xbatABl)) allocate( topo%xbatABl(3,topo%natxbAB), source = 0 )
 
-     if (.not.allocated(topo%blist)) allocate( topo%blist(2,topo%nbond_blist), source = 0 )
+     if (.not.allocated(neigh%blist)) allocate( neigh%blist(3,neigh%nbond), source = 0 )
      if (.not.allocated(topo%nr_hb)) allocate( topo%nr_hb(topo%nbond_blist), source = 0 )
      if (.not.allocated(topo%bond_hb_AH)) allocate( topo%bond_hb_AH(4,topo%bond_hb_nr), source = 0 )
      if (.not.allocated(topo%bond_hb_B)) allocate( topo%bond_hb_B(2,topo%b_max,topo%bond_hb_nr), source = 0 )
      if (.not.allocated(topo%bond_hb_Bn)) allocate( topo%bond_hb_Bn(topo%bond_hb_nr), source = 0 )
-     if (.not.allocated(topo%alist)) allocate( topo%alist(3,topo%nangl_alloc), source = 0 )
-     if (.not.allocated(topo%tlist)) allocate( topo%tlist(5,topo%ntors_alloc), source = 0 )
+     if (.not.allocated(topo%alist)) allocate( topo%alist(5,topo%nangl_alloc), source = 0 )
+     if (.not.allocated(topo%tlist)) allocate( topo%tlist(8,topo%ntors_alloc), source = 0 )
      if (.not.allocated(topo%vbond)) allocate( topo%vbond(3,topo%nbond_vbond), source = 0.0d0 )
      if (.not.allocated(topo%vangl)) allocate( topo%vangl(2,topo%nangl_alloc), source = 0.0d0 )
      if (.not.allocated(topo%vtors)) allocate( topo%vtors(2,topo%ntors_alloc), source = 0.0d0 )
@@ -597,8 +596,6 @@ module xtb_gfnff_param
      type(TGFFTopology), intent(inout) :: topo
 !    Dummy
 
-     if (allocated(topo%nb)) deallocate( topo%nb )
-     if (allocated(topo%bpair)) deallocate( topo%bpair )
      if (allocated(topo%alphanb)) deallocate( topo%alphanb )
      if (allocated(topo%chieeq)) deallocate( topo%chieeq )
      if (allocated(topo%gameeq)) deallocate( topo%gameeq )

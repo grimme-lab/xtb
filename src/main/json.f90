@@ -265,7 +265,7 @@ contains
     !> total energy and gradient norm
     real(wp), intent(in) :: etot, gnorm
     character(len=:), allocatable :: cmdline
-    integer :: iunit, j, n, l
+    integer :: iunit, i, j, n, l
 
     call open_file(iunit, 'gfnff_lists.json', 'w')
     ! header
@@ -277,21 +277,34 @@ contains
     if (printTopo%gnorm) then ! gradient norm is scalar
       write (iunit, '(3x,''"gradient norm":'',f25.15,",")') gnorm
     end if
-    if (printTopo%nb) then ! nb(20,n)
+    if (printTopo%nb) then ! nb(numnb, n, numctr)
       write (iunit, '(3x,''"nb":'',"[")')
-      do j = 1, n - 1
-        write (iunit, '(3x,"[",*(i7,:,","))', advance='no') topo%nb(:, j)
-        write (iunit, '("],")')
-      end do
-      write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') topo%nb(:, n)
-      write (iunit, '("]")')
-      write (iunit, '(3x,"],")')
+      if (neigh%numctr.eq.1) then
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, 1)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
+      else ! periodic boundary conditions
+        do i=1, neigh%numctr
+          do j = 1, n - 1
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, i)
+            write (iunit, '("],")')
+          end do
+        enddo
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
+      endif
     end if
-    if (printTopo%bpair) then ! bpair(n*(n+1)/2) packed symmetric matrix
-      write (iunit, '(3x,''"bpair":'',"[")')
-      write (iunit, '(3x,*(i7,:,","))', advance='no') topo%bpair
-      write (iunit, '(3x,"],")')
-    end if
+!@thomas TODO delete this line
+!    if (printTopo%bpair) then ! bpair(n*(n+1)/2) packed symmetric matrix
+!      write (iunit, '(3x,''"bpair":'',"[")')
+!      write (iunit, '(3x,*(i7,:,","))', advance='no') topo%bpair
+!      write (iunit, '(3x,"],")')
+!    end if
     if (printTopo%alist) then ! alist(3,nangl)
       write (iunit, '(3x,''"alist":'',"[")')
       do j = 1, topo%nangl - 1
