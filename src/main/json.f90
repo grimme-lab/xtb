@@ -278,33 +278,68 @@ contains
       write (iunit, '(3x,''"gradient norm":'',f25.15,",")') gnorm
     end if
     if (printTopo%nb) then ! nb(numnb, n, numctr)
-      write (iunit, '(3x,''"nb":'',"[")')
+      write (iunit, '(3x,''"nb":'',"[")') ! open nb
       if (neigh%numctr.eq.1) then
         do j = 1, n - 1
-          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, 1)
-          write (iunit, '("],")')
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, 1) ! open nb entry
+          write (iunit, '("],")') ! close nb entry
         end do
         write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
         write (iunit, '("]")')
-        write (iunit, '(3x,"],")')
       else ! periodic boundary conditions
-        do i=1, neigh%numctr
+        do i=1, neigh%numctr-1 ! iterate over all cells
+          write (iunit, '(3x,"[")') ! open cell
           do j = 1, n - 1
             write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, i)
             write (iunit, '("],")')
           end do
+          write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, i)
+          write (iunit, '("]")')
+          write (iunit, '(3x,"],")') ! close cell
         enddo
-        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
+        write (iunit, '(3x,"[")') ! open last cell
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, neigh%numctr)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, neigh%numctr)
         write (iunit, '("]")')
-        write (iunit, '(3x,"],")')
+        write (iunit, '(3x,"]")') ! close last cell
       endif
+      write (iunit, '(3x,"],")') ! close nb
     end if
-!@thomas TODO delete this line
-!    if (printTopo%bpair) then ! bpair(n*(n+1)/2) packed symmetric matrix
-!      write (iunit, '(3x,''"bpair":'',"[")')
-!      write (iunit, '(3x,*(i7,:,","))', advance='no') topo%bpair
-!      write (iunit, '(3x,"],")')
-!    end if
+    ! bpair(j,i,iTr) number bonds between i and j when j is translated by iTr
+    if (printTopo%bpair) then 
+      write (iunit, '(3x,''"bpair":'',"[")') ! open bpair
+      if (neigh%numctr .eq. 1) then
+        do i = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, i, 1) ! open entry
+          write (iunit, '("],")') ! close entry
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, 1)
+        write (iunit, '("]")')
+      else ! periodic boundary conditions
+        do i=1, neigh%numctr-1 ! iterate over all cells
+          write (iunit, '(3x,"[")') ! open cell
+          do j = 1, n - 1
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, i)
+            write (iunit, '("],")')
+          end do
+          write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, i)
+          write (iunit, '("]")')
+          write (iunit, '(3x,"],")') ! close cell
+        enddo
+        write (iunit, '(3x,"[")') ! open last cell
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, neigh%numctr)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, neigh%numctr)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"]")') ! close last cell
+      endif
+      write (iunit, '(3x,"],")') ! close bpair
+    end if
     if (printTopo%alist) then ! alist(3,nangl)
       write (iunit, '(3x,''"alist":'',"[")')
       do j = 1, topo%nangl - 1

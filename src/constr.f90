@@ -592,11 +592,8 @@ Subroutine dphidrPBC(mode,nat,xyz,i,j,k,l,vTrR,vTrB,vTrC,phi,&
       rapb(ic)=ra(ic)+rb(ic)
       rbpc(ic)=rb(ic)+rc(ic)
    end do
-   elseif(mode.eq.2) then !@thomas
+   elseif(mode.eq.2) then
    do ic=1,3
-     ! ra(ic)=xyz(ic,j)+vTrB(ic)-xyz(ic,i)-vTrR(ic)
-     ! rb(ic)=xyz(ic,k)+vTrC(ic)-xyz(ic,j)-vTrB(ic)
-     ! rc(ic)=xyz(ic,l)-xyz(ic,k)-vTrC(ic)
      ra(ic) = -(xyz(ic,i)+vTrC(ic))+xyz(ic,j)
      rb(ic) = -xyz(ic,j)+(xyz(ic,k)+vTrR(ic))
      rc(ic) = -(xyz(ic,k)+vTrR(ic))+(xyz(ic,l)+vTrB(ic))
@@ -760,9 +757,6 @@ Subroutine domegadrPBC&
    sinomega=sin(omega)
 
    do ic=1,3
-      !rv(ic)=xyz(ic,l)-xyz(ic,i) !@thomas old code
-      !rd(ic)=xyz(ic,k)-xyz(ic,j) !@thomas old code
-      !re(ic)=xyz(ic,i)-xyz(ic,j) !@thomas old code
       re(ic)= xyz(ic,i)-(xyz(ic,j)+vTr2(ic))            ! Vec central to 1st nb         
       rd(ic)=(xyz(ic,k)+vTr3(ic))-(xyz(ic,j)+vTr2(ic))  ! Vec 1st to 2nd nb
       rv(ic)=(xyz(ic,l)+vTr1(ic))-xyz(ic,i)             ! Vec central to 3rd nb 
@@ -1047,8 +1041,8 @@ real(wp) Function omegaPBC (nat,xyz,i,j,k,l,vTr1,vTr2,vTr3)
       rv(ic)=(xyz(ic,l)+vTr1(ic))-xyz(ic,i) ! Vec central to 3rd nb 
    end do
    call crossprod(re,rd,rn)
-   rnn=vecnorm(rn,3,1) !@thomas ?!? why does function change rnv?
-   rvn=vecnorm(rv,3,1) !@thomas ?!? why does vecnorm change rnv?
+   rnn=vecnorm(rn,3,1)
+   rvn=vecnorm(rv,3,1)
 
    rnv=rn(1)*rv(1)+rn(2)*rv(2)+rn(3)*rv(3)
    omegaPBC=asin( rnv )
@@ -1187,7 +1181,7 @@ pure subroutine banglPBC(mode,xyz,i,j,k,iTr,iTr2,neigh,angle)
    implicit none
    real(wp),intent(in)  :: xyz(3,*)                  
    integer, intent(in)  :: mode,i,j,k,iTr,iTr2  ! j is in the middle
-   type(TNeigh), intent(in) :: neigh !@thomas
+   type(TNeigh), intent(in) :: neigh
    real(wp),intent(out) :: angle   
                                   
    real(wp) d2ij,d2jk,d2ik,xy,temp,trV(3),trV2(3)

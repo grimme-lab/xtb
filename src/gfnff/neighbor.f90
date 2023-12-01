@@ -10,51 +10,31 @@ module xtb_gfnff_neighbor
   
   public :: TNeigh
 
-  !> Neighbor lists !TODO@thomas slowly moving lists from topo to TNeigh
+  !> Neighbor lists
   type :: TNeigh
     
-    !> neighbors -> the old topo%nb -> no highly coordinated atoms
-    !(neigh, of atom, transVec) in lang:
-    ! (Nachbar von, diesem Atom, transVec der auf Nachbar angewand werden muss)=idx von neigh
-    !                 '->dieses Atom ist immer  in zentraler Zelle
-    ! transVec sind hier nur die 27 zentralen Zellen  
+    ! neighbor list nb(j,i,iTr); j is neighbor of i when j is shifted by iTr
     integer, allocatable :: nb(:,:,:)  
     ! full nb
     integer, allocatable :: nbf(:,:,:)
     ! no metal nb or unsually coordinated stuff
     integer, allocatable :: nbm(:,:,:)
-    ! array with number of bonds between atom pairs
-    !bpair(j,i,iTr) number bonds between i and j when j is translated by iTr
+    ! bpair(j,i,iTr) number bonds between i and j when j is translated by iTr
     integer, allocatable :: bpair(:,:,:)
     integer, allocatable :: molbpair(:)
-    ! bond atoms
-    !integer, allocatable :: b3list(:,:) !@thomas not needed??
     ! distances of all atoms to all atoms in central 27 cells
     real(wp), allocatable :: distances(:,:,:)
     !> Maximum number of neighbors per atom
     ! where nb(numnb,i,transVec) is the num of neigh atom i has in cell transVec
-    integer :: numnb = 42 ! @thomas: can only change this, if implementation reached gfnff_eg
-                          !   somewhere in gfnff_eg  this lenght is hardcoded
-    ! num of central cells considered (ctr central translation vectors)
-    ! equals 1 for molec case and 27 for npbc=3
+    integer :: numnb = 42
+    ! number of central cells so either 1,3,9,27 depending on the PBCs dimension
     integer :: numctr
-    !> The central 27 translation vectors
-    !real(wp), allocatable :: cenTrans(:,:)
-    !> give the index=iTr of the translation vector (from cenTrans) that is 
-    ! the sum of  the two input vectors; iTrSum(iTr1,iTr2)
-    ! equals -1 if resulting vector is not in cenTrans 
     integer, allocatable :: iTrSum(:)
     ! index of translation vector pointing in opposite direction of the vector with the input index
     integer, allocatable :: iTrNeg(:)
     ! list with bool for each iTr saying if a bond to this cell should be considered
     ! this is needed to avoid counting bonds to other cells twice
     logical, allocatable :: iTrUsed(:)
-    !> Cell list: Array with indices of atoms and their respective border cell index
-    !integer, allocatable :: borAtoms(:,:)
-    !> Cutoff for searching neighbors in between cells/ how deep do I look into neighb cells...
-    !real(wp) :: neiCut
-    !> total number neighbors
-    !integer :: test_delete
     integer :: nbond
     integer :: nbond_blist
     !> bonded atoms
@@ -63,15 +43,12 @@ module xtb_gfnff_neighbor
     integer, allocatable :: nr_hb(:)
     !> holds 3 vectors for ebond calculation: 1-shift, 2-steepness, 3-tot prefactor
     real(wp), allocatable :: vbond(:,:)
-    !> list for neighbors in different cells
-    !integer, allocatable :: nbtmp(:,:,:)
     integer :: nTrans, iTrDim
     integer, allocatable :: idTr(:) ! gives unique id of local iTr (translation vec index)
     integer, allocatable :: Trid(:) ! gives local index for iteration from unique id
     integer, allocatable :: trVecInt(:,:)  ! holds coeff for linear combination that give transVec
     real(wp), allocatable :: transVec(:,:)  ! translation vectors for generating images of unit cell
     real(wp) :: oldCutOff ! save old cutoff in getTransVec calls to quit calc if same cutoff
-    
 
   contains
    
@@ -124,11 +101,7 @@ contains
         &   '(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
       endif
 
-      ! Get the central 27 cells or rather their translation vectors
-     ! call self%getCCells(mol)
-      !
-write(*,*) '@thomas capped iTrDim at 729 to limit comp time' !@thomas important
-      iTrDim=min(size(self%trVecInt,dim=2),729)!was343, other shells:343, 729, 1331, 9261 for 10th
+      iTrDim=min(size(self%trVecInt,dim=2),729)
       self%iTrDim=iTrDim
       call filliTrSum(iTrDim, self%trVecInt, self%iTrSum, self%iTrNeg)
       call filliTrUsed(self)
@@ -149,18 +122,11 @@ write(*,*) '@thomas capped iTrDim at 729 to limit comp time' !@thomas important
       !integer, intent(inout) :: nbf(20,mol%n)
       type(TGFFData), intent(in) :: param
       !real(wp) :: latThresh, maxNBr
-      integer :: n, i, j, k, lin !@thomas j,k,lin only for print??
+      integer :: n
 
       n = mol%n
       
-      if(mol%n.le.10000) then
-        call fillnb(self,n,mol%at,rtmp,self%distances,mchar,icase,f_in,f2_in,param)
-      else!if(vecNorm(mol%lattice(:,1)).le.latThresh.OR.vecNorm(mol%lattice(:,2)).le.latThresh&
-           !  & .OR.vecNorm(mol%lattice(:,3)).le.latThresh) then
-        write(*,*) '-----------------------------------------'   
-        write(*,*) '>>>> There are more than 10000 atoms. <<<<' !@thomas important why?
-        write(*,*) '-----------------------------------------'
-      endif
+      call fillnb(self,n,mol%at,rtmp,self%distances,mchar,icase,f_in,f2_in,param)
 
     end subroutine get_nb
 
@@ -211,7 +177,9 @@ write(*,*) '@thomas capped iTrDim at 729 to limit comp time' !@thomas important
             sVec=mol%lattice(:,i)
           endif
         enddo
-if(NORM2(sVec).eq.0.0_wp) write(*,*) 'Error: A lattice vector for a periodic axis is zero.'
+        if(NORM2(sVec).eq.0.0_wp) then
+          write(*,*) 'Error: A lattice vector for a periodic axis is zero.'
+        endif
         ! see how often sVec fits in cutoff -> gives number of needed shells
         ! e.g. in 3D  nShell=1 -> 3x3x3    nShell=4 -> 9x9x9
         nShell = CEILING(cutoff/NORM2(sVec))
@@ -222,12 +190,6 @@ if(NORM2(sVec).eq.0.0_wp) write(*,*) 'Error: A lattice vector for a periodic axi
         if(allocated(self%trVecInt).and.size(self%trVecInt,dim=2).lt.d) then
           deallocate(self%trVecInt)
         endif
-!@thomas start
-!write(*,'(a,3f12.4,a,f12.4)') 'sVec=',sVec,'  Norm=',NORM2(sVec)
-!write(*,'(a,i4,a,i4,a,i8)') 'nShell=',nShell,'  nLat=',nLat,'  d=',d
-!write(*,*) 'alloc(trvecInt):',allocated(self%trVecInt)
-!if (allocated(self%trVecInt)) write(*,*) size(self%trVecInt,dim=2)
-!@thomas end
 
         ! get the linear combination coefficient vector
         ! different loops depending on dimension (nLat)
@@ -243,7 +205,6 @@ if(NORM2(sVec).eq.0.0_wp) write(*,*) 'Error: A lattice vector for a periodic axi
                     if(abs(ix).ne.i.and.abs(iy).ne.i.and.abs(iz).ne.i) cycle
                     indx=indx+1
                     self%trVecInt(:,indx)=[ix,iy,iz]
-!if(i.le.2) write(*,'(i4,a,3i4)') indx,' trInt:',[ix,iy,iz]
                   enddo
                 enddo
               enddo  
@@ -298,15 +259,10 @@ if(NORM2(sVec).eq.0.0_wp) write(*,*) 'Error: A lattice vector for a periodic axi
             enddo
 
           else
-            !@thomas one error could arise if the user does not match the number of the 
-            ! lattice vector with x,y,z. E.g. if periodic=2 and x and z should be periodic
-            ! then the lattice vectors should only have non-zero entries on 1st (x) and 3rd (z)
-            ! position.
             write(*,*) 'Error: Dimension of PBCs could not be processed.'
           endif
 
         endif !#ifnotallocatedtrvecint
-!@thomas warning needed?
 if(size(self%trVecInt,dim=2).lt.d) write(*,*) 'Warning: Probably cutoff too big (max 60 bohr).'
         ! Now the linear combinations of lattice vectors are given with neigh%trVecInt
         ! Next up: get number of translation vectors within cutoff
@@ -349,10 +305,9 @@ if(size(self%trVecInt,dim=2).lt.d) write(*,*) 'Warning: Probably cutoff too big 
             self%Trid(id)=indx !-> if you put indx into trVecInt you will always get the same LC
             trVecTmp(:,indx)=vec
           enddo
-!@thomas check if number of if cases above was sufficient
-if(id.gt.24389) write(*,*) 'Warning: Implementation is not adjusted for such small cells. ID:',id
-if(id.gt.24389) write(*,*) 'mol%lattice:'
-if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
+          if(id.gt.24389) then
+            write(*,*) 'Warning: Implementation is not adjusted for such small cells.'
+          endif
           if(allocated(self%transVec)) deallocate(self%transVec)
           if(allocated(self%idTr)) deallocate(self%idTr)
           allocate(self%transVec(3,indx))
@@ -367,14 +322,15 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
             !
             vec = self%trVecInt(1,id)*mol%lattice(:,1) &
                 + self%trVecInt(2,id)*mol%lattice(:,2)
-           if(id.gt.9)then ! always want the central 9 cells (2-Dim !) !@thomas TODO cases see 3D
+           if(id.gt.9)then ! always want the central 9 cells (2-Dim !)
               if(id.eq.10) sh = 2.0
               if(NORM2(vec).gt.cutoff) cycle
             endif
             indx=indx+1
-            self%idTr(indx)=id !@thomas not sure if I will need this: indx is ALWAYS the same
+            self%idTr(indx)=id ! assure that indx is ALWAYS the same
                                ! for one specific linear combination (LC)
-                               !-> if you put indx into trVecInt you will always get the same LC
+                               ! that means: if you put indx into trVecInt
+                               ! you will always get the same LC
             trVecTmp(:,indx)=vec
           enddo
           if(allocated(self%transVec)) deallocate(self%transVec)
@@ -391,19 +347,17 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
               if(NORM2(vec).gt.cutoff) cycle
             endif
             indx=indx+1
-            self%idTr(indx)=id !@thomas not sure if I will need this: indx is ALWAYS the same
+            self%idTr(indx)=id ! assure that indx is ALWAYS the same
                                ! for one specific linear combination (LC)
-                               !-> if you put indx into trVecInt you will always get the same LC
+                               ! that means: if you put indx into trVecInt 
+                               ! you will always get the same LC
             trVecTmp(:,indx)=vec
           enddo
           if(allocated(self%transVec)) deallocate(self%transVec)
           allocate(self%transVec(1,indx))
           self%transVec=trVecTmp(:,1:indx)
-
         else
-          !
           write(*,*) 'Warning: Given lattice could not be processed.'
-
         endif
 
       endif !#ifmolnpbc
@@ -446,31 +400,16 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
       n=mol%n
       allocate(distances(n,n,neigh%nTrans), source=0.0_wp)
 
-     !  !$omp parallel do default(none) reduction(+:distances) &
-     !  !$omp shared(n, mol, neigh) &
-     !  !$omp private(iTr, i, j)
        do iTr=1, neigh%nTrans 
         do i=1, n
           do j=1, n
-            !if(iTr.eq.1.and.i.ge.j) cycle
             distances(j,i,iTr) = vecNorm(mol%xyz(:,j)-mol%xyz(:,i)+neigh%transVec(:,iTr))
           enddo
         enddo  
        enddo
-     !  !$omp end parallel do
 
 
     end subroutine getDistances
-
-    ! subroutine distij(self,n,xyz,j,i,iTrj,iTri,rij)
-    !   class(TNeigh), intent(inout) :: self 
-    !   integer, intent(in) :: n
-    !   real(wp), intent(in) :: xyz(3,n)
-    !   integer, intent(in) :: j,i,iTrj,iTri
-    !   real(wp), intent(inout) :: rij !output distance between atom j in Cell iTrj and i in cell iTri
-    !   rij = 0.0_wp
-    !   rij = vecNorm(xyz(:,j)+self%cenTrans(:,iTrj)-(xyz(:,i)+self%cenTrans(:,iTri)))
-    ! end subroutine distij
     
     ! is a modified "getnb" from gfnff_ini2.f90
     subroutine fillnb(self,n,at,rad,dist,mchar,icase,f,f2,param)
@@ -478,15 +417,12 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
       type(TGFFData), intent(in) :: param
       class(TNeigh), intent(inout) :: self
       integer, intent(in) :: n,at(n)
-      !integer, intent(inout) :: nbf(self%numnb,n)
-      !integer, intent(inout) :: nb(self%numnb,n,27)
       real(wp), intent(in) :: rad(n*(n+1)/2)
       real(wp), intent(in) :: mchar(n),f,f2
       real(wp), intent(in) :: dist(n,n,self%numctr)
       integer i,j,k,iTr,nn,icase,hc_crit,nnfi,nnfj,lin
       integer tag(n,n,self%numctr)
       real(wp) rco,fm
-      !neigh%get_nb can be called multiple times, dont want to keep artifacts from earlier calls
       if(icase.eq.1) then
         if(.not. allocated(self%nbf)) then
           allocate(self%nbf(self%numnb,n,self%numctr),source=0)
@@ -529,12 +465,12 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
                nnfi=sum(self%nbf(self%numnb,i,:))               ! full CN of i, only valid for icase > 1
                nnfj=sum(self%nbf(self%numnb,j,:))               ! full CN of i
                hc_crit = 6
-               if(param%group(at(i)).le.2) hc_crit = 6 !@thomas_imp increase from 4 to 6 
+               if(param%group(at(i)).le.2) hc_crit = 6
                if(nnfi.gt.hc_crit) then
                        cycle
                 endif
                hc_crit = 6
-               if(param%group(at(j)).le.2) hc_crit = 6 !@thomas increase from 4 to 6
+               if(param%group(at(j)).le.2) hc_crit = 6
                if(nnfj.gt.hc_crit) then
              cycle  
              endif
@@ -543,7 +479,7 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
             if(icase.eq.3)then
                nnfi=sum(self%nbf(self%numnb,i,:))               ! full CN of i, only valid for icase > 1
                nnfj=sum(self%nbf(self%numnb,j,:))               ! full CN of i
-               if(mchar(i).gt.0.25 .or. param%metal(at(i)).gt.0) cycle   ! metal case TMonly ?? TODO
+               if(mchar(i).gt.0.25 .or. param%metal(at(i)).gt.0) cycle   ! metal case TMonly
                if(mchar(j).gt.0.25 .or. param%metal(at(j)).gt.0) cycle   ! metal case
                if(nnfi.gt.param%normcn(at(i)).and.at(i).gt.10)   cycle   ! HC case
                if(nnfj.gt.param%normcn(at(j)).and.at(j).gt.10)   cycle   ! HC case
@@ -632,14 +568,12 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
         do k=1, self%nb(self%numnb,i,iTrdum)
           jdum = self%nb(k,i,iTrdum)
           l=l+1
-          !@thomas check this: nutze hier neigh%distances...
           distnb(l) = self%distances(jdum,i,iTrdum)
         enddo
       enddo
 
       ! get sorting index with heapSort from mctc_sort
       call indexHeapSort(indx, distnb)
-      ! retrieve j and iTr using the indexing array  !@thomas TODO not good impl
       l=0
       do iTrdum=1, self%numctr
         do k=1, self%nb(self%numnb,i,iTrdum)
@@ -671,7 +605,7 @@ if(id.gt.24389) write(*,'(3f18.6)') mol%lattice
        integer :: i,j,s,k,kk, lin
        integer :: vec1(3), vec2(3), vsum(3)                                      
 
-       allocate(iTrSum(iTrDim*(iTrDim+1)/2),source=-1) !@thomas now packed       
+       allocate(iTrSum(iTrDim*(iTrDim+1)/2),source=-1) 
        allocate(iTrNeg(iTrDim),source=-1)
        if (iTrDim.eq.1) then                                               
        else                                                                                

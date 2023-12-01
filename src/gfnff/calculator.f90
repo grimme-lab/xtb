@@ -206,15 +206,16 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! setup !
    !-------!
 
-   ! call mol%update !@thomas important check if ommiting this works as expected
-   ! replacement for above call
-   if (mol%npbc > 0) then  !@thomas check, added dlat_ and calc_dist
+   ! update mol type
+   if (mol%npbc > 0) then
      call dlat_to_cell(mol%lattice,mol%cellpar)
      call dlat_to_rlat(mol%lattice,mol%rec_lat)
-     mol%volume = dlat_to_dvol(mol%lattice) !@thomas added
+     mol%volume = dlat_to_dvol(mol%lattice)
      call generate_wsc(mol,mol%wsc)
+   else
+     call mol%update
    endif
-   call mol%calculate_distances   !@thomas end for replacement s
+   call mol%calculate_distances
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp

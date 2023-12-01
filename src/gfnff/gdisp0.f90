@@ -177,7 +177,6 @@ subroutine get_atomic_c6(nat, atoms, gwvec, gwdcn, c6, dc6dcn)
    integer :: iat, jat, ati, atj, iref, jref
    real(wp) :: refc6, dc6, dc6dcni, dc6dcnj
 
-   !@thomas_important allocating reference_c6 was removed
    c6 = 0.0_wp
    dc6dcn = 0.0_wp
 
@@ -384,8 +383,7 @@ subroutine d3_gradient_latp &
    real(wp), allocatable :: energies(:), dEdcn(:)
 
    nat = len(mol)
-   !max_ref = maxval(number_of_references(mol%at))  !@thomas which? see other "which?"
-   max_ref = maxval(dispm%nref(mol%at)) !@thomas this is from gfnff orig d3_gradient
+   max_ref = maxval(dispm%nref(mol%at))
    allocate(gw(max_ref, nat), dgwdcn(max_ref, nat), c6(nat, nat), &
       &     dc6dcn(nat, nat), energies(nat), dEdcn(nat), source=0.0_wp)
 
@@ -453,7 +451,7 @@ subroutine disp_gradient_latp &
          atj = mol%at(jat)
          r4r2ij = 3*r4r2(ati)*r4r2(atj)
          r0 = sqrt(radii(lin(ati, atj)))
-         do itr = 1, ntrans !@thomas important ...!!! first diff at 226, for ICE_ii = 459
+         do itr = 1, ntrans
             rij = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
             r2 = sum(rij**2)
             if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
@@ -465,14 +463,14 @@ subroutine disp_gradient_latp &
             d8 = -8*r2**3*t8**2
             d10 = -10*r2**4*t10**2
 
-            disp = (par%s6*t6 + par%s8*r4r2ij*t8 &  !par%s8=2.4 in pbc=0 just 2*... !@thomas
-               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10)*zeta_scale(ij)  !par%s10=0.0
+            disp = (par%s6*t6 + par%s8*r4r2ij*t8 &
+               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10)*zeta_scale(ij)  ! par%s10=0.0
             ddisp= (par%s6*d6 + par%s8*r4r2ij*d8 &
                & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10)*zeta_scale(ij) 
 
             dE = -c6(iat, jat)*disp * 0.5_wp
             dG = -c6(iat, jat)*ddisp*rij
-            dS = spread(dG, 1, 3) * spread(rij, 2, 3) * 0.5_wp  !@thomas checkpoint
+            dS = spread(dG, 1, 3) * spread(rij, 2, 3) * 0.5_wp
 
             energies(iat) = energies(iat) + dE
             dEdcn(iat) = dEdcn(iat) - dc6dcn(iat, jat) * disp
@@ -538,7 +536,7 @@ subroutine disp_gradient_latp_inter &
          atj = mol%at(jat)
          r4r2ij = 3*r4r2(ati)*r4r2(atj)
          r0 = sqrt(radii(lin(ati, atj)))
-         do itr = 1, ntrans !@thomas important ...!!! first diff at 226, for ICE_ii = 459
+         do itr = 1, ntrans
             rij = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
             r2 = sum(rij**2)
             if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
@@ -550,14 +548,14 @@ subroutine disp_gradient_latp_inter &
             d8 = -8*r2**3*t8**2
             d10 = -10*r2**4*t10**2
 
-            disp = (par%s6*t6 + par%s8*r4r2ij*t8 &  !par%s8=2.4 in pbc=0 just 2*... !@thomas
-               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10)*zeta_scale(ij)  !par%s10=0.0
+            disp = (par%s6*t6 + par%s8*r4r2ij*t8 &
+               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10)*zeta_scale(ij)  ! par%s10=0.0
             ddisp= (par%s6*d6 + par%s8*r4r2ij*d8 &
                & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10)*zeta_scale(ij) 
 
             dE = -c6(iat, jat)*disp * 0.5_wp
             dG = -c6(iat, jat)*ddisp*rij
-            dS = spread(dG, 1, 3) * spread(rij, 2, 3) * 0.5_wp  !@thomas checkpoint
+            dS = spread(dG, 1, 3) * spread(rij, 2, 3) * 0.5_wp
 
             energies(iat) = energies(iat) + dE
             dEdcn(iat) = dEdcn(iat) - dc6dcn(iat, jat) * disp
@@ -623,7 +621,7 @@ subroutine disp_gradient_latp_intra &
          atj = mol%at(jat)
          r4r2ij = 3*r4r2(ati)*r4r2(atj)
          r0 = sqrt(radii(lin(ati, atj)))
-         do itr = 1, ntrans !@thomas important ...!!! first diff at 226, for ICE_ii = 459
+         do itr = 1, ntrans
             rij = mol%xyz(:, iat) - mol%xyz(:, jat) - trans(:, itr)
             r2 = sum(rij**2)
             if (r2 > cutoff2 .or. r2 < 1.0e-12_wp) cycle
@@ -635,8 +633,8 @@ subroutine disp_gradient_latp_intra &
             d8 = -8*r2**3*t8**2
             d10 = -10*r2**4*t10**2
 
-            disp = (par%s6*t6 + par%s8*r4r2ij*t8 &  !par%s8=2.4 in pbc=0 just 2*... !@thomas
-               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10)*zeta_scale(ij)  !par%s10=0.0
+            disp = (par%s6*t6 + par%s8*r4r2ij*t8 &
+               &  + par%s10*49.0_wp/40.0_wp*r4r2ij**2*t10)*zeta_scale(ij)  ! par%s10=0.0
             ddisp= (par%s6*d6 + par%s8*r4r2ij*d8 &
                & + par%s10*49.0_wp/40.0_wp*r4r2ij**2*d10)*zeta_scale(ij) 
 

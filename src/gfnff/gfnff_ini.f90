@@ -183,7 +183,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       ! routine for generating the lattice vectors                 
       call neigh%getTransVec(mol,60.0_wp)  ! needed for neigh%init_n -> filliTrSum
       !  initialize neighbor type
-      call neigh%init_n(mol, env) !@thomas important limited iTrDim to 343 to limit comp time...
+      call neigh%init_n(mol, env)
 
       ! allocate bond pair matrix and non bonded pair exponents 
       allocate(neigh%bpair(mol%n,mol%n,neigh%numctr), source=0)
@@ -291,17 +291,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
       allocate( btyp(neigh%nbond), source = 0 )
       allocate( pibo(neigh%nbond), source = 0.0d0 )
-      ! check for wrong bonds, can occur for close atoms !@thomas 
-      if (mod(sum(neigh%nb(neigh%numnb,:,:)),2).ne.0) then
-        write(*,*)
-        write(*,*) 'Trying to correct wrong bonds in topology.'
-        if(mol%npbc.ne.0) write(*,*) 'In periodic cases better check your input.&
-                                & Not sure if bonds will be corrected.'
-        write(*,*) 'mod=', mod(sum(neigh%nb(neigh%numnb,:,:)),2), '   sum=', sum(neigh%nb(neigh%numnb,:,:))
-        write(*,*) 'neigh%nbond=',neigh%nbond
-        call correct_bonds(mol,neigh)
-        write(*,*)
-      endif  
       ! setup blist
       allocate( neigh%blist(3,neigh%nbond), source = 0 ) !first dim now 3 for saving iTr
       k=0
@@ -392,7 +381,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       enddo
 
 ! assign pi atoms to fragments
-      call mrecgffPBC(npiall,neigh%numctr,neigh%numnb,nbpi,picount,pimvec) !@thomas hope it works as expected
+      call mrecgffPBC(npiall,neigh%numctr,neigh%numnb,nbpi,picount,pimvec)
       deallocate(nbpi)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -456,8 +445,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       write(env%unit,'(10x,"pair mat ...")')
-      !@thomas TODO do I need the non-periodic nbondmat call here?
-     !call nbondmat(mol%n,neigh%numnb,neigh%numctr,neigh%nb,neigh%molbpair)  ! get number of cov. bonds between atoms up to 4 bonds
       ! get number of cov. bonds between atoms up to 4 bonds with pbc
       if (qloop_count.eq.1) then
       call nbondmat_pbc(mol%n,neigh%numnb,neigh%numctr,neigh%nb,&
@@ -471,14 +458,9 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !     they are used in the EEQ to determine qa (approximate topology charges)
       do i = 1, mol%n
         rabd(i, i) = 0.0
-        do iTr=1, neigh%numctr !@thomas_imp molecule in box case only
+        do iTr=1, neigh%numctr
           do k = 1, neigh%nb(neigh%numnb,i,iTr)
             j=neigh%nb(k,i,iTr)
-            ! interaction indifferent w.r.t. cell that j is from
-            ! by not keeping track of iTr the 1,4 distances can be retrieved as before
-            ! does not work for small unit cells like 2 atom graphene !@thomas important
-            !  -> then Floyd-algo cannot find 1,4 dist since only 2 atoms present
-            !  -> images are not iterated over below... but bigger unit cell will solve this
             rabd(j, i) = param%rad(mol%at(i)) + param%rad(mol%at(j))
           end do
         enddo
@@ -509,8 +491,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       write(env%unit,'(10x,"making topology EEQ charges ...")')
       if(topo%nfrag.le.1) then                           ! nothing is known
 !     first check for fragments 
-! @thomas periodic fragment search, fragments in central cell assigned to same fragment
-!  if bound through translation. If iTr needed retrieve from nb or save and pass on
       call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nbf,topo%nfrag,topo%fraglist) 
       write(env%unit,'(10x,"#fragments for EEQ constrain: ",i0)') topo%nfrag
 !     read QM info if it exists
@@ -717,9 +697,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! get ring info (smallest ring size)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!@thomas introducing PBC quick and dirty
-!  by making atoms in central cell neighbors if they are nb in any other cell
-!  resulting mistake: wrong distances/positions -> not needed in getring36
 allocate(nbrngs(neigh%numnb,mol%n), source=0)
 nbrngs=neigh%nbm(:,:,1)
 if (mol%npbc.ne.0) then
@@ -731,8 +708,6 @@ if (mol%npbc.ne.0) then
         nbrngs(nni+j,i) = neigh%nbm(j,i,iTr)
         ! adjust number of nb
         nbrngs(neigh%numnb,i)=nbrngs(neigh%numnb,i)+1
-        !@thomas TODO? if I actually need distances:
-        ! -> save idx=nni+j and iTr to array for mapping back after getring36 call
       enddo
       nni = nni + neigh%nbm(neigh%numnb,i,iTr)
     enddo
@@ -748,7 +723,7 @@ endif
       enddo
 !$omp end do
 !$omp end parallel
-      deallocate(neigh%nbm, nbrngs) !@thomas added nbrings
+      deallocate(neigh%nbm, nbrngs)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! bonded atom triples not included in
@@ -772,8 +747,6 @@ endif
                   topo%b3list(3,topo%nbatm)=k
                   topo%b3list(4,topo%nbatm)=iTr                    !iTrj
                   topo%b3list(5,topo%nbatm)=neigh%fTrSum(iTr,iTr2) !iTrk
-if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)&
-&write(*,*) '   Warning: ATM term corrupted.' !@thomas
                 enddo
                 do m=1,neigh%nb(neigh%numnb,i,iTr2)
                   k=neigh%nb(m,i,iTr2)
@@ -800,7 +773,6 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
 ! non bonded pair exponents
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!@thomas delete comment: The pair exponents are correct (with pbc) just vimdiff cause indent level
       do i=1,mol%n
         ati=mol%at(i)
         fn=1.0d0 + gen%nrepscal/(1.0d0+dble(sum(neigh%nb(neigh%numnb,i,:)))**2)
@@ -812,7 +784,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
           dum2=param%repan(atj)*(1.d0 + topo%qa(j)*gen%qrepscal)*fn
           f2=zeta(atj,topo%qa(j))
           ij=lin(j,i) ! for zetac6
-          do iTr=1, neigh%numctr !@thomas added 12.05.2021 
+          do iTr=1, neigh%numctr
             ff = 1.0d0
             if(ati.eq.1.and.atj.eq.1) then
                ff = 1.0d0*gen%hhfac                     ! special H ... H case (for other pairs there is no good effect of this)
@@ -852,7 +824,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
          ! Carbene:
          if(ati.eq.6.and.nn.eq.2.and.itag(i).eq.1) topo%hbbas(i) = 1.46
          iTr=0
-         if (ati.eq.8.and.nn.eq.1) then !@thomas get iTr for if below
+         if (ati.eq.8.and.nn.eq.1) then
            call neigh%nbLoc(mol%n, neigh%nb, i, locarr)
            iTr = locarr(neigh%numnb,1)
            deallocate(locarr)
@@ -973,7 +945,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
                topo%xbatABl(2,m)=j    ! B
                topo%xbatABl(3,m)=ix   ! X
                topo%xbatABl(4,m)=iTrj ! iTrB
-               topo%xbatABl(5,m)=iTr  ! iTrX !@thomas now (5,m not (4,m !!
+               topo%xbatABl(5,m)=iTr  ! iTrX
             enddo
             enddo
             endif
@@ -981,8 +953,6 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
         enddo 
       enddo
       call neigh%getTransVec(mol,sqrt(hbthr2))
-!@thomas this was moved to gfnff_eg
-!      call gfnff_hbset0(mol%n,mol%at,mol%xyz,topo,neigh,nlist,hbthr1,hbthr2)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! do Hueckel
@@ -1165,14 +1135,11 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
               iTrk=locarr(neigh%numnb,2)
               iTrl=locarr(neigh%numnb,3)
             endif
-            ! @thomas remove warning when omega is calculated with iTr
-            if (sum(locarr(neigh%numnb-1,:)).ne.3) write(*,*) 'Warning: Mistake in hybridization.'
             deallocate(locarr)
-            !@thomas important TODO omega needs to consider iTr -> see omegaPBC ../constr.f90
             vTrl=neigh%transVec(:,iTrl)
             vTrj=neigh%transVec(:,iTrj)
             vTrk=neigh%transVec(:,iTrk)
-            phi=omegaPBC(mol%n,mol%xyz,i,jj,kk,ll,vTrl,vTrj,vTrk)  ! the shitty second geom. dep. term GEODEP !@thomas language?
+            phi=omegaPBC(mol%n,mol%xyz,i,jj,kk,ll,vTrl,vTrj,vTrk)  ! the shitty second geom. dep. term GEODEP
             if(abs(phi)*180./pi.gt.40.d0) topo%hyb(i) = 3  ! change to sp^3
          endif
       enddo
@@ -1469,7 +1436,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       do i=1,mol%n
          nn=sum(neigh%nb(neigh%numnb,i,:))                  ! take full set to include M-X-Y
          if(nn.le.1) cycle                                  !
-         if(nn.gt.6) cycle     ! no highly coordinated atom !@thomas why not use nn in original code??
+         if(nn.gt.6) cycle     ! no highly coordinated atom
          cDbl=0 ! cDbl stores j,k,iTr,iTr2 that were already considered
          cdi=0
          ati=mol%at(i)
@@ -1519,10 +1486,10 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
       allocate( topo%vangl(2,topo%nangl), source = 0.0d0 )
       topo%nangl=0
       do i=1,mol%n  ! start angl_loop
-        nn=sum(neigh%nb(neigh%numnb,i,:)) !@thomas for real pbc sum(nb(nb,i,:))
-        if(nn.le.1) cycle  !no angle with only one neighbor
-        if(nn.gt.6) cycle  !@thomas no highly coordinated systems
-        cDbl=0 !@thomas cDbl(j,k,iTr,iTr2) !iTr->j and iTr2->k
+        nn=sum(neigh%nb(neigh%numnb,i,:))
+        if(nn.le.1) cycle  ! no angle with only one neighbor
+        if(nn.gt.6) cycle  ! no highly coordinated systems
+        cDbl=0 ! cDbl(j,k,iTr,iTr2) with iTr->j and iTr2->k
         cdi=0
         ii=i
         ati=mol%at(i)
@@ -1531,7 +1498,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
             do iTr2=1, neigh%numctr
               do k=1,j
                if (iTr.eq.iTr2.and.k.eq.j) cycle !dont use same atom as both neighbors
-               jj=neigh%nb(j,i,iTr) !@thomas only molecule in box case
+               jj=neigh%nb(j,i,iTr)
                kk=neigh%nb(k,i,iTr2)
                if (kk.eq.0.or.jj.eq.0) cycle !only j goes over nb so k or kk might be "out of bounds"
                atj=mol%at(jj)
@@ -1869,7 +1836,7 @@ if(topo%b3list(5,topo%nbatm).eq.-1.or.topo%b3list(5,topo%nbatm).gt.neigh%numctr)
              do jneig=1,neigh%nb(neigh%numnb,jj,iTrlDum)
                ll=neigh%nb(jneig,jj,iTrlDum)   !neighbors of jj that are neither ii or kk
                iTrl=neigh%fTrSum(iTrlDum,iTrj) ! ll has to be shifted if jj is shifted
-               if(iTrl.eq.-1.or.iTrl.gt.neigh%numctr) cycle !@thomas when introducing full PBC this could be wrong 
+               if(iTrl.eq.-1.or.iTrl.gt.neigh%numctr) cycle
                if(ll.eq.ii.and.iTrl.eq.1) cycle
                if(ll.eq.kk.and.iTrl.eq.iTrk) cycle
                if(chktors(mol%n,mol%xyz,ii,jj,kk,ll,iTrj,iTrk,iTrl,neigh)) cycle  ! near 180
@@ -2353,73 +2320,6 @@ use xtb_mctc_accuracy, only : wp
 
 end function zeta
 
-
-subroutine correct_bonds(mol,neigh)
-  
-  type(TMolecule), intent(in) :: mol   ! # 
-  type(TNeigh), intent(inout) :: neigh !@th
-  integer :: i,j,k,idx, kk, numWrong, origNumNB(mol%n)
-  logical :: nbWrong, Fixed
-  integer :: wrong_save(2,2*mol%n) ! dont expect more than 2*n wrong neighbors
-  integer :: nb_orig(neigh%numnb,mol%n,neigh%numctr)
-  
-  nb_orig = neigh%nb
-  origNumNB=neigh%nb(neigh%numnb,:,1)
-  !go through nb and check if all bonds are paired
-  idx=0
-  do i=1, mol%n
-  !   ii=neigh%nb(neigh%numnb,i,1)
-    do j=1, neigh%nb(neigh%numnb,i,1)
-      !
-      nbWrong=.true.
-      k=neigh%nb(j,i,1) ! k is neighbor of i -> i should be neighbor of k
-      ! go through nb of k -> search for i
-      do kk=1, neigh%nb(neigh%numnb,k,1)
-        if(i.eq.neigh%nb(kk,k,1)) nbWrong=.false.
-      enddo
-      ! save unpaired / wrong neighbors in wrong_save
-      if(nbWrong) then
-        idx=idx+1
-        wrong_save(1,idx)=j
-        wrong_save(2,idx)=i
-      endif
-    enddo
-  enddo
-  ! set wrong neighbors to zero, adjust number of neighbors
-  numWrong=idx
-  do k=1, numWrong
-    j=wrong_save(1,k)
-    i=wrong_save(2,k)
-    neigh%nb(j,i,1)=0
-    neigh%nb(neigh%numnb,i,1)=neigh%nb(neigh%numnb,i,1)-1
-  enddo
-  ! shift the neighbors so that there are no zero entries in the list
-  do i=1, mol%n
-    if (neigh%numnb.lt.18) write(*,*) 'Warning: Neighbor correction might need to be revisited.'
-    if (neigh%nb(neigh%numnb,i,1).gt.18) write(*,*) 'Warning: System is too highly coordinated.'
-    Fixed=.false.
-    do while (.not.Fixed)
-      Fixed=.true.
-      do j=1, origNumNB(i)
-        if (neigh%nb(j,i,1).eq.0) then
-          neigh%nb(j,i,1)=neigh%nb(j+1,i,1)
-          neigh%nb(j+1,i,1)=0
-        endif
-        do k=1, neigh%nb(neigh%numnb,i,1)
-          if(neigh%nb(k,i,1).eq.0) Fixed=.false.
-        enddo      
-      enddo
-    enddo
-  enddo
- 
-  neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2 
-  if (sum(nb_orig-neigh%nb).eq.0) then
-    write(*,*) 'Did not change neigh%nb.'
-  else
-    write(*,*) 'Changed neigh%nb.'
-  endif
-
-end subroutine correct_bonds
 
 end subroutine gfnff_ini
 

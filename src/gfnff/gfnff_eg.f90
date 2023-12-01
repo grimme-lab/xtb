@@ -215,13 +215,9 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
 
    call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
-      !@thomas_ Init of latPoint uses diagonal, not correct for cell with angle.ne.90°
       vec=mol%lattice(:,1)+mol%lattice(:,2)
       ! get translation vectors within maximum cutoff (at least central 27)
-      !@thomas TODO in the end this should be the only 
-      ! routine for generating the lattice vectors
-      !@thomas pass calc from first SP to optimization?? -> not general since calc is extended
-      neigh%oldCutOff=0.0_wp !@thomas optimization does not call gfnff_ini ...no init_n
+      neigh%oldCutOff=0.0_wp
       call neigh%getTransVec(mol,60.0_wp)
 
       if (mol%boundaryCondition.ne.0) then
@@ -4173,7 +4169,6 @@ subroutine es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, cf, &
    call get_damat_3d(mol, topo, cf, xtmp, rTrans, gTrans, amatdr, amatdL, atrace)
 
 
-   !@thomas hier dann direkt sigma und grad berechnen
    !Aus mctc/blas/level2.f90: y := alpha*A*x + beta*y,   or   y := alpha*A**T*x + beta*y
    call mctc_gemv(amatdr, nlist%q, gradient, alpha=mcf_ees, beta=1.0_wp)
    
@@ -4184,11 +4179,9 @@ subroutine es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, cf, &
 
 end subroutine es_grad_sigma
 
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! @thomas important ripped code from dftd4 BELOW
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!               code below taken from dftd4                                     !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
    type(TMolecule), intent(in) :: mol
    type(TGFFTopology), intent(in) :: topo
@@ -4434,8 +4427,8 @@ subroutine get_damat_rec_3d(rij, vol, alp, trans, dg, ds)
    end do
 
 end subroutine get_damat_rec_3d
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! @thomas important ripped code from dftd4 ABOVE
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!               code above taken from dftd4                                     !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end module xtb_gfnff_eg
