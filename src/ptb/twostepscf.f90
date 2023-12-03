@@ -24,10 +24,12 @@ module xtb_ptb_scf
    use tblite_basis_type, only: basis_type, get_cutoff
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
-   use tblite_scf_iterator, only: get_density, get_qat_from_qsh
+   use tblite_scf_iterator, only: get_qat_from_qsh
    use tblite_adjlist, only: adjacency_list, new_adjacency_list
    use tblite_cutoff, only: get_lattice_points
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
+   use tblite_wavefunction_fermi, only: get_fermi_filling
+   use tblite_wavefunction_type, only: get_density_matrix
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_integral_type, only: new_integral, integral_type
 
@@ -427,12 +429,12 @@ contains
       !    write (*, '(/)', advance="no")
       ! end do
       write (*, *) "Density matrix after 1st iteration ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.5)', advance="no") wfn%density(i, j, 1)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.5)', advance="no") wfn%density(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       !#####################
 
       call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
@@ -464,7 +466,7 @@ contains
 
       !>  --------- Get H0 (wavefunction-independent (but iteration-dependent)) ----------
       !> Allocate temporary basis set and charge-dependent scaling factors
-      !> Consequently, the basis set is not equal for same atom ids but different 
+      !> Consequently, the basis set is not equal for same atom ids but different
       !> for each symmetry-unique atom
       allocate (bas_h0)
       allocate (expscal_h0_2nditer(max_shell, mol%nat), source=1.0_wp)
@@ -502,12 +504,12 @@ contains
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
       write (*, *) "H0 ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f10.5)', advance="no") ints%hamiltonian(i, j)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(f10.5)', advance="no") ints%hamiltonian(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       !#####################
 
       !    _____      _             _   _       _
@@ -528,19 +530,107 @@ contains
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
       psh = get_psh_from_qsh(wfn, bas)
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
-      call plusu%get_potential(mol, bas, wfn%density(:,:,1), wfn%coeff(:,:,1))
+      call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
       !##### DEV WRITE #####
       write (*, *) "Hamiltonian matrix to solve ..."
       do i = 1, bas%nao
          do j = 1, bas%nao
-            write (*, '(f10.5)', advance="no") wfn%coeff(i, j, 1)
+            write (*, '(f9.5)', advance="no") wfn%coeff(i, j, 1)
          end do
          write (*, '(/)', advance="no")
       end do
       !#####################
 
+      call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+
+      !##### DEV WRITE #####
+      write (*, *) "Coefficients after 1st iteration ..."
+      ! do i = 1, size(wfn%coeff, 1)
+      !    do j = 1, size(wfn%coeff, 2)
+      !       write (*, '(f9.5)', advance="no") wfn%coeff(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      write (*, *) "Density matrix after 2nd iteration ..."
+      do i = 1, bas%nao
+         do j = 1, bas%nao
+            write (*, '(f9.5)', advance="no") wfn%density(i, j, 1)
+         end do
+         write (*, '(/)', advance="no")
+      end do
+      ! write (*, *) "Diagonal elements of density ..."
+      ! do i = 1, bas%nao
+      !    write (*, '(f9.5)') wfn%density(i, i, 1)
+      ! end do
+      !#####################
+
    end subroutine twostepscf
+
+   !> TAKEN OVER FROM TBLITE - modified in order to use the PTB parameters
+   subroutine get_density(wfn, solver, ints, ts, error, keps_param, keps0_param)
+      !> Tight-binding wavefunction data
+      type(wavefunction_type), intent(inout) :: wfn
+      !> Solver for the general eigenvalue problem
+      class(solver_type), intent(inout) :: solver
+      !> Integral container
+      type(integral_type), intent(in) :: ints
+      !> Electronic entropy
+      real(wp), intent(out) :: ts
+      !> Error handling
+      type(error_type), allocatable, intent(out) :: error
+      !> Linear regression cofactors for the orbital energies
+      real(wp), optional :: keps_param, keps0_param
+      real(wp) :: keps, keps0
+
+      real(wp) :: e_fermi, stmp(2)
+      real(wp), allocatable :: focc(:)
+      integer :: spin
+
+      if (present(keps_param)) then
+         keps = keps_param
+      else
+         keps = 0.0_wp
+      end if
+      if (present(keps0_param)) then
+         keps0 = keps0_param
+      else
+         keps0 = 0.0_wp
+      end if
+
+      select case (wfn%nspin)
+      case default
+         call solver%solve(wfn%coeff(:, :, 1), ints%overlap, wfn%emo(:, 1), error)
+         if (allocated(error)) return
+         wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
+
+         allocate (focc(size(wfn%focc, 1)))
+         wfn%focc(:, :) = 0.0_wp
+         do spin = 1, 2
+            call get_fermi_filling(wfn%nel(spin), wfn%kt, wfn%emo(:, 1), &
+               & wfn%homo(spin), focc, e_fermi)
+            call get_electronic_entropy(focc, wfn%kt, stmp(spin))
+            wfn%focc(:, 1) = wfn%focc(:, 1) + focc
+         end do
+         ts = sum(stmp)
+
+         call get_density_matrix(wfn%focc(:, 1), wfn%coeff(:, :, 1), wfn%density(:, :, 1))
+      case (2)
+         wfn%coeff = 2 * wfn%coeff
+         do spin = 1, 2
+            call solver%solve(wfn%coeff(:, :, spin), ints%overlap, wfn%emo(:, spin), error)
+            if (allocated(error)) return
+            wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
+
+            call get_fermi_filling(wfn%nel(spin), wfn%kt, wfn%emo(:, spin), &
+               & wfn%homo(spin), wfn%focc(:, spin), e_fermi)
+            call get_electronic_entropy(wfn%focc(:, spin), wfn%kt, stmp(spin))
+            call get_density_matrix(wfn%focc(:, spin), wfn%coeff(:, :, spin), &
+               & wfn%density(:, :, spin))
+         end do
+         ts = sum(stmp)
+      end select
+   end subroutine get_density
 
    pure function id_to_atom(mol, idparam) result(atomparam)
       !> Molecular structure data
@@ -559,5 +649,13 @@ contains
       end do
 
    end function id_to_atom
+
+   pure subroutine get_electronic_entropy(occ, kt, s)
+      real(wp), intent(in) :: occ(:)
+      real(wp), intent(in) :: kt
+      real(wp), intent(out) :: s
+
+      s = sum(log(occ**occ * (1 - occ)**(1 - occ))) * kt
+   end subroutine get_electronic_entropy
 
 end module xtb_ptb_scf
