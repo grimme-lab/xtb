@@ -17,7 +17,6 @@
 module xtb_pbc_optimizer_filter_type
    use xtb_mctc_accuracy, only : wp
    use xtb_type_molecule, only : TMolecule
-!   use mctc_io, only : structure_type
    implicit none
    private
 

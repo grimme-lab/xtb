@@ -291,8 +291,6 @@ subroutine d3_gradient(dispm, nat, at, xyz, npair, pairlist, zeta_scale, radii, 
 
    call weight_references_d4(dispm, nat, at, weighting_factor, cn, gw, dgwdcn)
 
-   !gw = gw*zeta_scale
-   !dgwdcn = dgwdcn*zeta_scale
    call get_atomic_c6_d4(dispm, nat, at, gw, dgwdcn, c6, dc6dcn)
 
    !$omp parallel do default(none) schedule(runtime) &
@@ -341,7 +339,6 @@ subroutine d3_gradient(dispm, nat, at, xyz, npair, pairlist, zeta_scale, radii, 
    !$omp end parallel do
 
    call dgemv('n', 3*nat, nat, 1.0_wp, dcndr, 3*nat, dEdcn, 1, 1.0_wp, gradient, 1)
-   !call dgemv('n', 9, nat, 1.0_wp, dcndL, 9, dEdcn, 1, 1.0_wp, sigma, 1)
 
    energy = sum(energies)
 
@@ -673,11 +670,14 @@ subroutine d3_atm_gradient_latp &
 
    !> Damping parameters
    type(dftd_parameter), intent(in) :: par
-
+   !> translation vectors images of unit cell
    real(wp), intent(in) :: trans(:, :)
    real(wp), intent(in) :: weighting_factor
+   !> dispersion cutoff
    real(wp), intent(in) :: cutoff
+   !> coordination number
    real(wp), intent(in) :: cn(:)
+   !> derivatives of coordination number
    real(wp), intent(in) :: dcndr(:, :, :)
    real(wp), intent(in) :: dcndL(:, :, :)
 
@@ -748,7 +748,6 @@ subroutine atm_gradient_latp &
          atj = mol%at(jat)
 
          c6ij = c6(jat,iat)
-         !cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
          cij = sr*get_vdwrad(ati, atj)
 
          do kat = 1, jat
@@ -757,9 +756,7 @@ subroutine atm_gradient_latp &
             c6ik = c6(kat,iat)
             c6jk = c6(kat,jat)
 
-            !cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
             cik = sr*get_vdwrad(ati, atk)
-            !cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
             cjk = sr*get_vdwrad(atj, atk)
             do jtr = 1, size(trans, dim=2)
                rij = mol%xyz(:, jat) - mol%xyz(:, iat) + trans(:, jtr)
@@ -1088,7 +1085,6 @@ subroutine atm_gradient_neigh &
          atj = mol%at(jat)
 
          c6ij = c6(jat,iat)
-         !cij = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atj))+par%a2
          cij = sr*get_vdwrad(ati, atj)
 
          do ik = 1, ij-1
@@ -1103,9 +1099,7 @@ subroutine atm_gradient_neigh &
             c6ik = c6(kat,iat)
             c6jk = c6(kat,jat)
 
-            !cik = par%a1*sqrt(3.0_wp*r4r2(ati)*r4r2(atk))+par%a2
             cik = sr*get_vdwrad(ati, atk)
-            !cjk = par%a1*sqrt(3.0_wp*r4r2(atj)*r4r2(atk))+par%a2
             cjk = sr*get_vdwrad(atj, atk)
 
             call deriv_atm_triple(c6ij, c6ik, c6jk, cij, cjk, cik, &

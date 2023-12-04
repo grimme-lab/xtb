@@ -325,10 +325,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       enddo
       !check blist
       if (k.ne.neigh%nbond) then
-        write(*,*)
-        write(*,*) 'Warning: neigh%blist might be corrupted.'
-        write(*,*) 'Max index:', k, '    Neigh%nbond:', neigh%nbond
-        write(*,*)
+        call env%warning("Setup of blist not as expected, check your results.", source)
       endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1144,7 +1141,6 @@ endif
          endif
       enddo
 
-!     if(pr)then
       write(env%unit,*)
       write(env%unit,'(2x,"atom   neighbors  erfCN metchar sp-hybrid imet pi  qest     coordinates")')
       do i=1,mol%n
@@ -1443,7 +1439,6 @@ endif
          do iTr=1, neigh%numctr
            do j=1,neigh%nb(neigh%numnb,i,iTr)
              do iTr2=1, neigh%numctr !
-             !if (.not.neigh%iTrUsed(iTr2)) cycle  !avoid double counting
                do k=1, j ! 
                if (iTr.eq.iTr2.and.k.eq.j) cycle  !dont use same atom as both neighbors
                  jj=neigh%nb(j,i,iTr)
@@ -1752,9 +1747,8 @@ endif
                topo%vangl(1,topo%nangl)=r0*pi/180.
                fbsmall=(1.0d0-gen%fbs1*exp(-0.64*(topo%vangl(1,topo%nangl)-pi)**2))
 
-!                          central*neigbor charge spec. met.  small angle corr.
+!              central*neigbor charge spec. met.  small angle corr.
                topo%vangl(2,topo%nangl)= fijk * fqq * f2 * fn * fbsmall * feta
-!              write(env%unit,*) param%angl(ati),param%angl2(atj),param%angl2(atk), param%angl(ati)*param%angl2(atj)*param%angl2(atk), fqq,f2,fn,fbsmall
                if(pr)write(env%unit,'(3i5,2x,3f8.3,l2,i4)') ii,jj,kk,r0,phi*180./pi,topo%vangl(2,topo%nangl),picon,rings
               enddo
             enddo
@@ -1792,7 +1786,6 @@ endif
          jj=neigh%blist(1,m)
          ii=neigh%blist(2,m)
          iTrj=neigh%blist(3,m)
-       ! iTri=1
          nni=sum(neigh%nb(neigh%numnb,ii,:))
          nnj=sum(neigh%nb(neigh%numnb,jj,:))
          if(btyp(m).eq.3.or.btyp(m).eq.6) cycle    ! metal eta or triple
@@ -2114,7 +2107,6 @@ endif
 ! all done
 
       topo%maxsystem = 5000
-      !if(mol%n.gt.800)then
       block
          use xtb_setparam, only : set, p_modh_old
 
@@ -2128,8 +2120,6 @@ endif
 
 
       write(env%unit,'(10x,"#optfrag :",3x,i0)') topo%nfrag
-      !write(env%unit,*) '#optfrag :',nsystem
-
 
       ! check if triple bonded carbon is present (for torsion term)
       nn=0

@@ -15,10 +15,9 @@
 ! along with ancopt.  If not, see <https://www.gnu.org/licenses/>.
 
 module xtb_pbc_optimizer_lbfgs
-   use xtb_mctc_accuracy, only : wp!, error_type, fatal_error
+   use xtb_mctc_accuracy, only : wp
    use xtb_type_environment, only : TEnvironment
-                                      !use ancopt_blas, only : dot
-   use xtb_mctc_blas, only : mctc_dot !@thoma important err? same as dot above?
+   use xtb_mctc_blas, only : mctc_dot
 
 
    use  xtb_pbc_optimizer_filter_type, only : filter_type
@@ -33,7 +32,6 @@ module xtb_pbc_optimizer_lbfgs
                                                    
   type, abstract :: optimizer_type                  
   contains                                          
-  !   procedure :: relax_pbc                        
      procedure(step_i), deferred :: step
   end type optimizer_type                           
                                                     
@@ -84,10 +82,6 @@ subroutine new_lbfgs_optimizer(self, env, input, filter)
    allocate(self%rho(input%memory), source=0.0_wp)
    allocate(self%hdiag(self%nvar), source=1.0_wp)
 
-   !select type(filter)
-   !class is (anc_filter)
-   !   self%hdiag(:) = filter%hdiag
-   !end select
 end subroutine new_lbfgs_optimizer
 
 

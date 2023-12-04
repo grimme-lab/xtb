@@ -598,7 +598,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       integer n,i,j,k,l,rings
       integer c(10,20,n),s(20,n)
       integer itest,rings1,rings2,rings3,rings4,m,a
-!     integer ht1,ht2,ht3,ht4
 
       if(s(20,i).eq.0.or.s(20,j).eq.0.or.s(20,k).eq.0.or.s(20,l).eq.0)then
          rings=0
@@ -617,7 +616,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          enddo
          if(itest.eq.3.and.s(m,i).lt.rings1) then
             rings1=s(m,i)
-!           ht1=c(m,19,i)
          endif
       enddo
       do m=1,s(20,j)    ! all rings of atom j
@@ -627,7 +625,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          enddo
          if(itest.eq.3.and.s(m,j).lt.rings2) then
             rings2=s(m,j)
-!           ht2=c(m,19,j)
          endif
       enddo
       do m=1,s(20,k)    ! all rings of atom k
@@ -637,7 +634,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          enddo
          if(itest.eq.3.and.s(m,k).lt.rings3) then
             rings3=s(m,k)
-!           ht3=c(m,19,k)
          endif
       enddo
       do m=1,s(20,l)    ! all rings of atom k
@@ -647,7 +643,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          enddo
          if(itest.eq.3.and.s(m,l).lt.rings4) then
             rings4=s(m,l)
-!           ht4=c(m,19,l)
          endif
       enddo
 
@@ -734,10 +729,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       chktors=.true.
 
       call banglPBC(1,xyz,j,i,k,iTrj,iTrk,neigh,phi)
-!     write(env%unit,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
       call banglPBC(2,xyz,i,j,l,iTrj,iTrl,neigh,phi)
-!     write(env%unit,*) phi*180./3.1415926d0
       if(phi*180./3.1415926d0.gt.170.0d0) return
 
       chktors=.false.
@@ -1411,10 +1404,9 @@ subroutine getring36(n,at,numnb,numctr,nbin,a0_in,cout,irout)
       cdum=0
       kk=0
       do m=1,nn
-!     if(nb(m,a0_in).eq.1) cycle ! check (comment out)
       nb=nbin
       ! ring search only in unit cell -> adjusted nbin to include neighbors from other cells
-      if(nb(m,a0_in).eq.1) cycle ! check (comment out)
+      if(nb(m,a0_in).eq.1) cycle
       do i=1,n
          if(nb(numnb,i).eq.1)nb(numnb,i)=0
       enddo
@@ -1868,7 +1860,6 @@ end subroutine goedeckera_PBC
 
 !     one bond, tag=1
       tag=1
-!     call pairsbond(n,nn,list,pair,tag)
 
 !     determine up to 3 bonds in between
       do d=1,2
@@ -2079,14 +2070,12 @@ end subroutine goedeckera_PBC
       logical function pilist(ati)
       integer ati
       pilist=.false.
-!     if(ati.eq.5.or.ati.eq.6.or.ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16) pilist=.true.
       if(ati.eq.5.or.ati.eq.6.or.ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16.or.ati.eq.17) pilist=.true.
       end function pilist
 
       logical function nofs(ati)
       integer ati
       nofs=.false.
-!     if(ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16) nofs=.true.
       if(ati.eq.7.or.ati.eq.8.or.ati.eq.9.or.ati.eq.16.or.ati.eq.17) nofs=.true.
       end function nofs
 
@@ -2180,7 +2169,6 @@ end subroutine goedeckera_PBC
            do i=1,nb(numnb,ic,iTr)
              j=nb(i,ic,iTr)
              if(at(j).eq. 8.and.pi(j).ne.0.and.nb(numnb,j,iTr).eq.1) no = no +1 ! a pi =O on the C?
-!            if(at(j).eq.16.and.pi(j).ne.0.and.nb(20,j).eq.1) no = no +1 ! a pi =S on the C?
            enddo
          enddo
       endif

@@ -265,13 +265,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    call metadynamic (rmsdset,mol%n,mol%at,mol%xyz,efix,gradient)
 
    ! fixing of certain atoms !
-   !  print*,abs(efix/etot)
    energy = energy + efix
    results%e_total = energy
    results%gnorm = norm2(gradient)
    if (fixset%n.gt.0) then
       do i=1, fixset%n
-         !print*,i,fixset%atoms(i)
          gradient(1:3,fixset%atoms(i))=0
       enddo
    endif

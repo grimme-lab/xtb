@@ -64,10 +64,6 @@ module xtb_gfnff_neighbor
     procedure :: nbLoc
     ! get the j'th neighbor of atom i with corresp iTr (transVec index)
     procedure :: jth_nb
-    ! distance of atoms i and j both translated by iTri and iTrj respectively
-    !procedure :: distij
-    ! sort transl vector array from latPoint as cenTrans from neighbor
-    procedure :: sortTransVec
     !
     procedure :: id2v
     ! give the shell (surrounding central cell) num that the vector is in (WHichSHell: whsh)
@@ -263,10 +259,8 @@ contains
           endif
 
         endif !#ifnotallocatedtrvecint
-if(size(self%trVecInt,dim=2).lt.d) write(*,*) 'Warning: Probably cutoff too big (max 60 bohr).'
         ! Now the linear combinations of lattice vectors are given with neigh%trVecInt
         ! Next up: get number of translation vectors within cutoff
-        ! 
         if(allocated(self%Trid)) deallocate(self%Trid)
         allocate(self%Trid(d),source=0)
         allocate(idTrTmp(d),source=0)
@@ -689,70 +683,6 @@ if(size(self%trVecInt,dim=2).lt.d) write(*,*) 'Warning: Probably cutoff too big 
 
     end subroutine filliTrUsed
 
-    ! I use two arrays with translation vectors: neigh%cenTrans and transVec
-    !   from latPoint%getLatticePoints
-    ! in the non-bonded REP bpair is set up with former but sqrab_pbc uses the later
-    ! therefore the arrays need same sorting at least for the first numctr vectors
-    subroutine sortTransVec(self,d,trV)
-      class(TNeigh), intent(in) :: self
-      integer, intent(in) :: d
-      real(wp), intent(inout) :: trV(3,d) ! to be sorted translation vectors
-      real(wp) :: nTrV(3,self%numctr)    ! central transl. vectors providing the order for trV 
-      integer :: i,j, nctr, cnt, cntCen
-      logical :: inCenTrans
-      real(wp) :: dum(3,d)
-      integer :: test(3,30)
-      real(wp) :: cenMaxDist
-      test=-1
-
-      cenMaxDist = NORM2(self%transVec(:,2))+0.1_wp
-write(*,*) '' 
-write(*,*) 'trV(:,1:12)' 
-write(*,'(3f12.4)') trV(:,1:14)
-write(*,*) 'self%transVec(:,1:27)' 
-write(*,'(3f12.4)') self%transVec(:,1:27)
-write(*,*) '' 
-      ! save original transVec
-      dum =trV
-      ! get neighbors central transl vectors
-      nctr=self%numctr
-      nTrV=self%transVec(:,1:nctr)
-      ! set to be sorted entries to negative value to check if worked
-      trV=-1.0_wp
-      trV(:,1:nctr)=self%transVec(:,1:nctr)
-
-      cntCen=0
-      cnt=self%numctr
-      do i=1, d      !i=3   0  0 -18.9
-        inCenTrans=.false.
-        do j=1, nctr !j=14
-          if (dum(1,i).eq.nTrV(1,j).and.dum(2,i).eq.nTrV(2,j).and.dum(3,i).eq.nTrV(3,j)) then
-            inCenTrans=.true.
-            cntCen = cntCen + 1
-          endif
-        enddo
-        ! if translation is not already in first numctr transl. it needs to be written in trV
-        if (.not.inCenTrans) then
-          cnt=cnt+1
-          trV(:,cnt)=dum(:,i)
-        endif
-      enddo
-      if (cntCen.ne.nctr) then
-        write(*,*) 'len(trV)= d=',d
-        write(*,*) 'Not all central cells found in trV.' 
-        write(*,*) 'Number found:',cntCen
-        write(*,*) '    Expected:',nctr
-      endif
-      if (cnt.ne.d) then
-        write(*,*)
-        write(*,'(a,i6,a,i6,a)') 'Error: The translation vector array is corrupted. Changed',&
-                & cnt, ' out of', d, ' entries.'
-        write(*,'(a,i8)') 'neigh%numctr  =',self%numctr
-        write(*,'(a,i8)') 'Counted numctr=',cntCen
-        write(*,*)
-        endif
-
-    end subroutine sortTransVec
 
 end module xtb_gfnff_neighbor
 

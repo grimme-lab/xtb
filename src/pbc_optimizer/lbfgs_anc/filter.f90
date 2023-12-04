@@ -42,11 +42,8 @@ subroutine new_filter(self, mol, input)
    !> Input to generate transformation filter from
    type(filter_input), intent(in) :: input
 
-!   if (allocated(input%anc)) then
-!      call new_anc_filter_(self, mol, input%anc, input%optcell)
-!   else
-      call new_cartesian_filter_(self, mol, input%optcell)
-!   end if
+   call new_cartesian_filter_(self, mol, input%optcell)
+
 end subroutine new_filter
 
 
@@ -65,22 +62,5 @@ subroutine new_cartesian_filter_(self, mol, optcell)
    call move_alloc(new, self)
 end subroutine new_cartesian_filter_
 
-
-!subroutine new_anc_filter_(self, mol, input, optcell)
-!   !> Instance of the transformation filter
-!   class(filter_type), allocatable, intent(out) :: self
-!   !> Molecular structure data
-!   type(TMolecule), intent(in) :: mol
-!   !> Input for transformation filter
-!   type(anc_input), intent(in) :: input
-!   !> Relax lattice parameters
-!   logical, intent(in) :: optcell
-
-!   type(anc_filter), allocatable :: new
-
-!   allocate(new)
-!   call new_anc_filter(new, mol, input, optcell .and. any(mol%pbc))
-!   call move_alloc(new, self)
-!end subroutine new_anc_filter_
 
 end module xtb_pbc_optimizer_filter

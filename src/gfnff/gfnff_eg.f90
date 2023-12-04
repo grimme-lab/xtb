@@ -184,6 +184,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    real*8  omega,rn,dr,g3tmp(3,3),g4tmp(3,4)
    real*8 rij,drij(3,n),drijdcn(2)
 
+   real*8, allocatable :: rinf(:,:)
    real*8, allocatable :: grab0(:,:,:), rab0(:), eeqtmp(:,:), rabdcn(:,:)
    real*8, allocatable :: cn(:), dcn(:,:,:), dcndr(:,:,:), dcndL(:,:,:), qtmp(:), dEdcn(:)
    real*8, allocatable :: hb_cn(:), hb_dcn(:,:,:), dhbcndL(:,:,:)
@@ -215,24 +216,24 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
 
    call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
-      vec=mol%lattice(:,1)+mol%lattice(:,2)
-      ! get translation vectors within maximum cutoff (at least central 27)
-      neigh%oldCutOff=0.0_wp
-      call neigh%getTransVec(mol,60.0_wp)
+   vec=mol%lattice(:,1)+mol%lattice(:,2)
+   ! get translation vectors within maximum cutoff, but at least central 27 cells (for 3D)
+   neigh%oldCutOff=0.0_wp
+   call neigh%getTransVec(mol,60.0_wp)
 
-      if (mol%boundaryCondition.ne.0) then
-        if(size(transVec,dim=2).le.neigh%numctr)then
-          ! want at least 27 cells
-          if(allocated(transVec)) deallocate(transVec)
-          allocate(transVec(3,neigh%numctr))
-          transVec=neigh%transVec(:,1:neigh%numctr)
-        endif
-      endif
+   if (mol%boundaryCondition.ne.0) then
+     if(size(transVec,dim=2).le.neigh%numctr)then
+       ! want at least 27 cells
+       if(allocated(transVec)) deallocate(transVec)
+       allocate(transVec(3,neigh%numctr))
+       transVec=neigh%transVec(:,1:neigh%numctr)
+     endif
+   endif
 
-      ! get Distances
-      call neigh%getTransVec(mol,sqrt(repthr))
-      if(allocated(neigh%distances)) deallocate(neigh%distances)
-      call getDistances(neigh%distances, mol, neigh)
+   ! get Distances between atoms for repulsion
+   call neigh%getTransVec(mol,sqrt(repthr))
+   if(allocated(neigh%distances)) deallocate(neigh%distances)
+   call getDistances(neigh%distances, mol, neigh)
 
 
    g  =  0
@@ -353,7 +354,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
        do iTr=1, neigh%nTrans
 
          !First calculate erep, g and sigma
-         r2=NORM2(xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr))**2 !neigh%distances(iat,jat,iTr)**2
+         r2=NORM2(xyz(:,iat)-xyz(:,jat)+neigh%transVec(:,iTr))**2
          
          ! cycle when above cut-off and when atom would interact with itself
          if(r2.gt.repthr .OR. r2.lt.1.0e-8_wp) cycle
@@ -367,8 +368,12 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
          rab=sqrt(r2)
          t16=r2**0.75
          t19=t16*t16
-         iTrDum=iTr
-         if (iTr.gt.neigh%numctr) iTrDum = neigh%numctr+1 ! alphanb is the same for all iTr>numctr
+         ! alphanb is the same for all iTr>numctr
+         if (iTr.gt.neigh%numctr) then
+            iTrDum = neigh%numctr+1
+         else
+            iTrDum=iTr
+         endif
          t8 =t16*topo%alphanb(iat,jat,iTrDum)
          t26=exp(-t8)*param%repz(ati)*param%repz(atj)*param%repscaln*mcf_nrep
          erep=erep+(t26/rab) !energy
@@ -536,7 +541,6 @@ else ! periodic case
    enddo
 
    call mctc_gemv(dcndr, qtmp, g, alpha=-mcf_ees, beta=1.0_wp)
-   ! sigma = sigma - q * dXdcn * dcndL
    call mctc_gemv(dcndL, qtmp, sigma, alpha=-mcf_ees, beta=1.0_wp)
    
    if (pr) call timer%measure(6)
@@ -551,7 +555,6 @@ endif
       ! rab0 and vbond go over nbond not atoms, vbond setup with pbc in gfnff_ini.f90
       allocate(grab0(3,n,neigh%nbond),rab0(neigh%nbond),rabdcn(2,neigh%nbond))
       rab0(:)=neigh%vbond(1,:)
-      !if (latPoint%boundaryCondition.eq.0) then  !@latPoint
       if (mol%boundaryCondition.eq.0) then
         call gfnffdrab(n,at,cn,dcn,neigh%nbond,neigh%blist,rab0,grab0,rabdcn)
       else
@@ -573,7 +576,6 @@ endif
          ati=at(iat)
          atj=at(jat)
          ij=iat*(iat-1)/2+jat
-         !rab=neigh%distances(jat,iat,iTr)
          rab=NORM2(xyz(:,jat)-xyz(:,iat)+neigh%transVec(:,iTr))
          rij=rab0(i)
          drij=grab0(:,:,i)
@@ -586,7 +588,7 @@ endif
          end if
       enddo
       !$omp end parallel do
-       call mctc_gemv(dcndL, dEdcn, sigma, alpha=1.0_wp, beta=1.0_wp)  !sigma = sigma - dEdcn*dcndL
+       call mctc_gemv(dcndL, dEdcn, sigma, alpha=1.0_wp, beta=1.0_wp)
 
       deallocate(dcndL)
       deallocate(hb_dcn)
@@ -635,7 +637,7 @@ endif
          sigma(3,3) = sigma(3,3) - 1.0_wp *dz*t27 *dz
       enddo
       !$omp end parallel do
-   endif ! neigh%nbond.gt.0
+   endif ! if neigh%nbond.gt.0
    if (pr) call timer%measure(7)
 
    !------!
@@ -898,7 +900,7 @@ endif
       sqrab = 1.d+12
       srab = 1.d+6
       cn = 0
-      !neigh%distances(:,:,1)=1.d+6
+      allocate(rinf(n,n), source=1.d+6)
       
       ! asymtotically for R=inf, Etot is the SIE contaminted EES !
       ! which is computed here to get the atomization energy De,n,at(n) !
@@ -907,7 +909,7 @@ endif
       else
          if(allocated(gTrans)) deallocate(gTrans)
          if(allocated(rTrans)) deallocate(rTrans)
-         call goed_pbc_gfnff(env,mol,.true.,n,at,neigh%distances(:,:,1), &
+         call goed_pbc_gfnff(env,mol,.true.,n,at,rinf, &
          & dfloat(ichrg),eeqtmp,cn,qtmp,eesinf,solvation,param,topo, gTrans, &
          & rTrans, xtmp, convF)  ! without dq/dr
       endif
@@ -1011,8 +1013,6 @@ subroutine egbond(i,iat,jat,iTr,rab,rij,drij,drijdcn,n,at,xyz,e,g,sigma,neigh,ra
          g(3,jat)=g(3,jat)+t6
          ! 3B sigma ! product rule, rij depends on rab through cn
          dEdcn(jat) = dEdcn(jat) + yy*drijdcn(2)
-         !  sigma = sigma - 0.5*spread(dg,1,3)*spread(vrab,2,3)
-         !endif  
 
          do k=1,n !3B gradient 
             dg= drij(:,k)*yy
@@ -1167,7 +1167,7 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo,neigh,dcndL)
    integer  :: i, j, iTrB, iTrH
    integer  :: lin,linAH
    integer  :: iat, jat
-   integer  :: iA,jA,jH
+   integer  :: jA,jH
    integer  :: ati, atj
    real(wp) :: r, r2, rij(3), stress(3,3)
    real(wp) :: rcovij
@@ -1184,8 +1184,6 @@ subroutine dncoord_erf(nat,at,xyz,rcov,cn,dcn,thr,topo,neigh,dcndL)
       iat = topo%bond_hb_AH(2,i) ! H atom
       iTrH = topo%bond_hb_AH(4,i)
       ati = at(iat)
-      iA  = topo%bond_hb_AH(1,i) ! A atom
-      ! iTrA is not needed, actually iA is not even used
       do j = 1, topo%bond_hb_Bn(i)
          jat = topo%bond_hb_B(1,j,i) ! B atom
          iTrB = topo%bond_hb_B(2,j,i)
@@ -1898,13 +1896,8 @@ subroutine goed_gfnff(env,single,n,at,sqrab,r,chrg,eeqtmp,cn,q,es,gbsa,param,top
    
    enddo
 
-   !work = x
-   !call dsymv('u', n, 0.5d0, A, m, q, 1, -1.0_wp, work, 1)
-   !es = ddot(n, q, 1, work, 1)
-
-!     deallocate(cn)
-
 end subroutine goed_gfnff
+
 
 subroutine goed_pbc_gfnff(env,mol,single,n,at,r,chrg,eeqtmp,cn,q,es,&
                       & gbsa,param,topo, gTrans, rTrans, x, cf)
@@ -2107,7 +2100,6 @@ subroutine abhgfnff_eg1(n,A,B,H,iTrA,iTrB,at,xyz,q,energy,gdr,param,topo,neigh,s
       real*8 shortcut
 
       integer i,j!,iTrDum ! ij,lina
-      !lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
 
       gdr  = 0
       energy=0
@@ -2581,15 +2573,12 @@ subroutine abhgfnff_eg2_rnr(n,A,B,H,iTrA,iTrB,at,xyz,q,sqrab,srab,energy,gdr,par
       endif
 
 !     A-B distance
-     ! rab=neigh%distances(A,B,iTrDum)
       rab=NORM2((xyz(:,A)+neigh%transVec(:,iTrA))-(xyz(:,B)+neigh%transVec(:,iTrB)))
       rab2=rab**2
 !     A-H distance
-     ! rah =neigh%distances(A,H,iTrA)
       rah=NORM2((xyz(:,A)+neigh%transVec(:,iTrA))-(xyz(:,H)))
       rah2=rah**2
 !     B-H distance
-     ! rbh = neigh%distances(B,H,iTrB)
       rbh=NORM2((xyz(:,B)+neigh%transVec(:,iTrB))-xyz(:,H))
       rbh2= rbh**2
 
@@ -2885,15 +2874,12 @@ subroutine abhgfnff_eg3(n,A,B,H,iTrA,iTrB,C,iTrC,at,xyz,q,sqrab,srab,energy,&
 !     B-nb(B) distance
       rbnb2 = sum(drbnb(1:3)**2)
       rbnb  = sqrt(rbnb2)
-     ! rab=neigh%distances(A,B,iTrDum)
       rab=NORM2((xyz(:,A)+neigh%transVec(:,iTrA))-(xyz(:,B)+neigh%transVec(:,iTrB)))
       rab2=rab**2
 !     A-H distance
-     ! rah =neigh%distances(A,H,iTrA)
       rah=NORM2((xyz(:,A)+neigh%transVec(:,iTrA))-(xyz(:,H)))
       rah2=rah**2
 !     B-H distance
-     ! rbh = neigh%distances(B,H,iTrB)
       rbh=NORM2((xyz(:,B)+neigh%transVec(:,iTrB))-xyz(:,H))
       rbh2= rbh**2
 
@@ -3139,11 +3125,8 @@ subroutine abhgfnff_eg3(n,A,B,H,iTrA,iTrB,C,iTrC,at,xyz,q,sqrab,srab,energy,&
       gdr(1:3,A) = gdr(1:3,A) + ga(1:3)
       gdr(1:3,B) = gdr(1:3,B) + gb(1:3)
       gdr(1:3,H) = gdr(1:3,H) + gh(1:3)
-     ! do i=1,nbb
      ! B has one neighbor which is C in iTrC
-         gdr(1:3,C) = gdr(1:3,C) + gnb(1:3)
-     ! end do
-
+      gdr(1:3,C) = gdr(1:3,C) + gnb(1:3)
 
 end subroutine abhgfnff_eg3
 
@@ -3302,11 +3285,11 @@ subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,
    r2ij=neigh%distances(jat,iat,iTrj)**2
    r2ik=neigh%distances(kat,iat,iTrk)**2
    iTrDum=neigh%fTrSum(neigh%iTrNeg(iTrj),iTrk)
-if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then !neigh%distances does not work, calc dist again
-  r2jk=NORM2((xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj)))**2
-else !use neigh%distances
+   if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then
+      r2jk=NORM2((xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj)))**2
+   else
       r2jk=neigh%distances(kat,jat,iTrDum)**2 !use adjusted iTr since jat is actually shifted
-endif
+   endif
    mijk=-r2ij+r2jk+r2ik
    imjk= r2ij-r2jk+r2ik
    ijmk= r2ij+r2jk-r2ik
@@ -3335,11 +3318,11 @@ endif
 
    rij=xyz(:,jat)-xyz(:,iat)+neigh%transVec(:,iTrj)
    rik=xyz(:,kat)-xyz(:,iat)+neigh%transVec(:,iTrk)
-if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then ! if neigh%distances does not work, calc dist again
+   if(iTrDum.le.0.or.iTrDum.gt.neigh%numctr) then
       rjk=(xyz(:,kat)+neigh%transVec(:,iTrk))-(xyz(:,jat)+neigh%transVec(:,iTrj))
-else
+   else
       rjk=xyz(:,kat)-xyz(:,jat)+neigh%transVec(:,iTrDum)
-endif
+   endif
    g(:,1  )=         drij*rij/sqrt(r2ij)
    g(:,1  )=g(:,1  )+drik*rik/sqrt(r2ik)
    g(:,2  )=         drjk*rjk/sqrt(r2jk)
@@ -4077,9 +4060,6 @@ function get_cf(rTrans,gTrans,vol,avgAlp) result(cf)
   real(wp) :: cfCurr
   !
   real(wp) :: lenR, minTmp, gr_diff,diffMin
-  ! real(wp), parameter :: a(14) = (/ 1.0_wp, 1.1_wp, 1.2_wp, 1.3_wp, 1.4_wp, 1.5_wp, &
-  !                                 & 1.6_wp, 1.7_wp, 1.8_wp, 1.9_wp, 2.0_wp, 2.5_wp, &
-  !                                 & 5.0_wp, 7.5_wp /)
   real(wp) :: a(100)
   ! tolerance for golden-section search
   real(wp), parameter :: tol = 1.0e-4_wp
@@ -4173,7 +4153,6 @@ subroutine es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, cf, &
    call mctc_gemv(amatdr, nlist%q, gradient, alpha=mcf_ees, beta=1.0_wp)
    
    ! Ees=q^T*(0.5*A*q-X)  here is the 0.5qA'q part. The -qX' part is below the es_grad_sigma call
-   ! sigma = sigma + 0.5 * q * dAdL * q  | where amatdL = dAdL * q and q=xtmp
    call mctc_gemv(amatdL, nlist%q, sigma, alpha=0.5_wp*mcf_ees, beta=1.0_wp)
 
 
@@ -4195,7 +4174,6 @@ subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
    real(wp), parameter :: zero(3) = 0.0_wp
    real(wp),parameter :: sqrt2pi = sqrt(2.0_wp/pi)
    real(wp), parameter :: sqrtpi = 1.772453850905516_wp
-!   real(wp), allocatable :: dtrans(:, :), rtrans(:, :)
 
    amat(:, :) = 0.0_wp
 
@@ -4211,7 +4189,6 @@ subroutine get_amat_3d(mol, topo, alpha, rTrans, gTrans, amat)
          gam = 1.0_wp / sqrt(topo%alpeeq(iat) + topo%alpeeq(jat))
          wsw = mol%wsc%w(jat,iat)
          do img = 1, mol%wsc%itbl(jat,iat)
-!            vec = mol%xyz(:, iat) - mol%xyz(:, jat) - wsc%trans(:, wsc%tridx(img, jat, iat))
             vec = mol%xyz(:,iat) - mol%xyz(:,jat) &
                & - (mol%lattice(:,1) * mol%wsc%lattr(1,img,jat,iat) &
                &  + mol%lattice(:,2) * mol%wsc%lattr(2,img,jat,iat) &
@@ -4324,13 +4301,9 @@ subroutine get_damat_3d(mol, topo, alpha, qvec, rTrans, gTrans, dadr, dadL, atra
          !jzp = mol%id(jat)
          dG(:) = 0.0_wp
          dS(:, :) = 0.0_wp
-!         gam = 1.0_wp / sqrt(self%rad(izp)**2 + self%rad(jzp)**2)
          gam = 1.0_wp / sqrt(topo%alpeeq(iat) + topo%alpeeq(jat))
-         !wsw = 1.0_wp / real(wsc%nimg(jat, iat), wp)
          wsw = mol%wsc%w(jat,iat)
-         !do img = 1, wsc%nimg(jat, iat)
          do img = 1, mol%wsc%itbl(jat,iat)
-            !vec = mol%xyz(:, iat) - mol%xyz(:, jat) - wsc%trans(:, wsc%tridx(img, jat, iat))
             vec = mol%xyz(:,iat) - mol%xyz(:,jat) &
                & - (mol%lattice(:,1) * mol%wsc%lattr(1,img,jat,iat) &
                &  + mol%lattice(:,2) * mol%wsc%lattr(2,img,jat,iat) &

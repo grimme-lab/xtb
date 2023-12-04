@@ -15,15 +15,6 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!in gfnff_ini:
-!      integer, parameter :: maxsystem = 50
-!      integer :: ispinsyst  (10*n,maxsystem)
-!      integer :: nspinsyst  (maxsystem)
-!      integer :: nsystem
-!      call fragmentize(n,at,xyz,maxsystem, 400, rab, nb, ispinsyst, nspinsyst, nsystem)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 module xtb_gfnff_fraghess
 !$ use omp_lib
    use xtb_gfnff_mrec, only : mrecgff, mrecgffPBC
@@ -123,8 +114,6 @@ module xtb_gfnff_fraghess
            nsystem = 1
            return
         end if
-
-!       open (55, file="fragment.out")
 
         nci_frag_size = 50
         fragcount = 0
@@ -239,7 +228,6 @@ module xtb_gfnff_fraghess
            !Find largest distance:
            maxdist = maxval(rmaxab, mask=assigned)
            maxdistatoms = maxloc(rmaxab, mask=assigned)
-           !        write( *, * ) "maxdistatoms", maxdistatoms
 
            !If a Path is found between A and B
            if (maxdist < huge(1.0_wp)) then
@@ -315,15 +303,6 @@ module xtb_gfnff_fraghess
             end if
         end do ! End loop: while nspinsyst(ass) > maxmagnat
 
-
-!        write fragment.out file for visualization
-!        do i = 1, nsystem !loop über separierte systeme
-!           write (55, *) "System ", i, "mit atomen", nspinsyst(i)
-!           do j = 1, nspinsyst(i)
-!              write (55, *) ispinsyst(j, i)
-!           end do
-!        end do
-!        close (55)
 
      end subroutine fragmentize
 
