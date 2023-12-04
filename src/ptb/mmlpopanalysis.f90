@@ -119,7 +119,7 @@ contains
       real(wp), intent(out) :: qsh(:, :)
       !> Auxiliary variables for the matrix multiplication
       real(wp), allocatable :: cc(:, :), pmix(:, :)
-      integer :: iao, ish, spin, ii, i, j
+      integer :: iao, ish, spin, ii
       real(wp) :: pao
 
       allocate (cc(bas%nao, bas%nao), pmix(bas%nao, bas%nao))

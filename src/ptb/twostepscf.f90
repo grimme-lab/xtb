@@ -565,6 +565,25 @@ contains
       ! end do
       !#####################
 
+      call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
+         & wfn%density, wfn%n0sh, wfn%qsh)
+      psh = get_psh_from_qsh(wfn, bas)
+      call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
+      !##### DEV WRITE #####
+      write (*, *) "Shell charges after 2nd iteration ..."
+      do i = 1, bas%nsh
+         write (*, '(f8.4)') wfn%qsh(i, 1)
+      end do
+      write (*, *) "Shell populations after 2nd iteration ..."
+      do i = 1, bas%nsh
+         write (*, '(f8.4)') psh(i, 1)
+      end do
+      write (*, *) "Atom charges after 2nd iteration ..."
+      do i = 1, mol%nat
+         write (*, '(f8.4)') wfn%qat(i, 1)
+      end do
+      !#####################
+
    end subroutine twostepscf
 
    !> TAKEN OVER FROM TBLITE - modified in order to use the PTB parameters
