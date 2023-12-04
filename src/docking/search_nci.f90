@@ -52,6 +52,8 @@ module xtb_docking_search_nci
    use xtb_scc_core, only: iniqshell
    use xtb_eeq, only: goedecker_chrgeq
    use xtb_basis, only: newBasisset
+   use xtb_io_writer, only : writeMolecule
+   use xtb_mctc_filetypes, only : generateFileName
    implicit none
 
    private
@@ -172,6 +174,8 @@ contains
       real(wp) :: tmp_e
       !> Minimumposition
       integer :: minpos
+      !> For outprint
+      character(len=:),allocatable :: extension, fin_name
 
       !> Parameter
       real(wp), parameter :: pi2 = 2*3.14159265358979_wp
@@ -946,14 +950,29 @@ contains
 
       call remove_file(iopt)
 
-      call open_file(ifinal, 'best.xyz', 'w')
-      write (ifinal, '(i0)') comb%n
-      write (ifinal, '(f20.14)') final_e(1)
-      do j = 1, comb%n
-         write (ifinal, '(a4,2x,3f20.14)') comb%sym(j), xyz_opt(1, j, 1)*autoang, &
-         &                                 xyz_opt(2, j, 1)*autoang, xyz_opt(3, j, 1)*autoang
-      end do
+      ! Write best structure in format of the largest input molecule
+      comb%xyz(:,:) = xyz_opt(:,:,1)
+      if(molA%n >= molB%n) then
+         comb%ftype=molA%ftype
+      else
+         comb%ftype=molB%ftype
+      end if
+      call generateFileName(fin_name, 'best', '', comb%ftype)
+      call open_file(ifinal, fin_name, 'w')
+      call writeMolecule(comb, ifinal, energy=final_e(1))
+      !If not xyz then best.xyz is written to not have api break
+      if(comb%ftype /= 1)then
+         call open_file(ifinal, 'best.xyz', 'w')
+         write (ifinal, '(i0)') comb%n
+         write (ifinal, '(f20.14)') final_e(1)
+         do j = 1, comb%n
+            write (ifinal, '(a4,2x,3f20.14)') comb%sym(j), xyz_opt(1, j, 1)*autoang, &
+            &                                 xyz_opt(2, j, 1)*autoang, xyz_opt(3, j, 1)*autoang
+         end do
+      end if
       call close_file(ifinal)
+
+
       call delete_file(set%opt_logfile)
 
       !> Printout Interaction Energy
