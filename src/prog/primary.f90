@@ -39,7 +39,7 @@ program xtb_prog_primary
    integer :: runMode
 
    !> start by initializing the MCTC library
-   call mctc_init('xtb',10,.true.)
+   call mctc_init('xtb',11,.true.)
 
    !> Initialize calculation environment
    call init(env)

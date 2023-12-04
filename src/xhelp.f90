@@ -75,10 +75,14 @@ write(iunit,'(3x,a)') &
    "* C. Plett, A. Katbashev, S. Ehlert, S. Grimme, M. Bursch,",&
    "  Phys. Chem. Chem. Phys., 2023, 25, 17860-17868. DOI: 10.1039/D3CP02178E",&
    "",&
+   "for DIPRO refer to:",&
+   "* J. Kohn, N. Gildemeister, S. Grimme, D. Fazzi, A. Hansen,",&
+   "  J. Chem. Phys., 2023, just accepted.",&
+   "",&
    "with help from (in alphabetical order)",&
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, C. Hölzer", &
-   "A. Katbashev, J. Koopman, C. Lavigne, S. Lehtola, F. März, M. Müller,", &
+   "A. Katbashev, J. Kohn, J. Koopman, C. Lavigne, S. Lehtola, F. März, M. Müller,", &
    "F. Musil, H. Neugebauer, J. Pisarek, C. Plett, P. Pracht, F. Pultar,", &
    "J. Seibert, P. Shushkov, S. Spicher, M. Stahn, M. Steiner, T. Strunk,", &
    "J. Stückrath, T. Rose, and J. Unsleber", &
@@ -164,6 +168,9 @@ subroutine help(iunit)
    "    available solvents are all solvents that are available for alpb.",&
    "    Additionally, the dielectric constant can be set manually or an ideal conductor", &
    "    can be chosen by setting epsilon to infinity.",&
+   "",&
+   "--tmcosmo SOLVENT/EPSILON",&
+   "    same as --cosmo, but uses TM convention for writing the .cosmo files.",&
    "",&
    "--cpcmx SOLVENT",&
    "    extended conduction-like polarizable continuum solvation model (CPCM-X),",&
@@ -442,6 +449,9 @@ subroutine help_legacy
 
    write(id,'(3x,''    --omd         '','// &
    &          'x,''optimize and do MD'')')
+
+   write(id,'(3x,''    --dipro <thr> '','// &
+   &          'x,''calculate dipro coupling integrals'')')
 
    write(id,'(3x,''    --siman       '','// &
    &          'x,''conformational search'')')

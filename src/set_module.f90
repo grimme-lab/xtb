@@ -2021,6 +2021,7 @@ subroutine set_gbsa(env,key,val)
    logical,save :: set6 = .true.
    logical,save :: set7 = .true.
    logical,save :: set8 = .true.
+   logical,save :: set9 = .true.
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by gbsa",source)
@@ -2074,8 +2075,15 @@ subroutine set_gbsa(env,key,val)
    case('cosmo')
       if (getValue(env,val,ldum).and.set7) set%solvInput%cosmo = ldum
       set7 = .false.
+   case('tmcosmo')
+      if (getValue(env,val,ldum).and.set8) then
+         set%solvInput%cosmo = ldum
+         set%solvInput%tmcosmo = .true.
+      end if
+      set8 = .false.
    case('cpcmx')
-      if (set8) set%solvInput%cpxsolvent = val
+      if (set9) set%solvInput%cpxsolvent = val
+      set9 = .false.
    end select
 end subroutine set_gbsa
 

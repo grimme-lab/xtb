@@ -983,6 +983,7 @@ contains
             select case(line(2:))
             case('directed'      )
                if (set%verbose) write(env%unit,'(">",1x,a)') line(2:)
+               directedset%fc = 1.0_wp !Default scaling. Can be changed by user
                call rdblock_docking2(env,set_directed,line,id,mol%n,mol%at,idMap,mol%xyz,err)
             case default ! unknown keyword -> ignore, we don't raise them
                call getline(id,line,err)
@@ -1031,7 +1032,7 @@ contains
       end do
       !> Changing the distance to a repulsive potential sitting on every atom other then
       !  the defined docking atoms. This potentail is a damped exponential increase.
-      !  It is later in the energy calculation and RG screening added in sitance depdence to
+      !  It is later in the energy calculation and RG screening added in distance depdence to
       !  docked molecule via 1/r²
       do i=1, comb%n
          if(any(i == directedset%atoms)) cycle !Potential zero for atoms in defined docking region
@@ -1039,6 +1040,7 @@ contains
          rep_pot = 0.1*erf(0.07 * dist - 0.28) !Potential starts at distance of 4
          if(rep_pot < 0.0_wp) rep_pot = 0.0_wp
          directedset%val(i) = rep_pot !Overwrite distance with repulsive Potential
+         directedset%val(i) = directedset%val(i) * directedset%fc !Scaling if requested
       end do
    end subroutine get_repulsive_pot
 
@@ -1057,6 +1059,7 @@ contains
       do i = 1, comb%n
          if(any(i == directedset%atoms)) then
            directedset%val(i) = attractive_pot !attractive pot is negative
+           directedset%val(i) = directedset%val(i) * directedset%fc !Scaling if requested
          else 
            directedset%val(i) = 0.0_wp
          end if
