@@ -22,6 +22,7 @@ module xtb_ptb_scf
    use mctc_env, only: wp, error_type, fatal_error
 
    use tblite_basis_type, only: basis_type, get_cutoff
+   use tblite_blas, only: gemv
    use tblite_context, only: context_type
    use tblite_scf_solver, only: solver_type
    use tblite_scf_iterator, only: get_qat_from_qsh
@@ -30,6 +31,7 @@ module xtb_ptb_scf
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
    use tblite_wavefunction_fermi, only: get_fermi_filling
    use tblite_wavefunction_type, only: get_density_matrix
+   use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_integral_type, only: new_integral, integral_type
 
@@ -109,6 +111,10 @@ contains
       real(wp), allocatable :: Vxc(:, :), psh(:, :)
       !> Electronic entropy
       real(wp) :: ts
+      !> Tmp variable for dipole moment
+      real(wp) :: tmpdip(3)
+      !> Molecular dipole moment
+      real(wp) :: dipole(3) = 0.0_wp
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -164,9 +170,8 @@ contains
       write (*, *) "Dipole:"
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
-      !       write (*, '(f12.6)', advance="no") dipole(1, i, j)
+      !       write (*, '(2i3,3f8.4)') i, j, ints%dipole(:, i, j)
       !    end do
-      !    write (*, *) ""
       ! end do
       !#####################
       call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=id_to_atom(mol, data%hamiltonian%kalphah0l))
@@ -387,7 +392,7 @@ contains
       write (*, *) "Hamiltonian matrix to solve ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
-      !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
+      !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
@@ -420,30 +425,18 @@ contains
          return
       end if
 
-      !##### DEV WRITE #####
-      write (*, *) "Coefficients after 1st iteration ..."
-      ! do i = 1, size(wfn%coeff, 1)
-      !    do j = 1, size(wfn%coeff, 2)
-      !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      write (*, *) "Density matrix after 1st iteration ..."
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.5)', advance="no") wfn%density(i, j, 1)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      !#####################
-
       call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
          & wfn%density, wfn%n0sh, wfn%qsh)
       call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
+      psh = get_psh_from_qsh(wfn, bas)
       !##### DEV WRITE #####
       write (*, *) "Shell charges after 1st iteration ..."
       do i = 1, bas%nsh
          write (*, '(f8.4)') wfn%qsh(i, 1)
+      end do
+      write (*, *) "Shell populations after 1st iteration ..."
+      do i = 1, bas%nsh
+         write (*, '(f8.4)') psh(i, 1)
       end do
       write (*, *) "Atom charges after 1st iteration ..."
       do i = 1, mol%nat
@@ -506,7 +499,7 @@ contains
       write (*, *) "H0 ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
-      !       write (*, '(f10.5)', advance="no") ints%hamiltonian(i, j)
+      !       write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
@@ -528,47 +521,23 @@ contains
       call coulomb%update(mol, bas)
       call coulomb%get_potential(wfn, pot)
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
-      psh = get_psh_from_qsh(wfn, bas)
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
-      !##### DEV WRITE #####
-      write (*, *) "Hamiltonian matrix to solve ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f9.5)', advance="no") wfn%coeff(i, j, 1)
-         end do
-         write (*, '(/)', advance="no")
-      end do
-      !#####################
-
       call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
-
-      !##### DEV WRITE #####
-      write (*, *) "Coefficients after 1st iteration ..."
-      ! do i = 1, size(wfn%coeff, 1)
-      !    do j = 1, size(wfn%coeff, 2)
-      !       write (*, '(f9.5)', advance="no") wfn%coeff(i, j, 1)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      write (*, *) "Density matrix after 2nd iteration ..."
-      do i = 1, bas%nao
-         do j = 1, bas%nao
-            write (*, '(f9.5)', advance="no") wfn%density(i, j, 1)
-         end do
-         write (*, '(/)', advance="no")
-      end do
-      ! write (*, *) "Diagonal elements of density ..."
-      ! do i = 1, bas%nao
-      !    write (*, '(f9.5)') wfn%density(i, i, 1)
-      ! end do
-      !#####################
+      if (allocated(error)) then
+         call ctx%set_error(error)
+         return
+      end if
 
       call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
          & wfn%density, wfn%n0sh, wfn%qsh)
       psh = get_psh_from_qsh(wfn, bas)
       call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
+      call get_mulliken_atomic_multipoles(bas, ints%dipole, wfn%density, &
+      & wfn%dpat)
+      call gemv(mol%xyz, wfn%qat(:, 1), tmpdip)
+      dipole(:) = tmpdip + sum(wfn%dpat(:, :, 1), 2)
       !##### DEV WRITE #####
       write (*, *) "Shell charges after 2nd iteration ..."
       do i = 1, bas%nsh
@@ -581,6 +550,10 @@ contains
       write (*, *) "Atom charges after 2nd iteration ..."
       do i = 1, mol%nat
          write (*, '(f8.4)') wfn%qat(i, 1)
+      end do
+      write (*, *) "Molecular dipole after 2nd iteration ..."
+      do i = 1, 3
+         write (*, '(f8.4)') dipole(i)
       end do
       !#####################
 
@@ -604,7 +577,7 @@ contains
 
       real(wp) :: e_fermi, stmp(2)
       real(wp), allocatable :: focc(:)
-      integer :: spin
+      integer :: spin, i, j
 
       if (present(keps_param)) then
          keps = keps_param
@@ -619,7 +592,21 @@ contains
 
       select case (wfn%nspin)
       case default
+         write (*, *) "Matrix to solve ..."
+         do i = 1, size(wfn%coeff, 1)
+            do j = 1, size(wfn%coeff, 2)
+               write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
+            end do
+            write (*, '(/)', advance="no")
+         end do
          call solver%solve(wfn%coeff(:, :, 1), ints%overlap, wfn%emo(:, 1), error)
+         write (*, *) "Coefficients after solving ..."
+         do i = 1, size(wfn%coeff, 1)
+            do j = 1, size(wfn%coeff, 2)
+               write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
+            end do
+            write (*, '(/)', advance="no")
+         end do
          if (allocated(error)) return
          wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
 
@@ -649,6 +636,13 @@ contains
          end do
          ts = sum(stmp)
       end select
+      write (*, *) "Density matrix after solving ..."
+      do i = 1, size(wfn%density, 1)
+         do j = 1, size(wfn%density, 2)
+            write (*, '(f11.7)', advance="no") wfn%density(i, j, 1)
+         end do
+         write (*, '(/)', advance="no")
+      end do
    end subroutine get_density
 
    pure function id_to_atom(mol, idparam) result(atomparam)

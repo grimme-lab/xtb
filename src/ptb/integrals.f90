@@ -386,8 +386,8 @@ contains
             ii = bas%iao_sh(is + ish)
             do jsh = 1, bas%nsh_id(izp)
                jj = bas%iao_sh(is + jsh)
-               call overlap_cgto(bas%cgto(jsh, iat), bas%cgto(ish, iat), &
-                     & r2, vec, bas%intcut, stmp)
+               call dipole_cgto(bas%cgto(jsh, iat), bas%cgto(ish, iat), &
+                     & r2, vec, bas%intcut, stmp, dtmpi)
 
                nao = msao(bas%cgto(jsh, iat)%ang)
                do iao = 1, msao(bas%cgto(ish, iat)%ang)
