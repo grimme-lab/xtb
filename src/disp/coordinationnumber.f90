@@ -24,7 +24,7 @@ module xtb_disp_coordinationnumber
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
    use xtb_type_neighbourlist, only : TNeighbourList
-   use xtb_type_latticepoint, only : TLatticePoint, init_ => init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    implicit none
    private
 
@@ -137,7 +137,7 @@ subroutine getCoordinationNumberWrap(env, mol, cf, cn, dcndr, dcndL, cutoff)
    end if
 
    !> Initialize lattice point generator, this might fail
-   call init_(latp, env, mol, rCutoff)
+   call init_l(latp, env, mol, rCutoff)
 
    call env%check(exitRun)
    if (exitRun) then

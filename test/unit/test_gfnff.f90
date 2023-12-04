@@ -85,6 +85,7 @@ subroutine test_gfnff_sp(error)
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
+   real(wp) :: sigma(3, 3)
    character(len=:),allocatable :: fnv
    integer  :: ipar
 
@@ -107,8 +108,8 @@ subroutine test_gfnff_sp(error)
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,nlist,solvation,.true.,calc%version, &
+   call gfnff_eg(env,mol,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
+      & g,etot,res_gff,calc%param,calc%topo,calc%neigh,nlist,solvation,.true.,calc%version, &
       & calc%accuracy)
 
    call check_(error, res_gff%e_total,-0.76480130317838_wp, thr=thr)

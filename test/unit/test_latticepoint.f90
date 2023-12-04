@@ -40,7 +40,7 @@ subroutine test_latticepoint_pbc3d(error)
    use xtb_mctc_boundaryconditions, only : boundaryCondition
    use xtb_mctc_convert, only : aatoau
    use xtb_type_environment, only : TEnvironment, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    type(error_type), allocatable, intent(out) :: error
 
    real(wp), parameter :: lattice_SiO2(3,3) = reshape(&
@@ -68,7 +68,7 @@ subroutine test_latticepoint_pbc3d(error)
 
    call init(env)
 
-   call init(latp, env, lattice_SiO2, boundaryCondition%pbc3d, 40.0_wp)
+   call init_l(latp, env, lattice_SiO2, boundaryCondition%pbc3d, 40.0_wp)
    call env%check(fail)
    call check_(error, .not.fail)
    call check_(error, allocated(latp%trans))
@@ -93,7 +93,7 @@ subroutine test_latticepoint_pbc3d(error)
    call check_(error, size(latticePoint, dim=2), 959)
 
    !> Reinitialize with new lattice and new cutoff
-   call init(latp, env, lattice_ammonia, boundaryCondition%pbc3d, 60.0_wp)
+   call init_l(latp, env, lattice_ammonia, boundaryCondition%pbc3d, 60.0_wp)
    call env%check(fail)
    call check_(error, .not.fail)
    call check_(error, allocated(latp%trans))
@@ -107,7 +107,7 @@ subroutine test_latticepoint_pbc3d(error)
    call check_(error, size(latticePoint, dim=2), 143)
 
    !> Reinitialize generator to exclude inversion symmetry
-   call init(latp, env, lattice_ammonia, boundaryCondition%pbc3d, 50.0_wp, &
+   call init_l(latp, env, lattice_ammonia, boundaryCondition%pbc3d, 50.0_wp, &
       & excludeInversion=.true.)
    call env%check(fail)
    call check_(error, .not.fail)

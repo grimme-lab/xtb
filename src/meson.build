@@ -33,6 +33,7 @@ subdir('solv')
 subdir('tblite')
 subdir('type')
 subdir('xtb')
+subdir('pbc_optimizer')
 
 srcs += files(
   'aespot.f90',

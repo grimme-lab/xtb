@@ -134,6 +134,18 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
       end if
 
       call move_alloc(gfnff, calc)
+   case(p_ext_mcgfnff)
+      allocate(gfnff)
+
+      call newGFFCalculator(env, mol, gfnff, fname, restart, 4) ! mcgfnff2023 version
+
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
+
+      call move_alloc(gfnff, calc)
    case(p_ext_iff)
       if (.not.present(iff_data)) then
          call env%error("IFF calculator requires input", source)

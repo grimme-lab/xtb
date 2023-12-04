@@ -34,4 +34,5 @@ srcs += files(
   'shake_module.f90',
   'struc_converter.f90',
   'topology.f90',
+  'neighbor.f90'
 )

@@ -47,7 +47,7 @@ subroutine test_dftd4_pbc3d_neighbourlist(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_param, only : dftd_parameter
 
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
@@ -141,7 +141,7 @@ subroutine test_dftd4_pbc3d_neighbourlist(error)
    gradient(:, :) = 0.0_wp
    sigma(:, :) = 0.0_wp
 
-   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 60.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 60.0_wp)
    call init(neighList, len(mol))
    call neighList%generate(env, mol%xyz, 60.0_wp, trans, .false.)
@@ -260,7 +260,7 @@ subroutine test_dftd4_pbc3d_latticepoints(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
    use xtb_type_param, only : dftd_parameter
 
@@ -364,7 +364,7 @@ subroutine test_dftd4_pbc3d_latticepoints(error)
    dqdr(:, :, :) = 0.0_wp
    dqdL(:, :, :) = 0.0_wp
 
-   call init(latp, env, mol, 60.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 60.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 40.0_wp)
    call init(neighList, len(mol))
    call neighList%generate(env, mol%xyz, 40.0_wp, trans, .false.)
@@ -477,7 +477,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
    use xtb_type_param, only : dftd_parameter
 
@@ -570,7 +570,7 @@ subroutine test_dftd4_pbc3d_threebody_neighs(error)
    gradient(:, :) = 0.0_wp
    sigma(:, :) = 0.0_wp
 
-   call init(latp, env, mol, 15.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 15.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 15.0_wp)
    call init(neighList, len(mol))
    call neighList%generate(env, mol%xyz, 15.0_wp, trans, .false.)
@@ -660,7 +660,7 @@ subroutine test_dftd4_pbc3d_threebody_latp(error)
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
    use xtb_type_neighbourlist, only : TNeighbourList, init
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
    use xtb_type_param, only : dftd_parameter
 
@@ -753,7 +753,7 @@ subroutine test_dftd4_pbc3d_threebody_latp(error)
    gradient(:, :) = 0.0_wp
    sigma(:, :) = 0.0_wp
 
-   call init(latp, env, mol, 15.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 15.0_wp)  ! Fixed cutoff
    call latp%getLatticePoints(trans, 15.0_wp)
    call init(neighList, len(mol))
    call neighList%generate(env, mol%xyz, 15.0_wp, trans, .false.)
