@@ -788,7 +788,7 @@ subroutine disppot(dispm,nat,ndim,at,itbl,q,g_a,g_c,wdispmat,gw,hdisp)
    !$acc loop gang private(k, ati)
 #else
    !$omp parallel do reduction(+:hdisp) shared(itbl, at, dumvec, zerovec) &
-   !$omp private(ati, ii)
+   !$omp private(ati, ii, k)
 #endif
    do iat = 1, nat
       k = itbl(iat)

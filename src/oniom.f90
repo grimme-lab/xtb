@@ -673,30 +673,23 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    
    ! divide initial mol into inner and outer regions !
    do i = 1, mol%n
-      if (i==self%idx(in_itr)) then
-         
-         if (in_itr > in) then
-            call env%error("The internal error, inconsistent molecular dimensionality", source=source) 
-            return
+      if (in_itr <= size(self%idx)) then
+         if (i==self%idx(in_itr)) then
+            at(in_itr) = mol%at(i)
+            xyz(:, in_itr) = mol%xyz(:, i)
+            in_itr = in_itr + 1
+         else
+            at_out(out_itr) = mol%at(i)
+            xyz_out(:, out_itr) = mol%xyz(:, i)
+            out_itr = out_itr + 1
          endif
-         
-         at(in_itr) = mol%at(i)
-         xyz(:, in_itr) = mol%xyz(:, i)
-         in_itr = in_itr + 1
-      
       else
-         
-         if (out_itr > out) then 
-            call env%error("The internal error, inconsistent molecular dimensionality", source=source) 
-            return
-         endif
-         
          at_out(out_itr) = mol%at(i)
          xyz_out(:, out_itr) = mol%xyz(:, i)
          out_itr = out_itr + 1
-      
       endif
    enddo 
+ 
  
    ! initialiaze jacobian as identity !
    call create_jacobian(jacobian,at)
@@ -994,8 +987,8 @@ end subroutine new_atom
 subroutine new_coordinates(xyz)
    
    implicit none
-   real, allocatable :: xyz(:,:)
-   real, allocatable :: tmp1(:,:)
+   real(wp), allocatable :: xyz(:,:)
+   real(wp), allocatable :: tmp1(:,:)
    integer :: atom_num
 
    atom_num = size(xyz, 2)

@@ -94,6 +94,8 @@ module xtb_prog_main
    use xtb_vertical, only : vfukui
    use xtb_tblite_calculator, only : TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
    use xtb_solv_cpx, only: TCpcmx
+   use xtb_dipro, only: get_jab,jab_input
+   
    implicit none
    private
 
@@ -122,6 +124,7 @@ subroutine xtbMain(env, argParser)
    type(chrg_parameter) :: chrgeq
    type(TIFFData), allocatable :: iff_data
    type(oniom_input) :: oniom
+   type(jab_input) :: dipro
    type(TCpcmx) :: cpx
    type(TTBLiteInput) :: tblite
 !  store important names and stuff like that in FORTRAN strings
@@ -213,8 +216,9 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> read the command line arguments
+   
    call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
    !> Spin-polarization is only available in the tblite library
    if(set%mode_extrun.ne.p_ext_tblite .and. tblite%spin_polarized) then
@@ -256,13 +260,11 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Command line argument parsing failed")
 
-
    ! ------------------------------------------------------------------------
    !> read the detailed input file
    call rdcontrol(xcontrol, env, copy_file=copycontrol)
 
    call env%checkpoint("Reading '"//xcontrol//"' failed")
-
 
    ! ------------------------------------------------------------------------
    !> read dot-Files before reading the rc and after reading the xcontrol
@@ -306,7 +308,6 @@ subroutine xtbMain(env, argParser)
 
    call env%checkpoint("Reading multiplicity from file failed")
 
-
    ! ------------------------------------------------------------------------
    !> read the xtbrc if you can find it (use rdpath directly instead of xfind)
    call rdpath(env%xtbpath, p_fname_rc, xrc, exist)
@@ -316,7 +317,6 @@ subroutine xtbMain(env, argParser)
       call env%checkpoint("Reading '"//xrc//"' failed")
    endif
 
-
    ! ------------------------------------------------------------------------
    !> FIXME: some settings that are still not automatic
    !> Make sure GFN0-xTB uses the correct exttyp
@@ -324,7 +324,7 @@ subroutine xtbMain(env, argParser)
    rohf = 1 ! HS default
    egap = 0.0_wp
    ipeashift = 0.0_wp
-
+ 
 
    ! ========================================================================
    !> no user interaction up to now, time to show off!
@@ -337,7 +337,6 @@ subroutine xtbMain(env, argParser)
    call citation(env%unit)
    !> print current time
    call prdate('S')
-
 
    ! ------------------------------------------------------------------------
    !> get molecular structure
@@ -366,7 +365,6 @@ subroutine xtbMain(env, argParser)
 
       call env%checkpoint("reading geometry input '"//fname//"' failed")
    endif
-
 
    ! ------------------------------------------------------------------------
    !> initialize the global storage
@@ -544,7 +542,6 @@ subroutine xtbMain(env, argParser)
    call initDefaults(env, calc, mol, gsolvstate)
    call env%checkpoint("Could not setup defaults")
 
-
    ! ------------------------------------------------------------------------
    !> initial guess, setup wavefunction
    select type(calc)
@@ -619,6 +616,21 @@ subroutine xtbMain(env, argParser)
   
 
    end select
+
+   !-------------------------------------------------------------------------
+   !> DIPRO calculation of coupling integrals for dimers
+    if (dipro%diprocalc) then 
+       call start_timing(11)
+       call get_jab(env,tblite,mol,splitlist,dipro)
+       call env%checkpoint("Something in your DIPRO calculation went wrong.")
+       call stop_timing_run
+       call stop_timing(11)
+       write(*,'(A)') "----------------------------------------------------------"
+       call prdate('E')
+       write(*,'(A)') "----------------------------------------------------------"
+       call prtiming(11,'dipro')
+       call terminate(0)
+    end if        
 
    ! ========================================================================
    !> the SP energy which is always done
@@ -946,6 +958,9 @@ subroutine xtbMain(env, argParser)
    type is(TxTBCalculator)
       call write_energy(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))
+   type is(TOniomCalculator)
+      call write_energy_oniom(env%unit,res,fres, &
+         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess.or.(set%runtyp.eq.p_run_bhess)))
    class default
       call write_energy_gff(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))
@@ -1143,7 +1158,8 @@ end subroutine xtbMain
 
 !> Parse command line arguments and forward them to settings
 subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
-      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, tblite)
+      & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro,tblite)
+
    use xtb_mctc_global, only : persistentEnv
 
    !> Name of error producer
@@ -1185,6 +1201,9 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
    !> Input for ONIOM model
    type(oniom_input), intent(out) :: oniom
 
+   !> Input for DIPRO
+   type(jab_input), intent(inout) :: dipro
+
    !> Stuff for second argument parser
 !   integer  :: narg
 !   character(len=p_str_length), dimension(p_arg_length) :: argv
@@ -1203,6 +1222,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
    
 
    set%gfn_method = 2
+   dipro%diprocalc= .false.
    coffee = .false.
    strict = .false.
    restart = .true.
@@ -1264,6 +1284,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
 #endif
    !$    endif
    !$    endif
+
       case('--restart')
          restart = .true.
 
@@ -1380,7 +1401,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
             call set_exttyp('tblite')
          else
             call env%error("Compiled without support for tblite library", source)
-            cycle
+            return
          endif
 
       case('--color')
@@ -1405,15 +1426,29 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
             tblite%spin_polarized = .true.
          else
             call env%error("Compiled without support for tblite library. This is required for spin-polarization", source)
-            cycle
+            return
          end if
+
+      case('--dipro')
+         if (get_xtb_feature('tblite')) then
+            dipro%diprocalc = .true.
+            call set_runtyp('scc')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               read(sec,'(f10.3)')  dipro%othr
+            else
+               dipro%othr = 0.1_wp
+            end if
+         else
+            call env%error("Compiled without support for tblite library. This is required for DIPRO", source)
+            return
+         end if   
 
       case('--oniom')
          call set_exttyp('oniom')
          call args%nextArg(sec) 
 
-         !> To handle no argument case
-         if (.not.allocated(sec)) then
+         if (.not.allocated(sec)) then ! handle no argument case ! 
             call env%error("No inner region is  provided for ONIOM", source)
             return
          end if

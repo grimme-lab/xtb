@@ -48,6 +48,7 @@ tests = [
   'latticepoint',
   'molecule',
   'oniom',
+  'dipro',
   'pbc-tools',
   'peeq',
   'repulsion',
