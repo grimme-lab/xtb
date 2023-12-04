@@ -79,6 +79,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel)
   character(len=*), parameter :: source = "relax_pbc"
   !> numerical gradient and stress tensor for debugging
   real(wp) :: numgrad(3,mol%n), numsig(3,3)
+  logical, parameter :: debug = .false.
 
   real(wp) :: emin_global, xyz_emin(3,mol%n), latt_emin(3,3)
   character(6), parameter :: fname = "noName"
@@ -127,8 +128,16 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel)
 
     call env%check(fail)
     if (fail) then
-      call env%error('SCF not converged, aborting...', source)
+      call env%error('Single point calculation failed, aborting...', source)
       return
+    endif
+
+    ! calculate numerical gradient and stress tensor if requested
+    if (debug) then
+       numsig = 0.0_wp
+       call num_sigma(env, mol, chk, calc, printlevel, sigma, numsig)
+       numgrad = 0.0_wp
+       call num_grad(env, mol, chk, calc, printlevel, gxyz, numgrad)
     endif
 
 
