@@ -63,14 +63,18 @@ contains
       real(wp), intent(in) :: q(:)
       !> Coordination numbers
       real(wp), intent(in) :: cn(:)
+      integer :: iat, iid
 
       !> Allocate the self energies and damping matrix
       allocate (self%selfenergies(maxval(bas%nsh_id), mol%nat))
       allocate (self%damping(mol%nat, mol%nat))
-      allocate (self%diag_scaling(mol%nid))
+      allocate (self%diag_scaling(mol%nat))
 
       !> Initialize the parameters with the data from the parameterization
-      self%diag_scaling = plusudata%cud
+      do iat = 1, mol%nat
+         iid = mol%id(iat)
+         self%diag_scaling(iat) = plusudata%cud(iid)
+      end do
 
       call init_damping_matrix(self, mol, cn, plusudata%avcn, plusudata%ar, plusudata%arcn)
       call init_selfenergies(self, mol, bas, q, &
