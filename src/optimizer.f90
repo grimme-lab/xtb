@@ -202,7 +202,9 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    character(len=*),parameter :: chrfmt = &
       '(10x,":",3x,a,a18,      10x,":")'
    
-
+   ! Print ANCopt header !
+   call ancopt_header(env%unit,set%veryverbose)
+   
    if(mol%n.eq.1) return
       !! do not optimize for 1 molecule
    if (profile) call timer%new(8,.false.)
