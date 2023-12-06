@@ -101,7 +101,7 @@ subroutine test_gfnff_sp(error)
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call check_(error, calc%topo%nbond,6)
+   call check_(error, calc%neigh%nbond,6)
    call check_(error, calc%topo%nangl,6)
    call check_(error, calc%topo%ntors,1)
 
@@ -183,7 +183,7 @@ subroutine test_gfnff_hb(error)
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call check_(error, calc%topo%nbond,5)
+   call check_(error, calc%neigh%nbond,5)
    call check_(error, calc%topo%nangl,4)
    call check_(error, calc%topo%ntors,1)
 
@@ -269,7 +269,7 @@ subroutine test_gfnff_gbsa(error)
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call check_(error, calc%topo%nbond,5)
+   call check_(error, calc%neigh%nbond,5)
    call check_(error, calc%topo%nangl,4)
    call check_(error, calc%topo%ntors,1)
 

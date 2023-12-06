@@ -210,7 +210,7 @@ subroutine getLatticePoints(self, latticePoint, cutoff)
    character(len=*), parameter :: source = 'type_latticepoint_getLatticePoints'
 
    !> Instance of the lattice point generator
-   class(TLatticePoint), intent(inout) :: self
+   class(TLatticePoint), intent(in) :: self
 
    !> Translation vectors for all lattice points
    real(wp), allocatable, intent(out) :: latticePoint(:, :)
@@ -238,7 +238,6 @@ subroutine getLatticePoints(self, latticePoint, cutoff)
 
    case(boundaryCondition%pbc3d)
       call bisectSearch(nTrans, self%dist2(1:self%nTrans), cutoff2, tolSameDist2)
-      self%nTrans=nTrans
       allocate(latticePoint(3, nTrans))
       do iTr = 1, nTrans
          latticePoint(:, iTr) = self%lattice(:, 1) * self%trans(1, iTr) &
