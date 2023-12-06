@@ -123,6 +123,17 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          neigh%nbm = neigh%nb 
 
       endif
+!@thomas delete write section
+write(*,*) 'This is nbf(1:15,:,1)'
+write(*,'(15i4)') neigh%nbf(1:15,:,1)
+write(*,*) 'sum(nbf())=',sum(neigh%nbf(neigh%numnb,:,1))
+write(*,*) 'This is neigh%nb(1:15,:,1)'
+write(*,'(15i4)') neigh%nb(1:15,:,1)
+write(*,*) 'sum(nb())=',sum(neigh%nb(neigh%numnb,:,1))
+write(*,*) 'This is nbm(1:15,:,1)'
+write(*,'(15i4)') neigh%nbm(1:15,:,1)
+write(*,*) 'sum(nbm())=',sum(neigh%nbm(neigh%numnb,:,1))
+!@thomas delete write section
 ! done
 
       itag = 0 ! save special hyb info

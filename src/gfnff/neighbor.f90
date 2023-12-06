@@ -459,12 +459,12 @@ contains
                nnfi=sum(self%nbf(self%numnb,i,:))               ! full CN of i, only valid for icase > 1
                nnfj=sum(self%nbf(self%numnb,j,:))               ! full CN of i
                hc_crit = 6
-               if(param%group(at(i)).le.2) hc_crit = 6
+               if(param%group(at(i)).le.2) hc_crit = 4
                if(nnfi.gt.hc_crit) then
                        cycle
                 endif
                hc_crit = 6
-               if(param%group(at(j)).le.2) hc_crit = 6
+               if(param%group(at(j)).le.2) hc_crit = 4
                if(nnfj.gt.hc_crit) then
              cycle  
              endif
