@@ -91,8 +91,8 @@ OPTIONS
     The inner region is given as comma-separated indices directly in the commandline
     or in a file with each index on a separate line.
 
-*--etemp* 'REAL'::
-    electronic temperature (default = 300K)
+*--etemp, --temp* 'REAL'::
+    electronic temperature for SCC (default = 300K)
 
 *--esp* ::
     calculate electrostatic potential on VdW-grid
@@ -102,6 +102,9 @@ OPTIONS
 
 *-a, --acc* 'REAL'::
     accuracy for SCC calculation, lower is better (default = 1.0)
+
+*--iterations, --maxiterations* 'INT'::
+    maximum number of SCC iterations per single point calculation (default = 250)
 
 *--vparam* 'FILE'::
     Parameter file for xTB calculation
