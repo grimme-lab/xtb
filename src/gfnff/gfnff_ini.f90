@@ -90,7 +90,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:,:),piel(:)
       integer,allocatable :: lin_AHB(:,:)
       integer,allocatable :: bond_hbl(:,:)
-      integer,allocatable :: adum(:)
+      integer,allocatable :: adum(:),bdum(:,:,:),cdum(:,:,:)
       real(wp),allocatable:: rab  (:)
       real(wp),allocatable:: sqrab(:)
       real(wp),allocatable:: cn   (:)
@@ -289,7 +289,28 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       ! Get number of bonds, all bonds should be paired
       ! For bonds to other cells only cells with translation vectors
       !    with "positive" sign (in direction of axes) are considered 
-      neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
+      allocate(bdum(mol%n, mol%n, neigh%numctr),source=0)
+      allocate(cdum(neigh%numnb, mol%n, neigh%numctr),source=0)
+      k=0
+      do i=1, mol%n
+        do iTr=1, neigh%numctr
+          do j=1, neigh%nb(neigh%numnb,i,iTr)
+            ! go through all neighbors l
+            l=neigh%nb(j,i,iTr)
+            if(bdum(l,i,iTr).eq.0)then
+              bdum(l,i,iTr)=1
+              bdum(i,l,neigh%iTrNeg(iTr))=1
+              cdum(j,i,iTr)=1
+              k=k+1
+            endif
+          enddo
+        enddo
+      enddo
+      neigh%nbond = k
+write(*,*) 'numnb count k = ',k !@thomas delete
+     ! neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
+      neigh%nbond_blist=neigh%nbond
+      topo%nbond_blist=neigh%nbond
       allocate( btyp(neigh%nbond), source = 0 )
       allocate( pibo(neigh%nbond), source = 0.0d0 )
       ! setup blist
@@ -298,32 +319,19 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       do i=1, mol%n
         do iTr=1, neigh%numctr
           do j=1, neigh%nb(neigh%numnb,i,iTr)
-            if (iTr.eq.1) then
-              ! Do not count bonds twice 
-              if (neigh%nb(j,i,1).gt.i) cycle 
+            !
+            if(cdum(j,i,iTr).eq.1)then
+              !
               k=k+1
-              neigh%blist(1,k) = neigh%nb(j,i,1)
+              neigh%blist(1,k) = neigh%nb(j,i,iTr) 
               neigh%blist(2,k) = i
               neigh%blist(3,k) = iTr
-            else
-              !though not the same bond only calculate energy for one molecule->use half of iTr
-              if (neigh%iTrUsed(iTr)) then
-                if (neigh%nb(j,i,iTr).gt.i) then !want same order as in molecular case
-                  k=k+1
-                  neigh%blist(1,k) = i
-                  neigh%blist(2,k) = neigh%nb(j,i,iTr)
-                  neigh%blist(3,k) = neigh%iTrNeg(iTr)
-                else
-                  k=k+1
-                  neigh%blist(1,k) = neigh%nb(j,i,iTr)
-                  neigh%blist(2,k) = i
-                  neigh%blist(3,k) = iTr
-                endif
-              endif
             endif
-          enddo  
+          enddo
         enddo
       enddo
+      deallocate(bdum,cdum)
+write(*,*) 'number blist entries k=',k !@thomas delete
       !check blist
       if (k.ne.neigh%nbond) then
         call env%warning("Setup of blist not as expected, check your results.", source)
@@ -732,9 +740,9 @@ endif
       allocate( topo%b3list(5,idum), source = 0 )
       topo%nbatm=0
       do i=1,mol%n
-        do j=1,i ! 
+        do j=1,i-1 ! 
           do iTr=1,neigh%numctr
-            if(iTr.eq.1.and.j.eq.i) cycle
+            !if(iTr.eq.1.and.j.eq.i) cycle
             if(neigh%bpair(j,i,iTr).eq.3) then  ! 1,4 exclusion of back-pair makes it worse, 1,3 makes little effect
               do iTr2=1, neigh%numctr     
                 do m=1,neigh%nb(neigh%numnb,j,iTr2)

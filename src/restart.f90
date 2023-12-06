@@ -129,10 +129,21 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             call gfnff_param_alloc(topo,neigh, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
-            read(ich) neigh%blist,topo%alist, &
-               & topo%tlist,topo%b3list,topo%sTorsl,topo%fraglist,topo%hbatHl,topo%hbatABl, &
-               & topo%xbatABl,topo%ispinsyst,topo%nspinsyst,topo%bond_hb_AH, &
-               & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
+            read(ich) neigh%blist
+            read(ich) topo%alist
+            read(ich) topo%tlist
+            read(ich) topo%b3list
+            read(ich) topo%sTorsl
+            read(ich) topo%fraglist
+            read(ich) topo%hbatHl
+            read(ich) topo%hbatABl
+            read(ich) topo%xbatABl
+            read(ich) topo%ispinsyst
+            read(ich) topo%nspinsyst
+            read(ich) topo%bond_hb_AH
+            read(ich) topo%bond_hb_B
+            read(ich) topo%bond_hb_Bn
+            read(ich) neigh%nr_hb
             read(ich) topo%vangl,topo%vtors,topo%chieeq, &
                & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &
                & topo%xyze0,topo%zetac6,&
@@ -204,10 +215,21 @@ subroutine write_restart_gff(env,fname,nat,version,topo,neigh)
    write(ich) topo%nbond_blist,topo%nbond_vbond,topo%nangl_alloc,topo%ntors_alloc,topo%bond_hb_nr,topo%b_max
    write(ich) neigh%numnb, neigh%numctr, neigh%nbond, neigh%iTrDim
    !Arrays Integers
-   write(ich) neigh%blist,topo%alist, &
-           & topo%tlist,topo%b3list, topo%sTorsl, topo%fraglist,topo%hbatHl,topo%hbatABl, &
-           & topo%xbatABl,topo%ispinsyst,topo%nspinsyst, topo%bond_hb_AH, &
-           & topo%bond_hb_B,topo%bond_hb_Bn,topo%nr_hb
+   write(ich) neigh%blist
+   write(ich) topo%alist
+   write(ich) topo%tlist
+   write(ich) topo%b3list
+   write(ich) topo%sTorsl
+   write(ich) topo%fraglist
+   write(ich) topo%hbatHl
+   write(ich) topo%hbatABl
+   write(ich) topo%xbatABl
+   write(ich) topo%ispinsyst
+   write(ich) topo%nspinsyst
+   write(ich) topo%bond_hb_AH
+   write(ich) topo%bond_hb_B
+   write(ich) topo%bond_hb_Bn
+   write(ich) neigh%nr_hb
    !Arrays Reals
    write(ich) topo%vangl,topo%vtors,topo%chieeq,&
            & topo%gameeq,topo%alpeeq,topo%alphanb,topo%qa, &

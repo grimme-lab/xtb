@@ -575,7 +575,7 @@ module xtb_gfnff_param
      if (.not.allocated(topo%hbbas)) allocate( topo%hbbas(n), source = 0.0d0 )
      if (.not.allocated(topo%hbaci)) allocate( topo%hbaci(n), source = 0.0d0 )
      if (.not.allocated(topo%hbatABl)) allocate( topo%hbatABl(2,n*(n+1)/2), source = 0 )
-     if (.not.allocated(topo%xbatABl)) allocate( topo%xbatABl(3,topo%natxbAB), source = 0 )
+     if (.not.allocated(topo%xbatABl)) allocate( topo%xbatABl(5,topo%natxbAB), source = 0 )
 
      if (.not.allocated(neigh%blist)) allocate( neigh%blist(3,neigh%nbond), source = 0 )
      if (.not.allocated(topo%nr_hb)) allocate( topo%nr_hb(topo%nbond_blist), source = 0 )

@@ -714,9 +714,11 @@ endif
 
    if (pr) call timer%measure(9,'bonded ATM')
    if(topo%nbatm.gt.0) then
-      !$omp parallel do default(none) reduction(+:ebatm, g, sigma) &
-      !$omp shared(n, at, xyz, srab, sqrab, topo, neigh, param) &
-      !$omp private(i, j, k, l, iTrk, iTrl, etmp, g3tmp, ds)
+write(*,*) 'ebatm',ebatm !@thomas delete
+!@thomas omp wieder rein
+!      !$omp parallel do default(none) reduction(+:ebatm, g, sigma) &
+!      !$omp shared(n, at, xyz, srab, sqrab, topo, neigh, param) &
+!      !$omp private(i, j, k, l, iTrk, iTrl, etmp, g3tmp, ds)
       do i=1,topo%nbatm
          j=topo%b3list(1,i)
          k=topo%b3list(2,i)
@@ -729,8 +731,10 @@ endif
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
          sigma = sigma + ds
          ebatm=ebatm+etmp
+write(*,*) 'etmp=',etmp !@thomas delete
       enddo
-      !$omp end parallel do
+!      !$omp end parallel do
+write(*,*) 'ebatm',ebatm !@thomas delete
    endif
    if (pr) call timer%measure(9)
 
@@ -3291,6 +3295,10 @@ subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,
    else
       r2jk=neigh%distances(kat,jat,iTrDum)**2 !use adjusted iTr since jat is actually shifted
    endif
+write(*,*) 'i j k ',iat,jat,kat,iTrDum,iTrj,iTrk !@thomas delete
+write(*,*) r2ij !@thomas delete
+write(*,*) r2ik !@thomas delete
+write(*,*) r2jk !@thomas delete
    mijk=-r2ij+r2jk+r2ik
    imjk= r2ij-r2jk+r2ik
    ijmk= r2ij+r2jk-r2ik
@@ -3299,6 +3307,9 @@ subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,
    ang=0.375d0*ijmk*imjk*mijk/rijk3
    angr9=(ang +1.0d0)/rav3
    energy=c9*angr9 ! energy
+write(*,*) 'rav3=',rav3 !@thomas delete
+write(*,*) 'c9=',c9 !@thomas delete
+write(*,*) 'angr9=',angr9 !@thomas delete
 
 !     derivatives of each part w.r.t. r_ij,jk,ik
            dang=-0.375d0*(r2ij**3+r2ij**2*(r2jk+r2ik) &
@@ -4411,6 +4422,7 @@ subroutine print_all_ff(mol,topo,neigh)
    type(TMolecule), intent(in) :: mol
    type(TGFFTopology), intent(in) :: topo
    type(TNeigh), intent(in) :: neigh
+   integer :: i,j,iTr
    
    !!!!!!!!!
    !! mol !!
@@ -4484,8 +4496,8 @@ subroutine print_all_ff(mol,topo,neigh)
    write(*,'(i5)') topo%b_max
    write(*,*)
    !
-   write(*,*) 'This is neigh%nbond_blist'
-   write(*,'(i5)') neigh%nbond_blist
+   write(*,*) 'This is topo%nbond_blist'
+   write(*,'(i5)') topo%nbond_blist
    write(*,*)
    !
    write(*,*) 'topo%nbond_vbond'
@@ -4500,10 +4512,26 @@ subroutine print_all_ff(mol,topo,neigh)
    write(*,'(i5)') topo%ntors_alloc
    write(*,*)
    !
+   write(*,*) 'This is neigh%nr_hb'
+   write(*,'(5i5)') neigh%nr_hb
+   write(*,*)
+   !
    write(*,*) 'This is nb(1:15)'
    write(*,'(15i4)') neigh%nb(1:15,:,1)
    write(*,*)
-
+   !
+   write(*,*) 'This is bpair'
+   do i=1,mol%n
+     do j=1,i-1 !
+       do iTr=1,neigh%numctr
+         write(*,'(2i4,a,i4)') i,j,'  bpair=', neigh%bpair(j,i,iTr)
+       enddo   
+     enddo
+   enddo
+   !
+   write(*,*) 'topo%qa'
+   write(*,'(f16.8)') topo%qa
+   write(*,*)
 
 end subroutine print_all_ff
 !@thomas debug delete subroutine above
