@@ -214,7 +214,6 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
         mcf_ehb = 1.0_wp        
       endif
 
-!call print_all_ff(mol,topo,neigh)!@thomas delete line
    call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
    vec=mol%lattice(:,1)+mol%lattice(:,2)
@@ -4405,125 +4404,6 @@ end subroutine get_damat_rec_3d
 !               code above taken from dftd4                                     !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!@thomas debug delete subroutine
-subroutine print_all_ff(mol,topo,neigh)
-   use xtb_mctc_accuracy, only : wp
-   type(TMolecule), intent(in) :: mol
-   type(TGFFTopology), intent(in) :: topo
-   type(TNeigh), intent(in) :: neigh
-   integer :: i,j,iTr
-   
-   !!!!!!!!!
-   !! mol !!
-   !!!!!!!!!
-   ! mol%n
-   write(*,*) 'mol%n'
-   write(*,'(i5)') mol%n
-   write(*,*)
-   ! mol%chrg
-   write(*,*) 'mol%chrg'
-   write(*,'(i5)') mol%chrg
-   write(*,*)
-   ! mol%xyz
-   write(*,*) 'mol%xyz'
-   write(*,'(3f20.12)') mol%xyz
-   write(*,*)
-   ! mol%at
-   write(*,*) 'mol%at'
-   write(*,'(10i5)') mol%at
-   write(*,*)
-   ! mol%lattice
-   write(*,*) ' TODO TODO mol%lattice TODO TODO'
-   !write(*,'()')
-   !write(*,*)
-   !  
-   !!!!!!!!!!
-   !! topo !!
-   !!!!!!!!!!
-   !
-   write(*,*) 'This is neigh%nbond'
-   write(*,'(i5)') neigh%nbond
-   write(*,*)
-   !
-   write(*,*) 'topo%nangl'
-   write(*,'(i5)') topo%nangl
-   write(*,*)
-   !
-   write(*,*) 'topo%ntors'
-   write(*,'(i5)') topo%ntors
-   write(*,*)
-   !
-   write(*,*) 'topo%nathbH'
-   write(*,'(i5)') topo%nathbH
-   write(*,*)
-   !
-   write(*,*) 'topo%nathbAB'
-   write(*,'(i5)') topo%nathbAB
-   write(*,*)
-   !
-   write(*,*) 'topo%natxbAB'
-   write(*,'(i5)') topo%natxbAB
-   write(*,*)
-   !
-   write(*,*) 'topo%nbatm'
-   write(*,'(i5)') topo%nbatm
-   write(*,*)
-   !
-   write(*,*) 'topo%nfrag'
-   write(*,'(i5)') topo%nfrag
-   write(*,*)
-   !
-   write(*,*) 'topo%maxsystem'
-   write(*,'(i5)') topo%maxsystem
-   write(*,*)
-   !
-   write(*,*) 'topo%bond_hb_nr'
-   write(*,'(i5)') topo%bond_hb_nr
-   write(*,*)
-   !
-   write(*,*) 'topo%b_max'
-   write(*,'(i5)') topo%b_max
-   write(*,*)
-   !
-   write(*,*) 'This is topo%nbond_blist'
-   write(*,'(i5)') topo%nbond_blist
-   write(*,*)
-   !
-   write(*,*) 'topo%nbond_vbond'
-   write(*,'(i5)') topo%nbond_vbond
-   write(*,*)
-   !
-   write(*,*) 'topo%nangl_alloc'
-   write(*,'(i5)') topo%nangl_alloc
-   write(*,*)
-   !
-   write(*,*) 'topo%ntors_alloc'
-   write(*,'(i5)') topo%ntors_alloc
-   write(*,*)
-   !
-   write(*,*) 'This is neigh%nr_hb'
-   write(*,'(5i5)') neigh%nr_hb
-   write(*,*)
-   !
-   write(*,*) 'This is nb(1:15)'
-   write(*,'(15i4)') neigh%nb(1:15,:,1)
-   write(*,*)
-   !
-   write(*,*) 'This is bpair'
-   do i=1,mol%n
-     do j=1,i-1 !
-       do iTr=1,neigh%numctr
-         write(*,'(2i4,a,i4)') i,j,'  bpair=', neigh%bpair(j,i,iTr)
-       enddo   
-     enddo
-   enddo
-   !
-   write(*,*) 'topo%qa'
-   write(*,'(f16.8)') topo%qa
-   write(*,*)
-
-end subroutine print_all_ff
-!@thomas debug delete subroutine above
 
 
 end module xtb_gfnff_eg

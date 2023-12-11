@@ -123,17 +123,6 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
          neigh%nbm = neigh%nb 
 
       endif
-!@thomas delete write section
-write(*,*) 'This is nbf(1:15,:,1)'
-write(*,'(15i4)') neigh%nbf(1:15,:,1)
-write(*,*) 'sum(nbf())=',sum(neigh%nbf(neigh%numnb,:,1))
-write(*,*) 'This is neigh%nb(1:15,:,1)'
-write(*,'(15i4)') neigh%nb(1:15,:,1)
-write(*,*) 'sum(nb())=',sum(neigh%nb(neigh%numnb,:,1))
-write(*,*) 'This is nbm(1:15,:,1)'
-write(*,'(15i4)') neigh%nbm(1:15,:,1)
-write(*,*) 'sum(nbm())=',sum(neigh%nbm(neigh%numnb,:,1))
-!@thomas delete write section
 ! done
 
       itag = 0 ! save special hyb info
@@ -2017,7 +2006,7 @@ end subroutine goedeckera_PBC
 ! to track cells that i lies in.
         !2nd-3th neighbors
         do cval=1,2
-          call countf(n,numctr,numnb,pair,i,cval,nnbi,nbi) !@thomas delete: TODO gucken ob noch anderer array hier rein geht
+          call countf(n,numctr,numnb,pair,i,cval,nnbi,nbi)
           ! go over i's xth neighbors (x=cval)
           do ixnb=1, nnbi
             ! go over the xth neighbors neighbors
@@ -2031,7 +2020,6 @@ end subroutine goedeckera_PBC
                   if (pair(j,i,iTr).ne.0) cycle ! take shortest path only
                   if (j.eq.i.AND.iTr.eq.1) cycle ! dont count to-self-bonds
                   pair(j,i,iTr) = cval+1
-if(i.eq.3.and.j.eq.1) write(*,*) 'A):',j,i,'  >',pair(j,i,iTr) !@thomas delete << wird hier TODO
                 enddo
               enddo
             else
@@ -2042,7 +2030,6 @@ if(i.eq.3.and.j.eq.1) write(*,*) 'A):',j,i,'  >',pair(j,i,iTr) !@thomas delete <
                   if (pair(j,i,iTrnew).ne.0) cycle ! take shortest path only
                   ! to-self-bonds not possible since iTr.ne.1
                   pair(j,i,iTrnew) = cval+1
-if(i.eq.3.and.j.eq.1) write(*,*) 'B):',j,i,'  >',pair(j,i,iTr) !@thomas delete
                 enddo
                 ! now consider neighbors in other cells (iTr=2,...)
                 do iTr=2, numctr
@@ -2056,7 +2043,6 @@ if(i.eq.3.and.j.eq.1) write(*,*) 'B):',j,i,'  >',pair(j,i,iTr) !@thomas delete
                     if (pair(j,i,sumiTr).ne.0) cycle ! take shortest path only
                     
                     pair(j,i,sumiTr) = cval+1
-if(i.eq.3.and.j.eq.1) write(*,*) 'C):',j,i,'  >',pair(j,i,iTr) !@thomas delete
                   enddo
                 enddo
             endif
@@ -2079,7 +2065,7 @@ if(i.eq.3.and.j.eq.1) write(*,*) 'C):',j,i,'  >',pair(j,i,iTr) !@thomas delete
         i=tmpp(2,l)
         iTr=tmpp(3,l)
         pair(k,i,iTr)=1
-        pair(i,k,neigh%iTrNeg(iTr))=1 !@thomas iTrNeg not initialized in restart??
+        pair(i,k,neigh%iTrNeg(iTr))=1
       enddo
       
 

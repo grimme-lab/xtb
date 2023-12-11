@@ -90,7 +90,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       integer,allocatable :: ipis(:),pimvec(:),nbpi(:,:,:),piel(:)
       integer,allocatable :: lin_AHB(:,:)
       integer,allocatable :: bond_hbl(:,:)
-      integer,allocatable :: adum(:),bdum(:,:,:),cdum(:,:,:)
+      integer,allocatable :: bdum(:,:,:),cdum(:,:,:)
       real(wp),allocatable:: rab  (:)
       real(wp),allocatable:: sqrab(:)
       real(wp),allocatable:: cn   (:)
@@ -328,7 +328,8 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
           enddo
         enddo
       enddo
-      deallocate(bdum,cdum)
+      if(allocated(bdum)) deallocate(bdum)
+      if(allocated(cdum)) deallocate(cdum)
       !check blist
       if (k.ne.neigh%nbond) then
         call env%warning("Setup of blist not as expected, check your results.", source)

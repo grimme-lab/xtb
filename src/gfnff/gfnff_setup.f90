@@ -160,16 +160,18 @@ subroutine gfnff_input(env, mol, topo, neigh)
   !--------------------------------------------------------------------
   ! SDF case
   case(fileType%sdf,fileType%molfile)
-    if(neigh%numctr.ne.1) then
+    if(mol%npbc.ne.0) then
       call env%error("SDF case is not implemented with periodic boundary conditions", source)
     else
+      if (.not.allocated(neigh%nb))       allocate( neigh%nb(neigh%numnb,mol%n,1), source = 0 )
       ini = .false.
+      neigh%nb=0
       topo%nfrag=0
       do ibond = 1, len(mol%bonds)
         call mol%bonds%get_item(ibond,bond_ij)
         i = bond_ij(1)
         j = bond_ij(2)
-        ni=sum(neigh%nb(neigh%numnb,i,:))
+        ni=neigh%nb(neigh%numnb,i,1)
         ex=.false.
         do k=1,ni
           if(neigh%nb(k,i,1).eq.j) then
@@ -180,7 +182,7 @@ subroutine gfnff_input(env, mol, topo, neigh)
         if(.not.ex)then
           neigh%nb(neigh%numnb,i,1)=neigh%nb(neigh%numnb,i,1)+1
           neigh%nb(neigh%nb(neigh%numnb,i,1),i,1)=j
-          neigh%nb(neigh%numnb,j,1)=neigh%nb(neigh%numnb,i,1)+1
+          neigh%nb(neigh%numnb,j,1)=neigh%nb(neigh%numnb,j,1)+1
           neigh%nb(neigh%nb(neigh%numnb,j,1),j,1)=i
         endif
       end do
@@ -198,12 +200,12 @@ subroutine gfnff_input(env, mol, topo, neigh)
           if (k > 0) then
             neigh%nb(neigh%numnb,i,1)=1
             neigh%nb(1,i,1)=k
-          end if
-        endif
-      end do
-      ! initialize qfrag as in the default case
-      topo%qfrag(1)=mol%chrg
-      topo%qfrag(2:mol%n)=0
+        end if
+      endif
+    end do
+    ! initialize qfrag as in the default case
+    topo%qfrag(1)=mol%chrg
+    topo%qfrag(2:mol%n)=0
     endif
   !--------------------------------------------------------------------
   ! General case: input = xyz or coord
