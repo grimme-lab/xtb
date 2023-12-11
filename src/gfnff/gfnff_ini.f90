@@ -307,8 +307,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
         enddo
       enddo
       neigh%nbond = k
-write(*,*) 'numnb count k = ',k !@thomas delete
-     ! neigh%nbond = sum(neigh%nb(neigh%numnb,:,:))/2
       neigh%nbond_blist=neigh%nbond
       topo%nbond_blist=neigh%nbond
       allocate( btyp(neigh%nbond), source = 0 )
@@ -331,7 +329,6 @@ write(*,*) 'numnb count k = ',k !@thomas delete
         enddo
       enddo
       deallocate(bdum,cdum)
-write(*,*) 'number blist entries k=',k !@thomas delete
       !check blist
       if (k.ne.neigh%nbond) then
         call env%warning("Setup of blist not as expected, check your results.", source)
@@ -468,19 +465,21 @@ write(*,*) 'number blist entries k=',k !@thomas delete
           do k = 1, neigh%nb(neigh%numnb,i,iTr)
             j=neigh%nb(k,i,iTr)
             rabd(j, i) = param%rad(mol%at(i)) + param%rad(mol%at(j))
+            rabd(i, j) = rabd(j,i)
           end do
         enddo
       end do
       ! get the other 1,x neighbors with the direct neighbors from above
       do k = 1, mol%n
         do i = 1, mol%n
-            if (rabd(k, i) > gen%tdist_thr) cycle
-            do j = 1, mol%n
+           if (rabd(i, k) > gen%tdist_thr) cycle
+           !if (rabd(k, i) > gen%tdist_thr) cycle !@thomas
+           do j = 1, mol%n
               if (rabd(k, j) >  gen%tdist_thr) cycle !tdist_thr = 12.0
               if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then
                   rabd(i, j) =  rabd(i, k) + rabd(k, j) ! get at least 1,4 distances
               end if
-            end do
+           end do
         end do
       end do
 

@@ -1955,12 +1955,59 @@ end subroutine goedeckera_PBC
       integer,allocatable,intent(out) ::  pair(:,:,:)
       integer :: nnbi, nbi(2,numnb), cval
       integer :: i,inew,j,inb,ixnb,xnb,iTr,iTrnew,sumiTr,k,iTr2,l
+      integer  :: nbr(numnb,n,numctr) ! reduced neighbor list no unpaired bonds
+      logical :: hasnb ! true if atom i and k have a paired bond (both have each other as nb)
+      integer :: tmpp(3,10*n),nt !@thomas TODO this whole tmpp thing and overwriting stuff
+      !@thomas is super suspicious, it should probably be removed
+      !@thomas the orignial GFN-FF is not consistent in the bpair e.g.
+      !@thomas following a connection along bpair does not add up to the final number
+      !@thomas saved in bpair 
+
+      ! only paired bonds should be considered for setting up bpair
+      ! e.g. metals have one sided bonds where the bond partner does not
+      !  have the metal as a neighbor 
+      ! Therefore a list set up with only paired bonds
+      tmpp = 0
+      nt=0
+      nbr = nb
+      do i=1, n
+        do iTr=1,neigh%numctr
+          do j=1, nb(neigh%numnb,i,iTr)
+            ! k are all the neighbors of i in cell iTr
+            k=nb(j,i,iTr)
+            hasnb=.false.
+            do iTr2=1,neigh%numctr
+              do l=1, nb(neigh%numnb,k,iTr2)
+                ! check if neighbor k of atom i has i as a neighbor aswell
+                if(nb(l,k,iTr2).eq.i) then
+                  hasnb=.true.
+                endif
+              enddo
+            enddo 
+            ! if hasnb is still false then the bond is not paired and should be deleted
+            if (.not.hasnb) then
+              ! now delete neighbor and move other neighbors
+              do l=j, neigh%numnb-2 ! fails if an atom has numnb-1 neighbors !
+                nbr(l,i,iTr)=nb(l+1,i,iTr)
+              enddo
+              ! reduce neighbors by one
+              nbr(numnb,i,iTr) = nbr(numnb,i,iTr) - 1
+              ! save the neighbor  
+              nt = nt + 1
+              tmpp(1,nt) = k
+              tmpp(2,nt) = i
+              tmpp(3,nt) = iTr
+            endif
+          enddo
+        enddo
+      enddo
+
       allocate(pair(n,n,numctr), source=0)
       do i=1, n
         ! all first neighbors of i
         do iTr=1, numctr
-          do inb=1, nb(numnb, i, iTr)
-            j = nb(inb,i,iTr)
+          do inb=1, nbr(numnb, i, iTr)
+            j = nbr(inb,i,iTr)
             pair(j,i,iTr) = 1
           enddo
         enddo
@@ -1968,9 +2015,9 @@ end subroutine goedeckera_PBC
 ! To get num bonds between atoms i&j, which are connected over atoms that lie in
 ! different cells than i AND j, then first nb() would have to be expanded
 ! to track cells that i lies in.
-        !2nd-4th neighbors
-        do cval=1,3
-          call countf(n,numctr,numnb,pair,i,cval,nnbi,nbi)
+        !2nd-3th neighbors
+        do cval=1,2
+          call countf(n,numctr,numnb,pair,i,cval,nnbi,nbi) !@thomas delete: TODO gucken ob noch anderer array hier rein geht
           ! go over i's xth neighbors (x=cval)
           do ixnb=1, nnbi
             ! go over the xth neighbors neighbors
@@ -1979,26 +2026,28 @@ end subroutine goedeckera_PBC
             if (iTrnew.eq.1) then
               !
               do iTr=1, numctr
-                do inb=1, nb(numnb, inew, iTr)
-                  j = nb(inb,inew,iTr)
+                do inb=1, nbr(numnb, inew, iTr)
+                  j = nbr(inb,inew,iTr)
                   if (pair(j,i,iTr).ne.0) cycle ! take shortest path only
                   if (j.eq.i.AND.iTr.eq.1) cycle ! dont count to-self-bonds
                   pair(j,i,iTr) = cval+1
+if(i.eq.3.and.j.eq.1) write(*,*) 'A):',j,i,'  >',pair(j,i,iTr) !@thomas delete << wird hier TODO
                 enddo
               enddo
             else
                 ! idx of neighbors in same cell are the same in every cell
                 ! therefore first only consider nb(numnb,inew,iTr=1) 
-                do inb=1, nb(numnb, inew, 1) 
-                j = nb(inb,inew,1)
+                do inb=1, nbr(numnb, inew, 1) 
+                j = nbr(inb,inew,1)
                   if (pair(j,i,iTrnew).ne.0) cycle ! take shortest path only
                   ! to-self-bonds not possible since iTr.ne.1
                   pair(j,i,iTrnew) = cval+1
+if(i.eq.3.and.j.eq.1) write(*,*) 'B):',j,i,'  >',pair(j,i,iTr) !@thomas delete
                 enddo
                 ! now consider neighbors in other cells (iTr=2,...)
                 do iTr=2, numctr
-                  do inb=1, nb(numnb, inew, iTr) 
-                    j = nb(inb,inew,iTr)       ! obtain nb index j with iTr
+                  do inb=1, nbr(numnb, inew, iTr) 
+                    j = nbr(inb,inew,iTr)       ! obtain nb index j with iTr
                     sumiTr=neigh%fTrSum(iTr,iTrnew)  ! but for pair get correct iTr=sumiTr here
                     if (sumiTr.eq.-1.or.(sumiTr.eq.1.and.j.eq.i)) cycle
                                             ! sumiTr=-1 is outside of 27 centr cells
@@ -2007,6 +2056,7 @@ end subroutine goedeckera_PBC
                     if (pair(j,i,sumiTr).ne.0) cycle ! take shortest path only
                     
                     pair(j,i,sumiTr) = cval+1
+if(i.eq.3.and.j.eq.1) write(*,*) 'C):',j,i,'  >',pair(j,i,iTr) !@thomas delete
                   enddo
                 enddo
             endif
@@ -2017,10 +2067,21 @@ end subroutine goedeckera_PBC
       do i=1, n
         do j=1, n
           do iTr=1, numctr
-            if(pair(j,i,iTr).eq.0.and.(j.ne.i.or.iTr.ne.1)) pair(j,i,iTr)=5
+            if(pair(j,i,iTr).eq.0.and.j.ne.i) pair(j,i,iTr)=5
           enddo
         enddo
       enddo
+      
+      ! finaly overwrite the deleted bonds to be bonds again using the saved indices
+      do l=1, 10*n
+        if (tmpp(1,l).eq.0) exit
+        k=tmpp(1,l)
+        i=tmpp(2,l)
+        iTr=tmpp(3,l)
+        pair(k,i,iTr)=1
+        pair(i,k,neigh%iTrNeg(iTr))=1 !@thomas iTrNeg not initialized in restart??
+      enddo
+      
 
       end subroutine nbondmat_pbc
 

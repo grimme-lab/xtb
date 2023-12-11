@@ -214,7 +214,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
         mcf_ehb = 1.0_wp        
       endif
 
-call print_all_ff(mol,topo,neigh)!@thomas delete line
+!call print_all_ff(mol,topo,neigh)!@thomas delete line
    call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
    vec=mol%lattice(:,1)+mol%lattice(:,2)
@@ -714,11 +714,9 @@ endif
 
    if (pr) call timer%measure(9,'bonded ATM')
    if(topo%nbatm.gt.0) then
-write(*,*) 'ebatm',ebatm !@thomas delete
-!@thomas omp wieder rein
-!      !$omp parallel do default(none) reduction(+:ebatm, g, sigma) &
-!      !$omp shared(n, at, xyz, srab, sqrab, topo, neigh, param) &
-!      !$omp private(i, j, k, l, iTrk, iTrl, etmp, g3tmp, ds)
+      !$omp parallel do default(none) reduction(+:ebatm, g, sigma) &
+      !$omp shared(n, at, xyz, srab, sqrab, topo, neigh, param) &
+      !$omp private(i, j, k, l, iTrk, iTrl, etmp, g3tmp, ds)
       do i=1,topo%nbatm
          j=topo%b3list(1,i)
          k=topo%b3list(2,i)
@@ -731,10 +729,8 @@ write(*,*) 'ebatm',ebatm !@thomas delete
          g(1:3,l)=g(1:3,l)+g3tmp(1:3,3)
          sigma = sigma + ds
          ebatm=ebatm+etmp
-write(*,*) 'etmp=',etmp !@thomas delete
       enddo
-!      !$omp end parallel do
-write(*,*) 'ebatm',ebatm !@thomas delete
+      !$omp end parallel do
    endif
    if (pr) call timer%measure(9)
 
@@ -3295,10 +3291,6 @@ subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,
    else
       r2jk=neigh%distances(kat,jat,iTrDum)**2 !use adjusted iTr since jat is actually shifted
    endif
-write(*,*) 'i j k ',iat,jat,kat,iTrDum,iTrj,iTrk !@thomas delete
-write(*,*) r2ij !@thomas delete
-write(*,*) r2ik !@thomas delete
-write(*,*) r2jk !@thomas delete
    mijk=-r2ij+r2jk+r2ik
    imjk= r2ij-r2jk+r2ik
    ijmk= r2ij+r2jk-r2ik
@@ -3307,9 +3299,6 @@ write(*,*) r2jk !@thomas delete
    ang=0.375d0*ijmk*imjk*mijk/rijk3
    angr9=(ang +1.0d0)/rav3
    energy=c9*angr9 ! energy
-write(*,*) 'rav3=',rav3 !@thomas delete
-write(*,*) 'c9=',c9 !@thomas delete
-write(*,*) 'angr9=',angr9 !@thomas delete
 
 !     derivatives of each part w.r.t. r_ij,jk,ik
            dang=-0.375d0*(r2ij**3+r2ij**2*(r2jk+r2ik) &
