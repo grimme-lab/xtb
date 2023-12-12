@@ -48,13 +48,15 @@ module xtb_prog_dock
    use xtb_sphereparam, only: sphere, rabc, boxr, init_walls, wpot, maxwalls
    use xtb_constrain_param, only: read_userdata
    use xtb_fixparam, only: init_fix
-   use xtb_scanparam, only: init_constr, init_scan, maxconstr, maxscan
+   use xtb_scanparam, only: init_constr, init_scan, maxconstr, maxscan, potset
    use xtb_embedding, only: init_pcem
    use xtb_splitparam, only: init_split, maxfrag
    use xtb_readin, only : find_new_name, mirror_line, getValue
    use xtb_mctc_global, only : persistentEnv
    use xtb_solv_state
    use xtb_type_identitymap, only : TIdentityMap,init
+   use xtb_type_setvar
+
    implicit none
 
    private
@@ -232,14 +234,14 @@ contains
          &          iff_data%qcm2, iff_data%n, iff_data%at, iff_data%xyz, iff_data%q, icoord, icoord0,&
          &          .false.)
 
-
       !> CONSTRAINTS & SCANS
       call init_fix(iff_data%n)
       call init_split(iff_data%n)
-      call init_constr(iff_data%n, iff_data%at)
+      call init_constr_docking(env, iff_data%n1, iff_data%n2, iff_data%xyz2, iff_data%at)
       call init_scan
       call init_walls
       call init_pcem
+            
       !> Read the constrain
       call init(comb,iff_data%at,iff_data%xyz)
       if (allocated(xcontrol)) then
@@ -1065,5 +1067,56 @@ contains
          end if
       end do
    end subroutine get_attractive_pot
+
+   subroutine init_constr_docking(env, n1, n2, xyz2, at)
+
+      !> Calculation environment
+      type(TEnvironment), intent(inout) :: env
+
+      integer, intent(in) :: n1, n2, at(n1+n2)
+      real(wp), intent(in) :: xyz2(3,n2)
+
+      type(TMolecule) :: mol
+      integer :: i, j, ftype
+      type(TReader) :: reader
+      character (len=:), allocatable :: dum
+
+      if(allocated(potset%fname)) then
+         ftype = getFileType(potset%fname)
+         call reader%open(potset%fname)
+         call readMolecule(env, mol, reader%unit, ftype)
+         call reader%close
+         call env%checkpoint("Could not read geometry from '"//potset%fname//"'")
+         if(mol%n == (n1+n2)) then
+            potset%xyz = mol%xyz
+         else if(mol%n == n1) then
+            !> Combine molA with far away shifted molB
+            allocate(potset%xyz(3,(n1+n2)), source = 0.0_wp)
+            do i = 1, n1
+               potset%xyz(1, i) = mol%xyz(1, i)
+               potset%xyz(2, i) = mol%xyz(2, i)
+               potset%xyz(3, i) = mol%xyz(3, i)
+            end do
+            j = 1
+            do i = n1 + 1, n1 + n2
+               potset%xyz(1, i) = xyz2(1, j) + shift_geo
+               potset%xyz(2, i) = xyz2(2, j) + shift_geo
+               potset%xyz(3, i) = xyz2(3, j) + shift_geo
+               j = j + 1
+            end do
+         end if
+      end if
+
+      !> Init constraints without reference coords (done above)
+      if (allocated(potset%fname)) then
+         dum = potset%fname
+         deallocate(potset%fname)
+         call init_constr(n1+n2, at)
+         potset%fname = dum
+      else
+         call init_constr(n1+n2, at)
+      end if
+
+   end subroutine init_constr_docking
 
 end module xtb_prog_dock
