@@ -704,7 +704,7 @@ subroutine cutbond(self, env, mol, chk, topo, inner_mol, jacobian, idx2)
    type is (TGFFCalculator)
       
       ! bonded atom list !
-      bonded = calc%topo%blist 
+      bonded = calc%neigh%blist
       
       ! number of bonds !
       iterator = size(bonded,2)
