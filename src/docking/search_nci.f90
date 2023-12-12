@@ -53,6 +53,8 @@ module xtb_docking_search_nci
    use xtb_eeq, only: goedecker_chrgeq
    use xtb_basis, only: newBasisset
    use xtb_gfnff_neighbor, only: TNeigh
+   use xtb_io_writer, only : writeMolecule
+   use xtb_mctc_filetypes, only : generateFileName
    implicit none
 
    private
