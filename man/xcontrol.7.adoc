@@ -534,6 +534,13 @@ $wall
 *ellipsoid*: auto|'real',auto|'real',auto|'real',all|'list',...::
     set up a ellipsoid wall potential for all or the atoms in 'list'
     with the radii 'real' or an automatical determined sphere radius
+    If 'auto' is chosen for axes, sphere potential is applied, no ellipsoid!!!
+
+*sandwich*: auto|'real',all|'list',...::
+   set up a sandwich wall potential for all or the atoms in 'list'
+   with the distance 'real' or an automatical determined sandwich distance
+   Always use sandwich potential together with $cma keyword!!!
+   Only potential=logfermi ist available.
 
 
 $write
