@@ -1520,7 +1520,7 @@ subroutine set_scc(env,key,val)
    select case(key)
    case default ! do nothing
       call env%warning("the key '"//key//"' is not recognized by scc",source)
-   case('temp')
+   case('etemp','temp')
       if (getValue(env,val,ddum).and.set1) set%eTemp = ddum
       set1 = .false.
    case('broydamp')
@@ -1538,7 +1538,7 @@ subroutine set_scc(env,key,val)
          set%guess_charges = p_guess_multieq
       endif
       set3 = .false.
-   case('maxiterations')
+   case('iterations','maxiterations')
       if (getValue(env,val,idum).and.set4) then
          if (idum.le.0) then
             call env%warning('negative SCC-Iterations make no sense',source)
