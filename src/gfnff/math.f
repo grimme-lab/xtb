@@ -107,13 +107,14 @@ c ... determinante of rb,ra,rc
      ,     ic,i,j,k,l,natoms,mo
 
       real*8
-     ,     xyz(3,natoms),vTrj(3),vTrk(3),vTrl(3),
+     ,     xyz(3,natoms),vTrj(3),vTrk(3),vTrl(3),vDum(3),
      ,     eps,ra(3),rb(3),rc(3),na(3),nb(3),
      ,     rab,rbc,thab,thbc,valijkPBC,
      ,     vecnorm,nan,nbn,rcn,snanb,deter,pi
 
       parameter (eps=1.0d-14)
       data pi/3.1415926535897932384626433832795029d0/
+      vDum=0.0 ! Dummy vector for valijkPBC function
       
 c ... get torsion coordinate
       if(mo.eq.1)then ! egtors call -> j (=ii) in central cell
@@ -136,12 +137,12 @@ c ... determinante of rb,ra,rc  (triple product)
      ,      +ra(3)*(rb(1)*rc(2)-rb(2)*rc(1))
    
       if(mo.eq.1)then ! not used
-        thab=valijkPBC(1,natoms,xyz,i,k,j,vTrl,vTrj)
-        thbc=valijkPBC(2,natoms,xyz,j,l,k,vTrk,vTrj)
+        thab=valijkPBC(1,natoms,xyz,i,k,j,vTrl,vTrj,vDum)
+        thbc=valijkPBC(2,natoms,xyz,j,l,k,vTrk,vTrj,vDum)
       else
         thab=valijkPBC(3,natoms,xyz,i,k,j,vTrj,vTrl,vTrk) !    i=R       k=C       j=B  
                                                           ! vTrj=vTrR vTrl=vTrC vTrk=vTrB
-        thbc=valijkPBC(4,natoms,xyz,j,l,k,vTrk,vTrl) !    j=B    l=H    k=C
+        thbc=valijkPBC(4,natoms,xyz,j,l,k,vTrk,vTrl,vDum) !    j=B    l=H    k=C
                                                      ! vTrk=vTrB     vTrl=vTrC 
       endif
       call crossprod(ra,rb,na)

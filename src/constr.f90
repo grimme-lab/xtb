@@ -942,8 +942,7 @@ real(wp) Function valijkPBC(mode,nat,xyz,j,k,i,vTr1,vTr2,vTr3)
 
    real(wp) :: &
       &         ra(3),rb(3),rab,eps,&
-      &         xyz(3,nat),vecnorm,ran,rbn,vTr1(3),vTr2(3)
-   real(wp), optional :: vTr3(3)   
+      &         xyz(3,nat),vecnorm,ran,rbn,vTr1(3),vTr2(3),vTr3(3)
 
    parameter (eps=1.d-14)
 
