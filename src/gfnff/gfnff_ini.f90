@@ -474,7 +474,6 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       do k = 1, mol%n
         do i = 1, mol%n
            if (rabd(i, k) > gen%tdist_thr) cycle
-           !if (rabd(k, i) > gen%tdist_thr) cycle !@thomas
            do j = 1, mol%n
               if (rabd(k, j) >  gen%tdist_thr) cycle !tdist_thr = 12.0
               if (rabd(i, j) > (rabd(i, k) + rabd(k, j))) then

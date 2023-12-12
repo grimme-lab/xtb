@@ -1946,18 +1946,18 @@ end subroutine goedeckera_PBC
       integer :: i,inew,j,inb,ixnb,xnb,iTr,iTrnew,sumiTr,k,iTr2,l
       integer  :: nbr(numnb,n,numctr) ! reduced neighbor list no unpaired bonds
       logical :: hasnb ! true if atom i and k have a paired bond (both have each other as nb)
-      integer :: tmpp(3,10*n),nt !@thomas TODO this whole tmpp thing and overwriting stuff
-      !@thomas is super suspicious, it should probably be removed
-      !@thomas the orignial GFN-FF is not consistent in the bpair e.g.
-      !@thomas following a connection along bpair does not add up to the final number
-      !@thomas saved in bpair 
+      integer :: tmpp(3,10*n),nt
+      ! using temporary list tmpp to match setup of nbondmat for mindless03
+      !  in that case the sum of single bonds in bpair connecting atoms A and B
+      !  does not necessarily add up to bpair(A,B) 
+      !  if setup should be consistent (excluding half bonds) delete tmpp_usage
 
       ! only paired bonds should be considered for setting up bpair
       ! e.g. metals have one sided bonds where the bond partner does not
       !  have the metal as a neighbor 
       ! Therefore a list set up with only paired bonds
-      tmpp = 0
-      nt=0
+      tmpp = 0 ! tmpp_usage
+      nt=0     ! tmpp_usage
       nbr = nb
       do i=1, n
         do iTr=1,neigh%numctr
@@ -1982,10 +1982,10 @@ end subroutine goedeckera_PBC
               ! reduce neighbors by one
               nbr(numnb,i,iTr) = nbr(numnb,i,iTr) - 1
               ! save the neighbor  
-              nt = nt + 1
-              tmpp(1,nt) = k
-              tmpp(2,nt) = i
-              tmpp(3,nt) = iTr
+              nt = nt + 1       ! tmpp_usage
+              tmpp(1,nt) = k    ! tmpp_usage
+              tmpp(2,nt) = i    ! tmpp_usage
+              tmpp(3,nt) = iTr  ! tmpp_usage
             endif
           enddo
         enddo
@@ -2058,7 +2058,7 @@ end subroutine goedeckera_PBC
         enddo
       enddo
       
-      ! finaly overwrite the deleted bonds to be bonds again using the saved indices
+      ! tmpp_usage: finaly overwrite the deleted bonds to be bonds again using the saved indices
       do l=1, 10*n
         if (tmpp(1,l).eq.0) exit
         k=tmpp(1,l)
