@@ -439,7 +439,7 @@ NOTE: the scan parser will always terminate in error if the instruction could
 
 $scc
 ~~~~
-*temp*='real'::
+*temp, etemp*='real'::
     electronic temperature for the Fermi smearing
 
 *broydamp*='real'::
@@ -448,7 +448,7 @@ $scc
 *guess*=gasteiger|goedecker|sad::
     different possible guess charges for GFN2-xTB SCC calculation
 
-*maxiteration*='int'::
+*iterations, maxiterations*='int'::
     adjusts the number of SCC iterations in the first/last SCC calculation
 
 $split

@@ -16,6 +16,7 @@
 
 cmake_minimum_required(VERSION 3.17)
 option(WITH_OBJECT "To build using object library" TRUE)
+option(INSTALL_MODULES "Install Fortran module files to include directory." FALSE)
 
 # Buggy CMake versions
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
@@ -248,6 +249,15 @@ install(
    DESTINATION
    "${CMAKE_INSTALL_INCLUDEDIR}"
 )
+
+if (INSTALL_MODULES)
+   install(
+      DIRECTORY
+      "${PROJECT_BINARY_DIR}/include/"
+      DESTINATION
+      "${CMAKE_INSTALL_INCLUDEDIR}"
+   )
+endif()
 
 # xtb-parameters 
 install(

@@ -1553,7 +1553,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
       case('--cut')
          call set_cut
       
-      case('--etemp')
+      case('--etemp', '--temp')
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_scc(env,'temp',sec)
@@ -1635,7 +1635,7 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
          call set_write(env,'fod','true')
          call set_scc(env,'temp','5000.0')
 
-      case('--iterations')
+      case('--iterations', '--maxiterations')
          call args%nextArg(sec)
          if (allocated(sec)) then
             call set_scc(env,'maxiterations',sec)
