@@ -15,4 +15,15 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-subdir('lbfgs_anc')
+set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
+
+list(APPEND srcs
+  "${dir}/driver.f90"
+  "${dir}/filter_cart.f90"
+  "${dir}/filter.f90"
+  "${dir}/filter_type.f90"
+  "${dir}/lbfgs.f90"
+  "${dir}/optimizer.f90"
+)
+
+set(srcs ${srcs} PARENT_SCOPE)

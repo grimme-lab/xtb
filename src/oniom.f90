@@ -182,7 +182,7 @@ subroutine newOniomCalculator(self, env, mol, input)
    ! gfnff !
    case (3)
       allocate (gff)
-      call newGFFCalculator(env, mol, gff, "", .false.)
+      call newGFFCalculator(env, mol, gff, ".param_gfnff.xtb", .false.)
       call move_alloc(gff, self%real_low)
 
    end select
@@ -330,7 +330,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       ! gfnff !
       case (3)
          allocate (gff)
-         call newGFFCalculator(env, inner_mol, gff, "", .false.)
+         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false.)
          call move_alloc(gff, self%model_low)
       
       end select
@@ -363,7 +363,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
       ! gfnff !
       case (3)
          allocate (gff)
-         call newGFFCalculator(env, inner_mol, gff, "", .false.)
+         call newGFFCalculator(env, inner_mol, gff, ".param_gfnff.xtb", .false.)
          call move_alloc(gff, self%model_high)
 
       ! orca !
