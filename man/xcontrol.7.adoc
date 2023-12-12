@@ -538,9 +538,9 @@ $wall
 
 *sandwich*: auto|'real',all|'list',...::
    set up a sandwich wall potential for all or the atoms in 'list'
-   with the distance 'real' or an automatical determined sandwich distance
+   with the radius 'real' or an automatical determined sandwich radius in Bohr
    Always use sandwich potential together with $cma keyword!!!
-   Only potential=logfermi ist available.
+   Only potential=logfermi ist available. diameter=2*radius+2*4A safety buffer
 
 
 $write
