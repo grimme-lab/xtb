@@ -1,3 +1,0 @@
-meson setup build --buildtype release --optimization 2 -Dlapack=custom -Dfortran_link_args=" -L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lm -ldl" -Dfortran_args=' -I"${MKLROOT}/include"'
-
-ninja -C build
