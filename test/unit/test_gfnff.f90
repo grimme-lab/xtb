@@ -703,7 +703,7 @@ subroutine test_gfnff_pbc(error)
     logical, parameter :: pbc(3) = [.true., .true., .true. ]
     ! structure names from X23 and mcVOL22 benchmark
     character(len=*), parameter :: pbc_strucs(2) = [&
-       & "x06_benzene", "mcv15"]
+       & "x06_b", "mcv15"]
     !> references for original GFN-FF
     real(wp), parameter :: ref_energies(2) = &
         & [-9.522300429916_wp, -11.059826732607_wp ]

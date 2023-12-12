@@ -55,7 +55,7 @@ subroutine getMolecule(mol, name)
    case('feco5');       call feco5(mol)
    case('co_cnx6');       call co_cnx6(mol)
    case('fe_cnx6');       call fe_cnx6(mol)
-   case('x06_benzene'); call x06_benzene(mol)
+   case('x06_b'); call x06_benzene(mol)
    case('mcv15');       call mcv15(mol)
    end select
 
