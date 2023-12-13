@@ -1457,16 +1457,16 @@ contains
             end if
             call move_alloc(sec, oniom%second_arg)
 
-         case ('--cut')
-            call set_cut
-
-         case ('--etemp')
-            call args%nextArg(sec)
-            if (allocated(sec)) then
-               call set_scc(env, 'temp', sec)
-            else
-               call env%error("Temperature in --etemp option is missing", source)
-            end if
+      case('--cut')
+         call set_cut
+      
+      case('--etemp', '--temp')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_scc(env,'temp',sec)
+         else
+            call env%error("Temperature in --etemp option is missing", source)
+         end if
 
          case ('--esp')
             call set_runtyp('scc')
@@ -1542,13 +1542,13 @@ contains
             call set_write(env, 'fod', 'true')
             call set_scc(env, 'temp', '5000.0')
 
-         case ('--iterations')
-            call args%nextArg(sec)
-            if (allocated(sec)) then
-               call set_scc(env, 'maxiterations', sec)
-            else
-               call env%error("Integer argument for --iterations is missing", source)
-            end if
+      case('--iterations', '--maxiterations')
+         call args%nextArg(sec)
+         if (allocated(sec)) then
+            call set_scc(env,'maxiterations',sec)
+         else
+            call env%error("Integer argument for --iterations is missing", source)
+         end if
 
          case ('--cycles')
             call args%nextArg(sec)
