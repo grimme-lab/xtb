@@ -127,7 +127,7 @@ contains
       real(wp), intent(out), optional :: norm(:)
       real(wp), allocatable :: normlocal(:)
       real(wp) :: cutoff
-      integer :: i, j, ij
+      integer :: i, j, ij, k
 
       cutoff = get_cutoff(bas)
       allocate (normlocal(bas%nao), source=0.0_wp)
@@ -146,11 +146,22 @@ contains
             overlap(j, i) = overlap(i, j)
          end do
       end do
+
+      !> Normalize dipole integrals
+      do k = 1, 3
+         ij = 0
+         do i = 1, bas%nao
+            do j = 1, i
+               ij = ij + 1
+               dipole(k, i, j) = dipole(k, i, j) * normlocal(i) * normlocal(j)
+               dipole(k, j, i) = dipole(k, j, i) * normlocal(i) * normlocal(j)
+            end do
+         end do
+      end do
+
       if (present(norm)) then
          norm = normlocal
       end if
-
-      !> ########### AND DIPOLE!! #############
 
    end subroutine get_integrals_dipole_existbasis
 
