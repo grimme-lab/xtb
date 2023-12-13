@@ -32,7 +32,7 @@ module xtb_ptb_scf
    use tblite_wavefunction_fermi, only: get_fermi_filling
    use tblite_wavefunction_type, only: get_density_matrix
    use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles, &
-      & get_mulliken_shell_charges
+      & get_mulliken_shell_charges, get_mayer_bond_orders
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_integral_type, only: new_integral, integral_type
 
@@ -61,7 +61,7 @@ module xtb_ptb_scf
 
 contains
 
-   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, eeqmodel)
+   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, eeqmodel, dipole, wbo)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -74,6 +74,10 @@ contains
       type(basis_type), intent(in) :: bas, cbas
       !> Initialized EEQ model
       type(mchrg_model_type), intent(in) :: eeqmodel
+      !> Molecular dipole moment
+      real(wp), intent(out) :: dipole(3)
+      !> Wiberg bond orders
+      real(wp), allocatable, intent(out) :: wbo(:, :, :)
       !> Electronic solver
       class(solver_type), allocatable :: solver
       !> Error type
@@ -114,8 +118,6 @@ contains
       real(wp) :: ts
       !> Tmp variable for dipole moment
       real(wp) :: tmpdip(3)
-      !> Molecular dipole moment
-      real(wp) :: dipole(3) = 0.0_wp
       real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
 
       !> Solver for the effective Hamiltonian
@@ -541,12 +543,16 @@ contains
       !> This step is only required because the dipole integrals in tblite are not
       !> centered to a fixed point (e.g., origin) but are atomic dipole moments
       !> Calculation of dipole moments requires Mulliken atomic charges.
-      allocate(mulliken_qsh(bas%nsh, wfn%nspin), mulliken_qat(mol%nat, wfn%nspin))
+      allocate (mulliken_qsh(bas%nsh, wfn%nspin), mulliken_qat(mol%nat, wfn%nspin))
       call get_mulliken_shell_charges(bas, ints%overlap, wfn%density, wfn%n0sh, &
       & mulliken_qsh)
       call get_qat_from_qsh(bas, mulliken_qsh, mulliken_qat)
       call gemv(mol%xyz, mulliken_qat(:, 1), tmpdip)
       dipole(:) = tmpdip + sum(wfn%dpat(:, :, 1), 2)
+
+      allocate (wbo(mol%nat, mol%nat, wfn%nspin))
+      call get_mayer_bond_orders(bas, ints%overlap, wfn%density, wbo)
+
       !##### DEV WRITE #####
       write (*, *) "Shell charges after 2nd iteration ..."
       do i = 1, bas%nsh
@@ -563,6 +569,12 @@ contains
       write (*, *) "Molecular dipole after 2nd iteration ..."
       do i = 1, 3
          write (*, '(f8.4)') dipole(i)
+      end do
+      write (*, *) "Mayer bond orders after 2nd iteration ..."
+      do i = 1, mol%nat
+         do j = 1, i-1
+            write (*, '(i0,2x,i0,2x,f8.4)') j, i, wbo(i, j, 1)
+         end do
       end do
       !#####################
 
