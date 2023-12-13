@@ -1134,7 +1134,7 @@ end subroutine fe_cnx6
 subroutine x06_benzene(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 48
-   character(len=*), parameter :: sym(nat) = [character(len=1) ::&
+   character(len=*), parameter :: sym(nat) = [character(len=4) ::&
       & "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", &
       & "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", &
       & "C", "C", "C", "C", "H", "H", "H", "H", "H", "H", &
@@ -1203,7 +1203,7 @@ end subroutine x06_benzene
 subroutine mcv15(mol)
    type(TMolecule), intent(out) :: mol
    integer, parameter :: nat = 64
-   character(len=*), parameter :: sym(nat) = [character(len=2) :: &
+   character(len=*), parameter :: sym(nat) = [character(len=4) :: &
       & "S", "S", "P", "P", "O", "O", "O", "O", "N", "N", "N", "N", &
       & "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", &
       & "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", "H", "H", &

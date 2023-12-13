@@ -183,8 +183,10 @@ contains
 
         ! lattice might change during optimization. Therefore d might change
         !  between different runs and trVecInt needs to be adjusted.
-        if(allocated(self%trVecInt).and.size(self%trVecInt,dim=2).lt.d) then
-          deallocate(self%trVecInt)
+        if(allocated(self%trVecInt)) then
+          if(size(self%trVecInt,dim=2).lt.d) then
+            deallocate(self%trVecInt)
+          endif
         endif
 
         ! get the linear combination coefficient vector

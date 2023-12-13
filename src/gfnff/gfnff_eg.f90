@@ -142,7 +142,6 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    implicit none
 
    character(len=*), parameter :: source = 'gfnff_eg'
-   real(wp),allocatable :: transVec(:,:)
    real(wp),allocatable :: rec_tVec(:,:)
    type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
    type(dftd_parameter) :: disp_par, mcdisp_par 
@@ -220,15 +219,6 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    ! get translation vectors within maximum cutoff, but at least central 27 cells (for 3D)
    neigh%oldCutOff=0.0_wp
    call neigh%getTransVec(mol,60.0_wp)
-
-   if (mol%boundaryCondition.ne.0) then
-     if(size(transVec,dim=2).le.neigh%numctr)then
-       ! want at least 27 cells
-       if(allocated(transVec)) deallocate(transVec)
-       allocate(transVec(3,neigh%numctr))
-       transVec=neigh%transVec(:,1:neigh%numctr)
-     endif
-   endif
 
    ! get Distances between atoms for repulsion
    call neigh%getTransVec(mol,sqrt(repthr))
@@ -346,7 +336,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
 
    if (pr) call timer%measure(2,'non bonded repulsion')
    !$omp parallel do default(none) reduction(+:erep, g, sigma) &
-   !$omp shared(n, at, xyz, srab, sqrab, transVec, repthr, &
+   !$omp shared(n, at, xyz, srab, sqrab, repthr, &
    !$omp topo, param, neigh, mcf_nrep) &
    !$omp private(iat, jat, iTr, iTrDum, m, ij, ati, atj, rab, r2, r3, vec, t8, t16, t19, t26, t27)
    do iat=1,n
