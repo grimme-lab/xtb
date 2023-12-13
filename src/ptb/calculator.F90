@@ -34,6 +34,7 @@ module xtb_ptb_calculator
 
    use mctc_env, only: wp, error_type
    use mctc_io, only: structure_type, new
+   use mctc_io_convert, only: autoev
 
    use multicharge_model, only: new_mchrg_model, mchrg_model_type
 
@@ -219,6 +220,8 @@ contains
       type(scc_results), intent(out) :: results
 
       type(context_type) :: ctx
+      real(wp) :: dipmom(3)
+      real(wp), allocatable :: wbo(:, :, :)
 
       integer :: i
       real(wp) :: efix
@@ -235,17 +238,12 @@ contains
 
       ctx%solver = lapack_solver(gvd)
 
-      energy = 0.0_wp
-      gradient(:, :) = 0.0_wp
-      sigma(:, :) = 0.0_wp
-      hlgap = 0.0_wp
-      efix = 0.0_wp
-
       !> Set new PTB wavefunction in tblite format
       call newPTBWavefunction(env, self, wfn)
 
-      call twostepscf(ctx, wfn, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel)
-      stop
+      allocate(wbo(self%mol%nat, self%mol%nat, wfn%nspin))
+      call twostepscf(ctx, wfn, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel, &
+         & dipmom, wbo)
 
       call env%check(exitRun)
       if (exitRun) then
@@ -253,6 +251,24 @@ contains
          return
       end if
 
+      call chk%wfn%allocate(mol%n, self%bas%nsh, self%bas%nao)
+      chk%wfn%n = self%mol%nat
+      chk%wfn%nel = nint(wfn%nocc)
+      chk%wfn%nopen = self%mol%uhf
+      chk%wfn%nshell = self%bas%nsh
+      chk%wfn%nao = self%bas%nao
+      chk%wfn%P = wfn%density(:, :, 1)
+      chk%wfn%q = wfn%qat(:, 1)
+      chk%wfn%qsh = wfn%qsh(:, 1)
+      chk%wfn%focca = wfn%focc(:, 1)
+      chk%wfn%foccb = wfn%focc(:, 2)
+      chk%wfn%focc(:) = wfn%focc(:, 1) + wfn%focc(:, 2)
+      chk%wfn%emo = wfn%emo(:, 1) * autoev
+      chk%wfn%C = wfn%coeff(:, :, 1)
+      chk%wfn%ihomo = wfn%homo(1)
+      chk%wfn%wbo = wbo(:, :, 1)
+
+      results%hl_gap = ( wfn%emo(wfn%homo(1) + 1, 1) - wfn%emo(wfn%homo(1), 1) ) * autoev
       ! ------------------------------------------------------------------------
       !  post processing of gradient and energy
 
@@ -265,37 +281,18 @@ contains
       !    call close_file(ich)
       ! end if
 
-      ! ------------------------------------------------------------------------
-      !  fixing of certain atoms
-      !  print*,abs(efix/etot)
-      energy = energy + efix
-      results%e_total = energy
-      results%gnorm = norm2(gradient)
-      if (fixset%n .gt. 0) then
-         do i = 1, fixset%n
-            !print*,i,fixset%atoms(i)
-            gradient(1:3, fixset%atoms(i)) = 0
-         end do
-      end if
-
       ! save point charge gradients in results
       ! if (self%pcem%n > 0) then
       !    results%pcem = self%pcem
       ! end if
 
-      if (printlevel .ge. 2) then
+      if (printlevel >= 2) then
          ! start with summary header
          if (.not. set%silent) then
             write (env%unit, '(9x,53(":"))')
             write (env%unit, '(9x,"::",21x,a,21x,"::")') "SUMMARY"
          end if
          write (env%unit, '(9x,53(":"))')
-         write (env%unit, outfmt) "total energy      ", results%e_total, "Eh   "
-         if (.not. set%silent .and. allocated(self%solvation)) then
-            write (env%unit, outfmt) "total w/o Gsasa/hb", &
-               &  results%e_total - results%g_sasa - results%g_hb - results%g_shift, "Eh   "
-         end if
-         write (env%unit, outfmt) "gradient norm     ", results%gnorm, "Eh/a0"
          write (env%unit, outfmt) "HOMO-LUMO gap     ", results%hl_gap, "eV   "
          if (.not. set%silent) then
             if (set%verbose) then
@@ -304,13 +301,8 @@ contains
                write (env%unit, outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo + 1), "eV   "
             end if
             write (env%unit, '(9x,"::",49("."),"::")')
-            call print_ptb_results(env%unit, results, set%verbose, allocated(self%solvation))
-            write (env%unit, outfmt) "add. restraining  ", efix, "Eh   "
-            write (env%unit, outfmt) "total charge      ", sum(chk%wfn%q), "e    "
-            if (set%verbose) then
-               write (env%unit, '(9x,"::",49("."),"::")')
-               write (env%unit, outfmt) "atomisation energy", results%e_atom, "Eh   "
-            end if
+            call print_ptb_results(env%unit)
+            ! write (env%unit, outfmt) "total charge      ", sum(chk%wfn%q), "e    "
          end if
          write (env%unit, '(9x,53(":"))')
          write (env%unit, '(a)')
@@ -318,23 +310,9 @@ contains
 
    end subroutine singlepoint
 
-   subroutine print_ptb_results(iunit, res, verbose, lsolv)
+   subroutine print_ptb_results(iunit)
       integer, intent(in) :: iunit ! file handle (usually output_unit=6)
-      type(scc_results), intent(in) :: res
-      logical, intent(in) :: verbose, lsolv
-      write (iunit, outfmt) "SCC energy        ", res%e_elec, "Eh   "
-      write (iunit, outfmt) "-> isotropic ES   ", res%e_es, "Eh   "
-      write (iunit, outfmt) "-> anisotropic ES ", res%e_aes, "Eh   "
-      write (iunit, outfmt) "-> anisotropic XC ", res%e_axc, "Eh   "
-      write (iunit, outfmt) "-> dispersion     ", res%e_disp, "Eh   "
-      if (lsolv) then
-         write (iunit, outfmt) "-> Gsolv          ", res%g_solv, "Eh   "
-         write (iunit, outfmt) "   -> Gelec       ", res%g_born, "Eh   "
-         write (iunit, outfmt) "   -> Gsasa       ", res%g_sasa, "Eh   "
-         write (iunit, outfmt) "   -> Ghb         ", res%g_hb, "Eh   "
-         write (iunit, outfmt) "   -> Gshift      ", res%g_shift, "Eh   "
-      end if
-      write (iunit, outfmt) "repulsion energy  ", res%e_rep, "Eh   "
+      write (iunit, outfmt) "SCC energy        "
    end subroutine print_ptb_results
 
    subroutine writeInfo(self, unit, mol)
@@ -371,7 +349,7 @@ contains
       type(error_type), allocatable :: error
 
       call new_wavefunction(wfn, calc%mol%nat, calc%bas%nsh, calc%bas%nao, &
-         & nspin=1, kt=calc%etemp*kt)
+         & nspin=1, kt=calc%etemp * kt)
 
       if (allocated(error)) then
          call env%error(error%message, source)
