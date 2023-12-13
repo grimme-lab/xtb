@@ -31,7 +31,8 @@ module xtb_ptb_scf
    use tblite_wavefunction, only: wavefunction_type, get_alpha_beta_occupation
    use tblite_wavefunction_fermi, only: get_fermi_filling
    use tblite_wavefunction_type, only: get_density_matrix
-   use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles
+   use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles, &
+      & get_mulliken_shell_charges
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_integral_type, only: new_integral, integral_type
 
@@ -115,6 +116,7 @@ contains
       real(wp) :: tmpdip(3)
       !> Molecular dipole moment
       real(wp) :: dipole(3) = 0.0_wp
+      real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
@@ -536,7 +538,14 @@ contains
       call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
       call get_mulliken_atomic_multipoles(bas, ints%dipole, wfn%density, &
       & wfn%dpat)
-      call gemv(mol%xyz, wfn%qat(:, 1), tmpdip)
+      !> This step is only required because the dipole integrals in tblite are not
+      !> centered to a fixed point (e.g., origin) but are atomic dipole moments
+      !> Calculation of dipole moments requires Mulliken atomic charges.
+      allocate(mulliken_qsh(bas%nsh, wfn%nspin), mulliken_qat(mol%nat, wfn%nspin))
+      call get_mulliken_shell_charges(bas, ints%overlap, wfn%density, wfn%n0sh, &
+      & mulliken_qsh)
+      call get_qat_from_qsh(bas, mulliken_qsh, mulliken_qat)
+      call gemv(mol%xyz, mulliken_qat(:, 1), tmpdip)
       dipole(:) = tmpdip + sum(wfn%dpat(:, :, 1), 2)
       !##### DEV WRITE #####
       write (*, *) "Shell charges after 2nd iteration ..."
