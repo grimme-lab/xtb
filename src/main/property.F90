@@ -272,6 +272,116 @@ end subroutine write_energy_oniom
 
    end subroutine main_property
 
+   subroutine xtb_ptb_property &
+      (iunit, env, mol, wfn, bas, struc, wfx, res)
+
+      use xtb_mctc_convert
+      use xtb_type_molecule
+      use xtb_type_wavefunction
+      use xtb_type_environment
+      use xtb_type_basisset
+      use xtb_type_data
+
+      !========================================================================
+      !> global storage of options, parameters and basis set
+      use xtb_setparam
+
+      !========================================================================
+      !> PTB specific property output
+      use xtb_ptb_property, only: print_charges_to_screen
+      use xtb_ptb_guess, only: get_psh_from_qsh
+
+      use mctc_io, only: structure_type
+
+      use tblite_basis_type, only: basis_type
+      use tblite_wavefunction_type, only: wavefunction_type
+
+
+      implicit none
+
+      !========================================================================
+      integer, intent(in) :: iunit ! file handle (usually output_unit=6)
+      !> tblite data formats
+      type(structure_type), intent(in) :: mol
+      type(wavefunction_type), intent(in) :: wfn
+      type(basis_type), intent(in) :: bas
+      !> molecule data
+      type(TMolecule), intent(in) :: struc
+      type(TEnvironment), intent(inout) :: env
+      type(TWavefunction), intent(inout) :: wfx
+      type(scc_results), intent(in) :: res
+      integer  :: ifile, i
+      real(wp), allocatable :: psh(:, :)
+      real(wp) :: dip
+
+      !> orbital energies and occupation
+      if (set%pr_eig) then
+         write (iunit, '(/,4x,"*",1x,a)') "Orbital Energies and Occupations"
+         call print_orbital_eigenvalues(iunit, wfx, 11)
+      end if
+
+      !> Mixed Mulliken-Loewdin atomic charges and shell populations
+      allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
+      psh = get_psh_from_qsh(wfn, bas)
+      call print_charges_to_screen(iunit, mol, bas, wfn%qat, psh)
+      if (set%pr_charges) then
+         call open_file(ifile, 'charges', 'w')
+         call print_charges(ifile, struc%n, wfx%q)
+         call close_file(ifile)
+      end if
+
+      !> Spin population
+      ! if (set%pr_spin_population .and. wfx%nopen .ne. 0) then
+      !    call print_spin_population(iunit, mol%n, mol%at, mol%sym, basis%nao, wfx%focca,&
+      !       & wfx%foccb, S, wfx%C, basis%aoat2, basis%lao2)
+      ! end if
+
+!! wiberg bond orders
+      if (set%pr_wiberg) then
+         call open_file(ifile, 'wbo', 'w')
+         call print_wbofile(ifile, struc%n, wfx%wbo, 0.1_wp)
+         call close_file(ifile)
+         call print_wiberg(iunit, struc%n, struc%at, struc%sym, wfx%wbo, 0.1_wp)
+
+         call checkTopology(iunit, struc, wfx%wbo, 1)
+      end if
+
+      if (set%pr_wbofrag) &
+         call print_wbo_fragment(iunit, struc%n, struc%at, wfx%wbo, 0.1_wp)
+
+      ! if (set%pr_tmmos) then
+      !    call open_file(ifile, 'mos', 'w')
+      !    call write_tm_mos(ifile, struc%n, struc%at, basis, wfx)
+      !    call close_file(ifile)
+      ! end if
+
+      dip = norm2(res%dipole)
+
+      write (iunit, '(a)')
+      write (iunit, '(1x)', advance="no")
+      do i = 1,38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(4x,"Molecular dipole moment (a.u.)")')
+      write (iunit, '(4x,"X        Y        Z")')
+      write (iunit, '(1x)', advance="no")
+      do i = 1,38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(1x,3f9.4)') &
+           & res%dipole(1), res%dipole(2), res%dipole(3)
+      write (iunit, '(1x)', advance="no")
+      do i = 1,38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",/,1x,2f9.4)') &
+           & dip, dip*autod
+
+   end subroutine xtb_ptb_property
+
    subroutine gfnff_property(iunit, n, xyz, topo, nlist)
       use xtb_gfnff_topology, only: TGFFTopology
       use xtb_gfnff_neighbourlist, only: TGFFNeighbourList

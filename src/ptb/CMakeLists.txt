@@ -33,6 +33,7 @@ list(APPEND srcs
   "${dir}/integral_types.f90"
   "${dir}/coulomb.f90"
   "${dir}/plusu.f90"
+  "${dir}/property.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

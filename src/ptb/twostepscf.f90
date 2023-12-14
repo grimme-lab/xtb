@@ -164,14 +164,12 @@ contains
       call new_aux_integral(auxints, bas%nao)
       call get_integrals(mol, bas, lattr, list, ints%overlap, ints%dipole, norm=auxints%norm)
       !##### DEV WRITE #####
-      write (*, *) "Standard overlap ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f8.5)', advance="no") ints%overlap(i, j)
       !    end do
       !    write (*, *) ""
       ! end do
-      write (*, *) "Dipole:"
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(2i3,3f8.4)') i, j, ints%dipole(:, i, j)
@@ -180,7 +178,6 @@ contains
       !#####################
       call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=id_to_atom(mol, data%hamiltonian%kalphah0l))
       !##### DEV WRITE #####
-      write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f10.6)', advance="no") auxints%overlap_h0(i, j)
@@ -190,7 +187,6 @@ contains
       !#####################
       call get_integrals(mol, lattr, list, auxints%overlap_xc, alpha_scal=id_to_atom(mol, data%pauli%klalphaxc))
       !##### DEV WRITE #####
-      write (*, *) "Overlap XC scaled (SS) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f10.6)', advance="no") auxints%overlap_xc(i, j)
@@ -201,14 +197,12 @@ contains
       call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, auxints%overlap_to_x, &
       & auxints%overlap_to_1_x)
       !##### DEV WRITE #####
-      write (*, *) "Overlap S(1-x) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f10.6)', advance="no") overlap_soneminusx(i, j)
       !    end do
       !    write (*, *) ""
       ! end do
-      write (*, *) "Overlap S(x) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f10.6)', advance="no") overlap_sx(i, j)
@@ -227,10 +221,10 @@ contains
       !> Get first coordination number (" CN' ")
       call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn_star)
       !##### DEV WRITE #####
-      write (*, *) "CN star:"
-      do i = 1, mol%nat
-         write (*, *) "Atom ", i, ":", cn_star(i)
-      end do
+      ! write (*, *) "CN star:"
+      ! do i = 1, mol%nat
+      !    write (*, *) "Atom ", i, ":", cn_star(i)
+      ! end do
       !#####################
       !> Get radii from PTB parameters for second coordination number (" CN ")
       do isp = 1, mol%nid
@@ -240,19 +234,19 @@ contains
       !> Get second coordination number (" CN ")
       call ncoord_erf(mol, ptbGlobals%kerfcn, default_cutoff, cn, covrad=radii)
       !##### DEV WRITE #####
-      write (*, *) "CN:"
-      do i = 1, mol%nat
-         write (*, *) "Atom ", i, ":", cn(i)
-      end do
+      ! write (*, *) "CN:"
+      ! do i = 1, mol%nat
+      !    write (*, *) "Atom ", i, ":", cn(i)
+      ! end do
       !#####################
       !> Get third coordination number for EEQ model (" CN-EEQ ")
       call ncoord_erf(mol, ptbGlobals%kerfcn_eeq, default_cutoff, cn_eeq)
 
       !##### DEV WRITE #####
-      write (*, *) "CN-EEQ:"
-      do i = 1, mol%nat
-         write (*, *) "Atom ", i, ":", cn_eeq(i)
-      end do
+      ! write (*, *) "CN-EEQ:"
+      ! do i = 1, mol%nat
+      !    write (*, *) "Atom ", i, ":", cn_eeq(i)
+      ! end do
       !#####################
 
       !    _    _    ___
@@ -265,7 +259,6 @@ contains
       !> V_ECP via PTB core basis
       call get_Vecp(mol, data%corepotential, bas, cbas, auxints%norm, vecp)
       !##### DEV WRITE #####
-      write (*, *) "V_ECP ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f10.6)', advance="no") vecp(i, j)
@@ -286,16 +279,15 @@ contains
       !> EEQ call
       call eeqmodel%solve(mol, cn_eeq, qvec=wfn%qat(:, 1))
       !##### DEV WRITE #####
-      write (*, *) "EEQ charges:"
-      do i = 1, mol%nat
-         write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", wfn%qat(i, 1)
-      end do
+      ! write (*, *) "EEQ charges:"
+      ! do i = 1, mol%nat
+      !    write (*, '(a,i0,a,f12.6)') "Atom ", i, ":", wfn%qat(i, 1)
+      ! end do
       !#####################
       !> Project reference occupation on wavefunction and use EEQ charges as guess
       call get_occupation(mol, bas, data%hamiltonian%refocc, wfn%nocc, wfn%n0at, wfn%n0sh)
       call guess_qsh(wfn, bas)
       !##### DEV WRITE #####
-      write (*, *) "Shell populations ..."
       ! do i = 1, bas%nsh
       !    write(*,*) wfn%qsh(i, 1)
       ! enddo
@@ -304,7 +296,6 @@ contains
          & data%coulomb%kQHubbard, data%coulomb%kOK1, data%coulomb%kTO)
       call coulomb%update(mol, bas)
       !##### DEV WRITE #####
-      write (*, *) "Coulomb matrix ..."
       ! do i = 1, bas%nsh
       !    do j = 1, bas%nsh
       !       write (*, '(f10.6)', advance="no") coulomb%cmat(i, j)
@@ -357,7 +348,6 @@ contains
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
-      write (*, *) "H0 ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f8.4)', advance="no") ints%hamiltonian(i, j)
@@ -379,7 +369,6 @@ contains
       call coulomb%get_potential(wfn, pot)
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
       !##### DEV WRITE #####
-      write (*, *) "V_Coulomb ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
@@ -393,7 +382,6 @@ contains
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc1, wfn%coeff(:, :, 1))
 
       !##### DEV WRITE #####
-      write (*, *) "Hamiltonian matrix to solve ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
@@ -434,18 +422,18 @@ contains
       call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
       psh = get_psh_from_qsh(wfn, bas)
       !##### DEV WRITE #####
-      write (*, *) "Shell charges after 1st iteration ..."
-      do i = 1, bas%nsh
-         write (*, '(f8.4)') wfn%qsh(i, 1)
-      end do
-      write (*, *) "Shell populations after 1st iteration ..."
-      do i = 1, bas%nsh
-         write (*, '(f8.4)') psh(i, 1)
-      end do
-      write (*, *) "Atom charges after 1st iteration ..."
-      do i = 1, mol%nat
-         write (*, '(f8.4)') wfn%qat(i, 1)
-      end do
+      ! write (*, *) "Shell charges after 1st iteration ..."
+      ! do i = 1, bas%nsh
+      !    write (*, '(f8.4)') wfn%qsh(i, 1)
+      ! end do
+      ! write (*, *) "Shell populations after 1st iteration ..."
+      ! do i = 1, bas%nsh
+      !    write (*, '(f8.4)') psh(i, 1)
+      ! end do
+      ! write (*, *) "Atom charges after 1st iteration ..."
+      ! do i = 1, mol%nat
+      !    write (*, '(f8.4)') wfn%qat(i, 1)
+      ! end do
       !#####################
 
       !   ____            _   _ _                 _   _
@@ -486,7 +474,6 @@ contains
       !> Deallocate temporary basis set and charge-dependent scaling factors
       deallocate (bas_h0, expscal_h0_2nditer)
       !##### DEV WRITE #####
-      write (*, *) "Overlap H0 scaled (SS) ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f10.6)', advance="no") auxints%overlap_h0(i, j)
@@ -500,7 +487,6 @@ contains
       & levels, ints%hamiltonian, ptbGlobals%kpol)
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
-      write (*, *) "H0 ..."
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
@@ -553,31 +539,6 @@ contains
       allocate (wbo(mol%nat, mol%nat, wfn%nspin))
       call get_mayer_bond_orders(bas, ints%overlap, wfn%density, wbo)
 
-      !##### DEV WRITE #####
-      write (*, *) "Shell charges after 2nd iteration ..."
-      do i = 1, bas%nsh
-         write (*, '(f8.4)') wfn%qsh(i, 1)
-      end do
-      write (*, *) "Shell populations after 2nd iteration ..."
-      do i = 1, bas%nsh
-         write (*, '(f8.4)') psh(i, 1)
-      end do
-      write (*, *) "Atom charges after 2nd iteration ..."
-      do i = 1, mol%nat
-         write (*, '(f8.4)') wfn%qat(i, 1)
-      end do
-      write (*, *) "Molecular dipole after 2nd iteration ..."
-      do i = 1, 3
-         write (*, '(f8.4)') dipole(i)
-      end do
-      write (*, *) "Mayer bond orders after 2nd iteration ..."
-      do i = 1, mol%nat
-         do j = 1, i-1
-            write (*, '(i0,2x,i0,2x,f8.4)') j, i, wbo(i, j, 1)
-         end do
-      end do
-      !#####################
-
    end subroutine twostepscf
 
    !> TAKEN OVER FROM TBLITE - modified in order to use the PTB parameters
@@ -613,21 +574,21 @@ contains
 
       select case (wfn%nspin)
       case default
-         write (*, *) "Matrix to solve ..."
-         do i = 1, size(wfn%coeff, 1)
-            do j = 1, size(wfn%coeff, 2)
-               write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
-            end do
-            write (*, '(/)', advance="no")
-         end do
+         ! write (*, *) "Matrix to solve ..."
+         ! do i = 1, size(wfn%coeff, 1)
+         !    do j = 1, size(wfn%coeff, 2)
+         !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
+         !    end do
+         !    write (*, '(/)', advance="no")
+         ! end do
          call solver%solve(wfn%coeff(:, :, 1), ints%overlap, wfn%emo(:, 1), error)
-         write (*, *) "Coefficients after solving ..."
-         do i = 1, size(wfn%coeff, 1)
-            do j = 1, size(wfn%coeff, 2)
-               write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
-            end do
-            write (*, '(/)', advance="no")
-         end do
+         ! write (*, *) "Coefficients after solving ..."
+         ! do i = 1, size(wfn%coeff, 1)
+         !    do j = 1, size(wfn%coeff, 2)
+         !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
+         !    end do
+         !    write (*, '(/)', advance="no")
+         ! end do
          if (allocated(error)) return
          wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
 
@@ -657,13 +618,13 @@ contains
          end do
          ts = sum(stmp)
       end select
-      write (*, *) "Density matrix after solving ..."
-      do i = 1, size(wfn%density, 1)
-         do j = 1, size(wfn%density, 2)
-            write (*, '(f11.7)', advance="no") wfn%density(i, j, 1)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! write (*, *) "Density matrix after solving ..."
+      ! do i = 1, size(wfn%density, 1)
+      !    do j = 1, size(wfn%density, 2)
+      !       write (*, '(f11.7)', advance="no") wfn%density(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
    end subroutine get_density
 
    pure function id_to_atom(mol, idparam) result(atomparam)
