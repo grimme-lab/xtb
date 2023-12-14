@@ -376,45 +376,39 @@ contains
          name = 'PTB level '//trim(name)
       end if
       call generic_header(unit, name, 49, 10)
-
       write (unit, '(a)')
       if (allocated(self%doi)) then
          write (unit, afmt) "Reference", self%doi
       end if
-
-      write (unit, head) "Hamiltonian"
-      write (unit, rfmt, advance='no') "H0-scaling (s, p, d)"
-      do ii = 0, 2
-         write (unit, rnum, advance='no') self%hamiltonian%kScale(ii, ii)
-      end do
       write (unit, '(a)')
-      write (unit, rfmt) "zeta-weighting", self%hamiltonian%wExp
 
-      write (unit, head) "Repulsion"
-      write (unit, rfmt, advance='no') "kExp", self%repulsion%kExp
-      if (self%repulsion%kExpLight /= self%repulsion%kExp) then
-         write (unit, rnum, advance='no') self%repulsion%kExpLight
-      end if
-      write (unit, '(a)')
-      write (unit, rfmt) "rExp", self%repulsion%rExp
-
-      write (unit, head) "Coulomb"
-      if (allocated(self%coulomb%thirdOrderShell)) then
-         write (unit, afmt) "third order", "shell-resolved"
-      else if (allocated(self%coulomb%thirdOrderAtom)) then
-         write (unit, afmt) "third order", "atomic"
-      else
-         write (unit, afmt) "third order", "false"
-      end if
-
-      if (allocated(self%srb)) then
-         write (unit, head) "Polar bond correction"
-         write (unit, rfmt) "rad-shift", self%srb%shift
-         write (unit, rfmt) "strength", self%srb%prefactor
-         write (unit, rfmt) "en-exp", self%srb%steepness
-         write (unit, rfmt) "en-scale", self%srb%enScale
-      end if
-      write (unit, '(a)')
+      write(unit,'(a)') "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+      write(unit,'(a)') "@,,,,,,,,,,,,,,,,,,,,,,,,,,,,@@"
+      write(unit,'(a)') "@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@"
+      write(unit,'(a)') "@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,*"
+      write(unit,'(a)') "@,,,,,,,,@///////////////#,,,,,,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@/////////////////,,,,,,,,("
+      write(unit,'(a)') "@,,,,,,,,@/////////////////,,,,,,,,("
+      write(unit,'(a)') "@,,,,,,,,@/////////////////,,,,,,,,("
+      write(unit,'(a)') "@,,,,,,,,@/////////////////,,,,,,,,("
+      write(unit,'(a)') "@,,,,,,,,@/////////////////,,,,,,,,("
+      write(unit,'(a)') "@,,,,,,,,@/////////////////,,,,,,,,("
+      write(unit,'(a)') "@,,,,,,,,@////////////////@,,,,,,,,@"
+      write(unit,'(a)') "@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,%   @@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@"
+      write(unit,'(a)') "@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&////@,,,,,,,,,,,,,,,,,///@,,,,,,,,,,,,,,@"
+      write(unit,'(a)') "@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@///////@,,,,,,,,,,,,,,,,,,//@,,,,,,,,,,,,,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@///////////////////////////////////@,,,#/////////@,,,@////////*,,,@"
+      write(unit,'(a)') "@,,,,,,,,@/////////@ ////////////////////////@,,,#/////////@,,,@////////*,,,@"
+      write(unit,'(a)') "@,,,,,,,,@///// %@@  ( @@@ (@ @@@ @//////////@,,,#/////////@,,,@////////*,,,@"
+      write(unit,'(a)') "@,,,,,,,,@////( @//@ ( @@@ @@ @//.@//////////@,,,#/////////@,,,,,,,,,,,,,,,*"
+      write(unit,'(a)') "@,,,,,,,,@///// @//@ ( @////@ @//.@//////////@,,,#/////////@,,,,,,,,,,,,,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@//////@@@@@/(@@@@/@@@//@@//////////@,,,#/////////@,,,@////////(,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@///////////#@@/ @//////////////////@,,,#/////////@,,,@/////////,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@//// .@@/(/# @@ @@/@ /// @/////////@,,,#/////////@,,,@/////////,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@////%    @/# @/ @//@ /// @/////////@,,,#/////////@,,,@////////@,,,,@"
+      write(unit,'(a)') "@,,,,,,,,@////////@ /# @/ @//@ /// @/////////@,,,#/////////@,,,,,,,,,,,,,,,,@"
+      write(unit,'(a)') "&@@@@@@@@@/////@@@@//(@@/#@@(/#@@@ @"
+      write(unit,'(a,/)') "                               @@@ @"
 
    end subroutine writeInfo
 

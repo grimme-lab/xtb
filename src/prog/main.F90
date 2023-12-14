@@ -579,8 +579,6 @@ contains
          call iniqshell(calc%xtbData, mol%n, mol%at, mol%z, calc%basis%nshell, chk%wfn%q, chk%wfn%qsh, set%gfn_method)
       type is (TTBLiteCalculator)
          call newTBLiteWavefunction(env, mol, calc, chk)
-      type is (TPTBCalculator)
-         write (*, *) "Setup PTB."
       end select
 
       ! ------------------------------------------------------------------------
@@ -904,6 +902,8 @@ contains
             call main_cube(set%verbose, mol, chk%wfn, calc%basis, res)
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
+         type is (TPTBCalculator)
+            call xtb_ptb_property(iprop, env, calc%mol, chk%tblite, calc%bas, mol, chk%wfn, res)
          end select
       end if
 
@@ -959,6 +959,7 @@ contains
    type is(TOniomCalculator)
       call write_energy_oniom(env%unit,res,fres, &
          & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess.or.(set%runtyp.eq.p_run_bhess)))
+   type is (TPTBCalculator)
    class default
       call write_energy_gff(env%unit,res,fres, &
         & (set%runtyp.eq.p_run_hess).or.(set%runtyp.eq.p_run_ohess).or.(set%runtyp.eq.p_run_bhess))

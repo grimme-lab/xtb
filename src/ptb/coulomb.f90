@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Two-step SCF of the PTB method
+!> Coulomb interactions of the PTB method
 
 module xtb_ptb_coulomb
    use mctc_env, only: wp

@@ -79,7 +79,6 @@ contains
                !> wfn%qat on input are actually the atomic CHARGES
                psh(ii + ish, spin) = wfn%n0sh(ii + ish) * &
                & ( wfn%n0at(iat) - wfn%qat(iat, spin) ) / wfn%n0at(iat)
-               !### POP version
             end do
          end do
       end do
