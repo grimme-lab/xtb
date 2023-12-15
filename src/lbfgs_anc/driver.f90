@@ -190,14 +190,14 @@ if (val.ne.emin_global) then
     endif
   endif
   open(133, file = "xtbopt_emin.coord", status = "new")
-  write(133,*) '$coord'
+  write(133,'(a)') '$coord'
   do i=1, mol%n
     write(133,'(3f20.10,a,a)') xyz_emin(:,i),'    ',mol%sym(i)
   enddo
-  write(133,*) '$periodic 3'
-  write(133,*) '$lattice'
+  write(133,'(a)') '$periodic 3'
+  write(133,'(a)') '$lattice'
   write(133,'(3f25.10)') latt_emin
-  write(133,*) '$end'
+  write(133,'(a)') '$end'
   close(133)
 endif
 
