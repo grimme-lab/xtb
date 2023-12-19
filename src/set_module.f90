@@ -1047,6 +1047,8 @@ subroutine set_runtyp(typ)
       set%runtyp = p_run_vomega
    case('vfukui')
       set%runtyp = p_run_vfukui
+   case('alpha')
+      set%runtyp = p_run_alpha
    end select
    set1 = .false.
 end subroutine set_runtyp
@@ -1177,6 +1179,7 @@ subroutine set_efield(env, val)
    if (set1) then
       if (getValue(env,val,idum)) then
          efield = idum
+         set%efield = idum
       else
          call env%error('E-field could not be read from your argument', source)
       endif
