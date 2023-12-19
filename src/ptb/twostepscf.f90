@@ -35,6 +35,8 @@ module xtb_ptb_scf
       & get_mulliken_shell_charges, get_mayer_bond_orders
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_integral_type, only: new_integral, integral_type
+   use tblite_container, only: container_type, container_cache
+   use tblite_external_field, only: electric_field
 
    use multicharge_model, only: mchrg_model_type
 
@@ -52,16 +54,31 @@ module xtb_ptb_scf
    use xtb_ptb_coulomb, only: coulomb_potential
    use xtb_ptb_plusu, only: plusu_potential_type
 
+   use xtb_readin, only: bool2string, bool2int
+
    implicit none
    private
 
    public :: twostepscf
 
+   character(len=*), private, parameter :: outfmt = &
+                                           '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
+   character(len=*), parameter :: intfmt = &
+                                  '(10x,":",2x,a,i18,      10x,":")'
+   character(len=*), parameter :: chrfmt = &
+                                  '(10x,":",2x,a,a18,      10x,":")'
+   character(len=*), parameter :: scifmt = &
+                                  '(10x,":",2x,a,e22.7,1x,a,1x,":")'
+   character(len=*), parameter :: dblfmt = &
+                                  '(10x,":",2x,a,f18.7,5x,a,1x,":")'
+
    real(wp), parameter :: default_cutoff = 25.0_wp
+   !> Conversion factor from temperature to energy
+   real(wp), parameter :: kt = 3.166808578545117e-06_wp
 
 contains
 
-   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, eeqmodel, dipole, wbo)
+   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, eeqmodel, dipole, wbo, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -78,6 +95,8 @@ contains
       real(wp), intent(out) :: dipole(3)
       !> Wiberg bond orders
       real(wp), allocatable, intent(out) :: wbo(:, :, :)
+      !> (optional) Electric field
+      real(wp), intent(in), optional :: efield(:)
       !> Electronic solver
       class(solver_type), allocatable :: solver
       !> Error type
@@ -96,6 +115,12 @@ contains
       type(potential_type) :: pot
       !> H0 basis in second iteration
       type(basis_type), allocatable :: bas_h0
+      ! !> Container type for interaction
+      ! class(container_type), allocatable :: efield_object
+      !> Restart data for interaction containers
+      type(container_cache) :: icache
+      !> Electric field object
+      type(electric_field) :: efield_object
       real(wp), allocatable :: expscal_h0_2nditer(:, :)
       !> Loop variables
       integer :: i, j, isp, izp, iat, ish, iid, is
@@ -113,7 +138,7 @@ contains
       !> Number of electrons
       real(wp) :: nel
       !> Pauli XC potential
-      real(wp), allocatable :: Vxc(:, :), psh(:, :)
+      real(wp), allocatable :: psh(:, :)
       !> Electronic entropy
       real(wp) :: ts
       !> Tmp variable for dipole moment
@@ -122,6 +147,10 @@ contains
 
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
+
+      if (present(efield)) then
+         efield_object = electric_field(efield)
+      end if
 
       !> Get the cutoff for the lattice points
       cutoff = get_cutoff(bas)
@@ -303,6 +332,28 @@ contains
       !    write (*, *) ""
       ! end do
       !#####################
+
+      if (ctx%verbosity > 1) then
+         write (ctx%unit, '(/,10x,51("."))')
+         write (ctx%unit, '(10x,":",22x,a,22x,":")') "SETUP"
+         write (ctx%unit, '(10x,":",49("."),":")')
+         ! write (env%unit, intfmt) "# basis functions  ", self%bas%n
+         write (ctx%unit, intfmt) "# atomic orbitals  ", bas%nao
+         write (ctx%unit, intfmt) "# shells           ", bas%nsh
+         write (ctx%unit, intfmt) "# electrons        ", nint(wfn%nocc)
+         write (ctx%unit, intfmt) "max. iterations    ", 2
+         write (ctx%unit, chrfmt) "Hamiltonian        ", "PTB"
+         write (ctx%unit, chrfmt) "PC potential       ", bool2string(.false.)
+         ! if (lpcem) then
+         !    write (env%unit, intfmt) "-> # point charges ", pcem%n
+         !    write (env%unit, dblfmt) "-> sum of PC       ", sum(pcem%q), "e   "
+         ! end if
+         write (ctx%unit, dblfmt) "electronic temp.   ", wfn%kt / kt, "K   "
+         ! write (env%unit, dblfmt) "accuracy           ", acc, "    "
+         write (ctx%unit, scifmt) "-> integral cutoff ", bas%intcut, "    "
+         ! write (env%unit, scifmt) "-> integral neglect", neglect, "    "
+         write (ctx%unit, '(10x,51("."))')
+      end if
 
       !           _____                    _____                    _____
       !         /\    \                  /\    \                  /\    \
@@ -510,6 +561,10 @@ contains
       call pot%reset()
       call coulomb%update(mol, bas)
       call coulomb%get_potential(wfn, pot)
+      if (present(efield)) then
+         call efield_object%update(mol, icache)
+         call efield_object%get_potential(mol, icache, wfn, pot)
+      end if
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))

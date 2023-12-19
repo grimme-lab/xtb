@@ -294,16 +294,25 @@ contains
          end if
       end if
 
-      !> efield read: gfnff only
-      call open_file(ich, '.EFIELD', 'r')
-      if (ich .ne. -1) then
-         call getline(ich, cdum, iostat=err)
-         if (err /= 0) then
-            call env%error('.EFIELD is empty!', source)
-         else
-            call set_efield(env, cdum)
-            call close_file(ich)
+      !> efield read: gfnff and PTB only
+      if (set%mode_extrun .eq. p_ext_gfnff .or. set%mode_extrun .eq. p_ext_ptb) then
+         call open_file(ich, '.EFIELD', 'r')
+         if (ich .ne. -1) then
+            call getline(ich, cdum, iostat=err)
+            if (err /= 0) then
+               call env%error('.EFIELD is empty!', source)
+            else
+               call set_efield(env, cdum)
+               call close_file(ich)
+            end if
          end if
+      end if
+      !> If EFIELD is not zero when using xtb, print a warning
+      if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff)) &
+         & .and. (sum(abs(set%efield)) /= 0.0_wp) ) then
+         call env%terminate("External electric field is not zero ('--efield' or file '.EFIELD'), &
+            & but only supported for GFN-FF and PTB")
+      else
       end if
 
       call env%checkpoint("Reading multiplicity from file failed")
@@ -427,6 +436,13 @@ contains
       !> now we are at a point that we can check for requested constraints
       call read_userdata(xcontrol, env, mol)
 
+      if (sum(abs(set%efield)) /= 0.0_wp) then
+         write (env%unit, '(/,3x,a)') "--------------------------------------"
+         write (env%unit, '(3x,a)') "--- external electric field / a.u. ---"
+         write (env%unit, '(3x,3(a,f8.4))') "x = ", set%efield(1), " y = ", set%efield(2), " z = ", set%efield(3)
+         write (env%unit, '(3x,a)') "--------------------------------------"
+      end if
+
       !> initialize metadynamics
       call load_metadynamic(metaset, mol%n, mol%at, mol%xyz)
 
@@ -492,7 +508,7 @@ contains
       ! ------------------------------------------------------------------------
       !> Print the method header and select the parameter file
 
-      if (.not. allocated(fnv)) then
+      if ((.not. allocated(fnv)) .and. (.not. set%mode_extrun .eq. p_ext_ptb)) then
          select case (set%runtyp)
          case default
             call env%terminate('This is an internal error, please define your runtypes!')
@@ -1346,6 +1362,14 @@ contains
                call env%error("Number of unpaired electrons is not provided", source)
             end if
 
+         case ("--efield")
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_efield(env, sec)
+            else
+               call env%error("Electric field is not provided", source)
+            end if
+
          case ('--gfn')
             call args%nextArg(sec)
             if (allocated(sec)) then
@@ -1649,6 +1673,9 @@ contains
 
          case ('--vfukui')
             call set_runtyp('vfukui')
+
+         case ('--alpha')
+            call set_runtyp('alpha')
 
          case ('--grad')
             call set_runtyp('grad')

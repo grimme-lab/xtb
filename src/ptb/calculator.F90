@@ -31,6 +31,7 @@ module xtb_ptb_calculator
    use xtb_setparam
    use xtb_fixparam
    use xtb_mctc_systools, only: rdpath
+   use xtb_readin, only: bool2string, bool2int
 
    use mctc_env, only: wp, error_type
    use mctc_io, only: structure_type, new
@@ -86,6 +87,14 @@ module xtb_ptb_calculator
 
    character(len=*), private, parameter :: outfmt = &
                                            '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
+   character(len=*), parameter :: intfmt = &
+                                  '(10x,":",2x,a,i18,      10x,":")'
+   character(len=*), parameter :: chrfmt = &
+                                  '(10x,":",2x,a,a18,      10x,":")'
+   character(len=*), parameter :: scifmt = &
+                                  '(10x,":",2x,a,e22.7,1x,a,1x,":")'
+   character(len=*), parameter :: dblfmt = &
+                                  '(10x,":",2x,a,f18.7,5x,a,1x,":")'
    !> Conversion factor from temperature to energy
    real(wp), parameter :: kt = 3.166808578545117e-06_wp
 
@@ -221,6 +230,7 @@ contains
 
       type(context_type) :: ctx
       real(wp), allocatable :: wbo(:, :, :)
+      real(wp), allocatable :: efield(:)
 
       logical :: exitRun
       !> Divide-and-conquer solver
@@ -228,16 +238,28 @@ contains
       !> Relatively robust solver
       integer :: gvr = 2
 
+      energy = 0.0_wp
+      gradient = 0.0_wp
+      sigma = 0.0_wp
+
       call mol%update
 
       ctx%solver = lapack_solver(gvd)
+      ctx%unit = env%unit
+      ctx%verbosity = printlevel
 
       !> Set new PTB wavefunction in tblite format
       call newPTBWavefunction(env, self, chk%tblite)
 
+      !> Static Homogeneous External Electric Field
+      if (sum(abs(set%efield)) > 1.0E-6_wp) then
+         allocate (efield(3), source=0.0_wp)
+         efield = set%efield
+      end if
+
       allocate (wbo(self%mol%nat, self%mol%nat, chk%tblite%nspin))
       call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel, &
-         & results%dipole, wbo)
+         & results%dipole, wbo, efield)
 
       call env%check(exitRun)
       if (exitRun) then
@@ -265,29 +287,50 @@ contains
       chk%wfn%wbo = wbo(:, :, 1)
 
       results%hl_gap = (chk%tblite%emo(chk%tblite%homo(1) + 1, 1) - chk%tblite%emo(chk%tblite%homo(1), 1)) * autoev
+      hlgap = results%hl_gap
 
-      ! if (printlevel >= 2) then
-      !    ! start with summary header
-      !    if (.not. set%silent) then
-      !       write (env%unit, '(9x,53(":"))')
-      !       write (env%unit, '(9x,"::",21x,a,21x,"::")') "SUMMARY"
-      !    end if
-      !    write (env%unit, '(9x,53(":"))')
-      !    write (env%unit, outfmt) "HOMO-LUMO gap     ", results%hl_gap, "eV   "
-      !    write (env%unit, outfmt) "HOMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo), "eV   "
-      !    write (env%unit, outfmt) "LUMO orbital eigv.", chk%wfn%emo(chk%wfn%ihomo + 1), "eV   "
-      !    call print_ptb_results(env%unit)
-      !    write (env%unit, outfmt) "total charge      ", sum(chk%wfn%q), "e    "
-      !    write (env%unit, '(9x,53(":"))')
-      !    write (env%unit, '(a)')
-      ! end if
+      !> polarizability by simple perturbative treatment
+      !> this is only done in alpha,beta cases
+      if (set%runtyp == p_run_alpha) then
+         write (*, *) "Polarizability by perturbative treatment ..."
+         !    !> special overlap matrix for H0, later this should be done together with S and SSS computations for efficiency
+         !    call modbas(n, at, 3)
+         !    call sint(n, ndim, at, xyz, rab, SS, eps) ! scaled S
+         !    call modbas(n, at, 4)
+         !    !> six perturbed dipole moment calcs H = H_final + H_resp + field1 + field2
+         !    allocate (P1(ndim * (ndim + 1) / 2), patmp(n), pshtmp(10, n))
+         !    do k = 1, 3
+         !       call addsym(ndim, ffs, Htmp, D(1, k), H)                                           ! perturb field free H with field
+         !       call solve3(ndim, nel, nopen, homo, eT, focc, H, S, P1)                                ! solve (special routine just for P1)
+         !       call mlpop2(n, ndim, P1, S1, S2, patmp, pshtmp)                                      ! pops
+         !       patmp = z - patmp
+         !       H = Vecp
+         !       call adddsym(ndim, ffs, D(1, k), H)                                               ! perturb H with field only
+         !       call onescf(n, ndim, nel, nopen, homo, at, rab, cns,&                                 ! and add 2nd iter part
+         !       &              S, SS, H, Hdiag, focc, eT, scfpar, ves0, pshtmp, patmp, P1)
+         !       call dipmom2(n, ndim, xyz, z, norm, P1, D, pnt, dip1)                                  ! get dipole moment
+
+         !       call addsym(ndim, -ffs, Htmp, D(1, k), H)                                           ! other direction
+         !       call solve3(ndim, nel, nopen, homo, eT, focc, H, S, P1)
+         !       call mlpop2(n, ndim, P1, S1, S2, patmp, pshtmp)
+         !       patmp = z - patmp
+         !       H = Vecp
+         !       call adddsym(ndim, -ffs, D(1, k), H)
+         !       call onescf(n, ndim, nel, nopen, homo, at, rab, cns,&
+         !       &              S, SS, H, Hdiag, focc, eT, scfpar, ves0, pshtmp, patmp, P1)
+         !       call dipmom2(n, ndim, xyz, z, norm, P1, D, pnt, dip2)
+
+         !       alpha(k, 1:3) = -(dip1(1:3) - dip2(1:3)) / (2_wp * ffs)                               ! numerical diff. dmu/dfield
+         !    end do
+         !    alp(1) = alpha(1, 1)
+         !    alp(2) = 0.5 * (alpha(2, 1) + alpha(1, 2))
+         !    alp(3) = alpha(2, 2)
+         !    alp(4) = 0.5 * (alpha(3, 1) + alpha(1, 3))
+         !    alp(5) = 0.5 * (alpha(3, 2) + alpha(2, 3))
+         !    alp(6) = alpha(3, 3)
+      end if
 
    end subroutine singlepoint
-
-   subroutine print_ptb_results(iunit)
-      integer, intent(in) :: iunit ! file handle (usually output_unit=6)
-      write (iunit, outfmt) "SCC energy        "
-   end subroutine print_ptb_results
 
    subroutine writeInfo(self, unit, mol)
 

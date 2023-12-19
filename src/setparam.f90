@@ -188,6 +188,7 @@ module xtb_setparam
    integer, parameter :: p_run_vipea  = 102
    integer, parameter :: p_run_vfukui = 103
    integer, parameter :: p_run_vomega = 104
+   integer, parameter :: p_run_alpha  = 105
 
    integer,private :: idum
 
@@ -213,6 +214,9 @@ module xtb_setparam
 
 !  shift molecule to center of mass
    logical  :: do_cma_trafo = .false.
+
+!  static homogenous external electric field in a.u.
+   real(wp) :: efield(3) = [0.0_wp, 0.0_wp, 0.0_wp]
 
 ! linear dependencies overlap cut-off stuff
    real(wp) :: lidethr = 0.00001_wp   ! cut-off threshold for small overlap eigenvalues
