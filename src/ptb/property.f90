@@ -39,6 +39,7 @@ contains
       real(wp), intent(in) :: qat(:, :) ! Atomic partial charges
       real(wp), intent(in) :: qsh(:, :) ! Shell populations
       integer :: i, iid, ish, is
+      real(wp) :: sumq
 
       write (iunit, '(a)')
       write (iunit, '(4x,"* Atomic partial charges (q)     Shell populations (p)")')
@@ -68,6 +69,18 @@ contains
          end do
          write (iunit, '(/)', advance="no")
       end do
+      write (iunit, '(4x)', advance="no")
+      do i = 1,29+11*maxval(bas%nsh_at(:))
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      sumq = sum(qat(:, 1))
+      if (abs(sumq) < 1.0E-7_wp) then
+         sumq = 0.0_wp
+      end if
+      write (iunit, '(6x,a,f10.5)') &
+         & "total:", sumq 
+
    end subroutine print_charges_to_screen
 
 end module xtb_ptb_property
