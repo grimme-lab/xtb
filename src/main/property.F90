@@ -272,7 +272,7 @@ end subroutine write_energy_oniom
 
    end subroutine main_property
 
-   subroutine xtb_ptb_property &
+   subroutine ptb_property &
       (iunit, env, mol, wfn, bas, struc, wfx, res)
 
       use xtb_mctc_convert
@@ -380,7 +380,7 @@ end subroutine write_energy_oniom
       write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",/,1x,2f9.4)') &
            & dip, dip*autod
 
-   end subroutine xtb_ptb_property
+   end subroutine ptb_property
 
    subroutine gfnff_property(iunit, n, xyz, topo, nlist)
       use xtb_gfnff_topology, only: TGFFTopology
