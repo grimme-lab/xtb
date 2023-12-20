@@ -32,4 +32,5 @@ srcs += files(
   'coulomb.f90',
   'plusu.f90',
   'property.f90',
+  'response.f90',
 )

@@ -43,11 +43,14 @@ module xtb_ptb_calculator
    use tblite_context, only: context_type
    use tblite_lapack_solver, only: lapack_solver
    use tblite_wavefunction, only: wavefunction_type, new_wavefunction
+   use tblite_integral_type, only: integral_type
 
    use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_scf, only: twostepscf
    use xtb_ptb_corebasis, only: add_core_basis
+   use xtb_ptb_integral_types, only: aux_integral_type
+   use xtb_ptb_response, only: numgrad_polarizability
    implicit none
 
    private
@@ -97,6 +100,8 @@ module xtb_ptb_calculator
                                   '(10x,":",2x,a,f18.7,5x,a,1x,":")'
    !> Conversion factor from temperature to energy
    real(wp), parameter :: kt = 3.166808578545117e-06_wp
+   !> Finite-field step for numerical dipole polarizability
+   real(wp), parameter :: dF = 1.0E-1_wp
 
 contains
 
@@ -228,9 +233,21 @@ contains
       !> Detailed results
       type(scc_results), intent(out) :: results
 
+      !#################################################
+      !> PTB INDIVIDUAL
+      !#################################################
+      !> tblite calculation context
       type(context_type) :: ctx
+      !> Wiberg bond order
       real(wp), allocatable :: wbo(:, :, :)
+      !> Static homogenoues external electric field
       real(wp), allocatable :: efield(:)
+      !> Static dipole polarizability tensor
+      real(wp) :: alpha(3,3)
+      !> Auxiliary integrals
+      type(aux_integral_type) :: auxints
+      !> Exact integrals
+      type(integral_type) :: ints
 
       logical :: exitRun
       !> Divide-and-conquer solver
@@ -258,8 +275,10 @@ contains
       end if
 
       allocate (wbo(self%mol%nat, self%mol%nat, chk%tblite%nspin))
-      call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, self%eeqmodel, &
+      call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, ints, auxints, self%eeqmodel, &
          & results%dipole, wbo, efield)
+      !> INFO ON RETURNED VARIABLES: On return, ints%hamiltonian contains the last Hamiltonian matrix that was solved
+      !> including all potentials and contributions. I.e., it does NOT contain H0 as intended in the usual SCF procedure.
 
       call env%check(exitRun)
       if (exitRun) then
@@ -292,42 +311,8 @@ contains
       !> polarizability by simple perturbative treatment
       !> this is only done in alpha,beta cases
       if (set%runtyp == p_run_alpha) then
-         write (*, *) "Polarizability by perturbative treatment ..."
-         !    !> special overlap matrix for H0, later this should be done together with S and SSS computations for efficiency
-         !    call modbas(n, at, 3)
-         !    call sint(n, ndim, at, xyz, rab, SS, eps) ! scaled S
-         !    call modbas(n, at, 4)
-         !    !> six perturbed dipole moment calcs H = H_final + H_resp + field1 + field2
-         !    allocate (P1(ndim * (ndim + 1) / 2), patmp(n), pshtmp(10, n))
-         !    do k = 1, 3
-         !       call addsym(ndim, ffs, Htmp, D(1, k), H)                                           ! perturb field free H with field
-         !       call solve3(ndim, nel, nopen, homo, eT, focc, H, S, P1)                                ! solve (special routine just for P1)
-         !       call mlpop2(n, ndim, P1, S1, S2, patmp, pshtmp)                                      ! pops
-         !       patmp = z - patmp
-         !       H = Vecp
-         !       call adddsym(ndim, ffs, D(1, k), H)                                               ! perturb H with field only
-         !       call onescf(n, ndim, nel, nopen, homo, at, rab, cns,&                                 ! and add 2nd iter part
-         !       &              S, SS, H, Hdiag, focc, eT, scfpar, ves0, pshtmp, patmp, P1)
-         !       call dipmom2(n, ndim, xyz, z, norm, P1, D, pnt, dip1)                                  ! get dipole moment
-
-         !       call addsym(ndim, -ffs, Htmp, D(1, k), H)                                           ! other direction
-         !       call solve3(ndim, nel, nopen, homo, eT, focc, H, S, P1)
-         !       call mlpop2(n, ndim, P1, S1, S2, patmp, pshtmp)
-         !       patmp = z - patmp
-         !       H = Vecp
-         !       call adddsym(ndim, -ffs, D(1, k), H)
-         !       call onescf(n, ndim, nel, nopen, homo, at, rab, cns,&
-         !       &              S, SS, H, Hdiag, focc, eT, scfpar, ves0, pshtmp, patmp, P1)
-         !       call dipmom2(n, ndim, xyz, z, norm, P1, D, pnt, dip2)
-
-         !       alpha(k, 1:3) = -(dip1(1:3) - dip2(1:3)) / (2_wp * ffs)                               ! numerical diff. dmu/dfield
-         !    end do
-         !    alp(1) = alpha(1, 1)
-         !    alp(2) = 0.5 * (alpha(2, 1) + alpha(1, 2))
-         !    alp(3) = alpha(2, 2)
-         !    alp(4) = 0.5 * (alpha(3, 1) + alpha(1, 3))
-         !    alp(5) = 0.5 * (alpha(3, 2) + alpha(2, 3))
-         !    alp(6) = alpha(3, 3)
+         call numgrad_polarizability(ctx, self%ptbData, self%mol, self%bas, chk%tblite, &
+            & ints, auxints, dF, alpha)
       end if
 
    end subroutine singlepoint

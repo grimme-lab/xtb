@@ -59,7 +59,7 @@ module xtb_ptb_scf
    implicit none
    private
 
-   public :: twostepscf
+   public :: twostepscf, get_density
 
    character(len=*), private, parameter :: outfmt = &
                                            '(9x,"::",1x,a,f23.12,1x,a,1x,"::")'
@@ -78,7 +78,9 @@ module xtb_ptb_scf
 
 contains
 
-   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, eeqmodel, dipole, wbo, efield)
+   !> Final Hamiltonian to solve (2nd iteration) on ints%hamiltonian
+   subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, ints, auxints, &
+         & eeqmodel, dipole, wbo, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -89,6 +91,10 @@ contains
       type(TPTBData), intent(in) :: data
       !> Basis set and core-valence basis set data
       type(basis_type), intent(in) :: bas, cbas
+      !> Integral type
+      type(integral_type), intent(out) :: ints
+      !> Auxiliary integral type
+      type(aux_integral_type), intent(out) :: auxints
       !> Initialized EEQ model
       type(mchrg_model_type), intent(in) :: eeqmodel
       !> Molecular dipole moment
@@ -107,16 +113,10 @@ contains
       type(plusu_potential_type) :: plusu
       !> Adjacency list
       type(adjacency_list) :: list
-      !> Integral type
-      type(integral_type) :: ints
-      !> Auxiliary integral type
-      type(aux_integral_type) :: auxints
       !> Potential type
       type(potential_type) :: pot
       !> H0 basis in second iteration
       type(basis_type), allocatable :: bas_h0
-      ! !> Container type for interaction
-      ! class(container_type), allocatable :: efield_object
       !> Restart data for interaction containers
       type(container_cache) :: icache
       !> Electric field object
@@ -205,7 +205,7 @@ contains
       !    end do
       ! end do
       !#####################
-      call get_integrals(mol, lattr, list, auxints%overlap_h0, alpha_scal=id_to_atom(mol, data%hamiltonian%kalphah0l))
+      call get_integrals(mol, lattr, list, auxints%overlap_h0_1, alpha_scal=id_to_atom(mol, data%hamiltonian%kalphah0l))
       !##### DEV WRITE #####
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
@@ -395,7 +395,7 @@ contains
       !>  --------- Get H0 (wavefunction-independent (but iteration-dependent)) ----------
 
       ints%hamiltonian = 0.0_wp
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0, &
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0_1, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
@@ -521,7 +521,7 @@ contains
       !> Get temporary basis set with charge-dependent scaled exponents
       call add_vDZP_basis(mol, expscal_h0_2nditer, bas_h0)
       !> Get integrals with temporary basis set
-      call get_integrals(mol, bas_h0, lattr, list, auxints%overlap_h0)
+      call get_integrals(mol, bas_h0, lattr, list, auxints%overlap_h0_2)
       !> Deallocate temporary basis set and charge-dependent scaling factors
       deallocate (bas_h0, expscal_h0_2nditer)
       !##### DEV WRITE #####
@@ -534,7 +534,7 @@ contains
       !#####################
 
       ints%hamiltonian = 0.0_wp
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0, &
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0_2, &
       & levels, ints%hamiltonian, ptbGlobals%kpol)
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
@@ -569,6 +569,7 @@ contains
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
+      ints%hamiltonian = wfn%coeff(:, :, 1)
       call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
       if (allocated(error)) then
          call ctx%set_error(error)
@@ -594,6 +595,9 @@ contains
       allocate (wbo(mol%nat, mol%nat, wfn%nspin))
       call get_mayer_bond_orders(bas, ints%overlap, wfn%density, wbo)
 
+      !> Save some memory by deallocating the second-iteration-specific HO overlap integrals
+      deallocate(auxints%overlap_h0_2)
+
    end subroutine twostepscf
 
    !> TAKEN OVER FROM TBLITE - modified in order to use the PTB parameters
@@ -609,7 +613,7 @@ contains
       !> Error handling
       type(error_type), allocatable, intent(out) :: error
       !> Linear regression cofactors for the orbital energies
-      real(wp), optional :: keps_param, keps0_param
+      real(wp), intent(in), optional :: keps_param, keps0_param
       real(wp) :: keps, keps0
 
       real(wp) :: e_fermi, stmp(2)
