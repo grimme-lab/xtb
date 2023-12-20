@@ -26,7 +26,7 @@ module xtb_ptb_integral_types
    !> Integral container to store all overlap related integrals
    type, public :: aux_integral_type
       !> Overlap integrals
-      real(wp), allocatable :: overlap_h0(:, :), overlap_xc(:, :)
+      real(wp), allocatable :: overlap_h0_1(:, :), overlap_h0_2(:, :), overlap_xc(:, :)
       !> Overlap^(x) and Overlap^(1-x) integrals
       real(wp), allocatable :: overlap_to_x(:, :), overlap_to_1_x(:, :)
       !> Norm of overlap matrix (Normalization factors)
@@ -43,7 +43,7 @@ contains
       integer, intent(in) :: nao
 
       allocate (self%norm(nao), source=0.0_wp)
-      allocate (self%overlap_h0(nao, nao), source=0.0_wp)
+      allocate (self%overlap_h0_1(nao, nao), self%overlap_h0_2(nao, nao), source=0.0_wp)
       allocate (self%overlap_xc(nao, nao), source=0.0_wp)
       allocate (self%overlap_to_x(nao, nao), source=0.0_wp)
       allocate (self%overlap_to_1_x(nao, nao), source=0.0_wp)

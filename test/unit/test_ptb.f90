@@ -254,18 +254,18 @@ contains
       !> set up the basis set for the PTB-Hamiltonian
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_integrals(mol, bas, lattr, list, auxints%overlap_h0)
-      call check_(error, auxints%overlap_h0(1, 2), overlap_exp(1), thr=thr, &
+      call get_integrals(mol, bas, lattr, list, auxints%overlap_h0_1)
+      call check_(error, auxints%overlap_h0_1(1, 2), overlap_exp(1), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0(1, 3), overlap_exp(2), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(1, 3), overlap_exp(2), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0(2, 3), overlap_exp(3), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(2, 3), overlap_exp(3), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0(1, 15), overlap_exp(4), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(1, 15), overlap_exp(4), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0(1, 23), overlap_exp(5), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(1, 23), overlap_exp(5), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0(12, 22), overlap_exp(6), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(12, 22), overlap_exp(6), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_overlap_h0
@@ -640,11 +640,11 @@ contains
       call new_adjacency_list(list, mol, lattr, cutoff)
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_integrals(mol, lattr, list, auxints%overlap_h0, &
+      call get_integrals(mol, lattr, list, auxints%overlap_h0_1, &
          & alpha_scal=id_to_atom(mol, ptbData%hamiltonian%kalphah0l))
       allocate (vecp(bas%nao, bas%nao), source=0.0_wp)
 
-      call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0, &
+      call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0_1, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       message = "H0 matrix element not matching to expected value."
       call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr)
