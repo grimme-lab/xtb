@@ -46,7 +46,7 @@ module xtb_main_setup
 contains
 
 
-subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_data, tblite_input)
+subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_data, tblite_input, mlparams)
 
    character(len=*), parameter :: source = 'main_setup_newCalculator'
 
@@ -68,7 +68,7 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
 
    !> Input for TBLite calculator
    type(TTBLiteInput), intent(in), optional :: tblite_input
-
+   logical, intent(in), optional :: mlparams
    type(TxTBCalculator), allocatable :: xtb
    type(TTBLiteCalculator), allocatable :: tblite
    type(TGFFCalculator), allocatable :: gfnff
@@ -97,7 +97,18 @@ subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_da
    case(p_ext_eht, p_ext_xtb)
       allocate(xtb)
 
-      call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy)
+      print *, "Constructing new XTB calculator 100"
+      if (present(mlparams)) then
+         print*, "bit box chicki chikic bam bam", mlparams
+         if (mlparams) then
+            call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy, mlparams)
+         else
+            call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy)
+         endif
+      else
+         call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy)
+         print*, "NOTRAMMAMAMMAMAMMA"
+      end if
 
       call env%check(exitRun)
       if (exitRun) then

@@ -88,6 +88,9 @@ subroutine readParam &
    integer :: err
    logical :: newFormat
 
+   print*, "Read params is called ........"
+   call env%error("Read params is called ........")
+   call exit(169)
    disp = dftd_parameter(s6=1.0_wp, s8=0.0_wp, a1=0.0_wp, a2=0.0_wp, s9=0.0_wp)
    globpar = TxTBParameter()
 

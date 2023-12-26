@@ -21,6 +21,7 @@ module xtb_paramset
    use xtb_xtb_gfn0
    use xtb_xtb_gfn1
    use xtb_xtb_gfn2
+   use xtb_xtb_gfn2ml
    use xtb_type_param
 
 contains
@@ -64,6 +65,7 @@ subroutine use_parameterset(name,globpar,xtbData,exist)
    type(TxTBParameter), intent(out) :: globpar
    type(TxTBData), intent(out) :: xtbData
    exist = .false.
+   print*, 'use_parameterset: ', name
    select case(name)
    case('param_gfn0-xtb.txt')
       return
@@ -75,6 +77,9 @@ subroutine use_parameterset(name,globpar,xtbData,exist)
    case('param_gfn2-xtb.txt')
       globpar = gfn2Globals
       call initGFN2(xtbData)
+   case('param_gfn2-xtb_ML.txt')
+      globpar = gfn2Globals
+      call initGFN2ML(xtbData)
    case default
       return
    end select

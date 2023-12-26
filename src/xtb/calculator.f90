@@ -91,7 +91,7 @@ module xtb_xtb_calculator
 contains
 
 
-subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
+subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy, mlparams)
 
    character(len=*), parameter :: source = 'xtb_calculator_newXTBCalculator'
 
@@ -106,6 +106,7 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
    real(wp), intent(in), optional :: accuracy
 
    character(len=*), intent(in), optional :: fname
+   logical, intent(in), optional :: mlparams
 
    character(len=:), allocatable :: filename
    type(TxTBParameter) :: globpar
@@ -113,8 +114,11 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
    logical :: exist, okbas
    logical :: exitRun
 
+
+
    if (present(fname)) then
       filename = fname
+      print*, "fname present"
    else
       if (present(method)) then
          select case(method)
@@ -130,6 +134,17 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
          end select
       end if
    end if
+
+   if (present(mlparams)) then
+      print*, "mlparams present less go"
+      if (mlparams) then
+         filename = 'param_gfn2-xtb_ML.txt'
+         print*, "true"
+      else
+         print*, "false"
+      endif
+   endif
+   print*, "FUCKU", filename
    if (.not.allocated(filename)) then
       call env%error("No parameter file or parametrisation info provided", source)
       return
@@ -149,9 +164,11 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
    call open_file(ich, filename, 'r')
    exist = ich /= -1
    if (exist) then
+      print*, "HOY", exist
       call readParam(env, ich, globpar, calc%xtbData, .true.)
       call close_file(ich)
    else ! no parameter file, check if we have one compiled into the code
+      print*, "HOY not", exist
       call use_parameterset(filename, globpar, calc%xtbData, exist)
       if (.not.exist) then
          call env%error('Parameter file '//filename//' not found!', source)

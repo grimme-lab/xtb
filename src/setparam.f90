@@ -490,6 +490,7 @@ module xtb_setparam
 
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
+   logical :: mlparams = .false.
 !! ------------------------------------------------------------------------
     
    end type

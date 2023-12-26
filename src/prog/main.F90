@@ -536,7 +536,7 @@ subroutine xtbMain(env, argParser)
 
    ! ------------------------------------------------------------------------
    !> Obtain the parameter data
-   call newCalculator(env, mol, calc, fnv, restart, set%acc, oniom, iff_data, tblite)
+   call newCalculator(env, mol, calc, fnv, restart, set%acc, oniom, iff_data, tblite, set%mlparams)
    call env%checkpoint("Could not setup single-point calculator")
 
    call initDefaults(env, calc, mol, gsolvstate)
@@ -1763,6 +1763,8 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
          else
            call env%error("The wrtopo keyword is missing an argument.",source)
          endif
+      case ('--mlparams')
+         set%mlparams = .true.
       end select
       call args%nextFlag(flag)
    end do

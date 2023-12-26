@@ -27,6 +27,7 @@ list(APPEND srcs
   "${dir}/gfn0.f90"
   "${dir}/gfn1.f90"
   "${dir}/gfn2.f90"
+  "${dir}/gfn2ml.f90"
   "${dir}/halogen.f90"
   "${dir}/hamiltonian.f90"
   "${dir}/hamiltonian_gpu.f90"

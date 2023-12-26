@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> GFN2-xTB parametrisation data
-module xtb_xtb_gfn2
+module xtb_xtb_gfn2ml
    use xtb_mctc_accuracy, only : wp
    use xtb_param_atomicrad, only : atomicRad
    use xtb_param_paulingen, only : paulingEN
@@ -27,19 +27,23 @@ module xtb_xtb_gfn2
    implicit none
    private
 
-   public :: initGFN2, gfn2Globals
-   public :: setGFN2ReferenceOcc, setGFN2NumberOfPrimitives, setGFN2ThirdOrderShell
+   public :: initGFN2ML
+   public :: setGFN2MLThirdOrderShell
 
 
-   interface initGFN2
+   interface initGFN2ML
       module procedure :: initData
       module procedure :: initRepulsion
       module procedure :: initDispersion
       module procedure :: initCoulomb
       module procedure :: initMultipole
       module procedure :: initHamiltonian
-   end interface initGFN2
+   end interface initGFN2ML
 
+   interface loadArray
+         module procedure :: loadArray1D
+         module procedure :: loadArray2D
+   end interface loadArray
 
    real(wp), parameter :: gam3shell(2, 0:3) = reshape(&
       &[1.0_wp, 1.0_wp, 0.5_wp, 0.5_wp, 0.25_wp, 0.25_wp, 0.25_wp, 0.25_wp], &
@@ -95,7 +99,7 @@ module xtb_xtb_gfn2
    real(wp), parameter :: rExp = 1.0_wp
 
    !> Exponents of repulsion term
-   real(wp), parameter :: repAlpha(1:maxElem) = [&
+   real(wp) :: repAlpha(1:maxElem) = [&
       & 2.213717_wp, 3.604670_wp, 0.475307_wp, 0.939696_wp, 1.373856_wp, &
       & 1.247655_wp, 1.682689_wp, 2.165712_wp, 2.421394_wp, 3.318479_wp, &
       & 0.572728_wp, 0.917975_wp, 0.876623_wp, 1.187323_wp, 1.143343_wp, &
@@ -116,7 +120,7 @@ module xtb_xtb_gfn2
       & 0.965577_wp]
 
    !> Effective nuclear charge
-   real(wp), parameter :: repZeff(1:maxElem) = [&
+   real(wp) :: repZeff(1:maxElem) = [&
       &  1.105388_wp,  1.094283_wp,  1.289367_wp,  4.221216_wp,  7.192431_wp, &
       &  4.231078_wp,  5.242592_wp,  5.784415_wp,  7.021486_wp, 11.041068_wp, &
       &  5.244917_wp, 18.083164_wp, 17.867328_wp, 40.001111_wp, 19.683502_wp, &
@@ -139,7 +143,7 @@ module xtb_xtb_gfn2
    ! ========================================================================
    ! COULOMB DATA
    !> Atomic hardnesses used in second order electrostatics
-   real(wp), parameter :: chemicalHardness(1:maxElem) = [&
+   real(wp) :: chemicalHardness(1:maxElem) = [&
       & 0.405771_wp, 0.642029_wp, 0.245006_wp, 0.684789_wp, 0.513556_wp, &
       & 0.538015_wp, 0.461493_wp, 0.451896_wp, 0.531518_wp, 0.850000_wp, &
       & 0.271056_wp, 0.344822_wp, 0.364801_wp, 0.720000_wp, 0.297739_wp, &
@@ -163,7 +167,7 @@ module xtb_xtb_gfn2
    logical, parameter :: thirdOrderShellResolved = .true.
 
    !> Third order Hubbard derivatives
-   real(wp), parameter :: thirdOrderAtom(1:maxElem) = [&
+   real(wp) :: thirdOrderAtom(1:maxElem) = [&
       & 0.800000_wp, 2.000000_wp, 1.303821_wp, 0.574239_wp, 0.946104_wp, &
       & 1.500000_wp,-0.639780_wp,-0.517134_wp, 1.426212_wp, 0.500000_wp, &
       & 1.798727_wp, 2.349164_wp, 1.400000_wp, 1.936289_wp, 0.711291_wp, &
@@ -249,7 +253,7 @@ module xtb_xtb_gfn2
    real(wp), parameter :: cnRMax = 5.0_wp
 
    !> Dipole exchange-correlation kernel
-   real(wp), parameter :: dipKernel(1:maxElem) = [&
+   real(wp) :: dipKernel(1:maxElem) = [&
       & 5.563889_wp,-1.000000_wp,-0.500000_wp,-0.613341_wp,-0.481186_wp, &
       &-0.411674_wp, 3.521273_wp,-4.935670_wp,-8.339183_wp,10.000000_wp, &
       & 0.000000_wp,-0.082005_wp, 2.633341_wp,-0.025750_wp, 2.110225_wp, &
@@ -270,7 +274,7 @@ module xtb_xtb_gfn2
       &-0.167597_wp] * 0.01_wp
 
    !> Quadrupole exchange-correlation kernel
-   real(wp), parameter :: quadKernel(1:maxElem) = [&
+   real(wp) :: quadKernel(1:maxElem) = [&
       & 0.027431_wp,-0.337528_wp, 0.020000_wp,-0.058586_wp,-0.058228_wp, &
       & 0.213583_wp, 2.026786_wp,-0.310828_wp,-0.245955_wp,-0.500000_wp, &
       & 0.020000_wp,-0.005516_wp,-0.021887_wp,-0.080000_wp, 0.028679_wp, &
@@ -365,7 +369,7 @@ module xtb_xtb_gfn2
       & 2.0_wp, 5.0_wp, 0.0_wp,  2.0_wp, 6.0_wp, 0.0_wp], shape(referenceOcc))
 
    !> Shell polynomials to scale Hamiltonian elements
-   real(wp), parameter :: shellPoly(1:4, 1:maxElem) = reshape([&
+   real(wp) :: shellPoly(1:4, 1:maxElem) = reshape([&
       & -0.953618_wp,  0.000000_wp,  0.000000_wp,  0.000000_wp, &
       & -4.386816_wp,  0.710647_wp,  0.000000_wp,  0.000000_wp, &
       & -4.750398_wp, 20.424920_wp,  0.000000_wp,  0.000000_wp, &
@@ -455,7 +459,7 @@ module xtb_xtb_gfn2
       & shape(shellPoly))
 
    !> Coordination number dependence of the atomic levels
-   real(wp), parameter :: kCN(1:4, 1:maxElem) = reshape([&
+   real(wp) :: kCN(1:4, 1:maxElem) = reshape([&
       &-0.0500000_wp, 0.0000000_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.2074275_wp, 0.0000000_wp, 0.0000000_wp, 0.0000000_wp, &
       & 0.1620836_wp,-0.0623876_wp, 0.0000000_wp, 0.0000000_wp, &
@@ -545,7 +549,7 @@ module xtb_xtb_gfn2
       & shape(kCN))
 
    !> Atomic level information
-   real(wp), parameter :: selfEnergy(3, 1:maxElem) = reshape([&
+   real(wp) :: selfEnergy(3, 1:maxElem) = reshape([&
       &-10.707211_wp,  0.000000_wp,  0.000000_wp, &
       &-23.716445_wp, -1.822307_wp,  0.000000_wp, &
       & -4.900000_wp, -2.217789_wp,  0.000000_wp, &
@@ -635,7 +639,7 @@ module xtb_xtb_gfn2
       & shape(selfEnergy))
 
    !> Exponent of the Slater function
-   real(wp), parameter :: slaterExponent(3, 1:maxElem) = reshape([&
+   real(wp) :: slaterExponent(3, 1:maxElem) = reshape([&
       &  1.230000_wp,  0.000000_wp,  0.000000_wp, &
       &  1.669667_wp,  1.500000_wp,  0.000000_wp, &
       &  0.750060_wp,  0.557848_wp,  0.000000_wp, &
@@ -724,31 +728,56 @@ module xtb_xtb_gfn2
       &  3.109394_wp,  2.541934_wp,  1.790000_wp],&
       & shape(slaterExponent))
 
-
+   character(len=*), parameter :: quadKernel_path='gfn2ml/quadKernel.dat'
+   character(len=*), parameter :: chemicalHardness_path='gfn2ml/chemicalHardness.dat'
+   character(len=*), parameter :: dipKernel_path='gfn2ml/dipKernel.dat'
+   character(len=*), parameter :: repAlpha_path='gfn2ml/repAlpha.dat'
+   character(len=*), parameter :: repZeff_path='gfn2ml/repZeff.dat'
+   character(len=*), parameter :: shellPoly_path='gfn2ml/shellPoly.dat'
+   character(len=*), parameter :: slaterExponent_path='gfn2ml/slaterExponent.dat'
+   character(len=*), parameter :: thirdOrderAtom_path='gfn2ml/thirdOrderAtom.dat'
+   character(len=*), parameter :: selfEnergy_path='gfn2ml/selfEnergy.dat'
+   character(len=*), parameter :: kCN_path='gfn2ml/KCN.dat'
+   logical ::   i_chemicalHardness = .false.
+   logical ::   i_dipKernel = .false.
+   logical ::   i_KCN = .false.
+   logical ::   i_quadKernel = .false.
+   logical ::   i_repAlpha = .false.
+   logical ::   i_repZeff = .false.
+   logical ::   i_selfEnergy = .false.
+   logical ::   i_shellPoly = .false.
+   logical ::   i_slaterExponent = .false.
+   logical ::   i_thirdOrderAtom = .false.
 contains
 
-subroutine loadArray1D(filepath, array)
+subroutine loadArray1D(filepath, array, iarray)
       implicit none
       character(len=*), intent(in) :: filepath
       real(wp), intent(inout) :: array(:)
+      logical,intent(in) :: iarray
       integer :: iunit, j, r
-      r = size(array)
-      open(newunit=iunit, file=filepath, action='read')
-      do j = 1, r
-         read(iunit, *) array(j)
-      enddo
+      if (.not. iarray) then
+         r = size(array)
+         open(newunit=iunit, file=filepath, action='read')
+         do j = 1, r
+            read(iunit, *) array(j)
+         enddo
+      endif
 end subroutine loadArray1D
 
-subroutine loadArray2D(filepath, array)
+subroutine loadArray2D(filepath, array, iarray)
       implicit none
       character(len=*), intent(in) :: filepath
       real(wp), intent(inout) :: array(:, :)
+      logical,intent(in) :: iarray
       integer :: iunit, j, s(2)
-      s = shape(array)
-      open(newunit=iunit, file=filepath, action='read')
-      do j = 1, s(2)
-         read(iunit, *) array(:, j)
-      enddo
+      if (.not. iarray) then
+         s = shape(array)
+         open(newunit=iunit, file=filepath, action='read')
+         do j = 1, s(2)
+            read(iunit, *) array(:, j)
+         enddo
+      endif
 end subroutine loadArray2D
 
 
@@ -756,7 +785,16 @@ subroutine initData(self)
 
    !> Data instance
    type(TxTBData), intent(out) :: self
-
+   call loadArray('gfn2ml/chemicalHardness.dat', chemicalHardness,i_chemicalHardness)
+   call loadArray('gfn2ml/dipKernel.dat', dipKernel,i_dipKernel) 
+   call loadArray('gfn2ml/quadKernel.dat', quadKernel,i_quadKernel) 
+   call loadArray('gfn2ml/repAlpha.dat', repAlpha,i_repAlpha) 
+   call loadArray('gfn2ml/repZeff.dat', repZeff,i_repZeff) 
+   call loadArray('gfn2ml/shellPoly.dat', shellPoly,i_shellPoly) 
+   call loadArray('gfn2ml/slaterExponent.dat', slaterExponent,i_slaterExponent) 
+   call loadArray('gfn2ml/thirdOrderAtom.dat', thirdOrderAtom,i_thirdOrderAtom) 
+   call loadArray('gfn2ml/selfEnergy.dat', selfEnergy,i_selfEnergy) 
+   call loadArray('gfn2ml/KCN.dat', kCN, i_kCN) 
    print*, 'initData'
    print*,   chemicalHardness(1)
    print*,   chemicalHardness(8)
@@ -784,21 +822,22 @@ subroutine initData(self)
    self%nShell = nShell(:maxElem)
    self%ipeashift = gfn2Globals%ipeashift * 0.1_wp
 
-   call initGFN2(self%repulsion)
-   call initGFN2(self%dispersion)
-   call initGFN2(self%coulomb, self%nShell)
+   call initGFN2ML(self%repulsion)
+   call initGFN2ML(self%dispersion)
+   call initGFN2ML(self%coulomb, self%nShell)
    allocate(self%multipole)
-   call initGFN2(self%multipole)
-   call initGFN2(self%hamiltonian, self%nShell)
+   call initGFN2ML(self%multipole)
+   call initGFN2ML(self%hamiltonian, self%nShell)
 
 end subroutine initData
 
 
 subroutine initRepulsion(self)
-
    !> Data instance
    type(TRepulsionData), intent(out) :: self
 
+   call loadArray(repAlpha_path, repAlpha, i_repAlpha)
+   call loadArray(repZeff_path, repZeff, i_repZeff)
    call init(self, kExp, kExpLight, rExp, 0.0_wp, repAlpha, repZeff)
 
 end subroutine initRepulsion
@@ -827,11 +866,13 @@ subroutine initCoulomb(self, nShell)
    !> Number of shells
    integer, intent(in) :: nShell(:)
 
+   call loadArray(chemicalHardness_path, chemicalHardness, i_chemicalHardness)
+   call loadArray(thirdOrderAtom_path, thirdOrderAtom, i_thirdOrderAtom)
    self%gExp = gfn2Globals%alphaj
    self%chemicalHardness = chemicalHardness
    self%thirdOrderAtom = thirdOrderAtom
    allocate(self%thirdOrderShell(maxval(nShell), size(nShell)))
-   call setGFN2ThirdOrderShell(self%thirdOrderShell, nShell, angShell, &
+   call setGFN2MLThirdOrderShell(self%thirdOrderShell, nShell, angShell, &
       & thirdOrderAtom, gfn2Globals%gam3shell)
    allocate(self%shellHardness(maxval(nShell), maxElem))
    call setGFN1ShellHardness(self%shellHardness, nShell, angShell, &
@@ -845,6 +886,8 @@ subroutine initMultipole(self)
    !> Data instance
    type(TMultipoleData), intent(out) :: self
 
+   call loadArray(dipKernel_path, dipKernel, i_dipKernel)
+   call loadArray(quadKernel_path, quadKernel, i_quadKernel)
    call init(self, cnShift, cnExp, cnRMax, dipDamp, quadDamp, &
       & dipKernel, quadKernel)
 
@@ -865,6 +908,10 @@ subroutine initHamiltonian(self, nShell)
 
    mShell = maxval(nShell)
    self%angShell = angShell(:mShell, :maxElem)
+   call loadArray(shellPoly_path, shellPoly, i_shellPoly)
+   call loadArray(slaterExponent_path, slaterExponent, i_slaterExponent)
+   call loadArray(selfEnergy_path, selfEnergy, i_selfEnergy)
+   call loadArray(kCN_path, kCN, i_kCN)
 
    do iSh = 0, 3
       do jSh = 0, 3
@@ -982,7 +1029,7 @@ subroutine setGFN2NumberOfPrimitives(self, nShell)
 end subroutine setGFN2NumberOfPrimitives
 
 
-subroutine setGFN2ThirdOrderShell(thirdOrderShell, nShell, angShell, &
+subroutine setGFN2MLThirdOrderShell(thirdOrderShell, nShell, angShell, &
       & thirdOrderAtom, gam3Shell)
 
    real(wp), intent(out) :: thirdOrderShell(:, :)
@@ -1009,7 +1056,7 @@ subroutine setGFN2ThirdOrderShell(thirdOrderShell, nShell, angShell, &
       end do
    end do
 
-end subroutine setGFN2ThirdOrderShell
+end subroutine setGFN2MLThirdOrderShell
 
 
-end module xtb_xtb_gfn2
+end module xtb_xtb_gfn2ml
