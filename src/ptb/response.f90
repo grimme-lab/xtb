@@ -32,12 +32,14 @@ module xtb_ptb_response
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_scf_solver, only: solver_type
    use tblite_scf_iterator, only: get_qat_from_qsh
+   use tblite_adjlist, only: adjacency_list
    !> xtb-ptb-lib
    use xtb_ptb_data, only: TPTBData
    use xtb_ptb_integral_types, only: aux_integral_type
    use xtb_ptb_param, only: ptbGlobals
    use xtb_ptb_scf, only: get_density
    use xtb_ptb_mmlpopanalysis, only: get_mml_shell_charges
+   use xtb_ptb_hamiltonian, only: get_hamiltonian
 
    implicit none
    private
@@ -50,7 +52,7 @@ module xtb_ptb_response
 contains
 
    subroutine numgrad_polarizability(ctx, data, mol, bas, wfn, ints, auxints, &
-         & delta, alpha, efield)
+         & Vecp, neighborlist, selfenergies, delta, alpha, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -67,6 +69,12 @@ contains
       type(integral_type), intent(in) :: ints
       !> Auxiliary integral type
       type(aux_integral_type), intent(in) :: auxints
+      !> Approx. effective core potential
+      real(wp), intent(in) :: Vecp(:, :)
+      !> Neighbor list
+      type(adjacency_list), intent(in) :: neighborlist
+      !> Effective self-energies
+      real(wp), intent(in) :: selfenergies(:)
       !> Perturbation strength
       real(wp), intent(in) :: delta
       !> Static dipole polarizability
@@ -157,8 +165,10 @@ contains
             write (*, '(f8.4)') wfn_tmp%qat(i, 1)
          end do
 
-         stop
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
+         call onestepscf(ctx, data, mol, bas, wfn_tmp, ints, auxints, Vecp, neighborlist, selfenergies, &
+            & efield_object)
+         stop
 
          ! H = Vecp
          ! call adddsym(ndim, ffs, D(1, k), H)    ! perturb H with field only
@@ -188,5 +198,55 @@ contains
       alpha(2, 3) = alpha(3, 2)
 
    end subroutine numgrad_polarizability
+
+   subroutine onestepscf(ctx, data, mol, bas, wfn, ints, auxints, vecp, list, levels, &
+         & efield)
+      !> Calculation context
+      type(context_type), intent(inout) :: ctx
+      !> PTB parameterization data
+      type(TPTBData), intent(in) :: data
+      !> Molecular structure data
+      type(structure_type), intent(in) :: mol
+      !> Basis set and core-valence basis set data
+      type(basis_type), intent(in) :: bas
+      !> Wavefunction of tblite type
+      type(wavefunction_type), intent(inout) :: wfn
+      !> Integral type
+      type(integral_type), intent(in) :: ints
+      !> Reset Hamiltonian matrix
+      real(wp), allocatable :: h0(:, :)
+      !> Auxiliary integral type
+      type(aux_integral_type), intent(in) :: auxints
+      !> Approx. effective core potential
+      real(wp), intent(in) :: vecp(:, :)
+      !> Neighbor list
+      type(adjacency_list), intent(in) :: list
+      !> Effective self-energies
+      real(wp), intent(in) :: levels(:)
+      !> Electric field object
+      type(electric_field), intent(in) :: efield
+      integer :: i, j
+
+      allocate(h0(bas%nao, bas%nao), source=0.0_wp)
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, data%response%kares, auxints%overlap_h0_1, &
+      & levels, h0, ptbGlobals%kpolres)
+      h0 = h0 + vecp
+
+      !##### DEV WRITE #####
+      ! NOTES:
+      ! -> exchange "kpol" for response – DONE
+      ! -> leave kitr out (set to 1 then) – DONE
+      ! -> leave kitocod out (set to 1 then) – DONE
+      ! -> exchange "hData%kla" (wolfsberg) to individual parameters – DONE
+      write (*, *) "H0 in response part ..."
+      do i = 1, size(h0, 1)
+         do j = 1, size(h0, 2)
+            write (*, '(f11.7)', advance="no") h0(i, j)
+         end do
+         write (*, '(/)', advance="no")
+      end do
+      !#####################
+
+   end subroutine onestepscf
 
 end module xtb_ptb_response

@@ -44,6 +44,7 @@ module xtb_ptb_calculator
    use tblite_lapack_solver, only: lapack_solver
    use tblite_wavefunction, only: wavefunction_type, new_wavefunction
    use tblite_integral_type, only: integral_type
+   use tblite_adjlist, only: adjacency_list
 
    use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
@@ -242,12 +243,18 @@ contains
       real(wp), allocatable :: wbo(:, :, :)
       !> Static homogenoues external electric field
       real(wp), allocatable :: efield(:)
+      !> Approx. effective core potential
+      real(wp), allocatable :: Vecp(:, :)
       !> Static dipole polarizability tensor
-      real(wp) :: alpha(3,3)
+      real(wp) :: alpha(3, 3)
       !> Auxiliary integrals
       type(aux_integral_type) :: auxints
       !> Exact integrals
       type(integral_type) :: ints
+      !> Adjacency list
+      type(adjacency_list) :: neighborlist
+      !> Effective self-energies
+      real(wp), allocatable :: selfenergies(:)
 
       logical :: exitRun
       !> Divide-and-conquer solver
@@ -276,7 +283,7 @@ contains
 
       allocate (wbo(self%mol%nat, self%mol%nat, chk%tblite%nspin))
       call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, ints, auxints, self%eeqmodel, &
-         & results%dipole, wbo, efield)
+         & results%dipole, vecp, neighborlist, selfenergies, wbo, efield)
       !> INFO ON RETURNED VARIABLES: On return, ints%hamiltonian contains the last Hamiltonian matrix that was solved
       !> including all potentials and contributions. I.e., it does NOT contain H0 as intended in the usual SCF procedure.
 
@@ -312,7 +319,7 @@ contains
       !> this is only done in alpha,beta cases
       if (set%runtyp == p_run_alpha) then
          call numgrad_polarizability(ctx, self%ptbData, self%mol, self%bas, chk%tblite, &
-            & ints, auxints, dF, alpha)
+            & ints, auxints, vecp, neighborlist, selfenergies, dF, alpha)
       end if
 
    end subroutine singlepoint

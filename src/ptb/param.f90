@@ -20,7 +20,7 @@ module xtb_ptb_param
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
-      TEEQData, TPauliXCData, TCoulombData, TPlusU
+      TEEQData, TPauliXCData, TCoulombData, TPlusU, TResponse
    use xtb_type_param, only: TPTBParameter
    use xtb_mctc_convert, only: aatoau
 
@@ -45,6 +45,7 @@ module xtb_ptb_param
       module procedure :: initPauliXC
       module procedure :: initCoulomb
       module procedure :: initPlusU
+      module procedure :: initResponse
    end interface initPTB
 
    type(TPTBParameter), parameter :: ptbGlobals = TPTBParameter( &
@@ -2031,7 +2032,30 @@ module xtb_ptb_param
 
    !------------- RESPONSE APPROXIMATION -----------------------------------
 
-   !> SCaling of +U Hamiltonian contributions in the response approximation
+   !> Wolfsberg parameter used in one-scf for response approximation
+   real(wp), parameter :: kares(max_elem) = [&
+   &  2.2706175180_wp,  2.1471484161_wp,  2.1770808307_wp,  1.7239136638_wp,  1.9637516953_wp, &
+   &  2.4591302400_wp,  2.2762208854_wp,  2.1511713154_wp,  2.1202424807_wp,  3.2382477560_wp, &
+   &  1.3450415358_wp,  1.2424371573_wp,  2.1730307885_wp,  2.1591046594_wp,  1.7866494668_wp, &
+   &  1.8145439092_wp,  1.9139721755_wp,  2.3903290968_wp,  1.3524020800_wp,  1.1158002422_wp, &
+   &  1.5329437010_wp,  2.7243224212_wp,  2.4482875013_wp,  2.5259712425_wp,  2.6949180987_wp, &
+   &  2.7219715149_wp,  2.8034011628_wp,  2.4897090880_wp,  1.3836761133_wp,  1.0908059423_wp, &
+   &  1.8191422070_wp,  2.0644144766_wp,  1.7978503648_wp,  1.9060704221_wp,  1.7520468379_wp, &
+   &  1.7437772219_wp,  1.1857874518_wp,  1.2691750352_wp,  1.8880084591_wp,  2.2911017244_wp, &
+   &  2.0770604008_wp,  2.8999021649_wp,  2.6852607145_wp,  2.6964566810_wp,  3.5889533132_wp, &
+   &  2.8937325935_wp,  1.3846602233_wp,  1.0120214682_wp,  2.8683213684_wp,  2.1093756588_wp, &
+   &  1.8539628369_wp,  2.2517987661_wp,  1.9283461706_wp,  1.5653991371_wp,  1.0444749711_wp, &
+   &  1.2258351499_wp,  2.0071713899_wp, &
+   ! Include 14 f-element dummy parameters initially set to zero
+   &  0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
+   &  0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, &
+   ! ----------------------------------------------------------
+   &  2.1417149499_wp,  2.2330253487_wp,  2.4494994673_wp, &
+   &  2.7186315705_wp,  2.2191516142_wp,  3.2350098880_wp,  3.5012478083_wp,  2.7369955778_wp, &
+   &  1.1205992535_wp,  2.0573095629_wp,  2.1930284001_wp,  1.7781733406_wp,  1.8635169960_wp, &
+   &  2.1183134150_wp,  1.5226795093_wp]
+
+   !> Scaling of +U Hamiltonian contributions in the response approximation
    !> see Eq. 27 in J. Chem. Phys. 158, 124111 (2023)
    real(wp), parameter :: kueffres(max_elem) = [&
    &  1.0863599879_wp, 16.9812685688_wp,  8.6420038476_wp,  0.5484484631_wp,  0.2577436503_wp, &
@@ -2092,7 +2116,6 @@ contains
       self%name = 'PTB'
       self%doi = '10.1063/5.0137838'
       self%nshell = nshell
-      ! self%ipeashift = ptbGlobals%ipeashift*0.1_wp
 
       call initPTB(self%corepotential)
       call initPTB(self%eeq, num)
@@ -2100,8 +2123,8 @@ contains
       call initPTB(self%pauli, num)
       call initPTB(self%coulomb, num)
       call initPTB(self%plusu, num)
-      ! allocate(self%multipole, source = 0.0_wp)
-      ! call initGFN2(self%multipole)
+      call initPTB(self%response, num)
+
    end subroutine initData
 
    subroutine initCorepotential(self)
@@ -2181,6 +2204,18 @@ contains
       & ar, arcn)
 
    end subroutine initPlusU
+
+   subroutine initResponse(self, num)
+
+      !> Data instance
+      type(TResponse), intent(out) :: self
+      !> Atomic numbers for unique elements
+      integer, intent(in) :: num(:)
+
+      call init(self, num, nshell, &
+      & kares)
+
+   end subroutine initResponse
 
    subroutine setPTBReferenceOcc(self,num)
 

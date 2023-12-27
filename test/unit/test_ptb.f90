@@ -644,7 +644,7 @@ contains
          & alpha_scal=id_to_atom(mol, ptbData%hamiltonian%kalphah0l))
       allocate (vecp(bas%nao, bas%nao), source=0.0_wp)
 
-      call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, auxints%overlap_h0_1, &
+      call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, ptbData%hamiltonian%kla, auxints%overlap_h0_1, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       message = "H0 matrix element not matching to expected value."
       call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr)

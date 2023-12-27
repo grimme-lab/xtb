@@ -80,7 +80,7 @@ contains
 
    !> Final Hamiltonian to solve (2nd iteration) on ints%hamiltonian
    subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, ints, auxints, &
-         & eeqmodel, dipole, wbo, efield)
+         & eeqmodel, dipole, vecp, list, levels, wbo, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -101,6 +101,12 @@ contains
       real(wp), intent(out) :: dipole(3)
       !> Wiberg bond orders
       real(wp), allocatable, intent(out) :: wbo(:, :, :)
+      !> Effective core potential
+      real(wp), allocatable, intent(out) :: vecp(:, :)
+      !> Adjacency list
+      type(adjacency_list), intent(out) :: list
+      !> Effective self-energies
+      real(wp), allocatable, intent(out) :: levels(:)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
       !> Electronic solver
@@ -111,8 +117,6 @@ contains
       type(coulomb_potential) :: coulomb
       !> +U potential
       type(plusu_potential_type) :: plusu
-      !> Adjacency list
-      type(adjacency_list) :: list
       !> Potential type
       type(potential_type) :: pot
       !> H0 basis in second iteration
@@ -127,10 +131,6 @@ contains
       !> Coordination numbers
       real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
-      !> Effective core potential
-      real(wp), allocatable :: vecp(:, :)
-      !> Effective self-energies
-      real(wp), allocatable :: levels(:)
       !> Lattice points
       real(wp), allocatable :: lattr(:, :)
       !> Cutoff for lattice points
@@ -395,7 +395,7 @@ contains
       !>  --------- Get H0 (wavefunction-independent (but iteration-dependent)) ----------
 
       ints%hamiltonian = 0.0_wp
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0_1, &
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, data%hamiltonian%kla, auxints%overlap_h0_1, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####
@@ -486,6 +486,9 @@ contains
       !    write (*, '(f8.4)') wfn%qat(i, 1)
       ! end do
       !#####################
+      if (ctx%verbosity > 1) then
+         write (ctx%unit, '(/,a,/)') "--- 1st iteration completed... ---"
+      endif
 
       !   ____            _   _ _                 _   _
       !  |___ \ _ __   __| | (_) |_ ___ _ __ __ _| |_(_) ___  _ __
@@ -534,7 +537,7 @@ contains
       !#####################
 
       ints%hamiltonian = 0.0_wp
-      call get_hamiltonian(mol, list, bas, data%hamiltonian, auxints%overlap_h0_2, &
+      call get_hamiltonian(mol, list, bas, data%hamiltonian, data%hamiltonian%kla, auxints%overlap_h0_2, &
       & levels, ints%hamiltonian, ptbGlobals%kpol)
       ints%hamiltonian = ints%hamiltonian + vecp
       !##### DEV WRITE #####

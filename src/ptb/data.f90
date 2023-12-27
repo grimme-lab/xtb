@@ -27,7 +27,7 @@ module xtb_ptb_data
 
    public :: TPTBData, init
    public :: TRepulsionData, TCoulombData, THamiltonianData, TPlusU
-   public :: TShortRangeData, TCorePotentialData, TEEQData, TPauliXCData
+   public :: TCorePotentialData, TEEQData, TPauliXCData, TResponse
    public :: newData, getData
    public :: angToShellData
 
@@ -254,7 +254,7 @@ module xtb_ptb_data
       real(wp), allocatable :: cu2(:)
 
       !> Shell level for +U matrix
-      real(wp), allocatable :: cueffl(:,:)
+      real(wp), allocatable :: cueffl(:, :)
 
       !> Atomic radii for +U
       real(wp), allocatable :: ar(:)
@@ -264,22 +264,13 @@ module xtb_ptb_data
 
    end type TPlusU
 
-   !> Short range basis correction
-   type TShortRangeData
+   type :: TResponse
 
-      !> Additional offset for the reference bond lengths
-      real(wp) :: shift
-
-      !> Scaling factor for the energy contribution
-      real(wp) :: prefactor
-
-      !> Steepness of the EN dependence
-      real(wp) :: steepness
-
-      !> Scaling factor for electronegativity differences
-      real(wp) :: enScale
-
-   end type TShortRangeData
+      !> Wolfsberg parameter for response approximation H0
+      !> CAUTION: Parameter transformed from atomic to shell resolution to match
+      !> the usual H0 parameter
+      real(wp), allocatable :: kares(:, :)
+   end type TResponse
 
    !> Parametrisation data for the PTB method
    type :: TPTBData
@@ -317,11 +308,8 @@ module xtb_ptb_data
       !> Parametrisation data for the DFT+U contribution
       type(TPlusU) :: plusU
 
-      !> Parametrisation data for the short range basis correction (optional)
-      type(TShortRangeData), allocatable :: srb
-
-      !> Shift for IP/EA calculations
-      real(wp) :: ipeashift
+      !> Parametrisation data for the response approximation
+      type(TResponse) :: response
 
    contains
 
@@ -339,6 +327,7 @@ module xtb_ptb_data
       module procedure :: initHamiltonian
       module procedure :: initPlusU
       module procedure :: initPauli
+      module procedure :: initResponse
    end interface init
 
 contains
@@ -382,33 +371,33 @@ contains
       end if
       write (unit, '(a)')
 
-      write(unit,'(a)') " @@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-      write(unit,'(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,@@"
-      write(unit,'(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@"
-      write(unit,'(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,*"
-      write(unit,'(a)') " @,,,,,,,,@///////////////#,,,,,,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
-      write(unit,'(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
-      write(unit,'(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
-      write(unit,'(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
-      write(unit,'(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
-      write(unit,'(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
-      write(unit,'(a)') " @,,,,,,,,@////////////////@,,,,,,,,@"
-      write(unit,'(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,%   @@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@"
-      write(unit,'(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&////@,,,,,,,,,,,,,,,,,///@,,,,,,,,,,,,,,@"
-      write(unit,'(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@///////@,,,,,,,,,,,,,,,,,,//@,,,,,,,,,,,,,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@///////////////////////////////////@,,,#/////////@,,,@////////*,,,@"
-      write(unit,'(a)') " @,,,,,,,,@/////////@ ////////////////////////@,,,#/////////@,,,@////////*,,,@"
-      write(unit,'(a)') " @,,,,,,,,@///// %@@  ( @@@ (@ @@@ @//////////@,,,#/////////@,,,@////////*,,,@"
-      write(unit,'(a)') " @,,,,,,,,@////( @//@ ( @@@ @@ @//.@//////////@,,,#/////////@,,,,,,,,,,,,,,,*"
-      write(unit,'(a)') " @,,,,,,,,@///// @//@ ( @////@ @//.@//////////@,,,#/////////@,,,,,,,,,,,,,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@//////@@@@@/(@@@@/@@@//@@//////////@,,,#/////////@,,,@////////(,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@///////////#@@/ @//////////////////@,,,#/////////@,,,@/////////,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@//// .@@/(/# @@ @@/@ /// @/////////@,,,#/////////@,,,@/////////,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@////%    @/# @/ @//@ /// @/////////@,,,#/////////@,,,@////////@,,,,@"
-      write(unit,'(a)') " @,,,,,,,,@////////@ /# @/ @//@ /// @/////////@,,,#/////////@,,,,,,,,,,,,,,,,@"
-      write(unit,'(a)') " &@@@@@@@@@/////@@@@//(@@/#@@(/#@@@ @"
-      write(unit,'(a,/)') "                                @@@ @"
+      write (unit, '(a)') " @@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+      write (unit, '(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,@@"
+      write (unit, '(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@"
+      write (unit, '(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,*"
+      write (unit, '(a)') " @,,,,,,,,@///////////////#,,,,,,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
+      write (unit, '(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
+      write (unit, '(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
+      write (unit, '(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
+      write (unit, '(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
+      write (unit, '(a)') " @,,,,,,,,@/////////////////,,,,,,,,("
+      write (unit, '(a)') " @,,,,,,,,@////////////////@,,,,,,,,@"
+      write (unit, '(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,%   @@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@"
+      write (unit, '(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&////@,,,,,,,,,,,,,,,,,///@,,,,,,,,,,,,,,@"
+      write (unit, '(a)') " @,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@///////@,,,,,,,,,,,,,,,,,,//@,,,,,,,,,,,,,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@///////////////////////////////////@,,,#/////////@,,,@////////*,,,@"
+      write (unit, '(a)') " @,,,,,,,,@/////////@ ////////////////////////@,,,#/////////@,,,@////////*,,,@"
+      write (unit, '(a)') " @,,,,,,,,@///// %@@  ( @@@ (@ @@@ @//////////@,,,#/////////@,,,@////////*,,,@"
+      write (unit, '(a)') " @,,,,,,,,@////( @//@ ( @@@ @@ @//.@//////////@,,,#/////////@,,,,,,,,,,,,,,,*"
+      write (unit, '(a)') " @,,,,,,,,@///// @//@ ( @////@ @//.@//////////@,,,#/////////@,,,,,,,,,,,,,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@//////@@@@@/(@@@@/@@@//@@//////////@,,,#/////////@,,,@////////(,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@///////////#@@/ @//////////////////@,,,#/////////@,,,@/////////,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@//// .@@/(/# @@ @@/@ /// @/////////@,,,#/////////@,,,@/////////,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@////%    @/# @/ @//@ /// @/////////@,,,#/////////@,,,@////////@,,,,@"
+      write (unit, '(a)') " @,,,,,,,,@////////@ /# @/ @//@ /// @/////////@,,,#/////////@,,,,,,,,,,,,,,,,@"
+      write (unit, '(a)') " &@@@@@@@@@/////@@@@//(@@/#@@(/#@@@ @"
+      write (unit, '(a,/)') "                              @@@ @"
 
    end subroutine writeInfo
 
@@ -598,7 +587,6 @@ contains
       !> Scaling factors for third-order electrostatics
       real(wp), intent(in) :: thirdOrderAtomWise(:)
 
-
       call newData(self%shellHardnessFirstIter, num, nshell, shellHardnessFirstIter)
       call newData(self%shellHardnessSecondIter, num, nshell, shellHardnessSecondIter)
       call newData(self%kTO, num, thirdOrderAtomWise)
@@ -623,7 +611,7 @@ contains
       !> Scaling factor for the quadratic charge dependence of the +U matrix
       real(wp), intent(in) :: quadratic_q_scal(:)
       !> Shell level for +U matrix
-      real(wp), intent(in) :: shell_level(:,:)
+      real(wp), intent(in) :: shell_level(:, :)
       !> Atomic radii for +U
       real(wp), intent(in) :: atomic_radius(:)
       !> Scaling factor for the atomic radii dependent on the coordination number
@@ -639,7 +627,24 @@ contains
 
    end subroutine initPlusU
 
-!> Transform a data array from angular momenta to shell number references
+   subroutine initResponse(self, num, nshell, wolfsberg_response)
+      !> Data instance
+      type(TResponse), intent(out) :: self
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+      !> Number of shells for each general species
+      integer, intent(in) :: nshell(:)
+      !> Wolfsberg parameter for response approximation H0
+      real(wp), intent(in) :: wolfsberg_response(:)
+      !> Dummy for parameter transformation
+      real(wp), allocatable :: tmp(:)
+
+      call newData(tmp, num, wolfsberg_response)
+      call AtomicToShellData(self%kares, num, nshell, tmp)
+
+   end subroutine initResponse
+
+   !> Transform a data array from angular momenta to shell number references
    subroutine angToShellData(kDat, nShell, angShell, angDat)
 
       !> Data in terms of shell number of each species
@@ -777,5 +782,29 @@ contains
       end do
 
    end subroutine getAngShellData
+
+   subroutine AtomicToShellData(vec, num, nshell, data)
+
+      !> Data in terms of shell number of each unique species
+      real(wp), allocatable, intent(out) :: vec(:, :)
+
+      !> Atomic numbers for unique species
+      integer, intent(in) :: num(:)
+
+      !> Number of shells for each species
+      integer, intent(in) :: nshell(:)
+
+      !> Atomic data for each unique species
+      real(wp), intent(in) :: data(:)
+      integer :: ii, ish
+
+      allocate (vec(maxval(nshell), size(num)), source=0.0_wp)
+      do ii = 1, size(num)
+         do ish = 1, maxval(nshell)
+            vec(ish, ii) = data(ii)
+         end do
+      end do
+
+   end subroutine AtomicToShellData
 
 end module xtb_ptb_data
