@@ -81,7 +81,7 @@ contains
 
    end subroutine get_selfenergy
 
-   subroutine get_hamiltonian(mol, list, bas, hData, sh0, levels, h0mat, kpol, kitr, kitocod)
+   subroutine get_hamiltonian(mol, list, bas, hData, wolfsberg_par, sh0, levels, h0mat, kpol, kitr, kitocod)
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
       !> Neighbour list
@@ -92,6 +92,8 @@ contains
       type(THamiltonianData), intent(in) :: hData
       !> (Scaled) overlap matrix
       real(wp), intent(in) :: sh0(:, :)
+      !> Wolfsberg parameters [nsh, nid]
+      real(wp), intent(in) :: wolfsberg_par(:, :)
       !> Levels
       real(wp), intent(in) :: levels(:)
       !> H0 matrix
@@ -101,7 +103,7 @@ contains
       !> Optional, iteration-dependent parameters:
       !> Radii scaling in H0
       real(wp), optional, intent(in) :: kitr
-      !> One-center-off-center distance scaling in H0
+      !> One-center-off-diagonal scaling in H0
       real(wp), optional, intent(in) :: kitocod
       !> Loop variables
       integer :: iat, jat, izp, jzp, img, inl
@@ -126,7 +128,7 @@ contains
 
       !> Loop over all neighbours (iat =/= jat) and set the Hamiltonian for off-center elements
       !$omp parallel do schedule(runtime) default(none) &
-      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, wolfsberg_par, kpol, rscal) &
       !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao) &
       !$omp private(r2, vec, inl, img, wolfsberg, polarized_levels, sum_levels) &
       !$omp private(radii_dependence, ssquraedterm, ocodterm, sterm, rab)
@@ -157,7 +159,7 @@ contains
                      do jao = 1, nao
                         !> Single contributions to H0
                         sum_levels = levels(js + jsh) + levels(is + ish)
-                        wolfsberg = hData%kla(ish, izp) + hData%kla(jsh, jzp)
+                        wolfsberg = wolfsberg_par(ish, izp) + wolfsberg_par(jsh, jzp)
                         polarized_levels = 1.0_wp - kpol * ((levels(js + jsh) - levels(is + ish)) / &
                         & sum_levels)**2
                         radii_dependence = 1.0_wp + &
@@ -200,6 +202,9 @@ contains
                do iao = 1, msao(bas%cgto(ish, iat)%ang)
                   do jao = 1, nao
                      sum_levels = levels(is + jsh) + levels(is + ish)
+                     !> s-s', p-p', d-d' off-diagonal, li=lj because S=0 otherwise
+                     !> CAUTION: ksla is angular-momentum dependent, but the parameters are projected
+                     !> onto the shells in xtb/src/ptb/data.f90
                      ocodterm = hData%ksla(ish, izp) * ocod_param
                      ssquraedterm = sh0(jj + jao, ii + iao)**2 * &
                         & sum_levels * &
