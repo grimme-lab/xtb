@@ -154,16 +154,17 @@ contains
                do jsh = 1, bas%nsh_id(jzp)
                   jj = bas%iao_sh(js + jsh)
 
+                  !> Single contributions to H0
+                  sum_levels = levels(js + jsh) + levels(is + ish)
+                  wolfsberg = wolfsberg_par(ish, izp) + wolfsberg_par(jsh, jzp)
+                  polarized_levels = 1.0_wp - kpol * ((levels(js + jsh) - levels(is + ish)) / &
+                  & sum_levels)**2
+                  radii_dependence = 1.0_wp + &
+                  & (hData%kr(izp) + hData%kr(jzp)) * rscal / rab
+
                   nao = msao(bas%cgto(jsh, jat)%ang)
                   do iao = 1, msao(bas%cgto(ish, iat)%ang)
                      do jao = 1, nao
-                        !> Single contributions to H0
-                        sum_levels = levels(js + jsh) + levels(is + ish)
-                        wolfsberg = wolfsberg_par(ish, izp) + wolfsberg_par(jsh, jzp)
-                        polarized_levels = 1.0_wp - kpol * ((levels(js + jsh) - levels(is + ish)) / &
-                        & sum_levels)**2
-                        radii_dependence = 1.0_wp + &
-                        & (hData%kr(izp) + hData%kr(jzp)) * rscal / rab
                         !> Set H0
                         h0mat(jj + jao, ii + iao) = 0.5_wp * sh0(jj + jao, ii + iao) * &
                            & sum_levels * &
@@ -197,15 +198,17 @@ contains
          do ish = 1, bas%nsh_id(izp)
             ii = bas%iao_sh(is + ish)
             do jsh = 1, ish - 1
+
+               sum_levels = levels(is + jsh) + levels(is + ish)
+               !> s-s', p-p', d-d' off-diagonal, li=lj because S=0 otherwise
+               !> CAUTION: ksla is angular-momentum dependent, but the parameters are projected
+               !> onto the shells in xtb/src/ptb/data.f90
+               ocodterm = hData%ksla(ish, izp) * ocod_param
+
                jj = bas%iao_sh(is + jsh)
                nao = msao(bas%cgto(jsh, iat)%ang)
                do iao = 1, msao(bas%cgto(ish, iat)%ang)
                   do jao = 1, nao
-                     sum_levels = levels(is + jsh) + levels(is + ish)
-                     !> s-s', p-p', d-d' off-diagonal, li=lj because S=0 otherwise
-                     !> CAUTION: ksla is angular-momentum dependent, but the parameters are projected
-                     !> onto the shells in xtb/src/ptb/data.f90
-                     ocodterm = hData%ksla(ish, izp) * ocod_param
                      ssquraedterm = sh0(jj + jao, ii + iao)**2 * &
                         & sum_levels * &
                         & hData%kocod(izp) * &
