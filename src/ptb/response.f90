@@ -101,7 +101,7 @@ contains
       !> Electronic entropy
       real(wp) :: ts
       !> Molecular dipole moment
-      real(wp) :: dip_plus(3), dipminus(3)
+      real(wp) :: dip_plus(3), dip_minus(3)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
       real(wp) :: eff_ef(3), tmp_ef(3)
@@ -247,11 +247,6 @@ contains
       real(wp), allocatable :: psh(:, :)
       integer :: i, j, iat, izp, ii, ish
 
-      !##### DEV VARIABLE #####
-      real(wp), allocatable :: vxc(:, :)
-      allocate (vxc(bas%nao, bas%nao), source=0.0_wp)
-      !########################
-
       !> Reset H0 matrix
       ints%hamiltonian = 0.0_wp
       !> H0 matrix
@@ -269,21 +264,9 @@ contains
       call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessSecondIter, &
          & 0.0_wp, data%response%kOK_onescf, data%coulomb%kTO)
       call coulomb%update(mol, bas)
-      !> Mixing of old and new Coulomb matrix via parameter
-      !######### INSERT HERE #########
-      ! OPTION OF MIXING COULOMB MATRICES SO THAT "GET_POTENTIAL" IS
-      ! CALLED WITH THE MIXED MATRIX
-      ! Way to go:
-      ! 1) Just intent(out) the coulomb type in twostepscf IDEA: It's rather the potential, and not the coulomb matrix
-      ! 1edit) !!! Just intent(out) the coulomb potential in twostepscf !!!
-      ! 2) Transport it to response part
-      ! 3) Mix the matrices either by a simple linear combination or
-      !    by a more sophisticated mixing scheme in a separate routine
-      ! 4) Call get_potential with the mixed matrix
-      ! 4edit) Add mixed potential to H1
-      ! CAUTION: THIRD-ORDER IS NOT AFFECTED BY THIS MIXING
-      !###############################
       call coulomb%get_potential(wfn, pot)
+      !> Mixing of old and new Coulomb matrix via parameter
+      !> CAUTION: THIRD-ORDER IS NOT AFFECTED BY THIS MIXING
       do iat = 1, mol%nat
          izp = mol%id(iat)
          ii = bas%ish_at(iat)
@@ -316,13 +299,6 @@ contains
       ! do i = 1, size(ints%hamiltonian, 1)
       !    do j = 1, size(ints%hamiltonian, 2)
       !       write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      ! write (*, *) "Vxc in response part ..."
-      ! do i = 1, size(vxc, 1)
-      !    do j = 1, size(vxc, 2)
-      !       write (*, '(f11.7)', advance="no") vxc(i, j)
       !    end do
       !    write (*, '(/)', advance="no")
       ! end do
