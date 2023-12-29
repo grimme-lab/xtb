@@ -49,7 +49,7 @@ module xtb_ptb_plusu
 
 contains
 
-   subroutine init(self, plusudata, mol, bas, q, cn)
+   subroutine init(self, plusudata, mol, bas, q, cn, selfenergy_scal)
       !> Initialize the data for the DFT+U potential
       !> Self class
       class(plusu_potential_type), intent(inout) :: self
@@ -63,6 +63,8 @@ contains
       real(wp), intent(in) :: q(:)
       !> Coordination numbers
       real(wp), intent(in) :: cn(:)
+      !> Add. scaling factor for the self-energies for the +U matrix [mol%nid]
+      real(wp), intent(in), optional :: selfenergy_scal(:)
       integer :: iat, iid
 
       !> Allocate the self energies and damping matrix
@@ -77,8 +79,13 @@ contains
       end do
 
       call init_damping_matrix(self, mol, cn, plusudata%avcn, plusudata%ar, plusudata%arcn)
-      call init_selfenergies(self, mol, bas, q, &
-         & plusudata%cu1, plusudata%cu2, plusudata%cueffl)
+      if (present(selfenergy_scal)) then
+         call init_selfenergies(self, mol, bas, q, &
+            & plusudata%cu1, plusudata%cu2, plusudata%cueffl, selfenergy_scal)
+      else
+         call init_selfenergies(self, mol, bas, q, &
+            & plusudata%cu1, plusudata%cu2, plusudata%cueffl)
+      end if
 
    end subroutine init
 
@@ -116,7 +123,8 @@ contains
 
    end subroutine init_damping_matrix
 
-   subroutine init_selfenergies(self, mol, bas, q, q_scal, q2_scal, shell_level)
+   subroutine init_selfenergies(self, mol, bas, q, q_scal, q2_scal, shell_level, &
+      & selfenergy_scal)
       !> Self type
       class(plusu_potential_type), intent(inout) :: self
       !> Structure type
@@ -131,6 +139,8 @@ contains
       real(wp), intent(in) :: q2_scal(:)
       !> Shell level
       real(wp), intent(in) :: shell_level(:, :)
+      !> Add. scaling factor for the self-energies for the +U matrix [mol%nid]
+      real(wp), intent(in), optional :: selfenergy_scal(:)
       !> Loop variables
       integer :: iat, iid, ish
 
@@ -139,6 +149,9 @@ contains
          do ish = 1, bas%nsh_at(iat)
             self%selfenergies(ish, iat) = shell_level(ish, iid) * &
                & (1.0_wp - (q_scal(iid) * q(iat) + q2_scal(iid) * q(iat)**2))
+            if (present(selfenergy_scal)) then
+               self%selfenergies(ish, iat) = self%selfenergies(ish, iat) * selfenergy_scal(iid)
+            end if
             !##### DEV WRITE #####
             ! write (*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
             !#####################

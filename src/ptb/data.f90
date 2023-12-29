@@ -277,6 +277,9 @@ module xtb_ptb_data
       !> Mixing parameter for the field-free electrostatic potential
       real(wp), allocatable :: cvesres(:)
 
+      !> Scaling factor for the diagonal element of the +U matrix
+      real(wp), allocatable :: kueffres(:)
+
    end type TResponse
 
    !> Parametrisation data for the PTB method
@@ -634,7 +637,8 @@ contains
 
    end subroutine initPlusU
 
-   subroutine initResponse(self, num, nshell, wolfsberg_response, es_pot_mixing)
+   subroutine initResponse(self, num, nshell, wolfsberg_response, es_pot_mixing, &
+         & plusu_diag_scaling )
       !> Data instance
       type(TResponse), intent(out) :: self
       !> Atomic numbers for unique species
@@ -645,6 +649,8 @@ contains
       real(wp), intent(in) :: wolfsberg_response(:)
       !> Mixing parameter for the field-free electrostatic potential
       real(wp), intent(in) :: es_pot_mixing(:)
+      !> Scaling factor for the diagonal element of the +U matrix
+      real(wp), intent(in) :: plusu_diag_scaling(:)
       !> Dummy for parameter transformation
       real(wp), allocatable :: tmp(:)
 
@@ -652,6 +658,7 @@ contains
       call AtomicToShellData(self%kares, num, nshell, tmp)
 
       call newData(self%cvesres, num, es_pot_mixing)
+      call newData(self%kueffres, num, plusu_diag_scaling)
    end subroutine initResponse
 
    !> Transform a data array from angular momenta to shell number references

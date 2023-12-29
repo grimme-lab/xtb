@@ -43,6 +43,7 @@ module xtb_ptb_response
    use xtb_ptb_guess, only: get_psh_from_qsh
    use xtb_ptb_paulixc, only: calc_Vxc_pauli
    use xtb_ptb_coulomb, only: coulomb_potential
+   use xtb_ptb_plusu, only: plusu_potential_type
 
    implicit none
    private
@@ -55,7 +56,7 @@ module xtb_ptb_response
 contains
 
    subroutine numgrad_polarizability(ctx, data, mol, bas, wfn, ints, auxints, &
-         & Vecp, neighborlist, selfenergies, ves_twostepscf, delta, alpha, efield)
+         & Vecp, neighborlist, selfenergies, ves_twostepscf, CN_plusU, delta, alpha, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -81,6 +82,8 @@ contains
       real(wp), intent(in) :: selfenergies(:)
       !> Electrostatic potential in second iteration
       real(wp), intent(in) :: ves_twostepscf(:)
+      !> Coordination number for +U
+      real(wp), intent(in) :: CN_plusU(:)
       !> Perturbation strength
       real(wp), intent(in) :: delta
       !> Static dipole polarizability
@@ -174,7 +177,7 @@ contains
 
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
          call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
-            & ves_twostepscf, efield_object)
+            & ves_twostepscf, CN_plusU, efield_object)
          stop
 
          ! H = Vecp
@@ -207,7 +210,7 @@ contains
    end subroutine numgrad_polarizability
 
    subroutine onestepscf(ctx, data, mol, bas, wfn, ints, auxints, vecp, list, levels, &
-         & ves_twostepscf, efield)
+         & ves_twostepscf, CN_plusU, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> PTB parameterization data
@@ -230,12 +233,16 @@ contains
       real(wp), intent(in) :: levels(:)
       !> Electrostatic potential from second iteration for mixing
       real(wp), intent(in) :: ves_twostepscf(:)
+      !> Coordination number for +U
+      real(wp), intent(in) :: CN_plusU(:)
       !> Electric field object
       type(electric_field), intent(in) :: efield
       !> Potential type
       type(potential_type) :: pot
       !> Coulomb potential
       type(coulomb_potential) :: coulomb
+      !> +U potential
+      type(plusu_potential_type) :: plusu
       !> Shell popoulations
       real(wp), allocatable :: psh(:, :)
       integer :: i, j, iat, izp, ii, ish
@@ -296,7 +303,8 @@ contains
       call calc_Vxc_pauli(mol, bas, psh(:, 1), ints%overlap, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
 
       !> Add +U potential
-      !######### INSERT HERE #########
+      call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), CN_plusU, selfenergy_scal=data%response%kueffres)
+      call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
       !##### DEV WRITE #####
       ! NOTES:
@@ -304,13 +312,13 @@ contains
       ! -> leave kitr out (set to 1 then) – DONE
       ! -> leave kitocod out (set to 1 then) – DONE
       ! -> exchange "hData%kla" (wolfsberg) to individual parameters – DONE
-      write (*, *) "H0 in response part ..."
-      do i = 1, size(ints%hamiltonian, 1)
-         do j = 1, size(ints%hamiltonian, 2)
-            write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! write (*, *) "H0 in response part ..."
+      ! do i = 1, size(ints%hamiltonian, 1)
+      !    do j = 1, size(ints%hamiltonian, 2)
+      !       write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       ! write (*, *) "Vxc in response part ..."
       ! do i = 1, size(vxc, 1)
       !    do j = 1, size(vxc, 2)
