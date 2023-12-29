@@ -80,7 +80,7 @@ contains
 
    !> Final Hamiltonian to solve (2nd iteration) on ints%hamiltonian
    subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, ints, auxints, &
-         & eeqmodel, dipole, vecp, list, levels, wbo, efield)
+         & eeqmodel, dipole, vecp, list, levels, v_es_sh, wbo, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -107,6 +107,8 @@ contains
       type(adjacency_list), intent(out) :: list
       !> Effective self-energies
       real(wp), allocatable, intent(out) :: levels(:)
+      !> Electrostatic potential in second iteration
+      real(wp), allocatable, intent(out) :: v_es_sh(:)
       !> (optional) Electric field
       real(wp), intent(in), optional :: efield(:)
       !> Electronic solver
@@ -488,7 +490,7 @@ contains
       !#####################
       if (ctx%verbosity > 1) then
          write (ctx%unit, '(/,a,/)') "--- 1st iteration completed... ---"
-      endif
+      end if
 
       !   ____            _   _ _                 _   _
       !  |___ \ _ __   __| | (_) |_ ___ _ __ __ _| |_(_) ___  _ __
@@ -564,6 +566,8 @@ contains
       call pot%reset()
       call coulomb%update(mol, bas)
       call coulomb%get_potential(wfn, pot)
+      allocate (v_es_sh(bas%nsh), source=0.0_wp)
+      v_es_sh(:) = pot%vsh(:, 1)
       if (present(efield)) then
          call efield_object%update(mol, icache)
          call efield_object%get_potential(mol, icache, wfn, pot)
@@ -599,7 +603,7 @@ contains
       call get_mayer_bond_orders(bas, ints%overlap, wfn%density, wbo)
 
       !> Save some memory by deallocating the second-iteration-specific HO overlap integrals
-      deallocate(auxints%overlap_h0_2)
+      deallocate (auxints%overlap_h0_2)
 
    end subroutine twostepscf
 

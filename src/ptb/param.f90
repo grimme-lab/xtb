@@ -2213,7 +2213,8 @@ contains
       integer, intent(in) :: num(:)
 
       call init(self, num, nshell, &
-      & kares)
+      & kares, cvesres)
+      self%kOK_onescf = 0.75_wp
 
    end subroutine initResponse
 

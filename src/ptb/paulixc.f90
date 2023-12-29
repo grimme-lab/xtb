@@ -81,7 +81,7 @@ contains
       type(basis_type), intent(in) :: bas
       !> shell populations
       real(wp), intent(in) :: psh(:)
-      !> Overlap matrix scaled for XC potential
+      !> Overlap matrix (scaled) for XC potential
       real(wp), intent(in) :: Sxc(:, :)
       !> Self-energies (levels)
       real(wp), intent(in) :: selfenergies(:)

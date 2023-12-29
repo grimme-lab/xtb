@@ -40,6 +40,9 @@ module xtb_ptb_response
    use xtb_ptb_scf, only: get_density
    use xtb_ptb_mmlpopanalysis, only: get_mml_shell_charges
    use xtb_ptb_hamiltonian, only: get_hamiltonian
+   use xtb_ptb_guess, only: get_psh_from_qsh
+   use xtb_ptb_paulixc, only: calc_Vxc_pauli
+   use xtb_ptb_coulomb, only: coulomb_potential
 
    implicit none
    private
@@ -52,11 +55,11 @@ module xtb_ptb_response
 contains
 
    subroutine numgrad_polarizability(ctx, data, mol, bas, wfn, ints, auxints, &
-         & Vecp, neighborlist, selfenergies, delta, alpha, efield)
+         & Vecp, neighborlist, selfenergies, ves_twostepscf, delta, alpha, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
-      type(wavefunction_type), intent(inout) :: wfn
+      type(wavefunction_type), intent(in) :: wfn
       type(wavefunction_type) :: wfn_tmp
       !> Molecular structure data
       type(structure_type), intent(in) :: mol
@@ -67,6 +70,7 @@ contains
       !> Integral type (last solved Hamiltonian matrix (not coeffs and not only H0!)
       !> should be on 'ints%hamiltonian')
       type(integral_type), intent(in) :: ints
+      type(integral_type) :: ints_tmp
       !> Auxiliary integral type
       type(aux_integral_type), intent(in) :: auxints
       !> Approx. effective core potential
@@ -75,6 +79,8 @@ contains
       type(adjacency_list), intent(in) :: neighborlist
       !> Effective self-energies
       real(wp), intent(in) :: selfenergies(:)
+      !> Electrostatic potential in second iteration
+      real(wp), intent(in) :: ves_twostepscf(:)
       !> Perturbation strength
       real(wp), intent(in) :: delta
       !> Static dipole polarizability
@@ -112,9 +118,6 @@ contains
       ! end do
       !#####################
 
-      !> Copy exact wavefunction from two step-scf to temporary wavefunction
-      wfn_tmp = wfn
-
       alpha = 0.0_wp
       if (present(efield)) then
          eff_ef = efield
@@ -127,6 +130,10 @@ contains
          !> Add perturbation to electric field (minus sign corresponds to original PTB implementation)
          tmp_ef(k) = tmp_ef(k) - delta
          efield_object = electric_field(tmp_ef)
+
+         !> Copy exact wavefunction and integrals (mainly for H0) from two step-scf to temporary wavefunction
+         wfn_tmp = wfn
+         ints_tmp = ints
          !> Get potential and apply it to Hamiltonian
          call new_potential(pot, mol, bas, wfn%nspin)
          call pot%reset()
@@ -166,8 +173,8 @@ contains
          end do
 
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
-         call onestepscf(ctx, data, mol, bas, wfn_tmp, ints, auxints, Vecp, neighborlist, selfenergies, &
-            & efield_object)
+         call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
+            & ves_twostepscf, efield_object)
          stop
 
          ! H = Vecp
@@ -200,7 +207,7 @@ contains
    end subroutine numgrad_polarizability
 
    subroutine onestepscf(ctx, data, mol, bas, wfn, ints, auxints, vecp, list, levels, &
-         & efield)
+         & ves_twostepscf, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> PTB parameterization data
@@ -212,9 +219,7 @@ contains
       !> Wavefunction of tblite type
       type(wavefunction_type), intent(inout) :: wfn
       !> Integral type
-      type(integral_type), intent(in) :: ints
-      !> Reset Hamiltonian matrix
-      real(wp), allocatable :: h0(:, :)
+      type(integral_type), intent(inout) :: ints
       !> Auxiliary integral type
       type(aux_integral_type), intent(in) :: auxints
       !> Approx. effective core potential
@@ -223,14 +228,75 @@ contains
       type(adjacency_list), intent(in) :: list
       !> Effective self-energies
       real(wp), intent(in) :: levels(:)
+      !> Electrostatic potential from second iteration for mixing
+      real(wp), intent(in) :: ves_twostepscf(:)
       !> Electric field object
       type(electric_field), intent(in) :: efield
-      integer :: i, j
+      !> Potential type
+      type(potential_type) :: pot
+      !> Coulomb potential
+      type(coulomb_potential) :: coulomb
+      !> Shell popoulations
+      real(wp), allocatable :: psh(:, :)
+      integer :: i, j, iat, izp, ii, ish
 
-      allocate(h0(bas%nao, bas%nao), source=0.0_wp)
+      !##### DEV VARIABLE #####
+      real(wp), allocatable :: vxc(:, :)
+      allocate (vxc(bas%nao, bas%nao), source=0.0_wp)
+      !########################
+
+      !> Reset H0 matrix
+      ints%hamiltonian = 0.0_wp
+      !> H0 matrix
       call get_hamiltonian(mol, list, bas, data%hamiltonian, data%response%kares, auxints%overlap_h0_1, &
-      & levels, h0, ptbGlobals%kpolres)
-      h0 = h0 + vecp
+      & levels, ints%hamiltonian, ptbGlobals%kpolres)
+
+      !> Add effective core potential
+      ints%hamiltonian = ints%hamiltonian + vecp
+
+      !> Initialize potential
+      call new_potential(pot, mol, bas, wfn%nspin)
+      call pot%reset()
+
+      !> Add Coulomb potential
+      call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessSecondIter, &
+         & 0.0_wp, data%response%kOK_onescf, data%coulomb%kTO)
+      call coulomb%update(mol, bas)
+      !> Mixing of old and new Coulomb matrix via parameter
+      !######### INSERT HERE #########
+      ! OPTION OF MIXING COULOMB MATRICES SO THAT "GET_POTENTIAL" IS
+      ! CALLED WITH THE MIXED MATRIX
+      ! Way to go:
+      ! 1) Just intent(out) the coulomb type in twostepscf IDEA: It's rather the potential, and not the coulomb matrix
+      ! 1edit) !!! Just intent(out) the coulomb potential in twostepscf !!!
+      ! 2) Transport it to response part
+      ! 3) Mix the matrices either by a simple linear combination or
+      !    by a more sophisticated mixing scheme in a separate routine
+      ! 4) Call get_potential with the mixed matrix
+      ! 4edit) Add mixed potential to H1
+      ! CAUTION: THIRD-ORDER IS NOT AFFECTED BY THIS MIXING
+      !###############################
+      call coulomb%get_potential(wfn, pot)
+      do iat = 1, mol%nat
+         izp = mol%id(iat)
+         ii = bas%ish_at(iat)
+         do ish = 1, bas%nsh_at(iat)
+            pot%vsh(ii + ish, 1) = pot%vsh(ii + ish, 1) * data%response%cvesres(izp) +  &
+               & ves_twostepscf(ii + ish) * (1.0_wp - data%response%cvesres(izp))
+            !##### DEV WRITE #####
+            ! write (*, *) "Combined potential for atom ", iat, " and shell ", ish, " is ", pot%vsh(ii + ish, 1)
+            !#####################
+         enddo
+      end do
+      call add_pot_to_h1(bas, ints, pot, wfn%coeff)
+
+      !> Add Vxc Pauli potential
+      allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
+      psh = get_psh_from_qsh(wfn, bas)
+      call calc_Vxc_pauli(mol, bas, psh(:, 1), ints%overlap, levels, data%pauli%kxc2l, wfn%coeff(:, :, 1))
+
+      !> Add +U potential
+      !######### INSERT HERE #########
 
       !##### DEV WRITE #####
       ! NOTES:
@@ -239,9 +305,23 @@ contains
       ! -> leave kitocod out (set to 1 then) – DONE
       ! -> exchange "hData%kla" (wolfsberg) to individual parameters – DONE
       write (*, *) "H0 in response part ..."
-      do i = 1, size(h0, 1)
-         do j = 1, size(h0, 2)
-            write (*, '(f11.7)', advance="no") h0(i, j)
+      do i = 1, size(ints%hamiltonian, 1)
+         do j = 1, size(ints%hamiltonian, 2)
+            write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
+         end do
+         write (*, '(/)', advance="no")
+      end do
+      ! write (*, *) "Vxc in response part ..."
+      ! do i = 1, size(vxc, 1)
+      !    do j = 1, size(vxc, 2)
+      !       write (*, '(f11.7)', advance="no") vxc(i, j)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
+      write (*, *) "Final wfn%coeff(:, :, 1) to solve ..."
+      do i = 1, size(wfn%coeff, 1)
+         do j = 1, size(wfn%coeff, 2)
+            write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
          end do
          write (*, '(/)', advance="no")
       end do
