@@ -80,7 +80,7 @@ contains
 
    !> Final Hamiltonian to solve (2nd iteration) on ints%hamiltonian
    subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, ints, auxints, &
-         & eeqmodel, dipole, vecp, list, levels, v_es_sh, wbo, efield)
+         & eeqmodel, dipole, vecp, list, levels, v_es_sh, cn_star, wbo, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -131,7 +131,8 @@ contains
       !> Loop variables
       integer :: i, j, isp, izp, iat, ish, iid, is
       !> Coordination numbers
-      real(wp) :: cn_star(mol%nat), cn(mol%nat), cn_eeq(mol%nat)
+      real(wp), intent(out) :: cn_star(mol%nat)
+      real(wp) :: cn(mol%nat), cn_eeq(mol%nat)
       real(wp) :: radii(mol%nid)
       !> Lattice points
       real(wp), allocatable :: lattr(:, :)
