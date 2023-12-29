@@ -270,6 +270,13 @@ module xtb_ptb_data
       !> CAUTION: Parameter transformed from atomic to shell resolution to match
       !> the usual H0 parameter
       real(wp), allocatable :: kares(:, :)
+
+      !> Ohno-Klopman contribution in the response approximation
+      real(wp) :: kOK_onescf
+
+      !> Mixing parameter for the field-free electrostatic potential
+      real(wp), allocatable :: cvesres(:)
+
    end type TResponse
 
    !> Parametrisation data for the PTB method
@@ -627,7 +634,7 @@ contains
 
    end subroutine initPlusU
 
-   subroutine initResponse(self, num, nshell, wolfsberg_response)
+   subroutine initResponse(self, num, nshell, wolfsberg_response, es_pot_mixing)
       !> Data instance
       type(TResponse), intent(out) :: self
       !> Atomic numbers for unique species
@@ -636,12 +643,15 @@ contains
       integer, intent(in) :: nshell(:)
       !> Wolfsberg parameter for response approximation H0
       real(wp), intent(in) :: wolfsberg_response(:)
+      !> Mixing parameter for the field-free electrostatic potential
+      real(wp), intent(in) :: es_pot_mixing(:)
       !> Dummy for parameter transformation
       real(wp), allocatable :: tmp(:)
 
       call newData(tmp, num, wolfsberg_response)
       call AtomicToShellData(self%kares, num, nshell, tmp)
 
+      call newData(self%cvesres, num, es_pot_mixing)
    end subroutine initResponse
 
    !> Transform a data array from angular momenta to shell number references

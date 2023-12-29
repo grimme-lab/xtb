@@ -255,6 +255,8 @@ contains
       type(adjacency_list) :: neighborlist
       !> Effective self-energies
       real(wp), allocatable :: selfenergies(:)
+      !> Electrostatic potential in second iteration
+      real(wp), allocatable :: v_ES_2nditer(:)
 
       logical :: exitRun
       !> Divide-and-conquer solver
@@ -283,7 +285,7 @@ contains
 
       allocate (wbo(self%mol%nat, self%mol%nat, chk%tblite%nspin))
       call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, ints, auxints, self%eeqmodel, &
-         & results%dipole, vecp, neighborlist, selfenergies, wbo, efield)
+         & results%dipole, vecp, neighborlist, selfenergies, v_ES_2nditer, wbo, efield)
       !> INFO ON RETURNED VARIABLES: On return, ints%hamiltonian contains the last Hamiltonian matrix that was solved
       !> including all potentials and contributions. I.e., it does NOT contain H0 as intended in the usual SCF procedure.
 
@@ -319,7 +321,7 @@ contains
       !> this is only done in alpha,beta cases
       if (set%runtyp == p_run_alpha) then
          call numgrad_polarizability(ctx, self%ptbData, self%mol, self%bas, chk%tblite, &
-            & ints, auxints, vecp, neighborlist, selfenergies, dF, alpha)
+            & ints, auxints, vecp, neighborlist, selfenergies, v_ES_2nditer, dF, alpha)
       end if
 
    end subroutine singlepoint
