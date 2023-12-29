@@ -33,6 +33,9 @@ module xtb_ptb_response
    use tblite_scf_solver, only: solver_type
    use tblite_scf_iterator, only: get_qat_from_qsh
    use tblite_adjlist, only: adjacency_list
+   use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles, &
+      & get_mulliken_shell_charges
+   use tblite_blas, only: gemv
    !> xtb-ptb-lib
    use xtb_ptb_data, only: TPTBData
    use xtb_ptb_integral_types, only: aux_integral_type
@@ -177,7 +180,9 @@ contains
 
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
          call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
-            & ves_twostepscf, CN_plusU, efield_object)
+            & ves_twostepscf, CN_plusU, efield_object, dip_minus)
+         write (*, *) "Dipole moment after minus perturbation ..."
+         write (*, '(3f8.4)') dip_minus
          stop
 
          ! H = Vecp
@@ -210,7 +215,7 @@ contains
    end subroutine numgrad_polarizability
 
    subroutine onestepscf(ctx, data, mol, bas, wfn, ints, auxints, vecp, list, levels, &
-         & ves_twostepscf, CN_plusU, efield)
+         & ves_twostepscf, CN_plusU, efield, dipole)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> PTB parameterization data
@@ -237,6 +242,14 @@ contains
       real(wp), intent(in) :: CN_plusU(:)
       !> Electric field object
       type(electric_field), intent(in) :: efield
+      !> Dipole moment
+      real(wp), intent(out) :: dipole(3)
+      !> Electronic solver
+      class(solver_type), allocatable :: solver
+      !> Electronic entropy
+      real(wp) :: ts
+      !> Error type
+      type(error_type), allocatable :: error
       !> Restart data for interaction containers
       type(container_cache) :: icache
       !> Potential type
@@ -247,7 +260,14 @@ contains
       type(plusu_potential_type) :: plusu
       !> Shell popoulations
       real(wp), allocatable :: psh(:, :)
+      !> Temporary Mulliken populations
+      real(wp), allocatable :: mulliken_qsh(:, :), mulliken_qat(:, :)
+      !> Tmp variable for dipole moment
+      real(wp) :: tmpdip(3)
       integer :: i, j, iat, izp, ii, ish
+
+      !> Solver for the effective Hamiltonian
+      call ctx%new_solver(solver, bas%nao)
 
       !> Reset H0 matrix
       ints%hamiltonian = 0.0_wp
@@ -307,6 +327,28 @@ contains
          write (*, '(/)', advance="no")
       end do
       !#####################
+
+      call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+      if (allocated(error)) then
+         call ctx%set_error(error)
+         return
+      end if
+
+      call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
+         & wfn%density, wfn%n0sh, wfn%qsh)
+      psh = get_psh_from_qsh(wfn, bas)
+      call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
+      call get_mulliken_atomic_multipoles(bas, ints%dipole, wfn%density, &
+      & wfn%dpat)
+      !> This step is only required because the dipole integrals in tblite are not
+      !> centered to a fixed point (e.g., origin) but are atomic dipole moments
+      !> Calculation of dipole moments requires Mulliken atomic charges.
+      allocate (mulliken_qsh(bas%nsh, wfn%nspin), mulliken_qat(mol%nat, wfn%nspin))
+      call get_mulliken_shell_charges(bas, ints%overlap, wfn%density, wfn%n0sh, &
+      & mulliken_qsh)
+      call get_qat_from_qsh(bas, mulliken_qsh, mulliken_qat)
+      call gemv(mol%xyz, mulliken_qat(:, 1), tmpdip)
+      dipole(:) = tmpdip + sum(wfn%dpat(:, :, 1), 2)
 
    end subroutine onestepscf
 
