@@ -237,6 +237,8 @@ contains
       real(wp), intent(in) :: CN_plusU(:)
       !> Electric field object
       type(electric_field), intent(in) :: efield
+      !> Restart data for interaction containers
+      type(container_cache) :: icache
       !> Potential type
       type(potential_type) :: pot
       !> Coulomb potential
@@ -258,6 +260,8 @@ contains
 
       !> Initialize potential
       call new_potential(pot, mol, bas, wfn%nspin)
+      !> CAUTION: Because pot is mixed on the pot object, Coulomb has to follow
+      !> DIRECTLY after pot%reset()!
       call pot%reset()
 
       !> Add Coulomb potential
@@ -265,7 +269,7 @@ contains
          & 0.0_wp, data%response%kOK_onescf, data%coulomb%kTO)
       call coulomb%update(mol, bas)
       call coulomb%get_potential(wfn, pot)
-      !> Mixing of old and new Coulomb matrix via parameter
+      !> Mixing of old and new Coulomb potential via parameter
       !> CAUTION: THIRD-ORDER IS NOT AFFECTED BY THIS MIXING
       do iat = 1, mol%nat
          izp = mol%id(iat)
@@ -278,6 +282,11 @@ contains
             !#####################
          enddo
       end do
+
+      !> Add perturbing electric field
+      call efield%update(mol, icache)
+      call efield%get_potential(mol, icache, wfn, pot)
+      !> Add potentials on wfn%coeff (togther with H0)
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
 
       !> Add Vxc Pauli potential
@@ -290,18 +299,6 @@ contains
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
       !##### DEV WRITE #####
-      ! NOTES:
-      ! -> exchange "kpol" for response – DONE
-      ! -> leave kitr out (set to 1 then) – DONE
-      ! -> leave kitocod out (set to 1 then) – DONE
-      ! -> exchange "hData%kla" (wolfsberg) to individual parameters – DONE
-      ! write (*, *) "H0 in response part ..."
-      ! do i = 1, size(ints%hamiltonian, 1)
-      !    do j = 1, size(ints%hamiltonian, 2)
-      !       write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
       write (*, *) "Final wfn%coeff(:, :, 1) to solve ..."
       do i = 1, size(wfn%coeff, 1)
          do j = 1, size(wfn%coeff, 2)
