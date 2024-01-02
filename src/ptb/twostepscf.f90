@@ -32,7 +32,8 @@ module xtb_ptb_scf
    use tblite_wavefunction_fermi, only: get_fermi_filling
    use tblite_wavefunction_type, only: get_density_matrix
    use tblite_wavefunction_mulliken, only: get_mulliken_atomic_multipoles, &
-      & get_mulliken_shell_charges, get_mayer_bond_orders
+      & get_mulliken_shell_charges, get_mayer_bond_orders, get_molecular_quadrupole_moment, &
+      & get_molecular_dipole_moment
    use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
    use tblite_integral_type, only: new_integral, integral_type
    use tblite_container, only: container_type, container_cache
@@ -100,6 +101,7 @@ contains
       type(mchrg_model_type), intent(in) :: eeqmodel
       !> Molecular dipole moment
       real(wp), intent(out) :: dipole(3)
+      real(wp) :: quadrupole(6)
       !> Wiberg bond orders
       real(wp), allocatable, intent(out) :: wbo(:, :, :)
       !> Effective core potential
@@ -195,7 +197,7 @@ contains
 
       call new_integral(ints, bas%nao)
       call new_aux_integral(auxints, bas%nao)
-      call get_integrals(mol, bas, lattr, list, ints%overlap, ints%dipole, norm=auxints%norm)
+      call get_integrals(mol, bas, lattr, list, ints%overlap, ints%dipole, ints%quadrupole, norm=auxints%norm)
       !##### DEV WRITE #####
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
@@ -203,9 +205,16 @@ contains
       !    end do
       !    write (*, *) ""
       ! end do
+      ! write (*, *) "Dipole moment integrals:"
       ! do i = 1, bas%nao
       !    do j = 1, bas%nao
       !       write (*, '(2i3,3f8.4)') i, j, ints%dipole(:, i, j)
+      !    end do
+      ! end do
+      ! write (*, *) "Quadrupole moment integrals:"
+      ! do i = 1, bas%nao
+      !    do j = 1, bas%nao
+      !       write (*, '(2i3,6f8.4)') i, j, ints%quadrupole(:, i, j)
       !    end do
       ! end do
       !#####################
@@ -562,7 +571,9 @@ contains
       psh = get_psh_from_qsh(wfn, bas)
       call get_qat_from_qsh(bas, wfn%qsh, wfn%qat)
       call get_mulliken_atomic_multipoles(bas, ints%dipole, wfn%density, &
-      & wfn%dpat)
+         & wfn%dpat)
+      call get_mulliken_atomic_multipoles(bas, ints%quadrupole, wfn%density, &
+         & wfn%qpat)
       !> This step is only required because the dipole integrals in tblite are not
       !> centered to a fixed point (e.g., origin) but are atomic dipole moments
       !> Calculation of dipole moments requires Mulliken atomic charges.
@@ -570,8 +581,22 @@ contains
       call get_mulliken_shell_charges(bas, ints%overlap, wfn%density, wfn%n0sh, &
       & mulliken_qsh)
       call get_qat_from_qsh(bas, mulliken_qsh, mulliken_qat)
+      !> Get the molecular dipole moment
       call gemv(mol%xyz, mulliken_qat(:, 1), tmpdip)
       dipole(:) = tmpdip + sum(wfn%dpat(:, :, 1), 2)
+
+      !##### DEV TEST #####
+      !> Alternative way to get the molecular dipole moment
+      ! call get_molecular_dipole_moment(mol, mulliken_qat(:, 1), wfn%dpat(:, :, 1), &
+      !      & dipole)
+      !#####################
+      call get_molecular_quadrupole_moment(mol, mulliken_qat(:, 1), wfn%dpat(:, :, 1), &
+         & wfn%qpat(:, :, 1), quadrupole)
+
+      write (*, *) "Quadrupole moments:"
+      do i = 1, 6
+         write (*, '(f10.6)') quadrupole(i)
+      end do
 
       !> Get the WBOs
       allocate (wbo(mol%nat, mol%nat, wfn%nspin))
