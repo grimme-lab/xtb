@@ -91,6 +91,8 @@ contains
       real(wp), intent(in) :: delta
       !> Static dipole polarizability
       real(wp), intent(out) :: alpha(3, 3)
+      !> (optional) Electric field
+      real(wp), intent(in), optional :: efield(:)
       !> Error type
       type(error_type), allocatable :: error
       !> Potential type
@@ -105,8 +107,6 @@ contains
       real(wp) :: ts
       !> Molecular dipole moment
       real(wp) :: dip_plus(3), dip_minus(3)
-      !> (optional) Electric field
-      real(wp), intent(in), optional :: efield(:)
       real(wp) :: eff_ef(3), tmp_ef(3)
       !> Loop variables
       integer :: k, i, j
@@ -173,35 +173,69 @@ contains
             & wfn_tmp%density, wfn_tmp%n0sh, wfn_tmp%qsh)
          call get_qat_from_qsh(bas, wfn_tmp%qsh, wfn_tmp%qat)
 
-         write (*, *) "Atom charges after 1st iteration ..."
-         do i = 1, mol%nat
-            write (*, '(f8.4)') wfn_tmp%qat(i, 1)
-         end do
+         ! write (*, *) "Atom charges after 1st iteration ..."
+         ! do i = 1, mol%nat
+         !    write (*, '(f8.4)') wfn_tmp%qat(i, 1)
+         ! end do
 
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
          call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
             & ves_twostepscf, CN_plusU, efield_object, dip_minus)
-         write (*, *) "Dipole moment after minus perturbation ..."
-         write (*, '(3f8.4)') dip_minus
-         stop
+         ! write (*, *) "Dipole moment after minus perturbation ..."
+         ! write (*, '(3f8.4)') dip_minus
 
-         ! H = Vecp
-         ! call adddsym(ndim, ffs, D(1, k), H)    ! perturb H with field only
-         ! call onescf(n, ndim, nel, nopen, homo, at, rab, cns,&    ! and add 2nd iter part
-         ! &              S, SS, H, Hdiag, focc, eT, scfpar, ves0, pshtmp, patmp, P1)
-         ! call dipmom2(n, ndim, xyz, z, norm, P1, D, pnt, dip1)     ! get dipole moment
+         tmp_ef = eff_ef
+         !> Add perturbation to electric field (minus sign corresponds to original PTB implementation)
+         tmp_ef(k) = tmp_ef(k) + delta
+         efield_object = electric_field(tmp_ef)
 
-         ! call addsym(ndim, -ffs, Htmp, D(1, k), H)       ! other direction
-         ! call solve3(ndim, nel, nopen, homo, eT, focc, H, S, P1)
-         ! call mlpop2(n, ndim, P1, S1, S2, patmp, pshtmp)
-         ! patmp = z - patmp
-         ! H = Vecp
-         ! call adddsym(ndim, -ffs, D(1, k), H)
-         ! call onescf(n, ndim, nel, nopen, homo, at, rab, cns,&
-         ! &              S, SS, H, Hdiag, focc, eT, scfpar, ves0, pshtmp, patmp, P1)
-         ! call dipmom2(n, ndim, xyz, z, norm, P1, D, pnt, dip2)
+         !> Copy exact wavefunction and integrals (mainly for H0) from two step-scf to temporary wavefunction
+         wfn_tmp = wfn
+         ints_tmp = ints
+         !> Get potential and apply it to Hamiltonian
+         call pot%reset()
+         call efield_object%update(mol, icache)
+         call efield_object%get_potential(mol, icache, wfn_tmp, pot)
+         call add_pot_to_h1(bas, ints, pot, wfn_tmp%coeff)
+         !##### DEV WRITE #####
+         ! write (*, *) "Matrix to solve ..."
+         ! do i = 1, size(wfn_tmp%coeff, 1)
+         !    do j = 1, size(wfn_tmp%coeff, 2)
+         !       write (*, '(f11.7)', advance="no") wfn_tmp%coeff(i, j, 1)
+         !    end do
+         !    write (*, '(/)', advance="no")
+         ! end do
+         !#####################
+         !> Solve effective Hamiltonian including the electric field
+         call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
 
-         ! alpha(k, 1:3) = -(dip1(1:3) - dip2(1:3)) / (2_wp * ffs)                               ! numerical diff. dmu/dfield
+         !##### DEV WRITE #####
+         ! write (*, *) "Density matrix after adding field ..."
+         ! do i = 1, size(wfn_tmp%density, 1)
+         !    do j = 1, size(wfn_tmp%density, 2)
+         !       write (*, '(f11.7)', advance="no") wfn_tmp%density(i, j, 1)
+         !    end do
+         !    write (*, '(/)', advance="no")
+         ! end do
+         !#####################
+
+         !> Get updated atomic and shell charges
+         call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
+            & wfn_tmp%density, wfn_tmp%n0sh, wfn_tmp%qsh)
+         call get_qat_from_qsh(bas, wfn_tmp%qsh, wfn_tmp%qat)
+
+         ! write (*, *) "Atom charges after 1st iteration ..."
+         ! do i = 1, mol%nat
+         !    write (*, '(f8.4)') wfn_tmp%qat(i, 1)
+         ! end do
+
+         !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
+         call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
+            & ves_twostepscf, CN_plusU, efield_object, dip_plus)
+         ! write (*, *) "Dipole moment after plus perturbation ..."
+         ! write (*, '(3f8.4)') dip_plus
+
+         alpha(k, 1:3) = -(dip_minus - dip_plus) / (2.0_wp * delta)                               ! numerical diff. dmu/dfield
       end do cart_coord_loop
 
       !> Symmetrization of polarizability tensor
@@ -319,13 +353,13 @@ contains
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
       !##### DEV WRITE #####
-      write (*, *) "Final wfn%coeff(:, :, 1) to solve ..."
-      do i = 1, size(wfn%coeff, 1)
-         do j = 1, size(wfn%coeff, 2)
-            write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
-         end do
-         write (*, '(/)', advance="no")
-      end do
+      ! write (*, *) "Final wfn%coeff(:, :, 1) to solve ..."
+      ! do i = 1, size(wfn%coeff, 1)
+      !    do j = 1, size(wfn%coeff, 2)
+      !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
+      !    end do
+      !    write (*, '(/)', advance="no")
+      ! end do
       !#####################
 
       call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)

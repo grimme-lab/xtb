@@ -19,9 +19,11 @@ module xtb_propertyoutput
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_io, only: stdout
    use xtb_mctc_symbols, only: toSymbol
+   use xtb_mctc_convert, only: evtoau, autod, autoaa
    use xtb_solv_cm5
    use xtb_cube
    use xtb_topology
+   use xtb_setparam, only: p_run_alpha
 
 contains
 
@@ -273,7 +275,7 @@ end subroutine write_energy_oniom
    end subroutine main_property
 
    subroutine ptb_property &
-      (iunit, env, mol, wfn, bas, struc, wfx, res)
+      (iunit, env, mol, wfn, bas, struc, wfx, res, runtyp)
 
       use xtb_mctc_convert
       use xtb_type_molecule
@@ -310,9 +312,10 @@ end subroutine write_energy_oniom
       type(TEnvironment), intent(inout) :: env
       type(TWavefunction), intent(inout) :: wfx
       type(scc_results), intent(in) :: res
+      integer, intent(in) :: runtyp
       integer  :: ifile, i
       real(wp), allocatable :: psh(:, :)
-      real(wp) :: dip
+      real(wp) :: dip, isotropic_alpha
 
       !> orbital energies and occupation
       if (set%pr_eig) then
@@ -379,6 +382,28 @@ end subroutine write_energy_oniom
       write (iunit, '(/)', advance="no")
       write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",/,1x,2f9.4)') &
            & dip, dip*autod
+
+      if (runtyp .eq. p_run_alpha) then
+         isotropic_alpha = ( res%alpha(1, 1) + res%alpha(2, 2) + res%alpha(3, 3) ) / 3.0_wp
+         write (iunit, '(a)')
+         write (iunit, '(1x)', advance="no")
+         do i = 1,38
+            write (iunit, '(a)', advance="no") "-"
+         end do
+         write (iunit, '(/)', advance="no")
+         write (iunit, '(4x,"Numerical polarizability tensor: (a.u.)")')
+         write (iunit, '(9x,"X         Y         Z")')
+         write (iunit, '(4x,a,3f10.4)') "X", res%alpha(1, 1:3)
+         write (iunit, '(4x,a,3f10.4)') "Y", res%alpha(2, 1:3)
+         write (iunit, '(4x,a,3f10.4)') "Z", res%alpha(3, 1:3)
+         write (iunit, '(1x)', advance="no")
+         do i = 1,38
+            write (iunit, '(a)', advance="no") "-"
+         end do
+         write (iunit, '(/)', advance="no")
+         write (iunit, '(4x,"Total isotropic dipole polarizability (a.u. / Å³):",/,1x,2f9.4)') &
+              & isotropic_alpha, isotropic_alpha*(autoaa**3)
+      end if
 
    end subroutine ptb_property
 

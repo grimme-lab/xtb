@@ -916,7 +916,7 @@ contains
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
          type is (TPTBCalculator)
-            call ptb_property(iprop, env, calc%mol, chk%tblite, calc%bas, mol, chk%wfn, res)
+            call ptb_property(iprop, env, calc%mol, chk%tblite, calc%bas, mol, chk%wfn, res, set%runtyp)
          end select
       end if
 
