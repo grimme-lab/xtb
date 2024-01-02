@@ -71,6 +71,7 @@ module xtb_ptb_scf
                                   '(10x,":",2x,a,e22.7,1x,a,1x,":")'
    character(len=*), parameter :: dblfmt = &
                                   '(10x,":",2x,a,f18.7,5x,a,1x,":")'
+   character(len=*), parameter :: source = "twostepscf"
 
    real(wp), parameter :: default_cutoff = 25.0_wp
    !> Conversion factor from temperature to energy
@@ -228,20 +229,6 @@ contains
       !#####################
       call get_mml_overlaps(bas, ints%overlap, ptbGlobals%mlmix, auxints%overlap_to_x, &
       & auxints%overlap_to_1_x)
-      !##### DEV WRITE #####
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") overlap_soneminusx(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") overlap_sx(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
-      !#####################
 
       !     _____   _   _
       !    / ____| | \ | |
@@ -327,23 +314,15 @@ contains
       call coulomb%init(mol, bas, wfn%qat(:, 1), data%coulomb%shellHardnessFirstIter, &
          & data%coulomb%kQHubbard, data%coulomb%kOK1, data%coulomb%kTO)
       call coulomb%update(mol, bas)
-      !##### DEV WRITE #####
-      ! do i = 1, bas%nsh
-      !    do j = 1, bas%nsh
-      !       write (*, '(f10.6)', advance="no") coulomb%cmat(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
-      !#####################
 
       if (ctx%verbosity > 1) then
          write (ctx%unit, '(/,10x,51("."))')
          write (ctx%unit, '(10x,":",22x,a,22x,":")') "SETUP"
          write (ctx%unit, '(10x,":",49("."),":")')
-         ! write (env%unit, intfmt) "# basis functions  ", self%bas%n
          write (ctx%unit, intfmt) "# atomic orbitals  ", bas%nao
          write (ctx%unit, intfmt) "# shells           ", bas%nsh
          write (ctx%unit, intfmt) "# electrons        ", nint(wfn%nocc)
+         write (ctx%unit, intfmt) "# open shells      ", mol%uhf
          write (ctx%unit, intfmt) "max. iterations    ", 2
          write (ctx%unit, chrfmt) "Hamiltonian        ", "PTB"
          write (ctx%unit, chrfmt) "PC potential       ", bool2string(.false.)
@@ -355,7 +334,13 @@ contains
          ! write (env%unit, dblfmt) "accuracy           ", acc, "    "
          write (ctx%unit, scifmt) "-> integral cutoff ", bas%intcut, "    "
          ! write (env%unit, scifmt) "-> integral neglect", neglect, "    "
+         write (ctx%unit, intfmt) "verbosity level    ", ctx%verbosity
          write (ctx%unit, '(10x,51("."))')
+      end if
+
+      if (ctx%verbosity > 1) then
+         write (ctx%unit, '(/,10x,a)') "--- Calculation progress ---"
+         write (ctx%unit, '(14x,a)') "1st iteration..."
       end if
 
       !           _____                    _____                    _____
@@ -420,17 +405,11 @@ contains
       !>  --------- Get potential (wavefunction-dependent) -----
 
       call pot%reset()
+      !> Coulomb potential
       call coulomb%get_potential(wfn, pot)
       call add_pot_to_h1(bas, ints, pot, wfn%coeff)
-      !##### DEV WRITE #####
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f8.4)', advance="no") wfn%coeff(i, j, 1)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      !#####################
 
+      !> Pauli XC potential
       allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
       psh = get_psh_from_qat(wfn, bas)
       call calc_Vxc_pauli(mol, bas, psh(:, 1), auxints%overlap_xc, levels, data%pauli%kxc1, wfn%coeff(:, :, 1))
@@ -443,9 +422,6 @@ contains
       !    write (*, '(/)', advance="no")
       ! end do
       !#####################
-
-      !> Get additional potentials
-      !> TODO
 
       !   __       _
       !  / _\ ___ | |_   _____
@@ -480,17 +456,14 @@ contains
       ! do i = 1, bas%nsh
       !    write (*, '(f8.4)') wfn%qsh(i, 1)
       ! end do
-      ! write (*, *) "Shell populations after 1st iteration ..."
-      ! do i = 1, bas%nsh
-      !    write (*, '(f8.4)') psh(i, 1)
-      ! end do
-      ! write (*, *) "Atom charges after 1st iteration ..."
+      ! write (*, *) "Atomic charges after 1st iteration ..."
       ! do i = 1, mol%nat
       !    write (*, '(f8.4)') wfn%qat(i, 1)
       ! end do
       !#####################
+
       if (ctx%verbosity > 1) then
-         write (ctx%unit, '(/,a,/)') "--- 1st iteration completed... ---"
+         write (ctx%unit, '(14x,a)') "2nd iteration..."
       end if
 
       !   ____            _   _ _                 _   _
@@ -600,11 +573,16 @@ contains
       call gemv(mol%xyz, mulliken_qat(:, 1), tmpdip)
       dipole(:) = tmpdip + sum(wfn%dpat(:, :, 1), 2)
 
+      !> Get the WBOs
       allocate (wbo(mol%nat, mol%nat, wfn%nspin))
       call get_mayer_bond_orders(bas, ints%overlap, wfn%density, wbo)
 
       !> Save some memory by deallocating the second-iteration-specific HO overlap integrals
       deallocate (auxints%overlap_h0_2)
+
+      if (ctx%verbosity > 1) then
+         write (ctx%unit, '(10x,a,/)') "--- Two-step SCF done. ---"
+      end if
 
    end subroutine twostepscf
 
