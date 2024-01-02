@@ -114,16 +114,6 @@ contains
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
 
-      !##### DEV WRITE #####
-      ! write (*, *) "Initial Hamiltonian matrix in response part ..."
-      ! do i = 1, size(ints%hamiltonian, 1)
-      !    do j = 1, size(ints%hamiltonian, 2)
-      !       write (*, '(f11.7)', advance="no") ints%hamiltonian(i, j)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      !#####################
-
       alpha = 0.0_wp
       if (present(efield)) then
          eff_ef = efield
@@ -157,6 +147,10 @@ contains
          !#####################
          !> Solve effective Hamiltonian including the electric field
          call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+         if (allocated(error)) then
+            call ctx%set_error(error)
+            return
+         end if
 
          !##### DEV WRITE #####
          ! write (*, *) "Density matrix after adding field ..."
@@ -173,16 +167,10 @@ contains
             & wfn_tmp%density, wfn_tmp%n0sh, wfn_tmp%qsh)
          call get_qat_from_qsh(bas, wfn_tmp%qsh, wfn_tmp%qat)
 
-         ! write (*, *) "Atom charges after 1st iteration ..."
-         ! do i = 1, mol%nat
-         !    write (*, '(f8.4)') wfn_tmp%qat(i, 1)
-         ! end do
-
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
          call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
             & ves_twostepscf, CN_plusU, efield_object, dip_minus)
-         ! write (*, *) "Dipole moment after minus perturbation ..."
-         ! write (*, '(3f8.4)') dip_minus
+         if (ctx%failed()) return
 
          tmp_ef = eff_ef
          !> Add perturbation to electric field (minus sign corresponds to original PTB implementation)
@@ -208,6 +196,10 @@ contains
          !#####################
          !> Solve effective Hamiltonian including the electric field
          call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
+         if (allocated(error)) then
+            call ctx%set_error(error)
+            return
+         end if
 
          !##### DEV WRITE #####
          ! write (*, *) "Density matrix after adding field ..."
@@ -224,16 +216,10 @@ contains
             & wfn_tmp%density, wfn_tmp%n0sh, wfn_tmp%qsh)
          call get_qat_from_qsh(bas, wfn_tmp%qsh, wfn_tmp%qat)
 
-         ! write (*, *) "Atom charges after 1st iteration ..."
-         ! do i = 1, mol%nat
-         !    write (*, '(f8.4)') wfn_tmp%qat(i, 1)
-         ! end do
-
          !> Reset Hamiltonian and enter one-step SCF routine to get updated wavefunction
          call onestepscf(ctx, data, mol, bas, wfn_tmp, ints_tmp, auxints, Vecp, neighborlist, selfenergies, &
             & ves_twostepscf, CN_plusU, efield_object, dip_plus)
-         ! write (*, *) "Dipole moment after plus perturbation ..."
-         ! write (*, '(3f8.4)') dip_plus
+         if (ctx%failed()) return
 
          alpha(k, 1:3) = -(dip_minus - dip_plus) / (2.0_wp * delta)                               ! numerical diff. dmu/dfield
       end do cart_coord_loop
@@ -331,9 +317,6 @@ contains
          do ish = 1, bas%nsh_at(iat)
             pot%vsh(ii + ish, 1) = pot%vsh(ii + ish, 1) * data%response%cvesres(izp) +  &
                & ves_twostepscf(ii + ish) * (1.0_wp - data%response%cvesres(izp))
-            !##### DEV WRITE #####
-            ! write (*, *) "Combined potential for atom ", iat, " and shell ", ish, " is ", pot%vsh(ii + ish, 1)
-            !#####################
          enddo
       end do
 

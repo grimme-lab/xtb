@@ -147,7 +147,7 @@ contains
       call open_file(ich, filename, 'r')
       exist = ich /= -1
       if (exist) then
-         error stop "Parameter file not supported yet."
+         call env%error('Parameter file not supported yet.!', source)
          call close_file(ich)
       else ! no parameter file, check if we have one compiled into the code
          call initPTB(calc%ptbData, mol%num)
@@ -166,20 +166,6 @@ contains
       !> set up the EEQ model
       call new_mchrg_model(calc%eeqmodel, chi=calc%ptbData%eeq%chi, &
       & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)
-      !##### DEV WRITE #####
-      ! loop over all atoms and print the number of shells and primitives
-      ! write (*, *) "Number of atoms: ", struc%nat
-      ! write (*, *) "Number of shells: ", calc%bas%nsh
-      ! write (*, *) calc%bas%nsh_id
-      ! do i = 1, struc%nat
-      !    write (*, *) "i: ", i
-      !    write (*, *) "ID(i): ", struc%id(i)
-      !    write(*,*) "num(ID(i)): ", struc%num(struc%id(i))
-      !    do j = 1, calc%bas%nsh_id(struc%id(i))
-      !       write (*, *) "  shell: ", j, "  prim: ", calc%bas%cgto(j, i)%nprim
-      !    end do
-      ! end do
-      !#####################
 
       !> check for external point charge field
       ! if (allocated(set%pcem_file)) then
@@ -239,14 +225,14 @@ contains
       !#################################################
       !> tblite calculation context
       type(context_type) :: ctx
+      !> Error type
+      type(error_type), allocatable :: error
       !> Wiberg bond order
       real(wp), allocatable :: wbo(:, :, :)
       !> Static homogenoues external electric field
       real(wp), allocatable :: efield(:)
       !> Approx. effective core potential
       real(wp), allocatable :: Vecp(:, :)
-      !> Static dipole polarizability tensor
-      real(wp) :: alpha(3, 3)
       !> Auxiliary integrals
       type(aux_integral_type) :: auxints
       !> Exact integrals
@@ -291,10 +277,16 @@ contains
       !> INFO ON RETURNED VARIABLES: On return, ints%hamiltonian contains the last Hamiltonian matrix that was solved
       !> including all potentials and contributions. I.e., it does NOT contain H0 as intended in the usual SCF procedure.
 
-      call env%check(exitRun)
-      if (exitRun) then
-         call env%error("Electronic structure method terminated", source)
-         return
+      if (ctx%failed()) then
+         do while (ctx%failed())
+            call ctx%get_error(error)
+            call env%error(error%message, source)
+         end do
+         call env%error("PTB two-step SCF terminated", source)
+         call env%check(exitRun)
+         if (exitRun) then
+            return
+         end if
       end if
 
       call chk%wfn%allocate(mol%n, self%bas%nsh, self%bas%nao)
@@ -324,6 +316,17 @@ contains
       if (set%runtyp == p_run_alpha) then
          call numgrad_polarizability(ctx, self%ptbData, self%mol, self%bas, chk%tblite, &
             & ints, auxints, vecp, neighborlist, selfenergies, v_ES_2nditer, CN_plusU, dF, results%alpha)
+         if (ctx%failed()) then
+            do while (ctx%failed())
+               call ctx%get_error(error)
+               call env%error(error%message, source)
+            end do
+            call env%error("PTB response terminated", source)
+            call env%check(exitRun)
+            if (exitRun) then
+               return
+            end if
+         end if
       end if
 
    end subroutine singlepoint
