@@ -144,7 +144,7 @@ contains
       real(wp) :: cutoff
       !> Number of electrons
       real(wp) :: nel
-      !> Pauli XC potential
+      !> Shell populations required for Pauli XC potential
       real(wp), allocatable :: psh(:, :)
       !> Electronic entropy
       real(wp) :: ts
