@@ -18,15 +18,11 @@
 !> Parametrisation data for the PTB method
 module xtb_ptb_data
    use xtb_mctc_accuracy, only: wp
-   use xtb_param_atomicrad, only: atomicRad
-   use xtb_param_paulingen, only: paulingEN
-   use xtb_type_param, only: dftd_parameter
-   use xtb_type_dispersionmodel, only: TDispersionModel
    implicit none
    private
 
    public :: TPTBData, init
-   public :: TRepulsionData, TCoulombData, THamiltonianData, TPlusU
+   public :: TCoulombData, THamiltonianData, TPlusU
    public :: TCorePotentialData, TEEQData, TPauliXCData, TResponse
    public :: newData, getData
    public :: angToShellData
@@ -72,7 +68,6 @@ module xtb_ptb_data
    end type TCorePotentialData
 
    !> Vxc parameters
-
    type :: TPauliXCData
       !> Scaling factor for the Pauli repulsion in first iteration
       real(wp), allocatable :: kxc1(:)
@@ -102,70 +97,11 @@ module xtb_ptb_data
 
    end type TEEQData
 
-   !> Data for the repulsion contribution
-   type :: TRepulsionData
-
-      !> Repulsion exponent for heavy elements
-      real(wp) :: kExp
-
-      !> Repulsion exponent for light elements
-      real(wp) :: kExpLight
-
-      !> Repulsion exponent
-      real(wp) :: rExp
-
-      !> Electronegativity scaling of repulsion
-      real(wp) :: enScale
-
-      !> Exponents of repulsion term
-      real(wp), allocatable :: alpha(:)
-
-      !> Effective nuclear charge
-      real(wp), allocatable :: zeff(:)
-
-      !> Electronegativitity for scaling of repulsion
-      real(wp), allocatable :: electronegativity(:)
-
-      !> FIXME: real space cutoff should not be part of data
-      real(wp) :: cutoff
-
-   end type TRepulsionData
-
    !> Data for the evaluation of the PTB core Hamiltonian
    type :: THamiltonianData
 
-      !> Scaling factors for different interacting shells
-      real(wp) :: kScale(0:3, 0:3)
-
-      !> Scaling factor for diffuse or polarisation function
-      real(wp) :: kDiff
-
-      !> Shell dependence of the EN polynom
-      real(wp) :: enScale(0:3, 0:3)
-
-      !> Quartic contribution to EN polynom
-      real(wp) :: enscale4
-
-      !> Exponent for shell exponent weighting
-      real(wp) :: wExp
-
-      !> Number of primitives for expansion of Slater functions
-      integer, allocatable :: numberOfPrimitives(:, :)
-
       !> Reference occupation of the atom
       real(wp), allocatable :: refocc(:, :)
-
-      !> Electronegativity used in the shell polynomials
-      real(wp), allocatable :: electronegativity(:)
-
-      !> Atomic radii used in the shell polynomials
-      real(wp), allocatable :: atomicRad(:)
-
-      !> Charge dependence of the atomic levels
-      real(wp), allocatable :: kQShell(:, :)
-
-      !> Charge dependence of the atomic levels
-      real(wp), allocatable :: kQAtom(:)
 
       !----------------
       !> H0 information
@@ -297,9 +233,6 @@ module xtb_ptb_data
       !> Number of shells
       integer, allocatable :: nshell(:)
 
-      !> Parametrisation data for repulsive interactions
-      type(TRepulsionData) :: repulsion
-
       !> Parametrisation data for core Hamiltonian
       type(THamiltonianData) :: hamiltonian
 
@@ -330,7 +263,6 @@ module xtb_ptb_data
 
    !> Default constructor for the data types
    interface init
-      module procedure :: initRepulsion
       module procedure :: initCoulomb
       module procedure :: initCorepotential
       module procedure :: initEEQ
@@ -410,55 +342,6 @@ contains
       write (unit, '(a,/)') "                              @@@ @"
 
    end subroutine writeInfo
-
-   subroutine initRepulsion(self, kExp, kExpLight, rExp, enScale, alpha, zeff, &
-         & electronegativity)
-
-      !> Data instance
-      type(TRepulsionData), intent(out) :: self
-
-      !>
-      real(wp), intent(in) :: kExp
-
-      !>
-      real(wp), intent(in) :: kExpLight
-
-      !>
-      real(wp), intent(in) :: rExp
-
-      !>
-      real(wp), intent(in) :: enScale
-
-      !>
-      real(wp), intent(in) :: alpha(:)
-
-      !>
-      real(wp), intent(in) :: zeff(:)
-
-      !>
-      real(wp), intent(in), optional :: electronegativity(:)
-
-      integer :: maxElem
-
-      maxElem = min(size(alpha), size(zeff))
-      if (present(electronegativity)) then
-         maxElem = min(maxElem, size(electronegativity))
-      end if
-
-      self%cutoff = 40.0_wp
-      self%kExp = kExp
-      self%kExpLight = kExpLight
-      self%rExp = rExp
-      self%enScale = enScale
-      self%alpha = alpha(:maxElem)
-      self%zeff = zeff(:maxElem)
-      if (present(electronegativity)) then
-         self%electronegativity = electronegativity(:maxElem)
-      else
-         self%electronegativity = paulingEN(:maxElem)
-      end if
-
-   end subroutine initRepulsion
 
    subroutine initCorepotential(self, max_core_prim, max_core_shell, & !> Array sizes
       & cbas_sl_exp, cbas_nshell, & !> Slater exponents, number of shells

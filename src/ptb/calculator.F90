@@ -31,7 +31,6 @@ module xtb_ptb_calculator
    use xtb_setparam
    use xtb_fixparam
    use xtb_mctc_systools, only: rdpath
-   use xtb_readin, only: bool2string, bool2int
 
    use mctc_env, only: wp, error_type
    use mctc_io, only: structure_type, new
@@ -76,9 +75,6 @@ module xtb_ptb_calculator
       !> Electronic temperature
       real(wp) :: etemp
 
-      !> Maximum number of cycles for SCC convergence
-      integer :: maxiter
-
    contains
 
       !> Perform PTB single point calculation
@@ -119,7 +115,6 @@ contains
       real(wp), intent(in), optional :: accuracy
 
       character(len=:), allocatable :: filename
-      type(TPTBParameter) :: globpar
       integer :: ich
       logical :: exist
       logical :: exitRun
@@ -140,7 +135,6 @@ contains
       end if
 
       calc%etemp = 300.0_wp
-      calc%maxiter = 250
 
       !> Obtain the parameter file
       allocate (calc%ptbData)
