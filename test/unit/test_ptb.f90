@@ -52,7 +52,8 @@ contains
                   new_unittest("v_xc", test_ptb_V_XC), &
                   new_unittest("hubbard", test_ptb_hubbard), &
                   new_unittest("coulomb_pot", test_ptb_coulomb_potential), &
-                  new_unittest("plus_U_pot", test_ptb_plus_U_potential) &
+                  new_unittest("plus_U_pot", test_ptb_plus_U_potential), &
+                  new_unittest("mb16-43-01", test_ptb_mb16_43_01) &
                   ]
 
    end subroutine collect_ptb
@@ -1050,6 +1051,100 @@ contains
       call check_(error, wfn%coeff(8, 26,1), plusU_pot_ref(4), thr=thr)
 
    end subroutine test_ptb_plus_U_potential
+
+   subroutine test_ptb_mb16_43_01(error)
+      !> PTB overlap matrix calculation
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
+      use xtb_ptb_guess, only: get_psh_from_qsh
+      !> tblite lib
+      use xtb_type_environment, only: TEnvironment, init
+      use xtb_type_calculator, only: TCalculator
+      use xtb_type_restart, only: TRestart
+      use xtb_type_data, only: scc_results
+
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      !> Generic calculator class
+      class(TCalculator), allocatable :: calc
+      !> PTB calculator class
+      type(TPTBCalculator), allocatable :: ptb, ptb_save
+      !> Environment type
+      type(TEnvironment) :: env
+      !> Restart type
+      type(TRestart) :: chk
+      !> Calculation results
+      type(scc_results) :: res
+      !> variables that are needed for calc%singlepoint but useless for PTB
+      real(wp) :: energy, gap
+      real(wp), allocatable :: gradient(:, :)
+      real(wp) :: sigma(3, 3)
+      integer :: iat, ish
+      !> PTB shell populations
+      real(wp), allocatable :: psh(:, :)
+      !> PTB reference atomic charges of MB16-43-01
+      real(wp), parameter :: q_ref(16) = [ &
+         &     0.68170445_wp, &
+         &    -0.02179514_wp, &
+         &    -0.39271375_wp, &
+         &    -0.04860209_wp, &
+         &    -0.16998965_wp, &
+         &     0.05243959_wp, &
+         &    -0.02162296_wp, &
+         &    -0.27122167_wp, &
+         &    -0.10233830_wp, &
+         &     0.05425879_wp, &
+         &     0.06345147_wp, &
+         &     0.18291012_wp, &
+         &    -0.23545020_wp, &
+         &    -0.17286158_wp, &
+         &     0.01710696_wp, &
+         &     0.38467781_wp &
+         & ]
+      !> PTB reference shell populations of Na atom in MB16-43-01
+      real(wp), parameter :: psh_ref(6) = [ &
+         &     1.42836761_wp, &
+         &     0.55988306_wp, &
+         &     0.07385892_wp, &
+         &     5.16059363_wp, &
+         &     0.86661109_wp, &
+         &     0.22898123_wp &
+         & ]
+      !> PTB reference WBOs of MB16-43-01
+      real(wp), parameter :: wbo_ref(2) = [ &
+         & 0.616933710808355_wp, &
+         & 0.608892999962882_wp &
+         & ]
+
+      !> Initialize calculation environment
+      call init(env)
+
+      call getMolecule(struc, "mindless01")
+
+      allocate (ptb, ptb_save)
+      call newPTBCalculator(env, struc, ptb)
+      ptb_save = ptb
+      call move_alloc(ptb, calc)
+
+      gap = 0.0_wp
+      allocate (gradient(3, struc%n), source=0.0_wp)
+      call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
+         & gap, res)
+      allocate (psh(ptb_save%bas%nsh, chk%tblite%nspin), source=0.0_wp)
+      psh = get_psh_from_qsh(chk%tblite, ptb_save%bas)
+
+      do iat = 1, struc%n
+         call check_(error, chk%wfn%q(iat), q_ref(iat), thr=thr2)
+      end do
+      do ish = 1, ptb_save%bas%nsh_at(1)
+         call check_(error, psh(ish, 1), psh_ref(ish), thr=thr2)
+      end do
+      call check_(error, chk%wfn%wbo(16, 12), wbo_ref(1), thr=thr2)
+      call check_(error, chk%wfn%wbo(13, 12), wbo_ref(2), thr=thr2)
+
+   end subroutine test_ptb_mb16_43_01
 
    pure function id_to_atom(mol, idparam) result(atomparam)
       !> Molecular structure data
