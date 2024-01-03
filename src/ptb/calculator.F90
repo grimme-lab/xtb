@@ -98,7 +98,7 @@ module xtb_ptb_calculator
    !> Conversion factor from temperature to energy
    real(wp), parameter :: kt = 3.166808578545117e-06_wp
    !> Finite-field step for numerical dipole polarizability
-   real(wp), parameter :: dF = 1.0E-3_wp
+   real(wp), parameter :: dF = 5.0E-5_wp
 
 contains
 
