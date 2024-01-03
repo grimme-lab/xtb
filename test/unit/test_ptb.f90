@@ -32,6 +32,10 @@ module test_ptb
    real(wp), parameter :: thr2 = 1.0e-5_wp
    real(wp), parameter :: thr3 = 1.0e-4_wp
    real(wp), parameter :: thr4 = 1.0e-3_wp
+   !> Reference implementation of PTB used partially single precision
+   !> Numerical derivatives enhance small errors, which is why we need a
+   !> higher threshold
+   real(wp), parameter :: thr_alpha = 1.0e-1_wp
 
    public :: collect_ptb
 
@@ -58,7 +62,8 @@ contains
                   new_unittest("mb16-43-01", test_ptb_mb16_43_01), &
                   new_unittest("mb16-43-01_charged", test_ptb_mb16_43_01_charged), &
                   new_unittest("mb16-43-01_efield", test_ptb_mb16_43_01_efield), &
-                  new_unittest("dipole_moment", test_ptb_dipmom_caffeine) &
+                  new_unittest("dipole_moment", test_ptb_dipmom_caffeine), &
+                  new_unittest("polarizability", test_ptb_polarizability) &
                   ]
 
    end subroutine collect_ptb
@@ -1444,6 +1449,68 @@ contains
       set%efield = 0.0_wp
 
    end subroutine test_ptb_dipmom_caffeine
+
+   subroutine test_ptb_polarizability(error)
+      !> PTB overlap matrix calculation
+      use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
+      !> xtb lib
+      use xtb_type_environment, only: TEnvironment, init
+      use xtb_type_calculator, only: TCalculator
+      use xtb_type_restart, only: TRestart
+      use xtb_type_data, only: scc_results
+      use xtb_setparam
+
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      !> Generic calculator class
+      class(TCalculator), allocatable :: calc
+      !> PTB calculator class
+      type(TPTBCalculator), allocatable :: ptb
+      !> Environment type
+      type(TEnvironment) :: env
+      !> Restart type
+      type(TRestart) :: chk
+      !> Calculation results
+      type(scc_results) :: res
+      !> variables that are needed for calc%singlepoint but useless for PTB
+      real(wp) :: energy, gap
+      real(wp), allocatable :: gradient(:, :)
+      real(wp) :: sigma(3, 3)
+      real(wp), parameter :: alpha_ref(6) = [ &
+      & 88.369115_wp, &
+      &  0.006262_wp, &
+      & 89.779851_wp, &
+      & -0.002677_wp, &
+      &  0.000768_wp, &
+      & 99.524132_wp &
+      & ]
+
+      set%runtyp = p_run_alpha
+      !> Initialize calculation environment
+      call init(env)
+
+      call getMolecule(struc, "feco5")
+
+      allocate (ptb)
+      call newPTBCalculator(env, struc, ptb)
+      call move_alloc(ptb, calc)
+
+      gap = 0.0_wp
+      allocate (gradient(3, struc%n), source=0.0_wp)
+      call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
+         & gap, res)
+
+      call check_(error, res%alpha(1,1), alpha_ref(1), thr=thr_alpha)
+      call check_(error, res%alpha(1,2), alpha_ref(2), thr=thr_alpha)
+      call check_(error, res%alpha(2,2), alpha_ref(3), thr=thr_alpha)
+      call check_(error, res%alpha(1,3), alpha_ref(4), thr=thr_alpha)
+      call check_(error, res%alpha(2,3), alpha_ref(5), thr=thr_alpha)
+      call check_(error, res%alpha(3,3), alpha_ref(6), thr=thr_alpha)
+      set%runtyp = p_run_scc
+
+   end subroutine test_ptb_polarizability
 
    pure function id_to_atom(mol, idparam) result(atomparam)
       !> Molecular structure data
