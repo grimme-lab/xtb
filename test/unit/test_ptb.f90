@@ -31,6 +31,7 @@ module test_ptb
    real(wp), parameter :: thr = 1.0e-7_wp
    real(wp), parameter :: thr2 = 1.0e-5_wp
    real(wp), parameter :: thr3 = 1.0e-4_wp
+   real(wp), parameter :: thr4 = 1.0e-3_wp
 
    public :: collect_ptb
 
@@ -55,8 +56,9 @@ contains
                   new_unittest("coulomb_pot", test_ptb_coulomb_potential), &
                   new_unittest("plus_U_pot", test_ptb_plus_U_potential), &
                   new_unittest("mb16-43-01", test_ptb_mb16_43_01), &
-                  new_unittest("mb16-43-01_charged", test_ptb_mb16_43_01_charged) &
-                  ! new_unittest("mb16-43-01_efield", test_ptb_mb16_43_01_efield) &
+                  new_unittest("mb16-43-01_charged", test_ptb_mb16_43_01_charged), &
+                  new_unittest("mb16-43-01_efield", test_ptb_mb16_43_01_efield), &
+                  new_unittest("dipole_moment", test_ptb_dipmom_caffeine) &
                   ]
 
    end subroutine collect_ptb
@@ -1048,10 +1050,10 @@ contains
       call plusu%init(ptbData%plusU, mol, bas, wfn%qat(:, 1), cn)
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
-      call check_(error, wfn%coeff(1, 1,  1), plusU_pot_ref(1), thr=thr)
-      call check_(error, wfn%coeff(1, 2,  1), plusU_pot_ref(2), thr=thr)
+      call check_(error, wfn%coeff(1, 1, 1), plusU_pot_ref(1), thr=thr)
+      call check_(error, wfn%coeff(1, 2, 1), plusU_pot_ref(2), thr=thr)
       call check_(error, wfn%coeff(1, 20, 1), plusU_pot_ref(3), thr=thr)
-      call check_(error, wfn%coeff(8, 26,1), plusU_pot_ref(4), thr=thr)
+      call check_(error, wfn%coeff(8, 26, 1), plusU_pot_ref(4), thr=thr)
 
    end subroutine test_ptb_plus_U_potential
 
@@ -1244,99 +1246,204 @@ contains
 
    end subroutine test_ptb_mb16_43_01_charged
 
-   ! subroutine test_ptb_mb16_43_01_efield(error)
-   !    !> PTB overlap matrix calculation
-   !    use xtb_ptb_data, only: TPTBData
-   !    use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
-   !    use xtb_ptb_guess, only: get_psh_from_qsh
-   !    !> tblite lib
-   !    use xtb_type_environment, only: TEnvironment, init
-   !    use xtb_type_calculator, only: TCalculator
-   !    use xtb_type_restart, only: TRestart
-   !    use xtb_type_data, only: scc_results
+   subroutine test_ptb_mb16_43_01_efield(error)
+      !> PTB overlap matrix calculation
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
+      use xtb_ptb_guess, only: get_psh_from_qsh
+      !> xtb lib
+      use xtb_type_environment, only: TEnvironment, init
+      use xtb_type_calculator, only: TCalculator
+      use xtb_type_restart, only: TRestart
+      use xtb_type_data, only: scc_results
+      use xtb_setparam
 
-   !    !> Error type
-   !    type(error_type), allocatable, intent(out) :: error
-   !    !> Structure type (xtb)
-   !    type(TMolecule) :: struc
-   !    !> Generic calculator class
-   !    class(TCalculator), allocatable :: calc
-   !    !> PTB calculator class
-   !    type(TPTBCalculator), allocatable :: ptb, ptb_save
-   !    !> Environment type
-   !    type(TEnvironment) :: env
-   !    !> Restart type
-   !    type(TRestart) :: chk
-   !    !> Calculation results
-   !    type(scc_results) :: res
-   !    !> variables that are needed for calc%singlepoint but useless for PTB
-   !    real(wp) :: energy, gap
-   !    real(wp), allocatable :: gradient(:, :)
-   !    real(wp) :: sigma(3, 3)
-   !    integer :: iat, ish
-   !    !> PTB shell populations
-   !    real(wp), allocatable :: psh(:, :)
-   !    !> PTB reference atomic charges of MB16-43-01
-   !    real(wp), parameter :: q_ref(16) = [ &
-   !       &     0.68170445_wp, &
-   !       &    -0.02179514_wp, &
-   !       &    -0.39271375_wp, &
-   !       &    -0.04860209_wp, &
-   !       &    -0.16998965_wp, &
-   !       &     0.05243959_wp, &
-   !       &    -0.02162296_wp, &
-   !       &    -0.27122167_wp, &
-   !       &    -0.10233830_wp, &
-   !       &     0.05425879_wp, &
-   !       &     0.06345147_wp, &
-   !       &     0.18291012_wp, &
-   !       &    -0.23545020_wp, &
-   !       &    -0.17286158_wp, &
-   !       &     0.01710696_wp, &
-   !       &     0.38467781_wp &
-   !       & ]
-   !    !> PTB reference shell populations of Na atom in MB16-43-01
-   !    real(wp), parameter :: psh_ref(6) = [ &
-   !       &     1.42836761_wp, &
-   !       &     0.55988306_wp, &
-   !       &     0.07385892_wp, &
-   !       &     5.16059363_wp, &
-   !       &     0.86661109_wp, &
-   !       &     0.22898123_wp &
-   !       & ]
-   !    !> PTB reference WBOs of MB16-43-01
-   !    real(wp), parameter :: wbo_ref(2) = [ &
-   !       & 0.616933710808355_wp, &
-   !       & 0.608892999962882_wp &
-   !       & ]
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      !> Generic calculator class
+      class(TCalculator), allocatable :: calc
+      !> PTB calculator class
+      type(TPTBCalculator), allocatable :: ptb, ptb_save
+      !> Environment type
+      type(TEnvironment) :: env
+      !> Restart type
+      type(TRestart) :: chk
+      !> Calculation results
+      type(scc_results) :: res
+      !> variables that are needed for calc%singlepoint but useless for PTB
+      real(wp) :: energy, gap
+      real(wp), allocatable :: gradient(:, :)
+      real(wp) :: sigma(3, 3)
+      integer :: iat, ish
+      !> PTB shell populations
+      real(wp), allocatable :: psh(:, :)
+      !> PTB reference atomic charges of MB16-43-01
+      real(wp), parameter :: q_ref(16) = [ &
+         &    -1.87083162_wp, &
+         &    -3.61266413_wp, &
+         &     5.08098387_wp, &
+         &    -3.30344743_wp, &
+         &     6.89679486_wp, &
+         &     0.00416323_wp, &
+         &    -0.24406779_wp, &
+         &     3.84145983_wp, &
+         &     2.70491922_wp, &
+         &     0.41943598_wp, &
+         &     0.78384251_wp, &
+         &   -11.00332421_wp, &
+         &    -4.96965395_wp, &
+         &     2.25944041_wp, &
+         &     2.46367706_wp, &
+         &     0.54923654_wp &
+         & ]
+      !> PTB reference shell populations of Na atom in MB16-43-01
+      real(wp), parameter :: psh_ref(6) = [ &
+         &     1.45512176_wp, &
+         &     0.57954907_wp, &
+         &     0.65686184_wp, &
+         &     5.17897618_wp, &
+         &     0.99362525_wp, &
+         &     2.00669752_wp &
+         & ]
+      !> PTB reference WBOs of MB16-43-01
+      real(wp), parameter :: wbo_ref(2) = [ &
+         & 0.839744207773282_wp, &
+         & 1.31529170060079_wp &
+         & ]
+      set%efield(1) = 0.0_wp
+      set%efield(2) = 0.1_wp
+      set%efield(3) = 0.3_wp
 
-   !    !> Initialize calculation environment
-   !    call init(env)
+      !> Initialize calculation environment
+      call init(env)
 
-   !    call getMolecule(struc, "mindless01")
+      call getMolecule(struc, "mindless01")
 
-   !    allocate (ptb, ptb_save)
-   !    call newPTBCalculator(env, struc, ptb)
-   !    ptb_save = ptb
-   !    call move_alloc(ptb, calc)
+      allocate (ptb, ptb_save)
+      call newPTBCalculator(env, struc, ptb)
+      ptb_save = ptb
+      call move_alloc(ptb, calc)
 
-   !    gap = 0.0_wp
-   !    allocate (gradient(3, struc%n), source=0.0_wp)
-   !    call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
-   !       & gap, res)
-   !    allocate (psh(ptb_save%bas%nsh, chk%tblite%nspin), source=0.0_wp)
-   !    psh = get_psh_from_qsh(chk%tblite, ptb_save%bas)
+      gap = 0.0_wp
+      allocate (gradient(3, struc%n), source=0.0_wp)
+      call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
+         & gap, res)
+      allocate (psh(ptb_save%bas%nsh, chk%tblite%nspin), source=0.0_wp)
+      psh = get_psh_from_qsh(chk%tblite, ptb_save%bas)
 
-   !    do iat = 1, struc%n
-   !       call check_(error, chk%wfn%q(iat), q_ref(iat), thr=thr2)
-   !    end do
-   !    do ish = 1, ptb_save%bas%nsh_at(1)
-   !       call check_(error, psh(ish, 1), psh_ref(ish), thr=thr2)
-   !    end do
-   !    call check_(error, chk%wfn%wbo(16, 12), wbo_ref(1), thr=thr2)
-   !    call check_(error, chk%wfn%wbo(13, 12), wbo_ref(2), thr=thr2)
+      do iat = 1, struc%n
+         call check_(error, chk%wfn%q(iat), q_ref(iat), thr=thr3)
+      end do
+      do ish = 1, ptb_save%bas%nsh_at(1)
+         call check_(error, psh(ish, 1), psh_ref(ish), thr=thr3)
+      end do
+      call check_(error, chk%wfn%wbo(16, 12), wbo_ref(1), thr=thr3)
+      call check_(error, chk%wfn%wbo(13, 12), wbo_ref(2), thr=thr3)
+      set%efield = 0.0_wp
 
-   ! end subroutine test_ptb_mb16_43_01_efield
+   end subroutine test_ptb_mb16_43_01_efield
+
+   subroutine test_ptb_dipmom_caffeine(error)
+      !> PTB overlap matrix calculation
+      use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
+      !> xtb lib
+      use xtb_type_environment, only: TEnvironment, init
+      use xtb_type_calculator, only: TCalculator
+      use xtb_type_restart, only: TRestart
+      use xtb_type_data, only: scc_results
+      use xtb_setparam
+
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> Structure type (xtb)
+      type(TMolecule) :: struc
+      !> Generic calculator class
+      class(TCalculator), allocatable :: calc
+      !> PTB calculator class
+      type(TPTBCalculator), allocatable :: ptb
+      !> Environment type
+      type(TEnvironment) :: env
+      !> Restart type
+      type(TRestart) :: chk
+      !> Calculation results
+      type(scc_results) :: res
+      !> variables that are needed for calc%singlepoint but useless for PTB
+      real(wp) :: energy, gap
+      real(wp), allocatable :: gradient(:, :)
+      real(wp) :: sigma(3, 3)
+      real(wp), parameter :: dipmom_ref(3) = [ &
+         & -1.029811_wp, &
+         & 1.487256_wp, &
+         & 0.005426_wp &
+         & ]
+      real(wp), parameter :: dipmom_anion_ref(3) = [ &
+         & -14.460494, &
+         & 6.045541, &
+         & 0.284856 &
+         & ]
+      real(wp), parameter :: dipmom_efield_ref(3) = [ &
+         & -6.754478, &
+         & 80.047721, &
+         & 26.646085 &
+         & ]
+      integer :: i
+
+      !> Initialize calculation environment
+      call init(env)
+
+      call getMolecule(struc, "caffeine")
+
+      !> Neutral
+      allocate (ptb)
+      call newPTBCalculator(env, struc, ptb)
+      call move_alloc(ptb, calc)
+
+      gap = 0.0_wp
+      allocate (gradient(3, struc%n), source=0.0_wp)
+      call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
+         & gap, res)
+      do i = 1, 3
+         call check_(error, res%dipole(i), dipmom_ref(i), thr=thr2)
+      end do
+      deallocate (calc)
+
+      !> Now with anion
+      struc%chrg = -2.0_wp
+      allocate (ptb)
+      call newPTBCalculator(env, struc, ptb)
+      call move_alloc(ptb, calc)
+
+      gap = 0.0_wp
+      gradient = 0.0_wp
+      call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
+         & gap, res)
+      do i = 1, 3
+         call check_(error, res%dipole(i), dipmom_anion_ref(i), thr=thr2)
+      end do
+      deallocate (calc)
+      struc%chrg = 0.0_wp
+
+      !> Now with electric field
+      set%efield(1) = 0.0_wp
+      set%efield(2) = 0.1_wp
+      set%efield(3) = 0.3_wp
+      allocate (ptb)
+      call newPTBCalculator(env, struc, ptb)
+      call move_alloc(ptb, calc)
+
+      gap = 0.0_wp
+      gradient = 0.0_wp
+      call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
+         & gap, res)
+      do i = 1, 3
+         call check_(error, res%dipole(i), dipmom_efield_ref(i), thr=thr4)
+      end do
+      deallocate (calc)
+      set%efield = 0.0_wp
+
+   end subroutine test_ptb_dipmom_caffeine
 
    pure function id_to_atom(mol, idparam) result(atomparam)
       !> Molecular structure data
