@@ -51,7 +51,8 @@ contains
                   new_unittest("hamiltonian_h0", test_ptb_hamiltonian_h0), &
                   new_unittest("v_xc", test_ptb_V_XC), &
                   new_unittest("hubbard", test_ptb_hubbard), &
-                  new_unittest("coulomb_pot", test_ptb_coulomb_potential) &
+                  new_unittest("coulomb_pot", test_ptb_coulomb_potential), &
+                  new_unittest("plus_U_pot", test_ptb_plus_U_potential) &
                   ]
 
    end subroutine collect_ptb
@@ -982,6 +983,73 @@ contains
       call check_(error, wfn%coeff(5, 23, 1), coulomb_pot_ref(4), thr=thr)
 
    end subroutine test_ptb_coulomb_potential
+
+   subroutine test_ptb_plus_U_potential(error)
+
+      !> xtb-ptb lib
+      use xtb_ptb_data, only: TPTBData
+      use xtb_ptb_param, only: initPTB
+      use xtb_ptb_plusu, only: plusu_potential_type
+      use xtb_ptb_vdzp, only: add_vDZP_basis
+      !> tblite lib
+      use tblite_basis_type, only: basis_type
+      use tblite_wavefunction, only: wavefunction_type, new_wavefunction
+      use tblite_scf_potential, only: potential_type, new_potential, add_pot_to_h1
+
+      !> Structure type (mctc-lib)
+      type(structure_type) :: mol
+      !> PTB vDZP basis set
+      type(basis_type) :: bas
+      !> Wavefunction data
+      type(wavefunction_type) :: wfn
+      !> Parametrisation data base
+      type(TPTBData), allocatable :: ptbData
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      !> +U potential
+      type(plusu_potential_type) :: plusu
+      real(wp), parameter :: q(2) = [ &
+         &   -1.1113011_wp, &
+         &    1.1113086_wp &
+         & ]
+      real(wp), parameter :: cn(2) = [ &
+         &    0.9397642_wp, &
+         &    0.9397642_wp &
+         & ]
+      !> Conversion factor from temperature to energy
+      real(wp), parameter :: kt = 3.166808578545117e-06_wp
+      real(wp), parameter :: xyz(3, 2) = reshape([ &
+      & 2.0_wp, 0.0_wp, 0.0_wp, &
+      & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
+      integer, parameter :: nat = 2
+      integer, parameter :: at(nat) = [5, 17]
+      real(wp), parameter :: plusU_pot_ref(4) = [ &
+      &  -0.0023185_wp, & ! 1,1
+      &  -0.0018289_wp, & ! 1,2
+      &  -0.5266562_wp, & ! 1,21 ; diffferent because of tblite ordering
+      &  -1.6745659_wp]   ! 6,24 ; diffferent because of tblite ordering
+
+      call new(mol, at, xyz)
+      allocate (ptbData)
+      call initPTB(ptbData, mol%num)
+
+      !> set up the basis set for the PTB-Hamiltonian
+      call add_vDZP_basis(mol, bas)
+      call new_wavefunction(wfn, mol%nat, bas%nsh, bas%nao, &
+         & nspin=1, kt=300.0_wp * kt)
+
+      wfn%density = 2.0_wp
+      wfn%coeff = 0.0_wp
+      wfn%qat(:, 1) = q
+      call plusu%init(ptbData%plusU, mol, bas, wfn%qat(:, 1), cn)
+      call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
+
+      call check_(error, wfn%coeff(1, 1,  1), plusU_pot_ref(1), thr=thr)
+      call check_(error, wfn%coeff(1, 2,  1), plusU_pot_ref(2), thr=thr)
+      call check_(error, wfn%coeff(1, 20, 1), plusU_pot_ref(3), thr=thr)
+      call check_(error, wfn%coeff(8, 26,1), plusU_pot_ref(4), thr=thr)
+
+   end subroutine test_ptb_plus_U_potential
 
    pure function id_to_atom(mol, idparam) result(atomparam)
       !> Molecular structure data

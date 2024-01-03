@@ -625,7 +625,7 @@ contains
 
       real(wp) :: e_fermi, stmp(2)
       real(wp), allocatable :: focc(:)
-      integer :: spin, i, j
+      integer :: spin
 
       if (present(keps_param)) then
          keps = keps_param
@@ -640,21 +640,7 @@ contains
 
       select case (wfn%nspin)
       case default
-         ! write (*, *) "Matrix to solve ..."
-         ! do i = 1, size(wfn%coeff, 1)
-         !    do j = 1, size(wfn%coeff, 2)
-         !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
-         !    end do
-         !    write (*, '(/)', advance="no")
-         ! end do
          call solver%solve(wfn%coeff(:, :, 1), ints%overlap, wfn%emo(:, 1), error)
-         ! write (*, *) "Coefficients after solving ..."
-         ! do i = 1, size(wfn%coeff, 1)
-         !    do j = 1, size(wfn%coeff, 2)
-         !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
-         !    end do
-         !    write (*, '(/)', advance="no")
-         ! end do
          if (allocated(error)) return
          wfn%emo(:, 1) = wfn%emo(:, 1) * (1.0_wp + keps) + keps0
 
@@ -684,13 +670,6 @@ contains
          end do
          ts = sum(stmp)
       end select
-      ! write (*, *) "Density matrix after solving ..."
-      ! do i = 1, size(wfn%density, 1)
-      !    do j = 1, size(wfn%density, 2)
-      !       write (*, '(f11.7)', advance="no") wfn%density(i, j, 1)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
    end subroutine get_density
 
    pure function id_to_atom(mol, idparam) result(atomparam)
