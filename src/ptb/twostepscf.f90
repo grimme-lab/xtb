@@ -82,7 +82,7 @@ contains
 
    !> Final Hamiltonian to solve (2nd iteration) on ints%hamiltonian
    subroutine twostepscf(ctx, wfn, data, mol, bas, cbas, ints, auxints, &
-         & eeqmodel, dipole, vecp, list, levels, v_es_sh, cn_star, wbo, efield)
+         & eeqmodel, dipole, quadrupole, vecp, list, levels, v_es_sh, cn_star, wbo, efield)
       !> Calculation context
       type(context_type), intent(inout) :: ctx
       !> Wavefunction of tblite type
@@ -101,7 +101,8 @@ contains
       type(mchrg_model_type), intent(in) :: eeqmodel
       !> Molecular dipole moment
       real(wp), intent(out) :: dipole(3)
-      real(wp) :: quadrupole(6)
+      !> Molecular quadrupole moment
+      real(wp), intent(out) :: quadrupole(6)
       !> Wiberg bond orders
       real(wp), allocatable, intent(out) :: wbo(:, :, :)
       !> Effective core potential
@@ -348,7 +349,7 @@ contains
       end if
 
       if (ctx%verbosity > 1) then
-         write (ctx%unit, '(/,10x,a)') "--- Calculation progress ---"
+         write (ctx%unit, '(/,10x,a)') "--- Calculation progress: ---"
          write (ctx%unit, '(14x,a)') "1st iteration..."
       end if
 
@@ -592,11 +593,6 @@ contains
       !#####################
       call get_molecular_quadrupole_moment(mol, mulliken_qat(:, 1), wfn%dpat(:, :, 1), &
          & wfn%qpat(:, :, 1), quadrupole)
-
-      write (*, *) "Quadrupole moments:"
-      do i = 1, 6
-         write (*, '(f10.6)') quadrupole(i)
-      end do
 
       !> Get the WBOs
       allocate (wbo(mol%nat, mol%nat, wfn%nspin))

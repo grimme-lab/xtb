@@ -273,7 +273,7 @@ contains
 
       allocate (wbo(self%mol%nat, self%mol%nat, chk%tblite%nspin))
       call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, ints, auxints, self%eeqmodel, &
-         & results%dipole, vecp, neighborlist, selfenergies, v_ES_2nditer, CN_plusU, wbo, efield)
+         & results%dipole, results%quadrupole, vecp, neighborlist, selfenergies, v_ES_2nditer, CN_plusU, wbo, efield)
       !> INFO ON RETURNED VARIABLES: On return, ints%hamiltonian contains the last Hamiltonian matrix that was solved
       !> including all potentials and contributions. I.e., it does NOT contain H0 as intended in the usual SCF procedure.
 

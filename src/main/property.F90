@@ -383,6 +383,19 @@ end subroutine write_energy_oniom
       write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",/,1x,2f9.4)') &
            & dip, dip*autod
 
+      write (iunit, '(a)')
+      write (iunit, '(1x)', advance="no")
+      do i = 1,38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(4x,"Molecular quadrupole tensor: (a.u.)")')
+      write (iunit, '(9x,"X         Y         Z")')
+      write (iunit, '(4x,a,f10.4)') "X", res%quadrupole(1)
+      write (iunit, '(4x,a,2f10.4)') "Y", res%quadrupole(2:3)
+      write (iunit, '(4x,a,3f10.4)') "Z", res%quadrupole(4:6)
+      write (iunit, '(1x)', advance="no")
+
       if (runtyp .eq. p_run_alpha) then
          isotropic_alpha = ( res%alpha(1, 1) + res%alpha(2, 2) + res%alpha(3, 3) ) / 3.0_wp
          write (iunit, '(a)')
