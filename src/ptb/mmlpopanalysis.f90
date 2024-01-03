@@ -63,13 +63,9 @@ contains
       deallocate (aux)
       allocate (aux(lwork))
       call lapack_syev('V', 'U', bas%nao, tmps, bas%nao, seig, aux, lwork, info)
-      ! write (*, *) "Eigenvalues:"
       do i = 1, bas%nao
-         !write (*, '(a,f10.6)') "Eigenvalues: ", seig(i)
          seig1(i) = seig(i)**(1.0_wp - ratio)
          seig2(i) = seig(i)**ratio
-         ! write (*, '(a,f10.6)') "Eigenvalues (1-x): ", seig1(i)
-         ! write (*, '(a,f10.6)') "Eigenvalues (x): ", seig2(i)
       end do
 
       !##### DEV WRITE #####
@@ -144,31 +140,5 @@ contains
       qsh(:, 1) = qsh(:, 1) + n0sh
 
    end subroutine get_mml_shell_charges
-
-   ! subroutine get_mml_atomic_multipoles(bas, mpmat, pmat, mpat)
-   !    type(basis_type), intent(in) :: bas
-   !    real(wp), intent(in) :: mpmat(:, :, :)
-   !    real(wp), intent(in) :: pmat(:, :, :)
-   !    real(wp), intent(out) :: mpat(:, :, :)
-
-   !    integer :: iao, jao, spin
-   !    real(wp) :: pao(size(mpmat, 1))
-
-   !    mpat(:, :, :) = 0.0_wp
-   !    !$omp parallel do default(none) schedule(runtime) reduction(+:mpat) &
-   !    !$omp shared(bas, pmat, mpmat) private(spin, iao, jao, pao)
-   !    do spin = 1, size(pmat, 3)
-   !       do iao = 1, bas%nao
-   !          pao(:) = 0.0_wp
-   !          do jao = 1, bas%nao
-   !             pao(:) = pao + pmat(jao, iao, spin) * mpmat(:, jao, iao)
-   !          end do
-   !          mpat(:, bas%ao2at(iao), spin) = mpat(:, bas%ao2at(iao), spin) - pao
-   !       end do
-   !    end do
-
-   !    call updown_to_magnet(mpat)
-
-   ! end subroutine get_mml_atomic_multipoles
 
 end module xtb_ptb_mmlpopanalysis
