@@ -224,6 +224,20 @@ contains
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
       end if
 
+      !> If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
+      if (set%mode_extrun .eq. p_ext_ptb .and. (set%runtyp .eq. p_run_hess .or. set%runtyp .eq. p_run_ohess .or. set%runtyp .eq. p_run_bhess)) then
+         set%mode_extrun = p_ext_xtb
+         set%ptbsetup%ptb_in_hessian = .true.
+         ! if (set%gfn_method == 2) set%ptbsetup%hessmethod = "gfn2"
+         ! if (set%gfn_method == 1) set%ptbsetup%hessmethod = "gfn1"
+         ! if (set%gfn_method == 0) set%ptbsetup%hessmethod = "gfn0"
+         ! if (set%gfn_method == -1) then 
+         call set_gfn(env, 'method', '2')
+         call set_gfn(env, 'd4', 'true')
+         tblite%method = "gfn2"
+         ! end if
+      end if
+
       nFiles = argParser%countFiles()
       select case (nFiles)
       case (0)
@@ -919,7 +933,7 @@ contains
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
          type is (TPTBCalculator)
-            call ptb_property(iprop, env, calc%mol, chk%tblite, calc%bas, mol, chk%wfn, res, set%runtyp)
+            call ptb_property(iprop, env, chk%tblite, calc%bas, mol, chk%wfn, res, set%elprop)
          end select
       end if
 
@@ -1678,7 +1692,7 @@ contains
             call set_runtyp('vfukui')
 
          case ('--alpha')
-            call set_runtyp('alpha')
+            call set_elprop('alpha')
 
          case ('--grad')
             call set_runtyp('grad')

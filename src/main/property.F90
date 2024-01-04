@@ -23,7 +23,6 @@ module xtb_propertyoutput
    use xtb_solv_cm5
    use xtb_cube
    use xtb_topology
-   use xtb_setparam, only: p_run_alpha
 
 contains
 
@@ -275,7 +274,7 @@ end subroutine write_energy_oniom
    end subroutine main_property
 
    subroutine ptb_property &
-      (iunit, env, mol, wfn, bas, struc, wfx, res, runtyp)
+      (iunit, env, wfn, bas, struc, wfx, res)
 
       use xtb_mctc_convert
       use xtb_type_molecule
@@ -293,18 +292,17 @@ end subroutine write_energy_oniom
       use xtb_ptb_property, only: print_charges_to_screen
       use xtb_ptb_guess, only: get_psh_from_qsh
 
-      use mctc_io, only: structure_type
+      use mctc_io_structure, only : structure_type
 
       use tblite_basis_type, only: basis_type
       use tblite_wavefunction_type, only: wavefunction_type
-
 
       implicit none
 
       !========================================================================
       integer, intent(in) :: iunit ! file handle (usually output_unit=6)
       !> tblite data formats
-      type(structure_type), intent(in) :: mol
+      type(structure_type) :: mol
       type(wavefunction_type), intent(in) :: wfn
       type(basis_type), intent(in) :: bas
       !> molecule data
@@ -312,10 +310,11 @@ end subroutine write_energy_oniom
       type(TEnvironment), intent(inout) :: env
       type(TWavefunction), intent(inout) :: wfx
       type(scc_results), intent(in) :: res
-      integer, intent(in) :: runtyp
       integer  :: ifile, i
       real(wp), allocatable :: psh(:, :)
       real(wp) :: dip, isotropic_alpha
+
+      mol = struc
 
       !> orbital energies and occupation
       if (set%pr_eig) then
@@ -396,7 +395,7 @@ end subroutine write_energy_oniom
       write (iunit, '(4x,a,3f10.4)') "Z", res%quadrupole(4:6)
       write (iunit, '(1x)', advance="no")
 
-      if (runtyp .eq. p_run_alpha) then
+      if (set%elprop .eq. p_elprop_alpha) then
          isotropic_alpha = ( res%alpha(1, 1) + res%alpha(2, 2) + res%alpha(3, 3) ) / 3.0_wp
          write (iunit, '(a)')
          write (iunit, '(1x)', advance="no")

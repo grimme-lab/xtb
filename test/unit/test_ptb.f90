@@ -1487,7 +1487,7 @@ contains
       & 99.524132_wp &
       & ]
 
-      set%runtyp = p_run_alpha
+      set%elprop = p_elprop_alpha
       !> Initialize calculation environment
       call init(env)
 
@@ -1508,7 +1508,7 @@ contains
       call check_(error, res%alpha(1,3), alpha_ref(4), thr=thr_alpha)
       call check_(error, res%alpha(2,3), alpha_ref(5), thr=thr_alpha)
       call check_(error, res%alpha(3,3), alpha_ref(6), thr=thr_alpha)
-      set%runtyp = p_run_scc
+      set%elprop = p_elprop_dipole
 
    end subroutine test_ptb_polarizability
 
