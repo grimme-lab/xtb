@@ -235,6 +235,7 @@ contains
          call set_gfn(env, 'method', '2')
          call set_gfn(env, 'd4', 'true')
          tblite%method = "gfn2"
+         set%ptbsetup%hessmethod = "GFN2-xTB"
          ! end if
       end if
 
@@ -930,7 +931,7 @@ contains
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
          type is (TPTBCalculator)
-            call ptb_property(iprop, env, chk%tblite, calc%bas, mol, chk%wfn, res, set%elprop)
+            call ptb_property(iprop, env, chk%tblite, calc%bas, mol, chk%wfn, res)
          end select
       end if
 

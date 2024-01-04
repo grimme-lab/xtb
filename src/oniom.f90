@@ -481,7 +481,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, energy, gradien
 end subroutine singlepoint
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
 
    character(len=*), parameter :: source = "extern_oniom_hessian"
    
@@ -508,6 +508,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    
    !> array to add dipole gradient to
    real(wp), intent(inout) :: dipgrad(:, :)
+   !> Array to add polarizability gradient to
+   real(wp), intent(inout), optional :: polgrad(:, :)
 
    real(wp), allocatable :: jacobian(:,:)
    integer,allocatable :: idx2(:)

@@ -19,6 +19,7 @@ module xtb_mctc_convert
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_constants
    implicit none
+   public :: autoaa4byamu
    private
 !  convert bohr (a.u.) to Ångström and back
    real(wp),public,parameter :: autoaa = 0.52917726_wp
@@ -32,6 +33,9 @@ module xtb_mctc_convert
 !  convert Hartree to kJ/mol and back
    real(wp),public,parameter :: autokj = 2625.49964038_wp
    real(wp),public,parameter :: kjtoau = 1.0_wp/autokj
+!  convert Hartree (a.u.) to Joule and back
+   real(wp),public,parameter :: autoj = 4.3597447222071e-18_wp
+   real(wp),public,parameter :: jtoau = 1.0_wp/autoj
 !  convert Hartree to reciproce centimeters/wavenumbers and back
    real(wp),public,parameter :: autorcm = 219474.63067_wp
    real(wp),public,parameter :: autowav = autorcm
@@ -59,6 +63,48 @@ module xtb_mctc_convert
 !  Debye to atomic units
    real(wp),public,parameter :: autod = autoc * lightspeed * autoaa**2 * fstoau * 1.0e+16_wp
    real(wp),public,parameter :: dtoau = 1.0_wp/autod
+
+!> ----- DIPOLE DERIVATIVE UNITS -----
 !  Dipole derivatives along mass-weighted normal mode coordinates (a.u.) to km/mol (IR int.)
+!  autokmmol is the factor to convert dipole derivatives along
+!  (mass-weighted) normal mode coordinates from a.u. into
+!  the Naperian absorption coefficient
+!
+!        (pi)*(Navogadro)*(dipole derivative along normal mode)**2
+!   A =  ---------------------------------------------------------  ,
+!                       3*(4*(pi)*(epsilon0))*c**2
+!
+!  measured in km/mol. Cf. International Union of Pure and Applied
+!  Chemistry (IUPAC), Quantities, Units and Symbols in Physical
+!  Chemistry, Recommendations 1993, Reprinted with Corrections 1995.
+!  Blackwell Scientific Publications.
    real(wp),public,parameter :: autokmmol = 1.7770969e+6_wp
+!> ----------------------------------
+
+!> ----- RAMAN INTENSITY UNITS -----
+!
+!                    a.u.         |        SI unit     |      typical unit
+!---------------------------------|--------------------|----------------------
+!               e**2 a_0**2       |          C**2 m**2 |          Ä⁴
+!      from S = -----------       |  to  S = --------- | to  S = -----
+!               m_e**2 (E_h/e)**2 |           amu V**2 |          amu
+!
+! For the conversion of the Raman intensity from a.u. to the
+! SI unit and the typical unit used in the literature, see:
+! https://onlinelibrary.wiley.com/doi/10.1002/jcc.10089
+
+contains
+
+   function autoaa4byamu() result(aa4byamu)
+
+      real(wp) :: ramantonormunits,recip4pie0,sitoang4byamu
+      real(wp) :: aa4byamu
+      ramantonormunits =  (autoc**2 * (autoaa*1.0e-10_wp)**2 ) & ! 1.065693E-31
+          / ( (autoamu*amutokg) * (autoj/autoc)**2 )
+      recip4pie0 = ( 1.0_wp / (4.0_wp*pi*8.8541878128e-12_wp))**2 ! 8.077608721857700E+019
+      sitoang4byamu = (1.0e+10_wp)**4 / kgtoamu ! 16605390400000.0
+      aa4byamu = ramantonormunits * recip4pie0 * sitoang4byamu
+   end function autoaa4byamu
+!> ----------------------------------
+
 end module xtb_mctc_convert
