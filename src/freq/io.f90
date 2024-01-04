@@ -104,25 +104,78 @@ subroutine rdhess(nat3,h,fname)
 end subroutine rdhess
 
 
-subroutine write_tm_vibspectrum(ich,n3,freq,ir_int)
-   integer, intent(in)  :: ich ! file handle
-   integer, intent(in)  :: n3
-   real(wp),intent(in)  :: freq(n3)
-   real(wp),intent(in)  :: ir_int(n3)
-   integer  :: i
-   real(wp) :: thr=0.01_wp
-   write(ich,'("$vibrational spectrum")')
-   write(ich,'("#  mode     symmetry     wave number   IR intensity    selection rules")')
-   write(ich,'("#                         cm**(-1)      (km*mol⁻¹)       IR     RAMAN")')
-   do i = 1, n3
-      if (abs(freq(i)).lt.thr) then
-        write(ich,'(i6,9x,    f18.2,f16.5,7x," - ",5x," - ")') &
-         i,freq(i),0.0_wp
-      else
-        write(ich,'(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"YES")') &
-         i,freq(i),ir_int(i)
-      endif
-   enddo
+subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_int)
+   use xtb_setparam
+   integer, intent(in) :: ich ! file handle
+   integer, intent(in) :: n3
+   real(wp), intent(in) :: freq(n3)
+   real(wp), intent(in) :: ir_int(n3)
+   real(wp), intent(in), optional :: raman_int(n3)
+   integer :: i
+   logical, allocatable :: iract(:), ramanact(:)
+   real(wp) :: thr = 0.01_wp
+   real(wp) :: thr_int = 1.0e-4_wp
+   allocate(iract(n3),ramanact(n3))
+
+   if (set%elprop == p_elprop_alpha) then
+      write(ich,'("$vibrational spectrum")')
+      write(ich,'("#  mode     symmetry     wave number   IR intensity   Raman activity    selection rules")')
+      write(ich,'("#                         cm**(-1)      (km*mol⁻¹)      (Ä⁴*amu⁻¹)       IR     RAMAN")')
+      do i = 1, n3
+         if (raman_int(i) > thr_int ) then
+            ramanact(i) = .true.
+         else
+            ramanact(i) = .false.
+         endif
+         if (ir_int(i) > thr_int ) then
+            iract(i) = .true.
+         else
+            iract(i) = .false.
+         endif
+         if (abs(freq(i)).lt.thr) then
+            write(ich,'(i6,9x,    f18.2,f16.5,f16.5,9x," - ",5x," - ")') &
+               &  i, freq(i), 0.0_wp, 0.0_wp
+         else
+            if (iract(i) .and. ramanact(i)) then
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"YES",5x,"YES")') &
+                  &  i,freq(i),ir_int(i),raman_int(i)
+            elseif ((.not.iract(i)) .and. ramanact(i)) then
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"NO",5x,"YES")') &
+                  &  i,freq(i),ir_int(i),raman_int(i)
+            elseif (iract(i) .and. (.not. ramanact(i))) then
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"YES",5x,"NO")') &
+                  &  i,freq(i),ir_int(i),raman_int(i)
+            else
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"NO",5x,"NO")') &
+                  &  i,freq(i),ir_int(i),raman_int(i)
+            endif
+         endif
+      enddo
+   else
+      write(ich,'("$vibrational spectrum")')
+      write(ich,'("#  mode     symmetry     wave number   IR intensity    selection rules")')
+      write(ich,'("#                         cm**(-1)      (km*mol⁻¹)        IR     ")')
+      do i = 1, n3
+         if (ir_int(i) > thr_int ) then
+             iract(i) = .true.
+         else
+             iract(i) = .false.
+         endif
+         if (abs(freq(i)).lt.thr) then
+             write(ich,'(i6,9x,    f18.2,f16.5,9x," - ")') &
+                 i,freq(i),0.0_wp
+         else
+             if (iract(i)) then
+                 write(ich,'(i6,8x,"a",f18.2,f16.5,9x,"YES")') &
+                     i,freq(i),ir_int(i)
+             else
+                 write(ich,'(i6,8x,"a",f18.2,f16.5,9x,"NO")') &
+                     i,freq(i),ir_int(i)
+             endif
+         endif
+      enddo
+   endif
+
    write(ich,'("$end")')
 end subroutine
 

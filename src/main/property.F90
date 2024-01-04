@@ -628,11 +628,11 @@ end subroutine write_energy_oniom
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%rmass(i), i=1, res%n3)
       write (iunit, '(1x,a)') 'IR intensities (km·mol⁻¹)'
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%dipt(i), i=1, res%n3)
-      write (iunit, '(1x,a)') 'Raman intensities (amu)'
+      write (iunit, '(1x,a)') 'Raman intensities (Ä⁴*amu⁻¹)'
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%polt(i), i=1, res%n3)
 
       call open_file(ifile, 'vibspectrum', 'w')
-      call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt)
+      call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
       call close_file(ifile)
 
       write (iunit, '(1x,a)') 'output can be read by thermo (or use thermo option).'
