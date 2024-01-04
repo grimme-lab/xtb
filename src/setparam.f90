@@ -157,6 +157,17 @@ module xtb_setparam
 
    end type qm_external
 
+   type TPTBSetup
+      !> Do PTB additionally to the normal run in hessian
+      logical :: ptb_in_hessian = .false.
+      !> Electronic structure method for the energetic hessian part
+      character(len=:), allocatable :: hessmethod
+   end type TPTBSetup
+
+   integer, parameter :: p_elprop_beta = 2
+   integer, parameter :: p_elprop_alpha = 1
+   integer, parameter :: p_elprop_dipole = 0
+
    integer, parameter :: p_ext_vtb       = -1
    integer, parameter :: p_ext_eht       =  0
    integer, parameter :: p_ext_xtb       =  1
@@ -188,7 +199,6 @@ module xtb_setparam
    integer, parameter :: p_run_vipea  = 102
    integer, parameter :: p_run_vfukui = 103
    integer, parameter :: p_run_vomega = 104
-   integer, parameter :: p_run_alpha  = 105
 
    integer,private :: idum
 
@@ -474,6 +484,7 @@ module xtb_setparam
    integer  :: mode_extrun = 1 ! xtb is default
 !  integer  :: dummyint ! not used
    integer  :: runtyp = 2 ! SCC by default
+   integer  :: elprop = 0 ! dipole by default
    logical  :: rdset = .false.
 
    ! ENSO (ENergic SOrting something algorithm) compatibility mode
@@ -496,9 +507,9 @@ module xtb_setparam
 !  character(len=80) :: inputname = ''
    character(len= 4) :: pgroup = 'C1  '
 !! ------------------------------------------------------------------------
-    
-   end type
-   
+   !> PTB settings
+   type(TPTBSetup) :: ptbsetup
+   end type TSet
 
    type(TSet) :: set
 

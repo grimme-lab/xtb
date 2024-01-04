@@ -52,6 +52,8 @@ subroutine numhess( &
 
    use xtb_axis, only : axis
 
+   use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
+
    implicit none
 
    !> Source of errors in the main program unit
@@ -63,6 +65,10 @@ subroutine numhess( &
    integer, intent(in)    :: maxiter
    type(TRestart),intent(inout) :: chk0
    class(TCalculator), intent(inout) :: calc
+   !> Calculators for inserted PTB intensities
+   class(TCalculator), allocatable :: calc_intensity
+   type(TPTBCalculator), allocatable :: ptb
+   !<<<<<<<<<<<<<<<<<<
    real(wp) :: eel
    real(wp) :: ebias
    real(wp) :: alp1,alp2
@@ -88,7 +94,7 @@ subroutine numhess( &
 
 !$ integer  :: nproc
 
-   real(wp),allocatable :: h (:,:)
+   real(wp),allocatable :: h (:,:), h_dummy(:,:)
    real(wp),allocatable :: htb (:,:)
    real(wp),allocatable :: hbias (:,:)
    real(wp),allocatable :: hss(:)
@@ -122,7 +128,7 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3))
+      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
 
    rd=.false.
    xyzsave = mol%xyz
@@ -207,6 +213,24 @@ subroutine numhess( &
       pold = 0.0_wp
       indx = [(i, i = 1, mol%n)]
       call calc%hessian(env, mol, chk0, indx, step, h, dipd)
+
+      !> PTB entry for dipgrad calculation
+      if (set%ptbsetup%ptb_in_hessian) then
+         allocate (ptb)
+         call newPTBCalculator(env, mol, ptb)
+         call env%check(exitRun)
+         if (exitRun) then
+            call env%error("Could not construct new calculator", source)
+            return
+         end if
+         call move_alloc(ptb, calc_intensity)
+
+         call calc_intensity%writeInfo(env%unit, mol)
+         write(env%unit, '(a)') "Calculating dipole derivatives with PTB"
+
+         call calc_intensity%hessian(env, mol, chk0, indx, step, h_dummy, dipd)
+         deallocate (calc_intensity, h_dummy)
+      end if
    endif
 
 
@@ -463,6 +487,13 @@ subroutine numhess( &
    !
    !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
    !                                              in x, y and z direction per mode
+
+   !##### DEV WRITE #####
+   ! write(*,*) "dipd matrix:"
+   ! do i=1,n3
+   !    write(*,'(3f10.5)') dipd(:,i)
+   ! enddo
+   !#####################
 
    do i = 1, n3
       do k = 1, 3

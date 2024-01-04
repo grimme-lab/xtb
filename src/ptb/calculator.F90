@@ -60,9 +60,6 @@ module xtb_ptb_calculator
    !> Calculator interface for PTB method
    type, extends(TCalculator) :: TPTBCalculator
 
-      !> Structure type
-      type(structure_type), allocatable :: mol
-
       !> PTB vDZP basis set
       type(basis_type) :: bas, cbas
 
@@ -120,10 +117,10 @@ contains
       logical :: exitRun
 
 ! #if WITH_TBLITE
+      !> mctc-io structure type
       type(structure_type) :: mol
 
       mol = struc
-      calc%mol = mol
 
       call rdpath(env%xtbpath, 'param_ptb.txt', filename, exist)
       if (.not. exist) filename = 'param_ptb.txt'
@@ -154,9 +151,9 @@ contains
       end if
 
       !> set up the basis set for the PTB-Hamiltonian
-      call add_vDZP_basis(calc%mol, calc%bas)
+      call add_vDZP_basis(mol, calc%bas)
       !> Add the core basis set to 'cbas' basis set type
-      call add_core_basis(calc%mol, calc%ptbData%corepotential, calc%cbas)
+      call add_core_basis(mol, calc%ptbData%corepotential, calc%cbas)
       !> set up the EEQ model
       call new_mchrg_model(calc%eeqmodel, chi=calc%ptbData%eeq%chi, &
       & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)
@@ -217,6 +214,7 @@ contains
       !#################################################
       !> PTB INDIVIDUAL
       !#################################################
+      type(structure_type) :: mctcmol
       !> tblite calculation context
       type(context_type) :: ctx
       !> Error type
@@ -238,7 +236,7 @@ contains
       !> Electrostatic potential in second iteration
       real(wp), allocatable :: v_ES_2nditer(:)
       !> Coordination number for +U contribution
-      real(wp) :: CN_plusU(self%mol%nat)
+      real(wp) :: CN_plusU(mol%n)
 
       logical :: exitRun
       !> Divide-and-conquer solver
@@ -251,13 +249,14 @@ contains
       sigma = 0.0_wp
 
       call mol%update
+      mctcmol = mol
 
       ctx%solver = lapack_solver(gvd)
       ctx%unit = env%unit
       ctx%verbosity = printlevel
 
       !> Set new PTB wavefunction in tblite format
-      call newPTBWavefunction(env, self, chk%tblite)
+      call newPTBWavefunction(env, self, mctcmol, chk%tblite)
 
       !> Static Homogeneous External Electric Field
       if (sum(abs(set%efield)) > 1.0E-6_wp) then
@@ -265,8 +264,8 @@ contains
          efield = set%efield
       end if
 
-      allocate (wbo(self%mol%nat, self%mol%nat, chk%tblite%nspin))
-      call twostepscf(ctx, chk%tblite, self%ptbData, self%mol, self%bas, self%cbas, ints, auxints, self%eeqmodel, &
+      allocate (wbo(mctcmol%nat, mctcmol%nat, chk%tblite%nspin))
+      call twostepscf(ctx, chk%tblite, self%ptbData, mctcmol, self%bas, self%cbas, ints, auxints, self%eeqmodel, &
          & results%dipole, results%quadrupole, vecp, neighborlist, selfenergies, v_ES_2nditer, CN_plusU, wbo, efield)
       !> INFO ON RETURNED VARIABLES: On return, ints%hamiltonian contains the last Hamiltonian matrix that was solved
       !> including all potentials and contributions. I.e., it does NOT contain H0 as intended in the usual SCF procedure.
@@ -284,9 +283,9 @@ contains
       end if
 
       call chk%wfn%allocate(mol%n, self%bas%nsh, self%bas%nao)
-      chk%wfn%n = self%mol%nat
+      chk%wfn%n = mctcmol%nat
       chk%wfn%nel = nint(chk%tblite%nocc)
-      chk%wfn%nopen = self%mol%uhf
+      chk%wfn%nopen = mctcmol%uhf
       chk%wfn%nshell = self%bas%nsh
       chk%wfn%nao = self%bas%nao
       chk%wfn%P = chk%tblite%density(:, :, 1)
@@ -307,8 +306,8 @@ contains
 
       !> polarizability by simple perturbative treatment
       !> this is only done in alpha,beta cases
-      if (set%runtyp == p_run_alpha) then
-         call numgrad_polarizability(ctx, self%ptbData, self%mol, self%bas, chk%tblite, &
+      if (set%elprop == p_elprop_alpha) then
+         call numgrad_polarizability(ctx, self%ptbData, mctcmol, self%bas, chk%tblite, &
             & ints, auxints, vecp, neighborlist, selfenergies, v_ES_2nditer, CN_plusU, dF, results%alpha)
          if (ctx%failed()) then
             do while (ctx%failed())
@@ -344,7 +343,7 @@ contains
 ! Initialize new wavefunction
 !---------------------------------------------
 !> Create new wavefunction restart data for tblite library
-   subroutine newPTBWavefunction(env, calc, wfn)
+   subroutine newPTBWavefunction(env, calc, mol, wfn)
       !> Source of the generated errors
       character(len=*), parameter :: source = 'ptb_calculator_newPTBWavefunction'
       !> Calculation environment
@@ -353,12 +352,14 @@ contains
       type(TPTBCalculator), intent(in) :: calc
 
       !#if WITH_TBLITE
+      !> mctc-io structure type
+      type(structure_type) :: mol
       !> Wavefunction data
       type(wavefunction_type) :: wfn
       !> mctc-env error type
       type(error_type), allocatable :: error
 
-      call new_wavefunction(wfn, calc%mol%nat, calc%bas%nsh, calc%bas%nao, &
+      call new_wavefunction(wfn, mol%nat, calc%bas%nsh, calc%bas%nao, &
          & nspin=1, kt=calc%etemp * kt)
 
       if (allocated(error)) then
