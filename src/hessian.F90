@@ -479,6 +479,8 @@ subroutine numhess( &
          do ic=1,3
             ii = (ia-1)*3+ic
             xsum=xsum+atmass(ia)*res%hess(ii,i)**2
+            !> %MM: CAUTION: Shouldn't this be "amass" instead of "atmass"? -> Would then be the reciprocal value
+            !>               of the mass and thus correspond to the definition in 2) below.
          enddo
       enddo
       res%rmass(i)=xsum
@@ -488,6 +490,10 @@ subroutine numhess( &
    !  1. res%hess corresponds to the orthonormal eigenvectors of the hessian
    !     matrix (-> normal modes of vibration). Mass-weighting is introduced
    !     back again via multiplying with amass(j).
+   !     "Each vibrational normal mode - given in terms of
+   !      cartesian displacement vectors of all atoms - has been normalized to unity.
+   !      To obtain mass-weigthed normal coordinates divide the tabulated
+   !      modes by the reduced mass."
    !
    !  2. res%hess(j,i) is the matrix which transforms a derivative with
    !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
@@ -499,6 +505,12 @@ subroutine numhess( &
    !
    !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
    !                                              in x, y and z direction per mode
+   !
+   ! Generally nice reads for understanding the necessity of mass-weighting:
+   ! 1) https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/
+   !         Advanced_Theoretical_Chemistry_(Simons)/
+   !         03%3A_Characteristics_of_Energy_Surfaces/3.02%3A_Normal_Modes_of_Vibration
+   ! 2) https://www.cup.uni-muenchen.de/ch/compchem/G98vib.pdf
 
    do i = 1, n3
       do k = 1, 3
