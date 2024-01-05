@@ -151,10 +151,10 @@ contains
       type(scc_results), intent(in) :: sccres
       character(len=*), parameter :: jfmtf = '(3x,''"'',a,''":'',1x,f20.8,",")'
       write (ijson, jfmtf) 'total energy', sccres%e_total
-      write (ijson, jfmtf) 'HOMO-LUMO gap/eV', sccres%hl_gap
+      write (ijson, jfmtf) 'HOMO-LUMO gap / eV', sccres%hl_gap
       write (ijson, jfmtf) 'electronic energy', sccres%e_elec
       write (ijson, '(3x,''"'',a,''":'',1x,"[",2(f15.8,","),f15.8,"],")') &
-         'dipole', sccres%dipole
+         'dipole / a.u.', sccres%dipole
       !write(ijson,jfmtf) 'classical repulsion energy',sccres%e_rep
       !write(ijson,jfmtf) 'isotropic electrostatic energy',sccres%e_es
       !write(ijson,jfmtf) 'anisotropic electrostatic energy',sccres%e_aes
@@ -216,7 +216,7 @@ contains
       write (ijson, jfmti) 'number of molecular orbitals', wfn%nao
       write (ijson, jfmti) 'number of electrons', wfn%nel
       write (ijson, jfmti) 'number of unpaired electrons', wfn%nopen
-      write (ijson, jfmta) 'orbital energies/eV'
+      write (ijson, jfmta) 'orbital energies / eV'
       write (ijson, '(3x,f15.8,",")') (wfn%emo(i), i=1, wfn%nao - 1)
       write (ijson, '(3x,f15.8,"],")') wfn%emo(wfn%nao)
       write (ijson, jfmta) 'fractional occupation'
@@ -236,7 +236,7 @@ contains
       write (ijson, jfmti) 'number of molecular orbitals', wfn%nao
       write (ijson, jfmti) 'number of electrons', wfn%nel
       write (ijson, jfmti) 'number of unpaired electrons', wfn%nopen
-      write (ijson, jfmta) 'orbital energies/eV'
+      write (ijson, jfmta) 'orbital energies / eV'
       write (ijson, '(3x,f15.8,",")') (wfn%emo(i), i=1, max_print - 1)
       write (ijson, '(3x,f15.8,"],")') wfn%emo(max_print)
       write (ijson, jfmta) 'fractional occupation'
@@ -259,19 +259,26 @@ contains
       type(freq_results), intent(in) :: freqres
       character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
       integer :: i
-      write (ijson, jfmta) 'vibrational frequencies/rcm'
+      write (ijson, jfmta) 'vibrational frequencies / rcm'
       write (ijson, '(3x,f15.8,",")') (freqres%freq(i), i=1, freqres%n3true - 1)
       write (ijson, '(3x,f15.8,"],")') freqres%freq(freqres%n3true)
    end subroutine write_json_frequencies
 
    subroutine write_json_intensities(ijson, freqres)
       use xtb_type_data
+      use xtb_mctc_accuracy, only: wp
       integer, intent(in) :: ijson
       type(freq_results), intent(in) :: freqres
       character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
       integer :: i
-      write (ijson, jfmta) 'IR intensities/amu'
-      write (ijson, '(3x,f15.8,",")') (freqres%dipt(i), i=1, freqres%n3true - 1)
+      write (ijson, jfmta) 'IR intensities / km/mol'
+      do i = 1, freqres%n3true - 1
+         if (abs(freqres%freq(i)) < 1.0e-2_wp) then
+            write (ijson, '(3x,f15.8,",")') 0.0_wp
+         else
+            write (ijson, '(3x,f15.8,",")') freqres%dipt(i)
+         end if
+      end do
       write (ijson, '(3x,f15.8,"],")') freqres%dipt(freqres%n3true)
    end subroutine write_json_intensities
 

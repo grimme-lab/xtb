@@ -946,7 +946,7 @@ contains
                            mol, chk%wfn, calc%basis, res, fres)
             call close_file(ich)
          type is (TPTBCalculator)
-            call open_file(ich, 'ptbout.json', 'w')
+            call open_file(ich, 'xtbout.json', 'w')
             call main_ptb_json(ich, &
                            mol, chk%wfn, res, fres)
             call close_file(ich)
