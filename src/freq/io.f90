@@ -104,7 +104,7 @@ subroutine rdhess(nat3,h,fname)
 end subroutine rdhess
 
 
-subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_act, temp, v_incident)
+subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_activity, temp, v_incident)
    use xtb_setparam
    use xtb_mctc_constants
    use xtb_mctc_convert
@@ -112,16 +112,14 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_act, temp, v_incide
    integer, intent(in) :: n3
    real(wp), intent(in) :: freq(n3)
    real(wp), intent(in) :: ir_int(n3)
-   real(wp), intent(in), optional :: raman_act(n3)
+   real(wp), intent(in), optional :: raman_activity(n3)
    !> CAUTION: v_incident is in cm**(-1)
    real(wp), intent(in), optional :: temp, v_incident
    real(wp), allocatable :: raman_int(:)
    integer :: i
-   logical, allocatable :: iract(:), ramanact(:)
    real(wp) :: thr = 1.0e-2_wp
    real(wp) :: thr_int = 1.0e-2_wp
    real(wp) :: v_meter, hbycvb, bfactor, prefactor, v0minvito4, raman_act_si
-   allocate(iract(n3),ramanact(n3))
 
    if (set%elprop == p_elprop_alpha) then
       allocate(raman_int(n3), source = 0.0_wp)
@@ -144,7 +142,7 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_act, temp, v_incide
          ! (v_incident - v_i)^4
          v0minvito4 = ((v_incident * 1.0e2_wp) - v_meter)**4
          !> Conversion into SI units
-         raman_act_si = raman_act(i) / m4bykgtoang4byamu()
+         raman_act_si = raman_activity(i) / m4bykgtoang4byamu()
          !> putting it all together
          raman_int(i) = prefactor * hbycvb * v0minvito4 * raman_act_si * 1.0e+20_wp
       end do
@@ -153,32 +151,23 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_act, temp, v_incide
       write(ich,'("#  mode     symmetry     wave number   IR intensity   Raman activity   Raman scatt. cross-section   selection rules")')
       write(ich,'("#                           (cm⁻¹)      (km*mol⁻¹)      (Å⁴*amu⁻¹)             (Å²*sr⁻¹)              IR     RAMAN")')
       do i = 1, n3
-         if (raman_act(i) > thr_int ) then
-            ramanact(i) = .true.
-         else
-            ramanact(i) = .false.
-         endif
-         if (ir_int(i) > thr_int ) then
-            iract(i) = .true.
-         else
-            iract(i) = .false.
-         endif
          if (abs(freq(i)).lt.thr) then
             write(ich,'(i6,9x,    f18.2,f16.5,f16.5,8x,e16.5,13x," - ",5x," - ")') &
                &  i, freq(i), 0.0_wp, 0.0_wp, 0.0_wp
          else
-            if (iract(i) .and. ramanact(i)) then
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"YES",5x,"YES")') &
-                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
-            elseif ((.not.iract(i)) .and. ramanact(i)) then
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"NO ",5x,"YES")') &
-                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
-            elseif (iract(i) .and. (.not. ramanact(i))) then
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"YES",5x,"NO")') &
-                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
+            write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x)', advance="no") &
+               &  i,freq(i),ir_int(i),raman_activity(i), raman_int(i)
+
+            if (ir_int(i) > thr_int) then
+               write(ich,'(a)', advance="no") "YES"
             else
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"NO ",5x,"NO")') &
-                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
+               write(ich,'(a)', advance="no") "NO "
+            end if
+
+            if (raman_activity(i) > thr_int) then
+               write(ich,'(5x,a)') "YES"
+            else
+               write(ich,'(5x,a)') "NO "
             endif
          endif
       enddo
@@ -187,16 +176,11 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_act, temp, v_incide
       write(ich,'("#  mode     symmetry     wave number   IR intensity    selection rules")')
       write(ich,'("#                         cm**(-1)      (km*mol⁻¹)        IR     ")')
       do i = 1, n3
-         if (ir_int(i) > thr_int ) then
-             iract(i) = .true.
-         else
-             iract(i) = .false.
-         endif
          if (abs(freq(i)).lt.thr) then
              write(ich,'(i6,9x,    f18.2,f16.5,9x," - ")') &
                  i,freq(i),0.0_wp
          else
-             if (iract(i)) then
+             if (ir_int(i) > thr_int) then
                  write(ich,'(i6,8x,"a",f18.2,f16.5,9x,"YES")') &
                      i,freq(i),ir_int(i)
              else
