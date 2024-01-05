@@ -126,7 +126,6 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_activity, temp, v_i
       !> Conversion into measurable intensities follows
       !> https://doi.org/10.1016/j.cplett.2004.12.096
       !> Chemical Physics Letters 403 (2005) 211–217
-      bfactor = 0.0_wp
       do i = 1, n3
          !> B_i
          v_meter = freq(i) * 1.0e2_wp
@@ -138,7 +137,7 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_activity, temp, v_i
          !       (2 * Pi)^4
          ! ------------------
          !    45 * 8 * Pi^2
-         prefactor = (2.0_wp * pi) / 45.0_wp
+         prefactor = (2.0_wp * (pi**2)) / 45.0_wp
          ! (v_incident - v_i)^4
          v0minvito4 = ((v_incident * 1.0e2_wp) - v_meter)**4
          !> Conversion into SI units
