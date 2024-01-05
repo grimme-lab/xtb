@@ -19,7 +19,7 @@ module xtb_mctc_convert
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_constants
    implicit none
-   public :: autoaa4byamu
+   public :: autoaa4byamu, m4bykgtoang4byamu
    private
 !  convert bohr (a.u.) to Ångström and back
    real(wp), public, parameter :: autoaa = 0.52917726_wp
@@ -97,14 +97,19 @@ contains
 
    function autoaa4byamu() result(aa4byamu)
 
-      real(wp) :: ramantonormunits, recip4pie0, sitoang4byamu
+      real(wp) :: ramantonormunits, recip4pie0
       real(wp) :: aa4byamu
       ramantonormunits = (autoc**2 * (autoaa * 1.0e-10_wp)**2) & ! 1.065693E-31
                          / ((autoamu * amutokg) * (autoj / autoc)**2)
       recip4pie0 = (1.0_wp / (4.0_wp * pi * 8.8541878128e-12_wp))**2 ! 8.077608721857700E+019
-      sitoang4byamu = (1.0e+10_wp)**4 / kgtoamu ! 16605390400000.0
-      aa4byamu = ramantonormunits * recip4pie0 * sitoang4byamu
+      aa4byamu = ramantonormunits * recip4pie0 * m4bykgtoang4byamu()
    end function autoaa4byamu
+
+   function m4bykgtoang4byamu() result(sitoang4byamu)
+
+      real(wp) :: sitoang4byamu
+      sitoang4byamu = (1.0e+10_wp)**4 / kgtoamu ! 16605390400000.0
+   end function m4bykgtoang4byamu
 !> ----------------------------------
 
 end module xtb_mctc_convert

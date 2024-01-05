@@ -632,7 +632,11 @@ end subroutine write_energy_oniom
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%polt(i), i=1, res%n3)
 
       call open_file(ifile, 'vibspectrum', 'w')
-      call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
+      if (set%elprop == p_elprop_alpha) then
+         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt, 298.15_wp, 19435.0_wp)
+      else
+         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
+      end if
       call close_file(ifile)
 
       write (iunit, '(1x,a)') 'output can be read by thermo (or use thermo option).'

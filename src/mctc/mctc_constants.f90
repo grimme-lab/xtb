@@ -35,4 +35,10 @@ module xtb_mctc_constants
    real(wp),public,parameter :: kB = 3.166808578545117e-06_wp
 !  speed of light c in vacuum in a.u.
    real(wp),public,parameter :: lightspeed = 137.0359990740_wp
+   ! Boltzmann constant in SI units
+   real(wp),public,parameter :: kB_SI = 1.380649e-23_wp
+   ! Speed of light in SI units
+   real(wp),public,parameter :: lightspeed_SI = 299792458.0_wp
+   ! Planck constant in SI units
+   real(wp),public,parameter :: h_SI = 6.62607015e-34_wp
 end module xtb_mctc_constants

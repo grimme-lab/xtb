@@ -104,25 +104,56 @@ subroutine rdhess(nat3,h,fname)
 end subroutine rdhess
 
 
-subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_int)
+subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_act, temp, v_incident)
    use xtb_setparam
+   use xtb_mctc_constants
+   use xtb_mctc_convert
    integer, intent(in) :: ich ! file handle
    integer, intent(in) :: n3
    real(wp), intent(in) :: freq(n3)
    real(wp), intent(in) :: ir_int(n3)
-   real(wp), intent(in), optional :: raman_int(n3)
+   real(wp), intent(in), optional :: raman_act(n3)
+   !> CAUTION: v_incident is in cm**(-1)
+   real(wp), intent(in), optional :: temp, v_incident
+   real(wp), allocatable :: raman_int(:)
    integer :: i
    logical, allocatable :: iract(:), ramanact(:)
-   real(wp) :: thr = 0.01_wp
-   real(wp) :: thr_int = 1.0e-4_wp
+   real(wp) :: thr = 1.0e-2_wp
+   real(wp) :: thr_int = 1.0e-2_wp
+   real(wp) :: v_meter, hbycvb, bfactor, prefactor, v0minvito4, raman_act_si
    allocate(iract(n3),ramanact(n3))
 
    if (set%elprop == p_elprop_alpha) then
-      write(ich,'("$vibrational spectrum")')
-      write(ich,'("#  mode     symmetry     wave number   IR intensity   Raman activity    selection rules")')
-      write(ich,'("#                         cm**(-1)      (km*mol⁻¹)      (Ä⁴*amu⁻¹)       IR     RAMAN")')
+      allocate(raman_int(n3), source = 0.0_wp)
+      !> Conversion into measurable intensities follows
+      !> https://doi.org/10.1016/j.cplett.2004.12.096
+      !> Chemical Physics Letters 403 (2005) 211–217
+      bfactor = 0.0_wp
       do i = 1, n3
-         if (raman_int(i) > thr_int ) then
+         !> B_i
+         v_meter = freq(i) * 1.0e2_wp
+         bfactor = 1.0_wp - exp(- (v_meter * h_SI * lightspeed_SI) / (kB_SI * temp))
+         !      h
+         ! -------------
+         ! c * vi * Bi
+         hbycvb = h_SI / (lightspeed_SI * v_meter * bfactor)
+         !       (2 * Pi)^4
+         ! ------------------
+         !    45 * 8 * Pi^2
+         prefactor = (2.0_wp * pi) / 45.0_wp
+         ! (v_incident - v_i)^4
+         v0minvito4 = ((v_incident * 1.0e2_wp) - v_meter)**4
+         !> Conversion into SI units
+         raman_act_si = raman_act(i) / m4bykgtoang4byamu()
+         !> putting it all together
+         raman_int(i) = prefactor * hbycvb * v0minvito4 * raman_act_si * 1.0e+20_wp
+      end do
+
+      write(ich,'("$vibrational spectrum")')
+      write(ich,'("#  mode     symmetry     wave number   IR intensity   Raman activity   Raman scatt. cross-section   selection rules")')
+      write(ich,'("#                           (cm⁻¹)      (km*mol⁻¹)      (Å⁴*amu⁻¹)             (Å²*sr⁻¹)              IR     RAMAN")')
+      do i = 1, n3
+         if (raman_act(i) > thr_int ) then
             ramanact(i) = .true.
          else
             ramanact(i) = .false.
@@ -133,21 +164,21 @@ subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_int)
             iract(i) = .false.
          endif
          if (abs(freq(i)).lt.thr) then
-            write(ich,'(i6,9x,    f18.2,f16.5,f16.5,9x," - ",5x," - ")') &
-               &  i, freq(i), 0.0_wp, 0.0_wp
+            write(ich,'(i6,9x,    f18.2,f16.5,f16.5,8x,e16.5,13x," - ",5x," - ")') &
+               &  i, freq(i), 0.0_wp, 0.0_wp, 0.0_wp
          else
             if (iract(i) .and. ramanact(i)) then
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"YES",5x,"YES")') &
-                  &  i,freq(i),ir_int(i),raman_int(i)
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"YES",5x,"YES")') &
+                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
             elseif ((.not.iract(i)) .and. ramanact(i)) then
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"NO",5x,"YES")') &
-                  &  i,freq(i),ir_int(i),raman_int(i)
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"NO ",5x,"YES")') &
+                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
             elseif (iract(i) .and. (.not. ramanact(i))) then
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"YES",5x,"NO")') &
-                  &  i,freq(i),ir_int(i),raman_int(i)
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"YES",5x,"NO")') &
+                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
             else
-               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,9x,"NO",5x,"NO")') &
-                  &  i,freq(i),ir_int(i),raman_int(i)
+               write(ich,'(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x,"NO ",5x,"NO")') &
+                  &  i,freq(i),ir_int(i),raman_act(i), raman_int(i)
             endif
          endif
       enddo
