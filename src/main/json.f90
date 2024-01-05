@@ -130,6 +130,21 @@ contains
       write (ijson, '("}")')
    end subroutine write_json_footer
 
+   subroutine write_json_ptb_footer(ijson)
+      use xtb_setparam
+      include 'xtb_version.fh'
+      integer, intent(in) :: ijson
+      character(len=:), allocatable :: cmdline
+      integer :: l
+      call get_command(length=l)
+      allocate (character(len=l) :: cmdline)
+      call get_command(cmdline)
+      write (ijson, '(3x,''"program call":'',1x,''"'',a,''",'')') cmdline
+      write (ijson, '(3x,''"method": "PTB",'')')
+      write (ijson, '(3x,a)') '"xtb version": "'//version//'"'
+      write (ijson, '("}")')
+   end subroutine write_json_ptb_footer
+
    subroutine write_json_scc_results(ijson, sccres)
       use xtb_type_data
       integer, intent(in) :: ijson
@@ -208,6 +223,26 @@ contains
       write (ijson, '(3x,f15.8,",")') (wfn%focc(i), i=1, wfn%nao - 1)
       write (ijson, '(3x,f15.8,"],")') wfn%focc(wfn%nao)
    end subroutine write_json_wavefunction
+
+   subroutine write_json_ptb_wavefunction(ijson, wfn)
+      use xtb_type_wavefunction
+      integer, intent(in) :: ijson
+      type(TWavefunction), intent(in) :: wfn
+      character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
+      character(len=*), parameter :: jfmti = '(3x,''"'',a,''":'',1x,i0,",")'
+      character(len=*), parameter :: jfmtf = '(3x,''"'',a,''":'',1x,f20.8,",")'
+      integer :: i, max_print
+      max_print = min(wfn%nao, wfn%ihomo + 8)
+      write (ijson, jfmti) 'number of molecular orbitals', wfn%nao
+      write (ijson, jfmti) 'number of electrons', wfn%nel
+      write (ijson, jfmti) 'number of unpaired electrons', wfn%nopen
+      write (ijson, jfmta) 'orbital energies/eV'
+      write (ijson, '(3x,f15.8,",")') (wfn%emo(i), i=1, max_print - 1)
+      write (ijson, '(3x,f15.8,"],")') wfn%emo(max_print)
+      write (ijson, jfmta) 'fractional occupation'
+      write (ijson, '(3x,f15.8,",")') (wfn%focc(i), i=1, max_print - 1)
+      write (ijson, '(3x,f15.8,"],")') wfn%focc(max_print)
+   end subroutine write_json_ptb_wavefunction
 
    subroutine write_json_thermo(ijson, freqres)
       use xtb_type_data
@@ -453,22 +488,19 @@ contains
    subroutine main_ptb_json &
       (ijson, mol, wfx, sccres, freqres)
       use mctc_env, only: wp
-
-!! ========================================================================
-!  load class definitions
+      !! ========================================================================
+      !  load class definitions
       use xtb_type_molecule, only: TMolecule
       use xtb_type_wavefunction, only: TWavefunction
       use xtb_type_data, only: scc_results, freq_results
-
-!! ========================================================================
-!  global storage of options, parameters and basis set
+      !! ========================================================================
+      !  global storage of options, parameters and basis set
       use xtb_setparam
-
       implicit none
 
-!! ========================================================================
+      !! ========================================================================
       integer, intent(in) :: ijson ! file handle (usually json-file)
-!  molecule data
+      !  molecule data
       type(TMolecule), intent(in) :: mol
       type(TWavefunction), intent(in) :: wfx
       type(scc_results), intent(in) :: sccres
@@ -480,17 +512,15 @@ contains
          call write_json_thermo(ijson, freqres)
       end if
       call write_json_charges(ijson, wfx)
-      if (set%gfn_method == 2) then
-         call write_json_dipole_moments(ijson, wfx)
-         call write_json_quadrupole_moments(ijson, wfx)
-      end if
-      call write_json_wavefunction(ijson, wfx)
+      call write_json_dipole_moments(ijson, wfx)
+      call write_json_quadrupole_moments(ijson, wfx)
+      call write_json_ptb_wavefunction(ijson, wfx)
       if (freqres%n3true > 0) then
          call write_json_frequencies(ijson, freqres)
          call write_json_reduced_masses(ijson, freqres)
          call write_json_intensities(ijson, freqres)
       end if
-      call write_json_footer(ijson)
+      call write_json_ptb_footer(ijson)
 
    end subroutine main_ptb_json
 

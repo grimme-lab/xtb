@@ -300,6 +300,8 @@ contains
       chk%wfn%ihomoa = chk%tblite%homo(1)
       chk%wfn%ihomob = chk%tblite%homo(2)
       chk%wfn%wbo = wbo(:, :, 1)
+      chk%wfn%dipm = chk%tblite%dpat(:, :, 1)
+      chk%wfn%qp = chk%tblite%qpat(:, :, 1)
 
       results%hl_gap = (chk%tblite%emo(chk%tblite%homo(1) + 1, 1) - chk%tblite%emo(chk%tblite%homo(1), 1)) * autoev
       hlgap = results%hl_gap
