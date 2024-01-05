@@ -510,7 +510,7 @@ subroutine numhess( &
       end do
       res%dipt(i) = autokmmol*(trdip(1)**2+trdip(2)**2+trdip(3)**2)
    end do
-   ! Raman intensity
+   ! Raman activities (for intensities, see "write_tm_vibspectrum")
    if (set%elprop == p_elprop_alpha) then
       do i = 1, n3
          do k = 1,6
