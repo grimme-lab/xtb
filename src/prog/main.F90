@@ -76,7 +76,7 @@ module xtb_prog_main
    use xtb_xtb_gfn2
    use xtb_main_setup
    use xtb_main_defaults, only: initDefaults
-   use xtb_main_json, only: main_json, write_json_gfnff_lists
+   use xtb_main_json, only: main_xtb_json, write_json_gfnff_lists, main_ptb_json
    use xtb_geoopt
    use xtb_metadynamic
    use xtb_biaspath
@@ -939,8 +939,13 @@ contains
          select type (calc)
          type is (TxTBCalculator)
             call open_file(ich, 'xtbout.json', 'w')
-            call main_json(ich, &
+            call main_xtb_json(ich, &
                            mol, chk%wfn, calc%basis, res, fres)
+            call close_file(ich)
+         type is (TPTBCalculator)
+            call open_file(ich, 'ptbout.json', 'w')
+            call main_ptb_json(ich, &
+                           mol, chk%wfn, res, fres)
             call close_file(ich)
          end select
       end if
