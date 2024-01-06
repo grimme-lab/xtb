@@ -177,6 +177,30 @@ contains
       write (ijson, '(3x,f15.8,"],")') wfn%q(wfn%n)
    end subroutine write_json_charges
 
+   subroutine write_json_bondorder(ijson, mol, wfn)
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_wavefunction, only: TWavefunction
+      integer, intent(in) :: ijson
+      type(TMolecule), intent(in) :: mol
+      type(TWavefunction), intent(in) :: wfn
+      character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
+      integer :: i, j
+      logical :: first
+      write (ijson, jfmta) 'bond orders'
+      do i = 1, mol%n - 1
+         do j = i, mol%n
+            if (wfn%wbo(j, i) > 0.01) then
+               if (first) then
+                  write (ijson, '(a)') ','
+               end if
+               first = .true.
+               write (ijson, '(3x,"[ ",i5,",",i5,",",f8.4,"]")', advance='no') i, j, wfn%wbo(j, i)
+            end if
+         end do
+      end do
+      write(ijson, '(a,/)', advance='no') '],'
+   end subroutine write_json_bondorder
+
    subroutine write_json_dipole_moments(ijson, wfn)
       use xtb_type_wavefunction
       integer, intent(in) :: ijson
@@ -493,13 +517,15 @@ contains
    end subroutine write_json_gfnff_lists
 
    subroutine main_ptb_json &
-      (ijson, mol, wfx, sccres, freqres)
+      (ijson, mol, wfx, bas, sccres, freqres)
       use mctc_env, only: wp
       !! ========================================================================
       !  load class definitions
       use xtb_type_molecule, only: TMolecule
       use xtb_type_wavefunction, only: TWavefunction
       use xtb_type_data, only: scc_results, freq_results
+      !> tblite-specific types
+      use tblite_basis_type, only: basis_type
       !! ========================================================================
       !  global storage of options, parameters and basis set
       use xtb_setparam
@@ -510,6 +536,7 @@ contains
       !  molecule data
       type(TMolecule), intent(in) :: mol
       type(TWavefunction), intent(in) :: wfx
+      type(basis_type), intent(in) :: bas
       type(scc_results), intent(in) :: sccres
       type(freq_results), intent(in) :: freqres
 
@@ -519,6 +546,8 @@ contains
          call write_json_thermo(ijson, freqres)
       end if
       call write_json_charges(ijson, wfx)
+      call write_json_ptb_shell_charges(ijson, mol, bas, wfx)
+      call write_json_bondorder(ijson, mol, wfx)
       call write_json_dipole_moments(ijson, wfx)
       call write_json_quadrupole_moments(ijson, wfx)
       call write_json_ptb_wavefunction(ijson, wfx)
@@ -530,5 +559,32 @@ contains
       call write_json_ptb_footer(ijson)
 
    end subroutine main_ptb_json
+
+   subroutine write_json_ptb_shell_charges(ijson, mol, bas, wfn)
+      use xtb_type_wavefunction, only: TWavefunction
+      use xtb_type_molecule, only: TMolecule
+      use xtb_ptb_vdzp, only: max_shell
+      use tblite_basis_type, only: basis_type
+      integer, intent(in) :: ijson
+      type(TMolecule), intent(in) :: mol
+      type(basis_type), intent(in) :: bas
+      type(TWavefunction), intent(in) :: wfn
+      character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
+      character(len=*), parameter :: jfmtf = '(3x,''"'',a,''":'',1x,f20.8,",")'
+      integer :: iat, ish, ii
+      write (ijson, jfmta) 'shell charges'
+      do iat = 1, mol%n
+         ii = bas%ish_at(iat)
+         write (ijson, '(3x,a)', advance='no') "["
+         do ish = 1, bas%nsh_at(iat) - 1
+            write (ijson, '(f15.8,",")', advance="no") wfn%qsh(ii+ish)
+         end do
+         if (iat == mol%n) then
+            write (ijson, '(f15.8,"]],",/)', advance="no") wfn%qsh(ii+bas%nsh_at(iat))
+         else
+            write (ijson, '(f15.8,"],",/)', advance="no") wfn%qsh(ii+bas%nsh_at(iat))
+         end if
+      end do
+   end subroutine write_json_ptb_shell_charges
 
 end module xtb_main_json

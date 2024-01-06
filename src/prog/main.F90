@@ -945,7 +945,7 @@ contains
          type is (TPTBCalculator)
             call open_file(ich, 'xtbout.json', 'w')
             call main_ptb_json(ich, &
-                           mol, chk%wfn, res, fres)
+                           mol, chk%wfn, calc%bas, res, fres)
             call close_file(ich)
          end select
       end if
