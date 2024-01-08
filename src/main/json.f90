@@ -89,6 +89,8 @@ contains
       type(TBasisset), intent(in) :: xbas
       type(scc_results), intent(in) :: sccres
       type(freq_results), intent(in) :: freqres
+      logical :: alpha
+      alpha = set%elprop == p_elprop_alpha
 
       call write_json_header(ijson)
       call write_json_scc_results(ijson, sccres)
@@ -104,7 +106,7 @@ contains
       if (freqres%n3true > 0) then
          call write_json_frequencies(ijson, freqres)
          call write_json_reduced_masses(ijson, freqres)
-         call write_json_intensities(ijson, freqres)
+         call write_json_intensities(ijson, freqres, alpha)
       end if
       call write_json_footer(ijson)
 
@@ -198,7 +200,7 @@ contains
             end if
          end do
       end do
-      write(ijson, '(a,/)', advance='no') '],'
+      write (ijson, '(a,/)', advance='no') '],'
    end subroutine write_json_bondorder
 
    subroutine write_json_dipole_moments(ijson, wfn)
@@ -288,11 +290,12 @@ contains
       write (ijson, '(3x,f15.8,"],")') freqres%freq(freqres%n3true)
    end subroutine write_json_frequencies
 
-   subroutine write_json_intensities(ijson, freqres)
+   subroutine write_json_intensities(ijson, freqres, printalpha)
       use xtb_type_data
       use xtb_mctc_accuracy, only: wp
       integer, intent(in) :: ijson
       type(freq_results), intent(in) :: freqres
+      logical, intent(in) :: printalpha
       character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
       integer :: i
       write (ijson, jfmta) 'IR intensities / km/mol'
@@ -304,6 +307,17 @@ contains
          end if
       end do
       write (ijson, '(3x,f15.8,"],")') freqres%dipt(freqres%n3true)
+      if (printalpha) then
+         write (ijson, jfmta) 'Raman intensities / A^4/amu'
+         do i = 1, freqres%n3true - 1
+            if (abs(freqres%freq(i)) < 1.0e-2_wp) then
+               write (ijson, '(3x,f15.8,",")') 0.0_wp
+            else
+               write (ijson, '(3x,f15.8,",")') freqres%polt(i)
+            end if
+         end do
+         write (ijson, '(3x,f15.8,"],")') freqres%polt(freqres%n3true)
+      end if
    end subroutine write_json_intensities
 
    subroutine write_json_reduced_masses(ijson, freqres)
@@ -539,6 +553,8 @@ contains
       type(basis_type), intent(in) :: bas
       type(scc_results), intent(in) :: sccres
       type(freq_results), intent(in) :: freqres
+      logical :: alpha
+      alpha = set%elprop == p_elprop_alpha
 
       call write_json_header(ijson)
       call write_json_scc_results(ijson, sccres)
@@ -554,7 +570,7 @@ contains
       if (freqres%n3true > 0) then
          call write_json_frequencies(ijson, freqres)
          call write_json_reduced_masses(ijson, freqres)
-         call write_json_intensities(ijson, freqres)
+         call write_json_intensities(ijson, freqres, alpha)
       end if
       call write_json_ptb_footer(ijson)
 
@@ -577,12 +593,12 @@ contains
          ii = bas%ish_at(iat)
          write (ijson, '(3x,a)', advance='no') "["
          do ish = 1, bas%nsh_at(iat) - 1
-            write (ijson, '(f15.8,",")', advance="no") wfn%qsh(ii+ish)
+            write (ijson, '(f15.8,",")', advance="no") wfn%qsh(ii + ish)
          end do
          if (iat == mol%n) then
-            write (ijson, '(f15.8,"]],",/)', advance="no") wfn%qsh(ii+bas%nsh_at(iat))
+            write (ijson, '(f15.8,"]],",/)', advance="no") wfn%qsh(ii + bas%nsh_at(iat))
          else
-            write (ijson, '(f15.8,"],",/)', advance="no") wfn%qsh(ii+bas%nsh_at(iat))
+            write (ijson, '(f15.8,"],",/)', advance="no") wfn%qsh(ii + bas%nsh_at(iat))
          end if
       end do
    end subroutine write_json_ptb_shell_charges
