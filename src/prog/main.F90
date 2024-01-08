@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 module xtb_prog_main
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_io, only: stderr
@@ -76,7 +80,7 @@ module xtb_prog_main
    use xtb_xtb_gfn2
    use xtb_main_setup
    use xtb_main_defaults, only: initDefaults
-   use xtb_main_json, only: main_xtb_json, write_json_gfnff_lists, main_ptb_json
+   use xtb_main_json, only: main_xtb_json, write_json_gfnff_lists
    use xtb_geoopt
    use xtb_metadynamic
    use xtb_biaspath
@@ -96,6 +100,10 @@ module xtb_prog_main
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
+   !> PTB related modules
+#if WITH_TBLITE
+   use xtb_main_json, only: main_ptb_json
+#endif
 
    implicit none
    private
@@ -933,8 +941,12 @@ contains
             call main_cube(set%verbose, mol, chk%wfn, calc%basis, res)
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
+#if WITH_TBLITE
          type is (TPTBCalculator)
             call ptb_property(iprop, env, chk%tblite, calc%bas, mol, chk%wfn, res)
+#else
+            call ptb_feature_not_implemented(env)
+#endif
          end select
       end if
 
@@ -946,10 +958,14 @@ contains
                            mol, chk%wfn, calc%basis, res, fres)
             call close_file(ich)
          type is (TPTBCalculator)
+#if WITH_TBLITE
             call open_file(ich, 'xtbout.json', 'w')
             call main_ptb_json(ich, &
                            mol, chk%wfn, calc%bas, res, fres)
             call close_file(ich)
+#else
+            call ptb_feature_not_implemented(env)
+#endif
          end select
       end if
       if (printTopo%any()) then
@@ -1896,5 +1912,15 @@ contains
          printTopo%warning = .true.
       end select
    end subroutine selectList
+
+#if ! WITH_TBLITE
+   subroutine ptb_feature_not_implemented(env)
+      !> Computational environment
+      type(TEnvironment), intent(inout) :: env
+
+      call env%error("PTB not available without 'tblite'. Compiled without support for 'tblite' library.")
+      call env%error("Please recompile without '-Dtblite=disabled' option or change meson setup.")
+   end subroutine ptb_feature_not_implemented
+#endif
 
 end module xtb_prog_main

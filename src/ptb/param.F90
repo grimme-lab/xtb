@@ -15,8 +15,13 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> PTB parametrization data
 module xtb_ptb_param
+#if WITH_TBLITE
    use xtb_mctc_accuracy, only: wp
    use xtb_ptb_data, only: init, &
    & TPTBData, TCorePotentialData, THamiltonianData, &
@@ -3944,4 +3949,5 @@ contains
 
    end subroutine shellocc_ref
 
+#endif
 end module xtb_ptb_param

@@ -15,9 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Setup of the effective Hamiltonians for both iterations in PTB
 
 module xtb_ptb_hamiltonian
+#if WITH_TBLITE
    use mctc_io, only: structure_type
    use mctc_env, only: wp, error_type
 
@@ -281,4 +286,5 @@ contains
 
    end subroutine get_occupation
 
+#endif
 end module xtb_ptb_hamiltonian

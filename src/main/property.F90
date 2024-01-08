@@ -11,7 +11,11 @@
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
-!
+
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -273,6 +277,7 @@ end subroutine write_energy_oniom
 
    end subroutine main_property
 
+#if WITH_TBLITE
    subroutine ptb_property &
       (iunit, env, wfn, bas, struc, wfx, res)
 
@@ -418,6 +423,7 @@ end subroutine write_energy_oniom
       end if
 
    end subroutine ptb_property
+#endif
 
    subroutine gfnff_property(iunit, n, xyz, topo, nlist)
       use xtb_gfnff_topology, only: TGFFTopology

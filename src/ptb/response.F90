@@ -15,9 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Response approximation within PTB
 
 module xtb_ptb_response
+#if WITH_TBLITE
 
    !> mctc-lib
    use mctc_env, only: error_type, wp
@@ -369,4 +374,5 @@ contains
 
    end subroutine onestepscf
 
+#endif
 end module xtb_ptb_response

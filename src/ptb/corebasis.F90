@@ -17,7 +17,12 @@
 
 !> Core basis functions relevant for approximated effective core potential in PTB
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 module xtb_ptb_corebasis
+#if WITH_TBLITE
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
@@ -238,5 +243,6 @@ contains
 
    end subroutine add_core_basis
 
+#endif
 end module xtb_ptb_corebasis
 

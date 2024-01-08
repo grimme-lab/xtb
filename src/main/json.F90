@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 ! % cat xtbout.json
 ! {
 ! # calculation information
@@ -59,7 +63,10 @@ module xtb_main_json
 
    private
 
-   public :: main_xtb_json, write_json_gfnff_lists, main_ptb_json
+   public :: main_xtb_json, write_json_gfnff_lists
+#if WITH_TBLITE
+   public :: main_ptb_json
+#endif
 
 contains
 
@@ -530,6 +537,7 @@ contains
 
    end subroutine write_json_gfnff_lists
 
+#if WITH_TBLITE
    subroutine main_ptb_json &
       (ijson, mol, wfx, bas, sccres, freqres)
       use mctc_env, only: wp
@@ -602,5 +610,6 @@ contains
          end if
       end do
    end subroutine write_json_ptb_shell_charges
+#endif
 
 end module xtb_main_json

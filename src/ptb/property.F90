@@ -15,9 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Property printout of the PTB method
 
 module xtb_ptb_property
+#if WITH_TBLITE
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
@@ -83,4 +88,5 @@ contains
 
    end subroutine print_charges_to_screen
 
+#endif
 end module xtb_ptb_property

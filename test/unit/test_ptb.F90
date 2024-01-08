@@ -14,16 +14,20 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 module test_ptb
 
    use mctc_env, only: wp
+   use mctc_io, only: structure_type, new
 
    use xtb_type_molecule, only: TMolecule, assignment(=)
    use xtb_test_molstock, only: getMolecule
+   use xtb_features, only : get_xtb_feature
 
-   use testdrive, only: new_unittest, unittest_type, error_type, check_ => check, test_failed
-
-   use mctc_io, only: structure_type, new
+   use testdrive, only: new_unittest, unittest_type, error_type, check_ => check, test_failed, skip_test
 
    implicit none
    private
@@ -47,6 +51,7 @@ contains
       type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
       testsuite = [ &
+#if WITH_TBLITE
                   new_unittest("basis", test_ptb_basis), &
                   new_unittest("eeq", test_ptb_eeq), &
                   new_unittest("overlap", test_ptb_overlap), &
@@ -64,10 +69,14 @@ contains
                   new_unittest("mb16-43-01_efield", test_ptb_mb16_43_01_efield), &
                   new_unittest("dipole_moment", test_ptb_dipmom_caffeine), &
                   new_unittest("polarizability", test_ptb_polarizability) &
+#else
+                  new_unittest("ptb_not_present", test_ptb_not_present) &
+#endif
                   ]
 
    end subroutine collect_ptb
 
+#if WITH_TBLITE
    subroutine test_ptb_basis(error)
       use xtb_ptb_vdzp, only: add_vDZP_basis
       use tblite_basis_type, only: basis_type
@@ -1502,12 +1511,12 @@ contains
       call calc%singlepoint(env, struc, chk, 2, .false., energy, gradient, sigma, &
          & gap, res)
 
-      call check_(error, res%alpha(1,1), alpha_ref(1), thr=thr_alpha)
-      call check_(error, res%alpha(1,2), alpha_ref(2), thr=thr_alpha)
-      call check_(error, res%alpha(2,2), alpha_ref(3), thr=thr_alpha)
-      call check_(error, res%alpha(1,3), alpha_ref(4), thr=thr_alpha)
-      call check_(error, res%alpha(2,3), alpha_ref(5), thr=thr_alpha)
-      call check_(error, res%alpha(3,3), alpha_ref(6), thr=thr_alpha)
+      call check_(error, res%alpha(1, 1), alpha_ref(1), thr=thr_alpha)
+      call check_(error, res%alpha(1, 2), alpha_ref(2), thr=thr_alpha)
+      call check_(error, res%alpha(2, 2), alpha_ref(3), thr=thr_alpha)
+      call check_(error, res%alpha(1, 3), alpha_ref(4), thr=thr_alpha)
+      call check_(error, res%alpha(2, 3), alpha_ref(5), thr=thr_alpha)
+      call check_(error, res%alpha(3, 3), alpha_ref(6), thr=thr_alpha)
       set%elprop = p_elprop_dipole
 
    end subroutine test_ptb_polarizability
@@ -1529,5 +1538,15 @@ contains
       end do
 
    end function id_to_atom
+#else
+   subroutine test_ptb_not_present(error)
+      !> Error type
+      type(error_type), allocatable, intent(out) :: error
+      if (.not. get_xtb_feature('tblite')) then
+         call skip_test(error, "xtb not compiled with tblite support")
+         return
+      end if
+   end subroutine test_ptb_not_present
 
+#endif
 end module test_ptb

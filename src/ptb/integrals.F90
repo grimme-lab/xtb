@@ -11,12 +11,17 @@
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
-!
+
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Calculation of all required overlap matrices
 module xtb_ptb_integrals
+#if WITH_TBLITE
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
@@ -475,4 +480,5 @@ contains
       qj(6) = qi(6) + 1.5_wp * qj(6) - tr
    end subroutine shift_operator
 
+#endif
 end module xtb_ptb_integrals

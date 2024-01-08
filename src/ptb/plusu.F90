@@ -15,11 +15,16 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> DFT+U approximation within PTB
 !> Consumes parameters, the density matrix and the coordination numbers;
 !> returns the DFT+U potential
 
 module xtb_ptb_plusu
+#if WITH_TBLITE
    !> mctc-lib
    use mctc_env, only: error_type, wp
    use mctc_io, only: structure_type
@@ -230,4 +235,5 @@ contains
 
    end subroutine calc_V_plusU
 
+#endif
 end module xtb_ptb_plusu

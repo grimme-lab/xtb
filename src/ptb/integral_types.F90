@@ -15,8 +15,13 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Declaration of an integral storage container to collect all overlap related integrals
 module xtb_ptb_integral_types
+#if WITH_TBLITE
    use mctc_env, only: wp
    implicit none
    private
@@ -49,4 +54,5 @@ contains
       allocate (self%overlap_to_1_x(nao, nao), source=0.0_wp)
    end subroutine new_aux_integral
 
+#endif
 end module xtb_ptb_integral_types
