@@ -18,23 +18,22 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/calculator.f90"
-  "${dir}/param.f90"
+  "${dir}/calculator.F90"
+  "${dir}/param.F90"
   "${dir}/data.f90"
-  "${dir}/vdzp.f90"
-  "${dir}/twostepscf.f90"
-  "${dir}/overlaps.f90"
-  "${dir}/mmlpopanalysis.f90"
-  "${dir}/ncoord.f90"
-  "${dir}/corebasis.f90"
-  "${dir}/hamiltonian.f90"
-  "${dir}/guess.f90"
-  "${dir}/paulixc.f90"
-  "${dir}/integral_types.f90"
-  "${dir}/coulomb.f90"
-  "${dir}/plusu.f90"
-  "${dir}/property.f90"
-  "${dir}/response.f90"
+  "${dir}/vdzp.F90"
+  "${dir}/twostepscf.F90"
+  "${dir}/mmlpopanalysis.F90"
+  "${dir}/ncoord.F90"
+  "${dir}/corebasis.F90"
+  "${dir}/hamiltonian.F90"
+  "${dir}/guess.F90"
+  "${dir}/paulixc.F90"
+  "${dir}/integral_types.F90"
+  "${dir}/coulomb.F90"
+  "${dir}/plusu.F90"
+  "${dir}/property.F90"
+  "${dir}/response.F90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

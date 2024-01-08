@@ -566,6 +566,9 @@ contains
             ! if (set%mode_extrun .eq. p_ext_ptb) fnv = xfind(p_fname_param_ptb)
          end select
       end if
+      if (set%mode_extrun .eq. p_ext_ptb) then
+         fnv = "ptb_dummy"
+      end if
 
       !-------------------------------------------------------------------------
       !> Perform a precomputation of electronic properties for xTB-IFF
