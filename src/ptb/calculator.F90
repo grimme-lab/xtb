@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-! #ifndef WITH_TBLITE
-! #define WITH_TBLITE 0
-! #endif
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
 
 !> Density matrix (P) tight binding (TB) calculator
 module xtb_ptb_calculator
@@ -27,7 +27,6 @@ module xtb_ptb_calculator
    use xtb_type_molecule, only: TMolecule, assignment(=)
    use xtb_type_param, only: TPTBParameter
    use xtb_type_restart, only: TRestart
-   use xtb_ptb_data, only: TPTBData
    use xtb_setparam
    use xtb_fixparam
    use xtb_mctc_systools, only: rdpath
@@ -36,6 +35,7 @@ module xtb_ptb_calculator
    use mctc_io, only: structure_type, new
    use mctc_io_convert, only: autoev
 
+#if WITH_TBLITE
    use multicharge_model, only: new_mchrg_model, mchrg_model_type
 
    use tblite_basis_type, only: basis_type
@@ -45,12 +45,16 @@ module xtb_ptb_calculator
    use tblite_integral_type, only: integral_type
    use tblite_adjlist, only: adjacency_list
 
+   !> PTB modules that are dependent on tblite
    use xtb_ptb_param, only: initPTB, ptbGlobals
    use xtb_ptb_vdzp, only: add_vDZP_basis
    use xtb_ptb_scf, only: twostepscf
    use xtb_ptb_corebasis, only: add_core_basis
    use xtb_ptb_integral_types, only: aux_integral_type
    use xtb_ptb_response, only: numgrad_polarizability
+#endif
+   !> PTB data type that is not dependent on tblite
+   use xtb_ptb_data, only: TPTBData
    implicit none
 
    private
@@ -60,11 +64,13 @@ module xtb_ptb_calculator
    !> Calculator interface for PTB method
    type, extends(TCalculator) :: TPTBCalculator
 
+#if WITH_TBLITE
       !> PTB vDZP basis set
       type(basis_type) :: bas, cbas
 
       !> EEQ Model
       type(mchrg_model_type) :: eeqmodel
+#endif
 
       !> Parametrisation data base
       type(TPTBData), allocatable :: ptbData
@@ -116,7 +122,7 @@ contains
       logical :: exist
       logical :: exitRun
 
-! #if WITH_TBLITE
+#if WITH_TBLITE
       !> mctc-io structure type
       type(structure_type) :: mol
 
@@ -166,9 +172,9 @@ contains
       !       call close_file(ich)
       !    end if
       ! end if
-! #else
-      ! call feature_not_implemented(env)
-! #endif
+#else
+      call feature_not_implemented(env)
+#endif
 
    end subroutine newPTBCalculator
 
@@ -211,6 +217,7 @@ contains
       !> Detailed results
       type(scc_results), intent(out) :: results
 
+#if WITH_TBLITE
       !#################################################
       !> PTB INDIVIDUAL
       !#################################################
@@ -323,6 +330,9 @@ contains
             end if
          end if
       end if
+#else
+      call feature_not_implemented(env)
+#endif
 
    end subroutine singlepoint
 
@@ -341,6 +351,8 @@ contains
 
    end subroutine writeInfo
 
+
+#if WITH_TBLITE
 !---------------------------------------------
 ! Initialize new wavefunction
 !---------------------------------------------
@@ -352,8 +364,6 @@ contains
       type(TEnvironment), intent(inout) :: env
       !> Instance of the new calculator
       type(TPTBCalculator), intent(in) :: calc
-
-      !#if WITH_TBLITE
       !> mctc-io structure type
       type(structure_type) :: mol
       !> Wavefunction data
@@ -368,17 +378,16 @@ contains
          call env%error(error%message, source)
          return
       end if
-      !#else
-      ! call feature_not_implemented(env)
-      !#endif
    end subroutine newPTBWavefunction
+#endif
 
-! #if ! WITH_TBLITE
+#if ! WITH_TBLITE
    subroutine feature_not_implemented(env)
       !> Computational environment
       type(TEnvironment), intent(inout) :: env
 
-      call env%error("Compiled without support for tblite library")
+      call env%error("PTB not available without 'tblite'. Compiled without support for 'tblite' library.")
+      call env%error("Please recompile without '-Dtblite=disabled' option or change meson setup.")
    end subroutine feature_not_implemented
-! #endif
+#endif
 end module xtb_ptb_calculator

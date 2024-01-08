@@ -15,9 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Two-step SCF of the PTB method
 
 module xtb_ptb_scf
+#if WITH_TBLITE
    use mctc_io, only: structure_type
    use mctc_env, only: wp, error_type, fatal_error
 
@@ -698,4 +703,5 @@ contains
       s = sum(log(occ**occ * (1 - occ)**(1 - occ))) * kt
    end subroutine get_electronic_entropy
 
+#endif
 end module xtb_ptb_scf

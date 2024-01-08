@@ -15,9 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Module for the relevant coordination numbers
 
 module xtb_ptb_ncoord
+#if WITH_TBLITE
    use mctc_env, only: wp
    use mctc_io, only: structure_type
 
@@ -107,4 +112,5 @@ contains
 
    end function erf_count
 
+#endif
 end module xtb_ptb_ncoord

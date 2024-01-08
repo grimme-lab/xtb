@@ -15,9 +15,14 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Module for the mixed Mulliken-Loewdin population analysis
 
 module xtb_ptb_mmlpopanalysis
+#if WITH_TBLITE
    use mctc_env, only: wp
 
    use xtb_mctc_lapack, only: lapack_syev
@@ -141,4 +146,5 @@ contains
 
    end subroutine get_mml_shell_charges
 
+#endif
 end module xtb_ptb_mmlpopanalysis

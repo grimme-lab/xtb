@@ -15,8 +15,13 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 !> Pauli exchange approximation
 module xtb_ptb_paulixc
+#if WITH_TBLITE
    !> mctc-lib
    use mctc_env, only: error_type, wp
    use mctc_io, only: structure_type
@@ -127,4 +132,5 @@ contains
 
    end subroutine calc_Vxc_pauli_shellscaling
 
+#endif
 end module xtb_ptb_paulixc

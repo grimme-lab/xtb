@@ -17,7 +17,12 @@
 
 !> Setup of the effective Hamiltonians for both iterations in PTB
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 module xtb_ptb_guess
+#if WITH_TBLITE
    use mctc_io, only: structure_type
    use mctc_env, only: wp, error_type
 
@@ -104,4 +109,6 @@ contains
          end do
       end do
    end function get_psh_from_qsh
+
+#endif
 end module xtb_ptb_guess
