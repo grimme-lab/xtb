@@ -30,6 +30,7 @@ list(APPEND srcs
   "${dir}/guess.F90"
   "${dir}/paulixc.F90"
   "${dir}/integral_types.F90"
+  "${dir}/integrals.F90"
   "${dir}/coulomb.F90"
   "${dir}/plusu.F90"
   "${dir}/property.F90"
