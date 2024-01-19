@@ -25,6 +25,10 @@ Bleeding edge releases (Linux only) of the latest source from this repository ar
 This projects supports two build systems, meson and CMake.
 A short guide on the usage of each is given here, follow the linked instructions for a more detailed information ([meson guide](./meson/README.adoc), [CMake guide](./cmake/README.adoc)).
 
+**Compilers**: 
+  1. ifort(<=2021.10.0), icc(<=2021.10.0)
+  2. gfortran(<=13.2.0), gcc(<=13.2.0) 
+
 
 ### Meson
 

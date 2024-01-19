@@ -19,7 +19,7 @@ option(WITH_OBJECT "To build using object library" TRUE)
 option(INSTALL_MODULES "Install Fortran module files to include directory." FALSE)
 
 # Buggy CMake versions
-if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.27.0 AND CMAKE_VERSION VERSION_LESS 3.28.0)
    set(WITH_OBJECT FALSE)
 endif()
 
@@ -45,11 +45,13 @@ if(NOT TARGET "mctc-lib::mctc-lib")
 endif()
 
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
-  find_package("tblite" REQUIRED)
+   find_package("tblite" REQUIRED)
+   add_compile_definitions(-DWITH_TBLITE)
 endif()
 
 if(NOT TARGET "cpcmx::cpcmx" AND WITH_CPCMX)
-  find_package("cpcmx" REQUIRED)
+   find_package("cpcmx" REQUIRED)
+   add_compile_definitions(-DWITH_CPCMX)
 endif()
 
 if(NOT TARGET "test-drive::test-drive")
@@ -147,11 +149,10 @@ target_link_libraries(
    "$<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>"
    "mctc-lib::mctc-lib"
    "$<$<BOOL:${WITH_CPCMX}>:cpcmx::cpcmx>"
-   "$<$<BOOL:${WITH_TBLITE}>:tblite::tblite>"
+   $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
 )
 
-
- set_target_properties(
+set_target_properties(
    "lib-${PROJECT_NAME}-static"
    PROPERTIES
    Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include"
@@ -224,6 +225,7 @@ target_link_libraries(
    PRIVATE
    "lib-${PROJECT_NAME}-static"
 )
+
 set_target_properties(
   ${PROJECT_NAME}-exe
   PROPERTIES

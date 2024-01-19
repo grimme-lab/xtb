@@ -137,6 +137,10 @@ xtb_exe = executable(
   dependencies: xtb_dep_static,
   link_language: 'fortran',
   install: install,
+  fortran_args: [
+    '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
+    '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
+  ],
 )
 
 xtb_header = files('include/xtb.h')
