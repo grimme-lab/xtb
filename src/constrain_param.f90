@@ -452,12 +452,19 @@ subroutine set_constr(env,key,val,nat,at,idMap,xyz)
       potset%pos%n = size(list)
    case('atoms')
       call atl%new(val)
-      if (atl%get_error()) then
-         call env%warning('something is wrong in the fixing list',source)
-         return
+      if (val.eq."all") then
+         allocate(list(nat))
+         do i=1,nat
+            list(i)=i
+         enddo 
+      else
+         if (atl%get_error()) then
+            call env%warning('something is wrong in the fixing list',source)
+            return
+         endif
+         if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
+         call atl%to_list(list)
       endif
-      if (potset%pos%n > 0) call atl%add(potset%pos%atoms(:potset%pos%n))
-      call atl%to_list(list)
       potset%pos%atoms = list
       potset%pos%n = size(list)
 
