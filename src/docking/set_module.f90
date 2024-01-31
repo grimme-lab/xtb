@@ -28,6 +28,7 @@ module xtb_docking_set_module
    use xtb_type_atomlist
    use xtb_mctc_strings, only : parse
    use xtb_setmod
+   use xtb_mctc_convert, only : autokcal
 
    implicit none
 
@@ -245,7 +246,6 @@ contains
       integer, allocatable :: list(:)
       real(wp) :: ddum
       logical  :: ldum
-      real(wp), parameter ::au = 627.509541d0
    
       integer  :: narg
       character(len=p_str_length),dimension(p_arg_length) :: argv
@@ -312,7 +312,7 @@ contains
          set2 = .false.
       case('prefac')
          !Prefactor is given in kcal, but xtb energies are in hartree
-         if (getValue(env,val,ddum).and.set3) directedset%val(1) = ddum / au
+         if (getValue(env,val,ddum).and.set3) directedset%val(1) = ddum / autokcal
          set3 = .false.
       case('midpoint')
          if (getValue(env,val,ddum).and.set4) directedset%expo(2) = ddum

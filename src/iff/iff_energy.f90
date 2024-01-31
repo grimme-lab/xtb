@@ -958,7 +958,6 @@ contains
              & (directedset%val(1)/2) * &
              & erf(-((directedset%expo(1) * minval(rab_solu_solv)) - (directedset%expo(2) * directedset%expo(1)))) &
              & + (directedset%val(1)/2)
-!           &directedset%val(1) * (exp(-directedset%expo(1) * (minval(rab_solu_solv))**2))
       end if
 
       eqp = eqp*0.1  ! 0.1=probe charge, is added to e in search_nci.f90
