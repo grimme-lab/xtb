@@ -19,7 +19,7 @@ module xtb_iff_iffenergy
    use xtb_mctc_accuracy, only: wp
    use xtb_type_environment, only: TEnvironment
    use xtb_docking_param
-   !use xtb_sphereparam
+   use xtb_sphereparam, only: number_walls
    use xtb_sphereparam, only : sphere_alpha, wpot, polynomial_cavity_list, sphere, cavity_egrad,&
            & cavitye, maxwalls, rabc, sphere
    implicit none
@@ -78,6 +78,10 @@ contains
       real(wp) :: c2(3, n2), cl2(4, 10*n2), dip(3), h, zz1, zz2, nn1, nn2, ees
       real(wp) :: rab(n2, n1), rotm(3, 3), q1(n1), q2(n2), AL2(4, n2*10), A2(3, n2)
       real(wp) :: r2ab(n2, n1), r0tmp(n2, n1), r0tmp2(n2, n1), r, oner, sab(n2, n1)
+
+      !> QCG stuff
+      real(wp),allocatable :: rab_solu_solv(:,:)
+
       !> Thermo stuff
       real(wp) :: aa, bb, cc, avmom, wt, h298, g298, ts298, zp, symn, freq(3*n)
       real(wp) :: xyz(3, n)
@@ -86,7 +90,7 @@ contains
       real(wp), parameter ::au = 627.509541d0
       integer :: pair(2, n1*n2)
       integer :: npair
-      integer :: i, j, k, kk, i1, j2, iat, jat, n3, metal(86)
+      integer :: i, j, k, kk, i1, j2, iat, jat, n3, metal(86), counter
       integer :: at(n)
       logical :: linear, ATM, ijh, ijx
       character(len=4) :: pgroup
@@ -125,13 +129,34 @@ contains
       dgrrho = 0
       npair = 0
       pair = 0
+      counter = 0
+
+      !> Distances of solute and screened solvent positions for QCG attractive potential
+      if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+         allocate(rab_solu_solv(directedset%n, n2), source=0.0_wp)
+      end if
+
+      !> Distance between all atoms of molA and molB
       do i = 1, n1
+         !> Check if qcg mode and i is a solute atom
+         if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+            if(any(i == directedset%atoms)) then
+               counter = counter + 1
+            end if
+         end if
          do j = 1, n2
             r2 = (A1(1, i) - A2(1, j))**2&
              &+ (A1(2, i) - A2(2, j))**2&
              &+ (A1(3, i) - A2(3, j))**2
             r2ab(j, i) = r2 + 1.d-12
             rab(j, i) = sqrt(r2) + 1.d-12
+            if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+               if(any(i == directedset%atoms)) then
+                  !Safe distance in Angström only, if solute atom
+                  ! (important if molA is solute with already added solvents)
+                  rab_solu_solv (counter,j) = sqrt(r2)*autoang 
+               end if
+            end if
             if (r2 .gt. 12000.0d0 .or. r2 .lt. 5.0d0) cycle  ! induction cut-off
             if (metal(at1(i)) .eq. 1 .or. metal(at2(j)) .eq. 1) cycle
             npair = npair + 1
@@ -139,7 +164,6 @@ contains
             pair(2, npair) = j
          end do
       end do
-
 
 !     atomic density overlap
       call ovlp(n1, n2, r2ab, den1, den2, sab)
@@ -187,6 +211,7 @@ contains
                ed = ed - directedset%val(i) * (exp(-0.01*((rab(j,i)-2)**2)))
                !- Because ed is substracted at the end
             end if
+
             if (rab(j, i) .gt. 25) cycle
             nn12 = nn1*(z2(j) - q2(j))
             ep = ep + nn12*sab(j, i)/rab(j, i)      ! ovlp S(S+1) is slightly worse, S(S-1) very slightly better
@@ -280,7 +305,7 @@ contains
 
 !     Cavity Energies (For Wall Potentials)
       esph = 0.0_wp
-      if(qcg) then
+      if(qcg .and. (number_walls > 0)) then
          do i=1, maxwalls
             if(.not. allocated(wpot(i)%list)) then
                rabc(1:3) = wpot(i)%radius(1:3)
@@ -302,6 +327,20 @@ contains
       ep = ep*par_rep_scal + ep2*par_xh2*0.01
 
       e = -ed + es + ep + esl + ei + gsolv + eabc + ect + esph
+
+      !For QCG v2, the closer the solvent to the solute, the more attractive the energy is
+      if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+         !Energie in Hartree
+         !Potential of type (a/2)*erf(-(b*r-c*b))+(a/2)
+         !a=E_int solv-solv and is the maximum value of potential
+         !b=slope of error function
+         !c=mid point of error function
+         e = e - &
+             & ((directedset%val(1)/2) * &
+             & erf(-(directedset%expo(1) * minval(rab_solu_solv)) + (directedset%expo(2) * directedset%expo(1))) &
+             & + (directedset%val(1)/2))
+!            &directedset%val(1) * (exp(-directedset%expo(1) * (minval(rab_solu_solv))**2))
+      end if
 
       if(isnan(e)) e = 1.0_wp**42
 
@@ -326,7 +365,6 @@ contains
          write (env%unit, '(''Eint total,gas:'',F10.3)') (e - gsolv)*au
         write (env%unit, '(''              '',F14.8,''  <== Gint total'')') e*au
       end if
-
 
    end subroutine iff_e
 
@@ -848,14 +886,26 @@ contains
       real(wp), intent(in) :: cn1(n1)
       real(wp), intent(out) :: e, eqp
 
-      integer :: i, j, iat
+      !> QCG stuff
+      real(wp),allocatable :: rab_solu_solv(:)
+
+      integer :: i, j, iat, counter
       real(wp) :: ed, ep
       real(wp) :: r, r0, r2, rr, av, c6, r6, r8, r42, tmpr
       real(wp) :: R06, R08, dc6, t6, t8
+      real(wp), parameter ::au = 627.509541d0
+      real(wp), parameter ::autoang = 0.52917726d0
 
       ed = 0
       ep = 0
       eqp = 0
+      counter = 0
+
+      !> Distances of solute and screened solvent positions for QCG attractive potential
+      if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+         allocate(rab_solu_solv(directedset%n), source=0.0_wp)
+      end if
+
       do i = 1, n1 !cycle over every atom of molA
          iat = at1(i)
          r2 = (c1(1, i) - c2(1))**2 + (c1(2, i) - c2(2))**2 + (c1(3, i) - c2(3))**2
@@ -866,6 +916,15 @@ contains
          r42 = rrab(iat, probe_atom_type)
          R06 = r0ab6(iat, probe_atom_type)
          R08 = r0ab8(iat, probe_atom_type)
+         if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+            if(any(i == directedset%atoms)) then
+               counter=counter + 1
+               !Safe distance in Angström only, if solute atom
+               ! (important if molA is solute with already added solvents)
+               rab_solu_solv (counter) = r *autoang
+            end if
+         end if
+
          dc6 = 1./(r6 + R06) + r42/(r6*r2 + R08)
          ed = ed + dc6*c6xx(i)
          if(directedset%n > 0 .and. directed_type == p_atom_att) then
@@ -889,8 +948,19 @@ contains
       end do
 
       e = 8.0d0*ep - ed*0.70d0
+      if(directedset%n > 0 .and. directed_type == p_atom_qcg) then
+         !Energie in Hartree
+         !Potential of type (a/2)*erf(-(b*r-c*b))+(a/2)
+         !a=E_int solv-solv and is the maximum value of potential
+         !b=slope of error function
+         !c=mid point of error function
+         e = e - &
+             & (directedset%val(1)/2) * &
+             & erf(-((directedset%expo(1) * minval(rab_solu_solv)) - (directedset%expo(2) * directedset%expo(1)))) &
+             & + (directedset%val(1)/2)
+      end if
 
-      eqp = eqp*0.1  ! 0.1=probe charge
+      eqp = eqp*0.1  ! 0.1=probe charge, is added to e in search_nci.f90
 
    end subroutine intermole_probe
 
