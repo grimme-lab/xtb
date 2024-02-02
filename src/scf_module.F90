@@ -479,6 +479,8 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       write(env%unit,scifmt) "-> SCF convergence ",scfconv, "Eh  "
       write(env%unit,scifmt) "-> wf. convergence ",qconv,   "e   "
       write(env%unit,dblfmt) "Broyden damping    ",set%broydamp,"    "
+      write(env%unit,intfmt) "net charge         ",set%ichrg
+      write(env%unit,intfmt) "unpaired electrons ",set%nalphabeta
       write(env%unit,'(10x,51("."))')
    endif
 
