@@ -616,7 +616,6 @@ subroutine xtbMain(env, argParser)
   
 
    end select
-
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
     if (dipro%diprocalc) then 
