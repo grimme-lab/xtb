@@ -124,132 +124,132 @@ program tester
 
 contains
 
-   !> Driver for testsuite
-   subroutine run_testsuite(collect, unit, stat)
+!> Driver for testsuite
+subroutine run_testsuite(collect, unit, stat)
 
-      !> Collect tests
-      procedure(collect_interface) :: collect
+   !> Collect tests
+   procedure(collect_interface) :: collect
 
-      !> Unit for IO
-      integer, intent(in) :: unit
+   !> Unit for IO
+   integer, intent(in) :: unit
 
-      !> Number of failed tests
-      integer, intent(inout) :: stat
+   !> Number of failed tests
+   integer, intent(inout) :: stat
 
-      type(unittest_type), allocatable :: testsuite(:)
-      integer :: it
+   type(unittest_type), allocatable :: testsuite(:)
+   integer :: it
 
-      call collect(testsuite)
+   call collect(testsuite)
 
-      do it = 1, size(testsuite)
-         !$omp critical(testdrive_testsuite)
-         write(unit, '(1x, 3(1x, a), 1x, "(", i0, "/", i0, ")")') &
-            & "Starting", testsuite(it)%name, "...", it, size(testsuite)
-         !$omp end critical(testdrive_testsuite)
-         call run_unittest(testsuite(it), unit, stat)
-      end do
-
-   end subroutine run_testsuite
-
-   !> Run a selected unit test
-   subroutine run_unittest(test, unit, stat)
-
-      !> Unit test
-      type(unittest_type), intent(in) :: test
-
-      !> Unit for IO
-      integer, intent(in) :: unit
-
-      !> Number of failed tests
-      integer, intent(inout) :: stat
-
-      type(error_type), allocatable :: error
-      character(len=:), allocatable :: message
-
-      call test%test(error)
-      if (.not.test_skipped(error) .and. allocated(error) .neqv. test%should_fail) then
-         stat = stat + 1
-      end if
-      call make_output(message, test, error)
+   do it = 1, size(testsuite)
       !$omp critical(testdrive_testsuite)
-      write(unit, '(a)') message
+      write(unit, '(1x, 3(1x, a), 1x, "(", i0, "/", i0, ")")') &
+         & "Starting", testsuite(it)%name, "...", it, size(testsuite)
       !$omp end critical(testdrive_testsuite)
-      if (allocated(error)) then
-         call clear_error(error)
-      end if
+      call run_unittest(testsuite(it), unit, stat)
+   end do
 
-   end subroutine run_unittest
+end subroutine run_testsuite
 
-   !> Create output message for test (this procedure is pure and therefore cannot launch tests)
-   pure subroutine make_output(output, test, error)
+!> Run a selected unit test
+subroutine run_unittest(test, unit, stat)
 
-      !> Output message for display
-      character(len=:), allocatable, intent(out) :: output
+   !> Unit test
+   type(unittest_type), intent(in) :: test
 
-      !> Unit test
-      type(unittest_type), intent(in) :: test
+   !> Unit for IO
+   integer, intent(in) :: unit
 
-      !> Error handling
-      type(error_type), intent(in), optional :: error
+   !> Number of failed tests
+   integer, intent(inout) :: stat
 
-      character(len=:), allocatable :: label
-      character(len=*), parameter :: indent = repeat(" ", 7) // repeat(".", 3) // " "
+   type(error_type), allocatable :: error
+   character(len=:), allocatable :: message
 
-      if (test_skipped(error)) then
-         output = indent // test%name // " [SKIPPED]" &
-            & // new_line("a") // "  Message: " // error%message
-         return
-      end if
+   call test%test(error)
+   if (.not.test_skipped(error) .and. allocated(error) .neqv. test%should_fail) then
+      stat = stat + 1
+   end if
+   call make_output(message, test, error)
+   !$omp critical(testdrive_testsuite)
+   write(unit, '(a)') message
+   !$omp end critical(testdrive_testsuite)
+   if (allocated(error)) then
+      call clear_error(error)
+   end if
 
-      if (present(error) .neqv. test%should_fail) then
-         if (test%should_fail) then
-            label = " [UNEXPECTED PASS]"
-         else
-            label = " [FAILED]"
-         end if
+end subroutine run_unittest
+
+!> Create output message for test (this procedure is pure and therefore cannot launch tests)
+pure subroutine make_output(output, test, error)
+
+   !> Output message for display
+   character(len=:), allocatable, intent(out) :: output
+
+   !> Unit test
+   type(unittest_type), intent(in) :: test
+
+   !> Error handling
+   type(error_type), intent(in), optional :: error
+
+   character(len=:), allocatable :: label
+   character(len=*), parameter :: indent = repeat(" ", 7) // repeat(".", 3) // " "
+
+   if (test_skipped(error)) then
+      output = indent // test%name // " [SKIPPED]" &
+         & // new_line("a") // "  Message: " // error%message
+      return
+   end if
+
+   if (present(error) .neqv. test%should_fail) then
+      if (test%should_fail) then
+         label = " [UNEXPECTED PASS]"
       else
-         if (test%should_fail) then
-            label = " [EXPECTED FAIL]"
-         else
-            label = " [PASSED]"
-         end if
+         label = " [FAILED]"
       end if
-      output = indent // test%name // label
-      if (present(error)) then
-         output = output // new_line("a") // "  Message: " // error%message
+   else
+      if (test%should_fail) then
+         label = " [EXPECTED FAIL]"
+      else
+         label = " [PASSED]"
       end if
-   end subroutine make_output
+   end if
+   output = indent // test%name // label
+   if (present(error)) then
+      output = output // new_line("a") // "  Message: " // error%message
+   end if
+end subroutine make_output
 
-   pure function test_skipped(error) result(is_skipped)
+pure function test_skipped(error) result(is_skipped)
 
-      !> Error handling
-      type(error_type), intent(in), optional :: error
+   !> Error handling
+   type(error_type), intent(in), optional :: error
 
-      !> Test was skipped
-      logical :: is_skipped
+   !> Test was skipped
+   logical :: is_skipped
 
-      is_skipped = .false.
-      if (present(error)) then
-         is_skipped = error%stat == 77
-      end if
+   is_skipped = .false.
+   if (present(error)) then
+      is_skipped = error%stat == 77
+   end if
 
-   end function test_skipped
+end function test_skipped
 
-   !> Clear error type after it has been handled.
-   subroutine clear_error(error)
+!> Clear error type after it has been handled.
+subroutine clear_error(error)
 
-      !> Error handling
-      type(error_type), intent(inout) :: error
+   !> Error handling
+   type(error_type), intent(inout) :: error
 
-      if (error%stat /= 0) then
-         error%stat = 0
-      end if
+   if (error%stat /= 0) then
+      error%stat = 0
+   end if
 
-      if (allocated(error%message)) then
-         deallocate(error%message)
-      end if
+   if (allocated(error%message)) then
+      deallocate(error%message)
+   end if
 
-   end subroutine clear_error
+end subroutine clear_error
 
 end program tester
 

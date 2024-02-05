@@ -118,37 +118,37 @@ module xtb_type_param
 
 contains
 
-   subroutine allocate_chrgeq(self, n, extended)
-      implicit none
-      class(chrg_parameter) :: self
-      integer, intent(in) :: n
-      logical, intent(in), optional :: extended
-      logical :: multipoles
-      if (present(extended)) then
-         multipoles = extended
-      else
-         multipoles = .false.
-      end if
-      call self%deallocate
-      allocate (self%en(n), source=0.0_wp)
-      allocate (self%gam(n), source=0.0_wp)
-      allocate (self%kappa(n), source=0.0_wp)
-      allocate (self%alpha(n), source=0.0_wp)
-      if (multipoles) then
-         allocate (self%dpol(n), source=0.0_wp)
-         allocate (self%beta(n), source=0.0_wp)
-      end if
-   end subroutine allocate_chrgeq
+subroutine allocate_chrgeq(self, n, extended)
+   implicit none
+   class(chrg_parameter) :: self
+   integer, intent(in) :: n
+   logical, intent(in), optional :: extended
+   logical :: multipoles
+   if (present(extended)) then
+      multipoles = extended
+   else
+      multipoles = .false.
+   end if
+   call self%deallocate
+   allocate (self%en(n), source=0.0_wp)
+   allocate (self%gam(n), source=0.0_wp)
+   allocate (self%kappa(n), source=0.0_wp)
+   allocate (self%alpha(n), source=0.0_wp)
+   if (multipoles) then
+      allocate (self%dpol(n), source=0.0_wp)
+      allocate (self%beta(n), source=0.0_wp)
+   end if
+end subroutine allocate_chrgeq
 
-   subroutine deallocate_chrgeq(self)
-      implicit none
-      class(chrg_parameter) :: self
-      if (allocated(self%en)) deallocate (self%en)
-      if (allocated(self%gam)) deallocate (self%gam)
-      if (allocated(self%kappa)) deallocate (self%kappa)
-      if (allocated(self%alpha)) deallocate (self%alpha)
-      if (allocated(self%dpol)) deallocate (self%dpol)
-      if (allocated(self%beta)) deallocate (self%beta)
-   end subroutine deallocate_chrgeq
+subroutine deallocate_chrgeq(self)
+   implicit none
+   class(chrg_parameter) :: self
+   if (allocated(self%en)) deallocate (self%en)
+   if (allocated(self%gam)) deallocate (self%gam)
+   if (allocated(self%kappa)) deallocate (self%kappa)
+   if (allocated(self%alpha)) deallocate (self%alpha)
+   if (allocated(self%dpol)) deallocate (self%dpol)
+   if (allocated(self%beta)) deallocate (self%beta)
+end subroutine deallocate_chrgeq
 
 end module xtb_type_param

@@ -45,181 +45,181 @@ module xtb_main_setup
 
 contains
 
-   subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_data, tblite_input)
+subroutine newCalculator(env, mol, calc, fname, restart, accuracy, input, iff_data, tblite_input)
 
-      character(len=*), parameter :: source = 'main_setup_newCalculator'
+   character(len=*), parameter :: source = 'main_setup_newCalculator'
 
-      type(TEnvironment), intent(inout) :: env
+   type(TEnvironment), intent(inout) :: env
 
-      type(TMolecule), intent(in) :: mol
+   type(TMolecule), intent(in) :: mol
 
-      class(TCalculator), allocatable, intent(out) :: calc
+   class(TCalculator), allocatable, intent(out) :: calc
 
-      character(len=*), intent(in) :: fname
+   character(len=*), intent(in) :: fname
 
-      logical, intent(in) :: restart
+   logical, intent(in) :: restart
 
-      real(wp), intent(in) :: accuracy
+   real(wp), intent(in) :: accuracy
 
-      type(oniom_input), intent(in), optional :: input
+   type(oniom_input), intent(in), optional :: input
 
-      type(TIFFData), intent(in), optional, allocatable :: iff_data
+   type(TIFFData), intent(in), optional, allocatable :: iff_data
 
-      !> Input for TBLite calculator
-      type(TTBLiteInput), intent(in), optional :: tblite_input
+   !> Input for TBLite calculator
+   type(TTBLiteInput), intent(in), optional :: tblite_input
 
-      type(TxTBCalculator), allocatable :: xtb
-      type(TTBLiteCalculator), allocatable :: tblite
-      type(TGFFCalculator), allocatable :: gfnff
-      type(TIFFCalculator), allocatable :: iff
-      type(TOrcaCalculator), allocatable :: orca
-      type(TMopacCalculator), allocatable :: mopac
-      type(TTMCalculator), allocatable :: turbo
-      type(TOniomCalculator), allocatable :: oniom
-      type(TDriverCalculator), allocatable :: driver
-      type(TPTBCalculator), allocatable :: ptb
+   type(TxTBCalculator), allocatable :: xtb
+   type(TTBLiteCalculator), allocatable :: tblite
+   type(TGFFCalculator), allocatable :: gfnff
+   type(TIFFCalculator), allocatable :: iff
+   type(TOrcaCalculator), allocatable :: orca
+   type(TMopacCalculator), allocatable :: mopac
+   type(TTMCalculator), allocatable :: turbo
+   type(TOniomCalculator), allocatable :: oniom
+   type(TDriverCalculator), allocatable :: driver
+   type(TPTBCalculator), allocatable :: ptb
 
-      logical :: exitRun
+   logical :: exitRun
 
-      select case (set%mode_extrun)
-      case default
-         call env%error("Unknown calculator type", source)
+   select case (set%mode_extrun)
+   case default
+      call env%error("Unknown calculator type", source)
 
-      case (p_ext_oniom)
-         if (.not. present(input)) then
-            call env%error("ONIOM calculator requires input", source)
-            return
-         end if
-         allocate (oniom)
-         call newOniomCalculator(oniom, env, mol, input)
-         call move_alloc(oniom, calc)
+   case (p_ext_oniom)
+      if (.not. present(input)) then
+         call env%error("ONIOM calculator requires input", source)
+         return
+      end if
+      allocate (oniom)
+      call newOniomCalculator(oniom, env, mol, input)
+      call move_alloc(oniom, calc)
 
-      case (p_ext_eht, p_ext_xtb)
-         allocate (xtb)
+   case (p_ext_eht, p_ext_xtb)
+      allocate (xtb)
 
-         call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy)
+      call newXTBCalculator(env, mol, xtb, fname, set%gfn_method, accuracy)
 
-         call env%check(exitRun)
-         if (exitRun) then
-            call env%error("Could not construct new calculator", source)
-            return
-         end if
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
 
-         call move_alloc(xtb, calc)
-      case (p_ext_tblite)
-         if (.not. present(tblite_input)) then
-            call env%error("TBLite calculator requires input", source)
-            return
-         end if
-         allocate (tblite)
+      call move_alloc(xtb, calc)
+   case (p_ext_tblite)
+      if (.not. present(tblite_input)) then
+         call env%error("TBLite calculator requires input", source)
+         return
+      end if
+      allocate (tblite)
 
-         call newTBLiteCalculator(env, mol, tblite, tblite_input)
+      call newTBLiteCalculator(env, mol, tblite, tblite_input)
 
-         call env%check(exitRun)
-         if (exitRun) then
-            call env%error("Could not construct new calculator", source)
-            return
-         end if
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
 
-         call move_alloc(tblite, calc)
-      case (p_ext_gfnff)
-         allocate (gfnff)
+      call move_alloc(tblite, calc)
+   case (p_ext_gfnff)
+      allocate (gfnff)
 
-         call newGFFCalculator(env, mol, gfnff, fname, restart)
+      call newGFFCalculator(env, mol, gfnff, fname, restart)
 
-         call env%check(exitRun)
-         if (exitRun) then
-            call env%error("Could not construct new calculator", source)
-            return
-         end if
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
 
-         call move_alloc(gfnff, calc)
-      case (p_ext_iff)
-         if (.not. present(iff_data)) then
-            call env%error("IFF calculator requires input", source)
-            return
-         end if
-         allocate (iff)
+      call move_alloc(gfnff, calc)
+   case (p_ext_iff)
+      if (.not. present(iff_data)) then
+         call env%error("IFF calculator requires input", source)
+         return
+      end if
+      allocate (iff)
 
-         if (.not. allocated(iff_data)) then
-            call env%error("IFF Data not present for Calculator", source)
-         end if
+      if (.not. allocated(iff_data)) then
+         call env%error("IFF Data not present for Calculator", source)
+      end if
 
-         call newIFFCalculator(env, mol, iff_data, iff)
+      call newIFFCalculator(env, mol, iff_data, iff)
 
-         call env%check(exitRun)
-         if (exitRun) then
-            call env%error("Could not construct new calculator", source)
-            return
-         end if
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
 
-         call move_alloc(iff, calc)
+      call move_alloc(iff, calc)
 
-      case (p_ext_ptb)
-         allocate (ptb)
+   case (p_ext_ptb)
+      allocate (ptb)
 
-         call newPTBCalculator(env, mol, ptb)
+      call newPTBCalculator(env, mol, ptb)
 
-         call env%check(exitRun)
-         if (exitRun) then
-            call env%error("Could not construct new calculator", source)
-            return
-         end if
+      call env%check(exitRun)
+      if (exitRun) then
+         call env%error("Could not construct new calculator", source)
+         return
+      end if
 
-         call move_alloc(ptb, calc)
+      call move_alloc(ptb, calc)
 
-      case (p_ext_orca)
-         allocate (orca)
-         call newOrcaCalculator(orca, env, set%ext_orca)
-         call move_alloc(orca, calc)
+   case (p_ext_orca)
+      allocate (orca)
+      call newOrcaCalculator(orca, env, set%ext_orca)
+      call move_alloc(orca, calc)
 
-      case (p_ext_mopac)
-         allocate (mopac)
-         call newMopacCalculator(mopac, env, set%ext_mopac)
-         call move_alloc(mopac, calc)
+   case (p_ext_mopac)
+      allocate (mopac)
+      call newMopacCalculator(mopac, env, set%ext_mopac)
+      call move_alloc(mopac, calc)
 
-      case (p_ext_turbomole)
-         allocate (turbo)
-         call newTMCalculator(turbo, set%extcode, set%extmode)
-         call move_alloc(turbo, calc)
+   case (p_ext_turbomole)
+      allocate (turbo)
+      call newTMCalculator(turbo, set%extcode, set%extmode)
+      call move_alloc(turbo, calc)
 
-      case (p_ext_driver)
-         allocate (driver)
-         call newDriverCalculator(driver, env, set%ext_driver)
-         call move_alloc(driver, calc)
-      end select
+   case (p_ext_driver)
+      allocate (driver)
+      call newDriverCalculator(driver, env, set%ext_driver)
+      call move_alloc(driver, calc)
+   end select
 
-   end subroutine newCalculator
+end subroutine newCalculator
 
-   subroutine addSolvationModel(env, calc, input)
-      type(TEnvironment), intent(inout) :: env
-      class(TCalculator), intent(inout) :: calc
-      type(TSolvInput), intent(in) :: input
-      integer :: level
+subroutine addSolvationModel(env, calc, input)
+   type(TEnvironment), intent(inout) :: env
+   class(TCalculator), intent(inout) :: calc
+   type(TSolvInput), intent(in) :: input
+   integer :: level
 
-      level = 0
-      select type (calc)
+   level = 0
+   select type (calc)
+   type is (TxTBCalculator)
+      level = calc%xtbData%level
+   type is (TOniomCalculator)
+      select type (xtb => calc%real_low)
       type is (TxTBCalculator)
-         level = calc%xtbData%level
-      type is (TOniomCalculator)
-         select type (xtb => calc%real_low)
-         type is (TxTBCalculator)
-            level = xtb%xtbData%level
-         end select
+         level = xtb%xtbData%level
       end select
+   end select
 
-      if (allocated(input%solvent)) then
-         calc%lSolv = input%solvent /= 'none' .and. input%solvent /= 'gas' &
-            & .and. input%solvent /= 'vac'
-      else
-         calc%lSolv = .false.
-      end if
+   if (allocated(input%solvent)) then
+      calc%lSolv = input%solvent /= 'none' .and. input%solvent /= 'gas' &
+         & .and. input%solvent /= 'vac'
+   else
+      calc%lSolv = .false.
+   end if
 
-      if (calc%lSolv) then
-         allocate (calc%solvation)
-         call init(calc%solvation, env, input, level)
-      end if
+   if (calc%lSolv) then
+      allocate (calc%solvation)
+      call init(calc%solvation, env, input, level)
+   end if
 
-   end subroutine addSolvationModel
+end subroutine addSolvationModel
 
 end module xtb_main_setup
