@@ -618,7 +618,6 @@ subroutine xtbMain(env, argParser)
   
 
    end select
-
    !-------------------------------------------------------------------------
    !> DIPRO calculation of coupling integrals for dimers
     if (dipro%diprocalc) then 
@@ -765,12 +764,10 @@ subroutine xtbMain(env, argParser)
    endif
 
 
-   ! ------------------------------------------------------------------------
-   !> Geometry optimization(ANCopt,L_ANCopt,FIRE,L-BFGS)   
-   ! ------------------------------------------------------------------------
-   if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
-      &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
-      &   (set%runtyp.eq.p_run_metaopt)) then
+!---------------------------------------------!
+! Geometry optimization(ANCopt,L_ANCopt,FIRE) !   
+!---------------------------------------------!
+   if (anyopt) then
  
      if(mol%npbc.gt.0.and.(set%mode_extrun.eq.p_ext_gfnff &
              & .or.set%mode_extrun.eq.p_ext_mcgfnff)) then  ! if(npbc)
@@ -780,23 +777,25 @@ subroutine xtbMain(env, argParser)
       if (set%opt_engine.eq.p_engine_rf) &
          call ancopt_header(env%unit,set%veryverbose)
          !! Print ANCopt header
-
+         
+      ! start optimization timer !
       call start_timing(3)
-         !! the system_clock and cpu_time calls for the optimization start
 
+      ! calculation !
       call geometry_optimization &
          &     (env, mol,chk,calc, &
          &      egap,set%etemp,set%maxscciter,set%optset%maxoptcycle,etot,g,sigma,set%optset%optlev,.true.,.false.,murks)
-         !! Optimization
 
-      !> write results
+      ! save results !
       res%e_total = etot
       res%gnorm = norm2(g)
+
+      ! constrained optimization !
       if (nscan.gt.0) then
          call relaxed_scan(env,mol,chk,calc)
       endif
       
-      !> if geo opt fails -> xtblast file
+      ! in case of failure cretae xtblast geometry !
       if (murks) then
          call generateFileName(tmpname, 'xtblast', extension, mol%ftype)
          write(env%unit,'(/,a,1x,a,/)') &
@@ -807,8 +806,9 @@ subroutine xtbMain(env, argParser)
          call env%terminate("Geometry optimization failed")
       end if
 
+      ! stop optimization timer !
       call stop_timing(3) 
-         !! the system_clock and cpu_time calls for the optimization end
+
   endif
 
 

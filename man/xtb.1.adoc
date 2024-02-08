@@ -268,7 +268,7 @@ GENERAL
      clutter the screen less (not supported in every unit)
 
 *--ceasefiles*::
-     reduce the amount of output and files written
+     reduce the amount of output and files written (e.g. xtbtopo.mol)
 
 *--strict*::
      turns all warnings into hard errors
@@ -344,6 +344,9 @@ OUTPUT
 
 *hessian*::
    contains the (not mass weighted) cartesian Hessian, *--namespace* compatible.
+
+*xtbtopo.mol*::
+   topology information written in molfile format.
 
 *xtbopt.xyz*, *xtbopt.coord*::
    optimized geometry in the same format as the input geometry.

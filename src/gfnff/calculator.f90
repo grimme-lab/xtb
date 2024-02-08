@@ -229,7 +229,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    end if
 
    ! to distinguish optimization, final sp and sp ! 
-   if ((set%runtyp.eq.p_run_opt).or.(set%runtyp.eq.p_run_ohess).or. &
+   if ((set%runtyp.eq.p_run_opt).or. &
       &   (set%runtyp.eq.p_run_omd).or.(set%runtyp.eq.p_run_screen).or. &
       &   (set%runtyp.eq.p_run_metaopt)) then
       optpr = printlevel < 2

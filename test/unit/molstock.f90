@@ -112,7 +112,7 @@ subroutine mindless02(mol)
       &  1.26806242248758_wp, -2.60409341782411_wp,  0.55162805282247_wp, &
       &  4.11956976339902_wp,  1.59892866766766_wp, -1.39117477789609_wp],&
       & shape(xyz))
-   integer, parameter :: uhf = 2
+   integer, parameter :: uhf = 1
    call init(mol, sym, xyz, uhf=uhf)
 end subroutine mindless02
 

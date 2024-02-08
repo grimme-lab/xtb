@@ -883,11 +883,13 @@ contains
          do j = 1, molA%n
             comb%xyz(1:3, j) = molA%xyz(1:3, j) !comb overwritten with A, as it is changed upon geo_opt
          end do
+
          counter = 0
          do j = molA%n + 1, molA%n + molB%n
             counter = counter + 1
             comb%xyz(1:3, j) = xyz_tmp(1:3, counter) !combined molA and shifted molB
          end do
+
          select type (calc)
          type is (TGFFCalculator)
             call restart_gff(env, comb, calc)
