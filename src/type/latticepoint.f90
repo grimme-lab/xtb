@@ -28,7 +28,7 @@ module xtb_type_latticepoint
    implicit none
    private
 
-   public :: TLatticePoint, init
+   public :: TLatticePoint, init_l
 
 
    !> Lattice point generator
@@ -66,6 +66,9 @@ module xtb_type_latticepoint
       !> Returns all lattice points within a given cutoff
       procedure :: getLatticePoints
 
+      !< Return all reciprocal lattice points within a given cutoff
+      procedure :: getRecLatPoints
+
       !> Generate lattice points
       procedure :: generate
 
@@ -73,10 +76,10 @@ module xtb_type_latticepoint
 
 
    !> Initializes lattice point generator
-   interface init
+   interface init_l
       module procedure :: initLatticePoint
       module procedure :: initLatticePointMolecule
-   end interface init
+   end interface init_l
 
 
 contains
@@ -100,7 +103,7 @@ subroutine initLatticePointMolecule(self, env, mol, cutoff, excludeInversion)
    !> Exclude inversion symmetry in the lattice points
    logical, intent(in), optional :: excludeInversion
 
-   call init(self, env, mol%lattice, mol%boundaryCondition, cutoff, &
+   call init_l(self, env, mol%lattice, mol%boundaryCondition, cutoff, &
       & excludeInversion)
 
 end subroutine initLatticePointMolecule
@@ -245,6 +248,59 @@ subroutine getLatticePoints(self, latticePoint, cutoff)
    end select
 
 end subroutine getLatticePoints
+
+!> Returns all reciprocal lattice points within a given cutoff
+subroutine getRecLatPoints(self, mol, latticePoint, cutoff)
+
+   !> Source of the generated error
+   character(len=*), parameter :: source = 'type_latticepoint_getLatticePoints'
+
+   !> Instance of the lattice point generator
+   class(TLatticePoint), intent(in) :: self
+   
+   !> Molecular structure information
+   type(TMolecule), intent(in) :: mol
+
+   !> Translation vectors for all lattice points
+   real(wp), allocatable, intent(out) :: latticePoint(:, :)
+
+   !> Cutoff for lattice points to be returned
+   real(wp), intent(in), optional :: cutoff
+
+   real(wp) :: cutoff2
+   integer :: iTr, nTrans, idx
+
+   if (self%nTrans == 0) then
+      return
+   end if
+
+   if (present(cutoff)) then
+      cutoff2 = min(cutoff**2, self%cutoff**2)
+   else
+      cutoff2 = self%cutoff**2
+   end if
+
+   select case(self%boundaryCondition)
+   case(boundaryCondition%cluster)
+      allocate(latticePoint(3, 1))
+      latticePoint(:, :) = 0.0_wp
+
+   case(boundaryCondition%pbc3d)
+      call bisectSearch(nTrans, self%dist2(1:self%nTrans), cutoff2, tolSameDist2)
+      allocate(latticePoint(3, nTrans-1))
+      idx = 0
+      do iTr = 1, nTrans
+         if (self%trans(1,iTr).eq.0 .AND. self%trans(2,iTr).eq.0 &
+            & .AND. self%trans(3,iTr).eq.0) cycle
+            idx = idx + 1
+            latticePoint(:, idx) = mol%rec_lat(:, 1) * self%trans(1, iTr) &
+               &              + mol%rec_lat(:, 2) * self%trans(2, iTr) &
+               &              + mol%rec_lat(:, 3) * self%trans(3, iTr)
+      end do
+
+   end select
+   
+end subroutine getRecLatPoints
 
 
 !> Generate lattice points

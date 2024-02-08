@@ -15,17 +15,18 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-      subroutine gfnffdrab(n,at,xyz,cn,dcn,nsrb,srblist,rab,grab)
+      subroutine gfnffdrab(n,at,cn,dcn,nsrb,srblist,rab,grab,rabdcn)
+      use xtb_mctc_accuracy, only : wp
       implicit none
       integer n                 ! number of atoms
       integer at(n)             ! ordinal numbers
-      real*8  xyz(3,n)          ! Cartesian coords in Bohr
       real*8  cn(n)             ! D3 CN
       real*8  dcn(3,n,n)        ! D3 CN derivatives
       integer nsrb              ! # of pairs
-      integer srblist(2,nsrb)   ! list of atom pairs
+      integer srblist(3,nsrb)   ! list of atom pairs
       real*8 rab(nsrb)          ! output bond lengths estimates, input the predetermined bond shifts
       real*8 grab(3,n,nsrb)     ! output bond lengths gradients
+      real*8 rabdcn(2,nsrb)       ! output bond lengths derivative w.r.t. cn
 
 !     local variables
       integer m,i,j,k,ii,jj,ati,atj,ir,jr
@@ -36,7 +37,8 @@
       end interface
 
       real*8 cnfak(86),r0(86),en(86)
-      real*8 ra,rb,k1,k2,den,ff,p(6,2)
+      real*8 ra,rb,k1,k2,den,ff
+      real(wp) :: p(6,2)
 
 c     fitted on PBExa-3c geom set by SG, 9/2018
 c     H B C N O F SI P S CL GE AS SE BR SN SB TE I together (and for glob par)
@@ -125,8 +127,8 @@ c     global EN polynominal parameters x 10^3
 
 
       do k=1,nsrb
-         i=srblist(1,k)
-         j=srblist(2,k)
+         j = srblist(1,k)
+         i = srblist(2,k)
          ati=at(i)
          atj=at(j)
          ir=itabrow6(ati)
@@ -139,6 +141,8 @@ c--------
          k2=0.005d0*(p(ir,2)+p(jr,2))
          ff=1.0d0-k1*den-k2*den**2
          rab(k) =(ra+rb+rab(k))*ff
+         rabdcn(1,k)=cnfak(ati)*ff
+         rabdcn(2,k)=cnfak(atj)*ff
          do m=1,n
             grab(1:3,m,k)=ff*(cnfak(ati)*dcn(1:3,m,i)
      .                       +cnfak(atj)*dcn(1:3,m,j))
@@ -261,7 +265,7 @@ c--------
       p(6,2)=    -1.30000000
 
       do i=1,n
-         do j=1,i-1
+         do j=1,i
          k=lin(j,i)
          ati=at(i)
          atj=at(j)

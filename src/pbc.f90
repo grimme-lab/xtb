@@ -24,6 +24,20 @@ module xtb_pbc
 
 contains
 
+! crossproduct as a function
+pure function cross_product(a,b) result(c)
+   implicit none
+
+   real(wp),intent(in)  :: a(3),b(3)
+   real(wp) :: c(3)
+   real(wp) :: x,y,z
+
+   x=a(2)*b(3)-b(2)*a(3)
+   y=a(3)*b(1)-b(3)*a(1)
+   z=a(1)*b(2)-b(1)*a(2)
+   c=(/x,y,z/)
+end function cross_product
+
 !! ------------------------------------------------------------------------
 !  generate a supercell based on a realspace cutoff, this subroutine
 !  doesn't know anything about the convergence behaviour of the

@@ -247,14 +247,17 @@ contains
     write (ijson, '(3x,f15.8,"],")') freqres%rmass(freqres%n3true)
   end subroutine write_json_reduced_masses
 
-  subroutine write_json_gfnff_lists(n, etot, gnorm, topo, nlist, printTopo)
+  subroutine write_json_gfnff_lists(n, etot, gnorm, topo, neigh, nlist, printTopo)
     use xtb_gfnff_topology, only: TGFFTopology
     use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
     use xtb_gfnff_topology, only: TPrintTopo
     use xtb_mctc_accuracy, only : wp
+    use xtb_gfnff_neighbor
     include 'xtb_version.fh'
     !> gfnff topology lists
     type(TGFFTopology), intent(in) :: topo
+    !> gfnff neighbourlist
+    type(TNeigh) :: neigh
     !> gfnff neighbourlist
     type(TGFFNeighbourList), intent(in) :: nlist
     !> topology printout booleans
@@ -262,7 +265,7 @@ contains
     !> total energy and gradient norm
     real(wp), intent(in) :: etot, gnorm
     character(len=:), allocatable :: cmdline
-    integer :: iunit, j, n, l
+    integer :: iunit, i, j, n, l
 
     call open_file(iunit, 'gfnff_lists.json', 'w')
     ! header
@@ -274,20 +277,68 @@ contains
     if (printTopo%gnorm) then ! gradient norm is scalar
       write (iunit, '(3x,''"gradient norm":'',f25.15,",")') gnorm
     end if
-    if (printTopo%nb) then ! nb(20,n)
-      write (iunit, '(3x,''"nb":'',"[")')
-      do j = 1, n - 1
-        write (iunit, '(3x,"[",*(i7,:,","))', advance='no') topo%nb(:, j)
-        write (iunit, '("],")')
-      end do
-      write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') topo%nb(:, n)
-      write (iunit, '("]")')
-      write (iunit, '(3x,"],")')
+    if (printTopo%nb) then ! nb(numnb, n, numctr)
+      write (iunit, '(3x,''"nb":'',"[")') ! open nb
+      if (neigh%numctr.eq.1) then
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, 1) ! open nb entry
+          write (iunit, '("],")') ! close nb entry
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
+        write (iunit, '("]")')
+      else ! periodic boundary conditions
+        do i=1, neigh%numctr-1 ! iterate over all cells
+          write (iunit, '(3x,"[")') ! open cell
+          do j = 1, n - 1
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, i)
+            write (iunit, '("],")')
+          end do
+          write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, i)
+          write (iunit, '("]")')
+          write (iunit, '(3x,"],")') ! close cell
+        enddo
+        write (iunit, '(3x,"[")') ! open last cell
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, neigh%numctr)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, neigh%numctr)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"]")') ! close last cell
+      endif
+      write (iunit, '(3x,"],")') ! close nb
     end if
-    if (printTopo%bpair) then ! bpair(n*(n+1)/2) packed symmetric matrix
-      write (iunit, '(3x,''"bpair":'',"[")')
-      write (iunit, '(3x,*(i7,:,","))', advance='no') topo%bpair
-      write (iunit, '(3x,"],")')
+    ! bpair(j,i,iTr) number bonds between i and j when j is translated by iTr
+    if (printTopo%bpair) then 
+      write (iunit, '(3x,''"bpair":'',"[")') ! open bpair
+      if (neigh%numctr .eq. 1) then
+        do i = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, i, 1) ! open entry
+          write (iunit, '("],")') ! close entry
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, 1)
+        write (iunit, '("]")')
+      else ! periodic boundary conditions
+        do i=1, neigh%numctr-1 ! iterate over all cells
+          write (iunit, '(3x,"[")') ! open cell
+          do j = 1, n - 1
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, i)
+            write (iunit, '("],")')
+          end do
+          write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, i)
+          write (iunit, '("]")')
+          write (iunit, '(3x,"],")') ! close cell
+        enddo
+        write (iunit, '(3x,"[")') ! open last cell
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, neigh%numctr)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, neigh%numctr)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"]")') ! close last cell
+      endif
+      write (iunit, '(3x,"],")') ! close bpair
     end if
     if (printTopo%alist) then ! alist(3,nangl)
       write (iunit, '(3x,''"alist":'',"[")')
@@ -301,11 +352,11 @@ contains
     end if
     if (printTopo%blist) then ! blist(2,nbond)
       write (iunit, '(3x,''"blist":'',"[")')
-      do j = 1, topo%nbond - 1
+      do j = 1, neigh%nbond - 1
         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%blist(:, j)
         write (iunit, '("],")')
       end do
-      write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, topo%nbond)
+      write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, neigh%nbond)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
     end if
@@ -331,11 +382,11 @@ contains
     end if
     if (printTopo%vbond) then ! vbond(3,nbond)
       write (iunit, '(3x,''"vbond":'',"[")')
-      do j = 1, topo%nbond - 1
+      do j = 1, neigh%nbond - 1
         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vbond(:, j)
         write (iunit, '("],")')
       end do
-      write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, topo%nbond)
+      write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, neigh%nbond)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
     end if

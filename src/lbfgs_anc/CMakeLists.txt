@@ -18,25 +18,12 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/calculator.f90"
-  "${dir}/data.f90"
-  "${dir}/frag_hess.f90"
-  "${dir}/gdisp0.f90"
-  "${dir}/generator.f90"
-  "${dir}/gfnff_eg.f90"
-  "${dir}/gfnff_ini.f90"
-  "${dir}/gfnff_ini2.f90"
-  "${dir}/gfnff_param.f90"
-  "${dir}/gfnff_qm.f90"
-  "${dir}/gfnff_rab.f"
-  "${dir}/gfnff_setup.f90"
-  "${dir}/math.f"
-  "${dir}/mrec.f90"
-  "${dir}/neighbourlist.f90"
-  "${dir}/shake_module.f90"
-  "${dir}/struc_converter.f90"
-  "${dir}/neighbor.f90"
-  "${dir}/topology.f90"
+  "${dir}/driver.f90"
+  "${dir}/filter_cart.f90"
+  "${dir}/filter.f90"
+  "${dir}/filter_type.f90"
+  "${dir}/lbfgs.f90"
+  "${dir}/optimizer.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
