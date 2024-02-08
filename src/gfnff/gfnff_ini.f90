@@ -182,7 +182,11 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
 
       ! get translation vectors within maximum cutoff (at least central 27)
       ! routine for generating the lattice vectors                 
-      call neigh%getTransVec(mol,60.0_wp)  ! needed for neigh%init_n -> filliTrSum
+      call neigh%getTransVec(env,mol,60.0_wp)  ! needed for neigh%init_n -> filliTrSum
+      call env%check(exitRun)
+      if (exitRun) then
+         return
+      end if
       !  initialize neighbor type
       call neigh%init_n(mol, env)
 
@@ -200,7 +204,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       rab   = 0
       sqrab = 0
       !Get all distances
-      call neigh%getTransVec(mol,sqrt(hbthr2))
+      call neigh%getTransVec(env,mol,sqrt(hbthr2))
       if (.not. allocated(neigh%distances)) then
         call getDistances(neigh%distances, mol, neigh)
       endif
@@ -957,7 +961,7 @@ endif
          enddo
         enddo 
       enddo
-      call neigh%getTransVec(mol,sqrt(hbthr2))
+      call neigh%getTransVec(env,mol,sqrt(hbthr2))
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! do Hueckel

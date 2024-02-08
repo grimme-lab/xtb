@@ -7,8 +7,9 @@ module xtb_gfnff_neighbor
   use xtb_mctc_sort
 
   implicit none
+  private
   
-  public :: TNeigh
+  public :: TNeigh, getDistances
 
   !> Neighbor lists
   type :: TNeigh
@@ -81,20 +82,16 @@ contains
     subroutine init_n(self, mol, env)
       class(TNeigh), intent(inout) :: self
       type(TMolecule), intent(in) :: mol
-      type(TEnvironment), intent(in) :: env
+      type(TEnvironment), intent(inout) :: env
       integer :: iTrDim
+      character(len=*), parameter :: source = 'neighbor'
       !
       if(mol%npbc.eq.3) then
         self%numctr = 27
       elseif(mol%npbc.eq.0) then
         self%numctr = 1
       else
-        write(env%unit, &
-        &   '(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
-        write(env%unit, &
-        &   '(''  warning: The given type of periodicity can probably not be handled. '')')    
-        write(env%unit, &
-        &   '(''!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'')')
+        call env%warning("Periodic boundary conditions are only tested for 3 dimensional systems.", source)
       endif
 
       iTrDim=min(size(self%trVecInt,dim=2),729)
@@ -131,9 +128,10 @@ contains
     ! get all linear comb coeff within 60 bohr (maxCutOff)-> neigh%trVecInt
     ! get vector with indices of the nTrans translation vectors -> neigh%idTr
     ! in periodic case at least central 27 transVec to avoid artifacts for cells > 60 bohr
-    subroutine getTransVec(self,mol,cutoff)
+    subroutine getTransVec(self,env,mol,cutoff)
       !> Instance of the lattice point generator                                    
       class(TNeigh), intent(inout) :: self     
+      type(TEnvironment), intent(inout) :: env
       !> Molecular structure data         
       type(TMolecule), intent(in) :: mol
       !> cutoff
@@ -144,6 +142,7 @@ contains
       real(wp), allocatable :: sVec(:) ! shortest lattice vector
       real(wp), allocatable :: vec(:), trVecTmp(:,:)
       real(wp) :: sh
+      character(len=*), parameter :: source = 'neighbor'
       ! check if last calculation was with same cutoff
       if(self%oldCutOff.eq.cutoff) then
         return
@@ -174,7 +173,8 @@ contains
           endif
         enddo
         if(NORM2(sVec).eq.0.0_wp) then
-          write(*,*) 'Error: A lattice vector for a periodic axis is zero.'
+          call env%error('A lattice vector for a periodic axis is zero.', source)
+          return
         endif
         ! see how often sVec fits in cutoff -> gives number of needed shells
         ! e.g. in 3D  nShell=1 -> 3x3x3    nShell=4 -> 9x9x9
@@ -257,7 +257,8 @@ contains
             enddo
 
           else
-            write(*,*) 'Error: Dimension of PBCs could not be processed.'
+            call env%error('Dimension of PBCs could not be processed.', source)
+            return
           endif
 
         endif !#ifnotallocatedtrvecint
@@ -302,7 +303,8 @@ contains
             trVecTmp(:,indx)=vec
           enddo
           if(id.gt.24389) then
-            write(*,*) 'Warning: Implementation is not adjusted for such small cells.'
+            call env%error('Implementation is not adjusted for such small cells.', source)
+            return
           endif
           if(allocated(self%transVec)) deallocate(self%transVec)
           if(allocated(self%idTr)) deallocate(self%idTr)
@@ -353,7 +355,8 @@ contains
           allocate(self%transVec(1,indx))
           self%transVec=trVecTmp(:,1:indx)
         else
-          write(*,*) 'Warning: Given lattice could not be processed.'
+          call env%error('Given lattice could not be processed.', source)
+          return
         endif
 
       endif !#ifmolnpbc

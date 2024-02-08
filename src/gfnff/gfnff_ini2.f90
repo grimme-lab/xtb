@@ -20,6 +20,7 @@ module xtb_gfnff_ini2
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_type_environment, only : TEnvironment
    use xtb_gfnff_neighbor
+   use xtb_type_molecule, only : TMolecule
    implicit none
    private
    public :: gfnff_neigh, getnb, nbondmat, nbondmat_pbc
@@ -755,7 +756,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
-use xtb_mctc_accuracy, only : wp
+      use xtb_mctc_accuracy, only : wp
       use xtb_gfnff_param
       implicit none
       type(TGFFTopology), intent(in) :: topo

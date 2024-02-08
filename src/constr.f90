@@ -601,8 +601,6 @@ Subroutine dphidrPBC(mode,nat,xyz,i,j,k,l,vTrR,vTrB,vTrC,phi,&
       rapb(ic)=ra(ic)+rb(ic)
       rbpc(ic)=rb(ic)+rc(ic)
    end do
-   else
-     write(*,*) 'Error: Routine "dphidrPBC" called with undefined mode!'
    endif
    call crossprod(ra,rb,na)
    call crossprod(rb,rc,nb)

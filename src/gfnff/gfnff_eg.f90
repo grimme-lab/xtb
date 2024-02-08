@@ -33,6 +33,8 @@ module xtb_gfnff_eg
    use xtb_type_neighbourlist, only : TNeighbourList
    use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_gfnff_neighbor
+   use xtb_mctc_accuracy, only : wp
+   use xtb_type_molecule, only : TMolecule
    implicit none
    private
    public :: gfnff_eg, gfnff_dlogcoord, cnType, getCoordinationNumber
@@ -218,10 +220,10 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    vec=mol%lattice(:,1)+mol%lattice(:,2)
    ! get translation vectors within maximum cutoff, but at least central 27 cells (for 3D)
    neigh%oldCutOff=0.0_wp
-   call neigh%getTransVec(mol,60.0_wp)
+   call neigh%getTransVec(env,mol,60.0_wp)
 
    ! get Distances between atoms for repulsion
-   call neigh%getTransVec(mol,sqrt(repthr))
+   call neigh%getTransVec(env,mol,sqrt(repthr))
    if(allocated(neigh%distances)) deallocate(neigh%distances)
    call getDistances(neigh%distances, mol, neigh)
 
@@ -728,7 +730,7 @@ endif
    !-----!
 
    ! get correct num of transVec for hb lists (e.g. hblist1/2)
-   call neigh%getTransVec(mol,sqrt(hbthr2))
+   call neigh%getTransVec(env,mol,sqrt(hbthr2))
    if (pr) call timer%measure(10,'HB/XB (incl list setup)')
    if (update.or.require_update) then
      if(allocated(neigh%distances)) deallocate(neigh%distances)
