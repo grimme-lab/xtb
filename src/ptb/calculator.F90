@@ -158,8 +158,10 @@ contains
 
       !> set up the basis set for the PTB-Hamiltonian
       call add_vDZP_basis(mol, calc%bas)
+
       !> Add the core basis set to 'cbas' basis set type
       call add_core_basis(mol, calc%ptbData%corepotential, calc%cbas)
+      
       !> set up the EEQ model
       call new_mchrg_model(calc%eeqmodel, chi=calc%ptbData%eeq%chi, &
       & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)

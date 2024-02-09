@@ -235,18 +235,14 @@ subroutine xtbMain(env, argParser)
    end if
 
    !> If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
-   if (set%mode_extrun .eq. p_ext_ptb .and. (set%runtyp .eq. p_run_hess .or. set%runtyp .eq. p_run_ohess .or. set%runtyp .eq. p_run_bhess)) then
+   anyhess = (set%runtyp .eq. p_run_hess) .or. (set%runtyp .eq. p_run_ohess) .or. (set%runtyp .eq. p_run_bhess)
+   if (set%mode_extrun .eq. p_ext_ptb .and. anyhess) then
       set%mode_extrun = p_ext_xtb
       set%ptbsetup%ptb_in_hessian = .true.
-      ! if (set%gfn_method == 2) set%ptbsetup%hessmethod = "gfn2"
-      ! if (set%gfn_method == 1) set%ptbsetup%hessmethod = "gfn1"
-      ! if (set%gfn_method == 0) set%ptbsetup%hessmethod = "gfn0"
-      ! if (set%gfn_method == -1) then 
       call set_gfn(env, 'method', '2')
       call set_gfn(env, 'd4', 'true')
       tblite%method = "gfn2"
       set%ptbsetup%hessmethod = "GFN2-xTB"
-      ! end if
    end if
 
    nFiles = argParser%countFiles()
@@ -319,6 +315,8 @@ subroutine xtbMain(env, argParser)
       end if
    end if
 
+   call env%checkpoint("Reading multiplicity from file failed")
+   
    !> efield read: gfnff and PTB only
    if (set%mode_extrun .eq. p_ext_gfnff .or. set%mode_extrun .eq. p_ext_ptb) then
       call open_file(ich, '.EFIELD', 'r')
@@ -332,15 +330,14 @@ subroutine xtbMain(env, argParser)
          end if
       end if
    end if
+
    !> If EFIELD is not zero when using xtb, print a warning
    if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff)) &
       & .and. (sum(abs(set%efield)) /= 0.0_wp) ) then
       call env%terminate("External electric field is not zero ('--efield' or file '.EFIELD'), &
          & but only supported for GFN-FF and PTB")
-   else
    end if
 
-   call env%checkpoint("Reading multiplicity from file failed")
 
    ! ------------------------------------------------------------------------
    !> read the xtbrc if you can find it (use rdpath directly instead of xfind)
@@ -565,7 +562,6 @@ subroutine xtbMain(env, argParser)
          if (set%gfn_method .eq. 2) then
             fnv = xfind(p_fname_param_gfn2)
          end if
-         ! if (set%mode_extrun .eq. p_ext_ptb) fnv = xfind(p_fname_param_ptb)
       end select
    end if
    if (set%mode_extrun .eq. p_ext_ptb) then
@@ -1535,6 +1531,10 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
 
       case ('--ptb')
          call set_exttyp('ptb')
+         if (.not.get_xtb_feature('tblite')) then
+            call ptb_feature_not_implemented(env)
+            return
+         end if
 
       case ('--tblite')
          if (get_xtb_feature('tblite')) then
@@ -2010,14 +2010,13 @@ subroutine selectList(secSplit, printTopo)
    end select
 end subroutine selectList
 
-#if ! WITH_TBLITE
-   subroutine ptb_feature_not_implemented(env)
-      !> Computational environment
-      type(TEnvironment), intent(inout) :: env
+subroutine ptb_feature_not_implemented(env)
+   !> Computational environment
+   type(TEnvironment), intent(inout) :: env
 
-      call env%error("PTB not available without 'tblite'. Compiled without support for 'tblite' library.")
-      call env%error("Please recompile without '-Dtblite=disabled' option or change meson setup.")
-   end subroutine ptb_feature_not_implemented
-#endif
+   call env%error("PTB not available without 'tblite'. Compiled without support for 'tblite' library.")
+   call env%error("Please recompile without '-Dtblite=disabled' option or change meson setup.")
+end subroutine ptb_feature_not_implemented
+
 
 end module xtb_prog_main
