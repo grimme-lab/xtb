@@ -183,10 +183,12 @@ subroutine xtbMain(env, argParser)
    logical, parameter    :: gen_param = .false.
    logical, parameter    :: debug = .false.
    type(TRestart) :: wf0
-   real(wp), allocatable  :: coord(:, :), numg(:, :), gdum(:, :)
-   real(wp) :: sdum(3, 3)
-   real(wp), parameter    :: step = 0.00001_wp, step2 = 0.5_wp/step
-   real(wp) :: er, el
+   real(wp),allocatable  :: coord(:,:),numg(:,:),gdum(:,:)
+   real(wp) :: sdum(3,3),nums(3,3),eps(3,3),latt(3,3)
+
+   real(wp),parameter    :: step = 0.00001_wp, step2 = 0.5_wp/step ! for numerical gradient
+   real(wp),parameter   :: sstep = 1.0_wp*10.0_wp**(-6), sstep2 = 0.5_wp/sstep ! for numerical sigma
+   real(wp) :: er,el
    logical  :: coffee ! if debugging gets really though, get a coffee
 
 !! ------------------------------------------------------------------------
@@ -728,14 +730,97 @@ subroutine xtbMain(env, argParser)
       print'(/,"numerical gradient")'
       print *, numg
       print'(/,"difference gradient")'
-      print *, g - numg
-   end if
+      print*,g-numg
+      deallocate(coord)
+   endif
+
+   !> numerical sigma (=volume*stressTensor) for debugging purposes
+   if (debug.and.mol%npbc.eq.3) then
+      !  generate a warning to keep release versions from calculating numerical gradients
+      call env%warning('XTB IS CALCULATING NUMERICAL STRESS, RESET DEBUG FOR RELEASE!')
+      print'(/,"analytical sigma")'
+      print *, sigma
+      if(.not.allocated(gdum)) allocate(gdum(3,mol%n), source = 0.0_wp )
+      allocate( coord(3,mol%n), source = mol%xyz )
+      latt=mol%lattice
+      nums = 0.0_wp
+      !sdum = 0.0_wp
+      wf0 = chk
+      do j = 1, 3
+        do i = 1, j
+          ! Only eps_ij=step the rest equals zero: eps_(kl.ne.ij)=0
+            eps=0.0_wp
+            eps(i,j)=sstep
+            ! adjust position vectors and lattice to get er
+            do k=1,3
+              mol%xyz(k,:)  =   kron(k,1)*mol%xyz(1,:) + eps(k,1)*mol%xyz(1,:) + &
+                            &   kron(k,2)*mol%xyz(2,:) + eps(k,2)*mol%xyz(2,:) + &
+                            &   kron(k,3)*mol%xyz(3,:) + eps(k,3)*mol%xyz(3,:) 
+              mol%lattice(k,1) = (kron(k,1) + eps(k,1))*mol%lattice(1,1) + &
+                               & (kron(k,2) + eps(k,2))*mol%lattice(2,1) + &
+                               & (kron(k,3) + eps(k,3))*mol%lattice(3,1)
+              mol%lattice(k,2) = (kron(k,1) + eps(k,1))*mol%lattice(1,2) + &
+                               & (kron(k,2) + eps(k,2))*mol%lattice(2,2) + &
+                               & (kron(k,3) + eps(k,3))*mol%lattice(3,2)
+              mol%lattice(k,3) = (kron(k,1) + eps(k,1))*mol%lattice(1,3) + &
+                               & (kron(k,2) + eps(k,2))*mol%lattice(2,3) + &
+                               & (kron(k,3) + eps(k,3))*mol%lattice(3,3)
+            enddo
+            chk = wf0
+            call calc%singlepoint(env,mol,chk,0,.true.,er,gdum,sdum,egap,res)
+
+            ! reset coordinates and lattice
+            mol%xyz=coord
+            mol%lattice=latt
+            ! adjust position vectors and lattice to get el
+            do k=1,3
+              mol%xyz(k,:)  =  kron(k,1)*mol%xyz(1,:) - eps(k,1)*mol%xyz(1,:) + &
+                            &  kron(k,2)*mol%xyz(2,:) - eps(k,2)*mol%xyz(2,:) + &
+                            &  kron(k,3)*mol%xyz(3,:) - eps(k,3)*mol%xyz(3,:) 
+              mol%lattice(k,1) = (kron(k,1) - eps(k,1))*mol%lattice(1,1) + &
+                               & (kron(k,2) - eps(k,2))*mol%lattice(2,1) + &
+                               & (kron(k,3) - eps(k,3))*mol%lattice(3,1)
+              mol%lattice(k,2) = (kron(k,1) - eps(k,1))*mol%lattice(1,2) + &
+                               & (kron(k,2) - eps(k,2))*mol%lattice(2,2) + &
+                               & (kron(k,3) - eps(k,3))*mol%lattice(3,2)
+              mol%lattice(k,3) = (kron(k,1) - eps(k,1))*mol%lattice(1,3) + &
+                               & (kron(k,2) - eps(k,2))*mol%lattice(2,3) + &
+                               & (kron(k,3) - eps(k,3))*mol%lattice(3,3)
+            enddo
+            chk = wf0
+            call calc%singlepoint(env,mol,chk,0,.true.,el,gdum,sdum,egap,res)
+
+            ! numerical sigma (=volume*stressTensor)
+            nums(i,j) = sstep2 * (er - el)  ! divide by 2 times step size
+            nums(j,i) = nums(i,j)  ! stress tensor is symmetric
+            ! reset coordinates and lattice
+            mol%xyz=coord
+            mol%lattice=latt
+         enddo
+      enddo
+
+      print'(/,"numerical sigma")'
+      print *, nums
+      print'(/,"difference sigma")'
+      print*,sigma-nums
+      deallocate(coord)
+   endif
+
 
 !---------------------------------------------!
 ! Geometry optimization(ANCopt,L_ANCopt,FIRE) !   
 !---------------------------------------------!
    if (anyopt) then
  
+     if(mol%npbc.gt.0.and.(set%mode_extrun.eq.p_ext_gfnff &
+             & .or.set%mode_extrun.eq.p_ext_mcgfnff)) then  ! if(npbc)
+       deallocate(set%opt_engine)
+       call set_opt(env,'engine','pbc_lbfgs')  ! use lbfgs
+     endif
+      if (set%opt_engine.eq.p_engine_rf) &
+         call ancopt_header(env%unit,set%veryverbose)
+         !! Print ANCopt header
+         
       ! start optimization timer !
       call start_timing(3)
 
@@ -971,7 +1056,7 @@ subroutine xtbMain(env, argParser)
    if (printTopo%any()) then
       select type (calc)
       type is (TGFFCalculator)
-         call write_json_gfnff_lists(mol%n, res%e_total, res%gnorm, calc%topo, chk%nlist, printTopo)
+         call write_json_gfnff_lists(mol%n, res%e_total, res%gnorm, calc%topo,calc%neigh, chk%nlist, printTopo)
       end select
    end if
    if ((set%runtyp .eq. p_run_opt) .or. (set%runtyp .eq. p_run_ohess) .or. &
@@ -1442,7 +1527,10 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
       case ('--gff')
          call set_exttyp('ff')
 
-      case ('--iff')
+      case('--mcgfnff')
+         call set_exttyp('mcff')
+
+      case('--iff')
          call set_exttyp('iff')
 
       case ('--ptb')
@@ -1822,6 +1910,15 @@ subroutine parseArguments(env, args, inputFile, paramFile, lgrad, &
 
 end subroutine parseArguments
 
+!> kronecker delta
+function kron(i,j) result(res_kronij)  
+  integer, intent(in) :: i,j
+  real(wp) :: res_kronij
+
+  res_kronij = 0.0_wp
+  if(i.eq.j) res_kronij=1.0_wp
+
+end function kron
 function read_whole_file(fname) result(list)
    character(len=*), intent(in) :: fname
    character(len=:), allocatable :: list

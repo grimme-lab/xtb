@@ -558,6 +558,96 @@ Subroutine dphidr(nat,xyz,i,j,k,l,phi,&
 
 End subroutine
 
+
+Subroutine dphidrPBC(mode,nat,xyz,i,j,k,l,vTrR,vTrB,vTrC,phi,&
+      &                  dphidri,dphidrj,dphidrk,dphidrl)
+   use xtb_mctc_accuracy, only : wp
+   !     the torsion derivatives
+
+   implicit none
+
+   external vecnorm
+
+   integer  mode,ic,i,j,k,l,nat
+
+   real(wp)&
+      &         vTrR(3), vTrB(3), vTrC(3), & 
+      &         sinphi,cosphi,onenner,thab,thbc,&
+      &         ra(3),rb(3),rc(3),rab(3),rac(3),rbc(3),rbb(3),&
+      &         raa(3),rba(3),rapba(3),rapbb(3),rbpca(3),rbpcb(3),&
+      &         rapb(3),rbpc(3),na(3),nb(3),nan,nbn,&
+      &         dphidri(3),dphidrj(3),dphidrk(3),dphidrl(3),&
+      &         xyz(3,nat),phi,vecnorm,nenner,eps,vz
+
+   parameter (eps=1.d-14)
+
+   cosphi=cos(phi)
+   sinphi=sin(phi)
+   if(mode.eq.1)then
+   do ic=1,3
+      ra(ic)=xyz(ic,j)+vTrB(ic)-xyz(ic,i)-vTrR(ic)
+      rb(ic)=xyz(ic,k)+vTrC(ic)-xyz(ic,j)-vTrB(ic)
+      rc(ic)=xyz(ic,l)-xyz(ic,k)-vTrC(ic)
+
+      rapb(ic)=ra(ic)+rb(ic)
+      rbpc(ic)=rb(ic)+rc(ic)
+   end do
+   elseif(mode.eq.2) then
+   do ic=1,3
+     ra(ic) = -(xyz(ic,i)+vTrC(ic))+xyz(ic,j)
+     rb(ic) = -xyz(ic,j)+(xyz(ic,k)+vTrR(ic))
+     rc(ic) = -(xyz(ic,k)+vTrR(ic))+(xyz(ic,l)+vTrB(ic))
+
+      rapb(ic)=ra(ic)+rb(ic)
+      rbpc(ic)=rb(ic)+rc(ic)
+   end do
+   endif
+   call crossprod(ra,rb,na)
+   call crossprod(rb,rc,nb)
+   nan=vecnorm(na,3,0)
+   nbn=vecnorm(nb,3,0)
+
+   nenner=nan*nbn*sinphi
+   if (abs(nenner).lt.eps) then
+      dphidri=0
+      dphidrj=0
+      dphidrk=0
+      dphidrl=0
+      onenner=1.0d0/(nan*nbn)
+   else
+      onenner=1.d0/nenner
+   endif
+
+   call crossprod(na,rb,rab)
+   call crossprod(nb,ra,rba)
+   call crossprod(na,rc,rac)
+   call crossprod(nb,rb,rbb)
+   call crossprod(nb,rc,rbc)
+   call crossprod(na,ra,raa)
+
+   call crossprod(rapb,na,rapba)
+   call crossprod(rapb,nb,rapbb)
+   call crossprod(rbpc,na,rbpca)
+   call crossprod(rbpc,nb,rbpcb)
+
+   ! ... dphidri
+   do ic=1,3
+      dphidri(ic)=onenner*(cosphi*nbn/nan*rab(ic)-rbb(ic))
+
+      ! ... dphidrj
+      dphidrj(ic)=onenner*(cosphi*(nbn/nan*rapba(ic)&
+         &                                +nan/nbn*rbc(ic))&
+         &                        -(rac(ic)+rapbb(ic)))
+      ! ... dphidrk
+      dphidrk(ic)=onenner*(cosphi*(nbn/nan*raa(ic)&
+         &                             +nan/nbn*rbpcb(ic))&
+         &                        -(rba(ic)+rbpca(ic)))
+      ! ... dphidrl
+      dphidrl(ic)=onenner*(cosphi*nan/nbn*rbb(ic)-rab(ic))
+   end do
+
+End subroutine
+
 !  .....................................................................
 
 Subroutine domegadr&
@@ -591,6 +681,83 @@ Subroutine domegadr&
       rv(ic)=xyz(ic,l)-xyz(ic,i)
       rd(ic)=xyz(ic,k)-xyz(ic,j)
       re(ic)=xyz(ic,i)-xyz(ic,j)
+
+      rdme(ic)=rd(ic)-re(ic)
+   end do
+
+   call crossprod(re,rd,rn)
+   rvn=vecnorm(rv,3,0)
+   rnn=vecnorm(rn,3,0)
+
+   call crossprod(rv,re,rve)
+   call crossprod(rn,re,rne)
+   call crossprod(rd,rv,rdv)
+   call crossprod(rd,rn,rdn)
+   call crossprod(rv,rdme,rvdme)
+   call crossprod(rn,rdme,rndme)
+
+   nenner=rnn*rvn*cos(omega)
+   if (abs(nenner).gt.eps) then
+      onenner=1.d0/nenner
+      do ic=1,3
+         ! ... domega/dri
+         domegadri(ic)=onenner*(rdv(ic)-rn(ic)-&
+            &                       sinomega*(rvn/rnn*rdn(ic)-rnn/rvn*rv(ic)))
+
+         ! ... domega/drj
+         domegadrj(ic)=onenner*(rvdme(ic)-sinomega*rvn/rnn*rndme(ic))
+
+         ! ... domega/drk
+         domegadrk(ic)=onenner*(rve(ic)-sinomega*rvn/rnn*rne(ic))
+
+         ! ... domega/drl
+         domegadrl(ic)=onenner*(rn(ic)-sinomega*rnn/rvn*rv(ic))
+      end do
+   else
+      do ic=1,3
+         domegadri(ic)=0.d0
+         domegadrj(ic)=0.d0
+         domegadrk(ic)=0.d0
+         domegadrl(ic)=0.d0
+      end do
+   end if
+
+End subroutine
+
+!  .....................................................................
+
+Subroutine domegadrPBC&
+      &           (nat,xyz,&
+      &            i,j,k,l,vTr1,vTr2,vTr3,omega,&
+      &            domegadri,domegadrj,domegadrk,domegadrl)
+   use xtb_mctc_accuracy, only : wp
+
+   !     inversion derivatives
+   !  .....................................................................
+
+   implicit none
+
+   external vecnorm
+
+   integer  ic,i,j,k,l,nat
+
+   real(wp)&
+      &         omega,sinomega,&
+      &         vTr1(3), vTr2(3), vTr3(3), &
+      &         xyz(3,nat),onenner,vecnorm,rnn,rvn,&
+      &         rn(3),rv(3),rd(3),re(3),rdme(3),rve(3),&
+      &         rne(3),rdv(3),rdn(3),&
+      &         rvdme(3),rndme(3),nenner,&
+      &         domegadri(3),domegadrj(3),domegadrk(3),domegadrl(3),eps
+
+   parameter (eps=1.d-14)
+
+   sinomega=sin(omega)
+
+   do ic=1,3
+      re(ic)= xyz(ic,i)-(xyz(ic,j)+vTr2(ic))            ! Vec central to 1st nb         
+      rd(ic)=(xyz(ic,k)+vTr3(ic))-(xyz(ic,j)+vTr2(ic))  ! Vec 1st to 2nd nb
+      rv(ic)=(xyz(ic,l)+vTr1(ic))-xyz(ic,i)             ! Vec central to 3rd nb 
 
       rdme(ic)=rd(ic)-re(ic)
    end do
@@ -757,6 +924,62 @@ real(wp) Function valijk(nat,xyz,j,k,i)
 
 End function
 
+
+!  .....................................................................
+
+real(wp) Function valijkPBC(mode,nat,xyz,j,k,i,vTr1,vTr2,vTr3)
+   use xtb_mctc_accuracy, only : wp
+
+   !  .....................................................................
+
+   implicit none
+
+   external vecnorm
+
+   integer mode,nat,j,k,i,ic
+
+   real(wp) :: &
+      &         ra(3),rb(3),rab,eps,&
+      &         xyz(3,nat),vecnorm,ran,rbn,vTr1(3),vTr2(3),vTr3(3)
+
+   parameter (eps=1.d-14)
+
+   if (mode.eq.1) then ! here j=l,k=j,i=i are inserted, vTr1=vTrl, vTr2=vTrj
+     do ic=1,3
+       ra(ic)=(xyz(ic,j)+vTr1(ic))-xyz(ic,i)
+       rb(ic)=(xyz(ic,k)+vTr2(ic))-xyz(ic,i)
+     end do
+   elseif(mode.eq.2) then ! here j=i,k=k,i=j are inserted vTr1=vTrk, vTr2=vTrj
+     do ic=1,3
+       ra(ic)= xyz(ic,j)-(xyz(ic,i)+vTr2(ic))
+       rb(ic)=(xyz(ic,k)+vTr1(ic))-(xyz(ic,i)+vTr2(ic))
+     end do
+   elseif(mode.eq.3) then ! here j=R k=C i=B vTr1=vTrR vTr2=vTrC vTr3=vTrB
+     do ic=1,3
+       ra(ic)= (xyz(ic,j)+vTr1(ic))-(xyz(ic,i)+vTr3(ic)) ! R - B
+       rb(ic)= (xyz(ic,k)+vTr2(ic))-(xyz(ic,i)+vTr3(ic)) ! C - B
+     end do
+   elseif(mode.eq.4) then ! here j=B k=H i=C vTr1=vTrB vTr2=vTrC
+     do ic=1,3
+       ra(ic)=(xyz(ic,j)+vTr1(ic))-(xyz(ic,i)+vTr2(ic))
+       rb(ic)=(xyz(ic,k))         -(xyz(ic,i)+vTr2(ic))
+     end do
+   endif
+
+   ran=vecnorm(ra,3,1)
+   rbn=vecnorm(rb,3,1)
+   rab=0.d0
+   do ic=1,3
+      rab=rab+ra(ic)*rb(ic)
+   end do
+
+   if (abs(abs(rab)-1.d0).lt.eps) then
+      rab=sign(1.d0,rab)
+   end if
+   valijkPBC=acos(rab)
+
+End function
+
 !  .....................................................................
 
 real(wp) Function omega (nat,xyz,i,j,k,l)
@@ -787,6 +1010,39 @@ real(wp) Function omega (nat,xyz,i,j,k,l)
 
    rnv=rn(1)*rv(1)+rn(2)*rv(2)+rn(3)*rv(3)
    omega=asin( rnv )
+
+End function
+
+
+real(wp) Function omegaPBC (nat,xyz,i,j,k,l,vTr1,vTr2,vTr3)
+   use xtb_mctc_accuracy, only : wp
+
+   !   Calculates the inversion angle
+   !  .....................................................................
+
+   implicit none
+
+   external vecnorm
+
+   integer ic,nat,i,j,k,l  
+   
+   real(wp) :: &
+      &        xyz(3,nat),vTr1(3),vTr2(3),vTr3(3),&
+      &        rd(3),re(3),rn(3),rv(3),rnv,&
+      &        vecnorm,rkjn,rljn,rnn,rvn 
+   ! out-of-plane case from ini; atoms and iTr's sorted by distance to atom i
+   ! i=central, j=1st nb, k=2nd, l=3rd
+   do ic=1,3
+      re(ic)=xyz(ic,i)-(xyz(ic,j)+vTr2(ic))                ! Vec central to 1st nb         
+      rd(ic)=(xyz(ic,k)+vTr3(ic))-(xyz(ic,j)+vTr2(ic))            ! Vec 1st to 2nd nb
+      rv(ic)=(xyz(ic,l)+vTr1(ic))-xyz(ic,i) ! Vec central to 3rd nb 
+   end do
+   call crossprod(re,rd,rn)
+   rnn=vecnorm(rn,3,1)
+   rvn=vecnorm(rv,3,1)
+
+   rnv=rn(1)*rv(1)+rn(2)*rv(2)+rn(3)*rv(3)
+   omegaPBC=asin( rnv )
 
 End function
 
@@ -915,3 +1171,33 @@ pure subroutine bangl(xyz,i,j,k,angle)
    angle = acos( temp )
 
 end subroutine bangl
+
+pure subroutine banglPBC(mode,xyz,i,j,k,iTr,iTr2,neigh,angle)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_gfnff_neighbor
+   implicit none
+   real(wp),intent(in)  :: xyz(3,*)                  
+   integer, intent(in)  :: mode,i,j,k,iTr,iTr2  ! j is in the middle
+   type(TNeigh), intent(in) :: neigh
+   real(wp),intent(out) :: angle   
+                                  
+   real(wp) d2ij,d2jk,d2ik,xy,temp,trV(3),trV2(3)
+   trV =neigh%transVec(:,iTr)
+   trV2=neigh%transVec(:,iTr2)
+   if (mode.eq.1) then                                  
+     d2ij = sum(((xyz(:,i)+trV)-xyz(:,j))**2)
+     d2jk = sum((xyz(:,j)-(xyz(:,k)+trV2))**2)
+     d2ik = sum(((xyz(:,i)+trV)-(xyz(:,k)+trV2))**2)  
+   endif
+   if (mode.eq.2) then
+     d2ij = sum((xyz(:,i)-(xyz(:,j)+trV))**2)
+     d2jk = sum(((xyz(:,j)+trV)-(xyz(:,k)+trV2))**2)
+     d2ik = sum((xyz(:,i)-(xyz(:,k)+trV2))**2)  
+   endif
+   xy = sqrt(d2ij*d2jk)                
+   temp = 0.5d0 * (d2ij+d2jk-d2ik) / xy  ! the angle is between side dij and djk
+   if (temp .gt. 1.0d0)  temp= 1.0d0
+   if (temp .lt. -1.0d0) temp=-1.0d0   
+   angle = acos( temp )             
+                                                     
+end subroutine banglPBC

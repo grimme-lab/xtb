@@ -32,6 +32,7 @@ module xtb_gfnff_topology
       integer  :: nbond
       integer  :: nangl
       integer  :: ntors
+      integer  :: nstors
       integer  :: nathbH
       integer  :: nathbAB
       integer  :: natxbAB
@@ -51,9 +52,7 @@ module xtb_gfnff_topology
       integer  :: read_file_type
 
       !lists
-      integer,allocatable ::     nb(:,:)   ! neighbors nb(20,i) is the # neigbors
       integer,allocatable ::     hyb(:)   ! hybridization of every atom
-      integer,allocatable ::    bpair(:)   ! # of cov. between atoms
       integer,allocatable ::  blist(:,:)   ! bonded atoms
       integer,allocatable ::  alist(:,:)   ! angles
       integer,allocatable ::  tlist(:,:)   ! torsions
@@ -62,12 +61,12 @@ module xtb_gfnff_topology
       !-----------------------------------------------
       integer,allocatable :: nr_hb(:)      ! Nr. of H bonds per O-H or N-H bond
       integer,allocatable :: bond_hb_AH(:,:) ! A, H atoms in bonds that are also part of HBs
-      integer,allocatable :: bond_hb_B(:,:)  ! B atoms in bonds that are also part of HBs
+      integer,allocatable :: bond_hb_B(:,:,:)  ! B atoms in bonds that are also part of HBs
       integer,allocatable :: bond_hb_Bn(:)   ! Nr. of B atoms for one AH bond pair
       !-----------------------------------------------
       integer,allocatable :: hbatABl(:,:)  ! AB atoms for HB
       integer,allocatable :: xbatABl(:,:)  ! AB atoms for XB
-      integer,allocatable :: hbatHl (:)    ! H  atoms for HB
+      integer,allocatable :: hbatHl (:,:)    ! H  atoms for HB
       integer,allocatable :: fraglist(:)   ! atoms in molecular fragments (for EEQ)
       integer,allocatable :: qpdb  (:)     ! atomic charge in residues from PDB file
 
@@ -78,7 +77,7 @@ module xtb_gfnff_topology
       real(wp),allocatable:: chieeq(:)     ! atomic ENs for EEQ
       real(wp),allocatable:: gameeq(:)     ! atomic gamma for EEQ
       real(wp),allocatable:: alpeeq(:)     ! atomic alpha for EEQ, squared
-      real(wp),allocatable:: alphanb(:)    ! non-bonded exponent for atom pairs
+      real(wp),allocatable:: alphanb(:,:,:)    ! non-bonded exponent for atom pairs
       real(wp),allocatable::    qa(:)      ! estimated atomic charges (fixed and obtained from topology EEQ)
       real(wp),allocatable::    xyze0(:,:) ! atom xyz, starting geom. (for Efield energy)
       real(wp),allocatable:: zetac6(:)     ! D4 scaling factor product

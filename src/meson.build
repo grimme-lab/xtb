@@ -34,6 +34,7 @@ subdir('solv')
 subdir('tblite')
 subdir('type')
 subdir('xtb')
+subdir('lbfgs_anc')
 
 srcs += files(
   'aespot.f90',

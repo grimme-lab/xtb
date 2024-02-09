@@ -34,6 +34,7 @@ add_subdirectory("solv")
 add_subdirectory("tblite")
 add_subdirectory("type")
 add_subdirectory("xtb")
+add_subdirectory("lbfgs_anc")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 

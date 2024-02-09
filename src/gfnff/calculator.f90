@@ -25,19 +25,30 @@ module xtb_gfnff_calculator
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule
    use xtb_type_restart
+   use xtb_type_wsc, only : tb_wsc
    use xtb_setparam
    use xtb_fixparam
    use xtb_scanparam
    use xtb_sphereparam
    use xtb_metadynamic
    use xtb_constrainpot
-   use xtb_gfnff_param, only : make_chrg,gff_print
+   use xtb_gfnff_param, only : gff_print
    use xtb_gfnff_data, only : TGFFData
    use xtb_gfnff_topology, only : TGFFTopology
    use xtb_gfnff_neighbourlist, only : TGFFNeighbourList
    use xtb_gfnff_generator, only : TGFFGenerator
    use xtb_gfnff_eg
+   use xtb_type_latticepoint
+   use xtb_gfnff_neighbor
+   use xtb_pbc_tools
    implicit none
+   interface
+      subroutine generate_wsc(mol,wsc)
+         import :: TMolecule, tb_wsc
+         type(TMolecule), intent(inout) :: mol
+         type(tb_wsc),    intent(inout) :: wsc
+      end subroutine generate_wsc
+   end interface
    private
 
    public :: TGFFCalculator, newGFFCalculator
@@ -49,6 +60,7 @@ module xtb_gfnff_calculator
       type(TGFFData) :: param
       type(TGFFGenerator) :: gen
       type(TGFFTopology) :: topo
+      type(TNeigh) :: neigh
       logical :: update
       integer :: version
 
@@ -127,7 +139,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
    call gfnff_setup(env, set%verbose, restart, mol, &
-      & calc%gen, calc%param, calc%topo, calc%accuracy, calc%version)
+      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, calc%version)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -194,7 +206,16 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! setup !
    !-------!
 
-   call mol%update
+   ! update mol type
+   if (mol%npbc > 0) then
+     call dlat_to_cell(mol%lattice,mol%cellpar)
+     call dlat_to_rlat(mol%lattice,mol%rec_lat)
+     mol%volume = dlat_to_dvol(mol%lattice)
+     call generate_wsc(mol,mol%wsc)
+   else
+     call mol%update
+   endif
+   call mol%calculate_distances
 
    energy = 0.0_wp
    gradient(:, :) = 0.0_wp
@@ -222,8 +243,8 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! actual calculation !
    !--------------------!
 
-   call gfnff_eg(env,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & gradient,energy,results,self%param,self%topo,chk%nlist,solvation,&
+   call gfnff_eg(env,mol,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
+      & gradient,energy,results,self%param,self%topo,self%neigh,chk%nlist,solvation,&
       & self%update,self%version,self%accuracy,minpr=optpr)
 
    call env%check(exitRun)
@@ -244,13 +265,11 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    call metadynamic (rmsdset,mol%n,mol%at,mol%xyz,efix,gradient)
 
    ! fixing of certain atoms !
-   !  print*,abs(efix/etot)
    energy = energy + efix
    results%e_total = energy
    results%gnorm = norm2(gradient)
    if (fixset%n.gt.0) then
       do i=1, fixset%n
-         !print*,i,fixset%atoms(i)
          gradient(1:3,fixset%atoms(i))=0
       enddo
    endif
@@ -337,6 +356,8 @@ subroutine writeInfo(self, unit, mol)
 
    select case(set%mode_extrun)
    case(p_ext_gfnff)
+     call gfnff_header(unit,self%version)
+   case(p_ext_mcgfnff)
      call gfnff_header(unit,self%version)
    end select
 

@@ -1054,7 +1054,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
          return
       case(p_modh_old, p_modh_gff)
          if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
-         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, calc%param, calc%topo)
+         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, calc%param, calc%topo, calc%neigh)
       case(p_modh_lindh_d2)
         if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
         call mh_lindh_d2(xyz, natoms, Hess, chg, modh)
