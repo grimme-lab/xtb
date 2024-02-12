@@ -315,7 +315,7 @@ subroutine write_json_intensities(ijson, freqres, printalpha)
    end do
    write (ijson, '(3x,f15.8,"],")') freqres%dipt(freqres%n3true)
    if (printalpha) then
-      write (ijson, jfmta) 'Raman intensities / A^4/amu'
+      write (ijson, jfmta) 'Raman activities / A^4/amu'
       do i = 1, freqres%n3true - 1
          if (abs(freqres%freq(i)) < 1.0e-2_wp) then
             write (ijson, '(3x,f15.8,",")') 0.0_wp
@@ -338,159 +338,210 @@ subroutine write_json_reduced_masses(ijson, freqres)
    write (ijson, '(3x,f15.8,"],")') freqres%rmass(freqres%n3true)
 end subroutine write_json_reduced_masses
 
-subroutine write_json_gfnff_lists(n, etot, gnorm, topo, nlist, printTopo)
-   use xtb_gfnff_topology, only: TGFFTopology
-   use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
-   use xtb_gfnff_topology, only: TPrintTopo
-   use xtb_mctc_accuracy, only: wp
-   include 'xtb_version.fh'
-   !> gfnff topology lists
-   type(TGFFTopology), intent(in) :: topo
-   !> gfnff neighbourlist
-   type(TGFFNeighbourList), intent(in) :: nlist
-   !> topology printout booleans
-   type(TPrintTopo), intent(in) :: printTopo
-   !> total energy and gradient norm
-   real(wp), intent(in) :: etot, gnorm
-   character(len=:), allocatable :: cmdline
-   integer :: iunit, j, n, l
+  subroutine write_json_gfnff_lists(n, etot, gnorm, topo, neigh, nlist, printTopo)
+    use xtb_gfnff_topology, only: TGFFTopology
+    use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
+    use xtb_gfnff_topology, only: TPrintTopo
+    use xtb_mctc_accuracy, only : wp
+    use xtb_gfnff_neighbor
+    include 'xtb_version.fh'
+    !> gfnff topology lists
+    type(TGFFTopology), intent(in) :: topo
+    !> gfnff neighbourlist
+    type(TNeigh) :: neigh
+    !> gfnff neighbourlist
+    type(TGFFNeighbourList), intent(in) :: nlist
+    !> topology printout booleans
+    type(TPrintTopo), intent(in) :: printTopo
+    !> total energy and gradient norm
+    real(wp), intent(in) :: etot, gnorm
+    character(len=:), allocatable :: cmdline
+    integer :: iunit, i, j, n, l
 
-   call open_file(iunit, 'gfnff_lists.json', 'w')
-   ! header
-   write (iunit, '("{")')
-   ! lists printout
-   if (printTopo%etot) then ! total energy is scalar
+    call open_file(iunit, 'gfnff_lists.json', 'w')
+    ! header
+    write (iunit, '("{")')
+    ! lists printout
+    if (printTopo%etot) then ! total energy is scalar
       write (iunit, '(3x,''"total energy":'',f25.15,",")') etot
-   end if
-   if (printTopo%gnorm) then ! gradient norm is scalar
+    end if
+    if (printTopo%gnorm) then ! gradient norm is scalar
       write (iunit, '(3x,''"gradient norm":'',f25.15,",")') gnorm
-   end if
-   if (printTopo%nb) then ! nb(20,n)
-      write (iunit, '(3x,''"nb":'',"[")')
-      do j = 1, n - 1
-         write (iunit, '(3x,"[",*(i7,:,","))', advance='no') topo%nb(:, j)
-         write (iunit, '("],")')
-      end do
-      write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') topo%nb(:, n)
-      write (iunit, '("]")')
-      write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%bpair) then ! bpair(n*(n+1)/2) packed symmetric matrix
-      write (iunit, '(3x,''"bpair":'',"[")')
-      write (iunit, '(3x,*(i7,:,","))', advance='no') topo%bpair
-      write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%alist) then ! alist(3,nangl)
+    end if
+    if (printTopo%nb) then ! nb(numnb, n, numctr)
+      write (iunit, '(3x,''"nb":'',"[")') ! open nb
+      if (neigh%numctr.eq.1) then
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, 1) ! open nb entry
+          write (iunit, '("],")') ! close nb entry
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
+        write (iunit, '("]")')
+      else ! periodic boundary conditions
+        do i=1, neigh%numctr-1 ! iterate over all cells
+          write (iunit, '(3x,"[")') ! open cell
+          do j = 1, n - 1
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, i)
+            write (iunit, '("],")')
+          end do
+          write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, i)
+          write (iunit, '("]")')
+          write (iunit, '(3x,"],")') ! close cell
+        enddo
+        write (iunit, '(3x,"[")') ! open last cell
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, neigh%numctr)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, neigh%numctr)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"]")') ! close last cell
+      endif
+      write (iunit, '(3x,"],")') ! close nb
+    end if
+    ! bpair(j,i,iTr) number bonds between i and j when j is translated by iTr
+    if (printTopo%bpair) then 
+      write (iunit, '(3x,''"bpair":'',"[")') ! open bpair
+      if (neigh%numctr .eq. 1) then
+        do i = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, i, 1) ! open entry
+          write (iunit, '("],")') ! close entry
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, 1)
+        write (iunit, '("]")')
+      else ! periodic boundary conditions
+        do i=1, neigh%numctr-1 ! iterate over all cells
+          write (iunit, '(3x,"[")') ! open cell
+          do j = 1, n - 1
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, i)
+            write (iunit, '("],")')
+          end do
+          write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, i)
+          write (iunit, '("]")')
+          write (iunit, '(3x,"],")') ! close cell
+        enddo
+        write (iunit, '(3x,"[")') ! open last cell
+        do j = 1, n - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, neigh%numctr)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, neigh%numctr)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"]")') ! close last cell
+      endif
+      write (iunit, '(3x,"],")') ! close bpair
+    end if
+    if (printTopo%alist) then ! alist(3,nangl)
       write (iunit, '(3x,''"alist":'',"[")')
       do j = 1, topo%nangl - 1
-         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%alist(:, j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%alist(:, j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%alist(:, topo%nangl)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%blist) then ! blist(2,nbond)
+    end if
+    if (printTopo%blist) then ! blist(2,nbond)
       write (iunit, '(3x,''"blist":'',"[")')
-      do j = 1, topo%nbond - 1
-         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%blist(:, j)
-         write (iunit, '("],")')
+      do j = 1, neigh%nbond - 1
+        write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%blist(:, j)
+        write (iunit, '("],")')
       end do
-      write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, topo%nbond)
+      write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, neigh%nbond)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%tlist) then ! tlist(5,ntors)
+    end if
+    if (printTopo%tlist) then ! tlist(5,ntors)
       write (iunit, '(3x,''"tlist":'',"[")')
       do j = 1, topo%ntors - 1
-         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%tlist(:, j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%tlist(:, j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%tlist(:, topo%ntors)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%vtors) then ! vtors(2,ntors)
+    end if
+    if (printTopo%vtors) then ! vtors(2,ntors)
       write (iunit, '(3x,''"vtors":'',"[")')
       do j = 1, topo%ntors - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vtors(:, j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vtors(:, j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vtors(:, topo%ntors)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%vbond) then ! vbond(3,nbond)
+    end if
+    if (printTopo%vbond) then ! vbond(3,nbond)
       write (iunit, '(3x,''"vbond":'',"[")')
-      do j = 1, topo%nbond - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vbond(:, j)
-         write (iunit, '("],")')
+      do j = 1, neigh%nbond - 1
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vbond(:, j)
+        write (iunit, '("],")')
       end do
-      write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, topo%nbond)
+      write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, neigh%nbond)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%vangl) then ! vangl(2,nangl)
+    end if
+    if (printTopo%vangl) then ! vangl(2,nangl)
       write (iunit, '(3x,''"vangl":'',"[")')
       do j = 1, topo%nangl - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vangl(:, j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vangl(:, j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vangl(:, topo%nangl)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%hbbond) then ! hbbond: 3x(3,nhb) energies: 3x(1,nhb)
+    end if
+    if (printTopo%hbbond) then ! hbbond: 3x(3,nhb) energies: 3x(1,nhb)
       write (iunit, '(3x,''"hbl":'',"[")') !> HBs loose
-      if (nlist%nhb1 >= 1) then
-         do j = 1, nlist%nhb1 - 1
-            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist1(:, j)
-            write (iunit, '("],")')
-         end do
-         write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist1(:, nlist%nhb1)
-         write (iunit, '("]")')
-         write (iunit, '(3x,"],")')
+      if (nlist%nhb1 .ge. 1) then
+        do j = 1, nlist%nhb1 - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist1(:, j)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist1(:, nlist%nhb1)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
       else
-         write (iunit, '(3x,"[",*(i7,:,""))', advance='no') 0
-         write (iunit, '("]")')
-         write (iunit, '(3x,"],")')
+        write (iunit, '(3x,"[",*(i7,:,""))', advance='no') 0
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
       end if
 
       write (iunit, '(3x,''"hbb":'',"[")') !> HBs bonded
-      if (nlist%nhb2 >= 1) then
-         do j = 1, nlist%nhb2 - 1
-            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist2(:, j)
-            write (iunit, '("],")')
-         end do
-         write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist2(:, nlist%nhb2)
-         write (iunit, '("]")')
-         write (iunit, '(3x,"],")')
+      if (nlist%nhb2 .ge. 1) then
+        do j = 1, nlist%nhb2 - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist2(:, j)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist2(:, nlist%nhb2)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
       else
-         write (iunit, '(3x,"[",*(i7,:,""))', advance='no') 0
-         write (iunit, '("]")')
-         write (iunit, '(3x,"],")')
+        write (iunit, '(3x,"[",*(i7,:,""))', advance='no') 0
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
       end if
 
       write (iunit, '(3x,''"xb":'',"[")') !> XBs
-      if (nlist%nxb >= 1) then
-         do j = 1, nlist%nxb - 1
-            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist3(:, j)
-            write (iunit, '("],")')
-         end do
-         write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist3(:, nlist%nxb)
-         write (iunit, '("]")')
-         write (iunit, '(3x,"],")')
+      if (nlist%nxb .ge. 1) then
+        do j = 1, nlist%nxb - 1
+          write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist3(:, j)
+          write (iunit, '("],")')
+        end do
+        write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist3(:, nlist%nxb)
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
       else
-         write (iunit, '(3x,"[",*(i7,:,""))', advance='no') 0
-         write (iunit, '("]")')
-         write (iunit, '(3x,"],")')
+        write (iunit, '(3x,"[",*(i7,:,""))', advance='no') 0
+        write (iunit, '("]")')
+        write (iunit, '(3x,"],")')
       end if
 
       ! energies
       write (iunit, '(3x,''"hbl_e":'',"[")')
       do j = 1, nlist%nhb1 - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe1(j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe1(j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%hbe1(nlist%nhb1)
       write (iunit, '("]")')
@@ -498,8 +549,8 @@ subroutine write_json_gfnff_lists(n, etot, gnorm, topo, nlist, printTopo)
 
       write (iunit, '(3x,''"hbb_e":'',"[")')
       do j = 1, nlist%nhb2 - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe2(j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe2(j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%hbe2(nlist%nhb2)
       write (iunit, '("]")')
@@ -507,35 +558,35 @@ subroutine write_json_gfnff_lists(n, etot, gnorm, topo, nlist, printTopo)
 
       write (iunit, '(3x,''"xb_e":'',"[")')
       do j = 1, nlist%nxb - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe3(j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe3(j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%hbe3(nlist%nxb)
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
-   if (printTopo%eeq) then ! eeq(3,n)
+    end if
+    if (printTopo%eeq) then ! eeq(3,n)
       write (iunit, '(3x,''"eeq":'',"[")') !> EEQ charges
       do j = 1, size(nlist%q) - 1
-         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%q(j)
-         write (iunit, '("],")')
+        write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%q(j)
+        write (iunit, '("],")')
       end do
       write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%q(size(nlist%q))
       write (iunit, '("]")')
       write (iunit, '(3x,"],")')
-   end if
+    end if
 
-   ! footer
-   call get_command(length=l)
-   allocate (character(len=l) :: cmdline)
-   call get_command(cmdline)
-   write (iunit, '(3x,''"program call":'',1x,''"'',a,''",'')') cmdline
-   write (iunit, '(3x,''"method": "GFN-FF"'',",")')
-   write (iunit, '(3x,a)') '"xtb version": "'//version//'"'
-   write (iunit, '("}")')
-   call close_file(iunit)
+    ! footer
+    call get_command(length=l)
+    allocate (character(len=l) :: cmdline)
+    call get_command(cmdline)
+    write (iunit, '(3x,''"program call":'',1x,''"'',a,''",'')') cmdline
+    write (iunit, '(3x,''"method": "GFN-FF"'',",")')
+    write (iunit, '(3x,a)') '"xtb version": "'//version//'"'
+    write (iunit, '("}")')
+    call close_file(iunit)
 
-end subroutine write_json_gfnff_lists
+  end subroutine write_json_gfnff_lists
 
 #if WITH_TBLITE
 subroutine main_ptb_json &

@@ -176,7 +176,7 @@ subroutine xtbMain(env, argParser)
 
 !! ------------------------------------------------------------------------
    logical :: struc_conversion_done = .false.
-   logical :: anyopt
+   logical :: anyopt, anyhess
 
 !! ========================================================================
 !  debugging variables for numerical gradient
