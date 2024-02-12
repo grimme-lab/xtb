@@ -46,12 +46,12 @@ endif()
 
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
    find_package("tblite" REQUIRED)
-   add_compile_definitions(-DWITH_TBLITE)
+   add_compile_definitions(WITH_TBLITE)
 endif()
 
 if(NOT TARGET "cpcmx::cpcmx" AND WITH_CPCMX)
    find_package("cpcmx" REQUIRED)
-   add_compile_definitions(-DWITH_CPCMX)
+   add_compile_definitions(WITH_CPCMX)
 endif()
 
 if(NOT TARGET "test-drive::test-drive")
