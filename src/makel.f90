@@ -25,13 +25,13 @@
 subroutine makel(nao, s, can, clo)
    use xtb_mctc_lapack, only: lapack_syev
    use xtb_mctc_blas, only: blas_gemm
-   implicit real*8(a - h, o - z)
+   implicit real * 8(a - h, o - z)
    dimension s(nao, nao)
    dimension can(nao, nao)
    dimension clo(nao, nao)
-   real*8, allocatable ::aux(:), vecs(:, :), e(:), cc(:, :), x(:, :)
+   real*8, allocatable :: aux(:), vecs(:, :), e(:), cc(:, :), x(:, :)
 
-   lwork = 1 + 6*nao + 2*nao**2
+   lwork = 1 + 6 * nao + 2 * nao**2
    allocate (vecs(nao, nao), e(nao), aux(lwork), cc(nao, nao))
    allocate (x(nao, nao))
 
@@ -40,14 +40,14 @@ subroutine makel(nao, s, can, clo)
    call lapack_syev('V', 'U', nao, vecs, nao, e, aux, lwork, info)
 
    do i = 1, nao
-      if (e(i) .lt. 0) stop 'sorry, must stop in S^1/2!'
+      if (e(i) < 0) stop 'sorry, must stop in S^1/2!'
       e(i) = dsqrt(e(i))
    end do
 
    do m = 1, nao
       do i = 1, nao
          x(i, m) = vecs(i, m)
-         cc(i, m) = e(m)*vecs(i, m)
+         cc(i, m) = e(m) * vecs(i, m)
       end do
    end do
 
@@ -67,15 +67,15 @@ end subroutine makel
 subroutine umakel(nao, s, cana, canb, cloa, clob)
    use xtb_mctc_lapack, only: lapack_syev
    use xtb_mctc_blas, only: blas_gemm
-   implicit real*8(a - h, o - z)
+   implicit real * 8(a - h, o - z)
    dimension s(nao, nao)
    dimension cana(nao, nao)
    dimension cloa(nao, nao)
    dimension canb(nao, nao)
    dimension clob(nao, nao)
-   real*8, allocatable ::aux(:), vecs(:, :), e(:), cc(:, :), x(:, :)
+   real*8, allocatable :: aux(:), vecs(:, :), e(:), cc(:, :), x(:, :)
 
-   lwork = 1 + 6*nao + 2*nao**2
+   lwork = 1 + 6 * nao + 2 * nao**2
    allocate (vecs(nao, nao), e(nao), aux(lwork), cc(nao, nao))
    allocate (x(nao, nao))
 
@@ -84,14 +84,14 @@ subroutine umakel(nao, s, cana, canb, cloa, clob)
    call lapack_syev('V', 'U', nao, vecs, nao, e, aux, lwork, info)
 
    do i = 1, nao
-      if (e(i) .lt. 0) stop 'sorry, must stop in S^1/2!'
+      if (e(i) < 0) stop 'sorry, must stop in S^1/2!'
       e(i) = dsqrt(e(i))
    end do
 
    do m = 1, nao
       do i = 1, nao
          x(i, m) = vecs(i, m)
-         cc(i, m) = e(m)*vecs(i, m)
+         cc(i, m) = e(m) * vecs(i, m)
       end do
    end do
 
