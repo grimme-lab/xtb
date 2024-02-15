@@ -49,12 +49,6 @@ subroutine gfnffqmsolve(pr,A,S,ovlp,et,ndim,nopen,nel,eel,focc,e)
       if(.not.ovlp) then
 
       lwork  = 1 + 6*ndim + 2*ndim**2
-!     allocate(aux4(lwork),e4(ndim),A4(ndim,ndim))
-!     A4 = A
-!     call ssyev ('V','U',ndim,A4,ndim,e4,aux4,lwork,info)
-!     A = A4
-!     e = e4
-!     deallocate(aux4,A4,e4)
       allocate(aux(lwork))
       call dsyev ('V','U',ndim,A,ndim,e,aux,lwork,info)
 

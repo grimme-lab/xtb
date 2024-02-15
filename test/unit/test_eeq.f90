@@ -47,7 +47,7 @@ subroutine test_eeq_water(error)
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_xtb_eeq
    type(error_type), allocatable, intent(out) :: error
    real(wp), parameter :: thr = 1.0e-10_wp
@@ -84,7 +84,7 @@ subroutine test_eeq_water(error)
    call init(env)
 
    call init(mol, at, xyz)
-   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 40.0_wp)  ! Fixed cutoff
    call env%checkpoint("Lattice point init failed")
    call init(coulomb, env, mol, alp)
    call env%checkpoint("Coulomb evaluator init failed")
@@ -144,7 +144,7 @@ subroutine test_eeq_ewald(error)
       & cutCoordinationNumber
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_molecule, only : TMolecule, init, len
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_xtb_eeq
    use xtb_disp_ncoord
    use xtb_pbc_tools
@@ -202,7 +202,7 @@ subroutine test_eeq_ewald(error)
    call init(env)
 
    call init(mol, at, xyz, lattice=lattice)
-   call init(latp, env, mol, 40.0_wp)  ! Fixed cutoff
+   call init_l(latp, env, mol, 40.0_wp)  ! Fixed cutoff
    call env%checkpoint("Lattice point init failed")
    call init(coulomb, env, mol, alp)
    call env%checkpoint("Coulomb evaluator init failed")

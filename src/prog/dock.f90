@@ -282,7 +282,7 @@ contains
       !> First set optimization level in global parameters
       call set_optlvl(env) 
       call docking_search(env, molA, molB, iff_data%n, iff_data%n1, iff_data%n2,&
-       iff_data%at1, iff_data%at2, iff_data%neigh, iff_data%xyz1,&
+                    & iff_data%at1, iff_data%at2, iff_data%neigh, iff_data%xyz1,&
                     & iff_data%xyz2, iff_data%q1, iff_data%q2, iff_data%c6ab,&
                     & iff_data%z1, iff_data%z2,&
                     & iff_data%nlmo1, iff_data%nlmo2, iff_data%lmo1,&

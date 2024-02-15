@@ -23,10 +23,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: 3.x
 
@@ -109,10 +109,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: 3.x
  
@@ -149,7 +149,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -232,10 +232,10 @@ jobs:
       FC: ${{ matrix.fc }}
       CC: ${{ matrix.cc }}
       APT_PACKAGES: >-
-        intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
-        intel-oneapi-mkl
-        intel-oneapi-mkl-devel
+        intel-oneapi-compiler-fortran-2022.1.0
+        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2022.1.0
+        intel-oneapi-mkl-2022.1.0
+        intel-oneapi-mkl-devel-2022.1.0
         asciidoctor
 
     steps:
@@ -263,7 +263,6 @@ jobs:
       run: |
         sudo apt-get install ${APT_PACKAGES}
         source /opt/intel/oneapi/setvars.sh
-        source /opt/intel/oneapi/compiler/2024.0/env/vars.sh
         printenv >> $GITHUB_ENV
 
     - name: Configure meson build

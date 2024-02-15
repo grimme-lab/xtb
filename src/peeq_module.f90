@@ -21,7 +21,7 @@ module xtb_peeq
    use xtb_mctc_la
    use xtb_xtb_data
    use xtb_chargemodel
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_disp_coordinationnumber, only : getCoordinationNumber, cnType, &
       & cutCoordinationNumber
    use xtb_disp_dftd4, only : d4_gradient
@@ -269,7 +269,7 @@ subroutine peeq &
    neglect2=neglect*10.0_wp
    scfconv=1.e-6_wp*acc
 
-   call init(latp, env, mol, 60.0_wp)
+   call init_l(latp, env, mol, 60.0_wp)
 
 ! ---------------------------------------
 !  IMPORTANT FACT: H is given in eV

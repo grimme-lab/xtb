@@ -36,7 +36,8 @@ subroutine collect_gfnff(testsuite)
       new_unittest("mindless-solvation", test_gfnff_mindless_solvation), &
       new_unittest("scaleup", test_gfnff_scaleup), &
       new_unittest("pdb", test_gfnff_pdb), &
-      new_unittest("sdf", test_gfnff_sdf) &
+      new_unittest("sdf", test_gfnff_sdf), &
+      new_unittest("pbc", test_gfnff_pbc) &
       ]
 
 end subroutine collect_gfnff
@@ -85,6 +86,7 @@ subroutine test_gfnff_sp(error)
 
    real(wp) :: etot
    real(wp), allocatable :: g(:,:)
+   real(wp) :: sigma(3, 3)
    character(len=:),allocatable :: fnv
    integer  :: ipar
 
@@ -100,15 +102,15 @@ subroutine test_gfnff_sp(error)
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call check_(error, calc%topo%nbond,6)
+   call check_(error, calc%neigh%nbond,6)
    call check_(error, calc%topo%nangl,6)
    call check_(error, calc%topo%ntors,1)
 
    g = 0.0_wp
    gff_print=.true.
 
-   call gfnff_eg(env,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,make_chrg, &
-      & g,etot,res_gff,calc%param,calc%topo,nlist,solvation,.true.,calc%version, &
+   call gfnff_eg(env,mol,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
+      & g,etot,res_gff,calc%param,calc%topo,calc%neigh,nlist,solvation,.true.,calc%version, &
       & calc%accuracy)
 
    call check_(error, res_gff%e_total,-0.76480130317838_wp, thr=thr)
@@ -182,7 +184,7 @@ subroutine test_gfnff_hb(error)
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call check_(error, calc%topo%nbond,5)
+   call check_(error, calc%neigh%nbond,5)
    call check_(error, calc%topo%nangl,4)
    call check_(error, calc%topo%ntors,1)
 
@@ -268,7 +270,7 @@ subroutine test_gfnff_gbsa(error)
 
    allocate( g(3,mol%n), source = 0.0_wp )
  
-   call check_(error, calc%topo%nbond,5)
+   call check_(error, calc%neigh%nbond,5)
    call check_(error, calc%topo%nangl,4)
    call check_(error, calc%topo%ntors,1)
 
@@ -664,5 +666,192 @@ subroutine test_gfnff_sdf(error)
    end do
 
 end subroutine test_gfnff_sdf
+
+
+subroutine test_gfnff_pbc(error)
+   use xtb_mctc_accuracy, only : wp
+   use xtb_test_molstock, only : getMolecule
+
+   use xtb_type_molecule
+   use xtb_type_param
+   use xtb_type_pcem
+   use xtb_type_data, only : scc_results
+   use xtb_type_environment, only : TEnvironment, init
+   use xtb_type_restart, only : TRestart
+   use xtb_mctc_symbols, only : symbolLength
+
+   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
+
+   type(error_type), allocatable, intent(out) :: error
+
+   real(wp), parameter :: thr = 1.0e-8_wp
+   real(wp), parameter :: thr2 = 3.0e-3_wp
+
+   type(TEnvironment) :: env
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(TGFFCalculator) :: calc
+   type(scc_results) :: res
+
+    integer :: iMol, i
+    logical :: exitRun
+    real(wp) :: energy, energy2, hl_gap, sigma(3, 3)
+    real(wp), allocatable :: gradient(:, :)
+    real(wp), allocatable :: xyztmp(:,:), lattmp(:,:)
+    integer, allocatable :: attmp(:)
+    character(len=symbolLength), allocatable :: symtmp(:)
+    logical, parameter :: pbc(3) = [.true., .true., .true. ]
+    ! structure names from X23 and mcVOL22 benchmark
+    character(len=*), parameter :: pbc_strucs(2) = [&
+       & "x06_b", "mcv15"]
+    !> references for original GFN-FF
+    real(wp), parameter :: ref_energies(2) = &
+        & [-9.522300429916_wp, -11.059826732607_wp ]
+    real(wp), parameter :: ref_gnorms(2) = &
+        & [ 0.083513313043_wp, 0.083870455567_wp ]
+    real(wp), parameter :: ref_snorm(2) = &
+        & [ 1.410826672_wp, 0.419545156_wp ]
+    !> references for mcGFN-FF
+    real(wp), parameter :: mcref_energies(2) = &
+        & [-9.419561502589_wp, -10.850342398282_wp ]
+    real(wp), parameter :: mcref_gnorms(2) = &
+        & [ 0.071130586474_wp, 0.104285414859_wp ]
+    real(wp), parameter :: mcref_snorm(2) = &
+        & [ 0.839554942_wp, 0.729174866_wp ]
+
+    call init(env)
+    do iMol = 1, 2
+
+       !  Calucaltions with original parameterization  !
+       ! load molecule from molstock
+       call getMolecule(mol, pbc_strucs(iMol))
+       ! reset energy, gradient, sigma
+       energy=0.0_wp
+       if (allocated(gradient)) deallocate(gradient)
+       allocate(gradient(3, mol%n))
+       sigma = 0.0_wp
+       ! setup new calculator
+       call delete_file('charges')
+       ! original angewChem2020_2 version is default
+       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false.)
+       call env%check(exitRun)
+       call check_(error, .not.exitRun)
+       if (exitRun) exit
+       ! run single point calculation
+       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+          & hl_gap, res)
+       call env%check(exitRun)
+       call check_(error, .not.exitRun)
+       if (exitRun) exit
+       ! check energy, gradient and sigma versus reference calculation
+       call check_(error, energy, ref_energies(iMol), thr=thr)
+       call check_(error, norm2(gradient), ref_gnorms(iMol), thr=thr)
+       call check_(error, norm2(sigma), ref_snorm(iMol), thr=thr)
+
+       !  Calucaltions with mcGFN-FF parameterization  !
+       ! reset energy, gradient, sigma
+       energy=0.0_wp
+       if (allocated(gradient)) deallocate(gradient)
+       allocate(gradient(3, mol%n))
+       sigma = 0.0_wp
+       ! setup new calculator
+       call delete_file('charges')
+       ! mcGFN-FF is version=4
+       call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false., 4)
+       call env%check(exitRun)
+       call check_(error, .not.exitRun)
+       if (exitRun) exit
+       ! run single point calculation
+       call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+          & hl_gap, res)
+       call env%check(exitRun)
+       call check_(error, .not.exitRun)
+       if (exitRun) exit
+       ! check energy, gradient and sigma versus reference calculation
+       call check_(error, energy, mcref_energies(iMol), thr=thr)
+       call check_(error, norm2(gradient), mcref_gnorms(iMol), thr=thr)
+       call check_(error, norm2(sigma), mcref_snorm(iMol), thr=thr)
+    end do
+
+    !  check super cell scaling  !
+    ! load molecule from molstock
+    call getMolecule(mol, "mcv15")
+    ! reset energy, gradient, sigma
+    energy=0.0_wp
+    if (allocated(gradient)) deallocate(gradient)
+    allocate(gradient(3, mol%n))
+    sigma = 0.0_wp
+    ! setup new calculator
+    call delete_file('charges')
+    ! mcGFN-FF is version=4
+    call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false., 4)
+    call env%check(exitRun)
+    call check_(error, .not.exitRun)
+    ! run single point calculation
+    call calc%singlepoint(env, mol, chk, 2, .false., energy, gradient, sigma, &
+       & hl_gap, res)
+    call env%check(exitRun)
+    call check_(error, .not.exitRun)
+    ! build 2x1x1 supercell
+    ! coordinates
+    if (allocated(xyztmp)) deallocate(xyztmp)
+    allocate(xyztmp(3,mol%n))
+    xyztmp = mol%xyz
+    deallocate(mol%xyz)
+    allocate(mol%xyz(3,2*mol%n), source=0.0_wp)
+    mol%xyz(:,1:mol%n)=xyztmp
+    do i=1, mol%n
+       mol%xyz(:,i+mol%n) = xyztmp(:,i)+mol%lattice(:,1)
+    enddo
+    ! atom types
+    allocate(attmp(mol%n), source=0)
+    attmp=mol%at
+    deallocate(mol%at)
+    allocate(mol%at(2*mol%n))
+    mol%at(1:mol%n)=attmp
+    mol%at(mol%n+1:2*mol%n)=attmp
+    ! symbols
+    allocate(symtmp(2*mol%n))
+    symtmp = mol%sym
+    deallocate(mol%sym)
+    allocate(mol%sym(2*mol%n))
+    mol%sym(1:mol%n)= symtmp
+    mol%sym(mol%n+1:2*mol%n) = symtmp
+    ! lattice
+    mol%lattice(:,1) = 2.0_wp*mol%lattice(:,1)
+    ! number of atoms
+    mol%n = 2*mol%n
+    ! init mol
+    deallocate(symtmp, xyztmp)
+    allocate(symtmp(mol%n))
+    allocate(xyztmp(3,mol%n), source=0.0_wp)
+    allocate(lattmp(3,3), source=0.0_wp)
+    symtmp=mol%sym
+    xyztmp=mol%xyz
+    lattmp=mol%lattice
+    call init(mol, symtmp, xyztmp, 0.0_wp, 0, lattmp, pbc)
+
+    energy2=0.0_wp ! energy of supercell
+    if (allocated(gradient)) deallocate(gradient)
+    allocate(gradient(3, mol%n))
+    sigma = 0.0_wp
+    ! setup new calculator
+    call delete_file('charges')
+    ! mcGFN-FF is version=4
+    call newGFFCalculator(env, mol, calc, '.param_gfnff.xtb', .false., 4)
+    call env%check(exitRun)
+    call check_(error, .not.exitRun)
+    ! run single point calculation
+    call calc%singlepoint(env, mol, chk, 2, .false., energy2, gradient, sigma, &
+       & hl_gap, res)
+    call env%check(exitRun)
+    call check_(error, .not.exitRun)
+
+    ! scale down energy of supercell and compare
+    energy2 = energy2/2.0_wp
+    call check_(error, energy2, energy, thr=thr2)
+
+end subroutine test_gfnff_pbc
+
 
 end module test_gfnff

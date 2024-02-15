@@ -202,7 +202,9 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    character(len=*),parameter :: chrfmt = &
       '(10x,":",3x,a,a18,      10x,":")'
    
-
+   ! Print ANCopt header !
+   call ancopt_header(env%unit,set%veryverbose)
+   
    if(mol%n.eq.1) return
       !! do not optimize for 1 molecule
    if (profile) call timer%new(8,.false.)
@@ -1052,7 +1054,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
          return
       case(p_modh_old, p_modh_gff)
          if (pr) write(env%unit,'(a)') "Using GFN-FF Lindh-Hessian"
-         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, calc%param, calc%topo)
+         call gff_ddvopt(xyz, natoms, Hess, chg, modh%s6, calc%param, calc%topo, calc%neigh)
       case(p_modh_lindh_d2)
         if (pr) write(env%unit,'(a)') "Using Lindh-Hessian"
         call mh_lindh_d2(xyz, natoms, Hess, chg, modh)

@@ -25,7 +25,7 @@ module xtb_coulomb_klopmanohno
    use xtb_type_coulomb, only : TCoulomb, setupBoundaryConditions, setupIndexTable
    use xtb_type_environment, only : TEnvironment
    use xtb_type_molecule, only : TMolecule, len
-   use xtb_type_latticepoint, only : TLatticePoint, init
+   use xtb_type_latticepoint, only : TLatticePoint, init_l
    use xtb_type_wignerseitzcell, only : TWignerSeitzCell, init
    implicit none
    private

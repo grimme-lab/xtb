@@ -16,7 +16,7 @@
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 module xtb_gfnff_mrec
       private
-      public :: mrecgff
+      public :: mrecgff, mrecgffPBC
 contains
 
       subroutine mrecgff(nat,nb,molcount,molvec)
@@ -68,4 +68,72 @@ contains
          endif
       enddo
       end subroutine mrecgff2
+
+
+      subroutine mrecgffPBC(nat,numctr,numnb,nb,molcount,molvec)
+      ! molcount: number of total fragments (increased during search)
+      ! nat: overall number of atoms
+      ! molvec: assignment vector of atom to fragment
+      implicit none
+      integer, intent(in) :: nat, numctr, numnb, nb(numnb,nat,numctr)
+      integer, intent(inout) ::molvec(nat),molcount
+      integer :: i,j, iTr
+      real*8, allocatable:: bond(:,:,:)
+      logical,allocatable:: taken(:)
+
+      allocate(taken(nat),bond(nat,nat,numctr))
+      ! create array with 1's as marks for bond partners
+      bond=0
+      do i=1,nat
+        do iTr=1, numctr  
+          do j=1,nb(numnb,i,iTr)
+            bond(nb(j,i,iTr), i, iTr)=1
+          enddo
+        enddo
+      enddo
+     
+      ! double-check
+      if (int(sum(bond)).ne.sum(nb(numnb,:,:))) then
+        write(*,*) 
+        write(*,*) 'Warning: Check mrec.f90',int(sum(bond)),sum(nb(numnb,:,:))
+        write(*,*)
+      endif
+
+      ! recursive search for fragments 
+      molvec=0 
+      molcount=1
+      taken=.false.
+      do i=1,nat
+          if(.not.taken(i)) then
+            molvec(i)=molcount
+            taken(i)=.true.
+            call mrecgff2PBC(numctr,numnb,nat,nb,i,taken,bond,molvec,molcount)
+            molcount=molcount+1
+          endif
+      enddo
+      molcount=molcount-1
+      end subroutine mrecgffPBC
+
+      recursive subroutine mrecgff2PBC(numctr,numnb,nat,nb,i,taken,bond,molvec,molcnt)
+      implicit none
+      integer, intent(in) :: numctr, numnb, nat, nb(numnb,nat,numctr),i, molcnt
+      integer j,icn,k,iTr, j_iTr(2)
+      real*8, intent(inout) :: bond(nat,nat,numctr)
+      integer, intent(inout) :: molvec(nat)
+      logical, intent(inout) :: taken(nat)
+
+      icn=sum(nb(numnb,i,:))
+      do k=1,icn
+         j_iTr=maxloc(bond(:,i,:))  ! get positions of the 1's one after another
+         j  = j_iTr(1)
+         iTr= j_iTr(2)
+         bond(j,i,iTr)=0            ! set to zero to get to next 1-entry
+         if (i .eq. j.and.iTr.eq.1) cycle
+         if (.not.taken(j)) then
+            molvec(j)=molcnt
+            taken(j)=.true.
+            call mrecgff2PBC(numctr,numnb,nat,nb,j,taken,bond,molvec,molcnt)
+         endif
+      enddo
+      end subroutine mrecgff2PBC
 end module xtb_gfnff_mrec

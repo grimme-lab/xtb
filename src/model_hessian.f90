@@ -2652,13 +2652,15 @@ end module xtb_modelhessian
       Return
       End
 
-      subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6,param,topo)
+      subroutine gff_ddvopt(Cart,nAtoms,Hess,at,s6,param,topo,neigh)
       use xtb_gfnff_data, only : TGFFData
       use xtb_gfnff_topology, only : TGFFTopology
+      use xtb_gfnff_neighbor, only : TNeigh
       use xtb_type_timer
       Implicit Real*8 (a-h, o-z)
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(in) :: topo
+      type(TNeigh), intent(in) :: neigh
 
       Integer at(nAtoms)
       Real*8 Cart(3,nAtoms)
@@ -2757,9 +2759,9 @@ end module xtb_modelhessian
 !
 !     Hessian for tension
 !
-      do ibond=1,topo%nbond
-         kAtom=topo%blist(1,ibond)
-         lAtom=topo%blist(2,ibond)
+      do ibond=1,neigh%nbond
+         kAtom=neigh%blist(1,ibond)
+         lAtom=neigh%blist(2,ibond)
          kr=iTabRow(iANr(kAtom))
          lr=iTabRow(iANr(lAtom))
             xkl=Cart(1,kAtom)-Cart(1,lAtom)
