@@ -122,6 +122,9 @@ subroutine help(iunit)
    "--tblite,",&
    "    use tblite library as implementation for xTB",&
    "",&
+   "--ptb,",&
+   "    TODO",&
+   "",&
    "--spinpol,",&
    "    enables spin-polarization for xTB methods (tblite required)",&
    "",&
@@ -192,6 +195,9 @@ subroutine help(iunit)
    "",&
    "--dipole",&
    "    requests dipole printout",&
+   "",&
+   "--raman/--alpha,",&
+   "    TODO",&
    "",&
    "--wbo",&
    "    requests Wiberg bond order printout",&

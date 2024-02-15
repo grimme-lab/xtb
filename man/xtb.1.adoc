@@ -78,8 +78,11 @@ OPTIONS
 *--gfnff, --gff* ::
     specify parametrisation of GFN-FF
 
-*--tblite*::
+*--tblite* ::
     use tblite library as implementation for xTB
+
+*--ptb* ::
+    TODO
 
 *--spinpol*::
     enables spin-polarization for xTB methods (tblite required)
@@ -137,6 +140,9 @@ OPTIONS
 *--molden*::
     requests printout of molden file
 
+*--alpha/--raman*::
+    TODO
+    
 *--dipole*::
     requests dipole printout
 
