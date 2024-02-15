@@ -64,9 +64,7 @@ module xtb_main_json
    private
 
    public :: main_xtb_json, write_json_gfnff_lists
-#if WITH_TBLITE
    public :: main_ptb_json
-#endif
 
 contains
 
@@ -587,9 +585,31 @@ contains
       call close_file(iunit)
 
    end subroutine write_json_gfnff_lists
+   
+   !> wrapper for tblite-PTB JSON output
+   subroutine main_ptb_json &
+      (ijson, mol, wfx, calc, sccres, freqres)
+
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_wavefunction, only: TWavefunction
+      use xtb_type_data, only: scc_results, freq_results
+      use xtb_ptb_calculator, only: TPTBCalculator
+
+      integer, intent(in) :: ijson 
+      type(TMolecule), intent(in) :: mol
+      type(TWavefunction), intent(in) :: wfx
+      type(TPTBCalculator), intent(in) :: calc
+      type(scc_results), intent(in) :: sccres
+      type(freq_results), intent(in) :: freqres
 
 #if WITH_TBLITE
-   subroutine main_ptb_json &
+      call tblite_ptb_json(ijson, mol, wfx, calc%bas, sccres, freqres)
+#endif
+
+   end subroutine main_ptb_json
+
+#if WITH_TBLITE
+   subroutine tblite_ptb_json &
       (ijson, mol, wfx, bas, sccres, freqres)
       use mctc_env, only: wp
    !! ========================================================================
@@ -633,7 +653,7 @@ contains
       end if
       call write_json_ptb_footer(ijson)
 
-   end subroutine main_ptb_json
+   end subroutine tblite_ptb_json
 
    subroutine write_json_ptb_shell_charges(ijson, mol, bas, wfn)
       use xtb_type_wavefunction, only: TWavefunction

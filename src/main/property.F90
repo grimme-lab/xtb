@@ -27,8 +27,11 @@ module xtb_propertyoutput
    use xtb_solv_cm5
    use xtb_cube
    use xtb_topology
-
-contains
+#if WITH_TBLITE
+   use tblite_basis_type, only: basis_type
+   use tblite_wavefunction_type, only: wavefunction_type
+#endif
+   contains
 
    subroutine write_energy(iunit, sccres, frqres, hess)
       use xtb_type_data
@@ -277,8 +280,32 @@ contains
 
    end subroutine main_property
 
+   !> wrapper for tblite-PTB property output
+   subroutine ptb_property&
+                     (iunit, env, chk, calc, mol, res)
+      
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_restart, only: TRestart
+      use xtb_type_environment,  only: TEnvironment
+      use xtb_type_data, only: scc_results
+      use xtb_type_calculator, only: TCalculator
+      use xtb_ptb_calculator, only: TPTBCalculator
+
+      integer, intent(in) :: iunit
+      type(TMolecule), intent(in) :: mol
+      type(TEnvironment), intent(inout) :: env
+      type(TRestart),  intent(inout) :: chk
+      type(TPTBCalculator), intent(in) :: calc
+      type(scc_results), intent(in) :: res
+      
 #if WITH_TBLITE
-   subroutine ptb_property &
+   call tblite_ptb_property(iunit, env, chk%tblite, calc%bas, mol, chk%wfn, res)
+#endif
+
+   end subroutine ptb_property
+
+#if WITH_TBLITE
+   subroutine tblite_ptb_property &
       (iunit, env, wfn, bas, struc, wfx, res)
 
       use xtb_mctc_convert
@@ -298,9 +325,6 @@ contains
       use xtb_ptb_guess, only: get_psh_from_qsh
 
       use mctc_io_structure, only: structure_type
-
-      use tblite_basis_type, only: basis_type
-      use tblite_wavefunction_type, only: wavefunction_type
 
       implicit none
 
@@ -422,7 +446,7 @@ contains
                & isotropic_alpha, isotropic_alpha * (autoaa**3)
       end if
 
-   end subroutine ptb_property
+   end subroutine tblite_ptb_property
 #endif
 
    subroutine gfnff_property(iunit, n, xyz, topo, nlist)

@@ -15,9 +15,6 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef WITH_TBLITE
-#define WITH_TBLITE 0
-#endif
 
 module xtb_prog_main
    use xtb_mctc_accuracy, only: wp
@@ -101,9 +98,7 @@ module xtb_prog_main
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
    !> PTB related modules
-#if WITH_TBLITE
    use xtb_main_json, only: main_ptb_json
-#endif
 
    implicit none
    private
@@ -1020,11 +1015,7 @@ contains
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
          type is (TPTBCalculator)
-#if WITH_TBLITE
-            call ptb_property(iprop, env, chk%tblite, calc%bas, mol, chk%wfn, res)
-#else
-            call ptb_feature_not_implemented(env)
-#endif
+            call ptb_property(iprop, env, chk, calc, mol, res)
          end select
       end if
 
@@ -1036,14 +1027,10 @@ contains
                                mol, chk%wfn, calc%basis, res, fres)
             call close_file(ich)
          type is (TPTBCalculator)
-#if WITH_TBLITE
             call open_file(ich, 'xtbout.json', 'w')
             call main_ptb_json(ich, &
-                               mol, chk%wfn, calc%bas, res, fres)
+                               mol, chk%wfn, calc, res, fres)
             call close_file(ich)
-#else
-            call ptb_feature_not_implemented(env)
-#endif
          end select
       end if
       if (printTopo%any()) then
@@ -1530,7 +1517,7 @@ contains
             if (.not. get_xtb_feature('tblite')) then
                call ptb_feature_not_implemented(env)
                return
-            end if
+            endif
 
          case ('--tblite')
             if (get_xtb_feature('tblite')) then
