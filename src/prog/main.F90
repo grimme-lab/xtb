@@ -377,7 +377,10 @@ contains
          call init_metadyn(mol%n, metaset%maxsave)
       end if
       call load_rmsdbias(rmsdset, mol%n, mol%at, mol%xyz)
-
+      ! ------------------------------------------------------------------------
+      !> CONSTRAINTS & SCANS
+      !> now we are at a point that we can check for requested constraints
+      call read_userdata(xcontrol, env, mol)
       ! ------------------------------------------------------------------------
       !> get some memory
       allocate (cn(mol%n), sat(mol%n), g(3, mol%n), source=0.0_wp)
@@ -420,10 +423,6 @@ contains
          mol%info%two_dimensional = .false.
       end if
 
-      ! ------------------------------------------------------------------------
-      !> CONSTRAINTS & SCANS
-      !> now we are at a point that we can check for requested constraints
-      call read_userdata(xcontrol, env, mol)
 
       !> initialize metadynamics
       call load_metadynamic(metaset, mol%n, mol%at, mol%xyz)
