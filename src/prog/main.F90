@@ -524,7 +524,7 @@ contains
       ! ------------------------------------------------------------------------
       !> Print the method header and select the parameter file
 
-      if ((.not. allocated(fnv)) .and. (.not. set%mode_extrun == p_ext_ptb)) then
+      if (.not. allocated(fnv)) then
          select case (set%runtyp)
          case default
             call env%terminate('This is an internal error, please define your runtypes!')
