@@ -123,7 +123,9 @@ subroutine help(iunit)
    "    use tblite library as implementation for xTB",&
    "",&
    "--ptb,",&
-   "    TODO",&
+   "    performs single-point calculation with the density tight-binding method PTB.", &
+   "    Provides electronic structure and properties, such as, e.g., atomic charges, bond orders, and dipole moments,", & 
+   "    but does not provide any energy-related properties, such as, e.g., total energy, nuclear gradients, or vibrational frequencies.", &
    "",&
    "--spinpol,",&
    "    enables spin-polarization for xTB methods (tblite required)",&
@@ -196,8 +198,11 @@ subroutine help(iunit)
    "--dipole",&
    "    requests dipole printout",&
    "",&
-   "--raman/--alpha,",&
-   "    TODO",&
+   "--raman", &
+   "    requests Raman spectrum calculation via combination of GFN2-xTB and PTB", &
+   "",&
+   "--alpha",&
+   "    requests the extension of electrical properties to static molecular dipole polarizabilities. ",&
    "",&
    "--wbo",&
    "    requests Wiberg bond order printout",&
