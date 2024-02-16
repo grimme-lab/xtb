@@ -22,7 +22,7 @@ module xtb_gfnff_param
    use xtb_gfnff_topology, only : TGFFTopology
    implicit none
    private
-   public :: ini, gff_print, make_chrg, efield
+   public :: ini, gff_print, make_chrg
    public :: gfnff_set_param, gfnff_load_param, gfnff_read_param
    public :: gfnff_param_alloc, gfnff_param_dealloc, gfnff_thresholds
    public :: gffVersion
@@ -283,7 +283,6 @@ module xtb_gfnff_param
       & 0.500000_wp]
 
 !----------------------------------------------------------------------------------------
-   real(wp) :: efield(3)              ! electric field components
 
    !========================================================================
    ! DATA

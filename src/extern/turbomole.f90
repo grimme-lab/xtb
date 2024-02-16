@@ -559,7 +559,7 @@ subroutine writeInfo(self, unit, mol)
 end subroutine writeInfo
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    character(len=*), parameter :: source = "extern_turbomole_hessian"
    !> Single point calculator
    class(TTMCalculator), intent(inout) :: self
@@ -577,6 +577,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    real(wp), intent(inout) :: hess(:, :)
    !> Array to add dipole gradient to
    real(wp), intent(inout) :: dipgrad(:, :)
+   !> Array to add polarizability gradient to
+   real(wp), intent(inout), optional :: polgrad(:, :)
 
    integer :: idipd, stat
    type(TReader) :: reader

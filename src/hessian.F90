@@ -52,6 +52,8 @@ subroutine numhess( &
 
    use xtb_axis, only : axis
 
+   use xtb_ptb_calculator, only: TPTBCalculator, newPTBcalculator
+
    implicit none
 
    !> Source of errors in the main program unit
@@ -63,6 +65,10 @@ subroutine numhess( &
    integer, intent(in)    :: maxiter
    type(TRestart),intent(inout) :: chk0
    class(TCalculator), intent(inout) :: calc
+   !> Calculators for inserted PTB intensities
+   class(TCalculator), allocatable :: calc_intensity
+   type(TPTBCalculator), allocatable :: ptb
+   !<<<<<<<<<<<<<<<<<<
    real(wp) :: eel
    real(wp) :: ebias
    real(wp) :: alp1,alp2
@@ -88,7 +94,7 @@ subroutine numhess( &
 
 !$ integer  :: nproc
 
-   real(wp),allocatable :: h (:,:)
+   real(wp),allocatable :: h (:,:), h_dummy(:,:)
    real(wp),allocatable :: htb (:,:)
    real(wp),allocatable :: hbias (:,:)
    real(wp),allocatable :: hss(:)
@@ -103,8 +109,9 @@ subroutine numhess( &
    real(wp),allocatable :: gl  (:,:)
    real(wp),allocatable :: xyzsave(:,:)
    real(wp),allocatable :: pold(:)
-   real(wp),allocatable :: dipd(:,:)
+   real(wp),allocatable :: dipd(:,:), dalphadr(:,:), dalphadq(:,:)
    real(wp),allocatable :: amass(:)
+   real(wp) :: asq, gamsq
 
    type(TMolecule) :: tmol
 
@@ -122,7 +129,12 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3))
+      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
+
+   if (set%elprop == p_elprop_alpha) then
+      allocate(dalphadr(6,n3), source = 0.0_wp)
+      allocate(dalphadq(6,n3), source = 0.0_wp)
+   end if
 
    rd=.false.
    xyzsave = mol%xyz
@@ -207,6 +219,30 @@ subroutine numhess( &
       pold = 0.0_wp
       indx = [(i, i = 1, mol%n)]
       call calc%hessian(env, mol, chk0, indx, step, h, dipd)
+
+      !> PTB entry for dipgrad calculation
+      if (set%ptbsetup%ptb_in_hessian) then
+         write(env%unit, '(a,a,a)') "Hessian matrix computed using ", trim(adjustl(set%ptbsetup%hessmethod)), "."
+         allocate (ptb)
+         call newPTBCalculator(env, mol, ptb)
+         call env%check(exitRun)
+         if (exitRun) then
+            call env%error("Could not construct new calculator", source)
+            return
+         end if
+         call move_alloc(ptb, calc_intensity)
+
+         call calc_intensity%writeInfo(env%unit, mol)
+         write(env%unit, '(a)') "Calculating vibrational intensities using PTB ..."
+         if (set%elprop == p_elprop_alpha) then
+            call calc_intensity%hessian(env, mol, chk0, indx, step, h_dummy, dipd, dalphadr)
+         else
+            call calc_intensity%hessian(env, mol, chk0, indx, step, h_dummy, dipd)
+         end if
+         write(env%unit, '(a)') "... done."
+
+         deallocate (calc_intensity, h_dummy)
+      end if
    endif
 
 
@@ -443,15 +479,21 @@ subroutine numhess( &
          do ic=1,3
             ii = (ia-1)*3+ic
             xsum=xsum+atmass(ia)*res%hess(ii,i)**2
+            !> %MM: CAUTION: Shouldn't this be "amass" instead of "atmass"? -> Would then be the reciprocal value
+            !>               of the mass and thus correspond to the definition in 2) below.
          enddo
       enddo
       res%rmass(i)=xsum
    enddo
 
-   !--- IR intensity ---!
+   !--- IR intensity ---! (holds in a similar fashion also for Raman)
    !  1. res%hess corresponds to the orthonormal eigenvectors of the hessian
    !     matrix (-> normal modes of vibration). Mass-weighting is introduced
    !     back again via multiplying with amass(j).
+   !     "Each vibrational normal mode - given in terms of
+   !      cartesian displacement vectors of all atoms - has been normalized to unity.
+   !      To obtain mass-weigthed normal coordinates divide the tabulated
+   !      modes by the reduced mass."
    !
    !  2. res%hess(j,i) is the matrix which transforms a derivative with
    !     respect to the j-th cartesian coordinate ("dipd") into a derivative with
@@ -463,6 +505,12 @@ subroutine numhess( &
    !
    !  5. D = dipd(3,n3); H = res%hess(n3:n3); U = Matrix with dipol derivatives
    !                                              in x, y and z direction per mode
+   !
+   ! Generally nice reads for understanding the necessity of mass-weighting:
+   ! 1) https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/
+   !         Advanced_Theoretical_Chemistry_(Simons)/
+   !         03%3A_Characteristics_of_Energy_Surfaces/3.02%3A_Normal_Modes_of_Vibration
+   ! 2) https://www.cup.uni-muenchen.de/ch/compchem/G98vib.pdf
 
    do i = 1, n3
       do k = 1, 3
@@ -474,14 +522,24 @@ subroutine numhess( &
       end do
       res%dipt(i) = autokmmol*(trdip(1)**2+trdip(2)**2+trdip(3)**2)
    end do
-   ! Raman intensity
-   do i = 1, n3
-      sum2 = 0.0_wp
-      do j = 1, n3
-         sum2 = sum2 + pold(j)*(res%hess(j,i)*amass(j))
-      end do
-      res%polt(i) = abs(sum2)
-   end do
+   ! Raman activities (for intensities, see "write_tm_vibspectrum")
+   if (set%elprop == p_elprop_alpha) then
+      do i = 1, n3
+         do k = 1,6
+            sum2 = 0.0_wp
+            do j = 1, n3
+               sum2 = sum2 + (res%hess(j,i)*amass(j))*dalphadr(k,j)
+            enddo
+            dalphadq(k,i) = sum2
+         enddo
+         asq = (dalphadq(1,i)+dalphadq(3,i)+dalphadq(6,i))**2 / 9.0_wp
+         gamsq = ( (dalphadq(1,i)-dalphadq(3,i))**2 + (dalphadq(3,i)-dalphadq(6,i))**2 + (dalphadq(6,i)-dalphadq(1,i))**2 &
+            & + 6.0_wp*(dalphadq(2,i)**2 + dalphadq(5,i)**2 + dalphadq(4,i)**2) )*0.5_wp
+         res%polt(i) = (45.0_wp*asq + 7.0_wp*gamsq)
+         res%polt(i) = res%polt(i) * autoaa4byamu()
+      enddo
+   end if
+
 
 end subroutine numhess
 

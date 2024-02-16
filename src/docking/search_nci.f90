@@ -1073,7 +1073,7 @@ contains
       calc%topo%qfrag(1) = set%ichrg
       calc%topo%qfrag(2:mol%n) = 0.0_wp
       call gfnff_ini(env, .false., ini, mol, calc%gen,&
-           &         calc%param, calc%topo, calc%neigh, calc%accuracy)
+           &         calc%param, calc%topo, calc%neigh, set%efield, calc%accuracy)
 
    end subroutine restart_gff
 

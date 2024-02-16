@@ -962,6 +962,8 @@ subroutine set_exttyp(typ)
       set%mode_extrun = p_ext_mcgfnff
    case('iff')
       set%mode_extrun = p_ext_iff
+   case('ptb')
+      set%mode_extrun = p_ext_ptb
    end select
    set1 = .false.
 
@@ -1051,6 +1053,27 @@ subroutine set_runtyp(typ)
    end select
    set1 = .false.
 end subroutine set_runtyp
+
+subroutine set_elprop(typ)
+   implicit none
+   character(len=*),intent(in) :: typ
+
+   select case(typ)
+   case default ! do nothing !
+      call raise('E',typ//' is no valid runtyp (internal error)')
+   case('alpha')
+      set%elprop = p_elprop_alpha
+   case('polar')
+      set%elprop = p_elprop_alpha
+   case('raman')
+      set%elprop = p_elprop_alpha
+   case('ir')
+      set%elprop = p_elprop_dipole
+   case('dipole')
+      set%elprop = p_elprop_dipole
+   end select
+
+end subroutine set_elprop
 
 subroutine set_derived
    implicit none
@@ -1167,7 +1190,6 @@ end subroutine set_spin
 
 
 subroutine set_efield(env, val)
-   use xtb_gfnff_param, only : efield
    implicit none
    character(len=*), parameter :: source = 'set_efield'
    type(TEnvironment), intent(inout) :: env
@@ -1177,7 +1199,7 @@ subroutine set_efield(env, val)
    logical,save :: set1 = .true.
    if (set1) then
       if (getValue(env,val,idum)) then
-         efield = idum
+         set%efield = idum
       else
          call env%error('E-field could not be read from your argument', source)
       endif

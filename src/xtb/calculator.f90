@@ -141,8 +141,8 @@ subroutine newXTBCalculator(env, mol, calc, fname, method, accuracy)
       calc%accuracy = 1.0_wp
    end if
 
-   calc%etemp = 300.0_wp
-   calc%maxiter = 250
+   calc%etemp = set%etemp
+   calc%maxiter = set%maxscciter
 
    !> Obtain the parameter file
    allocate(calc%xtbData)

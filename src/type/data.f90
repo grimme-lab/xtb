@@ -72,6 +72,9 @@ module xtb_type_data
       real(wp) :: g_shift = 0.0_wp
       real(wp) :: hl_gap = 0.0_wp
       real(wp) :: dipole(3) = (/0.0_wp,0.0_wp,0.0_wp/)
+      real(wp) :: alpha(3,3) = reshape((/0.0_wp, 0.0_wp, 0.0_wp, &
+         & 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp/), (/3, 3/))
+      real(wp) :: quadrupole(6) = (/0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp,0.0_wp/)
       real(wp) :: molpol = 0.0_wp
       real(wp) :: g_solv = 0.0_wp
       real(wp) :: g_total = 0.0_wp

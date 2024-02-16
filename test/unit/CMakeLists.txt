@@ -59,6 +59,8 @@ foreach(t IN LISTS tests)
   string(MAKE_C_IDENTIFIER ${t} t) 
   list(APPEND test-srcs "test_${t}.f90")
 endforeach()
+# add PTB explicitly since it is not part of the tests list (different ending)
+list(APPEND test-srcs "test_ptb.F90")
 
 
 # executable
@@ -93,6 +95,13 @@ foreach(t IN LISTS tests)
     ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
   )
 endforeach()
+# add PTB explicitly since it is not part of the tests list
+add_test("${PROJECT_NAME}/ptb" "${PROJECT_NAME}-tester" "ptb")
+set_tests_properties(
+  "${PROJECT_NAME}/ptb"
+  PROPERTIES
+  ENVIRONMENT XTBPATH=${PROJECT_SOURCE_DIR}
+)
 
 # xtb 
 set(XTB-EXE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}")

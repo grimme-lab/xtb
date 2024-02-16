@@ -79,6 +79,10 @@ write(iunit,'(3x,a)') &
    "* J. Kohn, N. Gildemeister, S. Grimme, D. Fazzi, A. Hansen,",&
    "  J. Chem. Phys., 2023, just accepted.",&
    "",&
+   "for PTB refer to:",&
+   "* S. Grimme, M. Mueller, A. Hansen, J. Chem. Phys., 2023, 158, 124111.",&
+   "  DOI: 10.1063/5.0137838",&
+   "",&
    "with help from (in alphabetical order)",&
    "P. Atkinson, C. Bannwarth, F. Bohle, G. Brandenburg, E. Caldeweyher", &
    "M. Checinski, S. Dohm, S. Ehlert, S. Ehrlich, I. Gerasimov, C. Hölzer", &
@@ -117,6 +121,11 @@ subroutine help(iunit)
    "",&
    "--tblite,",&
    "    use tblite library as implementation for xTB",&
+   "",&
+   "--ptb,",&
+   "    performs single-point calculation with the density tight-binding method PTB.", &
+   "    Provides electronic structure and properties, such as, e.g., atomic charges, bond orders, and dipole moments,", & 
+   "    but does not provide any energy-related properties, such as, e.g., total energy, nuclear gradients, or vibrational frequencies.", &
    "",&
    "--spinpol,",&
    "    enables spin-polarization for xTB methods (tblite required)",&
@@ -188,6 +197,12 @@ subroutine help(iunit)
    "",&
    "--dipole",&
    "    requests dipole printout",&
+   "",&
+   "--raman", &
+   "    requests Raman spectrum calculation via combination of GFN2-xTB and PTB", &
+   "",&
+   "--alpha",&
+   "    requests the extension of electrical properties to static molecular dipole polarizabilities. ",&
    "",&
    "--wbo",&
    "    requests Wiberg bond order printout",&

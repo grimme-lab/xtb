@@ -95,7 +95,7 @@ subroutine test_cpx_solv(error)
    call cpcmx%calc_solv(env,cpxsolvent,energy_gas,0.4_wp,298.15_wp,500,0.0001_wp,total_energy)
    call cpcmx%print(.true.)
    call check_(error, total_energy-energy_gas, -0.1555665E-01_wp, thr=thr)
-   call check_(error, total_energy, -22.00017093824971, thr=thr)
+   call check_(error, total_energy, -22.00017093824971_wp, thr=thr)
 
 end subroutine test_cpx_solv
 end module test_cpx

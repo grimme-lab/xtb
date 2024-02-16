@@ -1,6 +1,6 @@
 # This file is part of xtb.
 #
-# Copyright (C) 2019-2020 Sebastian Ehlert
+# Copyright (C) 2023 Marcel Müller
 #
 # xtb is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by
@@ -15,14 +15,22 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
-set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
-
-list(APPEND srcs
-  "${dir}/defaults.f90"
-  "${dir}/geometry.f90"
-  "${dir}/json.F90"
-  "${dir}/property.F90"
-  "${dir}/setup.f90"
+srcs += files(
+  'calculator.F90',
+  'param.F90',
+  'data.f90',
+  'vdzp.F90',
+  'twostepscf.F90',
+  'integrals.F90',
+  'mmlpopanalysis.F90',
+  'ncoord.F90',
+  'corebasis.F90',
+  'hamiltonian.F90',
+  'guess.F90',
+  'paulixc.F90',
+  'integral_types.F90',
+  'coulomb.F90',
+  'plusu.F90',
+  'property.F90',
+  'response.F90',
 )
-
-set(srcs ${srcs} PARENT_SCOPE)

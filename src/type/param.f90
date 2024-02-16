@@ -20,7 +20,7 @@ module xtb_type_param
    implicit none
 
    public :: dftd_parameter
-   public :: TxTBParameter
+   public :: TxTBParameter, TPTBParameter
    public :: scc_parameter
 
    public :: chrg_parameter
@@ -69,6 +69,18 @@ module xtb_type_param
       real(wp) :: ipeashift = 0.0_wp
       real(wp) :: renscale = 0.0_wp
    end type TxTBParameter
+
+   type :: TPTBParameter
+      real(wp) :: kpol = 0.0_wp
+      real(wp) :: kpolres = 0.0_wp
+      real(wp) :: kitr = 0.0_wp
+      real(wp) :: geps0 = 0.0_wp
+      real(wp) :: kitocod = 0.0_wp
+      real(wp) :: geps = 0.0_wp
+      real(wp) :: kerfcn = 0.0_wp
+      real(wp) :: kerfcn_eeq = 0.0_wp
+      real(wp) :: mlmix = 0.0_wp
+   end type TPTBParameter
 
    type :: dftd_parameter
       real(wp) :: s6 = -1.0_wp

@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 ! % cat xtbout.json
 ! {
 ! # calculation information
@@ -57,9 +61,14 @@
 module xtb_main_json
    implicit none
 
+   private
+
+   public :: main_xtb_json, write_json_gfnff_lists
+   public :: main_ptb_json
+
 contains
 
-   subroutine main_json &
+   subroutine main_xtb_json &
       (ijson, mol, wfx, xbas, sccres, freqres)
       use xtb_mctc_accuracy, only: wp
 
@@ -85,6 +94,8 @@ contains
       type(TBasisset), intent(in) :: xbas
       type(scc_results), intent(in) :: sccres
       type(freq_results), intent(in) :: freqres
+      logical :: alpha
+      alpha = set%elprop == p_elprop_alpha
 
       call write_json_header(ijson)
       call write_json_scc_results(ijson, sccres)
@@ -100,11 +111,11 @@ contains
       if (freqres%n3true > 0) then
          call write_json_frequencies(ijson, freqres)
          call write_json_reduced_masses(ijson, freqres)
-         call write_json_intensities(ijson, freqres)
+         call write_json_intensities(ijson, freqres, alpha)
       end if
       call write_json_footer(ijson)
 
-   end subroutine main_json
+   end subroutine main_xtb_json
 
    subroutine write_json_header(ijson)
       integer, intent(in) :: ijson
@@ -126,16 +137,31 @@ contains
       write (ijson, '("}")')
    end subroutine write_json_footer
 
+   subroutine write_json_ptb_footer(ijson)
+      use xtb_setparam
+      include 'xtb_version.fh'
+      integer, intent(in) :: ijson
+      character(len=:), allocatable :: cmdline
+      integer :: l
+      call get_command(length=l)
+      allocate (character(len=l) :: cmdline)
+      call get_command(cmdline)
+      write (ijson, '(3x,''"program call":'',1x,''"'',a,''",'')') cmdline
+      write (ijson, '(3x,''"method": "PTB",'')')
+      write (ijson, '(3x,a)') '"xtb version": "'//version//'"'
+      write (ijson, '("}")')
+   end subroutine write_json_ptb_footer
+
    subroutine write_json_scc_results(ijson, sccres)
       use xtb_type_data
       integer, intent(in) :: ijson
       type(scc_results), intent(in) :: sccres
       character(len=*), parameter :: jfmtf = '(3x,''"'',a,''":'',1x,f20.8,",")'
       write (ijson, jfmtf) 'total energy', sccres%e_total
-      write (ijson, jfmtf) 'HOMO-LUMO gap/eV', sccres%hl_gap
+      write (ijson, jfmtf) 'HOMO-LUMO gap / eV', sccres%hl_gap
       write (ijson, jfmtf) 'electronic energy', sccres%e_elec
       write (ijson, '(3x,''"'',a,''":'',1x,"[",2(f15.8,","),f15.8,"],")') &
-         'dipole', sccres%dipole
+         'dipole / a.u.', sccres%dipole
       !write(ijson,jfmtf) 'classical repulsion energy',sccres%e_rep
       !write(ijson,jfmtf) 'isotropic electrostatic energy',sccres%e_es
       !write(ijson,jfmtf) 'anisotropic electrostatic energy',sccres%e_aes
@@ -157,6 +183,30 @@ contains
       write (ijson, '(3x,f15.8,",")') (wfn%q(i), i=1, wfn%n - 1)
       write (ijson, '(3x,f15.8,"],")') wfn%q(wfn%n)
    end subroutine write_json_charges
+
+   subroutine write_json_bondorder(ijson, mol, wfn)
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_wavefunction, only: TWavefunction
+      integer, intent(in) :: ijson
+      type(TMolecule), intent(in) :: mol
+      type(TWavefunction), intent(in) :: wfn
+      character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
+      integer :: i, j
+      logical :: first
+      write (ijson, jfmta) 'bond orders'
+      do i = 1, mol%n - 1
+         do j = i, mol%n
+            if (wfn%wbo(j, i) > 0.01) then
+               if (first) then
+                  write (ijson, '(a)') ','
+               end if
+               first = .true.
+               write (ijson, '(3x,"[ ",i5,",",i5,",",f8.4,"]")', advance='no') i, j, wfn%wbo(j, i)
+            end if
+         end do
+      end do
+      write (ijson, '(a,/)', advance='no') '],'
+   end subroutine write_json_bondorder
 
    subroutine write_json_dipole_moments(ijson, wfn)
       use xtb_type_wavefunction
@@ -197,13 +247,33 @@ contains
       write (ijson, jfmti) 'number of molecular orbitals', wfn%nao
       write (ijson, jfmti) 'number of electrons', wfn%nel
       write (ijson, jfmti) 'number of unpaired electrons', wfn%nopen
-      write (ijson, jfmta) 'orbital energies/eV'
+      write (ijson, jfmta) 'orbital energies / eV'
       write (ijson, '(3x,f15.8,",")') (wfn%emo(i), i=1, wfn%nao - 1)
       write (ijson, '(3x,f15.8,"],")') wfn%emo(wfn%nao)
       write (ijson, jfmta) 'fractional occupation'
       write (ijson, '(3x,f15.8,",")') (wfn%focc(i), i=1, wfn%nao - 1)
       write (ijson, '(3x,f15.8,"],")') wfn%focc(wfn%nao)
    end subroutine write_json_wavefunction
+
+   subroutine write_json_ptb_wavefunction(ijson, wfn)
+      use xtb_type_wavefunction
+      integer, intent(in) :: ijson
+      type(TWavefunction), intent(in) :: wfn
+      character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
+      character(len=*), parameter :: jfmti = '(3x,''"'',a,''":'',1x,i0,",")'
+      character(len=*), parameter :: jfmtf = '(3x,''"'',a,''":'',1x,f20.8,",")'
+      integer :: i, max_print
+      max_print = min(wfn%nao, wfn%ihomo + 8)
+      write (ijson, jfmti) 'number of molecular orbitals', wfn%nao
+      write (ijson, jfmti) 'number of electrons', wfn%nel
+      write (ijson, jfmti) 'number of unpaired electrons', wfn%nopen
+      write (ijson, jfmta) 'orbital energies / eV'
+      write (ijson, '(3x,f15.8,",")') (wfn%emo(i), i=1, max_print - 1)
+      write (ijson, '(3x,f15.8,"],")') wfn%emo(max_print)
+      write (ijson, jfmta) 'fractional occupation'
+      write (ijson, '(3x,f15.8,",")') (wfn%focc(i), i=1, max_print - 1)
+      write (ijson, '(3x,f15.8,"],")') wfn%focc(max_print)
+   end subroutine write_json_ptb_wavefunction
 
    subroutine write_json_thermo(ijson, freqres)
       use xtb_type_data
@@ -220,20 +290,39 @@ contains
       type(freq_results), intent(in) :: freqres
       character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
       integer :: i
-      write (ijson, jfmta) 'vibrational frequencies/rcm'
+      write (ijson, jfmta) 'vibrational frequencies / rcm'
       write (ijson, '(3x,f15.8,",")') (freqres%freq(i), i=1, freqres%n3true - 1)
       write (ijson, '(3x,f15.8,"],")') freqres%freq(freqres%n3true)
    end subroutine write_json_frequencies
 
-   subroutine write_json_intensities(ijson, freqres)
+   subroutine write_json_intensities(ijson, freqres, printalpha)
       use xtb_type_data
+      use xtb_mctc_accuracy, only: wp
       integer, intent(in) :: ijson
       type(freq_results), intent(in) :: freqres
+      logical, intent(in) :: printalpha
       character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
       integer :: i
-      write (ijson, jfmta) 'IR intensities/amu'
-      write (ijson, '(3x,f15.8,",")') (freqres%dipt(i), i=1, freqres%n3true - 1)
+      write (ijson, jfmta) 'IR intensities / km/mol'
+      do i = 1, freqres%n3true - 1
+         if (abs(freqres%freq(i)) < 1.0e-2_wp) then
+            write (ijson, '(3x,f15.8,",")') 0.0_wp
+         else
+            write (ijson, '(3x,f15.8,",")') freqres%dipt(i)
+         end if
+      end do
       write (ijson, '(3x,f15.8,"],")') freqres%dipt(freqres%n3true)
+      if (printalpha) then
+         write (ijson, jfmta) 'Raman activities / A^4/amu'
+         do i = 1, freqres%n3true - 1
+            if (abs(freqres%freq(i)) < 1.0e-2_wp) then
+               write (ijson, '(3x,f15.8,",")') 0.0_wp
+            else
+               write (ijson, '(3x,f15.8,",")') freqres%polt(i)
+            end if
+         end do
+         write (ijson, '(3x,f15.8,"],")') freqres%polt(freqres%n3true)
+      end if
    end subroutine write_json_intensities
 
    subroutine write_json_reduced_masses(ijson, freqres)
@@ -496,4 +585,102 @@ contains
       call close_file(iunit)
 
    end subroutine write_json_gfnff_lists
+   
+   !> wrapper for tblite-PTB JSON output
+   subroutine main_ptb_json &
+      (ijson, mol, wfx, calc, sccres, freqres)
+
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_wavefunction, only: TWavefunction
+      use xtb_type_data, only: scc_results, freq_results
+      use xtb_ptb_calculator, only: TPTBCalculator
+
+      integer, intent(in) :: ijson 
+      type(TMolecule), intent(in) :: mol
+      type(TWavefunction), intent(in) :: wfx
+      type(TPTBCalculator), intent(in) :: calc
+      type(scc_results), intent(in) :: sccres
+      type(freq_results), intent(in) :: freqres
+
+#if WITH_TBLITE
+      call tblite_ptb_json(ijson, mol, wfx, calc%bas, sccres, freqres)
+#endif
+
+   end subroutine main_ptb_json
+
+#if WITH_TBLITE
+   subroutine tblite_ptb_json &
+      (ijson, mol, wfx, bas, sccres, freqres)
+      use mctc_env, only: wp
+   !! ========================================================================
+      !  load class definitions
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_wavefunction, only: TWavefunction
+      use xtb_type_data, only: scc_results, freq_results
+      !> tblite-specific types
+      use tblite_basis_type, only: basis_type
+   !! ========================================================================
+      !  global storage of options, parameters and basis set
+      use xtb_setparam
+      implicit none
+
+   !! ========================================================================
+      integer, intent(in) :: ijson ! file handle (usually json-file)
+      !  molecule data
+      type(TMolecule), intent(in) :: mol
+      type(TWavefunction), intent(in) :: wfx
+      type(basis_type), intent(in) :: bas
+      type(scc_results), intent(in) :: sccres
+      type(freq_results), intent(in) :: freqres
+      logical :: alpha
+      alpha = set%elprop == p_elprop_alpha
+
+      call write_json_header(ijson)
+      call write_json_scc_results(ijson, sccres)
+      if (freqres%gtot > 0.0_wp) then
+         call write_json_thermo(ijson, freqres)
+      end if
+      call write_json_charges(ijson, wfx)
+      call write_json_ptb_shell_charges(ijson, mol, bas, wfx)
+      call write_json_bondorder(ijson, mol, wfx)
+      call write_json_dipole_moments(ijson, wfx)
+      call write_json_quadrupole_moments(ijson, wfx)
+      call write_json_ptb_wavefunction(ijson, wfx)
+      if (freqres%n3true > 0) then
+         call write_json_frequencies(ijson, freqres)
+         call write_json_reduced_masses(ijson, freqres)
+         call write_json_intensities(ijson, freqres, alpha)
+      end if
+      call write_json_ptb_footer(ijson)
+
+   end subroutine tblite_ptb_json
+
+   subroutine write_json_ptb_shell_charges(ijson, mol, bas, wfn)
+      use xtb_type_wavefunction, only: TWavefunction
+      use xtb_type_molecule, only: TMolecule
+      use xtb_ptb_vdzp, only: max_shell
+      use tblite_basis_type, only: basis_type
+      integer, intent(in) :: ijson
+      type(TMolecule), intent(in) :: mol
+      type(basis_type), intent(in) :: bas
+      type(TWavefunction), intent(in) :: wfn
+      character(len=*), parameter :: jfmta = '(3x,''"'',a,''": ['')'
+      character(len=*), parameter :: jfmtf = '(3x,''"'',a,''":'',1x,f20.8,",")'
+      integer :: iat, ish, ii
+      write (ijson, jfmta) 'shell charges'
+      do iat = 1, mol%n
+         ii = bas%ish_at(iat)
+         write (ijson, '(3x,a)', advance='no') "["
+         do ish = 1, bas%nsh_at(iat) - 1
+            write (ijson, '(f15.8,",")', advance="no") wfn%qsh(ii + ish)
+         end do
+         if (iat == mol%n) then
+            write (ijson, '(f15.8,"]],",/)', advance="no") wfn%qsh(ii + bas%nsh_at(iat))
+         else
+            write (ijson, '(f15.8,"],",/)', advance="no") wfn%qsh(ii + bas%nsh_at(iat))
+         end if
+      end do
+   end subroutine write_json_ptb_shell_charges
+#endif
+
 end module xtb_main_json

@@ -18,11 +18,11 @@ module xtb_gfnff_ini
 
 contains
 
-subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
+subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accuracy)
       use xtb_mctc_accuracy, only : wp, sp
       use xtb_type_molecule
       use xtb_type_environment, only : TEnvironment
-      use xtb_gfnff_param, only : efield, gfnff_thresholds
+      use xtb_gfnff_param, only : gfnff_thresholds
       use xtb_gfnff_data, only : TGFFData
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_generator, only : TGFFGenerator
@@ -43,6 +43,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,accuracy)
       type(TGFFTopology), intent(inout) :: topo
       type(TGFFGenerator), intent(in) :: gen
       type(TGFFData), intent(in) :: param
+      real(wp), intent(in) :: efield(3)
       real(wp), intent(in) :: accuracy
 
       logical, intent(in) :: pr            ! print flag

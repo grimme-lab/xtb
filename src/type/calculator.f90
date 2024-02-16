@@ -113,7 +113,7 @@ contains
 
 
 !> Evaluate hessian by finite difference for all atoms
-subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
+subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    character(len=*), parameter :: source = "hessian_numdiff_numdiff2"
    !> Single point calculator
    class(TCalculator), intent(inout) :: self
@@ -131,11 +131,14 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    real(wp), intent(inout) :: hess(:, :)
    !> Array to add dipole gradient to
    real(wp), intent(inout) :: dipgrad(:, :)
+   !> Array to add polarizability gradient to
+   real(wp), intent(inout), optional :: polgrad(:, :)
 
    integer :: iat, jat, kat, ic, jc, ii, jj
    type(TMolecule) :: mol
    type(TRestart) :: chk
    real(wp) :: er, el, dr(3), dl(3), sr(3, 3), sl(3, 3), egap, step2
+   real(wp) :: alphal(3, 3), alphar(3, 3)
    real(wp) :: t0, t1, w0, w1
    real(wp), allocatable :: gr(:, :), gl(:, :)
    type(scc_results) :: rr, rl
@@ -145,8 +148,8 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
    allocate(gr(3, mol0%n), gl(3, mol0%n))
 
    !$omp parallel do if(self%threadsafe) schedule(runtime) collapse(2) default(none) &
-   !$omp shared(self, env, mol0, chk0, list, step, hess, dipgrad, egap, step2, t0, w0) &
-   !$omp private(kat, iat, jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, &
+   !$omp shared(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, egap, step2, t0, w0) &
+   !$omp private(kat, iat, jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, alphar, alphal, &
    !$omp& mol, chk, t1, w1)
    do kat = 1, size(list)
       do ic = 1, 3
@@ -162,13 +165,24 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad)
          call chk%copy(chk0)
          call self%singlepoint(env, mol, chk, -1, .true., er, gr, sr, egap, rr)
          dr = rr%dipole
+         if (present(polgrad)) then
+            alphar(:, :) = rr%alpha
+         endif
 
          call mol%copy(mol0)
          mol%xyz(ic, iat) = mol0%xyz(ic, iat) - step
          call chk%copy(chk0)
          call self%singlepoint(env, mol, chk, -1, .true., el, gl, sl, egap, rl)
          dl = rl%dipole
-
+         if (present(polgrad)) then
+            alphal(:, :) = rl%alpha
+            polgrad(1, ii) = (alphar(1, 1) - alphal(1, 1)) * step2
+            polgrad(2, ii) = (alphar(1, 2) - alphal(1, 2)) * step2
+            polgrad(3, ii) = (alphar(2, 2) - alphal(2, 2)) * step2
+            polgrad(4, ii) = (alphar(1, 3) - alphal(1, 3)) * step2
+            polgrad(5, ii) = (alphar(2, 3) - alphal(2, 3)) * step2
+            polgrad(6, ii) = (alphar(3, 3) - alphal(3, 3)) * step2
+         endif
          dipgrad(:, ii) = (dr - dl) * step2
          do jat = 1, mol0%n
             do jc = 1, 3

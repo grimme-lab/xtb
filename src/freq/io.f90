@@ -100,25 +100,96 @@ contains
 300   return
    end subroutine rdhess
 
-   subroutine write_tm_vibspectrum(ich, n3, freq, ir_int)
+   subroutine write_tm_vibspectrum(ich, n3, freq, ir_int, raman_activity, temp, v_incident)
+      use xtb_setparam
+      use xtb_mctc_constants
+      use xtb_mctc_convert
       integer, intent(in) :: ich ! file handle
       integer, intent(in) :: n3
       real(wp), intent(in) :: freq(n3)
       real(wp), intent(in) :: ir_int(n3)
+      real(wp), intent(in), optional :: raman_activity(n3)
+      !> CAUTION: v_incident is in cm**(-1)
+      real(wp), intent(in), optional :: temp, v_incident
+      real(wp), allocatable :: raman_int(:)
       integer :: i
-      real(wp) :: thr = 0.01_wp
-      write (ich, '("$vibrational spectrum")')
-      write (ich, '("#  mode     symmetry     wave number   IR intensity    selection rules")')
-      write (ich, '("#                         cm**(-1)      (km*mol⁻¹)       IR     RAMAN")')
-      do i = 1, n3
-         if (abs(freq(i)) < thr) then
-            write (ich, '(i6,9x,    f18.2,f16.5,7x," - ",5x," - ")') &
-               i, freq(i), 0.0_wp
-         else
-            write (ich, '(i6,8x,"a",f18.2,f16.5,7x,"YES",5x,"YES")') &
-               i, freq(i), ir_int(i)
-         end if
-      end do
+      real(wp) :: thr = 1.0e-2_wp
+      real(wp) :: thr_int = 1.0e-2_wp
+      real(wp) :: v_meter, hbycvb, bfactor, prefactor, v0minvito4, raman_act_si
+
+      if (set%elprop == p_elprop_alpha) then
+         allocate (raman_int(n3), source=0.0_wp)
+         !> Conversion into measurable intensities follows
+         !> https://doi.org/10.1016/j.cplett.2004.12.096
+         !> Chemical Physics Letters 403 (2005) 211–217
+         !> Further literature under: http://chemcraftprog.com/help/spectrumwindow.html;
+         !                            https://old.iupac.org/reports/V/spectro/partXVIII.pdf
+         !                            https://doi.org/10.1016/j.molstruc.2004.06.004
+         !                            https://doi.org/10.1021/j100384a024
+         do i = 1, n3
+            !> B_i
+            v_meter = freq(i) * 1.0e2_wp
+            bfactor = 1.0_wp - exp(-(v_meter * h_SI * lightspeed_SI) / (kB_SI * temp))
+            !      h
+            ! -------------
+            ! c * vi * Bi
+            hbycvb = h_SI / (lightspeed_SI * v_meter * bfactor)
+            !       (2 * Pi)^4
+            ! ------------------
+            !    45 * 8 * Pi^2
+            prefactor = (2.0_wp * (pi**2)) / 45.0_wp
+            ! (v_incident - v_i)^4
+            v0minvito4 = ((v_incident * 1.0e2_wp) - v_meter)**4
+            !> Conversion into SI units
+            raman_act_si = raman_activity(i) / m4bykgtoang4byamu()
+            !> putting it all together
+            raman_int(i) = prefactor * hbycvb * v0minvito4 * raman_act_si * 1.0e+20_wp
+         end do
+
+         write (ich, '("$vibrational spectrum")')
+   write(ich,'("#  mode     symmetry     wave number   IR intensity   Raman activity   Raman scatt. cross-section   selection rules")')
+   write(ich,'("#                           (cm⁻¹)      (km*mol⁻¹)      (Å⁴*amu⁻¹)             (Å²*sr⁻¹)              IR     RAMAN")')
+         do i = 1, n3
+            if (abs(freq(i)) < thr) then
+               write (ich, '(i6,9x,    f18.2,f16.5,f16.5,8x,e16.5,13x," - ",5x," - ")') &
+                  &  i, freq(i), 0.0_wp, 0.0_wp, 0.0_wp
+            else
+               write (ich, '(i6,8x,"a",f18.2,f16.5,f16.5,8x,e16.5,13x)', advance="no") &
+                  &  i, freq(i), ir_int(i), raman_activity(i), raman_int(i)
+
+               if (ir_int(i) > thr_int) then
+                  write (ich, '(a)', advance="no") "YES"
+               else
+                  write (ich, '(a)', advance="no") "NO "
+               end if
+
+               if (raman_activity(i) > thr_int) then
+                  write (ich, '(5x,a)') "YES"
+               else
+                  write (ich, '(5x,a)') "NO "
+               end if
+            end if
+         end do
+      else
+         write (ich, '("$vibrational spectrum")')
+         write (ich, '("#  mode     symmetry     wave number   IR intensity    selection rules")')
+         write (ich, '("#                         cm**(-1)      (km*mol⁻¹)        IR     ")')
+         do i = 1, n3
+            if (abs(freq(i)) < thr) then
+               write (ich, '(i6,9x,    f18.2,f16.5,9x," - ")') &
+                  i, freq(i), 0.0_wp
+            else
+               if (ir_int(i) > thr_int) then
+                  write (ich, '(i6,8x,"a",f18.2,f16.5,9x,"YES")') &
+                     i, freq(i), ir_int(i)
+               else
+                  write (ich, '(i6,8x,"a",f18.2,f16.5,9x,"NO")') &
+                     i, freq(i), ir_int(i)
+               end if
+            end if
+         end do
+      end if
+
       write (ich, '("$end")')
    end subroutine
 

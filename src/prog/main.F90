@@ -15,6 +15,7 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
+
 module xtb_prog_main
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_io, only: stderr
@@ -76,7 +77,7 @@ module xtb_prog_main
    use xtb_xtb_gfn2
    use xtb_main_setup
    use xtb_main_defaults, only: initDefaults
-   use xtb_main_json, only: main_json, write_json_gfnff_lists
+   use xtb_main_json, only: main_xtb_json, write_json_gfnff_lists
    use xtb_geoopt
    use xtb_metadynamic
    use xtb_biaspath
@@ -93,8 +94,11 @@ module xtb_prog_main
    use xtb_oniom, only: oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only: vfukui
    use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
+   !> PTB related modules
+   use xtb_main_json, only: main_ptb_json
 
    implicit none
    private
@@ -143,6 +147,7 @@ contains
       character(len=*), parameter :: p_fname_param_gfn2 = 'param_gfn2-xtb.txt'
       character(len=*), parameter :: p_fname_param_gfnff = '.param_gfnff.xtb'
       character(len=*), parameter :: p_fname_param_ipea = 'param_ipea-xtb.txt'
+      character(len=*), parameter :: p_fname_param_ptb = 'param_ptb.txt'
 
       integer :: gsolvstate
       integer :: i, j, k, l, idum
@@ -166,7 +171,7 @@ contains
 
 !! ------------------------------------------------------------------------
       logical :: struc_conversion_done = .false.
-      logical :: anyopt
+      logical :: anyopt, anyhess
 
 !! ========================================================================
 !  debugging variables for numerical gradient
@@ -224,6 +229,17 @@ contains
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
       end if
 
+      !> If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
+      anyhess = (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)
+      if (set%mode_extrun == p_ext_ptb .and. anyhess) then
+         set%mode_extrun = p_ext_xtb
+         set%ptbsetup%ptb_in_hessian = .true.
+         call set_gfn(env, 'method', '2')
+         call set_gfn(env, 'd4', 'true')
+         tblite%method = "gfn2"
+         set%ptbsetup%hessmethod = "GFN2-xTB"
+      end if
+
       nFiles = argParser%countFiles()
       select case (nFiles)
       case (0)
@@ -255,6 +271,8 @@ contains
 
       if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization. &
          &Please use another solvation model for optimization instead.")
+      if ((set%mode_extrun == p_ext_ptb) .and. anyopt) call env%terminate("PTB not implemented for geometry optimization. &
+         &Please use another method for optimization instead.")
 
       call env%checkpoint("Command line argument parsing failed")
 
@@ -292,19 +310,28 @@ contains
          end if
       end if
 
-      !> efield read: gfnff only
-      call open_file(ich, '.EFIELD', 'r')
-      if (ich /= -1) then
-         call getline(ich, cdum, iostat=err)
-         if (err /= 0) then
-            call env%error('.EFIELD is empty!', source)
-         else
-            call set_efield(env, cdum)
-            call close_file(ich)
+      call env%checkpoint("Reading multiplicity from file failed")
+
+      !> efield read: gfnff and PTB only
+      if (set%mode_extrun == p_ext_gfnff .or. set%mode_extrun == p_ext_ptb) then
+         call open_file(ich, '.EFIELD', 'r')
+         if (ich /= -1) then
+            call getline(ich, cdum, iostat=err)
+            if (err /= 0) then
+               call env%error('.EFIELD is empty!', source)
+            else
+               call set_efield(env, cdum)
+               call close_file(ich)
+            end if
          end if
       end if
 
-      call env%checkpoint("Reading multiplicity from file failed")
+      !> If EFIELD is not zero when using xtb, print a warning
+      if (((set%mode_extrun /= p_ext_ptb) .and. (set%mode_extrun /= p_ext_gfnff)) &
+         & .and. (sum(abs(set%efield)) /= 0.0_wp)) then
+         call env%terminate("External electric field is not zero ('--efield' or file '.EFIELD'), &
+            & but only supported for GFN-FF and PTB")
+      end if
 
       ! ------------------------------------------------------------------------
       !> read the xtbrc if you can find it (use rdpath directly instead of xfind)
@@ -404,7 +431,7 @@ contains
       end if
 
       mol%chrg = real(set%ichrg, wp)
-      !! To assign charge
+   !! To assign charge
       mol%uhf = set%nalphabeta
       call initrand
 
@@ -415,7 +442,7 @@ contains
       ! ------------------------------------------------------------------------
       if (mol%info%two_dimensional) then
          call struc_convert(env, restart, mol, chk, egap, set%etemp, set%maxscciter, &
-                          &  set%optset%maxoptcycle, etot, g, sigma)
+                           &  set%optset%maxoptcycle, etot, g, sigma)
          struc_conversion_done = .true.
          mol%info%two_dimensional = .false.
       end if
@@ -424,6 +451,13 @@ contains
       !> CONSTRAINTS & SCANS
       !> now we are at a point that we can check for requested constraints
       call read_userdata(xcontrol, env, mol)
+
+      if (sum(abs(set%efield)) /= 0.0_wp) then
+         write (env%unit, '(/,3x,a)') "--------------------------------------"
+         write (env%unit, '(3x,a)') "--- external electric field / a.u. ---"
+         write (env%unit, '(3x,3(a,f8.4))') "x = ", set%efield(1), " y = ", set%efield(2), " z = ", set%efield(3)
+         write (env%unit, '(3x,a)') "--------------------------------------"
+      end if
 
       !> initialize metadynamics
       call load_metadynamic(metaset, mol%n, mol%at, mol%xyz)
@@ -484,7 +518,7 @@ contains
 
       !> check if someone is still using GFN3...
       if (set%gfn_method == 3) then
-         call env%terminate('This is an internal error, please use gfn_method=2!')
+         call env%terminate('Wait for some months - for now, please use gfn_method=2!')
       end if
 
       ! ------------------------------------------------------------------------
@@ -499,6 +533,8 @@ contains
                p_run_modef, p_run_mdopt, p_run_metaopt)
             if (set%mode_extrun == p_ext_gfnff) then
                fnv = xfind(p_fname_param_gfnff)
+             elseif (set%mode_extrun .eq. p_ext_ptb) then
+                  fnv = xfind(p_fname_param_ptb)
             else
                if (set%gfn_method == 0) then
                   fnv = xfind(p_fname_param_gfn0)
@@ -589,8 +625,6 @@ contains
          if (restart .and. calc%xtbData%level /= 0) then ! only in first run
             call readRestart(env, chk%wfn, 'xtbrestart', mol%n, mol%at, set%gfn_method, exist, .true.)
          end if
-         calc%etemp = set%etemp
-         calc%maxiter = set%maxscciter
          ipeashift = calc%xtbData%ipeashift
       type is (TTBLiteCalculator)
          if (restart) then
@@ -602,7 +636,7 @@ contains
          type is (TxTBCalculator)
             call chk%wfn%allocate(mol%n, xtb%basis%nshell, xtb%basis%nao)
             call newWavefunction(env, mol, xtb, chk)
-            !! assigns only partial charges q and shell charges
+         !! assigns only partial charges q and shell charges
             if (restart) then ! only in first run
                call readRestart(env, chk%wfn, 'xtbrestart', mol%n, mol%at, set%gfn_method, exist, .true.)
             end if
@@ -975,6 +1009,8 @@ contains
             call main_cube(set%verbose, mol, chk%wfn, calc%basis, res)
          type is (TGFFCalculator)
             call gfnff_property(iprop, mol%n, mol%xyz, calc%topo, chk%nlist)
+         type is (TPTBCalculator)
+            call ptb_property(iprop, env, chk, calc, mol, res)
          end select
       end if
 
@@ -982,8 +1018,13 @@ contains
          select type (calc)
          type is (TxTBCalculator)
             call open_file(ich, 'xtbout.json', 'w')
-            call main_json(ich, &
-                           mol, chk%wfn, calc%basis, res, fres)
+            call main_xtb_json(ich, &
+                               mol, chk%wfn, calc%basis, res, fres)
+            call close_file(ich)
+         type is (TPTBCalculator)
+            call open_file(ich, 'xtbout.json', 'w')
+            call main_ptb_json(ich, &
+                               mol, chk%wfn, calc, res, fres)
             call close_file(ich)
          end select
       end if
@@ -1025,14 +1066,12 @@ contains
 
       select type (calc)
       type is (TxTBCalculator)
-         call write_energy(env%unit, res, fres, &
-           & (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess))
+         call write_energy(env%unit, res, fres, anyhess)
       type is (TOniomCalculator)
-         call write_energy_oniom(env%unit, res, fres, &
-            & (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess .or. (set%runtyp == p_run_bhess)))
+         call write_energy_oniom(env%unit, res, fres, anyhess)
+      type is (TPTBCalculator)
       class default
-         call write_energy_gff(env%unit, res, fres, &
-           & (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess))
+         call write_energy_gff(env%unit, res, fres, anyhess)
       end select
 
       ! ------------------------------------------------------------------------
@@ -1418,6 +1457,14 @@ contains
                call env%error("Number of unpaired electrons is not provided", source)
             end if
 
+         case ("--efield")
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_efield(env, sec)
+            else
+               call env%error("Electric field is not provided", source)
+            end if
+
          case ('--gfn')
             call args%nextArg(sec)
             if (allocated(sec)) then
@@ -1456,6 +1503,13 @@ contains
 
          case ('--iff')
             call set_exttyp('iff')
+
+         case ('--ptb')
+            call set_exttyp('ptb')
+            if (.not. get_xtb_feature('tblite')) then
+               call ptb_feature_not_implemented(env)
+               return
+            endif
 
          case ('--tblite')
             if (get_xtb_feature('tblite')) then
@@ -1530,7 +1584,7 @@ contains
          case ('--cut')
             call set_cut
 
-         case ('--etemp', '--temp')
+         case ('--etemp')
             call args%nextArg(sec)
             if (allocated(sec)) then
                call set_scc(env, 'temp', sec)
@@ -1721,6 +1775,9 @@ contains
 
          case ('--vfukui')
             call set_runtyp('vfukui')
+
+         case ('--alpha')
+            call set_elprop('alpha')
 
          case ('--grad')
             call set_runtyp('grad')
@@ -1927,5 +1984,13 @@ contains
          printTopo%warning = .true.
       end select
    end subroutine selectList
+
+   subroutine ptb_feature_not_implemented(env)
+      !> Computational environment
+      type(TEnvironment), intent(inout) :: env
+
+      call env%error("PTB not available without 'tblite'. Compiled without support for 'tblite' library.")
+      call env%error("Please recompile without '-Dtblite=disabled' option or change meson setup.")
+   end subroutine ptb_feature_not_implemented
 
 end module xtb_prog_main

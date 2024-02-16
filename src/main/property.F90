@@ -11,7 +11,11 @@
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU Lesser General Public License for more details.
-!
+
+#ifndef WITH_TBLITE
+#define WITH_TBLITE 0
+#endif
+
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with xtb.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -19,11 +23,15 @@ module xtb_propertyoutput
    use xtb_mctc_accuracy, only: wp
    use xtb_mctc_io, only: stdout
    use xtb_mctc_symbols, only: toSymbol
+   use xtb_mctc_convert, only: evtoau, autod, autoaa
    use xtb_solv_cm5
    use xtb_cube
    use xtb_topology
-
-contains
+#if WITH_TBLITE
+   use tblite_basis_type, only: basis_type
+   use tblite_wavefunction_type, only: wavefunction_type
+#endif
+   contains
 
    subroutine write_energy(iunit, sccres, frqres, hess)
       use xtb_type_data
@@ -272,11 +280,180 @@ contains
 
    end subroutine main_property
 
+   !> wrapper for tblite-PTB property output
+   subroutine ptb_property&
+                     (iunit, env, chk, calc, mol, res)
+      
+      use xtb_type_molecule, only: TMolecule
+      use xtb_type_restart, only: TRestart
+      use xtb_type_environment,  only: TEnvironment
+      use xtb_type_data, only: scc_results
+      use xtb_type_calculator, only: TCalculator
+      use xtb_ptb_calculator, only: TPTBCalculator
+
+      integer, intent(in) :: iunit
+      type(TMolecule), intent(in) :: mol
+      type(TEnvironment), intent(inout) :: env
+      type(TRestart),  intent(inout) :: chk
+      type(TPTBCalculator), intent(in) :: calc
+      type(scc_results), intent(in) :: res
+      
+#if WITH_TBLITE
+   call tblite_ptb_property(iunit, env, chk%tblite, calc%bas, mol, chk%wfn, res)
+#endif
+
+   end subroutine ptb_property
+
+#if WITH_TBLITE
+   subroutine tblite_ptb_property &
+      (iunit, env, wfn, bas, struc, wfx, res)
+
+      use xtb_mctc_convert
+      use xtb_type_molecule
+      use xtb_type_wavefunction
+      use xtb_type_environment
+      use xtb_type_basisset
+      use xtb_type_data
+
+      !========================================================================
+      !> global storage of options, parameters and basis set
+      use xtb_setparam
+
+      !========================================================================
+      !> PTB specific property output
+      use xtb_ptb_property, only: print_charges_to_screen
+      use xtb_ptb_guess, only: get_psh_from_qsh
+
+      use mctc_io_structure, only: structure_type
+
+      implicit none
+
+      !========================================================================
+      integer, intent(in) :: iunit ! file handle (usually output_unit=6)
+      !> tblite data formats
+      type(structure_type) :: mol
+      type(wavefunction_type), intent(in) :: wfn
+      type(basis_type), intent(in) :: bas
+      !> molecule data
+      type(TMolecule), intent(in) :: struc
+      type(TEnvironment), intent(inout) :: env
+      type(TWavefunction), intent(inout) :: wfx
+      type(scc_results), intent(in) :: res
+      integer :: ifile, i
+      real(wp), allocatable :: psh(:, :)
+      real(wp) :: dip, isotropic_alpha
+
+      mol = struc
+
+      !> orbital energies and occupation
+      if (set%pr_eig) then
+         write (iunit, '(/,4x,"*",1x,a)') "Orbital Energies and Occupations"
+         call print_orbital_eigenvalues(iunit, wfx, 11)
+      end if
+
+      !> Mixed Mulliken-Loewdin atomic charges and shell populations
+      allocate (psh(bas%nsh, wfn%nspin), source=0.0_wp)
+      psh = get_psh_from_qsh(wfn, bas)
+      call print_charges_to_screen(iunit, mol, bas, wfn%qat, psh)
+      if (set%pr_charges) then
+         call open_file(ifile, 'charges', 'w')
+         call print_charges(ifile, struc%n, wfx%q)
+         call close_file(ifile)
+      end if
+
+      !> Spin population
+      ! if (set%pr_spin_population .and. wfx%nopen .ne. 0) then
+      !    call print_spin_population(iunit, mol%n, mol%at, mol%sym, basis%nao, wfx%focca,&
+      !       & wfx%foccb, S, wfx%C, basis%aoat2, basis%lao2)
+      ! end if
+
+!! wiberg bond orders
+      if (set%pr_wiberg) then
+         call open_file(ifile, 'wbo', 'w')
+         call print_wbofile(ifile, struc%n, wfx%wbo, 0.1_wp)
+         call close_file(ifile)
+         call print_wiberg(iunit, struc%n, struc%at, struc%sym, wfx%wbo, 0.1_wp)
+
+         call checkTopology(iunit, struc, wfx%wbo, 1)
+      end if
+
+      if (set%pr_wbofrag) &
+         call print_wbo_fragment(iunit, struc%n, struc%at, wfx%wbo, 0.1_wp)
+
+      ! if (set%pr_tmmos) then
+      !    call open_file(ifile, 'mos', 'w')
+      !    call write_tm_mos(ifile, struc%n, struc%at, basis, wfx)
+      !    call close_file(ifile)
+      ! end if
+
+      dip = norm2(res%dipole)
+
+      write (iunit, '(a)')
+      write (iunit, '(1x)', advance="no")
+      do i = 1, 38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(4x,"Molecular dipole moment (a.u.)")')
+      write (iunit, '(4x,"X        Y        Z")')
+      write (iunit, '(1x)', advance="no")
+      do i = 1, 38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(1x,3f9.4)') &
+            & res%dipole(1), res%dipole(2), res%dipole(3)
+      write (iunit, '(1x)', advance="no")
+      do i = 1, 38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(4x,"Total dipole moment (a.u. / Debye):",/,1x,2f9.4)') &
+            & dip, dip * autod
+
+      write (iunit, '(a)')
+      write (iunit, '(1x)', advance="no")
+      do i = 1, 38
+         write (iunit, '(a)', advance="no") "-"
+      end do
+      write (iunit, '(/)', advance="no")
+      write (iunit, '(4x,"Molecular quadrupole tensor: (a.u.)")')
+      write (iunit, '(9x,"X         Y         Z")')
+      write (iunit, '(4x,a,f10.4)') "X", res%quadrupole(1)
+      write (iunit, '(4x,a,2f10.4)') "Y", res%quadrupole(2:3)
+      write (iunit, '(4x,a,3f10.4)') "Z", res%quadrupole(4:6)
+      write (iunit, '(1x)', advance="no")
+
+      if (set%elprop == p_elprop_alpha) then
+         isotropic_alpha = (res%alpha(1, 1) + res%alpha(2, 2) + res%alpha(3, 3)) / 3.0_wp
+         write (iunit, '(a)')
+         write (iunit, '(1x)', advance="no")
+         do i = 1, 38
+            write (iunit, '(a)', advance="no") "-"
+         end do
+         write (iunit, '(/)', advance="no")
+         write (iunit, '(4x,"Numerical polarizability tensor: (a.u.)")')
+         write (iunit, '(9x,"X         Y         Z")')
+         write (iunit, '(4x,a,3f10.4)') "X", res%alpha(1, 1:3)
+         write (iunit, '(4x,a,3f10.4)') "Y", res%alpha(2, 1:3)
+         write (iunit, '(4x,a,3f10.4)') "Z", res%alpha(3, 1:3)
+         write (iunit, '(1x)', advance="no")
+         do i = 1, 38
+            write (iunit, '(a)', advance="no") "-"
+         end do
+         write (iunit, '(/)', advance="no")
+         write (iunit, '(4x,"Total isotropic dipole polarizability (a.u. / Å³):",/,1x,2f9.4)') &
+               & isotropic_alpha, isotropic_alpha * (autoaa**3)
+      end if
+
+   end subroutine tblite_ptb_property
+#endif
+
    subroutine gfnff_property(iunit, n, xyz, topo, nlist)
       use xtb_gfnff_topology, only: TGFFTopology
       use xtb_gfnff_neighbourlist, only: TGFFNeighbourList
       use xtb_aespot, only: molqdip
-  !! ========================================================================
+!! ========================================================================
       !  global storage of options, parameters and basis set
       use xtb_setparam
       integer, intent(in) :: iunit, n
@@ -481,11 +658,15 @@ contains
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%rmass(i), i=1, res%n3)
       write (iunit, '(1x,a)') 'IR intensities (km·mol⁻¹)'
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%dipt(i), i=1, res%n3)
-      write (iunit, '(1x,a)') 'Raman intensities (amu)'
+      write (iunit, '(1x,a)') 'Raman intensities (Ä⁴*amu⁻¹)'
       write (iunit, '(8(i4,'':'',f6.2))') (i, res%polt(i), i=1, res%n3)
 
       call open_file(ifile, 'vibspectrum', 'w')
-      call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt)
+      if (set%elprop == p_elprop_alpha) then
+         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt, 298.15_wp, 19435.0_wp)
+      else
+         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
+      end if
       call close_file(ifile)
 
       write (iunit, '(1x,a)') 'output can be read by thermo (or use thermo option).'
@@ -895,7 +1076,7 @@ contains
       write (iunit, '(1x,"dipole moment from electron density (au)")')
       write (iunit, '(1x,"    X       Y       Z   ")')
       write (iunit, '(3f9.4,"  total (Debye): ",f8.3)') &
-           & d(1), d(2), d(3), dip * autod
+            & d(1), d(2), d(3), dip * autod
       write (iunit, '(a)')
 
    end subroutine print_dipole
