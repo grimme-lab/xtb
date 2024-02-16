@@ -628,8 +628,6 @@ contains
          if (restart .and. calc%xtbData%level /= 0) then ! only in first run
             call readRestart(env, chk%wfn, 'xtbrestart', mol%n, mol%at, set%gfn_method, exist, .true.)
          end if
-         calc%etemp = set%etemp
-         calc%maxiter = set%maxscciter
          ipeashift = calc%xtbData%ipeashift
       type is (TTBLiteCalculator)
          if (restart) then

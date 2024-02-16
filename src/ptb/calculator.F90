@@ -137,7 +137,7 @@ contains
          calc%accuracy = 1.0_wp
       end if
 
-      calc%etemp = 300.0_wp
+      calc%etemp = set%etemp
 
       !> Obtain the parameter file
       allocate (calc%ptbData)
