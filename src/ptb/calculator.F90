@@ -143,12 +143,11 @@ contains
       allocate (calc%ptbData)
       call open_file(ich, filename, 'r')
       exist = ich /= -1
-      if (exist) then
-         call env%error('Parameter file not supported yet.!', source)
-         call close_file(ich)
-      else ! no parameter file, check if we have one compiled into the code
-         call initPTB(calc%ptbData, mol%num)
-      end if
+      if (exist) &
+         call env%warning('Parameter file '//filename//' not supported yet.!', source)
+      
+      ! read the hardcode parameters !
+      call initPTB(calc%ptbData, mol%num)
 
       call env%check(exitRun)
       if (exitRun) then
