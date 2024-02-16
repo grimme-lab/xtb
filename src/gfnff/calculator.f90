@@ -139,7 +139,7 @@ subroutine newGFFCalculator(env, mol, calc, fname, restart, version)
    call newD3Model(calc%topo%dispm, mol%n, mol%at)
 
    call gfnff_setup(env, set%verbose, restart, mol, &
-      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, calc%version)
+      & calc%gen, calc%param, calc%topo, calc%neigh, calc%accuracy, set%efield, calc%version)
 
    call env%check(exitRun)
    if (exitRun) then
@@ -244,7 +244,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    !--------------------!
 
    call gfnff_eg(env,mol,pr,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
-      & gradient,energy,results,self%param,self%topo,self%neigh,chk%nlist,solvation,&
+      & gradient,energy,results,self%param,self%topo,self%neigh,chk%nlist,set%efield,solvation,&
       & self%update,self%version,self%accuracy,minpr=optpr)
 
    call env%check(exitRun)

@@ -89,6 +89,7 @@ subroutine test_gfnff_sp(error)
    real(wp) :: sigma(3, 3)
    character(len=:),allocatable :: fnv
    integer  :: ipar
+   real(wp) :: efield(3) = [0.0_wp, 0.0_wp, 0.0_wp]
 
    logical  :: exist
 
@@ -110,7 +111,7 @@ subroutine test_gfnff_sp(error)
    gff_print=.true.
 
    call gfnff_eg(env,mol,gff_print,mol%n,nint(mol%chrg),mol%at,mol%xyz,sigma, &
-      & g,etot,res_gff,calc%param,calc%topo,calc%neigh,nlist,solvation,.true.,calc%version, &
+      & g,etot,res_gff,calc%param,calc%topo,calc%neigh,nlist,efield,solvation,.true.,calc%version, &
       & calc%accuracy)
 
    call check_(error, res_gff%e_total,-0.76480130317838_wp, thr=thr)

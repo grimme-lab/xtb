@@ -28,7 +28,7 @@ module xtb_gfnff_setup
 
 contains
 
-subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,version)
+subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,efield,version)
   use xtb_restart
   use xtb_type_environment, only : TEnvironment
   use xtb_type_molecule, only : TMolecule
@@ -45,6 +45,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,ver
   logical,intent(in) :: restart
   logical,intent(in) :: verbose
   real(wp),intent(in) :: accuracy
+  real(wp),intent(in) :: efield(3)
   type(TMolecule)  :: mol
   type(TEnvironment), intent(inout) :: env
 ! Stack
@@ -73,7 +74,7 @@ subroutine gfnff_setup(env,verbose,restart,mol,gen,param,topo,neigh,accuracy,ver
      end if
   end if
 
-  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,neigh,accuracy)
+  call gfnff_ini(env,verbose,ini,mol,gen,param,topo,neigh,efield,accuracy)
 
   call env%check(exitRun)
   if (exitRun) then

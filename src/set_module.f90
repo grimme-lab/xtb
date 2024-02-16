@@ -1190,7 +1190,6 @@ end subroutine set_spin
 
 
 subroutine set_efield(env, val)
-   use xtb_gfnff_param, only : efield
    implicit none
    character(len=*), parameter :: source = 'set_efield'
    type(TEnvironment), intent(inout) :: env
@@ -1200,7 +1199,6 @@ subroutine set_efield(env, val)
    logical,save :: set1 = .true.
    if (set1) then
       if (getValue(env,val,idum)) then
-         efield = idum
          set%efield = idum
       else
          call env%error('E-field could not be read from your argument', source)

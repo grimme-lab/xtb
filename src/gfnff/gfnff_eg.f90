@@ -129,10 +129,10 @@ contains
 !---------------------------------------------------
 
 subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
-      & param,topo,neigh,nlist,solvation,update,version,accuracy,minpr)
+      & param,topo,neigh,nlist,efield,solvation,update,version,accuracy,minpr)
 
    use xtb_mctc_accuracy, only : wp
-   use xtb_gfnff_param, only : efield, gffVersion, gfnff_thresholds
+   use xtb_gfnff_param, only : gffVersion, gfnff_thresholds
    use xtb_type_data
    use xtb_type_timer
    use xtb_gfnff_gdisp0
@@ -154,6 +154,7 @@ subroutine gfnff_eg(env,mol,pr,n,ichrg,at,xyz,sigma,g,etot,res_gff, &
    type(TGFFTopology), intent(in) :: topo
    type(TGFFNeighbourList), intent(inout) :: nlist
    type(TBorn), allocatable, intent(inout) :: solvation
+   real(wp), intent(in) :: efield(3)
    logical, intent(in) :: update
    integer, intent(in) :: version
    real(wp), intent(in) :: accuracy
