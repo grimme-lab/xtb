@@ -558,9 +558,6 @@ contains
             end if
          end select
       end if
-      if (set%mode_extrun == p_ext_ptb) then
-         fnv = "ptb_dummy"
-      end if
 
       !-------------------------------------------------------------------------
       !> Perform a precomputation of electronic properties for xTB-IFF
