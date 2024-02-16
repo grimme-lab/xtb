@@ -533,8 +533,8 @@ contains
                p_run_modef, p_run_mdopt, p_run_metaopt)
             if (set%mode_extrun == p_ext_gfnff) then
                fnv = xfind(p_fname_param_gfnff)
-               ! elseif (set%mode_extrun .eq. p_ext_ptb) then
-               !    fnv = xfind(p_fname_param_ptb)
+             elseif (set%mode_extrun .eq. p_ext_ptb) then
+                  fnv = xfind(p_fname_param_ptb)
             else
                if (set%gfn_method == 0) then
                   fnv = xfind(p_fname_param_gfn0)
