@@ -69,6 +69,9 @@ contains
       integer :: iat, jat, izp, jzp, ii, jj, ish, jsh
       real(wp) :: vec(3), r1, gam, tmp, r12
 
+      !> debug mode
+      logical, parameter :: debug = .false.
+
       !$omp parallel do default(none) schedule(runtime) &
       !$omp shared(mol, self, bas) &
       !$omp private(iat, izp, ii, ish, jat, jzp, jj, jsh, gam) &
@@ -108,15 +111,15 @@ contains
          end do
       end do
 
-      !##### DEV WRITE #####
-      ! write (*, *) "cmat ..."
-      ! do ish = 1, bas%nsh
-      !    do jsh = 1, bas%nsh
-      !       write (*, '(f13.9)', advance="no") self%cmat(ish, jsh)
-      !    end do
-      !    write (*, *)
-      ! end do
-      !#####################
+      if (debug) then !##### DEV WRITE #####
+         write (*, *) "cmat ..."
+         do ish = 1, bas%nsh
+            do jsh = 1, bas%nsh
+               write (*, '(f13.9)', advance="no") self%cmat(ish, jsh)
+            end do
+            write (*, *)
+         end do
+      endif
 
    end subroutine get_coulomb_matrix
 
@@ -242,14 +245,17 @@ contains
       !> tmp variables
       integer :: i
 
+      !> debug mode 
+      logical, parameter :: debug = .false.
+
       call symv(self%cmat, wfn%qsh(:, 1), pot%vsh(:, 1), beta=1.0_wp)
 
-      !##### DEV WRITE #####
-      ! write (*, *) "pot%vsh ..."
-      ! do i = 1, size(pot%vsh, 1)
-      !    write (*, *) i, pot%vsh(i,1)
-      ! end do
-      !#####################
+      if (debug) then !##### DEV WRITE #####
+         write (*, *) "pot%vsh ..."
+         do i = 1, size(pot%vsh, 1)
+            write (*, *) i, pot%vsh(i,1)
+         end do
+      endif
 
    end subroutine get_potential_secondorder
 
@@ -263,12 +269,17 @@ contains
       !> tmp variables
       integer :: iat
 
+      !> debug mode 
+      logical, parameter :: debug = .false.
+      
       do iat = 1, size(wfn%qat, 1)
          pot%vat(iat, 1) = pot%vat(iat, 1) + wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
-         !##### DEV WRITE #####
-         ! write (*, *) "q^2 * self_hubbard_derivs: ",  wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
-         ! write (*, *) "qat: ", wfn%qat(iat, 1)
-         !#####################
+         
+         if (debug) then !##### DEV WRITE #####
+            write (*, *) "q^2 * self_hubbard_derivs: ",  wfn%qat(iat, 1)**2 * self%hubbard_derivs(iat)
+            write (*, *) "qat: ", wfn%qat(iat, 1)
+         endif
+      
       end do
 
    end subroutine get_potential_thirdorder

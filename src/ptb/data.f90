@@ -355,8 +355,8 @@ contains
       !> Data instance
       type(TCorePotentialData), intent(out) :: self
 
-      self%max_prim = max_core_prim
-      self%max_shell = max_core_shell
+      self%max_prim = max_core_prim    ! 6
+      self%max_shell = max_core_shell  ! 12
       self%nshell = cbas_nshell(:)
       self%pqn = cbas_pqn(:, :)
       self%angshell = cbas_angshell(:, :)

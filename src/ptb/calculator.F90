@@ -146,7 +146,7 @@ contains
       if (exist) &
          call env%warning('Parameter file '//filename//' not supported yet.!', source)
       
-      ! read the hardcode parameters !
+      ! read the hardcoded parameters !
       call initPTB(calc%ptbData, mol%num)
 
       call env%check(exitRun)
@@ -166,6 +166,7 @@ contains
       & rad=calc%ptbData%eeq%alp, eta=calc%ptbData%eeq%gam, kcn=calc%ptbData%eeq%cnf)
 
       !> check for external point charge field
+      !> not implemented yet
       ! if (allocated(set%pcem_file)) then
       !    call open_file(ich, set%pcem_file, 'r')
       !    if (ich /= -1) then

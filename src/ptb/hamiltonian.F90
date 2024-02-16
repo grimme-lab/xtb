@@ -57,19 +57,22 @@ contains
       !> tmp reals
       real(wp) :: combinedcn
 
+      !> debug mode
+      logical, parameter :: debug(2) = [ .false., .false. ]
+
       allocate (selfenergies(bas%nsh), source=0.0_wp)
 
       do iat = 1, mol%nat
          iid = mol%id(iat)
          combinedcn = (cn_normal(iat) + cn_star(iat) * hData%kcnstar(iid))
 
-         !##### DEV WRITE #####
-         ! write(*,*) 'cn_normal', cn_normal(iat)
-         ! write(*,*) 'cn_star', cn_star(iat)
-         ! write(*,*) 'hData%kcnstar', hData%kcnstar(iid)
-         ! write(*,*) "atom: ", iat, "id: ", iid, "type: ", mol%num(iid)
-         ! write(*,*) "number of shells: ", bas%nsh_id(iid)
-         !#####################
+         if (debug(1)) then !##### DEV WRITE #####
+            write(*,*) 'cn_normal', cn_normal(iat)
+            write(*,*) 'cn_star', cn_star(iat)
+            write(*,*) 'hData%kcnstar', hData%kcnstar(iid)
+            write(*,*) "atom: ", iat, "id: ", iid, "type: ", mol%num(iid)
+            write(*,*) "number of shells: ", bas%nsh_id(iid)
+         endif
 
          ii = bas%ish_at(iat)
          do ish = 1, bas%nsh_id(iid)
@@ -77,9 +80,8 @@ contains
                & hData%klh(ish, iid) * combinedcn + &
                & cn_star(iat) * hData%kshift(iid)
 
-            !##### DEV WRITE #####
-            ! write(*,*) 'selfenergies', ii + ish, selfenergies(ii + ish)
-            !#####################
+            if (debug(2)) & !##### DEV WRITE #####
+               write(*,*) 'selfenergies', ii + ish, selfenergies(ii + ish)
 
          end do
       end do
@@ -119,6 +121,10 @@ contains
       real(wp) :: vec(3) = 0.0_wp
       real(wp) :: r2, rab
 
+      !> debug mode
+      logical, parameter :: debug(5) = &
+               [ .false., .false., .false., .false., .false. ]
+
       if (present(kitocod)) then
          ocod_param = kitocod
       else
@@ -133,27 +139,32 @@ contains
 
       !> Loop over all neighbours (iat =/= jat) and set the Hamiltonian for off-center elements
       !$omp parallel do schedule(runtime) default(none) &
-      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, wolfsberg_par, kpol, rscal) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, wolfsberg_par, kpol, rscal, debug) &
       !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao) &
       !$omp private(r2, vec, inl, img, wolfsberg, polarized_levels, sum_levels) &
       !$omp private(radii_dependence, ssquraedterm, ocodterm, sterm, rab)
       do iat = 1, mol%nat
-         !##### DEV WRITE #####
-         ! write (*, *) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
+         
+         if (debug(1)) & !##### DEV WRITE #####
+            write (*, *) "atom: ", iat, "id: ", mol%id(iat), "type: ", mol%num(mol%id(iat))
+         
          izp = mol%id(iat)
          is = bas%ish_at(iat)
          inl = list%inl(iat)
          do img = 1, list%nnl(iat)
             jat = list%nlat(img + inl)
-            !##### DEV WRITE #####
-            ! write (*, *) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat))
+            
+            
             jzp = mol%id(jat)
             js = bas%ish_at(jat)
             vec(:) = mol%xyz(:, iat) - mol%xyz(:, jat)
             r2 = vec(1)**2 + vec(2)**2 + vec(3)**2
             rab = sqrt(r2)
-            !##### DEV WRITE #####
-            ! write (*, *) "iteration: ", k, "distance: ", sqrt(r2)
+
+            if (debug(2)) & !##### DEV WRITE #####
+               write (*, *) "neighbour: ", jat, "id: ", mol%id(jat), "type: ", mol%num(mol%id(jat)), &
+                           & "distance: ", sqrt(r2)
+            
             do ish = 1, bas%nsh_id(izp)
                ii = bas%iao_sh(is + ish)
                do jsh = 1, bas%nsh_id(jzp)
@@ -177,11 +188,13 @@ contains
                            & polarized_levels * &
                            & radii_dependence
                         h0mat(ii + iao, jj + jao) = h0mat(jj + jao, ii + iao)
-                        !##### DEV WRITE #####
-                        ! write(*,'(a,i3,i3,f8.4,f8.4,f8.4,f8.4,f8.4)') "i, j, tmp, keav, pol, xk, ssh: ",&
-                        ! & ii+iao, jj+jao, h0mat(jj + jao, ii + iao), wolfsberg*0.5_wp, &
-                        ! & polarized_levels, radii_dependence, sh0(jj + jao, ii + iao)*sum_levels
-                        !#####################
+                        
+                        if (debug(3)) then !##### DEV WRITE #####
+                           write(*,'(a,i3,i3,f8.4,f8.4,f8.4,f8.4,f8.4)') "i, j, tmp, keav, pol, xk, ssh: ",&
+                           & ii+iao, jj+jao, h0mat(jj + jao, ii + iao), wolfsberg*0.5_wp, &
+                           & polarized_levels, radii_dependence, sh0(jj + jao, ii + iao)*sum_levels
+                        endif
+                     
                      end do
                   end do
 
@@ -193,7 +206,7 @@ contains
 
       !> Loop over all atoms and set the Hamiltonian for one-center off(-shell)-diagonal elements
       !$omp parallel do schedule(runtime) default(none) &
-      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal, debug) &
       !$omp private(iat, izp, is, ish, jsh, ii, jj, iao, jao, nao) &
       !$omp private(sum_levels) &
       !$omp private(ssquraedterm, ocodterm, sterm)
@@ -224,11 +237,13 @@ contains
                      h0mat(jj + jao, ii + iao) = sterm + &
                         & ssquraedterm
                      h0mat(ii + iao, jj + jao) = h0mat(jj + jao, ii + iao)
-                     !##### DEV WRITE #####
-                     ! write(*,'(a,i3,i3,f8.4,f8.4,f8.4,f8.4,f8.4)') "i, j, tmp, ssquraedterm, sterm, ocodterm: ",&
-                     ! & ii+iao, jj+jao, h0mat(jj + jao, ii + iao), ssquraedterm, sterm, ocodterm, &
-                     ! & sh0(jj + jao, ii + iao) * sum_levels
-                     !#####################
+                     
+                     if(debug(4)) then !##### DEV WRITE #####
+                        write(*,'(a,i3,i3,f8.4,f8.4,f8.4,f8.4,f8.4)') "i, j, tmp, ssquraedterm, sterm, ocodterm: ",&
+                        & ii+iao, jj+jao, h0mat(jj + jao, ii + iao), ssquraedterm, sterm, ocodterm, &
+                        & sh0(jj + jao, ii + iao) * sum_levels
+                     endif
+                  
                   end do
                end do
             end do
@@ -246,9 +261,10 @@ contains
             ii = bas%iao_sh(is + ish)
             do iao = 1, msao(bas%cgto(ish, iat)%ang)
                h0mat(ii + iao, ii + iao) = 2.0_wp * levels(is + ish)
-               !##### DEV WRITE #####
-               ! write(*,*) "i, j, tmp: ", ii+iao, ii+iao, h0mat(ii + iao, ii + iao)
-               !#####################
+
+               if (debug(5)) & !##### DEV WRITE #####
+                  write(*,*) "i, j, tmp: ", ii+iao, ii+iao, h0mat(ii + iao, ii + iao)
+               
             end do
          end do
       end do

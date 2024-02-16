@@ -116,6 +116,11 @@ contains
       !> Loop variables
       integer :: k, i, j
 
+
+      !> debug mode
+      logical, parameter :: debug(4) = &
+               [ .false., .false., .false., .false. ]
+
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
 
@@ -141,15 +146,17 @@ contains
          call efield_object%update(mol, icache)
          call efield_object%get_potential(mol, icache, wfn_tmp, pot)
          call add_pot_to_h1(bas, ints, pot, wfn_tmp%coeff)
-         !##### DEV WRITE #####
-         ! write (*, *) "Matrix to solve ..."
-         ! do i = 1, size(wfn_tmp%coeff, 1)
-         !    do j = 1, size(wfn_tmp%coeff, 2)
-         !       write (*, '(f11.7)', advance="no") wfn_tmp%coeff(i, j, 1)
-         !    end do
-         !    write (*, '(/)', advance="no")
-         ! end do
-         !#####################
+         
+         if (debug(1)) then !##### DEV WRITE #####
+            write (*, *) "Matrix to solve ..."
+            do i = 1, size(wfn_tmp%coeff, 1)
+               do j = 1, size(wfn_tmp%coeff, 2)
+                  write (*, '(f11.7)', advance="no") wfn_tmp%coeff(i, j, 1)
+               end do
+               write (*, '(/)', advance="no")
+            end do
+         endif
+            
          !> Solve effective Hamiltonian including the electric field
          call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
          if (allocated(error)) then
@@ -157,15 +164,15 @@ contains
             return
          end if
 
-         !##### DEV WRITE #####
-         ! write (*, *) "Density matrix after adding field ..."
-         ! do i = 1, size(wfn_tmp%density, 1)
-         !    do j = 1, size(wfn_tmp%density, 2)
-         !       write (*, '(f11.7)', advance="no") wfn_tmp%density(i, j, 1)
-         !    end do
-         !    write (*, '(/)', advance="no")
-         ! end do
-         !#####################
+         if (debug(2)) then !##### DEV WRITE #####
+            write (*, *) "Density matrix after adding field ..."
+            do i = 1, size(wfn_tmp%density, 1)
+               do j = 1, size(wfn_tmp%density, 2)
+                  write (*, '(f11.7)', advance="no") wfn_tmp%density(i, j, 1)
+               end do
+               write (*, '(/)', advance="no")
+            end do
+         endif
 
          !> Get updated atomic and shell charges
          call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
@@ -190,15 +197,17 @@ contains
          call efield_object%update(mol, icache)
          call efield_object%get_potential(mol, icache, wfn_tmp, pot)
          call add_pot_to_h1(bas, ints, pot, wfn_tmp%coeff)
-         !##### DEV WRITE #####
-         ! write (*, *) "Matrix to solve ..."
-         ! do i = 1, size(wfn_tmp%coeff, 1)
-         !    do j = 1, size(wfn_tmp%coeff, 2)
-         !       write (*, '(f11.7)', advance="no") wfn_tmp%coeff(i, j, 1)
-         !    end do
-         !    write (*, '(/)', advance="no")
-         ! end do
-         !#####################
+         
+         if (debug(3)) then !##### DEV WRITE #####
+            write (*, *) "Matrix to solve ..."
+            do i = 1, size(wfn_tmp%coeff, 1)
+               do j = 1, size(wfn_tmp%coeff, 2)
+                  write (*, '(f11.7)', advance="no") wfn_tmp%coeff(i, j, 1)
+               end do
+               write (*, '(/)', advance="no")
+            end do
+         endif
+         
          !> Solve effective Hamiltonian including the electric field
          call get_density(wfn_tmp, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
          if (allocated(error)) then
@@ -206,15 +215,15 @@ contains
             return
          end if
 
-         !##### DEV WRITE #####
-         ! write (*, *) "Density matrix after adding field ..."
-         ! do i = 1, size(wfn_tmp%density, 1)
-         !    do j = 1, size(wfn_tmp%density, 2)
-         !       write (*, '(f11.7)', advance="no") wfn_tmp%density(i, j, 1)
-         !    end do
-         !    write (*, '(/)', advance="no")
-         ! end do
-         !#####################
+         if (debug(4)) then !##### DEV WRITE #####
+            write (*, *) "Density matrix after adding field ..."
+            do i = 1, size(wfn_tmp%density, 1)
+               do j = 1, size(wfn_tmp%density, 2)
+                  write (*, '(f11.7)', advance="no") wfn_tmp%density(i, j, 1)
+               end do
+               write (*, '(/)', advance="no")
+            end do
+         endif
 
          !> Get updated atomic and shell charges
          call get_mml_shell_charges(bas, auxints%overlap_to_x, auxints%overlap_to_1_x, &
@@ -291,6 +300,9 @@ contains
       real(wp) :: tmpdip(3)
       integer :: i, j, iat, izp, ii, ish
 
+      !> debug mode
+      logical, parameter :: debug = .false.
+
       !> Solver for the effective Hamiltonian
       call ctx%new_solver(solver, bas%nao)
 
@@ -340,15 +352,15 @@ contains
       call plusu%init(data%plusU, mol, bas, wfn%qat(:, 1), CN_plusU, selfenergy_scal=data%response%kueffres)
       call plusu%get_potential(mol, bas, wfn%density(:, :, 1), wfn%coeff(:, :, 1))
 
-      !##### DEV WRITE #####
-      ! write (*, *) "Final wfn%coeff(:, :, 1) to solve ..."
-      ! do i = 1, size(wfn%coeff, 1)
-      !    do j = 1, size(wfn%coeff, 2)
-      !       write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
-      !    end do
-      !    write (*, '(/)', advance="no")
-      ! end do
-      !#####################
+      if (debug) then !##### DEV WRITE #####
+         write (*, *) "Final wfn%coeff(:, :, 1) to solve ..."
+         do i = 1, size(wfn%coeff, 1)
+            do j = 1, size(wfn%coeff, 2)
+               write (*, '(f11.7)', advance="no") wfn%coeff(i, j, 1)
+            end do
+            write (*, '(/)', advance="no")
+         end do
+      endif
 
       call get_density(wfn, solver, ints, ts, error, ptbGlobals%geps, ptbGlobals%geps0)
       if (allocated(error)) then

@@ -57,6 +57,9 @@ contains
       !> Temporary overlap matrix for the matrix multiplication
       real(wp) :: tmp2s(bas%nao, bas%nao)
 
+      !> debug mode
+      logical, parameter :: debug(2) = [ .false., .false. ]
+
       allocate (tmps(bas%nao, bas%nao), seig(bas%nao), &
       & seig1(bas%nao), seig2(bas%nao))
       tmps = overlap
@@ -73,29 +76,32 @@ contains
          seig2(i) = seig(i)**ratio
       end do
 
-      !##### DEV WRITE #####
-      ! write (*, *) "Overlap tmpS:"
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.5)', advance="no") tmps(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
-      !#####################
+      if (debug(1)) then !##### DEV WRITE #####
+         write (*, *) "Overlap tmpS:"
+         do i = 1, bas%nao
+            do j = 1, bas%nao
+               write (*, '(f10.5)', advance="no") tmps(i, j)
+            end do
+            write (*, *) ""
+         end do
+      endif
+         
       do i = 1, bas%nao
          do j = 1, bas%nao
             tmp2s(j, i) = tmps(j, i) * seig1(i)
          end do
       end do
-      !##### DEV WRITE #####
-      ! write (*, *) "Overlap tmp2S:"
-      ! do i = 1, bas%nao
-      !    do j = 1, bas%nao
-      !       write (*, '(f10.6)', advance="no") tmp2s(i, j)
-      !    end do
-      !    write (*, *) ""
-      ! end do
-      !#####################
+      
+      if (debug(2)) then !##### DEV WRITE #####
+         write (*, *) "Overlap tmp2S:"
+         do i = 1, bas%nao
+            do j = 1, bas%nao
+               write (*, '(f10.6)', advance="no") tmp2s(i, j)
+            end do
+            write (*, *) ""
+         end do
+      endif
+      
       call gemm(tmps, tmp2s, soneminusx, 'N', 'T')
 
       do i = 1, bas%nao

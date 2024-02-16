@@ -99,6 +99,9 @@ contains
       real(wp), allocatable :: stmp(:, :)
       integer :: i, jat, jzp, js, jsh, jj, jao, ml
 
+      !> debug mode
+      logical, parameter :: debug(2) = [ .false., .false.]
+
       allocate (stmp(bas%nao, bas%nao))
 
       !> N^2 step
@@ -111,17 +114,19 @@ contains
                ml = msao(bas%cgto(jsh, jat)%ang)
                f1 = psh(js + jsh) * kshell(jsh, jzp) / dble(ml) ! shell wise scaling
 
-               !##### DEV WRITE #####
-               ! if (i == 1) then
-               !    write (*, '(a,i0,a,i0,a,f8.4,a,f8.4,a,f8.4,a,f8.4)') "shell: ", jsh, " atom: ", jat, " f1: ", f1, &
-               ! & " psh: ", psh(js + jsh), " cnf2: ", kshell(jsh, jzp), " nl: ", dble(ml)
-               ! end if
-               !#####################
+               if (debug(1)) then !##### DEV WRITE #####
+                  if (i == 1) then
+                     write (*, '(a,i0,a,i0,a,f8.4,a,f8.4,a,f8.4,a,f8.4)') "shell: ", jsh, " atom: ", jat, " f1: ", f1, &
+                  & " psh: ", psh(js + jsh), " cnf2: ", kshell(jsh, jzp), " nl: ", dble(ml)
+                  end if
+               endif
+               
                do jao = 1, ml
                   stmp(jj + jao, i) = selfenergies(js + jsh) * Sxc(jj + jao, i) * f1
-                  !##### DEV WRITE #####
-                  ! write(*,*) "stmp: ", jj + jao, i, stmp(jj + jao, i)
-                  !#####################
+                  
+                  if (debug(2)) & !##### DEV WRITE #####
+                     write(*,*) "stmp: ", jj + jao, i, stmp(jj + jao, i)
+                 
                end do
             end do
          end do

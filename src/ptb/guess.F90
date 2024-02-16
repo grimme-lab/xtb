@@ -46,21 +46,22 @@ contains
 
       integer :: ish, iat, ii, spin
 
+      !> debug mode
+      logical, parameter :: debug = .false.
+      
+
       do spin = 1, size(wfn%qat, 2)
          do iat = 1, size(wfn%qat, 1)
             ii = bas%ish_at(iat)
             do ish = 1, bas%nsh_at(iat)
-               !> wfn%qat on input are actually the atomic CHARGES
-               !### POP version
-               ! wfn%qsh(ii + ish, spin) = wfn%n0sh(ii + ish) * &
-               ! & ( wfn%n0at(iat) - wfn%qat(iat, spin) ) / wfn%n0at(iat)
+               
                !> wfn%qsh on output are the shell POPULATIONS
-               !### CHRG version
                wfn%qsh(ii+ish, spin) = (wfn%n0sh(ii+ish) / wfn%n0at(iat)) * wfn%qat(iat, spin)
+               
                !> wfn%qsh on output are the shell CHARGES
-               !##### DEV WRITE #####
-               ! write(*,*) ii + ish, wfn%qsh(ii + ish, spin)
-               !#####################
+               if (debug) &!##### DEV WRITE #####
+                  write(*,*) ii + ish, wfn%qsh(ii + ish, spin)
+              
             end do
          end do
       end do

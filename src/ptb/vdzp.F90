@@ -177,6 +177,9 @@ contains
       real(wp), parameter :: dfactorial(8) = &
          & [1.0_wp, 1.0_wp, 3.0_wp, 15.0_wp, 105.0_wp, 945.0_wp, 10395.0_wp, 135135.0_wp]
       real(wp) :: norm
+      
+      !> debug mode
+      logical, parameter :: debug(2) = [ .false., .false. ]
 
       !> Initialize full parameter set
       !> set up the array of CGTOs for the molecule of interest
@@ -202,15 +205,18 @@ contains
             do ng = 1, nprim
                norm = (top*exponents(ng, ish, izp))**0.75_wp* &
                            & sqrt(4*exponents(ng, ish, izp))**il/sqrt(dfactorial(il + 1))
-               !##### DEV WRITE #####
-               ! write(*,*) "norm: ", norm
-               !#####################
+               
+               if(debug(1)) & !##### DEV WRITE #####
+                   write(*,*) "norm: ", norm
+               
                cgto(ish, iat)%coeff(ng) = cgto(ish, iat)%coeff(ng)*norm
             end do
-            !##### DEV WRITE #####
-            ! write (*, *) 'CGTOs for atom ', iat, ' shell ', ish, ' with ', nprim, ' primitives'
-            ! write (*, *) cgto(ish, iat)%alpha
-            !#####################
+
+            if (debug(2)) then !##### DEV WRITE #####
+               write (*, *) 'CGTOs for atom ', iat, ' shell ', ish, ' with ', nprim, ' primitives'
+               write (*, *) cgto(ish, iat)%alpha
+            end if
+
          end do
       end do
       call new_basis(bas, mol, nsh_id, cgto, 1.0_wp)

@@ -111,6 +111,9 @@ contains
       integer :: iat, jat, izp, jzp
       real(wp) :: ra, rb, rij
 
+      !> debug mode
+      logical, parameter :: debug = .false.
+
       do iat = 1, mol%nat
          izp = mol%id(iat)
          ra = atomic_radii(izp) + (cn(iat) - average_cn(izp)) * atomic_radii_cn(izp)
@@ -120,9 +123,10 @@ contains
             rij = norm2(mol%xyz(:, iat) - (mol%xyz(:, jat)))
             self%damping(jat, iat) = 0.5_wp * (1.0_wp + erf(-1.8_wp * (rij - (ra + rb)) / (ra + rb)))
             self%damping(iat, jat) = self%damping(jat, iat)
-            !##### DEV WRITE #####
-            ! write (*, *) 'damping', iat, jat, self%damping(iat, jat)
-            !#####################
+            
+            if (debug) & !##### DEV WRITE #####
+               write (*, *) 'damping', iat, jat, self%damping(iat, jat)
+            
          end do
       end do
 
@@ -148,6 +152,9 @@ contains
       real(wp), intent(in), optional :: selfenergy_scal(:)
       !> Loop variables
       integer :: iat, iid, ish
+      
+      !> debug mode
+      logical, parameter :: debug = .false.
 
       do iat = 1, mol%nat
          iid = mol%id(iat)
@@ -157,9 +164,9 @@ contains
             if (present(selfenergy_scal)) then
                self%selfenergies(ish, iat) = self%selfenergies(ish, iat) * selfenergy_scal(iid)
             end if
-            !##### DEV WRITE #####
-            ! write (*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
-            !#####################
+            if (debug) & !##### DEV WRITE #####
+               write (*, *) 'selfenergies', ish, iat, self%selfenergies(ish, iat)
+            
          end do
       end do
    end subroutine init_selfenergies
