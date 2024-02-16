@@ -139,7 +139,7 @@ contains
 
       !> Loop over all neighbours (iat =/= jat) and set the Hamiltonian for off-center elements
       !$omp parallel do schedule(runtime) default(none) &
-      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, wolfsberg_par, kpol, rscal, debug) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, wolfsberg_par, kpol, rscal) &
       !$omp private(iat, jat, izp, jzp, is, js, ish, jsh, ii, jj, iao, jao, nao) &
       !$omp private(r2, vec, inl, img, wolfsberg, polarized_levels, sum_levels) &
       !$omp private(radii_dependence, ssquraedterm, ocodterm, sterm, rab)
@@ -206,7 +206,7 @@ contains
 
       !> Loop over all atoms and set the Hamiltonian for one-center off(-shell)-diagonal elements
       !$omp parallel do schedule(runtime) default(none) &
-      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal, debug) &
+      !$omp shared(mol, bas, list, h0mat, sh0, levels, hData, kpol, ocod_param, rscal) &
       !$omp private(iat, izp, is, ish, jsh, ii, jj, iao, jao, nao) &
       !$omp private(sum_levels) &
       !$omp private(ssquraedterm, ocodterm, sterm)
