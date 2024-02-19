@@ -993,6 +993,29 @@ subroutine set_geopref(typ)
    set1 = .false.
 end subroutine set_geopref
 
+subroutine set_raman(env,val)
+   
+   implicit none 
+   character(len=*), parameter :: source = 'set_raman' 
+   type(TEnvironment), intent(inout) :: env
+   character(len=*), intent(in) :: val
+   real(wp) :: idum
+
+   logical, save :: set1 = .true.
+   logical, save :: set2 = .true.
+   
+   if (set1) then
+      if (getValue(env,val,idum)) set%ptbsetup%raman_temp = idum 
+      set1 =.false.
+   else if (set2) then
+      if (getValue(env,val,idum)) then
+         idum=10**7/idum
+         set%ptbsetup%raman_lambda = idum 
+         set2 =.false.
+      endif
+   endif
+   
+end subroutine set_raman
 subroutine set_runtyp(typ)
    implicit none
    character(len=*),intent(in) :: typ
@@ -1206,6 +1229,7 @@ subroutine set_efield(env, val)
    endif
    set1 = .false.
 end subroutine set_efield
+
 
 
 subroutine set_write(env,key,val)

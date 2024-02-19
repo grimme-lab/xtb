@@ -1778,6 +1778,18 @@ contains
          case ('--alpha')
             call set_elprop('alpha')
 
+         case ('--raman')
+            call set_elprop('raman')
+            call args%nextArg(sec)
+            if (allocated(sec)) then
+               call set_raman(env,sec)
+               call args%nextArg(sec)
+               if (allocated(sec)) then
+                  call set_raman(env,sec)
+               endif
+            endif
+
+
          case ('--grad')
             call set_runtyp('grad')
             lgrad = .true.
