@@ -1009,13 +1009,13 @@ subroutine set_raman(env,val)
       set1 =.false.
    else if (set2) then
       if (getValue(env,val,idum)) then
-         idum=10**7/idum
+         idum=1.0e+7_wp/idum
          set%ptbsetup%raman_lambda = idum 
          set2 =.false.
       endif
    endif
-   
 end subroutine set_raman
+
 subroutine set_runtyp(typ)
    implicit none
    character(len=*),intent(in) :: typ
