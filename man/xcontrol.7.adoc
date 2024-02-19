@@ -534,6 +534,12 @@ $wall
 *ellipsoid*: auto|'real',auto|'real',auto|'real',all|'list',...::
     set up a ellipsoid wall potential for all or the atoms in 'list'
     with the radii 'real' or an automatical determined sphere radius
+    If 'auto' is chosen for axes, sphere potential is applied, no ellipsoid!!!
+
+*sandwich*: auto|'real',all|'list',...::
+   set up a sandwich wall potential for all or the atoms in 'list'
+   with the radius 'real' or an automatical determined sandwich radius in Bohr
+   Only potential=logfermi ist available. diameter=2*radius+2*4A safety buffer
 
 
 $write

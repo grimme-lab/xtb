@@ -256,7 +256,6 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    ! ---------------------------------------!
    ! post processing of gradient and energy !
    !----------------------------------------!
-   
    ! various external potentials !
    call constrain_pot(potset,mol%n,mol%at,mol%xyz,gradient,efix)
    call constrpot   (mol%n,mol%at,mol%xyz,gradient,efix)
