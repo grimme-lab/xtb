@@ -231,14 +231,20 @@ contains
 
       !> If hessian (or ohess or bhess) is requested in combination with PTB, conduct GFN2-xTB + PTB hessian
       anyhess = (set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)
-      if (set%mode_extrun == p_ext_ptb .and. anyhess) then
-         set%mode_extrun = p_ext_xtb
-         set%ptbsetup%ptb_in_hessian = .true.
-         call set_gfn(env, 'method', '2')
-         call set_gfn(env, 'd4', 'true')
-         tblite%method = "gfn2"
-         set%ptbsetup%hessmethod = "GFN2-xTB"
-      end if
+      if (anyhess) then
+         if(set%mode_extrun == p_ext_ptb) then
+            set%mode_extrun = p_ext_xtb
+            set%ptbsetup%ptb_in_hessian = .true.
+            call set_gfn(env, 'method', '2')
+            call set_gfn(env, 'd4', 'true')
+            tblite%method = "gfn2"
+            set%ptbsetup%hessmethod = "GFN2-xTB"
+         else
+            if (set%elprop == p_elprop_alpha) then
+               call env%error("Raman activities are not implemented with this method",source)
+            end if
+         endif
+      endif 
 
       nFiles = argParser%countFiles()
       select case (nFiles)
