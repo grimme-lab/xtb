@@ -163,6 +163,11 @@ module xtb_setparam
       logical :: ptb_in_hessian = .false.
       !> Electronic structure method for the energetic hessian part
       character(len=:), allocatable :: hessmethod
+      !> temperature for Raman (in K)
+      real(wp):: raman_temp = 298.15_wp
+   
+      !> incident laser wavelength for Raman (in nm)
+      real(wp):: raman_lambda = 19435.0_wp
    end type TPTBSetup
 
    integer, parameter :: p_elprop_beta = 2

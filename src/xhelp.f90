@@ -199,7 +199,9 @@ subroutine help(iunit)
    "    requests dipole printout",&
    "",&
    "--raman", &
-   "    requests Raman spectrum calculation via combination of GFN2-xTB and PTB", &
+   "    requests Raman spectrum calculation via combination of GFN2-xTB and PTB",&
+   "    using the temperature 'REAL' (default 298.15 K) and the wavelength of the",& 
+   "    incident laser which must be given in nm 'REAL' (default 514 nm).",&
    "",&
    "--alpha",&
    "    requests the extension of electrical properties to static molecular dipole polarizabilities. ",&

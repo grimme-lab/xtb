@@ -663,7 +663,8 @@ module xtb_propertyoutput
 
       call open_file(ifile, 'vibspectrum', 'w')
       if (set%elprop == p_elprop_alpha) then
-         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt, 298.15_wp, 19435.0_wp)
+         call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt,&
+                                           set%ptbsetup%raman_temp, set%ptbsetup%raman_lambda)
       else
          call write_tm_vibspectrum(ifile, res%n3, res%freq, res%dipt, res%polt)
       end if
