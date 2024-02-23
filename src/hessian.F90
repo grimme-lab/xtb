@@ -176,6 +176,7 @@ subroutine numhess( &
    call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)
    if(cc.lt.1.d-10) res%linear=.true.
    step2=0.5_wp/step
+   calc%accuracy=set%accu_hess
 
    h = 0.0_wp
    htb = 0.0_wp
