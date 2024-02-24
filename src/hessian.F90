@@ -176,7 +176,7 @@ subroutine numhess( &
    call axis(mol%n,mol%at,mol%xyz,aa,bb,cc)
    if(cc.lt.1.d-10) res%linear=.true.
    step2=0.5_wp/step
-   calc%accuracy=set%accu_hess
+   calc%accuracy=set%accu_hess ! set SCC accuracy for numerical Hessian !
 
    h = 0.0_wp
    htb = 0.0_wp
@@ -245,7 +245,8 @@ subroutine numhess( &
          deallocate (calc_intensity, h_dummy)
       end if
    endif
-
+   
+   calc%accuracy=set%acc ! reset SCC accuracy !
 
 !  Hessian done -----------------------------------------------------------
 !! ========================================================================
@@ -540,7 +541,6 @@ subroutine numhess( &
          res%polt(i) = res%polt(i) * autoaa4byamu()
       enddo
    end if
-
 
 end subroutine numhess
 
