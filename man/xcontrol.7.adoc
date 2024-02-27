@@ -386,18 +386,27 @@ $opt
 
 *kstretch*='real'::
    stretch force constant in model hessian
+
 *kbend*='real'::
    bend force constant in model hessian
+
 *ktorsion*='real'::
    torsion force constant in model hessian
+
 *koutofp*='real'::
    out-of-plain force constant to model hessian
+
 *kvdw*='real'::
    additional vdW-contribution (lindh|swart only)
+
 *kes*='real'::
    electrostatic contribution to model hessian by EEQ model
+
 *rcut*='real'::
    distance cutoff for bonds in model hessian
+
+*exact rf*='bool'::
+   use better solver during the rational function optimization
 
 $path (6.1 only)
 ~~~~~~~~~~~~~~~~
