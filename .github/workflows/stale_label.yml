@@ -2,8 +2,6 @@ name: "Close Stale"
 
 # The workflow triggers
 on:
-   schedule:
-      - cron: '0 0 * * *' # Runs daily at midnight
    issues:
       types: [labeled]
    pull_request:
@@ -13,16 +11,33 @@ on:
 jobs:
    stale:
       runs-on: ubuntu-latest
+      if: github.event.label.name == 'stale'
       steps:
-         - uses: actions/stale@v9
-           with:
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
-            stale-issue-label: 'stale' # Label to detect
-            stale-pr-label: 'stale' 
-            only-labels: 'stale'
-            days-before-stale: -1
-            days-before-close: 7
-            stale-issue-message: 'This issue is set to auto-close in 7 days if no further updates would be detected.' 
-            close-issue-message: 'This issue has been automatically closed due to inactivity.'
-            stale-pr-message: 'This PR is set to auto-close in 7 days if no further updates would be detected.' 
-            close-pr-message: 'This PR has been automatically closed due to inactivity.'
+         -  name: Post stale message
+            uses: actions/github-script@v5
+            with:
+               script: |
+                  const eventName = context.eventName;
+                  const issueOrPrNumber = eventName === 'issues' ? context.payload.issue.number : context.payload.pull_request.number;
+                  const message = eventName === 'issues' ? 
+                     "This issue is set to auto-close in 7 days if no further updates would be detected." :
+                     "This PR is set to auto-close in 7 days if no further updates would be detected.";
+                  
+                  github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueOrPrNumber,
+                  body: message
+                  });
+               github-token: ${{ secrets.GITHUB_TOKEN }}
+         -  name : Close Stale Items
+            uses: actions/stale@v9
+            with:
+               repo-token: ${{ secrets.GITHUB_TOKEN }}
+               stale-issue-label: 'stale' # Label to detect
+               stale-pr-label: 'stale'
+               any-of-labels: 'stale'
+               days-before-stale: -1
+               days-before-close: 7
+               close-issue-message: 'This issue has been automatically closed due to inactivity.'
+               close-pr-message: 'This PR has been automatically closed due to inactivity.'
