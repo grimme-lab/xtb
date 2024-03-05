@@ -70,39 +70,51 @@ module xtb_type_setvar
       real(wp) :: broydamp = 0.40_wp
    end type scc_setvar
 
-!! ------------------------------------------------------------------------
-!  approximate normal coordinate rational function optimizer
-!! ------------------------------------------------------------------------
+   !>  approximate normal coordinate rational function optimizer 
    type :: ancopt_setvar
-!     default optimization level
-!     crude = -3,     sloppy = -2,      loose = -1,      normal = 0,
-!     tight = 1,      verytight = 2,    extreme = 3
+      
+      !> default optimization level
+      !> crude = -3,     sloppy = -2,      loose = -1,      normal = 0,
+      !> tight = 1,      verytight = 2,    extreme = 3
       integer  :: optlev = 0
-!     number of opt. cycles before new ANC are made
+      
+      !> number of opt. cycles before new ANC are made by model Hessian
       integer  :: micro_opt = 0
-!     total number of opt. cycles, 0 means automatically determined
-      integer  :: maxoptcycle = 0 ! det. in ancopt routine if not read in
-!     maximum coordinate displacement in ancopt
+
+      !> total number of opt. cycles, 0 means automatically determined
+      integer  :: maxoptcycle = 0 
+      
+      !> maximum coordinate displacement in ancopt
       real(wp) :: maxdispl_opt = 0.0_wp
-!     lowest force constant in ANC generation (should be > 0.005)
+      
+      !> lowest force constant in ANC generation (should be > 0.005)
       real(wp) :: hlow_opt = 0.0_wp
-      logical  :: exact_rf = .false.
+      
+      logical :: exact_rf = .false.
+
+      !> average energy and gradient before checking for convergence 
+      !> to accelerate numerically noisy potential energy surfaces
       logical :: average_conv = .false.
+
    end type ancopt_setvar
 
    type modhess_setvar
       integer  :: model = 0
-!     force constants for stretch, bend and torsion
+      
+      !> cutoff for constructing internal coordinates
+      real(wp) :: rcut = 0.0_wp
+      
+      !> dispersion scaling in ANC generation
+      real(wp) :: s6 = 0.0_wp
+   
+      !> force constants for stretch, bend and torsion
       real(wp) :: kr = 0.0_wp
       real(wp) :: kf = 0.0_wp
       real(wp) :: kt = 0.0_wp
       real(wp) :: ko = 0.0_wp
       real(wp) :: kd = 0.0_wp
       real(wp) :: kq = 0.0_wp
-!     cutoff for constructing internal coordinates
-      real(wp) :: rcut = 0.0_wp
-!     dispersion scaling in ANC generation
-      real(wp) :: s6 = 0.0_wp
+   
    end type modhess_setvar
 
 !! ------------------------------------------------------------------------
