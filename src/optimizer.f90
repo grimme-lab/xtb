@@ -628,36 +628,75 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 
    implicit none
 
-   !> Source of errors in the main program unit
+   !> source of errors in the main program unit
    character(len=*), parameter :: source = "optimizer_relax"
 
-   !> Calculation environment
+   !> calculation environment
    type(TEnvironment), intent(inout) :: env
 
+   !> molecular structure data
    type(TMolecule),    intent(inout) :: mol
+   
+   !> timer instance
    type(tb_timer),       intent(inout) :: timer
+   
+   !> ANC instance
    type(tb_anc),         intent(inout) :: anc
+   
+   !> WFN 
    type(TRestart),intent(inout) :: chk
+   
+   !> polymorphic calculator instance
    class(TCalculator), intent(inout) :: calc
+   
+   !> number of micro iterations 
    integer, intent(in)    :: maxiter
+
+   !> Hessian update algorithm
    integer, intent(in)    :: iupdat
+
+   !> iunit for log file
    integer, intent(in)    :: ilog
+
+   !> temperature
    real(wp),intent(in)    :: et
+   
+   !> total energy
    real(wp),intent(inout) :: etot
+   
+   !> SCC accuracy
    real(wp),intent(in)    :: acc_in
+
+   !> gradients
    real(wp),intent(inout) :: g(3,mol%n)
+
+   !> strain derivatives
    real(wp),intent(inout) :: sigma(3,3)
+
+   !> HOMO-LUMO gap
    real(wp),intent(inout) :: egap
+
+   !> conv check
    logical, intent(out)   :: converged
+
+   !> solver type
    logical, intent(in)    :: exact
+   
+   !> averaging
    type(convergence_log), intent(inout), optional :: avconv
 
+   !> SCC results storage
    type(scc_results) :: res
+
+   !> dimensions for RFO
    integer  :: nvar1,npvar,npvar1
+
+   !> local booleans to control optimization
    logical  :: restart, first, pr, fail
    logical  :: econverged
    logical  :: gconverged
    logical  :: lowered
+
    integer  :: maxcycle, iter, prlevel
    integer  :: i, j, ii, jj, k, lwork, info, m, idum, imax(3)
    real(wp) :: energy,ethr,gthr,dsnrm,maxdispl,t0,w0,t1,w1
@@ -665,56 +704,81 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
    real(wp) :: depred,echng,dummy,maxd,alp,gchng,smallreal,gnold
    real(wp),allocatable :: gold(:)
    real(wp),allocatable :: displ(:), gint(:)
+
+   !> RFO eigenvalues
    real(sp),allocatable :: eaug(:)
+
+   !> RFO eigenvectors
    real(sp),allocatable :: Uaug(:,:)
+
+   !> Augmented Hessian
    real(sp),allocatable :: Aaug(:)
+
    real(sp) :: r4dum,sdot
    parameter (r4dum=1.e-8)
    parameter (smallreal=1.d-14)
 
-   allocate( gold(anc%nvar), displ(anc%nvar), gint(anc%nvar), source = 0.0_wp )
+!----------------------------------------------------------------!
+!--------------------- Initialization ---------------------------!
+!----------------------------------------------------------------!
+   
 
-   prlevel=0
-   if(pr)prlevel=1
-   gnorm  =0.0_wp
-   depred =0.0_wp
-   echng  =0.0_wp
-   maxd   =maxdispl
-   first  =.true.
-   acc    =acc_in
+   ! set printlevel !
+   if (pr) then 
+      prlevel = 1
+   else 
+      prlevel=0
+   endif
+   
+   ! initialize variables !
+   gnorm  = 0.0_wp
+   depred = 0.0_wp
+   echng  = 0.0_wp
+   alp    = 1.0_wp
+   maxd   = maxdispl
+   acc    = acc_in
    energy = etot
    e_in   = etot
-   alp    =1.0_wp
+   first  = .true.
    converged = .false.
 
    nvar1  = anc%nvar+1         ! dimension of RF calculation
    npvar  = anc%nvar*(nvar1)/2 ! packed size of Hessian (note the abuse of nvar1!)
    npvar1 = nvar1*(nvar1+1)/2  ! packed size of augmented Hessian
-   allocate(Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
+   
+   allocate( gold(anc%nvar), displ(anc%nvar), gint(anc%nvar), source = 0.0_wp )
+   allocate( Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1) )
 
 !! ========================================================================
    main_loop: do ii=1,maxcycle
 !! ========================================================================
-   iter=iter+1
+   
+   iter=iter+1 ! iteration counter
    if(pr) &
-   write(env%unit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')iter
+      write(env%unit,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))')iter
 
+   ! save values from previous iteration !
    gold = gint
    gnold= gnorm
    eold = energy
-!  calc predicted energy change based on E = E0 + delta * G + delta^2 * H
+
+   ! dE via 2-nd order Taylor expansion !
+   ! E = E0 + delta * G + delta^2 * H !
    if (ii > 1) &
-   call prdechng(anc%nvar,gold,displ,anc%hess,depred)
-!  get gradient
+      call prdechng(anc%nvar,gold,displ,anc%hess,depred)
+  
+   ! displace cartesian coordinates !
    if (profile) call timer%measure(4,'coordinate transformation')
    call anc%get_cartesian(mol%xyz)
    if (profile) call timer%measure(4)
+
+   ! single point + analytical gradients !
    if (profile) call timer%measure(5,'single point calculation')
    g = 0.0_wp
    call calc%singlepoint(env,mol,chk,prlevel,iter.eq.1,energy,g,sigma,egap,res)
    if (profile) call timer%measure(5)
-
-   ! something went wrong in SCC or diag
+   
+   ! something went wrong in SCC or diag !
    call env%check(fail)
    if (fail) then
       call env%error('SCF not converged, aborting...', source)
@@ -725,24 +789,28 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       fail=.true.
       return
    endif
-   if (profile) call timer%measure(6,'optimization log')
    
+   ! write geometry to log file !
+   if (profile) call timer%measure(6,'optimization log')
    call writeMolecule(mol, ilog, format=fileType%xyz, energy=res%e_total, &
       & gnorm=res%gnorm)
-      !! to write log file
    if (profile) call timer%measure(6)
-! transform xyz to internal gradient
+
+
+   ! transform xyz (g) to internal gradient (gint) !
    if (profile) call timer%measure(4)
    call dgemv('t',anc%n3,anc%nvar,1.0_wp,anc%B,anc%n3,g,1,0.0_wp,gint,1)
    if (profile) call timer%measure(4)
-   gnorm = norm2(gint)
 
-   if(gnorm.gt.500.) then
+   ! check Euclidean norm of the normal gradient !
+   gnorm = norm2(gint)
+   if(gnorm.gt.500.) then   
       call env%error('|grad| > 500, something is totally wrong!', source)
       fail=.true.
       return
    endif
 
+   ! average energy and gradient !
    if (present(avconv)) then
       call avconv%set_eg_log(energy, gnorm)
       energy = avconv%get_averaged_energy()
@@ -755,7 +823,7 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       end if
    end if
 
-! adapt SCC acuracy
+   ! adjust SCC accuracy dynamically !
    if(gnorm    .lt.0.004)then
       acc=acc_in
    elseif(gnorm.lt.0.02)then
@@ -764,33 +832,36 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       acc=6.0d0*acc_in
    endif
 
-   first =.false.
+   first =.false. ! distinguish between first and subsequent iterations
 
+   ! calculate the change in energy and gradient norm !
    gchng = gnorm -gnold
    echng = energy-eold
 
-   ! check for convergence
+   ! check for convergence !
    econverged = abs(echng).lt.ethr
    gconverged = gnorm.lt.gthr
    lowered    = echng.lt.0.0_wp
 
+   ! print energy and gradient norm of a current cycle !
    if(pr) then
-      !write(env%unit,'(" E :",F16.8,2x,"G :",F10.6,4x,"pred/act E change:",2D11.3)')&
-      !energy,gnorm,depred,echng
       write(env%unit,'(" * total energy  :",f14.7,1x,"Eh")',advance='no')   energy
       write(env%unit,'(5x,"change   ",e18.7,1x,"Eh")')                      echng
       write(env%unit,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
       write(env%unit,'(3x,"predicted",e18.7)',advance='no')                 depred
       write(env%unit,'(1x,"("f7.2"%)")')         (depred-echng)/echng*100
    endif
+   
+   ! check 0 energy case !
    if ( energy .eq. 0 ) then
       call env%error('external program error', source)
       return
    end if
 
-   if(ii.eq.1) estart=energy
+   if(ii.eq.1) estart=energy ! save energy of first iteration
 
-   if(gnorm.lt.0.002)then  ! 0.002
+   ! adjust step size dynamically !
+   if(gnorm.lt.0.002)then 
       alp = 1.5d0       ! 1.5
    elseif(gnorm.lt.0.0006)then
       alp = 2.0d0       ! 2
@@ -806,11 +877,10 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 
    if (profile) call timer%measure(7,'hessian update')
    if(ii.gt.1)then
-! hessian update
       if(iupdat.eq.0)then
-      call bfgs  (anc%nvar,gnorm,gint,gold,displ,anc%hess)
+         call bfgs  (anc%nvar,gnorm,gint,gold,displ,anc%hess)
       else
-      call powell(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+         call powell(anc%nvar,gnorm,gint,gold,displ,anc%hess)
       endif
    endif
    if (profile) call timer%measure(7)
@@ -825,14 +895,15 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
 !   ⎛ H  g ⎞ ⎛ dx ⎞     ⎛ dx ⎞
 !   ⎝ g  0 ⎠ ⎝  1 ⎠ = λ ⎝  1 ⎠
 !  first augment hessian by gradient, we keep everything nicely packed, no blowup
-   Aaug(1:npvar)          = anc%hess
-   Aaug(npvar+1:npvar1-1) = gint
-   Aaug(npvar1)           = 0.0_sp
-!  chose your favourite solver
+   Aaug(1:npvar)          = anc%hess ! pack hessian
+   Aaug(npvar+1:npvar1-1) = gint ! augment with gradient
+   Aaug(npvar1)           = 0.0_sp ! add zero
+   
+   ! chose your favourite solver !
    if (exact .or. nvar1.lt.50) then
       call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
    else
-      ! steepest decent guess for displacement
+      ! steepest decent guess for displacement !
       if (ii.eq.1) then
          Uaug(:,1)=[-real(gint(1:anc%nvar),sp),1.0_sp]
          dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
@@ -842,65 +913,74 @@ subroutine relax(env,iter,mol,anc,restart,maxcycle,maxdispl,ethr,gthr, &
       if (fail) & ! retry with better solver
       call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
    endif
-!  divide by last element to get the displacement vector
+   
+   ! error handling after RF calculation !
    if (fail .or. abs(Uaug(nvar1,1)).lt.1.e-10) then
       call env%error("internal rational function error", source)
       return
    end if
+
+   ! divide by last element to get the displacement vector !
    displ(1:anc%nvar) = Uaug(1:anc%nvar,1)/Uaug(nvar1,1)
-!  check if step is too large, just cut off everything thats to large
+   
+   ! check if step is too large, cut off everything that is too large !
    do j=1,anc%nvar
       if(abs(displ(j)).gt.maxd) then
          if(displ(j) < 0) displ(j)=-maxd
          if(displ(j) > 0) displ(j)= maxd
       endif
    enddo
-!  now some output
-   dsnrm=sqrt(ddot(anc%nvar,displ,1,displ,1))
+   
+   ! now some output !
+   dsnrm=sqrt(ddot(anc%nvar,displ,1,displ,1)) ! displacement norm
    if(pr)then
-      ! this array is currently not used and will be overwritten in next step
+      
+      ! find the largest displacement !
       gold = abs(displ)
       imax(1) = maxloc(gold,1); gold(imax(1)) = 0.0_wp
       imax(2) = maxloc(gold,1); gold(imax(2)) = 0.0_wp
       imax(3) = maxloc(gold,1)
+
       write(env%unit,'(3x,"displ. norm   :",f14.7,1x,"α")',advance='no') &
          dsnrm*alp
-      write(env%unit,'(6x,"lambda   ",e18.7)') eaug(1)
+      write(env%unit,'(6x,"lambda   ",e18.7)') eaug(1) ! eigenvalue of the RF 
       write(env%unit,'(3x,"maximum displ.:",f14.7,1x,"α")',advance='no') &
          abs(displ(imax(1)))*alp
       write(env%unit,'(6x,"in ANC''s ",3("#",i0,", "),"...")') imax
-      !call prdispl(anc%nvar,displ)
    endif
+   
    if (profile) call timer%measure(8)
-! ------------------------------------------------------------------------
 
-!  2nd: exit and redo hessian (internal restart)
+   ! 2nd: exit and redo hessian (internal restart) !
    if(ii.gt.2.and.dsnrm.gt.2.0) then
       if (pr) write(*,*) 'exit because of too large step'
       exit main_loop
    endif
 
-!  new coordinates
+   ! new coordinates !
    anc%coord = anc%coord + displ * alp
 
-! conv ?
+   ! conv check !
    if(abs(echng).lt.ethr.and.gnorm.lt.gthr.and.echng.lt.1.0e-10_wp) then
       restart=.false.
       converged = .true.
       etot=energy
       return
    endif
-
 !! ========================================================================
    enddo main_loop
 !! ========================================================================
-  if (allocated(Uaug))  deallocate(Uaug)
-  if (allocated(eaug))  deallocate(eaug)
-  if (allocated(Aaug))  deallocate(Aaug)
+   
+   ! cleanup !
+   if (allocated(Uaug))  deallocate(Uaug)
+   if (allocated(eaug))  deallocate(eaug)
+   if (allocated(Aaug))  deallocate(Aaug)
 
+   ! post micro cycle processing !
    restart=.true.
    etot=energy
    call anc%get_cartesian(mol%xyz)
+
 end subroutine relax
 
 pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
@@ -1015,6 +1095,7 @@ subroutine sort(nat3,nvar,hess,b)
 
 end subroutine sort
 
+!> calculate predicted energy change
 subroutine prdechng(nat3,grad,displ,hess,depred)
 !---------------------------------------------------------------------
 ! Purpose:
