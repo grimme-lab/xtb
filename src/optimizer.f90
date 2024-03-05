@@ -1132,11 +1132,11 @@ subroutine prdechng(nat3,grad,displ,hess,depred)
 !---------------------------------------------------------------------
    allocate( hdx(nat3), source = 0.0_wp )
 
-   call blas_spmv('u',nat3,0.5d0,hess,displ,1,0.0d0,hdx,1)
+   call blas_spmv('u',nat3,0.5d0,hess,displ,1,0.0d0,hdx,1) ! hdx = 0.5*H*displ
 
-   gtmp   = ddot(nat3,displ,1,grad,1)
+   gtmp   = ddot(nat3,displ,1,grad,1) ! gtmp = grad*displ
 
-   htmp   = ddot(nat3,displ,1,hdx,1)
+   htmp   = ddot(nat3,displ,1,hdx,1) ! htmp = hdx*displ
 
    depred = htmp + gtmp
 
@@ -1215,6 +1215,7 @@ subroutine prdispl(nvar,displ)
 
 end subroutine prdispl
 
+!> generate model Hessian
 subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    use xtb_type_setvar
    use xtb_modelhessian
@@ -1240,21 +1241,22 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
    type(modhess_setvar),intent(in) :: modh
    logical, intent(in)  :: pr
 
-!  Other variables
+   !> other variables
    integer  :: i
    integer  :: nhess
    integer, intent(in)  :: natoms
    real(wp),intent(in)  :: xyz(3,natoms)
-   real(wp),intent(out) :: hess((natoms*3)*((natoms*3)+1)/2)
+   
+   !> model hessian
+   real(wp),intent(out) :: Hess((natoms*3)*((natoms*3)+1)/2)
    integer, intent(in)  :: chg(natoms)
 
-!  initialize
-   nhess=3*natoms
-   Hess=0.d0
+   ! initialize !
+   Hess=0.0_wp
 
    select type(calc)
-   class default
-      select case(modh%model)
+   class default ! all calculator cases except GFN-FF
+      select case(modh%model) 
       case default
          call env%error("internal error in model hessian!", source)
          return
@@ -1271,7 +1273,7 @@ subroutine modhes(env, calc, modh, natoms, xyz, chg, Hess, pr)
         if (pr) write(env%unit,'(a)') "Using Swart-Hessian"
         call mh_swart(xyz, natoms, Hess, chg, modh)
       end select
-   type is(TGFFCalculator)
+   type is(TGFFCalculator) ! GFN-FF case
       select case(modh%model)
       case default
          call env%error("internal error in model hessian!", source)
