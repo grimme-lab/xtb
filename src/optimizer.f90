@@ -22,9 +22,11 @@ module xtb_optimizer
    use xtb_type_environment, only : TEnvironment
    use xtb_extern_turbomole, only : TTMCalculator
    use xtb_bfgs
+   use xtb_hessian, only : numhess
    use xtb_david2
    implicit none
 
+   !> time profiling
    logical,private,parameter :: profile = .true.
 
    type :: convergence_log
@@ -42,6 +44,7 @@ module xtb_optimizer
 
 contains
 
+!> construct optimizer settings from optimization level
 subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
    use xtb_setparam
    implicit none
@@ -51,66 +54,74 @@ subroutine get_optthr(n,olev,ethr,gthr,maxcycle,acc)
    real(wp),intent(out) :: gthr
    integer, intent(out) :: maxcycle
    real(wp),intent(out) :: acc
+   
    select case(olev)
-! very approximate = crude
+   ! very approximate = crude !
    case(p_olev_crude)
       ethr   = 5.d-4
       gthr   = 1.d-2
       maxcycle=n
       acc=3.00d0
-! approximate = sloopy
+   
+   ! approximate = sloopy !
    case(p_olev_sloppy)
       ethr   = 1.d-4
       gthr   = 6.d-3
       maxcycle=n
       acc=3.00d0
-! loose
+   
+   ! loose !
    case(p_olev_loose)
       ethr   = 5.d-5
       gthr   = 4.d-3
       maxcycle=n*2
       acc=2.00d0
-!  for DCOSMO-RS opts with TM i.e. between loose and normal, keyword "lax"
+
+   ! for DCOSMO-RS opts with TM i.e. between loose and normal !
    case(p_olev_lax)
       ethr   = 2.d-5
       gthr   = 2.5d-3
       maxcycle=n*2
       acc=2.00d0
-!  normal
+   
+   ! normal !
    case default
       ethr  = 5.d-6
       gthr  = 1.d-3
       maxcycle=n*3
       acc=1.0d0
-! tight
+   
+   ! tight !
    case(p_olev_tight)
       ethr   = 1.d-6
       gthr   = 8.d-4
       maxcycle=n*5
       acc=0.20d0
-! very tight
+
+   ! very tight !
    case(p_olev_vtight)
       ethr   = 1.d-7
       gthr   = 2.d-4
       maxcycle=n*20
       acc=0.05d0
-! extreme
+
+   ! extreme !
    case(p_olev_extreme)
       ethr   = 5.d-8
       gthr   = 5.d-5
       maxcycle=n*20
       acc=0.01d0
    end select
+   
    maxcycle=min(maxcycle,10000)
    maxcycle=max(maxcycle,200)
 
 end subroutine get_optthr
 
-!----------------------------------------
-! Approximate Normal Coordinate Optimizer
-!----------------------------------------
+!> Approximate Normal Coordinate rational function optimizer 
 subroutine ancopt(env,ilog,mol,chk,calc, &
       &           egap,et,maxiter,maxcycle_in,etot,g,sigma,tight,pr,fail)
+   
    use xtb_mctc_convert
    use xtb_mctc_la
 
@@ -132,67 +143,150 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    use xtb_lsrmsd
 
    implicit none
-
-   character(len=*), parameter :: source = "optimizer_ancopt"
-      !! source of errors in the main program unit
-   type(TEnvironment), intent(inout) :: env
-      !! calculation environment
-   type(TMolecule), intent(inout) :: mol
-      !! molecular structure data
-   integer, intent(in)    :: tight
-      !! optimization level
-   integer, intent(in)    :: maxiter
-      !! max SCC cycles
-   integer, intent(in)    :: maxcycle_in
-      !! max GEOOPT cycles
-   type(TRestart),intent(inout) :: chk
-      !! wrapper for changing info during SCC
-   class(TCalculator), intent(inout) :: calc
-      !! calculator instance
-   real(wp) :: eel
-      !! electronic energy
-   real(wp),intent(inout) :: etot
-      !! total energy
-   real(wp),intent(in)    :: et
-      !! electronic temperature
-   real(wp),intent(inout) :: egap
-      !! HOMO-LUMO gap
-   real(wp),intent(inout) :: g(3,mol%n)
-      !! gradients
-   real(wp),intent(inout) :: sigma(3,3)
-      !! strain derivatives
-   logical, intent(in)    :: pr
-      !! if printed
-   logical, intent(out)   :: fail
-      !! if failed
    
-   !> local variables
+   !> traceback for error handling 
+   character(len=*), parameter :: source = "optimizer_ancopt"
+   
+   !> calculation environment
+   type(TEnvironment), intent(inout) :: env
+   
+   !> molecular structure data
+   type(TMolecule), intent(inout) :: mol
+   
+   !> optimization level
+   integer, intent(in)    :: tight
+   
+   !> max number of SCC cycles
+   integer, intent(in)    :: maxiter
+   
+   !> max number of optimization cycles
+   integer, intent(in)    :: maxcycle_in
+   
+   !> wrapper for changing info during SCC
+   type(TRestart),intent(inout) :: chk
+
+   !> polymorphic calculator instance
+   class(TCalculator), intent(inout) :: calc
+   
+   !> electronic energy
+   real(wp) :: eel
+
+   !> total energy
+   real(wp),intent(inout) :: etot
+   
+   !> electronic temperature
+   real(wp),intent(in)    :: et
+   
+   !> HOMO-LUMO gap
+   real(wp),intent(inout) :: egap
+   
+   !> gradients
+   real(wp),intent(inout) :: g(3,mol%n)
+   
+   !> strain derivatives
+   real(wp),intent(inout) :: sigma(3,3)
+   
+   !> printlevel
+   logical, intent(in)    :: pr
+   
+   !> optimization failure
+   logical, intent(out)   :: fail
+
+!-----------------!   
+! local variables !
+!-----------------!   
+   
    type(TMolecule) :: molopt
    type(scc_results) :: res
    type(tb_anc) :: anc
    type(tb_timer) :: timer
-   real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr,aaa,bbb
-   real(wp) :: maxdispl,gthr,ethr,hmax,energy,acc,rij(3),t1,t0,w1,w0,ccc
-   integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,lwork,nat3,liwork
-   integer  :: nvar,iter,nread,maxcycle,maxmicro,itry,maxopt,iupdat,iii
+
+   !> maximum coordinate displacement
+   real(wp) :: maxdispl
+
+   !> lowest value for force constant
+   real(wp) :: hlow
+
+   !> highest value for force constant
+   real(wp) :: hmax 
+
+   !> dispersion scaling
+   real(wp) :: s6
+
+   !> total energy from initial single point callculation
+   real(wp) :: estart
+
+   !> energy & gradient convergence thresholds
+   real(wp) :: ethr, gthr
+   
+   
+   !> number of modes followed
+   integer :: modef
+   
+   !> max number of opt cycles
+   integer :: maxopt
+
+   !> max number of opt cycles before generation of new ANC
+   integer :: maxmicro
+   
+   !> algorithm for updating Hessian  
+   integer :: iupdat ! 0 = BFGS, 1 = Powell
+   
+   !> current iteration 
+   integer :: iter
+
+   !> number of atomic coordinates
+   integer :: nat3
+
+   !> deegrees of freedom
+   integer :: nvar
+
+   !> work array size
+   integer :: lwork, liwork
+
+   !> step size for numerical Hessian
+   real(wp) :: step_hess
+
+   real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,edum,thr,aaa,bbb
+   real(wp) :: energy,acc,rij(3),t1,t0,w1,w0,ccc
+
+   integer  :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info
+   integer  :: nread,itry,iii
    integer  :: id,ihess,error
    integer, intent(in)  :: ilog
    integer, external    :: lin
-   real(wp),allocatable :: h (:,:)
+
+   !> Hessian matrix
+   real(wp),allocatable :: h (:,:), hess_tmp(:,:)
+
    real(wp),allocatable :: b (:,:)
+   real(wp),allocatable :: pmode(:,:)
+   real(wp),allocatable :: grmsd(:,:)
+
+   !> force constants
    real(wp),allocatable :: fc(:)
+
+   !> eigenvalues
    real(wp),allocatable :: eig(:)
+
    real(wp),allocatable :: aux(:)
    real(wp),allocatable :: hess(:)
    integer, allocatable :: iwork(:)
    integer, allocatable :: totsym(:)
-   real(wp),allocatable :: pmode(:,:)
-   real(wp),allocatable :: grmsd(:,:)
    type(convergence_log), allocatable :: avconv
+   
    real(wp) :: U(3,3), x_center(3), y_center(3), rmsdval
-   integer :: modef
-   logical :: restart,ex,converged,linear
-   real(wp) :: estart,esave
+   real(wp) :: esave
+   logical :: restart,ex,converged
+   
+   !> if linear molecule
+   logical :: linear
+
+   !> dipole
+   real(wp),allocatable :: dipgrad(:,:)
+   integer, allocatable :: list(:)
+   
+   !> formatting strings for output 
    character(len=*),parameter :: scifmt = &
       '(10x,":",3x,a,e22.7,1x,a,1x,":")'
    character(len=*),parameter :: dblfmt = &
@@ -201,43 +295,51 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       '(10x,":",3x,a,i18,      10x,":")'
    character(len=*),parameter :: chrfmt = &
       '(10x,":",3x,a,a18,      10x,":")'
+  
+   !> error string
+   character(len=128) :: errStr
    
-   ! Print ANCopt header !
+   !> debug mode
+   logical, parameter :: debug(2) = [.false.,.false.]
+   character(len=9):: hessfmt
+
+   ! print ANCopt header !
    call ancopt_header(env%unit,set%veryverbose)
    
-   if(mol%n.eq.1) return
-      !! do not optimize for 1 molecule
+   if(mol%n.eq.1) return ! skip optimization for 1 atom 
+
+   ! performance profiling timer !
    if (profile) call timer%new(8,.false.)
    if (profile) call timer%measure(1,'optimizer setup')
-
-!  defaults
-   fail =.false.
-   modef=0
-   hmax =  5.0_wp
-   maxdispl=set%optset%maxdispl_opt
-   hlow = set%optset%hlow_opt!0.01 in ancopt, 0.002 too small
-   s6   = set%mhset%s6  !slightly better than 30 for various proteins
-! initial number of steps before new ANC are made by model Hessian
-! increased during opt.
-   maxmicro=set%optset%micro_opt
+   
+   ! defaults !
+   iter = 0
+   fail  = .false.
+   modef = 0
+   iupdat= 0 
+   hmax  = 5.0_wp
+   nat3 = 3 * mol%n
+   maxdispl = set%optset%maxdispl_opt  ! def: 1.0
+   hlow = set%optset%hlow_opt          ! def: 0.01 
+   s6   = set%mhset%s6                 ! def: 20.0
+   maxmicro=set%optset%micro_opt       ! def: 20 
    estart = etot
-
-   iupdat=0 !0=BFGS, 1=Powell
-
+   call get_optthr(mol%n,tight,ethr,gthr,maxopt,acc)
+   
+   ! if provided by user !
+   if(maxcycle_in.gt.0)then
+      maxopt=maxcycle_in
+   endif
+   if(maxopt.lt.maxmicro) maxmicro=maxopt
+   
+   ! use Powell update if TS optimization ! 
    if(set%tsopt)then
       hlow=max(hlow,0.250d0)
       iupdat=1
    endif
-
-   call get_optthr(mol%n,tight,ethr,gthr,maxcycle,acc)
-
-   if(maxcycle_in.le.0)then
-      maxopt=maxcycle
-   else
-      maxopt=maxcycle_in
-   endif
-   if(maxopt.lt.maxmicro) maxmicro=maxopt
-   if (set%optset%average_conv) then
+   
+   ! energy and gradient averaging !
+   if (set%optset%average_conv) then ! default: .false.
       select type(calc)
       class is(TTMCalculator)
          avconv = load_turbomole_log(maxopt)
@@ -250,22 +352,23 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       end select
    end if
 
-   call axis2(mol%n,mol%at,mol%xyz,aaa,bbb,ccc,dumi,dumj)
-
-   !call open_file(ilog,'xtbopt.log','w')
-   iter = 0
-   nat3 = 3 * mol%n
-   nvar = nat3 - 6
-   linear = .false.
-   if(ccc.lt.1.d-10) then
+   ! determine if linear molecule via rotational constants !
+   call axis2(mol%n,mol%xyz,aaa,bbb,ccc,dumi,dumj)
+   if (ccc.lt.1.d-10) then
       linear = .true.
       nvar = nat3 - 5
+   else
+      linear = .false.
+      nvar = nat3 - 6
    endif
-   if(fixset%n.gt.0) then ! exact fixing
-      nvar=nat3-3*fixset%n-3
+
+   ! exact fixing case ! 
+   if(fixset%n.gt.0) then 
+      nvar = nat3 - 3*fixset%n - 3
       if(nvar.le.0) nvar=1
    endif
 
+   ! adjust if restrated !
    call open_binary(id,'.xtbtmpmode','r')
    if(id.ne.-1)then
       read (id) modef
@@ -277,43 +380,52 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       allocate(pmode(nat3,1)) ! dummy allocated
    endif
 
+   ! print ANCopt settings !
    if(pr)then
       write(env%unit,'(/,10x,51("."))')
       write(env%unit,'(10x,":",22x,a,22x,":")') "SETUP"
       write(env%unit,'(10x,":",49("."),":")')
-      write(env%unit,chrfmt) "optimization level",int2optlevel(tight)
-      write(env%unit,intfmt) "max. optcycles    ",maxopt
-      write(env%unit,intfmt) "ANC micro-cycles  ",maxmicro
-      write(env%unit,intfmt) "degrees of freedom",nvar
+      write(env%unit,chrfmt) "optimization level", int2optlevel(tight)
+      write(env%unit,intfmt) "max. optcycles    ", maxopt
+      write(env%unit,intfmt) "ANC micro-cycles  ", maxmicro
+      write(env%unit,intfmt) "degrees of freedom", nvar
+      
       if (modef>0) then
-      write(env%unit,intfmt) "# mode follow     ",modef
+         write(env%unit,intfmt) "# mode follow     ", modef
       endif
+      
       write(env%unit,'(10x,":",49("."),":")')
+      
       if (set%optset%exact_rf) then
-      write(env%unit,chrfmt) "RF solver         ","spevx"
+         write(env%unit,chrfmt) "RF solver         ", "spevx"
       else
-      write(env%unit,chrfmt) "RF solver         ","davidson"
+         write(env%unit,chrfmt) "RF solver         ", "davidson"
       endif
-      write(env%unit,chrfmt) "write xtbopt.log  ",bool2string(ilog.ne.-1)
+      
+      write(env%unit,chrfmt) "write xtbopt.log  ", bool2string(ilog.ne.-1)
+      
       if (linear) then
-      write(env%unit,chrfmt) "linear (good luck)",bool2string(linear)
+         write(env%unit,chrfmt) "linear (good luck)", bool2string(linear)
       else
-      write(env%unit,chrfmt) "linear?           ",bool2string(linear)
+         write(env%unit,chrfmt) "linear?           ", bool2string(linear)
       endif
-      write(env%unit,scifmt) "energy convergence",ethr,    "Eh  "
-      write(env%unit,scifmt) "grad. convergence ",gthr,    "Eh/α"
-      write(env%unit,dblfmt) "maxmium RF displ. ",maxdispl,"    "
-      write(env%unit,scifmt) "Hlow (freq-cutoff)",hlow,    "    "
-      write(env%unit,dblfmt) "Hmax (freq-cutoff)",hmax,    "    "
-      write(env%unit,dblfmt) "S6 in model hess. ",s6,      "    "
+      
+      write(env%unit,scifmt) "energy convergence", ethr,    "Eh  "
+      write(env%unit,scifmt) "grad. convergence ", gthr,    "Eh/α"
+      write(env%unit,dblfmt) "maxmium RF displ. ", maxdispl,"    "
+      write(env%unit,scifmt) "Hlow (freq-cutoff)", hlow,    "    "
+      write(env%unit,dblfmt) "Hmax (freq-cutoff)", hmax,    "    "
+      write(env%unit,dblfmt) "S6 in model hess. ", s6,      "    "
       write(env%unit,'(10x,51("."))')
    endif
 
+   ! work arrays !
    lwork  = 1 + 6*nat3 + 2*nat3**2
    liwork = 8 * nat3
 
    allocate(h(nat3,nat3),fc(nat3*(nat3+1)/2),eig(nat3))
 
+   ! read in Hessian from file !
    if (set%mhset%model == p_modh_read) then
       call open_file(ihess, 'hessian', 'r')
       if (ihess == -1) then
@@ -332,39 +444,71 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       ex = .false.
    endif
 
-   call anc%allocate(mol%n,nvar,hlow,hmax)
-
-   molopt = mol
-
-   if (profile) call timer%measure(1)
+   call anc%allocate(mol%n,nvar,hlow,hmax) ! allocate ANC
+   molopt = mol ! copy molecular information
+   if (profile) call timer%measure(1) ! start opt timer
 
 ! ======================================================================
    ANC_microiter: do
 ! ======================================================================
 
-   if (profile) call timer%measure(2,'model hessian')
+!----------------------------------------------------------------!
+!--------------------- Hessian generation -----------------------!
+!----------------------------------------------------------------!
+
+   if (profile) call timer%measure(2,'model hessian') ! start timer for Hessian
+   
+   ! initial guess for Hessian !
    if (.not.ex)then ! normal case
-     if(pr)write(env%unit,'(/,''generating ANC from model Hessian ...'')')
-     call modhes(env, calc, set%mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! WBO (array wb) not used in present version
-     call env%check(fail)
-     if (fail) then
-        call env%error("Calculation of model hessian failed", source)
-        return
-     end if
-     !call qpothess(molopt%n,fc,molopt%xyz)
-     thr=1.d-11
-   else
-     if(pr)write(env%unit,'(/,''generating ANC from read Hessian ...'')')
-     k=0
-     do i=1,nat3
-        do j=1,i
-         k=k+1
-         fc(k)=h(j,i)
-        enddo
-     enddo
-     thr=1.d-10
+      
+      if (pr) &
+         &  write(env%unit,'(/,''generating ANC from exact Hessian ...'')')
+      
+      call modhes(env, calc, set%mhset, molopt%n, molopt%xyz, molopt%at, fc, pr)   ! def: Lindh model (1995)
+      call env%check(fail)
+      if (fail) then
+         call env%error("Calculation of model hessian failed", source)
+         return
+      end if
+      
+      ! blow up Hessian !
+      k=0
+      do i=1,nat3
+         do j=1,i
+            k=k+1
+            h(i,j)=fc(k)
+            h(j,i)=fc(k)
+         enddo
+      enddo
+
+      thr=1.d-11
+   
+   ! read in Hessian from file !
+   else 
+      
+      if(pr) &
+         &  write(env%unit,'(/,''generating ANC from read Hessian ...'')')
+      
+      ! pack Hessian !
+      k=0
+      do i=1,nat3
+         do j=1,i
+            k=k+1
+            fc(k)=h(j,i)
+         enddo
+      enddo
+
+      thr=1.d-10
+
+   endif
+  
+   if (debug(2) .and. nat3 <= 30) then !######## DEBUG ########
+      write(env%unit,'(/,''Hessian matrix'')')
+      write(hessfmt,'(a,i0,a)') '(', nat3, 'F10.6)'
+      write(env%unit,hessfmt) (h(:,i), i=1,nat3)
    endif
 
+   ! project out translational and rotational modes !
    if(modef.eq.0)then
       if(fixset%n.gt.0)then
          call trproj(molopt%n,nat3,molopt%xyz,fc,.false., -1  ,pmode,1)     ! exact fixing
@@ -375,42 +519,41 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    else
       call trproj(molopt%n,nat3,molopt%xyz,fc,.false.,modef,pmode,modef) ! NMF
    endif
-   if (profile) call timer%measure(2)
+   
+   if (profile) call timer%measure(2) ! stop timer for model Hessian
 
-   if (profile) call timer%measure(3,'ANC generation')
-   ! this is completely useless, we blow up the Hessian, just to pack it again...
-   k=0
-   do i=1,nat3
-      do j=1,i
-         k=k+1
-         h(i,j)=fc(k)
-         h(j,i)=fc(k)
-      enddo
-   enddo
+!----------------------------------------------------------------!
+!---------------------- ANC generation --------------------------!
+!----------------------------------------------------------------!
 
-!  initialize hessian for opt.
-   call anc%new(env%unit,molopt%xyz,h,pr,linear)
+   if (profile) call timer%measure(3,'ANC generation') ! start timer for ANC generation   
 
-   if (profile) call timer%measure(3)
+   ! diagonalize Hessian and sort eigenvalues !
+   call anc%new(env%unit,molopt%xyz,h,pr,linear)  
+   if (profile) call timer%measure(3) ! stop timer for ANC generation
+   esave = etot ! save energy 
 
-   esave = etot
-
-! now everything is prepared for the optimization
+!----------------------------------------------------------------!
+!---------------------- Optimization ----------------------------!
+!----------------------------------------------------------------!
    call relax(env,iter,molopt,anc,restart,maxmicro,maxdispl,ethr,gthr, &
       & iii,chk,calc,egap,acc,et,maxiter,iupdat,etot,g,sigma,ilog,pr,fail, &
       & converged,timer,set%optset%exact_rf,avconv)
 
+   ! check for errors !
    call env%check(fail)
    if (fail) then
-      call env%error("Could not relax structure", source)
+      call env%error("Could not relax/optimize structure", source)
       return
    endif
 
+   ! dynamically adjust number of micro iterations !
    maxmicro=min(int(maxmicro*1.1),2*set%optset%micro_opt)
 
+   ! assess the optimization by RMSD change !
    call rmsd(molopt%n,anc%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
 
-   ! this comes close to a goto, but it's not a goto ... it's even worse
+   ! this comes close to a goto, but it's not a goto ... it's even worse !
    if (restart.and.iter.lt.maxopt) then
       if (pr) then
          write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
@@ -423,6 +566,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    enddo ANC_microiter
 ! ======================================================================
 
+   ! convergence report !
    if (converged) then
       if(pr) then
          call rmsd(mol%n,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
@@ -440,20 +584,19 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
          write(env%unit,'(72("-"))')
       endif
    else
-!  not converging in the given cycles is a FAILURE, we should make this clearer
-!  This is still no ERROR, since we want the geometry written afterwards
+      ! not converging in the given cycles is a FAILURE, we should make this clearer !
+      ! This is still no ERROR, since we want the geometry written afterwards !
       if(pr) then
          write(env%unit,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
             "FAILED TO CONVERGE GEOMETRY OPTIMIZATION IN",iter,"ITERATIONS"
       endif
    endif
 
-   mol = molopt
+   mol = molopt ! copy optimized geometry back to molecule
 
-   !call close_file(ilog)
+   if (pr.and.profile) call timer%write(env%unit,'ANCopt') ! write timer report
 
-   if (pr.and.profile) call timer%write(env%unit,'ANCopt')
-
+   ! cleanup !
    if (profile) call timer%deallocate
    if (allocated(pmode))  deallocate(pmode)
    if (allocated(h))      deallocate(h)
