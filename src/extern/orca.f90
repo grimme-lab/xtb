@@ -278,10 +278,12 @@ subroutine writeOrcaInp(env,io,mol,input,mode)
    write(io,'("#",1x,a)') &
       "ORCA input is generated automatically. Not correct way."
    
+   num_threads = 1 ! default
+
    ! number of cores !
    !$omp parallel
    !$omp master
-      num_threads = omp_get_num_threads()
+   !$   num_threads = omp_get_num_threads()
    !$omp end master
    !$omp end parallel 
    
