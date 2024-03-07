@@ -77,7 +77,7 @@ module xtb_prog_main
    use xtb_xtb_gfn2
    use xtb_main_setup
    use xtb_main_defaults, only: initDefaults
-   use xtb_main_json, only: main_xtb_json, write_json_gfnff_lists
+   use xtb_main_json, only: main_xtb_json, write_json_gfnff_lists, main_ptb_json, main_tblite_json
    use xtb_geoopt
    use xtb_metadynamic
    use xtb_biaspath
@@ -97,8 +97,6 @@ module xtb_prog_main
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
-   !> PTB related modules
-   use xtb_main_json, only: main_ptb_json
 
    implicit none
    private
@@ -1020,12 +1018,19 @@ contains
       end if
 
       if (set%pr_json) then
-         select type (calc)
+         select type (calc)         
          type is (TxTBCalculator)
             call open_file(ich, 'xtbout.json', 'w')
             call main_xtb_json(ich, &
                                mol, chk%wfn, calc%basis, res, fres)
             call close_file(ich)
+
+         type is (TTBLiteCalculator)
+            call open_file(ich, 'tblite.json', 'w')
+            call main_tblite_json(ich, &
+                               calc, etot, g, sigma)
+            call close_file(ich)
+
          type is (TPTBCalculator)
             call open_file(ich, 'xtbout.json', 'w')
             call main_ptb_json(ich, &
@@ -1033,19 +1038,19 @@ contains
             call close_file(ich)
          end select
       end if
+
       if (printTopo%any()) then
          select type (calc)
          type is (TGFFCalculator)
             call write_json_gfnff_lists(mol%n, res%e_total, res%gnorm, calc%topo, calc%neigh, chk%nlist, printTopo)
          end select
       end if
-      if ((set%runtyp == p_run_opt) .or. (set%runtyp == p_run_ohess) .or. &
-          (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_screen) .or. &
-          (set%runtyp == p_run_metaopt) .or. (set%runtyp == p_run_bhess)) then
+
+      if ( anyopt .or. (set%runtyp == p_run_bhess) ) then
          call main_geometry(iprop, mol)
       end if
 
-      if ((set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess)) then
+      if (anyhess) then
          call generic_header(iprop, 'Frequency Printout', 49, 10)
          call main_freq(iprop, mol, chk%wfn, fres)
       end if
@@ -1058,9 +1063,7 @@ contains
          end if
       end if
 
-      if ((set%runtyp == p_run_opt) .or. (set%runtyp == p_run_ohess) .or. &
-          (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_screen) .or. &
-          (set%runtyp == p_run_metaopt) .or. (set%runtyp == p_run_bhess)) then
+      if ( anyopt .or. (set%runtyp == p_run_bhess) ) then
          call generateFileName(tmpname, 'xtbopt', extension, mol%ftype)
          write (env%unit, '(/,a,1x,a,/)') &
             "optimized geometry written to:", tmpname
