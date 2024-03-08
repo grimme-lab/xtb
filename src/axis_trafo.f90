@@ -112,96 +112,128 @@ contains
     return
   end subroutine axis
 
-  subroutine axis2(numat,nat,xyz,aa,bb,cc,avmom,sumw)
-    use xtb_splitparam
-    implicit double precision (a-h,o-z)
-    dimension xyz(3,numat)
-    integer nat(numat)
 
-    PARAMETER (BOHR=0.52917726)
-    dimension t(6), rot(3), xyzmom(3), eig(3), evec(3,3)
-    dimension x(numat),y(numat),z(numat),coord(3,numat)
-    data t /6*0.d0/
-    !************************************************************************
-    !*     const1 =  10**40/(n*a*a)
-    !*               n = avergadro's number
-    !*               a = cm in an angstrom
-    !*               10**40 is to allow units to be 10**(-40)gram-cm**2
-    !*
-    !************************************************************************
-    const1 = 1.66053d0
-    !************************************************************************
-    !*
-    !*     const2 = conversion factor from angstrom-amu to cm**(-1)
-    !*
-    !*            = (planck's constant*n*10**16)/(8*pi*pi*c)
-    !*            = 6.62618*10**(-27)[erg-sec]*6.02205*10**23*10**16/
-    !*              (8*(3.1415926535)**2*2.997925*10**10[cm/sec])
-    !*
-    !************************************************************************
-    const2=16.8576522d0
 
-    sumw=1.d-20
-    sumwx=0.d0
-    sumwy=0.d0
-    sumwz=0.d0
+subroutine axis2(n,xyz,aa,bb,cc,avmom,sumw)
+   
+   use xtb_splitparam, only : atmass
+   use xtb_mctc_convert, only : autoaa
+   
+   implicit double precision (a-h,o-z)
+   
+   !> number of atoms 
+   integer, intent(in) :: n
+   
+   !> cartesian coordinates
+   real(wp), intent(in) :: xyz(:,:)
 
-    coord(1:3,1:numat)=xyz(1:3,1:numat)*bohr
+   !> rotational constants
+   real(wp), intent(out) :: aa,bb,cc
 
-    do i=1,numat
-       sumw=sumw+atmass(i)
-       sumwx=sumwx+atmass(i)*coord(1,i)
-       sumwy=sumwy+atmass(i)*coord(2,i)
-       sumwz=sumwz+atmass(i)*coord(3,i)
-    enddo
+   !> average moment of inertia
+   real(wp), intent(out) :: avmom
 
-    sumwx=sumwx/sumw
-    sumwy=sumwy/sumw
-    sumwz=sumwz/sumw
-    f=1.0d0/bohr
-    do i=1,numat
-       x(i)=coord(1,i)-sumwx
-       y(i)=coord(2,i)-sumwy
-       z(i)=coord(3,i)-sumwz
-    enddo
+   !> sum of atomic masses
+   real(wp), intent(out) :: sumw
+   
+   !> const1 =  10**40/(n*a*a)
+   !>            n = avergadro's number
+   !>            a = cm in an angstrom
+   !>            10**40 is to allow units to be 10**(-40)gram-cm**2
+   real(wp), parameter :: const1 = 1.66053_wp
 
-    !************************************************************************
-    !*    matrix for moments of inertia is of form
-    !*
-    !*           |   y**2+z**2                         |
-    !*           |    -y*x       z**2+x**2             | -i =0
-    !*           |    -z*x        -z*y       x**2+y**2 |
-    !*
-    !************************************************************************
-    do i=1,6
-       t(i)=dble(i)*1.0d-10
-    enddo
-    do i=1,numat
-       t(1)=t(1)+atmass(i)*(y(i)**2+z(i)**2)
-       t(2)=t(2)-atmass(i)*x(i)*y(i)
-       t(3)=t(3)+atmass(i)*(z(i)**2+x(i)**2)
-       t(4)=t(4)-atmass(i)*z(i)*x(i)
-       t(5)=t(5)-atmass(i)*y(i)*z(i)
-       t(6)=t(6)+atmass(i)*(x(i)**2+y(i)**2)
-    enddo
-    call rsp(t,3,3,eig,evec)
-    do i=1,3
-       if(eig(i).lt.3.d-4) then
-          eig(i)=0.d0
-          rot(i)=0.d0
-       else
-          rot(i)=2.9979245d+4*const2/eig(i)
-       endif
-       xyzmom(i)=eig(i)*const1
-    enddo
+   !> const2 = conversion factor from angstrom-amu to cm**(-1)
+   !>        = (planck's constant*n*10**16)/(8*pi*pi*c)
+   !>        = 6.62618*10**(-27)[erg-sec]*6.02205*10**23*10**16/
+   !>         (8*(3.1415926535)**2*2.997925*10**10[cm/sec])
+   real(wp), parameter :: const2 = 16.8576522_wp
 
-    aa=rot(3)/2.9979245d+4
-    bb=rot(2)/2.9979245d+4
-    cc=rot(1)/2.9979245d+4
-    avmom=1.d-47*(xyzmom(1)+xyzmom(2)+xyzmom(3))/3.
+   !> temporary variables
+   real(wp) :: xsum,eps,ams
+   
+   !> weighted sum of coordinates
+   real(wp) :: sumwx,sumwy,sumwz
 
-    return
-  end subroutine axis2
+   !> loop variables
+   integer :: i
+
+   !> temporary arrays
+   real(wp) :: t(6), rot(3), xyzmom(3), eig(3), evec(3,3)
+   real(wp) :: x(n),y(n),z(n)
+
+   !> Cartesian coordinates in Bohr
+   real(wp) :: coord(3,n)  
+   
+   t(:)  = 0.0_wp 
+   sumw  = 0.0_wp
+   sumwx = 0.0_wp
+   sumwy = 0.0_wp
+   sumwz = 0.0_wp
+
+   ! convert Bohr to Angstrom ! 
+   coord(:,:) = xyz(:,:) * autoaa
+   
+   ! cma !
+   do i=1,n
+      sumw=sumw+atmass(i)
+      sumwx=sumwx+atmass(i)*coord(1,i)
+      sumwy=sumwy+atmass(i)*coord(2,i)
+      sumwz=sumwz+atmass(i)*coord(3,i)
+   enddo
+
+   sumwx=sumwx/sumw
+   sumwy=sumwy/sumw
+   sumwz=sumwz/sumw
+
+   do i=1,n
+      x(i)=coord(1,i)-sumwx
+      y(i)=coord(2,i)-sumwy
+      z(i)=coord(3,i)-sumwz
+   enddo
+
+   !************************************************************************
+   !*    matrix for moments of inertia is of form
+   !*
+   !*           |   y**2+z**2                         |
+   !*           |    -y*x       z**2+x**2             | -i =0
+   !*           |    -z*x        -z*y       x**2+y**2 |
+   !*
+   !************************************************************************
+   do i=1,6
+      t(i)=dble(i)*1.0d-10
+   enddo
+
+   do i=1,n
+      t(1)=t(1)+atmass(i)*(y(i)**2+z(i)**2)
+      t(2)=t(2)-atmass(i)*x(i)*y(i)
+      t(3)=t(3)+atmass(i)*(z(i)**2+x(i)**2)
+      t(4)=t(4)-atmass(i)*z(i)*x(i)
+      t(5)=t(5)-atmass(i)*y(i)*z(i)
+      t(6)=t(6)+atmass(i)*(x(i)**2+y(i)**2)
+   enddo
+
+   call rsp(t,3,3,eig,evec)
+   
+   do i=1,3
+
+      if(eig(i).lt.3.d-4) then
+         eig(i)=0.d0
+         rot(i)=0.d0
+      else
+         rot(i)=2.9979245d+4*const2/eig(i)
+      endif
+
+      xyzmom(i)=eig(i)*const1
+
+   enddo
+
+   aa=rot(3)/2.9979245d+4
+   bb=rot(2)/2.9979245d+4
+   cc=rot(1)/2.9979245d+4
+
+   avmom=1.d-47*(xyzmom(1)+xyzmom(2)+xyzmom(3))/3.
+
+end subroutine axis2
 
   subroutine axisvec(numat,nat,xyz,aa,bb,cc,evec)
     use xtb_splitparam

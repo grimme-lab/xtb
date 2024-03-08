@@ -94,7 +94,7 @@ subroutine test_axis(error)
    call check(error, rot1(2), .226266337664493_wp, thr=thr2)
    call check(error, rot1(3), 7.01216792608729_wp, thr=thr2)
 
-   call axis2(mol%n, mol%at, mol%xyz, rot2(1), rot2(2), rot2(3), avmom2, mass2)
+   call axis2(mol%n,  mol%xyz, rot2(1), rot2(2), rot2(3), avmom2, mass2)
 
    call check(error, rot2(1), .226251131473004_wp, thr=thr2)
    call check(error, rot2(2), .226266337664493_wp, thr=thr2)
@@ -128,7 +128,7 @@ subroutine test_axis(error)
    call check(error, rot1(2), .19263614502269_wp, thr=thr2)
    call check(error, rot1(3), 4.7581644454539_wp, thr=thr2)
 
-   call axis2(mol%n, mol%at, mol%xyz, rot2(1), rot2(2), rot2(3), avmom2, mass2)
+   call axis2(mol%n, mol%xyz, rot2(1), rot2(2), rot2(3), avmom2, mass2)
 
    call check(error, rot2(1), .19017218374861_wp, thr=thr2)
    call check(error, rot2(2), .19263614502269_wp, thr=thr2)

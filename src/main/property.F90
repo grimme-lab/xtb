@@ -1239,7 +1239,7 @@ module xtb_propertyoutput
       nvib = 0
       nimag = 0
 
-      call axis2(nat, at, xyz, aa, bb, cc, avmom, wt)
+   call axis2(nat,xyz,aa,bb,cc,avmom,wt)
 
       nvib_theo = 3 * nat - 6
       if (cc < 1.d-10) linear = .true.
