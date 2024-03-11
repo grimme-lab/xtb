@@ -283,7 +283,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    if (allocated(set%pcem_grad) .and. self%pcem%n > 0) then
       call open_file(ich,set%pcem_grad,'w')
       do i=1,self%pcem%n
-         write(ich,'(3f12.8)')self%pcem%grd(1:3,i)
+         write(ich,'(3f16.12)')self%pcem%grd(1:3,i)
       enddo
       call close_file(ich)
    endif
