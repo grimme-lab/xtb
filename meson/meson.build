@@ -207,6 +207,20 @@ tblite_dep = dependency(
 )
 lib_deps += tblite_dep
 
+# Get multicharge dependency
+multicharge_dep = dependency(
+  'multicharge',
+  fallback: ['multicharge', 'multicharge_dep'],
+)
+lib_deps += multicharge_dep
+
+# Get DFTD dependency
+dftd4_dep = dependency(
+  'dftd4',
+  fallback: ['dftd4', 'dftd4_dep'],
+)
+lib_deps += dftd4_dep
+
 # Get CPCM-X
 cpx_dep = dependency(
   'cpx',
