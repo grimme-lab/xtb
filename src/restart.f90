@@ -129,6 +129,7 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             call gfnff_param_alloc(topo,neigh, n)
             if (.not.allocated(topo%ispinsyst)) allocate( topo%ispinsyst(n,topo%maxsystem), source = 0 )
             if (.not.allocated(topo%nspinsyst)) allocate( topo%nspinsyst(topo%maxsystem), source = 0 )
+            if (.not.allocated(neigh%nr_hb)) allocate(neigh%nr_hb(neigh%nbond))
             read(ich) neigh%blist
             read(ich) topo%alist
             read(ich) topo%tlist
@@ -151,7 +152,6 @@ subroutine read_restart_gff(env,fname,n,version,success,verbose,topo,neigh)
             if (.not.allocated(neigh%vbond)) allocate (neigh%vbond(3,neigh%nbond))
             if (.not.allocated(neigh%nb)) allocate (neigh%nb(neigh%numnb,n,neigh%numctr))
             if (.not.allocated(neigh%blist)) allocate (neigh%blist(3,neigh%nbond))
-            if (.not.allocated(neigh%nr_hb)) allocate(neigh%nr_hb(neigh%nbond))
             if (.not.allocated(neigh%vbond)) allocate(neigh%vbond(3,neigh%nbond))
             if (.not.allocated(neigh%bpair)) allocate(neigh%bpair(n,n,neigh%numctr))
             if (.not.allocated(neigh%iTrSum)) allocate(neigh%iTrSum(neigh%iTrDim*(neigh%iTrDim+1)/2))
