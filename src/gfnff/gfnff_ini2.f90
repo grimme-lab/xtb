@@ -1107,12 +1107,13 @@ subroutine bond_hb_AHB_set(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,top
 
 end subroutine bond_hb_AHB_set
 
-subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH_count,bmax,neigh)
+subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH_count,bmax,topo,neigh)
       use xtb_gfnff_param
       use xtb_gfnff_neighbor
       implicit none
       !Dummy
       type(TNeigh), intent(inout) :: neigh
+      type(TGFFTopology), intent(inout) :: topo
       integer,intent(in)  :: n
       integer,intent(in)  :: numbond
       integer,intent(in)  :: at(n)
@@ -1172,6 +1173,7 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                      lin_AHB(2,tot_count) = hbH
                      lin_AHB(3,tot_count) = iTrA
                      lin_AHB(4,tot_count) = iTrH
+                     topo%isABH(Bat)=.true.
                      if (lin_AHB(1,tot_count)-lin_AHB(1,tot_count-1).eq.0.and.&
                         &lin_AHB(2,tot_count)-lin_AHB(2,tot_count-1).eq.0) then
                        lin_diff=0
@@ -1190,6 +1192,8 @@ subroutine bond_hb_AHB_set1(n,at,numbond,bond_hbn,bond_hbl,tot_AHB_nr,lin_AHB,AH
                  cycle
                end if
             end do
+            topo%isABH(hbA)=.true.
+            topo%isABH(hbH)=.true.
             neigh%nr_hb(i) = B_count
          end if
       end do

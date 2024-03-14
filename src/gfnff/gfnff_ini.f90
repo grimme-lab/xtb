@@ -1422,6 +1422,7 @@ endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       !Set up fix hblist just like for the HB term
+      allocate(topo%isABH(mol%n), source=.false.)
       call bond_hbset0(mol%n,mol%at,mol%xyz,mol%npbc,bond_hbn,topo,neigh,hbthr1,hbthr2)
       allocate(bond_hbl(6,bond_hbn))
       allocate(neigh%nr_hb(neigh%nbond), source=0)
@@ -1430,11 +1431,32 @@ endif
       !Set up AH, B and nr. of B list
       call bond_hb_AHB_set0(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,neigh)
       allocate( lin_AHB(4,0:AHB_nr), source=0  )
-      call bond_hb_AHB_set1(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo%bond_hb_nr,topo%b_max,neigh)
+      call bond_hb_AHB_set1(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo%bond_hb_nr,topo%b_max,topo,neigh)
       allocate( topo%bond_hb_AH(4,topo%bond_hb_nr), source = 0 )
       allocate( topo%bond_hb_B(2,topo%b_max,topo%bond_hb_nr), source = 0 )
       allocate( topo%bond_hb_Bn(topo%bond_hb_nr), source = 0 )
       call bond_hb_AHB_set(mol%n,mol%at,neigh%nbond,bond_hbn,bond_hbl,AHB_nr,lin_AHB,topo,neigh)
+
+      ! create mapping from atom index to hb index, for AB and H seperately
+      allocate(topo%hb_mapABH(mol%n), source=0)
+      j=0 ! H counter
+      k=0 ! AB counter
+      do i=1, mol%n
+        ! check if atom i is A,B, or H
+        if (topo%isABH(i)) then
+           ! check if it is H
+           if (mol%at(i).eq.1) then
+              j = j + 1
+              topo%hb_mapABH(i) = j
+           ! then it is A or B
+           else
+              k = k + 1
+              topo%hb_mapABH(i) = k
+           end if
+        end if
+      end do
+      topo%hb_mapNAB=k
+      topo%hb_mapNH=j
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !

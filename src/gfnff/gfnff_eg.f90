@@ -555,7 +555,7 @@ endif
       endif
       deallocate(dcn, dcndr)
       allocate(dEdcn(n),source=0.0_wp)
-      allocate(considered_ABH(n,n,n), source=.false.)
+      allocate(considered_ABH(topo%hb_mapNAB,topo%hb_mapNAB,topo%hb_mapNH), source=.false.)
 
      !$omp parallel do default(none) reduction(+:g, ebond, sigma, dEdcn) &
      !$omp shared(grab0, topo, neigh, param, rab0, rabdcn, xyz, at, hb_cn, hb_dcn, n, dhbcndL, considered_ABH) &
@@ -1038,7 +1038,7 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
       real*8,intent(in)    :: hb_cn(n)
       real*8,intent(in)    :: hb_dcn(3,n,n)
       real(wp), intent(in) :: dhbcndL(3,3,n)
-      logical, intent(inout)  :: considered_ABH(n,n,n) ! only consider ABH triplets once; indep of iTr
+      logical, intent(inout)  :: considered_ABH(topo%hb_mapNAB,topo%hb_mapNAB,topo%hb_mapNH)! only consider ABH triplets once; indep of iTr
       real*8,intent(inout) :: e
       real*8,intent(inout) :: g(3,n)
       real*8,intent(inout) :: sigma(3,3)
@@ -1048,11 +1048,11 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
       integer j,k
       integer jA,jH,iTrA,iTrH,iTrB
       integer hbH,hbB,hbA
+      integer mapA,mapB,mapH
       real*8 dr,dum
       real*8 dx,dy,dz,vrab(3),dg(3)
       real*8 yy,zz
       real*8 t1,t4,t5,t6,t8
-
 
          if (at(iat).eq.1) then
            hbH=iat
@@ -1128,8 +1128,11 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
                   hbB = topo%bond_hb_B(1,k,j)
                   iTrB= topo%bond_hb_B(2,k,j)
                  ! only add gradient one time per ABH triple (independent of iTrB)
-                 if(.not.considered_ABH(hbA,hbB,hbH)) then
-                   considered_ABH(hbA,hbB,hbH)=.true.
+                  mapA=topo%hb_mapABH(hbA)
+                  mapB=topo%hb_mapABH(hbB)
+                  mapH=topo%hb_mapABH(hbH)
+                 if(.not.considered_ABH(mapA,mapB,mapH)) then
+                   considered_ABH(mapA,mapB,mapH)=.true.
                    dg=hb_dcn(:,hbB,hbH)*zz
                    g(:,hbB)=g(:,hbB)-dg
                  endif

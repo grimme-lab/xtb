@@ -84,6 +84,10 @@ module xtb_gfnff_topology
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
       real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
       real(wp),allocatable:: hbaci (:)     ! HB acceptor atom acidity
+      integer, allocatable:: hb_mapABH(:)
+      logical, allocatable:: isABH(:)
+      integer :: hb_mapNAB
+      integer :: hb_mapNH
 
       integer, allocatable  :: ispinsyst(:,:)
       integer, allocatable  :: nspinsyst(:)
