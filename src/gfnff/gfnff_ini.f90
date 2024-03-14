@@ -248,6 +248,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
 
         call init_l(latPoint, env, mol%lattice, mol%boundaryCondition, MaxCutOff)
         call latPoint%getLatticepoints(transVec, MaxCutOff)
+        latPoint%ntrans = size(transVec, dim=2)
         allocate(dcndL(3,3,mol%n),source = 0.0d0)
         call getCoordinationNumber(mol, latPoint%nTrans, transVec, 40.0_wp, 5, cn, dcn, dcndL, param)   
         deallocate(dcndL)
