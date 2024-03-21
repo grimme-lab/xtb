@@ -59,13 +59,13 @@
 !    "version": 6.1
 ! }
 module xtb_main_json
+   use xtb_mctc_accuracy, only: wp
    implicit none
 
    private
 
    public :: main_xtb_json, write_json_gfnff_lists
-   public :: main_ptb_json
-
+   public :: main_ptb_json, main_tblite_json
 contains
 
    subroutine main_xtb_json &
@@ -585,7 +585,29 @@ contains
       call close_file(iunit)
 
    end subroutine write_json_gfnff_lists
-   
+
+    !> wrapper for tblite-PTB JSON output
+   subroutine main_tblite_json &
+      (ijson, calc, energy, gradient, sigma)
+
+#if WITH_TBLITE
+      use tblite_output_ascii
+#endif
+      use xtb_tblite_calculator, only : TTBLiteCalculator
+
+      integer, intent(in) :: ijson 
+      type(TTBLiteCalculator), intent(in) :: calc
+      real(wp), intent(in) :: energy
+      real(wp), intent(in) :: gradient(:,:)
+      real(wp), intent(in) :: sigma(:,:)
+
+#if WITH_TBLITE
+      call json_results(ijson, '  ', energy=energy, gradient=gradient, &
+                     & sigma=sigma, energies=calc%results%energies)
+#endif
+
+   end subroutine main_tblite_json
+
    !> wrapper for tblite-PTB JSON output
    subroutine main_ptb_json &
       (ijson, mol, wfx, calc, sccres, freqres)
