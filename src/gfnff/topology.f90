@@ -84,6 +84,10 @@ module xtb_gfnff_topology
       real(wp),allocatable:: qfrag (:)     ! fragment charge (for EEQ)
       real(wp),allocatable:: hbbas (:)     ! HB donor atom basicity
       real(wp),allocatable:: hbaci (:)     ! HB acceptor atom acidity
+      integer, allocatable:: hb_mapABH(:)  ! mapping of indices from all atoms to only AB and H separately
+      logical, allocatable:: isABH(:)      ! logical set to true if the atom is part of a hydrogen bond
+      integer :: hb_mapNAB                 ! number of AB atoms that are part of a hydrogen bond
+      integer :: hb_mapNH                  ! number of H atoms that are part of a hydrogen bond
 
       integer, allocatable  :: ispinsyst(:,:)
       integer, allocatable  :: nspinsyst(:)
