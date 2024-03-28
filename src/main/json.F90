@@ -439,13 +439,13 @@ contains
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
-      if (printTopo%blist) then ! blist(2,nbond)
+      if (printTopo%blist) then ! blist(3,nbond)
          write (iunit, '(3x,''"blist":'',"[")')
          do j = 1, neigh%nbond - 1
-            write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%blist(:, j)
+            write (iunit, '(3x,"[",*(i8,:,","))', advance='no') neigh%blist(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%blist(:, neigh%nbond)
+         write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') neigh%blist(:, neigh%nbond)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
