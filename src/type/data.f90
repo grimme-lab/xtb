@@ -88,6 +88,8 @@ module xtb_type_data
       real(wp) :: e_batm = 0.0_wp
       real(wp) :: e_ext = 0.0_wp
       type(TIFFResults), allocatable :: iff_results
+   contains 
+      procedure :: print => print_scc_results
    end type scc_results
 
    type freq_results
@@ -171,5 +173,31 @@ subroutine deallocate_freq_results(self)
    if (allocated( self%polt )) deallocate( self%polt )
    if (allocated( self%pg   )) deallocate( self%pg   )
 end subroutine deallocate_freq_results
+
+!> print SCC results (for debug)
+subroutine print_scc_results(self, unit)
+   use iso_fortran_env, only : output_unit
+   class(scc_results) :: self
+   integer, optional :: unit
+
+   integer :: out ! output unit holder
+   character(len=*), parameter :: dfmt = '(3x,a,2x,f12.6)' ! format for double precision
+   integer :: i
+   
+   if (present(unit)) then
+      out = unit
+   else
+      out = output_unit
+   endif
+
+   write(out, '(3x,a,/,2x,11("="))') 'SCC Results'
+
+   write(out, dfmt) 'e_total   :', self%e_total
+   write(out, dfmt) 'hl_gap    :', self%hl_gap
+   do i=1,3
+      write(out, dfmt) 'dipole    :', self%dipole(i)
+   enddo
+
+end subroutine print_scc_results
 
 end module xtb_type_data

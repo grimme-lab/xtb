@@ -24,45 +24,65 @@ module xtb_type_wavefunction
    private
 
    type :: TWavefunction
+      
+      !> number of atoms 
       integer :: n = 0
-         !! Number of atoms 
+      
+      !> number of electrons
       integer :: nel = 0
-         !! Number of elctrons
+      
+      !> number of unpaired electrons
       integer :: nopen = 0
-         !! Number of unpaired electrons
+      
+      !> number of atomic orbitals
       integer :: nao = 0
-         !! Number of atomic orbitals
+         
+      !> number of shells
       integer :: nshell = 0
-         !! Number of shells
+
+      !> density matrix
       real(wp),allocatable :: P(:,:)    
-         !! Density matrix
+
+      !> partial charges
       real(wp),allocatable :: q(:)      
-         !! Partial charges
+
+      !> shell charges
       real(wp),allocatable :: qsh(:)    
-         !! Shell charges
+
+      !> dipole moments
       real(wp),allocatable :: dipm(:,:) 
-         !! Dipole moments
+      
+      !> quadrupole moments
       real(wp),allocatable :: qp(:,:)   
-         !! Quadrupole moments
+      
+      !> wiberg bond orders
       real(wp),allocatable :: wbo(:,:)  
-         !! Wiberg bond orders
+      
+      !> HOMO position
       integer :: ihomo = 0,ihomoa = 0,ihomob = 0 
-         !! HOMO position
+
+      !> fermi
       real(wp) :: efa = 0.0_wp, efb = 0.0_wp
+      
+      !> fractional occupation
       real(wp),allocatable :: focc(:)   
-         !! Fractional occupation
+      
+      !> alpha space
       real(wp),allocatable :: focca(:)  
-         !! For alpha space
+      
+      !> beta space
       real(wp),allocatable :: foccb(:)  
-         !! For beta space
+      
+      !> orbital energies
       real(wp),allocatable :: emo(:)    
-         !! Orbital energies
+      
+      !> molecular orbitals
       real(wp),allocatable :: C(:,:)    
-         !! Molecular orbitals
    
    contains
    procedure :: allocate => allocate_wavefunction
    procedure :: deallocate => deallocate_wavefunction
+   procedure :: print => print_wavefunction
    end type TWavefunction
 
 contains
@@ -104,5 +124,89 @@ subroutine deallocate_wavefunction(self)
    if(allocated(self%emo))  deallocate(self%emo)
    if(allocated(self%C))    deallocate(self%C)
 end subroutine deallocate_wavefunction
+
+!> print content of wavefunction (for debug)
+subroutine print_wavefunction(self, level, unit)
+   use iso_fortran_env, only : output_unit
+   class(TWavefunction),intent(in) :: self
+   integer,intent(in) :: level
+   integer,intent(in),optional :: unit
+
+   character(len=*), parameter :: fmt0 = '(3x,a,3x,i0)'
+   character(len=30):: fmt1_n 
+   character(len=30):: fmt1_nao 
+   character(len=30):: fmt1_nshell
+   integer :: out, i, ndim
+   
+   if (self%nao>20) then
+      ndim=20
+   else
+      ndim=self%nao
+   end if
+
+   write(fmt1_n,'(a,i0,a)') '(3x,a,3x,',self%n,'(f6.2,1x))'
+   write(fmt1_nao,'(a,i0,a)') '(3x,a,3x,',ndim,'(f6.2,1x))'
+   write(fmt1_nshell,'(a,i0,a)') '(3x,a,3x,',self%nshell,'(f6.2,1x))'
+
+   if (present(unit)) then
+      out = unit
+   else
+      out = output_unit
+   end if
+
+
+   if (level >= 0 .and. level <= 2) then
+      write(out, '(3x,a,/,2x,12("="))') 'Wavefunction'
+
+      ! scalar values !
+      write(out,fmt0) 'n      :', self%n
+      write(out,fmt0) 'nel    :', self%nel
+      write(out,fmt0) 'nopen  :', self%nopen
+      write(out,fmt0) 'nao    :', self%nao
+      write(out,fmt0) 'nshell :', self%nshell
+      write(out,fmt0) 'ihomo  :', self%ihomo
+      write(out,fmt0) 'ihomoa :', self%ihomoa
+      write(out,fmt0) 'ihomob :', self%ihomob
+
+      ! vector values !
+      if (level>0) then
+         write(out,fmt1_n) 'q      :', self%q
+         write(out,fmt1_nshell) 'qsh    :', self%qsh
+         write(out,fmt1_nao) 'focc   :', self%focc(:ndim)
+         write(out,fmt1_nao) 'emo    :', self%emo(:ndim)
+
+         ! matrix values !
+         if (level>1) then
+            
+            write(out,'(/)')
+            
+            do i=1,3
+               write(out,fmt1_n) 'dipm   :', self%dipm(i,:)
+            end do
+            
+            write(out,'(/)')
+            
+            do i=1,6
+               write(out,fmt1_n) 'qp     :', self%qp(i,:)
+            end do
+            
+            write(out,'(/)')
+            
+            do i=1,ndim
+               write(out,fmt1_nao) 'C      :', self%C(:ndim,i)
+            end do
+
+            write(out,'(/)')
+
+            do i=1,ndim
+               write(out,fmt1_nao) 'P      :', self%P(:ndim,i)
+            end do
+            
+            write(out,'(/)')
+            
+         endif
+      endif
+   endif
+end subroutine print_wavefunction
 
 end module xtb_type_wavefunction
