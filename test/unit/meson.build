@@ -74,6 +74,10 @@ tester = executable(
   'tester',
   sources: test_srcs,
   dependencies: [xtb_dep_static, testdrive_dep],
+  fortran_args: [
+     '-DWITH_TBLITE=@0@'.format(tblite_dep.found() ? 1 : 0),
+     '-DWITH_CPCMX=@0@'.format(cpx_dep.found() ? 1 : 0),
+  ],
   link_language: 'fortran',
 )
 
