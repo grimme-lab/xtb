@@ -80,6 +80,9 @@ OPTIONS
 
 *--tblite* ::
     use tblite library as implementation for xTB
+    
+--ceh* ::
+    calculate CEH (Charge-Extended Hückel model) charges and write them to ceh.charges file
 
 *--ptb* ::
     performs single-point calculation with the density tight-binding method PTB.
@@ -345,6 +348,9 @@ OUTPUT
 
 *charges*::
    contains Mulliken partial charges calculated in SCC
+
+*ceh.charges*::
+   contains CEH (Charge-Extended Hückel) charges
 
 *wbo*::
    contains Wiberg bond order calculated in SCC, *--namespace* compatible.

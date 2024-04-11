@@ -93,7 +93,8 @@ module xtb_prog_main
    use xtb_iff_data, only: TIFFData
    use xtb_oniom, only: oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only: vfukui
-   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
+         & newTBLiteWavefunction, get_ceh
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
@@ -165,7 +166,6 @@ contains
       real(wp), allocatable :: q(:)
       real(wp), allocatable :: ql(:)
       real(wp), allocatable :: qr(:)
-
 !! ------------------------------------------------------------------------
       integer, external :: ncore
 
@@ -616,6 +616,10 @@ contains
       type is (TTBLiteCalculator)
          call newTBLiteWavefunction(env, mol, calc, chk)
       end select
+
+      ! get CEH charges !
+      if (tblite%ceh) &
+         call get_ceh(env,mol,tblite)
 
       ! ------------------------------------------------------------------------
       !> printout a header for the exttyp
@@ -1453,6 +1457,15 @@ contains
             else
                call env%error("Molecular charge is not provided", source)
             end if
+         
+         case('--ceh')
+            if (get_xtb_feature('tblite')) then
+               tblite%ceh = .true.
+            else
+               call env%error("CEH charges are only available through tblite library", source)
+               return
+            end if
+
 
          case ('-u', '--uhf')
             call args%nextArg(sec)
