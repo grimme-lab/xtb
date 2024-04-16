@@ -1909,6 +1909,10 @@ contains
             else
                call env%error("The wrtopo keyword is missing an argument.", source)
             end if
+
+         case ('--nocellopt')
+            set%optcell = .false.
+
          end select
          call args%nextFlag(flag)
       end do

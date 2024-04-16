@@ -216,6 +216,7 @@ module xtb_setparam
    logical  :: newdisp = .true.
    logical  :: solve_scc = .true.
    logical  :: periodic = .false.
+   logical  :: optcell = .true.
 
 !  Geometry input type
    integer  :: geometry_inputfile = p_geo_coord
