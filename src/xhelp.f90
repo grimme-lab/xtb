@@ -123,7 +123,7 @@ subroutine help(iunit)
    "    specify parametrisation of GFN-FF",&
    "",&
    "--tblite,",&
-   "    use tblite library as implementation for xTB",&
+   "    use tblite library as implementation for xTB, please note that solvation is not yet implemented within tblite",&
    "",&
    "--ptb,",&
    "    performs single-point calculation with the density tight-binding method PTB.", &
