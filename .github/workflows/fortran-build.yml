@@ -10,7 +10,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [macos-latest, ubuntu-latest]
+            os: [macos-13, ubuntu-latest]
             fc: [gfortran-11]
             cc: [gcc-11]
             include:

@@ -2,6 +2,8 @@ name: "Close Stale"
 
 # The workflow triggers
 on:
+   schedule:
+      - cron: '0 0 * * *'
    issues:
       types: [labeled]
    pull_request:
