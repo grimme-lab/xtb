@@ -224,6 +224,14 @@ contains
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
+      
+      ! TEMPORARY: no solvation available for PTB and tblite !
+      if (set%mode_extrun == p_ext_tblite .or. set%mode_extrun == p_ext_ptb) then
+         if (allocated(set%solvInput%solvent)) then
+            call env%error("Solvation is not implemented for PTB/tblite", source)
+         endif
+      end if
+
       !> Spin-polarization is only available in the tblite library
       if (set%mode_extrun /= p_ext_tblite .and. tblite%spin_polarized) then
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
@@ -275,8 +283,11 @@ contains
          &   (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_screen) .or. &
          &   (set%runtyp == p_run_metaopt))
 
-      if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization. &
-         &Please use another solvation model for optimization instead.")
+      if (allocated(set%solvInput%cpxsolvent).and.anyopt) then
+            call env%terminate("CPCM-X not implemented for geometry optimization. &
+                 & Please use another solvation model for optimization instead.")
+      endif     
+ 
       if ((set%mode_extrun == p_ext_ptb) .and. anyopt) call env%terminate("PTB not implemented for geometry optimization. &
          &Please use another method for optimization instead.")
 
