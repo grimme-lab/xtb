@@ -292,7 +292,6 @@ contains
             return
          end if
       end if
-
       call convert_tblite_to_wfn(env, self%bas, mol, chk, wbo=wbo)
       call convert_tblite_to_results(results,mol,chk,energy,.true.)
       hlgap = results%hl_gap

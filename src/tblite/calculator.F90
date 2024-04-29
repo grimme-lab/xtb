@@ -40,9 +40,10 @@ module xtb_tblite_calculator
    use tblite_xtb_gfn1, only : new_gfn1_calculator, export_gfn1_param
    use tblite_xtb_ipea1, only : new_ipea1_calculator, export_ipea1_param
    use tblite_xtb_singlepoint, only : xtb_singlepoint
-   use tblite_data_spin, only : get_spin_constant
+   use tblite_data_spin, only : get_spin_constant 
+   use xtb_tblite_mapping, only : convert_tblite_to_wfn
 #endif
-   use xtb_tblite_mapping, only : convert_tblite_to_results, convert_tblite_to_wfn
+   use xtb_tblite_mapping, only : convert_tblite_to_results
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data

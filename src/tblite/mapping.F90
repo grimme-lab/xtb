@@ -16,11 +16,11 @@ module xtb_tblite_mapping
    use tblite_basis_type, only: basis_type
 #endif
    implicit none
-   public :: convert_tblite_to_wfn
-   public :: convert_tblite_to_results
    private
+   public :: convert_tblite_to_results
 
 #if WITH_TBLITE
+   public :: convert_tblite_to_wfn
    interface assignment(=)
       module procedure :: from_tblite_wfn
       module procedure :: from_tblite_basis
@@ -30,19 +30,32 @@ module xtb_tblite_mapping
 contains
 
 #if WITH_TBLITE
+!> convert tblite wavefunction to xtb wavefunction
 subroutine convert_tblite_to_wfn(env, bas, mol, chk, wbo)
 
+   !> computational environment
    type(TEnvironment), intent(inout) :: env
+
+   !> basis set
+   type(basis_type), intent(in) :: bas
+   
+   !> molecular structure
    type(TMolecule), intent(in) :: mol
+
+   !> restart data
    type(TRestart), intent(inout) :: chk
+
+   !> wiberg bond orders
    real(wp), optional, intent(in) :: wbo(:,:,:)
 
-   type(basis_type), intent(in) :: bas
    call chk%wfn%allocate(mol%n, bas%nsh, bas%nao)
+
+   ! assignment interfaces !
    chk%wfn = chk%tblite
    chk%wfn = bas
    chk%wfn = mol
-   if (present(wbo)) chk%wfn%wbo = wbo(:,:,1)
+   
+   if (present(wbo)) chk%wfn%wbo = wbo(:,:,1) ! only 
 
 end subroutine convert_tblite_to_wfn
 #endif
@@ -50,26 +63,45 @@ end subroutine convert_tblite_to_wfn
 !> convert tblite results to xtb results
 subroutine convert_tblite_to_results(results, mol, chk, energy, converged, gradient) 
 
-   type(scc_results), intent(out) :: results
+   !> scc results
+   type(scc_results), intent(inout) :: results
+
+   !> molecular structure
    type(TMolecule), intent(in) :: mol
+
+   !> restart data
    type(TRestart), intent(in) :: chk
+
+   !> SCC energy
    real(wp), intent(in) :: energy
+
+   !> convergence flag
    logical, intent(in) :: converged
+
+   !> (analytical) gradients
    real(wp), optional, intent(in) :: gradient(:,:)
+
    
    results%e_total = energy
    results%converged = converged
+
 #if WITH_TBLITE
-   results%dipole = sum(chk%tblite%dpat(:, :, 1), 2) + matmul(mol%xyz, chk%tblite%qat(: ,1))
+   
+   ! do not overwrite dipole moments, if calculated (PTB case) ! 
+   if (all(results%dipole == 0.0_wp)) then
+      results%dipole = sum(chk%tblite%dpat(:, :, 1), 2) + matmul(mol%xyz, chk%tblite%qat(: ,1))
+   endif
    results%hl_gap = (chk%tblite%emo(chk%tblite%homo(1) + 1, 1) - chk%tblite%emo(chk%tblite%homo(1), 1)) * autoev
+
 #endif
+
    if (present(gradient)) results%gnorm = norm2(gradient)
 
 end subroutine convert_tblite_to_results
 
 
 #if WITH_TBLITE
-!> convert tblite wavefunction to xtb wavefunction
+
 subroutine from_tblite_wfn(wfn, tblite)
 
    use tblite_wavefunction, only : wavefunction_type
@@ -115,7 +147,6 @@ subroutine from_struc(wfn, mol)
    wfn%nopen = mol%uhf
 
 end subroutine from_struc
-
 #endif
 
 #if ! WITH_TBLITE
