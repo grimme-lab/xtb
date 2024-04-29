@@ -413,8 +413,8 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
    ! this comes close to a goto, but it's not a goto ... it's even worse
    if (restart.and.iter.lt.maxopt) then
       if (pr) then
-         write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
-         write(env%unit,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
+         write(env%unit,'(" * RMSD in coord.:",f14.7,1x,"α")',advHi,
+         You can use [stda](https://github.com/grimme-lab/stda) for this. For more details check this [paper](https://pubs.aip.org/aip/jcp/article/145/5/054103/316787/Ultra-fast-computation-of-electronic-spectra-for). etot-esave
       end if
       cycle ANC_microiter
    endif
