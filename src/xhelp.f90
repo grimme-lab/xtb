@@ -173,7 +173,7 @@ subroutine help(iunit)
    "    CHCl3, CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol,",&
    "    n-hexane (only GFN2-xTB), THF and toluene.",&
    "    The solvent input is not case-sensitive.", &
-   "    The Gsolv reference state can be chosen as referencen, bar1M, or gsolv (default).",&
+   "    The Gsolv reference state can be chosen as reference, bar1M, or gsolv (default).",&
    "",&
    "--cosmo SOLVENT/EPSILON",&
    "    domain decomposition conductor-like screening model (ddCOSMO),",&
