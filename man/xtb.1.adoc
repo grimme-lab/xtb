@@ -124,7 +124,7 @@ OPTIONS
     'ethylacetate', 'furane', 'hexandecane', 'hexane', 'methanol', 'nitromethane',
     'octanol', 'woctanol', 'phenol', 'toluene', 'thf', 'water'.
     The solvent input is not case-sensitive.
-    The Gsolv reference state can be chosen as 'reference' or 'bar1M' (default).
+    The Gsolv reference state can be chosen as 'reference', 'bar1M', or 'gsolv' (default).
 
 *-g, --gbsa* 'SOLVENT' ['STATE']::
     generalized born (GB) model with solvent accessable surface (SASA) model,
@@ -132,7 +132,20 @@ OPTIONS
     'CH2Cl2', 'CHCl3', 'CS2', 'DMF' (only GFN2-xTB), 'DMSO', 'ether', 'H2O',
     'methanol', 'n-hexane' (only GFN2-xTB), 'THF' and 'toluene'.
     The solvent input is not case-sensitive.
-    The Gsolv reference state can be chosen as 'reference' or 'bar1M' (default).
+    The Gsolv reference state can be chosen as 'reference', 'bar1M', or 'gsolv' (default).
+
+*--cosmo* 'SOLVENT/EPSILON'::
+    domain decomposition conductor-like screening model (ddCOSMO)
+    available solvents are all solvents that are available for alpb.
+    Additionally, the dielectric constant can be set manually or an ideal conductor
+    can be chosen by setting epsilon to infinity.
+    
+*--tmcosmo* 'SOLVENT/EPSILON'::
+    same as --cosmo, but uses TM convention for writing the .cosmo files.
+
+*--cpcmx* 'SOLVENT'::
+    extended conduction-like polarizable continuum solvation model (CPCM-X),
+    available solvents are all solvents included in the Minnesota Solvation Database.
 
 *--cma* ::
     shifts molecule to center of mass and transforms cartesian coordinates
