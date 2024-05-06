@@ -41,6 +41,7 @@ module xtb_tblite_calculator
    use tblite_xtb_ipea1, only : new_ipea1_calculator, export_ipea1_param
    use tblite_xtb_singlepoint, only : xtb_singlepoint
    use tblite_data_spin, only : get_spin_constant
+   use tblite_results, only : results_type
 #endif
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
@@ -93,6 +94,8 @@ module xtb_tblite_calculator
       type(xtb_calculator) :: tblite
       !> Perform a spin-polarized calculation
       logical :: spin_polarized = .false.
+      !> results
+      type(results_type) :: results
 #endif
    contains
       !> Perform calculator for a singlepoint
@@ -310,7 +313,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
    call get_qat_from_qsh(self%tblite%bas, chk%tblite%qsh, chk%tblite%qat)
 
    call xtb_singlepoint(ctx, struc, self%tblite, chk%tblite, self%accuracy, &
-      & energy, gradient, sigma, printlevel)
+      & energy, gradient, sigma, printlevel,self%results)
    if (ctx%failed()) then
       do while(ctx%failed())
          call ctx%get_error(error)
