@@ -16,5 +16,6 @@
 srcs += files(
   'calculator.F90',
   'restart.F90',
+  'mapping.F90', 
 )
 

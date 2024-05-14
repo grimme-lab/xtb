@@ -40,8 +40,10 @@ module xtb_tblite_calculator
    use tblite_xtb_gfn1, only : new_gfn1_calculator, export_gfn1_param
    use tblite_xtb_ipea1, only : new_ipea1_calculator, export_ipea1_param
    use tblite_xtb_singlepoint, only : xtb_singlepoint
-   use tblite_data_spin, only : get_spin_constant
+   use tblite_data_spin, only : get_spin_constant 
+   use xtb_tblite_mapping, only : convert_tblite_to_wfn
 #endif
+   use xtb_tblite_mapping, only : convert_tblite_to_results
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
@@ -108,7 +110,7 @@ module xtb_tblite_calculator
 contains
 
 
-!> Create a new instance of an tblite based xTB calculator
+!> Create a new instance of tblite based xTB calculator
 subroutine newTBLiteCalculator(env, mol, calc, input)
    !> Source of the generated errors
    character(len=*), parameter :: source = 'tblite_calculator_newTBLiteCalculator'
@@ -319,17 +321,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       return
    end if
 
-   results%e_total = energy
-   results%converged = .true.
-   results%dipole = sum(chk%tblite%dpat(:, :, 1), 2) + matmul(struc%xyz, chk%tblite%qat(: ,1))
-   results%gnorm = norm2(gradient)
+   ! convert tblite results into xtb data !
+   call convert_tblite_to_wfn(env, self%tblite%bas, mol, chk)
+   call convert_tblite_to_results(results,mol,chk,energy,.true.,gradient=gradient)
+   hlgap = results%hl_gap
 
-!   if (printlevel > 2) then
-!      call ascii_levels(ctx%unit, printlevel, chk%tblite%homo, chk%tblite%emo, &
-!         & chk%tblite%focc, 7)
-!   end if
 #else
-    call feature_not_implemented(env)
+   call feature_not_implemented(env)
 #endif
 end subroutine singlepoint
 
