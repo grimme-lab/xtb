@@ -246,17 +246,16 @@ module xtb_setparam
    character(len=:), allocatable :: opt_outfile
    character(len=:), allocatable :: opt_logfile
    integer, allocatable :: opt_engine
+
+   !> ANCopt settings
    type(ancopt_setvar) :: optset = ancopt_setvar (&
       optlev = p_olev_normal, &
-!  number of opt. cycles before new ANC are made
-      micro_opt = 20, &
-!  total number of opt. cycles, 0 means automatically determined
+      micro_opt = 20, &  ! increased during opt.
       maxoptcycle = 0, & ! det. in ancopt routine if not read in
-!  maximum coordinate displacement in ancopt
       maxdispl_opt = 1.000_wp, &
-!  lowest force constant in ANC generation (should be > 0.005)
-      hlow_opt = 0.010_wp, &
+      hlow_opt = 0.010_wp, & ! 0.002 is too small
       average_conv = .false.)
+   
    type(modhess_setvar) :: mhset = modhess_setvar (&
       model = p_modh_old, &
 !  force constants for stretch, bend and torsion
