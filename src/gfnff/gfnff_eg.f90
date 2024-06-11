@@ -4039,7 +4039,7 @@ function get_cf(rTrans,gTrans,vol,avgAlp) result(cf)
   integer, parameter :: ewaldCutD(3) = 2
   integer, parameter :: ewaldCutR(3) = 2
   ! real space lattice vectors
-  real(wp), intent(in) :: rTrans(3, 125)  !previously rTrans(3, product(2*ewaldCutD + 1))
+  real(wp), intent(in) :: rTrans(:, :)
   ! reciprocal space lattice vectors
   real(wp), intent(in) :: gTrans(:, :)
   ! unit cell volume 
