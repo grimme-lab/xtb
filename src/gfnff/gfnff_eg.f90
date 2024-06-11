@@ -4039,9 +4039,9 @@ function get_cf(rTrans,gTrans,vol,avgAlp) result(cf)
   integer, parameter :: ewaldCutD(3) = 2
   integer, parameter :: ewaldCutR(3) = 2
   ! real space lattice vectors
-  real(wp), intent(in) :: rTrans( 3, 125)
+  real(wp), intent(in) :: rTrans(3, 125)  !previously rTrans(3, product(2*ewaldCutD + 1))
   ! reciprocal space lattice vectors
-  real(wp), intent(in) :: gTrans(3, 124)
+  real(wp), intent(in) :: gTrans(3, 124)  !previously gTrans(3, product(2*ewaldCutR + 1) - 1)
   ! unit cell volume 
   real(wp), intent(in) :: vol
   ! average alphaEEQ value
