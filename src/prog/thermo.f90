@@ -17,8 +17,9 @@
 
 !> Thermodynamic functions and hessian post processing
 module xtb_prog_thermo
+   use xtb_mctc_blas, only : mctc_gemv, mctc_dot
    use xtb_mctc_accuracy, only : wp
-   use xtb_mctc_convert, only : autorcm, autoamu
+   use xtb_mctc_convert, only : autorcm, autoamu, amutoau
    use xtb_mctc_filetypes, only : getFileType, hessType
    use xtb_mctc_timings
    use xtb_mctc_version, only : version, author, date
@@ -32,6 +33,7 @@ module xtb_prog_thermo
    use xtb_propertyoutput, only : print_thermo
    use xtb_splitparam, only : atmass
    use xtb_setmod, only : set_thermo, set_symmetry
+   use xtb_freq_io, only : rdhess
    implicit none
    private
 
@@ -61,18 +63,22 @@ subroutine xtbThermo(env, argParser)
    real(wp), allocatable :: freq(:), hessian(:, :)
    real(wp) :: htot, gtot, zp
    integer :: nFiles, ftype, hFormat, nimag
-   logical :: massWeighted
+   logical :: massWeighted, bhess
 
-   call parseArguments(env, argParser, hFormat, massWeighted)
+   call parseArguments(env, argParser, hFormat, massWeighted,bhess)
 
    nFiles = argParser%countFiles()
    if (nFiles == 0) then
       call env%error("No input file given, so there is nothing to do", source)
       call thermoHelp(env%unit)
    end if
-   if (nFiles > 2) then
+   if (nFiles > 2 .and. .not. bhess) then
       call env%error("Multiple input files present, aborting", source)
    end if
+
+   if (nFiles > 3) then
+	call env%error("Multiple input files present, aborting", source)
+ 	end if
 
    call env%checkpoint("Command line argument parsing failed")
 
@@ -105,20 +111,24 @@ subroutine xtbThermo(env, argParser)
       call reader%open(file)
       call readHessian(env, mol, hessian, reader, format=hFormat)
       call reader%close
+      
+      if (bhess) then
+         call rescale_freq(env,argParser,mol,hessian,freq) ! frequencies have to be rescaled 
+      else 
+        if (.not.massWeighted) then
+           call massWeightHessian(hessian, mol%atmass)
+        end if
 
-      if (.not.massWeighted) then
-         call massWeightHessian(hessian, mol%atmass)
+        if (hFormat == hessType%dftbplus .or. hFormat == hessType%orca) then
+           call projectHessian(hessian, mol, .true., .true.)
+        end if
+
+        call diagHessian(env, hessian, freq)
+
+        call preigf(env%unit, freq, autorcm)
+        
+        call env%checkpoint("Could not read hessian from '"//file//"'")
       end if
-
-      if (hFormat == hessType%dftbplus .or. hFormat == hessType%orca) then
-         call projectHessian(hessian, mol, .true., .true.)
-      end if
-
-      call diagHessian(env, hessian, freq)
-
-      call preigf(env%unit, freq, autorcm)
-
-      call env%checkpoint("Could not read hessian from '"//file//"'")
    else
       freq(:) = -1.0_wp
    end if
@@ -164,8 +174,75 @@ subroutine preigf(unit, freq, scale)
 end subroutine preigf
 
 
+! Remove the frequency shift caused by the bias RMSD employed in the SPH calculation:
+subroutine rescale_freq(env,argParser,mol, hessian, freq)
+    real(wp), allocatable, intent(inout) :: freq(:), hessian(:, :)
+    real(wp), allocatable :: freq_sph(:), hessian_sph(:, :) ! biased hessian from SPH
+    real(wp), allocatable :: htb(:,:), v(:), fc_tmp(:), fc_tb(:), fc_bias(:), freq_scal(:)
+    real(wp) :: alp1, alp2 ! factors for SPH scaling
+    integer :: i,j,n3
+    type(TEnvironment), intent(inout) :: env
+	!> Commandline argument parser
+	type(TArgParser), intent(inout) :: argParser
+	type(TReader) :: reader
+	type(TMolecule) :: mol
+	character(len=:), allocatable :: file
+	integer :: hFormat
+    logical :: ex
+
+   n3= 3*mol%n
+	hFormat = 1 ! hessian_sph must stem from xtb SPH calculation!
+	call argParser%nextFile(file)
+	write(env%unit,'(a)') 'Reading hessian_sph file: '//file
+   write(env%unit,'(a)') 'Removing the frequency shift caused by the bias RMSD:'
+	allocate(freq_sph(n3))
+	if (allocated(file)) then
+	   allocate(hessian_sph(n3,n3))
+	   call reader%open(file)
+	   call readHessian(env, mol, hessian_sph, reader, format=hFormat)
+	   call reader%close
+      call massWeightHessian(hessian_sph, atmass) ! keep units similar to hessian.f90 routines in main program
+      call massWeightHessian(hessian, atmass) ! keep units similar to hessian.f90 routines in main program
+      htb=hessian-hessian_sph
+
+      call diagHessian(env, hessian, freq)
+
+      allocate(v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3))
+      ! calculate fc_tb and fc_bias (same procedure as in hessian.f90)
+      alp1=1.27_wp
+      alp2=1.5d-4
+      do j=1,n3
+         v(1:n3) = hessian(1:n3,j) ! modes
+         call mctc_gemv(htb,v,fc_tmp)
+         fc_tb(j) = mctc_dot(v,fc_tmp)
+         call mctc_gemv(hessian_sph,v,fc_tmp)
+         fc_bias(j) = mctc_dot(v,fc_tmp)
+         if (abs(freq(j)).gt.1.0d-6) then  
+            freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
+           if (fc_tb(j).lt.0.and.fc_bias(j).ne.0) then
+               freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
+           end if
+         else
+            freq_scal(j) = 1.0_wp
+         end if
+      end do
+
+      ! scale frequencies and convert now to atomic units
+      do j=1,n3
+         freq(j) = freq(j) * freq_scal(j)/sqrt(amutoau) 
+      end do
+
+      call preigf(env%unit, freq, autorcm)
+	else 
+		print*, "no hessian_sph file found, --bhess mode can not be used"
+		call terminate(1)
+	end if
+
+end subroutine rescale_freq   
+
+
 !> Parse command line arguments
-subroutine parseArguments(env, args, htype, massWeighted)
+subroutine parseArguments(env, args, htype, massWeighted,bhess)
 
    !> Name of error producer
    character(len=*), parameter :: source = "prog_thermo_parseArguments"
@@ -182,11 +259,15 @@ subroutine parseArguments(env, args, htype, massWeighted)
    !> Hessian is already mass weighted
    logical, intent(out) :: massWeighted
 
+   !> Hessian stems from a biased SPH calculation
+   logical, intent(out) :: bhess
+
    integer :: nFlags
    character(len=:), allocatable :: flag, sec
 
    htype = hessType%tmol
    massWeighted = .false.
+   bhess = .false.
 
    nFlags = args%countFlags()
    call args%nextFlag(flag)
@@ -253,6 +334,8 @@ subroutine parseArguments(env, args, htype, massWeighted)
          else
             call env%error("Temperature in K is missing", source)
          end if
+        case('--bhess')
+            bhess = .true.   
 
       end select
       call args%nextFlag(flag)
@@ -316,6 +399,9 @@ subroutine thermoHelp(unit)
    "",&
    "   --orca         Read an Orca Hessian file",&
    "",&
+   "   --bhess         Read in an <hessian_sph> file from a previous xTB SPH calculation ",&
+   "                       and scale frequencies accordingly",&
+   "",&
    "Output Conventions:",&
    "",&
    "total energies are given in atomic units (Eh), frequencies in reciprocal cm",&
@@ -323,6 +409,5 @@ subroutine thermoHelp(unit)
    "More information can be obtained at https://xtb-docs.readthedocs.io/",&
    ""
 end subroutine thermoHelp
-
 
 end module xtb_prog_thermo

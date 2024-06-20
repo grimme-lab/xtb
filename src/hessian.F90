@@ -355,6 +355,14 @@ subroutine numhess( &
    write(env%unit,'("writing file <",a,">.")') hname
    call wrhess(n3,hss,hname)
 
+   ! non mass weigthed biased Hessian in hsb
+   if (set%runtyp .eq. p_run_bhess) then
+      hname = 'hessian_sph'
+      write (env%unit, '(a)')
+      write (env%unit, '("writing file <",a,">.")') hname
+      call wrhess(n3, hsb, hname)
+   end if
+
    ! include masses
    k=0
    do i=1,n3
