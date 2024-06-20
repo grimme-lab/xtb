@@ -31,7 +31,7 @@ subroutine getsymmetry (pr, iunit, n, iat, xyz, symthr, maxatdesy, sfsym)
    real(wp) symthr
    Character(len=*) sfsym
    logical pr
-   Character(len=4) atmp
+   Character(len=6) atmp
    integer,allocatable :: ictdum(:,:)
 
    Real(wp) :: paramar (11)  !parameter array for get_schoenflies_
