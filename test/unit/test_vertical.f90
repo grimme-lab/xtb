@@ -59,10 +59,10 @@ subroutine test_gfn1_fukui(error)
       & -5.79274623699377_wp, 0.35153057534898_wp, -1.18447939588312_wp], &
       & shape(xyz))
    real(wp), parameter :: fukui_ref(3, nat) = reshape([ &
-      &  -0.471_wp, -0.150_wp, -0.310_wp, &
-      &  -0.176_wp, -0.283_wp, -0.230_wp, &
-      &  -0.176_wp, -0.283_wp, -0.230_wp, &
-      &  -0.176_wp, -0.283_wp, -0.230_wp], &
+      &  0.471_wp, 0.150_wp, 0.310_wp, &
+      &  0.176_wp, 0.283_wp, 0.230_wp, &
+      &  0.176_wp, 0.283_wp, 0.230_wp, &
+      &  0.176_wp, 0.283_wp, 0.230_wp], &
      &  shape(fukui_ref))
    !real(wp), parameter :: step = 1.0e-6_wp
 
@@ -110,10 +110,10 @@ subroutine test_gfn2_fukui(error)
       & -5.79274623699377_wp, 0.35153057534898_wp, -1.18447939588312_wp], &
       & shape(xyz))
    real(wp), parameter :: fukui_ref(3, nat) = reshape([ &
-      &  -0.300_wp, 0.005_wp, -0.148_wp, &
-      &  -0.233_wp, -0.335_wp, -0.284_wp, &
-      &  -0.233_wp, -0.335_wp, -0.284_wp, &
-      &  -0.233_wp, -0.335_wp, -0.284_wp], &
+      &  0.300_wp, -0.005_wp, 0.148_wp, &
+      &  0.233_wp, 0.335_wp, 0.284_wp, &
+      &  0.233_wp, 0.335_wp, 0.284_wp, &
+      &  0.233_wp, 0.335_wp, 0.284_wp], &
      &  shape(fukui_ref))
 
    type(TMolecule) :: mol
