@@ -47,8 +47,9 @@ subroutine vfukui(env, mol, chk, calc, fukui)
    type(TMolecule), intent(inout) :: mol
       !! molecular information
    type(TRestart), intent(inout) :: chk
-   type(TRestart) :: wf_p, wf_m
+   type(TRestart) :: wf_an, wf_cat
    
+   ! fukui functions f(+), f(-), f(0)
    real(wp), intent(out) :: fukui(3,mol%n)
  
    type(scc_results) :: res
@@ -60,19 +61,45 @@ subroutine vfukui(env, mol, chk, calc, fukui)
    
    write(env%unit,'(a)')
    write(env%unit,'("Fukui index Calculation")')
-   wf_p%wfn = chk%wfn
-   wf_m%wfn = chk%wfn
-   mol%chrg = mol%chrg - 1
-   if (mod(wf_p%wfn%nel,2).ne.0) wf_p%wfn%nopen = 1
-   call calc%singlepoint(env, mol, wf_p, 1, exist, etot2, g, sigma, egap, res)
-   fukui(1,:) = wf_p%wfn%q-chk%wfn%q
 
-   mol%chrg = mol%chrg + 2
-   if (mod(wf_m%wfn%nel,2).ne.0) wf_m%wfn%nopen = 1
-   call calc%singlepoint(env, mol, wf_m, 1, exist, etot2, g, sigma, egap, res)
-   fukui(2,:) = chk%wfn%q-wf_m%wfn%q
-   fukui(3,:) = 0.5d0*(wf_p%wfn%q-wf_m%wfn%q)
+   ! copy wavefunction
+   wf_an%wfn = chk%wfn
+   wf_cat%wfn = chk%wfn
+
+   ! reduce the charge -> anion
+   mol%chrg = mol%chrg - 1       
+   if (mod(wf_an%wfn%nel,2).ne.0) wf_an%wfn%nopen = 1
+
+   ! Perform single point calculation for anion
    write(env%unit,'(a)')
+   write(env%unit,'("Run single point for reduced species")')
+   call calc%singlepoint(env, mol, wf_an, 1, exist, etot2, g, sigma, egap, res)
+
+   ! increase the charge -> cation
+   mol%chrg = mol%chrg + 2
+   if (mod(wf_cat%wfn%nel,2).ne.0) wf_cat%wfn%nopen = 1
+   ! Perform single point calculation for cation
+   write(env%unit,'(a)')
+   write(env%unit,'("Run single point for oxidized species")')
+   call calc%singlepoint(env, mol, wf_cat, 1, exist, etot2, g, sigma, egap, res)
+  
+   ! Calculate the fukui functions where N is the number of electrons
+   ! see J. Am. Chem. Soc. 1986, 108, 19, 5708–5711 for equations
+   ! keep in mind that their q are populations (p), 
+   ! which are related to our q by q = Z-p 
+
+   ! f(+) = q_N -  q_(N+1) / neutral - anion
+   fukui(1,:) = chk%wfn%q  - wf_an%wfn%q
+   
+   ! f(-) = q_(N-1) - q_N / cation - neutral
+   fukui(2,:) = wf_cat%wfn%q-chk%wfn%q
+   
+   ! f(0) = 0.5 * [q_(N-1) - q_(N+1)] / cation - anion
+   fukui(3,:) = 0.5d0*(wf_cat%wfn%q-wf_an%wfn%q)
+   
+   ! Print out fukui functions
+   write(env%unit,'(a)')
+   write(env%unit,'("Fukui functions:")')
    write(env%unit, '(1x,"    #        f(+)     f(-)     f(0)")')
    do i=1,mol%n
       write(env%unit,'(i6,a4,2f9.3,2f9.3,2f9.3)') i, mol%sym(i), fukui(1,i), fukui(2,i), fukui(3,i)
