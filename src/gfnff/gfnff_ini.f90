@@ -206,19 +206,15 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       sqrab = 0
       !Get all distances
       call neigh%getTransVec(env,mol,sqrt(hbthr2))
-      if (.not. allocated(neigh%distances)) then
-        call getDistances(neigh%distances, mol, neigh)
-      endif
 
       ! Transfer calculated distances in central cell to rab and sqrab 
-      ! want to change to neigh%distances
       do i=1, mol%n
         ati=mol%at(i)
         kk=i*(i-1)/2
         do j=1, i-1 
           atj=mol%at(j)
           k=kk+j
-          rab(k) =  neigh%distances(j,i,1)            
+          rab(k) = NORM2(mol%xyz(:,i)-mol%xyz(:,j))
           sqrab(k) = rab(k)**2 
           if(rab(k).lt.1.d-3) then
             write(env%unit,*) i,j,ati,atj,rab(k)
@@ -404,7 +400,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
          nn =sum(neigh%nb(neigh%numnb,i,:))
          if(nn.eq.0) cycle
            ip =piadr2(i)
-           call neigh%jth_nb(ji,1,i,iTrtmp)  ! ji is the first nb of i in cell iTr
+           call neigh%jth_nb(mol%n,mol%xyz,ji,1,i,iTrtmp)  ! ji is the first nb of i in cell iTr
            nh =0
            nm =0
            do iTr=1, neigh%numctr
@@ -858,7 +854,7 @@ endif
       end do
       do i = 1,mol%n       
          ! get first nb, iTr expected to be irrelevant since same in each cell
-         call neigh%jth_nb(nn,1,i,iTr)          !  R - N/C/O - H  ! terminal  H
+         call neigh%jth_nb(mol%n,mol%xyz,nn,1,i,iTr)          !  R - N/C/O - H  ! terminal  H
          if(nn.le.0) cycle  ! cycle if there is no nb
          topo%hbaci(i)=param%xhaci(mol%at(i))   ! only first neighbor of interest
          if (amideH(mol%n,mol%at,topo%hyb,neigh%numnb,neigh%numctr,neigh%nb,piadr2,i,neigh)) &
@@ -876,7 +872,7 @@ endif
          if(mol%at(i).ne.1)  cycle
          if(topo%hyb(i).eq.1) cycle      ! exclude bridging hydrogens from HB correction
          ff=gen%hqabthr
-         call neigh%jth_nb(j,1,i,iTr)  ! get j, first neighbor of H when j is shifted to iTr
+         call neigh%jth_nb(mol%n,mol%xyz,j,1,i,iTr)  ! get j, first neighbor of H when j is shifted to iTr
          if(j.le.0) cycle
          if(mol%at(j).gt.10) ff=ff-0.20                ! H on heavy atoms may be negatively charged
          if(mol%at(j).eq.6.and.topo%hyb(j).eq.3) ff=ff+0.05 ! H on sp3 C must be really positive 0.05
@@ -1038,7 +1034,7 @@ endif
          ja=piadr4(jj)
          if(ia.gt.0.and.ja.gt.0) then
             !dum=1.d-9*rab(lin(ii,jj))                                 ! distort so that Huckel for e.g. COT localizes to right bonds
-            dum=1.d-9*neigh%distances(jj,ii,iTr)  ! distort so that Huckel for e.g. COT localizes to right bonds
+            dum=1.d-9*NORM2(mol%xyz(:,ii)-(mol%xyz(:,jj)+neigh%transVec(:,iTr)))  ! distort so that Huckel for e.g. COT localizes to right bonds
             dum=sqrt(gen%hoffdiag(mol%at(ii))*gen%hoffdiag(mol%at(jj)))-dum           ! better than arithmetic
             dum2=gen%hiter
             if(topo%hyb(ii).eq.1)                 dum2=dum2*gen%htriple        ! triple bond is different
@@ -2065,16 +2061,16 @@ endif
             endif
             deallocate(locarr)
 !        sort atoms according to distance to central atom such that the same inversion angle def. always results
-         sdum3(1)=neigh%distances(jj,i,iTrj)
-         sdum3(2)=neigh%distances(kk,i,iTrk)
-         sdum3(3)=neigh%distances(ll,i,iTrl)
+         sdum3(1)=NORM2(mol%xyz(:,i)-(mol%xyz(:,jj)+neigh%transVec(:,iTrj)))
+         sdum3(2)=NORM2(mol%xyz(:,i)-(mol%xyz(:,kk)+neigh%transVec(:,iTrk)))
+         sdum3(3)=NORM2(mol%xyz(:,i)-(mol%xyz(:,ll)+neigh%transVec(:,iTrl)))
          ind3(1)=jj
          ind3(2)=kk
          ind3(3)=ll
          call ssort(3,sdum3,ind3) 
-         sdum3(1)=neigh%distances(jj,i,iTrj)  ! need old indices for sorting iTr's
-         sdum3(2)=neigh%distances(kk,i,iTrk)
-         sdum3(3)=neigh%distances(ll,i,iTrl)
+         sdum3(1)=NORM2(mol%xyz(:,i)-(mol%xyz(:,jj)+neigh%transVec(:,iTrj)))
+         sdum3(2)=NORM2(mol%xyz(:,i)-(mol%xyz(:,kk)+neigh%transVec(:,iTrk)))
+         sdum3(3)=NORM2(mol%xyz(:,i)-(mol%xyz(:,ll)+neigh%transVec(:,iTrl)))
          jj=ind3(1)  ! assign sorted indices
          kk=ind3(2) 
          ll=ind3(3)
@@ -2163,7 +2159,7 @@ endif
         if (mol%at(i).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.2) then
           do j=1, 2
             nbi=0
-            call neigh%jth_nb(nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
+            call neigh%jth_nb(mol%n,mol%xyz,nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
             if (nbi.eq.0) cycle
             if (mol%at(nbi).eq.6.and.sum(neigh%nb(neigh%numnb,nbi,:)).eq.2) then
               nn = nn + 1
@@ -2222,7 +2218,7 @@ subroutine specialTorsList(nst, mol, topo, neigh, sTorsList)
     ! carbon with two neighbors bonded to other carbon* with two neighbors
     if (mol%at(i).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.2) then
         do j=1, 2
-          call neigh%jth_nb(nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
+          call neigh%jth_nb(mol%n,mol%xyz,nbi,j,i,iTr)  ! nbi is the jth nb of i in cell iTr
           if (nbi.eq.0.or.iTr.eq.0) cycle
           if (mol%at(nbi).eq.6.and.sum(neigh%nb(neigh%numnb,nbi,:)).eq.2) then  ! *other carbon
             ! check carbon triple bond distance
@@ -2231,14 +2227,14 @@ subroutine specialTorsList(nst, mol, topo, neigh, sTorsList)
               ! check C2 and C3
               do k=1, 2  ! C2 is other nb of Ci
                 nbk=0
-                call neigh%jth_nb(nbk,k,i,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                call neigh%jth_nb(mol%n,mol%xyz,nbk,k,i,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
                 if (nbk.ne.nbi.and.nbk.ne.0.and.mol%at(nbk).eq.6) then
                   jj=nbk ! C2 index
                 endif
               enddo
               do k=1, 2  ! C3 is other nb of Cnbi
                 nbk=0
-                call neigh%jth_nb(nbk,k,nbi,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                call neigh%jth_nb(mol%n,mol%xyz,nbk,k,nbi,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
                 if (nbk.ne.i.and.nbk.ne.0.and.mol%at(nbk).eq.6) then
                   kk=nbk ! C3 index
                 endif
@@ -2255,7 +2251,7 @@ subroutine specialTorsList(nst, mol, topo, neigh, sTorsList)
                 !  on atom sorting in input file !!! The last one in file.
                 do k=1, sum(neigh%nb(neigh%numnb,jj,:))
                   nbk=0
-                  call neigh%jth_nb(nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                  call neigh%jth_nb(mol%n,mol%xyz,nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
                   if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.sum(neigh%nb(neigh%numnb,k,:)).eq.3.and. &
                      & nbk.ne.i.and.nbk.ne.0) then
                     ii=nbk
@@ -2266,7 +2262,7 @@ subroutine specialTorsList(nst, mol, topo, neigh, sTorsList)
                 !  on atom sorting in input file !!! The last one in file.
                 do k=1, sum(neigh%nb(neigh%numnb,kk,:))
                   nbk=0
-                  call neigh%jth_nb(nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
+                  call neigh%jth_nb(mol%n,mol%xyz,nbk,k,jj,iTr)  ! nbk is the jth nb of i in cell iTr .ne.nbi
                   if (topo%hyb(k).eq.2.and.mol%at(k).eq.6.and.sum(neigh%nb(neigh%numnb,i,:)).eq.3.and. &
                      & nbk.ne.nbi.and.nbk.ne.0) then
                     ll=nbk

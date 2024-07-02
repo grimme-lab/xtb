@@ -9,7 +9,7 @@ module xtb_gfnff_neighbor
   implicit none
   private
   
-  public :: TNeigh, getDistances
+  public :: TNeigh
 
   !> Neighbor lists
   type :: TNeigh
@@ -24,7 +24,7 @@ module xtb_gfnff_neighbor
     integer, allocatable :: bpair(:,:,:)
     integer, allocatable :: molbpair(:)
     ! distances of all atoms to all atoms in central 27 cells
-    real(wp), allocatable :: distances(:,:,:)
+    !real(wp), allocatable :: distances(:,:,:)
     !> Maximum number of neighbors per atom
     ! where nb(numnb,i,transVec) is the num of neigh atom i has in cell transVec
     integer :: numnb = 42
@@ -115,11 +115,21 @@ contains
       !integer, intent(inout) :: nbf(20,mol%n)
       type(TGFFData), intent(in) :: param
       !real(wp) :: latThresh, maxNBr
-      integer :: n
-
-      n = mol%n
+      real(wp) :: dist(mol%n,mol%n,self%numctr)
+      integer :: i,j,iTr
       
-      call fillnb(self,n,mol%at,rtmp,self%distances,mchar,icase,f_in,f2_in,param)
+      dist=0.0_wp
+      !$omp parallel do collapse(3) default(none) shared(dist,mol,self) &
+      !$omp private(iTr,i,j)
+      do iTr=1, self%numctr
+       do i=1, mol%n
+         do j=1, mol%n
+           dist(j,i,iTr) = NORM2(mol%xyz(:,i)-(mol%xyz(:,j)+self%transVec(:,iTr)))
+         enddo
+       enddo
+      enddo
+      !$omp end parallel do
+      call fillnb(self,mol%n,mol%at,rtmp,dist,mchar,icase,f_in,f2_in,param)
 
     end subroutine get_nb
 
@@ -390,26 +400,6 @@ contains
     end function id2v
 
 
-    subroutine getDistances(distances, mol, neigh)
-      real(wp), allocatable, intent(out) :: distances(:,:,:)
-      class(TNeigh), intent(in) :: neigh
-      type(TMolecule), intent(in) :: mol
-      integer :: i,j, iTr, n
-
-      n=mol%n
-      allocate(distances(n,n,neigh%nTrans), source=0.0_wp)
-
-       do iTr=1, neigh%nTrans 
-        do i=1, n
-          do j=1, n
-            distances(j,i,iTr) = vecNorm(mol%xyz(:,j)-mol%xyz(:,i)+neigh%transVec(:,iTr))
-          enddo
-        enddo  
-       enddo
-
-
-    end subroutine getDistances
-    
     ! is a modified "getnb" from gfnff_ini2.f90
     subroutine fillnb(self,n,at,rad,dist,mchar,icase,f,f2,param)
       implicit none
@@ -417,8 +407,8 @@ contains
       class(TNeigh), intent(inout) :: self
       integer, intent(in) :: n,at(n)
       real(wp), intent(in) :: rad(n*(n+1)/2)
-      real(wp), intent(in) :: mchar(n),f,f2
       real(wp), intent(in) :: dist(n,n,self%numctr)
+      real(wp), intent(in) :: mchar(n),f,f2
       integer i,j,k,iTr,nn,icase,hc_crit,nnfi,nnfj,lin
       integer tag(n,n,self%numctr)
       real(wp) rco,fm
@@ -548,8 +538,10 @@ contains
 
 
     ! gives index j of the jth neighbor of i and the corresp transVec index iTr
-    subroutine jth_nb(self, j, jth, i, iTr)
+    subroutine jth_nb(self, n, xyz, j, jth, i, iTr)
       class(TNeigh), intent(inout) :: self
+      integer, intent(in) :: n
+      real(wp), intent(in) :: xyz(3,n)
       integer, intent(inout) :: j, iTr
       integer, intent(in) :: jth, i
       integer ::  k, l, iTrdum, sizenb, sizeindx, jdum
@@ -567,7 +559,7 @@ contains
         do k=1, self%nb(self%numnb,i,iTrdum)
           jdum = self%nb(k,i,iTrdum)
           l=l+1
-          distnb(l) = self%distances(jdum,i,iTrdum)
+          distnb(l) = NORM2(xyz(:,i)-(xyz(:,jdum)+self%transVec(:,iTrDum)))
         enddo
       enddo
 
