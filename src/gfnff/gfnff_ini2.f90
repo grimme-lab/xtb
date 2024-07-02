@@ -794,7 +794,7 @@ subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
             rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
             if(rab.gt.hbthr1) cycle
             ! check if ij bonded
-            if(iTrDum.le.neigh%numctr) then
+            if(iTrDum.le.neigh%numctr.and.iTrDum.gt.0) then
               ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
             else
               ! i and j are not in neighboring cells
@@ -903,7 +903,7 @@ use xtb_mctc_accuracy, only : wp
             rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
             if(rab.gt.hbthr1) cycle
             ! check if ij bonded
-            if(iTrDum.le.neigh%numctr) then
+            if(iTrDum.le.neigh%numctr.and.iTrDum.gt.0) then
                 ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
             else
                 ! i and j are not in neighboring cells
