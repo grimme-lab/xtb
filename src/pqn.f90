@@ -56,5 +56,7 @@ pure elemental integer function ncore(at)
      ncore=68
   elseif(at.le.86)then
      ncore=78
+  elseif(at.le.103)then
+     ncore=86
   endif
 end function ncore

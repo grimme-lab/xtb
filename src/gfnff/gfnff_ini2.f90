@@ -58,9 +58,9 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       real*8 ,allocatable :: cn(:),rtmp(:)
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm
       integer ai,aj,nn,im,ncm,l,no, iTr, iTr2, numnbf, numnbm, numnb, idx, idxdum, idxdum2, numctr
-      real*8 r,pi,a1,f,f1,phi,f2,rco,fat(86)
+      real*8 r,pi,a1,f,f1,phi,f2,rco,fat(103)
       data pi/3.1415926535897932384626433832795029d0/
-      data fat   / 86 * 1.0d0 /
+      data fat   / 103 * 1.0d0 /
 
 !     special hacks
       fat( 1)=1.02

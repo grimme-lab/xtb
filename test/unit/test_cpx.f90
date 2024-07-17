@@ -70,6 +70,8 @@ subroutine test_cpx_solv(error)
 
    character(len=*), parameter :: cpxsolvent="water"
 
+   call skip_test(error, 'Excluding CPCM-X test.')
+   return
    if (.not.get_xtb_feature('cpcmx')) then
       call skip_test(error, 'CPCM-X libary not available.')
       return

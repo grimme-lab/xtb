@@ -55,7 +55,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       integer ineig,jneig,nrot,bbtyp,ringtyp,nn1,nn2,hybi,hybj,pis,ka,nh,jdum,hcalc,nc
       integer ringsi,ringsj,ringsk,ringl,npi,nelpi,picount,npiall,maxtors,rings4,nheav
       integer nm,maxhb,ki,n13,current,ncarbo,mtyp1,mtyp2
-      integer ind3(3),sr(20),cr(10,20),niel(86)
+      integer ind3(3),sr(20),cr(10,20),niel(103)
       integer qloop_count,nf,nsi,nmet,nhi,nhj,ifrag
       integer hbA,hbH,Bat,atB,Aat,Hat
       integer AHB_nr
@@ -113,7 +113,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       character(len=255) atmp
       integer  :: ich, err
       real(wp) :: dispthr, cnthr, repthr, hbthr1, hbthr2
-      logical :: exitRun, nb_call
+      logical :: exitRun, nb_call, adjLnAn
 
       call gfnff_thresholds(accuracy, dispthr, cnthr, repthr, hbthr1, hbthr2)
 
@@ -167,7 +167,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       enddo
 
       write(env%unit,'(10x,"Pauling EN used:")')
-      do i=1,86
+      do i=1,103
          if(niel(i).gt.0) write(env%unit,'(10x,"Z :",i2,"  EN :",f6.2)') i,param%en(i)
       enddo
 
@@ -262,6 +262,14 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! neighbor list, hyb and ring info
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! check if Ln or An in coordinates
+      adjLnAn=.false.
+      do i=1, mol%n
+         if ((mol%at(i).ge.57.and.mol%at(i).le.71).or.(mol%at(i).ge.89.and.mol%at(i).le.103)) then
+            adjLnAn=.true.
+            exit
+         endif
+      enddo
 
       topo%qa = 0
       qloop_count = 0
@@ -269,13 +277,21 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
 
 !111   continue
 !  do the loop only if factor is significant
-   do while (qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3)
+   do while ((qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3).or.adjLnAn)
 
       write(env%unit,'(10x,"----------------------------------------")')
       write(env%unit,'(10x,"generating topology and atomic info file ...")')
       call gfnff_neigh(env,makeneighbor,mol%n,mol%at,mol%xyz,rab,gen%rqshrink, &
          & gen%rthr,gen%rthr2,gen%linthr,mchar,topo%hyb,itag,param,topo,mol,neigh,nb_call)
       nb_call = .true.
+
+      ! special treatment for hydrogen bound to Ln or An
+      if (adjLnAn.and.allocated(topo%qa).and.qloop_count.ne.0) then
+         call adjust_NB_LnH_AnH(param, mol, topo, neigh)
+         adjLnAn=.false.
+      endif
+      !> gfnff_topo adjustments
+      call gfnff_topo_changes(env, neigh)
 
       do i=1,mol%n
          imetal(i)=param%metal(mol%at(i))
@@ -644,7 +660,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
         enddo
       endif
       qloop_count=qloop_count+1
-      if(qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3) then  ! do the loop only if factor is significant
+      if((qloop_count.lt.2.and.gen%rqshrink.gt.1.d-3).or.adjLnAn) then  ! do the loop only if factor is significant
          deallocate(btyp,pibo,pimvec,neigh%blist)
 !         goto 111
       endif
@@ -2175,7 +2191,6 @@ endif
         call specialTorsList(nn, mol, topo, neigh, topo%sTorsl)
       endif
 
-
       if(pr)then
       write(env%unit,*)
       write(env%unit,*) 'GFN-FF setup done.'
@@ -2183,6 +2198,79 @@ endif
       endif
 
 contains
+
+! remove hydrogen bonds from topology if bound to Ln or An and topo%qa(H)>-0.0281
+subroutine adjust_NB_LnH_AnH(param, mol, topo, neigh)
+  type(TGFFData), intent(in) :: param
+  type(TMolecule), intent(in) :: mol   ! # molecule type
+  type(TGFFTopology), intent(in) :: topo
+  type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
+  integer nb_tmp(neigh%numnb)
+  integer :: i,iTr,iTrH,idx,inb,l,k,m,nnb,count_idx
+
+  ! loop over all atoms
+  do i=1, mol%n
+    ! only apply changes for Ln and An
+    if ((mol%at(i).ge.57.and.mol%at(i).le.71).or.(mol%at(i).ge.89.and.mol%at(i).le.103)) then
+      ! loop over all cells
+      do iTr=1, neigh%numctr
+        ! loop over all neighbors
+        nnb = neigh%nb(neigh%numnb, i, iTr)
+        idx=0
+        do count_idx=1, nnb
+          idx = idx + 1
+          inb=neigh%nb(idx,i,iTr) ! atom index of neighbor of i
+          if (inb.eq.0) cycle
+          ! check if neighbor is H
+          if (mol%at(inb).eq.1) then
+            ! remove hydrogen as neighbor if charge is gt threshold
+            if (topo%qa(inb).gt.-0.0282) then
+              ! setup copy of neighbor list for this An or Ln
+              nb_tmp = neigh%nb(:,i,iTr)
+              nb_tmp(neigh%numnb) = neigh%nb(neigh%numnb,i,iTr) - 1
+              nb_tmp(idx) = 0
+              ! reset neigh%nb
+              neigh%nb(1:neigh%numnb-2,i,iTr)=0
+              ! update neigh%nb with copied nb list
+              neigh%nb(neigh%numnb,i,iTr) = nb_tmp(neigh%numnb) ! number neighbors
+              l=0
+              do k=1, neigh%numnb-2
+                if (nb_tmp(k).ne.0) then
+                  l = l + 1
+                  neigh%nb(l,i,iTr) = nb_tmp(k)
+                end if
+              enddo
+              ! setup copy of neighbor list for this H
+              do iTrH=1, neigh%numctr
+                do k=1, neigh%nb(neigh%numnb,inb,iTrH)
+                  if (neigh%nb(k,inb,iTrH).eq.i) then
+                     nb_tmp = neigh%nb(:,inb,iTrH)
+                     nb_tmp(neigh%numnb) = neigh%nb(neigh%numnb,inb,iTrH) - 1
+                     nb_tmp(k) = 0
+                     ! reset neigh%nb
+                     neigh%nb(1:neigh%numnb-2,inb,iTrH)=0
+                     ! update neigh%nb with copied nb list
+                     neigh%nb(neigh%numnb,inb,iTrH) = nb_tmp(neigh%numnb) ! number neighbors
+                     l=0
+                     do m=1, neigh%numnb-2
+                       if (nb_tmp(m).ne.0) then
+                         l = l + 1
+                         neigh%nb(l,inb,iTrH) = nb_tmp(m)
+                       end if
+                     enddo
+                  endif
+                enddo
+              enddo
+              ! since the current element was removed from neigh%nb, idx should be reduced by one
+              idx = idx - 1
+            end if ! if topo%qa < -0.0282
+          end if
+        enddo
+      enddo
+    end if
+  enddo
+
+end subroutine adjust_NB_LnH_AnH
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! special treatment for rotation around carbon triple bonds
@@ -2298,14 +2386,16 @@ use xtb_mctc_accuracy, only : wp
    real(wp),intent(in) :: q
 
    real(wp)           :: zeta,qmod
-   real(wp),parameter :: zeff(86) = (/ &
+   real(wp),parameter :: zeff(103) = (/ &
    &   1,                                                 2,  & ! H-He
    &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
    &  11,12,                              13,14,15,16,17,18,  & ! Na-Ar
    &  19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,  & ! K-Kr
    &   9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,  & ! Rb-Xe
    &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43,  & ! Cs-Lu
-   &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26/)  ! Hf-Rn
+   &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26, &  ! Hf-Rn
+   &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43  & ! Fr-Lr
+   &/)
 !! Semiempirical Evaluation of the GlobalHardness of the Atoms of 103
 !! Elements of the Periodic Table Using the Most Probable Radii as
 !! their Size Descriptors DULAL C. GHOSH, NAZMUL ISLAM 2009 in
@@ -2314,7 +2404,7 @@ use xtb_mctc_accuracy, only : wp
 !! values in the paper multiplied by two because
 !! (ii:ii)=(IP-EA)=d^2 E/dN^2 but the hardness
 !! definition they use is 1/2d^2 E/dN^2 (in Eh)
-   real(wp),parameter :: c(1:86) = (/ &
+   real(wp),parameter :: c(1:103) = (/ &
   &0.47259288_wp,0.92203391_wp,0.17452888_wp,0.25700733_wp,0.33949086_wp,0.42195412_wp, & ! H-C
   &0.50438193_wp,0.58691863_wp,0.66931351_wp,0.75191607_wp,0.17964105_wp,0.22157276_wp, & ! N-Mg
   &0.26348578_wp,0.30539645_wp,0.34734014_wp,0.38924725_wp,0.43115670_wp,0.47308269_wp, & ! Al-Ar
@@ -2329,7 +2419,11 @@ use xtb_mctc_accuracy, only : wp
   &0.25932503_wp,0.27676094_wp,0.29418231_wp,0.31159587_wp,0.32902274_wp,0.34592298_wp, & ! Ho-Hf
   &0.36388048_wp,0.38130586_wp,0.39877476_wp,0.41614298_wp,0.43364510_wp,0.45104014_wp, & ! Ta-Pt
   &0.46848986_wp,0.48584550_wp,0.12526730_wp,0.14268677_wp,0.16011615_wp,0.17755889_wp, & ! Au-Po
-  &0.19497557_wp,0.21240778_wp/)
+  &0.19497557_wp,0.21240778_wp,& ! At, Rn
+  &0.07263133_wp,0.09421788_wp,0.09920108_wp,0.10418429_wp,0.14235212_wp,0.16393866_wp, & ! Fr-U
+  &0.18675998_wp,0.22370039_wp,0.25113742_wp,0.25026279_wp,0.28843797_wp,0.31002451_wp, & ! Np-Cf
+  &0.33159636_wp,0.35316820_wp,0.36822807_wp,0.39634864_wp,0.40135389_wp & ! Es-Lr
+  &/)
 
    intrinsic :: exp
 
@@ -2344,5 +2438,36 @@ end function zeta
 
 
 end subroutine gfnff_ini
+
+subroutine gfnff_topo_changes(env, neigh)
+   use xtb_type_environment, only : TEnvironment
+   use xtb_gfnff_neighbor, only : TNeigh
+   use xtb_setparam
+   type(TEnvironment), intent(inout) :: env
+   type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
+   character(len=*), parameter :: source = 'gfnff_ini'
+   integer :: int_tmp(40)
+   integer :: i,j,idx,iTr,d1,d2,numnb,nnb
+
+   ! check if hardcoded size of ffnb is still up to date
+   if (size(set%ffnb, dim=1).ne.neigh%numnb) call env%error('The array set%ffnb has not been adjusted to changes in neigh%numnb.', source)
+   ! only do something if there are changes stored in set%ffnb
+   if(set%ffnb(1,1).ne.0) then
+      d2=size(set%ffnb, dim=2)
+      do i=1, d2
+         if (set%ffnb(1,i).eq.0) exit
+         idx=set%ffnb(1,i)
+         int_tmp = set%ffnb(2:41,i)
+         neigh%nb(1:40,idx,1) = int_tmp
+         neigh%nb(neigh%numnb,idx,1) = set%ffnb(42,i)
+      end do
+      write(env%unit,*) ''
+      write(env%unit,*) 'The neighborlist has been adjusted according to the input file.'
+      write(env%unit,*) ''
+   end if
+
+
+end subroutine gfnff_topo_changes
+
 
 end module xtb_gfnff_ini

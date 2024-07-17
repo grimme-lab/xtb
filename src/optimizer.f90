@@ -437,6 +437,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
          call env%error("Could not read hessian from file.", source)
          return
       endif
+
       ! do not reset the hessian
       maxmicro = maxopt
       ex = .true.

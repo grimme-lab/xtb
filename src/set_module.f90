@@ -781,6 +781,7 @@ subroutine rdcontrol(fname,env,copy_file)
          case('cube'     ); call rdblock(env,set_cube,    line,id,copy,err,ncount)
          case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
          case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
+         case('ffnb'     ); call rdblock(env,set_ffnb,    line,id,copy,err,ncount)
          case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
          case('oniom'    ); call rdblock(env,set_oniom,   line,id,copy,err,ncount)
          case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
@@ -1498,6 +1499,51 @@ subroutine set_gfn(env,key,val)
       set5 = .false.
    end select
 end subroutine set_gfn
+
+subroutine set_ffnb(env,key,val)
+   implicit none
+   character(len=*), parameter :: source = 'set_ffnb'
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in) :: key
+   character(len=*),intent(in) :: val
+   integer :: i,j,k,l
+   integer :: i_start,i_end,i_ffnb
+
+   k=1 ! start at 1 since first entry of ffnb is the atom index that the following NBs belong to
+   i_start=1
+   i_end=1
+   i_ffnb=0
+   do i=1, len(val)
+      ! get next empty row in ffnb and read atom index into first entry
+      if (val(i:i).eq.":") then
+         do j=1,size(set%ffnb, dim=2)
+           if (set%ffnb(1,j).eq.0 .and. i_ffnb.eq.0) then
+              i_ffnb = j ! index of next empty row
+              l=i-1
+              ! we take care of ":" and "," and trust read() to handle whitespaces
+              read(val(1:l), *) set%ffnb(1,j)
+              i_start=i+1
+              exit
+           endif
+         enddo
+      endif
+      ! read the neighbors into ffnb now
+      if (val(i:i).eq.",") then
+         k = k + 1
+         i_end=i-1
+             read(val(i_start:i_end), *) set%ffnb(k,i_ffnb)
+             i_start=i+1
+      endif
+      ! read the last neighbor into ffnb
+      if (i.eq.len(val)) then
+         k = k + 1
+         read(val(i_start:), *) set%ffnb(k,i_ffnb)
+      endif
+   enddo
+   set%ffnb(42,i_ffnb) = k - 1 ! number of neighbors of atom set%ffnb(1,i_ffnb) 
+
+
+end subroutine set_ffnb
 
 !> set ONIOM functionality
 subroutine set_oniom(env,key,val)

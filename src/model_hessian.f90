@@ -2686,7 +2686,7 @@ end module xtb_modelhessian
       Data rkr,rkf,rkt/0.4500D+00,0.3000D+00,0.75000  /  ! adjusted to account for redundant angles in old version
 
 !cc VDWx-Parameters (Grimme) used for vdw-correction of model hessian 
-      real*8 c6(54),c66
+      real*8 c6(55),c66
 ! NOT USED ANYMORE (BJ instead)
 !     data vander &
 ! H, He
@@ -2736,6 +2736,7 @@ end module xtb_modelhessian
          if(at(i).gt.54) iANr(i)=at(i) - 18
          if(at(i).gt.72) iANr(i)=at(i) - 32
          if(at(i).gt.56.and.at(i).lt.72) iANr(i)=39 ! set LNs to Y
+         if(at(i).gt.86) iANr(i)=55 ! use same c6 for all atom types > 86
       enddo
 
       profile=.false.
@@ -2750,11 +2751,13 @@ end module xtb_modelhessian
       c6(32)=17.10; c6(33)=16.37; c6(34)=12.64; c6(35)=12.47; c6(36)=12.01
       c6(37:48)=24.67; c6(49)=37.32; c6(50)=38.71; c6(51)=38.44
       c6(52)=31.74; c6(53)=31.50; c6(54)=29.99
+      c6(55)=40.0
 
 !hjw threshold reduced
       rZero=1.0d-10
       n3=3*nAtoms
-!     Hess = 0.0d0
+     Hess = 0.0d0
+
 
 !
 !     Hessian for tension
