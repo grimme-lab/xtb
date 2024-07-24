@@ -338,7 +338,7 @@ end subroutine loadGFN2xTB_api
 
 
 !> Add a solvation model to calculator (requires loaded parametrisation)
-subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
+subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid, charptr2) &
       & bind(C, name="xtb_setSolvent")
    !DEC$ ATTRIBUTES DLLEXPORT :: setSolvent_api
    character(len=*), parameter :: source = 'xtb_api_setSolvent'
@@ -346,11 +346,13 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
    type(VEnvironment), pointer :: env
    type(c_ptr), value :: vcalc
    type(VCalculator), pointer :: calc
-   character(kind=c_char), intent(in) :: charptr(*)
+   character(kind=c_char), intent(in) :: charptr(*) ! Solvent
    integer(c_int), intent(in), optional :: state
    real(c_double), intent(in), optional :: temperature
    integer(c_int), intent(in), optional :: grid
+   character(kind=c_char), intent(in), optional :: charptr2(*) ! Solvent model
    character(len=:), allocatable :: solvent
+   character(len=:), allocatable :: solv_model
    type(TSolvInput) :: input
    integer :: gsolvstate, nang
    real(wp) :: temp
@@ -391,6 +393,12 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
 
       call c_f_character(charptr, solvent)
 
+      if (present(charptr2)) then
+         call c_f_character(charptr2, solv_model)
+      else
+         solv_model = 'gbsa'
+      end if
+
       ! PGI 20.5 cannot use default constructor with deferred-length characters:
       ! input = TSolvInput(solvent=solvent, temperature=temp, state=gsolvstate, &
       !    & nang=nang)
@@ -398,8 +406,32 @@ subroutine setSolvent_api(venv, vcalc, charptr, state, temperature, grid) &
       input%temperature = temp
       input%state = gsolvstate
       input%nang = nang
+
+      ! Set solvent model
       input%alpb = .false.
-      input%kernel = gbKernel%still
+      input%cosmo = .false.
+      input%tmcosmo = .false.
+      input%kernel = gbKernel%p16
+      if (solv_model == 'gbsa') then
+         input%kernel = gbKernel%still
+      elseif (solv_model == 'alpb') then
+         input%alpb = .true.
+      elseif (solv_model == 'cosmo') then
+         input%cosmo = .true.
+      elseif (solv_model == 'tmcosmo') then
+         input%tmcosmo = .true.
+      elseif (solv_model == 'cpcmx') then
+         ! CPCM-X does an initial SCF with COSMO and a special solvent
+         ! before running a second SCF with the actual solvent.
+         input%cosmo = .true.
+         input%solvent = 'infinity'
+
+         input%cpxsolvent = solvent
+      else
+         call env%ptr%error("Unknown solvation model", source)
+         return
+      end if
+
       call addSolvationModel(env%ptr, calc%ptr, input)
 
       call env%ptr%check(exitRun)
