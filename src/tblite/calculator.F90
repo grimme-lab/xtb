@@ -248,13 +248,13 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
             use tblite_lapack_solver, only : lapack_solver 
             use tblite_lapack_solver, only : lapack_algorithm
             type(context_type) :: ctx
-            
+
             ctx%solver = lapack_solver(lapack_algorithm%gvd)
             ctx%terminal = context_terminal(calc%color)
 
             write (env%unit, '(1x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
                & escape(ctx%terminal%reset)
-            
+
             call ceh_singlepoint(ctx, calc%tblite, struc, error, wfn, calc%accuracy, 1)
          end block
       end select
