@@ -50,11 +50,11 @@ subroutine get_calculator(xcalc, mol, method, error)
       call fatal_error(error, "Unknown method '"//method//"' requested")
 !      error stop
    case("gfn2")
-      call new_gfn2_calculator(xcalc, mol)
+      call new_gfn2_calculator(xcalc, mol, error)
    case("gfn1")
-      call new_gfn1_calculator(xcalc, mol)
+      call new_gfn1_calculator(xcalc, mol, error)
    case("ipea1")
-      call new_ipea1_calculator(xcalc, mol)
+      call new_ipea1_calculator(xcalc, mol, error)
    end select
 end subroutine get_calculator
 #endif
