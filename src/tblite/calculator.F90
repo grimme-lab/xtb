@@ -158,7 +158,7 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
       case("ceh")
          calc%guess = method
          calc%nspin = 1
-         calc%etemp = 5000.0_wp * kt ! MM (20240731): TODO: Update this value when CEH-2.0.0 is released
+         calc%etemp = 4000.0_wp * kt
          call new_ceh_calculator(calc%tblite, struc, error)
       end select
    end if
