@@ -215,7 +215,7 @@ contains
       call check_(error, ints%overlap(2, 3), overlap_exp(3), thr=thr)
       call check_(error, ints%overlap(1, 15), overlap_exp(4), thr=thr)
       call check_(error, ints%overlap(1, 23), overlap_exp(5), thr=thr)
-      call check_(error, ints%overlap(12, 22), overlap_exp(6), thr=thr)
+      call check_(error, ints%overlap(11, 22), overlap_exp(6), thr=thr)
 
    end subroutine test_ptb_overlap
 
@@ -286,7 +286,7 @@ contains
       & message=message)
       call check_(error, auxints%overlap_h0_1(1, 23), overlap_exp(5), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0_1(12, 22), overlap_exp(6), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(11, 22), overlap_exp(6), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_overlap_h0
@@ -356,7 +356,7 @@ contains
       & message=message)
       call check_(error, overlap_oneminusx(1, 23), overlap_oneminusx_exp(5), thr=thr2, &
       & message=message)
-      call check_(error, overlap_oneminusx(12, 22), overlap_oneminusx_exp(6), thr=thr2, &
+      call check_(error, overlap_oneminusx(11, 22), overlap_oneminusx_exp(6), thr=thr2, &
       & message=message)
 
    end subroutine test_ptb_overlap_SX
@@ -434,7 +434,7 @@ contains
       & message=message)
       call check_(error, vecp(5, 8), vecp_ref(3), thr=thr2, &
       & message=message)
-      call check_(error, vecp(12, 12), vecp_ref(4), thr=thr2, &
+      call check_(error, vecp(13, 13), vecp_ref(4), thr=thr2, &
       & message=message)
    end subroutine test_ptb_V_ECP
 
@@ -665,15 +665,16 @@ contains
          & alpha_scal=id_to_atom(mol, ptbData%hamiltonian%kalphah0l))
       allocate (vecp(bas%nao, bas%nao), source=0.0_wp)
 
+      ints%hamiltonian = 0.0_wp
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, ptbData%hamiltonian%kla, auxints%overlap_h0_1, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       message = "H0 matrix element not matching to expected value."
       call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr)
       call check_(error, ints%hamiltonian(1, 2), h0_ref(2), thr=thr)
-      call check_(error, ints%hamiltonian(1, 22), h0_ref(3), thr=thr)
+      call check_(error, ints%hamiltonian(1, 24), h0_ref(3), thr=thr)
       call check_(error, ints%hamiltonian(13, 6), h0_ref(4), thr=thr)
       call check_(error, ints%hamiltonian(8, 5), h0_ref(5), thr=thr)
-      call check_(error, ints%hamiltonian(13, 26), h0_ref(6), thr=thr)
+      call check_(error, ints%hamiltonian(9, 22), h0_ref(6), thr=thr)
    end subroutine test_ptb_hamiltonian_h0
 
    subroutine test_ptb_V_XC(error)
@@ -769,9 +770,9 @@ contains
       & message=message)
       call check_(error, Vxc(1, 2), Vxc_ref(2), thr=thr, &
       & message=message)
-      call check_(error, Vxc(1, 22), Vxc_ref(3), thr=thr, &
+      call check_(error, Vxc(1, 24), Vxc_ref(3), thr=thr, &
       & message=message)
-      call check_(error, Vxc(13, 26), Vxc_ref(4), thr=thr, &
+      call check_(error, Vxc(9, 22), Vxc_ref(4), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_V_XC
@@ -1067,7 +1068,7 @@ contains
       call check_(error, wfn%coeff(1, 1, 1), plusU_pot_ref(1), thr=thr)
       call check_(error, wfn%coeff(1, 2, 1), plusU_pot_ref(2), thr=thr)
       call check_(error, wfn%coeff(1, 20, 1), plusU_pot_ref(3), thr=thr)
-      call check_(error, wfn%coeff(8, 26, 1), plusU_pot_ref(4), thr=thr)
+      call check_(error, wfn%coeff(8, 22, 1), plusU_pot_ref(4), thr=thr)
 
    end subroutine test_ptb_plus_U_potential
 
