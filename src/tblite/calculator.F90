@@ -255,7 +255,7 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
             write (env%unit, '(1x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
                & escape(ctx%terminal%reset)
 
-            call ceh_singlepoint(ctx, calc%tblite, struc, error, wfn, calc%accuracy, 1)
+            call ceh_singlepoint(ctx, calc%tblite, struc, wfn, calc%accuracy, 1)
          end block
       end select
    end associate
