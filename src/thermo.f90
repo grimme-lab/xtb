@@ -106,8 +106,10 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    real(wp),parameter :: H = 6.626176D-27 ! PLANCK'S CONSTANT IN ERG-SECONDS
    real(wp),parameter :: AK = 1.3807D-16  ! BOLTZMANN CONSTANT IN ERG/DEGREE
    real(wp),parameter :: conv3 = amutokg*1000 ! 1.6606d-24
-   real(wp),parameter :: magic4 = 2.2868d0 ! unknown
-   real(wp),parameter :: magic5 = 2.3135d0 ! unknown
+   real(wp),parameter :: magic4 = 2.2868d0 ! R*ln(10)/2
+   real(wp),parameter :: magic5 = 2.3135d0 ! R*(ln[(kb/P°)*(2pi * kB * amutokg/h)^(3/2)] + 5/2)
+                                           ! All terms in `magic5` in SI units (excluding R)
+                                           ! P° corresponds to 1 atm in Pascals.
    real(wp),parameter :: caltoj = autokj/autokcal
 
    integer  :: i
@@ -122,7 +124,7 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    real(wp) :: sv_ho,sv_rr
    !*******************************************************************
 
-   ! convert EVERYTHING to atomic units NOW and avoid horror and dispair later
+   ! convert EVERYTHING to atomic units NOW and avoid horror and despair later
    beta=1.0_wp/kB/T ! beta in 1/Eh
    !c1=h*ac/ak/T    ! beta in cm
    sthr  = sthr_rcm * rcmtoau ! sthr in Eh
@@ -219,6 +221,7 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    ! this is 3/2rt+pv=5/2rt
    h_tr=5.0_wp*R*T/2.0_wp
    cptr=5.0_wp*R/2.0_wp
+   ! Computed at standard pressure of 1 atm
    s_tr=magic4*(5.0_wp*log10(t)+3.0_wp*log10(molmass))-magic5
    !   ***   CONSTRUCT TOTALS   ***
    cptot=cptr+cpint
