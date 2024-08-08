@@ -51,6 +51,7 @@ int testFirst() {
   xtb_TCalculator calc = NULL;
   xtb_TResults res = NULL;
   double energy;
+  double solv_energy;
   double dipole[3];
   q = (double*) malloc(natoms * sizeof(double));
   wbo = (double*) malloc(natsq * sizeof(double));
@@ -216,6 +217,7 @@ int testFirst() {
     goto error;
 
   xtb_getEnergy(env, res, &energy);
+  xtb_getSolvationEnergy(env, res, &solv_energy);
   xtb_getCharges(env, res, q);
   xtb_getDipole(env, res, dipole);
   xtb_getBondOrders(env, res, wbo);
@@ -223,6 +225,8 @@ int testFirst() {
     goto error;
 
   if (!check(energy, -8.383520040765, 1.0e-9, "CPCM-X Energy does not match"))
+    goto error;
+  if (!check(solv_energy, -0.0010406558065, 1.0e-8, "CPCM-X Solvation Energy does not match"))
     goto error;
   if (!check(q[5], 0.0518386448, 1.0e-8, "CPCM-X Charge does not match"))
     goto error;

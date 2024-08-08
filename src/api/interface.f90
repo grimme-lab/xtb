@@ -295,6 +295,7 @@ subroutine cpcmx_calc_api(venv, vmol, vcalc, vres) &
       call cpx%print(.true.)
 
       res%energy = spRes%e_total
+      res%solvation_energy = res%energy - energy_gas
       res%dipole = spRes%dipole
 
       ! Zero out the gradient and sigma (not yet implemented for CPCM-X)

@@ -261,6 +261,12 @@ xtb_getEnergy(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
               double* /* energy */) XTB_API_SUFFIX__VERSION_2_0_0;
 
+/// Query singlepoint results object for solvation energy in Hartree
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getSolvationEnergy(xtb_TEnvironment /* env */,
+                       xtb_TResults /* res */,
+                       double* /* energy */) XTB_API_SUFFIX__VERSION_2_0_0;
+
 /// Query singlepoint results object for gradient in Hartree / Bohr
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getGradient(xtb_TEnvironment /* env */,
