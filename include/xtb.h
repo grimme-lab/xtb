@@ -231,6 +231,18 @@ xtb_singlepoint(xtb_TEnvironment /* env */,
                 xtb_TCalculator /* calc */,
                 xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_1_0_0;
 
+/// Perform hessian calculation
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_hessian(xtb_TEnvironment /* env */,
+            xtb_TMolecule /* mol */,
+            xtb_TCalculator /* calc */,
+            xtb_TResults /* res */,
+            double* /* hessian */,
+            int* /* atom_index_list */,
+            int* /* step_size */,
+            double* /* dipole_gradient */,
+            double* /* polarizability_gradient */) XTB_API_SUFFIX__VERSION_1_0_0;
+
 /*
  * Calculation results
 **/
