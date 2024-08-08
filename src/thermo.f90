@@ -102,9 +102,9 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    logical, intent(in)  :: linear      !< is linear
    logical, intent(in)  :: atom        !< only one atom
    logical, intent(in)  :: pr          !< clutter the screen with printout
-   real(wp),parameter :: R = 1.98726D0    ! GAS CONSTANT IN CALORIES/MOLE
+   real(wp),parameter :: R = 1.98726D0    ! GAS CONSTANT IN CALORIES/(MOLE*K)
    real(wp),parameter :: H = 6.626176D-27 ! PLANCK'S CONSTANT IN ERG-SECONDS
-   real(wp),parameter :: AK = 1.3807D-16  ! BOLTZMANN CONSTANT IN ERG/DEGREE
+   real(wp),parameter :: AK = 1.3807D-16  ! BOLTZMANN CONSTANT IN ERG/K
    real(wp),parameter :: conv3 = amutokg*1000 ! 1.6606d-24
    real(wp),parameter :: magic4 = 2.2868d0 ! R*ln(10)/2
    real(wp),parameter :: magic5 = 2.3135d0 ! R*(ln[(kb/P°)*(2pi * kB * amutokg/h)^(3/2)] + 5/2)
@@ -113,7 +113,7 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    real(wp),parameter :: caltoj = autokj/autokcal
 
    integer  :: i
-   real(wp) :: s_tr,s_rot,s_vib,s_int,s_tot
+   real(wp) :: s_tr,s_rot,s_vib,s_int,s_tot,s_tr_old
    real(wp) :: h_tr,h_rot,h_vib,h_int,h_tot
    real(wp) :: q_tr,q_rot,q_vib,q_int,q_tot
    real(wp) :: cptr,cprot,cpvib,cpint,cptot
@@ -222,7 +222,10 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    h_tr=5.0_wp*R*T/2.0_wp
    cptr=5.0_wp*R/2.0_wp
    ! Computed at standard pressure of 1 atm
-   s_tr=magic4*(5.0_wp*log10(t)+3.0_wp*log10(molmass))-magic5
+   s_tr_old=magic4*(5.0_wp*log10(t)+3.0_wp*log10(molmass))-magic5
+   s_tr=R*((2.5_wp*log(t*kB)&
+  &        +1.5_wp*log(amutoau*molmass/(twopi))&
+  &        -log(atmtoau) + 2.5_wp))
    !   ***   CONSTRUCT TOTALS   ***
    cptot=cptr+cpint
    s_tot=s_tr+s_int

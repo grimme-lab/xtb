@@ -20,7 +20,6 @@ module xtb_mctc_constants
    implicit none
    private
    real(wp),public,parameter :: pi = 3.1415926535897932384626433832795029_wp
-   real(wp),public,parameter :: pi4 = 3.1415926535897932384626433832795029_wp*4._wp
 !  √π
    real(wp),public,parameter ::  sqrtpi  = sqrt(pi)
 !  2×π
