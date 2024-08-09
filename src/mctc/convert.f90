@@ -120,7 +120,6 @@ contains
       real(wp) :: sitoang4byamu
       sitoang4byamu = (1.0e+10_wp)**4 / kgtoamu ! 16605390400000.0
    end function m4bykgtoang4byamu
-
 !> ----------------------------------
 
 end module xtb_mctc_convert
