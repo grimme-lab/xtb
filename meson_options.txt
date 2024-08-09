@@ -49,6 +49,22 @@ option(
 )
 
 option(
+  'dftd4',
+  type: 'feature',
+  value: 'auto',
+  yield: true,
+  description: 'include DFTD4 library for D4 dispersion',
+)
+
+option(
+  'multicharge',
+  type: 'feature',
+  value: 'auto',
+  yield: true,
+  description: 'include multicharge library for atomic partial charges',
+)
+
+option(
   'openmp',
   type: 'boolean',
   value: true,
