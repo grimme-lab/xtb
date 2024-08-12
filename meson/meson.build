@@ -216,6 +216,7 @@ lib_deps += tblite_dep
 multicharge_dep = dependency(
   'multicharge',
   fallback: ['multicharge', 'multicharge_dep'],
+  required: get_option('tblite')
 )
 lib_deps += multicharge_dep
 
@@ -223,6 +224,7 @@ lib_deps += multicharge_dep
 dftd4_dep = dependency(
   'dftd4',
   fallback: ['dftd4', 'dftd4_dep'],
+  required: get_option('tblite')
 )
 lib_deps += dftd4_dep
 
