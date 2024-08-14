@@ -9,18 +9,14 @@ jobs:
          fail-fast: false
          matrix:
             os: [macos-latest, ubuntu-latest]
-            fc: [gfortran-11, gfortran-12]
-            cc: [gcc-11, gcc-12]
+            version: [11, 12]
             include:
                - os: ubuntu-latest
-                 fc: gfortran-10
-                 cc: gcc-10
+                 version: 10
                - os: macos-latest
-                 fc: gfortran-13
-                 cc: gcc-13
+                 version: 13
                - os: macos-latest
-                 fc: gfortran-14
-                 cc: gcc-14
+                 version: 14
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -41,8 +37,8 @@ jobs:
            run: >-
             meson setup ${{ env.BUILD_DIR }} --buildtype=debug --warnlevel=0 -Db_coverage=true ${{ env.MESON_ARGS }}
            env:
-            FC: ${{ matrix.fc }}
-            CC: ${{ matrix.cc }}
+            FC: gfortran-${{ matrix.version }}
+            CC: gcc-${{ matrix.version }}
             MESON_ARGS: ${{ contains(matrix.os, 'macos') && '-Dlapack=openblas' || '-Dlapack=netlib' }}
          - name: Build project
            run: meson compile -C ${{ env.BUILD_DIR }}
@@ -58,17 +54,17 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-10]
-            cc: [gcc-10]
+            fc: [gfortran-12]
+            cc: [gcc-12]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
          - name: Setup Python
-           uses: actions/setup-python@v4
+           uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - name: Install CMake
-           run: pip3 install ninja cmake
+           run: pip install ninja cmake
          - name: Configure build
            run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
            env:
@@ -87,13 +83,13 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-11]
-            cc: [gcc-11]
+            fc: [gfortran-12]
+            cc: [gcc-12]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
          - name: Setup Python
-           uses: actions/setup-python@v4
+           uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - name: Install meson
@@ -117,13 +113,13 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-10]
-            cc: [gcc-10]
+            fc: [gfortran-12]
+            cc: [gcc-12]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
          - name: Setup Python
-           uses: actions/setup-python@v4
+           uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - name: Install CMake
@@ -154,7 +150,7 @@ jobs:
             shell: msys2 {0}
       steps:
          - name: Checkout code
-           uses: actions/checkout@v3
+           uses: actions/checkout@v4
          - name: Setup MSYS2 toolchain
            uses: msys2/setup-msys2@v2
            with:
@@ -178,7 +174,7 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-20.04]
+            os: [ubuntu-latest]
             fc: [ifort]
             cc: [icc]
       env:
@@ -188,9 +184,9 @@ jobs:
             intel-oneapi-compiler-fortran-2022.1.0 intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2022.1.0 intel-oneapi-mkl-2022.1.0 intel-oneapi-mkl-devel-2022.1.0 asciidoctor
       steps:
          - name: Checkout code
-           uses: actions/checkout@v3
+           uses: actions/checkout@v4
          - name: Setup Python
-           uses: actions/setup-python@v1
+           uses: actions/setup-python@v5
            with:
             python-version: 3.x
          - run: pip3 install meson ninja --user
@@ -241,7 +237,7 @@ jobs:
          RELEASE_TAG: bleed
          OUTPUT_INTEL: xtb-bleed.tar.xz
       steps:
-         - uses: actions/checkout@v3
+         - uses: actions/checkout@v4
          - name: Install github-release
            run: |
             go install github.com/github-release/github-release@latest
