@@ -9,10 +9,12 @@ jobs:
          fail-fast: false
          matrix:
             os: [macos-latest, ubuntu-latest]
-            version: [11, 12]
+            version: [12]
             include:
                - os: ubuntu-latest
                  version: 10
+               - os: ubuntu-latest
+                 version: 11
                - os: macos-latest
                  version: 13
                - os: macos-latest
