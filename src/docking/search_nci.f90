@@ -48,13 +48,14 @@ module xtb_docking_search_nci
    & gff_print, gfnff_param_dealloc
    use xtb_constrain_param, only: read_userdata
    use xtb_fixparam
-   use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf
+   use xtb_disp_ncoord, only: ncoord_gfn, ncoord_erf, ncoord_d3
    use xtb_scc_core, only: iniqshell
    use xtb_eeq, only: goedecker_chrgeq
    use xtb_basis, only: newBasisset
    use xtb_gfnff_neighbor, only: TNeigh
    use xtb_io_writer, only : writeMolecule
    use xtb_mctc_filetypes, only : generateFileName
+   use xtb_iniq, only: iniqcn
    implicit none
 
    private
@@ -203,9 +204,9 @@ contains
       if (.not. fulle) write (env%unit, *)
 
 !     just output
-      call axis(n1, at1, xyz1, dum, pmass, dum2, dum3)
+      call axis_docking(n1, at1, xyz1, dum, pmass, dum2, dum3)
       r1 = sqrt(dum2(1) + dum2(2) + dum2(3))
-      call axis(n2, at2, xyz2, dum, pmass, dum2, dum3)
+      call axis_docking(n2, at2, xyz2, dum, pmass, dum2, dum3)
       r2 = sqrt(dum2(1) + dum2(2) + dum2(3))
       call rcma(n1, xyz1, at1, n2, xyz2, at2, r, rmin)
       write (env%unit, '('' Method for final opts.    :'',1x,a  )') optlvl
@@ -500,7 +501,7 @@ contains
             ! xyztmp contains now each gridpoint belonging to fragment i
             ! same for attmp (anyway always probe_atom_type)
             ! determine size (=R) of gridpoint cluster belonging to fragment i
-            call axis(k, attmp, xyztmp, dum, pmass, dum2, dum3)
+            call axis_docking(k, attmp, xyztmp, dum, pmass, dum2, dum3)
             r = sqrt(dum2(1) + dum2(2) + dum2(3))
 
             !> check if moleculeB is small enough to fit in gridpoint cluster of fragmen i
@@ -1127,14 +1128,25 @@ contains
       if (chk%wfn%nopen == 0 .and. mod(chk%wfn%nel, 2) /= 0) chk%wfn%nopen = 1
 
       !> EN charges and CN
-      call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
+      if (set%gfn_method < 2) then
+         call ncoord_d3(mol%n, mol%at, mol%xyz, cn)
+      else
+         call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
+      end if
       if (mol%npbc > 0) then
          chk%wfn%q = real(set%ichrg, wp)/real(mol%n, wp)
       else
-         call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
-         call goedecker_chrgeq(mol%n,mol%at,mol%xyz,real(set%ichrg,wp),cn,dcn,chk%wfn%q,dq,er,g,&
-                             & .false., .false., .false.)
-         chk%wfn%q = real(set%ichrg, wp)/real(mol%n, wp)
+              write(*,*) mol%z
+            if (set%guess_charges == p_guess_gasteiger) then
+               call iniqcn(mol%n, mol%at, mol%z, mol%xyz, set%ichrg, 1.0_wp, chk%wfn%q, cn, set%gfn_method, .true.)
+            else if (set%guess_charges == p_guess_goedecker) then
+               call ncoord_erf(mol%n, mol%at, mol%xyz, cn)
+               call goedecker_chrgeq(mol%n, mol%at, mol%xyz, real(set%ichrg, wp), cn, dcn, chk%wfn%q, dq, er, g, &
+                                     .false., .false., .false.)
+            else
+               call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
+               chk%wfn%q = real(set%ichrg, wp) / real(mol%n, wp)
+            end if
       end if
       !> initialize shell charges from gasteiger charges
       call iniqshell(calc%xtbData,mol%n,mol%at,mol%z,calc%basis%nshell,chk%wfn%q,chk%wfn%qsh,set%gfn_method)

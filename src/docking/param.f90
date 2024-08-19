@@ -359,7 +359,7 @@ contains
 ! axis
 ! molw is the weigth, sum3 the CMA (all in a.u.)
 
-   subroutine axis(numat, nat, coord, sum3, sumw, eig, evec)
+   subroutine axis_docking(numat, nat, coord, sum3, sumw, eig, evec)
 
       integer, intent(in) ::numat, nat(numat)
       real(wp), intent(in) :: coord(3, *)
@@ -430,7 +430,7 @@ contains
       call rsp(t, 3, 3, eig, evec)
       eig = eig/sumw
 
-   end subroutine axis
+   end subroutine axis_docking
 
    subroutine cmadock(n, numat, nat, coord, sum3)
 
@@ -1226,7 +1226,6 @@ contains
       comb%chrg = molA%chrg + molB%chrg
       comb%uhf = molA%uhf + molB%uhf
       atmass=comb%atmass !Setting global atmass array required in axis module
-      write(*,*)atmass
       deallocate (at)
       deallocate (xyz)
 
