@@ -368,7 +368,7 @@ contains
       real(wp) :: t(6)
       real(wp) :: x(numat), y(numat), z(numat)
       real(wp) :: sumwx, sumwy, sumwz
-      real(wp) :: atmass
+      real(wp) :: atmass_dock
       integer :: i
       real(wp) ::  ams(107)
       data ams/1.00790d0, 4.00260d0, 6.94000d0, 9.01218d0,&
@@ -396,11 +396,11 @@ contains
       sumwz = 0.d0
 
       do i = 1, numat
-         atmass = ams(nat(i))
-         sumw = sumw + atmass
-         sumwx = sumwx + atmass*coord(1, i)
-         sumwy = sumwy + atmass*coord(2, i)
-         sumwz = sumwz + atmass*coord(3, i)
+         atmass_dock = ams(nat(i))
+         sumw = sumw + atmass_dock
+         sumwx = sumwx + atmass_dock*coord(1, i)
+         sumwy = sumwy + atmass_dock*coord(2, i)
+         sumwz = sumwz + atmass_dock*coord(3, i)
       end do
 
       sum3(1) = sumwx/sumw
@@ -418,13 +418,13 @@ contains
       end do
 
       do i = 1, numat
-         atmass = ams(nat(i))
-         t(1) = t(1) + atmass*(y(i)**2 + z(i)**2)
-         t(2) = t(2) - atmass*x(i)*y(i)
-         t(3) = t(3) + atmass*(z(i)**2 + x(i)**2)
-         t(4) = t(4) - atmass*z(i)*x(i)
-         t(5) = t(5) - atmass*y(i)*z(i)
-         t(6) = t(6) + atmass*(x(i)**2 + y(i)**2)
+         atmass_dock = ams(nat(i))
+         t(1) = t(1) + atmass_dock*(y(i)**2 + z(i)**2)
+         t(2) = t(2) - atmass_dock*x(i)*y(i)
+         t(3) = t(3) + atmass_dock*(z(i)**2 + x(i)**2)
+         t(4) = t(4) - atmass_dock*z(i)*x(i)
+         t(5) = t(5) - atmass_dock*y(i)*z(i)
+         t(6) = t(6) + atmass_dock*(x(i)**2 + y(i)**2)
       end do
 
       call rsp(t, 3, 3, eig, evec)
@@ -1225,6 +1225,8 @@ contains
       call init(comb, at, xyz)
       comb%chrg = molA%chrg + molB%chrg
       comb%uhf = molA%uhf + molB%uhf
+      atmass=comb%atmass !Setting global atmass array required in axis module
+      write(*,*)atmass
       deallocate (at)
       deallocate (xyz)
 

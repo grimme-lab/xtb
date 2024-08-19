@@ -1070,6 +1070,11 @@ contains
               & allocate( calc%topo%qfrag(mol%n), source = 0.0d0 )
       if (.not.allocated(calc%topo%fraglist)) &
               & allocate( calc%topo%fraglist(mol%n), source = 0 )
+      if (allocated(calc%neigh%iTrUsed)) deallocate(calc%neigh%iTrUsed)
+      if (allocated(calc%neigh%bpair)) deallocate(calc%neigh%bpair)
+      if (allocated(calc%neigh%blist)) deallocate(calc%neigh%blist)
+      if (allocated(calc%neigh%vbond)) deallocate(calc%neigh%vbond)
+      if (allocated(calc%neigh%nr_hb)) deallocate(calc%neigh%nr_hb)
       calc%topo%qfrag(1) = set%ichrg
       calc%topo%qfrag(2:mol%n) = 0.0_wp
       call gfnff_ini(env, .false., ini, mol, calc%gen,&
@@ -1116,6 +1121,11 @@ contains
       calc%maxiter = set%maxscciter
 
       call chk%wfn%allocate(mol%n, calc%basis%nshell, calc%basis%nao)
+      ! Make sure number of electrons is initialized an multiplicity is consistent
+      chk%wfn%nel = nint(sum(mol%z) - mol%chrg)
+      chk%wfn%nopen = mol%uhf
+      if (chk%wfn%nopen == 0 .and. mod(chk%wfn%nel, 2) /= 0) chk%wfn%nopen = 1
+
       !> EN charges and CN
       call ncoord_gfn(mol%n, mol%at, mol%xyz, cn)
       if (mol%npbc > 0) then
