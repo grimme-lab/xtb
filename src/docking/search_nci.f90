@@ -1136,7 +1136,6 @@ contains
       if (mol%npbc > 0) then
          chk%wfn%q = real(set%ichrg, wp)/real(mol%n, wp)
       else
-              write(*,*) mol%z
             if (set%guess_charges == p_guess_gasteiger) then
                call iniqcn(mol%n, mol%at, mol%z, mol%xyz, set%ichrg, 1.0_wp, chk%wfn%q, cn, set%gfn_method, .true.)
             else if (set%guess_charges == p_guess_goedecker) then
