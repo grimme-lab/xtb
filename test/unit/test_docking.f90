@@ -157,6 +157,7 @@ subroutine test_dock_eth_wat_gfn2(error)
 
    call env%checkpoint("xtb-IFF sp computation failed")
 
+   optlvl="gfn2"
    call set_optlvl(env) !Sets the optimization level for search in global parameters
 
    !Settings for fast
@@ -307,6 +308,7 @@ subroutine test_dock_wat_wat_gfn2_wall(error)
 
    call env%checkpoint("xtb-IFF sp computation failed")
 
+   optlvl="gfn2"
    call set_optlvl(env) !Sets the optimization level for search in global parameters
 
    !Settings for fast
@@ -459,6 +461,7 @@ subroutine test_dock_wat_wat_gfn2_attpot(error)
 
    call env%checkpoint("xtb-IFF sp computation failed")
 
+   optlvl="gfn2"
    call set_optlvl(env) !Sets the optimization level for search in global parameters
 
    !Settings for fast
@@ -504,6 +507,8 @@ subroutine test_dock_wat_wat_gfnff(error)
    use xtb_docking_search_nci, only: docking_search
    use xtb_mctc_systools
    use xtb_iff_data, only: TIFFData
+   use xtb_mctc_global, only : persistentEnv
+
    type(error_type), allocatable, intent(out) :: error
    !> All important variables stored here
    type(TIFFData) :: iff_data
@@ -545,6 +550,15 @@ subroutine test_dock_wat_wat_gfnff(error)
    call set_gbsa(env, 'solvent', "h2o")
    !GFN-FF 
    call set_exttyp('ff')
+
+!   deallocate(persistentEnv%whoami)
+!   deallocate(persistentEnv%home)
+!   deallocate(persistentEnv%path)
+!   deallocate(persistentEnv%xtbpath)
+!   deallocate(persistentEnv%xtbhome)
+!   deallocate(persistentEnv%io%log)
+!   persistentEnv%io%count=0
+
 
    call init(env)
    call init(molA, at1, xyz1)
@@ -599,6 +613,7 @@ subroutine test_dock_wat_wat_gfnff(error)
 
    call env%checkpoint("xtb-IFF sp computation failed")
 
+   optlvl = "gfnff"
    call set_optlvl(env) !Sets the optimization level for search in global parameters
 
    !Settings for fast
