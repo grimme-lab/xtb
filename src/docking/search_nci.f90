@@ -1067,13 +1067,11 @@ contains
       call newD3Model(calc%topo%dispm, mol%n, mol%at)
       call gfnff_set_param(mol%n, calc%gen, calc%param)
       if (allocated(calc%neigh%nb)) deallocate(calc%neigh%nb)
-      if (.not. allocated(calc%neigh%nb)) allocate (calc%neigh%nb(calc%neigh%numnb, mol%n, calc%neigh%numctr), source=0)
+      allocate (calc%neigh%nb(calc%neigh%numnb, mol%n, calc%neigh%numctr), source=0)
       if (allocated(calc%topo%qfrag)) deallocate(calc%topo%qfrag)
-      if (.not.allocated(calc%topo%qfrag)) &
-              & allocate( calc%topo%qfrag(mol%n), source = 0.0d0 )
+      allocate( calc%topo%qfrag(mol%n), source = 0.0d0 )
       if (allocated(calc%topo%fraglist)) deallocate(calc%topo%fraglist)
-      if (.not.allocated(calc%topo%fraglist)) &
-              & allocate( calc%topo%fraglist(mol%n), source = 0 )
+      allocate( calc%topo%fraglist(mol%n), source = 0 )
       if (allocated(calc%neigh%iTrUsed)) deallocate(calc%neigh%iTrUsed)
       if (allocated(calc%neigh%bpair)) deallocate(calc%neigh%bpair)
       if (allocated(calc%neigh%blist)) deallocate(calc%neigh%blist)
