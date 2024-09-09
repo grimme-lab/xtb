@@ -155,5 +155,156 @@ subroutine singlepoint_api(venv, vmol, vcalc, vres) &
 
 end subroutine singlepoint_api
 
+subroutine cpcmx_calc_api(venv, vmol, vcalc, vres) &
+      & bind(C, name="xtb_cpcmx_calc")
+   !DEC$ ATTRIBUTES DLLEXPORT :: cpcmx_calc_api
+   use xtb_solv_cpx, only: TCpcmx
+   use xtb_type_calculator, only: TCalculator
+
+   character(len=*), parameter :: source = 'xtb_api_cpcmx_calc'
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vmol
+   type(VMolecule), pointer :: mol
+   type(c_ptr), value :: vcalc
+   type(VCalculator), pointer :: calc
+   type(c_ptr), value :: vres
+   type(VResults), pointer :: res
+   type(scc_results) :: spRes
+
+   type(TCpcmx) :: cpx
+   type(VCalculator) :: cpx_calc
+   real(c_double) :: energy_gas
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vmol)) then
+         call env%ptr%error("Molecular structure data is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vmol, mol)
+
+      if (.not.c_associated(vcalc)) then
+         call env%ptr%error("Singlepoint calculator is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vcalc, calc)
+
+      ! Fail early if CPCM-X solvation model is not set
+      if (allocated(calc%ptr%solvation)) then
+         if (.not. allocated(calc%ptr%solvation%cpxsolvent)) then
+            call env%ptr%error("CPCM-X solvent not set", source)
+            return
+         end if
+      else
+         call env%ptr%error("No solvation input given", source)
+         return
+      end if
+
+      ! Fail early if not using xTB
+      select type(xtb => calc%ptr)
+        type is (TGFFCalculator)
+           call env%ptr%error("CPCM-X is not possible with a force field.", source)
+           return
+      end select
+
+      if (.not.allocated(calc%ptr)) then
+         call env%ptr%error("No calculator loaded for single point", &
+            & source)
+         return
+      end if
+
+      if (.not.c_associated(vres)) then
+         call env%ptr%error("Calculation results are not allocated", source)
+         return
+      end if
+      call c_f_pointer(vres, res)
+
+      ! check cache, automatically invalidate missmatched data
+      if (allocated(res%chk)) then
+         select type(xtb => calc%ptr)
+         type is(TxTBCalculator)
+            if (res%chk%wfn%n /= mol%ptr%n .or. res%chk%wfn%n /= xtb%basis%n .or. &
+               & res%chk%wfn%nao /= xtb%basis%nao .or. &
+               & res%chk%wfn%nshell /= xtb%basis%nshell) then
+               deallocate(res%chk)
+            end if
+         end select
+      end if
+
+      if (.not.allocated(res%chk)) then
+         allocate(res%chk)
+         ! in case of a new wavefunction cache we have to perform an initial guess
+         select type(xtb => calc%ptr)
+         type is(TxTBCalculator)
+            call newWavefunction(env%ptr, mol%ptr, xtb, res%chk)
+         end select
+      end if
+
+      if (.not.allocated(res%energy)) then
+         allocate(res%energy)
+      end if
+
+      if (.not.allocated(res%egap)) then
+         allocate(res%egap)
+      end if
+
+      if (allocated(res%pcgradient)) then
+         deallocate(res%pcgradient)
+      end if
+
+      if (allocated(res%gradient)) then
+         if (any(shape(res%gradient) /= [3, mol%ptr%n])) then
+            call env%ptr%warning("Shape missmatch in gradient, reallocating", source)
+            deallocate(res%gradient)
+         end if
+      end if
+      if (.not.allocated(res%gradient)) then
+         allocate(res%gradient(3, mol%ptr%n))
+      end if
+
+      if (allocated(res%sigma)) then
+         if (any(shape(res%sigma) /= [3, 3])) then
+            call env%ptr%warning("Shape missmatch in virial, reallocating", source)
+            deallocate(res%sigma)
+         end if
+      end if
+      if (.not.allocated(res%sigma)) then
+         allocate(res%sigma(3, 3))
+      end if
+
+      ! Initial COSMO singlepoint calculation
+      call calc%ptr%singlepoint(env%ptr, mol%ptr, res%chk, env%verbosity, .true., &
+         & res%energy, res%gradient, res%sigma, res%egap, spRes)
+
+      ! CPCM-X calculation
+      call cpx%setup(env%ptr, calc%ptr%solvation%cpxsolvent)
+      cpx_calc = calc
+      deallocate(cpx_calc%ptr%solvation)
+
+      energy_gas = res%energy
+      call generic_header(env%ptr%unit, "CPCM-X post-SCF solvation evaluation", 49, 10)
+      call cpx_calc%ptr%singlepoint(env%ptr, mol%ptr, res%chk, env%verbosity, .false., &
+         & energy_gas, res%gradient, res%sigma, res%egap, spRes)
+
+
+      call cpx%calc_solv(env%ptr, calc%ptr%solvation%cpxsolvent, energy_gas, &
+             &           0.4_wp, 298.15_wp, 500, 0.0001_wp, spRes%e_total)
+      call cpx%print(.true.)
+
+      res%energy = spRes%e_total
+      res%solvation_energy = res%energy - energy_gas
+      res%dipole = spRes%dipole
+
+      ! Zero out the gradient and sigma (not yet implemented for CPCM-X)
+      res%gradient = 0.0_wp
+      res%sigma = 0.0_wp
+
+   endif
+
+end subroutine cpcmx_calc_api
+
 
 end module xtb_api_interface
