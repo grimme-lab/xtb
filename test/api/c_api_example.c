@@ -31,6 +31,7 @@ int testFirst() {
   double* q;
   char* buffer;
   double* wbo;
+  double* hess;
 
   int buffersize = 512;
   int tester = 0;
@@ -56,6 +57,7 @@ int testFirst() {
   q = (double*) malloc(natoms * sizeof(double));
   wbo = (double*) malloc(natsq * sizeof(double));
   buffer = (char*) malloc(buffersize *sizeof(char));
+  hess = (double*) malloc(9*natsq * sizeof(double));
   char solvent[] = "h2o";
   char gbsa[] = "gbsa";
   char alpb[] = "alpb";
@@ -109,6 +111,7 @@ int testFirst() {
   if (!check(wbo[9], 2.89823984265213, 1.0e-8, "Bond order does not match"))
     goto error;
 
+  // GBSA
   xtb_setSolvent(env, calc, solvent, NULL, NULL, NULL, gbsa);
   if (xtb_checkEnvironment(env))
     goto error;
@@ -236,6 +239,27 @@ int testFirst() {
     goto error;
 
 #endif
+  // Compute Hessian
+  //Sensitive to guess, so reset the results
+  xtb_delete(res);
+  res = xtb_newResults();
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  xtb_releaseSolvent(env, calc);
+  xtb_hessian(env, mol, calc, res, hess, NULL, NULL, NULL, NULL);
+  if (xtb_checkEnvironment(env))
+    goto error;
+
+  if (!check(hess[0], 0.4790088649, 1.0e-9, "Hessian[0,0] does not match"))
+    goto error;
+  if (!check(hess[3], -0.0463290233, 1.0e-9, "Hessian[0,3] does not match"))
+    goto error;
+  if (!check(hess[3], hess[63], 1.0e-9, "Hessian[0,3] != Hessian[3,0]"))
+    goto error;
+  if (!check(hess[(9*natsq)-1], 0.3636571159, 1.0e-9, "Hessian[21,21] does not match"))
+    goto error;
+
 
   xtb_delete(res);
   xtb_delete(calc);
@@ -245,6 +269,7 @@ int testFirst() {
   free(q);
   free(wbo);
   free(buffer);
+  free(hess);
 
   tester = !res;
   if (!check(tester, 1, "Results not deleted"))
