@@ -130,6 +130,10 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
 !=========================set up calculator===========================================   
 
    call get_calculator(xcalc, struc, tblite%method, error)  
+   if (allocated(error)) then
+      call env%error(error%message, source)
+      return
+   end if
    call new_wavefunction(wfn, struc%nat, xcalc%bas%nsh, xcalc%bas%nao, & 
       & 1, set%etemp * ktoau)
    wfn%nspin=1
@@ -258,6 +262,10 @@ subroutine get_jab(env, tblite, mol, fragment, dipro)
       write(*,'(A,I2)') "unpaired e- of fragment : ", mfrag(ifr)%uhf
 
       call get_calculator(fcalc(ifr), mfrag(ifr), tblite%method, error)
+      if (allocated(error)) then
+         call env%error(error%message, source)
+         return
+      end if
       !> mol%charge is updated automatically from wfn by tblite library 
       call new_wavefunction(wfx(ifr), mfrag(ifr)%nat, fcalc(ifr)%bas%nsh, fcalc(ifr)%bas%nao, &
          & 1, set%etemp * ktoau)

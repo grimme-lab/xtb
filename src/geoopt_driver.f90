@@ -157,7 +157,7 @@ subroutine geometry_optimization &
      ! get number of unique species; used in precond_lindh
      !call get_identity(mol%nid, mol%id, mol%at)
      ! create new anc filter
-     optcell = mol%npbc > 0  ! optimize cell parameters if present
+     optcell = mol%npbc > 0 .and. set%optcell
      call new_cartesian_filter(filter, mol, optcell)
      ! create new Limited-memory BFGS optimizer 
      call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)

@@ -110,6 +110,9 @@ subroutine help(iunit)
    "-c, --chrg INT",&
    "    specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
    "",&
+   "--ceh",&
+   "    calculate CEH (Charge-Extended Hückel model) charges and write them to ceh.charges file",&
+   "",&
    "-u, --uhf INT",&
    "    specify number of unpaired electrons as INT, overrides .UHF file and xcontrol option",&
    "",&
@@ -120,7 +123,7 @@ subroutine help(iunit)
    "    specify parametrisation of GFN-FF",&
    "",&
    "--tblite,",&
-   "    use tblite library as implementation for xTB",&
+   "    use tblite library as implementation for xTB, please note that solvation is not yet implemented within tblite",&
    "",&
    "--ptb,",&
    "    performs single-point calculation with the density tight-binding method PTB.", &
@@ -162,7 +165,7 @@ subroutine help(iunit)
    "    hexandecane, hexane, methanol, nitromethane, octanol, woctanol, phenol, toluene,",&
    "    thf, water.",&
    "    The solvent input is not case-sensitive. The Gsolv",&
-   "    reference state can be chosen as reference or bar1M (default).",&
+   "    reference state can be chosen as reference, bar1M, or gsolv (default).",&
    "",&
    "-g, --gbsa SOLVENT [STATE]",&
    "    generalized born (GB) model with solvent accessable surface (SASA) model,",&
@@ -170,7 +173,7 @@ subroutine help(iunit)
    "    CHCl3, CS2, DMF (only GFN2-xTB), DMSO, ether, H2O, methanol,",&
    "    n-hexane (only GFN2-xTB), THF and toluene.",&
    "    The solvent input is not case-sensitive.", &
-   "    The Gsolv reference state can be chosen as reference or bar1M (default).",&
+   "    The Gsolv reference state can be chosen as reference, bar1M, or gsolv (default).",&
    "",&
    "--cosmo SOLVENT/EPSILON",&
    "    domain decomposition conductor-like screening model (ddCOSMO),",&

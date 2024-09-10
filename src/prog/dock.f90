@@ -45,7 +45,7 @@ module xtb_prog_dock
    use xtb_iff_iffprepare, only: precomp
    use xtb_iff_iffenergy, only : iff_e
    use xtb_docking_search_nci, only: docking_search
-   use xtb_sphereparam, only: sphere, rabc, boxr, init_walls, wpot, maxwalls
+   use xtb_sphereparam, only: init_walls, maxwalls
    use xtb_constrain_param, only: read_userdata
    use xtb_fixparam, only: init_fix
    use xtb_scanparam, only: init_constr, init_scan, maxconstr, maxscan
@@ -231,7 +231,6 @@ contains
          &          iff_data%den1, iff_data%den2, iff_data%gab1, iff_data%gab2, iff_data%qcm1,&
          &          iff_data%qcm2, iff_data%n, iff_data%at, iff_data%xyz, iff_data%q, icoord, icoord0,&
          &          .false.)
-
 
       !> CONSTRAINTS & SCANS
       call init_fix(iff_data%n)

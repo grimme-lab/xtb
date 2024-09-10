@@ -93,7 +93,8 @@ module xtb_prog_main
    use xtb_iff_data, only: TIFFData
    use xtb_oniom, only: oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only: vfukui
-   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, newTBLiteWavefunction
+   use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
+         & newTBLiteWavefunction, get_ceh
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
@@ -165,7 +166,6 @@ contains
       real(wp), allocatable :: q(:)
       real(wp), allocatable :: ql(:)
       real(wp), allocatable :: qr(:)
-
 !! ------------------------------------------------------------------------
       integer, external :: ncore
 
@@ -224,6 +224,14 @@ contains
       call parseArguments(env, argParser, xcontrol, fnv, lgrad, &
          & restart, gsolvstate, strict, copycontrol, coffee, printTopo, oniom, dipro, tblite)
 
+      
+      ! TEMPORARY: no solvation available for PTB and tblite !
+      if (set%mode_extrun == p_ext_tblite .or. set%mode_extrun == p_ext_ptb) then
+         if (allocated(set%solvInput%solvent)) then
+            call env%error("Solvation is not implemented for PTB/tblite", source)
+         endif
+      end if
+
       !> Spin-polarization is only available in the tblite library
       if (set%mode_extrun /= p_ext_tblite .and. tblite%spin_polarized) then
          call env%error("Spin-polarization is only available with the tblite library! Try --tblite", source)
@@ -275,8 +283,11 @@ contains
          &   (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_screen) .or. &
          &   (set%runtyp == p_run_metaopt))
 
-      if (allocated(set%solvInput%cpxsolvent) .and. anyopt) call env%terminate("CPCM-X not implemented for geometry optimization. &
-         &Please use another solvation model for optimization instead.")
+      if (allocated(set%solvInput%cpxsolvent).and.anyopt) then
+            call env%terminate("CPCM-X not implemented for geometry optimization. &
+                 & Please use another solvation model for optimization instead.")
+      endif     
+ 
       if ((set%mode_extrun == p_ext_ptb) .and. anyopt) call env%terminate("PTB not implemented for geometry optimization. &
          &Please use another method for optimization instead.")
 
@@ -616,6 +627,10 @@ contains
       type is (TTBLiteCalculator)
          call newTBLiteWavefunction(env, mol, calc, chk)
       end select
+
+      ! get CEH charges !
+      if (tblite%ceh) &
+         call get_ceh(env,mol,tblite)
 
       ! ------------------------------------------------------------------------
       !> printout a header for the exttyp
@@ -1453,6 +1468,15 @@ contains
             else
                call env%error("Molecular charge is not provided", source)
             end if
+         
+         case('--ceh')
+            if (get_xtb_feature('tblite')) then
+               tblite%ceh = .true.
+            else
+               call env%error("CEH charges are only available through tblite library", source)
+               return
+            end if
+
 
          case ('-u', '--uhf')
             call args%nextArg(sec)
@@ -1896,6 +1920,10 @@ contains
             else
                call env%error("The wrtopo keyword is missing an argument.", source)
             end if
+
+         case ('--nocellopt')
+            set%optcell = .false.
+
          end select
          call args%nextFlag(flag)
       end do

@@ -193,7 +193,7 @@ contains
       !> the SP
       call singlepoint &
          &       (env, mol, chk, calc, egap, set%etemp, set%maxscciter, 2,&
-         &        exist, lgrad, acc, etot, g, sigma, res)
+         &        .false., lgrad, acc, etot, g, sigma, res)
 
       set%pr_lmo = .false.
 

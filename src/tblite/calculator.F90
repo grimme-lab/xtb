@@ -26,6 +26,7 @@ module xtb_tblite_calculator
    use mctc_io, only : structure_type, read_structure, filetype
 #if WITH_TBLITE
    use tblite_basis_type, only : basis_type
+   use tblite_ceh_ceh, only : new_ceh_calculator
    use tblite_container, only : container_type
    use tblite_context, only : context_type, context_terminal, escape
    use tblite_external_field, only : electric_field
@@ -39,8 +40,10 @@ module xtb_tblite_calculator
    use tblite_xtb_gfn1, only : new_gfn1_calculator, export_gfn1_param
    use tblite_xtb_ipea1, only : new_ipea1_calculator, export_ipea1_param
    use tblite_xtb_singlepoint, only : xtb_singlepoint
-   use tblite_data_spin, only : get_spin_constant
+   use tblite_data_spin, only : get_spin_constant 
+   use xtb_tblite_mapping, only : convert_tblite_to_wfn
 #endif
+   use xtb_tblite_mapping, only : convert_tblite_to_results
    use xtb_mctc_accuracy, only : wp
    use xtb_type_calculator, only : TCalculator
    use xtb_type_data
@@ -57,6 +60,7 @@ module xtb_tblite_calculator
    private
 
    public :: TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator, newTBLiteWavefunction
+   public :: get_ceh
 
    !> Input for tblite library
    type :: TTBLiteInput
@@ -72,6 +76,8 @@ module xtb_tblite_calculator
       character(len=:), allocatable :: method
       !> Colorful output
       logical :: color = .false.
+      !> CEH charges
+      logical :: ceh = .false.
    end type TTBLiteInput
 
    !> Calculator interface for xTB based methods
@@ -104,7 +110,7 @@ module xtb_tblite_calculator
 contains
 
 
-!> Create a new instance of an tblite based xTB calculator
+!> Create a new instance of tblite based xTB calculator
 subroutine newTBLiteCalculator(env, mol, calc, input)
    !> Source of the generated errors
    character(len=*), parameter :: source = 'tblite_calculator_newTBLiteCalculator'
@@ -144,11 +150,16 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
       case default
          call fatal_error(error, "Unknown method '"//method//"' requested")
       case("gfn2")
-         call new_gfn2_calculator(calc%tblite, struc)
+         call new_gfn2_calculator(calc%tblite, struc, error)
       case("gfn1")
-         call new_gfn1_calculator(calc%tblite, struc)
+         call new_gfn1_calculator(calc%tblite, struc, error)
       case("ipea1")
-         call new_ipea1_calculator(calc%tblite, struc)
+         call new_ipea1_calculator(calc%tblite, struc, error)
+      case("ceh")
+         calc%guess = method
+         calc%nspin = 1
+         calc%etemp = 4000.0_wp * kt
+         call new_ceh_calculator(calc%tblite, struc, error)
       end select
    end if
    if (allocated(error)) then
@@ -208,7 +219,7 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
    !> Molecular structure data
    type(TMolecule), intent(in) :: mol
    !> Instance of the new calculator
-   type(TTBLiteCalculator), intent(in) :: calc
+   type(TTBLiteCalculator), intent(inout) :: calc
    !> Wavefunction data
    type(TRestart), intent(inout) :: chk
 
@@ -229,6 +240,23 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
          call sad_guess(struc, calc%tblite, wfn)
       case("eeq")
          call eeq_guess(struc, calc%tblite, wfn)
+      case("ceh")
+         block 
+            use tblite_context, only : context_type, context_terminal
+            use tblite_context_terminal, only : escape
+            use tblite_ceh_singlepoint, only : ceh_singlepoint
+            use tblite_lapack_solver, only : lapack_solver 
+            use tblite_lapack_solver, only : lapack_algorithm
+            type(context_type) :: ctx
+
+            ctx%solver = lapack_solver(lapack_algorithm%gvd)
+            ctx%terminal = context_terminal(calc%color)
+
+            write (env%unit, '(1x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
+               & escape(ctx%terminal%reset)
+
+            call ceh_singlepoint(ctx, calc%tblite, struc, wfn, calc%accuracy, 1)
+         end block
       end select
    end associate
    if (allocated(error)) then
@@ -293,17 +321,13 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       return
    end if
 
-   results%e_total = energy
-   results%converged = .true.
-   results%dipole = sum(chk%tblite%dpat(:, :, 1), 2) + matmul(struc%xyz, chk%tblite%qat(: ,1))
-   results%gnorm = norm2(gradient)
+   ! convert tblite results into xtb data !
+   call convert_tblite_to_wfn(env, self%tblite%bas, mol, chk)
+   call convert_tblite_to_results(results,mol,chk,energy,.true.,gradient=gradient)
+   hlgap = results%hl_gap
 
-!   if (printlevel > 2) then
-!      call ascii_levels(ctx%unit, printlevel, chk%tblite%homo, chk%tblite%emo, &
-!         & chk%tblite%focc, 7)
-!   end if
 #else
-    call feature_not_implemented(env)
+   call feature_not_implemented(env)
 #endif
 end subroutine singlepoint
 
@@ -361,6 +385,51 @@ subroutine get_spin_constants(wll, mol, bas)
    end do
 end subroutine get_spin_constants
 #endif
+
+!> get CEH charges via tblite
+subroutine get_ceh(env,mol,tblite)
+
+   use xtb_propertyoutput, only : print_charges
+
+   !> computational environment
+   type(TEnvironment), intent(inout) :: env
+
+   !> molecular structure data
+   type(TMolecule), intent(in) :: mol
+
+   !> tblite input
+   type(TTBLiteInput), intent(in) :: tblite
+
+   !> initialize temporary calculator for CEH
+   type(TTBLiteCalculator) :: calc_ceh
+            
+   !> initialize temporary input for CEH
+   type(TTBLiteInput) :: tblite_ceh
+   
+   !> initialize temporary wfn for CEH
+   type(TRestart) :: chk_ceh
+
+   integer :: ich
+
+   tblite_ceh = tblite        ! copy the tblite input
+   tblite_ceh%method = "ceh" 
+#if WITH_TBLITE
+   write(env%unit, '(a)') repeat('-', 36)
+   
+   call newTBLiteCalculator(env, mol, calc_ceh, tblite_ceh)
+   call newTBLiteWavefunction(env, mol, calc_ceh, chk_ceh)
+
+   ! create ceh.charges file !
+   call open_file(ich, 'ceh.charges', 'w') 
+   call print_charges(ich, mol%n, chk_ceh%tblite%qat(:,1))
+   call close_file(ich)
+
+   write(env%unit, '(1x, a, /, a, /)') "CEH charges written to ceh.charges", repeat('-', 36)
+#else
+    call feature_not_implemented(env)
+#endif
+
+end subroutine get_ceh
 
 #if ! WITH_TBLITE
 subroutine feature_not_implemented(env)

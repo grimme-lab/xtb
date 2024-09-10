@@ -36,6 +36,8 @@ module xtb_ptb_calculator
    use mctc_io_convert, only: autoev
 
 #if WITH_TBLITE
+   use xtb_tblite_mapping, only : convert_tblite_to_wfn, convert_tblite_to_results
+
    use multicharge_model, only: new_mchrg_model, mchrg_model_type
 
    use tblite_basis_type, only: basis_type
@@ -290,29 +292,8 @@ contains
             return
          end if
       end if
-
-      call chk%wfn%allocate(mol%n, self%bas%nsh, self%bas%nao)
-      chk%wfn%n = mctcmol%nat
-      chk%wfn%nel = nint(chk%tblite%nocc)
-      chk%wfn%nopen = mctcmol%uhf
-      chk%wfn%nshell = self%bas%nsh
-      chk%wfn%nao = self%bas%nao
-      chk%wfn%P = chk%tblite%density(:, :, 1)
-      chk%wfn%q = chk%tblite%qat(:, 1)
-      chk%wfn%qsh = chk%tblite%qsh(:, 1)
-      chk%wfn%focca = chk%tblite%focc(:, 1)
-      chk%wfn%foccb = 0.0_wp
-      chk%wfn%focc(:) = chk%tblite%focc(:, 1)
-      chk%wfn%emo = chk%tblite%emo(:, 1) * autoev
-      chk%wfn%C = chk%tblite%coeff(:, :, 1)
-      chk%wfn%ihomo = chk%tblite%homo(1)
-      chk%wfn%ihomoa = chk%tblite%homo(1)
-      chk%wfn%ihomob = chk%tblite%homo(2)
-      chk%wfn%wbo = wbo(:, :, 1)
-      chk%wfn%dipm = chk%tblite%dpat(:, :, 1)
-      chk%wfn%qp = chk%tblite%qpat(:, :, 1)
-
-      results%hl_gap = (chk%tblite%emo(chk%tblite%homo(1) + 1, 1) - chk%tblite%emo(chk%tblite%homo(1), 1)) * autoev
+      call convert_tblite_to_wfn(env, self%bas, mol, chk, wbo=wbo)
+      call convert_tblite_to_results(results,mol,chk,energy,.true.)
       hlgap = results%hl_gap
 
       !> polarizability by simple perturbative treatment
