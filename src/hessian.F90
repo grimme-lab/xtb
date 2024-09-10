@@ -732,7 +732,6 @@ subroutine rescale_freq(n3,htb,hess,hbias,freq,fc_tb,fc_bias,freq_scal)
    integer, intent(in) :: n3
    integer :: j
    
-
    allocate(fc_tmp(n3),v(n3))
    ! calculate fc_tb and fc_bias
    do j=1,n3
