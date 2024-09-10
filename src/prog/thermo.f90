@@ -113,7 +113,7 @@ subroutine xtbThermo(env, argParser)
       call reader%close
       
       if (bhess) then
-         call rescale_freq(env,argParser,mol,hessian,freq) ! frequencies have to be rescaled 
+         call remove_sphshift(env,argParser,mol,hessian,freq) ! frequencies have to be rescaled 
       else 
         if (.not.massWeighted) then
            call massWeightHessian(hessian, mol%atmass)
@@ -175,7 +175,8 @@ end subroutine preigf
 
 
 ! Remove the frequency shift caused by the bias RMSD employed in the SPH calculation:
-subroutine rescale_freq(env,argParser,mol, hessian, freq)
+subroutine remove_sphshift(env,argParser,mol, hessian, freq)
+   use xtb_hessian
     real(wp), allocatable, intent(inout) :: freq(:), hessian(:, :)
     real(wp), allocatable :: freq_sph(:), hessian_sph(:, :) ! biased hessian from SPH
     real(wp), allocatable :: htb(:,:), v(:), fc_tmp(:), fc_tb(:), fc_bias(:), freq_scal(:)
@@ -208,24 +209,8 @@ subroutine rescale_freq(env,argParser,mol, hessian, freq)
       call diagHessian(env, hessian, freq)
 
       allocate(v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3))
-      ! calculate fc_tb and fc_bias (same procedure as in hessian.f90)
-      alp1=1.27_wp
-      alp2=1.5d-4
-      do j=1,n3
-         v(1:n3) = hessian(1:n3,j) ! modes
-         call mctc_gemv(htb,v,fc_tmp)
-         fc_tb(j) = mctc_dot(v,fc_tmp)
-         call mctc_gemv(hessian_sph,v,fc_tmp)
-         fc_bias(j) = mctc_dot(v,fc_tmp)
-         if (abs(freq(j)).gt.1.0d-6) then  
-            freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
-           if (fc_tb(j).lt.0.and.fc_bias(j).ne.0) then
-               freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
-           end if
-         else
-            freq_scal(j) = 1.0_wp
-         end if
-      end do
+      
+      call rescale_freq(n3,htb,hessian,hessian_sph,freq,fc_tb,fc_bias,freq_scal)
 
       ! scale frequencies and convert now to atomic units
       do j=1,n3
@@ -238,7 +223,7 @@ subroutine rescale_freq(env,argParser,mol, hessian, freq)
 		call terminate(1)
 	end if
 
-end subroutine rescale_freq   
+end subroutine remove_sphshift  
 
 
 !> Parse command line arguments

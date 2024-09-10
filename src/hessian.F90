@@ -25,7 +25,7 @@ module xtb_hessian
 
    public :: numhess
    public :: trproj, rdhess, g98fake2, distort, write_tm_vibspectrum
-
+   public :: rescale_freq
 contains
 
 subroutine numhess( &
@@ -102,7 +102,6 @@ subroutine numhess( &
    real(wp),allocatable :: fc_tb(:)
    real(wp),allocatable :: fc_bias(:)
    real(wp),allocatable :: v(:)
-   real(wp),allocatable :: fc_tmp(:)
    real(wp),allocatable :: freq_scal(:)
    real(wp),allocatable :: aux (:)
    real(wp),allocatable :: isqm(:)
@@ -129,7 +128,7 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & v(n3),fc_tmp(n3),freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
+      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
 
    if (set%elprop == p_elprop_alpha) then
       allocate(dalphadr(6,n3), source = 0.0_wp)
@@ -394,26 +393,13 @@ subroutine numhess( &
       return
    end if
 
-   ! calculate fc_tb and fc_bias
-   alp1=1.27_wp
-   alp2=1.5d-4
+   
+
    if (set%runtyp.eq.p_run_bhess) then
-      do j=1,n3
-         v(1:n3) = res%hess(1:n3,j) ! modes
-         call mctc_gemv(htb,v,fc_tmp)
-         fc_tb(j) = mctc_dot(v,fc_tmp)
-         call mctc_gemv(hbias,v,fc_tmp)
-         fc_bias(j) = mctc_dot(v,fc_tmp)
-         if (abs(res%freq(j)).gt.1.0d-6) then
-            freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
-            if (fc_tb(j).lt.0.and.fc_bias(j).ne.0) then
-               freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
-            end if
-         else
-            freq_scal(j) = 1.0_wp
-         end if
-      end do
-   end if
+      call rescale_freq(n3,htb,res%hess,hbias,res%freq,fc_tb,fc_bias,freq_scal)
+   else
+      freq_scal(1:n3) = 1.0_wp
+   end if 
 
    write(env%unit,'(a)')
    if(res%linear)then
@@ -728,6 +714,44 @@ subroutine distort(mol,freq,u)
    mol%xyz = xyz2
 
 end subroutine distort
+
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+subroutine rescale_freq(n3,htb,hess,hbias,freq,fc_tb,fc_bias,freq_scal)
+   use xtb_mctc_blas
+   implicit none
+   real(wp),intent(in) :: htb (n3,n3)
+   real(wp),intent(in) :: hess(n3,n3)
+   real(wp),intent(in) :: hbias(n3,n3)
+   real(wp),intent(in) :: freq(n3)
+   real(wp), intent(out) :: fc_tb(n3),fc_bias(n3)
+   real(wp), intent(out) :: freq_scal(n3) 
+   real(wp),allocatable :: v(:)
+   real(wp),allocatable :: fc_tmp(:)
+   real(wp), parameter :: alp1=1.27_wp, alp2=1.5d-4
+   integer, intent(in) :: n3
+   integer :: j
+   
+
+   allocate(fc_tmp(n3),v(n3))
+   ! calculate fc_tb and fc_bias
+   do j=1,n3
+      v(1:n3) = hess(1:n3,j) ! modes
+      call mctc_gemv(htb,v,fc_tmp)
+      fc_tb(j) = mctc_dot(v,fc_tmp)
+      call mctc_gemv(hbias,v,fc_tmp)
+      fc_bias(j) = mctc_dot(v,fc_tmp)
+      if (abs(freq(j)).gt.1.0d-6) then
+         freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
+         if (fc_tb(j).lt.0.and.fc_bias(j).ne.0) then
+            freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
+         end if
+      else
+         freq_scal(j) = 1.0_wp   
+      end if
+   end do
+end subroutine rescale_freq
+   
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
