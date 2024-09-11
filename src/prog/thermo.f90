@@ -177,7 +177,7 @@ end subroutine preigf
 ! Remove the frequency shift caused by the bias RMSD employed in the SPH calculation:
 subroutine remove_sphshift(env,argParser,mol, hessian, freq)
    use xtb_hessian
-    real(wp), allocatable, intent(inout) :: freq(:), hessian(:, :)
+    real(wp), intent(inout) :: freq(:), hessian(:, :)
     real(wp), allocatable :: freq_sph(:), hessian_sph(:, :) ! biased hessian from SPH
     real(wp), allocatable :: htb(:,:), v(:), fc_tmp(:), fc_tb(:), fc_bias(:), freq_scal(:)
     real(wp) :: alp1, alp2 ! factors for SPH scaling
