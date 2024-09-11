@@ -728,7 +728,7 @@ subroutine rescale_freq(n3,htb,hess,hbias,freq,fc_tb,fc_bias,freq_scal)
    real(wp), intent(out) :: freq_scal(n3) 
    real(wp),allocatable :: v(:)
    real(wp),allocatable :: fc_tmp(:)
-   real(wp), parameter :: alp1=1.27_wp, alp2=1.5d-4
+   real(wp), parameter :: alp1=1.27_wp, alp2=1.5e-4_wp
    integer, intent(in) :: n3
    integer :: j
    
@@ -740,9 +740,9 @@ subroutine rescale_freq(n3,htb,hess,hbias,freq,fc_tb,fc_bias,freq_scal)
       fc_tb(j) = mctc_dot(v,fc_tmp)
       call mctc_gemv(hbias,v,fc_tmp)
       fc_bias(j) = mctc_dot(v,fc_tmp)
-      if (abs(freq(j)).gt.1.0d-6) then
+      if (abs(freq(j)) .gt. 1.0e-6_wp) then
          freq_scal(j) = sqrt( (fc_tb(j)+alp2) / ( (fc_tb(j)+alp2) +  alp1*fc_bias(j) ) )
-         if (fc_tb(j).lt.0.and.fc_bias(j).ne.0) then
+         if (fc_tb(j) .lt. 0.0_wp .and. fc_bias(j) .ne. 0.0_wp) then
             freq_scal(j) = -sqrt( (abs(fc_tb(j))+alp2) / ( (abs(fc_tb(j))+alp2) + alp1*fc_bias(j) ) )
          end if
       else
