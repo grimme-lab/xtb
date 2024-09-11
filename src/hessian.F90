@@ -728,7 +728,7 @@ subroutine rescale_freq(n3,htb,hess,hbias,freq,fc_tb,fc_bias,freq_scal)
    real(wp), intent(out) :: freq_scal(n3) 
    real(wp),allocatable :: v(:)
    real(wp),allocatable :: fc_tmp(:)
-   real(wp), parameter :: alp1=1.27_wp, alp2=1.5d-4
+   real(wp), parameter :: alp1=1.27_wp, alp2=1.5e-4_wp
    integer, intent(in) :: n3
    integer :: j
    
