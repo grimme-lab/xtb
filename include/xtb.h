@@ -19,10 +19,10 @@
 
 #define XTB_API_ENTRY
 #define XTB_API_CALL
-#define XTB_API_SUFFIX__VERSION_1_0_0
+#define XTB_API_SUFFIX__VERSION_2_0_0
 
 /// Define proprocessor to allow to check for specific API features
-#define XTB_API_VERSION 10000
+#define XTB_API_VERSION 20000
 #define XTB_VERSION_6_3_0   1
 #define XTB_VERSION_6_3_1   1
 #define XTB_VERSION_6_3_2   1
@@ -69,7 +69,7 @@ typedef struct _xtb_TResults* xtb_TResults;
 
 /// Returns API version as 10000 * major + 100 * minor + 1 * patch
 extern XTB_API_ENTRY int XTB_API_CALL
-xtb_getAPIVersion() XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_getAPIVersion() XTB_API_SUFFIX__VERSION_2_0_0;
 
 /*
  * Calculation environment
@@ -77,40 +77,40 @@ xtb_getAPIVersion() XTB_API_SUFFIX__VERSION_1_0_0;
 
 /// Create new xtb calculation environment object
 extern XTB_API_ENTRY xtb_TEnvironment XTB_API_CALL
-xtb_newEnvironment(void) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_newEnvironment(void) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Delete a xtb calculation environment object
 extern XTB_API_ENTRY void XTB_API_CALL
-xtb_delEnvironment(xtb_TEnvironment* /* env */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_delEnvironment(xtb_TEnvironment* /* env */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Check current status of calculation environment
 extern XTB_API_ENTRY int XTB_API_CALL
-xtb_checkEnvironment(xtb_TEnvironment /* env */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_checkEnvironment(xtb_TEnvironment /* env */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Show and empty error stack
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_showEnvironment(xtb_TEnvironment /* env */,
-                    const char* /* message */) XTB_API_SUFFIX__VERSION_1_0_0;
+                    const char* /* message */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Return and empty error stack
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getError(xtb_TEnvironment /* env */,
              char* /* buffer */,
-             const int* /* buffersize */) XTB_API_SUFFIX__VERSION_1_0_0;
+             const int* /* buffersize */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Bind output from this environment
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_setOutput(xtb_TEnvironment /* env */,
-              const char* /* filename */) XTB_API_SUFFIX__VERSION_1_0_0;
+              const char* /* filename */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Release output unit from this environment
 extern XTB_API_ENTRY void XTB_API_CALL
-xtb_releaseOutput(xtb_TEnvironment /* env */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_releaseOutput(xtb_TEnvironment /* env */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Set verbosity of calculation output
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_setVerbosity(xtb_TEnvironment /* env */,
-                 int /* verbosity */) XTB_API_SUFFIX__VERSION_1_0_0;
+                 int /* verbosity */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /*
  * Molecular structure data class
@@ -125,18 +125,18 @@ xtb_newMolecule(xtb_TEnvironment /* env */,
                 const double* /* charge in e */,
                 const int* /* uhf */,
                 const double* /* lattice [3][3] */,
-                const bool* /* periodic [3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+                const bool* /* periodic [3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Delete molecular structure data
 extern XTB_API_ENTRY void XTB_API_CALL
-xtb_delMolecule(xtb_TMolecule* /* mol */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_delMolecule(xtb_TMolecule* /* mol */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Update coordinates and lattice parameters (quantities in Bohr)
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_updateMolecule(xtb_TEnvironment /* env */,
                    xtb_TMolecule /* mol */,
                    const double* /* positions [natoms][3] */,
-                   const double* /* lattice [3][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+                   const double* /* lattice [3][3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /*
  * Singlepoint calculator
@@ -144,39 +144,39 @@ xtb_updateMolecule(xtb_TEnvironment /* env */,
 
 /// Create new calculator object
 extern XTB_API_ENTRY xtb_TCalculator XTB_API_CALL
-xtb_newCalculator(void) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_newCalculator(void) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Delete calculator object
 extern XTB_API_ENTRY void XTB_API_CALL
-xtb_delCalculator(xtb_TCalculator* /* calc */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_delCalculator(xtb_TCalculator* /* calc */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Load GFN0-xTB calculator
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_loadGFN0xTB(xtb_TEnvironment /* env */,
                 xtb_TMolecule /* mol */,
                 xtb_TCalculator /* calc */,
-                char* /* filename */) XTB_API_SUFFIX__VERSION_1_0_0;
+                char* /* filename */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Load GFN1-xTB calculator
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_loadGFN1xTB(xtb_TEnvironment /* env */,
                 xtb_TMolecule /* mol */,
                 xtb_TCalculator /* calc */,
-                char* /* filename */) XTB_API_SUFFIX__VERSION_1_0_0;
+                char* /* filename */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Load GFN2-xTB calculator
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_loadGFN2xTB(xtb_TEnvironment /* env */,
                 xtb_TMolecule /* mol */,
                 xtb_TCalculator /* calc */,
-                char* /* filename */) XTB_API_SUFFIX__VERSION_1_0_0;
+                char* /* filename */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Load GFN-FF calculator
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_loadGFNFF(xtb_TEnvironment /* env */,
               xtb_TMolecule /* mol */,
               xtb_TCalculator /* calc */,
-              char* /* filename */) XTB_API_SUFFIX__VERSION_1_0_0;
+              char* /* filename */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Add a solvation model to calculator (requires loaded parametrisation)
 extern XTB_API_ENTRY void XTB_API_CALL
@@ -185,12 +185,13 @@ xtb_setSolvent(xtb_TEnvironment /* env */,
                char* /* solvent */,
                int* /* state */,
                double* /* temp */,
-               int* /* grid */) XTB_API_SUFFIX__VERSION_1_0_0;
+               int* /* grid */,
+               char* /* solvent model */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Unset the solvation model
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_releaseSolvent(xtb_TEnvironment /* env */,
-                   xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_1_0_0;
+                   xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Add a external charge potential to calculator (only supported in GFN1/2-xTB)
 extern XTB_API_ENTRY void XTB_API_CALL
@@ -199,37 +200,56 @@ xtb_setExternalCharges(xtb_TEnvironment /* env */,
                        int* /* n */,
                        int* /* numbers [n] */,
                        double* /* charges [n] */,
-                       double* /* positions [n][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+                       double* /* positions [n][3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Unset the external charge potential
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_releaseExternalCharges(xtb_TEnvironment /* env */,
-                           xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_1_0_0;
+                           xtb_TCalculator /* calc */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Set numerical accuracy of calculator in the range of 1000 to 0.0001
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_setAccuracy(xtb_TEnvironment /* env */,
                 xtb_TCalculator /* calc */,
-                double /* accuracy */) XTB_API_SUFFIX__VERSION_1_0_0;
+                double /* accuracy */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Set maximum number of iterations for self-consistent TB calculators
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_setMaxIter(xtb_TEnvironment /* env */,
                xtb_TCalculator /* calc */,
-               int /* iterations */) XTB_API_SUFFIX__VERSION_1_0_0;
+               int /* iterations */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Set electronic temperature for level filling in tight binding calculators in K
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_setElectronicTemp(xtb_TEnvironment /* env */,
                       xtb_TCalculator /* calc */,
-                      double /* temperature */) XTB_API_SUFFIX__VERSION_1_0_0;
+                      double /* temperature */) XTB_API_SUFFIX__VERSION_2_0_0;
+
+//// Calculate CPCM-X solvation energy
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_cpcmx_calc(xtb_TEnvironment /* env */,
+               xtb_TMolecule /* mol */,
+               xtb_TCalculator /* calc */,
+               xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Perform singlepoint calculation
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_singlepoint(xtb_TEnvironment /* env */,
                 xtb_TMolecule /* mol */,
                 xtb_TCalculator /* calc */,
-                xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_1_0_0;
+                xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_2_0_0;
+
+/// Perform hessian calculation
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_hessian(xtb_TEnvironment /* env */,
+            xtb_TMolecule /* mol */,
+            xtb_TCalculator /* calc */,
+            xtb_TResults /* res */,
+            double* /* hessian */,
+            int* /* atom_index_list */,
+            int* /* step_size */,
+            double* /* dipole_gradient */,
+            double* /* polarizability_gradient */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /*
  * Calculation results
@@ -237,81 +257,87 @@ xtb_singlepoint(xtb_TEnvironment /* env */,
 
 /// Create new singlepoint results object
 extern XTB_API_ENTRY xtb_TResults XTB_API_CALL
-xtb_newResults(void) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_newResults(void) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Delete singlepoint results object
 extern XTB_API_ENTRY void XTB_API_CALL
-xtb_delResults(xtb_TResults* /* res */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_delResults(xtb_TResults* /* res */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Create copy from a singlepoint results object
 extern XTB_API_ENTRY xtb_TResults XTB_API_CALL
-xtb_copyResults(xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_1_0_0;
+xtb_copyResults(xtb_TResults /* res */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for energy in Hartree
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getEnergy(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
-              double* /* energy */) XTB_API_SUFFIX__VERSION_1_0_0;
+              double* /* energy */) XTB_API_SUFFIX__VERSION_2_0_0;
+
+/// Query singlepoint results object for solvation energy in Hartree
+extern XTB_API_ENTRY void XTB_API_CALL
+xtb_getSolvationEnergy(xtb_TEnvironment /* env */,
+                       xtb_TResults /* res */,
+                       double* /* energy */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for gradient in Hartree / Bohr
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getGradient(xtb_TEnvironment /* env */,
                 xtb_TResults /* res */,
-                double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+                double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for pc gradient in Hartree / Bohr
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getPCGradient(xtb_TEnvironment /* env */,
                   xtb_TResults /* res */,
-                  double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+                  double* /* gradient [natoms][3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for virial in Hartree
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getVirial(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
-              double* /* virial [3][3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+              double* /* virial [3][3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for dipole in e Bohr
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getDipole(xtb_TEnvironment /* env */,
               xtb_TResults /* res */,
-              double* /* dipole [3] */) XTB_API_SUFFIX__VERSION_1_0_0;
+              double* /* dipole [3] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for partial charges in e
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getCharges(xtb_TEnvironment /* env */,
                xtb_TResults /* res */,
-               double* /* charges [natoms] */) XTB_API_SUFFIX__VERSION_1_0_0;
+               double* /* charges [natoms] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for bond orders
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getBondOrders(xtb_TEnvironment /* env */,
                   xtb_TResults /* res */,
-                  double* /* wbo [natoms][natoms] */) XTB_API_SUFFIX__VERSION_1_0_0;
+                  double* /* wbo [natoms][natoms] */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for the number of basis functions
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getNao(xtb_TEnvironment /* env */,
            xtb_TResults /* res */,
-           int* /* nao */) XTB_API_SUFFIX__VERSION_1_0_0;
+           int* /* nao */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for orbital energies in Hartree [nao]
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getOrbitalEigenvalues(xtb_TEnvironment /* env */,
                           xtb_TResults /* res */,
-                          double* /* emo */) XTB_API_SUFFIX__VERSION_1_0_0;
+                          double* /* emo */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for occupation numbers [nao]
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getOrbitalOccupations(xtb_TEnvironment /* env */,
                           xtb_TResults /* res */,
-                          double* /* focc */) XTB_API_SUFFIX__VERSION_1_0_0;
+                          double* /* focc */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 /// Query singlepoint results object for orbital coefficients [nao][nao]
 extern XTB_API_ENTRY void XTB_API_CALL
 xtb_getOrbitalCoefficients(xtb_TEnvironment /* env */,
                            xtb_TResults /* res */,
-                           double* /* c */) XTB_API_SUFFIX__VERSION_1_0_0;
+                           double* /* c */) XTB_API_SUFFIX__VERSION_2_0_0;
 
 #ifdef __cplusplus
 }
