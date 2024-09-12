@@ -2452,10 +2452,10 @@ subroutine gfnff_topo_changes(env, neigh)
    ! check if hardcoded size of ffnb is still up to date
    if (size(set%ffnb, dim=1).ne.neigh%numnb) call env%error('The array set%ffnb has not been adjusted to changes in neigh%numnb.', source)
    ! only do something if there are changes stored in set%ffnb
-   if(set%ffnb(1,1).ne.0) then
+   if(set%ffnb(1,1).ne.-1) then
       d2=size(set%ffnb, dim=2)
       do i=1, d2
-         if (set%ffnb(1,i).eq.0) exit
+         if (set%ffnb(1,i).eq.-1) exit
          idx=set%ffnb(1,i)
          int_tmp = set%ffnb(2:41,i)
          neigh%nb(1:40,idx,1) = int_tmp
