@@ -2207,6 +2207,7 @@ subroutine adjust_NB_LnH_AnH(param, mol, topo, neigh)
   type(TNeigh), intent(inout) :: neigh ! main type for introducing PBC
   integer nb_tmp(neigh%numnb)
   integer :: i,iTr,iTrH,idx,inb,l,k,m,nnb,count_idx
+  real(wp), parameter :: qthr = -0.0281_wp ! charge threshold
 
   ! loop over all atoms
   do i=1, mol%n
@@ -2224,7 +2225,7 @@ subroutine adjust_NB_LnH_AnH(param, mol, topo, neigh)
           ! check if neighbor is H
           if (mol%at(inb).eq.1) then
             ! remove hydrogen as neighbor if charge is gt threshold
-            if (topo%qa(inb).gt.-0.0282) then
+            if (topo%qa(inb).gt.qthr) then
               ! setup copy of neighbor list for this An or Ln
               nb_tmp = neigh%nb(:,i,iTr)
               nb_tmp(neigh%numnb) = neigh%nb(neigh%numnb,i,iTr) - 1
@@ -2452,10 +2453,10 @@ subroutine gfnff_topo_changes(env, neigh)
    ! check if hardcoded size of ffnb is still up to date
    if (size(set%ffnb, dim=1).ne.neigh%numnb) call env%error('The array set%ffnb has not been adjusted to changes in neigh%numnb.', source)
    ! only do something if there are changes stored in set%ffnb
-   if(set%ffnb(1,1).ne.0) then
+   if(set%ffnb(1,1).ne.-1) then
       d2=size(set%ffnb, dim=2)
       do i=1, d2
-         if (set%ffnb(1,i).eq.0) exit
+         if (set%ffnb(1,i).eq.-1) exit
          idx=set%ffnb(1,i)
          int_tmp = set%ffnb(2:41,i)
          neigh%nb(1:40,idx,1) = int_tmp

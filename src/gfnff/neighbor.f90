@@ -115,10 +115,10 @@ contains
       !integer, intent(inout) :: nbf(20,mol%n)
       type(TGFFData), intent(in) :: param
       !real(wp) :: latThresh, maxNBr
-      real(wp) :: dist(mol%n,mol%n,self%numctr)
+      real(wp), allocatable :: dist(:,:,:)
       integer :: i,j,iTr
       
-      dist=0.0_wp
+      allocate(dist(mol%n,mol%n,self%numctr), source=0.0_wp)
       !$omp parallel do collapse(3) default(none) shared(dist,mol,self) &
       !$omp private(iTr,i,j)
       do iTr=1, self%numctr
@@ -404,14 +404,15 @@ contains
     subroutine fillnb(self,n,at,rad,dist,mchar,icase,f,f2,param)
       implicit none
       type(TGFFData), intent(in) :: param
-      class(TNeigh), intent(inout) :: self
+      type(TNeigh), intent(inout) :: self
       integer, intent(in) :: n,at(n)
       real(wp), intent(in) :: rad(n*(n+1)/2)
       real(wp), intent(in) :: dist(n,n,self%numctr)
       real(wp), intent(in) :: mchar(n),f,f2
       integer i,j,k,iTr,nn,icase,hc_crit,nnfi,nnfj,lin
-      integer tag(n,n,self%numctr)
+      integer, allocatable :: tag(:,:,:)
       real(wp) rco,fm
+      allocate(tag(n,n,self%numctr), source=0)
       if(icase.eq.1) then
         if(.not. allocated(self%nbf)) then
           allocate(self%nbf(self%numnb,n,self%numctr),source=0)
@@ -434,7 +435,6 @@ contains
         endif
       endif
 
-      tag = 0
       do iTr=1, self%numctr
         do i=1,n
           do j=1,n

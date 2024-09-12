@@ -519,7 +519,7 @@ module xtb_setparam
    !> GFN-FF manual setup of nb list via xcontrol
    !  allows a maximum of 164 atoms neighbors to be changed
    !  ffnb(42,i) stores the number of neighbors of atom i
-   integer :: ffnb(42,164) = 0
+   integer :: ffnb(42,164) = -1
    end type TSet
 
    type(TSet) :: set

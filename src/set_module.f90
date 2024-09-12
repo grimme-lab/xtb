@@ -1508,16 +1508,18 @@ subroutine set_ffnb(env,key,val)
    character(len=*),intent(in) :: val
    integer :: i,j,k,l
    integer :: i_start,i_end,i_ffnb
+   logical :: nonb
 
    k=1 ! start at 1 since first entry of ffnb is the atom index that the following NBs belong to
    i_start=1
    i_end=1
    i_ffnb=0
+   nonb = .false. ! expect that the atom should have neighbors
    do i=1, len(val)
       ! get next empty row in ffnb and read atom index into first entry
       if (val(i:i).eq.":") then
          do j=1,size(set%ffnb, dim=2)
-           if (set%ffnb(1,j).eq.0 .and. i_ffnb.eq.0) then
+           if (set%ffnb(1,j).eq.-1 .and. i_ffnb.eq.0) then
               i_ffnb = j ! index of next empty row
               l=i-1
               ! we take care of ":" and "," and trust read() to handle whitespaces
@@ -1531,17 +1533,30 @@ subroutine set_ffnb(env,key,val)
       if (val(i:i).eq.",") then
          k = k + 1
          i_end=i-1
-             read(val(i_start:i_end), *) set%ffnb(k,i_ffnb)
-             i_start=i+1
+         read(val(i_start:i_end), *) set%ffnb(k,i_ffnb)
+         ! if the first neighbor index (k=2) is zero the atom (k=1) has no neighbors
+         if (set%ffnb(k,i_ffnb) == 0 .and. k == 2) then
+           nonb = .true.
+         endif
+         i_start=i+1
       endif
       ! read the last neighbor into ffnb
       if (i.eq.len(val)) then
          k = k + 1
          read(val(i_start:), *) set%ffnb(k,i_ffnb)
+         ! if the first neighbor index (k=2) is zero the atom (k=1) has no neighbors
+         if (set%ffnb(k,i_ffnb) == 0 .and. k == 2) then
+           nonb = .true.
+         endif
+         ! set rest of ffnb to 0
+         set%ffnb(k+1:41, i_ffnb) = 0
       endif
    enddo
-   set%ffnb(42,i_ffnb) = k - 1 ! number of neighbors of atom set%ffnb(1,i_ffnb) 
-
+   if (nonb) then
+     set%ffnb(2:,i_ffnb) = 0
+   else
+     set%ffnb(42,i_ffnb) = k - 1 ! number of neighbors of atom set%ffnb(1,i_ffnb) 
+   endif
 
 end subroutine set_ffnb
 
