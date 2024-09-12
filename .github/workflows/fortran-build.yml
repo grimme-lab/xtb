@@ -271,7 +271,7 @@ jobs:
                This is an automated distribution of the latest `xtb` version. This version is only minimally tested and may be unstable or even crash. Use with caution!
                https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
          - name: Download Artifacts
-           uses: actions/download-artifact@v2
+           uses: actions/download-artifact@v4
            with:
             path: ${{ github.workspace }} # This will download all files
          - name: Create SHA256 checksum
