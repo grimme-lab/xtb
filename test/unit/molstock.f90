@@ -57,7 +57,7 @@ contains
       case ('mgh2'); call MgH2(mol)
       case ('x06_b'); call x06_benzene(mol)
       case ('mcv15'); call mcv15(mol)
-      case ('Th_1519394'); call Th_1519394(mol)
+      case ('Th_15'); call Th_1519394(mol)
       case ('Ce_0a7745'); call Ce_0a7745(mol)
       end select
 

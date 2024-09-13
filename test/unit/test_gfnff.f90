@@ -705,7 +705,7 @@ subroutine test_gfnff_pbc(error)
     logical, parameter :: pbc(3) = [.true., .true., .true. ]
     ! structures from X23, mcVOL22, and GFN-FF for Ln/An paper
     character(len=*), parameter :: pbc_strucs(3) = [&
-       & "x06_b", "mcv15", "Th_1519394"]
+       & "x06_b", "mcv15", "Th_15"]
     !> references for original GFN-FF
     real(wp), parameter :: ref_energies(3) = &
         & [-9.522300429916_wp, -11.059826732607_wp, -46.265672914_wp ]
