@@ -41,6 +41,27 @@ meson setup build --buildtype release --optimization 2 -Dfortran_link_args="-qop
 ninja -C build test
 ```
 
+> [!IMPORTANT]
+> Compilation with `meson` on macOS differs from the protocol for Linux-based systems:
+
+<details>
+  <summary><b>Setting up meson on macOS</b></summary>
+
+#### Compiling with meson on macOS
+
+1. **Use Homebrew for Package Management**: Install dependencies like `gcc`, `gfortran`, and `openblas` using Homebrew.
+[Further information](https://brew.sh/) on how to setup `brew`.
+Example:
+   ```bash
+   brew install gcc gfortran openblas
+   ```
+2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS. Obviously, the paths to the libraries might differ on your system.
+   ```bash
+   LDFLAGS="-L/opt/homebrew/opt/openblas/lib" CPPFLAGS="-I/opt/homebrew/opt/openblas/include" FC=gfortran-14 CC=gcc-14 meson setup _build --buildtype release -Dlapack=openblas
+   ```
+</details>
+<br>
+
 Make sure the testsuite is running without errors.
 
 To install the `xtb` binaries to `/usr/local` use (might require `sudo`)
