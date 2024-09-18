@@ -42,7 +42,7 @@ ninja -C build test
 ```
 
 > [!IMPORTANT]
-> Compilation with `meson` on macOS differs from the protocol for Linux-based systems:
+> Compilation with `meson` on macOS differs slightly from the protocol for Linux-based systems. Different BLAS libraries can lead to deviating results in rare cases – please stick to the following instructions.
 
 <details>
   <summary><b>Setting up meson on macOS</b></summary>
