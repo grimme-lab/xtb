@@ -43,7 +43,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       type(TMolecule), intent(in) :: mol
       type(TNeigh), intent(inout) :: neigh ! contains nb, nbf and nbm
       logical, intent(in) :: makeneighbor, nb_call
-      integer at(natoms),natoms
+      integer, intent(in) :: natoms
+      integer at(natoms)
       integer hyb (natoms)
       integer itag(natoms)
       real*8  rab   (natoms*(natoms+1)/2)
@@ -58,9 +59,9 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       real*8 ,allocatable :: cn(:),rtmp(:)
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm
       integer ai,aj,nn,im,ncm,l,no, iTr, iTr2, numnbf, numnbm, numnb, idx, idxdum, idxdum2, numctr
-      real*8 r,pi,a1,f,f1,phi,f2,rco,fat(86)
+      real*8 r,pi,a1,f,f1,phi,f2,rco,fat(103)
       data pi/3.1415926535897932384626433832795029d0/
-      data fat   / 86 * 1.0d0 /
+      data fat   / 103 * 1.0d0 /
 
 !     special hacks
       fat( 1)=1.02
@@ -180,7 +181,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
             elseif(nm.eq.1)then  ! distinguish M-CR2-R i.e. not an eta coord.
               ncm=0
               do iTr=1, numctr
-                do k=1,numnbf  !
+                do k=1,neigh%nbf(neigh%numnb,i,iTr)  !
                   if(neigh%nbf(k,i,iTr).ne.im)then ! all neighbors that are not the metal im
                     kk=neigh%nbf(k,i,iTr)
                     do l=1,sum(neigh%nbf(neigh%numnb,kk,:))

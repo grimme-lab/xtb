@@ -130,6 +130,7 @@ subroutine weight_references_d4(dispm, nat, atoms, wf, cn, gwvec, gwdcn)
          norm = norm + gw
          dnorm = dnorm + 2*wf*(dispm%cn(iref, ati) - cn(iat)) * gw
       end do
+      if (norm.eq.0.0_wp) cycle
       norm = 1.0_wp / norm
       do iref = 1, dispm%nref(ati)
          expw = weight_cn(wf, cn(iat), dispm%cn(iref, ati))
