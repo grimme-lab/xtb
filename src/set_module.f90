@@ -781,7 +781,10 @@ subroutine rdcontrol(fname,env,copy_file)
          case('cube'     ); call rdblock(env,set_cube,    line,id,copy,err,ncount)
          case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
          case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
-         case('ffnb'     ); call rdblock(env,set_ffnb,    line,id,copy,err,ncount)
+         case('ffnb'     )
+            ! dynamic allocation of ffnb array requires reading fname before calling rdblock
+            call alloc_ffnb(env, fname)
+            call rdblock(env,set_ffnb,    line,id,copy,err,ncount)
          case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
          case('oniom'    ); call rdblock(env,set_oniom,   line,id,copy,err,ncount)
          case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
@@ -1499,6 +1502,51 @@ subroutine set_gfn(env,key,val)
       set5 = .false.
    end select
 end subroutine set_gfn
+
+! determine number of GFN-FF neighbor list changes in control file
+! and allocate set%ffnb accordingly
+subroutine alloc_ffnb(env, fname)
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in)  :: fname
+   character(len=*), parameter :: source = 'alloc_ffnb'
+   character(len=:),allocatable :: line
+   integer :: copy, err
+   integer :: id, ie
+   logical :: is_ffnb_block
+   ! character,private,parameter :: flag = '$' ! is defined for this module
+   integer :: n_changes ! number of atoms that neigh%nb should be adjusted for
+
+   copy=-1 ! do not copy the control file
+   n_changes = 0
+   is_ffnb_block = .false.
+
+   call open_file(id,fname,'r')
+   if (id.eq.-1) then
+      call env%warning("could not find '"//fname//"'", source)
+      return
+   endif
+   ! read first line
+   call mirror_line(id,copy,line,err)
+   ! read control file and check
+   count_n:do
+      ! check if the $ffnb block has been reached
+      if (line(1:5).eq."$ffnb".or.is_ffnb_block) then
+         is_ffnb_block = .true.
+         call mirror_line(id,copy,line,err)
+         if (is_iostat_end(err)) exit count_n     ! check if EOF !
+         if (index(line,flag).ne.0) exit count_n  ! check if new flag !
+         ie = index(line,equal)              ! find the equal sign !
+         if (ie.eq.0) cycle                  ! cycle if there is no equal sign
+         n_changes = n_changes + 1
+      else ! otherwise read the next line
+         call mirror_line(id,copy,line,err)
+         if (is_iostat_end(err)) exit count_n     ! check if EOF !
+      end if
+   end do count_n
+   if (.not.allocated(set%ffnb)) allocate(set%ffnb(42,n_changes), source=-1)
+
+end subroutine alloc_ffnb
+
 
 subroutine set_ffnb(env,key,val)
    implicit none
