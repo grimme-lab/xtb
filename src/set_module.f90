@@ -1510,15 +1510,11 @@ subroutine alloc_ffnb(env, fname)
    character(len=*),intent(in)  :: fname
    character(len=*), parameter :: source = 'alloc_ffnb'
    character(len=:),allocatable :: line
-   integer :: copy, err
-   integer :: id, ie
-   logical :: is_ffnb_block
-   ! character,private,parameter :: flag = '$' ! is defined for this module
-   integer :: n_changes ! number of atoms that neigh%nb should be adjusted for
 
-   copy=-1 ! do not copy the control file
-   n_changes = 0
-   is_ffnb_block = .false.
+   integer :: id, ie, err
+   logical :: is_ffnb_block = .false.
+   integer :: copy = -1
+   integer :: n_changes = 0 ! number of atoms that neigh%nb should be adjusted for
 
    call open_file(id,fname,'r')
    if (id.eq.-1) then
