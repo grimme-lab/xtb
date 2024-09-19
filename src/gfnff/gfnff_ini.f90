@@ -2450,10 +2450,12 @@ subroutine gfnff_topo_changes(env, neigh)
    integer :: int_tmp(40)
    integer :: i,j,idx,iTr,d1,d2,numnb,nnb
 
-   ! check if hardcoded size of ffnb is still up to date
-   if (size(set%ffnb, dim=1).ne.neigh%numnb) call env%error('The array set%ffnb has not been adjusted to changes in neigh%numnb.', source)
    ! only do something if there are changes stored in set%ffnb
-   if(set%ffnb(1,1).ne.-1) then
+   if(allocated(set%ffnb)) then
+      ! check if hardcoded size of ffnb is still up to date
+      if (size(set%ffnb, dim=1).ne.neigh%numnb) call env%error('The array set%ffnb has not been adjusted to changes in neigh%numnb.', source)
+      ! there should not be any "-1" in set%ffnb anymore, if it was set up correctly
+      if (any(set%ffnb.eq.-1)) call env%error('GFN-FF neighbor list could not be adjusted!', source)
       d2=size(set%ffnb, dim=2)
       do i=1, d2
          if (set%ffnb(1,i).eq.-1) exit
