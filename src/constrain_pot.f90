@@ -187,6 +187,7 @@ subroutine constrain_dist(fix,n,at,xyz,g,e)
       mm = 2*m-1
       i = fix%atoms(mm)
       j = fix%atoms(mm+1)
+      if (i == j) cycle ! workaround for ifx 2024.1.0
       r0= fix%val(m)
       rij=xyz(:,j)-xyz(:,i)
       r = norm2(rij)
