@@ -471,16 +471,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
          call env%error("Calculation of model hessian failed", source)
          return
       end if
-      
-      ! blow up Hessian !
-      k=0
-      do i=1,nat3
-         do j=1,i
-            k=k+1
-            h(i,j)=fc(k)
-            h(j,i)=fc(k)
-         enddo
-      enddo
 
       thr=1.d-11
    
@@ -502,12 +492,6 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       thr=1.d-10
 
    endif
-  
-   if (debug(2) .and. nat3 <= 30) then !######## DEBUG ########
-      write(env%unit,'(/,''Hessian matrix'')')
-      write(hessfmt,'(a,i0,a)') '(', nat3, 'F10.6)'
-      write(env%unit,hessfmt) (h(:,i), i=1,nat3)
-   endif
 
    ! project out translational and rotational modes !
    if(modef.eq.0)then
@@ -519,6 +503,22 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       endif
    else
       call trproj(molopt%n,nat3,molopt%xyz,fc,.false.,modef,pmode,modef) ! NMF
+   endif
+
+   ! blow up Hessian !
+   k=0
+   do i=1,nat3
+      do j=1,i
+         k=k+1
+         h(i,j)=fc(k)
+         h(j,i)=fc(k)
+      enddo
+   enddo
+
+   if (debug(2) .and. nat3 <= 30) then !######## DEBUG ########
+      write(env%unit,'(/,''Hessian matrix'')')
+      write(hessfmt,'(a,i0,a)') '(', nat3, 'F10.6)'
+      write(env%unit,hessfmt) (h(:,i), i=1,nat3)
    endif
    
    if (profile) call timer%measure(2) ! stop timer for model Hessian
