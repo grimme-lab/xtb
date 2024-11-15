@@ -195,6 +195,10 @@ for GFN-FF:
 - S. Spicher and S. Grimme, *Angew. Chem. Int. Ed.*, **2020**, 59, 15665–15673
   DOI: [10.1002/anie.202004239](https://doi.org/10.1002/anie.202004239)
 
+for PTB:
+- S. Grimme, M. Müller, A. Hansen, *J. Chem. Phys.* **2023**, 158, 124111.
+  DOI: [10.1063/5.0137838](https://doi.org/10.1063/5.0137838)
+
 for GBSA and ALPB implicit solvation:
 - S. Ehlert, M. Stahn, S. Spicher, S. Grimme,
   *J. Chem. Theory Comput.*, **2021**, 17, 4250-4261
