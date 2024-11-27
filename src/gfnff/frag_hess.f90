@@ -29,16 +29,10 @@ module xtb_gfnff_fraghess
         integer, intent(in)  :: start
         integer, intent(in)  :: goal
         integer, intent(in)  :: numnb
-        integer, intent(in)  :: neighbours(20, nspin)
+        integer, intent(in)  :: neighbours(numnb, nspin, 1)
         real(wp), intent(in) :: input_distances(nspin, nspin)
         logical, intent(out) :: visited(nspin)
         integer, intent(out) :: precessor(nspin)
-        integer  :: current
-        integer  :: neighbour
-        integer  :: i_neighbours
-        integer  :: bonds
-        real(wp) :: alt_dist
-        real(wp) :: distance(nspin)
       end function shortest_distance
       subroutine eigsort4(lab,u,ew)
          use xtb_mctc_accuracy, only : sp
