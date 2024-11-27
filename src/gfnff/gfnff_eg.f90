@@ -1068,7 +1068,7 @@ subroutine egbond_hb(i,iat,jat,iTr,rab,rij,drij,drijdcn,hb_cn,hb_dcn,n,at,xyz,e,
            hbH=jat
            hbA=iat
          else
-           write(*,'(10x,"No H-atom found in this bond ",i0,1x,i0)'), iat,jat
+           write(*,'(10x,"No H-atom found in this bond ",i0,1x,i0)') iat,jat
            return
          end if
 

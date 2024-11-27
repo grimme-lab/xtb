@@ -104,16 +104,16 @@ subroutine qpothess2(fix,n,at,xyz,h)
    ! calculate hessian
    do i = 1, fix%n !loop over all atoms
       ii = (fix%atoms(i)-1)*3
-      do k = 1, 3  !loop diagonal elements (xyz components)
-         do j = 1, fix%n !inner loop for sum over all atoms
-            if (i.ne.j) then
-               rij = xyz(:,fix%atoms(j))-xyz(:,fix%atoms(i))
-               r  = norm2(rij)
-               r2 = r*r
-               r3 = r2*r
-               ij = lin(i-1,j-1)+1
-               r0 = fix%val(ij)
-               dr = r-r0
+      do j = 1, fix%n !inner loop for sum over all atoms
+         if (i.ne.j) then
+            rij = xyz(:,fix%atoms(j))-xyz(:,fix%atoms(i))
+            r  = norm2(rij)
+            r2 = r*r
+            r3 = r2*r
+            ij = lin(i-1,j-1)+1
+            r0 = fix%val(ij)
+            dr = r-r0
+            do k = 1, 3  !loop diagonal elements (xyz components)
                dx = xyz(k,fix%atoms(i))-xyz(k,fix%atoms(j))
                dx2 = dx*dx
                iik = lin(ii+k,ii+k)
@@ -123,32 +123,33 @@ subroutine qpothess2(fix,n,at,xyz,h)
                   iikl = lin(ii+k,ii+l)
                   h(iikl) = h(iikl) + 2.0_wp*fix%fc*r0*dx*dy/r3
                enddo !end loop same-atom block-diagonal elements
-            endif
-         enddo !end inner loop for sum over all atoms
-         do j = i+1, fix%n !loop over the rest (mixed atoms)
-            rij = xyz(:,fix%atoms(j))-xyz(:,fix%atoms(i))
-            r  = norm2(rij)
-            r2 = r*r
-            r3 = r2*r
-            ij = lin(i-1,j-1)+1
-            r0 = fix%val(ij)
-            dr = r-r0
-            jj = (fix%atoms(j)-1)*3
+            enddo !end loop diagonal elements (xyz components)
+         endif
+      enddo !end inner loop for sum over all atoms
+      do j = i+1, fix%n !loop over the rest (mixed atoms)
+         rij = xyz(:,fix%atoms(j))-xyz(:,fix%atoms(i))
+         r  = norm2(rij)
+         r2 = r*r
+         r3 = r2*r
+         ij = lin(i-1,j-1)+1
+         r0 = fix%val(ij)
+         dr = r-r0
+         jj = (fix%atoms(j)-1)*3
+         do k = 1, 3  !loop diagonal elements (xyz components)
+            dx = xyz(k,fix%atoms(i))-xyz(k,fix%atoms(j))
             do m = 1, 3
                if (k.eq.m) then !same component case
-                  dx = xyz(k,fix%atoms(i))-xyz(k,fix%atoms(j))
                   dx2 = dx*dx
                   ijk = lin(ii+k,jj+k)
                   h(ijk) = h(ijk) - 2.0_wp*fix%fc*(1.0_wp+dx2/r2-dx2*dr/r3-r0/r)
                else !different component case
-                  dx = xyz(k,fix%atoms(i))-xyz(k,fix%atoms(j))
                   dy = xyz(m,fix%atoms(i))-xyz(m,fix%atoms(j))
                   ikjm = lin(ii+k,jj+m)
                   h(ikjm) = h(ikjm) - 2.0_wp*fix%fc*r0*dx*dy/r3
                endif
             enddo
-         enddo
-      enddo !end loop diagonal elements (xyz components)
+         enddo !end loop diagonal elements (xyz components)
+       enddo
    enddo !end loop atoms
 
 contains
