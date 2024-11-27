@@ -40,14 +40,12 @@ module xtb_gfnff_fraghess
         real(wp) :: alt_dist
         real(wp) :: distance(nspin)
       end function shortest_distance
-      subroutine eigsort4(lab,ew,u)
+      subroutine eigsort4(lab,u,ew)
          use xtb_mctc_accuracy, only : sp
          implicit none
-         integer  :: ii,k, j, i
-         real(sp) :: pp, hilf
-         integer  :: lab
-         real(sp) :: ew(lab)
-         real(sp) :: u(lab,lab)
+         integer,  intent(in)    :: lab
+         real(sp), intent(inout) :: u(lab,lab)
+         real(sp), intent(inout) :: ew(lab)
       end subroutine eigsort4
     end interface
 
@@ -486,9 +484,9 @@ subroutine eigsort4(lab,u,ew)
    integer  :: ii,k, j, i
    real(sp) :: pp, hilf
 
-   integer, intent(in)    :: lab
-   real(sp), intent(inout) :: ew(lab)
+   integer,  intent(in)    :: lab
    real(sp), intent(inout) :: u(lab,lab)
+   real(sp), intent(inout) :: ew(lab)
 
    do ii = 2, lab
       i = ii - 1
