@@ -104,9 +104,9 @@ subroutine qpothess2(fix,n,at,xyz,h)
    ! calculate hessian
    do i = 1, fix%n !loop over all atoms
       ii = (fix%atoms(i)-1)*3
-      do k = 1, 3  !loop diagonal elements (xyz components)
-         do j = 1, fix%n !inner loop for sum over all atoms
-            if (i.ne.j) then
+      do j = 1, fix%n !inner loop for sum over all atoms
+         if (i.ne.j) then
+            do k = 1, 3  !loop diagonal elements (xyz components)
                rij = xyz(:,fix%atoms(j))-xyz(:,fix%atoms(i))
                r  = norm2(rij)
                r2 = r*r
@@ -123,9 +123,11 @@ subroutine qpothess2(fix,n,at,xyz,h)
                   iikl = lin(ii+k,ii+l)
                   h(iikl) = h(iikl) + 2.0_wp*fix%fc*r0*dx*dy/r3
                enddo !end loop same-atom block-diagonal elements
-            endif
-         enddo !end inner loop for sum over all atoms
-         do j = i+1, fix%n !loop over the rest (mixed atoms)
+            enddo !end loop diagonal elements (xyz components)
+         endif
+      enddo !end inner loop for sum over all atoms
+      do j = i+1, fix%n !loop over the rest (mixed atoms)
+         do k = 1, 3  !loop diagonal elements (xyz components)
             rij = xyz(:,fix%atoms(j))-xyz(:,fix%atoms(i))
             r  = norm2(rij)
             r2 = r*r
@@ -147,8 +149,8 @@ subroutine qpothess2(fix,n,at,xyz,h)
                   h(ikjm) = h(ikjm) - 2.0_wp*fix%fc*r0*dx*dy/r3
                endif
             enddo
-         enddo
-      enddo !end loop diagonal elements (xyz components)
+         enddo !end loop diagonal elements (xyz components)
+       enddo
    enddo !end loop atoms
 
 contains
