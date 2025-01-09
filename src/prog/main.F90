@@ -544,7 +544,7 @@ contains
          select case (set%runtyp)
          case default
             call env%terminate('This is an internal error, please define your runtypes!')
-         case (p_run_scc, p_run_grad, p_run_opt, p_run_hess, p_run_ohess, p_run_bhess, &
+         case (p_run_prescc,p_run_scc, p_run_grad, p_run_opt, p_run_hess, p_run_ohess, p_run_bhess, &
                p_run_md, p_run_omd, p_run_path, p_run_screen, &
                p_run_modef, p_run_mdopt, p_run_metaopt)
             if (set%mode_extrun == p_ext_gfnff) then
@@ -1233,44 +1233,7 @@ contains
 
       ! ------------------------------------------------------------------------
       !  make some post processing afterward, show some timings and stuff
-      write (env%unit, '(a)')
-      write (env%unit, '(72("-"))')
-      call stop_timing_run
-      call stop_timing(1)
-      call prdate('E')
-      write (env%unit, '(72("-"))')
-      call prtiming(1, 'total')
-      call prtiming(2, 'SCF')
-      if ((set%runtyp == p_run_opt) .or. (set%runtyp == p_run_ohess) .or. &
-         &   (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_metaopt)) then
-         call prtiming(3, 'ANC optimizer')
-      end if
-      if (set%runtyp == p_run_path) then
-         call prtiming(4, 'path finder')
-      end if
-      if (((set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess))) then
-         if (set%mode_extrun /= p_ext_turbomole) then
-            call prtiming(5, 'analytical hessian')
-         else
-            call prtiming(5, 'numerical hessian')
-         end if
-      end if
-      if ((set%runtyp == p_run_md) .or. (set%runtyp == p_run_omd) .or. &
-          (set%runtyp == p_run_metaopt)) then
-         call prtiming(6, 'MD')
-      end if
-      if (set%runtyp == p_run_screen) then
-         call prtiming(8, 'screen')
-      end if
-      if (set%runtyp == p_run_modef) then
-         call prtiming(9, 'mode following')
-      end if
-      if (set%runtyp == p_run_mdopt) then
-         call prtiming(10, 'MD opt.')
-      end if
-
-      write (env%unit, '(a)')
-      call terminate(0)
+      call finalize_xtb(env) 
 
    end subroutine xtbMain
 
@@ -2037,5 +2000,53 @@ contains
       call env%error("PTB not available without 'tblite'. Compiled without support for 'tblite' library.")
       call env%error("Please recompile without '-Dtblite=disabled' option or change meson setup.")
    end subroutine ptb_feature_not_implemented
+
+   !>  make some post processing afterward, show some timings and stuff
+   subroutine finalize_xtb(env)
+    
+      !> Calculation environment
+      type(TEnvironment), intent(in) :: env
+
+      write (env%unit, '(a)')
+      write (env%unit, '(72("-"))')
+      call stop_timing_run
+      call stop_timing(1)
+      call prdate('E')
+      write (env%unit, '(72("-"))')
+      call prtiming(1, 'total')
+      if (.not. set%runtyp == p_run_prescc) &
+         call prtiming(2, 'SCF')
+      if ((set%runtyp == p_run_opt) .or. (set%runtyp == p_run_ohess) .or. &
+         &   (set%runtyp == p_run_omd) .or. (set%runtyp == p_run_metaopt)) then
+         call prtiming(3, 'ANC optimizer')
+      end if
+      if (set%runtyp == p_run_path) then
+         call prtiming(4, 'path finder')
+      end if
+      if (((set%runtyp == p_run_hess) .or. (set%runtyp == p_run_ohess) .or. (set%runtyp == p_run_bhess))) then
+         if (set%mode_extrun /= p_ext_turbomole) then
+            call prtiming(5, 'analytical hessian')
+         else
+            call prtiming(5, 'numerical hessian')
+         end if
+      end if
+      if ((set%runtyp == p_run_md) .or. (set%runtyp == p_run_omd) .or. &
+          (set%runtyp == p_run_metaopt)) then
+         call prtiming(6, 'MD')
+      end if
+      if (set%runtyp == p_run_screen) then
+         call prtiming(8, 'screen')
+      end if
+      if (set%runtyp == p_run_modef) then
+         call prtiming(9, 'mode following')
+      end if
+      if (set%runtyp == p_run_mdopt) then
+         call prtiming(10, 'MD opt.')
+      end if
+
+      write (env%unit, '(a)')
+      call terminate(0)
+
+   end subroutine finalize_xtb
 
 end module xtb_prog_main

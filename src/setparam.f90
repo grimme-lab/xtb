@@ -188,6 +188,7 @@ module xtb_setparam
    integer, parameter :: p_ext_ptb       = 17
    integer, parameter :: p_ext_mcgfnff   = 18
 
+   integer, parameter :: p_run_prescc  =   1
    integer, parameter :: p_run_scc    =   2
    integer, parameter :: p_run_grad   =   3
    integer, parameter :: p_run_opt    =   4
