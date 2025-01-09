@@ -94,7 +94,7 @@ module xtb_prog_main
    use xtb_oniom, only: oniom_input, TOniomCalculator, calculateCharge
    use xtb_vertical, only: vfukui
    use xtb_tblite_calculator, only: TTBLiteCalculator, TTBLiteInput, &
-         & newTBLiteWavefunction, get_ceh
+         & newTBLiteWavefunction, get_ceh, num_grad_chrg
    use xtb_ptb_calculator, only: TPTBCalculator
    use xtb_solv_cpx, only: TCpcmx
    use xtb_dipro, only: get_jab, jab_input
@@ -629,8 +629,18 @@ contains
       end select
 
       ! get CEH charges !
-      if (tblite%ceh) &
-         call get_ceh(env,mol,tblite)
+      if (allocated(tblite%ceh)) then
+         ! if numercal charges are requested !
+         if (tblite%ceh%grad) then
+            call num_grad_chrg(env,mol,tblite)
+         ! only charges !
+         else
+            call get_ceh(env,mol,tblite)
+         endif 
+
+         ! stop calculation !
+         call finalize_xtb(env)
+      end if
 
       ! ------------------------------------------------------------------------
       !> printout a header for the exttyp
@@ -1434,7 +1444,25 @@ contains
          
          case('--ceh')
             if (get_xtb_feature('tblite')) then
-               tblite%ceh = .true.
+               allocate(tblite%ceh)
+               call set_runtyp('prescc')
+               ! check if numerical gradients should be calculated !
+               call args%nextArg(sec)
+               if (allocated(sec)) then
+                  if (sec == 'grad') then
+                     tblite%ceh%grad = .true.
+                     ! check if step size is provided !
+                     call args%nextArg(sec)
+                     if (allocated(sec)) then
+                        if (getValue(env, sec, ddum)) then
+                           tblite%ceh%step = ddum
+                        end if
+                     end if
+
+                  else
+                     call env%warning("Unknown CEH option '"//sec//"' provided", source)
+                  end if
+               end if 
             else
                call env%error("CEH charges are only available through tblite library", source)
                return

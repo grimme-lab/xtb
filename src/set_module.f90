@@ -1199,6 +1199,7 @@ subroutine set_chrg(env,val)
 
 end subroutine set_chrg
 
+
 subroutine set_spin(env,val)
    implicit none
    character(len=*), parameter :: source = 'set_spin'
