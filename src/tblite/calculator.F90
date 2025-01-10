@@ -490,13 +490,13 @@ subroutine num_grad_chrg(env, mol, tblite)
    enddo
    !$omp end parallel do
 
-   ! write the numerical gradient to the ceh.grad file
-   call open_file(ich, 'ceh.grad', 'w')
+   ! write the numerical gradient to the ceh.charges.numgrad file
+   call open_file(ich, 'ceh.charges.numgrad', 'w')
    do i = 1, 3 ! cartesian axes-wise 
       write(ich, '(3f12.6)') numgrad(i,:,:)
    enddo
    call close_file(ich)
-   write(env%unit, '(1x, a)') "CEH gradients written to ceh.grad"
+   write(env%unit, '(1x, a)') "CEH gradients written to ceh.charges.numgrad"
 
 
  end subroutine num_grad_chrg
