@@ -492,12 +492,15 @@ subroutine num_grad_chrg(env, mol, tblite)
 
    ! write the numerical gradient to the ceh.charges.numgrad file
    call open_file(ich, 'ceh.charges.numgrad', 'w')
-   do i = 1, 3 ! cartesian axes-wise 
-      write(ich, '(3f12.6)') numgrad(i,:,:)
+   do i = 1, mol%n
+      do j = 1, mol%n
+         do k = 1, 3
+            write(ich, '(3f12.6)') numgrad(k,j,i)
+         enddo
+      enddo
    enddo
    call close_file(ich)
    write(env%unit, '(1x, a)') "CEH gradients written to ceh.charges.numgrad"
-
 
  end subroutine num_grad_chrg
  
