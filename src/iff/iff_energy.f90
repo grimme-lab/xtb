@@ -95,6 +95,9 @@ contains
       logical :: linear, ATM, ijh, ijx
       character(len=4) :: pgroup
 
+      !> threshold
+      real(wp), parameter :: rClose = 1e-12_wp
+
       !> Initial stuff
       metal = 1
       metal(1:2) = 0
@@ -275,7 +278,8 @@ contains
             r2 = (AL1(1, i) - AL2(1, j))**2&
               &+ (AL1(2, i) - AL2(2, j))**2&
               &+ (AL1(3, i) - AL2(3, j))**2
-            r = dble(sqrt(real(r2)))
+            if (r2 .lt. rClose) cycle
+            r = sqrt(r2)
             esl = esl + AL1(4, i)*AL2(4, j)/(r + r0tmp(jat, iat)/r)
          end do
 !        LP atom corrections
@@ -283,7 +287,8 @@ contains
             r2 = (A2(1, j) - AL1(1, i))**2&
               &+ (A2(2, j) - AL1(2, i))**2&
               &+ (A2(3, j) - AL1(3, i))**2
-            r = dble(sqrt(real(r2)))
+            if (r2 .lt. rClose) cycle
+            r = sqrt(r2)
             esl = esl + AL1(4, i)*q2(j)/(r + r0tmp(j, iat)/r)
          end do
       end do
@@ -294,7 +299,8 @@ contains
             r2 = (A1(1, j) - AL2(1, i))**2&
               &+ (A1(2, j) - AL2(2, i))**2&
               &+ (A1(3, j) - AL2(3, i))**2
-            r = dble(sqrt(real(r2)))
+            if (r2 .lt. rClose) cycle
+            r = sqrt(r2)
             esl = esl + AL2(4, i)*q1(j)/(r + r0tmp(iat, j)/r)
          end do
       end do
