@@ -31,6 +31,10 @@ jobs:
             echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
             echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
             echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
+         - name: Install OpenBLAS (ubuntu-latest)
+           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+           run: |
+            sudo apt-get install libopenblas-dev
          - name: Install meson
            run: pip install meson ninja cmake
          - name: Configure build
