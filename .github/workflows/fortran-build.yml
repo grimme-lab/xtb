@@ -60,6 +60,7 @@ jobs:
             os: [ubuntu-latest, ubuntu-24.04-arm]
             fc: [gfortran-14]
             cc: [gcc-14]
+            build: [Release, Debug]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -70,7 +71,7 @@ jobs:
          - name: Install CMake
            run: pip install ninja cmake
          - name: Configure build
-           run: cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=Release
+           run: cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }}
            env:
             FC: ${{ matrix.fc }}
             CC: ${{ matrix.cc }}
