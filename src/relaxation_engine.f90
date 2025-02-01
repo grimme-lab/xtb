@@ -546,7 +546,7 @@ subroutine l_ancopt &
    ! get memory, allocate single and double precision arrays separately
    nat3 = 3*mol%n
    allocate( pmode(nat3,1), hessp(nat3*(nat3+1)/2), trafo(nat3,nat3), &
-      &      hdiag(nat3), xyz0(3,mol%n), xyzopt(3,mol%n), &
+      &      xyz0(3,mol%n), xyzopt(3,mol%n), &
       &      source = 0.0_wp )
    allocate( hess(nat3,nat3), eig(nat3), source = 0.0_sp )
    ! set defaults
@@ -579,6 +579,8 @@ subroutine l_ancopt &
          if(nvar.le.0) nvar=1
       endif
    end if
+
+   allocate( hdiag(nvar), source = 0.0_wp )
 
    ! print a nice summary with all settings and thresholds of ANCopt
    if(pr)then
