@@ -213,6 +213,7 @@ contains
          z1(i) = val_e(at1(i))
          k = 0
          do j = 1, n1
+            if (j .eq. i) cycle
             rr = (xyz1(1, j) - xyz1(1, i))**2 + (xyz1(2, j) - xyz1(2, i))**2 +&
               &(xyz1(3, j) - xyz1(3, i))**2
             r0 = sqrt(rr)
@@ -221,7 +222,7 @@ contains
             aj = alp0(j)**(1./3)
             rrr = 1.13*2.6*(ai + aj)*0.5/r0
             tmp = 1.0d0/(1.d0 + 6.d0*rrr**14)
-            if (j .ne. i .and. tmp .gt. 0.90 .and. r0 .lt. thr) then
+            if (tmp .gt. 0.90 .and. r0 .lt. thr) then
                k = k + 1
                neigh(k, i) = j
             end if
@@ -235,6 +236,7 @@ contains
          z2(i) = val_e(at2(i))
          k = 0
          do j = 1, n2
+            if (j .eq. i) cycle
             rr = (xyz2(1, j) - xyz2(1, i))**2 + (xyz2(2, j) - xyz2(2, i))**2 +&
               &(xyz2(3, j) - xyz2(3, i))**2
             r0 = sqrt(rr)
@@ -243,7 +245,7 @@ contains
             aj = alp0(j + n1)**(1./3)
             rrr = 1.13*2.6*(ai + aj)*0.5/r0
             tmp = 1.0d0/(1.d0 + 6.d0*rrr**14)
-            if (j .ne. i .and. tmp .gt. 0.90 .and. r0 .lt. thr) then
+            if (tmp .gt. 0.90 .and. r0 .lt. thr) then
                k = k + 1
                neigh(k, i + n1) = j
             end if
