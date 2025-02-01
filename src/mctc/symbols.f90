@@ -246,7 +246,7 @@ subroutine getIdentitySymbol(nId, identity, symbol)
    integer, intent(out) :: nId
 
    !> Element symbols
-   character(len=symbolLength), intent(in) :: symbol(:)
+   character(len=*), intent(in) :: symbol(:)
 
    !> Chemical identity
    integer, intent(out) :: identity(:)
