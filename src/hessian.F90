@@ -88,6 +88,7 @@ subroutine numhess( &
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
    integer  :: nread,kend,lowmode
    integer  :: nonfrozh,izero(6)
+   integer  :: fixmode
    integer, allocatable :: nb(:,:)
    integer, allocatable :: indx(:),molvec(:)
    real(wp),allocatable :: bond(:,:)
@@ -343,10 +344,12 @@ subroutine numhess( &
    end if
    ! project
    if(.not.res%linear)then ! projection does not work for linear mol.
+      fixmode = 0 ! no fixing
+      if (fixset%n > 0) fixmode = -1 ! fixing
       if (set%runtyp.eq.p_run_bhess) then
-         call trproj(mol%n,n3,mol%xyz,hsb,.false.,0,res%freq,1) ! freq is dummy
+         call trproj(mol%n,n3,mol%xyz,hsb,.false.,fixmode,res%freq,1) ! freq is dummy
       end if
-      call trproj(mol%n,n3,mol%xyz,hss,.false.,0,res%freq,1) ! freq is dummy
+      call trproj(mol%n,n3,mol%xyz,hss,.false.,fixmode,res%freq,1) ! freq is dummy
    endif
    ! non mass weigthed Hessian in hss
    hname = 'hessian'
