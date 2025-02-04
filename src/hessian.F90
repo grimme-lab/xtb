@@ -191,18 +191,20 @@ subroutine numhess( &
       ! the real ones
       nonfrozh=mol%n-freezeset%n
       do a = 1,mol%n
-         res%freq(a)=float(a)
+         res%freq(3*(a-1)+1:3*(a-1)+3)=float(a)
       enddo
       do a=1,freezeset%n
-         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000_wp
+         k = freezeset%atoms(a)
+         res%freq(3*(k-1)+1:3*(k-1)+3)=k*100000.0_wp
       enddo
-      call sortind(mol%n,res%freq)
+      call sortind(3*mol%n,res%freq)
       do a=1,nonfrozh
-         indx(a)=idint(res%freq(a))
+         indx(a)=int(res%freq(3*a))
       enddo
       do a=nonfrozh+1,mol%n
-         indx(a)=idint(res%freq(a)/100000_wp)
+         indx(a)=int(res%freq(3*a)/100000.0_wp)
       enddo
+      res%freq(:) = 0.0_wp
       write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
          & indx(nonfrozh+1:mol%n)
 
