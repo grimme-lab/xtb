@@ -438,6 +438,9 @@ subroutine numhess( &
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    if (mol%n > 1) then
+      h = 0.0_wp
+      isqm = 0.0_wp
+      kend=0
       kend=6
       if(res%linear)then
          kend=5
