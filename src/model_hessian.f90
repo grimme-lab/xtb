@@ -491,6 +491,7 @@ pure subroutine mh_swart_torsion(n,at,xyz,hess,kt,kd,rcov,rvdw,lcutoff)
 
             txyz(:,1)=xyz(:,i)
             torsion_lAt: do l = 1, n
+               kl=n*(l-1)+k
                if (ij.le.kl) cycle torsion_lAt
                if (l.eq.i)   cycle torsion_lAt
                if (l.eq.j)   cycle torsion_lAt
