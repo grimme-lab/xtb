@@ -60,7 +60,14 @@ module xtb_tblite_calculator
    private
 
    public :: TTBLiteCalculator, TTBLiteInput, newTBLiteCalculator, newTBLiteWavefunction
-   public :: get_ceh
+   public :: get_ceh, num_grad_chrg
+
+   type, private :: ceh
+      !> numerical gradients
+      logical :: grad
+      !> step size for numerical gradients
+      real(wp) :: step = 0.00001_wp
+   endtype
 
    !> Input for tblite library
    type :: TTBLiteInput
@@ -77,7 +84,7 @@ module xtb_tblite_calculator
       !> Colorful output
       logical :: color = .false.
       !> CEH charges
-      logical :: ceh = .false.
+      type(ceh), allocatable :: ceh
    end type TTBLiteInput
 
    !> Calculator interface for xTB based methods
@@ -250,10 +257,11 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
             type(context_type) :: ctx
 
             ctx%solver = lapack_solver(lapack_algorithm%gvd)
-            ctx%terminal = context_terminal(calc%color)
 
-            write (env%unit, '(1x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
-               & escape(ctx%terminal%reset)
+            ! temporary turn off colorful output
+            ! ctx%terminal = context_terminal(calc%color)
+            ! write (env%unit, '(0x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
+            !    & escape(ctx%terminal%reset)
 
             call ceh_singlepoint(ctx, calc%tblite, struc, wfn, calc%accuracy, 1)
          end block
@@ -387,7 +395,7 @@ end subroutine get_spin_constants
 #endif
 
 !> get CEH charges via tblite
-subroutine get_ceh(env,mol,tblite)
+subroutine get_ceh(env,mol,tblite, ceh_chrg)
 
    use xtb_propertyoutput, only : print_charges
 
@@ -399,6 +407,9 @@ subroutine get_ceh(env,mol,tblite)
 
    !> tblite input
    type(TTBLiteInput), intent(in) :: tblite
+
+   !> CEH charges, if present assumed the numerical gradients are requested
+   real(wp), allocatable, optional, intent(out) :: ceh_chrg(:)
 
    !> initialize temporary calculator for CEH
    type(TTBLiteCalculator) :: calc_ceh
@@ -414,22 +425,86 @@ subroutine get_ceh(env,mol,tblite)
    tblite_ceh = tblite        ! copy the tblite input
    tblite_ceh%method = "ceh" 
 #if WITH_TBLITE
-   write(env%unit, '(a)') repeat('-', 36)
+
+   if (.not. present(ceh_chrg)) &
+      write(env%unit, '(1x, a, /, a)') "Calculation of CEH charges",repeat('-', 36)
    
    call newTBLiteCalculator(env, mol, calc_ceh, tblite_ceh)
    call newTBLiteWavefunction(env, mol, calc_ceh, chk_ceh)
+   
+   if (present(ceh_chrg)) then
+      allocate(ceh_chrg(mol%n))
+      ceh_chrg = chk_ceh%tblite%qat(:,1)  
+   else
+      ! create ceh.charges file !
+      call open_file(ich, 'ceh.charges', 'w') 
+      call print_charges(ich, mol%n, chk_ceh%tblite%qat(:,1))
+      call close_file(ich)
+      write(env%unit, '(1x, a)') "CEH charges written to ceh.charges"
+   endif
 
-   ! create ceh.charges file !
-   call open_file(ich, 'ceh.charges', 'w') 
-   call print_charges(ich, mol%n, chk_ceh%tblite%qat(:,1))
-   call close_file(ich)
-
-   write(env%unit, '(1x, a, /, a, /)') "CEH charges written to ceh.charges", repeat('-', 36)
 #else
     call feature_not_implemented(env)
 #endif
 
 end subroutine get_ceh
+
+!> get numerical gradients for charges
+subroutine num_grad_chrg(env, mol, tblite)
+   !> Calculation environment
+   type(TEnvironment), intent(inout) :: env
+   
+   !> Molecular structure data
+   type(TMolecule), intent(inout) :: mol
+   
+   !> step size for numerical gradients
+   type(TTBLiteInput), intent(in) :: tblite
+   
+   !> numerical gradients
+   real(wp) :: numgrad(3, mol%n, mol%n)
+   
+   real(wp), allocatable, dimension(:) :: cehr, cehl
+   !
+   integer :: i,j,k, ich
+
+   real(wp) :: step, step2 ! for numerical gradient
+   
+   numgrad=0.0_wp
+   step = tblite%ceh%step
+   step2 = 0.5_wp / step
+   call get_ceh(env,mol,tblite)
+   
+   !$omp parallel do private(j,cehr,cehl) shared(env, numgrad, mol, tblite, step, step2) 
+   do i = 1, mol%n
+      do j = 1, 3
+         mol%xyz(j,i) = mol%xyz(j,i) + step
+         call get_ceh(env, mol, tblite, cehr)
+
+         mol%xyz(j,i) = mol%xyz(j,i) - 2*step
+         call get_ceh(env, mol, tblite, cehl)
+         
+         numgrad(j,i,:) = step2 * (cehr - cehl) ! numerical gradient
+         mol%xyz(j,i) = mol%xyz(j,i) + step ! reset the coordinates
+         
+      enddo
+   enddo
+   !$omp end parallel do
+
+   ! write the numerical gradient to the ceh.charges.numgrad file
+   call open_file(ich, 'ceh.charges.numgrad', 'w')
+   do i = 1, mol%n
+      do j = 1, mol%n
+         do k = 1, 3
+            write(ich, '(3f12.6)') numgrad(k,j,i)
+         enddo
+      enddo
+   enddo
+   call close_file(ich)
+   write(env%unit, '(1x, a)') "CEH gradients written to ceh.charges.numgrad"
+
+ end subroutine num_grad_chrg
+ 
+
 
 #if ! WITH_TBLITE
 subroutine feature_not_implemented(env)

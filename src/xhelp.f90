@@ -110,8 +110,10 @@ subroutine help(iunit)
    "-c, --chrg INT",&
    "    specify molecular charge as INT, overrides .CHRG file and xcontrol option",&
    "",&
-   "--ceh",&
-   "    calculate CEH (Charge-Extended Hückel model) charges and write them to ceh.charges file",&
+   "--ceh <grad> [REAL]",&
+   "    calculate CEH (Charge-Extended Hückel model) charges and write them to the ceh.charges file",&
+   "    optionally, calculate numerical gradients and write them to the ceh.charges.numgrad file",&
+   "    with an adjustable step size for the numerical gradients.",&
    "",&
    "-u, --uhf INT",&
    "    specify number of unpaired electrons as INT, overrides .UHF file and xcontrol option",&

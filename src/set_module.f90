@@ -1031,7 +1031,8 @@ subroutine set_runtyp(typ)
    select case(typ)
    case default ! do nothing !
       call raise('E',typ//' is no valid runtyp (internal error)')
-
+   case ('prescc')
+      set%runtyp = p_run_prescc
    case('scc')
       set%runtyp = p_run_scc
 
@@ -1197,6 +1198,7 @@ subroutine set_chrg(env,val)
    set1 = .false.
 
 end subroutine set_chrg
+
 
 subroutine set_spin(env,val)
    implicit none
