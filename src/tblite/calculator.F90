@@ -150,16 +150,16 @@ subroutine newTBLiteCalculator(env, mol, calc, input)
       case default
          call fatal_error(error, "Unknown method '"//method//"' requested")
       case("gfn2")
-         call new_gfn2_calculator(calc%tblite, struc)
+         call new_gfn2_calculator(calc%tblite, struc, error)
       case("gfn1")
-         call new_gfn1_calculator(calc%tblite, struc)
+         call new_gfn1_calculator(calc%tblite, struc, error)
       case("ipea1")
-         call new_ipea1_calculator(calc%tblite, struc)
+         call new_ipea1_calculator(calc%tblite, struc, error)
       case("ceh")
          calc%guess = method
          calc%nspin = 1
-         calc%etemp = 5000.0_wp * kt
-         call new_ceh_calculator(calc%tblite, struc)
+         calc%etemp = 4000.0_wp * kt
+         call new_ceh_calculator(calc%tblite, struc, error)
       end select
    end if
    if (allocated(error)) then
@@ -244,18 +244,18 @@ subroutine newTBLiteWavefunction(env, mol, calc, chk)
          block 
             use tblite_context, only : context_type, context_terminal
             use tblite_context_terminal, only : escape
-            use tblite_ceh_singlepoint, only : ceh_guess
+            use tblite_ceh_singlepoint, only : ceh_singlepoint
             use tblite_lapack_solver, only : lapack_solver 
             use tblite_lapack_solver, only : lapack_algorithm
             type(context_type) :: ctx
-            
+
             ctx%solver = lapack_solver(lapack_algorithm%gvd)
             ctx%terminal = context_terminal(calc%color)
 
             write (env%unit, '(1x,a)') escape(ctx%terminal%cyan) // "Calculation of CEH charges" // &
                & escape(ctx%terminal%reset)
-            
-            call ceh_guess(ctx, calc%tblite, struc, error, wfn, calc%accuracy, 1)
+
+            call ceh_singlepoint(ctx, calc%tblite, struc, wfn, calc%accuracy, 1)
          end block
       end select
    end associate

@@ -43,7 +43,8 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       type(TMolecule), intent(in) :: mol
       type(TNeigh), intent(inout) :: neigh ! contains nb, nbf and nbm
       logical, intent(in) :: makeneighbor, nb_call
-      integer at(natoms),natoms
+      integer, intent(in) :: natoms
+      integer at(natoms)
       integer hyb (natoms)
       integer itag(natoms)
       real*8  rab   (natoms*(natoms+1)/2)
@@ -58,9 +59,9 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
       real*8 ,allocatable :: cn(:),rtmp(:)
       integer iat,i,j,k,ni,ii,jj,kk,ll,lin,ati,nb20i,nbdiff,hc_crit,nbmdiff,nnf,nni,nh,nm
       integer ai,aj,nn,im,ncm,l,no, iTr, iTr2, numnbf, numnbm, numnb, idx, idxdum, idxdum2, numctr
-      real*8 r,pi,a1,f,f1,phi,f2,rco,fat(86)
+      real*8 r,pi,a1,f,f1,phi,f2,rco,fat(103)
       data pi/3.1415926535897932384626433832795029d0/
-      data fat   / 86 * 1.0d0 /
+      data fat   / 103 * 1.0d0 /
 
 !     special hacks
       fat( 1)=1.02
@@ -180,7 +181,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
             elseif(nm.eq.1)then  ! distinguish M-CR2-R i.e. not an eta coord.
               ncm=0
               do iTr=1, numctr
-                do k=1,numnbf  !
+                do k=1,neigh%nbf(neigh%numnb,i,iTr)  !
                   if(neigh%nbf(k,i,iTr).ne.im)then ! all neighbors that are not the metal im
                     kk=neigh%nbf(k,i,iTr)
                     do l=1,sum(neigh%nbf(neigh%numnb,kk,:))
@@ -343,7 +344,7 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
             if(nb20i.gt.3.and.ati.gt.10.and.nbdiff.eq.0) hyb(i)=5
             if(nb20i.eq.2)                               hyb(i)=3
             if(nb20i.eq.2.and.nbmdiff.gt.0) then
-              call nn_nearest_noM(i,natoms,at,neigh,rab,j,param) ! CN of closest non-M atom
+              call nn_nearest_noM(i,natoms,at,mol%xyz,neigh,rab,j,param) ! CN of closest non-M atom
                                         if(j.eq.3)       hyb(i)=2 ! M-O-X konj
                                         if(j.eq.4)       hyb(i)=3 ! M-O-X non
             endif
@@ -469,27 +470,32 @@ subroutine gfnff_neigh(env,makeneighbor,natoms,at,xyz,rab,fq,f_in,f2_in,lintr, &
 ! find the CN of the non metal atom that is closest to atom i
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine nn_nearest_noM(ii,n,at,neigh,r,nn,param)
+      subroutine nn_nearest_noM(ii,n,at,xyz,neigh,r,nn,param)
+      use xtb_mctc_accuracy, only : wp
       implicit none
       type(TGFFData), intent(in) :: param
       type(TNeigh), intent(in) :: neigh
       integer, intent(in) :: ii,n,at(n)
+      real(wp), intent(in) :: xyz(3,n)
       integer, intent(inout) :: nn
       real*8, intent(in) :: r(n*(n+1)/2)
 
       integer jmin,j,jj,lin, numnb, iTr
+      real(wp) :: dist
       real*8 rmin
 
       numnb=neigh%numnb
       nn=0
       rmin=1.d+42
       jmin=0
+      dist=0.0
       do iTr=1, neigh%numctr
         do j=1,neigh%nb(numnb,ii,iTr)
           jj=neigh%nb(j,ii,iTr)
           if(param%metal(at(jj)).ne.0) cycle
-          if(neigh%distances(jj,ii,iTr).lt.rmin)then
-            rmin=neigh%distances(jj,ii,iTr)
+          dist = NORM2(xyz(:,ii)-(xyz(:,jj)+neigh%transVec(:,iTr)))
+          if(dist.lt.rmin)then
+            rmin=dist
             jmin=jj
           endif
         enddo
@@ -786,29 +792,22 @@ subroutine gfnff_hbset(n,at,xyz,topo,neigh,nlist,hbthr1,hbthr2)
             ! get adjustet iTr -> for use of neigh% distances and bpair with two shifted atoms
             iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj) 
             if(iTrDum.gt.neigh%nTrans.or.iTrDum.lt.-1.or.iTrDum.eq.0) cycle ! cycle nonsense 
-            if(iTrDum.eq.-1) then
-              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-              if(rab.gt.hbthr1) cycle
-              ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
+            rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+            if(rab.gt.hbthr1) cycle
+            ! check if ij bonded
+            if(iTrDum.le.neigh%numctr.and.iTrDum.gt.0) then
+              ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
             else
-              ! check ij distance
-              rab=neigh%distances(j,i,iTrDum)**2 ! %distances are generated up to hbthr2 
-              if(rab.gt.hbthr1) cycle
-              ! check if ij bonded
-              if(iTrDum.le.neigh%numctr) then
-                ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
-              else
-                ! i and j are not in neighboring cells
-                ijnonbond=.true. 
-              endif
+              ! i and j are not in neighboring cells
+              ijnonbond=.true. 
             endif
             ! loop over relevant H atoms
             do k=1,topo%nathbH
               free=.true. ! tripplet not assigned yet
               nh  =topo%hbatHl(1,k) ! nh always in central cell
               ! distances for non-cov bonded case
-              rih=neigh%distances(i,nh,iTri)**2
-              rjh=neigh%distances(j,nh,iTrj)**2
+              rih=NORM2(xyz(:,nh)-(xyz(:,i)+neigh%transVec(:,iTri)))**2
+              rjh=NORM2(xyz(:,nh)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
               ! check if i is the bonded A    
               if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
                 if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
@@ -902,16 +901,14 @@ use xtb_mctc_accuracy, only : wp
         do iTri=1,neigh%nTrans
           do iTrj=1,neigh%nTrans
             iTrDum=neigh%fTrSum(neigh%iTrNeg(iTri),iTrj)
-            if(iTrDum.eq.-1.or.iTrDum.gt.neigh%numctr) then 
-              rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
-              if(rab.gt.hbthr1) cycle
-              ijnonbond=.true. ! i and j are not in neighboring cells for this range of iTrDum
-            else  
-              ! check ij distance
-              rab=neigh%distances(j,i,iTrDum)**2  ! %distances are generated up to hbthr2 
-              if(rab.gt.hbthr1) cycle
-              ! check if ij bonded
+            rab=NORM2((xyz(:,i)+neigh%transVec(:,iTri))-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
+            if(rab.gt.hbthr1) cycle
+            ! check if ij bonded
+            if(iTrDum.le.neigh%numctr.and.iTrDum.gt.0) then
                 ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
+            else
+                ! i and j are not in neighboring cells
+                ijnonbond=.true.
             endif
             ! loop over relevant H atoms
             do k=1,topo%nathbH  
@@ -983,7 +980,7 @@ use xtb_mctc_accuracy, only : wp
               ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
             else
               ! check ij distance
-              rab=neigh%distances(j,i,iTrDum)**2
+              rab=NORM2(xyz(:,i)-(xyz(:,j)+neigh%transVec(:,iTrDum)))**2
               if(rab.gt.hbthr1) cycle
               ! check if ij bonded
               ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
@@ -1295,15 +1292,15 @@ use xtb_mctc_accuracy, only : wp
               if(rab.gt.hbthr1) cycle
               ijnonbond=.true. ! i and j are not in neighboring or same cell for iTrDum=-1
             else
-              ! check ij distance
-              rab=neigh%distances(j,i,iTrDum)**2  ! %distances are generated up to hbthr2 
+              ! check
+              rab=NORM2(xyz(:,i)-(xyz(:,j)+neigh%transVec(:,iTrDum)))**2
               if(rab.gt.hbthr1) cycle
               ! check if ij bonded
               if(iTrDum.le.neigh%numctr) then
                 ijnonbond=neigh%bpair(j,i,iTrDum).ne.1
               else
                 ! i and j are not in neighboring cells
-                ijnonbond=.true. 
+                ijnonbond=.true.
               endif
             endif
             ! loop over relevant H atoms
@@ -1311,8 +1308,8 @@ use xtb_mctc_accuracy, only : wp
               free=.true.
               nh  =topo%hbatHl(1,k) ! nh always in central cell
               ! distances for non-cov bonded case
-              rih=neigh%distances(i,nh,iTri)**2
-              rjh=neigh%distances(j,nh,iTrj)**2
+              rih=NORM2(xyz(:,nh)-(xyz(:,i)+neigh%transVec(:,iTri)))**2
+              rjh=NORM2(xyz(:,nh)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
               ! check if i is the bonded A    
               if(iTri.le.neigh%numctr) then ! nh is not shifted so bpair works without adjustment 
                 if(neigh%bpair(i,nh,iTri).eq.1.and.ijnonbond) then
@@ -1341,7 +1338,7 @@ use xtb_mctc_accuracy, only : wp
           i =topo%xbatABl(1,ix)
           j =topo%xbatABl(2,ix)
           iTrj=topo%xbatABl(4,ix)
-          rab=neigh%distances(j,i,iTrj)**2 ! %distances are generated up to hbthr2 
+          rab=NORM2(xyz(:,i)-(xyz(:,j)+neigh%transVec(:,iTrj)))**2
           if(rab.gt.hbthr2)cycle
           nxb=nxb+1
         !enddo

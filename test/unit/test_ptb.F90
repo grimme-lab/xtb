@@ -186,12 +186,37 @@ contains
       !> (Scaled) overlap matrix
       character(len=:), allocatable :: message
       real(wp), parameter :: overlap_exp(6) = [ &
-      & 0.93209460_wp, & ! 1,2
-      & 0.35489609_wp, & ! 1,3
-      & 0.65682608_wp, & ! 2,3
-      & 0.05627743_wp, & ! 1,15
-      & -0.14217162_wp, &  ! 1,24; diffferent because of tblite ordering
-      & 0.41844087_wp] ! 14,23; diffferent because of tblite ordering
+      & 0.93209460_wp, & ! s(Mg)-s(Mg)
+      & 0.35489609_wp, & ! s(Mg)-s(Mg)
+      & 0.65682608_wp, & ! s(Mg)-s(Mg)
+      & 0.05627743_wp, & ! s(Mg)-s(H)
+      & -0.14217162_wp, & ! s(Mg)-pz(H)
+      & 0.41844087_wp] ! dyz(Mg)-py(H)
+      ! 1: s(Mg)
+      ! 2: s(Mg)
+      ! 3: s(Mg)
+      ! 4: py(Mg)
+      ! 5: pz(Mg)
+      ! 6: px(Mg)
+      ! 7: py(Mg)
+      ! 8: pz(Mg)
+      ! 9: px(Mg)
+      ! 10: dxy(Mg)
+      ! 11: dyz(Mg)
+      ! 12: dz2(Mg)
+      ! 13: dxz(Mg)
+      ! 14: dx2-y2(Mg)
+      ! 15: s(H)
+      ! 16: s(H)
+      ! 17: py(H)
+      ! 18: pz(H)
+      ! 19: px(H)
+      ! 20: s(H)
+      ! 21: s(H)
+      ! 22: py(H)
+      ! 23: pz(H)
+      ! 24: px(H)
+
       real(wp), allocatable :: lattr(:, :)
       real(wp) :: cutoff
 
@@ -215,7 +240,7 @@ contains
       call check_(error, ints%overlap(2, 3), overlap_exp(3), thr=thr)
       call check_(error, ints%overlap(1, 15), overlap_exp(4), thr=thr)
       call check_(error, ints%overlap(1, 23), overlap_exp(5), thr=thr)
-      call check_(error, ints%overlap(12, 22), overlap_exp(6), thr=thr)
+      call check_(error, ints%overlap(11, 22), overlap_exp(6), thr=thr)
 
    end subroutine test_ptb_overlap
 
@@ -249,12 +274,37 @@ contains
       type(error_type), allocatable, intent(out) :: error
       character(len=:), allocatable :: message
       real(wp), parameter :: overlap_exp(6) = [ &
-      & 0.95689468_wp, & ! 1,2
-      & 0.39195790_wp, & ! 1,3
-      & 0.62961212_wp, & ! 2,3
-      & 0.03782850_wp, & ! 1,15
-      &-0.13826216_wp, &  ! 1,24; diffferent because of tblite ordering
-      & 0.43334922_wp] ! 14,23; diffferent because of tblite ordering
+      & 0.95689468_wp, & ! s(Mg)-s(Mg)
+      & 0.39195790_wp, & ! s(Mg)-s(Mg)
+      & 0.62961212_wp, & ! s(Mg)-s(Mg)
+      & 0.03782850_wp, & ! s(Mg)-s(H)
+      &-0.13826216_wp, & ! s(Mg)-pz(H)
+      & 0.43334922_wp] ! dyz(Mg)-py(H)
+      ! 1: s(Mg)
+      ! 2: s(Mg)
+      ! 3: s(Mg)
+      ! 4: py(Mg)
+      ! 5: pz(Mg)
+      ! 6: px(Mg)
+      ! 7: py(Mg)
+      ! 8: pz(Mg)
+      ! 9: px(Mg)
+      ! 10: dxy(Mg)
+      ! 11: dyz(Mg)
+      ! 12: dz2(Mg)
+      ! 13: dxz(Mg)
+      ! 14: dx2-y2(Mg)
+      ! 15: s(H)
+      ! 16: s(H)
+      ! 17: py(H)
+      ! 18: pz(H)
+      ! 19: px(H)
+      ! 20: s(H)
+      ! 21: s(H)
+      ! 22: py(H)
+      ! 23: pz(H)
+      ! 24: px(H)
+
       real(wp), allocatable :: lattr(:, :)
       real(wp) :: cutoff
 
@@ -286,7 +336,7 @@ contains
       & message=message)
       call check_(error, auxints%overlap_h0_1(1, 23), overlap_exp(5), thr=thr, &
       & message=message)
-      call check_(error, auxints%overlap_h0_1(12, 22), overlap_exp(6), thr=thr, &
+      call check_(error, auxints%overlap_h0_1(11, 22), overlap_exp(6), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_overlap_h0
@@ -319,12 +369,37 @@ contains
       real(wp), allocatable :: overlap_sx(:, :), overlap_oneminusx(:, :)
       character(len=:), allocatable :: message
       real(wp), parameter :: overlap_oneminusx_exp(6) = [ &
-      & 0.70788_wp, & ! 1,2
-      & 0.16203_wp, & ! 1,3
-      & 0.41532_wp, & ! 2,3
-      & 0.01449_wp, & ! 1,15
-      &-0.07203_wp, &  ! 1,24; diffferent because of tblite ordering
-      & 0.28751_wp] ! 14,23; diffferent because of tblite ordering
+      & 0.70788_wp, & ! s(Mg)-s(Mg)
+      & 0.16203_wp, & ! s(Mg)-s(Mg)
+      & 0.41532_wp, & ! s(Mg)-s(Mg)
+      & 0.01449_wp, & ! s(Mg)-s(H)
+      &-0.07203_wp, & ! s(Mg)-pz(H)
+      & 0.28751_wp] ! dyz(Mg)-py(H)
+      ! 1: s(Mg)
+      ! 2: s(Mg)
+      ! 3: s(Mg)
+      ! 4: py(Mg)
+      ! 5: pz(Mg)
+      ! 6: px(Mg)
+      ! 7: py(Mg)
+      ! 8: pz(Mg)
+      ! 9: px(Mg)
+      ! 10: dxy(Mg)
+      ! 11: dyz(Mg)
+      ! 12: dz2(Mg)
+      ! 13: dxz(Mg)
+      ! 14: dx2-y2(Mg)
+      ! 15: s(H)
+      ! 16: s(H)
+      ! 17: py(H)
+      ! 18: pz(H)
+      ! 19: px(H)
+      ! 20: s(H)
+      ! 21: s(H)
+      ! 22: py(H)
+      ! 23: pz(H)
+      ! 24: px(H)
+
       real(wp), allocatable :: lattr(:, :)
       real(wp) :: cutoff
 
@@ -356,7 +431,7 @@ contains
       & message=message)
       call check_(error, overlap_oneminusx(1, 23), overlap_oneminusx_exp(5), thr=thr2, &
       & message=message)
-      call check_(error, overlap_oneminusx(12, 22), overlap_oneminusx_exp(6), thr=thr2, &
+      call check_(error, overlap_oneminusx(11, 22), overlap_oneminusx_exp(6), thr=thr2, &
       & message=message)
 
    end subroutine test_ptb_overlap_SX
@@ -392,10 +467,37 @@ contains
       type(error_type), allocatable, intent(out) :: error
       character(len=:), allocatable :: message
       real(wp), parameter :: vecp_ref(4) = [ &
-      &  0.077719_wp, & ! 1,1 ; diffferent because of tblite ordering
-      & -0.059122_wp, & ! 1,3 ; diffferent because of tblite ordering
-      &  0.052775_wp, & ! 3,5 ; diffferent because of tblite ordering
-      &  0.117176_wp]   ! 9,9 ; diffferent because of tblite ordering
+      &  0.077719_wp, & ! s(B)-s(B)
+      & -0.059122_wp, & ! s(B)-px(B)
+      &  0.052775_wp, & ! px(B)-px(B)
+      &  0.117176_wp]   ! dx2-y2(B)-dx2-y2(B)
+      ! 1: s(B)
+      ! 2: s(B)
+      ! 3: py(B)
+      ! 4: pz(B)
+      ! 5: px(B)
+      ! 6: py(B)
+      ! 7: pz(B)
+      ! 8: px(B)
+      ! 9: dxy(B)
+      ! 10: dyz(B)
+      ! 11: dz2(B)
+      ! 12: dxz(B)
+      ! 13: dx2-y2(B)
+      ! 14: s(Cl)
+      ! 15: s(Cl)
+      ! 16: py(Cl)
+      ! 17: pz(Cl)
+      ! 18: px(Cl)
+      ! 19: py(Cl)
+      ! 20: pz(Cl)
+      ! 21: px(Cl)
+      ! 22: dxy(Cl)
+      ! 23: dyz(Cl)
+      ! 24: dz2(Cl)
+      ! 25: dxz(Cl)
+      ! 26: dx2-y2(Cl)
+
       real(wp), parameter :: xyz(3, 2) = reshape([ &
       & 2.0_wp, 0.0_wp, 0.0_wp, &
       & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
@@ -434,7 +536,7 @@ contains
       & message=message)
       call check_(error, vecp(5, 8), vecp_ref(3), thr=thr2, &
       & message=message)
-      call check_(error, vecp(12, 12), vecp_ref(4), thr=thr2, &
+      call check_(error, vecp(13, 13), vecp_ref(4), thr=thr2, &
       & message=message)
    end subroutine test_ptb_V_ECP
 
@@ -629,12 +731,39 @@ contains
       real(wp), allocatable :: vecp(:, :)
 
       real(wp), parameter :: h0_ref(6) = [ &
-      &  -1.59330281_wp, & ! 1,1
-      &  -2.24996207_wp, & ! 1,2
-      &   0.34974782_wp, & ! 1,23 ; diffferent because of tblite ordering
-      &   0.0_wp, & ! 7,11 ; different because of tblite ordering
-      &  -1.17757007_wp, & ! 3,6 ; different because of tblite ordering
-      &   0.48301561_wp]   ! 11,24 ; diffferent because of tblite ordering
+      &  -1.59330281_wp, & ! s(B)-s(B)
+      &  -2.24996207_wp, & ! s(B)-s(B)
+      &   0.34974782_wp, & ! s(B)-py(Cl)
+      &   0.0_wp, & ! dx2-y2(B)-py(B)
+      &  -1.17757007_wp, & ! px(B)-px(B)
+      &   0.48301561_wp]   ! dxy(B)-dxy(Cl)
+      ! 1: s(B)
+      ! 2: s(B)
+      ! 3: py(B)
+      ! 4: pz(B)
+      ! 5: px(B)
+      ! 6: py(B)
+      ! 7: pz(B)
+      ! 8: px(B)
+      ! 9: dxy(B)
+      ! 10: dyz(B)
+      ! 11: dz2(B)
+      ! 12: dxz(B)
+      ! 13: dx2-y2(B)
+      ! 14: s(Cl)
+      ! 15: s(Cl)
+      ! 16: py(Cl)
+      ! 17: pz(Cl)
+      ! 18: px(Cl)
+      ! 19: py(Cl)
+      ! 20: pz(Cl)
+      ! 21: px(Cl)
+      ! 22: dxy(Cl)
+      ! 23: dyz(Cl)
+      ! 24: dz2(Cl)
+      ! 25: dxz(Cl)
+      ! 26: dx2-y2(Cl)
+
       real(wp), parameter :: levels(10) = [ &
       &    -0.796651404_wp, &
       &    -0.269771638_wp, &
@@ -665,15 +794,16 @@ contains
          & alpha_scal=id_to_atom(mol, ptbData%hamiltonian%kalphah0l))
       allocate (vecp(bas%nao, bas%nao), source=0.0_wp)
 
+      ints%hamiltonian = 0.0_wp
       call get_hamiltonian(mol, list, bas, ptbData%hamiltonian, ptbData%hamiltonian%kla, auxints%overlap_h0_1, &
       & levels, ints%hamiltonian, ptbGlobals%kpol, ptbGlobals%kitr, ptbGlobals%kitocod)
       message = "H0 matrix element not matching to expected value."
       call check_(error, ints%hamiltonian(1, 1), h0_ref(1), thr=thr)
       call check_(error, ints%hamiltonian(1, 2), h0_ref(2), thr=thr)
-      call check_(error, ints%hamiltonian(1, 22), h0_ref(3), thr=thr)
+      call check_(error, ints%hamiltonian(1, 24), h0_ref(3), thr=thr)
       call check_(error, ints%hamiltonian(13, 6), h0_ref(4), thr=thr)
       call check_(error, ints%hamiltonian(8, 5), h0_ref(5), thr=thr)
-      call check_(error, ints%hamiltonian(13, 26), h0_ref(6), thr=thr)
+      call check_(error, ints%hamiltonian(9, 22), h0_ref(6), thr=thr)
    end subroutine test_ptb_hamiltonian_h0
 
    subroutine test_ptb_V_XC(error)
@@ -708,10 +838,37 @@ contains
       type(error_type), allocatable, intent(out) :: error
       character(len=:), allocatable :: message
       real(wp), parameter :: Vxc_ref(4) = [ &
-      & -0.92793357_wp, & ! 1,1
-      & -0.85981333_wp, & ! 1,2
-      &  0.06632750_wp, & ! 1,23 ; diffferent because of tblite ordering
-      &  0.00151880_wp]   ! 11,24 ; diffferent because of tblite ordering
+      & -0.92793357_wp, & ! s(B)-s(B)
+      & -0.85981333_wp, & ! s(B)-s(B)
+      &  0.06632750_wp, & ! s(B)-dz2(Cl)
+      &  0.00151880_wp]   ! dxy(B)-dxy(Cl)
+      ! 1: s(B)
+      ! 2: s(B)
+      ! 3: py(B)
+      ! 4: pz(B)
+      ! 5: px(B)
+      ! 6: py(B)
+      ! 7: pz(B)
+      ! 8: px(B)
+      ! 9: dxy(B)
+      ! 10: dyz(B)
+      ! 11: dz2(B)
+      ! 12: dxz(B)
+      ! 13: dx2-y2(B)
+      ! 14: s(Cl)
+      ! 15: s(Cl)
+      ! 16: py(Cl)
+      ! 17: pz(Cl)
+      ! 18: px(Cl)
+      ! 19: py(Cl)
+      ! 20: pz(Cl)
+      ! 21: px(Cl)
+      ! 22: dxy(Cl)
+      ! 23: dyz(Cl)
+      ! 24: dz2(Cl)
+      ! 25: dxz(Cl)
+      ! 26: dx2-y2(Cl)
+
       real(wp), parameter :: xyz(3, 2) = reshape([ &
       & 2.0_wp, 0.0_wp, 0.0_wp, &
       & 0.0_wp, 0.0_wp, 0.0_wp], [3, 2])
@@ -769,9 +926,9 @@ contains
       & message=message)
       call check_(error, Vxc(1, 2), Vxc_ref(2), thr=thr, &
       & message=message)
-      call check_(error, Vxc(1, 22), Vxc_ref(3), thr=thr, &
+      call check_(error, Vxc(1, 24), Vxc_ref(3), thr=thr, &
       & message=message)
-      call check_(error, Vxc(13, 26), Vxc_ref(4), thr=thr, &
+      call check_(error, Vxc(9, 22), Vxc_ref(4), thr=thr, &
       & message=message)
 
    end subroutine test_ptb_V_XC
@@ -957,10 +1114,35 @@ contains
       !> Conversion factor from temperature to energy
       real(wp), parameter :: kt = 3.166808578545117e-06_wp
       real(wp), parameter :: coulomb_pot_ref(4) = [ &
-      &  -0.05693153_wp, & ! 1,1
-      &  -0.33917531_wp, & ! 1,2
-      &  -0.00539212_wp, & ! 1,21 ; diffferent because of tblite ordering
-      &   0.01305793_wp]   ! 6,24 ; diffferent because of tblite ordering
+      &  -0.05693153_wp, & ! s(Mg)-s(Mg)
+      &  -0.33917531_wp, & ! s(Mg)-s(Mg)
+      &  -0.00539212_wp, & ! s(Mg)-s(H)
+      &   0.01305793_wp]   ! pz(Mg)-pz(H)
+      ! 1: s(Mg)
+      ! 2: s(Mg)
+      ! 3: s(Mg)
+      ! 4: py(Mg)
+      ! 5: pz(Mg)
+      ! 6: px(Mg)
+      ! 7: py(Mg)
+      ! 8: pz(Mg)
+      ! 9: px(Mg)
+      ! 10: dxy(Mg)
+      ! 11: dyz(Mg)
+      ! 12: dz2(Mg)
+      ! 13: dxz(Mg)
+      ! 14: dx2-y2(Mg)
+      ! 15: s(H)
+      ! 16: s(H)
+      ! 17: py(H)
+      ! 18: pz(H)
+      ! 19: px(H)
+      ! 20: s(H)
+      ! 21: s(H)
+      ! 22: py(H)
+      ! 23: pz(H)
+      ! 24: px(H)
+
       real(wp), allocatable :: lattr(:, :)
       real(wp) :: cutoff
 
@@ -1044,10 +1226,36 @@ contains
       integer, parameter :: nat = 2
       integer, parameter :: at(nat) = [5, 17]
       real(wp), parameter :: plusU_pot_ref(4) = [ &
-      &  -0.0023185_wp, & ! 1,1
-      &  -0.0018289_wp, & ! 1,2
-      &  -0.5266562_wp, & ! 1,21 ; diffferent because of tblite ordering
-      &  -1.6745659_wp]   ! 6,24 ; diffferent because of tblite ordering
+      &  -0.0023185_wp, & ! s(B)-s(B)
+      &  -0.0018289_wp, & ! s(B)-s(B)
+      &  -0.5266562_wp, & ! s(B)-pz(Cl)
+      &  -1.6745659_wp]   ! px(B)-dxy(Cl)
+      ! 1: s(B)
+      ! 2: s(B)
+      ! 3: py(B)
+      ! 4: pz(B)
+      ! 5: px(B)
+      ! 6: py(B)
+      ! 7: pz(B)
+      ! 8: px(B)
+      ! 9: dxy(B)
+      ! 10: dyz(B)
+      ! 11: dz2(B)
+      ! 12: dxz(B)
+      ! 13: dx2-y2(B)
+      ! 14: s(Cl)
+      ! 15: s(Cl)
+      ! 16: py(Cl)
+      ! 17: pz(Cl)
+      ! 18: px(Cl)
+      ! 19: py(Cl)
+      ! 20: pz(Cl)
+      ! 21: px(Cl)
+      ! 22: dxy(Cl)
+      ! 23: dyz(Cl)
+      ! 24: dz2(Cl)
+      ! 25: dxz(Cl)
+      ! 26: dx2-y2(Cl)
 
       call new(mol, at, xyz)
       allocate (ptbData)
@@ -1067,7 +1275,7 @@ contains
       call check_(error, wfn%coeff(1, 1, 1), plusU_pot_ref(1), thr=thr)
       call check_(error, wfn%coeff(1, 2, 1), plusU_pot_ref(2), thr=thr)
       call check_(error, wfn%coeff(1, 20, 1), plusU_pot_ref(3), thr=thr)
-      call check_(error, wfn%coeff(8, 26, 1), plusU_pot_ref(4), thr=thr)
+      call check_(error, wfn%coeff(8, 22, 1), plusU_pot_ref(4), thr=thr)
 
    end subroutine test_ptb_plus_U_potential
 

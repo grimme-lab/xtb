@@ -162,7 +162,7 @@ subroutine geometry_optimization &
      ! create new Limited-memory BFGS optimizer 
      call new_lbfgs_optimizer(lbfgs_opt, env, opt_input, filter)
      ! run optimization
-     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel)
+     call relax_pbc(lbfgs_opt, env, mol, wfn, calc, filter, printlevel, fail)
    case(p_engine_inertial)
       call fire & ! FIRE !
          &(env,ilog,mol,wfn,calc, &

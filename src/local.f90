@@ -494,14 +494,12 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
          enddo
       enddo
       new=k
-
-      if(set%pr_local) then 
-      call close_file(iscreen)
-      end if
       deallocate(wbo)
 
-
    endif
+
+   if(set%pr_local) call close_file(iscreen)
+
    !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
    !> If the normal xtb mode is used with --lmo, set%pr_local is true and

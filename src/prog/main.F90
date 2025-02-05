@@ -821,9 +821,6 @@ contains
             deallocate (set%opt_engine)
             call set_opt(env, 'engine', 'pbc_lbfgs')  ! use lbfgs
          end if
-         if (set%opt_engine == p_engine_rf) &
-            call ancopt_header(env%unit, set%veryverbose)
-         !! Print ANCopt header
 
          ! start optimization timer !
          call start_timing(3)

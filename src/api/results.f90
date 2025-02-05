@@ -42,6 +42,7 @@ module xtb_api_results
       real(wp), allocatable :: sigma(:, :)
       real(wp), allocatable :: dipole(:)
       real(wp), allocatable :: egap
+      real(wp), allocatable :: solvation_energy
    end type VResults
 
 
@@ -134,6 +135,38 @@ subroutine getEnergy_api(venv, vres, dptr) &
    end if
 
 end subroutine getEnergy_api
+
+!> Query singlepoint results object for solvation energy
+subroutine getSolvationEnergy_api(venv, vres, dptr) &
+      & bind(C, name="xtb_getSolvationEnergy")
+   !DEC$ ATTRIBUTES DLLEXPORT :: getSolvationEnergy_api
+   character(len=*), parameter :: source = "xtb_api_getSolvationEnergy"
+   type(c_ptr), value :: venv
+   type(VEnvironment), pointer :: env
+   type(c_ptr), value :: vres
+   type(VResults), pointer :: res
+   real(c_double), intent(inout) :: dptr
+
+   if (c_associated(venv)) then
+      call c_f_pointer(venv, env)
+      call checkGlobalEnv
+
+      if (.not.c_associated(vres)) then
+         call env%ptr%error("Results object is not allocated", source)
+         return
+      end if
+      call c_f_pointer(vres, res)
+
+      if (.not.allocated(res%solvation_energy)) then
+         call env%ptr%error("Solvation energy is not available in results", source)
+         return
+      end if
+
+      dptr = res%solvation_energy
+
+   end if
+
+end subroutine getSolvationEnergy_api
 
 
 !> Query singlepoint results object for gradient

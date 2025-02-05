@@ -781,6 +781,10 @@ subroutine rdcontrol(fname,env,copy_file)
          case('cube'     ); call rdblock(env,set_cube,    line,id,copy,err,ncount)
          case('write'    ); call rdblock(env,set_write,   line,id,copy,err,ncount)
          case('gfn'      ); call rdblock(env,set_gfn,     line,id,copy,err,ncount)
+         case('ffnb'     )
+            ! dynamic allocation of ffnb array requires reading fname before calling rdblock
+            call alloc_ffnb(env, fname)
+            call rdblock(env,set_ffnb,    line,id,copy,err,ncount)
          case('scc'      ); call rdblock(env,set_scc,     line,id,copy,err,ncount)
          case('oniom'    ); call rdblock(env,set_oniom,   line,id,copy,err,ncount)
          case('opt'      ); call rdblock(env,set_opt,     line,id,copy,err,ncount)
@@ -1498,6 +1502,107 @@ subroutine set_gfn(env,key,val)
       set5 = .false.
    end select
 end subroutine set_gfn
+
+! determine number of GFN-FF neighbor list changes in control file
+! and allocate set%ffnb accordingly
+subroutine alloc_ffnb(env, fname)
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in)  :: fname
+   character(len=*), parameter :: source = 'alloc_ffnb'
+   character(len=:),allocatable :: line
+
+   integer :: id, ie, err
+   logical :: is_ffnb_block = .false.
+   integer :: copy = -1
+   integer :: n_changes = 0 ! number of atoms that neigh%nb should be adjusted for
+
+   call open_file(id,fname,'r')
+   if (id.eq.-1) then
+      call env%warning("could not find '"//fname//"'", source)
+      return
+   endif
+   ! read first line
+   call mirror_line(id,copy,line,err)
+   ! read control file and check
+   count_n:do
+      ! check if the $ffnb block has been reached
+      if (line(1:5).eq."$ffnb".or.is_ffnb_block) then
+         is_ffnb_block = .true.
+         call mirror_line(id,copy,line,err)
+         if (is_iostat_end(err)) exit count_n     ! check if EOF !
+         if (index(line,flag).ne.0) exit count_n  ! check if new flag !
+         ie = index(line,equal)              ! find the equal sign !
+         if (ie.eq.0) cycle                  ! cycle if there is no equal sign
+         n_changes = n_changes + 1
+      else ! otherwise read the next line
+         call mirror_line(id,copy,line,err)
+         if (is_iostat_end(err)) exit count_n     ! check if EOF !
+      end if
+   end do count_n
+   if (.not.allocated(set%ffnb)) allocate(set%ffnb(42,n_changes), source=-1)
+
+end subroutine alloc_ffnb
+
+
+subroutine set_ffnb(env,key,val)
+   implicit none
+   character(len=*), parameter :: source = 'set_ffnb'
+   type(TEnvironment), intent(inout) :: env
+   character(len=*),intent(in) :: key
+   character(len=*),intent(in) :: val
+   integer :: i,j,k,l
+   integer :: i_start,i_end,i_ffnb
+   logical :: nonb
+
+   k=1 ! start at 1 since first entry of ffnb is the atom index that the following NBs belong to
+   i_start=1
+   i_end=1
+   i_ffnb=0
+   nonb = .false. ! expect that the atom should have neighbors
+   do i=1, len(val)
+      ! get next empty row in ffnb and read atom index into first entry
+      if (val(i:i).eq.":") then
+         do j=1,size(set%ffnb, dim=2)
+           if (set%ffnb(1,j).eq.-1 .and. i_ffnb.eq.0) then
+              i_ffnb = j ! index of next empty row
+              l=i-1
+              ! we take care of ":" and "," and trust read() to handle whitespaces
+              read(val(1:l), *) set%ffnb(1,j)
+              i_start=i+1
+              exit
+           endif
+         enddo
+      endif
+      ! read the neighbors into ffnb now
+      if (val(i:i).eq.",") then
+         k = k + 1
+         i_end=i-1
+         read(val(i_start:i_end), *) set%ffnb(k,i_ffnb)
+         ! if the first neighbor index (k=2) is zero the atom (k=1) has no neighbors
+         if (set%ffnb(k,i_ffnb) == 0 .and. k == 2) then
+           nonb = .true.
+         endif
+         i_start=i+1
+      endif
+      ! read the last neighbor into ffnb
+      if (i.eq.len(val)) then
+         k = k + 1
+         read(val(i_start:), *) set%ffnb(k,i_ffnb)
+         ! if the first neighbor index (k=2) is zero the atom (k=1) has no neighbors
+         if (set%ffnb(k,i_ffnb) == 0 .and. k == 2) then
+           nonb = .true.
+         endif
+         ! set rest of ffnb to 0
+         set%ffnb(k+1:41, i_ffnb) = 0
+      endif
+   enddo
+   if (nonb) then
+     set%ffnb(2:,i_ffnb) = 0
+   else
+     set%ffnb(42,i_ffnb) = k - 1 ! number of neighbors of atom set%ffnb(1,i_ffnb) 
+   endif
+
+end subroutine set_ffnb
 
 !> set ONIOM functionality
 subroutine set_oniom(env,key,val)

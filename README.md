@@ -27,7 +27,7 @@ A short guide on the usage of each is given here, follow the linked instructions
 
 **Compilers**: 
   1. ifort(<=2021.10.0), icc(<=2021.10.0)
-  2. gfortran(<=13.2.0), gcc(<=13.2.0) 
+  2. gfortran, gcc
 
 
 ### Meson
@@ -40,6 +40,27 @@ export FC=ifort CC=icc
 meson setup build --buildtype release --optimization 2 -Dfortran_link_args="-qopenmp"
 ninja -C build test
 ```
+
+> [!IMPORTANT]
+> Compilation with `meson` on macOS differs slightly from the protocol for Linux-based systems. Different BLAS libraries can lead to deviating results in rare cases – please stick to the following instructions.
+
+<details>
+  <summary><b>Setting up meson on macOS</b></summary>
+
+#### Compiling with meson on macOS
+
+1. **Use Homebrew for Package Management**: Install dependencies like `gcc`, `gfortran`, and `openblas` using Homebrew.
+[Further information](https://brew.sh/) on how to setup `brew`.
+Example:
+   ```bash
+   brew install gcc gfortran openblas
+   ```
+2. **meson setup call with appropriate environment variables**: Use the following adapted `meson setup` call to compile `xtb` on macOS. Obviously, the paths to the libraries might differ on your system.
+   ```bash
+   LDFLAGS="-L/opt/homebrew/opt/openblas/lib" CPPFLAGS="-I/opt/homebrew/opt/openblas/include" FC=gfortran-14 CC=gcc-14 meson setup _build --buildtype release -Dlapack=openblas
+   ```
+</details>
+<br>
 
 Make sure the testsuite is running without errors.
 
@@ -125,7 +146,7 @@ features reality:
 - S. Dohm ([@thch-dohm](https://github.com/thch-dohm))
 - S. Ehlert ([@awvwgk](https://github.com/awvwgk))
 - S. Ehrlich
-- I. Gerasimov ([@FulgurIgor](https://github.com/fulgurigor))
+- I. Gerasimov ([@foxtran](https://github.com/foxtran))
 - [S. Grimme](https://www.chemie.uni-bonn.de/pctc/mulliken-center/grimme/) ([@stefangrimme](https://github.com/stefangrimme))
 - C. Hölzer ([@hoelzerC](https://github.com/hoelzerc))
 - A. Katbashev ([@Albkat](https://github.com/albkat))
@@ -173,6 +194,10 @@ for GFN-xTB:
 for GFN-FF:
 - S. Spicher and S. Grimme, *Angew. Chem. Int. Ed.*, **2020**, 59, 15665–15673
   DOI: [10.1002/anie.202004239](https://doi.org/10.1002/anie.202004239)
+
+for PTB:
+- S. Grimme, M. Müller, A. Hansen, *J. Chem. Phys.* **2023**, 158, 124111.
+  DOI: [10.1063/5.0137838](https://doi.org/10.1063/5.0137838)
 
 for GBSA and ALPB implicit solvation:
 - S. Ehlert, M. Stahn, S. Spicher, S. Grimme,

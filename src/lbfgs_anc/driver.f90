@@ -36,7 +36,7 @@ module xtb_pbc_optimizer_driver
 
 !> Driver for performing geometry optimization
 !subroutine    relax(self, ctx, mol, calc, filter, accuracy, verbosity)
-subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel)
+subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel, optfail)
   use xtb_pbc, only: cross_product
   use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
   !> Instance of the optimization driver
@@ -64,6 +64,8 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel)
   type(scc_results) :: results
   !> optimization cycle failed
   logical :: fail
+  !> optimization failed
+  logical, intent(out) :: optfail
   !> singlepoint energy
   real(wp) :: energy
   !> gradient and stress tensor
@@ -84,6 +86,7 @@ subroutine relax_pbc(self, env, mol, chk, calc, filter, printlevel)
   real(wp) :: emin_global, xyz_emin(3,mol%n), latt_emin(3,3)
   character(6), parameter :: fname = "noName"
   
+  optfail = .false.
   nvar = filter%get_dimension()
   allocate(gcurr(nvar), glast(nvar), displ(nvar))
   allocate(gxyz(3, mol%n), sigma(3, 3), source=0.0_wp)
@@ -203,6 +206,7 @@ endif
 
   ! Output message if not converged after maximum steps
   if (.not.converged) then
+    optfail = .true.
     write(*,*) ''
     write(*,*) 'Could not converge in',step,' steps.'
     call env%error("Could not converge geometry.",source)

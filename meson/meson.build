@@ -18,28 +18,33 @@
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
 fc_id = fc.get_id()
+cc_id = cc.get_id()
 
-if fc.get_id() != cc.get_id()
+if fc_id != cc_id
   warning('FC and CC are not from the same vendor')
 endif
 
 fopts = []
-if fc.get_id() == 'gcc'
+if fc_id == 'gcc'
   fopts = [
     '-fdefault-real-8',
     '-fdefault-double-8',
     '-ffree-line-length-none',
     '-fbacktrace',
   ]
-elif fc.get_id() == 'intel'
+elif fc_id == 'intel' or fc_id == 'intel-llvm'
+  # ifort and ifx largely share the same options
   if get_option('buildtype') == 'release'
     opt_level = [
       '-Ofast',
-      '-ip',
       '-axAVX2',
       '-mtune=core-avx2',
       '-fma',
     ]
+    # Not available with ifx
+    if fc_id == 'intel'
+      opt_level += ['-ip']
+    endif  
   else
     opt_level = [
       '-axAVX2',
@@ -49,7 +54,7 @@ elif fc.get_id() == 'intel'
     '-r8',
     '-traceback',
   ]
-elif fc.get_id() == 'intel-cl'
+elif fc_id == 'intel-cl'
   if get_option('buildtype') == 'release'
     opt_level = [
       '/O3',
@@ -68,7 +73,7 @@ elif fc.get_id() == 'intel-cl'
     '/4R8',
     '/traceback',
   ]
-elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
+elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
   fopts = [
     '-Mpreprocess',
     '-Mbackslash',
@@ -102,14 +107,14 @@ add_project_arguments('-D_Float128=__float128', language: 'c')
 
 lapack_vendor = get_option('lapack')
 if lapack_vendor == 'auto'
-  if fc_id == 'intel'
+  if fc_id == 'intel' or fc_id == 'intel-llvm'
     lapack_vendor = 'mkl'
   endif
 endif
 
 if lapack_vendor == 'mkl'
   mkl_dep = []
-  if fc_id == 'intel'
+  if fc_id == 'intel' or fc_id == 'intel-llvm'
     mkl_dep += cc.find_library('mkl_intel_lp64')
     if get_option('openmp')
       mkl_dep += cc.find_library('mkl_intel_thread')
@@ -165,9 +170,9 @@ else
 endif
 
 if get_option('openmp')
-  omp_dep = dependency('openmp', required: fc.get_id() != 'intel' and fc.get_id() != 'nvidia_hpc')
+  omp_dep = dependency('openmp', required: fc_id != 'intel' and fc_id != 'intel-llvm' and fc_id != 'nvidia_hpc')
   if not omp_dep.found()
-    if fc.get_id() == 'intel'
+    if fc_id == 'intel' or fc_id == 'intel-llvm'
       message('Using -qopenmp to use OpenMP with Intel compilers')
       omp_dep = declare_dependency(
         compile_args: '-qopenmp',
@@ -211,6 +216,7 @@ lib_deps += tblite_dep
 multicharge_dep = dependency(
   'multicharge',
   fallback: ['multicharge', 'multicharge_dep'],
+  required: get_option('tblite')
 )
 lib_deps += multicharge_dep
 
@@ -218,6 +224,7 @@ lib_deps += multicharge_dep
 dftd4_dep = dependency(
   'dftd4',
   fallback: ['dftd4', 'dftd4_dep'],
+  required: get_option('tblite')
 )
 lib_deps += dftd4_dep
 

@@ -611,7 +611,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    real(wp) tmp1,tmp2,tmp3,step,step2,step3,s00r,s00l,s00,alpj
    real(wp) skj,r1,r2,tt,t1,t2,t3,t4,thr2,f,ci,cj,alpi,rij2,ab,est
    real(wp) f1,f2,point(3),tmp(6,6),rij(3),ri(3),rj(3)
-   real(wp) stmp,ral(3,3),rar(3,3),rbl(3,3),pre
+   real(wp) ral(3,3),rar(3,3),rbl(3,3),pre
    real(wp) dtmp,qtmp,rbr(3,3),r2l(3),r2r(3),qqa(6,6,6,3)
    real(wp)  ss(6,6,3),ddc(3,6,6,3),qqc(6,6,6,3),dda(3,6,6,3)
    integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij,jshmax
@@ -633,7 +633,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp,ij, &
    !$omp& icao,naoi,iptyp,jsh,jshmax,jshtyp,jcao,naoj,jptyp,dCN, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
-   !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
+   !$omp& mli,mlj,dum,dumdum,tmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
    !$omp reduction(+:g,sigma,dhdcn)
    do iat = 1,nat
@@ -709,7 +709,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
                            & +sdqg(ixyz, 2:4, jj,ii)*vd(1:3,jat) )
                         qtmp = Pij*sum( sdqg(ixyz,14:19,jj,ii)*vq(1:6,iat) &
                            & +sdqg(ixyz, 5:10,jj,ii)*vq(1:6,jat) )
-                        g_xyz(ixyz) = g_xyz(ixyz)+stmp+dtmp+qtmp
+                        g_xyz(ixyz) = g_xyz(ixyz)+dtmp+qtmp
 
                      enddo ! ixyz
 
