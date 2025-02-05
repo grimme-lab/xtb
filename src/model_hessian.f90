@@ -2509,7 +2509,7 @@ end module xtb_modelhessian
         jr=iTabRow(iANr(jAtom))
 !       If (jr.eq.0) Go To 444
 !
-        Call DCopy(3,Cart(1,jAtom),1,xyz(1,2),1)
+        xyz(1:3,2) = Cart(1:3,jAtom)
 !
         Do kAtom = 1, nAtoms
            If (kAtom.eq.jAtom) Go To 111
@@ -2519,7 +2519,7 @@ end module xtb_modelhessian
            if(rcutoff(cart,katom,jatom)) cycle
 !          if(wb(katom,jatom).lt.wthr) cycle
 !
-           Call DCopy(3,Cart(1,kAtom),1,xyz(1,3),1)
+           xyz(1:3,3) = Cart(1:3,kAtom)
 !
            Do iAtom = 1, nAtoms
               ij_=nAtoms*(jAtom-1)+iAtom
@@ -2533,7 +2533,7 @@ end module xtb_modelhessian
 !             if(wb(iatom,katom).lt.wthr) cycle
 !             if(wb(iatom,jatom).lt.wthr) cycle
 
-              Call DCopy(3,Cart(1,iAtom),1,xyz(1,1),1)
+              xyz(1:3,1) = Cart(1:3,iAtom)
 !
               Do lAtom = 1, nAtoms
                  lk_=nAtoms*(kAtom-1)+lAtom
@@ -2551,7 +2551,7 @@ end module xtb_modelhessian
 !                if(wb(latom,katom).lt.wthr) cycle
 !                if(wb(latom,jatom).lt.wthr) cycle
 
-                 Call DCopy(3,Cart(1,lAtom),1,xyz(1,4),1)
+                 xyz(1:3,4) = Cart(1:3,lAtom)
 !
                  rij(1)=Cart(1,iAtom)-Cart(1,jAtom)
                  rij(2)=Cart(2,iAtom)-Cart(2,jAtom)
@@ -2591,10 +2591,10 @@ end module xtb_modelhessian
 
                Call Trsn(xyz,4,Tau,C,.False.,.False.,'        ', &
      &                  Dum,.False.)
-               Call DCopy(3,C(1,1),1,si,1)
-               Call DCopy(3,C(1,2),1,sj,1)
-               Call DCopy(3,C(1,3),1,sk,1)
-               Call DCopy(3,C(1,4),1,sl,1)
+               si(1:3) = C(1:3,1)
+               sj(1:3) = C(1:3,2)
+               sk(1:3) = C(1:3,3)
+               sl(1:3) = C(1:3,4)
 !
 !-------------Off diagonal block
 !
@@ -3054,10 +3054,10 @@ end module xtb_modelhessian
                  jr=iTabRow(iANr(jAtom))
                  kr=iTabRow(iANr(kAtom))
                  lr=iTabRow(iANr(lAtom))
-                 Call DCopy(3,Cart(1,iAtom),1,xyz(1,1),1)
-                 Call DCopy(3,Cart(1,jAtom),1,xyz(1,2),1)
-                 Call DCopy(3,Cart(1,kAtom),1,xyz(1,3),1)
-                 Call DCopy(3,Cart(1,lAtom),1,xyz(1,4),1)
+                 xyz(1:3,1)=Cart(1:3,iAtom)
+                 xyz(1:3,2)=Cart(1:3,jAtom)
+                 xyz(1:3,3)=Cart(1:3,kAtom)
+                 xyz(1:3,4)=Cart(1:3,lAtom)
                  rij(1)=Cart(1,iAtom)-Cart(1,jAtom)
                  rij(2)=Cart(2,iAtom)-Cart(2,jAtom)
                  rij(3)=Cart(3,iAtom)-Cart(3,jAtom)
@@ -3081,10 +3081,10 @@ end module xtb_modelhessian
                tij=beta*exp(-(aij*rij2+ajk*rjk2+akl*rkl2))
 
                Call Trsn(xyz,4,Tau,C,.False.,.False.,'        ',Dum,.False.)
-               Call DCopy(3,C(1,1),1,si,1)
-               Call DCopy(3,C(1,2),1,sj,1)
-               Call DCopy(3,C(1,3),1,sk,1)
-               Call DCopy(3,C(1,4),1,sl,1)
+               si(1:3)=C(1:3,1)
+               sj(1:3)=C(1:3,2)
+               sk(1:3)=C(1:3,3)
+               sl(1:3)=C(1:3,4)
 !-------------Off diagonal block
               Do icoor=1,3
                 Do jCoor=1,3
