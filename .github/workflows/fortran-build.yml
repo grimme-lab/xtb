@@ -9,15 +9,13 @@ jobs:
          fail-fast: false
          matrix:
             os: [macos-latest, ubuntu-latest]
-            version: [12]
+            version: [12, 13, 14]
             include:
-               - os: ubuntu-latest
+               - os: ubuntu-22.04
                  version: 10
-               - os: ubuntu-latest
+               - os: ubuntu-22.04
                  version: 11
-               - os: macos-latest
-                 version: 13
-               - os: macos-latest
+               - os: ubuntu-24.04-arm
                  version: 14
       steps:
          - name: Checkout code
@@ -33,6 +31,10 @@ jobs:
             echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
             echo "LDFLAGS=-L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
             echo "CPPFLAGS=-I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
+         - name: Install OpenBLAS (ubuntu-latest)
+           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+           run: |
+            sudo apt-get install libopenblas-dev
          - name: Install meson
            run: pip install meson ninja cmake
          - name: Configure build
@@ -55,9 +57,10 @@ jobs:
       strategy:
          fail-fast: false
          matrix:
-            os: [ubuntu-latest]
-            fc: [gfortran-12]
-            cc: [gcc-12]
+            os: [ubuntu-latest, ubuntu-24.04-arm]
+            fc: [gfortran-14]
+            cc: [gcc-14]
+            build: [Release]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -65,10 +68,14 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
+         - name: Install OpenBLAS (ubuntu-latest)
+           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+           run: |
+            sudo apt-get install libopenblas-dev
          - name: Install CMake
            run: pip install ninja cmake
          - name: Configure build
-           run: cmake -B ${{ env.BUILD_DIR }} -G Ninja
+           run: cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }}
            env:
             FC: ${{ matrix.fc }}
             CC: ${{ matrix.cc }}
@@ -85,8 +92,8 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-12]
-            cc: [gcc-12]
+            fc: [gfortran-14]
+            cc: [gcc-14]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -94,6 +101,10 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
+         - name: Install OpenBLAS (ubuntu-latest)
+           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+           run: |
+            sudo apt-get install libopenblas-dev
          - name: Install meson
            run: pip3 install meson==0.62.0 ninja cmake
          - name: Configure build
@@ -115,8 +126,8 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            fc: [gfortran-12]
-            cc: [gcc-12]
+            fc: [gfortran-14]
+            cc: [gcc-14]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
@@ -124,6 +135,10 @@ jobs:
            uses: actions/setup-python@v5
            with:
             python-version: 3.x
+         - name: Install OpenBLAS (ubuntu-latest)
+           if: ${{ matrix.os == 'ubuntu-latest' || contains(matrix.os, 'ubuntu-24.04') }}
+           run: |
+            sudo apt-get install libopenblas-dev
          - name: Install CMake
            run: pip3 install ninja cmake
          - name: Configure build
