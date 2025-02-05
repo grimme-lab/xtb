@@ -412,7 +412,7 @@ subroutine ancopt(env,ilog,mol,chk,calc, &
       
       write(env%unit,scifmt) "energy convergence", ethr,    "Eh  "
       write(env%unit,scifmt) "grad. convergence ", gthr,    "Eh/α"
-      write(env%unit,dblfmt) "maxmium RF displ. ", maxdispl,"    "
+      write(env%unit,dblfmt) "maximum RF displ. ", maxdispl,"    "
       write(env%unit,scifmt) "Hlow (freq-cutoff)", hlow,    "    "
       write(env%unit,dblfmt) "Hmax (freq-cutoff)", hmax,    "    "
       write(env%unit,dblfmt) "S6 in model hess. ", s6,      "    "
