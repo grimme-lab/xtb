@@ -147,6 +147,7 @@ Subroutine Trsn(xyz,nCent,Tau,Bt,lWrite,lWarn,Label,dBt,ldB)
    !                                                                      *
    ! R.Lindh May-June '96                                                 *
    !***********************************************************************
+   Implicit Integer (i-n)
    Implicit Real*8 (a-h,o-z)
    !     include "common/real.inc"
    !comdeck real.inc $Revision: 2002.3 $
@@ -342,6 +343,7 @@ Subroutine Trsn(xyz,nCent,Tau,Bt,lWrite,lWarn,Label,dBt,ldB)
 End      subroutine
 
 Subroutine Strtch(xyz,nCent,Avst,B,lWrite,Label,dB,ldB)
+   Implicit Integer (i-n)
    Implicit Real*8 (a-h,o-z)
    !      include "common/real.inc"
    !comdeck real.inc $Revision: 2002.3 $
@@ -426,6 +428,7 @@ End subroutine
 
 !fordeck bend $Revision: 5.3 $
 Subroutine Bend(xyz,nCent,Fir,Bf,lWrite,lWarn,Label,dBf,ldB)
+   Implicit Integer (i-n)
    Implicit Real*8  (a-h,o-z)
    !      include "common/real.inc"
    !comdeck real.inc $Revision: 2002.3 $

@@ -33,6 +33,7 @@ c     end
 
       SUBROUTINE RSP(A,N,MATZ,W,Z)
          use xtb_mctc_accuracy, only : wp
+      IMPLICIT INTEGER (I-N)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DIMENSION A(n*(n+1)/2),  W(n), Z(n,n)  
       DIMENSION :: FV1(2*n),FV2(2*n)
@@ -115,6 +116,7 @@ C
       END
 
       SUBROUTINE TQL2(NM,N,D,E,Z,IERR,EPS)
+      IMPLICIT INTEGER (I-N)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 C               ===== PROCESSED BY AUGMENT, VERSION 4N =====
 C     APPROVED FOR VAX 11/780 ON MAY 6,1980.  J.D.NEECE
@@ -284,6 +286,7 @@ C                EIGENVALUE AFTER 30 ITERATIONS **********
 C     ********** LAST CARD OF TQL2 **********
       END
       SUBROUTINE TQLRAT(N,D,E2,IERR,EPS)
+      IMPLICIT INTEGER (I-N)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 C               ===== PROCESSED BY AUGMENT, VERSION 4N =====
 C     APPROVED FOR VAX 11/780 ON MAY 6,1980.  J.D.NEECE
@@ -416,6 +419,7 @@ C                EIGENVALUE AFTER 30 ITERATIONS **********
 C     ********** LAST CARD OF TQLRAT **********
       END
       SUBROUTINE TRBAK3(NM,N,NV,A,M,Z)
+      IMPLICIT INTEGER (I-N)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 C               ===== PROCESSED BY AUGMENT, VERSION 4N =====
 C     APPROVED FOR VAX 11/780 ON MAY 6,1980.  J.D.NEECE
@@ -500,6 +504,7 @@ C
 C     ********** LAST CARD OF TRBAK3 **********
       END
       SUBROUTINE TRED3(N,NV,A,D,E,E2,EPS,ETA)
+      IMPLICIT INTEGER (I-N)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 C               ===== PROCESSED BY AUGMENT, VERSION 4N =====
 C     APPROVED FOR VAX 11/780 ON MAY 6,1980.  J.D.NEECE

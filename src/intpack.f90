@@ -82,6 +82,7 @@ end subroutine pola
 !! --------------------------------------------------------------[SAW1710]-
 !     changed do loops, replaced spaceships
 subroutine prola(aname,a,b,etaij4,etakl4,iff1,iff2,va,nt)
+   implicit integer(i-n)
    implicit real(wp)(a-h,o-z)
    external aname
    ! aufpunkte,ref point,intarray
@@ -294,6 +295,7 @@ end subroutine prola
 !! --------------------------------------------------------------[SAW1710]-
 !     changed do loops, replaced spaceships
 subroutine propa(aname,a,b,c,etaij4,etakl4,iff1,iff2,va,nt)
+   implicit integer(i-n)
    implicit real(wp)(a-h,o-z)
    external aname
    ! aufpunkte,ref point,intarray
@@ -1026,6 +1028,7 @@ subroutine opap4(l,m,n,gc,v,rc)
    !
    !     written by s. brode in april,1984
    !
+   implicit integer (i-n)
    implicit real(wp) (a-h,o-z)
    logical :: lodd,modd,nodd,leven,meven,neven
    real(wp)  :: v(1),rc(3),rca(3),rcb(3),srcab(3),o(25)
@@ -1324,6 +1327,7 @@ end subroutine opap4
 
 
 subroutine fmc(mvar,xvar,expmx,fmch)
+   implicit integer (i-n)
    implicit real(wp) (a-h,o-z)
    m=mvar
    x=xvar
@@ -1400,6 +1404,7 @@ end subroutine fmc
 
       subroutine opaa0(l,m,n,ga,v,d)
 !           electronic part of potential
+      implicit integer(i-n)
       implicit real*8(a-h,o-z)
       dimension v(*),d(*),fnu(7),fn(7),fd(7),dp(3)
       data fn /1.d0,1.d0,2.d0,6.d0,24.d0,120.d0, &
@@ -1431,6 +1436,7 @@ end subroutine fmc
 
 
       double precision function aainer(l,m,n,d,dp,fnu,fn,fd)
+      implicit integer(i-n)
       implicit real*8(a-h,o-z)
       dimension  d(*),dp(*),fnu(*),fn(*),fd(*)
       integer u,v,w,uvwt,rstt,uvwth

@@ -95,6 +95,7 @@
       end subroutine preig2
 
       SUBROUTINE PREIG3(IO,E,NORBS)
+      IMPLICIT INTEGER (I-N)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION E(*)
       N=10
@@ -118,6 +119,7 @@
       END SUBROUTINE PREIG3
 
       SUBROUTINE PRMAT(IUOUT,R,N,M,HEAD)
+      IMPLICIT INTEGER(I-N)
       REAL*8 R
       CHARACTER*(*) HEAD
       DIMENSION R(*)
@@ -209,6 +211,7 @@
       END
 
       SUBROUTINE PRMAT4(IUOUT,R,N,M,HEAD)
+      IMPLICIT INTEGER(I-N)
       REAL*4 R
       CHARACTER*(*) HEAD
       DIMENSION R(*)
@@ -300,8 +303,10 @@
       END
 
       SUBROUTINE PRMATI(IUOUT,RR,N,M,HEAD)
+      IMPLICIT INTEGER(I-N)
       CHARACTER*(*) HEAD
       integer RR(*)
+      REAL*4 R
       DIMENSION R(n*n)
 !     SUBROUTINE PRINTS MATRIX R,WHICH IS SUPPOSED
 !     TO HAVE DIMENSION N,M  WHEN M IS NONZERO AND
@@ -392,6 +397,7 @@
       END
 
       SUBROUTINE PRMATS(IUOUT,R,N,M,HEAD)
+      IMPLICIT INTEGER(I-N)
       REAL*8 R
       CHARACTER*(*) HEAD
       DIMENSION R(*)
@@ -483,6 +489,7 @@
       END
 
       subroutine preigf(io,e,norbs)
+      implicit integer (i-n)
       implicit real*8 (a-h,o-z)
       dimension e(*)
       n=6
@@ -505,6 +512,7 @@
       end subroutine preigf
 
       subroutine preigf0(io,e,norbs)
+      implicit integer (i-n)
       implicit real*8 (a-h,o-z)
       dimension e(*)
       n=6

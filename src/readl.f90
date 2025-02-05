@@ -18,6 +18,7 @@
 
 subroutine readl(a1,x,n)
    use xtb_mctc_accuracy, only : wp
+   implicit integer (i-n)
    implicit real(wp) (a-h,o-z)
    character(*) a1
    dimension x(*)
@@ -36,6 +37,7 @@ end subroutine readl
 
 function readaa(a,istart,iend,iend2)
    use xtb_mctc_accuracy, only : wp
+   implicit integer (i-n)
    implicit real(wp) (a-h,o-z)
    real(wp) readaa
    character(*) a

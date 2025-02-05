@@ -211,6 +211,7 @@ end subroutine
 !-------------------------------------------------
 
 subroutine rmblank(as,re)
+   implicit integer (i-n)
    character(len=*) as
    character(len=*) re
 
@@ -227,6 +228,7 @@ subroutine rmblank(as,re)
 end subroutine rmblank
 
 subroutine xbangle(xyz,angle)
+   implicit integer (i-n)
    implicit double precision (a-h,o-z)
    dimension xyz(3,3)
    !********************************************************************
@@ -255,6 +257,7 @@ subroutine xbangle(xyz,angle)
    return
 end subroutine xbangle
 subroutine xdihed(xyz,angle)
+   implicit integer (i-n)
    implicit double precision (a-h,o-z)
    dimension xyz(3,4)
    !********************************************************************
