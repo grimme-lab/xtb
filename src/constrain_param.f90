@@ -1242,7 +1242,7 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    type(TAtomList) :: atl
    integer, allocatable :: list(:)
    real(wp) :: ddum
-   integer  :: i,j,idum,ati,narg
+   integer  :: i,j,idum,iat,narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
    character(len=256) :: warningstring
 
@@ -1286,16 +1286,16 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
             endif
             call atl%to_list(list)
             do idum = 1, size(list)
-               ati = list(idum)
-               if (ati.gt.nat) then
+               iat = list(idum)
+               if (iat.gt.nat) then
                   write(warningstring, '(a, i0, a)') 'Attempted setting atom mass for atom ', &
-                     & ati, ' that is not present in system.'
+                     & iat, ' that is not present in system.'
                   call env%warning(trim(warningstring), source)
                   cycle
                endif
-               atmass(ati) = ddum
+               atmass(iat) = ddum
                write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-                  & 'mass of atom ',ati,' changed to',atmass(ati)
+                  & 'mass of atom ',iat,' changed to',atmass(iat)
             enddo
             call atl%destroy()
          endif
@@ -1314,16 +1314,16 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
             endif
             call atl%to_list(list)
             do idum = 1, size(list)
-               ati = list(idum)
-               if (ati.gt.nat) then
+               iat = list(idum)
+               if (iat.gt.nat) then
                   write(warningstring, '(a, i0, a)') 'Attempted setting atom mass for atom ', &
-                  & ati, ' that is not present in system.'
+                  & iat, ' that is not present in system.'
                   call env%warning(trim(warningstring), source)
                   cycle
                endif
-               atmass(ati) = atmass(ati)*ddum
+               atmass(iat) = atmass(iat)*ddum
                write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-                  'mass of atom ',ati,' changed to',atmass(ati)
+                  'mass of atom ',iat,' changed to',atmass(iat)
             enddo
             call atl%destroy()
          endif
