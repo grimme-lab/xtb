@@ -1242,7 +1242,7 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    type(TAtomList) :: atl
    integer, allocatable :: list(:)
    real(wp) :: ddum
-   integer  :: i,j,idum,ati,narg,len_warning
+   integer  :: i,j,idum,ati,narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
    character(len=256) :: warningstring
 
