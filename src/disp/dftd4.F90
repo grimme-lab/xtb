@@ -2044,10 +2044,12 @@ subroutine atm_gradient_latp &
    !$omp parallel do default(none) reduction(+:energies, gradient, sigma, dEdcn) &
    !$omp shared(mol, r4r2, par, trans, cutoff2, c6, dc6dcn) &
    !$omp private(iat, ati, jat, atj, kat, atk, c6ij, cij, c6ik, c6jk, cik, cjk, &
-   !$omp& rij, r2ij, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN)
+   !$omp& rij, r2ij, ktr, rik, r2ik, rjk, r2jk, scale, dE, dG, dS, dCN) &
+   !$omp collapse(2) schedule(dynamic,32)
    do iat = 1, len(mol)
-      ati = mol%at(iat)
-      do jat = 1, iat
+      do jat = 1, len(mol)
+         if (jat > iat) cycle
+         ati = mol%at(iat)
          atj = mol%at(jat)
 
          c6ij = c6(jat,iat)
