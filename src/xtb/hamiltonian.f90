@@ -631,7 +631,7 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    thr2 = intcut
    point = 0.0_wp
    ! call timing(t1,t3)
-   !$omp parallel do default(none) schedule(dynamic) &
+   !$omp parallel do default(none) &
    !$omp shared(nat, at, xyz, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& H0, S, ves, vs, vd, vq, intcut, nprim, primcount, caoshell, saoshell, &
    !$omp& alp, cont) &
@@ -640,12 +640,13 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
    !$omp& mli,mlj,dum,dumdum,tmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
-   !$omp reduction(+:g,sigma,dhdcn)
+   !$omp reduction(+:g,sigma,dhdcn) &
+   !$omp collapse(2) schedule(dynamic,32)
    do iat = 1,nat
-      ri = xyz(:,iat)
-      izp = at(iat)
-      do jat = 1,iat-1
-         !           if (jat.eq.iat) cycle
+      do jat = 1,nat
+         if (jat <= iat) cycle
+         ri = xyz(:,iat)
+         izp = at(iat)
          jzp = at(jat)
 
          rj = xyz(:,jat)
