@@ -1282,7 +1282,7 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
             call atl%new(argv(i))
             if (atl%get_error()) then
                call env%warning('something is wrong in the mass list',source)
-               return
+               cycle
             endif
             call atl%to_list(list)
             do idum = 1, size(list)
