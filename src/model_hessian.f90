@@ -2507,14 +2507,14 @@ end module xtb_modelhessian
 !
       Do jAtom = 1,nAtoms
         jr=iTabRow(iANr(jAtom))
-!       If (jr.eq.0) Go To 444
+!       If (jr.eq.0) Cycle
 !
         xyz(1:3,2) = Cart(1:3,jAtom)
 !
         Do kAtom = 1, nAtoms
-           If (kAtom.eq.jAtom) Go To 111
+           If (kAtom.eq.jAtom) Cycle
            kr=iTabRow(iANr(kAtom))
-!          If (kr.eq.0) Go To 111
+!          If (kr.eq.0) Cycle
 
            if(rcutoff(cart,katom,jatom)) cycle
 !          if(wb(katom,jatom).lt.wthr) cycle
@@ -2523,10 +2523,10 @@ end module xtb_modelhessian
 !
            Do iAtom = 1, nAtoms
               ij_=nAtoms*(jAtom-1)+iAtom
-              If (iAtom.eq.jAtom) Go To 333
-              If (iAtom.eq.kAtom) Go To 333
+              If (iAtom.eq.jAtom) cycle
+              If (iAtom.eq.kAtom) cycle
               ir=iTabRow(iANr(iAtom))
-!             If (ir.eq.0) Go To 333
+!             If (ir.eq.0) cycle
 !
               if(rcutoff(cart,iatom,katom)) cycle
               if(rcutoff(cart,iatom,jatom)) cycle
@@ -2537,10 +2537,10 @@ end module xtb_modelhessian
 !
               Do lAtom = 1, nAtoms
                  lk_=nAtoms*(kAtom-1)+lAtom
-                 If (ij_.le.lk_) Go To 222
-                 If (lAtom.eq.iAtom) Go To 222
-                 If (lAtom.eq.jAtom) Go To 222
-                 If (lAtom.eq.kAtom) Go To 222
+                 If (ij_.le.lk_) Cycle
+                 If (lAtom.eq.iAtom) Cycle
+                 If (lAtom.eq.jAtom) Cycle
+                 If (lAtom.eq.kAtom) Cycle
                  lr=iTabRow(iANr(lAtom))
 !                If (lr.eq.0) Go To 222
 !
@@ -2580,10 +2580,10 @@ end module xtb_modelhessian
                CosFi_Max=Cos(A35)
                CosFi2=(rij(1)*rjk(1)+rij(2)*rjk(2)+rij(3)*rjk(3)) &
      &               /Sqrt(rij2*rjk2)
-               If (Abs(CosFi2).gt.CosFi_Max) Go To 222
+               If (Abs(CosFi2).gt.CosFi_Max) Cycle
                CosFi3=(rkl(1)*rjk(1)+rkl(2)*rjk(2)+rkl(3)*rjk(3)) &
      &               /Sqrt(rkl2*rjk2)
-               If (Abs(CosFi3).gt.CosFi_Max) Go To 222
+               If (Abs(CosFi3).gt.CosFi_Max) Cycle
 
                beta=rkt* &
      &                       exp( (aij*rij0+ajk*rjk0+akl*rkl0))
@@ -2642,13 +2642,9 @@ end module xtb_modelhessian
 !
                  End Do
                End Do
-222            Continue
              End Do        ! lAtom
-333          Continue
            End Do          ! iAtom
-111        Continue
         End Do             ! kAtom
-444     Continue
       End Do               ! jAtom
       Return
       End
