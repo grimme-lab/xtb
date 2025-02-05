@@ -1007,6 +1007,7 @@ pure subroutine solver_ssyevx(n,thr,A,U,e,fail)
    j=1
    call lapack_syevx('V','I','U',n,A,n,dum,dum,j,j,thr, &
    &           i,e,U,n,work,lwork,iwork,ifail,info)
+   fail = .false.
    if (info.ne.0) fail = .true.
 
    deallocate(iwork,work,ifail)
@@ -1033,6 +1034,7 @@ pure subroutine solver_sspevx(n,thr,A,U,e,fail)
 
    j=1
    call lapack_spevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
+   fail = .false.
    if (info.ne.0) fail = .true.
 
    deallocate(iwork,work,ifail)
