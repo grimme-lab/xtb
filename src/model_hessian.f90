@@ -2542,7 +2542,7 @@ end module xtb_modelhessian
                  If (lAtom.eq.jAtom) Cycle
                  If (lAtom.eq.kAtom) Cycle
                  lr=iTabRow(iANr(lAtom))
-!                If (lr.eq.0) Go To 222
+!                If (lr.eq.0) Cycle
 !
                  if(rcutoff(cart,latom,iatom)) cycle
                  if(rcutoff(cart,latom,katom)) cycle
