@@ -196,7 +196,7 @@ contains
       call start_timing(2)
       write(*,*)
       !MolA
-      write (env%unit, *) 'Precomputation of electronic porperties'
+      write (env%unit, *) 'Precomputation of electronic properties'
       write (env%unit, *) ' For Molecule 1'
       call precomp(env, iff_data, molA, molA_e, 1)
       write (env%unit, *) ' Successful'
