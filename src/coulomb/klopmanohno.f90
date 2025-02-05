@@ -507,11 +507,13 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
 
    !$omp parallel do default(none) reduction(+:djdr, djdtr, djdL) &
    !$omp shared(mol, itbl, qvec, gExp, hardness) &
-   !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r1, g1, gij, vec, dG, dS)
+   !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r1, g1, gij, vec, dG, dS) &
+   !$omp collapse(2) schedule(dynamic,32)
    do iat = 1, len(mol)
-      ii = itbl(1, iat)
-      iid = mol%id(iat)
-      do jat = 1, iat-1
+      do jat = 1, len(mol)
+         if (jat >= iat) cycle
+         ii = itbl(1, iat)
+         iid = mol%id(iat)
          jj = itbl(1, jat)
          jid = mol%id(jat)
          vec(:) = mol%xyz(:, jat) - mol%xyz(:, iat)
