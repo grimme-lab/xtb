@@ -105,6 +105,29 @@ add_project_arguments('-D_Float128=__float128', language: 'c')
 ## LIBRARIES
 ## ========================================== ##
 
+if get_option('openmp')
+  omp_dep = dependency('openmp', required: fc_id != 'intel' and fc_id != 'intel-llvm' and fc_id != 'nvidia_hpc')
+  if not omp_dep.found()
+    if fc_id == 'intel' or fc_id == 'intel-llvm'
+      message('Using -qopenmp to use OpenMP with Intel compilers')
+      omp_dep = declare_dependency(
+        compile_args: '-qopenmp',
+        link_args: '-qopenmp',
+      )
+    else
+      message('Using -mp to use OpenMP with NVHPC compilers')
+      omp_dep = declare_dependency(
+        compile_args: '-mp',
+        link_args: '-mp',
+      )
+    endif
+  endif
+  lib_deps += omp_dep
+endif
+
+lib_deps += dependency('threads')
+
+
 lapack_vendor = get_option('lapack')
 if lapack_vendor == 'auto'
   if fc_id == 'intel' or fc_id == 'intel-llvm'
@@ -152,9 +175,25 @@ elif lapack_vendor == 'openblas'
   endif
 
 elif lapack_vendor == 'custom'
-  foreach lib: get_option('custom_libraries')
-    lib_deps += fc.find_library(lib)
-  endforeach
+  custom_deps = []
+  libs = get_option('custom_libraries')
+  if libs[0].startswith('-L')
+    foreach lib: libs
+      if lib != libs[0]
+        custom_deps += cc.find_library(lib, dirs: libs[0].substring(2))
+      endif
+    endforeach
+  else
+    foreach lib: libs
+      custom_deps += cc.find_library(lib)
+    endforeach
+  endif
+  if (not fc.links('external dsytrs; call dsytrs(); end', dependencies:  (get_option('openmp') ? [custom_deps, omp_dep] : [custom_deps])))
+    error('Custom LAPACK libraries do not link')
+  elif (not fc.links('external dsytrs; call dgemm(); end', dependencies: (get_option('openmp') ? [custom_deps, omp_dep] : [custom_deps])))
+    error('Custom BLAS libraries do not link')
+  endif
+  lib_deps += custom_deps
 
 else
   lapack_dep = dependency('lapack', required: false)
@@ -168,28 +207,6 @@ else
   endif
   lib_deps += blas_dep
 endif
-
-if get_option('openmp')
-  omp_dep = dependency('openmp', required: fc_id != 'intel' and fc_id != 'intel-llvm' and fc_id != 'nvidia_hpc')
-  if not omp_dep.found()
-    if fc_id == 'intel' or fc_id == 'intel-llvm'
-      message('Using -qopenmp to use OpenMP with Intel compilers')
-      omp_dep = declare_dependency(
-        compile_args: '-qopenmp',
-        link_args: '-qopenmp',
-      )
-    else
-      message('Using -mp to use OpenMP with NVHPC compilers')
-      omp_dep = declare_dependency(
-        compile_args: '-mp',
-        link_args: '-mp',
-      )
-    endif
-  endif
-  lib_deps += omp_dep
-endif
-
-lib_deps += dependency('threads')
 
 if get_option('nvtx')
   lib_deps += fc.find_library('nvToolsExt', required: true)
