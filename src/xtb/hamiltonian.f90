@@ -644,11 +644,11 @@ subroutine build_dSDQH0_noreset(nShell, hData, selfEnergy, dSEdcn, intcut, &
    !$omp collapse(2) schedule(dynamic,32)
    do iat = 1,nat
       do jat = 1,nat
-         if (jat <= iat) cycle
-         ri = xyz(:,iat)
+         if (jat >= iat) cycle
          izp = at(iat)
          jzp = at(jat)
 
+         ri = xyz(:,iat)
          rj = xyz(:,jat)
          rij = ri - rj
          rij2 =  sum( rij**2 )
