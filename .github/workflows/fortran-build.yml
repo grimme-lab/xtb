@@ -60,7 +60,7 @@ jobs:
             os: [ubuntu-latest, ubuntu-24.04-arm]
             fc: [gfortran-14]
             cc: [gcc-14]
-            build: [Release]
+            build: [Release, Debug]
       steps:
          - name: Checkout code
            uses: actions/checkout@v4
