@@ -498,19 +498,21 @@ subroutine getCoulombDerivsCluster(mol, itbl, gamAverage, gExp, hardness, &
    !> Derivative of Coulomb matrix w.r.t. strain deformations
    real(wp), intent(out) :: djdL(:, :, :)
 
-   integer :: iat, jat, ish, jsh, ii, jj, iid, jid
+   integer :: iat, jat, nat, ish, jsh, ii, jj, iid, jid
    real(wp) :: r1, g1, gij, vec(3), dG(3), dS(3, 3)
 
    djdr(:, :, :) = 0.0_wp
    djdtr(:, :) = 0.0_wp
    djdL(:, :, :) = 0.0_wp
 
+   nat = len(mol) ! workaround for legacy Intel Fortran compilers
+
    !$omp parallel do default(none) reduction(+:djdr, djdtr, djdL) &
-   !$omp shared(mol, itbl, qvec, gExp, hardness) &
+   !$omp shared(mol, itbl, qvec, gExp, hardness, nat) &
    !$omp private(iat, jat, ish, jsh, ii, jj, iid, jid, r1, g1, gij, vec, dG, dS) &
    !$omp collapse(2) schedule(dynamic,32)
-   do iat = 1, len(mol)
-      do jat = 1, len(mol)
+   do iat = 1, nat
+      do jat = 1, nat
          if (jat >= iat) cycle
          ii = itbl(1, iat)
          iid = mol%id(iat)
