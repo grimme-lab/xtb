@@ -205,7 +205,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    ! --- Aufpunkt for moment operator
    point = 0.0_wp
 
-   !$omp parallel do default(none) schedule(dynamic) &
+   !$omp parallel do default(none) &
    !$omp shared(nat, xyz, at, nShell, hData, selfEnergy, caoshell, saoshell, &
    !$omp& nprim, primcount, alp, cont, intcut, trans, point) &
    !$omp private (iat,jat,izp,ci,ra,rb,saw, &
@@ -213,11 +213,13 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq,shpoly, &
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
-   !$omp shared(sint,dpint,qpint,H0)
+   !$omp shared(sint,dpint,qpint,H0) &
+   !$omp collapse(2) schedule(dynamic,32)
    do iat = 1, nat
-      ra(1:3) = xyz(1:3,iat)
-      izp = at(iat)
-      do jat = 1, iat-1
+      do jat = 1, nat
+         if (jat >= iat) cycle
+         ra(1:3) = xyz(1:3,iat)
+         izp = at(iat)
          jzp = at(jat)
          do ish = 1, nShell(izp)
             ishtyp = hData%angShell(ish,izp)
@@ -426,7 +428,7 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    thr2 = intcut
    point = 0.0_wp
    ! call timing(t1,t3)
-   !$omp parallel do default(none) schedule(dynamic) &
+   !$omp parallel do default(none) &
    !$omp shared(nat, at, xyz, trans, nShell, hData, selfEnergy, dSEdcn, P, Pew, &
    !$omp& ves, vs, vd, vq, intcut, nprim, primcount, caoshell, saoshell, alp, cont) &
    !$omp private(iat,jat,ixyz,izp,ci,rij2,jzp,ish,ishtyp, &
@@ -434,13 +436,14 @@ subroutine build_dSDQH0(nShell, hData, selfEnergy, dSEdcn, intcut, nat, nao, nbf
    !$omp& sdq,sdqg,est,alpi,alpj,ab,iprim,jprim,ip,jp,ri,rj,rij,km,shpoly,dshpoly, &
    !$omp& mli,mlj,dum,dumdum,tmp,stmp,dtmp,qtmp,il,jl,zi,zj,zetaij,hii,hjj,hav, &
    !$omp& iao,jao,ii,jj,k,pij,hij,hpij,g_xyz,itr) &
-   !$omp reduction(+:g,sigma,dhdcn)
+   !$omp reduction(+:g,sigma,dhdcn) &
+   !$omp collapse(2) schedule(dynamic,32)
    do iat = 1,nat
-      ri = xyz(:,iat)
-      izp = at(iat)
-      do jat = 1,iat-1
-         !           if (jat.eq.iat) cycle
+      do jat = 1,nat
+         if (jat >= iat) cycle
+         ri = xyz(:,iat)
          jzp = at(jat)
+         izp = at(iat)
 
          do ish = 1,nShell(izp)
             ishtyp = hData%angShell(ish,izp)
