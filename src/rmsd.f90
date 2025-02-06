@@ -91,8 +91,9 @@ end subroutine
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 logical function ohbonded(n,m,xyz,at)
-   integer n,at(n),m
-   real*8 xyz(3,n)
+   implicit none
+   integer n,at(n),m,i
+   real*8 xyz(3,n),r
 
    ohbonded=.false.
    if(at(m).ne.1) return

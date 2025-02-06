@@ -650,6 +650,7 @@ subroutine mocent(n,ndim,ihomo,x,s,qmo,xcen,aoat2)
 end subroutine mocent
 
 SUBROUTINE lmosort(ncent,ihomo,imo,imem,qmo)
+   IMPLICIT INTEGER(I-N)
    IMPLICIT REAL*8(A-H,O-Z)
    dimension qmo(ncent,ihomo)
    dimension imem(ncent)
@@ -675,6 +676,7 @@ SUBROUTINE lmosort(ncent,ihomo,imo,imem,qmo)
 end subroutine lmosort
 
 SUBROUTINE lmosort2(n,eps,d,ecent)
+   IMPLICIT INTEGER(I-N)
    IMPLICIT REAL*8(A-H,O-Z)
    dimension d(n,n), eps(n), ecent(n,3)
 

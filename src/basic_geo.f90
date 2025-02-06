@@ -454,6 +454,7 @@ contains
 
       subroutine vsc1(a,scale,tol)
          use xtb_mctc_accuracy, only : wp
+      implicit integer (i-n)
       implicit double precision (a-h,o-z)
       dimension a(3)
 

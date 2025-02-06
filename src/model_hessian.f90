@@ -2657,6 +2657,7 @@ end module xtb_modelhessian
       use xtb_gfnff_topology, only : TGFFTopology
       use xtb_gfnff_neighbor, only : TNeigh
       use xtb_type_timer
+      Implicit Integer (i-n)
       Implicit Real*8 (a-h, o-z)
       type(TGFFData), intent(in) :: param
       type(TGFFTopology), intent(in) :: topo
