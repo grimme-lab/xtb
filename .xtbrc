@@ -1,7 +1,5 @@
 $cmd xtb --define --copy --input .xtbrc ethanol.xyz
 $date 2025/02/05 at 20:43:07.480     
-$chrg 0
-$spin 0
 $gfn
    method=2
    scc=true
