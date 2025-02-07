@@ -199,7 +199,7 @@ contains
       write (env%unit, *) '|         Starting Energy Screening          |'
       write (env%unit, *) '=============================================='
       write (env%unit, *)
-      if (.not. fulle) write (env%unit, *) ' Fast Mode selected (recommended)'
+      if (.not. fulle) write (env%unit, *) ' No ATM term employed (recommended)'
       if (.not. fulle) write (env%unit, *) ' If ATM term should be included, use -atm option.'
       if (.not. fulle) write (env%unit, *)
 
