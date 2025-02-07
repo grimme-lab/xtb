@@ -420,6 +420,8 @@ contains
       else
          call init_metadyn(mol%n, metaset%maxsave)
       end if
+      !> Initialize the atomic masses with the physical constants
+      atmass = atomic_mass(mol%at) * autoamu ! from splitparam.f90
       call load_rmsdbias(rmsdset, mol%n, mol%at, mol%xyz)
       ! ------------------------------------------------------------------------
       !> CONSTRAINTS & SCANS
@@ -428,7 +430,6 @@ contains
       ! ------------------------------------------------------------------------
       !> get some memory
       allocate (cn(mol%n), sat(mol%n), g(3, mol%n), source=0.0_wp)
-      atmass = atomic_mass(mol%at) * autoamu ! from splitparam.f90
       set%periodic = mol%npbc > 0
       if (mol%npbc == 0) then
          if (set%do_cma_trafo) then
