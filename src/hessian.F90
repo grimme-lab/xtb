@@ -351,7 +351,7 @@ subroutine numhess( &
    ! non mass weigthed Hessian in hss
    hname = 'hessian'
    write(env%unit,'(a)')
-   write(env%unit,'("writing file <",a,">.")') hname
+   write(env%unit,'("writing file <",a,">, containing the non-mass-weighted Hessian matrix in atomic units (Eₕ/Bohr²).")') hname
    call wrhess(n3,hss,hname)
 
    ! non mass weigthed biased Hessian in hsb
