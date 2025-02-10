@@ -256,6 +256,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    eat  = 0.0_wp
    egap = 0.0_wp
    molpol = 0.0_wp
+   sigma = 0.0_wp
 
    pr   = prlevel.gt.1
    minpr= prlevel.gt.0
