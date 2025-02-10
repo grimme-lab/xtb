@@ -330,6 +330,10 @@ pure subroutine appendSymbol(list, nList, symbol)
    !> Elements symbol
    character(len=*), intent(in) :: symbol
 
+   if (len(symbol) > len(list)) then
+     error stop "Programmer's bug: len(symbol) > len(list)"
+   end if
+
    if (nList >= size(list)) then
       call resize(list)
    end if
