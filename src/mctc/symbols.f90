@@ -284,7 +284,7 @@ pure function findSymbol(list, symbol) result(position)
 
    position = 0
    do iSym = 1, size(list)
-      if (symbol == list(iSym)) then
+      if (trim(symbol) == trim(list(iSym))) then
          position = iSym
          exit
       end if
