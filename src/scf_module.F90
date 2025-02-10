@@ -765,6 +765,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
          & cn, dcndr, dcndL)
       call latp%getLatticePoints(trans, 60.0_wp)
+      dum = 0.0_wp
       call d4_gradient(mol, xtbData%dispersion%dispm, trans, &
          &  xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
          &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &
