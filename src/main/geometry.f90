@@ -381,8 +381,8 @@ subroutine calc_distances(n,at,xyz,bond,maxdist,ndist,dist,id, &
          jat = at(j)
          r  = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          if (bond(j,i).gt.0) then
-            m = m+1
             if (m.ge.maxdist) exit get_dist
+            m = m+1
             ndel(iat,jat) = ndel(iat,jat)+1
             maxdel(iat,jat) = max(maxdel(iat,jat),r)
             mindel(iat,jat) = min(mindel(iat,jat),r)
