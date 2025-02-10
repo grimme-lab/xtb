@@ -1007,7 +1007,7 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
             dnorm = dnorm + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
          enddo
       end do
-      norm = 1.0_wp / norm
+      if (norm /= 0.0_wp) norm = 1.0_wp / norm
       ! acc loop vector private(expw, expd)
       do iref = 1, dispm%nref(ati)
          expw = 0.0_wp
@@ -1021,7 +1021,7 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
          enddo
 
          gwk = expw * norm
-         if (gwk /= gwk) then
+         if (gwk == 0.0_wp) then
             if (maxval(dispm%cn(:dispm%nref(ati), ati)) &
                & == dispm%cn(iref, ati)) then
                gwk = 1.0_wp
@@ -1033,9 +1033,6 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
          zerovec(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,zi) * gwk
 
          dgwk = expd*norm-expw*dnorm*norm**2
-         if (dgwk /= dgwk) then
-            dgwk = 0.0_wp
-         endif
          zetadcn(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * dgwk
          zetadq(iref, iat) = dzeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * gwk
          zerodcn(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,zi) * dgwk
