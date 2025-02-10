@@ -90,7 +90,7 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          expd = 2*wf*(reference_cn(iref, ati) - cn(iat)) * expw
 
          gwk = expw * norm
-         if (gwk == 0.0_wp) then
+         if (norm == 0.0_wp) then
             if (maxval(reference_cn(:number_of_references(ati), ati)) &
                & == reference_cn(iref, ati)) then
                gwk = 1.0_wp
