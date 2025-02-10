@@ -276,7 +276,7 @@ contains
               &+ (AL1(2, i) - AL2(2, j))**2&
               &+ (AL1(3, i) - AL2(3, j))**2
             r = sqrt(r2)
-            esl = esl + AL1(4, i)*AL2(4, j)*r/(r*r + r0tmp(jat, iat))
+            esl = esl + AL1(4, i)*AL2(4, j)*r/(r2 + r0tmp(jat, iat))
          end do
 !        LP atom corrections
          do j = 1, n2
@@ -284,7 +284,7 @@ contains
               &+ (A2(2, j) - AL1(2, i))**2&
               &+ (A2(3, j) - AL1(3, i))**2
             r = sqrt(r2)
-            esl = esl + AL1(4, i)*q2(j)*r/(r*r + r0tmp(j, iat))
+            esl = esl + AL1(4, i)*q2(j)*r/(r2 + r0tmp(j, iat))
          end do
       end do
 !     LP atom corrections
@@ -295,7 +295,7 @@ contains
               &+ (A1(2, j) - AL2(2, i))**2&
               &+ (A1(3, j) - AL2(3, i))**2
             r = sqrt(r2)
-            esl = esl + AL2(4, i)*q1(j)*r/(r*r + r0tmp(iat, j))
+            esl = esl + AL2(4, i)*q1(j)*r/(r2 + r0tmp(iat, j))
          end do
       end do
 
