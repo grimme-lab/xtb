@@ -153,8 +153,9 @@ subroutine local(nat,at,nbf,nao,ihomo,xyz,z,focc,s,p,cmo,eig,q,etot,gbsa,basis,r
       qhl(1:nat,2)=0
    endif
 
-   allocate(cca(nao*nao),xcen(n),lneigh(4,n),aneigh(2,n))
-   allocate(d(n,n),ecent(n,4),eiga(n),qcent(n,3),ecent2(n,4))
+   allocate(lneigh(4,n),aneigh(2,n), source=0)
+   allocate(cca(nao*nao),xcen(n), source=0.0_wp)
+   allocate(d(n,n),ecent(n,4),eiga(n),qcent(n,3),ecent2(n,4), source=0.0_wp)
 
    ! do only occ. ones
    cca=0
