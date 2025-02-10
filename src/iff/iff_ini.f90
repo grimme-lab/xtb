@@ -213,11 +213,11 @@ contains
          z1(i) = val_e(at1(i))
          k = 0
          do j = 1, n1
-            if (j .eq. i) cycle
             rr = (xyz1(1, j) - xyz1(1, i))**2 + (xyz1(2, j) - xyz1(2, i))**2 +&
               &(xyz1(3, j) - xyz1(3, i))**2
             r0 = sqrt(rr)
             gab1(j, i) = 1.0d0/(r0 + 1./sqrt(gam(at1(i))*gam(at1(j))))
+            if (j .eq. i) cycle
             ai = alp0(i)**(1./3)
             aj = alp0(j)**(1./3)
             rrr = 1.13*2.6*(ai + aj)*0.5/r0
@@ -236,11 +236,11 @@ contains
          z2(i) = val_e(at2(i))
          k = 0
          do j = 1, n2
-            if (j .eq. i) cycle
             rr = (xyz2(1, j) - xyz2(1, i))**2 + (xyz2(2, j) - xyz2(2, i))**2 +&
               &(xyz2(3, j) - xyz2(3, i))**2
             r0 = sqrt(rr)
             gab2(j, i) = 1.0d0/(r0 + 1./sqrt(gam(at2(i))*gam(at2(j))))
+            if (j .eq. i) cycle
             ai = alp0(i + n1)**(1./3)
             aj = alp0(j + n1)**(1./3)
             rrr = 1.13*2.6*(ai + aj)*0.5/r0
