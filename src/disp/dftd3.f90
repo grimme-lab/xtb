@@ -84,13 +84,13 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          norm = norm + gw
          dnorm = dnorm + 2*wf*(reference_cn(iref, ati) - cn(iat)) * gw
       end do
-      norm = 1.0_wp / norm
+      if (norm /= 0.0_wp) norm = 1.0_wp / norm
       do iref = 1, number_of_references(ati)
          expw = weight_cn(wf, cn(iat), reference_cn(iref, ati))
          expd = 2*wf*(reference_cn(iref, ati) - cn(iat)) * expw
 
          gwk = expw * norm
-         if (gwk /= gwk) then
+         if (gwk == 0.0_wp) then
             if (maxval(reference_cn(:number_of_references(ati), ati)) &
                & == reference_cn(iref, ati)) then
                gwk = 1.0_wp
@@ -101,9 +101,6 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          gwvec(iref, iat) = gwk
 
          dgwk = expd*norm-expw*dnorm*norm**2
-         if (dgwk /= dgwk) then
-            dgwk = 0.0_wp
-         endif
          gwdcn(iref, iat) = dgwk
 
       end do
