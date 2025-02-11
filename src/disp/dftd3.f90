@@ -84,15 +84,19 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          norm = norm + gw
          dnorm = dnorm + 2*wf*(reference_cn(iref, ati) - cn(iat)) * gw
       end do
-      norm = 1.0_wp / norm
+      if (norm > 1e-80_wp) then
+         norm = 1.0_wp / norm
+      else
+         norm = 0.0_wp
+      end if
       do iref = 1, number_of_references(ati)
          expw = weight_cn(wf, cn(iat), reference_cn(iref, ati))
          expd = 2*wf*(reference_cn(iref, ati) - cn(iat)) * expw
 
          gwk = expw * norm
-         if (gwk /= gwk) then
-            if (maxval(reference_cn(:number_of_references(ati), ati)) &
-               & == reference_cn(iref, ati)) then
+         if (norm == 0.0_wp) then
+            if (abs(maxval(reference_cn(:number_of_references(ati), ati)) &
+               & - reference_cn(iref, ati)) < 1e-12_wp) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
@@ -101,9 +105,6 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          gwvec(iref, iat) = gwk
 
          dgwk = expd*norm-expw*dnorm*norm**2
-         if (dgwk /= dgwk) then
-            dgwk = 0.0_wp
-         endif
          gwdcn(iref, iat) = dgwk
 
       end do
@@ -875,8 +876,16 @@ end subroutine deriv_atm_triple
 elemental function weight_cn(wf,cn,cnref) result(cngw)
    real(wp),intent(in) :: wf, cn, cnref
    real(wp) :: cngw
+   real(wp) :: val
    intrinsic :: exp
-   cngw = exp ( -wf * ( cn - cnref )**2 )
+
+   val = -wf * ( cn - cnref )**2
+   if (val < -200.0_wp) then ! technically, exp(-200) -> 1.383897e-87
+     cngw = 0.0_wp
+   else
+     cngw = exp ( val )
+   end if
+
 end function weight_cn
 
 
