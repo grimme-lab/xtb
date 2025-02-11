@@ -1007,7 +1007,11 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
             dnorm = dnorm + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
          enddo
       end do
-      if (norm /= 0.0_wp) norm = 1.0_wp / norm
+      if (norm > 1e-32_wp) then
+         norm = 1.0_wp / norm
+      else
+         norm = 0.0_wp
+      end if
       ! acc loop vector private(expw, expd)
       do iref = 1, dispm%nref(ati)
          expw = 0.0_wp
