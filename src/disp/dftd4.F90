@@ -636,7 +636,8 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
             gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
          if (norm == 0.0_wp) then
-            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ia),ia)) &
+               & - dispm%cn(ii,ia)) < 1e-12_wp) then
                gw(k) = 1.0_wp
             else
                gw(k) = 0.0_wp
@@ -913,7 +914,8 @@ subroutine pbc_d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
             gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
          if (norm == 0.0_wp) then
-            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ia),ia)) &
+               & - dispm%cn(ii,ia)) < 1e-12_wp) then
                gw(k) = 1.0_wp
             else
                gw(k) = 0.0_wp

@@ -95,8 +95,8 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
 
          gwk = expw * norm
          if (norm == 0.0_wp) then
-            if (maxval(reference_cn(:number_of_references(ati), ati)) &
-               & == reference_cn(iref, ati)) then
+            if (abs(maxval(reference_cn(:number_of_references(ati), ati)) &
+               & - reference_cn(iref, ati)) < 1e-12_wp) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
