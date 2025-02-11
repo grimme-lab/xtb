@@ -1034,8 +1034,8 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
 
          gwk = expw * norm
          if (norm == 0.0_wp) then
-            if (maxval(dispm%cn(:dispm%nref(ati), ati)) &
-               & == dispm%cn(iref, ati)) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ati), ati)) &
+               & - dispm%cn(iref, ati)) < 1e-12_wp) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
