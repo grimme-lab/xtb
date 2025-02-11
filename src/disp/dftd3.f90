@@ -876,8 +876,16 @@ end subroutine deriv_atm_triple
 elemental function weight_cn(wf,cn,cnref) result(cngw)
    real(wp),intent(in) :: wf, cn, cnref
    real(wp) :: cngw
+   real(wp) :: val
    intrinsic :: exp
-   cngw = exp ( -wf * ( cn - cnref )**2 )
+
+   val = -wf * ( cn - cnref )**2
+   if (val < -70.0_wp) then ! technically, exp(-70) -> 3.97545e-31
+     cngw = 0.0_wp
+   else
+     cngw = exp ( val )
+   end if
+
 end function weight_cn
 
 
