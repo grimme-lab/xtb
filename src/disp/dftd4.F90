@@ -624,17 +624,18 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      norm = 1._wp / norm
+      if (norm > 1e-32_wp) then
+         norm = 1._wp / norm
+      else
+         norm = 0.0_wp
+      end if
       do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
          do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
             gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
-!    --- okay, if we run out of numerical precision, gw(k) will be NaN.
-!        In case it is NaN, it will not match itself! So we can rescue
-!        this exception. This can only happen for very high CNs.
-         if (gw(k).ne.gw(k)) then
+         if (norm == 0.0_wp) then
             if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
                gw(k) = 1.0_wp
             else
@@ -900,17 +901,18 @@ subroutine pbc_d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      norm = 1._wp / norm
+      if (norm > 1e-32_wp) then
+         norm = 1._wp / norm
+      else
+         norm = 0.0_wp
+      end if
       do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
          do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
             gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
-!    --- okay, if we run out of numerical precision, gw(k) will be NaN.
-!        In case it is NaN, it will not match itself! So we can rescue
-!        this exception. This can only happen for very high CNs.
-         if (gw(k).ne.gw(k)) then
+         if (norm == 0.0_wp) then
             if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
                gw(k) = 1.0_wp
             else
