@@ -457,7 +457,7 @@ pure elemental function cngw(wf,cn,cnref)
    intrinsic :: exp
 
    val = -wf * ( cn - cnref )**2
-   if (val < -70.0_wp) then ! technically, exp(-70) -> 3.97545e-31
+   if (val < -200.0_wp) then ! technically, exp(-200) -> 1.383897e-87
      cngw = 0.0_wp
    else
      cngw = exp ( val )
@@ -624,7 +624,7 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      if (norm > 1e-32_wp) then
+      if (norm > 1e-80_wp) then
          norm = 1._wp / norm
       else
          norm = 0.0_wp
@@ -901,7 +901,7 @@ subroutine pbc_d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      if (norm > 1e-32_wp) then
+      if (norm > 1e-80_wp) then
          norm = 1._wp / norm
       else
          norm = 0.0_wp
@@ -1015,7 +1015,7 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
             dnorm = dnorm + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
          enddo
       end do
-      if (norm > 1e-32_wp) then
+      if (norm > 1e-80_wp) then
          norm = 1.0_wp / norm
       else
          norm = 0.0_wp

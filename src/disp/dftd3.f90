@@ -84,7 +84,7 @@ subroutine weight_references(nat, atoms, wf, cn, gwvec, gwdcn)
          norm = norm + gw
          dnorm = dnorm + 2*wf*(reference_cn(iref, ati) - cn(iat)) * gw
       end do
-      if (norm > 1e-32_wp) then
+      if (norm > 1e-80_wp) then
          norm = 1.0_wp / norm
       else
          norm = 0.0_wp
@@ -880,7 +880,7 @@ elemental function weight_cn(wf,cn,cnref) result(cngw)
    intrinsic :: exp
 
    val = -wf * ( cn - cnref )**2
-   if (val < -70.0_wp) then ! technically, exp(-70) -> 3.97545e-31
+   if (val < -200.0_wp) then ! technically, exp(-200) -> 1.383897e-87
      cngw = 0.0_wp
    else
      cngw = exp ( val )
