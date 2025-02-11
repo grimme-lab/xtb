@@ -124,6 +124,8 @@ contains
 
       allocate (cn(mol%n), g(3, mol%n))
 
+      er = 0.0_wp
+
       set%pr_lmo = .true.
       set%silent = .true.
 
