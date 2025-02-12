@@ -484,7 +484,6 @@ subroutine l_ancopt &
    real(sp), allocatable :: eig(:)
    real(wp), allocatable :: trafo(:,:)
    real(wp), allocatable :: hdiag(:)
-   real(wp), allocatable :: anc(:)
    real(wp), allocatable :: xyz0(:,:)
    type(convergence_log), allocatable :: avconv
 
@@ -547,7 +546,7 @@ subroutine l_ancopt &
    ! get memory, allocate single and double precision arrays separately
    nat3 = 3*mol%n
    allocate( pmode(nat3,1), hessp(nat3*(nat3+1)/2), trafo(nat3,nat3), &
-      &      hdiag(nat3), xyz0(3,mol%n), anc(nat3), xyzopt(3,mol%n), &
+      &      xyz0(3,mol%n), xyzopt(3,mol%n), &
       &      source = 0.0_wp )
    allocate( hess(nat3,nat3), eig(nat3), source = 0.0_sp )
    ! set defaults
@@ -580,6 +579,8 @@ subroutine l_ancopt &
          if(nvar.le.0) nvar=1
       endif
    end if
+
+   allocate( hdiag(nvar), source = 0.0_wp )
 
    ! print a nice summary with all settings and thresholds of ANCopt
    if(pr)then
@@ -723,14 +724,13 @@ subroutine l_ancopt &
    enddo
 
    ! reset approximate normal coordinate system
-   anc  = 0.0_wp
    xyz0 = molopt%xyz
    esave = energy
    if (profile) call timer%measure(3)
 
    call lbfgs_relax &
       &   (env,iter,thiscycle,opt,molopt, &
-      &    chk,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,anc,xyz0, &
+      &    chk,calc,energy,egap,gradient,sigma,nvar,hdiag,trafo,xyz0, &
       &    converged,fail,timer,avconv)
 
    thiscycle = min(ceiling(thiscycle*opt%cycle_inc),2*opt%micro_cycle)
@@ -864,7 +864,7 @@ end subroutine lbfgs_step
 !  is augmented with a coordinate transformation in approximate normal coordinates
 subroutine lbfgs_relax &
       &   (env,iter,maxcycle,opt,mol, &
-      &    chk,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,anc,xyz0, &
+      &    chk,calc,energy,egap,g_xyz,sigma,nvar,hdiag,trafo,xyz0, &
       &    converged,fail,timer,avconv)
 
    use xtb_type_molecule
@@ -915,8 +915,6 @@ subroutine lbfgs_relax &
    real(wp), intent(in) :: hdiag(:)
    !> transformation matrix for cartesian coordinates to ANC's
    real(wp), intent(in) :: trafo(:,:)
-   !> approximate normal coordinate system
-   real(wp), intent(inout) :: anc(:)
    !> start geometry used to generate ANC's
    real(wp), intent(in) :: xyz0(:,:)
    !> timer for profiling the relaxation procedure
@@ -949,6 +947,8 @@ subroutine lbfgs_relax &
    real(wp), allocatable :: lbfgs_y(:,:)
    real(wp), allocatable :: lbfgs_rho(:)
 
+   !> approximate normal coordinate system
+   real(wp), allocatable :: anc(:)
    !  RF variables
    integer :: nvar1,npvar,npvar1
    real(sp) :: dsnrm
@@ -977,7 +977,7 @@ subroutine lbfgs_relax &
 
    memory = min(opt%memory,maxcycle)
 
-   allocate( displacement(nvar), g_anc(nvar), glast(nvar), &
+   allocate( displacement(nvar), g_anc(nvar), glast(nvar), anc(nvar), &
       &      source = 0.0_wp )
 
    if (profile) call timer%measure(4,'coordinate transformation')
