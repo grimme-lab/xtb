@@ -251,11 +251,11 @@ subroutine getIdentitySymbol(nId, identity, symbol)
    !> Chemical identity
    integer, intent(out) :: identity(:)
 
-   character(len=symbolLength), allocatable :: sTmp(:)
+   character(len=:), allocatable :: sTmp(:)
    integer :: nAt, iAt, iId
 
    nAt = size(identity)
-   allocate(sTmp(nAt))
+   allocate(character(len=len(symbol)) :: sTmp(nAt))
    nId = 0
    do iAt = 1, nAt
       iId = findSymbol(sTmp(:nId), symbol(iAt))
@@ -322,7 +322,7 @@ end function findNumber
 pure subroutine appendSymbol(list, nList, symbol)
 
    !> List of element symbols
-   character(len=*), allocatable, intent(inout) :: list(:)
+   character(len=:), allocatable, intent(inout) :: list(:)
 
    !> Current occupied size of list
    integer, intent(inout) :: nList
