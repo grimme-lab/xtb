@@ -1052,6 +1052,7 @@ contains
 
       !> Read the constrain again with new xyz only if necessary
       if (constraint_xyz) then
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if
@@ -1108,6 +1109,7 @@ contains
 !            deallocate(wpot(i)%list)
             if(allocated(wpot(i)%list)) deallocate(wpot(i)%list)
          end do
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if
