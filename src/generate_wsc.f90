@@ -64,12 +64,14 @@ subroutine generate_wsc(mol,wsc)
 ! ------------------------------------------------------------------------
    wsc%at  = 0
    wsc%itbl= 0
+
+   !$omp parallel default(none) &
+   !$omp private(ii,jj,wc,c,dist,trans,t,lattr,rw) &
+   !$omp shared(mol,wsc,rep) &
+   !$omp private(mindist,minpos,nmindist,nminpos)
+
    ! Each WSC of one atom consists of n atoms
-!$omp parallel do default(none) &
-!$omp private(ii,jj,wc,c,dist,trans,t,lattr,rw) &
-!$omp shared(mol,wsc,rep) &
-!$omp private(mindist,minpos,nmindist,nminpos) &
-!$omp collapse(2) schedule(dynamic,32)
+   !$omp do collapse(2) schedule(dynamic,32)
    do ii=1,mol%n
       do jj=1,mol%n
          !if (ii.eq.jj) cycle
@@ -123,5 +125,7 @@ subroutine generate_wsc(mol,wsc)
          endif
       end do
    end do
+   !$omp end do
+   !$omp end parallel
 
 end subroutine generate_wsc
