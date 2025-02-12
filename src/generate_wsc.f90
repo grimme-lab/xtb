@@ -54,12 +54,6 @@ subroutine generate_wsc(mol,wsc)
    call wsc%allocate(mol%n,rep)
 
 ! ------------------------------------------------------------------------
-! initialize
-! ------------------------------------------------------------------------
-   allocate( lattr(3,wsc%cells),      source = 0 )
-   allocate( dist(wsc%cells),         source = 0.0_wp )
-   allocate( trans(wsc%cells),        source = .true. )
-! ------------------------------------------------------------------------
 ! Create the Wigner-Seitz Cell (WSC)
 ! ------------------------------------------------------------------------
    wsc%at  = 0
@@ -69,6 +63,10 @@ subroutine generate_wsc(mol,wsc)
    !$omp private(ii,jj,wc,c,dist,trans,t,lattr,rw) &
    !$omp shared(mol,wsc,rep) &
    !$omp private(mindist,minpos,nmindist,nminpos)
+
+   allocate( lattr(3,wsc%cells),      source = 0 )
+   allocate( dist(wsc%cells),         source = 0.0_wp )
+   allocate( trans(wsc%cells),        source = .true. )
 
    ! Each WSC of one atom consists of n atoms
    !$omp do collapse(2) schedule(dynamic,32)
