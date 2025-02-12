@@ -966,6 +966,7 @@ contains
       call generateFileName(fin_name, 'best', '', comb%ftype)
       call open_file(ifinal, fin_name, 'w')
       call writeMolecule(comb, ifinal, energy=final_e(1))
+      call close_file(ifinal)
       !If not xyz then best.xyz is written to not have api break
       if(comb%ftype /= 1)then
          call open_file(ifinal, 'best.xyz', 'w')
@@ -975,8 +976,8 @@ contains
             write (ifinal, '(a4,2x,3f20.14)') comb%sym(j), xyz_opt(1, j, 1)*autoang, &
             &                                 xyz_opt(2, j, 1)*autoang, xyz_opt(3, j, 1)*autoang
          end do
+         call close_file(ifinal)
       end if
-      call close_file(ifinal)
 
 
       call delete_file(set%opt_logfile)
