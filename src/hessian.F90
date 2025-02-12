@@ -87,9 +87,10 @@ subroutine numhess( &
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
    integer  :: nread,kend,lowmode
-   integer  :: nonfrozh,izero(6)
+   integer  :: nonfrozh
+   integer  :: fixmode
    integer, allocatable :: nb(:,:)
-   integer, allocatable :: indx(:),molvec(:)
+   integer, allocatable :: indx(:),molvec(:),izero(:)
    real(wp),allocatable :: bond(:,:)
 
 !$ integer  :: nproc
@@ -128,7 +129,7 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
+      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3), izero(n3))
 
    if (set%elprop == p_elprop_alpha) then
       allocate(dalphadr(6,n3), source = 0.0_wp)
@@ -190,18 +191,20 @@ subroutine numhess( &
       ! the real ones
       nonfrozh=mol%n-freezeset%n
       do a = 1,mol%n
-         res%freq(a)=float(a)
+         res%freq(3*(a-1)+1:3*(a-1)+3)=float(a)
       enddo
       do a=1,freezeset%n
-         res%freq(freezeset%atoms(a))=freezeset%atoms(a)*100000_wp
+         k = freezeset%atoms(a)
+         res%freq(3*(k-1)+1:3*(k-1)+3)=k*100000.0_wp
       enddo
-      call sortind(mol%n,res%freq)
+      call sortind(3*mol%n,res%freq)
       do a=1,nonfrozh
-         indx(a)=idint(res%freq(a))
+         indx(a)=int(res%freq(3*a))
       enddo
       do a=nonfrozh+1,mol%n
-         indx(a)=idint(res%freq(a)/100000_wp)
+         indx(a)=int(res%freq(3*a)/100000.0_wp)
       enddo
+      res%freq(:) = 0.0_wp
       write(*,'(''atoms frozen in Hessian calc.:'',10i4)') &
          & indx(nonfrozh+1:mol%n)
 
@@ -343,10 +346,12 @@ subroutine numhess( &
    end if
    ! project
    if(.not.res%linear)then ! projection does not work for linear mol.
+      fixmode = 0 ! no fixing
+      if (fixset%n > 0) fixmode = -1 ! fixing
       if (set%runtyp.eq.p_run_bhess) then
-         call trproj(mol%n,n3,mol%xyz,hsb,.false.,0,res%freq,1) ! freq is dummy
+         call trproj(mol%n,n3,mol%xyz,hsb,.false.,fixmode,res%freq,1) ! freq is dummy
       end if
-      call trproj(mol%n,n3,mol%xyz,hss,.false.,0,res%freq,1) ! freq is dummy
+      call trproj(mol%n,n3,mol%xyz,hss,.false.,fixmode,res%freq,1) ! freq is dummy
    endif
    ! non mass weigthed Hessian in hss
    hname = 'hessian'
@@ -435,18 +440,32 @@ subroutine numhess( &
 
    ! sort such that rot/trans are modes 1:6, H/isqm are scratch
    if (mol%n > 1) then
-      kend=6
-      if(res%linear)then
-         kend=5
-         do i=1,kend
-            izero(i)=i
+      h = 0.0_wp
+      isqm = 0.0_wp
+      kend=0
+      if (freezeset%n == 0) then
+         kend=6
+         if(res%linear)then
+            kend=5
+            do i=1,kend
+               izero(i)=i
+            enddo
+            res%freq(1:kend)=0
+         endif
+         do k=1,kend
+            h(1:n3,k)=res%hess(1:n3,izero(k))
+            isqm(  k)=res%freq(izero(k))
          enddo
-         res%freq(1:5)=0
+      else if (freezeset%n <= 2) then
+         ! for systems with one fixed atom, there should be 2 and 3 degrees of freedom for linear and non-linear systems, respectively
+         ! for systems with two fixed atoms, there should be 0 and 1 degrees of freedom for linear and non-linear systems, respectively
+         ! for linear systems with more than two fixed atoms, there should be 0 degrees of freedom
+         ! for non-linear systems unless one fixes three atoms defines plane, 1 degree of freedom will exist, otherwise there should be 0 degrees of freedom
+         ! anyway, the check here will become more complex and therefore it is not impemented
+         ! NOTE: it is not necessary lowest N frequencies
+         error stop "not implemented"
+         ! for three atom systems we assume that the plane was constructed (or linear system is used)
       endif
-      do k=1,kend
-         h(1:n3,k)=res%hess(1:n3,izero(k))
-         isqm(  k)=res%freq(izero(k))
-      enddo
       j=kend
       do k=1,n3
          if(abs(res%freq(k)).gt.0.01_wp)then
