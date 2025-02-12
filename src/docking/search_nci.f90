@@ -600,7 +600,9 @@ contains
 
          l = 0
          do j = 1, 14
-            if (cssym .and. mvec(icssym, j) .lt. 0) cycle ! exclude sym. equiv.
+            if (cssym) then
+               if(mvec(icssym, j) .lt. 0) cycle ! exclude sym. equiv.
+            end if
             r = stepr4
             if (j .gt. 6) r = stepr4/sqrt(3.)
             dum2(1:3) = mvec(1:3, j)*r !mvec just vector in every direction in 3D
