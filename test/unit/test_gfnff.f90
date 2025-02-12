@@ -680,7 +680,6 @@ subroutine test_gfnff_pbc(error)
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
-   use xtb_mctc_symbols, only : symbolLength
 
    use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
 
@@ -701,7 +700,7 @@ subroutine test_gfnff_pbc(error)
     real(wp), allocatable :: gradient(:, :)
     real(wp), allocatable :: xyztmp(:,:), lattmp(:,:)
     integer, allocatable :: attmp(:)
-    character(len=symbolLength), allocatable :: symtmp(:)
+    character(len=4), allocatable :: symtmp(:)
     logical, parameter :: pbc(3) = [.true., .true., .true. ]
     ! structures from X23, mcVOL22, and GFN-FF for Ln/An paper
     character(len=*), parameter :: pbc_strucs(3) = [&
@@ -840,7 +839,7 @@ subroutine test_gfnff_pbc(error)
     allocate(symtmp(2*mol%n))
     symtmp = mol%sym
     deallocate(mol%sym)
-    allocate(mol%sym(2*mol%n))
+    allocate(character(len=len(symtmp)) :: mol%sym(2*mol%n))
     mol%sym(1:mol%n)= symtmp
     mol%sym(mol%n+1:2*mol%n) = symtmp
     ! lattice
@@ -889,7 +888,6 @@ subroutine test_gfnff_LnAn_H(error)
    use xtb_type_data, only : scc_results
    use xtb_type_environment, only : TEnvironment, init
    use xtb_type_restart, only : TRestart
-   use xtb_mctc_symbols, only : symbolLength
 
    use xtb_gfnff_calculator, only : TGFFCalculator, newGFFCalculator
 
@@ -911,7 +909,7 @@ subroutine test_gfnff_LnAn_H(error)
     real(wp), allocatable :: gradient(:, :)
     real(wp), allocatable :: xyztmp(:,:), lattmp(:,:)
     integer, allocatable :: attmp(:)
-    character(len=symbolLength), allocatable :: symtmp(:)
+    character(len=4), allocatable :: symtmp(:)
     logical, parameter :: pbc(3) = [.true., .true., .true. ]
     ! structures from X23, mcVOL22, and GFN-FF for Ln/An paper
     character(len=*), parameter :: struc(1) = ["Ce_0a7745"]
