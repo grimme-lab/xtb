@@ -240,7 +240,9 @@ contains
       if (optlvl == 'gfn0') fnv = xfind(p_fname_param_gfn0)
       if (optlvl == 'gfn1') fnv = xfind(p_fname_param_gfn1)
       call newCalculator(env, comb, calc, fnv, restart, acc)
+      call env%checkpoint("Could not setup single-point calculator")
       call initDefaults(env, calc, comb, gsolvstate_iff)
+      call env%checkpoint("Could not setup defaults")
       write(*,*) 'initialization done'
 
       select type (calc)
