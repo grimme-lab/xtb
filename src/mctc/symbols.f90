@@ -21,7 +21,6 @@ module xtb_mctc_symbols
    implicit none
    private
 
-   public :: symbolLength
    public :: symbolToNumber, numberToSymbol, numberToLcSymbol
    public :: toNumber, toSymbol, toLcSymbol, getIdentity
 
@@ -31,10 +30,6 @@ module xtb_mctc_symbols
       module procedure :: getIdentityNumber
       module procedure :: getIdentitySymbol
    end interface getIdentity
-
-
-   !> Maximum allowed length of element symbols
-   integer, parameter :: symbolLength = 4
 
 
    !> Periodic system of elements
