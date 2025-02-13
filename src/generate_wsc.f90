@@ -29,7 +29,7 @@ subroutine generate_wsc(mol,wsc)
 !  Variables
 ! ------------------------------------------------------------------------
    integer  :: rep(3)
-   integer  :: ii,jj,ich
+   integer  :: ii,jj
    integer  :: aa,bb,cc
    integer  :: c,wc
    integer  :: minpos
