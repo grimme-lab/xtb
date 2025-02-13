@@ -60,7 +60,7 @@ subroutine generate_wsc(mol,wsc)
    wsc%itbl= 0
 
    !$omp parallel default(none) &
-   !$omp private(ii,jj,wc,c,dist,trans,t,lattr,rw) &
+   !$omp private(ii,jj,aa,bb,cc,wc,c,dist,trans,t,lattr,rw) &
    !$omp shared(mol,wsc,rep) &
    !$omp private(mindist,minpos,nmindist,nminpos)
 
