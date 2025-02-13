@@ -127,6 +127,7 @@ subroutine generate_wsc(mol,wsc)
       end do
    end do
    !$omp end do
+   deallocate(lattr, dist, trans)
    !$omp end parallel
 
 end subroutine generate_wsc
