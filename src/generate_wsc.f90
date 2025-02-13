@@ -72,9 +72,6 @@ subroutine generate_wsc(mol,wsc)
    !$omp do collapse(2) schedule(dynamic,32)
    do ii=1,mol%n
       do jj=1,mol%n
-         lattr = 0
-         dist = 0.0_wp
-         trans = .true.
          !if (ii.eq.jj) cycle
          ! find according neighbours
          c=0
