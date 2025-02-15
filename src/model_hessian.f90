@@ -491,6 +491,7 @@ pure subroutine mh_swart_torsion(n,at,xyz,hess,kt,kd,rcov,rvdw,lcutoff)
 
             txyz(:,1)=xyz(:,i)
             torsion_lAt: do l = 1, n
+               kl=n*(l-1)+k
                if (ij.le.kl) cycle torsion_lAt
                if (l.eq.i)   cycle torsion_lAt
                if (l.eq.j)   cycle torsion_lAt
@@ -2506,42 +2507,42 @@ end module xtb_modelhessian
 !
       Do jAtom = 1,nAtoms
         jr=iTabRow(iANr(jAtom))
-!       If (jr.eq.0) Go To 444
+!       If (jr.eq.0) Cycle
 !
-        Call DCopy(3,Cart(1,jAtom),1,xyz(1,2),1)
+        xyz(1:3,2) = Cart(1:3,jAtom)
 !
         Do kAtom = 1, nAtoms
-           If (kAtom.eq.jAtom) Go To 111
+           If (kAtom.eq.jAtom) Cycle
            kr=iTabRow(iANr(kAtom))
-!          If (kr.eq.0) Go To 111
+!          If (kr.eq.0) Cycle
 
            if(rcutoff(cart,katom,jatom)) cycle
 !          if(wb(katom,jatom).lt.wthr) cycle
 !
-           Call DCopy(3,Cart(1,kAtom),1,xyz(1,3),1)
+           xyz(1:3,3) = Cart(1:3,kAtom)
 !
            Do iAtom = 1, nAtoms
               ij_=nAtoms*(jAtom-1)+iAtom
-              If (iAtom.eq.jAtom) Go To 333
-              If (iAtom.eq.kAtom) Go To 333
+              If (iAtom.eq.jAtom) cycle
+              If (iAtom.eq.kAtom) cycle
               ir=iTabRow(iANr(iAtom))
-!             If (ir.eq.0) Go To 333
+!             If (ir.eq.0) cycle
 !
               if(rcutoff(cart,iatom,katom)) cycle
               if(rcutoff(cart,iatom,jatom)) cycle
 !             if(wb(iatom,katom).lt.wthr) cycle
 !             if(wb(iatom,jatom).lt.wthr) cycle
 
-              Call DCopy(3,Cart(1,iAtom),1,xyz(1,1),1)
+              xyz(1:3,1) = Cart(1:3,iAtom)
 !
               Do lAtom = 1, nAtoms
                  lk_=nAtoms*(kAtom-1)+lAtom
-                 If (ij_.le.lk_) Go To 222
-                 If (lAtom.eq.iAtom) Go To 222
-                 If (lAtom.eq.jAtom) Go To 222
-                 If (lAtom.eq.kAtom) Go To 222
+                 If (ij_.le.lk_) Cycle
+                 If (lAtom.eq.iAtom) Cycle
+                 If (lAtom.eq.jAtom) Cycle
+                 If (lAtom.eq.kAtom) Cycle
                  lr=iTabRow(iANr(lAtom))
-!                If (lr.eq.0) Go To 222
+!                If (lr.eq.0) Cycle
 !
                  if(rcutoff(cart,latom,iatom)) cycle
                  if(rcutoff(cart,latom,katom)) cycle
@@ -2550,7 +2551,7 @@ end module xtb_modelhessian
 !                if(wb(latom,katom).lt.wthr) cycle
 !                if(wb(latom,jatom).lt.wthr) cycle
 
-                 Call DCopy(3,Cart(1,lAtom),1,xyz(1,4),1)
+                 xyz(1:3,4) = Cart(1:3,lAtom)
 !
                  rij(1)=Cart(1,iAtom)-Cart(1,jAtom)
                  rij(2)=Cart(2,iAtom)-Cart(2,jAtom)
@@ -2579,10 +2580,10 @@ end module xtb_modelhessian
                CosFi_Max=Cos(A35)
                CosFi2=(rij(1)*rjk(1)+rij(2)*rjk(2)+rij(3)*rjk(3)) &
      &               /Sqrt(rij2*rjk2)
-               If (Abs(CosFi2).gt.CosFi_Max) Go To 222
+               If (Abs(CosFi2).gt.CosFi_Max) Cycle
                CosFi3=(rkl(1)*rjk(1)+rkl(2)*rjk(2)+rkl(3)*rjk(3)) &
      &               /Sqrt(rkl2*rjk2)
-               If (Abs(CosFi3).gt.CosFi_Max) Go To 222
+               If (Abs(CosFi3).gt.CosFi_Max) Cycle
 
                beta=rkt* &
      &                       exp( (aij*rij0+ajk*rjk0+akl*rkl0))
@@ -2590,10 +2591,10 @@ end module xtb_modelhessian
 
                Call Trsn(xyz,4,Tau,C,.False.,.False.,'        ', &
      &                  Dum,.False.)
-               Call DCopy(3,C(1,1),1,si,1)
-               Call DCopy(3,C(1,2),1,sj,1)
-               Call DCopy(3,C(1,3),1,sk,1)
-               Call DCopy(3,C(1,4),1,sl,1)
+               si(1:3) = C(1:3,1)
+               sj(1:3) = C(1:3,2)
+               sk(1:3) = C(1:3,3)
+               sl(1:3) = C(1:3,4)
 !
 !-------------Off diagonal block
 !
@@ -2641,13 +2642,9 @@ end module xtb_modelhessian
 !
                  End Do
                End Do
-222            Continue
              End Do        ! lAtom
-333          Continue
            End Do          ! iAtom
-111        Continue
         End Do             ! kAtom
-444     Continue
       End Do               ! jAtom
       Return
       End
@@ -3053,10 +3050,10 @@ end module xtb_modelhessian
                  jr=iTabRow(iANr(jAtom))
                  kr=iTabRow(iANr(kAtom))
                  lr=iTabRow(iANr(lAtom))
-                 Call DCopy(3,Cart(1,iAtom),1,xyz(1,1),1)
-                 Call DCopy(3,Cart(1,jAtom),1,xyz(1,2),1)
-                 Call DCopy(3,Cart(1,kAtom),1,xyz(1,3),1)
-                 Call DCopy(3,Cart(1,lAtom),1,xyz(1,4),1)
+                 xyz(1:3,1)=Cart(1:3,iAtom)
+                 xyz(1:3,2)=Cart(1:3,jAtom)
+                 xyz(1:3,3)=Cart(1:3,kAtom)
+                 xyz(1:3,4)=Cart(1:3,lAtom)
                  rij(1)=Cart(1,iAtom)-Cart(1,jAtom)
                  rij(2)=Cart(2,iAtom)-Cart(2,jAtom)
                  rij(3)=Cart(3,iAtom)-Cart(3,jAtom)
@@ -3080,10 +3077,10 @@ end module xtb_modelhessian
                tij=beta*exp(-(aij*rij2+ajk*rjk2+akl*rkl2))
 
                Call Trsn(xyz,4,Tau,C,.False.,.False.,'        ',Dum,.False.)
-               Call DCopy(3,C(1,1),1,si,1)
-               Call DCopy(3,C(1,2),1,sj,1)
-               Call DCopy(3,C(1,3),1,sk,1)
-               Call DCopy(3,C(1,4),1,sl,1)
+               si(1:3)=C(1:3,1)
+               sj(1:3)=C(1:3,2)
+               sk(1:3)=C(1:3,3)
+               sl(1:3)=C(1:3,4)
 !-------------Off diagonal block
               Do icoor=1,3
                 Do jCoor=1,3
