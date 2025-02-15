@@ -246,7 +246,7 @@ subroutine getIdentitySymbol(nId, identity, symbol)
    integer, intent(out) :: nId
 
    !> Element symbols
-   character(len=symbolLength), intent(in) :: symbol(:)
+   character(len=*), intent(in) :: symbol(:)
 
    !> Chemical identity
    integer, intent(out) :: identity(:)
@@ -284,7 +284,7 @@ pure function findSymbol(list, symbol) result(position)
 
    position = 0
    do iSym = 1, size(list)
-      if (symbol == list(iSym)) then
+      if (trim(symbol) == trim(list(iSym))) then
          position = iSym
          exit
       end if
@@ -329,6 +329,10 @@ pure subroutine appendSymbol(list, nList, symbol)
 
    !> Elements symbol
    character(len=*), intent(in) :: symbol
+
+   if (len(symbol) > len(list)) then
+     error stop "Programmer's bug: len(symbol) > len(list)"
+   end if
 
    if (nList >= size(list)) then
       call resize(list)
