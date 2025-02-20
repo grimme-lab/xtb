@@ -76,7 +76,7 @@ end subroutine resizeInt
 pure subroutine resizeChar(var, n)
 
    !> TODO
-   character(len=*), allocatable, intent(inout) :: var(:)
+   character(len=:), allocatable, intent(inout) :: var(:)
 
    !> TODO
    integer, intent(in), optional :: n
@@ -92,7 +92,8 @@ pure subroutine resizeChar(var, n)
       else
          length = currentLength + currentLength/2 + 1
       endif
-      allocate(tmp(length), mold=var)
+      allocate(character(len=len(var)) :: tmp(length))
+      tmp(:) = repeat(' ', len(var))
       tmp(:currentLength) = var(:currentLength)
       deallocate(var)
       call move_alloc(tmp, var)
@@ -102,7 +103,8 @@ pure subroutine resizeChar(var, n)
       else
          length = 64
       endif
-      allocate(var(length), source=' ')
+      allocate(character(len=80) :: var(length))
+      var(:) = repeat(' ', 80)
    endif
 
 end subroutine resizeChar
