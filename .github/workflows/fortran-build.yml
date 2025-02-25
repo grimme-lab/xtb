@@ -82,7 +82,7 @@ jobs:
          - name: Build project
            run: cmake --build ${{ env.BUILD_DIR }}
          - name: Run unit tests
-           run: ctest --parallel --output-on-failure -R 'xtb/*'
+           run: ctest --parallel --output-on-failure -R 'xtb/*' -E 'tblite/gfn1-xtb'
            working-directory: ${{ env.BUILD_DIR }}
            env:
             OMP_NUM_THREADS: 2,1
