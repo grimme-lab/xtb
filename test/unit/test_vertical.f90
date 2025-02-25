@@ -24,6 +24,7 @@ module test_vertical
    use xtb_type_data
    use xtb_type_environment
    use xtb_vertical, only : vfukui
+   use xtb_mctc_symbols, only : symbolLength
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
@@ -51,7 +52,7 @@ subroutine test_gfn1_fukui(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 4
    real(wp),parameter :: thr = 1.0e-2_wp
-   character(len=*), parameter :: sym(nat) = ["B", "F", "F", "F"]
+   character(len=*), parameter :: sym(nat) = [character(len=symbolLength) :: "B", "F", "F", "F"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -4.41826178485383_wp, 2.18219865869875_wp, -0.29163266946828_wp, &
       & -3.14927320876938_wp, 1.86405526998014_wp,  1.78831473195343_wp, &
@@ -102,7 +103,7 @@ subroutine test_gfn2_fukui(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 4
    real(wp),parameter :: thr = 1.0e-2_wp
-   character(len=*), parameter :: sym(nat) = ["B", "F", "F", "F"]
+   character(len=*), parameter :: sym(nat) = [character(len=symbolLength) :: "B", "F", "F", "F"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & -4.41826178485383_wp, 2.18219865869875_wp, -0.29163266946828_wp, &
       & -3.14927320876938_wp, 1.86405526998014_wp,  1.78831473195343_wp, &
