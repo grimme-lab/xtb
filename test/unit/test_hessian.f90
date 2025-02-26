@@ -25,6 +25,7 @@ module test_hessian
    use xtb_type_param
    use xtb_type_data
    use xtb_type_environment
+   use xtb_mctc_symbols, only : symbolLength
 
    use xtb_xtb_calculator, only : TxTBCalculator
    use xtb_main_setup, only : newXTBCalculator, newWavefunction
@@ -52,7 +53,7 @@ subroutine test_gfn1_hessian(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
    real(wp),parameter :: thr = 1.0e-7_wp
-   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   character(len=*), parameter :: sym(nat) = [character(len=symbolLength) :: "O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & 0.00000000000000_wp,    0.00000000034546_wp,    0.18900383618455_wp, &
       & 0.00000000000000_wp,    1.45674735348811_wp,   -0.88650486059828_wp, &
@@ -148,7 +149,7 @@ subroutine test_gfn2_hessian(error)
    type(error_type), allocatable, intent(out) :: error
    integer, parameter :: nat = 3
    real(wp),parameter :: thr = 1.0e-7_wp
-   character(len=*), parameter :: sym(nat) = ["O", "H", "H"]
+   character(len=*), parameter :: sym(nat) = [character(len=symbolLength) :: "O", "H", "H"]
    real(wp), parameter :: xyz(3, nat) = reshape([&
       & 0.00000000000000_wp,   -0.00000000077760_wp,    0.18829790750029_wp, &
       & 0.00000000000000_wp,    1.45987612440076_wp,   -0.88615189669760_wp, &
