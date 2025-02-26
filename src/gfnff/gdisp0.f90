@@ -130,16 +130,21 @@ subroutine weight_references_d4(dispm, nat, atoms, wf, cn, gwvec, gwdcn)
          norm = norm + gw
          dnorm = dnorm + 2*wf*(dispm%cn(iref, ati) - cn(iat)) * gw
       end do
-      if (norm.eq.0.0_wp) cycle
-      norm = 1.0_wp / norm
+
+      if (norm > 1e-80_wp) then
+         norm = 1.0_wp / norm
+      else
+         norm = 0.0_wp
+      end if
+
       do iref = 1, dispm%nref(ati)
          expw = weight_cn(wf, cn(iat), dispm%cn(iref, ati))
          expd = 2*wf*(dispm%cn(iref, ati) - cn(iat)) * expw
 
          gwk = expw * norm
-         if (gwk /= gwk) then
-            if (maxval(dispm%cn(:dispm%nref(ati), ati)) &
-               & == dispm%cn(iref, ati)) then
+         if (norm == 0.0_wp) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ati), ati)) &
+               & - dispm%cn(iref, ati)) < 1e-12_wp) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
@@ -148,9 +153,6 @@ subroutine weight_references_d4(dispm, nat, atoms, wf, cn, gwvec, gwdcn)
          gwvec(iref, iat) = gwk
 
          dgwk = expd*norm-expw*dnorm*norm**2
-         if (dgwk /= dgwk) then
-            dgwk = 0.0_wp
-         endif
          gwdcn(iref, iat) = dgwk
 
       end do
@@ -1205,10 +1207,17 @@ pure elemental integer function lin(i1,i2)
    lin=idum2+idum1*(idum1-1)/2
 end function lin
 
-real(wp) pure elemental function weight_cn(wf,cn,cnref) result(cngw)
+real(wp) pure elemental function weight_cn(wf, cn, cnref) result(cngw)
    real(wp),intent(in) :: wf, cn, cnref
+   real(wp) :: val
    intrinsic :: exp
-   cngw = exp ( -wf * ( cn - cnref )**2 )
+
+   val = -wf * ( cn - cnref )**2
+   if (val < -200.0_wp) then ! exp(-200) -> 1.383897e-87
+     cngw = 0.0_wp
+   else
+     cngw = exp ( val )
+   end if
 end function weight_cn
 
 real(wp) pure elemental function pair_scale(iat, jat) result(scale)
