@@ -43,8 +43,7 @@ module xtb_detrotra
   
     nn = 0
     do ii=1, n3
-       if(eig(ii).gt.0.05) cycle  ! only lowest checked
-  
+
        kk=0
        do j=1,mol%n
           do k=1,3
@@ -104,8 +103,6 @@ subroutine detrotra8(linear,n,xyz,h,eig)
    nn = 0
    do ii=1, n3
 
-      if(eig(ii).gt.0.05) cycle  ! check only low-lying modes 
-      
       ! distort initial geometry along ii-th mode !
       kk=0
       do j=1,n
