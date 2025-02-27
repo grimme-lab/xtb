@@ -43,7 +43,7 @@ module xtb_detrotra
   
     nn = 0
     do ii=1, n3
-       if(eig(ii).gt.0.05) cycle  ! only lowest checked
+       if(eig(ii).gt.5.0_wp) cycle  ! only lowest checked
   
        kk=0
        do j=1,mol%n
