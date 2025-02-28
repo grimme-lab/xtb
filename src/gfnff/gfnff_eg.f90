@@ -4142,9 +4142,7 @@ subroutine es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, cf, &
    real(wp), allocatable :: amatdL(:, :, :)
    real(wp), allocatable :: atrace(:, :)
    allocate(amatdr(3,mol%n,mol%n), amatdL(3,3,mol%n), source = 0.0_wp)
-   allocate(atrace(3, mol%n))
-   amatdr = 0.0_wp
-   amatdL = 0.0_wp
+   allocate(atrace(3, mol%n), source = 0.0_wp)
 
    ! new routine from D4 for calculating derivatives
    call get_damat_3d(mol, topo, cf, xtmp, rTrans, gTrans, amatdr, amatdL, atrace)
