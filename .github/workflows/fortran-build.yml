@@ -272,7 +272,7 @@ jobs:
            if: contains(matrix.os, 'ubuntu')
            run: |
             sudo apt-get install ${APT_PACKAGES}
-            source /opt/intel/oneapi/setvars.sh
+            source /opt/intel/oneapi/setvars.sh --force
             printenv >> $GITHUB_ENV
          - name: Configure meson build
            run: >-
