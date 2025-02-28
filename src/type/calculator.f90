@@ -135,24 +135,25 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
    real(wp), intent(inout), optional :: polgrad(:, :)
 
    integer :: iat, jat, kat, ic, jc, ii, jj
-   type(TMolecule) :: mol
-   type(TRestart) :: chk
    real(wp) :: er, el, dr(3), dl(3), sr(3, 3), sl(3, 3), egap, step2
    real(wp) :: alphal(3, 3), alphar(3, 3)
    real(wp) :: t0, t1, w0, w1
    real(wp), allocatable :: gr(:, :), gl(:, :)
-   type(scc_results) :: rr, rl
 
    call timing(t0, w0)
    step2 = 0.5_wp / step
+
+   !$omp parallel if(self%threadsafe) default(none) &
+   !$omp shared(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, step2, t0, w0) &
+   !$omp private(kat, iat, jat, jc, jj, ii, er, el, egap, gr, gl, sr, sl, dr, dl, alphar, alphal, &
+   !$omp& t1, w1)
+
    allocate(gr(3, mol0%n), gl(3, mol0%n))
 
-   !$omp parallel do if(self%threadsafe) schedule(runtime) collapse(2) default(none) &
-   !$omp shared(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad, egap, step2, t0, w0) &
-   !$omp private(kat, iat, jat, jc, jj, ii, er, el, gr, gl, sr, sl, rr, rl, dr, dl, alphar, alphal, &
-   !$omp& mol, chk, t1, w1)
+   !$omp do collapse(2) schedule(runtime)
    do kat = 1, size(list)
       do ic = 1, 3
+
          iat = list(kat)
          ii = 3*(iat - 1) + ic
          er = 0.0_wp
@@ -160,22 +161,10 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
          gr = 0.0_wp
          gl = 0.0_wp
 
-         call mol%copy(mol0)
-         mol%xyz(ic, iat) = mol0%xyz(ic, iat) + step
-         call chk%copy(chk0)
-         call self%singlepoint(env, mol, chk, -1, .true., er, gr, sr, egap, rr)
-         dr = rr%dipole
-         if (present(polgrad)) then
-            alphar(:, :) = rr%alpha
-         endif
+         call hessian_point(self, env, mol0, chk0, iat, ic, +step, er, gr, sr, egap, dr, alphar)
+         call hessian_point(self, env, mol0, chk0, iat, ic, -step, el, gl, sl, egap, dl, alphal)
 
-         call mol%copy(mol0)
-         mol%xyz(ic, iat) = mol0%xyz(ic, iat) - step
-         call chk%copy(chk0)
-         call self%singlepoint(env, mol, chk, -1, .true., el, gl, sl, egap, rl)
-         dl = rl%dipole
          if (present(polgrad)) then
-            alphal(:, :) = rl%alpha
             polgrad(1, ii) = (alphar(1, 1) - alphal(1, 1)) * step2
             polgrad(2, ii) = (alphar(1, 2) - alphal(1, 2)) * step2
             polgrad(3, ii) = (alphar(2, 2) - alphal(2, 2)) * step2
@@ -183,7 +172,9 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
             polgrad(5, ii) = (alphar(2, 3) - alphal(2, 3)) * step2
             polgrad(6, ii) = (alphar(3, 3) - alphal(3, 3)) * step2
          endif
+
          dipgrad(:, ii) = (dr - dl) * step2
+
          do jat = 1, mol0%n
             do jc = 1, 3
                jj = 3*(jat - 1) + jc
@@ -204,7 +195,36 @@ subroutine hessian(self, env, mol0, chk0, list, step, hess, dipgrad, polgrad)
 
       end do
    end do
+   !$omp end parallel
 end subroutine hessian
 
+subroutine hessian_point(self, env, mol0, chk0, iat, ic, step, energy, gradient, sigma, egap, dipole, alpha)
+   class(TCalculator), intent(inout) :: self
+   type(TEnvironment), intent(inout) :: env
+   type(TMolecule), intent(in) :: mol0
+   type(TRestart), intent(in) :: chk0
+   integer, intent(in) :: ic, iat
+   real(wp), intent(in) :: step
+   real(wp), intent(out) :: energy
+   real(wp), intent(out) :: gradient(:, :)
+   real(wp), intent(out) :: sigma(3, 3)
+   real(wp), intent(out) :: egap
+   real(wp), intent(out) :: dipole(3)
+   real(wp), intent(out) :: alpha(3, 3)
+
+   ! internal variables
+   type(TMolecule) :: mol
+   type(TRestart) :: chk
+   type(scc_results) :: res
+
+   call mol%copy(mol0)
+   mol%xyz(ic, iat) = mol0%xyz(ic, iat) + step
+   call chk%copy(chk0)
+   call self%singlepoint(env, mol, chk, -1, .true., energy, gradient, sigma, egap, res)
+
+   dipole = res%dipole
+   alpha(:, :) = res%alpha
+
+end subroutine hessian_point
 
 end module xtb_type_calculator
