@@ -243,6 +243,55 @@ jobs:
            with:
             name: xtb-bleed.tar.xz
             path: xtb-bleed.tar.xz
+   intel-ifx-meson-build:
+      runs-on: ${{ matrix.os }}
+      strategy:
+         fail-fast: false
+         matrix:
+            os: [ubuntu-latest]
+            toolchain:
+              - {compiler: intel, version: '2024.1'}
+              - {compiler: intel, version: '2025.0'}
+      env:
+         APT_PACKAGES: >-
+            intel-oneapi-mkl-2022.1.0 intel-oneapi-mkl-devel-2022.1.0
+      steps:
+         - name: Checkout code
+           uses: actions/checkout@v4
+         - name: Setup Fortran
+           uses: fortran-lang/setup-fortran@v1
+           with:
+            compiler: ${{ matrix.toolchain.compiler }}
+            version: ${{ matrix.toolchain.version }}
+         - name: Setup Python
+           uses: actions/setup-python@v5
+           with:
+            python-version: 3.x
+         - run: pip3 install meson ninja --user
+         - name: Add Intel repository
+           if: contains(matrix.os, 'ubuntu')
+           run: |
+            wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+            sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+            rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+            echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+            sudo apt-get update
+         - name: Install Intel MKL
+           if: contains(matrix.os, 'ubuntu')
+           run: |
+            sudo apt-get install ${APT_PACKAGES}
+            source /opt/intel/oneapi/setvars.sh
+            printenv >> $GITHUB_ENV
+         - name: Configure meson build
+           run: >-
+            CC=${{ env.CC }} FC=${{ env.FC }} meson setup ${{ env.BUILD_DIR }} --prefix=/ --libdir=lib -Dfortran_link_args="-lifcoremt -static" -Ddefault_library=static -Dlapack=mkl
+         - name: Build project
+           run: ninja -C ${{ env.BUILD_DIR }}
+         - name: Run unit tests
+           run: >-
+            meson test -C ${{ env.BUILD_DIR }} --print-errorlogs --num-processes 1 --no-rebuild --suite xtb -t 120
+           env:
+            OMP_NUM_THREADS: 2,1
    # Inspired from https://github.com/endless-sky/endless-sky
    continuous-delivery:
       if: github.event_name == 'push'
