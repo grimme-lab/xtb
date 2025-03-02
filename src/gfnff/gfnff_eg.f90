@@ -3274,8 +3274,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,
    real*8 r2ij,r2jk,r2ik,c9,mijk,imjk,ijmk,rijk3,ang,angr9,rav3
    real*8 rij(3),rik(3),rjk(3),ri(3),rj(3),rk(3),drij,drik,drjk,dang,ff,fi,fj,fk,fqq
    parameter (fqq=3.0d0)
-   integer :: linij,linik,linjk,lina,i,j,iTrDum,dm1,dm2
-   lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
+   integer :: linij,linik,linjk,i,j,iTrDum,dm1,dm2
 
    fi=(1.d0-fqq*q(iat))
    fi=min(max(fi,-4.0d0),4.0d0)
