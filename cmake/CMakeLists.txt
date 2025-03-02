@@ -53,6 +53,8 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(bounds "-check all -fpe0")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
   set(dialects "-Mbackslash -Mallocatable=03 -r8 -traceback")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "LLVMFlang")
+  set(dialects "-fdefault-real-8 -fdefault-double-8")
 endif()
 
 # Customize compiler flags
