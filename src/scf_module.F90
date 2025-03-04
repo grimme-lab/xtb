@@ -592,11 +592,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       iat=basis%aoat2(ii)
       do jj=1,ii-1
          jat=basis%aoat2(jj)
-         if(abs(S(jj,ii)).lt.neglect) then
-            S(jj,ii)=0.0_wp
-            S(ii,jj)=0.0_wp
-            cycle
-         endif
          nmat=nmat+1
          matlist(1,nmat)=ii
          matlist(2,nmat)=jj
