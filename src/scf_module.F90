@@ -717,7 +717,11 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          ! SCC terms
          !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
          !H1 = -S(j,i)*eh1*0.5_wp
-         H(j,i) = H0(k)*evtoau/S(j,i)
+         if (H0(k) .eq. 0.0_wp) then
+            H(j,i) = 0.0_wp
+         else
+            H(j,i) = H0(k)*evtoau/S(j,i)
+         end if
          H(i,j) = H(j,i)
       enddo
       call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
