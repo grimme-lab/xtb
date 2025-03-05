@@ -91,7 +91,7 @@ subroutine numhess( &
    integer  :: fixmode
    integer, allocatable :: skiplist(:)
    integer, allocatable :: nb(:,:)
-   integer, allocatable :: indx(:),molvec(:),izero(:)
+   integer, allocatable :: indx(:),molvec(:)
    real(wp),allocatable :: bond(:,:)
 
 !$ integer  :: nproc
@@ -130,7 +130,7 @@ subroutine numhess( &
    allocate(hss(n3*(n3+1)/2),hsb(n3*(n3+1)/2),h(n3,n3),htb(n3,n3),hbias(n3,n3), &
       & gl(3,mol%n),isqm(n3),xyzsave(3,mol%n),dipd(3,n3), &
       & pold(n3),nb(20,mol%n),indx(mol%n),molvec(mol%n),bond(mol%n,mol%n), &
-      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3), izero(n3))
+      & freq_scal(n3),fc_tb(n3),fc_bias(n3),amass(n3), h_dummy(n3,n3))
 
    if (set%elprop == p_elprop_alpha) then
       allocate(dalphadr(6,n3), source = 0.0_wp)
@@ -413,14 +413,9 @@ subroutine numhess( &
    else
       write(env%unit,'(1x,a)') 'projected vibrational frequencies (cm⁻¹)'
    endif
-   k=0
    do i=1,n3
       ! Eigenvalues in atomic units, convert to wavenumbers
       res%freq(i)=autorcm*sign(sqrt(abs(res%freq(i))),res%freq(i))/sqrt(amutoau)
-      if(abs(res%freq(i)).lt.0.01_wp) then
-         k=k+1
-         izero(k)=i
-      endif
    enddo
 
    ! scale frequencies
