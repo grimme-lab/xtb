@@ -86,7 +86,7 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
-   integer  :: nread,kend,lowmode
+   integer  :: nread,lowmode
    integer  :: nonfrozh
    integer  :: fixmode
    integer, allocatable :: nb(:,:)
@@ -442,31 +442,7 @@ subroutine numhess( &
    if (mol%n > 1) then
       h = 0.0_wp
       isqm = 0.0_wp
-      kend=0
-      if (freezeset%n == 0) then
-         kend=6
-         if(res%linear)then
-            kend=5
-            do i=1,kend
-               izero(i)=i
-            enddo
-            res%freq(1:kend)=0
-         endif
-         do k=1,kend
-            h(1:n3,k)=res%hess(1:n3,izero(k))
-            isqm(  k)=res%freq(izero(k))
-         enddo
-      else if (freezeset%n <= 2) then
-         ! for systems with one fixed atom, there should be 2 and 3 degrees of freedom for linear and non-linear systems, respectively
-         ! for systems with two fixed atoms, there should be 0 and 1 degrees of freedom for linear and non-linear systems, respectively
-         ! for linear systems with more than two fixed atoms, there should be 0 degrees of freedom
-         ! for non-linear systems unless one fixes three atoms defines plane, 1 degree of freedom will exist, otherwise there should be 0 degrees of freedom
-         ! anyway, the check here will become more complex and therefore it is not impemented
-         ! NOTE: it is not necessary lowest N frequencies
-         error stop "not implemented"
-         ! for three atom systems we assume that the plane was constructed (or linear system is used)
-      endif
-      j=kend
+      j = 0
       do k=1, n3
          if (abs(res%freq(k)) > 0.05_wp) then
             j = j + 1
