@@ -468,7 +468,7 @@ subroutine numhess( &
       endif
       j=kend
       do k=1, n3
-         if (abs(res%freq(k)) > 0.01_wp) then
+         if (abs(res%freq(k)) > 0.05_wp) then
             j = j + 1
             if(j > n3) then
                call env%error('internal error while sorting hessian', source)
