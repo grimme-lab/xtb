@@ -373,7 +373,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, 1) ! open nb entry
                write (iunit, '("],")') ! close nb entry
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, 1)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, n, 1)
             write (iunit, '("]")')
          else ! periodic boundary conditions
             do i = 1, neigh%numctr - 1 ! iterate over all cells
@@ -382,7 +382,7 @@ contains
                   write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, i)
                   write (iunit, '("],")')
                end do
-               write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, i)
+               write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, n, i)
                write (iunit, '("]")')
                write (iunit, '(3x,"],")') ! close cell
             end do
@@ -391,7 +391,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, j, neigh%numctr)
                write (iunit, '("],")')
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%nb(:, n, neigh%numctr)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%nb(:, n, neigh%numctr)
             write (iunit, '("]")')
             write (iunit, '(3x,"]")') ! close last cell
          end if
@@ -405,7 +405,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, i, 1) ! open entry
                write (iunit, '("],")') ! close entry
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, 1)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, n, 1)
             write (iunit, '("]")')
          else ! periodic boundary conditions
             do i = 1, neigh%numctr - 1 ! iterate over all cells
@@ -414,7 +414,7 @@ contains
                   write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, i)
                   write (iunit, '("],")')
                end do
-               write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, i)
+               write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, n, i)
                write (iunit, '("]")')
                write (iunit, '(3x,"],")') ! close cell
             end do
@@ -423,7 +423,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, j, neigh%numctr)
                write (iunit, '("],")')
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') neigh%bpair(:, n, neigh%numctr)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') neigh%bpair(:, n, neigh%numctr)
             write (iunit, '("]")')
             write (iunit, '(3x,"]")') ! close last cell
          end if
@@ -435,7 +435,7 @@ contains
             write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%alist(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%alist(:, topo%nangl)
+         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%alist(:, topo%nangl)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -445,7 +445,7 @@ contains
             write (iunit, '(3x,"[",*(i8,:,","))', advance='no') neigh%blist(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') neigh%blist(:, neigh%nbond)
+         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') neigh%blist(:, neigh%nbond)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -455,7 +455,7 @@ contains
             write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%tlist(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(i8,:,","),"]",/)', advance='no') topo%tlist(:, topo%ntors)
+         write (iunit, '(3x,"[",*(i8,:,","))', advance='no') topo%tlist(:, topo%ntors)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -465,7 +465,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vtors(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vtors(:, topo%ntors)
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vtors(:, topo%ntors)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -475,7 +475,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vbond(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vbond(:, neigh%nbond)
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vbond(:, neigh%nbond)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -485,7 +485,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vangl(:, j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') topo%vangl(:, topo%nangl)
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') topo%vangl(:, topo%nangl)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -496,7 +496,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist1(:, j)
                write (iunit, '("],")')
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist1(:, nlist%nhb1)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist1(:, nlist%nhb1)
             write (iunit, '("]")')
             write (iunit, '(3x,"],")')
          else
@@ -511,7 +511,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist2(:, j)
                write (iunit, '("],")')
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist2(:, nlist%nhb2)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist2(:, nlist%nhb2)
             write (iunit, '("]")')
             write (iunit, '(3x,"],")')
          else
@@ -526,7 +526,7 @@ contains
                write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist3(:, j)
                write (iunit, '("],")')
             end do
-            write (iunit, '(3x,"[",*(i7,:,","),"]",/)', advance='no') nlist%hblist3(:, nlist%nxb)
+            write (iunit, '(3x,"[",*(i7,:,","))', advance='no') nlist%hblist3(:, nlist%nxb)
             write (iunit, '("]")')
             write (iunit, '(3x,"],")')
          else
@@ -541,7 +541,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe1(j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%hbe1(nlist%nhb1)
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe1(nlist%nhb1)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
 
@@ -550,7 +550,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe2(j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%hbe2(nlist%nhb2)
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe2(nlist%nhb2)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
 
@@ -559,7 +559,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe3(j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%hbe3(nlist%nxb)
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%hbe3(nlist%nxb)
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
@@ -569,7 +569,7 @@ contains
             write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%q(j)
             write (iunit, '("],")')
          end do
-         write (iunit, '(3x,"[",*(f25.15,:,","),"]",/)', advance='no') nlist%q(size(nlist%q))
+         write (iunit, '(3x,"[",*(f25.15,:,","))', advance='no') nlist%q(size(nlist%q))
          write (iunit, '("]")')
          write (iunit, '(3x,"],")')
       end if
