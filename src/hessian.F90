@@ -467,15 +467,15 @@ subroutine numhess( &
          ! for three atom systems we assume that the plane was constructed (or linear system is used)
       endif
       j=kend
-      do k=1,n3
-         if(abs(res%freq(k)).gt.0.01_wp)then
-            j=j+1
-            if(j.gt.n3) then
+      do k=1, n3
+         if (abs(res%freq(k)) > 0.01_wp) then
+            j = j + 1
+            if(j > n3) then
                call env%error('internal error while sorting hessian', source)
                return
             end if
-            h(1:n3,j)=res%hess(1:n3,k)
-            isqm(  j)=res%freq(   k)
+            h(1:n3,j) = res%hess(1:n3,k)
+            isqm(  j) = res%freq(   k)
          endif
       enddo
    end if
