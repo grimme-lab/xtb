@@ -1199,7 +1199,7 @@ module xtb_propertyoutput
       real(wp) xx(10), sthr, temp, scale_factor
       real(wp) aa, bb, cc, vibthr, ithr
       real(wp) escf, symnum, wt, avmom, diff
-      real(wp) :: omega, maxfreq, fswitch, lnq_r, lnq_v
+      real(wp) :: omega, fswitch, lnq_r, lnq_v
       real(wp), allocatable :: et(:), ht(:), gt(:), ts(:)
       integer nn, nvib, i, j, k, n, nvib_theo, isthr
       integer, intent(out) :: nimag
@@ -1373,10 +1373,9 @@ module xtb_propertyoutput
       real(wp), intent(in) :: temp
 
       integer :: i
-      real(wp) :: maxfreq, omega, lnq_r, lnq_v, fswitch
+      real(wp) :: omega, lnq_r, lnq_v, fswitch
 
       write (iunit, '(a)')
-      maxfreq = max(300.0_wp, chg_inverted(0.99_wp, sthr))
       write (iunit, '(a8,a14,a12,10x,a12,10x,a12)') &
          "mode", "ω/cm⁻¹", "ln{qvib}", "ln{qrot}", "ln{qtot}"
       write (iunit, '(3x,72("-"))')
@@ -1385,7 +1384,6 @@ module xtb_propertyoutput
          lnq_r = lnqvib(temp, omega)
          lnq_v = lnqrot(temp, omega, avmom)
          fswitch = 1.0_wp - chg_switching(omega, sthr)
-         if (omega > maxfreq) exit
          write (iunit, '(i8,f10.2,2(f12.5,1x,"(",f6.2,"%)"),f12.5)') &
             i, omega, lnq_v, (1.0_wp - fswitch) * 100, &
             lnq_r, fswitch * 100, (1.0_wp - fswitch) * lnq_v + fswitch * lnq_r
@@ -1408,7 +1406,7 @@ module xtb_propertyoutput
       real(wp), intent(in) :: temp       !< temperature
 
       integer :: i
-      real(wp) :: maxfreq, omega, s_r, s_v, fswitch
+      real(wp) :: omega, s_r, s_v, fswitch
       real(wp) :: beta, xxmom, e, ewj, mu, RT, sthr, avmom
       beta = 1.0_wp / kB / temp ! beta in 1/Eh
       sthr = sthr_rcm * rcmtoau ! sthr in Eh
@@ -1416,7 +1414,6 @@ module xtb_propertyoutput
       avmom = avmom_si * kgtome * aatoau**2 * 1.0e+20_wp ! in me·α²
 
       write (iunit, '(a)')
-      maxfreq = max(300.0_wp, chg_inverted(0.99_wp, sthr_rcm))
       write (iunit, '(a8,a14,1x,a27,a27,a12)') &
          "mode", "ω/cm⁻¹", "T·S(HO)/kcal·mol⁻¹", "T·S(FR)/kcal·mol⁻¹", "T·S(vib)"
       write (iunit, '(3x,72("-"))')
@@ -1446,7 +1443,6 @@ module xtb_propertyoutput
          end if
          ! Head-Gordon weighting
          fswitch = 1.0_wp - chg_switching(omega, sthr)
-         if (omega > maxfreq * rcmtoau) exit
          write (iunit, '(i8,f10.2,2(f12.5,1x,"(",f6.2,"%)"),f12.5)') &
             i, omega * autorcm, -RT * s_v, (1.0_wp - fswitch) * 100, &
             -RT * s_r, fswitch * 100, -RT * ((1.0_wp - fswitch) * s_v + fswitch * s_r)
