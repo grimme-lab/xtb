@@ -173,7 +173,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    integer :: ndp,nqp
 
    integer,allocatable :: matlist (:,:)
-   integer,allocatable :: matlist2(:,:)
    integer,allocatable :: xblist(:,:)
    real(wp),allocatable :: sqrab(:)
    real(wp),allocatable :: dcndr(:,:,:)
@@ -198,7 +197,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    integer :: ich ! file handle
    integer :: npr,ii,jj,kk,i,j,k,m,iat,jat,mi,jter,atj,kkk,mj,mm
-   integer :: ishell,jshell,np,ia,ndimv,l,nmat,nmat2
+   integer :: ishell,jshell,np,ia,ndimv,l,nmat
    integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag
    integer :: is,js,gav
 
@@ -326,8 +325,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    &        X(basis%nao,basis%nao), &
    &        ves(basis%nshell), &
    &        zsh(basis%nshell),&
-   &        matlist (2,basis%nao*(basis%nao+1)/2), &
-   &        matlist2(2,basis%nao*(basis%nao+1)/2-basis%nao))
+   &        matlist (2,basis%nao*(basis%nao+1)/2))
    allocate(selfEnergy(maxval(xtbData%nshell), mol%n))
    allocate(dSEdcn(maxval(xtbData%nshell), mol%n))
 
@@ -587,7 +585,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! ------------------------------------------------------------------------
    ! prepare matrix indices
    nmat =0
-   nmat2=0
    do ii=1,basis%nao
       iat=basis%aoat2(ii)
       do jj=1,ii-1
@@ -595,11 +592,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
          nmat=nmat+1
          matlist(1,nmat)=ii
          matlist(2,nmat)=jj
-         if(iat.ne.jat)then
-            nmat2=nmat2+1
-            matlist2(1,nmat2)=ii
-            matlist2(2,nmat2)=jj
-         endif
       enddo
       ! CB: moved this here so j/i indices from matlist come in a reasonable order
       ! also setup CN dep. stuff
@@ -708,21 +700,21 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (mol%npbc == 0) then
       allocate(H(basis%nao, basis%nao))
       H(:, :) = 0.0_wp
-      do m = 1, nmat2
-         i = matlist2(1,m)
-         j = matlist2(2,m)
-         k = j+i*(i-1)/2
-         !ishell = ao2sh(i)
-         !jshell = ao2sh(j)
-         ! SCC terms
-         !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
-         !H1 = -S(j,i)*eh1*0.5_wp
-         if (H0(k) .eq. 0.0_wp) then
-            H(j,i) = 0.0_wp
-         else
-            H(j,i) = H0(k)*evtoau/S(j,i)
-         end if
-         H(i,j) = H(j,i)
+      do i = 1, basis%nao
+         do j = 1, i-1
+            k = j+i*(i-1)/2
+            !ishell = ao2sh(i)
+            !jshell = ao2sh(j)
+            ! SCC terms
+            !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
+            !H1 = -S(j,i)*eh1*0.5_wp
+            if (H0(k) .eq. 0.0_wp) then
+               H(j,i) = 0.0_wp
+            else
+               H(j,i) = H0(k)*evtoau/S(j,i)
+            end if
+            H(i,j) = H(j,i)
+         end do
       enddo
       call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
          & dSEdcn, intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, &
