@@ -89,6 +89,7 @@ subroutine numhess( &
    integer  :: nread,lowmode
    integer  :: nonfrozh
    integer  :: fixmode
+   integer  :: skiplist(6), nskip
    integer, allocatable :: nb(:,:)
    integer, allocatable :: indx(:),molvec(:),izero(:)
    real(wp),allocatable :: bond(:,:)
@@ -443,17 +444,27 @@ subroutine numhess( &
       h = 0.0_wp
       isqm = 0.0_wp
       j = 0
+      nskip = 0
       do k=1, n3
          if (abs(res%freq(k)) > 0.05_wp) then
             j = j + 1
-            if(j > n3) then
+            h(1:n3,j) = res%hess(1:n3,k)
+            isqm(  j) = res%freq(   k)
+         else
+            nskip = nskip + 1
+            if(nskip > 6) then
                call env%error('internal error while sorting hessian', source)
                return
             end if
-            h(1:n3,j) = res%hess(1:n3,k)
-            isqm(  j) = res%freq(   k)
+            skiplist(nskip) = k
          endif
       enddo
+      do while (j /= n3)
+         j = j + 1
+         h(1:n3,j) = res%hess(1:n3,skiplist(nskip))
+         isqm(  j) = 0.0_wp
+         nskip = nskip - 1
+      end do
    end if
    res%hess = h
    res%freq = isqm
