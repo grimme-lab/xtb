@@ -86,10 +86,10 @@ subroutine numhess( &
    real(wp) :: sum1,sum2,trdip(3),dipole(3)
    real(wp) :: trpol(3),sl(3,3)
    integer  :: n3,i,j,k,ic,jc,ia,ja,ii,jj,info,lwork,a,b,ri,rj
-   integer  :: nread,lowmode
+   integer  :: nread,lowmode,nskip
    integer  :: nonfrozh
    integer  :: fixmode
-   integer  :: skiplist(6), nskip
+   integer, allocatable :: skiplist(:)
    integer, allocatable :: nb(:,:)
    integer, allocatable :: indx(:),molvec(:),izero(:)
    real(wp),allocatable :: bond(:,:)
@@ -445,6 +445,7 @@ subroutine numhess( &
       isqm = 0.0_wp
       j = 0
       nskip = 0
+      allocate(skiplist(n3), source = 0)
       do k=1, n3
          if (abs(res%freq(k)) > 0.05_wp) then
             j = j + 1
@@ -452,10 +453,6 @@ subroutine numhess( &
             isqm(  j) = res%freq(   k)
          else
             nskip = nskip + 1
-            if(nskip > 6) then
-               call env%error('internal error while sorting hessian', source)
-               return
-            end if
             skiplist(nskip) = k
          endif
       enddo
@@ -465,6 +462,7 @@ subroutine numhess( &
          isqm(  j) = 0.0_wp
          nskip = nskip - 1
       end do
+      deallocate(skiplist)
    end if
    res%hess = h
    res%freq = isqm
