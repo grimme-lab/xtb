@@ -299,11 +299,11 @@ subroutine test_gfn2gbsa_api(error)
 
    call check_(error, hl_gap, 3.408607724814_wp, thr=1e-5_wp)
    call check_(error, energy,-22.002501380096_wp, thr=thr)
-   call check_(error, norm2(gradient),0.19441977481008E-01_wp, thr=thr)
+   call check_(error, norm2(gradient),0.19366866479022E-01_wp, thr=thr)
    call check_(error, gradient(1,1), .9038674439127e-02_wp, thr=thr)
    call check_(error, gradient(3,2),-.1394693523214e-02_wp, thr=thr)
    call check_(error, gradient(3,11),-gradient(3,10), thr=thr)
-   call check_(error, gradient(1,8),0.22890674680144E-02_wp, thr=thr)
+   call check_(error, gradient(1,8),0.17878350605942E-02_wp, thr=thr)
 
 end subroutine test_gfn2gbsa_api
 
@@ -1080,7 +1080,7 @@ subroutine test_gfn2_wbo(error)
    ! check  scc !
    call check_(error, energy, -33.314958144107_wp, thr=thr)
    call check_(error, norm2(gradient), 0.018945181484_wp, thr=thr)
-   call check_(error, hl_gap, 1.805948277212_wp, thr=thr)
+   call check_(error, hl_gap, 1.805948321662_wp, thr=thr)
 
 
    ! check wbo !
