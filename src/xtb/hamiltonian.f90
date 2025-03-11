@@ -145,7 +145,7 @@ end subroutine getSelfEnergy2D
 !  determine, which contribute to potential
 subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy, &
       & intcut, caoshell, saoshell, nprim, primcount, alp, cont, &
-      & sint, dpint, qpint, H0)
+      & sint, dpint, qpint, H0, H0_noovlp)
    implicit none
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
@@ -179,6 +179,8 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    real(wp),intent(out) :: qpint(6,nao,nao)
    !> Core Hamiltonian
    real(wp),intent(out) :: H0(:)
+   !> Core Hamiltonian without overlap contribution
+   real(wp),intent(out) :: H0_noovlp(:)
 
 
    integer i,j,k,l,m,ii,jj,ll,mm,kk,ki,kj,kl,mi,mj,ij
@@ -199,6 +201,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
 
    ! integrals
    H0(:) = 0.0_wp
+   H0_noovlp(:) = 0.0_wp
    sint = 0.0_wp
    dpint = 0.0_wp
    qpint = 0.0_wp
@@ -213,7 +216,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
    !$omp& jsh,jshmax,jshtyp,jcao,naoj,jptyp,ss,dd,qq,shpoly, &
    !$omp& est,alpi,alpj,ab,iprim,jprim,ip,jp,il,jl,hii,hjj,km,zi,zj,zetaij,hav, &
    !$omp& mli,mlj,tmp,tmp1,tmp2,iao,jao,ii,jj,k,ij,itr) &
-   !$omp shared(sint,dpint,qpint,H0)
+   !$omp shared(sint,dpint,qpint,H0,H0_noovlp)
    do iat = 1, nat
       ra(1:3) = xyz(1:3,iat)
       izp = at(iat)
@@ -276,6 +279,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
                         jao = jj+saoshell(jsh,jat)
                         ij = lin(iao, jao)
                         H0(ij) = H0(ij) + hav * shpoly * ss(jj, ii)
+                        H0_noovlp(ij) = H0_noovlp(ij) + hav * shpoly
                         !sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                         sint(jao, iao) = sint(jao, iao) + ss(jj, ii)
                         !dpint(:, iao, jao) = dpint(:, iao, jao) + dd(:, jj, ii)
@@ -300,7 +304,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
 
    ! diagonal elements
    !$omp parallel do default(none) schedule(dynamic) &
-   !$omp shared(H0, sint, dpint, qpint) &
+   !$omp shared(H0, H0_noovlp, sint, dpint, qpint) &
    !$omp shared(nat, xyz, at, nShell, hData, saoshell, selfEnergy, caoshell, &
    !$omp& point, intcut, nprim, primcount, alp, cont) &
    !$omp private(iat, ra, izp, ish, ishtyp, iao, i, ii, icao, naoi, iptyp, &
@@ -315,6 +319,7 @@ subroutine build_SDQH0(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy,
             ii = i*(1+i)/2
             sint(i,i) = 1.0_wp + sint(i,i)
             H0(ii) = H0(ii) + selfEnergy(ish, iat)
+            H0_noovlp(ii) = H0_noovlp(ii) + selfEnergy(ish, iat)
          end do
 
          icao = caoshell(ish,iat)
