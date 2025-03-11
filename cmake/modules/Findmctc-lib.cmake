@@ -17,6 +17,7 @@
 set(_lib "mctc-lib")
 set(_pkg "MCTCLIB")
 set(_url "https://github.com/grimme-lab/mctc-lib")
+set(_rev "v0.3.2")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
@@ -24,8 +25,9 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/xtb-utils.cmake")
 
-xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_rev}")
 
 unset(_lib)
 unset(_pkg)
 unset(_url)
+unset(_rev)

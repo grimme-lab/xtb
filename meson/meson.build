@@ -223,6 +223,7 @@ lib_deps += mctc_dep
 # Get light-weight tight-binding framework dependency
 tblite_dep = dependency(
   'tblite',
+  version: '>=0.4.0',
   fallback: ['tblite', 'tblite_dep'],
   default_options: ['default_library=static', 'api=false'],
   required: get_option('tblite')
