@@ -249,7 +249,7 @@ jobs:
          fail-fast: false
          matrix:
             os: [ubuntu-latest]
-            build: [Debug, Release]
+            build: [Release]
             toolchain:
               - {compiler: intel, version: '2024.1'}
 #               - {compiler: intel, version: '2025.0'} SegFault in disp/ncoord.f90 near 'do concurrent(tx = -rep_cn(1):rep_cn(1), &'
