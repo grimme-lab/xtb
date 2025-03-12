@@ -455,7 +455,7 @@ subroutine num_grad_chrg(env, mol, tblite)
    type(TEnvironment), intent(inout) :: env
    
    !> Molecular structure data
-   type(TMolecule), intent(inout) :: mol
+   type(TMolecule), intent(in) :: mol
    
    !> step size for numerical gradients
    type(TTBLiteInput), intent(in) :: tblite
@@ -464,7 +464,7 @@ subroutine num_grad_chrg(env, mol, tblite)
    real(wp) :: numgrad(3, mol%n, mol%n)
    
    real(wp), allocatable, dimension(:) :: cehr, cehl
-   !
+   type(TMolecule) :: local_mol
    integer :: i,j,k, ich
 
    real(wp) :: step, step2 ! for numerical gradient
@@ -474,18 +474,18 @@ subroutine num_grad_chrg(env, mol, tblite)
    step2 = 0.5_wp / step
    call get_ceh(env,mol,tblite)
    
-   !$omp parallel do private(j,cehr,cehl) shared(env, numgrad, mol, tblite, step, step2) 
+   !$omp parallel do private(j, cehr, cehl, local_mol) shared(env, numgrad, mol, tblite, step, step2)
    do i = 1, mol%n
+      local_mol = mol    ! create a thread-private copy of mol
       do j = 1, 3
-         mol%xyz(j,i) = mol%xyz(j,i) + step
-         call get_ceh(env, mol, tblite, cehr)
+         local_mol%xyz(j,i) = local_mol%xyz(j,i) + step
+         call get_ceh(env, local_mol, tblite, cehr)
 
-         mol%xyz(j,i) = mol%xyz(j,i) - 2*step
-         call get_ceh(env, mol, tblite, cehl)
+         local_mol%xyz(j,i) = local_mol%xyz(j,i) - 2*step
+         call get_ceh(env, local_mol, tblite, cehl)
          
-         numgrad(j,i,:) = step2 * (cehr - cehl) ! numerical gradient
-         mol%xyz(j,i) = mol%xyz(j,i) + step ! reset the coordinates
-         
+         numgrad(j,i,:) = step2 * (cehr - cehl)  ! numerical gradient
+         local_mol%xyz(j,i) = local_mol%xyz(j,i) + step  ! reset the coordinates
       enddo
    enddo
    !$omp end parallel do
