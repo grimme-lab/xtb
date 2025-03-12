@@ -566,6 +566,7 @@ module xtb_gfnff_param
      param%angl2(:) = angl2_angewChem2020
      param%tors(:) = tors_angewChem2020
      param%tors2(:) = tors2_angewChem2020
+     !call gfnff_write_param(param, '.param_gfnff.xtb.new')
    end subroutine loadGFNFFAngewChem2020
 
 
@@ -608,6 +609,39 @@ module xtb_gfnff_param
       enddo
 
    end subroutine gfnff_read_param
+
+
+   !> use this routine once you updated default parameters
+   subroutine gfnff_write_param(param, fname)
+     implicit none
+!    Dummy
+     type(TGFFData), intent(in) :: param
+     character(len=*), intent(in) :: fname
+!    Stack
+     integer :: iunit
+     integer  :: i
+
+     call open_file(iunit, fname, 'w')
+     if (iunit == -1) return
+
+     do i=1,103
+         write(iunit, '(I3,11F11.6)') i, &
+         param%chi(i), &
+         param%gam(i), &
+         param%cnf(i), &
+         param%alp(i), &
+         param%bond(i), &
+         param%repa(i), &
+         param%repan(i), &
+         param%angl(i), &
+         param%angl2(i), &
+         param%tors(i), &
+         param%tors2(i)
+      enddo
+
+      close(iunit)
+
+   end subroutine gfnff_write_param
 
    subroutine gfnff_param_alloc(topo, neigh, n)
      use xtb_mctc_accuracy, only : wp 
