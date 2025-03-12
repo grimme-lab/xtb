@@ -127,6 +127,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    real(wp),allocatable :: S(:,:)
    real(wp),allocatable :: S12(:,:)
    real(wp),allocatable :: H0(:)
+   real(wp),allocatable :: H0_noovlp(:)
    real(wp),allocatable :: ves(:) ! shell ES potential
    real(wp),allocatable :: vs(:)
    real(wp),allocatable :: vd(:, :)
@@ -321,6 +322,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    end if
 
    allocate(H0(basis%nao*(basis%nao+1)/2), &
+   &        H0_noovlp(basis%nao*(basis%nao+1)/2), &
    &        S(basis%nao,basis%nao),tmp(basis%nao), &
    &        X(basis%nao,basis%nao), &
    &        ves(basis%nshell), &
@@ -551,12 +553,12 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call build_SDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
       & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
-      & basis%cont, S, dpint, qpint, H0)
+      & basis%cont, S, dpint, qpint, H0, H0_noovlp)
 #else
    call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
       & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
-      & basis%cont, S, dpint, qpint, H0)
+      & basis%cont, S, dpint, qpint, H0, H0_noovlp)
 #endif
    call count_dpint(ndp, dpint, neglect)
    call count_qpint(nqp, qpint, neglect)
@@ -703,16 +705,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       do i = 1, basis%nao
          do j = 1, i-1
             k = j+i*(i-1)/2
-            !ishell = ao2sh(i)
-            !jshell = ao2sh(j)
-            ! SCC terms
-            !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
-            !H1 = -S(j,i)*eh1*0.5_wp
-            if (H0(k) .eq. 0.0_wp) then
-               H(j,i) = 0.0_wp
-            else
-               H(j,i) = H0(k)*evtoau/S(j,i)
-            end if
+            H(j,i) = H0_noovlp(k)*evtoau
             H(i,j) = H(j,i)
          end do
       enddo
