@@ -243,6 +243,48 @@ jobs:
            with:
             name: xtb-bleed.tar.xz
             path: xtb-bleed.tar.xz
+   intel-ifx-cmake-build:
+      runs-on: ${{ matrix.os }}
+      strategy:
+         fail-fast: false
+         matrix:
+            os: [ubuntu-latest]
+            build: [Debug, Release]
+            toolchain:
+              - {compiler: intel, version: '2024.1'}
+#               - {compiler: intel, version: '2025.0'} SegFault in disp/ncoord.f90 near 'do concurrent(tx = -rep_cn(1):rep_cn(1), &'
+      env:
+         APT_PACKAGES: >-
+            intel-oneapi-mkl-${{ matrix.toolchain.version }} intel-oneapi-mkl-devel-${{ matrix.toolchain.version }}
+      steps:
+         - name: Checkout code
+           uses: actions/checkout@v4
+         - name: Setup Fortran
+           uses: fortran-lang/setup-fortran@v1
+           with:
+            compiler: ${{ matrix.toolchain.compiler }}
+            version: ${{ matrix.toolchain.version }}
+         - name: Setup Python
+           uses: actions/setup-python@v5
+           with:
+            python-version: 3.x
+         - run: pip3 install cmake ninja --user
+         - name: Install Intel MKL
+           if: contains(matrix.os, 'ubuntu')
+           run: |
+            sudo apt-get install ${APT_PACKAGES}
+            source /opt/intel/oneapi/setvars.sh --force
+            printenv >> $GITHUB_ENV
+         - name: Configure cmake build
+           run: >-
+            cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_C_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DBLA_VENDOR=Intel10_64lp
+         - name: Build project
+           run: ninja -C ${{ env.BUILD_DIR }}
+         - name: Run unit tests
+           run: ctest --parallel --output-on-failure -R 'xtb/*'
+           working-directory: ${{ env.BUILD_DIR }}
+           env:
+            OMP_NUM_THREADS: 2,1
    intel-ifx-meson-build:
       runs-on: ${{ matrix.os }}
       strategy:
