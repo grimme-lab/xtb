@@ -57,6 +57,8 @@ module xtb_mctc_convert
 !  femtosectons to atomic time units
    real(wp), public, parameter :: fstoau = 41.3413733365614_wp
    real(wp), public, parameter :: autofs = 1.0_wp / fstoau
+   !> atomic unit of time (s) (codata 2018)
+   real(wp), parameter :: atomic_unit_of_time = 2.4188843265857e-17_wp
 !  Coulomb to atomic charge units (electrons)
    real(wp), public, parameter :: autoc = 1.6021766208e-19_wp
    real(wp), public, parameter :: ctoau = 1.0_wp / autoc
@@ -67,12 +69,16 @@ module xtb_mctc_convert
 !  atm -> Pascal
 !  au -> Pascal
 !  atm -> au
-   real(wp), public, parameter :: atmtopa = 101325.0_wp
+   real(wp), public, parameter :: atmtopa = standard_atmosphere 
    real(wp), public, parameter :: patoatm = 1.0_wp / atmtopa
-   real(wp), public, parameter :: autopa  = 2.9421015697e13_wp
+   real(wp), public, parameter :: autopa  = metokg / (Bohr_radius * atomic_unit_of_time**2) !approx 2.9421015697e13_wp
    real(wp), public, parameter :: patoau = 1.0_wp / autopa
    real(wp), public, parameter :: atmtoau = atmtopa * patoau
    real(wp), public, parameter :: autoatm = 1.0_wp / atmtoau
+   !> Conversion factor between calorie and joule
+   real(wp), public, parameter :: caltoj = 4.184_wp
+   !> Conversion factor between joule and calorie
+   real(wp), public, parameter :: jtocal = 1.0_wp/caltoj
 
 !> ----- DIPOLE DERIVATIVE UNITS -----
 !  Dipole derivatives along mass-weighted normal mode coordinates (a.u.) to km/mol (IR int.)

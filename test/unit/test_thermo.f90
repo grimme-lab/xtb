@@ -187,10 +187,10 @@ subroutine test_thermo_calc(error)
       &           symmetry_number,sum(ams),vibs,nvibs,energy,temperature, &
       &           rotor_cutoff,et,ht,g,ts,0.5_wp*sum(vibs),pr)
 
-   call check(error, et, 0.50275771916811E-01_wp, thr=thr)
-   call check(error, ht, 0.67528241233247E-02_wp, thr=thr)
-   call check(error, g,  0.17417501635698E-01_wp, thr=thr)
-   call check(error, ts, 0.32858270281112E-01_wp, thr=thr)
+   call check(error, et, 0.50275582504331992E-01_wp, thr=thr)
+   call check(error, ht, 0.67526347108461393E-02_wp, thr=thr)
+   call check(error, g,  0.17409852076104987E-01_wp, thr=thr)
+   call check(error, ts, 0.32865730428227005E-01_wp, thr=thr)
 
 end subroutine test_thermo_calc
 
@@ -248,8 +248,8 @@ subroutine test_print_thermo(error)
       &              htot,gtot,nimag,.true.,zp)
 
    call check(error, nimag, 0)
-   call check(error, htot, 0.50275771916811E-01_wp, thr=thr)
-   call check(error, gtot, 0.17337250373280E-01_wp, thr=thr)
+   call check(error, htot, 0.50275582504331992E-01_wp, thr=thr)
+   call check(error, gtot, 0.17329603064684271E-01_wp, thr=thr)
 
    atmass = iso
 
@@ -257,8 +257,8 @@ subroutine test_print_thermo(error)
       &              htot,gtot,nimag,.true.,zp)
 
    call check(error, nimag, 0)
-   call check(error, htot, 0.43308512037251E-01_wp, thr=thr)
-   call check(error, gtot, 0.88976699718681E-02_wp, thr=thr)
+   call check(error, htot, 0.43308312326878137E-01_wp, thr=thr)
+   call check(error, gtot, 0.88899470155645033E-02_wp, thr=thr)
 
 
 end subroutine test_print_thermo
