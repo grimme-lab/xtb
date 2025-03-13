@@ -465,7 +465,7 @@ subroutine num_grad_chrg(env, mol, tblite)
    
    real(wp), allocatable, dimension(:) :: cehr, cehl
    type(TMolecule) :: local_mol
-   integer :: i, j
+   integer :: i, j, k, ich
 
    real(wp) :: step, step2 ! for numerical gradient
    
