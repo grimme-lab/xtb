@@ -308,6 +308,7 @@
 
       subroutine propa0(a,b,etaij4,etakl4,iff1,iff2,ind1,ind2)
       use xtb_intpack
+      implicit integer(i-n)
       implicit real*8(a-h,o-z)
 ! aufpunkte
       real*8 a(3),b(3)
@@ -362,6 +363,7 @@
 
       subroutine propa1(aname,c,nnn,gama,e,dd,va)
       use xtb_intpack
+      implicit integer(i-n)
       implicit real*8(a-h,o-z)
       external aname
 ! aufpunkte,ref point,intarray

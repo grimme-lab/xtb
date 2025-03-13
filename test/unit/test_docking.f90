@@ -291,8 +291,8 @@ subroutine test_dock_wat_wat_gfn2_wall(error)
    maxwalls=3
    call init_walls
    spherepot_type = p_type_polynomial
-   call set_sphere_radius([6.7,4.7,3.8],[0.0,0.0,0.0],3,[1,2,3]) !"solute"
-   call set_sphere_radius([6.9,5.7,5.2],[0.0,0.0,0.0]) !"all"
+   call set_sphere_radius([6.7_wp,4.7_wp,3.8_wp],[0.0_wp,0.0_wp,0.0_wp],3,[1,2,3]) !"solute"
+   call set_sphere_radius([6.9_wp,5.7_wp,5.2_wp],[0.0_wp,0.0_wp,0.0_wp]) !"all"
 
    call env%checkpoint("Initializing xtb-IFF failed.")
 

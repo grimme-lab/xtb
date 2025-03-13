@@ -217,11 +217,12 @@ contains
               &(xyz1(3, j) - xyz1(3, i))**2
             r0 = sqrt(rr)
             gab1(j, i) = 1.0d0/(r0 + 1./sqrt(gam(at1(i))*gam(at1(j))))
+            if (j .eq. i) cycle
             ai = alp0(i)**(1./3)
             aj = alp0(j)**(1./3)
             rrr = 1.13*2.6*(ai + aj)*0.5/r0
             tmp = 1.0d0/(1.d0 + 6.d0*rrr**14)
-            if (j .ne. i .and. tmp .gt. 0.90 .and. r0 .lt. thr) then
+            if (tmp .gt. 0.90 .and. r0 .lt. thr) then
                k = k + 1
                neigh(k, i) = j
             end if
@@ -239,11 +240,12 @@ contains
               &(xyz2(3, j) - xyz2(3, i))**2
             r0 = sqrt(rr)
             gab2(j, i) = 1.0d0/(r0 + 1./sqrt(gam(at2(i))*gam(at2(j))))
+            if (j .eq. i) cycle
             ai = alp0(i + n1)**(1./3)
             aj = alp0(j + n1)**(1./3)
             rrr = 1.13*2.6*(ai + aj)*0.5/r0
             tmp = 1.0d0/(1.d0 + 6.d0*rrr**14)
-            if (j .ne. i .and. tmp .gt. 0.90 .and. r0 .lt. thr) then
+            if (tmp .gt. 0.90 .and. r0 .lt. thr) then
                k = k + 1
                neigh(k, i + n1) = j
             end if

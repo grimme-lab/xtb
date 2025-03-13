@@ -132,8 +132,9 @@ subroutine print_geosum(iunit,n,at,sym,xyz)
    integer  :: iat,jat
    integer  :: imax,imin
 
-   integer  :: maxdist,maxbend,maxtrsn,maxelem
-   integer  :: ndist,nbend,ntrsn,nelem
+   integer(8) :: maxdist,maxbend,maxtrsn
+   integer    :: maxelem
+   integer    :: ndist,nbend,ntrsn,nelem
    integer, allocatable :: bond(:,:)
    integer, allocatable :: id(:,:)
    real(wp),allocatable :: dist(:)
@@ -345,20 +346,20 @@ subroutine calc_distances(n,at,xyz,bond,maxdist,ndist,dist,id, &
       maxelem,nelem,ndel,distel,maxdel,mindel)
    use xtb_mctc_accuracy, only : wp
    implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: xyz(3,n)
-   integer, intent(in)  :: bond(n,n)
-   integer, intent(in)  :: maxdist
-   integer, intent(out) :: ndist
-   real(wp),intent(out) :: dist(maxdist)
-   integer, intent(out) :: id(2,maxdist)
-   integer, intent(in)  :: maxelem
-   integer, intent(out) :: nelem
-   integer, intent(out) :: ndel(maxelem,maxelem)
-   real(wp),intent(out) :: distel(maxelem,maxelem)
-   real(wp),intent(out) :: maxdel(maxelem,maxelem)
-   real(wp),intent(out) :: mindel(maxelem,maxelem)
+   integer,    intent(in)  :: n
+   integer,    intent(in)  :: at(n)
+   real(wp),   intent(in)  :: xyz(3,n)
+   integer,    intent(in)  :: bond(n,n)
+   integer(8), intent(in)  :: maxdist
+   integer,    intent(out) :: ndist
+   real(wp),   intent(out) :: dist(maxdist)
+   integer,    intent(out) :: id(2,maxdist)
+   integer,    intent(in)  :: maxelem
+   integer,    intent(out) :: nelem
+   integer,    intent(out) :: ndel(maxelem,maxelem)
+   real(wp),   intent(out) :: distel(maxelem,maxelem)
+   real(wp),   intent(out) :: maxdel(maxelem,maxelem)
+   real(wp),   intent(out) :: mindel(maxelem,maxelem)
 
    integer  :: i,j,m
    integer  :: iat,jat
@@ -380,8 +381,8 @@ subroutine calc_distances(n,at,xyz,bond,maxdist,ndist,dist,id, &
          jat = at(j)
          r  = sqrt(sum((xyz(:,i)-xyz(:,j))**2))
          if (bond(j,i).gt.0) then
-            m = m+1
             if (m.ge.maxdist) exit get_dist
+            m = m+1
             ndel(iat,jat) = ndel(iat,jat)+1
             maxdel(iat,jat) = max(maxdel(iat,jat),r)
             mindel(iat,jat) = min(mindel(iat,jat),r)
@@ -419,14 +420,14 @@ end subroutine calc_distances
 subroutine calc_angles(n,at,xyz,bond,maxbend,nbend,bend,ib)
    use xtb_mctc_accuracy, only : wp
    implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: xyz(3,n)
-   integer, intent(in)  :: bond(n,n)
-   integer, intent(in)  :: maxbend
-   integer, intent(out) :: nbend
-   real(wp),intent(out) :: bend(maxbend)
-   integer, intent(out) :: ib(3,maxbend)
+   integer,    intent(in)  :: n
+   integer,    intent(in)  :: at(n)
+   real(wp),   intent(in)  :: xyz(3,n)
+   integer,    intent(in)  :: bond(n,n)
+   integer(8), intent(in)  :: maxbend
+   integer,    intent(out) :: nbend
+   real(wp),   intent(out) :: bend(maxbend)
+   integer,    intent(out) :: ib(3,maxbend)
 
    integer  :: i,j,k,m
    real(wp) :: phi
@@ -462,14 +463,14 @@ end subroutine calc_angles
 subroutine calc_torsions(n,at,xyz,bond,maxtrsn,ntrsn,trsn,it)
    use xtb_mctc_accuracy, only : wp
    implicit none
-   integer, intent(in)  :: n
-   integer, intent(in)  :: at(n)
-   real(wp),intent(in)  :: xyz(3,n)
-   integer, intent(in)  :: bond(n,n)
-   integer, intent(in)  :: maxtrsn
-   integer, intent(out) :: ntrsn
-   real(wp),intent(out) :: trsn(maxtrsn)
-   integer, intent(out) :: it(4,maxtrsn)
+   integer,    intent(in)  :: n
+   integer,    intent(in)  :: at(n)
+   real(wp),   intent(in)  :: xyz(3,n)
+   integer,    intent(in)  :: bond(n,n)
+   integer(8), intent(in)  :: maxtrsn
+   integer,    intent(out) :: ntrsn
+   real(wp),   intent(out) :: trsn(maxtrsn)
+   integer,    intent(out) :: it(4,maxtrsn)
 
    integer  :: i,j,k,l,m
    real(wp) :: phi

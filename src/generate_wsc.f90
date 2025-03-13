@@ -29,7 +29,7 @@ subroutine generate_wsc(mol,wsc)
 !  Variables
 ! ------------------------------------------------------------------------
    integer  :: rep(3)
-   integer  :: ii,jj,ich
+   integer  :: ii,jj
    integer  :: aa,bb,cc
    integer  :: c,wc
    integer  :: minpos
@@ -54,22 +54,22 @@ subroutine generate_wsc(mol,wsc)
    call wsc%allocate(mol%n,rep)
 
 ! ------------------------------------------------------------------------
-! initialize
-! ------------------------------------------------------------------------
-   allocate( lattr(3,wsc%cells),      source = 0 )
-   allocate( dist(wsc%cells),         source = 0.0_wp )
-   allocate( trans(wsc%cells),        source = .true. )
-! ------------------------------------------------------------------------
 ! Create the Wigner-Seitz Cell (WSC)
 ! ------------------------------------------------------------------------
    wsc%at  = 0
    wsc%itbl= 0
-!$omp parallel default(none) &
-!$omp private(ii,jj,wc,c,dist,trans,t,lattr,rw) &
-!$omp shared(mol,wsc,rep) &
-!$omp shared(mindist,minpos,nmindist,nminpos)
-!$omp do schedule(dynamic)
+
+   !$omp parallel default(none) &
+   !$omp private(ii,jj,aa,bb,cc,wc,c,dist,trans,t,lattr,rw) &
+   !$omp shared(mol,wsc,rep) &
+   !$omp private(mindist,minpos,nmindist,nminpos)
+
+   allocate( lattr(3,wsc%cells),      source = 0 )
+   allocate( dist(wsc%cells),         source = 0.0_wp )
+   allocate( trans(wsc%cells),        source = .true. )
+
    ! Each WSC of one atom consists of n atoms
+   !$omp do collapse(2) schedule(dynamic,32)
    do ii=1,mol%n
       do jj=1,mol%n
          !if (ii.eq.jj) cycle
@@ -123,7 +123,8 @@ subroutine generate_wsc(mol,wsc)
          endif
       end do
    end do
-!$omp enddo
-!$omp endparallel
+   !$omp end do
+   deallocate(lattr, dist, trans)
+   !$omp end parallel
 
 end subroutine generate_wsc

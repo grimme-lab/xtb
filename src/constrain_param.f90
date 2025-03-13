@@ -1227,6 +1227,7 @@ subroutine set_split(env,key,val,nat,at,idMap,xyz)
 end subroutine set_split
 
 subroutine set_hess(env,key,val,nat,at,idMap,xyz)
+   use xtb_type_atomlist, only : TAtomList
    use xtb_splitparam
    implicit none
    character(len=*), parameter :: source = 'userdata_hess'
@@ -1238,14 +1239,12 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
    type(TIdentityMap), intent(in) :: idMap
    real(wp),intent(in) :: xyz(3,nat)
 
-   integer  :: idum
-   real(wp) :: ddum
-   logical  :: ldum
-   integer  :: i,j
+   type(TAtomList) :: atl
    integer, allocatable :: list(:)
-
-   integer  :: narg
+   real(wp) :: ddum
+   integer  :: i,j,idum,iat,narg
    character(len=p_str_length),dimension(p_arg_length) :: argv
+   character(len=256) :: warningstring
 
    call parse(val,comma,argv,narg)
    if (set%verbose) then
@@ -1279,15 +1278,26 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
       endif
       do i = 1, narg, 2
          j = i+1
-         if (getValue(env,trim(argv(i)),idum).and.&
-             getValue(env,trim(argv(j)),ddum)) then
-            if (idum.gt.nat) then
-               call env%warning('Attempted setting atom mass not present in system.',source)
+         if (getValue(env,trim(argv(j)),ddum)) then
+            call atl%new(argv(i))
+            if (atl%get_error()) then
+               call env%warning('something is wrong in the mass list',source)
                cycle
             endif
-            atmass(idum) = ddum
-            write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-               'mass of atom ',idum,' changed to',atmass(idum)
+            call atl%to_list(list)
+            do idum = 1, size(list)
+               iat = list(idum)
+               if (iat.gt.nat) then
+                  write(warningstring, '(a, i0, a)') 'Attempted setting atom mass for atom ', &
+                     & iat, ' that is not present in system.'
+                  call env%warning(trim(warningstring), source)
+                  cycle
+               endif
+               atmass(iat) = ddum
+               write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
+                  & 'mass of atom ',iat,' changed to',atmass(iat)
+            enddo
+            call atl%destroy()
          endif
       enddo
    case('scale mass')
@@ -1296,15 +1306,26 @@ subroutine set_hess(env,key,val,nat,at,idMap,xyz)
       endif
       do i = 1, narg, 2
          j = i+1
-         if (getValue(env,trim(argv(i)),idum).and.&
-             getValue(env,trim(argv(j)),ddum)) then
-            if (idum.gt.nat) then
-               call env%warning('Attempted scaling atom not present in system.',source)
+         if (getValue(env,trim(argv(j)),ddum)) then
+            call atl%new(argv(i))
+            if (atl%get_error()) then
+               call env%warning('something is wrong in the mass list',source)
                cycle
             endif
-            atmass(idum) = atmass(idum)*ddum
-            write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
-               'mass of atom ',idum,' changed to',atmass(idum)
+            call atl%to_list(list)
+            do idum = 1, size(list)
+               iat = list(idum)
+               if (iat.gt.nat) then
+                  write(warningstring, '(a, i0, a)') 'Attempted setting atom mass for atom ', &
+                  & iat, ' that is not present in system.'
+                  call env%warning(trim(warningstring), source)
+                  cycle
+               endif
+               atmass(iat) = atmass(iat)*ddum
+               write(env%unit,'(a,1x,i0,1x,a,1x,g0)') &
+                  'mass of atom ',iat,' changed to',atmass(iat)
+            enddo
+            call atl%destroy()
          endif
       enddo
    end select

@@ -18,7 +18,7 @@
 module xtb_io_reader_orca
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert
-   use xtb_mctc_symbols, only : toNumber, symbolLength
+   use xtb_mctc_symbols, only : toNumber
    use xtb_type_molecule
    use xtb_pbc_tools
    use xtb_type_reader

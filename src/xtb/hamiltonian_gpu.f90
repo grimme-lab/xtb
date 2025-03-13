@@ -198,7 +198,7 @@ end subroutine build_dsdq_ints_gpu
 !  determine, which contribute to potential
 subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEnergy, &
       & intcut, caoshell, saoshell, nprim, primcount, alp, cont, &
-      & sint, dpint, qpint, H0)
+      & sint, dpint, qpint, H0, H0_noovlp)
    implicit none
    integer, intent(in) :: nShell(:)
    type(THamiltonianData), intent(in) :: hData
@@ -232,6 +232,8 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
    real(wp),intent(out) :: qpint(:, :, :)
    !> Core Hamiltonian
    real(wp),intent(out) :: H0(:)
+   !> Core Hamiltonian without overlap
+   real(wp),intent(out) :: H0_noovlp(:)
 
 
    integer i,j,k,l,m,ii,jj,ij,ioff,joff,kk
@@ -257,6 +259,7 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
    !$acc kernels default(present)
    ! integrals
    H0(:) = 0.0_wp
+   H0_noovlp(:) = 0.0_wp
    sint = 0.0_wp
    dpint = 0.0_wp
    qpint = 0.0_wp
@@ -663,6 +666,9 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
                        H0(ij) = H0(ij) + hav * shpoly * ss(jj, ii)
                        !$acc end atomic
                        !$acc atomic
+                       H0_noovlp(ij) = H0_noovlp(ij) + hav * shpoly
+                       !$acc end atomic
+                       !$acc atomic
                        sint(iao, jao) = sint(iao, jao) + ss(jj, ii)
                        !$acc end atomic
                        !$acc atomic
@@ -693,7 +699,7 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
    enddo
    !$acc end parallel
 
-   !$acc exit data copyout(H0(:), sint(:, :), dpint(:, :, :), qpint(:, :, :))
+   !$acc exit data copyout(H0(:), H0_noovlp(:), sint(:, :), dpint(:, :, :), qpint(:, :, :))
 
    ! dd array is transposed in ACC region, so dd2 is created for the diagonal
    ! elements, which is still running on CPU
@@ -709,6 +715,7 @@ subroutine build_SDQH0_gpu(nShell, hData, nat, at, nbf, nao, xyz, trans, selfEne
             ii = i*(1+i)/2
             sint(i,i) = 1.0_wp + sint(i,i)
             H0(ii) = H0(ii) + selfEnergy(ish, iat)
+            H0_noovlp(ii) = H0_noovlp(ii) + selfEnergy(ish, iat)
          end do
 
          icao = caoshell(ish,iat)

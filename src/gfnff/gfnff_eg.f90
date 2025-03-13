@@ -3274,8 +3274,7 @@ subroutine batmgfnff_eg(n,iat,jat,kat,iTrj,iTrk,at,xyz,q,sqrab,srab,energy,g,ds,
    real*8 r2ij,r2jk,r2ik,c9,mijk,imjk,ijmk,rijk3,ang,angr9,rav3
    real*8 rij(3),rik(3),rjk(3),ri(3),rj(3),rk(3),drij,drik,drjk,dang,ff,fi,fj,fk,fqq
    parameter (fqq=3.0d0)
-   integer :: linij,linik,linjk,lina,i,j,iTrDum,dm1,dm2
-   lina(i,j)=min(i,j)+max(i,j)*(max(i,j)-1)/2
+   integer :: linij,linik,linjk,i,j,iTrDum,dm1,dm2
 
    fi=(1.d0-fqq*q(iat))
    fi=min(max(fi,-4.0d0),4.0d0)
@@ -4140,13 +4139,9 @@ subroutine es_grad_sigma(mol, topo, nlist, rTrans, gTrans, xtmp, cf, &
    real(wp), allocatable :: dXvecdr(:,:,:)
    real(wp), allocatable :: amatdr(:, :, :)
    real(wp), allocatable :: amatdL(:, :, :)
-   integer :: m
    real(wp), allocatable :: atrace(:, :)
-   m = mol%n+topo%nfrag
-   allocate(amatdr(3,mol%n,m), amatdL(3,3,m), source = 0.0_wp)
-   allocate(atrace(3, mol%n))
-   amatdr = 0.0_wp
-   amatdL = 0.0_wp
+   allocate(amatdr(3,mol%n,mol%n), amatdL(3,3,mol%n), source = 0.0_wp)
+   allocate(atrace(3, mol%n), source = 0.0_wp)
 
    ! new routine from D4 for calculating derivatives
    call get_damat_3d(mol, topo, cf, xtmp, rTrans, gTrans, amatdr, amatdL, atrace)

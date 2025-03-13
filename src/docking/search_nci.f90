@@ -127,13 +127,13 @@ contains
       real(wp) :: dx_rg, dy_rg, dz_rg, xx1_rg, yy1_rg, zz1_rg
       real(wp) :: r1, r2, r3, a1, a2, a3, av, sig, epq, tmpx(15), t0, t1, w0, w1
       real(wp) :: dum3(3, 3), dum2(3), dum(3), pmass, rmin, mvec(3, 14)
-      real(wp) :: rmsd(n_opt*(n_opt + 1)/2)
       real(wp) :: dx2, dy2, dz2
       real*4   :: r4
       integer :: i, j, k, nang, nr, ii, jj, ns, icycle, maxs, iseed(2)
       integer :: kk = 0
       integer :: m1, m2, m3, l, nn, ndim, ll, kkk, kkkk, mfrag, maxlow, nclust, ierr
       integer :: mm1, mm2, mm3, maxpock, icssym
+      integer :: sig_count
       integer, allocatable :: atfrag(:), molvec(:), iatnum(:)
       real(wp), allocatable :: xyzfrag(:, :)
       logical :: tooclose
@@ -199,7 +199,7 @@ contains
       write (env%unit, *) '|         Starting Energy Screening          |'
       write (env%unit, *) '=============================================='
       write (env%unit, *)
-      if (.not. fulle) write (env%unit, *) ' Fast Mode selected (recommended)'
+      if (.not. fulle) write (env%unit, *) ' No ATM term employed (recommended)'
       if (.not. fulle) write (env%unit, *) ' If ATM term should be included, use -atm option.'
       if (.not. fulle) write (env%unit, *)
 
@@ -240,7 +240,9 @@ contains
       if (optlvl == 'gfn0') fnv = xfind(p_fname_param_gfn0)
       if (optlvl == 'gfn1') fnv = xfind(p_fname_param_gfn1)
       call newCalculator(env, comb, calc, fnv, restart, acc)
+      call env%checkpoint("Could not setup single-point calculator")
       call initDefaults(env, calc, comb, gsolvstate_iff)
+      call env%checkpoint("Could not setup defaults")
       write(*,*) 'initialization done'
 
       select type (calc)
@@ -600,7 +602,9 @@ contains
 
          l = 0
          do j = 1, 14
-            if (cssym .and. mvec(icssym, j) .lt. 0) cycle ! exclude sym. equiv.
+            if (cssym) then
+               if(mvec(icssym, j) .lt. 0) cycle ! exclude sym. equiv.
+            end if
             r = stepr4
             if (j .gt. 6) r = stepr4/sqrt(3.)
             dum2(1:3) = mvec(1:3, j)*r !mvec just vector in every direction in 3D
@@ -793,13 +797,18 @@ contains
       end if
 
 !-------------------------------------------------------------- start genetic optimization
+      !Set how many structure to consider for convergence
+      if (n_opt == 0) then
+         sig_count = 15
+      else
+         sig_count = n_opt
+      end if
 
       write (*, *) '------------------------------'
       write (*, *) 'genetic optimization algorithm'
       write (*, *) '------------------------------'
       write (*, *) '  cycle  Eint/kcal/mol  average Eint'
       do icycle = 1, maxgen
-
          !$omp parallel do default(none) &
          !$omp shared(env,found2,maxparent,found,n,n1,n2,at1,at2,neigh,&
          !$omp xyz1,xyz2,q1,q2,c6ab,z1,z2,nl1,nl2,l1,l2,cl1,cl2,qdr1,qdr2,cn1,cn2,&
@@ -825,26 +834,40 @@ contains
          !$omp end parallel do
 
          ii = maxparent**2
-         call doubles(ii, ndim, 3.0d0, 0.10d0, found2)          ! SETING
+         call doubles(ii, ndim, 3.0d0, 0.10d0, found2)          ! SETTING
          call sort6(ii, found2)
 
          found = found2
-         if (debug) call wrc2('structures_after_gen.xyz', 0, n1, n2, at1, at2, xyz1,&
-         & xyz2, n_opt, found)
+         if (n_opt == 0) then
+            call wrc2('structures_after_gen.xyz', 0, n1, n2, at1, at2, xyz1,&
+            & xyz2, 15, found)
+         else if (debug) then 
+            call wrc2('structures_after_gen.xyz', 0, n1, n2, at1, at2, xyz1,&
+            & xyz2, n_opt, found)
+         end if
          call wrc3('best_after_gen.xyz', n1, n2, at1, at2, xyz1, xyz2, 1, found)
 
          av = sum(found(7, 1:maxparent))/float(maxparent)
          sig = 0
-         do i = 1, n_opt
+         do i = 1, sig_count
             sig = sig + (found(7, i) - av)**2
          end do
-         sig = sqrt(sig/float(n_opt - 1))
+         sig = sqrt(sig/float(sig_count - 1))
          write(*,'(4x,i0,7x,F7.1,5x,F8.1,5x)')&
          &icycle, found(7, 1), av
          if (sig .lt. 0.3d0) exit
 !     LOOP END ------
       end do
       call stop_timing(4)
+
+!     Stop here, if no final optimizations should be done
+      if (n_opt == 0) then
+         write(env%unit, *)
+         write(env%unit, *) "  Skipping geometry optimizations due to user request."
+         write(env%unit, *) "  The best structure after screening can be found on best_after_gen.xyz."
+         write(env%unit, *) "  More structures after screening can be found on structures_after_gen.xyz."
+         return
+      end if
 !-------------------------------------------------------------- end genetic optimization
 
       !> Check if ensemble runtype is requested
@@ -966,6 +989,7 @@ contains
       call generateFileName(fin_name, 'best', '', comb%ftype)
       call open_file(ifinal, fin_name, 'w')
       call writeMolecule(comb, ifinal, energy=final_e(1))
+      call close_file(ifinal)
       !If not xyz then best.xyz is written to not have api break
       if(comb%ftype /= 1)then
          call open_file(ifinal, 'best.xyz', 'w')
@@ -975,8 +999,8 @@ contains
             write (ifinal, '(a4,2x,3f20.14)') comb%sym(j), xyz_opt(1, j, 1)*autoang, &
             &                                 xyz_opt(2, j, 1)*autoang, xyz_opt(3, j, 1)*autoang
          end do
+         call close_file(ifinal)
       end if
-      call close_file(ifinal)
 
 
       call delete_file(set%opt_logfile)
@@ -1051,6 +1075,7 @@ contains
 
       !> Read the constrain again with new xyz only if necessary
       if (constraint_xyz) then
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if
@@ -1107,6 +1132,7 @@ contains
 !            deallocate(wpot(i)%list)
             if(allocated(wpot(i)%list)) deallocate(wpot(i)%list)
          end do
+         nconstr=0 !Reset number of constraints for distance, angle, and dihedral
          call read_userdata(xcontrol, env, mol)
          call constrain_xTB_gff(env, mol)
       end if

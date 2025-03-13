@@ -127,6 +127,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    real(wp),allocatable :: S(:,:)
    real(wp),allocatable :: S12(:,:)
    real(wp),allocatable :: H0(:)
+   real(wp),allocatable :: H0_noovlp(:)
    real(wp),allocatable :: ves(:) ! shell ES potential
    real(wp),allocatable :: vs(:)
    real(wp),allocatable :: vd(:, :)
@@ -173,7 +174,6 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    integer :: ndp,nqp
 
    integer,allocatable :: matlist (:,:)
-   integer,allocatable :: matlist2(:,:)
    integer,allocatable :: xblist(:,:)
    real(wp),allocatable :: sqrab(:)
    real(wp),allocatable :: dcndr(:,:,:)
@@ -198,7 +198,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
 
    integer :: ich ! file handle
    integer :: npr,ii,jj,kk,i,j,k,m,iat,jat,mi,jter,atj,kkk,mj,mm
-   integer :: ishell,jshell,np,ia,ndimv,l,nmat,nmat2
+   integer :: ishell,jshell,np,ia,ndimv,l,nmat
    integer :: ll,i1,i2,nn,ati,nxb,lin,startpdiag
    integer :: is,js,gav
 
@@ -256,6 +256,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    eat  = 0.0_wp
    egap = 0.0_wp
    molpol = 0.0_wp
+   sigma = 0.0_wp
 
    pr   = prlevel.gt.1
    minpr= prlevel.gt.0
@@ -321,12 +322,12 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    end if
 
    allocate(H0(basis%nao*(basis%nao+1)/2), &
+   &        H0_noovlp(basis%nao*(basis%nao+1)/2), &
    &        S(basis%nao,basis%nao),tmp(basis%nao), &
    &        X(basis%nao,basis%nao), &
    &        ves(basis%nshell), &
    &        zsh(basis%nshell),&
-   &        matlist (2,basis%nao*(basis%nao+1)/2), &
-   &        matlist2(2,basis%nao*(basis%nao+1)/2-basis%nao))
+   &        matlist (2,basis%nao*(basis%nao+1)/2))
    allocate(selfEnergy(maxval(xtbData%nshell), mol%n))
    allocate(dSEdcn(maxval(xtbData%nshell), mol%n))
 
@@ -552,12 +553,12 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    call build_SDQH0_gpu(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
       & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
-      & basis%cont, S, dpint, qpint, H0)
+      & basis%cont, S, dpint, qpint, H0, H0_noovlp)
 #else
    call build_SDQH0(xtbData%nShell, xtbData%hamiltonian, mol%n, mol%at, &
       & basis%nbf, basis%nao, mol%xyz, trans, selfEnergy, intcut, &
       & basis%caoshell, basis%saoshell, basis%nprim, basis%primcount, basis%alp, &
-      & basis%cont, S, dpint, qpint, H0)
+      & basis%cont, S, dpint, qpint, H0, H0_noovlp)
 #endif
    call count_dpint(ndp, dpint, neglect)
    call count_qpint(nqp, qpint, neglect)
@@ -586,24 +587,13 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    ! ------------------------------------------------------------------------
    ! prepare matrix indices
    nmat =0
-   nmat2=0
    do ii=1,basis%nao
       iat=basis%aoat2(ii)
       do jj=1,ii-1
          jat=basis%aoat2(jj)
-         if(abs(S(jj,ii)).lt.neglect) then
-            S(jj,ii)=0.0_wp
-            S(ii,jj)=0.0_wp
-            cycle
-         endif
          nmat=nmat+1
          matlist(1,nmat)=ii
          matlist(2,nmat)=jj
-         if(iat.ne.jat)then
-            nmat2=nmat2+1
-            matlist2(1,nmat2)=ii
-            matlist2(2,nmat2)=jj
-         endif
       enddo
       ! CB: moved this here so j/i indices from matlist come in a reasonable order
       ! also setup CN dep. stuff
@@ -712,17 +702,12 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
    if (mol%npbc == 0) then
       allocate(H(basis%nao, basis%nao))
       H(:, :) = 0.0_wp
-      do m = 1, nmat2
-         i = matlist2(1,m)
-         j = matlist2(2,m)
-         k = j+i*(i-1)/2
-         !ishell = ao2sh(i)
-         !jshell = ao2sh(j)
-         ! SCC terms
-         !eh1 = autoev*(shellShift(ishell) + shellShift(jshell))
-         !H1 = -S(j,i)*eh1*0.5_wp
-         H(j,i) = H0(k)*evtoau/S(j,i)
-         H(i,j) = H(j,i)
+      do i = 1, basis%nao
+         do j = 1, i-1
+            k = j+i*(i-1)/2
+            H(j,i) = H0_noovlp(k)*evtoau
+            H(i,j) = H(j,i)
+         end do
       enddo
       call build_dSDQH0_noreset(xtbData%nShell, xtbData%hamiltonian, selfEnergy, &
          & dSEdcn, intcut, mol%n, basis%nao, basis%nbf, mol%at, mol%xyz, &
@@ -764,6 +749,7 @@ subroutine scf(env, mol, wfn, basis, pcem, xtbData, solvation, &
       call getCoordinationNumber(mol, trans, 40.0_wp, cnType%cov, &
          & cn, dcndr, dcndL)
       call latp%getLatticePoints(trans, 60.0_wp)
+      dum = 0.0_wp
       call d4_gradient(mol, xtbData%dispersion%dispm, trans, &
          &  xtbData%dispersion%dpar, scD4%g_a, scD4%g_c, &
          &  scD4%wf, 60.0_wp, 40.0_wp, cn, dcndr, dcndL, wfn%q, &

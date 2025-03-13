@@ -33,6 +33,7 @@ subroutine lopt(init, n, no, accr, op, d)
    use xtb_mctc_accuracy, only : wp
    use xtb_setparam
 
+   implicit integer(i-n)
    implicit real(wp)(a-h,o-z)
 
    logical init

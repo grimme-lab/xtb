@@ -232,6 +232,7 @@ end subroutine readline
 subroutine rdxyz(fname,n,xyz)
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_convert, only : aatoau
+   implicit integer (i-n)
    implicit real(wp) (a-h,o-z)
    integer, intent(in)  :: n
    real(wp),intent(out) :: xyz(3,n)

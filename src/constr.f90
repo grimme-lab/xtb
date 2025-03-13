@@ -613,7 +613,11 @@ Subroutine dphidrPBC(mode,nat,xyz,i,j,k,l,vTrR,vTrB,vTrC,phi,&
       dphidrj=0
       dphidrk=0
       dphidrl=0
-      onenner=1.0d0/(nan*nbn)
+      if (abs(nan*nbn).gt.eps) then
+         onenner=1.0d0/(nan*nbn)
+      else
+         onenner=0.0d0
+      endif
    else
       onenner=1.d0/nenner
    endif
@@ -630,21 +634,27 @@ Subroutine dphidrPBC(mode,nat,xyz,i,j,k,l,vTrR,vTrB,vTrC,phi,&
    call crossprod(rbpc,na,rbpca)
    call crossprod(rbpc,nb,rbpcb)
 
-   ! ... dphidri
-   do ic=1,3
-      dphidri(ic)=onenner*(cosphi*nbn/nan*rab(ic)-rbb(ic))
-
-      ! ... dphidrj
-      dphidrj(ic)=onenner*(cosphi*(nbn/nan*rapba(ic)&
-         &                                +nan/nbn*rbc(ic))&
-         &                        -(rac(ic)+rapbb(ic)))
-      ! ... dphidrk
-      dphidrk(ic)=onenner*(cosphi*(nbn/nan*raa(ic)&
-         &                             +nan/nbn*rbpcb(ic))&
-         &                        -(rba(ic)+rbpca(ic)))
-      ! ... dphidrl
-      dphidrl(ic)=onenner*(cosphi*nan/nbn*rbb(ic)-rab(ic))
-   end do
+   if (abs(onenner).gt.eps) then
+      do ic=1,3
+         ! ... dphidri
+         dphidri(ic)=onenner*(cosphi*nbn/nan*rab(ic)-rbb(ic))
+         ! ... dphidrj
+         dphidrj(ic)=onenner*(cosphi*(nbn/nan*rapba(ic)&
+            &                                +nan/nbn*rbc(ic))&
+            &                        -(rac(ic)+rapbb(ic)))
+         ! ... dphidrk
+         dphidrk(ic)=onenner*(cosphi*(nbn/nan*raa(ic)&
+            &                             +nan/nbn*rbpcb(ic))&
+            &                        -(rba(ic)+rbpca(ic)))
+         ! ... dphidrl
+         dphidrl(ic)=onenner*(cosphi*nan/nbn*rbb(ic)-rab(ic))
+      end do
+   else
+      dphidri=0.0d0
+      dphidrj=0.0d0
+      dphidrk=0.0d0
+      dphidrl=0.0d0
+   endif
 
 End subroutine
 
@@ -1108,6 +1118,7 @@ end subroutine crprod
 
 subroutine vsc1(a,scale,tol)
    use xtb_mctc_accuracy, only : wp
+   implicit integer (i-n)
    implicit double precision (a-h,o-z)
    dimension a(3)
 

@@ -452,10 +452,16 @@ pure elemental function cngw(wf,cn,cnref)
    !$acc routine seq
    real(wp),intent(in) :: wf,cn,cnref
    real(wp)            :: cngw ! CN-gaussian-weight
+   real(wp)            :: val
 
    intrinsic :: exp
 
-   cngw = exp ( -wf * ( cn - cnref )**2 )
+   val = -wf * ( cn - cnref )**2
+   if (val < -200.0_wp) then ! technically, exp(-200) -> 1.383897e-87
+     cngw = 0.0_wp
+   else
+     cngw = exp ( val )
+   end if
 
 end function cngw
 
@@ -618,18 +624,20 @@ subroutine d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,c6abns)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      norm = 1._wp / norm
+      if (norm > 1e-80_wp) then
+         norm = 1._wp / norm
+      else
+         norm = 0.0_wp
+      end if
       do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
          do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
             gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
-!    --- okay, if we run out of numerical precision, gw(k) will be NaN.
-!        In case it is NaN, it will not match itself! So we can rescue
-!        this exception. This can only happen for very high CNs.
-         if (gw(k).ne.gw(k)) then
-            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
+         if (norm == 0.0_wp) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ia),ia)) &
+               & - dispm%cn(ii,ia)) < 1e-12_wp) then
                gw(k) = 1.0_wp
             else
                gw(k) = 0.0_wp
@@ -894,18 +902,20 @@ subroutine pbc_d4(dispm,nat,ndim,at,wf,g_a,g_c,covcn,gw,refc6)
             norm = norm + cngw(twf,covcn(i),dispm%cn(ii,ia))
          enddo
       enddo
-      norm = 1._wp / norm
+      if (norm > 1e-80_wp) then
+         norm = 1._wp / norm
+      else
+         norm = 0.0_wp
+      end if
       do ii = 1, dispm%nref(ia)
          k = itbl(ii,i)
          do iii = 1, dispm%ncount(ii,ia)
             twf = iii*wf
             gw(k) = gw(k) + cngw(twf,covcn(i),dispm%cn(ii,ia)) * norm
          enddo
-!    --- okay, if we run out of numerical precision, gw(k) will be NaN.
-!        In case it is NaN, it will not match itself! So we can rescue
-!        this exception. This can only happen for very high CNs.
-         if (gw(k).ne.gw(k)) then
-            if (maxval(dispm%cn(:dispm%nref(ia),ia)).eq.dispm%cn(ii,ia)) then
+         if (norm == 0.0_wp) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ia),ia)) &
+               & - dispm%cn(ii,ia)) < 1e-12_wp) then
                gw(k) = 1.0_wp
             else
                gw(k) = 0.0_wp
@@ -1007,7 +1017,11 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
             dnorm = dnorm + 2*twf*(dispm%cn(iref, ati) - cn(iat)) * gw
          enddo
       end do
-      norm = 1.0_wp / norm
+      if (norm > 1e-80_wp) then
+         norm = 1.0_wp / norm
+      else
+         norm = 0.0_wp
+      end if
       ! acc loop vector private(expw, expd)
       do iref = 1, dispm%nref(ati)
          expw = 0.0_wp
@@ -1021,9 +1035,9 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
          enddo
 
          gwk = expw * norm
-         if (gwk /= gwk) then
-            if (maxval(dispm%cn(:dispm%nref(ati), ati)) &
-               & == dispm%cn(iref, ati)) then
+         if (norm == 0.0_wp) then
+            if (abs(maxval(dispm%cn(:dispm%nref(ati), ati)) &
+               & - dispm%cn(iref, ati)) < 1e-12_wp) then
                gwk = 1.0_wp
             else
                gwk = 0.0_wp
@@ -1033,9 +1047,6 @@ subroutine weight_references(dispm, nat, atoms, g_a, g_c, wf, q, cn, zeff, gam, 
          zerovec(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,zi) * gwk
 
          dgwk = expd*norm-expw*dnorm*norm**2
-         if (dgwk /= dgwk) then
-            dgwk = 0.0_wp
-         endif
          zetadcn(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * dgwk
          zetadq(iref, iat) = dzeta(g_a,gi,dispm%q(iref,ati)+zi,q(iat)+zi) * gwk
          zerodcn(iref, iat) = zeta(g_a,gi,dispm%q(iref,ati)+zi,zi) * dgwk

@@ -81,8 +81,10 @@ OPTIONS
 *--tblite* ::
     use tblite library as implementation for xTB
     
---ceh* ::
-    calculate CEH (Charge-Extended Hückel model) charges and write them to ceh.charges file
+*--ceh <grad> [REAL]* ::
+      calculate CEH (Charge-Extended Hückel model) charges and write them to the ceh.charges file,
+      optionally, calculate numerical gradients and write them to the ceh.charges.numgrad file
+      with an adjustable step size for the numerical gradients.
 
 *--ptb* ::
     performs single-point calculation with the density tight-binding method PTB.

@@ -20,6 +20,7 @@ module xtb_axis
 contains
   subroutine axis(numat,nat,xyz,aa,bb,cc)
     use xtb_splitparam
+    implicit integer (i-n)
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
@@ -237,6 +238,7 @@ end subroutine axis2
 
   subroutine axisvec(numat,nat,xyz,aa,bb,cc,evec)
     use xtb_splitparam
+    implicit integer (i-n)
     implicit double precision (a-h,o-z)
     dimension xyz(3,numat)
     integer nat(numat)
