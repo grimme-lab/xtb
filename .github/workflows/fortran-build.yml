@@ -277,7 +277,7 @@ jobs:
             printenv >> $GITHUB_ENV
          - name: Configure cmake build
            run: >-
-            cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_C_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DBLA_VENDOR=Intel10_64lp
+            cmake -B ${{ env.BUILD_DIR }} -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DCMAKE_C_COMPILER=icx -DCMAKE_Fortran_COMPILER=ifx -DBLA_VENDOR=Intel10_64lp -DWITH_TBLITE=false 
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests
@@ -318,7 +318,7 @@ jobs:
             printenv >> $GITHUB_ENV
          - name: Configure meson build
            run: >-
-            CC=${{ env.CC }} FC=${{ env.FC }} meson setup ${{ env.BUILD_DIR }} --prefix=/ --libdir=lib -Dfortran_link_args="-lifcoremt -static" -Ddefault_library=static -Dlapack=mkl
+            CC=${{ env.CC }} FC=${{ env.FC }} meson setup ${{ env.BUILD_DIR }} --prefix=/ --libdir=lib -Dfortran_link_args="-lifcoremt -static" -Ddefault_library=static -Dlapack=mkl -Dtblite=disabled
          - name: Build project
            run: ninja -C ${{ env.BUILD_DIR }}
          - name: Run unit tests

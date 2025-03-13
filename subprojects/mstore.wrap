@@ -1,4 +1,0 @@
-[wrap-git]
-directory = mstore
-url = https://github.com/grimme-lab/mstore
-revision = v0.3.0

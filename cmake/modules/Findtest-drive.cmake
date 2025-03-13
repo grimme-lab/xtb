@@ -68,6 +68,7 @@ The following cache variables may be set to influence the library detection:
 set(_lib "test-drive")
 set(_pkg "TEST_DRIVE")
 set(_url "https://github.com/fortran-lang/test-drive")
+set(_rev "v0.5.0")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
@@ -76,8 +77,9 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/xtb-utils.cmake")
 
-xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_rev}")
 
 unset(_lib)
 unset(_pkg)
 unset(_url)
+unset(_rev)
