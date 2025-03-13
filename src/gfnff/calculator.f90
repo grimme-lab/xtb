@@ -284,7 +284,7 @@ subroutine singlepoint(self, env, mol, chk, printlevel, restart, &
       if (.not.set%silent.and.allocated(solvation)) then
          write(env%unit,outfmt) "total w/o Gsolv   ", &
             &  results%e_total-results%g_solv, "Eh   "
-         write(env%unit,outfmt) "total w/o Gsasa/hb", &
+         write(env%unit,outfmt) "w/o Gsasa/hb/shift", &
             &  results%e_total-results%g_sasa-results%g_hb-results%g_shift, "Eh   "
       endif
       write(env%unit,outfmt) "gradient norm     ", results%gnorm,  "Eh/a0"
