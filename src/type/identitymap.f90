@@ -19,7 +19,6 @@
 module xtb_type_identitymap
    use xtb_mctc_accuracy, only : wp
    use xtb_mctc_resize, only : resize
-   use xtb_mctc_symbols, only : symbolLength
    use xtb_type_molecule, only : TMolecule
    implicit none
    private
@@ -44,7 +43,7 @@ module xtb_type_identitymap
       integer, allocatable :: num(:)
 
       !> Element symbols for each id
-      character(len=symbolLength), allocatable :: sym(:)
+      character(len=:), allocatable :: sym(:)
 
       !> Maps from id to its atoms
       type(TAtomicMap), allocatable :: map(:)
@@ -121,7 +120,7 @@ subroutine initIdentityMapFromArrays(self, id, sym, num)
    integer, intent(in) :: num(:)
 
    !> Element symbols for each atom
-   character(len=symbolLength), intent(in) :: sym(:)
+   character(len=:), allocatable, intent(in) :: sym(:)
 
    integer :: nAt, nId
    integer :: iId, iAt, thisAt, initialSize, nMp
@@ -132,7 +131,7 @@ subroutine initIdentityMapFromArrays(self, id, sym, num)
 
    allocate(self%map(nId))
    allocate(self%num(nId))
-   allocate(self%sym(nId))
+   allocate(character(len=len(sym)) :: self%sym(nId))
 
    initialSize = nAt / nId + 1
    allocate(pos(initialSize))
