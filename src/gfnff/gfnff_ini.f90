@@ -514,7 +514,7 @@ subroutine gfnff_ini(env,pr,makeneighbor,mol,gen,param,topo,neigh,efield,accurac
       write(env%unit,'(10x,"making topology EEQ charges ...")')
       if(topo%nfrag.le.1) then                           ! nothing is known
 !     first check for fragments 
-      call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nbf,topo%nfrag,topo%fraglist) 
+      call mrecgffPBC(mol%n,neigh%numctr,neigh%numnb,neigh%nb,topo%nfrag,topo%fraglist) 
       write(env%unit,'(10x,"#fragments for EEQ constrain: ",i0)') topo%nfrag
 !     read QM info if it exists
       call open_file(ich, 'charges', 'r')
