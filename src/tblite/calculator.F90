@@ -474,9 +474,9 @@ subroutine num_grad_chrg(env, mol, tblite)
    step2 = 0.5_wp / step
    call get_ceh(env,mol,tblite)
    
-   !$omp parallel do private(j, cehr, cehl, local_mol) shared(env, numgrad, mol, tblite, step, step2)
+   !$omp parallel do private(j, cehr, cehl, local_mol) shared(env, numgrad, mol, tblite, step, step2) default(none)
    do i = 1, mol%n
-      local_mol = mol    ! create a thread-private copy of mol
+      call local_mol%copy(mol) ! create a thread-private copy of mol
       do j = 1, 3
          local_mol%xyz(j,i) = local_mol%xyz(j,i) + step
          call get_ceh(env, local_mol, tblite, cehr)
