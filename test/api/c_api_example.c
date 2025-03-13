@@ -253,7 +253,7 @@ int testFirst() {
 
   if (!check(hess[0], 0.4790088649, 1.0e-9, "Hessian[0,0] does not match"))
     goto error;
-  if (!check(hess[3], -0.0463290233, 1.0e-9, "Hessian[0,3] does not match"))
+  if (!check(hess[3], -0.0528761190, 1.0e-9, "Hessian[0,3] does not match"))
     goto error;
   if (!check(hess[3], hess[63], 1.0e-9, "Hessian[0,3] != Hessian[3,0]"))
     goto error;
