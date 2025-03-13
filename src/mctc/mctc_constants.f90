@@ -21,7 +21,7 @@ module xtb_mctc_constants
    private
    real(wp),public,parameter :: pi = 3.1415926535897932384626433832795029_wp
 !  √π
-   real(wp),public,parameter ::  sqrtpi  = sqrt(pi)
+   real(wp),public,parameter :: sqrtpi = sqrt(pi)
 !  2×π
    real(wp),public,parameter :: twopi = 2.0_wp * pi
 !  4×π
@@ -34,10 +34,17 @@ module xtb_mctc_constants
    real(wp),public,parameter :: kB = 3.166808578545117e-06_wp
 !  speed of light c in vacuum in a.u.
    real(wp),public,parameter :: lightspeed = 137.0359990740_wp
-   ! Boltzmann constant in SI units
+   ! Boltzmann constant in SI units (codata 2018)
    real(wp),public,parameter :: kB_SI = 1.380649e-23_wp
    ! Speed of light in SI units
    real(wp),public,parameter :: lightspeed_SI = 299792458.0_wp
-   ! Planck constant in SI units
+   ! Planck constant in SI units (codata 2018)
    real(wp),public,parameter :: h_SI = 6.62607015e-34_wp
+   !> standard atmosphere (Pa) (codata 2018)
+   real(wp),public,parameter :: standard_atmosphere = 101325e0_wp
+   !> Bohr radius (m) (codata 2018)
+   real(wp),public,parameter :: Bohr_radius = 5.29177210903e-11_wp
+   !> molar gas constant (J mol^-1 K^-1) (codata 2018)
+   real(wp),public,parameter :: molar_gas_constant = 8.314462618_wp
+
 end module xtb_mctc_constants
