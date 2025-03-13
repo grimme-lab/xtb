@@ -68,6 +68,7 @@ The following cache variables may be set to influence the library detection:
 set(_lib "cpcmx")
 set(_pkg "cpcmx")
 set(_url "https://github.com/grimme-lab/CPCM-X")
+set(_rev "v1.1.0")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
@@ -75,8 +76,9 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/xtb-utils.cmake")
 
-xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+xtb_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_rev}")
 
 unset(_lib)
 unset(_pkg)
 unset(_url)
+unset(_rev)
